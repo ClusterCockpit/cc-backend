@@ -152,29 +152,34 @@ sub buildCondition {
 sub printJobStat {
     my $conditionstring = shift;
 
-    my $query = 'SELECT COUNT(id), SUM(duration)/3600 FROM job '.$conditionstring;
-    my ($count, $coreHours) = $dbh->selectrow_array($query);
+    my $query = 'SELECT COUNT(id), SUM(duration)/3600, SUM(duration*num_nodes)/3600 FROM job '.$conditionstring;
+    my ($count, $walltime, $nodeHours) = $dbh->selectrow_array($query);
 
-    print "=================================\n";
-    print "Job count: $count\n";
-    print "Core hours: $coreHours \n";
+    if ( $count > 0 ) {
+        print "=================================\n";
+        print "Job count: $count\n";
+        print "Total walltime [h]: $walltime \n";
+        print "Total node hours [h]: $nodeHours \n";
 
-    $query = 'SELECT num_nodes, COUNT(*) FROM job '.$conditionstring.' GROUP BY 1';
-    my @histo_num_nodes = $dbh->selectall_array($query);
-    print "\nHistogram: Number of nodes\n";
-    print "nodes\tcount\n";
+        $query = 'SELECT num_nodes, COUNT(*) FROM job '.$conditionstring.' GROUP BY 1';
+        my @histo_num_nodes = $dbh->selectall_array($query);
+        print "\nHistogram: Number of nodes\n";
+        print "nodes\tcount\n";
 
-    foreach my $bin ( @histo_num_nodes ) {
-        print "$bin->[0]\t$bin->[1]\n";
-    }
+        foreach my $bin ( @histo_num_nodes ) {
+            print "$bin->[0]\t$bin->[1]\n";
+        }
 
-    $query = 'SELECT duration/3600, COUNT(*) FROM job '.$conditionstring.' GROUP BY 1';
-    my @histo_runtime = $dbh->selectall_array($query);
-    print "\nHistogram: Runtime\n";
-    print "hours\tcount\n";
+        $query = 'SELECT duration/3600, COUNT(*) FROM job '.$conditionstring.' GROUP BY 1';
+        my @histo_runtime = $dbh->selectall_array($query);
+        print "\nHistogram: Walltime\n";
+        print "hours\tcount\n";
 
-    foreach my $bin ( @histo_runtime ) {
-        print "$bin->[0]\t$bin->[1]\n";
+        foreach my $bin ( @histo_runtime ) {
+            print "$bin->[0]\t$bin->[1]\n";
+        }
+    } else {
+        print "No jobs\n";
     }
 }
 
