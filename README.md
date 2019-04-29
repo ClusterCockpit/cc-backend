@@ -6,7 +6,7 @@ A standardized interface and reference implementation for HPC job data
  * Getopt::Long
  * Pod::Usage
  * DateTime::Format::Strptime
- * DBI::SqLite
+ * DBD::SQLite
 
 # Setup
 
