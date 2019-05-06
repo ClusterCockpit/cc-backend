@@ -47,22 +47,30 @@ DateTime::Format::Strptime->new(
 
 my $help = 0;
 my $man = 0;
+my $hasprofile = '';
 my $mode = 'count';
 my $user = '';
 my $project = '';
 my @numnodes;
 my @starttime;
 my @duration;
+my @mem_used;
+my @mem_bandwidth;
+my @flops_any;
 
 GetOptions (
     'help'           => \$help,
     'man'            => \$man,
+    'hasprofile=s'   => \$hasprofile,
     'mode=s'         => \$mode,
     'user=s'         => \$user,
     'project=s'      => \$project,
     'numnodes=i{2}'  => \@numnodes,
     'starttime=s{2}' => \@starttime,
-    'duration=s{2}'  => \@duration
+    'duration=s{2}'  => \@duration,
+    'mem_used=i{2}'  => \@mem_used,
+    'mem_bandwidth=i{2}'  => \@mem_bandwidth,
+    'flops_any=i{2}'  => \@flops_any
 ) or pod2usage(2);
 
 my %attr = (
@@ -225,6 +233,34 @@ if ( @starttime ) {
 if ( @duration ) {
     ($add, $from, $to) = processRange( parseDuration($duration[0]), parseDuration($duration[1]));
     buildCondition('duration');
+}
+
+if ( @mem_used ) {
+    $hasprofile = 'true';
+    ($add, $from, $to) = processRange($mem_used[0], $mem_used[1]);
+    buildCondition('mem_used');
+}
+
+if ( @mem_bandwidth ) {
+    $hasprofile = 'true';
+    ($add, $from, $to) = processRange($mem_bandwidth[0], $mem_bandwidth[1]);
+    buildCondition('mem_bw');
+}
+
+if ( @flops_any ) {
+    $hasprofile = 'true';
+    ($add, $from, $to) = processRange($flops_any[0], $flops_any[1]);
+    buildCondition('flops_any');
+}
+
+if ( $hasprofile ) {
+    if ( $hasprofile eq 'true' ) {
+        push @conditions, "has_profile=1";
+    } elsif ( $hasprofile eq 'false' ) {
+        push @conditions, "has_profile=0";
+    } else {
+        print "Unknown value for option has_profile: $hasprofile. Can be true or false.\n";
+    }
 }
 
 my $query;

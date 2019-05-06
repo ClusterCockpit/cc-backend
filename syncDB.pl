@@ -42,7 +42,8 @@ my %attr = (
 );
 
 my $dbh = DBI->connect(
-    "DBI:SQLite:dbname=$database", "", "", \%attr);
+    "DBI:SQLite:dbname=$database", "", "", \%attr)
+    or die "Could not connect to database: $DBI::errstr";
 
 my $sth_select_job = $dbh->prepare(qq{
     SELECT id, user_id, job_id, cluster_id,
@@ -51,8 +52,18 @@ my $sth_select_job = $dbh->prepare(qq{
     WHERE job_id=?
     });
 
+my $sth_update_job = $dbh->prepare(qq{
+    UPDATE job
+    SET has_profile = ?,
+        mem_used = ?,
+        flops_any = ?,
+        mem_bw = ?
+    WHERE id=?;
+    });
+
 my $jobcount = 0;
 my $wrongjobcount = 0;
+my ($user_id, $num_nodes, $start_time, $stop_time, $queue, $duration, $db_id);
 
 opendir my $dh, $basedir or die "can't open directory: $!";
 while ( readdir $dh ) {
@@ -65,31 +76,35 @@ while ( readdir $dh ) {
     my $jobmeta_json = read_file("$basedir/$jobID/meta.json");
     my $job = decode_json $jobmeta_json;
     my @row = $dbh->selectrow_array($sth_select_job, undef, $jobID);
+    my ($db_id, $db_user_id, $db_job_id, $db_cluster_id, $db_start_time, $db_stop_time, $db_duration, $db_num_nodes);
+
+    # print Dumper($job);
 
     if ( @row ) {
+        ($db_id,
+            $db_user_id,
+            $db_job_id,
+            $db_cluster_id,
+            $db_start_time,
+            $db_stop_time,
+            $db_duration,
+            $db_num_nodes) = @row;
+
+        my $footprint = $job->{footprint};
+
+        # print "$footprint->{mem_used}->{avg}, $footprint->{flops_any}->{avg}, $footprint->{mem_bw}->{avg}\n";
+
+        $sth_update_job->execute(
+            1,
+            $footprint->{mem_used}->{avg},
+            $footprint->{flops_any}->{avg},
+            $footprint->{mem_bw}->{avg},
+            $db_id
+        );
 
         $jobcount++;
-    # print Dumper(@row);
-        my $duration_diff = abs($job->{duration} - $row[6]);
-
-        if ( $duration_diff > 120 ) {
-            $needsUpdate = 1;
-            # print "$jobID DIFF DURATION $duration_diff\n";
-            # print "CC $row[4] - $row[5]\n";
-            # print "DB $job->{start_time} - $job->{stop_time}\n"
-        }
-
-        if ( $row[7] != $job->{num_nodes} ){
-            $needsUpdate = 1;
-            # print "$jobID DIFF NODES $row[7] $job->{num_nodes}\n";
-        }
     } else {
         print "$jobID NOT in DB!\n";
-    }
-
-    if ( $needsUpdate ){
-        $wrongjobcount++;
-        print "$jobID\n";
     }
 }
 closedir $dh or die "can't close directory: $!";
