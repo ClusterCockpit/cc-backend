@@ -264,7 +264,7 @@ if ( $hasprofile ) {
 }
 
 my $query;
-my $conditionstring;
+my $conditionstring = '';
 
 if ( @conditions ){
     $conditionstring = ' WHERE ';
