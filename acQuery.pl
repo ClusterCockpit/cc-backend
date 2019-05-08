@@ -191,7 +191,6 @@ sub printJobStat {
     }
 }
 
-
 sub printJob {
     my $job = shift;
 
