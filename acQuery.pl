@@ -160,16 +160,19 @@ sub buildCondition {
 sub printPerfStat {
     my $conditionstring = shift;
 
-    my $query = 'SELECT COUNT(id), SUM(duration)/3600, SUM(duration*num_nodes)/3600 FROM job '.$conditionstring;
+    my $query = 'SELECT COUNT(*), SUM(duration)/3600, SUM(duration*num_nodes)/3600 FROM job '.$conditionstring;
     my ($count, $walltime, $nodeHours) = $dbh->selectrow_array($query);
 
     if ( $count > 0 ) {
+        $query = 'SELECT COUNT(*) FROM job '.$conditionstring.' AND has_profile=1';
+        my ($perfcount) = $dbh->selectrow_array($query);
         print "=================================\n";
         print "Job count: $count\n";
+        print "Jobs with performance profile: $perfcount\n";
         print "Total walltime [h]: $walltime \n";
         print "Total node hours [h]: $nodeHours \n";
 
-        $query = 'SELECT ROUND(mem_used,-2), COUNT(*) FROM job '.$conditionstring.' AND has_profile=1 GROUP BY 1';
+        $query = 'SELECT ROUND(mem_used), COUNT(*) FROM job '.$conditionstring.' AND has_profile=1 GROUP BY 1';
         my @histo_mem_used = $dbh->selectall_array($query);
         print "\nHistogram: Mem used\n";
         print "Mem\tcount\n";
@@ -180,8 +183,18 @@ sub printPerfStat {
             print "$bin->[0]\t$bin->[1]\t$str\n";
         }
 
+        $query = 'SELECT ROUND(mem_bw), COUNT(*) FROM job '.$conditionstring.' AND has_profile=1 GROUP BY 1';
+        my @histo_mem_bandwidth = $dbh->selectall_array($query);
+        print "\nHistogram: Memory bandwidth\n";
+        print "BW\tcount\n";
 
-        $query = 'SELECT ROUND(flops_any,-2), COUNT(*) FROM job '.$conditionstring.' AND has_profile=1 GROUP BY 1';
+        foreach my $bin ( @histo_mem_bandwidth ) {
+            my $bar = log $bin->[1]; my $str = '';
+            while (length($str)<$bar) { $str = $str.'*'; }
+            print "$bin->[0]\t$bin->[1]\t$str\n";
+        }
+
+        $query = 'SELECT ROUND(flops_any), COUNT(*) FROM job '.$conditionstring.' AND has_profile=1 GROUP BY 1';
         my @histo_flops_any = $dbh->selectall_array($query);
         print "\nHistogram: Flops any\n";
         print "flops\tcount\n";
@@ -191,8 +204,6 @@ sub printPerfStat {
             while (length($str)<$bar) { $str = $str.'*'; }
             print "$bin->[0]\t$bin->[1]\t$str\n";
         }
-
-
     } else {
         print "No jobs\n";
     }
@@ -396,20 +407,23 @@ Specify output mode. Mode can be one of:
 
 =over 4
 
-=item B<ids>
+=item B<ids ->
 Print list of job ids matching conditions. One job id per line.
 
-=item B<query>
+=item B<query ->
 Print the query string and then exit.
 
-=item B<count>
+=item B<count ->
 Only output the number of jobs matching the conditions. (Default mode)
 
-=item B<list>
+=item B<list ->
 Output a record of every job matching the conditions.
 
-=item B<stat>
+=item B<stat ->
 Output job statistic for all jobs matching the conditions.
+
+=item B<perf ->
+Output job performance footprint statistic for all jobs matching the conditions.
 
 =back
 
