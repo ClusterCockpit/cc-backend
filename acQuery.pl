@@ -157,6 +157,47 @@ sub buildCondition {
     }
 }
 
+sub printPerfStat {
+    my $conditionstring = shift;
+
+    my $query = 'SELECT COUNT(id), SUM(duration)/3600, SUM(duration*num_nodes)/3600 FROM job '.$conditionstring;
+    my ($count, $walltime, $nodeHours) = $dbh->selectrow_array($query);
+
+    if ( $count > 0 ) {
+        print "=================================\n";
+        print "Job count: $count\n";
+        print "Total walltime [h]: $walltime \n";
+        print "Total node hours [h]: $nodeHours \n";
+
+        $query = 'SELECT ROUND(mem_used,-2), COUNT(*) FROM job '.$conditionstring.' AND has_profile=1 GROUP BY 1';
+        my @histo_mem_used = $dbh->selectall_array($query);
+        print "\nHistogram: Mem used\n";
+        print "Mem\tcount\n";
+
+        foreach my $bin ( @histo_mem_used ) {
+            my $bar = log $bin->[1]; my $str = '';
+            while (length($str)<$bar) { $str = $str.'*'; }
+            print "$bin->[0]\t$bin->[1]\t$str\n";
+        }
+
+
+        $query = 'SELECT ROUND(flops_any,-2), COUNT(*) FROM job '.$conditionstring.' AND has_profile=1 GROUP BY 1';
+        my @histo_flops_any = $dbh->selectall_array($query);
+        print "\nHistogram: Flops any\n";
+        print "flops\tcount\n";
+
+        foreach my $bin ( @histo_flops_any ) {
+            my $bar = log $bin->[1]; my $str = '';
+            while (length($str)<$bar) { $str = $str.'*'; }
+            print "$bin->[0]\t$bin->[1]\t$str\n";
+        }
+
+
+    } else {
+        print "No jobs\n";
+    }
+}
+
 sub printJobStat {
     my $conditionstring = shift;
 
@@ -175,7 +216,9 @@ sub printJobStat {
         print "nodes\tcount\n";
 
         foreach my $bin ( @histo_num_nodes ) {
-            print "$bin->[0]\t$bin->[1]\n";
+            my $bar = log $bin->[1]; my $str = '';
+            while (length($str)<$bar) { $str = $str.'*'; }
+            print "$bin->[0]\t$bin->[1]\t$str\n";
         }
 
         $query = 'SELECT duration/3600, COUNT(*) FROM job '.$conditionstring.' GROUP BY 1';
@@ -184,7 +227,9 @@ sub printJobStat {
         print "hours\tcount\n";
 
         foreach my $bin ( @histo_runtime ) {
-            print "$bin->[0]\t$bin->[1]\n";
+            my $bar = log $bin->[1]; my $str = '';
+            while (length($str)<$bar) { $str = $str.'*'; }
+            print "$bin->[0]\t$bin->[1]\t$str\n";
         }
     } else {
         print "No jobs\n";
@@ -289,6 +334,12 @@ if ( $mode eq 'stat' ) {
     exit;
 }
 
+if ( $mode eq 'perf' ) {
+    printPerfStat($conditionstring);
+    exit;
+}
+
+
 $query = 'SELECT * FROM job'.$conditionstring;
 my $sth = $dbh->prepare($query);
 $sth->execute;
@@ -326,6 +377,9 @@ acQuery.pl - Wrapper script to access sqlite job database.
    --duration <from> <to>  Specify duration range of jobs
    --numnodes <from> <to>  Specify range for number of nodes of job
    --starttime <from> <to>  Specify range for start time of jobs
+   --mem_used <from> <to>  Specify range for average main memory capacity of job
+   --mem_bandwidth <from> <to>  Specify range for average main memory bandwidth of job
+   --flops_any <from> <to>  Specify range for average flop any rate of job
 
 =head1 OPTIONS
 
@@ -343,13 +397,13 @@ Specify output mode. Mode can be one of:
 =over 4
 
 =item B<ids>
-Print list of job ids matching conditions. One job id per line. (default mode)
+Print list of job ids matching conditions. One job id per line.
 
 =item B<query>
 Print the query string and then exit.
 
 =item B<count>
-Only output the number of jobs matching the conditions.
+Only output the number of jobs matching the conditions. (Default mode)
 
 =item B<list>
 Output a record of every job matching the conditions.
@@ -388,9 +442,37 @@ zero condition is start time smaller than first argument. If first
 argument is zero condition is start time larger than second argument.
 Start time must be given as date in the following format: %d.%m.%Y
 
+=item B<--mem_used>
+Specify condition for average main memory capacity used by job. This option takes two
+arguments: If both arguments are positive integers the condition is memory used is
+between first argument and second argument. If the second argument is
+zero condition is memory used is smaller than first argument. If first
+argument is zero condition is memory used is larger than second argument.
+
+=item B<--mem_bandwidth>
+Specify condition for average main memory bandwidth used by job. This option takes two
+arguments: If both arguments are positive integers the condition is memory bandwidth is
+between first argument and second argument. If the second argument is
+zero condition is memory bandwidth is smaller than first argument. If first
+argument is zero condition is memory bandwidth is larger than second argument.
+
+=item B<--flops_any>
+Specify condition for average flops any of job. This option takes two
+arguments: If both arguments are positive integers the condition is flops any is
+between first argument and second argument. If the second argument is
+zero condition is flops any is smaller than first argument. If first
+argument is zero condition is flops any is larger than second argument.
+
 =back
 
 =head1 DESCRIPTION
+
+This script allows to create queries for the sqlite job database. Output format can
+be a list of job ids (ids), a verbose output of job infos (list), just the job query
+without executing it (query), a statistic analysis for jobs mathing the query conditions (stat)
+and just the job count (count). Job count is the default. The script expects the sqlite
+database in a file jobDB in the same directory. Optionally one can specify another database
+file name as command line argument.
 
 =head1 EXAMPLES
 
