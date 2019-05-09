@@ -75,10 +75,17 @@ my %row;
 $sth_select_all->bind_columns( \( @row{ @{$sth->{NAME_lc} } } ));
 
 while ($sth_select_all->fetch) {
-    print "$row{job_id}\n";
+    my $user_id = $row->{'user_id'};
+
+    if ( not exists $user_lookup{$user_id}) {
+        print "New user $user_id\n";
+
+        $user_index++;
+        $user_lookup{$user_id} = $user_index;
+    }
 }
 
-
+exit;
 
 opendir my $dh, $basedir or die "can't open directory: $!";
 while ( readdir $dh ) {
