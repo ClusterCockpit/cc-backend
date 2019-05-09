@@ -50,86 +50,92 @@ my $sth_select_all = $dbh->prepare(qq{
     FROM job;
     });
 
-my $sth_select_job = $dbh->prepare(qq{
-    SELECT id, user_id, project_id
-    FROM job
-    WHERE job_id=?
-    });
-
 my $sth_update_job = $dbh->prepare(qq{
     UPDATE job
     SET user_id = ?,
-        project_id = ?,
-        flops_any = ?,
-        mem_bw = ?
+        project_id = ?
     WHERE id=?;
     });
 
-my ($user_id, $num_nodes, $start_time, $stop_time, $queue, $duration, $db_id);
-
-# build user lookup
-$sth_select_all->execute;
 my $user_index = 0; my $project_index = 0;
 my %user_lookup; my %project_lookup;
+my %user_group;
 my %row;
-$sth_select_all->bind_columns( \( @row{ @{$sth->{NAME_lc} } } ));
+
+# build lookups
+$sth_select_all->execute;
+$sth_select_all->bind_columns( \( @row{ @{$sth_select_all->{NAME_lc} } } ));
 
 while ($sth_select_all->fetch) {
-    my $user_id = $row->{'user_id'};
+    my $user_id = $row{'user_id'};
+    my $project_id = $row{'project_id'};
 
     if ( not exists $user_lookup{$user_id}) {
-        print "New user $user_id\n";
-
         $user_index++;
         $user_lookup{$user_id} = $user_index;
+        $user_group{$user_id} = $project_id;
+    }
+
+    if ( not exists $project_lookup{$project_id}) {
+        $project_index++;
+        $project_lookup{$project_id} = $project_index;
     }
 }
 
-exit;
+write_file("user-conversion.json", encode_json \%user_lookup);
+write_file("project-conversion.json", encode_json \%project_lookup);
+print "$user_index total users\n";
+print "$project_index total projects\n";
 
+# convert database
+$sth_select_all->execute;
+$sth_select_all->bind_columns( \( @row{ @{$sth_select_all->{NAME_lc} } } ));
+
+while ($sth_select_all->fetch) {
+    my $user_id = 'user_'.$user_lookup{$row{'user_id'}};
+    my $project_id = 'project_'.$project_lookup{$row{'project_id'}};
+
+    # print "$row{'id'}: $user_id - $project_id\n";
+
+    $sth_update_job->execute(
+        $user_id,
+        $project_id,
+        $row{'id'}
+    );
+}
+
+# convert job meta file
 opendir my $dh, $basedir or die "can't open directory: $!";
 while ( readdir $dh ) {
     chomp;
     next if $_ eq '.' or $_ eq '..';
 
     my $jobID = $_;
-    my $needsUpdate = 0;
-
     my $jobmeta_json = read_file("$basedir/$jobID/meta.json");
     my $job = decode_json $jobmeta_json;
-    my @row = $dbh->selectrow_array($sth_select_job, undef, $jobID);
-    my ($db_id, $db_user_id, $db_job_id, $db_cluster_id, $db_start_time, $db_stop_time, $db_duration, $db_num_nodes);
 
-    # print Dumper($job);
+    my $user = $job->{'user_id'};
+    my $project;
 
-    if ( @row ) {
-        ($db_id,
-            $db_user_id,
-            $db_job_id,
-            $db_cluster_id,
-            $db_start_time,
-            $db_stop_time,
-            $db_duration,
-            $db_num_nodes) = @row;
-
-        my $footprint = $job->{footprint};
-
-        # print "$footprint->{mem_used}->{avg}, $footprint->{flops_any}->{avg}, $footprint->{mem_bw}->{avg}\n";
-
-        $sth_update_job->execute(
-            1,
-            $footprint->{mem_used}->{avg},
-            $footprint->{flops_any}->{avg},
-            $footprint->{mem_bw}->{avg},
-            $db_id
-        );
-
-        $jobcount++;
+    if ( exists $user_lookup{$user}) {
+        $project = $user_group{$user};
+        $user = 'user_'.$user_lookup{$user};
     } else {
-        print "$jobID NOT in DB!\n";
+        die "$user not in lookup hash!\n";
     }
+
+    if ( exists $project_lookup{$project}) {
+        $project = 'project_'.$project_lookup{$project};
+    } else {
+        die "$project not in lookup hash!\n";
+    }
+
+    $job->{user_id} = $user;
+    $job->{project_id} = $project;
+    $jobmeta_json = encode_json $job;
+    # print "$jobmeta_json\n";
+    write_file("$basedir/$jobID/meta.json", $jobmeta_json);
 }
 closedir $dh or die "can't close directory: $!";
-$dbh->disconnect;
 
-print "$wrongjobcount of $jobcount need update\n";
+$dbh->disconnect;
