@@ -40,7 +40,7 @@ my ($add, $from, $to);
 
 my $dateParser =
 DateTime::Format::Strptime->new(
-    pattern => '%d.%m.%Y',
+    pattern => '%d.%m.%Y/%H:%M',
     time_zone => 'Europe/Berlin',
     on_error  => 'undef'
 );
@@ -440,7 +440,7 @@ arguments: If both arguments are positive integers the condition is start time
 between first argument and second argument. If the second argument is
 zero condition is start time smaller than first argument. If first
 argument is zero condition is start time larger than second argument.
-Start time must be given as date in the following format: %d.%m.%Y
+Start time must be given as date in the following format: %d.%m.%Y/%H:%M.
 
 =item B<--mem_used>
 Specify condition for average main memory capacity used by job. This option takes two
@@ -475,6 +475,10 @@ database in a file jobDB in the same directory. Optionally one can specify anoth
 file name as command line argument.
 
 =head1 EXAMPLES
+
+C<./acQuery.pl  --duration 5m 0  --numnodes 0 50>
+
+C<./acQuery.pl --project exzi --starttime 01.01.2019/00:00 31.03.2019/23:59 --mode stat>
 
 =head1 AUTHOR
 
