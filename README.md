@@ -102,3 +102,112 @@ Options:
 ```
 
 # Examples 
+
+Query jobs with conditions:
+
+```
+[HPCJobDatabase] ./acQuery.pl   --duration 20h 24h  --starttime 01.08.2018/12:00 01.03.2019/12:00
+COUNT 6476
+```
+
+Query jobs from alternative database file (default is jobDB):
+
+```
+[HPCJobDatabase] ./acQuery.pl  --project project_30   --starttime 01.08.2018/12:00 01.03.2019/12:00 -- jobDB-anon-emmy
+COUNT 21560
+```
+
+Get job statistics output:
+
+```
+[HPCJobDatabase] ./acQuery.pl --project project_30  --mode stat --duration 0 20h  --starttime 01.08.2018/12:00 01.03.2019/12:00  -- jobDB-anon-emmy
+=================================
+Job count: 747
+Total walltime [h]: 16334 
+Total node hours [h]: 78966 
+
+Histogram: Number of nodes
+nodes   count
+1       54      ****
+2       1
+3       1
+4       36      ****
+5       522     *******
+6       118     *****
+7       15      ***
+
+Histogram: Walltime
+hours   count
+20      250     ******
+21      200     ******
+22      114     *****
+23      183     ******
+```
+
+Get job performance statistics:
+
+```
+[HPCJobDatabase] ./acQuery.pl --project project_30  --mode perf --duration 0 20h --numnodes 1 4  --starttime 01.08.2018/12:00 01.03.2019/12:00  -- jobDB-anon-emmy
+=================================
+Job count: 92
+Jobs with performance profile: 48
+Total walltime [h]: 2070 
+Total node hours [h]: 4332 
+
+Histogram: Mem used
+Mem     count
+2       3       **
+3       4       **
+18      2       *
+19      3       **
+20      2       *
+21      1
+22      2       *
+23      5       **
+24      2       *
+25      1
+26      1
+27      3       **
+29      1
+30      2       *
+31      1
+34      1
+35      1
+36      1
+41      1
+42      2       *
+43      2       *
+44      1
+49      1
+50      2       *
+51      1
+52      1
+53      1
+
+Histogram: Memory bandwidth
+BW      count
+1       1
+2       9       ***
+3       1
+4       1
+5       4       **
+6       2       *
+7       10      ***
+8       9       ***
+9       11      ***
+
+Histogram: Flops any
+flops   count
+1       3       **
+2       1
+3       4       **
+4       3       **
+5       9       ***
+6       10      ***
+7       11      ***
+85      1
+225     1
+236     1
+240     2       *
+244     2       *
+```
