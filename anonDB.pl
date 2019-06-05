@@ -50,6 +50,12 @@ my $sth_select_all = $dbh->prepare(qq{
     FROM job;
     });
 
+my $sth_select_job = $dbh->prepare(qq{
+    SELECT id, user_id, project_id
+    FROM job
+    WHERE job_id=?;
+    });
+
 my $sth_update_job = $dbh->prepare(qq{
     UPDATE job
     SET user_id = ?,
@@ -115,6 +121,11 @@ while ( readdir $dh ) {
     my $job = decode_json $jobmeta_json;
 
     my $user = $job->{'user_id'};
+
+    # if ( $user =~ /^user_.*/ ) {
+    #     print "$jobID $user\n";
+    # }
+
     my $project;
 
     if ( exists $user_lookup{$user}) {

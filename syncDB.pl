@@ -92,15 +92,21 @@ while ( readdir $dh ) {
 
         my $footprint = $job->{footprint};
 
+        if ( $job->{user_id} ne $db_user_id ) {
+            print "$jobID $job->{user_id} $db_user_id\n";
+            $job->{user_id} = $db_user_id;
+        }
+
+
         # print "$footprint->{mem_used}->{avg}, $footprint->{flops_any}->{avg}, $footprint->{mem_bw}->{avg}\n";
 
-        $sth_update_job->execute(
-            1,
-            $footprint->{mem_used}->{avg},
-            $footprint->{flops_any}->{avg},
-            $footprint->{mem_bw}->{avg},
-            $db_id
-        );
+        # $sth_update_job->execute(
+        #     1,
+        #     $footprint->{mem_used}->{avg},
+        #     $footprint->{flops_any}->{avg},
+        #     $footprint->{mem_bw}->{avg},
+        #     $db_id
+        # );
 
         $jobcount++;
     } else {

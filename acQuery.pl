@@ -382,12 +382,13 @@ acQuery.pl - Wrapper script to access sqlite job database.
    Help Options:
    --help  Show help text
    --man   Show man page
+   --hasprofile <true|false>  Only show jobs with timerseries metric data
    --mode <mode>  Set the operation mode
    --user <user_id> Search for jobs of specific user
    --project <project_id> Search for jobs of specific project
-   --duration <from> <to>  Specify duration range of jobs
    --numnodes <from> <to>  Specify range for number of nodes of job
    --starttime <from> <to>  Specify range for start time of jobs
+   --duration <from> <to>  Specify duration range of jobs
    --mem_used <from> <to>  Specify range for average main memory capacity of job
    --mem_bandwidth <from> <to>  Specify range for average main memory bandwidth of job
    --flops_any <from> <to>  Specify range for average flop any rate of job
@@ -402,7 +403,10 @@ Show a brief help information.
 =item B<--man>
 Read the manual, with examples
 
-=item B<--mode [012]>
+=item B<--hasprofile [true|false]>
+Only show jobs with or without timerseries metric data
+
+=item B<--mode [ids|query|count|list|stat|perf]>
 Specify output mode. Mode can be one of:
 
 =over 4
