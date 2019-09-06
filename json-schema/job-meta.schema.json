@@ -1,0 +1,195 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "http://example.com/job-meta.schema.json",
+    "title": "Job meta data",
+    "description": "Meta data information of a HPC job",
+    "type": "object",
+    "properties": {
+        "job_id": {
+            "description": "The unique identifier of a job",
+            "type": "string"
+        },
+        "user_id": {
+            "description": "The unique identifier of a user",
+            "type": "string"
+        },
+        "project_id": {
+            "description": "The unique identifier of a project",
+            "type": "string"
+        },
+        "cluster_id": {
+            "description": "",
+            "type": "string"
+        },
+        "num_nodes": {
+            "description": "Number of nodes used",
+            "type": "integer"
+        },
+        "start_time": {
+            "description": "Start epoch time stamp in seconds",
+            "type": "integer"
+        },
+        "stop_time": {
+            "description": "Stop epoch time stamp in seconds",
+            "type": "integer"
+        },
+        "duration": {
+            "description": "Duration of job in seconds",
+            "type": "integer"
+        },
+        "nodes": {
+            "description": "List of nodes",
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+        },
+        "tags": {
+            "description": "List of tags",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    }
+                },
+                "required": [ "name", "type" ]
+            },
+            "uniqueItems": true
+        },
+        "statistics": {
+            "description": "Job statistic data",
+            "type": "object",
+            "properties": {
+                "mem_used": {
+                    "description": "Memory capacity used (required)",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "flops_any": {
+                    "description": "Total flop rate with DP flops scaled up (required)",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "mem_bw": {
+                    "description": "Main memory bandwidth (required)",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "net_bw": {
+                    "description": "Total fast interconnect network bandwidth (required)",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "file_bw": {
+                    "description": "Total file IO bandwidth (required)",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "ipc": {
+                    "description": "Instructions executed per cycle",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "cpu_used": {
+                    "description": "CPU core utilization",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "flops_dp": {
+                    "description": "Double precision flop rate",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "flops_sp": {
+                    "description": "Single precision flops rate",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "rapl_power": {
+                    "description": "CPU power consumption",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "gpu_used": {
+                    "description": "GPU utilization",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "gpu_mem_used": {
+                    "description": "GPU memory capacity used",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "gpu_power": {
+                    "description": "GPU power consumption",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "clock": {
+                    "description": "Average core frequency",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "eth_read_bw": {
+                    "description": "Ethernet read bandwidth",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "eth_write_bw": {
+                    "description": "Ethernet write bandwidth",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "lustre_read_bw": {
+                    "description": "Lustre read bandwidth",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "lustre_write_bw": {
+                    "description": "Lustre write bandwidth",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "lustre_read_req": {
+                    "description": "Lustre read requests",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "lustre_write_req": {
+                    "description": "Lustre write requests",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "lustre_inodes": {
+                    "description": "Lustre inodes used",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "lustre_accesses": {
+                    "description": "Lustre open and close",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "lustre_fsync": {
+                    "description": "Lustre fsync",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "lustre_create": {
+                    "description": "Lustre create",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "lustre_open": {
+                    "description": "Lustre open",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "lustre_close": {
+                    "description": "Lustre close",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "lustre_seek": {
+                    "description": "Lustre seek",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "ib_read_bw": {
+                    "description": "Infiniband read bandwidth",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "ib_write_bw": {
+                    "description": "Infiniband write bandwidth",
+                    "#ref": "jobs-statistic.schema.json"
+                },
+                "ib_congestion": {
+                    "description": "Infiniband congestion",
+                    "#ref": "jobs-statistic.schema.json"
+                }
+            },
+            "required": [ "mem_used", "flops_any", "mem_bw", "net_bw", "file_bw" ]
+        }
+    },
+    "required": [ "job_id", "user_id", "project_id", "cluster_id", "num_nodes", "start_time", "stop_time", "duration", "nodes", "tags", "statistic" ]
+}
