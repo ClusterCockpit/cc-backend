@@ -1,5 +1,6 @@
 # HPCJobDatabase
-A standardized interface and reference implementation for HPC job data
+A standardized interface and reference implementation for HPC job data.
+The DB and json schema specification is available in the [wiki](https://github.com/RRZE-HPC/HPCJobDatabase/wiki).
 
 # Dependencies
 
