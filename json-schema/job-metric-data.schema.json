@@ -11,7 +11,8 @@
         },
         "scope": {
             "description": "",
-            "type": "string"
+            "type": "string",
+            "enum": [ "node", "cpu", "socket" ]
         },
         "timestep": {
             "description": "",
