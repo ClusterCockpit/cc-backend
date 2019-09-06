@@ -1,0 +1,132 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric.schema.json",
+    "title": "Job metric data",
+    "description": "Meta data information of a HPC job",
+    "type": "object",
+    "properties": {
+        "mem_used": {
+            "description": "Memory capacity used (required)",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "flops_any": {
+            "description": "Total flop rate with DP flops scaled up (required)",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "mem_bw": {
+            "description": "Main memory bandwidth (required)",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "net_bw": {
+            "description": "Total fast interconnect network bandwidth (required)",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "file_bw": {
+            "description": "Total file IO bandwidth (required)",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "ipc": {
+            "description": "Instructions executed per cycle",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "cpu_used": {
+            "description": "CPU core utilization",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "flops_dp": {
+            "description": "Double precision flop rate",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "flops_sp": {
+            "description": "Single precision flops rate",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "rapl_power": {
+            "description": "CPU power consumption",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "gpu_used": {
+            "description": "GPU utilization",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "gpu_mem_used": {
+            "description": "GPU memory capacity used",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "gpu_power": {
+            "description": "GPU power consumption",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "clock": {
+            "description": "Average core frequency",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "eth_read_bw": {
+            "description": "Ethernet read bandwidth",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "eth_write_bw": {
+            "description": "Ethernet write bandwidth",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "lustre_read_bw": {
+            "description": "Lustre read bandwidth",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "lustre_write_bw": {
+            "description": "Lustre write bandwidth",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "lustre_read_req": {
+            "description": "Lustre read requests",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "lustre_write_req": {
+            "description": "Lustre write requests",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "lustre_inodes": {
+            "description": "Lustre inodes used",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "lustre_accesses": {
+            "description": "Lustre open and close",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "lustre_fsync": {
+            "description": "Lustre fsync",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "lustre_create": {
+            "description": "Lustre create",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "lustre_open": {
+            "description": "Lustre open",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "lustre_close": {
+            "description": "Lustre close",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "lustre_seek": {
+            "description": "Lustre seek",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "ib_read_bw": {
+            "description": "Infiniband read bandwidth",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "ib_write_bw": {
+            "description": "Infiniband write bandwidth",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        },
+        "ib_congestion": {
+            "description": "Infiniband congestion",
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
+        }
+    },
+    "required": [ "mem_used", "flops_any", "mem_bw", "net_bw", "file_bw" ]
+
+}
+}
