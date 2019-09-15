@@ -1,6 +1,5 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "$id": "http://example.com/job-statistic.schema.json",
     "title": "Job statistics",
     "description": "Format specification for job metric statistics",
     "type": "object",
@@ -25,5 +24,10 @@
             "minimum": 0
         }
     },
-    "required": [ "unit", "avg", "min", "max" ]
+    "required": [
+        "unit",
+        "avg",
+        "min",
+        "max"
+    ]
 }

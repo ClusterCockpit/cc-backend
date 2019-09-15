@@ -1,6 +1,5 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "$id": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric.schema.json",
     "title": "Job metric data",
     "description": "Meta data information of a HPC job",
     "type": "object",
@@ -126,7 +125,11 @@
             "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-metric-data.schema.json"
         }
     },
-    "required": [ "mem_used", "flops_any", "mem_bw", "net_bw", "file_bw" ]
-
-}
+    "required": [
+        "mem_used",
+        "flops_any",
+        "mem_bw",
+        "net_bw",
+        "file_bw"
+    ]
 }

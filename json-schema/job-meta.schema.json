@@ -1,6 +1,5 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "$id": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-meta.schema.json",
     "title": "Job meta data",
     "description": "Meta data information of a HPC job",
     "type": "object",
@@ -34,7 +33,12 @@
         "job_state": {
             "description": "Final state of job",
             "type": "string",
-            "enum": [ "completed", "failed", "canceled", "timeout" ]
+            "enum": [
+                "completed",
+                "failed",
+                "canceled",
+                "timeout"
+            ]
         },
         "start_time": {
             "description": "Start epoch time stamp in seconds",
@@ -73,7 +77,10 @@
                         "type": "string"
                     }
                 },
-                "required": [ "name", "type" ]
+                "required": [
+                    "name",
+                    "type"
+                ]
             },
             "uniqueItems": true
         },
@@ -202,8 +209,26 @@
                     "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/job-statistic.schema.json"
                 }
             },
-            "required": [ "mem_used", "flops_any", "mem_bw", "net_bw", "file_bw" ]
+            "required": [
+                "mem_used",
+                "flops_any",
+                "mem_bw",
+                "net_bw",
+                "file_bw"
+            ]
         }
     },
-    "required": [ "job_id", "user_id", "project_id", "cluster_id", "num_nodes", "start_time", "stop_time", "duration", "nodes", "tags", "statistics" ]
+    "required": [
+        "job_id",
+        "user_id",
+        "project_id",
+        "cluster_id",
+        "num_nodes",
+        "start_time",
+        "stop_time",
+        "duration",
+        "nodes",
+        "tags",
+        "statistics"
+    ]
 }
