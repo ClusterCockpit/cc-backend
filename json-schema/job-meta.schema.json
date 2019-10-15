@@ -25,6 +25,10 @@
             "type": "integer",
             "exclusiveMinimum": 0
         },
+        "exclusive": {
+            "description": "Job uses only exclusive nodes",
+            "type": "boolean"
+        },
         "walltime": {
             "description": "Requested walltime of job in seconds",
             "type": "integer",

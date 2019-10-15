@@ -6,7 +6,7 @@
     "properties": {
         "unit": {
             "description": "Metric unit",
-            "type": "string"
+            "#ref": "https://github.com/RRZE-HPC/HPCJobDatabase/blob/master/json-schema/unit.schema.json"
         },
         "avg": {
             "description": "Job metric average",
