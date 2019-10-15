@@ -1,0 +1,50 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "HPC Cluster description",
+    "description": "Meta data information of a HPC cluster",
+    "type": "object",
+    "properties":{
+        "cluster_id": {
+            "description": "The unique identifier of a cluster",
+            "type": "string"
+        },
+        "processor_type": {
+            "description": "Processor type",
+            "type": "string"
+        },
+        "sockets_per_node": {
+            "description": "Number of sockets per node",
+            "type": "integer"
+        },
+        "cores_per_socket": {
+            "description": "Number of cores per socket",
+            "type": "integer"
+        },
+        "threads_per_core": {
+            "description": "Number of SMT threads per core",
+            "type": "integer"
+        },
+        "flop_rate_scalar": {
+            "description": "Theorethical node peak flop rate for scalar code in GFlops/s",
+            "type": "integer"
+        },
+        "flop_rate_simd": {
+            "description": "Theorethical node peak flop rate for SIMD code in GFlops/s",
+            "type": "integer"
+        },
+        "memory_bandwidth": {
+            "description": "Theorethical node peak memory bandwidth in GB/s",
+            "type": "integer"
+        }
+    },
+    "required":[
+        "cluster_id",
+        "processor_type",
+        "sockets_per_node",
+        "cores_per_socket",
+        "threads_per_core",
+        "flop_rate_scalar",
+        "flop_rate_simd",
+        "memory_bandwidth"
+    ]
+}
