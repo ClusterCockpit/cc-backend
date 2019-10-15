@@ -172,7 +172,7 @@ sub printPerfStat {
         print "Total walltime [h]: $walltime \n";
         print "Total node hours [h]: $nodeHours \n";
 
-        $query = 'SELECT ROUND(mem_used), COUNT(*) FROM job '.$conditionstring.' AND has_profile=1 GROUP BY 1';
+        $query = 'SELECT ROUND(mem_used_max), COUNT(*) FROM job '.$conditionstring.' AND has_profile=1 GROUP BY 1';
         my @histo_mem_used = $dbh->selectall_array($query);
         print "\nHistogram: Mem used\n";
         print "Mem\tcount\n";
@@ -183,7 +183,7 @@ sub printPerfStat {
             print "$bin->[0]\t$bin->[1]\t$str\n";
         }
 
-        $query = 'SELECT ROUND(mem_bw), COUNT(*) FROM job '.$conditionstring.' AND has_profile=1 GROUP BY 1';
+        $query = 'SELECT ROUND(mem_bw_avg), COUNT(*) FROM job '.$conditionstring.' AND has_profile=1 GROUP BY 1';
         my @histo_mem_bandwidth = $dbh->selectall_array($query);
         print "\nHistogram: Memory bandwidth\n";
         print "BW\tcount\n";
@@ -194,7 +194,7 @@ sub printPerfStat {
             print "$bin->[0]\t$bin->[1]\t$str\n";
         }
 
-        $query = 'SELECT ROUND(flops_any), COUNT(*) FROM job '.$conditionstring.' AND has_profile=1 GROUP BY 1';
+        $query = 'SELECT ROUND(flops_any_avg), COUNT(*) FROM job '.$conditionstring.' AND has_profile=1 GROUP BY 1';
         my @histo_flops_any = $dbh->selectall_array($query);
         print "\nHistogram: Flops any\n";
         print "flops\tcount\n";
@@ -293,19 +293,19 @@ if ( @duration ) {
 if ( @mem_used ) {
     $hasprofile = 'true';
     ($add, $from, $to) = processRange($mem_used[0], $mem_used[1]);
-    buildCondition('mem_used');
+    buildCondition('mem_used_max');
 }
 
 if ( @mem_bandwidth ) {
     $hasprofile = 'true';
     ($add, $from, $to) = processRange($mem_bandwidth[0], $mem_bandwidth[1]);
-    buildCondition('mem_bw');
+    buildCondition('mem_bw_avg');
 }
 
 if ( @flops_any ) {
     $hasprofile = 'true';
     ($add, $from, $to) = processRange($flops_any[0], $flops_any[1]);
-    buildCondition('flops_any');
+    buildCondition('flops_any_avg');
 }
 
 if ( $hasprofile ) {
