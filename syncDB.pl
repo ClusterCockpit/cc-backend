@@ -47,7 +47,9 @@ my $dbh = DBI->connect(
 
 my $sth_select_job = $dbh->prepare(qq{
     SELECT id, user_id, job_id, cluster_id,
-    start_time, stop_time, duration, num_nodes
+    start_time, stop_time, duration, num_nodes,
+    has_profile, mem_used_max, flops_any_avg, mem_bw_avg,
+    ib_bw_avg, file_bw_avg
     FROM job
     WHERE job_id=?
     });
@@ -55,25 +57,27 @@ my $sth_select_job = $dbh->prepare(qq{
 my $sth_update_job = $dbh->prepare(qq{
     UPDATE job
     SET has_profile = ?,
-        mem_used = ?,
-        flops_any = ?,
-        mem_bw = ?
+        mem_used_max = ?,
+        flops_any_avg = ?,
+        mem_bw_avg = ?
     WHERE id=?;
     });
 
 my $jobcount = 0;
 my $wrongjobcount = 0;
-my ($user_id, $num_nodes, $start_time, $stop_time, $queue, $duration, $db_id);
+my ($TS, $TE);
+my $counter = 0;
 
-opendir my $dh, $basedir or die "can't open directory: $!";
-while ( readdir $dh ) {
-    chomp;
-    next if $_ eq '.' or $_ eq '..';
+open(my $fh, '<:encoding(UTF-8)', './jobIds.txt')
+    or die "Could not open file  $!";
+$TS = time();
 
-    my $jobID = $_;
-    my $needsUpdate = 0;
+while ( <$fh> ) {
 
-    my $jobmeta_json = read_file("$basedir/$jobID/meta.json");
+    my ($jobID, $path1, $path2) = split ' ', $_;
+    $counter++;
+
+    my $jobmeta_json = read_file("$basedir/$path1/$path2/meta.json");
     my $job = decode_json $jobmeta_json;
     my @row = $dbh->selectrow_array($sth_select_job, undef, $jobID);
     my ($db_id, $db_user_id, $db_job_id, $db_cluster_id, $db_start_time, $db_stop_time, $db_duration, $db_num_nodes);
@@ -90,30 +94,48 @@ while ( readdir $dh ) {
             $db_duration,
             $db_num_nodes) = @row;
 
-        my $footprint = $job->{footprint};
+        my $stats = $job->{statistics};
 
         if ( $job->{user_id} ne $db_user_id ) {
-            print "$jobID $job->{user_id} $db_user_id\n";
+            print "jobID $jobID $job->{user_id} $db_user_id\n";
             $job->{user_id} = $db_user_id;
         }
 
+        # if ( $job->{start_time} != $db_start_time ) {
+        #     print "start $jobID $job->{start_time} $db_start_time\n";
+        # }
+        # if ( $job->{stop_time} != $db_stop_time ) {
+        #     print "stop $jobID $job->{stop_time} $db_stop_time\n";
+        # }
+        if ( $job->{duration} != $db_duration ) {
+            my $difference = $job->{duration} - $db_duration;
+            if ( abs($difference) > 120 ) {
+                print "duration $jobID $job->{duration} $db_duration $difference\n";
+            }
+        }
 
-        # print "$footprint->{mem_used}->{avg}, $footprint->{flops_any}->{avg}, $footprint->{mem_bw}->{avg}\n";
-
-        # $sth_update_job->execute(
-        #     1,
-        #     $footprint->{mem_used}->{avg},
-        #     $footprint->{flops_any}->{avg},
-        #     $footprint->{mem_bw}->{avg},
-        #     $db_id
-        # );
+        $sth_update_job->execute(
+            1,
+            $stats->{mem_used}->{max},
+            $stats->{flops_any}->{avg},
+            $stats->{mem_bw}->{avg},
+            $db_id
+        );
 
         $jobcount++;
     } else {
         print "$jobID NOT in DB!\n";
     }
+
+    if ( $counter == 50 ) {
+        $TE = time();
+        my $rate = $counter/($TE-$TS);
+        $counter = 0;
+        print "Processing $rate jobs per second\n";
+        $TS = $TE;
+    }
 }
-closedir $dh or die "can't close directory: $!";
 $dbh->disconnect;
+close $fh;
 
 print "$wrongjobcount of $jobcount need update\n";

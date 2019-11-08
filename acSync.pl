@@ -42,7 +42,8 @@ my %attr = (
 );
 
 my $dbh = DBI->connect(
-    "DBI:SQLite:dbname=$database", "", "", \%attr);
+    "DBI:SQLite:dbname=$database", "", "", \%attr)
+    or die "Could not connect to database: $DBI::errstr";
 
 my $sth_select_job = $dbh->prepare(qq{
     SELECT id, user_id, job_id, cluster_id,
