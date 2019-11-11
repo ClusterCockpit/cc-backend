@@ -110,15 +110,17 @@ while ($sth_select_all->fetch) {
     );
 }
 
-# convert job meta file
-opendir my $dh, $basedir or die "can't open directory: $!";
-while ( readdir $dh ) {
-    chomp;
-    next if $_ eq '.' or $_ eq '..';
+open(my $fh, '<:encoding(UTF-8)', './jobIds.txt')
+    or die "Could not open file  $!";
 
-    my $jobID = $_;
-    my $jobmeta_json = read_file("$basedir/$jobID/meta.json");
-    my $job = decode_json $jobmeta_json;
+# convert job meta file
+while ( <$fh> ) {
+
+    my $line = $_;
+    my ($jobID, $path1, $path2) = split ' ', $line;
+
+    my $json = read_file("$basedir/$path1/$path2/meta.json");
+    my $job = decode_json $json;
 
     my $user = $job->{'user_id'};
 
@@ -143,10 +145,9 @@ while ( readdir $dh ) {
 
     $job->{user_id} = $user;
     $job->{project_id} = $project;
-    $jobmeta_json = encode_json $job;
-    # print "$jobmeta_json\n";
-    write_file("$basedir/$jobID/meta.json", $jobmeta_json);
+    $json = encode_json $job;
+    write_file("$basedir/$path1/$path2/meta.json", $json);
 }
-closedir $dh or die "can't close directory: $!";
+close $fh;
 
 $dbh->disconnect;

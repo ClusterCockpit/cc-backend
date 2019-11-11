@@ -62,75 +62,37 @@ my $sth_update_job = $dbh->prepare(qq{
     WHERE id=?;
     });
 
+my $sth_select_tag = $dbh->prepare(qq{
+    SELECT id
+    FROM tag
+    WHERE tag_name=?
+    });
+
+
 my ($TS, $TE);
 my $counter = 0;
 
+open(my $fhn, '>:encoding(UTF-8)', './jobIds-tagged.txt')
+    or die "Could not open file  $!";
 open(my $fh, '<:encoding(UTF-8)', './jobIds.txt')
     or die "Could not open file  $!";
 $TS = time();
 
 while ( <$fh> ) {
 
-    my ($jobID, $path1, $path2) = split ' ', $_;
+    my $line = $_;
+    my ($jobID, $path1, $path2) = split ' ', $line;
     $counter++;
 
-    my $jobmeta_json = read_file("$basedir/$path1/$path2/meta.json");
-    my $job = decode_json $jobmeta_json;
-    my @row = $dbh->selectrow_array($sth_select_job, undef, $jobID);
-    my ($db_id, $db_user_id, $db_job_id, $db_cluster_id, $db_start_time, $db_stop_time, $db_duration, $db_num_nodes, $db_has_profile);
+    my $json = read_file($jobDirectory.'/data.json');
+    my $data = decode_json $json;
+    $json = read_file($jobDirectory.'/meta.json');
+    my $meta = decode_json $json;
 
-    # print Dumper($job);
+    my @flopsAny = $data->{flops_any}->{series};
+    my @memBw = $data->{mem_bw}->{series};
 
-    if ( @row ) {
-        ($db_id,
-            $db_user_id,
-            $db_job_id,
-            $db_cluster_id,
-            $db_start_time,
-            $db_stop_time,
-            $db_duration,
-            $db_num_nodes,
-            $db_has_profile) = @row;
-
-        if ($db_has_profile == 0) {
-
-            my $stats = $job->{statistics};
-
-            if ( $job->{user_id} ne $db_user_id ) {
-                print "jobID $jobID $job->{user_id} $db_user_id\n";
-                $job->{user_id} = $db_user_id;
-            }
-
-            # if ( $job->{start_time} != $db_start_time ) {
-            #     print "start $jobID $job->{start_time} $db_start_time\n";
-            # }
-            # if ( $job->{stop_time} != $db_stop_time ) {
-            #     print "stop $jobID $job->{stop_time} $db_stop_time\n";
-            # }
-            if ( $job->{duration} != $db_duration ) {
-                my $difference = $job->{duration} - $db_duration;
-                if ( abs($difference) > 120 ) {
-                    print "####duration $jobID $job->{duration} $db_duration $difference\n";
-                }
-            }
-
-            if ( $job->{num_nodes} != $db_num_nodes ) {
-                print "####num nodes $jobID $job->{num_nodes} $db_num_nodes\n";
-            }
-
-            $sth_update_job->execute(
-                1,
-                $stats->{mem_used}->{max},
-                $stats->{flops_any}->{avg},
-                $stats->{mem_bw}->{avg},
-                $db_id
-            );
-        }
-    } else {
-        print "$jobID NOT in DB!\n";
-    }
-
-    if ( $counter == 100 ) {
+    if ( $counter == 20 ) {
         $TE = time();
         my $rate = $counter/($TE-$TS);
         $counter = 0;
@@ -140,4 +102,4 @@ while ( <$fh> ) {
 }
 $dbh->disconnect;
 close $fh;
-
+close $fhn;

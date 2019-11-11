@@ -28,40 +28,41 @@ use strict;
 use warnings;
 use utf8;
 
-my $basedir = $ARGV[0];
-open(my $fh, '>:encoding(UTF-8)', 'jobIds.txt')
-    or die "Could not open file  $!";
+use DBI;
 
-opendir my $odh, $basedir or die "can't open directory: $!";
-my $count = 0;
+my $database = 'jobDB';
 
-while ( readdir $odh ) {
-    chomp;
-    next if $_ eq '.' or $_ eq '..';
+my %attr = (
+    PrintError => 1,
+    RaiseError => 1
+);
 
-    my $jobID1 = $_;
-    print "Open $jobID1\n";
+my $dbh = DBI->connect(
+    "DBI:SQLite:dbname=$database", "", "", \%attr)
+    or die "Could not connect to database: $DBI::errstr";
 
-    opendir my $idh, "$basedir/$jobID1" or die "can't open directory: $!";
+my $sth_select_job = $dbh->prepare(qq{
+    SELECT id, user_id, job_id, cluster_id,
+    start_time, stop_time, duration, num_nodes,
+    has_profile
+    FROM job
+    WHERE job_id=?
+    });
 
-    while ( readdir $idh ) {
-        chomp;
-        next if $_ eq '.' or $_ eq '..';
-        my $jobID2 = $_;
+my $sth_update_job = $dbh->prepare(qq{
+    UPDATE job
+    SET has_profile = ?,
+        mem_used_max = ?,
+        flops_any_avg = ?,
+        mem_bw_avg = ?
+    WHERE id=?;
+    });
 
-        unless (-e "$basedir/$jobID1/$jobID2/data.json") {
-            print "$basedir/$jobID1/$jobID2/ File Doesn't Exist!\n";
-            # rmdir "$basedir/$jobID1/$jobID2";
-            $count++;
-        } else {
-            print $fh "$jobID1$jobID2.eadm $jobID1 $jobID2\n";
-        }
+my $sth_select_tag = $dbh->prepare(qq{
+    SELECT id
+    FROM tag
+    WHERE tag_name=?
+    });
 
-    }
+my $CMD = $ARGV[0];
 
-    closedir $idh or die "can't close directory: $!";
-}
-closedir $odh or die "can't close directory: $!";
-close $fh;
-
-print "$count empty jobs!\n";
