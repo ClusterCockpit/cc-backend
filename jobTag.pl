@@ -41,28 +41,48 @@ my $dbh = DBI->connect(
     "DBI:SQLite:dbname=$database", "", "", \%attr)
     or die "Could not connect to database: $DBI::errstr";
 
-my $sth_select_job = $dbh->prepare(qq{
-    SELECT id, user_id, job_id, cluster_id,
-    start_time, stop_time, duration, num_nodes,
-    has_profile
-    FROM job
-    WHERE job_id=?
+my $sth_query_job = $dbh->prepare(qq{
+    SELECT j.*
+    FROM jobtag jt, job j, tag t
+    WHERE jt.tag_id=t.tag_id
+        AND t.name=?
+        AND j.id=jt.job_id
+    GROUP BY j.id
     });
 
-my $sth_update_job = $dbh->prepare(qq{
-    UPDATE job
-    SET has_profile = ?,
-        mem_used_max = ?,
-        flops_any_avg = ?,
-        mem_bw_avg = ?
-    WHERE id=?;
+my $sth_select_job = $dbh->prepare(qq{
+    SELECT id
+    FROM job
+    WHERE job_id=?
     });
 
 my $sth_select_tag = $dbh->prepare(qq{
     SELECT id
     FROM tag
-    WHERE tag_name=?
+    WHERE name=?
+    });
+
+my $sth_insert_tag = $dbh->prepare(qq{
+    INSERT INTO tag(type,name)
+    VALUES(?,?)
+    });
+
+my $sth_job_add_tag = $dbh->prepare(qq{
+    INSERT INTO jobtag(job_id,tag_id)
+    VALUES(?,?)
     });
 
 my $CMD = $ARGV[0];
 
+if ( $CMD eq 'ADD' ) {
+    # body...
+}
+elsif ( $CMD eq 'RM' ) {
+    # elsif...
+}
+elsif ( $CMD eq 'LS' ) {
+    # elsif...
+}
+else {
+    # else...
+}
