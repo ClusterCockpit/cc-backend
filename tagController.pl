@@ -31,42 +31,9 @@ use utf8;
 use File::Slurp;
 use Data::Dumper;
 use JSON::MaybeXS qw(encode_json decode_json);
-use DBI;
 
-my $database = $ARGV[0];
-my $basedir = $ARGV[1];
-
-my %attr = (
-    PrintError => 1,
-    RaiseError => 1
-);
-
-my $dbh = DBI->connect(
-    "DBI:SQLite:dbname=$database", "", "", \%attr)
-    or die "Could not connect to database: $DBI::errstr";
-
-my $sth_select_job = $dbh->prepare(qq{
-    SELECT id, user_id, job_id, cluster_id,
-    start_time, stop_time, duration, num_nodes,
-    has_profile
-    FROM job
-    WHERE job_id=?
-    });
-
-my $sth_update_job = $dbh->prepare(qq{
-    UPDATE job
-    SET has_profile = ?,
-        mem_used_max = ?,
-        flops_any_avg = ?,
-        mem_bw_avg = ?
-    WHERE id=?;
-    });
-
-my $sth_select_tag = $dbh->prepare(qq{
-    SELECT id
-    FROM tag
-    WHERE tag_name=?
-    });
+my $basedir = $ARGV[0];
+my $basedir = './data';
 
 
 my ($TS, $TE);
@@ -81,16 +48,19 @@ $TS = time();
 while ( <$fh> ) {
 
     my $line = $_;
-    my ($jobID, $path1, $path2) = split ' ', $line;
+    my ($jobID, $system) = split '.', $line;
     $counter++;
 
-    my $json = read_file($jobDirectory.'/data.json');
-    my $data = decode_json $json;
-    $json = read_file($jobDirectory.'/meta.json');
+    # my $json = read_file($jobDirectory.'/data.json');
+    # my $data = decode_json $json;
+    my $json = read_file($jobDirectory.'/meta.json');
     my $meta = decode_json $json;
 
-    my @flopsAny = $data->{flops_any}->{series};
-    my @memBw = $data->{mem_bw}->{series};
+    my $footprint = $meta->{statistics};
+
+    if ( $footprint->{flops_any}->{max} < 2.0 and  $footprint->{mem_bw}->{max} < 2.0 ){
+        print $fhn $jobID;
+    }
 
     if ( $counter == 20 ) {
         $TE = time();
@@ -100,6 +70,5 @@ while ( <$fh> ) {
         $TS = $TE;
     }
 }
-$dbh->disconnect;
 close $fh;
 close $fhn;

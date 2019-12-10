@@ -41,13 +41,20 @@ my $dbh = DBI->connect(
     "DBI:SQLite:dbname=$database", "", "", \%attr)
     or die "Could not connect to database: $DBI::errstr";
 
-my $sth_query_job = $dbh->prepare(qq{
+my $sth_select_tagged_jobs = $dbh->prepare(qq{
     SELECT j.*
-    FROM jobtag jt, job j, tag t
-    WHERE jt.tag_id=t.tag_id
-        AND t.name=?
-        AND j.id=jt.job_id
-    GROUP BY j.id
+    FROM job j
+    JOIN jobtag jt ON j.id = jt.job_id
+    JOIN tag t ON jt.tag_id = t.id
+    WHERE t.name = ?
+    });
+
+my $sth_select_job_tags = $dbh->prepare(qq{
+    SELECT t.*
+    FROM tag t
+    JOIN jobtag jt ON t.id = jt.tag_id
+    JOIN job j ON jt.job_id = j.id
+    WHERE j.job_id = ?
     });
 
 my $sth_select_job = $dbh->prepare(qq{
@@ -72,17 +79,63 @@ my $sth_job_add_tag = $dbh->prepare(qq{
     VALUES(?,?)
     });
 
+my $sth_job_has_tag = $dbh->prepare(qq{
+    SELECT id FROM job
+    WHERE job_id=? AND tag_id=?
+    });
+
 my $CMD = $ARGV[0];
+my $JOB_ID = $ARGV[1];
+my $TAG_NAME = $ARGV[2];
+
+my ($jid, $tid);
+
+# check if job exists
+my @row = $dbh->selectrow_array($sth_select_job, undef, $JOB_ID);
+
+if ( @row ) {
+    $jid = $row[0];
+} else {
+    die "Job does not exist: $JOB_ID!\n";
+}
+
+# check if tag already exists
+@row = $dbh->selectrow_array($sth_select_tag, undef, $TAG_NAME);
+
+if ( @row ) {
+    $tid = $row[0];
+} else {
+    print "Insert new tag: $TAG_NAME!\n";
+
+    $sth_insert_tag->execute('pathologic', $TAG_NAME);
+}
 
 if ( $CMD eq 'ADD' ) {
-    # body...
+    @row = $dbh->selectrow_array($sth_job_has_tag, undef, $jid, $tid);
+    if ( @row ) {
+        die "Job already tagged!\n";
+    } else {
+        print "Adding tag $TAG_NAME to job $JOB_ID!\n";
+        $sth_job_add_tag($jid, $tid);
+    }
 }
 elsif ( $CMD eq 'RM' ) {
     # elsif...
 }
-elsif ( $CMD eq 'LS' ) {
+elsif ( $CMD eq 'LST' ) {
+    $sth_select_job_tags->execute;
+    my ($id, $type, $name);
+
+    while(($id,$type,$name) = $sth->fetchrow()){
+        print("$id, $type, $name\n");
+    }
+    $sth_select_job_tags->finish();
+}
+elsif ( $CMD eq 'LSJ' ) {
     # elsif...
 }
 else {
-    # else...
+    die "Unknown command: $CMD!\n";
 }
+
+$dbh->disconnect();
