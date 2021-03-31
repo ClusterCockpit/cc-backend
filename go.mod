@@ -1,4 +1,4 @@
-module github.com/moebiusband/cc-jobarchive
+module github.com/ClusterCockpit/cc-jobarchive
 
 go 1.15
 

@@ -7,12 +7,12 @@ import (
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
+	"github.com/ClusterCockpit/cc-jobarchive/graph"
+	"github.com/ClusterCockpit/cc-jobarchive/graph/generated"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/moebiusband/cc-jobarchive/generated"
-	"github.com/moebiusband/cc-jobarchive/graph"
 )
 
 const defaultPort = "8080"

@@ -7,8 +7,8 @@ import (
 	"log"
 	"strings"
 
-	"fossil.moebiusband.org/jobaccounting-backend/graph/generated"
-	"fossil.moebiusband.org/jobaccounting-backend/graph/model"
+	"github.com/ClusterCockpit/cc-jobarchive/graph/generated"
+	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -113,8 +113,8 @@ func (r *queryResolver) Jobs(
 	var qc, ob string
 
 	if page != nil {
-		limit = *page.Limit
-		offset = *page.Offset
+		limit = *page.ItemsPerPage
+		offset = (*page.Page - 1) * limit
 	} else {
 		limit = 20
 		offset = 0

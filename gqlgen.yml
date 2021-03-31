@@ -35,7 +35,7 @@ resolver:
 # gqlgen will search for any type names in the schema in these go packages
 # if they match it will use them, otherwise it will generate them.
 autobind:
-  - "fossil.moebiusband.org/jobaccounting-backend/graph/model"
+  - "github.com/ClusterCockpit/cc-jobarchive/graph/model"
 
 # This section declares type mapping between the GraphQL and go type systems
 #
@@ -55,6 +55,6 @@ models:
       - github.com/99designs/gqlgen/graphql.Int64
       - github.com/99designs/gqlgen/graphql.Int32
   Job:
-    model: "fossil.moebiusband.org/jobaccounting-backend/graph/model.Job"
+    model: "github.com/ClusterCockpit/cc-jobarchive/graph/model.Job"
   Timestamp:
-    model: "fossil.moebiusband.org/jobaccounting-backend/graph/model.Timestamp"
+    model: "github.com/ClusterCockpit/cc-jobarchive/graph/model.Timestamp"

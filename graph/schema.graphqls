@@ -15,12 +15,6 @@ type Query {
   jobsStatistics(filter: JobFilterList): JobsStatistics!
 }
 
-type Mutation {
-  startJob(input: StartJobInput!): Job!
-  stopJob(input: StopJobInput!): Job!
-  addJob(input: AddJobInput!): Job!
-}
-
 input StartJobInput {
   jobId: String!
   userId: String!
@@ -114,7 +108,7 @@ type JobsStatistics  {
 }
 
 input PageRequest {
-  itensPerPage: Int
+  itemsPerPage: Int
   page: Int
 }
 
