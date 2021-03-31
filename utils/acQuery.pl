@@ -2,7 +2,7 @@
 # =======================================================================================
 #
 #      Author:   Jan Eitzinger (je), jan.eitzinger@fau.de
-#      Copyright (c) 2019 RRZE, University Erlangen-Nuremberg
+#      Copyright (c) 2020 RRZE, University Erlangen-Nuremberg
 #
 #      Permission is hereby granted, free of charge, to any person obtaining a copy
 #      of this software and associated documentation files (the "Software"), to deal
@@ -31,6 +31,7 @@ use utf8;
 use Data::Dumper;
 use Getopt::Long;
 use Pod::Usage;
+use DateTime;
 use DateTime::Format::Strptime;
 use DBI;
 
@@ -40,7 +41,7 @@ my ($add, $from, $to);
 
 my $dateParser =
 DateTime::Format::Strptime->new(
-    pattern => '%d.%m.%Y/%H:%M',
+    pattern   => '%d.%m.%Y/%H:%M',
     time_zone => 'Europe/Berlin',
     on_error  => 'undef'
 );
@@ -50,6 +51,7 @@ my $man = 0;
 my $hasprofile = '';
 my $mode = 'count';
 my $user = '';
+my $jobID = '';
 my $project = '';
 my @numnodes;
 my @starttime;
@@ -59,18 +61,19 @@ my @mem_bandwidth;
 my @flops_any;
 
 GetOptions (
-    'help'           => \$help,
-    'man'            => \$man,
-    'hasprofile=s'   => \$hasprofile,
-    'mode=s'         => \$mode,
-    'user=s'         => \$user,
-    'project=s'      => \$project,
-    'numnodes=i{2}'  => \@numnodes,
-    'starttime=s{2}' => \@starttime,
-    'duration=s{2}'  => \@duration,
-    'mem_used=i{2}'  => \@mem_used,
-    'mem_bandwidth=i{2}'  => \@mem_bandwidth,
-    'flops_any=i{2}'  => \@flops_any
+    'help'               => \$help,
+    'man'                => \$man,
+    'hasprofile=s'       => \$hasprofile,
+    'mode=s'             => \$mode,
+    'user=s'             => \$user,
+    'job=s'              => \$jobID,
+    'project=s'          => \$project,
+    'numnodes=i{2}'      => \@numnodes,
+    'starttime=s{2}'     => \@starttime,
+    'duration=s{2}'      => \@duration,
+    'mem_used=i{2}'      => \@mem_used,
+    'mem_bandwidth=i{2}' => \@mem_bandwidth,
+    'flops_any=i{2}'     => \@flops_any
 ) or pod2usage(2);
 
 my %attr = (
@@ -249,14 +252,17 @@ sub printJobStat {
 
 sub printJob {
     my $job = shift;
+    my $durationHours = sprintf("%.2f", $job->{duration}/3600);
+    my $startDatetime = DateTime->from_epoch(epoch=>$job->{start_time}, time_zone => 'Europe/Berlin',);
+    my $stopDatetime = DateTime->from_epoch(epoch=>$job->{stop_time}, time_zone => 'Europe/Berlin',);
 
     my $jobString = <<"END_JOB";
 =================================
 JobId: $job->{job_id}
 UserId: $job->{user_id}
 Number of nodes: $job->{num_nodes}
-From $job->{start_time} to $job->{stop_time}
-Duration $job->{duration}
+From  $startDatetime to $stopDatetime
+Duration $durationHours hours
 END_JOB
 
     print $jobString;
@@ -264,6 +270,17 @@ END_JOB
 
 pod2usage(1) if $help;
 pod2usage(-verbose  => 2) if $man;
+
+if ( $jobID ) {
+    my $sth = $dbh->prepare("SELECT * FROM job WHERE job_id=\'$jobID\'");
+    $sth->execute;
+    my %row;
+    $sth->bind_columns( \( @row{ @{$sth->{NAME_lc} } } ));
+    while ($sth->fetch) {
+        printJob(\%row);
+    }
+    exit;
+}
 
 # build query conditions
 if ( $user ) {
@@ -273,7 +290,6 @@ if ( $user ) {
 if ( $project ) {
     push @conditions, "project_id=\'$project\'";
 }
-
 
 if ( @numnodes ) {
     ($add, $from, $to) = processRange($numnodes[0], $numnodes[1]);
@@ -384,6 +400,7 @@ acQuery.pl - Wrapper script to access sqlite job database.
    --man   Show man page
    --hasprofile <true|false>  Only show jobs with timerseries metric data
    --mode <mode>  Set the operation mode
+   --job <job_id> Search for a specific job
    --user <user_id> Search for jobs of specific user
    --project <project_id> Search for jobs of specific project
    --numnodes <from> <to>  Specify range for number of nodes of job

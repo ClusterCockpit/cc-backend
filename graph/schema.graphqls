@@ -1,0 +1,121 @@
+type Job {
+  id: ID!
+  jobId: String!
+  userId: String!
+  projectId: String!
+  clusterId: String!
+  startTime: Time!
+  duration: Int!
+  numNodes: Int!
+}
+
+type Query {
+  jobById(jobId: String!): Job
+  jobs(filter: JobFilterList, page: PageRequest, order: OrderByInput): JobResultList!
+  jobsStatistics(filter: JobFilterList): JobsStatistics!
+}
+
+type Mutation {
+  startJob(input: StartJobInput!): Job!
+  stopJob(input: StopJobInput!): Job!
+  addJob(input: AddJobInput!): Job!
+}
+
+input StartJobInput {
+  jobId: String!
+  userId: String!
+  projectId: String!
+  clusterId: String!
+  startTime: Time!
+  numNodes: Int!
+}
+
+input StopJobInput {
+  stopTime: Time!
+}
+
+input AddJobInput {
+  jobId: String!
+  userId: String!
+  projectId: String!
+  clusterId: String!
+  startTime: Time!
+  duration: Int!
+  numNodes: Int!
+}
+
+
+input JobFilterList {
+  list: [JobFilter]
+}
+
+input JobFilter {
+  jobId: StringInput
+  userId: StringInput
+  projectId: StringInput
+  clusterId: StringInput
+  duration: IntRange
+  numNodes: IntRange
+  startTime: TimeRange
+  hasProfile: Boolean
+}
+
+input OrderByInput {
+  field: String!
+  order: SortDirectionEnum = ASC
+}
+
+enum SortDirectionEnum {
+  DESC
+  ASC
+}
+
+input StringInput {
+  eq: String
+  contains: String
+  startsWith: String
+  endsWith: String
+}
+
+input IntRange {
+  from: Int!
+  to: Int!
+}
+
+input FloatRange {
+  from: Float!
+  to: Float!
+}
+
+input TimeRange {
+  from: Time!
+  to: Time!
+}
+
+type JobResultList {
+  items: [Job]!
+  offset: Int
+  limit: Int
+  count: Int
+}
+
+type HistoPoint {
+  count: Int!
+  value: Int!
+}
+
+type JobsStatistics  {
+  totalJobs: Int!
+  shortJobs: Int!
+  totalWalltime: Int!
+  totalCoreHours: Int!
+  histWalltime: [HistoPoint]!
+  histNumNodes: [HistoPoint]!
+}
+
+input PageRequest {
+  itensPerPage: Int
+  page: Int
+}
+
+scalar Time
