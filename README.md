@@ -1,6 +1,8 @@
 # Run server
 
-* ```go run server.go```
+* The server expects the SQLite Job database in `job.db`.
+* Run ```go run server.go```
+* The GraphQL backend is located at http://localhost:8080/query/ .
 
 # Debugging and Testing
 
