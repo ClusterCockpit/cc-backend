@@ -9,10 +9,60 @@ type Job {
   numNodes: Int!
 }
 
+type JobData {
+  load_one: JobMetric
+  mem_used: JobMetric
+  mem_bw: JobMetric
+  flops_any: JobMetric
+  flops_dp: JobMetric
+  flops_sp: JobMetric
+  cpi_avg: JobMetric
+  clock_speed: JobMetric
+  total_power: JobMetric
+  traffic_read_eth: JobMetric
+  traffic_write_eth: JobMetric
+  traffic_read_lustre: JobMetric
+  traffic_write_lustre: JobMetric
+  reg_read_lustre: JobMetric
+  reg_write_lustre: JobMetric
+  inodes_lustre: JobMetric
+  pkg_rate_read_ib: JobMetric
+  pkg_rate_write_ib: JobMetric
+  congestion_ib: JobMetric
+}
+
+type JobMetric {
+  unit: String!
+  scope: JobMetricScope!
+  timestep: Int!
+  series: [JobMetricSeries]!
+}
+
+enum JobMetricScope {
+  node
+  cpu
+  socket
+}
+
+type JobMetricSeries {
+  node_id: String!
+  statistics: JobMetricStatistics
+  data: [Float]!
+}
+
+type JobMetricStatistics {
+  avg: Float!
+  min: Float!
+  max: Float!
+}
+
 type Query {
   jobById(jobId: String!): Job
   jobs(filter: JobFilterList, page: PageRequest, order: OrderByInput): JobResultList!
   jobsStatistics(filter: JobFilterList): JobsStatistics!
+
+  jobDataById(jobId: String!): JobData
+  jobAvailableMetricsById(jobId: String!): [JobMetricWithName]!
 }
 
 input StartJobInput {
@@ -91,6 +141,11 @@ type JobResultList {
   offset: Int
   limit: Int
   count: Int
+}
+
+type JobMetricWithName {
+  name: String!
+  metric: JobMetric!
 }
 
 type HistoPoint {

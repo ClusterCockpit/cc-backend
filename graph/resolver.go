@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"os"
+	"strconv"
+	"encoding/json"
 
 	"github.com/ClusterCockpit/cc-jobarchive/graph/generated"
 	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
@@ -241,6 +244,128 @@ func (r *queryResolver) JobsStatistics(
 	stats.HistWalltime = histogram
 
 	return &stats, nil
+}
+
+func (r *queryResolver) JobDataByID(
+	ctx context.Context, jobId string) (*model.JobData, error) {
+
+	// TODO: What to do with the suffix?
+	jobId = strings.Split(jobId, ".")[0]
+	id, err := strconv.Atoi(jobId)
+	if err != nil {
+		return nil, err
+	}
+
+	lvl1, lvl2 := id / 1000, id % 1000
+	filepath := fmt.Sprintf("./job-data/%d/%03d/data.json", lvl1, lvl2)
+	f, err := os.ReadFile(filepath)
+	if err != nil {
+		return nil, err
+	}
+
+	jobData := new(model.JobData)
+	err = json.Unmarshal(f, jobData)
+	if err != nil {
+		return nil, err
+	}
+
+	return jobData, nil
+}
+
+func (r *queryResolver) JobAvailableMetricsByID(
+	ctx context.Context, jobId string) ([]*model.JobMetricWithName, error) {
+
+	jobData, err := r.JobDataByID(ctx, jobId)
+	if err != nil {
+		return nil, err
+	}
+
+	var list []*model.JobMetricWithName
+
+	/*
+	 * GraphQL has no Map-Type, so
+	 * this is the best i could come up with.
+	 * This is only for testing anyways?
+	 */
+
+	if jobData.LoadOne != nil {
+		list = append(list, &model.JobMetricWithName {
+			"load_one", jobData.LoadOne })
+	}
+	if jobData.MemUsed != nil {
+		list = append(list, &model.JobMetricWithName {
+			"mem_used", jobData.MemUsed })
+	}
+	if jobData.MemBw != nil {
+		list = append(list, &model.JobMetricWithName {
+			"mem_bw", jobData.MemBw })
+	}
+	if jobData.FlopsAny != nil {
+		list = append(list, &model.JobMetricWithName {
+			"flops_any", jobData.FlopsAny })
+	}
+	if jobData.FlopsDp != nil {
+		list = append(list, &model.JobMetricWithName {
+			"flops_dp", jobData.FlopsDp })
+	}
+	if jobData.FlopsSp != nil {
+		list = append(list, &model.JobMetricWithName {
+			"flops_sp", jobData.FlopsSp })
+	}
+	if jobData.CpiAvg != nil {
+		list = append(list, &model.JobMetricWithName {
+			"cpi_avg", jobData.CpiAvg })
+	}
+	if jobData.ClockSpeed != nil {
+		list = append(list, &model.JobMetricWithName {
+			"clock_speed", jobData.ClockSpeed })
+	}
+	if jobData.TotalPower != nil {
+		list = append(list, &model.JobMetricWithName {
+			"total_power", jobData.TotalPower })
+	}
+	if jobData.TrafficReadEth != nil {
+		list = append(list, &model.JobMetricWithName {
+			"traffic_read_eth", jobData.TrafficReadEth })
+	}
+	if jobData.TrafficWriteEth != nil {
+		list = append(list, &model.JobMetricWithName {
+			"traffic_write_eth", jobData.TrafficWriteEth })
+	}
+	if jobData.TrafficReadLustre != nil {
+		list = append(list, &model.JobMetricWithName {
+			"traffic_read_lustre", jobData.TrafficReadLustre })
+	}
+	if jobData.TrafficWriteLustre != nil {
+		list = append(list, &model.JobMetricWithName {
+			"traffic_write_lustre", jobData.TrafficWriteLustre })
+	}
+	if jobData.RegReadLustre != nil {
+		list = append(list, &model.JobMetricWithName {
+			"reg_read_lustre", jobData.RegReadLustre })
+	}
+	if jobData.RegWriteLustre != nil {
+		list = append(list, &model.JobMetricWithName {
+			"reg_write_lustre", jobData.RegWriteLustre })
+	}
+	if jobData.InodesLustre != nil {
+		list = append(list, &model.JobMetricWithName {
+			"inodes_lustre", jobData.InodesLustre })
+	}
+	if jobData.PkgRateReadIb != nil {
+		list = append(list, &model.JobMetricWithName {
+			"pkg_rate_read_ib", jobData.PkgRateReadIb })
+	}
+	if jobData.PkgRateWriteIb != nil {
+		list = append(list, &model.JobMetricWithName {
+			"pkg_rate_write_ib", jobData.PkgRateWriteIb })
+	}
+	if jobData.CongestionIb != nil {
+		list = append(list, &model.JobMetricWithName {
+			"congestion_ib", jobData.CongestionIb })
+	}
+
+	return list, nil
 }
 
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }

@@ -34,6 +34,28 @@ type IntRange struct {
 	To   int `json:"to"`
 }
 
+type JobData struct {
+	LoadOne            *JobMetric `json:"load_one"`
+	MemUsed            *JobMetric `json:"mem_used"`
+	MemBw              *JobMetric `json:"mem_bw"`
+	FlopsAny           *JobMetric `json:"flops_any"`
+	FlopsDp            *JobMetric `json:"flops_dp"`
+	FlopsSp            *JobMetric `json:"flops_sp"`
+	CpiAvg             *JobMetric `json:"cpi_avg"`
+	ClockSpeed         *JobMetric `json:"clock_speed"`
+	TotalPower         *JobMetric `json:"total_power"`
+	TrafficReadEth     *JobMetric `json:"traffic_read_eth"`
+	TrafficWriteEth    *JobMetric `json:"traffic_write_eth"`
+	TrafficReadLustre  *JobMetric `json:"traffic_read_lustre"`
+	TrafficWriteLustre *JobMetric `json:"traffic_write_lustre"`
+	RegReadLustre      *JobMetric `json:"reg_read_lustre"`
+	RegWriteLustre     *JobMetric `json:"reg_write_lustre"`
+	InodesLustre       *JobMetric `json:"inodes_lustre"`
+	PkgRateReadIb      *JobMetric `json:"pkg_rate_read_ib"`
+	PkgRateWriteIb     *JobMetric `json:"pkg_rate_write_ib"`
+	CongestionIb       *JobMetric `json:"congestion_ib"`
+}
+
 type JobFilter struct {
 	JobID      *StringInput `json:"jobId"`
 	UserID     *StringInput `json:"userId"`
@@ -47,6 +69,30 @@ type JobFilter struct {
 
 type JobFilterList struct {
 	List []*JobFilter `json:"list"`
+}
+
+type JobMetric struct {
+	Unit     string             `json:"unit"`
+	Scope    JobMetricScope     `json:"scope"`
+	Timestep int                `json:"timestep"`
+	Series   []*JobMetricSeries `json:"series"`
+}
+
+type JobMetricSeries struct {
+	NodeID     string               `json:"node_id"`
+	Statistics *JobMetricStatistics `json:"statistics"`
+	Data       []*float64           `json:"data"`
+}
+
+type JobMetricStatistics struct {
+	Avg float64 `json:"avg"`
+	Min float64 `json:"min"`
+	Max float64 `json:"max"`
+}
+
+type JobMetricWithName struct {
+	Name   string     `json:"name"`
+	Metric *JobMetric `json:"metric"`
 }
 
 type JobResultList struct {
@@ -98,6 +144,49 @@ type StringInput struct {
 type TimeRange struct {
 	From time.Time `json:"from"`
 	To   time.Time `json:"to"`
+}
+
+type JobMetricScope string
+
+const (
+	JobMetricScopeNode   JobMetricScope = "node"
+	JobMetricScopeCPU    JobMetricScope = "cpu"
+	JobMetricScopeSocket JobMetricScope = "socket"
+)
+
+var AllJobMetricScope = []JobMetricScope{
+	JobMetricScopeNode,
+	JobMetricScopeCPU,
+	JobMetricScopeSocket,
+}
+
+func (e JobMetricScope) IsValid() bool {
+	switch e {
+	case JobMetricScopeNode, JobMetricScopeCPU, JobMetricScopeSocket:
+		return true
+	}
+	return false
+}
+
+func (e JobMetricScope) String() string {
+	return string(e)
+}
+
+func (e *JobMetricScope) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = JobMetricScope(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid JobMetricScope", str)
+	}
+	return nil
+}
+
+func (e JobMetricScope) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 type SortDirectionEnum string
