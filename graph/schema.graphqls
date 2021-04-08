@@ -62,7 +62,7 @@ type Query {
   jobsStatistics(filter: JobFilterList): JobsStatistics!
 
   jobDataById(jobId: String!): JobData
-  jobAvailableMetricsById(jobId: String!): [JobMetricWithName]!
+  jobAvailableMetricsById(jobId: String!, selectMetrics: [String]): [JobMetricWithName]!
 }
 
 input StartJobInput {

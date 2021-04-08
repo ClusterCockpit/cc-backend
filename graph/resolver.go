@@ -105,6 +105,15 @@ func readJobDataFile(jobId string) ([]byte, error) {
 	return f, nil
 }
 
+func contains(s []*string, e string) bool {
+	for _, a := range s {
+		if a != nil && *a == e {
+			return true
+		}
+	}
+	return false
+}
+
 // Queries
 
 func (r *queryResolver) JobByID(
@@ -282,7 +291,8 @@ func (r *queryResolver) JobDataByID(
 }
 
 func (r *queryResolver) JobAvailableMetricsByID(
-	ctx context.Context, jobId string) ([]*model.JobMetricWithName, error) {
+	ctx context.Context, jobId string,
+	selectMetrics []*string) ([]*model.JobMetricWithName, error) {
 
 	f, err := readJobDataFile(jobId)
 	if err != nil {
@@ -303,7 +313,9 @@ func (r *queryResolver) JobAvailableMetricsByID(
 	}
 
 	for name, metric := range metricMap {
-		list = append(list, &model.JobMetricWithName{ name, metric })
+		if selectMetrics == nil || contains(selectMetrics, name) {
+			list = append(list, &model.JobMetricWithName{ name, metric })
+		}
 	}
 
 	return list, nil

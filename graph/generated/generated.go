@@ -122,7 +122,7 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		JobAvailableMetricsByID func(childComplexity int, jobID string) int
+		JobAvailableMetricsByID func(childComplexity int, jobID string, selectMetrics []*string) int
 		JobByID                 func(childComplexity int, jobID string) int
 		JobDataByID             func(childComplexity int, jobID string) int
 		Jobs                    func(childComplexity int, filter *model.JobFilterList, page *model.PageRequest, order *model.OrderByInput) int
@@ -135,7 +135,7 @@ type QueryResolver interface {
 	Jobs(ctx context.Context, filter *model.JobFilterList, page *model.PageRequest, order *model.OrderByInput) (*model.JobResultList, error)
 	JobsStatistics(ctx context.Context, filter *model.JobFilterList) (*model.JobsStatistics, error)
 	JobDataByID(ctx context.Context, jobID string) (*model.JobData, error)
-	JobAvailableMetricsByID(ctx context.Context, jobID string) ([]*model.JobMetricWithName, error)
+	JobAvailableMetricsByID(ctx context.Context, jobID string, selectMetrics []*string) ([]*model.JobMetricWithName, error)
 }
 
 type executableSchema struct {
@@ -520,7 +520,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.JobAvailableMetricsByID(childComplexity, args["jobId"].(string)), true
+		return e.complexity.Query.JobAvailableMetricsByID(childComplexity, args["jobId"].(string), args["selectMetrics"].([]*string)), true
 
 	case "Query.jobById":
 		if e.complexity.Query.JobByID == nil {
@@ -684,7 +684,7 @@ type Query {
   jobsStatistics(filter: JobFilterList): JobsStatistics!
 
   jobDataById(jobId: String!): JobData
-  jobAvailableMetricsById(jobId: String!): [JobMetricWithName]!
+  jobAvailableMetricsById(jobId: String!, selectMetrics: [String]): [JobMetricWithName]!
 }
 
 input StartJobInput {
@@ -825,6 +825,15 @@ func (ec *executionContext) field_Query_jobAvailableMetricsById_args(ctx context
 		}
 	}
 	args["jobId"] = arg0
+	var arg1 []*string
+	if tmp, ok := rawArgs["selectMetrics"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("selectMetrics"))
+		arg1, err = ec.unmarshalOString2ᚕᚖstring(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["selectMetrics"] = arg1
 	return args, nil
 }
 
@@ -2847,7 +2856,7 @@ func (ec *executionContext) _Query_jobAvailableMetricsById(ctx context.Context, 
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().JobAvailableMetricsByID(rctx, args["jobId"].(string))
+		return ec.resolvers.Query().JobAvailableMetricsByID(rctx, args["jobId"].(string), args["selectMetrics"].([]*string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -5920,6 +5929,42 @@ func (ec *executionContext) unmarshalOString2string(ctx context.Context, v inter
 
 func (ec *executionContext) marshalOString2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
 	return graphql.MarshalString(v)
+}
+
+func (ec *executionContext) unmarshalOString2ᚕᚖstring(ctx context.Context, v interface{}) ([]*string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []interface{}
+	if v != nil {
+		if tmp1, ok := v.([]interface{}); ok {
+			vSlice = tmp1
+		} else {
+			vSlice = []interface{}{v}
+		}
+	}
+	var err error
+	res := make([]*string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalOString2ᚖstring(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOString2ᚕᚖstring(ctx context.Context, sel ast.SelectionSet, v []*string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalOString2ᚖstring(ctx, sel, v[i])
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v interface{}) (*string, error) {
