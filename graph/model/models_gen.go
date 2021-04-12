@@ -34,28 +34,6 @@ type IntRange struct {
 	To   int `json:"to"`
 }
 
-type JobData struct {
-	LoadOne            *JobMetric `json:"load_one"`
-	MemUsed            *JobMetric `json:"mem_used"`
-	MemBw              *JobMetric `json:"mem_bw"`
-	FlopsAny           *JobMetric `json:"flops_any"`
-	FlopsDp            *JobMetric `json:"flops_dp"`
-	FlopsSp            *JobMetric `json:"flops_sp"`
-	CpiAvg             *JobMetric `json:"cpi_avg"`
-	ClockSpeed         *JobMetric `json:"clock_speed"`
-	TotalPower         *JobMetric `json:"total_power"`
-	TrafficReadEth     *JobMetric `json:"traffic_read_eth"`
-	TrafficWriteEth    *JobMetric `json:"traffic_write_eth"`
-	TrafficReadLustre  *JobMetric `json:"traffic_read_lustre"`
-	TrafficWriteLustre *JobMetric `json:"traffic_write_lustre"`
-	RegReadLustre      *JobMetric `json:"reg_read_lustre"`
-	RegWriteLustre     *JobMetric `json:"reg_write_lustre"`
-	InodesLustre       *JobMetric `json:"inodes_lustre"`
-	PkgRateReadIb      *JobMetric `json:"pkg_rate_read_ib"`
-	PkgRateWriteIb     *JobMetric `json:"pkg_rate_write_ib"`
-	CongestionIb       *JobMetric `json:"congestion_ib"`
-}
-
 type JobFilter struct {
 	JobID      *StringInput `json:"jobId"`
 	UserID     *StringInput `json:"userId"`

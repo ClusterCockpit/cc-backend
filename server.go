@@ -36,7 +36,7 @@ func main() {
 	r.Handle("/query", srv)
 
 	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
-	log.Fatal(http.ListenAndServe("127.0.0.1:8080",
+	log.Fatal(http.ListenAndServe("127.0.0.1:" + port,
 		handlers.CORS(handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}),
 			handlers.AllowedMethods([]string{"GET", "POST", "HEAD", "OPTIONS"}),
 			handlers.AllowedOrigins([]string{"*"}))(loggedRouter)))

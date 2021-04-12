@@ -88,7 +88,7 @@ func buildQueryConditions(filterList *model.JobFilterList) string {
 }
 
 func readJobDataFile(jobId string) ([]byte, error) {
-	// TODO: What to do with the suffix?
+	// TODO: Use suffix as cluster-id!
 	jobId = strings.Split(jobId, ".")[0]
 	id, err := strconv.Atoi(jobId)
 	if err != nil {
@@ -273,26 +273,9 @@ func (r *queryResolver) JobsStatistics(
 	return &stats, nil
 }
 
-func (r *queryResolver) JobDataByID(
-	ctx context.Context, jobId string) (*model.JobData, error) {
-
-	f, err := readJobDataFile(jobId)
-	if err != nil {
-		return nil, err
-	}
-
-	jobData := new(model.JobData)
-	err = json.Unmarshal(f, jobData)
-	if err != nil {
-		return nil, err
-	}
-
-	return jobData, nil
-}
-
-func (r *queryResolver) JobAvailableMetricsByID(
+func (r *queryResolver) JobMetrics(
 	ctx context.Context, jobId string,
-	selectMetrics []*string) ([]*model.JobMetricWithName, error) {
+	metrics []*string) ([]*model.JobMetricWithName, error) {
 
 	f, err := readJobDataFile(jobId)
 	if err != nil {
@@ -313,7 +296,7 @@ func (r *queryResolver) JobAvailableMetricsByID(
 	}
 
 	for name, metric := range metricMap {
-		if selectMetrics == nil || contains(selectMetrics, name) {
+		if metrics == nil || contains(metrics, name) {
 			list = append(list, &model.JobMetricWithName{ name, metric })
 		}
 	}

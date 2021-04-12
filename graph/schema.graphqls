@@ -1,5 +1,4 @@
 type Job {
-  id: ID!
   jobId: String!
   userId: String!
   projectId: String!
@@ -7,28 +6,7 @@ type Job {
   startTime: Time!
   duration: Int!
   numNodes: Int!
-}
-
-type JobData {
-  load_one: JobMetric
-  mem_used: JobMetric
-  mem_bw: JobMetric
-  flops_any: JobMetric
-  flops_dp: JobMetric
-  flops_sp: JobMetric
-  cpi_avg: JobMetric
-  clock_speed: JobMetric
-  total_power: JobMetric
-  traffic_read_eth: JobMetric
-  traffic_write_eth: JobMetric
-  traffic_read_lustre: JobMetric
-  traffic_write_lustre: JobMetric
-  reg_read_lustre: JobMetric
-  reg_write_lustre: JobMetric
-  inodes_lustre: JobMetric
-  pkg_rate_read_ib: JobMetric
-  pkg_rate_write_ib: JobMetric
-  congestion_ib: JobMetric
+  hasProfile: Boolean!
 }
 
 type JobMetric {
@@ -60,9 +38,7 @@ type Query {
   jobById(jobId: String!): Job
   jobs(filter: JobFilterList, page: PageRequest, order: OrderByInput): JobResultList!
   jobsStatistics(filter: JobFilterList): JobsStatistics!
-
-  jobDataById(jobId: String!): JobData
-  jobAvailableMetricsById(jobId: String!, selectMetrics: [String]): [JobMetricWithName]!
+  jobMetrics(jobId: String!, metrics: [String]): [JobMetricWithName]!
 }
 
 input StartJobInput {
