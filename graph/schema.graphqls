@@ -1,4 +1,6 @@
 type Job {
+  id: ID!
+
   jobId: String!
   userId: String!
   projectId: String!
@@ -7,6 +9,12 @@ type Job {
   duration: Int!
   numNodes: Int!
   hasProfile: Boolean!
+
+  memUsed_max: Float
+  flopsAny_avg: Float
+  memBw_avg: Float
+  netBw_avg: Float
+  fileBw_avg: Float
 }
 
 type JobMetric {

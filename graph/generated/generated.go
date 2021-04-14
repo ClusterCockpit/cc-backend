@@ -49,14 +49,20 @@ type ComplexityRoot struct {
 	}
 
 	Job struct {
-		ClusterID  func(childComplexity int) int
-		Duration   func(childComplexity int) int
-		HasProfile func(childComplexity int) int
-		JobID      func(childComplexity int) int
-		NumNodes   func(childComplexity int) int
-		ProjectID  func(childComplexity int) int
-		StartTime  func(childComplexity int) int
-		UserID     func(childComplexity int) int
+		ClusterID    func(childComplexity int) int
+		Duration     func(childComplexity int) int
+		FileBw_avg   func(childComplexity int) int
+		FlopsAny_avg func(childComplexity int) int
+		HasProfile   func(childComplexity int) int
+		ID           func(childComplexity int) int
+		JobID        func(childComplexity int) int
+		MemBw_avg    func(childComplexity int) int
+		MemUsed_max  func(childComplexity int) int
+		NetBw_avg    func(childComplexity int) int
+		NumNodes     func(childComplexity int) int
+		ProjectID    func(childComplexity int) int
+		StartTime    func(childComplexity int) int
+		UserID       func(childComplexity int) int
 	}
 
 	JobMetric struct {
@@ -157,6 +163,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Job.Duration(childComplexity), true
 
+	case "Job.fileBw_avg":
+		if e.complexity.Job.FileBw_avg == nil {
+			break
+		}
+
+		return e.complexity.Job.FileBw_avg(childComplexity), true
+
+	case "Job.flopsAny_avg":
+		if e.complexity.Job.FlopsAny_avg == nil {
+			break
+		}
+
+		return e.complexity.Job.FlopsAny_avg(childComplexity), true
+
 	case "Job.hasProfile":
 		if e.complexity.Job.HasProfile == nil {
 			break
@@ -164,12 +184,40 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Job.HasProfile(childComplexity), true
 
+	case "Job.id":
+		if e.complexity.Job.ID == nil {
+			break
+		}
+
+		return e.complexity.Job.ID(childComplexity), true
+
 	case "Job.jobId":
 		if e.complexity.Job.JobID == nil {
 			break
 		}
 
 		return e.complexity.Job.JobID(childComplexity), true
+
+	case "Job.memBw_avg":
+		if e.complexity.Job.MemBw_avg == nil {
+			break
+		}
+
+		return e.complexity.Job.MemBw_avg(childComplexity), true
+
+	case "Job.memUsed_max":
+		if e.complexity.Job.MemUsed_max == nil {
+			break
+		}
+
+		return e.complexity.Job.MemUsed_max(childComplexity), true
+
+	case "Job.netBw_avg":
+		if e.complexity.Job.NetBw_avg == nil {
+			break
+		}
+
+		return e.complexity.Job.NetBw_avg(childComplexity), true
 
 	case "Job.numNodes":
 		if e.complexity.Job.NumNodes == nil {
@@ -452,6 +500,8 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 
 var sources = []*ast.Source{
 	{Name: "graph/schema.graphqls", Input: `type Job {
+  id: ID!
+
   jobId: String!
   userId: String!
   projectId: String!
@@ -460,6 +510,12 @@ var sources = []*ast.Source{
   duration: Int!
   numNodes: Int!
   hasProfile: Boolean!
+
+  memUsed_max: Float
+  flopsAny_avg: Float
+  memBw_avg: Float
+  netBw_avg: Float
+  fileBw_avg: Float
 }
 
 type JobMetric {
@@ -815,6 +871,41 @@ func (ec *executionContext) _HistoPoint_value(ctx context.Context, field graphql
 	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Job_id(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNID2string(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Job_jobId(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -1093,6 +1184,166 @@ func (ec *executionContext) _Job_hasProfile(ctx context.Context, field graphql.C
 	res := resTmp.(bool)
 	fc.Result = res
 	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Job_memUsed_max(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MemUsed_max, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*float64)
+	fc.Result = res
+	return ec.marshalOFloat2ᚖfloat64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Job_flopsAny_avg(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FlopsAny_avg, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*float64)
+	fc.Result = res
+	return ec.marshalOFloat2ᚖfloat64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Job_memBw_avg(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MemBw_avg, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*float64)
+	fc.Result = res
+	return ec.marshalOFloat2ᚖfloat64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Job_netBw_avg(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.NetBw_avg, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*float64)
+	fc.Result = res
+	return ec.marshalOFloat2ᚖfloat64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Job_fileBw_avg(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FileBw_avg, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*float64)
+	fc.Result = res
+	return ec.marshalOFloat2ᚖfloat64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _JobMetric_unit(ctx context.Context, field graphql.CollectedField, obj *model.JobMetric) (ret graphql.Marshaler) {
@@ -3659,6 +3910,11 @@ func (ec *executionContext) _Job(ctx context.Context, sel ast.SelectionSet, obj 
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Job")
+		case "id":
+			out.Values[i] = ec._Job_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "jobId":
 			out.Values[i] = ec._Job_jobId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -3699,6 +3955,16 @@ func (ec *executionContext) _Job(ctx context.Context, sel ast.SelectionSet, obj 
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
+		case "memUsed_max":
+			out.Values[i] = ec._Job_memUsed_max(ctx, field, obj)
+		case "flopsAny_avg":
+			out.Values[i] = ec._Job_flopsAny_avg(ctx, field, obj)
+		case "memBw_avg":
+			out.Values[i] = ec._Job_memBw_avg(ctx, field, obj)
+		case "netBw_avg":
+			out.Values[i] = ec._Job_netBw_avg(ctx, field, obj)
+		case "fileBw_avg":
+			out.Values[i] = ec._Job_fileBw_avg(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -4363,6 +4629,21 @@ func (ec *executionContext) marshalNHistoPoint2ᚕᚖgithubᚗcomᚋClusterCockp
 	}
 	wg.Wait()
 	return ret
+}
+
+func (ec *executionContext) unmarshalNID2string(ctx context.Context, v interface{}) (string, error) {
+	res, err := graphql.UnmarshalID(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNID2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
+	res := graphql.MarshalID(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+	}
+	return res
 }
 
 func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v interface{}) (int, error) {
