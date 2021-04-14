@@ -7,6 +7,7 @@ import (
 	"log"
 	"strings"
 	"os"
+	"errors"
 	"strconv"
 	"encoding/json"
 
@@ -302,6 +303,56 @@ func (r *queryResolver) JobMetrics(
 	}
 
 	return list, nil
+}
+
+func (r *queryResolver) JobTags(
+	ctx context.Context, jobId *string) ([]*model.JobTag, error) {
+
+	if jobId == nil {
+		rows, err := r.DB.Queryx("SELECT * FROM tag")
+		if err != nil {
+			return nil, err
+		}
+
+		tags := []*model.JobTag{}
+		for rows.Next() {
+			var tag *model.JobTag
+			err = rows.StructScan(&tag)
+			if err != nil {
+				return nil, err
+			}
+			tags = append(tags, tag)
+		}
+		return tags, nil
+	}
+
+	query := `
+	SELECT id, tag_name, tag_type FROM tag
+	JOIN jobtag ON tag.id = jobtag.tag_id
+	WHERE jobtag.job_id = $1
+	`
+	rows, err := r.DB.Queryx(query, jobId)
+	if err != nil {
+		return nil, err
+	}
+
+	tags := []*model.JobTag{}
+	for rows.Next() {
+		var tag *model.JobTag
+		err = rows.StructScan(&tag)
+		if err != nil {
+			return nil, err
+		}
+		tags = append(tags, tag)
+	}
+
+	return tags, nil
+}
+
+func (r *queryResolver) JobsByTag(
+	ctx context.Context, jobId string) ([]string, error) {
+
+	return nil, errors.New("unimplemented")
 }
 
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }

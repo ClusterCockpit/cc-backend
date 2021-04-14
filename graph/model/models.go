@@ -23,3 +23,9 @@ type Job struct {
 	NetBw_avg    *float64  `json:"netBwAvg" db:"net_bw_avg"`
 	FileBw_avg   *float64  `json:"fileBwAvg" db:"file_bw_avg"`
 }
+
+type JobTag struct {
+	ID      string `db:"id"`
+	TagType string `db:"tag_type"`
+	TagName string `db:"tag_name"`
+}

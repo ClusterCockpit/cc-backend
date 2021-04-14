@@ -42,11 +42,23 @@ type JobMetricStatistics {
   max: Float!
 }
 
+type JobTag {
+  id: ID!
+  tagType: String!
+  tagName: String!
+}
+
 type Query {
   jobById(jobId: String!): Job
   jobs(filter: JobFilterList, page: PageRequest, order: OrderByInput): JobResultList!
   jobsStatistics(filter: JobFilterList): JobsStatistics!
   jobMetrics(jobId: String!, metrics: [String]): [JobMetricWithName]!
+
+  # Return all known tags or, if jobId is specified, only tags from this job
+  jobTags(jobId: String): [JobTag!]!
+
+  # For a tag ID, return the ID's of all jobs with that tag
+  jobsByTag(tag: ID!): [ID!]!
 }
 
 input StartJobInput {
