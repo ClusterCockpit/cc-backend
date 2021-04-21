@@ -35,6 +35,8 @@ type IntRange struct {
 }
 
 type JobFilter struct {
+	TagName    *string      `json:"tagName"`
+	TagType    *string      `json:"tagType"`
 	JobID      *StringInput `json:"jobId"`
 	UserID     *StringInput `json:"userId"`
 	ProjectID  *StringInput `json:"projectId"`

@@ -56,6 +56,9 @@ models:
       - github.com/99designs/gqlgen/graphql.Int32
   Job:
     model: "github.com/ClusterCockpit/cc-jobarchive/graph/model.Job"
+    fields:
+      tags:
+        resolver: true
   JobTag:
      model: "github.com/ClusterCockpit/cc-jobarchive/graph/model.JobTag"
   Timestamp:

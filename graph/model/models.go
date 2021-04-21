@@ -22,6 +22,7 @@ type Job struct {
 	MemBw_avg    *float64  `json:"memBwAvg" db:"mem_bw_avg"`
 	NetBw_avg    *float64  `json:"netBwAvg" db:"net_bw_avg"`
 	FileBw_avg   *float64  `json:"fileBwAvg" db:"file_bw_avg"`
+	Tags         []JobTag  `json:"tags"`
 }
 
 type JobTag struct {

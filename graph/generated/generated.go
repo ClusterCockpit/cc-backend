@@ -36,6 +36,7 @@ type Config struct {
 }
 
 type ResolverRoot interface {
+	Job() JobResolver
 	Query() QueryResolver
 }
 
@@ -62,6 +63,7 @@ type ComplexityRoot struct {
 		NumNodes     func(childComplexity int) int
 		ProjectID    func(childComplexity int) int
 		StartTime    func(childComplexity int) int
+		Tags         func(childComplexity int) int
 		UserID       func(childComplexity int) int
 	}
 
@@ -114,20 +116,21 @@ type ComplexityRoot struct {
 	Query struct {
 		JobByID        func(childComplexity int, jobID string) int
 		JobMetrics     func(childComplexity int, jobID string, metrics []*string) int
-		JobTags        func(childComplexity int, jobID *string) int
 		Jobs           func(childComplexity int, filter *model.JobFilterList, page *model.PageRequest, order *model.OrderByInput) int
-		JobsByTag      func(childComplexity int, tag string) int
 		JobsStatistics func(childComplexity int, filter *model.JobFilterList) int
+		Tags           func(childComplexity int, jobID *string) int
 	}
 }
 
+type JobResolver interface {
+	Tags(ctx context.Context, obj *model.Job) ([]*model.JobTag, error)
+}
 type QueryResolver interface {
 	JobByID(ctx context.Context, jobID string) (*model.Job, error)
 	Jobs(ctx context.Context, filter *model.JobFilterList, page *model.PageRequest, order *model.OrderByInput) (*model.JobResultList, error)
 	JobsStatistics(ctx context.Context, filter *model.JobFilterList) (*model.JobsStatistics, error)
 	JobMetrics(ctx context.Context, jobID string, metrics []*string) ([]*model.JobMetricWithName, error)
-	JobTags(ctx context.Context, jobID *string) ([]*model.JobTag, error)
-	JobsByTag(ctx context.Context, tag string) ([]string, error)
+	Tags(ctx context.Context, jobID *string) ([]*model.JobTag, error)
 }
 
 type executableSchema struct {
@@ -249,6 +252,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Job.StartTime(childComplexity), true
+
+	case "Job.tags":
+		if e.complexity.Job.Tags == nil {
+			break
+		}
+
+		return e.complexity.Job.Tags(childComplexity), true
 
 	case "Job.userId":
 		if e.complexity.Job.UserID == nil {
@@ -456,18 +466,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.JobMetrics(childComplexity, args["jobId"].(string), args["metrics"].([]*string)), true
 
-	case "Query.jobTags":
-		if e.complexity.Query.JobTags == nil {
-			break
-		}
-
-		args, err := ec.field_Query_jobTags_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Query.JobTags(childComplexity, args["jobId"].(*string)), true
-
 	case "Query.jobs":
 		if e.complexity.Query.Jobs == nil {
 			break
@@ -480,18 +478,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.Jobs(childComplexity, args["filter"].(*model.JobFilterList), args["page"].(*model.PageRequest), args["order"].(*model.OrderByInput)), true
 
-	case "Query.jobsByTag":
-		if e.complexity.Query.JobsByTag == nil {
-			break
-		}
-
-		args, err := ec.field_Query_jobsByTag_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Query.JobsByTag(childComplexity, args["tag"].(string)), true
-
 	case "Query.jobsStatistics":
 		if e.complexity.Query.JobsStatistics == nil {
 			break
@@ -503,6 +489,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.JobsStatistics(childComplexity, args["filter"].(*model.JobFilterList)), true
+
+	case "Query.tags":
+		if e.complexity.Query.Tags == nil {
+			break
+		}
+
+		args, err := ec.field_Query_tags_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Tags(childComplexity, args["jobId"].(*string)), true
 
 	}
 	return 0, false
@@ -571,6 +569,8 @@ var sources = []*ast.Source{
   memBw_avg: Float
   netBw_avg: Float
   fileBw_avg: Float
+
+  tags: [JobTag!]
 }
 
 type JobMetric {
@@ -611,10 +611,7 @@ type Query {
   jobMetrics(jobId: String!, metrics: [String]): [JobMetricWithName]!
 
   # Return all known tags or, if jobId is specified, only tags from this job
-  jobTags(jobId: String): [JobTag!]!
-
-  # For a tag ID, return the ID's of all jobs with that tag
-  jobsByTag(tag: ID!): [ID!]!
+  tags(jobId: String): [JobTag!]!
 }
 
 input StartJobInput {
@@ -646,6 +643,8 @@ input JobFilterList {
 }
 
 input JobFilter {
+  tagName: String
+  tagType: String
   jobId: StringInput
   userId: StringInput
   projectId: StringInput
@@ -782,36 +781,6 @@ func (ec *executionContext) field_Query_jobMetrics_args(ctx context.Context, raw
 	return args, nil
 }
 
-func (ec *executionContext) field_Query_jobTags_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	args := map[string]interface{}{}
-	var arg0 *string
-	if tmp, ok := rawArgs["jobId"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("jobId"))
-		arg0, err = ec.unmarshalOString2ᚖstring(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["jobId"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Query_jobsByTag_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	args := map[string]interface{}{}
-	var arg0 string
-	if tmp, ok := rawArgs["tag"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tag"))
-		arg0, err = ec.unmarshalNID2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["tag"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_Query_jobsStatistics_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -857,6 +826,21 @@ func (ec *executionContext) field_Query_jobs_args(ctx context.Context, rawArgs m
 		}
 	}
 	args["order"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_tags_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *string
+	if tmp, ok := rawArgs["jobId"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("jobId"))
+		arg0, err = ec.unmarshalOString2ᚖstring(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["jobId"] = arg0
 	return args, nil
 }
 
@@ -1441,6 +1425,38 @@ func (ec *executionContext) _Job_fileBw_avg(ctx context.Context, field graphql.C
 	res := resTmp.(*float64)
 	fc.Result = res
 	return ec.marshalOFloat2ᚖfloat64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Job_tags(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Job().Tags(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.JobTag)
+	fc.Result = res
+	return ec.marshalOJobTag2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐJobTagᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _JobMetric_unit(ctx context.Context, field graphql.CollectedField, obj *model.JobMetric) (ret graphql.Marshaler) {
@@ -2471,7 +2487,7 @@ func (ec *executionContext) _Query_jobMetrics(ctx context.Context, field graphql
 	return ec.marshalNJobMetricWithName2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐJobMetricWithName(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Query_jobTags(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Query_tags(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -2488,7 +2504,7 @@ func (ec *executionContext) _Query_jobTags(ctx context.Context, field graphql.Co
 
 	ctx = graphql.WithFieldContext(ctx, fc)
 	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_Query_jobTags_args(ctx, rawArgs)
+	args, err := ec.field_Query_tags_args(ctx, rawArgs)
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
@@ -2496,7 +2512,7 @@ func (ec *executionContext) _Query_jobTags(ctx context.Context, field graphql.Co
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().JobTags(rctx, args["jobId"].(*string))
+		return ec.resolvers.Query().Tags(rctx, args["jobId"].(*string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2511,48 +2527,6 @@ func (ec *executionContext) _Query_jobTags(ctx context.Context, field graphql.Co
 	res := resTmp.([]*model.JobTag)
 	fc.Result = res
 	return ec.marshalNJobTag2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐJobTagᚄ(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Query_jobsByTag(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_Query_jobsByTag_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	fc.Args = args
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().JobsByTag(rctx, args["tag"].(string))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.([]string)
-	fc.Result = res
-	return ec.marshalNID2ᚕstringᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -3843,6 +3817,22 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 
 	for k, v := range asMap {
 		switch k {
+		case "tagName":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tagName"))
+			it.TagName, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "tagType":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tagType"))
+			it.TagType, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		case "jobId":
 			var err error
 
@@ -4199,47 +4189,47 @@ func (ec *executionContext) _Job(ctx context.Context, sel ast.SelectionSet, obj 
 		case "id":
 			out.Values[i] = ec._Job_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "jobId":
 			out.Values[i] = ec._Job_jobId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "userId":
 			out.Values[i] = ec._Job_userId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "projectId":
 			out.Values[i] = ec._Job_projectId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "clusterId":
 			out.Values[i] = ec._Job_clusterId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "startTime":
 			out.Values[i] = ec._Job_startTime(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "duration":
 			out.Values[i] = ec._Job_duration(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "numNodes":
 			out.Values[i] = ec._Job_numNodes(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "hasProfile":
 			out.Values[i] = ec._Job_hasProfile(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "memUsed_max":
 			out.Values[i] = ec._Job_memUsed_max(ctx, field, obj)
@@ -4251,6 +4241,17 @@ func (ec *executionContext) _Job(ctx context.Context, sel ast.SelectionSet, obj 
 			out.Values[i] = ec._Job_netBw_avg(ctx, field, obj)
 		case "fileBw_avg":
 			out.Values[i] = ec._Job_fileBw_avg(ctx, field, obj)
+		case "tags":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Job_tags(ctx, field, obj)
+				return res
+			})
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -4597,7 +4598,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				}
 				return res
 			})
-		case "jobTags":
+		case "tags":
 			field := field
 			out.Concurrently(i, func() (res graphql.Marshaler) {
 				defer func() {
@@ -4605,21 +4606,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Query_jobTags(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&invalids, 1)
-				}
-				return res
-			})
-		case "jobsByTag":
-			field := field
-			out.Concurrently(i, func() (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_jobsByTag(ctx, field)
+				res = ec._Query_tags(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&invalids, 1)
 				}
@@ -4995,36 +4982,6 @@ func (ec *executionContext) marshalNID2string(ctx context.Context, sel ast.Selec
 		}
 	}
 	return res
-}
-
-func (ec *executionContext) unmarshalNID2ᚕstringᚄ(ctx context.Context, v interface{}) ([]string, error) {
-	var vSlice []interface{}
-	if v != nil {
-		if tmp1, ok := v.([]interface{}); ok {
-			vSlice = tmp1
-		} else {
-			vSlice = []interface{}{v}
-		}
-	}
-	var err error
-	res := make([]string, len(vSlice))
-	for i := range vSlice {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNID2string(ctx, vSlice[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
-}
-
-func (ec *executionContext) marshalNID2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	for i := range v {
-		ret[i] = ec.marshalNID2string(ctx, sel, v[i])
-	}
-
-	return ret
 }
 
 func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v interface{}) (int, error) {
@@ -5642,6 +5599,46 @@ func (ec *executionContext) marshalOJobMetricWithName2ᚖgithubᚗcomᚋClusterC
 		return graphql.Null
 	}
 	return ec._JobMetricWithName(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOJobTag2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐJobTagᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.JobTag) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNJobTag2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐJobTag(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
 }
 
 func (ec *executionContext) unmarshalOOrderByInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐOrderByInput(ctx context.Context, v interface{}) (*model.OrderByInput, error) {

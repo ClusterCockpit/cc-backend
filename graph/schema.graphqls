@@ -15,6 +15,8 @@ type Job {
   memBw_avg: Float
   netBw_avg: Float
   fileBw_avg: Float
+
+  tags: [JobTag!]
 }
 
 type JobMetric {
@@ -55,10 +57,7 @@ type Query {
   jobMetrics(jobId: String!, metrics: [String]): [JobMetricWithName]!
 
   # Return all known tags or, if jobId is specified, only tags from this job
-  jobTags(jobId: String): [JobTag!]!
-
-  # For a tag ID, return the ID's of all jobs with that tag
-  jobsByTag(tag: ID!): [ID!]!
+  tags(jobId: String): [JobTag!]!
 }
 
 input StartJobInput {
@@ -90,6 +89,8 @@ input JobFilterList {
 }
 
 input JobFilter {
+  tagName: String
+  tagType: String
   jobId: StringInput
   userId: StringInput
   projectId: StringInput

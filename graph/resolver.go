@@ -7,7 +7,6 @@ import (
 	"log"
 	"strings"
 	"os"
-	"errors"
 	"strconv"
 	"encoding/json"
 
@@ -58,12 +57,26 @@ func addTimeCondition(conditions []string, field string, input *model.TimeRange)
 	return conditions
 }
 
-func buildQueryConditions(filterList *model.JobFilterList) string {
+func buildQueryConditions(filterList *model.JobFilterList) (string, string) {
 	var conditions []string
+	var join string
+
+	joinJobtags := `
+	JOIN jobtag ON jobtag.job_id = job.id
+	JOIN tag ON tag.id = jobtag.tag_id
+	`
 
 	for _, condition := range filterList.List {
+		if condition.TagName != nil {
+			conditions = append(conditions, fmt.Sprintf("tag.tag_name = '%s'", *condition.TagName))
+			join = joinJobtags
+		}
+		if condition.TagType != nil {
+			conditions = append(conditions, fmt.Sprintf("tag.tag_type = '%s'", *condition.TagType))
+			join = joinJobtags
+		}
 		if condition.JobID != nil {
-			conditions = addStringCondition(conditions, `job_id`, condition.JobID)
+			conditions = addStringCondition(conditions, `job.job_id`, condition.JobID)
 		}
 		if condition.UserID != nil {
 			conditions = addStringCondition(conditions, `user_id`, condition.UserID)
@@ -85,7 +98,7 @@ func buildQueryConditions(filterList *model.JobFilterList) string {
 		}
 	}
 
-	return strings.Join(conditions, " AND ")
+	return strings.Join(conditions, " AND "), join
 }
 
 func readJobDataFile(jobId string) ([]byte, error) {
@@ -141,7 +154,7 @@ func (r *queryResolver) Jobs(
 
 	var jobs []*model.Job
 	var limit, offset int
-	var qc, ob string
+	var qc, ob, jo string
 
 	if page != nil {
 		limit = *page.ItemsPerPage
@@ -152,10 +165,14 @@ func (r *queryResolver) Jobs(
 	}
 
 	if filterList != nil {
-		qc = buildQueryConditions(filterList)
+		qc, jo = buildQueryConditions(filterList)
 
 		if qc != "" {
 			qc = `WHERE ` + qc
+		}
+
+		if jo != "" {
+			qc = jo + qc
 		}
 	}
 
@@ -163,7 +180,7 @@ func (r *queryResolver) Jobs(
 		ob = fmt.Sprintf("ORDER BY %s %s", orderBy.Field, *orderBy.Order)
 	}
 
-	qstr := `SELECT * `
+	qstr := `SELECT job.* `
 	qstr += fmt.Sprintf("FROM job %s %s LIMIT %d OFFSET %d", qc, ob, limit, offset)
 	log.Printf("%s", qstr)
 
@@ -201,13 +218,17 @@ func (r *queryResolver) Jobs(
 func (r *queryResolver) JobsStatistics(
 	ctx context.Context,
 	filterList *model.JobFilterList) (*model.JobsStatistics, error) {
-	var qc string
+	var qc, jo string
 
 	if filterList != nil {
-		qc = buildQueryConditions(filterList)
+		qc, jo = buildQueryConditions(filterList)
 
 		if qc != "" {
 			qc = `WHERE ` + qc
+		}
+
+		if jo != "" {
+			qc = jo + qc
 		}
 	}
 
@@ -305,7 +326,7 @@ func (r *queryResolver) JobMetrics(
 	return list, nil
 }
 
-func (r *queryResolver) JobTags(
+func (r *queryResolver) Tags(
 	ctx context.Context, jobId *string) ([]*model.JobTag, error) {
 
 	if jobId == nil {
@@ -316,20 +337,22 @@ func (r *queryResolver) JobTags(
 
 		tags := []*model.JobTag{}
 		for rows.Next() {
-			var tag *model.JobTag
+			var tag model.JobTag
 			err = rows.StructScan(&tag)
 			if err != nil {
 				return nil, err
 			}
-			tags = append(tags, tag)
+			tags = append(tags, &tag)
 		}
 		return tags, nil
 	}
 
+	/* TODO: Use cluster id? */
 	query := `
-	SELECT id, tag_name, tag_type FROM tag
+	SELECT tag.id, tag.tag_name, tag.tag_type FROM tag
 	JOIN jobtag ON tag.id = jobtag.tag_id
-	WHERE jobtag.job_id = $1
+	JOIN job ON job.id = jobtag.job_id
+	WHERE job.job_id = $1
 	`
 	rows, err := r.DB.Queryx(query, jobId)
 	if err != nil {
@@ -338,23 +361,43 @@ func (r *queryResolver) JobTags(
 
 	tags := []*model.JobTag{}
 	for rows.Next() {
-		var tag *model.JobTag
+		var tag model.JobTag
 		err = rows.StructScan(&tag)
 		if err != nil {
 			return nil, err
 		}
-		tags = append(tags, tag)
+		tags = append(tags, &tag)
 	}
 
 	return tags, nil
 }
 
-func (r *queryResolver) JobsByTag(
-	ctx context.Context, jobId string) ([]string, error) {
+func (r *jobResolver) Tags(ctx context.Context, job *model.Job) ([]*model.JobTag, error) {
+	query := `
+	SELECT tag.id, tag.tag_name, tag.tag_type FROM tag
+	JOIN jobtag ON tag.id = jobtag.tag_id
+	WHERE jobtag.job_id = $1
+	`
+	rows, err := r.DB.Queryx(query, job.ID)
+	if err != nil {
+		return nil, err
+	}
 
-	return nil, errors.New("unimplemented")
+	tags := []*model.JobTag{}
+	for rows.Next() {
+		var tag model.JobTag
+		err = rows.StructScan(&tag)
+		if err != nil {
+			return nil, err
+		}
+		tags = append(tags, &tag)
+	}
+
+	return tags, nil
 }
 
+func (r *Resolver) Job() generated.JobResolver { return &jobResolver{r} }
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
+type jobResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
