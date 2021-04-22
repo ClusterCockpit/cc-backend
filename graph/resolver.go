@@ -295,6 +295,31 @@ func (r *queryResolver) JobsStatistics(
 	return &stats, nil
 }
 
+func (r *queryResolver) Clusters(ctx context.Context) ([]*model.Cluster, error) {
+	files, err := os.ReadDir("./clusters");
+	if err != nil {
+		return nil, err
+	}
+
+	var clusters []*model.Cluster
+	for _, entry := range files {
+		f, err := os.ReadFile("./clusters/" + entry.Name())
+		if err != nil {
+			return nil, err
+		}
+
+		var cluster model.Cluster
+		err = json.Unmarshal(f, &cluster)
+		if err != nil {
+			return nil, err
+		}
+
+		clusters = append(clusters, &cluster)
+	}
+
+	return clusters, nil
+}
+
 func (r *queryResolver) JobMetrics(
 	ctx context.Context, jobId string,
 	metrics []*string) ([]*model.JobMetricWithName, error) {

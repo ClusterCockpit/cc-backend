@@ -19,6 +19,28 @@ type Job {
   tags: [JobTag!]
 }
 
+type Cluster {
+  clusterID: String!
+  processorType: String!
+  socketsPerNode: Int!
+  coresPerSocket: Int!
+  threadsPerCore: Int!
+  flopRateScalar: Int!
+  flopRateSimd: Int!
+  memoryBandwidth: Int!
+  metricConfig: [MetricConfig!]!
+}
+
+type MetricConfig {
+  name: String!
+  unit: String!
+  sampletime: Int!
+  peak: Int!
+  normal: Int!
+  caution: Int!
+  alert: Int!
+}
+
 type JobMetric {
   unit: String!
   scope: JobMetricScope!
@@ -51,6 +73,8 @@ type JobTag {
 }
 
 type Query {
+  clusters: [Cluster!]!
+
   jobById(jobId: String!): Job
   jobs(filter: JobFilterList, page: PageRequest, order: OrderByInput): JobResultList!
   jobsStatistics(filter: JobFilterList): JobsStatistics!

@@ -44,6 +44,18 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	Cluster struct {
+		ClusterID       func(childComplexity int) int
+		CoresPerSocket  func(childComplexity int) int
+		FlopRateScalar  func(childComplexity int) int
+		FlopRateSimd    func(childComplexity int) int
+		MemoryBandwidth func(childComplexity int) int
+		MetricConfig    func(childComplexity int) int
+		ProcessorType   func(childComplexity int) int
+		SocketsPerNode  func(childComplexity int) int
+		ThreadsPerCore  func(childComplexity int) int
+	}
+
 	HistoPoint struct {
 		Count func(childComplexity int) int
 		Value func(childComplexity int) int
@@ -113,7 +125,18 @@ type ComplexityRoot struct {
 		TotalWalltime  func(childComplexity int) int
 	}
 
+	MetricConfig struct {
+		Alert      func(childComplexity int) int
+		Caution    func(childComplexity int) int
+		Name       func(childComplexity int) int
+		Normal     func(childComplexity int) int
+		Peak       func(childComplexity int) int
+		Sampletime func(childComplexity int) int
+		Unit       func(childComplexity int) int
+	}
+
 	Query struct {
+		Clusters       func(childComplexity int) int
 		JobByID        func(childComplexity int, jobID string) int
 		JobMetrics     func(childComplexity int, jobID string, metrics []*string) int
 		Jobs           func(childComplexity int, filter *model.JobFilterList, page *model.PageRequest, order *model.OrderByInput) int
@@ -126,6 +149,7 @@ type JobResolver interface {
 	Tags(ctx context.Context, obj *model.Job) ([]*model.JobTag, error)
 }
 type QueryResolver interface {
+	Clusters(ctx context.Context) ([]*model.Cluster, error)
 	JobByID(ctx context.Context, jobID string) (*model.Job, error)
 	Jobs(ctx context.Context, filter *model.JobFilterList, page *model.PageRequest, order *model.OrderByInput) (*model.JobResultList, error)
 	JobsStatistics(ctx context.Context, filter *model.JobFilterList) (*model.JobsStatistics, error)
@@ -147,6 +171,69 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 	ec := executionContext{nil, e}
 	_ = ec
 	switch typeName + "." + field {
+
+	case "Cluster.clusterID":
+		if e.complexity.Cluster.ClusterID == nil {
+			break
+		}
+
+		return e.complexity.Cluster.ClusterID(childComplexity), true
+
+	case "Cluster.coresPerSocket":
+		if e.complexity.Cluster.CoresPerSocket == nil {
+			break
+		}
+
+		return e.complexity.Cluster.CoresPerSocket(childComplexity), true
+
+	case "Cluster.flopRateScalar":
+		if e.complexity.Cluster.FlopRateScalar == nil {
+			break
+		}
+
+		return e.complexity.Cluster.FlopRateScalar(childComplexity), true
+
+	case "Cluster.flopRateSimd":
+		if e.complexity.Cluster.FlopRateSimd == nil {
+			break
+		}
+
+		return e.complexity.Cluster.FlopRateSimd(childComplexity), true
+
+	case "Cluster.memoryBandwidth":
+		if e.complexity.Cluster.MemoryBandwidth == nil {
+			break
+		}
+
+		return e.complexity.Cluster.MemoryBandwidth(childComplexity), true
+
+	case "Cluster.metricConfig":
+		if e.complexity.Cluster.MetricConfig == nil {
+			break
+		}
+
+		return e.complexity.Cluster.MetricConfig(childComplexity), true
+
+	case "Cluster.processorType":
+		if e.complexity.Cluster.ProcessorType == nil {
+			break
+		}
+
+		return e.complexity.Cluster.ProcessorType(childComplexity), true
+
+	case "Cluster.socketsPerNode":
+		if e.complexity.Cluster.SocketsPerNode == nil {
+			break
+		}
+
+		return e.complexity.Cluster.SocketsPerNode(childComplexity), true
+
+	case "Cluster.threadsPerCore":
+		if e.complexity.Cluster.ThreadsPerCore == nil {
+			break
+		}
+
+		return e.complexity.Cluster.ThreadsPerCore(childComplexity), true
 
 	case "HistoPoint.count":
 		if e.complexity.HistoPoint.Count == nil {
@@ -442,6 +529,62 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.JobsStatistics.TotalWalltime(childComplexity), true
 
+	case "MetricConfig.alert":
+		if e.complexity.MetricConfig.Alert == nil {
+			break
+		}
+
+		return e.complexity.MetricConfig.Alert(childComplexity), true
+
+	case "MetricConfig.caution":
+		if e.complexity.MetricConfig.Caution == nil {
+			break
+		}
+
+		return e.complexity.MetricConfig.Caution(childComplexity), true
+
+	case "MetricConfig.name":
+		if e.complexity.MetricConfig.Name == nil {
+			break
+		}
+
+		return e.complexity.MetricConfig.Name(childComplexity), true
+
+	case "MetricConfig.normal":
+		if e.complexity.MetricConfig.Normal == nil {
+			break
+		}
+
+		return e.complexity.MetricConfig.Normal(childComplexity), true
+
+	case "MetricConfig.peak":
+		if e.complexity.MetricConfig.Peak == nil {
+			break
+		}
+
+		return e.complexity.MetricConfig.Peak(childComplexity), true
+
+	case "MetricConfig.sampletime":
+		if e.complexity.MetricConfig.Sampletime == nil {
+			break
+		}
+
+		return e.complexity.MetricConfig.Sampletime(childComplexity), true
+
+	case "MetricConfig.unit":
+		if e.complexity.MetricConfig.Unit == nil {
+			break
+		}
+
+		return e.complexity.MetricConfig.Unit(childComplexity), true
+
+	case "Query.clusters":
+		if e.complexity.Query.Clusters == nil {
+			break
+		}
+
+		return e.complexity.Query.Clusters(childComplexity), true
+
 	case "Query.jobById":
 		if e.complexity.Query.JobByID == nil {
 			break
@@ -573,6 +716,28 @@ var sources = []*ast.Source{
   tags: [JobTag!]
 }
 
+type Cluster {
+  clusterID: String!
+  processorType: String!
+  socketsPerNode: Int!
+  coresPerSocket: Int!
+  threadsPerCore: Int!
+  flopRateScalar: Int!
+  flopRateSimd: Int!
+  memoryBandwidth: Int!
+  metricConfig: [MetricConfig!]!
+}
+
+type MetricConfig {
+  name: String!
+  unit: String!
+  sampletime: Int!
+  peak: Int!
+  normal: Int!
+  caution: Int!
+  alert: Int!
+}
+
 type JobMetric {
   unit: String!
   scope: JobMetricScope!
@@ -605,6 +770,8 @@ type JobTag {
 }
 
 type Query {
+  clusters: [Cluster!]!
+
   jobById(jobId: String!): Job
   jobs(filter: JobFilterList, page: PageRequest, order: OrderByInput): JobResultList!
   jobsStatistics(filter: JobFilterList): JobsStatistics!
@@ -881,6 +1048,321 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ************************** directives.gotpl **************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _Cluster_clusterID(ctx context.Context, field graphql.CollectedField, obj *model.Cluster) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Cluster",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ClusterID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Cluster_processorType(ctx context.Context, field graphql.CollectedField, obj *model.Cluster) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Cluster",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ProcessorType, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Cluster_socketsPerNode(ctx context.Context, field graphql.CollectedField, obj *model.Cluster) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Cluster",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.SocketsPerNode, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Cluster_coresPerSocket(ctx context.Context, field graphql.CollectedField, obj *model.Cluster) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Cluster",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CoresPerSocket, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Cluster_threadsPerCore(ctx context.Context, field graphql.CollectedField, obj *model.Cluster) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Cluster",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ThreadsPerCore, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Cluster_flopRateScalar(ctx context.Context, field graphql.CollectedField, obj *model.Cluster) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Cluster",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FlopRateScalar, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Cluster_flopRateSimd(ctx context.Context, field graphql.CollectedField, obj *model.Cluster) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Cluster",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FlopRateSimd, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Cluster_memoryBandwidth(ctx context.Context, field graphql.CollectedField, obj *model.Cluster) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Cluster",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MemoryBandwidth, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Cluster_metricConfig(ctx context.Context, field graphql.CollectedField, obj *model.Cluster) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Cluster",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MetricConfig, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]model.MetricConfig)
+	fc.Result = res
+	return ec.marshalNMetricConfig2ᚕgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐMetricConfigᚄ(ctx, field.Selections, res)
+}
 
 func (ec *executionContext) _HistoPoint_count(ctx context.Context, field graphql.CollectedField, obj *model.HistoPoint) (ret graphql.Marshaler) {
 	defer func() {
@@ -2320,6 +2802,286 @@ func (ec *executionContext) _JobsStatistics_histNumNodes(ctx context.Context, fi
 	res := resTmp.([]*model.HistoPoint)
 	fc.Result = res
 	return ec.marshalNHistoPoint2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐHistoPoint(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MetricConfig_name(ctx context.Context, field graphql.CollectedField, obj *model.MetricConfig) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MetricConfig",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MetricConfig_unit(ctx context.Context, field graphql.CollectedField, obj *model.MetricConfig) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MetricConfig",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Unit, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MetricConfig_sampletime(ctx context.Context, field graphql.CollectedField, obj *model.MetricConfig) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MetricConfig",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Sampletime, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MetricConfig_peak(ctx context.Context, field graphql.CollectedField, obj *model.MetricConfig) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MetricConfig",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Peak, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MetricConfig_normal(ctx context.Context, field graphql.CollectedField, obj *model.MetricConfig) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MetricConfig",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Normal, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MetricConfig_caution(ctx context.Context, field graphql.CollectedField, obj *model.MetricConfig) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MetricConfig",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Caution, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MetricConfig_alert(ctx context.Context, field graphql.CollectedField, obj *model.MetricConfig) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MetricConfig",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Alert, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_clusters(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Clusters(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Cluster)
+	fc.Result = res
+	return ec.marshalNCluster2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐClusterᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_jobById(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -4143,6 +4905,73 @@ func (ec *executionContext) unmarshalInputTimeRange(ctx context.Context, obj int
 
 // region    **************************** object.gotpl ****************************
 
+var clusterImplementors = []string{"Cluster"}
+
+func (ec *executionContext) _Cluster(ctx context.Context, sel ast.SelectionSet, obj *model.Cluster) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, clusterImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Cluster")
+		case "clusterID":
+			out.Values[i] = ec._Cluster_clusterID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "processorType":
+			out.Values[i] = ec._Cluster_processorType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "socketsPerNode":
+			out.Values[i] = ec._Cluster_socketsPerNode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "coresPerSocket":
+			out.Values[i] = ec._Cluster_coresPerSocket(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "threadsPerCore":
+			out.Values[i] = ec._Cluster_threadsPerCore(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "flopRateScalar":
+			out.Values[i] = ec._Cluster_flopRateScalar(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "flopRateSimd":
+			out.Values[i] = ec._Cluster_flopRateSimd(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "memoryBandwidth":
+			out.Values[i] = ec._Cluster_memoryBandwidth(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "metricConfig":
+			out.Values[i] = ec._Cluster_metricConfig(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
 var histoPointImplementors = []string{"HistoPoint"}
 
 func (ec *executionContext) _HistoPoint(ctx context.Context, sel ast.SelectionSet, obj *model.HistoPoint) graphql.Marshaler {
@@ -4530,6 +5359,63 @@ func (ec *executionContext) _JobsStatistics(ctx context.Context, sel ast.Selecti
 	return out
 }
 
+var metricConfigImplementors = []string{"MetricConfig"}
+
+func (ec *executionContext) _MetricConfig(ctx context.Context, sel ast.SelectionSet, obj *model.MetricConfig) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, metricConfigImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MetricConfig")
+		case "name":
+			out.Values[i] = ec._MetricConfig_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "unit":
+			out.Values[i] = ec._MetricConfig_unit(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "sampletime":
+			out.Values[i] = ec._MetricConfig_sampletime(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "peak":
+			out.Values[i] = ec._MetricConfig_peak(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "normal":
+			out.Values[i] = ec._MetricConfig_normal(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "caution":
+			out.Values[i] = ec._MetricConfig_caution(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "alert":
+			out.Values[i] = ec._MetricConfig_alert(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
 var queryImplementors = []string{"Query"}
 
 func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -4545,6 +5431,20 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Query")
+		case "clusters":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_clusters(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
 		case "jobById":
 			field := field
 			out.Concurrently(i, func() (res graphql.Marshaler) {
@@ -4887,6 +5787,53 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
+func (ec *executionContext) marshalNCluster2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐClusterᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Cluster) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNCluster2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐCluster(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNCluster2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐCluster(ctx context.Context, sel ast.SelectionSet, v *model.Cluster) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._Cluster(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNFloat2float64(ctx context.Context, v interface{}) (float64, error) {
 	res, err := graphql.UnmarshalFloat(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -5203,6 +6150,47 @@ func (ec *executionContext) marshalNJobsStatistics2ᚖgithubᚗcomᚋClusterCock
 		return graphql.Null
 	}
 	return ec._JobsStatistics(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNMetricConfig2githubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐMetricConfig(ctx context.Context, sel ast.SelectionSet, v model.MetricConfig) graphql.Marshaler {
+	return ec._MetricConfig(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNMetricConfig2ᚕgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐMetricConfigᚄ(ctx context.Context, sel ast.SelectionSet, v []model.MetricConfig) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNMetricConfig2githubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐMetricConfig(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
 }
 
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v interface{}) (string, error) {

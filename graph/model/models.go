@@ -30,3 +30,15 @@ type JobTag struct {
 	TagType string `db:"tag_type"`
 	TagName string `db:"tag_name"`
 }
+
+type Cluster struct {
+	ClusterID       string         `json:"cluster_id"`
+	ProcessorType   string         `json:"processor_type"`
+	SocketsPerNode  int            `json:"sockets_per_node"`
+	CoresPerSocket  int            `json:"cores_per_socket"`
+	ThreadsPerCore  int            `json:"threads_per_core"`
+	FlopRateScalar  int            `json:"flop_rate_scalar"`
+	FlopRateSimd    int            `json:"flop_rate_simd"`
+	MemoryBandwidth int            `json:"memory_bandwidth"`
+	MetricConfig    []MetricConfig `json:"metric_config"`
+}

@@ -91,6 +91,16 @@ type JobsStatistics struct {
 	HistNumNodes   []*HistoPoint `json:"histNumNodes"`
 }
 
+type MetricConfig struct {
+	Name       string `json:"name"`
+	Unit       string `json:"unit"`
+	Sampletime int    `json:"sampletime"`
+	Peak       int    `json:"peak"`
+	Normal     int    `json:"normal"`
+	Caution    int    `json:"caution"`
+	Alert      int    `json:"alert"`
+}
+
 type OrderByInput struct {
 	Field string             `json:"field"`
 	Order *SortDirectionEnum `json:"order"`
