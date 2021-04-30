@@ -62,21 +62,21 @@ type ComplexityRoot struct {
 	}
 
 	Job struct {
-		ClusterID    func(childComplexity int) int
-		Duration     func(childComplexity int) int
-		FileBw_avg   func(childComplexity int) int
-		FlopsAny_avg func(childComplexity int) int
-		HasProfile   func(childComplexity int) int
-		ID           func(childComplexity int) int
-		JobID        func(childComplexity int) int
-		MemBw_avg    func(childComplexity int) int
-		MemUsed_max  func(childComplexity int) int
-		NetBw_avg    func(childComplexity int) int
-		NumNodes     func(childComplexity int) int
-		ProjectID    func(childComplexity int) int
-		StartTime    func(childComplexity int) int
-		Tags         func(childComplexity int) int
-		UserID       func(childComplexity int) int
+		ClusterID   func(childComplexity int) int
+		Duration    func(childComplexity int) int
+		FileBwAvg   func(childComplexity int) int
+		FlopsAnyAvg func(childComplexity int) int
+		HasProfile  func(childComplexity int) int
+		ID          func(childComplexity int) int
+		JobID       func(childComplexity int) int
+		MemBwAvg    func(childComplexity int) int
+		MemUsedMax  func(childComplexity int) int
+		NetBwAvg    func(childComplexity int) int
+		NumNodes    func(childComplexity int) int
+		ProjectID   func(childComplexity int) int
+		StartTime   func(childComplexity int) int
+		Tags        func(childComplexity int) int
+		UserID      func(childComplexity int) int
 	}
 
 	JobMetric struct {
@@ -138,7 +138,7 @@ type ComplexityRoot struct {
 	Query struct {
 		Clusters       func(childComplexity int) int
 		JobByID        func(childComplexity int, jobID string) int
-		JobMetrics     func(childComplexity int, jobID string, metrics []*string) int
+		JobMetrics     func(childComplexity int, jobID string, clusterID *string, startTime *time.Time, metrics []*string) int
 		Jobs           func(childComplexity int, filter *model.JobFilterList, page *model.PageRequest, order *model.OrderByInput) int
 		JobsStatistics func(childComplexity int, filter *model.JobFilterList) int
 		Tags           func(childComplexity int, jobID *string) int
@@ -153,7 +153,7 @@ type QueryResolver interface {
 	JobByID(ctx context.Context, jobID string) (*model.Job, error)
 	Jobs(ctx context.Context, filter *model.JobFilterList, page *model.PageRequest, order *model.OrderByInput) (*model.JobResultList, error)
 	JobsStatistics(ctx context.Context, filter *model.JobFilterList) (*model.JobsStatistics, error)
-	JobMetrics(ctx context.Context, jobID string, metrics []*string) ([]*model.JobMetricWithName, error)
+	JobMetrics(ctx context.Context, jobID string, clusterID *string, startTime *time.Time, metrics []*string) ([]*model.JobMetricWithName, error)
 	Tags(ctx context.Context, jobID *string) ([]*model.JobTag, error)
 }
 
@@ -264,18 +264,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		return e.complexity.Job.Duration(childComplexity), true
 
 	case "Job.fileBw_avg":
-		if e.complexity.Job.FileBw_avg == nil {
+		if e.complexity.Job.FileBwAvg == nil {
 			break
 		}
 
-		return e.complexity.Job.FileBw_avg(childComplexity), true
+		return e.complexity.Job.FileBwAvg(childComplexity), true
 
 	case "Job.flopsAny_avg":
-		if e.complexity.Job.FlopsAny_avg == nil {
+		if e.complexity.Job.FlopsAnyAvg == nil {
 			break
 		}
 
-		return e.complexity.Job.FlopsAny_avg(childComplexity), true
+		return e.complexity.Job.FlopsAnyAvg(childComplexity), true
 
 	case "Job.hasProfile":
 		if e.complexity.Job.HasProfile == nil {
@@ -299,25 +299,25 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		return e.complexity.Job.JobID(childComplexity), true
 
 	case "Job.memBw_avg":
-		if e.complexity.Job.MemBw_avg == nil {
+		if e.complexity.Job.MemBwAvg == nil {
 			break
 		}
 
-		return e.complexity.Job.MemBw_avg(childComplexity), true
+		return e.complexity.Job.MemBwAvg(childComplexity), true
 
 	case "Job.memUsed_max":
-		if e.complexity.Job.MemUsed_max == nil {
+		if e.complexity.Job.MemUsedMax == nil {
 			break
 		}
 
-		return e.complexity.Job.MemUsed_max(childComplexity), true
+		return e.complexity.Job.MemUsedMax(childComplexity), true
 
 	case "Job.netBw_avg":
-		if e.complexity.Job.NetBw_avg == nil {
+		if e.complexity.Job.NetBwAvg == nil {
 			break
 		}
 
-		return e.complexity.Job.NetBw_avg(childComplexity), true
+		return e.complexity.Job.NetBwAvg(childComplexity), true
 
 	case "Job.numNodes":
 		if e.complexity.Job.NumNodes == nil {
@@ -607,7 +607,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.JobMetrics(childComplexity, args["jobId"].(string), args["metrics"].([]*string)), true
+		return e.complexity.Query.JobMetrics(childComplexity, args["jobId"].(string), args["clusterId"].(*string), args["startTime"].(*time.Time), args["metrics"].([]*string)), true
 
 	case "Query.jobs":
 		if e.complexity.Query.Jobs == nil {
@@ -775,7 +775,7 @@ type Query {
   jobById(jobId: String!): Job
   jobs(filter: JobFilterList, page: PageRequest, order: OrderByInput): JobResultList!
   jobsStatistics(filter: JobFilterList): JobsStatistics!
-  jobMetrics(jobId: String!, metrics: [String]): [JobMetricWithName]!
+  jobMetrics(jobId: String!, clusterId: String, startTime: Time, metrics: [String]): [JobMetricWithName]!
 
   # Return all known tags or, if jobId is specified, only tags from this job
   tags(jobId: String): [JobTag!]!
@@ -810,8 +810,7 @@ input JobFilterList {
 }
 
 input JobFilter {
-  tagName: String
-  tagType: String
+  tags: [ID!]
   jobId: StringInput
   userId: StringInput
   projectId: StringInput
@@ -936,15 +935,33 @@ func (ec *executionContext) field_Query_jobMetrics_args(ctx context.Context, raw
 		}
 	}
 	args["jobId"] = arg0
-	var arg1 []*string
-	if tmp, ok := rawArgs["metrics"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("metrics"))
-		arg1, err = ec.unmarshalOString2ᚕᚖstring(ctx, tmp)
+	var arg1 *string
+	if tmp, ok := rawArgs["clusterId"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clusterId"))
+		arg1, err = ec.unmarshalOString2ᚖstring(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["metrics"] = arg1
+	args["clusterId"] = arg1
+	var arg2 *time.Time
+	if tmp, ok := rawArgs["startTime"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("startTime"))
+		arg2, err = ec.unmarshalOTime2ᚖtimeᚐTime(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["startTime"] = arg2
+	var arg3 []*string
+	if tmp, ok := rawArgs["metrics"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("metrics"))
+		arg3, err = ec.unmarshalOString2ᚕᚖstring(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["metrics"] = arg3
 	return args, nil
 }
 
@@ -1767,7 +1784,7 @@ func (ec *executionContext) _Job_memUsed_max(ctx context.Context, field graphql.
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.MemUsed_max, nil
+		return obj.MemUsedMax, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1799,7 +1816,7 @@ func (ec *executionContext) _Job_flopsAny_avg(ctx context.Context, field graphql
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.FlopsAny_avg, nil
+		return obj.FlopsAnyAvg, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1831,7 +1848,7 @@ func (ec *executionContext) _Job_memBw_avg(ctx context.Context, field graphql.Co
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.MemBw_avg, nil
+		return obj.MemBwAvg, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1863,7 +1880,7 @@ func (ec *executionContext) _Job_netBw_avg(ctx context.Context, field graphql.Co
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.NetBw_avg, nil
+		return obj.NetBwAvg, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1895,7 +1912,7 @@ func (ec *executionContext) _Job_fileBw_avg(ctx context.Context, field graphql.C
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.FileBw_avg, nil
+		return obj.FileBwAvg, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3232,7 +3249,7 @@ func (ec *executionContext) _Query_jobMetrics(ctx context.Context, field graphql
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().JobMetrics(rctx, args["jobId"].(string), args["metrics"].([]*string))
+		return ec.resolvers.Query().JobMetrics(rctx, args["jobId"].(string), args["clusterId"].(*string), args["startTime"].(*time.Time), args["metrics"].([]*string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4579,19 +4596,11 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 
 	for k, v := range asMap {
 		switch k {
-		case "tagName":
+		case "tags":
 			var err error
 
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tagName"))
-			it.TagName, err = ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-		case "tagType":
-			var err error
-
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tagType"))
-			it.TagType, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tags"))
+			it.Tags, err = ec.unmarshalOID2ᚕstringᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -6498,6 +6507,42 @@ func (ec *executionContext) marshalOHistoPoint2ᚖgithubᚗcomᚋClusterCockpit�
 	return ec._HistoPoint(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalOID2ᚕstringᚄ(ctx context.Context, v interface{}) ([]string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []interface{}
+	if v != nil {
+		if tmp1, ok := v.([]interface{}); ok {
+			vSlice = tmp1
+		} else {
+			vSlice = []interface{}{v}
+		}
+	}
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNID2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOID2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNID2string(ctx, sel, v[i])
+	}
+
+	return ret
+}
+
 func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v interface{}) (*int, error) {
 	if v == nil {
 		return nil, nil
@@ -6727,6 +6772,21 @@ func (ec *executionContext) unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockp
 	}
 	res, err := ec.unmarshalInputStringInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOTime2ᚖtimeᚐTime(ctx context.Context, v interface{}) (*time.Time, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalTime(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOTime2ᚖtimeᚐTime(ctx context.Context, sel ast.SelectionSet, v *time.Time) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return graphql.MarshalTime(*v)
 }
 
 func (ec *executionContext) unmarshalOTimeRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐTimeRange(ctx context.Context, v interface{}) (*model.TimeRange, error) {

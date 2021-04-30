@@ -78,7 +78,7 @@ type Query {
   jobById(jobId: String!): Job
   jobs(filter: JobFilterList, page: PageRequest, order: OrderByInput): JobResultList!
   jobsStatistics(filter: JobFilterList): JobsStatistics!
-  jobMetrics(jobId: String!, metrics: [String]): [JobMetricWithName]!
+  jobMetrics(jobId: String!, clusterId: String, startTime: Time, metrics: [String]): [JobMetricWithName]!
 
   # Return all known tags or, if jobId is specified, only tags from this job
   tags(jobId: String): [JobTag!]!
@@ -113,8 +113,7 @@ input JobFilterList {
 }
 
 input JobFilter {
-  tagName: String
-  tagType: String
+  tags: [ID!]
   jobId: StringInput
   userId: StringInput
   projectId: StringInput

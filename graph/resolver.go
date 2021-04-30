@@ -9,6 +9,8 @@ import (
 	"os"
 	"strconv"
 	"encoding/json"
+	"time"
+	"regexp"
 
 	"github.com/ClusterCockpit/cc-jobarchive/graph/generated"
 	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
@@ -61,19 +63,10 @@ func buildQueryConditions(filterList *model.JobFilterList) (string, string) {
 	var conditions []string
 	var join string
 
-	joinJobtags := `
-	JOIN jobtag ON jobtag.job_id = job.id
-	JOIN tag ON tag.id = jobtag.tag_id
-	`
-
 	for _, condition := range filterList.List {
-		if condition.TagName != nil {
-			conditions = append(conditions, fmt.Sprintf("tag.tag_name = '%s'", *condition.TagName))
-			join = joinJobtags
-		}
-		if condition.TagType != nil {
-			conditions = append(conditions, fmt.Sprintf("tag.tag_type = '%s'", *condition.TagType))
-			join = joinJobtags
+		if condition.Tags != nil && len(condition.Tags) > 0 {
+			conditions = append(conditions, "jobtag.tag_id IN ('" + strings.Join(condition.Tags, "', '") + "')")
+			join = ` JOIN jobtag ON jobtag.job_id = job.id `
 		}
 		if condition.JobID != nil {
 			conditions = addStringCondition(conditions, `job.job_id`, condition.JobID)
@@ -101,8 +94,7 @@ func buildQueryConditions(filterList *model.JobFilterList) (string, string) {
 	return strings.Join(conditions, " AND "), join
 }
 
-func readJobDataFile(jobId string) ([]byte, error) {
-	// TODO: Use suffix as cluster-id!
+func readJobDataFile(jobId string, clusterId *string, startTime *time.Time) ([]byte, error) {
 	jobId = strings.Split(jobId, ".")[0]
 	id, err := strconv.Atoi(jobId)
 	if err != nil {
@@ -110,7 +102,13 @@ func readJobDataFile(jobId string) ([]byte, error) {
 	}
 
 	lvl1, lvl2 := id / 1000, id % 1000
-	filepath := fmt.Sprintf("./job-data/%d/%03d/data.json", lvl1, lvl2)
+	var filepath string
+	if clusterId == nil {
+		filepath = fmt.Sprintf("./job-data/%d/%03d/data.json", lvl1, lvl2)
+	} else {
+		filepath = fmt.Sprintf("./job-data/%s/%d/%03d/data.json", *clusterId, lvl1, lvl2)
+	}
+
 	f, err := os.ReadFile(filepath)
 	if err != nil {
 		return nil, err
@@ -126,6 +124,14 @@ func contains(s []*string, e string) bool {
 		}
 	}
 	return false
+}
+
+func toSnakeCase(str string) string {
+	matchFirstCap := regexp.MustCompile("(.)([A-Z][a-z]+)")
+	matchAllCap := regexp.MustCompile("([a-z0-9])([A-Z])")
+	snake := matchFirstCap.ReplaceAllString(str, "${1}_${2}")
+	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
+	return strings.ToLower(snake)
 }
 
 // Queries
@@ -177,7 +183,8 @@ func (r *queryResolver) Jobs(
 	}
 
 	if orderBy != nil {
-		ob = fmt.Sprintf("ORDER BY %s %s", orderBy.Field, *orderBy.Order)
+		ob = fmt.Sprintf("ORDER BY %s %s",
+			toSnakeCase(orderBy.Field), *orderBy.Order)
 	}
 
 	qstr := `SELECT job.* `
@@ -322,18 +329,14 @@ func (r *queryResolver) Clusters(ctx context.Context) ([]*model.Cluster, error) 
 
 func (r *queryResolver) JobMetrics(
 	ctx context.Context, jobId string,
+	clusterId *string, startTime *time.Time,
 	metrics []*string) ([]*model.JobMetricWithName, error) {
 
-	f, err := readJobDataFile(jobId)
+	f, err := readJobDataFile(jobId, clusterId, startTime)
 	if err != nil {
 		return nil, err
 	}
 
-	/*
-	 * GraphQL has no Map-Type, so
-	 * this is the best i could come up with.
-	 * This is only for testing anyways?
-	 */
 	var list []*model.JobMetricWithName
 	var metricMap map[string]*model.JobMetric
 
