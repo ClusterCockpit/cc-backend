@@ -84,30 +84,6 @@ type Query {
   tags(jobId: String): [JobTag!]!
 }
 
-input StartJobInput {
-  jobId: String!
-  userId: String!
-  projectId: String!
-  clusterId: String!
-  startTime: Time!
-  numNodes: Int!
-}
-
-input StopJobInput {
-  stopTime: Time!
-}
-
-input AddJobInput {
-  jobId: String!
-  userId: String!
-  projectId: String!
-  clusterId: String!
-  startTime: Time!
-  duration: Int!
-  numNodes: Int!
-}
-
-
 input JobFilterList {
   list: [JobFilter]
 }
