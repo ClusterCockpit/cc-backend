@@ -3,19 +3,21 @@ package graph
 //go:generate go run github.com/99designs/gqlgen
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
-	"strings"
 	"os"
-	"strconv"
-	"encoding/json"
-	"time"
 	"regexp"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/ClusterCockpit/cc-jobarchive/graph/generated"
 	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
 	"github.com/jmoiron/sqlx"
 )
+
+const jobArchiveDirectory string = "./job-data/"
 
 type Resolver struct {
 	DB *sqlx.DB
@@ -65,7 +67,7 @@ func buildQueryConditions(filterList *model.JobFilterList) (string, string) {
 
 	for _, condition := range filterList.List {
 		if condition.Tags != nil && len(condition.Tags) > 0 {
-			conditions = append(conditions, "jobtag.tag_id IN ('" + strings.Join(condition.Tags, "', '") + "')")
+			conditions = append(conditions, "jobtag.tag_id IN ('"+strings.Join(condition.Tags, "', '")+"')")
 			join = ` JOIN jobtag ON jobtag.job_id = job.id `
 		}
 		if condition.JobID != nil {
@@ -101,12 +103,12 @@ func readJobDataFile(jobId string, clusterId *string, startTime *time.Time) ([]b
 		return nil, err
 	}
 
-	lvl1, lvl2 := id / 1000, id % 1000
+	lvl1, lvl2 := id/1000, id%1000
 	var filepath string
 	if clusterId == nil {
-		filepath = fmt.Sprintf("./job-data/%d/%03d/data.json", lvl1, lvl2)
+		filepath = fmt.Sprintf("%s%d/%03d/data.json", jobArchiveDirectory, lvl1, lvl2)
 	} else {
-		filepath = fmt.Sprintf("./job-data/%s/%d/%03d/data.json", *clusterId, lvl1, lvl2)
+		filepath = fmt.Sprintf("%s%s/%d/%03d/data.json", jobArchiveDirectory, *clusterId, lvl1, lvl2)
 	}
 
 	f, err := os.ReadFile(filepath)
@@ -303,14 +305,14 @@ func (r *queryResolver) JobsStatistics(
 }
 
 func (r *queryResolver) Clusters(ctx context.Context) ([]*model.Cluster, error) {
-	files, err := os.ReadDir("./clusters");
+	files, err := os.ReadDir(jobArchiveDirectory)
 	if err != nil {
 		return nil, err
 	}
 
 	var clusters []*model.Cluster
 	for _, entry := range files {
-		f, err := os.ReadFile("./clusters/" + entry.Name())
+		f, err := os.ReadFile(jobArchiveDirectory + entry.Name() + `/cluster.json`)
 		if err != nil {
 			return nil, err
 		}
@@ -347,7 +349,7 @@ func (r *queryResolver) JobMetrics(
 
 	for name, metric := range metricMap {
 		if metrics == nil || contains(metrics, name) {
-			list = append(list, &model.JobMetricWithName{ name, metric })
+			list = append(list, &model.JobMetricWithName{name, metric})
 		}
 	}
 
@@ -424,7 +426,7 @@ func (r *jobResolver) Tags(ctx context.Context, job *model.Job) ([]*model.JobTag
 	return tags, nil
 }
 
-func (r *Resolver) Job() generated.JobResolver { return &jobResolver{r} }
+func (r *Resolver) Job() generated.JobResolver     { return &jobResolver{r} }
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
 type jobResolver struct{ *Resolver }
