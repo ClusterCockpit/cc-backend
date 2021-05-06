@@ -10,6 +10,7 @@ type Job {
   numNodes: Int!
   hasProfile: Boolean!
 
+  loadAvg: Float
   memUsedMax: Float
   flopsAnyAvg: Float
   memBwAvg: Float
@@ -100,6 +101,10 @@ input JobFilter {
   numNodes: IntRange
   startTime: TimeRange
   hasProfile: Boolean
+  flopsAnyAvg: FloatRange
+  memBwAvg: FloatRange
+  loadAvg: FloatRange
+  memUsedMax: FloatRange
 }
 
 type IntRangeOutput {

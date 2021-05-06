@@ -36,15 +36,19 @@ type IntRangeOutput struct {
 }
 
 type JobFilter struct {
-	Tags       []string     `json:"tags"`
-	JobID      *StringInput `json:"jobId"`
-	UserID     *StringInput `json:"userId"`
-	ProjectID  *StringInput `json:"projectId"`
-	ClusterID  *StringInput `json:"clusterId"`
-	Duration   *IntRange    `json:"duration"`
-	NumNodes   *IntRange    `json:"numNodes"`
-	StartTime  *TimeRange   `json:"startTime"`
-	HasProfile *bool        `json:"hasProfile"`
+	Tags        []string     `json:"tags"`
+	JobID       *StringInput `json:"jobId"`
+	UserID      *StringInput `json:"userId"`
+	ProjectID   *StringInput `json:"projectId"`
+	ClusterID   *StringInput `json:"clusterId"`
+	Duration    *IntRange    `json:"duration"`
+	NumNodes    *IntRange    `json:"numNodes"`
+	StartTime   *TimeRange   `json:"startTime"`
+	HasProfile  *bool        `json:"hasProfile"`
+	FlopsAnyAvg *FloatRange  `json:"flopsAnyAvg"`
+	MemBwAvg    *FloatRange  `json:"memBwAvg"`
+	LoadAvg     *FloatRange  `json:"loadAvg"`
+	MemUsedMax  *FloatRange  `json:"memUsedMax"`
 }
 
 type JobFilterList struct {

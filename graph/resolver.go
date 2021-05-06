@@ -61,6 +61,11 @@ func addTimeCondition(conditions []string, field string, input *model.TimeRange)
 	return conditions
 }
 
+func addFloatCondition(conditions []string, field string, input *model.FloatRange) []string {
+	conditions = append(conditions, fmt.Sprintf("%s BETWEEN %f AND %f", field, input.From, input.To))
+	return conditions;
+}
+
 func buildQueryConditions(filterList *model.JobFilterList) (string, string) {
 	var conditions []string
 	var join string
@@ -90,6 +95,18 @@ func buildQueryConditions(filterList *model.JobFilterList) (string, string) {
 		}
 		if condition.NumNodes != nil {
 			conditions = addIntCondition(conditions, `num_nodes`, condition.NumNodes)
+		}
+		if condition.FlopsAnyAvg != nil {
+			conditions = addFloatCondition(conditions, `flops_any_avg`, condition.FlopsAnyAvg)
+		}
+		if condition.MemBwAvg != nil {
+			conditions = addFloatCondition(conditions, `mem_bw_avg`, condition.MemBwAvg)
+		}
+		if condition.LoadAvg != nil {
+			conditions = addFloatCondition(conditions, `load_avg`, condition.LoadAvg)
+		}
+		if condition.MemUsedMax != nil {
+			conditions = addFloatCondition(conditions, `mem_used_max`, condition.MemUsedMax)
 		}
 	}
 

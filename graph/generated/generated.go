@@ -82,6 +82,7 @@ type ComplexityRoot struct {
 		HasProfile  func(childComplexity int) int
 		ID          func(childComplexity int) int
 		JobID       func(childComplexity int) int
+		LoadAvg     func(childComplexity int) int
 		MemBwAvg    func(childComplexity int) int
 		MemUsedMax  func(childComplexity int) int
 		NetBwAvg    func(childComplexity int) int
@@ -362,6 +363,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Job.JobID(childComplexity), true
+
+	case "Job.loadAvg":
+		if e.complexity.Job.LoadAvg == nil {
+			break
+		}
+
+		return e.complexity.Job.LoadAvg(childComplexity), true
 
 	case "Job.memBwAvg":
 		if e.complexity.Job.MemBwAvg == nil {
@@ -788,6 +796,7 @@ var sources = []*ast.Source{
   numNodes: Int!
   hasProfile: Boolean!
 
+  loadAvg: Float
   memUsedMax: Float
   flopsAnyAvg: Float
   memBwAvg: Float
@@ -878,6 +887,10 @@ input JobFilter {
   numNodes: IntRange
   startTime: TimeRange
   hasProfile: Boolean
+  flopsAnyAvg: FloatRange
+  memBwAvg: FloatRange
+  loadAvg: FloatRange
+  memUsedMax: FloatRange
 }
 
 type IntRangeOutput {
@@ -2034,6 +2047,38 @@ func (ec *executionContext) _Job_hasProfile(ctx context.Context, field graphql.C
 	res := resTmp.(bool)
 	fc.Result = res
 	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Job_loadAvg(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.LoadAvg, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*float64)
+	fc.Result = res
+	return ec.marshalOFloat2ᚖfloat64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Job_memUsedMax(ctx context.Context, field graphql.CollectedField, obj *model.Job) (ret graphql.Marshaler) {
@@ -4968,6 +5013,38 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			if err != nil {
 				return it, err
 			}
+		case "flopsAnyAvg":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("flopsAnyAvg"))
+			it.FlopsAnyAvg, err = ec.unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐFloatRange(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "memBwAvg":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("memBwAvg"))
+			it.MemBwAvg, err = ec.unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐFloatRange(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "loadAvg":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("loadAvg"))
+			it.LoadAvg, err = ec.unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐFloatRange(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "memUsedMax":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("memUsedMax"))
+			it.MemUsedMax, err = ec.unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐFloatRange(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		}
 	}
 
@@ -5372,6 +5449,8 @@ func (ec *executionContext) _Job(ctx context.Context, sel ast.SelectionSet, obj 
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&invalids, 1)
 			}
+		case "loadAvg":
+			out.Values[i] = ec._Job_loadAvg(ctx, field, obj)
 		case "memUsedMax":
 			out.Values[i] = ec._Job_memUsedMax(ctx, field, obj)
 		case "flopsAnyAvg":
@@ -6881,6 +6960,14 @@ func (ec *executionContext) marshalOFloat2ᚖfloat64(ctx context.Context, sel as
 		return graphql.Null
 	}
 	return graphql.MarshalFloat(*v)
+}
+
+func (ec *executionContext) unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐFloatRange(ctx context.Context, v interface{}) (*model.FloatRange, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputFloatRange(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalOHistoPoint2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐHistoPoint(ctx context.Context, sel ast.SelectionSet, v *model.HistoPoint) graphql.Marshaler {
