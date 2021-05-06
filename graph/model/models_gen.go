@@ -9,14 +9,10 @@ import (
 	"time"
 )
 
-type AddJobInput struct {
-	JobID     string    `json:"jobId"`
-	UserID    string    `json:"userId"`
-	ProjectID string    `json:"projectId"`
-	ClusterID string    `json:"clusterId"`
-	StartTime time.Time `json:"startTime"`
-	Duration  int       `json:"duration"`
-	NumNodes  int       `json:"numNodes"`
+type FilterRanges struct {
+	Duration  *IntRangeOutput  `json:"duration"`
+	NumNodes  *IntRangeOutput  `json:"numNodes"`
+	StartTime *TimeRangeOutput `json:"startTime"`
 }
 
 type FloatRange struct {
@@ -30,6 +26,11 @@ type HistoPoint struct {
 }
 
 type IntRange struct {
+	From int `json:"from"`
+	To   int `json:"to"`
+}
+
+type IntRangeOutput struct {
 	From int `json:"from"`
 	To   int `json:"to"`
 }
@@ -110,19 +111,6 @@ type PageRequest struct {
 	Page         *int `json:"page"`
 }
 
-type StartJobInput struct {
-	JobID     string    `json:"jobId"`
-	UserID    string    `json:"userId"`
-	ProjectID string    `json:"projectId"`
-	ClusterID string    `json:"clusterId"`
-	StartTime time.Time `json:"startTime"`
-	NumNodes  int       `json:"numNodes"`
-}
-
-type StopJobInput struct {
-	StopTime time.Time `json:"stopTime"`
-}
-
 type StringInput struct {
 	Eq         *string `json:"eq"`
 	Contains   *string `json:"contains"`
@@ -131,6 +119,11 @@ type StringInput struct {
 }
 
 type TimeRange struct {
+	From time.Time `json:"from"`
+	To   time.Time `json:"to"`
+}
+
+type TimeRangeOutput struct {
 	From time.Time `json:"from"`
 	To   time.Time `json:"to"`
 }

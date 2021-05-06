@@ -59,6 +59,10 @@ models:
     fields:
       tags:
         resolver: true
+  Cluster:
+    fields:
+      filterRanges:
+        resolver: true
   JobTag:
      model: "github.com/ClusterCockpit/cc-jobarchive/graph/model.JobTag"
   Timestamp:

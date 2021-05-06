@@ -357,34 +357,9 @@ func (r *queryResolver) JobMetrics(
 }
 
 func (r *queryResolver) Tags(
-	ctx context.Context, jobId *string) ([]*model.JobTag, error) {
+	ctx context.Context) ([]*model.JobTag, error) {
 
-	if jobId == nil {
-		rows, err := r.DB.Queryx("SELECT * FROM tag")
-		if err != nil {
-			return nil, err
-		}
-
-		tags := []*model.JobTag{}
-		for rows.Next() {
-			var tag model.JobTag
-			err = rows.StructScan(&tag)
-			if err != nil {
-				return nil, err
-			}
-			tags = append(tags, &tag)
-		}
-		return tags, nil
-	}
-
-	/* TODO: Use cluster id? */
-	query := `
-	SELECT tag.id, tag.tag_name, tag.tag_type FROM tag
-	JOIN jobtag ON tag.id = jobtag.tag_id
-	JOIN job ON job.id = jobtag.job_id
-	WHERE job.job_id = $1
-	`
-	rows, err := r.DB.Queryx(query, jobId)
+	rows, err := r.DB.Queryx("SELECT * FROM tag")
 	if err != nil {
 		return nil, err
 	}
@@ -398,8 +373,40 @@ func (r *queryResolver) Tags(
 		}
 		tags = append(tags, &tag)
 	}
-
 	return tags, nil
+}
+
+func (r *queryResolver) FilterRanges(
+	ctx context.Context) (*model.FilterRanges, error) {
+
+	rows, err := r.DB.Query(`
+	SELECT MIN(duration), MAX(duration),
+	MIN(num_nodes), MAX(num_nodes),
+	MIN(start_time), MAX(start_time) FROM job
+	`)
+	defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	if !rows.Next() {
+		panic("expected exactly one row")
+	}
+
+	duration := &model.IntRangeOutput{};
+	numNodes := &model.IntRangeOutput{};
+	var startTimeMin, startTimeMax int64
+
+	err = rows.Scan(&duration.From, &duration.To,
+		&numNodes.From, &numNodes.To,
+		&startTimeMin, &startTimeMax)
+	if err != nil {
+		return nil, err
+	}
+
+	startTime := &model.TimeRangeOutput {
+		time.Unix(startTimeMin, 0), time.Unix(startTimeMax, 0) }
+	return &model.FilterRanges{ duration, numNodes, startTime }, nil
 }
 
 func (r *jobResolver) Tags(ctx context.Context, job *model.Job) ([]*model.JobTag, error) {
@@ -426,8 +433,44 @@ func (r *jobResolver) Tags(ctx context.Context, job *model.Job) ([]*model.JobTag
 	return tags, nil
 }
 
-func (r *Resolver) Job() generated.JobResolver     { return &jobResolver{r} }
-func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
+func (r *clusterResolver) FilterRanges(
+	ctx context.Context, cluster *model.Cluster) (*model.FilterRanges, error) {
+
+	rows, err := r.DB.Query(`
+	SELECT MIN(duration), MAX(duration),
+	MIN(num_nodes), MAX(num_nodes),
+	MIN(start_time), MAX(start_time)
+	FROM job WHERE job.cluster_id = $1
+	`, cluster.ClusterID)
+	defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	if !rows.Next() {
+		panic("expected exactly one row")
+	}
+
+	duration := &model.IntRangeOutput{};
+	numNodes := &model.IntRangeOutput{};
+	var startTimeMin, startTimeMax int64
+
+	err = rows.Scan(&duration.From, &duration.To,
+		&numNodes.From, &numNodes.To,
+		&startTimeMin, &startTimeMax)
+	if err != nil {
+		return nil, err
+	}
+
+	startTime := &model.TimeRangeOutput {
+		time.Unix(startTimeMin, 0), time.Unix(startTimeMax, 0) }
+	return &model.FilterRanges{ duration, numNodes, startTime }, nil
+}
+
+func (r *Resolver) Job() generated.JobResolver         { return &jobResolver{r} }
+func (r *Resolver) Cluster() generated.ClusterResolver { return &clusterResolver{r} }
+func (r *Resolver) Query() generated.QueryResolver     { return &queryResolver{r} }
 
 type jobResolver struct{ *Resolver }
+type clusterResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }

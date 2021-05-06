@@ -10,11 +10,11 @@ type Job {
   numNodes: Int!
   hasProfile: Boolean!
 
-  memUsed_max: Float
-  flopsAny_avg: Float
-  memBw_avg: Float
-  netBw_avg: Float
-  fileBw_avg: Float
+  memUsedMax: Float
+  flopsAnyAvg: Float
+  memBwAvg: Float
+  netBwAvg: Float
+  fileBwAvg: Float
 
   tags: [JobTag!]
 }
@@ -29,6 +29,7 @@ type Cluster {
   flopRateSimd: Int!
   memoryBandwidth: Int!
   metricConfig: [MetricConfig!]!
+  filterRanges: FilterRanges!
 }
 
 type MetricConfig {
@@ -80,8 +81,9 @@ type Query {
   jobsStatistics(filter: JobFilterList): JobsStatistics!
   jobMetrics(jobId: String!, clusterId: String, startTime: Time, metrics: [String]): [JobMetricWithName]!
 
-  # Return all known tags or, if jobId is specified, only tags from this job
-  tags(jobId: String): [JobTag!]!
+  tags: [JobTag!]!
+
+  filterRanges: FilterRanges!
 }
 
 input JobFilterList {
@@ -98,6 +100,22 @@ input JobFilter {
   numNodes: IntRange
   startTime: TimeRange
   hasProfile: Boolean
+}
+
+type IntRangeOutput {
+  from: Int!
+  to: Int!
+}
+
+type TimeRangeOutput {
+  from: Time!
+  to: Time!
+}
+
+type FilterRanges {
+  duration: IntRangeOutput!
+  numNodes: IntRangeOutput!
+  startTime: TimeRangeOutput!
 }
 
 input OrderByInput {
