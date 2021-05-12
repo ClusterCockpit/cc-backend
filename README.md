@@ -1,10 +1,10 @@
 # Run server
 
 * The server expects the SQLite Job database in `./job.db`.
-* The metric data as JSON is expected in `./job-data/.../.../data.json`.
-* A JSON-description of the clusters is expected in `./clusters/*.json`.
-* Run ```go run server.go```
-* The GraphQL backend is located at http://localhost:8080/query/ .
+* The metric data as JSON is expected in `./job-data/<clusterId>/.../data.json`.
+* A JSON-description of the clusters is expected in `./job-data/<clusterId>/cluster.json`.
+* Run `go run server.go`
+* The GraphQL backend is located at http://localhost:8080/query .
 
 # Debugging and Testing
 

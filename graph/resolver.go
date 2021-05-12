@@ -63,7 +63,7 @@ func addTimeCondition(conditions []string, field string, input *model.TimeRange)
 
 func addFloatCondition(conditions []string, field string, input *model.FloatRange) []string {
 	conditions = append(conditions, fmt.Sprintf("%s BETWEEN %f AND %f", field, input.From, input.To))
-	return conditions;
+	return conditions
 }
 
 func buildQueryConditions(filterList *model.JobFilterList) (string, string) {
@@ -410,8 +410,8 @@ func (r *queryResolver) FilterRanges(
 		panic("expected exactly one row")
 	}
 
-	duration := &model.IntRangeOutput{};
-	numNodes := &model.IntRangeOutput{};
+	duration := &model.IntRangeOutput{}
+	numNodes := &model.IntRangeOutput{}
 	var startTimeMin, startTimeMax int64
 
 	err = rows.Scan(&duration.From, &duration.To,
@@ -421,9 +421,9 @@ func (r *queryResolver) FilterRanges(
 		return nil, err
 	}
 
-	startTime := &model.TimeRangeOutput {
-		time.Unix(startTimeMin, 0), time.Unix(startTimeMax, 0) }
-	return &model.FilterRanges{ duration, numNodes, startTime }, nil
+	startTime := &model.TimeRangeOutput{
+		time.Unix(startTimeMin, 0), time.Unix(startTimeMax, 0)}
+	return &model.FilterRanges{duration, numNodes, startTime}, nil
 }
 
 func (r *jobResolver) Tags(ctx context.Context, job *model.Job) ([]*model.JobTag, error) {
@@ -468,8 +468,8 @@ func (r *clusterResolver) FilterRanges(
 		panic("expected exactly one row")
 	}
 
-	duration := &model.IntRangeOutput{};
-	numNodes := &model.IntRangeOutput{};
+	duration := &model.IntRangeOutput{}
+	numNodes := &model.IntRangeOutput{}
 	var startTimeMin, startTimeMax int64
 
 	err = rows.Scan(&duration.From, &duration.To,
@@ -479,9 +479,9 @@ func (r *clusterResolver) FilterRanges(
 		return nil, err
 	}
 
-	startTime := &model.TimeRangeOutput {
-		time.Unix(startTimeMin, 0), time.Unix(startTimeMax, 0) }
-	return &model.FilterRanges{ duration, numNodes, startTime }, nil
+	startTime := &model.TimeRangeOutput{
+		time.Unix(startTimeMin, 0), time.Unix(startTimeMax, 0)}
+	return &model.FilterRanges{duration, numNodes, startTime}, nil
 }
 
 func (r *Resolver) Job() generated.JobResolver         { return &jobResolver{r} }
