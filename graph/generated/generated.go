@@ -38,6 +38,7 @@ type Config struct {
 type ResolverRoot interface {
 	Cluster() ClusterResolver
 	Job() JobResolver
+	Mutation() MutationResolver
 	Query() QueryResolver
 }
 
@@ -149,10 +150,17 @@ type ComplexityRoot struct {
 		Unit       func(childComplexity int) int
 	}
 
+	Mutation struct {
+		AddTagsToJob      func(childComplexity int, job string, tagIds []string) int
+		CreateTag         func(childComplexity int, typeArg string, name string) int
+		DeleteTag         func(childComplexity int, id string) int
+		RemoveTagsFromJob func(childComplexity int, job string, tagIds []string) int
+	}
+
 	Query struct {
 		Clusters       func(childComplexity int) int
 		FilterRanges   func(childComplexity int) int
-		JobByID        func(childComplexity int, jobID string) int
+		JobByID        func(childComplexity int, id string) int
 		JobMetrics     func(childComplexity int, jobID string, clusterID *string, startTime *time.Time, metrics []*string) int
 		Jobs           func(childComplexity int, filter *model.JobFilterList, page *model.PageRequest, order *model.OrderByInput) int
 		JobsStatistics func(childComplexity int, filter *model.JobFilterList) int
@@ -171,9 +179,15 @@ type ClusterResolver interface {
 type JobResolver interface {
 	Tags(ctx context.Context, obj *model.Job) ([]*model.JobTag, error)
 }
+type MutationResolver interface {
+	CreateTag(ctx context.Context, typeArg string, name string) (*model.JobTag, error)
+	DeleteTag(ctx context.Context, id string) (string, error)
+	AddTagsToJob(ctx context.Context, job string, tagIds []string) ([]*model.JobTag, error)
+	RemoveTagsFromJob(ctx context.Context, job string, tagIds []string) ([]*model.JobTag, error)
+}
 type QueryResolver interface {
 	Clusters(ctx context.Context) ([]*model.Cluster, error)
-	JobByID(ctx context.Context, jobID string) (*model.Job, error)
+	JobByID(ctx context.Context, id string) (*model.Job, error)
 	Jobs(ctx context.Context, filter *model.JobFilterList, page *model.PageRequest, order *model.OrderByInput) (*model.JobResultList, error)
 	JobsStatistics(ctx context.Context, filter *model.JobFilterList) (*model.JobsStatistics, error)
 	JobMetrics(ctx context.Context, jobID string, clusterID *string, startTime *time.Time, metrics []*string) ([]*model.JobMetricWithName, error)
@@ -651,6 +665,54 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.MetricConfig.Unit(childComplexity), true
 
+	case "Mutation.addTagsToJob":
+		if e.complexity.Mutation.AddTagsToJob == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_addTagsToJob_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.AddTagsToJob(childComplexity, args["job"].(string), args["tagIds"].([]string)), true
+
+	case "Mutation.createTag":
+		if e.complexity.Mutation.CreateTag == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createTag_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CreateTag(childComplexity, args["type"].(string), args["name"].(string)), true
+
+	case "Mutation.deleteTag":
+		if e.complexity.Mutation.DeleteTag == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteTag_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteTag(childComplexity, args["id"].(string)), true
+
+	case "Mutation.removeTagsFromJob":
+		if e.complexity.Mutation.RemoveTagsFromJob == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_removeTagsFromJob_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.RemoveTagsFromJob(childComplexity, args["job"].(string), args["tagIds"].([]string)), true
+
 	case "Query.clusters":
 		if e.complexity.Query.Clusters == nil {
 			break
@@ -675,7 +737,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.JobByID(childComplexity, args["jobId"].(string)), true
+		return e.complexity.Query.JobByID(childComplexity, args["id"].(string)), true
 
 	case "Query.jobMetrics":
 		if e.complexity.Query.JobMetrics == nil {
@@ -751,6 +813,20 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 			}
 			first = false
 			data := ec._Query(ctx, rc.Operation.SelectionSet)
+			var buf bytes.Buffer
+			data.MarshalGQL(&buf)
+
+			return &graphql.Response{
+				Data: buf.Bytes(),
+			}
+		}
+	case ast.Mutation:
+		return func(ctx context.Context) *graphql.Response {
+			if !first {
+				return nil
+			}
+			first = false
+			data := ec._Mutation(ctx, rc.Operation.SelectionSet)
 			var buf bytes.Buffer
 			data.MarshalGQL(&buf)
 
@@ -863,7 +939,7 @@ type JobTag {
 type Query {
   clusters: [Cluster!]!
 
-  jobById(jobId: String!): Job
+  jobById(id: ID!): Job
   jobs(filter: JobFilterList, page: PageRequest, order: OrderByInput): JobResultList!
   jobsStatistics(filter: JobFilterList): JobsStatistics!
   jobMetrics(jobId: String!, clusterId: String, startTime: Time, metrics: [String]): [JobMetricWithName]!
@@ -872,6 +948,14 @@ type Query {
 
   filterRanges: FilterRanges!
 }
+
+type Mutation {
+  createTag(type: String!, name: String!): JobTag!
+  deleteTag(id: ID!): ID!
+  addTagsToJob(job: ID!, tagIds: [ID!]!): [JobTag!]!
+  removeTagsFromJob(job: ID!, tagIds: [ID!]!): [JobTag!]!
+}
+
 
 input JobFilterList {
   list: [JobFilter]
@@ -981,6 +1065,93 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // region    ***************************** args.gotpl *****************************
 
+func (ec *executionContext) field_Mutation_addTagsToJob_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["job"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("job"))
+		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["job"] = arg0
+	var arg1 []string
+	if tmp, ok := rawArgs["tagIds"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tagIds"))
+		arg1, err = ec.unmarshalNID2ᚕstringᚄ(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["tagIds"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_createTag_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["type"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["type"] = arg0
+	var arg1 string
+	if tmp, ok := rawArgs["name"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+		arg1, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["name"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteTag_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_removeTagsFromJob_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["job"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("job"))
+		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["job"] = arg0
+	var arg1 []string
+	if tmp, ok := rawArgs["tagIds"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tagIds"))
+		arg1, err = ec.unmarshalNID2ᚕstringᚄ(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["tagIds"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -1000,14 +1171,14 @@ func (ec *executionContext) field_Query_jobById_args(ctx context.Context, rawArg
 	var err error
 	args := map[string]interface{}{}
 	var arg0 string
-	if tmp, ok := rawArgs["jobId"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("jobId"))
-		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2string(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["jobId"] = arg0
+	args["id"] = arg0
 	return args, nil
 }
 
@@ -3381,6 +3552,174 @@ func (ec *executionContext) _MetricConfig_alert(ctx context.Context, field graph
 	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Mutation_createTag(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_createTag_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().CreateTag(rctx, args["type"].(string), args["name"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.JobTag)
+	fc.Result = res
+	return ec.marshalNJobTag2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐJobTag(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_deleteTag(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_deleteTag_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteTag(rctx, args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNID2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_addTagsToJob(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_addTagsToJob_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().AddTagsToJob(rctx, args["job"].(string), args["tagIds"].([]string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.JobTag)
+	fc.Result = res
+	return ec.marshalNJobTag2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐJobTagᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_removeTagsFromJob(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_removeTagsFromJob_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().RemoveTagsFromJob(rctx, args["job"].(string), args["tagIds"].([]string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.JobTag)
+	fc.Result = res
+	return ec.marshalNJobTag2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐJobTagᚄ(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Query_clusters(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -3441,7 +3780,7 @@ func (ec *executionContext) _Query_jobById(ctx context.Context, field graphql.Co
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().JobByID(rctx, args["jobId"].(string))
+		return ec.resolvers.Query().JobByID(rctx, args["id"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -5807,6 +6146,52 @@ func (ec *executionContext) _MetricConfig(ctx context.Context, sel ast.Selection
 	return out
 }
 
+var mutationImplementors = []string{"Mutation"}
+
+func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, mutationImplementors)
+
+	ctx = graphql.WithFieldContext(ctx, &graphql.FieldContext{
+		Object: "Mutation",
+	})
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Mutation")
+		case "createTag":
+			out.Values[i] = ec._Mutation_createTag(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "deleteTag":
+			out.Values[i] = ec._Mutation_deleteTag(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "addTagsToJob":
+			out.Values[i] = ec._Mutation_addTagsToJob(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "removeTagsFromJob":
+			out.Values[i] = ec._Mutation_removeTagsFromJob(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
 var queryImplementors = []string{"Query"}
 
 func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -6382,6 +6767,36 @@ func (ec *executionContext) marshalNID2string(ctx context.Context, sel ast.Selec
 	return res
 }
 
+func (ec *executionContext) unmarshalNID2ᚕstringᚄ(ctx context.Context, v interface{}) ([]string, error) {
+	var vSlice []interface{}
+	if v != nil {
+		if tmp1, ok := v.([]interface{}); ok {
+			vSlice = tmp1
+		} else {
+			vSlice = []interface{}{v}
+		}
+	}
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNID2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNID2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNID2string(ctx, sel, v[i])
+	}
+
+	return ret
+}
+
 func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v interface{}) (int, error) {
 	res, err := graphql.UnmarshalInt(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -6550,6 +6965,10 @@ func (ec *executionContext) marshalNJobResultList2ᚖgithubᚗcomᚋClusterCockp
 		return graphql.Null
 	}
 	return ec._JobResultList(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNJobTag2githubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐJobTag(ctx context.Context, sel ast.SelectionSet, v model.JobTag) graphql.Marshaler {
+	return ec._JobTag(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNJobTag2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑjobarchiveᚋgraphᚋmodelᚐJobTagᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.JobTag) graphql.Marshaler {

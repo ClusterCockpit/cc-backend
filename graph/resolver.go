@@ -34,6 +34,7 @@ func NewRootResolvers(db *sqlx.DB) generated.Config {
 }
 
 // Helper functions
+
 func addStringCondition(conditions []string, field string, input *model.StringInput) []string {
 	if input.Eq != nil {
 		conditions = append(conditions, fmt.Sprintf("%s='%s'", field, *input.Eq))
@@ -151,6 +152,29 @@ func toSnakeCase(str string) string {
 	snake := matchFirstCap.ReplaceAllString(str, "${1}_${2}")
 	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
 	return strings.ToLower(snake)
+}
+
+func tagsForJob(DB *sqlx.DB, job string) ([]*model.JobTag, error) {
+	rows, err := DB.Queryx(`
+		SELECT tag.id, tag.tag_name, tag.tag_type FROM tag
+		JOIN jobtag ON tag.id = jobtag.tag_id
+		WHERE jobtag.job_id = $1
+	`, job)
+	if err != nil {
+		return nil, err
+	}
+
+	tags := []*model.JobTag{}
+	for rows.Next() {
+		var tag model.JobTag
+		err = rows.StructScan(&tag)
+		if err != nil {
+			return nil, err
+		}
+		tags = append(tags, &tag)
+	}
+
+	return tags, nil
 }
 
 // Queries
@@ -427,27 +451,8 @@ func (r *queryResolver) FilterRanges(
 }
 
 func (r *jobResolver) Tags(ctx context.Context, job *model.Job) ([]*model.JobTag, error) {
-	query := `
-	SELECT tag.id, tag.tag_name, tag.tag_type FROM tag
-	JOIN jobtag ON tag.id = jobtag.tag_id
-	WHERE jobtag.job_id = $1
-	`
-	rows, err := r.DB.Queryx(query, job.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	tags := []*model.JobTag{}
-	for rows.Next() {
-		var tag model.JobTag
-		err = rows.StructScan(&tag)
-		if err != nil {
-			return nil, err
-		}
-		tags = append(tags, &tag)
-	}
-
-	return tags, nil
+	tags, err := tagsForJob(r.DB, job.ID)
+	return tags, err
 }
 
 func (r *clusterResolver) FilterRanges(
@@ -484,10 +489,108 @@ func (r *clusterResolver) FilterRanges(
 	return &model.FilterRanges{duration, numNodes, startTime}, nil
 }
 
-func (r *Resolver) Job() generated.JobResolver         { return &jobResolver{r} }
-func (r *Resolver) Cluster() generated.ClusterResolver { return &clusterResolver{r} }
-func (r *Resolver) Query() generated.QueryResolver     { return &queryResolver{r} }
+func (r *mutationResolver) CreateTag(
+	ctx context.Context, tagType string, tagName string) (*model.JobTag, error) {
+
+	res, err := r.DB.Exec(`
+		INSERT INTO tag (tag_type, tag_name) VALUES ($1, $2)
+	`, tagType, tagName)
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := res.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+
+	tag := &model.JobTag{
+		strconv.FormatInt(id, 10),
+		tagType,
+		tagName,
+	}
+
+	return tag, nil
+}
+
+func (r *mutationResolver) DeleteTag(
+	ctx context.Context, id string) (string, error) {
+
+	intid, err := strconv.Atoi(id)
+	if err != nil {
+		return "", err
+	}
+
+	_, err = r.DB.Exec(`
+		DELETE FROM jobtag WHERE jobtag.tag_id = $1;
+		DELETE FROM tag WHERE tag.id = $2
+	`, intid, intid)
+	if err != nil {
+		return "", err
+	}
+
+	return id, nil
+}
+
+func (r *mutationResolver) AddTagsToJob(
+	ctx context.Context, job string, tagIds []string) ([]*model.JobTag, error) {
+
+	intid, err := strconv.Atoi(job)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, tagId := range tagIds {
+		intTagId, err := strconv.Atoi(tagId)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = r.DB.Exec(`
+			INSERT INTO jobtag (job_id, tag_id) VALUES ($1, $2)
+		`, intid, intTagId)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	tags, err := tagsForJob(r.DB, job)
+	return tags, err
+}
+
+func (r *mutationResolver) RemoveTagsFromJob(
+	ctx context.Context, job string, tagIds []string) ([]*model.JobTag, error) {
+
+	intid, err := strconv.Atoi(job)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, tagId := range tagIds {
+		intTagId, err := strconv.Atoi(tagId)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = r.DB.Exec(`
+			DELETE FROM jobtag
+			WHERE jobtag.job_id = $1 AND jobtag.tag_id = $2
+		`, intid, intTagId)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	tags, err := tagsForJob(r.DB, job)
+	return tags, err
+}
+
+func (r *Resolver) Job() generated.JobResolver           { return &jobResolver{r} }
+func (r *Resolver) Cluster() generated.ClusterResolver   { return &clusterResolver{r} }
+func (r *Resolver) Query() generated.QueryResolver       { return &queryResolver{r} }
+func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
 
 type jobResolver struct{ *Resolver }
 type clusterResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type mutationResolver struct { *Resolver }

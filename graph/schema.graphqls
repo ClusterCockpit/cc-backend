@@ -77,7 +77,7 @@ type JobTag {
 type Query {
   clusters: [Cluster!]!
 
-  jobById(jobId: String!): Job
+  jobById(id: ID!): Job
   jobs(filter: JobFilterList, page: PageRequest, order: OrderByInput): JobResultList!
   jobsStatistics(filter: JobFilterList): JobsStatistics!
   jobMetrics(jobId: String!, clusterId: String, startTime: Time, metrics: [String]): [JobMetricWithName]!
@@ -85,6 +85,13 @@ type Query {
   tags: [JobTag!]!
 
   filterRanges: FilterRanges!
+}
+
+type Mutation {
+  createTag(type: String!, name: String!): JobTag!
+  deleteTag(id: ID!): ID!
+  addTagsToJob(job: ID!, tagIds: [ID!]!): [JobTag!]!
+  removeTagsFromJob(job: ID!, tagIds: [ID!]!): [JobTag!]!
 }
 
 input JobFilterList {
