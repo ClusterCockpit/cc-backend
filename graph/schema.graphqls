@@ -1,6 +1,5 @@
 type Job {
   id: ID!
-
   jobId: String!
   userId: String!
   projectId: String!
@@ -9,6 +8,7 @@ type Job {
   duration: Int!
   numNodes: Int!
   hasProfile: Boolean!
+  tags: [JobTag!]!
 
   loadAvg: Float
   memUsedMax: Float
@@ -16,8 +16,12 @@ type Job {
   memBwAvg: Float
   netBwAvg: Float
   fileBwAvg: Float
+}
 
-  tags: [JobTag!]
+type JobTag {
+  id: ID!
+  tagType: String!
+  tagName: String!
 }
 
 type Cluster {
@@ -68,23 +72,22 @@ type JobMetricStatistics {
   max: Float!
 }
 
-type JobTag {
-  id: ID!
-  tagType: String!
-  tagName: String!
+type JobMetricWithName {
+  name: String!
+  metric: JobMetric!
 }
 
 type Query {
   clusters: [Cluster!]!
-
   jobById(id: ID!): Job
   jobs(filter: JobFilterList, page: PageRequest, order: OrderByInput): JobResultList!
   jobsStatistics(filter: JobFilterList): JobsStatistics!
-  jobMetrics(jobId: String!, clusterId: String, startTime: Time, metrics: [String]): [JobMetricWithName]!
-
+  jobMetrics(jobId: String!, clusterId: String, metrics: [String]): [JobMetricWithName]!
+  jobMetricAverages(filter: JobFilterList!, metrics: [String]!): [[Float]]!
+  rooflineHeatmap(filter: JobFilterList!, rows: Int!, cols: Int!, minX: Float!, minY: Float!, maxX: Float!, maxY: Float!): [[Float!]]!
   tags: [JobTag!]!
-
   filterRanges: FilterRanges!
+  userStats(startTime: Time, stopTime: Time, clusterId: String): [UserStats!]!
 }
 
 type Mutation {
@@ -92,26 +95,8 @@ type Mutation {
   deleteTag(id: ID!): ID!
   addTagsToJob(job: ID!, tagIds: [ID!]!): [JobTag!]!
   removeTagsFromJob(job: ID!, tagIds: [ID!]!): [JobTag!]!
-}
 
-input JobFilterList {
-  list: [JobFilter]
-}
-
-input JobFilter {
-  tags: [ID!]
-  jobId: StringInput
-  userId: StringInput
-  projectId: StringInput
-  clusterId: StringInput
-  duration: IntRange
-  numNodes: IntRange
-  startTime: TimeRange
-  hasProfile: Boolean
-  flopsAnyAvg: FloatRange
-  memBwAvg: FloatRange
-  loadAvg: FloatRange
-  memUsedMax: FloatRange
+  updateConfiguration(name: String!, value: String!): String
 }
 
 type IntRangeOutput {
@@ -128,6 +113,26 @@ type FilterRanges {
   duration: IntRangeOutput!
   numNodes: IntRangeOutput!
   startTime: TimeRangeOutput!
+}
+
+input JobFilterList {
+  list: [JobFilter]
+}
+
+input JobFilter {
+  tags: [ID!]
+  jobId: StringInput
+  userId: StringInput
+  projectId: StringInput
+  clusterId: StringInput
+  duration: IntRange
+  numNodes: IntRange
+  startTime: TimeRange
+  isRunning: Boolean
+  flopsAnyAvg: FloatRange
+  memBwAvg: FloatRange
+  loadAvg: FloatRange
+  memUsedMax: FloatRange
 }
 
 input OrderByInput {
@@ -169,11 +174,6 @@ type JobResultList {
   count: Int
 }
 
-type JobMetricWithName {
-  name: String!
-  metric: JobMetric!
-}
-
 type HistoPoint {
   count: Int!
   value: Int!
@@ -188,9 +188,16 @@ type JobsStatistics  {
   histNumNodes: [HistoPoint]!
 }
 
+type UserStats {
+  userId: ID!
+  totalJobs: Int!
+  totalWalltime: Float!
+  totalCoreHours: Float!
+}
+
 input PageRequest {
-  itemsPerPage: Int
-  page: Int
+  itemsPerPage: Int!
+  page: Int!
 }
 
 scalar Time

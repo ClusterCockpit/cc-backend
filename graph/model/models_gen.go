@@ -44,7 +44,7 @@ type JobFilter struct {
 	Duration    *IntRange    `json:"duration"`
 	NumNodes    *IntRange    `json:"numNodes"`
 	StartTime   *TimeRange   `json:"startTime"`
-	HasProfile  *bool        `json:"hasProfile"`
+	IsRunning   *bool        `json:"isRunning"`
 	FlopsAnyAvg *FloatRange  `json:"flopsAnyAvg"`
 	MemBwAvg    *FloatRange  `json:"memBwAvg"`
 	LoadAvg     *FloatRange  `json:"loadAvg"`
@@ -111,8 +111,8 @@ type OrderByInput struct {
 }
 
 type PageRequest struct {
-	ItemsPerPage *int `json:"itemsPerPage"`
-	Page         *int `json:"page"`
+	ItemsPerPage int `json:"itemsPerPage"`
+	Page         int `json:"page"`
 }
 
 type StringInput struct {
@@ -130,6 +130,13 @@ type TimeRange struct {
 type TimeRangeOutput struct {
 	From time.Time `json:"from"`
 	To   time.Time `json:"to"`
+}
+
+type UserStats struct {
+	UserID         string  `json:"userId"`
+	TotalJobs      int     `json:"totalJobs"`
+	TotalWalltime  float64 `json:"totalWalltime"`
+	TotalCoreHours float64 `json:"totalCoreHours"`
 }
 
 type JobMetricScope string

@@ -114,7 +114,7 @@ func buildQueryConditions(filterList *model.JobFilterList) (string, string) {
 	return strings.Join(conditions, " AND "), join
 }
 
-func readJobDataFile(jobId string, clusterId *string, startTime *time.Time) ([]byte, error) {
+func readJobDataFile(jobId string, clusterId *string) ([]byte, error) {
 	jobId = strings.Split(jobId, ".")[0]
 	id, err := strconv.Atoi(jobId)
 	if err != nil {
@@ -205,13 +205,8 @@ func (r *queryResolver) Jobs(
 	var limit, offset int
 	var qc, ob, jo string
 
-	if page != nil {
-		limit = *page.ItemsPerPage
-		offset = (*page.Page - 1) * limit
-	} else {
-		limit = 20
-		offset = 0
-	}
+	limit = page.ItemsPerPage
+	offset = (page.Page - 1) * limit
 
 	if filterList != nil {
 		qc, jo = buildQueryConditions(filterList)
@@ -371,11 +366,10 @@ func (r *queryResolver) Clusters(ctx context.Context) ([]*model.Cluster, error) 
 }
 
 func (r *queryResolver) JobMetrics(
-	ctx context.Context, jobId string,
-	clusterId *string, startTime *time.Time,
+	ctx context.Context, jobId string, clusterId *string,
 	metrics []*string) ([]*model.JobMetricWithName, error) {
 
-	f, err := readJobDataFile(jobId, clusterId, startTime)
+	f, err := readJobDataFile(jobId, clusterId)
 	if err != nil {
 		return nil, err
 	}
@@ -593,4 +587,4 @@ func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResol
 type jobResolver struct{ *Resolver }
 type clusterResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
-type mutationResolver struct { *Resolver }
+type mutationResolver struct{ *Resolver }
