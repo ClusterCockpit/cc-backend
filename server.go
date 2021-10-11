@@ -1,10 +1,10 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
 	"os"
-	"flag"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
@@ -17,11 +17,13 @@ import (
 )
 
 func main() {
+	var reinitDB bool
 	var port, staticFiles, jobDBFile string
 
 	flag.StringVar(&port, "port", "8080", "Port on which to listen")
 	flag.StringVar(&staticFiles, "static-files", "./frontend/public", "Directory who's contents shall be served as static files")
 	flag.StringVar(&jobDBFile, "job-db", "./job.db", "SQLite 3 Jobs Database File")
+	flag.BoolVar(&reinitDB, "init-db", false, "Initialize new SQLite Database")
 	flag.Parse()
 
 	db, err := sqlx.Open("sqlite3", jobDBFile)
@@ -29,6 +31,18 @@ func main() {
 		log.Fatal(err)
 	}
 	defer db.Close()
+
+	if reinitDB {
+		if err = initDB(db, "./job-data"); err != nil {
+			log.Fatal(err)
+		}
+
+		if err = db.Close(); err != nil {
+			log.Fatal(err)
+		}
+
+		return
+	}
 
 	r := mux.NewRouter()
 	loggedRouter := handlers.LoggingHandler(os.Stdout, r)
