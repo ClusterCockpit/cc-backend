@@ -1,49 +1,39 @@
-# Run server
+# ClusterCockpit with a Golang backend (Only supports archived jobs)
 
-* The server expects the SQLite Job database in `./job.db`.
-* The metric data as JSON is expected in `./job-data/<clusterId>/.../data.json`.
-* A JSON-description of the clusters is expected in `./job-data/<clusterId>/cluster.json`.
-* Run `go run server.go`
-* The GraphQL backend is located at http://localhost:8080/query .
+[![Build](https://github.com/ClusterCockpit/cc-metric-store/actions/workflows/test.yml/badge.svg)](https://github.com/ClusterCockpit/cc-metric-store/actions/workflows/test.yml)
 
-# Debugging and Testing
+### Run server
 
-There is a GraphQL PLayground for testing queries at http://localhost:8080/ .
+```sh
+# The frontend is a submodule, so use `--recursive`
+git clone --recursive git@github.com:ClusterCockpit/cc-jobarchive.git
 
-Example Query:
-```
-query($filter: JobFilterList!, $sorting: OrderByInput!, $paging: PageRequest!) {
-  jobs(
-    filter: $filter
-    order: $sorting
-    page: $paging
-  ) {
-    count
-    items {
-      id
-      jobId
-      userId
-      startTime
-      duration
-    }
-  }
-}
-```
+# Prepare frontend
+cd ./cc-jobarchive/frontend
+yarn install
+yarn build
 
-Using the Query variables:
-```
-{
-  "filter": { "list": [
-    {"userId": {"contains": "unrz"}},
-    {"duration": {"from": 60, "to": 1000}},
-    {"startTime": {"from": "2019-06-01T00:00:00.00Z", "to": "2019-10-01T00:00:00.00Z"}}]},
-  "sorting": { "field": "start_time", "order": "ASC" },
-  "paging": { "itemsPerPage": 20, "page": 1 }
-}
+cd ..
+go get
+go build
+
+# The job-archive directory must be organised the same way as
+# as for the regular ClusterCockpit.
+ln -s <your-existing-job-archive> ./var/job-archive
+
+# Create empty job.db (Will be initialized as SQLite3 database)
+touch ./var/job.db
+
+# This will first initialize the job.db database by traversing all
+# `meta.json` files in the job-archive. After that, a HTTP server on
+# the port 8080 will be running. The `--init-db` is only needed the first time.
+./cc-jobarchive --init-db
+
+# Show other options:
+./cc-jobarchive --help
 ```
 
-# Changing the GraphQL schema
+### Update GraphQL schema
 
-* Edit ```./graph/schema.graphqls```
-* Regenerate code: ```gqlgen generate```
-* Implement callbacks in ```graph/resolvers.go```
+This project uses [gqlgen](https://github.com/99designs/gqlgen) for the GraphQL API. The schema can be found in `./graph/schema.graphqls`. After changing it, you need to run `go run github.com/99designs/gqlgen` which will update `graph/model`. In case new resolvers are needed, they will be inserted into `graph/schema.resolvers.go`, where you will need to implement them.
+

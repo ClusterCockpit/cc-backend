@@ -1,4 +1,6 @@
-job.db
-job-data
+# executable:
 cc-jobarchive
-clusters
+
+/var/job-archive
+/var/*.db
+
