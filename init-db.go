@@ -10,9 +10,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-jobarchive/schema"
 	"github.com/jmoiron/sqlx"
 )
 
+// Delete the tables "job", "tag" and "jobtag" from the database and
+// repopulate them using the jobs found in `archive`.
 func initDB(db *sqlx.DB, archive string) error {
 	starttime := time.Now()
 	fmt.Println("Building database...")
@@ -104,8 +107,10 @@ func initDB(db *sqlx.DB, archive string) error {
 					fmt.Printf("%d jobs inserted...\r", i)
 				}
 
-				if err = loadJob(tx, insertstmt, tags, filepath.Join(archive, entry0.Name(), entry1.Name(), entry2.Name())); err != nil {
-					return err
+				filename := filepath.Join(archive, entry0.Name(), entry1.Name(), entry2.Name())
+				if err = loadJob(tx, insertstmt, tags, filename); err != nil {
+					fmt.Printf("failed to load '%s': %s", filename, err.Error())
+					continue
 				}
 
 				i += 1
@@ -129,28 +134,8 @@ func initDB(db *sqlx.DB, archive string) error {
 	return nil
 }
 
-type JobMetaFile struct {
-	JobId     string   `json:"job_id"`
-	UserId    string   `json:"user_id"`
-	ProjectId string   `json:"project_id"`
-	ClusterId string   `json:"cluster_id"`
-	NumNodes  int      `json:"num_nodes"`
-	JobState  string   `json:"job_state"`
-	StartTime int64    `json:"start_time"`
-	Duration  int64    `json:"duration"`
-	Nodes     []string `json:"nodes"`
-	Tags      []struct {
-		Name string `json:"name"`
-		Type string `json:"type"`
-	} `json:"tags"`
-	Statistics map[string]struct {
-		Unit string  `json:"unit"`
-		Avg  float64 `json:"avg"`
-		Min  float64 `json:"min"`
-		Max  float64 `json:"max"`
-	} `json:"statistics"`
-}
-
+// Read the `meta.json` file at `path` and insert it to the database using the prepared
+// insert statement `stmt`. `tags` maps all existing tags to their database ID.
 func loadJob(tx *sql.Tx, stmt *sql.Stmt, tags map[string]int64, path string) error {
 	f, err := os.Open(filepath.Join(path, "meta.json"))
 	if err != nil {
@@ -158,7 +143,7 @@ func loadJob(tx *sql.Tx, stmt *sql.Stmt, tags map[string]int64, path string) err
 	}
 	defer f.Close()
 
-	var job JobMetaFile
+	var job schema.JobMeta
 	if err := json.NewDecoder(bufio.NewReader(f)).Decode(&job); err != nil {
 		return err
 	}
@@ -203,7 +188,7 @@ func loadJob(tx *sql.Tx, stmt *sql.Stmt, tags map[string]int64, path string) err
 	return nil
 }
 
-func loadJobStat(job *JobMetaFile, metric string) sql.NullFloat64 {
+func loadJobStat(job *schema.JobMeta, metric string) sql.NullFloat64 {
 	val := sql.NullFloat64{Valid: false}
 	if stats, ok := job.Statistics[metric]; ok {
 		val.Valid = true

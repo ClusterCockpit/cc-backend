@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	github.com/99designs/gqlgen v0.13.0
+	github.com/Masterminds/squirrel v1.5.1
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.6.1
 	github.com/jmoiron/sqlx v1.3.1
