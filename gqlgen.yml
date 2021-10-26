@@ -55,15 +55,17 @@ models:
       - github.com/99designs/gqlgen/graphql.Int64
       - github.com/99designs/gqlgen/graphql.Int32
   Job:
-    model: "github.com/ClusterCockpit/cc-jobarchive/graph/model.Job"
     fields:
       tags:
         resolver: true
-  Cluster:
-    fields:
-      filterRanges:
-        resolver: true
-  JobTag:
-     model: "github.com/ClusterCockpit/cc-jobarchive/graph/model.JobTag"
-  Timestamp:
-    model: "github.com/ClusterCockpit/cc-jobarchive/graph/model.Timestamp"
+  JobMetric:
+    model: "github.com/ClusterCockpit/cc-jobarchive/schema.JobMetric"
+  JobMetricSeries:
+    model: "github.com/ClusterCockpit/cc-jobarchive/schema.MetricSeries"
+  JobMetricStatistics:
+    model: "github.com/ClusterCockpit/cc-jobarchive/schema.MetricStatistics"
+  NullableFloat:
+    model: "github.com/ClusterCockpit/cc-jobarchive/schema.Float"
+  JobMetricScope:
+    model: "github.com/ClusterCockpit/cc-jobarchive/schema.MetricScope"
+
