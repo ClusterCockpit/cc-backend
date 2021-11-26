@@ -52,6 +52,13 @@ type MetricSeries struct {
 	Data       []Float           `json:"data"`
 }
 
+type JobMetaStatistics struct {
+	Unit string  `json:"unit"`
+	Avg  float64 `json:"avg"`
+	Min  float64 `json:"min"`
+	Max  float64 `json:"max"`
+}
+
 // Format of `meta.json` files.
 type JobMeta struct {
 	JobId     string   `json:"job_id"`
@@ -67,10 +74,5 @@ type JobMeta struct {
 		Name string `json:"name"`
 		Type string `json:"type"`
 	} `json:"tags"`
-	Statistics map[string]struct {
-		Unit string  `json:"unit"`
-		Avg  float64 `json:"avg"`
-		Min  float64 `json:"min"`
-		Max  float64 `json:"max"`
-	} `json:"statistics"`
+	Statistics map[string]*JobMetaStatistics `json:"statistics"`
 }

@@ -22,6 +22,8 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+var db *sqlx.DB
+
 func main() {
 	var reinitDB bool
 	var port, staticFiles, jobDBFile string
@@ -32,7 +34,8 @@ func main() {
 	flag.BoolVar(&reinitDB, "init-db", false, "Initialize new SQLite Database")
 	flag.Parse()
 
-	db, err := sqlx.Open("sqlite3", jobDBFile)
+	var err error
+	db, err = sqlx.Open("sqlite3", jobDBFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -47,7 +50,7 @@ func main() {
 		}
 	}
 
-	clusters, err := loadClusters()
+	config.Clusters, err = loadClusters()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -56,10 +59,14 @@ func main() {
 	loggedRouter := handlers.LoggingHandler(os.Stdout, r)
 
 	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{
-		Resolvers: &graph.Resolver{DB: db, ClusterConfigs: clusters}}))
+		Resolvers: &graph.Resolver{DB: db}}))
 	r.HandleFunc("/graphql-playground", playground.Handler("GraphQL playground", "/query"))
 	r.Handle("/query", srv)
+
 	r.HandleFunc("/config.json", config.ServeConfig).Methods("GET")
+
+	r.HandleFunc("/api/start-job", startJob).Methods("POST")
+	r.HandleFunc("/api/stop-job", stopJob).Methods("POST")
 
 	if len(staticFiles) != 0 {
 		r.PathPrefix("/").Handler(http.FileServer(http.Dir(staticFiles)))
