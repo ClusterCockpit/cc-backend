@@ -3,15 +3,30 @@ package metricdata
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
 
 	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
 	"github.com/ClusterCockpit/cc-jobarchive/schema"
 )
 
+var runningJobs *CCMetricStore
+
+func init() {
+	runningJobs = &CCMetricStore{}
+	if err := runningJobs.Init(); err != nil {
+		log.Fatalln(err)
+	}
+}
+
 // Fetches the metric data for a job.
 func LoadData(job *model.Job, metrics []string, ctx context.Context) (schema.JobData, error) {
+	if job.State == model.JobStateRunning {
+		return runningJobs.LoadData(job, metrics, ctx)
+	}
+
 	if job.State != model.JobStateCompleted {
-		return nil, errors.New("only completed jobs are supported")
+		return nil, fmt.Errorf("job of state '%s' is not supported", job.State)
 	}
 
 	data, err := loadFromArchive(job)

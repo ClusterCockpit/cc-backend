@@ -7,10 +7,14 @@ import (
 	"net/http"
 	"os"
 	"sync"
+
+	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
 )
 
 var lock sync.RWMutex
 var config map[string]interface{}
+
+var Clusters []*model.Cluster
 
 const configFilePath string = "./var/ui.config.json"
 
@@ -61,4 +65,26 @@ func ServeConfig(rw http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(rw).Encode(config); err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func GetClusterConfig(cluster string) *model.Cluster {
+	for _, c := range Clusters {
+		if c.ClusterID == cluster {
+			return c
+		}
+	}
+	return nil
+}
+
+func GetMetricConfig(cluster, metric string) *model.MetricConfig {
+	for _, c := range Clusters {
+		if c.ClusterID == cluster {
+			for _, m := range c.MetricConfig {
+				if m.Name == metric {
+					return m
+				}
+			}
+		}
+	}
+	return nil
 }
