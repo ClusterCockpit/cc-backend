@@ -57,7 +57,7 @@ func (ccms *CCMetricStore) Init() error {
 }
 
 func (ccms *CCMetricStore) LoadData(job *model.Job, metrics []string, ctx context.Context) (schema.JobData, error) {
-	from, to := job.StartTime.Unix(), job.StartTime.Add(time.Duration(job.Duration)*time.Second)
+	from, to := job.StartTime.Unix(), job.StartTime.Add(time.Duration(job.Duration)*time.Second).Unix()
 	reqBody := ApiRequestBody{}
 	reqBody.Metrics = metrics
 	for _, node := range job.Nodes {
