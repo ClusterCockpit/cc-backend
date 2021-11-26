@@ -7,6 +7,7 @@ import (
 	"math"
 
 	"github.com/99designs/gqlgen/graphql"
+	"github.com/ClusterCockpit/cc-jobarchive/config"
 	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
 	"github.com/ClusterCockpit/cc-jobarchive/metricdata"
 	"github.com/ClusterCockpit/cc-jobarchive/schema"
@@ -26,7 +27,7 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 	stats := map[string]*model.JobsStatistics{}
 
 	// `socketsPerNode` and `coresPerSocket` can differ from cluster to cluster, so we need to explicitly loop over those.
-	for _, cluster := range r.ClusterConfigs {
+	for _, cluster := range config.Clusters {
 		corehoursCol := fmt.Sprintf("SUM(job.duration * job.num_nodes * %d * %d) / 3600", cluster.SocketsPerNode, cluster.CoresPerSocket)
 		var query sq.SelectBuilder
 		if groupBy == nil {
@@ -89,7 +90,11 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 		}
 	} else {
 		col := groupBy2column[*groupBy]
-		rows, err := sq.Select(col, "COUNT(job.id)").From("job").Where("job.duration < 120").RunWith(r.DB).Query()
+		query := sq.Select(col, "COUNT(job.id)").From("job").Where("job.duration < 120")
+		for _, f := range filter {
+			query = buildWhereClause(f, query)
+		}
+		rows, err := query.RunWith(r.DB).Query()
 		if err != nil {
 			return nil, err
 		}

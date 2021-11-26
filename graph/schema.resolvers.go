@@ -128,7 +128,7 @@ func (r *mutationResolver) UpdateConfiguration(ctx context.Context, name string,
 }
 
 func (r *queryResolver) Clusters(ctx context.Context) ([]*model.Cluster, error) {
-	return r.ClusterConfigs, nil
+	return config.Clusters, nil
 }
 
 func (r *queryResolver) Tags(ctx context.Context) ([]*model.JobTag, error) {
@@ -151,7 +151,7 @@ func (r *queryResolver) Tags(ctx context.Context) ([]*model.JobTag, error) {
 }
 
 func (r *queryResolver) Job(ctx context.Context, id string) (*model.Job, error) {
-	return scanJob(sq.Select(jobTableCols...).From("job").Where("job.id = ?", id).RunWith(r.DB).QueryRow())
+	return ScanJob(sq.Select(JobTableCols...).From("job").Where("job.id = ?", id).RunWith(r.DB).QueryRow())
 }
 
 func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []string) ([]*model.JobMetricWithName, error) {

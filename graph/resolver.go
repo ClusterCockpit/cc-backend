@@ -16,18 +16,17 @@ import (
 // It serves as dependency injection for your app, add any dependencies you require here.
 
 type Resolver struct {
-	DB             *sqlx.DB
-	ClusterConfigs []*model.Cluster
+	DB *sqlx.DB
 }
 
-var jobTableCols []string = []string{"id", "job_id", "user_id", "project_id", "cluster_id", "start_time", "duration", "job_state", "num_nodes", "node_list", "flops_any_avg", "mem_bw_avg", "net_bw_avg", "file_bw_avg", "load_avg"}
+var JobTableCols []string = []string{"id", "job_id", "user_id", "project_id", "cluster_id", "start_time", "duration", "job_state", "num_nodes", "node_list", "flops_any_avg", "mem_bw_avg", "net_bw_avg", "file_bw_avg", "load_avg"}
 
 type Scannable interface {
 	Scan(dest ...interface{}) error
 }
 
 // Helper function for scanning jobs with the `jobTableCols` columns selected.
-func scanJob(row Scannable) (*model.Job, error) {
+func ScanJob(row Scannable) (*model.Job, error) {
 	job := &model.Job{HasProfile: true}
 
 	var nodeList string
@@ -44,7 +43,7 @@ func scanJob(row Scannable) (*model.Job, error) {
 
 // Helper function for the `jobs` GraphQL-Query. Is also used elsewhere when a list of jobs is needed.
 func (r *Resolver) queryJobs(filters []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) ([]*model.Job, int, error) {
-	query := sq.Select(jobTableCols...).From("job")
+	query := sq.Select(JobTableCols...).From("job")
 
 	if order != nil {
 		field := toSnakeCase(order.Field)
@@ -76,7 +75,7 @@ func (r *Resolver) queryJobs(filters []*model.JobFilter, page *model.PageRequest
 
 	jobs := make([]*model.Job, 0, 50)
 	for rows.Next() {
-		job, err := scanJob(rows)
+		job, err := ScanJob(rows)
 		if err != nil {
 			return nil, 0, err
 		}

@@ -1,6 +1,6 @@
 # ClusterCockpit with a Golang backend (Only supports archived jobs)
 
-[![Build](https://github.com/ClusterCockpit/cc-metric-store/actions/workflows/test.yml/badge.svg)](https://github.com/ClusterCockpit/cc-metric-store/actions/workflows/test.yml)
+[![Build](https://github.com/ClusterCockpit/cc-jobarchive/actions/workflows/test.yml/badge.svg)](https://github.com/ClusterCockpit/cc-jobarchive/actions/workflows/test.yml)
 
 ### Run server
 
