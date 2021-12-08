@@ -168,7 +168,7 @@ func Login(db *sqlx.DB) http.Handler {
 		if err != nil {
 			log.Printf("login failed: %s\n", err.Error())
 			rw.WriteHeader(http.StatusUnauthorized)
-			templates.Render(rw, r, "login.html", &templates.Page{
+			templates.Render(rw, r, "login", &templates.Page{
 				Title: "Login failed",
 				Login: &templates.LoginPage{
 					Error: "Username or password incorrect",
@@ -264,7 +264,7 @@ func Auth(next http.Handler) http.Handler {
 			log.Printf("authentication failed: no session or jwt found\n")
 
 			rw.WriteHeader(http.StatusUnauthorized)
-			templates.Render(rw, r, "login.html", &templates.Page{
+			templates.Render(rw, r, "login", &templates.Page{
 				Title: "Authentication failed",
 				Login: &templates.LoginPage{
 					Error: "No valid session or JWT provided",
@@ -320,7 +320,7 @@ func Logout(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	templates.Render(rw, r, "login.html", &templates.Page{
+	templates.Render(rw, r, "login", &templates.Page{
 		Title: "Logout successful",
 		Login: &templates.LoginPage{
 			Info: "Logout successful",

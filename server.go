@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -141,11 +142,12 @@ func main() {
 
 	// Build routes...
 
-	graphQLEndpoint := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: &graph.Resolver{DB: db}}))
+	resolver := &graph.Resolver{DB: db}
+	graphQLEndpoint := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 	graphQLPlayground := playground.Handler("GraphQL playground", "/query")
 
 	handleGetLogin := func(rw http.ResponseWriter, r *http.Request) {
-		templates.Render(rw, r, "login.html", &templates.Page{
+		templates.Render(rw, r, "login", &templates.Page{
 			Title: "Login",
 			Login: &templates.LoginPage{},
 		})
@@ -153,7 +155,7 @@ func main() {
 
 	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		templates.Render(rw, r, "404.html", &templates.Page{
+		templates.Render(rw, r, "404", &templates.Page{
 			Title: "Not found",
 		})
 	})
@@ -170,8 +172,16 @@ func main() {
 	secured.Handle("/query", graphQLEndpoint)
 	secured.HandleFunc("/api/jobs/start_job/", startJob).Methods(http.MethodPost)
 	secured.HandleFunc("/api/jobs/stop_job/", stopJob).Methods(http.MethodPost, http.MethodPut)
-	secured.HandleFunc("/api/jobs/stop_job/{id}", stopJob).Methods(http.MethodPost, http.MethodPut)
+	secured.HandleFunc("/api/jobs/stop_job/{id:[0-9]+}", stopJob).Methods(http.MethodPost, http.MethodPut)
 	secured.HandleFunc("/config.json", config.ServeConfig).Methods(http.MethodGet)
+
+	secured.HandleFunc("/", func(rw http.ResponseWriter, r *http.Request) {
+		templates.Render(rw, r, "home", &templates.Page{
+			Title: "ClusterCockpit",
+		})
+	})
+
+	monitoringRoutes(secured, resolver)
 
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir(programConfig.StaticFiles)))
 	handler := handlers.CORS(
@@ -188,4 +198,77 @@ func main() {
 		err = http.ListenAndServe(programConfig.Addr, handler)
 	}
 	log.Fatal(err)
+}
+
+func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
+	router.HandleFunc("/monitoring/jobs/", func(rw http.ResponseWriter, r *http.Request) {
+		conf, err := config.GetUIConfig(r)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		templates.Render(rw, r, "monitoring/jobs/", &templates.Page{
+			Title:  "Jobs - ClusterCockpit",
+			Config: conf,
+		})
+	})
+
+	router.HandleFunc("/monitoring/job/{id:[0-9]+}", func(rw http.ResponseWriter, r *http.Request) {
+		conf, err := config.GetUIConfig(r)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		id := mux.Vars(r)["id"]
+		job, err := resolver.Query().Job(r.Context(), id)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		templates.Render(rw, r, "monitoring/job/", &templates.Page{
+			Title:  fmt.Sprintf("Job %s - ClusterCockpit", job.JobID),
+			Config: conf,
+			Infos: map[string]interface{}{
+				"id":        id,
+				"jobId":     job.JobID,
+				"clusterId": job.ClusterID,
+			},
+		})
+	})
+
+	router.HandleFunc("/monitoring/users/", func(rw http.ResponseWriter, r *http.Request) {
+		conf, err := config.GetUIConfig(r)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		templates.Render(rw, r, "monitoring/users/", &templates.Page{
+			Title:  "Users - ClusterCockpit",
+			Config: conf,
+		})
+	})
+
+	router.HandleFunc("/monitoring/user/{id}", func(rw http.ResponseWriter, r *http.Request) {
+		conf, err := config.GetUIConfig(r)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		id := mux.Vars(r)["id"]
+		// TODO: One could check if the user exists, but that would be unhelpfull if authentication
+		// is disabled or the user does not exist but has started jobs.
+
+		templates.Render(rw, r, "monitoring/user/", &templates.Page{
+			Title:  fmt.Sprintf("User %s - ClusterCockpit", id),
+			Config: conf,
+			Infos: map[string]interface{}{
+				"userId": id,
+			},
+		})
+	})
 }

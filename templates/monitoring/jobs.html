@@ -1,0 +1,20 @@
+{{define "content"}}
+    <div id="svelte-app"></div>
+{{end}}
+
+{{define "stylesheets"}}
+    <link rel='stylesheet' href='/build/jobs.css'>
+{{end}}
+{{define "javascript"}}
+    <script>
+        const filterPresets = null;
+        const clusterCockpitConfigPromise = Promise.resolve({
+            plot_general_colorscheme:     {{ .Config.plot_general_colorscheme     }},
+            plot_general_lineWidth:       {{ .Config.plot_general_lineWidth       }},
+            plot_general_colorBackground: {{ .Config.plot_general_colorBackground }},
+            plot_list_selectedMetrics:    {{ .Config.plot_list_selectedMetrics    }},
+            plot_list_jobsPerPage:        {{ .Config.plot_list_jobsPerPage        }}
+        });
+    </script>
+    <script src='/build/jobs.js'></script>
+{{end}}
