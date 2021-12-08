@@ -18,8 +18,6 @@ import (
 	"github.com/ClusterCockpit/cc-jobarchive/schema"
 )
 
-var JobArchivePath string = "./var/job-archive"
-
 // For a given job, return the path of the `data.json`/`meta.json` file.
 // TODO: Implement Issue ClusterCockpit/ClusterCockpit#97
 func getPath(job *model.Job, file string) (string, error) {

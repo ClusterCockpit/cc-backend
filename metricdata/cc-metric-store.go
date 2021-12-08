@@ -46,11 +46,11 @@ type ApiStatsData struct {
 	Max     schema.Float `json:"max"`
 }
 
-func (ccms *CCMetricStore) Init() error {
-	ccms.url = os.Getenv("CCMETRICSTORE_URL")
+func (ccms *CCMetricStore) Init(url string) error {
+	ccms.url = url // os.Getenv("CCMETRICSTORE_URL")
 	ccms.jwt = os.Getenv("CCMETRICSTORE_JWT")
-	if ccms.url == "" || ccms.jwt == "" {
-		return errors.New("environment variables 'CCMETRICSTORE_URL' or 'CCMETRICSTORE_JWT' not set")
+	if ccms.jwt == "" {
+		return errors.New("environment variable 'CCMETRICSTORE_JWT' not set")
 	}
 
 	return nil
