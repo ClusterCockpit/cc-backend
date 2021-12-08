@@ -20,13 +20,17 @@ import (
 
 // For a given job, return the path of the `data.json`/`meta.json` file.
 // TODO: Implement Issue ClusterCockpit/ClusterCockpit#97
-func getPath(job *model.Job, file string) (string, error) {
+func getPath(job *model.Job, file string, checkLegacy bool) (string, error) {
 	id, err := strconv.Atoi(strings.Split(job.JobID, ".")[0])
 	if err != nil {
 		return "", err
 	}
 
 	lvl1, lvl2 := fmt.Sprintf("%d", id/1000), fmt.Sprintf("%03d", id%1000)
+	if !checkLegacy {
+		return filepath.Join(JobArchivePath, job.ClusterID, lvl1, lvl2, strconv.FormatInt(job.StartTime.Unix(), 10), file), nil
+	}
+
 	legacyPath := filepath.Join(JobArchivePath, job.ClusterID, lvl1, lvl2, file)
 	if _, err := os.Stat(legacyPath); errors.Is(err, os.ErrNotExist) {
 		return filepath.Join(JobArchivePath, job.ClusterID, lvl1, lvl2, strconv.FormatInt(job.StartTime.Unix(), 10), file), nil
@@ -37,7 +41,7 @@ func getPath(job *model.Job, file string) (string, error) {
 
 // Assuming job is completed/archived, return the jobs metric data.
 func loadFromArchive(job *model.Job) (schema.JobData, error) {
-	filename, err := getPath(job, "data.json")
+	filename, err := getPath(job, "data.json", true)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +67,7 @@ func UpdateTags(job *model.Job, tags []*model.JobTag) error {
 		return nil
 	}
 
-	filename, err := getPath(job, "meta.json")
+	filename, err := getPath(job, "meta.json", true)
 	if err != nil {
 		return err
 	}
@@ -106,7 +110,7 @@ func UpdateTags(job *model.Job, tags []*model.JobTag) error {
 
 // Helper to metricdata.LoadAverages().
 func loadAveragesFromArchive(job *model.Job, metrics []string, data [][]schema.Float) error {
-	filename, err := getPath(job, "meta.json")
+	filename, err := getPath(job, "meta.json", true)
 	if err != nil {
 		return err
 	}
@@ -191,7 +195,7 @@ func ArchiveJob(job *model.Job, ctx context.Context) error {
 		}
 	}
 
-	dirPath, err := getPath(job, "")
+	dirPath, err := getPath(job, "", false)
 	if err != nil {
 		return err
 	}
@@ -218,7 +222,7 @@ func ArchiveJob(job *model.Job, ctx context.Context) error {
 		return err
 	}
 	writer = bufio.NewWriter(f)
-	if err := json.NewEncoder(writer).Encode(metaData); err != nil {
+	if err := json.NewEncoder(writer).Encode(jobData); err != nil {
 		return err
 	}
 	if err := writer.Flush(); err != nil {

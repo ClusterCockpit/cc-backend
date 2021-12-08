@@ -126,7 +126,9 @@ func stopJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Exec(`UPDATE job SET job_state = ? WHERE job.id = ?`, model.JobStateCompleted, job.ID); err != nil {
+	if _, err := db.Exec(
+		`UPDATE job SET job_state = ?, duration = ? WHERE job.id = ?`,
+		model.JobStateCompleted, job.Duration, job.ID); err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
 	}
