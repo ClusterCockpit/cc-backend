@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -58,7 +59,7 @@ func initDB(db *sqlx.DB, archive string) error {
 		return err
 	}
 
-	entries0, err := os.ReadDir(archive)
+	clustersDir, err := os.ReadDir(archive)
 	if err != nil {
 		return err
 	}
@@ -70,50 +71,73 @@ func initDB(db *sqlx.DB, archive string) error {
 		return err
 	}
 
-	var tx *sql.Tx = nil
-	var i int = 0
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	i := 0
 	tags := make(map[string]int64)
-	for _, entry0 := range entries0 {
-		entries1, err := os.ReadDir(filepath.Join(archive, entry0.Name()))
-		if err != nil {
-			return err
-		}
-
-		for _, entry1 := range entries1 {
-			if !entry1.IsDir() {
-				continue
+	handleDirectory := func(filename string) error {
+		// Bundle 100 inserts into one transaction for better performance:
+		if i%100 == 0 {
+			if tx != nil {
+				if err := tx.Commit(); err != nil {
+					return err
+				}
 			}
 
-			entries2, err := os.ReadDir(filepath.Join(archive, entry0.Name(), entry1.Name()))
+			tx, err = db.Begin()
 			if err != nil {
 				return err
 			}
 
-			for _, entry2 := range entries2 {
-				// Bundle 200 inserts into one transaction for better performance:
-				if i%200 == 0 {
-					if tx != nil {
-						if err := tx.Commit(); err != nil {
-							return err
+			insertstmt = tx.Stmt(insertstmt)
+			fmt.Printf("%d jobs inserted...\r", i)
+		}
+
+		err := loadJob(tx, insertstmt, tags, filename)
+		if err == nil {
+			i += 1
+		}
+
+		return err
+	}
+
+	for _, clusterDir := range clustersDir {
+		lvl1Dirs, err := os.ReadDir(filepath.Join(archive, clusterDir.Name()))
+		if err != nil {
+			return err
+		}
+
+		for _, lvl1Dir := range lvl1Dirs {
+			if !lvl1Dir.IsDir() {
+				// Could be the cluster.json file
+				continue
+			}
+
+			lvl2Dirs, err := os.ReadDir(filepath.Join(archive, clusterDir.Name(), lvl1Dir.Name()))
+			if err != nil {
+				return err
+			}
+
+			for _, lvl2Dir := range lvl2Dirs {
+				dirpath := filepath.Join(archive, clusterDir.Name(), lvl1Dir.Name(), lvl2Dir.Name())
+				startTimeDirs, err := os.ReadDir(dirpath)
+				if err != nil {
+					return err
+				}
+
+				for _, startTiemDir := range startTimeDirs {
+					if startTiemDir.Type().IsRegular() && startTiemDir.Name() == "meta.json" {
+						if err := handleDirectory(dirpath); err != nil {
+							log.Printf("in %s: %s\n", dirpath, err.Error())
+						}
+					} else if startTiemDir.IsDir() {
+						if err := handleDirectory(filepath.Join(dirpath, startTiemDir.Name())); err != nil {
+							log.Printf("in %s: %s\n", filepath.Join(dirpath, startTiemDir.Name()), err.Error())
 						}
 					}
-
-					tx, err = db.Begin()
-					if err != nil {
-						return err
-					}
-
-					insertstmt = tx.Stmt(insertstmt)
-					fmt.Printf("%d jobs inserted...\r", i)
 				}
-
-				filename := filepath.Join(archive, entry0.Name(), entry1.Name(), entry2.Name())
-				if err = loadJob(tx, insertstmt, tags, filename); err != nil {
-					fmt.Printf("failed to load '%s': %s", filename, err.Error())
-					continue
-				}
-
-				i += 1
 			}
 		}
 	}
@@ -130,7 +154,7 @@ func initDB(db *sqlx.DB, archive string) error {
 		return err
 	}
 
-	fmt.Printf("A total of %d jobs have been registered in %.3f seconds.\n", i, time.Since(starttime).Seconds())
+	log.Printf("A total of %d jobs have been registered in %.3f seconds.\n", i, time.Since(starttime).Seconds())
 	return nil
 }
 
