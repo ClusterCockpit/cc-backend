@@ -151,7 +151,9 @@ func (r *queryResolver) Tags(ctx context.Context) ([]*model.JobTag, error) {
 }
 
 func (r *queryResolver) Job(ctx context.Context, id string) (*model.Job, error) {
-	return ScanJob(sq.Select(JobTableCols...).From("job").Where("job.id = ?", id).RunWith(r.DB).QueryRow())
+	query := sq.Select(JobTableCols...).From("job").Where("job.id = ?", id)
+	query = securityCheck(ctx, query)
+	return ScanJob(query.RunWith(r.DB).QueryRow())
 }
 
 func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []string) ([]*model.JobMetricWithName, error) {
@@ -181,7 +183,7 @@ func (r *queryResolver) JobsFootprints(ctx context.Context, filter []*model.JobF
 }
 
 func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) (*model.JobResultList, error) {
-	jobs, count, err := r.queryJobs(filter, page, order)
+	jobs, count, err := r.queryJobs(ctx, filter, page, order)
 	if err != nil {
 		return nil, err
 	}

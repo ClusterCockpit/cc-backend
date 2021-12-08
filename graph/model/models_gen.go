@@ -11,19 +11,6 @@ import (
 	"github.com/ClusterCockpit/cc-jobarchive/schema"
 )
 
-type Cluster struct {
-	ClusterID       string          `json:"clusterID"`
-	ProcessorType   string          `json:"processorType"`
-	SocketsPerNode  int             `json:"socketsPerNode"`
-	CoresPerSocket  int             `json:"coresPerSocket"`
-	ThreadsPerCore  int             `json:"threadsPerCore"`
-	FlopRateScalar  int             `json:"flopRateScalar"`
-	FlopRateSimd    int             `json:"flopRateSimd"`
-	MemoryBandwidth int             `json:"memoryBandwidth"`
-	MetricConfig    []*MetricConfig `json:"metricConfig"`
-	FilterRanges    *FilterRanges   `json:"filterRanges"`
-}
-
 type FilterRanges struct {
 	Duration  *IntRangeOutput  `json:"duration"`
 	NumNodes  *IntRangeOutput  `json:"numNodes"`

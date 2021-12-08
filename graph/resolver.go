@@ -1,11 +1,14 @@
 package graph
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
+	"github.com/ClusterCockpit/cc-jobarchive/auth"
 	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
@@ -37,13 +40,18 @@ func ScanJob(row Scannable) (*model.Job, error) {
 		return nil, err
 	}
 
+	if job.Duration == 0 && job.State == model.JobStateRunning {
+		job.Duration = int(time.Since(job.StartTime).Seconds())
+	}
+
 	job.Nodes = strings.Split(nodeList, ",")
 	return job, nil
 }
 
 // Helper function for the `jobs` GraphQL-Query. Is also used elsewhere when a list of jobs is needed.
-func (r *Resolver) queryJobs(filters []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) ([]*model.Job, int, error) {
+func (r *Resolver) queryJobs(ctx context.Context, filters []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) ([]*model.Job, int, error) {
 	query := sq.Select(JobTableCols...).From("job")
+	query = securityCheck(ctx, query)
 
 	if order != nil {
 		field := toSnakeCase(order.Field)
@@ -98,6 +106,20 @@ func (r *Resolver) queryJobs(filters []*model.JobFilter, page *model.PageRequest
 	}
 
 	return jobs, count, nil
+}
+
+func securityCheck(ctx context.Context, query sq.SelectBuilder) sq.SelectBuilder {
+	val := ctx.Value(auth.ContextUserKey)
+	if val == nil {
+		return query
+	}
+
+	user := val.(*auth.User)
+	if user.IsAdmin {
+		return query
+	}
+
+	return query.Where("job.user_id = ?", user.Username)
 }
 
 // Build a sq.SelectBuilder out of a model.JobFilter.

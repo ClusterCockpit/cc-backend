@@ -47,6 +47,7 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 			).From("job").Where("job.cluster_id = ?", cluster.ClusterID).GroupBy(col)
 		}
 
+		query = securityCheck(ctx, query)
 		for _, f := range filter {
 			query = buildWhereClause(f, query)
 		}
@@ -82,6 +83,7 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 
 	if groupBy == nil {
 		query := sq.Select("COUNT(job.id)").From("job").Where("job.duration < 120")
+		query = securityCheck(ctx, query)
 		for _, f := range filter {
 			query = buildWhereClause(f, query)
 		}
@@ -91,6 +93,7 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 	} else {
 		col := groupBy2column[*groupBy]
 		query := sq.Select(col, "COUNT(job.id)").From("job").Where("job.duration < 120")
+		query = securityCheck(ctx, query)
 		for _, f := range filter {
 			query = buildWhereClause(f, query)
 		}
@@ -133,12 +136,12 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 
 		if histogramsNeeded {
 			var err error
-			stat.HistWalltime, err = r.jobsStatisticsHistogram("ROUND(job.duration / 3600) as value", filter, id, col)
+			stat.HistWalltime, err = r.jobsStatisticsHistogram(ctx, "ROUND(job.duration / 3600) as value", filter, id, col)
 			if err != nil {
 				return nil, err
 			}
 
-			stat.HistNumNodes, err = r.jobsStatisticsHistogram("job.num_nodes as value", filter, id, col)
+			stat.HistNumNodes, err = r.jobsStatisticsHistogram(ctx, "job.num_nodes as value", filter, id, col)
 			if err != nil {
 				return nil, err
 			}
@@ -150,8 +153,9 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 
 // `value` must be the column grouped by, but renamed to "value". `id` and `col` can optionally be used
 // to add a condition to the query of the kind "<col> = <id>".
-func (r *queryResolver) jobsStatisticsHistogram(value string, filters []*model.JobFilter, id, col string) ([]*model.HistoPoint, error) {
+func (r *queryResolver) jobsStatisticsHistogram(ctx context.Context, value string, filters []*model.JobFilter, id, col string) ([]*model.HistoPoint, error) {
 	query := sq.Select(value, "COUNT(job.id) AS count").From("job")
+	query = securityCheck(ctx, query)
 	for _, f := range filters {
 		query = buildWhereClause(f, query)
 	}
@@ -179,7 +183,7 @@ func (r *queryResolver) jobsStatisticsHistogram(value string, filters []*model.J
 
 // Helper function for the rooflineHeatmap GraphQL query placed here so that schema.resolvers.go is not too full.
 func (r *Resolver) rooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error) {
-	jobs, count, err := r.queryJobs(filter, &model.PageRequest{Page: 1, ItemsPerPage: 501}, nil)
+	jobs, count, err := r.queryJobs(ctx, filter, &model.PageRequest{Page: 1, ItemsPerPage: 501}, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +236,7 @@ func (r *Resolver) rooflineHeatmap(ctx context.Context, filter []*model.JobFilte
 
 // Helper function for the jobsFootprints GraphQL query placed here so that schema.resolvers.go is not too full.
 func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) ([]*model.MetricFootprints, error) {
-	jobs, count, err := r.queryJobs(filter, &model.PageRequest{Page: 1, ItemsPerPage: 501}, nil)
+	jobs, count, err := r.queryJobs(ctx, filter, &model.PageRequest{Page: 1, ItemsPerPage: 501}, nil)
 	if err != nil {
 		return nil, err
 	}
