@@ -94,10 +94,33 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *model.Job, metrics []string, 
 		currentSeries.Data = append(currentSeries.Data, schema.Float(val))
 	}
 
-	return jobData, idb.addStats(job, jobData, metrics, hostsCond, ctx)
+	stats, err := idb.LoadStats(job, metrics, ctx)
+	if err != nil {
+		return nil, err
+	}
+	for metric, nodes := range stats {
+		jobMetric := jobData[metric]
+		for node, stats := range nodes {
+			for _, series := range jobMetric.Series {
+				if series.NodeID == node {
+					series.Statistics = &stats
+				}
+			}
+		}
+	}
+
+	return jobData, nil
 }
 
-func (idb *InfluxDBv2DataRepository) addStats(job *model.Job, jobData schema.JobData, metrics []string, hostsCond string, ctx context.Context) error {
+func (idb *InfluxDBv2DataRepository) LoadStats(job *model.Job, metrics []string, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error) {
+	stats := map[string]map[string]schema.MetricStatistics{}
+
+	hostsConds := make([]string, 0, len(job.Nodes))
+	for _, h := range job.Nodes {
+		hostsConds = append(hostsConds, fmt.Sprintf(`r.host == "%s"`, h))
+	}
+	hostsCond := strings.Join(hostsConds, " or ")
+
 	for _, metric := range metrics {
 		query := fmt.Sprintf(`
 			data = from(bucket: "%s")
@@ -115,10 +138,10 @@ func (idb *InfluxDBv2DataRepository) addStats(job *model.Job, jobData schema.Job
 			idb.measurement, metric, hostsCond)
 		rows, err := idb.queryClient.Query(ctx, query)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		jobMetric := jobData[metric]
+		nodes := map[string]schema.MetricStatistics{}
 		for rows.Next() {
 			row := rows.Record()
 			host := row.ValueByKey("host").(string)
@@ -126,18 +149,18 @@ func (idb *InfluxDBv2DataRepository) addStats(job *model.Job, jobData schema.Job
 				row.ValueByKey("min").(float64),
 				row.ValueByKey("max").(float64)
 
-			for _, s := range jobMetric.Series {
-				if s.NodeID == host {
-					s.Statistics = &schema.MetricStatistics{
-						Avg: avg,
-						Min: min,
-						Max: max,
-					}
-					break
-				}
+			nodes[host] = schema.MetricStatistics{
+				Avg: avg,
+				Min: min,
+				Max: max,
 			}
 		}
+		stats[metric] = nodes
 	}
 
-	return nil
+	return stats, nil
+}
+
+func (idb *InfluxDBv2DataRepository) LoadNodeData(clusterId string, metrics, nodes []string, from, to int64, ctx context.Context) (map[string]map[string][]schema.Float, error) {
+	return nil, nil
 }

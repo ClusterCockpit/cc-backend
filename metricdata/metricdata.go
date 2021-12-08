@@ -2,7 +2,6 @@ package metricdata
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/ClusterCockpit/cc-jobarchive/config"
@@ -13,6 +12,8 @@ import (
 type MetricDataRepository interface {
 	Init(url string) error
 	LoadData(job *model.Job, metrics []string, ctx context.Context) (schema.JobData, error)
+	LoadStats(job *model.Job, metrics []string, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error)
+	LoadNodeData(clusterId string, metrics, nodes []string, from, to int64, ctx context.Context) (map[string]map[string][]schema.Float, error)
 }
 
 var metricDataRepos map[string]MetricDataRepository = map[string]MetricDataRepository{}
@@ -55,10 +56,6 @@ func LoadData(job *model.Job, metrics []string, ctx context.Context) (schema.Job
 		return repo.LoadData(job, metrics, ctx)
 	}
 
-	if job.State != model.JobStateCompleted {
-		return nil, fmt.Errorf("job of state '%s' is not supported", job.State)
-	}
-
 	data, err := loadFromArchive(job)
 	if err != nil {
 		return nil, err
@@ -78,9 +75,51 @@ func LoadData(job *model.Job, metrics []string, ctx context.Context) (schema.Job
 
 // Used for the jobsFootprint GraphQL-Query. TODO: Rename/Generalize.
 func LoadAverages(job *model.Job, metrics []string, data [][]schema.Float, ctx context.Context) error {
-	if job.State != model.JobStateCompleted {
-		return errors.New("only completed jobs are supported")
+	if job.State != model.JobStateRunning {
+		return loadAveragesFromArchive(job, metrics, data)
 	}
 
-	return loadAveragesFromArchive(job, metrics, data)
+	repo, ok := metricDataRepos[job.ClusterID]
+	if !ok {
+		return fmt.Errorf("no metric data repository configured for '%s'", job.ClusterID)
+	}
+
+	stats, err := repo.LoadStats(job, metrics, ctx)
+	if err != nil {
+		return err
+	}
+
+	for i, m := range metrics {
+		nodes, ok := stats[m]
+		if !ok {
+			data[i] = append(data[i], schema.NaN)
+			continue
+		}
+
+		sum := 0.0
+		for _, node := range nodes {
+			sum += node.Avg
+		}
+		data[i] = append(data[i], schema.Float(sum))
+	}
+
+	return nil
+}
+
+func LoadNodeData(clusterId string, metrics, nodes []string, from, to int64, ctx context.Context) (map[string]map[string][]schema.Float, error) {
+	repo, ok := metricDataRepos[clusterId]
+	if !ok {
+		return nil, fmt.Errorf("no metric data repository configured for '%s'", clusterId)
+	}
+
+	data, err := repo.LoadNodeData(clusterId, metrics, nodes, from, to, ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if data == nil {
+		return nil, fmt.Errorf("the metric data repository for '%s' does not support this query", clusterId)
+	}
+
+	return data, nil
 }
