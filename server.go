@@ -6,16 +6,15 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
-	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
+	"github.com/ClusterCockpit/cc-jobarchive/auth"
 	"github.com/ClusterCockpit/cc-jobarchive/config"
 	"github.com/ClusterCockpit/cc-jobarchive/graph"
 	"github.com/ClusterCockpit/cc-jobarchive/graph/generated"
-	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
 	"github.com/ClusterCockpit/cc-jobarchive/metricdata"
+	"github.com/ClusterCockpit/cc-jobarchive/templates"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
@@ -24,86 +23,169 @@ import (
 
 var db *sqlx.DB
 
-func main() {
-	var reinitDB bool
-	var port, staticFiles, jobDBFile string
+type ProgramConfig struct {
+	Addr                  string                 `json:"addr"`
+	DisableAuthentication bool                   `json:"disable-authentication"`
+	StaticFiles           string                 `json:"static-files"`
+	DB                    string                 `json:"db"`
+	JobArchive            string                 `json:"job-archive"`
+	LdapConfig            *auth.LdapConfig       `json:"ldap"`
+	HttpsCertFile         string                 `json:"https-cert-file"`
+	HttpsKeyFile          string                 `json:"https-key-file"`
+	UiDefaults            map[string]interface{} `json:"ui-defaults"`
+}
 
-	flag.StringVar(&port, "port", "8080", "Port on which to listen")
-	flag.StringVar(&staticFiles, "static-files", "./frontend/public", "Directory who's contents shall be served as static files")
-	flag.StringVar(&jobDBFile, "job-db", "./var/job.db", "SQLite 3 Jobs Database File")
-	flag.BoolVar(&reinitDB, "init-db", false, "Initialize new SQLite Database")
+var programConfig ProgramConfig = ProgramConfig{
+	Addr:                  "0.0.0.0:8080",
+	DisableAuthentication: false,
+	StaticFiles:           "./frontend/public",
+	DB:                    "./var/job.db",
+	JobArchive:            "./var/job-archive",
+	LdapConfig: &auth.LdapConfig{
+		Url:        "ldap://localhost",
+		UserBase:   "ou=hpc,dc=rrze,dc=uni-erlangen,dc=de",
+		SearchDN:   "cn=admin,dc=rrze,dc=uni-erlangen,dc=de",
+		UserBind:   "uid={username},ou=hpc,dc=rrze,dc=uni-erlangen,dc=de",
+		UserFilter: "(&(objectclass=posixAccount)(uid=*))",
+	},
+	HttpsCertFile: "",
+	HttpsKeyFile:  "",
+	UiDefaults: map[string]interface{}{
+		"analysis_view_histogramMetrics":     []string{"flops_any", "mem_bw", "mem_used"},
+		"analysis_view_scatterPlotMetrics":   [][]string{{"flops_any", "mem_bw"}, {"flops_any", "cpu_load"}, {"cpu_load", "mem_bw"}},
+		"job_view_nodestats_selectedMetrics": []string{"flops_any", "mem_bw", "mem_used"},
+		"job_view_polarPlotMetrics":          []string{"flops_any", "mem_bw", "mem_used", "net_bw", "file_bw"},
+		"job_view_selectedMetrics":           []string{"flops_any", "mem_bw", "mem_used"},
+		"plot_general_colorBackground":       true,
+		"plot_general_colorscheme":           []string{"#00bfff", "#0000ff", "#ff00ff", "#ff0000", "#ff8000", "#ffff00", "#80ff00"},
+		"plot_general_lineWidth":             1,
+		"plot_list_jobsPerPage":              10,
+		"plot_list_selectedMetrics":          []string{"cpu_load", "mem_used", "flops_any", "mem_bw", "clock"},
+		"plot_view_plotsPerRow":              4,
+		"plot_view_showPolarplot":            true,
+		"plot_view_showRoofline":             true,
+		"plot_view_showStatTable":            true,
+	},
+}
+
+func main() {
+	var flagReinitDB, flagStopImmediately, flagSyncLDAP bool
+	var flagConfigFile string
+	var flagNewUser, flagDelUser string
+	flag.BoolVar(&flagReinitDB, "init-db", false, "Go through job-archive and re-initialize `job`, `tag`, and `jobtag` tables")
+	flag.BoolVar(&flagSyncLDAP, "sync-ldap", false, "Sync the `user` table with ldap")
+	flag.BoolVar(&flagStopImmediately, "no-server", false, "Do not start a server, stop right after initialization and argument handling")
+	flag.StringVar(&flagConfigFile, "config", "", "Location of the config file for this server (overwrites the defaults)")
+	flag.StringVar(&flagNewUser, "add-user", "", "Add a new user. Argument format: `<username>:[admin]:<password>`")
+	flag.StringVar(&flagDelUser, "del-user", "", "Remove user by username")
 	flag.Parse()
 
-	var err error
-	db, err = sqlx.Open("sqlite3", jobDBFile)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// See https://github.com/mattn/go-sqlite3/issues/274
-	db.SetMaxOpenConns(1)
-	defer db.Close()
-
-	if reinitDB {
-		if err = initDB(db, metricdata.JobArchivePath); err != nil {
+	if flagConfigFile != "" {
+		data, err := os.ReadFile(flagConfigFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := json.Unmarshal(data, &programConfig); err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	config.Clusters, err = loadClusters()
+	var err error
+	db, err = sqlx.Open("sqlite3", programConfig.DB)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// Initialize sub-modules...
+
+	if !programConfig.DisableAuthentication {
+		if err := auth.Init(db, programConfig.LdapConfig); err != nil {
+			log.Fatal(err)
+		}
+
+		if flagNewUser != "" {
+			if err := auth.AddUserToDB(db, flagNewUser); err != nil {
+				log.Fatal(err)
+			}
+		}
+		if flagDelUser != "" {
+			if err := auth.DelUserFromDB(db, flagDelUser); err != nil {
+				log.Fatal(err)
+			}
+		}
+
+		if flagSyncLDAP {
+			auth.SyncWithLDAP(db)
+		}
+	} else if flagNewUser != "" || flagDelUser != "" {
+		log.Fatalln("arguments --add-user and --del-user can only be used if authentication is enabled")
+	}
+
+	if err := config.Init(db, !programConfig.DisableAuthentication, programConfig.UiDefaults, programConfig.JobArchive); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := metricdata.Init(programConfig.JobArchive); err != nil {
+		log.Fatal(err)
+	}
+
+	if flagReinitDB {
+		if err := initDB(db, programConfig.JobArchive); err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	if flagStopImmediately {
+		return
+	}
+
+	// Build routes...
+
+	graphQLEndpoint := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: &graph.Resolver{DB: db}}))
+	graphQLPlayground := playground.Handler("GraphQL playground", "/query")
+
+	handleGetLogin := func(rw http.ResponseWriter, r *http.Request) {
+		templates.Render(rw, r, "login.html", &templates.Page{
+			Title: "Login",
+			Login: &templates.LoginPage{},
+		})
+	}
+
 	r := mux.NewRouter()
-	loggedRouter := handlers.LoggingHandler(os.Stdout, r)
+	r.NotFoundHandler = http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		templates.Render(rw, r, "404.html", &templates.Page{
+			Title: "Not found",
+		})
+	})
 
-	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{
-		Resolvers: &graph.Resolver{DB: db}}))
-	r.HandleFunc("/graphql-playground", playground.Handler("GraphQL playground", "/query"))
-	r.Handle("/query", srv)
+	r.Handle("/playground", graphQLPlayground)
+	r.Handle("/login", auth.Login(db)).Methods(http.MethodPost)
+	r.HandleFunc("/login", handleGetLogin).Methods(http.MethodGet)
+	r.HandleFunc("/logout", auth.Logout).Methods(http.MethodPost)
 
-	r.HandleFunc("/config.json", config.ServeConfig).Methods("GET")
-
-	r.HandleFunc("/api/start-job", startJob).Methods("POST")
-	r.HandleFunc("/api/stop-job", stopJob).Methods("POST")
-
-	if len(staticFiles) != 0 {
-		r.PathPrefix("/").Handler(http.FileServer(http.Dir(staticFiles)))
+	secured := r.PathPrefix("/").Subrouter()
+	if !programConfig.DisableAuthentication {
+		secured.Use(auth.Auth)
 	}
+	secured.Handle("/query", graphQLEndpoint)
+	secured.HandleFunc("/api/jobs/start_job/", startJob).Methods(http.MethodPost)
+	secured.HandleFunc("/api/jobs/stop_job/", stopJob).Methods(http.MethodPost, http.MethodPut)
+	secured.HandleFunc("/api/jobs/stop_job/{id}", stopJob).Methods(http.MethodPost, http.MethodPut)
+	secured.HandleFunc("/config.json", config.ServeConfig).Methods(http.MethodGet)
 
-	log.Printf("GraphQL playground: http://localhost:%s/graphql-playground", port)
-	log.Printf("Home:               http://localhost:%s/index.html", port)
-	log.Fatal(http.ListenAndServe("127.0.0.1:"+port,
-		handlers.CORS(handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}),
-			handlers.AllowedMethods([]string{"GET", "POST", "HEAD", "OPTIONS"}),
-			handlers.AllowedOrigins([]string{"*"}))(loggedRouter)))
-}
+	r.PathPrefix("/").Handler(http.FileServer(http.Dir(programConfig.StaticFiles)))
+	handler := handlers.CORS(
+		handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}),
+		handlers.AllowedMethods([]string{"GET", "POST", "HEAD", "OPTIONS"}),
+		handlers.AllowedOrigins([]string{"*"}))(handlers.LoggingHandler(os.Stdout, r))
 
-func loadClusters() ([]*model.Cluster, error) {
-	entries, err := os.ReadDir(metricdata.JobArchivePath)
-	if err != nil {
-		return nil, err
+	// Start http or https server
+	if programConfig.HttpsCertFile != "" && programConfig.HttpsKeyFile != "" {
+		log.Printf("HTTPS server running at %s...", programConfig.Addr)
+		err = http.ListenAndServeTLS(programConfig.Addr, programConfig.HttpsCertFile, programConfig.HttpsKeyFile, handler)
+	} else {
+		log.Printf("HTTP server running at %s...", programConfig.Addr)
+		err = http.ListenAndServe(programConfig.Addr, handler)
 	}
-
-	clusters := []*model.Cluster{}
-	for _, de := range entries {
-		bytes, err := os.ReadFile(filepath.Join(metricdata.JobArchivePath, de.Name(), "cluster.json"))
-		if err != nil {
-			return nil, err
-		}
-
-		var cluster model.Cluster
-		if err := json.Unmarshal(bytes, &cluster); err != nil {
-			return nil, err
-		}
-
-		if cluster.FilterRanges.StartTime.To.IsZero() {
-			cluster.FilterRanges.StartTime.To = time.Unix(0, 0)
-		}
-
-		clusters = append(clusters, &cluster)
-	}
-
-	return clusters, nil
+	log.Fatal(err)
 }
