@@ -176,8 +176,27 @@ func main() {
 	secured.HandleFunc("/config.json", config.ServeConfig).Methods(http.MethodGet)
 
 	secured.HandleFunc("/", func(rw http.ResponseWriter, r *http.Request) {
+		conf, err := config.GetUIConfig(r)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		infos := map[string]interface{}{
+			"clusters": config.Clusters,
+			"username": "",
+			"admin":    true,
+		}
+
+		if user := auth.GetUser(r.Context()); user != nil {
+			infos["username"] = user.Username
+			infos["admin"] = user.IsAdmin
+		}
+
 		templates.Render(rw, r, "home", &templates.Page{
-			Title: "ClusterCockpit",
+			Title:  "ClusterCockpit",
+			Config: conf,
+			Infos:  infos,
 		})
 	})
 
@@ -208,9 +227,34 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 			return
 		}
 
+		filterPresets := map[string]interface{}{}
+		query := r.URL.Query()
+		if query.Get("tag") != "" {
+			filterPresets["tagId"] = query.Get("tag")
+		}
+		if query.Get("cluster") != "" {
+			filterPresets["clusterId"] = query.Get("cluster")
+		}
+		if query.Get("project") != "" {
+			filterPresets["projectId"] = query.Get("project")
+		}
+		if query.Get("running") == "true" {
+			filterPresets["isRunning"] = true
+		}
+		if query.Get("running") == "false" {
+			filterPresets["isRunning"] = false
+		}
+		if query.Get("from") != "" && query.Get("to") != "" {
+			filterPresets["startTime"] = map[string]string{
+				"from": query.Get("from"),
+				"to":   query.Get("to"),
+			}
+		}
+
 		templates.Render(rw, r, "monitoring/jobs/", &templates.Page{
-			Title:  "Jobs - ClusterCockpit",
-			Config: conf,
+			Title:         "Jobs - ClusterCockpit",
+			Config:        conf,
+			FilterPresets: filterPresets,
 		})
 	})
 
@@ -266,8 +310,64 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 		templates.Render(rw, r, "monitoring/user/", &templates.Page{
 			Title:  fmt.Sprintf("User %s - ClusterCockpit", id),
 			Config: conf,
+			Infos:  map[string]interface{}{"userId": id},
+		})
+	})
+
+	router.HandleFunc("/monitoring/analysis/", func(rw http.ResponseWriter, r *http.Request) {
+		conf, err := config.GetUIConfig(r)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		filterPresets := map[string]interface{}{}
+		query := r.URL.Query()
+		if query.Get("cluster") != "" {
+			filterPresets["clusterId"] = query.Get("cluster")
+		}
+
+		templates.Render(rw, r, "monitoring/analysis/", &templates.Page{
+			Title:         "Analysis View - ClusterCockpit",
+			Config:        conf,
+			FilterPresets: filterPresets,
+		})
+	})
+
+	router.HandleFunc("/monitoring/systems/", func(rw http.ResponseWriter, r *http.Request) {
+		conf, err := config.GetUIConfig(r)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		filterPresets := map[string]interface{}{}
+		query := r.URL.Query()
+		if query.Get("cluster") != "" {
+			filterPresets["clusterId"] = query.Get("cluster")
+		}
+
+		templates.Render(rw, r, "monitoring/systems/", &templates.Page{
+			Title:         "System View - ClusterCockpit",
+			Config:        conf,
+			FilterPresets: filterPresets,
+		})
+	})
+
+	router.HandleFunc("/monitoring/node/{clusterId}/{nodeId}", func(rw http.ResponseWriter, r *http.Request) {
+		conf, err := config.GetUIConfig(r)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		vars := mux.Vars(r)
+		templates.Render(rw, r, "monitoring/node/", &templates.Page{
+			Title:  fmt.Sprintf("Node %s - ClusterCockpit", vars["nodeId"]),
+			Config: conf,
 			Infos: map[string]interface{}{
-				"userId": id,
+				"nodeId":    vars["nodeId"],
+				"clusterId": vars["clusterId"],
 			},
 		})
 	})

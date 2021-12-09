@@ -1,4 +1,4 @@
-# ClusterCockpit with a Golang backend (Only supports archived jobs)
+# ClusterCockpit with a Golang backend
 
 [![Build](https://github.com/ClusterCockpit/cc-jobarchive/actions/workflows/test.yml/badge.svg)](https://github.com/ClusterCockpit/cc-jobarchive/actions/workflows/test.yml)
 
@@ -11,7 +11,12 @@ git clone --recursive git@github.com:ClusterCockpit/cc-jobarchive.git
 # Prepare frontend
 cd ./cc-jobarchive/frontend
 yarn install
-CCFRONTEND_ROLLUP_INTRO="" yarn build
+export CCFRONTEND_ROLLUP_INTRO='
+const JOBVIEW_URL = job => `/monitoring/job/${job.jobId}`;
+const USERVIEW_URL = userId => `/monitoring/user/${userId}`;
+const TAG_URL = tag => `/monitoring/jobs/?tag=${tag.id}`;
+'
+yarn build
 
 cd ..
 go get
@@ -45,4 +50,6 @@ This project uses [gqlgen](https://github.com/99designs/gqlgen) for the GraphQL 
 
 - [ ] Documentation
 - [ ] Write more TODOs
+- [ ] Caching
+- [ ] Generate JWTs based on the provided keys
 

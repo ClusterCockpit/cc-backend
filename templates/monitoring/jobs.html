@@ -7,7 +7,7 @@
 {{end}}
 {{define "javascript"}}
     <script>
-        const filterPresets = null;
+        const filterPresets = {{ .FilterPresets }};
         const clusterCockpitConfigPromise = Promise.resolve({
             plot_general_colorscheme:     {{ .Config.plot_general_colorscheme     }},
             plot_general_lineWidth:       {{ .Config.plot_general_lineWidth       }},

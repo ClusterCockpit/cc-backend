@@ -1,0 +1,18 @@
+{{define "content"}}
+    <div id="svelte-app"></div>
+{{end}}
+
+{{define "stylesheets"}}
+    <link rel='stylesheet' href='/build/analysis.css'>
+{{end}}
+{{define "javascript"}}
+    <script>
+        const filterPresets = {{ .FilterPresets }};
+        const clusterCockpitConfigPromise = Promise.resolve({
+            plot_view_plotsPerRow:            {{ .Config.plot_view_plotsPerRow            }},
+            analysis_view_histogramMetrics:   {{ .Config.analysis_view_histogramMetrics   }},
+            analysis_view_scatterPlotMetrics: {{ .Config.analysis_view_scatterPlotMetrics }}
+        });
+    </script>
+    <script src='/build/analysis.js'></script>
+{{end}}
