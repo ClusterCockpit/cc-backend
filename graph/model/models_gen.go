@@ -111,6 +111,16 @@ type MetricFootprints struct {
 	Footprints []schema.Float `json:"footprints"`
 }
 
+type NodeMetric struct {
+	Name string         `json:"name"`
+	Data []schema.Float `json:"data"`
+}
+
+type NodeMetrics struct {
+	ID      string        `json:"id"`
+	Metrics []*NodeMetric `json:"metrics"`
+}
+
 type OrderByInput struct {
 	Field string            `json:"field"`
 	Order SortDirectionEnum `json:"order"`

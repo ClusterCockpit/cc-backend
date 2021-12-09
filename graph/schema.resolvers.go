@@ -5,9 +5,12 @@ package graph
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
+	"github.com/ClusterCockpit/cc-jobarchive/auth"
 	"github.com/ClusterCockpit/cc-jobarchive/config"
 	"github.com/ClusterCockpit/cc-jobarchive/graph/generated"
 	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
@@ -197,6 +200,36 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 
 func (r *queryResolver) RooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error) {
 	return r.rooflineHeatmap(ctx, filter, rows, cols, minX, minY, maxX, maxY)
+}
+
+func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes []string, metrics []string, from time.Time, to time.Time) ([]*model.NodeMetrics, error) {
+	user := auth.GetUser(ctx)
+	if user != nil && !user.IsAdmin {
+		return nil, errors.New("you need to be an administrator for this query")
+	}
+
+	data, err := metricdata.LoadNodeData(cluster, metrics, nodes, from.Unix(), to.Unix(), ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]*model.NodeMetrics, 0, len(data))
+	for node, metrics := range data {
+		nodeMetrics := make([]*model.NodeMetric, 0, len(metrics))
+		for metric, data := range metrics {
+			nodeMetrics = append(nodeMetrics, &model.NodeMetric{
+				Name: metric,
+				Data: data,
+			})
+		}
+
+		res = append(res, &model.NodeMetrics{
+			ID:      node,
+			Metrics: nodeMetrics,
+		})
+	}
+
+	return res, nil
 }
 
 // Job returns generated.JobResolver implementation.
