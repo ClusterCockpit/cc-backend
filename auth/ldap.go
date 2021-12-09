@@ -29,7 +29,7 @@ var ldapAdminPassword string
 func initLdap(config *LdapConfig) error {
 	ldapAdminPassword = os.Getenv("LDAP_ADMIN_PASSWORD")
 	if ldapAdminPassword == "" {
-		log.Println("warning: environment variable 'LDAP_ADMIN_PASSWORD' not set")
+		log.Println("warning: environment variable 'LDAP_ADMIN_PASSWORD' not set (ldap sync or authentication will not work)")
 	}
 
 	ldapConfig = config

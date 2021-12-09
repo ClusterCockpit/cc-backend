@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -50,7 +51,7 @@ func (ccms *CCMetricStore) Init(url string) error {
 	ccms.url = url // os.Getenv("CCMETRICSTORE_URL")
 	ccms.jwt = os.Getenv("CCMETRICSTORE_JWT")
 	if ccms.jwt == "" {
-		return errors.New("environment variable 'CCMETRICSTORE_JWT' not set")
+		log.Println("warning: environment variable 'CCMETRICSTORE_JWT' not set")
 	}
 
 	return nil
@@ -73,7 +74,9 @@ func (ccms *CCMetricStore) doRequest(job *model.Job, suffix string, metrics []st
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", ccms.jwt))
+	if ccms.jwt != "" {
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", ccms.jwt))
+	}
 	return ccms.client.Do(req)
 }
 
@@ -174,14 +177,16 @@ func (ccms *CCMetricStore) LoadNodeData(clusterId string, metrics, nodes []strin
 
 	var req *http.Request
 	if nodes == nil {
-		req, err = http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/api/%d/%d/all-nodes", ccms.url, from, to), bytes.NewReader(reqBodyBytes))
+		req, err = http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/api/%s/%d/%d/all-nodes", ccms.url, clusterId, from, to), bytes.NewReader(reqBodyBytes))
 	} else {
 		req, err = http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/api/%d/%d/timeseries", ccms.url, from, to), bytes.NewReader(reqBodyBytes))
 	}
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", ccms.jwt))
+	if ccms.jwt != "" {
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", ccms.jwt))
+	}
 	res, err := ccms.client.Do(req)
 	if err != nil {
 		return nil, err

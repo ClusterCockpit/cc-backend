@@ -2,8 +2,8 @@ package metricdata
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -24,7 +24,7 @@ type InfluxDBv2DataRepository struct {
 func (idb *InfluxDBv2DataRepository) Init(url string) error {
 	token := os.Getenv("INFLUXDB_V2_TOKEN")
 	if token == "" {
-		return errors.New("warning: environment variable 'INFLUXDB_V2_TOKEN' not set")
+		log.Println("warning: environment variable 'INFLUXDB_V2_TOKEN' not set")
 	}
 
 	idb.client = influxdb2.NewClient(url, token)
