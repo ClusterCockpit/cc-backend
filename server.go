@@ -10,6 +10,7 @@ import (
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
+	"github.com/ClusterCockpit/cc-jobarchive/api"
 	"github.com/ClusterCockpit/cc-jobarchive/auth"
 	"github.com/ClusterCockpit/cc-jobarchive/config"
 	"github.com/ClusterCockpit/cc-jobarchive/graph"
@@ -24,16 +25,40 @@ import (
 
 var db *sqlx.DB
 
+// Format of the configurartion (file). See below for the defaults.
 type ProgramConfig struct {
-	Addr                  string                 `json:"addr"`
-	DisableAuthentication bool                   `json:"disable-authentication"`
-	StaticFiles           string                 `json:"static-files"`
-	DB                    string                 `json:"db"`
-	JobArchive            string                 `json:"job-archive"`
-	LdapConfig            *auth.LdapConfig       `json:"ldap"`
-	HttpsCertFile         string                 `json:"https-cert-file"`
-	HttpsKeyFile          string                 `json:"https-key-file"`
-	UiDefaults            map[string]interface{} `json:"ui-defaults"`
+	// Address where the http (or https) server will listen on (for example: 'localhost:80').
+	Addr string `json:"addr"`
+
+	// Disable authentication (for everything: API, Web-UI, ...)
+	DisableAuthentication bool `json:"disable-authentication"`
+
+	// Folder where static assets can be found, will be served directly
+	StaticFiles string `json:"static-files"`
+
+	// Currently only SQLite3 ist supported, so this should be a filename
+	DB string `json:"db"`
+
+	// Path to the job-archive
+	JobArchive string `json:"job-archive"`
+
+	// Make the /api/jobs/stop_job endpoint do the heavy work in the background.
+	AsyncArchiving bool `json:"async-archive"`
+
+	// Keep all metric data in the metric data repositories,
+	// do not write to the job-archive.
+	DisableArchive bool `json:"disable-archive"`
+
+	// For LDAP Authentication and user syncronisation.
+	LdapConfig *auth.LdapConfig `json:"ldap"`
+
+	// If both those options are not empty, use HTTPS using those certificates.
+	HttpsCertFile string `json:"https-cert-file"`
+	HttpsKeyFile  string `json:"https-key-file"`
+
+	// If overwriten, at least all the options in the defaults below must
+	// be provided! Most options here can be overwritten by the user.
+	UiDefaults map[string]interface{} `json:"ui-defaults"`
 }
 
 var programConfig ProgramConfig = ProgramConfig{
@@ -42,6 +67,8 @@ var programConfig ProgramConfig = ProgramConfig{
 	StaticFiles:           "./frontend/public",
 	DB:                    "./var/job.db",
 	JobArchive:            "./var/job-archive",
+	AsyncArchiving:        true,
+	DisableArchive:        false,
 	LdapConfig: &auth.LdapConfig{
 		Url:        "ldap://localhost",
 		UserBase:   "ou=hpc,dc=rrze,dc=uni-erlangen,dc=de",
@@ -92,10 +119,14 @@ func main() {
 	}
 
 	var err error
-	db, err = sqlx.Open("sqlite3", programConfig.DB)
+	// This might need to change for other databases:
+	db, err = sqlx.Open("sqlite3", fmt.Sprintf("%s?_foreign_keys=on", programConfig.DB))
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// Only for sqlite, not needed for any other database:
+	db.SetMaxOpenConns(1)
 
 	// Initialize sub-modules...
 
@@ -126,7 +157,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := metricdata.Init(programConfig.JobArchive); err != nil {
+	if err := metricdata.Init(programConfig.JobArchive, programConfig.DisableArchive); err != nil {
 		log.Fatal(err)
 	}
 
@@ -145,6 +176,11 @@ func main() {
 	resolver := &graph.Resolver{DB: db}
 	graphQLEndpoint := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 	graphQLPlayground := playground.Handler("GraphQL playground", "/query")
+	restApi := &api.RestApi{
+		DB:             db,
+		Resolver:       resolver,
+		AsyncArchiving: programConfig.AsyncArchiving,
+	}
 
 	handleGetLogin := func(rw http.ResponseWriter, r *http.Request) {
 		templates.Render(rw, r, "login", &templates.Page{
@@ -170,9 +206,7 @@ func main() {
 		secured.Use(auth.Auth)
 	}
 	secured.Handle("/query", graphQLEndpoint)
-	secured.HandleFunc("/api/jobs/start_job/", startJob).Methods(http.MethodPost)
-	secured.HandleFunc("/api/jobs/stop_job/", stopJob).Methods(http.MethodPost, http.MethodPut)
-	secured.HandleFunc("/api/jobs/stop_job/{id:[0-9]+}", stopJob).Methods(http.MethodPost, http.MethodPut)
+
 	secured.HandleFunc("/config.json", config.ServeConfig).Methods(http.MethodGet)
 
 	secured.HandleFunc("/", func(rw http.ResponseWriter, r *http.Request) {
@@ -201,12 +235,13 @@ func main() {
 	})
 
 	monitoringRoutes(secured, resolver)
+	restApi.MountRoutes(secured)
 
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir(programConfig.StaticFiles)))
 	handler := handlers.CORS(
 		handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}),
 		handlers.AllowedMethods([]string{"GET", "POST", "HEAD", "OPTIONS"}),
-		handlers.AllowedOrigins([]string{"*"}))(handlers.LoggingHandler(os.Stdout, r))
+		handlers.AllowedOrigins([]string{"*"}))(handlers.LoggingHandler(os.Stdout, handlers.CompressHandler(r)))
 
 	// Start http or https server
 	if programConfig.HttpsCertFile != "" && programConfig.HttpsKeyFile != "" {

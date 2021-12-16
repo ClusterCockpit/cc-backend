@@ -12,7 +12,7 @@ git clone --recursive git@github.com:ClusterCockpit/cc-jobarchive.git
 cd ./cc-jobarchive/frontend
 yarn install
 export CCFRONTEND_ROLLUP_INTRO='
-const JOBVIEW_URL = job => `/monitoring/job/${job.jobId}`;
+const JOBVIEW_URL = job => `/monitoring/job/${job.id}`;
 const USERVIEW_URL = userId => `/monitoring/user/${userId}`;
 const TAG_URL = tag => `/monitoring/jobs/?tag=${tag.id}`;
 '
@@ -52,4 +52,3 @@ This project uses [gqlgen](https://github.com/99designs/gqlgen) for the GraphQL 
 - [ ] Write more TODOs
 - [ ] Caching
 - [ ] Generate JWTs based on the provided keys
-

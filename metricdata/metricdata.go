@@ -28,7 +28,10 @@ var metricDataRepos map[string]MetricDataRepository = map[string]MetricDataRepos
 
 var JobArchivePath string
 
-func Init(jobArchivePath string) error {
+var useArchive bool
+
+func Init(jobArchivePath string, disableArchive bool) error {
+	useArchive = !disableArchive
 	JobArchivePath = jobArchivePath
 	for _, cluster := range config.Clusters {
 		if cluster.MetricDataRepository != nil {
@@ -55,7 +58,7 @@ func Init(jobArchivePath string) error {
 
 // Fetches the metric data for a job.
 func LoadData(job *model.Job, metrics []string, ctx context.Context) (schema.JobData, error) {
-	if job.State == model.JobStateRunning {
+	if job.State == model.JobStateRunning || !useArchive {
 		repo, ok := metricDataRepos[job.ClusterID]
 		if !ok {
 			return nil, fmt.Errorf("no metric data repository configured for '%s'", job.ClusterID)
@@ -83,7 +86,7 @@ func LoadData(job *model.Job, metrics []string, ctx context.Context) (schema.Job
 
 // Used for the jobsFootprint GraphQL-Query. TODO: Rename/Generalize.
 func LoadAverages(job *model.Job, metrics []string, data [][]schema.Float, ctx context.Context) error {
-	if job.State != model.JobStateRunning {
+	if job.State != model.JobStateRunning && useArchive {
 		return loadAveragesFromArchive(job, metrics, data)
 	}
 
@@ -118,6 +121,12 @@ func LoadNodeData(clusterId string, metrics, nodes []string, from, to int64, ctx
 	repo, ok := metricDataRepos[clusterId]
 	if !ok {
 		return nil, fmt.Errorf("no metric data repository configured for '%s'", clusterId)
+	}
+
+	if metrics == nil {
+		for _, m := range config.GetClusterConfig(clusterId).MetricConfig {
+			metrics = append(metrics, m.Name)
+		}
 	}
 
 	data, err := repo.LoadNodeData(clusterId, metrics, nodes, from, to, ctx)

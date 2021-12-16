@@ -137,9 +137,9 @@ func loadAveragesFromArchive(job *model.Job, metrics []string, data [][]schema.F
 }
 
 // Writes a running job to the job-archive
-func ArchiveJob(job *model.Job, ctx context.Context) error {
+func ArchiveJob(job *model.Job, ctx context.Context) (*schema.JobMeta, error) {
 	if job.State != model.JobStateRunning {
-		return errors.New("cannot archive job that is not running")
+		return nil, errors.New("cannot archive job that is not running")
 	}
 
 	allMetrics := make([]string, 0)
@@ -149,7 +149,7 @@ func ArchiveJob(job *model.Job, ctx context.Context) error {
 	}
 	jobData, err := LoadData(job, allMetrics, ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	tags := []struct {
@@ -195,39 +195,46 @@ func ArchiveJob(job *model.Job, ctx context.Context) error {
 		}
 	}
 
+	// If the file based archive is disabled,
+	// only return the JobMeta structure as the
+	// statistics in there are needed.
+	if !useArchive {
+		return metaData, nil
+	}
+
 	dirPath, err := getPath(job, "", false)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := os.MkdirAll(dirPath, 0777); err != nil {
-		return err
+		return nil, err
 	}
 
 	f, err := os.Create(path.Join(dirPath, "meta.json"))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer f.Close()
 	writer := bufio.NewWriter(f)
 	if err := json.NewEncoder(writer).Encode(metaData); err != nil {
-		return err
+		return nil, err
 	}
 	if err := writer.Flush(); err != nil {
-		return err
+		return nil, err
 	}
 
 	f, err = os.Create(path.Join(dirPath, "data.json"))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	writer = bufio.NewWriter(f)
 	if err := json.NewEncoder(writer).Encode(jobData); err != nil {
-		return err
+		return nil, err
 	}
 	if err := writer.Flush(); err != nil {
-		return err
+		return nil, err
 	}
 
-	return f.Close()
+	return metaData, f.Close()
 }
