@@ -2,6 +2,7 @@ package metricdata
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -46,9 +47,14 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *model.Job, metrics []string, 
 	}
 	fieldsCond := strings.Join(fieldsConds, " or ")
 
-	hostsConds := make([]string, 0, len(job.Nodes))
-	for _, h := range job.Nodes {
-		hostsConds = append(hostsConds, fmt.Sprintf(`r.host == "%s"`, h))
+	hostsConds := make([]string, 0, len(job.Resources))
+	for _, h := range job.Resources {
+		if h.HWThreads != nil || h.Accelerators != nil {
+			// TODO/FIXME...
+			return nil, errors.New("the InfluxDB metric data repository does not support HWThreads or Accelerators")
+		}
+
+		hostsConds = append(hostsConds, fmt.Sprintf(`r.host == "%s"`, h.Hostname))
 	}
 	hostsCond := strings.Join(hostsConds, " or ")
 
@@ -72,18 +78,18 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *model.Job, metrics []string, 
 			field, host := row.Field(), row.ValueByKey("host").(string)
 			jobMetric, ok := jobData[field]
 			if !ok {
-				mc := config.GetMetricConfig(job.ClusterID, field)
+				mc := config.GetMetricConfig(job.Cluster, field)
 				jobMetric = &schema.JobMetric{
 					Scope:    "node", // TODO: FIXME: Whatever...
 					Unit:     mc.Unit,
-					Timestep: mc.Sampletime,
-					Series:   make([]*schema.MetricSeries, 0, len(job.Nodes)),
+					Timestep: mc.Timestep,
+					Series:   make([]*schema.MetricSeries, 0, len(job.Resources)),
 				}
 				jobData[field] = jobMetric
 			}
 
 			currentSeries = &schema.MetricSeries{
-				NodeID:     host,
+				Hostname:   host,
 				Statistics: nil,
 				Data:       make([]schema.Float, 0),
 			}
@@ -102,7 +108,7 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *model.Job, metrics []string, 
 		jobMetric := jobData[metric]
 		for node, stats := range nodes {
 			for _, series := range jobMetric.Series {
-				if series.NodeID == node {
+				if series.Hostname == node {
 					series.Statistics = &stats
 				}
 			}
@@ -115,9 +121,14 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *model.Job, metrics []string, 
 func (idb *InfluxDBv2DataRepository) LoadStats(job *model.Job, metrics []string, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error) {
 	stats := map[string]map[string]schema.MetricStatistics{}
 
-	hostsConds := make([]string, 0, len(job.Nodes))
-	for _, h := range job.Nodes {
-		hostsConds = append(hostsConds, fmt.Sprintf(`r.host == "%s"`, h))
+	hostsConds := make([]string, 0, len(job.Resources))
+	for _, h := range job.Resources {
+		if h.HWThreads != nil || h.Accelerators != nil {
+			// TODO/FIXME...
+			return nil, errors.New("the InfluxDB metric data repository does not support HWThreads or Accelerators")
+		}
+
+		hostsConds = append(hostsConds, fmt.Sprintf(`r.host == "%s"`, h.Hostname))
 	}
 	hostsCond := strings.Join(hostsConds, " or ")
 

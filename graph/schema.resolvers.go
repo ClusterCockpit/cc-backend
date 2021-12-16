@@ -15,8 +15,13 @@ import (
 	"github.com/ClusterCockpit/cc-jobarchive/graph/generated"
 	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
 	"github.com/ClusterCockpit/cc-jobarchive/metricdata"
+	"github.com/ClusterCockpit/cc-jobarchive/schema"
 	sq "github.com/Masterminds/squirrel"
 )
+
+func (r *acceleratorResolver) ID(ctx context.Context, obj *schema.Accelerator) (string, error) {
+	panic(fmt.Errorf("not implemented"))
+}
 
 func (r *jobResolver) Tags(ctx context.Context, obj *model.Job) ([]*model.JobTag, error) {
 	query := sq.
@@ -232,6 +237,9 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 	return res, nil
 }
 
+// Accelerator returns generated.AcceleratorResolver implementation.
+func (r *Resolver) Accelerator() generated.AcceleratorResolver { return &acceleratorResolver{r} }
+
 // Job returns generated.JobResolver implementation.
 func (r *Resolver) Job() generated.JobResolver { return &jobResolver{r} }
 
@@ -241,6 +249,7 @@ func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResol
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
+type acceleratorResolver struct{ *Resolver }
 type jobResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }

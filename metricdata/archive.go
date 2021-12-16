@@ -11,7 +11,6 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/ClusterCockpit/cc-jobarchive/config"
 	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
@@ -21,19 +20,14 @@ import (
 // For a given job, return the path of the `data.json`/`meta.json` file.
 // TODO: Implement Issue ClusterCockpit/ClusterCockpit#97
 func getPath(job *model.Job, file string, checkLegacy bool) (string, error) {
-	id, err := strconv.Atoi(strings.Split(job.JobID, ".")[0])
-	if err != nil {
-		return "", err
-	}
-
-	lvl1, lvl2 := fmt.Sprintf("%d", id/1000), fmt.Sprintf("%03d", id%1000)
+	lvl1, lvl2 := fmt.Sprintf("%d", job.JobID/1000), fmt.Sprintf("%03d", job.JobID%1000)
 	if !checkLegacy {
-		return filepath.Join(JobArchivePath, job.ClusterID, lvl1, lvl2, strconv.FormatInt(job.StartTime.Unix(), 10), file), nil
+		return filepath.Join(JobArchivePath, job.Cluster, lvl1, lvl2, strconv.FormatInt(job.StartTime.Unix(), 10), file), nil
 	}
 
-	legacyPath := filepath.Join(JobArchivePath, job.ClusterID, lvl1, lvl2, file)
+	legacyPath := filepath.Join(JobArchivePath, job.Cluster, lvl1, lvl2, file)
 	if _, err := os.Stat(legacyPath); errors.Is(err, os.ErrNotExist) {
-		return filepath.Join(JobArchivePath, job.ClusterID, lvl1, lvl2, strconv.FormatInt(job.StartTime.Unix(), 10), file), nil
+		return filepath.Join(JobArchivePath, job.Cluster, lvl1, lvl2, strconv.FormatInt(job.StartTime.Unix(), 10), file), nil
 	}
 
 	return legacyPath, nil
@@ -87,13 +81,13 @@ func UpdateTags(job *model.Job, tags []*model.JobTag) error {
 	f.Close()
 
 	metaFile.Tags = make([]struct {
-		Name string "json:\"name\""
-		Type string "json:\"type\""
+		Name string "json:\"Name\""
+		Type string "json:\"Type\""
 	}, 0)
 	for _, tag := range tags {
 		metaFile.Tags = append(metaFile.Tags, struct {
-			Name string "json:\"name\""
-			Type string "json:\"type\""
+			Name string "json:\"Name\""
+			Type string "json:\"Type\""
 		}{
 			Name: tag.TagName,
 			Type: tag.TagType,
@@ -143,7 +137,7 @@ func ArchiveJob(job *model.Job, ctx context.Context) (*schema.JobMeta, error) {
 	}
 
 	allMetrics := make([]string, 0)
-	metricConfigs := config.GetClusterConfig(job.ClusterID).MetricConfig
+	metricConfigs := config.GetClusterConfig(job.Cluster).MetricConfig
 	for _, mc := range metricConfigs {
 		allMetrics = append(allMetrics, mc.Name)
 	}
@@ -153,13 +147,13 @@ func ArchiveJob(job *model.Job, ctx context.Context) (*schema.JobMeta, error) {
 	}
 
 	tags := []struct {
-		Name string `json:"name"`
-		Type string `json:"type"`
+		Name string `json:"Name"`
+		Type string `json:"Type"`
 	}{}
 	for _, tag := range job.Tags {
 		tags = append(tags, struct {
-			Name string `json:"name"`
-			Type string `json:"type"`
+			Name string `json:"Name"`
+			Type string `json:"Type"`
 		}{
 			Name: tag.TagName,
 			Type: tag.TagType,
@@ -167,16 +161,25 @@ func ArchiveJob(job *model.Job, ctx context.Context) (*schema.JobMeta, error) {
 	}
 
 	metaData := &schema.JobMeta{
-		JobId:      job.JobID,
-		UserId:     job.UserID,
-		ClusterId:  job.ClusterID,
-		NumNodes:   job.NumNodes,
-		JobState:   job.State.String(),
-		StartTime:  job.StartTime.Unix(),
-		Duration:   int64(job.Duration),
-		Nodes:      job.Nodes,
-		Tags:       tags,
-		Statistics: make(map[string]*schema.JobMetaStatistics),
+		JobId:            int64(job.JobID),
+		User:             job.User,
+		Project:          job.Project,
+		Cluster:          job.Cluster,
+		NumNodes:         job.NumNodes,
+		NumHWThreads:     job.NumHWThreads,
+		NumAcc:           job.NumAcc,
+		Exclusive:        int8(job.Exclusive),
+		MonitoringStatus: int8(job.MonitoringStatus),
+		SMT:              int8(job.Smt),
+		Partition:        job.Partition,
+		ArrayJobId:       job.ArrayJobID,
+		JobState:         string(job.State),
+		StartTime:        job.StartTime.Unix(),
+		Duration:         int64(job.Duration),
+		Resources:        job.Resources,
+		MetaData:         "", // TODO/FIXME: Handle `meta_data`!
+		Tags:             tags,
+		Statistics:       make(map[string]*schema.JobMetaStatistics),
 	}
 
 	for metric, data := range jobData {
@@ -188,7 +191,7 @@ func ArchiveJob(job *model.Job, ctx context.Context) (*schema.JobMeta, error) {
 		}
 
 		metaData.Statistics[metric] = &schema.JobMetaStatistics{
-			Unit: config.GetMetricConfig(job.ClusterID, metric).Unit,
+			Unit: config.GetMetricConfig(job.Cluster, metric).Unit,
 			Avg:  avg / float64(job.NumNodes),
 			Min:  min,
 			Max:  max,

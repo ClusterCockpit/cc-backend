@@ -61,8 +61,13 @@ func (ccms *CCMetricStore) doRequest(job *model.Job, suffix string, metrics []st
 	from, to := job.StartTime.Unix(), job.StartTime.Add(time.Duration(job.Duration)*time.Second).Unix()
 	reqBody := ApiRequestBody{}
 	reqBody.Metrics = metrics
-	for _, node := range job.Nodes {
-		reqBody.Selectors = append(reqBody.Selectors, []string{job.ClusterID, node})
+	for _, node := range job.Resources {
+		if node.Accelerators != nil || node.HWThreads != nil {
+			// TODO/FIXME:
+			return nil, errors.New("todo: cc-metric-store resources: Accelerator/HWThreads")
+		}
+
+		reqBody.Selectors = append(reqBody.Selectors, []string{job.Cluster, node.Hostname})
 	}
 
 	reqBodyBytes, err := json.Marshal(reqBody)
@@ -86,33 +91,38 @@ func (ccms *CCMetricStore) LoadData(job *model.Job, metrics []string, ctx contex
 		return nil, err
 	}
 
-	resdata := make([]map[string]ApiMetricData, 0, len(job.Nodes))
+	resdata := make([]map[string]ApiMetricData, 0, len(job.Resources))
 	if err := json.NewDecoder(res.Body).Decode(&resdata); err != nil {
 		return nil, err
 	}
 
 	var jobData schema.JobData = make(schema.JobData)
 	for _, metric := range metrics {
-		mc := config.GetMetricConfig(job.ClusterID, metric)
+		mc := config.GetMetricConfig(job.Cluster, metric)
 		metricData := &schema.JobMetric{
 			Scope:    "node", // TODO: FIXME: Whatever...
 			Unit:     mc.Unit,
-			Timestep: mc.Sampletime,
-			Series:   make([]*schema.MetricSeries, 0, len(job.Nodes)),
+			Timestep: mc.Timestep,
+			Series:   make([]*schema.MetricSeries, 0, len(job.Resources)),
 		}
-		for i, node := range job.Nodes {
+		for i, node := range job.Resources {
+			if node.Accelerators != nil || node.HWThreads != nil {
+				// TODO/FIXME:
+				return nil, errors.New("todo: cc-metric-store resources: Accelerator/HWThreads")
+			}
+
 			data := resdata[i][metric]
 			if data.Error != nil {
 				return nil, errors.New(*data.Error)
 			}
 
 			if data.Avg == nil || data.Min == nil || data.Max == nil {
-				return nil, fmt.Errorf("no data for node '%s' and metric '%s'", node, metric)
+				return nil, fmt.Errorf("no data for node '%s' and metric '%s'", node.Hostname, metric)
 			}
 
 			metricData.Series = append(metricData.Series, &schema.MetricSeries{
-				NodeID: node,
-				Data:   data.Data,
+				Hostname: node.Hostname,
+				Data:     data.Data,
 				Statistics: &schema.MetricStatistics{
 					Avg: *data.Avg,
 					Min: *data.Min,
@@ -132,7 +142,7 @@ func (ccms *CCMetricStore) LoadStats(job *model.Job, metrics []string, ctx conte
 		return nil, err
 	}
 
-	resdata := make([]map[string]ApiStatsData, 0, len(job.Nodes))
+	resdata := make([]map[string]ApiStatsData, 0, len(job.Resources))
 	if err := json.NewDecoder(res.Body).Decode(&resdata); err != nil {
 		return nil, err
 	}
@@ -140,17 +150,22 @@ func (ccms *CCMetricStore) LoadStats(job *model.Job, metrics []string, ctx conte
 	stats := map[string]map[string]schema.MetricStatistics{}
 	for _, metric := range metrics {
 		nodestats := map[string]schema.MetricStatistics{}
-		for i, node := range job.Nodes {
+		for i, node := range job.Resources {
+			if node.Accelerators != nil || node.HWThreads != nil {
+				// TODO/FIXME:
+				return nil, errors.New("todo: cc-metric-store resources: Accelerator/HWThreads")
+			}
+
 			data := resdata[i][metric]
 			if data.Error != nil {
 				return nil, errors.New(*data.Error)
 			}
 
 			if data.Samples == 0 {
-				return nil, fmt.Errorf("no data for node '%s' and metric '%s'", node, metric)
+				return nil, fmt.Errorf("no data for node '%s' and metric '%s'", node.Hostname, metric)
 			}
 
-			nodestats[node] = schema.MetricStatistics{
+			nodestats[node.Hostname] = schema.MetricStatistics{
 				Avg: float64(data.Avg),
 				Min: float64(data.Min),
 				Max: float64(data.Max),

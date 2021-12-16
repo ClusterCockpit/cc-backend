@@ -2,6 +2,7 @@ package graph
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -22,7 +23,12 @@ type Resolver struct {
 	DB *sqlx.DB
 }
 
-var JobTableCols []string = []string{"id", "job_id", "user_id", "project_id", "cluster_id", "start_time", "duration", "job_state", "num_nodes", "node_list", "flops_any_avg", "mem_bw_avg", "net_bw_avg", "file_bw_avg", "load_avg"}
+var JobTableCols []string = []string{
+	"id", "job_id", "cluster", "start_time",
+	"user", "project", "partition", "array_job_id", "duration", "job_state", "resources",
+	"num_nodes", "num_hwthreads", "num_acc", "smt", "exclusive", "monitoring_status",
+	"load_avg", "mem_used_max", "flops_any_avg", "mem_bw_avg", "net_bw_avg", "file_bw_avg",
+}
 
 type Scannable interface {
 	Scan(dest ...interface{}) error
@@ -30,13 +36,18 @@ type Scannable interface {
 
 // Helper function for scanning jobs with the `jobTableCols` columns selected.
 func ScanJob(row Scannable) (*model.Job, error) {
-	job := &model.Job{HasProfile: true}
+	job := &model.Job{}
 
-	var nodeList string
+	var rawResources []byte
 	if err := row.Scan(
-		&job.ID, &job.JobID, &job.UserID, &job.ProjectID, &job.ClusterID,
-		&job.StartTime, &job.Duration, &job.State, &job.NumNodes, &nodeList,
-		&job.FlopsAnyAvg, &job.MemBwAvg, &job.NetBwAvg, &job.FileBwAvg, &job.LoadAvg); err != nil {
+		&job.ID, &job.JobID, &job.Cluster, &job.StartTime,
+		&job.User, &job.Project, &job.Partition, &job.ArrayJobID, &job.Duration, &job.State, &rawResources,
+		&job.NumNodes, &job.NumHWThreads, &job.NumAcc, &job.Smt, &job.Exclusive, &job.MonitoringStatus,
+		&job.LoadAvg, &job.MemUsedMax, &job.FlopsAnyAvg, &job.MemBwAvg, &job.NetBwAvg, &job.FileBwAvg); err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(rawResources, &job.Resources); err != nil {
 		return nil, err
 	}
 
@@ -44,7 +55,6 @@ func ScanJob(row Scannable) (*model.Job, error) {
 		job.Duration = int(time.Since(job.StartTime).Seconds())
 	}
 
-	job.Nodes = strings.Split(nodeList, ",")
 	return job, nil
 }
 
@@ -130,14 +140,14 @@ func buildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	if filter.JobID != nil {
 		query = buildStringCondition("job.job_id", filter.JobID, query)
 	}
-	if filter.UserID != nil {
-		query = buildStringCondition("job.user_id", filter.UserID, query)
+	if filter.User != nil {
+		query = buildStringCondition("job.user", filter.User, query)
 	}
-	if filter.ProjectID != nil {
-		query = buildStringCondition("job.project_id", filter.ProjectID, query)
+	if filter.Project != nil {
+		query = buildStringCondition("job.project", filter.Project, query)
 	}
-	if filter.ClusterID != nil {
-		query = buildStringCondition("job.cluster_id", filter.ClusterID, query)
+	if filter.Cluster != nil {
+		query = buildStringCondition("job.cluster", filter.Cluster, query)
 	}
 	if filter.StartTime != nil {
 		query = buildTimeCondition("job.start_time", filter.StartTime, query)
@@ -145,12 +155,8 @@ func buildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	if filter.Duration != nil {
 		query = buildIntCondition("job.duration", filter.Duration, query)
 	}
-	if filter.IsRunning != nil {
-		if *filter.IsRunning {
-			query = query.Where("job.job_state = 'running'")
-		} else {
-			query = query.Where("job.job_state = 'completed'")
-		}
+	if filter.JobState != nil {
+		query = query.Where("job.job_state IN ?", filter.JobState)
 	}
 	if filter.NumNodes != nil {
 		query = buildIntCondition("job.num_nodes", filter.NumNodes, query)

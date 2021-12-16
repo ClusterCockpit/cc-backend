@@ -308,12 +308,12 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 		}
 
 		templates.Render(rw, r, "monitoring/job/", &templates.Page{
-			Title:  fmt.Sprintf("Job %s - ClusterCockpit", job.JobID),
+			Title:  fmt.Sprintf("Job %d - ClusterCockpit", job.JobID),
 			Config: conf,
 			Infos: map[string]interface{}{
 				"id":        id,
 				"jobId":     job.JobID,
-				"clusterId": job.ClusterID,
+				"clusterId": job.Cluster,
 			},
 		})
 	})

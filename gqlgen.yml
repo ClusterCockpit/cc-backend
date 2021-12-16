@@ -56,7 +56,7 @@ models:
       - github.com/99designs/gqlgen/graphql.Int32
   Job:
     fields:
-      tags:
+      Tags:
         resolver: true
   JobMetric:
     model: "github.com/ClusterCockpit/cc-jobarchive/schema.JobMetric"
@@ -68,4 +68,8 @@ models:
     model: "github.com/ClusterCockpit/cc-jobarchive/schema.Float"
   JobMetricScope:
     model: "github.com/ClusterCockpit/cc-jobarchive/schema.MetricScope"
+  JobResource:
+    model: "github.com/ClusterCockpit/cc-jobarchive/schema.JobResource"
+  Accelerator:
+    model: "github.com/ClusterCockpit/cc-jobarchive/schema.Accelerator"
 

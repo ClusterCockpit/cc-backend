@@ -59,9 +59,9 @@ func Init(jobArchivePath string, disableArchive bool) error {
 // Fetches the metric data for a job.
 func LoadData(job *model.Job, metrics []string, ctx context.Context) (schema.JobData, error) {
 	if job.State == model.JobStateRunning || !useArchive {
-		repo, ok := metricDataRepos[job.ClusterID]
+		repo, ok := metricDataRepos[job.Cluster]
 		if !ok {
-			return nil, fmt.Errorf("no metric data repository configured for '%s'", job.ClusterID)
+			return nil, fmt.Errorf("no metric data repository configured for '%s'", job.Cluster)
 		}
 
 		return repo.LoadData(job, metrics, ctx)
@@ -90,9 +90,9 @@ func LoadAverages(job *model.Job, metrics []string, data [][]schema.Float, ctx c
 		return loadAveragesFromArchive(job, metrics, data)
 	}
 
-	repo, ok := metricDataRepos[job.ClusterID]
+	repo, ok := metricDataRepos[job.Cluster]
 	if !ok {
-		return fmt.Errorf("no metric data repository configured for '%s'", job.ClusterID)
+		return fmt.Errorf("no metric data repository configured for '%s'", job.Cluster)
 	}
 
 	stats, err := repo.LoadStats(job, metrics, ctx)

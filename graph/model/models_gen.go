@@ -38,36 +38,42 @@ type IntRangeOutput struct {
 }
 
 type Job struct {
-	ID          string    `json:"id"`
-	JobID       string    `json:"jobId"`
-	UserID      string    `json:"userId"`
-	ProjectID   string    `json:"projectId"`
-	ClusterID   string    `json:"clusterId"`
-	StartTime   time.Time `json:"startTime"`
-	Duration    int       `json:"duration"`
-	NumNodes    int       `json:"numNodes"`
-	Nodes       []string  `json:"nodes"`
-	HasProfile  bool      `json:"hasProfile"`
-	State       JobState  `json:"state"`
-	Tags        []*JobTag `json:"tags"`
-	LoadAvg     *float64  `json:"loadAvg"`
-	MemUsedMax  *float64  `json:"memUsedMax"`
-	FlopsAnyAvg *float64  `json:"flopsAnyAvg"`
-	MemBwAvg    *float64  `json:"memBwAvg"`
-	NetBwAvg    *float64  `json:"netBwAvg"`
-	FileBwAvg   *float64  `json:"fileBwAvg"`
+	ID               string                `json:"Id"`
+	JobID            int                   `json:"JobId"`
+	User             string                `json:"User"`
+	Project          string                `json:"Project"`
+	Cluster          string                `json:"Cluster"`
+	StartTime        time.Time             `json:"StartTime"`
+	Duration         int                   `json:"Duration"`
+	NumNodes         int                   `json:"NumNodes"`
+	NumHWThreads     int                   `json:"NumHWThreads"`
+	NumAcc           int                   `json:"NumAcc"`
+	Smt              int                   `json:"SMT"`
+	Exclusive        int                   `json:"Exclusive"`
+	Partition        string                `json:"Partition"`
+	ArrayJobID       int                   `json:"ArrayJobId"`
+	MonitoringStatus int                   `json:"MonitoringStatus"`
+	State            JobState              `json:"State"`
+	Tags             []*JobTag             `json:"Tags"`
+	Resources        []*schema.JobResource `json:"Resources"`
+	LoadAvg          *float64              `json:"LoadAvg"`
+	MemUsedMax       *float64              `json:"MemUsedMax"`
+	FlopsAnyAvg      *float64              `json:"FlopsAnyAvg"`
+	MemBwAvg         *float64              `json:"MemBwAvg"`
+	NetBwAvg         *float64              `json:"NetBwAvg"`
+	FileBwAvg        *float64              `json:"FileBwAvg"`
 }
 
 type JobFilter struct {
 	Tags        []string     `json:"tags"`
 	JobID       *StringInput `json:"jobId"`
-	UserID      *StringInput `json:"userId"`
-	ProjectID   *StringInput `json:"projectId"`
-	ClusterID   *StringInput `json:"clusterId"`
+	User        *StringInput `json:"user"`
+	Project     *StringInput `json:"project"`
+	Cluster     *StringInput `json:"cluster"`
 	Duration    *IntRange    `json:"duration"`
 	NumNodes    *IntRange    `json:"numNodes"`
 	StartTime   *TimeRange   `json:"startTime"`
-	IsRunning   *bool        `json:"isRunning"`
+	JobState    []JobState   `json:"jobState"`
 	FlopsAnyAvg *FloatRange  `json:"flopsAnyAvg"`
 	MemBwAvg    *FloatRange  `json:"memBwAvg"`
 	LoadAvg     *FloatRange  `json:"loadAvg"`
@@ -97,13 +103,14 @@ type JobsStatistics struct {
 }
 
 type MetricConfig struct {
-	Name       string `json:"name"`
-	Unit       string `json:"unit"`
-	Sampletime int    `json:"sampletime"`
-	Peak       int    `json:"peak"`
-	Normal     int    `json:"normal"`
-	Caution    int    `json:"caution"`
-	Alert      int    `json:"alert"`
+	Name     string `json:"Name"`
+	Unit     string `json:"Unit"`
+	Timestep int    `json:"Timestep"`
+	Peak     int    `json:"Peak"`
+	Normal   int    `json:"Normal"`
+	Caution  int    `json:"Caution"`
+	Alert    int    `json:"Alert"`
+	Scope    string `json:"Scope"`
 }
 
 type MetricFootprints struct {
@@ -196,16 +203,24 @@ type JobState string
 const (
 	JobStateRunning   JobState = "running"
 	JobStateCompleted JobState = "completed"
+	JobStateFailed    JobState = "failed"
+	JobStateCanceled  JobState = "canceled"
+	JobStateStopped   JobState = "stopped"
+	JobStateTimeout   JobState = "timeout"
 )
 
 var AllJobState = []JobState{
 	JobStateRunning,
 	JobStateCompleted,
+	JobStateFailed,
+	JobStateCanceled,
+	JobStateStopped,
+	JobStateTimeout,
 }
 
 func (e JobState) IsValid() bool {
 	switch e {
-	case JobStateRunning, JobStateCompleted:
+	case JobStateRunning, JobStateCompleted, JobStateFailed, JobStateCanceled, JobStateStopped, JobStateTimeout:
 		return true
 	}
 	return false

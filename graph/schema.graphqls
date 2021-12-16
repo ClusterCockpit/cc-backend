@@ -1,78 +1,102 @@
 type Job {
-  id:         ID!        # Database ID, unique
-  jobId:      String!    # ID given to the job by the cluster scheduler
-  userId:     String!    # Username
-  projectId:  String!    # Project
-  clusterId:  String!    # Name of the cluster this job was running on
-  startTime:  Time!      # RFC3339 formated string
-  duration:   Int!       # For running jobs, the time it has already run
-  numNodes:   Int!       # Number of nodes this job was running on
-  nodes:      [String!]! # List of hostnames
-  hasProfile: Boolean!   # TODO: Could be removed?
-  state:      JobState!  # State of the job
-  tags:       [JobTag!]! # List of tags this job has
+  Id:               ID!             # Database ID, unique
+  JobId:            Int!            # ID given to the job by the cluster scheduler
+  User:             String!         # Username
+  Project:          String!         # Project
+  Cluster:          String!         # Name of the cluster this job was running on
+  StartTime:        Time!           # RFC3339 formated string
+  Duration:         Int!            # For running jobs, the time it has already run
+  NumNodes:         Int!            # Number of nodes this job was running on
+  NumHWThreads:     Int!
+  NumAcc:           Int!
+  SMT:              Int!
+  Exclusive:        Int!
+  Partition:        String!
+  ArrayJobId:       Int!
+  MonitoringStatus: Int!
+  State:            JobState!       # State of the job
+  Tags:             [JobTag!]!      # List of tags this job has
+  Resources:        [JobResource!]! # List of hosts/hwthreads/gpus/...
 
   # Will be null for running jobs.
-  loadAvg:     Float
-  memUsedMax:  Float
-  flopsAnyAvg: Float
-  memBwAvg:    Float
-  netBwAvg:    Float
-  fileBwAvg:   Float
+  LoadAvg:     Float
+  MemUsedMax:  Float
+  FlopsAnyAvg: Float
+  MemBwAvg:    Float
+  NetBwAvg:    Float
+  FileBwAvg:   Float
+}
+
+type JobResource {
+  Hostname: String!
+  HWThreads: [Int!]
+  Accelerators: [Accelerator!]
+}
+
+type Accelerator {
+  Id: String!
+  Type: String!
+  Model: String!
 }
 
 # TODO: Extend by more possible states?
 enum JobState {
   running
   completed
+  failed
+  canceled
+  stopped
+  timeout
 }
 
 type JobTag {
-  id:      ID!     # Database ID, unique
-  tagType: String! # Type
-  tagName: String! # Name
+  Id:      ID!     # Database ID, unique
+  TagType: String! # Type
+  TagName: String! # Name
 }
 
 type Cluster {
-  clusterID:       String!
-  processorType:   String!
-  socketsPerNode:  Int!
-  coresPerSocket:  Int!
-  threadsPerCore:  Int!
-  flopRateScalar:  Int!
-  flopRateSimd:    Int!
-  memoryBandwidth: Int!
-  metricConfig:    [MetricConfig!]!
-  filterRanges:    FilterRanges!
+  ClusterID:       String!
+  ProcessorType:   String!
+  SocketsPerNode:  Int!
+  CoresPerSocket:  Int!
+  ThreadsPerCore:  Int!
+  FlopRateScalar:  Int!
+  FlopRateSimd:    Int!
+  MemoryBandwidth: Int!
+  MetricConfig:    [MetricConfig!]!
+  FilterRanges:    FilterRanges!
 }
 
 type MetricConfig {
-  name:       String!
-  unit:       String!
-  sampletime: Int!
-  peak:       Int!
-  normal:     Int!
-  caution:    Int!
-  alert:      Int!
+  Name:     String!
+  Unit:     String!
+  Timestep: Int!
+  Peak:     Int!
+  Normal:   Int!
+  Caution:  Int!
+  Alert:    Int!
+  Scope:    String!
 }
 
 type JobMetric {
-  unit:     String!
-  scope:    JobMetricScope!
-  timestep: Int!
-  series:   [JobMetricSeries!]!
+  Unit:     String!
+  Scope:    JobMetricScope!
+  Timestep: Int!
+  Series:   [JobMetricSeries!]!
 }
 
 type JobMetricSeries {
-  node_id:    String!
-  statistics: JobMetricStatistics
-  data:       [NullableFloat!]!
+  Hostname:   String!
+  Id:         Int
+  Statistics: JobMetricStatistics
+  Data:       [NullableFloat!]!
 }
 
 type JobMetricStatistics {
-  avg: Float!
-  min: Float!
-  max: Float!
+  Avg: Float!
+  Min: Float!
+  Max: Float!
 }
 
 type JobMetricWithName {
@@ -141,13 +165,13 @@ type FilterRanges {
 input JobFilter {
   tags:        [ID!]
   jobId:       StringInput
-  userId:      StringInput
-  projectId:   StringInput
-  clusterId:   StringInput
+  user:        StringInput
+  project:     StringInput
+  cluster:     StringInput
   duration:    IntRange
   numNodes:    IntRange
   startTime:   TimeRange
-  isRunning:   Boolean
+  jobState:    [JobState!]
   flopsAnyAvg: FloatRange
   memBwAvg:    FloatRange
   loadAvg:     FloatRange

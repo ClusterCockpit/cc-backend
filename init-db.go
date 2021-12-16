@@ -8,12 +8,60 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/ClusterCockpit/cc-jobarchive/schema"
 	"github.com/jmoiron/sqlx"
 )
+
+const JOBS_DB_SCHEMA string = `
+	DROP TABLE IF EXISTS job;
+	DROP TABLE IF EXISTS tag;
+	DROP TABLE IF EXISTS jobtag;
+
+	CREATE TABLE job (
+		id                INTEGER PRIMARY KEY AUTOINCREMENT, -- Not needed in sqlite
+		job_id            BIGINT NOT NULL,
+		cluster           VARCHAR(255) NOT NULL,
+		start_time        BITINT NOT NULL,
+
+		user              VARCHAR(255) NOT NULL,
+		project           VARCHAR(255) NOT NULL,
+		partition         VARCHAR(255) NOT NULL,
+		array_job_id      BIGINT NOT NULL,
+		duration          INT,
+		job_state         VARCHAR(255) CHECK(job_state IN ('running', 'completed', 'failed', 'canceled', 'stopped', 'timeout')) NOT NULL,
+		meta_data         TEXT,          -- json, but sqlite has no json type
+		resources         TEXT NOT NULL, -- json, but sqlite has no json type
+
+		num_nodes         INT NOT NULL,
+		num_hwthreads     INT NOT NULL,
+		num_acc           INT NOT NULL,
+		smt               TINYINT CHECK(smt IN               (0, 1   )) NOT NULL DEFAULT 1,
+		exclusive         TINYINT CHECK(exclusive IN         (0, 1, 2)) NOT NULL DEFAULT 1,
+		monitoring_status TINYINT CHECK(monitoring_status IN (0, 1   )) NOT NULL DEFAULT 1,
+
+		mem_used_max        REAL NOT NULL DEFAULT 0.0,
+		flops_any_avg       REAL NOT NULL DEFAULT 0.0,
+		mem_bw_avg          REAL NOT NULL DEFAULT 0.0,
+		load_avg            REAL NOT NULL DEFAULT 0.0,
+		net_bw_avg          REAL NOT NULL DEFAULT 0.0,
+		net_data_vol_total  REAL NOT NULL DEFAULT 0.0,
+		file_bw_avg         REAL NOT NULL DEFAULT 0.0,
+		file_data_vol_total REAL NOT NULL DEFAULT 0.0);
+
+	CREATE TABLE tag (
+		id       INTEGER PRIMARY KEY,
+		tag_type VARCHAR(255) NOT NULL,
+		tag_name VARCHAR(255) NOT NULL);
+
+	CREATE TABLE jobtag (
+		job_id INTEGER,
+		tag_id INTEGER,
+		PRIMARY KEY (job_id, tag_id),
+		FOREIGN KEY (job_id) REFERENCES job (id) ON DELETE CASCADE,
+		FOREIGN KEY (tag_id) REFERENCES tag (id) ON DELETE CASCADE);
+`
 
 // Delete the tables "job", "tag" and "jobtag" from the database and
 // repopulate them using the jobs found in `archive`.
@@ -22,39 +70,7 @@ func initDB(db *sqlx.DB, archive string) error {
 	fmt.Println("Building database...")
 
 	// Basic database structure:
-	_, err := db.Exec(`
-	DROP TABLE IF EXISTS job;
-	DROP TABLE IF EXISTS tag;
-	DROP TABLE IF EXISTS jobtag;
-
-	CREATE TABLE job (
-		id         INTEGER PRIMARY KEY,
-		job_id     TEXT,
-		user_id    TEXT,
-		project_id TEXT,
-		cluster_id TEXT,
-		start_time TIMESTAMP,
-		duration   INTEGER,
-		job_state  TEXT,
-		num_nodes  INTEGER,
-		node_list  TEXT,
-		metadata   TEXT,
-
-		flops_any_avg REAL,
-		mem_bw_avg    REAL,
-		net_bw_avg    REAL,
-		file_bw_avg   REAL,
-		load_avg      REAL);
-	CREATE TABLE tag (
-		id       INTEGER PRIMARY KEY,
-		tag_type TEXT,
-		tag_name TEXT);
-	CREATE TABLE jobtag (
-		job_id INTEGER,
-		tag_id INTEGER,
-		PRIMARY KEY (job_id, tag_id),
-		FOREIGN KEY (job_id) REFERENCES job (id) ON DELETE CASCADE ON UPDATE NO ACTION,
-		FOREIGN KEY (tag_id) REFERENCES tag (id) ON DELETE CASCADE ON UPDATE NO ACTION);`)
+	_, err := db.Exec(JOBS_DB_SCHEMA)
 	if err != nil {
 		return err
 	}
@@ -64,9 +80,17 @@ func initDB(db *sqlx.DB, archive string) error {
 		return err
 	}
 
-	insertstmt, err := db.Prepare(`INSERT INTO job
-		(job_id, user_id, project_id, cluster_id, start_time, duration, job_state, num_nodes, node_list, metadata, flops_any_avg, mem_bw_avg, net_bw_avg, file_bw_avg, load_avg)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`)
+	insertstmt, err := db.Prepare(`INSERT INTO job (
+			job_id, cluster, start_time,
+			user, project, partition, array_job_id, duration, job_state, meta_data, resources,
+			num_nodes, num_hwthreads, num_acc, smt, exclusive, monitoring_status,
+			flops_any_avg, mem_bw_avg
+		) VALUES (
+			?, ?, ?,
+			?, ?, ?, ?, ?, ?, ?, ?,
+			?, ?, ?, ?, ?, ?,
+			?, ?
+		);`)
 	if err != nil {
 		return err
 	}
@@ -149,7 +173,7 @@ func initDB(db *sqlx.DB, archive string) error {
 	// Create indexes after inserts so that they do not
 	// need to be continually updated.
 	if _, err := db.Exec(`
-		CREATE INDEX job_by_user ON job (user_id);
+		CREATE INDEX job_by_user ON job (user);
 		CREATE INDEX job_by_starttime ON job (start_time);`); err != nil {
 		return err
 	}
@@ -167,19 +191,27 @@ func loadJob(tx *sql.Tx, stmt *sql.Stmt, tags map[string]int64, path string) err
 	}
 	defer f.Close()
 
-	var job schema.JobMeta
+	var job schema.JobMeta = schema.JobMeta{
+		Exclusive: 1,
+	}
 	if err := json.NewDecoder(bufio.NewReader(f)).Decode(&job); err != nil {
 		return err
 	}
 
+	// TODO: Other metrics...
 	flopsAnyAvg := loadJobStat(&job, "flops_any")
 	memBwAvg := loadJobStat(&job, "mem_bw")
-	netBwAvg := loadJobStat(&job, "net_bw")
-	fileBwAvg := loadJobStat(&job, "file_bw")
-	loadAvg := loadJobStat(&job, "load_one")
 
-	res, err := stmt.Exec(job.JobId, job.UserId, job.ProjectId, job.ClusterId, job.StartTime, job.Duration, job.JobState,
-		job.NumNodes, strings.Join(job.Nodes, ","), nil, flopsAnyAvg, memBwAvg, netBwAvg, fileBwAvg, loadAvg)
+	resources, err := json.Marshal(job.Resources)
+	if err != nil {
+		return err
+	}
+
+	res, err := stmt.Exec(
+		job.JobId, job.Cluster, job.StartTime,
+		job.User, job.Project, job.Partition, job.ArrayJobId, job.Duration, job.JobState, job.MetaData, string(resources),
+		job.NumNodes, job.NumHWThreads, job.NumAcc, job.SMT, job.Exclusive, job.MonitoringStatus,
+		flopsAnyAvg, memBwAvg)
 	if err != nil {
 		return err
 	}

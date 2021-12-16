@@ -33,6 +33,7 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 	r.HandleFunc("/api/jobs/tag_job/{id}", api.tagJob).Methods(http.MethodPost, http.MethodPatch)
 }
 
+// TODO/FIXME: UPDATE API!
 type StartJobApiRequest struct {
 	JobId     int64    `json:"jobId"`
 	UserId    string   `json:"userId"`
@@ -255,7 +256,7 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 		return nil
 	}
 
-	log.Printf("archiving job... (id: %s): clusterId=%s, jobId=%s, userId=%s, startTime=%s, nodes=%v\n", job.ID, job.ClusterID, job.JobID, job.UserID, job.StartTime, job.Nodes)
+	log.Printf("archiving job... (id: %s): clusterId=%s, jobId=%d, userId=%s, startTime=%s\n", job.ID, job.Cluster, job.JobID, job.User, job.StartTime)
 	if api.AsyncArchiving {
 		rw.Header().Add("Content-Type", "application/json")
 		rw.WriteHeader(http.StatusOK)
