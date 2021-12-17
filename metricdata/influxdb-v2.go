@@ -1,5 +1,6 @@
 package metricdata
 
+/*
 import (
 	"context"
 	"errors"
@@ -175,3 +176,4 @@ func (idb *InfluxDBv2DataRepository) LoadStats(job *model.Job, metrics []string,
 func (idb *InfluxDBv2DataRepository) LoadNodeData(clusterId string, metrics, nodes []string, from, to int64, ctx context.Context) (map[string]map[string][]schema.Float, error) {
 	return nil, nil
 }
+*/

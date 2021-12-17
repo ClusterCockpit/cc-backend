@@ -176,9 +176,8 @@ func main() {
 	resolver := &graph.Resolver{DB: db}
 	graphQLEndpoint := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 	graphQLPlayground := playground.Handler("GraphQL playground", "/query")
-	restApi := &api.RestApi{
+	api := &api.RestApi{
 		DB:             db,
-		Resolver:       resolver,
 		AsyncArchiving: programConfig.AsyncArchiving,
 	}
 
@@ -235,7 +234,7 @@ func main() {
 	})
 
 	monitoringRoutes(secured, resolver)
-	restApi.MountRoutes(secured)
+	api.MountRoutes(secured)
 
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir(programConfig.StaticFiles)))
 	handler := handlers.CORS(

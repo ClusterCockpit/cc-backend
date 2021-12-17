@@ -35,7 +35,7 @@
         <table class="table">
             <thead>
                 <tr>
-                    <th>Name/ID</th>
+                    <th>Name</th>
                     <th>Jobs</th>
                     <th>System View</th>
                     <th>Analysis View</th>
@@ -44,10 +44,10 @@
             <tbody>
                 {{range .Infos.clusters}}
                     <tr>
-                        <td>{{.ClusterID}}</td>
-                        <td><a href="/monitoring/jobs/?cluster={{.ClusterID}}">Jobs</a></td>
-                        <td><a href="/monitoring/systems/?cluster={{.ClusterID}}">System View</a></td>
-                        <td><a href="/monitoring/analysis/?cluster={{.ClusterID}}">Analysis View</a></td>
+                        <td>{{.Name}}</td>
+                        <td><a href="/monitoring/jobs/?cluster={{.Name}}">Jobs</a></td>
+                        <td><a href="/monitoring/systems/?cluster={{.Name}}">System View</a></td>
+                        <td><a href="/monitoring/analysis/?cluster={{.Name}}">Analysis View</a></td>
                     </tr>
                 {{end}}
             </tbody>

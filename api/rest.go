@@ -2,17 +2,15 @@ package api
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/ClusterCockpit/cc-jobarchive/config"
 	"github.com/ClusterCockpit/cc-jobarchive/graph"
-	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
 	"github.com/ClusterCockpit/cc-jobarchive/metricdata"
+	"github.com/ClusterCockpit/cc-jobarchive/schema"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
@@ -33,18 +31,6 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 	r.HandleFunc("/api/jobs/tag_job/{id}", api.tagJob).Methods(http.MethodPost, http.MethodPatch)
 }
 
-// TODO/FIXME: UPDATE API!
-type StartJobApiRequest struct {
-	JobId     int64    `json:"jobId"`
-	UserId    string   `json:"userId"`
-	ClusterId string   `json:"clusterId"`
-	StartTime int64    `json:"startTime"`
-	MetaData  string   `json:"metaData"`
-	ProjectId string   `json:"projectId"`
-	Nodes     []string `json:"nodes"`
-	NodeList  string   `json:"nodeList"`
-}
-
 type StartJobApiRespone struct {
 	DBID int64 `json:"id"`
 }
@@ -53,15 +39,12 @@ type StopJobApiRequest struct {
 	// JobId, ClusterId and StartTime are optional.
 	// They are only used if no database id was provided.
 	JobId     *string `json:"jobId"`
-	ClusterId *string `json:"clusterId"`
+	Cluster   *string `json:"clusterId"`
 	StartTime *int64  `json:"startTime"`
 
 	// Payload
-	StopTime int64 `json:"stopTime"`
-}
-
-type StopJobApiRespone struct {
-	DBID string `json:"id"`
+	StopTime int64           `json:"stopTime"`
+	State    schema.JobState `json:"jobState"`
 }
 
 type TagJobApiRequest []*struct {
@@ -110,7 +93,7 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, tag := range req {
-		var tagId string
+		var tagId int64
 		if err := sq.Select("id").From("tag").
 			Where("tag.tag_type = ?", tag.Type).Where("tag.tag_name = ?", tag.Name).
 			RunWith(api.DB).QueryRow().Scan(&tagId); err != nil {
@@ -123,10 +106,10 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		job.Tags = append(job.Tags, &model.JobTag{
-			ID:      tagId,
-			TagType: tag.Type,
-			TagName: tag.Name,
+		job.Tags = append(job.Tags, &schema.Tag{
+			ID:   tagId,
+			Type: tag.Type,
+			Name: tag.Name,
 		})
 	}
 
@@ -136,31 +119,25 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
-	req := StartJobApiRequest{}
+	req := schema.JobMeta{BaseJob: schema.JobDefaults}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if config.GetClusterConfig(req.ClusterId) == nil {
-		http.Error(rw, fmt.Sprintf("cluster '%s' does not exist", req.ClusterId), http.StatusBadRequest)
+	if config.GetClusterConfig(req.Cluster) == nil {
+		http.Error(rw, fmt.Sprintf("cluster '%s' does not exist", req.Cluster), http.StatusBadRequest)
 		return
 	}
 
-	if req.Nodes == nil {
-		req.Nodes = strings.Split(req.NodeList, "|")
-		if len(req.Nodes) == 1 {
-			req.Nodes = strings.Split(req.NodeList, ",")
-		}
-	}
-	if len(req.Nodes) == 0 || len(req.Nodes[0]) == 0 || len(req.UserId) == 0 {
+	if len(req.Resources) == 0 || len(req.User) == 0 || req.NumNodes == 0 {
 		http.Error(rw, "required fields are missing", http.StatusBadRequest)
 		return
 	}
 
 	// Check if combination of (job_id, cluster_id, start_time) already exists:
-	rows, err := api.DB.Query(`SELECT job.id FROM job WHERE job.job_id = ? AND job.cluster_id = ? AND job.start_time = ?`,
-		req.JobId, req.ClusterId, req.StartTime)
+	rows, err := api.DB.Query(`SELECT job.id FROM job WHERE job.job_id = ? AND job.cluster = ? AND job.start_time = ?`,
+		req.JobID, req.Cluster, req.StartTime)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
@@ -173,9 +150,12 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := api.DB.Exec(
-		`INSERT INTO job (job_id, user_id, project_id, cluster_id, start_time, duration, job_state, num_nodes, node_list, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-		req.JobId, req.UserId, req.ProjectId, req.ClusterId, req.StartTime, 0, model.JobStateRunning, len(req.Nodes), strings.Join(req.Nodes, ","), req.MetaData)
+	req.RawResources, err = json.Marshal(req.Resources)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	res, err := api.DB.NamedExec(schema.JobInsertStmt, req)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
@@ -187,7 +167,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("new job (id: %d): clusterId=%s, jobId=%d, userId=%s, startTime=%d, nodes=%v\n", id, req.ClusterId, req.JobId, req.UserId, req.StartTime, req.Nodes)
+	log.Printf("new job (id: %d): cluster=%s, jobId=%d, user=%s, startTime=%d\n", id, req.Cluster, req.JobID, req.User, req.StartTime)
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusCreated)
 	json.NewEncoder(rw).Encode(StartJobApiRespone{
@@ -203,66 +183,89 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	var err error
-	var job *model.Job
+	var sql string
+	var args []interface{}
 	id, ok := mux.Vars(r)["id"]
 	if ok {
-		job, err = graph.ScanJob(sq.Select(graph.JobTableCols...).From("job").Where("job.id = ?", id).RunWith(api.DB).QueryRow())
+		sql, args, err = sq.Select(schema.JobColumns...).From("job").Where("job.id = ?", id).ToSql()
 	} else {
-		job, err = graph.ScanJob(sq.Select(graph.JobTableCols...).From("job").
+		sql, args, err = sq.Select(schema.JobColumns...).From("job").
 			Where("job.job_id = ?", req.JobId).
-			Where("job.cluster_id = ?", req.ClusterId).
-			Where("job.start_time = ?", req.StartTime).
-			RunWith(api.DB).QueryRow())
+			Where("job.cluster = ?", req.Cluster).
+			Where("job.start_time = ?", req.StartTime).ToSql()
 	}
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusNotFound)
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+	job, err := schema.ScanJob(api.DB.QueryRowx(sql, args...))
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if job == nil || job.StartTime.Unix() >= req.StopTime || job.State != model.JobStateRunning {
+	if job == nil || job.StartTime.Unix() >= req.StopTime || job.State != schema.JobStateRunning {
 		http.Error(rw, "stop_time must be larger than start_time and only running jobs can be stopped", http.StatusBadRequest)
 		return
 	}
 
-	doArchiving := func(job *model.Job, ctx context.Context) error {
-		job.Duration = int(req.StopTime - job.StartTime.Unix())
+	if req.State != "" && !req.State.Valid() {
+		http.Error(rw, fmt.Sprintf("invalid job state: '%s'", req.State), http.StatusBadRequest)
+		return
+	} else {
+		req.State = schema.JobStateCompleted
+	}
+
+	doArchiving := func(job *schema.Job, ctx context.Context) error {
+		job.Duration = int32(req.StopTime - job.StartTime.Unix())
 		jobMeta, err := metricdata.ArchiveJob(job, ctx)
 		if err != nil {
-			log.Printf("archiving job (id: %s) failed: %s\n", job.ID, err.Error())
+			log.Printf("archiving job (dbid: %d) failed: %s\n", job.ID, err.Error())
 			return err
 		}
 
-		getAvg := func(metric string) sql.NullFloat64 {
-			stats, ok := jobMeta.Statistics[metric]
-			if !ok {
-				return sql.NullFloat64{Valid: false}
+		stmt := sq.Update("job").
+			Set("job_state", req.State).
+			Set("duration", job.Duration).
+			Where("job.id = ?", job.ID)
+
+		for metric, stats := range jobMeta.Statistics {
+			switch metric {
+			case "flops_any":
+				stmt = stmt.Set("flops_any_avg", stats.Avg)
+			case "mem_used":
+				stmt = stmt.Set("mem_used_max", stats.Max)
+			case "mem_bw":
+				stmt = stmt.Set("mem_bw_avg", stats.Avg)
+			case "load":
+				stmt = stmt.Set("load_avg", stats.Avg)
+			case "net_bw":
+				stmt = stmt.Set("net_bw_avg", stats.Avg)
+			case "file_bw":
+				stmt = stmt.Set("file_bw_avg", stats.Avg)
 			}
-			return sql.NullFloat64{Valid: true, Float64: stats.Avg}
 		}
 
-		if _, err := api.DB.Exec(
-			`UPDATE job SET
-			job_state = ?, duration = ?,
-			flops_any_avg = ?, mem_bw_avg = ?, net_bw_avg = ?, file_bw_avg = ?, load_avg = ?
-			WHERE job.id = ?`,
-			model.JobStateCompleted, job.Duration,
-			getAvg("flops_any"), getAvg("mem_bw"), getAvg("net_bw"), getAvg("file_bw"), getAvg("load"),
-			job.ID); err != nil {
-			log.Printf("archiving job (id: %s) failed: %s\n", job.ID, err.Error())
+		sql, args, err := stmt.ToSql()
+		if err != nil {
+			log.Printf("archiving job (dbid: %d) failed: %s\n", job.ID, err.Error())
 			return err
 		}
 
-		log.Printf("job stopped and archived (id: %s)\n", job.ID)
+		if _, err := api.DB.Exec(sql, args...); err != nil {
+			log.Printf("archiving job (dbid: %d) failed: %s\n", job.ID, err.Error())
+			return err
+		}
+
+		log.Printf("job stopped and archived (dbid: %d)\n", job.ID)
 		return nil
 	}
 
-	log.Printf("archiving job... (id: %s): clusterId=%s, jobId=%d, userId=%s, startTime=%s\n", job.ID, job.Cluster, job.JobID, job.User, job.StartTime)
+	log.Printf("archiving job... (dbid: %d): cluster=%s, jobId=%d, user=%s, startTime=%s\n", job.ID, job.Cluster, job.JobID, job.User, job.StartTime)
 	if api.AsyncArchiving {
 		rw.Header().Add("Content-Type", "application/json")
 		rw.WriteHeader(http.StatusOK)
-		json.NewEncoder(rw).Encode(StopJobApiRespone{
-			DBID: job.ID,
-		})
+		json.NewEncoder(rw).Encode(job)
 		go doArchiving(job, context.Background())
 	} else {
 		err := doArchiving(job, r.Context())

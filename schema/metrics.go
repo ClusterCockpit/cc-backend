@@ -5,14 +5,34 @@ import (
 	"io"
 )
 
-// Format of `data.json` files.
-type JobData map[string]*JobMetric
+type JobData map[string]map[string]*JobMetric
 
 type JobMetric struct {
-	Unit     string          `json:"Unit"`
-	Scope    MetricScope     `json:"Scope"`
-	Timestep int             `json:"Timestep"`
-	Series   []*MetricSeries `json:"Series"`
+	Unit        string       `json:"unit"`
+	Scope       MetricScope  `json:"scope"`
+	Timestep    int          `json:"timestep"`
+	Series      []Series     `json:"series"`
+	StatsSeries *StatsSeries `json:"statisticsSeries,omitempty"`
+}
+
+type Series struct {
+	Hostname   string            `json:"hostname"`
+	Id         *int              `json:"id,omitempty"`
+	Statistics *MetricStatistics `json:"statistics"`
+	Data       []Float           `json:"data"`
+}
+
+type MetricStatistics struct {
+	Avg float64 `json:"avg"`
+	Min float64 `json:"min"`
+	Max float64 `json:"max"`
+}
+
+type StatsSeries struct {
+	Mean        []Float         `json:"mean,omitempty"`
+	Min         []Float         `json:"min,omitempty"`
+	Max         []Float         `json:"max,omitempty"`
+	Percentiles map[int][]Float `json:"percentiles,omitempty"`
 }
 
 type MetricScope string
@@ -38,62 +58,4 @@ func (e *MetricScope) UnmarshalGQL(v interface{}) error {
 
 func (e MetricScope) MarshalGQL(w io.Writer) {
 	fmt.Fprintf(w, "\"%s\"", e)
-}
-
-type MetricStatistics struct {
-	Avg float64 `json:"Avg"`
-	Min float64 `json:"Min"`
-	Max float64 `json:"Max"`
-}
-
-type MetricSeries struct {
-	Hostname   string            `json:"Hostname"`
-	Id         int               `json:"Id"`
-	Statistics *MetricStatistics `json:"Statistics"`
-	Data       []Float           `json:"Data"`
-}
-
-type JobMetaStatistics struct {
-	Unit string  `json:"Unit"`
-	Avg  float64 `json:"Avg"`
-	Min  float64 `json:"Min"`
-	Max  float64 `json:"Max"`
-}
-
-type Accelerator struct {
-	ID    int    `json:"Id"`
-	Type  string `json:"Type"`
-	Model string `json:"Model"`
-}
-
-type JobResource struct {
-	Hostname     string        `json:"Hostname"`
-	HWThreads    []int         `json:"HWThreads,omitempty"`
-	Accelerators []Accelerator `json:"Accelerators,omitempty"`
-}
-
-// Format of `meta.json` files.
-type JobMeta struct {
-	JobId            int64          `json:"JobId"`
-	User             string         `json:"User"`
-	Project          string         `json:"Project"`
-	Cluster          string         `json:"Cluster"`
-	NumNodes         int            `json:"NumNodes"`
-	NumHWThreads     int            `json:"NumHWThreads"`
-	NumAcc           int            `json:"NumAcc"`
-	Exclusive        int8           `json:"Exclusive"`
-	MonitoringStatus int8           `json:"MonitoringStatus"`
-	SMT              int8           `json:"SMT"`
-	Partition        string         `json:"Partition"`
-	ArrayJobId       int            `json:"ArrayJobId"`
-	JobState         string         `json:"JobState"`
-	StartTime        int64          `json:"StartTime"`
-	Duration         int64          `json:"Duration"`
-	Resources        []*JobResource `json:"Resources"`
-	MetaData         string         `json:"MetaData"`
-	Tags             []struct {
-		Name string `json:"Name"`
-		Type string `json:"Type"`
-	} `json:"Tags"`
-	Statistics map[string]*JobMetaStatistics `json:"Statistics"`
 }

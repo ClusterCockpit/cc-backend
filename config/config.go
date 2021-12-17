@@ -46,8 +46,8 @@ func Init(usersdb *sqlx.DB, authEnabled bool, uiConfig map[string]interface{}, j
 			cluster.FilterRanges.StartTime.To = time.Unix(0, 0)
 		}
 
-		if cluster.ClusterID != de.Name() {
-			return fmt.Errorf("the file '%s/cluster.json' contains the clusterId '%s'", de.Name(), cluster.ClusterID)
+		if cluster.Name != de.Name() {
+			return fmt.Errorf("the file '%s/cluster.json' contains the clusterId '%s'", de.Name(), cluster.Name)
 		}
 
 		Clusters = append(Clusters, &cluster)
@@ -149,7 +149,7 @@ func ServeConfig(rw http.ResponseWriter, r *http.Request) {
 
 func GetClusterConfig(cluster string) *model.Cluster {
 	for _, c := range Clusters {
-		if c.ClusterID == cluster {
+		if c.Name == cluster {
 			return c
 		}
 	}
@@ -158,7 +158,7 @@ func GetClusterConfig(cluster string) *model.Cluster {
 
 func GetMetricConfig(cluster, metric string) *model.MetricConfig {
 	for _, c := range Clusters {
-		if c.ClusterID == cluster {
+		if c.Name == cluster {
 			for _, m := range c.MetricConfig {
 				if m.Name == metric {
 					return m

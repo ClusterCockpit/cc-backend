@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -23,7 +22,7 @@ const JOBS_DB_SCHEMA string = `
 		id                INTEGER PRIMARY KEY AUTOINCREMENT, -- Not needed in sqlite
 		job_id            BIGINT NOT NULL,
 		cluster           VARCHAR(255) NOT NULL,
-		start_time        BITINT NOT NULL,
+		start_time        TIMESTAMP NOT NULL,
 
 		user              VARCHAR(255) NOT NULL,
 		project           VARCHAR(255) NOT NULL,
@@ -80,25 +79,20 @@ func initDB(db *sqlx.DB, archive string) error {
 		return err
 	}
 
-	insertstmt, err := db.Prepare(`INSERT INTO job (
-			job_id, cluster, start_time,
-			user, project, partition, array_job_id, duration, job_state, meta_data, resources,
-			num_nodes, num_hwthreads, num_acc, smt, exclusive, monitoring_status,
-			flops_any_avg, mem_bw_avg
-		) VALUES (
-			?, ?, ?,
-			?, ?, ?, ?, ?, ?, ?, ?,
-			?, ?, ?, ?, ?, ?,
-			?, ?
-		);`)
 	if err != nil {
 		return err
 	}
 
-	tx, err := db.Begin()
+	tx, err := db.Beginx()
 	if err != nil {
 		return err
 	}
+
+	stmt, err := tx.PrepareNamed(schema.JobInsertStmt)
+	if err != nil {
+		return err
+	}
+
 	i := 0
 	tags := make(map[string]int64)
 	handleDirectory := func(filename string) error {
@@ -110,16 +104,16 @@ func initDB(db *sqlx.DB, archive string) error {
 				}
 			}
 
-			tx, err = db.Begin()
+			tx, err = db.Beginx()
 			if err != nil {
 				return err
 			}
 
-			insertstmt = tx.Stmt(insertstmt)
+			stmt = tx.NamedStmt(stmt)
 			fmt.Printf("%d jobs inserted...\r", i)
 		}
 
-		err := loadJob(tx, insertstmt, tags, filename)
+		err := loadJob(tx, stmt, tags, filename)
 		if err == nil {
 			i += 1
 		}
@@ -151,14 +145,14 @@ func initDB(db *sqlx.DB, archive string) error {
 					return err
 				}
 
-				for _, startTiemDir := range startTimeDirs {
-					if startTiemDir.Type().IsRegular() && startTiemDir.Name() == "meta.json" {
+				for _, startTimeDir := range startTimeDirs {
+					if startTimeDir.Type().IsRegular() && startTimeDir.Name() == "meta.json" {
 						if err := handleDirectory(dirpath); err != nil {
 							log.Printf("in %s: %s\n", dirpath, err.Error())
 						}
-					} else if startTiemDir.IsDir() {
-						if err := handleDirectory(filepath.Join(dirpath, startTiemDir.Name())); err != nil {
-							log.Printf("in %s: %s\n", filepath.Join(dirpath, startTiemDir.Name()), err.Error())
+					} else if startTimeDir.IsDir() {
+						if err := handleDirectory(filepath.Join(dirpath, startTimeDir.Name())); err != nil {
+							log.Printf("in %s: %s\n", filepath.Join(dirpath, startTimeDir.Name()), err.Error())
 						}
 					}
 				}
@@ -184,34 +178,28 @@ func initDB(db *sqlx.DB, archive string) error {
 
 // Read the `meta.json` file at `path` and insert it to the database using the prepared
 // insert statement `stmt`. `tags` maps all existing tags to their database ID.
-func loadJob(tx *sql.Tx, stmt *sql.Stmt, tags map[string]int64, path string) error {
+func loadJob(tx *sqlx.Tx, stmt *sqlx.NamedStmt, tags map[string]int64, path string) error {
 	f, err := os.Open(filepath.Join(path, "meta.json"))
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	var job schema.JobMeta = schema.JobMeta{
-		Exclusive: 1,
-	}
+	var job schema.JobMeta = schema.JobMeta{BaseJob: schema.JobDefaults}
 	if err := json.NewDecoder(bufio.NewReader(f)).Decode(&job); err != nil {
 		return err
 	}
 
 	// TODO: Other metrics...
-	flopsAnyAvg := loadJobStat(&job, "flops_any")
-	memBwAvg := loadJobStat(&job, "mem_bw")
+	job.FlopsAnyAvg = loadJobStat(&job, "flops_any")
+	job.MemBwAvg = loadJobStat(&job, "mem_bw")
 
-	resources, err := json.Marshal(job.Resources)
+	job.RawResources, err = json.Marshal(job.Resources)
 	if err != nil {
 		return err
 	}
 
-	res, err := stmt.Exec(
-		job.JobId, job.Cluster, job.StartTime,
-		job.User, job.Project, job.Partition, job.ArrayJobId, job.Duration, job.JobState, job.MetaData, string(resources),
-		job.NumNodes, job.NumHWThreads, job.NumAcc, job.SMT, job.Exclusive, job.MonitoringStatus,
-		flopsAnyAvg, memBwAvg)
+	res, err := stmt.Exec(job)
 	if err != nil {
 		return err
 	}
@@ -244,12 +232,10 @@ func loadJob(tx *sql.Tx, stmt *sql.Stmt, tags map[string]int64, path string) err
 	return nil
 }
 
-func loadJobStat(job *schema.JobMeta, metric string) sql.NullFloat64 {
-	val := sql.NullFloat64{Valid: false}
+func loadJobStat(job *schema.JobMeta, metric string) float64 {
 	if stats, ok := job.Statistics[metric]; ok {
-		val.Valid = true
-		val.Float64 = stats.Avg
+		return stats.Avg
 	}
 
-	return val
+	return 0.0
 }

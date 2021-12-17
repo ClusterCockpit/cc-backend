@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/ClusterCockpit/cc-jobarchive/config"
-	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
 	"github.com/ClusterCockpit/cc-jobarchive/schema"
 )
 
@@ -15,10 +14,10 @@ type MetricDataRepository interface {
 	Init(url string) error
 
 	// Return the JobData for the given job, only with the requested metrics.
-	LoadData(job *model.Job, metrics []string, ctx context.Context) (schema.JobData, error)
+	LoadData(job *schema.Job, metrics []string, ctx context.Context) (schema.JobData, error)
 
 	// Return a map of metrics to a map of nodes to the metric statistics of the job.
-	LoadStats(job *model.Job, metrics []string, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error)
+	LoadStats(job *schema.Job, metrics []string, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error)
 
 	// Return a map of nodes to a map of metrics to the data for the requested time.
 	LoadNodeData(clusterId string, metrics, nodes []string, from, to int64, ctx context.Context) (map[string]map[string][]schema.Float, error)
@@ -41,15 +40,15 @@ func Init(jobArchivePath string, disableArchive bool) error {
 				if err := ccms.Init(cluster.MetricDataRepository.Url); err != nil {
 					return err
 				}
-				metricDataRepos[cluster.ClusterID] = ccms
-			case "influxdb-v2":
-				idb := &InfluxDBv2DataRepository{}
-				if err := idb.Init(cluster.MetricDataRepository.Url); err != nil {
-					return err
-				}
-				metricDataRepos[cluster.ClusterID] = idb
+				metricDataRepos[cluster.Name] = ccms
+			// case "influxdb-v2":
+			// 	idb := &InfluxDBv2DataRepository{}
+			// 	if err := idb.Init(cluster.MetricDataRepository.Url); err != nil {
+			// 		return err
+			// 	}
+			// 	metricDataRepos[cluster.Name] = idb
 			default:
-				return fmt.Errorf("unkown metric data repository '%s' for cluster '%s'", cluster.MetricDataRepository.Kind, cluster.ClusterID)
+				return fmt.Errorf("unkown metric data repository '%s' for cluster '%s'", cluster.MetricDataRepository.Kind, cluster.Name)
 			}
 		}
 	}
@@ -57,8 +56,8 @@ func Init(jobArchivePath string, disableArchive bool) error {
 }
 
 // Fetches the metric data for a job.
-func LoadData(job *model.Job, metrics []string, ctx context.Context) (schema.JobData, error) {
-	if job.State == model.JobStateRunning || !useArchive {
+func LoadData(job *schema.Job, metrics []string, ctx context.Context) (schema.JobData, error) {
+	if job.State == schema.JobStateRunning || !useArchive {
 		repo, ok := metricDataRepos[job.Cluster]
 		if !ok {
 			return nil, fmt.Errorf("no metric data repository configured for '%s'", job.Cluster)
@@ -85,8 +84,8 @@ func LoadData(job *model.Job, metrics []string, ctx context.Context) (schema.Job
 }
 
 // Used for the jobsFootprint GraphQL-Query. TODO: Rename/Generalize.
-func LoadAverages(job *model.Job, metrics []string, data [][]schema.Float, ctx context.Context) error {
-	if job.State != model.JobStateRunning && useArchive {
+func LoadAverages(job *schema.Job, metrics []string, data [][]schema.Float, ctx context.Context) error {
+	if job.State != schema.JobStateRunning && useArchive {
 		return loadAveragesFromArchive(job, metrics, data)
 	}
 

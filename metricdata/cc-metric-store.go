@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-jobarchive/config"
-	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
 	"github.com/ClusterCockpit/cc-jobarchive/schema"
 )
 
@@ -57,7 +56,7 @@ func (ccms *CCMetricStore) Init(url string) error {
 	return nil
 }
 
-func (ccms *CCMetricStore) doRequest(job *model.Job, suffix string, metrics []string, ctx context.Context) (*http.Response, error) {
+func (ccms *CCMetricStore) doRequest(job *schema.Job, suffix string, metrics []string, ctx context.Context) (*http.Response, error) {
 	from, to := job.StartTime.Unix(), job.StartTime.Add(time.Duration(job.Duration)*time.Second).Unix()
 	reqBody := ApiRequestBody{}
 	reqBody.Metrics = metrics
@@ -85,7 +84,7 @@ func (ccms *CCMetricStore) doRequest(job *model.Job, suffix string, metrics []st
 	return ccms.client.Do(req)
 }
 
-func (ccms *CCMetricStore) LoadData(job *model.Job, metrics []string, ctx context.Context) (schema.JobData, error) {
+func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, ctx context.Context) (schema.JobData, error) {
 	res, err := ccms.doRequest(job, "timeseries?with-stats=true", metrics, ctx)
 	if err != nil {
 		return nil, err
@@ -103,8 +102,9 @@ func (ccms *CCMetricStore) LoadData(job *model.Job, metrics []string, ctx contex
 			Scope:    "node", // TODO: FIXME: Whatever...
 			Unit:     mc.Unit,
 			Timestep: mc.Timestep,
-			Series:   make([]*schema.MetricSeries, 0, len(job.Resources)),
+			Series:   make([]schema.Series, 0, len(job.Resources)),
 		}
+
 		for i, node := range job.Resources {
 			if node.Accelerators != nil || node.HWThreads != nil {
 				// TODO/FIXME:
@@ -120,7 +120,7 @@ func (ccms *CCMetricStore) LoadData(job *model.Job, metrics []string, ctx contex
 				return nil, fmt.Errorf("no data for node '%s' and metric '%s'", node.Hostname, metric)
 			}
 
-			metricData.Series = append(metricData.Series, &schema.MetricSeries{
+			metricData.Series = append(metricData.Series, schema.Series{
 				Hostname: node.Hostname,
 				Data:     data.Data,
 				Statistics: &schema.MetricStatistics{
@@ -130,13 +130,13 @@ func (ccms *CCMetricStore) LoadData(job *model.Job, metrics []string, ctx contex
 				},
 			})
 		}
-		jobData[metric] = metricData
+		jobData[metric] = map[string]*schema.JobMetric{"node": metricData}
 	}
 
 	return jobData, nil
 }
 
-func (ccms *CCMetricStore) LoadStats(job *model.Job, metrics []string, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error) {
+func (ccms *CCMetricStore) LoadStats(job *schema.Job, metrics []string, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error) {
 	res, err := ccms.doRequest(job, "stats", metrics, ctx)
 	if err != nil {
 		return nil, err

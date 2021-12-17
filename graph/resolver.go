@@ -2,15 +2,14 @@ package graph
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/ClusterCockpit/cc-jobarchive/auth"
 	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
+	"github.com/ClusterCockpit/cc-jobarchive/schema"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
 )
@@ -23,44 +22,9 @@ type Resolver struct {
 	DB *sqlx.DB
 }
 
-var JobTableCols []string = []string{
-	"id", "job_id", "cluster", "start_time",
-	"user", "project", "partition", "array_job_id", "duration", "job_state", "resources",
-	"num_nodes", "num_hwthreads", "num_acc", "smt", "exclusive", "monitoring_status",
-	"load_avg", "mem_used_max", "flops_any_avg", "mem_bw_avg", "net_bw_avg", "file_bw_avg",
-}
-
-type Scannable interface {
-	Scan(dest ...interface{}) error
-}
-
-// Helper function for scanning jobs with the `jobTableCols` columns selected.
-func ScanJob(row Scannable) (*model.Job, error) {
-	job := &model.Job{}
-
-	var rawResources []byte
-	if err := row.Scan(
-		&job.ID, &job.JobID, &job.Cluster, &job.StartTime,
-		&job.User, &job.Project, &job.Partition, &job.ArrayJobID, &job.Duration, &job.State, &rawResources,
-		&job.NumNodes, &job.NumHWThreads, &job.NumAcc, &job.Smt, &job.Exclusive, &job.MonitoringStatus,
-		&job.LoadAvg, &job.MemUsedMax, &job.FlopsAnyAvg, &job.MemBwAvg, &job.NetBwAvg, &job.FileBwAvg); err != nil {
-		return nil, err
-	}
-
-	if err := json.Unmarshal(rawResources, &job.Resources); err != nil {
-		return nil, err
-	}
-
-	if job.Duration == 0 && job.State == model.JobStateRunning {
-		job.Duration = int(time.Since(job.StartTime).Seconds())
-	}
-
-	return job, nil
-}
-
 // Helper function for the `jobs` GraphQL-Query. Is also used elsewhere when a list of jobs is needed.
-func (r *Resolver) queryJobs(ctx context.Context, filters []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) ([]*model.Job, int, error) {
-	query := sq.Select(JobTableCols...).From("job")
+func (r *Resolver) queryJobs(ctx context.Context, filters []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) ([]*schema.Job, int, error) {
+	query := sq.Select(schema.JobColumns...).From("job")
 	query = securityCheck(ctx, query)
 
 	if order != nil {
@@ -85,33 +49,32 @@ func (r *Resolver) queryJobs(ctx context.Context, filters []*model.JobFilter, pa
 		query = buildWhereClause(f, query)
 	}
 
-	rows, err := query.RunWith(r.DB).Query()
+	sql, args, err := query.ToSql()
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
 
-	jobs := make([]*model.Job, 0, 50)
+	rows, err := r.DB.Queryx(sql, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	jobs := make([]*schema.Job, 0, 50)
 	for rows.Next() {
-		job, err := ScanJob(rows)
+		job, err := schema.ScanJob(rows)
 		if err != nil {
 			return nil, 0, err
 		}
 		jobs = append(jobs, job)
 	}
 
+	// count all jobs:
 	query = sq.Select("count(*)").From("job")
 	for _, f := range filters {
 		query = buildWhereClause(f, query)
 	}
-	rows, err = query.RunWith(r.DB).Query()
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
 	var count int
-	rows.Next()
-	if err := rows.Scan(&count); err != nil {
+	if err := query.RunWith(r.DB).Scan(&count); err != nil {
 		return nil, 0, err
 	}
 
@@ -132,7 +95,7 @@ func securityCheck(ctx context.Context, query sq.SelectBuilder) sq.SelectBuilder
 	return query.Where("job.user_id = ?", user.Username)
 }
 
-// Build a sq.SelectBuilder out of a model.JobFilter.
+// Build a sq.SelectBuilder out of a schema.JobFilter.
 func buildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.SelectBuilder {
 	if filter.Tags != nil {
 		query = query.Join("jobtag ON jobtag.job_id = job.id").Where("jobtag.tag_id IN ?", filter.Tags)
@@ -155,8 +118,8 @@ func buildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	if filter.Duration != nil {
 		query = buildIntCondition("job.duration", filter.Duration, query)
 	}
-	if filter.JobState != nil {
-		query = query.Where("job.job_state IN ?", filter.JobState)
+	if filter.State != nil {
+		query = query.Where("job.job_state IN ?", filter.State)
 	}
 	if filter.NumNodes != nil {
 		query = buildIntCondition("job.num_nodes", filter.NumNodes, query)

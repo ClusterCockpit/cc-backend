@@ -19,36 +19,35 @@ import (
 	sq "github.com/Masterminds/squirrel"
 )
 
-func (r *acceleratorResolver) ID(ctx context.Context, obj *schema.Accelerator) (string, error) {
-	panic(fmt.Errorf("not implemented"))
-}
-
-func (r *jobResolver) Tags(ctx context.Context, obj *model.Job) ([]*model.JobTag, error) {
+func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error) {
 	query := sq.
 		Select("tag.id", "tag.tag_type", "tag.tag_name").
 		From("tag").
 		Join("jobtag ON jobtag.tag_id = tag.id").
 		Where("jobtag.job_id = ?", obj.ID)
 
-	rows, err := query.RunWith(r.DB).Query()
+	sql, args, err := query.ToSql()
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	tags := make([]*model.JobTag, 0)
-	for rows.Next() {
-		var tag model.JobTag
-		if err := rows.Scan(&tag.ID, &tag.TagType, &tag.TagName); err != nil {
-			return nil, err
-		}
-		tags = append(tags, &tag)
+	tags := make([]*schema.Tag, 0)
+	if err := r.DB.Select(&tags, sql, args...); err != nil {
+		return nil, err
 	}
 
 	return tags, nil
 }
 
-func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name string) (*model.JobTag, error) {
+func (r *jobResolver) Resources(ctx context.Context, obj *schema.Job) ([]*model.JobResource, error) {
+	panic(fmt.Errorf("not implemented"))
+}
+
+func (r *jobMetricResolver) StatisticsSeries(ctx context.Context, obj *schema.JobMetric) ([]*schema.StatsSeries, error) {
+	panic(fmt.Errorf("not implemented"))
+}
+
+func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name string) (*schema.Tag, error) {
 	res, err := r.DB.Exec("INSERT INTO tag (tag_type, tag_name) VALUES ($1, $2)", typeArg, name)
 	if err != nil {
 		return nil, err
@@ -59,7 +58,7 @@ func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name s
 		return nil, err
 	}
 
-	return &model.JobTag{ID: strconv.FormatInt(id, 10), TagType: typeArg, TagName: name}, nil
+	return &schema.Tag{ID: id, Type: typeArg, Name: name}, nil
 }
 
 func (r *mutationResolver) DeleteTag(ctx context.Context, id string) (string, error) {
@@ -67,7 +66,7 @@ func (r *mutationResolver) DeleteTag(ctx context.Context, id string) (string, er
 	panic(fmt.Errorf("not implemented"))
 }
 
-func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds []string) ([]*model.JobTag, error) {
+func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds []string) ([]*schema.Tag, error) {
 	jid, err := strconv.Atoi(job)
 	if err != nil {
 		return nil, err
@@ -84,7 +83,9 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 		}
 	}
 
-	tags, err := r.Job().Tags(ctx, &model.Job{ID: job})
+	dummyJob := schema.Job{}
+	dummyJob.ID = int64(jid)
+	tags, err := r.Job().Tags(ctx, &dummyJob)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +98,7 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 	return tags, metricdata.UpdateTags(jobObj, tags)
 }
 
-func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, tagIds []string) ([]*model.JobTag, error) {
+func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, tagIds []string) ([]*schema.Tag, error) {
 	jid, err := strconv.Atoi(job)
 	if err != nil {
 		return nil, err
@@ -114,7 +115,9 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 		}
 	}
 
-	tags, err := r.Job().Tags(ctx, &model.Job{ID: job})
+	dummyJob := schema.Job{}
+	dummyJob.ID = int64(jid)
+	tags, err := r.Job().Tags(ctx, &dummyJob)
 	if err != nil {
 		return nil, err
 	}
@@ -139,29 +142,28 @@ func (r *queryResolver) Clusters(ctx context.Context) ([]*model.Cluster, error) 
 	return config.Clusters, nil
 }
 
-func (r *queryResolver) Tags(ctx context.Context) ([]*model.JobTag, error) {
-	rows, err := sq.Select("id", "tag_type", "tag_name").From("tag").RunWith(r.DB).Query()
+func (r *queryResolver) Tags(ctx context.Context) ([]*schema.Tag, error) {
+	sql, args, err := sq.Select("id", "tag_type", "tag_name").From("tag").ToSql()
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	tags := make([]*model.JobTag, 0)
-	for rows.Next() {
-		var tag model.JobTag
-		if err := rows.Scan(&tag.ID, &tag.TagType, &tag.TagName); err != nil {
-			return nil, err
-		}
-		tags = append(tags, &tag)
+	tags := make([]*schema.Tag, 0)
+	if err := r.DB.Select(&tags, sql, args...); err != nil {
+		return nil, err
 	}
-
 	return tags, nil
 }
 
-func (r *queryResolver) Job(ctx context.Context, id string) (*model.Job, error) {
-	query := sq.Select(JobTableCols...).From("job").Where("job.id = ?", id)
+func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error) {
+	query := sq.Select(schema.JobColumns...).From("job").Where("job.id = ?", id)
 	query = securityCheck(ctx, query)
-	return ScanJob(query.RunWith(r.DB).QueryRow())
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	return schema.ScanJob(r.DB.QueryRowx(sql, args...))
 }
 
 func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []string) ([]*model.JobMetricWithName, error) {
@@ -178,8 +180,12 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 	res := []*model.JobMetricWithName{}
 	for name, md := range data {
 		res = append(res, &model.JobMetricWithName{
-			Name:   name,
-			Metric: md,
+			Name:         name,
+			Node:         md["node"],
+			Socket:       md["socket"],
+			MemoryDomain: md["memoryDomain"],
+			Core:         md["core"],
+			Hwthread:     md["hwthread"],
 		})
 	}
 
@@ -237,11 +243,11 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 	return res, nil
 }
 
-// Accelerator returns generated.AcceleratorResolver implementation.
-func (r *Resolver) Accelerator() generated.AcceleratorResolver { return &acceleratorResolver{r} }
-
 // Job returns generated.JobResolver implementation.
 func (r *Resolver) Job() generated.JobResolver { return &jobResolver{r} }
+
+// JobMetric returns generated.JobMetricResolver implementation.
+func (r *Resolver) JobMetric() generated.JobMetricResolver { return &jobMetricResolver{r} }
 
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
@@ -249,7 +255,7 @@ func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResol
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
-type acceleratorResolver struct{ *Resolver }
 type jobResolver struct{ *Resolver }
+type jobMetricResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }

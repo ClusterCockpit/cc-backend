@@ -1,5 +1,7 @@
 # ClusterCockpit with a Golang backend
 
+__*DOES NOT WORK WITH CURRENT FRONTEND*__
+
 [![Build](https://github.com/ClusterCockpit/cc-jobarchive/actions/workflows/test.yml/badge.svg)](https://github.com/ClusterCockpit/cc-jobarchive/actions/workflows/test.yml)
 
 ### Run server
@@ -11,11 +13,6 @@ git clone --recursive git@github.com:ClusterCockpit/cc-jobarchive.git
 # Prepare frontend
 cd ./cc-jobarchive/frontend
 yarn install
-export CCFRONTEND_ROLLUP_INTRO='
-const JOBVIEW_URL = job => `/monitoring/job/${job.id}`;
-const USERVIEW_URL = userId => `/monitoring/user/${userId}`;
-const TAG_URL = tag => `/monitoring/jobs/?tag=${tag.id}`;
-'
 yarn build
 
 cd ..

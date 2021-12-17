@@ -1,26 +1,17 @@
 package model
 
-// Go look at `gqlgen.yml` and the schema package for other non-generated models.
+type Cluster struct {
+	Name         string          `json:"name"`
+	MetricConfig []*MetricConfig `json:"metricConfig"`
+	FilterRanges *FilterRanges   `json:"filterRanges"`
+	Partitions   []*Partition    `json:"partitions"`
 
-type JobTag struct {
-	ID      string `json:"id" db:"id"`
-	TagType string `json:"tagType" db:"tag_type"`
-	TagName string `json:"tagName" db:"tag_name"`
+	// NOT part of the API:
+	MetricDataRepository *MetricDataRepository `json:"metricDataRepository"`
 }
 
-type Cluster struct {
-	ClusterID            string          `json:"clusterID"`
-	ProcessorType        string          `json:"processorType"`
-	SocketsPerNode       int             `json:"socketsPerNode"`
-	CoresPerSocket       int             `json:"coresPerSocket"`
-	ThreadsPerCore       int             `json:"threadsPerCore"`
-	FlopRateScalar       int             `json:"flopRateScalar"`
-	FlopRateSimd         int             `json:"flopRateSimd"`
-	MemoryBandwidth      int             `json:"memoryBandwidth"`
-	MetricConfig         []*MetricConfig `json:"metricConfig"`
-	FilterRanges         *FilterRanges   `json:"filterRanges"`
-	MetricDataRepository *struct {
-		Kind string `json:"kind"`
-		Url  string `json:"url"`
-	} `json:"metricDataRepository"`
+type MetricDataRepository struct {
+	Kind  string `json:"kind"`
+	Url   string `json:"url"`
+	Token string `json:"token"`
 }
