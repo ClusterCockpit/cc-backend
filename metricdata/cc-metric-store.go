@@ -6,9 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/ClusterCockpit/cc-jobarchive/config"
@@ -46,13 +44,9 @@ type ApiStatsData struct {
 	Max     schema.Float `json:"max"`
 }
 
-func (ccms *CCMetricStore) Init(url string) error {
-	ccms.url = url // os.Getenv("CCMETRICSTORE_URL")
-	ccms.jwt = os.Getenv("CCMETRICSTORE_JWT")
-	if ccms.jwt == "" {
-		log.Println("warning: environment variable 'CCMETRICSTORE_JWT' not set")
-	}
-
+func (ccms *CCMetricStore) Init(url, token string) error {
+	ccms.url = url
+	ccms.jwt = token
 	return nil
 }
 

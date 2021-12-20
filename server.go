@@ -16,6 +16,7 @@ import (
 	"github.com/ClusterCockpit/cc-jobarchive/graph"
 	"github.com/ClusterCockpit/cc-jobarchive/graph/generated"
 	"github.com/ClusterCockpit/cc-jobarchive/metricdata"
+	"github.com/ClusterCockpit/cc-jobarchive/schema"
 	"github.com/ClusterCockpit/cc-jobarchive/templates"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -264,19 +265,16 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 		filterPresets := map[string]interface{}{}
 		query := r.URL.Query()
 		if query.Get("tag") != "" {
-			filterPresets["tagId"] = query.Get("tag")
+			filterPresets["tag"] = query.Get("tag")
 		}
 		if query.Get("cluster") != "" {
-			filterPresets["clusterId"] = query.Get("cluster")
+			filterPresets["cluster"] = query.Get("cluster")
 		}
 		if query.Get("project") != "" {
-			filterPresets["projectId"] = query.Get("project")
+			filterPresets["project"] = query.Get("project")
 		}
-		if query.Get("running") == "true" {
-			filterPresets["isRunning"] = true
-		}
-		if query.Get("running") == "false" {
-			filterPresets["isRunning"] = false
+		if query.Get("state") != "" && schema.JobState(query.Get("state")).Valid() {
+			filterPresets["state"] = query.Get("state")
 		}
 		if query.Get("from") != "" && query.Get("to") != "" {
 			filterPresets["startTime"] = map[string]string{

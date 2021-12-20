@@ -11,7 +11,7 @@ import (
 type MetricDataRepository interface {
 	// Initialize this MetricDataRepository. One instance of
 	// this interface will only ever be responsible for one cluster.
-	Init(url string) error
+	Init(url, token string) error
 
 	// Return the JobData for the given job, only with the requested metrics.
 	LoadData(job *schema.Job, metrics []string, ctx context.Context) (schema.JobData, error)
@@ -37,7 +37,7 @@ func Init(jobArchivePath string, disableArchive bool) error {
 			switch cluster.MetricDataRepository.Kind {
 			case "cc-metric-store":
 				ccms := &CCMetricStore{}
-				if err := ccms.Init(cluster.MetricDataRepository.Url); err != nil {
+				if err := ccms.Init(cluster.MetricDataRepository.Url, cluster.MetricDataRepository.Token); err != nil {
 					return err
 				}
 				metricDataRepos[cluster.Name] = ccms
