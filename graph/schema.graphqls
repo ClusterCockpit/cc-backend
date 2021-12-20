@@ -63,10 +63,10 @@ type MetricConfig {
   unit:     String!
   scope:    String!
   timestep: Int!
-  Peak:     Float!
-  Normal:   Float!
-  Caution:  Float!
-  Alert:    Float!
+  peak:     Float!
+  normal:   Float!
+  caution:  Float!
+  alert:    Float!
 }
 
 type Tag {
@@ -83,13 +83,8 @@ type JobResource {
 }
 
 type JobMetricWithName {
-  name: String!
-
-  node:         JobMetric
-  socket:       JobMetric
-  memoryDomain: JobMetric
-  core:         JobMetric
-  hwthread:     JobMetric
+  name:   String!
+  metric: JobMetric!
 }
 
 type JobMetric {
@@ -141,7 +136,7 @@ type Query {
   tags:         [Tag!]!    # List of all tags
 
   job(id: ID!): Job
-  jobMetrics(id: ID!, metrics: [String!]): [JobMetricWithName!]!
+  jobMetrics(id: ID!, metrics: [String!], scopes: [MetricScope!]): [JobMetricWithName!]!
   jobsFootprints(filter: [JobFilter!], metrics: [String!]!): [MetricFootprints]!
 
   jobs(filter: [JobFilter!], page: PageRequest, order: OrderByInput): JobResultList!

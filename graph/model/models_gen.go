@@ -60,12 +60,8 @@ type JobFilter struct {
 }
 
 type JobMetricWithName struct {
-	Name         string            `json:"name"`
-	Node         *schema.JobMetric `json:"node"`
-	Socket       *schema.JobMetric `json:"socket"`
-	MemoryDomain *schema.JobMetric `json:"memoryDomain"`
-	Core         *schema.JobMetric `json:"core"`
-	Hwthread     *schema.JobMetric `json:"hwthread"`
+	Name   string            `json:"name"`
+	Metric *schema.JobMetric `json:"metric"`
 }
 
 type JobResource struct {
@@ -97,10 +93,10 @@ type MetricConfig struct {
 	Unit     string  `json:"unit"`
 	Scope    string  `json:"scope"`
 	Timestep int     `json:"timestep"`
-	Peak     float64 `json:"Peak"`
-	Normal   float64 `json:"Normal"`
-	Caution  float64 `json:"Caution"`
-	Alert    float64 `json:"Alert"`
+	Peak     float64 `json:"peak"`
+	Normal   float64 `json:"normal"`
+	Caution  float64 `json:"caution"`
+	Alert    float64 `json:"alert"`
 }
 
 type MetricFootprints struct {

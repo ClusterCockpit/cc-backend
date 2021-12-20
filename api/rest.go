@@ -39,7 +39,7 @@ type StopJobApiRequest struct {
 	// JobId, ClusterId and StartTime are optional.
 	// They are only used if no database id was provided.
 	JobId     *string `json:"jobId"`
-	Cluster   *string `json:"clusterId"`
+	Cluster   *string `json:"cluster"`
 	StartTime *int64  `json:"startTime"`
 
 	// Payload

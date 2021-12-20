@@ -166,12 +166,13 @@ func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error)
 	return schema.ScanJob(r.DB.QueryRowx(sql, args...))
 }
 
-func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []string) ([]*model.JobMetricWithName, error) {
+func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope) ([]*model.JobMetricWithName, error) {
 	job, err := r.Query().Job(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
+	// TODO: FIXME: Do something with `scopes`
 	data, err := metricdata.LoadData(job, metrics, ctx)
 	if err != nil {
 		return nil, err
@@ -179,14 +180,16 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 
 	res := []*model.JobMetricWithName{}
 	for name, md := range data {
-		res = append(res, &model.JobMetricWithName{
-			Name:         name,
-			Node:         md["node"],
-			Socket:       md["socket"],
-			MemoryDomain: md["memoryDomain"],
-			Core:         md["core"],
-			Hwthread:     md["hwthread"],
-		})
+		for scope, metric := range md {
+			if metric.Scope != schema.MetricScope(scope) {
+				panic("WTF?")
+			}
+
+			res = append(res, &model.JobMetricWithName{
+				Name:   name,
+				Metric: metric,
+			})
+		}
 	}
 
 	return res, err
