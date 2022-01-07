@@ -14,7 +14,7 @@ type MetricDataRepository interface {
 	Init(url, token string) error
 
 	// Return the JobData for the given job, only with the requested metrics.
-	LoadData(job *schema.Job, metrics []string, ctx context.Context) (schema.JobData, error)
+	LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context) (schema.JobData, error)
 
 	// Return a map of metrics to a map of nodes to the metric statistics of the job.
 	LoadStats(job *schema.Job, metrics []string, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error)
@@ -56,14 +56,14 @@ func Init(jobArchivePath string, disableArchive bool) error {
 }
 
 // Fetches the metric data for a job.
-func LoadData(job *schema.Job, metrics []string, ctx context.Context) (schema.JobData, error) {
+func LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context) (schema.JobData, error) {
 	if job.State == schema.JobStateRunning || !useArchive {
 		repo, ok := metricDataRepos[job.Cluster]
 		if !ok {
 			return nil, fmt.Errorf("no metric data repository configured for '%s'", job.Cluster)
 		}
 
-		return repo.LoadData(job, metrics, ctx)
+		return repo.LoadData(job, metrics, scopes, ctx)
 	}
 
 	data, err := loadFromArchive(job)

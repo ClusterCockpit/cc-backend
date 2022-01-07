@@ -156,6 +156,19 @@ func GetClusterConfig(cluster string) *model.Cluster {
 	return nil
 }
 
+func GetPartition(cluster, partition string) *model.Partition {
+	for _, c := range Clusters {
+		if c.Name == cluster {
+			for _, p := range c.Partitions {
+				if p.Name == partition {
+					return p
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func GetMetricConfig(cluster, metric string) *model.MetricConfig {
 	for _, c := range Clusters {
 		if c.Name == cluster {

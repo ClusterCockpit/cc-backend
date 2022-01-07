@@ -136,8 +136,15 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 	for _, mc := range metricConfigs {
 		allMetrics = append(allMetrics, mc.Name)
 	}
-	jobData, err := LoadData(job, allMetrics, ctx)
+
+	// TODO: Use more granular resolution on non-exclusive jobs?
+	scopes := []schema.MetricScope{schema.MetricScopeNode}
+	jobData, err := LoadData(job, allMetrics, scopes, ctx)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := calcStatisticsSeries(job, jobData); err != nil {
 		return nil, err
 	}
 
@@ -211,4 +218,52 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 	}
 
 	return jobMeta, f.Close()
+}
+
+// Add statisticsSeries fields
+func calcStatisticsSeries(job *schema.Job, jobData schema.JobData) error {
+	for _, scopes := range jobData {
+		for _, jobMetric := range scopes {
+			if jobMetric.StatisticsSeries != nil {
+				continue
+			}
+
+			if len(jobMetric.Series) < 5 {
+				continue
+			}
+
+			n := 0
+			for _, series := range jobMetric.Series {
+				if len(series.Data) > n {
+					n = len(series.Data)
+				}
+			}
+
+			mean, min, max := make([]schema.Float, n), make([]schema.Float, n), make([]schema.Float, n)
+			for i := 0; i < n; i++ {
+				sum, smin, smax := schema.Float(0.), math.MaxFloat32, -math.MaxFloat32
+				for _, series := range jobMetric.Series {
+					if len(series.Data) >= i {
+						sum, smin, smax = schema.NaN, math.NaN(), math.NaN()
+						break
+					}
+					x := series.Data[i]
+					sum += x
+					smin = math.Min(smin, float64(x))
+					smax = math.Max(smax, float64(x))
+				}
+				sum /= schema.Float(len(jobMetric.Series))
+				mean[i] = sum
+				min[i] = schema.Float(smin)
+				max[i] = schema.Float(smax)
+			}
+
+			jobMetric.StatisticsSeries.Mean = mean
+			jobMetric.StatisticsSeries.Min = min
+			jobMetric.StatisticsSeries.Max = max
+			jobMetric.Series = nil
+		}
+	}
+
+	return nil
 }
