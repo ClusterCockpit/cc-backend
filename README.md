@@ -4,6 +4,8 @@ __*DOES NOT WORK WITH CURRENT FRONTEND*__
 
 [![Build](https://github.com/ClusterCockpit/cc-jobarchive/actions/workflows/test.yml/badge.svg)](https://github.com/ClusterCockpit/cc-jobarchive/actions/workflows/test.yml)
 
+Create your job-archive accoring to [this specification](https://github.com/ClusterCockpit/cc-specifications). At least one cluster with a valid `cluster.json` file is required. Having no jobs in the job-archive at all is fine. You may use the sample job-archive available for download [in cc-docker/develop](https://github.com/ClusterCockpit/cc-docker/tree/develop).
+
 ### Run server
 
 ```sh
@@ -29,7 +31,7 @@ touch ./var/job.db
 # This will first initialize the job.db database by traversing all
 # `meta.json` files in the job-archive. After that, a HTTP server on
 # the port 8080 will be running. The `--init-db` is only needed the first time.
-./cc-jobarchive --init-db
+./cc-jobarchive --init-db --add-user <your-username>:admin:<your-password>
 
 # Show other options:
 ./cc-jobarchive --help
@@ -37,7 +39,7 @@ touch ./var/job.db
 
 ### Configuration
 
-A config file in the JSON format can be provided using `--config` to override the defaults. Loop at the beginning of `server.go` for the defaults and consequently the format of the configuration file.
+A config file in the JSON format can be provided using `--config` to override the defaults. Look at the beginning of `server.go` for the defaults and consequently the format of the configuration file.
 
 ### Update GraphQL schema
 
