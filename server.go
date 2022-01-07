@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
+	"strconv"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
@@ -60,6 +62,9 @@ type ProgramConfig struct {
 	// If overwriten, at least all the options in the defaults below must
 	// be provided! Most options here can be overwritten by the user.
 	UiDefaults map[string]interface{} `json:"ui-defaults"`
+
+	// Where to store MachineState files
+	MachineStateDir string `json:"machine-state-dir"`
 }
 
 var programConfig ProgramConfig = ProgramConfig{
@@ -95,6 +100,7 @@ var programConfig ProgramConfig = ProgramConfig{
 		"plot_view_showRoofline":             true,
 		"plot_view_showStatTable":            true,
 	},
+	MachineStateDir: "./var/machine-state",
 }
 
 func main() {
@@ -178,8 +184,10 @@ func main() {
 	graphQLEndpoint := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 	graphQLPlayground := playground.Handler("GraphQL playground", "/query")
 	api := &api.RestApi{
-		DB:             db,
-		AsyncArchiving: programConfig.AsyncArchiving,
+		DB:              db,
+		AsyncArchiving:  programConfig.AsyncArchiving,
+		Resolver:        resolver,
+		MachineStateDir: programConfig.MachineStateDir,
 	}
 
 	handleGetLogin := func(rw http.ResponseWriter, r *http.Request) {
@@ -255,18 +263,9 @@ func main() {
 }
 
 func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
-	router.HandleFunc("/monitoring/jobs/", func(rw http.ResponseWriter, r *http.Request) {
-		conf, err := config.GetUIConfig(r)
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
+	buildFilterPresets := func(query url.Values) map[string]interface{} {
 		filterPresets := map[string]interface{}{}
-		query := r.URL.Query()
-		if query.Get("tag") != "" {
-			filterPresets["tag"] = query.Get("tag")
-		}
+
 		if query.Get("cluster") != "" {
 			filterPresets["cluster"] = query.Get("cluster")
 		}
@@ -276,17 +275,32 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 		if query.Get("state") != "" && schema.JobState(query.Get("state")).Valid() {
 			filterPresets["state"] = query.Get("state")
 		}
-		if query.Get("from") != "" && query.Get("to") != "" {
-			filterPresets["startTime"] = map[string]string{
-				"from": query.Get("from"),
-				"to":   query.Get("to"),
+		if rawtags, ok := query["tag"]; ok {
+			tags := make([]int, len(rawtags))
+			for i, tid := range rawtags {
+				var err error
+				tags[i], err = strconv.Atoi(tid)
+				if err != nil {
+					tags[i] = -1
+				}
 			}
+			filterPresets["tags"] = tags
+		}
+
+		return filterPresets
+	}
+
+	router.HandleFunc("/monitoring/jobs/", func(rw http.ResponseWriter, r *http.Request) {
+		conf, err := config.GetUIConfig(r)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
 		}
 
 		templates.Render(rw, r, "monitoring/jobs/", &templates.Page{
 			Title:         "Jobs - ClusterCockpit",
 			Config:        conf,
-			FilterPresets: filterPresets,
+			FilterPresets: buildFilterPresets(r.URL.Query()),
 		})
 	})
 
@@ -340,9 +354,10 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 		// is disabled or the user does not exist but has started jobs.
 
 		templates.Render(rw, r, "monitoring/user/", &templates.Page{
-			Title:  fmt.Sprintf("User %s - ClusterCockpit", id),
-			Config: conf,
-			Infos:  map[string]interface{}{"userId": id},
+			Title:         fmt.Sprintf("User %s - ClusterCockpit", id),
+			Config:        conf,
+			Infos:         map[string]interface{}{"username": id},
+			FilterPresets: buildFilterPresets(r.URL.Query()),
 		})
 	})
 

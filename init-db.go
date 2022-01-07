@@ -185,14 +185,19 @@ func loadJob(tx *sqlx.Tx, stmt *sqlx.NamedStmt, tags map[string]int64, path stri
 	}
 	defer f.Close()
 
-	var job schema.JobMeta = schema.JobMeta{BaseJob: schema.JobDefaults}
-	if err := json.NewDecoder(bufio.NewReader(f)).Decode(&job); err != nil {
+	var jobMeta schema.JobMeta = schema.JobMeta{BaseJob: schema.JobDefaults}
+	if err := json.NewDecoder(bufio.NewReader(f)).Decode(&jobMeta); err != nil {
 		return err
 	}
 
+	job := schema.Job{
+		BaseJob:   jobMeta.BaseJob,
+		StartTime: time.Unix(jobMeta.StartTime, 0),
+	}
+
 	// TODO: Other metrics...
-	job.FlopsAnyAvg = loadJobStat(&job, "flops_any")
-	job.MemBwAvg = loadJobStat(&job, "mem_bw")
+	job.FlopsAnyAvg = loadJobStat(&jobMeta, "flops_any")
+	job.MemBwAvg = loadJobStat(&jobMeta, "mem_bw")
 
 	job.RawResources, err = json.Marshal(job.Resources)
 	if err != nil {

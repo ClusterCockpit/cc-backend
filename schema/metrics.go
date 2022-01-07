@@ -5,14 +5,14 @@ import (
 	"io"
 )
 
-type JobData map[string]map[string]*JobMetric
+type JobData map[string]map[MetricScope]*JobMetric
 
 type JobMetric struct {
-	Unit        string       `json:"unit"`
-	Scope       MetricScope  `json:"scope"`
-	Timestep    int          `json:"timestep"`
-	Series      []Series     `json:"series"`
-	StatsSeries *StatsSeries `json:"statisticsSeries,omitempty"`
+	Unit             string       `json:"unit"`
+	Scope            MetricScope  `json:"scope"`
+	Timestep         int          `json:"timestep"`
+	Series           []Series     `json:"series"`
+	StatisticsSeries *StatsSeries `json:"statisticsSeries"`
 }
 
 type Series struct {
@@ -29,19 +29,36 @@ type MetricStatistics struct {
 }
 
 type StatsSeries struct {
-	Mean        []Float         `json:"mean,omitempty"`
-	Min         []Float         `json:"min,omitempty"`
-	Max         []Float         `json:"max,omitempty"`
+	Mean        []Float         `json:"mean"`
+	Min         []Float         `json:"min"`
+	Max         []Float         `json:"max"`
 	Percentiles map[int][]Float `json:"percentiles,omitempty"`
 }
 
 type MetricScope string
 
 const (
-	MetricScopeNode   MetricScope = "node"
-	MetricScopeSocket MetricScope = "socket"
-	MetricScopeCpu    MetricScope = "cpu"
+	MetricScopeNode     MetricScope = "node"
+	MetricScopeSocket   MetricScope = "socket"
+	MetricScopeCpu      MetricScope = "cpu"
+	MetricScopeHWThread MetricScope = "hwthread"
 )
+
+var metricScopeGranularity map[MetricScope]int = map[MetricScope]int{
+	MetricScopeNode:     1,
+	MetricScopeSocket:   2,
+	MetricScopeCpu:      3,
+	MetricScopeHWThread: 4,
+}
+
+func (e *MetricScope) MaxGranularity(other MetricScope) MetricScope {
+	a := metricScopeGranularity[*e]
+	b := metricScopeGranularity[other]
+	if a < b {
+		return *e
+	}
+	return other
+}
 
 func (e *MetricScope) UnmarshalGQL(v interface{}) error {
 	str, ok := v.(string)
@@ -50,7 +67,7 @@ func (e *MetricScope) UnmarshalGQL(v interface{}) error {
 	}
 
 	*e = MetricScope(str)
-	if *e != "node" && *e != "socket" && *e != "cpu" {
+	if _, ok := metricScopeGranularity[*e]; !ok {
 		return fmt.Errorf("%s is not a valid MetricScope", str)
 	}
 	return nil

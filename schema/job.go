@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+// Common subset of Job and JobMeta. Use one of those, not
+// this type directly.
 type BaseJob struct {
 	ID               int64       `json:"id" db:"id"`
 	JobID            int64       `json:"jobId" db:"job_id"`
@@ -25,23 +27,32 @@ type BaseJob struct {
 	State            JobState    `json:"jobState" db:"job_state"`
 	Duration         int32       `json:"duration" db:"duration"`
 	Tags             []*Tag      `json:"tags"`
-	RawResources     []byte      `json:"-" db:"resources"`
-	Resources        []Resource  `json:"resources"`
+	Resources        []*Resource `json:"resources"`
 	MetaData         interface{} `json:"metaData" db:"meta_data"`
-
-	MemUsedMax       float64 `json:"-" db:"mem_used_max"`
-	FlopsAnyAvg      float64 `json:"-" db:"flops_any_avg"`
-	MemBwAvg         float64 `json:"-" db:"mem_bw_avg"`
-	LoadAvg          float64 `json:"-" db:"load_avg"`
-	NetBwAvg         float64 `json:"-" db:"net_bw_avg"`
-	NetDataVolTotal  float64 `json:"-" db:"net_data_vol_total"`
-	FileBwAvg        float64 `json:"-" db:"file_bw_avg"`
-	FileDataVolTotal float64 `json:"-" db:"file_data_vol_total"`
 }
 
+// This type is used as the GraphQL interface and using sqlx as a table row.
+type Job struct {
+	BaseJob
+	RawResources     []byte    `json:"-" db:"resources"`
+	StartTime        time.Time `json:"startTime" db:"start_time"`
+	MemUsedMax       float64   `json:"-" db:"mem_used_max"`
+	FlopsAnyAvg      float64   `json:"-" db:"flops_any_avg"`
+	MemBwAvg         float64   `json:"-" db:"mem_bw_avg"`
+	LoadAvg          float64   `json:"-" db:"load_avg"`
+	NetBwAvg         float64   `json:"-" db:"net_bw_avg"`
+	NetDataVolTotal  float64   `json:"-" db:"net_data_vol_total"`
+	FileBwAvg        float64   `json:"-" db:"file_bw_avg"`
+	FileDataVolTotal float64   `json:"-" db:"file_data_vol_total"`
+}
+
+// When reading from the database or sending data via GraphQL, the start time can be in the much more
+// convenient time.Time type. In the `meta.json` files, the start time is encoded as a unix epoch timestamp.
+// This is why there is this struct, which contains all fields from the regular job struct, but "overwrites"
+// the StartTime field with one of type int64.
 type JobMeta struct {
 	BaseJob
-	StartTime  int64                    `json:"startTime" db:"start_time"`
+	StartTime  int64                    `json:"startTime"`
 	Statistics map[string]JobStatistics `json:"statistics,omitempty"`
 }
 
@@ -52,9 +63,9 @@ var JobDefaults BaseJob = BaseJob{
 }
 
 var JobColumns []string = []string{
-	"id", "job_id", "user", "project", "cluster", "partition", "array_job_id", "num_nodes",
-	"num_hwthreads", "num_acc", "exclusive", "monitoring_status", "smt", "job_state",
-	"duration", "resources", "meta_data",
+	"job.id", "job.job_id", "job.user", "job.project", "job.cluster", "job.start_time", "job.partition", "job.array_job_id", "job.num_nodes",
+	"job.num_hwthreads", "job.num_acc", "job.exclusive", "job.monitoring_status", "job.smt", "job.job_state",
+	"job.duration", "job.resources", "job.meta_data",
 }
 
 const JobInsertStmt string = `INSERT INTO job (
@@ -66,11 +77,6 @@ const JobInsertStmt string = `INSERT INTO job (
 	:exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :resources, :meta_data,
 	:mem_used_max, :flops_any_avg, :mem_bw_avg, :load_avg, :net_bw_avg, :net_data_vol_total, :file_bw_avg, :file_data_vol_total
 );`
-
-type Job struct {
-	BaseJob
-	StartTime time.Time `json:"startTime" db:"start_time"`
-}
 
 type Scannable interface {
 	StructScan(dest interface{}) error

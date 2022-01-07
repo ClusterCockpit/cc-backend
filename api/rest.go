@@ -4,8 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/ClusterCockpit/cc-jobarchive/config"
 	"github.com/ClusterCockpit/cc-jobarchive/graph"
@@ -17,9 +21,10 @@ import (
 )
 
 type RestApi struct {
-	DB             *sqlx.DB
-	Resolver       *graph.Resolver
-	AsyncArchiving bool
+	DB              *sqlx.DB
+	Resolver        *graph.Resolver
+	AsyncArchiving  bool
+	MachineStateDir string
 }
 
 func (api *RestApi) MountRoutes(r *mux.Router) {
@@ -29,6 +34,9 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 
 	r.HandleFunc("/api/jobs/{id}", api.getJob).Methods(http.MethodGet)
 	r.HandleFunc("/api/jobs/tag_job/{id}", api.tagJob).Methods(http.MethodPost, http.MethodPatch)
+
+	r.HandleFunc("/api/machine_state/{cluster}/{host}", api.getMachineState).Methods(http.MethodGet)
+	r.HandleFunc("/api/machine_state/{cluster}/{host}", api.putMachineState).Methods(http.MethodPut, http.MethodPost)
 }
 
 type StartJobApiRespone struct {
@@ -150,12 +158,17 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req.RawResources, err = json.Marshal(req.Resources)
+	job := schema.Job{
+		BaseJob:   req.BaseJob,
+		StartTime: time.Unix(req.StartTime, 0),
+	}
+
+	job.RawResources, err = json.Marshal(req.Resources)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	res, err := api.DB.NamedExec(schema.JobInsertStmt, req)
+	res, err := api.DB.NamedExec(schema.JobInsertStmt, job)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
@@ -277,4 +290,48 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 			json.NewEncoder(rw).Encode(job)
 		}
 	}
+}
+
+func (api *RestApi) putMachineState(rw http.ResponseWriter, r *http.Request) {
+	if api.MachineStateDir == "" {
+		http.Error(rw, "not enabled", http.StatusNotFound)
+		return
+	}
+
+	vars := mux.Vars(r)
+	cluster := vars["cluster"]
+	host := vars["host"]
+	dir := filepath.Join(api.MachineStateDir, cluster)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	filename := filepath.Join(dir, fmt.Sprintf("%s.json", host))
+	f, err := os.Create(filename)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer f.Close()
+
+	if _, err := io.Copy(f, r.Body); err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	rw.WriteHeader(http.StatusCreated)
+}
+
+func (api *RestApi) getMachineState(rw http.ResponseWriter, r *http.Request) {
+	if api.MachineStateDir == "" {
+		http.Error(rw, "not enabled", http.StatusNotFound)
+		return
+	}
+
+	vars := mux.Vars(r)
+	filename := filepath.Join(api.MachineStateDir, vars["cluster"], fmt.Sprintf("%s.json", vars["host"]))
+
+	// Sets the content-type and 'Last-Modified' Header and so on automatically
+	http.ServeFile(rw, r, filename)
 }
