@@ -21,7 +21,7 @@ type Job {
   monitoringStatus: Int!
   state:            JobState!
   tags:             [Tag!]!
-  resources:        [JobResource!]!
+  resources:        [Resource!]!
 }
 
 type Cluster {
@@ -61,7 +61,7 @@ type Accelerator {
 type MetricConfig {
   name:     String!
   unit:     String!
-  scope:    String!
+  scope:    MetricScope!
   timestep: Int!
   peak:     Float!
   normal:   Float!
@@ -75,7 +75,7 @@ type Tag {
   name: String!
 }
 
-type JobResource {
+type Resource {
   hostname:      String!
   hwthreads:     [Int!]
   accelerators:  [Int!]
@@ -91,8 +91,8 @@ type JobMetric {
   unit:             String!
   scope:            MetricScope!
   timestep:         Int!
-  series:           [Series!]!
-  statisticsSeries: [StatsSeries!]
+  series:           [Series!]
+  statisticsSeries: StatsSeries
 }
 
 type Series {
@@ -109,9 +109,9 @@ type MetricStatistics {
 }
 
 type StatsSeries {
-  mean: [NullableFloat!]
-  min:  [NullableFloat!]
-  max:  [NullableFloat!]
+  mean: [NullableFloat!]!
+  min:  [NullableFloat!]!
+  max:  [NullableFloat!]!
 }
 
 type MetricFootprints {

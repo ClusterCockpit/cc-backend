@@ -39,14 +39,6 @@ func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag,
 	return tags, nil
 }
 
-func (r *jobResolver) Resources(ctx context.Context, obj *schema.Job) ([]*model.JobResource, error) {
-	panic(fmt.Errorf("not implemented"))
-}
-
-func (r *jobMetricResolver) StatisticsSeries(ctx context.Context, obj *schema.JobMetric) ([]*schema.StatsSeries, error) {
-	panic(fmt.Errorf("not implemented"))
-}
-
 func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name string) (*schema.Tag, error) {
 	res, err := r.DB.Exec("INSERT INTO tag (tag_type, tag_name) VALUES ($1, $2)", typeArg, name)
 	if err != nil {
@@ -172,8 +164,7 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 		return nil, err
 	}
 
-	// TODO: FIXME: Do something with `scopes`
-	data, err := metricdata.LoadData(job, metrics, ctx)
+	data, err := metricdata.LoadData(job, metrics, scopes, ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -249,9 +240,6 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 // Job returns generated.JobResolver implementation.
 func (r *Resolver) Job() generated.JobResolver { return &jobResolver{r} }
 
-// JobMetric returns generated.JobMetricResolver implementation.
-func (r *Resolver) JobMetric() generated.JobMetricResolver { return &jobMetricResolver{r} }
-
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
 
@@ -259,6 +247,5 @@ func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResol
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
 type jobResolver struct{ *Resolver }
-type jobMetricResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }

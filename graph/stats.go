@@ -206,7 +206,7 @@ func (r *Resolver) rooflineHeatmap(ctx context.Context, filter []*model.JobFilte
 	}
 
 	for _, job := range jobs {
-		jobdata, err := metricdata.LoadData(job, []string{"flops_any", "mem_bw"}, ctx)
+		jobdata, err := metricdata.LoadData(job, []string{"flops_any", "mem_bw"}, []schema.MetricScope{schema.MetricScopeNode}, ctx)
 		if err != nil {
 			return nil, err
 		}

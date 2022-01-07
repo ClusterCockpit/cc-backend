@@ -98,7 +98,7 @@ func securityCheck(ctx context.Context, query sq.SelectBuilder) sq.SelectBuilder
 // Build a sq.SelectBuilder out of a schema.JobFilter.
 func buildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.SelectBuilder {
 	if filter.Tags != nil {
-		query = query.Join("jobtag ON jobtag.job_id = job.id").Where("jobtag.tag_id IN ?", filter.Tags)
+		query = query.Join("jobtag ON jobtag.job_id = job.id").Where(sq.Eq{"jobtag.tag_id": filter.Tags})
 	}
 	if filter.JobID != nil {
 		query = buildStringCondition("job.job_id", filter.JobID, query)
@@ -119,7 +119,12 @@ func buildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 		query = buildIntCondition("job.duration", filter.Duration, query)
 	}
 	if filter.State != nil {
-		query = query.Where("job.job_state IN ?", filter.State)
+		states := make([]string, len(filter.State))
+		for i, val := range filter.State {
+			states[i] = string(val)
+		}
+
+		query = query.Where(sq.Eq{"job.job_state": states})
 	}
 	if filter.NumNodes != nil {
 		query = buildIntCondition("job.num_nodes", filter.NumNodes, query)
@@ -164,20 +169,23 @@ func buildStringCondition(field string, cond *model.StringInput, query sq.Select
 		return query.Where(field+" = ?", *cond.Eq)
 	}
 	if cond.StartsWith != nil {
-		return query.Where(field+"LIKE ?", fmt.Sprint(*cond.StartsWith, "%"))
+		return query.Where(field+" LIKE ?", fmt.Sprint(*cond.StartsWith, "%"))
 	}
 	if cond.EndsWith != nil {
-		return query.Where(field+"LIKE ?", fmt.Sprint("%", *cond.StartsWith))
+		return query.Where(field+" LIKE ?", fmt.Sprint("%", *cond.EndsWith))
 	}
 	if cond.Contains != nil {
-		return query.Where(field+"LIKE ?", fmt.Sprint("%", *cond.StartsWith, "%"))
+		return query.Where(field+" LIKE ?", fmt.Sprint("%", *cond.Contains, "%"))
 	}
 	return query
 }
 
+var matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
+var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")
+
 func toSnakeCase(str string) string {
-	matchFirstCap := regexp.MustCompile("(.)([A-Z][a-z]+)")
-	matchAllCap := regexp.MustCompile("([a-z0-9])([A-Z])")
+	str = strings.ReplaceAll(str, "'", "")
+	str = strings.ReplaceAll(str, "\\", "")
 	snake := matchFirstCap.ReplaceAllString(str, "${1}_${2}")
 	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
 	return strings.ToLower(snake)

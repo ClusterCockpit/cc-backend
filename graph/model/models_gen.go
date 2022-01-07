@@ -64,13 +64,6 @@ type JobMetricWithName struct {
 	Metric *schema.JobMetric `json:"metric"`
 }
 
-type JobResource struct {
-	Hostname      string  `json:"hostname"`
-	Hwthreads     []int   `json:"hwthreads"`
-	Accelerators  []int   `json:"accelerators"`
-	Configuration *string `json:"configuration"`
-}
-
 type JobResultList struct {
 	Items  []*schema.Job `json:"items"`
 	Offset *int          `json:"offset"`
@@ -89,14 +82,14 @@ type JobsStatistics struct {
 }
 
 type MetricConfig struct {
-	Name     string  `json:"name"`
-	Unit     string  `json:"unit"`
-	Scope    string  `json:"scope"`
-	Timestep int     `json:"timestep"`
-	Peak     float64 `json:"peak"`
-	Normal   float64 `json:"normal"`
-	Caution  float64 `json:"caution"`
-	Alert    float64 `json:"alert"`
+	Name     string             `json:"name"`
+	Unit     string             `json:"unit"`
+	Scope    schema.MetricScope `json:"scope"`
+	Timestep int                `json:"timestep"`
+	Peak     float64            `json:"peak"`
+	Normal   float64            `json:"normal"`
+	Caution  float64            `json:"caution"`
+	Alert    float64            `json:"alert"`
 }
 
 type MetricFootprints struct {
