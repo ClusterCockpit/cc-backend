@@ -36,8 +36,8 @@ const JOBS_DB_SCHEMA string = `
 		num_nodes         INT NOT NULL,
 		num_hwthreads     INT NOT NULL,
 		num_acc           INT NOT NULL,
-		smt               TINYINT CHECK(smt IN               (0, 1   )) NOT NULL DEFAULT 1,
-		exclusive         TINYINT CHECK(exclusive IN         (0, 1, 2)) NOT NULL DEFAULT 1,
+		smt               TINYINT CHECK(smt               IN (0, 1   )) NOT NULL DEFAULT 1,
+		exclusive         TINYINT CHECK(exclusive         IN (0, 1, 2)) NOT NULL DEFAULT 1,
 		monitoring_status TINYINT CHECK(monitoring_status IN (0, 1   )) NOT NULL DEFAULT 1,
 
 		mem_used_max        REAL NOT NULL DEFAULT 0.0,
@@ -88,7 +88,15 @@ func initDB(db *sqlx.DB, archive string) error {
 		return err
 	}
 
-	stmt, err := tx.PrepareNamed(schema.JobInsertStmt)
+	stmt, err := tx.PrepareNamed(`INSERT INTO job (
+		job_id, user, project, cluster, partition, array_job_id, num_nodes, num_hwthreads, num_acc,
+		exclusive, monitoring_status, smt, job_state, start_time, duration, resources, meta_data,
+		mem_used_max, flops_any_avg, mem_bw_avg, load_avg, net_bw_avg, net_data_vol_total, file_bw_avg, file_data_vol_total
+	) VALUES (
+		:job_id, :user, :project, :cluster, :partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
+		:exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :resources, :meta_data,
+		:mem_used_max, :flops_any_avg, :mem_bw_avg, :load_avg, :net_bw_avg, :net_data_vol_total, :file_bw_avg, :file_data_vol_total
+	);`)
 	if err != nil {
 		return err
 	}

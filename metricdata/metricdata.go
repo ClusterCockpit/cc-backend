@@ -63,7 +63,13 @@ func LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ct
 			return nil, fmt.Errorf("no metric data repository configured for '%s'", job.Cluster)
 		}
 
-		return repo.LoadData(job, metrics, scopes, ctx)
+		data, err := repo.LoadData(job, metrics, scopes, ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		calcStatisticsSeries(job, data)
+		return data, nil
 	}
 
 	data, err := loadFromArchive(job)

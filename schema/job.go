@@ -11,7 +11,6 @@ import (
 // Common subset of Job and JobMeta. Use one of those, not
 // this type directly.
 type BaseJob struct {
-	ID               int64       `json:"id" db:"id"`
 	JobID            int64       `json:"jobId" db:"job_id"`
 	User             string      `json:"user" db:"user"`
 	Project          string      `json:"project" db:"project"`
@@ -27,14 +26,15 @@ type BaseJob struct {
 	State            JobState    `json:"jobState" db:"job_state"`
 	Duration         int32       `json:"duration" db:"duration"`
 	Tags             []*Tag      `json:"tags"`
+	RawResources     []byte      `json:"-" db:"resources"`
 	Resources        []*Resource `json:"resources"`
 	MetaData         interface{} `json:"metaData" db:"meta_data"`
 }
 
 // This type is used as the GraphQL interface and using sqlx as a table row.
 type Job struct {
+	ID int64 `json:"id" db:"id"`
 	BaseJob
-	RawResources     []byte    `json:"-" db:"resources"`
 	StartTime        time.Time `json:"startTime" db:"start_time"`
 	MemUsedMax       float64   `json:"-" db:"mem_used_max"`
 	FlopsAnyAvg      float64   `json:"-" db:"flops_any_avg"`
@@ -52,7 +52,7 @@ type Job struct {
 // the StartTime field with one of type int64.
 type JobMeta struct {
 	BaseJob
-	StartTime  int64                    `json:"startTime"`
+	StartTime  int64                    `json:"startTime" db:"start_time"`
 	Statistics map[string]JobStatistics `json:"statistics,omitempty"`
 }
 
@@ -68,16 +68,6 @@ var JobColumns []string = []string{
 	"job.duration", "job.resources", "job.meta_data",
 }
 
-const JobInsertStmt string = `INSERT INTO job (
-	job_id, user, project, cluster, partition, array_job_id, num_nodes, num_hwthreads, num_acc,
-	exclusive, monitoring_status, smt, job_state, start_time, duration, resources, meta_data,
-	mem_used_max, flops_any_avg, mem_bw_avg, load_avg, net_bw_avg, net_data_vol_total, file_bw_avg, file_data_vol_total
-) VALUES (
-	:job_id, :user, :project, :cluster, :partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
-	:exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :resources, :meta_data,
-	:mem_used_max, :flops_any_avg, :mem_bw_avg, :load_avg, :net_bw_avg, :net_data_vol_total, :file_bw_avg, :file_data_vol_total
-);`
-
 type Scannable interface {
 	StructScan(dest interface{}) error
 }
@@ -85,7 +75,7 @@ type Scannable interface {
 // Helper function for scanning jobs with the `jobTableCols` columns selected.
 func ScanJob(row Scannable) (*Job, error) {
 	job := &Job{BaseJob: JobDefaults}
-	if err := row.StructScan(&job); err != nil {
+	if err := row.StructScan(job); err != nil {
 		return nil, err
 	}
 
@@ -97,6 +87,7 @@ func ScanJob(row Scannable) (*Job, error) {
 		job.Duration = int32(time.Since(job.StartTime).Seconds())
 	}
 
+	job.RawResources = nil
 	return job, nil
 }
 

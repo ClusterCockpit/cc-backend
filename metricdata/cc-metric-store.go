@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -81,6 +82,7 @@ func (ccms *CCMetricStore) doRequest(job *schema.Job, suffix string, metrics []s
 }
 
 func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context) (schema.JobData, error) {
+	// log.Printf("job: %#v", job)
 
 	type ApiQuery struct {
 		Metric     string   `json:"metric"`
@@ -106,7 +108,7 @@ func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []
 	reqBody := ApiQueryRequest{
 		Cluster: job.Cluster,
 		From:    job.StartTime.Unix(),
-		To:      job.StartTime.Add(time.Duration(job.Duration)).Unix(),
+		To:      job.StartTime.Add(time.Duration(job.Duration) * time.Second).Unix(),
 		Queries: make([]ApiQuery, 0),
 	}
 
@@ -118,12 +120,20 @@ func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []
 	scopeForMetric := map[string]schema.MetricScope{}
 	for _, metric := range metrics {
 		mc := config.GetMetricConfig(job.Cluster, metric)
+		if mc == nil {
+			// return nil, fmt.Errorf("metric '%s' is not specified for cluster '%s'", metric, job.Cluster)
+			log.Printf("metric '%s' is not specified for cluster '%s'", metric, job.Cluster)
+			continue
+		}
+
 		nativeScope, requestedScope := mc.Scope, scopes[0]
 
 		// case 1: A metric is requested at node scope with a native scope of node as well
 		// case 2: A metric is requested at node scope and node is exclusive
+		// case 3: A metric has native scope node
 		if (nativeScope == requestedScope && nativeScope == schema.MetricScopeNode) ||
-			(job.Exclusive == 1 && requestedScope == schema.MetricScopeNode) {
+			(job.Exclusive == 1 && requestedScope == schema.MetricScopeNode) ||
+			(nativeScope == schema.MetricScopeNode) {
 			nodes := map[string]bool{}
 			for _, resource := range job.Resources {
 				nodes[resource.Hostname] = true
@@ -188,6 +198,8 @@ func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []
 		panic("todo")
 	}
 
+	// log.Printf("query: %#v", reqBody)
+
 	buf := &bytes.Buffer{}
 	if err := json.NewEncoder(buf).Encode(reqBody); err != nil {
 		return nil, err
@@ -213,9 +225,16 @@ func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []
 		return nil, err
 	}
 
+	// log.Printf("response: %#v", resBody)
+
 	var jobData schema.JobData = make(schema.JobData)
 	for _, res := range resBody {
+
 		metric := res.Query.Metric
+		if _, ok := jobData[metric]; !ok {
+			jobData[metric] = make(map[schema.MetricScope]*schema.JobMetric)
+		}
+
 		if res.Error != nil {
 			return nil, fmt.Errorf("cc-metric-store error while fetching %s: %s", metric, *res.Error)
 		}
@@ -237,6 +256,14 @@ func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []
 		if res.Query.Type != nil {
 			id = new(int)
 			*id, _ = strconv.Atoi(res.Query.TypeIds[0])
+		}
+
+		if res.Avg.IsNaN() || res.Min.IsNaN() || res.Max.IsNaN() {
+			// TODO: use schema.Float instead of float64?
+			// This is done because regular float64 can not be JSONed when NaN.
+			res.Avg = schema.Float(0)
+			res.Min = schema.Float(0)
+			res.Max = schema.Float(0)
 		}
 
 		jobMetric.Series = append(jobMetric.Series, schema.Series{

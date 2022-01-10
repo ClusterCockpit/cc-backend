@@ -243,7 +243,7 @@ func calcStatisticsSeries(job *schema.Job, jobData schema.JobData) error {
 			for i := 0; i < n; i++ {
 				sum, smin, smax := schema.Float(0.), math.MaxFloat32, -math.MaxFloat32
 				for _, series := range jobMetric.Series {
-					if len(series.Data) >= i {
+					if i >= len(series.Data) {
 						sum, smin, smax = schema.NaN, math.NaN(), math.NaN()
 						break
 					}
@@ -258,9 +258,9 @@ func calcStatisticsSeries(job *schema.Job, jobData schema.JobData) error {
 				max[i] = schema.Float(smax)
 			}
 
-			jobMetric.StatisticsSeries.Mean = mean
-			jobMetric.StatisticsSeries.Min = min
-			jobMetric.StatisticsSeries.Max = max
+			jobMetric.StatisticsSeries = &schema.StatsSeries{
+				Min: min, Mean: mean, Max: max,
+			}
 			jobMetric.Series = nil
 		}
 	}
