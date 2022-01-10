@@ -132,21 +132,6 @@ func UpdateConfig(key, value string, ctx context.Context) error {
 	return nil
 }
 
-// http.HandlerFunc compatible function that serves the current configuration as JSON.
-// TODO: Use templates and stuff instead of this...
-func ServeConfig(rw http.ResponseWriter, r *http.Request) {
-	config, err := GetUIConfig(r)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	rw.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(rw).Encode(config); err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
-	}
-}
-
 func GetClusterConfig(cluster string) *model.Cluster {
 	for _, c := range Clusters {
 		if c.Name == cluster {
