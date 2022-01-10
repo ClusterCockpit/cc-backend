@@ -8,13 +8,7 @@
 {{define "javascript"}}
     <script>
         const filterPresets = {{ .FilterPresets }};
-        const clusterCockpitConfigPromise = Promise.resolve({
-            plot_general_colorscheme:     {{ .Config.plot_general_colorscheme     }},
-            plot_general_lineWidth:       {{ .Config.plot_general_lineWidth       }},
-            plot_general_colorBackground: {{ .Config.plot_general_colorBackground }},
-            plot_list_selectedMetrics:    {{ .Config.plot_list_selectedMetrics    }},
-            plot_list_jobsPerPage:        {{ .Config.plot_list_jobsPerPage        }}
-        });
+        const clusterCockpitConfig = {{ .Config }};
     </script>
     <script src='/build/jobs.js'></script>
 {{end}}

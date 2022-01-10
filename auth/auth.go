@@ -23,12 +23,13 @@ import (
 )
 
 type User struct {
-	Username string
-	Password string
-	Name     string
-	IsAdmin  bool
-	ViaLdap  bool
-	Email    string
+	Username  string
+	Password  string
+	Name      string
+	IsAdmin   bool
+	IsAPIUser bool
+	ViaLdap   bool
+	Email     string
 }
 
 type ContextKey string
@@ -110,6 +111,9 @@ func AddUserToDB(db *sqlx.DB, arg string) error {
 	if parts[1] == "admin" {
 		roles = "[\"ROLE_ADMIN\"]"
 	}
+	if parts[1] == "api" {
+		roles = "[\"ROLE_API\"]"
+	}
 
 	_, err = sq.Insert("user").Columns("username", "password", "roles").Values(parts[0], string(password), roles).RunWith(db).Exec()
 	if err != nil {
@@ -124,7 +128,7 @@ func DelUserFromDB(db *sqlx.DB, username string) error {
 	return err
 }
 
-func fetchUserFromDB(db *sqlx.DB, username string) (*User, error) {
+func FetchUserFromDB(db *sqlx.DB, username string) (*User, error) {
 	user := &User{Username: username}
 	var hashedPassword, name, rawRoles, email sql.NullString
 	if err := sq.Select("password", "ldap", "name", "roles", "email").From("user").
@@ -141,8 +145,11 @@ func fetchUserFromDB(db *sqlx.DB, username string) (*User, error) {
 		json.Unmarshal([]byte(rawRoles.String), &roles)
 	}
 	for _, role := range roles {
-		if role == "ROLE_ADMIN" {
+		switch role {
+		case "ROLE_ADMIN":
 			user.IsAdmin = true
+		case "ROLE_API":
+			user.IsAPIUser = true
 		}
 	}
 
@@ -154,7 +161,7 @@ func fetchUserFromDB(db *sqlx.DB, username string) (*User, error) {
 func Login(db *sqlx.DB) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		username, password := r.FormValue("username"), r.FormValue("password")
-		user, err := fetchUserFromDB(db, username)
+		user, err := FetchUserFromDB(db, username)
 		if err == nil && user.ViaLdap && ldapAuthEnabled {
 			err = loginViaLdap(user, password)
 		} else if err == nil && !user.ViaLdap && user.Password != "" {
@@ -168,7 +175,7 @@ func Login(db *sqlx.DB) http.Handler {
 		if err != nil {
 			log.Printf("login failed: %s\n", err.Error())
 			rw.WriteHeader(http.StatusUnauthorized)
-			templates.Render(rw, r, "login", &templates.Page{
+			templates.Render(rw, r, "login.html", &templates.Page{
 				Title: "Login failed",
 				Login: &templates.LoginPage{
 					Error: "Username or password incorrect",
@@ -231,9 +238,11 @@ func authViaToken(r *http.Request) (*User, error) {
 	claims := token.Claims.(jwt.MapClaims)
 	sub, _ := claims["sub"].(string)
 	isAdmin, _ := claims["is_admin"].(bool)
+	isAPIUser, _ := claims["is_api"].(bool)
 	return &User{
-		Username: sub,
-		IsAdmin:  isAdmin,
+		Username:  sub,
+		IsAdmin:   isAdmin,
+		IsAPIUser: isAPIUser,
 	}, nil
 }
 
@@ -264,7 +273,7 @@ func Auth(next http.Handler) http.Handler {
 			log.Printf("authentication failed: no session or jwt found\n")
 
 			rw.WriteHeader(http.StatusUnauthorized)
-			templates.Render(rw, r, "login", &templates.Page{
+			templates.Render(rw, r, "login.html", &templates.Page{
 				Title: "Authentication failed",
 				Login: &templates.LoginPage{
 					Error: "No valid session or JWT provided",
@@ -290,6 +299,7 @@ func ProvideJWT(user *User) (string, error) {
 	tok := jwt.NewWithClaims(jwt.SigningMethodEdDSA, jwt.MapClaims{
 		"sub":      user.Username,
 		"is_admin": user.IsAdmin,
+		"is_api":   user.IsAPIUser,
 	})
 
 	return tok.SignedString(JwtPrivateKey)
@@ -320,7 +330,7 @@ func Logout(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	templates.Render(rw, r, "login", &templates.Page{
+	templates.Render(rw, r, "login.html", &templates.Page{
 		Title: "Logout successful",
 		Login: &templates.LoginPage{
 			Info: "Logout successful",

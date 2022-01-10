@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/ClusterCockpit/cc-jobarchive/config"
 	"github.com/ClusterCockpit/cc-jobarchive/graph"
@@ -28,15 +27,18 @@ type RestApi struct {
 }
 
 func (api *RestApi) MountRoutes(r *mux.Router) {
-	r.HandleFunc("/api/jobs/start_job/", api.startJob).Methods(http.MethodPost, http.MethodPut)
-	r.HandleFunc("/api/jobs/stop_job/", api.stopJob).Methods(http.MethodPost, http.MethodPut)
-	r.HandleFunc("/api/jobs/stop_job/{id}", api.stopJob).Methods(http.MethodPost, http.MethodPut)
+	r = r.PathPrefix("/api").Subrouter()
+	r.StrictSlash(true)
 
-	r.HandleFunc("/api/jobs/{id}", api.getJob).Methods(http.MethodGet)
-	r.HandleFunc("/api/jobs/tag_job/{id}", api.tagJob).Methods(http.MethodPost, http.MethodPatch)
+	r.HandleFunc("/jobs/start_job/", api.startJob).Methods(http.MethodPost, http.MethodPut)
+	r.HandleFunc("/jobs/stop_job/", api.stopJob).Methods(http.MethodPost, http.MethodPut)
+	r.HandleFunc("/jobs/stop_job/{id}", api.stopJob).Methods(http.MethodPost, http.MethodPut)
 
-	r.HandleFunc("/api/machine_state/{cluster}/{host}", api.getMachineState).Methods(http.MethodGet)
-	r.HandleFunc("/api/machine_state/{cluster}/{host}", api.putMachineState).Methods(http.MethodPut, http.MethodPost)
+	r.HandleFunc("/jobs/{id}", api.getJob).Methods(http.MethodGet)
+	r.HandleFunc("/jobs/tag_job/{id}", api.tagJob).Methods(http.MethodPost, http.MethodPatch)
+
+	r.HandleFunc("/machine_state/{cluster}/{host}", api.getMachineState).Methods(http.MethodGet)
+	r.HandleFunc("/machine_state/{cluster}/{host}", api.putMachineState).Methods(http.MethodPut, http.MethodPost)
 }
 
 type StartJobApiRespone struct {
@@ -158,17 +160,18 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job := schema.Job{
-		BaseJob:   req.BaseJob,
-		StartTime: time.Unix(req.StartTime, 0),
-	}
-
-	job.RawResources, err = json.Marshal(req.Resources)
+	req.RawResources, err = json.Marshal(req.Resources)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	res, err := api.DB.NamedExec(schema.JobInsertStmt, job)
+	res, err := api.DB.NamedExec(`INSERT INTO job (
+		job_id, user, project, cluster, partition, array_job_id, num_nodes, num_hwthreads, num_acc,
+		exclusive, monitoring_status, smt, job_state, start_time, duration, resources, meta_data
+	) VALUES (
+		:job_id, :user, :project, :cluster, :partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
+		:exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :resources, :meta_data
+	);`, req)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return

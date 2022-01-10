@@ -106,13 +106,14 @@ var programConfig ProgramConfig = ProgramConfig{
 func main() {
 	var flagReinitDB, flagStopImmediately, flagSyncLDAP bool
 	var flagConfigFile string
-	var flagNewUser, flagDelUser string
+	var flagNewUser, flagDelUser, flagGenJWT string
 	flag.BoolVar(&flagReinitDB, "init-db", false, "Go through job-archive and re-initialize `job`, `tag`, and `jobtag` tables")
 	flag.BoolVar(&flagSyncLDAP, "sync-ldap", false, "Sync the `user` table with ldap")
 	flag.BoolVar(&flagStopImmediately, "no-server", false, "Do not start a server, stop right after initialization and argument handling")
 	flag.StringVar(&flagConfigFile, "config", "", "Location of the config file for this server (overwrites the defaults)")
-	flag.StringVar(&flagNewUser, "add-user", "", "Add a new user. Argument format: `<username>:[admin]:<password>`")
+	flag.StringVar(&flagNewUser, "add-user", "", "Add a new user. Argument format: `<username>:[admin|api]:<password>`")
 	flag.StringVar(&flagDelUser, "del-user", "", "Remove user by username")
+	flag.StringVar(&flagGenJWT, "jwt", "", "Generate and print a JWT for the user specified by the username")
 	flag.Parse()
 
 	if flagConfigFile != "" {
@@ -156,6 +157,24 @@ func main() {
 		if flagSyncLDAP {
 			auth.SyncWithLDAP(db)
 		}
+
+		if flagGenJWT != "" {
+			user, err := auth.FetchUserFromDB(db, flagGenJWT)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			if !user.IsAPIUser {
+				log.Println("warning: that user does not have the API role")
+			}
+
+			jwt, err := auth.ProvideJWT(user)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			fmt.Printf("JWT for '%s': %s\n", user.Username, jwt)
+		}
 	} else if flagNewUser != "" || flagDelUser != "" {
 		log.Fatalln("arguments --add-user and --del-user can only be used if authentication is enabled")
 	}
@@ -182,6 +201,18 @@ func main() {
 
 	resolver := &graph.Resolver{DB: db}
 	graphQLEndpoint := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
+
+	// graphQLEndpoint.SetRecoverFunc(func(ctx context.Context, err interface{}) error {
+	// 	switch e := err.(type) {
+	// 	case string:
+	// 		return fmt.Errorf("panic: %s", e)
+	// 	case error:
+	// 		return fmt.Errorf("panic caused by: %w", e)
+	// 	}
+
+	// 	return errors.New("internal server error (panic)")
+	// })
+
 	graphQLPlayground := playground.Handler("GraphQL playground", "/query")
 	api := &api.RestApi{
 		DB:              db,
@@ -191,7 +222,7 @@ func main() {
 	}
 
 	handleGetLogin := func(rw http.ResponseWriter, r *http.Request) {
-		templates.Render(rw, r, "login", &templates.Page{
+		templates.Render(rw, r, "login.html", &templates.Page{
 			Title: "Login",
 			Login: &templates.LoginPage{},
 		})
@@ -199,7 +230,7 @@ func main() {
 
 	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		templates.Render(rw, r, "404", &templates.Page{
+		templates.Render(rw, r, "404.html", &templates.Page{
 			Title: "Not found",
 		})
 	})
@@ -214,8 +245,6 @@ func main() {
 		secured.Use(auth.Auth)
 	}
 	secured.Handle("/query", graphQLEndpoint)
-
-	secured.HandleFunc("/config.json", config.ServeConfig).Methods(http.MethodGet)
 
 	secured.HandleFunc("/", func(rw http.ResponseWriter, r *http.Request) {
 		conf, err := config.GetUIConfig(r)
@@ -235,7 +264,7 @@ func main() {
 			infos["admin"] = user.IsAdmin
 		}
 
-		templates.Render(rw, r, "home", &templates.Page{
+		templates.Render(rw, r, "home.html", &templates.Page{
 			Title:  "ClusterCockpit",
 			Config: conf,
 			Infos:  infos,
@@ -297,7 +326,7 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 			return
 		}
 
-		templates.Render(rw, r, "monitoring/jobs/", &templates.Page{
+		templates.Render(rw, r, "monitoring/jobs.html", &templates.Page{
 			Title:         "Jobs - ClusterCockpit",
 			Config:        conf,
 			FilterPresets: buildFilterPresets(r.URL.Query()),
@@ -318,7 +347,7 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 			return
 		}
 
-		templates.Render(rw, r, "monitoring/job/", &templates.Page{
+		templates.Render(rw, r, "monitoring/job.html", &templates.Page{
 			Title:  fmt.Sprintf("Job %d - ClusterCockpit", job.JobID),
 			Config: conf,
 			Infos: map[string]interface{}{
@@ -336,7 +365,7 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 			return
 		}
 
-		templates.Render(rw, r, "monitoring/users/", &templates.Page{
+		templates.Render(rw, r, "monitoring/users.html", &templates.Page{
 			Title:  "Users - ClusterCockpit",
 			Config: conf,
 		})
@@ -353,7 +382,7 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 		// TODO: One could check if the user exists, but that would be unhelpfull if authentication
 		// is disabled or the user does not exist but has started jobs.
 
-		templates.Render(rw, r, "monitoring/user/", &templates.Page{
+		templates.Render(rw, r, "monitoring/user.html", &templates.Page{
 			Title:         fmt.Sprintf("User %s - ClusterCockpit", id),
 			Config:        conf,
 			Infos:         map[string]interface{}{"username": id},
@@ -374,7 +403,7 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 			filterPresets["clusterId"] = query.Get("cluster")
 		}
 
-		templates.Render(rw, r, "monitoring/analysis/", &templates.Page{
+		templates.Render(rw, r, "monitoring/analysis.html", &templates.Page{
 			Title:         "Analysis View - ClusterCockpit",
 			Config:        conf,
 			FilterPresets: filterPresets,
@@ -394,7 +423,7 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 			filterPresets["clusterId"] = query.Get("cluster")
 		}
 
-		templates.Render(rw, r, "monitoring/systems/", &templates.Page{
+		templates.Render(rw, r, "monitoring/systems.html", &templates.Page{
 			Title:         "System View - ClusterCockpit",
 			Config:        conf,
 			FilterPresets: filterPresets,
@@ -409,7 +438,7 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 		}
 
 		vars := mux.Vars(r)
-		templates.Render(rw, r, "monitoring/node/", &templates.Page{
+		templates.Render(rw, r, "monitoring/node.html", &templates.Page{
 			Title:  fmt.Sprintf("Node %s - ClusterCockpit", vars["nodeId"]),
 			Config: conf,
 			Infos: map[string]interface{}{

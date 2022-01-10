@@ -6,7 +6,9 @@ import (
 	"net/http"
 )
 
-var templates map[string]*template.Template
+var templatesDir string
+var debugMode bool = true
+var templates map[string]*template.Template = map[string]*template.Template{}
 
 type Page struct {
 	Title         string
@@ -22,25 +24,30 @@ type LoginPage struct {
 }
 
 func init() {
-	base := template.Must(template.ParseFiles("./templates/base.html"))
-	templates = map[string]*template.Template{
-		"home":                 template.Must(template.Must(base.Clone()).ParseFiles("./templates/home.html")),
-		"404":                  template.Must(template.Must(base.Clone()).ParseFiles("./templates/404.html")),
-		"login":                template.Must(template.Must(base.Clone()).ParseFiles("./templates/login.html")),
-		"monitoring/jobs/":     template.Must(template.Must(base.Clone()).ParseFiles("./templates/monitoring/jobs.html")),
-		"monitoring/job/":      template.Must(template.Must(base.Clone()).ParseFiles("./templates/monitoring/job.html")),
-		"monitoring/users/":    template.Must(template.Must(base.Clone()).ParseFiles("./templates/monitoring/users.html")),
-		"monitoring/user/":     template.Must(template.Must(base.Clone()).ParseFiles("./templates/monitoring/user.html")),
-		"monitoring/analysis/": template.Must(template.Must(base.Clone()).ParseFiles("./templates/monitoring/analysis.html")),
-		"monitoring/systems/":  template.Must(template.Must(base.Clone()).ParseFiles("./templates/monitoring/systems.html")),
-		"monitoring/node/":     template.Must(template.Must(base.Clone()).ParseFiles("./templates/monitoring/node.html")),
+	templatesDir = "./templates/"
+	base := template.Must(template.ParseFiles(templatesDir + "base.html"))
+	files := []string{
+		"home.html", "404.html", "login.html",
+		"monitoring/jobs.html", "monitoring/job.html",
+		"monitoring/users.html", "monitoring/user.html",
+		"monitoring/analysis.html",
+		"monitoring/systems.html",
+		"monitoring/node.html",
+	}
+
+	for _, file := range files {
+		templates[file] = template.Must(template.Must(base.Clone()).ParseFiles(templatesDir + file))
 	}
 }
 
-func Render(rw http.ResponseWriter, r *http.Request, name string, page *Page) {
-	t, ok := templates[name]
+func Render(rw http.ResponseWriter, r *http.Request, file string, page *Page) {
+	t, ok := templates[file]
 	if !ok {
 		panic("templates must be predefinied!")
+	}
+
+	if debugMode {
+		t = template.Must(template.ParseFiles(templatesDir+"base.html", templatesDir+file))
 	}
 
 	if err := t.Execute(rw, page); err != nil {
