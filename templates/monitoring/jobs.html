@@ -1,0 +1,14 @@
+{{define "content"}}
+    <div id="svelte-app"></div>
+{{end}}
+
+{{define "stylesheets"}}
+    <link rel='stylesheet' href='/build/jobs.css'>
+{{end}}
+{{define "javascript"}}
+    <script>
+        const filterPresets = {{ .FilterPresets }};
+        const clusterCockpitConfig = {{ .Config }};
+    </script>
+    <script src='/build/jobs.js'></script>
+{{end}}

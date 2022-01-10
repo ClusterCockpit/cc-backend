@@ -11,17 +11,10 @@ import (
 	"github.com/ClusterCockpit/cc-jobarchive/schema"
 )
 
-type Cluster struct {
-	ClusterID       string          `json:"clusterID"`
-	ProcessorType   string          `json:"processorType"`
-	SocketsPerNode  int             `json:"socketsPerNode"`
-	CoresPerSocket  int             `json:"coresPerSocket"`
-	ThreadsPerCore  int             `json:"threadsPerCore"`
-	FlopRateScalar  int             `json:"flopRateScalar"`
-	FlopRateSimd    int             `json:"flopRateSimd"`
-	MemoryBandwidth int             `json:"memoryBandwidth"`
-	MetricConfig    []*MetricConfig `json:"metricConfig"`
-	FilterRanges    *FilterRanges   `json:"filterRanges"`
+type Accelerator struct {
+	ID    string `json:"id"`
+	Type  string `json:"type"`
+	Model string `json:"model"`
 }
 
 type FilterRanges struct {
@@ -50,41 +43,20 @@ type IntRangeOutput struct {
 	To   int `json:"to"`
 }
 
-type Job struct {
-	ID          string    `json:"id"`
-	JobID       string    `json:"jobId"`
-	UserID      string    `json:"userId"`
-	ProjectID   string    `json:"projectId"`
-	ClusterID   string    `json:"clusterId"`
-	StartTime   time.Time `json:"startTime"`
-	Duration    int       `json:"duration"`
-	NumNodes    int       `json:"numNodes"`
-	Nodes       []string  `json:"nodes"`
-	HasProfile  bool      `json:"hasProfile"`
-	State       JobState  `json:"state"`
-	Tags        []*JobTag `json:"tags"`
-	LoadAvg     *float64  `json:"loadAvg"`
-	MemUsedMax  *float64  `json:"memUsedMax"`
-	FlopsAnyAvg *float64  `json:"flopsAnyAvg"`
-	MemBwAvg    *float64  `json:"memBwAvg"`
-	NetBwAvg    *float64  `json:"netBwAvg"`
-	FileBwAvg   *float64  `json:"fileBwAvg"`
-}
-
 type JobFilter struct {
-	Tags        []string     `json:"tags"`
-	JobID       *StringInput `json:"jobId"`
-	UserID      *StringInput `json:"userId"`
-	ProjectID   *StringInput `json:"projectId"`
-	ClusterID   *StringInput `json:"clusterId"`
-	Duration    *IntRange    `json:"duration"`
-	NumNodes    *IntRange    `json:"numNodes"`
-	StartTime   *TimeRange   `json:"startTime"`
-	IsRunning   *bool        `json:"isRunning"`
-	FlopsAnyAvg *FloatRange  `json:"flopsAnyAvg"`
-	MemBwAvg    *FloatRange  `json:"memBwAvg"`
-	LoadAvg     *FloatRange  `json:"loadAvg"`
-	MemUsedMax  *FloatRange  `json:"memUsedMax"`
+	Tags        []string          `json:"tags"`
+	JobID       *StringInput      `json:"jobId"`
+	User        *StringInput      `json:"user"`
+	Project     *StringInput      `json:"project"`
+	Cluster     *StringInput      `json:"cluster"`
+	Duration    *IntRange         `json:"duration"`
+	NumNodes    *IntRange         `json:"numNodes"`
+	StartTime   *TimeRange        `json:"startTime"`
+	State       []schema.JobState `json:"state"`
+	FlopsAnyAvg *FloatRange       `json:"flopsAnyAvg"`
+	MemBwAvg    *FloatRange       `json:"memBwAvg"`
+	LoadAvg     *FloatRange       `json:"loadAvg"`
+	MemUsedMax  *FloatRange       `json:"memUsedMax"`
 }
 
 type JobMetricWithName struct {
@@ -93,10 +65,10 @@ type JobMetricWithName struct {
 }
 
 type JobResultList struct {
-	Items  []*Job `json:"items"`
-	Offset *int   `json:"offset"`
-	Limit  *int   `json:"limit"`
-	Count  *int   `json:"count"`
+	Items  []*schema.Job `json:"items"`
+	Offset *int          `json:"offset"`
+	Limit  *int          `json:"limit"`
+	Count  *int          `json:"count"`
 }
 
 type JobsStatistics struct {
@@ -110,18 +82,29 @@ type JobsStatistics struct {
 }
 
 type MetricConfig struct {
-	Name       string `json:"name"`
-	Unit       string `json:"unit"`
-	Sampletime int    `json:"sampletime"`
-	Peak       int    `json:"peak"`
-	Normal     int    `json:"normal"`
-	Caution    int    `json:"caution"`
-	Alert      int    `json:"alert"`
+	Name     string             `json:"name"`
+	Unit     string             `json:"unit"`
+	Scope    schema.MetricScope `json:"scope"`
+	Timestep int                `json:"timestep"`
+	Peak     float64            `json:"peak"`
+	Normal   float64            `json:"normal"`
+	Caution  float64            `json:"caution"`
+	Alert    float64            `json:"alert"`
 }
 
 type MetricFootprints struct {
 	Name       string         `json:"name"`
 	Footprints []schema.Float `json:"footprints"`
+}
+
+type NodeMetric struct {
+	Name string         `json:"name"`
+	Data []schema.Float `json:"data"`
+}
+
+type NodeMetrics struct {
+	ID      string        `json:"id"`
+	Metrics []*NodeMetric `json:"metrics"`
 }
 
 type OrderByInput struct {
@@ -132,6 +115,18 @@ type OrderByInput struct {
 type PageRequest struct {
 	ItemsPerPage int `json:"itemsPerPage"`
 	Page         int `json:"page"`
+}
+
+type Partition struct {
+	Name            string    `json:"name"`
+	ProcessorType   string    `json:"processorType"`
+	SocketsPerNode  int       `json:"socketsPerNode"`
+	CoresPerSocket  int       `json:"coresPerSocket"`
+	ThreadsPerCore  int       `json:"threadsPerCore"`
+	FlopRateScalar  int       `json:"flopRateScalar"`
+	FlopRateSimd    int       `json:"flopRateSimd"`
+	MemoryBandwidth int       `json:"memoryBandwidth"`
+	Topology        *Topology `json:"topology"`
 }
 
 type StringInput struct {
@@ -149,6 +144,15 @@ type TimeRange struct {
 type TimeRangeOutput struct {
 	From time.Time `json:"from"`
 	To   time.Time `json:"to"`
+}
+
+type Topology struct {
+	Node         []int          `json:"node"`
+	Socket       [][]int        `json:"socket"`
+	MemoryDomain [][]int        `json:"memoryDomain"`
+	Die          [][]int        `json:"die"`
+	Core         [][]int        `json:"core"`
+	Accelerators []*Accelerator `json:"accelerators"`
 }
 
 type Aggregate string
@@ -191,47 +195,6 @@ func (e *Aggregate) UnmarshalGQL(v interface{}) error {
 }
 
 func (e Aggregate) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
-}
-
-type JobState string
-
-const (
-	JobStateRunning   JobState = "running"
-	JobStateCompleted JobState = "completed"
-)
-
-var AllJobState = []JobState{
-	JobStateRunning,
-	JobStateCompleted,
-}
-
-func (e JobState) IsValid() bool {
-	switch e {
-	case JobStateRunning, JobStateCompleted:
-		return true
-	}
-	return false
-}
-
-func (e JobState) String() string {
-	return string(e)
-}
-
-func (e *JobState) UnmarshalGQL(v interface{}) error {
-	str, ok := v.(string)
-	if !ok {
-		return fmt.Errorf("enums must be strings")
-	}
-
-	*e = JobState(str)
-	if !e.IsValid() {
-		return fmt.Errorf("%s is not a valid JobState", str)
-	}
-	return nil
-}
-
-func (e JobState) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 

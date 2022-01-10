@@ -1,12 +1,15 @@
 package graph
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 
+	"github.com/ClusterCockpit/cc-jobarchive/auth"
 	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
+	"github.com/ClusterCockpit/cc-jobarchive/schema"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
 )
@@ -19,31 +22,10 @@ type Resolver struct {
 	DB *sqlx.DB
 }
 
-var JobTableCols []string = []string{"id", "job_id", "user_id", "project_id", "cluster_id", "start_time", "duration", "job_state", "num_nodes", "node_list", "flops_any_avg", "mem_bw_avg", "net_bw_avg", "file_bw_avg", "load_avg"}
-
-type Scannable interface {
-	Scan(dest ...interface{}) error
-}
-
-// Helper function for scanning jobs with the `jobTableCols` columns selected.
-func ScanJob(row Scannable) (*model.Job, error) {
-	job := &model.Job{HasProfile: true}
-
-	var nodeList string
-	if err := row.Scan(
-		&job.ID, &job.JobID, &job.UserID, &job.ProjectID, &job.ClusterID,
-		&job.StartTime, &job.Duration, &job.State, &job.NumNodes, &nodeList,
-		&job.FlopsAnyAvg, &job.MemBwAvg, &job.NetBwAvg, &job.FileBwAvg, &job.LoadAvg); err != nil {
-		return nil, err
-	}
-
-	job.Nodes = strings.Split(nodeList, ",")
-	return job, nil
-}
-
 // Helper function for the `jobs` GraphQL-Query. Is also used elsewhere when a list of jobs is needed.
-func (r *Resolver) queryJobs(filters []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) ([]*model.Job, int, error) {
-	query := sq.Select(JobTableCols...).From("job")
+func (r *Resolver) queryJobs(ctx context.Context, filters []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) ([]*schema.Job, int, error) {
+	query := sq.Select(schema.JobColumns...).From("job")
+	query = securityCheck(ctx, query)
 
 	if order != nil {
 		field := toSnakeCase(order.Field)
@@ -67,55 +49,68 @@ func (r *Resolver) queryJobs(filters []*model.JobFilter, page *model.PageRequest
 		query = buildWhereClause(f, query)
 	}
 
-	rows, err := query.RunWith(r.DB).Query()
+	sql, args, err := query.ToSql()
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
 
-	jobs := make([]*model.Job, 0, 50)
+	rows, err := r.DB.Queryx(sql, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	jobs := make([]*schema.Job, 0, 50)
 	for rows.Next() {
-		job, err := ScanJob(rows)
+		job, err := schema.ScanJob(rows)
 		if err != nil {
 			return nil, 0, err
 		}
 		jobs = append(jobs, job)
 	}
 
+	// count all jobs:
 	query = sq.Select("count(*)").From("job")
 	for _, f := range filters {
 		query = buildWhereClause(f, query)
 	}
-	rows, err = query.RunWith(r.DB).Query()
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
 	var count int
-	rows.Next()
-	if err := rows.Scan(&count); err != nil {
+	if err := query.RunWith(r.DB).Scan(&count); err != nil {
 		return nil, 0, err
 	}
 
 	return jobs, count, nil
 }
 
-// Build a sq.SelectBuilder out of a model.JobFilter.
+func securityCheck(ctx context.Context, query sq.SelectBuilder) sq.SelectBuilder {
+	val := ctx.Value(auth.ContextUserKey)
+	if val == nil {
+		return query
+	}
+
+	user := val.(*auth.User)
+	if user.IsAdmin {
+		return query
+	}
+
+	return query.Where("job.user_id = ?", user.Username)
+}
+
+// Build a sq.SelectBuilder out of a schema.JobFilter.
 func buildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.SelectBuilder {
 	if filter.Tags != nil {
-		query = query.Join("jobtag ON jobtag.job_id = job.id").Where("jobtag.tag_id IN ?", filter.Tags)
+		query = query.Join("jobtag ON jobtag.job_id = job.id").Where(sq.Eq{"jobtag.tag_id": filter.Tags})
 	}
 	if filter.JobID != nil {
 		query = buildStringCondition("job.job_id", filter.JobID, query)
 	}
-	if filter.UserID != nil {
-		query = buildStringCondition("job.user_id", filter.UserID, query)
+	if filter.User != nil {
+		query = buildStringCondition("job.user", filter.User, query)
 	}
-	if filter.ProjectID != nil {
-		query = buildStringCondition("job.project_id", filter.ProjectID, query)
+	if filter.Project != nil {
+		query = buildStringCondition("job.project", filter.Project, query)
 	}
-	if filter.ClusterID != nil {
-		query = buildStringCondition("job.cluster_id", filter.ClusterID, query)
+	if filter.Cluster != nil {
+		query = buildStringCondition("job.cluster", filter.Cluster, query)
 	}
 	if filter.StartTime != nil {
 		query = buildTimeCondition("job.start_time", filter.StartTime, query)
@@ -123,12 +118,13 @@ func buildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	if filter.Duration != nil {
 		query = buildIntCondition("job.duration", filter.Duration, query)
 	}
-	if filter.IsRunning != nil {
-		if *filter.IsRunning {
-			query = query.Where("job.job_state = 'running'")
-		} else {
-			query = query.Where("job.job_state = 'completed'")
+	if filter.State != nil {
+		states := make([]string, len(filter.State))
+		for i, val := range filter.State {
+			states[i] = string(val)
 		}
+
+		query = query.Where(sq.Eq{"job.job_state": states})
 	}
 	if filter.NumNodes != nil {
 		query = buildIntCondition("job.num_nodes", filter.NumNodes, query)
@@ -173,20 +169,23 @@ func buildStringCondition(field string, cond *model.StringInput, query sq.Select
 		return query.Where(field+" = ?", *cond.Eq)
 	}
 	if cond.StartsWith != nil {
-		return query.Where(field+"LIKE ?", fmt.Sprint(*cond.StartsWith, "%"))
+		return query.Where(field+" LIKE ?", fmt.Sprint(*cond.StartsWith, "%"))
 	}
 	if cond.EndsWith != nil {
-		return query.Where(field+"LIKE ?", fmt.Sprint("%", *cond.StartsWith))
+		return query.Where(field+" LIKE ?", fmt.Sprint("%", *cond.EndsWith))
 	}
 	if cond.Contains != nil {
-		return query.Where(field+"LIKE ?", fmt.Sprint("%", *cond.StartsWith, "%"))
+		return query.Where(field+" LIKE ?", fmt.Sprint("%", *cond.Contains, "%"))
 	}
 	return query
 }
 
+var matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
+var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")
+
 func toSnakeCase(str string) string {
-	matchFirstCap := regexp.MustCompile("(.)([A-Z][a-z]+)")
-	matchAllCap := regexp.MustCompile("([a-z0-9])([A-Z])")
+	str = strings.ReplaceAll(str, "'", "")
+	str = strings.ReplaceAll(str, "\\", "")
 	snake := matchFirstCap.ReplaceAllString(str, "${1}_${2}")
 	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
 	return strings.ToLower(snake)

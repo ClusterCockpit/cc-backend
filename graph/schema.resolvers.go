@@ -5,42 +5,41 @@ package graph
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
+	"github.com/ClusterCockpit/cc-jobarchive/auth"
 	"github.com/ClusterCockpit/cc-jobarchive/config"
 	"github.com/ClusterCockpit/cc-jobarchive/graph/generated"
 	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
 	"github.com/ClusterCockpit/cc-jobarchive/metricdata"
+	"github.com/ClusterCockpit/cc-jobarchive/schema"
 	sq "github.com/Masterminds/squirrel"
 )
 
-func (r *jobResolver) Tags(ctx context.Context, obj *model.Job) ([]*model.JobTag, error) {
+func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error) {
 	query := sq.
 		Select("tag.id", "tag.tag_type", "tag.tag_name").
 		From("tag").
 		Join("jobtag ON jobtag.tag_id = tag.id").
 		Where("jobtag.job_id = ?", obj.ID)
 
-	rows, err := query.RunWith(r.DB).Query()
+	sql, args, err := query.ToSql()
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	tags := make([]*model.JobTag, 0)
-	for rows.Next() {
-		var tag model.JobTag
-		if err := rows.Scan(&tag.ID, &tag.TagType, &tag.TagName); err != nil {
-			return nil, err
-		}
-		tags = append(tags, &tag)
+	tags := make([]*schema.Tag, 0)
+	if err := r.DB.Select(&tags, sql, args...); err != nil {
+		return nil, err
 	}
 
 	return tags, nil
 }
 
-func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name string) (*model.JobTag, error) {
+func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name string) (*schema.Tag, error) {
 	res, err := r.DB.Exec("INSERT INTO tag (tag_type, tag_name) VALUES ($1, $2)", typeArg, name)
 	if err != nil {
 		return nil, err
@@ -51,7 +50,7 @@ func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name s
 		return nil, err
 	}
 
-	return &model.JobTag{ID: strconv.FormatInt(id, 10), TagType: typeArg, TagName: name}, nil
+	return &schema.Tag{ID: id, Type: typeArg, Name: name}, nil
 }
 
 func (r *mutationResolver) DeleteTag(ctx context.Context, id string) (string, error) {
@@ -59,7 +58,7 @@ func (r *mutationResolver) DeleteTag(ctx context.Context, id string) (string, er
 	panic(fmt.Errorf("not implemented"))
 }
 
-func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds []string) ([]*model.JobTag, error) {
+func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds []string) ([]*schema.Tag, error) {
 	jid, err := strconv.Atoi(job)
 	if err != nil {
 		return nil, err
@@ -76,7 +75,9 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 		}
 	}
 
-	tags, err := r.Job().Tags(ctx, &model.Job{ID: job})
+	dummyJob := schema.Job{}
+	dummyJob.ID = int64(jid)
+	tags, err := r.Job().Tags(ctx, &dummyJob)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +90,7 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 	return tags, metricdata.UpdateTags(jobObj, tags)
 }
 
-func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, tagIds []string) ([]*model.JobTag, error) {
+func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, tagIds []string) ([]*schema.Tag, error) {
 	jid, err := strconv.Atoi(job)
 	if err != nil {
 		return nil, err
@@ -106,7 +107,9 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 		}
 	}
 
-	tags, err := r.Job().Tags(ctx, &model.Job{ID: job})
+	dummyJob := schema.Job{}
+	dummyJob.ID = int64(jid)
+	tags, err := r.Job().Tags(ctx, &dummyJob)
 	if err != nil {
 		return nil, err
 	}
@@ -131,46 +134,53 @@ func (r *queryResolver) Clusters(ctx context.Context) ([]*model.Cluster, error) 
 	return config.Clusters, nil
 }
 
-func (r *queryResolver) Tags(ctx context.Context) ([]*model.JobTag, error) {
-	rows, err := sq.Select("id", "tag_type", "tag_name").From("tag").RunWith(r.DB).Query()
+func (r *queryResolver) Tags(ctx context.Context) ([]*schema.Tag, error) {
+	sql, args, err := sq.Select("id", "tag_type", "tag_name").From("tag").ToSql()
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	tags := make([]*model.JobTag, 0)
-	for rows.Next() {
-		var tag model.JobTag
-		if err := rows.Scan(&tag.ID, &tag.TagType, &tag.TagName); err != nil {
-			return nil, err
-		}
-		tags = append(tags, &tag)
+	tags := make([]*schema.Tag, 0)
+	if err := r.DB.Select(&tags, sql, args...); err != nil {
+		return nil, err
 	}
-
 	return tags, nil
 }
 
-func (r *queryResolver) Job(ctx context.Context, id string) (*model.Job, error) {
-	return ScanJob(sq.Select(JobTableCols...).From("job").Where("job.id = ?", id).RunWith(r.DB).QueryRow())
+func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error) {
+	query := sq.Select(schema.JobColumns...).From("job").Where("job.id = ?", id)
+	query = securityCheck(ctx, query)
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	return schema.ScanJob(r.DB.QueryRowx(sql, args...))
 }
 
-func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []string) ([]*model.JobMetricWithName, error) {
+func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope) ([]*model.JobMetricWithName, error) {
 	job, err := r.Query().Job(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	data, err := metricdata.LoadData(job, metrics, ctx)
+	data, err := metricdata.LoadData(job, metrics, scopes, ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	res := []*model.JobMetricWithName{}
 	for name, md := range data {
-		res = append(res, &model.JobMetricWithName{
-			Name:   name,
-			Metric: md,
-		})
+		for scope, metric := range md {
+			if metric.Scope != schema.MetricScope(scope) {
+				panic("WTF?")
+			}
+
+			res = append(res, &model.JobMetricWithName{
+				Name:   name,
+				Metric: metric,
+			})
+		}
 	}
 
 	return res, err
@@ -181,7 +191,7 @@ func (r *queryResolver) JobsFootprints(ctx context.Context, filter []*model.JobF
 }
 
 func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) (*model.JobResultList, error) {
-	jobs, count, err := r.queryJobs(filter, page, order)
+	jobs, count, err := r.queryJobs(ctx, filter, page, order)
 	if err != nil {
 		return nil, err
 	}
@@ -195,6 +205,36 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 
 func (r *queryResolver) RooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error) {
 	return r.rooflineHeatmap(ctx, filter, rows, cols, minX, minY, maxX, maxY)
+}
+
+func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes []string, metrics []string, from time.Time, to time.Time) ([]*model.NodeMetrics, error) {
+	user := auth.GetUser(ctx)
+	if user != nil && !user.IsAdmin {
+		return nil, errors.New("you need to be an administrator for this query")
+	}
+
+	data, err := metricdata.LoadNodeData(cluster, metrics, nodes, from.Unix(), to.Unix(), ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]*model.NodeMetrics, 0, len(data))
+	for node, metrics := range data {
+		nodeMetrics := make([]*model.NodeMetric, 0, len(metrics))
+		for metric, data := range metrics {
+			nodeMetrics = append(nodeMetrics, &model.NodeMetric{
+				Name: metric,
+				Data: data,
+			})
+		}
+
+		res = append(res, &model.NodeMetrics{
+			ID:      node,
+			Metrics: nodeMetrics,
+		})
+	}
+
+	return res, nil
 }
 
 // Job returns generated.JobResolver implementation.

@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"math"
 
@@ -16,9 +17,9 @@ import (
 
 // GraphQL validation should make sure that no unkown values can be specified.
 var groupBy2column = map[model.Aggregate]string{
-	model.AggregateUser:    "job.user_id",
-	model.AggregateProject: "job.project_id",
-	model.AggregateCluster: "job.cluster_id",
+	model.AggregateUser:    "job.user",
+	model.AggregateProject: "job.project",
+	model.AggregateCluster: "job.cluster",
 }
 
 // Helper function for the jobsStatistics GraphQL query placed here so that schema.resolvers.go is not too full.
@@ -28,52 +29,59 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 
 	// `socketsPerNode` and `coresPerSocket` can differ from cluster to cluster, so we need to explicitly loop over those.
 	for _, cluster := range config.Clusters {
-		corehoursCol := fmt.Sprintf("SUM(job.duration * job.num_nodes * %d * %d) / 3600", cluster.SocketsPerNode, cluster.CoresPerSocket)
-		var query sq.SelectBuilder
-		if groupBy == nil {
-			query = sq.Select(
-				"''",
-				"COUNT(job.id)",
-				"SUM(job.duration) / 3600",
-				corehoursCol,
-			).From("job").Where("job.cluster_id = ?", cluster.ClusterID)
-		} else {
-			col := groupBy2column[*groupBy]
-			query = sq.Select(
-				col,
-				"COUNT(job.id)",
-				"SUM(job.duration) / 3600",
-				corehoursCol,
-			).From("job").Where("job.cluster_id = ?", cluster.ClusterID).GroupBy(col)
-		}
+		for _, partition := range cluster.Partitions {
+			corehoursCol := fmt.Sprintf("SUM(job.duration * job.num_nodes * %d * %d) / 3600", partition.SocketsPerNode, partition.CoresPerSocket)
+			var query sq.SelectBuilder
+			if groupBy == nil {
+				query = sq.Select(
+					"''",
+					"COUNT(job.id)",
+					"SUM(job.duration) / 3600",
+					corehoursCol,
+				).From("job")
+			} else {
+				col := groupBy2column[*groupBy]
+				query = sq.Select(
+					col,
+					"COUNT(job.id)",
+					"SUM(job.duration) / 3600",
+					corehoursCol,
+				).From("job").GroupBy(col)
+			}
 
-		for _, f := range filter {
-			query = buildWhereClause(f, query)
-		}
+			query = query.
+				Where("job.cluster = ?", cluster.Name).
+				Where("job.partition = ?", partition.Name)
 
-		rows, err := query.RunWith(r.DB).Query()
-		if err != nil {
-			return nil, err
-		}
+			query = securityCheck(ctx, query)
+			for _, f := range filter {
+				query = buildWhereClause(f, query)
+			}
 
-		for rows.Next() {
-			var id sql.NullString
-			var jobs, walltime, corehours sql.NullInt64
-			if err := rows.Scan(&id, &jobs, &walltime, &corehours); err != nil {
+			rows, err := query.RunWith(r.DB).Query()
+			if err != nil {
 				return nil, err
 			}
 
-			if id.Valid {
-				if s, ok := stats[id.String]; ok {
-					s.TotalJobs += int(jobs.Int64)
-					s.TotalWalltime += int(walltime.Int64)
-					s.TotalCoreHours += int(corehours.Int64)
-				} else {
-					stats[id.String] = &model.JobsStatistics{
-						ID:             id.String,
-						TotalJobs:      int(jobs.Int64),
-						TotalWalltime:  int(walltime.Int64),
-						TotalCoreHours: int(corehours.Int64),
+			for rows.Next() {
+				var id sql.NullString
+				var jobs, walltime, corehours sql.NullInt64
+				if err := rows.Scan(&id, &jobs, &walltime, &corehours); err != nil {
+					return nil, err
+				}
+
+				if id.Valid {
+					if s, ok := stats[id.String]; ok {
+						s.TotalJobs += int(jobs.Int64)
+						s.TotalWalltime += int(walltime.Int64)
+						s.TotalCoreHours += int(corehours.Int64)
+					} else {
+						stats[id.String] = &model.JobsStatistics{
+							ID:             id.String,
+							TotalJobs:      int(jobs.Int64),
+							TotalWalltime:  int(walltime.Int64),
+							TotalCoreHours: int(corehours.Int64),
+						}
 					}
 				}
 			}
@@ -82,6 +90,7 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 
 	if groupBy == nil {
 		query := sq.Select("COUNT(job.id)").From("job").Where("job.duration < 120")
+		query = securityCheck(ctx, query)
 		for _, f := range filter {
 			query = buildWhereClause(f, query)
 		}
@@ -91,6 +100,7 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 	} else {
 		col := groupBy2column[*groupBy]
 		query := sq.Select(col, "COUNT(job.id)").From("job").Where("job.duration < 120")
+		query = securityCheck(ctx, query)
 		for _, f := range filter {
 			query = buildWhereClause(f, query)
 		}
@@ -133,12 +143,12 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 
 		if histogramsNeeded {
 			var err error
-			stat.HistWalltime, err = r.jobsStatisticsHistogram("ROUND(job.duration / 3600) as value", filter, id, col)
+			stat.HistWalltime, err = r.jobsStatisticsHistogram(ctx, "ROUND(job.duration / 3600) as value", filter, id, col)
 			if err != nil {
 				return nil, err
 			}
 
-			stat.HistNumNodes, err = r.jobsStatisticsHistogram("job.num_nodes as value", filter, id, col)
+			stat.HistNumNodes, err = r.jobsStatisticsHistogram(ctx, "job.num_nodes as value", filter, id, col)
 			if err != nil {
 				return nil, err
 			}
@@ -150,8 +160,9 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 
 // `value` must be the column grouped by, but renamed to "value". `id` and `col` can optionally be used
 // to add a condition to the query of the kind "<col> = <id>".
-func (r *queryResolver) jobsStatisticsHistogram(value string, filters []*model.JobFilter, id, col string) ([]*model.HistoPoint, error) {
+func (r *queryResolver) jobsStatisticsHistogram(ctx context.Context, value string, filters []*model.JobFilter, id, col string) ([]*model.HistoPoint, error) {
 	query := sq.Select(value, "COUNT(job.id) AS count").From("job")
+	query = securityCheck(ctx, query)
 	for _, f := range filters {
 		query = buildWhereClause(f, query)
 	}
@@ -179,7 +190,7 @@ func (r *queryResolver) jobsStatisticsHistogram(value string, filters []*model.J
 
 // Helper function for the rooflineHeatmap GraphQL query placed here so that schema.resolvers.go is not too full.
 func (r *Resolver) rooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error) {
-	jobs, count, err := r.queryJobs(filter, &model.PageRequest{Page: 1, ItemsPerPage: 501}, nil)
+	jobs, count, err := r.queryJobs(ctx, filter, &model.PageRequest{Page: 1, ItemsPerPage: 501}, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -195,14 +206,21 @@ func (r *Resolver) rooflineHeatmap(ctx context.Context, filter []*model.JobFilte
 	}
 
 	for _, job := range jobs {
-		jobdata, err := metricdata.LoadData(job, []string{"flops_any", "mem_bw"}, ctx)
+		jobdata, err := metricdata.LoadData(job, []string{"flops_any", "mem_bw"}, []schema.MetricScope{schema.MetricScopeNode}, ctx)
 		if err != nil {
 			return nil, err
 		}
 
-		flops, membw := jobdata["flops_any"], jobdata["mem_bw"]
-		if flops == nil && membw == nil {
-			return nil, fmt.Errorf("'flops_any' or 'mem_bw' missing for job %s", job.ID)
+		flops_, membw_ := jobdata["flops_any"], jobdata["mem_bw"]
+		if flops_ == nil && membw_ == nil {
+			return nil, fmt.Errorf("'flops_any' or 'mem_bw' missing for job %d", job.ID)
+		}
+
+		flops, ok1 := flops_["node"]
+		membw, ok2 := membw_["node"]
+		if !ok1 || !ok2 {
+			// TODO/FIXME:
+			return nil, errors.New("todo: rooflineHeatmap() query not implemented for where flops_any or mem_bw not available at 'node' level")
 		}
 
 		for n := 0; n < len(flops.Series); n++ {
@@ -232,7 +250,7 @@ func (r *Resolver) rooflineHeatmap(ctx context.Context, filter []*model.JobFilte
 
 // Helper function for the jobsFootprints GraphQL query placed here so that schema.resolvers.go is not too full.
 func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) ([]*model.MetricFootprints, error) {
-	jobs, count, err := r.queryJobs(filter, &model.PageRequest{Page: 1, ItemsPerPage: 501}, nil)
+	jobs, count, err := r.queryJobs(ctx, filter, &model.PageRequest{Page: 1, ItemsPerPage: 501}, nil)
 	if err != nil {
 		return nil, err
 	}

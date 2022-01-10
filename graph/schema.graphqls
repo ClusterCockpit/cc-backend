@@ -1,40 +1,38 @@
+scalar Time
+scalar NullableFloat
+scalar MetricScope
+scalar JobState
+
 type Job {
-  id:         ID!        # Database ID, unique
-  jobId:      String!    # ID given to the job by the cluster scheduler
-  userId:     String!    # Username
-  projectId:  String!    # Project
-  clusterId:  String!    # Name of the cluster this job was running on
-  startTime:  Time!      # RFC3339 formated string
-  duration:   Int!       # For running jobs, the time it has already run
-  numNodes:   Int!       # Number of nodes this job was running on
-  nodes:      [String!]! # List of hostnames
-  hasProfile: Boolean!   # TODO: Could be removed?
-  state:      JobState!  # State of the job
-  tags:       [JobTag!]! # List of tags this job has
-
-  # Will be null for running jobs.
-  loadAvg:     Float
-  memUsedMax:  Float
-  flopsAnyAvg: Float
-  memBwAvg:    Float
-  netBwAvg:    Float
-  fileBwAvg:   Float
-}
-
-# TODO: Extend by more possible states?
-enum JobState {
-  running
-  completed
-}
-
-type JobTag {
-  id:      ID!     # Database ID, unique
-  tagType: String! # Type
-  tagName: String! # Name
+  id:               ID!
+  jobId:            Int!
+  user:             String!
+  project:          String!
+  cluster:          String!
+  startTime:        Time!
+  duration:         Int!
+  numNodes:         Int!
+  numHWThreads:     Int!
+  numAcc:           Int!
+  SMT:              Int!
+  exclusive:        Int!
+  partition:        String!
+  arrayJobId:       Int!
+  monitoringStatus: Int!
+  state:            JobState!
+  tags:             [Tag!]!
+  resources:        [Resource!]!
 }
 
 type Cluster {
-  clusterID:       String!
+  name:         String!
+  metricConfig: [MetricConfig!]!
+  filterRanges: FilterRanges!
+  partitions:   [Partition!]!
+}
+
+type Partition {
+  name:            String!
   processorType:   String!
   socketsPerNode:  Int!
   coresPerSocket:  Int!
@@ -42,42 +40,78 @@ type Cluster {
   flopRateScalar:  Int!
   flopRateSimd:    Int!
   memoryBandwidth: Int!
-  metricConfig:    [MetricConfig!]!
-  filterRanges:    FilterRanges!
+  topology:        Topology!
+}
+
+type Topology {
+  node:         [Int!]
+  socket:       [[Int!]!]
+  memoryDomain: [[Int!]!]
+  die:          [[Int!]!]
+  core:         [[Int!]!]
+  accelerators: [Accelerator!]
+}
+
+type Accelerator {
+  id:    String!
+  type:  String!
+  model: String!
 }
 
 type MetricConfig {
-  name:       String!
-  unit:       String!
-  sampletime: Int!
-  peak:       Int!
-  normal:     Int!
-  caution:    Int!
-  alert:      Int!
-}
-
-type JobMetric {
+  name:     String!
   unit:     String!
-  scope:    JobMetricScope!
+  scope:    MetricScope!
   timestep: Int!
-  series:   [JobMetricSeries!]!
+  peak:     Float!
+  normal:   Float!
+  caution:  Float!
+  alert:    Float!
 }
 
-type JobMetricSeries {
-  node_id:    String!
-  statistics: JobMetricStatistics
-  data:       [NullableFloat!]!
+type Tag {
+  id:   ID!
+  type: String!
+  name: String!
 }
 
-type JobMetricStatistics {
-  avg: Float!
-  min: Float!
-  max: Float!
+type Resource {
+  hostname:      String!
+  hwthreads:     [Int!]
+  accelerators:  [Int!]
+  configuration: String
 }
 
 type JobMetricWithName {
   name:   String!
   metric: JobMetric!
+}
+
+type JobMetric {
+  unit:             String!
+  scope:            MetricScope!
+  timestep:         Int!
+  series:           [Series!]
+  statisticsSeries: StatsSeries
+}
+
+type Series {
+  hostname:   String!
+  id:         Int
+  statistics: MetricStatistics
+  data:       [NullableFloat!]!
+}
+
+type MetricStatistics {
+  avg: NullableFloat!
+  min: NullableFloat!
+  max: NullableFloat!
+}
+
+type StatsSeries {
+  mean: [NullableFloat!]!
+  min:  [NullableFloat!]!
+  max:  [NullableFloat!]!
 }
 
 type MetricFootprints {
@@ -87,38 +121,43 @@ type MetricFootprints {
 
 enum Aggregate { USER, PROJECT, CLUSTER }
 
+type NodeMetric {
+  name: String!
+  data: [NullableFloat!]!
+}
+
+type NodeMetrics {
+  id:      String!
+  metrics: [NodeMetric!]!
+}
+
 type Query {
   clusters:     [Cluster!]!   # List of all clusters
-  tags:         [JobTag!]!    # List of all tags
+  tags:         [Tag!]!    # List of all tags
 
   job(id: ID!): Job
-  jobMetrics(id: ID!, metrics: [String!]): [JobMetricWithName!]!
+  jobMetrics(id: ID!, metrics: [String!], scopes: [MetricScope!]): [JobMetricWithName!]!
   jobsFootprints(filter: [JobFilter!], metrics: [String!]!): [MetricFootprints]!
 
   jobs(filter: [JobFilter!], page: PageRequest, order: OrderByInput): JobResultList!
   jobsStatistics(filter: [JobFilter!], groupBy: Aggregate): [JobsStatistics!]!
 
   rooflineHeatmap(filter: [JobFilter!]!, rows: Int!, cols: Int!, minX: Float!, minY: Float!, maxX: Float!, maxY: Float!): [[Float!]!]!
+
+  nodeMetrics(cluster: ID!, nodes: [String!], metrics: [String!], from: Time!, to: Time!): [NodeMetrics!]!
 }
 
 type Mutation {
-  createTag(type: String!, name: String!): JobTag!
+  createTag(type: String!, name: String!): Tag!
   deleteTag(id: ID!): ID!
-  addTagsToJob(job: ID!, tagIds: [ID!]!): [JobTag!]!
-  removeTagsFromJob(job: ID!, tagIds: [ID!]!): [JobTag!]!
+  addTagsToJob(job: ID!, tagIds: [ID!]!): [Tag!]!
+  removeTagsFromJob(job: ID!, tagIds: [ID!]!): [Tag!]!
 
   updateConfiguration(name: String!, value: String!): String
 }
 
-type IntRangeOutput {
-  from: Int!
-  to:   Int!
-}
-
-type TimeRangeOutput {
-  from: Time!
-  to:   Time!
-}
+type IntRangeOutput { from: Int!, to: Int! }
+type TimeRangeOutput { from: Time!, to: Time! }
 
 type FilterRanges {
   duration:  IntRangeOutput!
@@ -129,13 +168,13 @@ type FilterRanges {
 input JobFilter {
   tags:        [ID!]
   jobId:       StringInput
-  userId:      StringInput
-  projectId:   StringInput
-  clusterId:   StringInput
+  user:        StringInput
+  project:     StringInput
+  cluster:     StringInput
   duration:    IntRange
   numNodes:    IntRange
   startTime:   TimeRange
-  isRunning:   Boolean
+  state:       [JobState!]
   flopsAnyAvg: FloatRange
   memBwAvg:    FloatRange
   loadAvg:     FloatRange
@@ -159,20 +198,9 @@ input StringInput {
   endsWith:   String
 }
 
-input IntRange {
-  from: Int!
-  to:   Int!
-}
-
-input FloatRange {
-  from: Float!
-  to:   Float!
-}
-
-input TimeRange {
-  from: Time
-  to:   Time
-}
+input IntRange   { from: Int!,   to: Int! }
+input FloatRange { from: Float!, to: Float! }
+input TimeRange  { from: Time,   to: Time }
 
 type JobResultList {
   items:  [Job!]!
@@ -200,7 +228,3 @@ input PageRequest {
   itemsPerPage: Int!
   page:         Int!
 }
-
-scalar Time
-scalar NullableFloat
-scalar JobMetricScope

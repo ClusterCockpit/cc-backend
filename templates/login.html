@@ -1,0 +1,47 @@
+{{define "content"}}
+<div class="row">
+    <div class="col">
+        <h1>
+            ClusterCockpit Login
+        </h1>
+    </div>
+</div>
+<div class="row">
+    <div class="col">
+        {{if .Login.Error}}
+        <div class="alert alert-warning" role="alert">
+            {{.Login.Error}}
+        </div>
+        {{end}}
+
+        {{if .Login.Info}}
+        <div class="alert alert-success" role="alert">
+            {{.Login.Info}}
+        </div>
+        {{end}}
+    </div>
+</div>
+<div class="row">
+    <div class="col">
+        <form method="post" action="/login">
+            <div class="mb-3">
+                <label class="form-label" for="username">Username</label>
+                <input class="form-control" type="text" id="username" name="username">
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="password">Password</label>
+                <input class="form-control" type="password" id="password" name="password">
+            </div>
+            <button type="submit" class="btn btn-primary">Login</button>
+        </form>
+    </div>
+</div>
+<br/>
+<div class="row">
+    <div class="col">
+        <form method="post" action="/logout">
+            <button type="submit" class="btn btn-primary">Logout</button>
+        </form>
+    </div>
+</div>
+{{end}}

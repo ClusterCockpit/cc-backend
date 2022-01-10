@@ -1,0 +1,171 @@
+#
+# ClusterCockpit's API spec can be exported via:
+# docker exec -it cc-php php bin/console api:openapi:export --yaml
+#
+# This spec is written by hand and hopefully up to date with the API.
+#
+
+openapi: 3.0.3
+info:
+  title: 'ClusterCockpit REST API'
+  description: 'API for batch job control'
+  version: 0.0.2
+servers:
+  - url: /
+    description: ''
+paths:
+  '/api/jobs/{id}':
+    get:
+      operationId: 'getJob'
+      summary: 'Get job resource'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+          description: 'Database ID (Resource Identifier)'
+      responses:
+        200:
+          description: 'Job resource'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Job'
+        404:
+          description: 'Resource not found'
+  '/api/jobs/tag_job/{id}':
+    post:
+      operationId: 'tagJob'
+      summary: 'Add a tag to a job'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+          description: 'Job ID'
+      requestBody:
+        description: 'Array of tags to add'
+        required: true
+        content:
+          'application/json':
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Tag'
+      responses:
+        200:
+          description: 'Job resource'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Job'
+        404:
+          description: 'Job or tag does not exist'
+        400:
+          description: 'Bad request'
+  '/api/jobs/start_job/':
+    post:
+      operationId: 'startJob'
+      summary: 'Add a newly started job'
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/Job'
+      responses:
+        201:
+          description: 'Job successfully'
+          content:
+            'application/json':
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    description: 'The database ID assigned to this job'
+        400:
+          description: 'Bad request'
+        422:
+          description: 'The combination of jobId, clusterId and startTime does already exist'
+  '/api/jobs/stop_job/':
+    post:
+      operationId: stopJobViaJobID
+      summary: 'Mark a job as stopped. Which job to stop is specified by the request body.'
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              type: object
+              required: [jobId, cluster, startTime, stopTime]
+              properties:
+                jobId: { type: integer }
+                cluster: { type: string }
+                startTime: { type: integer }
+                stopTime: { type: integer }
+      responses:
+        200:
+          description: 'Job resource'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Job'
+        400:
+          description: 'Bad request'
+        404:
+          description: 'Resource not found'
+  '/api/jobs/stop_job/{id}':
+    post:
+      operationId: 'stopJobViaDBID'
+      summary: 'Mark a job as stopped.'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+          description: 'Database ID (Resource Identifier)'
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              type: object
+              required: [stopTime]
+              properties:
+                stopTime: { type: integer }
+      responses:
+        200:
+          description: 'Job resource'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Job'
+        400:
+          description: 'Bad request'
+        404:
+          description: 'Resource not found'
+components:
+  schemas:
+    Tag:
+      description: 'A job tag'
+      type: object
+      properties:
+        id:
+          type: string
+          description: 'Database ID'
+        type:
+          type: string
+          description: 'Tag type'
+        name:
+          type: string
+          description: 'Tag name'
+    Job:
+      $ref: https://raw.githubusercontent.com/ClusterCockpit/cc-specifications/master/schema/json/job-meta.schema.json
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+  - bearerAuth: [] # Applies `bearerAuth` globally

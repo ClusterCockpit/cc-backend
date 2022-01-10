@@ -1,17 +1,18 @@
 package metricdata
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
-	"os"
+	"strconv"
 	"time"
 
 	"github.com/ClusterCockpit/cc-jobarchive/config"
-	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
 	"github.com/ClusterCockpit/cc-jobarchive/schema"
 )
 
@@ -31,9 +32,9 @@ type ApiMetricData struct {
 	From  int64          `json:"from"`
 	To    int64          `json:"to"`
 	Data  []schema.Float `json:"data"`
-	Avg   *float64       `json:"avg"`
-	Min   *float64       `json:"min"`
-	Max   *float64       `json:"max"`
+	Avg   schema.Float   `json:"avg"`
+	Min   schema.Float   `json:"min"`
+	Max   schema.Float   `json:"max"`
 }
 
 type ApiStatsData struct {
@@ -46,22 +47,23 @@ type ApiStatsData struct {
 	Max     schema.Float `json:"max"`
 }
 
-func (ccms *CCMetricStore) Init() error {
-	ccms.url = os.Getenv("CCMETRICSTORE_URL")
-	ccms.jwt = os.Getenv("CCMETRICSTORE_JWT")
-	if ccms.url == "" || ccms.jwt == "" {
-		return errors.New("environment variables 'CCMETRICSTORE_URL' or 'CCMETRICSTORE_JWT' not set")
-	}
-
+func (ccms *CCMetricStore) Init(url, token string) error {
+	ccms.url = url
+	ccms.jwt = token
 	return nil
 }
 
-func (ccms *CCMetricStore) LoadData(job *model.Job, metrics []string, ctx context.Context) (schema.JobData, error) {
+func (ccms *CCMetricStore) doRequest(job *schema.Job, suffix string, metrics []string, ctx context.Context) (*http.Response, error) {
 	from, to := job.StartTime.Unix(), job.StartTime.Add(time.Duration(job.Duration)*time.Second).Unix()
 	reqBody := ApiRequestBody{}
 	reqBody.Metrics = metrics
-	for _, node := range job.Nodes {
-		reqBody.Selectors = append(reqBody.Selectors, []string{job.ClusterID, node})
+	for _, node := range job.Resources {
+		if node.Accelerators != nil || node.HWThreads != nil {
+			// TODO/FIXME:
+			return nil, errors.New("todo: cc-metric-store resources: Accelerator/HWThreads")
+		}
+
+		reqBody.Selectors = append(reqBody.Selectors, []string{job.Cluster, node.Hostname})
 	}
 
 	reqBodyBytes, err := json.Marshal(reqBody)
@@ -69,53 +71,324 @@ func (ccms *CCMetricStore) LoadData(job *model.Job, metrics []string, ctx contex
 		return nil, err
 	}
 
-	authHeader := fmt.Sprintf("Bearer %s", ccms.jwt)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/api/%d/%d/timeseries?with-stats=true", ccms.url, from, to), bytes.NewReader(reqBodyBytes))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/api/%d/%d/%s", ccms.url, from, to, suffix), bytes.NewReader(reqBodyBytes))
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("Authorization", authHeader)
+	if ccms.jwt != "" {
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", ccms.jwt))
+	}
+	return ccms.client.Do(req)
+}
+
+func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context) (schema.JobData, error) {
+	// log.Printf("job: %#v", job)
+
+	type ApiQuery struct {
+		Metric     string   `json:"metric"`
+		Hostname   string   `json:"hostname"`
+		Type       *string  `json:"type,omitempty"`
+		TypeIds    []string `json:"type-ids,omitempty"`
+		SubType    *string  `json:"subtype,omitempty"`
+		SubTypeIds []string `json:"subtype-ids,omitempty"`
+	}
+
+	type ApiQueryRequest struct {
+		Cluster string     `json:"cluster"`
+		From    int64      `json:"from"`
+		To      int64      `json:"to"`
+		Queries []ApiQuery `json:"queries"`
+	}
+
+	type ApiQueryResponse struct {
+		ApiMetricData
+		Query *ApiQuery `json:"query"`
+	}
+
+	reqBody := ApiQueryRequest{
+		Cluster: job.Cluster,
+		From:    job.StartTime.Unix(),
+		To:      job.StartTime.Add(time.Duration(job.Duration) * time.Second).Unix(),
+		Queries: make([]ApiQuery, 0),
+	}
+
+	if len(scopes) != 1 {
+		return nil, errors.New("todo: support more than one scope in a query")
+	}
+
+	topology := config.GetPartition(job.Cluster, job.Partition).Topology
+	scopeForMetric := map[string]schema.MetricScope{}
+	for _, metric := range metrics {
+		mc := config.GetMetricConfig(job.Cluster, metric)
+		if mc == nil {
+			// return nil, fmt.Errorf("metric '%s' is not specified for cluster '%s'", metric, job.Cluster)
+			log.Printf("metric '%s' is not specified for cluster '%s'", metric, job.Cluster)
+			continue
+		}
+
+		nativeScope, requestedScope := mc.Scope, scopes[0]
+
+		// case 1: A metric is requested at node scope with a native scope of node as well
+		// case 2: A metric is requested at node scope and node is exclusive
+		// case 3: A metric has native scope node
+		if (nativeScope == requestedScope && nativeScope == schema.MetricScopeNode) ||
+			(job.Exclusive == 1 && requestedScope == schema.MetricScopeNode) ||
+			(nativeScope == schema.MetricScopeNode) {
+			nodes := map[string]bool{}
+			for _, resource := range job.Resources {
+				nodes[resource.Hostname] = true
+			}
+
+			for node := range nodes {
+				reqBody.Queries = append(reqBody.Queries, ApiQuery{
+					Metric:   metric,
+					Hostname: node,
+				})
+			}
+
+			scopeForMetric[metric] = schema.MetricScopeNode
+			continue
+		}
+
+		// case: Read a metric at hwthread scope with native scope hwthread
+		if nativeScope == requestedScope && nativeScope == schema.MetricScopeHWThread && job.NumNodes == 1 {
+			hwthreads := job.Resources[0].HWThreads
+			if hwthreads == nil {
+				hwthreads = topology.Node
+			}
+
+			t := "cpu" // TODO/FIXME: inconsistency between cc-metric-collector and ClusterCockpit
+			for _, hwthread := range hwthreads {
+				reqBody.Queries = append(reqBody.Queries, ApiQuery{
+					Metric:   metric,
+					Hostname: job.Resources[0].Hostname,
+					Type:     &t,
+					TypeIds:  []string{strconv.Itoa(hwthread)},
+				})
+			}
+
+			scopeForMetric[metric] = schema.MetricScopeHWThread
+			continue
+		}
+
+		// case: A metric is requested at node scope, has a hwthread scope and node is not exclusive and runs on a single node
+		if requestedScope == schema.MetricScopeNode && nativeScope == schema.MetricScopeHWThread && job.Exclusive != 1 && job.NumNodes == 1 {
+			hwthreads := job.Resources[0].HWThreads
+			if hwthreads == nil {
+				hwthreads = topology.Node
+			}
+
+			t := "cpu" // TODO/FIXME: inconsistency between cc-metric-collector and ClusterCockpit
+			ids := make([]string, 0, len(hwthreads))
+			for _, hwthread := range hwthreads {
+				ids = append(ids, strconv.Itoa(hwthread))
+			}
+
+			reqBody.Queries = append(reqBody.Queries, ApiQuery{
+				Metric:   metric,
+				Hostname: job.Resources[0].Hostname,
+				Type:     &t,
+				TypeIds:  ids,
+			})
+			scopeForMetric[metric] = schema.MetricScopeNode
+			continue
+		}
+
+		// TODO: Job teilt sich knoten und metric native scope ist kleiner als node
+		panic("todo")
+	}
+
+	// log.Printf("query: %#v", reqBody)
+
+	buf := &bytes.Buffer{}
+	if err := json.NewEncoder(buf).Encode(reqBody); err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, ccms.url+"/api/query", buf)
+	if err != nil {
+		return nil, err
+	}
+	if ccms.jwt != "" {
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", ccms.jwt))
+	}
 	res, err := ccms.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("cc-metric-store replied with: %s", res.Status)
+	}
 
-	resdata := make([]map[string]ApiMetricData, 0, len(reqBody.Selectors))
+	var resBody []ApiQueryResponse
+	if err := json.NewDecoder(bufio.NewReader(res.Body)).Decode(&resBody); err != nil {
+		return nil, err
+	}
+
+	// log.Printf("response: %#v", resBody)
+
+	var jobData schema.JobData = make(schema.JobData)
+	for _, res := range resBody {
+
+		metric := res.Query.Metric
+		if _, ok := jobData[metric]; !ok {
+			jobData[metric] = make(map[schema.MetricScope]*schema.JobMetric)
+		}
+
+		if res.Error != nil {
+			return nil, fmt.Errorf("cc-metric-store error while fetching %s: %s", metric, *res.Error)
+		}
+
+		mc := config.GetMetricConfig(job.Cluster, metric)
+		scope := scopeForMetric[metric]
+		jobMetric, ok := jobData[metric][scope]
+		if !ok {
+			jobMetric = &schema.JobMetric{
+				Unit:     mc.Unit,
+				Scope:    scope,
+				Timestep: mc.Timestep,
+				Series:   make([]schema.Series, 0),
+			}
+			jobData[metric][scope] = jobMetric
+		}
+
+		id := (*int)(nil)
+		if res.Query.Type != nil {
+			id = new(int)
+			*id, _ = strconv.Atoi(res.Query.TypeIds[0])
+		}
+
+		if res.Avg.IsNaN() || res.Min.IsNaN() || res.Max.IsNaN() {
+			// TODO: use schema.Float instead of float64?
+			// This is done because regular float64 can not be JSONed when NaN.
+			res.Avg = schema.Float(0)
+			res.Min = schema.Float(0)
+			res.Max = schema.Float(0)
+		}
+
+		jobMetric.Series = append(jobMetric.Series, schema.Series{
+			Hostname: res.Query.Hostname,
+			Id:       id,
+			Statistics: &schema.MetricStatistics{
+				Avg: float64(res.Avg),
+				Min: float64(res.Min),
+				Max: float64(res.Max),
+			},
+			Data: res.Data,
+		})
+	}
+
+	return jobData, nil
+}
+
+func (ccms *CCMetricStore) LoadStats(job *schema.Job, metrics []string, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error) {
+	res, err := ccms.doRequest(job, "stats", metrics, ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	resdata := make([]map[string]ApiStatsData, 0, len(job.Resources))
 	if err := json.NewDecoder(res.Body).Decode(&resdata); err != nil {
 		return nil, err
 	}
 
-	var jobData schema.JobData = make(schema.JobData)
+	stats := map[string]map[string]schema.MetricStatistics{}
 	for _, metric := range metrics {
-		mc := config.GetMetricConfig(job.ClusterID, metric)
-		metricData := &schema.JobMetric{
-			Scope:    "node", // TODO: FIXME: Whatever...
-			Unit:     mc.Unit,
-			Timestep: mc.Sampletime,
-			Series:   make([]*schema.MetricSeries, 0, len(job.Nodes)),
-		}
-		for i, node := range job.Nodes {
+		nodestats := map[string]schema.MetricStatistics{}
+		for i, node := range job.Resources {
+			if node.Accelerators != nil || node.HWThreads != nil {
+				// TODO/FIXME:
+				return nil, errors.New("todo: cc-metric-store resources: Accelerator/HWThreads")
+			}
+
 			data := resdata[i][metric]
 			if data.Error != nil {
 				return nil, errors.New(*data.Error)
 			}
 
-			if data.Avg == nil || data.Min == nil || data.Max == nil {
-				return nil, errors.New("no data")
+			if data.Samples == 0 {
+				return nil, fmt.Errorf("no data for node '%s' and metric '%s'", node.Hostname, metric)
 			}
 
-			metricData.Series = append(metricData.Series, &schema.MetricSeries{
-				NodeID: node,
-				Data:   data.Data,
-				Statistics: &schema.MetricStatistics{
-					Avg: *data.Avg,
-					Min: *data.Min,
-					Max: *data.Max,
-				},
-			})
+			nodestats[node.Hostname] = schema.MetricStatistics{
+				Avg: float64(data.Avg),
+				Min: float64(data.Min),
+				Max: float64(data.Max),
+			}
 		}
-		jobData[metric] = metricData
+
+		stats[metric] = nodestats
 	}
 
-	return jobData, nil
+	return stats, nil
+}
+
+func (ccms *CCMetricStore) LoadNodeData(clusterId string, metrics, nodes []string, from, to int64, ctx context.Context) (map[string]map[string][]schema.Float, error) {
+	reqBody := ApiRequestBody{}
+	reqBody.Metrics = metrics
+	for _, node := range nodes {
+		reqBody.Selectors = append(reqBody.Selectors, []string{clusterId, node})
+	}
+
+	reqBodyBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, err
+	}
+
+	var req *http.Request
+	if nodes == nil {
+		req, err = http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/api/%s/%d/%d/all-nodes", ccms.url, clusterId, from, to), bytes.NewReader(reqBodyBytes))
+	} else {
+		req, err = http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/api/%d/%d/timeseries", ccms.url, from, to), bytes.NewReader(reqBodyBytes))
+	}
+	if err != nil {
+		return nil, err
+	}
+	if ccms.jwt != "" {
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", ccms.jwt))
+	}
+	res, err := ccms.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	data := map[string]map[string][]schema.Float{}
+	if nodes == nil {
+		resdata := map[string]map[string]ApiMetricData{}
+		if err := json.NewDecoder(res.Body).Decode(&resdata); err != nil {
+			return nil, err
+		}
+
+		for node, metrics := range resdata {
+			nodedata := map[string][]schema.Float{}
+			for metric, data := range metrics {
+				if data.Error != nil {
+					return nil, errors.New(*data.Error)
+				}
+
+				nodedata[metric] = data.Data
+			}
+			data[node] = nodedata
+		}
+	} else {
+		resdata := make([]map[string]ApiMetricData, 0, len(nodes))
+		if err := json.NewDecoder(res.Body).Decode(&resdata); err != nil {
+			return nil, err
+		}
+
+		for i, node := range nodes {
+			metricsData := map[string][]schema.Float{}
+			for metric, data := range resdata[i] {
+				if data.Error != nil {
+					return nil, errors.New(*data.Error)
+				}
+
+				metricsData[metric] = data.Data
+			}
+
+			data[node] = metricsData
+		}
+	}
+
+	return data, nil
 }

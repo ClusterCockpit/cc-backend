@@ -1,0 +1,29 @@
+{{define "content"}}
+    <div id="svelte-app"></div>
+{{end}}
+
+{{define "stylesheets"}}
+    <link rel='stylesheet' href='/build/job.css'>
+{{end}}
+{{define "javascript"}}
+    <script>
+        const jobInfos = {
+            id: "{{ .Infos.id }}",
+            jobId: "{{ .Infos.jobId }}",
+            clusterId: "{{ .Infos.clusterId }}"
+        };
+        const clusterCockpitConfigPromise = Promise.resolve({
+            plot_general_colorscheme:           {{ .Config.plot_general_colorscheme           }},
+            plot_general_lineWidth:             {{ .Config.plot_general_lineWidth             }},
+            plot_general_colorBackground:       {{ .Config.plot_general_colorBackground       }},
+            plot_view_showRoofline:             {{ .Config.plot_view_showRoofline             }},
+            plot_view_showPolarplot:            {{ .Config.plot_view_showPolarplot            }},
+            plot_view_showStatTable:            {{ .Config.plot_view_showStatTable            }},
+            plot_view_plotsPerRow:              {{ .Config.plot_view_plotsPerRow              }},
+            job_view_selectedMetrics:           {{ .Config.job_view_selectedMetrics           }},
+            job_view_nodestats_selectedMetrics: {{ .Config.job_view_nodestats_selectedMetrics }},
+            job_view_polarPlotMetrics:          {{ .Config.plot_view_polarPlotMetrics         }},
+        });
+    </script>
+    <script src='/build/job.js'></script>
+{{end}}

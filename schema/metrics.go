@@ -5,39 +5,21 @@ import (
 	"io"
 )
 
-// Format of `data.json` files.
-type JobData map[string]*JobMetric
+type JobData map[string]map[MetricScope]*JobMetric
 
 type JobMetric struct {
-	Unit     string          `json:"unit"`
-	Scope    MetricScope     `json:"scope"`
-	Timestep int             `json:"timestep"`
-	Series   []*MetricSeries `json:"series"`
+	Unit             string       `json:"unit"`
+	Scope            MetricScope  `json:"scope"`
+	Timestep         int          `json:"timestep"`
+	Series           []Series     `json:"series"`
+	StatisticsSeries *StatsSeries `json:"statisticsSeries"`
 }
 
-type MetricScope string
-
-const (
-	MetricScopeNode   MetricScope = "node"
-	MetricScopeSocket MetricScope = "socket"
-	MetricScopeCpu    MetricScope = "cpu"
-)
-
-func (e *MetricScope) UnmarshalGQL(v interface{}) error {
-	str, ok := v.(string)
-	if !ok {
-		return fmt.Errorf("enums must be strings")
-	}
-
-	*e = MetricScope(str)
-	if *e != "node" && *e != "socket" && *e != "cpu" {
-		return fmt.Errorf("%s is not a valid MetricScope", str)
-	}
-	return nil
-}
-
-func (e MetricScope) MarshalGQL(w io.Writer) {
-	fmt.Fprintf(w, "\"%s\"", e)
+type Series struct {
+	Hostname   string            `json:"hostname"`
+	Id         *int              `json:"id,omitempty"`
+	Statistics *MetricStatistics `json:"statistics"`
+	Data       []Float           `json:"data"`
 }
 
 type MetricStatistics struct {
@@ -46,33 +28,51 @@ type MetricStatistics struct {
 	Max float64 `json:"max"`
 }
 
-type MetricSeries struct {
-	NodeID     string            `json:"node_id"`
-	Statistics *MetricStatistics `json:"statistics"`
-	Data       []Float           `json:"data"`
+type StatsSeries struct {
+	Mean        []Float         `json:"mean"`
+	Min         []Float         `json:"min"`
+	Max         []Float         `json:"max"`
+	Percentiles map[int][]Float `json:"percentiles,omitempty"`
 }
 
-type JobMetaStatistics struct {
-	Unit string  `json:"unit"`
-	Avg  float64 `json:"avg"`
-	Min  float64 `json:"min"`
-	Max  float64 `json:"max"`
+type MetricScope string
+
+const (
+	MetricScopeNode     MetricScope = "node"
+	MetricScopeSocket   MetricScope = "socket"
+	MetricScopeCpu      MetricScope = "cpu"
+	MetricScopeHWThread MetricScope = "hwthread"
+)
+
+var metricScopeGranularity map[MetricScope]int = map[MetricScope]int{
+	MetricScopeNode:     1,
+	MetricScopeSocket:   2,
+	MetricScopeCpu:      3,
+	MetricScopeHWThread: 4,
 }
 
-// Format of `meta.json` files.
-type JobMeta struct {
-	JobId     string   `json:"job_id"`
-	UserId    string   `json:"user_id"`
-	ProjectId string   `json:"project_id"`
-	ClusterId string   `json:"cluster_id"`
-	NumNodes  int      `json:"num_nodes"`
-	JobState  string   `json:"job_state"`
-	StartTime int64    `json:"start_time"`
-	Duration  int64    `json:"duration"`
-	Nodes     []string `json:"nodes"`
-	Tags      []struct {
-		Name string `json:"name"`
-		Type string `json:"type"`
-	} `json:"tags"`
-	Statistics map[string]*JobMetaStatistics `json:"statistics"`
+func (e *MetricScope) MaxGranularity(other MetricScope) MetricScope {
+	a := metricScopeGranularity[*e]
+	b := metricScopeGranularity[other]
+	if a < b {
+		return *e
+	}
+	return other
+}
+
+func (e *MetricScope) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = MetricScope(str)
+	if _, ok := metricScopeGranularity[*e]; !ok {
+		return fmt.Errorf("%s is not a valid MetricScope", str)
+	}
+	return nil
+}
+
+func (e MetricScope) MarshalGQL(w io.Writer) {
+	fmt.Fprintf(w, "\"%s\"", e)
 }
