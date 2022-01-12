@@ -42,22 +42,23 @@ const (
 	MetricScopeSocket   MetricScope = "socket"
 	MetricScopeCpu      MetricScope = "cpu"
 	MetricScopeHWThread MetricScope = "hwthread"
+
+	MetricScopeAccelerator MetricScope = "accelerator"
 )
 
 var metricScopeGranularity map[MetricScope]int = map[MetricScope]int{
-	MetricScopeNode:     1,
-	MetricScopeSocket:   2,
-	MetricScopeCpu:      3,
-	MetricScopeHWThread: 4,
+	MetricScopeNode:     10,
+	MetricScopeSocket:   5,
+	MetricScopeCpu:      2,
+	MetricScopeHWThread: 1,
+
+	MetricScopeAccelerator: 5, // Special/Randomly choosen
 }
 
-func (e *MetricScope) MaxGranularity(other MetricScope) MetricScope {
+func (e *MetricScope) LowerThan(other MetricScope) bool {
 	a := metricScopeGranularity[*e]
 	b := metricScopeGranularity[other]
-	if a < b {
-		return *e
-	}
-	return other
+	return a < b
 }
 
 func (e *MetricScope) UnmarshalGQL(v interface{}) error {

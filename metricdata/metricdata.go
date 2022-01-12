@@ -16,7 +16,7 @@ type MetricDataRepository interface {
 	// Return the JobData for the given job, only with the requested metrics.
 	LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context) (schema.JobData, error)
 
-	// Return a map of metrics to a map of nodes to the metric statistics of the job.
+	// Return a map of metrics to a map of nodes to the metric statistics of the job. node scope assumed for now.
 	LoadStats(job *schema.Job, metrics []string, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error)
 
 	// Return a map of nodes to a map of metrics to the data for the requested time.
@@ -68,7 +68,7 @@ func LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ct
 			return nil, err
 		}
 
-		calcStatisticsSeries(job, data)
+		calcStatisticsSeries(job, data, 7)
 		return data, nil
 	}
 
@@ -122,6 +122,7 @@ func LoadAverages(job *schema.Job, metrics []string, data [][]schema.Float, ctx 
 	return nil
 }
 
+// Used for the node/system view. Returns a map of nodes to a map of metrics (at node scope).
 func LoadNodeData(clusterId string, metrics, nodes []string, from, to int64, ctx context.Context) (map[string]map[string][]schema.Float, error) {
 	repo, ok := metricDataRepos[clusterId]
 	if !ok {

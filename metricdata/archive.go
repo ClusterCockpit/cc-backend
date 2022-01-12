@@ -144,7 +144,7 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 		return nil, err
 	}
 
-	if err := calcStatisticsSeries(job, jobData); err != nil {
+	if err := calcStatisticsSeries(job, jobData, 7); err != nil {
 		return nil, err
 	}
 
@@ -221,14 +221,14 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 }
 
 // Add statisticsSeries fields
-func calcStatisticsSeries(job *schema.Job, jobData schema.JobData) error {
+func calcStatisticsSeries(job *schema.Job, jobData schema.JobData, maxSeries int) error {
 	for _, scopes := range jobData {
 		for _, jobMetric := range scopes {
 			if jobMetric.StatisticsSeries != nil {
 				continue
 			}
 
-			if len(jobMetric.Series) < 5 {
+			if len(jobMetric.Series) <= maxSeries {
 				continue
 			}
 
