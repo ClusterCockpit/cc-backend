@@ -1,0 +1,16 @@
+[Unit]
+Description=ClusterCockpit Web Server (Go edition)
+Documentation=https://github.com/ClusterCockpit/cc-backend
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+WorkingDirectory=/var/clustercockpit
+Type=notify
+NotifyAccess=all
+Restart=on-failure
+TimeoutStopSec=100
+ExecStart=/var/clustercockpit/cc-jobarchive --config ./config.json
+
+[Install]
+WantedBy=multi-user.target

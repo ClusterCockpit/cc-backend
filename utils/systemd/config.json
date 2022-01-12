@@ -1,0 +1,7 @@
+{
+    "addr":            "0.0.0.0:443",
+    "https-cert-file": "/etc/letsencrypt/live/<...>/fullchain.pem",
+    "https-key-file":  "/etc/letsencrypt/live/<...>/privkey.pem",
+    "user":            "clustercockpit",
+    "group":           "clustercockpit"
+}

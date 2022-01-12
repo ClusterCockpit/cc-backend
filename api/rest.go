@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/ClusterCockpit/cc-jobarchive/config"
 	"github.com/ClusterCockpit/cc-jobarchive/graph"
@@ -20,10 +21,11 @@ import (
 )
 
 type RestApi struct {
-	DB              *sqlx.DB
-	Resolver        *graph.Resolver
-	AsyncArchiving  bool
-	MachineStateDir string
+	DB                *sqlx.DB
+	Resolver          *graph.Resolver
+	AsyncArchiving    bool
+	MachineStateDir   string
+	OngoingArchivings sync.WaitGroup
 }
 
 func (api *RestApi) MountRoutes(r *mux.Router) {
@@ -233,6 +235,9 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	doArchiving := func(job *schema.Job, ctx context.Context) error {
+		api.OngoingArchivings.Add(1)
+		defer api.OngoingArchivings.Done()
+
 		job.Duration = int32(req.StopTime - job.StartTime.Unix())
 		jobMeta, err := metricdata.ArchiveJob(job, ctx)
 		if err != nil {

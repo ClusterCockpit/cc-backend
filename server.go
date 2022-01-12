@@ -1,14 +1,26 @@
 package main
 
 import (
+	"bufio"
+	"context"
+	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
+	"os/signal"
+	"os/user"
 	"strconv"
+	"strings"
+	"sync"
+	"syscall"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
@@ -32,6 +44,10 @@ var db *sqlx.DB
 type ProgramConfig struct {
 	// Address where the http (or https) server will listen on (for example: 'localhost:80').
 	Addr string `json:"addr"`
+
+	// Drop root permissions once .env was read and the port was taken.
+	User  string `json:"user"`
+	Group string `json:"group"`
 
 	// Disable authentication (for everything: API, Web-UI, ...)
 	DisableAuthentication bool `json:"disable-authentication"`
@@ -68,7 +84,7 @@ type ProgramConfig struct {
 }
 
 var programConfig ProgramConfig = ProgramConfig{
-	Addr:                  "0.0.0.0:8080",
+	Addr:                  ":8080",
 	DisableAuthentication: false,
 	StaticFiles:           "./frontend/public",
 	DB:                    "./var/job.db",
@@ -115,6 +131,10 @@ func main() {
 	flag.StringVar(&flagDelUser, "del-user", "", "Remove user by username")
 	flag.StringVar(&flagGenJWT, "jwt", "", "Generate and print a JWT for the user specified by the username")
 	flag.Parse()
+
+	if err := loadEnv("./.env"); err != nil && !os.IsNotExist(err) {
+		log.Fatalf("parsing './.env' file failed: %s", err.Error())
+	}
 
 	if flagConfigFile != "" {
 		data, err := os.ReadFile(flagConfigFile)
@@ -280,15 +300,67 @@ func main() {
 		handlers.AllowedMethods([]string{"GET", "POST", "HEAD", "OPTIONS"}),
 		handlers.AllowedOrigins([]string{"*"}))(handlers.LoggingHandler(os.Stdout, handlers.CompressHandler(r)))
 
-	// Start http or https server
-	if programConfig.HttpsCertFile != "" && programConfig.HttpsKeyFile != "" {
-		log.Printf("HTTPS server running at %s...", programConfig.Addr)
-		err = http.ListenAndServeTLS(programConfig.Addr, programConfig.HttpsCertFile, programConfig.HttpsKeyFile, handler)
-	} else {
-		log.Printf("HTTP server running at %s...", programConfig.Addr)
-		err = http.ListenAndServe(programConfig.Addr, handler)
+	var wg sync.WaitGroup
+	server := http.Server{
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		Handler:      handler,
+		Addr:         programConfig.Addr,
 	}
-	log.Fatal(err)
+
+	// Start http or https server
+
+	listener, err := net.Listen("tcp", programConfig.Addr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if programConfig.HttpsCertFile != "" && programConfig.HttpsKeyFile != "" {
+		cert, err := tls.LoadX509KeyPair(programConfig.HttpsCertFile, programConfig.HttpsKeyFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		listener = tls.NewListener(listener, &tls.Config{
+			Certificates: []tls.Certificate{cert},
+		})
+		log.Printf("HTTPS server listening at %s...", programConfig.Addr)
+	} else {
+		log.Printf("HTTP server listening at %s...", programConfig.Addr)
+	}
+
+	// Because this program will want to bind to a privileged port (like 80), the listener must
+	// be established first, then the user can be changed, and after that,
+	// the actuall http server can be started.
+	if err := dropPrivileges(); err != nil {
+		log.Fatalf("error while changing user: %s", err.Error())
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
+			log.Fatal(err)
+		}
+	}()
+
+	wg.Add(1)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		defer wg.Done()
+		<-sigs
+		systemdNotifiy(false, "shutting down")
+
+		// First shut down the server gracefully (waiting for all ongoing requests)
+		server.Shutdown(context.Background())
+
+		// Then, wait for any async archivings still pending...
+		api.OngoingArchivings.Wait()
+	}()
+
+	systemdNotifiy(true, "running")
+	wg.Wait()
+	log.Print("Gracefull shutdown completed!")
 }
 
 func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
@@ -447,4 +519,115 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 			},
 		})
 	})
+}
+
+func loadEnv(file string) error {
+	f, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+
+	defer f.Close()
+	s := bufio.NewScanner(bufio.NewReader(f))
+	for s.Scan() {
+		line := s.Text()
+		if strings.HasPrefix(line, "#") || len(line) == 0 {
+			continue
+		}
+
+		if strings.Contains(line, "#") {
+			return errors.New("'#' are only supported at the start of a line")
+		}
+
+		line = strings.TrimPrefix(line, "export ")
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("unsupported line: %#v", line)
+		}
+
+		key := strings.TrimSpace(parts[0])
+		val := strings.TrimSpace(parts[1])
+		if strings.HasPrefix(val, "\"") {
+			if !strings.HasSuffix(val, "\"") {
+				return fmt.Errorf("unsupported line: %#v", line)
+			}
+
+			runes := []rune(val[1 : len(val)-1])
+			sb := strings.Builder{}
+			for i := 0; i < len(runes); i++ {
+				if runes[i] == '\\' {
+					i++
+					switch runes[i] {
+					case 'n':
+						sb.WriteRune('\n')
+					case 'r':
+						sb.WriteRune('\r')
+					case 't':
+						sb.WriteRune('\t')
+					case '"':
+						sb.WriteRune('"')
+					default:
+						return fmt.Errorf("unsupprorted escape sequence in quoted string: backslash %#v", runes[i])
+					}
+					continue
+				}
+				sb.WriteRune(runes[i])
+			}
+
+			val = sb.String()
+		}
+
+		os.Setenv(key, val)
+	}
+
+	return s.Err()
+}
+
+func dropPrivileges() error {
+	if programConfig.Group != "" {
+		g, err := user.LookupGroup(programConfig.Group)
+		if err != nil {
+			return err
+		}
+
+		gid, _ := strconv.Atoi(g.Gid)
+		if err := syscall.Setgid(gid); err != nil {
+			return err
+		}
+	}
+
+	if programConfig.User != "" {
+		u, err := user.Lookup(programConfig.User)
+		if err != nil {
+			return err
+		}
+
+		uid, _ := strconv.Atoi(u.Uid)
+		if err := syscall.Setuid(uid); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// If started via systemd, inform systemd that we are running:
+// https://www.freedesktop.org/software/systemd/man/sd_notify.html
+func systemdNotifiy(ready bool, status string) {
+	if os.Getenv("NOTIFY_SOCKET") == "" {
+		// Not started using systemd
+		return
+	}
+
+	args := []string{fmt.Sprintf("--pid=%d", os.Getpid())}
+	if ready {
+		args = append(args, "--ready")
+	}
+
+	if status != "" {
+		args = append(args, fmt.Sprintf("--status=%s", status))
+	}
+
+	cmd := exec.Command("systemd-notify", args...)
+	cmd.Run() // errors ignored on purpose, there is not much to do anyways.
 }
