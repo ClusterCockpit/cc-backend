@@ -22,6 +22,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// TODO: Properly do this "roles" stuff.
+// Add a roles array and `user.HasRole(...)` functions.
 type User struct {
 	Username  string
 	Password  string
@@ -191,6 +193,7 @@ func Login(db *sqlx.DB) http.Handler {
 			return
 		}
 
+		session.Options.MaxAge = 30 * 24 * 60 * 60
 		session.Values["username"] = user.Username
 		session.Values["is_admin"] = user.IsAdmin
 		if err := sessionStore.Save(r, rw, session); err != nil {
@@ -239,6 +242,8 @@ func authViaToken(r *http.Request) (*User, error) {
 	sub, _ := claims["sub"].(string)
 	isAdmin, _ := claims["is_admin"].(bool)
 	isAPIUser, _ := claims["is_api"].(bool)
+
+	// TODO: Check if sub is still a valid user!
 	return &User{
 		Username:  sub,
 		IsAdmin:   isAdmin,
@@ -258,6 +263,7 @@ func Auth(next http.Handler) http.Handler {
 			return
 		}
 		if user != nil {
+			// Successfull authentication using a token
 			ctx := context.WithValue(r.Context(), ContextUserKey, user)
 			next.ServeHTTP(rw, r.WithContext(ctx))
 			return
@@ -265,6 +271,7 @@ func Auth(next http.Handler) http.Handler {
 
 		session, err := sessionStore.Get(r, "session")
 		if err != nil {
+			// sessionStore.Get will return a new session if no current one is attached to this request.
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
 		}

@@ -1,7 +1,5 @@
 # ClusterCockpit with a Golang backend
 
-__*DOES NOT WORK WITH CURRENT FRONTEND*__
-
 [![Build](https://github.com/ClusterCockpit/cc-jobarchive/actions/workflows/test.yml/badge.svg)](https://github.com/ClusterCockpit/cc-jobarchive/actions/workflows/test.yml)
 
 Create your job-archive accoring to [this specification](https://github.com/ClusterCockpit/cc-specifications). At least one cluster with a valid `cluster.json` file is required. Having no jobs in the job-archive at all is fine. You may use the sample job-archive available for download [in cc-docker/develop](https://github.com/ClusterCockpit/cc-docker/tree/develop).
@@ -30,7 +28,7 @@ touch ./var/job.db
 
 # EDIT THE .env FILE BEFORE YOU DEPLOY (Change the secrets)!
 # If authentication is disabled, it can be empty.
-source .env
+vim ./.env
 
 # This will first initialize the job.db database by traversing all
 # `meta.json` files in the job-archive and add a new user. `--no-server` will cause the

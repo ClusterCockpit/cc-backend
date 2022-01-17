@@ -3,4 +3,8 @@ cc-jobarchive
 
 /var/job-archive
 /var/*.db
+/var/machine-state
+
+/.env
+/config.json
 
