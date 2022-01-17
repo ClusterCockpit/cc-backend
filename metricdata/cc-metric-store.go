@@ -105,7 +105,7 @@ func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []
 		Query *ApiQuery `json:"query"`
 	}
 
-	queries, scopeForMetric, err := ccms.buildQueries(job, metrics, scopes)
+	queries, assignedScope, err := ccms.buildQueries(job, metrics, scopes)
 	if err != nil {
 		return nil, err
 	}
@@ -145,8 +145,7 @@ func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []
 	// log.Printf("response: %#v", resBody)
 
 	var jobData schema.JobData = make(schema.JobData)
-	for _, res := range resBody {
-
+	for i, res := range resBody {
 		metric := res.Query.Metric
 		if _, ok := jobData[metric]; !ok {
 			jobData[metric] = make(map[schema.MetricScope]*schema.JobMetric)
@@ -156,8 +155,8 @@ func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []
 			return nil, fmt.Errorf("cc-metric-store error while fetching %s: %s", metric, *res.Error)
 		}
 
+		scope := assignedScope[i]
 		mc := config.GetMetricConfig(job.Cluster, metric)
-		scope := scopeForMetric[metric]
 		jobMetric, ok := jobData[metric][scope]
 		if !ok {
 			jobMetric = &schema.JobMetric{
@@ -199,21 +198,16 @@ func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []
 }
 
 var (
-	cpuString         = string(schema.MetricScopeCpu)
+	hwthreadString = string("cpu") // TODO/FIXME: inconsistency between cc-metric-collector and ClusterCockpit
+	// coreString        = string(schema.MetricScopeCore)
 	socketString      = string(schema.MetricScopeSocket)
 	acceleratorString = string(schema.MetricScopeAccelerator)
 )
 
-func (ccms *CCMetricStore) buildQueries(job *schema.Job, metrics []string, scopes []schema.MetricScope) ([]ApiQuery, map[string]schema.MetricScope, error) {
+func (ccms *CCMetricStore) buildQueries(job *schema.Job, metrics []string, scopes []schema.MetricScope) ([]ApiQuery, []schema.MetricScope, error) {
 	queries := make([]ApiQuery, 0, len(metrics)*len(scopes)*len(job.Resources))
-	assignedScopes := make(map[string]schema.MetricScope, len(metrics))
 	topology := config.GetPartition(job.Cluster, job.Partition).Topology
-
-	if len(scopes) != 1 {
-		return nil, nil, errors.New("todo: support more than one scope in a query")
-	}
-
-	_ = topology
+	assignedScope := []schema.MetricScope{}
 
 	for _, metric := range metrics {
 		mc := config.GetMetricConfig(job.Cluster, metric)
@@ -223,115 +217,164 @@ func (ccms *CCMetricStore) buildQueries(job *schema.Job, metrics []string, scope
 			continue
 		}
 
-		nativeScope, requestedScope := mc.Scope, scopes[0]
+		// Avoid duplicates...
+		handledScopes := make([]schema.MetricScope, 0, 3)
 
-		// case 1: A metric is requested at node scope with a native scope of node as well
-		// case 2: A metric is requested at node scope and node is exclusive
-		// case 3: A metric has native scope node
-		if (nativeScope == requestedScope && nativeScope == schema.MetricScopeNode) ||
-			(job.Exclusive == 1 && requestedScope == schema.MetricScopeNode) ||
-			(nativeScope == schema.MetricScopeNode) {
-			nodes := map[string]bool{}
-			for _, resource := range job.Resources {
-				nodes[resource.Hostname] = true
-			}
-
-			for node := range nodes {
-				queries = append(queries, ApiQuery{
-					Metric:   metric,
-					Hostname: node,
-				})
-			}
-
-			assignedScopes[metric] = schema.MetricScopeNode
-			continue
-		}
-
-		// case: Read a metric at hwthread scope with native scope hwthread
-		if nativeScope == requestedScope && nativeScope == schema.MetricScopeHWThread && job.NumNodes == 1 {
-			hwthreads := job.Resources[0].HWThreads
-			if hwthreads == nil {
-				hwthreads = topology.Node
-			}
-
-			for _, hwthread := range hwthreads {
-				queries = append(queries, ApiQuery{
-					Metric:   metric,
-					Hostname: job.Resources[0].Hostname,
-					Type:     &cpuString, // TODO/FIXME: inconsistency between cc-metric-collector and ClusterCockpit
-					TypeIds:  []string{strconv.Itoa(hwthread)},
-				})
-			}
-
-			assignedScopes[metric] = schema.MetricScopeHWThread
-			continue
-		}
-
-		// case: A metric is requested at node scope, has a hwthread scope and node is not exclusive and runs on a single node
-		if requestedScope == schema.MetricScopeNode && nativeScope == schema.MetricScopeHWThread && job.Exclusive != 1 && job.NumNodes == 1 {
-			hwthreads := job.Resources[0].HWThreads
-			if hwthreads == nil {
-				hwthreads = topology.Node
-			}
-
-			ids := make([]string, 0, len(hwthreads))
-			for _, hwthread := range hwthreads {
-				ids = append(ids, strconv.Itoa(hwthread))
-			}
-
-			queries = append(queries, ApiQuery{
-				Metric:   metric,
-				Hostname: job.Resources[0].Hostname,
-				Type:     &cpuString, // TODO/FIXME: inconsistency between cc-metric-collector and ClusterCockpit
-				TypeIds:  ids,
-			})
-			assignedScopes[metric] = schema.MetricScopeNode
-			continue
-		}
-
-		// case: A metric of native scope socket is requested at any scope lower than node and runs on a single node
-		if requestedScope.LowerThan(schema.MetricScopeNode) && nativeScope == schema.MetricScopeSocket && job.NumNodes == 1 {
-			hwthreads := job.Resources[0].HWThreads
-			if hwthreads == nil {
-				hwthreads = topology.Node
-			}
-
-			sockets, _ := topology.GetSockets(hwthreads)
-			ids := make([]string, 0, len(sockets))
-			for _, socket := range sockets {
-				ids = append(ids, strconv.Itoa(socket))
-			}
-
-			queries = append(queries, ApiQuery{
-				Metric:   metric,
-				Hostname: job.Resources[0].Hostname,
-				Type:     &socketString,
-				TypeIds:  ids,
-			})
-			assignedScopes[metric] = schema.MetricScopeNode
-			continue
-		}
-
-		// case: A metric of native scope accelerator is requested at a sub-node scope
-		if requestedScope.LowerThan(schema.MetricScopeNode) && nativeScope == schema.MetricScopeAccelerator {
-			for _, resource := range job.Resources {
-				for _, acc := range resource.Accelerators {
-					queries = append(queries, ApiQuery{
-						Metric:   metric,
-						Hostname: job.Resources[0].Hostname,
-						Type:     &acceleratorString,
-						TypeIds:  []string{strconv.Itoa(acc)},
-					})
+	scopesLoop:
+		for _, requestedScope := range scopes {
+			nativeScope := mc.Scope
+			scope := nativeScope.Max(requestedScope)
+			for _, s := range handledScopes {
+				if scope == s {
+					continue scopesLoop
 				}
 			}
-			assignedScopes[metric] = schema.MetricScopeAccelerator
-		}
+			handledScopes = append(handledScopes, scope)
 
-		// TODO: Job teilt sich knoten und metric native scope ist kleiner als node
-		panic("todo")
+			for _, host := range job.Resources {
+				hwthreads := host.HWThreads
+				if hwthreads == nil {
+					hwthreads = topology.Node
+				}
+
+				// Accelerator -> Accelerator (Use "accelerator" scope if requested scope is lower than node)
+				if nativeScope == schema.MetricScopeAccelerator && scope.LT(schema.MetricScopeNode) {
+					for _, accel := range host.Accelerators {
+						queries = append(queries, ApiQuery{
+							Metric:   metric,
+							Hostname: host.Hostname,
+							Type:     &acceleratorString,
+							TypeIds:  []string{strconv.Itoa(accel)},
+						})
+						assignedScope = append(assignedScope, schema.MetricScopeAccelerator)
+					}
+					continue
+				}
+
+				// Accelerator -> Node
+				if nativeScope == schema.MetricScopeAccelerator && scope == schema.MetricScopeNode {
+					if len(host.Accelerators) == 0 {
+						continue
+					}
+
+					queries = append(queries, ApiQuery{
+						Metric:   metric,
+						Hostname: host.Hostname,
+						Type:     &acceleratorString,
+						TypeIds:  toStringSlice(host.Accelerators),
+					})
+					assignedScope = append(assignedScope, schema.MetricScopeNode)
+					continue
+				}
+
+				// HWThread -> HWThead
+				if nativeScope == schema.MetricScopeHWThread && scope == schema.MetricScopeHWThread {
+					for _, hwthread := range hwthreads {
+						queries = append(queries, ApiQuery{
+							Metric:   metric,
+							Hostname: host.Hostname,
+							Type:     &hwthreadString,
+							TypeIds:  []string{strconv.Itoa(hwthread)},
+						})
+						assignedScope = append(assignedScope, schema.MetricScopeHWThread)
+					}
+					continue
+				}
+
+				// HWThread -> Core
+				if nativeScope == schema.MetricScopeHWThread && scope == schema.MetricScopeCore {
+					cores, _ := topology.GetCoresFromHWThreads(hwthreads)
+					for _, core := range cores {
+						queries = append(queries, ApiQuery{
+							Metric:   metric,
+							Hostname: host.Hostname,
+							Type:     &hwthreadString,
+							TypeIds:  toStringSlice(topology.Core[core]),
+						})
+						assignedScope = append(assignedScope, schema.MetricScopeCore)
+					}
+					continue
+				}
+
+				// HWThread -> Socket
+				if nativeScope == schema.MetricScopeHWThread && scope == schema.MetricScopeSocket {
+					sockets, _ := topology.GetSocketsFromHWThreads(hwthreads)
+					for _, socket := range sockets {
+						queries = append(queries, ApiQuery{
+							Metric:   metric,
+							Hostname: host.Hostname,
+							Type:     &hwthreadString,
+							TypeIds:  toStringSlice(topology.Socket[socket]),
+						})
+						assignedScope = append(assignedScope, schema.MetricScopeSocket)
+					}
+					continue
+				}
+
+				// HWThread -> Node
+				if nativeScope == schema.MetricScopeHWThread && scope == schema.MetricScopeNode {
+					queries = append(queries, ApiQuery{
+						Metric:   metric,
+						Hostname: host.Hostname,
+						Type:     &hwthreadString,
+						TypeIds:  toStringSlice(hwthreads),
+					})
+					assignedScope = append(assignedScope, schema.MetricScopeNode)
+					continue
+				}
+
+				// Socket -> Socket
+				if nativeScope == schema.MetricScopeSocket && scope == schema.MetricScopeSocket {
+					sockets, _ := topology.GetSocketsFromHWThreads(hwthreads)
+					for _, socket := range sockets {
+						queries = append(queries, ApiQuery{
+							Metric:   metric,
+							Hostname: host.Hostname,
+							Type:     &acceleratorString,
+							TypeIds:  []string{strconv.Itoa(socket)},
+						})
+						assignedScope = append(assignedScope, schema.MetricScopeSocket)
+					}
+					continue
+				}
+
+				// Socket -> Node
+				if nativeScope == schema.MetricScopeSocket && scope == schema.MetricScopeNode {
+					sockets, _ := topology.GetSocketsFromHWThreads(hwthreads)
+					queries = append(queries, ApiQuery{
+						Metric:   metric,
+						Hostname: host.Hostname,
+						Type:     &socketString,
+						TypeIds:  toStringSlice(sockets),
+					})
+					assignedScope = append(assignedScope, schema.MetricScopeNode)
+					continue
+				}
+
+				// Node -> Node
+				if nativeScope == schema.MetricScopeNode && scope == schema.MetricScopeNode {
+					queries = append(queries, ApiQuery{
+						Metric:   metric,
+						Hostname: host.Hostname,
+					})
+					assignedScope = append(assignedScope, schema.MetricScopeNode)
+					continue
+				}
+
+				return nil, nil, fmt.Errorf("TODO: unhandled case: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
+			}
+		}
 	}
 
-	return queries, assignedScopes, nil
+	return queries, assignedScope, nil
+}
+
+func toStringSlice(s []int) []string {
+	ret := make([]string, len(s))
+	for i, val := range s {
+		ret[i] = strconv.Itoa(val)
+	}
+	return ret
 }
 
 func (ccms *CCMetricStore) LoadStats(job *schema.Job, metrics []string, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error) {

@@ -3,6 +3,7 @@ package schema
 import (
 	"fmt"
 	"io"
+	"unsafe"
 )
 
 type JobData map[string]map[MetricScope]*JobMetric
@@ -40,7 +41,7 @@ type MetricScope string
 const (
 	MetricScopeNode     MetricScope = "node"
 	MetricScopeSocket   MetricScope = "socket"
-	MetricScopeCpu      MetricScope = "cpu"
+	MetricScopeCore     MetricScope = "core"
 	MetricScopeHWThread MetricScope = "hwthread"
 
 	MetricScopeAccelerator MetricScope = "accelerator"
@@ -49,16 +50,31 @@ const (
 var metricScopeGranularity map[MetricScope]int = map[MetricScope]int{
 	MetricScopeNode:     10,
 	MetricScopeSocket:   5,
-	MetricScopeCpu:      2,
+	MetricScopeCore:     2,
 	MetricScopeHWThread: 1,
 
 	MetricScopeAccelerator: 5, // Special/Randomly choosen
 }
 
-func (e *MetricScope) LowerThan(other MetricScope) bool {
+func (e *MetricScope) LT(other MetricScope) bool {
 	a := metricScopeGranularity[*e]
 	b := metricScopeGranularity[other]
 	return a < b
+}
+
+func (e *MetricScope) LTE(other MetricScope) bool {
+	a := metricScopeGranularity[*e]
+	b := metricScopeGranularity[other]
+	return a <= b
+}
+
+func (e *MetricScope) Max(other MetricScope) MetricScope {
+	a := metricScopeGranularity[*e]
+	b := metricScopeGranularity[other]
+	if a > b {
+		return *e
+	}
+	return other
 }
 
 func (e *MetricScope) UnmarshalGQL(v interface{}) error {
@@ -76,4 +92,22 @@ func (e *MetricScope) UnmarshalGQL(v interface{}) error {
 
 func (e MetricScope) MarshalGQL(w io.Writer) {
 	fmt.Fprintf(w, "\"%s\"", e)
+}
+
+func (jd *JobData) Size() int {
+	n := 128
+	for _, scopes := range *jd {
+		for _, metric := range scopes {
+			if metric.StatisticsSeries != nil {
+				n += len(metric.StatisticsSeries.Max)
+				n += len(metric.StatisticsSeries.Mean)
+				n += len(metric.StatisticsSeries.Min)
+			}
+
+			for _, series := range metric.Series {
+				n += len(series.Data)
+			}
+		}
+	}
+	return n * int(unsafe.Sizeof(Float(0)))
 }

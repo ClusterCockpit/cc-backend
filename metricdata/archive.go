@@ -11,10 +11,14 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/ClusterCockpit/cc-jobarchive/config"
 	"github.com/ClusterCockpit/cc-jobarchive/schema"
+	"github.com/iamlouk/lrucache"
 )
+
+var archiveCache *lrucache.Cache = lrucache.New(500 * 1024 * 1024)
 
 // For a given job, return the path of the `data.json`/`meta.json` file.
 // TODO: Implement Issue ClusterCockpit/ClusterCockpit#97
@@ -39,18 +43,26 @@ func loadFromArchive(job *schema.Job) (schema.JobData, error) {
 		return nil, err
 	}
 
-	f, err := os.Open(filename)
-	if err != nil {
+	data := archiveCache.Get(filename, func() (value interface{}, ttl time.Duration, size int) {
+		f, err := os.Open(filename)
+		if err != nil {
+			return err, 0, 1000
+		}
+		defer f.Close()
+
+		var data schema.JobData
+		if err := json.NewDecoder(bufio.NewReader(f)).Decode(&data); err != nil {
+			return err, 0, 1000
+		}
+
+		return data, 1 * time.Hour, data.Size()
+	})
+
+	if err, ok := data.(error); ok {
 		return nil, err
 	}
-	defer f.Close()
 
-	var data schema.JobData
-	if err := json.NewDecoder(bufio.NewReader(f)).Decode(&data); err != nil {
-		return nil, err
-	}
-
-	return data, nil
+	return data.(schema.JobData), nil
 }
 
 // If the job is archived, find its `meta.json` file and override the tags list
@@ -137,16 +149,20 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 		allMetrics = append(allMetrics, mc.Name)
 	}
 
-	// TODO: Use more granular resolution on non-exclusive jobs?
+	// TODO: For now: Only single-node-jobs get archived in full resolution
 	scopes := []schema.MetricScope{schema.MetricScopeNode}
+	if job.NumNodes == 1 {
+		scopes = append(scopes, schema.MetricScopeCore)
+	}
+
 	jobData, err := LoadData(job, allMetrics, scopes, ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := calcStatisticsSeries(job, jobData, 7); err != nil {
-		return nil, err
-	}
+	// if err := calcStatisticsSeries(job, jobData, 7); err != nil {
+	// 	return nil, err
+	// }
 
 	jobMeta := &schema.JobMeta{
 		BaseJob:    job.BaseJob,
@@ -220,6 +236,8 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 	return jobMeta, f.Close()
 }
 
+/*
+
 // Add statisticsSeries fields
 func calcStatisticsSeries(job *schema.Job, jobData schema.JobData, maxSeries int) error {
 	for _, scopes := range jobData {
@@ -267,3 +285,5 @@ func calcStatisticsSeries(job *schema.Job, jobData schema.JobData, maxSeries int
 
 	return nil
 }
+
+*/

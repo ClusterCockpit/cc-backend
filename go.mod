@@ -10,6 +10,7 @@ require (
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/sessions v1.2.1
+	github.com/iamlouk/lrucache v0.2.1
 	github.com/jmoiron/sqlx v1.3.1
 	github.com/mattn/go-sqlite3 v1.14.6
 	github.com/stretchr/testify v1.5.1 // indirect
@@ -17,3 +18,5 @@ require (
 	golang.org/x/crypto v0.0.0-20211117183948-ae814b36b871
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 )
+
+// replace github.com/iamlouk/lrucache => /home/lou/zeugs/go/lru-cache

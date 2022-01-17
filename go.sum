@@ -45,6 +45,10 @@ github.com/gorilla/websocket v1.4.2 h1:+/TMaTYc4QFitKJxsQ7Yye35DkWvkdLcvGKqM+x0U
 github.com/gorilla/websocket v1.4.2/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/hashicorp/golang-lru v0.5.0 h1:CL2msUPvZTLb5O648aiLNJw3hnBxN2+1Jq8rCOH9wdo=
 github.com/hashicorp/golang-lru v0.5.0/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
+github.com/iamlouk/lrucache v0.2.0 h1:9aUT5rwhzFqYvf72K0iERy9OGKUpRBBruc2DgbFBfpM=
+github.com/iamlouk/lrucache v0.2.0/go.mod h1:dbHtdSvjMz0Y55CQNkbwkFEbvcWkfHUz9IxUC6wIA9A=
+github.com/iamlouk/lrucache v0.2.1 h1:AtOSeg8ZOmEE0phkzuYsEtH9GdKRrJUz21nVWrYglDA=
+github.com/iamlouk/lrucache v0.2.1/go.mod h1:dbHtdSvjMz0Y55CQNkbwkFEbvcWkfHUz9IxUC6wIA9A=
 github.com/jmoiron/sqlx v1.3.1 h1:aLN7YINNZ7cYOPK3QC83dbM6KT0NMqVMw961TqrejlE=
 github.com/jmoiron/sqlx v1.3.1/go.mod h1:2BljVx/86SuTyjE+aPYlHCTNvZrnJXghYGpNiXLBMCQ=
 github.com/kr/pretty v0.1.0 h1:L/CwN0zerZDmRFUapSPitk6f+Q3+0za1rQkzVuMiMFI=

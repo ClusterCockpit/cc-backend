@@ -3,9 +3,11 @@ package metricdata
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ClusterCockpit/cc-jobarchive/config"
 	"github.com/ClusterCockpit/cc-jobarchive/schema"
+	"github.com/iamlouk/lrucache"
 )
 
 type MetricDataRepository interface {
@@ -55,12 +57,30 @@ func Init(jobArchivePath string, disableArchive bool) error {
 	return nil
 }
 
+var cache *lrucache.Cache = lrucache.New(500 * 1024 * 1024)
+
 // Fetches the metric data for a job.
 func LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context) (schema.JobData, error) {
 	if job.State == schema.JobStateRunning || !useArchive {
+		ckey := cacheKey(job, metrics, scopes)
+		if data := cache.Get(ckey, nil); data != nil {
+			return data.(schema.JobData), nil
+		}
+
 		repo, ok := metricDataRepos[job.Cluster]
 		if !ok {
 			return nil, fmt.Errorf("no metric data repository configured for '%s'", job.Cluster)
+		}
+
+		if scopes == nil {
+			scopes = append(scopes, schema.MetricScopeNode)
+		}
+
+		if metrics == nil {
+			cluster := config.GetClusterConfig(job.Cluster)
+			for _, mc := range cluster.MetricConfig {
+				metrics = append(metrics, mc.Name)
+			}
 		}
 
 		data, err := repo.LoadData(job, metrics, scopes, ctx)
@@ -68,7 +88,8 @@ func LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ct
 			return nil, err
 		}
 
-		calcStatisticsSeries(job, data, 7)
+		// calcStatisticsSeries(job, data, 7)
+		cache.Put(ckey, data, data.Size(), 2*time.Minute)
 		return data, nil
 	}
 
@@ -145,4 +166,11 @@ func LoadNodeData(clusterId string, metrics, nodes []string, from, to int64, ctx
 	}
 
 	return data, nil
+}
+
+func cacheKey(job *schema.Job, metrics []string, scopes []schema.MetricScope) string {
+	// Duration and StartTime do not need to be in the cache key as StartTime is less unique than
+	// job.ID and the TTL of the cache entry makes sure it does not stay there forever.
+	return fmt.Sprintf("%d:[%v],[%v]",
+		job.ID, metrics, scopes)
 }
