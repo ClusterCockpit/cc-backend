@@ -14,6 +14,32 @@ servers:
   - url: /
     description: ''
 paths:
+  '/api/jobs/':
+    get:
+      operationId: 'getJobs'
+      summary: 'List all jobs'
+      description: 'Get a list of all jobs in the JSON schema defined via GraphQL (main difference: start-time is RFC3339 encoded and there are no statistics). Filters can be applied using query parameters.'
+      parameters:
+        - name: state
+          in: query
+          schema:
+            type: string
+            enum: ["running", "completed", "failed", "canceled", "stopped", "timeout"]
+        - name: cluster
+          in: query
+          schema: { type: string }
+      responses:
+        200:
+          description: 'Array of jobs'
+          content:
+            'application/json':
+              schema:
+                type: array
+                items:
+                  # Not totally true: start-time is a RFC3339 string here!
+                  $ref: '#/components/schemas/Job'
+        400:
+          description: 'Bad Request'
   '/api/jobs/{id}':
     get:
       operationId: 'getJob'
@@ -98,12 +124,15 @@ paths:
           'application/json':
             schema:
               type: object
-              required: [jobId, cluster, startTime, stopTime]
+              required: [jobId, cluster, stopTime, jobState]
               properties:
                 jobId: { type: integer }
                 cluster: { type: string }
                 startTime: { type: integer }
                 stopTime: { type: integer }
+                jobState:
+                  type: string
+                  enum: ["running", "completed", "failed", "canceled", "stopped", "timeout"]
       responses:
         200:
           description: 'Job resource'
@@ -131,9 +160,12 @@ paths:
           'application/json':
             schema:
               type: object
-              required: [stopTime]
+              required: [stopTime, jobState]
               properties:
                 stopTime: { type: integer }
+                jobState:
+                  type: string
+                  enum: ["running", "completed", "failed", "canceled", "stopped", "timeout"]
       responses:
         200:
           description: 'Job resource'
