@@ -20,6 +20,7 @@
             <ul>
                 <li><a href="/monitoring/jobs/">All jobs</a></li>
                 <li><a href="/monitoring/users/">All users</a></li>
+                <li><a href="/monitoring/projects/">All projects</a></li>
             </ul>
         </div>
     {{else}}
@@ -37,8 +38,8 @@
                 <tr>
                     <th>Name</th>
                     <th>Jobs</th>
-                    <th>System View</th>
-                    <th>Analysis View</th>
+                    <!-- <th>System View</th> -->
+                    <!-- <th>Analysis View</th> -->
                 </tr>
             </thead>
             <tbody>
@@ -46,8 +47,8 @@
                     <tr>
                         <td>{{.Name}}</td>
                         <td><a href="/monitoring/jobs/?cluster={{.Name}}">Jobs</a></td>
-                        <td><a href="/monitoring/systems/?cluster={{.Name}}">System View</a></td>
-                        <td><a href="/monitoring/analysis/?cluster={{.Name}}">Analysis View</a></td>
+                        <!-- <td><a href="/monitoring/systems/?cluster={{.Name}}">System View</a></td> -->
+                        <!-- <td><a href="/monitoring/analysis/?cluster={{.Name}}">Analysis View</a></td> -->
                     </tr>
                 {{end}}
             </tbody>

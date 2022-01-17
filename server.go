@@ -111,7 +111,7 @@ var programConfig ProgramConfig = ProgramConfig{
 		"plot_general_lineWidth":             1,
 		"plot_list_jobsPerPage":              10,
 		"plot_list_selectedMetrics":          []string{"cpu_load", "mem_used", "flops_any", "mem_bw", "clock"},
-		"plot_view_plotsPerRow":              4,
+		"plot_view_plotsPerRow":              2,
 		"plot_view_showPolarplot":            true,
 		"plot_view_showRoofline":             true,
 		"plot_view_showStatTable":            true,
@@ -372,6 +372,7 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 		}
 		if query.Get("project") != "" {
 			filterPresets["project"] = query.Get("project")
+			filterPresets["projectMatch"] = "eq"
 		}
 		if query.Get("state") != "" && schema.JobState(query.Get("state")).Valid() {
 			filterPresets["state"] = query.Get("state")
@@ -437,9 +438,26 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 			return
 		}
 
-		templates.Render(rw, r, "monitoring/users.html", &templates.Page{
-			Title:  "Users - ClusterCockpit",
-			Config: conf,
+		templates.Render(rw, r, "monitoring/list.html", &templates.Page{
+			Title:         "Users - ClusterCockpit",
+			Config:        conf,
+			FilterPresets: buildFilterPresets(r.URL.Query()),
+			Infos:         map[string]interface{}{"listType": "USER"},
+		})
+	})
+
+	router.HandleFunc("/monitoring/projects/", func(rw http.ResponseWriter, r *http.Request) {
+		conf, err := config.GetUIConfig(r)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		templates.Render(rw, r, "monitoring/list.html", &templates.Page{
+			Title:         "Projects - ClusterCockpit",
+			Config:        conf,
+			FilterPresets: buildFilterPresets(r.URL.Query()),
+			Infos:         map[string]interface{}{"listType": "PROJECT"},
 		})
 	})
 

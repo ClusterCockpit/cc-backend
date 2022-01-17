@@ -4,10 +4,11 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 )
 
 var templatesDir string
-var debugMode bool = true
+var debugMode bool = os.Getenv("DEBUG") == "1"
 var templates map[string]*template.Template = map[string]*template.Template{}
 
 type Page struct {
@@ -28,11 +29,13 @@ func init() {
 	base := template.Must(template.ParseFiles(templatesDir + "base.html"))
 	files := []string{
 		"home.html", "404.html", "login.html",
-		"monitoring/jobs.html", "monitoring/job.html",
-		"monitoring/users.html", "monitoring/user.html",
-		"monitoring/analysis.html",
-		"monitoring/systems.html",
-		"monitoring/node.html",
+		"monitoring/jobs.html",
+		"monitoring/job.html",
+		"monitoring/list.html",
+		"monitoring/user.html",
+		// "monitoring/analysis.html",
+		// "monitoring/systems.html",
+		// "monitoring/node.html",
 	}
 
 	for _, file := range files {
