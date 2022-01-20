@@ -35,6 +35,8 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
+
+	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -55,7 +57,10 @@ type ProgramConfig struct {
 	// Folder where static assets can be found, will be served directly
 	StaticFiles string `json:"static-files"`
 
-	// Currently only SQLite3 ist supported, so this should be a filename
+	// 'sqlite3' or 'mysql' (mysql will work for mariadb as well)
+	DBDriver string `json:"db-driver"`
+
+	// For sqlite3 a filename, for mysql a DSN in this format: https://github.com/go-sql-driver/mysql#dsn-data-source-name (Without query parameters!).
 	DB string `json:"db"`
 
 	// Path to the job-archive
@@ -87,6 +92,7 @@ var programConfig ProgramConfig = ProgramConfig{
 	Addr:                  ":8080",
 	DisableAuthentication: false,
 	StaticFiles:           "./frontend/public",
+	DBDriver:              "sqlite3",
 	DB:                    "./var/job.db",
 	JobArchive:            "./var/job-archive",
 	AsyncArchiving:        true,
@@ -116,7 +122,6 @@ var programConfig ProgramConfig = ProgramConfig{
 		"plot_view_showRoofline":             true,
 		"plot_view_showStatTable":            true,
 	},
-	MachineStateDir: "./var/machine-state",
 }
 
 func main() {
@@ -147,14 +152,25 @@ func main() {
 	}
 
 	var err error
-	// This might need to change for other databases:
-	db, err = sqlx.Open("sqlite3", fmt.Sprintf("%s?_foreign_keys=on", programConfig.DB))
-	if err != nil {
-		log.Fatal(err)
-	}
+	if programConfig.DBDriver == "sqlite3" {
+		db, err = sqlx.Open("sqlite3", fmt.Sprintf("%s?_foreign_keys=on", programConfig.DB))
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	// Only for sqlite, not needed for any other database:
-	db.SetMaxOpenConns(1)
+		db.SetMaxOpenConns(1)
+	} else if programConfig.DBDriver == "mysql" {
+		db, err = sqlx.Open("mysql", fmt.Sprintf("%s?multiStatements=true", programConfig.DB))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		db.SetConnMaxLifetime(time.Minute * 3)
+		db.SetMaxOpenConns(10)
+		db.SetMaxIdleConns(10)
+	} else {
+		log.Fatalf("unsupported database driver: %s", programConfig.DBDriver)
+	}
 
 	// Initialize sub-modules...
 
@@ -220,18 +236,20 @@ func main() {
 	// Build routes...
 
 	resolver := &graph.Resolver{DB: db}
+	resolver.Init()
 	graphQLEndpoint := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
+	if os.Getenv("DEBUG") != "1" {
+		graphQLEndpoint.SetRecoverFunc(func(ctx context.Context, err interface{}) error {
+			switch e := err.(type) {
+			case string:
+				return fmt.Errorf("panic: %s", e)
+			case error:
+				return fmt.Errorf("panic caused by: %w", e)
+			}
 
-	// graphQLEndpoint.SetRecoverFunc(func(ctx context.Context, err interface{}) error {
-	// 	switch e := err.(type) {
-	// 	case string:
-	// 		return fmt.Errorf("panic: %s", e)
-	// 	case error:
-	// 		return fmt.Errorf("panic caused by: %w", e)
-	// 	}
-
-	// 	return errors.New("internal server error (panic)")
-	// })
+			return errors.New("internal server error (panic)")
+		})
+	}
 
 	graphQLPlayground := playground.Handler("GraphQL playground", "/query")
 	api := &api.RestApi{
@@ -387,6 +405,19 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 				}
 			}
 			filterPresets["tags"] = tags
+		}
+		if query.Get("numNodes") != "" {
+			parts := strings.Split(query.Get("numNodes"), "-")
+			if len(parts) == 2 {
+				a, e1 := strconv.Atoi(parts[0])
+				b, e2 := strconv.Atoi(parts[1])
+				if e1 == nil && e2 == nil {
+					filterPresets["numNodes"] = map[string]int{"from": a, "to": b}
+				}
+			}
+		}
+		if query.Get("jobId") != "" {
+			filterPresets["jobId"] = query.Get("jobId")
 		}
 
 		return filterPresets

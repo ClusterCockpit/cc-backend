@@ -215,7 +215,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	res, err := api.DB.NamedExec(`INSERT INTO job (
-		job_id, user, project, cluster, partition, array_job_id, num_nodes, num_hwthreads, num_acc,
+		job_id, user, project, cluster, `+"`partition`"+`, array_job_id, num_nodes, num_hwthreads, num_acc,
 		exclusive, monitoring_status, smt, job_state, start_time, duration, resources, meta_data
 	) VALUES (
 		:job_id, :user, :project, :cluster, :partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,

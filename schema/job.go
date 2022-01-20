@@ -35,7 +35,8 @@ type BaseJob struct {
 type Job struct {
 	ID int64 `json:"id" db:"id"`
 	BaseJob
-	StartTime        time.Time `json:"startTime" db:"start_time"`
+	StartTimeUnix    int64     `json:"-" db:"start_time"`
+	StartTime        time.Time `json:"startTime"`
 	MemUsedMax       float64   `json:"-" db:"mem_used_max"`
 	FlopsAnyAvg      float64   `json:"-" db:"flops_any_avg"`
 	MemBwAvg         float64   `json:"-" db:"mem_bw_avg"`
@@ -83,6 +84,7 @@ func ScanJob(row Scannable) (*Job, error) {
 		return nil, err
 	}
 
+	job.StartTime = time.Unix(job.StartTimeUnix, 0)
 	if job.Duration == 0 && job.State == JobStateRunning {
 		job.Duration = int32(time.Since(job.StartTime).Seconds())
 	}

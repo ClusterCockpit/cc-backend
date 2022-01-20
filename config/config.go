@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -13,13 +12,15 @@ import (
 
 	"github.com/ClusterCockpit/cc-jobarchive/auth"
 	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
+	"github.com/iamlouk/lrucache"
 	"github.com/jmoiron/sqlx"
 )
 
 var db *sqlx.DB
+var lookupConfigStmt *sqlx.Stmt
 var lock sync.RWMutex
 var uiDefaults map[string]interface{}
-
+var cache lrucache.Cache = *lrucache.New(1024)
 var Clusters []*model.Cluster
 
 func Init(usersdb *sqlx.DB, authEnabled bool, uiConfig map[string]interface{}, jobArchive string) error {
@@ -57,10 +58,15 @@ func Init(usersdb *sqlx.DB, authEnabled bool, uiConfig map[string]interface{}, j
 		_, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS configuration (
 			username varchar(255),
-			key      varchar(255),
+			confkey  varchar(255),
 			value    varchar(255),
-			PRIMARY KEY (username, key),
+			PRIMARY KEY (username, confkey),
 			FOREIGN KEY (username) REFERENCES user (username) ON DELETE CASCADE ON UPDATE NO ACTION);`)
+		if err != nil {
+			return err
+		}
+
+		lookupConfigStmt, err = db.Preparex(`SELECT confkey, value FROM configuration WHERE configuration.username = ?`)
 		if err != nil {
 			return err
 		}
@@ -72,38 +78,52 @@ func Init(usersdb *sqlx.DB, authEnabled bool, uiConfig map[string]interface{}, j
 // Return the personalised UI config for the currently authenticated
 // user or return the plain default config.
 func GetUIConfig(r *http.Request) (map[string]interface{}, error) {
-	lock.RLock()
-	config := make(map[string]interface{}, len(uiDefaults))
-	for k, v := range uiDefaults {
-		config[k] = v
-	}
-	lock.RUnlock()
-
 	user := auth.GetUser(r.Context())
 	if user == nil {
-		return config, nil
+		lock.RLock()
+		copy := make(map[string]interface{}, len(uiDefaults))
+		for k, v := range uiDefaults {
+			copy[k] = v
+		}
+		lock.RUnlock()
+		return copy, nil
 	}
 
-	rows, err := db.Query(`SELECT key, value FROM configuration WHERE configuration.username = ?`, user.Username)
-	if err != nil {
+	data := cache.Get(user.Username, func() (interface{}, time.Duration, int) {
+		config := make(map[string]interface{}, len(uiDefaults))
+		for k, v := range uiDefaults {
+			config[k] = v
+		}
+
+		rows, err := lookupConfigStmt.Query(user.Username)
+		if err != nil {
+			return err, 0, 0
+		}
+
+		size := 0
+		for rows.Next() {
+			var key, rawval string
+			if err := rows.Scan(&key, &rawval); err != nil {
+				return err, 0, 0
+			}
+
+			var val interface{}
+			if err := json.Unmarshal([]byte(rawval), &val); err != nil {
+				return err, 0, 0
+			}
+
+			size += len(key)
+			size += len(rawval)
+			config[key] = val
+		}
+
+		return config, 24 * time.Hour, size
+	})
+	if err, ok := data.(error); ok {
 		return nil, err
 	}
 
-	for rows.Next() {
-		var key, rawval string
-		if err := rows.Scan(&key, &rawval); err != nil {
-			return nil, err
-		}
-
-		var val interface{}
-		if err := json.Unmarshal([]byte(rawval), &val); err != nil {
-			return nil, err
-		}
-
-		config[key] = val
-	}
-
-	return config, nil
+	return data.(map[string]interface{}), nil
 }
 
 // If the context does not have a user, update the global ui configuration without persisting it!
@@ -111,21 +131,20 @@ func GetUIConfig(r *http.Request) (map[string]interface{}, error) {
 func UpdateConfig(key, value string, ctx context.Context) error {
 	user := auth.GetUser(ctx)
 	if user == nil {
-		lock.RLock()
-		defer lock.RUnlock()
-
 		var val interface{}
 		if err := json.Unmarshal([]byte(value), &val); err != nil {
 			return err
 		}
 
+		lock.Lock()
+		defer lock.Unlock()
 		uiDefaults[key] = val
 		return nil
 	}
 
-	if _, err := db.Exec(`REPLACE INTO configuration (username, key, value) VALUES (?, ?, ?)`,
+	cache.Del(user.Username)
+	if _, err := db.Exec(`REPLACE INTO configuration (username, confkey, value) VALUES (?, ?, ?)`,
 		user.Username, key, value); err != nil {
-		log.Printf("db.Exec: %s\n", err.Error())
 		return err
 	}
 

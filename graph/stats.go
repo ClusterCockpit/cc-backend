@@ -30,13 +30,13 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 	// `socketsPerNode` and `coresPerSocket` can differ from cluster to cluster, so we need to explicitly loop over those.
 	for _, cluster := range config.Clusters {
 		for _, partition := range cluster.Partitions {
-			corehoursCol := fmt.Sprintf("SUM(job.duration * job.num_nodes * %d * %d) / 3600", partition.SocketsPerNode, partition.CoresPerSocket)
+			corehoursCol := fmt.Sprintf("ROUND(SUM(job.duration * job.num_nodes * %d * %d) / 3600)", partition.SocketsPerNode, partition.CoresPerSocket)
 			var query sq.SelectBuilder
 			if groupBy == nil {
 				query = sq.Select(
 					"''",
 					"COUNT(job.id)",
-					"SUM(job.duration) / 3600",
+					"ROUND(SUM(job.duration) / 3600)",
 					corehoursCol,
 				).From("job")
 			} else {
@@ -44,7 +44,7 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 				query = sq.Select(
 					col,
 					"COUNT(job.id)",
-					"SUM(job.duration) / 3600",
+					"ROUND(SUM(job.duration) / 3600)",
 					corehoursCol,
 				).From("job").GroupBy(col)
 			}

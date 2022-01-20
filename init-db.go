@@ -13,32 +13,34 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// `AUTO_INCREMENT` is in a comment because of this hack:
+// https://stackoverflow.com/a/41028314 (sqlite creates unique ids automatically)
 const JOBS_DB_SCHEMA string = `
+	DROP TABLE IF EXISTS jobtag;
 	DROP TABLE IF EXISTS job;
 	DROP TABLE IF EXISTS tag;
-	DROP TABLE IF EXISTS jobtag;
 
 	CREATE TABLE job (
-		id                INTEGER PRIMARY KEY AUTOINCREMENT, -- Not needed in sqlite
+		id                INTEGER PRIMARY KEY /*!40101 AUTO_INCREMENT */,
 		job_id            BIGINT NOT NULL,
 		cluster           VARCHAR(255) NOT NULL,
-		start_time        TIMESTAMP NOT NULL,
+		start_time        BIGINT NOT NULL, -- Unix timestamp
 
 		user              VARCHAR(255) NOT NULL,
 		project           VARCHAR(255) NOT NULL,
-		partition         VARCHAR(255) NOT NULL,
+		` + "`partition`" + ` VARCHAR(255) NOT NULL, -- partition is a keyword in mysql -.-
 		array_job_id      BIGINT NOT NULL,
 		duration          INT,
-		job_state         VARCHAR(255) CHECK(job_state IN ('running', 'completed', 'failed', 'canceled', 'stopped', 'timeout')) NOT NULL,
-		meta_data         TEXT,          -- json, but sqlite has no json type
-		resources         TEXT NOT NULL, -- json, but sqlite has no json type
+		job_state         VARCHAR(255) NOT NULL CHECK(job_state IN ('running', 'completed', 'failed', 'canceled', 'stopped', 'timeout')),
+		meta_data         TEXT,          -- JSON
+		resources         TEXT NOT NULL, -- JSON
 
 		num_nodes         INT NOT NULL,
 		num_hwthreads     INT NOT NULL,
 		num_acc           INT NOT NULL,
-		smt               TINYINT CHECK(smt               IN (0, 1   )) NOT NULL DEFAULT 1,
-		exclusive         TINYINT CHECK(exclusive         IN (0, 1, 2)) NOT NULL DEFAULT 1,
-		monitoring_status TINYINT CHECK(monitoring_status IN (0, 1   )) NOT NULL DEFAULT 1,
+		smt               TINYINT NOT NULL DEFAULT 1 CHECK(smt               IN (0, 1   )),
+		exclusive         TINYINT NOT NULL DEFAULT 1 CHECK(exclusive         IN (0, 1, 2)),
+		monitoring_status TINYINT NOT NULL DEFAULT 1 CHECK(monitoring_status IN (0, 1   )),
 
 		mem_used_max        REAL NOT NULL DEFAULT 0.0,
 		flops_any_avg       REAL NOT NULL DEFAULT 0.0,
@@ -89,7 +91,7 @@ func initDB(db *sqlx.DB, archive string) error {
 	}
 
 	stmt, err := tx.PrepareNamed(`INSERT INTO job (
-		job_id, user, project, cluster, partition, array_job_id, num_nodes, num_hwthreads, num_acc,
+		job_id, user, project, cluster, ` + "`partition`" + `, array_job_id, num_nodes, num_hwthreads, num_acc,
 		exclusive, monitoring_status, smt, job_state, start_time, duration, resources, meta_data,
 		mem_used_max, flops_any_avg, mem_bw_avg, load_avg, net_bw_avg, net_data_vol_total, file_bw_avg, file_data_vol_total
 	) VALUES (
@@ -199,8 +201,9 @@ func loadJob(tx *sqlx.Tx, stmt *sqlx.NamedStmt, tags map[string]int64, path stri
 	}
 
 	job := schema.Job{
-		BaseJob:   jobMeta.BaseJob,
-		StartTime: time.Unix(jobMeta.StartTime, 0),
+		BaseJob:       jobMeta.BaseJob,
+		StartTime:     time.Unix(jobMeta.StartTime, 0),
+		StartTimeUnix: jobMeta.StartTime,
 	}
 
 	// TODO: Other metrics...

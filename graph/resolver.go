@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 
@@ -20,6 +21,31 @@ import (
 
 type Resolver struct {
 	DB *sqlx.DB
+
+	findJobByIdStmt         *sqlx.Stmt
+	findJobByIdWithUserStmt *sqlx.Stmt
+}
+
+func (r *Resolver) Init() {
+	findJobById, _, err := sq.Select(schema.JobColumns...).From("job").Where("job.id = ?", nil).ToSql()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	r.findJobByIdStmt, err = r.DB.Preparex(findJobById)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	findJobByIdWithUser, _, err := sq.Select(schema.JobColumns...).From("job").Where("job.id = ?", nil).Where("job.user = ?").ToSql()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	r.findJobByIdWithUserStmt, err = r.DB.Preparex(findJobByIdWithUser)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 // Helper function for the `jobs` GraphQL-Query. Is also used elsewhere when a list of jobs is needed.
@@ -82,17 +108,12 @@ func (r *Resolver) queryJobs(ctx context.Context, filters []*model.JobFilter, pa
 }
 
 func securityCheck(ctx context.Context, query sq.SelectBuilder) sq.SelectBuilder {
-	val := ctx.Value(auth.ContextUserKey)
-	if val == nil {
+	user := auth.GetUser(ctx)
+	if user == nil || user.IsAdmin {
 		return query
 	}
 
-	user := val.(*auth.User)
-	if user.IsAdmin {
-		return query
-	}
-
-	return query.Where("job.user_id = ?", user.Username)
+	return query.Where("job.user = ?", user.Username)
 }
 
 // Build a sq.SelectBuilder out of a schema.JobFilter.

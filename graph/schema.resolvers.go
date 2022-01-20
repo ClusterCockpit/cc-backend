@@ -148,14 +148,14 @@ func (r *queryResolver) Tags(ctx context.Context) ([]*schema.Tag, error) {
 }
 
 func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error) {
-	query := sq.Select(schema.JobColumns...).From("job").Where("job.id = ?", id)
-	query = securityCheck(ctx, query)
-	sql, args, err := query.ToSql()
-	if err != nil {
-		return nil, err
+	// This query is very common (mostly called through other resolvers such as JobMetrics),
+	// so we use prepared statements here.
+	user := auth.GetUser(ctx)
+	if user == nil || user.IsAdmin {
+		return schema.ScanJob(r.findJobByIdStmt.QueryRowx(id))
 	}
 
-	return schema.ScanJob(r.DB.QueryRowx(sql, args...))
+	return schema.ScanJob(r.findJobByIdWithUserStmt.QueryRowx(id, user.Username))
 }
 
 func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope) ([]*model.JobMetricWithName, error) {
