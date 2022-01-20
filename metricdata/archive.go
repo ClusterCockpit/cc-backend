@@ -15,10 +15,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-jobarchive/config"
 	"github.com/ClusterCockpit/cc-jobarchive/schema"
-	"github.com/iamlouk/lrucache"
 )
-
-var archiveCache *lrucache.Cache = lrucache.New(500 * 1024 * 1024)
 
 // For a given job, return the path of the `data.json`/`meta.json` file.
 // TODO: Implement Issue ClusterCockpit/ClusterCockpit#97
@@ -43,7 +40,7 @@ func loadFromArchive(job *schema.Job) (schema.JobData, error) {
 		return nil, err
 	}
 
-	data := archiveCache.Get(filename, func() (value interface{}, ttl time.Duration, size int) {
+	data := cache.Get(filename, func() (value interface{}, ttl time.Duration, size int) {
 		f, err := os.Open(filename)
 		if err != nil {
 			return err, 0, 1000
@@ -160,10 +157,6 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 		return nil, err
 	}
 
-	// if err := calcStatisticsSeries(job, jobData, 7); err != nil {
-	// 	return nil, err
-	// }
-
 	jobMeta := &schema.JobMeta{
 		BaseJob:    job.BaseJob,
 		StartTime:  job.StartTime.Unix(),
@@ -235,55 +228,3 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 
 	return jobMeta, f.Close()
 }
-
-/*
-
-// Add statisticsSeries fields
-func calcStatisticsSeries(job *schema.Job, jobData schema.JobData, maxSeries int) error {
-	for _, scopes := range jobData {
-		for _, jobMetric := range scopes {
-			if jobMetric.StatisticsSeries != nil {
-				continue
-			}
-
-			if len(jobMetric.Series) <= maxSeries {
-				continue
-			}
-
-			n := 0
-			for _, series := range jobMetric.Series {
-				if len(series.Data) > n {
-					n = len(series.Data)
-				}
-			}
-
-			mean, min, max := make([]schema.Float, n), make([]schema.Float, n), make([]schema.Float, n)
-			for i := 0; i < n; i++ {
-				sum, smin, smax := schema.Float(0.), math.MaxFloat32, -math.MaxFloat32
-				for _, series := range jobMetric.Series {
-					if i >= len(series.Data) {
-						sum, smin, smax = schema.NaN, math.NaN(), math.NaN()
-						break
-					}
-					x := series.Data[i]
-					sum += x
-					smin = math.Min(smin, float64(x))
-					smax = math.Max(smax, float64(x))
-				}
-				sum /= schema.Float(len(jobMetric.Series))
-				mean[i] = sum
-				min[i] = schema.Float(smin)
-				max[i] = schema.Float(smax)
-			}
-
-			jobMetric.StatisticsSeries = &schema.StatsSeries{
-				Min: min, Mean: mean, Max: max,
-			}
-			jobMetric.Series = nil
-		}
-	}
-
-	return nil
-}
-
-*/

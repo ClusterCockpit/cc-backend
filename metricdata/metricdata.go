@@ -57,57 +57,65 @@ func Init(jobArchivePath string, disableArchive bool) error {
 	return nil
 }
 
-var cache *lrucache.Cache = lrucache.New(500 * 1024 * 1024)
+var cache *lrucache.Cache = lrucache.New(512 * 1024 * 1024)
 
 // Fetches the metric data for a job.
 func LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context) (schema.JobData, error) {
-	if job.State == schema.JobStateRunning || !useArchive {
-		ckey := cacheKey(job, metrics, scopes)
-		if data := cache.Get(ckey, nil); data != nil {
-			return data.(schema.JobData), nil
-		}
+	data := cache.Get(cacheKey(job, metrics, scopes), func() (interface{}, time.Duration, int) {
+		var jd schema.JobData
+		var err error
+		if job.State == schema.JobStateRunning || !useArchive {
+			repo, ok := metricDataRepos[job.Cluster]
+			if !ok {
+				return fmt.Errorf("no metric data repository configured for '%s'", job.Cluster), 0, 0
+			}
 
-		repo, ok := metricDataRepos[job.Cluster]
-		if !ok {
-			return nil, fmt.Errorf("no metric data repository configured for '%s'", job.Cluster)
-		}
+			if scopes == nil {
+				scopes = append(scopes, schema.MetricScopeNode)
+			}
 
-		if scopes == nil {
-			scopes = append(scopes, schema.MetricScopeNode)
-		}
+			if metrics == nil {
+				cluster := config.GetClusterConfig(job.Cluster)
+				for _, mc := range cluster.MetricConfig {
+					metrics = append(metrics, mc.Name)
+				}
+			}
 
-		if metrics == nil {
-			cluster := config.GetClusterConfig(job.Cluster)
-			for _, mc := range cluster.MetricConfig {
-				metrics = append(metrics, mc.Name)
+			jd, err = repo.LoadData(job, metrics, scopes, ctx)
+			if err != nil {
+				return err, 0, 0
+			}
+		} else {
+			jd, err = loadFromArchive(job)
+			if err != nil {
+				return err, 0, 0
+			}
+
+			if metrics != nil {
+				res := schema.JobData{}
+				for _, metric := range metrics {
+					if metricdata, ok := jd[metric]; ok {
+						res[metric] = metricdata
+					}
+				}
+				jd = res
 			}
 		}
 
-		data, err := repo.LoadData(job, metrics, scopes, ctx)
-		if err != nil {
-			return nil, err
+		ttl := 5 * time.Hour
+		if job.State == schema.JobStateRunning {
+			ttl = 2 * time.Minute
 		}
 
-		// calcStatisticsSeries(job, data, 7)
-		cache.Put(ckey, data, data.Size(), 2*time.Minute)
-		return data, nil
-	}
+		prepareJobData(job, jd, scopes)
+		return jd, ttl, jd.Size()
+	})
 
-	data, err := loadFromArchive(job)
-	if err != nil {
+	if err, ok := data.(error); ok {
 		return nil, err
 	}
 
-	if metrics != nil {
-		res := schema.JobData{}
-		for _, metric := range metrics {
-			if metricdata, ok := data[metric]; ok {
-				res[metric] = metricdata
-			}
-		}
-		return res, nil
-	}
-	return data, nil
+	return data.(schema.JobData), nil
 }
 
 // Used for the jobsFootprint GraphQL-Query. TODO: Rename/Generalize.
@@ -171,6 +179,34 @@ func LoadNodeData(clusterId string, metrics, nodes []string, from, to int64, ctx
 func cacheKey(job *schema.Job, metrics []string, scopes []schema.MetricScope) string {
 	// Duration and StartTime do not need to be in the cache key as StartTime is less unique than
 	// job.ID and the TTL of the cache entry makes sure it does not stay there forever.
-	return fmt.Sprintf("%d:[%v],[%v]",
-		job.ID, metrics, scopes)
+	return fmt.Sprintf("%d(%s):[%v],[%v]",
+		job.ID, job.State, metrics, scopes)
+}
+
+// For /monitoring/job/<job> and some other places, flops_any and mem_bw need to be available at the scope 'node'.
+// If a job has a lot of nodes, statisticsSeries should be available so that a min/mean/max Graph can be used instead of
+// a lot of single lines.
+func prepareJobData(job *schema.Job, jobData schema.JobData, scopes []schema.MetricScope) {
+	const maxSeriesSize int = 15
+	for _, scopes := range jobData {
+		for _, jm := range scopes {
+			if jm.StatisticsSeries != nil || len(jm.Series) <= maxSeriesSize {
+				continue
+			}
+
+			jm.AddStatisticsSeries()
+		}
+	}
+
+	nodeScopeRequested := false
+	for _, scope := range scopes {
+		if scope == schema.MetricScopeNode {
+			nodeScopeRequested = true
+		}
+	}
+
+	if nodeScopeRequested {
+		jobData.AddNodeScope("flops_any")
+		jobData.AddNodeScope("mem_bw")
+	}
 }
