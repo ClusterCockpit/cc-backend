@@ -14,6 +14,11 @@ type MetricDataRepository struct {
 	Kind  string `json:"kind"`
 	Url   string `json:"url"`
 	Token string `json:"token"`
+
+	// If metrics are known to this MetricDataRepository under a different
+	// name than in the `metricConfig` section of the 'cluster.json',
+	// provide this optional mapping of local to remote name for this metric.
+	Renamings map[string]string `json:"metricRenamings"`
 }
 
 // Return a list of socket IDs given a list of hwthread IDs.
