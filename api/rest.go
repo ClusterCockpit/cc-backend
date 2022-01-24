@@ -183,8 +183,8 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if config.GetClusterConfig(req.Cluster) == nil {
-		http.Error(rw, fmt.Sprintf("cluster '%s' does not exist", req.Cluster), http.StatusBadRequest)
+	if config.GetClusterConfig(req.Cluster) == nil || config.GetPartition(req.Cluster, req.Partition) == nil {
+		http.Error(rw, fmt.Sprintf("cluster %#v or partition %#v does not exist", req.Cluster, req.Partition), http.StatusBadRequest)
 		return
 	}
 
@@ -207,6 +207,10 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		rows.Scan(&id)
 		http.Error(rw, fmt.Sprintf("a job with that job_id, cluster_id and start_time already exists (database id: %d)", id), http.StatusUnprocessableEntity)
 		return
+	}
+
+	if req.State == "" {
+		req.State = schema.JobStateRunning
 	}
 
 	req.RawResources, err = json.Marshal(req.Resources)

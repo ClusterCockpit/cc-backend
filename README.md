@@ -81,13 +81,12 @@ This project uses [gqlgen](https://github.com/99designs/gqlgen) for the GraphQL 
 
 ### TODO
 
-- [ ] fix frontend
 - [ ] write (unit) tests
 - [ ] make tokens and sessions (currently based on cookies) expire after some configurable time
 - [ ] when authenticating using a JWT, check if that user still exists
-- [ ] allow mysql as database and passing the database uri as environment variable
+- [ ] allow passing the database uri as environment variable
 - [ ] fix InfluxDB MetricDataRepository (new or old line-protocol format? Support node-level metrics only?)
-- [ ] support all metric scopes
 - [ ] documentation, comments in the code base
 - [ ] write more TODOs
-- [ ] caching
+- [ ] use more prepared statements and [sqrl](https://github.com/elgris/sqrl) instead of *squirrel*
+- [ ] replace `github.com/ClusterCockpit/cc-jobarchive` with `github.com/ClusterCockpit/cc-backend` in all import paths

@@ -14,6 +14,7 @@ import (
 type Float float64
 
 var NaN Float = Float(math.NaN())
+var nullAsBytes []byte = []byte("null")
 
 func (f Float) IsNaN() bool {
 	return math.IsNaN(float64(f))
@@ -22,10 +23,10 @@ func (f Float) IsNaN() bool {
 // NaN will be serialized to `null`.
 func (f Float) MarshalJSON() ([]byte, error) {
 	if f.IsNaN() {
-		return []byte("null"), nil
+		return nullAsBytes, nil
 	}
 
-	return []byte(strconv.FormatFloat(float64(f), 'f', 2, 64)), nil
+	return strconv.AppendFloat(make([]byte, 0, 10), float64(f), 'f', 2, 64), nil
 }
 
 // `null` will be unserialized to NaN.
@@ -59,8 +60,8 @@ func (f *Float) UnmarshalGQL(v interface{}) error {
 // NaN will be serialized to `null`.
 func (f Float) MarshalGQL(w io.Writer) {
 	if f.IsNaN() {
-		w.Write([]byte(`null`))
+		w.Write(nullAsBytes)
 	} else {
-		w.Write([]byte(strconv.FormatFloat(float64(f), 'f', 2, 64)))
+		w.Write(strconv.AppendFloat(make([]byte, 0, 10), float64(f), 'f', 2, 64))
 	}
 }
