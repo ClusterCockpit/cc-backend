@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"sync"
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/jmoiron/sqlx"
@@ -37,22 +36,9 @@ func initLdap(config *LdapConfig) error {
 	return nil
 }
 
-var ldapConnectionsLock sync.Mutex
-var ldapConnections []*ldap.Conn = []*ldap.Conn{}
-
 // TODO: Add a connection pool or something like
 // that so that connections can be reused/cached.
-func getLdapConnection() (*ldap.Conn, error) {
-	ldapConnectionsLock.Lock()
-	n := len(ldapConnections)
-	if n > 0 {
-		conn := ldapConnections[n-1]
-		ldapConnections = ldapConnections[:n-1]
-		ldapConnectionsLock.Unlock()
-		return conn, nil
-	}
-	ldapConnectionsLock.Unlock()
-
+func getLdapConnection(admin bool) (*ldap.Conn, error) {
 	conn, err := ldap.DialURL(ldapConfig.Url)
 	if err != nil {
 		return nil, err
@@ -65,35 +51,22 @@ func getLdapConnection() (*ldap.Conn, error) {
 		}
 	}
 
-	if err := conn.Bind(ldapConfig.SearchDN, ldapAdminPassword); err != nil {
-		conn.Close()
-		return nil, err
+	if admin {
+		if err := conn.Bind(ldapConfig.SearchDN, ldapAdminPassword); err != nil {
+			conn.Close()
+			return nil, err
+		}
 	}
 
 	return conn, nil
 }
 
 func releaseConnection(conn *ldap.Conn) {
-	// Re-bind to the user we can run queries with
-	if err := conn.Bind(ldapConfig.SearchDN, ldapAdminPassword); err != nil {
-		conn.Close()
-		log.Printf("ldap error: %s", err.Error())
-	}
-
-	ldapConnectionsLock.Lock()
-	defer ldapConnectionsLock.Unlock()
-
-	n := len(ldapConnections)
-	if n > 2 {
-		conn.Close()
-		return
-	}
-
-	ldapConnections = append(ldapConnections, conn)
+	conn.Close()
 }
 
 func loginViaLdap(user *User, password string) error {
-	l, err := getLdapConnection()
+	l, err := getLdapConnection(false)
 	if err != nil {
 		return err
 	}
@@ -134,7 +107,7 @@ func SyncWithLDAP(db *sqlx.DB) error {
 		users[username] = IN_DB
 	}
 
-	l, err := getLdapConnection()
+	l, err := getLdapConnection(true)
 	if err != nil {
 		return err
 	}

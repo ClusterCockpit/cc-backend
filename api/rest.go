@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/ClusterCockpit/cc-jobarchive/auth"
 	"github.com/ClusterCockpit/cc-jobarchive/config"
 	"github.com/ClusterCockpit/cc-jobarchive/graph"
 	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
@@ -177,6 +178,11 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 // A new job started. The body should be in the `meta.json` format, but some fields required
 // there are optional here (e.g. `jobState` defaults to "running").
 func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
+	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
+		http.Error(rw, "Missing 'api' role", http.StatusForbidden)
+		return
+	}
+
 	req := schema.JobMeta{BaseJob: schema.JobDefaults}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
@@ -246,6 +252,11 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 
 // A job has stopped and should be archived.
 func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
+	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
+		http.Error(rw, "Missing 'api' role", http.StatusForbidden)
+		return
+	}
+
 	req := StopJobApiRequest{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)

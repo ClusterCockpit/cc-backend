@@ -109,7 +109,7 @@ func (r *Resolver) queryJobs(ctx context.Context, filters []*model.JobFilter, pa
 
 func securityCheck(ctx context.Context, query sq.SelectBuilder) sq.SelectBuilder {
 	user := auth.GetUser(ctx)
-	if user == nil || user.IsAdmin {
+	if user == nil || user.HasRole(auth.RoleAdmin) {
 		return query
 	}
 

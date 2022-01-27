@@ -132,7 +132,7 @@ func main() {
 	flag.BoolVar(&flagSyncLDAP, "sync-ldap", false, "Sync the `user` table with ldap")
 	flag.BoolVar(&flagStopImmediately, "no-server", false, "Do not start a server, stop right after initialization and argument handling")
 	flag.StringVar(&flagConfigFile, "config", "", "Location of the config file for this server (overwrites the defaults)")
-	flag.StringVar(&flagNewUser, "add-user", "", "Add a new user. Argument format: `<username>:[admin|api]:<password>`")
+	flag.StringVar(&flagNewUser, "add-user", "", "Add a new user. Argument format: `<username>:[admin,api,user]:<password>`")
 	flag.StringVar(&flagDelUser, "del-user", "", "Remove user by username")
 	flag.StringVar(&flagGenJWT, "jwt", "", "Generate and print a JWT for the user specified by the username")
 	flag.Parse()
@@ -200,7 +200,7 @@ func main() {
 				log.Fatal(err)
 			}
 
-			if !user.IsAPIUser {
+			if !user.HasRole(auth.RoleApi) {
 				log.Println("warning: that user does not have the API role")
 			}
 
@@ -299,7 +299,7 @@ func main() {
 
 		if user := auth.GetUser(r.Context()); user != nil {
 			infos["username"] = user.Username
-			infos["admin"] = user.IsAdmin
+			infos["admin"] = user.HasRole(auth.RoleAdmin)
 		}
 
 		templates.Render(rw, r, "home.html", &templates.Page{

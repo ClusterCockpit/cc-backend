@@ -25,13 +25,27 @@ import (
 // TODO: Properly do this "roles" stuff.
 // Add a roles array and `user.HasRole(...)` functions.
 type User struct {
-	Username  string
-	Password  string
-	Name      string
-	IsAdmin   bool
-	IsAPIUser bool
-	ViaLdap   bool
-	Email     string
+	Username string
+	Password string
+	Name     string
+	Roles    []string
+	ViaLdap  bool
+	Email    string
+}
+
+const (
+	RoleAdmin string = "admin"
+	RoleApi   string = "api"
+	RoleUser  string = "user"
+)
+
+func (u *User) HasRole(role string) bool {
+	for _, r := range u.Roles {
+		if r == role {
+			return true
+		}
+	}
+	return false
 }
 
 type ContextKey string
@@ -100,24 +114,32 @@ func Init(db *sqlx.DB, ldapConfig *LdapConfig) error {
 // arg must be formated like this: "<username>:[admin]:<password>"
 func AddUserToDB(db *sqlx.DB, arg string) error {
 	parts := strings.SplitN(arg, ":", 3)
-	if len(parts) != 3 || len(parts[0]) == 0 || len(parts[2]) == 0 || !(len(parts[1]) == 0 || parts[1] == "admin") {
+	if len(parts) != 3 || len(parts[0]) == 0 {
 		return errors.New("invalid argument format")
 	}
 
-	password, err := bcrypt.GenerateFromPassword([]byte(parts[2]), bcrypt.DefaultCost)
-	if err != nil {
-		return err
+	password := ""
+	if len(parts[2]) > 0 {
+		bytes, err := bcrypt.GenerateFromPassword([]byte(parts[2]), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+		password = string(bytes)
 	}
 
-	roles := "[]"
-	if parts[1] == "admin" {
-		roles = "[\"ROLE_ADMIN\"]"
-	}
-	if parts[1] == "api" {
-		roles = "[\"ROLE_API\"]"
+	roles := []string{}
+	for _, role := range strings.Split(parts[1], ",") {
+		if len(role) == 0 {
+			continue
+		} else if role == RoleAdmin || role == RoleApi || role == RoleUser {
+			roles = append(roles, role)
+		} else {
+			return fmt.Errorf("invalid user role: %#v", role)
+		}
 	}
 
-	_, err = sq.Insert("user").Columns("username", "password", "roles").Values(parts[0], string(password), roles).RunWith(db).Exec()
+	rolesJson, _ := json.Marshal(roles)
+	_, err := sq.Insert("user").Columns("username", "password", "roles").Values(parts[0], password, string(rolesJson)).RunWith(db).Exec()
 	if err != nil {
 		return err
 	}
@@ -142,17 +164,8 @@ func FetchUserFromDB(db *sqlx.DB, username string) (*User, error) {
 	user.Password = hashedPassword.String
 	user.Name = name.String
 	user.Email = email.String
-	var roles []string
 	if rawRoles.Valid {
-		json.Unmarshal([]byte(rawRoles.String), &roles)
-	}
-	for _, role := range roles {
-		switch role {
-		case "ROLE_ADMIN":
-			user.IsAdmin = true
-		case "ROLE_API":
-			user.IsAPIUser = true
-		}
+		json.Unmarshal([]byte(rawRoles.String), &user.Roles)
 	}
 
 	return user, nil
@@ -195,14 +208,14 @@ func Login(db *sqlx.DB) http.Handler {
 
 		session.Options.MaxAge = 30 * 24 * 60 * 60
 		session.Values["username"] = user.Username
-		session.Values["is_admin"] = user.IsAdmin
+		session.Values["roles"] = user.Roles
 		if err := sessionStore.Save(r, rw, session); err != nil {
 			log.Printf("session save failed: %s\n", err.Error())
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		log.Printf("login successfull: user: %#v\n", user)
+		log.Printf("login successfull: user: %#v (roles: %v)\n", user.Username, user.Roles)
 		http.Redirect(rw, r, "/", http.StatusTemporaryRedirect)
 	})
 }
@@ -240,14 +253,12 @@ func authViaToken(r *http.Request) (*User, error) {
 
 	claims := token.Claims.(jwt.MapClaims)
 	sub, _ := claims["sub"].(string)
-	isAdmin, _ := claims["is_admin"].(bool)
-	isAPIUser, _ := claims["is_api"].(bool)
+	roles, _ := claims["roles"].([]string)
 
 	// TODO: Check if sub is still a valid user!
 	return &User{
-		Username:  sub,
-		IsAdmin:   isAdmin,
-		IsAPIUser: isAPIUser,
+		Username: sub,
+		Roles:    roles,
 	}, nil
 }
 
@@ -289,9 +300,11 @@ func Auth(next http.Handler) http.Handler {
 			return
 		}
 
+		username, _ := session.Values["username"].(string)
+		roles, _ := session.Values["roles"].([]string)
 		ctx := context.WithValue(r.Context(), ContextUserKey, &User{
-			Username: session.Values["username"].(string),
-			IsAdmin:  session.Values["is_admin"].(bool),
+			Username: username,
+			Roles:    roles,
 		})
 		next.ServeHTTP(rw, r.WithContext(ctx))
 	})
@@ -300,13 +313,12 @@ func Auth(next http.Handler) http.Handler {
 // Generate a new JWT that can be used for authentication
 func ProvideJWT(user *User) (string, error) {
 	if JwtPrivateKey == nil {
-		return "", errors.New("environment variable 'JWT_PUBLIC_KEY' not set")
+		return "", errors.New("environment variable 'JWT_PRIVATE_KEY' not set")
 	}
 
 	tok := jwt.NewWithClaims(jwt.SigningMethodEdDSA, jwt.MapClaims{
-		"sub":      user.Username,
-		"is_admin": user.IsAdmin,
-		"is_api":   user.IsAPIUser,
+		"sub":   user.Username,
+		"roles": user.Roles,
 	})
 
 	return tok.SignedString(JwtPrivateKey)

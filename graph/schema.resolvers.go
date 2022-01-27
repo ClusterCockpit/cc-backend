@@ -151,7 +151,7 @@ func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error)
 	// This query is very common (mostly called through other resolvers such as JobMetrics),
 	// so we use prepared statements here.
 	user := auth.GetUser(ctx)
-	if user == nil || user.IsAdmin {
+	if user == nil || user.HasRole(auth.RoleAdmin) {
 		return schema.ScanJob(r.findJobByIdStmt.QueryRowx(id))
 	}
 
@@ -209,7 +209,7 @@ func (r *queryResolver) RooflineHeatmap(ctx context.Context, filter []*model.Job
 
 func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes []string, metrics []string, from time.Time, to time.Time) ([]*model.NodeMetrics, error) {
 	user := auth.GetUser(ctx)
-	if user != nil && !user.IsAdmin {
+	if user != nil && !user.HasRole(auth.RoleAdmin) {
 		return nil, errors.New("you need to be an administrator for this query")
 	}
 
