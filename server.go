@@ -8,7 +8,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -29,6 +28,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/config"
 	"github.com/ClusterCockpit/cc-backend/graph"
 	"github.com/ClusterCockpit/cc-backend/graph/generated"
+	"github.com/ClusterCockpit/cc-backend/log"
 	"github.com/ClusterCockpit/cc-backend/metricdata"
 	"github.com/ClusterCockpit/cc-backend/schema"
 	"github.com/ClusterCockpit/cc-backend/templates"
@@ -201,7 +201,7 @@ func main() {
 			}
 
 			if !user.HasRole(auth.RoleApi) {
-				log.Println("warning: that user does not have the API role")
+				log.Warn("that user does not have the API role")
 			}
 
 			jwt, err := auth.ProvideJWT(user)
@@ -212,7 +212,7 @@ func main() {
 			fmt.Printf("JWT for '%s': %s\n", user.Username, jwt)
 		}
 	} else if flagNewUser != "" || flagDelUser != "" {
-		log.Fatalln("arguments --add-user and --del-user can only be used if authentication is enabled")
+		log.Fatal("arguments --add-user and --del-user can only be used if authentication is enabled")
 	}
 
 	if err := config.Init(db, !programConfig.DisableAuthentication, programConfig.UiDefaults, programConfig.JobArchive); err != nil {
@@ -316,7 +316,7 @@ func main() {
 	handler := handlers.CORS(
 		handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}),
 		handlers.AllowedMethods([]string{"GET", "POST", "HEAD", "OPTIONS"}),
-		handlers.AllowedOrigins([]string{"*"}))(handlers.LoggingHandler(os.Stdout, handlers.CompressHandler(r)))
+		handlers.AllowedOrigins([]string{"*"}))(handlers.LoggingHandler(log.InfoWriter, handlers.CompressHandler(r)))
 
 	var wg sync.WaitGroup
 	server := http.Server{

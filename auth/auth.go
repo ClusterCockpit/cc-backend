@@ -9,11 +9,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strings"
 
+	"github.com/ClusterCockpit/cc-backend/log"
 	"github.com/ClusterCockpit/cc-backend/templates"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/golang-jwt/jwt/v4"
@@ -72,7 +72,7 @@ func Init(db *sqlx.DB, ldapConfig *LdapConfig) error {
 
 	sessKey := os.Getenv("SESSION_KEY")
 	if sessKey == "" {
-		log.Println("warning: environment variable 'SESSION_KEY' not set (will use non-persistent random key)")
+		log.Warn("environment variable 'SESSION_KEY' not set (will use non-persistent random key)")
 		bytes := make([]byte, 32)
 		if _, err := rand.Read(bytes); err != nil {
 			return err
@@ -88,7 +88,7 @@ func Init(db *sqlx.DB, ldapConfig *LdapConfig) error {
 
 	pubKey, privKey := os.Getenv("JWT_PUBLIC_KEY"), os.Getenv("JWT_PRIVATE_KEY")
 	if pubKey == "" || privKey == "" {
-		log.Println("warning: environment variables 'JWT_PUBLIC_KEY' or 'JWT_PRIVATE_KEY' not set (token based authentication will not work)")
+		log.Warn("environment variables 'JWT_PUBLIC_KEY' or 'JWT_PRIVATE_KEY' not set (token based authentication will not work)")
 	} else {
 		bytes, err := base64.StdEncoding.DecodeString(pubKey)
 		if err != nil {
@@ -143,7 +143,7 @@ func AddUserToDB(db *sqlx.DB, arg string) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("new user '%s' added (roles: %s)\n", parts[0], roles)
+	log.Infof("new user %#v added (roles: %s)", parts[0], roles)
 	return nil
 }
 
@@ -188,7 +188,7 @@ func Login(db *sqlx.DB) http.Handler {
 		}
 
 		if err != nil {
-			log.Printf("login failed: %s\n", err.Error())
+			log.Warnf("login of user %#v failed: %s", username, err.Error())
 			rw.WriteHeader(http.StatusUnauthorized)
 			templates.Render(rw, r, "login.html", &templates.Page{
 				Title: "Login failed",
@@ -201,7 +201,7 @@ func Login(db *sqlx.DB) http.Handler {
 
 		session, err := sessionStore.New(r, "session")
 		if err != nil {
-			log.Printf("session creation failed: %s\n", err.Error())
+			log.Errorf("session creation failed: %s", err.Error())
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -210,12 +210,12 @@ func Login(db *sqlx.DB) http.Handler {
 		session.Values["username"] = user.Username
 		session.Values["roles"] = user.Roles
 		if err := sessionStore.Save(r, rw, session); err != nil {
-			log.Printf("session save failed: %s\n", err.Error())
+			log.Errorf("session save failed: %s", err.Error())
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		log.Printf("login successfull: user: %#v (roles: %v)\n", user.Username, user.Roles)
+		log.Infof("login successfull: user: %#v (roles: %v)", user.Username, user.Roles)
 		http.Redirect(rw, r, "/", http.StatusTemporaryRedirect)
 	})
 }
@@ -269,7 +269,7 @@ func Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		user, err := authViaToken(r)
 		if err == ErrTokenInvalid {
-			log.Printf("authentication failed: invalid token\n")
+			log.Warn("authentication failed: invalid token")
 			http.Error(rw, err.Error(), http.StatusUnauthorized)
 			return
 		}
@@ -288,7 +288,7 @@ func Auth(next http.Handler) http.Handler {
 		}
 
 		if session.IsNew {
-			log.Printf("authentication failed: no session or jwt found\n")
+			log.Warn("authentication failed: no session or jwt found")
 
 			rw.WriteHeader(http.StatusUnauthorized)
 			templates.Render(rw, r, "login.html", &templates.Page{

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -16,6 +15,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/config"
 	"github.com/ClusterCockpit/cc-backend/graph"
 	"github.com/ClusterCockpit/cc-backend/graph/model"
+	"github.com/ClusterCockpit/cc-backend/log"
 	"github.com/ClusterCockpit/cc-backend/metricdata"
 	"github.com/ClusterCockpit/cc-backend/schema"
 	sq "github.com/Masterminds/squirrel"
@@ -181,7 +181,8 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 // there are optional here (e.g. `jobState` defaults to "running").
 func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		http.Error(rw, "Missing 'api' role", http.StatusForbidden)
+		log.Warnf("user '%s' used /api/jobs/start_job/ without having the API role")
+		http.Error(rw, "missing 'api' role", http.StatusForbidden)
 		return
 	}
 
@@ -223,7 +224,8 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 
 	req.RawResources, err = json.Marshal(req.Resources)
 	if err != nil {
-		log.Fatal(err)
+		http.Error(rw, "while parsing resources: "+err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	res, err := api.DB.NamedExec(`INSERT INTO job (
@@ -234,6 +236,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		:exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :resources, :meta_data
 	);`, req)
 	if err != nil {
+		log.Errorf("insert into job table failed: %s", err.Error())
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -244,7 +247,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("new job (id: %d): cluster=%s, jobId=%d, user=%s, startTime=%d\n", id, req.Cluster, req.JobID, req.User, req.StartTime)
+	log.Printf("new job (id: %d): cluster=%s, jobId=%d, user=%s, startTime=%d", id, req.Cluster, req.JobID, req.User, req.StartTime)
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusCreated)
 	json.NewEncoder(rw).Encode(StartJobApiRespone{
@@ -313,7 +316,7 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 		job.Duration = int32(req.StopTime - job.StartTime.Unix())
 		jobMeta, err := metricdata.ArchiveJob(job, ctx)
 		if err != nil {
-			log.Printf("archiving job (dbid: %d) failed: %s\n", job.ID, err.Error())
+			log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
 			return err
 		}
 
@@ -341,20 +344,20 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 
 		sql, args, err := stmt.ToSql()
 		if err != nil {
-			log.Printf("archiving job (dbid: %d) failed: %s\n", job.ID, err.Error())
+			log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
 			return err
 		}
 
 		if _, err := api.DB.Exec(sql, args...); err != nil {
-			log.Printf("archiving job (dbid: %d) failed: %s\n", job.ID, err.Error())
+			log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
 			return err
 		}
 
-		log.Printf("job stopped and archived (dbid: %d)\n", job.ID)
+		log.Printf("job stopped and archived (dbid: %d)", job.ID)
 		return nil
 	}
 
-	log.Printf("archiving job... (dbid: %d): cluster=%s, jobId=%d, user=%s, startTime=%s\n", job.ID, job.Cluster, job.JobID, job.User, job.StartTime)
+	log.Printf("archiving job... (dbid: %d): cluster=%s, jobId=%d, user=%s, startTime=%s", job.ID, job.Cluster, job.JobID, job.User, job.StartTime)
 	if api.AsyncArchiving {
 		rw.Header().Add("Content-Type", "application/json")
 		rw.WriteHeader(http.StatusOK)
@@ -399,23 +402,19 @@ func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 
 	data, err := api.Resolver.Query().JobMetrics(r.Context(), id, metrics, scopes)
 	if err != nil {
-		if err := json.NewEncoder(rw).Encode(Respone{
+		json.NewEncoder(rw).Encode(Respone{
 			Error: &struct {
 				Message string "json:\"message\""
 			}{Message: err.Error()},
-		}); err != nil {
-			log.Println(err.Error())
-		}
+		})
 		return
 	}
 
-	if err := json.NewEncoder(rw).Encode(Respone{
+	json.NewEncoder(rw).Encode(Respone{
 		Data: &struct {
 			JobMetrics []*model.JobMetricWithName "json:\"jobMetrics\""
 		}{JobMetrics: data},
-	}); err != nil {
-		log.Println(err.Error())
-	}
+	})
 }
 
 func (api *RestApi) putMachineState(rw http.ResponseWriter, r *http.Request) {

@@ -3,10 +3,10 @@ package auth
 import (
 	"crypto/tls"
 	"errors"
-	"fmt"
-	"log"
 	"os"
 	"strings"
+
+	"github.com/ClusterCockpit/cc-backend/log"
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/jmoiron/sqlx"
@@ -28,7 +28,7 @@ var ldapAdminPassword string
 func initLdap(config *LdapConfig) error {
 	ldapAdminPassword = os.Getenv("LDAP_ADMIN_PASSWORD")
 	if ldapAdminPassword == "" {
-		log.Println("warning: environment variable 'LDAP_ADMIN_PASSWORD' not set (ldap sync or authentication will not work)")
+		log.Warn("environment variable 'LDAP_ADMIN_PASSWORD' not set (ldap sync or authentication will not work)")
 	}
 
 	ldapConfig = config
@@ -138,13 +138,13 @@ func SyncWithLDAP(db *sqlx.DB) error {
 
 	for username, where := range users {
 		if where == IN_DB {
-			fmt.Printf("ldap-sync: remove '%s' (does not show up in LDAP anymore)\n", username)
+			log.Infof("ldap-sync: remove %#v (does not show up in LDAP anymore)", username)
 			if _, err := db.Exec(`DELETE FROM user WHERE user.username = ?`, username); err != nil {
 				return err
 			}
 		} else if where == IN_LDAP {
 			name := newnames[username]
-			fmt.Printf("ldap-sync: add '%s' (name: '%s', roles: [], ldap: true)\n", username, name)
+			log.Infof("ldap-sync: add %#v (name: %#v, roles: [], ldap: true)", username, name)
 			if _, err := db.Exec(`INSERT INTO user (username, ldap, name, roles) VALUES (?, ?, ?, ?)`,
 				username, 1, name, "[]"); err != nil {
 				return err
