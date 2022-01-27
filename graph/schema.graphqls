@@ -174,7 +174,11 @@ input JobFilter {
   cluster:     StringInput
   partition:   StringInput
   duration:    IntRange
-  numNodes:    IntRange
+
+  numNodes:        IntRange
+  numAccelerators: IntRange
+  numHWThreads:    IntRange
+
   startTime:   TimeRange
   state:       [JobState!]
   flopsAnyAvg: FloatRange

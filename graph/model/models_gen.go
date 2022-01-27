@@ -44,21 +44,23 @@ type IntRangeOutput struct {
 }
 
 type JobFilter struct {
-	Tags        []string          `json:"tags"`
-	JobID       *StringInput      `json:"jobId"`
-	ArrayJobID  *int              `json:"arrayJobId"`
-	User        *StringInput      `json:"user"`
-	Project     *StringInput      `json:"project"`
-	Cluster     *StringInput      `json:"cluster"`
-	Partition   *StringInput      `json:"partition"`
-	Duration    *IntRange         `json:"duration"`
-	NumNodes    *IntRange         `json:"numNodes"`
-	StartTime   *TimeRange        `json:"startTime"`
-	State       []schema.JobState `json:"state"`
-	FlopsAnyAvg *FloatRange       `json:"flopsAnyAvg"`
-	MemBwAvg    *FloatRange       `json:"memBwAvg"`
-	LoadAvg     *FloatRange       `json:"loadAvg"`
-	MemUsedMax  *FloatRange       `json:"memUsedMax"`
+	Tags            []string          `json:"tags"`
+	JobID           *StringInput      `json:"jobId"`
+	ArrayJobID      *int              `json:"arrayJobId"`
+	User            *StringInput      `json:"user"`
+	Project         *StringInput      `json:"project"`
+	Cluster         *StringInput      `json:"cluster"`
+	Partition       *StringInput      `json:"partition"`
+	Duration        *IntRange         `json:"duration"`
+	NumNodes        *IntRange         `json:"numNodes"`
+	NumAccelerators *IntRange         `json:"numAccelerators"`
+	NumHWThreads    *IntRange         `json:"numHWThreads"`
+	StartTime       *TimeRange        `json:"startTime"`
+	State           []schema.JobState `json:"state"`
+	FlopsAnyAvg     *FloatRange       `json:"flopsAnyAvg"`
+	MemBwAvg        *FloatRange       `json:"memBwAvg"`
+	LoadAvg         *FloatRange       `json:"loadAvg"`
+	MemUsedMax      *FloatRange       `json:"memUsedMax"`
 }
 
 type JobMetricWithName struct {

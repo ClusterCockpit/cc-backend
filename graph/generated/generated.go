@@ -1352,7 +1352,11 @@ input JobFilter {
   cluster:     StringInput
   partition:   StringInput
   duration:    IntRange
-  numNodes:    IntRange
+
+  numNodes:        IntRange
+  numAccelerators: IntRange
+  numHWThreads:    IntRange
+
   startTime:   TimeRange
   state:       [JobState!]
   flopsAnyAvg: FloatRange
@@ -7068,6 +7072,22 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("numNodes"))
 			it.NumNodes, err = ec.unmarshalOIntRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐIntRange(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "numAccelerators":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("numAccelerators"))
+			it.NumAccelerators, err = ec.unmarshalOIntRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐIntRange(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "numHWThreads":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("numHWThreads"))
+			it.NumHWThreads, err = ec.unmarshalOIntRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐIntRange(ctx, v)
 			if err != nil {
 				return it, err
 			}

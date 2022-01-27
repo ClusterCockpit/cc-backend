@@ -156,6 +156,12 @@ func buildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	if filter.NumNodes != nil {
 		query = buildIntCondition("job.num_nodes", filter.NumNodes, query)
 	}
+	if filter.NumAccelerators != nil {
+		query = buildIntCondition("job.num_acc", filter.NumAccelerators, query)
+	}
+	if filter.NumHWThreads != nil {
+		query = buildIntCondition("job.num_hwthreads", filter.NumHWThreads, query)
+	}
 	if filter.FlopsAnyAvg != nil {
 		query = buildFloatCondition("job.flops_any_avg", filter.FlopsAnyAvg, query)
 	}
