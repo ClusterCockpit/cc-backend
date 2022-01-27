@@ -65,3 +65,41 @@ func (f Float) MarshalGQL(w io.Writer) {
 		w.Write(strconv.AppendFloat(make([]byte, 0, 10), float64(f), 'f', 2, 64))
 	}
 }
+
+// Only used via REST-API, not via GraphQL.
+// This uses a lot less allocations per series,
+// but it turns out that the performance increase
+// from using this is not that big.
+func (s *Series) MarshalJSON() ([]byte, error) {
+	buf := make([]byte, 0, 512+len(s.Data)*8)
+	buf = append(buf, `{"hostname":"`...)
+	buf = append(buf, s.Hostname...)
+	buf = append(buf, '"')
+	if s.Id != nil {
+		buf = append(buf, `,"id":`...)
+		buf = strconv.AppendInt(buf, int64(*s.Id), 10)
+	}
+	if s.Statistics != nil {
+		buf = append(buf, `,"statistics":{"min":`...)
+		buf = strconv.AppendFloat(buf, s.Statistics.Min, 'f', 2, 64)
+		buf = append(buf, `,"avg":`...)
+		buf = strconv.AppendFloat(buf, s.Statistics.Avg, 'f', 2, 64)
+		buf = append(buf, `,"max":`...)
+		buf = strconv.AppendFloat(buf, s.Statistics.Max, 'f', 2, 64)
+		buf = append(buf, '}')
+	}
+	buf = append(buf, `,"data":[`...)
+	for i := 0; i < len(s.Data); i++ {
+		if i != 0 {
+			buf = append(buf, ',')
+		}
+
+		if s.Data[i].IsNaN() {
+			buf = append(buf, `null`...)
+		} else {
+			buf = strconv.AppendFloat(buf, float64(s.Data[i]), 'f', 2, 32)
+		}
+	}
+	buf = append(buf, ']', '}')
+	return buf, nil
+}

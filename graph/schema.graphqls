@@ -103,9 +103,9 @@ type Series {
 }
 
 type MetricStatistics {
-  avg: NullableFloat!
-  min: NullableFloat!
-  max: NullableFloat!
+  avg: Float!
+  min: Float!
+  max: Float!
 }
 
 type StatsSeries {

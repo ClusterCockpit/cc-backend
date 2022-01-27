@@ -43,6 +43,8 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 	r.HandleFunc("/jobs/{id}", api.getJob).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/tag_job/{id}", api.tagJob).Methods(http.MethodPost, http.MethodPatch)
 
+	r.HandleFunc("/jobs/metrics/{id}", api.getJobMetrics).Methods(http.MethodGet)
+
 	if api.MachineStateDir != "" {
 		r.HandleFunc("/machine_state/{cluster}/{host}", api.getMachineState).Methods(http.MethodGet)
 		r.HandleFunc("/machine_state/{cluster}/{host}", api.putMachineState).Methods(http.MethodPut, http.MethodPost)
@@ -367,6 +369,52 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 			rw.WriteHeader(http.StatusOK)
 			json.NewEncoder(rw).Encode(job)
 		}
+	}
+}
+
+func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	metrics := r.URL.Query()["metric"]
+	var scopes []schema.MetricScope
+	for _, scope := range r.URL.Query()["scope"] {
+		var s schema.MetricScope
+		if err := s.UnmarshalGQL(scope); err != nil {
+			http.Error(rw, err.Error(), http.StatusBadRequest)
+			return
+		}
+		scopes = append(scopes, s)
+	}
+
+	rw.Header().Add("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+
+	type Respone struct {
+		Data *struct {
+			JobMetrics []*model.JobMetricWithName `json:"jobMetrics"`
+		} `json:"data"`
+		Error *struct {
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+
+	data, err := api.Resolver.Query().JobMetrics(r.Context(), id, metrics, scopes)
+	if err != nil {
+		if err := json.NewEncoder(rw).Encode(Respone{
+			Error: &struct {
+				Message string "json:\"message\""
+			}{Message: err.Error()},
+		}); err != nil {
+			log.Println(err.Error())
+		}
+		return
+	}
+
+	if err := json.NewEncoder(rw).Encode(Respone{
+		Data: &struct {
+			JobMetrics []*model.JobMetricWithName "json:\"jobMetrics\""
+		}{JobMetrics: data},
+	}); err != nil {
+		log.Println(err.Error())
 	}
 }
 
