@@ -168,9 +168,11 @@ type FilterRanges {
 input JobFilter {
   tags:        [ID!]
   jobId:       StringInput
+  arrayJobId:  Int
   user:        StringInput
   project:     StringInput
   cluster:     StringInput
+  partition:   StringInput
   duration:    IntRange
   numNodes:    IntRange
   startTime:   TimeRange

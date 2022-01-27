@@ -124,6 +124,9 @@ func buildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	if filter.JobID != nil {
 		query = buildStringCondition("job.job_id", filter.JobID, query)
 	}
+	if filter.ArrayJobID != nil {
+		query = query.Where("job.array_job_id = ?", *filter.ArrayJobID)
+	}
 	if filter.User != nil {
 		query = buildStringCondition("job.user", filter.User, query)
 	}
@@ -132,6 +135,9 @@ func buildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	}
 	if filter.Cluster != nil {
 		query = buildStringCondition("job.cluster", filter.Cluster, query)
+	}
+	if filter.Partition != nil {
+		query = buildStringCondition("job.partition", filter.Partition, query)
 	}
 	if filter.StartTime != nil {
 		query = buildTimeCondition("job.start_time", filter.StartTime, query)

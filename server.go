@@ -388,6 +388,9 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 		if query.Get("cluster") != "" {
 			filterPresets["cluster"] = query.Get("cluster")
 		}
+		if query.Get("partition") != "" {
+			filterPresets["partition"] = query.Get("partition")
+		}
 		if query.Get("project") != "" {
 			filterPresets["project"] = query.Get("project")
 			filterPresets["projectMatch"] = "eq"
@@ -418,6 +421,11 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 		}
 		if query.Get("jobId") != "" {
 			filterPresets["jobId"] = query.Get("jobId")
+		}
+		if query.Get("arrayJobId") != "" {
+			if num, err := strconv.Atoi(query.Get("arrayJobId")); err == nil {
+				filterPresets["arrayJobId"] = num
+			}
 		}
 
 		return filterPresets

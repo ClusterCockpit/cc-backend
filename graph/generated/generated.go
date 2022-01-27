@@ -1346,9 +1346,11 @@ type FilterRanges {
 input JobFilter {
   tags:        [ID!]
   jobId:       StringInput
+  arrayJobId:  Int
   user:        StringInput
   project:     StringInput
   cluster:     StringInput
+  partition:   StringInput
   duration:    IntRange
   numNodes:    IntRange
   startTime:   TimeRange
@@ -7013,6 +7015,14 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			if err != nil {
 				return it, err
 			}
+		case "arrayJobId":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("arrayJobId"))
+			it.ArrayJobID, err = ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		case "user":
 			var err error
 
@@ -7034,6 +7044,14 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cluster"))
 			it.Cluster, err = ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐStringInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "partition":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("partition"))
+			it.Partition, err = ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐStringInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
