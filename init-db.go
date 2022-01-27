@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/ClusterCockpit/cc-jobarchive/schema"
+	"github.com/ClusterCockpit/cc-backend/schema"
 	"github.com/jmoiron/sqlx"
 )
 

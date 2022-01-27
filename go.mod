@@ -1,4 +1,4 @@
-module github.com/ClusterCockpit/cc-jobarchive
+module github.com/ClusterCockpit/cc-backend
 
 go 1.15
 
@@ -20,4 +20,3 @@ require (
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 )
 
-// replace github.com/iamlouk/lrucache => /home/lou/zeugs/go/lru-cache

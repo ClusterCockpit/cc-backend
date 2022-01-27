@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ClusterCockpit/cc-jobarchive/config"
-	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
-	"github.com/ClusterCockpit/cc-jobarchive/schema"
+	"github.com/ClusterCockpit/cc-backend/config"
+	"github.com/ClusterCockpit/cc-backend/graph/model"
+	"github.com/ClusterCockpit/cc-backend/schema"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
 )

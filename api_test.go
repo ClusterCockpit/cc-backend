@@ -14,11 +14,11 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/ClusterCockpit/cc-jobarchive/api"
-	"github.com/ClusterCockpit/cc-jobarchive/config"
-	"github.com/ClusterCockpit/cc-jobarchive/graph"
-	"github.com/ClusterCockpit/cc-jobarchive/metricdata"
-	"github.com/ClusterCockpit/cc-jobarchive/schema"
+	"github.com/ClusterCockpit/cc-backend/api"
+	"github.com/ClusterCockpit/cc-backend/config"
+	"github.com/ClusterCockpit/cc-backend/graph"
+	"github.com/ClusterCockpit/cc-backend/metricdata"
+	"github.com/ClusterCockpit/cc-backend/schema"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 )

@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ClusterCockpit/cc-jobarchive/auth"
-	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
+	"github.com/ClusterCockpit/cc-backend/auth"
+	"github.com/ClusterCockpit/cc-backend/graph/model"
 	"github.com/iamlouk/lrucache"
 	"github.com/jmoiron/sqlx"
 )

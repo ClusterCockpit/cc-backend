@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ClusterCockpit/cc-jobarchive/schema"
+	"github.com/ClusterCockpit/cc-backend/schema"
 )
 
 type Accelerator struct {

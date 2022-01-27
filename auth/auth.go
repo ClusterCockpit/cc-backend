@@ -14,7 +14,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ClusterCockpit/cc-jobarchive/templates"
+	"github.com/ClusterCockpit/cc-backend/templates"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/sessions"

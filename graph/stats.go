@@ -8,10 +8,10 @@ import (
 	"math"
 
 	"github.com/99designs/gqlgen/graphql"
-	"github.com/ClusterCockpit/cc-jobarchive/config"
-	"github.com/ClusterCockpit/cc-jobarchive/graph/model"
-	"github.com/ClusterCockpit/cc-jobarchive/metricdata"
-	"github.com/ClusterCockpit/cc-jobarchive/schema"
+	"github.com/ClusterCockpit/cc-backend/config"
+	"github.com/ClusterCockpit/cc-backend/graph/model"
+	"github.com/ClusterCockpit/cc-backend/metricdata"
+	"github.com/ClusterCockpit/cc-backend/schema"
 	sq "github.com/Masterminds/squirrel"
 )
 

@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ClusterCockpit/cc-jobarchive/config"
-	"github.com/ClusterCockpit/cc-jobarchive/schema"
+	"github.com/ClusterCockpit/cc-backend/config"
+	"github.com/ClusterCockpit/cc-backend/schema"
 )
 
 type CCMetricStore struct {

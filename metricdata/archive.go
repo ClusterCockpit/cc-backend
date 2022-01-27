@@ -13,8 +13,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ClusterCockpit/cc-jobarchive/config"
-	"github.com/ClusterCockpit/cc-jobarchive/schema"
+	"github.com/ClusterCockpit/cc-backend/config"
+	"github.com/ClusterCockpit/cc-backend/schema"
 )
 
 // For a given job, return the path of the `data.json`/`meta.json` file.

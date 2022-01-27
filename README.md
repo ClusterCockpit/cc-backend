@@ -1,6 +1,6 @@
 # ClusterCockpit with a Golang backend
 
-[![Build](https://github.com/ClusterCockpit/cc-jobarchive/actions/workflows/test.yml/badge.svg)](https://github.com/ClusterCockpit/cc-jobarchive/actions/workflows/test.yml)
+[![Build](https://github.com/ClusterCockpit/cc-backend/actions/workflows/test.yml/badge.svg)](https://github.com/ClusterCockpit/cc-backend/actions/workflows/test.yml)
 
 Create your job-archive accoring to [this specification](https://github.com/ClusterCockpit/cc-specifications). At least one cluster with a valid `cluster.json` file is required. Having no jobs in the job-archive at all is fine. You may use the sample job-archive available for download [in cc-docker/develop](https://github.com/ClusterCockpit/cc-docker/tree/develop).
 
@@ -8,10 +8,10 @@ Create your job-archive accoring to [this specification](https://github.com/Clus
 
 ```sh
 # The frontend is a submodule, so use `--recursive`
-git clone --recursive git@github.com:ClusterCockpit/cc-jobarchive.git
+git clone --recursive git@github.com:ClusterCockpit/cc-backend.git
 
 # Prepare frontend
-cd ./cc-jobarchive/frontend
+cd ./cc-backend/frontend
 yarn install
 yarn build
 
@@ -33,13 +33,13 @@ vim ./.env
 # This will first initialize the job.db database by traversing all
 # `meta.json` files in the job-archive and add a new user. `--no-server` will cause the
 # executable to stop once it has done that instead of starting a server.
-./cc-jobarchive --init-db --add-user <your-username>:admin:<your-password> --no-server
+./cc-backend --init-db --add-user <your-username>:admin:<your-password> --no-server
 
 # Start a HTTP server (HTTPS can be enabled, the default port is 8080):
-./cc-jobarchive
+./cc-backend
 
 # Show other options:
-./cc-jobarchive --help
+./cc-backend --help
 ```
 
 In order to run this program as a deamon, look at [utils/systemd/README.md](./utils/systemd/README.md) where a systemd unit file and more explanation is provided.
@@ -89,4 +89,3 @@ This project uses [gqlgen](https://github.com/99designs/gqlgen) for the GraphQL 
 - [ ] documentation, comments in the code base
 - [ ] write more TODOs
 - [ ] use more prepared statements and [sqrl](https://github.com/elgris/sqrl) instead of *squirrel*
-- [ ] replace `github.com/ClusterCockpit/cc-jobarchive` with `github.com/ClusterCockpit/cc-backend` in all import paths

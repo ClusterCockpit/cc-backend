@@ -35,7 +35,7 @@ resolver:
 # gqlgen will search for any type names in the schema in these go packages
 # if they match it will use them, otherwise it will generate them.
 autobind:
-  - "github.com/ClusterCockpit/cc-jobarchive/graph/model"
+  - "github.com/ClusterCockpit/cc-backend/graph/model"
 
 # This section declares type mapping between the GraphQL and go type systems
 #
@@ -55,19 +55,19 @@ models:
       - github.com/99designs/gqlgen/graphql.Int64
       - github.com/99designs/gqlgen/graphql.Int32
   Job:
-    model: "github.com/ClusterCockpit/cc-jobarchive/schema.Job"
+    model: "github.com/ClusterCockpit/cc-backend/schema.Job"
     fields:
       tags:
         resolver: true
-  NullableFloat: { model: "github.com/ClusterCockpit/cc-jobarchive/schema.Float" }
-  MetricScope: { model: "github.com/ClusterCockpit/cc-jobarchive/schema.MetricScope" }
-  JobStatistics: { model: "github.com/ClusterCockpit/cc-jobarchive/schema.JobStatistics" }
-  Tag: { model: "github.com/ClusterCockpit/cc-jobarchive/schema.Tag" }
-  Resource: { model: "github.com/ClusterCockpit/cc-jobarchive/schema.Resource" }
-  JobState: { model: "github.com/ClusterCockpit/cc-jobarchive/schema.JobState" }
-  JobMetric: { model: "github.com/ClusterCockpit/cc-jobarchive/schema.JobMetric" }
-  Series: { model: "github.com/ClusterCockpit/cc-jobarchive/schema.Series" }
-  MetricStatistics: { model: "github.com/ClusterCockpit/cc-jobarchive/schema.MetricStatistics" }
-  StatsSeries: { model: "github.com/ClusterCockpit/cc-jobarchive/schema.StatsSeries" }
+  NullableFloat: { model: "github.com/ClusterCockpit/cc-backend/schema.Float" }
+  MetricScope: { model: "github.com/ClusterCockpit/cc-backend/schema.MetricScope" }
+  JobStatistics: { model: "github.com/ClusterCockpit/cc-backend/schema.JobStatistics" }
+  Tag: { model: "github.com/ClusterCockpit/cc-backend/schema.Tag" }
+  Resource: { model: "github.com/ClusterCockpit/cc-backend/schema.Resource" }
+  JobState: { model: "github.com/ClusterCockpit/cc-backend/schema.JobState" }
+  JobMetric: { model: "github.com/ClusterCockpit/cc-backend/schema.JobMetric" }
+  Series: { model: "github.com/ClusterCockpit/cc-backend/schema.Series" }
+  MetricStatistics: { model: "github.com/ClusterCockpit/cc-backend/schema.MetricStatistics" }
+  StatsSeries: { model: "github.com/ClusterCockpit/cc-backend/schema.StatsSeries" }
 
 

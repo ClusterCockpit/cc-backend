@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ClusterCockpit/cc-jobarchive/config"
-	"github.com/ClusterCockpit/cc-jobarchive/schema"
+	"github.com/ClusterCockpit/cc-backend/config"
+	"github.com/ClusterCockpit/cc-backend/schema"
 	"github.com/iamlouk/lrucache"
 )
 

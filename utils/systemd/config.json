@@ -2,6 +2,8 @@
     "addr":            "0.0.0.0:443",
     "https-cert-file": "/etc/letsencrypt/live/<...>/fullchain.pem",
     "https-key-file":  "/etc/letsencrypt/live/<...>/privkey.pem",
+    "db-driver":       "mysql",
+    "db":              "clustercockpit:password@/cc_backend",
     "user":            "clustercockpit",
     "group":           "clustercockpit"
 }

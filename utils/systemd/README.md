@@ -8,7 +8,7 @@ The `config.json` can have the optional fields *user* and *group*. If provided, 
 
 ```sh
 # 1.: Clone this repository to /var/clustercockpit
-git clone git@github.com:ClusterCockpit/cc-specifications.git /var/clustercockpit
+git clone git@github.com:ClusterCockpit/cc-backend.git /var/clustercockpit
 
 # 2.: Install all dependencies and build everything
 cd /var/clustercockpit
