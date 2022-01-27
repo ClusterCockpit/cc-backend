@@ -1,6 +1,8 @@
 // Provides a simple way of logging with different levels.
 // Time/Data are not logged on purpose because systemd adds
 // them for us.
+//
+// Uses these prefixes: https://www.freedesktop.org/software/systemd/man/sd-daemon.html
 package log
 
 import (
@@ -35,14 +37,14 @@ func init() {
 
 func Debug(v ...interface{}) {
 	if DebugWriter != io.Discard {
-		v = append([]interface{}{"[DEBUG]"}, v...)
+		v = append([]interface{}{"<7>[DEBUG]"}, v...)
 		fmt.Fprintln(DebugWriter, v...)
 	}
 }
 
 func Info(v ...interface{}) {
 	if InfoWriter != io.Discard {
-		v = append([]interface{}{"[INFO]"}, v...)
+		v = append([]interface{}{"<6>[INFO]"}, v...)
 		fmt.Fprintln(InfoWriter, v...)
 	}
 }
@@ -53,34 +55,35 @@ func Print(v ...interface{}) {
 
 func Warn(v ...interface{}) {
 	if WarnWriter != io.Discard {
-		v = append([]interface{}{"[WARNING]"}, v...)
+		v = append([]interface{}{"<4>[WARNING]"}, v...)
 		fmt.Fprintln(WarnWriter, v...)
 	}
 }
 
 func Error(v ...interface{}) {
 	if ErrorWriter != io.Discard {
-		v = append([]interface{}{"[ERROR]"}, v...)
+		v = append([]interface{}{"<3>[ERROR]"}, v...)
 		fmt.Fprintln(ErrorWriter, v...)
 	}
 }
 
 func Fatal(v ...interface{}) {
 	if ErrorWriter != io.Discard {
-		v = append([]interface{}{"[FATAL]"}, v...)
+		v = append([]interface{}{"<0>[FATAL]"}, v...)
 		fmt.Fprintln(ErrorWriter, v...)
 	}
+	os.Exit(1)
 }
 
 func Debugf(format string, v ...interface{}) {
 	if DebugWriter != io.Discard {
-		fmt.Fprintf(DebugWriter, "[DEBUG] "+format+"\n", v...)
+		fmt.Fprintf(DebugWriter, "<7>[DEBUG] "+format+"\n", v...)
 	}
 }
 
 func Infof(format string, v ...interface{}) {
 	if InfoWriter != io.Discard {
-		fmt.Fprintf(InfoWriter, "[INFO] "+format+"\n", v...)
+		fmt.Fprintf(InfoWriter, "<6>[INFO] "+format+"\n", v...)
 	}
 }
 
@@ -90,18 +93,19 @@ func Printf(format string, v ...interface{}) {
 
 func Warnf(format string, v ...interface{}) {
 	if WarnWriter != io.Discard {
-		fmt.Fprintf(WarnWriter, "[WARNING] "+format+"\n", v...)
+		fmt.Fprintf(WarnWriter, "<4>[WARNING] "+format+"\n", v...)
 	}
 }
 
 func Errorf(format string, v ...interface{}) {
 	if ErrorWriter != io.Discard {
-		fmt.Fprintf(ErrorWriter, "[ERROR] "+format+"\n", v...)
+		fmt.Fprintf(ErrorWriter, "<3>[ERROR] "+format+"\n", v...)
 	}
 }
 
 func Fatalf(format string, v ...interface{}) {
 	if ErrorWriter != io.Discard {
-		fmt.Fprintf(ErrorWriter, "[FATAL] "+format+"\n", v...)
+		fmt.Fprintf(ErrorWriter, "<0>[FATAL] "+format+"\n", v...)
 	}
+	os.Exit(1)
 }
