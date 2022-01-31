@@ -118,7 +118,9 @@ func setup(t *testing.T) *api.RestApi {
 	}
 
 	resolver := &graph.Resolver{DB: db}
-	resolver.Init()
+	if err := resolver.Init(); err != nil {
+		t.Fatal(err)
+	}
 	return &api.RestApi{
 		DB:       db,
 		Resolver: resolver,

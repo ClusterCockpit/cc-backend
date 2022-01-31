@@ -2,9 +2,10 @@ package templates
 
 import (
 	"html/template"
-	"log"
 	"net/http"
 	"os"
+
+	"github.com/ClusterCockpit/cc-backend/log"
 )
 
 var templatesDir string
@@ -54,6 +55,6 @@ func Render(rw http.ResponseWriter, r *http.Request, file string, page *Page) {
 	}
 
 	if err := t.Execute(rw, page); err != nil {
-		log.Printf("template error: %s\n", err.Error())
+		log.Errorf("template error: %s", err.Error())
 	}
 }

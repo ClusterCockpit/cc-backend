@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"regexp"
 	"strings"
 
 	"github.com/ClusterCockpit/cc-backend/auth"
 	"github.com/ClusterCockpit/cc-backend/graph/model"
+	"github.com/ClusterCockpit/cc-backend/log"
 	"github.com/ClusterCockpit/cc-backend/schema"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
@@ -26,26 +26,28 @@ type Resolver struct {
 	findJobByIdWithUserStmt *sqlx.Stmt
 }
 
-func (r *Resolver) Init() {
+func (r *Resolver) Init() error {
 	findJobById, _, err := sq.Select(schema.JobColumns...).From("job").Where("job.id = ?", nil).ToSql()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	r.findJobByIdStmt, err = r.DB.Preparex(findJobById)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	findJobByIdWithUser, _, err := sq.Select(schema.JobColumns...).From("job").Where("job.id = ?", nil).Where("job.user = ?").ToSql()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	r.findJobByIdWithUserStmt, err = r.DB.Preparex(findJobByIdWithUser)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
+
+	return nil
 }
 
 // Helper function for the `jobs` GraphQL-Query. Is also used elsewhere when a list of jobs is needed.
@@ -80,6 +82,7 @@ func (r *Resolver) queryJobs(ctx context.Context, filters []*model.JobFilter, pa
 		return nil, 0, err
 	}
 
+	log.Debugf("SQL query: `%s`, args: %#v", sql, args)
 	rows, err := r.DB.Queryx(sql, args...)
 	if err != nil {
 		return nil, 0, err

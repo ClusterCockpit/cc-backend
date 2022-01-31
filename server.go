@@ -8,6 +8,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -151,6 +152,11 @@ func main() {
 		}
 	}
 
+	if strings.HasPrefix(programConfig.DB, "env:") {
+		envvar := strings.TrimPrefix(programConfig.DB, "env:")
+		programConfig.DB = os.Getenv(envvar)
+	}
+
 	var err error
 	if programConfig.DBDriver == "sqlite3" {
 		db, err = sqlx.Open("sqlite3", fmt.Sprintf("%s?_foreign_keys=on", programConfig.DB))
@@ -236,7 +242,9 @@ func main() {
 	// Build routes...
 
 	resolver := &graph.Resolver{DB: db}
-	resolver.Init()
+	if err := resolver.Init(); err != nil {
+		log.Fatal(err)
+	}
 	graphQLEndpoint := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 	if os.Getenv("DEBUG") != "1" {
 		graphQLEndpoint.SetRecoverFunc(func(ctx context.Context, err interface{}) error {
@@ -313,10 +321,14 @@ func main() {
 	api.MountRoutes(secured)
 
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir(programConfig.StaticFiles)))
-	handler := handlers.CORS(
+	r.Use(handlers.CompressHandler)
+	r.Use(handlers.CORS(
 		handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}),
 		handlers.AllowedMethods([]string{"GET", "POST", "HEAD", "OPTIONS"}),
-		handlers.AllowedOrigins([]string{"*"}))(handlers.LoggingHandler(log.InfoWriter, handlers.CompressHandler(r)))
+		handlers.AllowedOrigins([]string{"*"})))
+	handler := handlers.CustomLoggingHandler(log.InfoWriter, r, func(w io.Writer, params handlers.LogFormatterParams) {
+		log.Finfof(w, "%s %s (Response: %d, Size: %d)", params.Request.Method, params.URL.RequestURI(), params.StatusCode, params.Size)
+	})
 
 	var wg sync.WaitGroup
 	server := http.Server{

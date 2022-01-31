@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/log"
 	"github.com/ClusterCockpit/cc-backend/schema"
 	"github.com/jmoiron/sqlx"
 )
@@ -68,7 +68,7 @@ const JOBS_DB_SCHEMA string = `
 // repopulate them using the jobs found in `archive`.
 func initDB(db *sqlx.DB, archive string) error {
 	starttime := time.Now()
-	fmt.Println("Building database...")
+	log.Print("Building job table...")
 
 	// Basic database structure:
 	_, err := db.Exec(JOBS_DB_SCHEMA)
@@ -103,6 +103,7 @@ func initDB(db *sqlx.DB, archive string) error {
 		return err
 	}
 
+	fmt.Printf("%d jobs inserted...\r", 0)
 	i := 0
 	tags := make(map[string]int64)
 	handleDirectory := func(filename string) error {
@@ -158,11 +159,11 @@ func initDB(db *sqlx.DB, archive string) error {
 				for _, startTimeDir := range startTimeDirs {
 					if startTimeDir.Type().IsRegular() && startTimeDir.Name() == "meta.json" {
 						if err := handleDirectory(dirpath); err != nil {
-							log.Printf("in %s: %s\n", dirpath, err.Error())
+							log.Errorf("in %s: %s", dirpath, err.Error())
 						}
 					} else if startTimeDir.IsDir() {
 						if err := handleDirectory(filepath.Join(dirpath, startTimeDir.Name())); err != nil {
-							log.Printf("in %s: %s\n", filepath.Join(dirpath, startTimeDir.Name()), err.Error())
+							log.Errorf("in %s: %s", filepath.Join(dirpath, startTimeDir.Name()), err.Error())
 						}
 					}
 				}
