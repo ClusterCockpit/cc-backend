@@ -101,14 +101,9 @@ type MetricFootprints struct {
 	Footprints []schema.Float `json:"footprints"`
 }
 
-type NodeMetric struct {
-	Name string         `json:"name"`
-	Data []schema.Float `json:"data"`
-}
-
 type NodeMetrics struct {
-	ID      string        `json:"id"`
-	Metrics []*NodeMetric `json:"metrics"`
+	Host    string               `json:"host"`
+	Metrics []*JobMetricWithName `json:"metrics"`
 }
 
 type OrderByInput struct {

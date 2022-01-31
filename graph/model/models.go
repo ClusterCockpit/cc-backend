@@ -1,5 +1,7 @@
 package model
 
+import "strconv"
+
 type Cluster struct {
 	Name         string          `json:"name"`
 	MetricConfig []*MetricConfig `json:"metricConfig"`
@@ -75,4 +77,16 @@ func (topo *Topology) GetCoresFromHWThreads(hwthreads []int) (cores []int, exclu
 	}
 
 	return cores, exclusive
+}
+
+func (topo *Topology) GetAcceleratorIDs() ([]int, error) {
+	accels := make([]int, 0)
+	for _, accel := range topo.Accelerators {
+		id, err := strconv.Atoi(accel.ID)
+		if err != nil {
+			return nil, err
+		}
+		accels = append(accels, id)
+	}
+	return accels, nil
 }

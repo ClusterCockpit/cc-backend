@@ -121,19 +121,14 @@ type MetricFootprints {
 
 enum Aggregate { USER, PROJECT, CLUSTER }
 
-type NodeMetric {
-  name: String!
-  data: [NullableFloat!]!
-}
-
 type NodeMetrics {
-  id:      String!
-  metrics: [NodeMetric!]!
+  host:    String!
+  metrics: [JobMetricWithName!]!
 }
 
 type Query {
   clusters:     [Cluster!]!   # List of all clusters
-  tags:         [Tag!]!    # List of all tags
+  tags:         [Tag!]!       # List of all tags
 
   job(id: ID!): Job
   jobMetrics(id: ID!, metrics: [String!], scopes: [MetricScope!]): [JobMetricWithName!]!
@@ -144,7 +139,7 @@ type Query {
 
   rooflineHeatmap(filter: [JobFilter!]!, rows: Int!, cols: Int!, minX: Float!, minY: Float!, maxX: Float!, maxY: Float!): [[Float!]!]!
 
-  nodeMetrics(cluster: ID!, nodes: [String!], metrics: [String!], from: Time!, to: Time!): [NodeMetrics!]!
+  nodeMetrics(cluster: String!, partition: String!, nodes: [String!], scopes: [String!], metrics: [String!], from: Time!, to: Time!): [NodeMetrics!]!
 }
 
 type Mutation {

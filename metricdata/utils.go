@@ -2,6 +2,7 @@ package metricdata
 
 import (
 	"context"
+	"time"
 
 	"github.com/ClusterCockpit/cc-backend/schema"
 )
@@ -31,6 +32,6 @@ func (tmdr *TestMetricDataRepository) LoadStats(job *schema.Job, metrics []strin
 	panic("TODO")
 }
 
-func (tmdr *TestMetricDataRepository) LoadNodeData(clusterId string, metrics, nodes []string, from, to int64, ctx context.Context) (map[string]map[string][]schema.Float, error) {
+func (tmdr *TestMetricDataRepository) LoadNodeData(cluster, partition string, metrics, nodes []string, scopes []schema.MetricScope, from, to time.Time, ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
 	panic("TODO")
 }

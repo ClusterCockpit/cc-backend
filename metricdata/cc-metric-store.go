@@ -449,11 +449,12 @@ func (ccms *CCMetricStore) LoadStats(job *schema.Job, metrics []string, ctx cont
 	return stats, nil
 }
 
-func (ccms *CCMetricStore) LoadNodeData(clusterId string, metrics, nodes []string, from, to int64, ctx context.Context) (map[string]map[string][]schema.Float, error) {
+// TODO: Support sub-node-scope metrics! For this, the partition of a node needs to be known!
+func (ccms *CCMetricStore) LoadNodeData(cluster, partition string, metrics, nodes []string, scopes []schema.MetricScope, from, to time.Time, ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
 	req := ApiQueryRequest{
-		Cluster:   clusterId,
-		From:      from,
-		To:        to,
+		Cluster:   cluster,
+		From:      from.Unix(),
+		To:        to.Unix(),
 		WithStats: false,
 		WithData:  true,
 	}
@@ -476,21 +477,34 @@ func (ccms *CCMetricStore) LoadNodeData(clusterId string, metrics, nodes []strin
 		return nil, err
 	}
 
-	data := make(map[string]map[string][]schema.Float)
+	_ = resBody
+	data := make(map[string]map[string][]*schema.JobMetric)
 	for i, res := range resBody {
 		query := req.Queries[i]
+		metric := ccms.toLocalName(query.Metric)
 		qdata := res[0]
 		if qdata.Error != nil {
 			return nil, fmt.Errorf("fetching %s for node %s failed: %s", query.Metric, query.Hostname, *qdata.Error)
 		}
 
-		nodedata, ok := data[query.Hostname]
+		hostdata, ok := data[query.Hostname]
 		if !ok {
-			nodedata = make(map[string][]schema.Float)
-			data[query.Hostname] = nodedata
+			hostdata = make(map[string][]*schema.JobMetric)
+			data[query.Hostname] = hostdata
 		}
 
-		nodedata[ccms.toLocalName(query.Metric)] = qdata.Data
+		mc := config.GetMetricConfig(cluster, metric)
+		hostdata[query.Metric] = append(hostdata[query.Metric], &schema.JobMetric{
+			Unit:     mc.Unit,
+			Scope:    schema.MetricScopeNode,
+			Timestep: mc.Timestep,
+			Series: []schema.Series{
+				{
+					Hostname: query.Hostname,
+					Data:     qdata.Data,
+				},
+			},
+		})
 	}
 
 	return data, nil
