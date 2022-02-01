@@ -268,7 +268,7 @@ func main() {
 	}
 
 	handleGetLogin := func(rw http.ResponseWriter, r *http.Request) {
-		templates.Render(rw, r, "login.html", &templates.Page{
+		templates.Render(rw, r, "login.tmpl", &templates.Page{
 			Title: "Login",
 			Login: &templates.LoginPage{},
 		})
@@ -276,7 +276,7 @@ func main() {
 
 	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		templates.Render(rw, r, "404.html", &templates.Page{
+		templates.Render(rw, r, "404.tmpl", &templates.Page{
 			Title: "Not found",
 		})
 	})
@@ -301,16 +301,17 @@ func main() {
 
 		infos := map[string]interface{}{
 			"clusters": config.Clusters,
-			"username": "",
-			"admin":    true,
 		}
 
 		if user := auth.GetUser(r.Context()); user != nil {
 			infos["username"] = user.Username
 			infos["admin"] = user.HasRole(auth.RoleAdmin)
+		} else {
+			infos["username"] = false
+			infos["admin"] = false
 		}
 
-		templates.Render(rw, r, "home.html", &templates.Page{
+		templates.Render(rw, r, "home.tmpl", &templates.Page{
 			Title:  "ClusterCockpit",
 			Config: conf,
 			Infos:  infos,
@@ -393,6 +394,27 @@ func main() {
 	log.Print("Gracefull shutdown completed!")
 }
 
+func prepareRoute(r *http.Request) (map[string]interface{}, map[string]interface{}, error) {
+	conf, err := config.GetUIConfig(r)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	infos := map[string]interface{}{
+		"admin": true,
+	}
+
+	if user := auth.GetUser(r.Context()); user != nil {
+		infos["username"] = user.Username
+		infos["admin"] = user.HasRole(auth.RoleAdmin)
+	} else {
+		infos["username"] = false
+		infos["admin"] = false
+	}
+
+	return conf, infos, nil
+}
+
 func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 	buildFilterPresets := func(query url.Values) map[string]interface{} {
 		filterPresets := map[string]interface{}{}
@@ -444,21 +466,22 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 	}
 
 	router.HandleFunc("/monitoring/jobs/", func(rw http.ResponseWriter, r *http.Request) {
-		conf, err := config.GetUIConfig(r)
+		conf, infos, err := prepareRoute(r)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		templates.Render(rw, r, "monitoring/jobs.html", &templates.Page{
+		templates.Render(rw, r, "monitoring/jobs.tmpl", &templates.Page{
 			Title:         "Jobs - ClusterCockpit",
 			Config:        conf,
+			Infos:         infos,
 			FilterPresets: buildFilterPresets(r.URL.Query()),
 		})
 	})
 
 	router.HandleFunc("/monitoring/job/{id:[0-9]+}", func(rw http.ResponseWriter, r *http.Request) {
-		conf, err := config.GetUIConfig(r)
+		conf, infos, err := prepareRoute(r)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
@@ -471,49 +494,53 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 			return
 		}
 
-		templates.Render(rw, r, "monitoring/job.html", &templates.Page{
+		infos["id"] = id
+		infos["jobId"] = job.JobID
+		infos["clusterId"] = job.Cluster
+
+		templates.Render(rw, r, "monitoring/job.tmpl", &templates.Page{
 			Title:  fmt.Sprintf("Job %d - ClusterCockpit", job.JobID),
 			Config: conf,
-			Infos: map[string]interface{}{
-				"id":        id,
-				"jobId":     job.JobID,
-				"clusterId": job.Cluster,
-			},
+			Infos:  infos,
 		})
 	})
 
 	router.HandleFunc("/monitoring/users/", func(rw http.ResponseWriter, r *http.Request) {
-		conf, err := config.GetUIConfig(r)
+		conf, infos, err := prepareRoute(r)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		templates.Render(rw, r, "monitoring/list.html", &templates.Page{
+		infos["listType"] = "USER"
+
+		templates.Render(rw, r, "monitoring/list.tmpl", &templates.Page{
 			Title:         "Users - ClusterCockpit",
 			Config:        conf,
 			FilterPresets: buildFilterPresets(r.URL.Query()),
-			Infos:         map[string]interface{}{"listType": "USER"},
+			Infos:         infos,
 		})
 	})
 
 	router.HandleFunc("/monitoring/projects/", func(rw http.ResponseWriter, r *http.Request) {
-		conf, err := config.GetUIConfig(r)
+		conf, infos, err := prepareRoute(r)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		templates.Render(rw, r, "monitoring/list.html", &templates.Page{
+		infos["listType"] = "PROJECT"
+
+		templates.Render(rw, r, "monitoring/list.tmpl", &templates.Page{
 			Title:         "Projects - ClusterCockpit",
 			Config:        conf,
 			FilterPresets: buildFilterPresets(r.URL.Query()),
-			Infos:         map[string]interface{}{"listType": "PROJECT"},
+			Infos:         infos,
 		})
 	})
 
 	router.HandleFunc("/monitoring/user/{id}", func(rw http.ResponseWriter, r *http.Request) {
-		conf, err := config.GetUIConfig(r)
+		conf, infos, err := prepareRoute(r)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
@@ -522,17 +549,18 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 		id := mux.Vars(r)["id"]
 		// TODO: One could check if the user exists, but that would be unhelpfull if authentication
 		// is disabled or the user does not exist but has started jobs.
+		infos["username"] = id
 
-		templates.Render(rw, r, "monitoring/user.html", &templates.Page{
+		templates.Render(rw, r, "monitoring/user.tmpl", &templates.Page{
 			Title:         fmt.Sprintf("User %s - ClusterCockpit", id),
 			Config:        conf,
-			Infos:         map[string]interface{}{"username": id},
+			Infos:         infos,
 			FilterPresets: buildFilterPresets(r.URL.Query()),
 		})
 	})
 
 	router.HandleFunc("/monitoring/analysis/", func(rw http.ResponseWriter, r *http.Request) {
-		conf, err := config.GetUIConfig(r)
+		conf, infos, err := prepareRoute(r)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
@@ -544,15 +572,16 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 			filterPresets["clusterId"] = query.Get("cluster")
 		}
 
-		templates.Render(rw, r, "monitoring/analysis.html", &templates.Page{
+		templates.Render(rw, r, "monitoring/analysis.tmpl", &templates.Page{
 			Title:         "Analysis View - ClusterCockpit",
 			Config:        conf,
+			Infos:         infos,
 			FilterPresets: filterPresets,
 		})
 	})
 
 	router.HandleFunc("/monitoring/systems/", func(rw http.ResponseWriter, r *http.Request) {
-		conf, err := config.GetUIConfig(r)
+		conf, infos, err := prepareRoute(r)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
@@ -564,28 +593,29 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 			filterPresets["clusterId"] = query.Get("cluster")
 		}
 
-		templates.Render(rw, r, "monitoring/systems.html", &templates.Page{
+		templates.Render(rw, r, "monitoring/systems.tmpl", &templates.Page{
 			Title:         "System View - ClusterCockpit",
 			Config:        conf,
+			Infos:         infos,
 			FilterPresets: filterPresets,
 		})
 	})
 
 	router.HandleFunc("/monitoring/node/{clusterId}/{nodeId}", func(rw http.ResponseWriter, r *http.Request) {
-		conf, err := config.GetUIConfig(r)
+		conf, infos, err := prepareRoute(r)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		vars := mux.Vars(r)
-		templates.Render(rw, r, "monitoring/node.html", &templates.Page{
+		infos["nodeId"] = vars["nodeId"]
+		infos["clusterId"] = vars["clusterId"]
+
+		templates.Render(rw, r, "monitoring/node.tmpl", &templates.Page{
 			Title:  fmt.Sprintf("Node %s - ClusterCockpit", vars["nodeId"]),
 			Config: conf,
-			Infos: map[string]interface{}{
-				"nodeId":    vars["nodeId"],
-				"clusterId": vars["clusterId"],
-			},
+			Infos:  infos,
 		})
 	})
 }

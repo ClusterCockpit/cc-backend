@@ -27,16 +27,16 @@ type LoginPage struct {
 
 func init() {
 	templatesDir = "./templates/"
-	base := template.Must(template.ParseFiles(templatesDir + "base.html"))
+	base := template.Must(template.ParseFiles(templatesDir + "base.tmpl"))
 	files := []string{
-		"home.html", "404.html", "login.html",
-		"monitoring/jobs.html",
-		"monitoring/job.html",
-		"monitoring/list.html",
-		"monitoring/user.html",
-		// "monitoring/analysis.html",
-		// "monitoring/systems.html",
-		// "monitoring/node.html",
+		"home.tmpl", "404.tmpl", "login.tmpl",
+		"monitoring/jobs.tmpl",
+		"monitoring/job.tmpl",
+		"monitoring/list.tmpl",
+		"monitoring/user.tmpl",
+		// "monitoring/analysis.tmpl",
+		// "monitoring/systems.tmpl",
+		// "monitoring/node.tmpl",
 	}
 
 	for _, file := range files {
@@ -51,7 +51,7 @@ func Render(rw http.ResponseWriter, r *http.Request, file string, page *Page) {
 	}
 
 	if debugMode {
-		t = template.Must(template.ParseFiles(templatesDir+"base.html", templatesDir+file))
+		t = template.Must(template.ParseFiles(templatesDir+"base.tmpl", templatesDir+file))
 	}
 
 	if err := t.Execute(rw, page); err != nil {

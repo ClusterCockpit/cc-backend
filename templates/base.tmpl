@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+        <meta name='viewport' content='width=device-width,initial-scale=1'>
+        <title>{{.Title}}</title>
+
+        <link rel='icon' type='image/png' href='/favicon.png'>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css" integrity="sha384-F3w7mX95PdgyTmZZMECAngseQB83DfGTowi0iMjiWaeVhAn4FJkqJByhZMI3AhiU" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css">
+        <link rel='stylesheet' href='/global.css'>
+        <link rel='stylesheet' href='/uPlot.min.css'>
+
+        {{block "stylesheets" .}}
+        {{end}}
+    </head>
+    <body  class="Site">
+        <header>
+            <nav class="navbar navbar-expand-lg navbar-light fixed-top bg-light">
+                <div class="container-fluid">
+                    <a class="navbar-brand" href="/">
+                        {{block "brand" .}}
+                            <img alt="ClusterCockpit Logo" src="/img/logo.png" class="d-inline-block align-top">
+                        {{end}}
+                    </a>
+                    {{block "navigation" .}}
+                        <ul class="navbar-nav mr-auto">
+                            {{block "navitem_joblist" .}}
+                                <li class="nav-item">
+                                    <a class="nav-link fs-5" href="/monitoring/jobs/">
+                                        <span class="cc-nav-text">Joblist</span>
+                                        <i class="bi-card-list"></i>
+                                    </a>
+                                </li>
+                            {{end}}
+                            {{if .Infos.admin }}
+                                {{block "navitem_analysis" .}}
+                                    <li class="nav-item">
+                                        <a class="nav-link fs-5" href="/monitoring/analysis/">
+                                            <span class="cc-nav-text">Analysis</span>
+                                            <i class="bi-graph-up"></i>
+                                        </a>
+                                    </li>
+                                {{end}}
+                                {{block "navitem_systems" .}}
+                                    <li class="nav-item">
+                                        <a class="nav-link fs-5" href="/monitoring/systems/">
+                                            <span class="cc-nav-text">Systems</span>
+                                            <i class="bi-graph-up"></i>
+                                        </a>
+                                    </li>
+                                {{end}}
+                                {{block "navitem_users" .}}
+                                    <li class="nav-item">
+                                        <a class="nav-link fs-5" href="/monitoring/users/">
+                                            <span class="cc-nav-text">Users</span>
+                                            <i class="bi-people-fill"></i>
+                                        </a>
+                                    </li>
+                                {{end}}
+                            {{else}}
+                                {{block "navitem_stats" .}}
+                                    <li class="nav-item">
+                                        <a class="nav-link fs-5" href="/monitoring/user/admin">
+                                            <span class="cc-nav-text">Statistics</span>
+                                            <i class="bi-bar-chart-line-fill"></i>
+                                        </a>
+                                    </li>
+                                {{end}}
+                            {{end}}
+                        </ul>
+                    {{end}}
+                    {{if .Infos.username }}
+                        <div class="d-flex align-items-end">
+                            <ul class="navbar-nav ml-auto">
+                                <li class="nav-item">
+                                    <form method="post" action="/logout">
+                                        <button type="submit" class="btn btn-link nav-link fs-5">
+                                            <span class="cc-nav-text">{{ .Infos.username }} Logout</span>
+                                            <i class="bi-box-arrow-right"></i>
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                            <form class="d-flex my-0" onsubmit="this.action='/search';">
+                                {{if .Infos.admin }}
+                                    <input class="form-control me-2" type="search" name="searchId" placeholder="jobId / userId" id="searchId" aria-label="Search">
+                                {{else}}
+                                    <input class="form-control me-2" type="search" name="searchId" placeholder="jobId" id="searchId" aria-label="Search">
+                                {{end}}
+                                <button class="btn btn-outline-success fs-6" type="submit">Search</button>
+                            </form>
+                        </div>
+                    {{end}}
+                </div>
+            </nav>
+        </header>
+
+        <main class="Site-content">
+            <div class="container">
+                {{block "content" .}}
+                    Whoops, you should not see this...
+                {{end}}
+            </div>
+        </main>
+
+        {{block "footer" .}}
+            <footer class="site-footer bg-light">
+                <ul class="footer-list">
+                    <li class="footer-list-item"><a class="link-secondary fs-5" href="/imprint" title="Imprint" rel="nofollow">Imprint</a></li>
+                    <li class="footer-list-item"><a class="link-secondary fs-5" href="/privacy" title="Privacy Policy" rel="nofollow">Privacy Policy</a></li>
+                </ul>
+            </footer>
+        {{end}}
+
+        {{block "javascript" .}}
+        {{end}}
+    </body>
+</html>
