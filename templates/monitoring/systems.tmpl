@@ -7,13 +7,8 @@
 {{end}}
 {{define "javascript"}}
     <script>
-        const filterPresets = {{ .FilterPresets }};
-        const clusterCockpitConfigPromise = Promise.resolve({
-            plot_view_plotsPerRow:              {{ .Config.plot_view_plotsPerRow            }},
-            plot_general_colorscheme:           {{ .Config.plot_general_colorscheme           }},
-            plot_general_lineWidth:             {{ .Config.plot_general_lineWidth             }},
-            plot_general_colorBackground:       {{ .Config.plot_general_colorBackground       }},
-        });
+        const infos = {{ .Infos }};
+        const clusterCockpitConfig = {{ .Config }};
     </script>
     <script src='/build/systems.js'></script>
 {{end}}

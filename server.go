@@ -415,55 +415,56 @@ func prepareRoute(r *http.Request) (map[string]interface{}, map[string]interface
 	return conf, infos, nil
 }
 
-func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
-	buildFilterPresets := func(query url.Values) map[string]interface{} {
-		filterPresets := map[string]interface{}{}
+func buildFilterPresets(query url.Values) map[string]interface{} {
+	filterPresets := map[string]interface{}{}
 
-		if query.Get("cluster") != "" {
-			filterPresets["cluster"] = query.Get("cluster")
-		}
-		if query.Get("partition") != "" {
-			filterPresets["partition"] = query.Get("partition")
-		}
-		if query.Get("project") != "" {
-			filterPresets["project"] = query.Get("project")
-			filterPresets["projectMatch"] = "eq"
-		}
-		if query.Get("state") != "" && schema.JobState(query.Get("state")).Valid() {
-			filterPresets["state"] = query.Get("state")
-		}
-		if rawtags, ok := query["tag"]; ok {
-			tags := make([]int, len(rawtags))
-			for i, tid := range rawtags {
-				var err error
-				tags[i], err = strconv.Atoi(tid)
-				if err != nil {
-					tags[i] = -1
-				}
-			}
-			filterPresets["tags"] = tags
-		}
-		if query.Get("numNodes") != "" {
-			parts := strings.Split(query.Get("numNodes"), "-")
-			if len(parts) == 2 {
-				a, e1 := strconv.Atoi(parts[0])
-				b, e2 := strconv.Atoi(parts[1])
-				if e1 == nil && e2 == nil {
-					filterPresets["numNodes"] = map[string]int{"from": a, "to": b}
-				}
-			}
-		}
-		if query.Get("jobId") != "" {
-			filterPresets["jobId"] = query.Get("jobId")
-		}
-		if query.Get("arrayJobId") != "" {
-			if num, err := strconv.Atoi(query.Get("arrayJobId")); err == nil {
-				filterPresets["arrayJobId"] = num
-			}
-		}
-
-		return filterPresets
+	if query.Get("cluster") != "" {
+		filterPresets["cluster"] = query.Get("cluster")
 	}
+	if query.Get("partition") != "" {
+		filterPresets["partition"] = query.Get("partition")
+	}
+	if query.Get("project") != "" {
+		filterPresets["project"] = query.Get("project")
+		filterPresets["projectMatch"] = "eq"
+	}
+	if query.Get("state") != "" && schema.JobState(query.Get("state")).Valid() {
+		filterPresets["state"] = query.Get("state")
+	}
+	if rawtags, ok := query["tag"]; ok {
+		tags := make([]int, len(rawtags))
+		for i, tid := range rawtags {
+			var err error
+			tags[i], err = strconv.Atoi(tid)
+			if err != nil {
+				tags[i] = -1
+			}
+		}
+		filterPresets["tags"] = tags
+	}
+	if query.Get("numNodes") != "" {
+		parts := strings.Split(query.Get("numNodes"), "-")
+		if len(parts) == 2 {
+			a, e1 := strconv.Atoi(parts[0])
+			b, e2 := strconv.Atoi(parts[1])
+			if e1 == nil && e2 == nil {
+				filterPresets["numNodes"] = map[string]int{"from": a, "to": b}
+			}
+		}
+	}
+	if query.Get("jobId") != "" {
+		filterPresets["jobId"] = query.Get("jobId")
+	}
+	if query.Get("arrayJobId") != "" {
+		if num, err := strconv.Atoi(query.Get("arrayJobId")); err == nil {
+			filterPresets["arrayJobId"] = num
+		}
+	}
+
+	return filterPresets
+}
+
+func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 
 	router.HandleFunc("/monitoring/jobs/", func(rw http.ResponseWriter, r *http.Request) {
 		conf, infos, err := prepareRoute(r)
@@ -559,49 +560,12 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 		})
 	})
 
-	router.HandleFunc("/monitoring/analysis/", func(rw http.ResponseWriter, r *http.Request) {
-		conf, infos, err := prepareRoute(r)
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		filterPresets := map[string]interface{}{}
-		query := r.URL.Query()
-		if query.Get("cluster") != "" {
-			filterPresets["clusterId"] = query.Get("cluster")
-		}
-
-		templates.Render(rw, r, "monitoring/analysis.tmpl", &templates.Page{
-			Title:         "Analysis View - ClusterCockpit",
-			Config:        conf,
-			Infos:         infos,
-			FilterPresets: filterPresets,
-		})
-	})
-
 	router.HandleFunc("/monitoring/systems/", func(rw http.ResponseWriter, r *http.Request) {
-		conf, infos, err := prepareRoute(r)
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		filterPresets := map[string]interface{}{}
-		query := r.URL.Query()
-		if query.Get("cluster") != "" {
-			filterPresets["clusterId"] = query.Get("cluster")
-		}
-
-		templates.Render(rw, r, "monitoring/systems.tmpl", &templates.Page{
-			Title:         "System View - ClusterCockpit",
-			Config:        conf,
-			Infos:         infos,
-			FilterPresets: filterPresets,
-		})
+		// TODO: List all clusters?
+		http.Redirect(rw, r, "/", http.StatusTemporaryRedirect)
 	})
 
-	router.HandleFunc("/monitoring/node/{clusterId}/{nodeId}", func(rw http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/monitoring/systems/{cluster}", func(rw http.ResponseWriter, r *http.Request) {
 		conf, infos, err := prepareRoute(r)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
@@ -609,11 +573,38 @@ func monitoringRoutes(router *mux.Router, resolver *graph.Resolver) {
 		}
 
 		vars := mux.Vars(r)
-		infos["nodeId"] = vars["nodeId"]
-		infos["clusterId"] = vars["clusterId"]
+		infos["cluster"] = vars["cluster"]
+		from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
+		if from != "" || to != "" {
+			infos["from"] = from
+			infos["to"] = to
+		}
+
+		templates.Render(rw, r, "monitoring/systems.tmpl", &templates.Page{
+			Title:  fmt.Sprintf("Cluster %s - ClusterCockpit", vars["cluster"]),
+			Config: conf,
+			Infos:  infos,
+		})
+	})
+
+	router.HandleFunc("/monitoring/node/{cluster}/{hostname}", func(rw http.ResponseWriter, r *http.Request) {
+		conf, infos, err := prepareRoute(r)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		vars := mux.Vars(r)
+		infos["cluster"] = vars["cluster"]
+		infos["hostname"] = vars["hostname"]
+		from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
+		if from != "" || to != "" {
+			infos["from"] = from
+			infos["to"] = to
+		}
 
 		templates.Render(rw, r, "monitoring/node.tmpl", &templates.Page{
-			Title:  fmt.Sprintf("Node %s - ClusterCockpit", vars["nodeId"]),
+			Title:  fmt.Sprintf("Host %s - ClusterCockpit", vars["hostname"]),
 			Config: conf,
 			Infos:  infos,
 		})

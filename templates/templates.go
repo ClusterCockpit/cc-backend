@@ -34,9 +34,8 @@ func init() {
 		"monitoring/job.tmpl",
 		"monitoring/list.tmpl",
 		"monitoring/user.tmpl",
-		// "monitoring/analysis.tmpl",
-		// "monitoring/systems.tmpl",
-		// "monitoring/node.tmpl",
+		"monitoring/systems.tmpl",
+		"monitoring/node.tmpl",
 	}
 
 	for _, file := range files {

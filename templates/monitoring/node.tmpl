@@ -7,15 +7,8 @@
 {{end}}
 {{define "javascript"}}
     <script>
-        const nodeInfos = {
-            nodeId: "{{ .Infos.nodeId }}",
-            clusterId: "{{ .Infos.clusterId }}"
-        };
-        const clusterCockpitConfigPromise = Promise.resolve({
-            plot_general_colorscheme:           {{ .Config.plot_general_colorscheme           }},
-            plot_general_lineWidth:             {{ .Config.plot_general_lineWidth             }},
-            plot_general_colorBackground:       {{ .Config.plot_general_colorBackground       }},
-        });
+        const infos = {{ .Infos }};
+        const clusterCockpitConfig = {{ .Config }};
     </script>
     <script src='/build/node.js'></script>
 {{end}}
