@@ -122,6 +122,7 @@ var programConfig ProgramConfig = ProgramConfig{
 		"plot_view_showPolarplot":            true,
 		"plot_view_showRoofline":             true,
 		"plot_view_showStatTable":            true,
+		"system_view_selectedMetric":         "cpu_load",
 	},
 }
 

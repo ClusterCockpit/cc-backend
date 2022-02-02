@@ -217,6 +217,12 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, partiti
 		partition = new(string)
 	}
 
+	if metrics == nil {
+		for _, mc := range config.GetClusterConfig(cluster).MetricConfig {
+			metrics = append(metrics, mc.Name)
+		}
+	}
+
 	data, err := metricdata.LoadNodeData(cluster, *partition, metrics, nodes, scopes, from, to, ctx)
 	if err != nil {
 		return nil, err

@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -467,7 +466,6 @@ func (ccms *CCMetricStore) LoadNodeData(cluster, partition string, metrics, node
 
 	if nodes == nil {
 		for _, metric := range metrics {
-			log.Printf("local-name: %s, remote-name: %s, renamings: %#v", metric, ccms.toRemoteName(metric), ccms.here2there)
 			req.ForAllNodes = append(req.ForAllNodes, ccms.toRemoteName(metric))
 		}
 	} else {
@@ -495,8 +493,6 @@ func (ccms *CCMetricStore) LoadNodeData(cluster, partition string, metrics, node
 		} else {
 			query = req.Queries[i]
 		}
-
-		log.Printf("results for %#v: %#v\n", query, res)
 
 		metric := ccms.toLocalName(query.Metric)
 		qdata := res[0]
