@@ -207,13 +207,41 @@ func (r *queryResolver) RooflineHeatmap(ctx context.Context, filter []*model.Job
 	return r.rooflineHeatmap(ctx, filter, rows, cols, minX, minY, maxX, maxY)
 }
 
-func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, partition string, nodes []string, scopes []string, metrics []string, from time.Time, to time.Time) ([]*model.NodeMetrics, error) {
+func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, partition *string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) ([]*model.NodeMetrics, error) {
 	user := auth.GetUser(ctx)
 	if user != nil && !user.HasRole(auth.RoleAdmin) {
 		return nil, errors.New("you need to be an administrator for this query")
 	}
 
-	return nil, nil
+	if partition == nil {
+		partition = new(string)
+	}
+
+	data, err := metricdata.LoadNodeData(cluster, *partition, metrics, nodes, scopes, from, to, ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	nodeMetrics := make([]*model.NodeMetrics, 0, len(data))
+	for hostname, metrics := range data {
+		host := &model.NodeMetrics{
+			Host:    hostname,
+			Metrics: make([]*model.JobMetricWithName, 0, len(metrics)*len(scopes)),
+		}
+
+		for metric, scopedMetrics := range metrics {
+			for _, scopedMetric := range scopedMetrics {
+				host.Metrics = append(host.Metrics, &model.JobMetricWithName{
+					Name:   metric,
+					Metric: scopedMetric,
+				})
+			}
+		}
+
+		nodeMetrics = append(nodeMetrics, host)
+	}
+
+	return nodeMetrics, nil
 }
 
 // Job returns generated.JobResolver implementation.

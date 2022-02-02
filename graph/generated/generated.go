@@ -180,7 +180,7 @@ type ComplexityRoot struct {
 		Jobs            func(childComplexity int, filter []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) int
 		JobsFootprints  func(childComplexity int, filter []*model.JobFilter, metrics []string) int
 		JobsStatistics  func(childComplexity int, filter []*model.JobFilter, groupBy *model.Aggregate) int
-		NodeMetrics     func(childComplexity int, cluster string, partition string, nodes []string, scopes []string, metrics []string, from time.Time, to time.Time) int
+		NodeMetrics     func(childComplexity int, cluster string, partition *string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) int
 		RooflineHeatmap func(childComplexity int, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) int
 		Tags            func(childComplexity int) int
 	}
@@ -245,7 +245,7 @@ type QueryResolver interface {
 	Jobs(ctx context.Context, filter []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) (*model.JobResultList, error)
 	JobsStatistics(ctx context.Context, filter []*model.JobFilter, groupBy *model.Aggregate) ([]*model.JobsStatistics, error)
 	RooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error)
-	NodeMetrics(ctx context.Context, cluster string, partition string, nodes []string, scopes []string, metrics []string, from time.Time, to time.Time) ([]*model.NodeMetrics, error)
+	NodeMetrics(ctx context.Context, cluster string, partition *string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) ([]*model.NodeMetrics, error)
 }
 
 type executableSchema struct {
@@ -918,7 +918,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.NodeMetrics(childComplexity, args["cluster"].(string), args["partition"].(string), args["nodes"].([]string), args["scopes"].([]string), args["metrics"].([]string), args["from"].(time.Time), args["to"].(time.Time)), true
+		return e.complexity.Query.NodeMetrics(childComplexity, args["cluster"].(string), args["partition"].(*string), args["nodes"].([]string), args["scopes"].([]schema.MetricScope), args["metrics"].([]string), args["from"].(time.Time), args["to"].(time.Time)), true
 
 	case "Query.rooflineHeatmap":
 		if e.complexity.Query.RooflineHeatmap == nil {
@@ -1298,7 +1298,7 @@ type Query {
 
   rooflineHeatmap(filter: [JobFilter!]!, rows: Int!, cols: Int!, minX: Float!, minY: Float!, maxX: Float!, maxY: Float!): [[Float!]!]!
 
-  nodeMetrics(cluster: String!, partition: String!, nodes: [String!], scopes: [String!], metrics: [String!], from: Time!, to: Time!): [NodeMetrics!]!
+  nodeMetrics(cluster: String!, partition: String, nodes: [String!], scopes: [MetricScope!], metrics: [String!], from: Time!, to: Time!): [NodeMetrics!]!
 }
 
 type Mutation {
@@ -1663,10 +1663,10 @@ func (ec *executionContext) field_Query_nodeMetrics_args(ctx context.Context, ra
 		}
 	}
 	args["cluster"] = arg0
-	var arg1 string
+	var arg1 *string
 	if tmp, ok := rawArgs["partition"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("partition"))
-		arg1, err = ec.unmarshalNString2string(ctx, tmp)
+		arg1, err = ec.unmarshalOString2ᚖstring(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -1681,10 +1681,10 @@ func (ec *executionContext) field_Query_nodeMetrics_args(ctx context.Context, ra
 		}
 	}
 	args["nodes"] = arg2
-	var arg3 []string
+	var arg3 []schema.MetricScope
 	if tmp, ok := rawArgs["scopes"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("scopes"))
-		arg3, err = ec.unmarshalOString2ᚕstringᚄ(ctx, tmp)
+		arg3, err = ec.unmarshalOMetricScope2ᚕgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋschemaᚐMetricScopeᚄ(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -4953,7 +4953,7 @@ func (ec *executionContext) _Query_nodeMetrics(ctx context.Context, field graphq
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().NodeMetrics(rctx, args["cluster"].(string), args["partition"].(string), args["nodes"].([]string), args["scopes"].([]string), args["metrics"].([]string), args["from"].(time.Time), args["to"].(time.Time))
+		return ec.resolvers.Query().NodeMetrics(rctx, args["cluster"].(string), args["partition"].(*string), args["nodes"].([]string), args["scopes"].([]schema.MetricScope), args["metrics"].([]string), args["from"].(time.Time), args["to"].(time.Time))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
