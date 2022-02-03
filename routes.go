@@ -42,7 +42,9 @@ func setupRoutes(router *mux.Router, routes []Route) {
 			}
 
 			infos = route.Setup(infos, r)
-			route.Title = strings.Replace(route.Title, "<ID>", infos["id"].(string), 1)
+			if id, ok := infos["id"]; ok {
+				route.Title = strings.Replace(route.Title, "<ID>", id.(string), 1)
+			}
 
 			templates.Render(rw, r, route.Template, &templates.Page{
 				Title:         route.Title,
