@@ -69,13 +69,13 @@
                                 {{end}}
                             {{end}}
                         </ul>
-                        {{if .Infos.username }}
+                        {{if .Infos.loginId }}
                             <div class="d-flex align-items-end">
                                 <ul class="navbar-nav ml-auto">
                                     <li class="nav-item">
                                         <form method="post" action="/logout">
                                             <button type="submit" class="btn btn-link nav-link fs-5">
-                                                <span class="cc-nav-text">{{ .Infos.username }} Logout</span>
+                                                <span class="cc-nav-text">{{ .Infos.loginId }} Logout</span>
                                                 <i class="bi-box-arrow-right"></i>
                                             </button>
                                         </form>

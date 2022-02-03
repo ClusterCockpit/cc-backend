@@ -133,6 +133,7 @@ func setupJobRoute(i InfoType, r *http.Request) InfoType {
 
 func setupUserRoute(i InfoType, r *http.Request) InfoType {
 	i["id"] = mux.Vars(r)["id"]
+	i["username"] = mux.Vars(r)["id"]
 	return i
 }
 
@@ -359,10 +360,10 @@ func main() {
 		}
 
 		if user := auth.GetUser(r.Context()); user != nil {
-			infos["username"] = user.Username
+			infos["loginId"] = user.Username
 			infos["admin"] = user.HasRole(auth.RoleAdmin)
 		} else {
-			infos["username"] = false
+			infos["loginId"] = false
 			infos["admin"] = false
 		}
 

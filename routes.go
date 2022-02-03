@@ -35,10 +35,10 @@ func setupRoutes(router *mux.Router, routes []Route) {
 			}
 
 			if user := auth.GetUser(r.Context()); user != nil {
-				infos["username"] = user.Username
+				infos["loginId"] = user.Username
 				infos["admin"] = user.HasRole(auth.RoleAdmin)
 			} else {
-				infos["username"] = false
+				infos["loginId"] = false
 				infos["admin"] = false
 			}
 
