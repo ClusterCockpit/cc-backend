@@ -30,13 +30,13 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 	// `socketsPerNode` and `coresPerSocket` can differ from cluster to cluster, so we need to explicitly loop over those.
 	for _, cluster := range config.Clusters {
 		for _, partition := range cluster.Partitions {
-			corehoursCol := fmt.Sprintf("ROUND(SUM(job.duration * job.num_nodes * %d * %d) / 3600)", partition.SocketsPerNode, partition.CoresPerSocket)
+			corehoursCol := fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_nodes * %d * %d) / 3600) as int)", partition.SocketsPerNode, partition.CoresPerSocket)
 			var query sq.SelectBuilder
 			if groupBy == nil {
 				query = sq.Select(
 					"''",
 					"COUNT(job.id)",
-					"ROUND(SUM(job.duration) / 3600)",
+					"CAST(ROUND(SUM(job.duration) / 3600) as int)",
 					corehoursCol,
 				).From("job")
 			} else {
@@ -44,7 +44,7 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 				query = sq.Select(
 					col,
 					"COUNT(job.id)",
-					"ROUND(SUM(job.duration) / 3600)",
+					"CAST(ROUND(SUM(job.duration) / 3600) as int)",
 					corehoursCol,
 				).From("job").GroupBy(col)
 			}
@@ -143,7 +143,7 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 
 		if histogramsNeeded {
 			var err error
-			stat.HistWalltime, err = r.jobsStatisticsHistogram(ctx, "ROUND(job.duration / 3600) as value", filter, id, col)
+			stat.HistWalltime, err = r.jobsStatisticsHistogram(ctx, "CAST(ROUND(job.duration / 3600) as int) as value", filter, id, col)
 			if err != nil {
 				return nil, err
 			}
