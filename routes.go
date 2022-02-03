@@ -6,7 +6,6 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/auth"
 	"github.com/ClusterCockpit/cc-backend/config"
-	"github.com/ClusterCockpit/cc-backend/graph"
 	"github.com/ClusterCockpit/cc-backend/templates"
 	"github.com/gorilla/mux"
 )
@@ -21,7 +20,7 @@ type Route struct {
 	Setup    func(i InfoType, r *http.Request) InfoType
 }
 
-func setupRoutes(router *mux.Router, resolver *graph.Resolver, routes []Route) {
+func setupRoutes(router *mux.Router, routes []Route) {
 	for _, route := range routes {
 		router.HandleFunc(route.Route, func(rw http.ResponseWriter, r *http.Request) {
 			conf, err := config.GetUIConfig(r)

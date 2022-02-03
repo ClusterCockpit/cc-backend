@@ -14,15 +14,11 @@ var templates map[string]*template.Template = map[string]*template.Template{}
 
 type Page struct {
 	Title         string
-	Login         *LoginPage
+	Error         string
+	Info          string
 	FilterPresets map[string]interface{}
 	Infos         map[string]interface{}
 	Config        map[string]interface{}
-}
-
-type LoginPage struct {
-	Error string
-	Info  string
 }
 
 func init() {
@@ -30,6 +26,7 @@ func init() {
 	base := template.Must(template.ParseFiles(templatesDir + "base.tmpl"))
 	files := []string{
 		"home.tmpl", "404.tmpl", "login.tmpl",
+		"imprint.tmpl", "privacy.tmpl",
 		"monitoring/jobs.tmpl",
 		"monitoring/job.tmpl",
 		"monitoring/list.tmpl",
