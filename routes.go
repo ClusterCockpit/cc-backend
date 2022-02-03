@@ -22,7 +22,8 @@ type Route struct {
 
 func setupRoutes(router *mux.Router, routes []Route) {
 	for _, route := range routes {
-		router.HandleFunc(route.Route, func(rw http.ResponseWriter, r *http.Request) {
+		_route := route
+		router.HandleFunc(_route.Route, func(rw http.ResponseWriter, r *http.Request) {
 			conf, err := config.GetUIConfig(r)
 			if err != nil {
 				http.Error(rw, err.Error(), http.StatusInternalServerError)
@@ -41,13 +42,13 @@ func setupRoutes(router *mux.Router, routes []Route) {
 				infos["admin"] = false
 			}
 
-			infos = route.Setup(infos, r)
+			infos = _route.Setup(infos, r)
 			if id, ok := infos["id"]; ok {
-				route.Title = strings.Replace(route.Title, "<ID>", id.(string), 1)
+				_route.Title = strings.Replace(_route.Title, "<ID>", id.(string), 1)
 			}
 
-			templates.Render(rw, r, route.Template, &templates.Page{
-				Title:         route.Title,
+			templates.Render(rw, r, _route.Template, &templates.Page{
+				Title:         _route.Title,
 				Config:        conf,
 				Infos:         infos,
 				FilterPresets: buildFilterPresets(r.URL.Query()),
