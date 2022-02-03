@@ -69,28 +69,28 @@
                                 {{end}}
                             {{end}}
                         </ul>
-                    {{end}}
-                    {{if .Infos.username }}
-                        <div class="d-flex align-items-end">
-                            <ul class="navbar-nav ml-auto">
-                                <li class="nav-item">
-                                    <form method="post" action="/logout">
-                                        <button type="submit" class="btn btn-link nav-link fs-5">
-                                            <span class="cc-nav-text">{{ .Infos.username }} Logout</span>
-                                            <i class="bi-box-arrow-right"></i>
-                                        </button>
-                                    </form>
-                                </li>
-                            </ul>
-                            <form class="d-flex my-0" onsubmit="this.action='/search';">
-                                {{if .Infos.admin }}
-                                    <input class="form-control me-2" type="search" name="searchId" placeholder="jobId / userId" id="searchId" aria-label="Search">
-                                {{else}}
-                                    <input class="form-control me-2" type="search" name="searchId" placeholder="jobId" id="searchId" aria-label="Search">
-                                {{end}}
-                                <button class="btn btn-outline-success fs-6" type="submit">Search</button>
-                            </form>
-                        </div>
+                        {{if .Infos.username }}
+                            <div class="d-flex align-items-end">
+                                <ul class="navbar-nav ml-auto">
+                                    <li class="nav-item">
+                                        <form method="post" action="/logout">
+                                            <button type="submit" class="btn btn-link nav-link fs-5">
+                                                <span class="cc-nav-text">{{ .Infos.username }} Logout</span>
+                                                <i class="bi-box-arrow-right"></i>
+                                            </button>
+                                        </form>
+                                    </li>
+                                </ul>
+                                <form class="d-flex my-0" onsubmit="this.action='/search';">
+                                    {{if .Infos.admin }}
+                                        <input class="form-control me-2" type="search" name="searchId" placeholder="jobId / userId" id="searchId" aria-label="Search">
+                                    {{else}}
+                                        <input class="form-control me-2" type="search" name="searchId" placeholder="jobId" id="searchId" aria-label="Search">
+                                    {{end}}
+                                    <button class="btn btn-outline-success fs-6" type="submit">Search</button>
+                                </form>
+                            </div>
+                        {{end}}
                     {{end}}
                 </div>
             </nav>
