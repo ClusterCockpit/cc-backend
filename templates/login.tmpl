@@ -7,15 +7,15 @@
         <div class="container">
             <div class="row">
                 <div class="col-4 mx-auto">
-                    {{if .Login.Error}}
+                    {{if .Error}}
                         <div class="alert alert-warning" role="alert">
-                            {{.Login.Error}}
+                            {{.Error}}
                         </div>
                     {{end}}
 
-                    {{if .Login.Info}}
+                    {{if .Info}}
                         <div class="alert alert-success" role="alert">
-                            {{.Login.Info}}
+                            {{.Info}}
                         </div>
                     {{end}}
 

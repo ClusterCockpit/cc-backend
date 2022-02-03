@@ -192,9 +192,7 @@ func Login(db *sqlx.DB) http.Handler {
 			rw.WriteHeader(http.StatusUnauthorized)
 			templates.Render(rw, r, "login.tmpl", &templates.Page{
 				Title: "Login failed",
-				Login: &templates.LoginPage{
-					Error: "Username or password incorrect",
-				},
+				Error: "Username or password incorrect",
 			})
 			return
 		}
@@ -293,9 +291,7 @@ func Auth(next http.Handler) http.Handler {
 			rw.WriteHeader(http.StatusUnauthorized)
 			templates.Render(rw, r, "login.tmpl", &templates.Page{
 				Title: "Authentication failed",
-				Login: &templates.LoginPage{
-					Error: "No valid session or JWT provided",
-				},
+				Error: "No valid session or JWT provided",
 			})
 			return
 		}
@@ -351,8 +347,6 @@ func Logout(rw http.ResponseWriter, r *http.Request) {
 
 	templates.Render(rw, r, "login.tmpl", &templates.Page{
 		Title: "Logout successful",
-		Login: &templates.LoginPage{
-			Info: "Logout successful",
-		},
+		Info:  "Logout successful",
 	})
 }
