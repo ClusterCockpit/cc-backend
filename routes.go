@@ -36,6 +36,10 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 		filterPresets["project"] = query.Get("project")
 		filterPresets["projectMatch"] = "eq"
 	}
+	if query.Get("user") != "" {
+		filterPresets["user"] = query.Get("user")
+		filterPresets["userMatch"] = "eq"
+	}
 	if query.Get("state") != "" && schema.JobState(query.Get("state")).Valid() {
 		filterPresets["state"] = query.Get("state")
 	}
