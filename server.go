@@ -161,6 +161,11 @@ func setupNodeRoute(i InfoType, r *http.Request) InfoType {
 	return i
 }
 
+func setupAnalysisRoute(i InfoType, r *http.Request) InfoType {
+	i["cluster"] = mux.Vars(r)["cluster"]
+	return i
+}
+
 var routes []Route = []Route{
 	{"/monitoring/jobs/", "monitoring/jobs.tmpl", "Jobs - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { return i }},
 	{"/monitoring/job/{id:[0-9]+}", "monitoring/job.tmpl", "Job <ID> - ClusterCockpit", false, setupJobRoute},
@@ -169,6 +174,7 @@ var routes []Route = []Route{
 	{"/monitoring/user/{id}", "monitoring/user.tmpl", "User <ID> - ClusterCockpit", true, setupUserRoute},
 	{"/monitoring/systems/{cluster}", "monitoring/systems.tmpl", "Cluster <ID> - ClusterCockpit", false, setupClusterRoute},
 	{"/monitoring/node/{cluster}/{hostname}", "monitoring/node.tmpl", "Node <ID> - ClusterCockpit", false, setupNodeRoute},
+	{"/monitoring/analysis/{cluster}", "monitoring/analysis.tmpl", "Analaysis - ClusterCockpit", true, setupAnalysisRoute},
 }
 
 func main() {
