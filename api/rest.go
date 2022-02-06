@@ -17,6 +17,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/graph/model"
 	"github.com/ClusterCockpit/cc-backend/log"
 	"github.com/ClusterCockpit/cc-backend/metricdata"
+	"github.com/ClusterCockpit/cc-backend/repository"
 	"github.com/ClusterCockpit/cc-backend/schema"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/gorilla/mux"
@@ -24,6 +25,7 @@ import (
 )
 
 type RestApi struct {
+	r                 *repository.JobRepository
 	DB                *sqlx.DB
 	Resolver          *graph.Resolver
 	AsyncArchiving    bool
@@ -51,7 +53,7 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 	}
 }
 
-type StartJobApiRespone struct {
+type StartJobApiResponse struct {
 	DBID int64 `json:"id"`
 }
 
@@ -153,14 +155,14 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 
 	for _, tag := range req {
 		var tagId int64
-		if err := sq.Select("id").From("tag").
-			Where("tag.tag_type = ?", tag.Type).Where("tag.tag_name = ?", tag.Name).
-			RunWith(api.DB).QueryRow().Scan(&tagId); err != nil {
+		exists := false
+
+		if exists, tagId = api.r.TagExists(tag.Type, tag.Name); exists {
 			http.Error(rw, fmt.Sprintf("the tag '%s:%s' does not exist", tag.Type, tag.Name), http.StatusNotFound)
 			return
 		}
 
-		if _, err := api.DB.Exec(`INSERT INTO jobtag (job_id, tag_id) VALUES (?, ?)`, job.ID, tagId); err != nil {
+		if err := api.r.AddTag(job.JobID, tagId); err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -204,8 +206,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if combination of (job_id, cluster_id, start_time) already exists:
-	rows, err := api.DB.Query(`SELECT job.id FROM job WHERE job.job_id = ? AND job.cluster = ? AND job.start_time = ?`,
-		req.JobID, req.Cluster, req.StartTime)
+	rows, err := api.r.JobExists(req.JobID, req.Cluster, req.StartTime)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
@@ -250,7 +251,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	log.Printf("new job (id: %d): cluster=%s, jobId=%d, user=%s, startTime=%d", id, req.Cluster, req.JobID, req.User, req.StartTime)
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusCreated)
-	json.NewEncoder(rw).Encode(StartJobApiRespone{
+	json.NewEncoder(rw).Encode(StartJobApiResponse{
 		DBID: id,
 	})
 }
