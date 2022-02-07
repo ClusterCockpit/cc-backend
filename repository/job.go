@@ -27,12 +27,17 @@ func (r *JobRepository) Find(
 		Where("job.cluster = ?", cluster).
 		Where("job.start_time = ?", startTime)
 
-	sql, args, err := qb.ToSql()
+	sqlQuery, args, err := qb.ToSql()
 	if err != nil {
 		return nil, err
 	}
 
-	job, err := schema.ScanJob(r.DB.QueryRowx(sql, args...))
+	job, err := schema.ScanJob(r.DB.QueryRowx(sqlQuery, args...))
+
+	// Reset error if no job is found as this is indicated by nil job ptr
+	if err == sql.ErrNoRows {
+		err = nil
+	}
 	return job, err
 }
 
@@ -42,13 +47,18 @@ func (r *JobRepository) Find(
 // If the job was not found nil is returned for the job pointer.
 func (r *JobRepository) FindById(
 	jobId int64) (*schema.Job, error) {
-	sql, args, err := sq.Select(schema.JobColumns...).
+	sqlQuery, args, err := sq.Select(schema.JobColumns...).
 		From("job").Where("job.id = ?", jobId).ToSql()
 	if err != nil {
 		return nil, err
 	}
 
-	job, err := schema.ScanJob(r.DB.QueryRowx(sql, args...))
+	job, err := schema.ScanJob(r.DB.QueryRowx(sqlQuery, args...))
+
+	// Reset error if no job is found as this is indicated by nil job ptr
+	if err == sql.ErrNoRows {
+		err = nil
+	}
 	return job, err
 }
 
@@ -92,6 +102,7 @@ func (r *JobRepository) Stop(
 	}
 
 	sql, args, err := stmt.ToSql()
+
 	if err != nil {
 		log.Errorf("archiving job (dbid: %d) failed: %s", jobId, err.Error())
 	}

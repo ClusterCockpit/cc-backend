@@ -206,6 +206,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	// Check if combination of (job_id, cluster_id, start_time) already exists:
 	job, err := api.JobRepository.Find(req.JobID, req.Cluster, req.StartTime)
 	if err != nil {
+		print("ERROR in Find\n")
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -305,7 +306,7 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		api.JobRepository.Stop(job.JobID, job.Duration, req.State, jobMeta.Statistics)
+		api.JobRepository.Stop(job.ID, job.Duration, req.State, jobMeta.Statistics)
 		log.Printf("job stopped and archived (dbid: %d)", job.ID)
 		return nil
 	}

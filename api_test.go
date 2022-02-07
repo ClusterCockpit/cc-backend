@@ -18,6 +18,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/config"
 	"github.com/ClusterCockpit/cc-backend/graph"
 	"github.com/ClusterCockpit/cc-backend/metricdata"
+	"github.com/ClusterCockpit/cc-backend/repository"
 	"github.com/ClusterCockpit/cc-backend/schema"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
@@ -122,8 +123,8 @@ func setup(t *testing.T) *api.RestApi {
 		t.Fatal(err)
 	}
 	return &api.RestApi{
-		DB:       db,
-		Resolver: resolver,
+		JobRepository: &repository.JobRepository{db},
+		Resolver:      resolver,
 	}
 }
 
@@ -200,7 +201,7 @@ func TestRestApi(t *testing.T) {
 			t.Fatal(response.Status, recorder.Body.String())
 		}
 
-		var res api.StartJobApiRespone
+		var res api.StartJobApiResponse
 		if err := json.Unmarshal(recorder.Body.Bytes(), &res); err != nil {
 			t.Fatal(err)
 		}
@@ -260,6 +261,7 @@ func TestRestApi(t *testing.T) {
 		}
 
 		if job.State != schema.JobStateCompleted {
+			print("STATE:" + job.State)
 			t.Fatal("expected job to be completed")
 		}
 
