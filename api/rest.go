@@ -19,14 +19,11 @@ import (
 	"github.com/ClusterCockpit/cc-backend/metricdata"
 	"github.com/ClusterCockpit/cc-backend/repository"
 	"github.com/ClusterCockpit/cc-backend/schema"
-	sq "github.com/Masterminds/squirrel"
 	"github.com/gorilla/mux"
-	"github.com/jmoiron/sqlx"
 )
 
 type RestApi struct {
-	r                 *repository.JobRepository
-	DB                *sqlx.DB
+	JobRepository     *repository.JobRepository
 	Resolver          *graph.Resolver
 	AsyncArchiving    bool
 	MachineStateDir   string
@@ -157,12 +154,12 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 		var tagId int64
 		exists := false
 
-		if exists, tagId = api.r.TagExists(tag.Type, tag.Name); exists {
+		if exists, tagId = api.JobRepository.TagExists(tag.Type, tag.Name); exists {
 			http.Error(rw, fmt.Sprintf("the tag '%s:%s' does not exist", tag.Type, tag.Name), http.StatusNotFound)
 			return
 		}
 
-		if err := api.r.AddTag(job.JobID, tagId); err != nil {
+		if err := api.JobRepository.AddTag(job.JobID, tagId); err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -206,7 +203,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if combination of (job_id, cluster_id, start_time) already exists:
-	rows, err := api.r.JobExists(req.JobID, req.Cluster, req.StartTime)
+	rows, err := api.JobRepository.JobExists(req.JobID, req.Cluster, req.StartTime)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
@@ -229,13 +226,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := api.DB.NamedExec(`INSERT INTO job (
-		job_id, user, project, cluster, `+"`partition`"+`, array_job_id, num_nodes, num_hwthreads, num_acc,
-		exclusive, monitoring_status, smt, job_state, start_time, duration, resources, meta_data
-	) VALUES (
-		:job_id, :user, :project, :cluster, :partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
-		:exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :resources, :meta_data
-	);`, req)
+	res, err := api.JobRepository.Add(req)
 	if err != nil {
 		log.Errorf("insert into job table failed: %s", err.Error())
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
@@ -269,26 +260,15 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var err error
-	var sql string
-	var args []interface{}
 	id, ok := mux.Vars(r)["id"]
+	var job *schema.Job
+	var err error
 	if ok {
-		sql, args, err = sq.Select(schema.JobColumns...).From("job").Where("job.id = ?", id).ToSql()
+		job, err = api.JobRepository.StopById(id)
 	} else {
-		qb := sq.Select(schema.JobColumns...).From("job").
-			Where("job.job_id = ?", req.JobId).
-			Where("job.cluster = ?", req.Cluster)
-		if req.StartTime != nil {
-			qb = qb.Where("job.start_time = ?", *req.StartTime)
-		}
-		sql, args, err = qb.ToSql()
+		job, err = api.JobRepository.Stop(*req.JobId, *req.Cluster, *req.StartTime)
 	}
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
-		return
-	}
-	job, err := schema.ScanJob(api.DB.QueryRowx(sql, args...))
+
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
@@ -321,39 +301,7 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		stmt := sq.Update("job").
-			Set("job_state", req.State).
-			Set("duration", job.Duration).
-			Where("job.id = ?", job.ID)
-
-		for metric, stats := range jobMeta.Statistics {
-			switch metric {
-			case "flops_any":
-				stmt = stmt.Set("flops_any_avg", stats.Avg)
-			case "mem_used":
-				stmt = stmt.Set("mem_used_max", stats.Max)
-			case "mem_bw":
-				stmt = stmt.Set("mem_bw_avg", stats.Avg)
-			case "load":
-				stmt = stmt.Set("load_avg", stats.Avg)
-			case "net_bw":
-				stmt = stmt.Set("net_bw_avg", stats.Avg)
-			case "file_bw":
-				stmt = stmt.Set("file_bw_avg", stats.Avg)
-			}
-		}
-
-		sql, args, err := stmt.ToSql()
-		if err != nil {
-			log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
-			return err
-		}
-
-		if _, err := api.DB.Exec(sql, args...); err != nil {
-			log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
-			return err
-		}
-
+		api.JobRepository.Close(job.JobID, job.Duration, req.State, jobMeta.Statistics)
 		log.Printf("job stopped and archived (dbid: %d)", job.ID)
 		return nil
 	}

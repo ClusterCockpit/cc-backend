@@ -26,6 +26,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/graph/generated"
 	"github.com/ClusterCockpit/cc-backend/log"
 	"github.com/ClusterCockpit/cc-backend/metricdata"
+	"github.com/ClusterCockpit/cc-backend/repository"
 	"github.com/ClusterCockpit/cc-backend/templates"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -307,7 +308,7 @@ func main() {
 
 	graphQLPlayground := playground.Handler("GraphQL playground", "/query")
 	api := &api.RestApi{
-		DB:              db,
+		JobRepository:   &repository.JobRepository{db},
 		AsyncArchiving:  programConfig.AsyncArchiving,
 		Resolver:        resolver,
 		MachineStateDir: programConfig.MachineStateDir,
