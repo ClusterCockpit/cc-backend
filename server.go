@@ -308,7 +308,7 @@ func main() {
 
 	graphQLPlayground := playground.Handler("GraphQL playground", "/query")
 	api := &api.RestApi{
-		JobRepository:   &repository.JobRepository{db},
+		JobRepository:   &repository.JobRepository{DB: db},
 		AsyncArchiving:  programConfig.AsyncArchiving,
 		Resolver:        resolver,
 		MachineStateDir: programConfig.MachineStateDir,

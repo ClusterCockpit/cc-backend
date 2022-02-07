@@ -123,7 +123,7 @@ func setup(t *testing.T) *api.RestApi {
 		t.Fatal(err)
 	}
 	return &api.RestApi{
-		JobRepository: &repository.JobRepository{db},
+		JobRepository: &repository.JobRepository{DB: db},
 		Resolver:      resolver,
 	}
 }
