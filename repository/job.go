@@ -17,7 +17,7 @@ type JobRepository struct {
 // The job is queried using the batch job id, the cluster name,
 // and the start time of the job in UNIX epoch time seconds.
 // It returns a pointer to a schema.Job data structure and an error variable.
-// If the job was not found nil is returned for the job pointer.
+// To check if no job was found test err == sql.ErrNoRows
 func (r *JobRepository) Find(
 	jobId int64,
 	cluster string,
@@ -33,18 +33,13 @@ func (r *JobRepository) Find(
 	}
 
 	job, err := schema.ScanJob(r.DB.QueryRowx(sqlQuery, args...))
-
-	// Reset error if no job is found as this is indicated by nil job ptr
-	if err == sql.ErrNoRows {
-		err = nil
-	}
 	return job, err
 }
 
 // FindById executes a SQL query to find a specific batch job.
 // The job is queried using the database id.
 // It returns a pointer to a schema.Job data structure and an error variable.
-// If the job was not found nil is returned for the job pointer.
+// To check if no job was found test err == sql.ErrNoRows
 func (r *JobRepository) FindById(
 	jobId int64) (*schema.Job, error) {
 	sqlQuery, args, err := sq.Select(schema.JobColumns...).
@@ -54,11 +49,6 @@ func (r *JobRepository) FindById(
 	}
 
 	job, err := schema.ScanJob(r.DB.QueryRowx(sqlQuery, args...))
-
-	// Reset error if no job is found as this is indicated by nil job ptr
-	if err == sql.ErrNoRows {
-		err = nil
-	}
 	return job, err
 }
 

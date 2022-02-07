@@ -3,6 +3,7 @@ package api
 import (
 	"bufio"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -205,13 +206,12 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 
 	// Check if combination of (job_id, cluster_id, start_time) already exists:
 	job, err := api.JobRepository.Find(req.JobID, req.Cluster, req.StartTime)
-	if err != nil {
-		print("ERROR in Find\n")
+	if err != nil && err != sql.ErrNoRows {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if job != nil {
+	if err != sql.ErrNoRows {
 		http.Error(rw, fmt.Sprintf("a job with that job_id, cluster_id and start_time already exists (database id: %d)", job.ID), http.StatusUnprocessableEntity)
 		return
 	}
