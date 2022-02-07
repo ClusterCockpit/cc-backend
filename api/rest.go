@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 
 	"github.com/ClusterCockpit/cc-backend/auth"
@@ -203,16 +204,14 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if combination of (job_id, cluster_id, start_time) already exists:
-	rows, err := api.JobRepository.JobExists(req.JobID, req.Cluster, req.StartTime)
+	job, err := api.JobRepository.Find(req.JobID, req.Cluster, req.StartTime)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if rows.Next() {
-		var id int64 = -1
-		rows.Scan(&id)
-		http.Error(rw, fmt.Sprintf("a job with that job_id, cluster_id and start_time already exists (database id: %d)", id), http.StatusUnprocessableEntity)
+	if job != nil {
+		http.Error(rw, fmt.Sprintf("a job with that job_id, cluster_id and start_time already exists (database id: %d)", job.ID), http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -226,7 +225,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := api.JobRepository.Add(req)
+	res, err := api.JobRepository.Start(req)
 	if err != nil {
 		log.Errorf("insert into job table failed: %s", err.Error())
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
@@ -264,9 +263,14 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 	var job *schema.Job
 	var err error
 	if ok {
-		job, err = api.JobRepository.StopById(id)
+		id, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusBadRequest)
+		}
+
+		job, err = api.JobRepository.FindById(id)
 	} else {
-		job, err = api.JobRepository.Stop(*req.JobId, *req.Cluster, *req.StartTime)
+		job, err = api.JobRepository.Find(*req.JobId, *req.Cluster, *req.StartTime)
 	}
 
 	if err != nil {
@@ -301,7 +305,7 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		api.JobRepository.Close(job.JobID, job.Duration, req.State, jobMeta.Statistics)
+		api.JobRepository.Stop(job.JobID, job.Duration, req.State, jobMeta.Statistics)
 		log.Printf("job stopped and archived (dbid: %d)", job.ID)
 		return nil
 	}
