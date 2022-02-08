@@ -182,7 +182,7 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 // there are optional here (e.g. `jobState` defaults to "running").
 func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		log.Warnf("user '%s' used /api/jobs/start_job/ without having the API role")
+		log.Warnf("user '%s' used /api/jobs/start_job/ without having the API role", user.Username)
 		http.Error(rw, "missing 'api' role", http.StatusForbidden)
 		return
 	}
@@ -264,9 +264,10 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 	var job *schema.Job
 	var err error
 	if ok {
-		id, err := strconv.ParseInt(id, 10, 64)
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusBadRequest)
+		id, e := strconv.ParseInt(id, 10, 64)
+		if e != nil {
+			http.Error(rw, e.Error(), http.StatusBadRequest)
+			return
 		}
 
 		job, err = api.JobRepository.FindById(id)
