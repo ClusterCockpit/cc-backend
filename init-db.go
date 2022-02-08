@@ -54,7 +54,8 @@ const JOBS_DB_SCHEMA string = `
 	CREATE TABLE tag (
 		id       INTEGER PRIMARY KEY,
 		tag_type VARCHAR(255) NOT NULL,
-		tag_name VARCHAR(255) NOT NULL);
+		tag_name VARCHAR(255) NOT NULL,
+		CONSTRAINT be_unique UNIQUE (tag_type, tag_name));
 
 	CREATE TABLE jobtag (
 		job_id INTEGER,

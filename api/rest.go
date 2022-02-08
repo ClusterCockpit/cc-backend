@@ -153,15 +153,8 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, tag := range req {
-		var tagId int64
-		exists := false
-
-		if exists, tagId = api.JobRepository.TagExists(tag.Type, tag.Name); exists {
-			http.Error(rw, fmt.Sprintf("the tag '%s:%s' does not exist", tag.Type, tag.Name), http.StatusNotFound)
-			return
-		}
-
-		if err := api.JobRepository.AddTag(job.JobID, tagId); err != nil {
+		tagId, err := api.JobRepository.AddTagOrCreate(job.ID, tag.Type, tag.Name)
+		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -226,17 +219,18 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := api.JobRepository.Start(req)
+	id, err := api.JobRepository.Start(&req)
 	if err != nil {
 		log.Errorf("insert into job table failed: %s", err.Error())
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	id, err := res.LastInsertId()
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
-		return
+	for _, tag := range req.Tags {
+		if _, err := api.JobRepository.AddTagOrCreate(id, tag.Type, tag.Name); err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	log.Printf("new job (id: %d): cluster=%s, jobId=%d, user=%s, startTime=%d", id, req.Cluster, req.JobID, req.User, req.StartTime)

@@ -1,8 +1,6 @@
 package repository
 
 import (
-	"database/sql"
-
 	"github.com/ClusterCockpit/cc-backend/log"
 	"github.com/ClusterCockpit/cc-backend/schema"
 	sq "github.com/Masterminds/squirrel"
@@ -52,17 +50,24 @@ func (r *JobRepository) FindById(
 	return job, err
 }
 
-func (r *JobRepository) Start(job schema.JobMeta) (res sql.Result, err error) {
-	res, err = r.DB.NamedExec(`INSERT INTO job (
+// Start inserts a new job in the table, returning the unique job ID.
+// Statistics are not transfered!
+func (r *JobRepository) Start(job *schema.JobMeta) (id int64, err error) {
+	res, err := r.DB.NamedExec(`INSERT INTO job (
 		job_id, user, project, cluster, `+"`partition`"+`, array_job_id, num_nodes, num_hwthreads, num_acc,
 		exclusive, monitoring_status, smt, job_state, start_time, duration, resources, meta_data
 	) VALUES (
 		:job_id, :user, :project, :cluster, :partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
 		:exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :resources, :meta_data
 	);`, job)
-	return
+	if err != nil {
+		return -1, err
+	}
+
+	return res.LastInsertId()
 }
 
+// Stop updates the job with the database id jobId using the provided arguments.
 func (r *JobRepository) Stop(
 	jobId int64,
 	duration int32,
@@ -91,30 +96,48 @@ func (r *JobRepository) Stop(
 		}
 	}
 
-	sql, args, err := stmt.ToSql()
-
-	if err != nil {
-		log.Errorf("archiving job (dbid: %d) failed: %s", jobId, err.Error())
-	}
-
-	if _, err := r.DB.Exec(sql, args...); err != nil {
+	if _, err := stmt.RunWith(r.DB).Exec(); err != nil {
 		log.Errorf("archiving job (dbid: %d) failed: %s", jobId, err.Error())
 	}
 }
 
+// Add the tag with id `tagId` to the job with the database id `jobId`.
 func (r *JobRepository) AddTag(jobId int64, tagId int64) error {
 	_, err := r.DB.Exec(`INSERT INTO jobtag (job_id, tag_id) VALUES (?, ?)`, jobId, tagId)
 	return err
 }
 
-func (r *JobRepository) TagExists(tagType string, tagName string) (exists bool, tagId int64) {
+// CreateTag creates a new tag with the specified type and name and returns its database id.
+func (r *JobRepository) CreateTag(tagType string, tagName string) (tagId int64, err error) {
+	res, err := r.DB.Exec("INSERT INTO tag (tag_type, tag_name) VALUES ($1, $2)", tagType, tagName)
+	if err != nil {
+		return 0, err
+	}
+
+	return res.LastInsertId()
+}
+
+// AddTagOrCreate adds the tag with the specified type and name to the job with the database id `jobId`.
+// If such a tag does not yet exist, it is created.
+func (r *JobRepository) AddTagOrCreate(jobId int64, tagType string, tagName string) (tagId int64, err error) {
+	tagId, exists := r.TagId(tagType, tagName)
+	if !exists {
+		tagId, err = r.CreateTag(tagType, tagName)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return tagId, r.AddTag(jobId, tagId)
+}
+
+// TagId returns the database id of the tag with the specified type and name.
+func (r *JobRepository) TagId(tagType string, tagName string) (tagId int64, exists bool) {
 	exists = true
 	if err := sq.Select("id").From("tag").
 		Where("tag.tag_type = ?", tagType).Where("tag.tag_name = ?", tagName).
 		RunWith(r.DB).QueryRow().Scan(&tagId); err != nil {
 		exists = false
-		return exists, tagId
-	} else {
-		return exists, tagId
 	}
+	return
 }

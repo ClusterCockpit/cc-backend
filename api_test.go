@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -28,14 +27,6 @@ func setup(t *testing.T) *api.RestApi {
 	if db != nil {
 		panic("prefer using sub-tests (`t.Run`) or implement `cleanup` before calling setup twice.")
 	}
-
-	devNull, err := os.Open(os.DevNull)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Makes output cleaner
-	log.SetOutput(devNull)
 
 	const testclusterJson = `{
 		"name": "testcluster",
@@ -129,7 +120,6 @@ func setup(t *testing.T) *api.RestApi {
 }
 
 func cleanup() {
-	log.SetOutput(os.Stderr)
 	// TODO: Clear all caches, reset all modules, etc...
 }
 
@@ -179,7 +169,7 @@ func TestRestApi(t *testing.T) {
     	"exclusive":        1,
     	"monitoringStatus": 1,
     	"smt":              1,
-    	"tags":             [],
+    	"tags":             [{ "type": "testTagType", "name": "testTagName" }],
     	"resources": [
         	{
             	"hostname": "testhost",
@@ -211,6 +201,11 @@ func TestRestApi(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		job.Tags, err = restapi.Resolver.Job().Tags(context.Background(), job)
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		if job.JobID != 123 ||
 			job.User != "testuser" ||
 			job.Project != "testproj" ||
@@ -223,10 +218,13 @@ func TestRestApi(t *testing.T) {
 			job.Exclusive != 1 ||
 			job.MonitoringStatus != 1 ||
 			job.SMT != 1 ||
-			len(job.Tags) != 0 ||
 			!reflect.DeepEqual(job.Resources, []*schema.Resource{{Hostname: "testhost", HWThreads: []int{0, 1, 2, 3, 4, 5, 6, 7}}}) ||
 			job.StartTime.Unix() != 123456789 {
 			t.Fatalf("unexpected job properties: %#v", job)
+		}
+
+		if len(job.Tags) != 1 || job.Tags[0].Type != "testTagType" || job.Tags[0].Name != "testTagName" {
+			t.Fatalf("unexpected tags: %#v", job.Tags)
 		}
 
 		dbid = res.DBID
