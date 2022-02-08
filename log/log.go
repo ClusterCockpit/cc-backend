@@ -8,6 +8,7 @@ package log
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 )
 
@@ -15,15 +16,21 @@ var (
 	DebugWriter io.Writer = os.Stderr
 	InfoWriter  io.Writer = os.Stderr
 	WarnWriter  io.Writer = os.Stderr
-	ErrorWriter io.Writer = os.Stderr
+	ErrWriter   io.Writer = os.Stderr
 )
 
 var (
-	DebugPrefix string = "<7>[DEBUG]"
-	InfoPrefix  string = "<6>[INFO]"
-	WarnPrefix  string = "<4>[WARNING]"
-	ErrPrefix   string = "<3>[ERROR]"
-	FatalPrefix string = "<3>[FATAL]"
+	DebugPrefix string = "<7>[DEBUG]   "
+	InfoPrefix  string = "<6>[INFO]    "
+	WarnPrefix  string = "<4>[WARNING] "
+	ErrPrefix   string = "<3>[ERROR]   "
+)
+
+var (
+	DebugLog *log.Logger = log.New(DebugWriter, DebugPrefix, 0)
+	InfoLog  *log.Logger = log.New(InfoWriter, InfoPrefix, 0)
+	WarnLog  *log.Logger = log.New(WarnWriter, WarnPrefix, 0)
+	ErrLog   *log.Logger = log.New(ErrWriter, ErrPrefix, 0)
 )
 
 func init() {
@@ -47,15 +54,13 @@ func init() {
 
 func Debug(v ...interface{}) {
 	if DebugWriter != io.Discard {
-		v = append([]interface{}{DebugPrefix}, v...)
-		fmt.Fprintln(DebugWriter, v...)
+		DebugLog.Print(v...)
 	}
 }
 
 func Info(v ...interface{}) {
 	if InfoWriter != io.Discard {
-		v = append([]interface{}{InfoPrefix}, v...)
-		fmt.Fprintln(InfoWriter, v...)
+		InfoLog.Print(v...)
 	}
 }
 
@@ -65,35 +70,30 @@ func Print(v ...interface{}) {
 
 func Warn(v ...interface{}) {
 	if WarnWriter != io.Discard {
-		v = append([]interface{}{WarnPrefix}, v...)
-		fmt.Fprintln(WarnWriter, v...)
+		WarnLog.Print(v...)
 	}
 }
 
 func Error(v ...interface{}) {
-	if ErrorWriter != io.Discard {
-		v = append([]interface{}{ErrPrefix}, v...)
-		fmt.Fprintln(ErrorWriter, v...)
+	if ErrWriter != io.Discard {
+		ErrLog.Print(v...)
 	}
 }
 
 func Fatal(v ...interface{}) {
-	if ErrorWriter != io.Discard {
-		v = append([]interface{}{FatalPrefix}, v...)
-		fmt.Fprintln(ErrorWriter, v...)
-	}
+	Error(v...)
 	os.Exit(1)
 }
 
 func Debugf(format string, v ...interface{}) {
 	if DebugWriter != io.Discard {
-		fmt.Fprintf(DebugWriter, DebugPrefix+" "+format+"\n", v...)
+		DebugLog.Printf(format, v...)
 	}
 }
 
 func Infof(format string, v ...interface{}) {
 	if InfoWriter != io.Discard {
-		fmt.Fprintf(InfoWriter, InfoPrefix+" "+format+"\n", v...)
+		InfoLog.Printf(format, v...)
 	}
 }
 
@@ -109,19 +109,17 @@ func Finfof(w io.Writer, format string, v ...interface{}) {
 
 func Warnf(format string, v ...interface{}) {
 	if WarnWriter != io.Discard {
-		fmt.Fprintf(WarnWriter, WarnPrefix+" "+format+"\n", v...)
+		WarnLog.Printf(format, v...)
 	}
 }
 
 func Errorf(format string, v ...interface{}) {
-	if ErrorWriter != io.Discard {
-		fmt.Fprintf(ErrorWriter, ErrPrefix+" "+format+"\n", v...)
+	if ErrWriter != io.Discard {
+		ErrLog.Printf(format, v...)
 	}
 }
 
 func Fatalf(format string, v ...interface{}) {
-	if ErrorWriter != io.Discard {
-		fmt.Fprintf(ErrorWriter, FatalPrefix+" "+format+"\n", v...)
-	}
+	Errorf(format, v...)
 	os.Exit(1)
 }
