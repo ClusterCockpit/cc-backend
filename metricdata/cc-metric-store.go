@@ -497,7 +497,7 @@ func (ccms *CCMetricStore) LoadNodeData(cluster, partition string, metrics, node
 		metric := ccms.toLocalName(query.Metric)
 		qdata := res[0]
 		if qdata.Error != nil {
-			return nil, fmt.Errorf("fetching %s for node %s failed: %s", query.Metric, query.Hostname, *qdata.Error)
+			return nil, fmt.Errorf("fetching %s for node %s failed: %s", metric, query.Hostname, *qdata.Error)
 		}
 
 		if qdata.Avg.IsNaN() || qdata.Min.IsNaN() || qdata.Max.IsNaN() {
@@ -511,7 +511,7 @@ func (ccms *CCMetricStore) LoadNodeData(cluster, partition string, metrics, node
 		}
 
 		mc := config.GetMetricConfig(cluster, metric)
-		hostdata[query.Metric] = append(hostdata[query.Metric], &schema.JobMetric{
+		hostdata[metric] = append(hostdata[metric], &schema.JobMetric{
 			Unit:     mc.Unit,
 			Scope:    schema.MetricScopeNode,
 			Timestep: mc.Timestep,
