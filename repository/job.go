@@ -1,6 +1,12 @@
 package repository
 
 import (
+	"context"
+	"database/sql"
+	"errors"
+	"strconv"
+
+	"github.com/ClusterCockpit/cc-backend/auth"
 	"github.com/ClusterCockpit/cc-backend/log"
 	"github.com/ClusterCockpit/cc-backend/schema"
 	sq "github.com/Masterminds/squirrel"
@@ -140,4 +146,39 @@ func (r *JobRepository) TagId(tagType string, tagName string) (tagId int64, exis
 		exists = false
 	}
 	return
+}
+
+var ErrNotFound = errors.New("no such job or user")
+
+// FindJobOrUser returns a job database ID or a username if a job or user machtes the search term.
+// As 0 is a valid job id, check if username is "" instead in order to check what machted.
+// If nothing matches the search, `ErrNotFound` is returned.
+func (r *JobRepository) FindJobOrUser(ctx context.Context, searchterm string) (job int64, username string, err error) {
+	user := auth.GetUser(ctx)
+	if id, err := strconv.Atoi(searchterm); err == nil {
+		qb := sq.Select("job.id").From("job").Where("job.job_id = ?", id)
+		if user != nil && !user.HasRole(auth.RoleAdmin) {
+			qb = qb.Where("job.user = ?", user.Username)
+		}
+
+		err := qb.RunWith(r.DB).QueryRow().Scan(&job)
+		if err != nil && err != sql.ErrNoRows {
+			return 0, "", err
+		} else if err == nil {
+			return job, "", nil
+		}
+	}
+
+	if user == nil || user.HasRole(auth.RoleAdmin) {
+		err := sq.Select("job.user").Distinct().From("job").
+			Where("job.user = ?", searchterm).
+			RunWith(r.DB).QueryRow().Scan(&username)
+		if err != nil && err != sql.ErrNoRows {
+			return 0, "", err
+		} else if err == nil {
+			return 0, username, nil
+		}
+	}
+
+	return 0, "", ErrNotFound
 }

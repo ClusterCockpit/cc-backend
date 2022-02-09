@@ -65,6 +65,12 @@ const JOBS_DB_SCHEMA string = `
 		FOREIGN KEY (tag_id) REFERENCES tag (id) ON DELETE CASCADE);
 `
 
+const JOBS_DB_INDEXES string = `
+	CREATE INDEX job_by_user      ON job (user);
+	CREATE INDEX job_by_starttime ON job (start_time);
+	CREATE INDEX job_by_job_id    ON job (job_id);
+`
+
 // Delete the tables "job", "tag" and "jobtag" from the database and
 // repopulate them using the jobs found in `archive`.
 func initDB(db *sqlx.DB, archive string) error {
@@ -178,9 +184,7 @@ func initDB(db *sqlx.DB, archive string) error {
 
 	// Create indexes after inserts so that they do not
 	// need to be continually updated.
-	if _, err := db.Exec(`
-		CREATE INDEX job_by_user ON job (user);
-		CREATE INDEX job_by_starttime ON job (start_time);`); err != nil {
+	if _, err := db.Exec(JOBS_DB_INDEXES); err != nil {
 		return err
 	}
 

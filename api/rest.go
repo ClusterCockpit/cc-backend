@@ -266,6 +266,11 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 
 		job, err = api.JobRepository.FindById(id)
 	} else {
+		if req.JobId == nil || req.Cluster == nil || req.StartTime == nil {
+			http.Error(rw, "'jobId', 'cluster' and 'startTime' are required", http.StatusBadRequest)
+			return
+		}
+
 		job, err = api.JobRepository.Find(*req.JobId, *req.Cluster, *req.StartTime)
 	}
 

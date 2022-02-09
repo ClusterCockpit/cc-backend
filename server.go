@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -373,6 +374,29 @@ func main() {
 			Config: conf,
 			Infos:  infos,
 		})
+	})
+
+	secured.HandleFunc("/search", func(rw http.ResponseWriter, r *http.Request) {
+		if search := r.URL.Query().Get("searchId"); search != "" {
+			job, username, err := api.JobRepository.FindJobOrUser(r.Context(), search)
+			if err == repository.ErrNotFound {
+				http.Redirect(rw, r, "/monitoring/jobs/?jobId="+url.QueryEscape(search), http.StatusTemporaryRedirect)
+				return
+			} else if err != nil {
+				http.Error(rw, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			if username != "" {
+				http.Redirect(rw, r, "/monitoring/user/"+username, http.StatusTemporaryRedirect)
+				return
+			} else {
+				http.Redirect(rw, r, fmt.Sprintf("/monitoring/job/%d", job), http.StatusTemporaryRedirect)
+				return
+			}
+		} else {
+			http.Error(rw, "'searchId' query parameter missing", http.StatusBadRequest)
+		}
 	})
 
 	setupRoutes(secured, routes)
