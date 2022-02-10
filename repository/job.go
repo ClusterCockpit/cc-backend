@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/ClusterCockpit/cc-backend/auth"
@@ -121,6 +122,42 @@ func (r *JobRepository) CreateTag(tagType string, tagName string) (tagId int64, 
 	}
 
 	return res.LastInsertId()
+}
+
+func (r *JobRepository) GetTags() (tags []schema.Tag, counts map[string]int, err error) {
+	tags = make([]schema.Tag, 0, 100)
+	xrows, err := r.DB.Queryx("SELECT * FROM tag")
+	for xrows.Next() {
+		var t schema.Tag
+		err = xrows.StructScan(&t)
+		tags = append(tags, t)
+	}
+
+	q := sq.Select("t.tag_name, count(jt.tag_id)").
+		From("tag t").
+		LeftJoin("jobtag jt ON t.id = jt.tag_id").
+		GroupBy("t.tag_name")
+
+	qs, _, err := q.ToSql()
+	rows, err := r.DB.Query(qs)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	counts = make(map[string]int)
+
+	for rows.Next() {
+		var tagName string
+		var count int
+		err = rows.Scan(&tagName, &count)
+		if err != nil {
+			fmt.Println(err)
+		}
+		counts[tagName] = count
+	}
+	err = rows.Err()
+
+	return
 }
 
 // AddTagOrCreate adds the tag with the specified type and name to the job with the database id `jobId`.

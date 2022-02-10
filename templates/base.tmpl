@@ -58,6 +58,14 @@
                                         </a>
                                     </li>
                                 {{end}}
+                                {{block "navitem_tags" .}}
+                                    <li class="nav-item">
+                                        <a class="nav-link fs-5" href="/monitoring/tags/">
+                                            <span class="cc-nav-text">Tags</span>
+                                            <i class="bi-tag-fill"></i>
+                                        </a>
+                                    </li>
+                                {{end}}
                             {{else}}
                                 {{block "navitem_stats" .}}
                                     <li class="nav-item">

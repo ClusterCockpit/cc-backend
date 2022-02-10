@@ -22,13 +22,20 @@ type Page struct {
 }
 
 func init() {
-	templatesDir = "./templates/"
+	bp := "./"
+	ebp := os.Getenv("BASEPATH")
+
+	if ebp != "" {
+		bp = ebp
+	}
+	templatesDir = bp + "templates/"
 	base := template.Must(template.ParseFiles(templatesDir + "base.tmpl"))
 	files := []string{
 		"home.tmpl", "404.tmpl", "login.tmpl",
 		"imprint.tmpl", "privacy.tmpl",
 		"monitoring/jobs.tmpl",
 		"monitoring/job.tmpl",
+		"monitoring/taglist.tmpl",
 		"monitoring/list.tmpl",
 		"monitoring/user.tmpl",
 		"monitoring/systems.tmpl",

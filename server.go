@@ -38,6 +38,7 @@ import (
 )
 
 var db *sqlx.DB
+var jobRepo *repository.JobRepository
 
 // Format of the configurartion (file). See below for the defaults.
 type ProgramConfig struct {
@@ -162,11 +163,29 @@ func setupAnalysisRoute(i InfoType, r *http.Request) InfoType {
 	return i
 }
 
+func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
+	tags, counts, _ := jobRepo.GetTags()
+	tagMap := make(map[string][]map[string]interface{})
+
+	for _, tag := range tags {
+		tagItem := map[string]interface{}{
+			"id":    tag.ID,
+			"name":  tag.Name,
+			"count": counts[tag.Name],
+		}
+		tagMap[tag.Type] = append(tagMap[tag.Type], tagItem)
+	}
+	log.Infof("TAGS %+v", tags)
+	i["tagmap"] = tagMap
+	return i
+}
+
 var routes []Route = []Route{
 	{"/monitoring/jobs/", "monitoring/jobs.tmpl", "Jobs - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { return i }},
 	{"/monitoring/job/{id:[0-9]+}", "monitoring/job.tmpl", "Job <ID> - ClusterCockpit", false, setupJobRoute},
 	{"/monitoring/users/", "monitoring/list.tmpl", "Users - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { i["listType"] = "USER"; return i }},
 	{"/monitoring/projects/", "monitoring/list.tmpl", "Projects - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { i["listType"] = "PROJECT"; return i }},
+	{"/monitoring/tags/", "monitoring/taglist.tmpl", "Tags - ClusterCockpit", false, setupTaglistRoute},
 	{"/monitoring/user/{id}", "monitoring/user.tmpl", "User <ID> - ClusterCockpit", true, setupUserRoute},
 	{"/monitoring/systems/{cluster}", "monitoring/systems.tmpl", "Cluster <ID> - ClusterCockpit", false, setupClusterRoute},
 	{"/monitoring/node/{cluster}/{hostname}", "monitoring/node.tmpl", "Node <ID> - ClusterCockpit", false, setupNodeRoute},
@@ -307,9 +326,11 @@ func main() {
 		})
 	}
 
+	jobRepo = &repository.JobRepository{DB: db}
+
 	graphQLPlayground := playground.Handler("GraphQL playground", "/query")
 	api := &api.RestApi{
-		JobRepository:   &repository.JobRepository{DB: db},
+		JobRepository:   jobRepo,
 		AsyncArchiving:  programConfig.AsyncArchiving,
 		Resolver:        resolver,
 		MachineStateDir: programConfig.MachineStateDir,
