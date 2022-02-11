@@ -1,36 +1,5 @@
 {{define "content"}}
 <div class="row">
-    <div class="col">
-        {{if .Infos.username}}
-            <i class="bi bi-person-circle"></i> {{ .Infos.username }}
-            {{if .Infos.admin}}
-                <span class="badge bg-primary">Admin</span>
-            {{end}}
-        {{end}}
-    </div>
-    <div class="col" style="text-align: right;">
-        <form method="post" action="/logout">
-            <button type="submit" class="btn btn-primary">Logout</button>
-        </form>
-    </div>
-</div>
-<div class="row">
-    {{if .Infos.admin}}
-        <div class="col-4">
-            <ul>
-                <li><a href="/monitoring/jobs/">All jobs</a></li>
-                <li><a href="/monitoring/users/">All users</a></li>
-                <li><a href="/monitoring/projects/">All projects</a></li>
-            </ul>
-        </div>
-    {{else}}
-        <div class="col-4">
-            <ul>
-                <li><a href="/monitoring/jobs/">My jobs</a></li>
-                <li><a href="/monitoring/user/{{.Infos.username}}">My user view</a></li>
-            </ul>
-        </div>
-    {{end}}
     <div class="col-8">
         <h2>Clusters</h2>
         <table class="table">
