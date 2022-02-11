@@ -103,6 +103,8 @@ func setupRoutes(router *mux.Router, routes []Route) {
 				route.Title = strings.Replace(route.Title, "<ID>", id.(string), 1)
 			}
 
+			infos["clusters"] = config.Clusters
+
 			page := templates.Page{
 				Title:  route.Title,
 				Config: conf,
