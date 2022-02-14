@@ -247,28 +247,31 @@ func main() {
 
 	// Initialize sub-modules...
 
+	authentication := &auth.Authentication{}
 	if !programConfig.DisableAuthentication {
-		if err := auth.Init(db, programConfig.LdapConfig); err != nil {
+		if err := authentication.Init(db, programConfig.LdapConfig); err != nil {
 			log.Fatal(err)
 		}
 
 		if flagNewUser != "" {
-			if err := auth.AddUserToDB(db, flagNewUser); err != nil {
+			if err := authentication.AddUser(flagNewUser); err != nil {
 				log.Fatal(err)
 			}
 		}
 		if flagDelUser != "" {
-			if err := auth.DelUserFromDB(db, flagDelUser); err != nil {
+			if err := authentication.DelUser(flagDelUser); err != nil {
 				log.Fatal(err)
 			}
 		}
 
 		if flagSyncLDAP {
-			auth.SyncWithLDAP(db)
+			if err := authentication.SyncWithLDAP(true); err != nil {
+				log.Fatal(err)
+			}
 		}
 
 		if flagGenJWT != "" {
-			user, err := auth.FetchUserFromDB(db, flagGenJWT)
+			user, err := authentication.FetchUser(flagGenJWT)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -277,7 +280,7 @@ func main() {
 				log.Warn("that user does not have the API role")
 			}
 
-			jwt, err := auth.ProvideJWT(user)
+			jwt, err := authentication.ProvideJWT(user)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -350,10 +353,8 @@ func main() {
 	})
 
 	r.Handle("/playground", graphQLPlayground)
-	r.Handle("/login", auth.Login(db)).Methods(http.MethodPost)
 
 	r.HandleFunc("/login", handleGetLogin).Methods(http.MethodGet)
-	r.HandleFunc("/logout", auth.Logout).Methods(http.MethodPost)
 	r.HandleFunc("/imprint", func(rw http.ResponseWriter, r *http.Request) {
 		templates.Render(rw, r, "imprint.tmpl", &templates.Page{
 			Title: "Imprint",
@@ -367,7 +368,35 @@ func main() {
 
 	secured := r.PathPrefix("/").Subrouter()
 	if !programConfig.DisableAuthentication {
-		secured.Use(auth.Auth)
+		r.Handle("/login", authentication.Login(
+			// On success:
+			http.RedirectHandler("/", http.StatusTemporaryRedirect),
+
+			// On failure:
+			func(rw http.ResponseWriter, r *http.Request, loginErr error) {
+				rw.WriteHeader(http.StatusUnauthorized)
+				templates.Render(rw, r, "login.tmpl", &templates.Page{
+					Title: "Login failed - ClusterCockpit",
+					Error: err.Error(),
+				})
+			})).Methods(http.MethodPost)
+
+		r.Handle("/logout", authentication.Logout(http.RedirectHandler("/login", http.StatusTemporaryRedirect))).Methods(http.MethodPost)
+
+		secured.Use(func(next http.Handler) http.Handler {
+			return authentication.Auth(
+				// On success;
+				next,
+
+				// On failure:
+				func(rw http.ResponseWriter, r *http.Request, authErr error) {
+					rw.WriteHeader(http.StatusUnauthorized)
+					templates.Render(rw, r, "login.tmpl", &templates.Page{
+						Title: "Authentication failed - ClusterCockpit",
+						Error: err.Error(),
+					})
+				})
+		})
 	}
 	secured.Handle("/query", graphQLEndpoint)
 
