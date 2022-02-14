@@ -191,37 +191,36 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 // there are optional here (e.g. `jobState` defaults to "running").
 func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		log.Warnf("user '%s' used /api/jobs/start_job/ without having the API role", user.Username)
-		http.Error(rw, "missing 'api' role", http.StatusForbidden)
+		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
 		return
 	}
 
 	req := schema.JobMeta{BaseJob: schema.JobDefaults}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		handleError(fmt.Errorf("parsing request body failed: %w", err), http.StatusBadRequest, rw)
 		return
 	}
 
 	if config.GetClusterConfig(req.Cluster) == nil || config.GetPartition(req.Cluster, req.Partition) == nil {
-		http.Error(rw, fmt.Sprintf("cluster %#v or partition %#v does not exist", req.Cluster, req.Partition), http.StatusBadRequest)
+		handleError(fmt.Errorf("cluster or partition does not exist: %#v/%#v", req.Cluster, req.Partition), http.StatusBadRequest, rw)
 		return
 	}
 
 	// TODO: Do more such checks, be smarter with them.
 	if len(req.Resources) == 0 || len(req.User) == 0 || req.NumNodes == 0 {
-		http.Error(rw, "required fields are missing", http.StatusBadRequest)
+		handleError(errors.New("the fields 'resources', 'user' and 'numNodes' are required"), http.StatusBadRequest, rw)
 		return
 	}
 
 	// Check if combination of (job_id, cluster_id, start_time) already exists:
 	job, err := api.JobRepository.Find(req.JobID, req.Cluster, req.StartTime)
 	if err != nil && err != sql.ErrNoRows {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		handleError(fmt.Errorf("checking for duplicate failed: %w", err), http.StatusInternalServerError, rw)
 		return
 	}
 
 	if err != sql.ErrNoRows {
-		http.Error(rw, fmt.Sprintf("a job with that job_id, cluster_id and start_time already exists (database id: %d)", job.ID), http.StatusUnprocessableEntity)
+		handleError(fmt.Errorf("a job with that jobId, cluster and startTime already exists: dbid: %d", job.ID), http.StatusUnprocessableEntity, rw)
 		return
 	}
 
@@ -231,20 +230,20 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 
 	req.RawResources, err = json.Marshal(req.Resources)
 	if err != nil {
-		http.Error(rw, "while parsing resources: "+err.Error(), http.StatusBadRequest)
+		handleError(fmt.Errorf("basically impossible: %w", err), http.StatusBadRequest, rw)
 		return
 	}
 
 	id, err := api.JobRepository.Start(&req)
 	if err != nil {
-		log.Errorf("insert into job table failed: %s", err.Error())
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		handleError(fmt.Errorf("insert into database failed: %w", err), http.StatusInternalServerError, rw)
 		return
 	}
 
 	for _, tag := range req.Tags {
 		if _, err := api.JobRepository.AddTagOrCreate(id, tag.Type, tag.Name); err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			handleError(fmt.Errorf("adding tag to new job %d failed: %w", id, err), http.StatusInternalServerError, rw)
 			return
 		}
 	}
