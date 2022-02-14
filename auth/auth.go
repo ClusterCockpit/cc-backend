@@ -247,16 +247,24 @@ func (auth *Authentication) authViaToken(r *http.Request) (*User, error) {
 		return auth.jwtPublicKey, nil
 	})
 	if err != nil {
-		return nil, ErrTokenInvalid
+		return nil, err
 	}
 
 	if err := token.Claims.Valid(); err != nil {
-		return nil, ErrTokenInvalid
+		return nil, err
 	}
 
 	claims := token.Claims.(jwt.MapClaims)
 	sub, _ := claims["sub"].(string)
-	roles, _ := claims["roles"].([]string)
+
+	var roles []string
+	if rawroles, ok := claims["roles"].([]interface{}); ok {
+		for _, rr := range rawroles {
+			if r, ok := rr.(string); ok {
+				roles = append(roles, r)
+			}
+		}
+	}
 
 	// TODO: Check if sub is still a valid user!
 	return &User{
@@ -271,8 +279,8 @@ func (auth *Authentication) authViaToken(r *http.Request) (*User, error) {
 func (auth *Authentication) Auth(onsuccess http.Handler, onfailure func(rw http.ResponseWriter, r *http.Request, authErr error)) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		user, err := auth.authViaToken(r)
-		if err == ErrTokenInvalid {
-			log.Warn("authentication failed: invalid token")
+		if err != nil {
+			log.Warnf("authentication failed: %s", err.Error())
 			http.Error(rw, err.Error(), http.StatusUnauthorized)
 			return
 		}
