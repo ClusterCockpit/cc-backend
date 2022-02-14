@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -66,6 +67,21 @@ type StopJobApiRequest struct {
 	// Payload
 	StopTime int64           `json:"stopTime"`
 	State    schema.JobState `json:"jobState"`
+}
+
+type ErrorResponse struct {
+	Status string `json:"status"`
+	Error  string `json:"error"`
+}
+
+func handleError(err error, statusCode int, rw http.ResponseWriter) {
+	log.Printf("REST API error: %s", err.Error())
+	rw.Header().Add("Content-Type", "application/json")
+	rw.WriteHeader(statusCode)
+	json.NewEncoder(rw).Encode(ErrorResponse{
+		Status: http.StatusText(statusCode),
+		Error:  err.Error(),
+	})
 }
 
 type TagJobApiRequest []*struct {
@@ -244,13 +260,13 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 // A job has stopped and should be archived.
 func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		http.Error(rw, "Missing 'api' role", http.StatusForbidden)
+		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
 		return
 	}
 
 	req := StopJobApiRequest{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		handleError(fmt.Errorf("parsing request body failed: %w", err), http.StatusBadRequest, rw)
 		return
 	}
 
@@ -260,14 +276,14 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 	if ok {
 		id, e := strconv.ParseInt(id, 10, 64)
 		if e != nil {
-			http.Error(rw, e.Error(), http.StatusBadRequest)
+			handleError(fmt.Errorf("integer expected in path for id: %w", e), http.StatusBadRequest, rw)
 			return
 		}
 
 		job, err = api.JobRepository.FindById(id)
 	} else {
 		if req.JobId == nil || req.Cluster == nil || req.StartTime == nil {
-			http.Error(rw, "'jobId', 'cluster' and 'startTime' are required", http.StatusBadRequest)
+			handleError(errors.New("the fields 'jobId', 'cluster' and 'startTime' are required"), http.StatusBadRequest, rw)
 			return
 		}
 
@@ -275,17 +291,17 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
 		return
 	}
 
 	if job == nil || job.StartTime.Unix() >= req.StopTime || job.State != schema.JobStateRunning {
-		http.Error(rw, "stop_time must be larger than start_time and only running jobs can be stopped", http.StatusBadRequest)
+		handleError(errors.New("stopTime must be larger than startTime and only running jobs can be stopped"), http.StatusBadRequest, rw)
 		return
 	}
 
 	if req.State != "" && !req.State.Valid() {
-		http.Error(rw, fmt.Sprintf("invalid job state: '%s'", req.State), http.StatusBadRequest)
+		handleError(fmt.Errorf("invalid job state: %#v", req.State), http.StatusBadRequest, rw)
 		return
 	} else {
 		req.State = schema.JobStateCompleted
@@ -320,7 +336,7 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 	} else {
 		err := doArchiving(job, r.Context())
 		if err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			handleError(fmt.Errorf("archiving failed: %w", err), http.StatusInternalServerError, rw)
 		} else {
 			rw.Header().Add("Content-Type", "application/json")
 			rw.WriteHeader(http.StatusOK)
