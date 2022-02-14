@@ -5,11 +5,11 @@ import (
 	"errors"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/ClusterCockpit/cc-backend/log"
 
 	"github.com/go-ldap/ldap/v3"
-	"github.com/jmoiron/sqlx"
 )
 
 type LdapConfig struct {
@@ -19,32 +19,52 @@ type LdapConfig struct {
 	UserBind   string `json:"user_bind"`
 	UserFilter string `json:"user_filter"`
 	TLS        bool   `json:"tls"`
+
+	// Parsed using time.ParseDuration.
+	SyncInterval    string `json:"sync_interval"`
+	SyncDelOldUsers bool   `json:"sync_del_old_users"`
 }
 
-var ldapAuthEnabled bool = false
-var ldapConfig *LdapConfig
-var ldapAdminPassword string
-
-func initLdap(config *LdapConfig) error {
-	ldapAdminPassword = os.Getenv("LDAP_ADMIN_PASSWORD")
-	if ldapAdminPassword == "" {
+func (auth *Authentication) initLdap() error {
+	auth.ldapSyncUserPassword = os.Getenv("LDAP_ADMIN_PASSWORD")
+	if auth.ldapSyncUserPassword == "" {
 		log.Warn("environment variable 'LDAP_ADMIN_PASSWORD' not set (ldap sync or authentication will not work)")
 	}
 
-	ldapConfig = config
-	ldapAuthEnabled = true
+	if auth.ldapConfig.SyncInterval != "" {
+		interval, err := time.ParseDuration(auth.ldapConfig.SyncInterval)
+		if err != nil {
+			return err
+		}
+
+		if interval == 0 {
+			return nil
+		}
+
+		go func() {
+			ticker := time.NewTicker(interval)
+			for t := range ticker.C {
+				log.Printf("LDAP sync started at %s", t.Format(time.RFC3339))
+				if err := auth.SyncWithLDAP(auth.ldapConfig.SyncDelOldUsers); err != nil {
+					log.Errorf("LDAP sync failed: %s", err.Error())
+				}
+				log.Print("LDAP sync done")
+			}
+		}()
+	}
+
 	return nil
 }
 
 // TODO: Add a connection pool or something like
 // that so that connections can be reused/cached.
-func getLdapConnection(admin bool) (*ldap.Conn, error) {
-	conn, err := ldap.DialURL(ldapConfig.Url)
+func (auth *Authentication) getLdapConnection(admin bool) (*ldap.Conn, error) {
+	conn, err := ldap.DialURL(auth.ldapConfig.Url)
 	if err != nil {
 		return nil, err
 	}
 
-	if ldapConfig.TLS {
+	if auth.ldapConfig.TLS {
 		if err := conn.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
 			conn.Close()
 			return nil, err
@@ -52,7 +72,7 @@ func getLdapConnection(admin bool) (*ldap.Conn, error) {
 	}
 
 	if admin {
-		if err := conn.Bind(ldapConfig.SearchDN, ldapAdminPassword); err != nil {
+		if err := conn.Bind(auth.ldapConfig.SearchDN, auth.ldapSyncUserPassword); err != nil {
 			conn.Close()
 			return nil, err
 		}
@@ -61,18 +81,14 @@ func getLdapConnection(admin bool) (*ldap.Conn, error) {
 	return conn, nil
 }
 
-func releaseConnection(conn *ldap.Conn) {
-	conn.Close()
-}
-
-func loginViaLdap(user *User, password string) error {
-	l, err := getLdapConnection(false)
+func (auth *Authentication) loginViaLdap(user *User, password string) error {
+	l, err := auth.getLdapConnection(false)
 	if err != nil {
 		return err
 	}
-	defer releaseConnection(l)
+	defer l.Close()
 
-	userDn := strings.Replace(ldapConfig.UserBind, "{username}", user.Username, -1)
+	userDn := strings.Replace(auth.ldapConfig.UserBind, "{username}", user.Username, -1)
 	if err := l.Bind(userDn, password); err != nil {
 		return err
 	}
@@ -83,8 +99,8 @@ func loginViaLdap(user *User, password string) error {
 
 // Delete users where user.ldap is 1 and that do not show up in the ldap search results.
 // Add users to the users table that are new in the ldap search results.
-func SyncWithLDAP(db *sqlx.DB) error {
-	if !ldapAuthEnabled {
+func (auth *Authentication) SyncWithLDAP(deleteOldUsers bool) error {
+	if auth.ldapConfig == nil {
 		return errors.New("ldap not enabled")
 	}
 
@@ -93,7 +109,7 @@ func SyncWithLDAP(db *sqlx.DB) error {
 	const IN_BOTH int = 3
 
 	users := map[string]int{}
-	rows, err := db.Query(`SELECT username FROM user WHERE user.ldap = 1`)
+	rows, err := auth.db.Query(`SELECT username FROM user WHERE user.ldap = 1`)
 	if err != nil {
 		return err
 	}
@@ -107,15 +123,15 @@ func SyncWithLDAP(db *sqlx.DB) error {
 		users[username] = IN_DB
 	}
 
-	l, err := getLdapConnection(true)
+	l, err := auth.getLdapConnection(true)
 	if err != nil {
 		return err
 	}
-	defer releaseConnection(l)
+	defer l.Close()
 
 	ldapResults, err := l.Search(ldap.NewSearchRequest(
-		ldapConfig.UserBase, ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		ldapConfig.UserFilter, []string{"dn", "uid", "gecos"}, nil))
+		auth.ldapConfig.UserBase, ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+		auth.ldapConfig.UserFilter, []string{"dn", "uid", "gecos"}, nil))
 	if err != nil {
 		return err
 	}
@@ -137,15 +153,15 @@ func SyncWithLDAP(db *sqlx.DB) error {
 	}
 
 	for username, where := range users {
-		if where == IN_DB {
+		if where == IN_DB && deleteOldUsers {
 			log.Infof("ldap-sync: remove %#v (does not show up in LDAP anymore)", username)
-			if _, err := db.Exec(`DELETE FROM user WHERE user.username = ?`, username); err != nil {
+			if _, err := auth.db.Exec(`DELETE FROM user WHERE user.username = ?`, username); err != nil {
 				return err
 			}
 		} else if where == IN_LDAP {
 			name := newnames[username]
 			log.Infof("ldap-sync: add %#v (name: %#v, roles: [], ldap: true)", username, name)
-			if _, err := db.Exec(`INSERT INTO user (username, ldap, name, roles) VALUES (?, ?, ?, ?)`,
+			if _, err := auth.db.Exec(`INSERT INTO user (username, ldap, name, roles) VALUES (?, ?, ?, ?)`,
 				username, 1, name, "[]"); err != nil {
 				return err
 			}

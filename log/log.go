@@ -103,7 +103,7 @@ func Printf(format string, v ...interface{}) {
 
 func Finfof(w io.Writer, format string, v ...interface{}) {
 	if w != io.Discard {
-		fmt.Fprintf(InfoWriter, InfoPrefix+" "+format+"\n", v...)
+		fmt.Fprintf(InfoWriter, InfoPrefix+format+"\n", v...)
 	}
 }
 

@@ -14,7 +14,6 @@ import (
 	"strings"
 
 	"github.com/ClusterCockpit/cc-backend/log"
-	"github.com/ClusterCockpit/cc-backend/templates"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/sessions"
@@ -22,8 +21,9 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// TODO: Properly do this "roles" stuff.
-// Add a roles array and `user.HasRole(...)` functions.
+// Only Username and Roles will always be filled in when returned by `GetUser`.
+// If Name and Email is needed as well, use auth.FetchUser(), which does a database
+// query for all fields.
 type User struct {
 	Username string
 	Password string
@@ -52,12 +52,18 @@ type ContextKey string
 
 const ContextUserKey ContextKey = "user"
 
-var JwtPublicKey ed25519.PublicKey
-var JwtPrivateKey ed25519.PrivateKey
+type Authentication struct {
+	db            *sqlx.DB
+	sessionStore  *sessions.CookieStore
+	jwtPublicKey  ed25519.PublicKey
+	jwtPrivateKey ed25519.PrivateKey
 
-var sessionStore *sessions.CookieStore
+	ldapConfig           *LdapConfig
+	ldapSyncUserPassword string
+}
 
-func Init(db *sqlx.DB, ldapConfig *LdapConfig) error {
+func (auth *Authentication) Init(db *sqlx.DB, ldapConfig *LdapConfig) error {
+	auth.db = db
 	_, err := db.Exec(`
 	CREATE TABLE IF NOT EXISTS user (
 		username varchar(255) PRIMARY KEY,
@@ -77,13 +83,13 @@ func Init(db *sqlx.DB, ldapConfig *LdapConfig) error {
 		if _, err := rand.Read(bytes); err != nil {
 			return err
 		}
-		sessionStore = sessions.NewCookieStore(bytes)
+		auth.sessionStore = sessions.NewCookieStore(bytes)
 	} else {
 		bytes, err := base64.StdEncoding.DecodeString(sessKey)
 		if err != nil {
 			return err
 		}
-		sessionStore = sessions.NewCookieStore(bytes)
+		auth.sessionStore = sessions.NewCookieStore(bytes)
 	}
 
 	pubKey, privKey := os.Getenv("JWT_PUBLIC_KEY"), os.Getenv("JWT_PRIVATE_KEY")
@@ -94,16 +100,17 @@ func Init(db *sqlx.DB, ldapConfig *LdapConfig) error {
 		if err != nil {
 			return err
 		}
-		JwtPublicKey = ed25519.PublicKey(bytes)
+		auth.jwtPublicKey = ed25519.PublicKey(bytes)
 		bytes, err = base64.StdEncoding.DecodeString(privKey)
 		if err != nil {
 			return err
 		}
-		JwtPrivateKey = ed25519.PrivateKey(bytes)
+		auth.jwtPrivateKey = ed25519.PrivateKey(bytes)
 	}
 
 	if ldapConfig != nil {
-		if err := initLdap(ldapConfig); err != nil {
+		auth.ldapConfig = ldapConfig
+		if err := auth.initLdap(); err != nil {
 			return err
 		}
 	}
@@ -111,8 +118,8 @@ func Init(db *sqlx.DB, ldapConfig *LdapConfig) error {
 	return nil
 }
 
-// arg must be formated like this: "<username>:[admin]:<password>"
-func AddUserToDB(db *sqlx.DB, arg string) error {
+// arg must be formated like this: "<username>:[admin|api|]:<password>"
+func (auth *Authentication) AddUser(arg string) error {
 	parts := strings.SplitN(arg, ":", 3)
 	if len(parts) != 3 || len(parts[0]) == 0 {
 		return errors.New("invalid argument format")
@@ -139,7 +146,7 @@ func AddUserToDB(db *sqlx.DB, arg string) error {
 	}
 
 	rolesJson, _ := json.Marshal(roles)
-	_, err := sq.Insert("user").Columns("username", "password", "roles").Values(parts[0], password, string(rolesJson)).RunWith(db).Exec()
+	_, err := sq.Insert("user").Columns("username", "password", "roles").Values(parts[0], password, string(rolesJson)).RunWith(auth.db).Exec()
 	if err != nil {
 		return err
 	}
@@ -147,16 +154,16 @@ func AddUserToDB(db *sqlx.DB, arg string) error {
 	return nil
 }
 
-func DelUserFromDB(db *sqlx.DB, username string) error {
-	_, err := db.Exec(`DELETE FROM user WHERE user.username = ?`, username)
+func (auth *Authentication) DelUser(username string) error {
+	_, err := auth.db.Exec(`DELETE FROM user WHERE user.username = ?`, username)
 	return err
 }
 
-func FetchUserFromDB(db *sqlx.DB, username string) (*User, error) {
+func (auth *Authentication) FetchUser(username string) (*User, error) {
 	user := &User{Username: username}
 	var hashedPassword, name, rawRoles, email sql.NullString
 	if err := sq.Select("password", "ldap", "name", "roles", "email").From("user").
-		Where("user.username = ?", username).RunWith(db).
+		Where("user.username = ?", username).RunWith(auth.db).
 		QueryRow().Scan(&hashedPassword, &user.ViaLdap, &name, &rawRoles, &email); err != nil {
 		return nil, fmt.Errorf("user '%s' not found (%s)", username, err.Error())
 	}
@@ -165,20 +172,21 @@ func FetchUserFromDB(db *sqlx.DB, username string) (*User, error) {
 	user.Name = name.String
 	user.Email = email.String
 	if rawRoles.Valid {
-		json.Unmarshal([]byte(rawRoles.String), &user.Roles)
+		if err := json.Unmarshal([]byte(rawRoles.String), &user.Roles); err != nil {
+			return nil, err
+		}
 	}
 
 	return user, nil
 }
 
-// Handle a POST request that should log the user in,
-// starting a new session.
-func Login(db *sqlx.DB) http.Handler {
+// Handle a POST request that should log the user in, starting a new session.
+func (auth *Authentication) Login(onsuccess http.Handler, onfailure func(rw http.ResponseWriter, r *http.Request, loginErr error)) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		username, password := r.FormValue("username"), r.FormValue("password")
-		user, err := FetchUserFromDB(db, username)
-		if err == nil && user.ViaLdap && ldapAuthEnabled {
-			err = loginViaLdap(user, password)
+		user, err := auth.FetchUser(username)
+		if err == nil && user.ViaLdap && auth.ldapConfig != nil {
+			err = auth.loginViaLdap(user, password)
 		} else if err == nil && !user.ViaLdap && user.Password != "" {
 			if e := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); e != nil {
 				err = fmt.Errorf("user '%s' provided the wrong password (%s)", username, e.Error())
@@ -189,15 +197,11 @@ func Login(db *sqlx.DB) http.Handler {
 
 		if err != nil {
 			log.Warnf("login of user %#v failed: %s", username, err.Error())
-			rw.WriteHeader(http.StatusUnauthorized)
-			templates.Render(rw, r, "login.tmpl", &templates.Page{
-				Title: "Login failed",
-				Error: "Username or password incorrect",
-			})
+			onfailure(rw, r, err)
 			return
 		}
 
-		session, err := sessionStore.New(r, "session")
+		session, err := auth.sessionStore.New(r, "session")
 		if err != nil {
 			log.Errorf("session creation failed: %s", err.Error())
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
@@ -207,21 +211,22 @@ func Login(db *sqlx.DB) http.Handler {
 		session.Options.MaxAge = 30 * 24 * 60 * 60
 		session.Values["username"] = user.Username
 		session.Values["roles"] = user.Roles
-		if err := sessionStore.Save(r, rw, session); err != nil {
+		if err := auth.sessionStore.Save(r, rw, session); err != nil {
 			log.Errorf("session save failed: %s", err.Error())
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		log.Infof("login successfull: user: %#v (roles: %v)", user.Username, user.Roles)
-		http.Redirect(rw, r, "/", http.StatusTemporaryRedirect)
+		ctx := context.WithValue(r.Context(), ContextUserKey, user)
+		onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 	})
 }
 
 var ErrTokenInvalid error = errors.New("invalid token")
 
-func authViaToken(r *http.Request) (*User, error) {
-	if JwtPublicKey == nil {
+func (auth *Authentication) authViaToken(r *http.Request) (*User, error) {
+	if auth.jwtPublicKey == nil {
 		return nil, nil
 	}
 
@@ -239,19 +244,27 @@ func authViaToken(r *http.Request) (*User, error) {
 		if t.Method != jwt.SigningMethodEdDSA {
 			return nil, errors.New("only Ed25519/EdDSA supported")
 		}
-		return JwtPublicKey, nil
+		return auth.jwtPublicKey, nil
 	})
 	if err != nil {
-		return nil, ErrTokenInvalid
+		return nil, err
 	}
 
 	if err := token.Claims.Valid(); err != nil {
-		return nil, ErrTokenInvalid
+		return nil, err
 	}
 
 	claims := token.Claims.(jwt.MapClaims)
 	sub, _ := claims["sub"].(string)
-	roles, _ := claims["roles"].([]string)
+
+	var roles []string
+	if rawroles, ok := claims["roles"].([]interface{}); ok {
+		for _, rr := range rawroles {
+			if r, ok := rr.(string); ok {
+				roles = append(roles, r)
+			}
+		}
+	}
 
 	// TODO: Check if sub is still a valid user!
 	return &User{
@@ -263,22 +276,22 @@ func authViaToken(r *http.Request) (*User, error) {
 // Authenticate the user and put a User object in the
 // context of the request. If authentication fails,
 // do not continue but send client to the login screen.
-func Auth(next http.Handler) http.Handler {
+func (auth *Authentication) Auth(onsuccess http.Handler, onfailure func(rw http.ResponseWriter, r *http.Request, authErr error)) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		user, err := authViaToken(r)
-		if err == ErrTokenInvalid {
-			log.Warn("authentication failed: invalid token")
+		user, err := auth.authViaToken(r)
+		if err != nil {
+			log.Warnf("authentication failed: %s", err.Error())
 			http.Error(rw, err.Error(), http.StatusUnauthorized)
 			return
 		}
 		if user != nil {
 			// Successfull authentication using a token
 			ctx := context.WithValue(r.Context(), ContextUserKey, user)
-			next.ServeHTTP(rw, r.WithContext(ctx))
+			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 			return
 		}
 
-		session, err := sessionStore.Get(r, "session")
+		session, err := auth.sessionStore.Get(r, "session")
 		if err != nil {
 			// sessionStore.Get will return a new session if no current one is attached to this request.
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
@@ -287,12 +300,7 @@ func Auth(next http.Handler) http.Handler {
 
 		if session.IsNew {
 			log.Warn("authentication failed: no session or jwt found")
-
-			rw.WriteHeader(http.StatusUnauthorized)
-			templates.Render(rw, r, "login.tmpl", &templates.Page{
-				Title: "Authentication failed",
-				Error: "No valid session or JWT provided",
-			})
+			onfailure(rw, r, errors.New("no valid session or JWT provided"))
 			return
 		}
 
@@ -302,13 +310,13 @@ func Auth(next http.Handler) http.Handler {
 			Username: username,
 			Roles:    roles,
 		})
-		next.ServeHTTP(rw, r.WithContext(ctx))
+		onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 	})
 }
 
 // Generate a new JWT that can be used for authentication
-func ProvideJWT(user *User) (string, error) {
-	if JwtPrivateKey == nil {
+func (auth *Authentication) ProvideJWT(user *User) (string, error) {
+	if auth.jwtPrivateKey == nil {
 		return "", errors.New("environment variable 'JWT_PRIVATE_KEY' not set")
 	}
 
@@ -317,7 +325,7 @@ func ProvideJWT(user *User) (string, error) {
 		"roles": user.Roles,
 	})
 
-	return tok.SignedString(JwtPrivateKey)
+	return tok.SignedString(auth.jwtPrivateKey)
 }
 
 func GetUser(ctx context.Context) *User {
@@ -330,23 +338,22 @@ func GetUser(ctx context.Context) *User {
 }
 
 // Clears the session cookie
-func Logout(rw http.ResponseWriter, r *http.Request) {
-	session, err := sessionStore.Get(r, "session")
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if !session.IsNew {
-		session.Options.MaxAge = -1
-		if err := sessionStore.Save(r, rw, session); err != nil {
+func (auth *Authentication) Logout(onsuccess http.Handler) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		session, err := auth.sessionStore.Get(r, "session")
+		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
 		}
-	}
 
-	templates.Render(rw, r, "login.tmpl", &templates.Page{
-		Title: "Logout successful",
-		Info:  "Logout successful",
+		if !session.IsNew {
+			session.Options.MaxAge = -1
+			if err := auth.sessionStore.Save(r, rw, session); err != nil {
+				http.Error(rw, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		onsuccess.ServeHTTP(rw, r)
 	})
 }
