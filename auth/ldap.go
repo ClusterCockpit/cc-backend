@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/ClusterCockpit/cc-backend/log"
 
@@ -18,6 +19,10 @@ type LdapConfig struct {
 	UserBind   string `json:"user_bind"`
 	UserFilter string `json:"user_filter"`
 	TLS        bool   `json:"tls"`
+
+	// Parsed using time.ParseDuration.
+	SyncInterval    string `json:"sync_interval"`
+	SyncDelOldUsers bool   `json:"sync_del_old_users"`
 }
 
 func (auth *Authentication) initLdap() error {
@@ -25,6 +30,29 @@ func (auth *Authentication) initLdap() error {
 	if auth.ldapSyncUserPassword == "" {
 		log.Warn("environment variable 'LDAP_ADMIN_PASSWORD' not set (ldap sync or authentication will not work)")
 	}
+
+	if auth.ldapConfig.SyncInterval != "" {
+		interval, err := time.ParseDuration(auth.ldapConfig.SyncInterval)
+		if err != nil {
+			return err
+		}
+
+		if interval == 0 {
+			return nil
+		}
+
+		go func() {
+			ticker := time.NewTicker(interval)
+			for t := range ticker.C {
+				log.Printf("LDAP sync started at %s", t.Format(time.RFC3339))
+				if err := auth.SyncWithLDAP(auth.ldapConfig.SyncDelOldUsers); err != nil {
+					log.Errorf("LDAP sync failed: %s", err.Error())
+				}
+				log.Print("LDAP sync done")
+			}
+		}()
+	}
+
 	return nil
 }
 
