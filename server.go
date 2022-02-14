@@ -181,6 +181,7 @@ func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 }
 
 var routes []Route = []Route{
+	{"/", "home.tmpl", "ClusterCockpit", false, func(i InfoType, r *http.Request) InfoType { return i }},
 	{"/monitoring/jobs/", "monitoring/jobs.tmpl", "Jobs - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { return i }},
 	{"/monitoring/job/{id:[0-9]+}", "monitoring/job.tmpl", "Job <ID> - ClusterCockpit", false, setupJobRoute},
 	{"/monitoring/users/", "monitoring/list.tmpl", "Users - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { i["listType"] = "USER"; return i }},
@@ -370,32 +371,6 @@ func main() {
 		secured.Use(auth.Auth)
 	}
 	secured.Handle("/query", graphQLEndpoint)
-
-	secured.HandleFunc("/", func(rw http.ResponseWriter, r *http.Request) {
-		conf, err := config.GetUIConfig(r)
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		infos := map[string]interface{}{
-			"clusters": config.Clusters,
-		}
-
-		if user := auth.GetUser(r.Context()); user != nil {
-			infos["loginId"] = user.Username
-			infos["admin"] = user.HasRole(auth.RoleAdmin)
-		} else {
-			infos["loginId"] = false
-			infos["admin"] = false
-		}
-
-		templates.Render(rw, r, "home.tmpl", &templates.Page{
-			Title:  "ClusterCockpit",
-			Config: conf,
-			Infos:  infos,
-		})
-	})
 
 	secured.HandleFunc("/search", func(rw http.ResponseWriter, r *http.Request) {
 		if search := r.URL.Query().Get("searchId"); search != "" {
