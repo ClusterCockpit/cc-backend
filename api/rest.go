@@ -310,7 +310,7 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 	// function so that it can be done in the background.
 	// TODO: Throttle/Have a max. number or parallel archivngs
 	// or use a long-running goroutine receiving jobs by a channel.
-	doArchiving := func(job *schema.Job, ctx context.Context) error {
+	doArchiving := func(job *schema.Job, ctx context.Context) {
 		api.OngoingArchivings.Add(1)
 		defer api.OngoingArchivings.Done()
 
@@ -318,11 +318,9 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 		jobMeta, err := metricdata.ArchiveJob(job, ctx)
 		if err != nil {
 			log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
-			return err
 		}
 		api.JobRepository.Archive(job.ID, 0, jobMeta.Statistics)
 		log.Printf("job stopped and archived (dbid: %d)", job.ID)
-		return nil
 	}
 
 	log.Printf("archiving job... (dbid: %d): cluster=%s, jobId=%d, user=%s, startTime=%s", job.ID, job.Cluster, job.JobID, job.User, job.StartTime)
