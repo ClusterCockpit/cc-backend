@@ -79,6 +79,34 @@ func (topo *Topology) GetCoresFromHWThreads(hwthreads []int) (cores []int, exclu
 	return cores, exclusive
 }
 
+// Return a list of memory domain IDs given a list of hwthread IDs.
+// Even if just one hwthread is in that memory domain, add it to the list.
+// If no hwthreads other than those in the argument list are assigned to
+// one of the memory domains in the first return value, return true as the second value.
+// TODO: Optimize this, there must be a more efficient way/algorithm.
+func (topo *Topology) GetMemoryDomainsFromHWThreads(hwthreads []int) (memDoms []int, exclusive bool) {
+	memDomsMap := map[int]int{}
+	for _, hwthread := range hwthreads {
+		for memDom, hwthreadsInmemDom := range topo.MemoryDomain {
+			for _, hwthreadInmemDom := range hwthreadsInmemDom {
+				if hwthread == hwthreadInmemDom {
+					memDomsMap[memDom] += 1
+				}
+			}
+		}
+	}
+
+	exclusive = true
+	hwthreadsPermemDom := len(topo.Node) / len(topo.MemoryDomain)
+	memDoms = make([]int, 0, len(memDomsMap))
+	for memDom, count := range memDomsMap {
+		memDoms = append(memDoms, memDom)
+		exclusive = exclusive && count == hwthreadsPermemDom
+	}
+
+	return memDoms, exclusive
+}
+
 func (topo *Topology) GetAcceleratorIDs() ([]int, error) {
 	accels := make([]int, 0)
 	for _, accel := range topo.Accelerators {

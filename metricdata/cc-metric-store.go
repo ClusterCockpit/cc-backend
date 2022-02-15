@@ -203,10 +203,11 @@ func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []
 }
 
 var (
-	hwthreadString    = string("cpu") // TODO/FIXME: inconsistency between cc-metric-collector and ClusterCockpit
-	coreString        = string(schema.MetricScopeCore)
-	socketString      = string(schema.MetricScopeSocket)
-	acceleratorString = string(schema.MetricScopeAccelerator)
+	hwthreadString     = string("cpu") // TODO/FIXME: inconsistency between cc-metric-collector and ClusterCockpit
+	coreString         = string(schema.MetricScopeCore)
+	memoryDomainString = string(schema.MetricScopeMemoryDomain)
+	socketString       = string(schema.MetricScopeSocket)
+	acceleratorString  = string(schema.MetricScopeAccelerator)
 )
 
 func (ccms *CCMetricStore) buildQueries(job *schema.Job, metrics []string, scopes []schema.MetricScope) ([]ApiQuery, []schema.MetricScope, error) {
@@ -354,6 +355,34 @@ func (ccms *CCMetricStore) buildQueries(job *schema.Job, metrics []string, scope
 						Aggregate: true,
 						Type:      &coreString,
 						TypeIds:   cores,
+					})
+					assignedScope = append(assignedScope, scope)
+					continue
+				}
+
+				// MemoryDomain -> MemoryDomain
+				if nativeScope == schema.MetricScopeMemoryDomain && scope == schema.MetricScopeMemoryDomain {
+					sockets, _ := topology.GetMemoryDomainsFromHWThreads(hwthreads)
+					queries = append(queries, ApiQuery{
+						Metric:    remoteName,
+						Hostname:  host.Hostname,
+						Aggregate: false,
+						Type:      &memoryDomainString,
+						TypeIds:   sockets,
+					})
+					assignedScope = append(assignedScope, scope)
+					continue
+				}
+
+				// MemoryDoman -> Node
+				if nativeScope == schema.MetricScopeMemoryDomain && scope == schema.MetricScopeNode {
+					sockets, _ := topology.GetMemoryDomainsFromHWThreads(hwthreads)
+					queries = append(queries, ApiQuery{
+						Metric:    remoteName,
+						Hostname:  host.Hostname,
+						Aggregate: true,
+						Type:      &memoryDomainString,
+						TypeIds:   sockets,
 					})
 					assignedScope = append(assignedScope, scope)
 					continue

@@ -43,19 +43,21 @@ type MetricScope string
 const (
 	MetricScopeInvalid MetricScope = "invalid_scope"
 
-	MetricScopeNode     MetricScope = "node"
-	MetricScopeSocket   MetricScope = "socket"
-	MetricScopeCore     MetricScope = "core"
-	MetricScopeHWThread MetricScope = "hwthread"
+	MetricScopeNode         MetricScope = "node"
+	MetricScopeSocket       MetricScope = "socket"
+	MetricScopeMemoryDomain MetricScope = "memoryDomain"
+	MetricScopeCore         MetricScope = "core"
+	MetricScopeHWThread     MetricScope = "hwthread"
 
 	MetricScopeAccelerator MetricScope = "accelerator"
 )
 
 var metricScopeGranularity map[MetricScope]int = map[MetricScope]int{
-	MetricScopeNode:     10,
-	MetricScopeSocket:   5,
-	MetricScopeCore:     2,
-	MetricScopeHWThread: 1,
+	MetricScopeNode:         10,
+	MetricScopeSocket:       5,
+	MetricScopeMemoryDomain: 3,
+	MetricScopeCore:         2,
+	MetricScopeHWThread:     1,
 
 	MetricScopeAccelerator: 5, // Special/Randomly choosen
 
