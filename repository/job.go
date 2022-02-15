@@ -78,12 +78,26 @@ func (r *JobRepository) Start(job *schema.JobMeta) (id int64, err error) {
 func (r *JobRepository) Stop(
 	jobId int64,
 	duration int32,
-	state schema.JobState,
-	metricStats map[string]schema.JobStatistics) {
+	state schema.JobState) {
 
 	stmt := sq.Update("job").
 		Set("job_state", state).
 		Set("duration", duration).
+		Where("job.id = ?", jobId)
+
+	if _, err := stmt.RunWith(r.DB).Exec(); err != nil {
+		log.Errorf("Stop job (dbid: %d) failed: %s", jobId, err.Error())
+	}
+}
+
+// Stop updates the job with the database id jobId using the provided arguments.
+func (r *JobRepository) Archive(
+	jobId int64,
+	monitoringStatus int32,
+	metricStats map[string]schema.JobStatistics) {
+
+	stmt := sq.Update("job").
+		Set("monitoring_status", monitoringStatus).
 		Where("job.id = ?", jobId)
 
 	for metric, stats := range metricStats {

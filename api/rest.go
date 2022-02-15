@@ -320,17 +320,13 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 			log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
 			return err
 		}
-
-		api.JobRepository.Stop(job.ID, job.Duration, req.State, jobMeta.Statistics)
+		api.JobRepository.Archive(job.ID, 0, jobMeta.Statistics)
 		log.Printf("job stopped and archived (dbid: %d)", job.ID)
 		return nil
 	}
 
 	log.Printf("archiving job... (dbid: %d): cluster=%s, jobId=%d, user=%s, startTime=%s", job.ID, job.Cluster, job.JobID, job.User, job.StartTime)
 	if api.AsyncArchiving {
-		rw.Header().Add("Content-Type", "application/json")
-		rw.WriteHeader(http.StatusOK)
-		json.NewEncoder(rw).Encode(job)
 		go doArchiving(job, context.Background())
 	} else {
 		err := doArchiving(job, r.Context())
@@ -342,6 +338,11 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 			json.NewEncoder(rw).Encode(job)
 		}
 	}
+
+	api.JobRepository.Stop(job.ID, job.Duration, req.State)
+	rw.Header().Add("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode(job)
 }
 
 func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
