@@ -339,10 +339,13 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	api.JobRepository.Stop(job.ID, job.Duration, req.State)
+	err = api.JobRepository.Stop(job.ID, job.Duration, req.State)
+	job.State = req.State
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode(job)
+	handleError(fmt.Errorf("Stop job (dbid: %d) failed: %s", job.ID, err.Error()), http.StatusInternalServerError, rw)
+	// handleError(fmt.Errorf("archiving failed: %w", err), http.StatusInternalServerError, rw)
 }
 
 func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
