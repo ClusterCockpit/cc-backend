@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"crypto/tls"
 	"errors"
 	"os"
 	"strings"
@@ -13,15 +12,12 @@ import (
 )
 
 type LdapConfig struct {
-	Url        string `json:"url"`
-	UserBase   string `json:"user_base"`
-	SearchDN   string `json:"search_dn"`
-	UserBind   string `json:"user_bind"`
-	UserFilter string `json:"user_filter"`
-	TLS        bool   `json:"tls"`
-
-	// Parsed using time.ParseDuration.
-	SyncInterval    string `json:"sync_interval"`
+	Url             string `json:"url"`
+	UserBase        string `json:"user_base"`
+	SearchDN        string `json:"search_dn"`
+	UserBind        string `json:"user_bind"`
+	UserFilter      string `json:"user_filter"`
+	SyncInterval    string `json:"sync_interval"` // Parsed using time.ParseDuration.
 	SyncDelOldUsers bool   `json:"sync_del_old_users"`
 }
 
@@ -62,13 +58,6 @@ func (auth *Authentication) getLdapConnection(admin bool) (*ldap.Conn, error) {
 	conn, err := ldap.DialURL(auth.ldapConfig.Url)
 	if err != nil {
 		return nil, err
-	}
-
-	if auth.ldapConfig.TLS {
-		if err := conn.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
-			conn.Close()
-			return nil, err
-		}
 	}
 
 	if admin {

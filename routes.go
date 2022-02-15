@@ -86,27 +86,20 @@ func setupRoutes(router *mux.Router, routes []Route) {
 				return
 			}
 
-			infos := map[string]interface{}{
-				"admin": true,
-			}
-
-			if user := auth.GetUser(r.Context()); user != nil {
-				infos["loginId"] = user.Username
-				infos["admin"] = user.HasRole(auth.RoleAdmin)
-			} else {
-				infos["loginId"] = false
-				infos["admin"] = false
-			}
-
-			infos = route.Setup(infos, r)
+			infos := route.Setup(map[string]interface{}{}, r)
 			if id, ok := infos["id"]; ok {
 				route.Title = strings.Replace(route.Title, "<ID>", id.(string), 1)
 			}
 
-			infos["clusters"] = config.Clusters
+			username, isAdmin := "", true
+			if user := auth.GetUser(r.Context()); user != nil {
+				username = user.Username
+				isAdmin = user.HasRole(auth.RoleAdmin)
+			}
 
 			page := templates.Page{
 				Title:  route.Title,
+				User:   templates.User{Username: username, IsAdmin: isAdmin},
 				Config: conf,
 				Infos:  infos,
 			}
