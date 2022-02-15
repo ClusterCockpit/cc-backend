@@ -212,7 +212,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if combination of (job_id, cluster_id, start_time) already exists:
-	job, err := api.JobRepository.Find(req.JobID, req.Cluster, req.StartTime)
+	job, err := api.JobRepository.Find(&req.JobID, &req.Cluster, &req.StartTime)
 	if err != nil && err != sql.ErrNoRows {
 		handleError(fmt.Errorf("checking for duplicate failed: %w", err), http.StatusInternalServerError, rw)
 		return
@@ -282,12 +282,12 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 
 		job, err = api.JobRepository.FindById(id)
 	} else {
-		if req.JobId == nil || req.Cluster == nil || req.StartTime == nil {
-			handleError(errors.New("the fields 'jobId', 'cluster' and 'startTime' are required"), http.StatusBadRequest, rw)
+		if req.JobId == nil {
+			handleError(errors.New("the field 'jobId' is required"), http.StatusBadRequest, rw)
 			return
 		}
 
-		job, err = api.JobRepository.Find(*req.JobId, *req.Cluster, *req.StartTime)
+		job, err = api.JobRepository.Find(req.JobId, req.Cluster, req.StartTime)
 	}
 	if err != nil {
 		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)

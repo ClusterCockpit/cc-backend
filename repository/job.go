@@ -23,13 +23,19 @@ type JobRepository struct {
 // It returns a pointer to a schema.Job data structure and an error variable.
 // To check if no job was found test err == sql.ErrNoRows
 func (r *JobRepository) Find(
-	jobId int64,
-	cluster string,
-	startTime int64) (*schema.Job, error) {
+	jobId *int64,
+	cluster *string,
+	startTime *int64) (*schema.Job, error) {
+
 	qb := sq.Select(schema.JobColumns...).From("job").
-		Where("job.job_id = ?", jobId).
-		Where("job.cluster = ?", cluster).
-		Where("job.start_time = ?", startTime)
+		Where("job.job_id = ?", jobId)
+
+	if cluster != nil {
+		qb = qb.Where("job.cluster = ?", *cluster)
+	}
+	if startTime != nil {
+		qb = qb.Where("job.start_time = ?", *startTime)
+	}
 
 	sqlQuery, args, err := qb.ToSql()
 	if err != nil {
