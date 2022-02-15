@@ -95,15 +95,9 @@ var programConfig ProgramConfig = ProgramConfig{
 	JobArchive:            "./var/job-archive",
 	AsyncArchiving:        true,
 	DisableArchive:        false,
-	LdapConfig: &auth.LdapConfig{
-		Url:        "ldap://localhost",
-		UserBase:   "ou=hpc,dc=rrze,dc=uni-erlangen,dc=de",
-		SearchDN:   "cn=admin,dc=rrze,dc=uni-erlangen,dc=de",
-		UserBind:   "uid={username},ou=hpc,dc=rrze,dc=uni-erlangen,dc=de",
-		UserFilter: "(&(objectclass=posixAccount)(uid=*))",
-	},
-	HttpsCertFile: "",
-	HttpsKeyFile:  "",
+	LdapConfig:            nil,
+	HttpsCertFile:         "",
+	HttpsKeyFile:          "",
 	UiDefaults: map[string]interface{}{
 		"analysis_view_histogramMetrics":     []string{"flops_any", "mem_bw", "mem_used"},
 		"analysis_view_scatterPlotMetrics":   [][]string{{"flops_any", "mem_bw"}, {"flops_any", "cpu_load"}, {"cpu_load", "mem_bw"}},
@@ -407,22 +401,19 @@ func main() {
 			return
 		}
 
-		infos := map[string]interface{}{
-			"clusters": config.Clusters,
-		}
-
+		username, isAdmin := "", true
 		if user := auth.GetUser(r.Context()); user != nil {
-			infos["loginId"] = user.Username
-			infos["admin"] = user.HasRole(auth.RoleAdmin)
-		} else {
-			infos["loginId"] = false
-			infos["admin"] = false
+			username = user.Username
+			isAdmin = user.HasRole(auth.RoleAdmin)
 		}
 
 		templates.Render(rw, r, "home.tmpl", &templates.Page{
 			Title:  "ClusterCockpit",
+			User:   templates.User{Username: username, IsAdmin: isAdmin},
 			Config: conf,
-			Infos:  infos,
+			Infos: map[string]interface{}{
+				"clusters": config.Clusters,
+			},
 		})
 	})
 
