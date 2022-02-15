@@ -57,9 +57,16 @@ type JobMeta struct {
 	Statistics map[string]JobStatistics `json:"statistics,omitempty"`
 }
 
+const (
+	MonitoringStatusDisabled            int32 = 0
+	MonitoringStatusRunningOrArchiving  int32 = 1
+	MonitoringStatusArchivingFailed     int32 = 2
+	MonitoringStatusArchivingSuccessful int32 = 3
+)
+
 var JobDefaults BaseJob = BaseJob{
 	Exclusive:        1,
-	MonitoringStatus: 1,
+	MonitoringStatus: MonitoringStatusRunningOrArchiving,
 	MetaData:         "",
 }
 

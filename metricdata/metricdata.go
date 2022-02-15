@@ -65,7 +65,7 @@ func LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ct
 	data := cache.Get(cacheKey(job, metrics, scopes), func() (interface{}, time.Duration, int) {
 		var jd schema.JobData
 		var err error
-		if job.State == schema.JobStateRunning || !useArchive {
+		if job.State == schema.JobStateRunning || job.MonitoringStatus == schema.MonitoringStatusRunningOrArchiving || !useArchive {
 			repo, ok := metricDataRepos[job.Cluster]
 			if !ok {
 				return fmt.Errorf("no metric data repository configured for '%s'", job.Cluster), 0, 0

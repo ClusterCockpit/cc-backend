@@ -136,10 +136,6 @@ func loadAveragesFromArchive(job *schema.Job, metrics []string, data [][]schema.
 
 // Writes a running job to the job-archive
 func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
-	if job.State != schema.JobStateRunning {
-		return nil, errors.New("cannot archive job that is not running")
-	}
-
 	allMetrics := make([]string, 0)
 	metricConfigs := config.GetClusterConfig(job.Cluster).MetricConfig
 	for _, mc := range metricConfigs {

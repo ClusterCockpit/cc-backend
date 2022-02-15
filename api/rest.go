@@ -255,12 +255,6 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	})
 }
 
-const (
-	// TODO: Constants in schema/? What constants to use?
-	MonitoringStatusArchivingSuccessfull int32 = 0
-	MonitoringStatusArchivingFailed      int32 = 2
-)
-
 // A job has stopped and should be archived.
 func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
@@ -314,7 +308,8 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 
 	// Mark job as stopped in the database (update state and duration)
 	job.Duration = int32(req.StopTime - job.StartTime.Unix())
-	if err := api.JobRepository.Stop(job.ID, job.Duration, req.State); err != nil {
+	job.State = req.State
+	if err := api.JobRepository.Stop(job.ID, job.Duration, job.State, job.MonitoringStatus); err != nil {
 		handleError(fmt.Errorf("marking job as stopped failed: %w", err), http.StatusInternalServerError, rw)
 		return
 	}
@@ -328,6 +323,11 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode(job)
 
+	// Monitoring is disabled...
+	if job.MonitoringStatus == schema.MonitoringStatusDisabled {
+		return
+	}
+
 	// We need to start a new goroutine as this functions needs to return
 	// for the response to be flushed to the client.
 	api.OngoingArchivings.Add(1) // So that a shutdown does not interrupt this goroutine.
@@ -338,12 +338,12 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 		jobMeta, err := metricdata.ArchiveJob(job, context.Background())
 		if err != nil {
 			log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
-			api.JobRepository.UpdateMonitoringStatus(job.ID, MonitoringStatusArchivingFailed)
+			api.JobRepository.UpdateMonitoringStatus(job.ID, schema.MonitoringStatusArchivingFailed)
 			return
 		}
 
 		// Update the jobs database entry one last time:
-		if err := api.JobRepository.Archive(job.ID, 0, jobMeta.Statistics); err != nil {
+		if err := api.JobRepository.Archive(job.ID, schema.MonitoringStatusArchivingSuccessful, jobMeta.Statistics); err != nil {
 			log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
 			return
 		}

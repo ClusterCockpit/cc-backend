@@ -40,7 +40,7 @@ const JOBS_DB_SCHEMA string = `
 		num_acc           INT NOT NULL,
 		smt               TINYINT NOT NULL DEFAULT 1 CHECK(smt               IN (0, 1   )),
 		exclusive         TINYINT NOT NULL DEFAULT 1 CHECK(exclusive         IN (0, 1, 2)),
-		monitoring_status TINYINT NOT NULL DEFAULT 1 CHECK(monitoring_status IN (0, 1   )),
+		monitoring_status TINYINT NOT NULL DEFAULT 1 CHECK(monitoring_status IN (0, 1, 2, 3)),
 
 		mem_used_max        REAL NOT NULL DEFAULT 0.0,
 		flops_any_avg       REAL NOT NULL DEFAULT 0.0,

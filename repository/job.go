@@ -77,11 +77,13 @@ func (r *JobRepository) Start(job *schema.JobMeta) (id int64, err error) {
 func (r *JobRepository) Stop(
 	jobId int64,
 	duration int32,
-	state schema.JobState) (err error) {
+	state schema.JobState,
+	monitoringStatus int32) (err error) {
 
 	stmt := sq.Update("job").
 		Set("job_state", state).
 		Set("duration", duration).
+		Set("monitoring_status", monitoringStatus).
 		Where("job.id = ?", jobId)
 
 	_, err = stmt.RunWith(r.DB).Exec()
