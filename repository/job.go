@@ -8,7 +8,6 @@ import (
 	"strconv"
 
 	"github.com/ClusterCockpit/cc-backend/auth"
-	"github.com/ClusterCockpit/cc-backend/log"
 	"github.com/ClusterCockpit/cc-backend/schema"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
@@ -89,11 +88,20 @@ func (r *JobRepository) Stop(
 	return
 }
 
+func (r *JobRepository) UpdateMonitoringStatus(job int64, monitoringStatus int32) (err error) {
+	stmt := sq.Update("job").
+		Set("monitoring_status", monitoringStatus).
+		Where("job.id = ?", job)
+
+	_, err = stmt.RunWith(r.DB).Exec()
+	return
+}
+
 // Stop updates the job with the database id jobId using the provided arguments.
 func (r *JobRepository) Archive(
 	jobId int64,
 	monitoringStatus int32,
-	metricStats map[string]schema.JobStatistics) {
+	metricStats map[string]schema.JobStatistics) error {
 
 	stmt := sq.Update("job").
 		Set("monitoring_status", monitoringStatus).
@@ -117,8 +125,9 @@ func (r *JobRepository) Archive(
 	}
 
 	if _, err := stmt.RunWith(r.DB).Exec(); err != nil {
-		log.Errorf("archiving job (dbid: %d) failed: %s", jobId, err.Error())
+		return err
 	}
+	return nil
 }
 
 // Add the tag with id `tagId` to the job with the database id `jobId`.
@@ -140,9 +149,15 @@ func (r *JobRepository) CreateTag(tagType string, tagName string) (tagId int64, 
 func (r *JobRepository) GetTags() (tags []schema.Tag, counts map[string]int, err error) {
 	tags = make([]schema.Tag, 0, 100)
 	xrows, err := r.DB.Queryx("SELECT * FROM tag")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	for xrows.Next() {
 		var t schema.Tag
-		err = xrows.StructScan(&t)
+		if err := xrows.StructScan(&t); err != nil {
+			return nil, nil, err
+		}
 		tags = append(tags, t)
 	}
 
@@ -151,7 +166,7 @@ func (r *JobRepository) GetTags() (tags []schema.Tag, counts map[string]int, err
 		LeftJoin("jobtag jt ON t.id = jt.tag_id").
 		GroupBy("t.tag_name")
 
-	qs, _, err := q.ToSql()
+	qs, _, _ := q.ToSql()
 	rows, err := r.DB.Query(qs)
 	if err != nil {
 		fmt.Println(err)

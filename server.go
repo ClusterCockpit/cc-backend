@@ -64,9 +64,6 @@ type ProgramConfig struct {
 	// Path to the job-archive
 	JobArchive string `json:"job-archive"`
 
-	// Make the /api/jobs/stop_job endpoint do the heavy work in the background.
-	AsyncArchiving bool `json:"async-archive"`
-
 	// Keep all metric data in the metric data repositories,
 	// do not write to the job-archive.
 	DisableArchive bool `json:"disable-archive"`
@@ -93,7 +90,6 @@ var programConfig ProgramConfig = ProgramConfig{
 	DBDriver:              "sqlite3",
 	DB:                    "./var/job.db",
 	JobArchive:            "./var/job-archive",
-	AsyncArchiving:        true,
 	DisableArchive:        false,
 	LdapConfig:            nil,
 	HttpsCertFile:         "",
@@ -175,7 +171,7 @@ func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 }
 
 var routes []Route = []Route{
-	{"/", "home.tmpl", "ClusterCockpit", false, func(i InfoType, r *http.Request) InfoType { return i }},
+	{"/", "home.tmpl", "ClusterCockpit", false, func(i InfoType, r *http.Request) InfoType { i["clusters"] = config.Clusters; return i }},
 	{"/monitoring/jobs/", "monitoring/jobs.tmpl", "Jobs - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { return i }},
 	{"/monitoring/job/{id:[0-9]+}", "monitoring/job.tmpl", "Job <ID> - ClusterCockpit", false, setupJobRoute},
 	{"/monitoring/users/", "monitoring/list.tmpl", "Users - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { i["listType"] = "USER"; return i }},
@@ -329,7 +325,6 @@ func main() {
 	graphQLPlayground := playground.Handler("GraphQL playground", "/query")
 	api := &api.RestApi{
 		JobRepository:   jobRepo,
-		AsyncArchiving:  programConfig.AsyncArchiving,
 		Resolver:        resolver,
 		MachineStateDir: programConfig.MachineStateDir,
 	}
@@ -394,29 +389,6 @@ func main() {
 		})
 	}
 	secured.Handle("/query", graphQLEndpoint)
-
-	secured.HandleFunc("/", func(rw http.ResponseWriter, r *http.Request) {
-		conf, err := config.GetUIConfig(r)
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		username, isAdmin := "", true
-		if user := auth.GetUser(r.Context()); user != nil {
-			username = user.Username
-			isAdmin = user.HasRole(auth.RoleAdmin)
-		}
-
-		templates.Render(rw, r, "home.tmpl", &templates.Page{
-			Title:  "ClusterCockpit",
-			User:   templates.User{Username: username, IsAdmin: isAdmin},
-			Config: conf,
-			Infos: map[string]interface{}{
-				"clusters": config.Clusters,
-			},
-		})
-	})
 
 	secured.HandleFunc("/search", func(rw http.ResponseWriter, r *http.Request) {
 		if search := r.URL.Query().Get("searchId"); search != "" {

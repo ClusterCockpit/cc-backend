@@ -28,7 +28,6 @@ import (
 type RestApi struct {
 	JobRepository     *repository.JobRepository
 	Resolver          *graph.Resolver
-	AsyncArchiving    bool
 	MachineStateDir   string
 	OngoingArchivings sync.WaitGroup
 }
@@ -256,6 +255,12 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	})
 }
 
+const (
+	// TODO: Constants in schema/? What constants to use?
+	MonitoringStatusArchivingSuccessfull int32 = 0
+	MonitoringStatusArchivingFailed      int32 = 2
+)
+
 // A job has stopped and should be archived.
 func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
@@ -263,12 +268,14 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Parse request body
 	req := StopJobApiRequest{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		handleError(fmt.Errorf("parsing request body failed: %w", err), http.StatusBadRequest, rw)
 		return
 	}
 
+	// Fetch job (that will be stopped) from db
 	id, ok := mux.Vars(r)["id"]
 	var job *schema.Job
 	var err error
@@ -288,17 +295,16 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 
 		job, err = api.JobRepository.Find(*req.JobId, *req.Cluster, *req.StartTime)
 	}
-
 	if err != nil {
 		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
 		return
 	}
 
+	// Sanity checks
 	if job == nil || job.StartTime.Unix() >= req.StopTime || job.State != schema.JobStateRunning {
 		handleError(errors.New("stopTime must be larger than startTime and only running jobs can be stopped"), http.StatusBadRequest, rw)
 		return
 	}
-
 	if req.State != "" && !req.State.Valid() {
 		handleError(fmt.Errorf("invalid job state: %#v", req.State), http.StatusBadRequest, rw)
 		return
@@ -306,44 +312,42 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 		req.State = schema.JobStateCompleted
 	}
 
-	// This closure does the real work. It needs to be its own
-	// function so that it can be done in the background.
-	// TODO: Throttle/Have a max. number or parallel archivngs
-	// or use a long-running goroutine receiving jobs by a channel.
-	doArchiving := func(job *schema.Job, ctx context.Context) {
-		api.OngoingArchivings.Add(1)
-		defer api.OngoingArchivings.Done()
-
-		job.Duration = int32(req.StopTime - job.StartTime.Unix())
-		jobMeta, err := metricdata.ArchiveJob(job, ctx)
-		if err != nil {
-			log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
-		}
-		api.JobRepository.Archive(job.ID, 0, jobMeta.Statistics)
-		log.Printf("job stopped and archived (dbid: %d)", job.ID)
+	// Mark job as stopped in the database (update state and duration)
+	job.Duration = int32(req.StopTime - job.StartTime.Unix())
+	if err := api.JobRepository.Stop(job.ID, job.Duration, req.State); err != nil {
+		handleError(fmt.Errorf("marking job as stopped failed: %w", err), http.StatusInternalServerError, rw)
+		return
 	}
 
 	log.Printf("archiving job... (dbid: %d): cluster=%s, jobId=%d, user=%s, startTime=%s", job.ID, job.Cluster, job.JobID, job.User, job.StartTime)
-	if api.AsyncArchiving {
-		go doArchiving(job, context.Background())
-	} else {
-		err := doArchiving(job, r.Context())
-		if err != nil {
-			handleError(fmt.Errorf("archiving failed: %w", err), http.StatusInternalServerError, rw)
-		} else {
-			rw.Header().Add("Content-Type", "application/json")
-			rw.WriteHeader(http.StatusOK)
-			json.NewEncoder(rw).Encode(job)
-		}
-	}
 
-	err = api.JobRepository.Stop(job.ID, job.Duration, req.State)
-	job.State = req.State
+	// Send a response (with status OK). This means that erros that happen from here on forward
+	// can *NOT* be communicated to the client. If reading from a MetricDataRepository or
+	// writing to the filesystem fails, the client will not know.
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode(job)
-	// handleError(fmt.Errorf("Stop job (dbid: %d) failed: %s", job.ID, err.Error()), http.StatusInternalServerError, rw)
-	handleError(fmt.Errorf("archiving failed: %w", err), http.StatusInternalServerError, rw)
+
+	// We need to start a new goroutine as this functions need to return in order to
+	// make sure that the response is flushed to the client.
+	api.OngoingArchivings.Add(1) // So that a shutdown does not interrupt this goroutine.
+	go func() {
+		defer api.OngoingArchivings.Done()
+
+		// metricdata.ArchiveJob will fetch all the data from a MetricDataRepository and create meta.json/data.json files
+		jobMeta, err := metricdata.ArchiveJob(job, context.Background())
+		if err != nil {
+			log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
+			api.JobRepository.UpdateMonitoringStatus(job.ID, MonitoringStatusArchivingFailed)
+			return
+		}
+
+		// Update the jobs database entry one last time:
+		if err := api.JobRepository.Archive(job.ID, 0, jobMeta.Statistics); err != nil {
+			log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
+			return
+		}
+	}()
 }
 
 func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
