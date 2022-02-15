@@ -328,8 +328,8 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode(job)
 
-	// We need to start a new goroutine as this functions need to return in order to
-	// make sure that the response is flushed to the client.
+	// We need to start a new goroutine as this functions needs to return
+	// for the response to be flushed to the client.
 	api.OngoingArchivings.Add(1) // So that a shutdown does not interrupt this goroutine.
 	go func() {
 		defer api.OngoingArchivings.Done()
@@ -347,6 +347,8 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 			log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
 			return
 		}
+
+		log.Printf("archiving job (dbid: %d) successful", job.ID)
 	}()
 }
 
