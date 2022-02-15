@@ -372,7 +372,7 @@ func main() {
 				rw.WriteHeader(http.StatusUnauthorized)
 				templates.Render(rw, r, "login.tmpl", &templates.Page{
 					Title: "Login failed - ClusterCockpit",
-					Error: err.Error(),
+					Error: loginErr.Error(),
 				})
 			})).Methods(http.MethodPost)
 
