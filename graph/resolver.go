@@ -51,7 +51,12 @@ func (r *Resolver) Init() error {
 }
 
 // Helper function for the `jobs` GraphQL-Query. Is also used elsewhere when a list of jobs is needed.
-func (r *Resolver) queryJobs(ctx context.Context, filters []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) ([]*schema.Job, int, error) {
+func (r *Resolver) queryJobs(
+	ctx context.Context,
+	filters []*model.JobFilter,
+	page *model.PageRequest,
+	order *model.OrderByInput) ([]*schema.Job, int, error) {
+
 	query := sq.Select(schema.JobColumns...).From("job")
 	query = securityCheck(ctx, query)
 
