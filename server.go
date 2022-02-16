@@ -482,14 +482,15 @@ func main() {
 
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir(programConfig.StaticFiles)))
 	r.Use(handlers.CompressHandler)
+	r.Use(handlers.RecoveryHandler(handlers.PrintRecoveryStack(true)))
 	r.Use(handlers.CORS(
 		handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}),
 		handlers.AllowedMethods([]string{"GET", "POST", "HEAD", "OPTIONS"}),
 		handlers.AllowedOrigins([]string{"*"})))
 	handler := handlers.CustomLoggingHandler(log.InfoWriter, r, func(w io.Writer, params handlers.LogFormatterParams) {
-		log.Finfof(w, "%s %s (status: %d, size: %d, duration: %dms)",
+		log.Finfof(w, "%s %s (%d, %.02fkb, %dms)",
 			params.Request.Method, params.URL.RequestURI(),
-			params.StatusCode, params.Size,
+			params.StatusCode, float32(params.Size)/1024,
 			time.Since(params.TimeStamp).Milliseconds())
 	})
 
