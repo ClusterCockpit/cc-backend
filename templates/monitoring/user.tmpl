@@ -7,7 +7,6 @@
 {{end}}
 {{define "javascript"}}
     <script>
-        header.currentView = 'user';
         const userInfos = {{ .Infos }};
         const filterPresets = {{ .FilterPresets }};
         const clusterCockpitConfig = {{ .Config }};

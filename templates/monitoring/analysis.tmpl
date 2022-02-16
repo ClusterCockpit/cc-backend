@@ -7,7 +7,6 @@
 {{end}}
 {{define "javascript"}}
     <script>
-        header.currentView = 'analysis';
         const cluster = {{ .Infos.cluster }};
         const filterPresets = {{ .FilterPresets }};
         const clusterCockpitConfig = {{ .Config }};

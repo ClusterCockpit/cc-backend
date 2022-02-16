@@ -7,7 +7,6 @@
 {{end}}
 {{define "javascript"}}
     <script>
-        header.currentView = {{ .Infos.listType }}.toLowerCase() + 's';
         const listType = {{ .Infos.listType }};
         const filterPresets = {{ .FilterPresets }};
         const clusterCockpitConfig = {{ .Config }};

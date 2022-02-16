@@ -16,13 +16,15 @@
         <script>
             const header = {
                 "username": "{{ .User.Username }}",
-                "isAdmin":  "{{ .User.IsAdmin }}",
+                "isAdmin":  {{ .User.IsAdmin }},
                 "clusters": {{ .Clusters }},
             };
         </script>
     </head>
     <body  class="site">
-        <header id="svelte-header"></header>
+        {{block "navigation" .}}
+            <header id="svelte-header"></header>
+        {{end}}
 
         <main class="site-content">
             <div class="container">
