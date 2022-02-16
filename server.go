@@ -28,6 +28,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/log"
 	"github.com/ClusterCockpit/cc-backend/metricdata"
 	"github.com/ClusterCockpit/cc-backend/repository"
+	"github.com/ClusterCockpit/cc-backend/schema"
 	"github.com/ClusterCockpit/cc-backend/templates"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -121,6 +122,38 @@ var programConfig ProgramConfig = ProgramConfig{
 	},
 }
 
+func setupHomeRoute(i InfoType, r *http.Request) InfoType {
+	type cluster struct {
+		Name        string
+		RunningJobs int
+		TotalJobs   int
+	}
+
+	state := schema.JobStateRunning
+	runningJobs, err := jobRepo.CountJobs(r.Context(), &state)
+	if err != nil {
+		log.Errorf("failed to count jobs: %s", err.Error())
+		runningJobs = map[string]int{}
+	}
+	totalJobs, err := jobRepo.CountJobs(r.Context(), nil)
+	if err != nil {
+		log.Errorf("failed to count jobs: %s", err.Error())
+		totalJobs = map[string]int{}
+	}
+
+	clusters := make([]cluster, 0)
+	for _, c := range config.Clusters {
+		clusters = append(clusters, cluster{
+			Name:        c.Name,
+			RunningJobs: runningJobs[c.Name],
+			TotalJobs:   totalJobs[c.Name],
+		})
+	}
+
+	i["clusters"] = clusters
+	return i
+}
+
 func setupJobRoute(i InfoType, r *http.Request) InfoType {
 	i["id"] = mux.Vars(r)["id"]
 	return i
@@ -189,7 +222,7 @@ func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 }
 
 var routes []Route = []Route{
-	{"/", "home.tmpl", "ClusterCockpit", false, func(i InfoType, r *http.Request) InfoType { i["clusters"] = config.Clusters; return i }},
+	{"/", "home.tmpl", "ClusterCockpit", false, setupHomeRoute},
 	{"/monitoring/jobs/", "monitoring/jobs.tmpl", "Jobs - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { return i }},
 	{"/monitoring/job/{id:[0-9]+}", "monitoring/job.tmpl", "Job <ID> - ClusterCockpit", false, setupJobRoute},
 	{"/monitoring/users/", "monitoring/list.tmpl", "Users - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { i["listType"] = "USER"; return i }},
@@ -454,7 +487,10 @@ func main() {
 		handlers.AllowedMethods([]string{"GET", "POST", "HEAD", "OPTIONS"}),
 		handlers.AllowedOrigins([]string{"*"})))
 	handler := handlers.CustomLoggingHandler(log.InfoWriter, r, func(w io.Writer, params handlers.LogFormatterParams) {
-		log.Finfof(w, "%s %s (Response: %d, Size: %d)", params.Request.Method, params.URL.RequestURI(), params.StatusCode, params.Size)
+		log.Finfof(w, "%s %s (status: %d, size: %d, duration: %dms)",
+			params.Request.Method, params.URL.RequestURI(),
+			params.StatusCode, params.Size,
+			time.Since(params.TimeStamp).Milliseconds())
 	})
 
 	var wg sync.WaitGroup

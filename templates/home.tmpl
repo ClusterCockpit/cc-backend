@@ -6,19 +6,36 @@
             <thead>
                 <tr>
                     <th>Name</th>
+                    <th>Running Jobs</th>
+                    <th>Total Jobs</th>
                     <th>Jobs</th>
-                    <th>System View</th>
-                    <th>Analysis View</th>
+                    {{if .User.IsAdmin}}
+                        <th>System View</th>
+                        <th>Analysis View</th>
+                    {{end}}
                 </tr>
             </thead>
             <tbody>
-                {{range .Infos.clusters}}
-                    <tr>
-                        <td>{{.Name}}</td>
-                        <td><a href="/monitoring/jobs/?cluster={{.Name}}">Jobs</a></td>
-                        <td><a href="/monitoring/systems/{{.Name}}">System View</a></td>
-                        <td><a href="/monitoring/analysis/{{.Name}}">Analysis View</a></td>
-                    </tr>
+                {{if .User.IsAdmin}}
+                    {{range .Infos.clusters}}
+                        <tr>
+                            <td>{{.Name}}</td>
+                            <td>{{.RunningJobs}}</td>
+                            <td>{{.TotalJobs}}</td>
+                            <td><a href="/monitoring/jobs/?cluster={{.Name}}">Jobs</a></td>
+                            <td><a href="/monitoring/systems/{{.Name}}">System View</a></td>
+                            <td><a href="/monitoring/analysis/{{.Name}}">Analysis View</a></td>
+                        </tr>
+                    {{end}}
+                {{else}}
+                    {{range .Infos.clusters}}
+                        <tr>
+                            <td>{{.Name}}</td>
+                            <td>{{.RunningJobs}}</td>
+                            <td>{{.TotalJobs}}</td>
+                            <td><a href="/monitoring/jobs/?cluster={{.Name}}">Jobs</a></td>
+                        </tr>
+                    {{end}}
                 {{end}}
             </tbody>
         </table>

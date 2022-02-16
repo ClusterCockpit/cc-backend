@@ -96,6 +96,47 @@ func (r *JobRepository) Stop(
 	return
 }
 
+// CountJobs returns the number of jobs for the specified user (if a non-admin user is found in that context) and state.
+// The counts are grouped by cluster.
+func (r *JobRepository) CountJobs(ctx context.Context, state *schema.JobState) (map[string]int, error) {
+	// q := sq.Select("count(*)").From("job")
+	// if cluster != nil {
+	// 	q = q.Where("job.cluster = ?", cluster)
+	// }
+	// if state != nil {
+	// 	q = q.Where("job.job_state = ?", string(*state))
+	// }
+
+	// err = q.RunWith(r.DB).QueryRow().Scan(&count)
+	// return
+
+	q := sq.Select("job.cluster, count(*)").From("job").GroupBy("job.cluster")
+	if state != nil {
+		q = q.Where("job.job_state = ?", string(*state))
+	}
+	if user := auth.GetUser(ctx); user != nil && !user.HasRole(auth.RoleAdmin) {
+		q = q.Where("job.user = ?", user.Username)
+	}
+
+	counts := map[string]int{}
+	rows, err := q.RunWith(r.DB).Query()
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var cluster string
+		var count int
+		if err := rows.Scan(&cluster, &count); err != nil {
+			return nil, err
+		}
+
+		counts[cluster] = count
+	}
+
+	return counts, nil
+}
+
 // func (r *JobRepository) Query(
 // 	filters []*model.JobFilter,
 // 	page *model.PageRequest,
