@@ -96,6 +96,13 @@ func (r *JobRepository) Stop(
 	return
 }
 
+// func (r *JobRepository) Query(
+// 	filters []*model.JobFilter,
+// 	page *model.PageRequest,
+// 	order *model.OrderByInput) ([]*schema.Job, int, error) {
+
+// }
+
 func (r *JobRepository) UpdateMonitoringStatus(job int64, monitoringStatus int32) (err error) {
 	stmt := sq.Update("job").
 		Set("monitoring_status", monitoringStatus).
