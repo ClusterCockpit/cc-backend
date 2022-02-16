@@ -102,6 +102,7 @@ func (r *Resolver) queryJobs(ctx context.Context, filters []*model.JobFilter, pa
 	for _, f := range filters {
 		query = buildWhereClause(f, query)
 	}
+	query = securityCheck(ctx, query)
 	var count int
 	if err := query.RunWith(r.DB).Scan(&count); err != nil {
 		return nil, 0, err

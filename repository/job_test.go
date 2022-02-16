@@ -57,7 +57,7 @@ func TestFindById(t *testing.T) {
 func TestGetTags(t *testing.T) {
 	r := setup(t)
 
-	tags, counts, err := r.GetTags()
+	tags, counts, err := r.GetTags(nil)
 	if err != nil {
 		t.Fatal(err)
 	}

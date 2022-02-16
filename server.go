@@ -154,8 +154,18 @@ func setupAnalysisRoute(i InfoType, r *http.Request) InfoType {
 }
 
 func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
-	tags, counts, _ := jobRepo.GetTags()
+	var username *string = nil
+	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleAdmin) {
+		username = &user.Username
+	}
+
+	tags, counts, err := jobRepo.GetTags(username)
 	tagMap := make(map[string][]map[string]interface{})
+	if err != nil {
+		log.Errorf("GetTags failed: %s", err.Error())
+		i["tagmap"] = tagMap
+		return i
+	}
 
 	for _, tag := range tags {
 		tagItem := map[string]interface{}{
