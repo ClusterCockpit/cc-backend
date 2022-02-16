@@ -363,15 +363,21 @@ func main() {
 			http.RedirectHandler("/", http.StatusTemporaryRedirect),
 
 			// On failure:
-			func(rw http.ResponseWriter, r *http.Request, loginErr error) {
+			func(rw http.ResponseWriter, r *http.Request, err error) {
 				rw.WriteHeader(http.StatusUnauthorized)
 				templates.Render(rw, r, "login.tmpl", &templates.Page{
 					Title: "Login failed - ClusterCockpit",
-					Error: loginErr.Error(),
+					Error: err.Error(),
 				})
 			})).Methods(http.MethodPost)
 
-		r.Handle("/logout", authentication.Logout(http.RedirectHandler("/login", http.StatusTemporaryRedirect))).Methods(http.MethodPost)
+		r.Handle("/logout", authentication.Logout(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			rw.WriteHeader(http.StatusOK)
+			templates.Render(rw, r, "login.tmpl", &templates.Page{
+				Title: "Bye - ClusterCockpit",
+				Info:  "Logout sucessful",
+			})
+		}))).Methods(http.MethodPost)
 
 		secured.Use(func(next http.Handler) http.Handler {
 			return authentication.Auth(
@@ -379,7 +385,7 @@ func main() {
 				next,
 
 				// On failure:
-				func(rw http.ResponseWriter, r *http.Request, authErr error) {
+				func(rw http.ResponseWriter, r *http.Request, err error) {
 					rw.WriteHeader(http.StatusUnauthorized)
 					templates.Render(rw, r, "login.tmpl", &templates.Page{
 						Title: "Authentication failed - ClusterCockpit",
