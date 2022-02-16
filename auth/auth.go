@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/ClusterCockpit/cc-backend/log"
 	sq "github.com/Masterminds/squirrel"
@@ -60,6 +61,10 @@ type Authentication struct {
 
 	ldapConfig           *LdapConfig
 	ldapSyncUserPassword string
+
+	// If zero, tokens/sessions do not expire.
+	SessionMaxAge time.Duration
+	JwtMaxAge     time.Duration
 }
 
 func (auth *Authentication) Init(db *sqlx.DB, ldapConfig *LdapConfig) error {
@@ -208,7 +213,9 @@ func (auth *Authentication) Login(onsuccess http.Handler, onfailure func(rw http
 			return
 		}
 
-		session.Options.MaxAge = 30 * 24 * 60 * 60
+		if auth.SessionMaxAge != 0 {
+			session.Options.MaxAge = int(auth.SessionMaxAge.Seconds())
+		}
 		session.Values["username"] = user.Username
 		session.Values["roles"] = user.Roles
 		if err := auth.sessionStore.Save(r, rw, session); err != nil {
@@ -320,10 +327,15 @@ func (auth *Authentication) ProvideJWT(user *User) (string, error) {
 		return "", errors.New("environment variable 'JWT_PRIVATE_KEY' not set")
 	}
 
-	tok := jwt.NewWithClaims(jwt.SigningMethodEdDSA, jwt.MapClaims{
+	claims := jwt.MapClaims{
 		"sub":   user.Username,
 		"roles": user.Roles,
-	})
+	}
+	if auth.JwtMaxAge != 0 {
+		claims["exp"] = time.Now().Add(auth.JwtMaxAge).Unix()
+	}
+
+	tok := jwt.NewWithClaims(jwt.SigningMethodEdDSA, claims)
 
 	return tok.SignedString(auth.jwtPrivateKey)
 }

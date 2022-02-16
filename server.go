@@ -71,6 +71,12 @@ type ProgramConfig struct {
 	// For LDAP Authentication and user syncronisation.
 	LdapConfig *auth.LdapConfig `json:"ldap"`
 
+	// Specifies for how long a session or JWT shall be valid
+	// as a string parsable by time.ParseDuration().
+	// If 0 or empty, the session/token does not expire!
+	SessionMaxAge string `json:"session-max-age"`
+	JwtMaxAge     string `json:"jwt-max-age"`
+
 	// If both those options are not empty, use HTTPS using those certificates.
 	HttpsCertFile string `json:"https-cert-file"`
 	HttpsKeyFile  string `json:"https-key-file"`
@@ -92,6 +98,8 @@ var programConfig ProgramConfig = ProgramConfig{
 	JobArchive:            "./var/job-archive",
 	DisableArchive:        false,
 	LdapConfig:            nil,
+	SessionMaxAge:         "168h",
+	JwtMaxAge:             "0",
 	HttpsCertFile:         "",
 	HttpsKeyFile:          "",
 	UiDefaults: map[string]interface{}{
@@ -250,6 +258,13 @@ func main() {
 
 	authentication := &auth.Authentication{}
 	if !programConfig.DisableAuthentication {
+		if d, err := time.ParseDuration(programConfig.SessionMaxAge); err != nil {
+			authentication.SessionMaxAge = d
+		}
+		if d, err := time.ParseDuration(programConfig.JwtMaxAge); err != nil {
+			authentication.JwtMaxAge = d
+		}
+
 		if err := authentication.Init(db, programConfig.LdapConfig); err != nil {
 			log.Fatal(err)
 		}
