@@ -26,7 +26,8 @@ func setup(t *testing.T) *JobRepository {
 func TestFind(t *testing.T) {
 	r := setup(t)
 
-	job, err := r.Find(1404396, "emmy", 1609299584)
+	jobId, cluster, startTime := int64(1404396), "emmy", int64(1609299584)
+	job, err := r.Find(&jobId, &cluster, &startTime)
 	if err != nil {
 		t.Fatal(err)
 	}

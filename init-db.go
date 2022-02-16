@@ -201,11 +201,12 @@ func loadJob(tx *sqlx.Tx, stmt *sqlx.NamedStmt, tags map[string]int64, path stri
 	}
 	defer f.Close()
 
-	var jobMeta schema.JobMeta = schema.JobMeta{BaseJob: schema.JobDefaults}
+	jobMeta := schema.JobMeta{BaseJob: schema.JobDefaults}
 	if err := json.NewDecoder(bufio.NewReader(f)).Decode(&jobMeta); err != nil {
 		return err
 	}
 
+	jobMeta.MonitoringStatus = schema.MonitoringStatusArchivingSuccessful
 	job := schema.Job{
 		BaseJob:       jobMeta.BaseJob,
 		StartTime:     time.Unix(jobMeta.StartTime, 0),
