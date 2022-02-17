@@ -123,12 +123,14 @@ type Resource struct {
 type JobState string
 
 const (
-	JobStateRunning   JobState = "running"
-	JobStateCompleted JobState = "completed"
-	JobStateFailed    JobState = "failed"
-	JobStateCanceled  JobState = "canceled"
-	JobStateStopped   JobState = "stopped"
-	JobStateTimeout   JobState = "timeout"
+	JobStateRunning     JobState = "running"
+	JobStateCompleted   JobState = "completed"
+	JobStateFailed      JobState = "failed"
+	JobStateCancelled   JobState = "cancelled"
+	JobStateStopped     JobState = "stopped"
+	JobStateTimeout     JobState = "timeout"
+	JobStatePreempted   JobState = "preempted"
+	JobStateOutOfMemory JobState = "out_of_memory"
 )
 
 func (e *JobState) UnmarshalGQL(v interface{}) error {
@@ -153,7 +155,9 @@ func (e JobState) Valid() bool {
 	return e == JobStateRunning ||
 		e == JobStateCompleted ||
 		e == JobStateFailed ||
-		e == JobStateCanceled ||
+		e == JobStateCancelled ||
 		e == JobStateStopped ||
-		e == JobStateTimeout
+		e == JobStateTimeout ||
+		e == JobStatePreempted ||
+		e == JobStateOutOfMemory
 }
