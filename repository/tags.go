@@ -9,7 +9,13 @@ import (
 
 // Add the tag with id `tagId` to the job with the database id `jobId`.
 func (r *JobRepository) AddTag(jobId int64, tagId int64) error {
-	_, err := r.DB.Exec(`INSERT INTO jobtag (job_id, tag_id) VALUES (?, ?)`, jobId, tagId)
+	_, err := r.DB.Exec(`INSERT INTO jobtag (job_id, tag_id) VALUES ($1, $2)`, jobId, tagId)
+	return err
+}
+
+// Removes a tag from a job
+func (r *JobRepository) RemoveTag(job, tag int64) error {
+	_, err := r.DB.Exec("DELETE FROM jobtag WHERE jobtag.job_id = $1 AND jobtag.tag_id = $2", job, tag)
 	return err
 }
 
@@ -90,4 +96,24 @@ func (r *JobRepository) TagId(tagType string, tagName string) (tagId int64, exis
 		exists = false
 	}
 	return
+}
+
+// GetTags returns a list of all tags if job is nil or of the tags that the job with that database ID has.
+func (r *JobRepository) GetTags(job *int64) ([]*schema.Tag, error) {
+	q := sq.Select("id", "tag_type", "tag_name").From("tag")
+	if job != nil {
+		q = q.Join("jobtag ON jobtag.tag_id = tag.id").Where("jobtag.job_id = ?", *job)
+	}
+
+	sql, args, err := q.ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	tags := make([]*schema.Tag, 0)
+	if err := r.DB.Select(&tags, sql, args...); err != nil {
+		return nil, err
+	}
+
+	return tags, nil
 }

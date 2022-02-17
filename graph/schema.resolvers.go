@@ -16,27 +16,10 @@ import (
 	"github.com/ClusterCockpit/cc-backend/graph/model"
 	"github.com/ClusterCockpit/cc-backend/metricdata"
 	"github.com/ClusterCockpit/cc-backend/schema"
-	sq "github.com/Masterminds/squirrel"
 )
 
 func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error) {
-	query := sq.
-		Select("tag.id", "tag.tag_type", "tag.tag_name").
-		From("tag").
-		Join("jobtag ON jobtag.tag_id = tag.id").
-		Where("jobtag.job_id = ?", obj.ID)
-
-	sql, args, err := query.ToSql()
-	if err != nil {
-		return nil, err
-	}
-
-	tags := make([]*schema.Tag, 0)
-	if err := r.DB.Select(&tags, sql, args...); err != nil {
-		return nil, err
-	}
-
-	return tags, nil
+	return r.Repo.GetTags(&obj.ID)
 }
 
 func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name string) (*schema.Tag, error) {
@@ -70,34 +53,32 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 		}
 	}
 
-	dummyJob := schema.Job{}
-	dummyJob.ID = int64(jid)
-	tags, err := r.Job().Tags(ctx, &dummyJob)
+	j, err := r.Query().Job(ctx, job)
 	if err != nil {
 		return nil, err
 	}
 
-	jobObj, err := r.Query().Job(ctx, job)
+	j.Tags, err = r.Repo.GetTags(&jid)
 	if err != nil {
 		return nil, err
 	}
 
-	return tags, metricdata.UpdateTags(jobObj, tags)
+	return j.Tags, metricdata.UpdateTags(j, j.Tags)
 }
 
 func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, tagIds []string) ([]*schema.Tag, error) {
-	jid, err := strconv.Atoi(job)
+	jid, err := strconv.ParseInt(job, 10, 64)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, tagId := range tagIds {
-		tid, err := strconv.Atoi(tagId)
+		tid, err := strconv.ParseInt(tagId, 10, 64)
 		if err != nil {
 			return nil, err
 		}
 
-		if _, err := r.DB.Exec("DELETE FROM jobtag WHERE jobtag.job_id = $1 AND jobtag.tag_id = $2", jid, tid); err != nil {
+		if err := r.Repo.RemoveTag(jid, tid); err != nil {
 			return nil, err
 		}
 	}
@@ -130,16 +111,7 @@ func (r *queryResolver) Clusters(ctx context.Context) ([]*model.Cluster, error) 
 }
 
 func (r *queryResolver) Tags(ctx context.Context) ([]*schema.Tag, error) {
-	sql, args, err := sq.Select("id", "tag_type", "tag_name").From("tag").ToSql()
-	if err != nil {
-		return nil, err
-	}
-
-	tags := make([]*schema.Tag, 0)
-	if err := r.DB.Select(&tags, sql, args...); err != nil {
-		return nil, err
-	}
-	return tags, nil
+	return r.Repo.GetTags(nil)
 }
 
 func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error) {
