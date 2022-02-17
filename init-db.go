@@ -31,7 +31,7 @@ const JOBS_DB_SCHEMA string = `
 		` + "`partition`" + ` VARCHAR(255) NOT NULL, -- partition is a keyword in mysql -.-
 		array_job_id      BIGINT NOT NULL,
 		duration          INT,
-		job_state         VARCHAR(255) NOT NULL CHECK(job_state IN ('running', 'completed', 'failed', 'canceled', 'stopped', 'timeout')),
+		job_state         VARCHAR(255) NOT NULL CHECK(job_state IN ('running', 'completed', 'failed', 'cancelled', 'stopped', 'timeout', 'preempted', 'out_of_memory')),
 		meta_data         TEXT,          -- JSON
 		resources         TEXT NOT NULL, -- JSON
 
