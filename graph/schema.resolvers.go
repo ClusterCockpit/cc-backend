@@ -40,12 +40,7 @@ func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag,
 }
 
 func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name string) (*schema.Tag, error) {
-	res, err := r.DB.Exec("INSERT INTO tag (tag_type, tag_name) VALUES ($1, $2)", typeArg, name)
-	if err != nil {
-		return nil, err
-	}
-
-	id, err := res.LastInsertId()
+	id, err := r.Repo.CreateTag(typeArg, name)
 	if err != nil {
 		return nil, err
 	}
@@ -59,18 +54,18 @@ func (r *mutationResolver) DeleteTag(ctx context.Context, id string) (string, er
 }
 
 func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds []string) ([]*schema.Tag, error) {
-	jid, err := strconv.Atoi(job)
+	jid, err := strconv.ParseInt(job, 10, 64)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, tagId := range tagIds {
-		tid, err := strconv.Atoi(tagId)
+		tid, err := strconv.ParseInt(tagId, 10, 64)
 		if err != nil {
 			return nil, err
 		}
 
-		if _, err := r.DB.Exec("INSERT INTO jobtag (job_id, tag_id) VALUES ($1, $2)", jid, tid); err != nil {
+		if err := r.Repo.AddTag(jid, tid); err != nil {
 			return nil, err
 		}
 	}
@@ -148,14 +143,21 @@ func (r *queryResolver) Tags(ctx context.Context) ([]*schema.Tag, error) {
 }
 
 func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error) {
-	// This query is very common (mostly called through other resolvers such as JobMetrics),
-	// so we use prepared statements here.
-	user := auth.GetUser(ctx)
-	if user == nil || user.HasRole(auth.RoleAdmin) {
-		return schema.ScanJob(r.findJobByIdStmt.QueryRowx(id))
+	numericId, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		return nil, err
 	}
 
-	return schema.ScanJob(r.findJobByIdWithUserStmt.QueryRowx(id, user.Username))
+	job, err := r.Repo.FindById(numericId)
+	if err != nil {
+		return nil, err
+	}
+
+	if user := auth.GetUser(ctx); user != nil && !user.HasRole(auth.RoleAdmin) && job.User != user.Username {
+		return nil, errors.New("you are not allowed to see this job")
+	}
+
+	return job, nil
 }
 
 func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope) ([]*model.JobMetricWithName, error) {
@@ -191,7 +193,12 @@ func (r *queryResolver) JobsFootprints(ctx context.Context, filter []*model.JobF
 }
 
 func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) (*model.JobResultList, error) {
-	jobs, count, err := r.queryJobs(ctx, filter, page, order)
+	jobs, err := r.Repo.QueryJobs(ctx, filter, page, order)
+	if err != nil {
+		return nil, err
+	}
+
+	count, err := r.Repo.CountJobs(ctx, filter)
 	if err != nil {
 		return nil, err
 	}

@@ -130,12 +130,12 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 	}
 
 	state := schema.JobStateRunning
-	runningJobs, err := jobRepo.CountJobs(r.Context(), &state)
+	runningJobs, err := jobRepo.CountJobsPerCluster(r.Context(), &state)
 	if err != nil {
 		log.Errorf("failed to count jobs: %s", err.Error())
 		runningJobs = map[string]int{}
 	}
-	totalJobs, err := jobRepo.CountJobs(r.Context(), nil)
+	totalJobs, err := jobRepo.CountJobsPerCluster(r.Context(), nil)
 	if err != nil {
 		log.Errorf("failed to count jobs: %s", err.Error())
 		totalJobs = map[string]int{}
@@ -200,7 +200,7 @@ func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 		username = &user.Username
 	}
 
-	tags, counts, err := jobRepo.GetTags(username)
+	tags, counts, err := jobRepo.CountTags(username)
 	tagMap := make(map[string][]map[string]interface{})
 	if err != nil {
 		log.Errorf("GetTags failed: %s", err.Error())
@@ -360,10 +360,7 @@ func main() {
 
 	// Build routes...
 
-	resolver := &graph.Resolver{DB: db}
-	if err := resolver.Init(); err != nil {
-		log.Fatal(err)
-	}
+	resolver := &graph.Resolver{DB: db, Repo: jobRepo}
 	graphQLEndpoint := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 	if os.Getenv("DEBUG") != "1" {
 		graphQLEndpoint.SetRecoverFunc(func(ctx context.Context, err interface{}) error {

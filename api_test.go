@@ -109,12 +109,9 @@ func setup(t *testing.T) *api.RestApi {
 		t.Fatal(err)
 	}
 
-	resolver := &graph.Resolver{DB: db}
-	if err := resolver.Init(); err != nil {
-		t.Fatal(err)
-	}
+	resolver := &graph.Resolver{DB: db, Repo: &repository.JobRepository{DB: db}}
 	return &api.RestApi{
-		JobRepository: &repository.JobRepository{DB: db},
+		JobRepository: resolver.Repo,
 		Resolver:      resolver,
 	}
 }

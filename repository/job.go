@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"strconv"
 
 	"github.com/ClusterCockpit/cc-backend/auth"
@@ -42,8 +41,7 @@ func (r *JobRepository) Find(
 		return nil, err
 	}
 
-	job, err := schema.ScanJob(r.DB.QueryRowx(sqlQuery, args...))
-	return job, err
+	return schema.ScanJob(r.DB.QueryRowx(sqlQuery, args...))
 }
 
 // FindById executes a SQL query to find a specific batch job.
@@ -58,8 +56,7 @@ func (r *JobRepository) FindById(
 		return nil, err
 	}
 
-	job, err := schema.ScanJob(r.DB.QueryRowx(sqlQuery, args...))
-	return job, err
+	return schema.ScanJob(r.DB.QueryRowx(sqlQuery, args...))
 }
 
 // Start inserts a new job in the table, returning the unique job ID.
@@ -96,20 +93,9 @@ func (r *JobRepository) Stop(
 	return
 }
 
-// CountJobs returns the number of jobs for the specified user (if a non-admin user is found in that context) and state.
+// CountJobsPerCluster returns the number of jobs for the specified user (if a non-admin user is found in that context) and state.
 // The counts are grouped by cluster.
-func (r *JobRepository) CountJobs(ctx context.Context, state *schema.JobState) (map[string]int, error) {
-	// q := sq.Select("count(*)").From("job")
-	// if cluster != nil {
-	// 	q = q.Where("job.cluster = ?", cluster)
-	// }
-	// if state != nil {
-	// 	q = q.Where("job.job_state = ?", string(*state))
-	// }
-
-	// err = q.RunWith(r.DB).QueryRow().Scan(&count)
-	// return
-
+func (r *JobRepository) CountJobsPerCluster(ctx context.Context, state *schema.JobState) (map[string]int, error) {
 	q := sq.Select("job.cluster, count(*)").From("job").GroupBy("job.cluster")
 	if state != nil {
 		q = q.Where("job.job_state = ?", string(*state))
@@ -136,13 +122,6 @@ func (r *JobRepository) CountJobs(ctx context.Context, state *schema.JobState) (
 
 	return counts, nil
 }
-
-// func (r *JobRepository) Query(
-// 	filters []*model.JobFilter,
-// 	page *model.PageRequest,
-// 	order *model.OrderByInput) ([]*schema.Job, int, error) {
-
-// }
 
 func (r *JobRepository) UpdateMonitoringStatus(job int64, monitoringStatus int32) (err error) {
 	stmt := sq.Update("job").
@@ -184,91 +163,6 @@ func (r *JobRepository) Archive(
 		return err
 	}
 	return nil
-}
-
-// Add the tag with id `tagId` to the job with the database id `jobId`.
-func (r *JobRepository) AddTag(jobId int64, tagId int64) error {
-	_, err := r.DB.Exec(`INSERT INTO jobtag (job_id, tag_id) VALUES (?, ?)`, jobId, tagId)
-	return err
-}
-
-// CreateTag creates a new tag with the specified type and name and returns its database id.
-func (r *JobRepository) CreateTag(tagType string, tagName string) (tagId int64, err error) {
-	res, err := r.DB.Exec("INSERT INTO tag (tag_type, tag_name) VALUES ($1, $2)", tagType, tagName)
-	if err != nil {
-		return 0, err
-	}
-
-	return res.LastInsertId()
-}
-
-func (r *JobRepository) GetTags(user *string) (tags []schema.Tag, counts map[string]int, err error) {
-	tags = make([]schema.Tag, 0, 100)
-	xrows, err := r.DB.Queryx("SELECT * FROM tag")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	for xrows.Next() {
-		var t schema.Tag
-		if err := xrows.StructScan(&t); err != nil {
-			return nil, nil, err
-		}
-		tags = append(tags, t)
-	}
-
-	q := sq.Select("t.tag_name, count(jt.tag_id)").
-		From("tag t").
-		LeftJoin("jobtag jt ON t.id = jt.tag_id").
-		GroupBy("t.tag_name")
-	if user != nil {
-		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.user = ?)", *user)
-	}
-
-	rows, err := q.RunWith(r.DB).Query()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	counts = make(map[string]int)
-
-	for rows.Next() {
-		var tagName string
-		var count int
-		err = rows.Scan(&tagName, &count)
-		if err != nil {
-			fmt.Println(err)
-		}
-		counts[tagName] = count
-	}
-	err = rows.Err()
-
-	return
-}
-
-// AddTagOrCreate adds the tag with the specified type and name to the job with the database id `jobId`.
-// If such a tag does not yet exist, it is created.
-func (r *JobRepository) AddTagOrCreate(jobId int64, tagType string, tagName string) (tagId int64, err error) {
-	tagId, exists := r.TagId(tagType, tagName)
-	if !exists {
-		tagId, err = r.CreateTag(tagType, tagName)
-		if err != nil {
-			return 0, err
-		}
-	}
-
-	return tagId, r.AddTag(jobId, tagId)
-}
-
-// TagId returns the database id of the tag with the specified type and name.
-func (r *JobRepository) TagId(tagType string, tagName string) (tagId int64, exists bool) {
-	exists = true
-	if err := sq.Select("id").From("tag").
-		Where("tag.tag_type = ?", tagType).Where("tag.tag_name = ?", tagName).
-		RunWith(r.DB).QueryRow().Scan(&tagId); err != nil {
-		exists = false
-	}
-	return
 }
 
 var ErrNotFound = errors.New("no such job or user")

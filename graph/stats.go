@@ -11,6 +11,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/config"
 	"github.com/ClusterCockpit/cc-backend/graph/model"
 	"github.com/ClusterCockpit/cc-backend/metricdata"
+	"github.com/ClusterCockpit/cc-backend/repository"
 	"github.com/ClusterCockpit/cc-backend/schema"
 	sq "github.com/Masterminds/squirrel"
 )
@@ -53,9 +54,9 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 				Where("job.cluster = ?", cluster.Name).
 				Where("job.partition = ?", partition.Name)
 
-			query = securityCheck(ctx, query)
+			query = repository.SecurityCheck(ctx, query)
 			for _, f := range filter {
-				query = buildWhereClause(f, query)
+				query = repository.BuildWhereClause(f, query)
 			}
 
 			rows, err := query.RunWith(r.DB).Query()
@@ -90,9 +91,9 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 
 	if groupBy == nil {
 		query := sq.Select("COUNT(job.id)").From("job").Where("job.duration < 120")
-		query = securityCheck(ctx, query)
+		query = repository.SecurityCheck(ctx, query)
 		for _, f := range filter {
-			query = buildWhereClause(f, query)
+			query = repository.BuildWhereClause(f, query)
 		}
 		if err := query.RunWith(r.DB).QueryRow().Scan(&(stats[""].ShortJobs)); err != nil {
 			return nil, err
@@ -100,9 +101,9 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 	} else {
 		col := groupBy2column[*groupBy]
 		query := sq.Select(col, "COUNT(job.id)").From("job").Where("job.duration < 120")
-		query = securityCheck(ctx, query)
+		query = repository.SecurityCheck(ctx, query)
 		for _, f := range filter {
-			query = buildWhereClause(f, query)
+			query = repository.BuildWhereClause(f, query)
 		}
 		rows, err := query.RunWith(r.DB).Query()
 		if err != nil {
@@ -162,9 +163,9 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 // to add a condition to the query of the kind "<col> = <id>".
 func (r *queryResolver) jobsStatisticsHistogram(ctx context.Context, value string, filters []*model.JobFilter, id, col string) ([]*model.HistoPoint, error) {
 	query := sq.Select(value, "COUNT(job.id) AS count").From("job")
-	query = securityCheck(ctx, query)
+	query = repository.SecurityCheck(ctx, query)
 	for _, f := range filters {
-		query = buildWhereClause(f, query)
+		query = repository.BuildWhereClause(f, query)
 	}
 
 	if len(id) != 0 && len(col) != 0 {
@@ -188,14 +189,16 @@ func (r *queryResolver) jobsStatisticsHistogram(ctx context.Context, value strin
 	return points, nil
 }
 
+const MAX_JOBS_FOR_ANALYSIS = 500
+
 // Helper function for the rooflineHeatmap GraphQL query placed here so that schema.resolvers.go is not too full.
 func (r *Resolver) rooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error) {
-	jobs, count, err := r.queryJobs(ctx, filter, &model.PageRequest{Page: 1, ItemsPerPage: 501}, nil)
+	jobs, err := r.Repo.QueryJobs(ctx, filter, &model.PageRequest{Page: 1, ItemsPerPage: MAX_JOBS_FOR_ANALYSIS + 1}, nil)
 	if err != nil {
 		return nil, err
 	}
-	if len(jobs) > 500 {
-		return nil, fmt.Errorf("too many jobs matched (matched: %d, max: %d)", count, 500)
+	if len(jobs) > MAX_JOBS_FOR_ANALYSIS {
+		return nil, fmt.Errorf("too many jobs matched (max: %d)", MAX_JOBS_FOR_ANALYSIS)
 	}
 
 	fcols, frows := float64(cols), float64(rows)
@@ -250,12 +253,12 @@ func (r *Resolver) rooflineHeatmap(ctx context.Context, filter []*model.JobFilte
 
 // Helper function for the jobsFootprints GraphQL query placed here so that schema.resolvers.go is not too full.
 func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) ([]*model.MetricFootprints, error) {
-	jobs, count, err := r.queryJobs(ctx, filter, &model.PageRequest{Page: 1, ItemsPerPage: 501}, nil)
+	jobs, err := r.Repo.QueryJobs(ctx, filter, &model.PageRequest{Page: 1, ItemsPerPage: MAX_JOBS_FOR_ANALYSIS + 1}, nil)
 	if err != nil {
 		return nil, err
 	}
-	if len(jobs) > 500 {
-		return nil, fmt.Errorf("too many jobs matched (matched: %d, max: %d)", count, 500)
+	if len(jobs) > MAX_JOBS_FOR_ANALYSIS {
+		return nil, fmt.Errorf("too many jobs matched (max: %d)", MAX_JOBS_FOR_ANALYSIS)
 	}
 
 	avgs := make([][]schema.Float, len(metrics))

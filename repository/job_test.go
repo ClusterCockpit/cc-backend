@@ -7,8 +7,6 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/ClusterCockpit/cc-backend/test"
-	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 var db *sqlx.DB
@@ -57,7 +55,7 @@ func TestFindById(t *testing.T) {
 func TestGetTags(t *testing.T) {
 	r := setup(t)
 
-	tags, counts, err := r.GetTags(nil)
+	tags, counts, err := r.CountTags(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
