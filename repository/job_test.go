@@ -16,9 +16,14 @@ func init() {
 }
 
 func setup(t *testing.T) *JobRepository {
-	return &JobRepository{
+	r := &JobRepository{
 		DB: db,
 	}
+	if err := r.Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	return r
 }
 
 func TestFind(t *testing.T) {

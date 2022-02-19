@@ -182,6 +182,22 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	return r.jobsStatistics(ctx, filter, groupBy)
 }
 
+func (r *queryResolver) JobsCount(ctx context.Context, filter []*model.JobFilter, groupBy model.Aggregate, limit *int) ([]*model.Count, error) {
+	counts, err := r.Repo.CountGroupedJobs(ctx, groupBy, filter, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]*model.Count, 0, len(counts))
+	for name, count := range counts {
+		res = append(res, &model.Count{
+			Name:  name,
+			Count: count,
+		})
+	}
+	return res, nil
+}
+
 func (r *queryResolver) RooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error) {
 	return r.rooflineHeatmap(ctx, filter, rows, cols, minX, minY, maxX, maxY)
 }

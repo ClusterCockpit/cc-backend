@@ -25,6 +25,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/config"
 	"github.com/ClusterCockpit/cc-backend/graph"
 	"github.com/ClusterCockpit/cc-backend/graph/generated"
+	"github.com/ClusterCockpit/cc-backend/graph/model"
 	"github.com/ClusterCockpit/cc-backend/log"
 	"github.com/ClusterCockpit/cc-backend/metricdata"
 	"github.com/ClusterCockpit/cc-backend/repository"
@@ -129,13 +130,14 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 		TotalJobs   int
 	}
 
-	state := schema.JobStateRunning
-	runningJobs, err := jobRepo.CountJobsPerCluster(r.Context(), &state)
+	runningJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, []*model.JobFilter{{
+		State: []schema.JobState{schema.JobStateRunning},
+	}}, nil)
 	if err != nil {
 		log.Errorf("failed to count jobs: %s", err.Error())
 		runningJobs = map[string]int{}
 	}
-	totalJobs, err := jobRepo.CountJobsPerCluster(r.Context(), nil)
+	totalJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, nil, nil)
 	if err != nil {
 		log.Errorf("failed to count jobs: %s", err.Error())
 		totalJobs = map[string]int{}
@@ -360,6 +362,11 @@ func main() {
 
 	// Build routes...
 
+	jobRepo = &repository.JobRepository{DB: db}
+	if err := jobRepo.Init(); err != nil {
+		log.Fatal(err)
+	}
+
 	resolver := &graph.Resolver{DB: db, Repo: jobRepo}
 	graphQLEndpoint := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 	if os.Getenv("DEBUG") != "1" {
@@ -374,8 +381,6 @@ func main() {
 			return errors.New("internal server error (panic)")
 		})
 	}
-
-	jobRepo = &repository.JobRepository{DB: db}
 
 	graphQLPlayground := playground.Handler("GraphQL playground", "/query")
 	api := &api.RestApi{

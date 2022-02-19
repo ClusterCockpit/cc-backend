@@ -17,6 +17,11 @@ type Accelerator struct {
 	Model string `json:"model"`
 }
 
+type Count struct {
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}
+
 type FilterRanges struct {
 	Duration  *IntRangeOutput  `json:"duration"`
 	NumNodes  *IntRangeOutput  `json:"numNodes"`

@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/ClusterCockpit/cc-backend/auth"
+	"github.com/ClusterCockpit/cc-backend/graph/model"
 	"github.com/ClusterCockpit/cc-backend/schema"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
@@ -14,6 +15,10 @@ import (
 
 type JobRepository struct {
 	DB *sqlx.DB
+}
+
+func (r *JobRepository) Init() error {
+	return nil
 }
 
 // Find executes a SQL query to find a specific batch job.
@@ -93,15 +98,18 @@ func (r *JobRepository) Stop(
 	return
 }
 
-// CountJobsPerCluster returns the number of jobs for the specified user (if a non-admin user is found in that context) and state.
-// The counts are grouped by cluster.
-func (r *JobRepository) CountJobsPerCluster(ctx context.Context, state *schema.JobState) (map[string]int, error) {
-	q := sq.Select("job.cluster, count(*)").From("job").GroupBy("job.cluster")
-	if state != nil {
-		q = q.Where("job.job_state = ?", string(*state))
+func (r *JobRepository) CountGroupedJobs(ctx context.Context, aggreg model.Aggregate, filters []*model.JobFilter, limit *int) (map[string]int, error) {
+	if !aggreg.IsValid() {
+		return nil, errors.New("invalid aggregate")
 	}
-	if user := auth.GetUser(ctx); user != nil && !user.HasRole(auth.RoleAdmin) {
-		q = q.Where("job.user = ?", user.Username)
+
+	q := sq.Select("job."+string(aggreg), "count(*) as count").From("job").GroupBy("job." + string(aggreg)).OrderBy("count DESC")
+	q = SecurityCheck(ctx, q)
+	for _, f := range filters {
+		q = BuildWhereClause(f, q)
+	}
+	if limit != nil {
+		q = q.Limit(uint64(*limit))
 	}
 
 	counts := map[string]int{}
@@ -111,13 +119,13 @@ func (r *JobRepository) CountJobsPerCluster(ctx context.Context, state *schema.J
 	}
 
 	for rows.Next() {
-		var cluster string
+		var group string
 		var count int
-		if err := rows.Scan(&cluster, &count); err != nil {
+		if err := rows.Scan(&group, &count); err != nil {
 			return nil, err
 		}
 
-		counts[cluster] = count
+		counts[group] = count
 	}
 
 	return counts, nil

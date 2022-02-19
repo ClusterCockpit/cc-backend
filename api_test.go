@@ -110,6 +110,10 @@ func setup(t *testing.T) *api.RestApi {
 	}
 
 	resolver := &graph.Resolver{DB: db, Repo: &repository.JobRepository{DB: db}}
+	if err := resolver.Repo.Init(); err != nil {
+		t.Fatal(err)
+	}
+
 	return &api.RestApi{
 		JobRepository: resolver.Repo,
 		Resolver:      resolver,

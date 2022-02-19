@@ -126,6 +126,11 @@ type NodeMetrics {
   metrics: [JobMetricWithName!]!
 }
 
+type Count {
+  name:  String!
+  count: Int!
+}
+
 type Query {
   clusters:     [Cluster!]!   # List of all clusters
   tags:         [Tag!]!       # List of all tags
@@ -136,6 +141,7 @@ type Query {
 
   jobs(filter: [JobFilter!], page: PageRequest, order: OrderByInput): JobResultList!
   jobsStatistics(filter: [JobFilter!], groupBy: Aggregate): [JobsStatistics!]!
+  jobsCount(filter: [JobFilter]!, groupBy: Aggregate!, limit: Int): [Count!]!
 
   rooflineHeatmap(filter: [JobFilter!]!, rows: Int!, cols: Int!, minX: Float!, minY: Float!, maxX: Float!, maxY: Float!): [[Float!]!]!
 
