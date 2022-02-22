@@ -62,6 +62,27 @@ func loadFromArchive(job *schema.Job) (schema.JobData, error) {
 	return data.(schema.JobData), nil
 }
 
+func loadMetaJson(job *schema.Job) (*schema.JobMeta, error) {
+	filename, err := getPath(job, "meta.json", true)
+	if err != nil {
+		return nil, err
+	}
+
+	bytes, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	var metaFile schema.JobMeta = schema.JobMeta{
+		BaseJob: schema.JobDefaults,
+	}
+	if err := json.Unmarshal(bytes, &metaFile); err != nil {
+		return nil, err
+	}
+
+	return &metaFile, nil
+}
+
 // If the job is archived, find its `meta.json` file and override the tags list
 // in that JSON file. If the job is not archived, nothing is done.
 func UpdateTags(job *schema.Job, tags []*schema.Tag) error {
@@ -108,18 +129,8 @@ func UpdateTags(job *schema.Job, tags []*schema.Tag) error {
 
 // Helper to metricdata.LoadAverages().
 func loadAveragesFromArchive(job *schema.Job, metrics []string, data [][]schema.Float) error {
-	filename, err := getPath(job, "meta.json", true)
+	metaFile, err := loadMetaJson(job)
 	if err != nil {
-		return err
-	}
-
-	bytes, err := os.ReadFile(filename)
-	if err != nil {
-		return err
-	}
-
-	var metaFile schema.JobMeta
-	if err := json.Unmarshal(bytes, &metaFile); err != nil {
 		return err
 	}
 
@@ -132,6 +143,15 @@ func loadAveragesFromArchive(job *schema.Job, metrics []string, data [][]schema.
 	}
 
 	return nil
+}
+
+func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
+	metaFile, err := loadMetaJson(job)
+	if err != nil {
+		return nil, err
+	}
+
+	return metaFile.Statistics, nil
 }
 
 // Writes a running job to the job-archive

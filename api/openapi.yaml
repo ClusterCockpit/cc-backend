@@ -18,7 +18,7 @@ paths:
     get:
       operationId: 'getJobs'
       summary: 'List all jobs'
-      description: 'Get a list of all jobs in the JSON schema defined via GraphQL (main difference: start-time is RFC3339 encoded and there are no statistics). Filters can be applied using query parameters.'
+      description: 'Get a list of all jobs. Filters can be applied using query parameters.'
       parameters:
         - name: state
           in: query
@@ -28,37 +28,30 @@ paths:
         - name: cluster
           in: query
           schema: { type: string }
+        - name: start-time
+          description: 'Syntax: "<from>-<to>", where <from> and <to> are unix timestamps in seconds'
+          in: query
+          schema: { type: string }
+        - name: page
+          in: query
+          schema: { type: integer }
+        - name: items-per-page
+          in: query
+          schema: { type: integer }
       responses:
         200:
           description: 'Array of jobs'
           content:
             'application/json':
               schema:
-                type: array
-                items:
-                  # Not totally true: start-time is a RFC3339 string here!
-                  $ref: '#/components/schemas/Job'
+                type: object
+                properties:
+                  jobs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Job'
         400:
           description: 'Bad Request'
-  '/api/jobs/{id}':
-    get:
-      operationId: 'getJob'
-      summary: 'Get job resource'
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: integer }
-          description: 'Database ID (Resource Identifier)'
-      responses:
-        200:
-          description: 'Job resource'
-          content:
-            'application/json':
-              schema:
-                $ref: '#/components/schemas/Job'
-        404:
-          description: 'Resource not found'
   '/api/jobs/tag_job/{id}':
     post:
       operationId: 'tagJob'
