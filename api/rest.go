@@ -99,7 +99,7 @@ type TagJobApiRequest []*struct {
 // Return a list of jobs
 func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 	filter := &model.JobFilter{}
-	page := &model.PageRequest{ItemsPerPage: 50, Page: 1}
+	page := &model.PageRequest{ItemsPerPage: -1, Page: 1}
 	order := &model.OrderByInput{Field: "startTime", Order: model.SortDirectionEnumDesc}
 	for key, vals := range r.URL.Query() {
 		switch key {

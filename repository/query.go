@@ -35,7 +35,7 @@ func (r *JobRepository) QueryJobs(
 		}
 	}
 
-	if page != nil {
+	if page != nil && page.ItemsPerPage != -1 {
 		limit := uint64(page.ItemsPerPage)
 		query = query.Offset((uint64(page.Page) - 1) * limit).Limit(limit)
 	}
