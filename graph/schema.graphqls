@@ -1,4 +1,6 @@
 scalar Time
+scalar Any
+
 scalar NullableFloat
 scalar MetricScope
 scalar JobState
@@ -20,6 +22,7 @@ type Job {
   arrayJobId:       Int!
   monitoringStatus: Int!
   state:            JobState!
+  metaData:         Any
   tags:             [Tag!]!
   resources:        [Resource!]!
 }

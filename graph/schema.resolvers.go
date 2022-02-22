@@ -165,6 +165,13 @@ func (r *queryResolver) JobsFootprints(ctx context.Context, filter []*model.JobF
 }
 
 func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) (*model.JobResultList, error) {
+	if page == nil {
+		page = &model.PageRequest{
+			ItemsPerPage: 50,
+			Page:         1,
+		}
+	}
+
 	jobs, err := r.Repo.QueryJobs(ctx, filter, page, order)
 	if err != nil {
 		return nil, err

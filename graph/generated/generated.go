@@ -87,6 +87,7 @@ type ComplexityRoot struct {
 		Exclusive        func(childComplexity int) int
 		ID               func(childComplexity int) int
 		JobID            func(childComplexity int) int
+		MetaData         func(childComplexity int) int
 		MonitoringStatus func(childComplexity int) int
 		NumAcc           func(childComplexity int) int
 		NumHWThreads     func(childComplexity int) int
@@ -423,6 +424,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Job.JobID(childComplexity), true
+
+	case "Job.metaData":
+		if e.complexity.Job.MetaData == nil {
+			break
+		}
+
+		return e.complexity.Job.MetaData(childComplexity), true
 
 	case "Job.monitoringStatus":
 		if e.complexity.Job.MonitoringStatus == nil {
@@ -1191,6 +1199,8 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 
 var sources = []*ast.Source{
 	{Name: "graph/schema.graphqls", Input: `scalar Time
+scalar Any
+
 scalar NullableFloat
 scalar MetricScope
 scalar JobState
@@ -1212,6 +1222,7 @@ type Job {
   arrayJobId:       Int!
   monitoringStatus: Int!
   state:            JobState!
+  metaData:         Any
   tags:             [Tag!]!
   resources:        [Resource!]!
 }
@@ -3017,6 +3028,38 @@ func (ec *executionContext) _Job_state(ctx context.Context, field graphql.Collec
 	res := resTmp.(schema.JobState)
 	fc.Result = res
 	return ec.marshalNJobState2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋschemaᚐJobState(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Job_metaData(ctx context.Context, field graphql.CollectedField, obj *schema.Job) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MetaData, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(interface{})
+	fc.Result = res
+	return ec.marshalOAny2interface(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Job_tags(ctx context.Context, field graphql.CollectedField, obj *schema.Job) (ret graphql.Marshaler) {
@@ -7696,6 +7739,8 @@ func (ec *executionContext) _Job(ctx context.Context, sel ast.SelectionSet, obj 
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&invalids, 1)
 			}
+		case "metaData":
+			out.Values[i] = ec._Job_metaData(ctx, field, obj)
 		case "tags":
 			field := field
 			out.Concurrently(i, func() (res graphql.Marshaler) {
@@ -10119,6 +10164,21 @@ func (ec *executionContext) marshalOAggregate2ᚖgithubᚗcomᚋClusterCockpit�
 		return graphql.Null
 	}
 	return v
+}
+
+func (ec *executionContext) unmarshalOAny2interface(ctx context.Context, v interface{}) (interface{}, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalAny(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOAny2interface(ctx context.Context, sel ast.SelectionSet, v interface{}) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return graphql.MarshalAny(v)
 }
 
 func (ec *executionContext) unmarshalOBoolean2bool(ctx context.Context, v interface{}) (bool, error) {

@@ -38,8 +38,6 @@ func (r *JobRepository) QueryJobs(
 	if page != nil {
 		limit := uint64(page.ItemsPerPage)
 		query = query.Offset((uint64(page.Page) - 1) * limit).Limit(limit)
-	} else {
-		query = query.Limit(50)
 	}
 
 	for _, f := range filters {
@@ -90,7 +88,7 @@ func (r *JobRepository) CountJobs(
 
 func SecurityCheck(ctx context.Context, query sq.SelectBuilder) sq.SelectBuilder {
 	user := auth.GetUser(ctx)
-	if user == nil || user.HasRole(auth.RoleAdmin) {
+	if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleApi) {
 		return query
 	}
 
