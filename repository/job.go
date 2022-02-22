@@ -3,8 +3,10 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"strconv"
+	"time"
 
 	"github.com/ClusterCockpit/cc-backend/auth"
 	"github.com/ClusterCockpit/cc-backend/graph/model"
@@ -15,10 +17,41 @@ import (
 
 type JobRepository struct {
 	DB *sqlx.DB
+
+	stmtCache *sq.StmtCache
 }
 
 func (r *JobRepository) Init() error {
+	r.stmtCache = sq.NewStmtCache(r.DB)
 	return nil
+}
+
+var jobColumns []string = []string{
+	"job.id", "job.job_id", "job.user", "job.project", "job.cluster", "job.start_time", "job.partition", "job.array_job_id",
+	"job.num_nodes", "job.num_hwthreads", "job.num_acc", "job.exclusive", "job.monitoring_status", "job.smt", "job.job_state",
+	"job.duration", "job.resources", "job.meta_data",
+}
+
+func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
+	job := &schema.Job{}
+	if err := row.Scan(
+		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.StartTimeUnix, &job.Partition, &job.ArrayJobId,
+		&job.NumNodes, &job.NumHWThreads, &job.NumAcc, &job.Exclusive, &job.MonitoringStatus, &job.SMT, &job.State,
+		&job.Duration, &job.RawResources, &job.MetaData); err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(job.RawResources, &job.Resources); err != nil {
+		return nil, err
+	}
+
+	job.StartTime = time.Unix(job.StartTimeUnix, 0)
+	if job.Duration == 0 && job.State == schema.JobStateRunning {
+		job.Duration = int32(time.Since(job.StartTime).Seconds())
+	}
+
+	job.RawResources = nil
+	return job, nil
 }
 
 // Find executes a SQL query to find a specific batch job.
@@ -31,22 +64,17 @@ func (r *JobRepository) Find(
 	cluster *string,
 	startTime *int64) (*schema.Job, error) {
 
-	qb := sq.Select(schema.JobColumns...).From("job").
+	q := sq.Select(jobColumns...).From("job").
 		Where("job.job_id = ?", jobId)
 
 	if cluster != nil {
-		qb = qb.Where("job.cluster = ?", *cluster)
+		q = q.Where("job.cluster = ?", *cluster)
 	}
 	if startTime != nil {
-		qb = qb.Where("job.start_time = ?", *startTime)
+		q = q.Where("job.start_time = ?", *startTime)
 	}
 
-	sqlQuery, args, err := qb.ToSql()
-	if err != nil {
-		return nil, err
-	}
-
-	return schema.ScanJob(r.DB.QueryRowx(sqlQuery, args...))
+	return scanJob(q.RunWith(r.stmtCache).QueryRow())
 }
 
 // FindById executes a SQL query to find a specific batch job.
@@ -55,13 +83,9 @@ func (r *JobRepository) Find(
 // To check if no job was found test err == sql.ErrNoRows
 func (r *JobRepository) FindById(
 	jobId int64) (*schema.Job, error) {
-	sqlQuery, args, err := sq.Select(schema.JobColumns...).
-		From("job").Where("job.id = ?", jobId).ToSql()
-	if err != nil {
-		return nil, err
-	}
-
-	return schema.ScanJob(r.DB.QueryRowx(sqlQuery, args...))
+	q := sq.Select(jobColumns...).
+		From("job").Where("job.id = ?", jobId)
+	return scanJob(q.RunWith(r.stmtCache).QueryRow())
 }
 
 // Start inserts a new job in the table, returning the unique job ID.
@@ -94,7 +118,7 @@ func (r *JobRepository) Stop(
 		Set("monitoring_status", monitoringStatus).
 		Where("job.id = ?", jobId)
 
-	_, err = stmt.RunWith(r.DB).Exec()
+	_, err = stmt.RunWith(r.stmtCache).Exec()
 	return
 }
 
@@ -136,7 +160,7 @@ func (r *JobRepository) UpdateMonitoringStatus(job int64, monitoringStatus int32
 		Set("monitoring_status", monitoringStatus).
 		Where("job.id = ?", job)
 
-	_, err = stmt.RunWith(r.DB).Exec()
+	_, err = stmt.RunWith(r.stmtCache).Exec()
 	return
 }
 
@@ -167,7 +191,7 @@ func (r *JobRepository) Archive(
 		}
 	}
 
-	if _, err := stmt.RunWith(r.DB).Exec(); err != nil {
+	if _, err := stmt.RunWith(r.stmtCache).Exec(); err != nil {
 		return err
 	}
 	return nil
@@ -186,7 +210,7 @@ func (r *JobRepository) FindJobOrUser(ctx context.Context, searchterm string) (j
 			qb = qb.Where("job.user = ?", user.Username)
 		}
 
-		err := qb.RunWith(r.DB).QueryRow().Scan(&job)
+		err := qb.RunWith(r.stmtCache).QueryRow().Scan(&job)
 		if err != nil && err != sql.ErrNoRows {
 			return 0, "", err
 		} else if err == nil {
@@ -197,7 +221,7 @@ func (r *JobRepository) FindJobOrUser(ctx context.Context, searchterm string) (j
 	if user == nil || user.HasRole(auth.RoleAdmin) {
 		err := sq.Select("job.user").Distinct().From("job").
 			Where("job.user = ?", searchterm).
-			RunWith(r.DB).QueryRow().Scan(&username)
+			RunWith(r.stmtCache).QueryRow().Scan(&username)
 		if err != nil && err != sql.ErrNoRows {
 			return 0, "", err
 		} else if err == nil {

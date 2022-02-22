@@ -9,19 +9,19 @@ import (
 
 // Add the tag with id `tagId` to the job with the database id `jobId`.
 func (r *JobRepository) AddTag(jobId int64, tagId int64) error {
-	_, err := r.DB.Exec(`INSERT INTO jobtag (job_id, tag_id) VALUES ($1, $2)`, jobId, tagId)
+	_, err := r.stmtCache.Exec(`INSERT INTO jobtag (job_id, tag_id) VALUES ($1, $2)`, jobId, tagId)
 	return err
 }
 
 // Removes a tag from a job
 func (r *JobRepository) RemoveTag(job, tag int64) error {
-	_, err := r.DB.Exec("DELETE FROM jobtag WHERE jobtag.job_id = $1 AND jobtag.tag_id = $2", job, tag)
+	_, err := r.stmtCache.Exec("DELETE FROM jobtag WHERE jobtag.job_id = $1 AND jobtag.tag_id = $2", job, tag)
 	return err
 }
 
 // CreateTag creates a new tag with the specified type and name and returns its database id.
 func (r *JobRepository) CreateTag(tagType string, tagName string) (tagId int64, err error) {
-	res, err := r.DB.Exec("INSERT INTO tag (tag_type, tag_name) VALUES ($1, $2)", tagType, tagName)
+	res, err := r.stmtCache.Exec("INSERT INTO tag (tag_type, tag_name) VALUES ($1, $2)", tagType, tagName)
 	if err != nil {
 		return 0, err
 	}
@@ -52,13 +52,12 @@ func (r *JobRepository) CountTags(user *string) (tags []schema.Tag, counts map[s
 		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.user = ?)", *user)
 	}
 
-	rows, err := q.RunWith(r.DB).Query()
+	rows, err := q.RunWith(r.stmtCache).Query()
 	if err != nil {
 		return nil, nil, err
 	}
 
 	counts = make(map[string]int)
-
 	for rows.Next() {
 		var tagName string
 		var count int
@@ -92,7 +91,7 @@ func (r *JobRepository) TagId(tagType string, tagName string) (tagId int64, exis
 	exists = true
 	if err := sq.Select("id").From("tag").
 		Where("tag.tag_type = ?", tagType).Where("tag.tag_name = ?", tagName).
-		RunWith(r.DB).QueryRow().Scan(&tagId); err != nil {
+		RunWith(r.stmtCache).QueryRow().Scan(&tagId); err != nil {
 		exists = false
 	}
 	return
@@ -105,14 +104,18 @@ func (r *JobRepository) GetTags(job *int64) ([]*schema.Tag, error) {
 		q = q.Join("jobtag ON jobtag.tag_id = tag.id").Where("jobtag.job_id = ?", *job)
 	}
 
-	sql, args, err := q.ToSql()
+	rows, err := q.RunWith(r.stmtCache).Query()
 	if err != nil {
 		return nil, err
 	}
 
 	tags := make([]*schema.Tag, 0)
-	if err := r.DB.Select(&tags, sql, args...); err != nil {
-		return nil, err
+	for rows.Next() {
+		tag := &schema.Tag{}
+		if err := rows.Scan(&tag.ID, &tag.Type, &tag.Name); err != nil {
+			return nil, err
+		}
+		tags = append(tags, tag)
 	}
 
 	return tags, nil

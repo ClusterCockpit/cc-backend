@@ -1,7 +1,6 @@
 package schema
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -52,6 +51,7 @@ type Job struct {
 // This is why there is this struct, which contains all fields from the regular job struct, but "overwrites"
 // the StartTime field with one of type int64.
 type JobMeta struct {
+	ID *int64 `json:"id,omitempty"` // never used in the job-archive, only available via REST-API
 	BaseJob
 	StartTime  int64                    `json:"startTime" db:"start_time"`
 	Statistics map[string]JobStatistics `json:"statistics,omitempty"`
@@ -67,37 +67,6 @@ const (
 var JobDefaults BaseJob = BaseJob{
 	Exclusive:        1,
 	MonitoringStatus: MonitoringStatusRunningOrArchiving,
-	MetaData:         "",
-}
-
-var JobColumns []string = []string{
-	"job.id", "job.job_id", "job.user", "job.project", "job.cluster", "job.start_time", "job.partition", "job.array_job_id", "job.num_nodes",
-	"job.num_hwthreads", "job.num_acc", "job.exclusive", "job.monitoring_status", "job.smt", "job.job_state",
-	"job.duration", "job.resources", "job.meta_data",
-}
-
-type Scannable interface {
-	StructScan(dest interface{}) error
-}
-
-// Helper function for scanning jobs with the `jobTableCols` columns selected.
-func ScanJob(row Scannable) (*Job, error) {
-	job := &Job{BaseJob: JobDefaults}
-	if err := row.StructScan(job); err != nil {
-		return nil, err
-	}
-
-	if err := json.Unmarshal(job.RawResources, &job.Resources); err != nil {
-		return nil, err
-	}
-
-	job.StartTime = time.Unix(job.StartTimeUnix, 0)
-	if job.Duration == 0 && job.State == JobStateRunning {
-		job.Duration = int32(time.Since(job.StartTime).Seconds())
-	}
-
-	job.RawResources = nil
-	return job, nil
 }
 
 type JobStatistics struct {

@@ -21,7 +21,7 @@ func (r *JobRepository) QueryJobs(
 	page *model.PageRequest,
 	order *model.OrderByInput) ([]*schema.Job, error) {
 
-	query := sq.Select(schema.JobColumns...).From("job")
+	query := sq.Select(jobColumns...).From("job")
 	query = SecurityCheck(ctx, query)
 
 	if order != nil {
@@ -50,14 +50,14 @@ func (r *JobRepository) QueryJobs(
 	}
 
 	log.Debugf("SQL query: `%s`, args: %#v", sql, args)
-	rows, err := r.DB.Queryx(sql, args...)
+	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
 		return nil, err
 	}
 
 	jobs := make([]*schema.Job, 0, 50)
 	for rows.Next() {
-		job, err := schema.ScanJob(rows)
+		job, err := scanJob(rows)
 		if err != nil {
 			return nil, err
 		}
