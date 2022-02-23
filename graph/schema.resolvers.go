@@ -42,28 +42,19 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 		return nil, err
 	}
 
+	tags := []*schema.Tag{}
 	for _, tagId := range tagIds {
 		tid, err := strconv.ParseInt(tagId, 10, 64)
 		if err != nil {
 			return nil, err
 		}
 
-		if err := r.Repo.AddTag(jid, tid); err != nil {
+		if tags, err = r.Repo.AddTag(jid, tid); err != nil {
 			return nil, err
 		}
 	}
 
-	j, err := r.Query().Job(ctx, job)
-	if err != nil {
-		return nil, err
-	}
-
-	j.Tags, err = r.Repo.GetTags(&jid)
-	if err != nil {
-		return nil, err
-	}
-
-	return j.Tags, metricdata.UpdateTags(j, j.Tags)
+	return tags, nil
 }
 
 func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, tagIds []string) ([]*schema.Tag, error) {
@@ -72,30 +63,19 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 		return nil, err
 	}
 
+	tags := []*schema.Tag{}
 	for _, tagId := range tagIds {
 		tid, err := strconv.ParseInt(tagId, 10, 64)
 		if err != nil {
 			return nil, err
 		}
 
-		if err := r.Repo.RemoveTag(jid, tid); err != nil {
+		if tags, err = r.Repo.RemoveTag(jid, tid); err != nil {
 			return nil, err
 		}
 	}
 
-	dummyJob := schema.Job{}
-	dummyJob.ID = int64(jid)
-	tags, err := r.Job().Tags(ctx, &dummyJob)
-	if err != nil {
-		return nil, err
-	}
-
-	jobObj, err := r.Query().Job(ctx, job)
-	if err != nil {
-		return nil, err
-	}
-
-	return tags, metricdata.UpdateTags(jobObj, tags)
+	return tags, nil
 }
 
 func (r *mutationResolver) UpdateConfiguration(ctx context.Context, name string, value string) (*string, error) {

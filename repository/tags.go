@@ -3,20 +3,47 @@ package repository
 import (
 	"fmt"
 
+	"github.com/ClusterCockpit/cc-backend/metricdata"
 	"github.com/ClusterCockpit/cc-backend/schema"
 	sq "github.com/Masterminds/squirrel"
 )
 
 // Add the tag with id `tagId` to the job with the database id `jobId`.
-func (r *JobRepository) AddTag(jobId int64, tagId int64) error {
-	_, err := r.stmtCache.Exec(`INSERT INTO jobtag (job_id, tag_id) VALUES ($1, $2)`, jobId, tagId)
-	return err
+func (r *JobRepository) AddTag(job int64, tag int64) ([]*schema.Tag, error) {
+	if _, err := r.stmtCache.Exec(`INSERT INTO jobtag (job_id, tag_id) VALUES ($1, $2)`, job, tag); err != nil {
+		return nil, err
+	}
+
+	j, err := r.FindById(job)
+	if err != nil {
+		return nil, err
+	}
+
+	tags, err := r.GetTags(&job)
+	if err != nil {
+		return nil, err
+	}
+
+	return tags, metricdata.UpdateTags(j, tags)
 }
 
 // Removes a tag from a job
-func (r *JobRepository) RemoveTag(job, tag int64) error {
-	_, err := r.stmtCache.Exec("DELETE FROM jobtag WHERE jobtag.job_id = $1 AND jobtag.tag_id = $2", job, tag)
-	return err
+func (r *JobRepository) RemoveTag(job, tag int64) ([]*schema.Tag, error) {
+	if _, err := r.stmtCache.Exec("DELETE FROM jobtag WHERE jobtag.job_id = $1 AND jobtag.tag_id = $2", job, tag); err != nil {
+		return nil, err
+	}
+
+	j, err := r.FindById(job)
+	if err != nil {
+		return nil, err
+	}
+
+	tags, err := r.GetTags(&job)
+	if err != nil {
+		return nil, err
+	}
+
+	return tags, metricdata.UpdateTags(j, tags)
 }
 
 // CreateTag creates a new tag with the specified type and name and returns its database id.
@@ -83,7 +110,11 @@ func (r *JobRepository) AddTagOrCreate(jobId int64, tagType string, tagName stri
 		}
 	}
 
-	return tagId, r.AddTag(jobId, tagId)
+	if _, err := r.AddTag(jobId, tagId); err != nil {
+		return 0, err
+	}
+
+	return tagId, nil
 }
 
 // TagId returns the database id of the tag with the specified type and name.
