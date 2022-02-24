@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/log"
+	"github.com/ClusterCockpit/cc-backend/repository"
 	"github.com/ClusterCockpit/cc-backend/schema"
 	"github.com/jmoiron/sqlx"
 )
@@ -97,15 +98,7 @@ func initDB(db *sqlx.DB, archive string) error {
 		return err
 	}
 
-	stmt, err := tx.PrepareNamed(`INSERT INTO job (
-		job_id, user, project, cluster, ` + "`partition`" + `, array_job_id, num_nodes, num_hwthreads, num_acc,
-		exclusive, monitoring_status, smt, job_state, start_time, duration, resources, meta_data,
-		mem_used_max, flops_any_avg, mem_bw_avg, load_avg, net_bw_avg, net_data_vol_total, file_bw_avg, file_data_vol_total
-	) VALUES (
-		:job_id, :user, :project, :cluster, :partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
-		:exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :resources, :meta_data,
-		:mem_used_max, :flops_any_avg, :mem_bw_avg, :load_avg, :net_bw_avg, :net_data_vol_total, :file_bw_avg, :file_data_vol_total
-	);`)
+	stmt, err := tx.PrepareNamed(repository.NamedJobInsert)
 	if err != nil {
 		return err
 	}
@@ -192,6 +185,7 @@ func initDB(db *sqlx.DB, archive string) error {
 	return nil
 }
 
+// TODO: Remove double logic, use repository/import.go!
 // Read the `meta.json` file at `path` and insert it to the database using the prepared
 // insert statement `stmt`. `tags` maps all existing tags to their database ID.
 func loadJob(tx *sqlx.Tx, stmt *sqlx.NamedStmt, tags map[string]int64, path string) error {
@@ -216,6 +210,8 @@ func loadJob(tx *sqlx.Tx, stmt *sqlx.NamedStmt, tags map[string]int64, path stri
 	// TODO: Other metrics...
 	job.FlopsAnyAvg = loadJobStat(&jobMeta, "flops_any")
 	job.MemBwAvg = loadJobStat(&jobMeta, "mem_bw")
+	job.NetBwAvg = loadJobStat(&jobMeta, "net_bw")
+	job.FileBwAvg = loadJobStat(&jobMeta, "file_bw")
 
 	job.RawResources, err = json.Marshal(job.Resources)
 	if err != nil {

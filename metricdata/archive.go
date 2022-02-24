@@ -208,39 +208,50 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 		return jobMeta, nil
 	}
 
-	dirPath, err := getPath(job, "", false)
+	dir, err := getPath(job, "", false)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := os.MkdirAll(dirPath, 0777); err != nil {
-		return nil, err
+	return jobMeta, writeFiles(dir, jobMeta, &jobData)
+}
+
+func writeFiles(dir string, jobMeta *schema.JobMeta, jobData *schema.JobData) error {
+	if err := os.MkdirAll(dir, 0777); err != nil {
+		return err
 	}
 
-	f, err := os.Create(path.Join(dirPath, "meta.json"))
+	f, err := os.Create(path.Join(dir, "meta.json"))
 	if err != nil {
-		return nil, err
+		return err
 	}
-	defer f.Close()
-	writer := bufio.NewWriter(f)
-	if err := json.NewEncoder(writer).Encode(jobMeta); err != nil {
-		return nil, err
+	if err := json.NewEncoder(f).Encode(jobMeta); err != nil {
+		return err
 	}
-	if err := writer.Flush(); err != nil {
-		return nil, err
+	if err := f.Close(); err != nil {
+		return err
 	}
 
-	f, err = os.Create(path.Join(dirPath, "data.json"))
+	f, err = os.Create(path.Join(dir, "data.json"))
 	if err != nil {
-		return nil, err
+		return err
 	}
-	writer = bufio.NewWriter(f)
-	if err := json.NewEncoder(writer).Encode(jobData); err != nil {
-		return nil, err
+	if err := json.NewEncoder(f).Encode(jobData); err != nil {
+		return err
 	}
-	if err := writer.Flush(); err != nil {
-		return nil, err
+	return f.Close()
+}
+
+// Used to import a non-running job into the job-archive.
+func ImportJob(job *schema.JobMeta, jobData *schema.JobData) error {
+	dir, err := getPath(&schema.Job{
+		BaseJob:       job.BaseJob,
+		StartTimeUnix: job.StartTime,
+		StartTime:     time.Unix(job.StartTime, 0),
+	}, "", false)
+	if err != nil {
+		return err
 	}
 
-	return jobMeta, f.Close()
+	return writeFiles(dir, job, jobData)
 }

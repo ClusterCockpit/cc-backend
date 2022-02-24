@@ -238,7 +238,7 @@ var routes []Route = []Route{
 
 func main() {
 	var flagReinitDB, flagStopImmediately, flagSyncLDAP bool
-	var flagConfigFile string
+	var flagConfigFile, flagImportJob string
 	var flagNewUser, flagDelUser, flagGenJWT string
 	flag.BoolVar(&flagReinitDB, "init-db", false, "Go through job-archive and re-initialize `job`, `tag`, and `jobtag` tables")
 	flag.BoolVar(&flagSyncLDAP, "sync-ldap", false, "Sync the `user` table with ldap")
@@ -247,6 +247,7 @@ func main() {
 	flag.StringVar(&flagNewUser, "add-user", "", "Add a new user. Argument format: `<username>:[admin,api,user]:<password>`")
 	flag.StringVar(&flagDelUser, "del-user", "", "Remove user by username")
 	flag.StringVar(&flagGenJWT, "jwt", "", "Generate and print a JWT for the user specified by the username")
+	flag.StringVar(&flagImportJob, "import-job", "", "Import a job. Argument format: `<path-to-meta.json>:<path-to-data.json>,...`")
 	flag.Parse()
 
 	if err := loadEnv("./.env"); err != nil && !os.IsNotExist(err) {
@@ -254,11 +255,14 @@ func main() {
 	}
 
 	if flagConfigFile != "" {
-		data, err := os.ReadFile(flagConfigFile)
+		f, err := os.Open(flagConfigFile)
 		if err != nil {
 			log.Fatal(err)
 		}
-		if err := json.Unmarshal(data, &programConfig); err != nil {
+		defer f.Close()
+		dec := json.NewDecoder(f)
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&programConfig); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -356,16 +360,22 @@ func main() {
 		}
 	}
 
+	jobRepo = &repository.JobRepository{DB: db}
+	if err := jobRepo.Init(); err != nil {
+		log.Fatal(err)
+	}
+
+	if flagImportJob != "" {
+		if err := jobRepo.HandleImportFlag(flagImportJob); err != nil {
+			log.Fatalf("import failed: %s", err.Error())
+		}
+	}
+
 	if flagStopImmediately {
 		return
 	}
 
 	// Build routes...
-
-	jobRepo = &repository.JobRepository{DB: db}
-	if err := jobRepo.Init(); err != nil {
-		log.Fatal(err)
-	}
 
 	resolver := &graph.Resolver{DB: db, Repo: jobRepo}
 	graphQLEndpoint := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
