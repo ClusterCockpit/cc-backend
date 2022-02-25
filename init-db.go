@@ -218,6 +218,10 @@ func loadJob(tx *sqlx.Tx, stmt *sqlx.NamedStmt, tags map[string]int64, path stri
 		return err
 	}
 
+	if err := repository.SanityChecks(&job.BaseJob); err != nil {
+		return err
+	}
+
 	res, err := stmt.Exec(job)
 	if err != nil {
 		return err

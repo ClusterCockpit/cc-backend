@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/auth"
-	"github.com/ClusterCockpit/cc-backend/config"
 	"github.com/ClusterCockpit/cc-backend/graph"
 	"github.com/ClusterCockpit/cc-backend/graph/model"
 	"github.com/ClusterCockpit/cc-backend/log"
@@ -255,14 +254,11 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if config.GetClusterConfig(req.Cluster) == nil || config.GetPartition(req.Cluster, req.Partition) == nil {
-		handleError(fmt.Errorf("cluster or partition does not exist: %#v/%#v", req.Cluster, req.Partition), http.StatusBadRequest, rw)
-		return
+	if req.State == "" {
+		req.State = schema.JobStateRunning
 	}
-
-	// TODO: Do more such checks, be smarter with them.
-	if len(req.Resources) == 0 || len(req.User) == 0 || req.NumNodes == 0 {
-		handleError(errors.New("the fields 'resources', 'user' and 'numNodes' are required"), http.StatusBadRequest, rw)
+	if err := repository.SanityChecks(&req.BaseJob); err != nil {
+		handleError(err, http.StatusBadRequest, rw)
 		return
 	}
 
@@ -276,10 +272,6 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	if err != sql.ErrNoRows {
 		handleError(fmt.Errorf("a job with that jobId, cluster and startTime already exists: dbid: %d", job.ID), http.StatusUnprocessableEntity, rw)
 		return
-	}
-
-	if req.State == "" {
-		req.State = schema.JobStateRunning
 	}
 
 	req.RawResources, err = json.Marshal(req.Resources)

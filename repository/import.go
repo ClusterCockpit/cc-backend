@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/config"
 	"github.com/ClusterCockpit/cc-backend/log"
 	"github.com/ClusterCockpit/cc-backend/metricdata"
 	"github.com/ClusterCockpit/cc-backend/schema"
@@ -30,7 +30,7 @@ func (r *JobRepository) HandleImportFlag(flag string) error {
 	for _, pair := range strings.Split(flag, ",") {
 		files := strings.Split(pair, ":")
 		if len(files) != 2 {
-			return errors.New("invalid import flag format")
+			return fmt.Errorf("invalid import flag format")
 		}
 
 		raw, err := os.ReadFile(files[0])
@@ -94,6 +94,10 @@ func (r *JobRepository) ImportJob(jobMeta *schema.JobMeta, jobData *schema.JobDa
 		return err
 	}
 
+	if err := SanityChecks(&job.BaseJob); err != nil {
+		return err
+	}
+
 	res, err := r.DB.NamedExec(NamedJobInsert, job)
 	if err != nil {
 		return err
@@ -111,6 +115,29 @@ func (r *JobRepository) ImportJob(jobMeta *schema.JobMeta, jobData *schema.JobDa
 	}
 
 	log.Infof("Successfully imported a new job (jobId: %d, cluster: %s, dbid: %d)", job.JobID, job.Cluster, id)
+	return nil
+}
+
+func SanityChecks(job *schema.BaseJob) error {
+	if c := config.GetClusterConfig(job.Cluster); c == nil {
+		return fmt.Errorf("no such cluster: %#v", job.Cluster)
+	}
+	if p := config.GetPartition(job.Cluster, job.Partition); p == nil {
+		return fmt.Errorf("no such partition: %#v (on cluster %#v)", job.Partition, job.Cluster)
+	}
+	if !job.State.Valid() {
+		return fmt.Errorf("not a valid job state: %#v", job.State)
+	}
+	if len(job.Resources) == 0 || len(job.User) == 0 {
+		return fmt.Errorf("'resources' and 'user' should not be empty")
+	}
+	if job.NumAcc < 0 || job.NumHWThreads < 0 || job.NumNodes < 1 {
+		return fmt.Errorf("'numNodes', 'numAcc' or 'numHWThreads' invalid")
+	}
+	if len(job.Resources) != int(job.NumNodes) {
+		return fmt.Errorf("len(resources) does not equal numNodes (%d vs %d)", len(job.Resources), job.NumNodes)
+	}
+
 	return nil
 }
 
