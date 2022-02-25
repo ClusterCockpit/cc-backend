@@ -170,6 +170,28 @@ paths:
           description: 'Bad request'
         404:
           description: 'Resource not found'
+  '/api/jobs/import/':
+    post:
+      operationId: 'importJob'
+      summary: 'Imports a job and its metric data'
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              type: object
+              properties:
+                meta:
+                  $ref: https://raw.githubusercontent.com/ClusterCockpit/cc-specifications/master/schema/json/job-meta.schema.json
+                data:
+                  $ref: https://raw.githubusercontent.com/ClusterCockpit/cc-specifications/master/schema/json/job-data.schema.json
+      responses:
+        200:
+          description: 'Import successful'
+        400:
+          description: 'Bad request'
+        422:
+          description: 'Unprocessable Entity'
 components:
   schemas:
     Tag:

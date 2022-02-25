@@ -40,6 +40,7 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 	r.HandleFunc("/jobs/start_job/", api.startJob).Methods(http.MethodPost, http.MethodPut)
 	r.HandleFunc("/jobs/stop_job/", api.stopJob).Methods(http.MethodPost, http.MethodPut)
 	r.HandleFunc("/jobs/stop_job/{id}", api.stopJob).Methods(http.MethodPost, http.MethodPut)
+	r.HandleFunc("/jobs/import/", api.importJob).Methods(http.MethodPost, http.MethodPut)
 
 	r.HandleFunc("/jobs/", api.getJobs).Methods(http.MethodGet)
 	// r.HandleFunc("/jobs/{id}", api.getJob).Methods(http.MethodGet)
@@ -397,6 +398,29 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 
 		log.Printf("archiving job (dbid: %d) successful", job.ID)
 	}()
+}
+
+func (api *RestApi) importJob(rw http.ResponseWriter, r *http.Request) {
+	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
+		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
+		return
+	}
+
+	var body struct {
+		Meta *schema.JobMeta `json:"meta"`
+		Data *schema.JobData `json:"data"`
+	}
+	if err := decode(r.Body, &body); err != nil {
+		handleError(fmt.Errorf("import failed: %s", err.Error()), http.StatusBadRequest, rw)
+		return
+	}
+
+	if err := api.JobRepository.ImportJob(body.Meta, body.Data); err != nil {
+		handleError(fmt.Errorf("import failed: %s", err.Error()), http.StatusUnprocessableEntity, rw)
+		return
+	}
+
+	rw.Write([]byte(`{ "status": "OK" }`))
 }
 
 func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
