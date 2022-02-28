@@ -53,6 +53,7 @@ type Job struct {
 type JobMeta struct {
 	ID *int64 `json:"id,omitempty"` // never used in the job-archive, only available via REST-API
 	BaseJob
+	Walltime   int64                    `json:"walltime"` // TODO: Missing in DB
 	StartTime  int64                    `json:"startTime" db:"start_time"`
 	Statistics map[string]JobStatistics `json:"statistics,omitempty"`
 }

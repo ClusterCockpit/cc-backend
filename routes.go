@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ClusterCockpit/cc-backend/auth"
 	"github.com/ClusterCockpit/cc-backend/config"
@@ -70,6 +71,19 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 	if query.Get("arrayJobId") != "" {
 		if num, err := strconv.Atoi(query.Get("arrayJobId")); err == nil {
 			filterPresets["arrayJobId"] = num
+		}
+	}
+	if query.Get("startTime") != "" {
+		parts := strings.Split(query.Get("startTime"), "-")
+		if len(parts) == 2 {
+			a, e1 := strconv.ParseInt(parts[0], 10, 64)
+			b, e2 := strconv.ParseInt(parts[1], 10, 64)
+			if e1 == nil && e2 == nil {
+				filterPresets["startTime"] = map[string]string{
+					"from": time.Unix(a, 0).Format(time.RFC3339),
+					"to":   time.Unix(b, 0).Format(time.RFC3339),
+				}
+			}
 		}
 	}
 
