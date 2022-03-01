@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/ClusterCockpit/cc-backend/auth"
 	"github.com/ClusterCockpit/cc-backend/graph/model"
@@ -122,7 +123,8 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 		query = buildTimeCondition("job.start_time", filter.StartTime, query)
 	}
 	if filter.Duration != nil {
-		query = buildIntCondition("job.duration", filter.Duration, query)
+		now := time.Now().Unix() // There does not seam to be a portable way to get the current unix timestamp accross different DBs.
+		query = query.Where("(CASE job.job_state = 'running' THEN (? - job.start_time) ELSE job.duration END) BETWEEN ? AND ?", now, filter.Duration.From, filter.Duration.To)
 	}
 	if filter.State != nil {
 		states := make([]string, len(filter.State))

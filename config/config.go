@@ -3,6 +3,7 @@ package config
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/auth"
 	"github.com/ClusterCockpit/cc-backend/graph/model"
+	"github.com/ClusterCockpit/cc-backend/schema"
 	"github.com/iamlouk/lrucache"
 	"github.com/jmoiron/sqlx"
 )
@@ -33,14 +35,43 @@ func Init(usersdb *sqlx.DB, authEnabled bool, uiConfig map[string]interface{}, j
 
 	Clusters = []*model.Cluster{}
 	for _, de := range entries {
-		bytes, err := os.ReadFile(filepath.Join(jobArchive, de.Name(), "cluster.json"))
+		raw, err := os.ReadFile(filepath.Join(jobArchive, de.Name(), "cluster.json"))
 		if err != nil {
 			return err
 		}
 
 		var cluster model.Cluster
-		if err := json.Unmarshal(bytes, &cluster); err != nil {
+
+		// Disabled because of the historic 'measurement' field.
+		// dec := json.NewDecoder(bytes.NewBuffer(raw))
+		// dec.DisallowUnknownFields()
+		// if err := dec.Decode(&cluster); err != nil {
+		// 	return err
+		// }
+
+		if err := json.Unmarshal(raw, &cluster); err != nil {
 			return err
+		}
+
+		if len(cluster.Name) == 0 || len(cluster.MetricConfig) == 0 || len(cluster.Partitions) == 0 {
+			return errors.New("cluster.name, cluster.metricConfig and cluster.Partitions should not be empty")
+		}
+
+		for _, mc := range cluster.MetricConfig {
+			if len(mc.Name) == 0 {
+				return errors.New("cluster.metricConfig.name should not be empty")
+			}
+			if mc.Timestep < 1 {
+				return errors.New("cluster.metricConfig.timestep should not be smaller than one")
+			}
+
+			// For backwards compability...
+			if mc.Scope == "" {
+				mc.Scope = schema.MetricScopeNode
+			}
+			if !mc.Scope.Valid() {
+				return errors.New("cluster.metricConfig.scope must be a valid scope ('node', 'scocket', ...)")
+			}
 		}
 
 		if cluster.FilterRanges.StartTime.To.IsZero() {
@@ -48,7 +79,7 @@ func Init(usersdb *sqlx.DB, authEnabled bool, uiConfig map[string]interface{}, j
 		}
 
 		if cluster.Name != de.Name() {
-			return fmt.Errorf("the file '%s/cluster.json' contains the clusterId '%s'", de.Name(), cluster.Name)
+			return fmt.Errorf("the file '.../%s/cluster.json' contains the clusterId '%s'", de.Name(), cluster.Name)
 		}
 
 		Clusters = append(Clusters, &cluster)

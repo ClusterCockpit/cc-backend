@@ -92,7 +92,7 @@ func (e *MetricScope) UnmarshalGQL(v interface{}) error {
 	}
 
 	*e = MetricScope(str)
-	if _, ok := metricScopeGranularity[*e]; !ok {
+	if !e.Valid() {
 		return fmt.Errorf("%s is not a valid MetricScope", str)
 	}
 	return nil
@@ -100,6 +100,11 @@ func (e *MetricScope) UnmarshalGQL(v interface{}) error {
 
 func (e MetricScope) MarshalGQL(w io.Writer) {
 	fmt.Fprintf(w, "\"%s\"", e)
+}
+
+func (e MetricScope) Valid() bool {
+	gran, ok := metricScopeGranularity[e]
+	return ok && gran > 0
 }
 
 func (jd *JobData) Size() int {
