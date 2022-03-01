@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/config"
+	"github.com/ClusterCockpit/cc-backend/log"
 	"github.com/ClusterCockpit/cc-backend/schema"
 	"github.com/iamlouk/lrucache"
 )
@@ -86,7 +87,11 @@ func LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ct
 
 			jd, err = repo.LoadData(job, metrics, scopes, ctx)
 			if err != nil {
-				return err, 0, 0
+				if len(jd) != 0 {
+					log.Errorf("partial error: %s (some data will be returned)", err.Error())
+				} else {
+					return err, 0, 0
+				}
 			}
 		} else {
 			jd, err = loadFromArchive(job)

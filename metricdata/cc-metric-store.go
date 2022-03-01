@@ -200,6 +200,14 @@ func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []
 				Data: res.Data,
 			})
 		}
+
+		// So that one can later check len(jobData):
+		if len(jobMetric.Series) == 0 {
+			delete(jobData[metric], scope)
+			if len(jobData[metric]) == 0 {
+				delete(jobData, metric)
+			}
+		}
 	}
 
 	if len(errors) != 0 {
