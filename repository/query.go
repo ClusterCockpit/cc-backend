@@ -124,7 +124,7 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	}
 	if filter.Duration != nil {
 		now := time.Now().Unix() // There does not seam to be a portable way to get the current unix timestamp accross different DBs.
-		query = query.Where("(CASE job.job_state = 'running' THEN (? - job.start_time) ELSE job.duration END) BETWEEN ? AND ?", now, filter.Duration.From, filter.Duration.To)
+		query = query.Where("(CASE WHEN job.job_state = 'running' THEN (? - job.start_time) ELSE job.duration END) BETWEEN ? AND ?", now, filter.Duration.From, filter.Duration.To)
 	}
 	if filter.State != nil {
 		states := make([]string, len(filter.State))
