@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/config"
@@ -146,6 +147,7 @@ func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []
 		return nil, err
 	}
 
+	var errors []string
 	var jobData schema.JobData = make(schema.JobData)
 	for i, row := range resBody.Results {
 		query := req.Queries[i]
@@ -169,7 +171,8 @@ func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []
 
 		for _, res := range row {
 			if res.Error != nil {
-				return nil, fmt.Errorf("cc-metric-store error while fetching %s: %s", metric, *res.Error)
+				errors = append(errors, fmt.Sprintf("failed to fetch '%s' from host '%s': %s", query.Metric, query.Hostname, *res.Error))
+				continue
 			}
 
 			id := (*int)(nil)
@@ -197,6 +200,10 @@ func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []
 				Data: res.Data,
 			})
 		}
+	}
+
+	if len(errors) != 0 {
+		return jobData, fmt.Errorf("cc-metric-store: errors: %s", strings.Join(errors, ","))
 	}
 
 	return jobData, nil
