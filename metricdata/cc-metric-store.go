@@ -530,7 +530,8 @@ func (ccms *CCMetricStore) LoadNodeData(cluster, partition string, metrics, node
 		}
 
 		if qdata.Avg.IsNaN() || qdata.Min.IsNaN() || qdata.Max.IsNaN() {
-			return nil, fmt.Errorf("fetching %s for node %s failed: %s", metric, query.Hostname, "avg/min/max is NaN")
+			// return nil, fmt.Errorf("fetching %s for node %s failed: %s", metric, query.Hostname, "avg/min/max is NaN")
+			qdata.Avg, qdata.Min, qdata.Max = 0., 0., 0.
 		}
 
 		hostdata, ok := data[query.Hostname]
