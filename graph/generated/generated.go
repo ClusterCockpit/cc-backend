@@ -1379,6 +1379,8 @@ input JobFilter {
   partition:   StringInput
   duration:    IntRange
 
+  minRunningFor: Int
+
   numNodes:        IntRange
   numAccelerators: IntRange
   numHWThreads:    IntRange
@@ -7215,6 +7217,14 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("duration"))
 			it.Duration, err = ec.unmarshalOIntRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐIntRange(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "minRunningFor":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("minRunningFor"))
+			it.MinRunningFor, err = ec.unmarshalOInt2ᚖint(ctx, v)
 			if err != nil {
 				return it, err
 			}

@@ -179,6 +179,8 @@ input JobFilter {
   partition:   StringInput
   duration:    IntRange
 
+  minRunningFor: Int
+
   numNodes:        IntRange
   numAccelerators: IntRange
   numHWThreads:    IntRange

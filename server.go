@@ -113,6 +113,7 @@ var programConfig ProgramConfig = ProgramConfig{
 		"plot_general_colorBackground":       true,
 		"plot_general_colorscheme":           []string{"#00bfff", "#0000ff", "#ff00ff", "#ff0000", "#ff8000", "#ffff00", "#80ff00"},
 		"plot_general_lineWidth":             1,
+		"plot_list_hideShortRunningJobs":     5 * 60,
 		"plot_list_jobsPerPage":              10,
 		"plot_list_selectedMetrics":          []string{"cpu_load", "mem_used", "flops_any", "mem_bw", "clock"},
 		"plot_view_plotsPerRow":              2,

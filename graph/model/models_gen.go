@@ -57,6 +57,7 @@ type JobFilter struct {
 	Cluster         *StringInput      `json:"cluster"`
 	Partition       *StringInput      `json:"partition"`
 	Duration        *IntRange         `json:"duration"`
+	MinRunningFor   *int              `json:"minRunningFor"`
 	NumNodes        *IntRange         `json:"numNodes"`
 	NumAccelerators *IntRange         `json:"numAccelerators"`
 	NumHWThreads    *IntRange         `json:"numHWThreads"`
