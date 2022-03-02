@@ -296,8 +296,9 @@ func main() {
 
 	// Initialize sub-modules...
 
-	authentication := &auth.Authentication{}
+	var authentication *auth.Authentication
 	if !programConfig.DisableAuthentication {
+		authentication = &auth.Authentication{}
 		if d, err := time.ParseDuration(programConfig.SessionMaxAge); err != nil {
 			authentication.SessionMaxAge = d
 		}
@@ -398,6 +399,7 @@ func main() {
 		JobRepository:   jobRepo,
 		Resolver:        resolver,
 		MachineStateDir: programConfig.MachineStateDir,
+		Authentication:  authentication,
 	}
 
 	handleGetLogin := func(rw http.ResponseWriter, r *http.Request) {

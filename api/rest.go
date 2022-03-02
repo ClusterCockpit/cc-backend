@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/auth"
+	"github.com/ClusterCockpit/cc-backend/config"
 	"github.com/ClusterCockpit/cc-backend/graph"
 	"github.com/ClusterCockpit/cc-backend/graph/model"
 	"github.com/ClusterCockpit/cc-backend/log"
@@ -29,6 +30,7 @@ import (
 type RestApi struct {
 	JobRepository     *repository.JobRepository
 	Resolver          *graph.Resolver
+	Authentication    *auth.Authentication
 	MachineStateDir   string
 	OngoingArchivings sync.WaitGroup
 }
@@ -47,6 +49,12 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 	r.HandleFunc("/jobs/tag_job/{id}", api.tagJob).Methods(http.MethodPost, http.MethodPatch)
 
 	r.HandleFunc("/jobs/metrics/{id}", api.getJobMetrics).Methods(http.MethodGet)
+
+	if api.Authentication != nil {
+		r.HandleFunc("/jwt/", api.getJWT).Methods(http.MethodPost)
+		r.HandleFunc("/users/", api.createUser).Methods(http.MethodPost, http.MethodPut)
+		r.HandleFunc("/configuration/", api.updateConfiguration).Methods(http.MethodPost)
+	}
 
 	if api.MachineStateDir != "" {
 		r.HandleFunc("/machine_state/{cluster}/{host}", api.getMachineState).Methods(http.MethodGet)
@@ -463,6 +471,61 @@ func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 			JobMetrics []*model.JobMetricWithName "json:\"jobMetrics\""
 		}{JobMetrics: data},
 	})
+}
+
+func (api *RestApi) getJWT(rw http.ResponseWriter, r *http.Request) {
+	username := r.FormValue("username")
+	me := auth.GetUser(r.Context())
+	if !me.HasRole(auth.RoleAdmin) {
+		if username != me.Username {
+			http.Error(rw, "only admins are allowed to sign JWTs not for themselves", http.StatusForbidden)
+			return
+		}
+	}
+
+	user, err := api.Authentication.FetchUser(username)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
+
+	jwt, err := api.Authentication.ProvideJWT(user)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
+
+	rw.WriteHeader(http.StatusOK)
+	rw.Write([]byte(jwt))
+}
+
+func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
+	me := auth.GetUser(r.Context())
+	if !me.HasRole(auth.RoleAdmin) {
+		http.Error(rw, "only admins are allowed to create new users", http.StatusForbidden)
+		return
+	}
+
+	username, password, role := r.FormValue("username"), r.FormValue("password"), r.FormValue("role")
+	if len(password) == 0 && role != auth.RoleApi {
+		http.Error(rw, "only API users are allowed to have a blank password (login will be impossible)", http.StatusBadRequest)
+		return
+	}
+
+	if err := api.Authentication.AddUser(username + ":" + role + ":" + password); err != nil {
+		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
+
+	rw.WriteHeader(http.StatusOK)
+}
+
+func (api *RestApi) updateConfiguration(rw http.ResponseWriter, r *http.Request) {
+	key, value := r.FormValue("key"), r.FormValue("value")
+	if err := config.UpdateConfig(key, value, r.Context()); err != nil {
+		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
 }
 
 func (api *RestApi) putMachineState(rw http.ResponseWriter, r *http.Request) {
