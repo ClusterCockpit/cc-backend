@@ -23,6 +23,8 @@ var groupBy2column = map[model.Aggregate]string{
 	model.AggregateCluster: "job.cluster",
 }
 
+const ShortJobDuration int = 180
+
 // Helper function for the jobsStatistics GraphQL query placed here so that schema.resolvers.go is not too full.
 func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobFilter, groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
 	// In case `groupBy` is nil (not used), the model.JobsStatistics used is at the key '' (empty string)
@@ -90,7 +92,7 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 	}
 
 	if groupBy == nil {
-		query := sq.Select("COUNT(job.id)").From("job").Where("job.duration < 120")
+		query := sq.Select("COUNT(job.id)").From("job").Where("job.duration < ?", ShortJobDuration)
 		query = repository.SecurityCheck(ctx, query)
 		for _, f := range filter {
 			query = repository.BuildWhereClause(f, query)
@@ -100,7 +102,7 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 		}
 	} else {
 		col := groupBy2column[*groupBy]
-		query := sq.Select(col, "COUNT(job.id)").From("job").Where("job.duration < 120")
+		query := sq.Select(col, "COUNT(job.id)").From("job").Where("job.duration < ?", ShortJobDuration)
 		query = repository.SecurityCheck(ctx, query)
 		for _, f := range filter {
 			query = repository.BuildWhereClause(f, query)

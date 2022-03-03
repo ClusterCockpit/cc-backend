@@ -100,9 +100,10 @@ func setupRoutes(router *mux.Router, routes []Route) {
 				return
 			}
 
+			title := route.Title
 			infos := route.Setup(map[string]interface{}{}, r)
 			if id, ok := infos["id"]; ok {
-				route.Title = strings.Replace(route.Title, "<ID>", id.(string), 1)
+				title = strings.Replace(route.Title, "<ID>", id.(string), 1)
 			}
 
 			username, isAdmin := "", true
@@ -112,7 +113,7 @@ func setupRoutes(router *mux.Router, routes []Route) {
 			}
 
 			page := templates.Page{
-				Title:  route.Title,
+				Title:  title,
 				User:   templates.User{Username: username, IsAdmin: isAdmin},
 				Config: conf,
 				Infos:  infos,

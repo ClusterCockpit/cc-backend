@@ -113,6 +113,7 @@ var programConfig ProgramConfig = ProgramConfig{
 		"plot_general_colorBackground":       true,
 		"plot_general_colorscheme":           []string{"#00bfff", "#0000ff", "#ff00ff", "#ff0000", "#ff8000", "#ffff00", "#80ff00"},
 		"plot_general_lineWidth":             1,
+		"plot_list_hideShortRunningJobs":     5 * 60,
 		"plot_list_jobsPerPage":              10,
 		"plot_list_selectedMetrics":          []string{"cpu_load", "ipc", "mem_used", "flops_any", "mem_bw"},
 		"plot_view_plotsPerRow":              3,
@@ -225,6 +226,7 @@ func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 
 var routes []Route = []Route{
 	{"/", "home.tmpl", "ClusterCockpit", false, setupHomeRoute},
+	{"/config", "config.tmpl", "Settings", false, func(i InfoType, r *http.Request) InfoType { return i }},
 	{"/monitoring/jobs/", "monitoring/jobs.tmpl", "Jobs - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { return i }},
 	{"/monitoring/job/{id:[0-9]+}", "monitoring/job.tmpl", "Job <ID> - ClusterCockpit", false, setupJobRoute},
 	{"/monitoring/users/", "monitoring/list.tmpl", "Users - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { i["listType"] = "USER"; return i }},
@@ -295,8 +297,9 @@ func main() {
 
 	// Initialize sub-modules...
 
-	authentication := &auth.Authentication{}
+	var authentication *auth.Authentication
 	if !programConfig.DisableAuthentication {
+		authentication = &auth.Authentication{}
 		if d, err := time.ParseDuration(programConfig.SessionMaxAge); err != nil {
 			authentication.SessionMaxAge = d
 		}
@@ -397,6 +400,7 @@ func main() {
 		JobRepository:   jobRepo,
 		Resolver:        resolver,
 		MachineStateDir: programConfig.MachineStateDir,
+		Authentication:  authentication,
 	}
 
 	handleGetLogin := func(rw http.ResponseWriter, r *http.Request) {

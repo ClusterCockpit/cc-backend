@@ -26,12 +26,12 @@ import (
 // If Name and Email is needed as well, use auth.FetchUser(), which does a database
 // query for all fields.
 type User struct {
-	Username string
-	Password string
-	Name     string
-	Roles    []string
-	ViaLdap  bool
-	Email    string
+	Username string   `json:"username"`
+	Password string   `json:"-"`
+	Name     string   `json:"name"`
+	Roles    []string `json:"roles"`
+	ViaLdap  bool     `json:"via-ldap"`
+	Email    string   `json:"email"`
 }
 
 const (
@@ -130,38 +130,86 @@ func (auth *Authentication) AddUser(arg string) error {
 		return errors.New("invalid argument format")
 	}
 
-	password := ""
-	if len(parts[2]) > 0 {
-		bytes, err := bcrypt.GenerateFromPassword([]byte(parts[2]), bcrypt.DefaultCost)
+	roles := strings.Split(parts[1], ",")
+	return auth.CreateUser(parts[0], "", parts[2], "", roles)
+}
+
+func (auth *Authentication) CreateUser(username, name, password, email string, roles []string) error {
+	for _, role := range roles {
+		if role != RoleAdmin && role != RoleApi && role != RoleUser {
+			return fmt.Errorf("invalid user role: %#v", role)
+		}
+	}
+
+	if username == "" {
+		return errors.New("username should not be empty")
+	}
+
+	if password != "" {
+		bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 		if err != nil {
 			return err
 		}
 		password = string(bytes)
 	}
 
-	roles := []string{}
-	for _, role := range strings.Split(parts[1], ",") {
-		if len(role) == 0 {
-			continue
-		} else if role == RoleAdmin || role == RoleApi || role == RoleUser {
-			roles = append(roles, role)
-		} else {
-			return fmt.Errorf("invalid user role: %#v", role)
-		}
+	rolesJson, _ := json.Marshal(roles)
+	cols := []string{"username", "password", "roles"}
+	vals := []interface{}{username, password, string(rolesJson)}
+	if name != "" {
+		cols = append(cols, "name")
+		vals = append(vals, name)
+	}
+	if email != "" {
+		cols = append(cols, "email")
+		vals = append(vals, email)
 	}
 
-	rolesJson, _ := json.Marshal(roles)
-	_, err := sq.Insert("user").Columns("username", "password", "roles").Values(parts[0], password, string(rolesJson)).RunWith(auth.db).Exec()
-	if err != nil {
+	if _, err := sq.Insert("user").Columns(cols...).Values(vals...).RunWith(auth.db).Exec(); err != nil {
 		return err
 	}
-	log.Infof("new user %#v added (roles: %s)", parts[0], roles)
+
+	log.Infof("new user %#v created (roles: %s)", username, roles)
 	return nil
 }
 
 func (auth *Authentication) DelUser(username string) error {
 	_, err := auth.db.Exec(`DELETE FROM user WHERE user.username = ?`, username)
 	return err
+}
+
+func (auth *Authentication) FetchUsers(viaLdap bool) ([]*User, error) {
+	q := sq.Select("username", "name", "email", "roles").From("user")
+	if !viaLdap {
+		q = q.Where("ldap = 0")
+	} else {
+		q = q.Where("ldap = 1")
+	}
+
+	rows, err := q.RunWith(auth.db).Query()
+	if err != nil {
+		return nil, err
+	}
+
+	users := make([]*User, 0)
+	defer rows.Close()
+	for rows.Next() {
+		rawroles := ""
+		user := &User{}
+		var name, email sql.NullString
+		if err := rows.Scan(&user.Username, &name, &email, &rawroles); err != nil {
+			return nil, err
+		}
+
+		if err := json.Unmarshal([]byte(rawroles), &user.Roles); err != nil {
+			return nil, err
+		}
+
+		user.Name = name.String
+		user.Email = email.String
+		users = append(users, user)
+	}
+	return users, nil
 }
 
 func (auth *Authentication) FetchUser(username string) (*User, error) {

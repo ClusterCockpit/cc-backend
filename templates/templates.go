@@ -41,6 +41,7 @@ func init() {
 	files := []string{
 		"home.tmpl", "404.tmpl", "login.tmpl",
 		"imprint.tmpl", "privacy.tmpl",
+		"config.tmpl",
 		"monitoring/jobs.tmpl",
 		"monitoring/job.tmpl",
 		"monitoring/taglist.tmpl",
