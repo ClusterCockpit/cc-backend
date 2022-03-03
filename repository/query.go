@@ -60,6 +60,7 @@ func (r *JobRepository) QueryJobs(
 	for rows.Next() {
 		job, err := scanJob(rows)
 		if err != nil {
+			rows.Close()
 			return nil, err
 		}
 		jobs = append(jobs, job)

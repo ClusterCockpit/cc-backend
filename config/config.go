@@ -132,6 +132,7 @@ func GetUIConfig(r *http.Request) (map[string]interface{}, error) {
 		}
 
 		size := 0
+		defer rows.Close()
 		for rows.Next() {
 			var key, rawval string
 			if err := rows.Scan(&key, &rawval); err != nil {
@@ -173,12 +174,16 @@ func UpdateConfig(key, value string, ctx context.Context) error {
 		return nil
 	}
 
-	cache.Del(user.Username)
+	if _, ok := uiDefaults[key]; !ok {
+		return errors.New("this configuration key does not exist")
+	}
+
 	if _, err := db.Exec(`REPLACE INTO configuration (username, confkey, value) VALUES (?, ?, ?)`,
 		user.Username, key, value); err != nil {
 		return err
 	}
 
+	cache.Del(user.Username)
 	return nil
 }
 

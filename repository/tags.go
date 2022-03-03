@@ -1,8 +1,6 @@
 package repository
 
 import (
-	"fmt"
-
 	"github.com/ClusterCockpit/cc-backend/metricdata"
 	"github.com/ClusterCockpit/cc-backend/schema"
 	sq "github.com/Masterminds/squirrel"
@@ -88,9 +86,8 @@ func (r *JobRepository) CountTags(user *string) (tags []schema.Tag, counts map[s
 	for rows.Next() {
 		var tagName string
 		var count int
-		err = rows.Scan(&tagName, &count)
-		if err != nil {
-			fmt.Println(err)
+		if err := rows.Scan(&tagName, &count); err != nil {
+			return nil, nil, err
 		}
 		counts[tagName] = count
 	}
