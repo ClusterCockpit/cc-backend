@@ -65,7 +65,7 @@ func (r *JobRepository) Find(
 	startTime *int64) (*schema.Job, error) {
 
 	q := sq.Select(jobColumns...).From("job").
-		Where("job.job_id = ?", jobId)
+		Where("job.job_id = ?", *jobId)
 
 	if cluster != nil {
 		q = q.Where("job.cluster = ?", *cluster)

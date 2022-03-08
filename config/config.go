@@ -22,7 +22,7 @@ var db *sqlx.DB
 var lookupConfigStmt *sqlx.Stmt
 var lock sync.RWMutex
 var uiDefaults map[string]interface{}
-var cache lrucache.Cache = *lrucache.New(1024)
+var cache *lrucache.Cache = lrucache.New(1024)
 var Clusters []*model.Cluster
 
 func Init(usersdb *sqlx.DB, authEnabled bool, uiConfig map[string]interface{}, jobArchive string) error {

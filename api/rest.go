@@ -86,7 +86,7 @@ type ErrorResponse struct {
 }
 
 func handleError(err error, statusCode int, rw http.ResponseWriter) {
-	log.Printf("REST API error: %s", err.Error())
+	log.Warnf("REST API: %s", err.Error())
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(statusCode)
 	json.NewEncoder(rw).Encode(ErrorResponse{

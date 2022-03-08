@@ -70,6 +70,7 @@ const JOBS_DB_INDEXES string = `
 	CREATE INDEX job_by_user      ON job (user);
 	CREATE INDEX job_by_starttime ON job (start_time);
 	CREATE INDEX job_by_job_id    ON job (job_id);
+	CREATE INDEX job_by_state     ON job (job_state);
 `
 
 // Delete the tables "job", "tag" and "jobtag" from the database and
