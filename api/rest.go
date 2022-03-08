@@ -285,12 +285,6 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req.RawResources, err = json.Marshal(req.Resources)
-	if err != nil {
-		handleError(fmt.Errorf("basically impossible: %w", err), http.StatusBadRequest, rw)
-		return
-	}
-
 	id, err := api.JobRepository.Start(&req)
 	if err != nil {
 		handleError(fmt.Errorf("insert into database failed: %w", err), http.StatusInternalServerError, rw)

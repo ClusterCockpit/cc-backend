@@ -59,6 +59,8 @@ models:
     fields:
       tags:
         resolver: true
+      metaData:
+        resolver: true
   NullableFloat: { model: "github.com/ClusterCockpit/cc-backend/schema.Float" }
   MetricScope: { model: "github.com/ClusterCockpit/cc-backend/schema.MetricScope" }
   JobStatistics: { model: "github.com/ClusterCockpit/cc-backend/schema.JobStatistics" }

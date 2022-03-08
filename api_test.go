@@ -177,7 +177,7 @@ func TestRestApi(t *testing.T) {
             	"hwthreads": [0, 1, 2, 3, 4, 5, 6, 7]
         	}
     	],
-    	"metaData":  null,
+    	"metaData":  { "jobScript": "blablabla..." },
     	"startTime": 123456789
 	}`
 
@@ -260,12 +260,20 @@ func TestRestApi(t *testing.T) {
 		}
 
 		if job.State != schema.JobStateCompleted {
-			print("STATE:" + job.State)
 			t.Fatal("expected job to be completed")
 		}
 
 		if job.Duration != (123457789 - 123456789) {
 			t.Fatalf("unexpected job properties: %#v", job)
+		}
+
+		job.MetaData, err = restapi.JobRepository.FetchMetadata(job)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !reflect.DeepEqual(job.MetaData, map[string]string{"jobScript": "blablabla..."}) {
+			t.Fatalf("unexpected job.metaData: %#v", job.MetaData)
 		}
 
 		stoppedJob = job

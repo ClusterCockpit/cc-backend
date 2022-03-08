@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -29,7 +30,7 @@ func (r *JobRepository) Init() error {
 var jobColumns []string = []string{
 	"job.id", "job.job_id", "job.user", "job.project", "job.cluster", "job.start_time", "job.partition", "job.array_job_id",
 	"job.num_nodes", "job.num_hwthreads", "job.num_acc", "job.exclusive", "job.monitoring_status", "job.smt", "job.job_state",
-	"job.duration", "job.resources", "job.meta_data",
+	"job.duration", "job.resources", // "job.meta_data",
 }
 
 func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
@@ -37,7 +38,7 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 	if err := row.Scan(
 		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.StartTimeUnix, &job.Partition, &job.ArrayJobId,
 		&job.NumNodes, &job.NumHWThreads, &job.NumAcc, &job.Exclusive, &job.MonitoringStatus, &job.SMT, &job.State,
-		&job.Duration, &job.RawResources, &job.MetaData); err != nil {
+		&job.Duration, &job.RawResources /*&job.MetaData*/); err != nil {
 		return nil, err
 	}
 
@@ -52,6 +53,23 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 
 	job.RawResources = nil
 	return job, nil
+}
+
+func (r *JobRepository) FetchMetadata(job *schema.Job) (map[string]string, error) {
+	if err := sq.Select("job.meta_data").From("job").Where("job.id = ?", job.ID).
+		RunWith(r.stmtCache).QueryRow().Scan(&job.RawMetaData); err != nil {
+		return nil, err
+	}
+
+	if len(job.RawMetaData) == 0 {
+		return nil, nil
+	}
+
+	if err := json.Unmarshal(job.RawMetaData, &job.MetaData); err != nil {
+		return nil, err
+	}
+
+	return job.MetaData, nil
 }
 
 // Find executes a SQL query to find a specific batch job.
@@ -91,6 +109,16 @@ func (r *JobRepository) FindById(
 // Start inserts a new job in the table, returning the unique job ID.
 // Statistics are not transfered!
 func (r *JobRepository) Start(job *schema.JobMeta) (id int64, err error) {
+	job.RawResources, err = json.Marshal(job.Resources)
+	if err != nil {
+		return -1, fmt.Errorf("encoding resources field failed: %w", err)
+	}
+
+	job.RawMetaData, err = json.Marshal(job.MetaData)
+	if err != nil {
+		return -1, fmt.Errorf("encoding metaData field failed: %w", err)
+	}
+
 	res, err := r.DB.NamedExec(`INSERT INTO job (
 		job_id, user, project, cluster, `+"`partition`"+`, array_job_id, num_nodes, num_hwthreads, num_acc,
 		exclusive, monitoring_status, smt, job_state, start_time, duration, resources, meta_data

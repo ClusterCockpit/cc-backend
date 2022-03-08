@@ -219,6 +219,11 @@ func loadJob(tx *sqlx.Tx, stmt *sqlx.NamedStmt, tags map[string]int64, path stri
 		return err
 	}
 
+	job.RawMetaData, err = json.Marshal(job.MetaData)
+	if err != nil {
+		return err
+	}
+
 	if err := repository.SanityChecks(&job.BaseJob); err != nil {
 		return err
 	}

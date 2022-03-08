@@ -10,24 +10,25 @@ import (
 // Common subset of Job and JobMeta. Use one of those, not
 // this type directly.
 type BaseJob struct {
-	JobID            int64       `json:"jobId" db:"job_id"`
-	User             string      `json:"user" db:"user"`
-	Project          string      `json:"project" db:"project"`
-	Cluster          string      `json:"cluster" db:"cluster"`
-	Partition        string      `json:"partition" db:"partition"`
-	ArrayJobId       int32       `json:"arrayJobId" db:"array_job_id"`
-	NumNodes         int32       `json:"numNodes" db:"num_nodes"`
-	NumHWThreads     int32       `json:"numHwthreads" db:"num_hwthreads"`
-	NumAcc           int32       `json:"numAcc" db:"num_acc"`
-	Exclusive        int32       `json:"exclusive" db:"exclusive"`
-	MonitoringStatus int32       `json:"monitoringStatus" db:"monitoring_status"`
-	SMT              int32       `json:"smt" db:"smt"`
-	State            JobState    `json:"jobState" db:"job_state"`
-	Duration         int32       `json:"duration" db:"duration"`
-	Tags             []*Tag      `json:"tags"`
-	RawResources     []byte      `json:"-" db:"resources"`
-	Resources        []*Resource `json:"resources"`
-	MetaData         interface{} `json:"metaData" db:"meta_data"`
+	JobID            int64             `json:"jobId" db:"job_id"`
+	User             string            `json:"user" db:"user"`
+	Project          string            `json:"project" db:"project"`
+	Cluster          string            `json:"cluster" db:"cluster"`
+	Partition        string            `json:"partition" db:"partition"`
+	ArrayJobId       int32             `json:"arrayJobId" db:"array_job_id"`
+	NumNodes         int32             `json:"numNodes" db:"num_nodes"`
+	NumHWThreads     int32             `json:"numHwthreads" db:"num_hwthreads"`
+	NumAcc           int32             `json:"numAcc" db:"num_acc"`
+	Exclusive        int32             `json:"exclusive" db:"exclusive"`
+	MonitoringStatus int32             `json:"monitoringStatus" db:"monitoring_status"`
+	SMT              int32             `json:"smt" db:"smt"`
+	State            JobState          `json:"jobState" db:"job_state"`
+	Duration         int32             `json:"duration" db:"duration"`
+	Tags             []*Tag            `json:"tags"`
+	RawResources     []byte            `json:"-" db:"resources"`
+	Resources        []*Resource       `json:"resources"`
+	RawMetaData      []byte            `json:"-" db:"meta_data"`
+	MetaData         map[string]string `json:"metaData"`
 }
 
 // This type is used as the GraphQL interface and using sqlx as a table row.

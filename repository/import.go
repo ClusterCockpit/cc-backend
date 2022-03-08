@@ -93,6 +93,10 @@ func (r *JobRepository) ImportJob(jobMeta *schema.JobMeta, jobData *schema.JobDa
 	if err != nil {
 		return err
 	}
+	job.RawMetaData, err = json.Marshal(job.MetaData)
+	if err != nil {
+		return err
+	}
 
 	if err := SanityChecks(&job.BaseJob); err != nil {
 		return err

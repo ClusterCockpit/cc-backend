@@ -234,6 +234,7 @@ type ComplexityRoot struct {
 }
 
 type JobResolver interface {
+	MetaData(ctx context.Context, obj *schema.Job) (interface{}, error)
 	Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error)
 }
 type MutationResolver interface {
@@ -3043,14 +3044,14 @@ func (ec *executionContext) _Job_metaData(ctx context.Context, field graphql.Col
 		Object:     "Job",
 		Field:      field,
 		Args:       nil,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 	}
 
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.MetaData, nil
+		return ec.resolvers.Job().MetaData(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -7750,7 +7751,16 @@ func (ec *executionContext) _Job(ctx context.Context, sel ast.SelectionSet, obj 
 				atomic.AddUint32(&invalids, 1)
 			}
 		case "metaData":
-			out.Values[i] = ec._Job_metaData(ctx, field, obj)
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Job_metaData(ctx, field, obj)
+				return res
+			})
 		case "tags":
 			field := field
 			out.Concurrently(i, func() (res graphql.Marshaler) {

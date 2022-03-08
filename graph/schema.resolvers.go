@@ -18,6 +18,10 @@ import (
 	"github.com/ClusterCockpit/cc-backend/schema"
 )
 
+func (r *jobResolver) MetaData(ctx context.Context, obj *schema.Job) (interface{}, error) {
+	return r.Repo.FetchMetadata(obj)
+}
+
 func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error) {
 	return r.Repo.GetTags(&obj.ID)
 }
