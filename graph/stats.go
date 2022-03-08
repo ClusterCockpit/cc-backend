@@ -23,7 +23,7 @@ var groupBy2column = map[model.Aggregate]string{
 	model.AggregateCluster: "job.cluster",
 }
 
-const ShortJobDuration int = 180
+const ShortJobDuration int = 5 * 60
 
 // Helper function for the jobsStatistics GraphQL query placed here so that schema.resolvers.go is not too full.
 func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobFilter, groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {

@@ -126,9 +126,10 @@ var programConfig ProgramConfig = ProgramConfig{
 
 func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 	type cluster struct {
-		Name        string
-		RunningJobs int
-		TotalJobs   int
+		Name            string
+		RunningJobs     int
+		TotalJobs       int
+		RecentShortJobs int
 	}
 
 	runningJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, []*model.JobFilter{{
@@ -144,12 +145,23 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 		totalJobs = map[string]int{}
 	}
 
+	from := time.Now().Add(-24 * time.Hour)
+	recentShortJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, []*model.JobFilter{{
+		StartTime: &model.TimeRange{From: &from, To: nil},
+		Duration:  &model.IntRange{From: 0, To: graph.ShortJobDuration},
+	}}, nil)
+	if err != nil {
+		log.Errorf("failed to count jobs: %s", err.Error())
+		recentShortJobs = map[string]int{}
+	}
+
 	clusters := make([]cluster, 0)
 	for _, c := range config.Clusters {
 		clusters = append(clusters, cluster{
-			Name:        c.Name,
-			RunningJobs: runningJobs[c.Name],
-			TotalJobs:   totalJobs[c.Name],
+			Name:            c.Name,
+			RunningJobs:     runningJobs[c.Name],
+			TotalJobs:       totalJobs[c.Name],
+			RecentShortJobs: recentShortJobs[c.Name],
 		})
 	}
 
