@@ -174,9 +174,10 @@ func UpdateConfig(key, value string, ctx context.Context) error {
 		return nil
 	}
 
-	if _, ok := uiDefaults[key]; !ok {
-		return errors.New("this configuration key does not exist")
-	}
+	// Disabled because now `plot_list_selectedMetrics:<cluster>` is possible.
+	// if _, ok := uiDefaults[key]; !ok {
+	// 	return errors.New("this configuration key does not exist")
+	// }
 
 	if _, err := db.Exec(`REPLACE INTO configuration (username, confkey, value) VALUES (?, ?, ?)`,
 		user.Username, key, value); err != nil {
