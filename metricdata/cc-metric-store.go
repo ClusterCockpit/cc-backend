@@ -211,7 +211,7 @@ func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []
 	}
 
 	if len(errors) != 0 {
-		return jobData, fmt.Errorf("cc-metric-store: errors: %s", strings.Join(errors, ","))
+		return jobData, fmt.Errorf("cc-metric-store: %s", strings.Join(errors, ", "))
 	}
 
 	return jobData, nil
@@ -528,7 +528,7 @@ func (ccms *CCMetricStore) LoadNodeData(cluster, partition string, metrics, node
 		return nil, err
 	}
 
-	_ = resBody
+	var errors []string
 	data := make(map[string]map[string][]*schema.JobMetric)
 	for i, res := range resBody.Results {
 		var query ApiQuery
@@ -541,7 +541,7 @@ func (ccms *CCMetricStore) LoadNodeData(cluster, partition string, metrics, node
 		metric := ccms.toLocalName(query.Metric)
 		qdata := res[0]
 		if qdata.Error != nil {
-			return nil, fmt.Errorf("fetching %s for node %s failed: %s", metric, query.Hostname, *qdata.Error)
+			errors = append(errors, fmt.Sprintf("fetching %s for node %s failed: %s", metric, query.Hostname, *qdata.Error))
 		}
 
 		if qdata.Avg.IsNaN() || qdata.Min.IsNaN() || qdata.Max.IsNaN() {
@@ -572,6 +572,10 @@ func (ccms *CCMetricStore) LoadNodeData(cluster, partition string, metrics, node
 				},
 			},
 		})
+	}
+
+	if len(errors) != 0 {
+		return data, fmt.Errorf("cc-metric-store: %s", strings.Join(errors, ", "))
 	}
 
 	return data, nil

@@ -88,7 +88,7 @@ func LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ct
 			jd, err = repo.LoadData(job, metrics, scopes, ctx)
 			if err != nil {
 				if len(jd) != 0 {
-					log.Errorf("partial error: %s (some data will be returned)", err.Error())
+					log.Errorf("partial error: %s", err.Error())
 				} else {
 					return err, 0, 0
 				}
@@ -174,7 +174,11 @@ func LoadNodeData(cluster, partition string, metrics, nodes []string, scopes []s
 
 	data, err := repo.LoadNodeData(cluster, partition, metrics, nodes, scopes, from, to, ctx)
 	if err != nil {
-		return nil, err
+		if len(data) != 0 {
+			log.Errorf("partial error: %s", err.Error())
+		} else {
+			return nil, err
+		}
 	}
 
 	if data == nil {
