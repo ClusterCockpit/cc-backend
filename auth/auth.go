@@ -375,17 +375,17 @@ func (auth *Authentication) ProvideJWT(user *User) (string, error) {
 		return "", errors.New("environment variable 'JWT_PRIVATE_KEY' not set")
 	}
 
+	now := time.Now()
 	claims := jwt.MapClaims{
 		"sub":   user.Username,
 		"roles": user.Roles,
+		"iat":   now.Unix(),
 	}
 	if auth.JwtMaxAge != 0 {
-		claims["exp"] = time.Now().Add(auth.JwtMaxAge).Unix()
+		claims["exp"] = now.Add(auth.JwtMaxAge).Unix()
 	}
 
-	tok := jwt.NewWithClaims(jwt.SigningMethodEdDSA, claims)
-
-	return tok.SignedString(auth.jwtPrivateKey)
+	return jwt.NewWithClaims(jwt.SigningMethodEdDSA, claims).SignedString(auth.jwtPrivateKey)
 }
 
 func GetUser(ctx context.Context) *User {

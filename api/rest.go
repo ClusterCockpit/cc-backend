@@ -386,6 +386,12 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 	go func() {
 		defer api.OngoingArchivings.Done()
 
+		if _, err := api.JobRepository.FetchMetadata(job); err != nil {
+			log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
+			api.JobRepository.UpdateMonitoringStatus(job.ID, schema.MonitoringStatusArchivingFailed)
+			return
+		}
+
 		// metricdata.ArchiveJob will fetch all the data from a MetricDataRepository and create meta.json/data.json files
 		jobMeta, err := metricdata.ArchiveJob(job, context.Background())
 		if err != nil {
