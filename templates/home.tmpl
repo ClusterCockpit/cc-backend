@@ -6,10 +6,9 @@
             <thead>
                 <tr>
                     <th>Name</th>
-                    <th>Running Jobs</th>
+                    <th>Running Jobs (short ones not listed)</th>
                     <th>Total Jobs</th>
                     <th>Short Jobs in past 24h</th>
-                    <th>Jobs</th>
                     {{if .User.IsAdmin}}
                         <th>System View</th>
                         <th>Analysis View</th>
@@ -21,10 +20,9 @@
                     {{range .Infos.clusters}}
                         <tr>
                             <td>{{.Name}}</td>
-                            <td>{{.RunningJobs}}</td>
-                            <td>{{.TotalJobs}}</td>
+                            <td><a href="/monitoring/jobs/?cluster={{.Name}}&state=running">{{.RunningJobs}} jobs</a></td>
+                            <td><a href="/monitoring/jobs/?cluster={{.Name}}">{{.TotalJobs}} jobs</a></td>
                             <td>{{.RecentShortJobs}}</td>
-                            <td><a href="/monitoring/jobs/?cluster={{.Name}}">Jobs</a></td>
                             <td><a href="/monitoring/systems/{{.Name}}">System View</a></td>
                             <td><a href="/monitoring/analysis/{{.Name}}">Analysis View</a></td>
                         </tr>
@@ -33,10 +31,9 @@
                     {{range .Infos.clusters}}
                         <tr>
                             <td>{{.Name}}</td>
-                            <td>{{.RunningJobs}}</td>
-                            <td>{{.TotalJobs}}</td>
+                            <td><a href="/monitoring/jobs/?cluster={{.Name}}&state=running">{{.RunningJobs}} jobs</a></td>
+                            <td><a href="/monitoring/jobs/?cluster={{.Name}}">{{.TotalJobs}} jobs</a></td>
                             <td>{{.RecentShortJobs}}</td>
-                            <td><a href="/monitoring/jobs/?cluster={{.Name}}">Jobs</a></td>
                         </tr>
                     {{end}}
                 {{end}}
