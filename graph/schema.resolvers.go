@@ -18,6 +18,10 @@ import (
 	"github.com/ClusterCockpit/cc-backend/schema"
 )
 
+func (r *clusterResolver) SubClusters(ctx context.Context, obj *model.Cluster) ([]*model.SubCluster, error) {
+	panic(fmt.Errorf("not implemented"))
+}
+
 func (r *jobResolver) MetaData(ctx context.Context, obj *schema.Job) (interface{}, error) {
 	return r.Repo.FetchMetadata(obj)
 }
@@ -204,7 +208,7 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, partiti
 	}
 
 	if metrics == nil {
-		for _, mc := range config.GetClusterConfig(cluster).MetricConfig {
+		for _, mc := range config.GetCluster(cluster).MetricConfig {
 			metrics = append(metrics, mc.Name)
 		}
 	}
@@ -236,6 +240,9 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, partiti
 	return nodeMetrics, nil
 }
 
+// Cluster returns generated.ClusterResolver implementation.
+func (r *Resolver) Cluster() generated.ClusterResolver { return &clusterResolver{r} }
+
 // Job returns generated.JobResolver implementation.
 func (r *Resolver) Job() generated.JobResolver { return &jobResolver{r} }
 
@@ -245,6 +252,7 @@ func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResol
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
+type clusterResolver struct{ *Resolver }
 type jobResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }

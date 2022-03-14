@@ -31,17 +31,17 @@ func (r *JobRepository) Init() error {
 }
 
 var jobColumns []string = []string{
-	"job.id", "job.job_id", "job.user", "job.project", "job.cluster", "job.start_time", "job.partition", "job.array_job_id",
+	"job.id", "job.job_id", "job.user", "job.project", "job.cluster", "job.subcluster", "job.start_time", "job.partition", "job.array_job_id",
 	"job.num_nodes", "job.num_hwthreads", "job.num_acc", "job.exclusive", "job.monitoring_status", "job.smt", "job.job_state",
-	"job.duration", "job.resources", // "job.meta_data",
+	"job.duration", "job.walltime", "job.resources", // "job.meta_data",
 }
 
 func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 	job := &schema.Job{}
 	if err := row.Scan(
-		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.StartTimeUnix, &job.Partition, &job.ArrayJobId,
+		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.SubCluster, &job.StartTimeUnix, &job.Partition, &job.ArrayJobId,
 		&job.NumNodes, &job.NumHWThreads, &job.NumAcc, &job.Exclusive, &job.MonitoringStatus, &job.SMT, &job.State,
-		&job.Duration, &job.RawResources /*&job.MetaData*/); err != nil {
+		&job.Duration, &job.Walltime, &job.RawResources /*&job.MetaData*/); err != nil {
 		return nil, err
 	}
 

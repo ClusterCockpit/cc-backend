@@ -33,11 +33,12 @@ type Cluster {
   name:         String!
   metricConfig: [MetricConfig!]!
   filterRanges: FilterRanges!
-  partitions:   [Partition!]!
+  subClusters:  [SubCluster!]!
 }
 
-type Partition {
+type SubCluster {
   name:            String!
+  nodes:           String!
   processorType:   String!
   socketsPerNode:  Int!
   coresPerSocket:  Int!

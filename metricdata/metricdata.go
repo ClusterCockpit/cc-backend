@@ -79,7 +79,7 @@ func LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ct
 			}
 
 			if metrics == nil {
-				cluster := config.GetClusterConfig(job.Cluster)
+				cluster := config.GetCluster(job.Cluster)
 				for _, mc := range cluster.MetricConfig {
 					metrics = append(metrics, mc.Name)
 				}
@@ -167,7 +167,7 @@ func LoadNodeData(cluster, partition string, metrics, nodes []string, scopes []s
 	}
 
 	if metrics == nil {
-		for _, m := range config.GetClusterConfig(cluster).MetricConfig {
+		for _, m := range config.GetCluster(cluster).MetricConfig {
 			metrics = append(metrics, m.Name)
 		}
 	}

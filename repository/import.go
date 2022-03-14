@@ -122,12 +122,13 @@ func (r *JobRepository) ImportJob(jobMeta *schema.JobMeta, jobData *schema.JobDa
 	return nil
 }
 
+// This function also sets the subcluster if necessary!
 func SanityChecks(job *schema.BaseJob) error {
-	if c := config.GetClusterConfig(job.Cluster); c == nil {
+	if c := config.GetCluster(job.Cluster); c == nil {
 		return fmt.Errorf("no such cluster: %#v", job.Cluster)
 	}
-	if p := config.GetPartition(job.Cluster, job.Partition); p == nil {
-		return fmt.Errorf("no such partition: %#v (on cluster %#v)", job.Partition, job.Cluster)
+	if err := config.AssignSubCluster(job); err != nil {
+		return err
 	}
 	if !job.State.Valid() {
 		return fmt.Errorf("not a valid job state: %#v", job.State)
