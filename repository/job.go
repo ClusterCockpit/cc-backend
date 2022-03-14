@@ -13,6 +13,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/graph/model"
 	"github.com/ClusterCockpit/cc-backend/schema"
 	sq "github.com/Masterminds/squirrel"
+	"github.com/iamlouk/lrucache"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -20,10 +21,12 @@ type JobRepository struct {
 	DB *sqlx.DB
 
 	stmtCache *sq.StmtCache
+	cache     *lrucache.Cache
 }
 
 func (r *JobRepository) Init() error {
 	r.stmtCache = sq.NewStmtCache(r.DB)
+	r.cache = lrucache.New(100)
 	return nil
 }
 
@@ -120,11 +123,11 @@ func (r *JobRepository) Start(job *schema.JobMeta) (id int64, err error) {
 	}
 
 	res, err := r.DB.NamedExec(`INSERT INTO job (
-		job_id, user, project, cluster, `+"`partition`"+`, array_job_id, num_nodes, num_hwthreads, num_acc,
-		exclusive, monitoring_status, smt, job_state, start_time, duration, resources, meta_data
+		job_id, user, project, cluster, subcluster, `+"`partition`"+`, array_job_id, num_nodes, num_hwthreads, num_acc,
+		exclusive, monitoring_status, smt, job_state, start_time, duration, walltime, resources, meta_data
 	) VALUES (
-		:job_id, :user, :project, :cluster, :partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
-		:exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :resources, :meta_data
+		:job_id, :user, :project, :cluster, :subcluster, :partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
+		:exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :walltime, :resources, :meta_data
 	);`, job)
 	if err != nil {
 		return -1, err
@@ -259,4 +262,20 @@ func (r *JobRepository) FindJobOrUser(ctx context.Context, searchterm string) (j
 	}
 
 	return 0, "", ErrNotFound
+}
+
+func (r *JobRepository) Partitions(cluster string) ([]string, error) {
+	var err error
+	partitions := r.cache.Get("partitions:"+cluster, func() (interface{}, time.Duration, int) {
+		parts := []string{}
+		if err = r.DB.Select(&parts, `SELECT DISTINCT job.partition FROM job WHERE job.cluster = ?;`, cluster); err != nil {
+			return nil, 0, 1000
+		}
+
+		return parts, 1 * time.Hour, 1
+	})
+	if err != nil {
+		return nil, err
+	}
+	return partitions.([]string), nil
 }

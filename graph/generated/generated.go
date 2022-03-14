@@ -98,8 +98,10 @@ type ComplexityRoot struct {
 		SMT              func(childComplexity int) int
 		StartTime        func(childComplexity int) int
 		State            func(childComplexity int) int
+		SubCluster       func(childComplexity int) int
 		Tags             func(childComplexity int) int
 		User             func(childComplexity int) int
+		Walltime         func(childComplexity int) int
 	}
 
 	JobMetric struct {
@@ -503,6 +505,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Job.State(childComplexity), true
 
+	case "Job.subCluster":
+		if e.complexity.Job.SubCluster == nil {
+			break
+		}
+
+		return e.complexity.Job.SubCluster(childComplexity), true
+
 	case "Job.tags":
 		if e.complexity.Job.Tags == nil {
 			break
@@ -516,6 +525,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Job.User(childComplexity), true
+
+	case "Job.walltime":
+		if e.complexity.Job.Walltime == nil {
+			break
+		}
+
+		return e.complexity.Job.Walltime(childComplexity), true
 
 	case "JobMetric.scope":
 		if e.complexity.JobMetric.Scope == nil {
@@ -1212,8 +1228,10 @@ type Job {
   user:             String!
   project:          String!
   cluster:          String!
+  subCluster:       String!
   startTime:        Time!
   duration:         Int!
+  walltime:         Int!
   numNodes:         Int!
   numHWThreads:     Int!
   numAcc:           Int!
@@ -2648,6 +2666,41 @@ func (ec *executionContext) _Job_cluster(ctx context.Context, field graphql.Coll
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Job_subCluster(ctx context.Context, field graphql.CollectedField, obj *schema.Job) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.SubCluster, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Job_startTime(ctx context.Context, field graphql.CollectedField, obj *schema.Job) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -2716,6 +2769,41 @@ func (ec *executionContext) _Job_duration(ctx context.Context, field graphql.Col
 	res := resTmp.(int32)
 	fc.Result = res
 	return ec.marshalNInt2int32(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Job_walltime(ctx context.Context, field graphql.CollectedField, obj *schema.Job) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Walltime, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt2int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Job_numNodes(ctx context.Context, field graphql.CollectedField, obj *schema.Job) (ret graphql.Marshaler) {
@@ -7695,6 +7783,11 @@ func (ec *executionContext) _Job(ctx context.Context, sel ast.SelectionSet, obj 
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&invalids, 1)
 			}
+		case "subCluster":
+			out.Values[i] = ec._Job_subCluster(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
 		case "startTime":
 			out.Values[i] = ec._Job_startTime(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -7702,6 +7795,11 @@ func (ec *executionContext) _Job(ctx context.Context, sel ast.SelectionSet, obj 
 			}
 		case "duration":
 			out.Values[i] = ec._Job_duration(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "walltime":
+			out.Values[i] = ec._Job_walltime(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&invalids, 1)
 			}

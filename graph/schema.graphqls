@@ -11,8 +11,10 @@ type Job {
   user:             String!
   project:          String!
   cluster:          String!
+  subCluster:       String!
   startTime:        Time!
   duration:         Int!
+  walltime:         Int!
   numNodes:         Int!
   numHWThreads:     Int!
   numAcc:           Int!

@@ -25,6 +25,7 @@ const JOBS_DB_SCHEMA string = `
 		id                INTEGER PRIMARY KEY /*!40101 AUTO_INCREMENT */,
 		job_id            BIGINT NOT NULL,
 		cluster           VARCHAR(255) NOT NULL,
+		subcluster        VARCHAR(255) NOT NULL,
 		start_time        BIGINT NOT NULL, -- Unix timestamp
 
 		user              VARCHAR(255) NOT NULL,
@@ -32,6 +33,7 @@ const JOBS_DB_SCHEMA string = `
 		` + "`partition`" + ` VARCHAR(255) NOT NULL, -- partition is a keyword in mysql -.-
 		array_job_id      BIGINT NOT NULL,
 		duration          INT,
+		walltime          INT,
 		job_state         VARCHAR(255) NOT NULL CHECK(job_state IN ('running', 'completed', 'failed', 'cancelled', 'stopped', 'timeout', 'preempted', 'out_of_memory')),
 		meta_data         TEXT,          -- JSON
 		resources         TEXT NOT NULL, -- JSON

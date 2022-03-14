@@ -16,12 +16,12 @@ import (
 )
 
 const NamedJobInsert string = `INSERT INTO job (
-	job_id, user, project, cluster, ` + "`partition`" + `, array_job_id, num_nodes, num_hwthreads, num_acc,
-	exclusive, monitoring_status, smt, job_state, start_time, duration, resources, meta_data,
+	job_id, user, project, cluster, subcluster, ` + "`partition`" + `, array_job_id, num_nodes, num_hwthreads, num_acc,
+	exclusive, monitoring_status, smt, job_state, start_time, duration, walltime, resources, meta_data,
 	mem_used_max, flops_any_avg, mem_bw_avg, load_avg, net_bw_avg, net_data_vol_total, file_bw_avg, file_data_vol_total
 ) VALUES (
-	:job_id, :user, :project, :cluster, :partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
-	:exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :resources, :meta_data,
+	:job_id, :user, :project, :cluster, :subcluster, :partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
+	:exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :walltime, :resources, :meta_data,
 	:mem_used_max, :flops_any_avg, :mem_bw_avg, :load_avg, :net_bw_avg, :net_data_vol_total, :file_bw_avg, :file_data_vol_total
 );`
 
