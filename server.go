@@ -31,6 +31,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/repository"
 	"github.com/ClusterCockpit/cc-backend/schema"
 	"github.com/ClusterCockpit/cc-backend/templates"
+	"github.com/google/gops/agent"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
@@ -83,6 +84,10 @@ type ProgramConfig struct {
 	HttpsCertFile string `json:"https-cert-file"`
 	HttpsKeyFile  string `json:"https-key-file"`
 
+	// If not the empty string and `addr` does not end in ":80",
+	// redirect every request incoming at port 80 to that url.
+	RedirectHttpTo string `json:"redirect-http-to"`
+
 	// If overwriten, at least all the options in the defaults below must
 	// be provided! Most options here can be overwritten by the user.
 	UiDefaults map[string]interface{} `json:"ui-defaults"`
@@ -102,8 +107,6 @@ var programConfig ProgramConfig = ProgramConfig{
 	LdapConfig:            nil,
 	SessionMaxAge:         "168h",
 	JwtMaxAge:             "0",
-	HttpsCertFile:         "",
-	HttpsKeyFile:          "",
 	UiDefaults: map[string]interface{}{
 		"analysis_view_histogramMetrics":     []string{"flops_any", "mem_bw", "mem_used"},
 		"analysis_view_scatterPlotMetrics":   [][]string{{"flops_any", "mem_bw"}, {"flops_any", "cpu_load"}, {"cpu_load", "mem_bw"}},
@@ -251,18 +254,25 @@ var routes []Route = []Route{
 }
 
 func main() {
-	var flagReinitDB, flagStopImmediately, flagSyncLDAP bool
+	var flagReinitDB, flagStopImmediately, flagSyncLDAP, flagGops bool
 	var flagConfigFile, flagImportJob string
 	var flagNewUser, flagDelUser, flagGenJWT string
 	flag.BoolVar(&flagReinitDB, "init-db", false, "Go through job-archive and re-initialize `job`, `tag`, and `jobtag` tables")
 	flag.BoolVar(&flagSyncLDAP, "sync-ldap", false, "Sync the `user` table with ldap")
 	flag.BoolVar(&flagStopImmediately, "no-server", false, "Do not start a server, stop right after initialization and argument handling")
+	flag.BoolVar(&flagGops, "gops", false, "Enable a github.com/google/gops/agent")
 	flag.StringVar(&flagConfigFile, "config", "", "Location of the config file for this server (overwrites the defaults)")
 	flag.StringVar(&flagNewUser, "add-user", "", "Add a new user. Argument format: `<username>:[admin,api,user]:<password>`")
 	flag.StringVar(&flagDelUser, "del-user", "", "Remove user by username")
 	flag.StringVar(&flagGenJWT, "jwt", "", "Generate and print a JWT for the user specified by the username")
 	flag.StringVar(&flagImportJob, "import-job", "", "Import a job. Argument format: `<path-to-meta.json>:<path-to-data.json>,...`")
 	flag.Parse()
+
+	if flagGops {
+		if err := agent.Listen(agent.Options{}); err != nil {
+			log.Fatalf("gops/agent.Listen failed: %s", err.Error())
+		}
+	}
 
 	if err := loadEnv("./.env"); err != nil && !os.IsNotExist(err) {
 		log.Fatalf("parsing './.env' file failed: %s", err.Error())
@@ -535,6 +545,12 @@ func main() {
 	listener, err := net.Listen("tcp", programConfig.Addr)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if !strings.HasSuffix(programConfig.Addr, ":80") && programConfig.RedirectHttpTo != "" {
+		go func() {
+			http.ListenAndServe(":80", http.RedirectHandler(programConfig.RedirectHttpTo, http.StatusMovedPermanently))
+		}()
 	}
 
 	if programConfig.HttpsCertFile != "" && programConfig.HttpsKeyFile != "" {
