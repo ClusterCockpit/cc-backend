@@ -14,5 +14,6 @@ jobs:
         run: |
           go build ./...
           go vet ./...
-          go test  .
-          env BASEPATH="../" go test  ./repository
+          go test .
+          env BASEPATH="../" go test ./repository
+          env BASEPATH="../" go test ./config
