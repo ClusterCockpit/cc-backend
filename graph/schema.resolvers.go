@@ -18,8 +18,8 @@ import (
 	"github.com/ClusterCockpit/cc-backend/schema"
 )
 
-func (r *clusterResolver) SubClusters(ctx context.Context, obj *model.Cluster) ([]*model.SubCluster, error) {
-	panic(fmt.Errorf("not implemented"))
+func (r *clusterResolver) Partitions(ctx context.Context, obj *model.Cluster) ([]string, error) {
+	return r.Repo.Partitions(obj.Name)
 }
 
 func (r *jobResolver) MetaData(ctx context.Context, obj *schema.Job) (interface{}, error) {

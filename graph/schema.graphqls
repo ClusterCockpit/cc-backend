@@ -31,9 +31,10 @@ type Job {
 
 type Cluster {
   name:         String!
+  partitions:   [String!]!        # Slurm partitions
   metricConfig: [MetricConfig!]!
   filterRanges: FilterRanges!
-  subClusters:  [SubCluster!]!
+  subClusters:  [SubCluster!]!    # Hardware partitions/subclusters
 }
 
 type SubCluster {

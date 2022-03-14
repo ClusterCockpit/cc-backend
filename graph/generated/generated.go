@@ -57,6 +57,7 @@ type ComplexityRoot struct {
 		FilterRanges func(childComplexity int) int
 		MetricConfig func(childComplexity int) int
 		Name         func(childComplexity int) int
+		Partitions   func(childComplexity int) int
 		SubClusters  func(childComplexity int) int
 	}
 
@@ -238,7 +239,7 @@ type ComplexityRoot struct {
 }
 
 type ClusterResolver interface {
-	SubClusters(ctx context.Context, obj *model.Cluster) ([]*model.SubCluster, error)
+	Partitions(ctx context.Context, obj *model.Cluster) ([]string, error)
 }
 type JobResolver interface {
 	MetaData(ctx context.Context, obj *schema.Job) (interface{}, error)
@@ -320,6 +321,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Cluster.Name(childComplexity), true
+
+	case "Cluster.partitions":
+		if e.complexity.Cluster.Partitions == nil {
+			break
+		}
+
+		return e.complexity.Cluster.Partitions(childComplexity), true
 
 	case "Cluster.subClusters":
 		if e.complexity.Cluster.SubClusters == nil {
@@ -1260,9 +1268,10 @@ type Job {
 
 type Cluster {
   name:         String!
+  partitions:   [String!]!        # Slurm partitions
   metricConfig: [MetricConfig!]!
   filterRanges: FilterRanges!
-  subClusters:  [SubCluster!]!
+  subClusters:  [SubCluster!]!    # Hardware partitions/subclusters
 }
 
 type SubCluster {
@@ -2084,6 +2093,41 @@ func (ec *executionContext) _Cluster_name(ctx context.Context, field graphql.Col
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Cluster_partitions(ctx context.Context, field graphql.CollectedField, obj *model.Cluster) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Cluster",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Cluster().Partitions(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]string)
+	fc.Result = res
+	return ec.marshalNString2ᚕstringᚄ(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Cluster_metricConfig(ctx context.Context, field graphql.CollectedField, obj *model.Cluster) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -2165,14 +2209,14 @@ func (ec *executionContext) _Cluster_subClusters(ctx context.Context, field grap
 		Object:     "Cluster",
 		Field:      field,
 		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
+		IsMethod:   false,
+		IsResolver: false,
 	}
 
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Cluster().SubClusters(rctx, obj)
+		return obj.SubClusters, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -7636,6 +7680,20 @@ func (ec *executionContext) _Cluster(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&invalids, 1)
 			}
+		case "partitions":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Cluster_partitions(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
 		case "metricConfig":
 			out.Values[i] = ec._Cluster_metricConfig(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -7647,19 +7705,10 @@ func (ec *executionContext) _Cluster(ctx context.Context, sel ast.SelectionSet, 
 				atomic.AddUint32(&invalids, 1)
 			}
 		case "subClusters":
-			field := field
-			out.Concurrently(i, func() (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Cluster_subClusters(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&invalids, 1)
-				}
-				return res
-			})
+			out.Values[i] = ec._Cluster_subClusters(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
