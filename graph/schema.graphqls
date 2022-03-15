@@ -24,9 +24,11 @@ type Job {
   arrayJobId:       Int!
   monitoringStatus: Int!
   state:            JobState!
-  metaData:         Any
   tags:             [Tag!]!
   resources:        [Resource!]!
+
+  metaData:         Any
+  userData:         User
 }
 
 type Cluster {
@@ -138,9 +140,17 @@ type Count {
   count: Int!
 }
 
+type User {
+  username: String!
+  name:     String!
+  email:    String!
+}
+
 type Query {
   clusters:     [Cluster!]!   # List of all clusters
   tags:         [Tag!]!       # List of all tags
+
+  user(username: String!): User
 
   job(id: ID!): Job
   jobMetrics(id: ID!, metrics: [String!], scopes: [MetricScope!]): [JobMetricWithName!]!

@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/graph/model"
 	"github.com/ClusterCockpit/cc-backend/log"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/golang-jwt/jwt/v4"
@@ -230,6 +231,24 @@ func (auth *Authentication) FetchUser(username string) (*User, error) {
 		}
 	}
 
+	return user, nil
+}
+
+func FetchUser(ctx context.Context, db *sqlx.DB, username string) (*model.User, error) {
+	me := GetUser(ctx)
+	if me != nil && !me.HasRole(RoleAdmin) && me.Username != username {
+		return nil, errors.New("forbidden")
+	}
+
+	user := &model.User{Username: username}
+	if err := sq.Select("name", "email").From("user").Where("user.username = ?", username).
+		RunWith(db).QueryRow().Scan(&user.Name, &user.Email); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+
+		return nil, err
+	}
 	return user, nil
 }
 

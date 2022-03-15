@@ -161,6 +161,12 @@ type Topology struct {
 	Accelerators []*Accelerator `json:"accelerators"`
 }
 
+type User struct {
+	Username string `json:"username"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+}
+
 type Aggregate string
 
 const (
