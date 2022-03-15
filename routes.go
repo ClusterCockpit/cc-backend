@@ -92,8 +92,13 @@ func setupJobRoute(i InfoType, r *http.Request) InfoType {
 }
 
 func setupUserRoute(i InfoType, r *http.Request) InfoType {
-	i["id"] = mux.Vars(r)["id"]
-	i["username"] = mux.Vars(r)["id"]
+	username := mux.Vars(r)["id"]
+	i["id"] = username
+	i["username"] = username
+	if user, _ := auth.FetchUser(r.Context(), jobRepo.DB, username); user != nil {
+		i["name"] = user.Name
+		i["email"] = user.Email
+	}
 	return i
 }
 

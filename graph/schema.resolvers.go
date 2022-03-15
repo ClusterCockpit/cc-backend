@@ -22,12 +22,16 @@ func (r *clusterResolver) Partitions(ctx context.Context, obj *model.Cluster) ([
 	return r.Repo.Partitions(obj.Name)
 }
 
+func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error) {
+	return r.Repo.GetTags(&obj.ID)
+}
+
 func (r *jobResolver) MetaData(ctx context.Context, obj *schema.Job) (interface{}, error) {
 	return r.Repo.FetchMetadata(obj)
 }
 
-func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error) {
-	return r.Repo.GetTags(&obj.ID)
+func (r *jobResolver) UserData(ctx context.Context, obj *schema.Job) (*model.User, error) {
+	return auth.FetchUser(ctx, r.DB, obj.User)
 }
 
 func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name string) (*schema.Tag, error) {
@@ -100,6 +104,10 @@ func (r *queryResolver) Clusters(ctx context.Context) ([]*model.Cluster, error) 
 
 func (r *queryResolver) Tags(ctx context.Context) ([]*schema.Tag, error) {
 	return r.Repo.GetTags(nil)
+}
+
+func (r *queryResolver) User(ctx context.Context, username string) (*model.User, error) {
+	return auth.FetchUser(ctx, r.DB, username)
 }
 
 func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error) {
