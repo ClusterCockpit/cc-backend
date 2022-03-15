@@ -108,6 +108,7 @@ type TagJobApiRequest []*struct {
 
 // Return a list of jobs
 func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
+	withMetadata := false
 	filter := &model.JobFilter{}
 	page := &model.PageRequest{ItemsPerPage: -1, Page: 1}
 	order := &model.OrderByInput{Field: "startTime", Order: model.SortDirectionEnumDesc}
@@ -156,6 +157,8 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 				return
 			}
 			page.ItemsPerPage = x
+		case "with-metadata":
+			withMetadata = true
 		default:
 			http.Error(rw, "invalid query parameter: "+key, http.StatusBadRequest)
 			return
@@ -170,6 +173,13 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 
 	results := make([]*schema.JobMeta, 0, len(jobs))
 	for _, job := range jobs {
+		if withMetadata {
+			if _, err := api.JobRepository.FetchMetadata(job); err != nil {
+				http.Error(rw, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
 		res := &schema.JobMeta{
 			ID:        &job.ID,
 			BaseJob:   job.BaseJob,
