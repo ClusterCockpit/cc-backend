@@ -79,9 +79,7 @@
                             listElement.querySelectorAll('button.get-jwt').forEach(e => e.addEventListener('click', event => {
                                 let row = event.target.parentElement.parentElement
                                 let username = row.children[0].innerText
-                                let formData = new FormData()
-                                formData.append('username', username)
-                                fetch('/api/jwt/', { method: 'POST', body: formData })
+                                fetch(`/api/jwt/?username=${username}`)
                                     .then(res => res.text())
                                     .then(text => alert(text))
                             }))
