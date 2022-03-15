@@ -1,4 +1,4 @@
-package main
+package test
 
 import (
 	"bytes"
@@ -21,13 +21,11 @@ import (
 	"github.com/ClusterCockpit/cc-backend/schema"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func setup(t *testing.T) *api.RestApi {
-	if db != nil {
-		panic("prefer using sub-tests (`t.Run`) or implement `cleanup` before calling setup twice.")
-	}
-
 	const testclusterJson = `{
 		"name": "testcluster",
 		"subClusters": [
@@ -96,17 +94,17 @@ func setup(t *testing.T) *api.RestApi {
 	}
 	f.Close()
 
-	db, err = sqlx.Open("sqlite3", fmt.Sprintf("%s?_foreign_keys=on", dbfilepath))
+	db, err := sqlx.Open("sqlite3", fmt.Sprintf("%s?_foreign_keys=on", dbfilepath))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	db.SetMaxOpenConns(1)
-	if _, err := db.Exec(JOBS_DB_SCHEMA); err != nil {
+	if _, err := db.Exec(repository.JobsDBSchema); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := config.Init(db, false, programConfig.UiDefaults, jobarchive); err != nil {
+	if err := config.Init(db, false, map[string]interface{}{}, jobarchive); err != nil {
 		t.Fatal(err)
 	}
 

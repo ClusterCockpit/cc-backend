@@ -1,4 +1,4 @@
-package main
+package repository
 
 import (
 	"bufio"
@@ -9,14 +9,13 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/log"
-	"github.com/ClusterCockpit/cc-backend/repository"
 	"github.com/ClusterCockpit/cc-backend/schema"
 	"github.com/jmoiron/sqlx"
 )
 
 // `AUTO_INCREMENT` is in a comment because of this hack:
 // https://stackoverflow.com/a/41028314 (sqlite creates unique ids automatically)
-const JOBS_DB_SCHEMA string = `
+const JobsDBSchema string = `
 	DROP TABLE IF EXISTS jobtag;
 	DROP TABLE IF EXISTS job;
 	DROP TABLE IF EXISTS tag;
@@ -32,8 +31,8 @@ const JOBS_DB_SCHEMA string = `
 		project           VARCHAR(255) NOT NULL,
 		` + "`partition`" + ` VARCHAR(255) NOT NULL, -- partition is a keyword in mysql -.-
 		array_job_id      BIGINT NOT NULL,
-		duration          INT,
-		walltime          INT,
+		duration          INT NOT NULL DEFAULT 0,
+		walltime          INT NOT NULL DEFAULT 0,
 		job_state         VARCHAR(255) NOT NULL CHECK(job_state IN ('running', 'completed', 'failed', 'cancelled', 'stopped', 'timeout', 'preempted', 'out_of_memory')),
 		meta_data         TEXT,          -- JSON
 		resources         TEXT NOT NULL, -- JSON
@@ -68,7 +67,8 @@ const JOBS_DB_SCHEMA string = `
 		FOREIGN KEY (tag_id) REFERENCES tag (id) ON DELETE CASCADE);
 `
 
-const JOBS_DB_INDEXES string = `
+// Indexes are created after the job-archive is traversed for faster inserts.
+const JobsDbIndexes string = `
 	CREATE INDEX job_by_user      ON job (user);
 	CREATE INDEX job_by_starttime ON job (start_time);
 	CREATE INDEX job_by_job_id    ON job (job_id);
@@ -77,12 +77,12 @@ const JOBS_DB_INDEXES string = `
 
 // Delete the tables "job", "tag" and "jobtag" from the database and
 // repopulate them using the jobs found in `archive`.
-func initDB(db *sqlx.DB, archive string) error {
+func InitDB(db *sqlx.DB, archive string) error {
 	starttime := time.Now()
 	log.Print("Building job table...")
 
 	// Basic database structure:
-	_, err := db.Exec(JOBS_DB_SCHEMA)
+	_, err := db.Exec(JobsDBSchema)
 	if err != nil {
 		return err
 	}
@@ -96,16 +96,21 @@ func initDB(db *sqlx.DB, archive string) error {
 		return err
 	}
 
+	// Inserts are bundled into transactions because in sqlite,
+	// that speeds up inserts A LOT.
 	tx, err := db.Beginx()
 	if err != nil {
 		return err
 	}
 
-	stmt, err := tx.PrepareNamed(repository.NamedJobInsert)
+	stmt, err := tx.PrepareNamed(NamedJobInsert)
 	if err != nil {
 		return err
 	}
 
+	// Not using log.Print because we want the line to end with `\r` and
+	// this function is only ever called when a special command line flag
+	// is passed anyways.
 	fmt.Printf("%d jobs inserted...\r", 0)
 	i := 0
 	tags := make(map[string]int64)
@@ -159,6 +164,8 @@ func initDB(db *sqlx.DB, archive string) error {
 					return err
 				}
 
+				// For compability with the old job-archive directory structure where
+				// there was no start time directory.
 				for _, startTimeDir := range startTimeDirs {
 					if startTimeDir.Type().IsRegular() && startTimeDir.Name() == "meta.json" {
 						if err := handleDirectory(dirpath); err != nil {
@@ -180,7 +187,7 @@ func initDB(db *sqlx.DB, archive string) error {
 
 	// Create indexes after inserts so that they do not
 	// need to be continually updated.
-	if _, err := db.Exec(JOBS_DB_INDEXES); err != nil {
+	if _, err := db.Exec(JobsDbIndexes); err != nil {
 		return err
 	}
 
@@ -226,7 +233,7 @@ func loadJob(tx *sqlx.Tx, stmt *sqlx.NamedStmt, tags map[string]int64, path stri
 		return err
 	}
 
-	if err := repository.SanityChecks(&job.BaseJob); err != nil {
+	if err := SanityChecks(&job.BaseJob); err != nil {
 		return err
 	}
 
@@ -261,12 +268,4 @@ func loadJob(tx *sqlx.Tx, stmt *sqlx.NamedStmt, tags map[string]int64, path stri
 	}
 
 	return nil
-}
-
-func loadJobStat(job *schema.JobMeta, metric string) float64 {
-	if stats, ok := job.Statistics[metric]; ok {
-		return stats.Avg
-	}
-
-	return 0.0
 }
