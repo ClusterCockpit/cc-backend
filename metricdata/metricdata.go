@@ -41,6 +41,8 @@ func Init(jobArchivePath string, disableArchive bool) error {
 			switch cluster.MetricDataRepository.Kind {
 			case "cc-metric-store":
 				mdr = &CCMetricStore{}
+			case "influxdb":
+				mdr = &InfluxDBv2DataRepository{}
 			case "test":
 				mdr = &TestMetricDataRepository{}
 			default:
