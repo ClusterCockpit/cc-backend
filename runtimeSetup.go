@@ -12,6 +12,9 @@ import (
 	"syscall"
 )
 
+// Very simple and limited .env file reader.
+// All variable definitions found are directly
+// added to the processes environment.
 func loadEnv(file string) error {
 	f, err := os.Open(file)
 	if err != nil {
@@ -74,6 +77,10 @@ func loadEnv(file string) error {
 	return s.Err()
 }
 
+// Changes the processes user and group to that
+// specified in the config.json. The go runtime
+// takes care of all threads (and not only the calling one)
+// executing the underlying systemcall.
 func dropPrivileges() error {
 	if programConfig.Group != "" {
 		g, err := user.LookupGroup(programConfig.Group)

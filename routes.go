@@ -9,6 +9,9 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/auth"
 	"github.com/ClusterCockpit/cc-backend/config"
+	"github.com/ClusterCockpit/cc-backend/graph"
+	"github.com/ClusterCockpit/cc-backend/graph/model"
+	"github.com/ClusterCockpit/cc-backend/log"
 	"github.com/ClusterCockpit/cc-backend/schema"
 	"github.com/ClusterCockpit/cc-backend/templates"
 	"github.com/gorilla/mux"
@@ -22,6 +25,131 @@ type Route struct {
 	Title    string
 	Filter   bool
 	Setup    func(i InfoType, r *http.Request) InfoType
+}
+
+var routes []Route = []Route{
+	{"/", "home.tmpl", "ClusterCockpit", false, setupHomeRoute},
+	{"/config", "config.tmpl", "Settings", false, func(i InfoType, r *http.Request) InfoType { return i }},
+	{"/monitoring/jobs/", "monitoring/jobs.tmpl", "Jobs - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { return i }},
+	{"/monitoring/job/{id:[0-9]+}", "monitoring/job.tmpl", "Job <ID> - ClusterCockpit", false, setupJobRoute},
+	{"/monitoring/users/", "monitoring/list.tmpl", "Users - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { i["listType"] = "USER"; return i }},
+	{"/monitoring/projects/", "monitoring/list.tmpl", "Projects - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { i["listType"] = "PROJECT"; return i }},
+	{"/monitoring/tags/", "monitoring/taglist.tmpl", "Tags - ClusterCockpit", false, setupTaglistRoute},
+	{"/monitoring/user/{id}", "monitoring/user.tmpl", "User <ID> - ClusterCockpit", true, setupUserRoute},
+	{"/monitoring/systems/{cluster}", "monitoring/systems.tmpl", "Cluster <ID> - ClusterCockpit", false, setupClusterRoute},
+	{"/monitoring/node/{cluster}/{hostname}", "monitoring/node.tmpl", "Node <ID> - ClusterCockpit", false, setupNodeRoute},
+	{"/monitoring/analysis/{cluster}", "monitoring/analysis.tmpl", "Analaysis - ClusterCockpit", true, setupAnalysisRoute},
+}
+
+func setupHomeRoute(i InfoType, r *http.Request) InfoType {
+	type cluster struct {
+		Name            string
+		RunningJobs     int
+		TotalJobs       int
+		RecentShortJobs int
+	}
+
+	runningJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, []*model.JobFilter{{
+		State: []schema.JobState{schema.JobStateRunning},
+	}}, nil)
+	if err != nil {
+		log.Errorf("failed to count jobs: %s", err.Error())
+		runningJobs = map[string]int{}
+	}
+	totalJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, nil, nil)
+	if err != nil {
+		log.Errorf("failed to count jobs: %s", err.Error())
+		totalJobs = map[string]int{}
+	}
+
+	from := time.Now().Add(-24 * time.Hour)
+	recentShortJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, []*model.JobFilter{{
+		StartTime: &model.TimeRange{From: &from, To: nil},
+		Duration:  &model.IntRange{From: 0, To: graph.ShortJobDuration},
+	}}, nil)
+	if err != nil {
+		log.Errorf("failed to count jobs: %s", err.Error())
+		recentShortJobs = map[string]int{}
+	}
+
+	clusters := make([]cluster, 0)
+	for _, c := range config.Clusters {
+		clusters = append(clusters, cluster{
+			Name:            c.Name,
+			RunningJobs:     runningJobs[c.Name],
+			TotalJobs:       totalJobs[c.Name],
+			RecentShortJobs: recentShortJobs[c.Name],
+		})
+	}
+
+	i["clusters"] = clusters
+	return i
+}
+
+func setupJobRoute(i InfoType, r *http.Request) InfoType {
+	i["id"] = mux.Vars(r)["id"]
+	return i
+}
+
+func setupUserRoute(i InfoType, r *http.Request) InfoType {
+	i["id"] = mux.Vars(r)["id"]
+	i["username"] = mux.Vars(r)["id"]
+	return i
+}
+
+func setupClusterRoute(i InfoType, r *http.Request) InfoType {
+	vars := mux.Vars(r)
+	i["id"] = vars["cluster"]
+	i["cluster"] = vars["cluster"]
+	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
+	if from != "" || to != "" {
+		i["from"] = from
+		i["to"] = to
+	}
+	return i
+}
+
+func setupNodeRoute(i InfoType, r *http.Request) InfoType {
+	vars := mux.Vars(r)
+	i["cluster"] = vars["cluster"]
+	i["hostname"] = vars["hostname"]
+	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
+	if from != "" || to != "" {
+		i["from"] = from
+		i["to"] = to
+	}
+	return i
+}
+
+func setupAnalysisRoute(i InfoType, r *http.Request) InfoType {
+	i["cluster"] = mux.Vars(r)["cluster"]
+	return i
+}
+
+func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
+	var username *string = nil
+	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleAdmin) {
+		username = &user.Username
+	}
+
+	tags, counts, err := jobRepo.CountTags(username)
+	tagMap := make(map[string][]map[string]interface{})
+	if err != nil {
+		log.Errorf("GetTags failed: %s", err.Error())
+		i["tagmap"] = tagMap
+		return i
+	}
+
+	for _, tag := range tags {
+		tagItem := map[string]interface{}{
+			"id":    tag.ID,
+			"name":  tag.Name,
+			"count": counts[tag.Name],
+		}
+		tagMap[tag.Type] = append(tagMap[tag.Type], tagItem)
+	}
+	i["tagmap"] = tagMap
+	return i
 }
 
 func buildFilterPresets(query url.Values) map[string]interface{} {

@@ -227,7 +227,7 @@ var (
 
 func (ccms *CCMetricStore) buildQueries(job *schema.Job, metrics []string, scopes []schema.MetricScope) ([]ApiQuery, []schema.MetricScope, error) {
 	queries := make([]ApiQuery, 0, len(metrics)*len(scopes)*len(job.Resources))
-	topology := config.GetPartition(job.Cluster, job.Partition).Topology
+	topology := config.GetSubCluster(job.Cluster, job.SubCluster).Topology
 	assignedScope := []schema.MetricScope{}
 
 	for _, metric := range metrics {

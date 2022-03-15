@@ -6,7 +6,7 @@ type Cluster struct {
 	Name         string          `json:"name"`
 	MetricConfig []*MetricConfig `json:"metricConfig"`
 	FilterRanges *FilterRanges   `json:"filterRanges"`
-	Partitions   []*Partition    `json:"partitions"`
+	SubClusters  []*SubCluster   `json:"subClusters"`
 
 	// NOT part of the API:
 	MetricDataRepository *MetricDataRepository `json:"metricDataRepository"`

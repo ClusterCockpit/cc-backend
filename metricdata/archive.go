@@ -157,7 +157,7 @@ func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
 // Writes a running job to the job-archive
 func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 	allMetrics := make([]string, 0)
-	metricConfigs := config.GetClusterConfig(job.Cluster).MetricConfig
+	metricConfigs := config.GetCluster(job.Cluster).MetricConfig
 	for _, mc := range metricConfigs {
 		allMetrics = append(allMetrics, mc.Name)
 	}

@@ -122,8 +122,16 @@ type PageRequest struct {
 	Page         int `json:"page"`
 }
 
-type Partition struct {
+type StringInput struct {
+	Eq         *string `json:"eq"`
+	Contains   *string `json:"contains"`
+	StartsWith *string `json:"startsWith"`
+	EndsWith   *string `json:"endsWith"`
+}
+
+type SubCluster struct {
 	Name            string    `json:"name"`
+	Nodes           string    `json:"nodes"`
 	ProcessorType   string    `json:"processorType"`
 	SocketsPerNode  int       `json:"socketsPerNode"`
 	CoresPerSocket  int       `json:"coresPerSocket"`
@@ -132,13 +140,6 @@ type Partition struct {
 	FlopRateSimd    int       `json:"flopRateSimd"`
 	MemoryBandwidth int       `json:"memoryBandwidth"`
 	Topology        *Topology `json:"topology"`
-}
-
-type StringInput struct {
-	Eq         *string `json:"eq"`
-	Contains   *string `json:"contains"`
-	StartsWith *string `json:"startsWith"`
-	EndsWith   *string `json:"endsWith"`
 }
 
 type TimeRange struct {

@@ -5,14 +5,17 @@ import (
 	"testing"
 
 	"github.com/jmoiron/sqlx"
-
-	"github.com/ClusterCockpit/cc-backend/test"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var db *sqlx.DB
 
 func init() {
-	db = test.InitDB()
+	var err error
+	db, err = sqlx.Open("sqlite3", "../test/test.db")
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 func setup(t *testing.T) *JobRepository {
