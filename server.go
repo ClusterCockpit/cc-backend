@@ -112,7 +112,7 @@ var programConfig ProgramConfig = ProgramConfig{
 		"job_view_selectedMetrics":           []string{"flops_any", "mem_bw", "mem_used"},
 		"plot_general_colorBackground":       true,
 		"plot_general_colorscheme":           []string{"#00bfff", "#0000ff", "#ff00ff", "#ff0000", "#ff8000", "#ffff00", "#80ff00"},
-		"plot_general_lineWidth":             1,
+		"plot_general_lineWidth":             3,
 		"plot_list_hideShortRunningJobs":     5 * 60,
 		"plot_list_jobsPerPage":              10,
 		"plot_list_selectedMetrics":          []string{"cpu_load", "ipc", "mem_used", "flops_any", "mem_bw"},
