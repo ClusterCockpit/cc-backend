@@ -30,7 +30,7 @@ git clone --recursive git@github.com:ClusterCockpit/cc-backend.git
 
 ./startDemo.sh
 ```
-You can access the web interface at http://localhost:8080. Please note that some views do not work without a metric backend (Systems view).
+You can access the web interface at http://localhost:8080. Credentials for login: `demo:AdminDev`. Please note that some views do not work without a metric backend (Systems view).
 
 ## Howto Build and Run
 
