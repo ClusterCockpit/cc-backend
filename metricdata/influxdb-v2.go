@@ -31,9 +31,8 @@ func (idb *InfluxDBv2DataRepository) Init(url string, token string, renamings ma
 	return nil
 }
 
-func (idb *InfluxDBv2DataRepository) formatTime(t time.Time) string { // TODO: Verwend lieber https://pkg.go.dev/time#Time.Format mit dem Format time.RFC3339
-	return fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02dZ",
-		t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
+func (idb *InfluxDBv2DataRepository) formatTime(t time.Time) string {
+	return t.Format(time.RFC3339) // Like “2006-01-02T15:04:05Z07:00”
 }
 
 func (idb *InfluxDBv2DataRepository) epochToTime(epoch int64) time.Time {
@@ -180,7 +179,7 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 		}
 	}
 
-	// // DEBUG:
+	// DEBUG:
 	for _, met := range metrics {
 	   for _, series := range jobData[met][scope].Series {
 	   log.Println(fmt.Sprintf("<< Result: %d data points for metric %s on %s, Stats: Min %.2f, Max %.2f, Avg %.2f >>",
@@ -192,7 +191,6 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 	return jobData, nil
 }
 
-// Method with Pointer Receiver, pointer argument to other package, and combined Return
 func (idb *InfluxDBv2DataRepository) LoadStats(job *schema.Job, metrics []string, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error) {
 	stats := map[string]map[string]schema.MetricStatistics{}
 
@@ -245,13 +243,9 @@ func (idb *InfluxDBv2DataRepository) LoadStats(job *schema.Job, metrics []string
 			stats[metric] = nodes
 	}
 
-	// log.Println("<< FINAL CLOCK STATS >>")
-	// log.Println(stats["clock"])
-
 	return stats, nil
 }
 
-// Method with Pointer Receiver and combined Return
 func (idb *InfluxDBv2DataRepository) LoadNodeData(cluster, partition string, metrics, nodes []string, scopes []schema.MetricScope, from, to time.Time, ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
 	// TODO : Implement to be used in Analysis- und System/Node-View
 
