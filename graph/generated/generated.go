@@ -72,6 +72,11 @@ type ComplexityRoot struct {
 		StartTime func(childComplexity int) int
 	}
 
+	Footprints struct {
+		Metrics   func(childComplexity int) int
+		Nodehours func(childComplexity int) int
+	}
+
 	HistoPoint struct {
 		Count func(childComplexity int) int
 		Value func(childComplexity int) int
@@ -149,8 +154,8 @@ type ComplexityRoot struct {
 	}
 
 	MetricFootprints struct {
-		Footprints func(childComplexity int) int
-		Name       func(childComplexity int) int
+		Data   func(childComplexity int) int
+		Metric func(childComplexity int) int
 	}
 
 	MetricStatistics struct {
@@ -268,7 +273,7 @@ type QueryResolver interface {
 	User(ctx context.Context, username string) (*model.User, error)
 	Job(ctx context.Context, id string) (*schema.Job, error)
 	JobMetrics(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope) ([]*model.JobMetricWithName, error)
-	JobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) ([]*model.MetricFootprints, error)
+	JobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error)
 	Jobs(ctx context.Context, filter []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) (*model.JobResultList, error)
 	JobsStatistics(ctx context.Context, filter []*model.JobFilter, groupBy *model.Aggregate) ([]*model.JobsStatistics, error)
 	JobsCount(ctx context.Context, filter []*model.JobFilter, groupBy model.Aggregate, limit *int) ([]*model.Count, error)
@@ -381,6 +386,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.FilterRanges.StartTime(childComplexity), true
+
+	case "Footprints.metrics":
+		if e.complexity.Footprints.Metrics == nil {
+			break
+		}
+
+		return e.complexity.Footprints.Metrics(childComplexity), true
+
+	case "Footprints.nodehours":
+		if e.complexity.Footprints.Nodehours == nil {
+			break
+		}
+
+		return e.complexity.Footprints.Nodehours(childComplexity), true
 
 	case "HistoPoint.count":
 		if e.complexity.HistoPoint.Count == nil {
@@ -746,19 +765,19 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.MetricConfig.Unit(childComplexity), true
 
-	case "MetricFootprints.footprints":
-		if e.complexity.MetricFootprints.Footprints == nil {
+	case "MetricFootprints.data":
+		if e.complexity.MetricFootprints.Data == nil {
 			break
 		}
 
-		return e.complexity.MetricFootprints.Footprints(childComplexity), true
+		return e.complexity.MetricFootprints.Data(childComplexity), true
 
-	case "MetricFootprints.name":
-		if e.complexity.MetricFootprints.Name == nil {
+	case "MetricFootprints.metric":
+		if e.complexity.MetricFootprints.Metric == nil {
 			break
 		}
 
-		return e.complexity.MetricFootprints.Name(childComplexity), true
+		return e.complexity.MetricFootprints.Metric(childComplexity), true
 
 	case "MetricStatistics.avg":
 		if e.complexity.MetricStatistics.Avg == nil {
@@ -1412,8 +1431,13 @@ type StatsSeries {
 }
 
 type MetricFootprints {
-  name: String!
-  footprints: [NullableFloat!]!
+  metric: String!
+  data:   [NullableFloat!]!
+}
+
+type Footprints {
+  nodehours: [NullableFloat!]!
+  metrics:   [MetricFootprints!]!
 }
 
 enum Aggregate { USER, PROJECT, CLUSTER }
@@ -1442,7 +1466,7 @@ type Query {
 
   job(id: ID!): Job
   jobMetrics(id: ID!, metrics: [String!], scopes: [MetricScope!]): [JobMetricWithName!]!
-  jobsFootprints(filter: [JobFilter!], metrics: [String!]!): [MetricFootprints]!
+  jobsFootprints(filter: [JobFilter!], metrics: [String!]!): Footprints
 
   jobs(filter: [JobFilter!], page: PageRequest, order: OrderByInput): JobResultList!
   jobsStatistics(filter: [JobFilter!], groupBy: Aggregate): [JobsStatistics!]!
@@ -2482,6 +2506,76 @@ func (ec *executionContext) _FilterRanges_startTime(ctx context.Context, field g
 	res := resTmp.(*model.TimeRangeOutput)
 	fc.Result = res
 	return ec.marshalNTimeRangeOutput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐTimeRangeOutput(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Footprints_nodehours(ctx context.Context, field graphql.CollectedField, obj *model.Footprints) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Footprints",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Nodehours, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]schema.Float)
+	fc.Result = res
+	return ec.marshalNNullableFloat2ᚕgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋschemaᚐFloatᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Footprints_metrics(ctx context.Context, field graphql.CollectedField, obj *model.Footprints) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Footprints",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Metrics, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.MetricFootprints)
+	fc.Result = res
+	return ec.marshalNMetricFootprints2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐMetricFootprintsᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _HistoPoint_count(ctx context.Context, field graphql.CollectedField, obj *model.HistoPoint) (ret graphql.Marshaler) {
@@ -4283,7 +4377,7 @@ func (ec *executionContext) _MetricConfig_alert(ctx context.Context, field graph
 	return ec.marshalNFloat2float64(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _MetricFootprints_name(ctx context.Context, field graphql.CollectedField, obj *model.MetricFootprints) (ret graphql.Marshaler) {
+func (ec *executionContext) _MetricFootprints_metric(ctx context.Context, field graphql.CollectedField, obj *model.MetricFootprints) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -4301,7 +4395,7 @@ func (ec *executionContext) _MetricFootprints_name(ctx context.Context, field gr
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Name, nil
+		return obj.Metric, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4318,7 +4412,7 @@ func (ec *executionContext) _MetricFootprints_name(ctx context.Context, field gr
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _MetricFootprints_footprints(ctx context.Context, field graphql.CollectedField, obj *model.MetricFootprints) (ret graphql.Marshaler) {
+func (ec *executionContext) _MetricFootprints_data(ctx context.Context, field graphql.CollectedField, obj *model.MetricFootprints) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -4336,7 +4430,7 @@ func (ec *executionContext) _MetricFootprints_footprints(ctx context.Context, fi
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Footprints, nil
+		return obj.Data, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4957,14 +5051,11 @@ func (ec *executionContext) _Query_jobsFootprints(ctx context.Context, field gra
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.MetricFootprints)
+	res := resTmp.(*model.Footprints)
 	fc.Result = res
-	return ec.marshalNMetricFootprints2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐMetricFootprints(ctx, field.Selections, res)
+	return ec.marshalOFootprints2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐFootprints(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_jobs(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -8041,6 +8132,38 @@ func (ec *executionContext) _FilterRanges(ctx context.Context, sel ast.Selection
 	return out
 }
 
+var footprintsImplementors = []string{"Footprints"}
+
+func (ec *executionContext) _Footprints(ctx context.Context, sel ast.SelectionSet, obj *model.Footprints) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, footprintsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Footprints")
+		case "nodehours":
+			out.Values[i] = ec._Footprints_nodehours(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "metrics":
+			out.Values[i] = ec._Footprints_metrics(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
 var histoPointImplementors = []string{"HistoPoint"}
 
 func (ec *executionContext) _HistoPoint(ctx context.Context, sel ast.SelectionSet, obj *model.HistoPoint) graphql.Marshaler {
@@ -8494,13 +8617,13 @@ func (ec *executionContext) _MetricFootprints(ctx context.Context, sel ast.Selec
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("MetricFootprints")
-		case "name":
-			out.Values[i] = ec._MetricFootprints_name(ctx, field, obj)
+		case "metric":
+			out.Values[i] = ec._MetricFootprints_metric(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
-		case "footprints":
-			out.Values[i] = ec._MetricFootprints_footprints(ctx, field, obj)
+		case "data":
+			out.Values[i] = ec._MetricFootprints_data(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -8720,9 +8843,6 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_jobsFootprints(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&invalids, 1)
-				}
 				return res
 			})
 		case "jobs":
@@ -10048,7 +10168,7 @@ func (ec *executionContext) marshalNMetricConfig2ᚖgithubᚗcomᚋClusterCockpi
 	return ec._MetricConfig(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNMetricFootprints2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐMetricFootprints(ctx context.Context, sel ast.SelectionSet, v []*model.MetricFootprints) graphql.Marshaler {
+func (ec *executionContext) marshalNMetricFootprints2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐMetricFootprintsᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.MetricFootprints) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -10072,7 +10192,7 @@ func (ec *executionContext) marshalNMetricFootprints2ᚕᚖgithubᚗcomᚋCluste
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalOMetricFootprints2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐMetricFootprints(ctx, sel, v[i])
+			ret[i] = ec.marshalNMetricFootprints2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐMetricFootprints(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -10083,6 +10203,16 @@ func (ec *executionContext) marshalNMetricFootprints2ᚕᚖgithubᚗcomᚋCluste
 	}
 	wg.Wait()
 	return ret
+}
+
+func (ec *executionContext) marshalNMetricFootprints2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐMetricFootprints(ctx context.Context, sel ast.SelectionSet, v *model.MetricFootprints) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._MetricFootprints(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNMetricScope2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋschemaᚐMetricScope(ctx context.Context, v interface{}) (schema.MetricScope, error) {
@@ -10753,6 +10883,13 @@ func (ec *executionContext) unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpi
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalOFootprints2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐFootprints(ctx context.Context, sel ast.SelectionSet, v *model.Footprints) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Footprints(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalOID2ᚕstringᚄ(ctx context.Context, v interface{}) ([]string, error) {
 	if v == nil {
 		return nil, nil
@@ -10957,13 +11094,6 @@ func (ec *executionContext) marshalOJobState2ᚕgithubᚗcomᚋClusterCockpitᚋ
 	}
 
 	return ret
-}
-
-func (ec *executionContext) marshalOMetricFootprints2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐMetricFootprints(ctx context.Context, sel ast.SelectionSet, v *model.MetricFootprints) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._MetricFootprints(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOMetricScope2ᚕgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋschemaᚐMetricScopeᚄ(ctx context.Context, v interface{}) ([]schema.MetricScope, error) {

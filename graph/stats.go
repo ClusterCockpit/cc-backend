@@ -254,7 +254,7 @@ func (r *Resolver) rooflineHeatmap(ctx context.Context, filter []*model.JobFilte
 }
 
 // Helper function for the jobsFootprints GraphQL query placed here so that schema.resolvers.go is not too full.
-func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) ([]*model.MetricFootprints, error) {
+func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error) {
 	jobs, err := r.Repo.QueryJobs(ctx, filter, &model.PageRequest{Page: 1, ItemsPerPage: MAX_JOBS_FOR_ANALYSIS + 1}, nil)
 	if err != nil {
 		return nil, err
@@ -268,19 +268,25 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 		avgs[i] = make([]schema.Float, 0, len(jobs))
 	}
 
+	nodehours := make([]schema.Float, 0, len(jobs))
 	for _, job := range jobs {
 		if err := metricdata.LoadAverages(job, metrics, avgs, ctx); err != nil {
 			return nil, err
 		}
+
+		nodehours = append(nodehours, schema.Float(float64(job.Duration)/60.0*float64(job.NumNodes)))
 	}
 
 	res := make([]*model.MetricFootprints, len(avgs))
 	for i, arr := range avgs {
 		res[i] = &model.MetricFootprints{
-			Name:       metrics[i],
-			Footprints: arr,
+			Metric: metrics[i],
+			Data:   arr,
 		}
 	}
 
-	return res, nil
+	return &model.Footprints{
+		Nodehours: nodehours,
+		Metrics:   res,
+	}, nil
 }

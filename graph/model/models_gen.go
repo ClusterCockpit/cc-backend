@@ -33,6 +33,11 @@ type FloatRange struct {
 	To   float64 `json:"to"`
 }
 
+type Footprints struct {
+	Nodehours []schema.Float      `json:"nodehours"`
+	Metrics   []*MetricFootprints `json:"metrics"`
+}
+
 type HistoPoint struct {
 	Count int `json:"count"`
 	Value int `json:"value"`
@@ -103,8 +108,8 @@ type MetricConfig struct {
 }
 
 type MetricFootprints struct {
-	Name       string         `json:"name"`
-	Footprints []schema.Float `json:"footprints"`
+	Metric string         `json:"metric"`
+	Data   []schema.Float `json:"data"`
 }
 
 type NodeMetrics struct {

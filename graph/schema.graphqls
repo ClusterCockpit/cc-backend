@@ -124,8 +124,13 @@ type StatsSeries {
 }
 
 type MetricFootprints {
-  name: String!
-  footprints: [NullableFloat!]!
+  metric: String!
+  data:   [NullableFloat!]!
+}
+
+type Footprints {
+  nodehours: [NullableFloat!]!
+  metrics:   [MetricFootprints!]!
 }
 
 enum Aggregate { USER, PROJECT, CLUSTER }
@@ -154,7 +159,7 @@ type Query {
 
   job(id: ID!): Job
   jobMetrics(id: ID!, metrics: [String!], scopes: [MetricScope!]): [JobMetricWithName!]!
-  jobsFootprints(filter: [JobFilter!], metrics: [String!]!): [MetricFootprints]!
+  jobsFootprints(filter: [JobFilter!], metrics: [String!]!): Footprints
 
   jobs(filter: [JobFilter!], page: PageRequest, order: OrderByInput): JobResultList!
   jobsStatistics(filter: [JobFilter!], groupBy: Aggregate): [JobsStatistics!]!

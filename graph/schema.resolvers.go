@@ -156,7 +156,7 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 	return res, err
 }
 
-func (r *queryResolver) JobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) ([]*model.MetricFootprints, error) {
+func (r *queryResolver) JobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error) {
 	return r.jobsFootprints(ctx, filter, metrics)
 }
 
