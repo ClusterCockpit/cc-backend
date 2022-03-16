@@ -19,6 +19,19 @@ Finished batch jobs are stored in a so called job archive following [this specif
 The backend supports authentication using local accounts or an external LDAP directory.
 Authorization for APIs is implemented using [JWT](https://jwt.io/) tokens created with  public/private key encryption.
 
+## Demo Setup
+
+We provide a shell skript that downloads demo data and automatically builds and starts cc-backend.
+You need `wget`, `go`, and `yarn` in your path to start the demo. The demo will download 32MB of data (223MB on disk).
+
+```sh
+# The frontend is a submodule, so use `--recursive`
+git clone --recursive git@github.com:ClusterCockpit/cc-backend.git
+
+./startDemo.sh
+```
+You can access the web interface at http://localhost:8080. Please note that some views do not work without a metric backend (Systems view).
+
 ## Howto Build and Run
 
 ```sh
