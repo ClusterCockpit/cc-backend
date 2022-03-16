@@ -25,8 +25,8 @@ func (idb *InfluxDBv2DataRepository) Init(url string, token string, renamings ma
 
 	idb.client 			= influxdb2.NewClientWithOptions(url, token, influxdb2.DefaultOptions().SetTLSConfig(&tls.Config {InsecureSkipVerify: true,} ))
 	idb.queryClient = idb.client.QueryAPI("ClusterCockpit") // Influxdb Org here
-	idb.bucket 			= "ClusterCockpit/data"
-	idb.measurement = "data"
+	idb.bucket 			= "ClusterCockpit/data" // New line protocoll: define for requested cluster(s) in loadData, e.g. fritz
+	idb.measurement = "data" // New line protocoll: define for each metric in loadData
 
 	return nil
 }
@@ -138,7 +138,7 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 		if ( host == "" || host != row.ValueByKey("host").(string) || rows.TableChanged() ) {
 
 				if ( host != "" ) { // Not in initial loop
-					  log.Println(fmt.Sprintf("<< Save Series for : Field %s @  Host %s >>", field, host))
+					  // log.Println(fmt.Sprintf("<< Save Series for : Field %s @  Host %s >>", field, host))
 				  	jobData[field][scope].Series = append(jobData[field][scope].Series, hostSeries) // add filled data to jobData **before resetting** for new field or new host
 				}
 				// (Re-)Set new Series
@@ -148,7 +148,7 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 						Statistics: nil,
 						Data:       make([]schema.Float, 0),
 				}
-				log.Println(fmt.Sprintf("<< New Series for : Field %s @  Host %s >>", field, host))
+				// log.Println(fmt.Sprintf("<< New Series for : Field %s @  Host %s >>", field, host))
 		}
 
 		val := row.Value().(float64)
@@ -156,41 +156,38 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 	}
 
 	// Append last state also
-	log.Println(fmt.Sprintf("<< Save Final Series for : Field %s @  Host %s >>", field, host))
+	// log.Println(fmt.Sprintf("<< Save Final Series for : Field %s @  Host %s >>", field, host))
   jobData[field][scope].Series = append(jobData[field][scope].Series, hostSeries)
-
-  log.Println("<< LOAD STATS >>")
 
 	stats, err := idb.LoadStats(job, metrics, ctx)
 	if err != nil {
-		log.Println("<< LOAD STATS ERROR >>")
+		log.Println("<< LOAD STATS THREW AN ERROR >>")
 		return nil, err
 	}
 
 	for metric, nodes := range stats {
-		log.Println(fmt.Sprintf("<< Add Stats for : Field %s >>", metric))
-		jobMetric := jobData[metric]
+		// log.Println(fmt.Sprintf("<< Add Stats for : Field %s >>", metric))
 		for node, stats := range nodes {
-		  log.Println(fmt.Sprintf("<< Add Stats for : Host %s : Min %f, Max %f, Avg %f >>", node, stats.Min, stats.Max, stats.Avg ))
-			for _, series := range jobMetric[scope].Series {
-				log.Println(fmt.Sprintf("<< Add Stats to Series of: Host %s >>", series.Hostname))
-				if series.Hostname == node {
-					series.Statistics = &stats
+		  // log.Println(fmt.Sprintf("<< Add Stats for : Host %s : Min %.2f, Max %.2f, Avg %.2f >>", node, stats.Min, stats.Max, stats.Avg ))
+			for index, _ := range jobData[metric][scope].Series {
+				// log.Println(fmt.Sprintf("<< Try to add Stats to Series in Position %d >>", index))
+				if jobData[metric][scope].Series[index].Hostname == node {
+					// log.Println(fmt.Sprintf("<< Match for Series in Position %d : Host %s >>", index, jobData[metric][scope].Series[index].Hostname))
+					jobData[metric][scope].Series[index].Statistics = &schema.MetricStatistics{Avg: stats.Avg, Min: stats.Min, Max: stats.Max}
+					// log.Println(fmt.Sprintf("<< Result Inner: Min %.2f, Max %.2f, Avg %.2f >>", jobData[metric][scope].Series[index].Statistics.Min, jobData[metric][scope].Series[index].Statistics.Max, jobData[metric][scope].Series[index].Statistics.Avg))
 				}
-				// SEGFAULT wegen dieser Logline
-				// log.Println(fmt.Sprintf("<< Result Inner: Min %f, Max %f, Avg %f >>", *series.Statistics.Min, *series.Statistics.Max, *series.Statistics.Avg))
 			}
 		}
 	}
 
-	// log.Println(fmt.Sprintf("<< Result Outer for %s: Min %f, Max %f, Avg %f >>",
-	// 	jobData["clock"][scope].Series[0].Hostname, jobData["clock"][scope].Series[0].Statistics.Min,
-	// 	jobData["clock"][scope].Series[0].Statistics.Max, jobData["clock"][scope].Series[0].Statistics.Avg))
-
-	// log.Println("<< FINAL JOBDATA : CLOCK >>")
-	// log.Println(jobData["clock"])
-	// log.Println("<< FINAL JOBDATA : CLOCK : NODE >>")
-	// log.Println(jobData["clock"][scope])
+	// // DEBUG:
+	for _, met := range metrics {
+	   for _, series := range jobData[met][scope].Series {
+	   log.Println(fmt.Sprintf("<< Result: %d data points for metric %s on %s, Stats: Min %.2f, Max %.2f, Avg %.2f >>",
+			 	len(series.Data), met, series.Hostname,
+				series.Statistics.Min, series.Statistics.Max, series.Statistics.Avg))
+     }
+	}
 
 	return jobData, nil
 }
