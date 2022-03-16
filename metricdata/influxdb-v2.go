@@ -31,7 +31,7 @@ func (idb *InfluxDBv2DataRepository) Init(url string, token string, renamings ma
 	return nil
 }
 
-func (idb *InfluxDBv2DataRepository) formatTime(t time.Time) string {
+func (idb *InfluxDBv2DataRepository) formatTime(t time.Time) string { // TODO: Verwend lieber https://pkg.go.dev/time#Time.Format mit dem Format time.RFC3339
 	return fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02dZ",
 		t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
 }
@@ -118,7 +118,7 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 		 							Scope:    mc.Scope, // was "node" hardcode, fixme?
 		 							Timestep: mc.Timestep,
 		 							Series:   make([]schema.Series, 0, len(job.Resources)), // One series per node / resource
-		 							StatisticsSeries: &schema.StatsSeries{},
+		 							StatisticsSeries: nil, // Should be: &schema.StatsSeries{},
 		 					},
 		 			}
 		 	}
