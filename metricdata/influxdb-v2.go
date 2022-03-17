@@ -24,7 +24,7 @@ type InfluxDBv2DataRepository struct {
 func (idb *InfluxDBv2DataRepository) Init(url string, token string, renamings map[string]string) error {
 
 	idb.client 			= influxdb2.NewClientWithOptions(url, token, influxdb2.DefaultOptions().SetTLSConfig(&tls.Config {InsecureSkipVerify: true,} ))
-	idb.queryClient = idb.client.QueryAPI("ClusterCockpit") // Influxdb Org here: Hardcoded for now
+	idb.queryClient = idb.client.QueryAPI("ClusterCockpit") // TODO: Make configurable
 
 	return nil
 }
@@ -41,7 +41,7 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 
 	// Set Bucket & Prepare Measurement
 	if (job.Cluster == "woody" || job.Cluster == "emmy" || job.Cluster == "meggie") {
-			idb.bucket = "ClusterCockpit/data" // Temporary: Old Line Protocol for old cluster
+			idb.bucket = "ClusterCockpit/data" // Temporary: Old Line Protocol for old cluster, TODO: Make configurable
 			idb.measurement = "data"  // Temporary: Old Line Protocol for old cluster
 	} else {
 			// idb.bucket = job.Cluster // New: Bucket per Cluster
