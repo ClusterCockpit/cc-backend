@@ -72,11 +72,11 @@ func (auth *Authentication) Init(db *sqlx.DB, ldapConfig *LdapConfig) error {
 	auth.db = db
 	_, err := db.Exec(`
 	CREATE TABLE IF NOT EXISTS user (
-		username varchar(255) PRIMARY KEY,
+		username varchar(255) PRIMARY KEY NOT NULL,
 		password varchar(255) DEFAULT NULL,
-		ldap     tinyint      DEFAULT 0,
+		ldap     tinyint      NOT NULL DEFAULT 0,
 		name     varchar(255) DEFAULT NULL,
-		roles    varchar(255) DEFAULT NULL,
+		roles    varchar(255) NOT NULL DEFAULT "[]",
 		email    varchar(255) DEFAULT NULL);`)
 	if err != nil {
 		return err
@@ -241,14 +241,18 @@ func FetchUser(ctx context.Context, db *sqlx.DB, username string) (*model.User, 
 	}
 
 	user := &model.User{Username: username}
+	var name, email sql.NullString
 	if err := sq.Select("name", "email").From("user").Where("user.username = ?", username).
-		RunWith(db).QueryRow().Scan(&user.Name, &user.Email); err != nil {
+		RunWith(db).QueryRow().Scan(&name, &email); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
 
 		return nil, err
 	}
+
+	user.Name = name.String
+	user.Email = email.String
 	return user, nil
 }
 
