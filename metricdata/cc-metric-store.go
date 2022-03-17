@@ -14,6 +14,17 @@ import (
 	"github.com/ClusterCockpit/cc-backend/schema"
 )
 
+type CCMetricStoreConfig struct {
+	Kind  string `json:"kind"`
+	Url   string `json:"url"`
+	Token string `json:"token"`
+
+	// If metrics are known to this MetricDataRepository under a different
+	// name than in the `metricConfig` section of the 'cluster.json',
+	// provide this optional mapping of local to remote name for this metric.
+	Renamings map[string]string `json:"metricRenamings"`
+}
+
 type CCMetricStore struct {
 	jwt           string
 	url           string
@@ -58,17 +69,22 @@ type ApiMetricData struct {
 	Max   schema.Float   `json:"max"`
 }
 
-func (ccms *CCMetricStore) Init(url, token string, renamings map[string]string) error {
-	ccms.url = url
-	ccms.queryEndpoint = fmt.Sprintf("%s/api/query", url)
-	ccms.jwt = token
+func (ccms *CCMetricStore) Init(rawConfig json.RawMessage) error {
+	var config CCMetricStoreConfig
+	if err := json.Unmarshal(rawConfig, &config); err != nil {
+		return err
+	}
+
+	ccms.url = config.Url
+	ccms.queryEndpoint = fmt.Sprintf("%s/api/query", config.Url)
+	ccms.jwt = config.Token
 	ccms.client = http.Client{
 		Timeout: 5 * time.Second,
 	}
 
-	if renamings != nil {
-		ccms.here2there = renamings
-		ccms.there2here = make(map[string]string, len(renamings))
+	if config.Renamings != nil {
+		ccms.here2there = config.Renamings
+		ccms.there2here = make(map[string]string, len(config.Renamings))
 		for k, v := range ccms.here2there {
 			ccms.there2here[v] = k
 		}

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 	"crypto/tls"
+	"encoding/json"
 
 	"github.com/ClusterCockpit/cc-backend/config"
 	"github.com/ClusterCockpit/cc-backend/schema"
@@ -15,15 +16,25 @@ import (
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
 )
 
+type InfluxDBv2DataRepositoryConfig struct {
+	Url   string `json:"url"`
+	Token string `json:"token"`
+	// TODO: bucket, ...
+}
+
 type InfluxDBv2DataRepository struct {
 	client              influxdb2.Client
 	queryClient         influxdb2Api.QueryAPI
 	bucket, measurement string
 }
 
-func (idb *InfluxDBv2DataRepository) Init(url string, token string, renamings map[string]string) error {
+func (idb *InfluxDBv2DataRepository) Init(rawConfig json.RawMessage) error {
+	var config InfluxDBv2DataRepositoryConfig
+	if err := json.Unmarshal(rawConfig, &config); err != nil {
+		return err
+	}
 
-	idb.client 			= influxdb2.NewClientWithOptions(url, token, influxdb2.DefaultOptions().SetTLSConfig(&tls.Config {InsecureSkipVerify: true,} ))
+	idb.client 			= influxdb2.NewClientWithOptions(config.Url, config.Token, influxdb2.DefaultOptions().SetTLSConfig(&tls.Config {InsecureSkipVerify: true,} ))
 	idb.queryClient = idb.client.QueryAPI("ClusterCockpit") // TODO: Make configurable
 
 	return nil

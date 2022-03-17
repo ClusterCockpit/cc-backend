@@ -2,6 +2,7 @@ package metricdata
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 type MetricDataRepository interface {
 	// Initialize this MetricDataRepository. One instance of
 	// this interface will only ever be responsible for one cluster.
-	Init(url, token string, renamings map[string]string) error
+	Init(rawConfig json.RawMessage) error
 
 	// Return the JobData for the given job, only with the requested metrics.
 	LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context) (schema.JobData, error)
@@ -37,8 +38,15 @@ func Init(jobArchivePath string, disableArchive bool) error {
 	JobArchivePath = jobArchivePath
 	for _, cluster := range config.Clusters {
 		if cluster.MetricDataRepository != nil {
+			var kind struct {
+				Kind string `json:"kind"`
+			}
+			if err := json.Unmarshal(cluster.MetricDataRepository, &kind); err != nil {
+				return err
+			}
+
 			var mdr MetricDataRepository
-			switch cluster.MetricDataRepository.Kind {
+			switch kind.Kind {
 			case "cc-metric-store":
 				mdr = &CCMetricStore{}
 			case "influxdb":
@@ -46,13 +54,10 @@ func Init(jobArchivePath string, disableArchive bool) error {
 			case "test":
 				mdr = &TestMetricDataRepository{}
 			default:
-				return fmt.Errorf("unkown metric data repository '%s' for cluster '%s'", cluster.MetricDataRepository.Kind, cluster.Name)
+				return fmt.Errorf("unkown metric data repository '%s' for cluster '%s'", kind.Kind, cluster.Name)
 			}
 
-			if err := mdr.Init(
-				cluster.MetricDataRepository.Url,
-				cluster.MetricDataRepository.Token,
-				cluster.MetricDataRepository.Renamings); err != nil {
+			if err := mdr.Init(cluster.MetricDataRepository); err != nil {
 				return err
 			}
 			metricDataRepos[cluster.Name] = mdr

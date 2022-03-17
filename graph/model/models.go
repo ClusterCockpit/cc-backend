@@ -1,6 +1,9 @@
 package model
 
-import "strconv"
+import (
+	"encoding/json"
+	"strconv"
+)
 
 type Cluster struct {
 	Name         string          `json:"name"`
@@ -8,19 +11,9 @@ type Cluster struct {
 	FilterRanges *FilterRanges   `json:"filterRanges"`
 	Partitions   []*Partition    `json:"partitions"`
 
-	// NOT part of the API:
-	MetricDataRepository *MetricDataRepository `json:"metricDataRepository"`
-}
-
-type MetricDataRepository struct {
-	Kind  string `json:"kind"`
-	Url   string `json:"url"`
-	Token string `json:"token"`
-
-	// If metrics are known to this MetricDataRepository under a different
-	// name than in the `metricConfig` section of the 'cluster.json',
-	// provide this optional mapping of local to remote name for this metric.
-	Renamings map[string]string `json:"metricRenamings"`
+	// NOT part of the GraphQL API. This has to be a JSON object with a field `"kind"`.
+	// All other fields depend on that kind (e.g. "cc-metric-store", "influxdb-v2").
+	MetricDataRepository json.RawMessage `json:"metricDataRepository"`
 }
 
 // Return a list of socket IDs given a list of hwthread IDs.
