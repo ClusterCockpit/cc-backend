@@ -19,7 +19,9 @@ import (
 type InfluxDBv2DataRepositoryConfig struct {
 	Url   string `json:"url"`
 	Token string `json:"token"`
-	// TODO: bucket, ...
+	Bucket string `json:"bucket"`
+	Org string `json:"org"`
+	SkipTls bool `json:"skiptls"`
 }
 
 type InfluxDBv2DataRepository struct {
@@ -34,8 +36,9 @@ func (idb *InfluxDBv2DataRepository) Init(rawConfig json.RawMessage) error {
 		return err
 	}
 
-	idb.client 			= influxdb2.NewClientWithOptions(config.Url, config.Token, influxdb2.DefaultOptions().SetTLSConfig(&tls.Config {InsecureSkipVerify: true,} ))
-	idb.queryClient = idb.client.QueryAPI("ClusterCockpit") // TODO: Make configurable
+	idb.client 			= influxdb2.NewClientWithOptions(config.Url, config.Token, influxdb2.DefaultOptions().SetTLSConfig(&tls.Config {InsecureSkipVerify: config.SkipTls,} ))
+	idb.queryClient = idb.client.QueryAPI(config.Org)
+	idb.bucket      = config.Bucket
 
 	return nil
 }
@@ -52,10 +55,8 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 
 	// Set Bucket & Prepare Measurement
 	if (job.Cluster == "woody" || job.Cluster == "emmy" || job.Cluster == "meggie") {
-			idb.bucket = "ClusterCockpit/data" // Temporary: Old Line Protocol for old cluster, TODO: Make configurable
 			idb.measurement = "data"  // Temporary: Old Line Protocol for old cluster
 	} else {
-			// idb.bucket = job.Cluster // New: Bucket per Cluster
 			// idb.measurement = nil  // New: Measurement = metric; Placeholder at this stage
 			log.Println(fmt.Sprintf("New line protocol unimplemented for influx: %s", job.Cluster))
 			return nil, errors.New("new line protocol unimplemented")
