@@ -51,6 +51,8 @@ func Init(jobArchivePath string, disableArchive bool) error {
 				mdr = &CCMetricStore{}
 			case "influxdb":
 				mdr = &InfluxDBv2DataRepository{}
+			case "legacyinfluxdb":
+				mdr = &LegacyInfluxDBv2DataRepository{}
 			case "test":
 				mdr = &TestMetricDataRepository{}
 			default:

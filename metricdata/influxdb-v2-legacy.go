@@ -16,22 +16,23 @@ import (
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
 )
 
-type InfluxDBv2DataRepositoryConfig struct {
+type LegacyInfluxDBv2DataRepositoryConfig struct {
 	Url   string `json:"url"`
 	Token string `json:"token"`
 	Bucket string `json:"bucket"`
 	Org string `json:"org"`
+	Measurement string `json:"measurement"`
 	SkipTls bool `json:"skiptls"`
 }
 
-type InfluxDBv2DataRepository struct {
+type LegacyInfluxDBv2DataRepository struct {
 	client              influxdb2.Client
 	queryClient         influxdb2Api.QueryAPI
 	bucket, measurement string
 }
 
-func (idb *InfluxDBv2DataRepository) Init(rawConfig json.RawMessage) error {
-	var config InfluxDBv2DataRepositoryConfig
+func (idb *LegacyInfluxDBv2DataRepository) Init(rawConfig json.RawMessage) error {
+	var config LegacyInfluxDBv2DataRepositoryConfig
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
 		return err
 	}
@@ -39,45 +40,20 @@ func (idb *InfluxDBv2DataRepository) Init(rawConfig json.RawMessage) error {
 	idb.client 			= influxdb2.NewClientWithOptions(config.Url, config.Token, influxdb2.DefaultOptions().SetTLSConfig(&tls.Config {InsecureSkipVerify: config.SkipTls,} ))
 	idb.queryClient = idb.client.QueryAPI(config.Org)
 	idb.bucket      = config.Bucket
+  idb.measurement = config.Measurement
 
 	return nil
 }
 
-func (idb *InfluxDBv2DataRepository) formatTime(t time.Time) string {
+func (idb *LegacyInfluxDBv2DataRepository) formatTime(t time.Time) string {
 	return t.Format(time.RFC3339) // Like “2006-01-02T15:04:05Z07:00”
 }
 
-func (idb *InfluxDBv2DataRepository) epochToTime(epoch int64) time.Time {
+func (idb *LegacyInfluxDBv2DataRepository) epochToTime(epoch int64) time.Time {
 	return time.Unix(epoch, 0)
 }
 
-func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context) (schema.JobData, error) {
-
-	// Set Bucket & Prepare Measurement
-	if (job.Cluster == "fritz" || job.Cluster == "alex") {
-			log.Println(fmt.Sprintf("New line protocol unimplemented for influx: %s", job.Cluster))
-			return nil, errors.New("new line protocol unimplemented")
-	}
-
-	// DEBUG
-	// log.Println("<< Requested Metrics >> ")
-	// log.Println(metrics)
-	// log.Println("<< Requested Scope >> ")
-	// log.Println(scopes)
-
-	// influxHealth, healthErr := idb.client.Health(ctx)
-	// influxReady, rdyErr := idb.client.Ready(ctx)
-	// influxPing, pingErr := idb.client.Ping(ctx)
-	//
-	// log.Println("<< Influx Health Status >> ")
-	// if healthErr == nil {	log.Println(fmt.Sprintf("{Commit:%s, Message:%s, Name:%s, Status:%s, Version:%s}", *influxHealth.Commit, *influxHealth.Message, influxHealth.Name, influxHealth.Status, *influxHealth.Version))
-	// } else { log.Println("Influx Health Error") }
-	// if rdyErr == nil { log.Println(fmt.Sprintf("{Started:%s, Status:%s, Up:%s}", *influxReady.Started, *influxReady.Status, *influxReady.Up))
-	// } else { log.Println("Influx Ready Error") }
-	// if pingErr == nil {
-	// 		log.Println("<< PING >>")
-	// 		log.Println(influxPing)
-	// } else { log.Println("Influx Ping Error") }
+func (idb *LegacyInfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context) (schema.JobData, error) {
 
 	fieldsConds := make([]string, 0, len(metrics))
 	for _, m := range metrics {
@@ -88,8 +64,7 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 	hostsConds := make([]string, 0, len(job.Resources))
 	for _, h := range job.Resources {
 		if h.HWThreads != nil || h.Accelerators != nil {
-			// TODO
-			return nil, errors.New("the InfluxDB metric data repository does not yet support HWThreads or Accelerators")
+			return nil, errors.New("the legacy InfluxDB metric data repository does not support HWThreads or Accelerators")
 		}
 
 		hostsConds = append(hostsConds, fmt.Sprintf(`r["host"] == "%s"`, h.Hostname))
@@ -112,24 +87,23 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 		return nil, err
 	}
 
-	jobData := make(schema.JobData) // Empty Schema: map[<string>FIELD]map[<MetricScope>SCOPE]<*JobMetric>METRIC
-	scope 	:= schema.MetricScope("node") // use scopes argument here
+	jobData := make(schema.JobData) // map[<string>FIELD]map[<MetricScope>SCOPE]<*JobMetric>METRIC
+	scope 	:= schema.MetricScope("node") // Legacy Clusters only have Node Scope
 
 	for _, met := range metrics {
 		 	jobMetric, ok := jobData[met]
 		 	if !ok {
 		 			mc 		:= config.GetMetricConfig(job.Cluster, met)
 		 			jobMetric = map[schema.MetricScope]*schema.JobMetric{
-		 					scope: { // uses scope var from above!
+		 					scope: { // uses scope var from above
 		 							Unit:     mc.Unit,
-		 							Scope:    mc.Scope,
+		 							Scope:    "node", // Legacy Clusters only have Node Scope
 		 							Timestep: mc.Timestep,
 		 							Series:   make([]schema.Series, 0, len(job.Resources)),
 		 							StatisticsSeries: nil, // Should be: &schema.StatsSeries{},
 		 					},
 		 			}
 		 	}
-
 			jobData[met] = jobMetric
 	}
 
@@ -137,12 +111,11 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 
 	for rows.Next() {
 		row := rows.Record()
-
 		if ( host == "" || host != row.ValueByKey("host").(string) || rows.TableChanged() ) {
-
 				if ( host != "" ) {
-				  	jobData[field][scope].Series = append(jobData[field][scope].Series, hostSeries)
+				  	jobData[field][scope].Series = append(jobData[field][scope].Series, hostSeries) // add to jobData before resetting
 				}
+				// (Re-)Set new Series
 				field, host = row.Field(), row.ValueByKey("host").(string)
 				hostSeries  = schema.Series{
 						Hostname:   host,
@@ -150,7 +123,6 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 						Data:       make([]schema.Float, 0),
 				}
 		}
-
 		val := row.Value().(float64)
 		hostSeries.Data = append(hostSeries.Data, schema.Float(val))
 	}
@@ -163,46 +135,34 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 	}
 
 	for metric, nodes := range stats {
-		// log.Println(fmt.Sprintf("<< Add Stats for : Field %s >>", metric))
 		for node, stats := range nodes {
-		  // log.Println(fmt.Sprintf("<< Add Stats for : Host %s : Min %.2f, Max %.2f, Avg %.2f >>", node, stats.Min, stats.Max, stats.Avg ))
 			for index, _ := range jobData[metric][scope].Series {
-				// log.Println(fmt.Sprintf("<< Try to add Stats to Series in Position %d >>", index))
 				if jobData[metric][scope].Series[index].Hostname == node {
-					// log.Println(fmt.Sprintf("<< Match for Series in Position %d : Host %s >>", index, jobData[metric][scope].Series[index].Hostname))
 					jobData[metric][scope].Series[index].Statistics = &schema.MetricStatistics{Avg: stats.Avg, Min: stats.Min, Max: stats.Max}
-					// log.Println(fmt.Sprintf("<< Result Inner: Min %.2f, Max %.2f, Avg %.2f >>", jobData[metric][scope].Series[index].Statistics.Min, jobData[metric][scope].Series[index].Statistics.Max, jobData[metric][scope].Series[index].Statistics.Avg))
 				}
 			}
 		}
 	}
 
 	// DEBUG:
-	for _, met := range metrics {
-	   for _, series := range jobData[met][scope].Series {
-	   log.Println(fmt.Sprintf("<< Result: %d data points for metric %s on %s, Stats: Min %.2f, Max %.2f, Avg %.2f >>",
-			 	len(series.Data), met, series.Hostname,
-				series.Statistics.Min, series.Statistics.Max, series.Statistics.Avg))
-     }
-	}
-
+	// for _, met := range metrics {
+	//    for _, series := range jobData[met][scope].Series {
+	//    log.Println(fmt.Sprintf("<< Result: %d data points for metric %s on %s, Stats: Min %.2f, Max %.2f, Avg %.2f >>",
+	// 		 	len(series.Data), met, series.Hostname,
+	// 			series.Statistics.Min, series.Statistics.Max, series.Statistics.Avg))
+  //    }
+	// }
 	return jobData, nil
 }
 
-func (idb *InfluxDBv2DataRepository) LoadStats(job *schema.Job, metrics []string, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error) {
-
-	if (job.Cluster == "fritz" || job.Cluster == "alex") {
-			log.Println(fmt.Sprintf("New line protocol unimplemented for influx: %s", job.Cluster))
-			return nil, errors.New("new line protocol unimplemented")
-	}
+func (idb *LegacyInfluxDBv2DataRepository) LoadStats(job *schema.Job, metrics []string, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error) {
 
 	stats := map[string]map[string]schema.MetricStatistics{}
 
 	hostsConds := make([]string, 0, len(job.Resources))
 	for _, h := range job.Resources {
 			if h.HWThreads != nil || h.Accelerators != nil {
-					// TODO
-					return nil, errors.New("the InfluxDB metric data repository does not yet support HWThreads or Accelerators")
+					return nil, errors.New("the legacy InfluxDB metric data repository does not support HWThreads or Accelerators")
 			}
 
 			hostsConds = append(hostsConds, fmt.Sprintf(`r.host == "%s"`, h.Hostname))
@@ -248,9 +208,9 @@ func (idb *InfluxDBv2DataRepository) LoadStats(job *schema.Job, metrics []string
 	return stats, nil
 }
 
-func (idb *InfluxDBv2DataRepository) LoadNodeData(cluster, partition string, metrics, nodes []string, scopes []schema.MetricScope, from, to time.Time, ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
+func (idb *LegacyInfluxDBv2DataRepository) LoadNodeData(cluster, partition string, metrics, nodes []string, scopes []schema.MetricScope, from, to time.Time, ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
 	// TODO : Implement to be used in Analysis- und System/Node-View
-	log.Println(fmt.Sprintf("LoadNodeData unimplemented for InfluxDBv2DataRepository, Args: cluster %s, partition %s, metrics %v, nodes %v, scopes %v", cluster, partition, metrics, nodes, scopes))
+	log.Println(fmt.Sprintf("LoadNodeData unimplemented for LegacyInfluxDBv2DataRepository, Args: cluster %s, partition %s, metrics %v, nodes %v, scopes %v", cluster, partition, metrics, nodes, scopes))
 
-	return nil, errors.New("unimplemented for InfluxDBv2DataRepository")
+	return nil, errors.New("unimplemented for LegacyInfluxDBv2DataRepository")
 }
