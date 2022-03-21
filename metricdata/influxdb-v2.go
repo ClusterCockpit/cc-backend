@@ -98,20 +98,41 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 								idb.bucket,
 								idb.formatTime(job.StartTime), idb.formatTime(idb.epochToTime(job.StartTimeUnix + int64(job.Duration) + int64(1) )),
 								measurementsCond, hostsCond)
+					case "socket":
+							// Get Finest Granularity, Groupy By Measurement and Hostname (== Metric / Node), Calculate Mean, Set NULL to 0.0
+							log.Println("Note: Scope 'socket' requested, but not yet supported: Will return 'node' scope only. ")
+							continue
+							// query = fmt.Sprintf(`
+							// 	from(bucket: "%s")
+							// 	|> range(start: %s, stop: %s)
+							// 	|> filter(fn: (r) => %s )
+							// 	|> filter(fn: (r) => %s )
+							// 	|> drop(columns: ["_start", "_stop"])
+							// 	|> group(columns: ["hostname", "_measurement"])
+							// 	|> aggregateWindow(every: 60s, fn: mean)
+							// 	|> map(fn: (r) => (if exists r._value then {r with _value: r._value} else {r with _value: 0.0}))`,
+							// 	idb.bucket,
+							// 	idb.formatTime(job.StartTime), idb.formatTime(idb.epochToTime(job.StartTimeUnix + int64(job.Duration) + int64(1) )),
+							// 	measurementsCond, hostsCond)
+					case "core":
+							// Get Finest Granularity
+							log.Println("Note: Scope 'core' requested, but not yet supported: Will return 'node' scope only. ")
+							continue
+							// query = fmt.Sprintf(`
+							// 	from(bucket: "%s")
+							// 	|> range(start: %s, stop: %s)
+							// 	|> filter(fn: (r) => %s )
+							// 	|> filter(fn: (r) => %s )
+							// 	|> drop(columns: ["_start", "_stop"])
+							// 	|> group(columns: ["hostname", "_measurement"])
+							// 	|> aggregateWindow(every: 60s, fn: mean)
+							// 	|> map(fn: (r) => (if exists r._value then {r with _value: r._value} else {r with _value: 0.0}))`,
+							// 	idb.bucket,
+							// 	idb.formatTime(job.StartTime), idb.formatTime(idb.epochToTime(job.StartTimeUnix + int64(job.Duration) + int64(1) )),
+							// 	measurementsCond, hostsCond)
 					default:
-							log.Println("Note: Other scope than 'node' requested, but not yet supported: Will return 'node' scope. ")
-							query = fmt.Sprintf(`
-								from(bucket: "%s")
-								|> range(start: %s, stop: %s)
-								|> filter(fn: (r) => %s )
-								|> filter(fn: (r) => %s )
-								|> drop(columns: ["_start", "_stop"])
-								|> group(columns: ["hostname", "_measurement"])
-								|> aggregateWindow(every: 60s, fn: mean)
-								|> map(fn: (r) => (if exists r._value then {r with _value: r._value} else {r with _value: 0.0}))`,
-								idb.bucket,
-								idb.formatTime(job.StartTime), idb.formatTime(idb.epochToTime(job.StartTimeUnix + int64(job.Duration) + int64(1) )),
-								measurementsCond, hostsCond)
+							log.Println("Note: Unknown Scope requested: Will return 'node' scope. ")
+							continue
 							// return nil, errors.New("the InfluxDB metric data repository does not yet support other scopes than 'node'")
 			}
 
@@ -168,16 +189,18 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 	}
 
 	for _, scope := range scopes {
-		for metric, nodes := range stats {
-			// log.Println(fmt.Sprintf("<< Add Stats for : Field %s >>", metric))
-			for node, stats := range nodes {
-				// log.Println(fmt.Sprintf("<< Add Stats for : Host %s : Min %.2f, Max %.2f, Avg %.2f >>", node, stats.Min, stats.Max, stats.Avg ))
-				for index, _ := range jobData[metric][scope].Series {
-					// log.Println(fmt.Sprintf("<< Try to add Stats to Series in Position %d >>", index))
-					if jobData[metric][scope].Series[index].Hostname == node {
-						// log.Println(fmt.Sprintf("<< Match for Series in Position %d : Host %s >>", index, jobData[metric][scope].Series[index].Hostname))
-						jobData[metric][scope].Series[index].Statistics = &schema.MetricStatistics{Avg: stats.Avg, Min: stats.Min, Max: stats.Max}
-						// log.Println(fmt.Sprintf("<< Result Inner: Min %.2f, Max %.2f, Avg %.2f >>", jobData[metric][scope].Series[index].Statistics.Min, jobData[metric][scope].Series[index].Statistics.Max, jobData[metric][scope].Series[index].Statistics.Avg))
+		if scope == "node" { // Only 'node' support yet
+			for metric, nodes := range stats {
+				// log.Println(fmt.Sprintf("<< Add Stats for : Field %s >>", metric))
+				for node, stats := range nodes {
+					// log.Println(fmt.Sprintf("<< Add Stats for : Host %s : Min %.2f, Max %.2f, Avg %.2f >>", node, stats.Min, stats.Max, stats.Avg ))
+					for index, _ := range jobData[metric][scope].Series {
+						// log.Println(fmt.Sprintf("<< Try to add Stats to Series in Position %d >>", index))
+						if jobData[metric][scope].Series[index].Hostname == node {
+							// log.Println(fmt.Sprintf("<< Match for Series in Position %d : Host %s >>", index, jobData[metric][scope].Series[index].Hostname))
+							jobData[metric][scope].Series[index].Statistics = &schema.MetricStatistics{Avg: stats.Avg, Min: stats.Min, Max: stats.Max}
+							// log.Println(fmt.Sprintf("<< Result Inner: Min %.2f, Max %.2f, Avg %.2f >>", jobData[metric][scope].Series[index].Statistics.Min, jobData[metric][scope].Series[index].Statistics.Max, jobData[metric][scope].Series[index].Statistics.Avg))
+						}
 					}
 				}
 			}
@@ -212,7 +235,11 @@ func (idb *InfluxDBv2DataRepository) LoadStats(job *schema.Job, metrics []string
 	}
 	hostsCond := strings.Join(hostsConds, " or ")
 
-	for _, metric := range metrics {
+	// lenMet := len(metrics)
+
+	for index, metric := range metrics {
+			// log.Println(fmt.Sprintf("<< You are here: %s (Index %d of %d metrics)", metric, index, lenMet))
+
 			query := fmt.Sprintf(`
 				  data = from(bucket: "%s")
 				  |> range(start: %s, stop: %s)
@@ -233,11 +260,15 @@ func (idb *InfluxDBv2DataRepository) LoadStats(job *schema.Job, metrics []string
 
 			nodes := map[string]schema.MetricStatistics{}
 			for rows.Next() {
-					row := rows.Record()
+					row  := rows.Record()
 					host := row.ValueByKey("hostname").(string)
-					avg, min, max := row.ValueByKey("avg").(float64),
-						row.ValueByKey("min").(float64),
-						row.ValueByKey("max").(float64)
+
+					avg, avgok  := row.ValueByKey("avg").(float64)
+					if !avgok { log.Println(fmt.Sprintf(">> Assertion error for metric %s, statistic AVG. Expected 'float64', got %v", metric, avg)) }
+					min, minok  := row.ValueByKey("min").(float64)
+					if !minok { log.Println(fmt.Sprintf(">> Assertion error for metric %s, statistic MIN. Expected 'float64', got %v", metric, min)) }
+					max, maxok  := row.ValueByKey("max").(float64)
+					if !maxok { log.Println(fmt.Sprintf(">> Assertion error for metric %s, statistic MAX. Expected 'float64', got %v", metric, max)) }
 
 					nodes[host] = schema.MetricStatistics{
 						Avg: avg,
