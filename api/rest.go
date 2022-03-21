@@ -285,13 +285,10 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 
 	// Check if combination of (job_id, cluster_id, start_time) already exists:
 	job, err := api.JobRepository.Find(&req.JobID, &req.Cluster, nil)
-
-	if err != nil {
+	if err != nil && err != sql.ErrNoRows {
 		handleError(fmt.Errorf("checking for duplicate failed: %w", err), http.StatusInternalServerError, rw)
 		return
-	}
-
-	if err != sql.ErrNoRows {
+	} else if err == nil {
 		if (req.StartTime - job.StartTimeUnix) < 86400 {
 			handleError(fmt.Errorf("a job with that jobId, cluster and startTime already exists: dbid: %d", job.ID), http.StatusUnprocessableEntity, rw)
 			return
