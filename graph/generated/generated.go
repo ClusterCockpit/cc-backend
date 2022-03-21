@@ -143,14 +143,15 @@ type ComplexityRoot struct {
 	}
 
 	MetricConfig struct {
-		Alert    func(childComplexity int) int
-		Caution  func(childComplexity int) int
-		Name     func(childComplexity int) int
-		Normal   func(childComplexity int) int
-		Peak     func(childComplexity int) int
-		Scope    func(childComplexity int) int
-		Timestep func(childComplexity int) int
-		Unit     func(childComplexity int) int
+		Aggregation func(childComplexity int) int
+		Alert       func(childComplexity int) int
+		Caution     func(childComplexity int) int
+		Name        func(childComplexity int) int
+		Normal      func(childComplexity int) int
+		Peak        func(childComplexity int) int
+		Scope       func(childComplexity int) int
+		Timestep    func(childComplexity int) int
+		Unit        func(childComplexity int) int
 	}
 
 	MetricFootprints struct {
@@ -708,6 +709,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.JobsStatistics.TotalWalltime(childComplexity), true
+
+	case "MetricConfig.aggregation":
+		if e.complexity.MetricConfig.Aggregation == nil {
+			break
+		}
+
+		return e.complexity.MetricConfig.Aggregation(childComplexity), true
 
 	case "MetricConfig.alert":
 		if e.complexity.MetricConfig.Alert == nil {
@@ -1375,14 +1383,15 @@ type Accelerator {
 }
 
 type MetricConfig {
-  name:     String!
-  unit:     String!
-  scope:    MetricScope!
-  timestep: Int!
-  peak:     Float!
-  normal:   Float!
-  caution:  Float!
-  alert:    Float!
+  name:        String!
+  unit:        String!
+  scope:       MetricScope!
+  aggregation: String
+  timestep:    Int!
+  peak:        Float!
+  normal:      Float!
+  caution:     Float!
+  alert:       Float!
 }
 
 type Tag {
@@ -4200,6 +4209,38 @@ func (ec *executionContext) _MetricConfig_scope(ctx context.Context, field graph
 	res := resTmp.(schema.MetricScope)
 	fc.Result = res
 	return ec.marshalNMetricScope2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋschemaᚐMetricScope(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MetricConfig_aggregation(ctx context.Context, field graphql.CollectedField, obj *model.MetricConfig) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MetricConfig",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Aggregation, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _MetricConfig_timestep(ctx context.Context, field graphql.CollectedField, obj *model.MetricConfig) (ret graphql.Marshaler) {
@@ -8570,6 +8611,8 @@ func (ec *executionContext) _MetricConfig(ctx context.Context, sel ast.Selection
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
+		case "aggregation":
+			out.Values[i] = ec._MetricConfig_aggregation(ctx, field, obj)
 		case "timestep":
 			out.Values[i] = ec._MetricConfig_timestep(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

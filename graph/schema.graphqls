@@ -68,14 +68,15 @@ type Accelerator {
 }
 
 type MetricConfig {
-  name:     String!
-  unit:     String!
-  scope:    MetricScope!
-  timestep: Int!
-  peak:     Float!
-  normal:   Float!
-  caution:  Float!
-  alert:    Float!
+  name:        String!
+  unit:        String!
+  scope:       MetricScope!
+  aggregation: String
+  timestep:    Int!
+  peak:        Float!
+  normal:      Float!
+  caution:     Float!
+  alert:       Float!
 }
 
 type Tag {
