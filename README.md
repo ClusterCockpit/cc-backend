@@ -15,7 +15,7 @@ Data exchange between the web frontend and backend is based on a GraphQL API.
 The web frontend is also served by the backend using [Svelte](https://svelte.dev/) components implemented in [cc-frontend](https://github.com/ClusterCockpit/cc-frontend).
 Layout and styling is based on [Bootstrap 5](https://getbootstrap.com/) using [Bootstrap Icons](https://icons.getbootstrap.com/).
 The backend uses [SQLite 3](https://sqlite.org/) as relational SQL database by default. It can optionally use a MySQL/MariaDB database server.
-Finished batch jobs are stored in a so called job archive following [this specification](https://github.com/ClusterCockpit/cc-backend/wiki).
+Finished batch jobs are stored in a so called job archive following [this specification](https://github.com/ClusterCockpit/cc-specifications/tree/master/job-archive).
 The backend supports authentication using local accounts or an external LDAP directory.
 Authorization for APIs is implemented using [JWT](https://jwt.io/) tokens created with  public/private key encryption.
 
