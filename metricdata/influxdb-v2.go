@@ -237,7 +237,7 @@ func (idb *InfluxDBv2DataRepository) LoadStats(job *schema.Job, metrics []string
 
 	// lenMet := len(metrics)
 
-	for index, metric := range metrics {
+	for _, metric := range metrics {
 			// log.Println(fmt.Sprintf("<< You are here: %s (Index %d of %d metrics)", metric, index, lenMet))
 
 			query := fmt.Sprintf(`
