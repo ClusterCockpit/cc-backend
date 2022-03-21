@@ -162,9 +162,9 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 		allMetrics = append(allMetrics, mc.Name)
 	}
 
-	// TODO: For now: Only single-node-jobs get archived in full resolution
+	// TODO: Talk about this! What resolutions to store data at...
 	scopes := []schema.MetricScope{schema.MetricScopeNode}
-	if job.NumNodes == 1 {
+	if job.NumNodes <= 8 {
 		scopes = append(scopes, schema.MetricScopeCore)
 	}
 

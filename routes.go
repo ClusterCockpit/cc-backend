@@ -174,8 +174,8 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 		filterPresets["user"] = query.Get("user")
 		filterPresets["userMatch"] = "eq"
 	}
-	if query.Get("state") != "" && schema.JobState(query.Get("state")).Valid() {
-		filterPresets["state"] = query.Get("state")
+	if len(query["state"]) != 0 {
+		filterPresets["state"] = query["state"]
 	}
 	if rawtags, ok := query["tag"]; ok {
 		tags := make([]int, len(rawtags))
@@ -188,6 +188,16 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 		}
 		filterPresets["tags"] = tags
 	}
+	if query.Get("duration") != "" {
+		parts := strings.Split(query.Get("duration"), "-")
+		if len(parts) == 2 {
+			a, e1 := strconv.Atoi(parts[0])
+			b, e2 := strconv.Atoi(parts[1])
+			if e1 == nil && e2 == nil {
+				filterPresets["duration"] = map[string]int{"from": a, "to": b}
+			}
+		}
+	}
 	if query.Get("numNodes") != "" {
 		parts := strings.Split(query.Get("numNodes"), "-")
 		if len(parts) == 2 {
@@ -195,6 +205,16 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 			b, e2 := strconv.Atoi(parts[1])
 			if e1 == nil && e2 == nil {
 				filterPresets["numNodes"] = map[string]int{"from": a, "to": b}
+			}
+		}
+	}
+	if query.Get("numAccelerators") != "" {
+		parts := strings.Split(query.Get("numAccelerators"), "-")
+		if len(parts) == 2 {
+			a, e1 := strconv.Atoi(parts[0])
+			b, e2 := strconv.Atoi(parts[1])
+			if e1 == nil && e2 == nil {
+				filterPresets["numAccelerators"] = map[string]int{"from": a, "to": b}
 			}
 		}
 	}
