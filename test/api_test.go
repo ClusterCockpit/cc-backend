@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/ClusterCockpit/cc-backend/api"
@@ -293,6 +294,20 @@ func TestRestApi(t *testing.T) {
 
 		if !reflect.DeepEqual(data, testData) {
 			t.Fatal("unexpected data fetched from archive")
+		}
+	})
+
+	t.Run("CheckDoubleStart", func(t *testing.T) {
+		// Starting a job with the same jobId and cluster should only be allowed if the startTime is far appart!
+		body := strings.Replace(startJobBody, `"startTime": 123456789`, `"startTime": 123456790`, -1)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/jobs/start_job/", bytes.NewBuffer([]byte(body)))
+		recorder := httptest.NewRecorder()
+
+		r.ServeHTTP(recorder, req)
+		response := recorder.Result()
+		if response.StatusCode != http.StatusUnprocessableEntity {
+			t.Fatal(response.Status, recorder.Body.String())
 		}
 	})
 }
