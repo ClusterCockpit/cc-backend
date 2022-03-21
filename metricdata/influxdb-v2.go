@@ -99,7 +99,20 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 								idb.formatTime(job.StartTime), idb.formatTime(idb.epochToTime(job.StartTimeUnix + int64(job.Duration) + int64(1) )),
 								measurementsCond, hostsCond)
 					default:
-							return nil, errors.New("the InfluxDB metric data repository does not yet support other scopes than 'node'")
+							log.Println("Note: Other scope than 'node' requested, but not yet supported: Will return 'node' scope. ")
+							query = fmt.Sprintf(`
+								from(bucket: "%s")
+								|> range(start: %s, stop: %s)
+								|> filter(fn: (r) => %s )
+								|> filter(fn: (r) => %s )
+								|> drop(columns: ["_start", "_stop"])
+								|> group(columns: ["hostname", "_measurement"])
+								|> aggregateWindow(every: 60s, fn: mean)
+								|> map(fn: (r) => (if exists r._value then {r with _value: r._value} else {r with _value: 0.0}))`,
+								idb.bucket,
+								idb.formatTime(job.StartTime), idb.formatTime(idb.epochToTime(job.StartTimeUnix + int64(job.Duration) + int64(1) )),
+								measurementsCond, hostsCond)
+							// return nil, errors.New("the InfluxDB metric data repository does not yet support other scopes than 'node'")
 			}
 
 			rows, err := idb.queryClient.Query(ctx, query)
