@@ -53,12 +53,6 @@ func (idb *InfluxDBv2DataRepository) epochToTime(epoch int64) time.Time {
 
 func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context) (schema.JobData, error) {
 
-	// DEBUG
-	// log.Println("<< Requested Metrics >> ")
-	// log.Println(metrics)
-  // log.Println("<< Requested Scope >> ")
-	// log.Println(scopes)
-
 	measurementsConds := make([]string, 0, len(metrics))
 	for _, m := range metrics {
 		measurementsConds = append(measurementsConds, fmt.Sprintf(`r["_measurement"] == "%s"`, m))
@@ -79,13 +73,12 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 	jobData := make(schema.JobData) // Empty Schema: map[<string>FIELD]map[<MetricScope>SCOPE]<*JobMetric>METRIC
 	// Requested Scopes
 	for _, scope := range scopes {
-
 			// Query Influxdb
 			query := ""
-
 			switch scope {
 					case "node":
 							// Get Finest Granularity, Groupy By Measurement and Hostname (== Metric / Node), Calculate Mean, Set NULL to 0.0
+							// log.Println("Note: Scope 'node' requested. ")
 							query = fmt.Sprintf(`
 								from(bucket: "%s")
 								|> range(start: %s, stop: %s)
@@ -99,37 +92,22 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 								idb.formatTime(job.StartTime), idb.formatTime(idb.epochToTime(job.StartTimeUnix + int64(job.Duration) + int64(1) )),
 								measurementsCond, hostsCond)
 					case "socket":
-							// Get Finest Granularity, Groupy By Measurement and Hostname (== Metric / Node), Calculate Mean, Set NULL to 0.0
 							log.Println("Note: Scope 'socket' requested, but not yet supported: Will return 'node' scope only. ")
 							continue
-							// query = fmt.Sprintf(`
-							// 	from(bucket: "%s")
-							// 	|> range(start: %s, stop: %s)
-							// 	|> filter(fn: (r) => %s )
-							// 	|> filter(fn: (r) => %s )
-							// 	|> drop(columns: ["_start", "_stop"])
-							// 	|> group(columns: ["hostname", "_measurement"])
-							// 	|> aggregateWindow(every: 60s, fn: mean)
-							// 	|> map(fn: (r) => (if exists r._value then {r with _value: r._value} else {r with _value: 0.0}))`,
-							// 	idb.bucket,
-							// 	idb.formatTime(job.StartTime), idb.formatTime(idb.epochToTime(job.StartTimeUnix + int64(job.Duration) + int64(1) )),
-							// 	measurementsCond, hostsCond)
 					case "core":
-							// Get Finest Granularity
-							log.Println("Note: Scope 'core' requested, but not yet supported: Will return 'node' scope only. ")
+						  log.Println("Note: Scope 'core' requested, but not yet supported: Will return 'node' scope only. ")
 							continue
+							// Get Finest Granularity only, Set NULL to 0.0
 							// query = fmt.Sprintf(`
-							// 	from(bucket: "%s")
-							// 	|> range(start: %s, stop: %s)
-							// 	|> filter(fn: (r) => %s )
-							// 	|> filter(fn: (r) => %s )
-							// 	|> drop(columns: ["_start", "_stop"])
-							// 	|> group(columns: ["hostname", "_measurement"])
-							// 	|> aggregateWindow(every: 60s, fn: mean)
-							// 	|> map(fn: (r) => (if exists r._value then {r with _value: r._value} else {r with _value: 0.0}))`,
-							// 	idb.bucket,
-							// 	idb.formatTime(job.StartTime), idb.formatTime(idb.epochToTime(job.StartTimeUnix + int64(job.Duration) + int64(1) )),
-							// 	measurementsCond, hostsCond)
+							//  	from(bucket: "%s")
+							//  	|> range(start: %s, stop: %s)
+							//  	|> filter(fn: (r) => %s )
+							//  	|> filter(fn: (r) => %s )
+							//  	|> drop(columns: ["_start", "_stop", "cluster"])
+							//  	|> map(fn: (r) => (if exists r._value then {r with _value: r._value} else {r with _value: 0.0}))`,
+							//  	idb.bucket,
+							//  	idb.formatTime(job.StartTime), idb.formatTime(idb.epochToTime(job.StartTimeUnix + int64(job.Duration) + int64(1) )),
+							//  	measurementsCond, hostsCond)
 					default:
 							log.Println("Note: Unknown Scope requested: Will return 'node' scope. ")
 							continue
@@ -141,7 +119,7 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 				return nil, err
 			}
 
-			// Init Metrics
+			// Init Metrics: Needs matching on scope level ...
 			for _, metric := range metrics {
 					jobMetric, ok := jobData[metric]
 					if !ok {
@@ -160,23 +138,53 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 			}
 
 			// Process Result: Time-Data
-			field, host, hostSeries := "", "", schema.Series{}
-			for rows.Next() {
-				  row := rows.Record()
-					if ( host == "" || host != row.ValueByKey("hostname").(string) || rows.TableChanged() ) {
-					 		if ( host != "" ) {
-									// Append Series before reset
-					 		  	jobData[field][scope].Series = append(jobData[field][scope].Series, hostSeries)
-					 		}
-					 		field, host = row.Measurement(), row.ValueByKey("hostname").(string)
-					 		hostSeries  = schema.Series{
-					 				Hostname:   host,
-					 				Statistics: nil,
-					 				Data:       make([]schema.Float, 0),
-					 		}
-					}
-					val := row.Value().(float64)
-					hostSeries.Data = append(hostSeries.Data, schema.Float(val))
+		  field, host, hostSeries := "", "", schema.Series{}
+			// typeId := 0
+			switch scope {
+					case "node":
+							for rows.Next() {
+									row := rows.Record()
+									if ( host == "" || host != row.ValueByKey("hostname").(string) || rows.TableChanged() ) {
+									 		if ( host != "" ) {
+													// Append Series before reset
+									 		  	jobData[field][scope].Series = append(jobData[field][scope].Series, hostSeries)
+									 		}
+									 		field, host = row.Measurement(), row.ValueByKey("hostname").(string)
+									 		hostSeries  = schema.Series{
+									 				Hostname:   host,
+									 				Statistics: nil,
+									 				Data:       make([]schema.Float, 0),
+									 		}
+									}
+									val := row.Value().(float64)
+									hostSeries.Data = append(hostSeries.Data, schema.Float(val))
+							}
+					case "socket":
+							continue
+					case "core":
+							continue
+						  // Include Series.Id in hostSeries
+							// for rows.Next() {
+							// 		row := rows.Record()
+							// 		if ( host == "" || host != row.ValueByKey("hostname").(string) || typeId != row.ValueByKey("type-id").(int) || rows.TableChanged() ) {
+							// 		 		if ( host != "" ) {
+							// 						// Append Series before reset
+							// 		 		  	jobData[field][scope].Series = append(jobData[field][scope].Series, hostSeries)
+							// 		 		}
+							// 		 		field, host, typeId = row.Measurement(), row.ValueByKey("hostname").(string), row.ValueByKey("type-id").(int)
+							// 		 		hostSeries  = schema.Series{
+							// 		 				Hostname:   host,
+							// 						Id:					&typeId,
+							// 		 				Statistics: nil,
+							// 		 				Data:       make([]schema.Float, 0),
+							// 		 		}
+							// 		}
+							// 		val := row.Value().(float64)
+							// 		hostSeries.Data = append(hostSeries.Data, schema.Float(val))
+							// }
+					default:
+							continue
+							// return nil, errors.New("the InfluxDB metric data repository does not yet support other scopes than 'node, core'")
 			}
 			// Append last Series
 		  jobData[field][scope].Series = append(jobData[field][scope].Series, hostSeries)
@@ -189,7 +197,7 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 	}
 
 	for _, scope := range scopes {
-		if scope == "node" { // Only 'node' support yet
+		if scope == "node" { // No 'socket/core' support yet
 			for metric, nodes := range stats {
 				// log.Println(fmt.Sprintf("<< Add Stats for : Field %s >>", metric))
 				for node, stats := range nodes {
