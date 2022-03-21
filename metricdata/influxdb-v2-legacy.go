@@ -113,9 +113,9 @@ func (idb *LegacyInfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []s
 		row := rows.Record()
 		if ( host == "" || host != row.ValueByKey("host").(string) || rows.TableChanged() ) {
 				if ( host != "" ) {
+					  // Append Series before reset
 				  	jobData[field][scope].Series = append(jobData[field][scope].Series, hostSeries) // add to jobData before resetting
 				}
-				// (Re-)Set new Series
 				field, host = row.Field(), row.ValueByKey("host").(string)
 				hostSeries  = schema.Series{
 						Hostname:   host,
@@ -126,7 +126,7 @@ func (idb *LegacyInfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []s
 		val := row.Value().(float64)
 		hostSeries.Data = append(hostSeries.Data, schema.Float(val))
 	}
-
+	// Append last series
   jobData[field][scope].Series = append(jobData[field][scope].Series, hostSeries)
 
 	stats, err := idb.LoadStats(job, metrics, ctx)
