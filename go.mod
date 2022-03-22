@@ -19,7 +19,6 @@ require (
 	github.com/vektah/gqlparser/v2 v2.1.0
 	golang.org/x/crypto v0.0.0-20211117183948-ae814b36b871
 )
-<<<<<<< HEAD
 
 require (
 	github.com/Azure/go-ntlmssp v0.0.0-20200615164410-66371956d46c // indirect
@@ -36,7 +35,6 @@ require (
 	github.com/mitchellh/mapstructure v0.0.0-20180203102830-a4e142e9c047 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
+	golang.org/x/sys v0.0.0-20210902050250-f475640dd07b // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 )
-=======
->>>>>>> master
