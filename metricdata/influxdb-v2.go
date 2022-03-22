@@ -273,11 +273,20 @@ func (idb *InfluxDBv2DataRepository) LoadStats(job *schema.Job, metrics []string
 					host := row.ValueByKey("hostname").(string)
 
 					avg, avgok  := row.ValueByKey("avg").(float64)
-					if !avgok { log.Println(fmt.Sprintf(">> Assertion error for metric %s, statistic AVG. Expected 'float64', got %v", metric, avg)) }
+					if !avgok {
+						// log.Println(fmt.Sprintf(">> Assertion error for metric %s, statistic AVG. Expected 'float64', got %v", metric, avg))
+						avg = 0.0
+					}
 					min, minok  := row.ValueByKey("min").(float64)
-					if !minok { log.Println(fmt.Sprintf(">> Assertion error for metric %s, statistic MIN. Expected 'float64', got %v", metric, min)) }
+					if !minok {
+						// log.Println(fmt.Sprintf(">> Assertion error for metric %s, statistic MIN. Expected 'float64', got %v", metric, min))
+						min = 0.0
+					}
 					max, maxok  := row.ValueByKey("max").(float64)
-					if !maxok { log.Println(fmt.Sprintf(">> Assertion error for metric %s, statistic MAX. Expected 'float64', got %v", metric, max)) }
+					if !maxok {
+						// log.Println(fmt.Sprintf(">> Assertion error for metric %s, statistic MAX. Expected 'float64', got %v", metric, max))
+						max = 0.0
+					}
 
 					nodes[host] = schema.MetricStatistics{
 						Avg: avg,
