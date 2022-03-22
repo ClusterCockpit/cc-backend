@@ -18,12 +18,20 @@ import (
 	"github.com/ClusterCockpit/cc-backend/schema"
 )
 
-func (r *jobResolver) MetaData(ctx context.Context, obj *schema.Job) (interface{}, error) {
-	return r.Repo.FetchMetadata(obj)
+func (r *clusterResolver) Partitions(ctx context.Context, obj *model.Cluster) ([]string, error) {
+	return r.Repo.Partitions(obj.Name)
 }
 
 func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error) {
 	return r.Repo.GetTags(&obj.ID)
+}
+
+func (r *jobResolver) MetaData(ctx context.Context, obj *schema.Job) (interface{}, error) {
+	return r.Repo.FetchMetadata(obj)
+}
+
+func (r *jobResolver) UserData(ctx context.Context, obj *schema.Job) (*model.User, error) {
+	return auth.FetchUser(ctx, r.DB, obj.User)
 }
 
 func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name string) (*schema.Tag, error) {
@@ -98,6 +106,10 @@ func (r *queryResolver) Tags(ctx context.Context) ([]*schema.Tag, error) {
 	return r.Repo.GetTags(nil)
 }
 
+func (r *queryResolver) User(ctx context.Context, username string) (*model.User, error) {
+	return auth.FetchUser(ctx, r.DB, username)
+}
+
 func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error) {
 	numericId, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
@@ -144,7 +156,7 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 	return res, err
 }
 
-func (r *queryResolver) JobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) ([]*model.MetricFootprints, error) {
+func (r *queryResolver) JobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error) {
 	return r.jobsFootprints(ctx, filter, metrics)
 }
 
@@ -204,7 +216,7 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, partiti
 	}
 
 	if metrics == nil {
-		for _, mc := range config.GetClusterConfig(cluster).MetricConfig {
+		for _, mc := range config.GetCluster(cluster).MetricConfig {
 			metrics = append(metrics, mc.Name)
 		}
 	}
@@ -236,6 +248,9 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, partiti
 	return nodeMetrics, nil
 }
 
+// Cluster returns generated.ClusterResolver implementation.
+func (r *Resolver) Cluster() generated.ClusterResolver { return &clusterResolver{r} }
+
 // Job returns generated.JobResolver implementation.
 func (r *Resolver) Job() generated.JobResolver { return &jobResolver{r} }
 
@@ -245,6 +260,7 @@ func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResol
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
+type clusterResolver struct{ *Resolver }
 type jobResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }

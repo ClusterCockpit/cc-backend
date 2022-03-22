@@ -72,7 +72,7 @@ var cache *lrucache.Cache = lrucache.New(512 * 1024 * 1024)
 
 // Fetches the metric data for a job.
 func LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context) (schema.JobData, error) {
-	data := cache.Get(cacheKey(job, metrics, scopes), func() (interface{}, time.Duration, int) {
+	data := cache.Get(cacheKey(job, metrics, scopes), func() (_ interface{}, ttl time.Duration, size int) {
 		var jd schema.JobData
 		var err error
 		if job.State == schema.JobStateRunning ||
@@ -88,7 +88,7 @@ func LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ct
 			}
 
 			if metrics == nil {
-				cluster := config.GetClusterConfig(job.Cluster)
+				cluster := config.GetCluster(job.Cluster)
 				for _, mc := range cluster.MetricConfig {
 					metrics = append(metrics, mc.Name)
 				}
@@ -102,30 +102,43 @@ func LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ct
 					return err, 0, 0
 				}
 			}
+			size = jd.Size()
 		} else {
 			jd, err = loadFromArchive(job)
 			if err != nil {
 				return err, 0, 0
 			}
 
+			// Avoid sending unrequested data to the client:
 			if metrics != nil {
 				res := schema.JobData{}
 				for _, metric := range metrics {
-					if metricdata, ok := jd[metric]; ok {
-						res[metric] = metricdata
+					if perscope, ok := jd[metric]; ok {
+						if len(scopes) > 1 {
+							subset := make(map[schema.MetricScope]*schema.JobMetric)
+							for _, scope := range scopes {
+								if jm, ok := perscope[scope]; ok {
+									subset[scope] = jm
+								}
+							}
+							perscope = subset
+						}
+
+						res[metric] = perscope
 					}
 				}
 				jd = res
 			}
+			size = 1 // loadFromArchive() caches in the same cache.
 		}
 
-		ttl := 5 * time.Hour
+		ttl = 5 * time.Hour
 		if job.State == schema.JobStateRunning {
 			ttl = 2 * time.Minute
 		}
 
 		prepareJobData(job, jd, scopes)
-		return jd, ttl, jd.Size()
+		return jd, ttl, size
 	})
 
 	if err, ok := data.(error); ok {
@@ -176,7 +189,7 @@ func LoadNodeData(cluster, partition string, metrics, nodes []string, scopes []s
 	}
 
 	if metrics == nil {
-		for _, m := range config.GetClusterConfig(cluster).MetricConfig {
+		for _, m := range config.GetCluster(cluster).MetricConfig {
 			metrics = append(metrics, m.Name)
 		}
 	}

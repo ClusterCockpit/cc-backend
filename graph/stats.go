@@ -32,8 +32,8 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 
 	// `socketsPerNode` and `coresPerSocket` can differ from cluster to cluster, so we need to explicitly loop over those.
 	for _, cluster := range config.Clusters {
-		for _, partition := range cluster.Partitions {
-			corehoursCol := fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_nodes * %d * %d) / 3600) as int)", partition.SocketsPerNode, partition.CoresPerSocket)
+		for _, subcluster := range cluster.SubClusters {
+			corehoursCol := fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_nodes * %d * %d) / 3600) as int)", subcluster.SocketsPerNode, subcluster.CoresPerSocket)
 			var query sq.SelectBuilder
 			if groupBy == nil {
 				query = sq.Select(
@@ -54,7 +54,7 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 
 			query = query.
 				Where("job.cluster = ?", cluster.Name).
-				Where("job.partition = ?", partition.Name)
+				Where("job.subcluster = ?", subcluster.Name)
 
 			query = repository.SecurityCheck(ctx, query)
 			for _, f := range filter {
@@ -254,7 +254,7 @@ func (r *Resolver) rooflineHeatmap(ctx context.Context, filter []*model.JobFilte
 }
 
 // Helper function for the jobsFootprints GraphQL query placed here so that schema.resolvers.go is not too full.
-func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) ([]*model.MetricFootprints, error) {
+func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error) {
 	jobs, err := r.Repo.QueryJobs(ctx, filter, &model.PageRequest{Page: 1, ItemsPerPage: MAX_JOBS_FOR_ANALYSIS + 1}, nil)
 	if err != nil {
 		return nil, err
@@ -268,19 +268,25 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 		avgs[i] = make([]schema.Float, 0, len(jobs))
 	}
 
+	nodehours := make([]schema.Float, 0, len(jobs))
 	for _, job := range jobs {
 		if err := metricdata.LoadAverages(job, metrics, avgs, ctx); err != nil {
 			return nil, err
 		}
+
+		nodehours = append(nodehours, schema.Float(float64(job.Duration)/60.0*float64(job.NumNodes)))
 	}
 
 	res := make([]*model.MetricFootprints, len(avgs))
 	for i, arr := range avgs {
 		res[i] = &model.MetricFootprints{
-			Name:       metrics[i],
-			Footprints: arr,
+			Metric: metrics[i],
+			Data:   arr,
 		}
 	}
 
-	return res, nil
+	return &model.Footprints{
+		Nodehours: nodehours,
+		Metrics:   res,
+	}, nil
 }

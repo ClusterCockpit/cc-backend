@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/graph/model"
 	"github.com/ClusterCockpit/cc-backend/log"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/golang-jwt/jwt/v4"
@@ -71,11 +72,11 @@ func (auth *Authentication) Init(db *sqlx.DB, ldapConfig *LdapConfig) error {
 	auth.db = db
 	_, err := db.Exec(`
 	CREATE TABLE IF NOT EXISTS user (
-		username varchar(255) PRIMARY KEY,
+		username varchar(255) PRIMARY KEY NOT NULL,
 		password varchar(255) DEFAULT NULL,
-		ldap     tinyint      DEFAULT 0,
+		ldap     tinyint      NOT NULL DEFAULT 0,
 		name     varchar(255) DEFAULT NULL,
-		roles    varchar(255) DEFAULT NULL,
+		roles    varchar(255) NOT NULL DEFAULT "[]",
 		email    varchar(255) DEFAULT NULL);`)
 	if err != nil {
 		return err
@@ -230,6 +231,28 @@ func (auth *Authentication) FetchUser(username string) (*User, error) {
 		}
 	}
 
+	return user, nil
+}
+
+func FetchUser(ctx context.Context, db *sqlx.DB, username string) (*model.User, error) {
+	me := GetUser(ctx)
+	if me != nil && !me.HasRole(RoleAdmin) && me.Username != username {
+		return nil, errors.New("forbidden")
+	}
+
+	user := &model.User{Username: username}
+	var name, email sql.NullString
+	if err := sq.Select("name", "email").From("user").Where("user.username = ?", username).
+		RunWith(db).QueryRow().Scan(&name, &email); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
+	user.Name = name.String
+	user.Email = email.String
 	return user, nil
 }
 

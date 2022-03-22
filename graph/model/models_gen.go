@@ -33,6 +33,11 @@ type FloatRange struct {
 	To   float64 `json:"to"`
 }
 
+type Footprints struct {
+	Nodehours []schema.Float      `json:"nodehours"`
+	Metrics   []*MetricFootprints `json:"metrics"`
+}
+
 type HistoPoint struct {
 	Count int `json:"count"`
 	Value int `json:"value"`
@@ -92,19 +97,20 @@ type JobsStatistics struct {
 }
 
 type MetricConfig struct {
-	Name     string             `json:"name"`
-	Unit     string             `json:"unit"`
-	Scope    schema.MetricScope `json:"scope"`
-	Timestep int                `json:"timestep"`
-	Peak     float64            `json:"peak"`
-	Normal   float64            `json:"normal"`
-	Caution  float64            `json:"caution"`
-	Alert    float64            `json:"alert"`
+	Name        string             `json:"name"`
+	Unit        string             `json:"unit"`
+	Scope       schema.MetricScope `json:"scope"`
+	Aggregation *string            `json:"aggregation"`
+	Timestep    int                `json:"timestep"`
+	Peak        float64            `json:"peak"`
+	Normal      float64            `json:"normal"`
+	Caution     float64            `json:"caution"`
+	Alert       float64            `json:"alert"`
 }
 
 type MetricFootprints struct {
-	Name       string         `json:"name"`
-	Footprints []schema.Float `json:"footprints"`
+	Metric string         `json:"metric"`
+	Data   []schema.Float `json:"data"`
 }
 
 type NodeMetrics struct {
@@ -122,8 +128,16 @@ type PageRequest struct {
 	Page         int `json:"page"`
 }
 
-type Partition struct {
+type StringInput struct {
+	Eq         *string `json:"eq"`
+	Contains   *string `json:"contains"`
+	StartsWith *string `json:"startsWith"`
+	EndsWith   *string `json:"endsWith"`
+}
+
+type SubCluster struct {
 	Name            string    `json:"name"`
+	Nodes           string    `json:"nodes"`
 	ProcessorType   string    `json:"processorType"`
 	SocketsPerNode  int       `json:"socketsPerNode"`
 	CoresPerSocket  int       `json:"coresPerSocket"`
@@ -132,13 +146,6 @@ type Partition struct {
 	FlopRateSimd    int       `json:"flopRateSimd"`
 	MemoryBandwidth int       `json:"memoryBandwidth"`
 	Topology        *Topology `json:"topology"`
-}
-
-type StringInput struct {
-	Eq         *string `json:"eq"`
-	Contains   *string `json:"contains"`
-	StartsWith *string `json:"startsWith"`
-	EndsWith   *string `json:"endsWith"`
 }
 
 type TimeRange struct {
@@ -158,6 +165,12 @@ type Topology struct {
 	Die          [][]int        `json:"die"`
 	Core         [][]int        `json:"core"`
 	Accelerators []*Accelerator `json:"accelerators"`
+}
+
+type User struct {
+	Username string `json:"username"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
 }
 
 type Aggregate string

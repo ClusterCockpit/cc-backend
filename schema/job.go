@@ -14,6 +14,7 @@ type BaseJob struct {
 	User             string            `json:"user" db:"user"`
 	Project          string            `json:"project" db:"project"`
 	Cluster          string            `json:"cluster" db:"cluster"`
+	SubCluster       string            `json:"subCluster" db:"subcluster"`
 	Partition        string            `json:"partition" db:"partition"`
 	ArrayJobId       int32             `json:"arrayJobId" db:"array_job_id"`
 	NumNodes         int32             `json:"numNodes" db:"num_nodes"`
@@ -24,6 +25,7 @@ type BaseJob struct {
 	SMT              int32             `json:"smt" db:"smt"`
 	State            JobState          `json:"jobState" db:"job_state"`
 	Duration         int32             `json:"duration" db:"duration"`
+	Walltime         int64             `json:"walltime" db:"walltime"`
 	Tags             []*Tag            `json:"tags"`
 	RawResources     []byte            `json:"-" db:"resources"`
 	Resources        []*Resource       `json:"resources"`
@@ -54,7 +56,6 @@ type Job struct {
 type JobMeta struct {
 	ID *int64 `json:"id,omitempty"` // never used in the job-archive, only available via REST-API
 	BaseJob
-	Walltime   int64                    `json:"walltime"` // TODO: Missing in DB
 	StartTime  int64                    `json:"startTime" db:"start_time"`
 	Statistics map[string]JobStatistics `json:"statistics,omitempty"`
 }

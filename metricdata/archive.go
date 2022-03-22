@@ -157,14 +157,14 @@ func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
 // Writes a running job to the job-archive
 func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 	allMetrics := make([]string, 0)
-	metricConfigs := config.GetClusterConfig(job.Cluster).MetricConfig
+	metricConfigs := config.GetCluster(job.Cluster).MetricConfig
 	for _, mc := range metricConfigs {
 		allMetrics = append(allMetrics, mc.Name)
 	}
 
-	// TODO: For now: Only single-node-jobs get archived in full resolution
+	// TODO: Talk about this! What resolutions to store data at...
 	scopes := []schema.MetricScope{schema.MetricScopeNode}
-	if job.NumNodes == 1 {
+	if job.NumNodes <= 8 {
 		scopes = append(scopes, schema.MetricScopeCore)
 	}
 

@@ -9,7 +9,7 @@ type Cluster struct {
 	Name         string          `json:"name"`
 	MetricConfig []*MetricConfig `json:"metricConfig"`
 	FilterRanges *FilterRanges   `json:"filterRanges"`
-	Partitions   []*Partition    `json:"partitions"`
+	SubClusters  []*SubCluster   `json:"subClusters"`
 
 	// NOT part of the GraphQL API. This has to be a JSON object with a field `"kind"`.
 	// All other fields depend on that kind (e.g. "cc-metric-store", "influxdb-v2").

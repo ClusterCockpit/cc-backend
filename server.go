@@ -25,12 +25,11 @@ import (
 	"github.com/ClusterCockpit/cc-backend/config"
 	"github.com/ClusterCockpit/cc-backend/graph"
 	"github.com/ClusterCockpit/cc-backend/graph/generated"
-	"github.com/ClusterCockpit/cc-backend/graph/model"
 	"github.com/ClusterCockpit/cc-backend/log"
 	"github.com/ClusterCockpit/cc-backend/metricdata"
 	"github.com/ClusterCockpit/cc-backend/repository"
-	"github.com/ClusterCockpit/cc-backend/schema"
 	"github.com/ClusterCockpit/cc-backend/templates"
+	"github.com/google/gops/agent"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
@@ -39,7 +38,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-var db *sqlx.DB
 var jobRepo *repository.JobRepository
 
 // Format of the configurartion (file). See below for the defaults.
@@ -83,6 +81,10 @@ type ProgramConfig struct {
 	HttpsCertFile string `json:"https-cert-file"`
 	HttpsKeyFile  string `json:"https-key-file"`
 
+	// If not the empty string and `addr` does not end in ":80",
+	// redirect every request incoming at port 80 to that url.
+	RedirectHttpTo string `json:"redirect-http-to"`
+
 	// If overwriten, at least all the options in the defaults below must
 	// be provided! Most options here can be overwritten by the user.
 	UiDefaults map[string]interface{} `json:"ui-defaults"`
@@ -102,8 +104,6 @@ var programConfig ProgramConfig = ProgramConfig{
 	LdapConfig:            nil,
 	SessionMaxAge:         "168h",
 	JwtMaxAge:             "0",
-	HttpsCertFile:         "",
-	HttpsKeyFile:          "",
 	UiDefaults: map[string]interface{}{
 		"analysis_view_histogramMetrics":     []string{"flops_any", "mem_bw", "mem_used"},
 		"analysis_view_scatterPlotMetrics":   [][]string{{"flops_any", "mem_bw"}, {"flops_any", "cpu_load"}, {"cpu_load", "mem_bw"}},
@@ -112,7 +112,7 @@ var programConfig ProgramConfig = ProgramConfig{
 		"job_view_selectedMetrics":           []string{"flops_any", "mem_bw", "mem_used"},
 		"plot_general_colorBackground":       true,
 		"plot_general_colorscheme":           []string{"#00bfff", "#0000ff", "#ff00ff", "#ff0000", "#ff8000", "#ffff00", "#80ff00"},
-		"plot_general_lineWidth":             1,
+		"plot_general_lineWidth":             3,
 		"plot_list_hideShortRunningJobs":     5 * 60,
 		"plot_list_jobsPerPage":              10,
 		"plot_list_selectedMetrics":          []string{"cpu_load", "ipc", "mem_used", "flops_any", "mem_bw"},
@@ -124,145 +124,27 @@ var programConfig ProgramConfig = ProgramConfig{
 	},
 }
 
-func setupHomeRoute(i InfoType, r *http.Request) InfoType {
-	type cluster struct {
-		Name            string
-		RunningJobs     int
-		TotalJobs       int
-		RecentShortJobs int
-	}
-
-	runningJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, []*model.JobFilter{{
-		State: []schema.JobState{schema.JobStateRunning},
-	}}, nil)
-	if err != nil {
-		log.Errorf("failed to count jobs: %s", err.Error())
-		runningJobs = map[string]int{}
-	}
-	totalJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, nil, nil)
-	if err != nil {
-		log.Errorf("failed to count jobs: %s", err.Error())
-		totalJobs = map[string]int{}
-	}
-
-	from := time.Now().Add(-24 * time.Hour)
-	recentShortJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, []*model.JobFilter{{
-		StartTime: &model.TimeRange{From: &from, To: nil},
-		Duration:  &model.IntRange{From: 0, To: graph.ShortJobDuration},
-	}}, nil)
-	if err != nil {
-		log.Errorf("failed to count jobs: %s", err.Error())
-		recentShortJobs = map[string]int{}
-	}
-
-	clusters := make([]cluster, 0)
-	for _, c := range config.Clusters {
-		clusters = append(clusters, cluster{
-			Name:            c.Name,
-			RunningJobs:     runningJobs[c.Name],
-			TotalJobs:       totalJobs[c.Name],
-			RecentShortJobs: recentShortJobs[c.Name],
-		})
-	}
-
-	i["clusters"] = clusters
-	return i
-}
-
-func setupJobRoute(i InfoType, r *http.Request) InfoType {
-	i["id"] = mux.Vars(r)["id"]
-	return i
-}
-
-func setupUserRoute(i InfoType, r *http.Request) InfoType {
-	i["id"] = mux.Vars(r)["id"]
-	i["username"] = mux.Vars(r)["id"]
-	return i
-}
-
-func setupClusterRoute(i InfoType, r *http.Request) InfoType {
-	vars := mux.Vars(r)
-	i["id"] = vars["cluster"]
-	i["cluster"] = vars["cluster"]
-	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
-	if from != "" || to != "" {
-		i["from"] = from
-		i["to"] = to
-	}
-	return i
-}
-
-func setupNodeRoute(i InfoType, r *http.Request) InfoType {
-	vars := mux.Vars(r)
-	i["cluster"] = vars["cluster"]
-	i["hostname"] = vars["hostname"]
-	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
-	if from != "" || to != "" {
-		i["from"] = from
-		i["to"] = to
-	}
-	return i
-}
-
-func setupAnalysisRoute(i InfoType, r *http.Request) InfoType {
-	i["cluster"] = mux.Vars(r)["cluster"]
-	return i
-}
-
-func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
-	var username *string = nil
-	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleAdmin) {
-		username = &user.Username
-	}
-
-	tags, counts, err := jobRepo.CountTags(username)
-	tagMap := make(map[string][]map[string]interface{})
-	if err != nil {
-		log.Errorf("GetTags failed: %s", err.Error())
-		i["tagmap"] = tagMap
-		return i
-	}
-
-	for _, tag := range tags {
-		tagItem := map[string]interface{}{
-			"id":    tag.ID,
-			"name":  tag.Name,
-			"count": counts[tag.Name],
-		}
-		tagMap[tag.Type] = append(tagMap[tag.Type], tagItem)
-	}
-	log.Infof("TAGS %+v", tags)
-	i["tagmap"] = tagMap
-	return i
-}
-
-var routes []Route = []Route{
-	{"/", "home.tmpl", "ClusterCockpit", false, setupHomeRoute},
-	{"/config", "config.tmpl", "Settings", false, func(i InfoType, r *http.Request) InfoType { return i }},
-	{"/monitoring/jobs/", "monitoring/jobs.tmpl", "Jobs - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { return i }},
-	{"/monitoring/job/{id:[0-9]+}", "monitoring/job.tmpl", "Job <ID> - ClusterCockpit", false, setupJobRoute},
-	{"/monitoring/users/", "monitoring/list.tmpl", "Users - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { i["listType"] = "USER"; return i }},
-	{"/monitoring/projects/", "monitoring/list.tmpl", "Projects - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { i["listType"] = "PROJECT"; return i }},
-	{"/monitoring/tags/", "monitoring/taglist.tmpl", "Tags - ClusterCockpit", false, setupTaglistRoute},
-	{"/monitoring/user/{id}", "monitoring/user.tmpl", "User <ID> - ClusterCockpit", true, setupUserRoute},
-	{"/monitoring/systems/{cluster}", "monitoring/systems.tmpl", "Cluster <ID> - ClusterCockpit", false, setupClusterRoute},
-	{"/monitoring/node/{cluster}/{hostname}", "monitoring/node.tmpl", "Node <ID> - ClusterCockpit", false, setupNodeRoute},
-	{"/monitoring/analysis/{cluster}", "monitoring/analysis.tmpl", "Analaysis - ClusterCockpit", true, setupAnalysisRoute},
-}
-
 func main() {
-	var flagReinitDB, flagStopImmediately, flagSyncLDAP bool
+	var flagReinitDB, flagStopImmediately, flagSyncLDAP, flagGops bool
 	var flagConfigFile, flagImportJob string
 	var flagNewUser, flagDelUser, flagGenJWT string
-	flag.BoolVar(&flagReinitDB, "init-db", false, "Go through job-archive and re-initialize `job`, `tag`, and `jobtag` tables")
-	flag.BoolVar(&flagSyncLDAP, "sync-ldap", false, "Sync the `user` table with ldap")
+	flag.BoolVar(&flagReinitDB, "init-db", false, "Go through job-archive and re-initialize the 'job', 'tag', and 'jobtag' tables (all running jobs will be lost!)")
+	flag.BoolVar(&flagSyncLDAP, "sync-ldap", false, "Sync the 'user' table with ldap")
 	flag.BoolVar(&flagStopImmediately, "no-server", false, "Do not start a server, stop right after initialization and argument handling")
-	flag.StringVar(&flagConfigFile, "config", "", "Location of the config file for this server (overwrites the defaults)")
+	flag.BoolVar(&flagGops, "gops", false, "Listen via github.com/google/gops/agent (for debugging)")
+	flag.StringVar(&flagConfigFile, "config", "", "Overwrite the global config options by those specified in `config.json`")
 	flag.StringVar(&flagNewUser, "add-user", "", "Add a new user. Argument format: `<username>:[admin,api,user]:<password>`")
-	flag.StringVar(&flagDelUser, "del-user", "", "Remove user by username")
-	flag.StringVar(&flagGenJWT, "jwt", "", "Generate and print a JWT for the user specified by the username")
+	flag.StringVar(&flagDelUser, "del-user", "", "Remove user by `username`")
+	flag.StringVar(&flagGenJWT, "jwt", "", "Generate and print a JWT for the user specified by its `username`")
 	flag.StringVar(&flagImportJob, "import-job", "", "Import a job. Argument format: `<path-to-meta.json>:<path-to-data.json>,...`")
 	flag.Parse()
+
+	// See https://github.com/google/gops (Runtime overhead is almost zero)
+	if flagGops {
+		if err := agent.Listen(agent.Options{}); err != nil {
+			log.Fatalf("gops/agent.Listen failed: %s", err.Error())
+		}
+	}
 
 	if err := loadEnv("./.env"); err != nil && !os.IsNotExist(err) {
 		log.Fatalf("parsing './.env' file failed: %s", err.Error())
@@ -281,18 +163,24 @@ func main() {
 		}
 	}
 
+	// As a special case for `db`, allow using an environment variable instead of the value
+	// stored in the config. This can be done for people having security concerns about storing
+	// the password for their mysql database in the config.json.
 	if strings.HasPrefix(programConfig.DB, "env:") {
 		envvar := strings.TrimPrefix(programConfig.DB, "env:")
 		programConfig.DB = os.Getenv(envvar)
 	}
 
 	var err error
+	var db *sqlx.DB
 	if programConfig.DBDriver == "sqlite3" {
 		db, err = sqlx.Open("sqlite3", fmt.Sprintf("%s?_foreign_keys=on", programConfig.DB))
 		if err != nil {
 			log.Fatal(err)
 		}
 
+		// sqlite does not multithread. Having more than one connection open would just mean
+		// waiting for locks.
 		db.SetMaxOpenConns(1)
 	} else if programConfig.DBDriver == "mysql" {
 		db, err = sqlx.Open("mysql", fmt.Sprintf("%s?multiStatements=true", programConfig.DB))
@@ -307,7 +195,9 @@ func main() {
 		log.Fatalf("unsupported database driver: %s", programConfig.DBDriver)
 	}
 
-	// Initialize sub-modules...
+	// Initialize sub-modules and handle all command line flags.
+	// The order here is important! For example, the metricdata package
+	// depends on the config package.
 
 	var authentication *auth.Authentication
 	if !programConfig.DisableAuthentication {
@@ -370,7 +260,7 @@ func main() {
 	}
 
 	if flagReinitDB {
-		if err := initDB(db, programConfig.JobArchive); err != nil {
+		if err := repository.InitDB(db, programConfig.JobArchive); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -390,11 +280,13 @@ func main() {
 		return
 	}
 
-	// Build routes...
+	// Setup the http.Handler/Router used by the server
 
 	resolver := &graph.Resolver{DB: db, Repo: jobRepo}
 	graphQLEndpoint := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 	if os.Getenv("DEBUG") != "1" {
+		// Having this handler means that a error message is returned via GraphQL instead of the connection simply beeing closed.
+		// The problem with this is that then, no more stacktrace is printed to stderr.
 		graphQLEndpoint.SetRecoverFunc(func(ctx context.Context, err interface{}) error {
 			switch e := err.(type) {
 			case string:
@@ -407,7 +299,6 @@ func main() {
 		})
 	}
 
-	graphQLPlayground := playground.Handler("GraphQL playground", "/query")
 	api := &api.RestApi{
 		JobRepository:   jobRepo,
 		Resolver:        resolver,
@@ -415,33 +306,21 @@ func main() {
 		Authentication:  authentication,
 	}
 
-	handleGetLogin := func(rw http.ResponseWriter, r *http.Request) {
-		templates.Render(rw, r, "login.tmpl", &templates.Page{
-			Title: "Login",
-		})
-	}
-
 	r := mux.NewRouter()
-	r.NotFoundHandler = http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		templates.Render(rw, r, "404.tmpl", &templates.Page{
-			Title: "Not found",
-		})
-	})
 
-	r.Handle("/playground", graphQLPlayground)
-
-	r.HandleFunc("/login", handleGetLogin).Methods(http.MethodGet)
+	r.HandleFunc("/login", func(rw http.ResponseWriter, r *http.Request) {
+		templates.Render(rw, r, "login.tmpl", &templates.Page{Title: "Login"})
+	}).Methods(http.MethodGet)
 	r.HandleFunc("/imprint", func(rw http.ResponseWriter, r *http.Request) {
-		templates.Render(rw, r, "imprint.tmpl", &templates.Page{
-			Title: "Imprint",
-		})
+		templates.Render(rw, r, "imprint.tmpl", &templates.Page{Title: "Imprint"})
 	})
 	r.HandleFunc("/privacy", func(rw http.ResponseWriter, r *http.Request) {
-		templates.Render(rw, r, "privacy.tmpl", &templates.Page{
-			Title: "Privacy",
-		})
+		templates.Render(rw, r, "privacy.tmpl", &templates.Page{Title: "Privacy"})
 	})
 
+	// Some routes, such as /login or /query, should only be accessible to a user that is logged in.
+	// Those should be mounted to this subrouter. If authentication is enabled, a middleware will prevent
+	// any unauthenticated accesses.
 	secured := r.PathPrefix("/").Subrouter()
 	if !programConfig.DisableAuthentication {
 		r.Handle("/login", authentication.Login(
@@ -480,8 +359,11 @@ func main() {
 				})
 		})
 	}
+
+	r.Handle("/playground", playground.Handler("GraphQL playground", "/query"))
 	secured.Handle("/query", graphQLEndpoint)
 
+	// Send a searchId and then reply with a redirect to a user or job.
 	secured.HandleFunc("/search", func(rw http.ResponseWriter, r *http.Request) {
 		if search := r.URL.Query().Get("searchId"); search != "" {
 			job, username, err := api.JobRepository.FindJobOrUser(r.Context(), search)
@@ -505,6 +387,7 @@ func main() {
 		}
 	})
 
+	// Mount all /monitoring/... and /api/... routes.
 	setupRoutes(secured, routes)
 	api.MountRoutes(secured)
 
@@ -515,11 +398,18 @@ func main() {
 		handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}),
 		handlers.AllowedMethods([]string{"GET", "POST", "HEAD", "OPTIONS"}),
 		handlers.AllowedOrigins([]string{"*"})))
-	handler := handlers.CustomLoggingHandler(log.InfoWriter, r, func(w io.Writer, params handlers.LogFormatterParams) {
-		log.Finfof(w, "%s %s (%d, %.02fkb, %dms)",
-			params.Request.Method, params.URL.RequestURI(),
-			params.StatusCode, float32(params.Size)/1024,
-			time.Since(params.TimeStamp).Milliseconds())
+	handler := handlers.CustomLoggingHandler(io.Discard, r, func(_ io.Writer, params handlers.LogFormatterParams) {
+		if strings.HasPrefix(params.Request.RequestURI, "/api/") {
+			log.Infof("%s %s (%d, %.02fkb, %dms)",
+				params.Request.Method, params.URL.RequestURI(),
+				params.StatusCode, float32(params.Size)/1024,
+				time.Since(params.TimeStamp).Milliseconds())
+		} else {
+			log.Debugf("%s %s (%d, %.02fkb, %dms)",
+				params.Request.Method, params.URL.RequestURI(),
+				params.StatusCode, float32(params.Size)/1024,
+				time.Since(params.TimeStamp).Milliseconds())
+		}
 	})
 
 	var wg sync.WaitGroup
@@ -535,6 +425,12 @@ func main() {
 	listener, err := net.Listen("tcp", programConfig.Addr)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if !strings.HasSuffix(programConfig.Addr, ":80") && programConfig.RedirectHttpTo != "" {
+		go func() {
+			http.ListenAndServe(":80", http.RedirectHandler(programConfig.RedirectHttpTo, http.StatusMovedPermanently))
+		}()
 	}
 
 	if programConfig.HttpsCertFile != "" && programConfig.HttpsKeyFile != "" {

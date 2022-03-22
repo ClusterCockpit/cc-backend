@@ -20,10 +20,14 @@ import (
 
 var db *sqlx.DB
 var lookupConfigStmt *sqlx.Stmt
+
 var lock sync.RWMutex
 var uiDefaults map[string]interface{}
+
 var cache *lrucache.Cache = lrucache.New(1024)
+
 var Clusters []*model.Cluster
+var nodeLists map[string]map[string]NodeList
 
 func Init(usersdb *sqlx.DB, authEnabled bool, uiConfig map[string]interface{}, jobArchive string) error {
 	db = usersdb
@@ -34,6 +38,7 @@ func Init(usersdb *sqlx.DB, authEnabled bool, uiConfig map[string]interface{}, j
 	}
 
 	Clusters = []*model.Cluster{}
+	nodeLists = map[string]map[string]NodeList{}
 	for _, de := range entries {
 		raw, err := os.ReadFile(filepath.Join(jobArchive, de.Name(), "cluster.json"))
 		if err != nil {
@@ -53,8 +58,8 @@ func Init(usersdb *sqlx.DB, authEnabled bool, uiConfig map[string]interface{}, j
 			return err
 		}
 
-		if len(cluster.Name) == 0 || len(cluster.MetricConfig) == 0 || len(cluster.Partitions) == 0 {
-			return errors.New("cluster.name, cluster.metricConfig and cluster.Partitions should not be empty")
+		if len(cluster.Name) == 0 || len(cluster.MetricConfig) == 0 || len(cluster.SubClusters) == 0 {
+			return errors.New("cluster.name, cluster.metricConfig and cluster.SubClusters should not be empty")
 		}
 
 		for _, mc := range cluster.MetricConfig {
@@ -83,6 +88,19 @@ func Init(usersdb *sqlx.DB, authEnabled bool, uiConfig map[string]interface{}, j
 		}
 
 		Clusters = append(Clusters, &cluster)
+
+		nodeLists[cluster.Name] = make(map[string]NodeList)
+		for _, sc := range cluster.SubClusters {
+			if sc.Nodes == "" {
+				continue
+			}
+
+			nl, err := ParseNodeList(sc.Nodes)
+			if err != nil {
+				return fmt.Errorf("in %s/cluster.json: %w", cluster.Name, err)
+			}
+			nodeLists[cluster.Name][sc.Name] = nl
+		}
 	}
 
 	if authEnabled {
@@ -188,7 +206,7 @@ func UpdateConfig(key, value string, ctx context.Context) error {
 	return nil
 }
 
-func GetClusterConfig(cluster string) *model.Cluster {
+func GetCluster(cluster string) *model.Cluster {
 	for _, c := range Clusters {
 		if c.Name == cluster {
 			return c
@@ -197,11 +215,11 @@ func GetClusterConfig(cluster string) *model.Cluster {
 	return nil
 }
 
-func GetPartition(cluster, partition string) *model.Partition {
+func GetSubCluster(cluster, subcluster string) *model.SubCluster {
 	for _, c := range Clusters {
 		if c.Name == cluster {
-			for _, p := range c.Partitions {
-				if p.Name == partition {
+			for _, p := range c.SubClusters {
+				if p.Name == subcluster {
 					return p
 				}
 			}
@@ -221,4 +239,41 @@ func GetMetricConfig(cluster, metric string) *model.MetricConfig {
 		}
 	}
 	return nil
+}
+
+// AssignSubCluster sets the `job.subcluster` property of the job based
+// on its cluster and resources.
+func AssignSubCluster(job *schema.BaseJob) error {
+	cluster := GetCluster(job.Cluster)
+	if cluster == nil {
+		return fmt.Errorf("unkown cluster: %#v", job.Cluster)
+	}
+
+	if job.SubCluster != "" {
+		for _, sc := range cluster.SubClusters {
+			if sc.Name == job.SubCluster {
+				return nil
+			}
+		}
+		return fmt.Errorf("already assigned subcluster %#v unkown (cluster: %#v)", job.SubCluster, job.Cluster)
+	}
+
+	if len(job.Resources) == 0 {
+		return fmt.Errorf("job without any resources/hosts")
+	}
+
+	host0 := job.Resources[0].Hostname
+	for sc, nl := range nodeLists[job.Cluster] {
+		if nl != nil && nl.Contains(host0) {
+			job.SubCluster = sc
+			return nil
+		}
+	}
+
+	if cluster.SubClusters[0].Nodes == "" {
+		job.SubCluster = cluster.SubClusters[0].Name
+		return nil
+	}
+
+	return fmt.Errorf("no subcluster found for cluster %#v and host %#v", job.Cluster, host0)
 }

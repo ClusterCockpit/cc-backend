@@ -16,12 +16,12 @@ import (
 )
 
 const NamedJobInsert string = `INSERT INTO job (
-	job_id, user, project, cluster, ` + "`partition`" + `, array_job_id, num_nodes, num_hwthreads, num_acc,
-	exclusive, monitoring_status, smt, job_state, start_time, duration, resources, meta_data,
+	job_id, user, project, cluster, subcluster, ` + "`partition`" + `, array_job_id, num_nodes, num_hwthreads, num_acc,
+	exclusive, monitoring_status, smt, job_state, start_time, duration, walltime, resources, meta_data,
 	mem_used_max, flops_any_avg, mem_bw_avg, load_avg, net_bw_avg, net_data_vol_total, file_bw_avg, file_data_vol_total
 ) VALUES (
-	:job_id, :user, :project, :cluster, :partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
-	:exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :resources, :meta_data,
+	:job_id, :user, :project, :cluster, :subcluster, :partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
+	:exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :walltime, :resources, :meta_data,
 	:mem_used_max, :flops_any_avg, :mem_bw_avg, :load_avg, :net_bw_avg, :net_data_vol_total, :file_bw_avg, :file_data_vol_total
 );`
 
@@ -122,12 +122,13 @@ func (r *JobRepository) ImportJob(jobMeta *schema.JobMeta, jobData *schema.JobDa
 	return nil
 }
 
+// This function also sets the subcluster if necessary!
 func SanityChecks(job *schema.BaseJob) error {
-	if c := config.GetClusterConfig(job.Cluster); c == nil {
+	if c := config.GetCluster(job.Cluster); c == nil {
 		return fmt.Errorf("no such cluster: %#v", job.Cluster)
 	}
-	if p := config.GetPartition(job.Cluster, job.Partition); p == nil {
-		return fmt.Errorf("no such partition: %#v (on cluster %#v)", job.Partition, job.Cluster)
+	if err := config.AssignSubCluster(job); err != nil {
+		return err
 	}
 	if !job.State.Valid() {
 		return fmt.Errorf("not a valid job state: %#v", job.State)

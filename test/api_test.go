@@ -1,4 +1,4 @@
-package main
+package test
 
 import (
 	"bytes"
@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/ClusterCockpit/cc-backend/api"
@@ -21,18 +22,21 @@ import (
 	"github.com/ClusterCockpit/cc-backend/schema"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func setup(t *testing.T) *api.RestApi {
-	if db != nil {
-		panic("prefer using sub-tests (`t.Run`) or implement `cleanup` before calling setup twice.")
-	}
-
 	const testclusterJson = `{
 		"name": "testcluster",
-		"partitions": [
+		"subClusters": [
 			{
-				"name": "default",
+				"name": "sc0",
+				"nodes": "host120,host121,host122"
+			},
+			{
+				"name": "sc1",
+				"nodes": "host123,host124,host125",
 				"processorType": "Intel Core i7-4770",
 				"socketsPerNode": 1,
 				"coresPerSocket": 4,
@@ -91,17 +95,17 @@ func setup(t *testing.T) *api.RestApi {
 	}
 	f.Close()
 
-	db, err = sqlx.Open("sqlite3", fmt.Sprintf("%s?_foreign_keys=on", dbfilepath))
+	db, err := sqlx.Open("sqlite3", fmt.Sprintf("%s?_foreign_keys=on", dbfilepath))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	db.SetMaxOpenConns(1)
-	if _, err := db.Exec(JOBS_DB_SCHEMA); err != nil {
+	if _, err := db.Exec(repository.JobsDBSchema); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := config.Init(db, false, programConfig.UiDefaults, jobarchive); err != nil {
+	if err := config.Init(db, false, map[string]interface{}{}, jobarchive); err != nil {
 		t.Fatal(err)
 	}
 
@@ -141,7 +145,7 @@ func TestRestApi(t *testing.T) {
 				Timestep: 60,
 				Series: []schema.Series{
 					{
-						Hostname:   "testhost",
+						Hostname:   "host123",
 						Statistics: &schema.MetricStatistics{Min: 0.1, Avg: 0.2, Max: 0.3},
 						Data:       []schema.Float{0.1, 0.1, 0.1, 0.2, 0.2, 0.2, 0.3, 0.3, 0.3},
 					},
@@ -173,7 +177,7 @@ func TestRestApi(t *testing.T) {
     	"tags":             [{ "type": "testTagType", "name": "testTagName" }],
     	"resources": [
         	{
-            	"hostname": "testhost",
+            	"hostname": "host123",
             	"hwthreads": [0, 1, 2, 3, 4, 5, 6, 7]
         	}
     	],
@@ -211,6 +215,7 @@ func TestRestApi(t *testing.T) {
 			job.User != "testuser" ||
 			job.Project != "testproj" ||
 			job.Cluster != "testcluster" ||
+			job.SubCluster != "sc1" ||
 			job.Partition != "default" ||
 			job.ArrayJobId != 0 ||
 			job.NumNodes != 1 ||
@@ -219,7 +224,7 @@ func TestRestApi(t *testing.T) {
 			job.Exclusive != 1 ||
 			job.MonitoringStatus != 1 ||
 			job.SMT != 1 ||
-			!reflect.DeepEqual(job.Resources, []*schema.Resource{{Hostname: "testhost", HWThreads: []int{0, 1, 2, 3, 4, 5, 6, 7}}}) ||
+			!reflect.DeepEqual(job.Resources, []*schema.Resource{{Hostname: "host123", HWThreads: []int{0, 1, 2, 3, 4, 5, 6, 7}}}) ||
 			job.StartTime.Unix() != 123456789 {
 			t.Fatalf("unexpected job properties: %#v", job)
 		}
@@ -289,6 +294,20 @@ func TestRestApi(t *testing.T) {
 
 		if !reflect.DeepEqual(data, testData) {
 			t.Fatal("unexpected data fetched from archive")
+		}
+	})
+
+	t.Run("CheckDoubleStart", func(t *testing.T) {
+		// Starting a job with the same jobId and cluster should only be allowed if the startTime is far appart!
+		body := strings.Replace(startJobBody, `"startTime": 123456789`, `"startTime": 123456790`, -1)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/jobs/start_job/", bytes.NewBuffer([]byte(body)))
+		recorder := httptest.NewRecorder()
+
+		r.ServeHTTP(recorder, req)
+		response := recorder.Result()
+		if response.StatusCode != http.StatusUnprocessableEntity {
+			t.Fatal(response.Status, recorder.Body.String())
 		}
 	})
 }

@@ -108,6 +108,7 @@ type TagJobApiRequest []*struct {
 
 // Return a list of jobs
 func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
+	withMetadata := false
 	filter := &model.JobFilter{}
 	page := &model.PageRequest{ItemsPerPage: -1, Page: 1}
 	order := &model.OrderByInput{Field: "startTime", Order: model.SortDirectionEnumDesc}
@@ -156,6 +157,8 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 				return
 			}
 			page.ItemsPerPage = x
+		case "with-metadata":
+			withMetadata = true
 		default:
 			http.Error(rw, "invalid query parameter: "+key, http.StatusBadRequest)
 			return
@@ -170,6 +173,13 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 
 	results := make([]*schema.JobMeta, 0, len(jobs))
 	for _, job := range jobs {
+		if withMetadata {
+			if _, err := api.JobRepository.FetchMetadata(job); err != nil {
+				http.Error(rw, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
 		res := &schema.JobMeta{
 			ID:        &job.ID,
 			BaseJob:   job.BaseJob,
@@ -274,15 +284,15 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if combination of (job_id, cluster_id, start_time) already exists:
-	job, err := api.JobRepository.Find(&req.JobID, &req.Cluster, &req.StartTime)
+	job, err := api.JobRepository.Find(&req.JobID, &req.Cluster, nil)
 	if err != nil && err != sql.ErrNoRows {
 		handleError(fmt.Errorf("checking for duplicate failed: %w", err), http.StatusInternalServerError, rw)
 		return
-	}
-
-	if err != sql.ErrNoRows {
-		handleError(fmt.Errorf("a job with that jobId, cluster and startTime already exists: dbid: %d", job.ID), http.StatusUnprocessableEntity, rw)
-		return
+	} else if err == nil {
+		if (req.StartTime - job.StartTimeUnix) < 86400 {
+			handleError(fmt.Errorf("a job with that jobId, cluster and startTime already exists: dbid: %d", job.ID), http.StatusUnprocessableEntity, rw)
+			return
+		}
 	}
 
 	id, err := api.JobRepository.Start(&req)

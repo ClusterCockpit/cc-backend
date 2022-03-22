@@ -13,6 +13,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/graph/model"
 	"github.com/ClusterCockpit/cc-backend/schema"
 	sq "github.com/Masterminds/squirrel"
+	"github.com/iamlouk/lrucache"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -20,25 +21,27 @@ type JobRepository struct {
 	DB *sqlx.DB
 
 	stmtCache *sq.StmtCache
+	cache     *lrucache.Cache
 }
 
 func (r *JobRepository) Init() error {
 	r.stmtCache = sq.NewStmtCache(r.DB)
+	r.cache = lrucache.New(1024 * 1024)
 	return nil
 }
 
 var jobColumns []string = []string{
-	"job.id", "job.job_id", "job.user", "job.project", "job.cluster", "job.start_time", "job.partition", "job.array_job_id",
+	"job.id", "job.job_id", "job.user", "job.project", "job.cluster", "job.subcluster", "job.start_time", "job.partition", "job.array_job_id",
 	"job.num_nodes", "job.num_hwthreads", "job.num_acc", "job.exclusive", "job.monitoring_status", "job.smt", "job.job_state",
-	"job.duration", "job.resources", // "job.meta_data",
+	"job.duration", "job.walltime", "job.resources", // "job.meta_data",
 }
 
 func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 	job := &schema.Job{}
 	if err := row.Scan(
-		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.StartTimeUnix, &job.Partition, &job.ArrayJobId,
+		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.SubCluster, &job.StartTimeUnix, &job.Partition, &job.ArrayJobId,
 		&job.NumNodes, &job.NumHWThreads, &job.NumAcc, &job.Exclusive, &job.MonitoringStatus, &job.SMT, &job.State,
-		&job.Duration, &job.RawResources /*&job.MetaData*/); err != nil {
+		&job.Duration, &job.Walltime, &job.RawResources /*&job.MetaData*/); err != nil {
 		return nil, err
 	}
 
@@ -56,6 +59,12 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 }
 
 func (r *JobRepository) FetchMetadata(job *schema.Job) (map[string]string, error) {
+	cachekey := fmt.Sprintf("metadata:%d", job.ID)
+	if cached := r.cache.Get(cachekey, nil); cached != nil {
+		job.MetaData = cached.(map[string]string)
+		return job.MetaData, nil
+	}
+
 	if err := sq.Select("job.meta_data").From("job").Where("job.id = ?", job.ID).
 		RunWith(r.stmtCache).QueryRow().Scan(&job.RawMetaData); err != nil {
 		return nil, err
@@ -69,7 +78,40 @@ func (r *JobRepository) FetchMetadata(job *schema.Job) (map[string]string, error
 		return nil, err
 	}
 
+	r.cache.Put(cachekey, job.MetaData, len(job.RawMetaData), 24*time.Hour)
 	return job.MetaData, nil
+}
+
+func (r *JobRepository) UpdateMetadata(job *schema.Job, key, val string) (err error) {
+	cachekey := fmt.Sprintf("metadata:%d", job.ID)
+	r.cache.Del(cachekey)
+	if job.MetaData == nil {
+		if _, err = r.FetchMetadata(job); err != nil {
+			return err
+		}
+	}
+
+	if job.MetaData != nil {
+		cpy := make(map[string]string, len(job.MetaData)+1)
+		for k, v := range job.MetaData {
+			cpy[k] = v
+		}
+		cpy[key] = val
+		job.MetaData = cpy
+	} else {
+		job.MetaData = map[string]string{key: val}
+	}
+
+	if job.RawMetaData, err = json.Marshal(job.MetaData); err != nil {
+		return err
+	}
+
+	if _, err = sq.Update("job").Set("meta_data", job.RawMetaData).Where("job.id = ?", job.ID).RunWith(r.stmtCache).Exec(); err != nil {
+		return err
+	}
+
+	r.cache.Put(cachekey, job.MetaData, len(job.RawMetaData), 24*time.Hour)
+	return nil
 }
 
 // Find executes a SQL query to find a specific batch job.
@@ -120,11 +162,11 @@ func (r *JobRepository) Start(job *schema.JobMeta) (id int64, err error) {
 	}
 
 	res, err := r.DB.NamedExec(`INSERT INTO job (
-		job_id, user, project, cluster, `+"`partition`"+`, array_job_id, num_nodes, num_hwthreads, num_acc,
-		exclusive, monitoring_status, smt, job_state, start_time, duration, resources, meta_data
+		job_id, user, project, cluster, subcluster, `+"`partition`"+`, array_job_id, num_nodes, num_hwthreads, num_acc,
+		exclusive, monitoring_status, smt, job_state, start_time, duration, walltime, resources, meta_data
 	) VALUES (
-		:job_id, :user, :project, :cluster, :partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
-		:exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :resources, :meta_data
+		:job_id, :user, :project, :cluster, :subcluster, :partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
+		:exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :walltime, :resources, :meta_data
 	);`, job)
 	if err != nil {
 		return -1, err
@@ -259,4 +301,20 @@ func (r *JobRepository) FindJobOrUser(ctx context.Context, searchterm string) (j
 	}
 
 	return 0, "", ErrNotFound
+}
+
+func (r *JobRepository) Partitions(cluster string) ([]string, error) {
+	var err error
+	partitions := r.cache.Get("partitions:"+cluster, func() (interface{}, time.Duration, int) {
+		parts := []string{}
+		if err = r.DB.Select(&parts, `SELECT DISTINCT job.partition FROM job WHERE job.cluster = ?;`, cluster); err != nil {
+			return nil, 0, 1000
+		}
+
+		return parts, 1 * time.Hour, 1
+	})
+	if err != nil {
+		return nil, err
+	}
+	return partitions.([]string), nil
 }

@@ -38,6 +38,9 @@ paths:
         - name: items-per-page
           in: query
           schema: { type: integer }
+        - name: with-metadata
+          in: query
+          schema: { type: boolean }
       responses:
         200:
           description: 'Array of jobs'

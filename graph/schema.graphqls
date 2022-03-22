@@ -11,8 +11,10 @@ type Job {
   user:             String!
   project:          String!
   cluster:          String!
+  subCluster:       String!
   startTime:        Time!
   duration:         Int!
+  walltime:         Int!
   numNodes:         Int!
   numHWThreads:     Int!
   numAcc:           Int!
@@ -22,20 +24,24 @@ type Job {
   arrayJobId:       Int!
   monitoringStatus: Int!
   state:            JobState!
-  metaData:         Any
   tags:             [Tag!]!
   resources:        [Resource!]!
+
+  metaData:         Any
+  userData:         User
 }
 
 type Cluster {
   name:         String!
+  partitions:   [String!]!        # Slurm partitions
   metricConfig: [MetricConfig!]!
   filterRanges: FilterRanges!
-  partitions:   [Partition!]!
+  subClusters:  [SubCluster!]!    # Hardware partitions/subclusters
 }
 
-type Partition {
+type SubCluster {
   name:            String!
+  nodes:           String!
   processorType:   String!
   socketsPerNode:  Int!
   coresPerSocket:  Int!
@@ -62,14 +68,15 @@ type Accelerator {
 }
 
 type MetricConfig {
-  name:     String!
-  unit:     String!
-  scope:    MetricScope!
-  timestep: Int!
-  peak:     Float!
-  normal:   Float!
-  caution:  Float!
-  alert:    Float!
+  name:        String!
+  unit:        String!
+  scope:       MetricScope!
+  aggregation: String
+  timestep:    Int!
+  peak:        Float!
+  normal:      Float!
+  caution:     Float!
+  alert:       Float!
 }
 
 type Tag {
@@ -118,8 +125,13 @@ type StatsSeries {
 }
 
 type MetricFootprints {
-  name: String!
-  footprints: [NullableFloat!]!
+  metric: String!
+  data:   [NullableFloat!]!
+}
+
+type Footprints {
+  nodehours: [NullableFloat!]!
+  metrics:   [MetricFootprints!]!
 }
 
 enum Aggregate { USER, PROJECT, CLUSTER }
@@ -134,13 +146,21 @@ type Count {
   count: Int!
 }
 
+type User {
+  username: String!
+  name:     String!
+  email:    String!
+}
+
 type Query {
   clusters:     [Cluster!]!   # List of all clusters
   tags:         [Tag!]!       # List of all tags
 
+  user(username: String!): User
+
   job(id: ID!): Job
   jobMetrics(id: ID!, metrics: [String!], scopes: [MetricScope!]): [JobMetricWithName!]!
-  jobsFootprints(filter: [JobFilter!], metrics: [String!]!): [MetricFootprints]!
+  jobsFootprints(filter: [JobFilter!], metrics: [String!]!): Footprints
 
   jobs(filter: [JobFilter!], page: PageRequest, order: OrderByInput): JobResultList!
   jobsStatistics(filter: [JobFilter!], groupBy: Aggregate): [JobsStatistics!]!
