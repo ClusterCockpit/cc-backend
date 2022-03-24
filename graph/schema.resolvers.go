@@ -110,8 +110,21 @@ func (r *queryResolver) User(ctx context.Context, username string) (*model.User,
 	return auth.FetchUser(ctx, r.DB, username)
 }
 
-func (r *queryResolver) AllocatedNodes(ctx context.Context, cluster string) ([]string, error) {
-	return r.Repo.AllocatedNodes(cluster)
+func (r *queryResolver) AllocatedNodes(ctx context.Context, cluster string) ([]*model.Count, error) {
+	data, err := r.Repo.AllocatedNodes(cluster)
+	if err != nil {
+		return nil, err
+	}
+
+	counts := make([]*model.Count, 0, len(data))
+	for subcluster, hosts := range data {
+		counts = append(counts, &model.Count{
+			Name:  subcluster,
+			Count: len(hosts),
+		})
+	}
+
+	return counts, nil
 }
 
 func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error) {

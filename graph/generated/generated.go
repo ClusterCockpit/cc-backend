@@ -275,7 +275,7 @@ type QueryResolver interface {
 	Clusters(ctx context.Context) ([]*model.Cluster, error)
 	Tags(ctx context.Context) ([]*schema.Tag, error)
 	User(ctx context.Context, username string) (*model.User, error)
-	AllocatedNodes(ctx context.Context, cluster string) ([]string, error)
+	AllocatedNodes(ctx context.Context, cluster string) ([]*model.Count, error)
 	Job(ctx context.Context, id string) (*schema.Job, error)
 	JobMetrics(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope) ([]*model.JobMetricWithName, error)
 	JobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error)
@@ -1504,7 +1504,7 @@ type Query {
   tags:         [Tag!]!       # List of all tags
 
   user(username: String!): User
-  allocatedNodes(cluster: String!): [String!]!
+  allocatedNodes(cluster: String!): [Count!]!
 
   job(id: ID!): Job
   jobMetrics(id: ID!, metrics: [String!], scopes: [MetricScope!]): [JobMetricWithName!]!
@@ -5090,9 +5090,9 @@ func (ec *executionContext) _Query_allocatedNodes(ctx context.Context, field gra
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]string)
+	res := resTmp.([]*model.Count)
 	fc.Result = res
-	return ec.marshalNString2ᚕstringᚄ(ctx, field.Selections, res)
+	return ec.marshalNCount2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐCountᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_job(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {

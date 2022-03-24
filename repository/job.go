@@ -319,9 +319,11 @@ func (r *JobRepository) Partitions(cluster string) ([]string, error) {
 	return partitions.([]string), nil
 }
 
-func (r *JobRepository) AllocatedNodes(cluster string) ([]string, error) {
-	nodes := make(map[string]int)
-	rows, err := sq.Select("resources").From("job").
+// AllocatedNodes returns a map of all subclusters to a map of hostnames to the amount of jobs running on that host.
+// Hosts with zero jobs running on them will not show up!
+func (r *JobRepository) AllocatedNodes(cluster string) (map[string]map[string]int, error) {
+	subclusters := make(map[string]map[string]int)
+	rows, err := sq.Select("resources", "subcluster").From("job").
 		Where("job.job_state = 'running'").
 		Where("job.cluster = ?", cluster).
 		RunWith(r.stmtCache).Query()
@@ -334,17 +336,24 @@ func (r *JobRepository) AllocatedNodes(cluster string) ([]string, error) {
 	for rows.Next() {
 		raw = raw[0:0]
 		var resources []*schema.Resource
-		if err := rows.Scan(&raw); err != nil {
+		var subcluster string
+		if err := rows.Scan(&raw, &subcluster); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal(raw, &resources); err != nil {
 			return nil, err
 		}
 
+		hosts, ok := subclusters[subcluster]
+		if !ok {
+			hosts = make(map[string]int)
+			subclusters[subcluster] = hosts
+		}
+
 		for _, resource := range resources {
-			nodes[resource.Hostname] += 1
+			hosts[resource.Hostname] += 1
 		}
 	}
 
-	return nil, nil
+	return subclusters, nil
 }
