@@ -174,8 +174,9 @@ type ComplexityRoot struct {
 	}
 
 	NodeMetrics struct {
-		Host    func(childComplexity int) int
-		Metrics func(childComplexity int) int
+		Host       func(childComplexity int) int
+		Metrics    func(childComplexity int) int
+		SubCluster func(childComplexity int) int
 	}
 
 	Query struct {
@@ -187,7 +188,7 @@ type ComplexityRoot struct {
 		JobsCount       func(childComplexity int, filter []*model.JobFilter, groupBy model.Aggregate, limit *int) int
 		JobsFootprints  func(childComplexity int, filter []*model.JobFilter, metrics []string) int
 		JobsStatistics  func(childComplexity int, filter []*model.JobFilter, groupBy *model.Aggregate) int
-		NodeMetrics     func(childComplexity int, cluster string, partition *string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) int
+		NodeMetrics     func(childComplexity int, cluster string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) int
 		RooflineHeatmap func(childComplexity int, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) int
 		Tags            func(childComplexity int) int
 		User            func(childComplexity int, username string) int
@@ -220,6 +221,7 @@ type ComplexityRoot struct {
 		MemoryBandwidth func(childComplexity int) int
 		Name            func(childComplexity int) int
 		Nodes           func(childComplexity int) int
+		NumberOfNodes   func(childComplexity int) int
 		ProcessorType   func(childComplexity int) int
 		SocketsPerNode  func(childComplexity int) int
 		ThreadsPerCore  func(childComplexity int) int
@@ -281,7 +283,7 @@ type QueryResolver interface {
 	JobsStatistics(ctx context.Context, filter []*model.JobFilter, groupBy *model.Aggregate) ([]*model.JobsStatistics, error)
 	JobsCount(ctx context.Context, filter []*model.JobFilter, groupBy model.Aggregate, limit *int) ([]*model.Count, error)
 	RooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error)
-	NodeMetrics(ctx context.Context, cluster string, partition *string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) ([]*model.NodeMetrics, error)
+	NodeMetrics(ctx context.Context, cluster string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) ([]*model.NodeMetrics, error)
 }
 
 type executableSchema struct {
@@ -884,6 +886,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.NodeMetrics.Metrics(childComplexity), true
 
+	case "NodeMetrics.subCluster":
+		if e.complexity.NodeMetrics.SubCluster == nil {
+			break
+		}
+
+		return e.complexity.NodeMetrics.SubCluster(childComplexity), true
+
 	case "Query.allocatedNodes":
 		if e.complexity.Query.AllocatedNodes == nil {
 			break
@@ -985,7 +994,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.NodeMetrics(childComplexity, args["cluster"].(string), args["partition"].(*string), args["nodes"].([]string), args["scopes"].([]schema.MetricScope), args["metrics"].([]string), args["from"].(time.Time), args["to"].(time.Time)), true
+		return e.complexity.Query.NodeMetrics(childComplexity, args["cluster"].(string), args["nodes"].([]string), args["scopes"].([]schema.MetricScope), args["metrics"].([]string), args["from"].(time.Time), args["to"].(time.Time)), true
 
 	case "Query.rooflineHeatmap":
 		if e.complexity.Query.RooflineHeatmap == nil {
@@ -1136,6 +1145,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.SubCluster.Nodes(childComplexity), true
+
+	case "SubCluster.numberOfNodes":
+		if e.complexity.SubCluster.NumberOfNodes == nil {
+			break
+		}
+
+		return e.complexity.SubCluster.NumberOfNodes(childComplexity), true
 
 	case "SubCluster.processorType":
 		if e.complexity.SubCluster.ProcessorType == nil {
@@ -1371,6 +1387,7 @@ type Cluster {
 type SubCluster {
   name:            String!
   nodes:           String!
+  numberOfNodes:   Int!
   processorType:   String!
   socketsPerNode:  Int!
   coresPerSocket:  Int!
@@ -1466,8 +1483,9 @@ type Footprints {
 enum Aggregate { USER, PROJECT, CLUSTER }
 
 type NodeMetrics {
-  host:    String!
-  metrics: [JobMetricWithName!]!
+  host:       String!
+  subCluster: String!
+  metrics:    [JobMetricWithName!]!
 }
 
 type Count {
@@ -1498,7 +1516,7 @@ type Query {
 
   rooflineHeatmap(filter: [JobFilter!]!, rows: Int!, cols: Int!, minX: Float!, minY: Float!, maxX: Float!, maxY: Float!): [[Float!]!]!
 
-  nodeMetrics(cluster: String!, partition: String, nodes: [String!], scopes: [MetricScope!], metrics: [String!], from: Time!, to: Time!): [NodeMetrics!]!
+  nodeMetrics(cluster: String!, nodes: [String!], scopes: [MetricScope!], metrics: [String!], from: Time!, to: Time!): [NodeMetrics!]!
 }
 
 type Mutation {
@@ -1913,60 +1931,51 @@ func (ec *executionContext) field_Query_nodeMetrics_args(ctx context.Context, ra
 		}
 	}
 	args["cluster"] = arg0
-	var arg1 *string
-	if tmp, ok := rawArgs["partition"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("partition"))
-		arg1, err = ec.unmarshalOString2ᚖstring(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["partition"] = arg1
-	var arg2 []string
+	var arg1 []string
 	if tmp, ok := rawArgs["nodes"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nodes"))
-		arg2, err = ec.unmarshalOString2ᚕstringᚄ(ctx, tmp)
+		arg1, err = ec.unmarshalOString2ᚕstringᚄ(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["nodes"] = arg2
-	var arg3 []schema.MetricScope
+	args["nodes"] = arg1
+	var arg2 []schema.MetricScope
 	if tmp, ok := rawArgs["scopes"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("scopes"))
-		arg3, err = ec.unmarshalOMetricScope2ᚕgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋschemaᚐMetricScopeᚄ(ctx, tmp)
+		arg2, err = ec.unmarshalOMetricScope2ᚕgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋschemaᚐMetricScopeᚄ(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["scopes"] = arg3
-	var arg4 []string
+	args["scopes"] = arg2
+	var arg3 []string
 	if tmp, ok := rawArgs["metrics"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("metrics"))
-		arg4, err = ec.unmarshalOString2ᚕstringᚄ(ctx, tmp)
+		arg3, err = ec.unmarshalOString2ᚕstringᚄ(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["metrics"] = arg4
-	var arg5 time.Time
+	args["metrics"] = arg3
+	var arg4 time.Time
 	if tmp, ok := rawArgs["from"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("from"))
+		arg4, err = ec.unmarshalNTime2timeᚐTime(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["from"] = arg4
+	var arg5 time.Time
+	if tmp, ok := rawArgs["to"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("to"))
 		arg5, err = ec.unmarshalNTime2timeᚐTime(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["from"] = arg5
-	var arg6 time.Time
-	if tmp, ok := rawArgs["to"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("to"))
-		arg6, err = ec.unmarshalNTime2timeᚐTime(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["to"] = arg6
+	args["to"] = arg5
 	return args, nil
 }
 
@@ -4865,6 +4874,41 @@ func (ec *executionContext) _NodeMetrics_host(ctx context.Context, field graphql
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _NodeMetrics_subCluster(ctx context.Context, field graphql.CollectedField, obj *model.NodeMetrics) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "NodeMetrics",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.SubCluster, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _NodeMetrics_metrics(ctx context.Context, field graphql.CollectedField, obj *model.NodeMetrics) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -5364,7 +5408,7 @@ func (ec *executionContext) _Query_nodeMetrics(ctx context.Context, field graphq
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().NodeMetrics(rctx, args["cluster"].(string), args["partition"].(*string), args["nodes"].([]string), args["scopes"].([]schema.MetricScope), args["metrics"].([]string), args["from"].(time.Time), args["to"].(time.Time))
+		return ec.resolvers.Query().NodeMetrics(rctx, args["cluster"].(string), args["nodes"].([]string), args["scopes"].([]schema.MetricScope), args["metrics"].([]string), args["from"].(time.Time), args["to"].(time.Time))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -5890,6 +5934,41 @@ func (ec *executionContext) _SubCluster_nodes(ctx context.Context, field graphql
 	res := resTmp.(string)
 	fc.Result = res
 	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _SubCluster_numberOfNodes(ctx context.Context, field graphql.CollectedField, obj *model.SubCluster) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "SubCluster",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.NumberOfNodes, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _SubCluster_processorType(ctx context.Context, field graphql.CollectedField, obj *model.SubCluster) (ret graphql.Marshaler) {
@@ -8854,6 +8933,11 @@ func (ec *executionContext) _NodeMetrics(ctx context.Context, sel ast.SelectionS
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
+		case "subCluster":
+			out.Values[i] = ec._NodeMetrics_subCluster(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "metrics":
 			out.Values[i] = ec._NodeMetrics_metrics(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -9183,6 +9267,11 @@ func (ec *executionContext) _SubCluster(ctx context.Context, sel ast.SelectionSe
 			}
 		case "nodes":
 			out.Values[i] = ec._SubCluster_nodes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "numberOfNodes":
+			out.Values[i] = ec._SubCluster_numberOfNodes(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}

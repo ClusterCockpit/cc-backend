@@ -114,8 +114,9 @@ type MetricFootprints struct {
 }
 
 type NodeMetrics struct {
-	Host    string               `json:"host"`
-	Metrics []*JobMetricWithName `json:"metrics"`
+	Host       string               `json:"host"`
+	SubCluster string               `json:"subCluster"`
+	Metrics    []*JobMetricWithName `json:"metrics"`
 }
 
 type OrderByInput struct {
@@ -138,6 +139,7 @@ type StringInput struct {
 type SubCluster struct {
 	Name            string    `json:"name"`
 	Nodes           string    `json:"nodes"`
+	NumberOfNodes   int       `json:"numberOfNodes"`
 	ProcessorType   string    `json:"processorType"`
 	SocketsPerNode  int       `json:"socketsPerNode"`
 	CoresPerSocket  int       `json:"coresPerSocket"`

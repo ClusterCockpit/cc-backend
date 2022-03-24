@@ -42,6 +42,7 @@ type Cluster {
 type SubCluster {
   name:            String!
   nodes:           String!
+  numberOfNodes:   Int!
   processorType:   String!
   socketsPerNode:  Int!
   coresPerSocket:  Int!
@@ -137,8 +138,9 @@ type Footprints {
 enum Aggregate { USER, PROJECT, CLUSTER }
 
 type NodeMetrics {
-  host:    String!
-  metrics: [JobMetricWithName!]!
+  host:       String!
+  subCluster: String!
+  metrics:    [JobMetricWithName!]!
 }
 
 type Count {
@@ -169,7 +171,7 @@ type Query {
 
   rooflineHeatmap(filter: [JobFilter!]!, rows: Int!, cols: Int!, minX: Float!, minY: Float!, maxX: Float!, maxY: Float!): [[Float!]!]!
 
-  nodeMetrics(cluster: String!, partition: String, nodes: [String!], scopes: [MetricScope!], metrics: [String!], from: Time!, to: Time!): [NodeMetrics!]!
+  nodeMetrics(cluster: String!, nodes: [String!], scopes: [MetricScope!], metrics: [String!], from: Time!, to: Time!): [NodeMetrics!]!
 }
 
 type Mutation {

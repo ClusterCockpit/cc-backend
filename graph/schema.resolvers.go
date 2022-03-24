@@ -209,14 +209,10 @@ func (r *queryResolver) RooflineHeatmap(ctx context.Context, filter []*model.Job
 	return r.rooflineHeatmap(ctx, filter, rows, cols, minX, minY, maxX, maxY)
 }
 
-func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, partition *string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) ([]*model.NodeMetrics, error) {
+func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) ([]*model.NodeMetrics, error) {
 	user := auth.GetUser(ctx)
 	if user != nil && !user.HasRole(auth.RoleAdmin) {
 		return nil, errors.New("you need to be an administrator for this query")
-	}
-
-	if partition == nil {
-		partition = new(string)
 	}
 
 	if metrics == nil {
@@ -225,7 +221,7 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, partiti
 		}
 	}
 
-	data, err := metricdata.LoadNodeData(cluster, *partition, metrics, nodes, scopes, from, to, ctx)
+	data, err := metricdata.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -236,6 +232,7 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, partiti
 			Host:    hostname,
 			Metrics: make([]*model.JobMetricWithName, 0, len(metrics)*len(scopes)),
 		}
+		host.SubCluster, _ = config.GetSubClusterByNode(cluster, hostname)
 
 		for metric, scopedMetrics := range metrics {
 			for _, scopedMetric := range scopedMetrics {

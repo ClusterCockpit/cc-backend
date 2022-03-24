@@ -32,6 +32,6 @@ func (tmdr *TestMetricDataRepository) LoadStats(job *schema.Job, metrics []strin
 	panic("TODO")
 }
 
-func (tmdr *TestMetricDataRepository) LoadNodeData(cluster, partition string, metrics, nodes []string, scopes []schema.MetricScope, from, to time.Time, ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
+func (tmdr *TestMetricDataRepository) LoadNodeData(cluster string, metrics, nodes []string, scopes []schema.MetricScope, from, to time.Time, ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
 	panic("TODO")
 }
