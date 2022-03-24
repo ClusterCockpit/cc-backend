@@ -110,6 +110,10 @@ func (r *queryResolver) User(ctx context.Context, username string) (*model.User,
 	return auth.FetchUser(ctx, r.DB, username)
 }
 
+func (r *queryResolver) AllocatedNodes(ctx context.Context, cluster string) ([]string, error) {
+	return r.Repo.AllocatedNodes(cluster)
+}
+
 func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error) {
 	numericId, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {

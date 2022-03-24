@@ -318,3 +318,33 @@ func (r *JobRepository) Partitions(cluster string) ([]string, error) {
 	}
 	return partitions.([]string), nil
 }
+
+func (r *JobRepository) AllocatedNodes(cluster string) ([]string, error) {
+	nodes := make(map[string]int)
+	rows, err := sq.Select("resources").From("job").
+		Where("job.job_state = 'running'").
+		Where("job.cluster = ?", cluster).
+		RunWith(r.stmtCache).Query()
+	if err != nil {
+		return nil, err
+	}
+
+	var raw []byte
+	defer rows.Close()
+	for rows.Next() {
+		raw = raw[0:0]
+		var resources []*schema.Resource
+		if err := rows.Scan(&raw); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(raw, &resources); err != nil {
+			return nil, err
+		}
+
+		for _, resource := range resources {
+			nodes[resource.Hostname] += 1
+		}
+	}
+
+	return nil, nil
+}

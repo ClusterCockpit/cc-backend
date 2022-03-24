@@ -157,6 +157,7 @@ type Query {
   tags:         [Tag!]!       # List of all tags
 
   user(username: String!): User
+  allocatedNodes(cluster: String!): [String!]!
 
   job(id: ID!): Job
   jobMetrics(id: ID!, metrics: [String!], scopes: [MetricScope!]): [JobMetricWithName!]!
