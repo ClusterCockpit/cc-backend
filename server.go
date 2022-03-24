@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"syscall"
@@ -476,6 +477,9 @@ func main() {
 		api.OngoingArchivings.Wait()
 	}()
 
+	if os.Getenv("GOGC") == "" {
+		debug.SetGCPercent(25)
+	}
 	systemdNotifiy(true, "running")
 	wg.Wait()
 	log.Print("Gracefull shutdown completed!")
