@@ -202,8 +202,8 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	return r.jobsStatistics(ctx, filter, groupBy)
 }
 
-func (r *queryResolver) JobsCount(ctx context.Context, filter []*model.JobFilter, groupBy model.Aggregate, limit *int) ([]*model.Count, error) {
-	counts, err := r.Repo.CountGroupedJobs(ctx, groupBy, filter, limit)
+func (r *queryResolver) JobsCount(ctx context.Context, filter []*model.JobFilter, groupBy model.Aggregate, weight *model.Weights, limit *int) ([]*model.Count, error) {
+	counts, err := r.Repo.CountGroupedJobs(ctx, groupBy, filter, weight, limit)
 	if err != nil {
 		return nil, err
 	}

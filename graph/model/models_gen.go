@@ -258,3 +258,44 @@ func (e *SortDirectionEnum) UnmarshalGQL(v interface{}) error {
 func (e SortDirectionEnum) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
+
+type Weights string
+
+const (
+	WeightsNodeCount Weights = "NODE_COUNT"
+	WeightsNodeHours Weights = "NODE_HOURS"
+)
+
+var AllWeights = []Weights{
+	WeightsNodeCount,
+	WeightsNodeHours,
+}
+
+func (e Weights) IsValid() bool {
+	switch e {
+	case WeightsNodeCount, WeightsNodeHours:
+		return true
+	}
+	return false
+}
+
+func (e Weights) String() string {
+	return string(e)
+}
+
+func (e *Weights) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = Weights(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid Weights", str)
+	}
+	return nil
+}
+
+func (e Weights) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}

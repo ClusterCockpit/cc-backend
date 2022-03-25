@@ -185,7 +185,7 @@ type ComplexityRoot struct {
 		Job             func(childComplexity int, id string) int
 		JobMetrics      func(childComplexity int, id string, metrics []string, scopes []schema.MetricScope) int
 		Jobs            func(childComplexity int, filter []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) int
-		JobsCount       func(childComplexity int, filter []*model.JobFilter, groupBy model.Aggregate, limit *int) int
+		JobsCount       func(childComplexity int, filter []*model.JobFilter, groupBy model.Aggregate, weight *model.Weights, limit *int) int
 		JobsFootprints  func(childComplexity int, filter []*model.JobFilter, metrics []string) int
 		JobsStatistics  func(childComplexity int, filter []*model.JobFilter, groupBy *model.Aggregate) int
 		NodeMetrics     func(childComplexity int, cluster string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) int
@@ -281,7 +281,7 @@ type QueryResolver interface {
 	JobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error)
 	Jobs(ctx context.Context, filter []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) (*model.JobResultList, error)
 	JobsStatistics(ctx context.Context, filter []*model.JobFilter, groupBy *model.Aggregate) ([]*model.JobsStatistics, error)
-	JobsCount(ctx context.Context, filter []*model.JobFilter, groupBy model.Aggregate, limit *int) ([]*model.Count, error)
+	JobsCount(ctx context.Context, filter []*model.JobFilter, groupBy model.Aggregate, weight *model.Weights, limit *int) ([]*model.Count, error)
 	RooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error)
 	NodeMetrics(ctx context.Context, cluster string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) ([]*model.NodeMetrics, error)
 }
@@ -958,7 +958,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.JobsCount(childComplexity, args["filter"].([]*model.JobFilter), args["groupBy"].(model.Aggregate), args["limit"].(*int)), true
+		return e.complexity.Query.JobsCount(childComplexity, args["filter"].([]*model.JobFilter), args["groupBy"].(model.Aggregate), args["weight"].(*model.Weights), args["limit"].(*int)), true
 
 	case "Query.jobsFootprints":
 		if e.complexity.Query.JobsFootprints == nil {
@@ -1481,6 +1481,7 @@ type Footprints {
 }
 
 enum Aggregate { USER, PROJECT, CLUSTER }
+enum Weights { NODE_COUNT, NODE_HOURS }
 
 type NodeMetrics {
   host:       String!
@@ -1512,7 +1513,7 @@ type Query {
 
   jobs(filter: [JobFilter!], page: PageRequest, order: OrderByInput): JobResultList!
   jobsStatistics(filter: [JobFilter!], groupBy: Aggregate): [JobsStatistics!]!
-  jobsCount(filter: [JobFilter]!, groupBy: Aggregate!, limit: Int): [Count!]!
+  jobsCount(filter: [JobFilter]!, groupBy: Aggregate!, weight: Weights, limit: Int): [Count!]!
 
   rooflineHeatmap(filter: [JobFilter!]!, rows: Int!, cols: Int!, minX: Float!, minY: Float!, maxX: Float!, maxY: Float!): [[Float!]!]!
 
@@ -1826,15 +1827,24 @@ func (ec *executionContext) field_Query_jobsCount_args(ctx context.Context, rawA
 		}
 	}
 	args["groupBy"] = arg1
-	var arg2 *int
-	if tmp, ok := rawArgs["limit"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
-		arg2, err = ec.unmarshalOInt2ᚖint(ctx, tmp)
+	var arg2 *model.Weights
+	if tmp, ok := rawArgs["weight"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("weight"))
+		arg2, err = ec.unmarshalOWeights2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐWeights(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["limit"] = arg2
+	args["weight"] = arg2
+	var arg3 *int
+	if tmp, ok := rawArgs["limit"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+		arg3, err = ec.unmarshalOInt2ᚖint(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["limit"] = arg3
 	return args, nil
 }
 
@@ -5324,7 +5334,7 @@ func (ec *executionContext) _Query_jobsCount(ctx context.Context, field graphql.
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().JobsCount(rctx, args["filter"].([]*model.JobFilter), args["groupBy"].(model.Aggregate), args["limit"].(*int))
+		return ec.resolvers.Query().JobsCount(rctx, args["filter"].([]*model.JobFilter), args["groupBy"].(model.Aggregate), args["weight"].(*model.Weights), args["limit"].(*int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -11516,6 +11526,22 @@ func (ec *executionContext) marshalOUser2ᚖgithubᚗcomᚋClusterCockpitᚋcc�
 		return graphql.Null
 	}
 	return ec._User(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOWeights2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐWeights(ctx context.Context, v interface{}) (*model.Weights, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.Weights)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOWeights2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐWeights(ctx context.Context, sel ast.SelectionSet, v *model.Weights) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValueᚄ(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {

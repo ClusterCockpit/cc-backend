@@ -53,22 +53,21 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 
 	runningJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, []*model.JobFilter{{
 		State: []schema.JobState{schema.JobStateRunning},
-	}}, nil)
+	}}, nil, nil)
 	if err != nil {
 		log.Errorf("failed to count jobs: %s", err.Error())
 		runningJobs = map[string]int{}
 	}
-	totalJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, nil, nil)
+	totalJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, nil, nil, nil)
 	if err != nil {
 		log.Errorf("failed to count jobs: %s", err.Error())
 		totalJobs = map[string]int{}
 	}
-
 	from := time.Now().Add(-24 * time.Hour)
 	recentShortJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, []*model.JobFilter{{
 		StartTime: &model.TimeRange{From: &from, To: nil},
 		Duration:  &model.IntRange{From: 0, To: graph.ShortJobDuration},
-	}}, nil)
+	}}, nil, nil)
 	if err != nil {
 		log.Errorf("failed to count jobs: %s", err.Error())
 		recentShortJobs = map[string]int{}

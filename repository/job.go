@@ -193,12 +193,25 @@ func (r *JobRepository) Stop(
 }
 
 // TODO: Use node hours instead: SELECT job.user, sum(job.num_nodes * (CASE WHEN job.job_state = "running" THEN CAST(strftime('%s', 'now') AS INTEGER) - job.start_time ELSE job.duration END)) as x FROM job GROUP BY user ORDER BY x DESC;
-func (r *JobRepository) CountGroupedJobs(ctx context.Context, aggreg model.Aggregate, filters []*model.JobFilter, limit *int) (map[string]int, error) {
+func (r *JobRepository) CountGroupedJobs(ctx context.Context, aggreg model.Aggregate, filters []*model.JobFilter, weight *model.Weights, limit *int) (map[string]int, error) {
 	if !aggreg.IsValid() {
 		return nil, errors.New("invalid aggregate")
 	}
 
-	q := sq.Select("job."+string(aggreg), "count(*) as count").From("job").GroupBy("job." + string(aggreg)).OrderBy("count DESC")
+	runner := (sq.BaseRunner)(r.stmtCache)
+	count := "count(*) as count"
+	if weight != nil {
+		switch *weight {
+		case model.WeightsNodeCount:
+			count = "sum(job.num_nodes) as count"
+		case model.WeightsNodeHours:
+			now := time.Now().Unix()
+			count = fmt.Sprintf(`sum(job.num_nodes * (CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) as count`, now)
+			runner = r.DB
+		}
+	}
+
+	q := sq.Select("job."+string(aggreg), count).From("job").GroupBy("job." + string(aggreg)).OrderBy("count DESC")
 	q = SecurityCheck(ctx, q)
 	for _, f := range filters {
 		q = BuildWhereClause(f, q)
@@ -208,7 +221,7 @@ func (r *JobRepository) CountGroupedJobs(ctx context.Context, aggreg model.Aggre
 	}
 
 	counts := map[string]int{}
-	rows, err := q.RunWith(r.DB).Query()
+	rows, err := q.RunWith(runner).Query()
 	if err != nil {
 		return nil, err
 	}
