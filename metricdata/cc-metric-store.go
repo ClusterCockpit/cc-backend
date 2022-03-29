@@ -63,7 +63,7 @@ func (ccms *CCMetricStore) Init(url, token string, renamings map[string]string) 
 	ccms.queryEndpoint = fmt.Sprintf("%s/api/query", url)
 	ccms.jwt = token
 	ccms.client = http.Client{
-		Timeout: 5 * time.Second,
+		Timeout: 10 * time.Second,
 	}
 
 	if renamings != nil {
