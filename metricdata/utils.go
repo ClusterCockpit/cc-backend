@@ -2,6 +2,7 @@ package metricdata
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/schema"
@@ -12,15 +13,9 @@ var TestLoadDataCallback func(job *schema.Job, metrics []string, scopes []schema
 }
 
 // Only a mock for unit-testing.
-type TestMetricDataRepository struct {
-	url, token string
-	renamings  map[string]string
-}
+type TestMetricDataRepository struct{}
 
-func (tmdr *TestMetricDataRepository) Init(url, token string, renamings map[string]string) error {
-	tmdr.url = url
-	tmdr.token = token
-	tmdr.renamings = renamings
+func (tmdr *TestMetricDataRepository) Init(_ json.RawMessage) error {
 	return nil
 }
 
