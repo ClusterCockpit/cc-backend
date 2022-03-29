@@ -42,6 +42,7 @@ type Cluster {
 type SubCluster {
   name:            String!
   nodes:           String!
+  numberOfNodes:   Int!
   processorType:   String!
   socketsPerNode:  Int!
   coresPerSocket:  Int!
@@ -135,10 +136,12 @@ type Footprints {
 }
 
 enum Aggregate { USER, PROJECT, CLUSTER }
+enum Weights { NODE_COUNT, NODE_HOURS }
 
 type NodeMetrics {
-  host:    String!
-  metrics: [JobMetricWithName!]!
+  host:       String!
+  subCluster: String!
+  metrics:    [JobMetricWithName!]!
 }
 
 type Count {
@@ -157,6 +160,7 @@ type Query {
   tags:         [Tag!]!       # List of all tags
 
   user(username: String!): User
+  allocatedNodes(cluster: String!): [Count!]!
 
   job(id: ID!): Job
   jobMetrics(id: ID!, metrics: [String!], scopes: [MetricScope!]): [JobMetricWithName!]!
@@ -164,11 +168,11 @@ type Query {
 
   jobs(filter: [JobFilter!], page: PageRequest, order: OrderByInput): JobResultList!
   jobsStatistics(filter: [JobFilter!], groupBy: Aggregate): [JobsStatistics!]!
-  jobsCount(filter: [JobFilter]!, groupBy: Aggregate!, limit: Int): [Count!]!
+  jobsCount(filter: [JobFilter]!, groupBy: Aggregate!, weight: Weights, limit: Int): [Count!]!
 
   rooflineHeatmap(filter: [JobFilter!]!, rows: Int!, cols: Int!, minX: Float!, minY: Float!, maxX: Float!, maxY: Float!): [[Float!]!]!
 
-  nodeMetrics(cluster: String!, partition: String, nodes: [String!], scopes: [MetricScope!], metrics: [String!], from: Time!, to: Time!): [NodeMetrics!]!
+  nodeMetrics(cluster: String!, nodes: [String!], scopes: [MetricScope!], metrics: [String!], from: Time!, to: Time!): [NodeMetrics!]!
 }
 
 type Mutation {

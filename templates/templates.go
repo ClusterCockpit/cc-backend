@@ -48,6 +48,7 @@ func init() {
 		"monitoring/list.tmpl",
 		"monitoring/user.tmpl",
 		"monitoring/systems.tmpl",
+		"monitoring/status.tmpl",
 		"monitoring/node.tmpl",
 		"monitoring/analysis.tmpl",
 	}
