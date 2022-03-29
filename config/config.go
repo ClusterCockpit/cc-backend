@@ -277,3 +277,22 @@ func AssignSubCluster(job *schema.BaseJob) error {
 
 	return fmt.Errorf("no subcluster found for cluster %#v and host %#v", job.Cluster, host0)
 }
+
+func GetSubClusterByNode(cluster, hostname string) (string, error) {
+	for sc, nl := range nodeLists[cluster] {
+		if nl != nil && nl.Contains(hostname) {
+			return sc, nil
+		}
+	}
+
+	c := GetCluster(cluster)
+	if c == nil {
+		return "", fmt.Errorf("unkown cluster: %#v", cluster)
+	}
+
+	if c.SubClusters[0].Nodes == "" {
+		return c.SubClusters[0].Name, nil
+	}
+
+	return "", fmt.Errorf("no subcluster found for cluster %#v and host %#v", cluster, hostname)
+}

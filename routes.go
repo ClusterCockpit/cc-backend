@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -39,6 +40,7 @@ var routes []Route = []Route{
 	{"/monitoring/systems/{cluster}", "monitoring/systems.tmpl", "Cluster <ID> - ClusterCockpit", false, setupClusterRoute},
 	{"/monitoring/node/{cluster}/{hostname}", "monitoring/node.tmpl", "Node <ID> - ClusterCockpit", false, setupNodeRoute},
 	{"/monitoring/analysis/{cluster}", "monitoring/analysis.tmpl", "Analaysis - ClusterCockpit", true, setupAnalysisRoute},
+	{"/monitoring/status/{cluster}", "monitoring/status.tmpl", "Status of <ID> - ClusterCockpit", false, setupClusterRoute},
 }
 
 func setupHomeRoute(i InfoType, r *http.Request) InfoType {
@@ -51,22 +53,21 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 
 	runningJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, []*model.JobFilter{{
 		State: []schema.JobState{schema.JobStateRunning},
-	}}, nil)
+	}}, nil, nil)
 	if err != nil {
 		log.Errorf("failed to count jobs: %s", err.Error())
 		runningJobs = map[string]int{}
 	}
-	totalJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, nil, nil)
+	totalJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, nil, nil, nil)
 	if err != nil {
 		log.Errorf("failed to count jobs: %s", err.Error())
 		totalJobs = map[string]int{}
 	}
-
 	from := time.Now().Add(-24 * time.Hour)
 	recentShortJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, []*model.JobFilter{{
 		StartTime: &model.TimeRange{From: &from, To: nil},
 		Duration:  &model.IntRange{From: 0, To: graph.ShortJobDuration},
-	}}, nil)
+	}}, nil, nil)
 	if err != nil {
 		log.Errorf("failed to count jobs: %s", err.Error())
 		recentShortJobs = map[string]int{}
@@ -118,6 +119,7 @@ func setupNodeRoute(i InfoType, r *http.Request) InfoType {
 	vars := mux.Vars(r)
 	i["cluster"] = vars["cluster"]
 	i["hostname"] = vars["hostname"]
+	i["id"] = fmt.Sprintf("%s (%s)", vars["cluster"], vars["hostname"])
 	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
 	if from != "" || to != "" {
 		i["from"] = from

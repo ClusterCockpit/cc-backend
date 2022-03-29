@@ -79,7 +79,7 @@ func (ccms *CCMetricStore) Init(rawConfig json.RawMessage) error {
 	ccms.queryEndpoint = fmt.Sprintf("%s/api/query", config.Url)
 	ccms.jwt = config.Token
 	ccms.client = http.Client{
-		Timeout: 5 * time.Second,
+		Timeout: 10 * time.Second,
 	}
 
 	if config.Renamings != nil {
@@ -515,7 +515,7 @@ func (ccms *CCMetricStore) LoadStats(job *schema.Job, metrics []string, ctx cont
 }
 
 // TODO: Support sub-node-scope metrics! For this, the partition of a node needs to be known!
-func (ccms *CCMetricStore) LoadNodeData(cluster, partition string, metrics, nodes []string, scopes []schema.MetricScope, from, to time.Time, ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
+func (ccms *CCMetricStore) LoadNodeData(cluster string, metrics, nodes []string, scopes []schema.MetricScope, from, to time.Time, ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
 	req := ApiQueryRequest{
 		Cluster:   cluster,
 		From:      from.Unix(),

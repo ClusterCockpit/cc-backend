@@ -24,7 +24,7 @@ type MetricDataRepository interface {
 	LoadStats(job *schema.Job, metrics []string, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error)
 
 	// Return a map of hosts to a map of metrics at the requested scopes for that node.
-	LoadNodeData(cluster, partition string, metrics, nodes []string, scopes []schema.MetricScope, from, to time.Time, ctx context.Context) (map[string]map[string][]*schema.JobMetric, error)
+	LoadNodeData(cluster string, metrics, nodes []string, scopes []schema.MetricScope, from, to time.Time, ctx context.Context) (map[string]map[string][]*schema.JobMetric, error)
 }
 
 var metricDataRepos map[string]MetricDataRepository = map[string]MetricDataRepository{}
@@ -180,7 +180,7 @@ func LoadAverages(job *schema.Job, metrics []string, data [][]schema.Float, ctx 
 }
 
 // Used for the node/system view. Returns a map of nodes to a map of metrics.
-func LoadNodeData(cluster, partition string, metrics, nodes []string, scopes []schema.MetricScope, from, to time.Time, ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
+func LoadNodeData(cluster string, metrics, nodes []string, scopes []schema.MetricScope, from, to time.Time, ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
 	repo, ok := metricDataRepos[cluster]
 	if !ok {
 		return nil, fmt.Errorf("no metric data repository configured for '%s'", cluster)
@@ -192,7 +192,7 @@ func LoadNodeData(cluster, partition string, metrics, nodes []string, scopes []s
 		}
 	}
 
-	data, err := repo.LoadNodeData(cluster, partition, metrics, nodes, scopes, from, to, ctx)
+	data, err := repo.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)
 	if err != nil {
 		if len(data) != 0 {
 			log.Errorf("partial error: %s", err.Error())
