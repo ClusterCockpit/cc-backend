@@ -167,6 +167,7 @@ func TestRestApi(t *testing.T) {
     	"project":          "testproj",
     	"cluster":          "testcluster",
     	"partition":        "default",
+		"walltime":         3600,
     	"arrayJobId":       0,
     	"numNodes":         1,
     	"numHwthreads":     8,
@@ -217,6 +218,7 @@ func TestRestApi(t *testing.T) {
 			job.Cluster != "testcluster" ||
 			job.SubCluster != "sc1" ||
 			job.Partition != "default" ||
+			job.Walltime != 3600 ||
 			job.ArrayJobId != 0 ||
 			job.NumNodes != 1 ||
 			job.NumHWThreads != 8 ||

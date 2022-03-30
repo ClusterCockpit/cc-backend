@@ -211,6 +211,10 @@ func (r *Resolver) rooflineHeatmap(ctx context.Context, filter []*model.JobFilte
 	}
 
 	for _, job := range jobs {
+		if job.MonitoringStatus == schema.MonitoringStatusDisabled || job.MonitoringStatus == schema.MonitoringStatusArchivingFailed {
+			continue
+		}
+
 		jobdata, err := metricdata.LoadData(job, []string{"flops_any", "mem_bw"}, []schema.MetricScope{schema.MetricScopeNode}, ctx)
 		if err != nil {
 			return nil, err
@@ -270,6 +274,10 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 
 	nodehours := make([]schema.Float, 0, len(jobs))
 	for _, job := range jobs {
+		if job.MonitoringStatus == schema.MonitoringStatusDisabled || job.MonitoringStatus == schema.MonitoringStatusArchivingFailed {
+			continue
+		}
+
 		if err := metricdata.LoadAverages(job, metrics, avgs, ctx); err != nil {
 			return nil, err
 		}
