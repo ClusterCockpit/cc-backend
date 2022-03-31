@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/ClusterCockpit/cc-backend/config"
@@ -130,7 +131,7 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 	histogramsNeeded := false
 	fields := graphql.CollectFieldsCtx(ctx, nil)
 	for _, col := range fields {
-		if col.Name == "histWalltime" || col.Name == "histNumNodes" {
+		if col.Name == "histDuration" || col.Name == "histNumNodes" {
 			histogramsNeeded = true
 		}
 	}
@@ -146,7 +147,8 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 
 		if histogramsNeeded {
 			var err error
-			stat.HistWalltime, err = r.jobsStatisticsHistogram(ctx, "CAST(ROUND(job.duration / 3600) as int) as value", filter, id, col)
+			value := fmt.Sprintf(`CAST(ROUND((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) / 3600) as int) as value`, time.Now().Unix())
+			stat.HistDuration, err = r.jobsStatisticsHistogram(ctx, value, filter, id, col)
 			if err != nil {
 				return nil, err
 			}
