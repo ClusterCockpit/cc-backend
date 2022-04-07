@@ -11,6 +11,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/auth"
 	"github.com/ClusterCockpit/cc-backend/graph/model"
+	"github.com/ClusterCockpit/cc-backend/log"
 	"github.com/ClusterCockpit/cc-backend/schema"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/iamlouk/lrucache"
@@ -369,4 +370,27 @@ func (r *JobRepository) AllocatedNodes(cluster string) (map[string]map[string]in
 	}
 
 	return subclusters, nil
+}
+
+func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
+	res, err := sq.Update("job").
+		Set("monitoring_status", schema.MonitoringStatusArchivingFailed).
+		Set("duration", 0).
+		Set("job_state", schema.JobStateFailed).
+		Where("job.job_state = 'running'").
+		Where(fmt.Sprintf("(%d - job.start_time) > (job.walltime + %d)", time.Now().Unix(), seconds)).
+		RunWith(r.DB).Exec()
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected > 0 {
+		log.Warnf("%d jobs have been marked as failed due to running too long", rowsAffected)
+	}
+	return nil
 }

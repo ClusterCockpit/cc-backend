@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"runtime"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -92,6 +93,9 @@ type ProgramConfig struct {
 
 	// Where to store MachineState files
 	MachineStateDir string `json:"machine-state-dir"`
+
+	// If not zero, automatically mark jobs as stopped running X seconds longer than theire walltime.
+	StopJobsExceedingWalltime int `json:"stop-jobs-exceeding-walltime"`
 }
 
 var programConfig ProgramConfig = ProgramConfig{
@@ -123,6 +127,7 @@ var programConfig ProgramConfig = ProgramConfig{
 		"plot_view_showStatTable":            true,
 		"system_view_selectedMetric":         "cpu_load",
 	},
+	StopJobsExceedingWalltime: 3600,
 }
 
 func main() {
@@ -476,6 +481,18 @@ func main() {
 		// Then, wait for any async archivings still pending...
 		api.OngoingArchivings.Wait()
 	}()
+
+	if programConfig.StopJobsExceedingWalltime != 0 {
+		go func() {
+			for range time.Tick(1 * time.Hour) {
+				err := jobRepo.StopJobsExceedingWalltimeBy(programConfig.StopJobsExceedingWalltime)
+				if err != nil {
+					log.Errorf("error while looking for jobs exceeding theire walltime: %s", err.Error())
+				}
+				runtime.GC()
+			}
+		}()
+	}
 
 	if os.Getenv("GOGC") == "" {
 		debug.SetGCPercent(25)
