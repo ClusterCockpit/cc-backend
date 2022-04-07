@@ -66,7 +66,7 @@ func Init(jobArchivePath string, disableArchive bool) error {
 	return nil
 }
 
-var cache *lrucache.Cache = lrucache.New(512 * 1024 * 1024)
+var cache *lrucache.Cache = lrucache.New(128 * 1024 * 1024)
 
 // Fetches the metric data for a job.
 func LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context) (schema.JobData, error) {
@@ -126,7 +126,10 @@ func LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ct
 									subset[scope] = jm
 								}
 							}
-							perscope = subset
+
+							if len(subset) > 0 {
+								perscope = subset
+							}
 						}
 
 						res[metric] = perscope
