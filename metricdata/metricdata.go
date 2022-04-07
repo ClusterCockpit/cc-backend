@@ -108,11 +108,18 @@ func LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ct
 			}
 
 			// Avoid sending unrequested data to the client:
-			if metrics != nil {
+			if metrics != nil || scopes != nil {
+				if metrics == nil {
+					metrics = make([]string, 0, len(jd))
+					for k := range jd {
+						metrics = append(metrics, k)
+					}
+				}
+
 				res := schema.JobData{}
 				for _, metric := range metrics {
 					if perscope, ok := jd[metric]; ok {
-						if len(scopes) > 1 {
+						if len(perscope) > 1 {
 							subset := make(map[schema.MetricScope]*schema.JobMetric)
 							for _, scope := range scopes {
 								if jm, ok := perscope[scope]; ok {
