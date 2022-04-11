@@ -174,17 +174,48 @@ func (auth *Authentication) CreateUser(username, name, password, email string, r
 	return nil
 }
 
+func (auth *Authentication) AddRole(ctx context.Context, username string, role string) error {
+	user, err := auth.FetchUser(username)
+	if err != nil {
+		return err
+	}
+
+	if role != RoleAdmin && role != RoleApi && role != RoleUser {
+		return fmt.Errorf("invalid user role: %#v", role)
+	}
+
+	for _, r := range user.Roles {
+		if r == role {
+			return fmt.Errorf("user %#v already has role %#v", username, role)
+		}
+	}
+
+	roles, _ := json.Marshal(append(user.Roles, role))
+	if _, err := sq.Update("user").Set("roles", roles).Where("user.username = ?", username).RunWith(auth.db).Exec(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (auth *Authentication) DelUser(username string) error {
 	_, err := auth.db.Exec(`DELETE FROM user WHERE user.username = ?`, username)
 	return err
 }
 
-func (auth *Authentication) FetchUsers(viaLdap bool) ([]*User, error) {
+func (auth *Authentication) FetchUsers(viaLdap, notJustUser bool) ([]*User, error) {
 	q := sq.Select("username", "name", "email", "roles").From("user")
 	if !viaLdap {
-		q = q.Where("ldap = 0")
+		if notJustUser {
+			q = q.Where("ldap = 0 OR roles != '[\"user\"]'")
+		} else {
+			q = q.Where("ldap = 0")
+		}
 	} else {
-		q = q.Where("ldap = 1")
+		if notJustUser {
+			q = q.Where("ldap = 1 OR roles != '[\"user\"]'")
+		} else {
+			q = q.Where("ldap = 1")
+		}
 	}
 
 	rows, err := q.RunWith(auth.db).Query()

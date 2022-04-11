@@ -47,7 +47,8 @@
     </div>
     <div class="col card" style="margin: 10px;">
         <div class="card-body">
-            <h5 class="card-title">All Users not Created by an LDAP Sync:</h5>
+            <h5 class="card-title">Special Users</h5>
+            <p>Not created by an LDAP sync and/or having a role other than <code>user</code></p>
             <table class="table">
                 <thead>
                     <tr>
@@ -61,7 +62,7 @@
                 </thead>
                 <tbody id="users-list"><tr><td colspan="4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></td></tr></tbody>
                 <script>
-                    fetch('/api/users/?via-ldap=false')
+                    fetch('/api/users/?via-ldap=false&not-just-user=true')
                         .then(res => res.json())
                         .then(users => {
                             let listElement = document.querySelector('#users-list')
@@ -102,6 +103,37 @@
                         })
                 </script>
             </table>
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col card" style="margin: 10px;">
+        <div class="card-body">
+            <h5 class="card-title">Add Role to User</h5>
+            <div class="input-group">
+                <input type="text" class="form-control" placeholder="username" id="add-role-username"/>
+                <select class="form-select" id="add-role-select">
+                    <option selected value="">Role...</option>
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                    <option value="api">API</option>
+                </select>
+                <button class="btn btn-outline-secondary" type="button" id="add-role-button">Button</button>
+            </div>
+            <script>
+                document.querySelector('#add-role-button').addEventListener('click', () => {
+                    const username = document.querySelector('#add-role-username').value, role = document.querySelector('#add-role-select').value
+                    if (username == "" || role == "") {
+                        alert('Please fill in a username and select a role.')
+                        return
+                    }
+
+                    let formData = new FormData()
+                    formData.append('username', username)
+                    formData.append('add-role', role)
+                    fetch(`/api/user/${username}`, { method: 'POST', body: formData }).then(res => res.text()).then(status => alert(status))
+                })
+            </script>
         </div>
     </div>
 </div>

@@ -55,6 +55,7 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 		r.HandleFunc("/users/", api.createUser).Methods(http.MethodPost, http.MethodPut)
 		r.HandleFunc("/users/", api.getUsers).Methods(http.MethodGet)
 		r.HandleFunc("/users/", api.deleteUser).Methods(http.MethodDelete)
+		r.HandleFunc("/user/{id}", api.updateUser).Methods(http.MethodPost)
 		r.HandleFunc("/configuration/", api.updateConfiguration).Methods(http.MethodPost)
 	}
 
@@ -555,13 +556,31 @@ func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	users, err := api.Authentication.FetchUsers(r.URL.Query().Get("via-ldap") == "true")
+	users, err := api.Authentication.FetchUsers(
+		r.URL.Query().Get("via-ldap") == "true",
+		r.URL.Query().Get("not-just-user") == "true")
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	json.NewEncoder(rw).Encode(users)
+}
+
+func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
+	if user := auth.GetUser(r.Context()); !user.HasRole(auth.RoleAdmin) {
+		http.Error(rw, "only admins are allowed to update a user", http.StatusForbidden)
+		return
+	}
+
+	// TODO: Handle anything but roles...
+	newrole := r.FormValue("add-role")
+	if err := api.Authentication.AddRole(r.Context(), mux.Vars(r)["id"], newrole); err != nil {
+		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
+
+	rw.Write([]byte("success"))
 }
 
 func (api *RestApi) updateConfiguration(rw http.ResponseWriter, r *http.Request) {
