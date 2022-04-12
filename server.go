@@ -13,7 +13,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"runtime"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -482,17 +481,17 @@ func main() {
 		api.OngoingArchivings.Wait()
 	}()
 
-	if programConfig.StopJobsExceedingWalltime != 0 {
-		go func() {
-			for range time.Tick(1 * time.Hour) {
-				err := jobRepo.StopJobsExceedingWalltimeBy(programConfig.StopJobsExceedingWalltime)
-				if err != nil {
-					log.Errorf("error while looking for jobs exceeding theire walltime: %s", err.Error())
-				}
-				runtime.GC()
-			}
-		}()
-	}
+	// 	if programConfig.StopJobsExceedingWalltime != 0 {
+	// 		go func() {
+	// 			for range time.Tick(1 * time.Hour) {
+	// 				err := jobRepo.StopJobsExceedingWalltimeBy(programConfig.StopJobsExceedingWalltime)
+	// 				if err != nil {
+	// 					log.Errorf("error while looking for jobs exceeding theire walltime: %s", err.Error())
+	// 				}
+	// 				runtime.GC()
+	// 			}
+	// 		}()
+	// 	}
 
 	if os.Getenv("GOGC") == "" {
 		debug.SetGCPercent(25)
