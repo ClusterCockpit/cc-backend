@@ -206,13 +206,13 @@ func (auth *Authentication) FetchUsers(viaLdap, notJustUser bool) ([]*User, erro
 	q := sq.Select("username", "name", "email", "roles").From("user")
 	if !viaLdap {
 		if notJustUser {
-			q = q.Where("ldap = 0 OR roles != '[\"user\"]'")
+			q = q.Where("ldap = 0 OR (roles != '[\"user\"]' AND roles != '[]')")
 		} else {
 			q = q.Where("ldap = 0")
 		}
 	} else {
 		if notJustUser {
-			q = q.Where("ldap = 1 OR roles != '[\"user\"]'")
+			q = q.Where("ldap = 1 OR (roles != '[\"user\"]' AND roles != '[]')")
 		} else {
 			q = q.Where("ldap = 1")
 		}

@@ -149,9 +149,9 @@ func (auth *Authentication) SyncWithLDAP(deleteOldUsers bool) error {
 			}
 		} else if where == IN_LDAP {
 			name := newnames[username]
-			log.Infof("ldap-sync: add %#v (name: %#v, roles: [], ldap: true)", username, name)
+			log.Infof("ldap-sync: add %#v (name: %#v, roles: [user], ldap: true)", username, name)
 			if _, err := auth.db.Exec(`INSERT INTO user (username, ldap, name, roles) VALUES (?, ?, ?, ?)`,
-				username, 1, name, "[]"); err != nil {
+				username, 1, name, "[\""+RoleUser+"\"]"); err != nil {
 				return err
 			}
 		}
