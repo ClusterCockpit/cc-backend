@@ -49,60 +49,68 @@
         <div class="card-body">
             <h5 class="card-title">Special Users</h5>
             <p>Not created by an LDAP sync and/or having a role other than <code>user</code></p>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Username</th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Roles</th>
-                        <th>JWT</th>
-                        <th>Delete</th>
-                    </tr>
-                </thead>
-                <tbody id="users-list"><tr><td colspan="4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></td></tr></tbody>
-                <script>
-                    fetch('/api/users/?via-ldap=false&not-just-user=true')
-                        .then(res => res.json())
-                        .then(users => {
-                            let listElement = document.querySelector('#users-list')
-                            listElement.innerHTML = users.map(user => `
-                            <tr id="user-${user.username}">
-                                <td>${user.username}</td>
-                                <td>${user.name}</td>
-                                <td>${user.email}</td>
-                                <td><code>${user.roles.join(', ')}</code></td>
-                                <td><button class="btn btn-success get-jwt">Gen. JWT</button></td>
-                                <td><button class="btn btn-danger del-user">Delete</button></td>
-                            </tr>
-                            `).join('')
+            <div style="width: 100%; max-height: 500px; overflow-y: scroll;">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Roles</th>
+                            <th>JWT</th>
+                            <th>Delete</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-list">
+                        <tr>
+                            <td colspan="4">
+                                <div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <script>
+                fetch('/api/users/?via-ldap=false&not-just-user=true')
+                    .then(res => res.json())
+                    .then(users => {
+                        let listElement = document.querySelector('#users-list')
+                        listElement.innerHTML = users.map(user => `
+                        <tr id="user-${user.username}">
+                            <td>${user.username}</td>
+                            <td>${user.name}</td>
+                            <td>${user.email}</td>
+                            <td><code>${user.roles.join(', ')}</code></td>
+                            <td><button class="btn btn-success get-jwt">Gen. JWT</button></td>
+                            <td><button class="btn btn-danger del-user">Delete</button></td>
+                        </tr>
+                        `).join('')
 
-                            listElement.querySelectorAll('button.get-jwt').forEach(e => e.addEventListener('click', event => {
-                                let row = event.target.parentElement.parentElement
-                                let username = row.children[0].innerText
-                                fetch(`/api/jwt/?username=${username}`)
-                                    .then(res => res.text())
-                                    .then(text => alert(text))
-                            }))
+                        listElement.querySelectorAll('button.get-jwt').forEach(e => e.addEventListener('click', event => {
+                            let row = event.target.parentElement.parentElement
+                            let username = row.children[0].innerText
+                            fetch(`/api/jwt/?username=${username}`)
+                                .then(res => res.text())
+                                .then(text => alert(text))
+                        }))
 
-                            listElement.querySelectorAll('button.del-user').forEach(e => e.addEventListener('click', event => {
-                                let row = event.target.parentElement.parentElement
-                                let username = row.children[0].innerText
-                                if (confirm('Are you sure?')) {
-                                    let formData = new FormData()
-                                    formData.append('username', username)
-                                    fetch('/api/users/', { method: 'DELETE', body: formData }).then(res => {
-                                        if (res.status == 200) {
-                                            row.remove()
-                                        } else {
-                                            event.target.innerText = res.statusText
-                                        }
-                                    })
-                                }
-                            }))
-                        })
-                </script>
-            </table>
+                        listElement.querySelectorAll('button.del-user').forEach(e => e.addEventListener('click', event => {
+                            let row = event.target.parentElement.parentElement
+                            let username = row.children[0].innerText
+                            if (confirm('Are you sure?')) {
+                                let formData = new FormData()
+                                formData.append('username', username)
+                                fetch('/api/users/', { method: 'DELETE', body: formData }).then(res => {
+                                    if (res.status == 200) {
+                                        row.remove()
+                                    } else {
+                                        event.target.innerText = res.statusText
+                                    }
+                                })
+                            }
+                        }))
+                    })
+            </script>
         </div>
     </div>
 </div>
@@ -132,6 +140,22 @@
                     formData.append('username', username)
                     formData.append('add-role', role)
                     fetch(`/api/user/${username}`, { method: 'POST', body: formData }).then(res => res.text()).then(status => alert(status))
+                })
+            </script>
+        </div>
+    </div>
+    <div class="col card" style="margin: 10px;">
+        <div class="card-body">
+            <h5 class="card-title">Scramble Names / Presentation Mode</h5>
+            <input type="checkbox" id="scramble-names-checkbox"/>
+            <script>
+                const scrambleNamesCheckbox = document.querySelector('#scramble-names-checkbox')
+                scrambleNamesCheckbox.checked = window.localStorage.getItem("cc-scramble-names") != null
+                scrambleNamesCheckbox.addEventListener('change', () => {
+                    if (scrambleNamesCheckbox.checked)
+                        window.localStorage.setItem("cc-scramble-names", "true")
+                    else
+                        window.localStorage.removeItem("cc-scramble-names")
                 })
             </script>
         </div>
