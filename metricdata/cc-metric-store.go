@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -45,13 +46,13 @@ type ApiQueryRequest struct {
 }
 
 type ApiQuery struct {
-	Metric     string  `json:"metric"`
-	Hostname   string  `json:"host"`
-	Aggregate  bool    `json:"aggreg"`
-	Type       *string `json:"type,omitempty"`
-	TypeIds    []int   `json:"type-ids,omitempty"`
-	SubType    *string `json:"subtype,omitempty"`
-	SubTypeIds []int   `json:"subtype-ids,omitempty"`
+	Metric     string   `json:"metric"`
+	Hostname   string   `json:"host"`
+	Aggregate  bool     `json:"aggreg"`
+	Type       *string  `json:"type,omitempty"`
+	TypeIds    []string `json:"type-ids,omitempty"`
+	SubType    *string  `json:"subtype,omitempty"`
+	SubTypeIds []string `json:"subtype-ids,omitempty"`
 }
 
 type ApiQueryResponse struct {
@@ -144,6 +145,7 @@ func (ccms *CCMetricStore) doRequest(ctx context.Context, body *ApiQueryRequest)
 }
 
 func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context) (schema.JobData, error) {
+	topology := config.GetSubCluster(job.Cluster, job.SubCluster).Topology
 	queries, assignedScope, err := ccms.buildQueries(job, metrics, scopes)
 	if err != nil {
 		return nil, err
@@ -194,7 +196,10 @@ func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []
 			id := (*int)(nil)
 			if query.Type != nil {
 				id = new(int)
-				*id = query.TypeIds[0]
+				*id, err = strconv.Atoi(query.TypeIds[0])
+				if err != nil || *query.Type == acceleratorString {
+					*id, _ = topology.GetAcceleratorIndex(query.TypeIds[0])
+				}
 			}
 
 			if res.Avg.IsNaN() || res.Min.IsNaN() || res.Max.IsNaN() {
@@ -312,7 +317,7 @@ func (ccms *CCMetricStore) buildQueries(job *schema.Job, metrics []string, scope
 						Hostname:  host.Hostname,
 						Aggregate: false,
 						Type:      &hwthreadString,
-						TypeIds:   hwthreads,
+						TypeIds:   intToStringSlice(hwthreads),
 					})
 					assignedScope = append(assignedScope, scope)
 					continue
@@ -327,7 +332,7 @@ func (ccms *CCMetricStore) buildQueries(job *schema.Job, metrics []string, scope
 							Hostname:  host.Hostname,
 							Aggregate: true,
 							Type:      &hwthreadString,
-							TypeIds:   topology.Core[core],
+							TypeIds:   intToStringSlice(topology.Core[core]),
 						})
 						assignedScope = append(assignedScope, scope)
 					}
@@ -343,7 +348,7 @@ func (ccms *CCMetricStore) buildQueries(job *schema.Job, metrics []string, scope
 							Hostname:  host.Hostname,
 							Aggregate: true,
 							Type:      &hwthreadString,
-							TypeIds:   topology.Socket[socket],
+							TypeIds:   intToStringSlice(topology.Socket[socket]),
 						})
 						assignedScope = append(assignedScope, scope)
 					}
@@ -357,7 +362,7 @@ func (ccms *CCMetricStore) buildQueries(job *schema.Job, metrics []string, scope
 						Hostname:  host.Hostname,
 						Aggregate: true,
 						Type:      &hwthreadString,
-						TypeIds:   hwthreads,
+						TypeIds:   intToStringSlice(hwthreads),
 					})
 					assignedScope = append(assignedScope, scope)
 					continue
@@ -371,7 +376,7 @@ func (ccms *CCMetricStore) buildQueries(job *schema.Job, metrics []string, scope
 						Hostname:  host.Hostname,
 						Aggregate: false,
 						Type:      &coreString,
-						TypeIds:   cores,
+						TypeIds:   intToStringSlice(cores),
 					})
 					assignedScope = append(assignedScope, scope)
 					continue
@@ -385,7 +390,7 @@ func (ccms *CCMetricStore) buildQueries(job *schema.Job, metrics []string, scope
 						Hostname:  host.Hostname,
 						Aggregate: true,
 						Type:      &coreString,
-						TypeIds:   cores,
+						TypeIds:   intToStringSlice(cores),
 					})
 					assignedScope = append(assignedScope, scope)
 					continue
@@ -399,7 +404,7 @@ func (ccms *CCMetricStore) buildQueries(job *schema.Job, metrics []string, scope
 						Hostname:  host.Hostname,
 						Aggregate: false,
 						Type:      &memoryDomainString,
-						TypeIds:   sockets,
+						TypeIds:   intToStringSlice(sockets),
 					})
 					assignedScope = append(assignedScope, scope)
 					continue
@@ -413,7 +418,7 @@ func (ccms *CCMetricStore) buildQueries(job *schema.Job, metrics []string, scope
 						Hostname:  host.Hostname,
 						Aggregate: true,
 						Type:      &memoryDomainString,
-						TypeIds:   sockets,
+						TypeIds:   intToStringSlice(sockets),
 					})
 					assignedScope = append(assignedScope, scope)
 					continue
@@ -427,7 +432,7 @@ func (ccms *CCMetricStore) buildQueries(job *schema.Job, metrics []string, scope
 						Hostname:  host.Hostname,
 						Aggregate: false,
 						Type:      &socketString,
-						TypeIds:   sockets,
+						TypeIds:   intToStringSlice(sockets),
 					})
 					assignedScope = append(assignedScope, scope)
 					continue
@@ -441,7 +446,7 @@ func (ccms *CCMetricStore) buildQueries(job *schema.Job, metrics []string, scope
 						Hostname:  host.Hostname,
 						Aggregate: true,
 						Type:      &socketString,
-						TypeIds:   sockets,
+						TypeIds:   intToStringSlice(sockets),
 					})
 					assignedScope = append(assignedScope, scope)
 					continue
@@ -595,4 +600,12 @@ func (ccms *CCMetricStore) LoadNodeData(cluster string, metrics, nodes []string,
 	}
 
 	return data, nil
+}
+
+func intToStringSlice(is []int) []string {
+	ss := make([]string, 0, len(is))
+	for i, x := range is {
+		ss[i] = strconv.Itoa(x)
+	}
+	return ss
 }

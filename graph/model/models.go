@@ -111,3 +111,12 @@ func (topo *Topology) GetAcceleratorIDs() ([]int, error) {
 	}
 	return accels, nil
 }
+
+func (topo *Topology) GetAcceleratorIndex(id string) (int, bool) {
+	for idx, accel := range topo.Accelerators {
+		if accel.ID == id {
+			return idx, true
+		}
+	}
+	return -1, false
+}

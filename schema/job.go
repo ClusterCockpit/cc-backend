@@ -86,10 +86,10 @@ type Tag struct {
 }
 
 type Resource struct {
-	Hostname      string `json:"hostname"`
-	HWThreads     []int  `json:"hwthreads,omitempty"`
-	Accelerators  []int  `json:"accelerators,omitempty"`
-	Configuration string `json:"configuration,omitempty"`
+	Hostname      string   `json:"hostname"`
+	HWThreads     []int    `json:"hwthreads,omitempty"`
+	Accelerators  []string `json:"accelerators,omitempty"`
+	Configuration string   `json:"configuration,omitempty"`
 }
 
 type JobState string

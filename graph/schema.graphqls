@@ -89,7 +89,7 @@ type Tag {
 type Resource {
   hostname:      String!
   hwthreads:     [Int!]
-  accelerators:  [Int!]
+  accelerators:  [String!]
   configuration: String
 }
 
