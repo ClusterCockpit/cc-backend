@@ -603,7 +603,7 @@ func (ccms *CCMetricStore) LoadNodeData(cluster string, metrics, nodes []string,
 }
 
 func intToStringSlice(is []int) []string {
-	ss := make([]string, 0, len(is))
+	ss := make([]string, len(is))
 	for i, x := range is {
 		ss[i] = strconv.Itoa(x)
 	}
