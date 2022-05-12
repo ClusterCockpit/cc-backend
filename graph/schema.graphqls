@@ -68,16 +68,25 @@ type Accelerator {
   model: String!
 }
 
+type SubClusterConfig {
+  name:    String!
+  peak:    Float!
+  normal:  Float!
+  caution: Float!
+  alert:   Float!
+}
+
 type MetricConfig {
   name:        String!
   unit:        String!
   scope:       MetricScope!
   aggregation: String
   timestep:    Int!
-  peak:        Float!
-  normal:      Float!
-  caution:     Float!
-  alert:       Float!
+  peak:        Float
+  normal:      Float
+  caution:     Float
+  alert:       Float
+  subClusters: [SubClusterConfig]
 }
 
 type Tag {
