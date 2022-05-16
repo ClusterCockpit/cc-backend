@@ -10,11 +10,6 @@ func TestNodeList(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// fmt.Printf("terms\n")
-	// for i, term := range nl.terms {
-	// 	fmt.Printf("term %d: %#v\n", i, term)
-	// }
-
 	if nl.Contains("hello") || nl.Contains("woody") {
 		t.Fail()
 	}
@@ -33,5 +28,28 @@ func TestNodeList(t *testing.T) {
 
 	if !nl.Contains("woody100") || !nl.Contains("woody199") {
 		t.Fail()
+	}
+}
+
+func TestNodeListCommasInBrackets(t *testing.T) {
+	nl, err := ParseNodeList("a[1000-2000,2010-2090,3000-5000]")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if nl.Contains("hello") || nl.Contains("woody") {
+		t.Fatal("1")
+	}
+
+	if nl.Contains("a0") || nl.Contains("a0000") || nl.Contains("a5001") || nl.Contains("a2005") {
+		t.Fatal("2")
+	}
+
+	if !nl.Contains("a1001") || !nl.Contains("a2000") {
+		t.Fatal("3")
+	}
+
+	if !nl.Contains("a2042") || !nl.Contains("a4321") || !nl.Contains("a3000") {
+		t.Fatal("4")
 	}
 }
