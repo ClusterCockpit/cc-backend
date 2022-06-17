@@ -8,12 +8,46 @@ import (
 	"github.com/ClusterCockpit/cc-backend/log"
 )
 
+type NodeList [][]interface {
+	consume(input string) (next string, ok bool)
+}
+
+func (nl *NodeList) Contains(name string) bool {
+	var ok bool
+	for _, term := range *nl {
+		str := name
+		for _, expr := range term {
+			str, ok = expr.consume(str)
+			if !ok {
+				break
+			}
+		}
+
+		if ok && str == "" {
+			return true
+		}
+	}
+
+	return false
+}
+
 type NLExprString string
 
 func (nle NLExprString) consume(input string) (next string, ok bool) {
 	str := string(nle)
 	if strings.HasPrefix(input, str) {
 		return strings.TrimPrefix(input, str), true
+	}
+	return "", false
+}
+
+type NLExprIntRanges []NLExprIntRange
+
+func (nles NLExprIntRanges) consume(input string) (next string, ok bool) {
+	for _, nle := range nles {
+		if next, ok := nle.consume(input); ok {
+			return next, ok
+		}
 	}
 	return "", false
 }
@@ -51,36 +85,31 @@ func (nle NLExprIntRange) consume(input string) (next string, ok bool) {
 	return "", false
 }
 
-type NodeList [][]interface {
-	consume(input string) (next string, ok bool)
-}
-
-func (nl *NodeList) Contains(name string) bool {
-	var ok bool
-	for _, term := range *nl {
-		str := name
-		for _, expr := range term {
-			str, ok = expr.consume(str)
-			if !ok {
-				break
-			}
-		}
-
-		if ok && str == "" {
-			return true
-		}
-	}
-
-	return false
-}
-
 func ParseNodeList(raw string) (NodeList, error) {
-	nl := NodeList{}
-
 	isLetter := func(r byte) bool { return ('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z') }
 	isDigit := func(r byte) bool { return '0' <= r && r <= '9' }
 
-	for _, rawterm := range strings.Split(raw, ",") {
+	rawterms := []string{}
+	prevterm := 0
+	for i := 0; i < len(raw); i++ {
+		if raw[i] == '[' {
+			for i < len(raw) && raw[i] != ']' {
+				i++
+			}
+			if i == len(raw) {
+				return nil, fmt.Errorf("node list: unclosed '['")
+			}
+		} else if raw[i] == ',' {
+			rawterms = append(rawterms, raw[prevterm:i])
+			prevterm = i + 1
+		}
+	}
+	if prevterm != len(raw) {
+		rawterms = append(rawterms, raw[prevterm:])
+	}
+
+	nl := NodeList{}
+	for _, rawterm := range rawterms {
 		exprs := []interface {
 			consume(input string) (next string, ok bool)
 		}{}
@@ -99,31 +128,37 @@ func ParseNodeList(raw string) (NodeList, error) {
 					return nil, fmt.Errorf("node list: unclosed '['")
 				}
 
-				minus := strings.Index(rawterm[i:i+end], "-")
-				if minus == -1 {
-					return nil, fmt.Errorf("node list: no '-' found inside '[...]'")
+				parts := strings.Split(rawterm[i+1:i+end], ",")
+				nles := NLExprIntRanges{}
+				for _, part := range parts {
+					minus := strings.Index(part, "-")
+					if minus == -1 {
+						return nil, fmt.Errorf("node list: no '-' found inside '[...]'")
+					}
+
+					s1, s2 := part[0:minus], part[minus+1:]
+					if len(s1) != len(s2) || len(s1) == 0 {
+						return nil, fmt.Errorf("node list: %#v and %#v are not of equal length or of length zero", s1, s2)
+					}
+
+					x1, err := strconv.ParseInt(s1, 10, 32)
+					if err != nil {
+						return nil, fmt.Errorf("node list: %w", err)
+					}
+					x2, err := strconv.ParseInt(s2, 10, 32)
+					if err != nil {
+						return nil, fmt.Errorf("node list: %w", err)
+					}
+
+					nles = append(nles, NLExprIntRange{
+						start:      x1,
+						end:        x2,
+						digits:     len(s1),
+						zeroPadded: true,
+					})
 				}
 
-				s1, s2 := rawterm[i+1:i+minus], rawterm[i+minus+1:i+end]
-				if len(s1) != len(s2) || len(s1) == 0 {
-					return nil, fmt.Errorf("node list: %#v and %#v are not of equal length or of length zero", s1, s2)
-				}
-
-				x1, err := strconv.ParseInt(s1, 10, 32)
-				if err != nil {
-					return nil, fmt.Errorf("node list: %w", err)
-				}
-				x2, err := strconv.ParseInt(s2, 10, 32)
-				if err != nil {
-					return nil, fmt.Errorf("node list: %w", err)
-				}
-
-				exprs = append(exprs, NLExprIntRange{
-					start:      x1,
-					end:        x2,
-					digits:     len(s1),
-					zeroPadded: true,
-				})
+				exprs = append(exprs, nles)
 				i += end
 			} else {
 				return nil, fmt.Errorf("node list: invalid character: %#v", rune(c))

@@ -150,6 +150,7 @@ type ComplexityRoot struct {
 		Normal      func(childComplexity int) int
 		Peak        func(childComplexity int) int
 		Scope       func(childComplexity int) int
+		SubClusters func(childComplexity int) int
 		Timestep    func(childComplexity int) int
 		Unit        func(childComplexity int) int
 	}
@@ -226,6 +227,14 @@ type ComplexityRoot struct {
 		SocketsPerNode  func(childComplexity int) int
 		ThreadsPerCore  func(childComplexity int) int
 		Topology        func(childComplexity int) int
+	}
+
+	SubClusterConfig struct {
+		Alert   func(childComplexity int) int
+		Caution func(childComplexity int) int
+		Name    func(childComplexity int) int
+		Normal  func(childComplexity int) int
+		Peak    func(childComplexity int) int
 	}
 
 	Tag struct {
@@ -763,6 +772,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.MetricConfig.Scope(childComplexity), true
 
+	case "MetricConfig.subClusters":
+		if e.complexity.MetricConfig.SubClusters == nil {
+			break
+		}
+
+		return e.complexity.MetricConfig.SubClusters(childComplexity), true
+
 	case "MetricConfig.timestep":
 		if e.complexity.MetricConfig.Timestep == nil {
 			break
@@ -1181,6 +1197,41 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.SubCluster.Topology(childComplexity), true
 
+	case "SubClusterConfig.alert":
+		if e.complexity.SubClusterConfig.Alert == nil {
+			break
+		}
+
+		return e.complexity.SubClusterConfig.Alert(childComplexity), true
+
+	case "SubClusterConfig.caution":
+		if e.complexity.SubClusterConfig.Caution == nil {
+			break
+		}
+
+		return e.complexity.SubClusterConfig.Caution(childComplexity), true
+
+	case "SubClusterConfig.name":
+		if e.complexity.SubClusterConfig.Name == nil {
+			break
+		}
+
+		return e.complexity.SubClusterConfig.Name(childComplexity), true
+
+	case "SubClusterConfig.normal":
+		if e.complexity.SubClusterConfig.Normal == nil {
+			break
+		}
+
+		return e.complexity.SubClusterConfig.Normal(childComplexity), true
+
+	case "SubClusterConfig.peak":
+		if e.complexity.SubClusterConfig.Peak == nil {
+			break
+		}
+
+		return e.complexity.SubClusterConfig.Peak(childComplexity), true
+
 	case "Tag.id":
 		if e.complexity.Tag.ID == nil {
 			break
@@ -1413,16 +1464,25 @@ type Accelerator {
   model: String!
 }
 
+type SubClusterConfig {
+  name:    String!
+  peak:    Float!
+  normal:  Float!
+  caution: Float!
+  alert:   Float!
+}
+
 type MetricConfig {
   name:        String!
   unit:        String!
   scope:       MetricScope!
   aggregation: String
   timestep:    Int!
-  peak:        Float!
-  normal:      Float!
-  caution:     Float!
-  alert:       Float!
+  peak:        Float
+  normal:      Float
+  caution:     Float
+  alert:       Float
+  subClusters: [SubClusterConfig]
 }
 
 type Tag {
@@ -4352,14 +4412,11 @@ func (ec *executionContext) _MetricConfig_peak(ctx context.Context, field graphq
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.(float64)
+	res := resTmp.(*float64)
 	fc.Result = res
-	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+	return ec.marshalOFloat2ᚖfloat64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _MetricConfig_normal(ctx context.Context, field graphql.CollectedField, obj *model.MetricConfig) (ret graphql.Marshaler) {
@@ -4387,14 +4444,11 @@ func (ec *executionContext) _MetricConfig_normal(ctx context.Context, field grap
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.(float64)
+	res := resTmp.(*float64)
 	fc.Result = res
-	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+	return ec.marshalOFloat2ᚖfloat64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _MetricConfig_caution(ctx context.Context, field graphql.CollectedField, obj *model.MetricConfig) (ret graphql.Marshaler) {
@@ -4422,14 +4476,11 @@ func (ec *executionContext) _MetricConfig_caution(ctx context.Context, field gra
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.(float64)
+	res := resTmp.(*float64)
 	fc.Result = res
-	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+	return ec.marshalOFloat2ᚖfloat64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _MetricConfig_alert(ctx context.Context, field graphql.CollectedField, obj *model.MetricConfig) (ret graphql.Marshaler) {
@@ -4457,14 +4508,43 @@ func (ec *executionContext) _MetricConfig_alert(ctx context.Context, field graph
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.(float64)
+	res := resTmp.(*float64)
 	fc.Result = res
-	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+	return ec.marshalOFloat2ᚖfloat64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MetricConfig_subClusters(ctx context.Context, field graphql.CollectedField, obj *model.MetricConfig) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MetricConfig",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.SubClusters, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.SubClusterConfig)
+	fc.Result = res
+	return ec.marshalOSubClusterConfig2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐSubClusterConfig(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _MetricFootprints_metric(ctx context.Context, field graphql.CollectedField, obj *model.MetricFootprints) (ret graphql.Marshaler) {
@@ -6259,6 +6339,181 @@ func (ec *executionContext) _SubCluster_topology(ctx context.Context, field grap
 	res := resTmp.(*model.Topology)
 	fc.Result = res
 	return ec.marshalNTopology2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐTopology(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _SubClusterConfig_name(ctx context.Context, field graphql.CollectedField, obj *model.SubClusterConfig) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "SubClusterConfig",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _SubClusterConfig_peak(ctx context.Context, field graphql.CollectedField, obj *model.SubClusterConfig) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "SubClusterConfig",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Peak, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _SubClusterConfig_normal(ctx context.Context, field graphql.CollectedField, obj *model.SubClusterConfig) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "SubClusterConfig",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Normal, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _SubClusterConfig_caution(ctx context.Context, field graphql.CollectedField, obj *model.SubClusterConfig) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "SubClusterConfig",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Caution, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _SubClusterConfig_alert(ctx context.Context, field graphql.CollectedField, obj *model.SubClusterConfig) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "SubClusterConfig",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Alert, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Tag_id(ctx context.Context, field graphql.CollectedField, obj *schema.Tag) (ret graphql.Marshaler) {
@@ -9217,9 +9472,6 @@ func (ec *executionContext) _MetricConfig(ctx context.Context, sel ast.Selection
 
 			out.Values[i] = innerFunc(ctx)
 
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
 		case "normal":
 			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._MetricConfig_normal(ctx, field, obj)
@@ -9227,9 +9479,6 @@ func (ec *executionContext) _MetricConfig(ctx context.Context, sel ast.Selection
 
 			out.Values[i] = innerFunc(ctx)
 
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
 		case "caution":
 			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._MetricConfig_caution(ctx, field, obj)
@@ -9237,9 +9486,6 @@ func (ec *executionContext) _MetricConfig(ctx context.Context, sel ast.Selection
 
 			out.Values[i] = innerFunc(ctx)
 
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
 		case "alert":
 			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._MetricConfig_alert(ctx, field, obj)
@@ -9247,9 +9493,13 @@ func (ec *executionContext) _MetricConfig(ctx context.Context, sel ast.Selection
 
 			out.Values[i] = innerFunc(ctx)
 
-			if out.Values[i] == graphql.Null {
-				invalids++
+		case "subClusters":
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._MetricConfig_subClusters(ctx, field, obj)
 			}
+
+			out.Values[i] = innerFunc(ctx)
+
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -10063,6 +10313,77 @@ func (ec *executionContext) _SubCluster(ctx context.Context, sel ast.SelectionSe
 		case "topology":
 			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._SubCluster_topology(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var subClusterConfigImplementors = []string{"SubClusterConfig"}
+
+func (ec *executionContext) _SubClusterConfig(ctx context.Context, sel ast.SelectionSet, obj *model.SubClusterConfig) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, subClusterConfigImplementors)
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SubClusterConfig")
+		case "name":
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._SubClusterConfig_name(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "peak":
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._SubClusterConfig_peak(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "normal":
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._SubClusterConfig_normal(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "caution":
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._SubClusterConfig_caution(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "alert":
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._SubClusterConfig_alert(ctx, field, obj)
 			}
 
 			out.Values[i] = innerFunc(ctx)
@@ -12214,6 +12535,22 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	return res
 }
 
+func (ec *executionContext) unmarshalOFloat2ᚖfloat64(ctx context.Context, v interface{}) (*float64, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalFloatContext(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOFloat2ᚖfloat64(ctx context.Context, sel ast.SelectionSet, v *float64) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	res := graphql.MarshalFloatContext(*v)
+	return graphql.WrapContextMarshaler(ctx, res)
+}
+
 func (ec *executionContext) unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐFloatRange(ctx context.Context, v interface{}) (*model.FloatRange, error) {
 	if v == nil {
 		return nil, nil
@@ -12625,6 +12962,54 @@ func (ec *executionContext) unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockp
 	}
 	res, err := ec.unmarshalInputStringInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOSubClusterConfig2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐSubClusterConfig(ctx context.Context, sel ast.SelectionSet, v []*model.SubClusterConfig) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOSubClusterConfig2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐSubClusterConfig(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	return ret
+}
+
+func (ec *executionContext) marshalOSubClusterConfig2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋgraphᚋmodelᚐSubClusterConfig(ctx context.Context, sel ast.SelectionSet, v *model.SubClusterConfig) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._SubClusterConfig(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOTime2ᚖtimeᚐTime(ctx context.Context, v interface{}) (*time.Time, error) {
