@@ -1,10 +1,10 @@
 # Where are all the schema files located? globs are supported eg  src/**/*.graphqls
 schema:
-  - graph/*.graphqls
+  - api/*.graphqls
 
 # Where should the generated server code go?
 exec:
-  filename: graph/generated/generated.go
+  filename: internal/graph/generated/generated.go
   package: generated
 
 # Uncomment to enable federation
@@ -14,7 +14,7 @@ exec:
 
 # Where should any generated models go?
 model:
-  filename: graph/model/models_gen.go
+  filename: internal/graph/model/models_gen.go
   package: model
 
 # Where should the resolver implementations go?
@@ -75,5 +75,3 @@ models:
   Series: { model: "github.com/ClusterCockpit/cc-backend/schema.Series" }
   MetricStatistics: { model: "github.com/ClusterCockpit/cc-backend/schema.MetricStatistics" }
   StatsSeries: { model: "github.com/ClusterCockpit/cc-backend/schema.StatsSeries" }
-
-
