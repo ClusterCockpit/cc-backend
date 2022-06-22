@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,14 +13,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ClusterCockpit/cc-backend/api"
-	"github.com/ClusterCockpit/cc-backend/config"
-	"github.com/ClusterCockpit/cc-backend/graph"
-	"github.com/ClusterCockpit/cc-backend/metricdata"
-	"github.com/ClusterCockpit/cc-backend/repository"
-	"github.com/ClusterCockpit/cc-backend/schema"
+	"github.com/ClusterCockpit/cc-backend/internal/api"
+	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-backend/internal/graph"
+	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/gorilla/mux"
-	"github.com/jmoiron/sqlx"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -95,17 +93,14 @@ func setup(t *testing.T) *api.RestApi {
 	}
 	f.Close()
 
-	db, err := sqlx.Open("sqlite3", fmt.Sprintf("%s?_foreign_keys=on", dbfilepath))
-	if err != nil {
+	repository.Connect("sqlite3", dbfilepath)
+	db := repository.GetConnection()
+
+	if _, err := db.DB.Exec(repository.JobsDBSchema); err != nil {
 		t.Fatal(err)
 	}
 
-	db.SetMaxOpenConns(1)
-	if _, err := db.Exec(repository.JobsDBSchema); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := config.Init(db, false, map[string]interface{}{}, jobarchive); err != nil {
+	if err := config.Init(db.DB, false, map[string]interface{}{}, jobarchive); err != nil {
 		t.Fatal(err)
 	}
 
@@ -113,10 +108,8 @@ func setup(t *testing.T) *api.RestApi {
 		t.Fatal(err)
 	}
 
-	resolver := &graph.Resolver{DB: db, Repo: &repository.JobRepository{DB: db}}
-	if err := resolver.Repo.Init(); err != nil {
-		t.Fatal(err)
-	}
+	jobRepo := repository.GetRepository()
+	resolver := &graph.Resolver{DB: db.DB, Repo: jobRepo}
 
 	return &api.RestApi{
 		JobRepository: resolver.Repo,
