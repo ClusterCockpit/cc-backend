@@ -12,6 +12,6 @@ jobs:
         uses: actions/checkout@v2
       - name: Build, Vet & Test
         run: |
-          go build cmd/cc-backend
-          go vet cmd/cc-backend
-          go test test
+          go build ./...
+          go vet ./...
+          go test ./...
