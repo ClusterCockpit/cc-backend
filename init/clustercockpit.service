@@ -1,0 +1,18 @@
+[Unit]
+Description=ClusterCockpit Web Server (Go edition)
+Documentation=https://github.com/ClusterCockpit/cc-backend
+Wants=network-online.target
+After=network-online.target
+After=mariadb.service mysql.service
+
+[Service]
+WorkingDirectory=/opt/monitoring/cc-backend
+Type=notify
+NotifyAccess=all
+Restart=on-failure
+RestartSec=30
+TimeoutStopSec=100
+ExecStart=/opt/monitoring/cc-backend/cc-backend --config ./config.json
+
+[Install]
+WantedBy=multi-user.target
