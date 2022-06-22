@@ -1,0 +1,56 @@
+## Intro
+
+cc-backend can be used without a configuration file. In this case the default
+options documented below are used. To overwrite the defaults specify a json
+config file location using the command line option `--config <filepath>`.
+All security relevant configuration. e.g., keys and passwords, are set using environment variables. It is supported to specify these by means of an `.env` file located in the project root.
+
+## Configuration Options
+* `addr`: Type string.  Address where the http (or https) server will listen on (for example: 'localhost:80'). Default `:8080`.
+* `user`: Type string. Drop root permissions once .env was read and the port was taken. Only applicable if using privileged port.
+* `group`: Type string.  Drop root permissions once .env was read and the port was taken. Only applicable if using privileged port.
+* `disable-authentication`: Type bool.  Disable authentication (for everything: API, Web-UI, ...). Default `false`.
+* `static-files`: Type string. Folder where static assets can be found, those will be served directly. Default `./frontend/public`.
+* `db-driver`: Type string. 'sqlite3' or 'mysql' (mysql will work for mariadb as well). Default `sqlite3`.
+* `db`: Type string. For sqlite3 a filename, for mysql a DSN in this format: https://github.com/go-sql-driver/mysql#dsn-data-source-name (Without query parameters!). Default: `./var/job.db`.
+* `job-archive`: Type string. Path to the job-archive. Default: `./var/job-archive`.
+* `disable-archive`: Type bool. Keep all metric data in the metric data repositories, do not write to the job-archive. Default `false`.
+* `"session-max-age`: Type string. Specifies for how long a session shall be valid  as a string parsable by time.ParseDuration(). If 0 or empty, the session/token does not expire! Default `168h`.
+* `"jwt-max-age`: Type string. Specifies for how long a JWT token shall be valid  as a string parsable by time.ParseDuration(). If 0 or empty, the session/token does not expire! Default `0`.
+* `https-cert-file` and `https-key-file`: Type string. If both those options are not empty, use HTTPS using those certificates.
+* `redirect-http-to`: Type string. If not the empty string and `addr` does not end in ":80", redirect every request incoming at port 80 to that url.
+* `machine-state-dir`: Type string. Where to store MachineState files. TODO: Explain in more detail!
+* `"stop-jobs-exceeding-walltime`: Type int. If not zero, automatically mark jobs as stopped running X seconds longer than their walltime. Only applies if walltime is set for job. Default `0`;
+* `ldap`: Type object. For LDAP Authentication and user synchronisation. Default `nil`.
+   - `url`: Type string.  URL of LDAP directory server.
+   - `user_base`: Type string. Base DN of user tree root.
+   - `search_dn`: Type string. DN for authenticating LDAP admin account with fgeneral read rights.
+   - `user_bind`: Type string. Expression used to authenticate users via LDAP bind. Must contain `uid={username}`.
+   - `user_filter`: Type string. Filter to extract users for syncing.
+   - `sync_interval`: Type string. Interval used for syncing local user table with LDAP directory. Parsed using time.ParseDuration.
+   - `sync_del_old_users`: Type bool. Delete obsolete users in database.
+* `ui-defaults`: Type object. Default configuration for ui views. If overwriten, all options  must be provided! Most options can be overwritten by the user via the web interface.
+   - `analysis_view_histogramMetrics`: Type string array. X. Default `["flops_any", "mem_bw", "mem_used"]`.
+   - `analysis_view_scatterPlotMetrics`: Type string array. X. Default `[["flops_any", "mem_bw"], ["flops_any", "cpu_load"], ["cpu_load", "mem_bw"]]`.
+   - `job_view_nodestats_selectedMetrics`: Type string array. X. Default `["flops_any", "mem_bw", "mem_used"]`.
+   - `job_view_polarPlotMetrics`: Type string array. X. Default `["flops_any", "mem_bw", "mem_used", "net_bw", "file_bw"]`.
+   - `job_view_selectedMetrics`: Type string array. X. Default `["flops_any", "mem_bw", "mem_used"]`.
+   - `plot_general_colorBackground`: Type bool. X. Default `true`.
+   - `plot_general_colorscheme`: Type string array. X. Default `"#00bfff", "#0000ff", "#ff00ff", "#ff0000", "#ff8000", "#ffff00", "#80ff00"`.
+   - `plot_general_lineWidth`: Type int. X. Default `3`.
+   - `plot_list_hideShortRunningJobs`: Type int. X. Default `300`.
+   - `plot_list_jobsPerPage`: Type int. X. Default `50`.
+   - `plot_list_selectedMetrics`: Type string array. X. Default `"cpu_load", "ipc", "mem_used", "flops_any", "mem_bw"`.
+   - `plot_view_plotsPerRow`: Type int. X. Default `3`.
+   - `plot_view_showPolarplot`: Type bool. X. Default `true`.
+   - `plot_view_showRoofline`: Type bool. X. Default `true`.
+   - `plot_view_showStatTable`: Type bool. X. Default `true`.
+   - `system_view_selectedMetric`: Type string. X. Default `xx`.
+
+## Environment Variables
+
+An example env file is found in this directory. Copy it to `.env` in the project root and adapt it for your needs.
+
+* `JWT_PUBLIC_KEY` and `JWT_PRIVATE_KEY`:  Base64 encoded Ed25519 keys used for JSON Web Token (JWT) authentication . TODO: Details! You can generate your own keypair using `go run utils/gen-keypair.go`
+* `SESSION_KEY`: Some random bytes used as secret for cookie-based sessions.
+* `LDAP_ADMIN_PASSWORD`: The LDAP admin user password (optional).
