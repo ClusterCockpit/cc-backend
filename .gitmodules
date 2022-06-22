@@ -1,5 +1,0 @@
-[submodule "frontend"]
-	path = web/frontend
-	url = git@github.com:ClusterCockpit/cc-frontend.git
-    branch = main
-    update = merge
