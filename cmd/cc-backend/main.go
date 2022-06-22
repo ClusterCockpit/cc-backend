@@ -69,7 +69,7 @@ type ProgramConfig struct {
 	// do not write to the job-archive.
 	DisableArchive bool `json:"disable-archive"`
 
-	// For LDAP Authentication and user syncronisation.
+	// For LDAP Authentication and user synchronisation.
 	LdapConfig *auth.LdapConfig `json:"ldap"`
 
 	// Specifies for how long a session or JWT shall be valid
@@ -93,7 +93,7 @@ type ProgramConfig struct {
 	// Where to store MachineState files
 	MachineStateDir string `json:"machine-state-dir"`
 
-	// If not zero, automatically mark jobs as stopped running X seconds longer than theire walltime.
+	// If not zero, automatically mark jobs as stopped running X seconds longer than their walltime.
 	StopJobsExceedingWalltime int `json:"stop-jobs-exceeding-walltime"`
 }
 
@@ -118,7 +118,7 @@ var programConfig ProgramConfig = ProgramConfig{
 		"plot_general_colorscheme":           []string{"#00bfff", "#0000ff", "#ff00ff", "#ff0000", "#ff8000", "#ffff00", "#80ff00"},
 		"plot_general_lineWidth":             3,
 		"plot_list_hideShortRunningJobs":     5 * 60,
-		"plot_list_jobsPerPage":              10,
+		"plot_list_jobsPerPage":              50,
 		"plot_list_selectedMetrics":          []string{"cpu_load", "ipc", "mem_used", "flops_any", "mem_bw"},
 		"plot_view_plotsPerRow":              3,
 		"plot_view_showPolarplot":            true,
@@ -126,7 +126,7 @@ var programConfig ProgramConfig = ProgramConfig{
 		"plot_view_showStatTable":            true,
 		"system_view_selectedMetric":         "cpu_load",
 	},
-	StopJobsExceedingWalltime: -1,
+	StopJobsExceedingWalltime: 0,
 }
 
 func main() {
