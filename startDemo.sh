@@ -13,8 +13,8 @@ yarn install
 yarn build
 
 cd ../..
+cp ./configs/env-template.txt .env
 go get
-go build cmd/cc-backend
+go build ./cmd/cc-backend
 
-./cc-backend --init-db --add-user demo:admin:AdminDev --no-server
-./cc-backend
+./cc-backend --init-db --add-user demo:admin:AdminDev

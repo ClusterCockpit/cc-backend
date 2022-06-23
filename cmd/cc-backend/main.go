@@ -100,7 +100,7 @@ type ProgramConfig struct {
 var programConfig ProgramConfig = ProgramConfig{
 	Addr:                  ":8080",
 	DisableAuthentication: false,
-	StaticFiles:           "./frontend/public",
+	StaticFiles:           "./web/frontend/public",
 	DBDriver:              "sqlite3",
 	DB:                    "./var/job.db",
 	JobArchive:            "./var/job-archive",
