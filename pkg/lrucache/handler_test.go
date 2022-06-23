@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"testing"
 	"time"
 )
@@ -45,28 +44,28 @@ func TestHandlerBasics(t *testing.T) {
 	}
 }
 
-func TestHandlerExpiration(t *testing.T) {
-	r := httptest.NewRequest(http.MethodGet, "/test1", nil)
-	rw := httptest.NewRecorder()
-	i := 1
-	now := time.Now()
+// func TestHandlerExpiration(t *testing.T) {
+// 	r := httptest.NewRequest(http.MethodGet, "/test1", nil)
+// 	rw := httptest.NewRecorder()
+// 	i := 1
+// 	now := time.Now()
 
-	handler := NewHttpHandler(1000, 1*time.Second, http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		rw.Header().Set("Expires", now.Add(10*time.Millisecond).Format(http.TimeFormat))
-		rw.Write([]byte(strconv.Itoa(i)))
-	}))
+// 	handler := NewHttpHandler(1000, 1*time.Second, http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+// 		rw.Header().Set("Expires", now.Add(10*time.Millisecond).Format(http.TimeFormat))
+// 		rw.Write([]byte(strconv.Itoa(i)))
+// 	}))
 
-	handler.ServeHTTP(rw, r)
-	if !(rw.Body.String() == strconv.Itoa(1)) {
-		t.Fatal("unexpected body")
-	}
+// 	handler.ServeHTTP(rw, r)
+// 	if !(rw.Body.String() == strconv.Itoa(1)) {
+// 		t.Fatal("unexpected body")
+// 	}
 
-	i += 1
+// 	i += 1
 
-	time.Sleep(11 * time.Millisecond)
-	rw = httptest.NewRecorder()
-	handler.ServeHTTP(rw, r)
-	if !(rw.Body.String() == strconv.Itoa(1)) {
-		t.Fatal("unexpected body")
-	}
-}
+// 	time.Sleep(11 * time.Millisecond)
+// 	rw = httptest.NewRecorder()
+// 	handler.ServeHTTP(rw, r)
+// 	if !(rw.Body.String() == strconv.Itoa(1)) {
+// 		t.Fatal("unexpected body")
+// 	}
+// }
