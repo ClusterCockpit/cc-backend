@@ -30,22 +30,22 @@ All security relevant configuration. e.g., keys and passwords, are set using env
    - `sync_interval`: Type string. Interval used for syncing local user table with LDAP directory. Parsed using time.ParseDuration.
    - `sync_del_old_users`: Type bool. Delete obsolete users in database.
 * `ui-defaults`: Type object. Default configuration for ui views. If overwriten, all options  must be provided! Most options can be overwritten by the user via the web interface.
-   - `analysis_view_histogramMetrics`: Type string array. X. Default `["flops_any", "mem_bw", "mem_used"]`.
-   - `analysis_view_scatterPlotMetrics`: Type string array. X. Default `[["flops_any", "mem_bw"], ["flops_any", "cpu_load"], ["cpu_load", "mem_bw"]]`.
-   - `job_view_nodestats_selectedMetrics`: Type string array. X. Default `["flops_any", "mem_bw", "mem_used"]`.
-   - `job_view_polarPlotMetrics`: Type string array. X. Default `["flops_any", "mem_bw", "mem_used", "net_bw", "file_bw"]`.
-   - `job_view_selectedMetrics`: Type string array. X. Default `["flops_any", "mem_bw", "mem_used"]`.
-   - `plot_general_colorBackground`: Type bool. X. Default `true`.
-   - `plot_general_colorscheme`: Type string array. X. Default `"#00bfff", "#0000ff", "#ff00ff", "#ff0000", "#ff8000", "#ffff00", "#80ff00"`.
-   - `plot_general_lineWidth`: Type int. X. Default `3`.
-   - `plot_list_hideShortRunningJobs`: Type int. X. Default `300`.
-   - `plot_list_jobsPerPage`: Type int. X. Default `50`.
-   - `plot_list_selectedMetrics`: Type string array. X. Default `"cpu_load", "ipc", "mem_used", "flops_any", "mem_bw"`.
-   - `plot_view_plotsPerRow`: Type int. X. Default `3`.
-   - `plot_view_showPolarplot`: Type bool. X. Default `true`.
-   - `plot_view_showRoofline`: Type bool. X. Default `true`.
-   - `plot_view_showStatTable`: Type bool. X. Default `true`.
-   - `system_view_selectedMetric`: Type string. X. Default `xx`.
+   - `analysis_view_histogramMetrics`: Type string array. Metrics to show as job count histograms in analysis view. Default `["flops_any", "mem_bw", "mem_used"]`.
+   - `analysis_view_scatterPlotMetrics`: Type array of string array. Initial scatter plto configuration in analysis view. Default `[["flops_any", "mem_bw"], ["flops_any", "cpu_load"], ["cpu_load", "mem_bw"]]`.
+   - `job_view_nodestats_selectedMetrics`: Type string array. Initial metrics shown in node statistics table of single job view. Default `["flops_any", "mem_bw", "mem_used"]`.
+   - `job_view_polarPlotMetrics`: Type string array. Metrics shown in polar plot of single job view. Default `["flops_any", "mem_bw", "mem_used", "net_bw", "file_bw"]`.
+   - `job_view_selectedMetrics`: Type string array. ??. Default `["flops_any", "mem_bw", "mem_used"]`.
+   - `plot_general_colorBackground`: Type bool. Color plot background according to job average threshold limits. Default `true`.
+   - `plot_general_colorscheme`: Type string array. Initial color scheme. Default `"#00bfff", "#0000ff", "#ff00ff", "#ff0000", "#ff8000", "#ffff00", "#80ff00"`.
+   - `plot_general_lineWidth`: Type int. Initial linewidth. Default `3`.
+   - `plot_list_hideShortRunningJobs`: Type int. Do not show running jobs shorter than X seconds. Default `300`.
+   - `plot_list_jobsPerPage`: Type int. Jobs shown per page in job lists. Default `50`.
+   - `plot_list_selectedMetrics`: Type string array. Initial metric plots shown in jobs lists. Default `"cpu_load", "ipc", "mem_used", "flops_any", "mem_bw"`.
+   - `plot_view_plotsPerRow`: Type int. Number of plots per row in single job view. Default `3`.
+   - `plot_view_showPolarplot`: Type bool. Option to toggle polar plot in single job view. Default `true`.
+   - `plot_view_showRoofline`: Type bool. Option to toggle roofline plot in single job view. Default `true`.
+   - `plot_view_showStatTable`: Type bool. Option to toggle the node statistic table in single job view. Default `true`.
+   - `system_view_selectedMetric`: Type string. Initial metric shown in system view. Default `cpu_load`.
 
 ## Environment Variables
 
