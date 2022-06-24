@@ -1,5 +1,4 @@
-# executable:
-cc-backend
+/cc-backend
 
 /var/job-archive
 /var/*.db
@@ -8,3 +7,5 @@ cc-backend
 /.env
 /config.json
 
+/web/frontend/public/build
+/web/frontend/node_modules

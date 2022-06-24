@@ -8,13 +8,13 @@ tar xJf job-archive.tar.xz
 rm ./job-archive.tar.xz
 
 touch ./job.db
-cd ../frontend
+cd ../web/frontend
 yarn install
 yarn build
 
-cd ..
+cd ../..
+cp ./configs/env-template.txt .env
 go get
-go build
+go build ./cmd/cc-backend
 
-./cc-backend --init-db --add-user demo:admin:AdminDev --no-server
-./cc-backend
+./cc-backend --init-db --add-user demo:admin:AdminDev

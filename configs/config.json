@@ -1,0 +1,14 @@
+{
+    "addr":            "0.0.0.0:443",
+    "ldap": {
+		"url":        "ldaps://hpcldap.rrze.uni-erlangen.de",
+		"user_base":   "ou=people,ou=hpc,dc=rrze,dc=uni-erlangen,dc=de",
+		"search_dn":   "cn=hpcmonitoring,ou=roadm,ou=profile,ou=hpc,dc=rrze,dc=uni-erlangen,dc=de",
+		"user_bind":   "uid={username},ou=people,ou=hpc,dc=rrze,dc=uni-erlangen,dc=de",
+		"user_filter": "(&(objectclass=posixAccount)(uid=*))"
+	},
+    "https-cert-file": "/etc/letsencrypt/live/monitoring.nhr.fau.de/fullchain.pem",
+    "https-key-file":  "/etc/letsencrypt/live/monitoring.nhr.fau.de/privkey.pem",
+    "user":            "clustercockpit",
+    "group":           "clustercockpit"
+}
