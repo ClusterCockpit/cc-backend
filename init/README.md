@@ -1,4 +1,4 @@
-# How to run this as a systemd deamon
+# How to run this as a systemd service
 
 The files in this directory assume that you install ClusterCockpit to `/opt/monitoring`.
 Of course you can choose any other location, but make sure to replace all paths that begin with `/opt/monitoring` in the `clustercockpit.service` file!
