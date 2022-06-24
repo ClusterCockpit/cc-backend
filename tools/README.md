@@ -5,7 +5,7 @@ JSON Web Token (JWT) is an open standard (RFC 7519) that defines a compact and s
 This information can be verified and trusted because it is digitally signed.
 In ClusterCockpit JWTs are signed using a public/private key pair using ECDSA.
 Because tokens are signed using public/private key pairs, the signature also certifies that only the party holding the private key is the one that signed it.
-Currently JWT tokens not yet expire.
+Currently JWT tokens in ClusterCockpit not yet expire.
 
 ## JWT Payload
 
