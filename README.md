@@ -20,6 +20,11 @@ Finished batch jobs are stored in a file-based job archive following [this speci
 The backend supports authentication using local accounts or an external LDAP directory.
 Authorization for APIs is implemented using [JWT](https://jwt.io/) tokens created with public/private key encryption.
 
+You find more detailed information here:
+* `./configs/README.md`: Infos about configuration and setup of cc-backend.
+* `./init/README.md`: Infos on how to setup cc-backend as systemd service on Linux.
+* `./tools/README.md`: Infos on the JWT authorizatin token workflows in ClusterCockpit.
+
 ## Demo Setup
 
 We provide a shell skript that downloads demo data and automatically builds and starts cc-backend.
@@ -32,7 +37,7 @@ git clone git@github.com:ClusterCockpit/cc-backend.git
 ```
 You can access the web interface at http://localhost:8080.
 Credentials for login: `demo:AdminDev`.
-Please note that some views do not work without a metric backend (e.g., the Systems view).
+Please note that some views do not work without a metric backend (e.g., the Systems and Status view).
 
 ## Howto Build and Run
 
@@ -102,7 +107,7 @@ In case new resolvers are needed, they will be inserted into `./internal/graph/s
 - `internal/` contains library source code that is not intended to be used by others.
 - `pkg/` contains go packages that can also be used by other projects.
 - `test/` Test apps and test data.
-- `tools/` contains supporting tools for cc-backend. At the moment this is a small application to generate a compatible JWT keypair.
+- `tools/` contains supporting tools for cc-backend. At the moment this is a small application to generate a compatible JWT keypair includin a README about JWT setup in ClusterCockpit.
 - `web/` Server side templates and frontend related files:
    - `templates` Serverside go templates
    - `frontend` Svelte components and static assets for frontend UI
