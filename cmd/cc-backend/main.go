@@ -292,12 +292,15 @@ func main() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/login", func(rw http.ResponseWriter, r *http.Request) {
+		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
 		templates.Render(rw, r, "login.tmpl", &templates.Page{Title: "Login"})
 	}).Methods(http.MethodGet)
 	r.HandleFunc("/imprint", func(rw http.ResponseWriter, r *http.Request) {
+		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
 		templates.Render(rw, r, "imprint.tmpl", &templates.Page{Title: "Imprint"})
 	})
 	r.HandleFunc("/privacy", func(rw http.ResponseWriter, r *http.Request) {
+		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
 		templates.Render(rw, r, "privacy.tmpl", &templates.Page{Title: "Privacy"})
 	})
 
@@ -312,6 +315,7 @@ func main() {
 
 			// On failure:
 			func(rw http.ResponseWriter, r *http.Request, err error) {
+				rw.Header().Add("Content-Type", "text/html; charset=utf-8")
 				rw.WriteHeader(http.StatusUnauthorized)
 				templates.Render(rw, r, "login.tmpl", &templates.Page{
 					Title: "Login failed - ClusterCockpit",
@@ -320,6 +324,7 @@ func main() {
 			})).Methods(http.MethodPost)
 
 		r.Handle("/logout", authentication.Logout(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			rw.Header().Add("Content-Type", "text/html; charset=utf-8")
 			rw.WriteHeader(http.StatusOK)
 			templates.Render(rw, r, "login.tmpl", &templates.Page{
 				Title: "Bye - ClusterCockpit",
