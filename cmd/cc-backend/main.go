@@ -137,7 +137,7 @@ func main() {
 	flag.BoolVar(&flagSyncLDAP, "sync-ldap", false, "Sync the 'user' table with ldap")
 	flag.BoolVar(&flagStopImmediately, "no-server", false, "Do not start a server, stop right after initialization and argument handling")
 	flag.BoolVar(&flagGops, "gops", false, "Listen via github.com/google/gops/agent (for debugging)")
-	flag.StringVar(&flagConfigFile, "config", "", "Overwrite the global config options by those specified in `config.json`")
+	flag.StringVar(&flagConfigFile, "config", "./config.json", "Overwrite the global config options by those specified in `config.json`")
 	flag.StringVar(&flagNewUser, "add-user", "", "Add a new user. Argument format: `<username>:[admin,api,user]:<password>`")
 	flag.StringVar(&flagDelUser, "del-user", "", "Remove user by `username`")
 	flag.StringVar(&flagGenJWT, "jwt", "", "Generate and print a JWT for the user specified by its `username`")
@@ -155,17 +155,19 @@ func main() {
 		log.Fatalf("parsing './.env' file failed: %s", err.Error())
 	}
 
-	if flagConfigFile != "" {
-		f, err := os.Open(flagConfigFile)
-		if err != nil {
+	// Load JSON config:
+	f, err := os.Open(flagConfigFile)
+	if err != nil {
+		if !os.IsNotExist(err) || flagConfigFile != "./config.json" {
 			log.Fatal(err)
 		}
-		defer f.Close()
+	} else {
 		dec := json.NewDecoder(f)
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(&programConfig); err != nil {
 			log.Fatal(err)
 		}
+		f.Close()
 	}
 
 	// As a special case for `db`, allow using an environment variable instead of the value
@@ -176,7 +178,6 @@ func main() {
 		programConfig.DB = os.Getenv(envvar)
 	}
 
-	var err error
 	repository.Connect(programConfig.DBDriver, programConfig.DB)
 	db := repository.GetConnection()
 

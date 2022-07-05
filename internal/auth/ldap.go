@@ -142,13 +142,13 @@ func (auth *Authentication) SyncWithLDAP(deleteOldUsers bool) error {
 
 	for username, where := range users {
 		if where == IN_DB && deleteOldUsers {
-			log.Infof("ldap-sync: remove %#v (does not show up in LDAP anymore)", username)
+			log.Debugf("ldap-sync: remove %#v (does not show up in LDAP anymore)", username)
 			if _, err := auth.db.Exec(`DELETE FROM user WHERE user.username = ?`, username); err != nil {
 				return err
 			}
 		} else if where == IN_LDAP {
 			name := newnames[username]
-			log.Infof("ldap-sync: add %#v (name: %#v, roles: [user], ldap: true)", username, name)
+			log.Debugf("ldap-sync: add %#v (name: %#v, roles: [user], ldap: true)", username, name)
 			if _, err := auth.db.Exec(`INSERT INTO user (username, ldap, name, roles) VALUES (?, ?, ?, ?)`,
 				username, 1, name, "[\""+RoleUser+"\"]"); err != nil {
 				return err
