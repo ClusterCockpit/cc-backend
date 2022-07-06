@@ -31,7 +31,6 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/routerConfig"
 	"github.com/ClusterCockpit/cc-backend/internal/runtimeEnv"
-	"github.com/ClusterCockpit/cc-backend/internal/templates"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/web"
 	"github.com/google/gops/agent"
@@ -297,15 +296,15 @@ func main() {
 
 	r.HandleFunc("/login", func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
-		templates.Render(rw, r, "login.tmpl", &templates.Page{Title: "Login"})
+		web.RenderTemplate(rw, r, "login.tmpl", &web.Page{Title: "Login"})
 	}).Methods(http.MethodGet)
 	r.HandleFunc("/imprint", func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
-		templates.Render(rw, r, "imprint.tmpl", &templates.Page{Title: "Imprint"})
+		web.RenderTemplate(rw, r, "imprint.tmpl", &web.Page{Title: "Imprint"})
 	})
 	r.HandleFunc("/privacy", func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
-		templates.Render(rw, r, "privacy.tmpl", &templates.Page{Title: "Privacy"})
+		web.RenderTemplate(rw, r, "privacy.tmpl", &web.Page{Title: "Privacy"})
 	})
 
 	// Some routes, such as /login or /query, should only be accessible to a user that is logged in.
@@ -321,7 +320,7 @@ func main() {
 			func(rw http.ResponseWriter, r *http.Request, err error) {
 				rw.Header().Add("Content-Type", "text/html; charset=utf-8")
 				rw.WriteHeader(http.StatusUnauthorized)
-				templates.Render(rw, r, "login.tmpl", &templates.Page{
+				web.RenderTemplate(rw, r, "login.tmpl", &web.Page{
 					Title: "Login failed - ClusterCockpit",
 					Error: err.Error(),
 				})
@@ -330,7 +329,7 @@ func main() {
 		r.Handle("/logout", authentication.Logout(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 			rw.Header().Add("Content-Type", "text/html; charset=utf-8")
 			rw.WriteHeader(http.StatusOK)
-			templates.Render(rw, r, "login.tmpl", &templates.Page{
+			web.RenderTemplate(rw, r, "login.tmpl", &web.Page{
 				Title: "Bye - ClusterCockpit",
 				Info:  "Logout sucessful",
 			})
@@ -344,7 +343,7 @@ func main() {
 				// On failure:
 				func(rw http.ResponseWriter, r *http.Request, err error) {
 					rw.WriteHeader(http.StatusUnauthorized)
-					templates.Render(rw, r, "login.tmpl", &templates.Page{
+					web.RenderTemplate(rw, r, "login.tmpl", &web.Page{
 						Title: "Authentication failed - ClusterCockpit",
 						Error: err.Error(),
 					})

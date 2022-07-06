@@ -13,9 +13,9 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-backend/internal/templates"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/ClusterCockpit/cc-backend/web"
 	"github.com/gorilla/mux"
 )
 
@@ -271,9 +271,9 @@ func SetupRoutes(router *mux.Router) {
 				isAdmin = user.HasRole(auth.RoleAdmin)
 			}
 
-			page := templates.Page{
+			page := web.Page{
 				Title:  title,
-				User:   templates.User{Username: username, IsAdmin: isAdmin},
+				User:   web.User{Username: username, IsAdmin: isAdmin},
 				Config: conf,
 				Infos:  infos,
 			}
@@ -282,7 +282,7 @@ func SetupRoutes(router *mux.Router) {
 				page.FilterPresets = buildFilterPresets(r.URL.Query())
 			}
 
-			templates.Render(rw, r, route.Template, &page)
+			web.RenderTemplate(rw, r, route.Template, &page)
 		})
 	}
 }
