@@ -33,6 +33,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/runtimeEnv"
 	"github.com/ClusterCockpit/cc-backend/internal/templates"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/web"
 	"github.com/google/gops/agent"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -53,8 +54,11 @@ type ProgramConfig struct {
 	// Disable authentication (for everything: API, Web-UI, ...)
 	DisableAuthentication bool `json:"disable-authentication"`
 
-	// Folder where static assets can be found, will be served directly
-	StaticFiles string `json:"static-files"`
+	// If `embed-static-files` is true (default), the frontend files are directly
+	// embeded into the go binary and expected to be in web/frontend. Only if
+	// it is false the files in `static-files` are served instead.
+	EmbedStaticFiles bool   `json:"embed-static-files"`
+	StaticFiles      string `json:"static-files"`
 
 	// 'sqlite3' or 'mysql' (mysql will work for mariadb as well)
 	DBDriver string `json:"db-driver"`
@@ -100,7 +104,7 @@ type ProgramConfig struct {
 var programConfig ProgramConfig = ProgramConfig{
 	Addr:                  ":8080",
 	DisableAuthentication: false,
-	StaticFiles:           "./web/frontend/public",
+	EmbedStaticFiles:      true,
 	DBDriver:              "sqlite3",
 	DB:                    "./var/job.db",
 	JobArchive:            "./var/job-archive",
@@ -379,7 +383,12 @@ func main() {
 	routerConfig.SetupRoutes(secured)
 	api.MountRoutes(secured)
 
-	r.PathPrefix("/").Handler(http.FileServer(http.Dir(programConfig.StaticFiles)))
+	if programConfig.EmbedStaticFiles {
+		r.PathPrefix("/").Handler(web.ServeFiles())
+	} else {
+		r.PathPrefix("/").Handler(http.FileServer(http.Dir(programConfig.StaticFiles)))
+	}
+
 	r.Use(handlers.CompressHandler)
 	r.Use(handlers.RecoveryHandler(handlers.PrintRecoveryStack(true)))
 	r.Use(handlers.CORS(
