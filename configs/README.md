@@ -10,7 +10,8 @@ All security relevant configuration. e.g., keys and passwords, are set using env
 * `user`: Type string. Drop root permissions once .env was read and the port was taken. Only applicable if using privileged port.
 * `group`: Type string.  Drop root permissions once .env was read and the port was taken. Only applicable if using privileged port.
 * `disable-authentication`: Type bool.  Disable authentication (for everything: API, Web-UI, ...). Default `false`.
-* `static-files`: Type string. Folder where static assets can be found, those will be served directly. Default `./frontend/public`.
+* `embed-static-files`: Type bool. If all files in `web/frontend/public` should be served from within the binary itself (they are embedded) or not. Default `true`.
+* `static-files`: Type string. Folder where static assets can be found, if `embed-static-files` is `false`. No default.
 * `db-driver`: Type string. 'sqlite3' or 'mysql' (mysql will work for mariadb as well). Default `sqlite3`.
 * `db`: Type string. For sqlite3 a filename, for mysql a DSN in this format: https://github.com/go-sql-driver/mysql#dsn-data-source-name (Without query parameters!). Default: `./var/job.db`.
 * `job-archive`: Type string. Path to the job-archive. Default: `./var/job-archive`.
