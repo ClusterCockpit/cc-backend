@@ -50,7 +50,6 @@ yarn install
 yarn build
 
 cd ..
-go get
 go build ./cmd/cc-backend
 
 ln -s <your-existing-job-archive> ./var/job-archive
