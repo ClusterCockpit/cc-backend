@@ -1,9 +1,8 @@
-package authv2
+package auth
 
 import (
 	"crypto/ed25519"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"os"
@@ -14,18 +13,25 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
+type JWTAuthConfig struct {
+	// Specifies for how long a session or JWT shall be valid
+	// as a string parsable by time.ParseDuration().
+	MaxAge int64 `json:"max-age"`
+}
+
 type JWTAuthenticator struct {
 	auth       *Authentication
 	publicKey  ed25519.PublicKey
 	privateKey ed25519.PrivateKey
 
-	maxAge time.Duration
+	config *JWTAuthConfig
 }
 
 var _ Authenticator = (*JWTAuthenticator)(nil)
 
-func (ja *JWTAuthenticator) Init(auth *Authentication, rawConfig json.RawMessage) error {
+func (ja *JWTAuthenticator) Init(auth *Authentication, conf interface{}) error {
 	ja.auth = auth
+	ja.config = conf.(*JWTAuthConfig)
 
 	pubKey, privKey := os.Getenv("JWT_PUBLIC_KEY"), os.Getenv("JWT_PRIVATE_KEY")
 	if pubKey == "" || privKey == "" {
@@ -156,8 +162,8 @@ func (ja *JWTAuthenticator) ProvideJWT(user *User) (string, error) {
 		"roles": user.Roles,
 		"iat":   now.Unix(),
 	}
-	if ja.maxAge != 0 {
-		claims["exp"] = now.Add(ja.maxAge).Unix()
+	if ja.config != nil && ja.config.MaxAge != 0 {
+		claims["exp"] = now.Add(time.Duration(ja.config.MaxAge)).Unix()
 	}
 
 	return jwt.NewWithClaims(jwt.SigningMethodEdDSA, claims).SignedString(ja.privateKey)

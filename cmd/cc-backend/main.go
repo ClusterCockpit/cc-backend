@@ -73,13 +73,11 @@ type ProgramConfig struct {
 	DisableArchive bool `json:"disable-archive"`
 
 	// For LDAP Authentication and user synchronisation.
-	LdapConfig *auth.LdapConfig `json:"ldap"`
+	LdapConfig *auth.LdapConfig    `json:"ldap"`
+	JwtConfig  *auth.JWTAuthConfig `json:"jwts"`
 
-	// Specifies for how long a session or JWT shall be valid
-	// as a string parsable by time.ParseDuration().
 	// If 0 or empty, the session/token does not expire!
 	SessionMaxAge string `json:"session-max-age"`
-	JwtMaxAge     string `json:"jwt-max-age"`
 
 	// If both those options are not empty, use HTTPS using those certificates.
 	HttpsCertFile string `json:"https-cert-file"`
@@ -110,7 +108,6 @@ var programConfig ProgramConfig = ProgramConfig{
 	DisableArchive:        false,
 	LdapConfig:            nil,
 	SessionMaxAge:         "168h",
-	JwtMaxAge:             "0",
 	UiDefaults: map[string]interface{}{
 		"analysis_view_histogramMetrics":     []string{"flops_any", "mem_bw", "mem_used"},
 		"analysis_view_scatterPlotMetrics":   [][]string{{"flops_any", "mem_bw"}, {"flops_any", "cpu_load"}, {"cpu_load", "mem_bw"}},
@@ -190,20 +187,26 @@ func main() {
 
 	var authentication *auth.Authentication
 	if !programConfig.DisableAuthentication {
-		authentication = &auth.Authentication{}
-		if d, err := time.ParseDuration(programConfig.SessionMaxAge); err != nil {
-			authentication.SessionMaxAge = d
-		}
-		if d, err := time.ParseDuration(programConfig.JwtMaxAge); err != nil {
-			authentication.JwtMaxAge = d
-		}
-
-		if err := authentication.Init(db.DB, programConfig.LdapConfig); err != nil {
+		if authentication, err = auth.Init(db.DB, map[string]interface{}{
+			"ldap": programConfig.LdapConfig,
+			"jwt":  programConfig.JwtConfig,
+		}); err != nil {
 			log.Fatal(err)
 		}
 
+		if d, err := time.ParseDuration(programConfig.SessionMaxAge); err != nil {
+			authentication.SessionMaxAge = d
+		}
+
 		if flagNewUser != "" {
-			if err := authentication.AddUser(flagNewUser); err != nil {
+			parts := strings.SplitN(flagNewUser, ":", 3)
+			if len(parts) != 3 || len(parts[0]) == 0 {
+				log.Fatal("invalid argument format for user creation")
+			}
+
+			if err := authentication.AddUser(&auth.User{
+				Username: parts[0], Password: parts[2], Roles: strings.Split(parts[1], ","),
+			}); err != nil {
 				log.Fatal(err)
 			}
 		}
@@ -214,13 +217,17 @@ func main() {
 		}
 
 		if flagSyncLDAP {
-			if err := authentication.SyncWithLDAP(true); err != nil {
+			if authentication.LdapAuth == nil {
+				log.Fatal("cannot sync: LDAP authentication is not configured")
+			}
+
+			if err := authentication.LdapAuth.Sync(); err != nil {
 				log.Fatal(err)
 			}
 		}
 
 		if flagGenJWT != "" {
-			user, err := authentication.FetchUser(flagGenJWT)
+			user, err := authentication.GetUser(flagGenJWT)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -229,7 +236,7 @@ func main() {
 				log.Warn("that user does not have the API role")
 			}
 
-			jwt, err := authentication.ProvideJWT(user)
+			jwt, err := authentication.JwtAuth.ProvideJWT(user)
 			if err != nil {
 				log.Fatal(err)
 			}

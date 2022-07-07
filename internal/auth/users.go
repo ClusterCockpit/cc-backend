@@ -1,4 +1,4 @@
-package authv2
+package auth
 
 import (
 	"context"

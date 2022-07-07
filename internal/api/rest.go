@@ -497,13 +497,13 @@ func (api *RestApi) getJWT(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	user, err := api.Authentication.FetchUser(username)
+	user, err := api.Authentication.GetUser(username)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
 
-	jwt, err := api.Authentication.ProvideJWT(user)
+	jwt, err := api.Authentication.JwtAuth.ProvideJWT(user)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 		return
@@ -527,7 +527,12 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := api.Authentication.CreateUser(username, name, password, email, []string{role}); err != nil {
+	if err := api.Authentication.AddUser(&auth.User{
+		Username: username,
+		Name:     name,
+		Password: password,
+		Email:    email,
+		Roles:    []string{role}}); err != nil {
 		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
@@ -556,9 +561,7 @@ func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	users, err := api.Authentication.FetchUsers(
-		r.URL.Query().Get("via-ldap") == "true",
-		r.URL.Query().Get("not-just-user") == "true")
+	users, err := api.Authentication.ListUsers(r.URL.Query().Get("not-just-user") == "true")
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return

@@ -1,7 +1,6 @@
-package authv2
+package auth
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -14,7 +13,7 @@ type LocalAuthenticator struct {
 
 var _ Authenticator = (*LocalAuthenticator)(nil)
 
-func (la *LocalAuthenticator) Init(auth *Authentication, rawConfig json.RawMessage) error {
+func (la *LocalAuthenticator) Init(auth *Authentication, _ interface{}) error {
 	la.auth = auth
 	return nil
 }
