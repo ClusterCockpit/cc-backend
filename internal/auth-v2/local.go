@@ -23,12 +23,12 @@ func (la *LocalAuthenticator) CanLogin(user *User, rw http.ResponseWriter, r *ht
 	return user.AuthSource == AuthViaLocalPassword
 }
 
-func (la *LocalAuthenticator) Login(user *User, password string, rw http.ResponseWriter, r *http.Request) error {
+func (la *LocalAuthenticator) Login(user *User, password string, rw http.ResponseWriter, r *http.Request) (*User, error) {
 	if e := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); e != nil {
-		return fmt.Errorf("user '%s' provided the wrong password (%s)", user.Username, e.Error())
+		return nil, fmt.Errorf("user '%s' provided the wrong password (%w)", user.Username, e)
 	}
 
-	return nil
+	return user, nil
 }
 
 func (la *LocalAuthenticator) Auth(rw http.ResponseWriter, r *http.Request) (*User, error) {

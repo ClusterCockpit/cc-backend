@@ -70,19 +70,19 @@ func (la *LdapAutnenticator) CanLogin(user *User, rw http.ResponseWriter, r *htt
 	return user.AuthSource == AuthViaLDAP
 }
 
-func (la *LdapAutnenticator) Login(user *User, password string, rw http.ResponseWriter, r *http.Request) error {
+func (la *LdapAutnenticator) Login(user *User, password string, rw http.ResponseWriter, r *http.Request) (*User, error) {
 	l, err := la.getLdapConnection(false)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer l.Close()
 
 	userDn := strings.Replace(la.config.UserBind, "{username}", user.Username, -1)
 	if err := l.Bind(userDn, password); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return user, nil
 }
 
 func (la *LdapAutnenticator) Auth(rw http.ResponseWriter, r *http.Request) (*User, error) {

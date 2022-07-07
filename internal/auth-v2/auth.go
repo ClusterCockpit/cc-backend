@@ -1,8 +1,10 @@
 package authv2
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	sq "github.com/Masterminds/squirrel"
@@ -29,6 +31,7 @@ type User struct {
 	Roles      []string `json:"roles"`
 	AuthSource int8     `json:"via"`
 	Email      string   `json:"email"`
+	Expiration time.Time
 }
 
 func (u *User) HasRole(role string) bool {
@@ -43,7 +46,7 @@ func (u *User) HasRole(role string) bool {
 type Authenticator interface {
 	Init(auth *Authentication, config json.RawMessage) error
 	CanLogin(user *User, rw http.ResponseWriter, r *http.Request) bool
-	Login(user *User, password string, rw http.ResponseWriter, r *http.Request) error
+	Login(user *User, password string, rw http.ResponseWriter, r *http.Request) (*User, error)
 	Auth(rw http.ResponseWriter, r *http.Request) (*User, error)
 }
 
@@ -75,7 +78,28 @@ func Init(db *sqlx.DB) (*Authentication, error) {
 	return auth, nil
 }
 
-func (auth *Authentication) RegisterUser(user *User) error {
+func (auth *Authentication) GetUser(username string) (*User, error) {
+	user := &User{Username: username}
+	var hashedPassword, name, rawRoles, email sql.NullString
+	if err := sq.Select("password", "ldap", "name", "roles", "email").From("user").
+		Where("user.username = ?", username).RunWith(auth.db).
+		QueryRow().Scan(&hashedPassword, &user.AuthSource, &name, &rawRoles, &email); err != nil {
+		return nil, err
+	}
+
+	user.Password = hashedPassword.String
+	user.Name = name.String
+	user.Email = email.String
+	if rawRoles.Valid {
+		if err := json.Unmarshal([]byte(rawRoles.String), &user.Roles); err != nil {
+			return nil, err
+		}
+	}
+
+	return user, nil
+}
+
+func (auth *Authentication) AddUser(user *User) error {
 	rolesJson, _ := json.Marshal(user.Roles)
 	cols := []string{"username", "password", "roles"}
 	vals := []interface{}{user.Username, user.Password, string(rolesJson)}
