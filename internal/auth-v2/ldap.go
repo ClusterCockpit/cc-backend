@@ -67,10 +67,10 @@ func (la *LdapAutnenticator) Init(auth *Authentication, rawConfig json.RawMessag
 }
 
 func (la *LdapAutnenticator) CanLogin(user *User, rw http.ResponseWriter, r *http.Request) bool {
-	return user.AuthSource == AuthViaLDAP
+	return user != nil && user.AuthSource == AuthViaLDAP
 }
 
-func (la *LdapAutnenticator) Login(user *User, password string, rw http.ResponseWriter, r *http.Request) (*User, error) {
+func (la *LdapAutnenticator) Login(user *User, rw http.ResponseWriter, r *http.Request) (*User, error) {
 	l, err := la.getLdapConnection(false)
 	if err != nil {
 		return nil, err
@@ -78,7 +78,7 @@ func (la *LdapAutnenticator) Login(user *User, password string, rw http.Response
 	defer l.Close()
 
 	userDn := strings.Replace(la.config.UserBind, "{username}", user.Username, -1)
-	if err := l.Bind(userDn, password); err != nil {
+	if err := l.Bind(userDn, r.FormValue("password")); err != nil {
 		return nil, err
 	}
 
@@ -86,13 +86,7 @@ func (la *LdapAutnenticator) Login(user *User, password string, rw http.Response
 }
 
 func (la *LdapAutnenticator) Auth(rw http.ResponseWriter, r *http.Request) (*User, error) {
-	user, err := la.auth.AuthViaSession(rw, r)
-	if err != nil {
-		return nil, err
-	}
-
-	user.AuthSource = AuthViaLDAP
-	return user, nil
+	return la.auth.AuthViaSession(rw, r)
 }
 
 func (la *LdapAutnenticator) Sync() error {

@@ -2,7 +2,6 @@ package authv2
 
 import (
 	"crypto/ed25519"
-	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -48,10 +47,10 @@ func (ja *JWTAuthenticator) Init(auth *Authentication, rawConfig json.RawMessage
 }
 
 func (ja *JWTAuthenticator) CanLogin(user *User, rw http.ResponseWriter, r *http.Request) bool {
-	return user.AuthSource == AuthViaToken || r.Header.Get("Authorization") != ""
+	return (user != nil && user.AuthSource == AuthViaToken) || r.Header.Get("Authorization") != ""
 }
 
-func (ja *JWTAuthenticator) Login(_ *User, password string, rw http.ResponseWriter, r *http.Request) (*User, error) {
+func (ja *JWTAuthenticator) Login(user *User, rw http.ResponseWriter, r *http.Request) (*User, error) {
 	rawtoken := r.Header.Get("X-Auth-Token")
 	if rawtoken == "" {
 		rawtoken = r.Header.Get("Authorization")
@@ -84,14 +83,9 @@ func (ja *JWTAuthenticator) Login(_ *User, password string, rw http.ResponseWrit
 		}
 	}
 
-	user, err := ja.auth.GetUser(sub)
-	if err != nil && err != sql.ErrNoRows {
-		return nil, err
-	}
-
-	if err != nil && err == sql.ErrNoRows {
+	if user == nil {
 		user = &User{
-			Username:   user.Username,
+			Username:   sub,
 			Roles:      roles,
 			AuthSource: AuthViaToken,
 		}
@@ -114,13 +108,7 @@ func (ja *JWTAuthenticator) Auth(rw http.ResponseWriter, r *http.Request) (*User
 	// Because a user can also log in via a token, the
 	// session cookie must be checked here as well:
 	if rawtoken == "" {
-		user, err := ja.auth.AuthViaSession(rw, r)
-		if err != nil {
-			return nil, err
-		}
-
-		user.AuthSource = AuthViaToken
-		return user, nil
+		return ja.auth.AuthViaSession(rw, r)
 	}
 
 	token, err := jwt.Parse(rawtoken, func(t *jwt.Token) (interface{}, error) {
