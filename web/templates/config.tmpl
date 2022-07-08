@@ -49,6 +49,7 @@
         <div class="card-body">
             <h5 class="card-title">Special Users</h5>
             <p>Not created by an LDAP sync and/or having a role other than <code>user</code></p>
+            <!-- <p id="generated-jwt" style="font-weight: bold;"></p> -->
             <div style="width: 100%; max-height: 500px; overflow-y: scroll;">
                 <table class="table">
                     <thead>
@@ -91,7 +92,13 @@
                             let username = row.children[0].innerText
                             fetch(`/api/jwt/?username=${username}`)
                                 .then(res => res.text())
-                                .then(text => alert(text))
+                                .then(text => {
+                                    // let elm = document.querySelector('#generated-jwt')
+                                    // elm.innerText = `JWT: ${text}`
+                                    // elm.scrollIntoView()
+                                    event.target.parentElement.innerHTML = `<textarea rows="3" cols="20">${text}</textarea>`
+                                    navigator.clipboard.writeText(text).catch(reason => console.error(reason))
+                                })
                         }))
 
                         listElement.querySelectorAll('button.del-user').forEach(e => e.addEventListener('click', event => {
