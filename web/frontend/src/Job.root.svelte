@@ -31,25 +31,41 @@
     const ccconfig = getContext('cc-config'),
           clusters = getContext('clusters')
 
-    let isMetricsSelectionOpen = false, selectedMetrics = []
+    let isMetricsSelectionOpen = false, selectedMetrics = [], isFetched = new Set()
     const [jobMetrics, startFetching] = fetchMetricsStore()
     getContext('on-init')(() => {
         let job = $initq.data.job
         if (!job)
             return
 
-        startFetching(job, null, job.numNodes > 2 ? ["node"] : ["node", "core"])
-
-        // TODO: Do not even fetch metrics that are not one of the following: flops_any, mem_bw, job_view_selectedMetrics, job_view_nodestats_selectedMetrics
         selectedMetrics = ccconfig[`job_view_selectedMetrics:${job.cluster}`]
             || clusters.find(c => c.name == job.cluster).metricConfig.map(mc => mc.name)
 
+        let toFetch = new Set([
+            'flops_any', 'mem_bw',
+            ...selectedMetrics,
+            ...(ccconfig[`job_view_polarPlotMetrics:${job.cluster}`] || ccconfig[`job_view_polarPlotMetrics`]),
+            ...(ccconfig[`job_view_nodestats_selectedMetrics:${job.cluster}`] || ccconfig[`job_view_nodestats_selectedMetrics`])])
 
-        // selectedMetrics = ccconfig[`job_view_selectedMetrics:${job.cluster}`]
-        //     || clusters.find(c => c.name == job.cluster).metricConfig.map(mc => mc.name)
-
-        // let toFetch = new Set(['flops_any', 'mem_bw', ])
+        startFetching(job, [...toFetch], job.numNodes > 2 ? ["node"] : ["node", "core"])
+        isFetched = toFetch
     })
+
+    const lazyFetchMoreMetrics = () => {
+        let notYetFetched = new Set()
+        for (let m of selectedMetrics) {
+            if (!isFetched.has(m)) {
+                notYetFetched.add(m)
+                isFetched.add(m)
+            }
+        }
+
+        if (notYetFetched.size > 0)
+            startFetching($initq.data.job, [...notYetFetched], $initq.data.job.numNodes > 2 ? ["node"] : ["node", "core"])
+    }
+
+    // Fetch more data once required:
+    $: if ($initq.data && $jobMetrics.data && selectedMetrics) lazyFetchMoreMetrics();
 
     let plots = {}, jobTags, fullWidth, statsTable
     $: polarPlotSize = Math.min(fullWidth / 3 - 10, 300)
@@ -88,7 +104,7 @@
         <Col>
             <PolarPlot
                 width={polarPlotSize} height={polarPlotSize}
-                metrics={ccconfig[`job_view_polarPlotMetrics:${$initq.data.job.cluster}`] || ccconfig.job_view_polarPlotMetrics}
+                metrics={ccconfig[`job_view_polarPlotMetrics:${$initq.data.job.cluster}`] || ccconfig[`job_view_polarPlotMetrics`]}
                 cluster={$initq.data.job.cluster}
                 jobMetrics={$jobMetrics.data.jobMetrics} />
         </Col>

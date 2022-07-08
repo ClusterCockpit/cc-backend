@@ -49,6 +49,8 @@ All security relevant configuration. e.g., keys and passwords, are set using env
    - `plot_view_showStatTable`: Type bool. Option to toggle the node statistic table in single job view. Default `true`.
    - `system_view_selectedMetric`: Type string. Initial metric shown in system view. Default `cpu_load`.
 
+Some of the `ui-defaults` values can be appended by `:<clustername>` in order to have different settings depending on the current cluster. Those are notably `job_view_nodestats_selectedMetrics`, `job_view_polarPlotMetrics`, `job_view_selectedMetrics` and `plot_list_selectedMetrics`.
+
 ## Environment Variables
 
 An example env file is found in this directory. Copy it to `.env` in the project root and adapt it for your needs.

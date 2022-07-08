@@ -12,7 +12,7 @@
     export let padding = 10
 
     let tableWidth = 0
-    const PLACEHOLDER = { magic: 'object' }
+    const isPlaceholder = x => x._is_placeholder === true
 
     function tile(items, itemsPerRow) {
         const rows = []
@@ -22,7 +22,7 @@
                 if (ri + ci < items.length)
                     row.push(items[ri + ci])
                 else
-                    row.push(PLACEHOLDER)
+                    row.push({ _is_placeholder: true, ri, ci })
             }
 
             rows.push(row)
@@ -40,7 +40,7 @@
         <tr>
             {#each row as item (item)}
                 <td>
-                    {#if item != PLACEHOLDER && plotWidth > 0}
+                    {#if !isPlaceholder(item) && plotWidth > 0}
                         <slot item={item} width={plotWidth}></slot>
                     {/if}
                 </td>
