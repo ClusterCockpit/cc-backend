@@ -34,7 +34,8 @@
         }
 
         newMetricsOrder = [...allMetrics].filter(m => !metrics.includes(m))
-        newMetricsOrder.unshift(...metrics)
+        newMetricsOrder.unshift(...metrics.filter(m => allMetrics.has(m)))
+        unorderedMetrics = unorderedMetrics.filter(m => allMetrics.has(m))
     })
 
     const updateConfiguration = mutation({

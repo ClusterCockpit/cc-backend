@@ -43,12 +43,19 @@
         // TODO: Do not even fetch metrics that are not one of the following: flops_any, mem_bw, job_view_selectedMetrics, job_view_nodestats_selectedMetrics
         selectedMetrics = ccconfig[`job_view_selectedMetrics:${job.cluster}`]
             || clusters.find(c => c.name == job.cluster).metricConfig.map(mc => mc.name)
+
+
+        // selectedMetrics = ccconfig[`job_view_selectedMetrics:${job.cluster}`]
+        //     || clusters.find(c => c.name == job.cluster).metricConfig.map(mc => mc.name)
+
+        // let toFetch = new Set(['flops_any', 'mem_bw', ])
     })
 
     let plots = {}, jobTags, fullWidth, statsTable
     $: polarPlotSize = Math.min(fullWidth / 3 - 10, 300)
     $: document.title = $initq.fetching ? 'Loading...' : ($initq.error ? 'Error' : `Job ${$initq.data.job.jobId} - ClusterCockpit`)
 
+    // Find out what metrics or hosts are missing:
     let missingMetrics = [], missingHosts = [], somethingMissing = false
     $: if ($initq.data && $jobMetrics.data) {
         let job = $initq.data.job,
@@ -81,7 +88,7 @@
         <Col>
             <PolarPlot
                 width={polarPlotSize} height={polarPlotSize}
-                metrics={ccconfig.job_view_polarPlotMetrics}
+                metrics={ccconfig[`job_view_polarPlotMetrics:${$initq.data.job.cluster}`] || ccconfig.job_view_polarPlotMetrics}
                 cluster={$initq.data.job.cluster}
                 jobMetrics={$jobMetrics.data.jobMetrics} />
         </Col>
@@ -179,7 +186,12 @@
             {/if}
             <TabPane tabId="stats" tab="Statistics Table" active={!somethingMissing}>
                 {#if $jobMetrics.data}
-                    <StatsTable bind:this={statsTable} job={$initq.data.job} jobMetrics={$jobMetrics.data.jobMetrics} />
+                    {#key $jobMetrics.data}
+                        <StatsTable
+                            bind:this={statsTable}
+                            job={$initq.data.job}
+                            jobMetrics={$jobMetrics.data.jobMetrics} />
+                    {/key}
                 {/if}
             </TabPane>
             <TabPane tabId="job-script" tab="Job Script">

@@ -17,7 +17,8 @@
         selectedScopes = {},
         sorting = {},
         isMetricSelectionOpen = false,
-        selectedMetrics = getContext('cc-config').job_view_nodestats_selectedMetrics
+        selectedMetrics = getContext('cc-config')[`job_view_nodestats_selectedMetrics:${job.cluster}`]
+            || getContext('cc-config')['job_view_nodestats_selectedMetrics']
 
     for (let metric of allMetrics) {
         selectedScopes[metric] = maxScope(scopesForMetric(metric))
@@ -116,7 +117,8 @@
 <br/>
 
 <MetricSelection
+    cluster={job.cluster}
     configName='job_view_nodestats_selectedMetrics'
-    allMetrics={allMetrics}
+    allMetrics={new Set(allMetrics)}
     bind:metrics={selectedMetrics}
     bind:isOpen={isMetricSelectionOpen} />

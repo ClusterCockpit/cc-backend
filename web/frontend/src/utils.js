@@ -250,13 +250,17 @@ export async function fetchMetrics(job, metrics, scopes) {
 
 export function fetchMetricsStore() {
     let set = null
+    let prev = { fetching: true, error: null, data: null }
     return [
-        readable({ fetching: true, error: null, data: null }, (_set) => { set = _set }),
-        (job, metrics, scopes) => fetchMetrics(job, metrics, scopes).then(res => set({
-            fetching: false,
-            error: res.error,
-            data: res.data
-        }))
+        readable(prev, (_set) => { set = _set }),
+        (job, metrics, scopes) => fetchMetrics(job, metrics, scopes).then(res => {
+            let next = { fetching: false, error: res.error, data: res.data }
+            if (prev.data && next.data)
+                next.data.jobMetrics.push(...prev.data.jobMetrics)
+
+            prev = next
+            set(next)
+        })
     ]
 }
 
