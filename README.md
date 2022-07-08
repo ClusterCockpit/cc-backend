@@ -32,7 +32,7 @@ You need `wget`, `go`, and `yarn` in your path to start the demo. The demo will 
 
 ```sh
 git clone git@github.com:ClusterCockpit/cc-backend.git
-
+cd ./cc-backend
 ./startDemo.sh
 ```
 You can access the web interface at http://localhost:8080.
@@ -88,6 +88,7 @@ Having no jobs in the job-archive at all is fine.
 ### Configuration
 
 A config file in the JSON format can be provided using `--config` to override the defaults.
+By default, if there is a `config.json` file in the current directory of the `cc-backend` process, it will be loaded even without the `--config` flag.
 You find documentation of all supported configuration and command line options [here](./configs.README.md).
 
 ### Update GraphQL schema

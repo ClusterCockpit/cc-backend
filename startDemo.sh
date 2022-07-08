@@ -13,8 +13,8 @@ yarn install
 yarn build
 
 cd ../..
+# Use your own keys in production!
 cp ./configs/env-template.txt .env
-go get
 go build ./cmd/cc-backend
 
 ./cc-backend --init-db --add-user demo:admin:AdminDev

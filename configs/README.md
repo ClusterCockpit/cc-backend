@@ -6,6 +6,7 @@ config file location using the command line option `--config <filepath>`.
 All security relevant configuration. e.g., keys and passwords, are set using environment variables. It is supported to specify these by means of an `.env` file located in the project root.
 
 ## Configuration Options
+
 * `addr`: Type string.  Address where the http (or https) server will listen on (for example: 'localhost:80'). Default `:8080`.
 * `user`: Type string. Drop root permissions once .env was read and the port was taken. Only applicable if using privileged port.
 * `group`: Type string.  Drop root permissions once .env was read and the port was taken. Only applicable if using privileged port.
@@ -52,6 +53,7 @@ All security relevant configuration. e.g., keys and passwords, are set using env
 
 An example env file is found in this directory. Copy it to `.env` in the project root and adapt it for your needs.
 
-* `JWT_PUBLIC_KEY` and `JWT_PRIVATE_KEY`:  Base64 encoded Ed25519 keys used for JSON Web Token (JWT) authentication . TODO: Details! You can generate your own keypair using `go run utils/gen-keypair.go`
+* `JWT_PUBLIC_KEY` and `JWT_PRIVATE_KEY`:  Base64 encoded Ed25519 keys used for JSON Web Token (JWT) authentication. You must generate your own keypair using `go run tools/gen-keypair.go`. Next to the `gen-keypair.go` utility, you will find a README with more information about how to use these keys and where to put tokens.
 * `SESSION_KEY`: Some random bytes used as secret for cookie-based sessions.
 * `LDAP_ADMIN_PASSWORD`: The LDAP admin user password (optional).
+* `LOGLEVEL`: Can be `err`, `warn`, `info` or `debug` (optional, `debug` by default). Can be used to reduce logging.
