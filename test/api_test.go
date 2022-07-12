@@ -305,4 +305,80 @@ func TestRestApi(t *testing.T) {
 			t.Fatal(response.Status, recorder.Body.String())
 		}
 	})
+
+	t.Run("FailedJob", func(t *testing.T) {
+		subtestLetJobFail(t, restapi, r)
+	})
+}
+
+func subtestLetJobFail(t *testing.T, restapi *api.RestApi, r *mux.Router) {
+	const startJobBody string = `{
+		"jobId":            12345,
+    	"user":             "testuser",
+    	"project":          "testproj",
+    	"cluster":          "testcluster",
+    	"partition":        "default",
+		"walltime":         3600,
+    	"arrayJobId":       0,
+    	"numNodes":         1,
+    	"numAcc":           0,
+    	"exclusive":        1,
+    	"monitoringStatus": 1,
+    	"smt":              1,
+    	"tags":             [],
+    	"resources": [
+        	{
+            	"hostname": "host123"
+        	}
+    	],
+    	"metaData":  {},
+    	"startTime": 12345678
+	}`
+
+	ok := t.Run("StartJob", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/jobs/start_job/", bytes.NewBuffer([]byte(startJobBody)))
+		recorder := httptest.NewRecorder()
+
+		r.ServeHTTP(recorder, req)
+		response := recorder.Result()
+		if response.StatusCode != http.StatusCreated {
+			t.Fatal(response.Status, recorder.Body.String())
+		}
+	})
+	if !ok {
+		t.Fatal("subtest failed")
+	}
+
+	const stopJobBody string = `{
+		"jobId":     12345,
+		"cluster":   "testcluster",
+
+		"jobState": "failed",
+		"stopTime": 12355678
+	}`
+
+	ok = t.Run("StopJob", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/jobs/stop_job/", bytes.NewBuffer([]byte(stopJobBody)))
+		recorder := httptest.NewRecorder()
+
+		r.ServeHTTP(recorder, req)
+		response := recorder.Result()
+		if response.StatusCode != http.StatusOK {
+			t.Fatal(response.Status, recorder.Body.String())
+		}
+
+		restapi.OngoingArchivings.Wait()
+		jobid, cluster := int64(12345), "testcluster"
+		job, err := restapi.JobRepository.Find(&jobid, &cluster, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if job.State != schema.JobStateCompleted {
+			t.Fatal("expected job to be completed")
+		}
+	})
+	if !ok {
+		t.Fatal("subtest failed")
+	}
 }
