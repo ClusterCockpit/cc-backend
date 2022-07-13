@@ -20,9 +20,10 @@ type JWTAuthConfig struct {
 }
 
 type JWTAuthenticator struct {
-	auth       *Authentication
-	publicKey  ed25519.PublicKey
-	privateKey ed25519.PrivateKey
+	auth           *Authentication
+	publicKey      ed25519.PublicKey
+	loginPublicKey ed25519.PublicKey
+	privateKey     ed25519.PrivateKey
 
 	config *JWTAuthConfig
 }
@@ -42,11 +43,20 @@ func (ja *JWTAuthenticator) Init(auth *Authentication, conf interface{}) error {
 			return err
 		}
 		ja.publicKey = ed25519.PublicKey(bytes)
+		ja.loginPublicKey = ja.publicKey
 		bytes, err = base64.StdEncoding.DecodeString(privKey)
 		if err != nil {
 			return err
 		}
 		ja.privateKey = ed25519.PrivateKey(bytes)
+	}
+
+	if pubKey = os.Getenv("CROSS_LOGIN_JWT_PUBLIC_KEY"); pubKey != "" {
+		bytes, err := base64.StdEncoding.DecodeString(pubKey)
+		if err != nil {
+			return err
+		}
+		ja.loginPublicKey = bytes
 	}
 
 	return nil
