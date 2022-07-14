@@ -142,7 +142,8 @@
         hooks: {
             draw: [(u) => {
                 // Draw plot type label:
-                let text = `${scope}${plotSeries.length > 2 ? 's' : ''}${useStatsSeries ? ': min/avg/max' : ''}`
+                let text = `${scope}${plotSeries.length > 2 ? 's' : ''}${
+                    useStatsSeries ? ': min/avg/max' : (metricConfig != null && scope != metricConfig.scope ? ` (${metricConfig.aggregation})` : '')}`
                 u.ctx.save()
                 u.ctx.textAlign = 'start' // 'end'
                 u.ctx.fillStyle = 'black'
