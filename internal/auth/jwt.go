@@ -4,6 +4,7 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -20,10 +21,12 @@ type JWTAuthConfig struct {
 }
 
 type JWTAuthenticator struct {
-	auth           *Authentication
-	publicKey      ed25519.PublicKey
-	loginPublicKey ed25519.PublicKey
-	privateKey     ed25519.PrivateKey
+	auth *Authentication
+
+	publicKey  ed25519.PublicKey
+	privateKey ed25519.PrivateKey
+
+	loginTokenKey []byte // HS256 key
 
 	config *JWTAuthConfig
 }
@@ -43,7 +46,6 @@ func (ja *JWTAuthenticator) Init(auth *Authentication, conf interface{}) error {
 			return err
 		}
 		ja.publicKey = ed25519.PublicKey(bytes)
-		ja.loginPublicKey = ja.publicKey
 		bytes, err = base64.StdEncoding.DecodeString(privKey)
 		if err != nil {
 			return err
@@ -51,12 +53,12 @@ func (ja *JWTAuthenticator) Init(auth *Authentication, conf interface{}) error {
 		ja.privateKey = ed25519.PrivateKey(bytes)
 	}
 
-	if pubKey = os.Getenv("CROSS_LOGIN_JWT_PUBLIC_KEY"); pubKey != "" {
+	if pubKey = os.Getenv("CROSS_LOGIN_JWT_HS512_KEY"); pubKey != "" {
 		bytes, err := base64.StdEncoding.DecodeString(pubKey)
 		if err != nil {
 			return err
 		}
-		ja.loginPublicKey = bytes
+		ja.loginTokenKey = bytes
 	}
 
 	return nil
@@ -74,10 +76,13 @@ func (ja *JWTAuthenticator) Login(user *User, rw http.ResponseWriter, r *http.Re
 	}
 
 	token, err := jwt.Parse(rawtoken, func(t *jwt.Token) (interface{}, error) {
-		if t.Method != jwt.SigningMethodEdDSA {
-			return nil, errors.New("only Ed25519/EdDSA supported")
+		if t.Method == jwt.SigningMethodEdDSA {
+			return ja.publicKey, nil
 		}
-		return ja.publicKey, nil
+		if t.Method == jwt.SigningMethodHS256 || t.Method == jwt.SigningMethodHS512 {
+			return ja.loginTokenKey, nil
+		}
+		return nil, fmt.Errorf("unkown signing method for login token: %s (known: HS256, HS512, EdDSA)", t.Method.Alg())
 	})
 	if err != nil {
 		return nil, err
