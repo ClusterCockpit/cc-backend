@@ -38,7 +38,7 @@ func (la *LdapAutnenticator) Init(auth *Authentication, conf interface{}) error 
 		log.Warn("environment variable 'LDAP_ADMIN_PASSWORD' not set (ldap sync will not work)")
 	}
 
-	if la.config.SyncInterval != "" {
+	if la.config != nil && la.config.SyncInterval != "" {
 		interval, err := time.ParseDuration(la.config.SyncInterval)
 		if err != nil {
 			return err
