@@ -224,6 +224,7 @@ func main() {
 			if err := authentication.LdapAuth.Sync(); err != nil {
 				log.Fatal(err)
 			}
+			log.Info("LDAP sync successfull")
 		}
 
 		if flagGenJWT != "" {

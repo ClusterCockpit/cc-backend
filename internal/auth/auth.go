@@ -2,7 +2,11 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"errors"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
@@ -85,6 +89,22 @@ func Init(db *sqlx.DB, configs map[string]interface{}) (*Authentication, error) 
 		email    varchar(255) DEFAULT NULL);`)
 	if err != nil {
 		return nil, err
+	}
+
+	sessKey := os.Getenv("SESSION_KEY")
+	if sessKey == "" {
+		log.Warn("environment variable 'SESSION_KEY' not set (will use non-persistent random key)")
+		bytes := make([]byte, 32)
+		if _, err := rand.Read(bytes); err != nil {
+			return nil, err
+		}
+		auth.sessionStore = sessions.NewCookieStore(bytes)
+	} else {
+		bytes, err := base64.StdEncoding.DecodeString(sessKey)
+		if err != nil {
+			return nil, err
+		}
+		auth.sessionStore = sessions.NewCookieStore(bytes)
 	}
 
 	auth.LocalAuth = &LocalAuthenticator{}
@@ -174,6 +194,7 @@ func (auth *Authentication) Login(onsuccess http.Handler, onfailure func(rw http
 			log.Infof("login successfull: user: %#v (roles: %v)", user.Username, user.Roles)
 			ctx := context.WithValue(r.Context(), ContextUserKey, user)
 			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+			return
 		}
 
 		log.Warn("login failed: no authenticator applied")
@@ -199,10 +220,12 @@ func (auth *Authentication) Auth(onsuccess http.Handler, onfailure func(rw http.
 
 			ctx := context.WithValue(r.Context(), ContextUserKey, user)
 			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+			return
 		}
 
 		log.Warnf("authentication failed: %s", "no authenticator applied")
-		http.Error(rw, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		// http.Error(rw, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		onfailure(rw, r, errors.New("unauthorized (login first or use a token)"))
 	})
 }
 

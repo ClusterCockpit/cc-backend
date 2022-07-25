@@ -123,7 +123,7 @@ func (ja *JWTAuthenticator) Auth(rw http.ResponseWriter, r *http.Request) (*User
 	rawtoken := r.Header.Get("X-Auth-Token")
 	if rawtoken == "" {
 		rawtoken = r.Header.Get("Authorization")
-		rawtoken = strings.TrimPrefix("Bearer ", rawtoken)
+		rawtoken = strings.TrimPrefix(rawtoken, "Bearer ")
 	}
 
 	// Because a user can also log in via a token, the
