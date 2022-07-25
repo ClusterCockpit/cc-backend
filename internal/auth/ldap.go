@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -20,14 +21,25 @@ type LdapConfig struct {
 	SyncDelOldUsers bool   `json:"sync_del_old_users"`
 }
 
-func (auth *Authentication) initLdap() error {
-	auth.ldapSyncUserPassword = os.Getenv("LDAP_ADMIN_PASSWORD")
-	if auth.ldapSyncUserPassword == "" {
-		log.Warn("environment variable 'LDAP_ADMIN_PASSWORD' not set (ldap sync or authentication will not work)")
+type LdapAutnenticator struct {
+	auth         *Authentication
+	config       *LdapConfig
+	syncPassword string
+}
+
+var _ Authenticator = (*LdapAutnenticator)(nil)
+
+func (la *LdapAutnenticator) Init(auth *Authentication, conf interface{}) error {
+	la.auth = auth
+	la.config = conf.(*LdapConfig)
+
+	la.syncPassword = os.Getenv("LDAP_ADMIN_PASSWORD")
+	if la.syncPassword == "" {
+		log.Warn("environment variable 'LDAP_ADMIN_PASSWORD' not set (ldap sync will not work)")
 	}
 
-	if auth.ldapConfig.SyncInterval != "" {
-		interval, err := time.ParseDuration(auth.ldapConfig.SyncInterval)
+	if la.config.SyncInterval != "" {
+		interval, err := time.ParseDuration(la.config.SyncInterval)
 		if err != nil {
 			return err
 		}
@@ -40,7 +52,7 @@ func (auth *Authentication) initLdap() error {
 			ticker := time.NewTicker(interval)
 			for t := range ticker.C {
 				log.Printf("LDAP sync started at %s", t.Format(time.RFC3339))
-				if err := auth.SyncWithLDAP(auth.ldapConfig.SyncDelOldUsers); err != nil {
+				if err := la.Sync(); err != nil {
 					log.Errorf("LDAP sync failed: %s", err.Error())
 				}
 				log.Print("LDAP sync done")
@@ -51,53 +63,36 @@ func (auth *Authentication) initLdap() error {
 	return nil
 }
 
-// TODO: Add a connection pool or something like
-// that so that connections can be reused/cached.
-func (auth *Authentication) getLdapConnection(admin bool) (*ldap.Conn, error) {
-	conn, err := ldap.DialURL(auth.ldapConfig.Url)
+func (la *LdapAutnenticator) CanLogin(user *User, rw http.ResponseWriter, r *http.Request) bool {
+	return user != nil && user.AuthSource == AuthViaLDAP
+}
+
+func (la *LdapAutnenticator) Login(user *User, rw http.ResponseWriter, r *http.Request) (*User, error) {
+	l, err := la.getLdapConnection(false)
 	if err != nil {
 		return nil, err
 	}
-
-	if admin {
-		if err := conn.Bind(auth.ldapConfig.SearchDN, auth.ldapSyncUserPassword); err != nil {
-			conn.Close()
-			return nil, err
-		}
-	}
-
-	return conn, nil
-}
-
-func (auth *Authentication) loginViaLdap(user *User, password string) error {
-	l, err := auth.getLdapConnection(false)
-	if err != nil {
-		return err
-	}
 	defer l.Close()
 
-	userDn := strings.Replace(auth.ldapConfig.UserBind, "{username}", user.Username, -1)
-	if err := l.Bind(userDn, password); err != nil {
-		return err
+	userDn := strings.Replace(la.config.UserBind, "{username}", user.Username, -1)
+	if err := l.Bind(userDn, r.FormValue("password")); err != nil {
+		return nil, err
 	}
 
-	user.ViaLdap = true
-	return nil
+	return user, nil
 }
 
-// Delete users where user.ldap is 1 and that do not show up in the ldap search results.
-// Add users to the users table that are new in the ldap search results.
-func (auth *Authentication) SyncWithLDAP(deleteOldUsers bool) error {
-	if auth.ldapConfig == nil {
-		return errors.New("ldap not enabled")
-	}
+func (la *LdapAutnenticator) Auth(rw http.ResponseWriter, r *http.Request) (*User, error) {
+	return la.auth.AuthViaSession(rw, r)
+}
 
+func (la *LdapAutnenticator) Sync() error {
 	const IN_DB int = 1
 	const IN_LDAP int = 2
 	const IN_BOTH int = 3
 
 	users := map[string]int{}
-	rows, err := auth.db.Query(`SELECT username FROM user WHERE user.ldap = 1`)
+	rows, err := la.auth.db.Query(`SELECT username FROM user WHERE user.ldap = 1`)
 	if err != nil {
 		return err
 	}
@@ -111,15 +106,15 @@ func (auth *Authentication) SyncWithLDAP(deleteOldUsers bool) error {
 		users[username] = IN_DB
 	}
 
-	l, err := auth.getLdapConnection(true)
+	l, err := la.getLdapConnection(true)
 	if err != nil {
 		return err
 	}
 	defer l.Close()
 
 	ldapResults, err := l.Search(ldap.NewSearchRequest(
-		auth.ldapConfig.UserBase, ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		auth.ldapConfig.UserFilter, []string{"dn", "uid", "gecos"}, nil))
+		la.config.UserBase, ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+		la.config.UserFilter, []string{"dn", "uid", "gecos"}, nil))
 	if err != nil {
 		return err
 	}
@@ -141,15 +136,15 @@ func (auth *Authentication) SyncWithLDAP(deleteOldUsers bool) error {
 	}
 
 	for username, where := range users {
-		if where == IN_DB && deleteOldUsers {
+		if where == IN_DB && la.config.SyncDelOldUsers {
 			log.Debugf("ldap-sync: remove %#v (does not show up in LDAP anymore)", username)
-			if _, err := auth.db.Exec(`DELETE FROM user WHERE user.username = ?`, username); err != nil {
+			if _, err := la.auth.db.Exec(`DELETE FROM user WHERE user.username = ?`, username); err != nil {
 				return err
 			}
 		} else if where == IN_LDAP {
 			name := newnames[username]
 			log.Debugf("ldap-sync: add %#v (name: %#v, roles: [user], ldap: true)", username, name)
-			if _, err := auth.db.Exec(`INSERT INTO user (username, ldap, name, roles) VALUES (?, ?, ?, ?)`,
+			if _, err := la.auth.db.Exec(`INSERT INTO user (username, ldap, name, roles) VALUES (?, ?, ?, ?)`,
 				username, 1, name, "[\""+RoleUser+"\"]"); err != nil {
 				return err
 			}
@@ -157,4 +152,22 @@ func (auth *Authentication) SyncWithLDAP(deleteOldUsers bool) error {
 	}
 
 	return nil
+}
+
+// TODO: Add a connection pool or something like
+// that so that connections can be reused/cached.
+func (la *LdapAutnenticator) getLdapConnection(admin bool) (*ldap.Conn, error) {
+	conn, err := ldap.DialURL(la.config.Url)
+	if err != nil {
+		return nil, err
+	}
+
+	if admin {
+		if err := conn.Bind(la.config.SearchDN, la.syncPassword); err != nil {
+			conn.Close()
+			return nil, err
+		}
+	}
+
+	return conn, nil
 }
