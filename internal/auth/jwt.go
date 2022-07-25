@@ -65,14 +65,17 @@ func (ja *JWTAuthenticator) Init(auth *Authentication, conf interface{}) error {
 }
 
 func (ja *JWTAuthenticator) CanLogin(user *User, rw http.ResponseWriter, r *http.Request) bool {
-	return (user != nil && user.AuthSource == AuthViaToken) || r.Header.Get("Authorization") != ""
+	return (user != nil && user.AuthSource == AuthViaToken) || r.Header.Get("Authorization") != "" || r.URL.Query().Get("login-token") != ""
 }
 
 func (ja *JWTAuthenticator) Login(user *User, rw http.ResponseWriter, r *http.Request) (*User, error) {
 	rawtoken := r.Header.Get("X-Auth-Token")
 	if rawtoken == "" {
 		rawtoken = r.Header.Get("Authorization")
-		rawtoken = strings.TrimPrefix("Bearer ", rawtoken)
+		rawtoken = strings.TrimPrefix(rawtoken, "Bearer ")
+		if rawtoken == "" {
+			rawtoken = r.URL.Query().Get("login-token")
+		}
 	}
 
 	token, err := jwt.Parse(rawtoken, func(t *jwt.Token) (interface{}, error) {

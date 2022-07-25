@@ -152,7 +152,7 @@ func (auth *Authentication) AuthViaSession(rw http.ResponseWriter, r *http.Reque
 // Handle a POST request that should log the user in, starting a new session.
 func (auth *Authentication) Login(onsuccess http.Handler, onfailure func(rw http.ResponseWriter, r *http.Request, loginErr error)) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		var err error
+		var err error = errors.New("no authenticator applied")
 		username := r.FormValue("username")
 		user := (*User)(nil)
 		if username != "" {
