@@ -38,13 +38,8 @@ func (auth *Authentication) GetUser(username string) (*User, error) {
 func (auth *Authentication) AddUser(user *User) error {
 	rolesJson, _ := json.Marshal(user.Roles)
 
-	password, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return err
-	}
-
-	cols := []string{"username", "password", "roles"}
-	vals := []interface{}{user.Username, string(password), string(rolesJson)}
+	cols := []string{"username", "roles"}
+	vals := []interface{}{user.Username, string(rolesJson)}
 	if user.Name != "" {
 		cols = append(cols, "name")
 		vals = append(vals, user.Name)
@@ -52,6 +47,14 @@ func (auth *Authentication) AddUser(user *User) error {
 	if user.Email != "" {
 		cols = append(cols, "email")
 		vals = append(vals, user.Email)
+	}
+	if user.Password != "" {
+		password, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+		cols = append(cols, "password")
+		vals = append(vals, string(password))
 	}
 
 	if _, err := sq.Insert("user").Columns(cols...).Values(vals...).RunWith(auth.db).Exec(); err != nil {

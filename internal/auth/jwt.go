@@ -2,6 +2,7 @@ package auth
 
 import (
 	"crypto/ed25519"
+	"database/sql"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -106,15 +107,23 @@ func (ja *JWTAuthenticator) Login(user *User, rw http.ResponseWriter, r *http.Re
 			}
 		}
 	}
+	if rawrole, ok := claims["roles"].(string); ok {
+		roles = append(roles, rawrole)
+	}
 
 	if user == nil {
-		user = &User{
-			Username:   sub,
-			Roles:      roles,
-			AuthSource: AuthViaToken,
-		}
-		if err := ja.auth.AddUser(user); err != nil {
+		user, err = ja.auth.GetUser(sub)
+		if err != nil && err != sql.ErrNoRows {
 			return nil, err
+		} else if user == nil {
+			user = &User{
+				Username:   sub,
+				Roles:      roles,
+				AuthSource: AuthViaToken,
+			}
+			if err := ja.auth.AddUser(user); err != nil {
+				return nil, err
+			}
 		}
 	}
 
