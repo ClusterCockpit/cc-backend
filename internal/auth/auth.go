@@ -157,7 +157,8 @@ func (auth *Authentication) Login(onsuccess http.Handler, onfailure func(rw http
 		user := (*User)(nil)
 		if username != "" {
 			if user, _ = auth.GetUser(username); err != nil {
-				log.Warnf("login of unkown user %#v", username)
+				// log.Warnf("login of unkown user %#v", username)
+				_ = err
 			}
 		}
 

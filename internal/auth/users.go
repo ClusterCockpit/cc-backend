@@ -11,6 +11,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func (auth *Authentication) GetUser(username string) (*User, error) {
@@ -36,8 +37,14 @@ func (auth *Authentication) GetUser(username string) (*User, error) {
 
 func (auth *Authentication) AddUser(user *User) error {
 	rolesJson, _ := json.Marshal(user.Roles)
+
+	password, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
 	cols := []string{"username", "password", "roles"}
-	vals := []interface{}{user.Username, user.Password, string(rolesJson)}
+	vals := []interface{}{user.Username, string(password), string(rolesJson)}
 	if user.Name != "" {
 		cols = append(cols, "name")
 		vals = append(vals, user.Name)
