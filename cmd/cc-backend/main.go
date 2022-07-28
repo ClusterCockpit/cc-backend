@@ -399,7 +399,8 @@ func main() {
 	r.Use(handlers.CompressHandler)
 	r.Use(handlers.RecoveryHandler(handlers.PrintRecoveryStack(true)))
 	r.Use(handlers.CORS(
-		handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}),
+		handlers.AllowCredentials(),
+		handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization", "Origin"}),
 		handlers.AllowedMethods([]string{"GET", "POST", "HEAD", "OPTIONS"}),
 		handlers.AllowedOrigins([]string{"*"})))
 	handler := handlers.CustomLoggingHandler(io.Discard, r, func(_ io.Writer, params handlers.LogFormatterParams) {

@@ -239,7 +239,7 @@ func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []
 }
 
 var (
-	hwthreadString     = string("cpu") // TODO/FIXME: inconsistency between cc-metric-collector and ClusterCockpit
+	hwthreadString     = string(schema.MetricScopeHWThread)
 	coreString         = string(schema.MetricScopeCore)
 	memoryDomainString = string(schema.MetricScopeMemoryDomain)
 	socketString       = string(schema.MetricScopeSocket)
@@ -266,6 +266,10 @@ func (ccms *CCMetricStore) buildQueries(job *schema.Job, metrics []string, scope
 	scopesLoop:
 		for _, requestedScope := range scopes {
 			nativeScope := mc.Scope
+			if nativeScope == schema.MetricScopeAccelerator && job.NumAcc == 0 {
+				continue
+			}
+
 			scope := nativeScope.Max(requestedScope)
 			for _, s := range handledScopes {
 				if scope == s {
