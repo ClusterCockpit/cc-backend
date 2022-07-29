@@ -1,7 +1,5 @@
 # In-Memory LRU Cache for Golang Applications
 
-[![](https://pkg.go.dev/badge/github.com/iamlouk/lrucache?utm_source=godoc)](https://pkg.go.dev/github.com/iamlouk/lrucache)
-
 This library can be embedded into your existing go applications
 and play the role *Memcached* or *Redis* might play for others.
 It is inspired by [PHP Symfony's Cache Components](https://symfony.com/doc/current/components/cache/adapters/array_cache_adapter.html),
