@@ -1,8 +1,7 @@
-// Provides a simple way of logging with different levels.
-// Time/Data are not logged on purpose because systemd adds
-// them for us.
-//
-// Uses these prefixes: https://www.freedesktop.org/software/systemd/man/sd-daemon.html
+// Copyright (C) 2022 NHR@FAU, University Erlangen-Nuremberg.
+// All rights reserved.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
 package log
 
 import (
@@ -11,6 +10,12 @@ import (
 	"log"
 	"os"
 )
+
+// Provides a simple way of logging with different levels.
+// Time/Data are not logged on purpose because systemd adds
+// them for us.
+//
+// Uses these prefixes: https://www.freedesktop.org/software/systemd/man/sd-daemon.html
 
 var (
 	DebugWriter io.Writer = os.Stderr
