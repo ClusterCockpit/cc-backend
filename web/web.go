@@ -55,6 +55,7 @@ func init() {
 type User struct {
 	Username string // Username of the currently logged in user
 	IsAdmin  bool
+	IsSupporter bool
 }
 
 type Page struct {
