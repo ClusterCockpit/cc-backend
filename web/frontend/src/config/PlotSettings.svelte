@@ -28,7 +28,9 @@
               let text = await res.text()
               popMessage(text, target, '#048109')
           } else {
-              throw new Error('Response Code ' + res.status + '-> ' + res.statusText);
+              let text = await res.text()
+              // console.log(res.statusText)
+              throw new Error('Response Code ' + res.status + '-> ' + text)
           }
       } catch (err)  {
           popMessage(err, target, '#d63384')
