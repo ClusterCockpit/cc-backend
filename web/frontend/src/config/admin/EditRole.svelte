@@ -81,7 +81,7 @@
 
 <Card>
     <CardBody>
-        <CardTitle class="mb-3">Add Role to User</CardTitle>
+        <CardTitle class="mb-3">Edit User Roles</CardTitle>
         <div class="input-group mb-3">
             <input type="text" class="form-control" placeholder="username" id="role-username"/>
             <select class="form-select" id="role-select">
