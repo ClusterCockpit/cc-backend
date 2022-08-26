@@ -129,7 +129,7 @@
 <Row cols={1} class="p-2 g-2">
     <!-- COLORSCHEME -->
     <Col><Card>
-        <form id="colorscheme-form" method="post" action="/api/configuration/" class="card-body" on:submit|preventDefault={() => handleSettingSubmit("#colorscheme-form", "cs")}>
+        <form id="colorscheme-form" method="post" action="/api/configuration/" class="card-body">
             <!-- Svelte 'class' directive only on DOMs directly, normal 'class="xxx"' does not work, so style-array it is. -->
             <CardTitle style="margin-bottom: 1em; display: flex; align-items: center;">
                 <div>Color Scheme for Timeseries Plots</div>
@@ -143,9 +143,9 @@
                         <th scope="col">{name}</th>
                         <td>
                             {#if rgbrow.join(',') == config.plot_general_colorscheme}
-                                <input type="radio" name="value" value={JSON.stringify(rgbrow)} checked/>
+                                <input type="radio" name="value" value={JSON.stringify(rgbrow)} checked on:click={() => handleSettingSubmit("#colorscheme-form", "cs")}/>
                             {:else}
-                                <input type="radio" name="value" value={JSON.stringify(rgbrow)}/>
+                                <input type="radio" name="value" value={JSON.stringify(rgbrow)} on:click={() => handleSettingSubmit("#colorscheme-form", "cs")}/>
                             {/if}
                         </td>
                         <td>
@@ -157,7 +157,6 @@
                 {/each}
                 </tbody>
             </Table>
-            <Button color="primary" type="submit">Submit</Button>
         </form>
     </Card></Col>
 </Row>
