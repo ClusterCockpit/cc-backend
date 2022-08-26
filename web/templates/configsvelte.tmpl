@@ -1,0 +1,15 @@
+{{define "content"}}
+    <div id="svelte-app"></div>
+{{end}}
+
+{{define "stylesheets"}}
+    <link rel='stylesheet' href='/build/configsvelte.css'>
+{{end}}
+{{define "javascript"}}
+    <script>
+        const user = {{ .User }};
+        const filterPresets = {{ .FilterPresets }};
+        const clusterCockpitConfig = {{ .Config }};
+    </script>
+    <script src='/build/configsvelte.js'></script>
+{{end}}
