@@ -269,15 +269,17 @@ func SetupRoutes(router *mux.Router) {
 				title = strings.Replace(route.Title, "<ID>", id.(string), 1)
 			}
 
-			username, isAdmin := "", true
+			username, isAdmin, isSupporter := "", true, true
+			
 			if user := auth.GetUser(r.Context()); user != nil {
 				username = user.Username
 				isAdmin = user.HasRole(auth.RoleAdmin)
+				isSupporter = user.HasRole(auth.RoleSupport)
 			}
 
 			page := web.Page{
 				Title:  title,
-				User:   web.User{Username: username, IsAdmin: isAdmin},
+				User:   web.User{Username: username, IsAdmin: isAdmin, IsSupporter: isSupporter},
 				Config: conf,
 				Infos:  infos,
 			}
