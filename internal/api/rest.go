@@ -580,14 +580,26 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Handle anything but roles...
+	// Get Values
 	newrole := r.FormValue("add-role")
-	if err := api.Authentication.AddRole(r.Context(), mux.Vars(r)["id"], newrole); err != nil {
-		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
-		return
-	}
+	delrole := r.FormValue("remove-role")
 
-	rw.Write([]byte("success"))
+	// TODO: Handle anything but roles...
+	if (newrole != "") {
+		if err := api.Authentication.AddRole(r.Context(), mux.Vars(r)["id"], newrole); err != nil {
+			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+		rw.Write([]byte("Add Role Success"))
+	} else if (delrole != "") {
+		if err := api.Authentication.RemoveRole(r.Context(), mux.Vars(r)["id"], delrole); err != nil {
+			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+		rw.Write([]byte("Remove Role Success"))
+	} else {
+		http.Error(rw, "Not Add or Del?", http.StatusInternalServerError)
+	}
 }
 
 func (api *RestApi) updateConfiguration(rw http.ResponseWriter, r *http.Request) {

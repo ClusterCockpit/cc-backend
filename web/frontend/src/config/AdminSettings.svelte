@@ -1,7 +1,7 @@
 <script>
     import { Row, Col } from 'sveltestrap'
     import { onMount } from 'svelte'
-    import AddRole from './admin/AddRole.svelte'
+    import EditRole from './admin/EditRole.svelte'
     import AddUser from './admin/AddUser.svelte'
     import ShowUsers from './admin/ShowUsers.svelte'
     import Options from './admin/Options.svelte'
@@ -28,7 +28,7 @@
         <ShowUsers on:reload={getUserList} bind:users={users}/>
     </Col>
     <Col>
-        <AddRole on:reload={getUserList}/>
+        <EditRole on:reload={getUserList}/>
     </Col>
     <Col>
         <Options/>

@@ -9,8 +9,8 @@
     let displayMessage = false
 
     async function handleAddRole() {
-        const username = document.querySelector('#add-role-username').value
-        const role = document.querySelector('#add-role-select').value
+        const username = document.querySelector('#role-username').value
+        const role = document.querySelector('#role-select').value
 
         if (username == "" || role == "") {
             alert('Please fill in a username and select a role.')
@@ -20,6 +20,35 @@
         let formData = new FormData()
         formData.append('username', username)
         formData.append('add-role', role)
+
+        try {
+            const res = await fetch(`/api/user/${username}`, { method: 'POST', body: formData })
+            if (res.ok) {
+                let text = await res.text()
+                popMessage(text, '#048109')
+                reloadUserList()
+            } else {
+                let text = await res.text()
+                // console.log(res.statusText)
+                throw new Error('Response Code ' + res.status + '-> ' + text)
+            }
+        } catch (err)  {
+            popMessage(err, '#d63384')
+        }
+    }
+
+    async function handleRemoveRole() {
+        const username = document.querySelector('#role-username').value
+        const role = document.querySelector('#role-select').value
+
+        if (username == "" || role == "") {
+            alert('Please fill in a username and select a role.')
+            return
+        }
+
+        let formData = new FormData()
+        formData.append('username', username)
+        formData.append('remove-role', role)
 
         try {
             const res = await fetch(`/api/user/${username}`, { method: 'POST', body: formData })
@@ -54,8 +83,8 @@
     <CardBody>
         <CardTitle class="mb-3">Add Role to User</CardTitle>
         <div class="input-group mb-3">
-            <input type="text" class="form-control" placeholder="username" id="add-role-username"/>
-            <select class="form-select" id="add-role-select">
+            <input type="text" class="form-control" placeholder="username" id="role-username"/>
+            <select class="form-select" id="role-select">
                 <option selected value="">Role...</option>
                 <option value="user">User</option>
                 <option value="admin">Admin</option>
@@ -64,6 +93,7 @@
             <!-- PreventDefault on Sveltestrap-Button more complex to achieve than just use good ol' html button -->
             <!-- see: https://stackoverflow.com/questions/69630422/svelte-how-to-use-event-modifiers-in-my-own-components -->
             <button class="btn btn-primary" type="button" id="add-role-button" on:click|preventDefault={handleAddRole}>Add</button>
+            <button class="btn btn-danger" type="button" id="remove-role-button" on:click|preventDefault={handleRemoveRole}>Remove</button>
         </div>
         <p>
             {#if displayMessage}<b><code style="color: {message.color};" out:fade>Update: {message.msg}</code></b>{/if}
