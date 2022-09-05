@@ -7,7 +7,6 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -35,6 +34,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/routerConfig"
 	"github.com/ClusterCockpit/cc-backend/internal/runtimeEnv"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/web"
 	"github.com/google/gops/agent"
@@ -45,98 +45,9 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// Format of the configurartion (file). See below for the defaults.
-type ProgramConfig struct {
-	// Address where the http (or https) server will listen on (for example: 'localhost:80').
-	Addr string `json:"addr"`
-
-	// Drop root permissions once .env was read and the port was taken.
-	User  string `json:"user"`
-	Group string `json:"group"`
-
-	// Disable authentication (for everything: API, Web-UI, ...)
-	DisableAuthentication bool `json:"disable-authentication"`
-
-	// If `embed-static-files` is true (default), the frontend files are directly
-	// embeded into the go binary and expected to be in web/frontend. Only if
-	// it is false the files in `static-files` are served instead.
-	EmbedStaticFiles bool   `json:"embed-static-files"`
-	StaticFiles      string `json:"static-files"`
-
-	// 'sqlite3' or 'mysql' (mysql will work for mariadb as well)
-	DBDriver string `json:"db-driver"`
-
-	// For sqlite3 a filename, for mysql a DSN in this format: https://github.com/go-sql-driver/mysql#dsn-data-source-name (Without query parameters!).
-	DB string `json:"db"`
-
-	// Path to the job-archive
-	JobArchive string `json:"job-archive"`
-
-	// Keep all metric data in the metric data repositories,
-	// do not write to the job-archive.
-	DisableArchive bool `json:"disable-archive"`
-
-	// For LDAP Authentication and user synchronisation.
-	LdapConfig *auth.LdapConfig    `json:"ldap"`
-	JwtConfig  *auth.JWTAuthConfig `json:"jwts"`
-
-	// If 0 or empty, the session/token does not expire!
-	SessionMaxAge string `json:"session-max-age"`
-
-	// If both those options are not empty, use HTTPS using those certificates.
-	HttpsCertFile string `json:"https-cert-file"`
-	HttpsKeyFile  string `json:"https-key-file"`
-
-	// If not the empty string and `addr` does not end in ":80",
-	// redirect every request incoming at port 80 to that url.
-	RedirectHttpTo string `json:"redirect-http-to"`
-
-	// If overwriten, at least all the options in the defaults below must
-	// be provided! Most options here can be overwritten by the user.
-	UiDefaults map[string]interface{} `json:"ui-defaults"`
-
-	// Where to store MachineState files
-	MachineStateDir string `json:"machine-state-dir"`
-
-	// If not zero, automatically mark jobs as stopped running X seconds longer than their walltime.
-	StopJobsExceedingWalltime int `json:"stop-jobs-exceeding-walltime"`
-}
-
-var programConfig ProgramConfig = ProgramConfig{
-	Addr:                  ":8080",
-	DisableAuthentication: false,
-	EmbedStaticFiles:      true,
-	DBDriver:              "sqlite3",
-	DB:                    "./var/job.db",
-	JobArchive:            "./var/job-archive",
-	DisableArchive:        false,
-	LdapConfig:            nil,
-	SessionMaxAge:         "168h",
-	UiDefaults: map[string]interface{}{
-		"analysis_view_histogramMetrics":     []string{"flops_any", "mem_bw", "mem_used"},
-		"analysis_view_scatterPlotMetrics":   [][]string{{"flops_any", "mem_bw"}, {"flops_any", "cpu_load"}, {"cpu_load", "mem_bw"}},
-		"job_view_nodestats_selectedMetrics": []string{"flops_any", "mem_bw", "mem_used"},
-		"job_view_polarPlotMetrics":          []string{"flops_any", "mem_bw", "mem_used", "net_bw", "file_bw"},
-		"job_view_selectedMetrics":           []string{"flops_any", "mem_bw", "mem_used"},
-		"plot_general_colorBackground":       true,
-		"plot_general_colorscheme":           []string{"#00bfff", "#0000ff", "#ff00ff", "#ff0000", "#ff8000", "#ffff00", "#80ff00"},
-		"plot_general_lineWidth":             3,
-		"plot_list_hideShortRunningJobs":     5 * 60,
-		"plot_list_jobsPerPage":              50,
-		"plot_list_selectedMetrics":          []string{"cpu_load", "ipc", "mem_used", "flops_any", "mem_bw"},
-		"plot_view_plotsPerRow":              3,
-		"plot_view_showPolarplot":            true,
-		"plot_view_showRoofline":             true,
-		"plot_view_showStatTable":            true,
-		"system_view_selectedMetric":         "cpu_load",
-	},
-	StopJobsExceedingWalltime: 0,
-}
-
 func main() {
 	var flagReinitDB, flagStopImmediately, flagSyncLDAP, flagGops bool
-	var flagConfigFile, flagImportJob string
-	var flagNewUser, flagDelUser, flagGenJWT string
+	var flagNewUser, flagDelUser, flagGenJWT, flagConfigFile string
 	flag.BoolVar(&flagReinitDB, "init-db", false, "Go through job-archive and re-initialize the 'job', 'tag', and 'jobtag' tables (all running jobs will be lost!)")
 	flag.BoolVar(&flagSyncLDAP, "sync-ldap", false, "Sync the 'user' table with ldap")
 	flag.BoolVar(&flagStopImmediately, "no-server", false, "Do not start a server, stop right after initialization and argument handling")
@@ -145,7 +56,6 @@ func main() {
 	flag.StringVar(&flagNewUser, "add-user", "", "Add a new user. Argument format: `<username>:[admin,api,user]:<password>`")
 	flag.StringVar(&flagDelUser, "del-user", "", "Remove user by `username`")
 	flag.StringVar(&flagGenJWT, "jwt", "", "Generate and print a JWT for the user specified by its `username`")
-	flag.StringVar(&flagImportJob, "import-job", "", "Import a job. Argument format: `<path-to-meta.json>:<path-to-data.json>,...`")
 	flag.Parse()
 
 	// See https://github.com/google/gops (Runtime overhead is almost zero)
@@ -159,46 +69,32 @@ func main() {
 		log.Fatalf("parsing './.env' file failed: %s", err.Error())
 	}
 
-	// Load JSON config:
-	f, err := os.Open(flagConfigFile)
-	if err != nil {
-		if !os.IsNotExist(err) || flagConfigFile != "./config.json" {
-			log.Fatal(err)
-		}
-	} else {
-		dec := json.NewDecoder(f)
-		dec.DisallowUnknownFields()
-		if err := dec.Decode(&programConfig); err != nil {
-			log.Fatal(err)
-		}
-		f.Close()
-	}
+	// Initialize sub-modules and handle command line flags.
+	// The order here is important!
+	config.Init(flagConfigFile)
 
 	// As a special case for `db`, allow using an environment variable instead of the value
 	// stored in the config. This can be done for people having security concerns about storing
-	// the password for their mysql database in the config.json.
-	if strings.HasPrefix(programConfig.DB, "env:") {
-		envvar := strings.TrimPrefix(programConfig.DB, "env:")
-		programConfig.DB = os.Getenv(envvar)
+	// the password for their mysql database in config.json.
+	if strings.HasPrefix(config.Keys.DB, "env:") {
+		envvar := strings.TrimPrefix(config.Keys.DB, "env:")
+		config.Keys.DB = os.Getenv(envvar)
 	}
 
-	repository.Connect(programConfig.DBDriver, programConfig.DB)
+	repository.Connect(config.Keys.DBDriver, config.Keys.DB)
 	db := repository.GetConnection()
 
-	// Initialize sub-modules and handle all command line flags.
-	// The order here is important! For example, the metricdata package
-	// depends on the config package.
-
 	var authentication *auth.Authentication
-	if !programConfig.DisableAuthentication {
+	if !config.Keys.DisableAuthentication {
+		var err error
 		if authentication, err = auth.Init(db.DB, map[string]interface{}{
-			"ldap": programConfig.LdapConfig,
-			"jwt":  programConfig.JwtConfig,
+			"ldap": config.Keys.LdapConfig,
+			"jwt":  config.Keys.JwtConfig,
 		}); err != nil {
 			log.Fatal(err)
 		}
 
-		if d, err := time.ParseDuration(programConfig.SessionMaxAge); err != nil {
+		if d, err := time.ParseDuration(config.Keys.SessionMaxAge); err != nil {
 			authentication.SessionMaxAge = d
 		}
 
@@ -252,25 +148,17 @@ func main() {
 		log.Fatal("arguments --add-user and --del-user can only be used if authentication is enabled")
 	}
 
-	if err := config.Init(db.DB, !programConfig.DisableAuthentication, programConfig.UiDefaults, programConfig.JobArchive); err != nil {
+	if err := archive.Init(); err != nil {
 		log.Fatal(err)
 	}
 
-	if err := metricdata.Init(programConfig.JobArchive, programConfig.DisableArchive); err != nil {
+	if err := metricdata.Init(config.Keys.DisableArchive); err != nil {
 		log.Fatal(err)
 	}
 
 	if flagReinitDB {
-		if err := repository.InitDB(db.DB, programConfig.JobArchive); err != nil {
+		if err := repository.InitDB(); err != nil {
 			log.Fatal(err)
-		}
-	}
-
-	jobRepo := repository.GetRepository()
-
-	if flagImportJob != "" {
-		if err := jobRepo.HandleImportFlag(flagImportJob); err != nil {
-			log.Fatalf("import failed: %s", err.Error())
 		}
 	}
 
@@ -279,7 +167,7 @@ func main() {
 	}
 
 	// Setup the http.Handler/Router used by the server
-
+	jobRepo := repository.GetJobRepository()
 	resolver := &graph.Resolver{DB: db.DB, Repo: jobRepo}
 	graphQLEndpoint := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 	if os.Getenv("DEBUG") != "1" {
@@ -300,7 +188,7 @@ func main() {
 	api := &api.RestApi{
 		JobRepository:   jobRepo,
 		Resolver:        resolver,
-		MachineStateDir: programConfig.MachineStateDir,
+		MachineStateDir: config.Keys.MachineStateDir,
 		Authentication:  authentication,
 	}
 
@@ -323,7 +211,7 @@ func main() {
 	// Those should be mounted to this subrouter. If authentication is enabled, a middleware will prevent
 	// any unauthenticated accesses.
 	secured := r.PathPrefix("/").Subrouter()
-	if !programConfig.DisableAuthentication {
+	if !config.Keys.DisableAuthentication {
 		r.Handle("/login", authentication.Login(
 			// On success:
 			http.RedirectHandler("/", http.StatusTemporaryRedirect),
@@ -394,10 +282,10 @@ func main() {
 	routerConfig.SetupRoutes(secured)
 	api.MountRoutes(secured)
 
-	if programConfig.EmbedStaticFiles {
+	if config.Keys.EmbedStaticFiles {
 		r.PathPrefix("/").Handler(web.ServeFiles())
 	} else {
-		r.PathPrefix("/").Handler(http.FileServer(http.Dir(programConfig.StaticFiles)))
+		r.PathPrefix("/").Handler(http.FileServer(http.Dir(config.Keys.StaticFiles)))
 	}
 
 	r.Use(handlers.CompressHandler)
@@ -426,24 +314,24 @@ func main() {
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		Handler:      handler,
-		Addr:         programConfig.Addr,
+		Addr:         config.Keys.Addr,
 	}
 
 	// Start http or https server
 
-	listener, err := net.Listen("tcp", programConfig.Addr)
+	listener, err := net.Listen("tcp", config.Keys.Addr)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if !strings.HasSuffix(programConfig.Addr, ":80") && programConfig.RedirectHttpTo != "" {
+	if !strings.HasSuffix(config.Keys.Addr, ":80") && config.Keys.RedirectHttpTo != "" {
 		go func() {
-			http.ListenAndServe(":80", http.RedirectHandler(programConfig.RedirectHttpTo, http.StatusMovedPermanently))
+			http.ListenAndServe(":80", http.RedirectHandler(config.Keys.RedirectHttpTo, http.StatusMovedPermanently))
 		}()
 	}
 
-	if programConfig.HttpsCertFile != "" && programConfig.HttpsKeyFile != "" {
-		cert, err := tls.LoadX509KeyPair(programConfig.HttpsCertFile, programConfig.HttpsKeyFile)
+	if config.Keys.HttpsCertFile != "" && config.Keys.HttpsKeyFile != "" {
+		cert, err := tls.LoadX509KeyPair(config.Keys.HttpsCertFile, config.Keys.HttpsKeyFile)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -456,15 +344,15 @@ func main() {
 			MinVersion:               tls.VersionTLS12,
 			PreferServerCipherSuites: true,
 		})
-		log.Printf("HTTPS server listening at %s...", programConfig.Addr)
+		log.Printf("HTTPS server listening at %s...", config.Keys.Addr)
 	} else {
-		log.Printf("HTTP server listening at %s...", programConfig.Addr)
+		log.Printf("HTTP server listening at %s...", config.Keys.Addr)
 	}
 
 	// Because this program will want to bind to a privileged port (like 80), the listener must
 	// be established first, then the user can be changed, and after that,
 	// the actuall http server can be started.
-	if err := runtimeEnv.DropPrivileges(programConfig.Group, programConfig.User); err != nil {
+	if err := runtimeEnv.DropPrivileges(config.Keys.Group, config.Keys.User); err != nil {
 		log.Fatalf("error while changing user: %s", err.Error())
 	}
 
@@ -491,10 +379,10 @@ func main() {
 		api.OngoingArchivings.Wait()
 	}()
 
-	if programConfig.StopJobsExceedingWalltime > 0 {
+	if config.Keys.StopJobsExceedingWalltime > 0 {
 		go func() {
 			for range time.Tick(30 * time.Minute) {
-				err := jobRepo.StopJobsExceedingWalltimeBy(programConfig.StopJobsExceedingWalltime)
+				err := jobRepo.StopJobsExceedingWalltimeBy(config.Keys.StopJobsExceedingWalltime)
 				if err != nil {
 					log.Errorf("error while looking for jobs exceeding theire walltime: %s", err.Error())
 				}

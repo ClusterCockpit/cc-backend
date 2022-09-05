@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
@@ -149,7 +149,7 @@ func (ccms *CCMetricStore) doRequest(ctx context.Context, body *ApiQueryRequest)
 }
 
 func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context) (schema.JobData, error) {
-	topology := config.GetSubCluster(job.Cluster, job.SubCluster).Topology
+	topology := archive.GetSubCluster(job.Cluster, job.SubCluster).Topology
 	queries, assignedScope, err := ccms.buildQueries(job, metrics, scopes)
 	if err != nil {
 		return nil, err
@@ -175,7 +175,7 @@ func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []
 		query := req.Queries[i]
 		metric := ccms.toLocalName(query.Metric)
 		scope := assignedScope[i]
-		mc := config.GetMetricConfig(job.Cluster, metric)
+		mc := archive.GetMetricConfig(job.Cluster, metric)
 		if _, ok := jobData[metric]; !ok {
 			jobData[metric] = make(map[schema.MetricScope]*schema.JobMetric)
 		}
@@ -252,12 +252,12 @@ var (
 
 func (ccms *CCMetricStore) buildQueries(job *schema.Job, metrics []string, scopes []schema.MetricScope) ([]ApiQuery, []schema.MetricScope, error) {
 	queries := make([]ApiQuery, 0, len(metrics)*len(scopes)*len(job.Resources))
-	topology := config.GetSubCluster(job.Cluster, job.SubCluster).Topology
+	topology := archive.GetSubCluster(job.Cluster, job.SubCluster).Topology
 	assignedScope := []schema.MetricScope{}
 
 	for _, metric := range metrics {
 		remoteName := ccms.toRemoteName(metric)
-		mc := config.GetMetricConfig(job.Cluster, metric)
+		mc := archive.GetMetricConfig(job.Cluster, metric)
 		if mc == nil {
 			// return nil, fmt.Errorf("metric '%s' is not specified for cluster '%s'", metric, job.Cluster)
 			// log.Printf("metric '%s' is not specified for cluster '%s'", metric, job.Cluster)
@@ -584,7 +584,7 @@ func (ccms *CCMetricStore) LoadNodeData(cluster string, metrics, nodes []string,
 			data[query.Hostname] = hostdata
 		}
 
-		mc := config.GetMetricConfig(cluster, metric)
+		mc := archive.GetMetricConfig(cluster, metric)
 		hostdata[metric] = append(hostdata[metric], &schema.JobMetric{
 			Unit:     mc.Unit,
 			Scope:    schema.MetricScopeNode,

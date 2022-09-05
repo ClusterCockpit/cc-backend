@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
@@ -124,7 +124,7 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 		for _, metric := range metrics {
 			jobMetric, ok := jobData[metric]
 			if !ok {
-				mc := config.GetMetricConfig(job.Cluster, metric)
+				mc := archive.GetMetricConfig(job.Cluster, metric)
 				jobMetric = map[schema.MetricScope]*schema.JobMetric{
 					scope: { // uses scope var from above!
 						Unit:             mc.Unit,

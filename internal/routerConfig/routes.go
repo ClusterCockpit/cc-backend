@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/ClusterCockpit/cc-backend/web"
@@ -55,7 +55,7 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 		TotalJobs       int
 		RecentShortJobs int
 	}
-	jobRepo := repository.GetRepository()
+	jobRepo := repository.GetJobRepository()
 
 	runningJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, []*model.JobFilter{{
 		State: []schema.JobState{schema.JobStateRunning},
@@ -80,7 +80,7 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 	}
 
 	clusters := make([]cluster, 0)
-	for _, c := range config.Clusters {
+	for _, c := range archive.Clusters {
 		clusters = append(clusters, cluster{
 			Name:            c.Name,
 			RunningJobs:     runningJobs[c.Name],
@@ -99,7 +99,7 @@ func setupJobRoute(i InfoType, r *http.Request) InfoType {
 }
 
 func setupUserRoute(i InfoType, r *http.Request) InfoType {
-	jobRepo := repository.GetRepository()
+	jobRepo := repository.GetJobRepository()
 	username := mux.Vars(r)["id"]
 	i["id"] = username
 	i["username"] = username
@@ -142,7 +142,7 @@ func setupAnalysisRoute(i InfoType, r *http.Request) InfoType {
 
 func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 	var username *string = nil
-	jobRepo := repository.GetRepository()
+	jobRepo := repository.GetJobRepository()
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleAdmin) {
 		username = &user.Username
 	}
@@ -254,10 +254,11 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 }
 
 func SetupRoutes(router *mux.Router) {
+	userCfgRepo := repository.GetUserCfgRepo()
 	for _, route := range routes {
 		route := route
 		router.HandleFunc(route.Route, func(rw http.ResponseWriter, r *http.Request) {
-			conf, err := config.GetUIConfig(r)
+			conf, err := userCfgRepo.GetUIConfig(r)
 			if err != nil {
 				http.Error(rw, err.Error(), http.StatusInternalServerError)
 				return

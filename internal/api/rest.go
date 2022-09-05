@@ -21,11 +21,11 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/gorilla/mux"
@@ -46,12 +46,11 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 	r.HandleFunc("/jobs/start_job/", api.startJob).Methods(http.MethodPost, http.MethodPut)
 	r.HandleFunc("/jobs/stop_job/", api.stopJob).Methods(http.MethodPost, http.MethodPut)
 	r.HandleFunc("/jobs/stop_job/{id}", api.stopJob).Methods(http.MethodPost, http.MethodPut)
-	r.HandleFunc("/jobs/import/", api.importJob).Methods(http.MethodPost, http.MethodPut)
+	// r.HandleFunc("/jobs/import/", api.importJob).Methods(http.MethodPost, http.MethodPut)
 
 	r.HandleFunc("/jobs/", api.getJobs).Methods(http.MethodGet)
 	// r.HandleFunc("/jobs/{id}", api.getJob).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/tag_job/{id}", api.tagJob).Methods(http.MethodPost, http.MethodPatch)
-
 	r.HandleFunc("/jobs/metrics/{id}", api.getJobMetrics).Methods(http.MethodGet)
 
 	if api.Authentication != nil {
@@ -198,7 +197,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 		}
 
 		if res.MonitoringStatus == schema.MonitoringStatusArchivingSuccessful {
-			res.Statistics, err = metricdata.GetStatistics(job)
+			res.Statistics, err = archive.GetStatistics(job)
 			if err != nil {
 				if err != nil {
 					http.Error(rw, err.Error(), http.StatusInternalServerError)
@@ -425,28 +424,28 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 	}()
 }
 
-func (api *RestApi) importJob(rw http.ResponseWriter, r *http.Request) {
-	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
-		return
-	}
+// func (api *RestApi) importJob(rw http.ResponseWriter, r *http.Request) {
+// 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
+// 		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
+// 		return
+// 	}
 
-	var body struct {
-		Meta *schema.JobMeta `json:"meta"`
-		Data *schema.JobData `json:"data"`
-	}
-	if err := decode(r.Body, &body); err != nil {
-		handleError(fmt.Errorf("import failed: %s", err.Error()), http.StatusBadRequest, rw)
-		return
-	}
+// 	var body struct {
+// 		Meta *schema.JobMeta `json:"meta"`
+// 		Data *schema.JobData `json:"data"`
+// 	}
+// 	if err := decode(r.Body, &body); err != nil {
+// 		handleError(fmt.Errorf("import failed: %s", err.Error()), http.StatusBadRequest, rw)
+// 		return
+// 	}
 
-	if err := api.JobRepository.ImportJob(body.Meta, body.Data); err != nil {
-		handleError(fmt.Errorf("import failed: %s", err.Error()), http.StatusUnprocessableEntity, rw)
-		return
-	}
+// 	if err := api.JobRepository.ImportJob(body.Meta, body.Data); err != nil {
+// 		handleError(fmt.Errorf("import failed: %s", err.Error()), http.StatusUnprocessableEntity, rw)
+// 		return
+// 	}
 
-	rw.Write([]byte(`{ "status": "OK" }`))
-}
+// 	rw.Write([]byte(`{ "status": "OK" }`))
+// }
 
 func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
@@ -596,7 +595,7 @@ func (api *RestApi) updateConfiguration(rw http.ResponseWriter, r *http.Request)
 
 	fmt.Printf("KEY: %#v\nVALUE: %#v\n", key, value)
 
-	if err := config.UpdateConfig(key, value, r.Context()); err != nil {
+	if err := repository.GetUserCfgRepo().UpdateConfig(key, value, r.Context()); err != nil {
 		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}

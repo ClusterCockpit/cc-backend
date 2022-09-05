@@ -35,7 +35,7 @@ type JobRepository struct {
 	cache     *lrucache.Cache
 }
 
-func GetRepository() *JobRepository {
+func GetJobRepository() *JobRepository {
 	jobRepoOnce.Do(func() {
 		db := GetConnection()
 

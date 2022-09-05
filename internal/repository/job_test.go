@@ -19,7 +19,7 @@ func init() {
 }
 
 func setup(t *testing.T) *JobRepository {
-	return GetRepository()
+	return GetJobRepository()
 }
 
 func TestFind(t *testing.T) {

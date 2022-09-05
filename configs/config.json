@@ -10,5 +10,9 @@
     "https-cert-file": "/etc/letsencrypt/live/monitoring.nhr.fau.de/fullchain.pem",
     "https-key-file":  "/etc/letsencrypt/live/monitoring.nhr.fau.de/privkey.pem",
     "user":            "clustercockpit",
-    "group":           "clustercockpit"
+    "group":           "clustercockpit",
+    "archive": {
+        "kind": "file",
+        "path": "./var/job-archive"
+    }
 }

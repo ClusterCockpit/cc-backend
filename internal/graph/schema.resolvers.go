@@ -15,10 +15,11 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/generated"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
@@ -95,7 +96,7 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 }
 
 func (r *mutationResolver) UpdateConfiguration(ctx context.Context, name string, value string) (*string, error) {
-	if err := config.UpdateConfig(name, value, ctx); err != nil {
+	if err := repository.GetUserCfgRepo().UpdateConfig(name, value, ctx); err != nil {
 		return nil, err
 	}
 
@@ -103,7 +104,7 @@ func (r *mutationResolver) UpdateConfiguration(ctx context.Context, name string,
 }
 
 func (r *queryResolver) Clusters(ctx context.Context) ([]*model.Cluster, error) {
-	return config.Clusters, nil
+	return archive.Clusters, nil
 }
 
 func (r *queryResolver) Tags(ctx context.Context) ([]*schema.Tag, error) {
@@ -233,7 +234,7 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 	}
 
 	if metrics == nil {
-		for _, mc := range config.GetCluster(cluster).MetricConfig {
+		for _, mc := range archive.GetCluster(cluster).MetricConfig {
 			metrics = append(metrics, mc.Name)
 		}
 	}
@@ -249,7 +250,7 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 			Host:    hostname,
 			Metrics: make([]*model.JobMetricWithName, 0, len(metrics)*len(scopes)),
 		}
-		host.SubCluster, _ = config.GetSubClusterByNode(cluster, hostname)
+		host.SubCluster, _ = archive.GetSubClusterByNode(cluster, hostname)
 
 		for metric, scopedMetrics := range metrics {
 			for _, scopedMetric := range scopedMetrics {

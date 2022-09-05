@@ -5,7 +5,7 @@
 package repository
 
 import (
-	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	sq "github.com/Masterminds/squirrel"
 )
@@ -26,7 +26,7 @@ func (r *JobRepository) AddTag(job int64, tag int64) ([]*schema.Tag, error) {
 		return nil, err
 	}
 
-	return tags, metricdata.UpdateTags(j, tags)
+	return tags, archive.UpdateTags(j, tags)
 }
 
 // Removes a tag from a job
@@ -45,7 +45,7 @@ func (r *JobRepository) RemoveTag(job, tag int64) ([]*schema.Tag, error) {
 		return nil, err
 	}
 
-	return tags, metricdata.UpdateTags(j, tags)
+	return tags, archive.UpdateTags(j, tags)
 }
 
 // CreateTag creates a new tag with the specified type and name and returns its database id.

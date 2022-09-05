@@ -8,9 +8,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -33,14 +35,11 @@ type MetricDataRepository interface {
 
 var metricDataRepos map[string]MetricDataRepository = map[string]MetricDataRepository{}
 
-var JobArchivePath string
-
 var useArchive bool
 
-func Init(jobArchivePath string, disableArchive bool) error {
+func Init(disableArchive bool) error {
 	useArchive = !disableArchive
-	JobArchivePath = jobArchivePath
-	for _, cluster := range config.Clusters {
+	for _, cluster := range config.Keys.Clusters {
 		if cluster.MetricDataRepository != nil {
 			var kind struct {
 				Kind string `json:"kind"`
@@ -73,97 +72,88 @@ func Init(jobArchivePath string, disableArchive bool) error {
 var cache *lrucache.Cache = lrucache.New(128 * 1024 * 1024)
 
 // Fetches the metric data for a job.
-func LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context) (schema.JobData, error) {
-	data := cache.Get(cacheKey(job, metrics, scopes), func() (_ interface{}, ttl time.Duration, size int) {
-		var jd schema.JobData
-		var err error
-		if job.State == schema.JobStateRunning ||
-			job.MonitoringStatus == schema.MonitoringStatusRunningOrArchiving ||
-			!useArchive {
-			repo, ok := metricDataRepos[job.Cluster]
-			if !ok {
-				return fmt.Errorf("no metric data repository configured for '%s'", job.Cluster), 0, 0
-			}
+func LoadData(job *schema.Job,
+	metrics []string,
+	scopes []schema.MetricScope,
+	ctx context.Context) (schema.JobData, error) {
+	var jd schema.JobData
+	var err error
 
-			if scopes == nil {
-				scopes = append(scopes, schema.MetricScopeNode)
-			}
+	if job.State == schema.JobStateRunning ||
+		job.MonitoringStatus == schema.MonitoringStatusRunningOrArchiving ||
+		!useArchive {
+		repo, ok := metricDataRepos[job.Cluster]
 
+		if !ok {
+			return nil, fmt.Errorf("no metric data repository configured for '%s'", job.Cluster)
+		}
+
+		if scopes == nil {
+			scopes = append(scopes, schema.MetricScopeNode)
+		}
+
+		if metrics == nil {
+			cluster := archive.GetCluster(job.Cluster)
+			for _, mc := range cluster.MetricConfig {
+				metrics = append(metrics, mc.Name)
+			}
+		}
+
+		jd, err = repo.LoadData(job, metrics, scopes, ctx)
+		if err != nil {
+			if len(jd) != 0 {
+				log.Errorf("partial error: %s", err.Error())
+			} else {
+				return nil, err
+			}
+		}
+	} else {
+		jd, err = archive.GetHandle().LoadJobData(job)
+		if err != nil {
+			return nil, err
+		}
+
+		// Avoid sending unrequested data to the client:
+		if metrics != nil || scopes != nil {
 			if metrics == nil {
-				cluster := config.GetCluster(job.Cluster)
-				for _, mc := range cluster.MetricConfig {
-					metrics = append(metrics, mc.Name)
+				metrics = make([]string, 0, len(jd))
+				for k := range jd {
+					metrics = append(metrics, k)
 				}
 			}
 
-			jd, err = repo.LoadData(job, metrics, scopes, ctx)
-			if err != nil {
-				if len(jd) != 0 {
-					log.Errorf("partial error: %s", err.Error())
-				} else {
-					return err, 0, 0
-				}
-			}
-			size = jd.Size()
-		} else {
-			jd, err = loadFromArchive(job)
-			if err != nil {
-				return err, 0, 0
-			}
-
-			// Avoid sending unrequested data to the client:
-			if metrics != nil || scopes != nil {
-				if metrics == nil {
-					metrics = make([]string, 0, len(jd))
-					for k := range jd {
-						metrics = append(metrics, k)
-					}
-				}
-
-				res := schema.JobData{}
-				for _, metric := range metrics {
-					if perscope, ok := jd[metric]; ok {
-						if len(perscope) > 1 {
-							subset := make(map[schema.MetricScope]*schema.JobMetric)
-							for _, scope := range scopes {
-								if jm, ok := perscope[scope]; ok {
-									subset[scope] = jm
-								}
-							}
-
-							if len(subset) > 0 {
-								perscope = subset
+			res := schema.JobData{}
+			for _, metric := range metrics {
+				if perscope, ok := jd[metric]; ok {
+					if len(perscope) > 1 {
+						subset := make(map[schema.MetricScope]*schema.JobMetric)
+						for _, scope := range scopes {
+							if jm, ok := perscope[scope]; ok {
+								subset[scope] = jm
 							}
 						}
 
-						res[metric] = perscope
+						if len(subset) > 0 {
+							perscope = subset
+						}
 					}
+
+					res[metric] = perscope
 				}
-				jd = res
 			}
-			size = 1 // loadFromArchive() caches in the same cache.
+			jd = res
 		}
-
-		ttl = 5 * time.Hour
-		if job.State == schema.JobStateRunning {
-			ttl = 2 * time.Minute
-		}
-
-		prepareJobData(job, jd, scopes)
-		return jd, ttl, size
-	})
-
-	if err, ok := data.(error); ok {
-		return nil, err
 	}
 
-	return data.(schema.JobData), nil
+	prepareJobData(job, jd, scopes)
+
+	return jd, nil
 }
 
 // Used for the jobsFootprint GraphQL-Query. TODO: Rename/Generalize.
 func LoadAverages(job *schema.Job, metrics []string, data [][]schema.Float, ctx context.Context) error {
 	if job.State != schema.JobStateRunning && useArchive {
-		return loadAveragesFromArchive(job, metrics, data)
+		return archive.LoadAveragesFromArchive(job, metrics, data)
 	}
 
 	repo, ok := metricDataRepos[job.Cluster]
@@ -201,7 +191,7 @@ func LoadNodeData(cluster string, metrics, nodes []string, scopes []schema.Metri
 	}
 
 	if metrics == nil {
-		for _, m := range config.GetCluster(cluster).MetricConfig {
+		for _, m := range archive.GetCluster(cluster).MetricConfig {
 			metrics = append(metrics, m.Name)
 		}
 	}
@@ -255,4 +245,61 @@ func prepareJobData(job *schema.Job, jobData schema.JobData, scopes []schema.Met
 		jobData.AddNodeScope("flops_any")
 		jobData.AddNodeScope("mem_bw")
 	}
+}
+
+// Writes a running job to the job-archive
+func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
+	allMetrics := make([]string, 0)
+	metricConfigs := archive.GetCluster(job.Cluster).MetricConfig
+	for _, mc := range metricConfigs {
+		allMetrics = append(allMetrics, mc.Name)
+	}
+
+	// TODO: Talk about this! What resolutions to store data at...
+	scopes := []schema.MetricScope{schema.MetricScopeNode}
+	if job.NumNodes <= 8 {
+		scopes = append(scopes, schema.MetricScopeCore)
+	}
+
+	jobData, err := LoadData(job, allMetrics, scopes, ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	jobMeta := &schema.JobMeta{
+		BaseJob:    job.BaseJob,
+		StartTime:  job.StartTime.Unix(),
+		Statistics: make(map[string]schema.JobStatistics),
+	}
+
+	for metric, data := range jobData {
+		avg, min, max := 0.0, math.MaxFloat32, -math.MaxFloat32
+		nodeData, ok := data["node"]
+		if !ok {
+			// TODO/FIXME: Calc average for non-node metrics as well!
+			continue
+		}
+
+		for _, series := range nodeData.Series {
+			avg += series.Statistics.Avg
+			min = math.Min(min, series.Statistics.Min)
+			max = math.Max(max, series.Statistics.Max)
+		}
+
+		jobMeta.Statistics[metric] = schema.JobStatistics{
+			Unit: archive.GetMetricConfig(job.Cluster, metric).Unit,
+			Avg:  avg / float64(job.NumNodes),
+			Min:  min,
+			Max:  max,
+		}
+	}
+
+	// If the file based archive is disabled,
+	// only return the JobMeta structure as the
+	// statistics in there are needed.
+	if !useArchive {
+		return jobMeta, nil
+	}
+
+	return jobMeta, archive.Import(jobMeta, &jobData)
 }

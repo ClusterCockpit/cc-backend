@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	sq "github.com/Masterminds/squirrel"
 )
@@ -36,7 +36,7 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 	stats := map[string]*model.JobsStatistics{}
 
 	// `socketsPerNode` and `coresPerSocket` can differ from cluster to cluster, so we need to explicitly loop over those.
-	for _, cluster := range config.Clusters {
+	for _, cluster := range archive.Clusters {
 		for _, subcluster := range cluster.SubClusters {
 			corehoursCol := fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_nodes * %d * %d) / 3600) as int)", subcluster.SocketsPerNode, subcluster.CoresPerSocket)
 			var query sq.SelectBuilder

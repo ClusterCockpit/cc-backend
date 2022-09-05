@@ -75,7 +75,7 @@ func RenderTemplate(rw http.ResponseWriter, r *http.Request, file string, page *
 	}
 
 	if page.Clusters == nil {
-		for _, c := range config.Clusters {
+		for _, c := range config.Keys.Clusters {
 			page.Clusters = append(page.Clusters, c.Name)
 		}
 	}
