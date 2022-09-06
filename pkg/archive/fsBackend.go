@@ -53,12 +53,14 @@ func loadJobMeta(filename string) (schema.JobMeta, error) {
 func (fsa *FsArchive) Init(rawConfig json.RawMessage) error {
 	var config FsArchiveConfig
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
+		fmt.Errorf("fsBackend Init()- %w", err)
 		return err
 	}
 	fsa.path = config.Path
 
 	entries, err := os.ReadDir(fsa.path)
 	if err != nil {
+		fmt.Errorf("fsBackend Init()- Cannot read dir %s: %w", fsa.path, err)
 		return err
 	}
 
@@ -96,7 +98,7 @@ func (fsa *FsArchive) LoadJobMeta(job *schema.Job) (schema.JobMeta, error) {
 func (fsa *FsArchive) LoadClusterCfg(name string) (model.Cluster, error) {
 	f, err := os.Open(filepath.Join(fsa.path, name, "cluster.json"))
 	if err != nil {
-		return model.Cluster{}, err
+		return model.Cluster{}, fmt.Errorf("fsBackend LoadClusterCfg()- Cannot open %s: %w", name, err)
 	}
 	defer f.Close()
 
