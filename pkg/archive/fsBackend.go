@@ -24,7 +24,8 @@ type FsArchiveConfig struct {
 }
 
 type FsArchive struct {
-	path string
+	path     string
+	clusters []string
 }
 
 // For a given job, return the path of the `data.json`/`meta.json` file.
@@ -54,8 +55,17 @@ func (fsa *FsArchive) Init(rawConfig json.RawMessage) error {
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
 		return err
 	}
-
 	fsa.path = config.Path
+
+	entries, err := os.ReadDir(fsa.path)
+	if err != nil {
+		return err
+	}
+
+	for _, de := range entries {
+		fsa.clusters = append(fsa.clusters, de.Name())
+	}
+
 	return nil
 }
 
@@ -164,6 +174,10 @@ func (fsa *FsArchive) StoreMeta(jobMeta *schema.JobMeta) error {
 	}
 
 	return nil
+}
+
+func (fsa *FsArchive) GetClusters() []string {
+	return fsa.clusters
 }
 
 func (fsa *FsArchive) Import(jobMeta *schema.JobMeta, jobData *schema.JobData) error {

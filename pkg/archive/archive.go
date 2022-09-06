@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
@@ -28,32 +27,32 @@ type ArchiveBackend interface {
 
 	Import(jobMeta *schema.JobMeta, jobData *schema.JobData) error
 
+	GetClusters() []string
+
 	Iter() <-chan *schema.JobMeta
 }
 
 var ar ArchiveBackend
 
-func Init() error {
-	if config.Keys.Archive != nil {
-		var kind struct {
-			Kind string `json:"kind"`
-		}
-		if err := json.Unmarshal(config.Keys.Archive, &kind); err != nil {
-			return err
-		}
+func Init(rawConfig json.RawMessage) error {
+	var kind struct {
+		Kind string `json:"kind"`
+	}
+	if err := json.Unmarshal(rawConfig, &kind); err != nil {
+		return err
+	}
 
-		switch kind.Kind {
-		case "file":
-			ar = &FsArchive{}
+	switch kind.Kind {
+	case "file":
+		ar = &FsArchive{}
 		// case "s3":
 		// 	ar = &S3Archive{}
-		default:
-			return fmt.Errorf("unkown archive backend '%s''", kind.Kind)
-		}
+	default:
+		return fmt.Errorf("unkown archive backend '%s''", kind.Kind)
+	}
 
-		if err := ar.Init(config.Keys.Archive); err != nil {
-			return err
-		}
+	if err := ar.Init(rawConfig); err != nil {
+		return err
 	}
 	return initClusterConfig()
 }

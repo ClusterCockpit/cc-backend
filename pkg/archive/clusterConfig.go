@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -24,9 +23,9 @@ func initClusterConfig() error {
 	Clusters = []*model.Cluster{}
 	nodeLists = map[string]map[string]NodeList{}
 
-	for _, c := range config.Keys.Clusters {
+	for _, c := range ar.GetClusters() {
 
-		cluster, err := ar.LoadClusterCfg(c.Name)
+		cluster, err := ar.LoadClusterCfg(c)
 		if err != nil {
 			return err
 		}
