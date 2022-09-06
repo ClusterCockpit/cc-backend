@@ -9,9 +9,24 @@ import (
 	"log"
 	"os"
 
-	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 )
+
+type LdapConfig struct {
+	Url             string `json:"url"`
+	UserBase        string `json:"user_base"`
+	SearchDN        string `json:"search_dn"`
+	UserBind        string `json:"user_bind"`
+	UserFilter      string `json:"user_filter"`
+	SyncInterval    string `json:"sync_interval"` // Parsed using time.ParseDuration.
+	SyncDelOldUsers bool   `json:"sync_del_old_users"`
+}
+
+type JWTAuthConfig struct {
+	// Specifies for how long a session or JWT shall be valid
+	// as a string parsable by time.ParseDuration().
+	MaxAge int64 `json:"max-age"`
+}
 
 type Cluster struct {
 	Name                 string              `json:"name"`
@@ -51,8 +66,8 @@ type ProgramConfig struct {
 	DisableArchive bool `json:"disable-archive"`
 
 	// For LDAP Authentication and user synchronisation.
-	LdapConfig *auth.LdapConfig    `json:"ldap"`
-	JwtConfig  *auth.JWTAuthConfig `json:"jwts"`
+	LdapConfig *LdapConfig    `json:"ldap"`
+	JwtConfig  *JWTAuthConfig `json:"jwts"`
 
 	// If 0 or empty, the session/token does not expire!
 	SessionMaxAge string `json:"session-max-age"`

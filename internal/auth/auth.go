@@ -80,7 +80,8 @@ type Authentication struct {
 	LocalAuth      *LocalAuthenticator
 }
 
-func Init(db *sqlx.DB, configs map[string]interface{}) (*Authentication, error) {
+func Init(db *sqlx.DB,
+	configs map[string]interface{}) (*Authentication, error) {
 	auth := &Authentication{}
 	auth.db = db
 	_, err := db.Exec(`
