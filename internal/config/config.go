@@ -76,7 +76,7 @@ type ProgramConfig struct {
 	StopJobsExceedingWalltime int `json:"stop-jobs-exceeding-walltime"`
 
 	// Array of Clusters
-	Clusters []*Cluster `json:"Clusters"`
+	Clusters []*Cluster `json:"clusters"`
 }
 
 var Keys ProgramConfig = ProgramConfig{
@@ -85,7 +85,7 @@ var Keys ProgramConfig = ProgramConfig{
 	EmbedStaticFiles:      true,
 	DBDriver:              "sqlite3",
 	DB:                    "./var/job.db",
-	Archive:               []byte(`{\"kind\":\"file\",\"path\":\"./var/job-archive\"}`),
+	Archive:               json.RawMessage(`{\"kind\":\"file\",\"path\":\"./var/job-archive\"}`),
 	DisableArchive:        false,
 	LdapConfig:            nil,
 	SessionMaxAge:         "168h",
@@ -113,7 +113,7 @@ var Keys ProgramConfig = ProgramConfig{
 func Init(flagConfigFile string) {
 	f, err := os.Open(flagConfigFile)
 	if err != nil {
-		if !os.IsNotExist(err) || flagConfigFile != "./config.json" {
+		if !os.IsNotExist(err) {
 			log.Fatal(err)
 		}
 	} else {
@@ -123,5 +123,9 @@ func Init(flagConfigFile string) {
 			log.Fatal(err)
 		}
 		f.Close()
+
+		if Keys.Clusters == nil || len(Keys.Clusters) < 1 {
+			log.Fatal("At least one cluster required in config!")
+		}
 	}
 }

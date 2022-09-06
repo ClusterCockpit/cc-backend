@@ -20,7 +20,7 @@ import (
 )
 
 type FsArchiveConfig struct {
-	Path string `json:"filePath"`
+	Path string `json:"path"`
 }
 
 type FsArchive struct {

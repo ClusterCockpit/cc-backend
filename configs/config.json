@@ -1,12 +1,12 @@
 {
     "addr":            "0.0.0.0:443",
     "ldap": {
-		"url":        "ldaps://hpcldap.rrze.uni-erlangen.de",
-		"user_base":   "ou=people,ou=hpc,dc=rrze,dc=uni-erlangen,dc=de",
-		"search_dn":   "cn=hpcmonitoring,ou=roadm,ou=profile,ou=hpc,dc=rrze,dc=uni-erlangen,dc=de",
-		"user_bind":   "uid={username},ou=people,ou=hpc,dc=rrze,dc=uni-erlangen,dc=de",
-		"user_filter": "(&(objectclass=posixAccount)(uid=*))"
-	},
+        "url":        "ldaps://hpcldap.rrze.uni-erlangen.de",
+        "user_base":   "ou=people,ou=hpc,dc=rrze,dc=uni-erlangen,dc=de",
+        "search_dn":   "cn=hpcmonitoring,ou=roadm,ou=profile,ou=hpc,dc=rrze,dc=uni-erlangen,dc=de",
+        "user_bind":   "uid={username},ou=people,ou=hpc,dc=rrze,dc=uni-erlangen,dc=de",
+        "user_filter": "(&(objectclass=posixAccount)(uid=*))"
+    },
     "https-cert-file": "/etc/letsencrypt/live/monitoring.nhr.fau.de/fullchain.pem",
     "https-key-file":  "/etc/letsencrypt/live/monitoring.nhr.fau.de/privkey.pem",
     "user":            "clustercockpit",
@@ -14,5 +14,20 @@
     "archive": {
         "kind": "file",
         "path": "./var/job-archive"
-    }
+    },
+    "clusters": [
+        {
+            "name": "test",
+            "metricDataRepository": {
+                "kind": "cc-metric-store",
+                "url": "http://localhost:8082",
+                "token": "eyJhbGciOiJF-E-pQBQ"
+            },
+            "filterRanges": {
+                "numNodes": { "from": 1, "to": 64 },
+                "duration": { "from": 0, "to": 86400 },
+                "startTime": { "from": "2022-01-01T00:00:00Z", "to": null }
+            }
+        }
+    ]
 }

@@ -28,11 +28,17 @@ import (
 
 func setup(t *testing.T) *api.RestApi {
 	const testconfig = `{
-	"addr":            "0.0.0.0:80",
+	"addr":            "0.0.0.0:8080",
 	"archive": {
 		"kind": "file",
 		"path": "./var/job-archive"
+	},
+	"clusters": [
+	{
+	   "name": "testcluster",
+	   "metricDataRepository": {"kind": "test"}
 	}
+	]
 }`
 	const testclusterJson = `{
 "name": "testcluster",
@@ -109,12 +115,11 @@ func setup(t *testing.T) *api.RestApi {
 
 	config.Init(cfgFilePath)
 	archiveCfg := fmt.Sprintf("{\"kind\":\"file\",\"path\":\"%s\"}", jobarchive)
-	config.Keys.Archive = []byte(archiveCfg)
 
 	repository.Connect("sqlite3", dbfilepath)
 	db := repository.GetConnection()
 
-	if err := archive.Init(config.Keys.Archive); err != nil {
+	if err := archive.Init(json.RawMessage(archiveCfg)); err != nil {
 		t.Fatal(err)
 	}
 
