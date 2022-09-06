@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/gorilla/mux"
 
@@ -25,8 +27,15 @@ import (
 )
 
 func setup(t *testing.T) *api.RestApi {
+	const testconfig = `{
+	"addr":            "0.0.0.0:80",
+	"archive": {
+		"kind": "file",
+		"path": "./var/job-archive"
+	}
+}`
 	const testclusterJson = `{
-		"name": "testcluster",
+"name": "testcluster",
 		"subClusters": [
 			{
 				"name": "sc0",
@@ -93,22 +102,31 @@ func setup(t *testing.T) *api.RestApi {
 	}
 	f.Close()
 
+	cfgFilePath := filepath.Join(tmpdir, "config.json")
+	if err := os.WriteFile(cfgFilePath, []byte(testconfig), 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	config.Init(cfgFilePath)
+	archiveCfg := fmt.Sprintf("{\"kind\":\"file\",\"path\":\"%s\"}", jobarchive)
+	config.Keys.Archive = []byte(archiveCfg)
+
 	repository.Connect("sqlite3", dbfilepath)
 	db := repository.GetConnection()
+
+	if err := archive.Init(config.Keys.Archive); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := metricdata.Init(config.Keys.DisableArchive); err != nil {
+		t.Fatal(err)
+	}
 
 	if _, err := db.DB.Exec(repository.JobsDBSchema); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := config.Init(db.DB, false, map[string]interface{}{}, jobarchive); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := metricdata.Init(jobarchive, false); err != nil {
-		t.Fatal(err)
-	}
-
-	jobRepo := repository.GetRepository()
+	jobRepo := repository.GetJobRepository()
 	resolver := &graph.Resolver{DB: db.DB, Repo: jobRepo}
 
 	return &api.RestApi{
@@ -122,9 +140,9 @@ func cleanup() {
 }
 
 /*
- * This function starts a job, stops it, and then reads its data from the job-archive.
- * Do not run sub-tests in parallel! Tests should not be run in parallel at all, because
- * at least `setup` modifies global state. Log-Output is redirected to /dev/null on purpose.
+* This function starts a job, stops it, and then reads its data from the job-archive.
+* Do not run sub-tests in parallel! Tests should not be run in parallel at all, because
+* at least `setup` modifies global state. Log-Output is redirected to /dev/null on purpose.
  */
 func TestRestApi(t *testing.T) {
 	restapi := setup(t)
@@ -155,28 +173,28 @@ func TestRestApi(t *testing.T) {
 	restapi.MountRoutes(r)
 
 	const startJobBody string = `{
-		"jobId":            123,
-    	"user":             "testuser",
-    	"project":          "testproj",
-    	"cluster":          "testcluster",
-    	"partition":        "default",
+"jobId":            123,
+		"user":             "testuser",
+		"project":          "testproj",
+		"cluster":          "testcluster",
+		"partition":        "default",
 		"walltime":         3600,
-    	"arrayJobId":       0,
-    	"numNodes":         1,
-    	"numHwthreads":     8,
-    	"numAcc":           0,
-    	"exclusive":        1,
-    	"monitoringStatus": 1,
-    	"smt":              1,
-    	"tags":             [{ "type": "testTagType", "name": "testTagName" }],
-    	"resources": [
-        	{
-            	"hostname": "host123",
-            	"hwthreads": [0, 1, 2, 3, 4, 5, 6, 7]
-        	}
-    	],
-    	"metaData":  { "jobScript": "blablabla..." },
-    	"startTime": 123456789
+		"arrayJobId":       0,
+		"numNodes":         1,
+		"numHwthreads":     8,
+		"numAcc":           0,
+		"exclusive":        1,
+		"monitoringStatus": 1,
+		"smt":              1,
+		"tags":             [{ "type": "testTagType", "name": "testTagName" }],
+		"resources": [
+			{
+				"hostname": "host123",
+				"hwthreads": [0, 1, 2, 3, 4, 5, 6, 7]
+			}
+		],
+		"metaData":  { "jobScript": "blablabla..." },
+		"startTime": 123456789
 	}`
 
 	var dbid int64
@@ -234,7 +252,7 @@ func TestRestApi(t *testing.T) {
 	}
 
 	const stopJobBody string = `{
-		"jobId":     123,
+"jobId":     123,
 		"startTime": 123456789,
 		"cluster":   "testcluster",
 
@@ -313,26 +331,26 @@ func TestRestApi(t *testing.T) {
 
 func subtestLetJobFail(t *testing.T, restapi *api.RestApi, r *mux.Router) {
 	const startJobBody string = `{
-		"jobId":            12345,
-    	"user":             "testuser",
-    	"project":          "testproj",
-    	"cluster":          "testcluster",
-    	"partition":        "default",
+"jobId":            12345,
+		"user":             "testuser",
+		"project":          "testproj",
+		"cluster":          "testcluster",
+		"partition":        "default",
 		"walltime":         3600,
-    	"arrayJobId":       0,
-    	"numNodes":         1,
-    	"numAcc":           0,
-    	"exclusive":        1,
-    	"monitoringStatus": 1,
-    	"smt":              1,
-    	"tags":             [],
-    	"resources": [
-        	{
-            	"hostname": "host123"
-        	}
-    	],
-    	"metaData":  {},
-    	"startTime": 12345678
+		"arrayJobId":       0,
+		"numNodes":         1,
+		"numAcc":           0,
+		"exclusive":        1,
+		"monitoringStatus": 1,
+		"smt":              1,
+		"tags":             [],
+		"resources": [
+			{
+				"hostname": "host123"
+			}
+		],
+		"metaData":  {},
+		"startTime": 12345678
 	}`
 
 	ok := t.Run("StartJob", func(t *testing.T) {
@@ -350,7 +368,7 @@ func subtestLetJobFail(t *testing.T, restapi *api.RestApi, r *mux.Router) {
 	}
 
 	const stopJobBody string = `{
-		"jobId":     12345,
+"jobId":     12345,
 		"cluster":   "testcluster",
 
 		"jobState": "failed",
