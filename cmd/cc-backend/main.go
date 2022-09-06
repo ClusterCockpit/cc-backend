@@ -46,12 +46,13 @@ import (
 )
 
 func main() {
-	var flagReinitDB, flagStopImmediately, flagSyncLDAP, flagGops bool
+	var flagReinitDB, flagStopImmediately, flagSyncLDAP, flagGops, flagDev bool
 	var flagNewUser, flagDelUser, flagGenJWT, flagConfigFile string
 	flag.BoolVar(&flagReinitDB, "init-db", false, "Go through job-archive and re-initialize the 'job', 'tag', and 'jobtag' tables (all running jobs will be lost!)")
 	flag.BoolVar(&flagSyncLDAP, "sync-ldap", false, "Sync the 'user' table with ldap")
 	flag.BoolVar(&flagStopImmediately, "no-server", false, "Do not start a server, stop right after initialization and argument handling")
 	flag.BoolVar(&flagGops, "gops", false, "Listen via github.com/google/gops/agent (for debugging)")
+	flag.BoolVar(&flagDev, "dev", false, "Enable development components: GraphQL Playground and Swagger UI")
 	flag.StringVar(&flagConfigFile, "config", "./config.json", "Overwrite the global config options by those specified in `config.json`")
 	flag.StringVar(&flagNewUser, "add-user", "", "Add a new user. Argument format: `<username>:[admin,api,user]:<password>`")
 	flag.StringVar(&flagDelUser, "del-user", "", "Remove user by `username`")
@@ -251,7 +252,9 @@ func main() {
 		})
 	}
 
-	r.Handle("/playground", playground.Handler("GraphQL playground", "/query"))
+	if flagDev {
+		r.Handle("/playground", playground.Handler("GraphQL playground", "/query"))
+	}
 	secured.Handle("/query", graphQLEndpoint)
 
 	// Send a searchId and then reply with a redirect to a user or job.
@@ -318,7 +321,6 @@ func main() {
 	}
 
 	// Start http or https server
-
 	listener, err := net.Listen("tcp", config.Keys.Addr)
 	if err != nil {
 		log.Fatal(err)
