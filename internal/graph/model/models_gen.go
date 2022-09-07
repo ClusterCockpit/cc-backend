@@ -11,26 +11,14 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
-type Accelerator struct {
-	ID    string `json:"id"`
-	Type  string `json:"type"`
-	Model string `json:"model"`
-}
-
 type Count struct {
 	Name  string `json:"name"`
 	Count int    `json:"count"`
 }
 
-type FilterRanges struct {
-	Duration  *IntRangeOutput  `json:"duration"`
-	NumNodes  *IntRangeOutput  `json:"numNodes"`
-	StartTime *TimeRangeOutput `json:"startTime"`
-}
-
 type FloatRange struct {
-	From float64 `json:"from"`
-	To   float64 `json:"to"`
+	From schema.Float `json:"from"`
+	To   schema.Float `json:"to"`
 }
 
 type Footprints struct {
@@ -41,11 +29,6 @@ type Footprints struct {
 type HistoPoint struct {
 	Count int `json:"count"`
 	Value int `json:"value"`
-}
-
-type IntRange struct {
-	From int `json:"from"`
-	To   int `json:"to"`
 }
 
 type IntRangeOutput struct {
@@ -61,12 +44,12 @@ type JobFilter struct {
 	Project         *StringInput      `json:"project"`
 	Cluster         *StringInput      `json:"cluster"`
 	Partition       *StringInput      `json:"partition"`
-	Duration        *IntRange         `json:"duration"`
+	Duration        *schema.IntRange  `json:"duration"`
 	MinRunningFor   *int              `json:"minRunningFor"`
-	NumNodes        *IntRange         `json:"numNodes"`
-	NumAccelerators *IntRange         `json:"numAccelerators"`
-	NumHWThreads    *IntRange         `json:"numHWThreads"`
-	StartTime       *TimeRange        `json:"startTime"`
+	NumNodes        *schema.IntRange  `json:"numNodes"`
+	NumAccelerators *schema.IntRange  `json:"numAccelerators"`
+	NumHWThreads    *schema.IntRange  `json:"numHWThreads"`
+	StartTime       *schema.TimeRange `json:"startTime"`
 	State           []schema.JobState `json:"state"`
 	FlopsAnyAvg     *FloatRange       `json:"flopsAnyAvg"`
 	MemBwAvg        *FloatRange       `json:"memBwAvg"`
@@ -94,19 +77,6 @@ type JobsStatistics struct {
 	TotalCoreHours int           `json:"totalCoreHours"`
 	HistDuration   []*HistoPoint `json:"histDuration"`
 	HistNumNodes   []*HistoPoint `json:"histNumNodes"`
-}
-
-type MetricConfig struct {
-	Name        string              `json:"name"`
-	Unit        string              `json:"unit"`
-	Scope       schema.MetricScope  `json:"scope"`
-	Aggregation *string             `json:"aggregation"`
-	Timestep    int                 `json:"timestep"`
-	Peak        *float64            `json:"peak"`
-	Normal      *float64            `json:"normal"`
-	Caution     *float64            `json:"caution"`
-	Alert       *float64            `json:"alert"`
-	SubClusters []*SubClusterConfig `json:"subClusters"`
 }
 
 type MetricFootprints struct {
@@ -137,45 +107,9 @@ type StringInput struct {
 	EndsWith   *string `json:"endsWith"`
 }
 
-type SubCluster struct {
-	Name            string    `json:"name"`
-	Nodes           string    `json:"nodes"`
-	NumberOfNodes   int       `json:"numberOfNodes"`
-	ProcessorType   string    `json:"processorType"`
-	SocketsPerNode  int       `json:"socketsPerNode"`
-	CoresPerSocket  int       `json:"coresPerSocket"`
-	ThreadsPerCore  int       `json:"threadsPerCore"`
-	FlopRateScalar  int       `json:"flopRateScalar"`
-	FlopRateSimd    int       `json:"flopRateSimd"`
-	MemoryBandwidth int       `json:"memoryBandwidth"`
-	Topology        *Topology `json:"topology"`
-}
-
-type SubClusterConfig struct {
-	Name    string  `json:"name"`
-	Peak    float64 `json:"peak"`
-	Normal  float64 `json:"normal"`
-	Caution float64 `json:"caution"`
-	Alert   float64 `json:"alert"`
-}
-
-type TimeRange struct {
-	From *time.Time `json:"from"`
-	To   *time.Time `json:"to"`
-}
-
 type TimeRangeOutput struct {
 	From time.Time `json:"from"`
 	To   time.Time `json:"to"`
-}
-
-type Topology struct {
-	Node         []int          `json:"node"`
-	Socket       [][]int        `json:"socket"`
-	MemoryDomain [][]int        `json:"memoryDomain"`
-	Die          [][]int        `json:"die"`
-	Core         [][]int        `json:"core"`
-	Accelerators []*Accelerator `json:"accelerators"`
 }
 
 type User struct {

@@ -16,14 +16,9 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/golang-jwt/jwt/v4"
 )
-
-type JWTAuthConfig struct {
-	// Specifies for how long a session or JWT shall be valid
-	// as a string parsable by time.ParseDuration().
-	MaxAge int64 `json:"max-age"`
-}
 
 type JWTAuthenticator struct {
 	auth *Authentication
@@ -33,14 +28,15 @@ type JWTAuthenticator struct {
 
 	loginTokenKey []byte // HS256 key
 
-	config *JWTAuthConfig
+	config *schema.JWTAuthConfig
 }
 
 var _ Authenticator = (*JWTAuthenticator)(nil)
 
 func (ja *JWTAuthenticator) Init(auth *Authentication, conf interface{}) error {
+
 	ja.auth = auth
-	ja.config = conf.(*JWTAuthConfig)
+	ja.config = conf.(*schema.JWTAuthConfig)
 
 	pubKey, privKey := os.Getenv("JWT_PUBLIC_KEY"), os.Getenv("JWT_PRIVATE_KEY")
 	if pubKey == "" || privKey == "" {
@@ -69,11 +65,19 @@ func (ja *JWTAuthenticator) Init(auth *Authentication, conf interface{}) error {
 	return nil
 }
 
-func (ja *JWTAuthenticator) CanLogin(user *User, rw http.ResponseWriter, r *http.Request) bool {
+func (ja *JWTAuthenticator) CanLogin(
+	user *User,
+	rw http.ResponseWriter,
+	r *http.Request) bool {
+
 	return (user != nil && user.AuthSource == AuthViaToken) || r.Header.Get("Authorization") != "" || r.URL.Query().Get("login-token") != ""
 }
 
-func (ja *JWTAuthenticator) Login(user *User, rw http.ResponseWriter, r *http.Request) (*User, error) {
+func (ja *JWTAuthenticator) Login(
+	user *User,
+	rw http.ResponseWriter,
+	r *http.Request) (*User, error) {
+
 	rawtoken := r.Header.Get("X-Auth-Token")
 	if rawtoken == "" {
 		rawtoken = r.Header.Get("Authorization")
@@ -135,7 +139,10 @@ func (ja *JWTAuthenticator) Login(user *User, rw http.ResponseWriter, r *http.Re
 	return user, nil
 }
 
-func (ja *JWTAuthenticator) Auth(rw http.ResponseWriter, r *http.Request) (*User, error) {
+func (ja *JWTAuthenticator) Auth(
+	rw http.ResponseWriter,
+	r *http.Request) (*User, error) {
+
 	rawtoken := r.Header.Get("X-Auth-Token")
 	if rawtoken == "" {
 		rawtoken = r.Header.Get("Authorization")
@@ -183,6 +190,7 @@ func (ja *JWTAuthenticator) Auth(rw http.ResponseWriter, r *http.Request) (*User
 
 // Generate a new JWT that can be used for authentication
 func (ja *JWTAuthenticator) ProvideJWT(user *User) (string, error) {
+
 	if ja.privateKey == nil {
 		return "", errors.New("environment variable 'JWT_PRIVATE_KEY' not set")
 	}

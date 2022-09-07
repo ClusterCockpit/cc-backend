@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
@@ -21,7 +20,7 @@ type ArchiveBackend interface {
 	// replaces previous loadFromArchive
 	LoadJobData(job *schema.Job) (schema.JobData, error)
 
-	LoadClusterCfg(name string) (model.Cluster, error)
+	LoadClusterCfg(name string) (schema.Cluster, error)
 
 	StoreMeta(jobMeta *schema.JobMeta) error
 
@@ -62,7 +61,11 @@ func GetHandle() ArchiveBackend {
 }
 
 // Helper to metricdata.LoadAverages().
-func LoadAveragesFromArchive(job *schema.Job, metrics []string, data [][]schema.Float) error {
+func LoadAveragesFromArchive(
+	job *schema.Job,
+	metrics []string,
+	data [][]schema.Float) error {
+
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
 		return err
@@ -80,6 +83,7 @@ func LoadAveragesFromArchive(job *schema.Job, metrics []string, data [][]schema.
 }
 
 func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
+
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
 		return nil, err
@@ -89,12 +93,14 @@ func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
 }
 
 func Import(job *schema.JobMeta, jobData *schema.JobData) error {
+
 	return ar.Import(job, jobData)
 }
 
 // If the job is archived, find its `meta.json` file and override the tags list
 // in that JSON file. If the job is not archived, nothing is done.
 func UpdateTags(job *schema.Job, tags []*schema.Tag) error {
+
 	if job.State == schema.JobStateRunning {
 		return nil
 	}

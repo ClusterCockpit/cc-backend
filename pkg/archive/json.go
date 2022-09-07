@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
@@ -34,8 +33,8 @@ func DecodeJobMeta(r io.Reader) (schema.JobMeta, error) {
 	return d, nil
 }
 
-func DecodeCluster(r io.Reader) (model.Cluster, error) {
-	var c model.Cluster
+func DecodeCluster(r io.Reader) (schema.Cluster, error) {
+	var c schema.Cluster
 	if err := json.NewDecoder(r).Decode(&c); err != nil {
 		return c, err
 	}

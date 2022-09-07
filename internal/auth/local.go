@@ -17,16 +17,27 @@ type LocalAuthenticator struct {
 
 var _ Authenticator = (*LocalAuthenticator)(nil)
 
-func (la *LocalAuthenticator) Init(auth *Authentication, _ interface{}) error {
+func (la *LocalAuthenticator) Init(
+	auth *Authentication,
+	_ interface{}) error {
+
 	la.auth = auth
 	return nil
 }
 
-func (la *LocalAuthenticator) CanLogin(user *User, rw http.ResponseWriter, r *http.Request) bool {
+func (la *LocalAuthenticator) CanLogin(
+	user *User,
+	rw http.ResponseWriter,
+	r *http.Request) bool {
+
 	return user != nil && user.AuthSource == AuthViaLocalPassword
 }
 
-func (la *LocalAuthenticator) Login(user *User, rw http.ResponseWriter, r *http.Request) (*User, error) {
+func (la *LocalAuthenticator) Login(
+	user *User,
+	rw http.ResponseWriter,
+	r *http.Request) (*User, error) {
+
 	if e := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(r.FormValue("password"))); e != nil {
 		return nil, fmt.Errorf("user '%s' provided the wrong password (%w)", user.Username, e)
 	}
@@ -34,6 +45,9 @@ func (la *LocalAuthenticator) Login(user *User, rw http.ResponseWriter, r *http.
 	return user, nil
 }
 
-func (la *LocalAuthenticator) Auth(rw http.ResponseWriter, r *http.Request) (*User, error) {
+func (la *LocalAuthenticator) Auth(
+	rw http.ResponseWriter,
+	r *http.Request) (*User, error) {
+
 	return la.auth.AuthViaSession(rw, r)
 }

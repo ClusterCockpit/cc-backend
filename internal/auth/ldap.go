@@ -12,30 +12,24 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/go-ldap/ldap/v3"
 )
 
-type LdapConfig struct {
-	Url             string `json:"url"`
-	UserBase        string `json:"user_base"`
-	SearchDN        string `json:"search_dn"`
-	UserBind        string `json:"user_bind"`
-	UserFilter      string `json:"user_filter"`
-	SyncInterval    string `json:"sync_interval"` // Parsed using time.ParseDuration.
-	SyncDelOldUsers bool   `json:"sync_del_old_users"`
-}
-
-type LdapAutnenticator struct {
+type LdapAuthenticator struct {
 	auth         *Authentication
-	config       *LdapConfig
+	config       *schema.LdapConfig
 	syncPassword string
 }
 
-var _ Authenticator = (*LdapAutnenticator)(nil)
+var _ Authenticator = (*LdapAuthenticator)(nil)
 
-func (la *LdapAutnenticator) Init(auth *Authentication, conf interface{}) error {
+func (la *LdapAuthenticator) Init(
+	auth *Authentication,
+	conf interface{}) error {
+
 	la.auth = auth
-	la.config = conf.(*LdapConfig)
+	la.config = conf.(*schema.LdapConfig)
 
 	la.syncPassword = os.Getenv("LDAP_ADMIN_PASSWORD")
 	if la.syncPassword == "" {
@@ -67,11 +61,19 @@ func (la *LdapAutnenticator) Init(auth *Authentication, conf interface{}) error 
 	return nil
 }
 
-func (la *LdapAutnenticator) CanLogin(user *User, rw http.ResponseWriter, r *http.Request) bool {
+func (la *LdapAuthenticator) CanLogin(
+	user *User,
+	rw http.ResponseWriter,
+	r *http.Request) bool {
+
 	return user != nil && user.AuthSource == AuthViaLDAP
 }
 
-func (la *LdapAutnenticator) Login(user *User, rw http.ResponseWriter, r *http.Request) (*User, error) {
+func (la *LdapAuthenticator) Login(
+	user *User,
+	rw http.ResponseWriter,
+	r *http.Request) (*User, error) {
+
 	l, err := la.getLdapConnection(false)
 	if err != nil {
 		return nil, err
@@ -86,11 +88,15 @@ func (la *LdapAutnenticator) Login(user *User, rw http.ResponseWriter, r *http.R
 	return user, nil
 }
 
-func (la *LdapAutnenticator) Auth(rw http.ResponseWriter, r *http.Request) (*User, error) {
+func (la *LdapAuthenticator) Auth(
+	rw http.ResponseWriter,
+	r *http.Request) (*User, error) {
+
 	return la.auth.AuthViaSession(rw, r)
 }
 
-func (la *LdapAutnenticator) Sync() error {
+func (la *LdapAuthenticator) Sync() error {
+
 	const IN_DB int = 1
 	const IN_LDAP int = 2
 	const IN_BOTH int = 3
@@ -160,7 +166,8 @@ func (la *LdapAutnenticator) Sync() error {
 
 // TODO: Add a connection pool or something like
 // that so that connections can be reused/cached.
-func (la *LdapAutnenticator) getLdapConnection(admin bool) (*ldap.Conn, error) {
+func (la *LdapAuthenticator) getLdapConnection(admin bool) (*ldap.Conn, error) {
+
 	conn, err := ldap.DialURL(la.config.Url)
 	if err != nil {
 		return nil, err

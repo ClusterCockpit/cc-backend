@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
@@ -30,7 +29,11 @@ type FsArchive struct {
 
 // For a given job, return the path of the `data.json`/`meta.json` file.
 // TODO: Implement Issue ClusterCockpit/ClusterCockpit#97
-func getPath(job *schema.Job, rootPath string, file string) string {
+func getPath(
+	job *schema.Job,
+	rootPath string,
+	file string) string {
+
 	lvl1, lvl2 := fmt.Sprintf("%d", job.JobID/1000), fmt.Sprintf("%03d", job.JobID%1000)
 	return filepath.Join(
 		rootPath,
@@ -51,6 +54,7 @@ func loadJobMeta(filename string) (schema.JobMeta, error) {
 }
 
 func (fsa *FsArchive) Init(rawConfig json.RawMessage) error {
+
 	var config FsArchiveConfig
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
 		fmt.Errorf("fsBackend Init()- %w", err)
@@ -72,6 +76,7 @@ func (fsa *FsArchive) Init(rawConfig json.RawMessage) error {
 }
 
 func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
+
 	filename := getPath(job, fsa.path, "data.json")
 
 	f, err := os.Open(filename)
@@ -84,6 +89,7 @@ func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 }
 
 func (fsa *FsArchive) LoadJobMeta(job *schema.Job) (schema.JobMeta, error) {
+
 	filename := getPath(job, fsa.path, "meta.json")
 
 	f, err := os.Open(filename)
@@ -95,10 +101,11 @@ func (fsa *FsArchive) LoadJobMeta(job *schema.Job) (schema.JobMeta, error) {
 	return DecodeJobMeta(bufio.NewReader(f))
 }
 
-func (fsa *FsArchive) LoadClusterCfg(name string) (model.Cluster, error) {
+func (fsa *FsArchive) LoadClusterCfg(name string) (schema.Cluster, error) {
+
 	f, err := os.Open(filepath.Join(fsa.path, name, "cluster.json"))
 	if err != nil {
-		return model.Cluster{}, fmt.Errorf("fsBackend LoadClusterCfg()- Cannot open %s: %w", name, err)
+		return schema.Cluster{}, fmt.Errorf("fsBackend LoadClusterCfg()- Cannot open %s: %w", name, err)
 	}
 	defer f.Close()
 
@@ -106,6 +113,7 @@ func (fsa *FsArchive) LoadClusterCfg(name string) (model.Cluster, error) {
 }
 
 func (fsa *FsArchive) Iter() <-chan *schema.JobMeta {
+
 	ch := make(chan *schema.JobMeta)
 	go func() {
 		clustersDir, err := os.ReadDir(fsa.path)
@@ -179,10 +187,13 @@ func (fsa *FsArchive) StoreMeta(jobMeta *schema.JobMeta) error {
 }
 
 func (fsa *FsArchive) GetClusters() []string {
+
 	return fsa.clusters
 }
 
-func (fsa *FsArchive) Import(jobMeta *schema.JobMeta, jobData *schema.JobData) error {
+func (fsa *FsArchive) Import(
+	jobMeta *schema.JobMeta,
+	jobData *schema.JobData) error {
 
 	job := schema.Job{
 		BaseJob:       jobMeta.BaseJob,

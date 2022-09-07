@@ -146,7 +146,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 				return
 			}
 			ufrom, uto := time.Unix(from, 0), time.Unix(to, 0)
-			filter.StartTime = &model.TimeRange{From: &ufrom, To: &uto}
+			filter.StartTime = &schema.TimeRange{From: &ufrom, To: &uto}
 		case "page":
 			x, err := strconv.Atoi(vals[0])
 			if err != nil {

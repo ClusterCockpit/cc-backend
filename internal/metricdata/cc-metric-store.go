@@ -75,6 +75,7 @@ type ApiMetricData struct {
 }
 
 func (ccms *CCMetricStore) Init(rawConfig json.RawMessage) error {
+
 	var config CCMetricStoreConfig
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
 		return err
@@ -117,7 +118,10 @@ func (ccms *CCMetricStore) toLocalName(metric string) string {
 	return metric
 }
 
-func (ccms *CCMetricStore) doRequest(ctx context.Context, body *ApiQueryRequest) (*ApiQueryResponse, error) {
+func (ccms *CCMetricStore) doRequest(
+	ctx context.Context,
+	body *ApiQueryRequest) (*ApiQueryResponse, error) {
+
 	buf := &bytes.Buffer{}
 	if err := json.NewEncoder(buf).Encode(body); err != nil {
 		return nil, err
@@ -148,7 +152,12 @@ func (ccms *CCMetricStore) doRequest(ctx context.Context, body *ApiQueryRequest)
 	return &resBody, nil
 }
 
-func (ccms *CCMetricStore) LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context) (schema.JobData, error) {
+func (ccms *CCMetricStore) LoadData(
+	job *schema.Job,
+	metrics []string,
+	scopes []schema.MetricScope,
+	ctx context.Context) (schema.JobData, error) {
+
 	topology := archive.GetSubCluster(job.Cluster, job.SubCluster).Topology
 	queries, assignedScope, err := ccms.buildQueries(job, metrics, scopes)
 	if err != nil {
@@ -250,7 +259,11 @@ var (
 	acceleratorString  = string(schema.MetricScopeAccelerator)
 )
 
-func (ccms *CCMetricStore) buildQueries(job *schema.Job, metrics []string, scopes []schema.MetricScope) ([]ApiQuery, []schema.MetricScope, error) {
+func (ccms *CCMetricStore) buildQueries(
+	job *schema.Job,
+	metrics []string,
+	scopes []schema.MetricScope) ([]ApiQuery, []schema.MetricScope, error) {
+
 	queries := make([]ApiQuery, 0, len(metrics)*len(scopes)*len(job.Resources))
 	topology := archive.GetSubCluster(job.Cluster, job.SubCluster).Topology
 	assignedScope := []schema.MetricScope{}
@@ -478,7 +491,11 @@ func (ccms *CCMetricStore) buildQueries(job *schema.Job, metrics []string, scope
 	return queries, assignedScope, nil
 }
 
-func (ccms *CCMetricStore) LoadStats(job *schema.Job, metrics []string, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error) {
+func (ccms *CCMetricStore) LoadStats(
+	job *schema.Job,
+	metrics []string,
+	ctx context.Context) (map[string]map[string]schema.MetricStatistics, error) {
+
 	queries, _, err := ccms.buildQueries(job, metrics, []schema.MetricScope{schema.MetricScopeNode})
 	if err != nil {
 		return nil, err
@@ -528,7 +545,13 @@ func (ccms *CCMetricStore) LoadStats(job *schema.Job, metrics []string, ctx cont
 }
 
 // TODO: Support sub-node-scope metrics! For this, the partition of a node needs to be known!
-func (ccms *CCMetricStore) LoadNodeData(cluster string, metrics, nodes []string, scopes []schema.MetricScope, from, to time.Time, ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
+func (ccms *CCMetricStore) LoadNodeData(
+	cluster string,
+	metrics, nodes []string,
+	scopes []schema.MetricScope,
+	from, to time.Time,
+	ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
+
 	req := ApiQueryRequest{
 		Cluster:   cluster,
 		From:      from.Unix(),
@@ -611,6 +634,7 @@ func (ccms *CCMetricStore) LoadNodeData(cluster string, metrics, nodes []string,
 }
 
 func intToStringSlice(is []int) []string {
+
 	ss := make([]string, len(is))
 	for i, x := range is {
 		ss[i] = strconv.Itoa(x)

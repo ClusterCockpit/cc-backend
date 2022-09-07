@@ -7,20 +7,18 @@ package archive
 import (
 	"errors"
 	"fmt"
-	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
 var cache *lrucache.Cache = lrucache.New(1024)
-
-var Clusters []*model.Cluster
+var Clusters []*schema.Cluster
 var nodeLists map[string]map[string]NodeList
 
 func initClusterConfig() error {
-	Clusters = []*model.Cluster{}
+
+	Clusters = []*schema.Cluster{}
 	nodeLists = map[string]map[string]NodeList{}
 
 	for _, c := range ar.GetClusters() {
@@ -30,7 +28,9 @@ func initClusterConfig() error {
 			return err
 		}
 
-		if len(cluster.Name) == 0 || len(cluster.MetricConfig) == 0 || len(cluster.SubClusters) == 0 {
+		if len(cluster.Name) == 0 ||
+			len(cluster.MetricConfig) == 0 ||
+			len(cluster.SubClusters) == 0 {
 			return errors.New("cluster.name, cluster.metricConfig and cluster.SubClusters should not be empty")
 		}
 
@@ -49,10 +49,6 @@ func initClusterConfig() error {
 			if !mc.Scope.Valid() {
 				return errors.New("cluster.metricConfig.scope must be a valid scope ('node', 'scocket', ...)")
 			}
-		}
-
-		if cluster.FilterRanges.StartTime.To.IsZero() {
-			cluster.FilterRanges.StartTime.To = time.Unix(0, 0)
 		}
 
 		Clusters = append(Clusters, &cluster)
@@ -74,7 +70,8 @@ func initClusterConfig() error {
 	return nil
 }
 
-func GetCluster(cluster string) *model.Cluster {
+func GetCluster(cluster string) *schema.Cluster {
+
 	for _, c := range Clusters {
 		if c.Name == cluster {
 			return c
@@ -83,7 +80,8 @@ func GetCluster(cluster string) *model.Cluster {
 	return nil
 }
 
-func GetSubCluster(cluster, subcluster string) *model.SubCluster {
+func GetSubCluster(cluster, subcluster string) *schema.SubCluster {
+
 	for _, c := range Clusters {
 		if c.Name == cluster {
 			for _, p := range c.SubClusters {
@@ -96,7 +94,8 @@ func GetSubCluster(cluster, subcluster string) *model.SubCluster {
 	return nil
 }
 
-func GetMetricConfig(cluster, metric string) *model.MetricConfig {
+func GetMetricConfig(cluster, metric string) *schema.MetricConfig {
+
 	for _, c := range Clusters {
 		if c.Name == cluster {
 			for _, m := range c.MetricConfig {
@@ -112,6 +111,7 @@ func GetMetricConfig(cluster, metric string) *model.MetricConfig {
 // AssignSubCluster sets the `job.subcluster` property of the job based
 // on its cluster and resources.
 func AssignSubCluster(job *schema.BaseJob) error {
+
 	cluster := GetCluster(job.Cluster)
 	if cluster == nil {
 		return fmt.Errorf("unkown cluster: %#v", job.Cluster)
@@ -147,6 +147,7 @@ func AssignSubCluster(job *schema.BaseJob) error {
 }
 
 func GetSubClusterByNode(cluster, hostname string) (string, error) {
+
 	for sc, nl := range nodeLists[cluster] {
 		if nl != nil && nl.Contains(hostname) {
 			return sc, nil

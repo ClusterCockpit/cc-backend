@@ -200,7 +200,17 @@ func (r *queryResolver) jobsStatisticsHistogram(ctx context.Context, value strin
 const MAX_JOBS_FOR_ANALYSIS = 500
 
 // Helper function for the rooflineHeatmap GraphQL query placed here so that schema.resolvers.go is not too full.
-func (r *Resolver) rooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error) {
+func (r *queryResolver) rooflineHeatmap(
+	ctx context.Context,
+	filter []*model.JobFilter,
+	rows int, cols int,
+	minXF schema.Float, minYF schema.Float, maxXF schema.Float, maxYF schema.Float) ([][]schema.Float, error) {
+
+	var minX, minY, maxX, maxY float64
+	minX = float64(minXF)
+	minY = float64(minYF)
+	maxX = float64(maxXF)
+	maxY = float64(maxYF)
 	jobs, err := r.Repo.QueryJobs(ctx, filter, &model.PageRequest{Page: 1, ItemsPerPage: MAX_JOBS_FOR_ANALYSIS + 1}, nil)
 	if err != nil {
 		return nil, err
@@ -211,9 +221,9 @@ func (r *Resolver) rooflineHeatmap(ctx context.Context, filter []*model.JobFilte
 
 	fcols, frows := float64(cols), float64(rows)
 	minX, minY, maxX, maxY = math.Log10(minX), math.Log10(minY), math.Log10(maxX), math.Log10(maxY)
-	tiles := make([][]float64, rows)
+	tiles := make([][]schema.Float, rows)
 	for i := range tiles {
-		tiles[i] = make([]float64, cols)
+		tiles[i] = make([]schema.Float, cols)
 	}
 
 	for _, job := range jobs {

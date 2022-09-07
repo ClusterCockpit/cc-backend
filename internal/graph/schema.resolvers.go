@@ -1,7 +1,3 @@
-// Copyright (C) 2022 NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
-// Use of this source code is governed by a MIT-style
-// license that can be found in the LICENSE file.
 package graph
 
 // This file will be automatically regenerated based on the schema, any resolver implementations
@@ -23,22 +19,82 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
-func (r *clusterResolver) Partitions(ctx context.Context, obj *model.Cluster) ([]string, error) {
+// Partitions is the resolver for the partitions field.
+func (r *clusterResolver) Partitions(ctx context.Context, obj *schema.Cluster) ([]string, error) {
 	return r.Repo.Partitions(obj.Name)
 }
 
+// FilterRanges is the resolver for the filterRanges field.
+func (r *clusterResolver) FilterRanges(ctx context.Context, obj *schema.Cluster) (*schema.FilterRanges, error) {
+	panic(fmt.Errorf("not implemented: FilterRanges - filterRanges"))
+}
+
+// Duration is the resolver for the duration field.
+func (r *filterRangesResolver) Duration(ctx context.Context, obj *schema.FilterRanges) (*model.IntRangeOutput, error) {
+	panic(fmt.Errorf("not implemented: Duration - duration"))
+}
+
+// NumNodes is the resolver for the numNodes field.
+func (r *filterRangesResolver) NumNodes(ctx context.Context, obj *schema.FilterRanges) (*model.IntRangeOutput, error) {
+	panic(fmt.Errorf("not implemented: NumNodes - numNodes"))
+}
+
+// StartTime is the resolver for the startTime field.
+func (r *filterRangesResolver) StartTime(ctx context.Context, obj *schema.FilterRanges) (*model.TimeRangeOutput, error) {
+	panic(fmt.Errorf("not implemented: StartTime - startTime"))
+}
+
+// Tags is the resolver for the tags field.
 func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error) {
 	return r.Repo.GetTags(&obj.ID)
 }
 
+// MetaData is the resolver for the metaData field.
 func (r *jobResolver) MetaData(ctx context.Context, obj *schema.Job) (interface{}, error) {
 	return r.Repo.FetchMetadata(obj)
 }
 
+// UserData is the resolver for the userData field.
 func (r *jobResolver) UserData(ctx context.Context, obj *schema.Job) (*model.User, error) {
 	return auth.FetchUser(ctx, r.DB, obj.User)
 }
 
+// Peak is the resolver for the peak field.
+func (r *metricConfigResolver) Peak(ctx context.Context, obj *schema.MetricConfig) (*schema.Float, error) {
+	panic(fmt.Errorf("not implemented: Peak - peak"))
+}
+
+// Normal is the resolver for the normal field.
+func (r *metricConfigResolver) Normal(ctx context.Context, obj *schema.MetricConfig) (*schema.Float, error) {
+	panic(fmt.Errorf("not implemented: Normal - normal"))
+}
+
+// Caution is the resolver for the caution field.
+func (r *metricConfigResolver) Caution(ctx context.Context, obj *schema.MetricConfig) (*schema.Float, error) {
+	panic(fmt.Errorf("not implemented: Caution - caution"))
+}
+
+// Alert is the resolver for the alert field.
+func (r *metricConfigResolver) Alert(ctx context.Context, obj *schema.MetricConfig) (*schema.Float, error) {
+	panic(fmt.Errorf("not implemented: Alert - alert"))
+}
+
+// Avg is the resolver for the avg field.
+func (r *metricStatisticsResolver) Avg(ctx context.Context, obj *schema.MetricStatistics) (schema.Float, error) {
+	panic(fmt.Errorf("not implemented: Avg - avg"))
+}
+
+// Min is the resolver for the min field.
+func (r *metricStatisticsResolver) Min(ctx context.Context, obj *schema.MetricStatistics) (schema.Float, error) {
+	panic(fmt.Errorf("not implemented: Min - min"))
+}
+
+// Max is the resolver for the max field.
+func (r *metricStatisticsResolver) Max(ctx context.Context, obj *schema.MetricStatistics) (schema.Float, error) {
+	panic(fmt.Errorf("not implemented: Max - max"))
+}
+
+// CreateTag is the resolver for the createTag field.
 func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name string) (*schema.Tag, error) {
 	id, err := r.Repo.CreateTag(typeArg, name)
 	if err != nil {
@@ -48,11 +104,12 @@ func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name s
 	return &schema.Tag{ID: id, Type: typeArg, Name: name}, nil
 }
 
+// DeleteTag is the resolver for the deleteTag field.
 func (r *mutationResolver) DeleteTag(ctx context.Context, id string) (string, error) {
-	// The UI does not allow this currently anyways.
-	panic(fmt.Errorf("not implemented"))
+	panic(fmt.Errorf("not implemented: DeleteTag - deleteTag"))
 }
 
+// AddTagsToJob is the resolver for the addTagsToJob field.
 func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds []string) ([]*schema.Tag, error) {
 	jid, err := strconv.ParseInt(job, 10, 64)
 	if err != nil {
@@ -74,6 +131,7 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 	return tags, nil
 }
 
+// RemoveTagsFromJob is the resolver for the removeTagsFromJob field.
 func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, tagIds []string) ([]*schema.Tag, error) {
 	jid, err := strconv.ParseInt(job, 10, 64)
 	if err != nil {
@@ -95,7 +153,9 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 	return tags, nil
 }
 
+// UpdateConfiguration is the resolver for the updateConfiguration field.
 func (r *mutationResolver) UpdateConfiguration(ctx context.Context, name string, value string) (*string, error) {
+
 	if err := repository.GetUserCfgRepo().UpdateConfig(name, value, ctx); err != nil {
 		return nil, err
 	}
@@ -103,18 +163,22 @@ func (r *mutationResolver) UpdateConfiguration(ctx context.Context, name string,
 	return nil, nil
 }
 
-func (r *queryResolver) Clusters(ctx context.Context) ([]*model.Cluster, error) {
+// Clusters is the resolver for the clusters field.
+func (r *queryResolver) Clusters(ctx context.Context) ([]*schema.Cluster, error) {
 	return archive.Clusters, nil
 }
 
+// Tags is the resolver for the tags field.
 func (r *queryResolver) Tags(ctx context.Context) ([]*schema.Tag, error) {
 	return r.Repo.GetTags(nil)
 }
 
+// User is the resolver for the user field.
 func (r *queryResolver) User(ctx context.Context, username string) (*model.User, error) {
 	return auth.FetchUser(ctx, r.DB, username)
 }
 
+// AllocatedNodes is the resolver for the allocatedNodes field.
 func (r *queryResolver) AllocatedNodes(ctx context.Context, cluster string) ([]*model.Count, error) {
 	data, err := r.Repo.AllocatedNodes(cluster)
 	if err != nil {
@@ -132,6 +196,7 @@ func (r *queryResolver) AllocatedNodes(ctx context.Context, cluster string) ([]*
 	return counts, nil
 }
 
+// Job is the resolver for the job field.
 func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error) {
 	numericId, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
@@ -143,13 +208,16 @@ func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error)
 		return nil, err
 	}
 
-	if user := auth.GetUser(ctx); user != nil && !user.HasRole(auth.RoleAdmin) && job.User != user.Username {
+	if user := auth.GetUser(ctx); user != nil &&
+		!user.HasRole(auth.RoleAdmin) &&
+		job.User != user.Username {
 		return nil, errors.New("you are not allowed to see this job")
 	}
 
 	return job, nil
 }
 
+// JobMetrics is the resolver for the jobMetrics field.
 func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope) ([]*model.JobMetricWithName, error) {
 	job, err := r.Query().Job(ctx, id)
 	if err != nil {
@@ -178,10 +246,12 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 	return res, err
 }
 
+// JobsFootprints is the resolver for the jobsFootprints field.
 func (r *queryResolver) JobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error) {
 	return r.jobsFootprints(ctx, filter, metrics)
 }
 
+// Jobs is the resolver for the jobs field.
 func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) (*model.JobResultList, error) {
 	if page == nil {
 		page = &model.PageRequest{
@@ -203,10 +273,12 @@ func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, pag
 	return &model.JobResultList{Items: jobs, Count: &count}, nil
 }
 
+// JobsStatistics is the resolver for the jobsStatistics field.
 func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobFilter, groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
 	return r.jobsStatistics(ctx, filter, groupBy)
 }
 
+// JobsCount is the resolver for the jobsCount field.
 func (r *queryResolver) JobsCount(ctx context.Context, filter []*model.JobFilter, groupBy model.Aggregate, weight *model.Weights, limit *int) ([]*model.Count, error) {
 	counts, err := r.Repo.CountGroupedJobs(ctx, groupBy, filter, weight, limit)
 	if err != nil {
@@ -223,10 +295,12 @@ func (r *queryResolver) JobsCount(ctx context.Context, filter []*model.JobFilter
 	return res, nil
 }
 
-func (r *queryResolver) RooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error) {
+// RooflineHeatmap is the resolver for the rooflineHeatmap field.
+func (r *queryResolver) RooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX schema.Float, minY schema.Float, maxX schema.Float, maxY schema.Float) ([][]schema.Float, error) {
 	return r.rooflineHeatmap(ctx, filter, rows, cols, minX, minY, maxX, maxY)
 }
 
+// NodeMetrics is the resolver for the nodeMetrics field.
 func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) ([]*model.NodeMetrics, error) {
 	user := auth.GetUser(ctx)
 	if user != nil && !user.HasRole(auth.RoleAdmin) {
@@ -267,11 +341,42 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 	return nodeMetrics, nil
 }
 
+// Peak is the resolver for the peak field.
+func (r *subClusterConfigResolver) Peak(ctx context.Context, obj *schema.SubClusterConfig) (schema.Float, error) {
+	panic(fmt.Errorf("not implemented: Peak - peak"))
+}
+
+// Normal is the resolver for the normal field.
+func (r *subClusterConfigResolver) Normal(ctx context.Context, obj *schema.SubClusterConfig) (schema.Float, error) {
+	panic(fmt.Errorf("not implemented: Normal - normal"))
+}
+
+// Caution is the resolver for the caution field.
+func (r *subClusterConfigResolver) Caution(ctx context.Context, obj *schema.SubClusterConfig) (schema.Float, error) {
+	panic(fmt.Errorf("not implemented: Caution - caution"))
+}
+
+// Alert is the resolver for the alert field.
+func (r *subClusterConfigResolver) Alert(ctx context.Context, obj *schema.SubClusterConfig) (schema.Float, error) {
+	panic(fmt.Errorf("not implemented: Alert - alert"))
+}
+
 // Cluster returns generated.ClusterResolver implementation.
 func (r *Resolver) Cluster() generated.ClusterResolver { return &clusterResolver{r} }
 
+// FilterRanges returns generated.FilterRangesResolver implementation.
+func (r *Resolver) FilterRanges() generated.FilterRangesResolver { return &filterRangesResolver{r} }
+
 // Job returns generated.JobResolver implementation.
 func (r *Resolver) Job() generated.JobResolver { return &jobResolver{r} }
+
+// MetricConfig returns generated.MetricConfigResolver implementation.
+func (r *Resolver) MetricConfig() generated.MetricConfigResolver { return &metricConfigResolver{r} }
+
+// MetricStatistics returns generated.MetricStatisticsResolver implementation.
+func (r *Resolver) MetricStatistics() generated.MetricStatisticsResolver {
+	return &metricStatisticsResolver{r}
+}
 
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
@@ -279,7 +384,16 @@ func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResol
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
+// SubClusterConfig returns generated.SubClusterConfigResolver implementation.
+func (r *Resolver) SubClusterConfig() generated.SubClusterConfigResolver {
+	return &subClusterConfigResolver{r}
+}
+
 type clusterResolver struct{ *Resolver }
+type filterRangesResolver struct{ *Resolver }
 type jobResolver struct{ *Resolver }
+type metricConfigResolver struct{ *Resolver }
+type metricStatisticsResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type subClusterConfigResolver struct{ *Resolver }

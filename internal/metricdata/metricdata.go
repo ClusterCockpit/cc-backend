@@ -38,6 +38,7 @@ var metricDataRepos map[string]MetricDataRepository = map[string]MetricDataRepos
 var useArchive bool
 
 func Init(disableArchive bool) error {
+
 	useArchive = !disableArchive
 	for _, cluster := range config.Keys.Clusters {
 		if cluster.MetricDataRepository != nil {
@@ -73,6 +74,7 @@ var cache *lrucache.Cache = lrucache.New(128 * 1024 * 1024)
 
 // Fetches the metric data for a job.
 func LoadData(job *schema.Job,
+
 	metrics []string,
 	scopes []schema.MetricScope,
 	ctx context.Context) (schema.JobData, error) {
@@ -151,7 +153,12 @@ func LoadData(job *schema.Job,
 }
 
 // Used for the jobsFootprint GraphQL-Query. TODO: Rename/Generalize.
-func LoadAverages(job *schema.Job, metrics []string, data [][]schema.Float, ctx context.Context) error {
+func LoadAverages(
+	job *schema.Job,
+	metrics []string,
+	data [][]schema.Float,
+	ctx context.Context) error {
+
 	if job.State != schema.JobStateRunning && useArchive {
 		return archive.LoadAveragesFromArchive(job, metrics, data)
 	}
@@ -184,7 +191,13 @@ func LoadAverages(job *schema.Job, metrics []string, data [][]schema.Float, ctx 
 }
 
 // Used for the node/system view. Returns a map of nodes to a map of metrics.
-func LoadNodeData(cluster string, metrics, nodes []string, scopes []schema.MetricScope, from, to time.Time, ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
+func LoadNodeData(
+	cluster string,
+	metrics, nodes []string,
+	scopes []schema.MetricScope,
+	from, to time.Time,
+	ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
+
 	repo, ok := metricDataRepos[cluster]
 	if !ok {
 		return nil, fmt.Errorf("no metric data repository configured for '%s'", cluster)
@@ -212,17 +225,26 @@ func LoadNodeData(cluster string, metrics, nodes []string, scopes []schema.Metri
 	return data, nil
 }
 
-func cacheKey(job *schema.Job, metrics []string, scopes []schema.MetricScope) string {
+func cacheKey(
+	job *schema.Job,
+	metrics []string,
+	scopes []schema.MetricScope) string {
+
 	// Duration and StartTime do not need to be in the cache key as StartTime is less unique than
 	// job.ID and the TTL of the cache entry makes sure it does not stay there forever.
 	return fmt.Sprintf("%d(%s):[%v],[%v]",
 		job.ID, job.State, metrics, scopes)
 }
 
-// For /monitoring/job/<job> and some other places, flops_any and mem_bw need to be available at the scope 'node'.
-// If a job has a lot of nodes, statisticsSeries should be available so that a min/mean/max Graph can be used instead of
-// a lot of single lines.
-func prepareJobData(job *schema.Job, jobData schema.JobData, scopes []schema.MetricScope) {
+// For /monitoring/job/<job> and some other places, flops_any and mem_bw need
+// to be available at the scope 'node'. If a job has a lot of nodes,
+// statisticsSeries should be available so that a min/mean/max Graph can be
+// used instead of a lot of single lines.
+func prepareJobData(
+	job *schema.Job,
+	jobData schema.JobData,
+	scopes []schema.MetricScope) {
+
 	const maxSeriesSize int = 15
 	for _, scopes := range jobData {
 		for _, jm := range scopes {
@@ -249,6 +271,7 @@ func prepareJobData(job *schema.Job, jobData schema.JobData, scopes []schema.Met
 
 // Writes a running job to the job-archive
 func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
+
 	allMetrics := make([]string, 0)
 	metricConfigs := archive.GetCluster(job.Cluster).MetricConfig
 	for _, mc := range metricConfigs {

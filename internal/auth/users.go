@@ -19,6 +19,7 @@ import (
 )
 
 func (auth *Authentication) GetUser(username string) (*User, error) {
+
 	user := &User{Username: username}
 	var hashedPassword, name, rawRoles, email sql.NullString
 	if err := sq.Select("password", "ldap", "name", "roles", "email").From("user").
@@ -40,6 +41,7 @@ func (auth *Authentication) GetUser(username string) (*User, error) {
 }
 
 func (auth *Authentication) AddUser(user *User) error {
+
 	rolesJson, _ := json.Marshal(user.Roles)
 
 	cols := []string{"username", "roles"}
@@ -70,11 +72,13 @@ func (auth *Authentication) AddUser(user *User) error {
 }
 
 func (auth *Authentication) DelUser(username string) error {
+
 	_, err := auth.db.Exec(`DELETE FROM user WHERE user.username = ?`, username)
 	return err
 }
 
 func (auth *Authentication) ListUsers(specialsOnly bool) ([]*User, error) {
+
 	q := sq.Select("username", "name", "email", "roles").From("user")
 	if specialsOnly {
 		q = q.Where("(roles != '[\"user\"]' AND roles != '[]')")
@@ -106,7 +110,11 @@ func (auth *Authentication) ListUsers(specialsOnly bool) ([]*User, error) {
 	return users, nil
 }
 
-func (auth *Authentication) AddRole(ctx context.Context, username string, role string) error {
+func (auth *Authentication) AddRole(
+	ctx context.Context,
+	username string,
+	role string) error {
+
 	user, err := auth.GetUser(username)
 	if err != nil {
 		return err
@@ -129,7 +137,11 @@ func (auth *Authentication) AddRole(ctx context.Context, username string, role s
 	return nil
 }
 
-func FetchUser(ctx context.Context, db *sqlx.DB, username string) (*model.User, error) {
+func FetchUser(
+	ctx context.Context,
+	db *sqlx.DB,
+	username string) (*model.User, error) {
+
 	me := GetUser(ctx)
 	if me != nil && !me.HasRole(RoleAdmin) && me.Username != username {
 		return nil, errors.New("forbidden")
