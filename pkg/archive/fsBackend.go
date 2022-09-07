@@ -57,15 +57,13 @@ func (fsa *FsArchive) Init(rawConfig json.RawMessage) error {
 
 	var config FsArchiveConfig
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
-		fmt.Errorf("fsBackend Init()- %w", err)
-		return err
+		return fmt.Errorf("fsBackend Init()- %w", err)
 	}
 	fsa.path = config.Path
 
 	entries, err := os.ReadDir(fsa.path)
 	if err != nil {
-		fmt.Errorf("fsBackend Init()- Cannot read dir %s: %w", fsa.path, err)
-		return err
+		return fmt.Errorf("fsBackend Init()- Cannot read dir %s: %w", fsa.path, err)
 	}
 
 	for _, de := range entries {
