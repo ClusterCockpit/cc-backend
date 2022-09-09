@@ -1,7 +1,7 @@
 import {} from './header.entrypoint.js'
-import Configsvelte from './Configsvelte.root.svelte'
+import Config from './Config.root.svelte'
 
-new Configsvelte({
+new Config({
     target: document.getElementById('svelte-app'),
     props: {
         user: user

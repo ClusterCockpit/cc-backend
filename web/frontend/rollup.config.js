@@ -66,5 +66,5 @@ export default [
 	entrypoint('node',     'src/node.entrypoint.js'),
 	entrypoint('analysis', 'src/analysis.entrypoint.js'),
 	entrypoint('status',   'src/status.entrypoint.js'),
-	entrypoint('configsvelte',   'src/configsvelte.entrypoint.js')
+	entrypoint('config',   'src/config.entrypoint.js')
 ];

@@ -36,7 +36,6 @@ type Route struct {
 var routes []Route = []Route{
 	{"/", "home.tmpl", "ClusterCockpit", false, setupHomeRoute},
 	{"/config", "config.tmpl", "Settings", false, func(i InfoType, r *http.Request) InfoType { return i }},
-	{"/configsvelte", "configsvelte.tmpl", "Settings as Svelte", false, func(i InfoType, r *http.Request) InfoType { return i }},
 	{"/monitoring/jobs/", "monitoring/jobs.tmpl", "Jobs - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { return i }},
 	{"/monitoring/job/{id:[0-9]+}", "monitoring/job.tmpl", "Job <ID> - ClusterCockpit", false, setupJobRoute},
 	{"/monitoring/users/", "monitoring/list.tmpl", "Users - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { i["listType"] = "USER"; return i }},
