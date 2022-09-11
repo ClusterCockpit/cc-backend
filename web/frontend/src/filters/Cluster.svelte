@@ -38,7 +38,7 @@
                         {cluster.name}
                     </ListGroupItem>
                 {/each}
-            </ListGroup>        
+            </ListGroup>
         {/if}
         {#if $initialized && pendingCluster != null}
             <br/>

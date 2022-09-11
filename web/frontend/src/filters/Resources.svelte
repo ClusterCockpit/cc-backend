@@ -4,6 +4,7 @@
     import DoubleRangeSlider from './DoubleRangeSlider.svelte'
 
     const clusters = getContext('clusters'),
+          ccconfig = getContext('cc-config'),
           initialized = getContext('initialized'),
           dispatch = createEventDispatcher()
 
@@ -26,16 +27,17 @@
     $: {
         if ($initialized) {
             if (cluster != null) {
-                const { filterRanges, subClusters } = clusters.find(c => c.name == cluster)
+                const { subClusters } = clusters.find(c => c.name == cluster)
+                const { filterRanges } = ccconfig.clusters.find(c => c.name == cluster)
                 minNumNodes = filterRanges.numNodes.from
                 maxNumNodes = filterRanges.numNodes.to
                 maxNumAccelerators = findMaxNumAccels([{ subClusters }])
             } else if (clusters.length > 0) {
-                const { filterRanges } = clusters[0]
+                const { filterRanges } = ccconfig.clusters[0]
                 minNumNodes = filterRanges.numNodes.from
                 maxNumNodes = filterRanges.numNodes.to
                 maxNumAccelerators = findMaxNumAccels(clusters)
-                for (let cluster of clusters) {
+                for (let cluster of ccconfig.clusters) {
                     const { filterRanges } = cluster
                     minNumNodes = Math.min(minNumNodes, filterRanges.numNodes.from)
                     maxNumNodes = Math.max(maxNumNodes, filterRanges.numNodes.to)
