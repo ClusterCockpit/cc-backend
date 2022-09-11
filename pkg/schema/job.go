@@ -20,7 +20,7 @@ type BaseJob struct {
 	Cluster          string            `json:"cluster" db:"cluster"`
 	SubCluster       string            `json:"subCluster" db:"subcluster"`
 	Partition        string            `json:"partition" db:"partition"`
-	ArrayJobId       int32             `json:"arrayJobId" db:"array_job_id"`
+	ArrayJobId       int64             `json:"arrayJobId" db:"array_job_id"`
 	NumNodes         int32             `json:"numNodes" db:"num_nodes"`
 	NumHWThreads     int32             `json:"numHwthreads" db:"num_hwthreads"`
 	NumAcc           int32             `json:"numAcc" db:"num_acc"`
