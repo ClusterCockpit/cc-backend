@@ -27,8 +27,6 @@ type FsArchive struct {
 	clusters []string
 }
 
-// For a given job, return the path of the `data.json`/`meta.json` file.
-// TODO: Implement Issue ClusterCockpit/ClusterCockpit#97
 func getPath(
 	job *schema.Job,
 	rootPath string,
@@ -46,6 +44,7 @@ func loadJobMeta(filename string) (schema.JobMeta, error) {
 
 	f, err := os.Open(filename)
 	if err != nil {
+		log.Errorf("fsBackend loadJobMeta()- %v", err)
 		return schema.JobMeta{}, err
 	}
 	defer f.Close()
@@ -57,13 +56,20 @@ func (fsa *FsArchive) Init(rawConfig json.RawMessage) error {
 
 	var config FsArchiveConfig
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
-		return fmt.Errorf("fsBackend Init()- %w", err)
+		log.Errorf("fsBackend Init()- %v", err)
+		return err
+	}
+	if config.Path == "" {
+		err := fmt.Errorf("fsBackend Init()- empty path")
+		log.Errorf("fsBackend Init()- %v", err)
+		return err
 	}
 	fsa.path = config.Path
 
 	entries, err := os.ReadDir(fsa.path)
 	if err != nil {
-		return fmt.Errorf("fsBackend Init()- Cannot read dir %s: %w", fsa.path, err)
+		log.Errorf("fsBackend Init()- %v", err)
+		return err
 	}
 
 	for _, de := range entries {
@@ -76,9 +82,9 @@ func (fsa *FsArchive) Init(rawConfig json.RawMessage) error {
 func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 
 	filename := getPath(job, fsa.path, "data.json")
-
 	f, err := os.Open(filename)
 	if err != nil {
+		log.Errorf("fsBackend LoadJobData()- %v", err)
 		return nil, err
 	}
 	defer f.Close()
@@ -89,21 +95,15 @@ func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 func (fsa *FsArchive) LoadJobMeta(job *schema.Job) (schema.JobMeta, error) {
 
 	filename := getPath(job, fsa.path, "meta.json")
-
-	f, err := os.Open(filename)
-	if err != nil {
-		return schema.JobMeta{}, err
-	}
-	defer f.Close()
-
-	return DecodeJobMeta(bufio.NewReader(f))
+	return loadJobMeta(filename)
 }
 
 func (fsa *FsArchive) LoadClusterCfg(name string) (schema.Cluster, error) {
 
 	f, err := os.Open(filepath.Join(fsa.path, name, "cluster.json"))
 	if err != nil {
-		return schema.Cluster{}, fmt.Errorf("fsBackend LoadClusterCfg()- Cannot open %s: %w", name, err)
+		log.Errorf("fsBackend LoadClusterCfg()- %v", err)
+		return schema.Cluster{}, err
 	}
 	defer f.Close()
 
@@ -143,12 +143,9 @@ func (fsa *FsArchive) Iter() <-chan *schema.JobMeta {
 						log.Fatalf("Reading jobs failed: %s", err.Error())
 					}
 
-					// For compability with the old job-archive directory structure where
-					// there was no start time directory.
 					for _, startTimeDir := range startTimeDirs {
 						if startTimeDir.IsDir() {
-							job, err := loadJobMeta(filepath.Join(dirpath, startTimeDir.Name()))
-
+							job, err := loadJobMeta(filepath.Join(dirpath, startTimeDir.Name(), "meta.json"))
 							if err != nil {
 								log.Errorf("in %s: %s", filepath.Join(dirpath, startTimeDir.Name()), err.Error())
 							} else {
@@ -159,6 +156,7 @@ func (fsa *FsArchive) Iter() <-chan *schema.JobMeta {
 				}
 			}
 		}
+		close(ch)
 	}()
 	return ch
 }
