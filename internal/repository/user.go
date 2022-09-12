@@ -5,14 +5,13 @@
 package repository
 
 import (
-	"context"
 	"encoding/json"
 	"log"
-	"net/http"
 	"sync"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
 	"github.com/jmoiron/sqlx"
 )
@@ -52,9 +51,10 @@ func GetUserCfgRepo() *UserCfgRepo {
 		}
 
 		userCfgRepoInstance = &UserCfgRepo{
-			DB:     db.DB,
-			Lookup: lookupConfigStmt,
-			cache:  lrucache.New(1024),
+			DB:         db.DB,
+			Lookup:     lookupConfigStmt,
+			uiDefaults: config.Keys.UiDefaults,
+			cache:      lrucache.New(1024),
 		}
 	})
 
@@ -63,8 +63,7 @@ func GetUserCfgRepo() *UserCfgRepo {
 
 // Return the personalised UI config for the currently authenticated
 // user or return the plain default config.
-func (uCfg *UserCfgRepo) GetUIConfig(r *http.Request) (map[string]interface{}, error) {
-	user := auth.GetUser(r.Context())
+func (uCfg *UserCfgRepo) GetUIConfig(user *auth.User) (map[string]interface{}, error) {
 	if user == nil {
 		uCfg.lock.RLock()
 		copy := make(map[string]interface{}, len(uCfg.uiDefaults))
@@ -116,8 +115,10 @@ func (uCfg *UserCfgRepo) GetUIConfig(r *http.Request) (map[string]interface{}, e
 // If the context does not have a user, update the global ui configuration
 // without persisting it!  If there is a (authenticated) user, update only his
 // configuration.
-func (uCfg *UserCfgRepo) UpdateConfig(key, value string, ctx context.Context) error {
-	user := auth.GetUser(ctx)
+func (uCfg *UserCfgRepo) UpdateConfig(
+	key, value string,
+	user *auth.User) error {
+
 	if user == nil {
 		var val interface{}
 		if err := json.Unmarshal([]byte(value), &val); err != nil {

@@ -258,7 +258,7 @@ func SetupRoutes(router *mux.Router) {
 	for _, route := range routes {
 		route := route
 		router.HandleFunc(route.Route, func(rw http.ResponseWriter, r *http.Request) {
-			conf, err := userCfgRepo.GetUIConfig(r)
+			conf, err := userCfgRepo.GetUIConfig(auth.GetUser(r.Context()))
 			if err != nil {
 				http.Error(rw, err.Error(), http.StatusInternalServerError)
 				return

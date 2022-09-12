@@ -595,7 +595,7 @@ func (api *RestApi) updateConfiguration(rw http.ResponseWriter, r *http.Request)
 
 	fmt.Printf("KEY: %#v\nVALUE: %#v\n", key, value)
 
-	if err := repository.GetUserCfgRepo().UpdateConfig(key, value, r.Context()); err != nil {
+	if err := repository.GetUserCfgRepo().UpdateConfig(key, value, auth.GetUser(r.Context())); err != nil {
 		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
