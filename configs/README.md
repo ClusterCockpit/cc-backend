@@ -1,9 +1,10 @@
 ## Intro
 
-cc-backend can be used without a configuration file. In this case the default
-options documented below are used. To overwrite the defaults specify a json
-config file location using the command line option `--config <filepath>`.
-All security relevant configuration. e.g., keys and passwords, are set using environment variables. It is supported to specify these by means of an `.env` file located in the project root.
+cc-backend requires a configuration file speciyfing the cluster systems to be used. Still many  default
+options documented below are used. cc-backend tries to load a config.json from the working directory per default.
+To overwrite the default specify a json config file location using the command line option `--config <filepath>`.
+All security relevant configuration. e.g., keys and passwords, are set using environment variables. 
+It is supported to specify these by means of an `.env` file located in the project root.
 
 ## Configuration Options
 
@@ -31,12 +32,23 @@ All security relevant configuration. e.g., keys and passwords, are set using env
    - `user_filter`: Type string. Filter to extract users for syncing.
    - `sync_interval`: Type string. Interval used for syncing local user table with LDAP directory. Parsed using time.ParseDuration.
    - `sync_del_old_users`: Type bool. Delete obsolete users in database.
+* `clusters`: Type array of objects
+   - `name`: Type string. The name of the cluster.
+   - `metricDataRepository`: Type object with properties: `kind` (Type string, can be one of `cc-metric-store`, `influxdb` ), `url` (Type string), `token` (Type string)
+   - `filterRanges` Type object. This option controls the slider ranges for the UI controls of numNodes, duration, and startTime.  Example:
+   ```
+   "filterRanges": {
+                "numNodes": { "from": 1, "to": 64 },
+                "duration": { "from": 0, "to": 86400 },
+                "startTime": { "from": "2022-01-01T00:00:00Z", "to": null }
+            }
+   ```
 * `ui-defaults`: Type object. Default configuration for ui views. If overwriten, all options  must be provided! Most options can be overwritten by the user via the web interface.
    - `analysis_view_histogramMetrics`: Type string array. Metrics to show as job count histograms in analysis view. Default `["flops_any", "mem_bw", "mem_used"]`.
    - `analysis_view_scatterPlotMetrics`: Type array of string array. Initial scatter plto configuration in analysis view. Default `[["flops_any", "mem_bw"], ["flops_any", "cpu_load"], ["cpu_load", "mem_bw"]]`.
    - `job_view_nodestats_selectedMetrics`: Type string array. Initial metrics shown in node statistics table of single job view. Default `["flops_any", "mem_bw", "mem_used"]`.
    - `job_view_polarPlotMetrics`: Type string array. Metrics shown in polar plot of single job view. Default `["flops_any", "mem_bw", "mem_used", "net_bw", "file_bw"]`.
-   - `job_view_selectedMetrics`: Type string array. ??. Default `["flops_any", "mem_bw", "mem_used"]`.
+   - `job_view_selectedMetrics`: Type string array.  Default `["flops_any", "mem_bw", "mem_used"]`.
    - `plot_general_colorBackground`: Type bool. Color plot background according to job average threshold limits. Default `true`.
    - `plot_general_colorscheme`: Type string array. Initial color scheme. Default `"#00bfff", "#0000ff", "#ff00ff", "#ff0000", "#ff8000", "#ffff00", "#80ff00"`.
    - `plot_general_lineWidth`: Type int. Initial linewidth. Default `3`.
