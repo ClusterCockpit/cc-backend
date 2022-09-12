@@ -87,6 +87,7 @@
             <select class="form-select" id="role-select">
                 <option selected value="">Role...</option>
                 <option value="user">User</option>
+                <option value="support">Support</option>
                 <option value="admin">Admin</option>
                 <option value="api">API</option>
             </select>

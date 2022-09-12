@@ -75,6 +75,10 @@
                 <label for="api">API</label>
             </div>
             <div>
+                <input type="radio" id="support" name="role" value="support"/>
+                <label for="support">Support</label>
+            </div>
+            <div>
                 <input type="radio" id="admin" name="role" value="admin"/>
                 <label for="admin">Admin</label>
             </div>
