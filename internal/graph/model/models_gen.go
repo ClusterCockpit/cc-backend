@@ -17,8 +17,8 @@ type Count struct {
 }
 
 type FloatRange struct {
-	From schema.Float `json:"from"`
-	To   schema.Float `json:"to"`
+	From float64 `json:"from"`
+	To   float64 `json:"to"`
 }
 
 type Footprints struct {

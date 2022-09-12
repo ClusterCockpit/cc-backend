@@ -24,26 +24,6 @@ func (r *clusterResolver) Partitions(ctx context.Context, obj *schema.Cluster) (
 	return r.Repo.Partitions(obj.Name)
 }
 
-// FilterRanges is the resolver for the filterRanges field.
-func (r *clusterResolver) FilterRanges(ctx context.Context, obj *schema.Cluster) (*schema.FilterRanges, error) {
-	panic(fmt.Errorf("not implemented: FilterRanges - filterRanges"))
-}
-
-// Duration is the resolver for the duration field.
-func (r *filterRangesResolver) Duration(ctx context.Context, obj *schema.FilterRanges) (*model.IntRangeOutput, error) {
-	panic(fmt.Errorf("not implemented: Duration - duration"))
-}
-
-// NumNodes is the resolver for the numNodes field.
-func (r *filterRangesResolver) NumNodes(ctx context.Context, obj *schema.FilterRanges) (*model.IntRangeOutput, error) {
-	panic(fmt.Errorf("not implemented: NumNodes - numNodes"))
-}
-
-// StartTime is the resolver for the startTime field.
-func (r *filterRangesResolver) StartTime(ctx context.Context, obj *schema.FilterRanges) (*model.TimeRangeOutput, error) {
-	panic(fmt.Errorf("not implemented: StartTime - startTime"))
-}
-
 // Tags is the resolver for the tags field.
 func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error) {
 	return r.Repo.GetTags(&obj.ID)
@@ -57,41 +37,6 @@ func (r *jobResolver) MetaData(ctx context.Context, obj *schema.Job) (interface{
 // UserData is the resolver for the userData field.
 func (r *jobResolver) UserData(ctx context.Context, obj *schema.Job) (*model.User, error) {
 	return auth.FetchUser(ctx, r.DB, obj.User)
-}
-
-// Peak is the resolver for the peak field.
-func (r *metricConfigResolver) Peak(ctx context.Context, obj *schema.MetricConfig) (*schema.Float, error) {
-	panic(fmt.Errorf("not implemented: Peak - peak"))
-}
-
-// Normal is the resolver for the normal field.
-func (r *metricConfigResolver) Normal(ctx context.Context, obj *schema.MetricConfig) (*schema.Float, error) {
-	panic(fmt.Errorf("not implemented: Normal - normal"))
-}
-
-// Caution is the resolver for the caution field.
-func (r *metricConfigResolver) Caution(ctx context.Context, obj *schema.MetricConfig) (*schema.Float, error) {
-	panic(fmt.Errorf("not implemented: Caution - caution"))
-}
-
-// Alert is the resolver for the alert field.
-func (r *metricConfigResolver) Alert(ctx context.Context, obj *schema.MetricConfig) (*schema.Float, error) {
-	panic(fmt.Errorf("not implemented: Alert - alert"))
-}
-
-// Avg is the resolver for the avg field.
-func (r *metricStatisticsResolver) Avg(ctx context.Context, obj *schema.MetricStatistics) (schema.Float, error) {
-	panic(fmt.Errorf("not implemented: Avg - avg"))
-}
-
-// Min is the resolver for the min field.
-func (r *metricStatisticsResolver) Min(ctx context.Context, obj *schema.MetricStatistics) (schema.Float, error) {
-	panic(fmt.Errorf("not implemented: Min - min"))
-}
-
-// Max is the resolver for the max field.
-func (r *metricStatisticsResolver) Max(ctx context.Context, obj *schema.MetricStatistics) (schema.Float, error) {
-	panic(fmt.Errorf("not implemented: Max - max"))
 }
 
 // CreateTag is the resolver for the createTag field.
@@ -155,8 +100,7 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 
 // UpdateConfiguration is the resolver for the updateConfiguration field.
 func (r *mutationResolver) UpdateConfiguration(ctx context.Context, name string, value string) (*string, error) {
-
-	if err := repository.GetUserCfgRepo().UpdateConfig(name, value, ctx); err != nil {
+	if err := repository.GetUserCfgRepo().UpdateConfig(name, value, auth.GetUser(ctx)); err != nil {
 		return nil, err
 	}
 
@@ -296,7 +240,7 @@ func (r *queryResolver) JobsCount(ctx context.Context, filter []*model.JobFilter
 }
 
 // RooflineHeatmap is the resolver for the rooflineHeatmap field.
-func (r *queryResolver) RooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX schema.Float, minY schema.Float, maxX schema.Float, maxY schema.Float) ([][]schema.Float, error) {
+func (r *queryResolver) RooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error) {
 	return r.rooflineHeatmap(ctx, filter, rows, cols, minX, minY, maxX, maxY)
 }
 
@@ -341,42 +285,11 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 	return nodeMetrics, nil
 }
 
-// Peak is the resolver for the peak field.
-func (r *subClusterConfigResolver) Peak(ctx context.Context, obj *schema.SubClusterConfig) (schema.Float, error) {
-	panic(fmt.Errorf("not implemented: Peak - peak"))
-}
-
-// Normal is the resolver for the normal field.
-func (r *subClusterConfigResolver) Normal(ctx context.Context, obj *schema.SubClusterConfig) (schema.Float, error) {
-	panic(fmt.Errorf("not implemented: Normal - normal"))
-}
-
-// Caution is the resolver for the caution field.
-func (r *subClusterConfigResolver) Caution(ctx context.Context, obj *schema.SubClusterConfig) (schema.Float, error) {
-	panic(fmt.Errorf("not implemented: Caution - caution"))
-}
-
-// Alert is the resolver for the alert field.
-func (r *subClusterConfigResolver) Alert(ctx context.Context, obj *schema.SubClusterConfig) (schema.Float, error) {
-	panic(fmt.Errorf("not implemented: Alert - alert"))
-}
-
 // Cluster returns generated.ClusterResolver implementation.
 func (r *Resolver) Cluster() generated.ClusterResolver { return &clusterResolver{r} }
 
-// FilterRanges returns generated.FilterRangesResolver implementation.
-func (r *Resolver) FilterRanges() generated.FilterRangesResolver { return &filterRangesResolver{r} }
-
 // Job returns generated.JobResolver implementation.
 func (r *Resolver) Job() generated.JobResolver { return &jobResolver{r} }
-
-// MetricConfig returns generated.MetricConfigResolver implementation.
-func (r *Resolver) MetricConfig() generated.MetricConfigResolver { return &metricConfigResolver{r} }
-
-// MetricStatistics returns generated.MetricStatisticsResolver implementation.
-func (r *Resolver) MetricStatistics() generated.MetricStatisticsResolver {
-	return &metricStatisticsResolver{r}
-}
 
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
@@ -384,16 +297,7 @@ func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResol
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
-// SubClusterConfig returns generated.SubClusterConfigResolver implementation.
-func (r *Resolver) SubClusterConfig() generated.SubClusterConfigResolver {
-	return &subClusterConfigResolver{r}
-}
-
 type clusterResolver struct{ *Resolver }
-type filterRangesResolver struct{ *Resolver }
 type jobResolver struct{ *Resolver }
-type metricConfigResolver struct{ *Resolver }
-type metricStatisticsResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
-type subClusterConfigResolver struct{ *Resolver }

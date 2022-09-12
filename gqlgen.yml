@@ -30,7 +30,7 @@ resolver:
 # gqlgen will search for any type names in the schema in these go packages
 # if they match it will use them, otherwise it will generate them.
 autobind:
-  - "github.com/ClusterCockpit/cc-backend/pkg/schema"
+  - "github.com/ClusterCockpit/cc-backend/internal/graph/model"
 
 # This section declares type mapping between the GraphQL and go type systems
 #
@@ -57,6 +57,7 @@ models:
       metaData:
         resolver: true
   Cluster:
+    model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Cluster"
     fields:
       partitions:
         resolver: true
@@ -66,7 +67,15 @@ models:
   Tag: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Tag" }
   Resource: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Resource" }
   JobState: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.JobState" }
+  TimeRange: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.TimeRange" }
+  IntRange: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.IntRange" }
   JobMetric: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.JobMetric" }
   Series: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Series" }
   MetricStatistics: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.MetricStatistics" }
+  MetricConfig: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.MetricConfig" }
+  SubClusterConfig: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.SubClusterConfig" }
+  Accelerator: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Accelerator" }
+  Topology: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Topology" }
+  FilterRanges: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.FilterRanges" }
+  SubCluster: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.SubCluster" }
   StatsSeries: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.StatsSeries" }
