@@ -8,11 +8,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
-
-var db *sqlx.DB
 
 func init() {
 	Connect("sqlite3", "../../test/test.db")
