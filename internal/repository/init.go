@@ -250,9 +250,6 @@ func SanityChecks(job *schema.BaseJob) error {
 	if len(job.Resources) != int(job.NumNodes) {
 		return fmt.Errorf("len(resources) does not equal numNodes (%d vs %d)", len(job.Resources), job.NumNodes)
 	}
-	if job.ArrayJobId == 0 {
-		job.ArrayJobId = job.JobID
-	}
 
 	return nil
 }
