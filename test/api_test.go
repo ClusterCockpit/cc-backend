@@ -30,6 +30,7 @@ import (
 func setup(t *testing.T) *api.RestApi {
 	const testconfig = `{
 	"addr":            "0.0.0.0:8080",
+	"validate": false,
 	"archive": {
 		"kind": "file",
 		"path": "./var/job-archive"
