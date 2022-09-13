@@ -112,7 +112,7 @@ func (auth *Authentication) AddRole(ctx context.Context, username string, role s
 		return err
 	}
 
-	if role != RoleAdmin && role != RoleApi && role != RoleUser {
+	if role != RoleAdmin && role != RoleApi && role != RoleUser && role != RoleSupport {
 		return fmt.Errorf("invalid user role: %#v", role)
 	}
 
@@ -162,7 +162,7 @@ func (auth *Authentication) RemoveRole(ctx context.Context, username string, rol
 
 func FetchUser(ctx context.Context, db *sqlx.DB, username string) (*model.User, error) {
 	me := GetUser(ctx)
-	if me != nil && !me.HasRole(RoleAdmin) && me.Username != username {
+	if me != nil && !me.HasRole(RoleAdmin) && !me.HasRole(RoleSupport) && me.Username != username {
 		return nil, errors.New("forbidden")
 	}
 
