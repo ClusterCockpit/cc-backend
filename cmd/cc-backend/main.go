@@ -43,11 +43,12 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/santhosh-tekuri/jsonschema/v5/httploader"
 )
 
 func main() {
 	var flagReinitDB, flagServer, flagSyncLDAP, flagGops, flagDev bool
-	var flagNewUser, flagDelUser, flagGenJWT, flagConfigFile string
+	var flagNewUser, flagDelUser, flagGenJWT, flagConfigFile, flagImportJob string
 	flag.BoolVar(&flagReinitDB, "init-db", false, "Go through job-archive and re-initialize the 'job', 'tag', and 'jobtag' tables (all running jobs will be lost!)")
 	flag.BoolVar(&flagSyncLDAP, "sync-ldap", false, "Sync the 'user' table with ldap")
 	flag.BoolVar(&flagServer, "server", false, "Do not start a server, stop right after initialization and argument handling")
@@ -57,6 +58,7 @@ func main() {
 	flag.StringVar(&flagNewUser, "add-user", "", "Add a new user. Argument format: `<username>:[admin,support,api,user]:<password>`")
 	flag.StringVar(&flagDelUser, "del-user", "", "Remove user by `username`")
 	flag.StringVar(&flagGenJWT, "jwt", "", "Generate and print a JWT for the user specified by its `username`")
+	flag.StringVar(&flagImportJob, "import-job", "", "Import a job. Argument format: `<path-to-meta.json>:<path-to-data.json>,...`")
 	flag.Parse()
 
 	// See https://github.com/google/gops (Runtime overhead is almost zero)
@@ -160,6 +162,12 @@ func main() {
 	if flagReinitDB {
 		if err := repository.InitDB(); err != nil {
 			log.Fatal(err)
+		}
+	}
+
+	if flagImportJob != "" {
+		if err := repository.HandleImportFlag(flagImportJob); err != nil {
+			log.Fatalf("import failed: %s", err.Error())
 		}
 	}
 

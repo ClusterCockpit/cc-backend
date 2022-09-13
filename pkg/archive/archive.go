@@ -92,11 +92,6 @@ func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
 	return metaFile.Statistics, nil
 }
 
-func Import(job *schema.JobMeta, jobData *schema.JobData) error {
-
-	return ar.ImportJob(job, jobData)
-}
-
 // If the job is archived, find its `meta.json` file and override the tags list
 // in that JSON file. If the job is not archived, nothing is done.
 func UpdateTags(job *schema.Job, tags []*schema.Tag) error {
