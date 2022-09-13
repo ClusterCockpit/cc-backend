@@ -40,12 +40,12 @@ func getPath(
 		strconv.FormatInt(job.StartTime.Unix(), 10), file)
 }
 
-func loadJobMeta(filename string) (schema.JobMeta, error) {
+func loadJobMeta(filename string) (*schema.JobMeta, error) {
 
 	f, err := os.Open(filename)
 	if err != nil {
 		log.Errorf("fsBackend loadJobMeta()- %v", err)
-		return schema.JobMeta{}, err
+		return &schema.JobMeta{}, err
 	}
 	defer f.Close()
 
@@ -89,21 +89,21 @@ func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 	}
 	defer f.Close()
 
-	return DecodeJobData(bufio.NewReader(f))
+	return DecodeJobData(bufio.NewReader(f), filename)
 }
 
-func (fsa *FsArchive) LoadJobMeta(job *schema.Job) (schema.JobMeta, error) {
+func (fsa *FsArchive) LoadJobMeta(job *schema.Job) (*schema.JobMeta, error) {
 
 	filename := getPath(job, fsa.path, "meta.json")
 	return loadJobMeta(filename)
 }
 
-func (fsa *FsArchive) LoadClusterCfg(name string) (schema.Cluster, error) {
+func (fsa *FsArchive) LoadClusterCfg(name string) (*schema.Cluster, error) {
 
 	f, err := os.Open(filepath.Join(fsa.path, name, "cluster.json"))
 	if err != nil {
 		log.Errorf("fsBackend LoadClusterCfg()- %v", err)
-		return schema.Cluster{}, err
+		return &schema.Cluster{}, err
 	}
 	defer f.Close()
 
@@ -149,7 +149,7 @@ func (fsa *FsArchive) Iter() <-chan *schema.JobMeta {
 							if err != nil {
 								log.Errorf("in %s: %s", filepath.Join(dirpath, startTimeDir.Name()), err.Error())
 							} else {
-								ch <- &job
+								ch <- job
 							}
 						}
 					}
@@ -161,7 +161,7 @@ func (fsa *FsArchive) Iter() <-chan *schema.JobMeta {
 	return ch
 }
 
-func (fsa *FsArchive) StoreMeta(jobMeta *schema.JobMeta) error {
+func (fsa *FsArchive) StoreJobMeta(jobMeta *schema.JobMeta) error {
 
 	job := schema.Job{
 		BaseJob:       jobMeta.BaseJob,
@@ -187,7 +187,7 @@ func (fsa *FsArchive) GetClusters() []string {
 	return fsa.clusters
 }
 
-func (fsa *FsArchive) Import(
+func (fsa *FsArchive) ImportJob(
 	jobMeta *schema.JobMeta,
 	jobData *schema.JobData) error {
 

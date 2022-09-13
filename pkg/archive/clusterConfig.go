@@ -8,11 +8,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
-var cache *lrucache.Cache = lrucache.New(1024)
 var Clusters []*schema.Cluster
 var nodeLists map[string]map[string]NodeList
 
@@ -51,7 +49,7 @@ func initClusterConfig() error {
 			}
 		}
 
-		Clusters = append(Clusters, &cluster)
+		Clusters = append(Clusters, cluster)
 
 		nodeLists[cluster.Name] = make(map[string]NodeList)
 		for _, sc := range cluster.SubClusters {

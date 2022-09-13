@@ -8,29 +8,29 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
 type ArchiveBackend interface {
 	Init(rawConfig json.RawMessage) error
 
-	// replaces previous loadMetaJson
-	LoadJobMeta(job *schema.Job) (schema.JobMeta, error)
+	LoadJobMeta(job *schema.Job) (*schema.JobMeta, error)
 
-	// replaces previous loadFromArchive
 	LoadJobData(job *schema.Job) (schema.JobData, error)
 
-	LoadClusterCfg(name string) (schema.Cluster, error)
+	LoadClusterCfg(name string) (*schema.Cluster, error)
 
-	StoreMeta(jobMeta *schema.JobMeta) error
+	StoreJobMeta(jobMeta *schema.JobMeta) error
 
-	Import(jobMeta *schema.JobMeta, jobData *schema.JobData) error
+	ImportJob(jobMeta *schema.JobMeta, jobData *schema.JobData) error
 
 	GetClusters() []string
 
 	Iter() <-chan *schema.JobMeta
 }
 
+var cache *lrucache.Cache = lrucache.New(128 * 1024 * 1024)
 var ar ArchiveBackend
 
 func Init(rawConfig json.RawMessage) error {
@@ -94,7 +94,7 @@ func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
 
 func Import(job *schema.JobMeta, jobData *schema.JobData) error {
 
-	return ar.Import(job, jobData)
+	return ar.ImportJob(job, jobData)
 }
 
 // If the job is archived, find its `meta.json` file and override the tags list
@@ -118,5 +118,5 @@ func UpdateTags(job *schema.Job, tags []*schema.Tag) error {
 		})
 	}
 
-	return ar.StoreMeta(&jobMeta)
+	return ar.StoreJobMeta(jobMeta)
 }
