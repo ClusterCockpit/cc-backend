@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	_ "github.com/santhosh-tekuri/jsonschema/v5/httploader"
 )
 
 func TestInitEmptyPath(t *testing.T) {

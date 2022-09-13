@@ -5,10 +5,12 @@
 package schema
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
-	"github.com/santhosh-tekuri/jsonschema"
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/santhosh-tekuri/jsonschema/v5"
 )
 
 type Kind int
@@ -19,7 +21,7 @@ const (
 	ClusterCfg
 )
 
-func Validate(k Kind, v io.Reader) (err error) {
+func Validate(k Kind, r io.Reader) (err error) {
 	var s *jsonschema.Schema
 
 	switch k {
@@ -37,8 +39,14 @@ func Validate(k Kind, v io.Reader) (err error) {
 		return err
 	}
 
-	if err = s.Validate(v); err != nil {
+	var v interface{}
+	if err := json.NewDecoder(r).Decode(&v); err != nil {
+		log.Error("schema.Validate() - Failed to decode %v", err)
 		return err
+	}
+
+	if err = s.Validate(v); err != nil {
+		return fmt.Errorf("%#v", err)
 	}
 
 	return nil

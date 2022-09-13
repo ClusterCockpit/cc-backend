@@ -6,6 +6,7 @@ package archive
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
@@ -100,14 +102,17 @@ func (fsa *FsArchive) LoadJobMeta(job *schema.Job) (*schema.JobMeta, error) {
 
 func (fsa *FsArchive) LoadClusterCfg(name string) (*schema.Cluster, error) {
 
-	f, err := os.Open(filepath.Join(fsa.path, name, "cluster.json"))
+	b, err := os.ReadFile(filepath.Join(fsa.path, name, "cluster.json"))
 	if err != nil {
 		log.Errorf("fsBackend LoadClusterCfg()- %v", err)
 		return &schema.Cluster{}, err
 	}
-	defer f.Close()
-
-	return DecodeCluster(bufio.NewReader(f))
+	if config.Keys.Validate {
+		if err := schema.Validate(schema.ClusterCfg, bytes.NewReader(b)); err != nil {
+			return &schema.Cluster{}, err
+		}
+	}
+	return DecodeCluster(bytes.NewReader(b))
 }
 
 func (fsa *FsArchive) Iter() <-chan *schema.JobMeta {

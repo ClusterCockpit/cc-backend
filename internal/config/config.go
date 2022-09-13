@@ -20,6 +20,7 @@ var Keys schema.ProgramConfig = schema.ProgramConfig{
 	DB:                    "./var/job.db",
 	Archive:               json.RawMessage(`{\"kind\":\"file\",\"path\":\"./var/job-archive\"}`),
 	DisableArchive:        false,
+	Validate:              false,
 	LdapConfig:            nil,
 	SessionMaxAge:         "168h",
 	UiDefaults: map[string]interface{}{

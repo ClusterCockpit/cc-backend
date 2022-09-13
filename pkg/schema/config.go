@@ -78,6 +78,9 @@ type ProgramConfig struct {
 	// do not write to the job-archive.
 	DisableArchive bool `json:"disable-archive"`
 
+	// Validate json input against schema
+	Validate bool `json:"validate"`
+
 	// For LDAP Authentication and user synchronisation.
 	LdapConfig *LdapConfig    `json:"ldap"`
 	JwtConfig  *JWTAuthConfig `json:"jwts"`
