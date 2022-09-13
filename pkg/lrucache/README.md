@@ -118,4 +118,9 @@ to use `1` as size for every entry, in that case at most `maxMemory` entries wil
 
 ## Affects on GC
 
-Because of the way a garbage collector decides when to run ([explained in the runtime package](https://pkg.go.dev/runtime)), having large amounts of data sitting in your cache might increase the memory consumption of your process by two times the maximum size of the cache. You can decrease the *target percentage* to reduce the effect, but then you might have negative performance effects when your cache is not filled.
+Because of the way a garbage collector decides when to run ([explained in the
+runtime package](https://pkg.go.dev/runtime)), having large amounts of data
+sitting in your cache might increase the memory consumption of your process by
+two times the maximum size of the cache. You can decrease the *target
+percentage* to reduce the effect, but then you might have negative performance
+effects when your cache is not filled.

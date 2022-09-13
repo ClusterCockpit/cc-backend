@@ -74,7 +74,6 @@ var cache *lrucache.Cache = lrucache.New(128 * 1024 * 1024)
 
 // Fetches the metric data for a job.
 func LoadData(job *schema.Job,
-
 	metrics []string,
 	scopes []schema.MetricScope,
 	ctx context.Context) (schema.JobData, error) {

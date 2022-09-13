@@ -19,9 +19,10 @@ import (
 )
 
 const (
-	RoleAdmin string = "admin"
-	RoleApi   string = "api"
-	RoleUser  string = "user"
+	RoleAdmin   string = "admin"
+	RoleSupport string = "support"
+	RoleApi     string = "api"
+	RoleUser    string = "user"
 )
 
 const (
