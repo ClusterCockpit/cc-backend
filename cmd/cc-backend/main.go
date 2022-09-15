@@ -264,7 +264,7 @@ func main() {
 
 	if flagDev {
 		r.Handle("/playground", playground.Handler("GraphQL playground", "/query"))
-		secured.PathPrefix("/docs").Handler(httpSwagger.WrapHandler)
+		r.PathPrefix("/docs").Handler(httpSwagger.WrapHandler)
 	}
 	secured.Handle("/query", graphQLEndpoint)
 

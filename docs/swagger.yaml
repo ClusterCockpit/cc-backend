@@ -101,6 +101,73 @@ definitions:
       walltime:
         type: integer
     type: object
+  schema.JobMeta:
+    properties:
+      arrayJobId:
+        type: integer
+      cluster:
+        type: string
+      duration:
+        type: integer
+      exclusive:
+        type: integer
+      id:
+        description: never used in the job-archive, only available via REST-API
+        type: integer
+      jobId:
+        type: integer
+      jobState:
+        type: string
+      metaData:
+        additionalProperties:
+          type: string
+        type: object
+      monitoringStatus:
+        type: integer
+      numAcc:
+        type: integer
+      numHwthreads:
+        type: integer
+      numNodes:
+        type: integer
+      partition:
+        type: string
+      project:
+        type: string
+      resources:
+        items:
+          $ref: '#/definitions/schema.Resource'
+        type: array
+      smt:
+        type: integer
+      startTime:
+        type: integer
+      statistics:
+        additionalProperties:
+          $ref: '#/definitions/schema.JobStatistics'
+        type: object
+      subCluster:
+        type: string
+      tags:
+        items:
+          $ref: '#/definitions/schema.Tag'
+        type: array
+      user:
+        type: string
+      walltime:
+        type: integer
+    type: object
+  schema.JobStatistics:
+    properties:
+      avg:
+        type: number
+      max:
+        type: number
+      min:
+        type: number
+      unit:
+        type: string
+    type: object
   schema.Resource:
     properties:
       accelerators:
@@ -208,7 +275,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/schema.Job'
+          $ref: '#/definitions/schema.JobMeta'
       produces:
       - application/json
       responses:
