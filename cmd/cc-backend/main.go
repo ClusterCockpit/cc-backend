@@ -40,10 +40,12 @@ import (
 	"github.com/google/gops/agent"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/swaggo/http-swagger"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
 	_ "github.com/santhosh-tekuri/jsonschema/v5/httploader"
+	_ "github.com/ClusterCockpit/cc-backend/docs"
 )
 
 func main() {
@@ -51,7 +53,7 @@ func main() {
 	var flagNewUser, flagDelUser, flagGenJWT, flagConfigFile, flagImportJob string
 	flag.BoolVar(&flagReinitDB, "init-db", false, "Go through job-archive and re-initialize the 'job', 'tag', and 'jobtag' tables (all running jobs will be lost!)")
 	flag.BoolVar(&flagSyncLDAP, "sync-ldap", false, "Sync the 'user' table with ldap")
-	flag.BoolVar(&flagServer, "server", false, "Do not start a server, stop right after initialization and argument handling")
+	flag.BoolVar(&flagServer, "server", false, "Start a server, continues listening on port after initialization and argument handling")
 	flag.BoolVar(&flagGops, "gops", false, "Listen via github.com/google/gops/agent (for debugging)")
 	flag.BoolVar(&flagDev, "dev", false, "Enable development components: GraphQL Playground and Swagger UI")
 	flag.StringVar(&flagConfigFile, "config", "./config.json", "Overwrite the global config options by those specified in `config.json`")
@@ -262,6 +264,7 @@ func main() {
 
 	if flagDev {
 		r.Handle("/playground", playground.Handler("GraphQL playground", "/query"))
+		secured.PathPrefix("/docs").Handler(httpSwagger.WrapHandler)
 	}
 	secured.Handle("/query", graphQLEndpoint)
 

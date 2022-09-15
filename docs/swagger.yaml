@@ -1,0 +1,360 @@
+basePath: /api
+definitions:
+  api.ErrorResponse:
+    description: Error Response when using API.
+    properties:
+      error:
+        description: Error Message
+        type: string
+      status:
+        description: Statustext of Errorcode
+        type: string
+    type: object
+  api.TagJobApiRequest:
+    description: Request to tag a job boii
+    items:
+      properties:
+        name:
+          description: Tag Name
+          type: string
+        type:
+          description: Tag Type
+          type: string
+      type: object
+    type: array
+  api.StartJobApiResponse:
+    description: Successful job start response with database id of new job.
+    properties:
+      id:
+        description: Database ID of new job
+        type: integer
+    type: object
+  api.StopJobApiRequest:
+    description: 'Request to stop running job using stop time and state. Optional
+      fields: JobId, ClusterId and StartTime. They are only used if no database id
+      was provided.'
+    properties:
+      cluster:
+        description: Cluster of job (Optional)
+        type: string
+      jobId:
+        description: Job ID of job (Optional)
+        type: integer
+      jobState:
+        description: Final job state
+        type: string
+      startTime:
+        description: Start Time of job (Optional)
+        type: integer
+      stopTime:
+        description: Stop Time as Epoch
+        type: integer
+    type: object
+  schema.Job:
+    properties:
+      arrayJobId:
+        type: integer
+      cluster:
+        type: string
+      duration:
+        type: integer
+      exclusive:
+        type: integer
+      id:
+        type: integer
+      jobId:
+        type: integer
+      jobState:
+        type: string
+      metaData:
+        additionalProperties:
+          type: string
+        type: object
+      monitoringStatus:
+        type: integer
+      numAcc:
+        type: integer
+      numHwthreads:
+        type: integer
+      numNodes:
+        type: integer
+      partition:
+        type: string
+      project:
+        type: string
+      resources:
+        items:
+          $ref: '#/definitions/schema.Resource'
+        type: array
+      smt:
+        type: integer
+      startTime:
+        type: string
+      subCluster:
+        type: string
+      tags:
+        items:
+          $ref: '#/definitions/schema.Tag'
+        type: array
+      user:
+        type: string
+      walltime:
+        type: integer
+    type: object
+  schema.Resource:
+    properties:
+      accelerators:
+        items:
+          type: string
+        type: array
+      configuration:
+        type: string
+      hostname:
+        type: string
+      hwthreads:
+        items:
+          type: integer
+        type: array
+    type: object
+  schema.Tag:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+host: clustercockpit.localhost:8082
+info:
+  contact:
+    email: hpc-support@fau.de
+    name: HPC-Support
+    url: TODO
+  description: Array of tag-objects for request payload
+  license:
+    name: MIT License
+    url: https://opensource.org/licenses/MIT
+  termsOfService: TODO
+  title: ClusterCockpit REST API
+  version: 0.1.0
+paths:
+  /jobs/:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all jobs. Filters can be applied using query parameters.
+      parameters:
+      - description: Job State
+        enum:
+        - running
+        - completed
+        - failed
+        - canceled
+        - stopped
+        - timeout
+        in: query
+        name: state
+        type: string
+      - description: Job Cluster
+        in: query
+        name: cluster
+        type: string
+      - description: 'Syntax: <from>-<to>, where <from> and <to> are unix timestamps
+          in seconds'
+        in: query
+        name: start-time
+        type: string
+      - description: Page Number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: items-per-page
+        type: integer
+      - description: Include metadata in response
+        in: query
+        name: with-metadata
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Array of jobs
+          schema:
+            items:
+              $ref: '#/definitions/schema.Job'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: List all jobs
+      tags:
+      - jobs
+  /jobs/start_job/:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        A new job started. The body should be in the `meta.json` format
+        but some fields required there are optional here (e.g. `jobState` defaults to "running").
+      parameters:
+      - description: Job to add
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/schema.Job'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Job added successfully
+          schema:
+            $ref: '#/definitions/api.StartJobApiResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: The combination of jobId, clusterId and startTime does already
+            exist
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Add a newly started job
+      tags:
+      - jobs
+  /jobs/stop_job/:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Job to stop is specified by request body.
+        All fields are required in request body.
+      parameters:
+      - description: All fields required
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.StopJobApiRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Job resource
+          schema:
+            $ref: '#/definitions/schema.Job'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Resource not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Mark job as stopped and trigger archiving
+      tags:
+      - jobs
+  /jobs/stop_job/{id}:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Job to stop is specified by database ID.
+        Only stopTime and final state are required in request body.
+      parameters:
+      - description: Database ID of Job
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 'Required fields: [stopTime, state]'
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.StopJobApiRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Job resource
+          schema:
+            $ref: '#/definitions/schema.Job'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Resource not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Mark job as stopped and trigger archiving
+      tags:
+      - jobs
+  /jobs/tag_job/{id}:
+    post:
+      consumes:
+      - application/json
+      description: Add one or more tags as array in request body to job specified
+        by DB ID.
+      parameters:
+      - description: Job Database ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Array of tag-objects to add
+        in: body
+        name: request
+        required: true
+        schema:
+          description: Array of tag-objects for request payload
+          items:
+            properties:
+              name:
+                description: Tag Name
+                type: string
+              type:
+                description: Tag Type
+                type: string
+            type: object
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job resource
+          schema:
+            $ref: '#/definitions/schema.Job'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Job or tag does not exist
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Add one or more tags to a job
+      tags:
+      - jobs
+securityDefinitions:
+  ApiKeyAuth:
+    description: JWT based authentification for general API endpoint use.
+    in: header
+    name: X-Auth-Token
+    type: apiKey
+swagger: "2.0"

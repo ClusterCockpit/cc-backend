@@ -1,0 +1,528 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Array of tag-objects for request payload",
+        "title": "ClusterCockpit REST API",
+        "termsOfService": "TODO",
+        "contact": {
+            "name": "HPC-Support",
+            "url": "TODO",
+            "email": "hpc-support@fau.de"
+        },
+        "license": {
+            "name": "MIT License",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "0.1.0"
+    },
+    "host": "clustercockpit.localhost:8082",
+    "basePath": "/api",
+    "paths": {
+        "/jobs/": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Get a list of all jobs. Filters can be applied using query parameters.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "List all jobs",
+                "parameters": [
+                    {
+                        "enum": [
+                            "running",
+                            "completed",
+                            "failed",
+                            "canceled",
+                            "stopped",
+                            "timeout"
+                        ],
+                        "type": "string",
+                        "description": "Job State",
+                        "name": "state",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Job Cluster",
+                        "name": "cluster",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Syntax: \u003cfrom\u003e-\u003cto\u003e, where \u003cfrom\u003e and \u003cto\u003e are unix timestamps in seconds",
+                        "name": "start-time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page Number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "items-per-page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Include metadata in response",
+                        "name": "with-metadata",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of jobs",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/schema.Job"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/jobs/start_job/": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "A new job started. The body should be in the `meta.json` format\nbut some fields required there are optional here (e.g. `jobState` defaults to \"running\").",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Add a newly started job",
+                "parameters": [
+                    {
+                        "description": "Job to add",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/schema.Job"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Job added successfully",
+                        "schema": {
+                            "$ref": "#/definitions/api.StartJobApiResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "The combination of jobId, clusterId and startTime does already exist",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/jobs/stop_job/": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Job to stop is specified by request body.\nAll fields are required in request body.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Mark job as stopped and trigger archiving",
+                "parameters": [
+                    {
+                        "description": "All fields required",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.StopJobApiRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Job resource",
+                        "schema": {
+                            "$ref": "#/definitions/schema.Job"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Resource not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/jobs/stop_job/{id}": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Job to stop is specified by database ID.\nOnly stopTime and final state are required in request body.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Mark job as stopped and trigger archiving",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Database ID of Job",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Required fields: [stopTime, state]",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.StopJobApiRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Job resource",
+                        "schema": {
+                            "$ref": "#/definitions/schema.Job"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Resource not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/jobs/tag_job/{id}": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Add one or more tags as array in request body to job specified by DB ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Add one or more tags to a job",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Job Database ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Array of tag-objects to add",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "description": "Array of tag-objects for request payload",
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "description": "Tag Name",
+                                        "type": "string"
+                                    },
+                                    "type": {
+                                        "description": "Tag Type",
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Job resource",
+                        "schema": {
+                            "$ref": "#/definitions/schema.Job"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Job or tag does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "api.ErrorResponse": {
+            "description": "Error Response when using API.",
+            "type": "object",
+            "properties": {
+                "error": {
+                    "description": "Error Message",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Statustext of Errorcode",
+                    "type": "string"
+                }
+            }
+        },
+        "api.StartJobApiResponse": {
+            "description": "Successful job start response with database id of new job.",
+            "type": "object",
+            "properties": {
+                "id": {
+                    "description": "Database ID of new job",
+                    "type": "integer"
+                }
+            }
+        },
+        "api.StopJobApiRequest": {
+            "description": "Request to stop running job using stop time and state. Optional fields: JobId, ClusterId and StartTime. They are only used if no database id was provided.",
+            "type": "object",
+            "properties": {
+                "cluster": {
+                    "description": "Cluster of job (Optional)",
+                    "type": "string"
+                },
+                "jobId": {
+                    "description": "Job ID of job (Optional)",
+                    "type": "integer"
+                },
+                "jobState": {
+                    "description": "Final job state",
+                    "type": "string"
+                },
+                "startTime": {
+                    "description": "Start Time of job (Optional)",
+                    "type": "integer"
+                },
+                "stopTime": {
+                    "description": "Stop Time as Epoch",
+                    "type": "integer"
+                }
+            }
+        },
+        "api.TagJobApiRequest": {
+            "description": "Request to tag a job.",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "error": {
+                        "description": "Error Message",
+                        "type": "string"
+                    },
+                    "status": {
+                        "description": "Statustext of Errorcode",
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "schema.Job": {
+            "type": "object",
+            "properties": {
+                "arrayJobId": {
+                    "type": "integer"
+                },
+                "cluster": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "integer"
+                },
+                "exclusive": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "jobId": {
+                    "type": "integer"
+                },
+                "jobState": {
+                    "type": "string"
+                },
+                "metaData": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "monitoringStatus": {
+                    "type": "integer"
+                },
+                "numAcc": {
+                    "type": "integer"
+                },
+                "numHwthreads": {
+                    "type": "integer"
+                },
+                "numNodes": {
+                    "type": "integer"
+                },
+                "partition": {
+                    "type": "string"
+                },
+                "project": {
+                    "type": "string"
+                },
+                "resources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.Resource"
+                    }
+                },
+                "smt": {
+                    "type": "integer"
+                },
+                "startTime": {
+                    "type": "string"
+                },
+                "subCluster": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.Tag"
+                    }
+                },
+                "user": {
+                    "type": "string"
+                },
+                "walltime": {
+                    "type": "integer"
+                }
+            }
+        },
+        "schema.Resource": {
+            "type": "object",
+            "properties": {
+                "accelerators": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "configuration": {
+                    "type": "string"
+                },
+                "hostname": {
+                    "type": "string"
+                },
+                "hwthreads": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "schema.Tag": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "ApiKeyAuth": {
+            "description": "JWT based authentification for general API endpoint use.",
+            "type": "apiKey",
+            "name": "X-Auth-Token",
+            "in": "header"
+        }
+    }
+}
