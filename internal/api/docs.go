@@ -392,8 +392,6 @@ const docTemplate = `{
                 }
             }
         },
-<<<<<<< HEAD:internal/api/docs.go
-=======
         "api.TagJobApiRequest": {
             "description": "Request to tag a job.",
             "type": "array",
@@ -406,7 +404,11 @@ const docTemplate = `{
                     },
                     "status": {
                         "description": "Statustext of Errorcode",
->>>>>>> 922e94e835e2fba068341645df50e7b42734dfb5:docs/docs.go
+                        "type": "string"
+                    }
+                }
+            }
+        },              
         "schema.Job": {
             "type": "object",
             "properties": {
