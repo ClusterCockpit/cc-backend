@@ -97,6 +97,16 @@ This project uses [gqlgen](https://github.com/99designs/gqlgen) for the GraphQL 
 The schema can be found in `./api/schema.graphqls`.
 After changing it, you need to run `go run github.com/99designs/gqlgen` which will update `./internal/graph/model`.
 In case new resolvers are needed, they will be inserted into `./internal/graph/schema.resolvers.go`, where you will need to implement them.
+If you start cc-backend with flag `--dev` the GraphQL Playground UI is available at http://localhost:8080/playground .
+
+### Update Swagger UI
+
+This project integrates [swagger ui](https://swagger.io/tools/swagger-ui/) to document and test its REST API.
+The swagger doc files can be found in `./api/`.
+You can generate the configuration of swagger-ui by running `go run github.com/swaggo/swag/cmd/swag init -d ./internal/api,./pkg/schema  -g rest.go -o ./api `.
+You need to move the generated `./api/doc.go` to `./internal/api/doc.go`.
+If you start cc-backend with flag `--dev` the Swagger UI is available at http://localhost:8080/swagger .
+
 
 ## Project Structure
 
