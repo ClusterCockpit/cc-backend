@@ -112,12 +112,12 @@ If you start cc-backend with flag `--dev` the Swagger UI is available at http://
 
 - `api/` contains the API schema files for the REST and GraphQL APIs. The REST API is documented in the OpenAPI 3.0 format in [./api/openapi.yaml](./api/openapi.yaml).
 - `cmd/cc-backend` contains `main.go` for the main application.
+- `cmd/gen-keypair` contains is a small application to generate a compatible JWT keypair includin a README about JWT setup in ClusterCockpit.
 - `configs/` contains documentation about configuration and command line options and required environment variables. An example configuration file is provided.
 - `init/` contains an example systemd setup for production use.
 - `internal/` contains library source code that is not intended to be used by others.
 - `pkg/` contains go packages that can also be used by other projects.
 - `test/` Test apps and test data.
-- `tools/` contains supporting tools for cc-backend. At the moment this is a small application to generate a compatible JWT keypair includin a README about JWT setup in ClusterCockpit.
 - `web/` Server side templates and frontend related files:
    - `templates` Serverside go templates
    - `frontend` Svelte components and static assets for frontend UI
