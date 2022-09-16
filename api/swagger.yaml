@@ -38,6 +38,13 @@ definitions:
         description: Stop Time as Epoch
         type: integer
     type: object
+  api.Tag:
+    properties:
+      name:
+        type: string
+      type:
+        type: string
+    type: object
   schema.Job:
     properties:
       arrayJobId:
@@ -305,7 +312,7 @@ paths:
         "201":
           description: Job resource
           schema:
-            $ref: '#/definitions/schema.Job'
+            $ref: '#/definitions/schema.JobMeta'
         "400":
           description: Bad Request
           schema:
@@ -377,14 +384,7 @@ paths:
         schema:
           description: Array of tag-objects for request payload
           items:
-            properties:
-              name:
-                description: Tag Name
-                type: string
-              type:
-                description: Tag Type
-                type: string
-            type: object
+            $ref: '#/definitions/api.Tag'
           type: array
       produces:
       - application/json

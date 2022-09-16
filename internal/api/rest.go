@@ -112,13 +112,14 @@ type ErrorResponse struct {
 	Error  string `json:"error"` // Error Message
 }
 
+type Tag struct {
+	Type string `json:"type"`
+	Name string `json:"name"`
+}
+
 // TagJobApiRequest model
 // @Description Array of tag-objects for request payload
-type TagJobApiRequest []*struct {
-	// Tag Name
-	Name string `json:"name"`
-	Type string `json:"type"` // Tag Type
-}
+type TagJobApiRequest []*Tag
 
 func handleError(err error, statusCode int, rw http.ResponseWriter) {
 	log.Warnf("REST API: %s", err.Error())

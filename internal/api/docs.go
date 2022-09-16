@@ -192,7 +192,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Job resource",
                         "schema": {
-                            "$ref": "#/definitions/schema.Job"
+                            "$ref": "#/definitions/schema.JobMeta"
                         }
                     },
                     "400": {
@@ -303,17 +303,7 @@ const docTemplate = `{
                             "description": "Array of tag-objects for request payload",
                             "type": "array",
                             "items": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {
-                                        "description": "Tag Name",
-                                        "type": "string"
-                                    },
-                                    "type": {
-                                        "description": "Tag Type",
-                                        "type": "string"
-                                    }
-                                }
+                                "$ref": "#/definitions/api.Tag"
                             }
                         }
                     }
@@ -392,23 +382,17 @@ const docTemplate = `{
                 }
             }
         },
-        "api.TagJobApiRequest": {
-            "description": "Request to tag a job.",
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "error": {
-                        "description": "Error Message",
-                        "type": "string"
-                    },
-                    "status": {
-                        "description": "Statustext of Errorcode",
-                        "type": "string"
-                    }
+        "api.Tag": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
                 }
             }
-        },              
+        },
         "schema.Job": {
             "type": "object",
             "properties": {
