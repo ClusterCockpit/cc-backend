@@ -133,7 +133,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/schema.Job"
+                            "$ref": "#/definitions/schema.JobMeta"
                         }
                     }
                 ],
@@ -392,6 +392,21 @@ const docTemplate = `{
                 }
             }
         },
+<<<<<<< HEAD:internal/api/docs.go
+=======
+        "api.TagJobApiRequest": {
+            "description": "Request to tag a job.",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "error": {
+                        "description": "Error Message",
+                        "type": "string"
+                    },
+                    "status": {
+                        "description": "Statustext of Errorcode",
+>>>>>>> 922e94e835e2fba068341645df50e7b42734dfb5:docs/docs.go
         "schema.Job": {
             "type": "object",
             "properties": {
@@ -466,6 +481,107 @@ const docTemplate = `{
                 },
                 "walltime": {
                     "type": "integer"
+                }
+            }
+        },
+        "schema.JobMeta": {
+            "type": "object",
+            "properties": {
+                "arrayJobId": {
+                    "type": "integer"
+                },
+                "cluster": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "integer"
+                },
+                "exclusive": {
+                    "type": "integer"
+                },
+                "id": {
+                    "description": "never used in the job-archive, only available via REST-API",
+                    "type": "integer"
+                },
+                "jobId": {
+                    "type": "integer"
+                },
+                "jobState": {
+                    "type": "string"
+                },
+                "metaData": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "monitoringStatus": {
+                    "type": "integer"
+                },
+                "numAcc": {
+                    "type": "integer"
+                },
+                "numHwthreads": {
+                    "type": "integer"
+                },
+                "numNodes": {
+                    "type": "integer"
+                },
+                "partition": {
+                    "type": "string"
+                },
+                "project": {
+                    "type": "string"
+                },
+                "resources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.Resource"
+                    }
+                },
+                "smt": {
+                    "type": "integer"
+                },
+                "startTime": {
+                    "type": "integer"
+                },
+                "statistics": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/schema.JobStatistics"
+                    }
+                },
+                "subCluster": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.Tag"
+                    }
+                },
+                "user": {
+                    "type": "string"
+                },
+                "walltime": {
+                    "type": "integer"
+                }
+            }
+        },
+        "schema.JobStatistics": {
+            "type": "object",
+            "properties": {
+                "avg": {
+                    "type": "number"
+                },
+                "max": {
+                    "type": "number"
+                },
+                "min": {
+                    "type": "number"
+                },
+                "unit": {
+                    "type": "string"
                 }
             }
         },

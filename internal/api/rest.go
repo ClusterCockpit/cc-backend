@@ -325,7 +325,7 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 // @Tags        jobs
 // @Accept      json
 // @Produce     json
-// @Param       request body     schema.Job              true "Job to add"
+// @Param       request body     schema.JobMeta          true "Job to add"
 // @Success     201     {object} api.StartJobApiResponse      "Job added successfully"
 // @Failure     400     {object} api.ErrorResponse            "Bad Request"
 // @Failure     422     {object} api.ErrorResponse            "The combination of jobId, clusterId and startTime does already exist"
@@ -505,7 +505,7 @@ func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
 // @Accept      json
 // @Produce     json
 // @Param       request body     api.StopJobApiRequest true "All fields required"
-// @Success     201     {object} schema.Job                 "Job resource"
+// @Success     201     {object} schema.JobMeta             "Job resource"
 // @Failure     400     {object} api.ErrorResponse          "Bad Request"
 // @Failure     404     {object} api.ErrorResponse          "Resource not found"
 // @Security    ApiKeyAuth

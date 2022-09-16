@@ -263,7 +263,6 @@ func main() {
 
 	if flagDev {
 		r.Handle("/playground", playground.Handler("GraphQL playground", "/query"))
-		//	secured.PathPrefix("/docs").Handler(httpSwagger.WrapHandler)
 		r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
 			httpSwagger.URL("http://localhost:8080/swagger/doc.json"))).Methods(http.MethodGet)
 	}
