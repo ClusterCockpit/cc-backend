@@ -35,12 +35,12 @@ import (
 // @version                    0.1.0
 // @description                API for batch job control.
 // @termsOfService             TODO
-// @contact.name               HPC-Support
+// @contact.name               ClusterCockpit project
 // @contact.url                TODO
-// @contact.email              hpc-support@fau.de
+// @contact.email              support@clustercockpit.org
 // @license.name               MIT License
 // @license.url                https://opensource.org/licenses/MIT
-// @host                       clustercockpit.localhost:8082
+// @host                       localhost:8080
 // @BasePath                   /api
 // @securityDefinitions.apikey ApiKeyAuth
 // @in                         header
@@ -97,11 +97,11 @@ type StartJobApiResponse struct {
 // @Description They are only used if no database id was provided.
 type StopJobApiRequest struct {
 	// Stop Time as Epoch
-	StopTime int64           `json:"stopTime"`
-	State    schema.JobState `json:"jobState"` // Final job state
-	JobId     *int64  `json:"jobId"` // Job ID of job (Optional)
-	Cluster   *string `json:"cluster"` // Cluster of job (Optional)
-	StartTime *int64  `json:"startTime"` // Start Time of job (Optional)
+	StopTime  int64           `json:"stopTime"`
+	State     schema.JobState `json:"jobState"`  // Final job state
+	JobId     *int64          `json:"jobId"`     // Job ID of job (Optional)
+	Cluster   *string         `json:"cluster"`   // Cluster of job (Optional)
+	StartTime *int64          `json:"startTime"` // Start Time of job (Optional)
 }
 
 // ErrorResponse model
@@ -135,8 +135,6 @@ func decode(r io.Reader, val interface{}) error {
 	dec.DisallowUnknownFields()
 	return dec.Decode(val)
 }
-
-
 
 // getJobs godoc
 // @Summary     List all jobs
@@ -427,8 +425,8 @@ func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
 
 		job, err = api.JobRepository.FindById(id)
 	} else {
-			handleError(errors.New("the parameter 'id' is required"), http.StatusBadRequest, rw)
-			return
+		handleError(errors.New("the parameter 'id' is required"), http.StatusBadRequest, rw)
+		return
 	}
 	if err != nil {
 		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
@@ -627,7 +625,6 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 // 	rw.Write([]byte(`{ "status": "OK" }`))
 // }
 
-
 func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	metrics := r.URL.Query()["metric"]
@@ -669,9 +666,6 @@ func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 		}{JobMetrics: data},
 	})
 }
-
-
-
 
 func (api *RestApi) getJWT(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "text/plain")
@@ -786,10 +780,6 @@ func (api *RestApi) updateConfiguration(rw http.ResponseWriter, r *http.Request)
 
 	rw.Write([]byte("success"))
 }
-
-
-
-
 
 func (api *RestApi) putMachineState(rw http.ResponseWriter, r *http.Request) {
 	if api.MachineStateDir == "" {

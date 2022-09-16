@@ -3,4 +3,7 @@
 
 package tools
 
-import _ "github.com/99designs/gqlgen"
+import (
+	_ "github.com/99designs/gqlgen"
+	_ "github.com/swaggo/swag/cmd/swag"
+)

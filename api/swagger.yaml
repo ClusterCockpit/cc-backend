@@ -10,18 +10,6 @@ definitions:
         description: Statustext of Errorcode
         type: string
     type: object
-  api.TagJobApiRequest:
-    description: Request to tag a job boii
-    items:
-      properties:
-        name:
-          description: Tag Name
-          type: string
-        type:
-          description: Tag Type
-          type: string
-      type: object
-    type: array
   api.StartJobApiResponse:
     description: Successful job start response with database id of new job.
     properties:
@@ -125,11 +113,11 @@ definitions:
       type:
         type: string
     type: object
-host: clustercockpit.localhost:8082
+host: localhost:8080
 info:
   contact:
-    email: hpc-support@fau.de
-    name: HPC-Support
+    email: support@clustercockpit.org
+    name: ClusterCockpit project
     url: TODO
   description: Array of tag-objects for request payload
   license:

@@ -40,12 +40,11 @@ import (
 	"github.com/google/gops/agent"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/swaggo/http-swagger"
+	httpSwagger "github.com/swaggo/http-swagger"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
 	_ "github.com/santhosh-tekuri/jsonschema/v5/httploader"
-	_ "github.com/ClusterCockpit/cc-backend/docs"
 )
 
 func main() {
@@ -264,7 +263,9 @@ func main() {
 
 	if flagDev {
 		r.Handle("/playground", playground.Handler("GraphQL playground", "/query"))
-		secured.PathPrefix("/docs").Handler(httpSwagger.WrapHandler)
+		//	secured.PathPrefix("/docs").Handler(httpSwagger.WrapHandler)
+		r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
+			httpSwagger.URL("http://localhost:8080/swagger/doc.json"))).Methods(http.MethodGet)
 	}
 	secured.Handle("/query", graphQLEndpoint)
 
