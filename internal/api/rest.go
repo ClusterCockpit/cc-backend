@@ -112,13 +112,14 @@ type ErrorResponse struct {
 	Error  string `json:"error"` // Error Message
 }
 
+// Tag model
+// @Description Defines a tag using name and type.
 type Tag struct {
+	// Tag Type
 	Type string `json:"type"`
-	Name string `json:"name"`
+	Name string `json:"name"` // Tag Name
 }
 
-// TagJobApiRequest model
-// @Description Array of tag-objects for request payload
 type TagJobApiRequest []*Tag
 
 func handleError(err error, statusCode int, rw http.ResponseWriter) {
