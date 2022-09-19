@@ -18,6 +18,7 @@ type Kind int
 const (
 	Meta Kind = iota + 1
 	Data
+	Config
 	ClusterCfg
 )
 
@@ -31,6 +32,8 @@ func Validate(k Kind, r io.Reader) (err error) {
 		s, err = jsonschema.Compile("https://raw.githubusercontent.com/ClusterCockpit/cc-specifications/master/datastructures/job-data.schema.json")
 	case ClusterCfg:
 		s, err = jsonschema.Compile("https://raw.githubusercontent.com/ClusterCockpit/cc-specifications/master/datastructures/cluster.schema.json")
+	case Config:
+		s, err = jsonschema.Compile("../../configs/config.schema.json")
 	default:
 		return fmt.Errorf("unkown schema kind ")
 	}

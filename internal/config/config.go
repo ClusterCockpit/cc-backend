@@ -5,6 +5,7 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"log"
 	"os"
@@ -13,16 +14,17 @@ import (
 )
 
 var Keys schema.ProgramConfig = schema.ProgramConfig{
-	Addr:                  ":8080",
-	DisableAuthentication: false,
-	EmbedStaticFiles:      true,
-	DBDriver:              "sqlite3",
-	DB:                    "./var/job.db",
-	Archive:               json.RawMessage(`{\"kind\":\"file\",\"path\":\"./var/job-archive\"}`),
-	DisableArchive:        false,
-	Validate:              false,
-	LdapConfig:            nil,
-	SessionMaxAge:         "168h",
+	Addr:                      ":8080",
+	DisableAuthentication:     false,
+	EmbedStaticFiles:          true,
+	DBDriver:                  "sqlite3",
+	DB:                        "./var/job.db",
+	Archive:                   json.RawMessage(`{\"kind\":\"file\",\"path\":\"./var/job-archive\"}`),
+	DisableArchive:            false,
+	Validate:                  false,
+	LdapConfig:                nil,
+	SessionMaxAge:             "168h",
+	StopJobsExceedingWalltime: 0,
 	UiDefaults: map[string]interface{}{
 		"analysis_view_histogramMetrics":     []string{"flops_any", "mem_bw", "mem_used"},
 		"analysis_view_scatterPlotMetrics":   [][]string{{"flops_any", "mem_bw"}, {"flops_any", "cpu_load"}, {"cpu_load", "mem_bw"}},
@@ -41,22 +43,23 @@ var Keys schema.ProgramConfig = schema.ProgramConfig{
 		"plot_view_showStatTable":            true,
 		"system_view_selectedMetric":         "cpu_load",
 	},
-	StopJobsExceedingWalltime: 0,
 }
 
 func Init(flagConfigFile string) {
-	f, err := os.Open(flagConfigFile)
+	raw, err := os.ReadFile(flagConfigFile)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			log.Fatal(err)
 		}
 	} else {
-		dec := json.NewDecoder(f)
+		if err := schema.Validate(schema.Config, bytes.NewReader(raw)); err != nil {
+			log.Fatal(err)
+		}
+		dec := json.NewDecoder(bytes.NewReader(raw))
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(&Keys); err != nil {
 			log.Fatal(err)
 		}
-		f.Close()
 
 		if Keys.Clusters == nil || len(Keys.Clusters) < 1 {
 			log.Fatal("At least one cluster required in config!")
