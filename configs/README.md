@@ -3,7 +3,7 @@
 cc-backend requires a configuration file speciyfing the cluster systems to be used. Still many  default
 options documented below are used. cc-backend tries to load a config.json from the working directory per default.
 To overwrite the default specify a json config file location using the command line option `--config <filepath>`.
-All security relevant configuration. e.g., keys and passwords, are set using environment variables. 
+All security relevant configuration. e.g., keys and passwords, are set using environment variables.
 It is supported to specify these by means of an `.env` file located in the project root.
 
 ## Configuration Options
@@ -18,6 +18,7 @@ It is supported to specify these by means of an `.env` file located in the proje
 * `db`: Type string. For sqlite3 a filename, for mysql a DSN in this format: https://github.com/go-sql-driver/mysql#dsn-data-source-name (Without query parameters!). Default: `./var/job.db`.
 * `job-archive`: Type string. Path to the job-archive. Default: `./var/job-archive`.
 * `disable-archive`: Type bool. Keep all metric data in the metric data repositories, do not write to the job-archive. Default `false`.
+* `validate`: Type bool. Validate all input json documents against json schema.
 * `"session-max-age`: Type string. Specifies for how long a session shall be valid  as a string parsable by time.ParseDuration(). If 0 or empty, the session/token does not expire! Default `168h`.
 * `"jwt-max-age`: Type string. Specifies for how long a JWT token shall be valid  as a string parsable by time.ParseDuration(). If 0 or empty, the session/token does not expire! Default `0`.
 * `https-cert-file` and `https-key-file`: Type string. If both those options are not empty, use HTTPS using those certificates.
@@ -27,7 +28,7 @@ It is supported to specify these by means of an `.env` file located in the proje
 * `ldap`: Type object. For LDAP Authentication and user synchronisation. Default `nil`.
    - `url`: Type string.  URL of LDAP directory server.
    - `user_base`: Type string. Base DN of user tree root.
-   - `search_dn`: Type string. DN for authenticating LDAP admin account with fgeneral read rights.
+   - `search_dn`: Type string. DN for authenticating LDAP admin account with general read rights.
    - `user_bind`: Type string. Expression used to authenticate users via LDAP bind. Must contain `uid={username}`.
    - `user_filter`: Type string. Filter to extract users for syncing.
    - `sync_interval`: Type string. Interval used for syncing local user table with LDAP directory. Parsed using time.ParseDuration.
