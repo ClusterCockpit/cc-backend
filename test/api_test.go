@@ -82,11 +82,6 @@ func setup(t *testing.T) *api.RestApi {
 				"alert": 0
 			}
 		],
-		"filterRanges": {
-			"numNodes": { "from": 1, "to": 1 },
-			"duration": { "from": 0, "to": 172800 },
-			"startTime": { "from": "2010-01-01T00:00:00Z", "to": null }
-		}
 	}`
 
 	tmpdir := t.TempDir()
