@@ -24,7 +24,6 @@ import (
 	"github.com/gorilla/mux"
 
 	_ "github.com/mattn/go-sqlite3"
-	_ "github.com/santhosh-tekuri/jsonschema/v5/httploader"
 )
 
 func setup(t *testing.T) *api.RestApi {

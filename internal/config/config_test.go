@@ -6,8 +6,6 @@ package config
 
 import (
 	"testing"
-
-	_ "github.com/santhosh-tekuri/jsonschema/v5/httploader"
 )
 
 func TestInit(t *testing.T) {

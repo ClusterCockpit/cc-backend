@@ -44,7 +44,6 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
-	_ "github.com/santhosh-tekuri/jsonschema/v5/httploader"
 )
 
 func main() {
