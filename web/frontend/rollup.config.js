@@ -65,6 +65,6 @@ export default [
 	entrypoint('systems',  'src/systems.entrypoint.js'),
 	entrypoint('node',     'src/node.entrypoint.js'),
 	entrypoint('analysis', 'src/analysis.entrypoint.js'),
-	entrypoint('status',   'src/status.entrypoint.js')
+	entrypoint('status',   'src/status.entrypoint.js'),
+	entrypoint('config',   'src/config.entrypoint.js')
 ];
-
