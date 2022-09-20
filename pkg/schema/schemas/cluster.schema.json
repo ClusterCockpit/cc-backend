@@ -1,6 +1,6 @@
 {
     "$schema": "http://json-schema.org/draft/2020-12/schema",
-    "$id": "embedFS://schemas/cluster.schema.json",
+    "$id": "embedfs://cluster.schema.json",
     "title": "HPC cluster description",
     "description": "Meta data information of a HPC cluster",
     "type": "object",
@@ -78,7 +78,8 @@
                     "scope",
                     "timestep"
                 ]
-            }
+            },
+            "minItems": 1
         },
         "subClusters": {
             "description": "Array of cluster hardware partitions",
@@ -223,7 +224,8 @@
                     "flopRateSimd",
                     "memoryBandwidth"
                 ]
-            }
+            },
+            "minItems": 1
         }
     },
     "required":[

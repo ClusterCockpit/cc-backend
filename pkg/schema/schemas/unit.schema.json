@@ -1,6 +1,6 @@
 {
     "$schema": "http://json-schema.org/draft/2020-12/schema",
-    "$id": "embedFS://schemas/unit.schema.json",
+    "$id": "embedfs://unit.schema.json",
     "title": "Metric unit",
     "description": "Format specification for job metric units",
     "type": "object",

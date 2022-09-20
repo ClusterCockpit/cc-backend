@@ -1,6 +1,6 @@
 {
     "$schema": "http://json-schema.org/draft/2020-12/schema",
-    "$id": "embedFS://schemas/job-meta.schema.json",
+    "$id": "embedfs://job-meta.schema.json",
     "title": "Job meta data",
     "description": "Meta data information of a HPC job",
     "type": "object",
@@ -172,87 +172,87 @@
             "properties": {
                 "mem_used": {
                     "description": "Memory capacity used (required)",
-                    "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                    "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "cpu_load": {
                     "description": "CPU requested core utilization (load 1m) (required)",
-                    "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                    "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "flops_any": {
                     "description": "Total flop rate with DP flops scaled up (required)",
-                    "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                    "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "mem_bw": {
                     "description": "Main memory bandwidth (required)",
-                    "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                    "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "net_bw": {
                     "description": "Total fast interconnect network bandwidth (required)",
-                    "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                    "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "file_bw": {
                     "description": "Total file IO bandwidth (required)",
-                    "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                    "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "ipc": {
                     "description": "Instructions executed per cycle",
-                    "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                    "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "cpu_used": {
                     "description": "CPU active core utilization",
-                    "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                    "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "flops_dp": {
                     "description": "Double precision flop rate",
-                    "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                    "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "flops_sp": {
                     "description": "Single precision flops rate",
-                    "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                    "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "rapl_power": {
                     "description": "CPU power consumption",
-                    "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                    "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "gpu_used": {
                     "description": "GPU utilization",
-                    "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                    "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "gpu_mem_used": {
                     "description": "GPU memory capacity used",
-                    "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                    "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "gpu_power": {
                     "description": "GPU power consumption",
-                    "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                    "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "clock": {
                     "description": "Average core frequency",
-                    "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                    "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "eth_read_bw": {
                     "description": "Ethernet read bandwidth",
-                    "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                    "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "eth_write_bw": {
                     "description": "Ethernet write bandwidth",
-                    "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                    "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "ic_rcv_packets": {
                     "description": "Network interconnect read packets",
-                    "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                    "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "ic_send_packets": {
                     "description": "Network interconnect send packet",
-                    "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                    "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "ic_read_bw": {
                     "description": "Network interconnect read bandwidth",
-                    "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                    "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "ic_write_bw": {
                     "description": "Network interconnect write bandwidth",
-                    "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                    "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "filesystems": {
                     "description": "Array of filesystems",
@@ -277,47 +277,47 @@
                             },
                             "read_bw": {
                                 "description": "File system read bandwidth",
-                                "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                                "$ref": "embedfs://job-metric-statistics.schema.json"
                             },
                             "write_bw": {
                                 "description": "File system write bandwidth",
-                                "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                                "$ref": "embedfs://job-metric-statistics.schema.json"
                             },
                             "read_req": {
                                 "description": "File system read requests",
-                                "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                                "$ref": "embedfs://job-metric-statistics.schema.json"
                             },
                             "write_req": {
                                 "description": "File system write requests",
-                                "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                                "$ref": "embedfs://job-metric-statistics.schema.json"
                             },
                             "inodes": {
                                 "description": "File system write requests",
-                                "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                                "$ref": "embedfs://job-metric-statistics.schema.json"
                             },
                             "accesses": {
                                 "description": "File system open and close",
-                                "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                                "$ref": "embedfs://job-metric-statistics.schema.json"
                             },
                             "fsync": {
                                 "description": "File system fsync",
-                                "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                                "$ref": "embedfs://job-metric-statistics.schema.json"
                             },
                             "create": {
                                 "description": "File system create",
-                                "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                                "$ref": "embedfs://job-metric-statistics.schema.json"
                             },
                             "open": {
                                 "description": "File system open",
-                                "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                                "$ref": "embedfs://job-metric-statistics.schema.json"
                             },
                             "close": {
                                 "description": "File system close",
-                                "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                                "$ref": "embedfs://job-metric-statistics.schema.json"
                             },
                             "seek": {
                                 "description": "File system seek",
-                                "$ref": "embedFS://schemas/job-metric-statistics.schema.json"
+                                "$ref": "embedfs://job-metric-statistics.schema.json"
                             }
                         },
                         "required": [

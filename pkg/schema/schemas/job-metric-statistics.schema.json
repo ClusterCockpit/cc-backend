@@ -1,13 +1,13 @@
 {
     "$schema": "http://json-schema.org/draft/2020-12/schema",
-    "$id": "schemaFS://schemas/job-metric-statistics.schema.json",
+    "$id": "schemafs://job-metric-statistics.schema.json",
     "title": "Job statistics",
     "description": "Format specification for job metric statistics",
     "type": "object",
     "properties": {
         "unit": {
             "description": "Metric unit",
-            "$ref": "embedFS://schemas/unit.schema.json"
+            "$ref": "embedfs://unit.schema.json"
         },
         "avg": {
             "description": "Job metric average",

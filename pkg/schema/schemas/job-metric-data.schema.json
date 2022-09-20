@@ -1,13 +1,13 @@
 {
     "$schema": "http://json-schema.org/draft/2020-12/schema",
-    "$id": "embedFS://schemas/job-metric-data.schema.json",
+    "$id": "embedfs://job-metric-data.schema.json",
     "title": "Job metric data",
     "description": "Metric data of a HPC job",
     "type": "object",
     "properties": {
         "unit": {
             "description": "Metric unit",
-            "$ref": "embedFS://schemas/unit.schema.json"
+            "$ref": "embedfs://unit.schema.json"
         },
         "timestep": {
             "description": "Measurement interval in seconds",
