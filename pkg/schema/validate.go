@@ -5,9 +5,11 @@
 package schema
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/santhosh-tekuri/jsonschema/v5"
@@ -22,18 +24,34 @@ const (
 	ClusterCfg
 )
 
+//go:embed schemas/*
+var schemaFiles embed.FS
+
+func Load(s string) (io.ReadCloser, error) {
+	u, err := url.Parse(s)
+	if err != nil {
+		return nil, err
+	}
+	f := u.Path
+	return schemaFiles.Open(f)
+}
+
+func init() {
+	jsonschema.Loaders["embedFS"] = Load
+}
+
 func Validate(k Kind, r io.Reader) (err error) {
 	var s *jsonschema.Schema
 
 	switch k {
 	case Meta:
-		s, err = jsonschema.Compile("https://raw.githubusercontent.com/ClusterCockpit/cc-specifications/master/datastructures/job-meta.schema.json")
+		s, err = jsonschema.Compile("embedFS://schemas/job-meta.schema.json")
 	case Data:
-		s, err = jsonschema.Compile("https://raw.githubusercontent.com/ClusterCockpit/cc-specifications/master/datastructures/job-data.schema.json")
+		s, err = jsonschema.Compile("embedFS://schemas/job-data.schema.json")
 	case ClusterCfg:
-		s, err = jsonschema.Compile("https://raw.githubusercontent.com/ClusterCockpit/cc-specifications/master/datastructures/cluster.schema.json")
+		s, err = jsonschema.Compile("embedFS://schemas/cluster.schema.json")
 	case Config:
-		s, err = jsonschema.Compile("../../configs/config.schema.json")
+		s, err = jsonschema.Compile("embedFS://schemas/config.schema.json")
 	default:
 		return fmt.Errorf("unkown schema kind ")
 	}

@@ -1,5 +1,6 @@
 {
     "$schema": "http://json-schema.org/draft/2020-12/schema",
+    "$id": "embedFS://schemas/config.schema.json",
     "title": "cc-backend configuration file schema",
     "type": "object",
     "properties":{
