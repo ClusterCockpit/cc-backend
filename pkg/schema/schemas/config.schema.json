@@ -140,7 +140,8 @@
                                 "enum": [
                                     "influxdb-v2",
                                     "prometheus",
-                                    "cc-metric-store"
+                                    "cc-metric-store",
+                                    "test"
                                 ]
                             },
                             "url": {

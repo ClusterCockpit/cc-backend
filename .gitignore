@@ -9,3 +9,4 @@
 
 /web/frontend/public/build
 /web/frontend/node_modules
+.vscode/settings.json

@@ -38,12 +38,17 @@ func setup(t *testing.T) *api.RestApi {
 	"clusters": [
 	{
 	   "name": "testcluster",
-	   "metricDataRepository": {"kind": "test"}
+	   "metricDataRepository": {"kind": "test", "url": "bla:8081"},
+	   "filterRanges": {
+		"numNodes": { "from": 1, "to": 64 },
+		"duration": { "from": 0, "to": 86400 },
+		"startTime": { "from": "2022-01-01T00:00:00Z", "to": null }
+	}
 	}
 	]
 }`
 	const testclusterJson = `{
-"name": "testcluster",
+        "name": "testcluster",
 		"subClusters": [
 			{
 				"name": "sc0",
@@ -64,12 +69,10 @@ func setup(t *testing.T) *api.RestApi {
 					"socket": [[0, 1, 2, 3, 4, 5, 6, 7]],
 					"memoryDomain": [[0, 1, 2, 3, 4, 5, 6, 7]],
 					"die": [[0, 1, 2, 3, 4, 5, 6, 7]],
-					"core": [[0], [1], [2], [3], [4], [5], [6], [7]],
-					"accelerators": []
+					"core": [[0], [1], [2], [3], [4], [5], [6], [7]]
 				}
 			}
 		],
-		"metricDataRepository": {"kind": "test"},
 		"metricConfig": [
 			{
 				"name": "load_one",
@@ -81,7 +84,7 @@ func setup(t *testing.T) *api.RestApi {
 				"caution": 0,
 				"alert": 0
 			}
-		],
+		]
 	}`
 
 	tmpdir := t.TempDir()
@@ -111,7 +114,7 @@ func setup(t *testing.T) *api.RestApi {
 	}
 
 	config.Init(cfgFilePath)
-	archiveCfg := fmt.Sprintf("{\"kind\":\"file\",\"path\":\"%s\"}", jobarchive)
+	archiveCfg := fmt.Sprintf("{\"kind\": \"file\",\"path\": \"%s\"}", jobarchive)
 
 	repository.Connect("sqlite3", dbfilepath)
 	db := repository.GetConnection()
