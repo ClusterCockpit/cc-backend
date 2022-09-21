@@ -75,9 +75,9 @@ definitions:
         example: fritz
         type: string
       duration:
-        description: Duration of job in seconds
+        description: Duration of job in seconds (Min > 0)
         example: 43200
-        minimum: 0
+        minimum: 1
         type: integer
       exclusive:
         description: 'Specifies how nodes are shared: 0 - Shared among multiple jobs
@@ -118,19 +118,19 @@ definitions:
         minimum: 0
         type: integer
       numAcc:
-        description: Number of accelerators used
+        description: Number of accelerators used (Min > 0)
         example: 2
-        minimum: 0
+        minimum: 1
         type: integer
       numHwthreads:
-        description: Number of HWThreads used
+        description: Number of HWThreads used (Min > 0)
         example: 20
-        minimum: 0
+        minimum: 1
         type: integer
       numNodes:
-        description: Number of nodes used
+        description: Number of nodes used (Min > 0)
         example: 2
-        minimum: 0
+        minimum: 1
         type: integer
       partition:
         description: The Slurm partition to which the job was submitted
@@ -166,8 +166,9 @@ definitions:
         example: abcd100h
         type: string
       walltime:
-        description: Requested walltime of job in seconds
+        description: Requested walltime of job in seconds (Min > 0)
         example: 86400
+        minimum: 1
         type: integer
     type: object
   schema.JobMeta:
@@ -182,9 +183,9 @@ definitions:
         example: fritz
         type: string
       duration:
-        description: Duration of job in seconds
+        description: Duration of job in seconds (Min > 0)
         example: 43200
-        minimum: 0
+        minimum: 1
         type: integer
       exclusive:
         description: 'Specifies how nodes are shared: 0 - Shared among multiple jobs
@@ -225,19 +226,19 @@ definitions:
         minimum: 0
         type: integer
       numAcc:
-        description: Number of accelerators used
+        description: Number of accelerators used (Min > 0)
         example: 2
-        minimum: 0
+        minimum: 1
         type: integer
       numHwthreads:
-        description: Number of HWThreads used
+        description: Number of HWThreads used (Min > 0)
         example: 20
-        minimum: 0
+        minimum: 1
         type: integer
       numNodes:
-        description: Number of nodes used
+        description: Number of nodes used (Min > 0)
         example: 2
-        minimum: 0
+        minimum: 1
         type: integer
       partition:
         description: The Slurm partition to which the job was submitted
@@ -257,9 +258,9 @@ definitions:
         example: 4
         type: integer
       startTime:
-        description: Start epoch time stamp in seconds
+        description: Start epoch time stamp in seconds (Min > 0)
         example: 1649723812
-        minimum: 0
+        minimum: 1
         type: integer
       statistics:
         additionalProperties:
@@ -280,8 +281,9 @@ definitions:
         example: abcd100h
         type: string
       walltime:
-        description: Requested walltime of job in seconds
+        description: Requested walltime of job in seconds (Min > 0)
         example: 86400
+        minimum: 1
         type: integer
     type: object
   schema.JobStatistics:

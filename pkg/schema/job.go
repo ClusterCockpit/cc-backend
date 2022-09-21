@@ -23,15 +23,15 @@ type BaseJob struct {
 	SubCluster       string            `json:"subCluster" db:"subcluster" example:"main"` // The unique identifier of a sub cluster
 	Partition        string            `json:"partition" db:"partition" example:"main"` // The Slurm partition to which the job was submitted
 	ArrayJobId       int64             `json:"arrayJobId" db:"array_job_id" example:"123000"` // The unique identifier of an array job
-	NumNodes         int32             `json:"numNodes" db:"num_nodes" example:"2" minimum:"0"` // Number of nodes used
-	NumHWThreads     int32             `json:"numHwthreads" db:"num_hwthreads" example:"20" minimum:"0"` // Number of HWThreads used
-	NumAcc           int32             `json:"numAcc" db:"num_acc" example:"2" minimum:"0"` // Number of accelerators used
+	NumNodes         int32             `json:"numNodes" db:"num_nodes" example:"2" minimum:"1"` // Number of nodes used (Min > 0)
+	NumHWThreads     int32             `json:"numHwthreads" db:"num_hwthreads" example:"20" minimum:"1"` // Number of HWThreads used (Min > 0)
+	NumAcc           int32             `json:"numAcc" db:"num_acc" example:"2" minimum:"1"` // Number of accelerators used (Min > 0)
 	Exclusive        int32             `json:"exclusive" db:"exclusive" example:"1" minimum:"0" maximum:"2"` // Specifies how nodes are shared: 0 - Shared among multiple jobs of multiple users, 1 - Job exclusive (Default), 2 - Shared among multiple jobs of same user
 	MonitoringStatus int32             `json:"monitoringStatus" db:"monitoring_status" example:"1" minimum:"0" maximum:"3"` // State of monitoring system during job run: 0 - Disabled, 1 - Running or Archiving (Default), 2 - Archiving Failed, 3 - Archiving Successfull
 	SMT              int32             `json:"smt" db:"smt" example:"4"` // SMT threads used by job
 	State            JobState          `json:"jobState" db:"job_state" example:"completed" enums:"completed,failed,cancelled,stopped,timeout,out_of_memory"` // Final state of job
-	Duration         int32             `json:"duration" db:"duration" example:"43200" minimum:"0"` // Duration of job in seconds
-	Walltime         int64             `json:"walltime" db:"walltime" example:"86400"` // Requested walltime of job in seconds
+	Duration         int32             `json:"duration" db:"duration" example:"43200" minimum:"1"` // Duration of job in seconds (Min > 0)
+	Walltime         int64             `json:"walltime" db:"walltime" example:"86400" minimum:"1"` // Requested walltime of job in seconds (Min > 0)
 	Tags             []*Tag            `json:"tags"` // List of tags
 	RawResources     []byte            `json:"-" db:"resources"` // Resources used by job [As Bytes]
 	Resources        []*Resource       `json:"resources"` // Resources used by job
@@ -73,7 +73,7 @@ type JobMeta struct {
   // The unique identifier of a job in the database
 	ID *int64 `json:"id,omitempty"`
 	BaseJob
-	StartTime  int64                    `json:"startTime" db:"start_time" example:"1649723812" minimum:"0"` // Start epoch time stamp in seconds
+	StartTime  int64                    `json:"startTime" db:"start_time" example:"1649723812" minimum:"1"` // Start epoch time stamp in seconds (Min > 0)
 	Statistics map[string]JobStatistics `json:"statistics,omitempty"` // Metric statistics of job
 }
 

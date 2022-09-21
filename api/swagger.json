@@ -403,9 +403,9 @@
                     "example": "fritz"
                 },
                 "duration": {
-                    "description": "Duration of job in seconds",
+                    "description": "Duration of job in seconds (Min \u003e 0)",
                     "type": "integer",
-                    "minimum": 0,
+                    "minimum": 1,
                     "example": 43200
                 },
                 "exclusive": {
@@ -452,21 +452,21 @@
                     "example": 1
                 },
                 "numAcc": {
-                    "description": "Number of accelerators used",
+                    "description": "Number of accelerators used (Min \u003e 0)",
                     "type": "integer",
-                    "minimum": 0,
+                    "minimum": 1,
                     "example": 2
                 },
                 "numHwthreads": {
-                    "description": "Number of HWThreads used",
+                    "description": "Number of HWThreads used (Min \u003e 0)",
                     "type": "integer",
-                    "minimum": 0,
+                    "minimum": 1,
                     "example": 20
                 },
                 "numNodes": {
-                    "description": "Number of nodes used",
+                    "description": "Number of nodes used (Min \u003e 0)",
                     "type": "integer",
-                    "minimum": 0,
+                    "minimum": 1,
                     "example": 2
                 },
                 "partition": {
@@ -513,8 +513,9 @@
                     "example": "abcd100h"
                 },
                 "walltime": {
-                    "description": "Requested walltime of job in seconds",
+                    "description": "Requested walltime of job in seconds (Min \u003e 0)",
                     "type": "integer",
+                    "minimum": 1,
                     "example": 86400
                 }
             }
@@ -534,9 +535,9 @@
                     "example": "fritz"
                 },
                 "duration": {
-                    "description": "Duration of job in seconds",
+                    "description": "Duration of job in seconds (Min \u003e 0)",
                     "type": "integer",
-                    "minimum": 0,
+                    "minimum": 1,
                     "example": 43200
                 },
                 "exclusive": {
@@ -583,21 +584,21 @@
                     "example": 1
                 },
                 "numAcc": {
-                    "description": "Number of accelerators used",
+                    "description": "Number of accelerators used (Min \u003e 0)",
                     "type": "integer",
-                    "minimum": 0,
+                    "minimum": 1,
                     "example": 2
                 },
                 "numHwthreads": {
-                    "description": "Number of HWThreads used",
+                    "description": "Number of HWThreads used (Min \u003e 0)",
                     "type": "integer",
-                    "minimum": 0,
+                    "minimum": 1,
                     "example": 20
                 },
                 "numNodes": {
-                    "description": "Number of nodes used",
+                    "description": "Number of nodes used (Min \u003e 0)",
                     "type": "integer",
-                    "minimum": 0,
+                    "minimum": 1,
                     "example": 2
                 },
                 "partition": {
@@ -623,9 +624,9 @@
                     "example": 4
                 },
                 "startTime": {
-                    "description": "Start epoch time stamp in seconds",
+                    "description": "Start epoch time stamp in seconds (Min \u003e 0)",
                     "type": "integer",
-                    "minimum": 0,
+                    "minimum": 1,
                     "example": 1649723812
                 },
                 "statistics": {
@@ -653,8 +654,9 @@
                     "example": "abcd100h"
                 },
                 "walltime": {
-                    "description": "Requested walltime of job in seconds",
+                    "description": "Requested walltime of job in seconds (Min \u003e 0)",
                     "type": "integer",
+                    "minimum": 1,
                     "example": 86400
                 }
             }
