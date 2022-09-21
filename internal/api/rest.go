@@ -154,6 +154,7 @@ func decode(r io.Reader, val interface{}) error {
 // @Param       with-metadata  query    bool              false "Include metadata in response"
 // @Success     200            {array}  schema.Job              "Array of jobs"
 // @Failure     400            {object} api.ErrorResponse       "Bad Request"
+// @Failure     500            {object} api.ErrorResponse       "Internal Server Error"
 // @Security    ApiKeyAuth
 // @Router      /jobs/ [get]
 func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
@@ -276,6 +277,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 // @Success     200     {object} schema.Job                "Job resource"
 // @Failure     400     {object} api.ErrorResponse         "Bad Request"
 // @Failure     404     {object} api.ErrorResponse         "Job or tag does not exist"
+// @Failure     500     {object} api.ErrorResponse         "Internal Server Error"
 // @Security    ApiKeyAuth
 // @Router      /jobs/tag_job/{id} [post]
 func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
@@ -331,7 +333,9 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 // @Param       request body     schema.JobMeta          true "Job to add"
 // @Success     201     {object} api.StartJobApiResponse      "Job added successfully"
 // @Failure     400     {object} api.ErrorResponse            "Bad Request"
-// @Failure     422     {object} api.ErrorResponse            "The combination of jobId, clusterId and startTime does already exist"
+// @Failure     403     {object} api.ErrorResponse            "Forbidden"
+// @Failure     422     {object} api.ErrorResponse            "Unprocessable Entity: The combination of jobId, clusterId and startTime does already exist"
+// @Failure     500     {object} api.ErrorResponse            "Internal Server Error"
 // @Security    ApiKeyAuth
 // @Router      /jobs/start_job/ [post]
 func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
@@ -396,9 +400,12 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 // @Produce     json
 // @Param       id      path     int                   true "Database ID of Job"
 // @Param       request body     api.StopJobApiRequest true "stopTime and final state in request body"
-// @Success     201     {object} schema.JobMeta             "Job resource"
+// @Success     200     {object} schema.JobMeta             "Job resource"
 // @Failure     400     {object} api.ErrorResponse          "Bad Request"
+// @Failure     403     {object} api.ErrorResponse          "Forbidden"
 // @Failure     404     {object} api.ErrorResponse          "Resource not found"
+// @Failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
+// @Failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @Security    ApiKeyAuth
 // @Router      /jobs/stop_job/{id} [post]
 func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
@@ -505,9 +512,12 @@ func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
 // @Description Returns full job resource information according to 'JobMeta' scheme.
 // @Produce     json
 // @Param       request body     api.StopJobApiRequest true "All fields required"
-// @Success     201     {object} schema.JobMeta             "Job resource"
+// @Success     200     {object} schema.JobMeta             "Job resource"
 // @Failure     400     {object} api.ErrorResponse          "Bad Request"
+// @Failure     403     {object} api.ErrorResponse          "Forbidden"
 // @Failure     404     {object} api.ErrorResponse          "Resource not found"
+// @Failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
+// @Failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @Security    ApiKeyAuth
 // @Router      /jobs/stop_job/ [post]
 func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
