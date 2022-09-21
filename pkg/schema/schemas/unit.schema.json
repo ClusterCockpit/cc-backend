@@ -15,10 +15,11 @@
                 "F/s",
                 "CPI",
                 "IPC",
-                "cpu_used",
-                "cpu_load",
+                "load",
                 "Hz",
-                "W"
+                "W",
+                "°C",
+                ""
             ]
         },
         "prefix": {
