@@ -154,6 +154,7 @@ func decode(r io.Reader, val interface{}) error {
 // @Param       with-metadata  query    bool              false "Include metadata in response"
 // @Success     200            {array}  schema.Job              "Array of jobs"
 // @Failure     400            {object} api.ErrorResponse       "Bad Request"
+// @Failure     401   			   {object} api.ErrorResponse       "Unauthorized"
 // @Failure     500            {object} api.ErrorResponse       "Internal Server Error"
 // @Security    ApiKeyAuth
 // @Router      /jobs/ [get]
@@ -276,6 +277,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 // @Param       request body     api.TagJobApiRequest true "Array of tag-objects to add"
 // @Success     200     {object} schema.Job                "Job resource"
 // @Failure     400     {object} api.ErrorResponse         "Bad Request"
+// @Failure     401     {object} api.ErrorResponse         "Unauthorized"
 // @Failure     404     {object} api.ErrorResponse         "Job or tag does not exist"
 // @Failure     500     {object} api.ErrorResponse         "Internal Server Error"
 // @Security    ApiKeyAuth
@@ -333,6 +335,7 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 // @Param       request body     schema.JobMeta          true "Job to add"
 // @Success     201     {object} api.StartJobApiResponse      "Job added successfully"
 // @Failure     400     {object} api.ErrorResponse            "Bad Request"
+// @Failure     401     {object} api.ErrorResponse            "Unauthorized"
 // @Failure     403     {object} api.ErrorResponse            "Forbidden"
 // @Failure     422     {object} api.ErrorResponse            "Unprocessable Entity: The combination of jobId, clusterId and startTime does already exist"
 // @Failure     500     {object} api.ErrorResponse            "Internal Server Error"
@@ -402,6 +405,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 // @Param       request body     api.StopJobApiRequest true "stopTime and final state in request body"
 // @Success     200     {object} schema.JobMeta             "Job resource"
 // @Failure     400     {object} api.ErrorResponse          "Bad Request"
+// @Failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @Failure     403     {object} api.ErrorResponse          "Forbidden"
 // @Failure     404     {object} api.ErrorResponse          "Resource not found"
 // @Failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
@@ -514,6 +518,7 @@ func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
 // @Param       request body     api.StopJobApiRequest true "All fields required"
 // @Success     200     {object} schema.JobMeta             "Job resource"
 // @Failure     400     {object} api.ErrorResponse          "Bad Request"
+// @Failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @Failure     403     {object} api.ErrorResponse          "Forbidden"
 // @Failure     404     {object} api.ErrorResponse          "Resource not found"
 // @Failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
