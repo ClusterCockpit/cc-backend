@@ -214,15 +214,15 @@
                     "description": "CPU power consumption",
                     "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
-                "gpu_used": {
+                "acc_used": {
                     "description": "GPU utilization",
                     "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
-                "gpu_mem_used": {
+                "acc_mem_used": {
                     "description": "GPU memory capacity used",
                     "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
-                "gpu_power": {
+                "acc_power": {
                     "description": "GPU power consumption",
                     "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
