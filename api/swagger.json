@@ -389,7 +389,7 @@
             }
         },
         "schema.Job": {
-            "description": "Meta data information of a HPC job.",
+            "description": "Information of a HPC job.",
             "type": "object",
             "properties": {
                 "arrayJobId": {
@@ -409,11 +409,11 @@
                     "example": 43200
                 },
                 "exclusive": {
-                    "description": "Specifies how nodes are shared. 0 - Shared among multiple jobs of multiple users, 1 - Job exclusive, 2 - Shared among multiple jobs of same user",
+                    "description": "Specifies how nodes are shared: 0 - Shared among multiple jobs of multiple users, 1 - Job exclusive (Default), 2 - Shared among multiple jobs of same user",
                     "type": "integer",
                     "maximum": 2,
                     "minimum": 0,
-                    "example": 2
+                    "example": 1
                 },
                 "id": {
                     "description": "The unique identifier of a job in the database",
@@ -445,8 +445,10 @@
                     }
                 },
                 "monitoringStatus": {
-                    "description": "State of monitoring system during job run",
+                    "description": "State of monitoring system during job run: 0 - Disabled, 1 - Running or Archiving (Default), 2 - Archiving Failed, 3 - Archiving Successfull",
                     "type": "integer",
+                    "maximum": 3,
+                    "minimum": 0,
                     "example": 1
                 },
                 "numAcc": {
@@ -538,11 +540,11 @@
                     "example": 43200
                 },
                 "exclusive": {
-                    "description": "Specifies how nodes are shared. 0 - Shared among multiple jobs of multiple users, 1 - Job exclusive, 2 - Shared among multiple jobs of same user",
+                    "description": "Specifies how nodes are shared: 0 - Shared among multiple jobs of multiple users, 1 - Job exclusive (Default), 2 - Shared among multiple jobs of same user",
                     "type": "integer",
                     "maximum": 2,
                     "minimum": 0,
-                    "example": 2
+                    "example": 1
                 },
                 "id": {
                     "description": "The unique identifier of a job in the database",
@@ -574,8 +576,10 @@
                     }
                 },
                 "monitoringStatus": {
-                    "description": "State of monitoring system during job run",
+                    "description": "State of monitoring system during job run: 0 - Disabled, 1 - Running or Archiving (Default), 2 - Archiving Failed, 3 - Archiving Successfull",
                     "type": "integer",
+                    "maximum": 3,
+                    "minimum": 0,
                     "example": 1
                 },
                 "numAcc": {

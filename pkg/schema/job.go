@@ -26,8 +26,8 @@ type BaseJob struct {
 	NumNodes         int32             `json:"numNodes" db:"num_nodes" example:"2" minimum:"0"` // Number of nodes used
 	NumHWThreads     int32             `json:"numHwthreads" db:"num_hwthreads" example:"20" minimum:"0"` // Number of HWThreads used
 	NumAcc           int32             `json:"numAcc" db:"num_acc" example:"2" minimum:"0"` // Number of accelerators used
-	Exclusive        int32             `json:"exclusive" db:"exclusive" example:"2" minimum:"0" maximum:"2"` // Specifies how nodes are shared. 0 - Shared among multiple jobs of multiple users, 1 - Job exclusive, 2 - Shared among multiple jobs of same user
-	MonitoringStatus int32             `json:"monitoringStatus" db:"monitoring_status" example:"1"` // State of monitoring system during job run
+	Exclusive        int32             `json:"exclusive" db:"exclusive" example:"1" minimum:"0" maximum:"2"` // Specifies how nodes are shared: 0 - Shared among multiple jobs of multiple users, 1 - Job exclusive (Default), 2 - Shared among multiple jobs of same user
+	MonitoringStatus int32             `json:"monitoringStatus" db:"monitoring_status" example:"1" minimum:"0" maximum:"3"` // State of monitoring system during job run: 0 - Disabled, 1 - Running or Archiving (Default), 2 - Archiving Failed, 3 - Archiving Successfull
 	SMT              int32             `json:"smt" db:"smt" example:"4"` // SMT threads used by job
 	State            JobState          `json:"jobState" db:"job_state" example:"completed" enums:"completed,failed,cancelled,stopped,timeout,out_of_memory"` // Final state of job
 	Duration         int32             `json:"duration" db:"duration" example:"43200" minimum:"0"` // Duration of job in seconds

@@ -64,7 +64,7 @@ definitions:
         type: string
     type: object
   schema.Job:
-    description: Meta data information of a HPC job.
+    description: Information of a HPC job.
     properties:
       arrayJobId:
         description: The unique identifier of an array job
@@ -80,10 +80,10 @@ definitions:
         minimum: 0
         type: integer
       exclusive:
-        description: Specifies how nodes are shared. 0 - Shared among multiple jobs
-          of multiple users, 1 - Job exclusive, 2 - Shared among multiple jobs of
-          same user
-        example: 2
+        description: 'Specifies how nodes are shared: 0 - Shared among multiple jobs
+          of multiple users, 1 - Job exclusive (Default), 2 - Shared among multiple
+          jobs of same user'
+        example: 1
         maximum: 2
         minimum: 0
         type: integer
@@ -111,8 +111,11 @@ definitions:
         description: Additional information about the job
         type: object
       monitoringStatus:
-        description: State of monitoring system during job run
+        description: 'State of monitoring system during job run: 0 - Disabled, 1 -
+          Running or Archiving (Default), 2 - Archiving Failed, 3 - Archiving Successfull'
         example: 1
+        maximum: 3
+        minimum: 0
         type: integer
       numAcc:
         description: Number of accelerators used
@@ -184,10 +187,10 @@ definitions:
         minimum: 0
         type: integer
       exclusive:
-        description: Specifies how nodes are shared. 0 - Shared among multiple jobs
-          of multiple users, 1 - Job exclusive, 2 - Shared among multiple jobs of
-          same user
-        example: 2
+        description: 'Specifies how nodes are shared: 0 - Shared among multiple jobs
+          of multiple users, 1 - Job exclusive (Default), 2 - Shared among multiple
+          jobs of same user'
+        example: 1
         maximum: 2
         minimum: 0
         type: integer
@@ -215,8 +218,11 @@ definitions:
         description: Additional information about the job
         type: object
       monitoringStatus:
-        description: State of monitoring system during job run
+        description: 'State of monitoring system during job run: 0 - Disabled, 1 -
+          Running or Archiving (Default), 2 - Archiving Failed, 3 - Archiving Successfull'
         example: 1
+        maximum: 3
+        minimum: 0
         type: integer
       numAcc:
         description: Number of accelerators used
