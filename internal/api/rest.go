@@ -34,14 +34,18 @@ import (
 // @title                      ClusterCockpit REST API
 // @version                    0.1.0
 // @description                API for batch job control.
-// @termsOfService             TODO
-// @contact.name               ClusterCockpit project
-// @contact.url                TODO
+// @termsOfService             https://monitoring.nhr.fau.de/imprint
+
+// @contact.name               ClusterCockpit Project
+// @contact.url                https://github.com/ClusterCockpit
 // @contact.email              support@clustercockpit.org
+
 // @license.name               MIT License
 // @license.url                https://opensource.org/licenses/MIT
-// @host                       localhost:8080
+
+// @host                       clustercockpit.localhost:8082
 // @BasePath                   /api
+
 // @securityDefinitions.apikey ApiKeyAuth
 // @in                         header
 // @name                       X-Auth-Token
@@ -92,20 +96,19 @@ type StartJobApiResponse struct {
 }
 
 // StopJobApiRequest model
-// @Description Request to stop running job using stop time and state.
-// @Description Optional fields: JobId, ClusterId and StartTime.
-// @Description They are only used if no database id was provided.
+// @Description Request to stop running job using stoptime and final state.
+// @Description They are only required if no database id was provided with endpoint.
 type StopJobApiRequest struct {
-	// Stop Time as Epoch
-	StopTime  int64           `json:"stopTime"`
-	State     schema.JobState `json:"jobState"`  // Final job state
-	JobId     *int64          `json:"jobId"`     // Job ID of job (Optional)
-	Cluster   *string         `json:"cluster"`   // Cluster of job (Optional)
-	StartTime *int64          `json:"startTime"` // Start Time of job (Optional)
+  // Stop Time of job as epoch
+	StopTime  int64           `json:"stopTime" validate:"required" example:"1649763839"`
+	State     schema.JobState `json:"jobState" validate:"required" example:"completed" enums:"completed,failed,cancelled,stopped,timeout"`   // Final job state
+	JobId     *int64          `json:"jobId" example:"123000"` // Cluster Job ID of job
+	Cluster   *string         `json:"cluster" example:"fritz"` // Cluster of job
+	StartTime *int64          `json:"startTime" example:"1649723812"` // Start Time of job as epoch
 }
 
 // ErrorResponse model
-// @Description Error Response when using API.
+// @Description Error message as returned from backend.
 type ErrorResponse struct {
 	// Statustext of Errorcode
 	Status string `json:"status"`
@@ -116,8 +119,8 @@ type ErrorResponse struct {
 // @Description Defines a tag using name and type.
 type Tag struct {
 	// Tag Type
-	Type string `json:"type"`
-	Name string `json:"name"` // Tag Name
+	Type string `json:"type" example:"Debug"`
+	Name string `json:"name" example:"Testjob"` // Tag Name
 }
 
 type TagJobApiRequest []*Tag
@@ -139,14 +142,13 @@ func decode(r io.Reader, val interface{}) error {
 }
 
 // getJobs godoc
-// @Summary     List all jobs
+// @Summary     Lists all jobs
 // @Description Get a list of all jobs. Filters can be applied using query parameters.
-// @Tags        jobs
 // @Accept      json
 // @Produce     json
-// @Param       state          query    string            false "Job State" Enums(running, completed, failed, canceled, stopped, timeout)
+// @Param       state          query    string            false "Job State" Enums(running, completed, failed, cancelled, stopped, timeout)
 // @Param       cluster        query    string            false "Job Cluster"
-// @Param       start-time     query    string            false "Syntax: <from>-<to>, where <from> and <to> are unix timestamps in seconds"
+// @Param       start-time     query    string            false "Syntax: '$from-$to', as unix epoch timestamps in seconds"
 // @Param       page           query    int               false "Page Number"
 // @Param       items-per-page query    int               false "Items per page"
 // @Param       with-metadata  query    bool              false "Include metadata in response"
@@ -264,9 +266,9 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 }
 
 // tagJob godoc
-// @Summary     Add one or more tags to a job
-// @Description Add one or more tags as array in request body to job specified by DB ID.
-// @Tags        jobs
+// @Summary     Adds one or more tags to a job
+// @Description Adds tag(s) to a job specified by DB ID. Name and Type of Tag(s) can be chosen freely.
+// @Description If tagged job is already finished: Tag will be written directly to respective archive files.
 // @Accept      json
 // @Produce     json
 // @Param       id      path     int                  true "Job Database ID"
@@ -321,10 +323,9 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 }
 
 // startJob godoc
-// @Summary     Add a newly started job
-// @Description A new job started. The body should be in the `meta.json` format
-// @Description but some fields required there are optional here (e.g. `jobState` defaults to "running").
-// @Tags        jobs
+// @Summary     Adds a new job as "running"
+// @Description Job specified in request body will be saved to database as "running" with new DB ID.
+// @Description Job specifications follow the 'JobMeta' scheme, API will fail to execute if requirements are not met.
 // @Accept      json
 // @Produce     json
 // @Param       request body     schema.JobMeta          true "Job to add"
@@ -388,15 +389,14 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 }
 
 // stopJobById godoc
-// @Summary     Mark job as stopped and trigger archiving
-// @Description Job to stop is specified by database ID.
-// @Description Only stopTime and final state are required in request body.
-// @Tags        jobs
+// @Summary     Marks job as completed and triggers archiving
+// @Description Job to stop is specified by database ID. Only stopTime and final state are required in request body.
+// @Description Returns full job resource information according to 'JobMeta' scheme.
 // @Accept      json
 // @Produce     json
 // @Param       id      path     int                   true "Database ID of Job"
-// @Param       request body     api.StopJobApiRequest true "Required fields: [stopTime, state]"
-// @Success     201     {object} schema.Job                 "Job resource"
+// @Param       request body     api.StopJobApiRequest true "stopTime and final state in request body"
+// @Success     201     {object} schema.JobMeta             "Job resource"
 // @Failure     400     {object} api.ErrorResponse          "Bad Request"
 // @Failure     404     {object} api.ErrorResponse          "Resource not found"
 // @Security    ApiKeyAuth
@@ -500,11 +500,9 @@ func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
 }
 
 // stopJobByRequest godoc
-// @Summary     Mark job as stopped and trigger archiving
-// @Description Job to stop is specified by request body.
-// @Description All fields are required in request body.
-// @Tags        jobs
-// @Accept      json
+// @Summary     Marks job as completed and triggers archiving
+// @Description Job to stop is specified by request body. All fields are required in this case.
+// @Description Returns full job resource information according to 'JobMeta' scheme.
 // @Produce     json
 // @Param       request body     api.StopJobApiRequest true "All fields required"
 // @Success     201     {object} schema.JobMeta             "Job resource"
