@@ -362,7 +362,9 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get a list of all jobs. Filters can be applied using query parameters.
+      description: |-
+        Get a list of all jobs. Filters can be applied using query parameters.
+        Number of results can be limited by page. Results are sorted by descending startTime.
       parameters:
       - description: Job State
         enum:
@@ -383,15 +385,15 @@ paths:
         in: query
         name: start-time
         type: string
-      - description: Page Number
-        in: query
-        name: page
-        type: integer
-      - description: Items per page
+      - description: 'Items per page (If empty: No Limit)'
         in: query
         name: items-per-page
         type: integer
-      - description: Include metadata in response
+      - description: 'Page Number (If empty: No Paging)'
+        in: query
+        name: page
+        type: integer
+      - description: Include metadata (e.g. jobScript) in response
         in: query
         name: with-metadata
         type: boolean
@@ -399,7 +401,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Array of jobs
+          description: Array of matching jobs
           schema:
             items:
               $ref: '#/definitions/schema.Job'
@@ -590,7 +592,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Job resource
+          description: Updated job resource
           schema:
             $ref: '#/definitions/schema.Job'
         "400":

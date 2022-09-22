@@ -144,15 +144,16 @@ func decode(r io.Reader, val interface{}) error {
 // getJobs godoc
 // @Summary     Lists all jobs
 // @Description Get a list of all jobs. Filters can be applied using query parameters.
+// @Description Number of results can be limited by page. Results are sorted by descending startTime.
 // @Accept      json
 // @Produce     json
 // @Param       state          query    string            false "Job State" Enums(running, completed, failed, cancelled, stopped, timeout)
 // @Param       cluster        query    string            false "Job Cluster"
 // @Param       start-time     query    string            false "Syntax: '$from-$to', as unix epoch timestamps in seconds"
-// @Param       page           query    int               false "Page Number"
-// @Param       items-per-page query    int               false "Items per page"
-// @Param       with-metadata  query    bool              false "Include metadata in response"
-// @Success     200            {array}  schema.Job              "Array of jobs"
+// @Param       items-per-page query    int               false "Items per page (If empty: No Limit)"
+// @Param       page           query    int               false "Page Number (If empty: No Paging)"
+// @Param       with-metadata  query    bool              false "Include metadata (e.g. jobScript) in response"
+// @Success     200            {array}  schema.Job              "Array of matching jobs"
 // @Failure     400            {object} api.ErrorResponse       "Bad Request"
 // @Failure     401   			   {object} api.ErrorResponse       "Unauthorized"
 // @Failure     500            {object} api.ErrorResponse       "Internal Server Error"
@@ -275,7 +276,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 // @Produce     json
 // @Param       id      path     int                  true "Job Database ID"
 // @Param       request body     api.TagJobApiRequest true "Array of tag-objects to add"
-// @Success     200     {object} schema.Job                "Job resource"
+// @Success     200     {object} schema.Job                "Updated job resource"
 // @Failure     400     {object} api.ErrorResponse         "Bad Request"
 // @Failure     401     {object} api.ErrorResponse         "Unauthorized"
 // @Failure     404     {object} api.ErrorResponse         "Job or tag does not exist"
