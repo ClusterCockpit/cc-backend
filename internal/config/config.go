@@ -53,7 +53,7 @@ func Init(flagConfigFile string) {
 		}
 	} else {
 		if err := schema.Validate(schema.Config, bytes.NewReader(raw)); err != nil {
-			log.Fatal(err)
+			log.Fatalf("Validate config: %v\n", err)
 		}
 		dec := json.NewDecoder(bytes.NewReader(raw))
 		dec.DisallowUnknownFields()

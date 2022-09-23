@@ -105,7 +105,7 @@ func HandleImportFlag(flag string) error {
 
 		if config.Keys.Validate {
 			if err := schema.Validate(schema.Meta, bytes.NewReader(raw)); err != nil {
-				return err
+				return fmt.Errorf("validate job meta: %v", err)
 			}
 		}
 		dec := json.NewDecoder(bytes.NewReader(raw))
@@ -122,7 +122,7 @@ func HandleImportFlag(flag string) error {
 
 		if config.Keys.Validate {
 			if err := schema.Validate(schema.Data, bytes.NewReader(raw)); err != nil {
-				return err
+				return fmt.Errorf("validate job data: %v", err)
 			}
 		}
 		dec = json.NewDecoder(bytes.NewReader(raw))

@@ -109,7 +109,7 @@ func (fsa *FsArchive) LoadClusterCfg(name string) (*schema.Cluster, error) {
 	}
 	if config.Keys.Validate {
 		if err := schema.Validate(schema.ClusterCfg, bytes.NewReader(b)); err != nil {
-			return &schema.Cluster{}, err
+			return &schema.Cluster{}, fmt.Errorf("Validate cluster config: %v\n", err)
 		}
 	}
 	return DecodeCluster(bytes.NewReader(b))
