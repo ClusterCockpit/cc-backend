@@ -53,6 +53,9 @@ make
 cp configs/env-template.txt  .env
 vim ./.env
 
+cp configs/config.json ./
+vim ./config.json
+
 #Optional: Link an existing job archive:
 ln -s <your-existing-job-archive> ./var/job-archive
 
