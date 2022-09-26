@@ -44,31 +44,26 @@ Please note that some views do not work without a metric backend (e.g., the Syst
 ```sh
 git clone git@github.com:ClusterCockpit/cc-backend.git
 
-# Prepare frontend
-cd ./cc-backend/web/frontend
-yarn install
-yarn build
-
-cd ..
-go build ./cmd/cc-backend
-
-ln -s <your-existing-job-archive> ./var/job-archive
-
-# Create empty job.db (Will be initialized as SQLite3 database)
-touch ./var/job.db
+# Build binary
+cd ./cc-backend/
+make
 
 # EDIT THE .env FILE BEFORE YOU DEPLOY (Change the secrets)!
 # If authentication is disabled, it can be empty.
 cp configs/env-template.txt  .env
 vim ./.env
 
+#Optional: Link an existing job archive:
+ln -s <your-existing-job-archive> ./var/job-archive
+
 # This will first initialize the job.db database by traversing all
 # `meta.json` files in the job-archive and add a new user. `--no-server` will cause the
 # executable to stop once it has done that instead of starting a server.
-./cc-backend --init-db --add-user <your-username>:admin:<your-password> --no-server
+./cc-backend --init-db --add-user <your-username>:admin:<your-password>
 
-# Start a HTTP server (HTTPS can be enabled, the default port is 8080):
-./cc-backend
+# Start a HTTP server (HTTPS can be enabled, the default port is 8080).
+# The --dev flag enables GraphQL Playground (http://localhost:8080/playground) and Swagger UI (http://localhost:8080/swagger).
+./cc-backend --server  --dev
 
 # Show other options:
 ./cc-backend --help
@@ -87,7 +82,7 @@ Having no jobs in the job-archive at all is fine.
 
 ### Configuration
 
-A config file in the JSON format can be provided using `--config` to override the defaults.
+A config file in the JSON format has to be provided using `--config` to override the defaults.
 By default, if there is a `config.json` file in the current directory of the `cc-backend` process, it will be loaded even without the `--config` flag.
 You find documentation of all supported configuration and command line options [here](./configs.README.md).
 
