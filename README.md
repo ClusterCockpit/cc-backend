@@ -41,6 +41,12 @@ Please note that some views do not work without a metric backend (e.g., the Syst
 
 ## Howto Build and Run
 
+There is a Makefile to automate the build of cc-backend. The Makefile supports the following targets:
+* `$ make`: Initialize `var` directory and build svelte frontend and backend binary. Please note that there is no proper prerequesite handling. Any change of frontend source files will trigger a omplete rebuild.
+* `$ make clean`: Clean go build cache and remove binary
+* `$ make test`: Run the tests that are also run in the GitHub workflow setup.
+
+A common workflow to setup cc-backend fron scratch is:
 ```sh
 git clone git@github.com:ClusterCockpit/cc-backend.git
 
