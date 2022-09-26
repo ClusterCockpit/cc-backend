@@ -308,7 +308,7 @@ func (r *JobRepository) FindJobOrUser(ctx context.Context, searchterm string) (j
 	user := auth.GetUser(ctx)
 	if id, err := strconv.Atoi(searchterm); err == nil {
 		qb := sq.Select("job.id").From("job").Where("job.job_id = ?", id)
-		if user != nil && !user.HasRole(auth.RoleAdmin) {
+		if user != nil && !user.HasRole(auth.RoleAdmin) && !user.HasRole(auth.RoleSupport) {
 			qb = qb.Where("job.user = ?", user.Username)
 		}
 
@@ -320,7 +320,7 @@ func (r *JobRepository) FindJobOrUser(ctx context.Context, searchterm string) (j
 		}
 	}
 
-	if user == nil || user.HasRole(auth.RoleAdmin) {
+	if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleSupport) {
 		err := sq.Select("job.user").Distinct().From("job").
 			Where("job.user = ?", searchterm).
 			RunWith(r.stmtCache).QueryRow().Scan(&username)

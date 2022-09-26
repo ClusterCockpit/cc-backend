@@ -120,7 +120,7 @@ func (auth *Authentication) AddRole(
 		return err
 	}
 
-	if role != RoleAdmin && role != RoleApi && role != RoleUser {
+	if role != RoleAdmin && role != RoleApi && role != RoleUser && role != RoleSupport {
 		return fmt.Errorf("invalid user role: %#v", role)
 	}
 
@@ -137,13 +137,40 @@ func (auth *Authentication) AddRole(
 	return nil
 }
 
-func FetchUser(
-	ctx context.Context,
-	db *sqlx.DB,
-	username string) (*model.User, error) {
+func (auth *Authentication) RemoveRole(ctx context.Context, username string, role string) error {
+	user, err := auth.GetUser(username)
+	if err != nil {
+		return err
+	}
 
+	if role != RoleAdmin && role != RoleApi && role != RoleUser {
+		return fmt.Errorf("invalid user role: %#v", role)
+	}
+
+	var exists bool
+	var newroles []string
+	for _, r := range user.Roles {
+		if r != role {
+			newroles = append(newroles, r) // Append all roles not matching requested delete role
+		} else {
+			exists = true
+		}
+	}
+
+	if (exists == true) {
+		var mroles, _ = json.Marshal(newroles)
+		if _, err := sq.Update("user").Set("roles", mroles).Where("user.username = ?", username).RunWith(auth.db).Exec(); err != nil {
+			return err
+		}
+		return nil
+	} else {
+		return fmt.Errorf("user %#v already does not have role %#v", username, role)
+	}
+}
+
+func FetchUser(ctx context.Context, db *sqlx.DB, username string) (*model.User, error) {
 	me := GetUser(ctx)
-	if me != nil && !me.HasRole(RoleAdmin) && me.Username != username {
+	if me != nil && !me.HasRole(RoleAdmin) && !me.HasRole(RoleSupport) && me.Username != username {
 		return nil, errors.New("forbidden")
 	}
 
