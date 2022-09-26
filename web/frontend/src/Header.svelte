@@ -42,8 +42,8 @@
                         </DropdownToggle>
                         <DropdownMenu>
                             {#each clusters as cluster}
-                                <DropdownItem href={item.href + cluster} active={window.location.pathname == item.href + cluster}>
-                                    {cluster}
+                                <DropdownItem href={item.href + cluster.name} active={window.location.pathname == item.href + cluster.name}>
+                                    {cluster.name}
                                 </DropdownItem>
                             {/each}
                         </DropdownMenu>

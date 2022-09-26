@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	sq "github.com/Masterminds/squirrel"
 )
@@ -36,7 +36,7 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 	stats := map[string]*model.JobsStatistics{}
 
 	// `socketsPerNode` and `coresPerSocket` can differ from cluster to cluster, so we need to explicitly loop over those.
-	for _, cluster := range config.Clusters {
+	for _, cluster := range archive.Clusters {
 		for _, subcluster := range cluster.SubClusters {
 			corehoursCol := fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_nodes * %d * %d) / 3600) as int)", subcluster.SocketsPerNode, subcluster.CoresPerSocket)
 			var query sq.SelectBuilder
@@ -200,7 +200,12 @@ func (r *queryResolver) jobsStatisticsHistogram(ctx context.Context, value strin
 const MAX_JOBS_FOR_ANALYSIS = 500
 
 // Helper function for the rooflineHeatmap GraphQL query placed here so that schema.resolvers.go is not too full.
-func (r *Resolver) rooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error) {
+func (r *queryResolver) rooflineHeatmap(
+	ctx context.Context,
+	filter []*model.JobFilter,
+	rows int, cols int,
+	minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error) {
+
 	jobs, err := r.Repo.QueryJobs(ctx, filter, &model.PageRequest{Page: 1, ItemsPerPage: MAX_JOBS_FOR_ANALYSIS + 1}, nil)
 	if err != nil {
 		return nil, err

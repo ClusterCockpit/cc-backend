@@ -7,11 +7,6 @@ exec:
   filename: internal/graph/generated/generated.go
   package: generated
 
-# Uncomment to enable federation
-# federation:
-#   filename: graph/generated/federation.go
-#   package: generated
-
 # Where should any generated models go?
 model:
   filename: internal/graph/model/models_gen.go
@@ -20,7 +15,7 @@ model:
 # Where should the resolver implementations go?
 resolver:
   layout: follow-schema
-  dir: graph
+  dir: internal/graph
   package: graph
 
 # Optional: turn on use `gqlgen:"fieldName"` tags in your models
@@ -35,7 +30,7 @@ resolver:
 # gqlgen will search for any type names in the schema in these go packages
 # if they match it will use them, otherwise it will generate them.
 autobind:
-  - "github.com/ClusterCockpit/cc-backend/graph/model"
+  - "github.com/ClusterCockpit/cc-backend/internal/graph/model"
 
 # This section declares type mapping between the GraphQL and go type systems
 #
@@ -55,23 +50,32 @@ models:
       - github.com/99designs/gqlgen/graphql.Int64
       - github.com/99designs/gqlgen/graphql.Int32
   Job:
-    model: "github.com/ClusterCockpit/cc-backend/schema.Job"
+    model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Job"
     fields:
       tags:
         resolver: true
       metaData:
         resolver: true
   Cluster:
+    model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Cluster"
     fields:
       partitions:
         resolver: true
-  NullableFloat: { model: "github.com/ClusterCockpit/cc-backend/schema.Float" }
-  MetricScope: { model: "github.com/ClusterCockpit/cc-backend/schema.MetricScope" }
-  JobStatistics: { model: "github.com/ClusterCockpit/cc-backend/schema.JobStatistics" }
-  Tag: { model: "github.com/ClusterCockpit/cc-backend/schema.Tag" }
-  Resource: { model: "github.com/ClusterCockpit/cc-backend/schema.Resource" }
-  JobState: { model: "github.com/ClusterCockpit/cc-backend/schema.JobState" }
-  JobMetric: { model: "github.com/ClusterCockpit/cc-backend/schema.JobMetric" }
-  Series: { model: "github.com/ClusterCockpit/cc-backend/schema.Series" }
-  MetricStatistics: { model: "github.com/ClusterCockpit/cc-backend/schema.MetricStatistics" }
-  StatsSeries: { model: "github.com/ClusterCockpit/cc-backend/schema.StatsSeries" }
+  NullableFloat: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Float" }
+  MetricScope: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.MetricScope" }
+  JobStatistics: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.JobStatistics" }
+  Tag: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Tag" }
+  Resource: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Resource" }
+  JobState: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.JobState" }
+  TimeRange: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.TimeRange" }
+  IntRange: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.IntRange" }
+  JobMetric: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.JobMetric" }
+  Series: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Series" }
+  MetricStatistics: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.MetricStatistics" }
+  MetricConfig: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.MetricConfig" }
+  SubClusterConfig: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.SubClusterConfig" }
+  Accelerator: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Accelerator" }
+  Topology: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Topology" }
+  FilterRanges: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.FilterRanges" }
+  SubCluster: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.SubCluster" }
+  StatsSeries: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.StatsSeries" }

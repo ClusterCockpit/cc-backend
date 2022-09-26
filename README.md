@@ -44,31 +44,26 @@ Please note that some views do not work without a metric backend (e.g., the Syst
 ```sh
 git clone git@github.com:ClusterCockpit/cc-backend.git
 
-# Prepare frontend
-cd ./cc-backend/web/frontend
-yarn install
-yarn build
-
-cd ..
-go build ./cmd/cc-backend
-
-ln -s <your-existing-job-archive> ./var/job-archive
-
-# Create empty job.db (Will be initialized as SQLite3 database)
-touch ./var/job.db
+# Build binary
+cd ./cc-backend/
+make
 
 # EDIT THE .env FILE BEFORE YOU DEPLOY (Change the secrets)!
 # If authentication is disabled, it can be empty.
 cp configs/env-template.txt  .env
 vim ./.env
 
+#Optional: Link an existing job archive:
+ln -s <your-existing-job-archive> ./var/job-archive
+
 # This will first initialize the job.db database by traversing all
 # `meta.json` files in the job-archive and add a new user. `--no-server` will cause the
 # executable to stop once it has done that instead of starting a server.
-./cc-backend --init-db --add-user <your-username>:admin:<your-password> --no-server
+./cc-backend --init-db --add-user <your-username>:admin:<your-password>
 
-# Start a HTTP server (HTTPS can be enabled, the default port is 8080):
-./cc-backend
+# Start a HTTP server (HTTPS can be enabled, the default port is 8080).
+# The --dev flag enables GraphQL Playground (http://localhost:8080/playground) and Swagger UI (http://localhost:8080/swagger).
+./cc-backend --server  --dev
 
 # Show other options:
 ./cc-backend --help
@@ -87,7 +82,7 @@ Having no jobs in the job-archive at all is fine.
 
 ### Configuration
 
-A config file in the JSON format can be provided using `--config` to override the defaults.
+A config file in the JSON format has to be provided using `--config` to override the defaults.
 By default, if there is a `config.json` file in the current directory of the `cc-backend` process, it will be loaded even without the `--config` flag.
 You find documentation of all supported configuration and command line options [here](./configs.README.md).
 
@@ -97,17 +92,27 @@ This project uses [gqlgen](https://github.com/99designs/gqlgen) for the GraphQL 
 The schema can be found in `./api/schema.graphqls`.
 After changing it, you need to run `go run github.com/99designs/gqlgen` which will update `./internal/graph/model`.
 In case new resolvers are needed, they will be inserted into `./internal/graph/schema.resolvers.go`, where you will need to implement them.
+If you start cc-backend with flag `--dev` the GraphQL Playground UI is available at http://localhost:8080/playground .
+
+### Update Swagger UI
+
+This project integrates [swagger ui](https://swagger.io/tools/swagger-ui/) to document and test its REST API.
+The swagger doc files can be found in `./api/`.
+You can generate the configuration of swagger-ui by running `go run github.com/swaggo/swag/cmd/swag init -d ./internal/api,./pkg/schema  -g rest.go -o ./api `.
+You need to move the generated `./api/doc.go` to `./internal/api/doc.go`.
+If you start cc-backend with flag `--dev` the Swagger UI is available at http://localhost:8080/swagger .
+
 
 ## Project Structure
 
 - `api/` contains the API schema files for the REST and GraphQL APIs. The REST API is documented in the OpenAPI 3.0 format in [./api/openapi.yaml](./api/openapi.yaml).
 - `cmd/cc-backend` contains `main.go` for the main application.
+- `cmd/gen-keypair` contains is a small application to generate a compatible JWT keypair includin a README about JWT setup in ClusterCockpit.
 - `configs/` contains documentation about configuration and command line options and required environment variables. An example configuration file is provided.
 - `init/` contains an example systemd setup for production use.
 - `internal/` contains library source code that is not intended to be used by others.
 - `pkg/` contains go packages that can also be used by other projects.
 - `test/` Test apps and test data.
-- `tools/` contains supporting tools for cc-backend. At the moment this is a small application to generate a compatible JWT keypair includin a README about JWT setup in ClusterCockpit.
 - `web/` Server side templates and frontend related files:
    - `templates` Serverside go templates
    - `frontend` Svelte components and static assets for frontend UI

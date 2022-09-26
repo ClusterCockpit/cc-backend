@@ -1,6 +1,7 @@
 <script>
     import { createEventDispatcher, getContext } from 'svelte'
     import { Button, Modal, ModalBody, ModalHeader, ModalFooter } from 'sveltestrap'
+import Header from '../Header.svelte';
     import DoubleRangeSlider from './DoubleRangeSlider.svelte'
 
     const clusters = getContext('clusters'),
@@ -22,20 +23,22 @@
     const findMaxNumAccels = clusters => clusters.reduce((max, cluster) => Math.max(max,
         cluster.subClusters.reduce((max, sc) => Math.max(max, sc.topology.accelerators?.length || 0), 0)), 0)
 
+        console.log(header)
     let minNumNodes = 1, maxNumNodes = 0, minNumHWThreads = 1, maxNumHWThreads = 0, minNumAccelerators = 0, maxNumAccelerators = 0
     $: {
         if ($initialized) {
             if (cluster != null) {
-                const { filterRanges, subClusters } = clusters.find(c => c.name == cluster)
+                const { subClusters } = clusters.find(c => c.name == cluster)
+                const { filterRanges } = header.clusters.find(c => c.name == cluster)
                 minNumNodes = filterRanges.numNodes.from
                 maxNumNodes = filterRanges.numNodes.to
                 maxNumAccelerators = findMaxNumAccels([{ subClusters }])
             } else if (clusters.length > 0) {
-                const { filterRanges } = clusters[0]
+                const { filterRanges } = header.clusters[0]
                 minNumNodes = filterRanges.numNodes.from
                 maxNumNodes = filterRanges.numNodes.to
                 maxNumAccelerators = findMaxNumAccels(clusters)
-                for (let cluster of clusters) {
+                for (let cluster of header.clusters) {
                     const { filterRanges } = cluster
                     minNumNodes = Math.min(minNumNodes, filterRanges.numNodes.from)
                     maxNumNodes = Math.max(maxNumNodes, filterRanges.numNodes.to)

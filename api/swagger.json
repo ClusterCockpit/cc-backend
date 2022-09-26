@@ -1,0 +1,840 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Defines a tag using name and type.",
+        "title": "ClusterCockpit REST API",
+        "termsOfService": "https://monitoring.nhr.fau.de/imprint",
+        "contact": {
+            "name": "ClusterCockpit Project",
+            "url": "https://github.com/ClusterCockpit",
+            "email": "support@clustercockpit.org"
+        },
+        "license": {
+            "name": "MIT License",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "0.1.0"
+    },
+    "host": "clustercockpit.localhost:8082",
+    "basePath": "/api",
+    "paths": {
+        "/jobs/": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Get a list of all jobs. Filters can be applied using query parameters.\nNumber of results can be limited by page. Results are sorted by descending startTime.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Lists all jobs",
+                "parameters": [
+                    {
+                        "enum": [
+                            "running",
+                            "completed",
+                            "failed",
+                            "cancelled",
+                            "stopped",
+                            "timeout"
+                        ],
+                        "type": "string",
+                        "description": "Job State",
+                        "name": "state",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Job Cluster",
+                        "name": "cluster",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Syntax: '$from-$to', as unix epoch timestamps in seconds",
+                        "name": "start-time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (If empty: No Limit)",
+                        "name": "items-per-page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page Number (If empty: No Paging)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Include metadata (e.g. jobScript) in response",
+                        "name": "with-metadata",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of matching jobs",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/schema.Job"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/jobs/start_job/": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Job specified in request body will be saved to database as \"running\" with new DB ID.\nJob specifications follow the 'JobMeta' scheme, API will fail to execute if requirements are not met.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Adds a new job as \"running\"",
+                "parameters": [
+                    {
+                        "description": "Job to add",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/schema.JobMeta"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Job added successfully",
+                        "schema": {
+                            "$ref": "#/definitions/api.StartJobApiResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity: The combination of jobId, clusterId and startTime does already exist",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/jobs/stop_job/": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Job to stop is specified by request body. All fields are required in this case.\nReturns full job resource information according to 'JobMeta' scheme.",
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Marks job as completed and triggers archiving",
+                "parameters": [
+                    {
+                        "description": "All fields required",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.StopJobApiRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Job resource",
+                        "schema": {
+                            "$ref": "#/definitions/schema.JobMeta"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Resource not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity: finding job failed: sql: no rows in result set",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/jobs/stop_job/{id}": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Job to stop is specified by database ID. Only stopTime and final state are required in request body.\nReturns full job resource information according to 'JobMeta' scheme.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Marks job as completed and triggers archiving",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Database ID of Job",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "stopTime and final state in request body",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.StopJobApiRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Job resource",
+                        "schema": {
+                            "$ref": "#/definitions/schema.JobMeta"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Resource not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity: finding job failed: sql: no rows in result set",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/jobs/tag_job/{id}": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Adds tag(s) to a job specified by DB ID. Name and Type of Tag(s) can be chosen freely.\nIf tagged job is already finished: Tag will be written directly to respective archive files.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Adds one or more tags to a job",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Job Database ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Array of tag-objects to add",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.Tag"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated job resource",
+                        "schema": {
+                            "$ref": "#/definitions/schema.Job"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Job or tag does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "api.ErrorResponse": {
+            "description": "Error message as returned from backend.",
+            "type": "object",
+            "properties": {
+                "error": {
+                    "description": "Error Message",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Statustext of Errorcode",
+                    "type": "string"
+                }
+            }
+        },
+        "api.StartJobApiResponse": {
+            "description": "Successful job start response with database id of new job.",
+            "type": "object",
+            "properties": {
+                "id": {
+                    "description": "Database ID of new job",
+                    "type": "integer"
+                }
+            }
+        },
+        "api.StopJobApiRequest": {
+            "description": "Request to stop running job using stoptime and final state. They are only required if no database id was provided with endpoint.",
+            "type": "object",
+            "required": [
+                "jobState",
+                "stopTime"
+            ],
+            "properties": {
+                "cluster": {
+                    "description": "Cluster of job",
+                    "type": "string",
+                    "example": "fritz"
+                },
+                "jobId": {
+                    "description": "Cluster Job ID of job",
+                    "type": "integer",
+                    "example": 123000
+                },
+                "jobState": {
+                    "description": "Final state of job",
+                    "type": "string",
+                    "enum": [
+                        "completed",
+                        "failed",
+                        "cancelled",
+                        "stopped",
+                        "timeout"
+                    ],
+                    "example": "completed"
+                },
+                "startTime": {
+                    "description": "Start Time of job as epoch",
+                    "type": "integer",
+                    "example": 1649723812
+                },
+                "stopTime": {
+                    "description": "Stop Time of job as epoch",
+                    "type": "integer",
+                    "example": 1649763839
+                }
+            }
+        },
+        "api.Tag": {
+            "description": "Defines a tag using name and type.",
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "Tag Name",
+                    "type": "string",
+                    "example": "Testjob"
+                },
+                "type": {
+                    "description": "Tag Type",
+                    "type": "string",
+                    "example": "Debug"
+                }
+            }
+        },
+        "schema.Job": {
+            "description": "Information of a HPC job.",
+            "type": "object",
+            "properties": {
+                "arrayJobId": {
+                    "description": "The unique identifier of an array job",
+                    "type": "integer",
+                    "example": 123000
+                },
+                "cluster": {
+                    "description": "The unique identifier of a cluster",
+                    "type": "string",
+                    "example": "fritz"
+                },
+                "duration": {
+                    "description": "Duration of job in seconds (Min \u003e 0)",
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 43200
+                },
+                "exclusive": {
+                    "description": "Specifies how nodes are shared: 0 - Shared among multiple jobs of multiple users, 1 - Job exclusive (Default), 2 - Shared among multiple jobs of same user",
+                    "type": "integer",
+                    "maximum": 2,
+                    "minimum": 0,
+                    "example": 1
+                },
+                "id": {
+                    "description": "The unique identifier of a job in the database",
+                    "type": "integer"
+                },
+                "jobId": {
+                    "description": "The unique identifier of a job",
+                    "type": "integer",
+                    "example": 123000
+                },
+                "jobState": {
+                    "description": "Final state of job",
+                    "type": "string",
+                    "enum": [
+                        "completed",
+                        "failed",
+                        "cancelled",
+                        "stopped",
+                        "timeout",
+                        "out_of_memory"
+                    ],
+                    "example": "completed"
+                },
+                "metaData": {
+                    "description": "Additional information about the job",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "monitoringStatus": {
+                    "description": "State of monitoring system during job run: 0 - Disabled, 1 - Running or Archiving (Default), 2 - Archiving Failed, 3 - Archiving Successfull",
+                    "type": "integer",
+                    "maximum": 3,
+                    "minimum": 0,
+                    "example": 1
+                },
+                "numAcc": {
+                    "description": "Number of accelerators used (Min \u003e 0)",
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 2
+                },
+                "numHwthreads": {
+                    "description": "Number of HWThreads used (Min \u003e 0)",
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 20
+                },
+                "numNodes": {
+                    "description": "Number of nodes used (Min \u003e 0)",
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 2
+                },
+                "partition": {
+                    "description": "The Slurm partition to which the job was submitted",
+                    "type": "string",
+                    "example": "main"
+                },
+                "project": {
+                    "description": "The unique identifier of a project",
+                    "type": "string",
+                    "example": "abcd200"
+                },
+                "resources": {
+                    "description": "Resources used by job",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.Resource"
+                    }
+                },
+                "smt": {
+                    "description": "SMT threads used by job",
+                    "type": "integer",
+                    "example": 4
+                },
+                "startTime": {
+                    "description": "Start time as 'time.Time' data type",
+                    "type": "string"
+                },
+                "subCluster": {
+                    "description": "The unique identifier of a sub cluster",
+                    "type": "string",
+                    "example": "main"
+                },
+                "tags": {
+                    "description": "List of tags",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.Tag"
+                    }
+                },
+                "user": {
+                    "description": "The unique identifier of a user",
+                    "type": "string",
+                    "example": "abcd100h"
+                },
+                "walltime": {
+                    "description": "Requested walltime of job in seconds (Min \u003e 0)",
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 86400
+                }
+            }
+        },
+        "schema.JobMeta": {
+            "description": "Meta data information of a HPC job.",
+            "type": "object",
+            "properties": {
+                "arrayJobId": {
+                    "description": "The unique identifier of an array job",
+                    "type": "integer",
+                    "example": 123000
+                },
+                "cluster": {
+                    "description": "The unique identifier of a cluster",
+                    "type": "string",
+                    "example": "fritz"
+                },
+                "duration": {
+                    "description": "Duration of job in seconds (Min \u003e 0)",
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 43200
+                },
+                "exclusive": {
+                    "description": "Specifies how nodes are shared: 0 - Shared among multiple jobs of multiple users, 1 - Job exclusive (Default), 2 - Shared among multiple jobs of same user",
+                    "type": "integer",
+                    "maximum": 2,
+                    "minimum": 0,
+                    "example": 1
+                },
+                "id": {
+                    "description": "The unique identifier of a job in the database",
+                    "type": "integer"
+                },
+                "jobId": {
+                    "description": "The unique identifier of a job",
+                    "type": "integer",
+                    "example": 123000
+                },
+                "jobState": {
+                    "description": "Final state of job",
+                    "type": "string",
+                    "enum": [
+                        "completed",
+                        "failed",
+                        "cancelled",
+                        "stopped",
+                        "timeout",
+                        "out_of_memory"
+                    ],
+                    "example": "completed"
+                },
+                "metaData": {
+                    "description": "Additional information about the job",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "monitoringStatus": {
+                    "description": "State of monitoring system during job run: 0 - Disabled, 1 - Running or Archiving (Default), 2 - Archiving Failed, 3 - Archiving Successfull",
+                    "type": "integer",
+                    "maximum": 3,
+                    "minimum": 0,
+                    "example": 1
+                },
+                "numAcc": {
+                    "description": "Number of accelerators used (Min \u003e 0)",
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 2
+                },
+                "numHwthreads": {
+                    "description": "Number of HWThreads used (Min \u003e 0)",
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 20
+                },
+                "numNodes": {
+                    "description": "Number of nodes used (Min \u003e 0)",
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 2
+                },
+                "partition": {
+                    "description": "The Slurm partition to which the job was submitted",
+                    "type": "string",
+                    "example": "main"
+                },
+                "project": {
+                    "description": "The unique identifier of a project",
+                    "type": "string",
+                    "example": "abcd200"
+                },
+                "resources": {
+                    "description": "Resources used by job",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.Resource"
+                    }
+                },
+                "smt": {
+                    "description": "SMT threads used by job",
+                    "type": "integer",
+                    "example": 4
+                },
+                "startTime": {
+                    "description": "Start epoch time stamp in seconds (Min \u003e 0)",
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 1649723812
+                },
+                "statistics": {
+                    "description": "Metric statistics of job",
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/schema.JobStatistics"
+                    }
+                },
+                "subCluster": {
+                    "description": "The unique identifier of a sub cluster",
+                    "type": "string",
+                    "example": "main"
+                },
+                "tags": {
+                    "description": "List of tags",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.Tag"
+                    }
+                },
+                "user": {
+                    "description": "The unique identifier of a user",
+                    "type": "string",
+                    "example": "abcd100h"
+                },
+                "walltime": {
+                    "description": "Requested walltime of job in seconds (Min \u003e 0)",
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 86400
+                }
+            }
+        },
+        "schema.JobStatistics": {
+            "description": "Specification for job metric statistics.",
+            "type": "object",
+            "properties": {
+                "avg": {
+                    "description": "Job metric average",
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 2500
+                },
+                "max": {
+                    "description": "Job metric maximum",
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 3000
+                },
+                "min": {
+                    "description": "Job metric minimum",
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 2000
+                },
+                "unit": {
+                    "description": "Metric unit (see schema/unit.schema.json)",
+                    "type": "string",
+                    "example": "GHz"
+                }
+            }
+        },
+        "schema.Resource": {
+            "description": "A resource used by a job",
+            "type": "object",
+            "properties": {
+                "accelerators": {
+                    "description": "List of of accelerator device ids",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "configuration": {
+                    "description": "The configuration options of the node",
+                    "type": "string"
+                },
+                "hostname": {
+                    "description": "Name of the host (= node)",
+                    "type": "string"
+                },
+                "hwthreads": {
+                    "description": "List of OS processor ids",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "schema.Tag": {
+            "description": "Defines a tag using name and type.",
+            "type": "object",
+            "properties": {
+                "id": {
+                    "description": "The unique DB identifier of a tag",
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "Tag Name",
+                    "type": "string",
+                    "example": "Testjob"
+                },
+                "type": {
+                    "description": "Tag Type",
+                    "type": "string",
+                    "example": "Debug"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "ApiKeyAuth": {
+            "description": "JWT based authentification for general API endpoint use.",
+            "type": "apiKey",
+            "name": "X-Auth-Token",
+            "in": "header"
+        }
+    }
+}

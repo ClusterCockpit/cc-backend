@@ -23,14 +23,28 @@ func (tmdr *TestMetricDataRepository) Init(_ json.RawMessage) error {
 	return nil
 }
 
-func (tmdr *TestMetricDataRepository) LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context) (schema.JobData, error) {
+func (tmdr *TestMetricDataRepository) LoadData(
+	job *schema.Job,
+	metrics []string,
+	scopes []schema.MetricScope,
+	ctx context.Context) (schema.JobData, error) {
+
 	return TestLoadDataCallback(job, metrics, scopes, ctx)
 }
 
-func (tmdr *TestMetricDataRepository) LoadStats(job *schema.Job, metrics []string, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error) {
+func (tmdr *TestMetricDataRepository) LoadStats(
+	job *schema.Job,
+	metrics []string, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error) {
+
 	panic("TODO")
 }
 
-func (tmdr *TestMetricDataRepository) LoadNodeData(cluster string, metrics, nodes []string, scopes []schema.MetricScope, from, to time.Time, ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
+func (tmdr *TestMetricDataRepository) LoadNodeData(
+	cluster string,
+	metrics, nodes []string,
+	scopes []schema.MetricScope,
+	from, to time.Time,
+	ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
+
 	panic("TODO")
 }

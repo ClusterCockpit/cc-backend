@@ -21,15 +21,35 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/gorilla/mux"
 )
+
+// @title                      ClusterCockpit REST API
+// @version                    0.1.0
+// @description                API for batch job control.
+// @termsOfService             https://monitoring.nhr.fau.de/imprint
+
+// @contact.name               ClusterCockpit Project
+// @contact.url                https://github.com/ClusterCockpit
+// @contact.email              support@clustercockpit.org
+
+// @license.name               MIT License
+// @license.url                https://opensource.org/licenses/MIT
+
+// @host                       clustercockpit.localhost:8082
+// @BasePath                   /api
+
+// @securityDefinitions.apikey ApiKeyAuth
+// @in                         header
+// @name                       X-Auth-Token
+// @description                JWT based authentification for general API endpoint use.
 
 type RestApi struct {
 	JobRepository     *repository.JobRepository
@@ -44,14 +64,13 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 	r.StrictSlash(true)
 
 	r.HandleFunc("/jobs/start_job/", api.startJob).Methods(http.MethodPost, http.MethodPut)
-	r.HandleFunc("/jobs/stop_job/", api.stopJob).Methods(http.MethodPost, http.MethodPut)
-	r.HandleFunc("/jobs/stop_job/{id}", api.stopJob).Methods(http.MethodPost, http.MethodPut)
-	r.HandleFunc("/jobs/import/", api.importJob).Methods(http.MethodPost, http.MethodPut)
+	r.HandleFunc("/jobs/stop_job/", api.stopJobByRequest).Methods(http.MethodPost, http.MethodPut)
+	r.HandleFunc("/jobs/stop_job/{id}", api.stopJobById).Methods(http.MethodPost, http.MethodPut)
+	// r.HandleFunc("/jobs/import/", api.importJob).Methods(http.MethodPost, http.MethodPut)
 
 	r.HandleFunc("/jobs/", api.getJobs).Methods(http.MethodGet)
 	// r.HandleFunc("/jobs/{id}", api.getJob).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/tag_job/{id}", api.tagJob).Methods(http.MethodPost, http.MethodPatch)
-
 	r.HandleFunc("/jobs/metrics/{id}", api.getJobMetrics).Methods(http.MethodGet)
 
 	if api.Authentication != nil {
@@ -69,26 +88,42 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 	}
 }
 
+// StartJobApiResponse model
+// @Description Successful job start response with database id of new job.
 type StartJobApiResponse struct {
+	// Database ID of new job
 	DBID int64 `json:"id"`
 }
 
+// StopJobApiRequest model
+// @Description Request to stop running job using stoptime and final state.
+// @Description They are only required if no database id was provided with endpoint.
 type StopJobApiRequest struct {
-	// JobId, ClusterId and StartTime are optional.
-	// They are only used if no database id was provided.
-	JobId     *int64  `json:"jobId"`
-	Cluster   *string `json:"cluster"`
-	StartTime *int64  `json:"startTime"`
-
-	// Payload
-	StopTime int64           `json:"stopTime"`
-	State    schema.JobState `json:"jobState"`
+  // Stop Time of job as epoch
+	StopTime  int64           `json:"stopTime" validate:"required" example:"1649763839"`
+	State     schema.JobState `json:"jobState" validate:"required" example:"completed" enums:"completed,failed,cancelled,stopped,timeout"`   // Final job state
+	JobId     *int64          `json:"jobId" example:"123000"` // Cluster Job ID of job
+	Cluster   *string         `json:"cluster" example:"fritz"` // Cluster of job
+	StartTime *int64          `json:"startTime" example:"1649723812"` // Start Time of job as epoch
 }
 
+// ErrorResponse model
+// @Description Error message as returned from backend.
 type ErrorResponse struct {
+	// Statustext of Errorcode
 	Status string `json:"status"`
-	Error  string `json:"error"`
+	Error  string `json:"error"` // Error Message
 }
+
+// Tag model
+// @Description Defines a tag using name and type.
+type Tag struct {
+	// Tag Type
+	Type string `json:"type" example:"Debug"`
+	Name string `json:"name" example:"Testjob"` // Tag Name
+}
+
+type TagJobApiRequest []*Tag
 
 func handleError(err error, statusCode int, rw http.ResponseWriter) {
 	log.Warnf("REST API: %s", err.Error())
@@ -106,12 +141,24 @@ func decode(r io.Reader, val interface{}) error {
 	return dec.Decode(val)
 }
 
-type TagJobApiRequest []*struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
-}
-
-// Return a list of jobs
+// getJobs godoc
+// @Summary     Lists all jobs
+// @Description Get a list of all jobs. Filters can be applied using query parameters.
+// @Description Number of results can be limited by page. Results are sorted by descending startTime.
+// @Accept      json
+// @Produce     json
+// @Param       state          query    string            false "Job State" Enums(running, completed, failed, cancelled, stopped, timeout)
+// @Param       cluster        query    string            false "Job Cluster"
+// @Param       start-time     query    string            false "Syntax: '$from-$to', as unix epoch timestamps in seconds"
+// @Param       items-per-page query    int               false "Items per page (If empty: No Limit)"
+// @Param       page           query    int               false "Page Number (If empty: No Paging)"
+// @Param       with-metadata  query    bool              false "Include metadata (e.g. jobScript) in response"
+// @Success     200            {array}  schema.Job              "Array of matching jobs"
+// @Failure     400            {object} api.ErrorResponse       "Bad Request"
+// @Failure     401   			   {object} api.ErrorResponse       "Unauthorized"
+// @Failure     500            {object} api.ErrorResponse       "Internal Server Error"
+// @Security    ApiKeyAuth
+// @Router      /jobs/ [get]
 func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 	withMetadata := false
 	filter := &model.JobFilter{}
@@ -147,7 +194,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 				return
 			}
 			ufrom, uto := time.Unix(from, 0), time.Unix(to, 0)
-			filter.StartTime = &model.TimeRange{From: &ufrom, To: &uto}
+			filter.StartTime = &schema.TimeRange{From: &ufrom, To: &uto}
 		case "page":
 			x, err := strconv.Atoi(vals[0])
 			if err != nil {
@@ -198,7 +245,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 		}
 
 		if res.MonitoringStatus == schema.MonitoringStatusArchivingSuccessful {
-			res.Statistics, err = metricdata.GetStatistics(job)
+			res.Statistics, err = archive.GetStatistics(job)
 			if err != nil {
 				if err != nil {
 					http.Error(rw, err.Error(), http.StatusInternalServerError)
@@ -221,7 +268,21 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Add a tag to a job
+// tagJob godoc
+// @Summary     Adds one or more tags to a job
+// @Description Adds tag(s) to a job specified by DB ID. Name and Type of Tag(s) can be chosen freely.
+// @Description If tagged job is already finished: Tag will be written directly to respective archive files.
+// @Accept      json
+// @Produce     json
+// @Param       id      path     int                  true "Job Database ID"
+// @Param       request body     api.TagJobApiRequest true "Array of tag-objects to add"
+// @Success     200     {object} schema.Job                "Updated job resource"
+// @Failure     400     {object} api.ErrorResponse         "Bad Request"
+// @Failure     401     {object} api.ErrorResponse         "Unauthorized"
+// @Failure     404     {object} api.ErrorResponse         "Job or tag does not exist"
+// @Failure     500     {object} api.ErrorResponse         "Internal Server Error"
+// @Security    ApiKeyAuth
+// @Router      /jobs/tag_job/{id} [post]
 func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 	iid, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
 	if err != nil {
@@ -266,8 +327,21 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(rw).Encode(job)
 }
 
-// A new job started. The body should be in the `meta.json` format, but some fields required
-// there are optional here (e.g. `jobState` defaults to "running").
+// startJob godoc
+// @Summary     Adds a new job as "running"
+// @Description Job specified in request body will be saved to database as "running" with new DB ID.
+// @Description Job specifications follow the 'JobMeta' scheme, API will fail to execute if requirements are not met.
+// @Accept      json
+// @Produce     json
+// @Param       request body     schema.JobMeta          true "Job to add"
+// @Success     201     {object} api.StartJobApiResponse      "Job added successfully"
+// @Failure     400     {object} api.ErrorResponse            "Bad Request"
+// @Failure     401     {object} api.ErrorResponse            "Unauthorized"
+// @Failure     403     {object} api.ErrorResponse            "Forbidden"
+// @Failure     422     {object} api.ErrorResponse            "Unprocessable Entity: The combination of jobId, clusterId and startTime does already exist"
+// @Failure     500     {object} api.ErrorResponse            "Internal Server Error"
+// @Security    ApiKeyAuth
+// @Router      /jobs/start_job/ [post]
 func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
 		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
@@ -322,14 +396,30 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// A job has stopped and should be archived.
-func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
+// stopJobById godoc
+// @Summary     Marks job as completed and triggers archiving
+// @Description Job to stop is specified by database ID. Only stopTime and final state are required in request body.
+// @Description Returns full job resource information according to 'JobMeta' scheme.
+// @Accept      json
+// @Produce     json
+// @Param       id      path     int                   true "Database ID of Job"
+// @Param       request body     api.StopJobApiRequest true "stopTime and final state in request body"
+// @Success     200     {object} schema.JobMeta             "Job resource"
+// @Failure     400     {object} api.ErrorResponse          "Bad Request"
+// @Failure     401     {object} api.ErrorResponse          "Unauthorized"
+// @Failure     403     {object} api.ErrorResponse          "Forbidden"
+// @Failure     404     {object} api.ErrorResponse          "Resource not found"
+// @Failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
+// @Failure     500     {object} api.ErrorResponse          "Internal Server Error"
+// @Security    ApiKeyAuth
+// @Router      /jobs/stop_job/{id} [post]
+func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
 		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
 		return
 	}
 
-	// Parse request body
+	// Parse request body: Only StopTime and State
 	req := StopJobApiRequest{}
 	if err := decode(r.Body, &req); err != nil {
 		handleError(fmt.Errorf("parsing request body failed: %w", err), http.StatusBadRequest, rw)
@@ -349,23 +439,71 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 
 		job, err = api.JobRepository.FindById(id)
 	} else {
-		if req.JobId == nil {
-			handleError(errors.New("the field 'jobId' is required"), http.StatusBadRequest, rw)
-			return
-		}
-
-		job, err = api.JobRepository.Find(req.JobId, req.Cluster, req.StartTime)
+		handleError(errors.New("the parameter 'id' is required"), http.StatusBadRequest, rw)
+		return
 	}
 	if err != nil {
 		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
 		return
 	}
 
+	api.checkAndHandleStopJob(rw, job, req)
+}
+
+// stopJobByRequest godoc
+// @Summary     Marks job as completed and triggers archiving
+// @Description Job to stop is specified by request body. All fields are required in this case.
+// @Description Returns full job resource information according to 'JobMeta' scheme.
+// @Produce     json
+// @Param       request body     api.StopJobApiRequest true "All fields required"
+// @Success     200     {object} schema.JobMeta             "Job resource"
+// @Failure     400     {object} api.ErrorResponse          "Bad Request"
+// @Failure     401     {object} api.ErrorResponse          "Unauthorized"
+// @Failure     403     {object} api.ErrorResponse          "Forbidden"
+// @Failure     404     {object} api.ErrorResponse          "Resource not found"
+// @Failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
+// @Failure     500     {object} api.ErrorResponse          "Internal Server Error"
+// @Security    ApiKeyAuth
+// @Router      /jobs/stop_job/ [post]
+func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
+	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
+		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
+		return
+	}
+
+	// Parse request body
+	req := StopJobApiRequest{}
+	if err := decode(r.Body, &req); err != nil {
+		handleError(fmt.Errorf("parsing request body failed: %w", err), http.StatusBadRequest, rw)
+		return
+	}
+
+	// Fetch job (that will be stopped) from db
+	var job *schema.Job
+	var err error
+	if req.JobId == nil {
+		handleError(errors.New("the field 'jobId' is required"), http.StatusBadRequest, rw)
+		return
+	}
+
+	job, err = api.JobRepository.Find(req.JobId, req.Cluster, req.StartTime)
+
+	if err != nil {
+		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
+		return
+	}
+
+	api.checkAndHandleStopJob(rw, job, req)
+}
+
+func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Job, req StopJobApiRequest) {
+
 	// Sanity checks
 	if job == nil || job.StartTime.Unix() >= req.StopTime || job.State != schema.JobStateRunning {
 		handleError(errors.New("stopTime must be larger than startTime and only running jobs can be stopped"), http.StatusBadRequest, rw)
 		return
 	}
+
 	if req.State != "" && !req.State.Valid() {
 		handleError(fmt.Errorf("invalid job state: %#v", req.State), http.StatusBadRequest, rw)
 		return
@@ -425,28 +563,28 @@ func (api *RestApi) stopJob(rw http.ResponseWriter, r *http.Request) {
 	}()
 }
 
-func (api *RestApi) importJob(rw http.ResponseWriter, r *http.Request) {
-	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
-		return
-	}
+// func (api *RestApi) importJob(rw http.ResponseWriter, r *http.Request) {
+// 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
+// 		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
+// 		return
+// 	}
 
-	var body struct {
-		Meta *schema.JobMeta `json:"meta"`
-		Data *schema.JobData `json:"data"`
-	}
-	if err := decode(r.Body, &body); err != nil {
-		handleError(fmt.Errorf("import failed: %s", err.Error()), http.StatusBadRequest, rw)
-		return
-	}
+// 	var body struct {
+// 		Meta *schema.JobMeta `json:"meta"`
+// 		Data *schema.JobData `json:"data"`
+// 	}
+// 	if err := decode(r.Body, &body); err != nil {
+// 		handleError(fmt.Errorf("import failed: %s", err.Error()), http.StatusBadRequest, rw)
+// 		return
+// 	}
 
-	if err := api.JobRepository.ImportJob(body.Meta, body.Data); err != nil {
-		handleError(fmt.Errorf("import failed: %s", err.Error()), http.StatusUnprocessableEntity, rw)
-		return
-	}
+// 	if err := api.JobRepository.ImportJob(body.Meta, body.Data); err != nil {
+// 		handleError(fmt.Errorf("import failed: %s", err.Error()), http.StatusUnprocessableEntity, rw)
+// 		return
+// 	}
 
-	rw.Write([]byte(`{ "status": "OK" }`))
-}
+// 	rw.Write([]byte(`{ "status": "OK" }`))
+// }
 
 func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
@@ -608,7 +746,7 @@ func (api *RestApi) updateConfiguration(rw http.ResponseWriter, r *http.Request)
 
 	fmt.Printf("KEY: %#v\nVALUE: %#v\n", key, value)
 
-	if err := config.UpdateConfig(key, value, r.Context()); err != nil {
+	if err := repository.GetUserCfgRepo().UpdateConfig(key, value, auth.GetUser(r.Context())); err != nil {
 		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}

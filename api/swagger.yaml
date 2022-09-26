@@ -1,0 +1,623 @@
+basePath: /api
+definitions:
+  api.ErrorResponse:
+    description: Error message as returned from backend.
+    properties:
+      error:
+        description: Error Message
+        type: string
+      status:
+        description: Statustext of Errorcode
+        type: string
+    type: object
+  api.StartJobApiResponse:
+    description: Successful job start response with database id of new job.
+    properties:
+      id:
+        description: Database ID of new job
+        type: integer
+    type: object
+  api.StopJobApiRequest:
+    description: Request to stop running job using stoptime and final state. They
+      are only required if no database id was provided with endpoint.
+    properties:
+      cluster:
+        description: Cluster of job
+        example: fritz
+        type: string
+      jobId:
+        description: Cluster Job ID of job
+        example: 123000
+        type: integer
+      jobState:
+        description: Final state of job
+        enum:
+        - completed
+        - failed
+        - cancelled
+        - stopped
+        - timeout
+        example: completed
+        type: string
+      startTime:
+        description: Start Time of job as epoch
+        example: 1649723812
+        type: integer
+      stopTime:
+        description: Stop Time of job as epoch
+        example: 1649763839
+        type: integer
+    required:
+    - jobState
+    - stopTime
+    type: object
+  api.Tag:
+    description: Defines a tag using name and type.
+    properties:
+      name:
+        description: Tag Name
+        example: Testjob
+        type: string
+      type:
+        description: Tag Type
+        example: Debug
+        type: string
+    type: object
+  schema.Job:
+    description: Information of a HPC job.
+    properties:
+      arrayJobId:
+        description: The unique identifier of an array job
+        example: 123000
+        type: integer
+      cluster:
+        description: The unique identifier of a cluster
+        example: fritz
+        type: string
+      duration:
+        description: Duration of job in seconds (Min > 0)
+        example: 43200
+        minimum: 1
+        type: integer
+      exclusive:
+        description: 'Specifies how nodes are shared: 0 - Shared among multiple jobs
+          of multiple users, 1 - Job exclusive (Default), 2 - Shared among multiple
+          jobs of same user'
+        example: 1
+        maximum: 2
+        minimum: 0
+        type: integer
+      id:
+        description: The unique identifier of a job in the database
+        type: integer
+      jobId:
+        description: The unique identifier of a job
+        example: 123000
+        type: integer
+      jobState:
+        description: Final state of job
+        enum:
+        - completed
+        - failed
+        - cancelled
+        - stopped
+        - timeout
+        - out_of_memory
+        example: completed
+        type: string
+      metaData:
+        additionalProperties:
+          type: string
+        description: Additional information about the job
+        type: object
+      monitoringStatus:
+        description: 'State of monitoring system during job run: 0 - Disabled, 1 -
+          Running or Archiving (Default), 2 - Archiving Failed, 3 - Archiving Successfull'
+        example: 1
+        maximum: 3
+        minimum: 0
+        type: integer
+      numAcc:
+        description: Number of accelerators used (Min > 0)
+        example: 2
+        minimum: 1
+        type: integer
+      numHwthreads:
+        description: Number of HWThreads used (Min > 0)
+        example: 20
+        minimum: 1
+        type: integer
+      numNodes:
+        description: Number of nodes used (Min > 0)
+        example: 2
+        minimum: 1
+        type: integer
+      partition:
+        description: The Slurm partition to which the job was submitted
+        example: main
+        type: string
+      project:
+        description: The unique identifier of a project
+        example: abcd200
+        type: string
+      resources:
+        description: Resources used by job
+        items:
+          $ref: '#/definitions/schema.Resource'
+        type: array
+      smt:
+        description: SMT threads used by job
+        example: 4
+        type: integer
+      startTime:
+        description: Start time as 'time.Time' data type
+        type: string
+      subCluster:
+        description: The unique identifier of a sub cluster
+        example: main
+        type: string
+      tags:
+        description: List of tags
+        items:
+          $ref: '#/definitions/schema.Tag'
+        type: array
+      user:
+        description: The unique identifier of a user
+        example: abcd100h
+        type: string
+      walltime:
+        description: Requested walltime of job in seconds (Min > 0)
+        example: 86400
+        minimum: 1
+        type: integer
+    type: object
+  schema.JobMeta:
+    description: Meta data information of a HPC job.
+    properties:
+      arrayJobId:
+        description: The unique identifier of an array job
+        example: 123000
+        type: integer
+      cluster:
+        description: The unique identifier of a cluster
+        example: fritz
+        type: string
+      duration:
+        description: Duration of job in seconds (Min > 0)
+        example: 43200
+        minimum: 1
+        type: integer
+      exclusive:
+        description: 'Specifies how nodes are shared: 0 - Shared among multiple jobs
+          of multiple users, 1 - Job exclusive (Default), 2 - Shared among multiple
+          jobs of same user'
+        example: 1
+        maximum: 2
+        minimum: 0
+        type: integer
+      id:
+        description: The unique identifier of a job in the database
+        type: integer
+      jobId:
+        description: The unique identifier of a job
+        example: 123000
+        type: integer
+      jobState:
+        description: Final state of job
+        enum:
+        - completed
+        - failed
+        - cancelled
+        - stopped
+        - timeout
+        - out_of_memory
+        example: completed
+        type: string
+      metaData:
+        additionalProperties:
+          type: string
+        description: Additional information about the job
+        type: object
+      monitoringStatus:
+        description: 'State of monitoring system during job run: 0 - Disabled, 1 -
+          Running or Archiving (Default), 2 - Archiving Failed, 3 - Archiving Successfull'
+        example: 1
+        maximum: 3
+        minimum: 0
+        type: integer
+      numAcc:
+        description: Number of accelerators used (Min > 0)
+        example: 2
+        minimum: 1
+        type: integer
+      numHwthreads:
+        description: Number of HWThreads used (Min > 0)
+        example: 20
+        minimum: 1
+        type: integer
+      numNodes:
+        description: Number of nodes used (Min > 0)
+        example: 2
+        minimum: 1
+        type: integer
+      partition:
+        description: The Slurm partition to which the job was submitted
+        example: main
+        type: string
+      project:
+        description: The unique identifier of a project
+        example: abcd200
+        type: string
+      resources:
+        description: Resources used by job
+        items:
+          $ref: '#/definitions/schema.Resource'
+        type: array
+      smt:
+        description: SMT threads used by job
+        example: 4
+        type: integer
+      startTime:
+        description: Start epoch time stamp in seconds (Min > 0)
+        example: 1649723812
+        minimum: 1
+        type: integer
+      statistics:
+        additionalProperties:
+          $ref: '#/definitions/schema.JobStatistics'
+        description: Metric statistics of job
+        type: object
+      subCluster:
+        description: The unique identifier of a sub cluster
+        example: main
+        type: string
+      tags:
+        description: List of tags
+        items:
+          $ref: '#/definitions/schema.Tag'
+        type: array
+      user:
+        description: The unique identifier of a user
+        example: abcd100h
+        type: string
+      walltime:
+        description: Requested walltime of job in seconds (Min > 0)
+        example: 86400
+        minimum: 1
+        type: integer
+    type: object
+  schema.JobStatistics:
+    description: Specification for job metric statistics.
+    properties:
+      avg:
+        description: Job metric average
+        example: 2500
+        minimum: 0
+        type: number
+      max:
+        description: Job metric maximum
+        example: 3000
+        minimum: 0
+        type: number
+      min:
+        description: Job metric minimum
+        example: 2000
+        minimum: 0
+        type: number
+      unit:
+        description: Metric unit (see schema/unit.schema.json)
+        example: GHz
+        type: string
+    type: object
+  schema.Resource:
+    description: A resource used by a job
+    properties:
+      accelerators:
+        description: List of of accelerator device ids
+        items:
+          type: string
+        type: array
+      configuration:
+        description: The configuration options of the node
+        type: string
+      hostname:
+        description: Name of the host (= node)
+        type: string
+      hwthreads:
+        description: List of OS processor ids
+        items:
+          type: integer
+        type: array
+    type: object
+  schema.Tag:
+    description: Defines a tag using name and type.
+    properties:
+      id:
+        description: The unique DB identifier of a tag
+        type: integer
+      name:
+        description: Tag Name
+        example: Testjob
+        type: string
+      type:
+        description: Tag Type
+        example: Debug
+        type: string
+    type: object
+host: clustercockpit.localhost:8082
+info:
+  contact:
+    email: support@clustercockpit.org
+    name: ClusterCockpit Project
+    url: https://github.com/ClusterCockpit
+  description: Defines a tag using name and type.
+  license:
+    name: MIT License
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://monitoring.nhr.fau.de/imprint
+  title: ClusterCockpit REST API
+  version: 0.1.0
+paths:
+  /jobs/:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Get a list of all jobs. Filters can be applied using query parameters.
+        Number of results can be limited by page. Results are sorted by descending startTime.
+      parameters:
+      - description: Job State
+        enum:
+        - running
+        - completed
+        - failed
+        - cancelled
+        - stopped
+        - timeout
+        in: query
+        name: state
+        type: string
+      - description: Job Cluster
+        in: query
+        name: cluster
+        type: string
+      - description: 'Syntax: ''$from-$to'', as unix epoch timestamps in seconds'
+        in: query
+        name: start-time
+        type: string
+      - description: 'Items per page (If empty: No Limit)'
+        in: query
+        name: items-per-page
+        type: integer
+      - description: 'Page Number (If empty: No Paging)'
+        in: query
+        name: page
+        type: integer
+      - description: Include metadata (e.g. jobScript) in response
+        in: query
+        name: with-metadata
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Array of matching jobs
+          schema:
+            items:
+              $ref: '#/definitions/schema.Job'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Lists all jobs
+  /jobs/start_job/:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Job specified in request body will be saved to database as "running" with new DB ID.
+        Job specifications follow the 'JobMeta' scheme, API will fail to execute if requirements are not met.
+      parameters:
+      - description: Job to add
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/schema.JobMeta'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Job added successfully
+          schema:
+            $ref: '#/definitions/api.StartJobApiResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: 'Unprocessable Entity: The combination of jobId, clusterId
+            and startTime does already exist'
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Adds a new job as "running"
+  /jobs/stop_job/:
+    post:
+      description: |-
+        Job to stop is specified by request body. All fields are required in this case.
+        Returns full job resource information according to 'JobMeta' scheme.
+      parameters:
+      - description: All fields required
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.StopJobApiRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job resource
+          schema:
+            $ref: '#/definitions/schema.JobMeta'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Resource not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: 'Unprocessable Entity: finding job failed: sql: no rows in
+            result set'
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Marks job as completed and triggers archiving
+  /jobs/stop_job/{id}:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Job to stop is specified by database ID. Only stopTime and final state are required in request body.
+        Returns full job resource information according to 'JobMeta' scheme.
+      parameters:
+      - description: Database ID of Job
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: stopTime and final state in request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.StopJobApiRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job resource
+          schema:
+            $ref: '#/definitions/schema.JobMeta'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Resource not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: 'Unprocessable Entity: finding job failed: sql: no rows in
+            result set'
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Marks job as completed and triggers archiving
+  /jobs/tag_job/{id}:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Adds tag(s) to a job specified by DB ID. Name and Type of Tag(s) can be chosen freely.
+        If tagged job is already finished: Tag will be written directly to respective archive files.
+      parameters:
+      - description: Job Database ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Array of tag-objects to add
+        in: body
+        name: request
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/api.Tag'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated job resource
+          schema:
+            $ref: '#/definitions/schema.Job'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Job or tag does not exist
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Adds one or more tags to a job
+securityDefinitions:
+  ApiKeyAuth:
+    description: JWT based authentification for general API endpoint use.
+    in: header
+    name: X-Auth-Token
+    type: apiKey
+swagger: "2.0"

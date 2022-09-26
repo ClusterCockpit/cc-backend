@@ -76,12 +76,13 @@ type Authentication struct {
 	SessionMaxAge time.Duration
 
 	authenticators []Authenticator
-	LdapAuth       *LdapAutnenticator
+	LdapAuth       *LdapAuthenticator
 	JwtAuth        *JWTAuthenticator
 	LocalAuth      *LocalAuthenticator
 }
 
-func Init(db *sqlx.DB, configs map[string]interface{}) (*Authentication, error) {
+func Init(db *sqlx.DB,
+	configs map[string]interface{}) (*Authentication, error) {
 	auth := &Authentication{}
 	auth.db = db
 	_, err := db.Exec(`
@@ -125,7 +126,7 @@ func Init(db *sqlx.DB, configs map[string]interface{}) (*Authentication, error) 
 	auth.authenticators = append(auth.authenticators, auth.JwtAuth)
 
 	if config, ok := configs["ldap"]; ok {
-		auth.LdapAuth = &LdapAutnenticator{}
+		auth.LdapAuth = &LdapAuthenticator{}
 		if err := auth.LdapAuth.Init(auth, config); err != nil {
 			return nil, err
 		}
@@ -135,7 +136,10 @@ func Init(db *sqlx.DB, configs map[string]interface{}) (*Authentication, error) 
 	return auth, nil
 }
 
-func (auth *Authentication) AuthViaSession(rw http.ResponseWriter, r *http.Request) (*User, error) {
+func (auth *Authentication) AuthViaSession(
+	rw http.ResponseWriter,
+	r *http.Request) (*User, error) {
+
 	session, err := auth.sessionStore.Get(r, "session")
 	if err != nil {
 		return nil, err
@@ -155,7 +159,10 @@ func (auth *Authentication) AuthViaSession(rw http.ResponseWriter, r *http.Reque
 }
 
 // Handle a POST request that should log the user in, starting a new session.
-func (auth *Authentication) Login(onsuccess http.Handler, onfailure func(rw http.ResponseWriter, r *http.Request, loginErr error)) http.Handler {
+func (auth *Authentication) Login(
+	onsuccess http.Handler,
+	onfailure func(rw http.ResponseWriter, r *http.Request, loginErr error)) http.Handler {
+
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		var err error = errors.New("no authenticator applied")
 		username := r.FormValue("username")
@@ -211,7 +218,10 @@ func (auth *Authentication) Login(onsuccess http.Handler, onfailure func(rw http
 // Authenticate the user and put a User object in the
 // context of the request. If authentication fails,
 // do not continue but send client to the login screen.
-func (auth *Authentication) Auth(onsuccess http.Handler, onfailure func(rw http.ResponseWriter, r *http.Request, authErr error)) http.Handler {
+func (auth *Authentication) Auth(
+	onsuccess http.Handler,
+	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error)) http.Handler {
+
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		for _, authenticator := range auth.authenticators {
 			user, err := authenticator.Auth(rw, r)
@@ -237,6 +247,7 @@ func (auth *Authentication) Auth(onsuccess http.Handler, onfailure func(rw http.
 
 // Clears the session cookie
 func (auth *Authentication) Logout(onsuccess http.Handler) http.Handler {
+
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		session, err := auth.sessionStore.Get(r, "session")
 		if err != nil {

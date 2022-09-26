@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
@@ -55,7 +55,11 @@ func (idb *InfluxDBv2DataRepository) epochToTime(epoch int64) time.Time {
 	return time.Unix(epoch, 0)
 }
 
-func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context) (schema.JobData, error) {
+func (idb *InfluxDBv2DataRepository) LoadData(
+	job *schema.Job,
+	metrics []string,
+	scopes []schema.MetricScope,
+	ctx context.Context) (schema.JobData, error) {
 
 	measurementsConds := make([]string, 0, len(metrics))
 	for _, m := range metrics {
@@ -124,7 +128,7 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 		for _, metric := range metrics {
 			jobMetric, ok := jobData[metric]
 			if !ok {
-				mc := config.GetMetricConfig(job.Cluster, metric)
+				mc := archive.GetMetricConfig(job.Cluster, metric)
 				jobMetric = map[schema.MetricScope]*schema.JobMetric{
 					scope: { // uses scope var from above!
 						Unit:             mc.Unit,
@@ -234,7 +238,10 @@ func (idb *InfluxDBv2DataRepository) LoadData(job *schema.Job, metrics []string,
 	return jobData, nil
 }
 
-func (idb *InfluxDBv2DataRepository) LoadStats(job *schema.Job, metrics []string, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error) {
+func (idb *InfluxDBv2DataRepository) LoadStats(
+	job *schema.Job,
+	metrics []string,
+	ctx context.Context) (map[string]map[string]schema.MetricStatistics, error) {
 
 	stats := map[string]map[string]schema.MetricStatistics{}
 
@@ -304,7 +311,13 @@ func (idb *InfluxDBv2DataRepository) LoadStats(job *schema.Job, metrics []string
 	return stats, nil
 }
 
-func (idb *InfluxDBv2DataRepository) LoadNodeData(cluster string, metrics, nodes []string, scopes []schema.MetricScope, from, to time.Time, ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
+func (idb *InfluxDBv2DataRepository) LoadNodeData(
+	cluster string,
+	metrics, nodes []string,
+	scopes []schema.MetricScope,
+	from, to time.Time,
+	ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
+
 	// TODO : Implement to be used in Analysis- und System/Node-View
 	log.Println(fmt.Sprintf("LoadNodeData unimplemented for InfluxDBv2DataRepository, Args: cluster %s, metrics %v, nodes %v, scopes %v", cluster, metrics, nodes, scopes))
 

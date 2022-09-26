@@ -35,7 +35,6 @@ type Cluster {
   name:         String!
   partitions:   [String!]!        # Slurm partitions
   metricConfig: [MetricConfig!]!
-  filterRanges: FilterRanges!
   subClusters:  [SubCluster!]!    # Hardware partitions/subclusters
 }
 
@@ -195,12 +194,6 @@ type Mutation {
 
 type IntRangeOutput { from: Int!, to: Int! }
 type TimeRangeOutput { from: Time!, to: Time! }
-
-type FilterRanges {
-  duration:  IntRangeOutput!
-  numNodes:  IntRangeOutput!
-  startTime: TimeRangeOutput!
-}
 
 input JobFilter {
   tags:        [ID!]

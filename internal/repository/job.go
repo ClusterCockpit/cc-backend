@@ -35,7 +35,7 @@ type JobRepository struct {
 	cache     *lrucache.Cache
 }
 
-func GetRepository() *JobRepository {
+func GetJobRepository() *JobRepository {
 	jobRepoOnce.Do(func() {
 		db := GetConnection()
 
@@ -160,8 +160,7 @@ func (r *JobRepository) Find(
 // The job is queried using the database id.
 // It returns a pointer to a schema.Job data structure and an error variable.
 // To check if no job was found test err == sql.ErrNoRows
-func (r *JobRepository) FindById(
-	jobId int64) (*schema.Job, error) {
+func (r *JobRepository) FindById(jobId int64) (*schema.Job, error) {
 	q := sq.Select(jobColumns...).
 		From("job").Where("job.id = ?", jobId)
 	return scanJob(q.RunWith(r.stmtCache).QueryRow())

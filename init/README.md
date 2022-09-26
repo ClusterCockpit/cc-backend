@@ -36,3 +36,36 @@ sudo systemctl start clustercockpit.service
 # Check whats going on:
 sudo journalctl -u clustercockpit.service
 ```
+
+# Recommended deployment workflow
+
+It is recommended to install all ClusterCockpit components in a common durectory, this can be something like `/opt/monitoring`, `var/monitoring` or `var/clustercockpit`.
+In the following we are using `/opt/monitoring`.
+
+Two systemd services are running on the central monitoring server:
+
+clustercockpit : Binary cc-backend in `/opt/monitoring/cc-backend`
+cc-metric-store: Binary cc-metric-store in `/opt/monitoring/cc-metric-store`
+
+ClusterCockpit is deployed as a single file binary that embeds all static assets.
+We recommend to keep all binaries in a folder `archive` and link the currently active from cc-backend root.
+This allows to easily roll-back in case something breaks.
+
+## Workflow to deploy new version
+
+This example assumes the DB and job archive did not change.
+* Backup the sqlite DB file and Job archive directory tree!
+* Clone cc-backend source tree (e.g. in your home directory)
+* Copy the adapted legal text files into the git source tree (./web/templates).
+* Build cc-backend:
+```
+$ cd web/frontend
+$ yarn && yarn build
+$ cd ../../
+$ go build ./cmd/cc-backend
+```
+* Copy `cc-backend` binary to `/opt/monitoring/cc-backend/archive`
+* Link from cc-backend root to recent version
+* Restart systemd service: `$ sudo systemctl restart clustercockpit.service`
+* Check log for issues: `$ sudo journalctl -u clustercockpit.service`
+* Check the ClusterCockpit web frontend and your Slurm adapters if anything is broken!

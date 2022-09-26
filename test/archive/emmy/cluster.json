@@ -1,0 +1,141 @@
+{
+    "name": "emmy",
+    "subClusters": [
+        {
+            "name": "main",
+            "processorType": "Intel IvyBridge",
+            "socketsPerNode": 2,
+            "coresPerSocket": 10,
+            "threadsPerCore": 2,
+            "flopRateScalar": 44,
+            "flopRateSimd": 704,
+            "memoryBandwidth": 80,
+            "topology": {
+                "node": [0,20,1,21,2,22,3,23,4,24,5,25,6,26,7,27,8,28,9,29,10,30,11,31,12,32,13,33,14,34,15,35,16,36,17,37,18,38,19,39],
+                "socket": [
+                    [0,20,1,21,2,22,3,23,4,24,5,25,6,26,7,27,8,28,9,29],
+                    [10,30,11,31,12,32,13,33,14,34,15,35,16,36,17,37,18,38,19,39]
+                ],
+                "memoryDomain": [
+                    [0,20,1,21,2,22,3,23,4,24,5,25,6,26,7,27,8,28,9,29],
+                    [10,30,11,31,12,32,13,33,14,34,15,35,16,36,17,37,18,38,19,39]
+                ],
+                "core": [
+                    [0,20],[1,21],[2,22],[3,23],[4,24],[5,25],[6,26],[7,27],[8,28],[9,29],[10,30],[11,31],[12,32],[13,33],[14,34],[15,35],[16,36],[17,37],[18,38],[19,39]
+                ]
+            }
+        }
+    ],
+    "metricConfig": [
+        {
+            "name": "cpu_load",
+            "scope": "hwthread",
+            "unit": "load",
+            "timestep": 60,
+            "peak": 40,
+            "normal": 20,
+            "caution": 15,
+            "alert": 10
+        },
+        {
+            "name": "mem_used",
+            "scope": "node",
+            "unit": "GB",
+            "timestep": 60,
+            "peak": 64,
+            "normal": 20,
+            "caution": 40,
+            "alert": 55
+        },
+        {
+            "name": "flops_any",
+            "scope": "hwthread",
+            "unit": "GF/s",
+            "timestep": 60,
+            "peak": 704,
+            "normal": 100,
+            "caution": 20,
+            "alert": 2
+        },
+        {
+            "name": "flops_sp",
+            "scope": "hwthread",
+            "unit": "GF/s",
+            "timestep": 60,
+            "peak": 704,
+            "normal": 100,
+            "caution": 20,
+            "alert": 2
+        },
+        {
+            "name": "flops_dp",
+            "scope": "hwthread",
+            "unit": "GF/s",
+            "timestep": 60,
+            "peak": 350,
+            "normal": 50,
+            "caution": 10,
+            "alert": 2
+        },
+        {
+            "name": "mem_bw",
+            "scope": "memoryDomain",
+            "unit": "GB/s",
+            "timestep": 60,
+            "peak": 80,
+            "normal": 30,
+            "caution": 10,
+            "alert": 5
+        },
+        {
+            "name": "ipc",
+            "scope": "hwthread",
+            "unit": "IPC",
+            "timestep": 60,
+            "peak": 80,
+            "normal": 30,
+            "caution": 10,
+            "alert": 5
+        },
+        {
+            "name": "clock",
+            "scope": "hwthread",
+            "unit": "MHz",
+            "timestep": 60,
+            "peak": 80,
+            "normal": 30,
+            "caution": 10,
+            "alert": 5
+        },
+        {
+            "name": "rapl_power",
+            "scope": "socket",
+            "unit": "W",
+            "timestep": 60,
+            "peak": 80,
+            "normal": 30,
+            "caution": 10,
+            "alert": 5
+        },
+        {
+            "name": "ib_bw",
+            "scope": "node",
+            "unit": "GB/s",
+            "timestep": 60,
+            "peak": 40,
+            "normal": 20,
+            "caution": 15,
+            "alert": 10
+        },
+        {
+            "name": "lustre_bw",
+            "scope": "node",
+            "unit": "GB/s",
+            "timestep": 60,
+            "peak": 40,
+            "normal": 20,
+            "caution": 15,
+            "alert": 10
+        }
+    ]
+}
