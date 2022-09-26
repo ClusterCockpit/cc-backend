@@ -46,20 +46,44 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+const logoString = `
+ ____ _           _             ____           _          _ _   
+/ ___| |_   _ ___| |_ ___ _ __ / ___|___   ___| | ___ __ (_) |_ 
+| |   | | | | / __| __/ _ \ '__| |   / _ \ / __| |/ / '_ \| | __|
+| |___| | |_| \__ \ ||  __/ |  | |__| (_) | (__|   <| |_) | | |_ 
+\____|_|\__,_|___/\__\___|_|   \____\___/ \___|_|\_\ .__/|_|\__|
+                                                    |_|          
+`
+
+var (
+	buildTime string
+	hash      string
+	version   string
+)
+
 func main() {
-	var flagReinitDB, flagServer, flagSyncLDAP, flagGops, flagDev bool
+	var flagReinitDB, flagServer, flagSyncLDAP, flagGops, flagDev, flagVersion bool
 	var flagNewUser, flagDelUser, flagGenJWT, flagConfigFile, flagImportJob string
 	flag.BoolVar(&flagReinitDB, "init-db", false, "Go through job-archive and re-initialize the 'job', 'tag', and 'jobtag' tables (all running jobs will be lost!)")
 	flag.BoolVar(&flagSyncLDAP, "sync-ldap", false, "Sync the 'user' table with ldap")
 	flag.BoolVar(&flagServer, "server", false, "Start a server, continues listening on port after initialization and argument handling")
 	flag.BoolVar(&flagGops, "gops", false, "Listen via github.com/google/gops/agent (for debugging)")
 	flag.BoolVar(&flagDev, "dev", false, "Enable development components: GraphQL Playground and Swagger UI")
+	flag.BoolVar(&flagVersion, "version", false, "Show version information and exit")
 	flag.StringVar(&flagConfigFile, "config", "./config.json", "Specify alternative path to `config.json`")
 	flag.StringVar(&flagNewUser, "add-user", "", "Add a new user. Argument format: `<username>:[admin,support,api,user]:<password>`")
 	flag.StringVar(&flagDelUser, "del-user", "", "Remove user by `username`")
 	flag.StringVar(&flagGenJWT, "jwt", "", "Generate and print a JWT for the user specified by its `username`")
 	flag.StringVar(&flagImportJob, "import-job", "", "Import a job. Argument format: `<path-to-meta.json>:<path-to-data.json>,...`")
 	flag.Parse()
+
+	if flagVersion {
+		fmt.Print(logoString)
+		fmt.Printf("Version:\t%s\n", version)
+		fmt.Printf("Git hash:\t%s\n", hash)
+		fmt.Printf("Build time:\t%s\n", buildTime)
+		os.Exit(0)
+	}
 
 	// See https://github.com/google/gops (Runtime overhead is almost zero)
 	if flagGops {
