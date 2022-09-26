@@ -43,6 +43,7 @@ test:
 	@go test ./...
 
 $(SVELTE_TARGETS): $(SVELTE_SRC)
+	$(info ===>  BUILD frontend)
 	cd web/frontend && yarn build
 
 $(VAR):
