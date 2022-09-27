@@ -95,6 +95,9 @@ A config file in the JSON format has to be provided using `--config` to override
 By default, if there is a `config.json` file in the current directory of the `cc-backend` process, it will be loaded even without the `--config` flag.
 You find documentation of all supported configuration and command line options [here](./configs.README.md).
 
+## Development
+In case the REST or GraphQL API is changed the according code generators have to be used.
+
 ### Update GraphQL schema
 
 This project uses [gqlgen](https://github.com/99designs/gqlgen) for the GraphQL API.
