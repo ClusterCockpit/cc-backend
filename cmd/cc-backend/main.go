@@ -291,7 +291,7 @@ func main() {
 	if flagDev {
 		r.Handle("/playground", playground.Handler("GraphQL playground", "/query"))
 		r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
-		httpSwagger.URL("http://clustercockpit.localhost:8082/swagger/doc.json"))).Methods(http.MethodGet)
+		httpSwagger.URL("http://localhost:8080/swagger/doc.json"))).Methods(http.MethodGet)
 	}
 	secured.Handle("/query", graphQLEndpoint)
 
