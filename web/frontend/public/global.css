@@ -52,3 +52,21 @@ footer {
     margin: 0rem 0.8rem;
     white-space: nowrap;
 }
+
+.build-list {
+		color: gray;
+		font-size: 12px;
+    list-style-type: none;
+    padding-left: 0;
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: right;
+    margin-top: 0px;
+    margin-bottom: 5px;
+}
+
+.build-list-item {
+    margin: 0rem 0.8rem;
+    white-space: nowrap;
+}

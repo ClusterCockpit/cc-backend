@@ -40,6 +40,11 @@
                     <li class="footer-list-item"><a class="link-secondary fs-5" href="/imprint" title="Imprint" rel="nofollow">Imprint</a></li>
                     <li class="footer-list-item"><a class="link-secondary fs-5" href="/privacy" title="Privacy Policy" rel="nofollow">Privacy Policy</a></li>
                 </ul>
+                <ul class="build-list">
+                  <li class="build-list-item">Version {{ .Build.Version }}</li>
+                  <li class="build-list-item">Hash {{ .Build.Hash }}</li>
+                  <li class="build-list-item">Built {{ .Build.Buildtime }}</li>
+                </ul>
             </footer>
         {{end}}
 
