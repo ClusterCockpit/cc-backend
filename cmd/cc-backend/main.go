@@ -47,12 +47,12 @@ import (
 )
 
 const logoString = `
- ____ _           _             ____           _          _ _   
-/ ___| |_   _ ___| |_ ___ _ __ / ___|___   ___| | ___ __ (_) |_ 
+ ____ _           _             ____           _          _ _
+/ ___| |_   _ ___| |_ ___ _ __ / ___|___   ___| | ___ __ (_) |_
 | |   | | | | / __| __/ _ \ '__| |   / _ \ / __| |/ / '_ \| | __|
-| |___| | |_| \__ \ ||  __/ |  | |__| (_) | (__|   <| |_) | | |_ 
+| |___| | |_| \__ \ ||  __/ |  | |__| (_) | (__|   <| |_) | | |_
 \____|_|\__,_|___/\__\___|_|   \____\___/ \___|_|\_\ .__/|_|\__|
-                                                    |_|          
+                                                    |_|
 `
 
 var (
@@ -226,18 +226,19 @@ func main() {
 	}
 
 	r := mux.NewRouter()
+	buildInfo := web.Build{Version: version, Hash: hash, Buildtime: buildTime}
 
 	r.HandleFunc("/login", func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
-		web.RenderTemplate(rw, r, "login.tmpl", &web.Page{Title: "Login"})
+		web.RenderTemplate(rw, r, "login.tmpl", &web.Page{Title: "Login", Build: buildInfo})
 	}).Methods(http.MethodGet)
 	r.HandleFunc("/imprint", func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
-		web.RenderTemplate(rw, r, "imprint.tmpl", &web.Page{Title: "Imprint"})
+		web.RenderTemplate(rw, r, "imprint.tmpl", &web.Page{Title: "Imprint", Build: buildInfo})
 	})
 	r.HandleFunc("/privacy", func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
-		web.RenderTemplate(rw, r, "privacy.tmpl", &web.Page{Title: "Privacy"})
+		web.RenderTemplate(rw, r, "privacy.tmpl", &web.Page{Title: "Privacy", Build: buildInfo})
 	})
 
 	// Some routes, such as /login or /query, should only be accessible to a user that is logged in.
@@ -256,6 +257,7 @@ func main() {
 				web.RenderTemplate(rw, r, "login.tmpl", &web.Page{
 					Title: "Login failed - ClusterCockpit",
 					Error: err.Error(),
+					Build: buildInfo,
 				})
 			})).Methods(http.MethodPost)
 
@@ -265,6 +267,7 @@ func main() {
 			web.RenderTemplate(rw, r, "login.tmpl", &web.Page{
 				Title: "Bye - ClusterCockpit",
 				Info:  "Logout sucessful",
+				Build: buildInfo,
 			})
 		}))).Methods(http.MethodPost)
 
@@ -279,6 +282,7 @@ func main() {
 					web.RenderTemplate(rw, r, "login.tmpl", &web.Page{
 						Title: "Authentication failed - ClusterCockpit",
 						Error: err.Error(),
+						Build: buildInfo,
 					})
 				})
 		})
@@ -287,7 +291,7 @@ func main() {
 	if flagDev {
 		r.Handle("/playground", playground.Handler("GraphQL playground", "/query"))
 		r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
-			httpSwagger.URL("http://localhost:8080/swagger/doc.json"))).Methods(http.MethodGet)
+		httpSwagger.URL("http://localhost:8080/swagger/doc.json"))).Methods(http.MethodGet)
 	}
 	secured.Handle("/query", graphQLEndpoint)
 
@@ -316,7 +320,7 @@ func main() {
 	})
 
 	// Mount all /monitoring/... and /api/... routes.
-	routerConfig.SetupRoutes(secured)
+	routerConfig.SetupRoutes(secured, version, hash, buildTime)
 	api.MountRoutes(secured)
 
 	if config.Keys.EmbedStaticFiles {
