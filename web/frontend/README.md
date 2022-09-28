@@ -21,11 +21,9 @@ Install the dependencies...
 yarn install
 ```
 
-...then start [Rollup](https://rollupjs.org):
+...then build using [Rollup](https://rollupjs.org):
 
 ```bash
-yarn run dev
+yarn build
 ```
-
-Edit a component file in `src`, save it, and reload the page to see your changes.
 
