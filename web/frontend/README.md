@@ -1,4 +1,4 @@
-# cc-svelte-datatable
+# cc-frontend
 
 [![Build](https://github.com/ClusterCockpit/cc-svelte-datatable/actions/workflows/build.yml/badge.svg)](https://github.com/ClusterCockpit/cc-svelte-datatable/actions/workflows/build.yml)
 
