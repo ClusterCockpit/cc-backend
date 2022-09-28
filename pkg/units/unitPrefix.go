@@ -1,6 +1,7 @@
 package units
 
 import (
+	"math"
 	"regexp"
 )
 
@@ -171,4 +172,21 @@ func NewPrefix(prefix string) Prefix {
 		}
 	}
 	return InvalidPrefix
+}
+
+func getExponent(p float64) int {
+	count := 0
+
+	for p > 1.0 {
+		p = p / 1000.0
+		count++
+	}
+
+	return count * 3
+}
+
+func NewPrefixFromFactor(op Prefix, e int) Prefix {
+	f := float64(op)
+	exp := math.Pow10(getExponent(f) - e)
+	return Prefix(exp)
 }

@@ -366,3 +366,16 @@ func loadJobStat(job *schema.JobMeta, metric string) float64 {
 
 	return 0.0
 }
+
+func checkJobData(d *schema.JobData) error {
+	// for name, scopes := range *d {
+
+	// 	for scope, metric := range scopes {
+	// 		// 1. Unit normalisation
+
+	// 	}
+	// 	// 2. Add node scope if missing
+
+	// }
+	return nil
+}
