@@ -136,7 +136,7 @@
         ctx.stroke()
 
         // Draw bars
-        ctx.fillStyle = '#0066cc'
+        ctx.fillStyle = '#85abce'
         for (let p of data) {
             ctx.fillRect(
                 getCanvasX(p.value) - (barWidth / 2.),
