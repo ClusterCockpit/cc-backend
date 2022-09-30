@@ -152,7 +152,8 @@
                     <Histogram
                         width={colWidth1 - 25} height={300}
                         data={$mainQuery.data.topUsers.sort((a, b) => b.count - a.count).map(({ count }, idx) => ({ count, value: idx }))}
-                        label={(x) => x < $mainQuery.data.topUsers.length ? $mainQuery.data.topUsers[Math.floor(x)].name : '0'} />
+                        label={(x) => x < $mainQuery.data.topUsers.length ? $mainQuery.data.topUsers[Math.floor(x)].name : '0'}
+                        xlabel="User Name" ylabel="Number of Jobs" />
                 {/key}
             </div>
         </Col>
@@ -173,7 +174,8 @@
                 <Histogram
                     width={colWidth1 - 25} height={300}
                     data={$mainQuery.data.topProjects.sort((a, b) => b.count - a.count).map(({ count }, idx) => ({ count, value: idx }))}
-                    label={(x) => x < $mainQuery.data.topProjects.length ? $mainQuery.data.topProjects[Math.floor(x)].name : '0'} />
+                    label={(x) => x < $mainQuery.data.topProjects.length ? $mainQuery.data.topProjects[Math.floor(x)].name : '0'}
+                    xlabel="Project Code" ylabel="Number of Jobs" />
             {/key}
         </Col>
         <Col class="px-4 py-2">
@@ -192,7 +194,8 @@
                 {#key $mainQuery.data.stats}
                     <Histogram
                         width={colWidth2 - 25} height={300}
-                        data={$mainQuery.data.stats[0].histDuration} />
+                        data={$mainQuery.data.stats[0].histDuration}
+                        xlabel="Current Runtime in Hours [h]" ylabel="Number of Jobs" />
                 {/key}
             </div>
         </Col>
@@ -201,7 +204,8 @@
             {#key $mainQuery.data.stats}
                 <Histogram
                     width={colWidth2 - 25} height={300}
-                    data={$mainQuery.data.stats[0].histNumNodes} />
+                    data={$mainQuery.data.stats[0].histNumNodes}
+                    xlabel="Allocated Nodes" ylabel="Number of Jobs" />
             {/key}
         </Col>
     </Row>

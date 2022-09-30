@@ -1,4 +1,4 @@
-<!-- 
+<!--
     @component
     Properties:
     - width, height: Number
@@ -20,6 +20,8 @@
     export let data
     export let width
     export let height
+    export let xlabel
+    export let ylabel
     export let min = null
     export let max = null
     export let label = formatNumber
@@ -72,9 +74,11 @@
     }
 
     function render() {
-        const h = height - paddingTop - paddingBottom
+        const labelOffset =  Math.floor(height * 0.1)
+        const h = height - paddingTop - paddingBottom - labelOffset
         const w = width - paddingLeft - paddingRight
-        const barWidth = Math.ceil(w / (maxValue + 1))
+        const barGap = 5
+        const barWidth = Math.ceil(w / (maxValue + 1)) - barGap
 
         if (Number.isNaN(barWidth))
             return
@@ -83,9 +87,14 @@
         const getCanvasY = (count) => (h - (count / maxCount) * h) + paddingTop
 
         // X Axis
-        ctx.font = `${fontSize}px ${fontFamily}`
+        ctx.font = `bold ${fontSize}px ${fontFamily}`
         ctx.fillStyle = 'black'
+        if (xlabel != '') {
+            let textWidth = ctx.measureText(xlabel).width
+            ctx.fillText(xlabel, Math.floor((width / 2) - (textWidth / 2) + barGap), height - Math.floor(labelOffset / 2))
+        }
         ctx.textAlign = 'center'
+        ctx.font = `${fontSize}px ${fontFamily}`
         if (min != null && max != null) {
             const stepsizeX = getStepSize(max - min, w, 75)
             let startX = 0
@@ -94,19 +103,28 @@
 
             for (let x = startX; x < max; x += stepsizeX) {
                 let px = ((x - min) / (max - min)) * (w - barWidth) + paddingLeft + (barWidth / 2.)
-                ctx.fillText(`${formatNumber(x)}`, px, height - paddingBottom + 15)
+                ctx.fillText(`${formatNumber(x)}`, px, height - paddingBottom - Math.floor(labelOffset / 2))
             }
         } else {
             const stepsizeX = getStepSize(maxValue, w, 120)
             for (let x = 0; x <= maxValue; x += stepsizeX) {
-                ctx.fillText(label(x), getCanvasX(x), height - paddingBottom + 15)
+                ctx.fillText(label(x), getCanvasX(x), height - paddingBottom - Math.floor(labelOffset / 2))
             }
         }
 
         // Y Axis
         ctx.fillStyle = 'black'
         ctx.strokeStyle = '#bbbbbb'
+        ctx.font = `bold ${fontSize}px ${fontFamily}`
+        if (ylabel != '') {
+            ctx.save()
+            ctx.translate(15, Math.floor(h / 2))
+            ctx.rotate(-Math.PI / 2)
+            ctx.fillText(ylabel, 0, 0)
+            ctx.restore()
+        }
         ctx.textAlign = 'right'
+        ctx.font = `${fontSize}px ${fontFamily}`
         ctx.beginPath()
         const stepsizeY = getStepSize(maxCount, h, 50)
         for (let y = stepsizeY; y <= maxCount; y += stepsizeY) {
@@ -130,10 +148,10 @@
         // Fat lines left and below plotting area
         ctx.strokeStyle = 'black'
         ctx.beginPath()
-        ctx.moveTo(0, height - paddingBottom)
-        ctx.lineTo(width, height - paddingBottom)
+        ctx.moveTo(0, height - paddingBottom - labelOffset)
+        ctx.lineTo(width, height - paddingBottom - labelOffset)
         ctx.moveTo(paddingLeft, 0)
-        ctx.lineTo(paddingLeft, height- paddingBottom)
+        ctx.lineTo(paddingLeft, height - Math.floor(labelOffset / 2))
         ctx.stroke()
     }
 
