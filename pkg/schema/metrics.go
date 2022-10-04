@@ -15,7 +15,7 @@ import (
 type JobData map[string]map[MetricScope]*JobMetric
 
 type JobMetric struct {
-	Unit             string       `json:"unit"`
+	Unit             Unit         `json:"unit"`
 	Scope            MetricScope  `json:"scope"`
 	Timestep         int          `json:"timestep"`
 	Series           []Series     `json:"series"`

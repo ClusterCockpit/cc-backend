@@ -107,3 +107,23 @@ func (s *Series) MarshalJSON() ([]byte, error) {
 	buf = append(buf, ']', '}')
 	return buf, nil
 }
+
+func ConvertFloatToFloat64(s []Float) []float64 {
+	fp := make([]float64, len(s))
+
+	for i, val := range s {
+		fp[i] = float64(val)
+	}
+
+	return fp
+}
+
+func GetFloat64ToFloat(s []float64) []Float {
+	fp := make([]Float, len(s))
+
+	for i, val := range s {
+		fp[i] = Float(val)
+	}
+
+	return fp
+}

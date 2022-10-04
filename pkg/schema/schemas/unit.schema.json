@@ -5,7 +5,7 @@
     "description": "Format specification for job metric units",
     "type": "object",
     "properties": {
-        "base_unit": {
+        "base": {
             "description": "Metric base unit",
             "type": "string",
             "enum": [
@@ -36,6 +36,6 @@
         }
     },
     "required": [
-        "base_unit"
+        "base"
     ]
 }
