@@ -389,10 +389,11 @@ func checkJobData(d *schema.JobData) error {
 				for _, s := range metric.Series {
 					fp := schema.ConvertFloatToFloat64(s.Data)
 					// Normalize values with new unit prefix
-					units.NormalizeSeries(fp, avg, metric.Unit.Prefix, &newUnit)
+					oldUnit := metric.Unit.Base
+					units.NormalizeSeries(fp, avg, oldUnit, &newUnit)
 					s.Data = schema.GetFloat64ToFloat(fp)
 				}
-				metric.Unit.Prefix = newUnit
+				metric.Unit.Base = newUnit
 			}
 		}
 	}
