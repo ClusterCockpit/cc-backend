@@ -349,7 +349,6 @@
         "jobState",
         "duration",
         "resources",
-        "tags",
         "statistics"
     ]
 }

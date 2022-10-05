@@ -17,6 +17,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/ClusterCockpit/cc-backend/pkg/units"
 )
 
 // `AUTO_INCREMENT` is in a comment because of this hack:
@@ -103,11 +104,11 @@ func HandleImportFlag(flag string) error {
 			return err
 		}
 
-		if config.Keys.Validate {
-			if err := schema.Validate(schema.Meta, bytes.NewReader(raw)); err != nil {
-				return fmt.Errorf("validate job meta: %v", err)
-			}
+		// if config.Keys.Validate {
+		if err := schema.Validate(schema.Meta, bytes.NewReader(raw)); err != nil {
+			return fmt.Errorf("validate job meta: %v", err)
 		}
+		// }
 		dec := json.NewDecoder(bytes.NewReader(raw))
 		dec.DisallowUnknownFields()
 		jobMeta := schema.JobMeta{BaseJob: schema.JobDefaults}
@@ -132,6 +133,7 @@ func HandleImportFlag(flag string) error {
 			return err
 		}
 
+		checkJobData(&jobData)
 		SanityChecks(&jobMeta.BaseJob)
 		jobMeta.MonitoringStatus = schema.MonitoringStatusArchivingSuccessful
 		if job, err := GetJobRepository().Find(&jobMeta.JobID, &jobMeta.Cluster, &jobMeta.StartTime); err != sql.ErrNoRows {
@@ -365,4 +367,34 @@ func loadJobStat(job *schema.JobMeta, metric string) float64 {
 	}
 
 	return 0.0
+}
+
+func checkJobData(d *schema.JobData) error {
+	for _, scopes := range *d {
+		var newUnit string
+		// Add node scope if missing
+		for _, metric := range scopes {
+			if strings.Contains(metric.Unit.Base, "B/s") ||
+				strings.Contains(metric.Unit.Base, "F/s") ||
+				strings.Contains(metric.Unit.Base, "B") {
+
+				// First get overall avg
+				sum := 0.0
+				for _, s := range metric.Series {
+					sum += s.Statistics.Avg
+				}
+
+				avg := sum / float64(len(metric.Series))
+
+				for _, s := range metric.Series {
+					fp := schema.ConvertFloatToFloat64(s.Data)
+					// Normalize values with new unit prefix
+					units.NormalizeSeries(fp, avg, metric.Unit, &newUnit)
+					s.Data = schema.GetFloat64ToFloat(fp)
+				}
+				metric.Unit = newUnit
+			}
+		}
+	}
+	return nil
 }

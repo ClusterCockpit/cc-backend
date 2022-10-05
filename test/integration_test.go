@@ -602,4 +602,17 @@ func testImportFlag(t *testing.T) {
 	if len(data) != 8 {
 		t.Errorf("Job data length: Got %d, want 8", len(data))
 	}
+
+	r := map[string]string{"mem_used": "GB", "net_bw": "KB/s",
+		"cpu_power": "W", "cpu_used": "cpu_used",
+		"file_bw": "KB/s", "flops_any": "Flops/s",
+		"mem_bw": "GB/s", "ipc": "IPC"}
+
+	for name, scopes := range data {
+		for _, metric := range scopes {
+			if metric.Unit != r[name] {
+				t.Errorf("Metric %s unit: Got %s, want %s", name, metric.Unit, r[name])
+			}
+		}
+	}
 }

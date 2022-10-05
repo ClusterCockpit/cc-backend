@@ -45,7 +45,7 @@ type SubClusterConfig struct {
 
 type MetricConfig struct {
 	Name        string              `json:"name"`
-	Unit        string              `json:"unit"`
+	Unit        Unit                `json:"unit"`
 	Scope       MetricScope         `json:"scope"`
 	Aggregation *string             `json:"aggregation"`
 	Timestep    int                 `json:"timestep"`

@@ -211,7 +211,13 @@ func (r *JobRepository) Stop(
 }
 
 // TODO: Use node hours instead: SELECT job.user, sum(job.num_nodes * (CASE WHEN job.job_state = "running" THEN CAST(strftime('%s', 'now') AS INTEGER) - job.start_time ELSE job.duration END)) as x FROM job GROUP BY user ORDER BY x DESC;
-func (r *JobRepository) CountGroupedJobs(ctx context.Context, aggreg model.Aggregate, filters []*model.JobFilter, weight *model.Weights, limit *int) (map[string]int, error) {
+func (r *JobRepository) CountGroupedJobs(
+	ctx context.Context,
+	aggreg model.Aggregate,
+	filters []*model.JobFilter,
+	weight *model.Weights,
+	limit *int) (map[string]int, error) {
+
 	if !aggreg.IsValid() {
 		return nil, errors.New("invalid aggregate")
 	}
@@ -301,10 +307,14 @@ func (r *JobRepository) Archive(
 
 var ErrNotFound = errors.New("no such job or user")
 
-// FindJobOrUser returns a job database ID or a username if a job or user machtes the search term.
-// As 0 is a valid job id, check if username is "" instead in order to check what machted.
-// If nothing matches the search, `ErrNotFound` is returned.
-func (r *JobRepository) FindJobOrUser(ctx context.Context, searchterm string) (job int64, username string, err error) {
+// FindJobOrUser returns a job database ID or a username if a job or user
+// machtes the search term.  As 0 is a valid job id, check if username is ""
+// instead in order to check what matched.  If nothing matches the search,
+// `ErrNotFound` is returned.
+func (r *JobRepository) FindJobOrUser(
+	ctx context.Context,
+	searchterm string) (job int64, username string, err error) {
+
 	user := auth.GetUser(ctx)
 	if id, err := strconv.Atoi(searchterm); err == nil {
 		qb := sq.Select("job.id").From("job").Where("job.job_id = ?", id)
@@ -353,6 +363,7 @@ func (r *JobRepository) Partitions(cluster string) ([]string, error) {
 // AllocatedNodes returns a map of all subclusters to a map of hostnames to the amount of jobs running on that host.
 // Hosts with zero jobs running on them will not show up!
 func (r *JobRepository) AllocatedNodes(cluster string) (map[string]map[string]int, error) {
+
 	subclusters := make(map[string]map[string]int)
 	rows, err := sq.Select("resources", "subcluster").From("job").
 		Where("job.job_state = 'running'").
@@ -390,6 +401,7 @@ func (r *JobRepository) AllocatedNodes(cluster string) (map[string]map[string]in
 }
 
 func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
+
 	res, err := sq.Update("job").
 		Set("monitoring_status", schema.MonitoringStatusArchivingFailed).
 		Set("duration", 0).
