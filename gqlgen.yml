@@ -79,3 +79,4 @@ models:
   FilterRanges: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.FilterRanges" }
   SubCluster: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.SubCluster" }
   StatsSeries: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.StatsSeries" }
+  Unit: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Unit" }

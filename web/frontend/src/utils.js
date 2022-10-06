@@ -37,7 +37,7 @@ export function init(extraInitQuery = '') {
         clusters {
             name,
             metricConfig {
-                name, unit, peak,
+                name, unit {base, prefix}, peak,
                 normal, caution, alert,
                 timestep, scope,
                 aggregation,

@@ -251,6 +251,11 @@ type ComplexityRoot struct {
 		Socket       func(childComplexity int) int
 	}
 
+	Unit struct {
+		Base   func(childComplexity int) int
+		Prefix func(childComplexity int) int
+	}
+
 	User struct {
 		Email    func(childComplexity int) int
 		Name     func(childComplexity int) int
@@ -1275,6 +1280,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Topology.Socket(childComplexity), true
 
+	case "Unit.base":
+		if e.complexity.Unit.Base == nil {
+			break
+		}
+
+		return e.complexity.Unit.Base(childComplexity), true
+
+	case "Unit.prefix":
+		if e.complexity.Unit.Prefix == nil {
+			break
+		}
+
+		return e.complexity.Unit.Prefix(childComplexity), true
+
 	case "User.email":
 		if e.complexity.User.Email == nil {
 			break
@@ -1450,7 +1469,7 @@ type SubClusterConfig {
 
 type MetricConfig {
   name:        String!
-  unit:        String!
+  unit:        Unit
   scope:       MetricScope!
   aggregation: String
   timestep:    Int!
@@ -1480,7 +1499,7 @@ type JobMetricWithName {
 }
 
 type JobMetric {
-  unit:             String!
+  unit:             Unit
   scope:            MetricScope!
   timestep:         Int!
   series:           [Series!]
@@ -1492,6 +1511,11 @@ type Series {
   id:         Int
   statistics: MetricStatistics
   data:       [NullableFloat!]!
+}
+
+type Unit {
+  base: String!
+  prefix: String
 }
 
 type MetricStatistics {
@@ -3862,14 +3886,11 @@ func (ec *executionContext) _JobMetric_unit(ctx context.Context, field graphql.C
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(schema.Unit)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalOUnit2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐUnit(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_JobMetric_unit(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -3879,7 +3900,13 @@ func (ec *executionContext) fieldContext_JobMetric_unit(ctx context.Context, fie
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
+			switch field.Name {
+			case "base":
+				return ec.fieldContext_Unit_base(ctx, field)
+			case "prefix":
+				return ec.fieldContext_Unit_prefix(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Unit", field.Name)
 		},
 	}
 	return fc, nil
@@ -4771,14 +4798,11 @@ func (ec *executionContext) _MetricConfig_unit(ctx context.Context, field graphq
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(schema.Unit)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalOUnit2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐUnit(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_MetricConfig_unit(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -4788,7 +4812,13 @@ func (ec *executionContext) fieldContext_MetricConfig_unit(ctx context.Context, 
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
+			switch field.Name {
+			case "base":
+				return ec.fieldContext_Unit_base(ctx, field)
+			case "prefix":
+				return ec.fieldContext_Unit_prefix(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Unit", field.Name)
 		},
 	}
 	return fc, nil
@@ -8351,6 +8381,91 @@ func (ec *executionContext) fieldContext_Topology_accelerators(ctx context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Unit_base(ctx context.Context, field graphql.CollectedField, obj *schema.Unit) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Unit_base(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Base, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Unit_base(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Unit",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Unit_prefix(ctx context.Context, field graphql.CollectedField, obj *schema.Unit) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Unit_prefix(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Prefix, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalOString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Unit_prefix(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Unit",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _User_username(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_User_username(ctx, field)
 	if err != nil {
@@ -11130,9 +11245,6 @@ func (ec *executionContext) _JobMetric(ctx context.Context, sel ast.SelectionSet
 
 			out.Values[i] = ec._JobMetric_unit(ctx, field, obj)
 
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
 		case "scope":
 
 			out.Values[i] = ec._JobMetric_scope(ctx, field, obj)
@@ -11332,9 +11444,6 @@ func (ec *executionContext) _MetricConfig(ctx context.Context, sel ast.Selection
 
 			out.Values[i] = ec._MetricConfig_unit(ctx, field, obj)
 
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
 		case "scope":
 
 			out.Values[i] = ec._MetricConfig_scope(ctx, field, obj)
@@ -12273,6 +12382,38 @@ func (ec *executionContext) _Topology(ctx context.Context, sel ast.SelectionSet,
 		case "accelerators":
 
 			out.Values[i] = ec._Topology_accelerators(ctx, field, obj)
+
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var unitImplementors = []string{"Unit"}
+
+func (ec *executionContext) _Unit(ctx context.Context, sel ast.SelectionSet, obj *schema.Unit) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, unitImplementors)
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Unit")
+		case "base":
+
+			out.Values[i] = ec._Unit_base(ctx, field, obj)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "prefix":
+
+			out.Values[i] = ec._Unit_prefix(ctx, field, obj)
 
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -14618,6 +14759,10 @@ func (ec *executionContext) unmarshalOTimeRange2ᚖgithubᚗcomᚋClusterCockpit
 	}
 	res, err := ec.unmarshalInputTimeRange(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOUnit2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐUnit(ctx context.Context, sel ast.SelectionSet, v schema.Unit) graphql.Marshaler {
+	return ec._Unit(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalOUser2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v *model.User) graphql.Marshaler {
