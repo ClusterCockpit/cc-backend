@@ -41,7 +41,7 @@
         let a = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / l
         return {
             x: x1 + a * (x2 - x1),
-            y: y1 + a * (y2 - y1) 
+            y: y1 + a * (y2 - y1)
         }
     }
 
@@ -67,7 +67,7 @@
             return 2
     }
 
-    function render(ctx, data, cluster, width, height, colorDots, defaultMaxY) {
+    function render(ctx, data, cluster, width, height, colorDots, showTime, defaultMaxY) {
         if (width <= 0)
             return
 
@@ -222,8 +222,8 @@
         }
         ctx.stroke()
 
-        if (colorDots && data.x && data.y) {
-            // The Color Scale
+        if (colorDots && showTime &&  data.x && data.y) {
+            // The Color Scale For Time Information
             ctx.fillStyle = 'black'
             ctx.fillText('Time:', 17, height - 5)
             const start = paddingLeft + 5
@@ -305,6 +305,7 @@
     export let height
     export let tiles = null
     export let colorDots = true
+    export let showTime = true
     export let data = null
 
     console.assert(data || tiles || (flopsAny && memBw), "you must provide flopsAny and memBw or tiles!")
@@ -327,7 +328,7 @@
 
         canvasElement.width = width
         canvasElement.height = height
-        render(ctx, data, cluster, width, height, colorDots, maxY)
+        render(ctx, data, cluster, width, height, colorDots, showTime, maxY)
     })
 
     let timeoutId = null
@@ -347,7 +348,7 @@
             timeoutId = null
             canvasElement.width = width
             canvasElement.height = height
-            render(ctx, data, cluster, width, height, colorDots, maxY)
+            render(ctx, data, cluster, width, height, colorDots, showTime, maxY)
         }, 250)
     }
 

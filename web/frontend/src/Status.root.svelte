@@ -102,7 +102,7 @@
 {#if $initq.data && $mainQuery.data}
     {#each $initq.data.clusters.find(c => c.name == cluster).subClusters as subCluster, i}
         <Row cols={2} class="mb-3 justify-content-center">
-            <Col xs="3" class="px-3">
+            <Col xs="4" class="px-3">
                 <Card class="h-auto mt-1">
                     <CardHeader>
                         <CardTitle class="mb-0">SubCluster "{subCluster.name}"</CardTitle>
@@ -111,17 +111,17 @@
                         <Table>
                             <tr>
                                 <th scope="col">Allocated Nodes</th>
-                                <td style="min-width: 75px;"><div class="col"><Progress value={allocatedNodes[subCluster.name]} max={subCluster.numberOfNodes}/></div></td>
+                                <td style="min-width: 100px;"><div class="col"><Progress value={allocatedNodes[subCluster.name]} max={subCluster.numberOfNodes}/></div></td>
                                 <td>({allocatedNodes[subCluster.name]} Nodes / {subCluster.numberOfNodes} Total Nodes)</td>
                             </tr>
                             <tr>
                                 <th scope="col">Flop Rate (Any) <Icon name="info-circle" class="p-1" style="cursor: help;" title="Flops[Any] = (Flops[Double] x 2) + Flops[Single]"/></th>
-                                <td style="min-width: 75px;"><div class="col"><Progress value={flopRate[subCluster.name]} max={subCluster.flopRateSimd * subCluster.numberOfNodes}/></div></td>
+                                <td style="min-width: 100px;"><div class="col"><Progress value={flopRate[subCluster.name]} max={subCluster.flopRateSimd * subCluster.numberOfNodes}/></div></td>
                                 <td>({formatNumber(flopRate[subCluster.name])}Flops/s / {formatNumber((subCluster.flopRateSimd * subCluster.numberOfNodes))}Flops/s [Max])</td>
                             </tr>
                             <tr>
                                 <th scope="col">MemBw Rate</th>
-                                <td style="min-width: 75px;"><div class="col"><Progress value={memBwRate[subCluster.name]} max={subCluster.memoryBandwidth * subCluster.numberOfNodes}/></div></td>
+                                <td style="min-width: 100px;"><div class="col"><Progress value={memBwRate[subCluster.name]} max={subCluster.memoryBandwidth * subCluster.numberOfNodes}/></div></td>
                                 <td>({formatNumber(memBwRate[subCluster.name])}Byte/s / {formatNumber((subCluster.memoryBandwidth * subCluster.numberOfNodes))}Byte/s [Max])</td>
                             </tr>
                         </Table>
@@ -132,7 +132,7 @@
                 <div bind:clientWidth={plotWidths[i]}>
                     {#key $mainQuery.data.nodeMetrics}
                         <Roofline
-                            width={plotWidths[i] - 10} height={300} colorDots={true} cluster={subCluster}
+                            width={plotWidths[i] - 10} height={300} colorDots={true} showTime={false} cluster={subCluster}
                             data={transformPerNodeData($mainQuery.data.nodeMetrics.filter(data => data.subCluster == subCluster.name))} />
                     {/key}
                 </div>
