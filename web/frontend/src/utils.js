@@ -127,7 +127,7 @@ export function formatNumber(x) {
         suffix = 'k'
     }
 
-    return `${(Math.round(x * 100) / 100)}${suffix}`
+    return `${(Math.round(x * 100) / 100)} ${suffix}`
 }
 
 // Use https://developer.mozilla.org/en-US/docs/Web/API/structuredClone instead?
