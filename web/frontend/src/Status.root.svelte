@@ -3,7 +3,7 @@
     import Roofline, { transformPerNodeData } from './plots/Roofline.svelte'
     import Histogram from './plots/Histogram.svelte'
     import { Row, Col, Spinner, Card, CardHeader, CardTitle, CardBody, Table, Progress, Icon } from 'sveltestrap'
-    import { init } from './utils.js'
+    import { init, formatNumber } from './utils.js'
     import { operationStore, query } from '@urql/svelte'
 
     const { query: initq } = init()
@@ -112,17 +112,17 @@
                             <tr>
                                 <th scope="col">Allocated Nodes</th>
                                 <td style="min-width: 75px;"><div class="col"><Progress value={allocatedNodes[subCluster.name]} max={subCluster.numberOfNodes}/></div></td>
-                                <td>({allocatedNodes[subCluster.name]} / {subCluster.numberOfNodes})</td>
+                                <td>({allocatedNodes[subCluster.name]} Nodes / {subCluster.numberOfNodes} Total Nodes)</td>
                             </tr>
                             <tr>
                                 <th scope="col">Flop Rate (Any) <Icon name="info-circle" class="p-1" style="cursor: help;" title="Flops[Any] = (Flops[Double] x 2) + Flops[Single]"/></th>
                                 <td style="min-width: 75px;"><div class="col"><Progress value={flopRate[subCluster.name]} max={subCluster.flopRateSimd * subCluster.numberOfNodes}/></div></td>
-                                <td>({flopRate[subCluster.name]} / {subCluster.flopRateSimd * subCluster.numberOfNodes})</td>
+                                <td>({formatNumber(flopRate[subCluster.name])}Flops/s / {formatNumber((subCluster.flopRateSimd * subCluster.numberOfNodes))}Flops/s [Max])</td>
                             </tr>
                             <tr>
                                 <th scope="col">MemBw Rate</th>
                                 <td style="min-width: 75px;"><div class="col"><Progress value={memBwRate[subCluster.name]} max={subCluster.memoryBandwidth * subCluster.numberOfNodes}/></div></td>
-                                <td>({memBwRate[subCluster.name]} / {subCluster.memoryBandwidth * subCluster.numberOfNodes})</td>
+                                <td>({formatNumber(memBwRate[subCluster.name])}Byte/s / {formatNumber((subCluster.memoryBandwidth * subCluster.numberOfNodes))}Byte/s [Max])</td>
                             </tr>
                         </Table>
                     </CardBody>
@@ -132,7 +132,7 @@
                 <div bind:clientWidth={plotWidths[i]}>
                     {#key $mainQuery.data.nodeMetrics}
                         <Roofline
-                            width={plotWidths[i] - 10} height={300} colorDots={false} cluster={subCluster}
+                            width={plotWidths[i] - 10} height={300} colorDots={true} cluster={subCluster}
                             data={transformPerNodeData($mainQuery.data.nodeMetrics.filter(data => data.subCluster == subCluster.name))} />
                     {/key}
                 </div>
