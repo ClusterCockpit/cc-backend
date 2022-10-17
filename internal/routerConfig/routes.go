@@ -253,7 +253,7 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 	return filterPresets
 }
 
-func SetupRoutes(router *mux.Router) {
+func SetupRoutes(router *mux.Router, version string, hash string, buildTime string) {
 	userCfgRepo := repository.GetUserCfgRepo()
 	for _, route := range routes {
 		route := route
@@ -271,7 +271,7 @@ func SetupRoutes(router *mux.Router) {
 			}
 
 			username, isAdmin, isSupporter := "", true, true
-			
+
 			if user := auth.GetUser(r.Context()); user != nil {
 				username = user.Username
 				isAdmin = user.HasRole(auth.RoleAdmin)
@@ -281,6 +281,7 @@ func SetupRoutes(router *mux.Router) {
 			page := web.Page{
 				Title:  title,
 				User:   web.User{Username: username, IsAdmin: isAdmin, IsSupporter: isSupporter},
+				Build:  web.Build{Version: version, Hash: hash, Buildtime: buildTime},
 				Config: conf,
 				Infos:  infos,
 			}

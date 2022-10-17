@@ -77,7 +77,7 @@ type SubClusterConfig {
 
 type MetricConfig {
   name:        String!
-  unit:        String!
+  unit:        Unit
   scope:       MetricScope!
   aggregation: String
   timestep:    Int!
@@ -107,7 +107,7 @@ type JobMetricWithName {
 }
 
 type JobMetric {
-  unit:             String!
+  unit:             Unit
   scope:            MetricScope!
   timestep:         Int!
   series:           [Series!]
@@ -119,6 +119,11 @@ type Series {
   id:         Int
   statistics: MetricStatistics
   data:       [NullableFloat!]!
+}
+
+type Unit {
+  base: String!
+  prefix: String
 }
 
 type MetricStatistics {

@@ -14,7 +14,7 @@ import (
 )
 
 var Keys schema.ProgramConfig = schema.ProgramConfig{
-	Addr:                      ":8080",
+	Addr:                      "localhost:8080",
 	DisableAuthentication:     false,
 	EmbedStaticFiles:          true,
 	DBDriver:                  "sqlite3",
