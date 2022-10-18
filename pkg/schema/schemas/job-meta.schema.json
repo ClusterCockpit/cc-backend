@@ -84,11 +84,6 @@
             "type": "integer",
             "exclusiveMinimum": 0
         },
-        "stopTime": {
-            "description": "Stop epoch time stamp in seconds",
-            "type": "integer",
-            "exclusiveMinimum": 0
-        },
         "duration": {
             "description": "Duration of job in seconds",
             "type": "integer",
