@@ -33,7 +33,6 @@ Start by creating a base folder for all of the following steps.
 * Clone Repository
     - `git clone https://github.com/ClusterCockpit/cc-backend.git`
     - `cd cc-backend`
-    - `git checkout dev-job-archive-module` Will be merged soon into master
 * Setup Frontend
     - `cd ./web/frontend`
     - `yarn install`
