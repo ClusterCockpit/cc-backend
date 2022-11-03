@@ -29,5 +29,11 @@
                 "startTime": { "from": "2022-01-01T00:00:00Z", "to": null }
             }
         }
-    ]
+    ],
+    "jwts": {
+        "cookieName": "",
+        "forceJWTValidationViaDatabase": false,
+        "max-age": 0,
+        "trustedExternalIssuer": ""
+    }
 }

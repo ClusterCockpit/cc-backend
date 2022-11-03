@@ -44,3 +44,39 @@ $ ./cc-backend -jwt <username>  -no-server
 ```
 $ curl -X GET "<API ENDPOINT>" -H "accept: application/json"  -H "Content-Type: application/json"  -H "Authorization: Bearer <JWT TOKEN>"
 ```
+
+## Accept externally generated JWTs provided via cookie
+If there is an external service like an AuthAPI that can generate JWTs and hand them over to ClusterCockpit via cookies, CC can be configured to accept them:
+
+1. `.env`: CC needs a public ed25519 key to verify foreign JWT signatures. Public keys in PEM format can be converted with the instructions in [/tools/convert-pem-pubkey-for-cc](../tools/convert-pem-pubkey-for-cc/Readme.md) .
+
+```
+CROSS_LOGIN_JWT_PUBLIC_KEY="+51iXX8BdLFocrppRxIw52xCOf8xFSH/eNilN5IHVGc="
+```
+
+2. `config.json`: Insert a name for the cookie (set by the external service) containing the JWT so that CC knows where to look at. Define a trusted issuer (JWT claim 'iss'), otherwise it will be rejected.
+If you want usernames and user roles from JWTs ('sub' and 'roles' claim) to be validated against CC's internal database, you need to enable it here. Unknown users will then be rejected and roles set via JWT will be ignored.
+
+```json
+"jwts": {
+    "cookieName": "access_cc",
+    "forceJWTValidationViaDatabase": true,
+    "trustedExternalIssuer": "auth.example.com"
+}
+```
+
+3. Make sure your external service includes the same issuer (`iss`) in its JWTs. Example JWT payload:
+
+```json
+{
+  "iat": 1668161471,
+  "nbf": 1668161471,
+  "exp": 1668161531,
+  "sub": "alice",
+  "roles": [
+    "user"
+  ],
+  "jti": "a1b2c3d4-1234-5678-abcd-a1b2c3d4e5f6",
+  "iss": "auth.example.com"
+}
+```
