@@ -92,6 +92,7 @@ func (nle NLExprIntRange) consume(input string) (next string, ok bool) {
 func ParseNodeList(raw string) (NodeList, error) {
 	isLetter := func(r byte) bool { return ('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z') }
 	isDigit := func(r byte) bool { return '0' <= r && r <= '9' }
+	isDash := func(r byte) bool { return r == '-' }
 
 	rawterms := []string{}
 	prevterm := 0
@@ -121,7 +122,7 @@ func ParseNodeList(raw string) (NodeList, error) {
 			c := rawterm[i]
 			if isLetter(c) || isDigit(c) {
 				j := i
-				for j < len(rawterm) && (isLetter(rawterm[j]) || isDigit(rawterm[j])) {
+				for j < len(rawterm) && (isLetter(rawterm[j]) || isDigit(rawterm[j]) || isDash(rawterm[j])) {
 					j++
 				}
 				exprs = append(exprs, NLExprString(rawterm[i:j]))

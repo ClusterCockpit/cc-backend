@@ -57,3 +57,19 @@ func TestNodeListCommasInBrackets(t *testing.T) {
 		t.Fatal("4")
 	}
 }
+
+func TestNodeListCommasOutsideBrackets(t *testing.T) {
+	nl, err := ParseNodeList("cn-0010,cn0011,cn-00[13-18,22-24]")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !nl.Contains("cn-0010") || !nl.Contains("cn0011") {
+		t.Fatal("1")
+	}
+	if !nl.Contains("cn-0013") ||
+		!nl.Contains("cn-0015") ||
+		!nl.Contains("cn-0022") ||
+		!nl.Contains("cn-0018") {
+		t.Fatal("2")
+	}
+}
