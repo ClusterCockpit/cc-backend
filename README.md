@@ -24,6 +24,7 @@ You find more detailed information here:
 * `./configs/README.md`: Infos about configuration and setup of cc-backend.
 * `./init/README.md`: Infos on how to setup cc-backend as systemd service on Linux.
 * `./tools/README.md`: Infos on the JWT authorizatin token workflows in ClusterCockpit.
+* `./docs`: You can find further documentation here. There is also a Hands-on tutorial that is recommended to get familiar with the ClusterCockpit setup.
 
 ## Demo Setup
 
@@ -31,7 +32,7 @@ We provide a shell skript that downloads demo data and automatically builds and 
 You need `wget`, `go`, and `yarn` in your path to start the demo. The demo will download 32MB of data (223MB on disk).
 
 ```sh
-git clone git@github.com:ClusterCockpit/cc-backend.git
+git clone https://github.com/ClusterCockpit/cc-backend.git
 cd ./cc-backend
 ./startDemo.sh
 ```
@@ -48,7 +49,7 @@ There is a Makefile to automate the build of cc-backend. The Makefile supports t
 
 A common workflow to setup cc-backend fron scratch is:
 ```sh
-git clone git@github.com:ClusterCockpit/cc-backend.git
+git clone https://github.com/ClusterCockpit/cc-backend.git
 
 # Build binary
 cd ./cc-backend/
