@@ -5,7 +5,7 @@
 This is a Golang backend implementation for a REST and GraphQL API according to the [ClusterCockpit specifications](https://github.com/ClusterCockpit/cc-specifications).
 It also includes a web interface for ClusterCockpit.
 While there is a backend for the InfluxDB timeseries database, the only tested and supported setup is using cc-metric-store as a mtric data backend.
-We will add documentation how to integrate CluisterCockpity with other existing timeseries databases in the future.
+We will add documentation how to integrate ClusterCockpit with other timeseries databases in the future.
 This implementation replaces the previous PHP Symfony based ClusterCockpit web-interface.
 [Here](https://github.com/ClusterCockpit/ClusterCockpit/wiki/Why-we-switched-from-PHP-Symfony-to-a-Golang-based-solution) is a discussion of the reasons why we switched from PHP Symfony to a Golang based solution.
 
