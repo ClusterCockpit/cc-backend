@@ -24,6 +24,7 @@ You find more detailed information here:
 * `./configs/README.md`: Infos about configuration and setup of cc-backend.
 * `./init/README.md`: Infos on how to setup cc-backend as systemd service on Linux.
 * `./tools/README.md`: Infos on the JWT authorizatin token workflows in ClusterCockpit.
+* `./docs`: You can find further documentation here. There is also a Hands-on tutorial that is recommended to get familiar with the ClusterCockpit setup.
 
 ## Demo Setup
 
