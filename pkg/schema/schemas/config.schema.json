@@ -138,7 +138,7 @@
                             "kind": {
                                 "type": "string",
                                 "enum": [
-                                    "influxdb-v2",
+                                    "influxdb",
                                     "prometheus",
                                     "cc-metric-store",
                                     "test"
