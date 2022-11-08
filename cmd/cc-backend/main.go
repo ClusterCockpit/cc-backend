@@ -175,7 +175,7 @@ func main() {
 		log.Fatal("arguments --add-user and --del-user can only be used if authentication is enabled")
 	}
 
-	if err := archive.Init(config.Keys.Archive); err != nil {
+	if err := archive.Init(config.Keys.Archive, config.Keys.DisableArchive); err != nil {
 		log.Fatal(err)
 	}
 

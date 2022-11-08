@@ -32,8 +32,10 @@ type ArchiveBackend interface {
 
 var cache *lrucache.Cache = lrucache.New(128 * 1024 * 1024)
 var ar ArchiveBackend
+var useArchive bool
 
-func Init(rawConfig json.RawMessage) error {
+func Init(rawConfig json.RawMessage, disableArchive bool) error {
+	useArchive = !disableArchive
 	var kind struct {
 		Kind string `json:"kind"`
 	}
@@ -96,7 +98,7 @@ func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
 // in that JSON file. If the job is not archived, nothing is done.
 func UpdateTags(job *schema.Job, tags []*schema.Tag) error {
 
-	if job.State == schema.JobStateRunning {
+	if job.State == schema.JobStateRunning || !useArchive {
 		return nil
 	}
 
