@@ -284,7 +284,7 @@ func setup(t *testing.T) *api.RestApi {
 	repository.Connect("sqlite3", dbfilepath)
 	db := repository.GetConnection()
 
-	if err := archive.Init(json.RawMessage(archiveCfg)); err != nil {
+	if err := archive.Init(json.RawMessage(archiveCfg), config.Keys.DisableArchive); err != nil {
 		t.Fatal(err)
 	}
 
