@@ -92,6 +92,7 @@ func (nle NLExprIntRange) consume(input string) (next string, ok bool) {
 func ParseNodeList(raw string) (NodeList, error) {
 	isLetter := func(r byte) bool { return ('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z') }
 	isDigit := func(r byte) bool { return '0' <= r && r <= '9' }
+	isDash := func(r byte) bool { return r == '-' }
 
 	rawterms := []string{}
 	prevterm := 0
@@ -117,23 +118,29 @@ func ParseNodeList(raw string) (NodeList, error) {
 		exprs := []interface {
 			consume(input string) (next string, ok bool)
 		}{}
+
 		for i := 0; i < len(rawterm); i++ {
 			c := rawterm[i]
 			if isLetter(c) || isDigit(c) {
 				j := i
-				for j < len(rawterm) && (isLetter(rawterm[j]) || isDigit(rawterm[j])) {
+				for j < len(rawterm) &&
+					(isLetter(rawterm[j]) ||
+						isDigit(rawterm[j]) ||
+						isDash(rawterm[j])) {
 					j++
 				}
 				exprs = append(exprs, NLExprString(rawterm[i:j]))
 				i = j - 1
 			} else if c == '[' {
 				end := strings.Index(rawterm[i:], "]")
+
 				if end == -1 {
 					return nil, fmt.Errorf("node list: unclosed '['")
 				}
 
 				parts := strings.Split(rawterm[i+1:i+end], ",")
 				nles := NLExprIntRanges{}
+
 				for _, part := range parts {
 					minus := strings.Index(part, "-")
 					if minus == -1 {
