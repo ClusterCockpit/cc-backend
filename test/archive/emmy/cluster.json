@@ -30,7 +30,9 @@
         {
             "name": "cpu_load",
             "scope": "hwthread",
-            "unit": "load",
+            "unit":  {
+                "base": "load"
+            },
             "timestep": 60,
             "peak": 40,
             "normal": 20,
@@ -40,7 +42,10 @@
         {
             "name": "mem_used",
             "scope": "node",
-            "unit": "GB",
+            "unit":  {
+                "base": "B",
+                "prefix": "G"
+            },
             "timestep": 60,
             "peak": 64,
             "normal": 20,
@@ -50,7 +55,10 @@
         {
             "name": "flops_any",
             "scope": "hwthread",
-            "unit": "GF/s",
+            "unit":  {
+                "base": "F/s",
+                "prefix": "G"
+            },
             "timestep": 60,
             "peak": 704,
             "normal": 100,
@@ -60,7 +68,10 @@
         {
             "name": "flops_sp",
             "scope": "hwthread",
-            "unit": "GF/s",
+            "unit":  {
+                "base": "F/s",
+                "prefix": "G"
+            },
             "timestep": 60,
             "peak": 704,
             "normal": 100,
@@ -70,7 +81,10 @@
         {
             "name": "flops_dp",
             "scope": "hwthread",
-            "unit": "GF/s",
+            "unit":  {
+                "base": "F/s",
+                "prefix": "G"
+            },
             "timestep": 60,
             "peak": 350,
             "normal": 50,
@@ -80,7 +94,10 @@
         {
             "name": "mem_bw",
             "scope": "memoryDomain",
-            "unit": "GB/s",
+            "unit":  {
+                "base": "B/s",
+                "prefix": "G"
+            },
             "timestep": 60,
             "peak": 80,
             "normal": 30,
@@ -90,7 +107,9 @@
         {
             "name": "ipc",
             "scope": "hwthread",
-            "unit": "IPC",
+            "unit":  {
+                "base": "IPC"
+            },
             "timestep": 60,
             "peak": 80,
             "normal": 30,
@@ -100,7 +119,10 @@
         {
             "name": "clock",
             "scope": "hwthread",
-            "unit": "MHz",
+            "unit":  {
+                "base": "Hz",
+                "prefix": "M"
+            },
             "timestep": 60,
             "peak": 80,
             "normal": 30,
@@ -110,7 +132,9 @@
         {
             "name": "rapl_power",
             "scope": "socket",
-            "unit": "W",
+            "unit":  {
+                "base": "W"
+            },
             "timestep": 60,
             "peak": 80,
             "normal": 30,
@@ -120,7 +144,10 @@
         {
             "name": "ib_bw",
             "scope": "node",
-            "unit": "GB/s",
+            "unit":  {
+                "base": "B/s",
+                "prefix": "G"
+            },
             "timestep": 60,
             "peak": 40,
             "normal": 20,
@@ -130,7 +157,10 @@
         {
             "name": "lustre_bw",
             "scope": "node",
-            "unit": "GB/s",
+            "unit":  {
+                "base": "B/s",
+                "prefix": "G"
+            },
             "timestep": 60,
             "peak": 40,
             "normal": 20,

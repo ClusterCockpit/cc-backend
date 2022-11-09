@@ -68,7 +68,7 @@ func TestValidateCluster(t *testing.T) {
 			{
 				"name": "cpu_load",
 				"scope": "hwthread",
-				"unit": "load",
+				"unit": {"base": "load"},
 				"timestep": 60
 			}
 		]

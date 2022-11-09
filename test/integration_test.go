@@ -84,7 +84,7 @@ func setup(t *testing.T) *api.RestApi {
 		"metricConfig": [
 			{
 				"name": "load_one",
-				"unit": "load",
+			    "unit": { "base": "load"},
 				"scope": "node",
 				"timestep": 60,
 				"peak": 8,
@@ -125,7 +125,7 @@ func setup(t *testing.T) *api.RestApi {
 		  {
 			"name": "cpu_used",
 			"scope": "core",
-			"unit": "",
+			"unit": {"base": ""},
 			"timestep": 30,
 			"subClusters": [
 			  {
@@ -140,7 +140,7 @@ func setup(t *testing.T) *api.RestApi {
 		  {
 			"name": "ipc",
 			"scope": "core",
-			"unit": "IPC",
+			"unit": { "base": "IPC"},
 			"timestep": 60,
 			"subClusters": [
 			  {
@@ -155,7 +155,7 @@ func setup(t *testing.T) *api.RestApi {
 		  {
 			"name": "flops_any",
 			"scope": "core",
-			"unit": "F/s",
+			"unit": { "base": "F/s"},
 			"timestep": 60,
 			"subClusters": [
 			  {
@@ -170,7 +170,7 @@ func setup(t *testing.T) *api.RestApi {
 		  {
 			"name": "mem_bw",
 			"scope": "socket",
-			"unit": "B/s",
+			"unit": { "base": "B/s"},
 			"timestep": 60,
 			"subClusters": [
 			  {
@@ -185,7 +185,7 @@ func setup(t *testing.T) *api.RestApi {
 		  {
 			"name": "file_bw",
 			"scope": "node",
-			"unit": "B/s",
+			"unit": { "base": "B/s"},
 			"timestep": 30,
 			"subClusters": [
 			  {
@@ -200,7 +200,7 @@ func setup(t *testing.T) *api.RestApi {
 		  {
 			"name": "net_bw",
 			"scope": "node",
-			"unit": "B/s",
+			"unit": { "base": "B/s"},
 			"timestep": 30,
 			"subClusters": [
 			  {
@@ -215,7 +215,7 @@ func setup(t *testing.T) *api.RestApi {
 		  {
 			"name": "mem_used",
 			"scope": "node",
-			"unit": "B",
+			"unit": {"base": "B"},
 			"timestep": 30,
 			"subClusters": [
 			  {
@@ -230,7 +230,7 @@ func setup(t *testing.T) *api.RestApi {
 		  {
 			"name": "cpu_power",
 			"scope": "socket",
-			"unit": "W",
+			"unit": {"base": "W"},
 			"timestep": 60,
 			"subClusters": [
 			  {
@@ -321,7 +321,7 @@ func TestRestApi(t *testing.T) {
 	testData := schema.JobData{
 		"load_one": map[schema.MetricScope]*schema.JobMetric{
 			schema.MetricScopeNode: {
-				Unit:     "load",
+				Unit:     schema.Unit{Base: "load"},
 				Scope:    schema.MetricScopeNode,
 				Timestep: 60,
 				Series: []schema.Series{
@@ -604,13 +604,13 @@ func testImportFlag(t *testing.T) {
 	}
 
 	r := map[string]string{"mem_used": "GB", "net_bw": "KB/s",
-		"cpu_power": "W", "cpu_used": "cpu_used",
+		"cpu_power": "W", "cpu_used": "",
 		"file_bw": "KB/s", "flops_any": "Flops/s",
 		"mem_bw": "GB/s", "ipc": "IPC"}
 
 	for name, scopes := range data {
 		for _, metric := range scopes {
-			if metric.Unit != r[name] {
+			if metric.Unit.Base != r[name] {
 				t.Errorf("Metric %s unit: Got %s, want %s", name, metric.Unit, r[name])
 			}
 		}
