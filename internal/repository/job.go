@@ -156,6 +156,42 @@ func (r *JobRepository) Find(
 	return scanJob(q.RunWith(r.stmtCache).QueryRow())
 }
 
+// Find executes a SQL query to find a specific batch job.
+// The job is queried using the batch job id, the cluster name,
+// and the start time of the job in UNIX epoch time seconds.
+// It returns a pointer to a schema.Job data structure and an error variable.
+// To check if no job was found test err == sql.ErrNoRows
+func (r *JobRepository) FindAll(
+	jobId *int64,
+	cluster *string,
+	startTime *int64) ([]*schema.Job, error) {
+
+	q := sq.Select(jobColumns...).From("job").
+		Where("job.job_id = ?", *jobId)
+
+	if cluster != nil {
+		q = q.Where("job.cluster = ?", *cluster)
+	}
+	if startTime != nil {
+		q = q.Where("job.start_time = ?", *startTime)
+	}
+
+	rows, err := q.RunWith(r.stmtCache).Query()
+	if err != nil {
+		return nil, err
+	}
+
+	jobs := make([]*schema.Job, 0, 10)
+	for rows.Next() {
+		job, err := scanJob(rows)
+		if err != nil {
+			return nil, err
+		}
+		jobs = append(jobs, job)
+	}
+	return jobs, nil
+}
+
 // FindById executes a SQL query to find a specific batch job.
 // The job is queried using the database id.
 // It returns a pointer to a schema.Job data structure and an error variable.

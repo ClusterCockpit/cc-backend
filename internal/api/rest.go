@@ -99,12 +99,12 @@ type StartJobApiResponse struct {
 // @Description Request to stop running job using stoptime and final state.
 // @Description They are only required if no database id was provided with endpoint.
 type StopJobApiRequest struct {
-  // Stop Time of job as epoch
+	// Stop Time of job as epoch
 	StopTime  int64           `json:"stopTime" validate:"required" example:"1649763839"`
-	State     schema.JobState `json:"jobState" validate:"required" example:"completed" enums:"completed,failed,cancelled,stopped,timeout"`   // Final job state
-	JobId     *int64          `json:"jobId" example:"123000"` // Cluster Job ID of job
-	Cluster   *string         `json:"cluster" example:"fritz"` // Cluster of job
-	StartTime *int64          `json:"startTime" example:"1649723812"` // Start Time of job as epoch
+	State     schema.JobState `json:"jobState" validate:"required" example:"completed" enums:"completed,failed,cancelled,stopped,timeout"` // Final job state
+	JobId     *int64          `json:"jobId" example:"123000"`                                                                              // Cluster Job ID of job
+	Cluster   *string         `json:"cluster" example:"fritz"`                                                                             // Cluster of job
+	StartTime *int64          `json:"startTime" example:"1649723812"`                                                                      // Start Time of job as epoch
 }
 
 // ErrorResponse model
@@ -363,14 +363,16 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if combination of (job_id, cluster_id, start_time) already exists:
-	job, err := api.JobRepository.Find(&req.JobID, &req.Cluster, nil)
+	jobs, err := api.JobRepository.FindAll(&req.JobID, &req.Cluster, nil)
 	if err != nil && err != sql.ErrNoRows {
 		handleError(fmt.Errorf("checking for duplicate failed: %w", err), http.StatusInternalServerError, rw)
 		return
 	} else if err == nil {
-		if (req.StartTime - job.StartTimeUnix) < 86400 {
-			handleError(fmt.Errorf("a job with that jobId, cluster and startTime already exists: dbid: %d", job.ID), http.StatusUnprocessableEntity, rw)
-			return
+		for _, job := range jobs {
+			if (req.StartTime - job.StartTimeUnix) < 86400 {
+				handleError(fmt.Errorf("a job with that jobId, cluster and startTime already exists: dbid: %d", job.ID), http.StatusUnprocessableEntity, rw)
+				return
+			}
 		}
 	}
 
@@ -723,13 +725,13 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 	delrole := r.FormValue("remove-role")
 
 	// TODO: Handle anything but roles...
-	if (newrole != "") {
+	if newrole != "" {
 		if err := api.Authentication.AddRole(r.Context(), mux.Vars(r)["id"], newrole); err != nil {
 			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 			return
 		}
 		rw.Write([]byte("Add Role Success"))
-	} else if (delrole != "") {
+	} else if delrole != "" {
 		if err := api.Authentication.RemoveRole(r.Context(), mux.Vars(r)["id"], delrole); err != nil {
 			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 			return
