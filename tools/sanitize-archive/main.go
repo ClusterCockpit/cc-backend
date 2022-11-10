@@ -9,9 +9,36 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
+
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/ClusterCockpit/cc-backend/pkg/units"
 )
 
 var ar FsArchive
+
+func deepCopyClusterConfig(co *Cluster) schema.Cluster {
+	var cn schema.Cluster
+
+	cn.Name = co.Name
+	cn.SubClusters = co.SubClusters
+
+	for _, mco := range co.MetricConfig {
+		var mcn schema.MetricConfig
+		mcn.Name = mco.Name
+		mcn.Scope = mco.Scope
+		mcn.Aggregation = mco.Aggregation
+		mcn.Timestep = mco.Timestep
+		mcn.Peak = mco.Peak
+		mcn.Normal = mco.Normal
+		mcn.Caution = mco.Caution
+		mcn.Alert = mco.Alert
+		mcn.Unit = units.ConvertUnitString(mco.Unit)
+		cn.MetricConfig = append(cn.MetricConfig, &mcn)
+	}
+
+	return cn
+}
 
 func main() {
 	var srcPath string
@@ -26,7 +53,38 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for job := range ar.Iter() {
-		fmt.Printf("Job %d\n", job.JobID)
+	err = initClusterConfig()
+	if err != nil {
+		log.Fatal(err)
 	}
+	// setup new job archive
+	err = os.Mkdir(dstPath, 0750)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, c := range Clusters {
+		path := fmt.Sprintf("%s/%s", dstPath, c.Name)
+		fmt.Println(path)
+		err = os.Mkdir(path, 0750)
+		if err != nil {
+			log.Fatal(err)
+		}
+		cn := deepCopyClusterConfig(c)
+
+		f, err := os.Create(fmt.Sprintf("%s/%s/cluster.json", dstPath, c.Name))
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := EncodeCluster(f, &cn); err != nil {
+			log.Fatal(err)
+		}
+		if err := f.Close(); err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	// for job := range ar.Iter() {
+	// 	fmt.Printf("Job %d\n", job.JobID)
+	// }
 }

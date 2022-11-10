@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
 var Clusters []*Cluster
@@ -42,7 +43,7 @@ func initClusterConfig() error {
 
 			// For backwards compability...
 			if mc.Scope == "" {
-				mc.Scope = MetricScopeNode
+				mc.Scope = schema.MetricScopeNode
 			}
 			if !mc.Scope.Valid() {
 				return errors.New("cluster.metricConfig.scope must be a valid scope ('node', 'scocket', ...)")
@@ -78,7 +79,7 @@ func GetCluster(cluster string) *Cluster {
 	return nil
 }
 
-func GetSubCluster(cluster, subcluster string) *SubCluster {
+func GetSubCluster(cluster, subcluster string) *schema.SubCluster {
 
 	for _, c := range Clusters {
 		if c.Name == cluster {

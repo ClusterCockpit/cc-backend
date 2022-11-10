@@ -7,6 +7,8 @@ package main
 import (
 	"encoding/json"
 	"io"
+
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
 func DecodeJobData(r io.Reader, k string) (JobData, error) {
@@ -52,6 +54,15 @@ func EncodeJobData(w io.Writer, d *JobData) error {
 func EncodeJobMeta(w io.Writer, d *JobMeta) error {
 	// Sanitize parameters
 	if err := json.NewEncoder(w).Encode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func EncodeCluster(w io.Writer, c *schema.Cluster) error {
+	// Sanitize parameters
+	if err := json.NewEncoder(w).Encode(c); err != nil {
 		return err
 	}
 

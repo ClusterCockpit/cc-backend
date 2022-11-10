@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math"
 	"strings"
+
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
 type unit struct {
@@ -129,6 +131,32 @@ func NormalizeSeries(s []float64, avg float64, us string, nu *string) {
 	u.setPrefix(NewPrefixFromFactor(u.getPrefix(), e))
 	fmt.Printf("Prefix: %e \n", u.getPrefix())
 	*nu = u.Short()
+}
+
+func ConvertUnitString(us string) schema.Unit {
+	var nu schema.Unit
+
+	if us == "CPI" ||
+		us == "IPC" ||
+		us == "load" ||
+		us == "" {
+		nu.Base = us
+		return nu
+	}
+	u := NewUnit(us)
+	p := u.getPrefix()
+	if p.Prefix() != "" {
+		nu.Prefix = p.Prefix()
+	}
+	m := u.getMeasure()
+	d := u.getUnitDenominator()
+	if d.Short() != "inval" {
+		nu.Base = fmt.Sprintf("%s/%s", m.Short(), d.Short())
+	} else {
+		nu.Base = m.Short()
+	}
+
+	return nu
 }
 
 // GetPrefixPrefixFactor creates the default conversion function between two prefixes.
