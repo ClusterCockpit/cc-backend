@@ -246,6 +246,21 @@ func (r *JobRepository) Stop(
 	return
 }
 
+func (r *JobRepository) DeleteJobsBefore(startTime int64) (int, error) {
+	var cnt int
+	q := sq.Select("COUNT(*)").From("job").Where("job.start_time < ?", startTime)
+	q.QueryRow().Scan(&cnt)
+
+	_, err := r.DB.Exec(`DELETE FROM job WHERE job.start_time < ?`, startTime)
+	return cnt, err
+}
+
+func (r *JobRepository) DeleteJobById(id int64) error {
+
+	_, err := r.DB.Exec(`DELETE FROM job WHERE job.id = ?`, id)
+	return err
+}
+
 // TODO: Use node hours instead: SELECT job.user, sum(job.num_nodes * (CASE WHEN job.job_state = "running" THEN CAST(strftime('%s', 'now') AS INTEGER) - job.start_time ELSE job.duration END)) as x FROM job GROUP BY user ORDER BY x DESC;
 func (r *JobRepository) CountGroupedJobs(ctx context.Context, aggreg model.Aggregate, filters []*model.JobFilter, weight *model.Weights, limit *int) (map[string]int, error) {
 	if !aggreg.IsValid() {
