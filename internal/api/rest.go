@@ -517,7 +517,7 @@ func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 	if req.State != "" && !req.State.Valid() {
 		handleError(fmt.Errorf("invalid job state: %#v", req.State), http.StatusBadRequest, rw)
 		return
-	} else {
+	} else if req.State == "" {
 		req.State = schema.JobStateCompleted
 	}
 
