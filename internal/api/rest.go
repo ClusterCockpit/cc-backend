@@ -630,7 +630,7 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 // deleteJobBefore godoc
 // @summary     Remove a job from the sql database
 // @tags remove
-// @description Job to stop is specified by database ID. This will not remove the job from the job archive.
+// @description Remove all jobs with start time before timestamp. The jobs will not be removed from the job archive.
 // @produce     json
 // @param       ts      path     int                   true "Unix epoch timestamp"
 // @success     200     {object} api.DeleteJobApiResponse     "Success message"
