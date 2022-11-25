@@ -566,8 +566,8 @@ func subtestLetJobFail(t *testing.T, restapi *api.RestApi, r *mux.Router) {
 			t.Fatal(err)
 		}
 
-		if job.State != schema.JobStateCompleted {
-			t.Fatal("expected job to be completed")
+		if job.State != schema.JobStateFailed {
+			t.Fatal("expected job to be failed")
 		}
 	})
 	if !ok {
