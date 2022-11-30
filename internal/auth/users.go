@@ -143,7 +143,7 @@ func (auth *Authentication) RemoveRole(ctx context.Context, username string, rol
 		return err
 	}
 
-	if role != RoleAdmin && role != RoleApi && role != RoleUser {
+	if role != RoleAdmin && role != RoleApi && role != RoleUser && role != RoleSupport {
 		return fmt.Errorf("invalid user role: %#v", role)
 	}
 
