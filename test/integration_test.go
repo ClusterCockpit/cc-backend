@@ -343,7 +343,7 @@ func TestRestApi(t *testing.T) {
 	restapi.MountRoutes(r)
 
 	const startJobBody string = `{
-"jobId":            123,
+    	"jobId":            123,
 		"user":             "testuser",
 		"project":          "testproj",
 		"cluster":          "testcluster",
@@ -542,7 +542,7 @@ func subtestLetJobFail(t *testing.T, restapi *api.RestApi, r *mux.Router) {
 	}
 
 	const stopJobBody string = `{
-"jobId":     12345,
+	"jobId":     12345,
 		"cluster":   "testcluster",
 
 		"jobState": "failed",
