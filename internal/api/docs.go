@@ -268,7 +268,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Job to stop is specified by database ID. This will not remove the job from the job archive.",
+                "description": "Remove all jobs with start time before timestamp. The jobs will not be removed from the job archive.",
                 "produces": [
                     "application/json"
                 ],
@@ -1069,7 +1069,7 @@ const docTemplate = `{
             }
         },
         "schema.Tag": {
-            "description": "Defines B tag using name and type.",
+            "description": "Defines a tag using name and type.",
             "type": "object",
             "properties": {
                 "id": {

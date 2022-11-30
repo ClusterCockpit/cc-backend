@@ -347,7 +347,7 @@ definitions:
         type: array
     type: object
   schema.Tag:
-    description: Defines B tag using name and type.
+    description: Defines a tag using name and type.
     properties:
       id:
         description: The unique DB identifier of a tag
@@ -536,8 +536,8 @@ paths:
       - remove
   /jobs/delete_job_before/{ts}:
     delete:
-      description: Job to stop is specified by database ID. This will not remove the
-        job from the job archive.
+      description: Remove all jobs with start time before timestamp. The jobs will
+        not be removed from the job archive.
       parameters:
       - description: Unix epoch timestamp
         in: path

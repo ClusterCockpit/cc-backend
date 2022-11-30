@@ -100,7 +100,7 @@ type JobStatistics struct {
 }
 
 // Tag model
-// @Description Defines B tag using name and type.
+// @Description Defines a tag using name and type.
 type Tag struct {
 	// The unique DB identifier of a tag
 	ID   int64  `json:"id" db:"id"`
