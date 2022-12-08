@@ -411,7 +411,6 @@ func (r *JobRepository) TriggerArchiving(job *schema.Job){
 // Wait for background thread to finish pending archiving operations
 func (r *JobRepository) WaitForArchiving(){
 	// close channel and wait for worker to process remaining jobs
-	close(r.archiveChannel)
 	r.archivePending.Wait()
 }
 
