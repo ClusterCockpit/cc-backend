@@ -6,7 +6,6 @@ package api
 
 import (
 	"bufio"
-	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -23,7 +22,6 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
-	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
@@ -56,7 +54,6 @@ type RestApi struct {
 	Resolver          *graph.Resolver
 	Authentication    *auth.Authentication
 	MachineStateDir   string
-	OngoingArchivings sync.WaitGroup
 	RepositoryMutex   sync.Mutex
 }
 
@@ -721,34 +718,8 @@ func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 		return
 	}
 
-	// We need to start a new goroutine as this functions needs to return
-	// for the response to be flushed to the client.
-	api.OngoingArchivings.Add(1) // So that a shutdown does not interrupt this goroutine.
-	go func() {
-		defer api.OngoingArchivings.Done()
-
-		if _, err := api.JobRepository.FetchMetadata(job); err != nil {
-			log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
-			api.JobRepository.UpdateMonitoringStatus(job.ID, schema.MonitoringStatusArchivingFailed)
-			return
-		}
-
-		// metricdata.ArchiveJob will fetch all the data from a MetricDataRepository and create meta.json/data.json files
-		jobMeta, err := metricdata.ArchiveJob(job, context.Background())
-		if err != nil {
-			log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
-			api.JobRepository.UpdateMonitoringStatus(job.ID, schema.MonitoringStatusArchivingFailed)
-			return
-		}
-
-		// Update the jobs database entry one last time:
-		if err := api.JobRepository.Archive(job.ID, schema.MonitoringStatusArchivingSuccessful, jobMeta.Statistics); err != nil {
-			log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
-			return
-		}
-
-		log.Printf("archiving job (dbid: %d) successful", job.ID)
-	}()
+	// Trigger async archiving
+	api.JobRepository.TriggerArchiving(job)
 }
 
 // func (api *RestApi) importJob(rw http.ResponseWriter, r *http.Request) {

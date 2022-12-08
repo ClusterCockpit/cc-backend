@@ -416,7 +416,7 @@ func main() {
 		server.Shutdown(context.Background())
 
 		// Then, wait for any async archivings still pending...
-		api.OngoingArchivings.Wait()
+		api.JobRepository.WaitForArchiving()
 	}()
 
 	if config.Keys.StopJobsExceedingWalltime > 0 {
