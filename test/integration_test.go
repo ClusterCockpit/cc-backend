@@ -441,7 +441,7 @@ func TestRestApi(t *testing.T) {
 			t.Fatal(response.Status, recorder.Body.String())
 		}
 
-		restapi.OngoingArchivings.Wait()
+		restapi.JobRepository.WaitForArchiving()
 		job, err := restapi.Resolver.Query().Job(context.Background(), strconv.Itoa(int(dbid)))
 		if err != nil {
 			t.Fatal(err)
@@ -559,7 +559,7 @@ func subtestLetJobFail(t *testing.T, restapi *api.RestApi, r *mux.Router) {
 			t.Fatal(response.Status, recorder.Body.String())
 		}
 
-		restapi.OngoingArchivings.Wait()
+		restapi.JobRepository.WaitForArchiving()
 		jobid, cluster := int64(12345), "testcluster"
 		job, err := restapi.JobRepository.Find(&jobid, &cluster, nil)
 		if err != nil {
