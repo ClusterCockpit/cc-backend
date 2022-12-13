@@ -295,12 +295,12 @@ func main() {
 	}
 	secured.Handle("/query", graphQLEndpoint)
 
-	// Send a searchId and then reply with a redirect to a user or job.
+	// Send a searchId and then reply with a redirect to a user or job. // IMPROVE HERE
 	secured.HandleFunc("/search", func(rw http.ResponseWriter, r *http.Request) {
 		if search := r.URL.Query().Get("searchId"); search != "" {
 			job, username, err := api.JobRepository.FindJobOrUser(r.Context(), search)
 			if err == repository.ErrNotFound {
-				http.Redirect(rw, r, "/monitoring/jobs/?jobId="+url.QueryEscape(search), http.StatusTemporaryRedirect)
+				http.Redirect(rw, r, "/monitoring/jobs/?jobId="+url.QueryEscape(search), http.StatusTemporaryRedirect) // Directly to table! -> Running Jobs probably
 				return
 			} else if err != nil {
 				http.Error(rw, err.Error(), http.StatusInternalServerError)

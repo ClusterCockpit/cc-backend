@@ -360,9 +360,14 @@ func (r *JobRepository) Archive(
 
 var ErrNotFound = errors.New("no such job or user")
 
-// FindJobOrUser returns a job database ID or a username if a job or user machtes the search term.
+// FindJobOrUser returns a job database ID or a username if a job or user matches the search term.
 // As 0 is a valid job id, check if username is "" instead in order to check what machted.
 // If nothing matches the search, `ErrNotFound` is returned.
+
+// TO BE IMPROVED; SHOW ALL MATCHES (eg: multiple clusters with matching jobId) + Search by JobNAME
+// Plan: Parent-Method: Solves Searchtag or, if no searchtag, tries to find by hierarical searchId
+// Plan: Nested methods for jobid, jobname (?), username, project, tag [dependent on roles of user, do not forget api!]
+
 func (r *JobRepository) FindJobOrUser(ctx context.Context, searchterm string) (job int64, username string, err error) {
 	user := auth.GetUser(ctx)
 	if id, err := strconv.Atoi(searchterm); err == nil {
