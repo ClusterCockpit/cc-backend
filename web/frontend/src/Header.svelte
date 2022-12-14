@@ -55,7 +55,7 @@
     <div class="d-flex">
         <form method="GET" action="/search">
             <InputGroup>
-                <Input type="text" placeholder={isAdmin ? "Search jobId / username" : "Search jobId"} name="searchId"/>
+                <Input type="text" placeholder={isAdmin ? "Search jobId/username/projectId" : "Search jobId"} name="searchId"/>
                 <Button outline type="submit"><Icon name="search"/></Button>
             </InputGroup>
         </form>

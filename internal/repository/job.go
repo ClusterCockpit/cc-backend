@@ -358,17 +358,15 @@ func (r *JobRepository) Archive(
 	return nil
 }
 
-var ErrNotFound = errors.New("no such job or user")
+var ErrNotFound = errors.New("no such job, project or user")
 
-// FindJobOrUser returns a job database ID or a username if a job or user matches the search term.
-// As 0 is a valid job id, check if username is "" instead in order to check what machted.
+// FindJobOrUserOrProject returns a job database ID or a username or a projectId if a job or user or project matches the search term.
+// As 0 is a valid job id, check if username/projectId is "" instead in order to check what matched.
 // If nothing matches the search, `ErrNotFound` is returned.
 
-// TO BE IMPROVED; SHOW ALL MATCHES (eg: multiple clusters with matching jobId) + Search by JobNAME
-// Plan: Parent-Method: Solves Searchtag or, if no searchtag, tries to find by hierarical searchId
-// Plan: Nested methods for jobid, jobname (?), username, project, tag [dependent on roles of user, do not forget api!]
+// TO BE IMPROVED; Search by JobNAME
 
-func (r *JobRepository) FindJobOrUser(ctx context.Context, searchterm string) (job int64, username string, err error) {
+func (r *JobRepository) FindJobOrUserOrProject(ctx context.Context, searchterm string) (job int64, username string, project string, err error) {
 	user := auth.GetUser(ctx)
 	if id, err := strconv.Atoi(searchterm); err == nil {
 		qb := sq.Select("job.id").From("job").Where("job.job_id = ?", id)
@@ -378,9 +376,9 @@ func (r *JobRepository) FindJobOrUser(ctx context.Context, searchterm string) (j
 
 		err := qb.RunWith(r.stmtCache).QueryRow().Scan(&job)
 		if err != nil && err != sql.ErrNoRows {
-			return 0, "", err
+			return 0, "", "", err
 		} else if err == nil {
-			return job, "", nil
+			return job, "", "", nil
 		}
 	}
 
@@ -389,13 +387,24 @@ func (r *JobRepository) FindJobOrUser(ctx context.Context, searchterm string) (j
 			Where("job.user = ?", searchterm).
 			RunWith(r.stmtCache).QueryRow().Scan(&username)
 		if err != nil && err != sql.ErrNoRows {
-			return 0, "", err
+			return 0, "", "", err
 		} else if err == nil {
-			return 0, username, nil
+			return 0, username, "", nil
 		}
 	}
 
-	return 0, "", ErrNotFound
+	if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleSupport) {
+		err := sq.Select("job.project").Distinct().From("job").
+			Where("job.project = ?", searchterm).
+			RunWith(r.stmtCache).QueryRow().Scan(&project)
+		if err != nil && err != sql.ErrNoRows {
+			return 0, "", "", err
+		} else if err == nil {
+			return 0, "", project, nil
+		}
+	}
+
+	return 0, "", "", ErrNotFound
 }
 
 func (r *JobRepository) Partitions(cluster string) ([]string, error) {
