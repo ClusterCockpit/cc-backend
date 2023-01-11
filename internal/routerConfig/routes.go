@@ -180,6 +180,9 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 		filterPresets["project"] = query.Get("project")
 		filterPresets["projectMatch"] = "eq"
 	}
+	if query.Get("jobName") != "" {
+		filterPresets["jobName"] = query.Get("jobName")
+	}
 	if query.Get("user") != "" {
 		filterPresets["user"] = query.Get("user")
 		filterPresets["userMatch"] = "eq"

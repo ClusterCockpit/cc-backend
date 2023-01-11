@@ -52,7 +52,7 @@ func GetJobRepository() *JobRepository {
 var jobColumns []string = []string{
 	"job.id", "job.job_id", "job.user", "job.project", "job.cluster", "job.subcluster", "job.start_time", "job.partition", "job.array_job_id",
 	"job.num_nodes", "job.num_hwthreads", "job.num_acc", "job.exclusive", "job.monitoring_status", "job.smt", "job.job_state",
-	"job.duration", "job.walltime", "job.resources", // "job.meta_data",
+	"job.duration", "job.walltime", "job.resources", "job.meta_data",
 }
 
 func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
@@ -60,11 +60,15 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 	if err := row.Scan(
 		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.SubCluster, &job.StartTimeUnix, &job.Partition, &job.ArrayJobId,
 		&job.NumNodes, &job.NumHWThreads, &job.NumAcc, &job.Exclusive, &job.MonitoringStatus, &job.SMT, &job.State,
-		&job.Duration, &job.Walltime, &job.RawResources /*&job.MetaData*/); err != nil {
+		&job.Duration, &job.Walltime, &job.RawResources, &job.RawMetaData); err != nil {
 		return nil, err
 	}
 
 	if err := json.Unmarshal(job.RawResources, &job.Resources); err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(job.RawMetaData, &job.MetaData); err != nil {
 		return nil, err
 	}
 
@@ -75,6 +79,37 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 
 	job.RawResources = nil
 	return job, nil
+}
+
+func (r *JobRepository) FetchJobName(job *schema.Job) (*string, error) {
+	cachekey := fmt.Sprintf("metadata:%d", job.ID)
+	if cached := r.cache.Get(cachekey, nil); cached != nil {
+		job.MetaData = cached.(map[string]string)
+		if jobName := job.MetaData["jobName"]; jobName != "" {
+			return &jobName, nil
+		}
+	}
+
+	if err := sq.Select("job.meta_data").From("job").Where("job.id = ?", job.ID).
+		RunWith(r.stmtCache).QueryRow().Scan(&job.RawMetaData); err != nil {
+		return nil, err
+	}
+
+	if len(job.RawMetaData) == 0 {
+		return nil, nil
+	}
+
+	if err := json.Unmarshal(job.RawMetaData, &job.MetaData); err != nil {
+		return nil, err
+	}
+
+	r.cache.Put(cachekey, job.MetaData, len(job.RawMetaData), 24*time.Hour)
+
+	if jobName := job.MetaData["jobName"]; jobName != "" {
+		return &jobName, nil
+	} else {
+		return new(string), nil
+	}
 }
 
 func (r *JobRepository) FetchMetadata(job *schema.Job) (map[string]string, error) {
