@@ -1,7 +1,7 @@
 <script>
     import { Icon, Button, InputGroup, Input, Collapse,
              Navbar, NavbarBrand, Nav, NavItem, NavLink, NavbarToggler,
-             Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from 'sveltestrap'
+             Dropdown, DropdownToggle, DropdownMenu, DropdownItem, InputGroupText } from 'sveltestrap'
 
     export let username // empty string if auth. is disabled, otherwise the username as string
     export let isAdmin  // boolean
@@ -55,8 +55,9 @@
     <div class="d-flex">
         <form method="GET" action="/search">
             <InputGroup>
-                <Input type="text" placeholder={isAdmin ? "Search jobId/username/projectId" : "Search jobId"} name="searchId"/>
+                <Input type="text" placeholder="Search 'type:<query>' ..." name="searchId"/>
                 <Button outline type="submit"><Icon name="search"/></Button>
+                <InputGroupText style="cursor:help;" title={isAdmin ? "Example: 'projectId:a100cd', Types are: jobId | jobName | projectId | username" : "Example: 'jobName:myjob', Types are jobId | jobName"}><Icon name="info-circle"/></InputGroupText>
             </InputGroup>
         </form>
         {#if username}

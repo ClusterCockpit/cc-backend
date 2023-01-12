@@ -298,27 +298,64 @@ func main() {
 	// Send a searchId and then reply with a redirect to a user, or directly send query to job table for jobid and project.
 	secured.HandleFunc("/search", func(rw http.ResponseWriter, r *http.Request) {
 		if search := r.URL.Query().Get("searchId"); search != "" {
+			splitSearch := strings.Split(search, ":")
 
-			_, username, project, err := api.JobRepository.FindJobOrUserOrProject(r.Context(), search)
+			if (len(splitSearch) == 2) {
+				switch splitSearch[0] {
+		    case "jobId":
+					http.Redirect(rw, r, "/monitoring/jobs/?jobId="+url.QueryEscape(splitSearch[1]), http.StatusTemporaryRedirect) // All Users: Redirect to Tablequery
+					return
+		    case "jobName":
+					http.Redirect(rw, r, "/monitoring/jobs/?jobName="+url.QueryEscape(splitSearch[1]), http.StatusTemporaryRedirect) // All Users: Redirect to Tablequery
+					return
+		    case "projectId":
+					project, _ := api.JobRepository.FindProject(r.Context(), splitSearch[1]) // Restricted: projectId
+					if project != "" {
+						http.Redirect(rw, r, "/monitoring/jobs/?projectMatch=eq&project="+url.QueryEscape(project), http.StatusTemporaryRedirect)
+						return
+					} else {
+						http.Redirect(rw, r, "/monitoring/jobs/?jobId=NotFound", http.StatusTemporaryRedirect) // Workaround to display correctly empty table
+					}
+				case "username":
+					username, _ := api.JobRepository.FindUser(r.Context(), splitSearch[1]) // Restricted: username
+					if username != "" {
+						http.Redirect(rw, r, "/monitoring/user/"+username, http.StatusTemporaryRedirect)
+						return
+					} else {
+						http.Redirect(rw, r, "/monitoring/jobs/?jobId=NotFound", http.StatusTemporaryRedirect) // Workaround to display correctly empty table
+					}
+				default:
+					http.Error(rw, "'searchId' type parameter unknown", http.StatusBadRequest)
+				}
 
-			if err != nil {
-				http.Error(rw, err.Error(), http.StatusInternalServerError)
-				return
-			}
+			} else if (len(splitSearch) == 1) {
+				jobname, username, project, err := api.JobRepository.FindJobnameOrUserOrProject(r.Context(), search) // Determine Access within
 
-			if username != "" {
-				http.Redirect(rw, r, "/monitoring/user/"+username, http.StatusTemporaryRedirect)
-				return
-			} else if (project != "") {
-				http.Redirect(rw, r, "/monitoring/jobs/?projectMatch=eq&project="+project, http.StatusTemporaryRedirect) // Directly to table!
-				return
+				if err != nil {
+					http.Error(rw, err.Error(), http.StatusInternalServerError)
+					return
+				}
+
+				if username != "" {
+					http.Redirect(rw, r, "/monitoring/user/"+username, http.StatusTemporaryRedirect) // User: Redirect to user page
+					return
+				} else if (project != "") {
+					http.Redirect(rw, r, "/monitoring/jobs/?projectMatch=eq&project="+url.QueryEscape(search), http.StatusTemporaryRedirect) // projectId (equal)
+					return
+				} else if (jobname != "") {
+					http.Redirect(rw, r, "/monitoring/jobs/?jobName="+url.QueryEscape(search), http.StatusTemporaryRedirect) // JobName (contains)
+					return
+				} else {
+					http.Redirect(rw, r, "/monitoring/jobs/?jobId="+url.QueryEscape(search), http.StatusTemporaryRedirect) // No Result: Probably jobId
+					return
+				}
+
 			} else {
-				http.Redirect(rw, r, "/monitoring/jobs/?jobId="+url.QueryEscape(search), http.StatusTemporaryRedirect) // Directly to table!
-				return
+				http.Error(rw, "'searchId' query parameter malformed", http.StatusBadRequest)
 			}
 
 		} else {
-			http.Error(rw, "'searchId' query parameter missing", http.StatusBadRequest)
+			http.Redirect(rw, r, "/monitoring/jobs/?", http.StatusTemporaryRedirect)
 		}
 	})
 
