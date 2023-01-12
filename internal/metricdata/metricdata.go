@@ -55,6 +55,8 @@ func Init(disableArchive bool) error {
 				mdr = &CCMetricStore{}
 			case "influxdb":
 				mdr = &InfluxDBv2DataRepository{}
+			case "prometheus":
+				mdr = &PrometheusDataRepository{}
 			case "test":
 				mdr = &TestMetricDataRepository{}
 			default:
@@ -156,6 +158,7 @@ func LoadData(job *schema.Job,
 		}
 
 		prepareJobData(job, jd, scopes)
+
 		return jd, ttl, size
 	})
 
