@@ -456,7 +456,7 @@ func (r *JobRepository) FindUser(ctx context.Context, searchterm string) (userna
 		return "", ErrNotFound
 
 	} else {
-		log.Infof("Non-Admin User %s : Requested Query Username -> %s: Forbidden", user, username)
+		log.Infof("Non-Admin User %s : Requested Query Username -> %s: Forbidden", user.Name, username)
 		return "", ErrForbidden
 	}
 }
@@ -475,7 +475,7 @@ func (r *JobRepository) FindProject(ctx context.Context, searchterm string) (pro
 		return "", ErrNotFound
 
 	} else {
-		log.Infof("Non-Admin User %s : Requested Query Project -> %s: Forbidden", user, project)
+		log.Infof("Non-Admin User %s : Requested Query Project -> %s: Forbidden", user.Name, project)
 		return "", ErrForbidden
 	}
 }
