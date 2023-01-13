@@ -16,6 +16,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
+	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -33,6 +34,9 @@ type JobRepository struct {
 
 	stmtCache *sq.StmtCache
 	cache     *lrucache.Cache
+
+	archiveChannel chan *schema.Job
+	archivePending sync.WaitGroup
 }
 
 func GetJobRepository() *JobRepository {
@@ -43,7 +47,10 @@ func GetJobRepository() *JobRepository {
 			DB:        db.DB,
 			stmtCache: sq.NewStmtCache(db.DB),
 			cache:     lrucache.New(1024 * 1024),
+			archiveChannel: make(chan *schema.Job, 128),
 		}
+		// start archiving worker
+		go jobRepoInstance.archivingWorker()
 	})
 
 	return jobRepoInstance
@@ -361,7 +368,7 @@ func (r *JobRepository) UpdateMonitoringStatus(job int64, monitoringStatus int32
 }
 
 // Stop updates the job with the database id jobId using the provided arguments.
-func (r *JobRepository) Archive(
+func (r *JobRepository) MarkArchived(
 	jobId int64,
 	monitoringStatus int32,
 	metricStats map[string]schema.JobStatistics) error {
@@ -393,11 +400,60 @@ func (r *JobRepository) Archive(
 	return nil
 }
 
+// Archiving worker thread
+func (r *JobRepository) archivingWorker(){
+	for {
+		select {
+		case job, ok := <- r.archiveChannel:
+			if !ok {
+				break
+			}
+			// not using meta data, called to load JobMeta into Cache?
+			// will fail if job meta not in repository
+			if _, err := r.FetchMetadata(job); err != nil {
+				log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
+				r.UpdateMonitoringStatus(job.ID, schema.MonitoringStatusArchivingFailed)
+				continue
+			}
+
+			// metricdata.ArchiveJob will fetch all the data from a MetricDataRepository and push into configured archive backend
+			// TODO: Maybe use context with cancel/timeout here
+			jobMeta, err := metricdata.ArchiveJob(job, context.Background())
+			if err != nil {
+				log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
+				r.UpdateMonitoringStatus(job.ID, schema.MonitoringStatusArchivingFailed)
+				continue
+			}
+
+			// Update the jobs database entry one last time:
+			if err := r.MarkArchived(job.ID, schema.MonitoringStatusArchivingSuccessful, jobMeta.Statistics); err != nil {
+				log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
+				continue
+			}
+
+			log.Printf("archiving job (dbid: %d) successful", job.ID)
+			r.archivePending.Done()
+		}
+	}
+}
+
+// Trigger async archiving
+func (r *JobRepository) TriggerArchiving(job *schema.Job){
+	r.archivePending.Add(1)
+	r.archiveChannel <- job
+}
+
+// Wait for background thread to finish pending archiving operations
+func (r *JobRepository) WaitForArchiving(){
+	// close channel and wait for worker to process remaining jobs
+	r.archivePending.Wait()
+}
+
 var ErrNotFound = errors.New("no such jobname, project or user")
 var ErrForbidden = errors.New("not authorized")
 
-// FindJobOrUserOrProject returns a job database ID or a username or a projectId if a job or user or project matches the search term.
-// As 0 is a valid job id, check if username/projectId is "" instead in order to check what matched.
+// FindJobnameOrUserOrProject returns a jobName or a username or a projectId if a jobName or user or project matches the search term.
+// If query is found to be an integer (= conversion to INT datatype succeeds), skip back to parent call
 // If nothing matches the search, `ErrNotFound` is returned.
 
 func (r *JobRepository) FindJobnameOrUserOrProject(ctx context.Context, searchterm string) (metasnip string, username string, project string, err error) {

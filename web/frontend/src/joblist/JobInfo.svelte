@@ -1,4 +1,4 @@
-<!-- 
+<!--
     @component
 
     Properties:
@@ -31,7 +31,11 @@
         <span class="fw-bold"><a href="/monitoring/job/{job.id}" target="_blank">{job.jobId}</a> ({job.cluster})</span>
         {#if job.metaData?.jobName}
             <br/>
-            {job.metaData.jobName}
+            {#if job.metaData?.jobName.length <= 25}
+                <div>{job.metaData.jobName}</div>
+            {:else}
+                <div class="truncate" style="cursor:help; width:230px;" title={job.metaData.jobName}>{job.metaData.jobName}</div>
+            {/if}
         {/if}
         {#if job.arrayJobId}
             Array Job: <a href="/monitoring/jobs/?arrayJobId={job.arrayJobId}&cluster={job.cluster}" target="_blank">#{job.arrayJobId}</a>
@@ -86,3 +90,11 @@
         {/each}
     </p>
 </div>
+
+<style>
+    .truncate {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+</style>
