@@ -45,7 +45,7 @@ func Validate(k Kind, r io.Reader) (err error) {
 	case Config:
 		s, err = jsonschema.Compile("embedfs://config.schema.json")
 	default:
-		return fmt.Errorf("unkown schema kind ")
+		return fmt.Errorf("SCHEMA/VALIDATE > unkown schema kind: %v", k)
 	}
 
 	if err != nil {
@@ -54,12 +54,12 @@ func Validate(k Kind, r io.Reader) (err error) {
 
 	var v interface{}
 	if err := json.NewDecoder(r).Decode(&v); err != nil {
-		log.Errorf("schema.Validate() - Failed to decode %v", err)
+		log.Errorf("SCHEMA/VALIDATE > Failed to decode %v", err)
 		return err
 	}
 
 	if err = s.Validate(v); err != nil {
-		return fmt.Errorf("%#v", err)
+		return fmt.Errorf("SCHEMA/VALIDATE > %#v", err)
 	}
 
 	return nil

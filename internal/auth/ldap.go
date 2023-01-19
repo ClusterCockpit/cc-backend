@@ -33,7 +33,7 @@ func (la *LdapAuthenticator) Init(
 
 	la.syncPassword = os.Getenv("LDAP_ADMIN_PASSWORD")
 	if la.syncPassword == "" {
-		log.Warn("environment variable 'LDAP_ADMIN_PASSWORD' not set (ldap sync will not work)")
+		log.Warn("AUTH/LDAP > environment variable 'LDAP_ADMIN_PASSWORD' not set (ldap sync will not work)")
 	}
 
 	if la.config != nil && la.config.SyncInterval != "" {
@@ -49,11 +49,11 @@ func (la *LdapAuthenticator) Init(
 		go func() {
 			ticker := time.NewTicker(interval)
 			for t := range ticker.C {
-				log.Printf("LDAP sync started at %s", t.Format(time.RFC3339))
+				log.Printf("AUTH/LDAP > sync started at %s", t.Format(time.RFC3339))
 				if err := la.Sync(); err != nil {
-					log.Errorf("LDAP sync failed: %s", err.Error())
+					log.Errorf("AUTH/LDAP > sync failed: %s", err.Error())
 				}
-				log.Print("LDAP sync done")
+				log.Print("AUTH/LDAP > sync done")
 			}
 		}()
 	}
@@ -147,13 +147,13 @@ func (la *LdapAuthenticator) Sync() error {
 
 	for username, where := range users {
 		if where == IN_DB && la.config.SyncDelOldUsers {
-			log.Debugf("ldap-sync: remove %#v (does not show up in LDAP anymore)", username)
+			log.Debugf("AUTH/LDAP > sync: remove %#v (does not show up in LDAP anymore)", username)
 			if _, err := la.auth.db.Exec(`DELETE FROM user WHERE user.username = ?`, username); err != nil {
 				return err
 			}
 		} else if where == IN_LDAP {
 			name := newnames[username]
-			log.Debugf("ldap-sync: add %#v (name: %#v, roles: [user], ldap: true)", username, name)
+			log.Debugf("AUTH/LDAP > sync: add %#v (name: %#v, roles: [user], ldap: true)", username, name)
 			if _, err := la.auth.db.Exec(`INSERT INTO user (username, ldap, name, roles) VALUES (?, ?, ?, ?)`,
 				username, 1, name, "[\""+RoleUser+"\"]"); err != nil {
 				return err

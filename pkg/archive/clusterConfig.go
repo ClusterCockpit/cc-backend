@@ -59,7 +59,7 @@ func initClusterConfig() error {
 
 			nl, err := ParseNodeList(sc.Nodes)
 			if err != nil {
-				return fmt.Errorf("in %s/cluster.json: %w", cluster.Name, err)
+				return fmt.Errorf("ARCHIVE/CLUSTERCONFIG > in %s/cluster.json: %w", cluster.Name, err)
 			}
 			nodeLists[cluster.Name][sc.Name] = nl
 		}
@@ -112,7 +112,7 @@ func AssignSubCluster(job *schema.BaseJob) error {
 
 	cluster := GetCluster(job.Cluster)
 	if cluster == nil {
-		return fmt.Errorf("unkown cluster: %#v", job.Cluster)
+		return fmt.Errorf("ARCHIVE/CLUSTERCONFIG > unkown cluster: %#v", job.Cluster)
 	}
 
 	if job.SubCluster != "" {
@@ -121,11 +121,11 @@ func AssignSubCluster(job *schema.BaseJob) error {
 				return nil
 			}
 		}
-		return fmt.Errorf("already assigned subcluster %#v unkown (cluster: %#v)", job.SubCluster, job.Cluster)
+		return fmt.Errorf("ARCHIVE/CLUSTERCONFIG > already assigned subcluster %#v unkown (cluster: %#v)", job.SubCluster, job.Cluster)
 	}
 
 	if len(job.Resources) == 0 {
-		return fmt.Errorf("job without any resources/hosts")
+		return fmt.Errorf("ARCHIVE/CLUSTERCONFIG > job without any resources/hosts")
 	}
 
 	host0 := job.Resources[0].Hostname
@@ -141,7 +141,7 @@ func AssignSubCluster(job *schema.BaseJob) error {
 		return nil
 	}
 
-	return fmt.Errorf("no subcluster found for cluster %#v and host %#v", job.Cluster, host0)
+	return fmt.Errorf("ARCHIVE/CLUSTERCONFIG > no subcluster found for cluster %#v and host %#v", job.Cluster, host0)
 }
 
 func GetSubClusterByNode(cluster, hostname string) (string, error) {
@@ -154,12 +154,12 @@ func GetSubClusterByNode(cluster, hostname string) (string, error) {
 
 	c := GetCluster(cluster)
 	if c == nil {
-		return "", fmt.Errorf("unkown cluster: %#v", cluster)
+		return "", fmt.Errorf("ARCHIVE/CLUSTERCONFIG > unkown cluster: %#v", cluster)
 	}
 
 	if c.SubClusters[0].Nodes == "" {
 		return c.SubClusters[0].Name, nil
 	}
 
-	return "", fmt.Errorf("no subcluster found for cluster %#v and host %#v", cluster, hostname)
+	return "", fmt.Errorf("ARCHIVE/CLUSTERCONFIG > no subcluster found for cluster %#v and host %#v", cluster, hostname)
 }

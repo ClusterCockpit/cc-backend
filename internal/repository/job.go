@@ -214,12 +214,12 @@ func (r *JobRepository) FindById(jobId int64) (*schema.Job, error) {
 func (r *JobRepository) Start(job *schema.JobMeta) (id int64, err error) {
 	job.RawResources, err = json.Marshal(job.Resources)
 	if err != nil {
-		return -1, fmt.Errorf("encoding resources field failed: %w", err)
+		return -1, fmt.Errorf("REPOSITORY/JOB > encoding resources field failed: %w", err)
 	}
 
 	job.RawMetaData, err = json.Marshal(job.MetaData)
 	if err != nil {
-		return -1, fmt.Errorf("encoding metaData field failed: %w", err)
+		return -1, fmt.Errorf("REPOSITORY/JOB > encoding metaData field failed: %w", err)
 	}
 
 	res, err := r.DB.NamedExec(`INSERT INTO job (
@@ -259,9 +259,9 @@ func (r *JobRepository) DeleteJobsBefore(startTime int64) (int, error) {
 	err := r.DB.Get(&cnt, qs) //ignore error as it will also occur in delete statement
 	_, err = r.DB.Exec(`DELETE FROM job WHERE job.start_time < ?`, startTime)
 	if err != nil {
-		log.Warnf(" DeleteJobsBefore(%d): error %v", startTime, err)
+		log.Warnf("REPOSITORY/JOB >  DeleteJobsBefore(%d): error %v", startTime, err)
 	} else {
-		log.Infof("DeleteJobsBefore(%d): Deleted %d jobs", startTime, cnt)
+		log.Infof("REPOSITORY/JOB > DeleteJobsBefore(%d): Deleted %d jobs", startTime, cnt)
 	}
 	return cnt, err
 }
@@ -269,9 +269,9 @@ func (r *JobRepository) DeleteJobsBefore(startTime int64) (int, error) {
 func (r *JobRepository) DeleteJobById(id int64) error {
 	_, err := r.DB.Exec(`DELETE FROM job WHERE job.id = ?`, id)
 	if err != nil {
-		log.Warnf("DeleteJobById(%d): error %v", id, err)
+		log.Warnf("REPOSITORY/JOB > DeleteJobById(%d): error %v", id, err)
 	} else {
-		log.Infof("DeleteJobById(%d): Success", id)
+		log.Infof("REPOSITORY/JOB > DeleteJobById(%d): Success", id)
 	}
 	return err
 }
@@ -376,7 +376,7 @@ func (r *JobRepository) archivingWorker(){
 			// not using meta data, called to load JobMeta into Cache?
 			// will fail if job meta not in repository
 			if _, err := r.FetchMetadata(job); err != nil {
-				log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
+				log.Errorf("REPOSITORY/JOB > archiving job (dbid: %d) failed: %s", job.ID, err.Error())
 				r.UpdateMonitoringStatus(job.ID, schema.MonitoringStatusArchivingFailed)
 				continue
 			}
@@ -385,18 +385,18 @@ func (r *JobRepository) archivingWorker(){
 			// TODO: Maybe use context with cancel/timeout here
 			jobMeta, err := metricdata.ArchiveJob(job, context.Background())
 			if err != nil {
-				log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
+				log.Errorf("REPOSITORY/JOB > archiving job (dbid: %d) failed: %s", job.ID, err.Error())
 				r.UpdateMonitoringStatus(job.ID, schema.MonitoringStatusArchivingFailed)
 				continue
 			}
 
 			// Update the jobs database entry one last time:
 			if err := r.MarkArchived(job.ID, schema.MonitoringStatusArchivingSuccessful, jobMeta.Statistics); err != nil {
-				log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
+				log.Errorf("REPOSITORY/JOB > archiving job (dbid: %d) failed: %s", job.ID, err.Error())
 				continue
 			}
 
-			log.Printf("archiving job (dbid: %d) successful", job.ID)
+			log.Printf("REPOSITORY/JOB > archiving job (dbid: %d) successful", job.ID)
 			r.archivePending.Done()
 		}
 	}
@@ -523,7 +523,7 @@ func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 	}
 
 	if rowsAffected > 0 {
-		log.Warnf("%d jobs have been marked as failed due to running too long", rowsAffected)
+		log.Warnf("REPOSITORY/JOB > %d jobs have been marked as failed due to running too long", rowsAffected)
 	}
 	return nil
 }

@@ -118,7 +118,7 @@ func main() {
 			"ldap": config.Keys.LdapConfig,
 			"jwt":  config.Keys.JwtConfig,
 		}); err != nil {
-			log.Fatal(err)
+			log.Fatalf("auth initialization failed: %v", err)
 		}
 
 		if d, err := time.ParseDuration(config.Keys.SessionMaxAge); err != nil {
@@ -134,12 +134,12 @@ func main() {
 			if err := authentication.AddUser(&auth.User{
 				Username: parts[0], Password: parts[2], Roles: strings.Split(parts[1], ","),
 			}); err != nil {
-				log.Fatal(err)
+				log.Fatalf("adding '%s' user authentication failed: %v", parts[0], err)
 			}
 		}
 		if flagDelUser != "" {
 			if err := authentication.DelUser(flagDelUser); err != nil {
-				log.Fatal(err)
+				log.Fatalf("deleting user failed: %v", err)
 			}
 		}
 
@@ -149,7 +149,7 @@ func main() {
 			}
 
 			if err := authentication.LdapAuth.Sync(); err != nil {
-				log.Fatal(err)
+				log.Fatalf("LDAP sync failed: %v", err)
 			}
 			log.Info("LDAP sync successfull")
 		}
@@ -157,16 +157,16 @@ func main() {
 		if flagGenJWT != "" {
 			user, err := authentication.GetUser(flagGenJWT)
 			if err != nil {
-				log.Fatal(err)
+				log.Fatalf("could not get user from JWT: %v", err)
 			}
 
 			if !user.HasRole(auth.RoleApi) {
-				log.Warn("that user does not have the API role")
+				log.Warnf("user '%s' does not have the API role", user.Username)
 			}
 
 			jwt, err := authentication.JwtAuth.ProvideJWT(user)
 			if err != nil {
-				log.Fatal(err)
+				log.Fatalf("failed to provide JWT to user '%s': %v", user.Username, err)
 			}
 
 			fmt.Printf("JWT for '%s': %s\n", user.Username, jwt)
@@ -176,16 +176,16 @@ func main() {
 	}
 
 	if err := archive.Init(config.Keys.Archive, config.Keys.DisableArchive); err != nil {
-		log.Fatal(err)
+		log.Fatalf("failed to initialize archive: %s", err.Error())
 	}
 
 	if err := metricdata.Init(config.Keys.DisableArchive); err != nil {
-		log.Fatal(err)
+		log.Fatalf("failed to initialize metricdata repository: %s", err.Error())
 	}
 
 	if flagReinitDB {
 		if err := repository.InitDB(); err != nil {
-			log.Fatal(err)
+			log.Fatal("failed to re-initialize repository DB: %s", err.Error())
 		}
 	}
 
@@ -361,7 +361,7 @@ func main() {
 	// Start http or https server
 	listener, err := net.Listen("tcp", config.Keys.Addr)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("starting http listener failed: %v", err)
 	}
 
 	if !strings.HasSuffix(config.Keys.Addr, ":80") && config.Keys.RedirectHttpTo != "" {
@@ -373,7 +373,7 @@ func main() {
 	if config.Keys.HttpsCertFile != "" && config.Keys.HttpsKeyFile != "" {
 		cert, err := tls.LoadX509KeyPair(config.Keys.HttpsCertFile, config.Keys.HttpsKeyFile)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("loading X509 keypair failed: %v", err)
 		}
 		listener = tls.NewListener(listener, &tls.Config{
 			Certificates: []tls.Certificate{cert},
@@ -400,7 +400,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
-			log.Fatal(err)
+			log.Fatalf("starting server failed: %v", err)
 		}
 	}()
 
@@ -424,7 +424,7 @@ func main() {
 			for range time.Tick(30 * time.Minute) {
 				err := jobRepo.StopJobsExceedingWalltimeBy(config.Keys.StopJobsExceedingWalltime)
 				if err != nil {
-					log.Errorf("error while looking for jobs exceeding theire walltime: %s", err.Error())
+					log.Errorf("error while looking for jobs exceeding their walltime: %s", err.Error())
 				}
 				runtime.GC()
 			}

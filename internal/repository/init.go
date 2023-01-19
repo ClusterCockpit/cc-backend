@@ -95,7 +95,7 @@ func HandleImportFlag(flag string) error {
 	for _, pair := range strings.Split(flag, ",") {
 		files := strings.Split(pair, ":")
 		if len(files) != 2 {
-			return fmt.Errorf("invalid import flag format")
+			return fmt.Errorf("REPOSITORY/INIT > invalid import flag format")
 		}
 
 		raw, err := os.ReadFile(files[0])
@@ -105,7 +105,7 @@ func HandleImportFlag(flag string) error {
 
 		if config.Keys.Validate {
 			if err := schema.Validate(schema.Meta, bytes.NewReader(raw)); err != nil {
-				return fmt.Errorf("validate job meta: %v", err)
+				return fmt.Errorf("REPOSITORY/INIT > validate job meta: %v", err)
 			}
 		}
 		dec := json.NewDecoder(bytes.NewReader(raw))
@@ -122,7 +122,7 @@ func HandleImportFlag(flag string) error {
 
 		if config.Keys.Validate {
 			if err := schema.Validate(schema.Data, bytes.NewReader(raw)); err != nil {
-				return fmt.Errorf("validate job data: %v", err)
+				return fmt.Errorf("REPOSITORY/INIT > validate job data: %v", err)
 			}
 		}
 		dec = json.NewDecoder(bytes.NewReader(raw))
@@ -139,7 +139,7 @@ func HandleImportFlag(flag string) error {
 				return err
 			}
 
-			return fmt.Errorf("a job with that jobId, cluster and startTime does already exist (dbid: %d)", job.ID)
+			return fmt.Errorf("REPOSITORY/INIT > a job with that jobId, cluster and startTime does already exist (dbid: %d)", job.ID)
 		}
 
 		job := schema.Job{
@@ -186,7 +186,7 @@ func HandleImportFlag(flag string) error {
 			}
 		}
 
-		log.Infof("Successfully imported a new job (jobId: %d, cluster: %s, dbid: %d)", job.JobID, job.Cluster, id)
+		log.Infof("REPOSITORY/INIT > successfully imported a new job (jobId: %d, cluster: %s, dbid: %d)", job.JobID, job.Cluster, id)
 	}
 	return nil
 }
@@ -260,34 +260,34 @@ func InitDB() error {
 
 		job.RawResources, err = json.Marshal(job.Resources)
 		if err != nil {
-			log.Errorf("repository initDB()- %v", err)
+			log.Errorf("REPOSITORY/INIT > repository initDB(): %v", err)
 			errorOccured++
 			continue
 		}
 
 		job.RawMetaData, err = json.Marshal(job.MetaData)
 		if err != nil {
-			log.Errorf("repository initDB()-  %v", err)
+			log.Errorf("REPOSITORY/INIT > repository initDB(): %v", err)
 			errorOccured++
 			continue
 		}
 
 		if err := SanityChecks(&job.BaseJob); err != nil {
-			log.Errorf("repository initDB()- %v", err)
+			log.Errorf("REPOSITORY/INIT > repository initDB(): %v", err)
 			errorOccured++
 			continue
 		}
 
 		res, err := stmt.Exec(job)
 		if err != nil {
-			log.Errorf("repository initDB()- %v", err)
+			log.Errorf("REPOSITORY/INIT > repository initDB(): %v", err)
 			errorOccured++
 			continue
 		}
 
 		id, err := res.LastInsertId()
 		if err != nil {
-			log.Errorf("repository initDB()- %v", err)
+			log.Errorf("REPOSITORY/INIT > repository initDB(): %v", err)
 			errorOccured++
 			continue
 		}
@@ -318,7 +318,7 @@ func InitDB() error {
 	}
 
 	if errorOccured > 0 {
-		log.Errorf("Error in import of %d jobs!", errorOccured)
+		log.Errorf("REPOSITORY/INIT > Error in import of %d jobs!", errorOccured)
 	}
 
 	if err := tx.Commit(); err != nil {

@@ -60,7 +60,7 @@ func Init(disableArchive bool) error {
 			case "test":
 				mdr = &TestMetricDataRepository{}
 			default:
-				return fmt.Errorf("unkown metric data repository '%s' for cluster '%s'", kind.Kind, cluster.Name)
+				return fmt.Errorf("METRICDATA/METRICDATA > unkown metric data repository '%s' for cluster '%s'", kind.Kind, cluster.Name)
 			}
 
 			if err := mdr.Init(cluster.MetricDataRepository); err != nil {
@@ -90,7 +90,7 @@ func LoadData(job *schema.Job,
 			repo, ok := metricDataRepos[job.Cluster]
 
 			if !ok {
-				return fmt.Errorf("no metric data repository configured for '%s'", job.Cluster), 0, 0
+				return fmt.Errorf("METRICDATA/METRICDATA > no metric data repository configured for '%s'", job.Cluster), 0, 0
 			}
 
 			if scopes == nil {
@@ -107,7 +107,7 @@ func LoadData(job *schema.Job,
 			jd, err = repo.LoadData(job, metrics, scopes, ctx)
 			if err != nil {
 				if len(jd) != 0 {
-					log.Errorf("partial error: %s", err.Error())
+					log.Errorf("METRICDATA/METRICDATA > partial error: %s", err.Error())
 				} else {
 					return err, 0, 0
 				}
@@ -182,7 +182,7 @@ func LoadAverages(
 
 	repo, ok := metricDataRepos[job.Cluster]
 	if !ok {
-		return fmt.Errorf("no metric data repository configured for '%s'", job.Cluster)
+		return fmt.Errorf("METRICDATA/METRICDATA > no metric data repository configured for '%s'", job.Cluster)
 	}
 
 	stats, err := repo.LoadStats(job, metrics, ctx)
@@ -217,7 +217,7 @@ func LoadNodeData(
 
 	repo, ok := metricDataRepos[cluster]
 	if !ok {
-		return nil, fmt.Errorf("no metric data repository configured for '%s'", cluster)
+		return nil, fmt.Errorf("METRICDATA/METRICDATA > no metric data repository configured for '%s'", cluster)
 	}
 
 	if metrics == nil {
@@ -229,14 +229,14 @@ func LoadNodeData(
 	data, err := repo.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)
 	if err != nil {
 		if len(data) != 0 {
-			log.Errorf("partial error: %s", err.Error())
+			log.Errorf("METRICDATA/METRICDATA > partial error: %s", err.Error())
 		} else {
 			return nil, err
 		}
 	}
 
 	if data == nil {
-		return nil, fmt.Errorf("the metric data repository for '%s' does not support this query", cluster)
+		return nil, fmt.Errorf("METRICDATA/METRICDATA > the metric data repository for '%s' does not support this query", cluster)
 	}
 
 	return data, nil

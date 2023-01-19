@@ -51,7 +51,7 @@ func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name s
 
 // DeleteTag is the resolver for the deleteTag field.
 func (r *mutationResolver) DeleteTag(ctx context.Context, id string) (string, error) {
-	panic(fmt.Errorf("not implemented: DeleteTag - deleteTag"))
+	panic(fmt.Errorf("GRAPH/RESOLVERS > not implemented: DeleteTag - deleteTag"))
 }
 
 // AddTagsToJob is the resolver for the addTagsToJob field.
@@ -175,7 +175,7 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 	for name, md := range data {
 		for scope, metric := range md {
 			if metric.Scope != schema.MetricScope(scope) {
-				panic("WTF?")
+				panic("GRAPH/RESOLVERS > metric.Scope != schema.MetricScope(scope) : Should not happen!")
 			}
 
 			res = append(res, &model.JobMetricWithName{

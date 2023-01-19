@@ -211,7 +211,7 @@ func (r *queryResolver) rooflineHeatmap(
 		return nil, err
 	}
 	if len(jobs) > MAX_JOBS_FOR_ANALYSIS {
-		return nil, fmt.Errorf("too many jobs matched (max: %d)", MAX_JOBS_FOR_ANALYSIS)
+		return nil, fmt.Errorf("GRAPH/STATS > too many jobs matched (max: %d)", MAX_JOBS_FOR_ANALYSIS)
 	}
 
 	fcols, frows := float64(cols), float64(rows)
@@ -233,14 +233,14 @@ func (r *queryResolver) rooflineHeatmap(
 
 		flops_, membw_ := jobdata["flops_any"], jobdata["mem_bw"]
 		if flops_ == nil && membw_ == nil {
-			return nil, fmt.Errorf("'flops_any' or 'mem_bw' missing for job %d", job.ID)
+			return nil, fmt.Errorf("GRAPH/STATS > 'flops_any' or 'mem_bw' missing for job %d", job.ID)
 		}
 
 		flops, ok1 := flops_["node"]
 		membw, ok2 := membw_["node"]
 		if !ok1 || !ok2 {
 			// TODO/FIXME:
-			return nil, errors.New("todo: rooflineHeatmap() query not implemented for where flops_any or mem_bw not available at 'node' level")
+			return nil, errors.New("GRAPH/STATS > todo: rooflineHeatmap() query not implemented for where flops_any or mem_bw not available at 'node' level")
 		}
 
 		for n := 0; n < len(flops.Series); n++ {
@@ -275,7 +275,7 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 		return nil, err
 	}
 	if len(jobs) > MAX_JOBS_FOR_ANALYSIS {
-		return nil, fmt.Errorf("too many jobs matched (max: %d)", MAX_JOBS_FOR_ANALYSIS)
+		return nil, fmt.Errorf("GRAPH/STATS > too many jobs matched (max: %d)", MAX_JOBS_FOR_ANALYSIS)
 	}
 
 	avgs := make([][]schema.Float, len(metrics))

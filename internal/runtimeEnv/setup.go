@@ -40,14 +40,14 @@ func LoadEnv(file string) error {
 		line = strings.TrimPrefix(line, "export ")
 		parts := strings.SplitN(line, "=", 2)
 		if len(parts) != 2 {
-			return fmt.Errorf("unsupported line: %#v", line)
+			return fmt.Errorf("RUNTIME/SETUP > unsupported line: %#v", line)
 		}
 
 		key := strings.TrimSpace(parts[0])
 		val := strings.TrimSpace(parts[1])
 		if strings.HasPrefix(val, "\"") {
 			if !strings.HasSuffix(val, "\"") {
-				return fmt.Errorf("unsupported line: %#v", line)
+				return fmt.Errorf("RUNTIME/SETUP > unsupported line: %#v", line)
 			}
 
 			runes := []rune(val[1 : len(val)-1])
@@ -65,7 +65,7 @@ func LoadEnv(file string) error {
 					case '"':
 						sb.WriteRune('"')
 					default:
-						return fmt.Errorf("unsupprorted escape sequence in quoted string: backslash %#v", runes[i])
+						return fmt.Errorf("RUNTIME/SETUP > unsupprorted escape sequence in quoted string: backslash %#v", runes[i])
 					}
 					continue
 				}

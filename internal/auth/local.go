@@ -39,7 +39,7 @@ func (la *LocalAuthenticator) Login(
 	r *http.Request) (*User, error) {
 
 	if e := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(r.FormValue("password"))); e != nil {
-		return nil, fmt.Errorf("user '%s' provided the wrong password (%w)", user.Username, e)
+		return nil, fmt.Errorf("AUTH/LOCAL > user '%s' provided the wrong password (%w)", user.Username, e)
 	}
 
 	return user, nil

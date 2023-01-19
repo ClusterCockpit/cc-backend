@@ -49,7 +49,7 @@ func Init(rawConfig json.RawMessage, disableArchive bool) error {
 		// case "s3":
 		// 	ar = &S3Archive{}
 	default:
-		return fmt.Errorf("unkown archive backend '%s''", kind.Kind)
+		return fmt.Errorf("ARCHIVE/ARCHIVE > unkown archive backend '%s''", kind.Kind)
 	}
 
 	if err := ar.Init(rawConfig); err != nil {

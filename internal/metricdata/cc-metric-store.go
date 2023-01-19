@@ -202,7 +202,7 @@ func (ccms *CCMetricStore) LoadData(
 
 		for _, res := range row {
 			if res.Error != nil {
-				errors = append(errors, fmt.Sprintf("failed to fetch '%s' from host '%s': %s", query.Metric, query.Hostname, *res.Error))
+				errors = append(errors, fmt.Sprintf("METRICDATA/CCMS > failed to fetch '%s' from host '%s': %s", query.Metric, query.Hostname, *res.Error))
 				continue
 			}
 
@@ -245,7 +245,7 @@ func (ccms *CCMetricStore) LoadData(
 	}
 
 	if len(errors) != 0 {
-		return jobData, fmt.Errorf("cc-metric-store: %s", strings.Join(errors, ", "))
+		return jobData, fmt.Errorf("METRICDATA/CCMS > Errors: %s", strings.Join(errors, ", "))
 	}
 
 	return jobData, nil
@@ -272,8 +272,8 @@ func (ccms *CCMetricStore) buildQueries(
 		remoteName := ccms.toRemoteName(metric)
 		mc := archive.GetMetricConfig(job.Cluster, metric)
 		if mc == nil {
-			// return nil, fmt.Errorf("metric '%s' is not specified for cluster '%s'", metric, job.Cluster)
-			// log.Printf("metric '%s' is not specified for cluster '%s'", metric, job.Cluster)
+			// return nil, fmt.Errorf("METRICDATA/CCMS > metric '%s' is not specified for cluster '%s'", metric, job.Cluster)
+			// log.Printf("METRICDATA/CCMS > metric '%s' is not specified for cluster '%s'", metric, job.Cluster)
 			continue
 		}
 
@@ -483,7 +483,7 @@ func (ccms *CCMetricStore) buildQueries(
 					continue
 				}
 
-				return nil, nil, fmt.Errorf("TODO: unhandled case: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
+				return nil, nil, fmt.Errorf("METRICDATA/CCMS > TODO: unhandled case: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
 			}
 		}
 	}
@@ -521,7 +521,7 @@ func (ccms *CCMetricStore) LoadStats(
 		metric := ccms.toLocalName(query.Metric)
 		data := res[0]
 		if data.Error != nil {
-			return nil, fmt.Errorf("fetching %s for node %s failed: %s", metric, query.Hostname, *data.Error)
+			return nil, fmt.Errorf("METRICDATA/CCMS > fetching %s for node %s failed: %s", metric, query.Hostname, *data.Error)
 		}
 
 		metricdata, ok := stats[metric]
@@ -531,7 +531,7 @@ func (ccms *CCMetricStore) LoadStats(
 		}
 
 		if data.Avg.IsNaN() || data.Min.IsNaN() || data.Max.IsNaN() {
-			return nil, fmt.Errorf("fetching %s for node %s failed: %s", metric, query.Hostname, "avg/min/max is NaN")
+			return nil, fmt.Errorf("METRICDATA/CCMS > fetching %s for node %s failed: %s", metric, query.Hostname, "avg/min/max is NaN")
 		}
 
 		metricdata[query.Hostname] = schema.MetricStatistics{
@@ -593,11 +593,11 @@ func (ccms *CCMetricStore) LoadNodeData(
 		metric := ccms.toLocalName(query.Metric)
 		qdata := res[0]
 		if qdata.Error != nil {
-			errors = append(errors, fmt.Sprintf("fetching %s for node %s failed: %s", metric, query.Hostname, *qdata.Error))
+			errors = append(errors, fmt.Sprintf("METRICDATA/CCMS > fetching %s for node %s failed: %s", metric, query.Hostname, *qdata.Error))
 		}
 
 		if qdata.Avg.IsNaN() || qdata.Min.IsNaN() || qdata.Max.IsNaN() {
-			// return nil, fmt.Errorf("fetching %s for node %s failed: %s", metric, query.Hostname, "avg/min/max is NaN")
+			// return nil, fmt.Errorf("METRICDATA/CCMS > fetching %s for node %s failed: %s", metric, query.Hostname, "avg/min/max is NaN")
 			qdata.Avg, qdata.Min, qdata.Max = 0., 0., 0.
 		}
 
@@ -627,7 +627,7 @@ func (ccms *CCMetricStore) LoadNodeData(
 	}
 
 	if len(errors) != 0 {
-		return data, fmt.Errorf("cc-metric-store: %s", strings.Join(errors, ", "))
+		return data, fmt.Errorf("METRICDATA/CCMS > errors: %s", strings.Join(errors, ", "))
 	}
 
 	return data, nil

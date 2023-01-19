@@ -36,7 +36,7 @@ func (r *JobRepository) QueryJobs(
 		} else if order.Order == model.SortDirectionEnumDesc {
 			query = query.OrderBy(fmt.Sprintf("job.%s DESC", field))
 		} else {
-			return nil, errors.New("invalid sorting order")
+			return nil, errors.New("REPOSITORY/QUERY > invalid sorting order")
 		}
 	}
 
@@ -54,7 +54,7 @@ func (r *JobRepository) QueryJobs(
 		return nil, err
 	}
 
-	log.Debugf("SQL query: `%s`, args: %#v", sql, args)
+	log.Debugf("REPOSITORY/QUERY > SQL query: `%s`, args: %#v", sql, args)
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
 		return nil, err
@@ -209,7 +209,7 @@ var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")
 func toSnakeCase(str string) string {
 	for _, c := range str {
 		if c == '\'' || c == '\\' {
-			panic("A hacker (probably not)!!!")
+			panic("REPOSITORY/QUERY > toSnakeCase() attack vector!")
 		}
 	}
 

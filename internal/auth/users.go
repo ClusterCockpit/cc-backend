@@ -67,7 +67,7 @@ func (auth *Authentication) AddUser(user *User) error {
 		return err
 	}
 
-	log.Infof("new user %#v created (roles: %s, auth-source: %d)", user.Username, rolesJson, user.AuthSource)
+	log.Infof("AUTH/USERS > new user %#v created (roles: %s, auth-source: %d)", user.Username, rolesJson, user.AuthSource)
 	return nil
 }
 
@@ -121,12 +121,12 @@ func (auth *Authentication) AddRole(
 	}
 
 	if role != RoleAdmin && role != RoleApi && role != RoleUser && role != RoleSupport {
-		return fmt.Errorf("invalid user role: %#v", role)
+		return fmt.Errorf("AUTH/USERS > invalid user role: %#v", role)
 	}
 
 	for _, r := range user.Roles {
 		if r == role {
-			return fmt.Errorf("user %#v already has role %#v", username, role)
+			return fmt.Errorf("AUTH/USERS > user %#v already has role %#v", username, role)
 		}
 	}
 
@@ -144,7 +144,7 @@ func (auth *Authentication) RemoveRole(ctx context.Context, username string, rol
 	}
 
 	if role != RoleAdmin && role != RoleApi && role != RoleUser && role != RoleSupport {
-		return fmt.Errorf("invalid user role: %#v", role)
+		return fmt.Errorf("AUTH/USERS > invalid user role: %#v", role)
 	}
 
 	var exists bool
@@ -164,7 +164,7 @@ func (auth *Authentication) RemoveRole(ctx context.Context, username string, rol
 		}
 		return nil
 	} else {
-		return fmt.Errorf("user %#v already does not have role %#v", username, role)
+		return fmt.Errorf("AUTH/USERS > user %#v already does not have role %#v", username, role)
 	}
 }
 
