@@ -88,12 +88,12 @@ func main() {
 	// See https://github.com/google/gops (Runtime overhead is almost zero)
 	if flagGops {
 		if err := agent.Listen(agent.Options{}); err != nil {
-			log.Fatalf("gops/agent.Listen failed: %s", err.Error())
+			log.Fatalf("MAIN > gops/agent.Listen failed: %s", err.Error())
 		}
 	}
 
 	if err := runtimeEnv.LoadEnv("./.env"); err != nil && !os.IsNotExist(err) {
-		log.Fatalf("parsing './.env' file failed: %s", err.Error())
+		log.Fatalf("MAIN > parsing './.env' file failed: %s", err.Error())
 	}
 
 	// Initialize sub-modules and handle command line flags.
@@ -118,7 +118,7 @@ func main() {
 			"ldap": config.Keys.LdapConfig,
 			"jwt":  config.Keys.JwtConfig,
 		}); err != nil {
-			log.Fatalf("auth initialization failed: %v", err)
+			log.Fatalf("MAIN > auth initialization failed: %v", err)
 		}
 
 		if d, err := time.ParseDuration(config.Keys.SessionMaxAge); err != nil {
@@ -128,70 +128,70 @@ func main() {
 		if flagNewUser != "" {
 			parts := strings.SplitN(flagNewUser, ":", 3)
 			if len(parts) != 3 || len(parts[0]) == 0 {
-				log.Fatal("invalid argument format for user creation")
+				log.Fatal("MAIN > invalid argument format for user creation")
 			}
 
 			if err := authentication.AddUser(&auth.User{
 				Username: parts[0], Password: parts[2], Roles: strings.Split(parts[1], ","),
 			}); err != nil {
-				log.Fatalf("adding '%s' user authentication failed: %v", parts[0], err)
+				log.Fatalf("MAIN > adding '%s' user authentication failed: %v", parts[0], err)
 			}
 		}
 		if flagDelUser != "" {
 			if err := authentication.DelUser(flagDelUser); err != nil {
-				log.Fatalf("deleting user failed: %v", err)
+				log.Fatalf("MAIN > deleting user failed: %v", err)
 			}
 		}
 
 		if flagSyncLDAP {
 			if authentication.LdapAuth == nil {
-				log.Fatal("cannot sync: LDAP authentication is not configured")
+				log.Fatal("MAIN > cannot sync: LDAP authentication is not configured")
 			}
 
 			if err := authentication.LdapAuth.Sync(); err != nil {
-				log.Fatalf("LDAP sync failed: %v", err)
+				log.Fatalf("MAIN > LDAP sync failed: %v", err)
 			}
-			log.Info("LDAP sync successfull")
+			log.Info("MAIN > LDAP sync successfull")
 		}
 
 		if flagGenJWT != "" {
 			user, err := authentication.GetUser(flagGenJWT)
 			if err != nil {
-				log.Fatalf("could not get user from JWT: %v", err)
+				log.Fatalf("MAIN > could not get user from JWT: %v", err)
 			}
 
 			if !user.HasRole(auth.RoleApi) {
-				log.Warnf("user '%s' does not have the API role", user.Username)
+				log.Warnf("MAIN > user '%s' does not have the API role", user.Username)
 			}
 
 			jwt, err := authentication.JwtAuth.ProvideJWT(user)
 			if err != nil {
-				log.Fatalf("failed to provide JWT to user '%s': %v", user.Username, err)
+				log.Fatalf("MAIN > failed to provide JWT to user '%s': %v", user.Username, err)
 			}
 
-			fmt.Printf("JWT for '%s': %s\n", user.Username, jwt)
+			fmt.Printf("MAIN > JWT for '%s': %s\n", user.Username, jwt)
 		}
 	} else if flagNewUser != "" || flagDelUser != "" {
-		log.Fatal("arguments --add-user and --del-user can only be used if authentication is enabled")
+		log.Fatal("MAIN > arguments --add-user and --del-user can only be used if authentication is enabled")
 	}
 
 	if err := archive.Init(config.Keys.Archive, config.Keys.DisableArchive); err != nil {
-		log.Fatalf("failed to initialize archive: %s", err.Error())
+		log.Fatalf("MAIN > failed to initialize archive: %s", err.Error())
 	}
 
 	if err := metricdata.Init(config.Keys.DisableArchive); err != nil {
-		log.Fatalf("failed to initialize metricdata repository: %s", err.Error())
+		log.Fatalf("MAIN > failed to initialize metricdata repository: %s", err.Error())
 	}
 
 	if flagReinitDB {
 		if err := repository.InitDB(); err != nil {
-			log.Fatal("failed to re-initialize repository DB: %s", err.Error())
+			log.Fatal("MAIN > failed to re-initialize repository DB: %s", err.Error())
 		}
 	}
 
 	if flagImportJob != "" {
 		if err := repository.HandleImportFlag(flagImportJob); err != nil {
-			log.Fatalf("import failed: %s", err.Error())
+			log.Fatalf("MAIN > job import failed: %s", err.Error())
 		}
 	}
 
@@ -209,12 +209,12 @@ func main() {
 		graphQLEndpoint.SetRecoverFunc(func(ctx context.Context, err interface{}) error {
 			switch e := err.(type) {
 			case string:
-				return fmt.Errorf("panic: %s", e)
+				return fmt.Errorf("MAIN > Panic: %s", e)
 			case error:
-				return fmt.Errorf("panic caused by: %w", e)
+				return fmt.Errorf("MAIN > Panic caused by: %w", e)
 			}
 
-			return errors.New("internal server error (panic)")
+			return errors.New("MAIN > Internal server error (panic)")
 		})
 	}
 
@@ -361,7 +361,7 @@ func main() {
 	// Start http or https server
 	listener, err := net.Listen("tcp", config.Keys.Addr)
 	if err != nil {
-		log.Fatalf("starting http listener failed: %v", err)
+		log.Fatalf("MAIN > starting http listener failed: %v", err)
 	}
 
 	if !strings.HasSuffix(config.Keys.Addr, ":80") && config.Keys.RedirectHttpTo != "" {
@@ -373,7 +373,7 @@ func main() {
 	if config.Keys.HttpsCertFile != "" && config.Keys.HttpsKeyFile != "" {
 		cert, err := tls.LoadX509KeyPair(config.Keys.HttpsCertFile, config.Keys.HttpsKeyFile)
 		if err != nil {
-			log.Fatalf("loading X509 keypair failed: %v", err)
+			log.Fatalf("MAIN > loading X509 keypair failed: %v", err)
 		}
 		listener = tls.NewListener(listener, &tls.Config{
 			Certificates: []tls.Certificate{cert},
@@ -391,16 +391,16 @@ func main() {
 
 	// Because this program will want to bind to a privileged port (like 80), the listener must
 	// be established first, then the user can be changed, and after that,
-	// the actuall http server can be started.
+	// the actual http server can be started.
 	if err := runtimeEnv.DropPrivileges(config.Keys.Group, config.Keys.User); err != nil {
-		log.Fatalf("error while changing user: %s", err.Error())
+		log.Fatalf("MAIN > error while preparing server start: %s", err.Error())
 	}
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("starting server failed: %v", err)
+			log.Fatalf("MAIN > starting server failed: %v", err)
 		}
 	}()
 
@@ -410,7 +410,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 		<-sigs
-		runtimeEnv.SystemdNotifiy(false, "shutting down")
+		runtimeEnv.SystemdNotifiy(false, "Shutting down ...")
 
 		// First shut down the server gracefully (waiting for all ongoing requests)
 		server.Shutdown(context.Background())
@@ -424,7 +424,7 @@ func main() {
 			for range time.Tick(30 * time.Minute) {
 				err := jobRepo.StopJobsExceedingWalltimeBy(config.Keys.StopJobsExceedingWalltime)
 				if err != nil {
-					log.Errorf("error while looking for jobs exceeding their walltime: %s", err.Error())
+					log.Errorf("MAIN > error while looking for jobs exceeding their walltime: %s", err.Error())
 				}
 				runtime.GC()
 			}
