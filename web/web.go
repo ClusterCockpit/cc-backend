@@ -92,7 +92,7 @@ func RenderTemplate(rw http.ResponseWriter, r *http.Request, file string, page *
 		}
 	}
 
-	log.Infof("%v\n", page.Config)
+	log.Infof("WEB/WEB > page config : %v\n", page.Config)
 	if err := t.Execute(rw, page); err != nil {
 		log.Errorf("WEB/WEB > template error: %s", err.Error())
 	}
