@@ -41,7 +41,7 @@ func (ja *JWTAuthenticator) Init(auth *Authentication, conf interface{}) error {
 
 	pubKey, privKey := os.Getenv("JWT_PUBLIC_KEY"), os.Getenv("JWT_PRIVATE_KEY")
 	if pubKey == "" || privKey == "" {
-		log.Warn("AUTH/JWT > environment variables 'JWT_PUBLIC_KEY' or 'JWT_PRIVATE_KEY' not set (token based authentication will not work)")
+		log.Warn("environment variables 'JWT_PUBLIC_KEY' or 'JWT_PRIVATE_KEY' not set (token based authentication will not work)")
 	} else {
 		bytes, err := base64.StdEncoding.DecodeString(pubKey)
 		if err != nil {
@@ -75,20 +75,20 @@ func (ja *JWTAuthenticator) Init(auth *Authentication, conf interface{}) error {
 		// Warn if other necessary settings are not configured
 		if ja.config != nil {
 			if ja.config.CookieName == "" {
-				log.Warn("AUTH/JWT > cookieName for JWTs not configured (cross login via JWT cookie will fail)")
+				log.Warn("cookieName for JWTs not configured (cross login via JWT cookie will fail)")
 			}
 			if !ja.config.ForceJWTValidationViaDatabase {
-				log.Warn("AUTH/JWT > forceJWTValidationViaDatabase not set to true: CC will accept users and roles defined in JWTs regardless of its own database!")
+				log.Warn("forceJWTValidationViaDatabase not set to true: CC will accept users and roles defined in JWTs regardless of its own database!")
 			}
 			if ja.config.TrustedExternalIssuer == "" {
-				log.Warn("AUTH/JWT > trustedExternalIssuer for JWTs not configured (cross login via JWT cookie will fail)")
+				log.Warn("trustedExternalIssuer for JWTs not configured (cross login via JWT cookie will fail)")
 			}
 		} else {
-			log.Warn("AUTH/JWT > cookieName and trustedExternalIssuer for JWTs not configured (cross login via JWT cookie will fail)")
+			log.Warn("cookieName and trustedExternalIssuer for JWTs not configured (cross login via JWT cookie will fail)")
 		}
 	} else {
 		ja.publicKeyCrossLogin = nil
-		log.Warn("AUTH/JWT > environment variable 'CROSS_LOGIN_JWT_PUBLIC_KEY' not set (cross login token based authentication will not work)")
+		log.Warn("environment variable 'CROSS_LOGIN_JWT_PUBLIC_KEY' not set (cross login token based authentication will not work)")
 	}
 
 	return nil
@@ -243,7 +243,7 @@ func (ja *JWTAuthenticator) Auth(
 
 		// Deny any logins for unknown usernames
 		if err != nil {
-			log.Warn("AUTH/JWT > Could not find user from JWT in internal database.")
+			log.Warn("Could not find user from JWT in internal database.")
 			return nil, errors.New("unknown user")
 		}
 
@@ -264,7 +264,7 @@ func (ja *JWTAuthenticator) Auth(
 		// Create a session so that we no longer need the JTW Cookie
 		session, err := ja.auth.sessionStore.New(r, "session")
 		if err != nil {
-			log.Errorf("AUTH/JWT > session creation failed: %s", err.Error())
+			log.Errorf("session creation failed: %s", err.Error())
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return nil, err
 		}
@@ -276,7 +276,7 @@ func (ja *JWTAuthenticator) Auth(
 		session.Values["roles"] = roles
 
 		if err := ja.auth.sessionStore.Save(r, rw, session); err != nil {
-			log.Errorf("AUTH/JWT > session save failed: %s", err.Error())
+			log.Errorf("session save failed: %s", err.Error())
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return nil, err
 		}

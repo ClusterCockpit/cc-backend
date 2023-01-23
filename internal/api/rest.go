@@ -134,7 +134,7 @@ type ApiTag struct {
 type TagJobApiRequest []*ApiTag
 
 func handleError(err error, statusCode int, rw http.ResponseWriter) {
-	log.Warnf("API/REST > ERROR : %s", err.Error())
+	log.Warnf("REST ERROR : %s", err.Error())
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(statusCode)
 	json.NewEncoder(rw).Encode(ErrorResponse{
@@ -169,7 +169,7 @@ func decode(r io.Reader, val interface{}) error {
 // @router      /jobs/ [get]
 func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("API/REST > missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
 		return
 	}
 
@@ -184,7 +184,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 			for _, s := range vals {
 				state := schema.JobState(s)
 				if !state.Valid() {
-					http.Error(rw, "invalid query parameter value: state", http.StatusBadRequest)
+					http.Error(rw, "REST > invalid query parameter value: state", http.StatusBadRequest)
 					return
 				}
 				filter.State = append(filter.State, state)
@@ -194,7 +194,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 		case "start-time":
 			st := strings.Split(vals[0], "-")
 			if len(st) != 2 {
-				http.Error(rw, "invalid query parameter value: startTime", http.StatusBadRequest)
+				http.Error(rw, "REST > invalid query parameter value: startTime", http.StatusBadRequest)
 				return
 			}
 			from, err := strconv.ParseInt(st[0], 10, 64)
@@ -226,7 +226,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 		case "with-metadata":
 			withMetadata = true
 		default:
-			http.Error(rw, "invalid query parameter: "+key, http.StatusBadRequest)
+			http.Error(rw, "REST > invalid query parameter: "+key, http.StatusBadRequest)
 			return
 		}
 	}
@@ -271,7 +271,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 		results = append(results, res)
 	}
 
-	log.Debugf("API/REST > /api/jobs: %d jobs returned", len(results))
+	log.Debugf("/api/jobs: %d jobs returned", len(results))
 	bw := bufio.NewWriter(rw)
 	defer bw.Flush()
 	if err := json.NewEncoder(bw).Encode(map[string]interface{}{
@@ -300,7 +300,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/tag_job/{id} [post]
 func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("API/REST > missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
 		return
 	}
 
@@ -365,13 +365,13 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/start_job/ [post]
 func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("API/REST > missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
 		return
 	}
 
 	req := schema.JobMeta{BaseJob: schema.JobDefaults}
 	if err := decode(r.Body, &req); err != nil {
-		handleError(fmt.Errorf("API/REST > parsing request body failed: %w", err), http.StatusBadRequest, rw)
+		handleError(fmt.Errorf("parsing request body failed: %w", err), http.StatusBadRequest, rw)
 		return
 	}
 
@@ -391,12 +391,12 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	// Check if combination of (job_id, cluster_id, start_time) already exists:
 	jobs, err := api.JobRepository.FindAll(&req.JobID, &req.Cluster, nil)
 	if err != nil && err != sql.ErrNoRows {
-		handleError(fmt.Errorf("API/REST > checking for duplicate failed: %w", err), http.StatusInternalServerError, rw)
+		handleError(fmt.Errorf("checking for duplicate failed: %w", err), http.StatusInternalServerError, rw)
 		return
 	} else if err == nil {
 		for _, job := range jobs {
 			if (req.StartTime - job.StartTimeUnix) < 86400 {
-				handleError(fmt.Errorf("API/REST > a job with that jobId, cluster and startTime already exists: dbid: %d", job.ID), http.StatusUnprocessableEntity, rw)
+				handleError(fmt.Errorf("a job with that jobId, cluster and startTime already exists: dbid: %d", job.ID), http.StatusUnprocessableEntity, rw)
 				return
 			}
 		}
@@ -404,7 +404,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 
 	id, err := api.JobRepository.Start(&req)
 	if err != nil {
-		handleError(fmt.Errorf("API/REST > insert into database failed: %w", err), http.StatusInternalServerError, rw)
+		handleError(fmt.Errorf("insert into database failed: %w", err), http.StatusInternalServerError, rw)
 		return
 	}
 	// unlock here, adding Tags can be async
@@ -413,12 +413,12 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	for _, tag := range req.Tags {
 		if _, err := api.JobRepository.AddTagOrCreate(id, tag.Type, tag.Name); err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
-			handleError(fmt.Errorf("API/REST > adding tag to new job %d failed: %w", id, err), http.StatusInternalServerError, rw)
+			handleError(fmt.Errorf("adding tag to new job %d failed: %w", id, err), http.StatusInternalServerError, rw)
 			return
 		}
 	}
 
-	log.Printf("API/REST > new job (id: %d): cluster=%s, jobId=%d, user=%s, startTime=%d", id, req.Cluster, req.JobID, req.User, req.StartTime)
+	log.Printf("new job (id: %d): cluster=%s, jobId=%d, user=%s, startTime=%d", id, req.Cluster, req.JobID, req.User, req.StartTime)
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusCreated)
 	json.NewEncoder(rw).Encode(StartJobApiResponse{
@@ -446,14 +446,14 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/stop_job/{id} [post]
 func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("API/REST > missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
 		return
 	}
 
 	// Parse request body: Only StopTime and State
 	req := StopJobApiRequest{}
 	if err := decode(r.Body, &req); err != nil {
-		handleError(fmt.Errorf("API/REST > parsing request body failed: %w", err), http.StatusBadRequest, rw)
+		handleError(fmt.Errorf("parsing request body failed: %w", err), http.StatusBadRequest, rw)
 		return
 	}
 
@@ -464,17 +464,17 @@ func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
 	if ok {
 		id, e := strconv.ParseInt(id, 10, 64)
 		if e != nil {
-			handleError(fmt.Errorf("API/REST > integer expected in path for id: %w", e), http.StatusBadRequest, rw)
+			handleError(fmt.Errorf("integer expected in path for id: %w", e), http.StatusBadRequest, rw)
 			return
 		}
 
 		job, err = api.JobRepository.FindById(id)
 	} else {
-		handleError(errors.New("API/REST > the parameter 'id' is required"), http.StatusBadRequest, rw)
+		handleError(errors.New("the parameter 'id' is required"), http.StatusBadRequest, rw)
 		return
 	}
 	if err != nil {
-		handleError(fmt.Errorf("API/REST > finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
+		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
 		return
 	}
 
@@ -499,14 +499,14 @@ func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/stop_job/ [post]
 func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("API/REST > missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
 		return
 	}
 
 	// Parse request body
 	req := StopJobApiRequest{}
 	if err := decode(r.Body, &req); err != nil {
-		handleError(fmt.Errorf("API/REST > parsing request body failed: %w", err), http.StatusBadRequest, rw)
+		handleError(fmt.Errorf("parsing request body failed: %w", err), http.StatusBadRequest, rw)
 		return
 	}
 
@@ -514,14 +514,14 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 	var job *schema.Job
 	var err error
 	if req.JobId == nil {
-		handleError(errors.New("API/REST > the field 'jobId' is required"), http.StatusBadRequest, rw)
+		handleError(errors.New("the field 'jobId' is required"), http.StatusBadRequest, rw)
 		return
 	}
 
 	job, err = api.JobRepository.Find(req.JobId, req.Cluster, req.StartTime)
 
 	if err != nil {
-		handleError(fmt.Errorf("API/REST > finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
+		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
 		return
 	}
 
@@ -545,7 +545,7 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/delete_job/{id} [delete]
 func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("API/REST > missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
 		return
 	}
 
@@ -555,23 +555,23 @@ func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 	if ok {
 		id, e := strconv.ParseInt(id, 10, 64)
 		if e != nil {
-			handleError(fmt.Errorf("API/REST > integer expected in path for id: %w", e), http.StatusBadRequest, rw)
+			handleError(fmt.Errorf("integer expected in path for id: %w", e), http.StatusBadRequest, rw)
 			return
 		}
 
 		err = api.JobRepository.DeleteJobById(id)
 	} else {
-		handleError(errors.New("API/REST > the parameter 'id' is required"), http.StatusBadRequest, rw)
+		handleError(errors.New("the parameter 'id' is required"), http.StatusBadRequest, rw)
 		return
 	}
 	if err != nil {
-		handleError(fmt.Errorf("API/REST > deleting job failed: %w", err), http.StatusUnprocessableEntity, rw)
+		handleError(fmt.Errorf("deleting job failed: %w", err), http.StatusUnprocessableEntity, rw)
 		return
 	}
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode(DeleteJobApiResponse{
-		Message: fmt.Sprintf("API/REST > Successfully deleted job %s", id),
+		Message: fmt.Sprintf("Successfully deleted job %s", id),
 	})
 }
 
@@ -593,14 +593,14 @@ func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/delete_job/ [delete]
 func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("API/REST > missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
 		return
 	}
 
 	// Parse request body
 	req := DeleteJobApiRequest{}
 	if err := decode(r.Body, &req); err != nil {
-		handleError(fmt.Errorf("API/REST > parsing request body failed: %w", err), http.StatusBadRequest, rw)
+		handleError(fmt.Errorf("parsing request body failed: %w", err), http.StatusBadRequest, rw)
 		return
 	}
 
@@ -608,27 +608,27 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 	var job *schema.Job
 	var err error
 	if req.JobId == nil {
-		handleError(errors.New("API/REST > the field 'jobId' is required"), http.StatusBadRequest, rw)
+		handleError(errors.New("the field 'jobId' is required"), http.StatusBadRequest, rw)
 		return
 	}
 
 	job, err = api.JobRepository.Find(req.JobId, req.Cluster, req.StartTime)
 
 	if err != nil {
-		handleError(fmt.Errorf("API/REST > finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
+		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
 		return
 	}
 
 	err = api.JobRepository.DeleteJobById(job.ID)
 	if err != nil {
-		handleError(fmt.Errorf("API/REST > deleting job failed: %w", err), http.StatusUnprocessableEntity, rw)
+		handleError(fmt.Errorf("deleting job failed: %w", err), http.StatusUnprocessableEntity, rw)
 		return
 	}
 
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode(DeleteJobApiResponse{
-		Message: fmt.Sprintf("API/REST > Successfully deleted job %d", job.ID),
+		Message: fmt.Sprintf("Successfully deleted job %d", job.ID),
 	})
 }
 
@@ -649,7 +649,7 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 // @router      /jobs/delete_job_before/{ts} [delete]
 func (api *RestApi) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("API/REST > missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
 		return
 	}
 
@@ -660,24 +660,24 @@ func (api *RestApi) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 	if ok {
 		ts, e := strconv.ParseInt(id, 10, 64)
 		if e != nil {
-			handleError(fmt.Errorf("API/REST > integer expected in path for ts: %w", e), http.StatusBadRequest, rw)
+			handleError(fmt.Errorf("integer expected in path for ts: %w", e), http.StatusBadRequest, rw)
 			return
 		}
 
 		cnt, err = api.JobRepository.DeleteJobsBefore(ts)
 	} else {
-		handleError(errors.New("API/REST > the parameter 'ts' is required"), http.StatusBadRequest, rw)
+		handleError(errors.New("the parameter 'ts' is required"), http.StatusBadRequest, rw)
 		return
 	}
 	if err != nil {
-		handleError(fmt.Errorf("API/REST > deleting jobs failed: %w", err), http.StatusUnprocessableEntity, rw)
+		handleError(fmt.Errorf("deleting jobs failed: %w", err), http.StatusUnprocessableEntity, rw)
 		return
 	}
 
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode(DeleteJobApiResponse{
-		Message: fmt.Sprintf("API/REST > Successfully deleted %d jobs", cnt),
+		Message: fmt.Sprintf("Successfully deleted %d jobs", cnt),
 	})
 }
 
@@ -685,12 +685,12 @@ func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 
 	// Sanity checks
 	if job == nil || job.StartTime.Unix() >= req.StopTime || job.State != schema.JobStateRunning {
-		handleError(errors.New("API/REST > stopTime must be larger than startTime and only running jobs can be stopped"), http.StatusBadRequest, rw)
+		handleError(errors.New("stopTime must be larger than startTime and only running jobs can be stopped"), http.StatusBadRequest, rw)
 		return
 	}
 
 	if req.State != "" && !req.State.Valid() {
-		handleError(fmt.Errorf("API/REST > invalid job state: %#v", req.State), http.StatusBadRequest, rw)
+		handleError(fmt.Errorf("invalid job state: %#v", req.State), http.StatusBadRequest, rw)
 		return
 	} else if req.State == "" {
 		req.State = schema.JobStateCompleted
@@ -700,11 +700,11 @@ func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 	job.Duration = int32(req.StopTime - job.StartTime.Unix())
 	job.State = req.State
 	if err := api.JobRepository.Stop(job.ID, job.Duration, job.State, job.MonitoringStatus); err != nil {
-		handleError(fmt.Errorf("API/REST > marking job as stopped failed: %w", err), http.StatusInternalServerError, rw)
+		handleError(fmt.Errorf("marking job as stopped failed: %w", err), http.StatusInternalServerError, rw)
 		return
 	}
 
-	log.Printf("API/REST > archiving job... (dbid: %d): cluster=%s, jobId=%d, user=%s, startTime=%s", job.ID, job.Cluster, job.JobID, job.User, job.StartTime)
+	log.Printf("archiving job... (dbid: %d): cluster=%s, jobId=%d, user=%s, startTime=%s", job.ID, job.Cluster, job.JobID, job.User, job.StartTime)
 
 	// Send a response (with status OK). This means that erros that happen from here on forward
 	// can *NOT* be communicated to the client. If reading from a MetricDataRepository or
@@ -724,7 +724,7 @@ func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 
 // func (api *RestApi) importJob(rw http.ResponseWriter, r *http.Request) {
 // 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-// 		handleError(fmt.Errorf("API/REST > missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
+// 		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
 // 		return
 // 	}
 
@@ -733,12 +733,12 @@ func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 // 		Data *schema.JobData `json:"data"`
 // 	}
 // 	if err := decode(r.Body, &body); err != nil {
-// 		handleError(fmt.Errorf("API/REST > import failed: %s", err.Error()), http.StatusBadRequest, rw)
+// 		handleError(fmt.Errorf("import failed: %s", err.Error()), http.StatusBadRequest, rw)
 // 		return
 // 	}
 
 // 	if err := api.JobRepository.ImportJob(body.Meta, body.Data); err != nil {
-// 		handleError(fmt.Errorf("API/REST > import failed: %s", err.Error()), http.StatusUnprocessableEntity, rw)
+// 		handleError(fmt.Errorf("import failed: %s", err.Error()), http.StatusUnprocessableEntity, rw)
 // 		return
 // 	}
 
@@ -793,7 +793,7 @@ func (api *RestApi) getJWT(rw http.ResponseWriter, r *http.Request) {
 	me := auth.GetUser(r.Context())
 	if !me.HasRole(auth.RoleAdmin) {
 		if username != me.Username {
-			http.Error(rw, "API/REST > only admins are allowed to sign JWTs not for themselves", http.StatusForbidden)
+			http.Error(rw, "REST > only admins are allowed to sign JWTs not for themselves", http.StatusForbidden)
 			return
 		}
 	}
@@ -818,13 +818,13 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "text/plain")
 	me := auth.GetUser(r.Context())
 	if !me.HasRole(auth.RoleAdmin) {
-		http.Error(rw, "API/REST > only admins are allowed to create new users", http.StatusForbidden)
+		http.Error(rw, "REST > only admins are allowed to create new users", http.StatusForbidden)
 		return
 	}
 
 	username, password, role, name, email := r.FormValue("username"), r.FormValue("password"), r.FormValue("role"), r.FormValue("name"), r.FormValue("email")
 	if len(password) == 0 && role != auth.RoleApi {
-		http.Error(rw, "API/REST > only API users are allowed to have a blank password (login will be impossible)", http.StatusBadRequest)
+		http.Error(rw, "REST > only API users are allowed to have a blank password (login will be impossible)", http.StatusBadRequest)
 		return
 	}
 
@@ -838,12 +838,12 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rw.Write([]byte(fmt.Sprintf("API/REST > User %#v successfully created!\n", username)))
+	rw.Write([]byte(fmt.Sprintf("User %#v successfully created!\n", username)))
 }
 
 func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); !user.HasRole(auth.RoleAdmin) {
-		http.Error(rw, "API/REST > only admins are allowed to delete a user", http.StatusForbidden)
+		http.Error(rw, "REST > only admins are allowed to delete a user", http.StatusForbidden)
 		return
 	}
 
@@ -858,7 +858,7 @@ func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
 
 func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); !user.HasRole(auth.RoleAdmin) {
-		http.Error(rw, "API/REST > only admins are allowed to fetch a list of users", http.StatusForbidden)
+		http.Error(rw, "REST > only admins are allowed to fetch a list of users", http.StatusForbidden)
 		return
 	}
 
@@ -873,7 +873,7 @@ func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 
 func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); !user.HasRole(auth.RoleAdmin) {
-		http.Error(rw, "API/REST > only admins are allowed to update a user", http.StatusForbidden)
+		http.Error(rw, "REST > only admins are allowed to update a user", http.StatusForbidden)
 		return
 	}
 
@@ -893,9 +893,9 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 			return
 		}
-		rw.Write([]byte("Remove Role Success"))
+		rw.Write([]byte("REST > Remove Role Success"))
 	} else {
-		http.Error(rw, "Not Add or Del?", http.StatusInternalServerError)
+		http.Error(rw, "REST > Not Add or Del?", http.StatusInternalServerError)
 	}
 }
 
@@ -903,7 +903,7 @@ func (api *RestApi) updateConfiguration(rw http.ResponseWriter, r *http.Request)
 	rw.Header().Set("Content-Type", "text/plain")
 	key, value := r.FormValue("key"), r.FormValue("value")
 
-	fmt.Printf("API/REST > KEY: %#v\nVALUE: %#v\n", key, value)
+	fmt.Printf("REST > KEY: %#v\nVALUE: %#v\n", key, value)
 
 	if err := repository.GetUserCfgRepo().UpdateConfig(key, value, auth.GetUser(r.Context())); err != nil {
 		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
@@ -915,7 +915,7 @@ func (api *RestApi) updateConfiguration(rw http.ResponseWriter, r *http.Request)
 
 func (api *RestApi) putMachineState(rw http.ResponseWriter, r *http.Request) {
 	if api.MachineStateDir == "" {
-		http.Error(rw, "API/REST > machine state not enabled", http.StatusNotFound)
+		http.Error(rw, "REST > machine state not enabled", http.StatusNotFound)
 		return
 	}
 
@@ -928,7 +928,7 @@ func (api *RestApi) putMachineState(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filename := filepath.Join(dir, fmt.Sprintf("API/REST > %s.json", host))
+	filename := filepath.Join(dir, fmt.Sprintf("%s.json", host))
 	f, err := os.Create(filename)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
@@ -946,12 +946,12 @@ func (api *RestApi) putMachineState(rw http.ResponseWriter, r *http.Request) {
 
 func (api *RestApi) getMachineState(rw http.ResponseWriter, r *http.Request) {
 	if api.MachineStateDir == "" {
-		http.Error(rw, "API/REST >  machine state not enabled", http.StatusNotFound)
+		http.Error(rw, "REST > machine state not enabled", http.StatusNotFound)
 		return
 	}
 
 	vars := mux.Vars(r)
-	filename := filepath.Join(api.MachineStateDir, vars["cluster"], fmt.Sprintf("API/REST > %s.json", vars["host"]))
+	filename := filepath.Join(api.MachineStateDir, vars["cluster"], fmt.Sprintf("%s.json", vars["host"]))
 
 	// Sets the content-type and 'Last-Modified' Header and so on automatically
 	http.ServeFile(rw, r, filename)

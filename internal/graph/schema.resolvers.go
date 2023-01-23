@@ -17,6 +17,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 )
 
 // Partitions is the resolver for the partitions field.
@@ -51,7 +52,7 @@ func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name s
 
 // DeleteTag is the resolver for the deleteTag field.
 func (r *mutationResolver) DeleteTag(ctx context.Context, id string) (string, error) {
-	panic(fmt.Errorf("GRAPH/RESOLVERS > not implemented: DeleteTag - deleteTag"))
+	log.Panic(fmt.Errorf("not implemented: DeleteTag - deleteTag"))
 }
 
 // AddTagsToJob is the resolver for the addTagsToJob field.
@@ -175,7 +176,7 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 	for name, md := range data {
 		for scope, metric := range md {
 			if metric.Scope != schema.MetricScope(scope) {
-				panic("GRAPH/RESOLVERS > metric.Scope != schema.MetricScope(scope) : Should not happen!")
+				log.Panic("metric.Scope != schema.MetricScope(scope) : Should not happen!")
 			}
 
 			res = append(res, &model.JobMetricWithName{

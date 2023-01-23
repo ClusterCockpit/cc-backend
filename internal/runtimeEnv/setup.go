@@ -65,7 +65,7 @@ func LoadEnv(file string) error {
 					case '"':
 						sb.WriteRune('"')
 					default:
-						return fmt.Errorf("RUNTIME/SETUP > unsupprorted escape sequence in quoted string: backslash %#v", runes[i])
+						return fmt.Errorf("RUNTIME/SETUP > unsupported escape sequence in quoted string: backslash %#v", runes[i])
 					}
 					continue
 				}

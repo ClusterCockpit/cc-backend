@@ -49,20 +49,20 @@ func Init(flagConfigFile string) {
 	raw, err := os.ReadFile(flagConfigFile)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			log.Fatalf("CONFIG/CONFIG > ERROR: %v", err)
+			log.Fatalf("CONFIG ERROR: %v", err)
 		}
 	} else {
 		if err := schema.Validate(schema.Config, bytes.NewReader(raw)); err != nil {
-			log.Fatalf("CONFIG/CONFIG > Validate config: %v\n", err)
+			log.Fatalf("Validate config: %v\n", err)
 		}
 		dec := json.NewDecoder(bytes.NewReader(raw))
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(&Keys); err != nil {
-			log.Fatalf("CONFIG/CONFIG > could not decode: %v", err)
+			log.Fatalf("could not decode: %v", err)
 		}
 
 		if Keys.Clusters == nil || len(Keys.Clusters) < 1 {
-			log.Fatal("CONFIG/CONFIG > At least one cluster required in config!")
+			log.Fatal("At least one cluster required in config!")
 		}
 	}
 }

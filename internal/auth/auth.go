@@ -99,7 +99,7 @@ func Init(db *sqlx.DB,
 
 	sessKey := os.Getenv("SESSION_KEY")
 	if sessKey == "" {
-		log.Warn("AUTH/AUTH > environment variable 'SESSION_KEY' not set (will use non-persistent random key)")
+		log.Warn("environment variable 'SESSION_KEY' not set (will use non-persistent random key)")
 		bytes := make([]byte, 32)
 		if _, err := rand.Read(bytes); err != nil {
 			return nil, err
@@ -169,7 +169,7 @@ func (auth *Authentication) Login(
 		user := (*User)(nil)
 		if username != "" {
 			if user, _ = auth.GetUser(username); err != nil {
-				// log.Warnf("AUTH/AUTH > login of unkown user %#v", username)
+				// log.Warnf("login of unkown user %#v", username)
 				_ = err
 			}
 		}
@@ -181,14 +181,14 @@ func (auth *Authentication) Login(
 
 			user, err = authenticator.Login(user, rw, r)
 			if err != nil {
-				log.Warnf("AUTH/AUTH > user '%s' login failed: %s", user.Username, err.Error())
+				log.Warnf("user '%s' login failed: %s", user.Username, err.Error())
 				onfailure(rw, r, err)
 				return
 			}
 
 			session, err := auth.sessionStore.New(r, "session")
 			if err != nil {
-				log.Errorf("AUTH/AUTH > session creation failed: %s", err.Error())
+				log.Errorf("session creation failed: %s", err.Error())
 				http.Error(rw, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -199,18 +199,18 @@ func (auth *Authentication) Login(
 			session.Values["username"] = user.Username
 			session.Values["roles"] = user.Roles
 			if err := auth.sessionStore.Save(r, rw, session); err != nil {
-				log.Errorf("AUTH/AUTH > session save failed: %s", err.Error())
+				log.Errorf("session save failed: %s", err.Error())
 				http.Error(rw, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
-			log.Infof("AUTH/AUTH > login successfull: user: %#v (roles: %v)", user.Username, user.Roles)
+			log.Infof("login successfull: user: %#v (roles: %v)", user.Username, user.Roles)
 			ctx := context.WithValue(r.Context(), ContextUserKey, user)
 			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 			return
 		}
 
-		log.Warn("AUTH/AUTH > login failed: no authenticator applied")
+		log.Warn("login failed: no authenticator applied")
 		onfailure(rw, r, err)
 	})
 }
@@ -226,7 +226,7 @@ func (auth *Authentication) Auth(
 		for _, authenticator := range auth.authenticators {
 			user, err := authenticator.Auth(rw, r)
 			if err != nil {
-				log.Warnf("AUTH/AUTH > authentication failed: %s", err.Error())
+				log.Warnf("authentication failed: %s", err.Error())
 				http.Error(rw, err.Error(), http.StatusUnauthorized)
 				return
 			}
@@ -239,7 +239,7 @@ func (auth *Authentication) Auth(
 			return
 		}
 
-		log.Warnf("AUTH/AUTH > authentication failed: %s", "no authenticator applied")
+		log.Warnf("authentication failed: %s", "no authenticator applied")
 		// http.Error(rw, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		onfailure(rw, r, errors.New("unauthorized (login first or use a token)"))
 	})

@@ -54,7 +54,7 @@ func (r *JobRepository) QueryJobs(
 		return nil, err
 	}
 
-	log.Debugf("REPOSITORY/QUERY > SQL query: `%s`, args: %#v", sql, args)
+	log.Debugf("SQL query: `%s`, args: %#v", sql, args)
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
 		return nil, err
@@ -209,7 +209,7 @@ var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")
 func toSnakeCase(str string) string {
 	for _, c := range str {
 		if c == '\'' || c == '\\' {
-			panic("REPOSITORY/QUERY > toSnakeCase() attack vector!")
+			log.Panic("toSnakeCase() attack vector!")
 		}
 	}
 

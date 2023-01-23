@@ -107,7 +107,7 @@ func LoadData(job *schema.Job,
 			jd, err = repo.LoadData(job, metrics, scopes, ctx)
 			if err != nil {
 				if len(jd) != 0 {
-					log.Errorf("METRICDATA/METRICDATA > partial error: %s", err.Error())
+					log.Errorf("partial error: %s", err.Error())
 				} else {
 					return err, 0, 0
 				}
@@ -229,7 +229,7 @@ func LoadNodeData(
 	data, err := repo.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)
 	if err != nil {
 		if len(data) != 0 {
-			log.Errorf("METRICDATA/METRICDATA > partial error: %s", err.Error())
+			log.Errorf("partial error: %s", err.Error())
 		} else {
 			return nil, err
 		}

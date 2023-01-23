@@ -54,7 +54,7 @@ func Validate(k Kind, r io.Reader) (err error) {
 
 	var v interface{}
 	if err := json.NewDecoder(r).Decode(&v); err != nil {
-		log.Errorf("SCHEMA/VALIDATE > Failed to decode %v", err)
+		log.Errorf("Failed to decode %v", err)
 		return err
 	}
 

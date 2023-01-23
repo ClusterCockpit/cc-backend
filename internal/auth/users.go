@@ -67,7 +67,7 @@ func (auth *Authentication) AddUser(user *User) error {
 		return err
 	}
 
-	log.Infof("AUTH/USERS > new user %#v created (roles: %s, auth-source: %d)", user.Username, rolesJson, user.AuthSource)
+	log.Infof("new user %#v created (roles: %s, auth-source: %d)", user.Username, rolesJson, user.AuthSource)
 	return nil
 }
 

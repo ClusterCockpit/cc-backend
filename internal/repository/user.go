@@ -42,12 +42,12 @@ func GetUserCfgRepo() *UserCfgRepo {
 			FOREIGN KEY (username) REFERENCES user (username) ON DELETE CASCADE ON UPDATE NO ACTION);`)
 
 		if err != nil {
-			log.Fatalf("REPOSITORY/USER > db.DB.exec() error: %v", err)
+			log.Fatalf("db.DB.exec() error: %v", err)
 		}
 
 		lookupConfigStmt, err := db.DB.Preparex(`SELECT confkey, value FROM configuration WHERE configuration.username = ?`)
 		if err != nil {
-			log.Fatalf("REPOSITORY/USER > db.DB.Preparex() error: %v", err)
+			log.Fatalf("db.DB.Preparex() error: %v", err)
 		}
 
 		userCfgRepoInstance = &UserCfgRepo{

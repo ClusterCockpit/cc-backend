@@ -186,7 +186,7 @@ func HandleImportFlag(flag string) error {
 			}
 		}
 
-		log.Infof("REPOSITORY/INIT > successfully imported a new job (jobId: %d, cluster: %s, dbid: %d)", job.JobID, job.Cluster, id)
+		log.Infof("successfully imported a new job (jobId: %d, cluster: %s, dbid: %d)", job.JobID, job.Cluster, id)
 	}
 	return nil
 }
@@ -260,34 +260,34 @@ func InitDB() error {
 
 		job.RawResources, err = json.Marshal(job.Resources)
 		if err != nil {
-			log.Errorf("REPOSITORY/INIT > repository initDB(): %v", err)
+			log.Errorf("repository initDB(): %v", err)
 			errorOccured++
 			continue
 		}
 
 		job.RawMetaData, err = json.Marshal(job.MetaData)
 		if err != nil {
-			log.Errorf("REPOSITORY/INIT > repository initDB(): %v", err)
+			log.Errorf("repository initDB(): %v", err)
 			errorOccured++
 			continue
 		}
 
 		if err := SanityChecks(&job.BaseJob); err != nil {
-			log.Errorf("REPOSITORY/INIT > repository initDB(): %v", err)
+			log.Errorf("repository initDB(): %v", err)
 			errorOccured++
 			continue
 		}
 
 		res, err := stmt.Exec(job)
 		if err != nil {
-			log.Errorf("REPOSITORY/INIT > repository initDB(): %v", err)
+			log.Errorf("repository initDB(): %v", err)
 			errorOccured++
 			continue
 		}
 
 		id, err := res.LastInsertId()
 		if err != nil {
-			log.Errorf("REPOSITORY/INIT > repository initDB(): %v", err)
+			log.Errorf("repository initDB(): %v", err)
 			errorOccured++
 			continue
 		}
@@ -318,7 +318,7 @@ func InitDB() error {
 	}
 
 	if errorOccured > 0 {
-		log.Errorf("REPOSITORY/INIT > Error in import of %d jobs!", errorOccured)
+		log.Errorf("Error in import of %d jobs!", errorOccured)
 	}
 
 	if err := tx.Commit(); err != nil {

@@ -39,14 +39,14 @@ func Connect(driver string, db string) {
 		} else if driver == "mysql" {
 			dbHandle, err = sqlx.Open("mysql", fmt.Sprintf("%s?multiStatements=true", db))
 			if err != nil {
-				log.Fatalf("REPOSITORY/DBCONNECTION > sqlx.Open() error: %v", err)
+				log.Fatalf("sqlx.Open() error: %v", err)
 			}
 
 			dbHandle.SetConnMaxLifetime(time.Minute * 3)
 			dbHandle.SetMaxOpenConns(10)
 			dbHandle.SetMaxIdleConns(10)
 		} else {
-			log.Fatalf("REPOSITORY/DBCONNECTION > unsupported database driver: %s", driver)
+			log.Fatalf("unsupported database driver: %s", driver)
 		}
 
 		dbConnInstance = &DBConnection{DB: dbHandle}
@@ -55,7 +55,7 @@ func Connect(driver string, db string) {
 
 func GetConnection() *DBConnection {
 	if dbConnInstance == nil {
-		log.Fatalf("REPOSITORY/DBCONNECTION > Database connection not initialized!")
+		log.Fatalf("Database connection not initialized!")
 	}
 
 	return dbConnInstance

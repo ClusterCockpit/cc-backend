@@ -84,7 +84,7 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 		switch scope {
 		case "node":
 			// Get Finest Granularity, Groupy By Measurement and Hostname (== Metric / Node), Calculate Mean for 60s windows
-			// log.Info("METRICDATA/INFLUXV2 > Scope 'node' requested. ")
+			// log.Info("Scope 'node' requested. ")
 			query = fmt.Sprintf(`
 								from(bucket: "%s")
 								|> range(start: %s, stop: %s)
@@ -97,10 +97,10 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 				idb.formatTime(job.StartTime), idb.formatTime(idb.epochToTime(job.StartTimeUnix+int64(job.Duration)+int64(1))),
 				measurementsCond, hostsCond)
 		case "socket":
-			log.Info("METRICDATA/INFLUXV2 > Scope 'socket' requested, but not yet supported: Will return 'node' scope only. ")
+			log.Info("Scope 'socket' requested, but not yet supported: Will return 'node' scope only. ")
 			continue
 		case "core":
-			log.Info("METRICDATA/INFLUXV2 >  Scope 'core' requested, but not yet supported: Will return 'node' scope only. ")
+			log.Info(" Scope 'core' requested, but not yet supported: Will return 'node' scope only. ")
 			continue
 			// Get Finest Granularity only, Set NULL to 0.0
 			// query = fmt.Sprintf(`
@@ -114,7 +114,7 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 			//  	idb.formatTime(job.StartTime), idb.formatTime(idb.epochToTime(job.StartTimeUnix + int64(job.Duration) + int64(1) )),
 			//  	measurementsCond, hostsCond)
 		default:
-			log.Info("METRICDATA/INFLUXV2 > Unknown Scope requested: Will return 'node' scope. ")
+			log.Info("Unknown Scope requested: Will return 'node' scope. ")
 			continue
 			// return nil, errors.New("METRICDATA/INFLUXV2 > the InfluxDB metric data repository does not yet support other scopes than 'node'")
 		}
@@ -319,7 +319,7 @@ func (idb *InfluxDBv2DataRepository) LoadNodeData(
 	ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
 
 	// TODO : Implement to be used in Analysis- und System/Node-View
-	log.Infof("METRICDATA/INFLUXV2 > LoadNodeData unimplemented for InfluxDBv2DataRepository, Args: cluster %s, metrics %v, nodes %v, scopes %v", cluster, metrics, nodes, scopes)
+	log.Infof("LoadNodeData unimplemented for InfluxDBv2DataRepository, Args: cluster %s, metrics %v, nodes %v, scopes %v", cluster, metrics, nodes, scopes)
 
 	return nil, errors.New("METRICDATA/INFLUXV2 > unimplemented for InfluxDBv2DataRepository")
 }

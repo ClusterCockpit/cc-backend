@@ -184,9 +184,9 @@ func (pdb *PrometheusDataRepository) Init(rawConfig json.RawMessage) error {
 	for metric, templ := range config.Templates {
 		pdb.templates[metric], err = template.New(metric).Parse(templ)
 		if err == nil {
-			log.Debugf("METRICDATA/PROMETHEUS > Added PromQL template for %s: %s", metric, templ)
+			log.Debugf("Added PromQL template for %s: %s", metric, templ)
 		} else {
-			log.Errorf("METRICDATA/PROMETHEUS > Failed to parse PromQL template %s for metric %s", templ, metric)
+			log.Errorf("Failed to parse PromQL template %s for metric %s", templ, metric)
 		}
 	}
 	return nil
@@ -216,7 +216,7 @@ func (pdb *PrometheusDataRepository) FormatQuery(
 			return "", errors.New(fmt.Sprintf("METRICDATA/PROMETHEUS > Error compiling template %v", templ))
 		} else {
 			query := buf.String()
-			log.Debugf("METRICDATA/PROMETHEUS > PromQL: %s", query)
+			log.Debugf("PromQL: %s", query)
 			return query, nil
 		}
 	} else {
@@ -283,14 +283,14 @@ func (pdb *PrometheusDataRepository) LoadData(
 
 	for _, scope := range scopes {
 		if scope != schema.MetricScopeNode {
-			logOnce.Do(func(){log.Infof("METRICDATA/PROMETHEUS > Scope '%s' requested, but not yet supported: Will return 'node' scope only.", scope)})
+			logOnce.Do(func(){log.Infof("Scope '%s' requested, but not yet supported: Will return 'node' scope only.", scope)})
 			continue
 		}
 
 		for _, metric := range metrics {
 			metricConfig := archive.GetMetricConfig(job.Cluster, metric)
 			if metricConfig == nil {
-				log.Errorf("METRICDATA/PROMETHEUS > Error in LoadData: Metric %s for cluster %s not configured", metric, job.Cluster)
+				log.Errorf("Error in LoadData: Metric %s for cluster %s not configured", metric, job.Cluster)
 				return nil, errors.New("METRICDATA/PROMETHEUS > Prometheus query error")
 			}
 			query, err := pdb.FormatQuery(metric, scope, nodes, job.Cluster)
@@ -307,7 +307,7 @@ func (pdb *PrometheusDataRepository) LoadData(
 			result, warnings, err := pdb.queryClient.QueryRange(ctx, query, r)
 
 			if err != nil {
-				log.Errorf("METRICDATA/PROMETHEUS > Prometheus query error in LoadData: %v\nQuery: %s", err, query)
+				log.Errorf("Prometheus query error in LoadData: %v\nQuery: %s", err, query)
 				return nil, errors.New("METRICDATA/PROMETHEUS > Prometheus query error")
 			}
 			if len(warnings) > 0 {
@@ -389,13 +389,13 @@ func (pdb *PrometheusDataRepository) LoadNodeData(
 	}
 	for _, scope := range scopes {
 		if scope != schema.MetricScopeNode {
-			logOnce.Do(func(){log.Infof("METRICDATA/PROMETHEUS > Note: Scope '%s' requested, but not yet supported: Will return 'node' scope only.", scope)})
+			logOnce.Do(func(){log.Infof("Note: Scope '%s' requested, but not yet supported: Will return 'node' scope only.", scope)})
 			continue
 		}
 		for _, metric := range metrics {
 			metricConfig := archive.GetMetricConfig(cluster, metric)
 			if metricConfig == nil {
-				log.Errorf("METRICDATA/PROMETHEUS > Error in LoadNodeData: Metric %s for cluster %s not configured", metric, cluster)
+				log.Errorf("Error in LoadNodeData: Metric %s for cluster %s not configured", metric, cluster)
 				return nil, errors.New("METRICDATA/PROMETHEUS > Prometheus querry error")
 			}
 			query, err := pdb.FormatQuery(metric, scope, nodes, cluster)
@@ -412,11 +412,11 @@ func (pdb *PrometheusDataRepository) LoadNodeData(
 			result, warnings, err := pdb.queryClient.QueryRange(ctx, query, r)
 
 			if err != nil {
-				log.Errorf("METRICDATA/PROMETHEUS > Prometheus query error in LoadNodeData: %v\n", err)
+				log.Errorf("Prometheus query error in LoadNodeData: %v\n", err)
 				return nil, errors.New("METRICDATA/PROMETHEUS > Prometheus querry error")
 			}
 			if len(warnings) > 0 {
-				log.Warnf("METRICDATA/PROMETHEUS > Warnings: %v\n", warnings)
+				log.Warnf("Warnings: %v\n", warnings)
 			}
 
 			step := int64(metricConfig.Timestep)
@@ -442,6 +442,6 @@ func (pdb *PrometheusDataRepository) LoadNodeData(
 		}
 	}
 	t1 := time.Since(t0)
-	log.Debugf("METRICDATA/PROMETHEUS > LoadNodeData of %v nodes took %s", len(data), t1)
+	log.Debugf("LoadNodeData of %v nodes took %s", len(data), t1)
 	return data, nil
 }

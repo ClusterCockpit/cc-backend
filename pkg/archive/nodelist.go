@@ -64,7 +64,7 @@ type NLExprIntRange struct {
 
 func (nle NLExprIntRange) consume(input string) (next string, ok bool) {
 	if !nle.zeroPadded || nle.digits < 1 {
-		log.Error("ARCHIVE/NODELIST > only zero-padded ranges are allowed")
+		log.Error("only zero-padded ranges are allowed")
 		return "", false
 	}
 

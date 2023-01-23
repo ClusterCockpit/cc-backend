@@ -46,7 +46,7 @@ func loadJobMeta(filename string) (*schema.JobMeta, error) {
 
 	f, err := os.Open(filename)
 	if err != nil {
-		log.Errorf("ARCHIVE/FSBACKEND > loadJobMeta() > open file error: %v", err)
+		log.Errorf("loadJobMeta() > open file error: %v", err)
 		return &schema.JobMeta{}, err
 	}
 	defer f.Close()
@@ -58,19 +58,19 @@ func (fsa *FsArchive) Init(rawConfig json.RawMessage) error {
 
 	var config FsArchiveConfig
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
-		log.Errorf("ARCHIVE/FSBACKEND > Init() > Unmarshal error: %v", err)
+		log.Errorf("Init() > Unmarshal error: %v", err)
 		return err
 	}
 	if config.Path == "" {
 		err := fmt.Errorf("ARCHIVE/FSBACKEND > Init() : empty config.Path")
-		log.Errorf("ARCHIVE/FSBACKEND > Init() > config.Path error: %v", err)
+		log.Errorf("Init() > config.Path error: %v", err)
 		return err
 	}
 	fsa.path = config.Path
 
 	entries, err := os.ReadDir(fsa.path)
 	if err != nil {
-		log.Errorf("ARCHIVE/FSBACKEND > Init() > ReadDir() error: %v", err)
+		log.Errorf("Init() > ReadDir() error: %v", err)
 		return err
 	}
 
@@ -86,7 +86,7 @@ func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 	filename := getPath(job, fsa.path, "data.json")
 	f, err := os.Open(filename)
 	if err != nil {
-		log.Errorf("ARCHIVE/FSBACKEND > LoadJobData() > open file error: %v", err)
+		log.Errorf("LoadJobData() > open file error: %v", err)
 		return nil, err
 	}
 	defer f.Close()
@@ -104,7 +104,7 @@ func (fsa *FsArchive) LoadClusterCfg(name string) (*schema.Cluster, error) {
 
 	b, err := os.ReadFile(filepath.Join(fsa.path, name, "cluster.json"))
 	if err != nil {
-		log.Errorf("ARCHIVE/FSBACKEND > LoadClusterCfg() > open file error: %v", err)
+		log.Errorf("LoadClusterCfg() > open file error: %v", err)
 		return &schema.Cluster{}, err
 	}
 	if config.Keys.Validate {
@@ -121,13 +121,13 @@ func (fsa *FsArchive) Iter() <-chan *schema.JobMeta {
 	go func() {
 		clustersDir, err := os.ReadDir(fsa.path)
 		if err != nil {
-			log.Fatalf("ARCHIVE/FSBACKEND > Reading clusters failed @ cluster dirs: %s", err.Error())
+			log.Fatalf("Reading clusters failed @ cluster dirs: %s", err.Error())
 		}
 
 		for _, clusterDir := range clustersDir {
 			lvl1Dirs, err := os.ReadDir(filepath.Join(fsa.path, clusterDir.Name()))
 			if err != nil {
-				log.Fatalf("ARCHIVE/FSBACKEND > Reading jobs failed @ lvl1 dirs: %s", err.Error())
+				log.Fatalf("Reading jobs failed @ lvl1 dirs: %s", err.Error())
 			}
 
 			for _, lvl1Dir := range lvl1Dirs {
@@ -138,21 +138,21 @@ func (fsa *FsArchive) Iter() <-chan *schema.JobMeta {
 
 				lvl2Dirs, err := os.ReadDir(filepath.Join(fsa.path, clusterDir.Name(), lvl1Dir.Name()))
 				if err != nil {
-					log.Fatalf("ARCHIVE/FSBACKEND > Reading jobs failed @ lvl2 dirs: %s", err.Error())
+					log.Fatalf("Reading jobs failed @ lvl2 dirs: %s", err.Error())
 				}
 
 				for _, lvl2Dir := range lvl2Dirs {
 					dirpath := filepath.Join(fsa.path, clusterDir.Name(), lvl1Dir.Name(), lvl2Dir.Name())
 					startTimeDirs, err := os.ReadDir(dirpath)
 					if err != nil {
-						log.Fatalf("ARCHIVE/FSBACKEND > Reading jobs failed @ starttime dirs: %s", err.Error())
+						log.Fatalf("Reading jobs failed @ starttime dirs: %s", err.Error())
 					}
 
 					for _, startTimeDir := range startTimeDirs {
 						if startTimeDir.IsDir() {
 							job, err := loadJobMeta(filepath.Join(dirpath, startTimeDir.Name(), "meta.json"))
 							if err != nil {
-								log.Errorf("ARCHIVE/FSBACKEND > error in %s: %s", filepath.Join(dirpath, startTimeDir.Name()), err.Error())
+								log.Errorf("error in %s: %s", filepath.Join(dirpath, startTimeDir.Name()), err.Error())
 							} else {
 								ch <- job
 							}
