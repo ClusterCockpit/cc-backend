@@ -273,7 +273,7 @@ func (ccms *CCMetricStore) buildQueries(
 		mc := archive.GetMetricConfig(job.Cluster, metric)
 		if mc == nil {
 			// return nil, fmt.Errorf("METRICDATA/CCMS > metric '%s' is not specified for cluster '%s'", metric, job.Cluster)
-			// log.Printf("METRICDATA/CCMS > metric '%s' is not specified for cluster '%s'", metric, job.Cluster)
+			log.Notef("metric '%s' is not specified for cluster '%s'", metric, job.Cluster)
 			continue
 		}
 

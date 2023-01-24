@@ -97,6 +97,8 @@ func printStr(v ...interface{}) string {
 	return fmt.Sprint(v...)
 }
 
+// Uses Info() -> If errorpath required at some point:
+// Will need own writer with 'Output(2, out)' to correctly render path
 func Print(v ...interface{}) {
 	Info(v...)
 }
@@ -156,17 +158,20 @@ func Error(v ...interface{}) {
 	}
 }
 
-// Writes panic stacktrace, keeps application alive
+// Writes panic stacktrace, but keeps application alive
 func Panic(v ...interface{}) {
-	Error(v...)
+	if ErrWriter != io.Discard {
+		out := printStr(v...)
+		if logDateTime {
+			ErrTimeLog.Output(2, out)
+		} else {
+			ErrLog.Output(2, out)
+		}
+	}
+
 	panic("Panic triggered ...")
 }
 
-// Writes error log, stops application
-func Fatal(v ...interface{}) {
-	Error(v...)
-	os.Exit(1)
-}
 
 func Crit(v ...interface{}) {
 	if CritWriter != io.Discard {
@@ -179,6 +184,20 @@ func Crit(v ...interface{}) {
 	}
 }
 
+// Writes critical log, stops application
+func Fatal(v ...interface{}) {
+	if CritWriter != io.Discard {
+		out := printStr(v...)
+		if logDateTime {
+			CritTimeLog.Output(2, out)
+		} else {
+			CritLog.Output(2, out)
+		}
+	}
+
+	os.Exit(1)
+}
+
 /* PRINT FORMAT*/
 
 // Private helper
@@ -186,6 +205,8 @@ func printfStr(format string, v ...interface{}) string {
 	return fmt.Sprintf(format, v...)
 }
 
+// Uses Infof() -> If errorpath required at some point:
+// Will need own writer with 'Output(2, out)' to correctly render path
 func Printf(format string, v ...interface{}) {
 	Infof(format, v...)
 }
@@ -245,17 +266,20 @@ func Errorf(format string, v ...interface{}) {
 	}
 }
 
-// Writes panic stacktrace, keeps application alive
+// Writes panic stacktrace, but keeps application alive
 func Panicf(format string, v ...interface{}) {
-	Errorf(format, v...)
+	if ErrWriter != io.Discard {
+		out := printfStr(format, v...)
+		if logDateTime {
+			ErrTimeLog.Output(2, out)
+		} else {
+			ErrLog.Output(2, out)
+		}
+	}
+
 	panic("Panic triggered ...")
 }
 
-// Writes error log, stops application
-func Fatalf(format string, v ...interface{}) {
-	Errorf(format, v...)
-	os.Exit(1)
-}
 
 func Critf(format string, v ...interface{}) {
 	if CritWriter != io.Discard {
@@ -266,6 +290,20 @@ func Critf(format string, v ...interface{}) {
 			CritLog.Output(2, out)
 		}
 	}
+}
+
+// Writes crit log, stops application
+func Fatalf(format string, v ...interface{}) {
+	if CritWriter != io.Discard {
+		out := printfStr(format, v...)
+		if logDateTime {
+			CritTimeLog.Output(2, out)
+		} else {
+			CritLog.Output(2, out)
+		}
+	}
+
+	os.Exit(1)
 }
 
 /* SPECIAL */

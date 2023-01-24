@@ -283,7 +283,7 @@ func (pdb *PrometheusDataRepository) LoadData(
 
 	for _, scope := range scopes {
 		if scope != schema.MetricScopeNode {
-			logOnce.Do(func(){log.Infof("Scope '%s' requested, but not yet supported: Will return 'node' scope only.", scope)})
+			logOnce.Do(func(){log.Notef("Scope '%s' requested, but not yet supported: Will return 'node' scope only.", scope)})
 			continue
 		}
 
@@ -389,7 +389,7 @@ func (pdb *PrometheusDataRepository) LoadNodeData(
 	}
 	for _, scope := range scopes {
 		if scope != schema.MetricScopeNode {
-			logOnce.Do(func(){log.Infof("Note: Scope '%s' requested, but not yet supported: Will return 'node' scope only.", scope)})
+			logOnce.Do(func(){log.Notef("Note: Scope '%s' requested, but not yet supported: Will return 'node' scope only.", scope)})
 			continue
 		}
 		for _, metric := range metrics {

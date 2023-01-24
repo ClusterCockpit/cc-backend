@@ -292,6 +292,8 @@ func (r *JobRepository) CountGroupedJobs(ctx context.Context, aggreg model.Aggre
 			now := time.Now().Unix()
 			count = fmt.Sprintf(`sum(job.num_nodes * (CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) as count`, now)
 			runner = r.DB
+		default:
+			log.Notef("CountGroupedJobs() Weight %v unknown.", *weight)
 		}
 	}
 
@@ -356,6 +358,8 @@ func (r *JobRepository) MarkArchived(
 			stmt = stmt.Set("net_bw_avg", stats.Avg)
 		case "file_bw":
 			stmt = stmt.Set("file_bw_avg", stats.Avg)
+		default:
+			log.Notef("MarkArchived() Metric %s unknown.", metric)
 		}
 	}
 

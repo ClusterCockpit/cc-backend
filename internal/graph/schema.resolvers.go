@@ -52,7 +52,7 @@ func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name s
 
 // DeleteTag is the resolver for the deleteTag field.
 func (r *mutationResolver) DeleteTag(ctx context.Context, id string) (string, error) {
-	log.Panic(fmt.Errorf("not implemented: DeleteTag - deleteTag"))
+	panic(fmt.Errorf("not implemented: DeleteTag - deleteTag"))
 }
 
 // AddTagsToJob is the resolver for the addTagsToJob field.
