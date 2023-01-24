@@ -17,6 +17,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 )
 
 type CCMetricStoreConfig struct {
