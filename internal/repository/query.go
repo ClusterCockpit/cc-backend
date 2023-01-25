@@ -94,7 +94,7 @@ func (r *JobRepository) CountJobs(
 
 func SecurityCheck(ctx context.Context, query sq.SelectBuilder) sq.SelectBuilder {
 	user := auth.GetUser(ctx)
-	if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleApi) || user.HasRole(auth.RoleSupport) {
+	if user == nil || user.HasAnyRole([]string{auth.RoleAdmin, auth.RoleApi, auth.RoleSupport}) {
 		return query
 	}
 

@@ -23,7 +23,10 @@ const (
 	RoleSupport string = "support"
 	RoleApi     string = "api"
 	RoleUser    string = "user"
+	RoleProject string = "project"
 )
+
+var validRoles = [5]string{RoleAdmin, RoleSupport, RoleApi, RoleUser, RoleProject}
 
 const (
 	AuthViaLocalPassword int8 = 0
@@ -38,11 +41,72 @@ type User struct {
 	Roles      []string `json:"roles"`
 	AuthSource int8     `json:"via"`
 	Email      string   `json:"email"`
+	Project    string   `json:"project"`
 	Expiration time.Time
 }
 
 func (u *User) HasRole(role string) bool {
 	for _, r := range u.Roles {
+		if r == role {
+			return true
+		}
+	}
+	return false
+}
+
+// Role-Arrays are short: performance not impacted by nested loop
+func (u *User) HasAnyRole(queryroles []string) bool {
+	for _, ur := range u.Roles {
+		for _, qr := range queryroles {
+			if ur == qr {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// Role-Arrays are short: performance not impacted by nested loop
+func (u *User) HasAllRoles(queryroles []string) bool {
+	target 	:= len(queryroles)
+	matches := 0
+	for _, ur := range u.Roles {
+		for _, qr := range queryroles {
+			if ur == qr {
+				matches += 1
+				break
+			}
+		}
+	}
+
+	if matches == target {
+	  return true
+	} else {
+		return false
+	}
+}
+
+// Role-Arrays are short: performance not impacted by nested loop
+func (u *User) HasNotRoles(queryroles []string) bool {
+	matches := 0
+	for _, ur := range u.Roles {
+		for _, qr := range queryroles {
+			if ur == qr {
+				matches += 1
+				break
+			}
+		}
+	}
+
+	if matches == 0 {
+	  return true
+	} else {
+		return false
+	}
+}
+
+func IsValidRole(role string) bool {
+	for _, r := range validRoles {
 		if r == role {
 			return true
 		}

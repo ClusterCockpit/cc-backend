@@ -120,14 +120,12 @@ func (auth *Authentication) AddRole(
 		return err
 	}
 
-	if role != RoleAdmin && role != RoleApi && role != RoleUser && role != RoleSupport {
+	if !IsValidRole(role) {
 		return fmt.Errorf("invalid user role: %#v", role)
 	}
 
-	for _, r := range user.Roles {
-		if r == role {
-			return fmt.Errorf("user %#v already has role %#v", username, role)
-		}
+	if user.HasRole(role) {
+		return fmt.Errorf("user %#v already has role %#v", username, role)
 	}
 
 	roles, _ := json.Marshal(append(user.Roles, role))
@@ -143,7 +141,7 @@ func (auth *Authentication) RemoveRole(ctx context.Context, username string, rol
 		return err
 	}
 
-	if role != RoleAdmin && role != RoleApi && role != RoleUser && role != RoleSupport {
+	if !IsValidRole(role) {
 		return fmt.Errorf("invalid user role: %#v", role)
 	}
 
@@ -170,7 +168,7 @@ func (auth *Authentication) RemoveRole(ctx context.Context, username string, rol
 
 func FetchUser(ctx context.Context, db *sqlx.DB, username string) (*model.User, error) {
 	me := GetUser(ctx)
-	if me != nil && !me.HasRole(RoleAdmin) && !me.HasRole(RoleSupport) && me.Username != username {
+	if me != nil && me.Username != username && me.HasNotRoles([]string{RoleAdmin, RoleSupport}) {
 		return nil, errors.New("forbidden")
 	}
 
