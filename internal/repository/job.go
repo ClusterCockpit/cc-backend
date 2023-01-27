@@ -295,8 +295,12 @@ func (r *JobRepository) CountGroupedJobs(ctx context.Context, aggreg model.Aggre
 		}
 	}
 
-	q := sq.Select("job."+string(aggreg), count).From("job").GroupBy("job." + string(aggreg)).OrderBy("count DESC")
-	q = SecurityCheck(ctx, q)
+	q, qerr := SecurityCheck(ctx, sq.Select("job."+string(aggreg), count).From("job").GroupBy("job." + string(aggreg)).OrderBy("count DESC"))
+
+	if qerr != nil {
+		return nil, qerr
+	}
+
 	for _, f := range filters {
 		q = BuildWhereClause(f, q)
 	}

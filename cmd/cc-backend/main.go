@@ -132,7 +132,7 @@ func main() {
 			}
 
 			if err := authentication.AddUser(&auth.User{
-				Username: parts[0], Password: parts[2], Roles: strings.Split(parts[1], ","),
+				Username: parts[0], Project: "", Password: parts[2], Roles: strings.Split(parts[1], ","),
 			}); err != nil {
 				log.Fatal(err)
 			}

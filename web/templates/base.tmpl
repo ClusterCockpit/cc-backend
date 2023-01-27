@@ -16,7 +16,8 @@
         <script>
             const header = {
                 "username": "{{ .User.Username }}",
-                "isAdmin":  {{ .User.IsAdmin }},
+                "project": "{{ .User.Project }}",
+                "authlevel":  {{ .User.AuthLevel }},
                 "clusters": {{ .Clusters }},
             };
         </script>

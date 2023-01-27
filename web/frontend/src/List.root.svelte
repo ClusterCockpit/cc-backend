@@ -1,4 +1,4 @@
-<!-- 
+<!--
     @component List of users or projects
  -->
 <script>
@@ -14,8 +14,18 @@
 
     export let type
     export let filterPresets
+    export let project = false
+    export let isManager = false
 
     console.assert(type == 'USER' || type == 'PROJECT', 'Invalid list type provided!')
+
+    let projectFilter = null
+    //Setup default filter
+    if (type == 'USER' && isManager == true && project != '') {
+        projectFilter = { project: {eq: project} }
+    } else if (type == 'USER' && isManager == true && project == '') {
+        projectFilter = { project: {eq: "noProjectForManager"} }
+    }
 
     const stats = operationStore(`query($filter: [JobFilter!]!) {
         rows: jobsStatistics(filter: $filter, groupBy: ${type}) {
@@ -54,7 +64,7 @@
             : (sorting.direction == 'up'
                 ? (a, b) => a[sorting.field] - b[sorting.field]
                 : (a, b) => b[sorting.field] - a[sorting.field])
-        
+
         return stats.filter(u => u.id.includes(nameFilter)).sort(cmp)
     }
 
@@ -78,6 +88,9 @@
             menuText="Only {type.toLowerCase()}s with jobs that match the filters will show up"
             on:update={({ detail }) => {
                 $stats.variables = { filter: detail.filters }
+                if (projectFilter != null) {
+                  $stats.variables.filter.push(projectFilter)
+                }
                 $stats.context.pause = false
                 $stats.reexecute()
             }} />

@@ -8,18 +8,18 @@
     let message = {msg: '', color: '#d63384'}
     let displayMessage = false
 
-    async function handleAddRole() {
-        const username = document.querySelector('#role-username').value
-        const role = document.querySelector('#role-select').value
+    async function handleAddProject() {
+        const username = document.querySelector('#project-username').value
+        const project = document.querySelector('#project-id').value
 
-        if (username == "" || role == "") {
-            alert('Please fill in a username and select a role.')
+        if (username == "" || project == "") {
+            alert('Please fill in a username and select a project.')
             return
         }
 
         let formData = new FormData()
         formData.append('username', username)
-        formData.append('add-role', role)
+        formData.append('add-project', project)
 
         try {
             const res = await fetch(`/api/user/${username}`, { method: 'POST', body: formData })
@@ -37,18 +37,18 @@
         }
     }
 
-    async function handleRemoveRole() {
-        const username = document.querySelector('#role-username').value
-        const role = document.querySelector('#role-select').value
+    async function handleRemoveProject() {
+        const username = document.querySelector('#project-username').value
+        const project = document.querySelector('#project-id').value
 
-        if (username == "" || role == "") {
-            alert('Please fill in a username and select a role.')
+        if (username == "" || project == "") {
+            alert('Please fill in a username and select a project.')
             return
         }
 
         let formData = new FormData()
         formData.append('username', username)
-        formData.append('remove-role', role)
+        formData.append('remove-project', project)
 
         try {
             const res = await fetch(`/api/user/${username}`, { method: 'POST', body: formData })
@@ -81,21 +81,14 @@
 
 <Card>
     <CardBody>
-        <CardTitle class="mb-3">Edit User Roles</CardTitle>
+        <CardTitle class="mb-3">Edit Project Managed By User (Manager Only)</CardTitle>
         <div class="input-group mb-3">
-            <input type="text" class="form-control" placeholder="username" id="role-username"/>
-            <select class="form-select" id="role-select">
-                <option selected value="">Role...</option>
-                <option value="user">User</option>
-                <option value="manager">Manager</option>
-                <option value="support">Support</option>
-                <option value="admin">Admin</option>
-                <option value="api">API</option>
-            </select>
+            <input type="text" class="form-control" placeholder="username" id="project-username"/>
+            <input type="text" class="form-control" placeholder="project-id" id="project-id"/>
             <!-- PreventDefault on Sveltestrap-Button more complex to achieve than just use good ol' html button -->
             <!-- see: https://stackoverflow.com/questions/69630422/svelte-how-to-use-event-modifiers-in-my-own-components -->
-            <button class="btn btn-primary" type="button" id="add-role-button" on:click|preventDefault={handleAddRole}>Add</button>
-            <button class="btn btn-danger" type="button" id="remove-role-button" on:click|preventDefault={handleRemoveRole}>Remove</button>
+            <button class="btn btn-primary" type="button" id="add-project-button" on:click|preventDefault={handleAddProject}>Reset</button>
+            <button class="btn btn-danger" type="button" id="remove-project-button" on:click|preventDefault={handleRemoveProject}>Remove</button>
         </div>
         <p>
             {#if displayMessage}<b><code style="color: {message.color};" out:fade>Update: {message.msg}</code></b>{/if}

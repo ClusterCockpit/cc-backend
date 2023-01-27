@@ -21,12 +21,12 @@ import (
 const (
 	RoleAdmin   string = "admin"
 	RoleSupport string = "support"
-	RoleApi     string = "api"
+	RoleManager string = "manager"
 	RoleUser    string = "user"
-	RoleProject string = "project"
+	RoleApi     string = "api"
 )
 
-var validRoles = [5]string{RoleAdmin, RoleSupport, RoleApi, RoleUser, RoleProject}
+var validRoles = [5]string{RoleUser, RoleManager, RoleSupport, RoleAdmin, RoleApi}
 
 const (
 	AuthViaLocalPassword int8 = 0
@@ -105,6 +105,31 @@ func (u *User) HasNotRoles(queryroles []string) bool {
 	}
 }
 
+// Find highest role, returns integer
+func (u *User) GetAuthLevel() int {
+	if (u.HasRole(RoleAdmin)) {
+		return 5
+	} else if (u.HasRole(RoleSupport)) {
+		return 4
+	} else if (u.HasRole(RoleManager)) {
+		return 3
+	} else if (u.HasRole(RoleUser)) {
+		return 2
+	} else if (u.HasRole(RoleApi)) {
+		return 1
+	} else {
+		return 0
+	}
+}
+
+func (u *User) HasProject(project string) bool {
+	if (u.Project != "" && u.Project == project) {
+		return true
+	} else {
+		return false
+	}
+}
+
 func IsValidRole(role string) bool {
 	for _, r := range validRoles {
 		if r == role {
@@ -156,7 +181,8 @@ func Init(db *sqlx.DB,
 		ldap     tinyint      NOT NULL DEFAULT 0, /* col called "ldap" for historic reasons, fills the "AuthSource" */
 		name     varchar(255) DEFAULT NULL,
 		roles    varchar(255) NOT NULL DEFAULT "[]",
-		email    varchar(255) DEFAULT NULL);`)
+		email    varchar(255) DEFAULT NULL,
+		project  varchar(255) DEFAULT NULL);`)
 	if err != nil {
 		return nil, err
 	}
@@ -214,9 +240,11 @@ func (auth *Authentication) AuthViaSession(
 	}
 
 	username, _ := session.Values["username"].(string)
+	project, _ := session.Values["project"].(string)
 	roles, _ := session.Values["roles"].([]string)
 	return &User{
 		Username:   username,
+		Project:		project,
 		Roles:      roles,
 		AuthSource: -1,
 	}, nil
@@ -261,6 +289,7 @@ func (auth *Authentication) Login(
 				session.Options.MaxAge = int(auth.SessionMaxAge.Seconds())
 			}
 			session.Values["username"] = user.Username
+			session.Values["project"] = user.Project
 			session.Values["roles"] = user.Roles
 			if err := auth.sessionStore.Save(r, rw, session); err != nil {
 				log.Errorf("session save failed: %s", err.Error())
@@ -268,7 +297,7 @@ func (auth *Authentication) Login(
 				return
 			}
 
-			log.Infof("login successfull: user: %#v (roles: %v)", user.Username, user.Roles)
+			log.Infof("login successfull: user: %#v (roles: %v, project: %v)", user.Username, user.Roles, user.Project)
 			ctx := context.WithValue(r.Context(), ContextUserKey, user)
 			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 			return

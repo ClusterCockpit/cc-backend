@@ -6,6 +6,8 @@ new List({
     props: {
         filterPresets: filterPresets,
         type: listType,
+        project: project,
+        isManager: isManager
     },
     context: new Map([
             ['cc-config', clusterCockpitConfig]

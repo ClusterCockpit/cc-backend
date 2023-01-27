@@ -115,7 +115,7 @@
                 opts.push(`state=${state}`)
         if (filters.startTime.from && filters.startTime.to)
             opts.push(`startTime=${dateToUnixEpoch(filters.startTime.from)}-${dateToUnixEpoch(filters.startTime.to)}`)
-        for (let tag of filters.tags)  
+        for (let tag of filters.tags)
             opts.push(`tag=${tag}`)
         if (filters.duration.from && filters.duration.to)
             opts.push(`duration=${filters.duration.from}-${filters.duration.to}`)
@@ -214,7 +214,7 @@
                 on:change={({ detail: { from, to } }) => {
                     filters.startTime.from = from?.toISOString()
                     filters.startTime.to = to?.toISOString()
-                    console.log(filters.startTime)
+                    // console.log(filters.startTime)
                     update()
                 }}
                 />

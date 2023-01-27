@@ -103,9 +103,11 @@ func setupUserRoute(i InfoType, r *http.Request) InfoType {
 	username := mux.Vars(r)["id"]
 	i["id"] = username
 	i["username"] = username
+	// TODO: If forbidden (== err exists), redirect to error page
 	if user, _ := auth.FetchUser(r.Context(), jobRepo.DB, username); user != nil {
 		i["name"] = user.Name
 		i["email"] = user.Email
+		// i["project"] = user.Project
 	}
 	return i
 }
@@ -270,17 +272,17 @@ func SetupRoutes(router *mux.Router, version string, hash string, buildTime stri
 				title = strings.Replace(route.Title, "<ID>", id.(string), 1)
 			}
 
-			username, isAdmin, isSupporter := "", true, true
+			username, project, authLevel := "", "", 0
 
 			if user := auth.GetUser(r.Context()); user != nil {
-				username = user.Username
-				isAdmin = user.HasRole(auth.RoleAdmin)
-				isSupporter = user.HasRole(auth.RoleSupport)
+				username  = user.Username
+				project   = user.Project
+				authLevel = user.GetAuthLevel()
 			}
 
 			page := web.Page{
 				Title:  title,
-				User:   web.User{Username: username, IsAdmin: isAdmin, IsSupporter: isSupporter},
+				User:   web.User{Username: username, Project: project, AuthLevel: authLevel},
 				Build:  web.Build{Version: version, Hash: hash, Buildtime: buildTime},
 				Config: conf,
 				Infos:  infos,

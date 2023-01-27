@@ -10,6 +10,8 @@
         const listType = {{ .Infos.listType }};
         const filterPresets = {{ .FilterPresets }};
         const clusterCockpitConfig = {{ .Config }};
+        const project = {{ .User.Project }};
+        const isManager = {{ eq .User.AuthLevel 3 }};
     </script>
     <script src='/build/list.js'></script>
 {{end}}

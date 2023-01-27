@@ -55,8 +55,8 @@ func init() {
 
 type User struct {
 	Username string // Username of the currently logged in user
-	IsAdmin  bool
-	IsSupporter bool
+	Project string // Project of the user (relevant for managers only)
+	AuthLevel int // Level of authorization
 }
 
 type Build struct {

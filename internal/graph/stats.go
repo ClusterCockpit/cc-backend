@@ -39,9 +39,9 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 	for _, cluster := range archive.Clusters {
 		for _, subcluster := range cluster.SubClusters {
 			corehoursCol := fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_nodes * %d * %d) / 3600) as int)", subcluster.SocketsPerNode, subcluster.CoresPerSocket)
-			var query sq.SelectBuilder
+			var rawQuery sq.SelectBuilder
 			if groupBy == nil {
-				query = sq.Select(
+				rawQuery = sq.Select(
 					"''",
 					"COUNT(job.id)",
 					"CAST(ROUND(SUM(job.duration) / 3600) as int)",
@@ -49,7 +49,7 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 				).From("job")
 			} else {
 				col := groupBy2column[*groupBy]
-				query = sq.Select(
+				rawQuery = sq.Select(
 					col,
 					"COUNT(job.id)",
 					"CAST(ROUND(SUM(job.duration) / 3600) as int)",
@@ -57,11 +57,16 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 				).From("job").GroupBy(col)
 			}
 
-			query = query.
+			rawQuery = rawQuery.
 				Where("job.cluster = ?", cluster.Name).
 				Where("job.subcluster = ?", subcluster.Name)
 
-			query = repository.SecurityCheck(ctx, query)
+			query, qerr := repository.SecurityCheck(ctx, rawQuery)
+
+			if qerr != nil {
+				return nil, qerr
+			}
+
 			for _, f := range filter {
 				query = repository.BuildWhereClause(f, query)
 			}
@@ -97,8 +102,13 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 	}
 
 	if groupBy == nil {
-		query := sq.Select("COUNT(job.id)").From("job").Where("job.duration < ?", ShortJobDuration)
-		query = repository.SecurityCheck(ctx, query)
+
+		query, qerr := repository.SecurityCheck(ctx, sq.Select("COUNT(job.id)").From("job").Where("job.duration < ?", ShortJobDuration))
+
+		if qerr != nil {
+			return nil, qerr
+		}
+
 		for _, f := range filter {
 			query = repository.BuildWhereClause(f, query)
 		}
@@ -107,8 +117,13 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 		}
 	} else {
 		col := groupBy2column[*groupBy]
-		query := sq.Select(col, "COUNT(job.id)").From("job").Where("job.duration < ?", ShortJobDuration)
-		query = repository.SecurityCheck(ctx, query)
+
+		query, qerr := repository.SecurityCheck(ctx, sq.Select(col, "COUNT(job.id)").From("job").Where("job.duration < ?", ShortJobDuration))
+
+		if qerr != nil {
+			return nil, qerr
+		}
+
 		for _, f := range filter {
 			query = repository.BuildWhereClause(f, query)
 		}
@@ -170,8 +185,13 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 // `value` must be the column grouped by, but renamed to "value". `id` and `col` can optionally be used
 // to add a condition to the query of the kind "<col> = <id>".
 func (r *queryResolver) jobsStatisticsHistogram(ctx context.Context, value string, filters []*model.JobFilter, id, col string) ([]*model.HistoPoint, error) {
-	query := sq.Select(value, "COUNT(job.id) AS count").From("job")
-	query = repository.SecurityCheck(ctx, query)
+
+	query, qerr := repository.SecurityCheck(ctx, sq.Select(value, "COUNT(job.id) AS count").From("job"))
+
+	if qerr != nil {
+		return nil, qerr
+	}
+
 	for _, f := range filters {
 		query = repository.BuildWhereClause(f, query)
 	}

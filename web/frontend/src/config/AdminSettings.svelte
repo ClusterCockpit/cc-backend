@@ -2,6 +2,7 @@
     import { Row, Col } from 'sveltestrap'
     import { onMount } from 'svelte'
     import EditRole from './admin/EditRole.svelte'
+    import EditProject from './admin/EditProject.svelte'
     import AddUser from './admin/AddUser.svelte'
     import ShowUsers from './admin/ShowUsers.svelte'
     import Options from './admin/Options.svelte'
@@ -29,6 +30,9 @@
     </Col>
     <Col>
         <EditRole on:reload={getUserList}/>
+    </Col>
+    <Col>
+        <EditProject on:reload={getUserList}/>
     </Col>
     <Col>
         <Options/>

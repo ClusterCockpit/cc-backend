@@ -14,7 +14,7 @@
 
 </script>
 
-{#if user.IsAdmin}
+{#if user.AuthLevel == 5}
 <Card style="margin-bottom: 1.5em;">
     <CardHeader>
         <CardTitle class="mb-1">Admin Options</CardTitle>

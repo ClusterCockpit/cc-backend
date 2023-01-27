@@ -45,17 +45,7 @@
     <form id="create-user-form" method="post" action="/api/users/" class="card-body" on:submit|preventDefault={handleUserSubmit}>
         <CardTitle class="mb-3">Create User</CardTitle>
         <div class="mb-3">
-            <label for="name" class="form-label">Name</label>
-            <input type="text" class="form-control" id="name" name="name" aria-describedby="nameHelp"/>
-            <div id="nameHelp" class="form-text">Optional, can be blank.</div>
-        </div>
-        <div class="mb-3">
-            <label for="email" class="form-label">Email address</label>
-            <input type="email" class="form-control" id="email" name="email" aria-describedby="emailHelp"/>
-            <div id="emailHelp" class="form-text">Optional, can be blank.</div>
-        </div>
-        <div class="mb-3">
-            <label for="username" class="form-label">Username</label>
+            <label for="username" class="form-label">Username (ID)</label>
             <input type="text" class="form-control" id="username" name="username" aria-describedby="usernameHelp"/>
             <div id="usernameHelp" class="form-text">Must be unique.</div>
         </div>
@@ -65,6 +55,23 @@
             <div id="passwordHelp" class="form-text">Only API users are allowed to have a blank password. Users with a blank password can only authenticate via Tokens.</div>
         </div>
         <div class="mb-3">
+            <label for="name" class="form-label">Project</label>
+            <input type="text" class="form-control" id="project" name="project" aria-describedby="projectHelp"/>
+            <div id="projectHelp" class="form-text">Only Manager users can have a project. Allows to inspect jobs and users of given project.</div>
+        </div>
+        <div class="mb-3">
+            <label for="name" class="form-label">Name</label>
+            <input type="text" class="form-control" id="name" name="name" aria-describedby="nameHelp"/>
+            <div id="nameHelp" class="form-text">Optional, can be blank.</div>
+        </div>
+        <div class="mb-3">
+            <label for="email" class="form-label">Email address</label>
+            <input type="email" class="form-control" id="email" name="email" aria-describedby="emailHelp"/>
+            <div id="emailHelp" class="form-text">Optional, can be blank.</div>
+        </div>
+
+
+        <div class="mb-3">
             <p>Role:</p>
             <div>
                 <input type="radio" id="user" name="role" value="user" checked/>
@@ -73,6 +80,10 @@
             <div>
                 <input type="radio" id="api" name="role" value="api"/>
                 <label for="api">API</label>
+            </div>
+            <div>
+                <input type="radio" id="manager" name="role" value="manager"/>
+                <label for="manager">Manager</label>
             </div>
             <div>
                 <input type="radio" id="support" name="role" value="support"/>

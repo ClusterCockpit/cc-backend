@@ -822,9 +822,17 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username, password, role, name, email := r.FormValue("username"), r.FormValue("password"), r.FormValue("role"), r.FormValue("name"), r.FormValue("email")
+	username, password, role, name, email, project := r.FormValue("username"), r.FormValue("password"), r.FormValue("role"), r.FormValue("name"), r.FormValue("email"), r.FormValue("project")
 	if len(password) == 0 && role != auth.RoleApi {
 		http.Error(rw, "only API users are allowed to have a blank password (login will be impossible)", http.StatusBadRequest)
+		return
+	}
+
+	if len(project) != 0 && role != auth.RoleManager {
+		http.Error(rw, "only managers require a project (can be changed later)", http.StatusBadRequest)
+		return
+	} else if (len(project) == 0 && role == auth.RoleManager) {
+		http.Error(rw, "managers require a project to manage (can be changed later)", http.StatusBadRequest)
 		return
 	}
 
@@ -833,6 +841,7 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 		Name:     name,
 		Password: password,
 		Email:    email,
+		Project:  project,
 		Roles:    []string{role}}); err != nil {
 		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 		return
@@ -880,6 +889,8 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 	// Get Values
 	newrole := r.FormValue("add-role")
 	delrole := r.FormValue("remove-role")
+	newproj := r.FormValue("add-project")
+	delproj := r.FormValue("remove-project")
 
 	// TODO: Handle anything but roles...
 	if newrole != "" {
@@ -894,8 +905,20 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 			return
 		}
 		rw.Write([]byte("Remove Role Success"))
+	} else if newproj != "" {
+			if err := api.Authentication.AddProject(r.Context(), mux.Vars(r)["id"], newproj); err != nil {
+				http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+				return
+			}
+			rw.Write([]byte("Set Project Success"))
+	} else if delproj != "" {
+			if err := api.Authentication.RemoveProject(r.Context(), mux.Vars(r)["id"], delproj); err != nil {
+				http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+				return
+			}
+			rw.Write([]byte("Reset Project Success"))
 	} else {
-		http.Error(rw, "Not Add or Del?", http.StatusInternalServerError)
+		http.Error(rw, "Not Add or Del [role|project]?", http.StatusInternalServerError)
 	}
 }
 

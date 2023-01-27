@@ -48,7 +48,7 @@
 
     query(nodesQuery)
 
-    $: console.log($nodesQuery?.data?.nodeMetrics[0].metrics)
+    // $: console.log($nodesQuery?.data?.nodeMetrics[0].metrics)
 </script>
 
 <Row>

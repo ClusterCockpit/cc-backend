@@ -14,6 +14,8 @@
     const ccconfig = getContext('cc-config')
 
     export let filterPresets = {}
+    export let project = ""
+    export let isManager = false
 
     let filters, jobList, matchedJobs = null
     let sorting = { field: 'startTime', order: 'DESC' }, isSortingOpen = false, isMetricsSelectionOpen = false
@@ -70,6 +72,8 @@
 <Row>
     <Col>
         <JobList
+            project={project}
+            isManager={isManager}
             bind:metrics={metrics}
             bind:sorting={sorting}
             bind:matchedJobs={matchedJobs}
