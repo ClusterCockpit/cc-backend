@@ -149,12 +149,12 @@ func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 	jobRepo := repository.GetJobRepository()
 	user 		:= auth.GetUser(r.Context())
 
-	if (user != nil && user.HasNotRoles([]string{auth.RoleAdmin, auth.RoleManager})) {
+	if (user != nil && user.HasNotRoles([]string{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager})) {
 		username = &user.Username
 	} else if (user != nil && user.HasRole(auth.RoleManager)) {
 		username = &user.Username
 		project  = &user.Project
-	}
+	} // ADMINS && SUPPORT w/o additional conditions
 
 	tags, counts, err := jobRepo.CountTags(username, project)
 	tagMap := make(map[string][]map[string]interface{})

@@ -82,7 +82,7 @@ func (r *JobRepository) CountTags(user *string, project *string) (tags []schema.
 		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.user = ?)", *user)
 	} else if (user != nil && project != nil) { // MANAGER: Count own jobs plus project's jobs
 		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.user = ? OR job.project = ?)", *user, *project)
-	} // else: ADMIN: Count all jobs
+	} // else: ADMIN || SUPPORT: Count all jobs
 
 	rows, err := q.RunWith(r.stmtCache).Query()
 	if err != nil {
