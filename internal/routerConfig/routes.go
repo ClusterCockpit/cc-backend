@@ -144,12 +144,19 @@ func setupAnalysisRoute(i InfoType, r *http.Request) InfoType {
 
 func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 	var username *string = nil
+	var project  *string = nil
+
 	jobRepo := repository.GetJobRepository()
-	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleAdmin) {
+	user 		:= auth.GetUser(r.Context())
+
+	if (user != nil && user.HasNotRoles([]string{auth.RoleAdmin, auth.RoleManager})) {
 		username = &user.Username
+	} else if (user != nil && user.HasRole(auth.RoleManager)) {
+		username = &user.Username
+		project  = &user.Project
 	}
 
-	tags, counts, err := jobRepo.CountTags(username)
+	tags, counts, err := jobRepo.CountTags(username, project)
 	tagMap := make(map[string][]map[string]interface{})
 	if err != nil {
 		log.Errorf("GetTags failed: %s", err.Error())
