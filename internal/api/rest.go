@@ -76,6 +76,7 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 
 	if api.Authentication != nil {
 		r.HandleFunc("/jwt/", api.getJWT).Methods(http.MethodGet)
+		r.HandleFunc("/roles/", api.getRoles).Methods(http.MethodGet)
 		r.HandleFunc("/users/", api.createUser).Methods(http.MethodPost, http.MethodPut)
 		r.HandleFunc("/users/", api.getUsers).Methods(http.MethodGet)
 		r.HandleFunc("/users/", api.deleteUser).Methods(http.MethodDelete)
@@ -878,6 +879,22 @@ func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(rw).Encode(users)
+}
+
+func (api *RestApi) getRoles(rw http.ResponseWriter, r *http.Request) {
+	user := auth.GetUser(r.Context())
+	if (!user.HasRole(auth.RoleAdmin)) {
+		http.Error(rw, "only admins are allowed to fetch a list of roles", http.StatusForbidden)
+		return
+	}
+
+	roles, err := auth.GetValidRoles(user)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(rw).Encode(roles)
 }
 
 func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {

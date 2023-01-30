@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"time"
+	"fmt"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/gorilla/sessions"
@@ -137,6 +138,15 @@ func IsValidRole(role string) bool {
 		}
 	}
 	return false
+}
+
+func GetValidRoles(user *User) ([5]string, error) {
+	var vals [5]string
+	if (!user.HasRole(RoleAdmin)) {
+		return vals, fmt.Errorf("%#v: only admins are allowed to fetch a list of roles", user.Username)
+	} else {
+		return validRoles, nil
+	}
 }
 
 func GetUser(ctx context.Context) *User {

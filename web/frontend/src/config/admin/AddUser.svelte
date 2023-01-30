@@ -7,6 +7,15 @@
 
     let message = {msg: '', color: '#d63384'}
     let displayMessage = false
+    let roleLabel = {
+      api: 'API',
+      user: 'User (regular user, same as if created via LDAP sync.)',
+      manager: 'Manager',
+      support: 'Support',
+      admin: 'Admin'
+    }
+
+    export let roles = []
 
     async function handleUserSubmit() {
         let form = document.querySelector('#create-user-form')
@@ -73,26 +82,19 @@
 
         <div class="mb-3">
             <p>Role:</p>
-            <div>
-                <input type="radio" id="user" name="role" value="user" checked/>
-                <label for="user">User (regular user, same as if created via LDAP sync.)</label>
-            </div>
-            <div>
-                <input type="radio" id="api" name="role" value="api"/>
-                <label for="api">API</label>
-            </div>
-            <div>
-                <input type="radio" id="manager" name="role" value="manager"/>
-                <label for="manager">Manager</label>
-            </div>
-            <div>
-                <input type="radio" id="support" name="role" value="support"/>
-                <label for="support">Support</label>
-            </div>
-            <div>
-                <input type="radio" id="admin" name="role" value="admin"/>
-                <label for="admin">Admin</label>
-            </div>
+            {#each roles as role, i}
+                {#if i == 0}
+                    <div>
+                        <input type="radio" id={role} name="role" value={role} checked/>
+                        <label for={role}>{roleLabel[role]}</label>
+                    </div>
+                {:else}
+                    <div>
+                        <input type="radio" id={role} name="role" value={role}/>
+                        <label for={role}>{roleLabel[role]}</label>
+                    </div>
+                {/if}
+            {/each}
         </div>
         <p style="display: flex; align-items: center;">
             <Button type="submit" color="primary">Submit</Button>
