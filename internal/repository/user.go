@@ -132,7 +132,7 @@ func (uCfg *UserCfgRepo) UpdateConfig(
 	}
 
 	if _, err := uCfg.DB.Exec(`REPLACE INTO configuration (username, confkey, value) VALUES (?, ?, ?)`,
-		user, key, value); err != nil {
+		user.Username, key, value); err != nil {
 		return err
 	}
 
