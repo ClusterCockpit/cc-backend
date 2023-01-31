@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 )
 
 var Clusters []*schema.Cluster
@@ -23,6 +24,7 @@ func initClusterConfig() error {
 
 		cluster, err := ar.LoadClusterCfg(c)
 		if err != nil {
+			log.Errorf("Error while loading cluster config for cluster '%#v'", c)
 			return err
 		}
 

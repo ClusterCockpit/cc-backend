@@ -7,22 +7,26 @@ package repository
 import (
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	sq "github.com/Masterminds/squirrel"
 )
 
 // Add the tag with id `tagId` to the job with the database id `jobId`.
 func (r *JobRepository) AddTag(job int64, tag int64) ([]*schema.Tag, error) {
 	if _, err := r.stmtCache.Exec(`INSERT INTO jobtag (job_id, tag_id) VALUES ($1, $2)`, job, tag); err != nil {
+		log.Error("Error while running query")
 		return nil, err
 	}
 
 	j, err := r.FindById(job)
 	if err != nil {
+		log.Error("Error while finding job by id")
 		return nil, err
 	}
 
 	tags, err := r.GetTags(&job)
 	if err != nil {
+		log.Error("Error while getting tags for job")
 		return nil, err
 	}
 
@@ -32,16 +36,19 @@ func (r *JobRepository) AddTag(job int64, tag int64) ([]*schema.Tag, error) {
 // Removes a tag from a job
 func (r *JobRepository) RemoveTag(job, tag int64) ([]*schema.Tag, error) {
 	if _, err := r.stmtCache.Exec("DELETE FROM jobtag WHERE jobtag.job_id = $1 AND jobtag.tag_id = $2", job, tag); err != nil {
+		log.Error("Error while running query")
 		return nil, err
 	}
 
 	j, err := r.FindById(job)
 	if err != nil {
+		log.Error("Error while finding job by id")
 		return nil, err
 	}
 
 	tags, err := r.GetTags(&job)
 	if err != nil {
+		log.Error("Error while getting tags for job")
 		return nil, err
 	}
 
@@ -138,6 +145,7 @@ func (r *JobRepository) GetTags(job *int64) ([]*schema.Tag, error) {
 
 	rows, err := q.RunWith(r.stmtCache).Query()
 	if err != nil {
+		log.Error("Error while running query")
 		return nil, err
 	}
 
@@ -145,6 +153,7 @@ func (r *JobRepository) GetTags(job *int64) ([]*schema.Tag, error) {
 	for rows.Next() {
 		tag := &schema.Tag{}
 		if err := rows.Scan(&tag.ID, &tag.Type, &tag.Name); err != nil {
+			log.Error("Error while scanning rows")
 			return nil, err
 		}
 		tags = append(tags, tag)

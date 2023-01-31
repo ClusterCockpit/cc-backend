@@ -94,6 +94,7 @@ func Init(db *sqlx.DB,
 		roles    varchar(255) NOT NULL DEFAULT "[]",
 		email    varchar(255) DEFAULT NULL);`)
 	if err != nil {
+		log.Error("Error while initializing authentication -> create user table failed")
 		return nil, err
 	}
 
@@ -102,12 +103,14 @@ func Init(db *sqlx.DB,
 		log.Warn("environment variable 'SESSION_KEY' not set (will use non-persistent random key)")
 		bytes := make([]byte, 32)
 		if _, err := rand.Read(bytes); err != nil {
+			log.Error("Error while initializing authentication -> failed to generate random bytes for session key")
 			return nil, err
 		}
 		auth.sessionStore = sessions.NewCookieStore(bytes)
 	} else {
 		bytes, err := base64.StdEncoding.DecodeString(sessKey)
 		if err != nil {
+			log.Error("Error while initializing authentication -> decoding session key failed")
 			return nil, err
 		}
 		auth.sessionStore = sessions.NewCookieStore(bytes)
@@ -115,12 +118,14 @@ func Init(db *sqlx.DB,
 
 	auth.LocalAuth = &LocalAuthenticator{}
 	if err := auth.LocalAuth.Init(auth, nil); err != nil {
+		log.Error("Error while initializing authentication -> localAuth init failed")
 		return nil, err
 	}
 	auth.authenticators = append(auth.authenticators, auth.LocalAuth)
 
 	auth.JwtAuth = &JWTAuthenticator{}
 	if err := auth.JwtAuth.Init(auth, configs["jwt"]); err != nil {
+		log.Error("Error while initializing authentication -> jwtAuth init failed")
 		return nil, err
 	}
 	auth.authenticators = append(auth.authenticators, auth.JwtAuth)
@@ -128,6 +133,7 @@ func Init(db *sqlx.DB,
 	if config, ok := configs["ldap"]; ok {
 		auth.LdapAuth = &LdapAuthenticator{}
 		if err := auth.LdapAuth.Init(auth, config); err != nil {
+			log.Error("Error while initializing authentication -> ldapAuth init failed")
 			return nil, err
 		}
 		auth.authenticators = append(auth.authenticators, auth.LdapAuth)
@@ -142,6 +148,7 @@ func (auth *Authentication) AuthViaSession(
 
 	session, err := auth.sessionStore.Get(r, "session")
 	if err != nil {
+		log.Error("Error while getting session store")
 		return nil, err
 	}
 

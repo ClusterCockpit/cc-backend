@@ -46,6 +46,7 @@ func Init(disableArchive bool) error {
 				Kind string `json:"kind"`
 			}
 			if err := json.Unmarshal(cluster.MetricDataRepository, &kind); err != nil {
+				log.Error("Error while unmarshaling raw json MetricDataRepository")
 				return err
 			}
 
@@ -64,6 +65,7 @@ func Init(disableArchive bool) error {
 			}
 
 			if err := mdr.Init(cluster.MetricDataRepository); err != nil {
+				log.Error("Error initializing the MetricDataRepository")
 				return err
 			}
 			metricDataRepos[cluster.Name] = mdr
@@ -109,6 +111,7 @@ func LoadData(job *schema.Job,
 				if len(jd) != 0 {
 					log.Errorf("partial error: %s", err.Error())
 				} else {
+					log.Error("Error while loading job data from metric repository")
 					return err, 0, 0
 				}
 			}
@@ -116,6 +119,7 @@ func LoadData(job *schema.Job,
 		} else {
 			jd, err = archive.GetHandle().LoadJobData(job)
 			if err != nil {
+				log.Error("Error while loading job data from archive")
 				return err, 0, 0
 			}
 
@@ -163,6 +167,7 @@ func LoadData(job *schema.Job,
 	})
 
 	if err, ok := data.(error); ok {
+		log.Error("Error in returned dataset")
 		return nil, err
 	}
 
@@ -187,6 +192,7 @@ func LoadAverages(
 
 	stats, err := repo.LoadStats(job, metrics, ctx)
 	if err != nil {
+		log.Errorf("Error while loading statistics for job %#v (User %#v, Project %#v)", job.JobID, job.User, job.Project)
 		return err
 	}
 
@@ -231,6 +237,7 @@ func LoadNodeData(
 		if len(data) != 0 {
 			log.Errorf("partial error: %s", err.Error())
 		} else {
+			log.Error("Error while loading node data from metric repository")
 			return nil, err
 		}
 	}
@@ -303,6 +310,7 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 
 	jobData, err := LoadData(job, allMetrics, scopes, ctx)
 	if err != nil {
+		log.Error("Error wile loading job data for archiving")
 		return nil, err
 	}
 

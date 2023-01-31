@@ -18,6 +18,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	sq "github.com/Masterminds/squirrel"
 )
 
@@ -68,6 +69,7 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 
 			rows, err := query.RunWith(r.DB).Query()
 			if err != nil {
+				log.Error("Error while querying DB for job statistics")
 				return nil, err
 			}
 
@@ -75,6 +77,7 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 				var id sql.NullString
 				var jobs, walltime, corehours sql.NullInt64
 				if err := rows.Scan(&id, &jobs, &walltime, &corehours); err != nil {
+					log.Error("Error while scanning rows")
 					return nil, err
 				}
 
@@ -103,6 +106,7 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 			query = repository.BuildWhereClause(f, query)
 		}
 		if err := query.RunWith(r.DB).QueryRow().Scan(&(stats[""].ShortJobs)); err != nil {
+			log.Error("Error while scanning rows for short job stats")
 			return nil, err
 		}
 	} else {
@@ -114,6 +118,7 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 		}
 		rows, err := query.RunWith(r.DB).Query()
 		if err != nil {
+			log.Error("Error while querying jobs for short jobs")
 			return nil, err
 		}
 
@@ -121,6 +126,7 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 			var id sql.NullString
 			var shortJobs sql.NullInt64
 			if err := rows.Scan(&id, &shortJobs); err != nil {
+				log.Error("Error while scanning rows for short jobs")
 				return nil, err
 			}
 
@@ -154,11 +160,13 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 			value := fmt.Sprintf(`CAST(ROUND((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) / 3600) as int) as value`, time.Now().Unix())
 			stat.HistDuration, err = r.jobsStatisticsHistogram(ctx, value, filter, id, col)
 			if err != nil {
+				log.Error("Error while loading job statistics histogram: running jobs")
 				return nil, err
 			}
 
 			stat.HistNumNodes, err = r.jobsStatisticsHistogram(ctx, "job.num_nodes as value", filter, id, col)
 			if err != nil {
+				log.Error("Error while loading job statistics histogram: num nodes")
 				return nil, err
 			}
 		}
@@ -182,6 +190,7 @@ func (r *queryResolver) jobsStatisticsHistogram(ctx context.Context, value strin
 
 	rows, err := query.GroupBy("value").RunWith(r.DB).Query()
 	if err != nil {
+		log.Error("Error while running query")
 		return nil, err
 	}
 
@@ -189,6 +198,7 @@ func (r *queryResolver) jobsStatisticsHistogram(ctx context.Context, value strin
 	for rows.Next() {
 		point := model.HistoPoint{}
 		if err := rows.Scan(&point.Value, &point.Count); err != nil {
+			log.Error("Error while scanning rows")
 			return nil, err
 		}
 
@@ -208,6 +218,7 @@ func (r *queryResolver) rooflineHeatmap(
 
 	jobs, err := r.Repo.QueryJobs(ctx, filter, &model.PageRequest{Page: 1, ItemsPerPage: MAX_JOBS_FOR_ANALYSIS + 1}, nil)
 	if err != nil {
+		log.Error("Error while querying jobs for roofline")
 		return nil, err
 	}
 	if len(jobs) > MAX_JOBS_FOR_ANALYSIS {
@@ -228,6 +239,7 @@ func (r *queryResolver) rooflineHeatmap(
 
 		jobdata, err := metricdata.LoadData(job, []string{"flops_any", "mem_bw"}, []schema.MetricScope{schema.MetricScopeNode}, ctx)
 		if err != nil {
+			log.Error("Error while loading metrics for roofline")
 			return nil, err
 		}
 
@@ -272,6 +284,7 @@ func (r *queryResolver) rooflineHeatmap(
 func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error) {
 	jobs, err := r.Repo.QueryJobs(ctx, filter, &model.PageRequest{Page: 1, ItemsPerPage: MAX_JOBS_FOR_ANALYSIS + 1}, nil)
 	if err != nil {
+		log.Error("Error while querying jobs for footprint")
 		return nil, err
 	}
 	if len(jobs) > MAX_JOBS_FOR_ANALYSIS {
@@ -290,6 +303,7 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 		}
 
 		if err := metricdata.LoadAverages(job, metrics, avgs, ctx); err != nil {
+			log.Error("Error while loading averages for footprint")
 			return nil, err
 		}
 

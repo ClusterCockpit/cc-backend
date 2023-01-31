@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 )
 
 func DecodeJobData(r io.Reader, k string) (schema.JobData, error) {
 	data := cache.Get(k, func() (value interface{}, ttl time.Duration, size int) {
 		var d schema.JobData
 		if err := json.NewDecoder(r).Decode(&d); err != nil {
+			log.Error("Error while decoding raw job data json")
 			return err, 0, 1000
 		}
 
@@ -23,6 +25,7 @@ func DecodeJobData(r io.Reader, k string) (schema.JobData, error) {
 	})
 
 	if err, ok := data.(error); ok {
+		log.Error("Error in decoded job data set")
 		return nil, err
 	}
 
@@ -32,6 +35,7 @@ func DecodeJobData(r io.Reader, k string) (schema.JobData, error) {
 func DecodeJobMeta(r io.Reader) (*schema.JobMeta, error) {
 	var d schema.JobMeta
 	if err := json.NewDecoder(r).Decode(&d); err != nil {
+		log.Error("Error while decoding raw job meta json")
 		return &d, err
 	}
 
@@ -43,6 +47,7 @@ func DecodeJobMeta(r io.Reader) (*schema.JobMeta, error) {
 func DecodeCluster(r io.Reader) (*schema.Cluster, error) {
 	var c schema.Cluster
 	if err := json.NewDecoder(r).Decode(&c); err != nil {
+		log.Error("Error while decoding raw cluster json")
 		return &c, err
 	}
 
@@ -54,6 +59,7 @@ func DecodeCluster(r io.Reader) (*schema.Cluster, error) {
 func EncodeJobData(w io.Writer, d *schema.JobData) error {
 	// Sanitize parameters
 	if err := json.NewEncoder(w).Encode(d); err != nil {
+		log.Error("Error while encoding new job data json")
 		return err
 	}
 
@@ -63,6 +69,7 @@ func EncodeJobData(w io.Writer, d *schema.JobData) error {
 func EncodeJobMeta(w io.Writer, d *schema.JobMeta) error {
 	// Sanitize parameters
 	if err := json.NewEncoder(w).Encode(d); err != nil {
+		log.Error("Error while encoding new job meta json")
 		return err
 	}
 

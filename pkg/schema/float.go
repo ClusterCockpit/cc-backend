@@ -9,6 +9,8 @@ import (
 	"io"
 	"math"
 	"strconv"
+
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 )
 
 // A custom float type is used so that (Un)MarshalJSON and
@@ -43,6 +45,7 @@ func (f *Float) UnmarshalJSON(input []byte) error {
 
 	val, err := strconv.ParseFloat(s, 64)
 	if err != nil {
+		log.Error("Error while parsing custom float")
 		return err
 	}
 	*f = Float(val)

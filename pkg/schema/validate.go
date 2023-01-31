@@ -45,16 +45,17 @@ func Validate(k Kind, r io.Reader) (err error) {
 	case Config:
 		s, err = jsonschema.Compile("embedfs://config.schema.json")
 	default:
-		return fmt.Errorf("SCHEMA/VALIDATE > unkown schema kind: %v", k)
+		return fmt.Errorf("SCHEMA/VALIDATE > unkown schema kind: %#v", k)
 	}
 
 	if err != nil {
+		log.Errorf("Error while compiling json schema for kind '%#v'", k)
 		return err
 	}
 
 	var v interface{}
 	if err := json.NewDecoder(r).Decode(&v); err != nil {
-		log.Errorf("Failed to decode %v", err)
+		log.Errorf("Error while decoding raw json schema: %#v", err)
 		return err
 	}
 

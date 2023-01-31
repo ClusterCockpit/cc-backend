@@ -100,6 +100,7 @@ func HandleImportFlag(flag string) error {
 
 		raw, err := os.ReadFile(files[0])
 		if err != nil {
+			log.Error("Error while reading metadata file for import")
 			return err
 		}
 
@@ -112,11 +113,13 @@ func HandleImportFlag(flag string) error {
 		dec.DisallowUnknownFields()
 		jobMeta := schema.JobMeta{BaseJob: schema.JobDefaults}
 		if err := dec.Decode(&jobMeta); err != nil {
+			log.Error("Error while decoding raw json metadata for import")
 			return err
 		}
 
 		raw, err = os.ReadFile(files[1])
 		if err != nil {
+			log.Error("Error while reading jobdata file for import")
 			return err
 		}
 
@@ -129,6 +132,7 @@ func HandleImportFlag(flag string) error {
 		dec.DisallowUnknownFields()
 		jobData := schema.JobData{}
 		if err := dec.Decode(&jobData); err != nil {
+			log.Error("Error while decoding raw json jobdata for import")
 			return err
 		}
 
@@ -136,6 +140,7 @@ func HandleImportFlag(flag string) error {
 		jobMeta.MonitoringStatus = schema.MonitoringStatusArchivingSuccessful
 		if job, err := GetJobRepository().Find(&jobMeta.JobID, &jobMeta.Cluster, &jobMeta.StartTime); err != sql.ErrNoRows {
 			if err != nil {
+				log.Error("Error while finding job in jobRepository")
 				return err
 			}
 
@@ -155,33 +160,40 @@ func HandleImportFlag(flag string) error {
 		job.FileBwAvg = loadJobStat(&jobMeta, "file_bw")
 		job.RawResources, err = json.Marshal(job.Resources)
 		if err != nil {
+			log.Error("Error while marshaling job resources")
 			return err
 		}
 		job.RawMetaData, err = json.Marshal(job.MetaData)
 		if err != nil {
+			log.Error("Error while marshaling job metadata")
 			return err
 		}
 
 		if err := SanityChecks(&job.BaseJob); err != nil {
+			log.Error("BaseJob SanityChecks failed")
 			return err
 		}
 
 		if err := archive.GetHandle().ImportJob(&jobMeta, &jobData); err != nil {
+			log.Error("Error while importing job")
 			return err
 		}
 
 		res, err := GetConnection().DB.NamedExec(NamedJobInsert, job)
 		if err != nil {
+			log.Error("Error while NamedJobInsert")
 			return err
 		}
 
 		id, err := res.LastInsertId()
 		if err != nil {
+			log.Error("Error while getting last insert ID")
 			return err
 		}
 
 		for _, tag := range job.Tags {
 			if _, err := GetJobRepository().AddTagOrCreate(id, tag.Type, tag.Name); err != nil {
+				log.Error("Error while adding or creating tag")
 				return err
 			}
 		}
@@ -201,6 +213,7 @@ func InitDB() error {
 	// Basic database structure:
 	_, err := db.DB.Exec(JobsDBSchema)
 	if err != nil {
+		log.Error("Error while initializing basic DB structure")
 		return err
 	}
 
@@ -208,11 +221,13 @@ func InitDB() error {
 	// that speeds up inserts A LOT.
 	tx, err := db.DB.Beginx()
 	if err != nil {
+		log.Error("Error while bundling transactions")
 		return err
 	}
 
 	stmt, err := tx.PrepareNamed(NamedJobInsert)
 	if err != nil {
+		log.Error("Error while preparing namedJobInsert")
 		return err
 	}
 	tags := make(map[string]int64)
@@ -232,12 +247,14 @@ func InitDB() error {
 		if i%10 == 0 {
 			if tx != nil {
 				if err := tx.Commit(); err != nil {
+					log.Error("Error while committing transactions for jobMeta")
 					return err
 				}
 			}
 
 			tx, err = db.DB.Beginx()
 			if err != nil {
+				log.Error("Error while bundling transactions for jobMeta")
 				return err
 			}
 
@@ -298,16 +315,19 @@ func InitDB() error {
 			if !ok {
 				res, err := tx.Exec(`INSERT INTO tag (tag_name, tag_type) VALUES (?, ?)`, tag.Name, tag.Type)
 				if err != nil {
+					log.Errorf("Error while inserting tag into tag table: %#v %#v", tag.Name, tag.Type)
 					return err
 				}
 				tagId, err = res.LastInsertId()
 				if err != nil {
+					log.Error("Error while getting last insert ID")
 					return err
 				}
 				tags[tagstr] = tagId
 			}
 
 			if _, err := tx.Exec(`INSERT INTO jobtag (job_id, tag_id) VALUES (?, ?)`, id, tagId); err != nil {
+				log.Errorf("Error while inserting jobtag into jobtag table: %#v %#v", id, tagId)
 				return err
 			}
 		}
@@ -322,12 +342,14 @@ func InitDB() error {
 	}
 
 	if err := tx.Commit(); err != nil {
+		log.Error("Error while committing SQL transactions")
 		return err
 	}
 
 	// Create indexes after inserts so that they do not
 	// need to be continually updated.
 	if _, err := db.DB.Exec(JobsDbIndexes); err != nil {
+		log.Error("Error while creating indices after inserts")
 		return err
 	}
 
@@ -341,6 +363,7 @@ func SanityChecks(job *schema.BaseJob) error {
 		return fmt.Errorf("no such cluster: %#v", job.Cluster)
 	}
 	if err := archive.AssignSubCluster(job); err != nil {
+		log.Error("Error while assigning subcluster to job")
 		return err
 	}
 	if !job.State.Valid() {

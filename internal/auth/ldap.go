@@ -39,10 +39,12 @@ func (la *LdapAuthenticator) Init(
 	if la.config != nil && la.config.SyncInterval != "" {
 		interval, err := time.ParseDuration(la.config.SyncInterval)
 		if err != nil {
+			log.Errorf("Could not parse duration for sync interval: %#v", la.config.SyncInterval)
 			return err
 		}
 
 		if interval == 0 {
+			log.Note("Sync interval is zero")
 			return nil
 		}
 
@@ -76,12 +78,14 @@ func (la *LdapAuthenticator) Login(
 
 	l, err := la.getLdapConnection(false)
 	if err != nil {
+		log.Error("Error while getting ldap connection")
 		return nil, err
 	}
 	defer l.Close()
 
 	userDn := strings.Replace(la.config.UserBind, "{username}", user.Username, -1)
 	if err := l.Bind(userDn, r.FormValue("password")); err != nil {
+		log.Error("Error while binding to ldap connection")
 		return nil, err
 	}
 
@@ -104,12 +108,14 @@ func (la *LdapAuthenticator) Sync() error {
 	users := map[string]int{}
 	rows, err := la.auth.db.Query(`SELECT username FROM user WHERE user.ldap = 1`)
 	if err != nil {
+		log.Error("Error while querying LDAP users")
 		return err
 	}
 
 	for rows.Next() {
 		var username string
 		if err := rows.Scan(&username); err != nil {
+			log.Errorf("Error while scanning for user '%s'", username)
 			return err
 		}
 
@@ -118,6 +124,7 @@ func (la *LdapAuthenticator) Sync() error {
 
 	l, err := la.getLdapConnection(true)
 	if err != nil {
+		log.Error("LDAP connection error")
 		return err
 	}
 	defer l.Close()
@@ -126,6 +133,7 @@ func (la *LdapAuthenticator) Sync() error {
 		la.config.UserBase, ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		la.config.UserFilter, []string{"dn", "uid", "gecos"}, nil))
 	if err != nil {
+		log.Error("LDAP search error")
 		return err
 	}
 
@@ -149,6 +157,7 @@ func (la *LdapAuthenticator) Sync() error {
 		if where == IN_DB && la.config.SyncDelOldUsers {
 			log.Debugf("sync: remove %#v (does not show up in LDAP anymore)", username)
 			if _, err := la.auth.db.Exec(`DELETE FROM user WHERE user.username = ?`, username); err != nil {
+				log.Errorf("User '%s' not in LDAP anymore: Delete from DB failed", username)
 				return err
 			}
 		} else if where == IN_LDAP {
@@ -156,6 +165,7 @@ func (la *LdapAuthenticator) Sync() error {
 			log.Debugf("sync: add %#v (name: %#v, roles: [user], ldap: true)", username, name)
 			if _, err := la.auth.db.Exec(`INSERT INTO user (username, ldap, name, roles) VALUES (?, ?, ?, ?)`,
 				username, 1, name, "[\""+RoleUser+"\"]"); err != nil {
+				log.Errorf("User '%s' new in LDAP: Insert into DB failed", username)
 				return err
 			}
 		}
@@ -170,12 +180,14 @@ func (la *LdapAuthenticator) getLdapConnection(admin bool) (*ldap.Conn, error) {
 
 	conn, err := ldap.DialURL(la.config.Url)
 	if err != nil {
+		log.Error("LDAP URL dial failed")
 		return nil, err
 	}
 
 	if admin {
 		if err := conn.Bind(la.config.SearchDN, la.syncPassword); err != nil {
 			conn.Close()
+			log.Error("LDAP connection bind failed")
 			return nil, err
 		}
 	}

@@ -79,6 +79,7 @@ func (ccms *CCMetricStore) Init(rawConfig json.RawMessage) error {
 
 	var config CCMetricStoreConfig
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
+		log.Error("Error while unmarshaling raw json config")
 		return err
 	}
 
@@ -125,11 +126,13 @@ func (ccms *CCMetricStore) doRequest(
 
 	buf := &bytes.Buffer{}
 	if err := json.NewEncoder(buf).Encode(body); err != nil {
+		log.Error("Error while encoding request body")
 		return nil, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, ccms.queryEndpoint, buf)
 	if err != nil {
+		log.Error("Error while building request body")
 		return nil, err
 	}
 	if ccms.jwt != "" {
@@ -138,6 +141,7 @@ func (ccms *CCMetricStore) doRequest(
 
 	res, err := ccms.client.Do(req)
 	if err != nil {
+		log.Error("Error while performing request")
 		return nil, err
 	}
 
@@ -147,6 +151,7 @@ func (ccms *CCMetricStore) doRequest(
 
 	var resBody ApiQueryResponse
 	if err := json.NewDecoder(bufio.NewReader(res.Body)).Decode(&resBody); err != nil {
+		log.Error("Error while decoding result body")
 		return nil, err
 	}
 
@@ -162,6 +167,7 @@ func (ccms *CCMetricStore) LoadData(
 	topology := archive.GetSubCluster(job.Cluster, job.SubCluster).Topology
 	queries, assignedScope, err := ccms.buildQueries(job, metrics, scopes)
 	if err != nil {
+		log.Error("Error while building queries")
 		return nil, err
 	}
 
@@ -176,6 +182,7 @@ func (ccms *CCMetricStore) LoadData(
 
 	resBody, err := ccms.doRequest(ctx, &req)
 	if err != nil {
+		log.Error("Error while performing request")
 		return nil, err
 	}
 
@@ -499,6 +506,7 @@ func (ccms *CCMetricStore) LoadStats(
 
 	queries, _, err := ccms.buildQueries(job, metrics, []schema.MetricScope{schema.MetricScopeNode})
 	if err != nil {
+		log.Error("Error while building query")
 		return nil, err
 	}
 
@@ -513,6 +521,7 @@ func (ccms *CCMetricStore) LoadStats(
 
 	resBody, err := ccms.doRequest(ctx, &req)
 	if err != nil {
+		log.Error("Error while performing request")
 		return nil, err
 	}
 
@@ -578,6 +587,7 @@ func (ccms *CCMetricStore) LoadNodeData(
 
 	resBody, err := ccms.doRequest(ctx, &req)
 	if err != nil {
+		log.Error("Error while performing request")
 		return nil, err
 	}
 

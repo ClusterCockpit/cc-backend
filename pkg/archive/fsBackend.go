@@ -46,7 +46,7 @@ func loadJobMeta(filename string) (*schema.JobMeta, error) {
 
 	f, err := os.Open(filename)
 	if err != nil {
-		log.Errorf("loadJobMeta() > open file error: %v", err)
+		log.Errorf("loadJobMeta() > open file error: %#v", err)
 		return &schema.JobMeta{}, err
 	}
 	defer f.Close()
@@ -58,19 +58,19 @@ func (fsa *FsArchive) Init(rawConfig json.RawMessage) error {
 
 	var config FsArchiveConfig
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
-		log.Errorf("Init() > Unmarshal error: %v", err)
+		log.Errorf("Init() > Unmarshal error: %#v", err)
 		return err
 	}
 	if config.Path == "" {
 		err := fmt.Errorf("ARCHIVE/FSBACKEND > Init() : empty config.Path")
-		log.Errorf("Init() > config.Path error: %v", err)
+		log.Errorf("Init() > config.Path error: %#v", err)
 		return err
 	}
 	fsa.path = config.Path
 
 	entries, err := os.ReadDir(fsa.path)
 	if err != nil {
-		log.Errorf("Init() > ReadDir() error: %v", err)
+		log.Errorf("Init() > ReadDir() error: %#v", err)
 		return err
 	}
 
@@ -86,7 +86,7 @@ func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 	filename := getPath(job, fsa.path, "data.json")
 	f, err := os.Open(filename)
 	if err != nil {
-		log.Errorf("LoadJobData() > open file error: %v", err)
+		log.Errorf("LoadJobData() > open file error: %#v", err)
 		return nil, err
 	}
 	defer f.Close()
@@ -175,12 +175,15 @@ func (fsa *FsArchive) StoreJobMeta(jobMeta *schema.JobMeta) error {
 	}
 	f, err := os.Create(getPath(&job, fsa.path, "meta.json"))
 	if err != nil {
+		log.Error("Error while creating filepath for meta.json")
 		return err
 	}
 	if err := EncodeJobMeta(f, jobMeta); err != nil {
+		log.Error("Error while encoding job metadata to meta.json file")
 		return err
 	}
 	if err := f.Close(); err != nil {
+		log.Error("Error while closing meta.json file")
 		return err
 	}
 
@@ -203,26 +206,38 @@ func (fsa *FsArchive) ImportJob(
 	}
 	dir := getPath(&job, fsa.path, "")
 	if err := os.MkdirAll(dir, 0777); err != nil {
+		log.Error("Error while creating job archive path")
 		return err
 	}
 
 	f, err := os.Create(path.Join(dir, "meta.json"))
 	if err != nil {
+		log.Error("Error while creating filepath for meta.json")
 		return err
 	}
 	if err := EncodeJobMeta(f, jobMeta); err != nil {
+		log.Error("Error while encoding job metadata to meta.json file")
 		return err
 	}
 	if err := f.Close(); err != nil {
+		log.Error("Error while closing meta.json file")
 		return err
 	}
 
 	f, err = os.Create(path.Join(dir, "data.json"))
 	if err != nil {
+		log.Error("Error while creating filepath for data.json")
 		return err
 	}
 	if err := EncodeJobData(f, jobData); err != nil {
+		log.Error("Error while encoding job metricdata to data.json file")
 		return err
 	}
-	return f.Close()
+	if err := f.Close(); err != nil {
+		log.Error("Error while closing data.json file")
+		return err
+	}
+	
+	// no error: final return is nil
+	return nil
 }

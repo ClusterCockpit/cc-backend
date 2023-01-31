@@ -154,6 +154,7 @@ func (pdb *PrometheusDataRepository) Init(rawConfig json.RawMessage) error {
 	var config PrometheusDataRepositoryConfig
 	// parse config
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
+		log.Error("Error while unmarshaling raw json config")
 		return err
 	}
 	// support basic authentication
@@ -172,6 +173,7 @@ func (pdb *PrometheusDataRepository) Init(rawConfig json.RawMessage) error {
 		RoundTripper: rt,
 	})
 	if err != nil {
+		log.Error("Error while initializing new prometheus client")
 		return err
 	}
 	// init query client
@@ -295,6 +297,7 @@ func (pdb *PrometheusDataRepository) LoadData(
 			}
 			query, err := pdb.FormatQuery(metric, scope, nodes, job.Cluster)
 			if err != nil {
+				log.Error("Error while formatting prometheus query")
 				return nil, err
 			}
 
@@ -358,6 +361,7 @@ func (pdb *PrometheusDataRepository) LoadStats(
 
 	data, err := pdb.LoadData(job, metrics, []schema.MetricScope{schema.MetricScopeNode}, ctx)
 	if err != nil {
+		log.Error("Error while loading job for stats")
 		return nil, err
 	}
 	for metric, metricData := range data {
@@ -400,6 +404,7 @@ func (pdb *PrometheusDataRepository) LoadNodeData(
 			}
 			query, err := pdb.FormatQuery(metric, scope, nodes, cluster)
 			if err != nil {
+				log.Error("Error while formatting prometheus query")
 				return nil, err
 			}
 

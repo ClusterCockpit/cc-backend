@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 )
 
 // Very simple and limited .env file reader.
@@ -22,6 +24,7 @@ import (
 func LoadEnv(file string) error {
 	f, err := os.Open(file)
 	if err != nil {
+		log.Error("Error while opening file")
 		return err
 	}
 
@@ -89,11 +92,13 @@ func DropPrivileges(username string, group string) error {
 	if group != "" {
 		g, err := user.LookupGroup(group)
 		if err != nil {
+			log.Error("Error while looking up group")
 			return err
 		}
 
 		gid, _ := strconv.Atoi(g.Gid)
 		if err := syscall.Setgid(gid); err != nil {
+			log.Error("Error while setting gid")
 			return err
 		}
 	}
@@ -101,11 +106,13 @@ func DropPrivileges(username string, group string) error {
 	if username != "" {
 		u, err := user.Lookup(username)
 		if err != nil {
+			log.Error("Error while looking up user")
 			return err
 		}
 
 		uid, _ := strconv.Atoi(u.Uid)
 		if err := syscall.Setuid(uid); err != nil {
+			log.Error("Error while setting uid")
 			return err
 		}
 	}
