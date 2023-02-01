@@ -61,12 +61,12 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 		State: []schema.JobState{schema.JobStateRunning},
 	}}, nil, nil)
 	if err != nil {
-		log.Errorf("failed to count jobs: %s", err.Error())
+		log.Warnf("failed to count jobs: %s", err.Error())
 		runningJobs = map[string]int{}
 	}
 	totalJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, nil, nil, nil)
 	if err != nil {
-		log.Errorf("failed to count jobs: %s", err.Error())
+		log.Warnf("failed to count jobs: %s", err.Error())
 		totalJobs = map[string]int{}
 	}
 	from := time.Now().Add(-24 * time.Hour)
@@ -75,7 +75,7 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 		Duration:  &schema.IntRange{From: 0, To: graph.ShortJobDuration},
 	}}, nil, nil)
 	if err != nil {
-		log.Errorf("failed to count jobs: %s", err.Error())
+		log.Warnf("failed to count jobs: %s", err.Error())
 		recentShortJobs = map[string]int{}
 	}
 
@@ -150,7 +150,7 @@ func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 	tags, counts, err := jobRepo.CountTags(username)
 	tagMap := make(map[string][]map[string]interface{})
 	if err != nil {
-		log.Errorf("GetTags failed: %s", err.Error())
+		log.Warnf("GetTags failed: %s", err.Error())
 		i["tagmap"] = tagMap
 		return i
 	}

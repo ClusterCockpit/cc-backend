@@ -176,7 +176,7 @@ func (auth *Authentication) Login(
 		user := (*User)(nil)
 		if username != "" {
 			if user, _ = auth.GetUser(username); err != nil {
-				// log.Warnf("login of unkown user %#v", username)
+				// log.Warnf("login of unkown user %v", username)
 				_ = err
 			}
 		}
@@ -206,12 +206,12 @@ func (auth *Authentication) Login(
 			session.Values["username"] = user.Username
 			session.Values["roles"] = user.Roles
 			if err := auth.sessionStore.Save(r, rw, session); err != nil {
-				log.Errorf("session save failed: %s", err.Error())
+				log.Warnf("session save failed: %s", err.Error())
 				http.Error(rw, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
-			log.Infof("login successfull: user: %#v (roles: %v)", user.Username, user.Roles)
+			log.Infof("login successfull: user: %v (roles: %v)", user.Username, user.Roles)
 			ctx := context.WithValue(r.Context(), ContextUserKey, user)
 			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 			return

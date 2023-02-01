@@ -46,7 +46,7 @@ func loadJobMeta(filename string) (*schema.JobMeta, error) {
 
 	f, err := os.Open(filename)
 	if err != nil {
-		log.Errorf("loadJobMeta() > open file error: %#v", err)
+		log.Errorf("loadJobMeta() > open file error: %v", err)
 		return &schema.JobMeta{}, err
 	}
 	defer f.Close()
@@ -58,19 +58,19 @@ func (fsa *FsArchive) Init(rawConfig json.RawMessage) error {
 
 	var config FsArchiveConfig
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
-		log.Errorf("Init() > Unmarshal error: %#v", err)
+		log.Warnf("Init() > Unmarshal error: %#v", err)
 		return err
 	}
 	if config.Path == "" {
-		err := fmt.Errorf("ARCHIVE/FSBACKEND > Init() : empty config.Path")
-		log.Errorf("Init() > config.Path error: %#v", err)
+		err := fmt.Errorf("Init() : empty config.Path")
+		log.Errorf("Init() > config.Path error: %v", err)
 		return err
 	}
 	fsa.path = config.Path
 
 	entries, err := os.ReadDir(fsa.path)
 	if err != nil {
-		log.Errorf("Init() > ReadDir() error: %#v", err)
+		log.Errorf("Init() > ReadDir() error: %v", err)
 		return err
 	}
 
@@ -86,7 +86,7 @@ func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 	filename := getPath(job, fsa.path, "data.json")
 	f, err := os.Open(filename)
 	if err != nil {
-		log.Errorf("LoadJobData() > open file error: %#v", err)
+		log.Errorf("LoadJobData() > open file error: %v", err)
 		return nil, err
 	}
 	defer f.Close()
@@ -109,7 +109,8 @@ func (fsa *FsArchive) LoadClusterCfg(name string) (*schema.Cluster, error) {
 	}
 	if config.Keys.Validate {
 		if err := schema.Validate(schema.ClusterCfg, bytes.NewReader(b)); err != nil {
-			return &schema.Cluster{}, fmt.Errorf("ARCHIVE/FSBACKEND > Validate cluster config: %v\n", err)
+			log.Warnf("Validate cluster config: %v\n", err)
+			return &schema.Cluster{}, fmt.Errorf("Validate cluster config: %v\n", err)
 		}
 	}
 	return DecodeCluster(bytes.NewReader(b))
@@ -183,7 +184,7 @@ func (fsa *FsArchive) StoreJobMeta(jobMeta *schema.JobMeta) error {
 		return err
 	}
 	if err := f.Close(); err != nil {
-		log.Error("Error while closing meta.json file")
+		log.Warn("Error while closing meta.json file")
 		return err
 	}
 
@@ -220,7 +221,7 @@ func (fsa *FsArchive) ImportJob(
 		return err
 	}
 	if err := f.Close(); err != nil {
-		log.Error("Error while closing meta.json file")
+		log.Warn("Error while closing meta.json file")
 		return err
 	}
 
@@ -234,10 +235,10 @@ func (fsa *FsArchive) ImportJob(
 		return err
 	}
 	if err := f.Close(); err != nil {
-		log.Error("Error while closing data.json file")
+		log.Warn("Error while closing data.json file")
 		return err
 	}
-	
+
 	// no error: final return is nil
 	return nil
 }

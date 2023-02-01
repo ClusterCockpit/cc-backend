@@ -68,12 +68,12 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.SubCluster, &job.StartTimeUnix, &job.Partition, &job.ArrayJobId,
 		&job.NumNodes, &job.NumHWThreads, &job.NumAcc, &job.Exclusive, &job.MonitoringStatus, &job.SMT, &job.State,
 		&job.Duration, &job.Walltime, &job.RawResources /*&job.MetaData*/); err != nil {
-		log.Error("Error while scanning rows")
+		log.Warn("Error while scanning rows")
 		return nil, err
 	}
 
 	if err := json.Unmarshal(job.RawResources, &job.Resources); err != nil {
-		log.Error("Error while unmarhsaling raw resources json")
+		log.Warn("Error while unmarhsaling raw resources json")
 		return nil, err
 	}
 
@@ -95,7 +95,7 @@ func (r *JobRepository) FetchMetadata(job *schema.Job) (map[string]string, error
 
 	if err := sq.Select("job.meta_data").From("job").Where("job.id = ?", job.ID).
 		RunWith(r.stmtCache).QueryRow().Scan(&job.RawMetaData); err != nil {
-		log.Error("Error while scanning for job metadata")
+		log.Warn("Error while scanning for job metadata")
 		return nil, err
 	}
 
@@ -104,7 +104,7 @@ func (r *JobRepository) FetchMetadata(job *schema.Job) (map[string]string, error
 	}
 
 	if err := json.Unmarshal(job.RawMetaData, &job.MetaData); err != nil {
-		log.Error("Error while unmarshaling raw metadata json")
+		log.Warn("Error while unmarshaling raw metadata json")
 		return nil, err
 	}
 
@@ -117,7 +117,7 @@ func (r *JobRepository) UpdateMetadata(job *schema.Job, key, val string) (err er
 	r.cache.Del(cachekey)
 	if job.MetaData == nil {
 		if _, err = r.FetchMetadata(job); err != nil {
-			log.Errorf("Error while fetching metadata for job, DB ID '%#v'", job.ID)
+			log.Warnf("Error while fetching metadata for job, DB ID '%v'", job.ID)
 			return err
 		}
 	}
@@ -134,12 +134,12 @@ func (r *JobRepository) UpdateMetadata(job *schema.Job, key, val string) (err er
 	}
 
 	if job.RawMetaData, err = json.Marshal(job.MetaData); err != nil {
-		log.Errorf("Error while marshaling metadata for job, DB ID '%#v'", job.ID)
+		log.Warnf("Error while marshaling metadata for job, DB ID '%v'", job.ID)
 		return err
 	}
 
 	if _, err = sq.Update("job").Set("meta_data", job.RawMetaData).Where("job.id = ?", job.ID).RunWith(r.stmtCache).Exec(); err != nil {
-		log.Errorf("Error while updating metadata for job, DB ID '%#v'", job.ID)
+		log.Warnf("Error while updating metadata for job, DB ID '%v'", job.ID)
 		return err
 	}
 
@@ -200,7 +200,7 @@ func (r *JobRepository) FindAll(
 	for rows.Next() {
 		job, err := scanJob(rows)
 		if err != nil {
-			log.Error("Error while scanning rows")
+			log.Warn("Error while scanning rows")
 			return nil, err
 		}
 		jobs = append(jobs, job)
@@ -302,7 +302,7 @@ func (r *JobRepository) CountGroupedJobs(ctx context.Context, aggreg model.Aggre
 			count = fmt.Sprintf(`sum(job.num_nodes * (CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) as count`, now)
 			runner = r.DB
 		default:
-			log.Notef("CountGroupedJobs() Weight %#v unknown.", *weight)
+			log.Notef("CountGroupedJobs() Weight %v unknown.", *weight)
 		}
 	}
 
@@ -326,7 +326,7 @@ func (r *JobRepository) CountGroupedJobs(ctx context.Context, aggreg model.Aggre
 		var group string
 		var count int
 		if err := rows.Scan(&group, &count); err != nil {
-			log.Error("Error while scanning rows")
+			log.Warn("Error while scanning rows")
 			return nil, err
 		}
 
@@ -370,12 +370,12 @@ func (r *JobRepository) MarkArchived(
 		case "file_bw":
 			stmt = stmt.Set("file_bw_avg", stats.Avg)
 		default:
-			log.Notef("MarkArchived() Metric '%#v' unknown", metric)
+			log.Notef("MarkArchived() Metric '%v' unknown", metric)
 		}
 	}
 
 	if _, err := stmt.RunWith(r.stmtCache).Exec(); err != nil {
-		log.Error("Error while marking job as archived")
+		log.Warn("Error while marking job as archived")
 		return err
 	}
 	return nil
@@ -501,11 +501,11 @@ func (r *JobRepository) AllocatedNodes(cluster string) (map[string]map[string]in
 		var resources []*schema.Resource
 		var subcluster string
 		if err := rows.Scan(&raw, &subcluster); err != nil {
-			log.Error("Error while scanning rows")
+			log.Warn("Error while scanning rows")
 			return nil, err
 		}
 		if err := json.Unmarshal(raw, &resources); err != nil {
-			log.Error("Error while unmarshaling raw resources json")
+			log.Warn("Error while unmarshaling raw resources json")
 			return nil, err
 		}
 
@@ -533,13 +533,13 @@ func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 		Where(fmt.Sprintf("(%d - job.start_time) > (job.walltime + %d)", time.Now().Unix(), seconds)).
 		RunWith(r.DB).Exec()
 	if err != nil {
-		log.Error("Error while stopping jobs exceeding walltime")
+		log.Warn("Error while stopping jobs exceeding walltime")
 		return err
 	}
 
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		log.Error("Error while fetching affected rows after stopping due to exceeded walltime")
+		log.Warn("Error while fetching affected rows after stopping due to exceeded walltime")
 		return err
 	}
 

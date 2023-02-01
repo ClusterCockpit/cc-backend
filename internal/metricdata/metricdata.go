@@ -46,7 +46,7 @@ func Init(disableArchive bool) error {
 				Kind string `json:"kind"`
 			}
 			if err := json.Unmarshal(cluster.MetricDataRepository, &kind); err != nil {
-				log.Error("Error while unmarshaling raw json MetricDataRepository")
+				log.Warn("Error while unmarshaling raw json MetricDataRepository")
 				return err
 			}
 
@@ -61,11 +61,11 @@ func Init(disableArchive bool) error {
 			case "test":
 				mdr = &TestMetricDataRepository{}
 			default:
-				return fmt.Errorf("METRICDATA/METRICDATA > unkown metric data repository '%s' for cluster '%s'", kind.Kind, cluster.Name)
+				return fmt.Errorf("METRICDATA/METRICDATA > Unknown MetricDataRepository %v for cluster %v", kind.Kind, cluster.Name)
 			}
 
 			if err := mdr.Init(cluster.MetricDataRepository); err != nil {
-				log.Error("Error initializing the MetricDataRepository")
+				log.Errorf("Error initializing MetricDataRepository %v for cluster %v", kind.Kind, cluster.Name)
 				return err
 			}
 			metricDataRepos[cluster.Name] = mdr
@@ -109,7 +109,7 @@ func LoadData(job *schema.Job,
 			jd, err = repo.LoadData(job, metrics, scopes, ctx)
 			if err != nil {
 				if len(jd) != 0 {
-					log.Errorf("partial error: %s", err.Error())
+					log.Warnf("partial error: %s", err.Error())
 				} else {
 					log.Error("Error while loading job data from metric repository")
 					return err, 0, 0
@@ -192,7 +192,7 @@ func LoadAverages(
 
 	stats, err := repo.LoadStats(job, metrics, ctx)
 	if err != nil {
-		log.Errorf("Error while loading statistics for job %#v (User %#v, Project %#v)", job.JobID, job.User, job.Project)
+		log.Errorf("Error while loading statistics for job %v (User %v, Project %v)", job.JobID, job.User, job.Project)
 		return err
 	}
 
@@ -235,7 +235,7 @@ func LoadNodeData(
 	data, err := repo.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)
 	if err != nil {
 		if len(data) != 0 {
-			log.Errorf("partial error: %s", err.Error())
+			log.Warnf("partial error: %s", err.Error())
 		} else {
 			log.Error("Error while loading node data from metric repository")
 			return nil, err

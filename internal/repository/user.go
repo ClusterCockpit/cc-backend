@@ -82,7 +82,7 @@ func (uCfg *UserCfgRepo) GetUIConfig(user *auth.User) (map[string]interface{}, e
 
 		rows, err := uCfg.Lookup.Query(user.Username)
 		if err != nil {
-			log.Errorf("Error while looking up user config for user '%#v'", user.Username)
+			log.Warnf("Error while looking up user config for user '%v'", user.Username)
 			return err, 0, 0
 		}
 
@@ -91,13 +91,13 @@ func (uCfg *UserCfgRepo) GetUIConfig(user *auth.User) (map[string]interface{}, e
 		for rows.Next() {
 			var key, rawval string
 			if err := rows.Scan(&key, &rawval); err != nil {
-				log.Error("Error while scanning user config values")
+				log.Warn("Error while scanning user config values")
 				return err, 0, 0
 			}
 
 			var val interface{}
 			if err := json.Unmarshal([]byte(rawval), &val); err != nil {
-				log.Error("Error while unmarshaling raw user config json")
+				log.Warn("Error while unmarshaling raw user config json")
 				return err, 0, 0
 			}
 
@@ -109,7 +109,7 @@ func (uCfg *UserCfgRepo) GetUIConfig(user *auth.User) (map[string]interface{}, e
 		return config, 24 * time.Hour, size
 	})
 	if err, ok := data.(error); ok {
-		log.Error("Error in data set")
+		log.Error("Error in returned dataset")
 		return nil, err
 	}
 
@@ -126,7 +126,7 @@ func (uCfg *UserCfgRepo) UpdateConfig(
 	if user == nil {
 		var val interface{}
 		if err := json.Unmarshal([]byte(value), &val); err != nil {
-			log.Error("Error while unmarshaling raw user config json")
+			log.Warn("Error while unmarshaling raw user config json")
 			return err
 		}
 
@@ -138,7 +138,7 @@ func (uCfg *UserCfgRepo) UpdateConfig(
 
 	if _, err := uCfg.DB.Exec(`REPLACE INTO configuration (username, confkey, value) VALUES (?, ?, ?)`,
 		user, key, value); err != nil {
-		log.Errorf("Error while replacing user config in DB for user '$#v'", user)
+		log.Warnf("Error while replacing user config in DB for user '$#v'", user)
 		return err
 	}
 

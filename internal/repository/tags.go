@@ -20,13 +20,13 @@ func (r *JobRepository) AddTag(job int64, tag int64) ([]*schema.Tag, error) {
 
 	j, err := r.FindById(job)
 	if err != nil {
-		log.Error("Error while finding job by id")
+		log.Warn("Error while finding job by id")
 		return nil, err
 	}
 
 	tags, err := r.GetTags(&job)
 	if err != nil {
-		log.Error("Error while getting tags for job")
+		log.Warn("Error while getting tags for job")
 		return nil, err
 	}
 
@@ -42,13 +42,13 @@ func (r *JobRepository) RemoveTag(job, tag int64) ([]*schema.Tag, error) {
 
 	j, err := r.FindById(job)
 	if err != nil {
-		log.Error("Error while finding job by id")
+		log.Warn("Error while finding job by id")
 		return nil, err
 	}
 
 	tags, err := r.GetTags(&job)
 	if err != nil {
-		log.Error("Error while getting tags for job")
+		log.Warn("Error while getting tags for job")
 		return nil, err
 	}
 
@@ -153,7 +153,7 @@ func (r *JobRepository) GetTags(job *int64) ([]*schema.Tag, error) {
 	for rows.Next() {
 		tag := &schema.Tag{}
 		if err := rows.Scan(&tag.ID, &tag.Type, &tag.Name); err != nil {
-			log.Error("Error while scanning rows")
+			log.Warn("Error while scanning rows")
 			return nil, err
 		}
 		tags = append(tags, tag)

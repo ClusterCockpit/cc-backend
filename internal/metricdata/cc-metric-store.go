@@ -79,7 +79,7 @@ func (ccms *CCMetricStore) Init(rawConfig json.RawMessage) error {
 
 	var config CCMetricStoreConfig
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
-		log.Error("Error while unmarshaling raw json config")
+		log.Warn("Error while unmarshaling raw json config")
 		return err
 	}
 
@@ -126,13 +126,13 @@ func (ccms *CCMetricStore) doRequest(
 
 	buf := &bytes.Buffer{}
 	if err := json.NewEncoder(buf).Encode(body); err != nil {
-		log.Error("Error while encoding request body")
+		log.Warn("Error while encoding request body")
 		return nil, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, ccms.queryEndpoint, buf)
 	if err != nil {
-		log.Error("Error while building request body")
+		log.Warn("Error while building request body")
 		return nil, err
 	}
 	if ccms.jwt != "" {
@@ -151,7 +151,7 @@ func (ccms *CCMetricStore) doRequest(
 
 	var resBody ApiQueryResponse
 	if err := json.NewDecoder(bufio.NewReader(res.Body)).Decode(&resBody); err != nil {
-		log.Error("Error while decoding result body")
+		log.Warn("Error while decoding result body")
 		return nil, err
 	}
 
@@ -167,7 +167,7 @@ func (ccms *CCMetricStore) LoadData(
 	topology := archive.GetSubCluster(job.Cluster, job.SubCluster).Topology
 	queries, assignedScope, err := ccms.buildQueries(job, metrics, scopes)
 	if err != nil {
-		log.Error("Error while building queries")
+		log.Warn("Error while building queries")
 		return nil, err
 	}
 
@@ -210,7 +210,8 @@ func (ccms *CCMetricStore) LoadData(
 
 		for _, res := range row {
 			if res.Error != nil {
-				errors = append(errors, fmt.Sprintf("METRICDATA/CCMS > failed to fetch '%s' from host '%s': %s", query.Metric, query.Hostname, *res.Error))
+				/* Build list for "partial errors", if any */
+				errors = append(errors, fmt.Sprintf("failed to fetch '%s' from host '%s': %s", query.Metric, query.Hostname, *res.Error))
 				continue
 			}
 
@@ -253,6 +254,7 @@ func (ccms *CCMetricStore) LoadData(
 	}
 
 	if len(errors) != 0 {
+		/* Returns list for "partial errors" */
 		return jobData, fmt.Errorf("METRICDATA/CCMS > Errors: %s", strings.Join(errors, ", "))
 	}
 
@@ -506,7 +508,7 @@ func (ccms *CCMetricStore) LoadStats(
 
 	queries, _, err := ccms.buildQueries(job, metrics, []schema.MetricScope{schema.MetricScopeNode})
 	if err != nil {
-		log.Error("Error while building query")
+		log.Warn("Error while building query")
 		return nil, err
 	}
 
@@ -604,7 +606,8 @@ func (ccms *CCMetricStore) LoadNodeData(
 		metric := ccms.toLocalName(query.Metric)
 		qdata := res[0]
 		if qdata.Error != nil {
-			errors = append(errors, fmt.Sprintf("METRICDATA/CCMS > fetching %s for node %s failed: %s", metric, query.Hostname, *qdata.Error))
+			/* Build list for "partial errors", if any */
+			errors = append(errors, fmt.Sprintf("fetching %s for node %s failed: %s", metric, query.Hostname, *qdata.Error))
 		}
 
 		if qdata.Avg.IsNaN() || qdata.Min.IsNaN() || qdata.Max.IsNaN() {
@@ -638,7 +641,8 @@ func (ccms *CCMetricStore) LoadNodeData(
 	}
 
 	if len(errors) != 0 {
-		return data, fmt.Errorf("METRICDATA/CCMS > errors: %s", strings.Join(errors, ", "))
+		/* Returns list of "partial errors" */
+		return data, fmt.Errorf("METRICDATA/CCMS > Errors: %s", strings.Join(errors, ", "))
 	}
 
 	return data, nil

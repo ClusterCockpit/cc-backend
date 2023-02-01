@@ -149,7 +149,7 @@ func ParseNodeList(raw string) (NodeList, error) {
 
 					s1, s2 := part[0:minus], part[minus+1:]
 					if len(s1) != len(s2) || len(s1) == 0 {
-						return nil, fmt.Errorf("ARCHIVE/NODELIST > %#v and %#v are not of equal length or of length zero", s1, s2)
+						return nil, fmt.Errorf("ARCHIVE/NODELIST > %v and %v are not of equal length or of length zero", s1, s2)
 					}
 
 					x1, err := strconv.ParseInt(s1, 10, 32)

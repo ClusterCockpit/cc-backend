@@ -430,7 +430,7 @@ func main() {
 			for range time.Tick(30 * time.Minute) {
 				err := jobRepo.StopJobsExceedingWalltimeBy(config.Keys.StopJobsExceedingWalltime)
 				if err != nil {
-					log.Errorf("MAIN > error while looking for jobs exceeding their walltime: %s", err.Error())
+					log.Warnf("Error while looking for jobs exceeding their walltime: %s", err.Error())
 				}
 				runtime.GC()
 			}

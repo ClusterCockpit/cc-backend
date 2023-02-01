@@ -24,7 +24,7 @@ func initClusterConfig() error {
 
 		cluster, err := ar.LoadClusterCfg(c)
 		if err != nil {
-			log.Errorf("Error while loading cluster config for cluster '%#v'", c)
+			log.Warnf("Error while loading cluster config for cluster '%v'", c)
 			return err
 		}
 
@@ -114,7 +114,7 @@ func AssignSubCluster(job *schema.BaseJob) error {
 
 	cluster := GetCluster(job.Cluster)
 	if cluster == nil {
-		return fmt.Errorf("ARCHIVE/CLUSTERCONFIG > unkown cluster: %#v", job.Cluster)
+		return fmt.Errorf("ARCHIVE/CLUSTERCONFIG > unkown cluster: %v", job.Cluster)
 	}
 
 	if job.SubCluster != "" {
@@ -123,7 +123,7 @@ func AssignSubCluster(job *schema.BaseJob) error {
 				return nil
 			}
 		}
-		return fmt.Errorf("ARCHIVE/CLUSTERCONFIG > already assigned subcluster %#v unkown (cluster: %#v)", job.SubCluster, job.Cluster)
+		return fmt.Errorf("ARCHIVE/CLUSTERCONFIG > already assigned subcluster %v unkown (cluster: %v)", job.SubCluster, job.Cluster)
 	}
 
 	if len(job.Resources) == 0 {
@@ -143,7 +143,7 @@ func AssignSubCluster(job *schema.BaseJob) error {
 		return nil
 	}
 
-	return fmt.Errorf("ARCHIVE/CLUSTERCONFIG > no subcluster found for cluster %#v and host %#v", job.Cluster, host0)
+	return fmt.Errorf("ARCHIVE/CLUSTERCONFIG > no subcluster found for cluster %v and host %v", job.Cluster, host0)
 }
 
 func GetSubClusterByNode(cluster, hostname string) (string, error) {
@@ -156,12 +156,12 @@ func GetSubClusterByNode(cluster, hostname string) (string, error) {
 
 	c := GetCluster(cluster)
 	if c == nil {
-		return "", fmt.Errorf("ARCHIVE/CLUSTERCONFIG > unkown cluster: %#v", cluster)
+		return "", fmt.Errorf("ARCHIVE/CLUSTERCONFIG > unkown cluster: %v", cluster)
 	}
 
 	if c.SubClusters[0].Nodes == "" {
 		return c.SubClusters[0].Name, nil
 	}
 
-	return "", fmt.Errorf("ARCHIVE/CLUSTERCONFIG > no subcluster found for cluster %#v and host %#v", cluster, hostname)
+	return "", fmt.Errorf("ARCHIVE/CLUSTERCONFIG > no subcluster found for cluster %v and host %v", cluster, hostname)
 }

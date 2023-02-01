@@ -51,7 +51,7 @@ func (r *JobRepository) QueryJobs(
 
 	sql, args, err := query.ToSql()
 	if err != nil {
-		log.Error("Error while converting query to sql")
+		log.Warn("Error while converting query to sql")
 		return nil, err
 	}
 
@@ -67,7 +67,7 @@ func (r *JobRepository) QueryJobs(
 		job, err := scanJob(rows)
 		if err != nil {
 			rows.Close()
-			log.Error("Error while scanning rows")
+			log.Warn("Error while scanning rows")
 			return nil, err
 		}
 		jobs = append(jobs, job)

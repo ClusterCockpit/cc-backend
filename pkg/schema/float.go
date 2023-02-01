@@ -45,7 +45,7 @@ func (f *Float) UnmarshalJSON(input []byte) error {
 
 	val, err := strconv.ParseFloat(s, 64)
 	if err != nil {
-		log.Error("Error while parsing custom float")
+		log.Warn("Error while parsing custom float")
 		return err
 	}
 	*f = Float(val)

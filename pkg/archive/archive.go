@@ -41,7 +41,7 @@ func Init(rawConfig json.RawMessage, disableArchive bool) error {
 		Kind string `json:"kind"`
 	}
 	if err := json.Unmarshal(rawConfig, &kind); err != nil {
-		log.Error("Error while unmarshaling raw config json")
+		log.Warn("Error while unmarshaling raw config json")
 		return err
 	}
 
@@ -73,7 +73,7 @@ func LoadAveragesFromArchive(
 
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
-		log.Error("Error while loading job metadata from archiveBackend")
+		log.Warn("Error while loading job metadata from archiveBackend")
 		return err
 	}
 
@@ -92,7 +92,7 @@ func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
 
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
-		log.Error("Error while loading job metadata from archiveBackend")
+		log.Warn("Error while loading job metadata from archiveBackend")
 		return nil, err
 	}
 
@@ -109,7 +109,7 @@ func UpdateTags(job *schema.Job, tags []*schema.Tag) error {
 
 	jobMeta, err := ar.LoadJobMeta(job)
 	if err != nil {
-		log.Error("Error while loading job metadata from archiveBackend")
+		log.Warn("Error while loading job metadata from archiveBackend")
 		return err
 	}
 

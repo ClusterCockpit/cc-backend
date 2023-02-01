@@ -154,7 +154,7 @@ func (pdb *PrometheusDataRepository) Init(rawConfig json.RawMessage) error {
 	var config PrometheusDataRepositoryConfig
 	// parse config
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
-		log.Error("Error while unmarshaling raw json config")
+		log.Warn("Error while unmarshaling raw json config")
 		return err
 	}
 	// support basic authentication
@@ -188,7 +188,7 @@ func (pdb *PrometheusDataRepository) Init(rawConfig json.RawMessage) error {
 		if err == nil {
 			log.Debugf("Added PromQL template for %s: %s", metric, templ)
 		} else {
-			log.Errorf("Failed to parse PromQL template %s for metric %s", templ, metric)
+			log.Warnf("Failed to parse PromQL template %s for metric %s", templ, metric)
 		}
 	}
 	return nil
@@ -292,12 +292,12 @@ func (pdb *PrometheusDataRepository) LoadData(
 		for _, metric := range metrics {
 			metricConfig := archive.GetMetricConfig(job.Cluster, metric)
 			if metricConfig == nil {
-				log.Errorf("Error in LoadData: Metric %s for cluster %s not configured", metric, job.Cluster)
-				return nil, errors.New("METRICDATA/PROMETHEUS > Prometheus query error")
+				log.Warnf("Error in LoadData: Metric %s for cluster %s not configured", metric, job.Cluster)
+				return nil, errors.New("Prometheus config error")
 			}
 			query, err := pdb.FormatQuery(metric, scope, nodes, job.Cluster)
 			if err != nil {
-				log.Error("Error while formatting prometheus query")
+				log.Warn("Error while formatting prometheus query")
 				return nil, err
 			}
 
@@ -311,7 +311,7 @@ func (pdb *PrometheusDataRepository) LoadData(
 
 			if err != nil {
 				log.Errorf("Prometheus query error in LoadData: %v\nQuery: %s", err, query)
-				return nil, errors.New("METRICDATA/PROMETHEUS > Prometheus query error")
+				return nil, errors.New("Prometheus query error")
 			}
 			if len(warnings) > 0 {
 				log.Warnf("Warnings: %v\n", warnings)
@@ -361,7 +361,7 @@ func (pdb *PrometheusDataRepository) LoadStats(
 
 	data, err := pdb.LoadData(job, metrics, []schema.MetricScope{schema.MetricScopeNode}, ctx)
 	if err != nil {
-		log.Error("Error while loading job for stats")
+		log.Warn("Error while loading job for stats")
 		return nil, err
 	}
 	for metric, metricData := range data {
@@ -399,12 +399,12 @@ func (pdb *PrometheusDataRepository) LoadNodeData(
 		for _, metric := range metrics {
 			metricConfig := archive.GetMetricConfig(cluster, metric)
 			if metricConfig == nil {
-				log.Errorf("Error in LoadNodeData: Metric %s for cluster %s not configured", metric, cluster)
-				return nil, errors.New("METRICDATA/PROMETHEUS > Prometheus querry error")
+				log.Warnf("Error in LoadNodeData: Metric %s for cluster %s not configured", metric, cluster)
+				return nil, errors.New("Prometheus config error")
 			}
 			query, err := pdb.FormatQuery(metric, scope, nodes, cluster)
 			if err != nil {
-				log.Error("Error while formatting prometheus query")
+				log.Warn("Error while formatting prometheus query")
 				return nil, err
 			}
 
@@ -418,7 +418,7 @@ func (pdb *PrometheusDataRepository) LoadNodeData(
 
 			if err != nil {
 				log.Errorf("Prometheus query error in LoadNodeData: %v\n", err)
-				return nil, errors.New("METRICDATA/PROMETHEUS > Prometheus querry error")
+				return nil, errors.New("Prometheus query error")
 			}
 			if len(warnings) > 0 {
 				log.Warnf("Warnings: %v\n", warnings)

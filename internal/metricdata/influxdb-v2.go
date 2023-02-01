@@ -37,7 +37,7 @@ type InfluxDBv2DataRepository struct {
 func (idb *InfluxDBv2DataRepository) Init(rawConfig json.RawMessage) error {
 	var config InfluxDBv2DataRepositoryConfig
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
-		log.Error("Error while unmarshaling raw json config")
+		log.Warn("Error while unmarshaling raw json config")
 		return err
 	}
 
@@ -205,7 +205,7 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 	// Get Stats
 	stats, err := idb.LoadStats(job, metrics, ctx)
 	if err != nil {
-		log.Error("Error while loading statistics")
+		log.Warn("Error while loading statistics")
 		return nil, err
 	}
 
