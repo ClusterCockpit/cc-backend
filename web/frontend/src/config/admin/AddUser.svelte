@@ -7,13 +7,6 @@
 
     let message = {msg: '', color: '#d63384'}
     let displayMessage = false
-    let roleLabel = {
-      api: 'API',
-      user: 'User (regular user, same as if created via LDAP sync.)',
-      manager: 'Manager',
-      support: 'Support',
-      admin: 'Admin'
-    }
 
     export let roles = []
 
@@ -86,12 +79,12 @@
                 {#if i == 0}
                     <div>
                         <input type="radio" id={role} name="role" value={role} checked/>
-                        <label for={role}>{roleLabel[role]}</label>
+                        <label for={role}>{role.charAt(0).toUpperCase() + role.slice(1)} (regular user, same as if created via LDAP sync.)</label>
                     </div>
                 {:else}
                     <div>
                         <input type="radio" id={role} name="role" value={role}/>
-                        <label for={role}>{roleLabel[role]}</label>
+                        <label for={role}>{role.charAt(0).toUpperCase() + role.slice(1)}</label>
                     </div>
                 {/if}
             {/each}

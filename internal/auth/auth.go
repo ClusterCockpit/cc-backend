@@ -143,7 +143,7 @@ func IsValidRole(role string) bool {
 func GetValidRoles(user *User) ([5]string, error) {
 	var vals [5]string
 	if (!user.HasRole(RoleAdmin)) {
-		return vals, fmt.Errorf("%#v: only admins are allowed to fetch a list of roles", user.Username)
+		return vals, fmt.Errorf("%s: only admins are allowed to fetch a list of roles", user.Username)
 	} else {
 		return validRoles, nil
 	}

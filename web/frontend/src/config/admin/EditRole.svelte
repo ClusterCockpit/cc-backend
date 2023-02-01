@@ -9,13 +9,6 @@
     let displayMessage = false
 
     export let roles = []
-    let roleLabel = {
-      api: 'API',
-      user: 'User',
-      manager: 'Manager',
-      support: 'Support',
-      admin: 'Admin'
-    }
 
     async function handleAddRole() {
         const username = document.querySelector('#role-username').value
@@ -96,7 +89,7 @@
             <select class="form-select" id="role-select">
                 <option selected value="">Role...</option>
                 {#each roles as role}
-                    <option value={role}>{roleLabel[role]}</option>
+                    <option value={role}>{role.charAt(0).toUpperCase() + role.slice(1)}</option>
                 {/each}
             </select>
             <!-- PreventDefault on Sveltestrap-Button more complex to achieve than just use good ol' html button -->
