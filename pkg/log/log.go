@@ -9,7 +9,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"time"
 )
 
 // Provides a simple way of logging with different levels.
@@ -17,9 +16,6 @@ import (
 // them for us (Default, can be changed by flag '--logdate true').
 //
 // Uses these prefixes: https://www.freedesktop.org/software/systemd/man/sd-daemon.html
-
-var logDateTime bool
-var logLevel string
 
 var (
 	DebugWriter io.Writer = os.Stderr
@@ -40,54 +36,57 @@ var (
 )
 
 var (
-	// No Time/Date
 	DebugLog *log.Logger = log.New(DebugWriter, DebugPrefix, 0)
-	InfoLog  *log.Logger = log.New(InfoWriter,  InfoPrefix,  0)
-	NoteLog  *log.Logger = log.New(NoteWriter,  NotePrefix,  log.Lshortfile)
-	WarnLog  *log.Logger = log.New(WarnWriter,  WarnPrefix,  log.Lshortfile)
-	ErrLog   *log.Logger = log.New(ErrWriter,   ErrPrefix,   log.Llongfile)
-	CritLog  *log.Logger = log.New(CritWriter,  CritPrefix,  log.Llongfile)
-	// Log Time/Date
-	DebugTimeLog *log.Logger = log.New(DebugWriter, DebugPrefix, log.LstdFlags)
-	InfoTimeLog  *log.Logger = log.New(InfoWriter,  InfoPrefix,  log.LstdFlags)
-	NoteTimeLog  *log.Logger = log.New(NoteWriter,  NotePrefix,  log.LstdFlags|log.Lshortfile)
-	WarnTimeLog  *log.Logger = log.New(WarnWriter,  WarnPrefix,  log.LstdFlags|log.Lshortfile)
-	ErrTimeLog   *log.Logger = log.New(ErrWriter,   ErrPrefix,   log.LstdFlags|log.Llongfile)
-	CritTimeLog  *log.Logger = log.New(CritWriter,  CritPrefix,  log.LstdFlags|log.Llongfile)
+	InfoLog  *log.Logger = log.New(InfoWriter, InfoPrefix, 0)
+	NoteLog  *log.Logger = log.New(NoteWriter, NotePrefix, log.Lshortfile)
+	WarnLog  *log.Logger = log.New(WarnWriter, WarnPrefix, log.Lshortfile)
+	ErrLog   *log.Logger = log.New(ErrWriter, ErrPrefix, log.Llongfile)
+	CritLog  *log.Logger = log.New(CritWriter, CritPrefix, log.Llongfile)
 )
 
 /* CONFIG */
 
-func SetLogLevel(lvl string) {
+func Init(lvl string, logdate bool) {
 	// fmt.Printf("pkg/log: Set LOGLEVEL -> %s\n", lvl)
 	switch lvl {
-		case "crit":
-			ErrWriter = io.Discard
-			fallthrough
-		case "err", "fatal":
-			WarnWriter = io.Discard
-			fallthrough
-		case "warn":
-			InfoWriter = io.Discard
-			fallthrough
-		case "notice":
-			NoteWriter = io.Discard
-			fallthrough
-		case "info":
-			DebugWriter = io.Discard
-			break
-		case "debug":
-			// Nothing to do...
-			break
-		default:
-			fmt.Printf("pkg/log: Flag 'loglevel' has invalid value %#v\npkg/log: Will use default loglevel 'debug'\n", lvl)
-			SetLogLevel("debug")
+	case "crit":
+		ErrWriter = io.Discard
+		fallthrough
+	case "err", "fatal":
+		WarnWriter = io.Discard
+		fallthrough
+	case "warn":
+		InfoWriter = io.Discard
+		fallthrough
+	case "notice":
+		NoteWriter = io.Discard
+		fallthrough
+	case "info":
+		DebugWriter = io.Discard
+		break
+	case "debug":
+		// Nothing to do...
+		break
+	default:
+		fmt.Printf("pkg/log: Flag 'loglevel' has invalid value %#v\npkg/log: Will use default loglevel 'debug'\n", lvl)
+		//SetLogLevel("debug")
 	}
-}
 
-func SetLogDateTime(logdate bool) {
-	//fmt.Printf("pkg/log: Set DATEBOOL -> %v\n", logdate)
-	logDateTime = logdate
+	if logdate == false {
+		DebugLog = log.New(DebugWriter, DebugPrefix, 0)
+		InfoLog = log.New(InfoWriter, InfoPrefix, 0)
+		NoteLog = log.New(NoteWriter, NotePrefix, log.Lshortfile)
+		WarnLog = log.New(WarnWriter, WarnPrefix, log.Lshortfile)
+		ErrLog = log.New(ErrWriter, ErrPrefix, log.Llongfile)
+		CritLog = log.New(CritWriter, CritPrefix, log.Llongfile)
+	} else {
+		DebugLog = log.New(DebugWriter, DebugPrefix, log.LstdFlags)
+		InfoLog = log.New(InfoWriter, InfoPrefix, log.LstdFlags)
+		NoteLog = log.New(NoteWriter, NotePrefix, log.LstdFlags|log.Lshortfile)
+		WarnLog = log.New(WarnWriter, WarnPrefix, log.LstdFlags|log.Lshortfile)
+		ErrLog = log.New(ErrWriter, ErrPrefix, log.LstdFlags|log.Llongfile)
+		CritLog = log.New(CritWriter, CritPrefix, log.LstdFlags|log.Llongfile)
+	}
 }
 
 /* PRINT */
@@ -104,97 +103,38 @@ func Print(v ...interface{}) {
 }
 
 func Debug(v ...interface{}) {
-	if DebugWriter != io.Discard {
-		out := printStr(v...)
-		if logDateTime {
-			DebugTimeLog.Output(2, out)
-		} else {
-			DebugLog.Output(2, out)
-		}
-	}
+	DebugLog.Output(2, printStr(v...))
 }
 
 func Info(v ...interface{}) {
-	if InfoWriter != io.Discard {
-		out := printStr(v...)
-		if logDateTime {
-			InfoTimeLog.Output(2, out)
-		} else {
-			InfoLog.Output(2, out)
-		}
-	}
+	InfoLog.Output(2, printStr(v...))
 }
 
 func Note(v ...interface{}) {
-	if NoteWriter != io.Discard {
-		out := printStr(v...)
-		if logDateTime {
-		  NoteTimeLog.Output(2, out)
-		} else {
-			NoteLog.Output(2, out)
-		}
-	}
+	NoteLog.Output(2, printStr(v...))
 }
 
 func Warn(v ...interface{}) {
-	if WarnWriter != io.Discard {
-		out := printStr(v...)
-		if logDateTime {
-			WarnTimeLog.Output(2, out)
-		} else {
-			WarnLog.Output(2, out)
-		}
-	}
+	WarnLog.Output(2, printStr(v...))
 }
 
 func Error(v ...interface{}) {
-	if ErrWriter != io.Discard {
-		out := printStr(v...)
-		if logDateTime {
-			ErrTimeLog.Output(2, out)
-		} else {
-			ErrLog.Output(2, out)
-		}
-	}
+	ErrLog.Output(2, printStr(v...))
 }
 
 // Writes panic stacktrace, but keeps application alive
 func Panic(v ...interface{}) {
-	if ErrWriter != io.Discard {
-		out := printStr(v...)
-		if logDateTime {
-			ErrTimeLog.Output(2, out)
-		} else {
-			ErrLog.Output(2, out)
-		}
-	}
-
+	ErrLog.Output(2, printStr(v...))
 	panic("Panic triggered ...")
 }
 
-
 func Crit(v ...interface{}) {
-	if CritWriter != io.Discard {
-		out := printStr(v...)
-		if logDateTime {
-			CritTimeLog.Output(2, out)
-		} else {
-			CritLog.Output(2, out)
-		}
-	}
+	CritLog.Output(2, printStr(v...))
 }
 
 // Writes critical log, stops application
 func Fatal(v ...interface{}) {
-	if CritWriter != io.Discard {
-		out := printStr(v...)
-		if logDateTime {
-			CritTimeLog.Output(2, out)
-		} else {
-			CritLog.Output(2, out)
-		}
-	}
-
+	CritLog.Output(2, printStr(v...))
 	os.Exit(1)
 }
 
@@ -212,109 +152,50 @@ func Printf(format string, v ...interface{}) {
 }
 
 func Debugf(format string, v ...interface{}) {
-	if DebugWriter != io.Discard {
-		out := printfStr(format, v...)
-		if logDateTime {
-			DebugTimeLog.Output(2, out)
-		} else {
-			DebugLog.Output(2, out)
-		}
-	}
+	DebugLog.Output(2, printStr(v...))
 }
 
 func Infof(format string, v ...interface{}) {
-	if InfoWriter != io.Discard {
-		out := printfStr(format, v...)
-		if logDateTime {
-			InfoTimeLog.Output(2, out)
-		} else {
-			InfoLog.Output(2, out)
-		}
-	}
+	InfoLog.Output(2, printStr(v...))
 }
 
 func Notef(format string, v ...interface{}) {
-	if NoteWriter != io.Discard {
-		out := printfStr(format, v...)
-		if logDateTime {
-			NoteTimeLog.Output(2, out)
-		} else {
-			NoteLog.Output(2, out)
-		}
-	}
+	NoteLog.Output(2, printStr(v...))
 }
 
 func Warnf(format string, v ...interface{}) {
-	if WarnWriter != io.Discard {
-		out := printfStr(format, v...)
-		if logDateTime {
-			WarnTimeLog.Output(2, out)
-		} else {
-			WarnLog.Output(2, out)
-		}
-	}
+	WarnLog.Output(2, printStr(v...))
 }
 
 func Errorf(format string, v ...interface{}) {
-	if ErrWriter != io.Discard {
-		out := printfStr(format, v...)
-		if logDateTime {
-			ErrTimeLog.Output(2, out)
-		} else {
-			ErrLog.Output(2, out)
-		}
-	}
+	ErrLog.Output(2, printStr(v...))
 }
 
 // Writes panic stacktrace, but keeps application alive
 func Panicf(format string, v ...interface{}) {
-	if ErrWriter != io.Discard {
-		out := printfStr(format, v...)
-		if logDateTime {
-			ErrTimeLog.Output(2, out)
-		} else {
-			ErrLog.Output(2, out)
-		}
-	}
-
+	ErrLog.Output(2, printStr(v...))
 	panic("Panic triggered ...")
 }
 
-
 func Critf(format string, v ...interface{}) {
-	if CritWriter != io.Discard {
-		out := printfStr(format, v...)
-		if logDateTime {
-			CritTimeLog.Output(2, out)
-		} else {
-			CritLog.Output(2, out)
-		}
-	}
+	CritLog.Output(2, printStr(v...))
 }
 
 // Writes crit log, stops application
 func Fatalf(format string, v ...interface{}) {
-	if CritWriter != io.Discard {
-		out := printfStr(format, v...)
-		if logDateTime {
-			CritTimeLog.Output(2, out)
-		} else {
-			CritLog.Output(2, out)
-		}
-	}
-
+	CritLog.Output(2, printStr(v...))
 	os.Exit(1)
 }
 
 /* SPECIAL */
 
-func Finfof(w io.Writer, format string, v ...interface{}) {
-	if w != io.Discard {
-		if logDateTime {
-			currentTime := time.Now()
-			fmt.Fprintf(InfoWriter, currentTime.String()+InfoPrefix+format+"\n", v...)
-		} else {
-			fmt.Fprintf(InfoWriter, InfoPrefix+format+"\n", v...)
-		}
-	}
-}
+// func Finfof(w io.Writer, format string, v ...interface{}) {
+// 	if w != io.Discard {
+// 		if logDateTime {
+// 			currentTime := time.Now()
+// 			fmt.Fprintf(InfoWriter, currentTime.String()+InfoPrefix+format+"\n", v...)
+// 		} else {
+// 			fmt.Fprintf(InfoWriter, InfoPrefix+format+"\n", v...)
+// 		}
+// 	}
+// }
