@@ -13,7 +13,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"runtime"
@@ -301,28 +300,9 @@ func main() {
 	}
 	secured.Handle("/query", graphQLEndpoint)
 
-	// Send a searchId and then reply with a redirect to a user or job.
+	// Send a searchId and then reply with a redirect to a user, or directly send query to job table for jobid and project.
 	secured.HandleFunc("/search", func(rw http.ResponseWriter, r *http.Request) {
-		if search := r.URL.Query().Get("searchId"); search != "" {
-			job, username, err := api.JobRepository.FindJobOrUser(r.Context(), search)
-			if err == repository.ErrNotFound {
-				http.Redirect(rw, r, "/monitoring/jobs/?jobId="+url.QueryEscape(search), http.StatusTemporaryRedirect)
-				return
-			} else if err != nil {
-				http.Error(rw, err.Error(), http.StatusInternalServerError)
-				return
-			}
-
-			if username != "" {
-				http.Redirect(rw, r, "/monitoring/user/"+username, http.StatusTemporaryRedirect)
-				return
-			} else {
-				http.Redirect(rw, r, fmt.Sprintf("/monitoring/job/%d", job), http.StatusTemporaryRedirect)
-				return
-			}
-		} else {
-			http.Error(rw, "'searchId' query parameter missing", http.StatusBadRequest)
-		}
+		routerConfig.HandleSearchBar(rw, r, api)
 	})
 
 	// Mount all /monitoring/... and /api/... routes.

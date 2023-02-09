@@ -32,7 +32,7 @@
     query($filter: [JobFilter!]!, $sorting: OrderByInput!, $paging: PageRequest! ){
         jobs(filter: $filter, order: $sorting, page: $paging) {
             items {
-                id, jobId, user, project, cluster, subCluster, startTime,
+                id, jobId, user, project, jobName, cluster, subCluster, startTime,
                 duration, numNodes, numHWThreads, numAcc, walltime,
                 SMT, exclusive, partition, arrayJobId,
                 monitoringStatus, state,
