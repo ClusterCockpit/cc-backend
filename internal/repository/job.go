@@ -67,13 +67,17 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 	if err := row.Scan(
 		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.SubCluster, &job.StartTimeUnix, &job.Partition, &job.ArrayJobId,
 		&job.NumNodes, &job.NumHWThreads, &job.NumAcc, &job.Exclusive, &job.MonitoringStatus, &job.SMT, &job.State,
-		&job.Duration, &job.Walltime, &job.RawResources /*&job.MetaData*/); err != nil {
+		&job.Duration, &job.Walltime, &job.RawResources, /*&job.RawMetaData*/); err != nil {
 		return nil, err
 	}
 
 	if err := json.Unmarshal(job.RawResources, &job.Resources); err != nil {
 		return nil, err
 	}
+
+	// if err := json.Unmarshal(job.RawMetaData, &job.MetaData); err != nil {
+	// 	return nil, err
+	// }
 
 	job.StartTime = time.Unix(job.StartTimeUnix, 0)
 	if job.Duration == 0 && job.State == schema.JobStateRunning {
@@ -82,6 +86,37 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 
 	job.RawResources = nil
 	return job, nil
+}
+
+func (r *JobRepository) FetchJobName(job *schema.Job) (*string, error) {
+	cachekey := fmt.Sprintf("metadata:%d", job.ID)
+	if cached := r.cache.Get(cachekey, nil); cached != nil {
+		job.MetaData = cached.(map[string]string)
+		if jobName := job.MetaData["jobName"]; jobName != "" {
+			return &jobName, nil
+		}
+	}
+
+	if err := sq.Select("job.meta_data").From("job").Where("job.id = ?", job.ID).
+		RunWith(r.stmtCache).QueryRow().Scan(&job.RawMetaData); err != nil {
+		return nil, err
+	}
+
+	if len(job.RawMetaData) == 0 {
+		return nil, nil
+	}
+
+	if err := json.Unmarshal(job.RawMetaData, &job.MetaData); err != nil {
+		return nil, err
+	}
+
+	r.cache.Put(cachekey, job.MetaData, len(job.RawMetaData), 24*time.Hour)
+
+	if jobName := job.MetaData["jobName"]; jobName != "" {
+		return &jobName, nil
+	} else {
+		return new(string), nil
+	}
 }
 
 func (r *JobRepository) FetchMetadata(job *schema.Job) (map[string]string, error) {
@@ -414,39 +449,91 @@ func (r *JobRepository) WaitForArchiving(){
 	r.archivePending.Wait()
 }
 
-var ErrNotFound = errors.New("no such job or user")
+var ErrNotFound = errors.New("no such jobname, project or user")
+var ErrForbidden = errors.New("not authorized")
 
-// FindJobOrUser returns a job database ID or a username if a job or user machtes the search term.
-// As 0 is a valid job id, check if username is "" instead in order to check what machted.
+// FindJobnameOrUserOrProject returns a jobName or a username or a projectId if a jobName or user or project matches the search term.
+// If query is found to be an integer (= conversion to INT datatype succeeds), skip back to parent call
 // If nothing matches the search, `ErrNotFound` is returned.
-func (r *JobRepository) FindJobOrUser(ctx context.Context, searchterm string) (job int64, username string, err error) {
+
+func (r *JobRepository) FindJobnameOrUserOrProject(ctx context.Context, searchterm string) (metasnip string, username string, project string, err error) {
 	user := auth.GetUser(ctx)
-	if id, err := strconv.Atoi(searchterm); err == nil {
-		qb := sq.Select("job.id").From("job").Where("job.job_id = ?", id)
-		if user != nil && !user.HasRole(auth.RoleAdmin) && !user.HasRole(auth.RoleSupport) {
-			qb = qb.Where("job.user = ?", user.Username)
+	if _, err := strconv.Atoi(searchterm); err == nil { // Return empty on successful conversion: parent method will redirect for integer jobId
+		return "", "", "", nil
+	} else { // has to have letters
+
+		if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleSupport) {
+			err := sq.Select("job.user").Distinct().From("job").
+				Where("job.user = ?", searchterm).
+				RunWith(r.stmtCache).QueryRow().Scan(&username)
+			if err != nil && err != sql.ErrNoRows {
+				return "", "", "", err
+			} else if err == nil {
+				return "", username, "", nil
+			}
 		}
 
-		err := qb.RunWith(r.stmtCache).QueryRow().Scan(&job)
+		if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleSupport) {
+			err := sq.Select("job.project").Distinct().From("job").
+				Where("job.project = ?", searchterm).
+				RunWith(r.stmtCache).QueryRow().Scan(&project)
+			if err != nil && err != sql.ErrNoRows {
+				return "", "", "", err
+			} else if err == nil {
+				return "", "", project, nil
+			}
+		}
+
+		// All Authorizations: If unlabeled query not username or projectId, try for jobname: Match Metadata, on hit, parent method redirects to jobName GQL query
+		err := sq.Select("job.cluster").Distinct().From("job").
+			Where("job.meta_data LIKE ?", "%" + searchterm + "%").
+			RunWith(r.stmtCache).QueryRow().Scan(&metasnip)
 		if err != nil && err != sql.ErrNoRows {
-			return 0, "", err
+			return "", "", "", err
 		} else if err == nil {
-			return job, "", nil
+			return metasnip[0:1], "", "", nil
 		}
-	}
 
+		return "", "", "", ErrNotFound
+	}
+}
+
+func (r *JobRepository) FindUser(ctx context.Context, searchterm string) (username string, err error) {
+	user := auth.GetUser(ctx)
 	if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleSupport) {
 		err := sq.Select("job.user").Distinct().From("job").
 			Where("job.user = ?", searchterm).
 			RunWith(r.stmtCache).QueryRow().Scan(&username)
 		if err != nil && err != sql.ErrNoRows {
-			return 0, "", err
+			return "", err
 		} else if err == nil {
-			return 0, username, nil
+			return username, nil
 		}
-	}
+		return "", ErrNotFound
 
-	return 0, "", ErrNotFound
+	} else {
+		log.Infof("Non-Admin User %s : Requested Query Username -> %s: Forbidden", user.Name, username)
+		return "", ErrForbidden
+	}
+}
+
+func (r *JobRepository) FindProject(ctx context.Context, searchterm string) (project string, err error) {
+	user := auth.GetUser(ctx)
+	if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleSupport) {
+		err := sq.Select("job.project").Distinct().From("job").
+			Where("job.project = ?", searchterm).
+			RunWith(r.stmtCache).QueryRow().Scan(&project)
+		if err != nil && err != sql.ErrNoRows {
+			return "", err
+		} else if err == nil {
+			return project, nil
+		}
+		return "", ErrNotFound
+
+	} else {
+		log.Infof("Non-Admin User %s : Requested Query Project -> %s: Forbidden", user.Name, project)
+		return "", ErrForbidden
+	}
 }
 
 func (r *JobRepository) Partitions(cluster string) ([]string, error) {
