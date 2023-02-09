@@ -134,7 +134,7 @@ type ApiTag struct {
 type TagJobApiRequest []*ApiTag
 
 func handleError(err error, statusCode int, rw http.ResponseWriter) {
-	log.Warnf("REST API: %s", err.Error())
+	log.Warnf("REST ERROR : %s", err.Error())
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(statusCode)
 	json.NewEncoder(rw).Encode(ErrorResponse{
@@ -169,7 +169,7 @@ func decode(r io.Reader, val interface{}) error {
 // @router      /jobs/ [get]
 func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
 		return
 	}
 
@@ -300,7 +300,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/tag_job/{id} [post]
 func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
 		return
 	}
 
@@ -365,7 +365,7 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/start_job/ [post]
 func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
 		return
 	}
 
@@ -446,7 +446,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/stop_job/{id} [post]
 func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
 		return
 	}
 
@@ -499,7 +499,7 @@ func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/stop_job/ [post]
 func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
 		return
 	}
 
@@ -545,7 +545,7 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/delete_job/{id} [delete]
 func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
 		return
 	}
 
@@ -593,7 +593,7 @@ func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/delete_job/ [delete]
 func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
 		return
 	}
 
@@ -649,7 +649,7 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 // @router      /jobs/delete_job_before/{ts} [delete]
 func (api *RestApi) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
 		return
 	}
 
@@ -724,7 +724,7 @@ func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 
 // func (api *RestApi) importJob(rw http.ResponseWriter, r *http.Request) {
 // 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-// 		handleError(fmt.Errorf("missing role: %#v", auth.RoleApi), http.StatusForbidden, rw)
+// 		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
 // 		return
 // 	}
 
@@ -793,7 +793,7 @@ func (api *RestApi) getJWT(rw http.ResponseWriter, r *http.Request) {
 	me := auth.GetUser(r.Context())
 	if !me.HasRole(auth.RoleAdmin) {
 		if username != me.Username {
-			http.Error(rw, "only admins are allowed to sign JWTs not for themselves", http.StatusForbidden)
+			http.Error(rw, "Only admins are allowed to sign JWTs not for themselves", http.StatusForbidden)
 			return
 		}
 	}
@@ -818,13 +818,13 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "text/plain")
 	me := auth.GetUser(r.Context())
 	if !me.HasRole(auth.RoleAdmin) {
-		http.Error(rw, "only admins are allowed to create new users", http.StatusForbidden)
+		http.Error(rw, "Only admins are allowed to create new users", http.StatusForbidden)
 		return
 	}
 
 	username, password, role, name, email := r.FormValue("username"), r.FormValue("password"), r.FormValue("role"), r.FormValue("name"), r.FormValue("email")
 	if len(password) == 0 && role != auth.RoleApi {
-		http.Error(rw, "only API users are allowed to have a blank password (login will be impossible)", http.StatusBadRequest)
+		http.Error(rw, "Only API users are allowed to have a blank password (login will be impossible)", http.StatusBadRequest)
 		return
 	}
 
@@ -838,12 +838,12 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rw.Write([]byte(fmt.Sprintf("User %#v successfully created!\n", username)))
+	rw.Write([]byte(fmt.Sprintf("User %v successfully created!\n", username)))
 }
 
 func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); !user.HasRole(auth.RoleAdmin) {
-		http.Error(rw, "only admins are allowed to delete a user", http.StatusForbidden)
+		http.Error(rw, "Only admins are allowed to delete a user", http.StatusForbidden)
 		return
 	}
 
@@ -858,7 +858,7 @@ func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
 
 func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); !user.HasRole(auth.RoleAdmin) {
-		http.Error(rw, "only admins are allowed to fetch a list of users", http.StatusForbidden)
+		http.Error(rw, "Only admins are allowed to fetch a list of users", http.StatusForbidden)
 		return
 	}
 
@@ -873,7 +873,7 @@ func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 
 func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); !user.HasRole(auth.RoleAdmin) {
-		http.Error(rw, "only admins are allowed to update a user", http.StatusForbidden)
+		http.Error(rw, "Only admins are allowed to update a user", http.StatusForbidden)
 		return
 	}
 
@@ -903,7 +903,7 @@ func (api *RestApi) updateConfiguration(rw http.ResponseWriter, r *http.Request)
 	rw.Header().Set("Content-Type", "text/plain")
 	key, value := r.FormValue("key"), r.FormValue("value")
 
-	fmt.Printf("KEY: %#v\nVALUE: %#v\n", key, value)
+	fmt.Printf("REST > KEY: %#v\nVALUE: %#v\n", key, value)
 
 	if err := repository.GetUserCfgRepo().UpdateConfig(key, value, auth.GetUser(r.Context())); err != nil {
 		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
@@ -915,7 +915,7 @@ func (api *RestApi) updateConfiguration(rw http.ResponseWriter, r *http.Request)
 
 func (api *RestApi) putMachineState(rw http.ResponseWriter, r *http.Request) {
 	if api.MachineStateDir == "" {
-		http.Error(rw, "not enabled", http.StatusNotFound)
+		http.Error(rw, "REST > machine state not enabled", http.StatusNotFound)
 		return
 	}
 
@@ -946,7 +946,7 @@ func (api *RestApi) putMachineState(rw http.ResponseWriter, r *http.Request) {
 
 func (api *RestApi) getMachineState(rw http.ResponseWriter, r *http.Request) {
 	if api.MachineStateDir == "" {
-		http.Error(rw, "not enabled", http.StatusNotFound)
+		http.Error(rw, "REST > machine state not enabled", http.StatusNotFound)
 		return
 	}
 

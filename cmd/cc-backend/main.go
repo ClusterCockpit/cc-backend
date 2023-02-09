@@ -61,19 +61,21 @@ var (
 )
 
 func main() {
-	var flagReinitDB, flagServer, flagSyncLDAP, flagGops, flagDev, flagVersion bool
-	var flagNewUser, flagDelUser, flagGenJWT, flagConfigFile, flagImportJob string
+	var flagReinitDB, flagServer, flagSyncLDAP, flagGops, flagDev, flagVersion, flagLogDateTime bool
+	var flagNewUser, flagDelUser, flagGenJWT, flagConfigFile, flagImportJob, flagLogLevel string
 	flag.BoolVar(&flagReinitDB, "init-db", false, "Go through job-archive and re-initialize the 'job', 'tag', and 'jobtag' tables (all running jobs will be lost!)")
 	flag.BoolVar(&flagSyncLDAP, "sync-ldap", false, "Sync the 'user' table with ldap")
 	flag.BoolVar(&flagServer, "server", false, "Start a server, continues listening on port after initialization and argument handling")
 	flag.BoolVar(&flagGops, "gops", false, "Listen via github.com/google/gops/agent (for debugging)")
 	flag.BoolVar(&flagDev, "dev", false, "Enable development components: GraphQL Playground and Swagger UI")
 	flag.BoolVar(&flagVersion, "version", false, "Show version information and exit")
+	flag.BoolVar(&flagLogDateTime, "logdate", false, "Set this flag to add date and time to log messages")
 	flag.StringVar(&flagConfigFile, "config", "./config.json", "Specify alternative path to `config.json`")
 	flag.StringVar(&flagNewUser, "add-user", "", "Add a new user. Argument format: `<username>:[admin,support,api,user]:<password>`")
 	flag.StringVar(&flagDelUser, "del-user", "", "Remove user by `username`")
 	flag.StringVar(&flagGenJWT, "jwt", "", "Generate and print a JWT for the user specified by its `username`")
 	flag.StringVar(&flagImportJob, "import-job", "", "Import a job. Argument format: `<path-to-meta.json>:<path-to-data.json>,...`")
+	flag.StringVar(&flagLogLevel, "loglevel", "debug", "Sets the logging level: `[debug (default),info,notice,warn,err,fatal,crit]`")
 	flag.Parse()
 
 	if flagVersion {
@@ -83,6 +85,9 @@ func main() {
 		fmt.Printf("Build time:\t%s\n", buildTime)
 		os.Exit(0)
 	}
+
+	// Apply config flags for pkg/log
+	log.Init(flagLogLevel, flagLogDateTime)
 
 	// See https://github.com/google/gops (Runtime overhead is almost zero)
 	if flagGops {
@@ -117,7 +122,7 @@ func main() {
 			"ldap": config.Keys.LdapConfig,
 			"jwt":  config.Keys.JwtConfig,
 		}); err != nil {
-			log.Fatal(err)
+			log.Fatalf("auth initialization failed: %v", err)
 		}
 
 		if d, err := time.ParseDuration(config.Keys.SessionMaxAge); err != nil {
@@ -133,12 +138,12 @@ func main() {
 			if err := authentication.AddUser(&auth.User{
 				Username: parts[0], Password: parts[2], Roles: strings.Split(parts[1], ","),
 			}); err != nil {
-				log.Fatal(err)
+				log.Fatalf("adding '%s' user authentication failed: %v", parts[0], err)
 			}
 		}
 		if flagDelUser != "" {
 			if err := authentication.DelUser(flagDelUser); err != nil {
-				log.Fatal(err)
+				log.Fatalf("deleting user failed: %v", err)
 			}
 		}
 
@@ -148,7 +153,7 @@ func main() {
 			}
 
 			if err := authentication.LdapAuth.Sync(); err != nil {
-				log.Fatal(err)
+				log.Fatalf("LDAP sync failed: %v", err)
 			}
 			log.Info("LDAP sync successfull")
 		}
@@ -156,41 +161,41 @@ func main() {
 		if flagGenJWT != "" {
 			user, err := authentication.GetUser(flagGenJWT)
 			if err != nil {
-				log.Fatal(err)
+				log.Fatalf("could not get user from JWT: %v", err)
 			}
 
 			if !user.HasRole(auth.RoleApi) {
-				log.Warn("that user does not have the API role")
+				log.Warnf("user '%s' does not have the API role", user.Username)
 			}
 
 			jwt, err := authentication.JwtAuth.ProvideJWT(user)
 			if err != nil {
-				log.Fatal(err)
+				log.Fatalf("failed to provide JWT to user '%s': %v", user.Username, err)
 			}
 
-			fmt.Printf("JWT for '%s': %s\n", user.Username, jwt)
+			fmt.Printf("MAIN > JWT for '%s': %s\n", user.Username, jwt)
 		}
 	} else if flagNewUser != "" || flagDelUser != "" {
 		log.Fatal("arguments --add-user and --del-user can only be used if authentication is enabled")
 	}
 
 	if err := archive.Init(config.Keys.Archive, config.Keys.DisableArchive); err != nil {
-		log.Fatal(err)
+		log.Fatalf("failed to initialize archive: %s", err.Error())
 	}
 
 	if err := metricdata.Init(config.Keys.DisableArchive); err != nil {
-		log.Fatal(err)
+		log.Fatalf("failed to initialize metricdata repository: %s", err.Error())
 	}
 
 	if flagReinitDB {
 		if err := repository.InitDB(); err != nil {
-			log.Fatal(err)
+			log.Fatalf("failed to re-initialize repository DB: %s", err.Error())
 		}
 	}
 
 	if flagImportJob != "" {
 		if err := repository.HandleImportFlag(flagImportJob); err != nil {
-			log.Fatalf("import failed: %s", err.Error())
+			log.Fatalf("job import failed: %s", err.Error())
 		}
 	}
 
@@ -208,12 +213,12 @@ func main() {
 		graphQLEndpoint.SetRecoverFunc(func(ctx context.Context, err interface{}) error {
 			switch e := err.(type) {
 			case string:
-				return fmt.Errorf("panic: %s", e)
+				return fmt.Errorf("MAIN > Panic: %s", e)
 			case error:
-				return fmt.Errorf("panic caused by: %w", e)
+				return fmt.Errorf("MAIN > Panic caused by: %w", e)
 			}
 
-			return errors.New("internal server error (panic)")
+			return errors.New("MAIN > Internal server error (panic)")
 		})
 	}
 
@@ -290,7 +295,7 @@ func main() {
 	if flagDev {
 		r.Handle("/playground", playground.Handler("GraphQL playground", "/query"))
 		r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
-		httpSwagger.URL("http://" + config.Keys.Addr + "/swagger/doc.json"))).Methods(http.MethodGet)
+			httpSwagger.URL("http://" + config.Keys.Addr + "/swagger/doc.json"))).Methods(http.MethodGet)
 	}
 	secured.Handle("/query", graphQLEndpoint)
 
@@ -341,7 +346,7 @@ func main() {
 	// Start http or https server
 	listener, err := net.Listen("tcp", config.Keys.Addr)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("starting http listener failed: %v", err)
 	}
 
 	if !strings.HasSuffix(config.Keys.Addr, ":80") && config.Keys.RedirectHttpTo != "" {
@@ -353,7 +358,7 @@ func main() {
 	if config.Keys.HttpsCertFile != "" && config.Keys.HttpsKeyFile != "" {
 		cert, err := tls.LoadX509KeyPair(config.Keys.HttpsCertFile, config.Keys.HttpsKeyFile)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("loading X509 keypair failed: %v", err)
 		}
 		listener = tls.NewListener(listener, &tls.Config{
 			Certificates: []tls.Certificate{cert},
@@ -371,16 +376,16 @@ func main() {
 
 	// Because this program will want to bind to a privileged port (like 80), the listener must
 	// be established first, then the user can be changed, and after that,
-	// the actuall http server can be started.
+	// the actual http server can be started.
 	if err := runtimeEnv.DropPrivileges(config.Keys.Group, config.Keys.User); err != nil {
-		log.Fatalf("error while changing user: %s", err.Error())
+		log.Fatalf("error while preparing server start: %s", err.Error())
 	}
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
-			log.Fatal(err)
+			log.Fatalf("starting server failed: %v", err)
 		}
 	}()
 
@@ -390,7 +395,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 		<-sigs
-		runtimeEnv.SystemdNotifiy(false, "shutting down")
+		runtimeEnv.SystemdNotifiy(false, "Shutting down ...")
 
 		// First shut down the server gracefully (waiting for all ongoing requests)
 		server.Shutdown(context.Background())
@@ -404,7 +409,7 @@ func main() {
 			for range time.Tick(30 * time.Minute) {
 				err := jobRepo.StopJobsExceedingWalltimeBy(config.Keys.StopJobsExceedingWalltime)
 				if err != nil {
-					log.Errorf("error while looking for jobs exceeding theire walltime: %s", err.Error())
+					log.Warnf("Error while looking for jobs exceeding their walltime: %s", err.Error())
 				}
 				runtime.GC()
 			}

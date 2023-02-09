@@ -10,6 +10,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 )
 
 type ArchiveBackend interface {
@@ -40,6 +41,7 @@ func Init(rawConfig json.RawMessage, disableArchive bool) error {
 		Kind string `json:"kind"`
 	}
 	if err := json.Unmarshal(rawConfig, &kind); err != nil {
+		log.Warn("Error while unmarshaling raw config json")
 		return err
 	}
 
@@ -49,10 +51,11 @@ func Init(rawConfig json.RawMessage, disableArchive bool) error {
 		// case "s3":
 		// 	ar = &S3Archive{}
 	default:
-		return fmt.Errorf("unkown archive backend '%s''", kind.Kind)
+		return fmt.Errorf("ARCHIVE/ARCHIVE > unkown archive backend '%s''", kind.Kind)
 	}
 
 	if err := ar.Init(rawConfig); err != nil {
+		log.Error("Error while initializing archiveBackend")
 		return err
 	}
 	return initClusterConfig()
@@ -70,6 +73,7 @@ func LoadAveragesFromArchive(
 
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
+		log.Warn("Error while loading job metadata from archiveBackend")
 		return err
 	}
 
@@ -88,6 +92,7 @@ func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
 
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
+		log.Warn("Error while loading job metadata from archiveBackend")
 		return nil, err
 	}
 
@@ -104,6 +109,7 @@ func UpdateTags(job *schema.Job, tags []*schema.Tag) error {
 
 	jobMeta, err := ar.LoadJobMeta(job)
 	if err != nil {
+		log.Warn("Error while loading job metadata from archiveBackend")
 		return err
 	}
 

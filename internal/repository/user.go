@@ -6,13 +6,13 @@ package repository
 
 import (
 	"encoding/json"
-	"log"
 	"sync"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -42,12 +42,12 @@ func GetUserCfgRepo() *UserCfgRepo {
 			FOREIGN KEY (username) REFERENCES user (username) ON DELETE CASCADE ON UPDATE NO ACTION);`)
 
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("db.DB.exec() error: %v", err)
 		}
 
 		lookupConfigStmt, err := db.DB.Preparex(`SELECT confkey, value FROM configuration WHERE configuration.username = ?`)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("db.DB.Preparex() error: %v", err)
 		}
 
 		userCfgRepoInstance = &UserCfgRepo{
@@ -82,6 +82,7 @@ func (uCfg *UserCfgRepo) GetUIConfig(user *auth.User) (map[string]interface{}, e
 
 		rows, err := uCfg.Lookup.Query(user.Username)
 		if err != nil {
+			log.Warnf("Error while looking up user config for user '%v'", user.Username)
 			return err, 0, 0
 		}
 
@@ -90,11 +91,13 @@ func (uCfg *UserCfgRepo) GetUIConfig(user *auth.User) (map[string]interface{}, e
 		for rows.Next() {
 			var key, rawval string
 			if err := rows.Scan(&key, &rawval); err != nil {
+				log.Warn("Error while scanning user config values")
 				return err, 0, 0
 			}
 
 			var val interface{}
 			if err := json.Unmarshal([]byte(rawval), &val); err != nil {
+				log.Warn("Error while unmarshaling raw user config json")
 				return err, 0, 0
 			}
 
@@ -106,6 +109,7 @@ func (uCfg *UserCfgRepo) GetUIConfig(user *auth.User) (map[string]interface{}, e
 		return config, 24 * time.Hour, size
 	})
 	if err, ok := data.(error); ok {
+		log.Error("Error in returned dataset")
 		return nil, err
 	}
 
@@ -122,6 +126,7 @@ func (uCfg *UserCfgRepo) UpdateConfig(
 	if user == nil {
 		var val interface{}
 		if err := json.Unmarshal([]byte(value), &val); err != nil {
+			log.Warn("Error while unmarshaling raw user config json")
 			return err
 		}
 
@@ -131,8 +136,8 @@ func (uCfg *UserCfgRepo) UpdateConfig(
 		return nil
 	}
 
-	if _, err := uCfg.DB.Exec(`REPLACE INTO configuration (username, confkey, value) VALUES (?, ?, ?)`,
-		user.Username, key, value); err != nil {
+	if _, err := uCfg.DB.Exec(`REPLACE INTO configuration (username, confkey, value) VALUES (?, ?, ?)`, user, key, value); err != nil {
+		log.Warnf("Error while replacing user config in DB for user '%v'", user)
 		return err
 	}
 

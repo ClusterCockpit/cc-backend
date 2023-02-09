@@ -39,7 +39,7 @@ func Connect(driver string, db string) {
 		} else if driver == "mysql" {
 			dbHandle, err = sqlx.Open("mysql", fmt.Sprintf("%s?multiStatements=true", db))
 			if err != nil {
-				log.Fatal(err)
+				log.Fatalf("sqlx.Open() error: %v", err)
 			}
 
 			dbHandle.SetConnMaxLifetime(time.Minute * 3)

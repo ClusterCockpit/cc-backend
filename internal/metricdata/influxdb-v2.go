@@ -10,12 +10,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
 )
@@ -37,6 +37,7 @@ type InfluxDBv2DataRepository struct {
 func (idb *InfluxDBv2DataRepository) Init(rawConfig json.RawMessage) error {
 	var config InfluxDBv2DataRepositoryConfig
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
+		log.Warn("Error while unmarshaling raw json config")
 		return err
 	}
 
@@ -71,7 +72,7 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 	for _, h := range job.Resources {
 		if h.HWThreads != nil || h.Accelerators != nil {
 			// TODO
-			return nil, errors.New("the InfluxDB metric data repository does not yet support HWThreads or Accelerators")
+			return nil, errors.New("METRICDATA/INFLUXV2 > the InfluxDB metric data repository does not yet support HWThreads or Accelerators")
 		}
 		hostsConds = append(hostsConds, fmt.Sprintf(`r["hostname"] == "%s"`, h.Hostname))
 	}
@@ -84,7 +85,7 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 		switch scope {
 		case "node":
 			// Get Finest Granularity, Groupy By Measurement and Hostname (== Metric / Node), Calculate Mean for 60s windows
-			// log.Println("Note: Scope 'node' requested. ")
+			// log.Info("Scope 'node' requested. ")
 			query = fmt.Sprintf(`
 								from(bucket: "%s")
 								|> range(start: %s, stop: %s)
@@ -97,10 +98,10 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 				idb.formatTime(job.StartTime), idb.formatTime(idb.epochToTime(job.StartTimeUnix+int64(job.Duration)+int64(1))),
 				measurementsCond, hostsCond)
 		case "socket":
-			log.Println("Note: Scope 'socket' requested, but not yet supported: Will return 'node' scope only. ")
+			log.Note("Scope 'socket' requested, but not yet supported: Will return 'node' scope only. ")
 			continue
 		case "core":
-			log.Println("Note: Scope 'core' requested, but not yet supported: Will return 'node' scope only. ")
+			log.Note(" Scope 'core' requested, but not yet supported: Will return 'node' scope only. ")
 			continue
 			// Get Finest Granularity only, Set NULL to 0.0
 			// query = fmt.Sprintf(`
@@ -114,13 +115,14 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 			//  	idb.formatTime(job.StartTime), idb.formatTime(idb.epochToTime(job.StartTimeUnix + int64(job.Duration) + int64(1) )),
 			//  	measurementsCond, hostsCond)
 		default:
-			log.Println("Note: Unknown Scope requested: Will return 'node' scope. ")
+			log.Notef("Unknown scope '%s' requested: Will return 'node' scope.", scope)
 			continue
-			// return nil, errors.New("the InfluxDB metric data repository does not yet support other scopes than 'node'")
+			// return nil, errors.New("METRICDATA/INFLUXV2 > the InfluxDB metric data repository does not yet support other scopes than 'node'")
 		}
 
 		rows, err := idb.queryClient.Query(ctx, query)
 		if err != nil {
+			log.Error("Error while performing query")
 			return nil, err
 		}
 
@@ -192,6 +194,7 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 			// 		hostSeries.Data = append(hostSeries.Data, schema.Float(val))
 			// }
 		default:
+			log.Notef("Unknown scope '%s' requested: Will return 'node' scope.", scope)
 			continue
 			// return nil, errors.New("the InfluxDB metric data repository does not yet support other scopes than 'node, core'")
 		}
@@ -202,21 +205,22 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 	// Get Stats
 	stats, err := idb.LoadStats(job, metrics, ctx)
 	if err != nil {
+		log.Warn("Error while loading statistics")
 		return nil, err
 	}
 
 	for _, scope := range scopes {
 		if scope == "node" { // No 'socket/core' support yet
 			for metric, nodes := range stats {
-				// log.Println(fmt.Sprintf("<< Add Stats for : Field %s >>", metric))
+				// log.Debugf("<< Add Stats for : Field %s >>", metric)
 				for node, stats := range nodes {
-					// log.Println(fmt.Sprintf("<< Add Stats for : Host %s : Min %.2f, Max %.2f, Avg %.2f >>", node, stats.Min, stats.Max, stats.Avg ))
+					// log.Debugf("<< Add Stats for : Host %s : Min %.2f, Max %.2f, Avg %.2f >>", node, stats.Min, stats.Max, stats.Avg )
 					for index, _ := range jobData[metric][scope].Series {
-						// log.Println(fmt.Sprintf("<< Try to add Stats to Series in Position %d >>", index))
+						// log.Debugf("<< Try to add Stats to Series in Position %d >>", index)
 						if jobData[metric][scope].Series[index].Hostname == node {
-							// log.Println(fmt.Sprintf("<< Match for Series in Position %d : Host %s >>", index, jobData[metric][scope].Series[index].Hostname))
+							// log.Debugf("<< Match for Series in Position %d : Host %s >>", index, jobData[metric][scope].Series[index].Hostname)
 							jobData[metric][scope].Series[index].Statistics = &schema.MetricStatistics{Avg: stats.Avg, Min: stats.Min, Max: stats.Max}
-							// log.Println(fmt.Sprintf("<< Result Inner: Min %.2f, Max %.2f, Avg %.2f >>", jobData[metric][scope].Series[index].Statistics.Min, jobData[metric][scope].Series[index].Statistics.Max, jobData[metric][scope].Series[index].Statistics.Avg))
+							// log.Debugf("<< Result Inner: Min %.2f, Max %.2f, Avg %.2f >>", jobData[metric][scope].Series[index].Statistics.Min, jobData[metric][scope].Series[index].Statistics.Max, jobData[metric][scope].Series[index].Statistics.Avg)
 						}
 					}
 				}
@@ -228,9 +232,9 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 	// for _, scope := range scopes {
 	// 		for _, met := range metrics {
 	// 		   for _, series := range jobData[met][scope].Series {
-	// 		   log.Println(fmt.Sprintf("<< Result: %d data points for metric %s on %s with scope %s, Stats: Min %.2f, Max %.2f, Avg %.2f >>",
+	// 		   log.Debugf("<< Result: %d data points for metric %s on %s with scope %s, Stats: Min %.2f, Max %.2f, Avg %.2f >>",
 	// 				 	len(series.Data), met, series.Hostname, scope,
-	// 					series.Statistics.Min, series.Statistics.Max, series.Statistics.Avg))
+	// 					series.Statistics.Min, series.Statistics.Max, series.Statistics.Avg)
 	// 		   }
 	// 		}
 	// }
@@ -249,7 +253,7 @@ func (idb *InfluxDBv2DataRepository) LoadStats(
 	for _, h := range job.Resources {
 		if h.HWThreads != nil || h.Accelerators != nil {
 			// TODO
-			return nil, errors.New("the InfluxDB metric data repository does not yet support HWThreads or Accelerators")
+			return nil, errors.New("METRICDATA/INFLUXV2 > the InfluxDB metric data repository does not yet support HWThreads or Accelerators")
 		}
 		hostsConds = append(hostsConds, fmt.Sprintf(`r["hostname"] == "%s"`, h.Hostname))
 	}
@@ -258,7 +262,7 @@ func (idb *InfluxDBv2DataRepository) LoadStats(
 	// lenMet := len(metrics)
 
 	for _, metric := range metrics {
-		// log.Println(fmt.Sprintf("<< You are here: %s (Index %d of %d metrics)", metric, index, lenMet))
+		// log.Debugf("<< You are here: %s (Index %d of %d metrics)", metric, index, lenMet)
 
 		query := fmt.Sprintf(`
 				  data = from(bucket: "%s")
@@ -275,6 +279,7 @@ func (idb *InfluxDBv2DataRepository) LoadStats(
 
 		rows, err := idb.queryClient.Query(ctx, query)
 		if err != nil {
+			log.Error("Error while performing query")
 			return nil, err
 		}
 
@@ -285,17 +290,17 @@ func (idb *InfluxDBv2DataRepository) LoadStats(
 
 			avg, avgok := row.ValueByKey("avg").(float64)
 			if !avgok {
-				// log.Println(fmt.Sprintf(">> Assertion error for metric %s, statistic AVG. Expected 'float64', got %v", metric, avg))
+				// log.Debugf(">> Assertion error for metric %s, statistic AVG. Expected 'float64', got %v", metric, avg)
 				avg = 0.0
 			}
 			min, minok := row.ValueByKey("min").(float64)
 			if !minok {
-				// log.Println(fmt.Sprintf(">> Assertion error for metric %s, statistic MIN. Expected 'float64', got %v", metric, min))
+				// log.Debugf(">> Assertion error for metric %s, statistic MIN. Expected 'float64', got %v", metric, min)
 				min = 0.0
 			}
 			max, maxok := row.ValueByKey("max").(float64)
 			if !maxok {
-				// log.Println(fmt.Sprintf(">> Assertion error for metric %s, statistic MAX. Expected 'float64', got %v", metric, max))
+				// log.Debugf(">> Assertion error for metric %s, statistic MAX. Expected 'float64', got %v", metric, max)
 				max = 0.0
 			}
 
@@ -319,7 +324,7 @@ func (idb *InfluxDBv2DataRepository) LoadNodeData(
 	ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
 
 	// TODO : Implement to be used in Analysis- und System/Node-View
-	log.Println(fmt.Sprintf("LoadNodeData unimplemented for InfluxDBv2DataRepository, Args: cluster %s, metrics %v, nodes %v, scopes %v", cluster, metrics, nodes, scopes))
+	log.Notef("LoadNodeData unimplemented for InfluxDBv2DataRepository, Args: cluster %s, metrics %v, nodes %v, scopes %v", cluster, metrics, nodes, scopes)
 
-	return nil, errors.New("unimplemented for InfluxDBv2DataRepository")
+	return nil, errors.New("METRICDATA/INFLUXV2 > unimplemented for InfluxDBv2DataRepository")
 }

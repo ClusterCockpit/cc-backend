@@ -45,11 +45,13 @@ func (ja *JWTAuthenticator) Init(auth *Authentication, conf interface{}) error {
 	} else {
 		bytes, err := base64.StdEncoding.DecodeString(pubKey)
 		if err != nil {
+			log.Warn("Could not decode JWT public key")
 			return err
 		}
 		ja.publicKey = ed25519.PublicKey(bytes)
 		bytes, err = base64.StdEncoding.DecodeString(privKey)
 		if err != nil {
+			log.Warn("Could not decode JWT private key")
 			return err
 		}
 		ja.privateKey = ed25519.PrivateKey(bytes)
@@ -58,6 +60,7 @@ func (ja *JWTAuthenticator) Init(auth *Authentication, conf interface{}) error {
 	if pubKey = os.Getenv("CROSS_LOGIN_JWT_HS512_KEY"); pubKey != "" {
 		bytes, err := base64.StdEncoding.DecodeString(pubKey)
 		if err != nil {
+			log.Warn("Could not decode cross login JWT HS512 key")
 			return err
 		}
 		ja.loginTokenKey = bytes
@@ -68,6 +71,7 @@ func (ja *JWTAuthenticator) Init(auth *Authentication, conf interface{}) error {
 	if keyFound && pubKeyCrossLogin != "" {
 		bytes, err := base64.StdEncoding.DecodeString(pubKeyCrossLogin)
 		if err != nil {
+			log.Warn("Could not decode cross login JWT public key")
 			return err
 		}
 		ja.publicKeyCrossLogin = ed25519.PublicKey(bytes)
@@ -123,13 +127,15 @@ func (ja *JWTAuthenticator) Login(
 		if t.Method == jwt.SigningMethodHS256 || t.Method == jwt.SigningMethodHS512 {
 			return ja.loginTokenKey, nil
 		}
-		return nil, fmt.Errorf("unkown signing method for login token: %s (known: HS256, HS512, EdDSA)", t.Method.Alg())
+		return nil, fmt.Errorf("AUTH/JWT > unkown signing method for login token: %s (known: HS256, HS512, EdDSA)", t.Method.Alg())
 	})
 	if err != nil {
+		log.Warn("Error while parsing jwt token")
 		return nil, err
 	}
 
 	if err := token.Claims.Valid(); err != nil {
+		log.Warn("jwt token claims are not valid")
 		return nil, err
 	}
 
@@ -151,6 +157,7 @@ func (ja *JWTAuthenticator) Login(
 	if user == nil {
 		user, err = ja.auth.GetUser(sub)
 		if err != nil && err != sql.ErrNoRows {
+			log.Errorf("Error while loading user '%v'", sub)
 			return nil, err
 		} else if user == nil {
 			user = &User{
@@ -159,6 +166,7 @@ func (ja *JWTAuthenticator) Login(
 				AuthSource: AuthViaToken,
 			}
 			if err := ja.auth.AddUser(user); err != nil {
+				log.Errorf("Error while adding user '%v' to auth from token", user.Username)
 				return nil, err
 			}
 		}
@@ -223,11 +231,13 @@ func (ja *JWTAuthenticator) Auth(
 		return ja.publicKey, nil
 	})
 	if err != nil {
+		log.Warn("Error while parsing token")
 		return nil, err
 	}
 
 	// Check token validity
 	if err := token.Claims.Valid(); err != nil {
+		log.Warn("jwt token claims are not valid")
 		return nil, err
 	}
 
@@ -276,7 +286,7 @@ func (ja *JWTAuthenticator) Auth(
 		session.Values["roles"] = roles
 
 		if err := ja.auth.sessionStore.Save(r, rw, session); err != nil {
-			log.Errorf("session save failed: %s", err.Error())
+			log.Warnf("session save failed: %s", err.Error())
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return nil, err
 		}
