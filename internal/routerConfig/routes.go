@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
+	"github.com/ClusterCockpit/cc-backend/internal/api"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
@@ -44,7 +45,7 @@ var routes []Route = []Route{
 	{"/monitoring/user/{id}", "monitoring/user.tmpl", "User <ID> - ClusterCockpit", true, setupUserRoute},
 	{"/monitoring/systems/{cluster}", "monitoring/systems.tmpl", "Cluster <ID> - ClusterCockpit", false, setupClusterRoute},
 	{"/monitoring/node/{cluster}/{hostname}", "monitoring/node.tmpl", "Node <ID> - ClusterCockpit", false, setupNodeRoute},
-	{"/monitoring/analysis/{cluster}", "monitoring/analysis.tmpl", "Analaysis - ClusterCockpit", true, setupAnalysisRoute},
+	{"/monitoring/analysis/{cluster}", "monitoring/analysis.tmpl", "Analysis - ClusterCockpit", true, setupAnalysisRoute},
 	{"/monitoring/status/{cluster}", "monitoring/status.tmpl", "Status of <ID> - ClusterCockpit", false, setupClusterRoute},
 }
 
@@ -180,6 +181,9 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 		filterPresets["project"] = query.Get("project")
 		filterPresets["projectMatch"] = "eq"
 	}
+	if query.Get("jobName") != "" {
+		filterPresets["jobName"] = query.Get("jobName")
+	}
 	if query.Get("user") != "" {
 		filterPresets["user"] = query.Get("user")
 		filterPresets["userMatch"] = "eq"
@@ -292,5 +296,68 @@ func SetupRoutes(router *mux.Router, version string, hash string, buildTime stri
 
 			web.RenderTemplate(rw, r, route.Template, &page)
 		})
+	}
+}
+
+func HandleSearchBar(rw http.ResponseWriter, r *http.Request, api *api.RestApi) {
+	if search := r.URL.Query().Get("searchId"); search != "" {
+		splitSearch := strings.Split(search, ":")
+
+		if (len(splitSearch) == 2) {
+			switch strings.Trim(splitSearch[0], " ") {
+			case "jobId":
+				http.Redirect(rw, r, "/monitoring/jobs/?jobId="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusTemporaryRedirect) // All Users: Redirect to Tablequery
+				return
+			case "jobName":
+				http.Redirect(rw, r, "/monitoring/jobs/?jobName="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusTemporaryRedirect) // All Users: Redirect to Tablequery
+				return
+			case "projectId":
+				project, _ := api.JobRepository.FindProject(r.Context(), strings.Trim(splitSearch[1], " ")) // Restricted: projectId
+				if project != "" {
+					http.Redirect(rw, r, "/monitoring/jobs/?projectMatch=eq&project="+url.QueryEscape(project), http.StatusTemporaryRedirect)
+					return
+				} else {
+					http.Redirect(rw, r, "/monitoring/jobs/?jobId=NotFound", http.StatusTemporaryRedirect) // Workaround to display correctly empty table
+				}
+			case "username":
+				username, _ := api.JobRepository.FindUser(r.Context(), strings.Trim(splitSearch[1], " ")) // Restricted: username
+				if username != "" {
+					http.Redirect(rw, r, "/monitoring/user/"+username, http.StatusTemporaryRedirect)
+					return
+				} else {
+					http.Redirect(rw, r, "/monitoring/jobs/?jobId=NotFound", http.StatusTemporaryRedirect) // Workaround to display correctly empty table
+				}
+			default:
+				http.Error(rw, "'searchId' type parameter unknown", http.StatusBadRequest)
+			}
+
+		} else if (len(splitSearch) == 1) {
+			jobname, username, project, err := api.JobRepository.FindJobnameOrUserOrProject(r.Context(), strings.Trim(search, " ")) // Determine Access within
+
+			if err != nil {
+				http.Error(rw, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			if username != "" {
+				http.Redirect(rw, r, "/monitoring/user/"+username, http.StatusTemporaryRedirect) // User: Redirect to user page
+				return
+			} else if (project != "") {
+				http.Redirect(rw, r, "/monitoring/jobs/?projectMatch=eq&project="+url.QueryEscape(strings.Trim(search, " ")), http.StatusTemporaryRedirect) // projectId (equal)
+				return
+			} else if (jobname != "") {
+				http.Redirect(rw, r, "/monitoring/jobs/?jobName="+url.QueryEscape(strings.Trim(search, " ")), http.StatusTemporaryRedirect) // JobName (contains)
+				return
+			} else {
+				http.Redirect(rw, r, "/monitoring/jobs/?jobId="+url.QueryEscape(strings.Trim(search, " ")), http.StatusTemporaryRedirect) // No Result: Probably jobId
+				return
+			}
+
+		} else {
+			http.Error(rw, "'searchId' query parameter malformed", http.StatusBadRequest)
+		}
+
+	} else {
+		http.Redirect(rw, r, "/monitoring/jobs/?", http.StatusTemporaryRedirect)
 	}
 }

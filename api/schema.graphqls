@@ -10,6 +10,7 @@ type Job {
   jobId:            Int!
   user:             String!
   project:          String!
+  jobName:          String
   cluster:          String!
   subCluster:       String!
   startTime:        Time!
@@ -201,6 +202,7 @@ input JobFilter {
   arrayJobId:  Int
   user:        StringInput
   project:     StringInput
+  jobName:     StringInput
   cluster:     StringInput
   partition:   StringInput
   duration:    IntRange

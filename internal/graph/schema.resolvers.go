@@ -25,6 +25,11 @@ func (r *clusterResolver) Partitions(ctx context.Context, obj *schema.Cluster) (
 	return r.Repo.Partitions(obj.Name)
 }
 
+// JobName is the resolver for the jobName field.
+func (r *jobResolver) JobName(ctx context.Context, obj *schema.Job) (*string, error) {
+	return r.Repo.FetchJobName(obj)
+}
+
 // Tags is the resolver for the tags field.
 func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error) {
 	return r.Repo.GetTags(&obj.ID)

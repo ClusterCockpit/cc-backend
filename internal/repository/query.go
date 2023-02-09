@@ -121,6 +121,9 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	if filter.Project != nil {
 		query = buildStringCondition("job.project", filter.Project, query)
 	}
+	if filter.JobName != nil {
+		query = buildStringCondition("job.meta_data", filter.JobName, query)
+	}
 	if filter.Cluster != nil {
 		query = buildStringCondition("job.cluster", filter.Cluster, query)
 	}
