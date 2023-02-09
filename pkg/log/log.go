@@ -47,7 +47,6 @@ var (
 /* CONFIG */
 
 func Init(lvl string, logdate bool) {
-	// fmt.Printf("pkg/log: Set LOGLEVEL -> %s\n", lvl)
 	switch lvl {
 	case "crit":
 		ErrWriter = io.Discard
@@ -63,7 +62,6 @@ func Init(lvl string, logdate bool) {
 		fallthrough
 	case "info":
 		DebugWriter = io.Discard
-		break
 	case "debug":
 		// Nothing to do...
 		break
@@ -72,7 +70,7 @@ func Init(lvl string, logdate bool) {
 		//SetLogLevel("debug")
 	}
 
-	if logdate == false {
+	if !logdate {
 		DebugLog = log.New(DebugWriter, DebugPrefix, 0)
 		InfoLog = log.New(InfoWriter, InfoPrefix, 0)
 		NoteLog = log.New(NoteWriter, NotePrefix, log.Lshortfile)
@@ -141,9 +139,9 @@ func Fatal(v ...interface{}) {
 /* PRINT FORMAT*/
 
 // Private helper
-func printfStr(format string, v ...interface{}) string {
-	return fmt.Sprintf(format, v...)
-}
+// func printfStr(format string, v ...interface{}) string {
+// 	return fmt.Sprintf(format, v...)
+// }
 
 // Uses Infof() -> If errorpath required at some point:
 // Will need own writer with 'Output(2, out)' to correctly render path
