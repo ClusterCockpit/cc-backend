@@ -139,9 +139,9 @@ func Fatal(v ...interface{}) {
 /* PRINT FORMAT*/
 
 // Private helper
-// func printfStr(format string, v ...interface{}) string {
-// 	return fmt.Sprintf(format, v...)
-// }
+func printfStr(format string, v ...interface{}) string {
+	return fmt.Sprintf(format, v...)
+}
 
 // Uses Infof() -> If errorpath required at some point:
 // Will need own writer with 'Output(2, out)' to correctly render path
@@ -150,38 +150,38 @@ func Printf(format string, v ...interface{}) {
 }
 
 func Debugf(format string, v ...interface{}) {
-	DebugLog.Output(2, printStr(v...))
+	DebugLog.Output(2, printfStr(format, v...))
 }
 
 func Infof(format string, v ...interface{}) {
-	InfoLog.Output(2, printStr(v...))
+	InfoLog.Output(2, printfStr(format, v...))
 }
 
 func Notef(format string, v ...interface{}) {
-	NoteLog.Output(2, printStr(v...))
+	NoteLog.Output(2, printfStr(format, v...))
 }
 
 func Warnf(format string, v ...interface{}) {
-	WarnLog.Output(2, printStr(v...))
+	WarnLog.Output(2, printfStr(format, v...))
 }
 
 func Errorf(format string, v ...interface{}) {
-	ErrLog.Output(2, printStr(v...))
+	ErrLog.Output(2, printfStr(format, v...))
 }
 
 // Writes panic stacktrace, but keeps application alive
 func Panicf(format string, v ...interface{}) {
-	ErrLog.Output(2, printStr(v...))
+	ErrLog.Output(2, printfStr(format, v...))
 	panic("Panic triggered ...")
 }
 
 func Critf(format string, v ...interface{}) {
-	CritLog.Output(2, printStr(v...))
+	CritLog.Output(2, printfStr(format, v...))
 }
 
 // Writes crit log, stops application
 func Fatalf(format string, v ...interface{}) {
-	CritLog.Output(2, printStr(v...))
+	CritLog.Output(2, printfStr(format, v...))
 	os.Exit(1)
 }
 
