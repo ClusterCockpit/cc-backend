@@ -52,7 +52,10 @@
         {/if}
         {#if job.project && job.project != 'no project'}
             <br/>
-            <Icon name="people-fill"/> {job.project}
+            <Icon name="people-fill"/> 
+            <a class="fst-italic" href="/monitoring/jobs/?project={job.project}&projectMatch=eq" target="_blank">
+                {scrambleNames ? scramble(job.project) : job.project}
+            </a>
         {/if}
     </p>
 
