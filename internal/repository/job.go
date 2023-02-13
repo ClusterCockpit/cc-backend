@@ -14,9 +14,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -44,9 +46,9 @@ func GetJobRepository() *JobRepository {
 		db := GetConnection()
 
 		jobRepoInstance = &JobRepository{
-			DB:        db.DB,
-			stmtCache: sq.NewStmtCache(db.DB),
-			cache:     lrucache.New(1024 * 1024),
+			DB:             db.DB,
+			stmtCache:      sq.NewStmtCache(db.DB),
+			cache:          lrucache.New(1024 * 1024),
 			archiveChannel: make(chan *schema.Job, 128),
 		}
 		// start archiving worker
@@ -67,8 +69,8 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 	if err := row.Scan(
 		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.SubCluster, &job.StartTimeUnix, &job.Partition, &job.ArrayJobId,
 		&job.NumNodes, &job.NumHWThreads, &job.NumAcc, &job.Exclusive, &job.MonitoringStatus, &job.SMT, &job.State,
-		&job.Duration, &job.Walltime, &job.RawResources, /*&job.RawMetaData*/); err != nil {
-    log.Warn("Error while scanning rows")
+		&job.Duration, &job.Walltime, &job.RawResources /*&job.RawMetaData*/); err != nil {
+		log.Warn("Error while scanning rows")
 		return nil, err
 	}
 
@@ -417,10 +419,10 @@ func (r *JobRepository) MarkArchived(
 }
 
 // Archiving worker thread
-func (r *JobRepository) archivingWorker(){
+func (r *JobRepository) archivingWorker() {
 	for {
 		select {
-		case job, ok := <- r.archiveChannel:
+		case job, ok := <-r.archiveChannel:
 			if !ok {
 				break
 			}
@@ -454,13 +456,13 @@ func (r *JobRepository) archivingWorker(){
 }
 
 // Trigger async archiving
-func (r *JobRepository) TriggerArchiving(job *schema.Job){
+func (r *JobRepository) TriggerArchiving(job *schema.Job) {
 	r.archivePending.Add(1)
 	r.archiveChannel <- job
 }
 
 // Wait for background thread to finish pending archiving operations
-func (r *JobRepository) WaitForArchiving(){
+func (r *JobRepository) WaitForArchiving() {
 	// close channel and wait for worker to process remaining jobs
 	r.archivePending.Wait()
 }
@@ -502,7 +504,7 @@ func (r *JobRepository) FindJobnameOrUserOrProject(ctx context.Context, searchte
 
 		// All Authorizations: If unlabeled query not username or projectId, try for jobname: Match Metadata, on hit, parent method redirects to jobName GQL query
 		err := sq.Select("job.cluster").Distinct().From("job").
-			Where("job.meta_data LIKE ?", "%" + searchterm + "%").
+			Where("job.meta_data LIKE ?", "%"+searchterm+"%").
 			RunWith(r.stmtCache).QueryRow().Scan(&metasnip)
 		if err != nil && err != sql.ErrNoRows {
 			return "", "", "", err
@@ -634,4 +636,191 @@ func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 		log.Notef("%d jobs have been marked as failed due to running too long", rowsAffected)
 	}
 	return nil
+}
+
+// TODO: Move to config
+const ShortJobDuration int = 5 * 60
+
+// GraphQL validation should make sure that no unkown values can be specified.
+var groupBy2column = map[model.Aggregate]string{
+	model.AggregateUser:    "job.user",
+	model.AggregateProject: "job.project",
+	model.AggregateCluster: "job.cluster",
+}
+
+// Helper function for the jobsStatistics GraphQL query placed here so that schema.resolvers.go is not too full.
+func (r *JobRepository) JobsStatistics(ctx context.Context, filter []*model.JobFilter, groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
+	// In case `groupBy` is nil (not used), the model.JobsStatistics used is at the key '' (empty string)
+	stats := map[string]*model.JobsStatistics{}
+
+	// `socketsPerNode` and `coresPerSocket` can differ from cluster to cluster, so we need to explicitly loop over those.
+	for _, cluster := range archive.Clusters {
+		for _, subcluster := range cluster.SubClusters {
+			corehoursCol := fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_nodes * %d * %d) / 3600) as int)", subcluster.SocketsPerNode, subcluster.CoresPerSocket)
+			var query sq.SelectBuilder
+			if groupBy == nil {
+				query = sq.Select(
+					"''",
+					"COUNT(job.id)",
+					"CAST(ROUND(SUM(job.duration) / 3600) as int)",
+					corehoursCol,
+				).From("job")
+			} else {
+				col := groupBy2column[*groupBy]
+				query = sq.Select(
+					col,
+					"COUNT(job.id)",
+					"CAST(ROUND(SUM(job.duration) / 3600) as int)",
+					corehoursCol,
+				).From("job").GroupBy(col)
+			}
+
+			query = query.
+				Where("job.cluster = ?", cluster.Name).
+				Where("job.subcluster = ?", subcluster.Name)
+
+			query = SecurityCheck(ctx, query)
+			for _, f := range filter {
+				query = BuildWhereClause(f, query)
+			}
+
+			rows, err := query.RunWith(r.DB).Query()
+			if err != nil {
+				log.Warn("Error while querying DB for job statistics")
+				return nil, err
+			}
+
+			for rows.Next() {
+				var id sql.NullString
+				var jobs, walltime, corehours sql.NullInt64
+				if err := rows.Scan(&id, &jobs, &walltime, &corehours); err != nil {
+					log.Warn("Error while scanning rows")
+					return nil, err
+				}
+
+				if id.Valid {
+					if s, ok := stats[id.String]; ok {
+						s.TotalJobs += int(jobs.Int64)
+						s.TotalWalltime += int(walltime.Int64)
+						s.TotalCoreHours += int(corehours.Int64)
+					} else {
+						stats[id.String] = &model.JobsStatistics{
+							ID:             id.String,
+							TotalJobs:      int(jobs.Int64),
+							TotalWalltime:  int(walltime.Int64),
+							TotalCoreHours: int(corehours.Int64),
+						}
+					}
+				}
+			}
+
+		}
+	}
+
+	if groupBy == nil {
+		query := sq.Select("COUNT(job.id)").From("job").Where("job.duration < ?", ShortJobDuration)
+		query = SecurityCheck(ctx, query)
+		for _, f := range filter {
+			query = BuildWhereClause(f, query)
+		}
+		if err := query.RunWith(r.DB).QueryRow().Scan(&(stats[""].ShortJobs)); err != nil {
+			log.Warn("Error while scanning rows for short job stats")
+			return nil, err
+		}
+	} else {
+		col := groupBy2column[*groupBy]
+		query := sq.Select(col, "COUNT(job.id)").From("job").Where("job.duration < ?", ShortJobDuration)
+		query = SecurityCheck(ctx, query)
+		for _, f := range filter {
+			query = BuildWhereClause(f, query)
+		}
+		rows, err := query.RunWith(r.DB).Query()
+		if err != nil {
+			log.Warn("Error while querying jobs for short jobs")
+			return nil, err
+		}
+
+		for rows.Next() {
+			var id sql.NullString
+			var shortJobs sql.NullInt64
+			if err := rows.Scan(&id, &shortJobs); err != nil {
+				log.Warn("Error while scanning rows for short jobs")
+				return nil, err
+			}
+
+			if id.Valid {
+				stats[id.String].ShortJobs = int(shortJobs.Int64)
+			}
+		}
+	}
+
+	// Calculating the histogram data is expensive, so only do it if needed.
+	// An explicit resolver can not be used because we need to know the filters.
+	histogramsNeeded := false
+	fields := graphql.CollectFieldsCtx(ctx, nil)
+	for _, col := range fields {
+		if col.Name == "histDuration" || col.Name == "histNumNodes" {
+			histogramsNeeded = true
+		}
+	}
+
+	res := make([]*model.JobsStatistics, 0, len(stats))
+	for _, stat := range stats {
+		res = append(res, stat)
+		id, col := "", ""
+		if groupBy != nil {
+			id = stat.ID
+			col = groupBy2column[*groupBy]
+		}
+
+		if histogramsNeeded {
+			var err error
+			value := fmt.Sprintf(`CAST(ROUND((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) / 3600) as int) as value`, time.Now().Unix())
+			stat.HistDuration, err = r.jobsStatisticsHistogram(ctx, value, filter, id, col)
+			if err != nil {
+				log.Warn("Error while loading job statistics histogram: running jobs")
+				return nil, err
+			}
+
+			stat.HistNumNodes, err = r.jobsStatisticsHistogram(ctx, "job.num_nodes as value", filter, id, col)
+			if err != nil {
+				log.Warn("Error while loading job statistics histogram: num nodes")
+				return nil, err
+			}
+		}
+	}
+
+	return res, nil
+}
+
+// `value` must be the column grouped by, but renamed to "value". `id` and `col` can optionally be used
+// to add a condition to the query of the kind "<col> = <id>".
+func (r *JobRepository) jobsStatisticsHistogram(ctx context.Context, value string, filters []*model.JobFilter, id, col string) ([]*model.HistoPoint, error) {
+	query := sq.Select(value, "COUNT(job.id) AS count").From("job")
+	query = SecurityCheck(ctx, query)
+	for _, f := range filters {
+		query = BuildWhereClause(f, query)
+	}
+
+	if len(id) != 0 && len(col) != 0 {
+		query = query.Where(col+" = ?", id)
+	}
+
+	rows, err := query.GroupBy("value").RunWith(r.DB).Query()
+	if err != nil {
+		log.Error("Error while running query")
+		return nil, err
+	}
+
+	points := make([]*model.HistoPoint, 0)
+	for rows.Next() {
+		point := model.HistoPoint{}
+		if err := rows.Scan(&point.Value, &point.Count); err != nil {
+			log.Warn("Error while scanning rows")
+			return nil, err
+		}
+
+		points = append(points, &point)
+	}
+	return points, nil
 }
