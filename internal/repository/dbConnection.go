@@ -5,12 +5,15 @@
 package repository
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"sync"
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/mattn/go-sqlite3"
+	"github.com/qustavo/sqlhooks/v2"
 )
 
 var (
@@ -28,7 +31,9 @@ func Connect(driver string, db string) {
 
 	dbConnOnce.Do(func() {
 		if driver == "sqlite3" {
-			dbHandle, err = sqlx.Open("sqlite3", fmt.Sprintf("%s?_foreign_keys=on", db))
+			sql.Register("sqlite3WithHooks", sqlhooks.Wrap(&sqlite3.SQLiteDriver{}, &Hooks{}))
+			dbHandle, err = sqlx.Open("sqlite3WithHooks", fmt.Sprintf("%s?_foreign_keys=on", db))
+			// dbHandle, err = sqlx.Open("sqlite3", fmt.Sprintf("%s?_foreign_keys=on", db))
 			if err != nil {
 				log.Fatal(err)
 			}
