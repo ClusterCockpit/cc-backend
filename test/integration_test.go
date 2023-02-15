@@ -20,6 +20,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/gorilla/mux"
 
@@ -245,6 +246,7 @@ func setup(t *testing.T) *api.RestApi {
 		]
 	}`
 
+	log.Init("info", true)
 	tmpdir := t.TempDir()
 	jobarchive := filepath.Join(tmpdir, "job-archive")
 	if err := os.Mkdir(jobarchive, 0777); err != nil {
