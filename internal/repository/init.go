@@ -75,6 +75,7 @@ const JobsDBSchema string = `
 
 // Indexes are created after the job-archive is traversed for faster inserts.
 const JobsDbIndexes string = `
+	CREATE INDEX job_stats        ON job (cluster,subcluster,user);
 	CREATE INDEX job_by_user      ON job (user);
 	CREATE INDEX job_by_starttime ON job (start_time);
 	CREATE INDEX job_by_job_id    ON job (job_id);

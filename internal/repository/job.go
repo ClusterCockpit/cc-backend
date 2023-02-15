@@ -649,7 +649,10 @@ var groupBy2column = map[model.Aggregate]string{
 }
 
 // Helper function for the jobsStatistics GraphQL query placed here so that schema.resolvers.go is not too full.
-func (r *JobRepository) JobsStatistics(ctx context.Context, filter []*model.JobFilter, groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
+func (r *JobRepository) JobsStatistics(ctx context.Context,
+	filter []*model.JobFilter,
+	groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
+
 	// In case `groupBy` is nil (not used), the model.JobsStatistics used is at the key '' (empty string)
 	stats := map[string]*model.JobsStatistics{}
 

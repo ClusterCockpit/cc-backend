@@ -12,9 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/api"
-	"github.com/ClusterCockpit/cc-backend/internal/graph"
+	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
@@ -73,7 +72,7 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 	from := time.Now().Add(-24 * time.Hour)
 	recentShortJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, []*model.JobFilter{{
 		StartTime: &schema.TimeRange{From: &from, To: nil},
-		Duration:  &schema.IntRange{From: 0, To: graph.ShortJobDuration},
+		Duration:  &schema.IntRange{From: 0, To: repository.ShortJobDuration},
 	}}, nil, nil)
 	if err != nil {
 		log.Warnf("failed to count jobs: %s", err.Error())
@@ -303,7 +302,7 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, api *api.RestApi) 
 	if search := r.URL.Query().Get("searchId"); search != "" {
 		splitSearch := strings.Split(search, ":")
 
-		if (len(splitSearch) == 2) {
+		if len(splitSearch) == 2 {
 			switch strings.Trim(splitSearch[0], " ") {
 			case "jobId":
 				http.Redirect(rw, r, "/monitoring/jobs/?jobId="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusTemporaryRedirect) // All Users: Redirect to Tablequery
@@ -331,7 +330,7 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, api *api.RestApi) 
 				http.Error(rw, "'searchId' type parameter unknown", http.StatusBadRequest)
 			}
 
-		} else if (len(splitSearch) == 1) {
+		} else if len(splitSearch) == 1 {
 			jobname, username, project, err := api.JobRepository.FindJobnameOrUserOrProject(r.Context(), strings.Trim(search, " ")) // Determine Access within
 
 			if err != nil {
@@ -342,10 +341,10 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, api *api.RestApi) 
 			if username != "" {
 				http.Redirect(rw, r, "/monitoring/user/"+username, http.StatusTemporaryRedirect) // User: Redirect to user page
 				return
-			} else if (project != "") {
+			} else if project != "" {
 				http.Redirect(rw, r, "/monitoring/jobs/?projectMatch=eq&project="+url.QueryEscape(strings.Trim(search, " ")), http.StatusTemporaryRedirect) // projectId (equal)
 				return
-			} else if (jobname != "") {
+			} else if jobname != "" {
 				http.Redirect(rw, r, "/monitoring/jobs/?jobName="+url.QueryEscape(strings.Trim(search, " ")), http.StatusTemporaryRedirect) // JobName (contains)
 				return
 			} else {
