@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
 )
@@ -98,10 +98,10 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 				idb.formatTime(job.StartTime), idb.formatTime(idb.epochToTime(job.StartTimeUnix+int64(job.Duration)+int64(1))),
 				measurementsCond, hostsCond)
 		case "socket":
-			log.Note("Scope 'socket' requested, but not yet supported: Will return 'node' scope only. ")
+			log.Info("Scope 'socket' requested, but not yet supported: Will return 'node' scope only. ")
 			continue
 		case "core":
-			log.Note(" Scope 'core' requested, but not yet supported: Will return 'node' scope only. ")
+			log.Info(" Scope 'core' requested, but not yet supported: Will return 'node' scope only. ")
 			continue
 			// Get Finest Granularity only, Set NULL to 0.0
 			// query = fmt.Sprintf(`
@@ -115,7 +115,7 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 			//  	idb.formatTime(job.StartTime), idb.formatTime(idb.epochToTime(job.StartTimeUnix + int64(job.Duration) + int64(1) )),
 			//  	measurementsCond, hostsCond)
 		default:
-			log.Notef("Unknown scope '%s' requested: Will return 'node' scope.", scope)
+			log.Infof("Unknown scope '%s' requested: Will return 'node' scope.", scope)
 			continue
 			// return nil, errors.New("METRICDATA/INFLUXV2 > the InfluxDB metric data repository does not yet support other scopes than 'node'")
 		}
@@ -194,7 +194,7 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 			// 		hostSeries.Data = append(hostSeries.Data, schema.Float(val))
 			// }
 		default:
-			log.Notef("Unknown scope '%s' requested: Will return 'node' scope.", scope)
+			log.Infof("Unknown scope '%s' requested: Will return 'node' scope.", scope)
 			continue
 			// return nil, errors.New("the InfluxDB metric data repository does not yet support other scopes than 'node, core'")
 		}
@@ -324,7 +324,7 @@ func (idb *InfluxDBv2DataRepository) LoadNodeData(
 	ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
 
 	// TODO : Implement to be used in Analysis- und System/Node-View
-	log.Notef("LoadNodeData unimplemented for InfluxDBv2DataRepository, Args: cluster %s, metrics %v, nodes %v, scopes %v", cluster, metrics, nodes, scopes)
+	log.Infof("LoadNodeData unimplemented for InfluxDBv2DataRepository, Args: cluster %s, metrics %v, nodes %v, scopes %v", cluster, metrics, nodes, scopes)
 
 	return nil, errors.New("METRICDATA/INFLUXV2 > unimplemented for InfluxDBv2DataRepository")
 }

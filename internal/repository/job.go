@@ -339,7 +339,7 @@ func (r *JobRepository) CountGroupedJobs(ctx context.Context, aggreg model.Aggre
 			count = fmt.Sprintf(`sum(job.num_nodes * (CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) as count`, now)
 			runner = r.DB
 		default:
-			log.Notef("CountGroupedJobs() Weight %v unknown.", *weight)
+			log.Infof("CountGroupedJobs() Weight %v unknown.", *weight)
 		}
 	}
 
@@ -407,7 +407,7 @@ func (r *JobRepository) MarkArchived(
 		case "file_bw":
 			stmt = stmt.Set("file_bw_avg", stats.Avg)
 		default:
-			log.Notef("MarkArchived() Metric '%v' unknown", metric)
+			log.Infof("MarkArchived() Metric '%v' unknown", metric)
 		}
 	}
 
@@ -633,7 +633,7 @@ func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 	}
 
 	if rowsAffected > 0 {
-		log.Notef("%d jobs have been marked as failed due to running too long", rowsAffected)
+		log.Infof("%d jobs have been marked as failed due to running too long", rowsAffected)
 	}
 	return nil
 }
@@ -652,6 +652,7 @@ var groupBy2column = map[model.Aggregate]string{
 func (r *JobRepository) JobsStatistics(ctx context.Context,
 	filter []*model.JobFilter,
 	groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
+	start := time.Now()
 
 	// In case `groupBy` is nil (not used), the model.JobsStatistics used is at the key '' (empty string)
 	stats := map[string]*model.JobsStatistics{}
@@ -793,6 +794,7 @@ func (r *JobRepository) JobsStatistics(ctx context.Context,
 		}
 	}
 
+	log.Infof("Timer %s", time.Since(start))
 	return res, nil
 }
 

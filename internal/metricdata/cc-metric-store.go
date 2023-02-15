@@ -16,8 +16,8 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
 type CCMetricStoreConfig struct {
@@ -283,7 +283,7 @@ func (ccms *CCMetricStore) buildQueries(
 		mc := archive.GetMetricConfig(job.Cluster, metric)
 		if mc == nil {
 			// return nil, fmt.Errorf("METRICDATA/CCMS > metric '%s' is not specified for cluster '%s'", metric, job.Cluster)
-			log.Notef("metric '%s' is not specified for cluster '%s'", metric, job.Cluster)
+			log.Infof("metric '%s' is not specified for cluster '%s'", metric, job.Cluster)
 			continue
 		}
 
