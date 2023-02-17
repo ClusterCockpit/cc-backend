@@ -41,6 +41,7 @@ type JobFilter struct {
 	JobID           *StringInput      `json:"jobId"`
 	ArrayJobID      *int              `json:"arrayJobId"`
 	User            *StringInput      `json:"user"`
+	MultiUser       []*string         `json:"multiUser"`
 	Project         *StringInput      `json:"project"`
 	JobName         *StringInput      `json:"jobName"`
 	Cluster         *StringInput      `json:"cluster"`
@@ -72,6 +73,7 @@ type JobResultList struct {
 
 type JobsStatistics struct {
 	ID             string        `json:"id"`
+	Name           *string       `json:"name"`
 	TotalJobs      int           `json:"totalJobs"`
 	ShortJobs      int           `json:"shortJobs"`
 	TotalWalltime  int           `json:"totalWalltime"`

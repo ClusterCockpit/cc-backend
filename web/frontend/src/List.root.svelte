@@ -20,6 +20,7 @@
     const stats = operationStore(`query($filter: [JobFilter!]!) {
         rows: jobsStatistics(filter: $filter, groupBy: ${type}) {
             id
+            name
             totalJobs
             totalWalltime
             totalCoreHours
@@ -93,6 +94,15 @@
                     <Icon name="sort-numeric-down" />
                 </Button>
             </th>
+            {#if type == 'USER'}
+                <th scope="col">
+                    Name
+                    <Button color="{sorting.field == 'name' ? 'primary' : 'light'}"
+                        size="sm" on:click={e => changeSorting(e, 'name')}>
+                        <Icon name="sort-numeric-down" />
+                    </Button>
+                </th>
+            {/if}
             <th scope="col">
                 Total Jobs
                 <Button color="{sorting.field == 'totalJobs' ? 'primary' : 'light'}"
@@ -137,6 +147,9 @@
                             {row.id}
                         {/if}
                     </td>
+                    {#if type == 'USER'}
+                        <td>{row?.name ? row.name : ''}</td>
+                    {/if}
                     <td>{row.totalJobs}</td>
                     <td>{row.totalWalltime}</td>
                     <td>{row.totalCoreHours}</td>

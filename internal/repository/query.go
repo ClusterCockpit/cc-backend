@@ -118,6 +118,13 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	if filter.User != nil {
 		query = buildStringCondition("job.user", filter.User, query)
 	}
+	if filter.MultiUser != nil {
+		queryUsers := make([]string, len(filter.MultiUser))
+		for i, val := range filter.MultiUser {
+			queryUsers[i] = *val
+		}
+		query = query.Where(sq.Or{sq.Eq{"job.user": queryUsers}})
+	}
 	if filter.Project != nil {
 		query = buildStringCondition("job.project", filter.Project, query)
 	}

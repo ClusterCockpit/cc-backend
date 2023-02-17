@@ -44,9 +44,9 @@ func GetJobRepository() *JobRepository {
 		db := GetConnection()
 
 		jobRepoInstance = &JobRepository{
-			DB:        db.DB,
-			stmtCache: sq.NewStmtCache(db.DB),
-			cache:     lrucache.New(1024 * 1024),
+			DB:             db.DB,
+			stmtCache:      sq.NewStmtCache(db.DB),
+			cache:          lrucache.New(1024 * 1024),
 			archiveChannel: make(chan *schema.Job, 128),
 		}
 		// start archiving worker
@@ -67,8 +67,8 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 	if err := row.Scan(
 		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.SubCluster, &job.StartTimeUnix, &job.Partition, &job.ArrayJobId,
 		&job.NumNodes, &job.NumHWThreads, &job.NumAcc, &job.Exclusive, &job.MonitoringStatus, &job.SMT, &job.State,
-		&job.Duration, &job.Walltime, &job.RawResources, /*&job.RawMetaData*/); err != nil {
-    log.Warn("Error while scanning rows")
+		&job.Duration, &job.Walltime, &job.RawResources /*&job.RawMetaData*/); err != nil {
+		log.Warn("Error while scanning rows")
 		return nil, err
 	}
 
@@ -417,10 +417,10 @@ func (r *JobRepository) MarkArchived(
 }
 
 // Archiving worker thread
-func (r *JobRepository) archivingWorker(){
+func (r *JobRepository) archivingWorker() {
 	for {
 		select {
-		case job, ok := <- r.archiveChannel:
+		case job, ok := <-r.archiveChannel:
 			if !ok {
 				break
 			}
@@ -454,13 +454,13 @@ func (r *JobRepository) archivingWorker(){
 }
 
 // Trigger async archiving
-func (r *JobRepository) TriggerArchiving(job *schema.Job){
+func (r *JobRepository) TriggerArchiving(job *schema.Job) {
 	r.archivePending.Add(1)
 	r.archiveChannel <- job
 }
 
 // Wait for background thread to finish pending archiving operations
-func (r *JobRepository) WaitForArchiving(){
+func (r *JobRepository) WaitForArchiving() {
 	// close channel and wait for worker to process remaining jobs
 	r.archivePending.Wait()
 }
@@ -487,6 +487,17 @@ func (r *JobRepository) FindJobnameOrUserOrProject(ctx context.Context, searchte
 			} else if err == nil {
 				return "", username, "", nil
 			}
+
+			if username == "" { // Try with Name2Username query
+				errtwo := sq.Select("user.username").Distinct().From("user").
+					Where("user.name LIKE ?", fmt.Sprint("%"+searchterm+"%")).
+					RunWith(r.stmtCache).QueryRow().Scan(&username)
+				if errtwo != nil && errtwo != sql.ErrNoRows {
+					return "", "", "", errtwo
+				} else if errtwo == nil {
+					return "", username, "", nil
+				}
+			}
 		}
 
 		if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleSupport) {
@@ -502,7 +513,7 @@ func (r *JobRepository) FindJobnameOrUserOrProject(ctx context.Context, searchte
 
 		// All Authorizations: If unlabeled query not username or projectId, try for jobname: Match Metadata, on hit, parent method redirects to jobName GQL query
 		err := sq.Select("job.cluster").Distinct().From("job").
-			Where("job.meta_data LIKE ?", "%" + searchterm + "%").
+			Where("job.meta_data LIKE ?", "%"+searchterm+"%").
 			RunWith(r.stmtCache).QueryRow().Scan(&metasnip)
 		if err != nil && err != sql.ErrNoRows {
 			return "", "", "", err
@@ -528,7 +539,105 @@ func (r *JobRepository) FindUser(ctx context.Context, searchterm string) (userna
 		return "", ErrNotFound
 
 	} else {
-		log.Infof("Non-Admin User %s : Requested Query Username -> %s: Forbidden", user.Name, username)
+		log.Infof("Non-Admin User %s : Requested Query Username -> %s: Forbidden", user.Name, searchterm)
+		return "", ErrForbidden
+	}
+}
+
+func (r *JobRepository) FindUserByName(ctx context.Context, searchterm string) (username string, err error) {
+	user := auth.GetUser(ctx)
+	if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleSupport) {
+		err := sq.Select("user.username").Distinct().From("user").
+			Where("user.name = ?", searchterm).
+			RunWith(r.stmtCache).QueryRow().Scan(&username)
+		if err != nil && err != sql.ErrNoRows {
+			return "", err
+		} else if err == nil {
+			return username, nil
+		}
+		return "", ErrNotFound
+
+	} else {
+		log.Infof("Non-Admin User %s : Requested Query Name -> %s: Forbidden", user.Name, searchterm)
+		return "", ErrForbidden
+	}
+}
+
+func (r *JobRepository) FindUsers(ctx context.Context, searchterm string) (usernames []string, err error) {
+	user := auth.GetUser(ctx)
+	emptyResult := make([]string, 0)
+	if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleSupport) {
+		rows, err := sq.Select("job.user").Distinct().From("job").
+			Where("job.user LIKE ?", fmt.Sprint("%", searchterm, "%")).
+			RunWith(r.stmtCache).Query()
+		if err != nil && err != sql.ErrNoRows {
+			return emptyResult, err
+		} else if err == nil {
+			for rows.Next() {
+				var name string
+				err := rows.Scan(&name)
+				if err != nil {
+					rows.Close()
+					log.Warnf("Error while scanning rows: %v", err)
+					return emptyResult, err
+				}
+				usernames = append(usernames, name)
+			}
+			return usernames, nil
+		}
+		return emptyResult, ErrNotFound
+
+	} else {
+		log.Infof("Non-Admin User %s : Requested Query Usernames -> %s: Forbidden", user.Name, searchterm)
+		return emptyResult, ErrForbidden
+	}
+}
+
+func (r *JobRepository) FindUsersByName(ctx context.Context, searchterm string) (usernames []string, err error) {
+	user := auth.GetUser(ctx)
+	emptyResult := make([]string, 0)
+	if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleSupport) {
+		rows, err := sq.Select("user.username").Distinct().From("user").
+			Where("user.name LIKE ?", fmt.Sprint("%", searchterm, "%")).
+			RunWith(r.stmtCache).Query()
+		if err != nil && err != sql.ErrNoRows {
+			return emptyResult, err
+		} else if err == nil {
+			for rows.Next() {
+				var username string
+				err := rows.Scan(&username)
+				if err != nil {
+					rows.Close()
+					log.Warnf("Error while scanning rows: %v", err)
+					return emptyResult, err
+				}
+				usernames = append(usernames, username)
+			}
+			return usernames, nil
+		}
+		return emptyResult, ErrNotFound
+
+	} else {
+		log.Infof("Non-Admin User %s : Requested Query name -> %s: Forbidden", user.Name, searchterm)
+		return emptyResult, ErrForbidden
+	}
+}
+
+func (r *JobRepository) FindNameByUser(ctx context.Context, searchterm string) (name string, err error) {
+	user := auth.GetUser(ctx)
+	if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleSupport) {
+		err := sq.Select("user.name").Distinct().From("user").
+			Where("user.username = ?", searchterm).
+			RunWith(r.stmtCache).QueryRow().Scan(&name)
+		if err != nil && err != sql.ErrNoRows {
+			return "", err
+		} else if err == nil {
+			return name, nil
+		}
+		return "", ErrNotFound
+
+	} else {
+		log.Infof("Non-Admin User %s : Requested Query Name -> %s: Forbidden", user.Name, searchterm)
 		return "", ErrForbidden
 	}
 }

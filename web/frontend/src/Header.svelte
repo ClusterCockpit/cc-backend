@@ -57,7 +57,7 @@
             <InputGroup>
                 <Input type="text" placeholder="Search 'type:<query>' ..." name="searchId"/>
                 <Button outline type="submit"><Icon name="search"/></Button>
-                <InputGroupText style="cursor:help;" title={isAdmin ? "Example: 'projectId:a100cd', Types are: jobId | jobName | projectId | username" : "Example: 'jobName:myjob', Types are jobId | jobName"}><Icon name="info-circle"/></InputGroupText>
+                <InputGroupText style="cursor:help;" title={isAdmin ? "Example: 'projectId:a100cd', Types are: jobId | jobName | projectId | username" | "name" : "Example: 'jobName:myjob', Types are jobId | jobName"}><Icon name="info-circle"/></InputGroupText>
             </InputGroup>
         </form>
         {#if username}
