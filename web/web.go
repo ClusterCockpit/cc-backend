@@ -54,14 +54,14 @@ func init() {
 }
 
 type User struct {
-	Username string // Username of the currently logged in user
-	Project string // Project of the user (relevant for managers only)
-	AuthLevel int // Level of authorization
+	Username  string   // Username of the currently logged in user
+	Projects  []string // Project(s) of the user (relevant for managers only)
+	AuthLevel int      // Level of authorization
 }
 
 type Build struct {
-	Version string
-	Hash string
+	Version   string
+	Hash      string
 	Buildtime string
 }
 
@@ -70,7 +70,7 @@ type Page struct {
 	Error         string                 // For generic use (e.g. the exact error message on /login)
 	Info          string                 // For generic use (e.g. "Logout successfull" on /login)
 	User          User                   // Information about the currently logged in user
-	Build         Build									 // Latest information about the application
+	Build         Build                  // Latest information about the application
 	Clusters      []schema.ClusterConfig // List of all clusters for use in the Header
 	FilterPresets map[string]interface{} // For pages with the Filter component, this can be used to set initial filters.
 	Infos         map[string]interface{} // For generic use (e.g. username for /monitoring/user/<id>, job id for /monitoring/job/<id>)

@@ -6,7 +6,7 @@ new List({
     props: {
         filterPresets: filterPresets,
         type: listType,
-        project: project,
+        projects: projects,
         isManager: isManager
     },
     context: new Map([

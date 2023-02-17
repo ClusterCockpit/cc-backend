@@ -23,7 +23,7 @@
     export let sorting = { field: "startTime", order: "DESC" }
     export let matchedJobs = 0
     export let metrics = ccconfig.plot_list_selectedMetrics
-    export let project
+    export let projects = []
     export let isManager
 
     let itemsPerPage = ccconfig.plot_list_jobsPerPage
@@ -32,11 +32,15 @@
     let filter = []
 
     //Setup default filter
-    if (isManager == true && project != '') {
-        filter.push({project: {eq: project}})
-    } else if (isManager == true && project == '') {
-        filter.push({project: {eq: "noProjectForManager"}})
+    if (isManager == true && projects.length == 0) {
+        filter.push({ project: {eq: "noProjectForManager"} })
+    } else if (isManager == true && projects.length == 1) {
+        filter.push({ project: {eq: projects[0]} })
+    } else {
+        filter.push({ multiProject: projects })
     }
+ 
+
 
     const jobs = operationStore(`
     query($filter: [JobFilter!]!, $sorting: OrderByInput!, $paging: PageRequest! ){
@@ -78,10 +82,12 @@
             }
 
             // (Re-)Add Manager-Filter
-            if (isManager == true && project != '') {
-                filters.push({project: {eq: project}})
-            } else if (isManager == true && project == '') {
-                filters.push({project: {eq: "noProjectForManager"}})
+            if (isManager == true && projects.length == 0) {
+                filter.push({ project: {eq: "noProjectForManager"} })
+            } else if (isManager == true && projects.length == 1) {
+                filter.push({ project: {eq: projects[0]} })
+            } else {
+                filter.push({ multiProject: projects })
             }
 
             $jobs.variables.filter = filters

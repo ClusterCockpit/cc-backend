@@ -9,10 +9,10 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"time"
-	"fmt"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/gorilla/sessions"
@@ -42,7 +42,7 @@ type User struct {
 	Roles      []string `json:"roles"`
 	AuthSource int8     `json:"via"`
 	Email      string   `json:"email"`
-	Project    string   `json:"project"`
+	Projects   []string `json:"projects"`
 	Expiration time.Time
 }
 
@@ -69,7 +69,7 @@ func (u *User) HasAnyRole(queryroles []string) bool {
 
 // Role-Arrays are short: performance not impacted by nested loop
 func (u *User) HasAllRoles(queryroles []string) bool {
-	target 	:= len(queryroles)
+	target := len(queryroles)
 	matches := 0
 	for _, ur := range u.Roles {
 		for _, qr := range queryroles {
@@ -81,7 +81,7 @@ func (u *User) HasAllRoles(queryroles []string) bool {
 	}
 
 	if matches == target {
-	  return true
+		return true
 	} else {
 		return false
 	}
@@ -100,7 +100,7 @@ func (u *User) HasNotRoles(queryroles []string) bool {
 	}
 
 	if matches == 0 {
-	  return true
+		return true
 	} else {
 		return false
 	}
@@ -108,15 +108,15 @@ func (u *User) HasNotRoles(queryroles []string) bool {
 
 // Find highest role, returns integer
 func (u *User) GetAuthLevel() int {
-	if (u.HasRole(RoleAdmin)) {
+	if u.HasRole(RoleAdmin) {
 		return 5
-	} else if (u.HasRole(RoleSupport)) {
+	} else if u.HasRole(RoleSupport) {
 		return 4
-	} else if (u.HasRole(RoleManager)) {
+	} else if u.HasRole(RoleManager) {
 		return 3
-	} else if (u.HasRole(RoleUser)) {
+	} else if u.HasRole(RoleUser) {
 		return 2
-	} else if (u.HasRole(RoleApi)) {
+	} else if u.HasRole(RoleApi) {
 		return 1
 	} else {
 		return 0
@@ -124,11 +124,12 @@ func (u *User) GetAuthLevel() int {
 }
 
 func (u *User) HasProject(project string) bool {
-	if (u.Project != "" && u.Project == project) {
-		return true
-	} else {
-		return false
+	for _, p := range u.Projects {
+		if p == project {
+			return true
+		}
 	}
+	return false
 }
 
 func IsValidRole(role string) bool {
@@ -142,7 +143,7 @@ func IsValidRole(role string) bool {
 
 func GetValidRoles(user *User) ([5]string, error) {
 	var vals [5]string
-	if (!user.HasRole(RoleAdmin)) {
+	if !user.HasRole(RoleAdmin) {
 		return vals, fmt.Errorf("%s: only admins are allowed to fetch a list of roles", user.Username)
 	} else {
 		return validRoles, nil
@@ -192,7 +193,7 @@ func Init(db *sqlx.DB,
 		name     varchar(255) DEFAULT NULL,
 		roles    varchar(255) NOT NULL DEFAULT "[]",
 		email    varchar(255) DEFAULT NULL,
-		project  varchar(255) DEFAULT NULL);`)
+		projects varchar(255) NOT NULL DEFAULT "[]");`)
 	if err != nil {
 		return nil, err
 	}
@@ -250,11 +251,11 @@ func (auth *Authentication) AuthViaSession(
 	}
 
 	username, _ := session.Values["username"].(string)
-	project, _ := session.Values["project"].(string)
+	projects, _ := session.Values["projects"].([]string)
 	roles, _ := session.Values["roles"].([]string)
 	return &User{
 		Username:   username,
-		Project:		project,
+		Projects:   projects,
 		Roles:      roles,
 		AuthSource: -1,
 	}, nil
@@ -299,7 +300,7 @@ func (auth *Authentication) Login(
 				session.Options.MaxAge = int(auth.SessionMaxAge.Seconds())
 			}
 			session.Values["username"] = user.Username
-			session.Values["project"] = user.Project
+			session.Values["projects"] = user.Projects
 			session.Values["roles"] = user.Roles
 			if err := auth.sessionStore.Save(r, rw, session); err != nil {
 				log.Errorf("session save failed: %s", err.Error())
@@ -307,7 +308,7 @@ func (auth *Authentication) Login(
 				return
 			}
 
-			log.Infof("login successfull: user: %#v (roles: %v, project: %v)", user.Username, user.Roles, user.Project)
+			log.Infof("login successfull: user: %#v (roles: %v, projects: %v)", user.Username, user.Roles, user.Projects)
 			ctx := context.WithValue(r.Context(), ContextUserKey, user)
 			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 			return

@@ -50,11 +50,11 @@ import (
 // @name                       X-Auth-Token
 
 type RestApi struct {
-	JobRepository     *repository.JobRepository
-	Resolver          *graph.Resolver
-	Authentication    *auth.Authentication
-	MachineStateDir   string
-	RepositoryMutex   sync.Mutex
+	JobRepository   *repository.JobRepository
+	Resolver        *graph.Resolver
+	Authentication  *auth.Authentication
+	MachineStateDir string
+	RepositoryMutex sync.Mutex
 }
 
 func (api *RestApi) MountRoutes(r *mux.Router) {
@@ -832,7 +832,7 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 	if len(project) != 0 && role != auth.RoleManager {
 		http.Error(rw, "only managers require a project (can be changed later)", http.StatusBadRequest)
 		return
-	} else if (len(project) == 0 && role == auth.RoleManager) {
+	} else if len(project) == 0 && role == auth.RoleManager {
 		http.Error(rw, "managers require a project to manage (can be changed later)", http.StatusBadRequest)
 		return
 	}
@@ -842,7 +842,7 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 		Name:     name,
 		Password: password,
 		Email:    email,
-		Project:  project,
+		Projects: []string{project},
 		Roles:    []string{role}}); err != nil {
 		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 		return
@@ -883,7 +883,7 @@ func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 
 func (api *RestApi) getRoles(rw http.ResponseWriter, r *http.Request) {
 	user := auth.GetUser(r.Context())
-	if (!user.HasRole(auth.RoleAdmin)) {
+	if !user.HasRole(auth.RoleAdmin) {
 		http.Error(rw, "only admins are allowed to fetch a list of roles", http.StatusForbidden)
 		return
 	}
@@ -923,17 +923,17 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 		}
 		rw.Write([]byte("Remove Role Success"))
 	} else if newproj != "" {
-			if err := api.Authentication.AddProject(r.Context(), mux.Vars(r)["id"], newproj); err != nil {
-				http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
-				return
-			}
-			rw.Write([]byte("Set Project Success"))
+		if err := api.Authentication.AddProject(r.Context(), mux.Vars(r)["id"], newproj); err != nil {
+			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+		rw.Write([]byte("Add Project Success"))
 	} else if delproj != "" {
-			if err := api.Authentication.RemoveProject(r.Context(), mux.Vars(r)["id"], delproj); err != nil {
-				http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
-				return
-			}
-			rw.Write([]byte("Reset Project Success"))
+		if err := api.Authentication.RemoveProject(r.Context(), mux.Vars(r)["id"], delproj); err != nil {
+			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+		rw.Write([]byte("Remove Project Success"))
 	} else {
 		http.Error(rw, "Not Add or Del [role|project]?", http.StatusInternalServerError)
 	}

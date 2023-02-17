@@ -16,7 +16,7 @@
 
 <td>{user.username}</td>
 <td>{user.name}</td>
-<td>{user.project}</td>
+<td>{user.projects}</td>
 <td>{user.email}</td>
 <td><code>{user.roles.join(', ')}</code></td>
 <td>

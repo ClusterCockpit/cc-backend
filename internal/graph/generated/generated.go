@@ -254,6 +254,7 @@ type ComplexityRoot struct {
 	User struct {
 		Email    func(childComplexity int) int
 		Name     func(childComplexity int) int
+		Project  func(childComplexity int) int
 		Username func(childComplexity int) int
 	}
 }
@@ -1289,6 +1290,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.User.Name(childComplexity), true
 
+	case "User.project":
+		if e.complexity.User.Project == nil {
+			break
+		}
+
+		return e.complexity.User.Project(childComplexity), true
+
 	case "User.username":
 		if e.complexity.User.Username == nil {
 			break
@@ -1533,6 +1541,7 @@ type Count {
 type User {
   username: String!
   name:     String!
+  project:  String
   email:    String!
 }
 
@@ -1569,14 +1578,15 @@ type IntRangeOutput { from: Int!, to: Int! }
 type TimeRangeOutput { from: Time!, to: Time! }
 
 input JobFilter {
-  tags:        [ID!]
-  jobId:       StringInput
-  arrayJobId:  Int
-  user:        StringInput
-  project:     StringInput
-  cluster:     StringInput
-  partition:   StringInput
-  duration:    IntRange
+  tags:         [ID!]
+  jobId:        StringInput
+  arrayJobId:   Int
+  user:         StringInput
+  project:      StringInput
+  multiProject: [String]
+  cluster:      StringInput
+  partition:    StringInput
+  duration:     IntRange
 
   minRunningFor: Int
 
@@ -3832,6 +3842,8 @@ func (ec *executionContext) fieldContext_Job_userData(ctx context.Context, field
 				return ec.fieldContext_User_username(ctx, field)
 			case "name":
 				return ec.fieldContext_User_name(ctx, field)
+			case "project":
+				return ec.fieldContext_User_project(ctx, field)
 			case "email":
 				return ec.fieldContext_User_email(ctx, field)
 			}
@@ -5940,6 +5952,8 @@ func (ec *executionContext) fieldContext_Query_user(ctx context.Context, field g
 				return ec.fieldContext_User_username(ctx, field)
 			case "name":
 				return ec.fieldContext_User_name(ctx, field)
+			case "project":
+				return ec.fieldContext_User_project(ctx, field)
 			case "email":
 				return ec.fieldContext_User_email(ctx, field)
 			}
@@ -8439,6 +8453,47 @@ func (ec *executionContext) fieldContext_User_name(ctx context.Context, field gr
 	return fc, nil
 }
 
+func (ec *executionContext) _User_project(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_User_project(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Project, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_User_project(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _User_email(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_User_email(ctx, field)
 	if err != nil {
@@ -10335,7 +10390,7 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"tags", "jobId", "arrayJobId", "user", "project", "cluster", "partition", "duration", "minRunningFor", "numNodes", "numAccelerators", "numHWThreads", "startTime", "state", "flopsAnyAvg", "memBwAvg", "loadAvg", "memUsedMax"}
+	fieldsInOrder := [...]string{"tags", "jobId", "arrayJobId", "user", "project", "multiProject", "cluster", "partition", "duration", "minRunningFor", "numNodes", "numAccelerators", "numHWThreads", "startTime", "state", "flopsAnyAvg", "memBwAvg", "loadAvg", "memUsedMax"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -10379,6 +10434,14 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("project"))
 			it.Project, err = ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "multiProject":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("multiProject"))
+			it.MultiProject, err = ec.unmarshalOString2ᚕᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -12309,6 +12372,10 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
+		case "project":
+
+			out.Values[i] = ec._User_project(ctx, field, obj)
+
 		case "email":
 
 			out.Values[i] = ec._User_email(ctx, field, obj)
@@ -14519,6 +14586,38 @@ func (ec *executionContext) marshalOString2ᚕstringᚄ(ctx context.Context, sel
 		if e == graphql.Null {
 			return graphql.Null
 		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalOString2ᚕᚖstring(ctx context.Context, v interface{}) ([]*string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []interface{}
+	if v != nil {
+		vSlice = graphql.CoerceList(v)
+	}
+	var err error
+	res := make([]*string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalOString2ᚖstring(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOString2ᚕᚖstring(ctx context.Context, sel ast.SelectionSet, v []*string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalOString2ᚖstring(ctx, sel, v[i])
 	}
 
 	return ret

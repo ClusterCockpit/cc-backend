@@ -4,7 +4,6 @@
              Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from 'sveltestrap'
 
     export let username // empty string if auth. is disabled, otherwise the username as string
-    export let project // empty string if user has no project in db (= not manager), otherwise the managed projectid as string
     export let authlevel // integer
     export let clusters // array of names
 
@@ -17,8 +16,8 @@
 
     const managerviews = [
         { title: 'My Jobs',             href: `/monitoring/user/${username}`, icon: 'bar-chart-line-fill' },
-        { title: `'${project}' Jobs`,   href: '/monitoring/jobs/',            icon: 'card-list' },
-        { title: `'${project}' Users`,  href: '/monitoring/users/',           icon: 'people-fill' },
+        { title: `Managed Jobs`,        href: '/monitoring/jobs/',            icon: 'card-list' },
+        { title: `Managed Users`,       href: '/monitoring/users/',           icon: 'people-fill' },
         { title: 'Tags',                href: '/monitoring/tags/',            icon: 'tags' }
     ]
 

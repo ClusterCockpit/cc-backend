@@ -41,7 +41,7 @@
                     <tr>
                         <th>Username</th>
                         <th>Name</th>
-                        <th>Project</th>
+                        <th>Project(s)</th>
                         <th>Email</th>
                         <th>Roles</th>
                         <th>JWT</th>

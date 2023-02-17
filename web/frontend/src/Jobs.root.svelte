@@ -14,7 +14,7 @@
     const ccconfig = getContext('cc-config')
 
     export let filterPresets = {}
-    export let project = ""
+    export let projects = []
     export let isManager = false
 
     let filters, jobList, matchedJobs = null
@@ -72,7 +72,7 @@
 <Row>
     <Col>
         <JobList
-            project={project}
+            projects={projects}
             isManager={isManager}
             bind:metrics={metrics}
             bind:sorting={sorting}

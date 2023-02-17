@@ -87,7 +87,7 @@
             <input type="text" class="form-control" placeholder="project-id" id="project-id"/>
             <!-- PreventDefault on Sveltestrap-Button more complex to achieve than just use good ol' html button -->
             <!-- see: https://stackoverflow.com/questions/69630422/svelte-how-to-use-event-modifiers-in-my-own-components -->
-            <button class="btn btn-primary" type="button" id="add-project-button" on:click|preventDefault={handleAddProject}>Reset</button>
+            <button class="btn btn-primary" type="button" id="add-project-button" on:click|preventDefault={handleAddProject}>Add</button>
             <button class="btn btn-danger" type="button" id="remove-project-button" on:click|preventDefault={handleRemoveProject}>Remove</button>
         </div>
         <p>

@@ -15,7 +15,11 @@ require (
 	github.com/influxdata/influxdb-client-go/v2 v2.10.0
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/mattn/go-sqlite3 v1.14.15
-	github.com/santhosh-tekuri/jsonschema v1.2.4
+	github.com/prometheus/client_golang v1.14.0
+	github.com/prometheus/common v0.37.0
+	github.com/santhosh-tekuri/jsonschema/v5 v5.0.0
+	github.com/swaggo/http-swagger v1.3.3
+	github.com/swaggo/swag v1.8.5
 	github.com/vektah/gqlparser/v2 v2.5.0
 	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90
 )
@@ -53,15 +57,10 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
-	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/santhosh-tekuri/jsonschema/v5 v5.0.0 // indirect
 	github.com/swaggo/files v0.0.0-20220728132757-551d4a08d97a // indirect
-	github.com/swaggo/http-swagger v1.3.3 // indirect
-	github.com/swaggo/swag v1.8.5 // indirect
 	github.com/urfave/cli/v2 v2.8.1 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
@@ -70,7 +69,6 @@ require (
 	golang.org/x/sys v0.0.0-20220913175220-63ea55921009 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/tools v0.1.12 // indirect
-	golang.org/x/xerrors v0.0.0-20220411194840-2f41105eb62f // indirect
 	google.golang.org/appengine v1.6.6 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

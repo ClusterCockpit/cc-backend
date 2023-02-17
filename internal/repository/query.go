@@ -103,9 +103,9 @@ func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (queryOut sq.Sel
 	user := auth.GetUser(ctx)
 	if user == nil || user.HasAnyRole([]string{auth.RoleAdmin, auth.RoleSupport, auth.RoleApi}) {
 		return query, nil
-	} else if (user.HasRole(auth.RoleManager)) { // Manager (Might be doublefiltered by frontend: should not matter)
-		return query.Where("job.project = ?", user.Project), nil
-	} else if (user.HasRole(auth.RoleUser)) { // User
+	} else if user.HasRole(auth.RoleManager) { // Manager (Might be doublefiltered by frontend: should not matter)
+		return query.Where(sq.Or{sq.Eq{"job.project": user.Projects}}), nil // Only Jobs from manages projects
+	} else if user.HasRole(auth.RoleUser) { // User
 		return query.Where("job.user = ?", user.Username), nil
 	} else { // Unauthorized
 		var qnil sq.SelectBuilder
@@ -129,6 +129,13 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	}
 	if filter.Project != nil {
 		query = buildStringCondition("job.project", filter.Project, query)
+	}
+	if filter.MultiProject != nil {
+		queryProjs := make([]string, len(filter.MultiProject))
+		for i, val := range filter.MultiProject {
+			queryProjs[i] = *val
+		}
+		query = query.Where(sq.Or{sq.Eq{"job.project": queryProjs}})
 	}
 	if filter.Cluster != nil {
 		query = buildStringCondition("job.cluster", filter.Cluster, query)

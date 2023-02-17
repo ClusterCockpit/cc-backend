@@ -131,8 +131,9 @@ func main() {
 				log.Fatal("invalid argument format for user creation")
 			}
 
+			var emptyPrj []string
 			if err := authentication.AddUser(&auth.User{
-				Username: parts[0], Project: "", Password: parts[2], Roles: strings.Split(parts[1], ","),
+				Username: parts[0], Projects: emptyPrj, Password: parts[2], Roles: strings.Split(parts[1], ","),
 			}); err != nil {
 				log.Fatal(err)
 			}
@@ -291,7 +292,7 @@ func main() {
 	if flagDev {
 		r.Handle("/playground", playground.Handler("GraphQL playground", "/query"))
 		r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
-		httpSwagger.URL("http://" + config.Keys.Addr + "/swagger/doc.json"))).Methods(http.MethodGet)
+			httpSwagger.URL("http://" + config.Keys.Addr + "/swagger/doc.json"))).Methods(http.MethodGet)
 	}
 	secured.Handle("/query", graphQLEndpoint)
 

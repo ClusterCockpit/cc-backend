@@ -21,19 +21,23 @@ import (
 func (auth *Authentication) GetUser(username string) (*User, error) {
 
 	user := &User{Username: username}
-	var hashedPassword, name, rawRoles, email, project sql.NullString
-	if err := sq.Select("password", "ldap", "name", "roles", "email", "project").From("user").
+	var hashedPassword, name, rawRoles, email, rawProjects sql.NullString
+	if err := sq.Select("password", "ldap", "name", "roles", "email", "projects").From("user").
 		Where("user.username = ?", username).RunWith(auth.db).
-		QueryRow().Scan(&hashedPassword, &user.AuthSource, &name, &rawRoles, &email, &project); err != nil {
+		QueryRow().Scan(&hashedPassword, &user.AuthSource, &name, &rawRoles, &email, &rawProjects); err != nil {
 		return nil, err
 	}
 
 	user.Password = hashedPassword.String
 	user.Name = name.String
 	user.Email = email.String
-	user.Project = project.String
 	if rawRoles.Valid {
 		if err := json.Unmarshal([]byte(rawRoles.String), &user.Roles); err != nil {
+			return nil, err
+		}
+	}
+	if rawProjects.Valid {
+		if err := json.Unmarshal([]byte(rawProjects.String), &user.Projects); err != nil {
 			return nil, err
 		}
 	}
@@ -44,9 +48,11 @@ func (auth *Authentication) GetUser(username string) (*User, error) {
 func (auth *Authentication) AddUser(user *User) error {
 
 	rolesJson, _ := json.Marshal(user.Roles)
+	projectsJson, _ := json.Marshal(user.Projects)
 
-	cols := []string{"username", "roles"}
-	vals := []interface{}{user.Username, string(rolesJson)}
+	cols := []string{"username", "roles", "projects"}
+	vals := []interface{}{user.Username, string(rolesJson), string(projectsJson)}
+
 	if user.Name != "" {
 		cols = append(cols, "name")
 		vals = append(vals, user.Name)
@@ -54,10 +60,6 @@ func (auth *Authentication) AddUser(user *User) error {
 	if user.Email != "" {
 		cols = append(cols, "email")
 		vals = append(vals, user.Email)
-	}
-	if user.Project != "" {
-		cols = append(cols, "project")
-		vals = append(vals, user.Project)
 	}
 	if user.Password != "" {
 		password, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
@@ -72,7 +74,7 @@ func (auth *Authentication) AddUser(user *User) error {
 		return err
 	}
 
-	log.Infof("new user %#v created (roles: %s, auth-source: %d, project: %s)", user.Username, rolesJson, user.AuthSource, user.Project)
+	log.Infof("new user %#v created (roles: %s, auth-source: %d, projects: %s)", user.Username, rolesJson, user.AuthSource, projectsJson)
 	return nil
 }
 
@@ -84,7 +86,7 @@ func (auth *Authentication) DelUser(username string) error {
 
 func (auth *Authentication) ListUsers(specialsOnly bool) ([]*User, error) {
 
-	q := sq.Select("username", "name", "email", "roles", "project").From("user")
+	q := sq.Select("username", "name", "email", "roles", "projects").From("user")
 	if specialsOnly {
 		q = q.Where("(roles != '[\"user\"]' AND roles != '[]')")
 	}
@@ -98,9 +100,10 @@ func (auth *Authentication) ListUsers(specialsOnly bool) ([]*User, error) {
 	defer rows.Close()
 	for rows.Next() {
 		rawroles := ""
+		rawprojects := ""
 		user := &User{}
-		var name, email, project sql.NullString
-		if err := rows.Scan(&user.Username, &name, &email, &rawroles, &project); err != nil {
+		var name, email sql.NullString
+		if err := rows.Scan(&user.Username, &name, &email, &rawroles, &rawprojects); err != nil {
 			return nil, err
 		}
 
@@ -108,9 +111,12 @@ func (auth *Authentication) ListUsers(specialsOnly bool) ([]*User, error) {
 			return nil, err
 		}
 
+		if err := json.Unmarshal([]byte(rawprojects), &user.Projects); err != nil {
+			return nil, err
+		}
+
 		user.Name = name.String
 		user.Email = email.String
-		user.Project = project.String
 		users = append(users, user)
 	}
 	return users, nil
@@ -151,21 +157,21 @@ func (auth *Authentication) RemoveRole(ctx context.Context, username string, rol
 		return fmt.Errorf("invalid user role: %#v", role)
 	}
 
-	if (role == RoleManager && len(user.Project) != 0) {
-		return fmt.Errorf("Cannot remove role 'manager' while user %#v still has an assigned project!", username)
+	if role == RoleManager && len(user.Projects) != 0 {
+		return fmt.Errorf("Cannot remove role 'manager' while user %s still has an assigned project(s) : %v", username, user.Projects)
 	}
 
 	var exists bool
 	var newroles []string
 	for _, r := range user.Roles {
 		if r != role {
-			newroles = append(newroles, r) // Append all roles not matching requested delete role
+			newroles = append(newroles, r) // Append all roles not matching requested to be deleted role
 		} else {
 			exists = true
 		}
 	}
 
-	if (exists == true) {
+	if exists == true {
 		var mroles, _ = json.Marshal(newroles)
 		if _, err := sq.Update("user").Set("roles", mroles).Where("user.username = ?", username).RunWith(auth.db).Exec(); err != nil {
 			return err
@@ -187,16 +193,18 @@ func (auth *Authentication) AddProject(
 	}
 
 	if !user.HasRole(RoleManager) {
-		return fmt.Errorf("user '%#v' is not a manager!", username)
+		return fmt.Errorf("user '%s' is not a manager!", username)
 	}
 
 	if user.HasProject(project) {
-		return fmt.Errorf("user '%#v' already manages project '%#v'", username, project)
+		return fmt.Errorf("user '%s' already manages project '%s'", username, project)
 	}
 
-	if _, err := sq.Update("user").Set("project", project).Where("user.username = ?", username).RunWith(auth.db).Exec(); err != nil {
+	projects, _ := json.Marshal(append(user.Projects, project))
+	if _, err := sq.Update("user").Set("projects", projects).Where("user.username = ?", username).RunWith(auth.db).Exec(); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -214,10 +222,30 @@ func (auth *Authentication) RemoveProject(ctx context.Context, username string, 
 		return fmt.Errorf("user '%#v': Cannot remove project '%#v' - Does not match!", username, project)
 	}
 
-	if _, err := sq.Update("user").Set("project", "").Where("user.username = ?", username).Where("user.project = ?", project).RunWith(auth.db).Exec(); err != nil {
-		return err
+	var exists bool
+	var newprojects []string
+	for _, p := range user.Projects {
+		if p != project {
+			newprojects = append(newprojects, p) // Append all projects not matching requested to be deleted project
+		} else {
+			exists = true
+		}
 	}
-	return nil
+
+	if exists == true {
+		var result interface{}
+		if len(newprojects) == 0 {
+			result = "[]"
+		} else {
+			result, _ = json.Marshal(newprojects)
+		}
+		if _, err := sq.Update("user").Set("projects", result).Where("user.username = ?", username).RunWith(auth.db).Exec(); err != nil {
+			return err
+		}
+		return nil
+	} else {
+		return fmt.Errorf("user %s already does not manage project %s", username, project)
+	}
 }
 
 func FetchUser(ctx context.Context, db *sqlx.DB, username string) (*model.User, error) {
@@ -239,6 +267,5 @@ func FetchUser(ctx context.Context, db *sqlx.DB, username string) (*model.User, 
 
 	user.Name = name.String
 	user.Email = email.String
-	// user.Project = project.String
 	return user, nil
 }

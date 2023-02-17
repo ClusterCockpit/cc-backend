@@ -197,14 +197,15 @@ type IntRangeOutput { from: Int!, to: Int! }
 type TimeRangeOutput { from: Time!, to: Time! }
 
 input JobFilter {
-  tags:        [ID!]
-  jobId:       StringInput
-  arrayJobId:  Int
-  user:        StringInput
-  project:     StringInput
-  cluster:     StringInput
-  partition:   StringInput
-  duration:    IntRange
+  tags:         [ID!]
+  jobId:        StringInput
+  arrayJobId:   Int
+  user:         StringInput
+  project:      StringInput
+  multiProject: [String]
+  cluster:      StringInput
+  partition:    StringInput
+  duration:     IntRange
 
   minRunningFor: Int
 

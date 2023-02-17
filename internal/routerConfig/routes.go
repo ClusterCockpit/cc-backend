@@ -107,7 +107,6 @@ func setupUserRoute(i InfoType, r *http.Request) InfoType {
 	if user, _ := auth.FetchUser(r.Context(), jobRepo.DB, username); user != nil {
 		i["name"] = user.Name
 		i["email"] = user.Email
-		// i["project"] = user.Project
 	}
 	return i
 }
@@ -144,19 +143,19 @@ func setupAnalysisRoute(i InfoType, r *http.Request) InfoType {
 
 func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 	var username *string = nil
-	var project  *string = nil
+	var projects *[]string
 
 	jobRepo := repository.GetJobRepository()
-	user 		:= auth.GetUser(r.Context())
+	user := auth.GetUser(r.Context())
 
-	if (user != nil && user.HasNotRoles([]string{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager})) {
+	if user != nil && user.HasNotRoles([]string{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
 		username = &user.Username
-	} else if (user != nil && user.HasRole(auth.RoleManager)) {
+	} else if user != nil && user.HasRole(auth.RoleManager) {
 		username = &user.Username
-		project  = &user.Project
+		projects = &user.Projects
 	} // ADMINS && SUPPORT w/o additional conditions
 
-	tags, counts, err := jobRepo.CountTags(username, project)
+	tags, counts, err := jobRepo.CountTags(username, projects)
 	tagMap := make(map[string][]map[string]interface{})
 	if err != nil {
 		log.Errorf("GetTags failed: %s", err.Error())
@@ -188,6 +187,9 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 	if query.Get("project") != "" {
 		filterPresets["project"] = query.Get("project")
 		filterPresets["projectMatch"] = "eq"
+	}
+	if len(query["multiProject"]) != 0 {
+		filterPresets["multiProject"] = query["multiProject"]
 	}
 	if query.Get("user") != "" {
 		filterPresets["user"] = query.Get("user")
@@ -279,17 +281,18 @@ func SetupRoutes(router *mux.Router, version string, hash string, buildTime stri
 				title = strings.Replace(route.Title, "<ID>", id.(string), 1)
 			}
 
-			username, project, authLevel := "", "", 0
+			username, authLevel := "", 0
+			var projects []string
 
 			if user := auth.GetUser(r.Context()); user != nil {
-				username  = user.Username
-				project   = user.Project
+				username = user.Username
+				projects = user.Projects
 				authLevel = user.GetAuthLevel()
 			}
 
 			page := web.Page{
 				Title:  title,
-				User:   web.User{Username: username, Project: project, AuthLevel: authLevel},
+				User:   web.User{Username: username, Projects: projects, AuthLevel: authLevel},
 				Build:  web.Build{Version: version, Hash: hash, Buildtime: buildTime},
 				Config: conf,
 				Infos:  infos,

@@ -5,7 +5,7 @@ new Jobs({
     target: document.getElementById('svelte-app'),
     props: {
         filterPresets: filterPresets,
-        project: project,
+        projects: projects,
         isManager: isManager
     },
     context: new Map([
