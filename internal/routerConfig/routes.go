@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/api"
+	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
@@ -184,9 +184,14 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 	if query.Get("jobName") != "" {
 		filterPresets["jobName"] = query.Get("jobName")
 	}
-	if query.Get("user") != "" {
-		filterPresets["user"] = query.Get("user")
-		filterPresets["userMatch"] = "eq"
+	if len(query["user"]) != 0 {
+		if len(query["user"]) == 1 {
+			filterPresets["user"] = query.Get("user")
+			filterPresets["userMatch"] = "contains"
+		} else {
+			filterPresets["user"] = query["user"]
+			filterPresets["userMatch"] = "in"
+		}
 	}
 	if len(query["state"]) != 0 {
 		filterPresets["state"] = query["state"]
@@ -303,7 +308,7 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, api *api.RestApi) 
 	if search := r.URL.Query().Get("searchId"); search != "" {
 		splitSearch := strings.Split(search, ":")
 
-		if (len(splitSearch) == 2) {
+		if len(splitSearch) == 2 {
 			switch strings.Trim(splitSearch[0], " ") {
 			case "jobId":
 				http.Redirect(rw, r, "/monitoring/jobs/?jobId="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusTemporaryRedirect) // All Users: Redirect to Tablequery
@@ -320,18 +325,33 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, api *api.RestApi) 
 					http.Redirect(rw, r, "/monitoring/jobs/?jobId=NotFound", http.StatusTemporaryRedirect) // Workaround to display correctly empty table
 				}
 			case "username":
-				username, _ := api.JobRepository.FindUser(r.Context(), strings.Trim(splitSearch[1], " ")) // Restricted: username
-				if username != "" {
-					http.Redirect(rw, r, "/monitoring/user/"+username, http.StatusTemporaryRedirect)
+				usernames, _ := api.JobRepository.FindUsers(r.Context(), strings.Trim(splitSearch[1], " ")) // Restricted: usernames
+				if len(usernames) == 1 {
+					http.Redirect(rw, r, "/monitoring/user/"+usernames[0], http.StatusTemporaryRedirect) // One Match: Redirect to User View
+					return
+				} else if len(usernames) > 1 {
+					http.Redirect(rw, r, "/monitoring/users/?user="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusTemporaryRedirect) // > 1 Matches: Redirect to user table
 					return
 				} else {
-					http.Redirect(rw, r, "/monitoring/jobs/?jobId=NotFound", http.StatusTemporaryRedirect) // Workaround to display correctly empty table
+					http.Redirect(rw, r, "/monitoring/users/?user=NotFound", http.StatusTemporaryRedirect) // Workaround to display correctly empty table
+				}
+			case "name":
+				usernames, _ := api.JobRepository.FindUsersByName(r.Context(), strings.Trim(splitSearch[1], " ")) // Restricted: usernames queried by name
+				if len(usernames) == 1 {
+					http.Redirect(rw, r, "/monitoring/user/"+usernames[0], http.StatusTemporaryRedirect)
+					return
+				} else if len(usernames) > 1 {
+					joinedNames := strings.Join(usernames, "&user=")
+					http.Redirect(rw, r, "/monitoring/users/?user="+joinedNames, http.StatusTemporaryRedirect) // > 1 Matches: Redirect to user table
+					return
+				} else {
+					http.Redirect(rw, r, "/monitoring/users/?user=NotFound", http.StatusTemporaryRedirect) // Workaround to display correctly empty table
 				}
 			default:
 				http.Error(rw, "'searchId' type parameter unknown", http.StatusBadRequest)
 			}
 
-		} else if (len(splitSearch) == 1) {
+		} else if len(splitSearch) == 1 {
 			jobname, username, project, err := api.JobRepository.FindJobnameOrUserOrProject(r.Context(), strings.Trim(search, " ")) // Determine Access within
 
 			if err != nil {
@@ -342,10 +362,10 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, api *api.RestApi) 
 			if username != "" {
 				http.Redirect(rw, r, "/monitoring/user/"+username, http.StatusTemporaryRedirect) // User: Redirect to user page
 				return
-			} else if (project != "") {
+			} else if project != "" {
 				http.Redirect(rw, r, "/monitoring/jobs/?projectMatch=eq&project="+url.QueryEscape(strings.Trim(search, " ")), http.StatusTemporaryRedirect) // projectId (equal)
 				return
-			} else if (jobname != "") {
+			} else if jobname != "" {
 				http.Redirect(rw, r, "/monitoring/jobs/?jobName="+url.QueryEscape(strings.Trim(search, " ")), http.StatusTemporaryRedirect) // JobName (contains)
 				return
 			} else {

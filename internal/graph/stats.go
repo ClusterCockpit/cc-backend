@@ -17,8 +17,8 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	sq "github.com/Masterminds/squirrel"
 )
 
@@ -116,6 +116,7 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 		for _, f := range filter {
 			query = repository.BuildWhereClause(f, query)
 		}
+
 		rows, err := query.RunWith(r.DB).Query()
 		if err != nil {
 			log.Warn("Error while querying jobs for short jobs")
@@ -132,6 +133,18 @@ func (r *queryResolver) jobsStatistics(ctx context.Context, filter []*model.JobF
 
 			if id.Valid {
 				stats[id.String].ShortJobs = int(shortJobs.Int64)
+			}
+		}
+
+		if col == "job.user" {
+			for id, _ := range stats {
+				emptyDash := "-"
+				name, _ := repository.GetJobRepository().FindNameByUser(ctx, id)
+				if name != "" {
+					stats[id].Name = &name
+				} else {
+					stats[id].Name = &emptyDash
+				}
 			}
 		}
 	}
