@@ -54,9 +54,8 @@ func init() {
 }
 
 type User struct {
-	Username  string   // Username of the currently logged in user
-	Projects  []string // Project(s) of the user (relevant for managers only)
-	AuthLevel int      // Level of authorization
+	Username  string // Username of the currently logged in user
+	AuthLevel int    // Level of authorization
 }
 
 type Build struct {

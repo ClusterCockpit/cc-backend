@@ -188,9 +188,6 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 		filterPresets["project"] = query.Get("project")
 		filterPresets["projectMatch"] = "eq"
 	}
-	if len(query["multiProject"]) != 0 {
-		filterPresets["multiProject"] = query["multiProject"]
-	}
 	if query.Get("user") != "" {
 		filterPresets["user"] = query.Get("user")
 		filterPresets["userMatch"] = "eq"
@@ -282,17 +279,15 @@ func SetupRoutes(router *mux.Router, version string, hash string, buildTime stri
 			}
 
 			username, authLevel := "", 0
-			var projects []string
 
 			if user := auth.GetUser(r.Context()); user != nil {
 				username = user.Username
-				projects = user.Projects
 				authLevel = user.GetAuthLevel()
 			}
 
 			page := web.Page{
 				Title:  title,
-				User:   web.User{Username: username, Projects: projects, AuthLevel: authLevel},
+				User:   web.User{Username: username, AuthLevel: authLevel},
 				Build:  web.Build{Version: version, Hash: hash, Buildtime: buildTime},
 				Config: conf,
 				Infos:  infos,

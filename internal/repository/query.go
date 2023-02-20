@@ -101,13 +101,18 @@ func (r *JobRepository) CountJobs(
 
 func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (queryOut sq.SelectBuilder, err error) {
 	user := auth.GetUser(ctx)
-	if user == nil || user.HasAnyRole([]string{auth.RoleAdmin, auth.RoleSupport, auth.RoleApi}) {
+	if user == nil || user.HasAnyRole([]string{auth.RoleAdmin, auth.RoleSupport, auth.RoleApi}) { // Admin & Co. : All jobs
 		return query, nil
-	} else if user.HasRole(auth.RoleManager) { // Manager (Might be doublefiltered by frontend: should not matter)
-		return query.Where(sq.Or{sq.Eq{"job.project": user.Projects}}), nil // Only Jobs from manages projects
-	} else if user.HasRole(auth.RoleUser) { // User
+	} else if user.HasRole(auth.RoleManager) { // Manager : Add filter for managed projects' jobs only + personal jobs
+		if len(user.Projects) != 0 {
+			return query.Where(sq.Or{sq.Eq{"job.project": user.Projects}, sq.Eq{"job.user": user.Username}}), nil
+		} else {
+			log.Infof("Manager-User '%s' has no defined projects to lookup! Query only personal jobs ...", user.Username)
+			return query.Where("job.user = ?", user.Username), nil
+		}
+	} else if user.HasRole(auth.RoleUser) { // User : Only personal jobs
 		return query.Where("job.user = ?", user.Username), nil
-	} else { // Unauthorized
+	} else { // Unauthorized : Error
 		var qnil sq.SelectBuilder
 		return qnil, errors.New(fmt.Sprintf("User '%s' with unknown roles! [%#v]\n", user.Username, user.Roles))
 	}
@@ -129,13 +134,6 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	}
 	if filter.Project != nil {
 		query = buildStringCondition("job.project", filter.Project, query)
-	}
-	if filter.MultiProject != nil {
-		queryProjs := make([]string, len(filter.MultiProject))
-		for i, val := range filter.MultiProject {
-			queryProjs[i] = *val
-		}
-		query = query.Where(sq.Or{sq.Eq{"job.project": queryProjs}})
 	}
 	if filter.Cluster != nil {
 		query = buildStringCondition("job.cluster", filter.Cluster, query)

@@ -42,7 +42,6 @@ type JobFilter struct {
 	ArrayJobID      *int              `json:"arrayJobId"`
 	User            *StringInput      `json:"user"`
 	Project         *StringInput      `json:"project"`
-	MultiProject    []*string         `json:"multiProject"`
 	Cluster         *StringInput      `json:"cluster"`
 	Partition       *StringInput      `json:"partition"`
 	Duration        *schema.IntRange  `json:"duration"`

@@ -14,20 +14,8 @@
 
     export let type
     export let filterPresets
-    export let projects = []
-    export let isManager = false
 
     console.assert(type == 'USER' || type == 'PROJECT', 'Invalid list type provided!')
-
-    let projectsFilter = null
-    //Setup default filter
-    if (type == 'USER' && isManager == true && projects.length == 0) {
-        projectsFilter = { project: {eq: "noProjectForManager"} }
-    } else if (type == 'USER' && isManager == true && projects.length == 1) {
-        projectsFilter = { project: {eq: projects[0]} }
-    } else {
-        projectsFilter = { multiProject: projects }
-    }
 
     const stats = operationStore(`query($filter: [JobFilter!]!) {
         rows: jobsStatistics(filter: $filter, groupBy: ${type}) {
@@ -90,9 +78,6 @@
             menuText="Only {type.toLowerCase()}s with jobs that match the filters will show up"
             on:update={({ detail }) => {
                 $stats.variables = { filter: detail.filters }
-                if (projectsFilter != null) {
-                  $stats.variables.filter.push(projectsFilter)
-                }
                 $stats.context.pause = false
                 $stats.reexecute()
             }} />

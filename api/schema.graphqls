@@ -202,7 +202,6 @@ input JobFilter {
   arrayJobId:   Int
   user:         StringInput
   project:      StringInput
-  multiProject: [String]
   cluster:      StringInput
   partition:    StringInput
   duration:     IntRange

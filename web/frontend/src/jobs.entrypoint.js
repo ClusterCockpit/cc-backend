@@ -5,8 +5,6 @@ new Jobs({
     target: document.getElementById('svelte-app'),
     props: {
         filterPresets: filterPresets,
-        projects: projects,
-        isManager: isManager
     },
     context: new Map([
             ['cc-config', clusterCockpitConfig]

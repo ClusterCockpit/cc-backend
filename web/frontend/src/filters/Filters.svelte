@@ -45,7 +45,6 @@
         arrayJobId:   filterPresets.arrayJobId   || null,
         user:         filterPresets.user         || '',
         project:      filterPresets.project      || '',
-        multiProject: filterPresets.multiProject || [],
 
         numNodes:         filterPresets.numNodes         || { from: null, to: null },
         numHWThreads:     filterPresets.numHWThreads     || { from: null, to: null },
@@ -95,8 +94,6 @@
             items.push({ user: { [filters.userMatch]: filters.user } })
         if (filters.project)
             items.push({ project: { [filters.projectMatch]: filters.project } })
-        if (filters.multiProject.length != 0)
-            items.push({ multiProject: filters.multiProject })
         for (let stat of filters.stats)
             items.push({ [stat.field]: { from: stat.from, to: stat.to } })
 
@@ -132,9 +129,6 @@
             opts.push(`userMatch=${filters.userMatch}`)
         if (filters.project)
             opts.push(`project=${filters.project}`)
-        if (filters.multiProject.length != 0)
-            for (let singleProj of filters.multiProject)
-                opts.push(`multiProject=${singleProj}`)
         if (filters.projectMatch != 'contains')
             opts.push(`projectMatch=${filters.projectMatch}`)
 
