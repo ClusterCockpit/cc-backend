@@ -201,7 +201,6 @@ input JobFilter {
   jobId:       StringInput
   arrayJobId:  Int
   user:        StringInput
-  multiUser:   [String]
   project:     StringInput
   jobName:     StringInput
   cluster:     StringInput
@@ -237,6 +236,7 @@ input StringInput {
   contains:   String
   startsWith: String
   endsWith:   String
+  in:         [String!]
 }
 
 input IntRange   { from: Int!,   to: Int! }

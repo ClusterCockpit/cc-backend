@@ -46,7 +46,6 @@
         user:       filterPresets.user       || '',
         project:    filterPresets.project    || '',
         jobName:    filterPresets.jobName    || '',
-        multiUser:  filterPresets.multiUser  || [],
 
         numNodes:         filterPresets.numNodes         || { from: null, to: null },
         numHWThreads:     filterPresets.numHWThreads     || { from: null, to: null },
@@ -94,8 +93,6 @@
             items.push({ numAccelerators: { from: filters.numAccelerators.from, to: filters.numAccelerators.to } })
         if (filters.user)
             items.push({ user: { [filters.userMatch]: filters.user } })
-        if (filters.multiUser.length != 0)
-            items.push({ multiUser: filters.multiUser })
         if (filters.project)
             items.push({ project: { [filters.projectMatch]: filters.project } })
         if (filters.jobName)
@@ -129,11 +126,13 @@
             opts.push(`numNodes=${filters.numNodes.from}-${filters.numNodes.to}`)
         if (filters.numAccelerators.from && filters.numAccelerators.to)
             opts.push(`numAccelerators=${filters.numAccelerators.from}-${filters.numAccelerators.to}`)
-        if (filters.user)
-            opts.push(`user=${filters.user}`)
-        if (filters.multiUser.length != 0)
-            for (let singleUser of filters.multiUser)
-                opts.push(`multiUser=${singleUser}`)
+        if (filters.user.length != 0)
+            if (filters.userMatch != 'in') {
+                opts.push(`user=${filters.user}`)
+            } else {
+                for (let singleUser of filters.user)
+                    opts.push(`user=${singleUser}`)
+            }
         if (filters.userMatch != 'contains')
             opts.push(`userMatch=${filters.userMatch}`)
         if (filters.project)

@@ -184,12 +184,14 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 	if query.Get("jobName") != "" {
 		filterPresets["jobName"] = query.Get("jobName")
 	}
-	if query.Get("user") != "" {
-		filterPresets["user"] = query.Get("user")
-		filterPresets["userMatch"] = "contains"
-	}
-	if len(query["multiUser"]) != 0 {
-		filterPresets["multiUser"] = query["multiUser"]
+	if len(query["user"]) != 0 {
+		if len(query["user"]) == 1 {
+			filterPresets["user"] = query.Get("user")
+			filterPresets["userMatch"] = "contains"
+		} else {
+			filterPresets["user"] = query["user"]
+			filterPresets["userMatch"] = "in"
+		}
 	}
 	if len(query["state"]) != 0 {
 		filterPresets["state"] = query["state"]
@@ -339,8 +341,8 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, api *api.RestApi) 
 					http.Redirect(rw, r, "/monitoring/user/"+usernames[0], http.StatusTemporaryRedirect)
 					return
 				} else if len(usernames) > 1 {
-					joinedNames := strings.Join(usernames, "&multiUser=")
-					http.Redirect(rw, r, "/monitoring/users/?multiUser="+joinedNames, http.StatusTemporaryRedirect) // > 1 Matches: Redirect to user table
+					joinedNames := strings.Join(usernames, "&user=")
+					http.Redirect(rw, r, "/monitoring/users/?user="+joinedNames, http.StatusTemporaryRedirect) // > 1 Matches: Redirect to user table
 					return
 				} else {
 					http.Redirect(rw, r, "/monitoring/users/?user=NotFound", http.StatusTemporaryRedirect) // Workaround to display correctly empty table

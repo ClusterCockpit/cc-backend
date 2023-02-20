@@ -41,7 +41,6 @@ type JobFilter struct {
 	JobID           *StringInput      `json:"jobId"`
 	ArrayJobID      *int              `json:"arrayJobId"`
 	User            *StringInput      `json:"user"`
-	MultiUser       []*string         `json:"multiUser"`
 	Project         *StringInput      `json:"project"`
 	JobName         *StringInput      `json:"jobName"`
 	Cluster         *StringInput      `json:"cluster"`
@@ -104,10 +103,11 @@ type PageRequest struct {
 }
 
 type StringInput struct {
-	Eq         *string `json:"eq"`
-	Contains   *string `json:"contains"`
-	StartsWith *string `json:"startsWith"`
-	EndsWith   *string `json:"endsWith"`
+	Eq         *string  `json:"eq"`
+	Contains   *string  `json:"contains"`
+	StartsWith *string  `json:"startsWith"`
+	EndsWith   *string  `json:"endsWith"`
+	In         []string `json:"in"`
 }
 
 type TimeRangeOutput struct {
