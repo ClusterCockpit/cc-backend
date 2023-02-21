@@ -1,1 +1,1 @@
-ALTER TABLE user ADD COLUMN IF NOT EXISTS projects varchar(255) NOT NULL DEFAULT "[]";
+ALTER TABLE user ADD COLUMN projects varchar(255) NOT NULL;

@@ -1,1 +1,1 @@
-ALTER TABLE user DROP COLUMN IF EXISTS projects;
+ALTER TABLE user DROP COLUMN projects;
