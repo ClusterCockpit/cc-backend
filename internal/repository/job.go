@@ -116,7 +116,7 @@ func (r *JobRepository) FetchJobName(job *schema.Job) (*string, error) {
 	}
 
 	r.cache.Put(cachekey, job.MetaData, len(job.RawMetaData), 24*time.Hour)
-	log.Infof("Timer %s", time.Since(start))
+	log.Infof("Timer FetchJobName %s", time.Since(start))
 
 	if jobName := job.MetaData["jobName"]; jobName != "" {
 		return &jobName, nil
@@ -149,7 +149,7 @@ func (r *JobRepository) FetchMetadata(job *schema.Job) (map[string]string, error
 	}
 
 	r.cache.Put(cachekey, job.MetaData, len(job.RawMetaData), 24*time.Hour)
-	log.Infof("Timer %s", time.Since(start))
+	log.Infof("Timer FetchMetadata %s", time.Since(start))
 	return job.MetaData, nil
 }
 
@@ -209,7 +209,7 @@ func (r *JobRepository) Find(
 		q = q.Where("job.start_time = ?", *startTime)
 	}
 
-	log.Infof("Timer %s", time.Since(start))
+	log.Infof("Timer Find %s", time.Since(start))
 	return scanJob(q.RunWith(r.stmtCache).QueryRow())
 }
 
@@ -249,7 +249,7 @@ func (r *JobRepository) FindAll(
 		}
 		jobs = append(jobs, job)
 	}
-	log.Infof("Timer %s", time.Since(start))
+	log.Infof("Timer FindAll %s", time.Since(start))
 	return jobs, nil
 }
 
@@ -379,7 +379,7 @@ func (r *JobRepository) CountGroupedJobs(ctx context.Context, aggreg model.Aggre
 		counts[group] = count
 	}
 
-	log.Infof("Timer %s", time.Since(start))
+	log.Infof("Timer CountGroupedJobs %s", time.Since(start))
 	return counts, nil
 }
 
@@ -578,7 +578,7 @@ func (r *JobRepository) Partitions(cluster string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Infof("Timer %s", time.Since(start))
+	log.Infof("Timer Partitions %s", time.Since(start))
 	return partitions.([]string), nil
 }
 
@@ -623,7 +623,7 @@ func (r *JobRepository) AllocatedNodes(cluster string) (map[string]map[string]in
 		}
 	}
 
-	log.Infof("Timer %s", time.Since(start))
+	log.Infof("Timer AllocatedNodes %s", time.Since(start))
 	return subclusters, nil
 }
 
@@ -652,7 +652,7 @@ func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 	if rowsAffected > 0 {
 		log.Infof("%d jobs have been marked as failed due to running too long", rowsAffected)
 	}
-	log.Infof("Timer %s", time.Since(start))
+	log.Infof("Timer StopJobsExceedingWalltimeBy %s", time.Since(start))
 	return nil
 }
 
@@ -812,7 +812,7 @@ func (r *JobRepository) JobsStatistics(ctx context.Context,
 		}
 	}
 
-	log.Infof("Timer %s", time.Since(start))
+	log.Infof("Timer JobStatistics %s", time.Since(start))
 	return res, nil
 }
 
@@ -848,6 +848,6 @@ func (r *JobRepository) jobsStatisticsHistogram(ctx context.Context,
 
 		points = append(points, &point)
 	}
-	log.Infof("Timer %s", time.Since(start))
+	log.Infof("Timer jobsStatisticsHistogram %s", time.Since(start))
 	return points, nil
 }
