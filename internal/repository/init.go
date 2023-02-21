@@ -19,14 +19,6 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
-// Indexes are created after the job-archive is traversed for faster inserts.
-const JobsDbIndexes string = `
-	CREATE INDEX job_stats        ON job (cluster,subcluster,user);
-	CREATE INDEX job_by_user      ON job (user);
-	CREATE INDEX job_by_starttime ON job (start_time);
-	CREATE INDEX job_by_job_id    ON job (job_id);
-	CREATE INDEX job_by_state     ON job (job_state);
-`
 const NamedJobInsert string = `INSERT INTO job (
 	job_id, user, project, cluster, subcluster, ` + "`partition`" + `, array_job_id, num_nodes, num_hwthreads, num_acc,
 	exclusive, monitoring_status, smt, job_state, start_time, duration, walltime, resources, meta_data,
@@ -283,13 +275,6 @@ func InitDB() error {
 
 	if err := tx.Commit(); err != nil {
 		log.Warn("Error while committing SQL transactions")
-		return err
-	}
-
-	// Create indexes after inserts so that they do not
-	// need to be continually updated.
-	if _, err := db.DB.Exec(JobsDbIndexes); err != nil {
-		log.Warn("Error while creating indices after inserts")
 		return err
 	}
 
