@@ -30,6 +30,7 @@ SVELTE_SRC = $(wildcard $(FRONTEND)/src/*.svelte)         \
 $(TARGET): $(VAR) $(SVELTE_TARGETS)
 	$(info ===>  BUILD cc-backend)
 	@go build -ldflags=${LD_FLAGS} ./cmd/cc-backend
+	./cc-backend --migrate-db
 
 clean:
 	$(info ===>  CLEAN)
@@ -48,5 +49,4 @@ $(SVELTE_TARGETS): $(SVELTE_SRC)
 
 $(VAR):
 	@mkdir $(VAR)
-	@touch ./var/job.db
 	cd web/frontend && yarn install
