@@ -55,7 +55,7 @@ func Connect(driver string, db string) {
 		}
 
 		dbConnInstance = &DBConnection{DB: dbHandle}
-		checkDBVersion(dbHandle.DB)
+		checkDBVersion(driver, dbHandle.DB)
 	})
 }
 

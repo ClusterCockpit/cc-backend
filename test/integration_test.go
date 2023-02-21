@@ -269,7 +269,7 @@ func setup(t *testing.T) *api.RestApi {
 		t.Fatal(err)
 	}
 	dbfilepath := filepath.Join(tmpdir, "test.db")
-	repository.MigrateDB(dbfilepath)
+	repository.MigrateDB("sqlite3", dbfilepath)
 
 	cfgFilePath := filepath.Join(tmpdir, "config.json")
 	if err := os.WriteFile(cfgFilePath, []byte(testconfig), 0666); err != nil {

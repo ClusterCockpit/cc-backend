@@ -114,7 +114,7 @@ func main() {
 	}
 
 	if flagMigrateDB {
-		repository.MigrateDB(config.Keys.DB)
+		repository.MigrateDB(config.Keys.DBDriver, config.Keys.DB)
 		os.Exit(0)
 	}
 

@@ -12,28 +12,48 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/mysql"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
 
 const supportedVersion uint = 2
 
-//go:embed migrations/*.sql
+//go:embed migrations/*
 var migrationFiles embed.FS
 
-func checkDBVersion(db *sql.DB) {
-	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
-	if err != nil {
-		log.Fatal(err)
-	}
-	d, err := iofs.New(migrationFiles, "migrations")
-	if err != nil {
-		log.Fatal(err)
-	}
+func checkDBVersion(backend string, db *sql.DB) {
+	var m *migrate.Migrate
 
-	m, err := migrate.NewWithInstance("iofs", d, "sqlite3", driver)
-	if err != nil {
-		log.Fatal(err)
+	if backend == "sqlite3" {
+
+		driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
+		if err != nil {
+			log.Fatal(err)
+		}
+		d, err := iofs.New(migrationFiles, "migrations/sqlite3")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		m, err = migrate.NewWithInstance("iofs", d, "sqlite3", driver)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else if backend == "mysql" {
+		driver, err := mysql.WithInstance(db, &mysql.Config{})
+		if err != nil {
+			log.Fatal(err)
+		}
+		d, err := iofs.New(migrationFiles, "migrations/mysql")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		m, err = migrate.NewWithInstance("iofs", d, "mysql", driver)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	v, _, err := m.Version()
@@ -56,16 +76,31 @@ func checkDBVersion(db *sql.DB) {
 	}
 }
 
-func MigrateDB(db string) {
-	d, err := iofs.New(migrationFiles, "migrations")
-	if err != nil {
-		log.Fatal(err)
+func MigrateDB(backend string, db string) {
+	var m *migrate.Migrate
+
+	if backend == "sqlite3" {
+		d, err := iofs.New(migrationFiles, "migrations/sqlite3")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		m, err = migrate.NewWithSourceInstance("iofs", d, fmt.Sprintf("sqlite3://%s?_foreign_keys=on", db))
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else if backend == "mysql" {
+		d, err := iofs.New(migrationFiles, "migrations/mysql")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		m, err = migrate.NewWithSourceInstance("iofs", d, fmt.Sprintf("mysql://%s?multiStatements=true", db))
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
-	m, err := migrate.NewWithSourceInstance("iofs", d, fmt.Sprintf("sqlite3://%s?_foreign_keys=on", db))
-	if err != nil {
-		log.Fatal(err)
-	}
 	if err := m.Up(); err != nil {
 		log.Fatal(err)
 	}
