@@ -22,7 +22,8 @@ var (
 )
 
 type DBConnection struct {
-	DB *sqlx.DB
+	DB     *sqlx.DB
+	Driver string
 }
 
 func Connect(driver string, db string) {
@@ -54,7 +55,7 @@ func Connect(driver string, db string) {
 			log.Fatalf("unsupported database driver: %s", driver)
 		}
 
-		dbConnInstance = &DBConnection{DB: dbHandle}
+		dbConnInstance = &DBConnection{DB: dbHandle, Driver: driver}
 		checkDBVersion(driver, dbHandle.DB)
 	})
 }
