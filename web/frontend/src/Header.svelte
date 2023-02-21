@@ -93,7 +93,7 @@
             <InputGroup>
                 <Input type="text" placeholder={(authlevel >= 4) ? "Search jobId / username" : "Search jobId"} name="searchId"/>
                 <Button outline type="submit"><Icon name="search"/></Button>
-                <InputGroupText style="cursor:help;" title={isAdmin ? "Example: 'projectId:a100cd', Types are: jobId | jobName | projectId | username" | "name" : "Example: 'jobName:myjob', Types are jobId | jobName"}><Icon name="info-circle"/></InputGroupText>
+                <InputGroupText style="cursor:help;" title={(authlevel >= 4) ? "Example: 'projectId:a100cd', Types are: jobId | jobName | projectId | username" | "name" : "Example: 'jobName:myjob', Types are jobId | jobName"}><Icon name="info-circle"/></InputGroupText>
             </InputGroup>
         </form>
         {#if username}
