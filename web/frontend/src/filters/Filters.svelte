@@ -35,16 +35,17 @@
         projectMatch: filterPresets.projectMatch || 'contains',
         userMatch:    filterPresets.userMatch    || 'contains',
 
-        cluster:      filterPresets.cluster      || null,
-        partition:    filterPresets.partition    || null,
-        states:       filterPresets.states       || filterPresets.state ? [filterPresets.state].flat() : allJobStates,
-        startTime:    filterPresets.startTime    || { from: null, to: null },
-        tags:         filterPresets.tags         || [],
-        duration:     filterPresets.duration     || { from: null, to: null },
-        jobId:        filterPresets.jobId        || '',
-        arrayJobId:   filterPresets.arrayJobId   || null,
-        user:         filterPresets.user         || '',
-        project:      filterPresets.project      || '',
+        cluster:    filterPresets.cluster    || null,
+        partition:  filterPresets.partition  || null,
+        states:     filterPresets.states     || filterPresets.state ? [filterPresets.state].flat() : allJobStates,
+        startTime:  filterPresets.startTime  || { from: null, to: null },
+        tags:       filterPresets.tags       || [],
+        duration:   filterPresets.duration   || { from: null, to: null },
+        jobId:      filterPresets.jobId      || '',
+        arrayJobId: filterPresets.arrayJobId || null,
+        user:       filterPresets.user       || '',
+        project:    filterPresets.project    || '',
+        jobName:    filterPresets.jobName    || '',
 
         numNodes:         filterPresets.numNodes         || { from: null, to: null },
         numHWThreads:     filterPresets.numHWThreads     || { from: null, to: null },
@@ -94,6 +95,8 @@
             items.push({ user: { [filters.userMatch]: filters.user } })
         if (filters.project)
             items.push({ project: { [filters.projectMatch]: filters.project } })
+        if (filters.jobName)
+            items.push({ jobName: { contains: filters.jobName } })
         for (let stat of filters.stats)
             items.push({ [stat.field]: { from: stat.from, to: stat.to } })
 
@@ -123,12 +126,19 @@
             opts.push(`numNodes=${filters.numNodes.from}-${filters.numNodes.to}`)
         if (filters.numAccelerators.from && filters.numAccelerators.to)
             opts.push(`numAccelerators=${filters.numAccelerators.from}-${filters.numAccelerators.to}`)
-        if (filters.user)
-            opts.push(`user=${filters.user}`)
+        if (filters.user.length != 0)
+            if (filters.userMatch != 'in') {
+                opts.push(`user=${filters.user}`)
+            } else {
+                for (let singleUser of filters.user)
+                    opts.push(`user=${singleUser}`)
+            }
         if (filters.userMatch != 'contains')
             opts.push(`userMatch=${filters.userMatch}`)
         if (filters.project)
             opts.push(`project=${filters.project}`)
+        if (filters.jobName)
+            opts.push(`jobName=${filters.jobName}`)
         if (filters.projectMatch != 'contains')
             opts.push(`projectMatch=${filters.projectMatch}`)
 

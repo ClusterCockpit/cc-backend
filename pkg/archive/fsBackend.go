@@ -46,7 +46,7 @@ func loadJobMeta(filename string) (*schema.JobMeta, error) {
 
 	f, err := os.Open(filename)
 	if err != nil {
-		log.Errorf("fsBackend loadJobMeta()- %v", err)
+		log.Errorf("loadJobMeta() > open file error: %v", err)
 		return &schema.JobMeta{}, err
 	}
 	defer f.Close()
@@ -58,19 +58,19 @@ func (fsa *FsArchive) Init(rawConfig json.RawMessage) error {
 
 	var config FsArchiveConfig
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
-		log.Errorf("fsBackend Init()- %v", err)
+		log.Warnf("Init() > Unmarshal error: %#v", err)
 		return err
 	}
 	if config.Path == "" {
-		err := fmt.Errorf("fsBackend Init()- empty path")
-		log.Errorf("fsBackend Init()- %v", err)
+		err := fmt.Errorf("Init() : empty config.Path")
+		log.Errorf("Init() > config.Path error: %v", err)
 		return err
 	}
 	fsa.path = config.Path
 
 	entries, err := os.ReadDir(fsa.path)
 	if err != nil {
-		log.Errorf("fsBackend Init()- %v", err)
+		log.Errorf("Init() > ReadDir() error: %v", err)
 		return err
 	}
 
@@ -86,7 +86,7 @@ func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 	filename := getPath(job, fsa.path, "data.json")
 	f, err := os.Open(filename)
 	if err != nil {
-		log.Errorf("fsBackend LoadJobData()- %v", err)
+		log.Errorf("LoadJobData() > open file error: %v", err)
 		return nil, err
 	}
 	defer f.Close()
@@ -104,11 +104,12 @@ func (fsa *FsArchive) LoadClusterCfg(name string) (*schema.Cluster, error) {
 
 	b, err := os.ReadFile(filepath.Join(fsa.path, name, "cluster.json"))
 	if err != nil {
-		log.Errorf("fsBackend LoadClusterCfg()- %v", err)
+		log.Errorf("LoadClusterCfg() > open file error: %v", err)
 		return &schema.Cluster{}, err
 	}
 	if config.Keys.Validate {
 		if err := schema.Validate(schema.ClusterCfg, bytes.NewReader(b)); err != nil {
+			log.Warnf("Validate cluster config: %v\n", err)
 			return &schema.Cluster{}, fmt.Errorf("Validate cluster config: %v\n", err)
 		}
 	}
@@ -121,13 +122,13 @@ func (fsa *FsArchive) Iter() <-chan *schema.JobMeta {
 	go func() {
 		clustersDir, err := os.ReadDir(fsa.path)
 		if err != nil {
-			log.Fatalf("Reading clusters failed: %s", err.Error())
+			log.Fatalf("Reading clusters failed @ cluster dirs: %s", err.Error())
 		}
 
 		for _, clusterDir := range clustersDir {
 			lvl1Dirs, err := os.ReadDir(filepath.Join(fsa.path, clusterDir.Name()))
 			if err != nil {
-				log.Fatalf("Reading jobs failed: %s", err.Error())
+				log.Fatalf("Reading jobs failed @ lvl1 dirs: %s", err.Error())
 			}
 
 			for _, lvl1Dir := range lvl1Dirs {
@@ -138,21 +139,21 @@ func (fsa *FsArchive) Iter() <-chan *schema.JobMeta {
 
 				lvl2Dirs, err := os.ReadDir(filepath.Join(fsa.path, clusterDir.Name(), lvl1Dir.Name()))
 				if err != nil {
-					log.Fatalf("Reading jobs failed: %s", err.Error())
+					log.Fatalf("Reading jobs failed @ lvl2 dirs: %s", err.Error())
 				}
 
 				for _, lvl2Dir := range lvl2Dirs {
 					dirpath := filepath.Join(fsa.path, clusterDir.Name(), lvl1Dir.Name(), lvl2Dir.Name())
 					startTimeDirs, err := os.ReadDir(dirpath)
 					if err != nil {
-						log.Fatalf("Reading jobs failed: %s", err.Error())
+						log.Fatalf("Reading jobs failed @ starttime dirs: %s", err.Error())
 					}
 
 					for _, startTimeDir := range startTimeDirs {
 						if startTimeDir.IsDir() {
 							job, err := loadJobMeta(filepath.Join(dirpath, startTimeDir.Name(), "meta.json"))
 							if err != nil {
-								log.Errorf("in %s: %s", filepath.Join(dirpath, startTimeDir.Name()), err.Error())
+								log.Errorf("error in %s: %s", filepath.Join(dirpath, startTimeDir.Name()), err.Error())
 							} else {
 								ch <- job
 							}
@@ -175,12 +176,15 @@ func (fsa *FsArchive) StoreJobMeta(jobMeta *schema.JobMeta) error {
 	}
 	f, err := os.Create(getPath(&job, fsa.path, "meta.json"))
 	if err != nil {
+		log.Error("Error while creating filepath for meta.json")
 		return err
 	}
 	if err := EncodeJobMeta(f, jobMeta); err != nil {
+		log.Error("Error while encoding job metadata to meta.json file")
 		return err
 	}
 	if err := f.Close(); err != nil {
+		log.Warn("Error while closing meta.json file")
 		return err
 	}
 
@@ -203,26 +207,38 @@ func (fsa *FsArchive) ImportJob(
 	}
 	dir := getPath(&job, fsa.path, "")
 	if err := os.MkdirAll(dir, 0777); err != nil {
+		log.Error("Error while creating job archive path")
 		return err
 	}
 
 	f, err := os.Create(path.Join(dir, "meta.json"))
 	if err != nil {
+		log.Error("Error while creating filepath for meta.json")
 		return err
 	}
 	if err := EncodeJobMeta(f, jobMeta); err != nil {
+		log.Error("Error while encoding job metadata to meta.json file")
 		return err
 	}
 	if err := f.Close(); err != nil {
+		log.Warn("Error while closing meta.json file")
 		return err
 	}
 
 	f, err = os.Create(path.Join(dir, "data.json"))
 	if err != nil {
+		log.Error("Error while creating filepath for data.json")
 		return err
 	}
 	if err := EncodeJobData(f, jobData); err != nil {
+		log.Error("Error while encoding job metricdata to data.json file")
 		return err
 	}
-	return f.Close()
+	if err := f.Close(); err != nil {
+		log.Warn("Error while closing data.json file")
+		return err
+	}
+
+	// no error: final return is nil
+	return nil
 }

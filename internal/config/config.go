@@ -49,7 +49,7 @@ func Init(flagConfigFile string) {
 	raw, err := os.ReadFile(flagConfigFile)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			log.Fatal(err)
+			log.Fatalf("CONFIG ERROR: %v", err)
 		}
 	} else {
 		if err := schema.Validate(schema.Config, bytes.NewReader(raw)); err != nil {
@@ -58,7 +58,7 @@ func Init(flagConfigFile string) {
 		dec := json.NewDecoder(bytes.NewReader(raw))
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(&Keys); err != nil {
-			log.Fatal(err)
+			log.Fatalf("could not decode: %v", err)
 		}
 
 		if Keys.Clusters == nil || len(Keys.Clusters) < 1 {

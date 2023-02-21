@@ -1,7 +1,7 @@
 <script>
     import { Icon, Button, InputGroup, Input, Collapse,
              Navbar, NavbarBrand, Nav, NavItem, NavLink, NavbarToggler,
-             Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from 'sveltestrap'
+             Dropdown, DropdownToggle, DropdownMenu, DropdownItem, InputGroupText } from 'sveltestrap'
 
     export let username // empty string if auth. is disabled, otherwise the username as string
     export let authlevel // integer
@@ -93,6 +93,7 @@
             <InputGroup>
                 <Input type="text" placeholder={(authlevel >= 4) ? "Search jobId / username" : "Search jobId"} name="searchId"/>
                 <Button outline type="submit"><Icon name="search"/></Button>
+                <InputGroupText style="cursor:help;" title={isAdmin ? "Example: 'projectId:a100cd', Types are: jobId | jobName | projectId | username" | "name" : "Example: 'jobName:myjob', Types are jobId | jobName"}><Icon name="info-circle"/></InputGroupText>
             </InputGroup>
         </form>
         {#if username}

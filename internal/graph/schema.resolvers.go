@@ -16,12 +16,18 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
 // Partitions is the resolver for the partitions field.
 func (r *clusterResolver) Partitions(ctx context.Context, obj *schema.Cluster) ([]string, error) {
 	return r.Repo.Partitions(obj.Name)
+}
+
+// JobName is the resolver for the jobName field.
+func (r *jobResolver) JobName(ctx context.Context, obj *schema.Job) (*string, error) {
+	return r.Repo.FetchJobName(obj)
 }
 
 // Tags is the resolver for the tags field.
@@ -43,6 +49,7 @@ func (r *jobResolver) UserData(ctx context.Context, obj *schema.Job) (*model.Use
 func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name string) (*schema.Tag, error) {
 	id, err := r.Repo.CreateTag(typeArg, name)
 	if err != nil {
+		log.Warn("Error while creating tag")
 		return nil, err
 	}
 
@@ -58,6 +65,7 @@ func (r *mutationResolver) DeleteTag(ctx context.Context, id string) (string, er
 func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds []string) ([]*schema.Tag, error) {
 	jid, err := strconv.ParseInt(job, 10, 64)
 	if err != nil {
+		log.Warn("Error while adding tag to job")
 		return nil, err
 	}
 
@@ -65,10 +73,12 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 	for _, tagId := range tagIds {
 		tid, err := strconv.ParseInt(tagId, 10, 64)
 		if err != nil {
+			log.Warn("Error while parsing tag id")
 			return nil, err
 		}
 
 		if tags, err = r.Repo.AddTag(jid, tid); err != nil {
+			log.Warn("Error while adding tag")
 			return nil, err
 		}
 	}
@@ -80,6 +90,7 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, tagIds []string) ([]*schema.Tag, error) {
 	jid, err := strconv.ParseInt(job, 10, 64)
 	if err != nil {
+		log.Warn("Error while parsing job id")
 		return nil, err
 	}
 
@@ -87,10 +98,12 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 	for _, tagId := range tagIds {
 		tid, err := strconv.ParseInt(tagId, 10, 64)
 		if err != nil {
+			log.Warn("Error while parsing tag id")
 			return nil, err
 		}
 
 		if tags, err = r.Repo.RemoveTag(jid, tid); err != nil {
+			log.Warn("Error while removing tag")
 			return nil, err
 		}
 	}
@@ -101,6 +114,7 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 // UpdateConfiguration is the resolver for the updateConfiguration field.
 func (r *mutationResolver) UpdateConfiguration(ctx context.Context, name string, value string) (*string, error) {
 	if err := repository.GetUserCfgRepo().UpdateConfig(name, value, auth.GetUser(ctx)); err != nil {
+		log.Warn("Error while updating user config")
 		return nil, err
 	}
 
@@ -126,6 +140,7 @@ func (r *queryResolver) User(ctx context.Context, username string) (*model.User,
 func (r *queryResolver) AllocatedNodes(ctx context.Context, cluster string) ([]*model.Count, error) {
 	data, err := r.Repo.AllocatedNodes(cluster)
 	if err != nil {
+		log.Warn("Error while fetching allocated nodes")
 		return nil, err
 	}
 
@@ -144,11 +159,13 @@ func (r *queryResolver) AllocatedNodes(ctx context.Context, cluster string) ([]*
 func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error) {
 	numericId, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
+		log.Warn("Error while parsing job id")
 		return nil, err
 	}
 
 	job, err := r.Repo.FindById(numericId)
 	if err != nil {
+		log.Warn("Error while finding job by id")
 		return nil, err
 	}
 
@@ -163,11 +180,13 @@ func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error)
 func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope) ([]*model.JobMetricWithName, error) {
 	job, err := r.Query().Job(ctx, id)
 	if err != nil {
+		log.Warn("Error while querying job for metrics")
 		return nil, err
 	}
 
 	data, err := metricdata.LoadData(job, metrics, scopes, ctx)
 	if err != nil {
+		log.Warn("Error while loading job data")
 		return nil, err
 	}
 
@@ -175,7 +194,7 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 	for name, md := range data {
 		for scope, metric := range md {
 			if metric.Scope != schema.MetricScope(scope) {
-				panic("WTF?")
+				log.Panic("metric.Scope != schema.MetricScope(scope) : Should not happen!")
 			}
 
 			res = append(res, &model.JobMetricWithName{
@@ -204,11 +223,13 @@ func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, pag
 
 	jobs, err := r.Repo.QueryJobs(ctx, filter, page, order)
 	if err != nil {
+		log.Warn("Error while querying jobs")
 		return nil, err
 	}
 
 	count, err := r.Repo.CountJobs(ctx, filter)
 	if err != nil {
+		log.Warn("Error while counting jobs")
 		return nil, err
 	}
 
@@ -217,13 +238,14 @@ func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, pag
 
 // JobsStatistics is the resolver for the jobsStatistics field.
 func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobFilter, groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
-	return r.jobsStatistics(ctx, filter, groupBy)
+	return r.Repo.JobsStatistics(ctx, filter, groupBy)
 }
 
 // JobsCount is the resolver for the jobsCount field.
 func (r *queryResolver) JobsCount(ctx context.Context, filter []*model.JobFilter, groupBy model.Aggregate, weight *model.Weights, limit *int) ([]*model.Count, error) {
 	counts, err := r.Repo.CountGroupedJobs(ctx, groupBy, filter, weight, limit)
 	if err != nil {
+		log.Warn("Error while counting grouped jobs")
 		return nil, err
 	}
 
@@ -257,6 +279,7 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 
 	data, err := metricdata.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)
 	if err != nil {
+		log.Warn("Error while loading node data")
 		return nil, err
 	}
 

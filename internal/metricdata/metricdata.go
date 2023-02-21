@@ -46,6 +46,7 @@ func Init(disableArchive bool) error {
 				Kind string `json:"kind"`
 			}
 			if err := json.Unmarshal(cluster.MetricDataRepository, &kind); err != nil {
+				log.Warn("Error while unmarshaling raw json MetricDataRepository")
 				return err
 			}
 
@@ -60,10 +61,11 @@ func Init(disableArchive bool) error {
 			case "test":
 				mdr = &TestMetricDataRepository{}
 			default:
-				return fmt.Errorf("unkown metric data repository '%s' for cluster '%s'", kind.Kind, cluster.Name)
+				return fmt.Errorf("METRICDATA/METRICDATA > Unknown MetricDataRepository %v for cluster %v", kind.Kind, cluster.Name)
 			}
 
 			if err := mdr.Init(cluster.MetricDataRepository); err != nil {
+				log.Errorf("Error initializing MetricDataRepository %v for cluster %v", kind.Kind, cluster.Name)
 				return err
 			}
 			metricDataRepos[cluster.Name] = mdr
@@ -90,7 +92,7 @@ func LoadData(job *schema.Job,
 			repo, ok := metricDataRepos[job.Cluster]
 
 			if !ok {
-				return fmt.Errorf("no metric data repository configured for '%s'", job.Cluster), 0, 0
+				return fmt.Errorf("METRICDATA/METRICDATA > no metric data repository configured for '%s'", job.Cluster), 0, 0
 			}
 
 			if scopes == nil {
@@ -107,8 +109,9 @@ func LoadData(job *schema.Job,
 			jd, err = repo.LoadData(job, metrics, scopes, ctx)
 			if err != nil {
 				if len(jd) != 0 {
-					log.Errorf("partial error: %s", err.Error())
+					log.Warnf("partial error: %s", err.Error())
 				} else {
+					log.Error("Error while loading job data from metric repository")
 					return err, 0, 0
 				}
 			}
@@ -116,6 +119,7 @@ func LoadData(job *schema.Job,
 		} else {
 			jd, err = archive.GetHandle().LoadJobData(job)
 			if err != nil {
+				log.Error("Error while loading job data from archive")
 				return err, 0, 0
 			}
 
@@ -163,6 +167,7 @@ func LoadData(job *schema.Job,
 	})
 
 	if err, ok := data.(error); ok {
+		log.Error("Error in returned dataset")
 		return nil, err
 	}
 
@@ -182,11 +187,12 @@ func LoadAverages(
 
 	repo, ok := metricDataRepos[job.Cluster]
 	if !ok {
-		return fmt.Errorf("no metric data repository configured for '%s'", job.Cluster)
+		return fmt.Errorf("METRICDATA/METRICDATA > no metric data repository configured for '%s'", job.Cluster)
 	}
 
 	stats, err := repo.LoadStats(job, metrics, ctx)
 	if err != nil {
+		log.Errorf("Error while loading statistics for job %v (User %v, Project %v)", job.JobID, job.User, job.Project)
 		return err
 	}
 
@@ -217,7 +223,7 @@ func LoadNodeData(
 
 	repo, ok := metricDataRepos[cluster]
 	if !ok {
-		return nil, fmt.Errorf("no metric data repository configured for '%s'", cluster)
+		return nil, fmt.Errorf("METRICDATA/METRICDATA > no metric data repository configured for '%s'", cluster)
 	}
 
 	if metrics == nil {
@@ -229,14 +235,15 @@ func LoadNodeData(
 	data, err := repo.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)
 	if err != nil {
 		if len(data) != 0 {
-			log.Errorf("partial error: %s", err.Error())
+			log.Warnf("partial error: %s", err.Error())
 		} else {
+			log.Error("Error while loading node data from metric repository")
 			return nil, err
 		}
 	}
 
 	if data == nil {
-		return nil, fmt.Errorf("the metric data repository for '%s' does not support this query", cluster)
+		return nil, fmt.Errorf("METRICDATA/METRICDATA > the metric data repository for '%s' does not support this query", cluster)
 	}
 
 	return data, nil
@@ -303,6 +310,7 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 
 	jobData, err := LoadData(job, allMetrics, scopes, ctx)
 	if err != nil {
+		log.Error("Error wile loading job data for archiving")
 		return nil, err
 	}
 

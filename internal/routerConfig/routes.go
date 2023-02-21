@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/api"
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
-	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
@@ -44,7 +44,7 @@ var routes []Route = []Route{
 	{"/monitoring/user/{id}", "monitoring/user.tmpl", "User <ID> - ClusterCockpit", true, setupUserRoute},
 	{"/monitoring/systems/{cluster}", "monitoring/systems.tmpl", "Cluster <ID> - ClusterCockpit", false, setupClusterRoute},
 	{"/monitoring/node/{cluster}/{hostname}", "monitoring/node.tmpl", "Node <ID> - ClusterCockpit", false, setupNodeRoute},
-	{"/monitoring/analysis/{cluster}", "monitoring/analysis.tmpl", "Analaysis - ClusterCockpit", true, setupAnalysisRoute},
+	{"/monitoring/analysis/{cluster}", "monitoring/analysis.tmpl", "Analysis - ClusterCockpit", true, setupAnalysisRoute},
 	{"/monitoring/status/{cluster}", "monitoring/status.tmpl", "Status of <ID> - ClusterCockpit", false, setupClusterRoute},
 }
 
@@ -61,21 +61,21 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 		State: []schema.JobState{schema.JobStateRunning},
 	}}, nil, nil)
 	if err != nil {
-		log.Errorf("failed to count jobs: %s", err.Error())
+		log.Warnf("failed to count jobs: %s", err.Error())
 		runningJobs = map[string]int{}
 	}
 	totalJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, nil, nil, nil)
 	if err != nil {
-		log.Errorf("failed to count jobs: %s", err.Error())
+		log.Warnf("failed to count jobs: %s", err.Error())
 		totalJobs = map[string]int{}
 	}
 	from := time.Now().Add(-24 * time.Hour)
 	recentShortJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, []*model.JobFilter{{
 		StartTime: &schema.TimeRange{From: &from, To: nil},
-		Duration:  &schema.IntRange{From: 0, To: graph.ShortJobDuration},
+		Duration:  &schema.IntRange{From: 0, To: repository.ShortJobDuration},
 	}}, nil, nil)
 	if err != nil {
-		log.Errorf("failed to count jobs: %s", err.Error())
+		log.Warnf("failed to count jobs: %s", err.Error())
 		recentShortJobs = map[string]int{}
 	}
 
@@ -158,7 +158,7 @@ func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 	tags, counts, err := jobRepo.CountTags(username, projects)
 	tagMap := make(map[string][]map[string]interface{})
 	if err != nil {
-		log.Errorf("GetTags failed: %s", err.Error())
+		log.Warnf("GetTags failed: %s", err.Error())
 		i["tagmap"] = tagMap
 		return i
 	}
@@ -188,9 +188,17 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 		filterPresets["project"] = query.Get("project")
 		filterPresets["projectMatch"] = "eq"
 	}
-	if query.Get("user") != "" {
-		filterPresets["user"] = query.Get("user")
-		filterPresets["userMatch"] = "eq"
+	if query.Get("jobName") != "" {
+		filterPresets["jobName"] = query.Get("jobName")
+	}
+	if len(query["user"]) != 0 {
+		if len(query["user"]) == 1 {
+			filterPresets["user"] = query.Get("user")
+			filterPresets["userMatch"] = "contains"
+		} else {
+			filterPresets["user"] = query["user"]
+			filterPresets["userMatch"] = "in"
+		}
 	}
 	if len(query["state"]) != 0 {
 		filterPresets["state"] = query["state"]
@@ -299,5 +307,83 @@ func SetupRoutes(router *mux.Router, version string, hash string, buildTime stri
 
 			web.RenderTemplate(rw, r, route.Template, &page)
 		})
+	}
+}
+
+func HandleSearchBar(rw http.ResponseWriter, r *http.Request, api *api.RestApi) {
+	if search := r.URL.Query().Get("searchId"); search != "" {
+		splitSearch := strings.Split(search, ":")
+
+		if len(splitSearch) == 2 {
+			switch strings.Trim(splitSearch[0], " ") {
+			case "jobId":
+				http.Redirect(rw, r, "/monitoring/jobs/?jobId="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusTemporaryRedirect) // All Users: Redirect to Tablequery
+				return
+			case "jobName":
+				http.Redirect(rw, r, "/monitoring/jobs/?jobName="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusTemporaryRedirect) // All Users: Redirect to Tablequery
+				return
+			case "projectId":
+				project, _ := api.JobRepository.FindProject(r.Context(), strings.Trim(splitSearch[1], " ")) // Restricted: projectId
+				if project != "" {
+					http.Redirect(rw, r, "/monitoring/jobs/?projectMatch=eq&project="+url.QueryEscape(project), http.StatusTemporaryRedirect)
+					return
+				} else {
+					http.Redirect(rw, r, "/monitoring/jobs/?jobId=NotFound", http.StatusTemporaryRedirect) // Workaround to display correctly empty table
+				}
+			case "username":
+				usernames, _ := api.JobRepository.FindUsers(r.Context(), strings.Trim(splitSearch[1], " ")) // Restricted: usernames
+				if len(usernames) == 1 {
+					http.Redirect(rw, r, "/monitoring/user/"+usernames[0], http.StatusTemporaryRedirect) // One Match: Redirect to User View
+					return
+				} else if len(usernames) > 1 {
+					http.Redirect(rw, r, "/monitoring/users/?user="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusTemporaryRedirect) // > 1 Matches: Redirect to user table
+					return
+				} else {
+					http.Redirect(rw, r, "/monitoring/users/?user=NotFound", http.StatusTemporaryRedirect) // Workaround to display correctly empty table
+				}
+			case "name":
+				usernames, _ := api.JobRepository.FindUsersByName(r.Context(), strings.Trim(splitSearch[1], " ")) // Restricted: usernames queried by name
+				if len(usernames) == 1 {
+					http.Redirect(rw, r, "/monitoring/user/"+usernames[0], http.StatusTemporaryRedirect)
+					return
+				} else if len(usernames) > 1 {
+					joinedNames := strings.Join(usernames, "&user=")
+					http.Redirect(rw, r, "/monitoring/users/?user="+joinedNames, http.StatusTemporaryRedirect) // > 1 Matches: Redirect to user table
+					return
+				} else {
+					http.Redirect(rw, r, "/monitoring/users/?user=NotFound", http.StatusTemporaryRedirect) // Workaround to display correctly empty table
+				}
+			default:
+				http.Error(rw, "'searchId' type parameter unknown", http.StatusBadRequest)
+			}
+
+		} else if len(splitSearch) == 1 {
+			jobname, username, project, err := api.JobRepository.FindJobnameOrUserOrProject(r.Context(), strings.Trim(search, " ")) // Determine Access within
+
+			if err != nil {
+				http.Error(rw, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			if username != "" {
+				http.Redirect(rw, r, "/monitoring/user/"+username, http.StatusTemporaryRedirect) // User: Redirect to user page
+				return
+			} else if project != "" {
+				http.Redirect(rw, r, "/monitoring/jobs/?projectMatch=eq&project="+url.QueryEscape(strings.Trim(search, " ")), http.StatusTemporaryRedirect) // projectId (equal)
+				return
+			} else if jobname != "" {
+				http.Redirect(rw, r, "/monitoring/jobs/?jobName="+url.QueryEscape(strings.Trim(search, " ")), http.StatusTemporaryRedirect) // JobName (contains)
+				return
+			} else {
+				http.Redirect(rw, r, "/monitoring/jobs/?jobId="+url.QueryEscape(strings.Trim(search, " ")), http.StatusTemporaryRedirect) // No Result: Probably jobId
+				return
+			}
+
+		} else {
+			http.Error(rw, "'searchId' query parameter malformed", http.StatusBadRequest)
+		}
+
+	} else {
+		http.Redirect(rw, r, "/monitoring/jobs/?", http.StatusTemporaryRedirect)
 	}
 }

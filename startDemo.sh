@@ -11,7 +11,6 @@ else
     tar xJf job-archive-dev.tar.xz
     rm ./job-archive-dev.tar.xz
 
-    touch ./job.db
     cd ../web/frontend
     yarn install
     yarn build
@@ -21,5 +20,6 @@ else
     cp ./docs/config.json config.json
     go build ./cmd/cc-backend
 
+    ./cc-backend --migrate-db
     ./cc-backend --server --dev --init-db --add-user demo:admin:AdminDev
 fi

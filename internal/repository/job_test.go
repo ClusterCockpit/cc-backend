@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 func init() {
+	log.Init("info", true)
 	Connect("sqlite3", "../../test/test.db")
 }
 

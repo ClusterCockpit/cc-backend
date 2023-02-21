@@ -185,30 +185,20 @@ func Init(db *sqlx.DB,
 	configs map[string]interface{}) (*Authentication, error) {
 	auth := &Authentication{}
 	auth.db = db
-	_, err := db.Exec(`
-	CREATE TABLE IF NOT EXISTS user (
-		username varchar(255) PRIMARY KEY NOT NULL,
-		password varchar(255) DEFAULT NULL,
-		ldap     tinyint      NOT NULL DEFAULT 0, /* col called "ldap" for historic reasons, fills the "AuthSource" */
-		name     varchar(255) DEFAULT NULL,
-		roles    varchar(255) NOT NULL DEFAULT "[]",
-		email    varchar(255) DEFAULT NULL,
-		projects varchar(255) NOT NULL DEFAULT "[]");`)
-	if err != nil {
-		return nil, err
-	}
 
 	sessKey := os.Getenv("SESSION_KEY")
 	if sessKey == "" {
 		log.Warn("environment variable 'SESSION_KEY' not set (will use non-persistent random key)")
 		bytes := make([]byte, 32)
 		if _, err := rand.Read(bytes); err != nil {
+			log.Error("Error while initializing authentication -> failed to generate random bytes for session key")
 			return nil, err
 		}
 		auth.sessionStore = sessions.NewCookieStore(bytes)
 	} else {
 		bytes, err := base64.StdEncoding.DecodeString(sessKey)
 		if err != nil {
+			log.Error("Error while initializing authentication -> decoding session key failed")
 			return nil, err
 		}
 		auth.sessionStore = sessions.NewCookieStore(bytes)
@@ -216,12 +206,14 @@ func Init(db *sqlx.DB,
 
 	auth.LocalAuth = &LocalAuthenticator{}
 	if err := auth.LocalAuth.Init(auth, nil); err != nil {
+		log.Error("Error while initializing authentication -> localAuth init failed")
 		return nil, err
 	}
 	auth.authenticators = append(auth.authenticators, auth.LocalAuth)
 
 	auth.JwtAuth = &JWTAuthenticator{}
 	if err := auth.JwtAuth.Init(auth, configs["jwt"]); err != nil {
+		log.Error("Error while initializing authentication -> jwtAuth init failed")
 		return nil, err
 	}
 	auth.authenticators = append(auth.authenticators, auth.JwtAuth)
@@ -229,6 +221,7 @@ func Init(db *sqlx.DB,
 	if config, ok := configs["ldap"]; ok {
 		auth.LdapAuth = &LdapAuthenticator{}
 		if err := auth.LdapAuth.Init(auth, config); err != nil {
+			log.Error("Error while initializing authentication -> ldapAuth init failed")
 			return nil, err
 		}
 		auth.authenticators = append(auth.authenticators, auth.LdapAuth)
@@ -243,6 +236,7 @@ func (auth *Authentication) AuthViaSession(
 
 	session, err := auth.sessionStore.Get(r, "session")
 	if err != nil {
+		log.Error("Error while getting session store")
 		return nil, err
 	}
 
@@ -272,7 +266,7 @@ func (auth *Authentication) Login(
 		user := (*User)(nil)
 		if username != "" {
 			if user, _ = auth.GetUser(username); err != nil {
-				// log.Warnf("login of unkown user %#v", username)
+				// log.Warnf("login of unkown user %v", username)
 				_ = err
 			}
 		}
@@ -284,7 +278,7 @@ func (auth *Authentication) Login(
 
 			user, err = authenticator.Login(user, rw, r)
 			if err != nil {
-				log.Warnf("login failed: %s", err.Error())
+				log.Warnf("user '%s' login failed: %s", user.Username, err.Error())
 				onfailure(rw, r, err)
 				return
 			}
@@ -303,7 +297,7 @@ func (auth *Authentication) Login(
 			session.Values["projects"] = user.Projects
 			session.Values["roles"] = user.Roles
 			if err := auth.sessionStore.Save(r, rw, session); err != nil {
-				log.Errorf("session save failed: %s", err.Error())
+				log.Warnf("session save failed: %s", err.Error())
 				http.Error(rw, err.Error(), http.StatusInternalServerError)
 				return
 			}

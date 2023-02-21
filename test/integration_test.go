@@ -20,6 +20,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/gorilla/mux"
 
@@ -245,6 +246,7 @@ func setup(t *testing.T) *api.RestApi {
 		]
 	}`
 
+	log.Init("info", true)
 	tmpdir := t.TempDir()
 	jobarchive := filepath.Join(tmpdir, "job-archive")
 	if err := os.Mkdir(jobarchive, 0777); err != nil {
@@ -267,11 +269,7 @@ func setup(t *testing.T) *api.RestApi {
 		t.Fatal(err)
 	}
 	dbfilepath := filepath.Join(tmpdir, "test.db")
-	f, err := os.Create(dbfilepath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	f.Close()
+	repository.MigrateDB("sqlite3", dbfilepath)
 
 	cfgFilePath := filepath.Join(tmpdir, "config.json")
 	if err := os.WriteFile(cfgFilePath, []byte(testconfig), 0666); err != nil {
@@ -289,10 +287,6 @@ func setup(t *testing.T) *api.RestApi {
 	}
 
 	if err := metricdata.Init(config.Keys.DisableArchive); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := db.DB.Exec(repository.JobsDBSchema); err != nil {
 		t.Fatal(err)
 	}
 

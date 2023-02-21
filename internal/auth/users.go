@@ -25,6 +25,7 @@ func (auth *Authentication) GetUser(username string) (*User, error) {
 	if err := sq.Select("password", "ldap", "name", "roles", "email", "projects").From("user").
 		Where("user.username = ?", username).RunWith(auth.db).
 		QueryRow().Scan(&hashedPassword, &user.AuthSource, &name, &rawRoles, &email, &rawProjects); err != nil {
+		log.Warnf("Error while querying user '%v' from database", username)
 		return nil, err
 	}
 
@@ -33,6 +34,7 @@ func (auth *Authentication) GetUser(username string) (*User, error) {
 	user.Email = email.String
 	if rawRoles.Valid {
 		if err := json.Unmarshal([]byte(rawRoles.String), &user.Roles); err != nil {
+			log.Warn("Error while unmarshaling raw roles from DB")
 			return nil, err
 		}
 	}
@@ -64,6 +66,7 @@ func (auth *Authentication) AddUser(user *User) error {
 	if user.Password != "" {
 		password, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 		if err != nil {
+			log.Error("Error while encrypting new user password")
 			return err
 		}
 		cols = append(cols, "password")
@@ -71,6 +74,7 @@ func (auth *Authentication) AddUser(user *User) error {
 	}
 
 	if _, err := sq.Insert("user").Columns(cols...).Values(vals...).RunWith(auth.db).Exec(); err != nil {
+		log.Errorf("Error while inserting new user '%v' into DB", user.Username)
 		return err
 	}
 
@@ -81,6 +85,7 @@ func (auth *Authentication) AddUser(user *User) error {
 func (auth *Authentication) DelUser(username string) error {
 
 	_, err := auth.db.Exec(`DELETE FROM user WHERE user.username = ?`, username)
+	log.Errorf("Error while deleting user '%s' from DB", username)
 	return err
 }
 
@@ -93,6 +98,7 @@ func (auth *Authentication) ListUsers(specialsOnly bool) ([]*User, error) {
 
 	rows, err := q.RunWith(auth.db).Query()
 	if err != nil {
+		log.Warn("Error while querying user list")
 		return nil, err
 	}
 
@@ -104,10 +110,12 @@ func (auth *Authentication) ListUsers(specialsOnly bool) ([]*User, error) {
 		user := &User{}
 		var name, email sql.NullString
 		if err := rows.Scan(&user.Username, &name, &email, &rawroles, &rawprojects); err != nil {
+			log.Warn("Error while scanning user list")
 			return nil, err
 		}
 
 		if err := json.Unmarshal([]byte(rawroles), &user.Roles); err != nil {
+			log.Warn("Error while unmarshaling raw role list")
 			return nil, err
 		}
 
@@ -129,11 +137,12 @@ func (auth *Authentication) AddRole(
 
 	user, err := auth.GetUser(username)
 	if err != nil {
+		log.Warnf("Could not load user '%s'", username)
 		return err
 	}
 
 	if !IsValidRole(role) {
-		return fmt.Errorf("invalid user role: %#v", role)
+		return fmt.Errorf("Invalid user role: %v", role)
 	}
 
 	if user.HasRole(role) {
@@ -142,6 +151,7 @@ func (auth *Authentication) AddRole(
 
 	roles, _ := json.Marshal(append(user.Roles, role))
 	if _, err := sq.Update("user").Set("roles", roles).Where("user.username = ?", username).RunWith(auth.db).Exec(); err != nil {
+		log.Errorf("Error while adding new role for user '%s'", user.Username)
 		return err
 	}
 	return nil
@@ -150,11 +160,12 @@ func (auth *Authentication) AddRole(
 func (auth *Authentication) RemoveRole(ctx context.Context, username string, role string) error {
 	user, err := auth.GetUser(username)
 	if err != nil {
+		log.Warnf("Could not load user '%s'", username)
 		return err
 	}
 
 	if !IsValidRole(role) {
-		return fmt.Errorf("invalid user role: %#v", role)
+		return fmt.Errorf("Invalid user role: %#v", role)
 	}
 
 	if role == RoleManager && len(user.Projects) != 0 {
@@ -174,11 +185,12 @@ func (auth *Authentication) RemoveRole(ctx context.Context, username string, rol
 	if exists == true {
 		var mroles, _ = json.Marshal(newroles)
 		if _, err := sq.Update("user").Set("roles", mroles).Where("user.username = ?", username).RunWith(auth.db).Exec(); err != nil {
+			log.Errorf("Error while removing role for user '%s'", user.Username)
 			return err
 		}
 		return nil
 	} else {
-		return fmt.Errorf("user %#v already does not have role %#v", username, role)
+		return fmt.Errorf("User '%v' already does not have role: %v", username, role)
 	}
 }
 
@@ -259,9 +271,13 @@ func FetchUser(ctx context.Context, db *sqlx.DB, username string) (*model.User, 
 	if err := sq.Select("name", "email").From("user").Where("user.username = ?", username).
 		RunWith(db).QueryRow().Scan(&name, &email); err != nil {
 		if err == sql.ErrNoRows {
+			/* This warning will be logged *often* for non-local users, i.e. users mentioned only in job-table or archive, */
+			/* since FetchUser will be called to retrieve full name and mail for every job in query/list									 */
+			// log.Warnf("User '%s' Not found in DB", username)
 			return nil, nil
 		}
 
+		log.Warnf("Error while fetching user '%s'", username)
 		return nil, err
 	}
 

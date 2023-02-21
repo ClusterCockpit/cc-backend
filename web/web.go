@@ -24,6 +24,7 @@ var frontendFiles embed.FS
 func ServeFiles() http.Handler {
 	publicFiles, err := fs.Sub(frontendFiles, "frontend/public")
 	if err != nil {
+		log.Fatalf("WEB/WEB > cannot find frontend public files")
 		panic(err)
 	}
 	return http.FileServer(http.FS(publicFiles))
@@ -47,6 +48,7 @@ func init() {
 		templates[strings.TrimPrefix(path, "templates/")] = template.Must(template.Must(base.Clone()).ParseFS(templateFiles, path))
 		return nil
 	}); err != nil {
+		log.Fatalf("WEB/WEB > cannot find frontend template files")
 		panic(err)
 	}
 
@@ -79,6 +81,7 @@ type Page struct {
 func RenderTemplate(rw http.ResponseWriter, r *http.Request, file string, page *Page) {
 	t, ok := templates[file]
 	if !ok {
+		log.Fatalf("WEB/WEB > template '%s' not found", file)
 		panic("template not found")
 	}
 
@@ -88,8 +91,8 @@ func RenderTemplate(rw http.ResponseWriter, r *http.Request, file string, page *
 		}
 	}
 
-	log.Infof("%v\n", page.Config)
+	log.Infof("Page config : %v\n", page.Config)
 	if err := t.Execute(rw, page); err != nil {
-		log.Errorf("template error: %s", err.Error())
+		log.Errorf("Template error: %s", err.Error())
 	}
 }
