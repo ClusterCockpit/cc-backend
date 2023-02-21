@@ -269,11 +269,7 @@ func setup(t *testing.T) *api.RestApi {
 		t.Fatal(err)
 	}
 	dbfilepath := filepath.Join(tmpdir, "test.db")
-	f, err := os.Create(dbfilepath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	f.Close()
+	repository.MigrateDB(dbfilepath)
 
 	cfgFilePath := filepath.Join(tmpdir, "config.json")
 	if err := os.WriteFile(cfgFilePath, []byte(testconfig), 0666); err != nil {
@@ -291,10 +287,6 @@ func setup(t *testing.T) *api.RestApi {
 	}
 
 	if err := metricdata.Init(config.Keys.DisableArchive); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := db.DB.Exec(repository.JobsDBSchema); err != nil {
 		t.Fatal(err)
 	}
 

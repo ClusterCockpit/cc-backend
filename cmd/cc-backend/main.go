@@ -61,7 +61,7 @@ var (
 )
 
 func main() {
-	var flagReinitDB, flagServer, flagSyncLDAP, flagGops, flagDev, flagVersion, flagLogDateTime bool
+	var flagReinitDB, flagServer, flagSyncLDAP, flagGops, flagMigrateDB, flagDev, flagVersion, flagLogDateTime bool
 	var flagNewUser, flagDelUser, flagGenJWT, flagConfigFile, flagImportJob, flagLogLevel string
 	flag.BoolVar(&flagReinitDB, "init-db", false, "Go through job-archive and re-initialize the 'job', 'tag', and 'jobtag' tables (all running jobs will be lost!)")
 	flag.BoolVar(&flagSyncLDAP, "sync-ldap", false, "Sync the 'user' table with ldap")
@@ -69,6 +69,7 @@ func main() {
 	flag.BoolVar(&flagGops, "gops", false, "Listen via github.com/google/gops/agent (for debugging)")
 	flag.BoolVar(&flagDev, "dev", false, "Enable development components: GraphQL Playground and Swagger UI")
 	flag.BoolVar(&flagVersion, "version", false, "Show version information and exit")
+	flag.BoolVar(&flagMigrateDB, "migrate-db", false, "Migrate database to supported version and exit")
 	flag.BoolVar(&flagLogDateTime, "logdate", false, "Set this flag to add date and time to log messages")
 	flag.StringVar(&flagConfigFile, "config", "./config.json", "Specify alternative path to `config.json`")
 	flag.StringVar(&flagNewUser, "add-user", "", "Add a new user. Argument format: `<username>:[admin,support,api,user]:<password>`")
@@ -110,6 +111,11 @@ func main() {
 	if strings.HasPrefix(config.Keys.DB, "env:") {
 		envvar := strings.TrimPrefix(config.Keys.DB, "env:")
 		config.Keys.DB = os.Getenv(envvar)
+	}
+
+	if flagMigrateDB {
+		repository.MigrateDB(config.Keys.DB)
+		os.Exit(0)
 	}
 
 	repository.Connect(config.Keys.DBDriver, config.Keys.DB)
