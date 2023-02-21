@@ -895,7 +895,7 @@ func (r *JobRepository) JobsStatistics(ctx context.Context,
 		}
 
 		if col == "job.user" {
-			for id, _ := range stats {
+			for id := range stats {
 				emptyDash := "-"
 				name, _ := r.FindNameByUser(ctx, id)
 				if name != "" {

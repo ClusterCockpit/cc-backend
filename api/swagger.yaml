@@ -59,7 +59,9 @@ definitions:
         example: 123000
         type: integer
       jobState:
-        description: Final state of job
+        allOf:
+        - $ref: '#/definitions/schema.JobState'
+        description: Final job state
         enum:
         - completed
         - failed
@@ -67,7 +69,6 @@ definitions:
         - stopped
         - timeout
         example: completed
-        type: string
       startTime:
         description: Start Time of job as epoch
         example: 1649723812
@@ -112,6 +113,8 @@ definitions:
         example: 123000
         type: integer
       jobState:
+        allOf:
+        - $ref: '#/definitions/schema.JobState'
         description: Final state of job
         enum:
         - completed
@@ -121,7 +124,6 @@ definitions:
         - timeout
         - out_of_memory
         example: completed
-        type: string
       metaData:
         additionalProperties:
           type: string
@@ -220,6 +222,8 @@ definitions:
         example: 123000
         type: integer
       jobState:
+        allOf:
+        - $ref: '#/definitions/schema.JobState'
         description: Final state of job
         enum:
         - completed
@@ -229,7 +233,6 @@ definitions:
         - timeout
         - out_of_memory
         example: completed
-        type: string
       metaData:
         additionalProperties:
           type: string
@@ -303,6 +306,26 @@ definitions:
         minimum: 1
         type: integer
     type: object
+  schema.JobState:
+    enum:
+    - running
+    - completed
+    - failed
+    - cancelled
+    - stopped
+    - timeout
+    - preempted
+    - out_of_memory
+    type: string
+    x-enum-varnames:
+    - JobStateRunning
+    - JobStateCompleted
+    - JobStateFailed
+    - JobStateCancelled
+    - JobStateStopped
+    - JobStateTimeout
+    - JobStatePreempted
+    - JobStateOutOfMemory
   schema.JobStatistics:
     description: Specification for job metric statistics.
     properties:

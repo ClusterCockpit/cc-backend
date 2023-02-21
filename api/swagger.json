@@ -708,14 +708,18 @@
                     "example": 123000
                 },
                 "jobState": {
-                    "description": "Final state of job",
-                    "type": "string",
+                    "description": "Final job state",
                     "enum": [
                         "completed",
                         "failed",
                         "cancelled",
                         "stopped",
                         "timeout"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/schema.JobState"
+                        }
                     ],
                     "example": "completed"
                 },
@@ -769,7 +773,6 @@
                 },
                 "jobState": {
                     "description": "Final state of job",
-                    "type": "string",
                     "enum": [
                         "completed",
                         "failed",
@@ -777,6 +780,11 @@
                         "stopped",
                         "timeout",
                         "out_of_memory"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/schema.JobState"
+                        }
                     ],
                     "example": "completed"
                 },
@@ -901,7 +909,6 @@
                 },
                 "jobState": {
                     "description": "Final state of job",
-                    "type": "string",
                     "enum": [
                         "completed",
                         "failed",
@@ -909,6 +916,11 @@
                         "stopped",
                         "timeout",
                         "out_of_memory"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/schema.JobState"
+                        }
                     ],
                     "example": "completed"
                 },
@@ -1003,6 +1015,29 @@
                     "example": 86400
                 }
             }
+        },
+        "schema.JobState": {
+            "type": "string",
+            "enum": [
+                "running",
+                "completed",
+                "failed",
+                "cancelled",
+                "stopped",
+                "timeout",
+                "preempted",
+                "out_of_memory"
+            ],
+            "x-enum-varnames": [
+                "JobStateRunning",
+                "JobStateCompleted",
+                "JobStateFailed",
+                "JobStateCancelled",
+                "JobStateStopped",
+                "JobStateTimeout",
+                "JobStatePreempted",
+                "JobStateOutOfMemory"
+            ]
         },
         "schema.JobStatistics": {
             "description": "Specification for job metric statistics.",
