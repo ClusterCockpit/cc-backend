@@ -126,8 +126,13 @@
             opts.push(`numNodes=${filters.numNodes.from}-${filters.numNodes.to}`)
         if (filters.numAccelerators.from && filters.numAccelerators.to)
             opts.push(`numAccelerators=${filters.numAccelerators.from}-${filters.numAccelerators.to}`)
-        if (filters.user)
-            opts.push(`user=${filters.user}`)
+        if (filters.user.length != 0)
+            if (filters.userMatch != 'in') {
+                opts.push(`user=${filters.user}`)
+            } else {
+                for (let singleUser of filters.user)
+                    opts.push(`user=${singleUser}`)
+            }
         if (filters.userMatch != 'contains')
             opts.push(`userMatch=${filters.userMatch}`)
         if (filters.project)

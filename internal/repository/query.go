@@ -206,6 +206,13 @@ func buildStringCondition(field string, cond *model.StringInput, query sq.Select
 	if cond.Contains != nil {
 		return query.Where(field+" LIKE ?", fmt.Sprint("%", *cond.Contains, "%"))
 	}
+	if cond.In != nil {
+		queryUsers := make([]string, len(cond.In))
+		for i, val := range cond.In {
+			queryUsers[i] = val
+		}
+		return query.Where(sq.Or{sq.Eq{"job.user": queryUsers}})
+	}
 	return query
 }
 

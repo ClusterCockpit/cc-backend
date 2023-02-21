@@ -72,6 +72,7 @@ type JobResultList struct {
 
 type JobsStatistics struct {
 	ID             string        `json:"id"`
+	Name           *string       `json:"name"`
 	TotalJobs      int           `json:"totalJobs"`
 	ShortJobs      int           `json:"shortJobs"`
 	TotalWalltime  int           `json:"totalWalltime"`
@@ -102,10 +103,11 @@ type PageRequest struct {
 }
 
 type StringInput struct {
-	Eq         *string `json:"eq"`
-	Contains   *string `json:"contains"`
-	StartsWith *string `json:"startsWith"`
-	EndsWith   *string `json:"endsWith"`
+	Eq         *string  `json:"eq"`
+	Contains   *string  `json:"contains"`
+	StartsWith *string  `json:"startsWith"`
+	EndsWith   *string  `json:"endsWith"`
+	In         []string `json:"in"`
 }
 
 type TimeRangeOutput struct {

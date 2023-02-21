@@ -131,6 +131,7 @@ type ComplexityRoot struct {
 		HistDuration   func(childComplexity int) int
 		HistNumNodes   func(childComplexity int) int
 		ID             func(childComplexity int) int
+		Name           func(childComplexity int) int
 		ShortJobs      func(childComplexity int) int
 		TotalCoreHours func(childComplexity int) int
 		TotalJobs      func(childComplexity int) int
@@ -670,6 +671,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.JobsStatistics.ID(childComplexity), true
+
+	case "JobsStatistics.name":
+		if e.complexity.JobsStatistics.Name == nil {
+			break
+		}
+
+		return e.complexity.JobsStatistics.Name(childComplexity), true
 
 	case "JobsStatistics.shortJobs":
 		if e.complexity.JobsStatistics.ShortJobs == nil {
@@ -1619,6 +1627,7 @@ input StringInput {
   contains:   String
   startsWith: String
   endsWith:   String
+  in:         [String!]
 }
 
 input IntRange   { from: Int!,   to: Int! }
@@ -1639,6 +1648,7 @@ type HistoPoint {
 
 type JobsStatistics  {
   id:             ID!            # If ` + "`" + `groupBy` + "`" + ` was used, ID of the user/project/cluster
+  name:           String         # if User-Statistics: Given Name of Account (ID) Owner
   totalJobs:      Int!           # Number of jobs that matched
   shortJobs:      Int!           # Number of jobs with a duration of less than 2 minutes
   totalWalltime:  Int!           # Sum of the duration of all matched jobs in hours
@@ -4485,6 +4495,47 @@ func (ec *executionContext) fieldContext_JobsStatistics_id(ctx context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _JobsStatistics_name(ctx context.Context, field graphql.CollectedField, obj *model.JobsStatistics) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JobsStatistics_name(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JobsStatistics_name(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JobsStatistics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _JobsStatistics_totalJobs(ctx context.Context, field graphql.CollectedField, obj *model.JobsStatistics) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_JobsStatistics_totalJobs(ctx, field)
 	if err != nil {
@@ -6401,6 +6452,8 @@ func (ec *executionContext) fieldContext_Query_jobsStatistics(ctx context.Contex
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_JobsStatistics_id(ctx, field)
+			case "name":
+				return ec.fieldContext_JobsStatistics_name(ctx, field)
 			case "totalJobs":
 				return ec.fieldContext_JobsStatistics_totalJobs(ctx, field)
 			case "shortJobs":
@@ -10640,7 +10693,7 @@ func (ec *executionContext) unmarshalInputStringInput(ctx context.Context, obj i
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"eq", "contains", "startsWith", "endsWith"}
+	fieldsInOrder := [...]string{"eq", "contains", "startsWith", "endsWith", "in"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -10676,6 +10729,14 @@ func (ec *executionContext) unmarshalInputStringInput(ctx context.Context, obj i
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("endsWith"))
 			it.EndsWith, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "in":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("in"))
+			it.In, err = ec.unmarshalOString2ᚕstringᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -11340,6 +11401,10 @@ func (ec *executionContext) _JobsStatistics(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
+		case "name":
+
+			out.Values[i] = ec._JobsStatistics_name(ctx, field, obj)
+
 		case "totalJobs":
 
 			out.Values[i] = ec._JobsStatistics_totalJobs(ctx, field, obj)
