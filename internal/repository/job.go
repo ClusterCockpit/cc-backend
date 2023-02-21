@@ -913,6 +913,18 @@ func (r *JobRepository) JobsStatistics(ctx context.Context,
 				stats[id.String].ShortJobs = int(shortJobs.Int64)
 			}
 		}
+
+		if col == "job.user" {
+			for id, _ := range stats {
+				emptyDash := "-"
+				name, _ := r.FindNameByUser(ctx, id)
+				if name != "" {
+					stats[id].Name = &name
+				} else {
+					stats[id].Name = &emptyDash
+				}
+			}
+		}
 	}
 
 	// Calculating the histogram data is expensive, so only do it if needed.
