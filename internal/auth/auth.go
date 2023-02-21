@@ -85,18 +85,6 @@ func Init(db *sqlx.DB,
 	configs map[string]interface{}) (*Authentication, error) {
 	auth := &Authentication{}
 	auth.db = db
-	_, err := db.Exec(`
-	CREATE TABLE IF NOT EXISTS user (
-		username varchar(255) PRIMARY KEY NOT NULL,
-		password varchar(255) DEFAULT NULL,
-		ldap     tinyint      NOT NULL DEFAULT 0, /* col called "ldap" for historic reasons, fills the "AuthSource" */
-		name     varchar(255) DEFAULT NULL,
-		roles    varchar(255) NOT NULL DEFAULT "[]",
-		email    varchar(255) DEFAULT NULL);`)
-	if err != nil {
-		log.Error("Error while initializing authentication -> create user table failed")
-		return nil, err
-	}
 
 	sessKey := os.Getenv("SESSION_KEY")
 	if sessKey == "" {

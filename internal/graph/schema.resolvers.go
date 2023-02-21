@@ -238,7 +238,7 @@ func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, pag
 
 // JobsStatistics is the resolver for the jobsStatistics field.
 func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobFilter, groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
-	return r.jobsStatistics(ctx, filter, groupBy)
+	return r.Repo.JobsStatistics(ctx, filter, groupBy)
 }
 
 // JobsCount is the resolver for the jobsCount field.

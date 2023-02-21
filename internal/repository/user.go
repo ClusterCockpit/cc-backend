@@ -33,18 +33,6 @@ func GetUserCfgRepo() *UserCfgRepo {
 	userCfgRepoOnce.Do(func() {
 		db := GetConnection()
 
-		_, err := db.DB.Exec(`
-		CREATE TABLE IF NOT EXISTS configuration (
-			username varchar(255),
-			confkey  varchar(255),
-			value    varchar(255),
-			PRIMARY KEY (username, confkey),
-			FOREIGN KEY (username) REFERENCES user (username) ON DELETE CASCADE ON UPDATE NO ACTION);`)
-
-		if err != nil {
-			log.Fatalf("db.DB.exec() error: %v", err)
-		}
-
 		lookupConfigStmt, err := db.DB.Preparex(`SELECT confkey, value FROM configuration WHERE configuration.username = ?`)
 		if err != nil {
 			log.Fatalf("db.DB.Preparex() error: %v", err)

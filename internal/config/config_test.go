@@ -19,7 +19,7 @@ func TestInit(t *testing.T) {
 func TestInitMinimal(t *testing.T) {
 	fp := "../../docs/config.json"
 	Init(fp)
-	if Keys.Addr != "0.0.0.0:8080" {
-		t.Errorf("wrong addr\ngot: %s \nwant: 0.0.0.0:8080", Keys.Addr)
+	if Keys.Addr != "127.0.0.1:8080" {
+		t.Errorf("wrong addr\ngot: %s \nwant: 127.0.0.1:8080", Keys.Addr)
 	}
 }

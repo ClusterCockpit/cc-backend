@@ -44,7 +44,7 @@ func (la *LdapAuthenticator) Init(
 		}
 
 		if interval == 0 {
-			log.Note("Sync interval is zero")
+			log.Info("Sync interval is zero")
 			return nil
 		}
 

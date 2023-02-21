@@ -19,7 +19,6 @@ import (
 
 var (
 	DebugWriter io.Writer = os.Stderr
-	NoteWriter  io.Writer = os.Stderr
 	InfoWriter  io.Writer = os.Stderr
 	WarnWriter  io.Writer = os.Stderr
 	ErrWriter   io.Writer = os.Stderr
@@ -29,19 +28,17 @@ var (
 var (
 	DebugPrefix string = "<7>[DEBUG]    "
 	InfoPrefix  string = "<6>[INFO]     "
-	NotePrefix  string = "<5>[NOTICE]   "
 	WarnPrefix  string = "<4>[WARNING]  "
 	ErrPrefix   string = "<3>[ERROR]    "
 	CritPrefix  string = "<2>[CRITICAL] "
 )
 
 var (
-	DebugLog *log.Logger = log.New(DebugWriter, DebugPrefix, 0)
-	InfoLog  *log.Logger = log.New(InfoWriter, InfoPrefix, 0)
-	NoteLog  *log.Logger = log.New(NoteWriter, NotePrefix, log.Lshortfile)
-	WarnLog  *log.Logger = log.New(WarnWriter, WarnPrefix, log.Lshortfile)
-	ErrLog   *log.Logger = log.New(ErrWriter, ErrPrefix, log.Llongfile)
-	CritLog  *log.Logger = log.New(CritWriter, CritPrefix, log.Llongfile)
+	DebugLog *log.Logger
+	InfoLog  *log.Logger
+	WarnLog  *log.Logger
+	ErrLog   *log.Logger
+	CritLog  *log.Logger
 )
 
 /* CONFIG */
@@ -57,9 +54,6 @@ func Init(lvl string, logdate bool) {
 	case "warn":
 		InfoWriter = io.Discard
 		fallthrough
-	case "notice":
-		NoteWriter = io.Discard
-		fallthrough
 	case "info":
 		DebugWriter = io.Discard
 	case "debug":
@@ -72,15 +66,13 @@ func Init(lvl string, logdate bool) {
 
 	if !logdate {
 		DebugLog = log.New(DebugWriter, DebugPrefix, 0)
-		InfoLog = log.New(InfoWriter, InfoPrefix, 0)
-		NoteLog = log.New(NoteWriter, NotePrefix, log.Lshortfile)
+		InfoLog = log.New(InfoWriter, InfoPrefix, log.Lshortfile)
 		WarnLog = log.New(WarnWriter, WarnPrefix, log.Lshortfile)
 		ErrLog = log.New(ErrWriter, ErrPrefix, log.Llongfile)
 		CritLog = log.New(CritWriter, CritPrefix, log.Llongfile)
 	} else {
 		DebugLog = log.New(DebugWriter, DebugPrefix, log.LstdFlags)
-		InfoLog = log.New(InfoWriter, InfoPrefix, log.LstdFlags)
-		NoteLog = log.New(NoteWriter, NotePrefix, log.LstdFlags|log.Lshortfile)
+		InfoLog = log.New(InfoWriter, InfoPrefix, log.LstdFlags|log.Lshortfile)
 		WarnLog = log.New(WarnWriter, WarnPrefix, log.LstdFlags|log.Lshortfile)
 		ErrLog = log.New(ErrWriter, ErrPrefix, log.LstdFlags|log.Llongfile)
 		CritLog = log.New(CritWriter, CritPrefix, log.LstdFlags|log.Llongfile)
@@ -106,10 +98,6 @@ func Debug(v ...interface{}) {
 
 func Info(v ...interface{}) {
 	InfoLog.Output(2, printStr(v...))
-}
-
-func Note(v ...interface{}) {
-	NoteLog.Output(2, printStr(v...))
 }
 
 func Warn(v ...interface{}) {
@@ -155,10 +143,6 @@ func Debugf(format string, v ...interface{}) {
 
 func Infof(format string, v ...interface{}) {
 	InfoLog.Output(2, printfStr(format, v...))
-}
-
-func Notef(format string, v ...interface{}) {
-	NoteLog.Output(2, printfStr(format, v...))
 }
 
 func Warnf(format string, v ...interface{}) {

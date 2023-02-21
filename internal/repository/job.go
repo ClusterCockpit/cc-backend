@@ -14,9 +14,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -30,7 +32,8 @@ var (
 )
 
 type JobRepository struct {
-	DB *sqlx.DB
+	DB     *sqlx.DB
+	driver string
 
 	stmtCache *sq.StmtCache
 	cache     *lrucache.Cache
@@ -45,6 +48,8 @@ func GetJobRepository() *JobRepository {
 
 		jobRepoInstance = &JobRepository{
 			DB:             db.DB,
+			driver:         db.Driver,
+
 			stmtCache:      sq.NewStmtCache(db.DB),
 			cache:          lrucache.New(1024 * 1024),
 			archiveChannel: make(chan *schema.Job, 128),
@@ -91,6 +96,7 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 }
 
 func (r *JobRepository) FetchJobName(job *schema.Job) (*string, error) {
+	start := time.Now()
 	cachekey := fmt.Sprintf("metadata:%d", job.ID)
 	if cached := r.cache.Get(cachekey, nil); cached != nil {
 		job.MetaData = cached.(map[string]string)
@@ -113,6 +119,7 @@ func (r *JobRepository) FetchJobName(job *schema.Job) (*string, error) {
 	}
 
 	r.cache.Put(cachekey, job.MetaData, len(job.RawMetaData), 24*time.Hour)
+	log.Infof("Timer FetchJobName %s", time.Since(start))
 
 	if jobName := job.MetaData["jobName"]; jobName != "" {
 		return &jobName, nil
@@ -122,6 +129,7 @@ func (r *JobRepository) FetchJobName(job *schema.Job) (*string, error) {
 }
 
 func (r *JobRepository) FetchMetadata(job *schema.Job) (map[string]string, error) {
+	start := time.Now()
 	cachekey := fmt.Sprintf("metadata:%d", job.ID)
 	if cached := r.cache.Get(cachekey, nil); cached != nil {
 		job.MetaData = cached.(map[string]string)
@@ -144,6 +152,7 @@ func (r *JobRepository) FetchMetadata(job *schema.Job) (map[string]string, error
 	}
 
 	r.cache.Put(cachekey, job.MetaData, len(job.RawMetaData), 24*time.Hour)
+	log.Infof("Timer FetchMetadata %s", time.Since(start))
 	return job.MetaData, nil
 }
 
@@ -192,6 +201,7 @@ func (r *JobRepository) Find(
 	cluster *string,
 	startTime *int64) (*schema.Job, error) {
 
+	start := time.Now()
 	q := sq.Select(jobColumns...).From("job").
 		Where("job.job_id = ?", *jobId)
 
@@ -202,6 +212,7 @@ func (r *JobRepository) Find(
 		q = q.Where("job.start_time = ?", *startTime)
 	}
 
+	log.Infof("Timer Find %s", time.Since(start))
 	return scanJob(q.RunWith(r.stmtCache).QueryRow())
 }
 
@@ -215,6 +226,7 @@ func (r *JobRepository) FindAll(
 	cluster *string,
 	startTime *int64) ([]*schema.Job, error) {
 
+	start := time.Now()
 	q := sq.Select(jobColumns...).From("job").
 		Where("job.job_id = ?", *jobId)
 
@@ -240,6 +252,7 @@ func (r *JobRepository) FindAll(
 		}
 		jobs = append(jobs, job)
 	}
+	log.Infof("Timer FindAll %s", time.Since(start))
 	return jobs, nil
 }
 
@@ -322,6 +335,7 @@ func (r *JobRepository) DeleteJobById(id int64) error {
 
 // TODO: Use node hours instead: SELECT job.user, sum(job.num_nodes * (CASE WHEN job.job_state = "running" THEN CAST(strftime('%s', 'now') AS INTEGER) - job.start_time ELSE job.duration END)) as x FROM job GROUP BY user ORDER BY x DESC;
 func (r *JobRepository) CountGroupedJobs(ctx context.Context, aggreg model.Aggregate, filters []*model.JobFilter, weight *model.Weights, limit *int) (map[string]int, error) {
+	start := time.Now()
 	if !aggreg.IsValid() {
 		return nil, errors.New("invalid aggregate")
 	}
@@ -337,7 +351,7 @@ func (r *JobRepository) CountGroupedJobs(ctx context.Context, aggreg model.Aggre
 			count = fmt.Sprintf(`sum(job.num_nodes * (CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) as count`, now)
 			runner = r.DB
 		default:
-			log.Notef("CountGroupedJobs() Weight %v unknown.", *weight)
+			log.Infof("CountGroupedJobs() Weight %v unknown.", *weight)
 		}
 	}
 
@@ -368,6 +382,7 @@ func (r *JobRepository) CountGroupedJobs(ctx context.Context, aggreg model.Aggre
 		counts[group] = count
 	}
 
+	log.Infof("Timer CountGroupedJobs %s", time.Since(start))
 	return counts, nil
 }
 
@@ -405,7 +420,7 @@ func (r *JobRepository) MarkArchived(
 		case "file_bw":
 			stmt = stmt.Set("file_bw_avg", stats.Avg)
 		default:
-			log.Notef("MarkArchived() Metric '%v' unknown", metric)
+			log.Infof("MarkArchived() Metric '%v' unknown", metric)
 		}
 	}
 
@@ -643,6 +658,7 @@ func (r *JobRepository) FindNameByUser(ctx context.Context, searchterm string) (
 }
 
 func (r *JobRepository) FindProject(ctx context.Context, searchterm string) (project string, err error) {
+
 	user := auth.GetUser(ctx)
 	if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleSupport) {
 		err := sq.Select("job.project").Distinct().From("job").
@@ -654,7 +670,6 @@ func (r *JobRepository) FindProject(ctx context.Context, searchterm string) (pro
 			return project, nil
 		}
 		return "", ErrNotFound
-
 	} else {
 		log.Infof("Non-Admin User %s : Requested Query Project -> %s: Forbidden", user.Name, project)
 		return "", ErrForbidden
@@ -663,6 +678,7 @@ func (r *JobRepository) FindProject(ctx context.Context, searchterm string) (pro
 
 func (r *JobRepository) Partitions(cluster string) ([]string, error) {
 	var err error
+	start := time.Now()
 	partitions := r.cache.Get("partitions:"+cluster, func() (interface{}, time.Duration, int) {
 		parts := []string{}
 		if err = r.DB.Select(&parts, `SELECT DISTINCT job.partition FROM job WHERE job.cluster = ?;`, cluster); err != nil {
@@ -674,12 +690,15 @@ func (r *JobRepository) Partitions(cluster string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Infof("Timer Partitions %s", time.Since(start))
 	return partitions.([]string), nil
 }
 
 // AllocatedNodes returns a map of all subclusters to a map of hostnames to the amount of jobs running on that host.
 // Hosts with zero jobs running on them will not show up!
 func (r *JobRepository) AllocatedNodes(cluster string) (map[string]map[string]int, error) {
+
+	start := time.Now()
 	subclusters := make(map[string]map[string]int)
 	rows, err := sq.Select("resources", "subcluster").From("job").
 		Where("job.job_state = 'running'").
@@ -716,10 +735,13 @@ func (r *JobRepository) AllocatedNodes(cluster string) (map[string]map[string]in
 		}
 	}
 
+	log.Infof("Timer AllocatedNodes %s", time.Since(start))
 	return subclusters, nil
 }
 
 func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
+
+	start := time.Now()
 	res, err := sq.Update("job").
 		Set("monitoring_status", schema.MonitoringStatusArchivingFailed).
 		Set("duration", 0).
@@ -740,7 +762,211 @@ func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 	}
 
 	if rowsAffected > 0 {
-		log.Notef("%d jobs have been marked as failed due to running too long", rowsAffected)
+		log.Infof("%d jobs have been marked as failed due to running too long", rowsAffected)
 	}
+	log.Infof("Timer StopJobsExceedingWalltimeBy %s", time.Since(start))
 	return nil
+}
+
+// TODO: Move to config
+const ShortJobDuration int = 5 * 60
+
+// GraphQL validation should make sure that no unkown values can be specified.
+var groupBy2column = map[model.Aggregate]string{
+	model.AggregateUser:    "job.user",
+	model.AggregateProject: "job.project",
+	model.AggregateCluster: "job.cluster",
+}
+
+// Helper function for the jobsStatistics GraphQL query placed here so that schema.resolvers.go is not too full.
+func (r *JobRepository) JobsStatistics(ctx context.Context,
+	filter []*model.JobFilter,
+	groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
+
+	start := time.Now()
+	// In case `groupBy` is nil (not used), the model.JobsStatistics used is at the key '' (empty string)
+	stats := map[string]*model.JobsStatistics{}
+	var castType string
+
+	if r.driver == "sqlite3" {
+		castType = "int"
+	} else if r.driver == "mysql" {
+		castType = "unsigned"
+	}
+
+	// `socketsPerNode` and `coresPerSocket` can differ from cluster to cluster, so we need to explicitly loop over those.
+	for _, cluster := range archive.Clusters {
+		for _, subcluster := range cluster.SubClusters {
+			corehoursCol := fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_nodes * %d * %d) / 3600) as %s)", subcluster.SocketsPerNode, subcluster.CoresPerSocket, castType)
+			var query sq.SelectBuilder
+			if groupBy == nil {
+				query = sq.Select(
+					"''",
+					"COUNT(job.id)",
+					fmt.Sprintf("CAST(ROUND(SUM(job.duration) / 3600) as %s)", castType),
+					corehoursCol,
+				).From("job")
+			} else {
+				col := groupBy2column[*groupBy]
+				query = sq.Select(
+					col,
+					"COUNT(job.id)",
+					fmt.Sprintf("CAST(ROUND(SUM(job.duration) / 3600) as %s)", castType),
+					corehoursCol,
+				).From("job").GroupBy(col)
+			}
+
+			query = query.
+				Where("job.cluster = ?", cluster.Name).
+				Where("job.subcluster = ?", subcluster.Name)
+
+			query = SecurityCheck(ctx, query)
+			for _, f := range filter {
+				query = BuildWhereClause(f, query)
+			}
+
+			rows, err := query.RunWith(r.DB).Query()
+			if err != nil {
+				log.Warn("Error while querying DB for job statistics")
+				return nil, err
+			}
+
+			for rows.Next() {
+				var id sql.NullString
+				var jobs, walltime, corehours sql.NullInt64
+				if err := rows.Scan(&id, &jobs, &walltime, &corehours); err != nil {
+					log.Warn("Error while scanning rows")
+					return nil, err
+				}
+
+				if id.Valid {
+					if s, ok := stats[id.String]; ok {
+						s.TotalJobs += int(jobs.Int64)
+						s.TotalWalltime += int(walltime.Int64)
+						s.TotalCoreHours += int(corehours.Int64)
+					} else {
+						stats[id.String] = &model.JobsStatistics{
+							ID:             id.String,
+							TotalJobs:      int(jobs.Int64),
+							TotalWalltime:  int(walltime.Int64),
+							TotalCoreHours: int(corehours.Int64),
+						}
+					}
+				}
+			}
+
+		}
+	}
+
+	if groupBy == nil {
+		query := sq.Select("COUNT(job.id)").From("job").Where("job.duration < ?", ShortJobDuration)
+		query = SecurityCheck(ctx, query)
+		for _, f := range filter {
+			query = BuildWhereClause(f, query)
+		}
+		if err := query.RunWith(r.DB).QueryRow().Scan(&(stats[""].ShortJobs)); err != nil {
+			log.Warn("Error while scanning rows for short job stats")
+			return nil, err
+		}
+	} else {
+		col := groupBy2column[*groupBy]
+		query := sq.Select(col, "COUNT(job.id)").From("job").Where("job.duration < ?", ShortJobDuration)
+		query = SecurityCheck(ctx, query)
+		for _, f := range filter {
+			query = BuildWhereClause(f, query)
+		}
+		rows, err := query.RunWith(r.DB).Query()
+		if err != nil {
+			log.Warn("Error while querying jobs for short jobs")
+			return nil, err
+		}
+
+		for rows.Next() {
+			var id sql.NullString
+			var shortJobs sql.NullInt64
+			if err := rows.Scan(&id, &shortJobs); err != nil {
+				log.Warn("Error while scanning rows for short jobs")
+				return nil, err
+			}
+
+			if id.Valid {
+				stats[id.String].ShortJobs = int(shortJobs.Int64)
+			}
+		}
+	}
+
+	// Calculating the histogram data is expensive, so only do it if needed.
+	// An explicit resolver can not be used because we need to know the filters.
+	histogramsNeeded := false
+	fields := graphql.CollectFieldsCtx(ctx, nil)
+	for _, col := range fields {
+		if col.Name == "histDuration" || col.Name == "histNumNodes" {
+			histogramsNeeded = true
+		}
+	}
+
+	res := make([]*model.JobsStatistics, 0, len(stats))
+	for _, stat := range stats {
+		res = append(res, stat)
+		id, col := "", ""
+		if groupBy != nil {
+			id = stat.ID
+			col = groupBy2column[*groupBy]
+		}
+
+		if histogramsNeeded {
+			var err error
+			value := fmt.Sprintf(`CAST(ROUND((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) / 3600) as %s) as value`, time.Now().Unix(), castType)
+			stat.HistDuration, err = r.jobsStatisticsHistogram(ctx, value, filter, id, col)
+			if err != nil {
+				log.Warn("Error while loading job statistics histogram: running jobs")
+				return nil, err
+			}
+
+			stat.HistNumNodes, err = r.jobsStatisticsHistogram(ctx, "job.num_nodes as value", filter, id, col)
+			if err != nil {
+				log.Warn("Error while loading job statistics histogram: num nodes")
+				return nil, err
+			}
+		}
+	}
+
+	log.Infof("Timer JobStatistics %s", time.Since(start))
+	return res, nil
+}
+
+// `value` must be the column grouped by, but renamed to "value". `id` and `col` can optionally be used
+// to add a condition to the query of the kind "<col> = <id>".
+func (r *JobRepository) jobsStatisticsHistogram(ctx context.Context,
+	value string, filters []*model.JobFilter, id, col string) ([]*model.HistoPoint, error) {
+
+	start := time.Now()
+	query := sq.Select(value, "COUNT(job.id) AS count").From("job")
+	query = SecurityCheck(ctx, query)
+	for _, f := range filters {
+		query = BuildWhereClause(f, query)
+	}
+
+	if len(id) != 0 && len(col) != 0 {
+		query = query.Where(col+" = ?", id)
+	}
+
+	rows, err := query.GroupBy("value").RunWith(r.DB).Query()
+	if err != nil {
+		log.Error("Error while running query")
+		return nil, err
+	}
+
+	points := make([]*model.HistoPoint, 0)
+	for rows.Next() {
+		point := model.HistoPoint{}
+		if err := rows.Scan(&point.Value, &point.Count); err != nil {
+			log.Warn("Error while scanning rows")
+			return nil, err
+		}
+
+		points = append(points, &point)
+	}
+	log.Infof("Timer jobsStatisticsHistogram %s", time.Since(start))
+	return points, nil
 }
