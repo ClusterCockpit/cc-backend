@@ -49,6 +49,11 @@ func checkDBVersion(db *sql.DB) {
 		log.Warnf("Unsupported database version %d, need %d.\nPlease backup your database file and run cc-backend --migrate-db", v, supportedVersion)
 		os.Exit(0)
 	}
+
+	if v > supportedVersion {
+		log.Warnf("Unsupported database version %d, need %d.\nPlease refer to documentation how to downgrade db with external migrate tool!", v, supportedVersion)
+		os.Exit(0)
+	}
 }
 
 func MigrateDB(db string) {

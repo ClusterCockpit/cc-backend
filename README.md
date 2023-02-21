@@ -98,6 +98,15 @@ A config file in the JSON format has to be provided using `--config` to override
 By default, if there is a `config.json` file in the current directory of the `cc-backend` process, it will be loaded even without the `--config` flag.
 You find documentation of all supported configuration and command line options [here](./configs.README.md).
 
+## Database initialization and migration
+
+Every cc-backend version supports a specific database version.
+On startup the version of the sqlite database is validated and cc-backend will terminate if the version does not match.
+cc-backend supports to migrate the database schema up to the required version using the `--migrate-db` command line option.
+In case the database file does not yet exist it is created and initialized by the `--migrate-db` command line option.
+In case you want to use a newer database version with an olden version of cc-backend you can downgrade a database using the external [migrate](https://github.com/golang-migrate/migrate) tool.
+In this case you have to provide the path to the migration files in a recent source tree: `./internal/repository/migrations/`.
+
 ## Development
 In case the REST or GraphQL API is changed the according code generators have to be used.
 
