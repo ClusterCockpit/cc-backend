@@ -47,8 +47,8 @@ func GetJobRepository() *JobRepository {
 		db := GetConnection()
 
 		jobRepoInstance = &JobRepository{
-			DB:             db.DB,
-			driver:         db.Driver,
+			DB:     db.DB,
+			driver: db.Driver,
 
 			stmtCache:      sq.NewStmtCache(db.DB),
 			cache:          lrucache.New(1024 * 1024),
@@ -891,6 +891,18 @@ func (r *JobRepository) JobsStatistics(ctx context.Context,
 
 			if id.Valid {
 				stats[id.String].ShortJobs = int(shortJobs.Int64)
+			}
+		}
+
+		if col == "job.user" {
+			for id, _ := range stats {
+				emptyDash := "-"
+				name, _ := r.FindNameByUser(ctx, id)
+				if name != "" {
+					stats[id].Name = &name
+				} else {
+					stats[id].Name = &emptyDash
+				}
 			}
 		}
 	}
