@@ -28,6 +28,17 @@ You find more detailed information here:
 * `./tools/README.md`: Infos on the JWT authorizatin token workflows in ClusterCockpit.
 * `./docs`: You can find further documentation here. There is also a Hands-on tutorial that is recommended to get familiar with the ClusterCockpit setup.
 
+**NOTICE**
+
+ClusterCockpit requires a recent version of the golang toolchain.
+You can check in `go.mod` what is the current minimal golang version required.
+Homebrew and Archlinux usually have up to date golang versions. For other Linux
+distros this often means you have to install the golang compiler yourself.
+Fprtunatly this is easy with golang. Since a lot of functionality is based on
+the go standard library it is crucial for security and performance to use a
+recent golang version. Also an old golang tool chain may restrict the supported
+versions of third party packages.
+
 ## Demo Setup
 
 We provide a shell skript that downloads demo data and automatically builds and starts cc-backend.
@@ -43,17 +54,6 @@ Credentials for login: `demo:AdminDev`.
 Please note that some views do not work without a metric backend (e.g., the Systems and Status view).
 
 ## Howto Build and Run
-
-**NOTICE**
-
-ClusterCockpit requires a recent version of the golang toolchain.
-You can check in `go.mod` what is the current minimal golang version required.
-Homebrew and Archlinux usually have up to date golang versions. For other Linux
-distros this often means you have to install the golang compiler yourself.
-Fprtunatly this is easy with golang. Since a lot of functionality is based on
-the go standard library it is crucial for security and performance to use a
-recent golang version. Also an old golang tool chain may restrict the supported
-versions of third party packages.
 
 There is a Makefile to automate the build of cc-backend. The Makefile supports the following targets:
 * `$ make`: Initialize `var` directory and build svelte frontend and backend binary. Please note that there is no proper prerequesite handling. Any change of frontend source files will trigger a complete rebuild.
