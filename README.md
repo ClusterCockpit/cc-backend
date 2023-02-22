@@ -44,6 +44,17 @@ Please note that some views do not work without a metric backend (e.g., the Syst
 
 ## Howto Build and Run
 
+**NOTICE**
+
+ClusterCockpit requires a recent version of the golang toolchain.
+You can check in `go.mod` what is the current minimal golang version required.
+Homebrew and Archlinux usually have up to date golang versions. For other Linux
+distros this often means you have to install the golang compiler yourself.
+Fprtunatly this is easy with golang. Since a lot of functionality is based on
+the go standard library it is crucial for security and performance to use a
+recent golang version. Also an old golang tool chain may restrict the supported
+versions of third party packages.
+
 There is a Makefile to automate the build of cc-backend. The Makefile supports the following targets:
 * `$ make`: Initialize `var` directory and build svelte frontend and backend binary. Please note that there is no proper prerequesite handling. Any change of frontend source files will trigger a complete rebuild.
 * `$ make clean`: Clean go build cache and remove binary
