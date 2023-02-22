@@ -60,7 +60,12 @@
     </p>
 
     <p>
-        {job.numNodes} <Icon name="pc-horizontal"/>
+        {#if job.numNodes == 1}
+            {job.resources[0].hostname}
+        {:else}
+            {job.numNodes}
+        {/if}
+        <Icon name="pc-horizontal"/>
         {#if job.exclusive != 1}
             (shared)
         {/if}
@@ -70,6 +75,8 @@
         {#if job.numHWThreads > 0}
             , {job.numHWThreads} <Icon name="cpu"/>
         {/if}
+        <br/>
+        {job.subCluster}
     </p>
 
     <p>
