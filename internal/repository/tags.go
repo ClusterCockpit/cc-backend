@@ -88,9 +88,9 @@ func (r *JobRepository) CountTags(user *auth.User) (tags []schema.Tag, counts ma
 		LeftJoin("jobtag jt ON t.id = jt.tag_id").
 		GroupBy("t.tag_name")
 
-	if user.HasRole(auth.RoleUser) { // USER: Only count own jobs
+	if user != nil && user.HasRole(auth.RoleUser) { // USER: Only count own jobs
 		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.user = ?)", user.Username)
-	} else if user.HasRole(auth.RoleManager) { // MANAGER: Count own jobs plus project's jobs
+	} else if user != nil && user.HasRole(auth.RoleManager) { // MANAGER: Count own jobs plus project's jobs
 		// Build ("project1", "project2", ...) list of variable length directly in SQL string
 		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.user = ? OR job.project IN (\""+strings.Join(user.Projects, "\",\"")+"\"))", user.Username)
 	} // else: ADMIN || SUPPORT: Count all jobs
