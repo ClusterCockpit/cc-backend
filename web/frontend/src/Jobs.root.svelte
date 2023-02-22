@@ -14,6 +14,7 @@
     const ccconfig = getContext('cc-config')
 
     export let filterPresets = {}
+    export let authLevel
 
     let filters, jobList, matchedJobs = null
     let sorting = { field: 'startTime', order: 'DESC' }, isSortingOpen = false, isMetricsSelectionOpen = false
@@ -60,7 +61,7 @@
     </Col>
 
     <Col xs="3" style="margin-left: auto;">
-        <UserOrProject on:update={({ detail }) => filters.update(detail)}/>
+        <UserOrProject bind:authLevel={authLevel} on:update={({ detail }) => filters.update(detail)}/>
     </Col>
     <Col xs="2">
         <Refresher on:reload={() => jobList.update()} />

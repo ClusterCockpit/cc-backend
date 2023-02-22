@@ -10,8 +10,9 @@
     let isOpen = false
 
     const userviews = [
-        { title: 'My Jobs',  href: `/monitoring/user/${username}`, icon: 'bar-chart-line-fill' },
-        { title: 'Tags',     href: '/monitoring/tags/',            icon: 'tags' }
+        { title: 'My Jobs',     href: `/monitoring/user/${username}`, icon: 'bar-chart-line-fill' },
+        { title: `Job Search`,  href: '/monitoring/jobs/',            icon: 'card-list' },
+        { title: 'Tags',        href: '/monitoring/tags/',            icon: 'tags' }
     ]
 
     const managerviews = [
@@ -91,9 +92,9 @@
     <div class="d-flex">
         <form method="GET" action="/search">
             <InputGroup>
-                <Input type="text" placeholder={(authlevel >= 4) ? "Search jobId / username" : "Search jobId"} name="searchId"/>
+                <Input type="text" placeholder={"Search 'type:<query>' ..."} name="searchId"/>
                 <Button outline type="submit"><Icon name="search"/></Button>
-                <InputGroupText style="cursor:help;" title={(authlevel >= 4) ? "Example: 'projectId:a100cd', Types are: jobId | jobName | projectId | username" | "name" : "Example: 'jobName:myjob', Types are jobId | jobName"}><Icon name="info-circle"/></InputGroupText>
+                <InputGroupText style="cursor:help;" title={(authlevel >= 4) ? "Example: 'projectId:a100cd', Types are: jobId | jobName | projectId | username | name" : "Example: 'jobName:myjob', Types are jobId | jobName | projectId"}><Icon name="info-circle"/></InputGroupText>
             </InputGroup>
         </form>
         {#if username}
