@@ -3,6 +3,7 @@
 /var/job-archive
 /var/*.db
 /var/machine-state
+/var-backup
 
 /.env
 /config.json
