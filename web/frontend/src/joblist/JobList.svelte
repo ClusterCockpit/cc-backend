@@ -34,7 +34,7 @@
         jobs(filter: $filter, order: $sorting, page: $paging) {
             items {
                 id, jobId, user, project, jobName, cluster, subCluster, startTime,
-                duration, numNodes, numHWThreads, numAcc, walltime,
+                duration, numNodes, numHWThreads, numAcc, walltime, resources { hostname },
                 SMT, exclusive, partition, arrayJobId,
                 monitoringStatus, state,
                 tags { id, type, name }
