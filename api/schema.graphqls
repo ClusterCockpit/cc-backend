@@ -161,7 +161,6 @@ type Count {
 type User {
   username: String!
   name:     String!
-  project:  String
   email:    String!
 }
 

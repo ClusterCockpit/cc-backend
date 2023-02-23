@@ -92,7 +92,7 @@
     <div class="d-flex">
         <form method="GET" action="/search">
             <InputGroup>
-                <Input type="text" placeholder={"Search 'type:<query>' ..."} name="searchId"/>
+                <Input type="text" placeholder="Search 'type:<query>' ..." name="searchId"/>
                 <Button outline type="submit"><Icon name="search"/></Button>
                 <InputGroupText style="cursor:help;" title={(authlevel >= 4) ? "Example: 'projectId:a100cd', Types are: jobId | jobName | projectId | username | name" : "Example: 'jobName:myjob', Types are jobId | jobName | projectId"}><Icon name="info-circle"/></InputGroupText>
             </InputGroup>

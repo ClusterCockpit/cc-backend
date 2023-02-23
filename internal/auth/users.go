@@ -169,7 +169,7 @@ func (auth *Authentication) RemoveRole(ctx context.Context, username string, rol
 	}
 
 	if role == RoleManager && len(user.Projects) != 0 {
-		return fmt.Errorf("Cannot remove role 'manager' while user %s still has an assigned project(s) : %v", username, user.Projects)
+		return fmt.Errorf("Cannot remove role 'manager' while user %s still has assigned project(s) : %v", username, user.Projects)
 	}
 
 	var exists bool

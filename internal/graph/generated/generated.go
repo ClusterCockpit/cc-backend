@@ -256,7 +256,6 @@ type ComplexityRoot struct {
 	User struct {
 		Email    func(childComplexity int) int
 		Name     func(childComplexity int) int
-		Project  func(childComplexity int) int
 		Username func(childComplexity int) int
 	}
 }
@@ -1308,13 +1307,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.User.Name(childComplexity), true
 
-	case "User.project":
-		if e.complexity.User.Project == nil {
-			break
-		}
-
-		return e.complexity.User.Project(childComplexity), true
-
 	case "User.username":
 		if e.complexity.User.Username == nil {
 			break
@@ -1560,7 +1552,6 @@ type Count {
 type User {
   username: String!
   name:     String!
-  project:  String
   email:    String!
 }
 
@@ -3904,8 +3895,6 @@ func (ec *executionContext) fieldContext_Job_userData(ctx context.Context, field
 				return ec.fieldContext_User_username(ctx, field)
 			case "name":
 				return ec.fieldContext_User_name(ctx, field)
-			case "project":
-				return ec.fieldContext_User_project(ctx, field)
 			case "email":
 				return ec.fieldContext_User_email(ctx, field)
 			}
@@ -6049,8 +6038,6 @@ func (ec *executionContext) fieldContext_Query_user(ctx context.Context, field g
 				return ec.fieldContext_User_username(ctx, field)
 			case "name":
 				return ec.fieldContext_User_name(ctx, field)
-			case "project":
-				return ec.fieldContext_User_project(ctx, field)
 			case "email":
 				return ec.fieldContext_User_email(ctx, field)
 			}
@@ -8531,47 +8518,6 @@ func (ec *executionContext) _User_name(ctx context.Context, field graphql.Collec
 }
 
 func (ec *executionContext) fieldContext_User_name(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "User",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _User_project(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_User_project(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Project, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*string)
-	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_User_project(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "User",
 		Field:      field,
@@ -12444,10 +12390,6 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
-		case "project":
-
-			out.Values[i] = ec._User_project(ctx, field, obj)
-
 		case "email":
 
 			out.Values[i] = ec._User_email(ctx, field, obj)

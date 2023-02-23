@@ -72,7 +72,7 @@ func main() {
 	flag.BoolVar(&flagMigrateDB, "migrate-db", false, "Migrate database to supported version and exit")
 	flag.BoolVar(&flagLogDateTime, "logdate", false, "Set this flag to add date and time to log messages")
 	flag.StringVar(&flagConfigFile, "config", "./config.json", "Specify alternative path to `config.json`")
-	flag.StringVar(&flagNewUser, "add-user", "", "Add a new user. Argument format: `<username>:[admin,support,api,user]:<password>`")
+	flag.StringVar(&flagNewUser, "add-user", "", "Add a new user. Argument format: `<username>:[admin,support,manager,api,user]:<password>`")
 	flag.StringVar(&flagDelUser, "del-user", "", "Remove user by `username`")
 	flag.StringVar(&flagGenJWT, "jwt", "", "Generate and print a JWT for the user specified by its `username`")
 	flag.StringVar(&flagImportJob, "import-job", "", "Import a job. Argument format: `<path-to-meta.json>:<path-to-data.json>,...`")
@@ -141,9 +141,8 @@ func main() {
 				log.Fatal("invalid argument format for user creation")
 			}
 
-			var emptyPrj []string
 			if err := authentication.AddUser(&auth.User{
-				Username: parts[0], Projects: emptyPrj, Password: parts[2], Roles: strings.Split(parts[1], ","),
+				Username: parts[0], Projects: make([]string, 0), Password: parts[2], Roles: strings.Split(parts[1], ","),
 			}); err != nil {
 				log.Fatalf("adding '%s' user authentication failed: %v", parts[0], err)
 			}
