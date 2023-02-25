@@ -375,9 +375,9 @@ func main() {
 			MinVersion:               tls.VersionTLS12,
 			PreferServerCipherSuites: true,
 		})
-		log.Printf("HTTPS server listening at %s...", config.Keys.Addr)
+		fmt.Printf("HTTPS server listening at %s...", config.Keys.Addr)
 	} else {
-		log.Printf("HTTP server listening at %s...", config.Keys.Addr)
+		fmt.Printf("HTTP server listening at %s...", config.Keys.Addr)
 	}
 
 	// Because this program will want to bind to a privileged port (like 80), the listener must
