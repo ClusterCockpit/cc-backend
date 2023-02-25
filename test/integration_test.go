@@ -416,7 +416,7 @@ func TestRestApi(t *testing.T) {
 	}
 
 	const stopJobBody string = `{
-"jobId":     123,
+        "jobId":     123,
 		"startTime": 123456789,
 		"cluster":   "testcluster",
 
