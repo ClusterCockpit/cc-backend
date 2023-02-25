@@ -1,6 +1,6 @@
 ## Intro
 
-cc-backend requires a configuration file speciyfing the cluster systems to be used. Still many  default
+cc-backend requires a configuration file specifying the cluster systems to be used. Still many  default
 options documented below are used. cc-backend tries to load a config.json from the working directory per default.
 To overwrite the default specify a json config file location using the command line option `--config <filepath>`.
 All security relevant configuration. e.g., keys and passwords, are set using environment variables.
@@ -44,9 +44,10 @@ It is supported to specify these by means of an `.env` file located in the proje
                 "startTime": { "from": "2022-01-01T00:00:00Z", "to": null }
             }
    ```
-* `ui-defaults`: Type object. Default configuration for ui views. If overwriten, all options  must be provided! Most options can be overwritten by the user via the web interface.
+* `ui-defaults`: Type object. Default configuration for ui views. If overwritten, all options  must be provided! Most options can be overwritten by the user via the web interface.
    - `analysis_view_histogramMetrics`: Type string array. Metrics to show as job count histograms in analysis view. Default `["flops_any", "mem_bw", "mem_used"]`.
-   - `analysis_view_scatterPlotMetrics`: Type array of string array. Initial scatter plto configuration in analysis view. Default `[["flops_any", "mem_bw"], ["flops_any", "cpu_load"], ["cpu_load", "mem_bw"]]`.
+   - `analysis_view_scatterPlotMetrics`: Type array of string array. Initial
+   scatter plot configuration in analysis view. Default `[["flops_any", "mem_bw"], ["flops_any", "cpu_load"], ["cpu_load", "mem_bw"]]`.
    - `job_view_nodestats_selectedMetrics`: Type string array. Initial metrics shown in node statistics table of single job view. Default `["flops_any", "mem_bw", "mem_used"]`.
    - `job_view_polarPlotMetrics`: Type string array. Metrics shown in polar plot of single job view. Default `["flops_any", "mem_bw", "mem_used", "net_bw", "file_bw"]`.
    - `job_view_selectedMetrics`: Type string array.  Default `["flops_any", "mem_bw", "mem_used"]`.
