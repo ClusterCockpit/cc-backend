@@ -50,11 +50,11 @@ import (
 // @name                       X-Auth-Token
 
 type RestApi struct {
-	JobRepository     *repository.JobRepository
-	Resolver          *graph.Resolver
-	Authentication    *auth.Authentication
-	MachineStateDir   string
-	RepositoryMutex   sync.Mutex
+	JobRepository   *repository.JobRepository
+	Resolver        *graph.Resolver
+	Authentication  *auth.Authentication
+	MachineStateDir string
+	RepositoryMutex sync.Mutex
 }
 
 func (api *RestApi) MountRoutes(r *mux.Router) {
@@ -117,6 +117,13 @@ type DeleteJobApiRequest struct {
 	StartTime *int64  `json:"startTime" example:"1649723812"`             // Start Time of job as epoch
 }
 
+// GetJobsApiResponse model
+type GetJobsApiResponse struct {
+	Jobs  []*schema.JobMeta `json:"jobs"`  // Array of jobs
+	Items int               `json:"items"` // Number of jobs returned
+	Page  int               `json:"page"`  // Page id returned
+}
+
 // ErrorResponse model
 type ErrorResponse struct {
 	// Statustext of Errorcode
@@ -161,7 +168,7 @@ func decode(r io.Reader, val interface{}) error {
 // @param       items-per-page query    int               false "Items per page (Default: 25)"
 // @param       page           query    int               false "Page Number (Default: 1)"
 // @param       with-metadata  query    bool              false "Include metadata (e.g. jobScript) in response"
-// @success     200            {array}  schema.Job              "Array of matching jobs"
+// @success     200            {object} api.GetJobsApiResponse  "Job array and page info"
 // @failure     400            {object} api.ErrorResponse       "Bad Request"
 // @failure     401   		   {object} api.ErrorResponse       "Unauthorized"
 // @failure     500            {object} api.ErrorResponse       "Internal Server Error"
@@ -184,7 +191,8 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 			for _, s := range vals {
 				state := schema.JobState(s)
 				if !state.Valid() {
-					http.Error(rw, "invalid query parameter value: state", http.StatusBadRequest)
+					handleError(fmt.Errorf("invalid query parameter value: state"),
+						http.StatusBadRequest, rw)
 					return
 				}
 				filter.State = append(filter.State, state)
@@ -194,17 +202,18 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 		case "start-time":
 			st := strings.Split(vals[0], "-")
 			if len(st) != 2 {
-				http.Error(rw, "invalid query parameter value: startTime", http.StatusBadRequest)
+				handleError(fmt.Errorf("invalid query parameter value: startTime"),
+					http.StatusBadRequest, rw)
 				return
 			}
 			from, err := strconv.ParseInt(st[0], 10, 64)
 			if err != nil {
-				http.Error(rw, err.Error(), http.StatusBadRequest)
+				handleError(err, http.StatusBadRequest, rw)
 				return
 			}
 			to, err := strconv.ParseInt(st[1], 10, 64)
 			if err != nil {
-				http.Error(rw, err.Error(), http.StatusBadRequest)
+				handleError(err, http.StatusBadRequest, rw)
 				return
 			}
 			ufrom, uto := time.Unix(from, 0), time.Unix(to, 0)
@@ -212,28 +221,29 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 		case "page":
 			x, err := strconv.Atoi(vals[0])
 			if err != nil {
-				http.Error(rw, err.Error(), http.StatusBadRequest)
+				handleError(err, http.StatusBadRequest, rw)
 				return
 			}
 			page.Page = x
 		case "items-per-page":
 			x, err := strconv.Atoi(vals[0])
 			if err != nil {
-				http.Error(rw, err.Error(), http.StatusBadRequest)
+				handleError(err, http.StatusBadRequest, rw)
 				return
 			}
 			page.ItemsPerPage = x
 		case "with-metadata":
 			withMetadata = true
 		default:
-			http.Error(rw, "invalid query parameter: "+key, http.StatusBadRequest)
+			handleError(fmt.Errorf("invalid query parameter: %s", key),
+				http.StatusBadRequest, rw)
 			return
 		}
 	}
 
 	jobs, err := api.JobRepository.QueryJobs(r.Context(), []*model.JobFilter{filter}, page, order)
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		handleError(err, http.StatusInternalServerError, rw)
 		return
 	}
 
@@ -241,7 +251,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 	for _, job := range jobs {
 		if withMetadata {
 			if _, err := api.JobRepository.FetchMetadata(job); err != nil {
-				http.Error(rw, err.Error(), http.StatusInternalServerError)
+				handleError(err, http.StatusInternalServerError, rw)
 				return
 			}
 		}
@@ -254,7 +264,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 
 		res.Tags, err = api.JobRepository.GetTags(&job.ID)
 		if err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			handleError(err, http.StatusInternalServerError, rw)
 			return
 		}
 
@@ -262,7 +272,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 			res.Statistics, err = archive.GetStatistics(job)
 			if err != nil {
 				if err != nil {
-					http.Error(rw, err.Error(), http.StatusInternalServerError)
+					handleError(err, http.StatusInternalServerError, rw)
 					return
 				}
 			}
@@ -272,12 +282,18 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Debugf("/api/jobs: %d jobs returned", len(results))
+	rw.Header().Add("Content-Type", "application/json")
 	bw := bufio.NewWriter(rw)
 	defer bw.Flush()
-	if err := json.NewEncoder(bw).Encode(map[string]interface{}{
-		"jobs": results,
-	}); err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+
+	payload := GetJobsApiResponse{
+		Jobs:  results,
+		Items: page.ItemsPerPage,
+		Page:  page.Page,
+	}
+
+	if err := json.NewEncoder(bw).Encode(payload); err != nil {
+		handleError(err, http.StatusInternalServerError, rw)
 		return
 	}
 }
@@ -793,7 +809,8 @@ func (api *RestApi) getJWT(rw http.ResponseWriter, r *http.Request) {
 	me := auth.GetUser(r.Context())
 	if !me.HasRole(auth.RoleAdmin) {
 		if username != me.Username {
-			http.Error(rw, "Only admins are allowed to sign JWTs not for themselves", http.StatusForbidden)
+			http.Error(rw, "Only admins are allowed to sign JWTs not for themselves",
+				http.StatusForbidden)
 			return
 		}
 	}
