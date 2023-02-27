@@ -738,29 +738,6 @@ func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 	api.JobRepository.TriggerArchiving(job)
 }
 
-// func (api *RestApi) importJob(rw http.ResponseWriter, r *http.Request) {
-// 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-// 		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
-// 		return
-// 	}
-
-// 	var body struct {
-// 		Meta *schema.JobMeta `json:"meta"`
-// 		Data *schema.JobData `json:"data"`
-// 	}
-// 	if err := decode(r.Body, &body); err != nil {
-// 		handleError(fmt.Errorf("import failed: %s", err.Error()), http.StatusBadRequest, rw)
-// 		return
-// 	}
-
-// 	if err := api.JobRepository.ImportJob(body.Meta, body.Data); err != nil {
-// 		handleError(fmt.Errorf("import failed: %s", err.Error()), http.StatusUnprocessableEntity, rw)
-// 		return
-// 	}
-
-// 	rw.Write([]byte(`{ "status": "OK" }`))
-// }
-
 func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	metrics := r.URL.Query()["metric"]
