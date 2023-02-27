@@ -136,7 +136,8 @@ The swagger doc files can be found in `./api/`.
 You can generate the configuration of swagger-ui by running `go run github.com/swaggo/swag/cmd/swag init -d ./internal/api,./pkg/schema  -g rest.go -o ./api `.
 You need to move the generated `./api/doc.go` to `./internal/api/doc.go`.
 If you start cc-backend with flag `--dev` the Swagger UI is available at http://localhost:8080/swagger/ .
-You have to enter a JWT key for a user with role API. This user must not be logged in the same browser (have a running session), otherwise Swagger requests will not work.
+You have to enter a JWT key for a user with role API.
+**NOTICE** The user owning the JWT token must not be logged in the same browser (have a running session), otherwise Swagger requests will not work. It is recommended to create a separate user that has just the API role.
 
 ## Project Structure
 
