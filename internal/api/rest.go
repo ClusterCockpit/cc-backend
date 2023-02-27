@@ -171,6 +171,7 @@ func decode(r io.Reader, val interface{}) error {
 // @success     200            {object} api.GetJobsApiResponse  "Job array and page info"
 // @failure     400            {object} api.ErrorResponse       "Bad Request"
 // @failure     401   		   {object} api.ErrorResponse       "Unauthorized"
+// @failure     403            {object} api.ErrorResponse       "Forbidden"
 // @failure     500            {object} api.ErrorResponse       "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /jobs/ [get]
