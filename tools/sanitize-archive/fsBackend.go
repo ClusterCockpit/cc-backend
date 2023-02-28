@@ -10,10 +10,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"strconv"
-	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 )
@@ -28,7 +26,7 @@ type FsArchive struct {
 }
 
 func getPath(
-	job *Job,
+	job *JobMeta,
 	rootPath string,
 	file string) string {
 
@@ -37,7 +35,7 @@ func getPath(
 		rootPath,
 		job.Cluster,
 		lvl1, lvl2,
-		strconv.FormatInt(job.StartTime.Unix(), 10), file)
+		strconv.FormatInt(job.StartTime, 10), file)
 }
 
 func loadJobMeta(filename string) (*JobMeta, error) {
@@ -77,25 +75,6 @@ func (fsa *FsArchive) Init(rawConfig json.RawMessage) error {
 	}
 
 	return nil
-}
-
-func (fsa *FsArchive) LoadJobData(job *Job) (JobData, error) {
-
-	filename := getPath(job, fsa.path, "data.json")
-	f, err := os.Open(filename)
-	if err != nil {
-		log.Errorf("fsBackend LoadJobData()- %v", err)
-		return nil, err
-	}
-	defer f.Close()
-
-	return DecodeJobData(bufio.NewReader(f), filename)
-}
-
-func (fsa *FsArchive) LoadJobMeta(job *Job) (*JobMeta, error) {
-
-	filename := getPath(job, fsa.path, "meta.json")
-	return loadJobMeta(filename)
 }
 
 func (fsa *FsArchive) LoadClusterCfg(name string) (*Cluster, error) {
@@ -159,63 +138,7 @@ func (fsa *FsArchive) Iter() <-chan *JobMeta {
 	return ch
 }
 
-func (fsa *FsArchive) StoreJobMeta(jobMeta *JobMeta) error {
-
-	job := Job{
-		BaseJob:       jobMeta.BaseJob,
-		StartTime:     time.Unix(jobMeta.StartTime, 0),
-		StartTimeUnix: jobMeta.StartTime,
-	}
-	f, err := os.Create(getPath(&job, fsa.path, "meta.json"))
-	if err != nil {
-		return err
-	}
-	if err := EncodeJobMeta(f, jobMeta); err != nil {
-		return err
-	}
-	if err := f.Close(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (fsa *FsArchive) GetClusters() []string {
 
 	return fsa.clusters
-}
-
-func (fsa *FsArchive) ImportJob(
-	jobMeta *JobMeta,
-	jobData *JobData) error {
-
-	job := Job{
-		BaseJob:       jobMeta.BaseJob,
-		StartTime:     time.Unix(jobMeta.StartTime, 0),
-		StartTimeUnix: jobMeta.StartTime,
-	}
-	dir := getPath(&job, fsa.path, "")
-	if err := os.MkdirAll(dir, 0777); err != nil {
-		return err
-	}
-
-	f, err := os.Create(path.Join(dir, "meta.json"))
-	if err != nil {
-		return err
-	}
-	if err := EncodeJobMeta(f, jobMeta); err != nil {
-		return err
-	}
-	if err := f.Close(); err != nil {
-		return err
-	}
-
-	f, err = os.Create(path.Join(dir, "data.json"))
-	if err != nil {
-		return err
-	}
-	if err := EncodeJobData(f, jobData); err != nil {
-		return err
-	}
-	return f.Close()
 }

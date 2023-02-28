@@ -17,6 +17,14 @@ import (
 
 var ar FsArchive
 
+func deepCopyJobMeta(j *JobMeta) schema.JobMeta {
+	var jn schema.JobMeta
+
+	jn.StartTime = j
+	jn.BaseJob = j.BaseJob
+
+}
+
 func deepCopyClusterConfig(co *Cluster) schema.Cluster {
 	var cn schema.Cluster
 
@@ -84,7 +92,15 @@ func main() {
 		}
 	}
 
-	// for job := range ar.Iter() {
-	// 	fmt.Printf("Job %d\n", job.JobID)
-	// }
+	for job := range ar.Iter() {
+		fmt.Printf("Job %d\n", job.JobID)
+
+		root := fmt.Sprintf("%s/%s/", dstPath, job.Cluster)
+		f, err := os.Create(getPath(job, root, "meta.json"))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		jmn := deepCopyJobMeta(job)
+	}
 }

@@ -20,7 +20,13 @@ else
     cp ./configs/env-template.txt .env
     cp ./docs/config.json config.json
     go build ./cmd/cc-backend
+<<<<<<< Updated upstream
 
     ./cc-backend --server --dev --init-db --add-user demo:admin:AdminDev
 fi
 
+=======
+
+    ./cc-backend --server --dev --init-db --add-user demo:admin:AdminDev
+fi
+>>>>>>> Stashed changes
