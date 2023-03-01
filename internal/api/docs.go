@@ -103,6 +103,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -732,13 +738,6 @@ const docTemplate = `{
                 },
                 "jobState": {
                     "description": "Final job state",
-                    "enum": [
-                        "completed",
-                        "failed",
-                        "cancelled",
-                        "stopped",
-                        "timeout"
-                    ],
                     "allOf": [
                         {
                             "$ref": "#/definitions/schema.JobState"
@@ -796,14 +795,6 @@ const docTemplate = `{
                 },
                 "jobState": {
                     "description": "Final state of job",
-                    "enum": [
-                        "completed",
-                        "failed",
-                        "cancelled",
-                        "stopped",
-                        "timeout",
-                        "out_of_memory"
-                    ],
                     "allOf": [
                         {
                             "$ref": "#/definitions/schema.JobState"
@@ -932,14 +923,6 @@ const docTemplate = `{
                 },
                 "jobState": {
                     "description": "Final state of job",
-                    "enum": [
-                        "completed",
-                        "failed",
-                        "cancelled",
-                        "stopped",
-                        "timeout",
-                        "out_of_memory"
-                    ],
                     "allOf": [
                         {
                             "$ref": "#/definitions/schema.JobState"

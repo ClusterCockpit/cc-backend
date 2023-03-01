@@ -76,12 +76,6 @@ definitions:
         allOf:
         - $ref: '#/definitions/schema.JobState'
         description: Final job state
-        enum:
-        - completed
-        - failed
-        - cancelled
-        - stopped
-        - timeout
         example: completed
       startTime:
         description: Start Time of job as epoch
@@ -130,13 +124,6 @@ definitions:
         allOf:
         - $ref: '#/definitions/schema.JobState'
         description: Final state of job
-        enum:
-        - completed
-        - failed
-        - cancelled
-        - stopped
-        - timeout
-        - out_of_memory
         example: completed
       metaData:
         additionalProperties:
@@ -239,13 +226,6 @@ definitions:
         allOf:
         - $ref: '#/definitions/schema.JobState'
         description: Final state of job
-        enum:
-        - completed
-        - failed
-        - cancelled
-        - stopped
-        - timeout
-        - out_of_memory
         example: completed
       metaData:
         additionalProperties:
@@ -461,6 +441,10 @@ paths:
             $ref: '#/definitions/api.ErrorResponse'
         "401":
           description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/api.ErrorResponse'
         "500":
