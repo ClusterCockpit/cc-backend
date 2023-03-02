@@ -86,12 +86,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Array of matching jobs",
+                        "description": "Job array and page info",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/schema.Job"
-                            }
+                            "$ref": "#/definitions/api.GetJobsApiResponse"
                         }
                     },
                     "400": {
@@ -102,6 +99,12 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
@@ -687,6 +690,26 @@ const docTemplate = `{
                 }
             }
         },
+        "api.GetJobsApiResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "description": "Number of jobs returned",
+                    "type": "integer"
+                },
+                "jobs": {
+                    "description": "Array of jobs",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.JobMeta"
+                    }
+                },
+                "page": {
+                    "description": "Page id returned",
+                    "type": "integer"
+                }
+            }
+        },
         "api.StartJobApiResponse": {
             "type": "object",
             "properties": {
@@ -715,13 +738,6 @@ const docTemplate = `{
                 },
                 "jobState": {
                     "description": "Final job state",
-                    "enum": [
-                        "completed",
-                        "failed",
-                        "cancelled",
-                        "stopped",
-                        "timeout"
-                    ],
                     "allOf": [
                         {
                             "$ref": "#/definitions/schema.JobState"
@@ -779,14 +795,6 @@ const docTemplate = `{
                 },
                 "jobState": {
                     "description": "Final state of job",
-                    "enum": [
-                        "completed",
-                        "failed",
-                        "cancelled",
-                        "stopped",
-                        "timeout",
-                        "out_of_memory"
-                    ],
                     "allOf": [
                         {
                             "$ref": "#/definitions/schema.JobState"
@@ -915,14 +923,6 @@ const docTemplate = `{
                 },
                 "jobState": {
                     "description": "Final state of job",
-                    "enum": [
-                        "completed",
-                        "failed",
-                        "cancelled",
-                        "stopped",
-                        "timeout",
-                        "out_of_memory"
-                    ],
                     "allOf": [
                         {
                             "$ref": "#/definitions/schema.JobState"

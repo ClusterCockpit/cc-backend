@@ -76,7 +76,7 @@ func main() {
 	flag.StringVar(&flagDelUser, "del-user", "", "Remove user by `username`")
 	flag.StringVar(&flagGenJWT, "jwt", "", "Generate and print a JWT for the user specified by its `username`")
 	flag.StringVar(&flagImportJob, "import-job", "", "Import a job. Argument format: `<path-to-meta.json>:<path-to-data.json>,...`")
-	flag.StringVar(&flagLogLevel, "loglevel", "debug", "Sets the logging level: `[debug (default),info,warn,err,fatal,crit]`")
+	flag.StringVar(&flagLogLevel, "loglevel", "warn", "Sets the logging level: `[debug,info,warn (default),err,fatal,crit]`")
 	flag.Parse()
 
 	if flagVersion {
@@ -375,9 +375,9 @@ func main() {
 			MinVersion:               tls.VersionTLS12,
 			PreferServerCipherSuites: true,
 		})
-		log.Printf("HTTPS server listening at %s...", config.Keys.Addr)
+		fmt.Printf("HTTPS server listening at %s...", config.Keys.Addr)
 	} else {
-		log.Printf("HTTP server listening at %s...", config.Keys.Addr)
+		fmt.Printf("HTTP server listening at %s...", config.Keys.Addr)
 	}
 
 	// Because this program will want to bind to a privileged port (like 80), the listener must

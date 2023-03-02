@@ -104,10 +104,10 @@ type DeleteJobApiResponse struct {
 type StopJobApiRequest struct {
 	// Stop Time of job as epoch
 	StopTime  int64           `json:"stopTime" validate:"required" example:"1649763839"`
-	State     schema.JobState `json:"jobState" validate:"required" example:"completed" enums:"completed,failed,cancelled,stopped,timeout"` // Final job state
-	JobId     *int64          `json:"jobId" example:"123000"`                                                                              // Cluster Job ID of job
-	Cluster   *string         `json:"cluster" example:"fritz"`                                                                             // Cluster of job
-	StartTime *int64          `json:"startTime" example:"1649723812"`                                                                      // Start Time of job as epoch
+	State     schema.JobState `json:"jobState" validate:"required" example:"completed"` // Final job state
+	JobId     *int64          `json:"jobId" example:"123000"`                           // Cluster Job ID of job
+	Cluster   *string         `json:"cluster" example:"fritz"`                          // Cluster of job
+	StartTime *int64          `json:"startTime" example:"1649723812"`                   // Start Time of job as epoch
 }
 
 // DeleteJobApiRequest model
@@ -171,6 +171,7 @@ func decode(r io.Reader, val interface{}) error {
 // @success     200            {object} api.GetJobsApiResponse  "Job array and page info"
 // @failure     400            {object} api.ErrorResponse       "Bad Request"
 // @failure     401   		   {object} api.ErrorResponse       "Unauthorized"
+// @failure     403            {object} api.ErrorResponse       "Forbidden"
 // @failure     500            {object} api.ErrorResponse       "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /jobs/ [get]
@@ -737,29 +738,6 @@ func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 	// Trigger async archiving
 	api.JobRepository.TriggerArchiving(job)
 }
-
-// func (api *RestApi) importJob(rw http.ResponseWriter, r *http.Request) {
-// 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-// 		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
-// 		return
-// 	}
-
-// 	var body struct {
-// 		Meta *schema.JobMeta `json:"meta"`
-// 		Data *schema.JobData `json:"data"`
-// 	}
-// 	if err := decode(r.Body, &body); err != nil {
-// 		handleError(fmt.Errorf("import failed: %s", err.Error()), http.StatusBadRequest, rw)
-// 		return
-// 	}
-
-// 	if err := api.JobRepository.ImportJob(body.Meta, body.Data); err != nil {
-// 		handleError(fmt.Errorf("import failed: %s", err.Error()), http.StatusUnprocessableEntity, rw)
-// 		return
-// 	}
-
-// 	rw.Write([]byte(`{ "status": "OK" }`))
-// }
 
 func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
