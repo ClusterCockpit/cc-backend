@@ -23,7 +23,7 @@ SVELTE_SRC = $(wildcard $(FRONTEND)/src/*.svelte)         \
 			 $(wildcard $(FRONTEND)/src/plots/*.svelte)   \
 			 $(wildcard $(FRONTEND)/src/joblist/*.svelte)
 
-.PHONY: clean test $(TARGET)
+.PHONY: clean test tags $(TARGET)
 
 .NOTPARALLEL:
 
@@ -42,6 +42,10 @@ test:
 	@go build ./...
 	@go vet ./...
 	@go test ./...
+
+tags:
+	$(info ===>  TAGS)
+	@ctags -R
 
 $(SVELTE_TARGETS): $(SVELTE_SRC)
 	$(info ===>  BUILD frontend)
