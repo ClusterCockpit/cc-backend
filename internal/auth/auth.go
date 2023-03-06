@@ -76,7 +76,6 @@ func getRoleEnum(roleStr string) Role {
 
 func isValidRole(role string) bool {
 	if getRoleEnum(role) == RoleError {
-		log.Errorf("Unknown Role %s", role)
 		return false
 	}
 	return true
