@@ -71,20 +71,20 @@ func TestHasNotRole(t *testing.T) {
 func TestHasAnyRole(t *testing.T) {
 	u := User{Username: "testuser", Roles: []string{"user", "manager"}}
 
-	result := u.HasAnyRole([]Role{RoleManager, RoleSupport})
+	result := u.HasAnyRole([]Role{RoleManager, RoleSupport, RoleAdmin})
 
 	if !result {
-		t.Fatalf(`User{Roles: ["user", "manager"]} -> HasAnyRole([]Role{RoleManager, RoleSupport}): RESULT = %v, expected 'true'.`, result)
+		t.Fatalf(`User{Roles: ["user", "manager"]} -> HasAnyRole([]Role{RoleManager, RoleSupport, RoleAdmin}): RESULT = %v, expected 'true'.`, result)
 	}
 }
 
 func TestHasNotAnyRole(t *testing.T) {
 	u := User{Username: "testuser", Roles: []string{"user", "manager"}}
 
-	result := u.HasAnyRole([]Role{RoleSupport})
+	result := u.HasAnyRole([]Role{RoleSupport, RoleAdmin})
 
 	if result {
-		t.Fatalf(`User{Roles: ["user", "manager"]} -> HasAllRoles([]Role{RoleSupport}): RESULT = %v, expected 'false'.`, result)
+		t.Fatalf(`User{Roles: ["user", "manager"]} -> HasAllRoles([]Role{RoleSupport, RoleAdmin}): RESULT = %v, expected 'false'.`, result)
 	}
 }
 
