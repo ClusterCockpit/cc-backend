@@ -4,8 +4,9 @@
              Dropdown, DropdownToggle, DropdownMenu, DropdownItem, InputGroupText } from 'sveltestrap'
 
     export let username // empty string if auth. is disabled, otherwise the username as string
-    export let authlevel // integer
+    export let authlevel // Integer
     export let clusters // array of names
+    export let roles // Role Enum-Like
 
     let isOpen = false
 
@@ -39,9 +40,9 @@
     ]
 
     const viewsPerCluster = [
-        { title: 'Analysis', authLevel: 4,  href: '/monitoring/analysis/', icon: 'graph-up' },
-        { title: 'Systems',  authLevel: 5,  href: '/monitoring/systems/',  icon: 'cpu' },
-        { title: 'Status',   authLevel: 5,  href: '/monitoring/status/',   icon: 'cpu' },
+        { title: 'Analysis', requiredRole: roles.support,  href: '/monitoring/analysis/', icon: 'graph-up' },
+        { title: 'Systems',  requiredRole: roles.admin,  href: '/monitoring/systems/',  icon: 'cpu' },
+        { title: 'Status',   requiredRole: roles.admin,  href: '/monitoring/status/',   icon: 'cpu' },
     ]
 </script>
 
@@ -52,26 +53,26 @@
     <NavbarToggler on:click={() => (isOpen = !isOpen)} />
     <Collapse {isOpen} navbar expand="lg" on:update={({ detail }) => (isOpen = detail.isOpen)}>
         <Nav pills>
-            {#if authlevel == 5} <!-- admin -->
+            {#if authlevel == roles.admin}
                 {#each adminviews as item}
                     <NavLink href={item.href} active={window.location.pathname == item.href}><Icon name={item.icon}/> {item.title}</NavLink>
                 {/each}
-            {:else if authlevel == 4} <!-- support -->
+            {:else if authlevel == roles.support}
                 {#each supportviews as item}
                     <NavLink href={item.href} active={window.location.pathname == item.href}><Icon name={item.icon}/> {item.title}</NavLink>
                 {/each}
-            {:else if authlevel == 3} <!-- manager -->
+            {:else if authlevel == roles.manager}
                 {#each managerviews as item}
                     <NavLink href={item.href} active={window.location.pathname == item.href}><Icon name={item.icon}/> {item.title}</NavLink>
                 {/each}
-            {:else if authlevel == 2} <!-- user -->
+            {:else if authlevel == roles.user}
                 {#each userviews as item}
                     <NavLink href={item.href} active={window.location.pathname == item.href}><Icon name={item.icon}/> {item.title}</NavLink>
                 {/each}
             {:else}
                 <p>API User or Unauthorized!</p>
             {/if}
-            {#each viewsPerCluster.filter(item => item.authLevel <= authlevel) as item}
+            {#each viewsPerCluster.filter(item => item.requiredRole <= authlevel) as item}
                 <NavItem>
                     <Dropdown nav inNavbar>
                         <DropdownToggle nav caret>
@@ -94,7 +95,7 @@
             <InputGroup>
                 <Input type="text" placeholder="Search 'type:<query>' ..." name="searchId"/>
                 <Button outline type="submit"><Icon name="search"/></Button>
-                <InputGroupText style="cursor:help;" title={(authlevel >= 4) ? "Example: 'projectId:a100cd', Types are: jobId | jobName | projectId | username | name" : "Example: 'jobName:myjob', Types are jobId | jobName | projectId"}><Icon name="info-circle"/></InputGroupText>
+                <InputGroupText style="cursor:help;" title={(authlevel >= roles.support) ? "Example: 'projectId:a100cd', Types are: jobId | jobName | projectId | username | name" : "Example: 'jobName:myjob', Types are jobId | jobName | projectId"}><Icon name="info-circle"/></InputGroupText>
             </InputGroup>
         </form>
         {#if username}

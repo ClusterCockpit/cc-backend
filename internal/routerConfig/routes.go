@@ -276,16 +276,15 @@ func SetupRoutes(router *mux.Router, version string, hash string, buildTime stri
 				title = strings.Replace(route.Title, "<ID>", id.(string), 1)
 			}
 
-			username, authLevel := "", 0
-
-			if user := auth.GetUser(r.Context()); user != nil {
-				username = user.Username
-				authLevel = user.GetAuthLevel()
-			}
+			// Get User -> What if NIL?
+			user := auth.GetUser(r.Context())
+			// Get Roles
+			availableRoles, _ := auth.GetValidRolesMap(user)
 
 			page := web.Page{
 				Title:  title,
-				User:   web.User{Username: username, AuthLevel: authLevel},
+				User:   *user,
+				Roles:  availableRoles,
 				Build:  web.Build{Version: version, Hash: hash, Buildtime: buildTime},
 				Config: conf,
 				Infos:  infos,
@@ -314,7 +313,7 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, api *api.RestApi) 
 			case "projectId":
 				http.Redirect(rw, r, "/monitoring/jobs/?projectMatch=eq&project="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusTemporaryRedirect) // All Users: Redirect to Tablequery
 			case "username":
-				if user.HasAnyRole([]string{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
+				if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
 					http.Redirect(rw, r, "/monitoring/users/?user="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusTemporaryRedirect)
 				} else {
 					http.Redirect(rw, r, "/monitoring/jobs/?", http.StatusTemporaryRedirect) // Users: Redirect to Tablequery
@@ -325,7 +324,7 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, api *api.RestApi) 
 					joinedNames := strings.Join(usernames, "&user=")
 					http.Redirect(rw, r, "/monitoring/users/?user="+joinedNames, http.StatusTemporaryRedirect)
 				} else {
-					if user.HasAnyRole([]string{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
+					if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
 						http.Redirect(rw, r, "/monitoring/users/?user=NoUserNameFound", http.StatusTemporaryRedirect)
 					} else {
 						http.Redirect(rw, r, "/monitoring/jobs/?", http.StatusTemporaryRedirect) // Users: Redirect to Tablequery

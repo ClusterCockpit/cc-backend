@@ -104,7 +104,7 @@ func (r *JobRepository) CountJobs(
 
 func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (queryOut sq.SelectBuilder, err error) {
 	user := auth.GetUser(ctx)
-	if user == nil || user.HasAnyRole([]string{auth.RoleAdmin, auth.RoleSupport, auth.RoleApi}) { // Admin & Co. : All jobs
+	if user == nil || user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleApi}) { // Admin & Co. : All jobs
 		return query, nil
 	} else if user.HasRole(auth.RoleManager) { // Manager : Add filter for managed projects' jobs only + personal jobs
 		if len(user.Projects) != 0 {

@@ -10,11 +10,11 @@
 
     const ccconfig = getContext('cc-config')
 
-    export let user
+    export let isAdmin
 
 </script>
 
-{#if user.AuthLevel == 5}
+{#if isAdmin == true}
 <Card style="margin-bottom: 1.5em;">
     <CardHeader>
         <CardTitle class="mb-1">Admin Options</CardTitle>

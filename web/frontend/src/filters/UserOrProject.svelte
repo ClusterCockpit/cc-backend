@@ -6,7 +6,8 @@
 
     export let user = ''
     export let project = ''
-    export let authLevel
+    export let authlevel
+    export let roles
     let mode = 'user', term = ''
     const throttle = 500
 
@@ -23,7 +24,7 @@
 
     let timeoutId = null
     function termChanged(sleep = throttle) {
-        if (authLevel == 2) {
+        if (authlevel == roles.user) {
             project = term
 
             if (timeoutId != null)
@@ -34,7 +35,7 @@
                     project
                 })
             }, sleep)
-        } else if (authLevel >= 3) {
+        } else if (authlevel >= roles.manager) {
             if (mode == 'user')
                 user = term
             else
@@ -53,13 +54,13 @@
     }
 </script>
 
-{#if authLevel == 2}
+{#if authlevel == roles.user}
     <InputGroup>
         <Input
             type="text" bind:value={term} on:change={() => termChanged()} on:keyup={(event) => termChanged(event.key == 'Enter' ? 0 : throttle)} placeholder='filter project...'
         />
     </InputGroup>
-{:else if authLevel >= 3}
+{:else if authlevel >= roles.manager}
     <InputGroup>
         <select style="max-width: 175px;" class="form-select"
             bind:value={mode} on:change={modeChanged}>

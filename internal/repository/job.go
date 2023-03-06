@@ -534,7 +534,7 @@ func (r *JobRepository) FindColumnValue(user *auth.User, searchterm string, tabl
 		compareStr = " LIKE ?"
 		query = "%" + searchterm + "%"
 	}
-	if user.HasAnyRole([]string{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
+	if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
 		err := sq.Select(table+"."+selectColumn).Distinct().From(table).
 			Where(table+"."+whereColumn+compareStr, query).
 			RunWith(r.stmtCache).QueryRow().Scan(&result)
@@ -552,7 +552,7 @@ func (r *JobRepository) FindColumnValue(user *auth.User, searchterm string, tabl
 
 func (r *JobRepository) FindColumnValues(user *auth.User, query string, table string, selectColumn string, whereColumn string) (results []string, err error) {
 	emptyResult := make([]string, 0)
-	if user.HasAnyRole([]string{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
+	if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
 		rows, err := sq.Select(table+"."+selectColumn).Distinct().From(table).
 			Where(table+"."+whereColumn+" LIKE ?", fmt.Sprint("%", query, "%")).
 			RunWith(r.stmtCache).Query()

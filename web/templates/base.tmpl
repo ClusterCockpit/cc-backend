@@ -15,9 +15,10 @@
         {{end}}
         <script>
             const header = {
-                "username": "{{ .User.Username }}",
-                "authlevel": {{ .User.AuthLevel }},
-                "clusters":  {{ .Clusters }},
+                "username":  "{{ .User.Username }}",
+                "authlevel":  {{ .User.GetAuthLevel }},
+                "clusters":   {{ .Clusters }},
+                "roles":      {{ .Roles }}
             };
         </script>
     </head>

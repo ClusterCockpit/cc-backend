@@ -178,7 +178,7 @@ func decode(r io.Reader, val interface{}) error {
 // @router      /jobs/ [get]
 func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -318,7 +318,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/tag_job/{id} [post]
 func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -383,7 +383,7 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/start_job/ [post]
 func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -464,7 +464,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/stop_job/{id} [post]
 func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -517,7 +517,7 @@ func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/stop_job/ [post]
 func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -563,7 +563,7 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/delete_job/{id} [delete]
 func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -611,7 +611,7 @@ func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/delete_job/ [delete]
 func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -667,7 +667,7 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 // @router      /jobs/delete_job_before/{ts} [delete]
 func (api *RestApi) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -819,15 +819,15 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	username, password, role, name, email, project := r.FormValue("username"), r.FormValue("password"), r.FormValue("role"), r.FormValue("name"), r.FormValue("email"), r.FormValue("project")
-	if len(password) == 0 && role != auth.RoleApi {
+	if len(password) == 0 && role != auth.GetRoleString(auth.RoleApi) {
 		http.Error(rw, "Only API users are allowed to have a blank password (login will be impossible)", http.StatusBadRequest)
 		return
 	}
 
-	if len(project) != 0 && role != auth.RoleManager {
+	if len(project) != 0 && role != auth.GetRoleString(auth.RoleManager) {
 		http.Error(rw, "only managers require a project (can be changed later)", http.StatusBadRequest)
 		return
-	} else if len(project) == 0 && role == auth.RoleManager {
+	} else if len(project) == 0 && role == auth.GetRoleString(auth.RoleManager) {
 		http.Error(rw, "managers require a project to manage (can be changed later)", http.StatusBadRequest)
 		return
 	}

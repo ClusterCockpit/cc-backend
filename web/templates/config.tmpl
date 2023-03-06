@@ -7,7 +7,7 @@
 {{end}}
 {{define "javascript"}}
     <script>
-        const user = {{ .User }};
+        const isAdmin = {{ .User.HasRole .Roles.admin }};
         const filterPresets = {{ .FilterPresets }};
         const clusterCockpitConfig = {{ .Config }};
     </script>

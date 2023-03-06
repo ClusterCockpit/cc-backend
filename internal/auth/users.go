@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
@@ -133,23 +134,25 @@ func (auth *Authentication) ListUsers(specialsOnly bool) ([]*User, error) {
 func (auth *Authentication) AddRole(
 	ctx context.Context,
 	username string,
-	role string) error {
+	queryrole string) error {
 
+	newRole := strings.ToLower(queryrole)
 	user, err := auth.GetUser(username)
 	if err != nil {
 		log.Warnf("Could not load user '%s'", username)
 		return err
 	}
 
-	if !IsValidRole(role) {
-		return fmt.Errorf("Invalid user role: %v", role)
+	exists, valid := user.HasValidRole(newRole)
+
+	if !valid {
+		return fmt.Errorf("Supplied role is no valid option : %v", newRole)
+	}
+	if exists {
+		return fmt.Errorf("User %v already has role %v", username, newRole)
 	}
 
-	if user.HasRole(role) {
-		return fmt.Errorf("user %#v already has role %#v", username, role)
-	}
-
-	roles, _ := json.Marshal(append(user.Roles, role))
+	roles, _ := json.Marshal(append(user.Roles, newRole))
 	if _, err := sq.Update("user").Set("roles", roles).Where("user.username = ?", username).RunWith(auth.db).Exec(); err != nil {
 		log.Errorf("Error while adding new role for user '%s'", user.Username)
 		return err
@@ -157,41 +160,40 @@ func (auth *Authentication) AddRole(
 	return nil
 }
 
-func (auth *Authentication) RemoveRole(ctx context.Context, username string, role string) error {
+func (auth *Authentication) RemoveRole(ctx context.Context, username string, queryrole string) error {
+	oldRole := strings.ToLower(queryrole)
 	user, err := auth.GetUser(username)
 	if err != nil {
 		log.Warnf("Could not load user '%s'", username)
 		return err
 	}
 
-	if !IsValidRole(role) {
-		return fmt.Errorf("Invalid user role: %#v", role)
+	exists, valid := user.HasValidRole(oldRole)
+
+	if !valid {
+		return fmt.Errorf("Supplied role is no valid option : %v", oldRole)
+	}
+	if !exists {
+		return fmt.Errorf("Role already deleted for user '%v': %v", username, oldRole)
 	}
 
-	if role == RoleManager && len(user.Projects) != 0 {
+	if oldRole == GetRoleString(RoleManager) && len(user.Projects) != 0 {
 		return fmt.Errorf("Cannot remove role 'manager' while user %s still has assigned project(s) : %v", username, user.Projects)
 	}
 
-	var exists bool
 	var newroles []string
 	for _, r := range user.Roles {
-		if r != role {
+		if r != oldRole {
 			newroles = append(newroles, r) // Append all roles not matching requested to be deleted role
-		} else {
-			exists = true
 		}
 	}
 
-	if exists == true {
-		var mroles, _ = json.Marshal(newroles)
-		if _, err := sq.Update("user").Set("roles", mroles).Where("user.username = ?", username).RunWith(auth.db).Exec(); err != nil {
-			log.Errorf("Error while removing role for user '%s'", user.Username)
-			return err
-		}
-		return nil
-	} else {
-		return fmt.Errorf("User '%v' already does not have role: %v", username, role)
+	var mroles, _ = json.Marshal(newroles)
+	if _, err := sq.Update("user").Set("roles", mroles).Where("user.username = ?", username).RunWith(auth.db).Exec(); err != nil {
+		log.Errorf("Error while removing role for user '%s'", user.Username)
+		return err
 	}
+	return nil
 }
 
 func (auth *Authentication) AddProject(
@@ -262,7 +264,7 @@ func (auth *Authentication) RemoveProject(ctx context.Context, username string, 
 
 func FetchUser(ctx context.Context, db *sqlx.DB, username string) (*model.User, error) {
 	me := GetUser(ctx)
-	if me != nil && me.Username != username && me.HasNotRoles([]string{RoleAdmin, RoleSupport, RoleManager}) {
+	if me != nil && me.Username != username && me.HasNotRoles([]Role{RoleAdmin, RoleSupport, RoleManager}) {
 		return nil, errors.New("forbidden")
 	}
 

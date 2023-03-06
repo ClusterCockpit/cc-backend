@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
@@ -19,36 +20,83 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-const (
-	RoleAdmin   string = "admin"
-	RoleSupport string = "support"
-	RoleManager string = "manager"
-	RoleUser    string = "user"
-	RoleApi     string = "api"
-)
-
-var validRoles = [5]string{RoleUser, RoleManager, RoleSupport, RoleAdmin, RoleApi}
+type AuthSource int
 
 const (
-	AuthViaLocalPassword int8 = 0
-	AuthViaLDAP          int8 = 1
-	AuthViaToken         int8 = 2
+	AuthViaLocalPassword AuthSource = iota
+	AuthViaLDAP
+	AuthViaToken
 )
 
 type User struct {
-	Username   string   `json:"username"`
-	Password   string   `json:"-"`
-	Name       string   `json:"name"`
-	Roles      []string `json:"roles"`
-	AuthSource int8     `json:"via"`
-	Email      string   `json:"email"`
-	Projects   []string `json:"projects"`
+	Username   string     `json:"username"`
+	Password   string     `json:"-"`
+	Name       string     `json:"name"`
+	Roles      []string   `json:"roles"`
+	AuthSource AuthSource `json:"via"`
+	Email      string     `json:"email"`
+	Projects   []string   `json:"projects"`
 	Expiration time.Time
 }
 
-func (u *User) HasRole(role string) bool {
+type Role int
+
+const (
+	RoleAnonymous Role = iota
+	RoleApi
+	RoleUser
+	RoleManager
+	RoleSupport
+	RoleAdmin
+	RoleError
+)
+
+func GetRoleString(roleInt Role) string {
+	return [6]string{"anonymous", "api", "user", "manager", "support", "admin"}[roleInt]
+}
+
+func getRoleEnum(roleStr string) Role {
+	switch strings.ToLower(roleStr) {
+	case "admin":
+		return RoleAdmin
+	case "support":
+		return RoleSupport
+	case "manager":
+		return RoleManager
+	case "user":
+		return RoleUser
+	case "api":
+		return RoleApi
+	case "anonymous":
+		return RoleAnonymous
+	default:
+		return RoleError
+	}
+}
+
+func isValidRole(role string) bool {
+	if getRoleEnum(role) == RoleError {
+		log.Errorf("Unknown Role %s", role)
+		return false
+	}
+	return true
+}
+
+func (u *User) HasValidRole(role string) (hasRole bool, isValid bool) {
+	if isValidRole(role) {
+		for _, r := range u.Roles {
+			if r == role {
+				return true, true
+			}
+		}
+		return false, true
+	}
+	return false, false
+}
+
+func (u *User) HasRole(role Role) bool {
 	for _, r := range u.Roles {
-		if r == role {
+		if r == GetRoleString(role) {
 			return true
 		}
 	}
@@ -56,10 +104,10 @@ func (u *User) HasRole(role string) bool {
 }
 
 // Role-Arrays are short: performance not impacted by nested loop
-func (u *User) HasAnyRole(queryroles []string) bool {
+func (u *User) HasAnyRole(queryroles []Role) bool {
 	for _, ur := range u.Roles {
 		for _, qr := range queryroles {
-			if ur == qr {
+			if ur == GetRoleString(qr) {
 				return true
 			}
 		}
@@ -68,12 +116,12 @@ func (u *User) HasAnyRole(queryroles []string) bool {
 }
 
 // Role-Arrays are short: performance not impacted by nested loop
-func (u *User) HasAllRoles(queryroles []string) bool {
+func (u *User) HasAllRoles(queryroles []Role) bool {
 	target := len(queryroles)
 	matches := 0
 	for _, ur := range u.Roles {
 		for _, qr := range queryroles {
-			if ur == qr {
+			if ur == GetRoleString(qr) {
 				matches += 1
 				break
 			}
@@ -88,11 +136,11 @@ func (u *User) HasAllRoles(queryroles []string) bool {
 }
 
 // Role-Arrays are short: performance not impacted by nested loop
-func (u *User) HasNotRoles(queryroles []string) bool {
+func (u *User) HasNotRoles(queryroles []Role) bool {
 	matches := 0
 	for _, ur := range u.Roles {
 		for _, qr := range queryroles {
-			if ur == qr {
+			if ur == GetRoleString(qr) {
 				matches += 1
 				break
 			}
@@ -106,20 +154,47 @@ func (u *User) HasNotRoles(queryroles []string) bool {
 	}
 }
 
-// Find highest role, returns integer
-func (u *User) GetAuthLevel() int {
+// Called by API endpoint '/roles/' from frontend: Only required for admin config -> Check Admin Role
+func GetValidRoles(user *User) ([]string, error) {
+	var vals []string
+	if user.HasRole(RoleAdmin) {
+		for i := RoleApi; i < RoleError; i++ {
+			vals = append(vals, GetRoleString(i))
+		}
+		return vals, nil
+	}
+
+	return vals, fmt.Errorf("%s: only admins are allowed to fetch a list of roles", user.Username)
+}
+
+// Called by routerConfig web.page setup in backend: Only requires known user and/or not API user
+func GetValidRolesMap(user *User) (map[string]Role, error) {
+	named := make(map[string]Role)
+	if user.HasNotRoles([]Role{RoleApi, RoleAnonymous}) {
+		for i := RoleApi; i < RoleError; i++ {
+			named[GetRoleString(i)] = i
+		}
+		return named, nil
+	}
+	return named, fmt.Errorf("Only known users are allowed to fetch a list of roles")
+}
+
+// Find highest role
+func (u *User) GetAuthLevel() Role {
 	if u.HasRole(RoleAdmin) {
-		return 5
+		return RoleAdmin
 	} else if u.HasRole(RoleSupport) {
-		return 4
+		return RoleSupport
 	} else if u.HasRole(RoleManager) {
-		return 3
+		return RoleManager
 	} else if u.HasRole(RoleUser) {
-		return 2
+		return RoleUser
 	} else if u.HasRole(RoleApi) {
-		return 1
+		return RoleApi
+	} else if u.HasRole(RoleAnonymous) {
+		return RoleAnonymous
 	} else {
-		return 0
+		return RoleError
 	}
 }
 
@@ -130,24 +205,6 @@ func (u *User) HasProject(project string) bool {
 		}
 	}
 	return false
-}
-
-func IsValidRole(role string) bool {
-	for _, r := range validRoles {
-		if r == role {
-			return true
-		}
-	}
-	return false
-}
-
-func GetValidRoles(user *User) ([5]string, error) {
-	var vals [5]string
-	if !user.HasRole(RoleAdmin) {
-		return vals, fmt.Errorf("%s: only admins are allowed to fetch a list of roles", user.Username)
-	} else {
-		return validRoles, nil
-	}
 }
 
 func GetUser(ctx context.Context) *User {
