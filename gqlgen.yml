@@ -63,6 +63,7 @@ models:
         resolver: true
   NullableFloat: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Float" }
   MetricScope: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.MetricScope" }
+  MetricValue: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.MetricValue" }
   JobStatistics: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.JobStatistics" }
   Tag: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Tag" }
   Resource: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Resource" }

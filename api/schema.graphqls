@@ -46,10 +46,15 @@ type SubCluster {
   socketsPerNode:  Int!
   coresPerSocket:  Int!
   threadsPerCore:  Int!
-  flopRateScalar:  Int!
-  flopRateSimd:    Int!
-  memoryBandwidth: Int!
+  flopRateScalar:  MetricValue!
+  flopRateSimd:    MetricValue!
+  memoryBandwidth: MetricValue!
   topology:        Topology!
+}
+
+type MetricValue {
+  unit: Unit!
+  value: Float!
 }
 
 type Topology {
@@ -81,10 +86,6 @@ type MetricConfig {
   scope:       MetricScope!
   aggregation: String
   timestep:    Int!
-  peak:        Float
-  normal:      Float
-  caution:     Float
-  alert:       Float
   subClusters: [SubClusterConfig]
 }
 

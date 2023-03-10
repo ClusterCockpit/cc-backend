@@ -21,18 +21,23 @@ type Topology struct {
 	Accelerators []*Accelerator `json:"accelerators"`
 }
 
+type MetricValue struct {
+	Unit  Unit    `json:"unit"`
+	Value float64 `json:"value"`
+}
+
 type SubCluster struct {
-	Name            string    `json:"name"`
-	Nodes           string    `json:"nodes"`
-	NumberOfNodes   int       `json:"numberOfNodes"`
-	ProcessorType   string    `json:"processorType"`
-	SocketsPerNode  int       `json:"socketsPerNode"`
-	CoresPerSocket  int       `json:"coresPerSocket"`
-	ThreadsPerCore  int       `json:"threadsPerCore"`
-	FlopRateScalar  int       `json:"flopRateScalar"`
-	FlopRateSimd    int       `json:"flopRateSimd"`
-	MemoryBandwidth int       `json:"memoryBandwidth"`
-	Topology        *Topology `json:"topology"`
+	Name            string       `json:"name"`
+	Nodes           string       `json:"nodes"`
+	NumberOfNodes   int          `json:"numberOfNodes"`
+	ProcessorType   string       `json:"processorType"`
+	SocketsPerNode  int          `json:"socketsPerNode"`
+	CoresPerSocket  int          `json:"coresPerSocket"`
+	ThreadsPerCore  int          `json:"threadsPerCore"`
+	FlopRateScalar  *MetricValue `json:"flopRateScalar"`
+	FlopRateSimd    *MetricValue `json:"flopRateSimd"`
+	MemoryBandwidth *MetricValue `json:"memoryBandwidth"`
+	Topology        *Topology    `json:"topology"`
 }
 
 type SubClusterConfig struct {
