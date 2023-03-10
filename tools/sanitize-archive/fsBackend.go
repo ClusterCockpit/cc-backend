@@ -77,16 +77,6 @@ func (fsa *FsArchive) Init(rawConfig json.RawMessage) error {
 	return nil
 }
 
-func (fsa *FsArchive) LoadClusterCfg(name string) (*Cluster, error) {
-
-	b, err := os.ReadFile(filepath.Join(fsa.path, name, "cluster.json"))
-	if err != nil {
-		log.Errorf("fsBackend LoadClusterCfg()- %v", err)
-		return &Cluster{}, err
-	}
-	return DecodeCluster(bytes.NewReader(b))
-}
-
 func (fsa *FsArchive) Iter() <-chan *JobMeta {
 
 	ch := make(chan *JobMeta)
@@ -138,7 +128,15 @@ func (fsa *FsArchive) Iter() <-chan *JobMeta {
 	return ch
 }
 
-func (fsa *FsArchive) GetClusters() []string {
+func (fsa *FsArchive) LoadClusterCfg(name string) (*Cluster, error) {
+	b, err := os.ReadFile(filepath.Join(fsa.path, name, "cluster.json"))
+	if err != nil {
+		log.Errorf("fsBackend LoadClusterCfg()- %v", err)
+		return &Cluster{}, err
+	}
+	return DecodeCluster(bytes.NewReader(b))
+}
 
+func (fsa *FsArchive) GetClusters() []string {
 	return fsa.clusters
 }

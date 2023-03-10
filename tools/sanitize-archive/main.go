@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -17,12 +18,88 @@ import (
 
 var ar FsArchive
 
+func loadJobData(filename string) (*JobData, error) {
+
+	f, err := os.Open(filename)
+	if err != nil {
+		fmt.Errorf("fsBackend loadJobData()- %v", err)
+		return &JobData{}, err
+	}
+	defer f.Close()
+
+	return DecodeJobData(bufio.NewReader(f))
+}
+
 func deepCopyJobMeta(j *JobMeta) schema.JobMeta {
 	var jn schema.JobMeta
 
-	jn.StartTime = j
-	jn.BaseJob = j.BaseJob
+	jn.StartTime = j.StartTime
+	jn.User = j.User
+	jn.Project = j.Project
+	jn.Cluster = j.Cluster
+	jn.SubCluster = j.SubCluster
+	jn.Partition = j.Partition
+	jn.ArrayJobId = j.ArrayJobId
+	jn.NumNodes = j.NumNodes
+	jn.NumHWThreads = j.NumHWThreads
+	jn.NumAcc = j.NumAcc
+	jn.Exclusive = j.Exclusive
+	jn.MonitoringStatus = j.MonitoringStatus
+	jn.SMT = j.SMT
+	jn.Duration = j.Duration
+	jn.Walltime = j.Walltime
+	jn.State = schema.JobState(j.State)
+	jn.Exclusive = j.Exclusive
+	jn.Exclusive = j.Exclusive
+	jn.Exclusive = j.Exclusive
 
+	for _, ro := range j.Resources {
+		var rn schema.Resource
+		rn.Hostname = ro.Hostname
+		rn.Configuration = ro.Configuration
+		hwt := make([]int, len(ro.HWThreads))
+		copy(hwt, ro.HWThreads)
+		acc := make([]string, len(ro.Accelerators))
+		copy(acc, ro.Accelerators)
+		jn.Resources = append(jn.Resources, &rn)
+	}
+
+	for k, v := range j.MetaData {
+		jn.MetaData[k] = v
+	}
+
+	return jn
+}
+
+func deepCopyJobData(d *JobData) schema.JobData {
+	var dn schema.JobData
+
+	for k, v := range *d {
+		for mk, mv := range v {
+			var mn schema.JobMetric
+			mn.Unit = units.ConvertUnitString(mv.Unit)
+			mn.Scope = mv.Scope
+			mn.Timestep = mv.Timestep
+
+			for _, v := range mv.Series {
+				var sn schema.Series
+				sn.Hostname = v.Hostname
+				sn.Id = v.Id
+				sn.Statistics = &schema.MetricStatistics{
+					Avg: v.Statistics.Avg,
+					Min: v.Statistics.Min,
+					Max: v.Statistics.Max}
+
+				sn.Data = make([]schema.Float, len(v.Data))
+				copy(sn.Data, v.Data)
+				mn.Series = append(mn.Series, sn)
+			}
+
+			dn[k][mk] = &mn
+		}
+	}
+
+	return dn
 }
 
 func deepCopyClusterConfig(co *Cluster) schema.Cluster {
@@ -37,10 +114,6 @@ func deepCopyClusterConfig(co *Cluster) schema.Cluster {
 		mcn.Scope = mco.Scope
 		mcn.Aggregation = mco.Aggregation
 		mcn.Timestep = mco.Timestep
-		mcn.Peak = mco.Peak
-		mcn.Normal = mco.Normal
-		mcn.Caution = mco.Caution
-		mcn.Alert = mco.Alert
 		mcn.Unit = units.ConvertUnitString(mco.Unit)
 		cn.MetricConfig = append(cn.MetricConfig, &mcn)
 	}
@@ -102,5 +175,26 @@ func main() {
 		}
 
 		jmn := deepCopyJobMeta(job)
+		if err := EncodeJobMeta(f, &jmn); err != nil {
+			log.Fatal(err)
+		}
+		if err := f.Close(); err != nil {
+			log.Fatal(err)
+		}
+
+		f, err = os.Create(getPath(job, root, "data.json"))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		sroot := fmt.Sprintf("%s/%s/", srcPath, job.Cluster)
+		jd, err := loadJobData(getPath(job, sroot, "data.json"))
+		jdn := deepCopyJobData(jd)
+		if err := EncodeJobData(f, &jdn); err != nil {
+			log.Fatal(err)
+		}
+		if err := f.Close(); err != nil {
+			log.Fatal(err)
+		}
 	}
 }

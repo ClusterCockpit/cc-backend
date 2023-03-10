@@ -11,22 +11,20 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
-func DecodeJobData(r io.Reader, k string) (JobData, error) {
+func DecodeJobData(r io.Reader) (*JobData, error) {
 	var d JobData
 	if err := json.NewDecoder(r).Decode(&d); err != nil {
 		return nil, err
 	}
 
-	return d, nil
+	return &d, nil
 }
 
 func DecodeJobMeta(r io.Reader) (*JobMeta, error) {
 	var d JobMeta
 	if err := json.NewDecoder(r).Decode(&d); err != nil {
-		return &d, err
+		return nil, err
 	}
-
-	// Sanitize parameters
 
 	return &d, nil
 }
@@ -34,15 +32,13 @@ func DecodeJobMeta(r io.Reader) (*JobMeta, error) {
 func DecodeCluster(r io.Reader) (*Cluster, error) {
 	var c Cluster
 	if err := json.NewDecoder(r).Decode(&c); err != nil {
-		return &c, err
+		return nil, err
 	}
-
-	// Sanitize parameters
 
 	return &c, nil
 }
 
-func EncodeJobData(w io.Writer, d *JobData) error {
+func EncodeJobData(w io.Writer, d *schema.JobData) error {
 	// Sanitize parameters
 	if err := json.NewEncoder(w).Encode(d); err != nil {
 		return err
@@ -51,7 +47,7 @@ func EncodeJobData(w io.Writer, d *JobData) error {
 	return nil
 }
 
-func EncodeJobMeta(w io.Writer, d *JobMeta) error {
+func EncodeJobMeta(w io.Writer, d *schema.JobMeta) error {
 	// Sanitize parameters
 	if err := json.NewEncoder(w).Encode(d); err != nil {
 		return err

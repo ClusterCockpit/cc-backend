@@ -22,7 +22,7 @@ type Series struct {
 	Hostname   string            `json:"hostname"`
 	Id         *int              `json:"id,omitempty"`
 	Statistics *MetricStatistics `json:"statistics"`
-	Data       []Float           `json:"data"`
+	Data       []schema.Float    `json:"data"`
 }
 
 type MetricStatistics struct {
