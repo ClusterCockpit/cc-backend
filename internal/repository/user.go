@@ -124,8 +124,8 @@ func (uCfg *UserCfgRepo) UpdateConfig(
 		return nil
 	}
 
-	if _, err := uCfg.DB.Exec(`REPLACE INTO configuration (username, confkey, value) VALUES (?, ?, ?)`, user, key, value); err != nil {
-		log.Warnf("Error while replacing user config in DB for user '%v'", user)
+	if _, err := uCfg.DB.Exec(`REPLACE INTO configuration (username, confkey, value) VALUES (?, ?, ?)`, user.Username, key, value); err != nil {
+		log.Warnf("Error while replacing user config in DB for user '%v'", user.Username)
 		return err
 	}
 
