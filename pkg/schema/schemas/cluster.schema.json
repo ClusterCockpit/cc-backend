@@ -39,6 +39,22 @@
                             "avg"
                         ]
                     },
+                    "peak": {
+                        "description": "Metric peak threshold (Upper metric limit)",
+                        "type": "number"
+                    },
+                    "normal": {
+                        "description": "Metric normal threshold",
+                        "type": "number"
+                    },
+                    "caution": {
+                        "description": "Metric caution threshold (Suspicious but does not require immediate action)",
+                        "type": "number"
+                    },
+                    "alert": {
+                        "description": "Metric alert threshold (Requires immediate action)",
+                        "type": "number"
+                    },
                     "subClusters": {
                         "description": "Array of cluster hardware partition metric thresholds",
                         "type": "array",
@@ -76,7 +92,10 @@
                     "unit",
                     "scope",
                     "timestep",
-                    "subClusters"
+                    "aggregation",
+                    "peak",
+                    "caution",
+                    "alert"
                 ]
             },
             "minItems": 1

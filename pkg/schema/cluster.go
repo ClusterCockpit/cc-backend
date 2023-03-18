@@ -27,17 +27,18 @@ type MetricValue struct {
 }
 
 type SubCluster struct {
-	Name            string       `json:"name"`
-	Nodes           string       `json:"nodes"`
-	NumberOfNodes   int          `json:"numberOfNodes"`
-	ProcessorType   string       `json:"processorType"`
-	SocketsPerNode  int          `json:"socketsPerNode"`
-	CoresPerSocket  int          `json:"coresPerSocket"`
-	ThreadsPerCore  int          `json:"threadsPerCore"`
-	FlopRateScalar  *MetricValue `json:"flopRateScalar"`
-	FlopRateSimd    *MetricValue `json:"flopRateSimd"`
-	MemoryBandwidth *MetricValue `json:"memoryBandwidth"`
-	Topology        *Topology    `json:"topology"`
+	Name            string          `json:"name"`
+	Nodes           string          `json:"nodes"`
+	NumberOfNodes   int             `json:"numberOfNodes"`
+	ProcessorType   string          `json:"processorType"`
+	SocketsPerNode  int             `json:"socketsPerNode"`
+	CoresPerSocket  int             `json:"coresPerSocket"`
+	ThreadsPerCore  int             `json:"threadsPerCore"`
+	FlopRateScalar  *MetricValue    `json:"flopRateScalar"`
+	FlopRateSimd    *MetricValue    `json:"flopRateSimd"`
+	MemoryBandwidth *MetricValue    `json:"memoryBandwidth"`
+	Topology        *Topology       `json:"topology"`
+	MetricConfig    []*MetricConfig `json:"metricConfig"`
 }
 
 type SubClusterConfig struct {
@@ -54,6 +55,10 @@ type MetricConfig struct {
 	Scope       MetricScope         `json:"scope"`
 	Aggregation *string             `json:"aggregation"`
 	Timestep    int                 `json:"timestep"`
+	Peak        *float64            `json:"peak"`
+	Normal      *float64            `json:"normal"`
+	Caution     *float64            `json:"caution"`
+	Alert       *float64            `json:"alert"`
 	SubClusters []*SubClusterConfig `json:"subClusters"`
 }
 
