@@ -1,0 +1,18 @@
+[Unit]
+Description=ClusterCockpit backend and web frontend (cc-backend)
+Documentation=https://github.com/ClusterCockpit/cc-backend
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+EnvironmentFile=/etc/default/cc-backend
+Type=simple
+User=clustercockpit
+Group=clustercockpit
+Restart=on-failure
+TimeoutStopSec=100
+LimitNOFILE=infinity
+ExecStart=/usr/bin/cc-backend --config ${CONF_FILE}
+
+[Install]
+WantedBy=multi-user.target
