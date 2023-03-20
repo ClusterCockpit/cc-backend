@@ -138,7 +138,11 @@ type ComplexityRoot struct {
 
 	MetricConfig struct {
 		Aggregation func(childComplexity int) int
+		Alert       func(childComplexity int) int
+		Caution     func(childComplexity int) int
 		Name        func(childComplexity int) int
+		Normal      func(childComplexity int) int
+		Peak        func(childComplexity int) int
 		Scope       func(childComplexity int) int
 		SubClusters func(childComplexity int) int
 		Timestep    func(childComplexity int) int
@@ -215,6 +219,7 @@ type ComplexityRoot struct {
 		FlopRateScalar  func(childComplexity int) int
 		FlopRateSimd    func(childComplexity int) int
 		MemoryBandwidth func(childComplexity int) int
+		MetricConfig    func(childComplexity int) int
 		Name            func(childComplexity int) int
 		Nodes           func(childComplexity int) int
 		NumberOfNodes   func(childComplexity int) int
@@ -702,12 +707,40 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.MetricConfig.Aggregation(childComplexity), true
 
+	case "MetricConfig.alert":
+		if e.complexity.MetricConfig.Alert == nil {
+			break
+		}
+
+		return e.complexity.MetricConfig.Alert(childComplexity), true
+
+	case "MetricConfig.caution":
+		if e.complexity.MetricConfig.Caution == nil {
+			break
+		}
+
+		return e.complexity.MetricConfig.Caution(childComplexity), true
+
 	case "MetricConfig.name":
 		if e.complexity.MetricConfig.Name == nil {
 			break
 		}
 
 		return e.complexity.MetricConfig.Name(childComplexity), true
+
+	case "MetricConfig.normal":
+		if e.complexity.MetricConfig.Normal == nil {
+			break
+		}
+
+		return e.complexity.MetricConfig.Normal(childComplexity), true
+
+	case "MetricConfig.peak":
+		if e.complexity.MetricConfig.Peak == nil {
+			break
+		}
+
+		return e.complexity.MetricConfig.Peak(childComplexity), true
 
 	case "MetricConfig.scope":
 		if e.complexity.MetricConfig.Scope == nil {
@@ -1106,6 +1139,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.SubCluster.MemoryBandwidth(childComplexity), true
 
+	case "SubCluster.metricConfig":
+		if e.complexity.SubCluster.MetricConfig == nil {
+			break
+		}
+
+		return e.complexity.SubCluster.MetricConfig(childComplexity), true
+
 	case "SubCluster.name":
 		if e.complexity.SubCluster.Name == nil {
 			break
@@ -1429,6 +1469,7 @@ type SubCluster {
   flopRateSimd:    MetricValue!
   memoryBandwidth: MetricValue!
   topology:        Topology!
+  metricConfig: [MetricConfig!]!
 }
 
 type MetricValue {
@@ -1465,6 +1506,10 @@ type MetricConfig {
   scope:       MetricScope!
   aggregation: String
   timestep:    Int!
+  peak:    Float!
+  normal:  Float!
+  caution: Float!
+  alert:   Float!
   subClusters: [SubClusterConfig]
 }
 
@@ -2422,6 +2467,14 @@ func (ec *executionContext) fieldContext_Cluster_metricConfig(ctx context.Contex
 				return ec.fieldContext_MetricConfig_aggregation(ctx, field)
 			case "timestep":
 				return ec.fieldContext_MetricConfig_timestep(ctx, field)
+			case "peak":
+				return ec.fieldContext_MetricConfig_peak(ctx, field)
+			case "normal":
+				return ec.fieldContext_MetricConfig_normal(ctx, field)
+			case "caution":
+				return ec.fieldContext_MetricConfig_caution(ctx, field)
+			case "alert":
+				return ec.fieldContext_MetricConfig_alert(ctx, field)
 			case "subClusters":
 				return ec.fieldContext_MetricConfig_subClusters(ctx, field)
 			}
@@ -2492,6 +2545,8 @@ func (ec *executionContext) fieldContext_Cluster_subClusters(ctx context.Context
 				return ec.fieldContext_SubCluster_memoryBandwidth(ctx, field)
 			case "topology":
 				return ec.fieldContext_SubCluster_topology(ctx, field)
+			case "metricConfig":
+				return ec.fieldContext_SubCluster_metricConfig(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type SubCluster", field.Name)
 		},
@@ -4928,6 +4983,182 @@ func (ec *executionContext) fieldContext_MetricConfig_timestep(ctx context.Conte
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MetricConfig_peak(ctx context.Context, field graphql.CollectedField, obj *schema.MetricConfig) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MetricConfig_peak(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Peak, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*float64)
+	fc.Result = res
+	return ec.marshalNFloat2ᚖfloat64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MetricConfig_peak(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MetricConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MetricConfig_normal(ctx context.Context, field graphql.CollectedField, obj *schema.MetricConfig) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MetricConfig_normal(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Normal, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*float64)
+	fc.Result = res
+	return ec.marshalNFloat2ᚖfloat64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MetricConfig_normal(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MetricConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MetricConfig_caution(ctx context.Context, field graphql.CollectedField, obj *schema.MetricConfig) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MetricConfig_caution(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Caution, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*float64)
+	fc.Result = res
+	return ec.marshalNFloat2ᚖfloat64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MetricConfig_caution(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MetricConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MetricConfig_alert(ctx context.Context, field graphql.CollectedField, obj *schema.MetricConfig) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MetricConfig_alert(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Alert, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*float64)
+	fc.Result = res
+	return ec.marshalNFloat2ᚖfloat64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MetricConfig_alert(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MetricConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
 		},
 	}
 	return fc, nil
@@ -7610,6 +7841,72 @@ func (ec *executionContext) fieldContext_SubCluster_topology(ctx context.Context
 				return ec.fieldContext_Topology_accelerators(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Topology", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SubCluster_metricConfig(ctx context.Context, field graphql.CollectedField, obj *schema.SubCluster) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SubCluster_metricConfig(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MetricConfig, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*schema.MetricConfig)
+	fc.Result = res
+	return ec.marshalNMetricConfig2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐMetricConfigᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SubCluster_metricConfig(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SubCluster",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_MetricConfig_name(ctx, field)
+			case "unit":
+				return ec.fieldContext_MetricConfig_unit(ctx, field)
+			case "scope":
+				return ec.fieldContext_MetricConfig_scope(ctx, field)
+			case "aggregation":
+				return ec.fieldContext_MetricConfig_aggregation(ctx, field)
+			case "timestep":
+				return ec.fieldContext_MetricConfig_timestep(ctx, field)
+			case "peak":
+				return ec.fieldContext_MetricConfig_peak(ctx, field)
+			case "normal":
+				return ec.fieldContext_MetricConfig_normal(ctx, field)
+			case "caution":
+				return ec.fieldContext_MetricConfig_caution(ctx, field)
+			case "alert":
+				return ec.fieldContext_MetricConfig_alert(ctx, field)
+			case "subClusters":
+				return ec.fieldContext_MetricConfig_subClusters(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MetricConfig", field.Name)
 		},
 	}
 	return fc, nil
@@ -11390,6 +11687,34 @@ func (ec *executionContext) _MetricConfig(ctx context.Context, sel ast.Selection
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
+		case "peak":
+
+			out.Values[i] = ec._MetricConfig_peak(ctx, field, obj)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "normal":
+
+			out.Values[i] = ec._MetricConfig_normal(ctx, field, obj)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "caution":
+
+			out.Values[i] = ec._MetricConfig_caution(ctx, field, obj)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "alert":
+
+			out.Values[i] = ec._MetricConfig_alert(ctx, field, obj)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "subClusters":
 
 			out.Values[i] = ec._MetricConfig_subClusters(ctx, field, obj)
@@ -12148,6 +12473,13 @@ func (ec *executionContext) _SubCluster(ctx context.Context, sel ast.SelectionSe
 		case "topology":
 
 			out.Values[i] = ec._SubCluster_topology(ctx, field, obj)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "metricConfig":
+
+			out.Values[i] = ec._SubCluster_metricConfig(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
 				invalids++
@@ -12953,6 +13285,27 @@ func (ec *executionContext) marshalNFloat2ᚕᚕfloat64ᚄ(ctx context.Context, 
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalNFloat2ᚖfloat64(ctx context.Context, v interface{}) (*float64, error) {
+	res, err := graphql.UnmarshalFloatContext(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNFloat2ᚖfloat64(ctx context.Context, sel ast.SelectionSet, v *float64) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	res := graphql.MarshalFloatContext(*v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return graphql.WrapContextMarshaler(ctx, res)
 }
 
 func (ec *executionContext) marshalNHistoPoint2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐHistoPointᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.HistoPoint) graphql.Marshaler {
