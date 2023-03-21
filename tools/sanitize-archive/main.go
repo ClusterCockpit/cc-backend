@@ -22,8 +22,7 @@ func loadJobData(filename string) (*JobData, error) {
 
 	f, err := os.Open(filename)
 	if err != nil {
-		fmt.Errorf("fsBackend loadJobData()- %v", err)
-		return &JobData{}, err
+		return &JobData{}, fmt.Errorf("fsBackend loadJobData()- %v", err)
 	}
 	defer f.Close()
 
@@ -175,10 +174,10 @@ func main() {
 		}
 
 		jmn := deepCopyJobMeta(job)
-		if err := EncodeJobMeta(f, &jmn); err != nil {
+		if err = EncodeJobMeta(f, &jmn); err != nil {
 			log.Fatal(err)
 		}
-		if err := f.Close(); err != nil {
+		if err = f.Close(); err != nil {
 			log.Fatal(err)
 		}
 
@@ -188,7 +187,11 @@ func main() {
 		}
 
 		sroot := fmt.Sprintf("%s/%s/", srcPath, job.Cluster)
-		jd, err := loadJobData(getPath(job, sroot, "data.json"))
+		var jd *JobData
+		jd, err = loadJobData(getPath(job, sroot, "data.json"))
+		if err != nil {
+			log.Fatal(err)
+		}
 		jdn := deepCopyJobData(jd)
 		if err := EncodeJobData(f, &jdn); err != nil {
 			log.Fatal(err)

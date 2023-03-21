@@ -76,13 +76,13 @@
                                 },
                                 "alert": {
                                     "type": "number"
+                                },
+                                "remove": {
+                                    "type": "boolean"
                                 }
                             },
                             "required": [
-                                "name",
-                                "peak",
-                                "caution",
-                                "alert"
+                                "name"
                             ]
                         }
                     }
@@ -261,6 +261,7 @@
                 },
                 "required": [
                     "name",
+                    "nodes",
                     "topology",
                     "processorType",
                     "socketsPerNode",

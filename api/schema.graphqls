@@ -50,7 +50,6 @@ type SubCluster {
   flopRateSimd:    MetricValue!
   memoryBandwidth: MetricValue!
   topology:        Topology!
-  metricConfig: [MetricConfig!]!
 }
 
 type MetricValue {
@@ -75,23 +74,24 @@ type Accelerator {
 
 type SubClusterConfig {
   name:    String!
-  peak:    Float!
-  normal:  Float!
-  caution: Float!
-  alert:   Float!
+  peak:    Float
+  normal:  Float
+  caution: Float
+  alert:   Float
+  remove:  Boolean
 }
 
 type MetricConfig {
   name:        String!
-  unit:        Unit
+  unit:        Unit!
   scope:       MetricScope!
-  aggregation: String
+  aggregation: String!
   timestep:    Int!
   peak:    Float!
-  normal:  Float!
+  normal:  Float
   caution: Float!
   alert:   Float!
-  subClusters: [SubClusterConfig]
+  subClusters: [SubClusterConfig!]!
 }
 
 type Tag {

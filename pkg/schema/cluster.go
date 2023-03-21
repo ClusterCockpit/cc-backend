@@ -27,18 +27,17 @@ type MetricValue struct {
 }
 
 type SubCluster struct {
-	Name            string          `json:"name"`
-	Nodes           string          `json:"nodes"`
-	NumberOfNodes   int             `json:"numberOfNodes"`
-	ProcessorType   string          `json:"processorType"`
-	SocketsPerNode  int             `json:"socketsPerNode"`
-	CoresPerSocket  int             `json:"coresPerSocket"`
-	ThreadsPerCore  int             `json:"threadsPerCore"`
-	FlopRateScalar  *MetricValue    `json:"flopRateScalar"`
-	FlopRateSimd    *MetricValue    `json:"flopRateSimd"`
-	MemoryBandwidth *MetricValue    `json:"memoryBandwidth"`
-	Topology        *Topology       `json:"topology"`
-	MetricConfig    []*MetricConfig `json:"metricConfig"`
+	Name            string       `json:"name"`
+	Nodes           string       `json:"nodes"`
+	NumberOfNodes   int          `json:"numberOfNodes"`
+	ProcessorType   string       `json:"processorType"`
+	SocketsPerNode  int          `json:"socketsPerNode"`
+	CoresPerSocket  int          `json:"coresPerSocket"`
+	ThreadsPerCore  int          `json:"threadsPerCore"`
+	FlopRateScalar  *MetricValue `json:"flopRateScalar"`
+	FlopRateSimd    *MetricValue `json:"flopRateSimd"`
+	MemoryBandwidth *MetricValue `json:"memoryBandwidth"`
+	Topology        *Topology    `json:"topology"`
 }
 
 type SubClusterConfig struct {
@@ -47,6 +46,7 @@ type SubClusterConfig struct {
 	Normal  float64 `json:"normal"`
 	Caution float64 `json:"caution"`
 	Alert   float64 `json:"alert"`
+	Remove  bool    `json:"remove"`
 }
 
 type MetricConfig struct {
