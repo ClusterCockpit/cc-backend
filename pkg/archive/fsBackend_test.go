@@ -141,7 +141,7 @@ func TestLoadCluster(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if cfg.SubClusters[0].CoresPerSocket != 10 {
+	if cfg.SubClusters[0].CoresPerSocket != 4 {
 		t.Fail()
 	}
 }

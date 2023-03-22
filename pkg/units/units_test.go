@@ -251,8 +251,8 @@ func TestNormalizeValueNoPrefix(t *testing.T) {
 	if v != 104.00 {
 		t.Errorf("Failed ConvertValue: Want 104.00, Got %f", v)
 	}
-	if s != "MFlops/s" {
-		t.Errorf("Failed Prefix or unit: Want GB/s, Got %s", s)
+	if s != "MF/s" {
+		t.Errorf("Failed Prefix or unit: Want MF/s, Got %s", s)
 	}
 }
 

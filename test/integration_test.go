@@ -69,9 +69,28 @@ func setup(t *testing.T) *api.RestApi {
 				"socketsPerNode": 1,
 				"coresPerSocket": 4,
 				"threadsPerCore": 2,
-				"flopRateScalar": 44,
-				"flopRateSimd": 704,
-				"memoryBandwidth": 80,
+                "flopRateScalar": {
+                  "unit": {
+                    "prefix": "G",
+                    "base": "F/s"
+                  },
+                  "value": 14
+                },
+                "flopRateSimd": {
+                  "unit": {
+                    "prefix": "G",
+                    "base": "F/s"
+                  },
+                  "value": 112
+                },
+                "memoryBandwidth": {
+                  "unit": {
+                    "prefix": "G",
+                    "base": "B/s"
+                  },
+                  "value": 24
+                },
+                "numberOfNodes": 70,
 				"topology": {
 					"node": [0, 1, 2, 3, 4, 5, 6, 7],
 					"socket": [[0, 1, 2, 3, 4, 5, 6, 7]],
@@ -87,6 +106,7 @@ func setup(t *testing.T) *api.RestApi {
 			    "unit": { "base": "load"},
 				"scope": "node",
 				"timestep": 60,
+                "aggregation": "avg",
 				"peak": 8,
 				"normal": 0,
 				"caution": 0,
@@ -103,10 +123,30 @@ func setup(t *testing.T) *api.RestApi {
 			"processorType": "Intel Haswell",
 			"socketsPerNode": 2,
 			"coresPerSocket": 12,
-			"threadsPerCore": 1,
-			"flopRateScalar": 32,
-			"flopRateSimd": 512,
-			"memoryBandwidth": 60,
+			"threadsPerCore": 1, 
+		    "flopRateScalar": {
+                  "unit": {
+                    "prefix": "G",
+                    "base": "F/s"
+                  },
+                  "value": 14
+            },
+            "flopRateSimd": {
+                 "unit": {
+                    "prefix": "G",
+                    "base": "F/s"
+                  },
+                  "value": 112
+            },
+            "memoryBandwidth": {
+                  "unit": {
+                    "prefix": "G",
+                    "base": "B/s"
+                  },
+                  "value": 24
+            },
+            "numberOfNodes": 70,
+            "nodes": "w11[27-45,49-63,69-72]",
 			"topology": {
 			  "node": [ 0, 1 ],
 			  "socket": [
@@ -126,6 +166,7 @@ func setup(t *testing.T) *api.RestApi {
 			"name": "cpu_used",
 			"scope": "core",
 			"unit": {"base": ""},
+			"aggregation": "avg",
 			"timestep": 30,
 			"subClusters": [
 			  {
@@ -141,6 +182,7 @@ func setup(t *testing.T) *api.RestApi {
 			"name": "ipc",
 			"scope": "core",
 			"unit": { "base": "IPC"},
+            "aggregation": "avg",
 			"timestep": 60,
 			"subClusters": [
 			  {
@@ -156,6 +198,7 @@ func setup(t *testing.T) *api.RestApi {
 			"name": "flops_any",
 			"scope": "core",
 			"unit": { "base": "F/s"},
+            "aggregation": "sum",
 			"timestep": 60,
 			"subClusters": [
 			  {
@@ -171,6 +214,7 @@ func setup(t *testing.T) *api.RestApi {
 			"name": "mem_bw",
 			"scope": "socket",
 			"unit": { "base": "B/s"},
+            "aggregation": "sum",
 			"timestep": 60,
 			"subClusters": [
 			  {
@@ -186,6 +230,7 @@ func setup(t *testing.T) *api.RestApi {
 			"name": "file_bw",
 			"scope": "node",
 			"unit": { "base": "B/s"},
+            "aggregation": "sum",
 			"timestep": 30,
 			"subClusters": [
 			  {
@@ -216,6 +261,7 @@ func setup(t *testing.T) *api.RestApi {
 			"name": "mem_used",
 			"scope": "node",
 			"unit": {"base": "B"},
+            "aggregation": "sum",
 			"timestep": 30,
 			"subClusters": [
 			  {
@@ -231,6 +277,7 @@ func setup(t *testing.T) *api.RestApi {
 			"name": "cpu_power",
 			"scope": "socket",
 			"unit": {"base": "W"},
+            "aggregation": "sum",
 			"timestep": 60,
 			"subClusters": [
 			  {
@@ -605,7 +652,7 @@ func testImportFlag(t *testing.T) {
 
 	r := map[string]string{"mem_used": "GB", "net_bw": "KB/s",
 		"cpu_power": "W", "cpu_used": "",
-		"file_bw": "KB/s", "flops_any": "Flops/s",
+		"file_bw": "KB/s", "flops_any": "F/s",
 		"mem_bw": "GB/s", "ipc": "IPC"}
 
 	for name, scopes := range data {
