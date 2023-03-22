@@ -82,10 +82,11 @@ func deepCopyJobData(d *JobData) schema.JobData {
 			mn.Series = make([]schema.Series, len(mv.Series))
 
 			for _, v := range mv.Series {
+				var id *string = new(string)
 				var sn schema.Series
 				sn.Hostname = v.Hostname
-				id := fmt.Sprint(*v.Id)
-				sn.Id = &id
+				*id = fmt.Sprint(*v.Id)
+				sn.Id = id
 				sn.Statistics = schema.MetricStatistics{
 					Avg: v.Statistics.Avg,
 					Min: v.Statistics.Min,
@@ -120,15 +121,16 @@ func deepCopyClusterConfig(co *Cluster) schema.Cluster {
 		scn.SocketsPerNode = sco.SocketsPerNode
 		scn.CoresPerSocket = sco.CoresPerSocket
 		scn.ThreadsPerCore = sco.ThreadsPerCore
-		prefix := "G"
+		var prefix *string = new(string)
+		*prefix = "G"
 		scn.FlopRateScalar = schema.MetricValue{
-			Unit:  schema.Unit{Base: "F/s", Prefix: &prefix},
+			Unit:  schema.Unit{Base: "F/s", Prefix: prefix},
 			Value: float64(sco.FlopRateScalar)}
 		scn.FlopRateSimd = schema.MetricValue{
-			Unit:  schema.Unit{Base: "F/s", Prefix: &prefix},
+			Unit:  schema.Unit{Base: "F/s", Prefix: prefix},
 			Value: float64(sco.FlopRateSimd)}
 		scn.MemoryBandwidth = schema.MetricValue{
-			Unit:  schema.Unit{Base: "B/s", Prefix: &prefix},
+			Unit:  schema.Unit{Base: "B/s", Prefix: prefix},
 			Value: float64(sco.MemoryBandwidth)}
 		scn.Topology = *sco.Topology
 		cn.SubClusters = append(cn.SubClusters, &scn)
