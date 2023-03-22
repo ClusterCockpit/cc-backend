@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/ClusterCockpit/cc-backend/pkg/units"
@@ -71,20 +72,21 @@ func deepCopyJobMeta(j *JobMeta) schema.JobMeta {
 }
 
 func deepCopyJobData(d *JobData) schema.JobData {
-	var dn schema.JobData
+	var dn schema.JobData = make(schema.JobData)
 
 	for k, v := range *d {
 		for mk, mv := range v {
 			var mn schema.JobMetric
 			mn.Unit = units.ConvertUnitString(mv.Unit)
-			mn.Scope = mv.Scope
 			mn.Timestep = mv.Timestep
+			mn.Series = make([]schema.Series, len(mv.Series))
 
 			for _, v := range mv.Series {
 				var sn schema.Series
 				sn.Hostname = v.Hostname
-				sn.Id = v.Id
-				sn.Statistics = &schema.MetricStatistics{
+				id := fmt.Sprint(*v.Id)
+				sn.Id = &id
+				sn.Statistics = schema.MetricStatistics{
 					Avg: v.Statistics.Avg,
 					Min: v.Statistics.Min,
 					Max: v.Statistics.Max}
@@ -94,6 +96,7 @@ func deepCopyJobData(d *JobData) schema.JobData {
 				mn.Series = append(mn.Series, sn)
 			}
 
+			dn[k] = make(map[schema.MetricScope]*schema.JobMetric)
 			dn[k][mk] = &mn
 		}
 	}
@@ -105,15 +108,49 @@ func deepCopyClusterConfig(co *Cluster) schema.Cluster {
 	var cn schema.Cluster
 
 	cn.Name = co.Name
-	cn.SubClusters = co.SubClusters
+	for _, sco := range co.SubClusters {
+		var scn schema.SubCluster
+		scn.Name = sco.Name
+		if sco.Nodes == "" {
+			scn.Nodes = "*"
+		} else {
+			scn.Nodes = sco.Nodes
+		}
+		scn.ProcessorType = sco.ProcessorType
+		scn.SocketsPerNode = sco.SocketsPerNode
+		scn.CoresPerSocket = sco.CoresPerSocket
+		scn.ThreadsPerCore = sco.ThreadsPerCore
+		prefix := "G"
+		scn.FlopRateScalar = schema.MetricValue{
+			Unit:  schema.Unit{Base: "F/s", Prefix: &prefix},
+			Value: float64(sco.FlopRateScalar)}
+		scn.FlopRateSimd = schema.MetricValue{
+			Unit:  schema.Unit{Base: "F/s", Prefix: &prefix},
+			Value: float64(sco.FlopRateSimd)}
+		scn.MemoryBandwidth = schema.MetricValue{
+			Unit:  schema.Unit{Base: "B/s", Prefix: &prefix},
+			Value: float64(sco.MemoryBandwidth)}
+		scn.Topology = *sco.Topology
+		cn.SubClusters = append(cn.SubClusters, &scn)
+	}
 
 	for _, mco := range co.MetricConfig {
 		var mcn schema.MetricConfig
 		mcn.Name = mco.Name
 		mcn.Scope = mco.Scope
-		mcn.Aggregation = mco.Aggregation
+		if mco.Aggregation == "" {
+			fmt.Println("Property aggregation missing! Please review file!")
+			mcn.Aggregation = "sum"
+		} else {
+			mcn.Aggregation = mco.Aggregation
+		}
 		mcn.Timestep = mco.Timestep
 		mcn.Unit = units.ConvertUnitString(mco.Unit)
+		mcn.Peak = mco.Peak
+		mcn.Normal = mco.Normal
+		mcn.Caution = mco.Caution
+		mcn.Alert = mco.Alert
+		mcn.SubClusters = mco.SubClusters
 		cn.MetricConfig = append(cn.MetricConfig, &mcn)
 	}
 
@@ -167,8 +204,12 @@ func main() {
 	for job := range ar.Iter() {
 		fmt.Printf("Job %d\n", job.JobID)
 
-		root := fmt.Sprintf("%s/%s/", dstPath, job.Cluster)
-		f, err := os.Create(getPath(job, root, "meta.json"))
+		path := getPath(job, dstPath, "meta.json")
+		err = os.MkdirAll(filepath.Dir(path), 0750)
+		if err != nil {
+			log.Fatal(err)
+		}
+		f, err := os.Create(path)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -181,14 +222,13 @@ func main() {
 			log.Fatal(err)
 		}
 
-		f, err = os.Create(getPath(job, root, "data.json"))
+		f, err = os.Create(getPath(job, dstPath, "data.json"))
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		sroot := fmt.Sprintf("%s/%s/", srcPath, job.Cluster)
 		var jd *JobData
-		jd, err = loadJobData(getPath(job, sroot, "data.json"))
+		jd, err = loadJobData(getPath(job, srcPath, "data.json"))
 		if err != nil {
 			log.Fatal(err)
 		}

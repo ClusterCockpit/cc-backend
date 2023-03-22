@@ -80,18 +80,17 @@ func (s *Series) MarshalJSON() ([]byte, error) {
 	buf = append(buf, s.Hostname...)
 	buf = append(buf, '"')
 	if s.Id != nil {
-		buf = append(buf, `,"id":`...)
-		buf = strconv.AppendInt(buf, int64(*s.Id), 10)
+		buf = append(buf, `,"id":"`...)
+		buf = append(buf, *s.Id...)
+		buf = append(buf, '"')
 	}
-	if s.Statistics != nil {
-		buf = append(buf, `,"statistics":{"min":`...)
-		buf = strconv.AppendFloat(buf, s.Statistics.Min, 'f', 2, 64)
-		buf = append(buf, `,"avg":`...)
-		buf = strconv.AppendFloat(buf, s.Statistics.Avg, 'f', 2, 64)
-		buf = append(buf, `,"max":`...)
-		buf = strconv.AppendFloat(buf, s.Statistics.Max, 'f', 2, 64)
-		buf = append(buf, '}')
-	}
+	buf = append(buf, `,"statistics":{"min":`...)
+	buf = strconv.AppendFloat(buf, s.Statistics.Min, 'f', 2, 64)
+	buf = append(buf, `,"avg":`...)
+	buf = strconv.AppendFloat(buf, s.Statistics.Avg, 'f', 2, 64)
+	buf = append(buf, `,"max":`...)
+	buf = strconv.AppendFloat(buf, s.Statistics.Max, 'f', 2, 64)
+	buf = append(buf, '}')
 	buf = append(buf, `,"data":[`...)
 	for i := 0; i < len(s.Data); i++ {
 		if i != 0 {

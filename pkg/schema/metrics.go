@@ -16,17 +16,16 @@ type JobData map[string]map[MetricScope]*JobMetric
 
 type JobMetric struct {
 	Unit             Unit         `json:"unit"`
-	Scope            MetricScope  `json:"scope"`
 	Timestep         int          `json:"timestep"`
 	Series           []Series     `json:"series"`
-	StatisticsSeries *StatsSeries `json:"statisticsSeries"`
+	StatisticsSeries *StatsSeries `json:"statisticsSeries,omitempty"`
 }
 
 type Series struct {
-	Hostname   string            `json:"hostname"`
-	Id         *int              `json:"id,omitempty"`
-	Statistics *MetricStatistics `json:"statistics"`
-	Data       []Float           `json:"data"`
+	Hostname   string           `json:"hostname"`
+	Id         *string          `json:"id,omitempty"`
+	Statistics MetricStatistics `json:"statistics"`
+	Data       []Float          `json:"data"`
 }
 
 type MetricStatistics struct {
@@ -218,17 +217,12 @@ func (jd *JobData) AddNodeScope(metric string) bool {
 
 	nodeJm := &JobMetric{
 		Unit:     jm.Unit,
-		Scope:    MetricScopeNode,
 		Timestep: jm.Timestep,
 		Series:   make([]Series, 0, len(hosts)),
 	}
 	for hostname, series := range hosts {
 		min, sum, max := math.MaxFloat32, 0.0, -math.MaxFloat32
 		for _, series := range series {
-			if series.Statistics == nil {
-				min, sum, max = math.NaN(), math.NaN(), math.NaN()
-				break
-			}
 			sum += series.Statistics.Avg
 			min = math.Min(min, series.Statistics.Min)
 			max = math.Max(max, series.Statistics.Max)
@@ -259,7 +253,7 @@ func (jd *JobData) AddNodeScope(metric string) bool {
 
 		nodeJm.Series = append(nodeJm.Series, Series{
 			Hostname:   hostname,
-			Statistics: &MetricStatistics{Min: min, Avg: sum / float64(len(series)), Max: max},
+			Statistics: MetricStatistics{Min: min, Avg: sum / float64(len(series)), Max: max},
 			Data:       data,
 		})
 	}

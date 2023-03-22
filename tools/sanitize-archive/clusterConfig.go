@@ -79,7 +79,7 @@ func GetCluster(cluster string) *Cluster {
 	return nil
 }
 
-func GetSubCluster(cluster, subcluster string) *schema.SubCluster {
+func GetSubCluster(cluster, subcluster string) *SubCluster {
 
 	for _, c := range Clusters {
 		if c.Name == cluster {

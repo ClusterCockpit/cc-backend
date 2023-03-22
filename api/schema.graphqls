@@ -41,7 +41,6 @@ type Cluster {
 type SubCluster {
   name:            String!
   nodes:           String!
-  numberOfNodes:   Int!
   processorType:   String!
   socketsPerNode:  Int!
   coresPerSocket:  Int!
@@ -114,7 +113,6 @@ type JobMetricWithName {
 
 type JobMetric {
   unit:             Unit
-  scope:            MetricScope!
   timestep:         Int!
   series:           [Series!]
   statisticsSeries: StatsSeries
@@ -122,7 +120,7 @@ type JobMetric {
 
 type Series {
   hostname:   String!
-  id:         Int
+  id:         String
   statistics: MetricStatistics
   data:       [NullableFloat!]!
 }

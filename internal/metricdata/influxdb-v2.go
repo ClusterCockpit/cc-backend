@@ -132,7 +132,6 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 				jobMetric = map[schema.MetricScope]*schema.JobMetric{
 					scope: { // uses scope var from above!
 						Unit:             mc.Unit,
-						Scope:            scope,
 						Timestep:         mc.Timestep,
 						Series:           make([]schema.Series, 0, len(job.Resources)),
 						StatisticsSeries: nil, // Should be: &schema.StatsSeries{},
@@ -157,7 +156,7 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 					field, host = row.Measurement(), row.ValueByKey("hostname").(string)
 					hostSeries = schema.Series{
 						Hostname:   host,
-						Statistics: nil,
+						Statistics: schema.MetricStatistics{}, //TODO Add Statistics
 						Data:       make([]schema.Float, 0),
 					}
 				}
@@ -215,7 +214,7 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 						// log.Println(fmt.Sprintf("<< Try to add Stats to Series in Position %d >>", index))
 						if jobData[metric][scope].Series[index].Hostname == node {
 							// log.Println(fmt.Sprintf("<< Match for Series in Position %d : Host %s >>", index, jobData[metric][scope].Series[index].Hostname))
-							jobData[metric][scope].Series[index].Statistics = &schema.MetricStatistics{Avg: stats.Avg, Min: stats.Min, Max: stats.Max}
+							jobData[metric][scope].Series[index].Statistics = schema.MetricStatistics{Avg: stats.Avg, Min: stats.Min, Max: stats.Max}
 							// log.Println(fmt.Sprintf("<< Result Inner: Min %.2f, Max %.2f, Avg %.2f >>", jobData[metric][scope].Series[index].Statistics.Min, jobData[metric][scope].Series[index].Statistics.Max, jobData[metric][scope].Series[index].Statistics.Avg))
 						}
 					}

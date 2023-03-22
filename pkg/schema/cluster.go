@@ -16,9 +16,9 @@ type Topology struct {
 	Node         []int          `json:"node"`
 	Socket       [][]int        `json:"socket"`
 	MemoryDomain [][]int        `json:"memoryDomain"`
-	Die          [][]int        `json:"die"`
+	Die          [][]*int       `json:"die,omitempty"`
 	Core         [][]int        `json:"core"`
-	Accelerators []*Accelerator `json:"accelerators"`
+	Accelerators []*Accelerator `json:"accelerators,omitempty"`
 }
 
 type MetricValue struct {
@@ -27,17 +27,16 @@ type MetricValue struct {
 }
 
 type SubCluster struct {
-	Name            string       `json:"name"`
-	Nodes           string       `json:"nodes"`
-	NumberOfNodes   int          `json:"numberOfNodes"`
-	ProcessorType   string       `json:"processorType"`
-	SocketsPerNode  int          `json:"socketsPerNode"`
-	CoresPerSocket  int          `json:"coresPerSocket"`
-	ThreadsPerCore  int          `json:"threadsPerCore"`
-	FlopRateScalar  *MetricValue `json:"flopRateScalar"`
-	FlopRateSimd    *MetricValue `json:"flopRateSimd"`
-	MemoryBandwidth *MetricValue `json:"memoryBandwidth"`
-	Topology        *Topology    `json:"topology"`
+	Name            string      `json:"name"`
+	Nodes           string      `json:"nodes"`
+	ProcessorType   string      `json:"processorType"`
+	SocketsPerNode  int         `json:"socketsPerNode"`
+	CoresPerSocket  int         `json:"coresPerSocket"`
+	ThreadsPerCore  int         `json:"threadsPerCore"`
+	FlopRateScalar  MetricValue `json:"flopRateScalar"`
+	FlopRateSimd    MetricValue `json:"flopRateSimd"`
+	MemoryBandwidth MetricValue `json:"memoryBandwidth"`
+	Topology        Topology    `json:"topology"`
 }
 
 type SubClusterConfig struct {
@@ -53,13 +52,13 @@ type MetricConfig struct {
 	Name        string              `json:"name"`
 	Unit        Unit                `json:"unit"`
 	Scope       MetricScope         `json:"scope"`
-	Aggregation *string             `json:"aggregation"`
+	Aggregation string              `json:"aggregation"`
 	Timestep    int                 `json:"timestep"`
-	Peak        *float64            `json:"peak"`
-	Normal      *float64            `json:"normal"`
-	Caution     *float64            `json:"caution"`
-	Alert       *float64            `json:"alert"`
-	SubClusters []*SubClusterConfig `json:"subClusters"`
+	Peak        float64             `json:"peak"`
+	Normal      float64             `json:"normal"`
+	Caution     float64             `json:"caution"`
+	Alert       float64             `json:"alert"`
+	SubClusters []*SubClusterConfig `json:"subClusters,omitempty"`
 }
 
 type Cluster struct {
@@ -168,13 +167,4 @@ func (topo *Topology) GetAcceleratorIDs() ([]int, error) {
 		accels = append(accels, id)
 	}
 	return accels, nil
-}
-
-func (topo *Topology) GetAcceleratorIndex(id string) (int, bool) {
-	for idx, accel := range topo.Accelerators {
-		if accel.ID == id {
-			return idx, true
-		}
-	}
-	return -1, false
 }

@@ -146,7 +146,8 @@ func ConvertUnitString(us string) schema.Unit {
 	u := NewUnit(us)
 	p := u.getPrefix()
 	if p.Prefix() != "" {
-		nu.Prefix = p.Prefix()
+		prefix := p.Prefix()
+		nu.Prefix = &prefix
 	}
 	m := u.getMeasure()
 	d := u.getUnitDenominator()

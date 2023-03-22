@@ -369,12 +369,11 @@ func TestRestApi(t *testing.T) {
 		"load_one": map[schema.MetricScope]*schema.JobMetric{
 			schema.MetricScopeNode: {
 				Unit:     schema.Unit{Base: "load"},
-				Scope:    schema.MetricScopeNode,
 				Timestep: 60,
 				Series: []schema.Series{
 					{
 						Hostname:   "host123",
-						Statistics: &schema.MetricStatistics{Min: 0.1, Avg: 0.2, Max: 0.3},
+						Statistics: schema.MetricStatistics{Min: 0.1, Avg: 0.2, Max: 0.3},
 						Data:       []schema.Float{0.1, 0.1, 0.1, 0.2, 0.2, 0.2, 0.3, 0.3, 0.3},
 					},
 				},

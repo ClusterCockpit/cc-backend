@@ -94,6 +94,7 @@
                     "timestep",
                     "aggregation",
                     "peak",
+                    "normal",
                     "caution",
                     "alert"
                 ]
