@@ -72,25 +72,28 @@ func deepCopyJobMeta(j *JobMeta) schema.JobMeta {
 }
 
 func deepCopyJobData(d *JobData) schema.JobData {
-	var dn schema.JobData = make(schema.JobData)
+	var dn = make(schema.JobData)
 
 	for k, v := range *d {
 		for mk, mv := range v {
 			var mn schema.JobMetric
 			mn.Unit = units.ConvertUnitString(mv.Unit)
 			mn.Timestep = mv.Timestep
-			mn.Series = make([]schema.Series, len(mv.Series))
 
 			for _, v := range mv.Series {
-				var id *string = new(string)
 				var sn schema.Series
 				sn.Hostname = v.Hostname
-				*id = fmt.Sprint(*v.Id)
-				sn.Id = id
-				sn.Statistics = schema.MetricStatistics{
-					Avg: v.Statistics.Avg,
-					Min: v.Statistics.Min,
-					Max: v.Statistics.Max}
+				if v.Id != nil {
+					var id = new(string)
+					*id = fmt.Sprint(*v.Id)
+					sn.Id = id
+				}
+				if v.Statistics != nil {
+					sn.Statistics = schema.MetricStatistics{
+						Avg: v.Statistics.Avg,
+						Min: v.Statistics.Min,
+						Max: v.Statistics.Max}
+				}
 
 				sn.Data = make([]schema.Float, len(v.Data))
 				copy(sn.Data, v.Data)
@@ -121,7 +124,7 @@ func deepCopyClusterConfig(co *Cluster) schema.Cluster {
 		scn.SocketsPerNode = sco.SocketsPerNode
 		scn.CoresPerSocket = sco.CoresPerSocket
 		scn.ThreadsPerCore = sco.ThreadsPerCore
-		var prefix *string = new(string)
+		var prefix = new(string)
 		*prefix = "G"
 		scn.FlopRateScalar = schema.MetricValue{
 			Unit:  schema.Unit{Base: "F/s", Prefix: prefix},

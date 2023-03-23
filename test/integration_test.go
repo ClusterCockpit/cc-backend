@@ -657,7 +657,7 @@ func testImportFlag(t *testing.T) {
 	for name, scopes := range data {
 		for _, metric := range scopes {
 			if metric.Unit.Base != r[name] {
-				t.Errorf("Metric %s unit: Got %s, want %s", name, metric.Unit, r[name])
+				t.Errorf("Metric %s unit: Got %s, want %s", name, metric.Unit.Base, r[name])
 			}
 		}
 	}
