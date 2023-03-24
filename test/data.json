@@ -4,12 +4,11 @@
       "unit": {
         "base": ""
       },
-      "scope": "core",
       "timestep": 30,
       "series": [
         {
           "hostname": "taurusi6489",
-          "id": 0,
+          "id": "0",
           "statistics": {
             "min": 0.09090909090909093,
             "avg": 0.9173553719008265,
@@ -31,7 +30,7 @@
         },
         {
           "hostname": "taurusi6489",
-          "id": 1,
+          "id": "1",
           "statistics": {
             "min": 0.03694102397926118,
             "avg": 0.045968409230268584,
@@ -53,7 +52,7 @@
         },
         {
           "hostname": "taurusi6490",
-          "id": 10,
+          "id": "10",
           "statistics": {
             "min": 0.10505319148936171,
             "avg": 0.9186411992263056,
@@ -75,7 +74,7 @@
         },
         {
           "hostname": "taurusi6490",
-          "id": 11,
+          "id": "11",
           "statistics": {
             "min": 0.05286048845767815,
             "avg": 0.07053823838706144,
@@ -104,12 +103,11 @@
       "unit": {
         "base": "IPC"
       },
-      "scope": "core",
       "timestep": 60,
       "series": [
         {
           "hostname": "taurusi6489",
-          "id": 0,
+          "id": "0",
           "statistics": {
             "min": 1.3808406263195592,
             "avg": 1.3960848578375105,
@@ -125,7 +123,7 @@
         },
         {
           "hostname": "taurusi6489",
-          "id": 1,
+          "id": "1",
           "statistics": {
             "min": 0.30469640475234366,
             "avg": 0.8816944294664065,
@@ -141,7 +139,7 @@
         },
         {
           "hostname": "taurusi6490",
-          "id": 10,
+          "id": "10",
           "statistics": {
             "min": 1.3791232173760588,
             "avg": 1.3850247295506815,
@@ -157,7 +155,7 @@
         },
         {
           "hostname": "taurusi6490",
-          "id": 11,
+          "id": "11",
           "statistics": {
             "min": 0.6424094604392216,
             "avg": 0.9544442638400293,
@@ -180,12 +178,11 @@
       "unit": {
         "base": "F/s"
       },
-      "scope": "core",
       "timestep": 60,
       "series": [
         {
           "hostname": "taurusi6489",
-          "id": 0,
+          "id": "0",
           "statistics": {
             "min": 0.0,
             "avg": 184.2699002412084,
@@ -201,7 +198,7 @@
         },
         {
           "hostname": "taurusi6489",
-          "id": 1,
+          "id": "1",
           "statistics": {
             "min": 0.13559227208748068,
             "avg": 273.2997868356056,
@@ -217,7 +214,7 @@
         },
         {
           "hostname": "taurusi6490",
-          "id": 10,
+          "id": "10",
           "statistics": {
             "min": 0.0,
             "avg": 1678.8419461262179,
@@ -233,7 +230,7 @@
         },
         {
           "hostname": "taurusi6490",
-          "id": 11,
+          "id": "11",
           "statistics": {
             "min": 45.28689133054866,
             "avg": 609.6644949204072,
@@ -256,12 +253,11 @@
       "unit": {
         "base": "B/s"
       },
-      "scope": "socket",
       "timestep": 60,
       "series": [
         {
           "hostname": "taurusi6489",
-          "id": 0,
+          "id": "0",
           "statistics": {
             "min": 653671812.1661415,
             "avg": 1637585527.5854635,
@@ -277,7 +273,7 @@
         },
         {
           "hostname": "taurusi6490",
-          "id": 0,
+          "id": "0",
           "statistics": {
             "min": 1520190251.61048,
             "avg": 1572477682.3850098,
@@ -300,7 +296,6 @@
       "unit": {
         "base": "B/s"
       },
-      "scope": "node",
       "timestep": 30,
       "series": [
         {
@@ -354,7 +349,6 @@
       "unit": {
         "base": "B/s"
       },
-      "scope": "node",
       "timestep": 30,
       "series": [
         {
@@ -408,7 +402,6 @@
       "unit": {
         "base": "B"
       },
-      "scope": "node",
       "timestep": 30,
       "series": [
         {
@@ -462,12 +455,11 @@
       "unit": {
         "base": "W"
       },
-      "scope": "socket",
       "timestep": 60,
       "series": [
         {
           "hostname": "taurusi6489",
-          "id": 0,
+          "id": "0",
           "statistics": {
             "min": 35.50647456742635,
             "avg": 72.08313211552377,
@@ -483,7 +475,7 @@
         },
         {
           "hostname": "taurusi6490",
-          "id": 0,
+          "id": "0",
           "statistics": {
             "min": 83.8466923147859,
             "avg": 85.18572681122097,

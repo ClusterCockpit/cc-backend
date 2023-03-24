@@ -11,3 +11,4 @@
 /web/frontend/node_modules
 .vscode/settings.json
 /sanitize-archive
+.vscode/launch.json
