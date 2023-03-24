@@ -53,7 +53,7 @@ func initClusterConfig() error {
 
 		nodeLists[cluster.Name] = make(map[string]NodeList)
 		for _, sc := range cluster.SubClusters {
-			if sc.Nodes == "" {
+			if sc.Nodes == "*" {
 				continue
 			}
 
