@@ -136,7 +136,7 @@ func AssignSubCluster(job *schema.BaseJob) error {
 		}
 	}
 
-	if cluster.SubClusters[0].Nodes == "" {
+	if cluster.SubClusters[0].Nodes == "*" {
 		job.SubCluster = cluster.SubClusters[0].Name
 		return nil
 	}
