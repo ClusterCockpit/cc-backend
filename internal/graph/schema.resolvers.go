@@ -173,9 +173,10 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 
 	res := []*model.JobMetricWithName{}
 	for name, md := range data {
-		for _, metric := range md {
+		for scope, metric := range md {
 			res = append(res, &model.JobMetricWithName{
 				Name:   name,
+				Scope:  scope,
 				Metric: metric,
 			})
 		}

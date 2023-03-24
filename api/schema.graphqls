@@ -108,6 +108,7 @@ type Resource {
 
 type JobMetricWithName {
   name:   String!
+  scope:  MetricScope!
   metric: JobMetric!
 }
 
