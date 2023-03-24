@@ -42,6 +42,7 @@ type ResolverRoot interface {
 	Job() JobResolver
 	Mutation() MutationResolver
 	Query() QueryResolver
+	SubCluster() SubClusterResolver
 }
 
 type DirectiveRoot struct {
@@ -116,6 +117,7 @@ type ComplexityRoot struct {
 	JobMetricWithName struct {
 		Metric func(childComplexity int) int
 		Name   func(childComplexity int) int
+		Scope  func(childComplexity int) int
 	}
 
 	JobResultList struct {
@@ -220,6 +222,7 @@ type ComplexityRoot struct {
 		MemoryBandwidth func(childComplexity int) int
 		Name            func(childComplexity int) int
 		Nodes           func(childComplexity int) int
+		NumberOfNodes   func(childComplexity int) int
 		ProcessorType   func(childComplexity int) int
 		SocketsPerNode  func(childComplexity int) int
 		ThreadsPerCore  func(childComplexity int) int
@@ -296,6 +299,9 @@ type QueryResolver interface {
 	JobsCount(ctx context.Context, filter []*model.JobFilter, groupBy model.Aggregate, weight *model.Weights, limit *int) ([]*model.Count, error)
 	RooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error)
 	NodeMetrics(ctx context.Context, cluster string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) ([]*model.NodeMetrics, error)
+}
+type SubClusterResolver interface {
+	NumberOfNodes(ctx context.Context, obj *schema.SubCluster) (int, error)
 }
 
 type executableSchema struct {
@@ -613,6 +619,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.JobMetricWithName.Name(childComplexity), true
+
+	case "JobMetricWithName.scope":
+		if e.complexity.JobMetricWithName.Scope == nil {
+			break
+		}
+
+		return e.complexity.JobMetricWithName.Scope(childComplexity), true
 
 	case "JobResultList.count":
 		if e.complexity.JobResultList.Count == nil {
@@ -1144,6 +1157,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.SubCluster.Nodes(childComplexity), true
 
+	case "SubCluster.numberOfNodes":
+		if e.complexity.SubCluster.NumberOfNodes == nil {
+			break
+		}
+
+		return e.complexity.SubCluster.NumberOfNodes(childComplexity), true
+
 	case "SubCluster.processorType":
 		if e.complexity.SubCluster.ProcessorType == nil {
 			break
@@ -1444,6 +1464,7 @@ type Cluster {
 type SubCluster {
   name:            String!
   nodes:           String!
+  numberOfNodes:   Int!
   processorType:   String!
   socketsPerNode:  Int!
   coresPerSocket:  Int!
@@ -1511,6 +1532,7 @@ type Resource {
 
 type JobMetricWithName {
   name:   String!
+  scope:  MetricScope!
   metric: JobMetric!
 }
 
@@ -2509,6 +2531,8 @@ func (ec *executionContext) fieldContext_Cluster_subClusters(ctx context.Context
 				return ec.fieldContext_SubCluster_name(ctx, field)
 			case "nodes":
 				return ec.fieldContext_SubCluster_nodes(ctx, field)
+			case "numberOfNodes":
+				return ec.fieldContext_SubCluster_numberOfNodes(ctx, field)
 			case "processorType":
 				return ec.fieldContext_SubCluster_processorType(ctx, field)
 			case "socketsPerNode":
@@ -4108,6 +4132,50 @@ func (ec *executionContext) fieldContext_JobMetricWithName_name(ctx context.Cont
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _JobMetricWithName_scope(ctx context.Context, field graphql.CollectedField, obj *model.JobMetricWithName) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JobMetricWithName_scope(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Scope, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(schema.MetricScope)
+	fc.Result = res
+	return ec.marshalNMetricScope2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐMetricScope(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JobMetricWithName_scope(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JobMetricWithName",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type MetricScope does not have child fields")
 		},
 	}
 	return fc, nil
@@ -5896,6 +5964,8 @@ func (ec *executionContext) fieldContext_NodeMetrics_metrics(ctx context.Context
 			switch field.Name {
 			case "name":
 				return ec.fieldContext_JobMetricWithName_name(ctx, field)
+			case "scope":
+				return ec.fieldContext_JobMetricWithName_scope(ctx, field)
 			case "metric":
 				return ec.fieldContext_JobMetricWithName_metric(ctx, field)
 			}
@@ -6271,6 +6341,8 @@ func (ec *executionContext) fieldContext_Query_jobMetrics(ctx context.Context, f
 			switch field.Name {
 			case "name":
 				return ec.fieldContext_JobMetricWithName_name(ctx, field)
+			case "scope":
+				return ec.fieldContext_JobMetricWithName_scope(ctx, field)
 			case "metric":
 				return ec.fieldContext_JobMetricWithName_metric(ctx, field)
 			}
@@ -7353,6 +7425,50 @@ func (ec *executionContext) fieldContext_SubCluster_nodes(ctx context.Context, f
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SubCluster_numberOfNodes(ctx context.Context, field graphql.CollectedField, obj *schema.SubCluster) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SubCluster_numberOfNodes(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.SubCluster().NumberOfNodes(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SubCluster_numberOfNodes(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SubCluster",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -11372,6 +11488,13 @@ func (ec *executionContext) _JobMetricWithName(ctx context.Context, sel ast.Sele
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
+		case "scope":
+
+			out.Values[i] = ec._JobMetricWithName_scope(ctx, field, obj)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "metric":
 
 			out.Values[i] = ec._JobMetricWithName_metric(ctx, field, obj)
@@ -12263,70 +12386,90 @@ func (ec *executionContext) _SubCluster(ctx context.Context, sel ast.SelectionSe
 			out.Values[i] = ec._SubCluster_name(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "nodes":
 
 			out.Values[i] = ec._SubCluster_nodes(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
+		case "numberOfNodes":
+			field := field
+
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._SubCluster_numberOfNodes(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			}
+
+			out.Concurrently(i, func() graphql.Marshaler {
+				return innerFunc(ctx)
+
+			})
 		case "processorType":
 
 			out.Values[i] = ec._SubCluster_processorType(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "socketsPerNode":
 
 			out.Values[i] = ec._SubCluster_socketsPerNode(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "coresPerSocket":
 
 			out.Values[i] = ec._SubCluster_coresPerSocket(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "threadsPerCore":
 
 			out.Values[i] = ec._SubCluster_threadsPerCore(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "flopRateScalar":
 
 			out.Values[i] = ec._SubCluster_flopRateScalar(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "flopRateSimd":
 
 			out.Values[i] = ec._SubCluster_flopRateSimd(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "memoryBandwidth":
 
 			out.Values[i] = ec._SubCluster_memoryBandwidth(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "topology":
 
 			out.Values[i] = ec._SubCluster_topology(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))

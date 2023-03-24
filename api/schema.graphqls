@@ -41,6 +41,7 @@ type Cluster {
 type SubCluster {
   name:            String!
   nodes:           String!
+  numberOfNodes:   Int!
   processorType:   String!
   socketsPerNode:  Int!
   coresPerSocket:  Int!

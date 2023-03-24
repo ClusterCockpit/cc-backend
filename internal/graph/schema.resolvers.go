@@ -280,6 +280,11 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 	return nodeMetrics, nil
 }
 
+// NumberOfNodes is the resolver for the numberOfNodes field.
+func (r *subClusterResolver) NumberOfNodes(ctx context.Context, obj *schema.SubCluster) (int, error) {
+	panic(fmt.Errorf("not implemented: NumberOfNodes - numberOfNodes"))
+}
+
 // Cluster returns generated.ClusterResolver implementation.
 func (r *Resolver) Cluster() generated.ClusterResolver { return &clusterResolver{r} }
 
@@ -292,7 +297,11 @@ func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResol
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
+// SubCluster returns generated.SubClusterResolver implementation.
+func (r *Resolver) SubCluster() generated.SubClusterResolver { return &subClusterResolver{r} }
+
 type clusterResolver struct{ *Resolver }
 type jobResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type subClusterResolver struct{ *Resolver }
