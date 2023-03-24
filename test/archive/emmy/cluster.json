@@ -28,7 +28,6 @@
                 },
                 "value": 24
             },
-            "numberOfNodes": 70,
             "nodes": "w11[27-45,49-63,69-72]",
             "topology": {
                 "node": [
@@ -96,7 +95,6 @@
                 },
                 "value": 64
             },
-            "numberOfNodes": 64,
             "nodes": "w12[01-08],w13[01-31,33-56]",
             "topology": {
                 "node": [
@@ -164,7 +162,6 @@
                 },
                 "value": 24
             },
-            "numberOfNodes": 112,
             "nodes": "w14[01-56],w15[01-05,07-56]",
             "topology": {
                 "node": [
@@ -232,7 +229,6 @@
                 },
                 "value": 350
             },
-            "numberOfNodes": 70,
             "nodes": "w22[01-35],w23[01-35]",
             "topology": {
                 "node": [
