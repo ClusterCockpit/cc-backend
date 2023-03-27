@@ -61,31 +61,47 @@ func loadJobMeta(filename string) (*schema.JobMeta, error) {
 	return DecodeJobMeta(bufio.NewReader(f))
 }
 
-func (fsa *FsArchive) Init(rawConfig json.RawMessage) error {
+func (fsa *FsArchive) Init(rawConfig json.RawMessage) (int, error) {
 
 	var config FsArchiveConfig
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
 		log.Errorf("fsBackend Init()- %v", err)
-		return err
+		return 0, err
 	}
 	if config.Path == "" {
 		err := fmt.Errorf("fsBackend Init()- empty path")
 		log.Errorf("fsBackend Init()- %v", err)
-		return err
+		return 0, err
 	}
 	fsa.path = config.Path
+
+	b, err := os.ReadFile(fmt.Sprintf("%s/version.txt", fsa.path))
+	if err != nil {
+		fmt.Println("Err")
+		return 0, err
+	}
+
+	version, err := strconv.Atoi(string(b))
+	if err != nil {
+		log.Errorf("fsBackend Init()- %v", err)
+		return 0, err
+	}
+
+	if version != Version {
+		return version, fmt.Errorf("Unsupported version %d, need %d", version, Version)
+	}
 
 	entries, err := os.ReadDir(fsa.path)
 	if err != nil {
 		log.Errorf("fsBackend Init()- %v", err)
-		return err
+		return 0, err
 	}
 
 	for _, de := range entries {
 		fsa.clusters = append(fsa.clusters, de.Name())
 	}
 
-	return nil
+	return version, nil
 }
 
 func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {

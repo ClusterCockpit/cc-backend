@@ -7,6 +7,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -16,6 +17,8 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/ClusterCockpit/cc-backend/pkg/units"
 )
+
+const Version = 1
 
 var ar FsArchive
 
@@ -169,6 +172,10 @@ func main() {
 	flag.StringVar(&srcPath, "s", "./var/job-archive", "Specify the source job archive path. Default is ./var/job-archive")
 	flag.StringVar(&dstPath, "d", "./var/job-archive-new", "Specify the destination job archive path. Default is ./var/job-archive-new")
 
+	if _, err := os.Stat(fmt.Sprintf("%s/version.txt", srcPath)); !errors.Is(err, os.ErrNotExist) {
+		log.Fatal("Archive version exists!")
+	}
+
 	srcConfig := fmt.Sprintf("{\"path\": \"%s\"}", srcPath)
 	err := ar.Init(json.RawMessage(srcConfig))
 	if err != nil {
@@ -248,4 +255,6 @@ func main() {
 			}
 		}()
 	}
+
+	os.WriteFile(fmt.Sprintf("%s/version.txt", dstPath), []byte(fmt.Sprintf("%d", Version)), 0644)
 }
