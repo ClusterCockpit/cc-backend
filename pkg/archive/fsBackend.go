@@ -15,6 +15,7 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
@@ -75,20 +76,20 @@ func (fsa *FsArchive) Init(rawConfig json.RawMessage) (int, error) {
 	}
 	fsa.path = config.Path
 
-	b, err := os.ReadFile(fmt.Sprintf("%s/version.txt", fsa.path))
+	b, err := os.ReadFile(filepath.Join(fsa.path, "version.txt"))
 	if err != nil {
 		fmt.Println("Err")
 		return 0, err
 	}
 
-	version, err := strconv.Atoi(string(b))
+	version, err := strconv.Atoi(strings.TrimSuffix(string(b), "\n"))
 	if err != nil {
 		log.Errorf("fsBackend Init()- %v", err)
 		return 0, err
 	}
 
 	if version != Version {
-		return version, fmt.Errorf("Unsupported version %d, need %d", version, Version)
+		return version, fmt.Errorf("unsupported version %d, need %d", version, Version)
 	}
 
 	entries, err := os.ReadDir(fsa.path)
@@ -98,6 +99,9 @@ func (fsa *FsArchive) Init(rawConfig json.RawMessage) (int, error) {
 	}
 
 	for _, de := range entries {
+		if !de.IsDir() {
+			continue
+		}
 		fsa.clusters = append(fsa.clusters, de.Name())
 	}
 
@@ -147,7 +151,7 @@ func (fsa *FsArchive) LoadClusterCfg(name string) (*schema.Cluster, error) {
 	}
 	if config.Keys.Validate {
 		if err := schema.Validate(schema.ClusterCfg, bytes.NewReader(b)); err != nil {
-			return &schema.Cluster{}, fmt.Errorf("Validate cluster config: %v\n", err)
+			return &schema.Cluster{}, fmt.Errorf("validate cluster config: %v", err)
 		}
 	}
 	return DecodeCluster(bytes.NewReader(b))
@@ -163,6 +167,9 @@ func (fsa *FsArchive) Iter() <-chan *schema.JobMeta {
 		}
 
 		for _, clusterDir := range clustersDir {
+			if !clusterDir.IsDir() {
+				continue
+			}
 			lvl1Dirs, err := os.ReadDir(filepath.Join(fsa.path, clusterDir.Name()))
 			if err != nil {
 				log.Fatalf("Reading jobs failed: %s", err.Error())
@@ -278,6 +285,9 @@ func (fsa *FsArchive) ImportJob(
 	// }
 
 	f, err = os.Create(path.Join(dir, "data.json"))
+	if err != nil {
+		return err
+	}
 	if err := EncodeJobData(f, jobData); err != nil {
 		return err
 	}

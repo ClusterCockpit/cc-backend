@@ -298,6 +298,10 @@ func setup(t *testing.T) *api.RestApi {
 		t.Fatal(err)
 	}
 
+	if err := os.WriteFile(filepath.Join(jobarchive, "version.txt"), []byte(fmt.Sprintf("%d", 1)), 0666); err != nil {
+		t.Fatal(err)
+	}
+
 	if err := os.Mkdir(filepath.Join(jobarchive, "testcluster"), 0777); err != nil {
 		t.Fatal(err)
 	}
@@ -389,7 +393,7 @@ func TestRestApi(t *testing.T) {
 	restapi.MountRoutes(r)
 
 	const startJobBody string = `{
-"jobId":            123,
+        "jobId":            123,
 		"user":             "testuser",
 		"project":          "testproj",
 		"cluster":          "testcluster",
