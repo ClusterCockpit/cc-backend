@@ -207,42 +207,45 @@ func main() {
 	}
 
 	for job := range ar.Iter() {
-		fmt.Printf("Job %d\n", job.JobID)
+		// fmt.Printf("Job %d\n", job.JobID)
+		job := job
 
-		path := getPath(job, dstPath, "meta.json")
-		err = os.MkdirAll(filepath.Dir(path), 0750)
-		if err != nil {
-			log.Fatal(err)
-		}
-		f, err := os.Create(path)
-		if err != nil {
-			log.Fatal(err)
-		}
+		go func() {
+			path := getPath(job, dstPath, "meta.json")
+			err = os.MkdirAll(filepath.Dir(path), 0750)
+			if err != nil {
+				log.Fatal(err)
+			}
+			f, err := os.Create(path)
+			if err != nil {
+				log.Fatal(err)
+			}
 
-		jmn := deepCopyJobMeta(job)
-		if err = EncodeJobMeta(f, &jmn); err != nil {
-			log.Fatal(err)
-		}
-		if err = f.Close(); err != nil {
-			log.Fatal(err)
-		}
+			jmn := deepCopyJobMeta(job)
+			if err = EncodeJobMeta(f, &jmn); err != nil {
+				log.Fatal(err)
+			}
+			if err = f.Close(); err != nil {
+				log.Fatal(err)
+			}
 
-		f, err = os.Create(getPath(job, dstPath, "data.json"))
-		if err != nil {
-			log.Fatal(err)
-		}
+			f, err = os.Create(getPath(job, dstPath, "data.json"))
+			if err != nil {
+				log.Fatal(err)
+			}
 
-		var jd *JobData
-		jd, err = loadJobData(getPath(job, srcPath, "data.json"))
-		if err != nil {
-			log.Fatal(err)
-		}
-		jdn := deepCopyJobData(jd)
-		if err := EncodeJobData(f, &jdn); err != nil {
-			log.Fatal(err)
-		}
-		if err := f.Close(); err != nil {
-			log.Fatal(err)
-		}
+			var jd *JobData
+			jd, err = loadJobData(getPath(job, srcPath, "data.json"))
+			if err != nil {
+				log.Fatal(err)
+			}
+			jdn := deepCopyJobData(jd)
+			if err := EncodeJobData(f, &jdn); err != nil {
+				log.Fatal(err)
+			}
+			if err := f.Close(); err != nil {
+				log.Fatal(err)
+			}
+		}()
 	}
 }
