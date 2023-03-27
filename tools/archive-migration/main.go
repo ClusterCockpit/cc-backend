@@ -172,7 +172,7 @@ func main() {
 	flag.StringVar(&srcPath, "s", "./var/job-archive", "Specify the source job archive path. Default is ./var/job-archive")
 	flag.StringVar(&dstPath, "d", "./var/job-archive-new", "Specify the destination job archive path. Default is ./var/job-archive-new")
 
-	if _, err := os.Stat(fmt.Sprintf("%s/version.txt", srcPath)); !errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(filepath.Join(srcPath, "version.txt")); !errors.Is(err, os.ErrNotExist) {
 		log.Fatal("Archive version exists!")
 	}
 
@@ -256,5 +256,5 @@ func main() {
 		}()
 	}
 
-	os.WriteFile(fmt.Sprintf("%s/version.txt", dstPath), []byte(fmt.Sprintf("%d", Version)), 0644)
+	os.WriteFile(filepath.Join(dstPath, "version.txt"), []byte(fmt.Sprintf("%d", Version)), 0644)
 }
