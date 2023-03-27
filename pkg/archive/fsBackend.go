@@ -7,7 +7,9 @@ package archive
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -27,6 +29,11 @@ type FsArchiveConfig struct {
 type FsArchive struct {
 	path     string
 	clusters []string
+}
+
+func checkFileExists(filePath string) bool {
+	_, err := os.Stat(filePath)
+	return !errors.Is(err, os.ErrNotExist)
 }
 
 func getPath(
@@ -82,16 +89,31 @@ func (fsa *FsArchive) Init(rawConfig json.RawMessage) error {
 }
 
 func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
+	var isCompressed bool = true
+	filename := getPath(job, fsa.path, "data.json.gz")
 
-	filename := getPath(job, fsa.path, "data.json")
+	if !checkFileExists(filename) {
+		filename = getPath(job, fsa.path, "data.json")
+		isCompressed = false
+	}
 	f, err := os.Open(filename)
+
 	if err != nil {
 		log.Errorf("fsBackend LoadJobData()- %v", err)
 		return nil, err
 	}
 	defer f.Close()
 
-	return DecodeJobData(bufio.NewReader(f), filename)
+	if isCompressed {
+		r, err := gzip.NewReader(f)
+		if err != nil {
+			log.Errorf(" %v", err)
+			return nil, err
+		}
+		return DecodeJobData(r, filename)
+	} else {
+		return DecodeJobData(bufio.NewReader(f), filename)
+	}
 }
 
 func (fsa *FsArchive) LoadJobMeta(job *schema.Job) (*schema.JobMeta, error) {
@@ -217,12 +239,32 @@ func (fsa *FsArchive) ImportJob(
 		return err
 	}
 
+	// var isCompressed bool = true
+	// // TODO Use shortJob Config for check
+	// if jobMeta.Duration < 300 {
+	// 	isCompressed = false
+	// 	f, err = os.Create(path.Join(dir, "data.json"))
+	// } else {
+	// 	f, err = os.Create(path.Join(dir, "data.json.gz"))
+	// }
+	// if err != nil {
+	// 	return err
+	// }
+	//
+	// if isCompressed {
+	// 	if err := EncodeJobData(gzip.NewWriter(f), jobData); err != nil {
+	// 		return err
+	// 	}
+	// } else {
+	// 	if err := EncodeJobData(f, jobData); err != nil {
+	// 		return err
+	// 	}
+	// }
+
 	f, err = os.Create(path.Join(dir, "data.json"))
-	if err != nil {
-		return err
-	}
 	if err := EncodeJobData(f, jobData); err != nil {
 		return err
 	}
+
 	return f.Close()
 }

@@ -468,7 +468,7 @@ func TestRestApi(t *testing.T) {
 	}
 
 	const stopJobBody string = `{
-"jobId":     123,
+        "jobId":     123,
 		"startTime": 123456789,
 		"cluster":   "testcluster",
 
@@ -551,7 +551,7 @@ func TestRestApi(t *testing.T) {
 
 func subtestLetJobFail(t *testing.T, restapi *api.RestApi, r *mux.Router) {
 	const startJobBody string = `{
-"jobId":            12345,
+        "jobId":            12345,
 		"user":             "testuser",
 		"project":          "testproj",
 		"cluster":          "testcluster",
@@ -588,7 +588,7 @@ func subtestLetJobFail(t *testing.T, restapi *api.RestApi, r *mux.Router) {
 	}
 
 	const stopJobBody string = `{
-"jobId":     12345,
+        "jobId":     12345,
 		"cluster":   "testcluster",
 
 		"jobState": "failed",
