@@ -448,15 +448,15 @@ func TestRestApi(t *testing.T) {
 			job.Project != "testproj" ||
 			job.Cluster != "testcluster" ||
 			job.SubCluster != "sc1" ||
-			job.Partition != "default" ||
-			job.Walltime != 3600 ||
-			job.ArrayJobId != 0 ||
+			*job.Partition != "default" ||
+			*job.Walltime != 3600 ||
+			job.ArrayJobId != nil ||
 			job.NumNodes != 1 ||
-			job.NumHWThreads != 8 ||
-			job.NumAcc != 0 ||
+			*job.NumHWThreads != 8 ||
+			job.NumAcc != nil ||
 			job.Exclusive != 1 ||
 			job.MonitoringStatus != 1 ||
-			job.SMT != 1 ||
+			*job.SMT != 1 ||
 			!reflect.DeepEqual(job.Resources, []*schema.Resource{{Hostname: "host123", HWThreads: []int{0, 1, 2, 3, 4, 5, 6, 7}}}) ||
 			job.StartTime.Unix() != 123456789 {
 			t.Fatalf("unexpected job properties: %#v", job)
