@@ -338,6 +338,7 @@
         "user",
         "project",
         "cluster",
+        "subcluster",
         "numNodes",
         "exclusive",
         "startTime",

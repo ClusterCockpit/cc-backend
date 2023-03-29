@@ -36,39 +36,48 @@ func loadJobData(filename string) (*JobData, error) {
 func deepCopyJobMeta(j *JobMeta) schema.JobMeta {
 	var jn schema.JobMeta
 
-	jn.StartTime = j.StartTime
+	//required properties
+	jn.JobID = j.JobID
 	jn.User = j.User
 	jn.Project = j.Project
 	jn.Cluster = j.Cluster
 	jn.SubCluster = j.SubCluster
-	jn.Partition = j.Partition
-	jn.ArrayJobId = j.ArrayJobId
 	jn.NumNodes = j.NumNodes
-	jn.NumHWThreads = j.NumHWThreads
-	jn.NumAcc = j.NumAcc
 	jn.Exclusive = j.Exclusive
-	jn.MonitoringStatus = j.MonitoringStatus
-	jn.SMT = j.SMT
-	jn.Duration = j.Duration
-	jn.Walltime = j.Walltime
+	jn.StartTime = j.StartTime
 	jn.State = schema.JobState(j.State)
-	jn.Exclusive = j.Exclusive
-	jn.Exclusive = j.Exclusive
-	jn.Exclusive = j.Exclusive
+	jn.Duration = j.Duration
 
 	for _, ro := range j.Resources {
 		var rn schema.Resource
 		rn.Hostname = ro.Hostname
 		rn.Configuration = ro.Configuration
-		hwt := make([]int, len(ro.HWThreads))
-		copy(hwt, ro.HWThreads)
-		acc := make([]string, len(ro.Accelerators))
-		copy(acc, ro.Accelerators)
+		if ro.HWThreads != nil {
+			hwt := make([]int, len(ro.HWThreads))
+			copy(hwt, ro.HWThreads)
+		}
+		if ro.Accelerators != nil {
+			acc := make([]string, len(ro.Accelerators))
+			copy(acc, ro.Accelerators)
+		}
 		jn.Resources = append(jn.Resources, &rn)
 	}
 
 	for k, v := range j.MetaData {
 		jn.MetaData[k] = v
+	}
+
+	//optional properties
+	jn.Partition = j.Partition
+	jn.ArrayJobId = j.ArrayJobId
+	jn.NumHWThreads = j.NumHWThreads
+	jn.NumAcc = j.NumAcc
+	jn.MonitoringStatus = j.MonitoringStatus
+	jn.SMT = j.SMT
+	jn.Walltime = j.Walltime
+
+	for _, t := range j.Tags {
+		jn.Tags = append(jn.Tags, t)
 	}
 
 	return jn

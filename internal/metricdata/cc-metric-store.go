@@ -283,7 +283,7 @@ func (ccms *CCMetricStore) buildQueries(
 	scopesLoop:
 		for _, requestedScope := range scopes {
 			nativeScope := mc.Scope
-			if nativeScope == schema.MetricScopeAccelerator && job.NumAcc == 0 {
+			if nativeScope == schema.MetricScopeAccelerator && job.NumAcc == nil {
 				continue
 			}
 
