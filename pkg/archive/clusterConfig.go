@@ -78,18 +78,17 @@ func GetCluster(cluster string) *schema.Cluster {
 	return nil
 }
 
-func GetSubCluster(cluster, subcluster string) *schema.SubCluster {
-
+func GetSubCluster(cluster, subcluster string) (*schema.SubCluster, error) {
 	for _, c := range Clusters {
 		if c.Name == cluster {
 			for _, p := range c.SubClusters {
 				if p.Name == subcluster {
-					return p
+					return p, nil
 				}
 			}
 		}
 	}
-	return nil
+	return nil, fmt.Errorf("Subcluster '%v' not found for cluster '%v', or cluster '%v' not configured!", subcluster, cluster, cluster)
 }
 
 func GetMetricConfig(cluster, metric string) *schema.MetricConfig {

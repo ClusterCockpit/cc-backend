@@ -260,8 +260,13 @@ func (ccms *CCMetricStore) buildQueries(
 	scopes []schema.MetricScope) ([]ApiQuery, []schema.MetricScope, error) {
 
 	queries := make([]ApiQuery, 0, len(metrics)*len(scopes)*len(job.Resources))
-	topology := archive.GetSubCluster(job.Cluster, job.SubCluster).Topology
 	assignedScope := []schema.MetricScope{}
+
+	subcluster, scerr := archive.GetSubCluster(job.Cluster, job.SubCluster)
+	if scerr != nil {
+		return nil, nil, scerr
+	}
+	topology := subcluster.Topology
 
 	for _, metric := range metrics {
 		remoteName := ccms.toRemoteName(metric)
