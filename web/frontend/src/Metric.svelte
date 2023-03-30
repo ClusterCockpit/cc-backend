@@ -18,22 +18,10 @@
     let selectedHost = null, plot, fetching = false, error = null
     let selectedScope = minScope(scopes)
     let selectedScopeIndex = scopes.findIndex(s => s == selectedScope)
-    
-    // console.log('- Inputs -')
-    // console.log(metricName)
-    // console.log(scopes)
-    // console.log(rawData)
-    // console.log('- Prep Scopes -')
-    // console.log(selectedScope)
-    // console.log(selectedScopeIndex)
 
     $: avaliableScopes = scopes
     $: data = rawData[selectedScopeIndex]
     $: series = data?.series.filter(series => selectedHost == null || series.hostname == selectedHost)
-
-    // console.log('- Prep Data -')
-    // console.log(rawData[selectedScopeIndex])
-    // console.log(rawData[selectedScopeIndex].series.filter(series => selectedHost == null || series.hostname == selectedHost))
 
     let from = null, to = null
     export function setTimeRange(f, t) {

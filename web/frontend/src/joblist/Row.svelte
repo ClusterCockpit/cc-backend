@@ -60,19 +60,13 @@
                 // SubCluster Config present: Check if remove flag is set
                 if (thisConfig.subClusters[thisSCIndex].remove == true) {
                     // Return null data and informational flag
-                    // console.log('Case 1.1 -> Returned')
-                    // console.log({removed: true, data: null})
                     return {removed: true, data: null}
                 } else {
                     // load and return metric, if data available
                     let thisMetric = jobMetrics.filter(jobMetric => jobMetric.name == name) // Returns Array
                     if (thisMetric.length > 0) {
-                        // console.log('Case 1.2.1 -> Returned')
-                        // console.log({removed: false, data: thisMetric})
                         return {removed: false, data: thisMetric}
                     } else {
-                        // console.log('Case 1.2.2 -> Returned:')
-                        // console.log({removed: false, data: null})
                         return {removed: false, data: null}
                     }
                 }
@@ -80,26 +74,15 @@
                 // No specific subCluster config: 'remove' flag not set, deemed false -> load and return metric, if data available
                 let thisMetric = jobMetrics.filter(jobMetric => jobMetric.name == name) // Returns Array
                 if (thisMetric.length > 0) {
-                    // console.log('Case 2.1 -> Returned')
-                    // console.log({removed: false, data: thisMetric})
                     return {removed: false, data: thisMetric}
                 } else {
-                    // console.log('Case 2.2 -> Returned')
-                    // console.log({removed: false, data: null})
                     return {removed: false, data: null}
                 }
             }
         })
         .map(function(jobMetrics) {
             if (jobMetrics.data != null && jobMetrics.data.length > 0) {
-                // console.log('Before')
-                // console.log(jobMetrics.data)
-                // console.log('After')
-                // console.log(selectScope(jobMetrics.data))
-                let res = {removed: jobMetrics.removed, data: selectScope(jobMetrics.data)}
-                // console.log('Packed')
-                // console.log(res)
-                return res
+                return {removed: jobMetrics.removed, data: selectScope(jobMetrics.data)}
             } else {
                 return jobMetrics
             }

@@ -40,23 +40,15 @@ func (nl *NodeList) Contains(name string) bool {
 func (nl *NodeList) PrintList() []string {
 	var out []string
 	for _, term := range *nl {
-		// log.Debugf("Term: %v", term)
-
 		prefix := term[0].prefix()
-		// log.Debugf("Prefix as String: %s", prefix)
-
 		limitArr := term[1].limits()
 		for _, inner := range limitArr {
 			for i := inner["start"]; i < inner["end"]+1; i++ {
 				node := fmt.Sprintf("%s%02d", prefix, i)
 				out = append(out, node)
 			}
-			// log.Debugf("Inner Map @ %d: %#v", indx, inner)
-			// log.Debugf("Start: %#v", inner["start"])
-			// log.Debugf("End: %#v", inner["end"])
 		}
 	}
-	// log.Debugf("Node List as Strings: %#v", out)
 	return out
 }
 
@@ -95,7 +87,6 @@ func (nles NLExprIntRanges) limits() []map[string]int64 {
 	l := make([]map[string]int64, 0)
 	for _, nle := range nles {
 		inner := nle.limits()
-		// log.Debugf("limits @ nles: %#v", inner)
 		l = append(l, inner[0])
 	}
 	return l
@@ -146,7 +137,6 @@ func (nle NLExprIntRange) limits() []map[string]int64 {
 	m["start"] = nle.start
 	m["end"] = nle.end
 	l = append(l, m)
-	// log.Debugf("limits @ nle: %#v", l)
 	return l
 }
 

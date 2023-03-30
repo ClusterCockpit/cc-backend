@@ -287,12 +287,8 @@ func (r *subClusterResolver) NumberOfNodes(ctx context.Context, obj *schema.SubC
 	if err != nil {
 		return 0, err
 	}
-	// log.Debugf(">>>> See raw list definition here: %v", nodeList)
 	stringList := nodeList.PrintList()
-	// log.Debugf(">>>> See parsed list here: %v", stringList)
-	numOfNodes := len(stringList)
-	// log.Debugf(">>>> See numOfNodes here: %v", len(stringList))
-	return numOfNodes, nil
+	return len(stringList), nil
 }
 
 // Cluster returns generated.ClusterResolver implementation.
