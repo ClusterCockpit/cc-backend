@@ -14,6 +14,8 @@ import (
 
 type NodeList [][]interface {
 	consume(input string) (next string, ok bool)
+	limits() []map[string]int64
+	prefix() string
 }
 
 func (nl *NodeList) Contains(name string) bool {
@@ -35,6 +37,29 @@ func (nl *NodeList) Contains(name string) bool {
 	return false
 }
 
+func (nl *NodeList) PrintList() []string {
+	var out []string
+	for _, term := range *nl {
+		// log.Debugf("Term: %v", term)
+
+		prefix := term[0].prefix()
+		// log.Debugf("Prefix as String: %s", prefix)
+
+		limitArr := term[1].limits()
+		for _, inner := range limitArr {
+			for i := inner["start"]; i < inner["end"]+1; i++ {
+				node := fmt.Sprintf("%s%02d", prefix, i)
+				out = append(out, node)
+			}
+			// log.Debugf("Inner Map @ %d: %#v", indx, inner)
+			// log.Debugf("Start: %#v", inner["start"])
+			// log.Debugf("End: %#v", inner["end"])
+		}
+	}
+	// log.Debugf("Node List as Strings: %#v", out)
+	return out
+}
+
 type NLExprString string
 
 func (nle NLExprString) consume(input string) (next string, ok bool) {
@@ -43,6 +68,16 @@ func (nle NLExprString) consume(input string) (next string, ok bool) {
 		return strings.TrimPrefix(input, str), true
 	}
 	return "", false
+}
+
+func (nle NLExprString) limits() []map[string]int64 {
+	// Null implementation to  fullfill interface requirement
+	l := make([]map[string]int64, 0)
+	return l
+}
+
+func (nle NLExprString) prefix() string {
+	return string(nle)
 }
 
 type NLExprIntRanges []NLExprIntRange
@@ -54,6 +89,22 @@ func (nles NLExprIntRanges) consume(input string) (next string, ok bool) {
 		}
 	}
 	return "", false
+}
+
+func (nles NLExprIntRanges) limits() []map[string]int64 {
+	l := make([]map[string]int64, 0)
+	for _, nle := range nles {
+		inner := nle.limits()
+		// log.Debugf("limits @ nles: %#v", inner)
+		l = append(l, inner[0])
+	}
+	return l
+}
+
+func (nles NLExprIntRanges) prefix() string {
+	// Null implementation to  fullfill interface requirement
+	var s string
+	return s
 }
 
 type NLExprIntRange struct {
@@ -89,6 +140,22 @@ func (nle NLExprIntRange) consume(input string) (next string, ok bool) {
 	return "", false
 }
 
+func (nle NLExprIntRange) limits() []map[string]int64 {
+	l := make([]map[string]int64, 0)
+	m := make(map[string]int64)
+	m["start"] = nle.start
+	m["end"] = nle.end
+	l = append(l, m)
+	// log.Debugf("limits @ nle: %#v", l)
+	return l
+}
+
+func (nles NLExprIntRange) prefix() string {
+	// Null implementation to  fullfill interface requirement
+	var s string
+	return s
+}
+
 func ParseNodeList(raw string) (NodeList, error) {
 	isLetter := func(r byte) bool { return ('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z') }
 	isDigit := func(r byte) bool { return '0' <= r && r <= '9' }
@@ -116,6 +183,8 @@ func ParseNodeList(raw string) (NodeList, error) {
 	for _, rawterm := range rawterms {
 		exprs := []interface {
 			consume(input string) (next string, ok bool)
+			limits() []map[string]int64
+			prefix() string
 		}{}
 		for i := 0; i < len(rawterm); i++ {
 			c := rawterm[i]

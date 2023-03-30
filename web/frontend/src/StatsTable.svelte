@@ -11,7 +11,7 @@
     const allMetrics = [...new Set(jobMetrics.map(m => m.name))].sort(),
           scopesForMetric = (metric) => jobMetrics
             .filter(jm => jm.name == metric)
-            .map(jm => jm.metric.scope)
+            .map(jm => jm.scope)
 
     let hosts = job.resources.map(r => r.hostname).sort(),
         selectedScopes = {},
@@ -40,7 +40,7 @@
             s.active = true
         }
 
-        let series = jobMetrics.find(jm => jm.name == metric && jm.metric.scope == 'node')?.metric.series
+        let series = jobMetrics.find(jm => jm.name == metric && jm.scope == 'node')?.metric.series
         sorting = {...sorting}
         hosts = hosts.sort((h1, h2) => {
             let s1 = series.find(s => s.hostname == h1)?.statistics

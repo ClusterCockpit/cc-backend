@@ -324,10 +324,13 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 		}
 
 		jobMeta.Statistics[metric] = schema.JobStatistics{
-			Unit: archive.GetMetricConfig(job.Cluster, metric).Unit,
-			Avg:  avg / float64(job.NumNodes),
-			Min:  min,
-			Max:  max,
+			Unit: schema.Unit{
+				Prefix: archive.GetMetricConfig(job.Cluster, metric).Unit.Prefix,
+				Base:   archive.GetMetricConfig(job.Cluster, metric).Unit.Base,
+			},
+			Avg: avg / float64(job.NumNodes),
+			Min: min,
+			Max: max,
 		}
 	}
 

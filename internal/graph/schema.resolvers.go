@@ -269,6 +269,7 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 			for _, scopedMetric := range scopedMetrics {
 				host.Metrics = append(host.Metrics, &model.JobMetricWithName{
 					Name:   metric,
+					Scope:  schema.MetricScopeNode, // NodeMetrics allow fixed scope?
 					Metric: scopedMetric,
 				})
 			}
@@ -282,7 +283,16 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 
 // NumberOfNodes is the resolver for the numberOfNodes field.
 func (r *subClusterResolver) NumberOfNodes(ctx context.Context, obj *schema.SubCluster) (int, error) {
-	panic(fmt.Errorf("not implemented: NumberOfNodes - numberOfNodes"))
+	nodeList, err := archive.ParseNodeList(obj.Nodes)
+	if err != nil {
+		return 0, err
+	}
+	// log.Debugf(">>>> See raw list definition here: %v", nodeList)
+	stringList := nodeList.PrintList()
+	// log.Debugf(">>>> See parsed list here: %v", stringList)
+	numOfNodes := len(stringList)
+	// log.Debugf(">>>> See numOfNodes here: %v", len(stringList))
+	return numOfNodes, nil
 }
 
 // Cluster returns generated.ClusterResolver implementation.

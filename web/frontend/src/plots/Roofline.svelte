@@ -71,7 +71,7 @@
         if (width <= 0)
             return
 
-        const [minX, maxX, minY, maxY] = [0.01, 1000, 1., cluster?.flopRateSimd || defaultMaxY]
+        const [minX, maxX, minY, maxY] = [0.01, 1000, 1., cluster?.flopRateSimd?.value || defaultMaxY]
         const w = width - paddingLeft - paddingRight
         const h = height - paddingTop - paddingBottom
 
@@ -185,13 +185,13 @@
         ctx.lineWidth = 2
         ctx.beginPath()
         if (cluster != null) {
-            const ycut = 0.01 * cluster.memoryBandwidth
-            const scalarKnee = (cluster.flopRateScalar - ycut) / cluster.memoryBandwidth
-            const simdKnee = (cluster.flopRateSimd - ycut) / cluster.memoryBandwidth
+            const ycut = 0.01 * cluster.memoryBandwidth.value
+            const scalarKnee = (cluster.flopRateScalar.value - ycut) / cluster.memoryBandwidth.value
+            const simdKnee = (cluster.flopRateSimd.value - ycut) / cluster.memoryBandwidth.value
             const scalarKneeX = getCanvasX(scalarKnee),
                   simdKneeX = getCanvasX(simdKnee),
-                  flopRateScalarY = getCanvasY(cluster.flopRateScalar),
-                  flopRateSimdY = getCanvasY(cluster.flopRateSimd)
+                  flopRateScalarY = getCanvasY(cluster.flopRateScalar.value),
+                  flopRateSimdY = getCanvasY(cluster.flopRateSimd.value)
 
             if (scalarKneeX < width - paddingRight) {
                 ctx.moveTo(scalarKneeX, flopRateScalarY)
@@ -270,8 +270,8 @@
     export function transformPerNodeData(nodes) {
         const x = [], y = [], c = []
         for (let node of nodes) {
-            let flopsAny = node.metrics.find(m => m.name == 'flops_any' && m.metric.scope == 'node')?.metric
-            let memBw    = node.metrics.find(m => m.name == 'mem_bw'    && m.metric.scope == 'node')?.metric
+            let flopsAny = node.metrics.find(m => m.name == 'flops_any' && m.scope == 'node')?.metric
+            let memBw    = node.metrics.find(m => m.name == 'mem_bw'    && m.scope == 'node')?.metric
             if (!flopsAny || !memBw)
                 continue
 
@@ -301,8 +301,8 @@
     export let memBw = null
     export let cluster = null
     export let maxY = null
-    export let width
-    export let height
+    export let width = 500
+    export let height = 300
     export let tiles = null
     export let colorDots = true
     export let showTime = true

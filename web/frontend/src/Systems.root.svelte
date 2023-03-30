@@ -28,13 +28,14 @@
 
     const nodesQuery = operationStore(`query($cluster: String!, $metrics: [String!], $from: Time!, $to: Time!) {
         nodeMetrics(cluster: $cluster, metrics: $metrics, from: $from, to: $to) {
-            host,
+            host
             subCluster
             metrics {
-                name,
+                name
+                scope
                 metric {
-                    scope
-                    timestep,
+                    timestep
+                    unit { base, prefix }
                     series {
                         statistics { min, avg, max }
                         data
@@ -48,6 +49,18 @@
         from: from.toISOString(),
         to: to.toISOString()
     })
+
+    let metricUnits = {}
+    $: if ($nodesQuery.data) {
+        let thisCluster = clusters.find(c => c.name == cluster)
+        for (let metric of thisCluster.metricConfig) {
+            if (metric.unit.prefix || metric.unit.base) {
+                metricUnits[metric.name] = '(' + (metric.unit.prefix ? metric.unit.prefix : '') + (metric.unit.base ? metric.unit.base : '') + ')'
+            } else { // If no unit defined: Omit Unit Display
+                metricUnits[metric.name] = ''
+            }
+        }
+    }
 
     $: $nodesQuery.variables = { cluster, metrics: [selectedMetric], from: from.toISOString(), to: to.toISOString() }
 
@@ -71,7 +84,7 @@
                 <InputGroupText>Metric</InputGroupText>
                 <select class="form-select" bind:value={selectedMetric}>
                     {#each clusters.find(c => c.name == cluster).metricConfig as metric}
-                        <option value={metric.name}>{metric.name} ({metric.unit})</option>
+                        <option value={metric.name}>{metric.name} {metricUnits[metric.name]}</option>
                     {/each}
                 </select>
             </InputGroup>
@@ -98,8 +111,8 @@
                 let:width
                 itemsPerRow={ccconfig.plot_view_plotsPerRow}
                 items={$nodesQuery.data.nodeMetrics
-                    .filter(h => h.host.includes(hostnameFilter) && h.metrics.some(m => m.name == selectedMetric && m.metric.scope == 'node'))
-                    .map(h => ({ host: h.host, subCluster: h.subCluster, data: h.metrics.find(m => m.name == selectedMetric && m.metric.scope == 'node') }))
+                    .filter(h => h.host.includes(hostnameFilter) && h.metrics.some(m => m.name == selectedMetric && m.scope == 'node'))
+                    .map(h => ({ host: h.host, subCluster: h.subCluster, data: h.metrics.find(m => m.name == selectedMetric && m.scope == 'node') }))
                     .sort((a, b) => a.host.localeCompare(b.host))}>
 
                 <h4 style="width: 100%; text-align: center;"><a href="/monitoring/node/{cluster}/{item.host}">{item.host} ({item.subCluster})</a></h4>

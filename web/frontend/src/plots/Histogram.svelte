@@ -18,10 +18,10 @@
     import { onMount } from 'svelte'
 
     export let data
-    export let width
-    export let height
-    export let xlabel
-    export let ylabel
+    export let width = 500
+    export let height = 300
+    export let xlabel = ''
+    export let ylabel = ''
     export let min = null
     export let max = null
     export let label = formatNumber

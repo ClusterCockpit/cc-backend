@@ -5,7 +5,7 @@
     export let jobMetrics
 
     $: series = jobMetrics
-        .find(jm => jm.name == metric && jm.metric.scope == scope)
+        .find(jm => jm.name == metric && jm.scope == scope)
         ?.metric.series.filter(s => s.hostname == host && s.statistics != null)
 </script>
 

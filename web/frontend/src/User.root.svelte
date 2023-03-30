@@ -136,19 +136,23 @@
             </Table>
         </Col>
         <div class="col-4" style="text-align: center;" bind:clientWidth={w1}>
-            <b>Walltime</b>
+            <b>Duration Distribution</b>
             {#key $stats.data.jobsStatistics[0].histDuration}
                 <Histogram
                     data={$stats.data.jobsStatistics[0].histDuration}
-                    width={w1 - 25} height={histogramHeight} />
+                    width={w1 - 25} height={histogramHeight}
+                    xlabel="Current Runtimes [h]" 
+                    ylabel="Number of Jobs"/>
             {/key}
         </div>
         <div class="col-4" style="text-align: center;" bind:clientWidth={w2}>
-            <b>Number of Nodes</b>
+            <b>Number of Nodes Distribution</b>
             {#key $stats.data.jobsStatistics[0].histNumNodes}
                 <Histogram
                     data={$stats.data.jobsStatistics[0].histNumNodes}
-                    width={w2 - 25} height={histogramHeight} />
+                    width={w2 - 25} height={histogramHeight}
+                    xlabel="Allocated Nodes [#]"
+                    ylabel="Number of Jobs" />
             {/key}
         </div>
     {/if}

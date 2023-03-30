@@ -15,13 +15,14 @@
     let from = new Date(Date.now() - 5 * 60 * 1000), to = new Date(Date.now())
     const mainQuery = operationStore(`query($cluster: String!, $filter: [JobFilter!]!, $metrics: [String!], $from: Time!, $to: Time!) {
         nodeMetrics(cluster: $cluster, metrics: $metrics, from: $from, to: $to) {
-            host,
-            subCluster,
+            host
+            subCluster
             metrics {
-                name,
+                name
+                scope
                 metric {
-                    scope
-                    timestep,
+                    timestep
+                    unit { base, prefix }
                     series { data }
                 }
             }
@@ -47,13 +48,15 @@
         ? sum + (node.metrics.find(m => m.name == metric)?.metric.series.reduce((sum, series) => sum + series.data[series.data.length - 1], 0) || 0)
         : sum, 0)
 
-    let allocatedNodes = {}, flopRate = {}, memBwRate = {}
+    let allocatedNodes = {}, flopRate = {}, flopRateUnit = {}, memBwRate = {}, memBwRateUnit = {}
     $: if ($initq.data && $mainQuery.data) {
         let subClusters = $initq.data.clusters.find(c => c.name == cluster).subClusters
         for (let subCluster of subClusters) {
             allocatedNodes[subCluster.name] = $mainQuery.data.allocatedNodes.find(({ name }) => name == subCluster.name)?.count || 0
             flopRate[subCluster.name] = Math.floor(sumUp($mainQuery.data.nodeMetrics, subCluster.name, 'flops_any') * 100) / 100
+            flopRateUnit[subCluster.name] = subCluster.flopRateSimd.unit.prefix + subCluster.flopRateSimd.unit.base
             memBwRate[subCluster.name] = Math.floor(sumUp($mainQuery.data.nodeMetrics, subCluster.name, 'mem_bw') * 100) / 100
+            memBwRateUnit[subCluster.name] = subCluster.memoryBandwidth.unit.prefix + subCluster.memoryBandwidth.unit.base
         }
     }
 
@@ -116,13 +119,13 @@
                             </tr>
                             <tr>
                                 <th scope="col">Flop Rate (Any) <Icon name="info-circle" class="p-1" style="cursor: help;" title="Flops[Any] = (Flops[Double] x 2) + Flops[Single]"/></th>
-                                <td style="min-width: 100px;"><div class="col"><Progress value={flopRate[subCluster.name]} max={subCluster.flopRateSimd * subCluster.numberOfNodes}/></div></td>
-                                <td>({formatNumber(flopRate[subCluster.name])}Flops/s / {formatNumber((subCluster.flopRateSimd * subCluster.numberOfNodes))}Flops/s [Max])</td>
+                                <td style="min-width: 100px;"><div class="col"><Progress value={flopRate[subCluster.name]} max={subCluster.flopRateSimd.value * subCluster.numberOfNodes}/></div></td>
+                                <td>({flopRate[subCluster.name]} {flopRateUnit[subCluster.name]} / {(subCluster.flopRateSimd.value * subCluster.numberOfNodes)} {flopRateUnit[subCluster.name]} [Max])</td>
                             </tr>
                             <tr>
                                 <th scope="col">MemBw Rate</th>
-                                <td style="min-width: 100px;"><div class="col"><Progress value={memBwRate[subCluster.name]} max={subCluster.memoryBandwidth * subCluster.numberOfNodes}/></div></td>
-                                <td>({formatNumber(memBwRate[subCluster.name])}Byte/s / {formatNumber((subCluster.memoryBandwidth * subCluster.numberOfNodes))}Byte/s [Max])</td>
+                                <td style="min-width: 100px;"><div class="col"><Progress value={memBwRate[subCluster.name]} max={subCluster.memoryBandwidth.value * subCluster.numberOfNodes}/></div></td>
+                                <td>({memBwRate[subCluster.name]} {memBwRateUnit[subCluster.name]} / {(subCluster.memoryBandwidth.value * subCluster.numberOfNodes)} {memBwRateUnit[subCluster.name]} [Max])</td>
                             </tr>
                         </Table>
                     </CardBody>
@@ -150,7 +153,7 @@
                 <h4 class="mb-3 text-center">Top Users</h4>
                 {#key $mainQuery.data}
                     <Histogram
-                        width={colWidth1 - 25} height={300}
+                        width={colWidth1 - 25}
                         data={$mainQuery.data.topUsers.sort((a, b) => b.count - a.count).map(({ count }, idx) => ({ count, value: idx }))}
                         label={(x) => x < $mainQuery.data.topUsers.length ? $mainQuery.data.topUsers[Math.floor(x)].name : '0'}
                         xlabel="User Name" ylabel="Number of Jobs" />
@@ -172,7 +175,7 @@
             <h4 class="mb-3 text-center">Top Projects</h4>
             {#key $mainQuery.data}
                 <Histogram
-                    width={colWidth1 - 25} height={300}
+                    width={colWidth1 - 25}
                     data={$mainQuery.data.topProjects.sort((a, b) => b.count - a.count).map(({ count }, idx) => ({ count, value: idx }))}
                     label={(x) => x < $mainQuery.data.topProjects.length ? $mainQuery.data.topProjects[Math.floor(x)].name : '0'}
                     xlabel="Project Code" ylabel="Number of Jobs" />
@@ -193,9 +196,10 @@
                 <h4 class="mb-3 text-center">Duration Distribution</h4>
                 {#key $mainQuery.data.stats}
                     <Histogram
-                        width={colWidth2 - 25} height={300}
+                        width={colWidth2 - 25}
                         data={$mainQuery.data.stats[0].histDuration}
-                        xlabel="Current Runtime in Hours [h]" ylabel="Number of Jobs" />
+                        xlabel="Current Runtimes [h]" 
+                        ylabel="Number of Jobs" />
                 {/key}
             </div>
         </Col>
@@ -203,9 +207,10 @@
             <h4 class="mb-3 text-center">Number of Nodes Distribution</h4>
             {#key $mainQuery.data.stats}
                 <Histogram
-                    width={colWidth2 - 25} height={300}
+                    width={colWidth2 - 25}
                     data={$mainQuery.data.stats[0].histNumNodes}
-                    xlabel="Allocated Nodes" ylabel="Number of Jobs" />
+                    xlabel="Allocated Nodes [#]"
+                    ylabel="Number of Jobs" />
             {/key}
         </Col>
     </Row>

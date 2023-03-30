@@ -101,9 +101,11 @@
                             {#if $initialized}
                                 ({clusters
                                     .map(cluster => cluster.metricConfig.find(m => m.name == metric))
-                                    .filter(m => m != null).map(m => m.unit)
-                                    .reduce((arr, unit) => arr.includes(unit) ? arr : [...arr, unit], [])
-                                    .join(', ')})
+                                    .filter(m => m != null)
+                                    .map(m => (m.unit?.prefix?m.unit?.prefix:'') + (m.unit?.base?m.unit?.base:'')) // Build unitStr
+                                    .reduce((arr, unitStr) => arr.includes(unitStr) ? arr : [...arr, unitStr], []) // w/o this, output would be [unitStr, unitStr]
+                                    .join(', ')
+                                })
                             {/if}
                         </th>
                     {/each}
