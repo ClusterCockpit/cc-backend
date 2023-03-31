@@ -5,7 +5,7 @@
         "mem_bw": {
             "avg": 63.57,
             "min": 0,
-            "unit":  {
+            "unit": {
                 "base": "B/s",
                 "prefix": "G"
             },
@@ -14,13 +14,13 @@
         "rapl_power": {
             "avg": 228.07,
             "min": 0,
-            "unit":  {
+            "unit": {
                 "base": "W"
             },
             "max": 258.56
         },
         "ipc": {
-            "unit":  {
+            "unit": {
                 "base": "IPC"
             },
             "max": 0.510204081632653,
@@ -30,7 +30,7 @@
         "clock": {
             "min": 1380.32,
             "avg": 2599.39,
-            "unit":  {
+            "unit": {
                 "base": "Hz",
                 "prefix": "M"
             },
@@ -40,13 +40,13 @@
             "avg": 18.4,
             "min": 0,
             "max": 23.58,
-            "unit":  {
+            "unit": {
                 "base": "load"
             }
         },
         "flops_any": {
             "max": 404.62,
-            "unit":  {
+            "unit": {
                 "base": "F/s",
                 "prefix": "G"
             },
@@ -55,7 +55,7 @@
         },
         "flops_dp": {
             "max": 0.24,
-            "unit":  {
+            "unit": {
                 "base": "F/s",
                 "prefix": "G"
             },
@@ -65,7 +65,7 @@
         "mem_used": {
             "min": 1.55,
             "avg": 27.84,
-            "unit":  {
+            "unit": {
                 "base": "B",
                 "prefix": "G"
             },
@@ -75,7 +75,7 @@
             "min": 0,
             "avg": 225.59,
             "max": 404.62,
-            "unit":  {
+            "unit": {
                 "base": "F/s",
                 "prefix": "G"
             }
@@ -182,6 +182,7 @@
     "walltime": 10,
     "jobState": "completed",
     "cluster": "emmy",
+    "subCluster": "haswell",
     "stopTime": 1609009562,
     "user": "emmyUser6",
     "startTime": 1608923076,

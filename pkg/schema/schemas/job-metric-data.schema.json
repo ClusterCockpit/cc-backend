@@ -193,7 +193,7 @@
                     },
                     "data": {
                         "type": "array",
-                        "items": {
+                        "contains": {
                             "type": "number",
                             "minimum": 0
                         },

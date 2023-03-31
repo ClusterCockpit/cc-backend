@@ -30,7 +30,12 @@ type ArchiveBackend interface {
 
 	GetClusters() []string
 
-	Iter() <-chan *schema.JobMeta
+	Iter(loadMetricData bool) <-chan JobContainer
+}
+
+type JobContainer struct {
+	Meta *schema.JobMeta
+	Data *schema.JobData
 }
 
 var cache *lrucache.Cache = lrucache.New(128 * 1024 * 1024)

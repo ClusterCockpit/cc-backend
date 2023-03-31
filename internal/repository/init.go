@@ -228,7 +228,9 @@ func InitDB() error {
 	i := 0
 	errorOccured := 0
 
-	for jobMeta := range ar.Iter() {
+	for jobContainer := range ar.Iter(false) {
+
+		jobMeta := jobContainer.Meta
 
 		// // Bundle 100 inserts into one transaction for better performance:
 		if i%10 == 0 {

@@ -338,7 +338,7 @@
         "user",
         "project",
         "cluster",
-        "subcluster",
+        "subCluster",
         "numNodes",
         "exclusive",
         "startTime",

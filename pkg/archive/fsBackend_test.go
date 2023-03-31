@@ -154,10 +154,10 @@ func TestIter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for job := range fsa.Iter() {
-		fmt.Printf("Job %d\n", job.JobID)
+	for job := range fsa.Iter(false) {
+		fmt.Printf("Job %d\n", job.Meta.JobID)
 
-		if job.Cluster != "emmy" {
+		if job.Meta.Cluster != "emmy" {
 			t.Fail()
 		}
 	}

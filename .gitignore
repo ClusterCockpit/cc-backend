@@ -9,6 +9,6 @@
 
 /web/frontend/public/build
 /web/frontend/node_modules
-.vscode/settings.json
+/.vscode/*
 /archive-migration
-.vscode/launch.json
+/archive-manager
