@@ -52,14 +52,18 @@ func getPath(
 
 func loadJobMeta(filename string) (*schema.JobMeta, error) {
 
-	f, err := os.Open(filename)
+	b, err := os.ReadFile(filename)
 	if err != nil {
 		log.Errorf("fsBackend loadJobMeta()- %v", err)
 		return &schema.JobMeta{}, err
 	}
-	defer f.Close()
+	if config.Keys.Validate {
+		if err := schema.Validate(schema.Meta, bytes.NewReader(b)); err != nil {
+			return &schema.JobMeta{}, fmt.Errorf("validate cluster config: %v", err)
+		}
+	}
 
-	return DecodeJobMeta(bufio.NewReader(f))
+	return DecodeJobMeta(bytes.NewReader(b))
 }
 
 func (fsa *FsArchive) Init(rawConfig json.RawMessage) (int, error) {
