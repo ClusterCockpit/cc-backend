@@ -29,7 +29,7 @@ func main() {
 	}
 	ar := archive.GetHandle()
 
-	for jobMeta := range ar.Iter() {
-		log.Printf("Validate %s - %d\n", jobMeta.Cluster, jobMeta.JobID)
+	for job := range ar.Iter(true) {
+		log.Printf("Validate %s - %d\n", job.Meta.Cluster, job.Meta.JobID)
 	}
 }
