@@ -100,11 +100,12 @@
     ],
     "walltime": 10,
     "cluster": "emmy",
+    "subCluster": "haswell",
     "jobState": "completed",
     "statistics": {
         "clock": {
             "max": 2634.9,
-            "unit":  {
+            "unit": {
                 "base": "Hz",
                 "prefix": "M"
             },
@@ -115,14 +116,14 @@
             "max": 27.41,
             "min": 0,
             "avg": 18.39,
-            "unit":  {
+            "unit": {
                 "base": "load"
             }
         },
         "mem_bw": {
             "min": 0,
             "avg": 63.23,
-            "unit":  {
+            "unit": {
                 "base": "B/s",
                 "prefix": "G"
             },
@@ -131,7 +132,7 @@
         "ipc": {
             "min": 0.0,
             "avg": 1.53846153846154,
-            "unit":  {
+            "unit": {
                 "base": "IPC"
             },
             "max": 0.490196078431373
@@ -139,7 +140,7 @@
         "rapl_power": {
             "min": 0,
             "avg": 227.32,
-            "unit":  {
+            "unit": {
                 "base": "W"
             },
             "max": 256.22
@@ -147,14 +148,14 @@
         "mem_used": {
             "min": 1.5,
             "avg": 27.77,
-            "unit":  {
+            "unit": {
                 "base": "B",
                 "prefix": "G"
             },
             "max": 37.43
         },
         "flops_sp": {
-            "unit":  {
+            "unit": {
                 "base": "F/s",
                 "prefix": "G"
             },
@@ -164,7 +165,7 @@
         },
         "flops_dp": {
             "max": 5.72,
-            "unit":  {
+            "unit": {
                 "base": "F/s",
                 "prefix": "G"
             },
@@ -175,7 +176,7 @@
             "min": 0,
             "avg": 224.42,
             "max": 413.21,
-            "unit":  {
+            "unit": {
                 "base": "F/s",
                 "prefix": "G"
             }
