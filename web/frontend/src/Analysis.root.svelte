@@ -216,6 +216,7 @@
         <Col>
             <Card body>
                 These histograms show the distribution of the averages of all jobs matching the filters. Each job/average is weighted by its node hours.
+                Note that some metrics could be disabled for specific subclusters as per metriConfig and thus could affect shown average values.
             </Card>
             <br/>
         </Col>
@@ -247,6 +248,7 @@
         <Col>
             <Card body>
                 Each circle represents one job. The size of a circle is proportional to its node hours. Darker circles mean multiple jobs have the same averages for the respective metrics.
+                Note that some metrics could be disabled for specific subclusters as per metriConfig and thus could affect shown average values.
             </Card>
             <br/>
         </Col>

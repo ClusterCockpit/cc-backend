@@ -269,7 +269,7 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 			for _, scopedMetric := range scopedMetrics {
 				host.Metrics = append(host.Metrics, &model.JobMetricWithName{
 					Name:   metric,
-					Scope:  schema.MetricScopeNode, // NodeMetrics allow fixed scope?
+					Scope:  schema.MetricScopeNode,
 					Metric: scopedMetric,
 				})
 			}

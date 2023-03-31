@@ -21,6 +21,7 @@
 
     const clusters = getContext('clusters')
     const ccconfig = getContext('cc-config')
+    const metricConfig = getContext('metrics')
 
     let plotHeight = 300
     let hostnameFilter = ''
@@ -112,18 +113,35 @@
                 itemsPerRow={ccconfig.plot_view_plotsPerRow}
                 items={$nodesQuery.data.nodeMetrics
                     .filter(h => h.host.includes(hostnameFilter) && h.metrics.some(m => m.name == selectedMetric && m.scope == 'node'))
-                    .map(h => ({ host: h.host, subCluster: h.subCluster, data: h.metrics.find(m => m.name == selectedMetric && m.scope == 'node') }))
+                    .map(function (h) {
+                        let thisConfig = metricConfig(cluster, selectedMetric)
+                        let thisSCIndex = thisConfig.subClusters.findIndex(sc => sc.name == h.subCluster)
+                        // Metric remove == true
+                        if (thisSCIndex >= 0) {
+                            if (thisConfig.subClusters[thisSCIndex].remove == true) {
+                                return { host: h.host, subCluster: h.subCluster, data: null, removed: true }
+                            }
+                        }
+                        // Else
+                        return { host: h.host, subCluster: h.subCluster, data: h.metrics.find(m => m.name == selectedMetric && m.scope == 'node'), removed: false }
+                    })
                     .sort((a, b) => a.host.localeCompare(b.host))}>
 
-                <h4 style="width: 100%; text-align: center;"><a href="/monitoring/node/{cluster}/{item.host}">{item.host} ({item.subCluster})</a></h4>
-                <MetricPlot
-                    width={width}
-                    height={plotHeight}
-                    timestep={item.data.metric.timestep}
-                    series={item.data.metric.series}
-                    metric={item.data.name}
-                    cluster={clusters.find(c => c.name == cluster)}
-                    subCluster={item.subCluster} />
+                    <h4 style="width: 100%; text-align: center;"><a href="/monitoring/node/{cluster}/{item.host}">{item.host} ({item.subCluster})</a></h4>
+                    {#if item.removed == false && item.data != null}
+                        <MetricPlot
+                            width={width}
+                            height={plotHeight}
+                            timestep={item.data.metric.timestep}
+                            series={item.data.metric.series}
+                            metric={item.data.name}
+                            cluster={clusters.find(c => c.name == cluster)}
+                            subCluster={item.subCluster} />
+                    {:else if item.removed == true && item.data == null}
+                        <Card body color="info">Metric '{ selectedMetric }' disabled for subcluster '{ item.subCluster }'</Card>
+                    {:else}
+                        <Card body color="warning">Missing Data</Card>
+                    {/if}
             </PlotTable>
         {/if}
     </Col>
