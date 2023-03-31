@@ -30,6 +30,6 @@ func main() {
 	ar := archive.GetHandle()
 
 	for jobMeta := range ar.Iter() {
-		fmt.Printf("Validate %s - %d\n", jobMeta.Cluster, jobMeta.JobID)
+		log.Printf("Validate %s - %d\n", jobMeta.Cluster, jobMeta.JobID)
 	}
 }

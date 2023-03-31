@@ -59,7 +59,7 @@ func loadJobMeta(filename string) (*schema.JobMeta, error) {
 	}
 	if config.Keys.Validate {
 		if err := schema.Validate(schema.Meta, bytes.NewReader(b)); err != nil {
-			return &schema.JobMeta{}, fmt.Errorf("validate cluster config: %v", err)
+			return &schema.JobMeta{}, fmt.Errorf("validate job meta: %v", err)
 		}
 	}
 
