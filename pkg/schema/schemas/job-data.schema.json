@@ -86,8 +86,8 @@
             },
             "minProperties": 1
         },
-        "cpu_used": {
-            "description": "CPU active core utilization",
+        "cpu_user": {
+            "description": "CPU user active core utilization",
             "properties": {
                 "node": {
                     "$ref": "embedfs://job-metric-data.schema.json"
