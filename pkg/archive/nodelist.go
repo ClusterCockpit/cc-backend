@@ -14,7 +14,7 @@ import (
 
 type NodeList [][]interface {
 	consume(input string) (next string, ok bool)
-	limits() []map[string]int64
+	limits() []map[string]int
 	prefix() string
 }
 
@@ -40,12 +40,35 @@ func (nl *NodeList) Contains(name string) bool {
 func (nl *NodeList) PrintList() []string {
 	var out []string
 	for _, term := range *nl {
+		// Get String-Part first
 		prefix := term[0].prefix()
-		limitArr := term[1].limits()
-		for _, inner := range limitArr {
-			for i := inner["start"]; i < inner["end"]+1; i++ {
-				node := fmt.Sprintf("%s%02d", prefix, i)
-				out = append(out, node)
+		if len(term) == 1 { // If only String-Part in Term: Single Node Name -> Use as provided
+			out = append(out, prefix)
+		} else { // Else: Numeric start-end definition with x digits zeroPadded
+			limitArr := term[1].limits()
+			for _, inner := range limitArr {
+				for i := inner["start"]; i < inner["end"]+1; i++ {
+					if inner["zeroPadded"] == 1 {
+						out = append(out, fmt.Sprintf("%s%0*d", prefix, inner["digits"], i))
+					} else {
+						log.Error("node list: only zero-padded ranges are allowed")
+					}
+				}
+			}
+		}
+	}
+	return out
+}
+
+func (nl *NodeList) NodeCount() int {
+	var out int = 0
+	for _, term := range *nl {
+		if len(term) == 1 { // If only String-Part in Term: Single Node Name -> add one
+			out += 1
+		} else { // Else: Numeric start-end definition -> add difference + 1
+			limitArr := term[1].limits()
+			for _, inner := range limitArr {
+				out += (inner["end"] - inner["start"]) + 1
 			}
 		}
 	}
@@ -62,9 +85,9 @@ func (nle NLExprString) consume(input string) (next string, ok bool) {
 	return "", false
 }
 
-func (nle NLExprString) limits() []map[string]int64 {
+func (nle NLExprString) limits() []map[string]int {
 	// Null implementation to  fullfill interface requirement
-	l := make([]map[string]int64, 0)
+	l := make([]map[string]int, 0)
 	return l
 }
 
@@ -83,8 +106,8 @@ func (nles NLExprIntRanges) consume(input string) (next string, ok bool) {
 	return "", false
 }
 
-func (nles NLExprIntRanges) limits() []map[string]int64 {
-	l := make([]map[string]int64, 0)
+func (nles NLExprIntRanges) limits() []map[string]int {
+	l := make([]map[string]int, 0)
 	for _, nle := range nles {
 		inner := nle.limits()
 		l = append(l, inner[0])
@@ -131,11 +154,17 @@ func (nle NLExprIntRange) consume(input string) (next string, ok bool) {
 	return "", false
 }
 
-func (nle NLExprIntRange) limits() []map[string]int64 {
-	l := make([]map[string]int64, 0)
-	m := make(map[string]int64)
-	m["start"] = nle.start
-	m["end"] = nle.end
+func (nle NLExprIntRange) limits() []map[string]int {
+	l := make([]map[string]int, 0)
+	m := make(map[string]int)
+	m["start"] = int(nle.start)
+	m["end"] = int(nle.end)
+	m["digits"] = int(nle.digits)
+	if nle.zeroPadded == true {
+		m["zeroPadded"] = 1
+	} else {
+		m["zeroPadded"] = 0
+	}
 	l = append(l, m)
 	return l
 }
@@ -173,7 +202,7 @@ func ParseNodeList(raw string) (NodeList, error) {
 	for _, rawterm := range rawterms {
 		exprs := []interface {
 			consume(input string) (next string, ok bool)
-			limits() []map[string]int64
+			limits() []map[string]int
 			prefix() string
 		}{}
 		for i := 0; i < len(rawterm); i++ {
