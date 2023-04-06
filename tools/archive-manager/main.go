@@ -23,6 +23,7 @@ func main() {
 	archiveCfg := fmt.Sprintf("{\"kind\": \"file\",\"path\": \"%s\"}", srcPath)
 
 	config.Init(flagConfigFile)
+	config.Keys.Validate = true
 
 	if err := archive.Init(json.RawMessage(archiveCfg)); err != nil {
 		log.Fatal(err)

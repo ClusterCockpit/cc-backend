@@ -4,7 +4,10 @@
 // license that can be found in the LICENSE file.
 package schema
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
 
 type Accelerator struct {
 	ID    string `json:"id"`
@@ -155,6 +158,15 @@ func (topo *Topology) GetMemoryDomainsFromHWThreads(
 	}
 
 	return memDoms, exclusive
+}
+
+// Temporary fix to convert back from int id to string id for accelerators
+func (topo *Topology) GetAcceleratorID(id int) (string, error) {
+	if id < len(topo.Accelerators) {
+		return topo.Accelerators[id].ID, nil
+	} else {
+		return "", fmt.Errorf("Index %d out of range", id)
+	}
 }
 
 func (topo *Topology) GetAcceleratorIDs() ([]int, error) {

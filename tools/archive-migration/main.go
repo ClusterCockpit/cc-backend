@@ -102,7 +102,7 @@ func deepCopyJobMeta(j *JobMeta) schema.JobMeta {
 	return jn
 }
 
-func deepCopyJobData(d *JobData) *schema.JobData {
+func deepCopyJobData(d *JobData, cluster string, subCluster string) *schema.JobData {
 	var dn = make(schema.JobData)
 
 	for k, v := range *d {
@@ -126,7 +126,19 @@ func deepCopyJobData(d *JobData) *schema.JobData {
 				sn.Hostname = v.Hostname
 				if v.Id != nil {
 					var id = new(string)
-					*id = fmt.Sprint(*v.Id)
+
+					if mk == schema.MetricScopeAccelerator {
+						s := GetSubCluster(cluster, subCluster)
+						var err error
+
+						*id, err = s.Topology.GetAcceleratorID(*v.Id)
+						if err != nil {
+							log.Fatal(err)
+						}
+
+					} else {
+						*id = fmt.Sprint(*v.Id)
+					}
 					sn.Id = id
 				}
 				if v.Statistics != nil {
@@ -156,11 +168,7 @@ func deepCopyClusterConfig(co *Cluster) schema.Cluster {
 	for _, sco := range co.SubClusters {
 		var scn schema.SubCluster
 		scn.Name = sco.Name
-		if sco.Nodes == "" {
-			scn.Nodes = "*"
-		} else {
-			scn.Nodes = sco.Nodes
-		}
+		scn.Nodes = sco.Nodes
 		scn.ProcessorType = sco.ProcessorType
 		scn.SocketsPerNode = sco.SocketsPerNode
 		scn.CoresPerSocket = sco.CoresPerSocket
@@ -295,7 +303,7 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			jdn := deepCopyJobData(jd)
+			jdn := deepCopyJobData(jd, job.Cluster, job.SubCluster)
 			if err := EncodeJobData(f, jdn); err != nil {
 				log.Fatal(err)
 			}

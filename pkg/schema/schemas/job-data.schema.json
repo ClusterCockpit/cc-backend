@@ -479,7 +479,7 @@
         ]
     },
     "required": [
-        "cpu_used",
+        "cpu_user",
         "mem_used",
         "flops_any",
         "mem_bw",

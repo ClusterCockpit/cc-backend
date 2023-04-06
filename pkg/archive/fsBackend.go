@@ -172,11 +172,11 @@ func (fsa *FsArchive) LoadClusterCfg(name string) (*schema.Cluster, error) {
 		log.Errorf("fsBackend LoadClusterCfg()- %v", err)
 		return &schema.Cluster{}, err
 	}
-	if config.Keys.Validate {
-		if err := schema.Validate(schema.ClusterCfg, bytes.NewReader(b)); err != nil {
-			return &schema.Cluster{}, fmt.Errorf("validate cluster config: %v", err)
-		}
+	// if config.Keys.Validate {
+	if err := schema.Validate(schema.ClusterCfg, bytes.NewReader(b)); err != nil {
+		return &schema.Cluster{}, fmt.Errorf("validate cluster config: %v", err)
 	}
+	// }
 	return DecodeCluster(bytes.NewReader(b))
 }
 
