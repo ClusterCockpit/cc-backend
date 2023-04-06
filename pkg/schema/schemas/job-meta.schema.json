@@ -193,8 +193,8 @@
                     "description": "Instructions executed per cycle",
                     "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
-                "cpu_used": {
-                    "description": "CPU active core utilization",
+                "cpu_user": {
+                    "description": "CPU user active core utilization",
                     "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "flops_dp": {
@@ -326,7 +326,7 @@
                 }
             },
             "required": [
-                "cpu_used",
+                "cpu_user",
                 "mem_used",
                 "flops_any",
                 "mem_bw"
