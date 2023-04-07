@@ -59,10 +59,6 @@ func setup(t *testing.T) *api.RestApi {
         "name": "testcluster",
 		"subClusters": [
 			{
-				"name": "sc0",
-				"nodes": "host120,host121,host122"
-			},
-			{
 				"name": "sc1",
 				"nodes": "host123,host124,host125",
 				"processorType": "Intel Core i7-4770",
@@ -103,7 +99,7 @@ func setup(t *testing.T) *api.RestApi {
 		"metricConfig": [
 			{
 				"name": "load_one",
-			    "unit": { "base": "load"},
+			    "unit": { "base": ""},
 				"scope": "node",
 				"timestep": 60,
                 "aggregation": "avg",
@@ -116,7 +112,7 @@ func setup(t *testing.T) *api.RestApi {
 	}`
 	const taurusclusterJson = `{
 		"name": "taurus",
-		"SubClusters": [
+		"subClusters": [
 		  {
 			"name": "haswell",
 			"processorType": "Intel Haswell",
@@ -167,6 +163,10 @@ func setup(t *testing.T) *api.RestApi {
 			"unit": {"base": ""},
 			"aggregation": "avg",
 			"timestep": 30,
+			"peak": 1,
+			"normal": 0.5,
+			"caution": 2e-07,
+			"alert": 1e-07,
 			"subClusters": [
 			  {
 				"name": "haswell",
@@ -183,6 +183,10 @@ func setup(t *testing.T) *api.RestApi {
 			"unit": { "base": "IPC"},
             "aggregation": "avg",
 			"timestep": 60,
+			"peak": 2,
+			"normal": 1,
+			"caution": 0.1,
+			"alert": 0.5,
 			"subClusters": [
 			  {
 				"name": "haswell",
@@ -199,6 +203,10 @@ func setup(t *testing.T) *api.RestApi {
 			"unit": { "base": "F/s"},
             "aggregation": "sum",
 			"timestep": 60,
+			"peak": 40000000000,
+			"normal": 20000000000,
+			"caution": 30000000000,
+			"alert": 35000000000,
 			"subClusters": [
 			  {
 				"name": "haswell",
@@ -215,6 +223,10 @@ func setup(t *testing.T) *api.RestApi {
 			"unit": { "base": "B/s"},
             "aggregation": "sum",
 			"timestep": 60,
+			"peak": 58800000000,
+			"normal": 28800000000,
+			"caution": 38800000000,
+			"alert": 48800000000,
 			"subClusters": [
 			  {
 				"name": "haswell",
@@ -231,6 +243,10 @@ func setup(t *testing.T) *api.RestApi {
 			"unit": { "base": "B/s"},
             "aggregation": "sum",
 			"timestep": 30,
+			"peak": 20000000000,
+			"normal": 5000000000,
+			"caution": 9000000000,
+			"alert": 19000000000,
 			"subClusters": [
 			  {
 				"name": "haswell",
@@ -246,6 +262,11 @@ func setup(t *testing.T) *api.RestApi {
 			"scope": "node",
 			"unit": { "base": "B/s"},
 			"timestep": 30,
+            "aggregation": "sum",
+			"peak": 7000000000,
+			"normal": 5000000000,
+			"caution": 6000000000,
+			"alert": 6500000000,
 			"subClusters": [
 			  {
 				"name": "haswell",
@@ -262,6 +283,10 @@ func setup(t *testing.T) *api.RestApi {
 			"unit": {"base": "B"},
             "aggregation": "sum",
 			"timestep": 30,
+			"peak": 32000000000,
+			"normal": 2000000000,
+			"caution": 31000000000,
+			"alert": 30000000000,
 			"subClusters": [
 			  {
 				"name": "haswell",
@@ -278,6 +303,10 @@ func setup(t *testing.T) *api.RestApi {
 			"unit": {"base": "W"},
             "aggregation": "sum",
 			"timestep": 60,
+			"peak": 100,
+			"normal": 80,
+			"caution": 90,
+			"alert": 90,
 			"subClusters": [
 			  {
 				"name": "haswell",

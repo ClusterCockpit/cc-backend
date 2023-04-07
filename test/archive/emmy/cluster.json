@@ -691,7 +691,7 @@
             "name": "cpu_load",
             "scope": "node",
             "unit": {
-                "base": "load"
+                "base": ""
             },
             "aggregation": "avg",
             "timestep": 60,
