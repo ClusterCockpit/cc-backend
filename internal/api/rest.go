@@ -76,6 +76,7 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 
 	if api.Authentication != nil {
 		r.HandleFunc("/jwt/", api.getJWT).Methods(http.MethodGet)
+		r.HandleFunc("/roles/", api.getRoles).Methods(http.MethodGet)
 		r.HandleFunc("/users/", api.createUser).Methods(http.MethodPost, http.MethodPut)
 		r.HandleFunc("/users/", api.getUsers).Methods(http.MethodGet)
 		r.HandleFunc("/users/", api.deleteUser).Methods(http.MethodDelete)
@@ -177,7 +178,7 @@ func decode(r io.Reader, val interface{}) error {
 // @router      /jobs/ [get]
 func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -317,7 +318,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/tag_job/{id} [post]
 func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -382,7 +383,7 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/start_job/ [post]
 func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -463,7 +464,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/stop_job/{id} [post]
 func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -516,7 +517,7 @@ func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/stop_job/ [post]
 func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -562,7 +563,7 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/delete_job/{id} [delete]
 func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -610,7 +611,7 @@ func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 // @router      /jobs/delete_job/ [delete]
 func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -666,7 +667,7 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 // @router      /jobs/delete_job_before/{ts} [delete]
 func (api *RestApi) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.RoleApi), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -817,9 +818,17 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username, password, role, name, email := r.FormValue("username"), r.FormValue("password"), r.FormValue("role"), r.FormValue("name"), r.FormValue("email")
-	if len(password) == 0 && role != auth.RoleApi {
+	username, password, role, name, email, project := r.FormValue("username"), r.FormValue("password"), r.FormValue("role"), r.FormValue("name"), r.FormValue("email"), r.FormValue("project")
+	if len(password) == 0 && role != auth.GetRoleString(auth.RoleApi) {
 		http.Error(rw, "Only API users are allowed to have a blank password (login will be impossible)", http.StatusBadRequest)
+		return
+	}
+
+	if len(project) != 0 && role != auth.GetRoleString(auth.RoleManager) {
+		http.Error(rw, "only managers require a project (can be changed later)", http.StatusBadRequest)
+		return
+	} else if len(project) == 0 && role == auth.GetRoleString(auth.RoleManager) {
+		http.Error(rw, "managers require a project to manage (can be changed later)", http.StatusBadRequest)
 		return
 	}
 
@@ -828,6 +837,7 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 		Name:     name,
 		Password: password,
 		Email:    email,
+		Projects: []string{project},
 		Roles:    []string{role}}); err != nil {
 		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 		return
@@ -866,6 +876,22 @@ func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(rw).Encode(users)
 }
 
+func (api *RestApi) getRoles(rw http.ResponseWriter, r *http.Request) {
+	user := auth.GetUser(r.Context())
+	if !user.HasRole(auth.RoleAdmin) {
+		http.Error(rw, "only admins are allowed to fetch a list of roles", http.StatusForbidden)
+		return
+	}
+
+	roles, err := auth.GetValidRoles(user)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(rw).Encode(roles)
+}
+
 func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); !user.HasRole(auth.RoleAdmin) {
 		http.Error(rw, "Only admins are allowed to update a user", http.StatusForbidden)
@@ -875,6 +901,8 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 	// Get Values
 	newrole := r.FormValue("add-role")
 	delrole := r.FormValue("remove-role")
+	newproj := r.FormValue("add-project")
+	delproj := r.FormValue("remove-project")
 
 	// TODO: Handle anything but roles...
 	if newrole != "" {
@@ -889,8 +917,20 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 			return
 		}
 		rw.Write([]byte("Remove Role Success"))
+	} else if newproj != "" {
+		if err := api.Authentication.AddProject(r.Context(), mux.Vars(r)["id"], newproj); err != nil {
+			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+		rw.Write([]byte("Add Project Success"))
+	} else if delproj != "" {
+		if err := api.Authentication.RemoveProject(r.Context(), mux.Vars(r)["id"], delproj); err != nil {
+			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+		rw.Write([]byte("Remove Project Success"))
 	} else {
-		http.Error(rw, "Not Add or Del?", http.StatusInternalServerError)
+		http.Error(rw, "Not Add or Del [role|project]?", http.StatusInternalServerError)
 	}
 }
 

@@ -48,7 +48,7 @@
             if (s1 == null || s2 == null)
                 return -1
 
-            return s.dir != 'up' ? s1[stat] - s2[stat] : s2[stat] - s1[stat]         
+            return s.dir != 'up' ? s1[stat] - s2[stat] : s2[stat] - s1[stat]
         })
     }
 
@@ -61,7 +61,7 @@
     <thead>
         <tr>
             <th>
-                <Button outline on:click={() => (isMetricSelectionOpen = true, console.log(isMetricSelectionOpen))}>
+                <Button outline on:click={() => (isMetricSelectionOpen = true)}> <!-- log to click ', console.log(isMetricSelectionOpen)' -->
                     Metrics
                 </Button>
             </th>

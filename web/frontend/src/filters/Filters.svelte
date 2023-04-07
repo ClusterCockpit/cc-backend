@@ -224,7 +224,7 @@
                 on:change={({ detail: { from, to } }) => {
                     filters.startTime.from = from?.toISOString()
                     filters.startTime.to = to?.toISOString()
-                    console.log(filters.startTime)
+                    // console.log(filters.startTime)
                     update()
                 }}
                 />

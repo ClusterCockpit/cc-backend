@@ -356,8 +356,12 @@ func (r *JobRepository) CountGroupedJobs(ctx context.Context, aggreg model.Aggre
 		}
 	}
 
-	q := sq.Select("job."+string(aggreg), count).From("job").GroupBy("job." + string(aggreg)).OrderBy("count DESC")
-	q = SecurityCheck(ctx, q)
+	q, qerr := SecurityCheck(ctx, sq.Select("job."+string(aggreg), count).From("job").GroupBy("job."+string(aggreg)).OrderBy("count DESC"))
+
+	if qerr != nil {
+		return nil, qerr
+	}
+
 	for _, f := range filters {
 		q = BuildWhereClause(f, q)
 	}
@@ -488,192 +492,91 @@ var ErrForbidden = errors.New("not authorized")
 // If query is found to be an integer (= conversion to INT datatype succeeds), skip back to parent call
 // If nothing matches the search, `ErrNotFound` is returned.
 
-func (r *JobRepository) FindJobnameOrUserOrProject(ctx context.Context, searchterm string) (metasnip string, username string, project string, err error) {
-	user := auth.GetUser(ctx)
+func (r *JobRepository) FindUserOrProjectOrJobname(ctx context.Context, searchterm string) (username string, project string, metasnip string, err error) {
 	if _, err := strconv.Atoi(searchterm); err == nil { // Return empty on successful conversion: parent method will redirect for integer jobId
 		return "", "", "", nil
-	} else { // has to have letters
-
-		if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleSupport) {
-			err := sq.Select("job.user").Distinct().From("job").
-				Where("job.user = ?", searchterm).
-				RunWith(r.stmtCache).QueryRow().Scan(&username)
+	} else { // Has to have letters and logged-in user for other guesses
+		user := auth.GetUser(ctx)
+		if user != nil {
+			// Find username in jobs (match)
+			uresult, _ := r.FindColumnValue(user, searchterm, "job", "user", "user", false)
+			if uresult != "" {
+				return uresult, "", "", nil
+			}
+			// Find username by name (like)
+			nresult, _ := r.FindColumnValue(user, searchterm, "user", "username", "name", true)
+			if nresult != "" {
+				return nresult, "", "", nil
+			}
+			// Find projectId in jobs (match)
+			presult, _ := r.FindColumnValue(user, searchterm, "job", "project", "project", false)
+			if presult != "" {
+				return "", presult, "", nil
+			}
+			// Still no return (or not authorized for above): Try JobName
+			// Match Metadata, on hit, parent method redirects to jobName GQL query
+			err := sq.Select("job.cluster").Distinct().From("job").
+				Where("job.meta_data LIKE ?", "%"+searchterm+"%").
+				RunWith(r.stmtCache).QueryRow().Scan(&metasnip)
 			if err != nil && err != sql.ErrNoRows {
 				return "", "", "", err
 			} else if err == nil {
-				return "", username, "", nil
-			}
-
-			if username == "" { // Try with Name2Username query
-				errtwo := sq.Select("user.username").Distinct().From("user").
-					Where("user.name LIKE ?", fmt.Sprint("%"+searchterm+"%")).
-					RunWith(r.stmtCache).QueryRow().Scan(&username)
-				if errtwo != nil && errtwo != sql.ErrNoRows {
-					return "", "", "", errtwo
-				} else if errtwo == nil {
-					return "", username, "", nil
-				}
+				return "", "", metasnip[0:1], nil
 			}
 		}
-
-		if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleSupport) {
-			err := sq.Select("job.project").Distinct().From("job").
-				Where("job.project = ?", searchterm).
-				RunWith(r.stmtCache).QueryRow().Scan(&project)
-			if err != nil && err != sql.ErrNoRows {
-				return "", "", "", err
-			} else if err == nil {
-				return "", "", project, nil
-			}
-		}
-
-		// All Authorizations: If unlabeled query not username or projectId, try for jobname: Match Metadata, on hit, parent method redirects to jobName GQL query
-		err := sq.Select("job.cluster").Distinct().From("job").
-			Where("job.meta_data LIKE ?", "%"+searchterm+"%").
-			RunWith(r.stmtCache).QueryRow().Scan(&metasnip)
-		if err != nil && err != sql.ErrNoRows {
-			return "", "", "", err
-		} else if err == nil {
-			return metasnip[0:1], "", "", nil
-		}
-
 		return "", "", "", ErrNotFound
 	}
 }
 
-func (r *JobRepository) FindUser(ctx context.Context, searchterm string) (username string, err error) {
-	user := auth.GetUser(ctx)
-	if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleSupport) {
-		err := sq.Select("job.user").Distinct().From("job").
-			Where("job.user = ?", searchterm).
-			RunWith(r.stmtCache).QueryRow().Scan(&username)
+func (r *JobRepository) FindColumnValue(user *auth.User, searchterm string, table string, selectColumn string, whereColumn string, isLike bool) (result string, err error) {
+	compareStr := " = ?"
+	query := searchterm
+	if isLike == true {
+		compareStr = " LIKE ?"
+		query = "%" + searchterm + "%"
+	}
+	if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
+		err := sq.Select(table+"."+selectColumn).Distinct().From(table).
+			Where(table+"."+whereColumn+compareStr, query).
+			RunWith(r.stmtCache).QueryRow().Scan(&result)
 		if err != nil && err != sql.ErrNoRows {
 			return "", err
 		} else if err == nil {
-			return username, nil
+			return result, nil
 		}
 		return "", ErrNotFound
-
 	} else {
-		log.Infof("Non-Admin User %s : Requested Query Username -> %s: Forbidden", user.Name, searchterm)
+		log.Infof("Non-Admin User %s : Requested Query '%s' on table '%s' : Forbidden", user.Name, query, table)
 		return "", ErrForbidden
 	}
 }
 
-func (r *JobRepository) FindUserByName(ctx context.Context, searchterm string) (username string, err error) {
-	user := auth.GetUser(ctx)
-	if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleSupport) {
-		err := sq.Select("user.username").Distinct().From("user").
-			Where("user.name = ?", searchterm).
-			RunWith(r.stmtCache).QueryRow().Scan(&username)
-		if err != nil && err != sql.ErrNoRows {
-			return "", err
-		} else if err == nil {
-			return username, nil
-		}
-		return "", ErrNotFound
-
-	} else {
-		log.Infof("Non-Admin User %s : Requested Query Name -> %s: Forbidden", user.Name, searchterm)
-		return "", ErrForbidden
-	}
-}
-
-func (r *JobRepository) FindUsers(ctx context.Context, searchterm string) (usernames []string, err error) {
-	user := auth.GetUser(ctx)
+func (r *JobRepository) FindColumnValues(user *auth.User, query string, table string, selectColumn string, whereColumn string) (results []string, err error) {
 	emptyResult := make([]string, 0)
-	if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleSupport) {
-		rows, err := sq.Select("job.user").Distinct().From("job").
-			Where("job.user LIKE ?", fmt.Sprint("%", searchterm, "%")).
+	if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
+		rows, err := sq.Select(table+"."+selectColumn).Distinct().From(table).
+			Where(table+"."+whereColumn+" LIKE ?", fmt.Sprint("%", query, "%")).
 			RunWith(r.stmtCache).Query()
 		if err != nil && err != sql.ErrNoRows {
 			return emptyResult, err
 		} else if err == nil {
 			for rows.Next() {
-				var name string
-				err := rows.Scan(&name)
+				var result string
+				err := rows.Scan(&result)
 				if err != nil {
 					rows.Close()
 					log.Warnf("Error while scanning rows: %v", err)
 					return emptyResult, err
 				}
-				usernames = append(usernames, name)
+				results = append(results, result)
 			}
-			return usernames, nil
+			return results, nil
 		}
 		return emptyResult, ErrNotFound
 
 	} else {
-		log.Infof("Non-Admin User %s : Requested Query Usernames -> %s: Forbidden", user.Name, searchterm)
+		log.Infof("Non-Admin User %s : Requested Query '%s' on table '%s' : Forbidden", user.Name, query, table)
 		return emptyResult, ErrForbidden
-	}
-}
-
-func (r *JobRepository) FindUsersByName(ctx context.Context, searchterm string) (usernames []string, err error) {
-	user := auth.GetUser(ctx)
-	emptyResult := make([]string, 0)
-	if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleSupport) {
-		rows, err := sq.Select("user.username").Distinct().From("user").
-			Where("user.name LIKE ?", fmt.Sprint("%", searchterm, "%")).
-			RunWith(r.stmtCache).Query()
-		if err != nil && err != sql.ErrNoRows {
-			return emptyResult, err
-		} else if err == nil {
-			for rows.Next() {
-				var username string
-				err := rows.Scan(&username)
-				if err != nil {
-					rows.Close()
-					log.Warnf("Error while scanning rows: %v", err)
-					return emptyResult, err
-				}
-				usernames = append(usernames, username)
-			}
-			return usernames, nil
-		}
-		return emptyResult, ErrNotFound
-
-	} else {
-		log.Infof("Non-Admin User %s : Requested Query name -> %s: Forbidden", user.Name, searchterm)
-		return emptyResult, ErrForbidden
-	}
-}
-
-func (r *JobRepository) FindNameByUser(ctx context.Context, searchterm string) (name string, err error) {
-	user := auth.GetUser(ctx)
-	if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleSupport) {
-		err := sq.Select("user.name").Distinct().From("user").
-			Where("user.username = ?", searchterm).
-			RunWith(r.stmtCache).QueryRow().Scan(&name)
-		if err != nil && err != sql.ErrNoRows {
-			return "", err
-		} else if err == nil {
-			return name, nil
-		}
-		return "", ErrNotFound
-
-	} else {
-		log.Infof("Non-Admin User %s : Requested Query Name -> %s: Forbidden", user.Name, searchterm)
-		return "", ErrForbidden
-	}
-}
-
-func (r *JobRepository) FindProject(ctx context.Context, searchterm string) (project string, err error) {
-
-	user := auth.GetUser(ctx)
-	if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleSupport) {
-		err := sq.Select("job.project").Distinct().From("job").
-			Where("job.project = ?", searchterm).
-			RunWith(r.stmtCache).QueryRow().Scan(&project)
-		if err != nil && err != sql.ErrNoRows {
-			return "", err
-		} else if err == nil {
-			return project, nil
-		}
-		return "", ErrNotFound
-	} else {
-		log.Infof("Non-Admin User %s : Requested Query Project -> %s: Forbidden", user.Name, project)
-		return "", ErrForbidden
 	}
 }
 
@@ -796,9 +699,9 @@ func (r *JobRepository) JobsStatistics(ctx context.Context,
 	for _, cluster := range archive.Clusters {
 		for _, subcluster := range cluster.SubClusters {
 			corehoursCol := fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_nodes * %d * %d) / 3600) as %s)", subcluster.SocketsPerNode, subcluster.CoresPerSocket, castType)
-			var query sq.SelectBuilder
+			var rawQuery sq.SelectBuilder
 			if groupBy == nil {
-				query = sq.Select(
+				rawQuery = sq.Select(
 					"''",
 					"COUNT(job.id)",
 					fmt.Sprintf("CAST(ROUND(SUM(job.duration) / 3600) as %s)", castType),
@@ -806,7 +709,7 @@ func (r *JobRepository) JobsStatistics(ctx context.Context,
 				).From("job")
 			} else {
 				col := groupBy2column[*groupBy]
-				query = sq.Select(
+				rawQuery = sq.Select(
 					col,
 					"COUNT(job.id)",
 					fmt.Sprintf("CAST(ROUND(SUM(job.duration) / 3600) as %s)", castType),
@@ -814,11 +717,16 @@ func (r *JobRepository) JobsStatistics(ctx context.Context,
 				).From("job").GroupBy(col)
 			}
 
-			query = query.
+			rawQuery = rawQuery.
 				Where("job.cluster = ?", cluster.Name).
 				Where("job.subcluster = ?", subcluster.Name)
 
-			query = SecurityCheck(ctx, query)
+			query, qerr := SecurityCheck(ctx, rawQuery)
+
+			if qerr != nil {
+				return nil, qerr
+			}
+
 			for _, f := range filter {
 				query = BuildWhereClause(f, query)
 			}
@@ -857,8 +765,14 @@ func (r *JobRepository) JobsStatistics(ctx context.Context,
 	}
 
 	if groupBy == nil {
+
 		query := sq.Select("COUNT(job.id)").From("job").Where("job.duration < ?", config.Keys.ShortRunningJobsDuration)
-		query = SecurityCheck(ctx, query)
+		query, qerr := SecurityCheck(ctx, query)
+
+		if qerr != nil {
+			return nil, qerr
+		}
+
 		for _, f := range filter {
 			query = BuildWhereClause(f, query)
 		}
@@ -868,8 +782,15 @@ func (r *JobRepository) JobsStatistics(ctx context.Context,
 		}
 	} else {
 		col := groupBy2column[*groupBy]
+
 		query := sq.Select(col, "COUNT(job.id)").From("job").Where("job.duration < ?", config.Keys.ShortRunningJobsDuration)
-		query = SecurityCheck(ctx, query)
+
+		query, qerr := SecurityCheck(ctx, query)
+
+		if qerr != nil {
+			return nil, qerr
+		}
+
 		for _, f := range filter {
 			query = BuildWhereClause(f, query)
 		}
@@ -895,7 +816,8 @@ func (r *JobRepository) JobsStatistics(ctx context.Context,
 		if col == "job.user" {
 			for id := range stats {
 				emptyDash := "-"
-				name, _ := r.FindNameByUser(ctx, id)
+				user := auth.GetUser(ctx)
+				name, _ := r.FindColumnValue(user, id, "user", "name", "username", false)
 				if name != "" {
 					stats[id].Name = &name
 				} else {
@@ -952,7 +874,12 @@ func (r *JobRepository) jobsStatisticsHistogram(ctx context.Context,
 
 	start := time.Now()
 	query := sq.Select(value, "COUNT(job.id) AS count").From("job")
-	query = SecurityCheck(ctx, query)
+	query, qerr := SecurityCheck(ctx, sq.Select(value, "COUNT(job.id) AS count").From("job"))
+
+	if qerr != nil {
+		return nil, qerr
+	}
+
 	for _, f := range filters {
 		query = BuildWhereClause(f, query)
 	}

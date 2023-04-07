@@ -1,4 +1,4 @@
-<!-- 
+<!--
     @component List of users or projects
  -->
 <script>
@@ -55,7 +55,7 @@
             : (sorting.direction == 'up'
                 ? (a, b) => a[sorting.field] - b[sorting.field]
                 : (a, b) => b[sorting.field] - a[sorting.field])
-        
+
         return stats.filter(u => u.id.includes(nameFilter)).sort(cmp)
     }
 

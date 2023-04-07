@@ -26,8 +26,11 @@ func (r *JobRepository) QueryJobs(
 	page *model.PageRequest,
 	order *model.OrderByInput) ([]*schema.Job, error) {
 
-	query := sq.Select(jobColumns...).From("job")
-	query = SecurityCheck(ctx, query)
+	query, qerr := SecurityCheck(ctx, sq.Select(jobColumns...).From("job"))
+
+	if qerr != nil {
+		return nil, qerr
+	}
 
 	if order != nil {
 		field := toSnakeCase(order.Field)
@@ -82,8 +85,12 @@ func (r *JobRepository) CountJobs(
 	filters []*model.JobFilter) (int, error) {
 
 	// count all jobs:
-	query := sq.Select("count(*)").From("job")
-	query = SecurityCheck(ctx, query)
+	query, qerr := SecurityCheck(ctx, sq.Select("count(*)").From("job"))
+
+	if qerr != nil {
+		return 0, qerr
+	}
+
 	for _, f := range filters {
 		query = BuildWhereClause(f, query)
 	}
@@ -95,13 +102,23 @@ func (r *JobRepository) CountJobs(
 	return count, nil
 }
 
-func SecurityCheck(ctx context.Context, query sq.SelectBuilder) sq.SelectBuilder {
+func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (queryOut sq.SelectBuilder, err error) {
 	user := auth.GetUser(ctx)
-	if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleApi) || user.HasRole(auth.RoleSupport) {
-		return query
+	if user == nil || user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleApi}) { // Admin & Co. : All jobs
+		return query, nil
+	} else if user.HasRole(auth.RoleManager) { // Manager : Add filter for managed projects' jobs only + personal jobs
+		if len(user.Projects) != 0 {
+			return query.Where(sq.Or{sq.Eq{"job.project": user.Projects}, sq.Eq{"job.user": user.Username}}), nil
+		} else {
+			log.Infof("Manager-User '%s' has no defined projects to lookup! Query only personal jobs ...", user.Username)
+			return query.Where("job.user = ?", user.Username), nil
+		}
+	} else if user.HasRole(auth.RoleUser) { // User : Only personal jobs
+		return query.Where("job.user = ?", user.Username), nil
+	} else { // Unauthorized : Error
+		var qnil sq.SelectBuilder
+		return qnil, errors.New(fmt.Sprintf("User '%s' with unknown roles! [%#v]\n", user.Username, user.Roles))
 	}
-
-	return query.Where("job.user = ?", user.Username)
 }
 
 // Build a sq.SelectBuilder out of a schema.JobFilter.

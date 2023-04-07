@@ -146,12 +146,16 @@ func (ja *JWTAuthenticator) Login(
 	if rawroles, ok := claims["roles"].([]interface{}); ok {
 		for _, rr := range rawroles {
 			if r, ok := rr.(string); ok {
-				roles = append(roles, r)
+				if isValidRole(r) {
+					roles = append(roles, r)
+				}
 			}
 		}
 	}
 	if rawrole, ok := claims["roles"].(string); ok {
-		roles = append(roles, rawrole)
+		if isValidRole(rawrole) {
+			roles = append(roles, rawrole)
+		}
 	}
 
 	if user == nil {

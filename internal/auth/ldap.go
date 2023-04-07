@@ -164,7 +164,7 @@ func (la *LdapAuthenticator) Sync() error {
 			name := newnames[username]
 			log.Debugf("sync: add %v (name: %v, roles: [user], ldap: true)", username, name)
 			if _, err := la.auth.db.Exec(`INSERT INTO user (username, ldap, name, roles) VALUES (?, ?, ?, ?)`,
-				username, 1, name, "[\""+RoleUser+"\"]"); err != nil {
+				username, 1, name, "[\""+GetRoleString(RoleUser)+"\"]"); err != nil {
 				log.Errorf("User '%s' new in LDAP: Insert into DB failed", username)
 				return err
 			}

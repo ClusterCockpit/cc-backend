@@ -170,7 +170,7 @@ func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error)
 		return nil, err
 	}
 
-	if user := auth.GetUser(ctx); user != nil && !user.HasRole(auth.RoleAdmin) && !user.HasRole(auth.RoleSupport) && job.User != user.Username {
+	if user := auth.GetUser(ctx); user != nil && job.User != user.Username && user.HasNotRoles([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
 		return nil, errors.New("you are not allowed to see this job")
 	}
 

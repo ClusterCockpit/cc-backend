@@ -10,6 +10,8 @@
     <script>
         const filterPresets = {{ .FilterPresets }};
         const clusterCockpitConfig = {{ .Config }};
+        const authlevel = {{ .User.GetAuthLevel }};
+        const roles = {{ .Roles }};
     </script>
     <script src='/build/jobs.js'></script>
 {{end}}

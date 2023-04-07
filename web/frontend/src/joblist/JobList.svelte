@@ -27,6 +27,7 @@
     let itemsPerPage = ccconfig.plot_list_jobsPerPage
     let page = 1
     let paging = { itemsPerPage, page }
+    let filter = []
 
     const jobs = operationStore(`
     query($filter: [JobFilter!]!, $sorting: OrderByInput!, $paging: PageRequest! ){
@@ -45,7 +46,7 @@
     }`, {
         paging,
         sorting,
-        filter: []
+        filter,
     }, {
         pause: true
     })
@@ -68,7 +69,7 @@
             }
 
             $jobs.variables.filter = filters
-            console.log('filters:', ...filters.map(f => Object.entries(f)).flat(2))
+            // console.log('filters:', ...filters.map(f => Object.entries(f)).flat(2))
         }
 
         page = 1

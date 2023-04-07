@@ -1,4 +1,4 @@
-<!-- 
+<!--
     @component
 
     Only width/height should change reactively.
@@ -285,7 +285,7 @@
         else if (scope == 'hwthread')
             divisor = subCluster.topology.node.length
         else {
-            console.log('TODO: how to calc thresholds for ', scope)
+            // console.log('TODO: how to calc thresholds for ', scope)
             return null
         }
 

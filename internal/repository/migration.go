@@ -17,7 +17,7 @@ import (
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
 
-const supportedVersion uint = 2
+const supportedVersion uint = 3
 
 //go:embed migrations/*
 var migrationFiles embed.FS

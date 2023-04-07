@@ -5,9 +5,12 @@
 package repository
 
 import (
+	"strings"
+
+	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	sq "github.com/Masterminds/squirrel"
 )
 
@@ -65,7 +68,7 @@ func (r *JobRepository) CreateTag(tagType string, tagName string) (tagId int64, 
 	return res.LastInsertId()
 }
 
-func (r *JobRepository) CountTags(user *string) (tags []schema.Tag, counts map[string]int, err error) {
+func (r *JobRepository) CountTags(user *auth.User) (tags []schema.Tag, counts map[string]int, err error) {
 	tags = make([]schema.Tag, 0, 100)
 	xrows, err := r.DB.Queryx("SELECT * FROM tag")
 	if err != nil {
@@ -84,9 +87,13 @@ func (r *JobRepository) CountTags(user *string) (tags []schema.Tag, counts map[s
 		From("tag t").
 		LeftJoin("jobtag jt ON t.id = jt.tag_id").
 		GroupBy("t.tag_name")
-	if user != nil {
-		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.user = ?)", *user)
-	}
+
+	if user != nil && user.HasRole(auth.RoleUser) { // USER: Only count own jobs
+		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.user = ?)", user.Username)
+	} else if user != nil && user.HasRole(auth.RoleManager) { // MANAGER: Count own jobs plus project's jobs
+		// Build ("project1", "project2", ...) list of variable length directly in SQL string
+		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.user = ? OR job.project IN (\""+strings.Join(user.Projects, "\",\"")+"\"))", user.Username)
+	} // else: ADMIN || SUPPORT: Count all jobs
 
 	rows, err := q.RunWith(r.stmtCache).Query()
 	if err != nil {
