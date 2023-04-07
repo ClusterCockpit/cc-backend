@@ -129,7 +129,7 @@ type NLExprIntRange struct {
 
 func (nle NLExprIntRange) consume(input string) (next string, ok bool) {
 	if !nle.zeroPadded || nle.digits < 1 {
-		log.Error("node list: only zero-padded ranges are allowed")
+		log.Error("only zero-padded ranges are allowed")
 		return "", false
 	}
 
@@ -178,6 +178,7 @@ func (nles NLExprIntRange) prefix() string {
 func ParseNodeList(raw string) (NodeList, error) {
 	isLetter := func(r byte) bool { return ('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z') }
 	isDigit := func(r byte) bool { return '0' <= r && r <= '9' }
+	isDash := func(r byte) bool { return r == '-' }
 
 	rawterms := []string{}
 	prevterm := 0
@@ -187,7 +188,7 @@ func ParseNodeList(raw string) (NodeList, error) {
 				i++
 			}
 			if i == len(raw) {
-				return nil, fmt.Errorf("node list: unclosed '['")
+				return nil, fmt.Errorf("ARCHIVE/NODELIST > unclosed '['")
 			}
 		} else if raw[i] == ',' {
 			rawterms = append(rawterms, raw[prevterm:i])
@@ -205,41 +206,47 @@ func ParseNodeList(raw string) (NodeList, error) {
 			limits() []map[string]int
 			prefix() string
 		}{}
+
 		for i := 0; i < len(rawterm); i++ {
 			c := rawterm[i]
 			if isLetter(c) || isDigit(c) {
 				j := i
-				for j < len(rawterm) && (isLetter(rawterm[j]) || isDigit(rawterm[j])) {
+				for j < len(rawterm) &&
+					(isLetter(rawterm[j]) ||
+						isDigit(rawterm[j]) ||
+						isDash(rawterm[j])) {
 					j++
 				}
 				exprs = append(exprs, NLExprString(rawterm[i:j]))
 				i = j - 1
 			} else if c == '[' {
 				end := strings.Index(rawterm[i:], "]")
+
 				if end == -1 {
-					return nil, fmt.Errorf("node list: unclosed '['")
+					return nil, fmt.Errorf("ARCHIVE/NODELIST > unclosed '['")
 				}
 
 				parts := strings.Split(rawterm[i+1:i+end], ",")
 				nles := NLExprIntRanges{}
+
 				for _, part := range parts {
 					minus := strings.Index(part, "-")
 					if minus == -1 {
-						return nil, fmt.Errorf("node list: no '-' found inside '[...]'")
+						return nil, fmt.Errorf("ARCHIVE/NODELIST > no '-' found inside '[...]'")
 					}
 
 					s1, s2 := part[0:minus], part[minus+1:]
 					if len(s1) != len(s2) || len(s1) == 0 {
-						return nil, fmt.Errorf("node list: %#v and %#v are not of equal length or of length zero", s1, s2)
+						return nil, fmt.Errorf("ARCHIVE/NODELIST > %v and %v are not of equal length or of length zero", s1, s2)
 					}
 
 					x1, err := strconv.ParseInt(s1, 10, 32)
 					if err != nil {
-						return nil, fmt.Errorf("node list: %w", err)
+						return nil, fmt.Errorf("ARCHIVE/NODELIST > could not parse int: %w", err)
 					}
 					x2, err := strconv.ParseInt(s2, 10, 32)
 					if err != nil {
-						return nil, fmt.Errorf("node list: %w", err)
+						return nil, fmt.Errorf("ARCHIVE/NODELIST > could not parse int: %w", err)
 					}
 
 					nles = append(nles, NLExprIntRange{
@@ -253,7 +260,7 @@ func ParseNodeList(raw string) (NodeList, error) {
 				exprs = append(exprs, nles)
 				i += end
 			} else {
-				return nil, fmt.Errorf("node list: invalid character: %#v", rune(c))
+				return nil, fmt.Errorf("ARCHIVE/NODELIST > invalid character: %#v", rune(c))
 			}
 		}
 		nl = append(nl, exprs)

@@ -76,6 +76,10 @@
             "description": "If not zero, automatically mark jobs as stopped running X seconds longer than their walltime. Only applies if walltime is set for job.",
             "type": "integer"
         },
+        "short-running-jobs-duration": {
+            "description": "Do not show running jobs shorter than X seconds.",
+            "type": "integer"
+        },
         "": {
             "description": "",
             "type": "string"
@@ -138,7 +142,7 @@
                             "kind": {
                                 "type": "string",
                                 "enum": [
-                                    "influxdb-v2",
+                                    "influxdb",
                                     "prometheus",
                                     "cc-metric-store",
                                     "test"
@@ -241,10 +245,6 @@
                     "description": "Jobs shown per page in job lists",
                     "type": "integer"
                 },
-                "plot_list_hideShortRunningJobs": {
-                    "description": "Do not show running jobs shorter than X seconds",
-                    "type": "integer"
-                },
                 "plot_view_plotsPerRow": {
                     "description": "Number of plots per row in single job view",
                     "type": "integer"
@@ -342,8 +342,7 @@
                 "job_view_polarPlotMetrics",
                 "job_view_selectedMetrics",
                 "plot_general_colorscheme",
-                "plot_list_selectedMetrics",
-                "plot_list_hideShortRunningJobs"
+                "plot_list_selectedMetrics"
             ]
         }
     },

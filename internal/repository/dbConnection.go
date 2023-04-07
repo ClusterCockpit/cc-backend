@@ -5,12 +5,15 @@
 package repository
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"sync"
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/mattn/go-sqlite3"
+	"github.com/qustavo/sqlhooks/v2"
 )
 
 var (
@@ -19,7 +22,8 @@ var (
 )
 
 type DBConnection struct {
-	DB *sqlx.DB
+	DB     *sqlx.DB
+	Driver string
 }
 
 func Connect(driver string, db string) {
@@ -28,7 +32,9 @@ func Connect(driver string, db string) {
 
 	dbConnOnce.Do(func() {
 		if driver == "sqlite3" {
-			dbHandle, err = sqlx.Open("sqlite3", fmt.Sprintf("%s?_foreign_keys=on", db))
+			sql.Register("sqlite3WithHooks", sqlhooks.Wrap(&sqlite3.SQLiteDriver{}, &Hooks{}))
+			dbHandle, err = sqlx.Open("sqlite3WithHooks", fmt.Sprintf("%s?_foreign_keys=on", db))
+			// dbHandle, err = sqlx.Open("sqlite3", fmt.Sprintf("%s?_foreign_keys=on", db))
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -39,7 +45,7 @@ func Connect(driver string, db string) {
 		} else if driver == "mysql" {
 			dbHandle, err = sqlx.Open("mysql", fmt.Sprintf("%s?multiStatements=true", db))
 			if err != nil {
-				log.Fatal(err)
+				log.Fatalf("sqlx.Open() error: %v", err)
 			}
 
 			dbHandle.SetConnMaxLifetime(time.Minute * 3)
@@ -49,7 +55,8 @@ func Connect(driver string, db string) {
 			log.Fatalf("unsupported database driver: %s", driver)
 		}
 
-		dbConnInstance = &DBConnection{DB: dbHandle}
+		dbConnInstance = &DBConnection{DB: dbHandle, Driver: driver}
+		checkDBVersion(driver, dbHandle.DB)
 	})
 }
 

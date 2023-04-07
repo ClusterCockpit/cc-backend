@@ -91,12 +91,12 @@ func (e *MetricScope) Max(other MetricScope) MetricScope {
 func (e *MetricScope) UnmarshalGQL(v interface{}) error {
 	str, ok := v.(string)
 	if !ok {
-		return fmt.Errorf("enums must be strings")
+		return fmt.Errorf("SCHEMA/METRICS > enums must be strings")
 	}
 
 	*e = MetricScope(str)
 	if !e.Valid() {
-		return fmt.Errorf("%s is not a valid MetricScope", str)
+		return fmt.Errorf("SCHEMA/METRICS > %s is not a valid MetricScope", str)
 	}
 	return nil
 }
@@ -297,7 +297,7 @@ func (jm *JobMetric) AddPercentiles(ps []int) bool {
 
 	for _, p := range ps {
 		if p < 1 || p > 99 {
-			panic("invalid percentile")
+			panic("SCHEMA/METRICS > invalid percentile")
 		}
 
 		if _, ok := jm.StatisticsSeries.Percentiles[p]; ok {

@@ -1,5 +1,6 @@
 TARGET = ./cc-backend
 VAR = ./var
+DB = ./var/job.db
 FRONTEND = ./web/frontend
 VERSION = 0.1
 GIT_HASH := $(shell git rev-parse --short HEAD || echo 'development')
@@ -23,11 +24,11 @@ SVELTE_SRC = $(wildcard $(FRONTEND)/src/*.svelte)         \
 			 $(wildcard $(FRONTEND)/src/plots/*.svelte)   \
 			 $(wildcard $(FRONTEND)/src/joblist/*.svelte)
 
-.PHONY: clean test $(TARGET)
+.PHONY: clean test tags $(TARGET)
 
 .NOTPARALLEL:
 
-$(TARGET): $(VAR) $(SVELTE_TARGETS)
+$(TARGET): $(VAR) $(DB) $(SVELTE_TARGETS)
 	$(info ===>  BUILD cc-backend)
 	@go build -ldflags=${LD_FLAGS} ./cmd/cc-backend
 
@@ -42,11 +43,17 @@ test:
 	@go vet ./...
 	@go test ./...
 
-$(SVELTE_TARGETS): $(SVELTE_SRC)
-	$(info ===>  BUILD frontend)
-	cd web/frontend && yarn build
+tags:
+	$(info ===>  TAGS)
+	@ctags -R
 
 $(VAR):
 	@mkdir $(VAR)
-	@touch ./var/job.db
 	cd web/frontend && yarn install
+
+$(DB):
+	./cc-backend --migrate-db
+
+$(SVELTE_TARGETS): $(SVELTE_SRC)
+	$(info ===>  BUILD frontend)
+	cd web/frontend && yarn build

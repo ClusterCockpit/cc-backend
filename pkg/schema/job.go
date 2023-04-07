@@ -58,6 +58,15 @@ type Job struct {
 	NetDataVolTotal  float64   `json:"-" db:"net_data_vol_total"`              // NetDataVolTotal as Float64
 	FileBwAvg        float64   `json:"-" db:"file_bw_avg"`                     // FileBwAvg as Float64
 	FileDataVolTotal float64   `json:"-" db:"file_data_vol_total"`             // FileDataVolTotal as Float64
+	StartTime        time.Time `json:"startTime"`                              // Start time as 'time.Time' data type
+	MemUsedMax       float64   `json:"-" db:"mem_used_max"`                    // MemUsedMax as Float64
+	FlopsAnyAvg      float64   `json:"-" db:"flops_any_avg"`                   // FlopsAnyAvg as Float64
+	MemBwAvg         float64   `json:"-" db:"mem_bw_avg"`                      // MemBwAvg as Float64
+	LoadAvg          float64   `json:"-" db:"load_avg"`                        // LoadAvg as Float64
+	NetBwAvg         float64   `json:"-" db:"net_bw_avg"`                      // NetBwAvg as Float64
+	NetDataVolTotal  float64   `json:"-" db:"net_data_vol_total"`              // NetDataVolTotal as Float64
+	FileBwAvg        float64   `json:"-" db:"file_bw_avg"`                     // FileBwAvg as Float64
+	FileDataVolTotal float64   `json:"-" db:"file_data_vol_total"`             // FileDataVolTotal as Float64
 }
 
 // Non-Swaggered Comment: JobMeta
@@ -74,6 +83,7 @@ type JobMeta struct {
 	ID *int64 `json:"id,omitempty"`
 	BaseJob
 	StartTime  int64                    `json:"startTime" db:"start_time" example:"1649723812" minimum:"1"` // Start epoch time stamp in seconds (Min > 0)
+	Statistics map[string]JobStatistics `json:"statistics,omitempty"`                                       // Metric statistics of job
 	Statistics map[string]JobStatistics `json:"statistics,omitempty"`                                       // Metric statistics of job
 }
 
@@ -107,7 +117,9 @@ type JobStatistics struct {
 // @Description Defines a tag using name and type.
 type Tag struct {
 	// The unique DB identifier of a tag
+	// The unique DB identifier of a tag
 	ID   int64  `json:"id" db:"id"`
+	Type string `json:"type" db:"tag_type" example:"Debug"`   // Tag Type
 	Type string `json:"type" db:"tag_type" example:"Debug"`   // Tag Type
 	Name string `json:"name" db:"tag_name" example:"Testjob"` // Tag Name
 }
@@ -115,6 +127,9 @@ type Tag struct {
 // Resource model
 // @Description A resource used by a job
 type Resource struct {
+	Hostname      string   `json:"hostname"`                // Name of the host (= node)
+	HWThreads     []int    `json:"hwthreads,omitempty"`     // List of OS processor ids
+	Accelerators  []string `json:"accelerators,omitempty"`  // List of of accelerator device ids
 	Hostname      string   `json:"hostname"`                // Name of the host (= node)
 	HWThreads     []int    `json:"hwthreads,omitempty"`     // List of OS processor ids
 	Accelerators  []string `json:"accelerators,omitempty"`  // List of of accelerator device ids
@@ -137,12 +152,12 @@ const (
 func (e *JobState) UnmarshalGQL(v interface{}) error {
 	str, ok := v.(string)
 	if !ok {
-		return fmt.Errorf("enums must be strings")
+		return fmt.Errorf("SCHEMA/JOB > enums must be strings")
 	}
 
 	*e = JobState(str)
 	if !e.Valid() {
-		return errors.New("invalid job state")
+		return errors.New("SCHEMA/JOB > invalid job state")
 	}
 
 	return nil

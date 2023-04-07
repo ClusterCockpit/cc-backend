@@ -45,6 +45,7 @@
         arrayJobId: filterPresets.arrayJobId || null,
         user:       filterPresets.user       || '',
         project:    filterPresets.project    || '',
+        jobName:    filterPresets.jobName    || '',
 
         numNodes:         filterPresets.numNodes         || { from: null, to: null },
         numHWThreads:     filterPresets.numHWThreads     || { from: null, to: null },
@@ -94,6 +95,8 @@
             items.push({ user: { [filters.userMatch]: filters.user } })
         if (filters.project)
             items.push({ project: { [filters.projectMatch]: filters.project } })
+        if (filters.jobName)
+            items.push({ jobName: { contains: filters.jobName } })
         for (let stat of filters.stats)
             items.push({ [stat.field]: { from: stat.from, to: stat.to } })
 
@@ -115,7 +118,7 @@
                 opts.push(`state=${state}`)
         if (filters.startTime.from && filters.startTime.to)
             opts.push(`startTime=${dateToUnixEpoch(filters.startTime.from)}-${dateToUnixEpoch(filters.startTime.to)}`)
-        for (let tag of filters.tags)  
+        for (let tag of filters.tags)
             opts.push(`tag=${tag}`)
         if (filters.duration.from && filters.duration.to)
             opts.push(`duration=${filters.duration.from}-${filters.duration.to}`)
@@ -123,12 +126,19 @@
             opts.push(`numNodes=${filters.numNodes.from}-${filters.numNodes.to}`)
         if (filters.numAccelerators.from && filters.numAccelerators.to)
             opts.push(`numAccelerators=${filters.numAccelerators.from}-${filters.numAccelerators.to}`)
-        if (filters.user)
-            opts.push(`user=${filters.user}`)
+        if (filters.user.length != 0)
+            if (filters.userMatch != 'in') {
+                opts.push(`user=${filters.user}`)
+            } else {
+                for (let singleUser of filters.user)
+                    opts.push(`user=${singleUser}`)
+            }
         if (filters.userMatch != 'contains')
             opts.push(`userMatch=${filters.userMatch}`)
         if (filters.project)
             opts.push(`project=${filters.project}`)
+        if (filters.jobName)
+            opts.push(`jobName=${filters.jobName}`)
         if (filters.projectMatch != 'contains')
             opts.push(`projectMatch=${filters.projectMatch}`)
 
@@ -214,7 +224,7 @@
                 on:change={({ detail: { from, to } }) => {
                     filters.startTime.from = from?.toISOString()
                     filters.startTime.to = to?.toISOString()
-                    console.log(filters.startTime)
+                    // console.log(filters.startTime)
                     update()
                 }}
                 />

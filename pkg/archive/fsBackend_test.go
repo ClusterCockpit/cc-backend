@@ -10,8 +10,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
+
+func init() {
+	log.Init("info", true)
+}
 
 func TestInitEmptyPath(t *testing.T) {
 	var fsa FsArchive

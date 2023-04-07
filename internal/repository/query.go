@@ -26,8 +26,11 @@ func (r *JobRepository) QueryJobs(
 	page *model.PageRequest,
 	order *model.OrderByInput) ([]*schema.Job, error) {
 
-	query := sq.Select(jobColumns...).From("job")
-	query = SecurityCheck(ctx, query)
+	query, qerr := SecurityCheck(ctx, sq.Select(jobColumns...).From("job"))
+
+	if qerr != nil {
+		return nil, qerr
+	}
 
 	if order != nil {
 		field := toSnakeCase(order.Field)
@@ -36,7 +39,7 @@ func (r *JobRepository) QueryJobs(
 		} else if order.Order == model.SortDirectionEnumDesc {
 			query = query.OrderBy(fmt.Sprintf("job.%s DESC", field))
 		} else {
-			return nil, errors.New("invalid sorting order")
+			return nil, errors.New("REPOSITORY/QUERY > invalid sorting order")
 		}
 	}
 
@@ -51,12 +54,14 @@ func (r *JobRepository) QueryJobs(
 
 	sql, args, err := query.ToSql()
 	if err != nil {
+		log.Warn("Error while converting query to sql")
 		return nil, err
 	}
 
 	log.Debugf("SQL query: `%s`, args: %#v", sql, args)
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
+		log.Error("Error while running query")
 		return nil, err
 	}
 
@@ -65,6 +70,7 @@ func (r *JobRepository) QueryJobs(
 		job, err := scanJob(rows)
 		if err != nil {
 			rows.Close()
+			log.Warn("Error while scanning rows")
 			return nil, err
 		}
 		jobs = append(jobs, job)
@@ -79,8 +85,12 @@ func (r *JobRepository) CountJobs(
 	filters []*model.JobFilter) (int, error) {
 
 	// count all jobs:
-	query := sq.Select("count(*)").From("job")
-	query = SecurityCheck(ctx, query)
+	query, qerr := SecurityCheck(ctx, sq.Select("count(*)").From("job"))
+
+	if qerr != nil {
+		return 0, qerr
+	}
+
 	for _, f := range filters {
 		query = BuildWhereClause(f, query)
 	}
@@ -92,13 +102,23 @@ func (r *JobRepository) CountJobs(
 	return count, nil
 }
 
-func SecurityCheck(ctx context.Context, query sq.SelectBuilder) sq.SelectBuilder {
+func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (queryOut sq.SelectBuilder, err error) {
 	user := auth.GetUser(ctx)
-	if user == nil || user.HasRole(auth.RoleAdmin) || user.HasRole(auth.RoleApi) || user.HasRole(auth.RoleSupport) {
-		return query
+	if user == nil || user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleApi}) { // Admin & Co. : All jobs
+		return query, nil
+	} else if user.HasRole(auth.RoleManager) { // Manager : Add filter for managed projects' jobs only + personal jobs
+		if len(user.Projects) != 0 {
+			return query.Where(sq.Or{sq.Eq{"job.project": user.Projects}, sq.Eq{"job.user": user.Username}}), nil
+		} else {
+			log.Infof("Manager-User '%s' has no defined projects to lookup! Query only personal jobs ...", user.Username)
+			return query.Where("job.user = ?", user.Username), nil
+		}
+	} else if user.HasRole(auth.RoleUser) { // User : Only personal jobs
+		return query.Where("job.user = ?", user.Username), nil
+	} else { // Unauthorized : Error
+		var qnil sq.SelectBuilder
+		return qnil, errors.New(fmt.Sprintf("User '%s' with unknown roles! [%#v]\n", user.Username, user.Roles))
 	}
-
-	return query.Where("job.user = ?", user.Username)
 }
 
 // Build a sq.SelectBuilder out of a schema.JobFilter.
@@ -117,6 +137,9 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	}
 	if filter.Project != nil {
 		query = buildStringCondition("job.project", filter.Project, query)
+	}
+	if filter.JobName != nil {
+		query = buildStringCondition("job.meta_data", filter.JobName, query)
 	}
 	if filter.Cluster != nil {
 		query = buildStringCondition("job.cluster", filter.Cluster, query)
@@ -200,6 +223,13 @@ func buildStringCondition(field string, cond *model.StringInput, query sq.Select
 	if cond.Contains != nil {
 		return query.Where(field+" LIKE ?", fmt.Sprint("%", *cond.Contains, "%"))
 	}
+	if cond.In != nil {
+		queryUsers := make([]string, len(cond.In))
+		for i, val := range cond.In {
+			queryUsers[i] = val
+		}
+		return query.Where(sq.Or{sq.Eq{"job.user": queryUsers}})
+	}
 	return query
 }
 
@@ -209,7 +239,7 @@ var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")
 func toSnakeCase(str string) string {
 	for _, c := range str {
 		if c == '\'' || c == '\\' {
-			panic("A hacker (probably not)!!!")
+			log.Panic("toSnakeCase() attack vector!")
 		}
 	}
 

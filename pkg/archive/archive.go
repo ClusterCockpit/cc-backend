@@ -40,12 +40,15 @@ type JobContainer struct {
 
 var cache *lrucache.Cache = lrucache.New(128 * 1024 * 1024)
 var ar ArchiveBackend
+var useArchive bool
 
-func Init(rawConfig json.RawMessage) error {
+func Init(rawConfig json.RawMessage, disableArchive bool) error {
+	useArchive = !disableArchive
 	var kind struct {
 		Kind string `json:"kind"`
 	}
 	if err := json.Unmarshal(rawConfig, &kind); err != nil {
+		log.Warn("Error while unmarshaling raw config json")
 		return err
 	}
 
@@ -55,11 +58,12 @@ func Init(rawConfig json.RawMessage) error {
 		// case "s3":
 		// 	ar = &S3Archive{}
 	default:
-		return fmt.Errorf("unkown archive backend '%s''", kind.Kind)
+		return fmt.Errorf("ARCHIVE/ARCHIVE > unkown archive backend '%s''", kind.Kind)
 	}
 
 	version, err := ar.Init(rawConfig)
 	if err != nil {
+		log.Error("Error while initializing archiveBackend")
 		return err
 	}
 	log.Infof("Load archive version %d", version)
@@ -78,6 +82,7 @@ func LoadAveragesFromArchive(
 
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
+		log.Warn("Error while loading job metadata from archiveBackend")
 		return err
 	}
 
@@ -96,6 +101,7 @@ func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
 
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
+		log.Warn("Error while loading job metadata from archiveBackend")
 		return nil, err
 	}
 
@@ -106,12 +112,13 @@ func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
 // in that JSON file. If the job is not archived, nothing is done.
 func UpdateTags(job *schema.Job, tags []*schema.Tag) error {
 
-	if job.State == schema.JobStateRunning {
+	if job.State == schema.JobStateRunning || !useArchive {
 		return nil
 	}
 
 	jobMeta, err := ar.LoadJobMeta(job)
 	if err != nil {
+		log.Warn("Error while loading job metadata from archiveBackend")
 		return err
 	}
 

@@ -243,19 +243,24 @@
 
         /* c will contain values from 0 to 1 representing the time */
         const x = [], y = [], c = []
-        for (let i = 0; i < nodes; i++) {
-            const flopsData = flopsAny.series[i].data
-            const memBwData = memBw.series[i].data
-            for (let j = 0; j < timesteps; j++) {
-                const f = flopsData[j], m = memBwData[j]
-                const intensity = f / m
-                if (Number.isNaN(intensity) || !Number.isFinite(intensity))
-                    continue
 
-                x.push(intensity)
-                y.push(f)
-                c.push(colorDots ? j / timesteps : 0)
+        if (flopsAny && memBw) {
+            for (let i = 0; i < nodes; i++) {
+                const flopsData = flopsAny.series[i].data
+                const memBwData = memBw.series[i].data
+                for (let j = 0; j < timesteps; j++) {
+                    const f = flopsData[j], m = memBwData[j]
+                    const intensity = f / m
+                    if (Number.isNaN(intensity) || !Number.isFinite(intensity))
+                        continue
+
+                    x.push(intensity)
+                    y.push(f)
+                    c.push(colorDots ? j / timesteps : 0)
+                }
             }
+        } else {
+            console.warn("transformData: metrics for 'mem_bw' and/or 'flops_any' missing!")
         }
 
         return {
@@ -270,10 +275,12 @@
     export function transformPerNodeData(nodes) {
         const x = [], y = [], c = []
         for (let node of nodes) {
-            let flopsAny = node.metrics.find(m => m.name == 'flops_any' && m.scope == 'node')?.metric
-            let memBw    = node.metrics.find(m => m.name == 'mem_bw'    && m.scope == 'node')?.metric
-            if (!flopsAny || !memBw)
+            let flopsAny = node.metrics.find(m => m.name == 'flops_any' && m.metric.scope == 'node')?.metric
+            let memBw    = node.metrics.find(m => m.name == 'mem_bw'    && m.metric.scope == 'node')?.metric
+            if (!flopsAny || !memBw) {
+                console.warn("transformPerNodeData: metrics for 'mem_bw' and/or 'flops_any' missing!")
                 continue
+            }
 
             let flopsData = flopsAny.series[0].data, memBwData = memBw.series[0].data
             const f = flopsData[flopsData.length - 1], m = memBwData[flopsData.length - 1]
@@ -312,7 +319,7 @@
 
     let ctx, canvasElement, prevWidth = width, prevHeight = height
     data = data != null ? data : (flopsAny && memBw
-        ? transformData(flopsAny, memBw, colorDots)
+        ? transformData(flopsAny.metric, memBw.metric, colorDots)
         : {
             tiles: tiles,
             xLabel: 'Intensity [FLOPS/byte]',

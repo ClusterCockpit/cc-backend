@@ -4,6 +4,8 @@
 
 This is a Golang backend implementation for a REST and GraphQL API according to the [ClusterCockpit specifications](https://github.com/ClusterCockpit/cc-specifications).
 It also includes a web interface for ClusterCockpit.
+While there is a backend for the InfluxDB timeseries database, the only tested and supported setup is using cc-metric-store as a mtric data backend.
+We will add documentation how to integrate ClusterCockpit with other timeseries databases in the future.
 This implementation replaces the previous PHP Symfony based ClusterCockpit web-interface.
 [Here](https://github.com/ClusterCockpit/ClusterCockpit/wiki/Why-we-switched-from-PHP-Symfony-to-a-Golang-based-solution) is a discussion of the reasons why we switched from PHP Symfony to a Golang based solution.
 
@@ -24,6 +26,18 @@ You find more detailed information here:
 * `./configs/README.md`: Infos about configuration and setup of cc-backend.
 * `./init/README.md`: Infos on how to setup cc-backend as systemd service on Linux.
 * `./tools/README.md`: Infos on the JWT authorizatin token workflows in ClusterCockpit.
+* `./docs`: You can find further documentation here. There is also a Hands-on tutorial that is recommended to get familiar with the ClusterCockpit setup.
+
+**NOTICE**
+
+ClusterCockpit requires a recent version of the golang toolchain.
+You can check in `go.mod` what is the current minimal golang version required.
+Homebrew and Archlinux usually have up to date golang versions. For other Linux
+distros this often means you have to install the golang compiler yourself.
+Fortunatly this is easy with golang. Since a lot of functionality is based on
+the go standard library it is crucial for security and performance to use a
+recent golang version. Also an old golang tool chain may restrict the supported
+versions of third party packages.
 
 ## Demo Setup
 
@@ -31,7 +45,7 @@ We provide a shell skript that downloads demo data and automatically builds and 
 You need `wget`, `go`, and `yarn` in your path to start the demo. The demo will download 32MB of data (223MB on disk).
 
 ```sh
-git clone git@github.com:ClusterCockpit/cc-backend.git
+git clone https://github.com/ClusterCockpit/cc-backend.git
 cd ./cc-backend
 ./startDemo.sh
 ```
@@ -48,7 +62,7 @@ There is a Makefile to automate the build of cc-backend. The Makefile supports t
 
 A common workflow to setup cc-backend fron scratch is:
 ```sh
-git clone git@github.com:ClusterCockpit/cc-backend.git
+git clone https://github.com/ClusterCockpit/cc-backend.git
 
 # Build binary
 cd ./cc-backend/
@@ -95,6 +109,15 @@ A config file in the JSON format has to be provided using `--config` to override
 By default, if there is a `config.json` file in the current directory of the `cc-backend` process, it will be loaded even without the `--config` flag.
 You find documentation of all supported configuration and command line options [here](./configs.README.md).
 
+## Database initialization and migration
+
+Every cc-backend version supports a specific database version.
+On startup the version of the sqlite database is validated and cc-backend will terminate if the version does not match.
+cc-backend supports to migrate the database schema up to the required version using the `--migrate-db` command line option.
+In case the database file does not yet exist it is created and initialized by the `--migrate-db` command line option.
+In case you want to use a newer database version with an older version of cc-backend you can downgrade a database using the external [migrate](https://github.com/golang-migrate/migrate) tool.
+In this case you have to provide the path to the migration files in a recent source tree: `./internal/repository/migrations/`.
+
 ## Development
 In case the REST or GraphQL API is changed the according code generators have to be used.
 
@@ -112,8 +135,10 @@ This project integrates [swagger ui](https://swagger.io/tools/swagger-ui/) to do
 The swagger doc files can be found in `./api/`.
 You can generate the configuration of swagger-ui by running `go run github.com/swaggo/swag/cmd/swag init -d ./internal/api,./pkg/schema  -g rest.go -o ./api `.
 You need to move the generated `./api/doc.go` to `./internal/api/doc.go`.
-If you start cc-backend with flag `--dev` the Swagger UI is available at http://localhost:8080/swagger .
+If you start cc-backend with flag `--dev` the Swagger UI is available at http://localhost:8080/swagger/ .
+You have to enter a JWT key for a user with role API.
 
+**NOTICE** The user owning the JWT token must not be logged in the same browser (have a running session), otherwise Swagger requests will not work. It is recommended to create a separate user that has just the API role.
 
 ## Project Structure
 

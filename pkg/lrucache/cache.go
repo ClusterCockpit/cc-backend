@@ -69,7 +69,7 @@ func (c *Cache) Get(key string, computeValue ComputeValue) interface{} {
 		if now.After(entry.expiration) {
 			if !c.evictEntry(entry) {
 				if entry.expiration.IsZero() {
-					panic("cache entry that shoud have been waited for could not be evicted.")
+					panic("LRUCACHE/CACHE > cache entry that shoud have been waited for could not be evicted.")
 				}
 				c.mutex.Unlock()
 				return entry.value
@@ -208,7 +208,7 @@ func (c *Cache) Keys(f func(key string, val interface{})) {
 	size := 0
 	for key, e := range c.entries {
 		if key != e.key {
-			panic("key mismatch")
+			panic("LRUCACHE/CACHE > key mismatch")
 		}
 
 		if now.After(e.expiration) {
@@ -219,13 +219,13 @@ func (c *Cache) Keys(f func(key string, val interface{})) {
 
 		if e.prev != nil {
 			if e.prev.next != e {
-				panic("list corrupted")
+				panic("LRUCACHE/CACHE > list corrupted")
 			}
 		}
 
 		if e.next != nil {
 			if e.next.prev != e {
-				panic("list corrupted")
+				panic("LRUCACHE/CACHE > list corrupted")
 			}
 		}
 
@@ -234,18 +234,18 @@ func (c *Cache) Keys(f func(key string, val interface{})) {
 	}
 
 	if size != c.usedmemory {
-		panic("size calculations failed")
+		panic("LRUCACHE/CACHE > size calculations failed")
 	}
 
 	if c.head != nil {
 		if c.tail == nil || c.head.prev != nil {
-			panic("head/tail corrupted")
+			panic("LRUCACHE/CACHE > head/tail corrupted")
 		}
 	}
 
 	if c.tail != nil {
 		if c.head == nil || c.tail.next != nil {
-			panic("head/tail corrupted")
+			panic("LRUCACHE/CACHE > head/tail corrupted")
 		}
 	}
 }
@@ -281,7 +281,7 @@ func (c *Cache) unlinkEntry(e *cacheEntry) {
 
 func (c *Cache) evictEntry(e *cacheEntry) bool {
 	if e.waitingForComputation != 0 {
-		// panic("cannot evict this entry as other goroutines need the value")
+		// panic("LRUCACHE/CACHE > cannot evict this entry as other goroutines need the value")
 		return false
 	}
 

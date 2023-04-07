@@ -23,6 +23,16 @@ type JWTAuthConfig struct {
 	// Specifies for how long a session or JWT shall be valid
 	// as a string parsable by time.ParseDuration().
 	MaxAge int64 `json:"max-age"`
+
+	// Specifies which cookie should be checked for a JWT token (if no authorization header is present)
+	CookieName string `json:"cookieName"`
+
+	// Deny login for users not in database (but defined in JWT).
+	// Ignore user roles defined in JWTs ('roles' claim), get them from db.
+	ForceJWTValidationViaDatabase bool `json:"forceJWTValidationViaDatabase"`
+
+	// Specifies which issuer should be accepted when validating external JWTs ('iss' claim)
+	TrustedExternalIssuer string `json:"trustedExternalIssuer"`
 }
 
 type IntRange struct {
@@ -105,6 +115,9 @@ type ProgramConfig struct {
 
 	// If not zero, automatically mark jobs as stopped running X seconds longer than their walltime.
 	StopJobsExceedingWalltime int `json:"stop-jobs-exceeding-walltime"`
+
+	// Defines time X in seconds in which jobs are considered to be "short" and will be filtered in specific views.
+	ShortRunningJobsDuration int `json:"short-running-jobs-duration"`
 
 	// Array of Clusters
 	Clusters []*ClusterConfig `json:"clusters"`

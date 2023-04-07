@@ -1,6 +1,6 @@
 ## Intro
 
-cc-backend requires a configuration file speciyfing the cluster systems to be used. Still many  default
+cc-backend requires a configuration file specifying the cluster systems to be used. Still many  default
 options documented below are used. cc-backend tries to load a config.json from the working directory per default.
 To overwrite the default specify a json config file location using the command line option `--config <filepath>`.
 All security relevant configuration. e.g., keys and passwords, are set using environment variables.
@@ -24,7 +24,8 @@ It is supported to specify these by means of an `.env` file located in the proje
 * `https-cert-file` and `https-key-file`: Type string. If both those options are not empty, use HTTPS using those certificates.
 * `redirect-http-to`: Type string. If not the empty string and `addr` does not end in ":80", redirect every request incoming at port 80 to that url.
 * `machine-state-dir`: Type string. Where to store MachineState files. TODO: Explain in more detail!
-* `"stop-jobs-exceeding-walltime`: Type int. If not zero, automatically mark jobs as stopped running X seconds longer than their walltime. Only applies if walltime is set for job. Default `0`;
+* `"stop-jobs-exceeding-walltime`: Type int. If not zero, automatically mark jobs as stopped running X seconds longer than their walltime. Only applies if walltime is set for job. Default `0`.
+* `short-running-jobs-duration`: Type int. Do not show running jobs shorter than X seconds. Default `300`.
 * `ldap`: Type object. For LDAP Authentication and user synchronisation. Default `nil`.
    - `url`: Type string.  URL of LDAP directory server.
    - `user_base`: Type string. Base DN of user tree root.
@@ -44,16 +45,16 @@ It is supported to specify these by means of an `.env` file located in the proje
                 "startTime": { "from": "2022-01-01T00:00:00Z", "to": null }
             }
    ```
-* `ui-defaults`: Type object. Default configuration for ui views. If overwriten, all options  must be provided! Most options can be overwritten by the user via the web interface.
+* `ui-defaults`: Type object. Default configuration for ui views. If overwritten, all options  must be provided! Most options can be overwritten by the user via the web interface.
    - `analysis_view_histogramMetrics`: Type string array. Metrics to show as job count histograms in analysis view. Default `["flops_any", "mem_bw", "mem_used"]`.
-   - `analysis_view_scatterPlotMetrics`: Type array of string array. Initial scatter plto configuration in analysis view. Default `[["flops_any", "mem_bw"], ["flops_any", "cpu_load"], ["cpu_load", "mem_bw"]]`.
+   - `analysis_view_scatterPlotMetrics`: Type array of string array. Initial
+   scatter plot configuration in analysis view. Default `[["flops_any", "mem_bw"], ["flops_any", "cpu_load"], ["cpu_load", "mem_bw"]]`.
    - `job_view_nodestats_selectedMetrics`: Type string array. Initial metrics shown in node statistics table of single job view. Default `["flops_any", "mem_bw", "mem_used"]`.
    - `job_view_polarPlotMetrics`: Type string array. Metrics shown in polar plot of single job view. Default `["flops_any", "mem_bw", "mem_used", "net_bw", "file_bw"]`.
    - `job_view_selectedMetrics`: Type string array.  Default `["flops_any", "mem_bw", "mem_used"]`.
    - `plot_general_colorBackground`: Type bool. Color plot background according to job average threshold limits. Default `true`.
    - `plot_general_colorscheme`: Type string array. Initial color scheme. Default `"#00bfff", "#0000ff", "#ff00ff", "#ff0000", "#ff8000", "#ffff00", "#80ff00"`.
    - `plot_general_lineWidth`: Type int. Initial linewidth. Default `3`.
-   - `plot_list_hideShortRunningJobs`: Type int. Do not show running jobs shorter than X seconds. Default `300`.
    - `plot_list_jobsPerPage`: Type int. Jobs shown per page in job lists. Default `50`.
    - `plot_list_selectedMetrics`: Type string array. Initial metric plots shown in jobs lists. Default `"cpu_load", "ipc", "mem_used", "flops_any", "mem_bw"`.
    - `plot_view_plotsPerRow`: Type int. Number of plots per row in single job view. Default `3`.

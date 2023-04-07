@@ -1,26 +1,48 @@
 <script>
     import { Icon, Button, InputGroup, Input, Collapse,
              Navbar, NavbarBrand, Nav, NavItem, NavLink, NavbarToggler,
-             Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from 'sveltestrap'
+             Dropdown, DropdownToggle, DropdownMenu, DropdownItem, InputGroupText } from 'sveltestrap'
 
     export let username // empty string if auth. is disabled, otherwise the username as string
-    export let isAdmin  // boolean
+    export let authlevel // Integer
     export let clusters // array of names
+    export let roles // Role Enum-Like
 
     let isOpen = false
 
-    const views = [
-        isAdmin
-            ? { title: 'Jobs',     adminOnly: false, href: '/monitoring/jobs/',            icon: 'card-list' }
-            : { title: 'My Jobs',  adminOnly: false, href: `/monitoring/user/${username}`, icon: 'bar-chart-line-fill' },
-        { title: 'Users',    adminOnly: true,  href: '/monitoring/users/',           icon: 'people-fill' },
-        { title: 'Projects', adminOnly: true,  href: '/monitoring/projects/',        icon: 'folder' },
-        { title: 'Tags',     adminOnly: false, href: '/monitoring/tags/',            icon: 'tags' }
+    const userviews = [
+        { title: 'My Jobs',     href: `/monitoring/user/${username}`, icon: 'bar-chart-line-fill' },
+        { title: `Job Search`,  href: '/monitoring/jobs/',            icon: 'card-list' },
+        { title: 'Tags',        href: '/monitoring/tags/',            icon: 'tags' }
     ]
+
+    const managerviews = [
+        { title: 'My Jobs',             href: `/monitoring/user/${username}`, icon: 'bar-chart-line-fill' },
+        { title: `Managed Jobs`,        href: '/monitoring/jobs/',            icon: 'card-list' },
+        { title: `Managed Users`,       href: '/monitoring/users/',           icon: 'people-fill' },
+        { title: 'Tags',                href: '/monitoring/tags/',            icon: 'tags' }
+    ]
+
+    const supportviews = [
+        { title: 'My Jobs',  href: `/monitoring/user/${username}`, icon: 'bar-chart-line-fill' },
+        { title: 'Jobs',     href: '/monitoring/jobs/',            icon: 'card-list' },
+        { title: 'Users',    href: '/monitoring/users/',           icon: 'people-fill' },
+        { title: 'Projects', href: '/monitoring/projects/',        icon: 'folder' },
+        { title: 'Tags',     href: '/monitoring/tags/',            icon: 'tags' }
+    ]
+
+    const adminviews = [
+        { title: 'My Jobs',  href: `/monitoring/user/${username}`, icon: 'bar-chart-line-fill' },
+        { title: 'Jobs',     href: '/monitoring/jobs/',            icon: 'card-list' },
+        { title: 'Users',    href: '/monitoring/users/',           icon: 'people-fill' },
+        { title: 'Projects', href: '/monitoring/projects/',        icon: 'folder' },
+        { title: 'Tags',     href: '/monitoring/tags/',            icon: 'tags' }
+    ]
+
     const viewsPerCluster = [
-        { title: 'Analysis', adminOnly: true,  href: '/monitoring/analysis/', icon: 'graph-up' },
-        { title: 'Systems',  adminOnly: true,  href: '/monitoring/systems/',  icon: 'cpu' },
-        { title: 'Status',   adminOnly: true,  href: '/monitoring/status/',   icon: 'cpu' },
+        { title: 'Analysis', requiredRole: roles.support,  href: '/monitoring/analysis/', icon: 'graph-up' },
+        { title: 'Systems',  requiredRole: roles.admin,  href: '/monitoring/systems/',  icon: 'cpu' },
+        { title: 'Status',   requiredRole: roles.admin,  href: '/monitoring/status/',   icon: 'cpu' },
     ]
 </script>
 
@@ -31,10 +53,26 @@
     <NavbarToggler on:click={() => (isOpen = !isOpen)} />
     <Collapse {isOpen} navbar expand="lg" on:update={({ detail }) => (isOpen = detail.isOpen)}>
         <Nav pills>
-            {#each views.filter(item => isAdmin || !item.adminOnly) as item}
-                <NavLink href={item.href} active={window.location.pathname == item.href}><Icon name={item.icon}/> {item.title}</NavLink>
-            {/each}
-            {#each viewsPerCluster.filter(item => !item.adminOnly || isAdmin) as item}
+            {#if authlevel == roles.admin}
+                {#each adminviews as item}
+                    <NavLink href={item.href} active={window.location.pathname == item.href}><Icon name={item.icon}/> {item.title}</NavLink>
+                {/each}
+            {:else if authlevel == roles.support}
+                {#each supportviews as item}
+                    <NavLink href={item.href} active={window.location.pathname == item.href}><Icon name={item.icon}/> {item.title}</NavLink>
+                {/each}
+            {:else if authlevel == roles.manager}
+                {#each managerviews as item}
+                    <NavLink href={item.href} active={window.location.pathname == item.href}><Icon name={item.icon}/> {item.title}</NavLink>
+                {/each}
+            {:else if authlevel == roles.user}
+                {#each userviews as item}
+                    <NavLink href={item.href} active={window.location.pathname == item.href}><Icon name={item.icon}/> {item.title}</NavLink>
+                {/each}
+            {:else}
+                <p>API User or Unauthorized!</p>
+            {/if}
+            {#each viewsPerCluster.filter(item => item.requiredRole <= authlevel) as item}
                 <NavItem>
                     <Dropdown nav inNavbar>
                         <DropdownToggle nav caret>
@@ -55,8 +93,9 @@
     <div class="d-flex">
         <form method="GET" action="/search">
             <InputGroup>
-                <Input type="text" placeholder={isAdmin ? "Search jobId / username" : "Search jobId"} name="searchId"/>
+                <Input type="text" placeholder="Search 'type:<query>' ..." name="searchId"/>
                 <Button outline type="submit"><Icon name="search"/></Button>
+                <InputGroupText style="cursor:help;" title={(authlevel >= roles.support) ? "Example: 'projectId:a100cd', Types are: jobId | jobName | projectId | username | name" : "Example: 'jobName:myjob', Types are jobId | jobName | projectId"}><Icon name="info-circle"/></InputGroupText>
             </InputGroup>
         </form>
         {#if username}

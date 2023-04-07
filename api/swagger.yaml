@@ -1,7 +1,39 @@
 basePath: /api
 definitions:
+  api.ApiTag:
+    properties:
+      name:
+        description: Tag Name
+        example: Testjob
+        type: string
+      type:
+        description: Tag Type
+        example: Debug
+        type: string
+    type: object
+  api.DeleteJobApiRequest:
+    properties:
+      cluster:
+        description: Cluster of job
+        example: fritz
+        type: string
+      jobId:
+        description: Cluster Job ID of job
+        example: 123000
+        type: integer
+      startTime:
+        description: Start Time of job as epoch
+        example: 1649723812
+        type: integer
+    required:
+    - jobId
+    type: object
+  api.DeleteJobApiResponse:
+    properties:
+      msg:
+        type: string
+    type: object
   api.ErrorResponse:
-    description: Error message as returned from backend.
     properties:
       error:
         description: Error Message
@@ -10,16 +42,27 @@ definitions:
         description: Statustext of Errorcode
         type: string
     type: object
+  api.GetJobsApiResponse:
+    properties:
+      items:
+        description: Number of jobs returned
+        type: integer
+      jobs:
+        description: Array of jobs
+        items:
+          $ref: '#/definitions/schema.JobMeta'
+        type: array
+      page:
+        description: Page id returned
+        type: integer
+    type: object
   api.StartJobApiResponse:
-    description: Successful job start response with database id of new job.
     properties:
       id:
         description: Database ID of new job
         type: integer
     type: object
   api.StopJobApiRequest:
-    description: Request to stop running job using stoptime and final state. They
-      are only required if no database id was provided with endpoint.
     properties:
       cluster:
         description: Cluster of job
@@ -30,15 +73,10 @@ definitions:
         example: 123000
         type: integer
       jobState:
-        description: Final state of job
-        enum:
-        - completed
-        - failed
-        - cancelled
-        - stopped
-        - timeout
+        allOf:
+        - $ref: '#/definitions/schema.JobState'
+        description: Final job state
         example: completed
-        type: string
       startTime:
         description: Start Time of job as epoch
         example: 1649723812
@@ -50,18 +88,6 @@ definitions:
     required:
     - jobState
     - stopTime
-    type: object
-  api.Tag:
-    description: Defines a tag using name and type.
-    properties:
-      name:
-        description: Tag Name
-        example: Testjob
-        type: string
-      type:
-        description: Tag Type
-        example: Debug
-        type: string
     type: object
   schema.Job:
     description: Information of a HPC job.
@@ -95,16 +121,10 @@ definitions:
         example: 123000
         type: integer
       jobState:
+        allOf:
+        - $ref: '#/definitions/schema.JobState'
         description: Final state of job
-        enum:
-        - completed
-        - failed
-        - cancelled
-        - stopped
-        - timeout
-        - out_of_memory
         example: completed
-        type: string
       metaData:
         additionalProperties:
           type: string
@@ -203,16 +223,10 @@ definitions:
         example: 123000
         type: integer
       jobState:
+        allOf:
+        - $ref: '#/definitions/schema.JobState'
         description: Final state of job
-        enum:
-        - completed
-        - failed
-        - cancelled
-        - stopped
-        - timeout
-        - out_of_memory
         example: completed
-        type: string
       metaData:
         additionalProperties:
           type: string
@@ -286,6 +300,26 @@ definitions:
         minimum: 1
         type: integer
     type: object
+  schema.JobState:
+    enum:
+    - running
+    - completed
+    - failed
+    - cancelled
+    - stopped
+    - timeout
+    - preempted
+    - out_of_memory
+    type: string
+    x-enum-varnames:
+    - JobStateRunning
+    - JobStateCompleted
+    - JobStateFailed
+    - JobStateCancelled
+    - JobStateStopped
+    - JobStateTimeout
+    - JobStatePreempted
+    - JobStateOutOfMemory
   schema.JobStatistics:
     description: Specification for job metric statistics.
     properties:
@@ -344,24 +378,21 @@ definitions:
         example: Debug
         type: string
     type: object
-host: clustercockpit.localhost:8082
+host: localhost:8080
 info:
   contact:
     email: support@clustercockpit.org
     name: ClusterCockpit Project
     url: https://github.com/ClusterCockpit
-  description: Defines a tag using name and type.
+  description: API for batch job control.
   license:
     name: MIT License
     url: https://opensource.org/licenses/MIT
-  termsOfService: https://monitoring.nhr.fau.de/imprint
   title: ClusterCockpit REST API
-  version: 0.1.0
+  version: 0.2.0
 paths:
   /jobs/:
     get:
-      consumes:
-      - application/json
       description: |-
         Get a list of all jobs. Filters can be applied using query parameters.
         Number of results can be limited by page. Results are sorted by descending startTime.
@@ -385,11 +416,11 @@ paths:
         in: query
         name: start-time
         type: string
-      - description: 'Items per page (If empty: No Limit)'
+      - description: 'Items per page (Default: 25)'
         in: query
         name: items-per-page
         type: integer
-      - description: 'Page Number (If empty: No Paging)'
+      - description: 'Page Number (Default: 1)'
         in: query
         name: page
         type: integer
@@ -401,17 +432,19 @@ paths:
       - application/json
       responses:
         "200":
-          description: Array of matching jobs
+          description: Job array and page info
           schema:
-            items:
-              $ref: '#/definitions/schema.Job'
-            type: array
+            $ref: '#/definitions/api.GetJobsApiResponse'
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/api.ErrorResponse'
         "401":
           description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/api.ErrorResponse'
         "500":
@@ -421,6 +454,152 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Lists all jobs
+      tags:
+      - query
+  /jobs/delete_job/:
+    delete:
+      consumes:
+      - application/json
+      description: Job to delete is specified by request body. All fields are required
+        in this case.
+      parameters:
+      - description: All fields required
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.DeleteJobApiRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success message
+          schema:
+            $ref: '#/definitions/api.DeleteJobApiResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Resource not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: 'Unprocessable Entity: finding job failed: sql: no rows in
+            result set'
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Remove a job from the sql database
+      tags:
+      - remove
+  /jobs/delete_job/{id}:
+    delete:
+      description: Job to remove is specified by database ID. This will not remove
+        the job from the job archive.
+      parameters:
+      - description: Database ID of Job
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success message
+          schema:
+            $ref: '#/definitions/api.DeleteJobApiResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Resource not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: 'Unprocessable Entity: finding job failed: sql: no rows in
+            result set'
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Remove a job from the sql database
+      tags:
+      - remove
+  /jobs/delete_job_before/{ts}:
+    delete:
+      description: Remove all jobs with start time before timestamp. The jobs will
+        not be removed from the job archive.
+      parameters:
+      - description: Unix epoch timestamp
+        in: path
+        name: ts
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success message
+          schema:
+            $ref: '#/definitions/api.DeleteJobApiResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Resource not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: 'Unprocessable Entity: finding job failed: sql: no rows in
+            result set'
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Remove a job from the sql database
+      tags:
+      - remove
   /jobs/start_job/:
     post:
       consumes:
@@ -466,6 +645,8 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Adds a new job as "running"
+      tags:
+      - add and modify
   /jobs/stop_job/:
     post:
       description: |-
@@ -482,7 +663,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Job resource
+          description: Success message
           schema:
             $ref: '#/definitions/schema.JobMeta'
         "400":
@@ -513,6 +694,8 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Marks job as completed and triggers archiving
+      tags:
+      - add and modify
   /jobs/stop_job/{id}:
     post:
       consumes:
@@ -567,6 +750,8 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Marks job as completed and triggers archiving
+      tags:
+      - add and modify
   /jobs/tag_job/{id}:
     post:
       consumes:
@@ -586,7 +771,7 @@ paths:
         required: true
         schema:
           items:
-            $ref: '#/definitions/api.Tag'
+            $ref: '#/definitions/api.ApiTag'
           type: array
       produces:
       - application/json
@@ -614,10 +799,13 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Adds one or more tags to a job
+      tags:
+      - add and modify
 securityDefinitions:
   ApiKeyAuth:
-    description: JWT based authentification for general API endpoint use.
     in: header
     name: X-Auth-Token
     type: apiKey
 swagger: "2.0"
+tags:
+- name: Job API

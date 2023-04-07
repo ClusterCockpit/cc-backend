@@ -5,7 +5,11 @@
 package repository
 
 import (
+	"strings"
+
+	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	sq "github.com/Masterminds/squirrel"
 )
@@ -13,16 +17,19 @@ import (
 // Add the tag with id `tagId` to the job with the database id `jobId`.
 func (r *JobRepository) AddTag(job int64, tag int64) ([]*schema.Tag, error) {
 	if _, err := r.stmtCache.Exec(`INSERT INTO jobtag (job_id, tag_id) VALUES ($1, $2)`, job, tag); err != nil {
+		log.Error("Error while running query")
 		return nil, err
 	}
 
 	j, err := r.FindById(job)
 	if err != nil {
+		log.Warn("Error while finding job by id")
 		return nil, err
 	}
 
 	tags, err := r.GetTags(&job)
 	if err != nil {
+		log.Warn("Error while getting tags for job")
 		return nil, err
 	}
 
@@ -32,16 +39,19 @@ func (r *JobRepository) AddTag(job int64, tag int64) ([]*schema.Tag, error) {
 // Removes a tag from a job
 func (r *JobRepository) RemoveTag(job, tag int64) ([]*schema.Tag, error) {
 	if _, err := r.stmtCache.Exec("DELETE FROM jobtag WHERE jobtag.job_id = $1 AND jobtag.tag_id = $2", job, tag); err != nil {
+		log.Error("Error while running query")
 		return nil, err
 	}
 
 	j, err := r.FindById(job)
 	if err != nil {
+		log.Warn("Error while finding job by id")
 		return nil, err
 	}
 
 	tags, err := r.GetTags(&job)
 	if err != nil {
+		log.Warn("Error while getting tags for job")
 		return nil, err
 	}
 
@@ -58,7 +68,7 @@ func (r *JobRepository) CreateTag(tagType string, tagName string) (tagId int64, 
 	return res.LastInsertId()
 }
 
-func (r *JobRepository) CountTags(user *string) (tags []schema.Tag, counts map[string]int, err error) {
+func (r *JobRepository) CountTags(user *auth.User) (tags []schema.Tag, counts map[string]int, err error) {
 	tags = make([]schema.Tag, 0, 100)
 	xrows, err := r.DB.Queryx("SELECT * FROM tag")
 	if err != nil {
@@ -77,9 +87,13 @@ func (r *JobRepository) CountTags(user *string) (tags []schema.Tag, counts map[s
 		From("tag t").
 		LeftJoin("jobtag jt ON t.id = jt.tag_id").
 		GroupBy("t.tag_name")
-	if user != nil {
-		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.user = ?)", *user)
-	}
+
+	if user != nil && user.HasRole(auth.RoleUser) { // USER: Only count own jobs
+		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.user = ?)", user.Username)
+	} else if user != nil && user.HasRole(auth.RoleManager) { // MANAGER: Count own jobs plus project's jobs
+		// Build ("project1", "project2", ...) list of variable length directly in SQL string
+		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.user = ? OR job.project IN (\""+strings.Join(user.Projects, "\",\"")+"\"))", user.Username)
+	} // else: ADMIN || SUPPORT: Count all jobs
 
 	rows, err := q.RunWith(r.stmtCache).Query()
 	if err != nil {
@@ -138,6 +152,7 @@ func (r *JobRepository) GetTags(job *int64) ([]*schema.Tag, error) {
 
 	rows, err := q.RunWith(r.stmtCache).Query()
 	if err != nil {
+		log.Error("Error while running query")
 		return nil, err
 	}
 
@@ -145,6 +160,7 @@ func (r *JobRepository) GetTags(job *int64) ([]*schema.Tag, error) {
 	for rows.Next() {
 		tag := &schema.Tag{}
 		if err := rows.Scan(&tag.ID, &tag.Type, &tag.Name); err != nil {
+			log.Warn("Error while scanning rows")
 			return nil, err
 		}
 		tags = append(tags, tag)
