@@ -97,6 +97,12 @@
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -726,13 +732,6 @@
                 },
                 "jobState": {
                     "description": "Final job state",
-                    "enum": [
-                        "completed",
-                        "failed",
-                        "cancelled",
-                        "stopped",
-                        "timeout"
-                    ],
                     "allOf": [
                         {
                             "$ref": "#/definitions/schema.JobState"
@@ -790,14 +789,6 @@
                 },
                 "jobState": {
                     "description": "Final state of job",
-                    "enum": [
-                        "completed",
-                        "failed",
-                        "cancelled",
-                        "stopped",
-                        "timeout",
-                        "out_of_memory"
-                    ],
                     "allOf": [
                         {
                             "$ref": "#/definitions/schema.JobState"
@@ -926,14 +917,6 @@
                 },
                 "jobState": {
                     "description": "Final state of job",
-                    "enum": [
-                        "completed",
-                        "failed",
-                        "cancelled",
-                        "stopped",
-                        "timeout",
-                        "out_of_memory"
-                    ],
                     "allOf": [
                         {
                             "$ref": "#/definitions/schema.JobState"

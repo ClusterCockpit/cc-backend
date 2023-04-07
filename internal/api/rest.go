@@ -105,10 +105,10 @@ type DeleteJobApiResponse struct {
 type StopJobApiRequest struct {
 	// Stop Time of job as epoch
 	StopTime  int64           `json:"stopTime" validate:"required" example:"1649763839"`
-	State     schema.JobState `json:"jobState" validate:"required" example:"completed" enums:"completed,failed,cancelled,stopped,timeout"` // Final job state
-	JobId     *int64          `json:"jobId" example:"123000"`                                                                              // Cluster Job ID of job
-	Cluster   *string         `json:"cluster" example:"fritz"`                                                                             // Cluster of job
-	StartTime *int64          `json:"startTime" example:"1649723812"`                                                                      // Start Time of job as epoch
+	State     schema.JobState `json:"jobState" validate:"required" example:"completed"` // Final job state
+	JobId     *int64          `json:"jobId" example:"123000"`                           // Cluster Job ID of job
+	Cluster   *string         `json:"cluster" example:"fritz"`                          // Cluster of job
+	StartTime *int64          `json:"startTime" example:"1649723812"`                   // Start Time of job as epoch
 }
 
 // DeleteJobApiRequest model

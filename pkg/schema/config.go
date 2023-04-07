@@ -116,6 +116,9 @@ type ProgramConfig struct {
 	// If not zero, automatically mark jobs as stopped running X seconds longer than their walltime.
 	StopJobsExceedingWalltime int `json:"stop-jobs-exceeding-walltime"`
 
+	// Defines time X in seconds in which jobs are considered to be "short" and will be filtered in specific views.
+	ShortRunningJobsDuration int `json:"short-running-jobs-duration"`
+
 	// Array of Clusters
 	Clusters []*ClusterConfig `json:"clusters"`
 }

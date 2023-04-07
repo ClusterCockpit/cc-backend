@@ -16,6 +16,7 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
@@ -671,9 +672,6 @@ func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 	return nil
 }
 
-// TODO: Move to config
-const ShortJobDuration int = 5 * 60
-
 // GraphQL validation should make sure that no unkown values can be specified.
 var groupBy2column = map[model.Aggregate]string{
 	model.AggregateUser:    "job.user",
@@ -767,7 +765,8 @@ func (r *JobRepository) JobsStatistics(ctx context.Context,
 	}
 
 	if groupBy == nil {
-		query := sq.Select("COUNT(job.id)").From("job").Where("job.duration < ?", ShortJobDuration)
+
+		query := sq.Select("COUNT(job.id)").From("job").Where("job.duration < ?", config.Keys.ShortRunningJobsDuration)
 		query, qerr := SecurityCheck(ctx, query)
 
 		if qerr != nil {
@@ -783,7 +782,8 @@ func (r *JobRepository) JobsStatistics(ctx context.Context,
 		}
 	} else {
 		col := groupBy2column[*groupBy]
-		query := sq.Select(col, "COUNT(job.id)").From("job").Where("job.duration < ?", ShortJobDuration)
+
+		query := sq.Select(col, "COUNT(job.id)").From("job").Where("job.duration < ?", config.Keys.ShortRunningJobsDuration)
 
 		query, qerr := SecurityCheck(ctx, query)
 

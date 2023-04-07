@@ -35,5 +35,6 @@
         "forceJWTValidationViaDatabase": false,
         "max-age": 0,
         "trustedExternalIssuer": ""
-    }
+    },
+    "short-running-jobs-duration": 300
 }
