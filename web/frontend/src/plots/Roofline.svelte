@@ -4,7 +4,8 @@
 
 <script context="module">
     const axesColor = '#aaaaaa'
-    const fontSize = 12
+    const tickFontSize = 10
+    const labelFontSize = 12
     const fontFamily = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"'
     const paddingLeft = 40,
         paddingRight = 10,
@@ -95,7 +96,7 @@
         // Axes
         ctx.fillStyle = 'black'
         ctx.strokeStyle = axesColor
-        ctx.font = `${fontSize}px ${fontFamily}`
+        ctx.font = `${tickFontSize}px ${fontFamily}`
         ctx.beginPath()
         for (let x = minX, i = 0; x <= maxX; i++) {
             let px = getCanvasX(x)
@@ -103,18 +104,20 @@
             let textWidth = ctx.measureText(text).width
             ctx.fillText(text,
                 Math.floor(px - (textWidth / 2)),
-                height - paddingBottom + fontSize + 5)
+                height - paddingBottom + tickFontSize + 5)
             ctx.moveTo(px, paddingTop - 5)
             ctx.lineTo(px, height - paddingBottom + 5)
 
             x *= axisStepFactor(i, w)
         }
         if (data.xLabel) {
+            ctx.font = `${labelFontSize}px ${fontFamily}`
             let textWidth = ctx.measureText(data.xLabel).width
             ctx.fillText(data.xLabel, Math.floor((width / 2) - (textWidth / 2)), height - 20)
         }
 
         ctx.textAlign = 'center'
+        ctx.font = `${tickFontSize}px ${fontFamily}`
         for (let y = minY, i = 0; y <= maxY; i++) {
             let py = getCanvasY(y)
             ctx.moveTo(paddingLeft - 5, py)
@@ -129,6 +132,7 @@
             y *= axisStepFactor(i)
         }
         if (data.yLabel) {
+            ctx.font = `${labelFontSize}px ${fontFamily}`
             ctx.save()
             ctx.translate(15, Math.floor(height / 2))
             ctx.rotate(-Math.PI / 2)

@@ -28,7 +28,7 @@
 
     const fontSize = 12
     const fontFamily = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"'
-    const paddingLeft = 35, paddingRight = 20, paddingTop = 20, paddingBottom = 20
+    const paddingLeft = 50, paddingRight = 20, paddingTop = 20, paddingBottom = 20
 
     let ctx, canvasElement
 
