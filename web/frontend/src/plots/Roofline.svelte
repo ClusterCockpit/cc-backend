@@ -241,7 +241,7 @@
         }
     }
 
-    function transformData(flopsAny, memBw, colorDots) {
+    function transformData(flopsAny, memBw, colorDots) { // Uses Metric Object
         const nodes = flopsAny.series.length
         const timesteps = flopsAny.series[0].data.length
 
@@ -323,7 +323,7 @@
 
     let ctx, canvasElement, prevWidth = width, prevHeight = height
     data = data != null ? data : (flopsAny && memBw
-        ? transformData(flopsAny.metric, memBw.metric, colorDots)
+        ? transformData(flopsAny, memBw, colorDots) // Use Metric Object from Parent
         : {
             tiles: tiles,
             xLabel: 'Intensity [FLOPS/byte]',
