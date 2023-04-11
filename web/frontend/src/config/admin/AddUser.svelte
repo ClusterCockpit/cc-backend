@@ -20,6 +20,7 @@
                 let text = await res.text()
                 popMessage(text, '#048109')
                 reloadUserList()
+                form.reset()
             } else {
                 let text = await res.text()
                 // console.log(res.statusText)
@@ -79,7 +80,12 @@
                 {#if i == 0}
                     <div>
                         <input type="radio" id={role} name="role" value={role} checked/>
-                        <label for={role}>{role.charAt(0).toUpperCase() + role.slice(1)} (regular user, same as if created via LDAP sync.)</label>
+                        <label for={role}>{role.toUpperCase()} (Allowed to interact with REST API.)</label>
+                    </div>
+                {:else if i == 1}
+                    <div>
+                        <input type="radio" id={role} name="role" value={role} checked/>
+                        <label for={role}>{role.charAt(0).toUpperCase() + role.slice(1)} (Same as if created via LDAP sync.)</label>
                     </div>
                 {:else}
                     <div>
