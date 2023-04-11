@@ -9,14 +9,14 @@
                     <th>Running Jobs (short ones not listed)</th>
                     <th>Total Jobs</th>
                     <th>Short Jobs in past 24h</th>
-                    {{if .User.IsAdmin}}
+                    {{if .User.HasRole .Roles.admin}}
                         <th>System View</th>
                         <th>Analysis View</th>
                     {{end}}
                 </tr>
             </thead>
             <tbody>
-                {{if .User.IsAdmin}}
+                {{if .User.HasRole .Roles.admin}}
                     {{range .Infos.clusters}}
                         <tr>
                             <td>{{.Name}}</td>

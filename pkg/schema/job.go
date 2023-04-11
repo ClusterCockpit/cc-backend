@@ -107,6 +107,7 @@ type JobStatistics struct {
 // @Description Defines a tag using name and type.
 type Tag struct {
 	// The unique DB identifier of a tag
+	// The unique DB identifier of a tag
 	ID   int64  `json:"id" db:"id"`
 	Type string `json:"type" db:"tag_type" example:"Debug"`   // Tag Type
 	Name string `json:"name" db:"tag_name" example:"Testjob"` // Tag Name
@@ -137,12 +138,12 @@ const (
 func (e *JobState) UnmarshalGQL(v interface{}) error {
 	str, ok := v.(string)
 	if !ok {
-		return fmt.Errorf("enums must be strings")
+		return fmt.Errorf("SCHEMA/JOB > enums must be strings")
 	}
 
 	*e = JobState(str)
 	if !e.Valid() {
-		return errors.New("invalid job state")
+		return errors.New("SCHEMA/JOB > invalid job state")
 	}
 
 	return nil

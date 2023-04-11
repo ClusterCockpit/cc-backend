@@ -33,7 +33,6 @@ Start by creating a base folder for all of the following steps.
 * Clone Repository
     - `git clone https://github.com/ClusterCockpit/cc-backend.git`
     - `cd cc-backend`
-    - `git checkout dev-job-archive-module` Will be merged soon into master
 * Setup Frontend
     - `cd ./web/frontend`
     - `yarn install`
@@ -41,15 +40,15 @@ Start by creating a base folder for all of the following steps.
     - `cd ../..`
 * Build Go Executable
     - `go build ./cmd/cc-backend/`
-* Prepare Datafolder and Database file
-    - `mkdir var`
-    - `touch var/job.db`
 * Activate & Config environment for cc-backend
     - `cp configs/env-template.txt  .env`
     - Optional: Have a look via `vim ./.env`
     - Copy the `config.json` file included in this tarball into the root directory of cc-backend: `cp ../../config.json  ./`
 * Back to toplevel `clustercockpit`
     - `cd ..`
+* Prepare Datafolder and Database file
+    - `mkdir var`
+    - `./cc-backend --migrate-db`
 
 ### Setup cc-metric-store
 * Clone Repository

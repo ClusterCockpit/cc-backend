@@ -1,7 +1,7 @@
 <script>
     import { createEventDispatcher, getContext } from 'svelte'
     import { Button, Modal, ModalBody, ModalHeader, ModalFooter } from 'sveltestrap'
-import Header from '../Header.svelte';
+    import Header from '../Header.svelte';
     import DoubleRangeSlider from './DoubleRangeSlider.svelte'
 
     const clusters = getContext('clusters'),
@@ -23,7 +23,7 @@ import Header from '../Header.svelte';
     const findMaxNumAccels = clusters => clusters.reduce((max, cluster) => Math.max(max,
         cluster.subClusters.reduce((max, sc) => Math.max(max, sc.topology.accelerators?.length || 0), 0)), 0)
 
-        console.log(header)
+        // console.log(header)
     let minNumNodes = 1, maxNumNodes = 0, minNumHWThreads = 1, maxNumHWThreads = 0, minNumAccelerators = 0, maxNumAccelerators = 0
     $: {
         if ($initialized) {

@@ -1,4 +1,4 @@
-<!-- 
+<!--
     @component
 
     Properties:
@@ -31,7 +31,11 @@
         <span class="fw-bold"><a href="/monitoring/job/{job.id}" target="_blank">{job.jobId}</a> ({job.cluster})</span>
         {#if job.metaData?.jobName}
             <br/>
-            {job.metaData.jobName}
+            {#if job.metaData?.jobName.length <= 25}
+                <div>{job.metaData.jobName}</div>
+            {:else}
+                <div class="truncate" style="cursor:help; width:230px;" title={job.metaData.jobName}>{job.metaData.jobName}</div>
+            {/if}
         {/if}
         {#if job.arrayJobId}
             Array Job: <a href="/monitoring/jobs/?arrayJobId={job.arrayJobId}&cluster={job.cluster}" target="_blank">#{job.arrayJobId}</a>
@@ -48,12 +52,20 @@
         {/if}
         {#if job.project && job.project != 'no project'}
             <br/>
-            <Icon name="people-fill"/> {job.project}
+            <Icon name="people-fill"/> 
+            <a class="fst-italic" href="/monitoring/jobs/?project={job.project}&projectMatch=eq" target="_blank">
+                {scrambleNames ? scramble(job.project) : job.project}
+            </a>
         {/if}
     </p>
 
     <p>
-        {job.numNodes} <Icon name="pc-horizontal"/>
+        {#if job.numNodes == 1}
+            {job.resources[0].hostname}
+        {:else}
+            {job.numNodes}
+        {/if}
+        <Icon name="pc-horizontal"/>
         {#if job.exclusive != 1}
             (shared)
         {/if}
@@ -63,6 +75,8 @@
         {#if job.numHWThreads > 0}
             , {job.numHWThreads} <Icon name="cpu"/>
         {/if}
+        <br/>
+        {job.subCluster}
     </p>
 
     <p>
@@ -86,3 +100,11 @@
         {/each}
     </p>
 </div>
+
+<style>
+    .truncate {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+</style>

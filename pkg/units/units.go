@@ -281,7 +281,7 @@ func GetUnitUnitFactor(in Unit, out Unit) (func(value interface{}) interface{}, 
 	} else if in.getMeasure() == TemperatureF && out.getMeasure() == TemperatureC {
 		return convertTempF2TempC, nil
 	} else if in.getMeasure() != out.getMeasure() || in.getUnitDenominator() != out.getUnitDenominator() {
-		return func(value interface{}) interface{} { return 1.0 }, fmt.Errorf("invalid measures in in and out Unit")
+		return func(value interface{}) interface{} { return 1.0 }, fmt.Errorf("UNITS/UNITS > invalid measures in in and out Unit")
 	}
 	return GetPrefixPrefixFactor(in.getPrefix(), out.getPrefix()), nil
 }

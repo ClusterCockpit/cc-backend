@@ -14,6 +14,8 @@
     const ccconfig = getContext('cc-config')
 
     export let filterPresets = {}
+    export let authlevel
+    export let roles
 
     let filters = []
     let jobList, matchedJobs = null
@@ -67,7 +69,7 @@
     </Col>
 
     <Col xs="3" style="margin-left: auto;">
-        <UserOrProject on:update={({ detail }) => filters.update(detail)}/>
+        <UserOrProject bind:authlevel={authlevel} bind:roles={roles} on:update={({ detail }) => filters.update(detail)}/>
     </Col>
     <Col xs="2">
         <Refresher on:reload={() => jobList.update()} />

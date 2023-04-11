@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 )
 
 // Very simple and limited .env file reader.
@@ -22,6 +24,7 @@ import (
 func LoadEnv(file string) error {
 	f, err := os.Open(file)
 	if err != nil {
+		log.Error("Error while opening file")
 		return err
 	}
 
@@ -40,14 +43,14 @@ func LoadEnv(file string) error {
 		line = strings.TrimPrefix(line, "export ")
 		parts := strings.SplitN(line, "=", 2)
 		if len(parts) != 2 {
-			return fmt.Errorf("unsupported line: %#v", line)
+			return fmt.Errorf("RUNTIME/SETUP > unsupported line: %#v", line)
 		}
 
 		key := strings.TrimSpace(parts[0])
 		val := strings.TrimSpace(parts[1])
 		if strings.HasPrefix(val, "\"") {
 			if !strings.HasSuffix(val, "\"") {
-				return fmt.Errorf("unsupported line: %#v", line)
+				return fmt.Errorf("RUNTIME/SETUP > unsupported line: %#v", line)
 			}
 
 			runes := []rune(val[1 : len(val)-1])
@@ -65,7 +68,7 @@ func LoadEnv(file string) error {
 					case '"':
 						sb.WriteRune('"')
 					default:
-						return fmt.Errorf("unsupprorted escape sequence in quoted string: backslash %#v", runes[i])
+						return fmt.Errorf("RUNTIME/SETUP > unsupported escape sequence in quoted string: backslash %#v", runes[i])
 					}
 					continue
 				}
@@ -89,11 +92,13 @@ func DropPrivileges(username string, group string) error {
 	if group != "" {
 		g, err := user.LookupGroup(group)
 		if err != nil {
+			log.Warn("Error while looking up group")
 			return err
 		}
 
 		gid, _ := strconv.Atoi(g.Gid)
 		if err := syscall.Setgid(gid); err != nil {
+			log.Warn("Error while setting gid")
 			return err
 		}
 	}
@@ -101,11 +106,13 @@ func DropPrivileges(username string, group string) error {
 	if username != "" {
 		u, err := user.Lookup(username)
 		if err != nil {
+			log.Warn("Error while looking up user")
 			return err
 		}
 
 		uid, _ := strconv.Atoi(u.Uid)
 		if err := syscall.Setuid(uid); err != nil {
+			log.Warn("Error while setting uid")
 			return err
 		}
 	}

@@ -25,6 +25,7 @@ var Keys schema.ProgramConfig = schema.ProgramConfig{
 	LdapConfig:                nil,
 	SessionMaxAge:             "168h",
 	StopJobsExceedingWalltime: 0,
+	ShortRunningJobsDuration:  5 * 60,
 	UiDefaults: map[string]interface{}{
 		"analysis_view_histogramMetrics":     []string{"flops_any", "mem_bw", "mem_used"},
 		"analysis_view_scatterPlotMetrics":   [][]string{{"flops_any", "mem_bw"}, {"flops_any", "cpu_load"}, {"cpu_load", "mem_bw"}},
@@ -34,7 +35,6 @@ var Keys schema.ProgramConfig = schema.ProgramConfig{
 		"plot_general_colorBackground":       true,
 		"plot_general_colorscheme":           []string{"#00bfff", "#0000ff", "#ff00ff", "#ff0000", "#ff8000", "#ffff00", "#80ff00"},
 		"plot_general_lineWidth":             3,
-		"plot_list_hideShortRunningJobs":     5 * 60,
 		"plot_list_jobsPerPage":              50,
 		"plot_list_selectedMetrics":          []string{"cpu_load", "ipc", "mem_used", "flops_any", "mem_bw"},
 		"plot_view_plotsPerRow":              3,
@@ -49,7 +49,7 @@ func Init(flagConfigFile string) {
 	raw, err := os.ReadFile(flagConfigFile)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			log.Fatal(err)
+			log.Fatalf("CONFIG ERROR: %v", err)
 		}
 	} else {
 		if err := schema.Validate(schema.Config, bytes.NewReader(raw)); err != nil {
@@ -58,7 +58,7 @@ func Init(flagConfigFile string) {
 		dec := json.NewDecoder(bytes.NewReader(raw))
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(&Keys); err != nil {
-			log.Fatal(err)
+			log.Fatalf("could not decode: %v", err)
 		}
 
 		if Keys.Clusters == nil || len(Keys.Clusters) < 1 {

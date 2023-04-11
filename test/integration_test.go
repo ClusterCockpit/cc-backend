@@ -20,6 +20,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/gorilla/mux"
 
@@ -320,6 +321,7 @@ func setup(t *testing.T) *api.RestApi {
 		]
 	}`
 
+	log.Init("info", true)
 	tmpdir := t.TempDir()
 	jobarchive := filepath.Join(tmpdir, "job-archive")
 	if err := os.Mkdir(jobarchive, 0777); err != nil {
@@ -346,11 +348,7 @@ func setup(t *testing.T) *api.RestApi {
 		t.Fatal(err)
 	}
 	dbfilepath := filepath.Join(tmpdir, "test.db")
-	f, err := os.Create(dbfilepath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	f.Close()
+	repository.MigrateDB("sqlite3", dbfilepath)
 
 	cfgFilePath := filepath.Join(tmpdir, "config.json")
 	if err := os.WriteFile(cfgFilePath, []byte(testconfig), 0666); err != nil {
@@ -363,15 +361,11 @@ func setup(t *testing.T) *api.RestApi {
 	repository.Connect("sqlite3", dbfilepath)
 	db := repository.GetConnection()
 
-	if err := archive.Init(json.RawMessage(archiveCfg)); err != nil {
+	if err := archive.Init(json.RawMessage(archiveCfg), config.Keys.DisableArchive); err != nil {
 		t.Fatal(err)
 	}
 
 	if err := metricdata.Init(config.Keys.DisableArchive); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := db.DB.Exec(repository.JobsDBSchema); err != nil {
 		t.Fatal(err)
 	}
 
@@ -501,6 +495,7 @@ func TestRestApi(t *testing.T) {
 
 	const stopJobBody string = `{
         "jobId":     123,
+        "jobId":     123,
 		"startTime": 123456789,
 		"cluster":   "testcluster",
 
@@ -519,7 +514,7 @@ func TestRestApi(t *testing.T) {
 			t.Fatal(response.Status, recorder.Body.String())
 		}
 
-		restapi.OngoingArchivings.Wait()
+		restapi.JobRepository.WaitForArchiving()
 		job, err := restapi.Resolver.Query().Job(context.Background(), strconv.Itoa(int(dbid)))
 		if err != nil {
 			t.Fatal(err)
@@ -633,15 +628,15 @@ func subtestLetJobFail(t *testing.T, restapi *api.RestApi, r *mux.Router) {
 			t.Fatal(response.Status, recorder.Body.String())
 		}
 
-		restapi.OngoingArchivings.Wait()
+		restapi.JobRepository.WaitForArchiving()
 		jobid, cluster := int64(12345), "testcluster"
 		job, err := restapi.JobRepository.Find(&jobid, &cluster, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if job.State != schema.JobStateCompleted {
-			t.Fatal("expected job to be completed")
+		if job.State != schema.JobStateFailed {
+			t.Fatal("expected job to be failed")
 		}
 	})
 	if !ok {

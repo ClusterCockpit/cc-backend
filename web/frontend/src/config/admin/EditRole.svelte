@@ -8,6 +8,8 @@
     let message = {msg: '', color: '#d63384'}
     let displayMessage = false
 
+    export let roles = []
+
     async function handleAddRole() {
         const username = document.querySelector('#role-username').value
         const role = document.querySelector('#role-select').value
@@ -86,10 +88,9 @@
             <input type="text" class="form-control" placeholder="username" id="role-username"/>
             <select class="form-select" id="role-select">
                 <option selected value="">Role...</option>
-                <option value="user">User</option>
-                <option value="support">Support</option>
-                <option value="admin">Admin</option>
-                <option value="api">API</option>
+                {#each roles as role}
+                    <option value={role}>{role.charAt(0).toUpperCase() + role.slice(1)}</option>
+                {/each}
             </select>
             <!-- PreventDefault on Sveltestrap-Button more complex to achieve than just use good ol' html button -->
             <!-- see: https://stackoverflow.com/questions/69630422/svelte-how-to-use-event-modifiers-in-my-own-components -->
