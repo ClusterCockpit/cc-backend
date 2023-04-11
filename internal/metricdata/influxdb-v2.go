@@ -211,32 +211,16 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 	for _, scope := range scopes {
 		if scope == "node" { // No 'socket/core' support yet
 			for metric, nodes := range stats {
-				// log.Debugf("<< Add Stats for : Field %s >>", metric)
 				for node, stats := range nodes {
-					// log.Debugf("<< Add Stats for : Host %s : Min %.2f, Max %.2f, Avg %.2f >>", node, stats.Min, stats.Max, stats.Avg )
 					for index, _ := range jobData[metric][scope].Series {
-						// log.Debugf("<< Try to add Stats to Series in Position %d >>", index)
 						if jobData[metric][scope].Series[index].Hostname == node {
-							// log.Debugf("<< Match for Series in Position %d : Host %s >>", index, jobData[metric][scope].Series[index].Hostname)
-							jobData[metric][scope].Series[index].Statistics = &schema.MetricStatistics{Avg: stats.Avg, Min: stats.Min, Max: stats.Max}
-							// log.Debugf("<< Result Inner: Min %.2f, Max %.2f, Avg %.2f >>", jobData[metric][scope].Series[index].Statistics.Min, jobData[metric][scope].Series[index].Statistics.Max, jobData[metric][scope].Series[index].Statistics.Avg)
+							jobData[metric][scope].Series[index].Statistics = schema.MetricStatistics{Avg: stats.Avg, Min: stats.Min, Max: stats.Max}
 						}
 					}
 				}
 			}
 		}
 	}
-
-	// DEBUG:
-	// for _, scope := range scopes {
-	// 		for _, met := range metrics {
-	// 		   for _, series := range jobData[met][scope].Series {
-	// 		   log.Debugf("<< Result: %d data points for metric %s on %s with scope %s, Stats: Min %.2f, Max %.2f, Avg %.2f >>",
-	// 				 	len(series.Data), met, series.Hostname, scope,
-	// 					series.Statistics.Min, series.Statistics.Max, series.Statistics.Avg)
-	// 		   }
-	// 		}
-	// }
 
 	return jobData, nil
 }

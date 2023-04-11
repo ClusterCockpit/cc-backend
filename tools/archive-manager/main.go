@@ -25,7 +25,7 @@ func main() {
 	config.Init(flagConfigFile)
 	config.Keys.Validate = true
 
-	if err := archive.Init(json.RawMessage(archiveCfg)); err != nil {
+	if err := archive.Init(json.RawMessage(archiveCfg), false); err != nil {
 		log.Fatal(err)
 	}
 	ar := archive.GetHandle()

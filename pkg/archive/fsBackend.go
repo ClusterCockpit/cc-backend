@@ -153,7 +153,6 @@ func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 	if !checkFileExists(filename) {
 		filename = getPath(job, fsa.path, "data.json")
 		isCompressed = false
-		return nil, err
 	}
 
 	return loadJobData(filename, isCompressed)
@@ -170,7 +169,6 @@ func (fsa *FsArchive) LoadClusterCfg(name string) (*schema.Cluster, error) {
 	b, err := os.ReadFile(filepath.Join(fsa.path, name, "cluster.json"))
 	if err != nil {
 		log.Errorf("LoadClusterCfg() > open file error: %v", err)
-		return &schema.Cluster{}, err
 		// if config.Keys.Validate {
 		if err := schema.Validate(schema.ClusterCfg, bytes.NewReader(b)); err != nil {
 			log.Warnf("Validate cluster config: %v\n", err)
@@ -219,6 +217,7 @@ func (fsa *FsArchive) Iter(loadMetricData bool) <-chan JobContainer {
 
 					for _, startTimeDir := range startTimeDirs {
 						if startTimeDir.IsDir() {
+							job, err := loadJobMeta(filepath.Join(dirpath, startTimeDir.Name(), "meta.json"))
 							if err != nil && !errors.Is(err, &jsonschema.ValidationError{}) {
 								log.Errorf("in %s: %s", filepath.Join(dirpath, startTimeDir.Name()), err.Error())
 							}
