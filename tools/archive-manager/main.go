@@ -8,20 +8,24 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 )
 
 func main() {
-	var srcPath, flagConfigFile string
+	var srcPath, flagConfigFile, flagLogLevel string
+	var flagLogDateTime bool
 
 	flag.StringVar(&srcPath, "s", "./var/job-archive", "Specify the source job archive path. Default is ./var/job-archive")
+	flag.BoolVar(&flagLogDateTime, "logdate", false, "Set this flag to add date and time to log messages")
+	flag.StringVar(&flagLogLevel, "loglevel", "warn", "Sets the logging level: `[debug,info,warn (default),err,fatal,crit]`")
 	flag.StringVar(&flagConfigFile, "config", "./config.json", "Specify alternative path to `config.json`")
 	flag.Parse()
 	archiveCfg := fmt.Sprintf("{\"kind\": \"file\",\"path\": \"%s\"}", srcPath)
 
+	log.Init(flagLogLevel, flagLogDateTime)
 	config.Init(flagConfigFile)
 	config.Keys.Validate = true
 
