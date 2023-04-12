@@ -2,7 +2,7 @@ TARGET = ./cc-backend
 VAR = ./var
 DB = ./var/job.db
 FRONTEND = ./web/frontend
-VERSION = 0.1
+VERSION = 1
 GIT_HASH := $(shell git rev-parse --short HEAD || echo 'development')
 CURRENT_TIME = $(shell date +"%Y-%m-%d:T%H:%M:%S")
 LD_FLAGS = '-s -X main.buildTime=${CURRENT_TIME} -X main.version=${VERSION} -X main.hash=${GIT_HASH}'

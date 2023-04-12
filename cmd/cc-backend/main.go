@@ -84,6 +84,8 @@ func main() {
 		fmt.Printf("Version:\t%s\n", version)
 		fmt.Printf("Git hash:\t%s\n", hash)
 		fmt.Printf("Build time:\t%s\n", buildTime)
+		fmt.Printf("SQL db version:\t%d\n", repository.Version)
+		fmt.Printf("Job archive version:\t%d\n", archive.Version)
 		os.Exit(0)
 	}
 

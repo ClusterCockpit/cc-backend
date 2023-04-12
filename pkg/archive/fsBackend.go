@@ -101,7 +101,7 @@ func loadJobData(filename string, isCompressed bool) (schema.JobData, error) {
 	}
 }
 
-func (fsa *FsArchive) Init(rawConfig json.RawMessage) (int, error) {
+func (fsa *FsArchive) Init(rawConfig json.RawMessage) (uint64, error) {
 
 	var config FsArchiveConfig
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
@@ -121,7 +121,7 @@ func (fsa *FsArchive) Init(rawConfig json.RawMessage) (int, error) {
 		return 0, err
 	}
 
-	version, err := strconv.Atoi(strings.TrimSuffix(string(b), "\n"))
+	version, err := strconv.ParseUint(strings.TrimSuffix(string(b), "\n"), 10, 64)
 	if err != nil {
 		log.Errorf("fsBackend Init()- %v", err)
 		return 0, err
