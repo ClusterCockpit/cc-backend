@@ -25,18 +25,33 @@
     let unorderedMetrics = [...metrics]
 
     onInit(() => {
-        if (allMetrics == null) {
-            allMetrics = new Set()
+        if (allMetrics == null) allMetrics = new Set()
             for (let c of clusters)
-                if (cluster == null || c.name == cluster)
+                for (let metric of c.metricConfig)
+                    allMetrics.add(metric.name)
+    })
+
+    $: {
+        if (allMetrics != null) {
+            if (cluster == null) {
+                // console.log('Reset to full metric list')
+                for (let c of clusters)
                     for (let metric of c.metricConfig)
                         allMetrics.add(metric.name)
-        }
+            } else {
+                // console.log('Recalculate available metrics for ' + cluster)
+                allMetrics.clear()
+                for (let c of clusters)
+                    if (c.name == cluster)
+                        for (let metric of c.metricConfig)
+                            allMetrics.add(metric.name)
+            }
 
-        newMetricsOrder = [...allMetrics].filter(m => !metrics.includes(m))
-        newMetricsOrder.unshift(...metrics.filter(m => allMetrics.has(m)))
-        unorderedMetrics = unorderedMetrics.filter(m => allMetrics.has(m))
-    })
+            newMetricsOrder = [...allMetrics].filter(m => !metrics.includes(m))
+            newMetricsOrder.unshift(...metrics.filter(m => allMetrics.has(m)))
+            unorderedMetrics = unorderedMetrics.filter(m => allMetrics.has(m))
+        }
+    }
 
     const updateConfiguration = mutation({
         query: `mutation($name: String!, $value: String!) {
@@ -115,14 +130,15 @@
                     <span style="float: right;">
                         {cluster == null ? 
                             clusters // No single cluster specified: List Clusters with Metric
-                            .filter(cluster => cluster.metricConfig.find(m => m.name == metric) != null)
-                            .map(cluster => cluster.name).join(', ') : 
+                            .filter(c => c.metricConfig.find(m => m.name == metric) != null)
+                            .map(c => c.name).join(', ') : 
                             clusters // Single cluster requested: List Subclusters with do not have metric remove flag
-                            .filter(cluster => cluster.metricConfig.find(m => m.name == metric) != null)
-                            .map(function(cluster) { 
-                                let scNames = cluster.subClusters.map(sc => sc.name)
+                            .filter(c => c.name == cluster)
+                            .filter(c => c.metricConfig.find(m => m.name == metric) != null)
+                            .map(function(c) { 
+                                let scNames = c.subClusters.map(sc => sc.name)
                                 scNames.forEach(function(scName){
-                                    let met = cluster.metricConfig.find(m => m.name == metric)
+                                    let met = c.metricConfig.find(m => m.name == metric)
                                     let msc = met.subClusters.find(msc => msc.name == scName)
                                     if (msc != null) {
                                         if (msc.remove == true) {
