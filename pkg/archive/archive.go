@@ -13,10 +13,10 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
-const Version = 1
+const Version uint64 = 1
 
 type ArchiveBackend interface {
-	Init(rawConfig json.RawMessage) (int, error)
+	Init(rawConfig json.RawMessage) (uint64, error)
 
 	LoadJobMeta(job *schema.Job) (*schema.JobMeta, error)
 
