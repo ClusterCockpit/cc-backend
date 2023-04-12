@@ -10,11 +10,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"sync"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/ClusterCockpit/cc-backend/pkg/units"
 )
@@ -218,9 +219,14 @@ func deepCopyClusterConfig(co *Cluster) schema.Cluster {
 }
 
 func main() {
+	var flagLogLevel, flagConfigFile string
+	var flagLogDateTime bool
 	var srcPath string
 	var dstPath string
 
+	flag.BoolVar(&flagLogDateTime, "logdate", false, "Set this flag to add date and time to log messages")
+	flag.StringVar(&flagLogLevel, "loglevel", "warn", "Sets the logging level: `[debug,info,warn (default),err,fatal,crit]`")
+	flag.StringVar(&flagConfigFile, "config", "./config.json", "Specify alternative path to `config.json`")
 	flag.StringVar(&srcPath, "s", "./var/job-archive", "Specify the source job archive path. Default is ./var/job-archive")
 	flag.StringVar(&dstPath, "d", "./var/job-archive-new", "Specify the destination job archive path. Default is ./var/job-archive-new")
 	flag.Parse()
@@ -229,6 +235,8 @@ func main() {
 		log.Fatal("Archive version exists!")
 	}
 
+	log.Init(flagLogLevel, flagLogDateTime)
+	config.Init(flagConfigFile)
 	srcConfig := fmt.Sprintf("{\"path\": \"%s\"}", srcPath)
 	err := ar.Init(json.RawMessage(srcConfig))
 	if err != nil {
