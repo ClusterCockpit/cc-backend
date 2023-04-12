@@ -43,7 +43,7 @@
             cluster = data.clusters.find(c => c.name == filterPresets.cluster)
             console.assert(cluster != null, `This cluster could not be found: ${filterPresets.cluster}`)
 
-            rooflineMaxY = cluster.subClusters.reduce((max, part) => Math.max(max, part.flopRateSimd), 0)
+            rooflineMaxY = cluster.subClusters.reduce((max, part) => Math.max(max, part.flopRateSimd.value), 0)
             $rooflineQuery.variables.maxY = rooflineMaxY
             $rooflineQuery.context.pause = false
             $rooflineQuery.reexecute()
@@ -84,7 +84,7 @@
     `, {
         filter: [],
         rows: 50, cols: 50,
-        minX: 0.01, minY: 1., maxX: 1000., maxY: -1
+        minX: 0.01, minY: 1., maxX: 1000., maxY: -1.
     }, { pause: true });
 
     query(statsQuery)
