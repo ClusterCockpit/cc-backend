@@ -1,0 +1,12 @@
+Package: cc-backend
+Version: {VERSION}
+Installed-Size: {INSTALLED_SIZE}
+Architecture: {ARCH}
+Maintainer: thomas.gruber@fau.de
+Depends: libc6 (>= 2.2.1)
+Build-Depends: debhelper-compat (= 13), git, golang-go, npm, yarn
+Description: ClusterCockpit backend and web frontend
+Homepage: https://github.com/ClusterCockpit/cc-backend
+Source: cc-backend
+Rules-Requires-Root: no
+
