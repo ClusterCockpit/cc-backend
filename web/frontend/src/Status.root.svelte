@@ -3,7 +3,7 @@
     import Roofline, { transformPerNodeData } from './plots/Roofline.svelte'
     import Histogram from './plots/Histogram.svelte'
     import { Row, Col, Spinner, Card, CardHeader, CardTitle, CardBody, Table, Progress, Icon } from 'sveltestrap'
-    import { init, formatNumber } from './utils.js'
+    import { init } from './utils.js'
     import { operationStore, query } from '@urql/svelte'
 
     const { query: initq } = init()
@@ -67,7 +67,7 @@
 
 <Row>
     <Col xs="auto" style="align-self: flex-end;">
-        <h4 class="mb-0" >Current usage of cluster "{cluster}"</h4>
+        <h4 class="mb-0" >Current utilization of cluster "{cluster}"</h4>
     </Col>
     <Col xs="auto">
         {#if $initq.fetching || $mainQuery.fetching}
@@ -111,18 +111,18 @@
                         <CardTitle class="mb-0">SubCluster "{subCluster.name}"</CardTitle>
                     </CardHeader>
                     <CardBody>
-                        <Table>
-                            <tr>
+                        <Table borderless>
+                            <tr class="py-2">
                                 <th scope="col">Allocated Nodes</th>
                                 <td style="min-width: 100px;"><div class="col"><Progress value={allocatedNodes[subCluster.name]} max={subCluster.numberOfNodes}/></div></td>
                                 <td>({allocatedNodes[subCluster.name]} Nodes / {subCluster.numberOfNodes} Total Nodes)</td>
                             </tr>
-                            <tr>
+                            <tr class="py-2">
                                 <th scope="col">Flop Rate (Any) <Icon name="info-circle" class="p-1" style="cursor: help;" title="Flops[Any] = (Flops[Double] x 2) + Flops[Single]"/></th>
                                 <td style="min-width: 100px;"><div class="col"><Progress value={flopRate[subCluster.name]} max={subCluster.flopRateSimd.value * subCluster.numberOfNodes}/></div></td>
                                 <td>({flopRate[subCluster.name]} {flopRateUnit[subCluster.name]} / {(subCluster.flopRateSimd.value * subCluster.numberOfNodes)} {flopRateUnit[subCluster.name]} [Max])</td>
                             </tr>
-                            <tr>
+                            <tr class="py-2">
                                 <th scope="col">MemBw Rate</th>
                                 <td style="min-width: 100px;"><div class="col"><Progress value={memBwRate[subCluster.name]} max={subCluster.memoryBandwidth.value * subCluster.numberOfNodes}/></div></td>
                                 <td>({memBwRate[subCluster.name]} {memBwRateUnit[subCluster.name]} / {(subCluster.memoryBandwidth.value * subCluster.numberOfNodes)} {memBwRateUnit[subCluster.name]} [Max])</td>
@@ -185,7 +185,10 @@
             <Table>
                 <tr class="mb-2"><th>Project Code</th><th>Number of Nodes</th></tr>
                 {#each $mainQuery.data.topProjects.sort((a, b) => b.count - a.count) as { name, count }}
-                    <tr><th scope="col">{name}</th><td>{count}</td></tr>
+                    <tr>
+                        <th scope="col"><a href="/monitoring/jobs/?project={name}&projectMatch=eq">{name}</a></th>
+                        <td>{count}</td>
+                    </tr>
                 {/each}
             </Table>
         </Col>
