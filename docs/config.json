@@ -1,50 +1,50 @@
 {
-    "addr":            "127.0.0.1:8080",
+    "addr": "127.0.0.1:8080",
     "archive": {
         "kind": "file",
         "path": "./var/job-archive"
     },
     "clusters": [
         {
-            "name": "emmy",
+            "name": "fritz",
             "metricDataRepository": {
                 "kind": "cc-metric-store",
-                "url": "http://localhost:8081",
-                "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJFZERTQSJ9.eyJ1c2VyIjoiYWRtaW4iLCJyb2xlcyI6WyJST0xFX0FETUlOIiwiUk9MRV9BTkFMWVNUIiwiUk9MRV9VU0VSIl19.d-3_3FZTsadPjDEdsWrrQ7nS0edMAR4zjl-eK7rJU3HziNBfI9PDHDIpJVHTNN5E5SlLGLFXctWyKAkwhXL-Dw"
+                "url": "http://localhost:8082",
+                "token": ""
             },
             "filterRanges": {
                 "numNodes": {
                     "from": 1,
-                    "to": 32
+                    "to": 64
                 },
                 "duration": {
                     "from": 0,
-                    "to": 172800
+                    "to": 86400
                 },
                 "startTime": {
-                    "from": "2010-01-01T00:00:00Z",
+                    "from": "2022-01-01T00:00:00Z",
                     "to": null
                 }
             }
         },
         {
-            "name": "woody",
+            "name": "alex",
             "metricDataRepository": {
                 "kind": "cc-metric-store",
-                "url": "http://localhost:8081",
-                "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJFZERTQSJ9.eyJ1c2VyIjoiYWRtaW4iLCJyb2xlcyI6WyJST0xFX0FETUlOIiwiUk9MRV9BTkFMWVNUIiwiUk9MRV9VU0VSIl19.d-3_3FZTsadPjDEdsWrrQ7nS0edMAR4zjl-eK7rJU3HziNBfI9PDHDIpJVHTNN5E5SlLGLFXctWyKAkwhXL-Dw"
+                "url": "http://localhost:8082",
+                "token": ""
             },
             "filterRanges": {
                 "numNodes": {
                     "from": 1,
-                    "to": 1
+                    "to": 64
                 },
                 "duration": {
                     "from": 0,
-                    "to": 172800
+                    "to": 86400
                 },
                 "startTime": {
-                    "from": "2015-01-01T00:00:00Z",
+                    "from": "2022-01-01T00:00:00Z",
                     "to": null
                 }
             }
