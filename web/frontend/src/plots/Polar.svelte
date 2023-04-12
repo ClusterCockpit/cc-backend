@@ -18,7 +18,7 @@
     let ctx, canvasElement
 
     const labels = metrics.filter(name => {
-        if (!jobMetrics.find(m => m.name == name && m.metric.scope == "node")) {
+        if (!jobMetrics.find(m => m.name == name && m.scope == "node")) {
             console.warn(`PolarPlot: No metric data for '${name}'`)
             return false
         }
@@ -27,7 +27,7 @@
 
     const getValuesForStat = (getStat) => labels.map(name => {
         const peak = metricConfig(cluster, name).peak
-        const metric = jobMetrics.find(m => m.name == name && m.metric.scope == "node")
+        const metric = jobMetrics.find(m => m.name == name && m.scope == "node")
         const value = getStat(metric.metric) / peak
         return value <= 1. ? value : 1.
     })

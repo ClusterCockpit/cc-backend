@@ -20,16 +20,19 @@
         from.setMinutes(from.getMinutes() - 30)
     }
 
-    const ccconfig = getContext('cc-config'), clusters = getContext('clusters')
+    const ccconfig = getContext('cc-config')
+    const clusters = getContext('clusters')
 
     const nodesQuery = operationStore(`query($cluster: String!, $nodes: [String!], $from: Time!, $to: Time!) {
         nodeMetrics(cluster: $cluster, nodes: $nodes, from: $from, to: $to) {
-            host, subCluster
+            host
+            subCluster
             metrics {
-                name,
+                name
+                scope
                 metric {
                     timestep
-                    scope
+                    unit { base, prefix }
                     series {
                         statistics { min, avg, max }
                         data
@@ -45,6 +48,17 @@
     })
 
     $: $nodesQuery.variables = { cluster, nodes: [hostname], from: from.toISOString(), to: to.toISOString() }
+
+    let metricUnits = {}
+    $: if ($nodesQuery.data) {
+        for (let metric of clusters.find(c => c.name == cluster).metricConfig) {
+            if (metric.unit.prefix || metric.unit.base) {
+                metricUnits[metric.name] = '(' + (metric.unit.prefix ? metric.unit.prefix : '') + (metric.unit.base ? metric.unit.base : '') + ')'
+            } else { // If no unit defined: Omit Unit Display
+                metricUnits[metric.name] = ''
+            }
+        }
+    }
 
     query(nodesQuery)
 
@@ -83,7 +97,7 @@
                 let:width
                 itemsPerRow={ccconfig.plot_view_plotsPerRow}
                 items={$nodesQuery.data.nodeMetrics[0].metrics.sort((a, b) => a.name.localeCompare(b.name))}>
-                <h4 style="text-align: center;">{item.name}</h4>
+                <h4 style="text-align: center;">{item.name} {metricUnits[item.name]}</h4>
                 <MetricPlot
                     width={width} height={300} metric={item.name} timestep={item.metric.timestep}
                     cluster={clusters.find(c => c.name == cluster)} subCluster={$nodesQuery.data.nodeMetrics[0].subCluster}

@@ -2,13 +2,15 @@
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
-package schema
+package main
 
 import (
 	"errors"
 	"fmt"
 	"io"
 	"time"
+
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
 // Non-Swaggered Comment: BaseJob
@@ -21,18 +23,18 @@ type BaseJob struct {
 	Project          string            `json:"project" db:"project" example:"abcd200"`                                                                       // The unique identifier of a project
 	Cluster          string            `json:"cluster" db:"cluster" example:"fritz"`                                                                         // The unique identifier of a cluster
 	SubCluster       string            `json:"subCluster" db:"subcluster" example:"main"`                                                                    // The unique identifier of a sub cluster
-	Partition        *string           `json:"partition,omitempty" db:"partition" example:"main"`                                                            // The Slurm partition to which the job was submitted
-	ArrayJobId       *int64            `json:"arrayJobId,omitempty" db:"array_job_id" example:"123000"`                                                      // The unique identifier of an array job
+	Partition        *string           `json:"partition" db:"partition" example:"main"`                                                                      // The Slurm partition to which the job was submitted
+	ArrayJobId       *int64            `json:"arrayJobId" db:"array_job_id" example:"123000"`                                                                // The unique identifier of an array job
 	NumNodes         int32             `json:"numNodes" db:"num_nodes" example:"2" minimum:"1"`                                                              // Number of nodes used (Min > 0)
-	NumHWThreads     *int32            `json:"numHwthreads,omitempty" db:"num_hwthreads" example:"20" minimum:"1"`                                           // Number of HWThreads used (Min > 0)
-	NumAcc           *int32            `json:"numAcc,omitempty" db:"num_acc" example:"2" minimum:"1"`                                                        // Number of accelerators used (Min > 0)
+	NumHWThreads     *int32            `json:"numHwthreads" db:"num_hwthreads" example:"20" minimum:"1"`                                                     // Number of HWThreads used (Min > 0)
+	NumAcc           *int32            `json:"numAcc" db:"num_acc" example:"2" minimum:"1"`                                                                  // Number of accelerators used (Min > 0)
 	Exclusive        int32             `json:"exclusive" db:"exclusive" example:"1" minimum:"0" maximum:"2"`                                                 // Specifies how nodes are shared: 0 - Shared among multiple jobs of multiple users, 1 - Job exclusive (Default), 2 - Shared among multiple jobs of same user
-	MonitoringStatus int32             `json:"monitoringStatus,omitempty" db:"monitoring_status" example:"1" minimum:"0" maximum:"3"`                        // State of monitoring system during job run: 0 - Disabled, 1 - Running or Archiving (Default), 2 - Archiving Failed, 3 - Archiving Successfull
-	SMT              *int32            `json:"smt,omitempty" db:"smt" example:"4"`                                                                           // SMT threads used by job
+	MonitoringStatus int32             `json:"monitoringStatus" db:"monitoring_status" example:"1" minimum:"0" maximum:"3"`                                  // State of monitoring system during job run: 0 - Disabled, 1 - Running or Archiving (Default), 2 - Archiving Failed, 3 - Archiving Successfull
+	SMT              *int32            `json:"smt" db:"smt" example:"4"`                                                                                     // SMT threads used by job
 	State            JobState          `json:"jobState" db:"job_state" example:"completed" enums:"completed,failed,cancelled,stopped,timeout,out_of_memory"` // Final state of job
 	Duration         int32             `json:"duration" db:"duration" example:"43200" minimum:"1"`                                                           // Duration of job in seconds (Min > 0)
-	Walltime         *int64            `json:"walltime,omitempty" db:"walltime" example:"86400" minimum:"1"`                                                 // Requested walltime of job in seconds (Min > 0)
-	Tags             []*Tag            `json:"tags,omitempty"`                                                                                               // List of tags
+	Walltime         *int64            `json:"walltime" db:"walltime" example:"86400" minimum:"1"`                                                           // Requested walltime of job in seconds (Min > 0)
+	Tags             []*schema.Tag     `json:"tags"`                                                                                                         // List of tags
 	RawResources     []byte            `json:"-" db:"resources"`                                                                                             // Resources used by job [As Bytes]
 	Resources        []*Resource       `json:"resources"`                                                                                                    // Resources used by job
 	RawMetaData      []byte            `json:"-" db:"meta_data"`                                                                                             // Additional information about the job [As Bytes]
@@ -89,15 +91,11 @@ var JobDefaults BaseJob = BaseJob{
 	MonitoringStatus: MonitoringStatusRunningOrArchiving,
 }
 
-type Unit struct {
-	Base   string  `json:"base"`
-	Prefix *string `json:"prefix,omitempty"`
-}
-
 // JobStatistics model
 // @Description Specification for job metric statistics.
 type JobStatistics struct {
-	Unit Unit    `json:"unit" example:"GHz"`
+	// Metric unit (see schema/unit.schema.json)
+	Unit string  `json:"unit" example:"GHz"`
 	Avg  float64 `json:"avg" example:"2500" minimum:"0"` // Job metric average
 	Min  float64 `json:"min" example:"2000" minimum:"0"` // Job metric minimum
 	Max  float64 `json:"max" example:"3000" minimum:"0"` // Job metric maximum
@@ -106,7 +104,6 @@ type JobStatistics struct {
 // Tag model
 // @Description Defines a tag using name and type.
 type Tag struct {
-	// The unique DB identifier of a tag
 	// The unique DB identifier of a tag
 	ID   int64  `json:"id" db:"id"`
 	Type string `json:"type" db:"tag_type" example:"Debug"`   // Tag Type
@@ -138,12 +135,12 @@ const (
 func (e *JobState) UnmarshalGQL(v interface{}) error {
 	str, ok := v.(string)
 	if !ok {
-		return fmt.Errorf("SCHEMA/JOB > enums must be strings")
+		return fmt.Errorf("enums must be strings")
 	}
 
 	*e = JobState(str)
 	if !e.Valid() {
-		return errors.New("SCHEMA/JOB > invalid job state")
+		return errors.New("invalid job state")
 	}
 
 	return nil

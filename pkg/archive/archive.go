@@ -8,13 +8,15 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
 )
 
+const Version = 1
+
 type ArchiveBackend interface {
-	Init(rawConfig json.RawMessage) error
+	Init(rawConfig json.RawMessage) (int, error)
 
 	LoadJobMeta(job *schema.Job) (*schema.JobMeta, error)
 
@@ -28,7 +30,12 @@ type ArchiveBackend interface {
 
 	GetClusters() []string
 
-	Iter() <-chan *schema.JobMeta
+	Iter(loadMetricData bool) <-chan JobContainer
+}
+
+type JobContainer struct {
+	Meta *schema.JobMeta
+	Data *schema.JobData
 }
 
 var cache *lrucache.Cache = lrucache.New(128 * 1024 * 1024)
@@ -54,10 +61,12 @@ func Init(rawConfig json.RawMessage, disableArchive bool) error {
 		return fmt.Errorf("ARCHIVE/ARCHIVE > unkown archive backend '%s''", kind.Kind)
 	}
 
-	if err := ar.Init(rawConfig); err != nil {
+	version, err := ar.Init(rawConfig)
+	if err != nil {
 		log.Error("Error while initializing archiveBackend")
 		return err
 	}
+	log.Infof("Load archive version %d", version)
 	return initClusterConfig()
 }
 

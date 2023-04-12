@@ -2,6 +2,7 @@ package units
 
 import (
 	"fmt"
+	"reflect"
 	"regexp"
 	"testing"
 )
@@ -197,5 +198,110 @@ func TestPrefixRegex(t *testing.T) {
 			t.Errorf("failed to compile regex '%s': %s", data.Regex, err.Error())
 		}
 		t.Logf("succussfully compiled regex '%s' for prefix %s", data.Regex, data.Long)
+	}
+}
+
+func TestConvertValue(t *testing.T) {
+	v := float64(103456)
+	ConvertValue(&v, "MB/s", "GB/s")
+
+	if v != 104.00 {
+		t.Errorf("Failed ConvertValue: Want 103.456, Got %f", v)
+	}
+}
+
+func TestConvertValueUp(t *testing.T) {
+	v := float64(10.3456)
+	ConvertValue(&v, "GB/s", "MB/s")
+
+	if v != 10346.00 {
+		t.Errorf("Failed ConvertValue: Want 10346.00, Got %f", v)
+	}
+}
+func TestConvertSeries(t *testing.T) {
+	s := []float64{2890031237, 23998994567, 389734042344, 390349424345}
+	r := []float64{3, 24, 390, 391}
+	ConvertSeries(s, "F/s", "GF/s")
+
+	if !reflect.DeepEqual(s, r) {
+		t.Errorf("Failed ConvertValue: Want 3, 24, 390, 391, Got %v", s)
+	}
+}
+
+func TestNormalizeValue(t *testing.T) {
+	var s string
+	v := float64(103456)
+
+	NormalizeValue(&v, "MB/s", &s)
+
+	if v != 104.00 {
+		t.Errorf("Failed ConvertValue: Want 104.00, Got %f", v)
+	}
+	if s != "GB/s" {
+		t.Errorf("Failed Prefix or unit: Want GB/s, Got %s", s)
+	}
+}
+
+func TestNormalizeValueNoPrefix(t *testing.T) {
+	var s string
+	v := float64(103458596)
+
+	NormalizeValue(&v, "F/s", &s)
+
+	if v != 104.00 {
+		t.Errorf("Failed ConvertValue: Want 104.00, Got %f", v)
+	}
+	if s != "MF/s" {
+		t.Errorf("Failed Prefix or unit: Want MF/s, Got %s", s)
+	}
+}
+
+func TestNormalizeValueKeep(t *testing.T) {
+	var s string
+	v := float64(345)
+
+	NormalizeValue(&v, "MB/s", &s)
+
+	if v != 345.00 {
+		t.Errorf("Failed ConvertValue: Want 104.00, Got %f", v)
+	}
+	if s != "MB/s" {
+		t.Errorf("Failed Prefix or unit: Want GB/s, Got %s", s)
+	}
+}
+
+func TestNormalizeValueDown(t *testing.T) {
+	var s string
+	v := float64(0.0004578)
+
+	NormalizeValue(&v, "GB/s", &s)
+
+	if v != 458.00 {
+		t.Errorf("Failed ConvertValue: Want 458.00, Got %f", v)
+	}
+	if s != "KB/s" {
+		t.Errorf("Failed Prefix or unit: Want KB/s, Got %s", s)
+	}
+}
+
+func TestNormalizeSeries(t *testing.T) {
+	var us string
+	s := []float64{2890031237, 23998994567, 389734042344, 390349424345}
+	r := []float64{3, 24, 390, 391}
+
+	total := 0.0
+	for _, number := range s {
+		total += number
+	}
+	avg := total / float64(len(s))
+
+	fmt.Printf("AVG: %e\n", avg)
+	NormalizeSeries(s, avg, "KB/s", &us)
+
+	if !reflect.DeepEqual(s, r) {
+		t.Errorf("Failed ConvertValue: Want 3, 24, 390, 391, Got %v", s)
+	}
+	if us != "TB/s" {
+		t.Errorf("Failed Prefix or unit: Want TB/s, Got %s", us)
 	}
 }

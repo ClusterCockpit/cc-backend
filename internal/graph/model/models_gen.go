@@ -59,8 +59,9 @@ type JobFilter struct {
 }
 
 type JobMetricWithName struct {
-	Name   string            `json:"name"`
-	Metric *schema.JobMetric `json:"metric"`
+	Name   string             `json:"name"`
+	Scope  schema.MetricScope `json:"scope"`
+	Metric *schema.JobMetric  `json:"metric"`
 }
 
 type JobResultList struct {

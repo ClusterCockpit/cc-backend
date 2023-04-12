@@ -194,12 +194,9 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 	res := []*model.JobMetricWithName{}
 	for name, md := range data {
 		for scope, metric := range md {
-			if metric.Scope != schema.MetricScope(scope) {
-				log.Panic("metric.Scope != schema.MetricScope(scope) : Should not happen!")
-			}
-
 			res = append(res, &model.JobMetricWithName{
 				Name:   name,
+				Scope:  scope,
 				Metric: metric,
 			})
 		}
@@ -296,6 +293,7 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 			for _, scopedMetric := range scopedMetrics {
 				host.Metrics = append(host.Metrics, &model.JobMetricWithName{
 					Name:   metric,
+					Scope:  schema.MetricScopeNode,
 					Metric: scopedMetric,
 				})
 			}
@@ -305,6 +303,15 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 	}
 
 	return nodeMetrics, nil
+}
+
+// NumberOfNodes is the resolver for the numberOfNodes field.
+func (r *subClusterResolver) NumberOfNodes(ctx context.Context, obj *schema.SubCluster) (int, error) {
+	nodeList, err := archive.ParseNodeList(obj.Nodes)
+	if err != nil {
+		return 0, err
+	}
+	return nodeList.NodeCount(), nil
 }
 
 // Cluster returns generated.ClusterResolver implementation.
@@ -319,7 +326,11 @@ func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResol
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
+// SubCluster returns generated.SubClusterResolver implementation.
+func (r *Resolver) SubCluster() generated.SubClusterResolver { return &subClusterResolver{r} }
+
 type clusterResolver struct{ *Resolver }
 type jobResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type subClusterResolver struct{ *Resolver }

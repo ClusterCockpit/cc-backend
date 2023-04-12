@@ -84,11 +84,6 @@
             "type": "integer",
             "exclusiveMinimum": 0
         },
-        "stopTime": {
-            "description": "Stop epoch time stamp in seconds",
-            "type": "integer",
-            "exclusiveMinimum": 0
-        },
         "duration": {
             "description": "Duration of job in seconds",
             "type": "integer",
@@ -198,8 +193,8 @@
                     "description": "Instructions executed per cycle",
                     "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
-                "cpu_used": {
-                    "description": "CPU active core utilization",
+                "cpu_user": {
+                    "description": "CPU user active core utilization",
                     "$ref": "embedfs://job-metric-statistics.schema.json"
                 },
                 "flops_dp": {
@@ -331,7 +326,7 @@
                 }
             },
             "required": [
-                "cpu_used",
+                "cpu_user",
                 "mem_used",
                 "flops_any",
                 "mem_bw"
@@ -343,13 +338,13 @@
         "user",
         "project",
         "cluster",
+        "subCluster",
         "numNodes",
         "exclusive",
         "startTime",
         "jobState",
         "duration",
         "resources",
-        "tags",
         "statistics"
     ]
 }

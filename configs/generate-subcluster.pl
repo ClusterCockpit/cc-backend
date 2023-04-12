@@ -1,10 +1,12 @@
 #!/usr/bin/env perl
+
 use strict;
 use warnings;
 use utf8;
 
 my %INFO;
 my %DOMAINS;
+
 my $SMT;
 my $numMemoryDomains;
 $DOMAINS{socket} = [];
@@ -198,7 +200,10 @@ END
 
     $INFO{gpus} .= join(",\n",@gpuStr);
     $INFO{gpus} .= "]\n";
+} else {
+    $INFO{gpus} = '';
 }
+
 
 print <<"END";
 {
@@ -219,10 +224,10 @@ print <<"END";
           "memoryDomain": [
           $INFO{memoryDomains}
           ],
-      $INFO{gpus}
           "core": [
-      $INFO{cores}
+          $INFO{cores}
           ]
+          $INFO{gpus}
       }
 }
 END

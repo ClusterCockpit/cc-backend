@@ -4,7 +4,10 @@
 // license that can be found in the LICENSE file.
 package schema
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
 
 type Accelerator struct {
 	ID    string `json:"id"`
@@ -16,23 +19,27 @@ type Topology struct {
 	Node         []int          `json:"node"`
 	Socket       [][]int        `json:"socket"`
 	MemoryDomain [][]int        `json:"memoryDomain"`
-	Die          [][]int        `json:"die"`
+	Die          [][]*int       `json:"die,omitempty"`
 	Core         [][]int        `json:"core"`
-	Accelerators []*Accelerator `json:"accelerators"`
+	Accelerators []*Accelerator `json:"accelerators,omitempty"`
+}
+
+type MetricValue struct {
+	Unit  Unit    `json:"unit"`
+	Value float64 `json:"value"`
 }
 
 type SubCluster struct {
-	Name            string    `json:"name"`
-	Nodes           string    `json:"nodes"`
-	NumberOfNodes   int       `json:"numberOfNodes"`
-	ProcessorType   string    `json:"processorType"`
-	SocketsPerNode  int       `json:"socketsPerNode"`
-	CoresPerSocket  int       `json:"coresPerSocket"`
-	ThreadsPerCore  int       `json:"threadsPerCore"`
-	FlopRateScalar  int       `json:"flopRateScalar"`
-	FlopRateSimd    int       `json:"flopRateSimd"`
-	MemoryBandwidth int       `json:"memoryBandwidth"`
-	Topology        *Topology `json:"topology"`
+	Name            string      `json:"name"`
+	Nodes           string      `json:"nodes"`
+	ProcessorType   string      `json:"processorType"`
+	SocketsPerNode  int         `json:"socketsPerNode"`
+	CoresPerSocket  int         `json:"coresPerSocket"`
+	ThreadsPerCore  int         `json:"threadsPerCore"`
+	FlopRateScalar  MetricValue `json:"flopRateScalar"`
+	FlopRateSimd    MetricValue `json:"flopRateSimd"`
+	MemoryBandwidth MetricValue `json:"memoryBandwidth"`
+	Topology        Topology    `json:"topology"`
 }
 
 type SubClusterConfig struct {
@@ -41,19 +48,20 @@ type SubClusterConfig struct {
 	Normal  float64 `json:"normal"`
 	Caution float64 `json:"caution"`
 	Alert   float64 `json:"alert"`
+	Remove  bool    `json:"remove"`
 }
 
 type MetricConfig struct {
 	Name        string              `json:"name"`
-	Unit        string              `json:"unit"`
+	Unit        Unit                `json:"unit"`
 	Scope       MetricScope         `json:"scope"`
-	Aggregation *string             `json:"aggregation"`
+	Aggregation string              `json:"aggregation"`
 	Timestep    int                 `json:"timestep"`
-	Peak        *float64            `json:"peak"`
-	Normal      *float64            `json:"normal"`
-	Caution     *float64            `json:"caution"`
-	Alert       *float64            `json:"alert"`
-	SubClusters []*SubClusterConfig `json:"subClusters"`
+	Peak        float64             `json:"peak"`
+	Normal      float64             `json:"normal"`
+	Caution     float64             `json:"caution"`
+	Alert       float64             `json:"alert"`
+	SubClusters []*SubClusterConfig `json:"subClusters,omitempty"`
 }
 
 type Cluster struct {
@@ -152,6 +160,15 @@ func (topo *Topology) GetMemoryDomainsFromHWThreads(
 	return memDoms, exclusive
 }
 
+// Temporary fix to convert back from int id to string id for accelerators
+func (topo *Topology) GetAcceleratorID(id int) (string, error) {
+	if id < len(topo.Accelerators) {
+		return topo.Accelerators[id].ID, nil
+	} else {
+		return "", fmt.Errorf("Index %d out of range", id)
+	}
+}
+
 func (topo *Topology) GetAcceleratorIDs() ([]int, error) {
 	accels := make([]int, 0)
 	for _, accel := range topo.Accelerators {
@@ -162,13 +179,4 @@ func (topo *Topology) GetAcceleratorIDs() ([]int, error) {
 		accels = append(accels, id)
 	}
 	return accels, nil
-}
-
-func (topo *Topology) GetAcceleratorIndex(id string) (int, bool) {
-	for idx, accel := range topo.Accelerators {
-		if accel.ID == id {
-			return idx, true
-		}
-	}
-	return -1, false
 }

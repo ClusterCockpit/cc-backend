@@ -251,7 +251,7 @@ func (pdb *PrometheusDataRepository) RowToSeries(
 	return schema.Series{
 		Hostname: hostname,
 		Data:     values,
-		Statistics: &schema.MetricStatistics{
+		Statistics: schema.MetricStatistics{
 			Avg: mean,
 			Min: min,
 			Max: max,
@@ -323,7 +323,6 @@ func (pdb *PrometheusDataRepository) LoadData(
 			if !ok {
 				jobMetric = &schema.JobMetric{
 					Unit:     metricConfig.Unit,
-					Scope:    scope,
 					Timestep: metricConfig.Timestep,
 					Series:   make([]schema.Series, 0),
 				}
@@ -362,7 +361,7 @@ func (pdb *PrometheusDataRepository) LoadStats(
 	for metric, metricData := range data {
 		stats[metric] = make(map[string]schema.MetricStatistics)
 		for _, series := range metricData[schema.MetricScopeNode].Series {
-			stats[metric][series.Hostname] = *series.Statistics
+			stats[metric][series.Hostname] = series.Statistics
 		}
 	}
 
@@ -432,7 +431,6 @@ func (pdb *PrometheusDataRepository) LoadNodeData(
 				// output per host and metric
 				hostdata[metric] = append(hostdata[metric], &schema.JobMetric{
 					Unit:     metricConfig.Unit,
-					Scope:    scope,
 					Timestep: metricConfig.Timestep,
 					Series:   []schema.Series{pdb.RowToSeries(from, step, steps, row)},
 				},

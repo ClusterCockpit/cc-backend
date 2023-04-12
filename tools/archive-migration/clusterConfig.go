@@ -2,29 +2,28 @@
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
-package archive
+package main
 
 import (
 	"errors"
 	"fmt"
 
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
 )
 
-var Clusters []*schema.Cluster
-var nodeLists map[string]map[string]NodeList
+var Clusters []*Cluster
+var nodeLists map[string]map[string]archive.NodeList
 
 func initClusterConfig() error {
 
-	Clusters = []*schema.Cluster{}
-	nodeLists = map[string]map[string]NodeList{}
+	Clusters = []*Cluster{}
+	nodeLists = map[string]map[string]archive.NodeList{}
 
 	for _, c := range ar.GetClusters() {
 
 		cluster, err := ar.LoadClusterCfg(c)
 		if err != nil {
-			log.Warnf("Error while loading cluster config for cluster '%v'", c)
 			return err
 		}
 
@@ -53,15 +52,15 @@ func initClusterConfig() error {
 
 		Clusters = append(Clusters, cluster)
 
-		nodeLists[cluster.Name] = make(map[string]NodeList)
+		nodeLists[cluster.Name] = make(map[string]archive.NodeList)
 		for _, sc := range cluster.SubClusters {
-			if sc.Nodes == "*" {
+			if sc.Nodes == "" {
 				continue
 			}
 
-			nl, err := ParseNodeList(sc.Nodes)
+			nl, err := archive.ParseNodeList(sc.Nodes)
 			if err != nil {
-				return fmt.Errorf("ARCHIVE/CLUSTERCONFIG > in %s/cluster.json: %w", cluster.Name, err)
+				return fmt.Errorf("in %s/cluster.json: %w", cluster.Name, err)
 			}
 			nodeLists[cluster.Name][sc.Name] = nl
 		}
@@ -70,7 +69,7 @@ func initClusterConfig() error {
 	return nil
 }
 
-func GetCluster(cluster string) *schema.Cluster {
+func GetCluster(cluster string) *Cluster {
 
 	for _, c := range Clusters {
 		if c.Name == cluster {
@@ -80,20 +79,21 @@ func GetCluster(cluster string) *schema.Cluster {
 	return nil
 }
 
-func GetSubCluster(cluster, subcluster string) (*schema.SubCluster, error) {
+func GetSubCluster(cluster, subcluster string) *SubCluster {
+
 	for _, c := range Clusters {
 		if c.Name == cluster {
 			for _, p := range c.SubClusters {
 				if p.Name == subcluster {
-					return p, nil
+					return p
 				}
 			}
 		}
 	}
-	return nil, fmt.Errorf("Subcluster '%v' not found for cluster '%v', or cluster '%v' not configured!", subcluster, cluster, cluster)
+	return nil
 }
 
-func GetMetricConfig(cluster, metric string) *schema.MetricConfig {
+func GetMetricConfig(cluster, metric string) *MetricConfig {
 
 	for _, c := range Clusters {
 		if c.Name == cluster {
@@ -109,11 +109,11 @@ func GetMetricConfig(cluster, metric string) *schema.MetricConfig {
 
 // AssignSubCluster sets the `job.subcluster` property of the job based
 // on its cluster and resources.
-func AssignSubCluster(job *schema.BaseJob) error {
+func AssignSubCluster(job *BaseJob) error {
 
 	cluster := GetCluster(job.Cluster)
 	if cluster == nil {
-		return fmt.Errorf("ARCHIVE/CLUSTERCONFIG > unkown cluster: %v", job.Cluster)
+		return fmt.Errorf("unkown cluster: %#v", job.Cluster)
 	}
 
 	if job.SubCluster != "" {
@@ -122,11 +122,11 @@ func AssignSubCluster(job *schema.BaseJob) error {
 				return nil
 			}
 		}
-		return fmt.Errorf("ARCHIVE/CLUSTERCONFIG > already assigned subcluster %v unkown (cluster: %v)", job.SubCluster, job.Cluster)
+		return fmt.Errorf("already assigned subcluster %#v unkown (cluster: %#v)", job.SubCluster, job.Cluster)
 	}
 
 	if len(job.Resources) == 0 {
-		return fmt.Errorf("ARCHIVE/CLUSTERCONFIG > job without any resources/hosts")
+		return fmt.Errorf("job without any resources/hosts")
 	}
 
 	host0 := job.Resources[0].Hostname
@@ -137,12 +137,12 @@ func AssignSubCluster(job *schema.BaseJob) error {
 		}
 	}
 
-	if cluster.SubClusters[0].Nodes == "*" {
+	if cluster.SubClusters[0].Nodes == "" {
 		job.SubCluster = cluster.SubClusters[0].Name
 		return nil
 	}
 
-	return fmt.Errorf("ARCHIVE/CLUSTERCONFIG > no subcluster found for cluster %v and host %v", job.Cluster, host0)
+	return fmt.Errorf("no subcluster found for cluster %#v and host %#v", job.Cluster, host0)
 }
 
 func GetSubClusterByNode(cluster, hostname string) (string, error) {
@@ -155,12 +155,12 @@ func GetSubClusterByNode(cluster, hostname string) (string, error) {
 
 	c := GetCluster(cluster)
 	if c == nil {
-		return "", fmt.Errorf("ARCHIVE/CLUSTERCONFIG > unkown cluster: %v", cluster)
+		return "", fmt.Errorf("unkown cluster: %#v", cluster)
 	}
 
 	if c.SubClusters[0].Nodes == "" {
 		return c.SubClusters[0].Name, nil
 	}
 
-	return "", fmt.Errorf("ARCHIVE/CLUSTERCONFIG > no subcluster found for cluster %v and host %v", cluster, hostname)
+	return "", fmt.Errorf("no subcluster found for cluster %#v and host %#v", cluster, hostname)
 }

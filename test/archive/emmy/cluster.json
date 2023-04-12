@@ -2,26 +2,686 @@
     "name": "emmy",
     "subClusters": [
         {
-            "name": "main",
-            "processorType": "Intel IvyBridge",
-            "socketsPerNode": 2,
-            "coresPerSocket": 10,
-            "threadsPerCore": 2,
-            "flopRateScalar": 44,
-            "flopRateSimd": 704,
-            "memoryBandwidth": 80,
+            "name": "haswell",
+            "processorType": "Intel Xeon E3-1240 v3",
+            "socketsPerNode": 1,
+            "coresPerSocket": 4,
+            "threadsPerCore": 1,
+            "flopRateScalar": {
+                "unit": {
+                    "prefix": "G",
+                    "base": "F/s"
+                },
+                "value": 14
+            },
+            "flopRateSimd": {
+                "unit": {
+                    "prefix": "G",
+                    "base": "F/s"
+                },
+                "value": 112
+            },
+            "memoryBandwidth": {
+                "unit": {
+                    "prefix": "G",
+                    "base": "B/s"
+                },
+                "value": 24
+            },
+            "nodes": "w11[27-45,49-63,69-72]",
             "topology": {
-                "node": [0,20,1,21,2,22,3,23,4,24,5,25,6,26,7,27,8,28,9,29,10,30,11,31,12,32,13,33,14,34,15,35,16,36,17,37,18,38,19,39],
+                "node": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
                 "socket": [
-                    [0,20,1,21,2,22,3,23,4,24,5,25,6,26,7,27,8,28,9,29],
-                    [10,30,11,31,12,32,13,33,14,34,15,35,16,36,17,37,18,38,19,39]
+                    [
+                        0,
+                        1,
+                        2,
+                        3
+                    ]
                 ],
                 "memoryDomain": [
-                    [0,20,1,21,2,22,3,23,4,24,5,25,6,26,7,27,8,28,9,29],
-                    [10,30,11,31,12,32,13,33,14,34,15,35,16,36,17,37,18,38,19,39]
+                    [
+                        0,
+                        1,
+                        2,
+                        3
+                    ]
                 ],
                 "core": [
-                    [0,20],[1,21],[2,22],[3,23],[4,24],[5,25],[6,26],[7,27],[8,28],[9,29],[10,30],[11,31],[12,32],[13,33],[14,34],[15,35],[16,36],[17,37],[18,38],[19,39]
+                    [
+                        0
+                    ],
+                    [
+                        1
+                    ],
+                    [
+                        2
+                    ],
+                    [
+                        3
+                    ]
+                ]
+            }
+        },
+        {
+            "name": "skylake",
+            "processorType": "Intel Xeon E3-1240 v5 ",
+            "socketsPerNode": 1,
+            "coresPerSocket": 4,
+            "threadsPerCore": 1,
+            "flopRateScalar": {
+                "unit": {
+                    "prefix": "G",
+                    "base": "F/s"
+                },
+                "value": 14
+            },
+            "flopRateSimd": {
+                "unit": {
+                    "prefix": "G",
+                    "base": "F/s"
+                },
+                "value": 112
+            },
+            "memoryBandwidth": {
+                "unit": {
+                    "prefix": "G",
+                    "base": "B/s"
+                },
+                "value": 64
+            },
+            "nodes": "w12[01-08],w13[01-31,33-56]",
+            "topology": {
+                "node": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "socket": [
+                    [
+                        0,
+                        1,
+                        2,
+                        3
+                    ]
+                ],
+                "memoryDomain": [
+                    [
+                        0,
+                        1,
+                        2,
+                        3
+                    ]
+                ],
+                "core": [
+                    [
+                        0
+                    ],
+                    [
+                        1
+                    ],
+                    [
+                        2
+                    ],
+                    [
+                        3
+                    ]
+                ]
+            }
+        },
+        {
+            "name": "kabylake",
+            "processorType": "Intel Xeon E3-1240 v6",
+            "socketsPerNode": 1,
+            "coresPerSocket": 4,
+            "threadsPerCore": 1,
+            "flopRateScalar": {
+                "unit": {
+                    "prefix": "G",
+                    "base": "F/s"
+                },
+                "value": 14
+            },
+            "flopRateSimd": {
+                "unit": {
+                    "prefix": "G",
+                    "base": "F/s"
+                },
+                "value": 112
+            },
+            "memoryBandwidth": {
+                "unit": {
+                    "prefix": "G",
+                    "base": "B/s"
+                },
+                "value": 24
+            },
+            "nodes": "w14[01-56],w15[01-05,07-56]",
+            "topology": {
+                "node": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "socket": [
+                    [
+                        0,
+                        1,
+                        2,
+                        3
+                    ]
+                ],
+                "memoryDomain": [
+                    [
+                        0,
+                        1,
+                        2,
+                        3
+                    ]
+                ],
+                "core": [
+                    [
+                        0
+                    ],
+                    [
+                        1
+                    ],
+                    [
+                        2
+                    ],
+                    [
+                        3
+                    ]
+                ]
+            }
+        },
+        {
+            "name": "icelake",
+            "processorType": "Intel Xeon Gold 6326",
+            "socketsPerNode": 2,
+            "coresPerSocket": 16,
+            "threadsPerCore": 1,
+            "flopRateScalar": {
+                "unit": {
+                    "prefix": "G",
+                    "base": "F/s"
+                },
+                "value": 432
+            },
+            "flopRateSimd": {
+                "unit": {
+                    "prefix": "G",
+                    "base": "F/s"
+                },
+                "value": 9216
+            },
+            "memoryBandwidth": {
+                "unit": {
+                    "prefix": "G",
+                    "base": "B/s"
+                },
+                "value": 350
+            },
+            "nodes": "w22[01-35],w23[01-35]",
+            "topology": {
+                "node": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11,
+                    12,
+                    13,
+                    14,
+                    15,
+                    16,
+                    17,
+                    18,
+                    19,
+                    20,
+                    21,
+                    22,
+                    23,
+                    24,
+                    25,
+                    26,
+                    27,
+                    28,
+                    29,
+                    30,
+                    31,
+                    32,
+                    33,
+                    34,
+                    35,
+                    36,
+                    37,
+                    38,
+                    39,
+                    40,
+                    41,
+                    42,
+                    43,
+                    44,
+                    45,
+                    46,
+                    47,
+                    48,
+                    49,
+                    50,
+                    51,
+                    52,
+                    53,
+                    54,
+                    55,
+                    56,
+                    57,
+                    58,
+                    59,
+                    60,
+                    61,
+                    62,
+                    63,
+                    64,
+                    65,
+                    66,
+                    67,
+                    68,
+                    69,
+                    70,
+                    71
+                ],
+                "socket": [
+                    [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10,
+                        11,
+                        12,
+                        13,
+                        14,
+                        15,
+                        16,
+                        17,
+                        18,
+                        19,
+                        20,
+                        21,
+                        22,
+                        23,
+                        24,
+                        25,
+                        26,
+                        27,
+                        28,
+                        29,
+                        30,
+                        31,
+                        32,
+                        33,
+                        34,
+                        35
+                    ],
+                    [
+                        36,
+                        37,
+                        38,
+                        39,
+                        40,
+                        41,
+                        42,
+                        43,
+                        44,
+                        45,
+                        46,
+                        47,
+                        48,
+                        49,
+                        50,
+                        51,
+                        52,
+                        53,
+                        54,
+                        55,
+                        56,
+                        57,
+                        58,
+                        59,
+                        60,
+                        61,
+                        62,
+                        63,
+                        64,
+                        65,
+                        66,
+                        67,
+                        68,
+                        69,
+                        70,
+                        71
+                    ]
+                ],
+                "memoryDomain": [
+                    [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10,
+                        11,
+                        12,
+                        13,
+                        14,
+                        15,
+                        16,
+                        17
+                    ],
+                    [
+                        18,
+                        19,
+                        20,
+                        21,
+                        22,
+                        23,
+                        24,
+                        25,
+                        26,
+                        27,
+                        28,
+                        29,
+                        30,
+                        31,
+                        32,
+                        33,
+                        34,
+                        35
+                    ],
+                    [
+                        36,
+                        37,
+                        38,
+                        39,
+                        40,
+                        41,
+                        42,
+                        43,
+                        44,
+                        45,
+                        46,
+                        47,
+                        48,
+                        49,
+                        50,
+                        51,
+                        52,
+                        53
+                    ],
+                    [
+                        54,
+                        55,
+                        56,
+                        57,
+                        58,
+                        59,
+                        60,
+                        61,
+                        62,
+                        63,
+                        64,
+                        65,
+                        66,
+                        67,
+                        68,
+                        69,
+                        70,
+                        71
+                    ]
+                ],
+                "core": [
+                    [
+                        0
+                    ],
+                    [
+                        1
+                    ],
+                    [
+                        2
+                    ],
+                    [
+                        3
+                    ],
+                    [
+                        4
+                    ],
+                    [
+                        5
+                    ],
+                    [
+                        6
+                    ],
+                    [
+                        7
+                    ],
+                    [
+                        8
+                    ],
+                    [
+                        9
+                    ],
+                    [
+                        10
+                    ],
+                    [
+                        11
+                    ],
+                    [
+                        12
+                    ],
+                    [
+                        13
+                    ],
+                    [
+                        14
+                    ],
+                    [
+                        15
+                    ],
+                    [
+                        16
+                    ],
+                    [
+                        17
+                    ],
+                    [
+                        18
+                    ],
+                    [
+                        19
+                    ],
+                    [
+                        20
+                    ],
+                    [
+                        21
+                    ],
+                    [
+                        22
+                    ],
+                    [
+                        23
+                    ],
+                    [
+                        24
+                    ],
+                    [
+                        25
+                    ],
+                    [
+                        26
+                    ],
+                    [
+                        27
+                    ],
+                    [
+                        28
+                    ],
+                    [
+                        29
+                    ],
+                    [
+                        30
+                    ],
+                    [
+                        31
+                    ],
+                    [
+                        32
+                    ],
+                    [
+                        33
+                    ],
+                    [
+                        34
+                    ],
+                    [
+                        35
+                    ],
+                    [
+                        36
+                    ],
+                    [
+                        37
+                    ],
+                    [
+                        38
+                    ],
+                    [
+                        39
+                    ],
+                    [
+                        40
+                    ],
+                    [
+                        41
+                    ],
+                    [
+                        42
+                    ],
+                    [
+                        43
+                    ],
+                    [
+                        44
+                    ],
+                    [
+                        45
+                    ],
+                    [
+                        46
+                    ],
+                    [
+                        47
+                    ],
+                    [
+                        48
+                    ],
+                    [
+                        49
+                    ],
+                    [
+                        50
+                    ],
+                    [
+                        51
+                    ],
+                    [
+                        52
+                    ],
+                    [
+                        53
+                    ],
+                    [
+                        54
+                    ],
+                    [
+                        55
+                    ],
+                    [
+                        56
+                    ],
+                    [
+                        57
+                    ],
+                    [
+                        58
+                    ],
+                    [
+                        59
+                    ],
+                    [
+                        60
+                    ],
+                    [
+                        61
+                    ],
+                    [
+                        62
+                    ],
+                    [
+                        63
+                    ],
+                    [
+                        64
+                    ],
+                    [
+                        65
+                    ],
+                    [
+                        66
+                    ],
+                    [
+                        67
+                    ],
+                    [
+                        68
+                    ],
+                    [
+                        69
+                    ],
+                    [
+                        70
+                    ],
+                    [
+                        71
+                    ]
                 ]
             }
         }
@@ -29,113 +689,286 @@
     "metricConfig": [
         {
             "name": "cpu_load",
-            "scope": "hwthread",
-            "unit": "load",
-            "timestep": 60,
-            "peak": 40,
-            "normal": 20,
-            "caution": 15,
-            "alert": 10
-        },
-        {
-            "name": "mem_used",
             "scope": "node",
-            "unit": "GB",
+            "unit": {
+                "base": ""
+            },
+            "aggregation": "avg",
             "timestep": 60,
-            "peak": 64,
-            "normal": 20,
-            "caution": 40,
-            "alert": 55
+            "peak": 4,
+            "normal": 4,
+            "caution": 4,
+            "alert": 1,
+            "subClusters": [
+                {
+                    "name": "icelake",
+                    "peak": 32,
+                    "normal": 32,
+                    "caution": 16,
+                    "alert": 1
+                }
+            ]
         },
         {
-            "name": "flops_any",
+            "name": "cpu_user",
             "scope": "hwthread",
-            "unit": "GF/s",
+            "unit": {
+                "base": ""
+            },
+            "aggregation": "avg",
             "timestep": 60,
-            "peak": 704,
-            "normal": 100,
-            "caution": 20,
-            "alert": 2
-        },
-        {
-            "name": "flops_sp",
-            "scope": "hwthread",
-            "unit": "GF/s",
-            "timestep": 60,
-            "peak": 704,
-            "normal": 100,
-            "caution": 20,
-            "alert": 2
-        },
-        {
-            "name": "flops_dp",
-            "scope": "hwthread",
-            "unit": "GF/s",
-            "timestep": 60,
-            "peak": 350,
+            "peak": 100,
             "normal": 50,
-            "caution": 10,
-            "alert": 2
-        },
-        {
-            "name": "mem_bw",
-            "scope": "memoryDomain",
-            "unit": "GB/s",
-            "timestep": 60,
-            "peak": 80,
-            "normal": 30,
-            "caution": 10,
-            "alert": 5
+            "caution": 20,
+            "alert": 10,
+            "subClusters": [
+                {
+                    "name": "haswell",
+                    "remove": true
+                },
+                {
+                    "name": "skylake",
+                    "remove": true
+                }
+            ]
         },
         {
             "name": "ipc",
             "scope": "hwthread",
-            "unit": "IPC",
+            "unit": {
+                "base": "IPC"
+            },
+            "aggregation": "avg",
             "timestep": 60,
-            "peak": 80,
+            "peak": 4,
+            "normal": 2,
+            "caution": 1,
+            "alert": 0.25
+        },
+        {
+            "name": "mem_used",
+            "scope": "node",
+            "unit": {
+                "prefix": "G",
+                "base": "B"
+            },
+            "aggregation": "sum",
+            "timestep": 60,
+            "peak": 32,
+            "normal": 16,
+            "caution": 28,
+            "alert": 30,
+            "subClusters": [
+                {
+                    "name": "icelake",
+                    "peak": 256,
+                    "normal": 128,
+                    "caution": 245,
+                    "alert": 255
+                }
+            ]
+        },
+        {
+            "name": "flops_any",
+            "scope": "hwthread",
+            "unit": {
+                "prefix": "G",
+                "base": "F/s"
+            },
+            "aggregation": "sum",
+            "timestep": 60,
+            "peak": 112,
+            "normal": 50,
+            "caution": 20,
+            "alert": 10,
+            "subClusters": [
+                {
+                    "name": "icelake",
+                    "peak": 9216,
+                    "normal": 432,
+                    "caution": 100,
+                    "alert": 50
+                }
+            ]
+        },
+        {
+            "name": "flops_dp",
+            "scope": "hwthread",
+            "unit": {
+                "prefix": "G",
+                "base": "F/s"
+            },
+            "aggregation": "sum",
+            "timestep": 60,
+            "peak": 56,
             "normal": 30,
-            "caution": 10,
-            "alert": 5
+            "caution": 15,
+            "alert": 5,
+            "subClusters": [
+                {
+                    "name": "icelake",
+                    "peak": 4108,
+                    "normal": 220,
+                    "caution": 60,
+                    "alert": 30
+                }
+            ]
+        },
+        {
+            "name": "flops_sp",
+            "scope": "hwthread",
+            "unit": {
+                "prefix": "G",
+                "base": "F/s"
+            },
+            "aggregation": "sum",
+            "timestep": 60,
+            "peak": 112,
+            "normal": 50,
+            "caution": 20,
+            "alert": 10,
+            "subClusters": [
+                {
+                    "name": "icelake",
+                    "peak": 9216,
+                    "normal": 432,
+                    "caution": 100,
+                    "alert": 50
+                }
+            ]
+        },
+        {
+            "name": "mem_bw",
+            "scope": "socket",
+            "unit": {
+                "prefix": "G",
+                "base": "B/s"
+            },
+            "aggregation": "sum",
+            "timestep": 60,
+            "peak": 24,
+            "normal": 10,
+            "caution": 5,
+            "alert": 2,
+            "subClusters": [
+                {
+                    "name": "icelake",
+                    "peak": 350,
+                    "normal": 100,
+                    "caution": 50,
+                    "alert": 25
+                }
+            ]
         },
         {
             "name": "clock",
             "scope": "hwthread",
-            "unit": "MHz",
+            "unit": {
+                "prefix": "M",
+                "base": "Hz"
+            },
+            "aggregation": "avg",
             "timestep": 60,
-            "peak": 80,
-            "normal": 30,
-            "caution": 10,
-            "alert": 5
+            "peak": 2900,
+            "normal": 2900,
+            "caution": 1500,
+            "alert": 1200,
+            "subClusters": [
+                {
+                    "name": "haswell",
+                    "peak": 3500,
+                    "normal": 3500,
+                    "caution": 1500,
+                    "alert": 1200
+                },
+                {
+                    "name": "skylake",
+                    "peak": 3500,
+                    "normal": 3500,
+                    "caution": 1500,
+                    "alert": 1200
+                },
+                {
+                    "name": "kabylake",
+                    "peak": 3700,
+                    "normal": 3700,
+                    "caution": 1500,
+                    "alert": 1200
+                }
+            ]
         },
         {
-            "name": "rapl_power",
-            "scope": "socket",
-            "unit": "W",
+            "name": "vectorization_ratio",
+            "scope": "hwthread",
+            "unit": {
+                "base": ""
+            },
+            "aggregation": "avg",
             "timestep": 60,
-            "peak": 80,
-            "normal": 30,
-            "caution": 10,
-            "alert": 5
-        },
-        {
-            "name": "ib_bw",
-            "scope": "node",
-            "unit": "GB/s",
-            "timestep": 60,
-            "peak": 40,
-            "normal": 20,
-            "caution": 15,
+            "peak": 100,
+            "normal": 60,
+            "caution": 40,
             "alert": 10
         },
         {
-            "name": "lustre_bw",
+            "name": "nfs4_read",
             "scope": "node",
-            "unit": "GB/s",
+            "unit": {
+                "prefix": "M",
+                "base": "B/s"
+            },
+            "aggregation": "sum",
             "timestep": 60,
-            "peak": 40,
-            "normal": 20,
-            "caution": 15,
-            "alert": 10
+            "peak": 6,
+            "normal": 4,
+            "caution": 2,
+            "alert": 1,
+            "subClusters": [
+                {
+                    "name": "haswell",
+                    "remove": true
+                }
+            ]
+        },
+        {
+            "name": "nfs4_write",
+            "scope": "node",
+            "unit": {
+                "prefix": "M",
+                "base": "B/s"
+            },
+            "aggregation": "sum",
+            "timestep": 60,
+            "peak": 6,
+            "normal": 4,
+            "caution": 2,
+            "alert": 1,
+            "subClusters": [
+                {
+                    "name": "haswell",
+                    "remove": true
+                }
+            ]
+        },
+        {
+            "name": "nfs4_total",
+            "scope": "node",
+            "unit": {
+                "prefix": "M",
+                "base": "B/s"
+            },
+            "aggregation": "sum",
+            "timestep": 60,
+            "peak": 6,
+            "normal": 4,
+            "caution": 2,
+            "alert": 1,
+            "subClusters": [
+                {
+                    "name": "haswell",
+                    "remove": true
+                }
+            ]
         }
     ]
 }

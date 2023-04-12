@@ -30,8 +30,8 @@
     let rooflineMaxY
     let colWidth
     let numBins = 50
-    const ccconfig = getContext('cc-config'),
-          metricConfig = getContext('metrics')
+    const ccconfig = getContext('cc-config')
+    const metricConfig = getContext('metrics')
 
     let metricsInHistograms = ccconfig.analysis_view_histogramMetrics,
         metricsInScatterplots = ccconfig.analysis_view_scatterPlotMetrics
@@ -161,24 +161,29 @@
                     <Histogram
                         width={colWidth - 25} height={300 * 0.5}
                         data={$statsQuery.data.topUsers.sort((a, b) => b.count - a.count).map(({ count }, idx) => ({ count, value: idx }))}
-                        label={(x) => x < $statsQuery.data.topUsers.length ? $statsQuery.data.topUsers[Math.floor(x)].name : '0'} />
+                        label={(x) => x < $statsQuery.data.topUsers.length ? $statsQuery.data.topUsers[Math.floor(x)].name : 'No Users'} 
+                        ylabel="Node Hours [h]"/>
                 {/key}
             </div>
         </div>
         <div class="col-3">
             {#key $statsQuery.data.stats[0].histDuration}
-                <h4>Walltime Distribution</h4>
+                <h4>Duration Distribution</h4>
                 <Histogram
-                    width={colWidth - 25} height={300}
-                    data={$statsQuery.data.stats[0].histDuration} />
+                    width={colWidth - 25}
+                    data={$statsQuery.data.stats[0].histDuration} 
+                    xlabel="Current Runtimes [h]" 
+                    ylabel="Number of Jobs"/>
             {/key}
         </div>
         <div class="col-3">
             {#key $statsQuery.data.stats[0].histNumNodes}
                 <h4>Number of Nodes Distribution</h4>
                 <Histogram
-                    width={colWidth - 25} height={300}
-                    data={$statsQuery.data.stats[0].histNumNodes} />
+                    width={colWidth - 25}
+                    data={$statsQuery.data.stats[0].histNumNodes} 
+                    xlabel="Allocated Nodes [#]"
+                    ylabel="Number of Jobs" />
             {/key}
         </div>
         <div class="col-3">
@@ -189,7 +194,7 @@
             {:else if $rooflineQuery.data && cluster}
                 {#key $rooflineQuery.data}
                     <Roofline
-                        width={colWidth - 25} height={300}
+                        width={colWidth - 25}
                         tiles={$rooflineQuery.data.rooflineHeatmap}
                         cluster={cluster.subClusters.length == 1 ? cluster.subClusters[0] : null}
                         maxY={rooflineMaxY} />
@@ -211,6 +216,7 @@
         <Col>
             <Card body>
                 These histograms show the distribution of the averages of all jobs matching the filters. Each job/average is weighted by its node hours.
+                Note that some metrics could be disabled for specific subclusters as per metriConfig and thus could affect shown average values.
             </Card>
             <br/>
         </Col>
@@ -224,12 +230,16 @@
                     $footprintsQuery.data.footprints.nodehours,
                     $footprintsQuery.data.footprints.metrics.find(f => f.metric == metric).data, numBins) }))}
                 itemsPerRow={ccconfig.plot_view_plotsPerRow}>
-                <h4>{item.metric} [{metricConfig(cluster.name, item.metric)?.unit}]</h4>
+                <h4>Average Distribution of '{item.metric}'</h4>
 
                 <Histogram
                     width={width} height={250}
                     min={item.min} max={item.max}
-                    data={item.bins} label={item.label} />
+                    data={item.bins} 
+                    label={item.label}
+                    xlabel={`${item.metric} Average [${(metricConfig(cluster.name, item.metric)?.unit?.prefix ? metricConfig(cluster.name, item.metric)?.unit?.prefix : '') +
+                                                       (metricConfig(cluster.name, item.metric)?.unit?.base   ? metricConfig(cluster.name, item.metric)?.unit?.base   : '')}]`}
+                    ylabel="Node Hours [h]" />
             </PlotTable>
         </Col>
     </Row>
@@ -238,6 +248,7 @@
         <Col>
             <Card body>
                 Each circle represents one job. The size of a circle is proportional to its node hours. Darker circles mean multiple jobs have the same averages for the respective metrics.
+                Note that some metrics could be disabled for specific subclusters as per metriConfig and thus could affect shown average values.
             </Card>
             <br/>
         </Col>
@@ -254,12 +265,18 @@
 
                 <ScatterPlot
                     width={width} height={250} color={"rgba(0, 102, 204, 0.33)"}
-                    xLabel={`${item.m1} [${metricConfig(cluster.name, item.m1)?.unit}]`}
-                    yLabel={`${item.m2} [${metricConfig(cluster.name, item.m2)?.unit}]`}
+                    xLabel={`${item.m1} [${(metricConfig(cluster.name, item.m1)?.unit?.prefix ? metricConfig(cluster.name, item.m1)?.unit?.prefix : '') + 
+                                           (metricConfig(cluster.name, item.m1)?.unit?.base   ? metricConfig(cluster.name, item.m1)?.unit?.base   : '')}]`}
+                    yLabel={`${item.m2} [${(metricConfig(cluster.name, item.m2)?.unit?.prefix ? metricConfig(cluster.name, item.m2)?.unit?.prefix : '') + 
+                                           (metricConfig(cluster.name, item.m2)?.unit?.base   ? metricConfig(cluster.name, item.m2)?.unit?.base   : '')}]`}
                     X={item.f1} Y={item.f2} S={$footprintsQuery.data.footprints.nodehours} />
             </PlotTable>
         </Col>
     </Row>
 {/if}
 
-
+<style>
+    h4 {
+        text-align: center;
+    }
+</style>

@@ -3,7 +3,10 @@ package units
 
 import (
 	"fmt"
+	"math"
 	"strings"
+
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
 type unit struct {
@@ -25,7 +28,9 @@ type Unit interface {
 
 var INVALID_UNIT = NewUnit("foobar")
 
-// Valid checks whether a unit is a valid unit. A unit is valid if it has at least a prefix and a measure. The unit denominator is optional.
+// Valid checks whether a unit is a valid unit.
+// A unit is valid if it has at least a prefix and a measure.
+// The unit denominator is optional.
 func (u *unit) Valid() bool {
 	return u.prefix != InvalidPrefix && u.measure != InvalidMeasure
 }
@@ -69,6 +74,90 @@ func (u *unit) getMeasure() Measure {
 
 func (u *unit) getUnitDenominator() Measure {
 	return u.divMeasure
+}
+
+func ConvertValue(v *float64, from string, to string) {
+	uf := NewUnit(from)
+	ut := NewUnit(to)
+	factor := float64(uf.getPrefix()) / float64(ut.getPrefix())
+	*v = math.Ceil(*v * factor)
+}
+
+func ConvertSeries(s []float64, from string, to string) {
+	uf := NewUnit(from)
+	ut := NewUnit(to)
+	factor := float64(uf.getPrefix()) / float64(ut.getPrefix())
+
+	for i := 0; i < len(s); i++ {
+		s[i] = math.Ceil(s[i] * factor)
+	}
+}
+
+func getNormalizationFactor(v float64) (float64, int) {
+	count := 0
+	scale := -3
+
+	if v > 1000.0 {
+		for v > 1000.0 {
+			v *= 1e-3
+			count++
+		}
+	} else {
+		for v < 1.0 {
+			v *= 1e3
+			count++
+		}
+		scale = 3
+	}
+	return math.Pow10(count * scale), count * scale
+}
+
+func NormalizeValue(v *float64, us string, nu *string) {
+	u := NewUnit(us)
+	f, e := getNormalizationFactor((*v))
+	*v = math.Ceil(*v * f)
+	u.setPrefix(NewPrefixFromFactor(u.getPrefix(), e))
+	*nu = u.Short()
+}
+
+func NormalizeSeries(s []float64, avg float64, us string, nu *string) {
+	u := NewUnit(us)
+	f, e := getNormalizationFactor(avg)
+
+	for i := 0; i < len(s); i++ {
+		s[i] *= f
+		s[i] = math.Ceil(s[i])
+	}
+	u.setPrefix(NewPrefixFromFactor(u.getPrefix(), e))
+	fmt.Printf("Prefix: %e \n", u.getPrefix())
+	*nu = u.Short()
+}
+
+func ConvertUnitString(us string) schema.Unit {
+	var nu schema.Unit
+
+	if us == "CPI" ||
+		us == "IPC" ||
+		us == "load" ||
+		us == "" {
+		nu.Base = us
+		return nu
+	}
+	u := NewUnit(us)
+	p := u.getPrefix()
+	if p.Prefix() != "" {
+		prefix := p.Prefix()
+		nu.Prefix = &prefix
+	}
+	m := u.getMeasure()
+	d := u.getUnitDenominator()
+	if d.Short() != "inval" {
+		nu.Base = fmt.Sprintf("%s/%s", m.Short(), d.Short())
+	} else {
+		nu.Base = m.Short()
+	}
+
+	return nu
 }
 
 // GetPrefixPrefixFactor creates the default conversion function between two prefixes.

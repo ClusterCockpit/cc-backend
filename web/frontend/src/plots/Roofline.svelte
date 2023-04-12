@@ -4,7 +4,8 @@
 
 <script context="module">
     const axesColor = '#aaaaaa'
-    const fontSize = 12
+    const tickFontSize = 10
+    const labelFontSize = 12
     const fontFamily = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"'
     const paddingLeft = 40,
         paddingRight = 10,
@@ -67,11 +68,11 @@
             return 2
     }
 
-    function render(ctx, data, cluster, width, height, colorDots, defaultMaxY) {
+    function render(ctx, data, cluster, width, height, colorDots, showTime, defaultMaxY) {
         if (width <= 0)
             return
 
-        const [minX, maxX, minY, maxY] = [0.01, 1000, 1., cluster?.flopRateSimd || defaultMaxY]
+        const [minX, maxX, minY, maxY] = [0.01, 1000, 1., cluster?.flopRateSimd?.value || defaultMaxY]
         const w = width - paddingLeft - paddingRight
         const h = height - paddingTop - paddingBottom
 
@@ -95,7 +96,7 @@
         // Axes
         ctx.fillStyle = 'black'
         ctx.strokeStyle = axesColor
-        ctx.font = `${fontSize}px ${fontFamily}`
+        ctx.font = `${tickFontSize}px ${fontFamily}`
         ctx.beginPath()
         for (let x = minX, i = 0; x <= maxX; i++) {
             let px = getCanvasX(x)
@@ -103,18 +104,20 @@
             let textWidth = ctx.measureText(text).width
             ctx.fillText(text,
                 Math.floor(px - (textWidth / 2)),
-                height - paddingBottom + fontSize + 5)
+                height - paddingBottom + tickFontSize + 5)
             ctx.moveTo(px, paddingTop - 5)
             ctx.lineTo(px, height - paddingBottom + 5)
 
             x *= axisStepFactor(i, w)
         }
         if (data.xLabel) {
+            ctx.font = `${labelFontSize}px ${fontFamily}`
             let textWidth = ctx.measureText(data.xLabel).width
             ctx.fillText(data.xLabel, Math.floor((width / 2) - (textWidth / 2)), height - 20)
         }
 
         ctx.textAlign = 'center'
+        ctx.font = `${tickFontSize}px ${fontFamily}`
         for (let y = minY, i = 0; y <= maxY; i++) {
             let py = getCanvasY(y)
             ctx.moveTo(paddingLeft - 5, py)
@@ -129,6 +132,7 @@
             y *= axisStepFactor(i)
         }
         if (data.yLabel) {
+            ctx.font = `${labelFontSize}px ${fontFamily}`
             ctx.save()
             ctx.translate(15, Math.floor(height / 2))
             ctx.rotate(-Math.PI / 2)
@@ -185,13 +189,13 @@
         ctx.lineWidth = 2
         ctx.beginPath()
         if (cluster != null) {
-            const ycut = 0.01 * cluster.memoryBandwidth
-            const scalarKnee = (cluster.flopRateScalar - ycut) / cluster.memoryBandwidth
-            const simdKnee = (cluster.flopRateSimd - ycut) / cluster.memoryBandwidth
+            const ycut = 0.01 * cluster.memoryBandwidth.value
+            const scalarKnee = (cluster.flopRateScalar.value - ycut) / cluster.memoryBandwidth.value
+            const simdKnee = (cluster.flopRateSimd.value - ycut) / cluster.memoryBandwidth.value
             const scalarKneeX = getCanvasX(scalarKnee),
                   simdKneeX = getCanvasX(simdKnee),
-                  flopRateScalarY = getCanvasY(cluster.flopRateScalar),
-                  flopRateSimdY = getCanvasY(cluster.flopRateSimd)
+                  flopRateScalarY = getCanvasY(cluster.flopRateScalar.value),
+                  flopRateSimdY = getCanvasY(cluster.flopRateSimd.value)
 
             if (scalarKneeX < width - paddingRight) {
                 ctx.moveTo(scalarKneeX, flopRateScalarY)
@@ -222,8 +226,8 @@
         }
         ctx.stroke()
 
-        if (colorDots && data.x && data.y) {
-            // The Color Scale
+        if (colorDots && showTime &&  data.x && data.y) {
+            // The Color Scale For Time Information
             ctx.fillStyle = 'black'
             ctx.fillText('Time:', 17, height - 5)
             const start = paddingLeft + 5
@@ -237,7 +241,7 @@
         }
     }
 
-    function transformData(flopsAny, memBw, colorDots) {
+    function transformData(flopsAny, memBw, colorDots) { // Uses Metric Object
         const nodes = flopsAny.series.length
         const timesteps = flopsAny.series[0].data.length
 
@@ -308,17 +312,18 @@
     export let memBw = null
     export let cluster = null
     export let maxY = null
-    export let width
-    export let height
+    export let width = 500
+    export let height = 300
     export let tiles = null
     export let colorDots = true
+    export let showTime = true
     export let data = null
 
     console.assert(data || tiles || (flopsAny && memBw), "you must provide flopsAny and memBw or tiles!")
 
     let ctx, canvasElement, prevWidth = width, prevHeight = height
     data = data != null ? data : (flopsAny && memBw
-        ? transformData(flopsAny.metric, memBw.metric, colorDots)
+        ? transformData(flopsAny, memBw, colorDots) // Use Metric Object from Parent
         : {
             tiles: tiles,
             xLabel: 'Intensity [FLOPS/byte]',
@@ -334,7 +339,7 @@
 
         canvasElement.width = width
         canvasElement.height = height
-        render(ctx, data, cluster, width, height, colorDots, maxY)
+        render(ctx, data, cluster, width, height, colorDots, showTime, maxY)
     })
 
     let timeoutId = null
@@ -354,7 +359,7 @@
             timeoutId = null
             canvasElement.width = width
             canvasElement.height = height
-            render(ctx, data, cluster, width, height, colorDots, maxY)
+            render(ctx, data, cluster, width, height, colorDots, showTime, maxY)
         }, 250)
     }
 

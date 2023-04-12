@@ -37,11 +37,11 @@ export function init(extraInitQuery = '') {
         clusters {
             name,
             metricConfig {
-                name, unit, peak,
+                name, unit { base, prefix }, peak,
                 normal, caution, alert,
                 timestep, scope,
                 aggregation,
-                subClusters { name, peak, normal, caution, alert }
+                subClusters { name, peak, normal, caution, alert, remove }
             }
             partitions
             subClusters {
@@ -49,9 +49,9 @@ export function init(extraInitQuery = '') {
                 socketsPerNode
                 coresPerSocket
                 threadsPerCore
-                flopRateScalar
-                flopRateSimd
-                memoryBandwidth
+                flopRateScalar { unit { base, prefix }, value }
+                flopRateSimd { unit { base, prefix }, value }
+                memoryBandwidth { unit { base, prefix }, value }
                 numberOfNodes
                 topology {
                     node, socket, core
@@ -127,7 +127,7 @@ export function formatNumber(x) {
         suffix = 'k'
     }
 
-    return `${(Math.round(x * 100) / 100)}${suffix}`
+    return `${(Math.round(x * 100) / 100)} ${suffix}`
 }
 
 // Use https://developer.mozilla.org/en-US/docs/Web/API/structuredClone instead?

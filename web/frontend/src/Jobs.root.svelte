@@ -17,11 +17,15 @@
     export let authlevel
     export let roles
 
-    let filters, jobList, matchedJobs = null
+    let filters = []
+    let jobList, matchedJobs = null
     let sorting = { field: 'startTime', order: 'DESC' }, isSortingOpen = false, isMetricsSelectionOpen = false
     let metrics = filterPresets.cluster
         ? ccconfig[`plot_list_selectedMetrics:${filterPresets.cluster}`] || ccconfig.plot_list_selectedMetrics
         : ccconfig.plot_list_selectedMetrics
+    let selectedCluster = filterPresets?.cluster ? filterPresets.cluster : null
+    
+    $: selectedCluster = filters[0]?.cluster ? filters[0].cluster.eq : null 
 
     // The filterPresets are handled by the Filters component,
     // so we need to wait for it to be ready before we can start a query.
@@ -58,7 +62,10 @@
         <Filters
             filterPresets={filterPresets}
             bind:this={filters}
-            on:update={({ detail }) => jobList.update(detail.filters)} />
+            on:update={({ detail }) => {
+                filters = detail.filters
+                jobList.update(detail.filters)}
+            } />
     </Col>
 
     <Col xs="3" style="margin-left: auto;">
@@ -84,7 +91,7 @@
     bind:isOpen={isSortingOpen} />
 
 <MetricSelection
-    cluster={filterPresets.cluster}
+    bind:cluster={selectedCluster}
     configName="plot_list_selectedMetrics"
     bind:metrics={metrics}
     bind:isOpen={isMetricsSelectionOpen} />

@@ -17,6 +17,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/ClusterCockpit/cc-backend/pkg/units"
 )
 
 const NamedJobInsert string = `INSERT INTO job (
@@ -75,6 +76,7 @@ func HandleImportFlag(flag string) error {
 			return err
 		}
 
+		checkJobData(&jobData)
 		SanityChecks(&jobMeta.BaseJob)
 		jobMeta.MonitoringStatus = schema.MonitoringStatusArchivingSuccessful
 		if job, err := GetJobRepository().Find(&jobMeta.JobID, &jobMeta.Cluster, &jobMeta.StartTime); err != sql.ErrNoRows {
@@ -173,7 +175,9 @@ func InitDB() error {
 	i := 0
 	errorOccured := 0
 
-	for jobMeta := range ar.Iter() {
+	for jobContainer := range ar.Iter(false) {
+
+		jobMeta := jobContainer.Meta
 
 		// // Bundle 100 inserts into one transaction for better performance:
 		if i%10 == 0 {
@@ -297,7 +301,7 @@ func SanityChecks(job *schema.BaseJob) error {
 	if len(job.Resources) == 0 || len(job.User) == 0 {
 		return fmt.Errorf("'resources' and 'user' should not be empty")
 	}
-	if job.NumAcc < 0 || job.NumHWThreads < 0 || job.NumNodes < 1 {
+	if *job.NumAcc < 0 || *job.NumHWThreads < 0 || job.NumNodes < 1 {
 		return fmt.Errorf("'numNodes', 'numAcc' or 'numHWThreads' invalid")
 	}
 	if len(job.Resources) != int(job.NumNodes) {
@@ -313,4 +317,35 @@ func loadJobStat(job *schema.JobMeta, metric string) float64 {
 	}
 
 	return 0.0
+}
+
+func checkJobData(d *schema.JobData) error {
+	for _, scopes := range *d {
+		var newUnit string
+		// Add node scope if missing
+		for _, metric := range scopes {
+			if strings.Contains(metric.Unit.Base, "B/s") ||
+				strings.Contains(metric.Unit.Base, "F/s") ||
+				strings.Contains(metric.Unit.Base, "B") {
+
+				// First get overall avg
+				sum := 0.0
+				for _, s := range metric.Series {
+					sum += s.Statistics.Avg
+				}
+
+				avg := sum / float64(len(metric.Series))
+
+				for _, s := range metric.Series {
+					fp := schema.ConvertFloatToFloat64(s.Data)
+					// Normalize values with new unit prefix
+					oldUnit := metric.Unit.Base
+					units.NormalizeSeries(fp, avg, oldUnit, &newUnit)
+					s.Data = schema.GetFloat64ToFloat(fp)
+				}
+				metric.Unit.Base = newUnit
+			}
+		}
+	}
+	return nil
 }

@@ -45,9 +45,29 @@ func TestValidateCluster(t *testing.T) {
 				"socketsPerNode": 2,
 				"coresPerSocket": 10,
 				"threadsPerCore": 2,
-				"flopRateScalar": 44,
-				"flopRateSimd": 704,
-				"memoryBandwidth": 80,
+                "flopRateScalar": {
+                  "unit": {
+                    "prefix": "G",
+                    "base": "F/s"
+                  },
+                  "value": 14
+                },
+                "flopRateSimd": {
+                  "unit": {
+                    "prefix": "G",
+                    "base": "F/s"
+                  },
+                  "value": 112
+                },
+                "memoryBandwidth": {
+                  "unit": {
+                    "prefix": "G",
+                    "base": "B/s"
+                  },
+                  "value": 24
+                },
+                "numberOfNodes": 70,
+                "nodes": "w11[27-45,49-63,69-72]",
 				"topology": {
 					"node": [0,20,1,21,2,22,3,23,4,24,5,25,6,26,7,27,8,28,9,29,10,30,11,31,12,32,13,33,14,34,15,35,16,36,17,37,18,38,19,39],
 					"socket": [
@@ -68,8 +88,13 @@ func TestValidateCluster(t *testing.T) {
 			{
 				"name": "cpu_load",
 				"scope": "hwthread",
-				"unit": "load",
-				"timestep": 60
+				"unit": {"base": ""},
+                "aggregation": "avg",
+				"timestep": 60,
+			    "peak": 4,
+                "normal": 2,
+                "caution": 1,
+                "alert": 0.25
 			}
 		]
 }`)

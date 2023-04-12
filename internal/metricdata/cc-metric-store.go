@@ -164,7 +164,6 @@ func (ccms *CCMetricStore) LoadData(
 	scopes []schema.MetricScope,
 	ctx context.Context) (schema.JobData, error) {
 
-	topology := archive.GetSubCluster(job.Cluster, job.SubCluster).Topology
 	queries, assignedScope, err := ccms.buildQueries(job, metrics, scopes)
 	if err != nil {
 		log.Warn("Error while building queries")
@@ -201,7 +200,6 @@ func (ccms *CCMetricStore) LoadData(
 		if !ok {
 			jobMetric = &schema.JobMetric{
 				Unit:     mc.Unit,
-				Scope:    scope,
 				Timestep: mc.Timestep,
 				Series:   make([]schema.Series, 0),
 			}
@@ -215,13 +213,10 @@ func (ccms *CCMetricStore) LoadData(
 				continue
 			}
 
-			id := (*int)(nil)
+			id := (*string)(nil)
 			if query.Type != nil {
-				id = new(int)
-				*id, err = strconv.Atoi(query.TypeIds[0])
-				if err != nil || *query.Type == acceleratorString {
-					*id, _ = topology.GetAcceleratorIndex(query.TypeIds[0])
-				}
+				id = new(string)
+				*id = query.TypeIds[0]
 			}
 
 			if res.Avg.IsNaN() || res.Min.IsNaN() || res.Max.IsNaN() {
@@ -235,7 +230,7 @@ func (ccms *CCMetricStore) LoadData(
 			jobMetric.Series = append(jobMetric.Series, schema.Series{
 				Hostname: query.Hostname,
 				Id:       id,
-				Statistics: &schema.MetricStatistics{
+				Statistics: schema.MetricStatistics{
 					Avg: float64(res.Avg),
 					Min: float64(res.Min),
 					Max: float64(res.Max),
@@ -275,8 +270,13 @@ func (ccms *CCMetricStore) buildQueries(
 	scopes []schema.MetricScope) ([]ApiQuery, []schema.MetricScope, error) {
 
 	queries := make([]ApiQuery, 0, len(metrics)*len(scopes)*len(job.Resources))
-	topology := archive.GetSubCluster(job.Cluster, job.SubCluster).Topology
 	assignedScope := []schema.MetricScope{}
+
+	subcluster, scerr := archive.GetSubCluster(job.Cluster, job.SubCluster)
+	if scerr != nil {
+		return nil, nil, scerr
+	}
+	topology := subcluster.Topology
 
 	for _, metric := range metrics {
 		remoteName := ccms.toRemoteName(metric)
@@ -293,7 +293,7 @@ func (ccms *CCMetricStore) buildQueries(
 	scopesLoop:
 		for _, requestedScope := range scopes {
 			nativeScope := mc.Scope
-			if nativeScope == schema.MetricScopeAccelerator && job.NumAcc == 0 {
+			if nativeScope == schema.MetricScopeAccelerator && job.NumAcc == nil {
 				continue
 			}
 
@@ -624,13 +624,12 @@ func (ccms *CCMetricStore) LoadNodeData(
 		mc := archive.GetMetricConfig(cluster, metric)
 		hostdata[metric] = append(hostdata[metric], &schema.JobMetric{
 			Unit:     mc.Unit,
-			Scope:    schema.MetricScopeNode,
 			Timestep: mc.Timestep,
 			Series: []schema.Series{
 				{
 					Hostname: query.Hostname,
 					Data:     qdata.Data,
-					Statistics: &schema.MetricStatistics{
+					Statistics: schema.MetricStatistics{
 						Avg: float64(qdata.Avg),
 						Min: float64(qdata.Min),
 						Max: float64(qdata.Max),

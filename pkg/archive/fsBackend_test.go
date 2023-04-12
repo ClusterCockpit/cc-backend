@@ -20,7 +20,7 @@ func init() {
 
 func TestInitEmptyPath(t *testing.T) {
 	var fsa FsArchive
-	err := fsa.Init(json.RawMessage("{\"kind\":\"../../test/archive\"}"))
+	_, err := fsa.Init(json.RawMessage("{\"kind\":\"../../test/archive\"}"))
 	if err == nil {
 		t.Fatal(err)
 	}
@@ -28,14 +28,14 @@ func TestInitEmptyPath(t *testing.T) {
 
 func TestInitNoJson(t *testing.T) {
 	var fsa FsArchive
-	err := fsa.Init(json.RawMessage("\"path\":\"../../test/archive\"}"))
+	_, err := fsa.Init(json.RawMessage("\"path\":\"../../test/archive\"}"))
 	if err == nil {
 		t.Fatal(err)
 	}
 }
 func TestInitNotExists(t *testing.T) {
 	var fsa FsArchive
-	err := fsa.Init(json.RawMessage("{\"path\":\"../../test/job-archive\"}"))
+	_, err := fsa.Init(json.RawMessage("{\"path\":\"../../test/job-archive\"}"))
 	if err == nil {
 		t.Fatal(err)
 	}
@@ -43,15 +43,16 @@ func TestInitNotExists(t *testing.T) {
 
 func TestInit(t *testing.T) {
 	var fsa FsArchive
-	err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
+	version, err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	if fsa.path != "../../test/archive" {
 		t.Fail()
 	}
-
+	if version != 1 {
+		t.Fail()
+	}
 	if len(fsa.clusters) != 1 || fsa.clusters[0] != "emmy" {
 		t.Fail()
 	}
@@ -59,7 +60,7 @@ func TestInit(t *testing.T) {
 
 func TestLoadJobMetaInternal(t *testing.T) {
 	var fsa FsArchive
-	err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
+	_, err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +83,7 @@ func TestLoadJobMetaInternal(t *testing.T) {
 
 func TestLoadJobMeta(t *testing.T) {
 	var fsa FsArchive
-	err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
+	_, err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +111,7 @@ func TestLoadJobMeta(t *testing.T) {
 
 func TestLoadJobData(t *testing.T) {
 	var fsa FsArchive
-	err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
+	_, err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,7 +137,7 @@ func TestLoadJobData(t *testing.T) {
 
 func TestLoadCluster(t *testing.T) {
 	var fsa FsArchive
-	err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
+	_, err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,22 +147,22 @@ func TestLoadCluster(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if cfg.SubClusters[0].CoresPerSocket != 10 {
+	if cfg.SubClusters[0].CoresPerSocket != 4 {
 		t.Fail()
 	}
 }
 
 func TestIter(t *testing.T) {
 	var fsa FsArchive
-	err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
+	_, err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for job := range fsa.Iter() {
-		fmt.Printf("Job %d\n", job.JobID)
+	for job := range fsa.Iter(false) {
+		fmt.Printf("Job %d\n", job.Meta.JobID)
 
-		if job.Cluster != "emmy" {
+		if job.Meta.Cluster != "emmy" {
 			t.Fail()
 		}
 	}

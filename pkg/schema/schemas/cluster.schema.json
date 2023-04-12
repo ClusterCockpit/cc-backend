@@ -4,7 +4,7 @@
     "title": "HPC cluster description",
     "description": "Meta data information of a HPC cluster",
     "type": "object",
-    "properties":{
+    "properties": {
         "name": {
             "description": "The unique identifier of a cluster",
             "type": "string"
@@ -14,14 +14,14 @@
             "type": "array",
             "items": {
                 "type": "object",
-                "properties":{
+                "properties": {
                     "name": {
                         "description": "Metric name",
                         "type": "string"
                     },
                     "unit": {
                         "description": "Metric unit",
-                        "type": "string"
+                        "$ref": "embedfs://unit.schema.json"
                     },
                     "scope": {
                         "description": "Native measurement resolution",
@@ -38,14 +38,29 @@
                             "sum",
                             "avg"
                         ]
-
+                    },
+                    "peak": {
+                        "description": "Metric peak threshold (Upper metric limit)",
+                        "type": "number"
+                    },
+                    "normal": {
+                        "description": "Metric normal threshold",
+                        "type": "number"
+                    },
+                    "caution": {
+                        "description": "Metric caution threshold (Suspicious but does not require immediate action)",
+                        "type": "number"
+                    },
+                    "alert": {
+                        "description": "Metric alert threshold (Requires immediate action)",
+                        "type": "number"
                     },
                     "subClusters": {
                         "description": "Array of cluster hardware partition metric thresholds",
                         "type": "array",
                         "items": {
                             "type": "object",
-                            "properties":{
+                            "properties": {
                                 "name": {
                                     "description": "Hardware partition name",
                                     "type": "string"
@@ -61,13 +76,13 @@
                                 },
                                 "alert": {
                                     "type": "number"
+                                },
+                                "remove": {
+                                    "type": "boolean"
                                 }
                             },
                             "required": [
-                                "name",
-                                "peak",
-                                "caution",
-                                "alert"
+                                "name"
                             ]
                         }
                     }
@@ -76,7 +91,12 @@
                     "name",
                     "unit",
                     "scope",
-                    "timestep"
+                    "timestep",
+                    "aggregation",
+                    "peak",
+                    "normal",
+                    "caution",
+                    "alert"
                 ]
             },
             "minItems": 1
@@ -86,7 +106,7 @@
             "type": "array",
             "items": {
                 "type": "object",
-                "properties":{
+                "properties": {
                     "name": {
                         "description": "Hardware partition name",
                         "type": "string"
@@ -109,15 +129,42 @@
                     },
                     "flopRateScalar": {
                         "description": "Theoretical node peak flop rate for scalar code in GFlops/s",
-                        "type": "integer"
+                        "type": "object",
+                        "properties": {
+                            "unit": {
+                                "description": "Metric unit",
+                                "$ref": "embedfs://unit.schema.json"
+                            },
+                            "value": {
+                                "type": "number"
+                            }
+                        }
                     },
                     "flopRateSimd": {
                         "description": "Theoretical node peak flop rate for SIMD code in GFlops/s",
-                        "type": "integer"
+                        "type": "object",
+                        "properties": {
+                            "unit": {
+                                "description": "Metric unit",
+                                "$ref": "embedfs://unit.schema.json"
+                            },
+                            "value": {
+                                "type": "number"
+                            }
+                        }
                     },
                     "memoryBandwidth": {
                         "description": "Theoretical node peak memory bandwidth in GB/s",
-                        "type": "integer"
+                        "type": "object",
+                        "properties": {
+                            "unit": {
+                                "description": "Metric unit",
+                                "$ref": "embedfs://unit.schema.json"
+                            },
+                            "value": {
+                                "type": "number"
+                            }
+                        }
                     },
                     "nodes": {
                         "description": "Node list expression",
@@ -126,7 +173,7 @@
                     "topology": {
                         "description": "Node topology",
                         "type": "object",
-                        "properties":{
+                        "properties": {
                             "node": {
                                 "description": "HwTread lists of node",
                                 "type": "array",
@@ -206,15 +253,16 @@
                                 }
                             }
                         },
-                        "required":[
+                        "required": [
                             "node",
                             "socket",
                             "memoryDomain"
                         ]
                     }
                 },
-                "required":[
+                "required": [
                     "name",
+                    "nodes",
                     "topology",
                     "processorType",
                     "socketsPerNode",
@@ -228,7 +276,7 @@
             "minItems": 1
         }
     },
-    "required":[
+    "required": [
         "name",
         "metricConfig",
         "subClusters"

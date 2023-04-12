@@ -39,7 +39,7 @@ var MeasuresMap map[Measure]MeasureData = map[Measure]MeasureData{
 	},
 	Flops: {
 		Long:  "Flops",
-		Short: "Flops",
+		Short: "F",
 		Regex: "^([fF][lL]?[oO]?[pP]?[sS]?)",
 	},
 	Percentage: {

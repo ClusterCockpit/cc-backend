@@ -5,7 +5,7 @@
     "description": "Format specification for job metric units",
     "type": "object",
     "properties": {
-        "base_unit": {
+        "base": {
             "description": "Metric base unit",
             "type": "string",
             "enum": [
@@ -15,7 +15,6 @@
                 "F/s",
                 "CPI",
                 "IPC",
-                "load",
                 "Hz",
                 "W",
                 "°C",
@@ -36,6 +35,6 @@
         }
     },
     "required": [
-        "base_unit"
+        "base"
     ]
 }

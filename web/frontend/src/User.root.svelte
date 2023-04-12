@@ -18,10 +18,12 @@
     export let user
     export let filterPresets
 
-    let filters, jobList
+    let filters = []
+    let jobList
     let sorting = { field: 'startTime', order: 'DESC' }, isSortingOpen = false
     let metrics = ccconfig.plot_list_selectedMetrics, isMetricsSelectionOpen = false
     let w1, w2, histogramHeight = 250
+    let selectedCluster = filterPresets?.cluster ? filterPresets.cluster : null
 
     const stats = operationStore(`
     query($filter: [JobFilter!]!) {
@@ -39,6 +41,12 @@
     }, {
         pause: true
     })
+
+    // filters[filters.findIndex(filter => filter.cluster != null)] ? 
+    //                           filters[filters.findIndex(filter => filter.cluster != null)].cluster.eq :
+    //                           null
+    // Cluster filter has to be alwas @ first index, above will throw error
+    $: selectedCluster = filters[0]?.cluster ? filters[0].cluster.eq : null 
 
     query(stats)
 
@@ -75,11 +83,12 @@
             startTimeQuickSelect={true}
             bind:this={filters}
             on:update={({ detail }) => {
-                let filters = [...detail.filters, { user: { eq: user.username } }]
-                $stats.variables = { filter: filters }
+                let jobFilters = [...detail.filters, { user: { eq: user.username } }]
+                $stats.variables = { filter: jobFilters }
                 $stats.context.pause = false
                 $stats.reexecute()
-                jobList.update(filters)
+                filters = jobFilters
+                jobList.update(jobFilters)
             }} />
     </Col>
     <Col xs="auto" style="margin-left: auto;">
@@ -136,19 +145,23 @@
             </Table>
         </Col>
         <div class="col-4" style="text-align: center;" bind:clientWidth={w1}>
-            <b>Walltime</b>
+            <b>Duration Distribution</b>
             {#key $stats.data.jobsStatistics[0].histDuration}
                 <Histogram
                     data={$stats.data.jobsStatistics[0].histDuration}
-                    width={w1 - 25} height={histogramHeight} />
+                    width={w1 - 25} height={histogramHeight}
+                    xlabel="Current Runtimes [h]" 
+                    ylabel="Number of Jobs"/>
             {/key}
         </div>
         <div class="col-4" style="text-align: center;" bind:clientWidth={w2}>
-            <b>Number of Nodes</b>
+            <b>Number of Nodes Distribution</b>
             {#key $stats.data.jobsStatistics[0].histNumNodes}
                 <Histogram
                     data={$stats.data.jobsStatistics[0].histNumNodes}
-                    width={w2 - 25} height={histogramHeight} />
+                    width={w2 - 25} height={histogramHeight}
+                    xlabel="Allocated Nodes [#]"
+                    ylabel="Number of Jobs" />
             {/key}
         </div>
     {/if}
@@ -167,6 +180,8 @@
     bind:sorting={sorting}
     bind:isOpen={isSortingOpen} />
 
-<MetricSelection configName="plot_list_selectedMetrics"
+<MetricSelection 
+    bind:cluster={selectedCluster}
+    configName="plot_list_selectedMetrics"
     bind:metrics={metrics}
     bind:isOpen={isMetricsSelectionOpen} />

@@ -5,19 +5,22 @@
     import { fetchMetrics, minScope } from './utils'
 
     export let job
-    export let metric
+    export let metricName
     export let scopes
     export let width
+    export let rawData
 
     const dispatch = createEventDispatcher()
     const cluster = getContext('clusters').find(cluster => cluster.name == job.cluster)
     const subCluster = cluster.subClusters.find(subCluster => subCluster.name == job.subCluster)
-    const metricConfig = cluster.metricConfig.find(metricConfig => metricConfig.name == metric)
+    const metricConfig = cluster.metricConfig.find(metricConfig => metricConfig.name == metricName)
+    
+    let selectedHost = null, plot, fetching = false, error = null
+    let selectedScope = minScope(scopes)
+    let selectedScopeIndex = scopes.findIndex(s => s == selectedScope)
 
-    let selectedScope = minScope(scopes.map(s => s.scope)), selectedHost = null, plot, fetching = false, error = null
-
-    $: avaliableScopes = scopes.map(metric => metric.scope)
-    $: data = scopes.find(metric => metric.scope == selectedScope)
+    $: avaliableScopes = scopes
+    $: data = rawData[selectedScopeIndex]
     $: series = data?.series.filter(series => selectedHost == null || series.hostname == selectedHost)
 
     let from = null, to = null
@@ -29,7 +32,7 @@
 
     export async function loadMore() {
         fetching = true
-        let response = await fetchMetrics(job, [metric], ["core"])
+        let response = await fetchMetrics(job, [metricName], ["core"])
         fetching = false
 
         if (response.error) {
@@ -38,9 +41,9 @@
         }
 
         for (let jm of response.data.jobMetrics) {
-            if (jm.metric.scope != "node") {
+            if (jm.scope != "node") {
                 scopes.push(jm.metric)
-                selectedScope = jm.metric.scope
+                selectedScope = jm.scope
                 dispatch('more-loaded', jm)
                 if (!avaliableScopes.includes(selectedScope))
                     avaliableScopes = [...avaliableScopes, selectedScope]
@@ -52,7 +55,8 @@
 </script>
 <InputGroup>
     <InputGroupText style="min-width: 150px;">
-        {metric} ({metricConfig?.unit})
+        {metricName} ({(metricConfig?.unit?.prefix ? metricConfig.unit.prefix : '') +
+                       (metricConfig?.unit?.base   ? metricConfig.unit.base   : '')})
     </InputGroupText>
     <select class="form-select" bind:value={selectedScope}>
         {#each avaliableScopes as scope}
@@ -82,7 +86,7 @@
             width={width} height={300}
             cluster={cluster} subCluster={subCluster}
             timestep={data.timestep}
-            scope={selectedScope} metric={metric}
+            scope={selectedScope} metric={metricName}
             series={series} />
     {/if}
 {/key}

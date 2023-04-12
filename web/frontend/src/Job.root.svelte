@@ -81,7 +81,7 @@
         missingMetrics = metricNames.filter(metric => !metrics.some(jm => jm.name == metric))
         missingHosts = job.resources.map(({ hostname }) => ({
             hostname: hostname,
-            metrics: metricNames.filter(metric => !metrics.some(jm => jm.metric.scope == 'node' && jm.metric.series.some(series => series.hostname == hostname)))
+            metrics: metricNames.filter(metric => !metrics.some(jm => jm.scope == 'node' && jm.metric.series.some(series => series.hostname == hostname)))
         })).filter(({ metrics }) => metrics.length > 0)
         somethingMissing = missingMetrics.length > 0 || missingHosts.length > 0
     }
@@ -114,8 +114,8 @@
                 cluster={clusters
                     .find(c => c.name == $initq.data.job.cluster).subClusters
                     .find(sc => sc.name == $initq.data.job.subCluster)}
-                flopsAny={$jobMetrics.data.jobMetrics.find(m => m.name == 'flops_any' && m.metric.scope == 'node')}
-                memBw={$jobMetrics.data.jobMetrics.find(m => m.name == 'mem_bw' && m.metric.scope == 'node')} />
+                flopsAny={$jobMetrics.data.jobMetrics.find(m => m.name == 'flops_any' && m.scope == 'node').metric}
+                memBw={$jobMetrics.data.jobMetrics.find(m => m.name == 'mem_bw' && m.scope == 'node').metric} />
         </Col>
     {:else}
         <Col></Col>
@@ -163,8 +163,9 @@
                         bind:this={plots[item.metric]}
                         on:more-loaded={({ detail }) => statsTable.moreLoaded(detail)}
                         job={$initq.data.job}
-                        metric={item.metric}
-                        scopes={item.data.map(x => x.metric)}
+                        metricName={item.metric}
+                        rawData={item.data.map(x => x.metric)}
+                        scopes={item.data.map(x => x.scope)}
                         width={width}/>
                 {:else}
                     <Card body color="warning">No data for <code>{item.metric}</code></Card>

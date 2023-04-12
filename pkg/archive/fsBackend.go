@@ -7,17 +7,21 @@ package archive
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/santhosh-tekuri/jsonschema/v5"
 )
 
 type FsArchiveConfig struct {
@@ -27,6 +31,11 @@ type FsArchiveConfig struct {
 type FsArchive struct {
 	path     string
 	clusters []string
+}
+
+func checkFileExists(filePath string) bool {
+	_, err := os.Stat(filePath)
+	return !errors.Is(err, os.ErrNotExist)
 }
 
 func getPath(
@@ -44,54 +53,109 @@ func getPath(
 
 func loadJobMeta(filename string) (*schema.JobMeta, error) {
 
-	f, err := os.Open(filename)
+	b, err := os.ReadFile(filename)
 	if err != nil {
 		log.Errorf("loadJobMeta() > open file error: %v", err)
 		return &schema.JobMeta{}, err
 	}
-	defer f.Close()
+	if config.Keys.Validate {
+		if err := schema.Validate(schema.Meta, bytes.NewReader(b)); err != nil {
+			return &schema.JobMeta{}, fmt.Errorf("validate job meta: %v", err)
+		}
+	}
 
-	return DecodeJobMeta(bufio.NewReader(f))
+	return DecodeJobMeta(bytes.NewReader(b))
 }
 
-func (fsa *FsArchive) Init(rawConfig json.RawMessage) error {
+func loadJobData(filename string, isCompressed bool) (schema.JobData, error) {
+	f, err := os.Open(filename)
+
+	if err != nil {
+		log.Errorf("fsBackend LoadJobData()- %v", err)
+		return nil, err
+	}
+
+	if isCompressed {
+		r, err := gzip.NewReader(f)
+		if err != nil {
+			log.Errorf(" %v", err)
+			return nil, err
+		}
+		defer r.Close()
+
+		if config.Keys.Validate {
+			if err := schema.Validate(schema.Data, r); err != nil {
+				return schema.JobData{}, fmt.Errorf("validate job data: %v", err)
+			}
+		}
+
+		return DecodeJobData(r, filename)
+	} else {
+		defer f.Close()
+		if config.Keys.Validate {
+			if err := schema.Validate(schema.Data, bufio.NewReader(f)); err != nil {
+				return schema.JobData{}, fmt.Errorf("validate job data: %v", err)
+			}
+		}
+		return DecodeJobData(bufio.NewReader(f), filename)
+	}
+}
+
+func (fsa *FsArchive) Init(rawConfig json.RawMessage) (int, error) {
 
 	var config FsArchiveConfig
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
 		log.Warnf("Init() > Unmarshal error: %#v", err)
-		return err
+		return 0, err
 	}
 	if config.Path == "" {
 		err := fmt.Errorf("Init() : empty config.Path")
 		log.Errorf("Init() > config.Path error: %v", err)
-		return err
+		return 0, err
 	}
 	fsa.path = config.Path
+
+	b, err := os.ReadFile(filepath.Join(fsa.path, "version.txt"))
+	if err != nil {
+		fmt.Println("Err")
+		return 0, err
+	}
+
+	version, err := strconv.Atoi(strings.TrimSuffix(string(b), "\n"))
+	if err != nil {
+		log.Errorf("fsBackend Init()- %v", err)
+		return 0, err
+	}
+
+	if version != Version {
+		return version, fmt.Errorf("unsupported version %d, need %d", version, Version)
+	}
 
 	entries, err := os.ReadDir(fsa.path)
 	if err != nil {
 		log.Errorf("Init() > ReadDir() error: %v", err)
-		return err
+		return 0, err
 	}
 
 	for _, de := range entries {
+		if !de.IsDir() {
+			continue
+		}
 		fsa.clusters = append(fsa.clusters, de.Name())
 	}
 
-	return nil
+	return version, nil
 }
 
 func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
-
-	filename := getPath(job, fsa.path, "data.json")
-	f, err := os.Open(filename)
-	if err != nil {
-		log.Errorf("LoadJobData() > open file error: %v", err)
-		return nil, err
+	var isCompressed bool = true
+	filename := getPath(job, fsa.path, "data.json.gz")
+	if !checkFileExists(filename) {
+		filename = getPath(job, fsa.path, "data.json")
+		isCompressed = false
 	}
-	defer f.Close()
 
-	return DecodeJobData(bufio.NewReader(f), filename)
+	return loadJobData(filename, isCompressed)
 }
 
 func (fsa *FsArchive) LoadJobMeta(job *schema.Job) (*schema.JobMeta, error) {
@@ -105,20 +169,19 @@ func (fsa *FsArchive) LoadClusterCfg(name string) (*schema.Cluster, error) {
 	b, err := os.ReadFile(filepath.Join(fsa.path, name, "cluster.json"))
 	if err != nil {
 		log.Errorf("LoadClusterCfg() > open file error: %v", err)
-		return &schema.Cluster{}, err
-	}
-	if config.Keys.Validate {
+		// if config.Keys.Validate {
 		if err := schema.Validate(schema.ClusterCfg, bytes.NewReader(b)); err != nil {
 			log.Warnf("Validate cluster config: %v\n", err)
-			return &schema.Cluster{}, fmt.Errorf("Validate cluster config: %v\n", err)
+			return &schema.Cluster{}, fmt.Errorf("validate cluster config: %v", err)
 		}
 	}
+	// }
 	return DecodeCluster(bytes.NewReader(b))
 }
 
-func (fsa *FsArchive) Iter() <-chan *schema.JobMeta {
+func (fsa *FsArchive) Iter(loadMetricData bool) <-chan JobContainer {
 
-	ch := make(chan *schema.JobMeta)
+	ch := make(chan JobContainer)
 	go func() {
 		clustersDir, err := os.ReadDir(fsa.path)
 		if err != nil {
@@ -126,6 +189,9 @@ func (fsa *FsArchive) Iter() <-chan *schema.JobMeta {
 		}
 
 		for _, clusterDir := range clustersDir {
+			if !clusterDir.IsDir() {
+				continue
+			}
 			lvl1Dirs, err := os.ReadDir(filepath.Join(fsa.path, clusterDir.Name()))
 			if err != nil {
 				log.Fatalf("Reading jobs failed @ lvl1 dirs: %s", err.Error())
@@ -152,10 +218,27 @@ func (fsa *FsArchive) Iter() <-chan *schema.JobMeta {
 					for _, startTimeDir := range startTimeDirs {
 						if startTimeDir.IsDir() {
 							job, err := loadJobMeta(filepath.Join(dirpath, startTimeDir.Name(), "meta.json"))
-							if err != nil {
-								log.Errorf("error in %s: %s", filepath.Join(dirpath, startTimeDir.Name()), err.Error())
+							if err != nil && !errors.Is(err, &jsonschema.ValidationError{}) {
+								log.Errorf("in %s: %s", filepath.Join(dirpath, startTimeDir.Name()), err.Error())
+							}
+
+							if loadMetricData {
+								var isCompressed bool = true
+								filename := filepath.Join(dirpath, startTimeDir.Name(), "data.json.gz")
+
+								if !checkFileExists(filename) {
+									filename = filepath.Join(dirpath, startTimeDir.Name(), "data.json")
+									isCompressed = false
+								}
+
+								data, err := loadJobData(filename, isCompressed)
+								if err != nil && !errors.Is(err, &jsonschema.ValidationError{}) {
+									log.Errorf("in %s: %s", filepath.Join(dirpath, startTimeDir.Name()), err.Error())
+								}
+								ch <- JobContainer{Meta: job, Data: &data}
+								log.Errorf("in %s: %s", filepath.Join(dirpath, startTimeDir.Name()), err.Error())
 							} else {
-								ch <- job
+								ch <- JobContainer{Meta: job, Data: nil}
 							}
 						}
 					}
@@ -225,6 +308,28 @@ func (fsa *FsArchive) ImportJob(
 		return err
 	}
 
+	// var isCompressed bool = true
+	// // TODO Use shortJob Config for check
+	// if jobMeta.Duration < 300 {
+	// 	isCompressed = false
+	// 	f, err = os.Create(path.Join(dir, "data.json"))
+	// } else {
+	// 	f, err = os.Create(path.Join(dir, "data.json.gz"))
+	// }
+	// if err != nil {
+	// 	return err
+	// }
+	//
+	// if isCompressed {
+	// 	if err := EncodeJobData(gzip.NewWriter(f), jobData); err != nil {
+	// 		return err
+	// 	}
+	// } else {
+	// 	if err := EncodeJobData(f, jobData); err != nil {
+	// 		return err
+	// 	}
+	// }
+
 	f, err = os.Create(path.Join(dir, "data.json"))
 	if err != nil {
 		log.Error("Error while creating filepath for data.json")
@@ -236,9 +341,6 @@ func (fsa *FsArchive) ImportJob(
 	}
 	if err := f.Close(); err != nil {
 		log.Warn("Error while closing data.json file")
-		return err
 	}
-
-	// no error: final return is nil
-	return nil
+	return err
 }

@@ -335,7 +335,13 @@ func (r *JobRepository) DeleteJobById(id int64) error {
 }
 
 // TODO: Use node hours instead: SELECT job.user, sum(job.num_nodes * (CASE WHEN job.job_state = "running" THEN CAST(strftime('%s', 'now') AS INTEGER) - job.start_time ELSE job.duration END)) as x FROM job GROUP BY user ORDER BY x DESC;
-func (r *JobRepository) CountGroupedJobs(ctx context.Context, aggreg model.Aggregate, filters []*model.JobFilter, weight *model.Weights, limit *int) (map[string]int, error) {
+func (r *JobRepository) CountGroupedJobs(
+	ctx context.Context,
+	aggreg model.Aggregate,
+	filters []*model.JobFilter,
+	weight *model.Weights,
+	limit *int) (map[string]int, error) {
+
 	start := time.Now()
 	if !aggreg.IsValid() {
 		return nil, errors.New("invalid aggregate")

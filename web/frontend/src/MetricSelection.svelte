@@ -95,7 +95,7 @@
 
 <Modal isOpen={isOpen} toggle={() => (isOpen = !isOpen)}>
     <ModalHeader>
-        Configure columns
+        Configure columns (Metric availability shown)
     </ModalHeader>
     <ModalBody>
         <ListGroup>
@@ -113,9 +113,26 @@
                     {/if}
                     {metric}
                     <span style="float: right;">
-                        {cluster == null ? clusters
+                        {cluster == null ? 
+                            clusters // No single cluster specified: List Clusters with Metric
                             .filter(cluster => cluster.metricConfig.find(m => m.name == metric) != null)
-                            .map(cluster => cluster.name).join(', ') : ''}
+                            .map(cluster => cluster.name).join(', ') : 
+                            clusters // Single cluster requested: List Subclusters with do not have metric remove flag
+                            .filter(cluster => cluster.metricConfig.find(m => m.name == metric) != null)
+                            .map(function(cluster) { 
+                                let scNames = cluster.subClusters.map(sc => sc.name)
+                                scNames.forEach(function(scName){
+                                    let met = cluster.metricConfig.find(m => m.name == metric)
+                                    let msc = met.subClusters.find(msc => msc.name == scName)
+                                    if (msc != null) {
+                                        if (msc.remove == true) {
+                                            scNames = scNames.filter(scn => scn != msc.name)
+                                        }
+                                    } 
+                                })
+                                return scNames
+                            })
+                            .join(', ')}
                     </span>
                 </li>
             {/each}
