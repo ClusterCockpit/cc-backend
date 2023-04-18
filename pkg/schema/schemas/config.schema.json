@@ -3,7 +3,7 @@
     "$id": "embedfs://config.schema.json",
     "title": "cc-backend configuration file schema",
     "type": "object",
-    "properties":{
+    "properties": {
         "addr": {
             "description": "Address where the http (or https) server will listen on (for example: 'localhost:80').",
             "type": "string"
@@ -41,8 +41,51 @@
             "type": "string"
         },
         "job-archive": {
-            "description": "Path to the job-archive.",
-            "type": "string"
+            "description": "Configuration keys for job-archive",
+            "type": "object",
+            "properties": {
+                "kind": {
+                    "description": "Backend type for job-archive",
+                    "type": "string",
+                    "enum": [
+                        "file",
+                        "s3"
+                    ]
+                },
+                "path": {
+                    "description": "Path to job archive for file backend",
+                    "type": "string"
+                },
+                "retention": {
+                    "description": "Configuration keys for retention",
+                    "type": "object",
+                    "properties": {
+                        "policy": {
+                            "description": "Retention policy",
+                            "type": "string",
+                            "enum": [
+                                "none",
+                                "delete",
+                                "move"
+                            ]
+                        },
+                        "time": {
+                            "description": "Act on jobs with startTime older than time",
+                            "type": "integer"
+                        },
+                        "directory": {
+                            "description": "The target directory for retention. Only applicable for retention move.",
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "policy"
+                    ]
+                }
+            },
+            "required": [
+                "kind"
+            ]
         },
         "disable-archive": {
             "description": "Keep all metric data in the metric data repositories, do not write to the job-archive.",

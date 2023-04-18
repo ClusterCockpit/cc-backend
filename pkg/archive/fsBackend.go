@@ -147,6 +147,10 @@ func (fsa *FsArchive) Init(rawConfig json.RawMessage) (uint64, error) {
 	return version, nil
 }
 
+func (fsa *FsArchive) CleanUp() error {
+
+}
+
 func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 	var isCompressed bool = true
 	filename := getPath(job, fsa.path, "data.json.gz")

@@ -30,6 +30,8 @@ type ArchiveBackend interface {
 
 	GetClusters() []string
 
+	CleanUp() error
+
 	Iter(loadMetricData bool) <-chan JobContainer
 }
 
