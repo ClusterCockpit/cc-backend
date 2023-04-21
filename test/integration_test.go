@@ -348,7 +348,10 @@ func setup(t *testing.T) *api.RestApi {
 		t.Fatal(err)
 	}
 	dbfilepath := filepath.Join(tmpdir, "test.db")
-	repository.MigrateDB("sqlite3", dbfilepath)
+	err := repository.MigrateDB("sqlite3", dbfilepath)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	cfgFilePath := filepath.Join(tmpdir, "config.json")
 	if err := os.WriteFile(cfgFilePath, []byte(testconfig), 0666); err != nil {
@@ -566,13 +569,116 @@ func TestRestApi(t *testing.T) {
 		}
 	})
 
-	// t.Run("FailedJob", func(t *testing.T) {
-	// 	subtestLetJobFail(t, restapi, r)
-	// })
+	t.Run("FailedJob", func(t *testing.T) {
+		const startJobBody string = `{
+        "jobId":            12345,
+		"user":             "testuser",
+		"project":          "testproj",
+		"cluster":          "testcluster",
+		"partition":        "default",
+		"walltime":         3600,
+		"numNodes":         1,
+		"exclusive":        1,
+		"monitoringStatus": 1,
+		"smt":              1,
+		"resources": [
+			{
+				"hostname": "host123"
+			}
+		],
+		"startTime": 12345678
+	}`
 
-	// t.Run("ImportJob", func(t *testing.T) {
-	// 	testImportFlag(t)
-	// })
+		ok := t.Run("StartJob", func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/api/jobs/start_job/", bytes.NewBuffer([]byte(startJobBody)))
+			recorder := httptest.NewRecorder()
+
+			r.ServeHTTP(recorder, req)
+			response := recorder.Result()
+			if response.StatusCode != http.StatusCreated {
+				t.Fatal(response.Status, recorder.Body.String())
+			}
+		})
+		if !ok {
+			t.Fatal("subtest failed")
+		}
+
+		const stopJobBody string = `{
+        "jobId":     12345,
+		"cluster":   "testcluster",
+
+		"jobState": "failed",
+		"stopTime": 12355678
+	}`
+
+		ok = t.Run("StopJob", func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/api/jobs/stop_job/", bytes.NewBuffer([]byte(stopJobBody)))
+			recorder := httptest.NewRecorder()
+
+			r.ServeHTTP(recorder, req)
+			response := recorder.Result()
+			if response.StatusCode != http.StatusOK {
+				t.Fatal(response.Status, recorder.Body.String())
+			}
+
+			restapi.JobRepository.WaitForArchiving()
+			jobid, cluster := int64(12345), "testcluster"
+			job, err := restapi.JobRepository.Find(&jobid, &cluster, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if job.State != schema.JobStateFailed {
+				t.Fatal("expected job to be failed")
+			}
+		})
+		if !ok {
+			t.Fatal("subtest failed")
+		}
+
+	})
+
+	t.Run("ImportJob", func(t *testing.T) {
+		if err := repository.HandleImportFlag("meta.json:data.json"); err != nil {
+			t.Fatal(err)
+		}
+
+		repo := repository.GetJobRepository()
+		jobId := int64(20639587)
+		cluster := "taurus"
+		startTime := int64(1635856524)
+		job, err := repo.Find(&jobId, &cluster, &startTime)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if job.NumNodes != 2 {
+			t.Errorf("NumNode: Received %d, expected 2", job.NumNodes)
+		}
+
+		ar := archive.GetHandle()
+		data, err := ar.LoadJobData(job)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(data) != 8 {
+			t.Errorf("Job data length: Got %d, want 8", len(data))
+		}
+
+		r := map[string]string{"mem_used": "GB", "net_bw": "KB/s",
+			"cpu_power": "W", "cpu_used": "",
+			"file_bw": "KB/s", "flops_any": "F/s",
+			"mem_bw": "GB/s", "ipc": "IPC"}
+
+		for name, scopes := range data {
+			for _, metric := range scopes {
+				if metric.Unit.Base != r[name] {
+					t.Errorf("Metric %s unit: Got %s, want %s", name, metric.Unit.Base, r[name])
+				}
+			}
+		}
+	})
 }
 
 func subtestLetJobFail(t *testing.T, restapi *api.RestApi, r *mux.Router) {

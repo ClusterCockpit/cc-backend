@@ -11,8 +11,9 @@ import (
 	"time"
 )
 
-// Non-Swaggered Comment: BaseJob
-// Non-Swaggered Comment: Common subset of Job and JobMeta. Use one of those, not this type directly.
+// BaseJob is the common part of the job metadata structs
+//
+// Common subset of Job and JobMeta. Use one of those, not this type directly.
 
 type BaseJob struct {
 	// The unique identifier of a job
@@ -39,9 +40,10 @@ type BaseJob struct {
 	MetaData         map[string]string `json:"metaData"`                                                                                                     // Additional information about the job
 }
 
-// Non-Swaggered Comment: Job
-// Non-Swaggered Comment: This type is used as the GraphQL interface and using sqlx as a table row.
-
+// Job struct type
+//
+// This type is used as the GraphQL interface and using sqlx as a table row.
+//
 // Job model
 // @Description Information of a HPC job.
 type Job struct {
@@ -60,13 +62,16 @@ type Job struct {
 	FileDataVolTotal float64   `json:"-" db:"file_data_vol_total"`             // FileDataVolTotal as Float64
 }
 
-// Non-Swaggered Comment: JobMeta
-// Non-Swaggered Comment: When reading from the database or sending data via GraphQL, the start time can be in the much more
-// Non-Swaggered Comment: convenient time.Time type. In the `meta.json` files, the start time is encoded as a unix epoch timestamp.
-// Non-Swaggered Comment: This is why there is this struct, which contains all fields from the regular job struct, but "overwrites"
-// Non-Swaggered Comment: the StartTime field with one of type int64.
-// Non-Swaggered Comment: ID *int64 `json:"id,omitempty"` >> never used in the job-archive, only available via REST-API
-
+//	JobMeta struct type
+//
+//	When reading from the database or sending data via GraphQL, the start time
+//	can be in the much more convenient time.Time type. In the `meta.json`
+//	files, the start time is encoded as a unix epoch timestamp. This is why
+//	there is this struct, which contains all fields from the regular job
+//	struct, but "overwrites" the StartTime field with one of type int64. ID
+//	*int64 `json:"id,omitempty"` >> never used in the job-archive, only
+//	available via REST-API
+//
 // JobMeta model
 // @Description Meta data information of a HPC job.
 type JobMeta struct {
@@ -74,7 +79,7 @@ type JobMeta struct {
 	ID *int64 `json:"id,omitempty"`
 	BaseJob
 	StartTime  int64                    `json:"startTime" db:"start_time" example:"1649723812" minimum:"1"` // Start epoch time stamp in seconds (Min > 0)
-	Statistics map[string]JobStatistics `json:"statistics,omitempty"`                                       // Metric statistics of job
+	Statistics map[string]JobStatistics `json:"statistics"`                                                 // Metric statistics of job
 }
 
 const (

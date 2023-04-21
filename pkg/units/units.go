@@ -112,12 +112,12 @@ func getNormalizationFactor(v float64) (float64, int) {
 	return math.Pow10(count * scale), count * scale
 }
 
-func NormalizeValue(v *float64, us string, nu *string) {
+func NormalizeValue(v *float64, us string) string {
 	u := NewUnit(us)
 	f, e := getNormalizationFactor((*v))
 	*v = math.Ceil(*v * f)
-	u.setPrefix(NewPrefixFromFactor(u.getPrefix(), e))
-	*nu = u.Short()
+	p := NewPrefixFromFactor(u.getPrefix(), e)
+	return p.Prefix()
 }
 
 func NormalizeSeries(s []float64, avg float64, us string, nu *string) {

@@ -12,19 +12,21 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func init() {
-	log.Init("info", true)
-	Connect("sqlite3", "../../test/test.db")
-}
-
 func setup(t *testing.T) *JobRepository {
+	log.Init("info", true)
+	dbfilepath := "../../test/test.db"
+	err := MigrateDB("sqlite3", dbfilepath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	Connect("sqlite3", dbfilepath)
 	return GetJobRepository()
 }
 
 func TestFind(t *testing.T) {
 	r := setup(t)
 
-	jobId, cluster, startTime := int64(1404396), "emmy", int64(1609299584)
+	jobId, cluster, startTime := int64(398998), "fritz", int64(1675957496)
 	job, err := r.Find(&jobId, &cluster, &startTime)
 	if err != nil {
 		t.Fatal(err)
@@ -32,7 +34,7 @@ func TestFind(t *testing.T) {
 
 	// fmt.Printf("%+v", job)
 
-	if job.ID != 1366 {
+	if job.ID != 5 {
 		t.Errorf("wrong summary for diagnostic 3\ngot: %d \nwant: 1366", job.JobID)
 	}
 }
@@ -40,14 +42,14 @@ func TestFind(t *testing.T) {
 func TestFindById(t *testing.T) {
 	r := setup(t)
 
-	job, err := r.FindById(1366)
+	job, err := r.FindById(5)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// fmt.Printf("%+v", job)
 
-	if job.JobID != 1404396 {
+	if job.JobID != 398998 {
 		t.Errorf("wrong summary for diagnostic 3\ngot: %d \nwant: 1404396", job.JobID)
 	}
 }
@@ -63,7 +65,7 @@ func TestGetTags(t *testing.T) {
 	fmt.Printf("TAGS %+v \n", tags)
 	// fmt.Printf("COUNTS %+v \n", counts)
 
-	if counts["bandwidth"] != 6 {
-		t.Errorf("wrong summary for diagnostic 3\ngot: %d \nwant: 6", counts["load-imbalance"])
+	if counts["bandwidth"] != 3 {
+		t.Errorf("wrong tag count \ngot: %d \nwant: 3", counts["bandwidth"])
 	}
 }

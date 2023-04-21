@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"time"
@@ -319,31 +320,71 @@ func loadJobStat(job *schema.JobMeta, metric string) float64 {
 	return 0.0
 }
 
+func getNormalizationFactor(v float64) (float64, int) {
+	count := 0
+	scale := -3
+
+	if v > 1000.0 {
+		for v > 1000.0 {
+			v *= 1e-3
+			count++
+		}
+	} else {
+		for v < 1.0 {
+			v *= 1e3
+			count++
+		}
+		scale = 3
+	}
+	return math.Pow10(count * scale), count * scale
+}
+
+func normalize(avg float64, u schema.Unit) (float64, schema.Unit) {
+	f, e := getNormalizationFactor(avg)
+
+	if e != 0 {
+
+		p := units.NewPrefixFromFactor(units.NewPrefix(*u.Prefix), e)
+		np := p.Prefix()
+		return f, schema.Unit{Prefix: &np, Base: u.Base}
+	}
+
+	return f, u
+}
+
 func checkJobData(d *schema.JobData) error {
 	for _, scopes := range *d {
-		var newUnit string
-		// Add node scope if missing
+		// var newUnit schema.Unit
+		// TODO Add node scope if missing
 		for _, metric := range scopes {
 			if strings.Contains(metric.Unit.Base, "B/s") ||
 				strings.Contains(metric.Unit.Base, "F/s") ||
 				strings.Contains(metric.Unit.Base, "B") {
 
-				// First get overall avg
+				// get overall avg
 				sum := 0.0
 				for _, s := range metric.Series {
 					sum += s.Statistics.Avg
 				}
 
 				avg := sum / float64(len(metric.Series))
+				f, u := normalize(avg, metric.Unit)
 
-				for _, s := range metric.Series {
-					fp := schema.ConvertFloatToFloat64(s.Data)
-					// Normalize values with new unit prefix
-					oldUnit := metric.Unit.Base
-					units.NormalizeSeries(fp, avg, oldUnit, &newUnit)
-					s.Data = schema.GetFloat64ToFloat(fp)
+				if u.Prefix != metric.Unit.Prefix {
+
+					for _, s := range metric.Series {
+						fp := schema.ConvertFloatToFloat64(s.Data)
+
+						for i := 0; i < len(fp); i++ {
+							fp[i] *= f
+							fp[i] = math.Ceil(fp[i])
+						}
+
+						s.Data = schema.GetFloat64ToFloat(fp)
+					}
+
+					metric.Unit.Prefix = u.Prefix
 				}
-				metric.Unit.Base = newUnit
 			}
 		}
 	}

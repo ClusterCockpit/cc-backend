@@ -116,7 +116,10 @@ func main() {
 	}
 
 	if flagMigrateDB {
-		repository.MigrateDB(config.Keys.DBDriver, config.Keys.DB)
+		err := repository.MigrateDB(config.Keys.DBDriver, config.Keys.DB)
+		if err != nil {
+			log.Fatal(err)
+		}
 		os.Exit(0)
 	}
 
