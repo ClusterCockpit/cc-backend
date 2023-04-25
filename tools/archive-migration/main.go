@@ -174,16 +174,14 @@ func deepCopyClusterConfig(co *Cluster) schema.Cluster {
 		scn.SocketsPerNode = sco.SocketsPerNode
 		scn.CoresPerSocket = sco.CoresPerSocket
 		scn.ThreadsPerCore = sco.ThreadsPerCore
-		var prefix = new(string)
-		*prefix = "G"
 		scn.FlopRateScalar = schema.MetricValue{
-			Unit:  schema.Unit{Base: "F/s", Prefix: prefix},
+			Unit:  schema.Unit{Base: "F/s", Prefix: "G"},
 			Value: float64(sco.FlopRateScalar)}
 		scn.FlopRateSimd = schema.MetricValue{
-			Unit:  schema.Unit{Base: "F/s", Prefix: prefix},
+			Unit:  schema.Unit{Base: "F/s", Prefix: "G"},
 			Value: float64(sco.FlopRateSimd)}
 		scn.MemoryBandwidth = schema.MetricValue{
-			Unit:  schema.Unit{Base: "B/s", Prefix: prefix},
+			Unit:  schema.Unit{Base: "B/s", Prefix: "G"},
 			Value: float64(sco.MemoryBandwidth)}
 		scn.Topology = *sco.Topology
 		cn.SubClusters = append(cn.SubClusters, &scn)

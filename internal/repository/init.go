@@ -77,8 +77,8 @@ func HandleImportFlag(flag string) error {
 			return err
 		}
 
-		checkJobData(&jobData)
-		SanityChecks(&jobMeta.BaseJob)
+		//checkJobData(&jobData)
+		//	SanityChecks(&jobMeta.BaseJob)
 		jobMeta.MonitoringStatus = schema.MonitoringStatusArchivingSuccessful
 		if job, err := GetJobRepository().Find(&jobMeta.JobID, &jobMeta.Cluster, &jobMeta.StartTime); err != sql.ErrNoRows {
 			if err != nil {
@@ -339,17 +339,15 @@ func getNormalizationFactor(v float64) (float64, int) {
 	return math.Pow10(count * scale), count * scale
 }
 
-func normalize(avg float64, u schema.Unit) (float64, schema.Unit) {
+func normalize(avg float64, p string) (float64, string) {
 	f, e := getNormalizationFactor(avg)
 
 	if e != 0 {
-
-		p := units.NewPrefixFromFactor(units.NewPrefix(*u.Prefix), e)
-		np := p.Prefix()
-		return f, schema.Unit{Prefix: &np, Base: u.Base}
+		np := units.NewPrefixFromFactor(units.NewPrefix(p), e)
+		return f, np.Prefix()
 	}
 
-	return f, u
+	return f, p
 }
 
 func checkJobData(d *schema.JobData) error {
@@ -368,22 +366,23 @@ func checkJobData(d *schema.JobData) error {
 				}
 
 				avg := sum / float64(len(metric.Series))
-				f, u := normalize(avg, metric.Unit)
+				f, p := normalize(avg, metric.Unit.Prefix)
 
-				if u.Prefix != metric.Unit.Prefix {
+				if p != metric.Unit.Prefix {
 
-					for _, s := range metric.Series {
-						fp := schema.ConvertFloatToFloat64(s.Data)
+					fmt.Printf("Convert %e", f)
+					// for _, s := range metric.Series {
+					// fp := schema.ConvertFloatToFloat64(s.Data)
+					//
+					// for i := 0; i < len(fp); i++ {
+					// 	fp[i] *= f
+					// 	fp[i] = math.Ceil(fp[i])
+					// }
+					//
+					// s.Data = schema.GetFloat64ToFloat(fp)
+					// }
 
-						for i := 0; i < len(fp); i++ {
-							fp[i] *= f
-							fp[i] = math.Ceil(fp[i])
-						}
-
-						s.Data = schema.GetFloat64ToFloat(fp)
-					}
-
-					metric.Unit.Prefix = u.Prefix
+					metric.Unit.Prefix = p
 				}
 			}
 		}

@@ -95,8 +95,8 @@ var JobDefaults BaseJob = BaseJob{
 }
 
 type Unit struct {
-	Base   string  `json:"base"`
-	Prefix *string `json:"prefix,omitempty"`
+	Base   string `json:"base"`
+	Prefix string `json:"prefix,omitempty"`
 }
 
 // JobStatistics model

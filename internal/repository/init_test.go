@@ -77,25 +77,3 @@ func TestNormalizeKeep(t *testing.T) {
 		t.Errorf("Failed Prefix or unit: Want G, Got %s", p.Prefix())
 	}
 }
-
-//
-// func TestHandleImportFlag(t *testing.T) {
-// 	t.Error("wrong summary for diagnostic ")
-// 	r := setupRepo(t)
-//
-// 	s := "../../test/repo/meta1.json:../../test/repo/data1.json"
-// 	err := HandleImportFlag(s)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-//
-// 	jobId, cluster, startTime := int64(1404396), "emmy", int64(1609299584)
-// 	job, err := r.Find(&jobId, &cluster, &startTime)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-//
-// 	if job.ID != 1366 {
-// 		t.Errorf("wrong summary for diagnostic 3\ngot: %d \nwant: 1366", job.JobID)
-// 	}
-// }
