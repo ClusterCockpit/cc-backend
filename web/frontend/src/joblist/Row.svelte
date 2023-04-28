@@ -128,7 +128,8 @@
                     statisticsSeries={metric.data.metric.statisticsSeries}
                     metric={metric.data.name}
                     cluster={cluster}
-                    subCluster={job.subCluster} />
+                    subCluster={job.subCluster}
+                    isShared={(job.exclusive != 1)}/>
             {:else if metric.removed == true && metric.data == null}
                 <Card body color="info">Metric disabled for subcluster '{ job.subCluster }'</Card>
             {:else}
