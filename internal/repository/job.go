@@ -74,7 +74,7 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.SubCluster, &job.StartTimeUnix, &job.Partition, &job.ArrayJobId,
 		&job.NumNodes, &job.NumHWThreads, &job.NumAcc, &job.Exclusive, &job.MonitoringStatus, &job.SMT, &job.State,
 		&job.Duration, &job.Walltime, &job.RawResources /*&job.RawMetaData*/); err != nil {
-		log.Warn("Error while scanning rows")
+		log.Warn("Error while scanning rows (Job)")
 		return nil, err
 	}
 
@@ -94,6 +94,17 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 
 	job.RawResources = nil
 	return job, nil
+}
+
+func scanJobLink(row interface{ Scan(...interface{}) error }) (*model.JobLink, error) {
+	jobLink := &model.JobLink{}
+	if err := row.Scan(
+		&jobLink.ID, &jobLink.JobID); err != nil {
+		log.Warn("Error while scanning rows (jobLink)")
+		return nil, err
+	}
+
+	return jobLink, nil
 }
 
 func (r *JobRepository) FetchJobName(job *schema.Job) (*string, error) {

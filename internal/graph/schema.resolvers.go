@@ -234,6 +234,23 @@ func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, pag
 	return &model.JobResultList{Items: jobs, Count: &count}, nil
 }
 
+// JobsShared is the resolver for the jobsShared field.
+func (r *queryResolver) JobsParallel(ctx context.Context, filter []*model.JobFilter) (*model.JobLinkResultList, error) {
+	jobLinks, err := r.Repo.QueryJobLinks(ctx, filter)
+	if err != nil {
+		log.Warn("Error while querying jobLinks")
+		return nil, err
+	}
+
+	count, err := r.Repo.CountJobs(ctx, filter)
+	if err != nil {
+		log.Warn("Error while counting jobLinks")
+		return nil, err
+	}
+
+	return &model.JobLinkResultList{Items: jobLinks, Count: &count}, nil
+}
+
 // JobsStatistics is the resolver for the jobsStatistics field.
 func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobFilter, groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
 	return r.Repo.JobsStatistics(ctx, filter, groupBy)

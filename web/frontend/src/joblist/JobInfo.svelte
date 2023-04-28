@@ -12,9 +12,11 @@
 <script>
     import Tag from '../Tag.svelte';
     import { Badge, Icon } from 'sveltestrap';
+    import { operationStore, query} from '@urql/svelte'
 
     export let job;
     export let jobTags = job.tags;
+    export let showParallelJobs = false
 
     function formatDuration(duration) {
         const hours = Math.floor(duration / 3600);
@@ -23,6 +25,27 @@
         duration -= minutes * 60;
         const seconds = duration;
         return `${hours}:${('0' + minutes).slice(-2)}:${('0' + seconds).slice(-2)}`;
+    }
+
+    const filter = [
+        {exclusive: job.exclusive},
+        {sharedNode: {contains: job.resources[0].hostname }},
+        {selfJobId: {neq: job.jobId }},
+        {selfStartTime: job.startTime, selfDuration: job.duration}
+    ]
+
+    const parallelJobs = operationStore(`
+    query($filter: [JobFilter!]!){
+        jobsParallel(filter: $filter) {
+            items { id, jobId }
+            count
+        }
+    }`, {
+        filter
+    })
+
+    if (showParallelJobs) { 
+        query(parallelJobs)
     }
 </script>
 
@@ -56,6 +79,19 @@
             <a class="fst-italic" href="/monitoring/jobs/?project={job.project}&projectMatch=eq" target="_blank">
                 {scrambleNames ? scramble(job.project) : job.project}
             </a>
+        {/if}
+        {#if showParallelJobs && $parallelJobs.data != null}
+            <br/>
+            <Icon name="diagram-3-fill"/> 
+            {#if $parallelJobs.data.jobsParallel.count == 0}
+                No Parallel Jobs
+            {:else}
+                {#each $parallelJobs.data.jobsParallel.items as pjob, index}
+                    <a href="/monitoring/job/{pjob.id}" target="_blank">
+                        {pjob.jobId}{#if index != $parallelJobs.data.jobsParallel.count - 1},{/if}
+                    </a>
+                {/each}
+            {/if}
         {/if}
     </p>
 

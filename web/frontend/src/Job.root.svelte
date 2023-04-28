@@ -95,7 +95,7 @@
         {#if $initq.error}
             <Card body color="danger">{$initq.error.message}</Card>
         {:else if $initq.data}
-            <JobInfo job={$initq.data.job} jobTags={jobTags}/>
+            <JobInfo job={$initq.data.job} jobTags={jobTags} showParallelJobs={$initq.data.job.exclusive != 1}/>
         {:else}
             <Spinner secondary/>
         {/if}

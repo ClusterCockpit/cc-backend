@@ -70,13 +70,55 @@ func (r *JobRepository) QueryJobs(
 		job, err := scanJob(rows)
 		if err != nil {
 			rows.Close()
-			log.Warn("Error while scanning rows")
+			log.Warn("Error while scanning rows (Jobs)")
 			return nil, err
 		}
 		jobs = append(jobs, job)
 	}
 
 	return jobs, nil
+}
+
+// QueryJobLinks returns a list of minimal job information (DB-ID and jobId) of shared jobs for link-building based the provided filters.
+func (r *JobRepository) QueryJobLinks(
+	ctx context.Context,
+	filters []*model.JobFilter) ([]*model.JobLink, error) {
+
+	query, qerr := SecurityCheck(ctx, sq.Select("job.id", "job.job_id").From("job"))
+
+	if qerr != nil {
+		return nil, qerr
+	}
+
+	for _, f := range filters {
+		query = BuildWhereClause(f, query)
+	}
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		log.Warn("Error while converting query to sql")
+		return nil, err
+	}
+
+	log.Debugf("SQL query: `%s`, args: %#v", sql, args)
+	rows, err := query.RunWith(r.stmtCache).Query()
+	if err != nil {
+		log.Error("Error while running query")
+		return nil, err
+	}
+
+	jobLinks := make([]*model.JobLink, 0, 50)
+	for rows.Next() {
+		jobLink, err := scanJobLink(rows)
+		if err != nil {
+			rows.Close()
+			log.Warn("Error while scanning rows (JobLinks)")
+			return nil, err
+		}
+		jobLinks = append(jobLinks, jobLink)
+	}
+
+	return jobLinks, nil
 }
 
 // CountJobs counts the number of jobs matching the filters.
@@ -187,6 +229,22 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	if filter.MemUsedMax != nil {
 		query = buildFloatCondition("job.mem_used_max", filter.MemUsedMax, query)
 	}
+	// Shared Jobs Query
+	if filter.Exclusive != nil {
+		query = query.Where("job.exclusive = ?", *filter.Exclusive)
+	}
+	if filter.SharedNode != nil {
+		query = buildStringCondition("job.resources", filter.SharedNode, query)
+	}
+	if filter.SelfJobID != nil {
+		query = buildStringCondition("job.job_id", filter.SelfJobID, query)
+	}
+	if filter.SelfStartTime != nil && filter.SelfDuration != nil { // Offset of 30 minutes?
+		log.Debug("SET SELFTIME FILTERS")
+		start := filter.SelfStartTime.Unix() // There does not seam to be a portable way to get the current unix timestamp accross different DBs.
+		end := start + int64(*filter.SelfDuration)
+		query = query.Where("((job.start_time BETWEEN ? AND ?) OR ((job.start_time + job.duration) BETWEEN ? AND ?))", start, end, start, end)
+	}
 	return query
 }
 
@@ -213,6 +271,9 @@ func buildFloatCondition(field string, cond *model.FloatRange, query sq.SelectBu
 func buildStringCondition(field string, cond *model.StringInput, query sq.SelectBuilder) sq.SelectBuilder {
 	if cond.Eq != nil {
 		return query.Where(field+" = ?", *cond.Eq)
+	}
+	if cond.Neq != nil {
+		return query.Where(field+" != ?", *cond.Neq)
 	}
 	if cond.StartsWith != nil {
 		return query.Where(field+" LIKE ?", fmt.Sprint(*cond.StartsWith, "%"))

@@ -32,6 +32,11 @@ type Job {
   userData:         User
 }
 
+type JobLink {
+  id:               ID!
+  jobId:            Int!
+}
+
 type Cluster {
   name:         String!
   partitions:   [String!]!        # Slurm partitions
@@ -187,6 +192,7 @@ type Query {
   jobsFootprints(filter: [JobFilter!], metrics: [String!]!): Footprints
 
   jobs(filter: [JobFilter!], page: PageRequest, order: OrderByInput): JobResultList!
+  jobsParallel(filter: [JobFilter!]): JobLinkResultList!
   jobsStatistics(filter: [JobFilter!], groupBy: Aggregate): [JobsStatistics!]!
   jobsCount(filter: [JobFilter]!, groupBy: Aggregate!, weight: Weights, limit: Int): [Count!]!
 
@@ -230,6 +236,12 @@ input JobFilter {
   memBwAvg:    FloatRange
   loadAvg:     FloatRange
   memUsedMax:  FloatRange
+
+  exclusive:     Int
+  sharedNode:    StringInput
+  selfJobId:     StringInput
+  selfStartTime: Time
+  selfDuration:  Int
 }
 
 input OrderByInput {
@@ -244,6 +256,7 @@ enum SortDirectionEnum {
 
 input StringInput {
   eq:         String
+  neq:        String
   contains:   String
   startsWith: String
   endsWith:   String
@@ -258,6 +271,11 @@ type JobResultList {
   items:  [Job!]!
   offset: Int
   limit:  Int
+  count:  Int
+}
+
+type JobLinkResultList {
+  items:  [JobLink!]!
   count:  Int
 }
 
