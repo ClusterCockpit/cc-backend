@@ -166,7 +166,8 @@
                         metricName={item.metric}
                         rawData={item.data.map(x => x.metric)}
                         scopes={item.data.map(x => x.scope)}
-                        width={width}/>
+                        width={width}
+                        isShared={($initq.data.job.exclusive != 1)}/>
                 {:else}
                     <Card body color="warning">No data for <code>{item.metric}</code></Card>
                 {/if}
