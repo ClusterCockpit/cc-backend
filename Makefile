@@ -1,11 +1,14 @@
 TARGET = ./cc-backend
 VAR = ./var
-DB = ./var/job.db
 FRONTEND = ./web/frontend
 VERSION = 1
 GIT_HASH := $(shell git rev-parse --short HEAD || echo 'development')
 CURRENT_TIME = $(shell date +"%Y-%m-%d:T%H:%M:%S")
 LD_FLAGS = '-s -X main.buildTime=${CURRENT_TIME} -X main.version=${VERSION} -X main.hash=${GIT_HASH}'
+
+EXECUTABLES = go npm
+K := $(foreach exec,$(EXECUTABLES),\
+        $(if $(shell which $(exec)),some string,$(error "No $(exec) in PATH")))
 
 SVELTE_COMPONENTS = status   \
 					analysis \
@@ -28,14 +31,20 @@ SVELTE_SRC = $(wildcard $(FRONTEND)/src/*.svelte)         \
 
 .NOTPARALLEL:
 
-$(TARGET): $(VAR) $(DB) $(SVELTE_TARGETS)
+$(TARGET): $(VAR) $(SVELTE_TARGETS)
 	$(info ===>  BUILD cc-backend)
 	@go build -ldflags=${LD_FLAGS} ./cmd/cc-backend
 
 clean:
 	$(info ===>  CLEAN)
 	@go clean
-	@rm $(TARGET)
+	@rm -f $(TARGET)
+
+distclean:
+	@$(MAKE) clean
+	$(info ===>  DISTCLEAN)
+	@rm -rf $(FRONTEND)/node_modules
+	@rm -rf $(VAR)
 
 test:
 	$(info ===>  TESTING)
@@ -50,9 +59,6 @@ tags:
 $(VAR):
 	@mkdir $(VAR)
 	cd web/frontend && npm install
-
-$(DB):
-	./cc-backend --migrate-db
 
 $(SVELTE_TARGETS): $(SVELTE_SRC)
 	$(info ===>  BUILD frontend)
