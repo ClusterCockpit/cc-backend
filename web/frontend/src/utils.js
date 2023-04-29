@@ -1,7 +1,6 @@
 import { expiringCacheExchange } from './cache-exchange.js'
-import { initClient } from '@urql/svelte'
+import { Client, fetchExchange } from '@urql/svelte';
 import { setContext, getContext, hasContext, onDestroy, tick } from 'svelte'
-import { dedupExchange, fetchExchange } from '@urql/core'
 import { readable } from 'svelte/store'
 
 /*
@@ -19,7 +18,7 @@ export function init(extraInitQuery = '') {
         ? getContext('jwt')
         : getContext('cc-config')['jwt']
 
-    const client = initClient({
+    const client = new Client({
         url: `${window.location.origin}/query`,
         fetchOptions: jwt != null
             ? { headers: { 'Authorization': `Bearer ${jwt}` } } : {},
@@ -162,9 +161,9 @@ export function fuzzySearchTags(term, tags) {
 
     return results.sort((a, b) => {
         if (a.type < b.type) return -1
-        if (a.type > b.type) return  1
+        if (a.type > b.type) return 1
         if (a.name < b.name) return -1
-        if (a.name > b.name) return  1
+        if (a.name > b.name) return 1
         return 0
     })
 }

@@ -49,15 +49,14 @@ tags:
 
 $(VAR):
 	@mkdir $(VAR)
-	@touch ./var/job.db
-	cd web/frontend && yarn install
+	cd web/frontend && npm install
 
 $(DB):
 	./cc-backend --migrate-db
 
 $(SVELTE_TARGETS): $(SVELTE_SRC)
 	$(info ===>  BUILD frontend)
-	cd web/frontend && yarn build
+	cd web/frontend && npm run build
 
 install: $(TARGET)
 	@WORKSPACE=$(PREFIX)
