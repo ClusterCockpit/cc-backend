@@ -9,7 +9,7 @@
     - update(filters?: [JobFilter])
  -->
 <script>
-    import { operationStore, query, mutation } from '@urql/svelte'
+    import { queryStore, gql, getContextClient , mutationStore } from '@urql/svelte'
     import { getContext } from 'svelte';
     import { Row, Table, Card, Spinner } from 'sveltestrap'
     import Pagination from './Pagination.svelte'
@@ -29,11 +29,13 @@
     let paging = { itemsPerPage, page }
     let filter = []
 
-    const jobs = operationStore(`
-    query($filter: [JobFilter!]!, $sorting: OrderByInput!, $paging: PageRequest! ){
-        jobs(filter: $filter, order: $sorting, page: $paging) {
-            items {
-                id, jobId, user, project, jobName, cluster, subCluster, startTime,
+    const jobs = queryStore({
+        client: getContextClient(),
+        query: gql`
+        query($filter: [JobFilter!]!, $sorting: OrderByInput!, $paging: PageRequest! ){
+            jobs(filter: $filter, order: $sorting, page: $paging) {
+                items {
+                    id, jobId, user, project, jobName, cluster, subCluster, startTime,
                 duration, numNodes, numHWThreads, numAcc, walltime, resources { hostname },
                 SMT, exclusive, partition, arrayJobId,
                 monitoringStatus, state,
@@ -43,19 +45,20 @@
             }
             count
         }
-    }`, {
-        paging,
-        sorting,
-        filter,
-    }, {
-        pause: true
+    }`,
+    variables: { paging, sorting, filter },
+    pause: true
     })
 
-    const updateConfiguration = mutation({
-        query: `mutation($name: String!, $value: String!) {
+    const updateConfiguration = ({ name, value }) => {
+    result = mutationStore({
+        client: getContextClient(),
+        query: gql`mutation($name: String!, $value: String!) {
             updateConfiguration(name: $name, value: $value)
-        }`
+        }`,
+        variables: {name, value}
     })
+    }
 
     $: $jobs.variables = { ...$jobs.variables, sorting, paging }
     $: matchedJobs = $jobs.data != null ? $jobs.data.jobs.count : 0

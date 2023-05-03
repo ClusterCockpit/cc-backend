@@ -10,7 +10,7 @@
 <script>
     import  { Modal, ModalBody, ModalHeader, ModalFooter, Button, ListGroup } from 'sveltestrap'
     import { getContext } from 'svelte'
-    import { mutation } from '@urql/svelte'
+    import { gql, getContextClient , mutationStore  } from '@urql/svelte'
 
     export let metrics
     export let isOpen
@@ -53,11 +53,15 @@
         }
     }
 
-    const updateConfiguration = mutation({
-        query: `mutation($name: String!, $value: String!) {
+    const updateConfiguration = ({ name, value }) => {
+    result = mutationStore({
+        client: getContextClient(),
+        query: gql`mutation($name: String!, $value: String!) {
             updateConfiguration(name: $name, value: $value)
-        }`
+        }`,
+        variables: {name, value}
     })
+    }
 
     let columnHovering = null
 

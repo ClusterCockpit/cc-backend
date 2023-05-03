@@ -9,7 +9,7 @@
  -->
 
 <script>
-    import { operationStore, query } from '@urql/svelte'
+    import { queryStore, gql, getContextClient } from '@urql/svelte'
     import { getContext } from 'svelte'
     import { Card, Spinner } from 'sveltestrap'
     import MetricPlot from '../plots/MetricPlot.svelte'
@@ -26,7 +26,10 @@
     const cluster = getContext('clusters').find(c => c.name == job.cluster)
     // Get all MetricConfs which include subCluster-specific settings for this job
     const metricConfig = getContext('metrics')
-    const metricsQuery = operationStore(`query($id: ID!, $metrics: [String!]!, $scopes: [MetricScope!]!) {
+    const metricsQuery = queryStore({
+        client: getContextClient(),
+        query: gql`
+        query($id: ID!, $metrics: [String!]!, $scopes: [MetricScope!]!) {
         jobMetrics(id: $id, metrics: $metrics, scopes: $scopes) {
             name
             scope
@@ -39,10 +42,12 @@
                 }
             }
         }
-    }`, {
+    }`,
+    pause: true,
+    variables: {
         id: job.id,
         metrics,
-        scopes
+        scopes}
     })
 
     const selectScope = (jobMetrics) => jobMetrics.reduce(
@@ -91,7 +96,7 @@
     $: metricsQuery.variables = { id: job.id, metrics, scopes }
 
     if (job.monitoringStatus)
-        query(metricsQuery)
+        $metricsQuery.resume()
 </script>
 
 <tr>

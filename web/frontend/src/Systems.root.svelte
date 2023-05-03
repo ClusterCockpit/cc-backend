@@ -1,7 +1,7 @@
 <script>
     import { init } from './utils.js'
     import { Row, Col, Input, InputGroup, InputGroupText, Icon, Spinner, Card } from 'sveltestrap'
-    import { operationStore, query } from '@urql/svelte'
+    import { queryStore, gql, getContextClient } from '@urql/svelte'
     import TimeSelection from './filters/TimeSelection.svelte'
     import PlotTable from './PlotTable.svelte'
     import MetricPlot from './plots/MetricPlot.svelte'
@@ -27,7 +27,9 @@
     let hostnameFilter = ''
     let selectedMetric = ccconfig.system_view_selectedMetric
 
-    const nodesQuery = operationStore(`query($cluster: String!, $metrics: [String!], $from: Time!, $to: Time!) {
+    const nodesQuery = queryStore({
+        client: getContextClient(),
+        query: gql`query($cluster: String!, $metrics: [String!], $from: Time!, $to: Time!) {
         nodeMetrics(cluster: $cluster, metrics: $metrics, from: $from, to: $to) {
             host
             subCluster
@@ -44,11 +46,12 @@
                 }
             }
         }
-    }`, {
+    }`,
+    variables: {
         cluster: cluster,
         metrics: [],
         from: from.toISOString(),
-        to: to.toISOString()
+        to: to.toISOString()}
     })
 
     let metricUnits = {}
@@ -64,8 +67,6 @@
     }
 
     $: $nodesQuery.variables = { cluster, metrics: [selectedMetric], from: from.toISOString(), to: to.toISOString() }
-
-    query(nodesQuery)
 </script>
 
 <Row>

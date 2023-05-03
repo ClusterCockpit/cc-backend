@@ -1,5 +1,5 @@
 import { expiringCacheExchange } from './cache-exchange.js'
-import { Client, fetchExchange } from '@urql/svelte';
+import { Client, setContextClient, fetchExchange } from '@urql/svelte';
 import { setContext, getContext, hasContext, onDestroy, tick } from 'svelte'
 import { readable } from 'svelte/store'
 
@@ -31,6 +31,8 @@ export function init(extraInitQuery = '') {
             fetchExchange
         ]
     })
+
+    setContextClient(client)
 
     const query = client.query(`query {
         clusters {

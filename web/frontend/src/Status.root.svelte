@@ -4,7 +4,7 @@
     import Histogram from './plots/Histogram.svelte'
     import { Row, Col, Spinner, Card, CardHeader, CardTitle, CardBody, Table, Progress, Icon } from 'sveltestrap'
     import { init } from './utils.js'
-    import { operationStore, query } from '@urql/svelte'
+    import { queryStore, gql, getContextClient  } from '@urql/svelte'
 
     const { query: initq } = init()
 
@@ -13,7 +13,9 @@
     let plotWidths = [], colWidth1 = 0, colWidth2
 
     let from = new Date(Date.now() - 5 * 60 * 1000), to = new Date(Date.now())
-    const mainQuery = operationStore(`query($cluster: String!, $filter: [JobFilter!]!, $metrics: [String!], $from: Time!, $to: Time!) {
+    const mainQuery = queryStore({
+        client: getContextClient(),
+        query: gql`query($cluster: String!, $filter: [JobFilter!]!, $metrics: [String!], $from: Time!, $to: Time!) {
         nodeMetrics(cluster: $cluster, metrics: $metrics, from: $from, to: $to) {
             host
             subCluster
@@ -36,12 +38,11 @@
         allocatedNodes(cluster: $cluster)                                                        { name, count }
         topUsers:    jobsCount(filter: $filter, groupBy: USER,    weight: NODE_COUNT, limit: 10) { name, count }
         topProjects: jobsCount(filter: $filter, groupBy: PROJECT, weight: NODE_COUNT, limit: 10) { name, count }
-    }`, {
-        cluster: cluster,
-        metrics: ['flops_any', 'mem_bw'],
-        from: from.toISOString(),
-        to: to.toISOString(),
+    }`,
+    variables: {
+         cluster: cluster, metrics: ['flops_any', 'mem_bw'], from: from.toISOString(), to: to.toISOString(),
         filter: [{ state: ['running'] }, { cluster: { eq: cluster } }]
+    }
     })
 
     const sumUp = (data, subcluster, metric) => data.reduce((sum, node) => node.subCluster == subcluster

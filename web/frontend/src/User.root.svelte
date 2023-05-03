@@ -2,7 +2,7 @@
     import { onMount, getContext } from 'svelte'
     import { init } from './utils.js'
     import { Table, Row, Col, Button, Icon, Card, Spinner } from 'sveltestrap'
-    import { operationStore, query } from '@urql/svelte'
+    import { queryStore, gql, getContextClient } from '@urql/svelte'
     import Filters from './filters/Filters.svelte'
     import JobList from './joblist/JobList.svelte'
     import Sorting from './joblist/SortSelection.svelte'
@@ -25,8 +25,10 @@
     let w1, w2, histogramHeight = 250
     let selectedCluster = filterPresets?.cluster ? filterPresets.cluster : null
 
-    const stats = operationStore(`
-    query($filter: [JobFilter!]!) {
+    const stats = queryStore({
+        client: getContextClient(),
+        query: gql`
+        query($filter: [JobFilter!]!) {
         jobsStatistics(filter: $filter) {
             totalJobs
             shortJobs
@@ -35,10 +37,10 @@
             histDuration { count, value }
             histNumNodes { count, value }
         }
-    }
-    `, {
+    }`,
+    variables: {
         filter: []
-    }, {
+    },
         pause: true
     })
 

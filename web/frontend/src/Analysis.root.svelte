@@ -1,7 +1,7 @@
 <script>
     import { init } from './utils.js'
     import { getContext, onMount } from 'svelte'
-    import { operationStore, query } from '@urql/svelte'
+    import { queryStore, gql, getContextClient  } from '@urql/svelte'
     import { Row, Col, Spinner, Card, Table } from 'sveltestrap'
     import Filters from './filters/Filters.svelte'
     import PlotSelection from './PlotSelection.svelte'
@@ -50,7 +50,9 @@
         }
     })
 
-    const statsQuery = operationStore(`
+    const statsQuery = queryStore({
+        client: getContextClient(),
+        query: gql`
         query($filter: [JobFilter!]!) {
             stats: jobsStatistics(filter: $filter) {
                 totalJobs
@@ -63,33 +65,38 @@
 
             topUsers: jobsCount(filter: $filter, groupBy: USER, weight: NODE_HOURS, limit: 5) { name, count }
         }
-    `, { filter: [] }, { pause: true })
+    `, 
+    variables: { filter: [] },
+    pause: true 
+    })
 
-    const footprintsQuery = operationStore(`
+    const footprintsQuery = queryStore({
+        client: getContextClient(),
+        query: gql`
         query($filter: [JobFilter!]!, $metrics: [String!]!) {
             footprints: jobsFootprints(filter: $filter, metrics: $metrics) {
                 nodehours,
                 metrics { metric, data }
             }
-        }
-    `, { filter: [], metrics }, { pause: true })
+        }`,
+    variables:  { filter: [], metrics },
+    pause: true
+    })
     $: $footprintsQuery.variables = { ...$footprintsQuery.variables, metrics }
 
-    const rooflineQuery = operationStore(`
+    const rooflineQuery = queryStore({
+        client: getContextClient(),
+        query: gql`
         query($filter: [JobFilter!]!, $rows: Int!, $cols: Int!,
                 $minX: Float!, $minY: Float!, $maxX: Float!, $maxY: Float!) {
             rooflineHeatmap(filter: $filter, rows: $rows, cols: $cols,
                     minX: $minX, minY: $minY, maxX: $maxX, maxY: $maxY)
         }
-    `, {
-        filter: [],
-        rows: 50, cols: 50,
-        minX: 0.01, minY: 1., maxX: 1000., maxY: -1.
-    }, { pause: true });
+    `,
+    variables: { filter: [], rows: 50, cols: 50, minX: 0.01, minY: 1., maxX: 1000., maxY: -1. },
+    pause: true
+    })
 
-    query(statsQuery)
-    query(footprintsQuery)
-    query(rooflineQuery)
     onMount(() => filters.update())
 </script>
 

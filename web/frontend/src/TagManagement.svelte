@@ -1,6 +1,6 @@
 <script>
     import { getContext } from 'svelte'
-    import { mutation } from '@urql/svelte'
+    import { gql, getContextClient , mutationStore } from '@urql/svelte'
     import { Icon, Button, ListGroupItem, Spinner, Modal, Input,
              ModalBody, ModalHeader, ModalFooter, Alert } from 'sveltestrap'
     import { fuzzySearchTags } from './utils.js'
@@ -15,23 +15,34 @@
     let pendingChange = false
     let isOpen = false
 
-    const createTagMutation = mutation({
-        query: `mutation($type: String!, $name: String!) {
+    const createTagMutation = ({ type, name }) => {
+    result = mutationStore({
+        client: getContextClient(),
+        query: gql`mutation($type: String!, $name: String!) {
             createTag(type: $type, name: $name) { id, type, name }
-        }`
+        }`,
+        variables: { type, name}
     })
+    }
 
-    const addTagsToJobMutation = mutation({
-        query: `mutation($job: ID!, $tagIds: [ID!]!) {
+    const addTagsToJobMutation = ({ job, tagIds }) => {
+    result = mutationStore({
+        client: getContextClient(),
+        query: gql`mutation($job: ID!, $tagIds: [ID!]!) {
             addTagsToJob(job: $job, tagIds: $tagIds) { id, type, name }
-        }`
+        }`,
+        variables: {job, tagIds}
     })
+    }
 
-    const removeTagsFromJobMutation = mutation({
-        query: `mutation($job: ID!, $tagIds: [ID!]!) {
+    const removeTagsFromJobMutation = ({ job, tagIds }) => {
+    result = mutationStore({
+        client: getContextClient(),
+        query: gql`mutation($job: ID!, $tagIds: [ID!]!) {
             removeTagsFromJob(job: $job, tagIds: $tagIds) { id, type, name }
         }`
     })
+    }
 
     let allTagsFiltered // $initialized is in there because when it becomes true, allTags is initailzed.
     $: allTagsFiltered = ($initialized, fuzzySearchTags(filterTerm, allTags))
