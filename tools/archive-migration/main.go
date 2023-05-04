@@ -17,6 +17,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	ccunits "github.com/ClusterCockpit/cc-units"
 )
 
 const Version = 1
@@ -37,26 +38,26 @@ func loadJobData(filename string) (*JobData, error) {
 func ConvertUnitString(us string) schema.Unit {
 	var nu schema.Unit
 
-	// if us == "CPI" ||
-	// 	us == "IPC" ||
-	// 	us == "load" ||
-	// 	us == "" {
-	// 	nu.Base = us
-	// 	return nu
-	// }
-	// u := ccunits.NewUnit(us)
-	// p := u.getPrefix()
-	// if p.Prefix() != "" {
-	// 	prefix := p.Prefix()
-	// 	nu.Prefix = &prefix
-	// }
-	// m := u.getMeasure()
-	// d := u.getUnitDenominator()
-	// if d.Short() != "inval" {
-	// 	nu.Base = fmt.Sprintf("%s/%s", m.Short(), d.Short())
-	// } else {
-	// 	nu.Base = m.Short()
-	// }
+	if us == "CPI" ||
+		us == "IPC" ||
+		us == "load" ||
+		us == "" {
+		nu.Base = us
+		return nu
+	}
+	u := ccunits.NewUnit(us)
+	p := u.GetPrefix()
+	if p.Prefix() != "" {
+		prefix := p.Prefix()
+		nu.Prefix = prefix
+	}
+	m := u.GetMeasure()
+	d := u.GetUnitDenominator()
+	if d.Short() != "inval" {
+		nu.Base = fmt.Sprintf("%s/%s", m.Short(), d.Short())
+	} else {
+		nu.Base = m.Short()
+	}
 
 	return nu
 }
