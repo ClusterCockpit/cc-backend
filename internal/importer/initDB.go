@@ -136,7 +136,7 @@ func SanityChecks(job *schema.BaseJob) error {
 	if len(job.Resources) == 0 || len(job.User) == 0 {
 		return fmt.Errorf("'resources' and 'user' should not be empty")
 	}
-	if *job.NumAcc < 0 || *job.NumHWThreads < 0 || job.NumNodes < 1 {
+	if job.NumAcc < 0 || job.NumHWThreads < 0 || job.NumNodes < 1 {
 		return fmt.Errorf("'numNodes', 'numAcc' or 'numHWThreads' invalid")
 	}
 	if len(job.Resources) != int(job.NumNodes) {

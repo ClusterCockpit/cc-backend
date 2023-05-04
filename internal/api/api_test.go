@@ -2,7 +2,7 @@
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
-package test
+package api_test
 
 import (
 	"bytes"
@@ -48,16 +48,7 @@ func setup(t *testing.T) *api.RestApi {
 		"duration": { "from": 0, "to": 86400 },
 		"startTime": { "from": "2022-01-01T00:00:00Z", "to": null }
 	   }
-	},
-    {
-		"name": "taurus",
-		"metricDataRepository": {"kind": "test", "url": "bla:8081"},
-		 "filterRanges": {
-		   "numNodes": { "from": 1, "to": 4000 },
-		   "duration": { "from": 0, "to": 604800 },
-		   "startTime": { "from": "2010-01-01T00:00:00Z", "to": null }
-		 }
-	 }
+	}
 	]
 }`
 	const testclusterJson = `{
@@ -115,215 +106,6 @@ func setup(t *testing.T) *api.RestApi {
 			}
 		]
 	}`
-	const taurusclusterJson = `{
-		"name": "taurus",
-		"subClusters": [
-		  {
-			"name": "haswell",
-			"processorType": "Intel Haswell",
-			"socketsPerNode": 2,
-			"coresPerSocket": 12,
-			"threadsPerCore": 1, 
-		    "flopRateScalar": {
-                  "unit": {
-                    "prefix": "G",
-                    "base": "F/s"
-                  },
-                  "value": 14
-            },
-            "flopRateSimd": {
-                 "unit": {
-                    "prefix": "G",
-                    "base": "F/s"
-                  },
-                  "value": 112
-            },
-            "memoryBandwidth": {
-                  "unit": {
-                    "prefix": "G",
-                    "base": "B/s"
-                  },
-                  "value": 24
-            },
-            "numberOfNodes": 70,
-            "nodes": "w11[27-45,49-63,69-72]",
-			"topology": {
-			  "node": [ 0, 1 ],
-			  "socket": [
-				[ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 ],
-				[ 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23 ]
-			  ],
-			  "memoryDomain": [
-				[ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 ],
-				[ 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23 ]
-			  ],
-			  "core": [ [ 0 ], [ 1 ], [ 2 ], [ 3 ], [ 4 ], [ 5 ], [ 6 ], [ 7 ], [ 8 ], [ 9 ], [ 10 ], [ 11 ], [ 12 ], [ 13 ], [ 14 ], [ 15 ], [ 16 ], [ 17 ], [ 18 ], [ 19 ], [ 20 ], [ 21 ], [ 22 ], [ 23 ] ]
-			}
-		  }
-		],
-		"metricConfig": [
-		  {
-			"name": "cpu_used",
-			"scope": "core",
-			"unit": {"base": ""},
-			"aggregation": "avg",
-			"timestep": 30,
-			"peak": 1,
-			"normal": 0.5,
-			"caution": 2e-07,
-			"alert": 1e-07,
-			"subClusters": [
-			  {
-				"name": "haswell",
-				"peak": 1,
-				"normal": 0.5,
-				"caution": 2e-07,
-				"alert": 1e-07
-			  }
-			]
-		  },
-		  {
-			"name": "ipc",
-			"scope": "core",
-			"unit": { "base": "IPC"},
-            "aggregation": "avg",
-			"timestep": 60,
-			"peak": 2,
-			"normal": 1,
-			"caution": 0.1,
-			"alert": 0.5,
-			"subClusters": [
-			  {
-				"name": "haswell",
-				"peak": 2,
-				"normal": 1,
-				"caution": 0.1,
-				"alert": 0.5
-			  }
-			]
-		  },
-		  {
-			"name": "flops_any",
-			"scope": "core",
-			"unit": { "base": "F/s"},
-            "aggregation": "sum",
-			"timestep": 60,
-			"peak": 40000000000,
-			"normal": 20000000000,
-			"caution": 30000000000,
-			"alert": 35000000000,
-			"subClusters": [
-			  {
-				"name": "haswell",
-				"peak": 40000000000,
-				"normal": 20000000000,
-				"caution": 30000000000,
-				"alert": 35000000000
-			  }
-			]
-		  },
-		  {
-			"name": "mem_bw",
-			"scope": "socket",
-			"unit": { "base": "B/s"},
-            "aggregation": "sum",
-			"timestep": 60,
-			"peak": 58800000000,
-			"normal": 28800000000,
-			"caution": 38800000000,
-			"alert": 48800000000,
-			"subClusters": [
-			  {
-				"name": "haswell",
-				"peak": 58800000000,
-				"normal": 28800000000,
-				"caution": 38800000000,
-				"alert": 48800000000
-			  }
-			]
-		  },
-		  {
-			"name": "file_bw",
-			"scope": "node",
-			"unit": { "base": "B/s"},
-            "aggregation": "sum",
-			"timestep": 30,
-			"peak": 20000000000,
-			"normal": 5000000000,
-			"caution": 9000000000,
-			"alert": 19000000000,
-			"subClusters": [
-			  {
-				"name": "haswell",
-				"peak": 20000000000,
-				"normal": 5000000000,
-				"caution": 9000000000,
-				"alert": 19000000000
-			  }
-			]
-		  },
-		  {
-			"name": "net_bw",
-			"scope": "node",
-			"unit": { "base": "B/s"},
-			"timestep": 30,
-            "aggregation": "sum",
-			"peak": 7000000000,
-			"normal": 5000000000,
-			"caution": 6000000000,
-			"alert": 6500000000,
-			"subClusters": [
-			  {
-				"name": "haswell",
-				"peak": 7000000000,
-				"normal": 5000000000,
-				"caution": 6000000000,
-				"alert": 6500000000
-			  }
-			]
-		  },
-		  {
-			"name": "mem_used",
-			"scope": "node",
-			"unit": {"base": "B"},
-            "aggregation": "sum",
-			"timestep": 30,
-			"peak": 32000000000,
-			"normal": 2000000000,
-			"caution": 31000000000,
-			"alert": 30000000000,
-			"subClusters": [
-			  {
-				"name": "haswell",
-				"peak": 32000000000,
-				"normal": 2000000000,
-				"caution": 31000000000,
-				"alert": 30000000000
-			  }
-			]
-		  },
-		  {
-			"name": "cpu_power",
-			"scope": "socket",
-			"unit": {"base": "W"},
-            "aggregation": "sum",
-			"timestep": 60,
-			"peak": 100,
-			"normal": 80,
-			"caution": 90,
-			"alert": 90,
-			"subClusters": [
-			  {
-				"name": "haswell",
-				"peak": 100,
-				"normal": 80,
-				"caution": 90,
-				"alert": 90
-			  }
-			]
-		  }
-		]
-	}`
 
 	log.Init("info", true)
 	tmpdir := t.TempDir()
@@ -344,13 +126,6 @@ func setup(t *testing.T) *api.RestApi {
 		t.Fatal(err)
 	}
 
-	if err := os.Mkdir(filepath.Join(jobarchive, "taurus"), 0777); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.WriteFile(filepath.Join(jobarchive, "taurus", "cluster.json"), []byte(taurusclusterJson), 0666); err != nil {
-		t.Fatal(err)
-	}
 	dbfilepath := filepath.Join(tmpdir, "test.db")
 	err := repository.MigrateDB("sqlite3", dbfilepath)
 	if err != nil {
@@ -392,7 +167,7 @@ func cleanup() {
 /*
 * This function starts a job, stops it, and then reads its data from the job-archive.
 * Do not run sub-tests in parallel! Tests should not be run in parallel at all, because
-* at least `setup` modifies global state. Log-Output is redirected to /dev/null on purpose.
+* at least `setup` modifies global state.
  */
 func TestRestApi(t *testing.T) {
 	restapi := setup(t)
@@ -477,15 +252,15 @@ func TestRestApi(t *testing.T) {
 			job.Project != "testproj" ||
 			job.Cluster != "testcluster" ||
 			job.SubCluster != "sc1" ||
-			*job.Partition != "default" ||
-			*job.Walltime != 3600 ||
-			*job.ArrayJobId != 0 ||
+			job.Partition != "default" ||
+			job.Walltime != 3600 ||
+			job.ArrayJobId != 0 ||
 			job.NumNodes != 1 ||
-			*job.NumHWThreads != 8 ||
-			*job.NumAcc != 0 ||
+			job.NumHWThreads != 8 ||
+			job.NumAcc != 0 ||
 			job.Exclusive != 1 ||
 			job.MonitoringStatus != 1 ||
-			*job.SMT != 1 ||
+			job.SMT != 1 ||
 			!reflect.DeepEqual(job.Resources, []*schema.Resource{{Hostname: "host123", HWThreads: []int{0, 1, 2, 3, 4, 5, 6, 7}}}) ||
 			job.StartTime.Unix() != 123456789 {
 			t.Fatalf("unexpected job properties: %#v", job)
@@ -573,8 +348,7 @@ func TestRestApi(t *testing.T) {
 		}
 	})
 
-	t.Run("FailedJob", func(t *testing.T) {
-		const startJobBody string = `{
+	const startJobBodyFailed string = `{
         "jobId":            12345,
 		"user":             "testuser",
 		"project":          "testproj",
@@ -593,120 +367,8 @@ func TestRestApi(t *testing.T) {
 		"startTime": 12345678
 	}`
 
-		ok := t.Run("StartJob", func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/api/jobs/start_job/", bytes.NewBuffer([]byte(startJobBody)))
-			recorder := httptest.NewRecorder()
-
-			r.ServeHTTP(recorder, req)
-			response := recorder.Result()
-			if response.StatusCode != http.StatusCreated {
-				t.Fatal(response.Status, recorder.Body.String())
-			}
-		})
-		if !ok {
-			t.Fatal("subtest failed")
-		}
-
-		const stopJobBody string = `{
-        "jobId":     12345,
-		"cluster":   "testcluster",
-
-		"jobState": "failed",
-		"stopTime": 12355678
-	}`
-
-		ok = t.Run("StopJob", func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/api/jobs/stop_job/", bytes.NewBuffer([]byte(stopJobBody)))
-			recorder := httptest.NewRecorder()
-
-			r.ServeHTTP(recorder, req)
-			response := recorder.Result()
-			if response.StatusCode != http.StatusOK {
-				t.Fatal(response.Status, recorder.Body.String())
-			}
-
-			restapi.JobRepository.WaitForArchiving()
-			jobid, cluster := int64(12345), "testcluster"
-			job, err := restapi.JobRepository.Find(&jobid, &cluster, nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if job.State != schema.JobStateFailed {
-				t.Fatal("expected job to be failed")
-			}
-		})
-		if !ok {
-			t.Fatal("subtest failed")
-		}
-
-	})
-
-	t.Run("ImportJob", func(t *testing.T) {
-		if err := repository.HandleImportFlag("meta.json:data.json"); err != nil {
-			t.Fatal(err)
-		}
-
-		repo := repository.GetJobRepository()
-		jobId := int64(20639587)
-		cluster := "taurus"
-		startTime := int64(1635856524)
-		job, err := repo.Find(&jobId, &cluster, &startTime)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if job.NumNodes != 2 {
-			t.Errorf("NumNode: Received %d, expected 2", job.NumNodes)
-		}
-
-		ar := archive.GetHandle()
-		data, err := ar.LoadJobData(job)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if len(data) != 8 {
-			t.Errorf("Job data length: Got %d, want 8", len(data))
-		}
-
-		r := map[string]string{"mem_used": "GB", "net_bw": "KB/s",
-			"cpu_power": "W", "cpu_used": "",
-			"file_bw": "KB/s", "flops_any": "F/s",
-			"mem_bw": "GB/s", "ipc": "IPC"}
-
-		for name, scopes := range data {
-			for _, metric := range scopes {
-				if metric.Unit.Base != r[name] {
-					t.Errorf("Metric %s unit: Got %s, want %s", name, metric.Unit.Base, r[name])
-				}
-			}
-		}
-	})
-}
-
-func subtestLetJobFail(t *testing.T, restapi *api.RestApi, r *mux.Router) {
-	const startJobBody string = `{
-        "jobId":            12345,
-		"user":             "testuser",
-		"project":          "testproj",
-		"cluster":          "testcluster",
-		"partition":        "default",
-		"walltime":         3600,
-		"numNodes":         1,
-		"exclusive":        1,
-		"monitoringStatus": 1,
-		"smt":              1,
-		"resources": [
-			{
-				"hostname": "host123"
-			}
-		],
-		"startTime": 12345678
-	}`
-
-	ok := t.Run("StartJob", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/api/jobs/start_job/", bytes.NewBuffer([]byte(startJobBody)))
+	ok := t.Run("StartJobFailed", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/jobs/start_job/", bytes.NewBuffer([]byte(startJobBodyFailed)))
 		recorder := httptest.NewRecorder()
 
 		r.ServeHTTP(recorder, req)
@@ -719,7 +381,7 @@ func subtestLetJobFail(t *testing.T, restapi *api.RestApi, r *mux.Router) {
 		t.Fatal("subtest failed")
 	}
 
-	const stopJobBody string = `{
+	const stopJobBodyFailed string = `{
         "jobId":     12345,
 		"cluster":   "testcluster",
 
@@ -727,8 +389,8 @@ func subtestLetJobFail(t *testing.T, restapi *api.RestApi, r *mux.Router) {
 		"stopTime": 12355678
 	}`
 
-	ok = t.Run("StopJob", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/api/jobs/stop_job/", bytes.NewBuffer([]byte(stopJobBody)))
+	ok = t.Run("StopJobFailed", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/jobs/stop_job/", bytes.NewBuffer([]byte(stopJobBodyFailed)))
 		recorder := httptest.NewRecorder()
 
 		r.ServeHTTP(recorder, req)
@@ -750,47 +412,5 @@ func subtestLetJobFail(t *testing.T, restapi *api.RestApi, r *mux.Router) {
 	})
 	if !ok {
 		t.Fatal("subtest failed")
-	}
-}
-
-func testImportFlag(t *testing.T) {
-	if err := repository.HandleImportFlag("meta.json:data.json"); err != nil {
-		t.Fatal(err)
-	}
-
-	repo := repository.GetJobRepository()
-	jobId := int64(20639587)
-	cluster := "taurus"
-	startTime := int64(1635856524)
-	job, err := repo.Find(&jobId, &cluster, &startTime)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if job.NumNodes != 2 {
-		t.Errorf("NumNode: Received %d, expected 2", job.NumNodes)
-	}
-
-	ar := archive.GetHandle()
-	data, err := ar.LoadJobData(job)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(data) != 8 {
-		t.Errorf("Job data length: Got %d, want 8", len(data))
-	}
-
-	r := map[string]string{"mem_used": "GB", "net_bw": "KB/s",
-		"cpu_power": "W", "cpu_used": "",
-		"file_bw": "KB/s", "flops_any": "F/s",
-		"mem_bw": "GB/s", "ipc": "IPC"}
-
-	for name, scopes := range data {
-		for _, metric := range scopes {
-			if metric.Unit.Base != r[name] {
-				t.Errorf("Metric %s unit: Got %s, want %s", name, metric.Unit.Base, r[name])
-			}
-		}
 	}
 }

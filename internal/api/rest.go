@@ -253,7 +253,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 	results := make([]*schema.JobMeta, 0, len(jobs))
 	for _, job := range jobs {
 		if withMetadata {
-			if _, err := api.JobRepository.FetchMetadata(job); err != nil {
+			if _, err = api.JobRepository.FetchMetadata(job); err != nil {
 				handleError(err, http.StatusInternalServerError, rw)
 				return
 			}
