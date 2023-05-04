@@ -29,7 +29,7 @@
     let paging = { itemsPerPage, page }
     let filter = []
 
-    const jobs = queryStore({
+    $: jobs = queryStore({
         client: getContextClient(),
         query: gql`
         query($filter: [JobFilter!]!, $sorting: OrderByInput!, $paging: PageRequest! ){
@@ -60,7 +60,7 @@
     })
     }
 
-    $: $jobs.variables = { ...$jobs.variables, sorting, paging }
+    // $: $jobs.variables = { ...$jobs.variables, sorting, paging }
     $: matchedJobs = $jobs.data != null ? $jobs.data.jobs.count : 0
 
     // (Re-)query and optionally set new filters.

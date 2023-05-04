@@ -21,7 +21,7 @@
         "Invalid list type provided!"
     );
 
-    let filters;
+    let filter = []
 
     $: stats = queryStore({
         client: getContextClient(),
@@ -35,10 +35,11 @@
             totalCoreHours
         }
     }`,
-        variables: { filters },
+        variables: { filter },
         pause: true
     });
 
+    let filters;
     let nameFilter = "";
     let sorting = { field: "totalJobs", direction: "down" };
 
@@ -91,7 +92,7 @@
             startTimeQuickSelect={true}
             menuText="Only {type.toLowerCase()}s with jobs that match the filters will show up"
             on:update={({ detail }) => {
-                filters = detail.filters;
+                $stats.variables = { filter: detail.filters }
                 stats.resume();
             }}
         />

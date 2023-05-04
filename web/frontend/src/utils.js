@@ -1,6 +1,6 @@
 import { expiringCacheExchange } from "./cache-exchange.js";
 import {
-  Client,
+  CreateClient,
   setContextClient,
   fetchExchange,
 } from "@urql/svelte";
@@ -22,7 +22,7 @@ export function init(extraInitQuery = "") {
     ? getContext("jwt")
     : getContext("cc-config")["jwt"];
 
-  const client = new Client({
+  const client = CreateClient({
     url: `${window.location.origin}/query`,
     fetchOptions:
       jwt != null ? { headers: { Authorization: `Bearer ${jwt}` } } : {},
