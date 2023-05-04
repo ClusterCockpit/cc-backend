@@ -81,8 +81,6 @@
         $jobs.reexecute({ requestPolicy: 'network-only' })
     }
 
-    query(jobs)
-
     let tableWidth = null
     let jobInfoColumnWidth = 250
     $: plotWidth = Math.floor((tableWidth - jobInfoColumnWidth) / metrics.length - 10)

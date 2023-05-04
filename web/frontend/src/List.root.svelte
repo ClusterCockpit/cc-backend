@@ -9,6 +9,7 @@
     import Filters from "./filters/Filters.svelte";
     import { queryStore, gql, getContextClient } from "@urql/svelte";
     import { scramble, scrambleNames } from "./joblist/JobInfo.svelte";
+  import { UniqueInputFieldNamesRule } from "graphql";
 
     const {} = init();
 
@@ -20,7 +21,9 @@
         "Invalid list type provided!"
     );
 
-    const stats = queryStore({
+    let filters;
+
+    $: stats = queryStore({
         client: getContextClient(),
         query: gql`
         query($filter: [JobFilter!]!) {
@@ -32,10 +35,10 @@
             totalCoreHours
         }
     }`,
-        variables: { filter, type },
+        variables: { filters },
+        pause: true
     });
 
-    let filters;
     let nameFilter = "";
     let sorting = { field: "totalJobs", direction: "down" };
 
@@ -88,9 +91,8 @@
             startTimeQuickSelect={true}
             menuText="Only {type.toLowerCase()}s with jobs that match the filters will show up"
             on:update={({ detail }) => {
-                $stats.variables = { filter: detail.filters };
-                $stats.context.pause = false;
-                $stats.reexecute();
+                filters = detail.filters;
+                stats.resume();
             }}
         />
     </Col>
