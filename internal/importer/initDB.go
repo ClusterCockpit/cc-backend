@@ -15,7 +15,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
-	"github.com/ClusterCockpit/cc-backend/pkg/units"
+	ccunits "github.com/ClusterCockpit/cc-units"
 )
 
 // Delete the tables "job", "tag" and "jobtag" from the database and
@@ -173,11 +173,28 @@ func getNormalizationFactor(v float64) (float64, int) {
 	return math.Pow10(count * scale), count * scale
 }
 
+func getExponent(p float64) int {
+	count := 0
+
+	for p > 1.0 {
+		p = p / 1000.0
+		count++
+	}
+
+	return count * 3
+}
+
+func NewPrefixFromFactor(op ccunits.Prefix, e int) ccunits.Prefix {
+	f := float64(op)
+	exp := math.Pow10(getExponent(f) - e)
+	return ccunits.Prefix(exp)
+}
+
 func normalize(avg float64, p string) (float64, string) {
 	f, e := getNormalizationFactor(avg)
 
 	if e != 0 {
-		np := units.NewPrefixFromFactor(units.NewPrefix(p), e)
+		np := NewPrefixFromFactor(ccunits.NewPrefix(p), e)
 		return f, np.Prefix()
 	}
 

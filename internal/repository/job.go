@@ -96,6 +96,19 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 	return job, nil
 }
 
+func (r *JobRepository) Flush() error {
+	var err error
+
+	switch r.driver {
+	case "sqlite3":
+		_, err = r.DB.Exec(`DELETE FROM job`)
+	case "mysql":
+		_, err = r.DB.Exec(`TRUNCATE TABLE job`)
+	}
+
+	return err
+}
+
 func (r *JobRepository) FetchJobName(job *schema.Job) (*string, error) {
 	start := time.Now()
 	cachekey := fmt.Sprintf("metadata:%d", job.ID)
@@ -695,9 +708,10 @@ func (r *JobRepository) JobsStatistics(ctx context.Context,
 	stats := map[string]*model.JobsStatistics{}
 	var castType string
 
-	if r.driver == "sqlite3" {
+	switch r.driver {
+	case "sqlite3":
 		castType = "int"
-	} else if r.driver == "mysql" {
+	case "mysql":
 		castType = "unsigned"
 	}
 

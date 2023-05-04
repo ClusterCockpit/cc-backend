@@ -68,7 +68,7 @@ func HandleImportFlag(flag string) error {
 			return err
 		}
 
-		//checkJobData(&jobData)
+		// checkJobData(&jobData)
 		//	SanityChecks(&jobMeta.BaseJob)
 		jobMeta.MonitoringStatus = schema.MonitoringStatusArchivingSuccessful
 		if _, err = r.Find(&jobMeta.JobID, &jobMeta.Cluster, &jobMeta.StartTime); err != sql.ErrNoRows {

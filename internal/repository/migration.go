@@ -24,8 +24,8 @@ var migrationFiles embed.FS
 func checkDBVersion(backend string, db *sql.DB) error {
 	var m *migrate.Migrate
 
-	if backend == "sqlite3" {
-
+	switch backend {
+	case "sqlite3":
 		driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
 		if err != nil {
 			return err
@@ -39,7 +39,7 @@ func checkDBVersion(backend string, db *sql.DB) error {
 		if err != nil {
 			return err
 		}
-	} else if backend == "mysql" {
+	case "mysql":
 		driver, err := mysql.WithInstance(db, &mysql.Config{})
 		if err != nil {
 			return err
@@ -65,11 +65,11 @@ func checkDBVersion(backend string, db *sql.DB) error {
 	}
 
 	if v < Version {
-		return fmt.Errorf("Unsupported database version %d, need %d.\nPlease backup your database file and run cc-backend --migrate-db", v, Version)
+		return fmt.Errorf("unsupported database version %d, need %d.\nPlease backup your database file and run cc-backend --migrate-db", v, Version)
 	}
 
 	if v > Version {
-		return fmt.Errorf("Unsupported database version %d, need %d.\nPlease refer to documentation how to downgrade db with external migrate tool!", v, Version)
+		return fmt.Errorf("unsupported database version %d, need %d.\nPlease refer to documentation how to downgrade db with external migrate tool", v, Version)
 	}
 
 	return nil
@@ -78,7 +78,8 @@ func checkDBVersion(backend string, db *sql.DB) error {
 func MigrateDB(backend string, db string) error {
 	var m *migrate.Migrate
 
-	if backend == "sqlite3" {
+	switch backend {
+	case "sqlite3":
 		d, err := iofs.New(migrationFiles, "migrations/sqlite3")
 		if err != nil {
 			log.Fatal(err)
@@ -88,7 +89,7 @@ func MigrateDB(backend string, db string) error {
 		if err != nil {
 			return err
 		}
-	} else if backend == "mysql" {
+	case "mysql":
 		d, err := iofs.New(migrationFiles, "migrations/mysql")
 		if err != nil {
 			return err
