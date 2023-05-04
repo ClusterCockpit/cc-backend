@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS job (
     net_data_vol_total  REAL NOT NULL DEFAULT 0.0,
     file_bw_avg         REAL NOT NULL DEFAULT 0.0,
     file_data_vol_total REAL NOT NULL DEFAULT 0.0,
-    UNIQUE (job_id, cluster, start_time);
+    UNIQUE (job_id, cluster, start_time)
+    );
 
 CREATE TABLE IF NOT EXISTS tag (
     id       INTEGER PRIMARY KEY,
