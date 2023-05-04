@@ -566,7 +566,7 @@ func (r *JobRepository) FindUserOrProjectOrJobname(ctx context.Context, searchte
 func (r *JobRepository) FindColumnValue(user *auth.User, searchterm string, table string, selectColumn string, whereColumn string, isLike bool) (result string, err error) {
 	compareStr := " = ?"
 	query := searchterm
-	if isLike == true {
+	if isLike {
 		compareStr = " LIKE ?"
 		query = "%" + searchterm + "%"
 	}
@@ -909,7 +909,6 @@ func (r *JobRepository) jobsStatisticsHistogram(ctx context.Context,
 	value string, filters []*model.JobFilter, id, col string) ([]*model.HistoPoint, error) {
 
 	start := time.Now()
-	query := sq.Select(value, "COUNT(job.id) AS count").From("job")
 	query, qerr := SecurityCheck(ctx, sq.Select(value, "COUNT(job.id) AS count").From("job"))
 
 	if qerr != nil {

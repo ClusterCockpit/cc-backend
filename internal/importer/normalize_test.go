@@ -31,7 +31,7 @@ func TestNormalizeFactor(t *testing.T) {
 
 	fmt.Printf("Prefix %e Short %s\n", float64(np), np.Prefix())
 
-	p := NewPrefixFromFactor(np, e)
+	p := newPrefixFromFactor(np, e)
 
 	if p.Prefix() != "G" {
 		t.Errorf("Failed Prefix or unit: Want G, Got %s", p.Prefix())
@@ -56,7 +56,7 @@ func TestNormalizeKeep(t *testing.T) {
 
 	fmt.Printf("Prefix %e Short %s\n", float64(np), np.Prefix())
 
-	p := NewPrefixFromFactor(np, e)
+	p := newPrefixFromFactor(np, e)
 
 	if p.Prefix() != "G" {
 		t.Errorf("Failed Prefix or unit: Want G, Got %s", p.Prefix())
