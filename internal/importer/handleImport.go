@@ -37,14 +37,14 @@ func HandleImportFlag(flag string) error {
 		}
 
 		if config.Keys.Validate {
-			if err := schema.Validate(schema.Meta, bytes.NewReader(raw)); err != nil {
+			if err = schema.Validate(schema.Meta, bytes.NewReader(raw)); err != nil {
 				return fmt.Errorf("REPOSITORY/INIT > validate job meta: %v", err)
 			}
 		}
 		dec := json.NewDecoder(bytes.NewReader(raw))
 		dec.DisallowUnknownFields()
 		jobMeta := schema.JobMeta{BaseJob: schema.JobDefaults}
-		if err := dec.Decode(&jobMeta); err != nil {
+		if err = dec.Decode(&jobMeta); err != nil {
 			log.Warn("Error while decoding raw json metadata for import")
 			return err
 		}
@@ -56,14 +56,14 @@ func HandleImportFlag(flag string) error {
 		}
 
 		if config.Keys.Validate {
-			if err := schema.Validate(schema.Data, bytes.NewReader(raw)); err != nil {
+			if err = schema.Validate(schema.Data, bytes.NewReader(raw)); err != nil {
 				return fmt.Errorf("REPOSITORY/INIT > validate job data: %v", err)
 			}
 		}
 		dec = json.NewDecoder(bytes.NewReader(raw))
 		dec.DisallowUnknownFields()
 		jobData := schema.JobData{}
-		if err := dec.Decode(&jobData); err != nil {
+		if err = dec.Decode(&jobData); err != nil {
 			log.Warn("Error while decoding raw json jobdata for import")
 			return err
 		}
@@ -71,13 +71,13 @@ func HandleImportFlag(flag string) error {
 		//checkJobData(&jobData)
 		//	SanityChecks(&jobMeta.BaseJob)
 		jobMeta.MonitoringStatus = schema.MonitoringStatusArchivingSuccessful
-		if job, err := r.Find(&jobMeta.JobID, &jobMeta.Cluster, &jobMeta.StartTime); err != sql.ErrNoRows {
+		if _, err = r.Find(&jobMeta.JobID, &jobMeta.Cluster, &jobMeta.StartTime); err != sql.ErrNoRows {
 			if err != nil {
 				log.Warn("Error while finding job in jobRepository")
 				return err
 			}
 
-			return fmt.Errorf("REPOSITORY/INIT > a job with that jobId, cluster and startTime does already exist (dbid: %d)", job.ID)
+			return fmt.Errorf("REPOSITORY/INIT > a job with that jobId, cluster and startTime does already exist")
 		}
 
 		job := schema.Job{
@@ -102,12 +102,12 @@ func HandleImportFlag(flag string) error {
 			return err
 		}
 
-		if err := SanityChecks(&job.BaseJob); err != nil {
+		if err = SanityChecks(&job.BaseJob); err != nil {
 			log.Warn("BaseJob SanityChecks failed")
 			return err
 		}
 
-		if err := archive.GetHandle().ImportJob(&jobMeta, &jobData); err != nil {
+		if err = archive.GetHandle().ImportJob(&jobMeta, &jobData); err != nil {
 			log.Error("Error while importing job")
 			return err
 		}

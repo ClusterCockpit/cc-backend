@@ -34,7 +34,7 @@ func copyFile(s string, d string) error {
 	return nil
 }
 
-func setupRepo(t *testing.T) *repository.JobRepository {
+func setup(t *testing.T) *repository.JobRepository {
 	const testconfig = `{
 	"addr":            "0.0.0.0:8080",
 	"validate": false,
@@ -138,7 +138,7 @@ func readResult(t *testing.T, testname string) Result {
 }
 
 func TestHandleImportFlag(t *testing.T) {
-	r := setupRepo(t)
+	r := setup(t)
 
 	tests, err := filepath.Glob(filepath.Join("testdata", "*.input"))
 	if err != nil {
@@ -167,7 +167,6 @@ func TestHandleImportFlag(t *testing.T) {
 			if job.Duration != result.Duration {
 				t.Errorf("wrong duration for job\ngot: %d \nwant: %d", job.Duration, result.Duration)
 			}
-
 		})
 	}
 }
