@@ -31,13 +31,14 @@ CREATE TABLE IF NOT EXISTS job (
     net_bw_avg          REAL NOT NULL DEFAULT 0.0,
     net_data_vol_total  REAL NOT NULL DEFAULT 0.0,
     file_bw_avg         REAL NOT NULL DEFAULT 0.0,
-    file_data_vol_total REAL NOT NULL DEFAULT 0.0);
+    file_data_vol_total REAL NOT NULL DEFAULT 0.0,
+    UNIQUE (job_id, cluster, start_time);
 
 CREATE TABLE IF NOT EXISTS tag (
     id       INTEGER PRIMARY KEY,
     tag_type VARCHAR(255) NOT NULL,
     tag_name VARCHAR(255) NOT NULL,
-    CONSTRAINT be_unique UNIQUE (tag_type, tag_name));
+    UNIQUE (tag_type, tag_name));
 
 CREATE TABLE IF NOT EXISTS jobtag (
     job_id INTEGER,
