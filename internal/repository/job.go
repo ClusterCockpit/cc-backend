@@ -101,12 +101,28 @@ func (r *JobRepository) Flush() error {
 
 	switch r.driver {
 	case "sqlite3":
-		_, err = r.DB.Exec(`DELETE FROM job`)
+		if _, err = r.DB.Exec(`DELETE FROM jobtag`); err != nil {
+			return err
+		}
+		if _, err = r.DB.Exec(`DELETE FROM tag`); err != nil {
+			return err
+		}
+		if _, err = r.DB.Exec(`DELETE FROM job`); err != nil {
+			return err
+		}
 	case "mysql":
-		_, err = r.DB.Exec(`TRUNCATE TABLE job`)
+		if _, err = r.DB.Exec(`TRUNCATE TABLE jobtag`); err != nil {
+			return err
+		}
+		if _, err = r.DB.Exec(`TRUNCATE TABLE tag`); err != nil {
+			return err
+		}
+		if _, err = r.DB.Exec(`TRUNCATE TABLE job`); err != nil {
+			return err
+		}
 	}
 
-	return err
+	return nil
 }
 
 func (r *JobRepository) FetchJobName(job *schema.Job) (*string, error) {

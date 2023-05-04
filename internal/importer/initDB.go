@@ -22,6 +22,10 @@ import (
 // repopulate them using the jobs found in `archive`.
 func InitDB() error {
 	r := repository.GetJobRepository()
+	if err := r.Flush(); err != nil {
+		log.Errorf("repository initDB(): %v", err)
+		return err
+	}
 	starttime := time.Now()
 	log.Print("Building job table...")
 
@@ -184,17 +188,17 @@ func getExponent(p float64) int {
 	return count * 3
 }
 
-func NewPrefixFromFactor(op ccunits.Prefix, e int) ccunits.Prefix {
+func newPrefixFromFactor(op ccunits.Prefix, e int) ccunits.Prefix {
 	f := float64(op)
 	exp := math.Pow10(getExponent(f) - e)
 	return ccunits.Prefix(exp)
 }
 
-func normalize(avg float64, p string) (float64, string) {
+func Normalize(avg float64, p string) (float64, string) {
 	f, e := getNormalizationFactor(avg)
 
 	if e != 0 {
-		np := NewPrefixFromFactor(ccunits.NewPrefix(p), e)
+		np := newPrefixFromFactor(ccunits.NewPrefix(p), e)
 		return f, np.Prefix()
 	}
 
@@ -217,7 +221,7 @@ func checkJobData(d *schema.JobData) error {
 				}
 
 				avg := sum / float64(len(metric.Series))
-				f, p := normalize(avg, metric.Unit.Prefix)
+				f, p := Normalize(avg, metric.Unit.Prefix)
 
 				if p != metric.Unit.Prefix {
 
