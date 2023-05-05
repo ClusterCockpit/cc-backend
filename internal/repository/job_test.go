@@ -14,7 +14,7 @@ import (
 
 func setup(t *testing.T) *JobRepository {
 	log.Init("info", true)
-	dbfilepath := "../../test/test.db"
+	dbfilepath := "testdata/test.db"
 	err := MigrateDB("sqlite3", dbfilepath)
 	if err != nil {
 		t.Fatal(err)
