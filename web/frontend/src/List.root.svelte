@@ -4,12 +4,20 @@
 <script>
     import { onMount } from "svelte";
     import { init } from "./utils.js";
-    import { Row, Col, Button, Icon, Table,
-        Card, Spinner, InputGroup, Input, } from "sveltestrap";
+    import {
+        Row,
+        Col,
+        Button,
+        Icon,
+        Table,
+        Card,
+        Spinner,
+        InputGroup,
+        Input,
+    } from "sveltestrap";
     import Filters from "./filters/Filters.svelte";
     import { queryStore, gql, getContextClient } from "@urql/svelte";
     import { scramble, scrambleNames } from "./joblist/JobInfo.svelte";
-  import { UniqueInputFieldNamesRule } from "graphql";
 
     const {} = init();
 
@@ -21,9 +29,9 @@
         "Invalid list type provided!"
     );
 
-    let filter = []
+    let filter = [];
 
-    $: stats = queryStore({
+    const stats = queryStore({
         client: getContextClient(),
         query: gql`
         query($filter: [JobFilter!]!) {
@@ -36,7 +44,7 @@
         }
     }`,
         variables: { filter },
-        pause: true
+        pause: true,
     });
 
     let filters;
@@ -92,7 +100,7 @@
             startTimeQuickSelect={true}
             menuText="Only {type.toLowerCase()}s with jobs that match the filters will show up"
             on:update={({ detail }) => {
-                $stats.variables = { filter: detail.filters }
+                filter = detail.filters;
                 stats.resume();
             }}
         />
@@ -102,7 +110,10 @@
     <thead>
         <tr>
             <th scope="col">
-                {({ USER: "Username", PROJECT: "Project Name" })[type]}
+                <!-- {({ -->
+                <!--     USER: "Username", -->
+                <!--     PROJECT: "Project Name", -->
+                <!-- })[type]} -->
                 <Button
                     color={sorting.field == "id" ? "primary" : "light"}
                     size="sm"
