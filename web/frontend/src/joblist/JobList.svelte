@@ -34,7 +34,17 @@
     let paging = { itemsPerPage, page };
     let filter = [];
 
-    const jobs = queryStore({
+    // $: {
+    //     console.log('CHANGED FILTERS IN JOBLIST TO')
+    //     console.log('filter:', ...filter.map(f => Object.entries(f)).flat(2))
+    // }
+
+    // $: {
+    //     console.log('CHANGED PAGING IN JOBLIST TO')
+    //     console.log(paging)
+    // }
+
+    $: jobs = queryStore({
         client: getContextClient(),
         query: gql`
             query (
@@ -81,19 +91,26 @@
             }
         `,
         variables: { paging, sorting, filter },
-        pause: true,
     });
 
-    const updateConfiguration = ({ name, value }) => {
-        result = mutationStore({
+    const configName = 'plot_list_jobsPerPage'
+    let configValue = ''
+
+    $: if (configValue != '') {
+        mutationStore({
             client: getContextClient(),
             query: gql`
-                mutation ($name: String!, $value: String!) {
-                    updateConfiguration(name: $name, value: $value)
+                mutation ($configName: String!, $configValue: String!) {
+                    updateConfiguration(name: $configName, value: $configValue)
                 }
             `,
-            variables: { name, value },
+            variables: { configName, configValue },
         });
+    }
+
+    const updateConfiguration = ({ value, page }) => {
+        configValue = value;
+        paging = { itemsPerPage: value, page: page };
     };
 
     // $: $jobs.variables = { ...$jobs.variables, sorting, paging }
@@ -108,13 +125,10 @@
             }
 
             filter = filters;
-            // console.log('filters:', ...filters.map(f => Object.entries(f)).flat(2))
         }
 
         page = 1;
         paging = paging = { page, itemsPerPage };
-        jobs.resume();
-        // $jobs.reexecute({ requestPolicy: 'network-only' })
     }
 
     let tableWidth = null;
@@ -217,14 +231,12 @@
         if (detail.itemsPerPage != itemsPerPage) {
             itemsPerPage = detail.itemsPerPage;
             updateConfiguration({
-                name: "plot_list_jobsPerPage",
                 value: itemsPerPage.toString(),
-            }).then((res) => {
-                if (res.error) console.error(res.error);
-            });
+                page: detail.page,
+            })
+        } else {
+            paging = { itemsPerPage: detail.itemsPerPage, page: detail.page }
         }
-
-        paging = { itemsPerPage: detail.itemsPerPage, page: detail.page };
     }}
 />
 
