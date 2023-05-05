@@ -17,7 +17,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
-	"github.com/ClusterCockpit/cc-backend/pkg/units"
+	ccunits "github.com/ClusterCockpit/cc-units"
 )
 
 const Version = 1
@@ -33,6 +33,33 @@ func loadJobData(filename string) (*JobData, error) {
 	defer f.Close()
 
 	return DecodeJobData(bufio.NewReader(f))
+}
+
+func ConvertUnitString(us string) schema.Unit {
+	var nu schema.Unit
+
+	if us == "CPI" ||
+		us == "IPC" ||
+		us == "load" ||
+		us == "" {
+		nu.Base = us
+		return nu
+	}
+	u := ccunits.NewUnit(us)
+	p := u.GetPrefix()
+	if p.Prefix() != "" {
+		prefix := p.Prefix()
+		nu.Prefix = prefix
+	}
+	m := u.GetMeasure()
+	d := u.GetUnitDenominator()
+	if d.Short() != "inval" {
+		nu.Base = fmt.Sprintf("%s/%s", m.Short(), d.Short())
+	} else {
+		nu.Base = m.Short()
+	}
+
+	return nu
 }
 
 func deepCopyJobMeta(j *JobMeta) schema.JobMeta {
@@ -78,7 +105,7 @@ func deepCopyJobMeta(j *JobMeta) schema.JobMeta {
 		sn.Avg = v.Avg
 		sn.Max = v.Max
 		sn.Min = v.Min
-		tmpUnit := units.ConvertUnitString(v.Unit)
+		tmpUnit := ConvertUnitString(v.Unit)
 		if tmpUnit.Base == "inval" {
 			sn.Unit = schema.Unit{Base: ""}
 		} else {
@@ -113,7 +140,7 @@ func deepCopyJobData(d *JobData, cluster string, subCluster string) *schema.JobD
 		for mk, mv := range v {
 			// fmt.Printf("Scope %s\n", mk)
 			var mn schema.JobMetric
-			tmpUnit := units.ConvertUnitString(mv.Unit)
+			tmpUnit := ConvertUnitString(mv.Unit)
 			if tmpUnit.Base == "inval" {
 				mn.Unit = schema.Unit{Base: ""}
 			} else {
@@ -174,16 +201,14 @@ func deepCopyClusterConfig(co *Cluster) schema.Cluster {
 		scn.SocketsPerNode = sco.SocketsPerNode
 		scn.CoresPerSocket = sco.CoresPerSocket
 		scn.ThreadsPerCore = sco.ThreadsPerCore
-		var prefix = new(string)
-		*prefix = "G"
 		scn.FlopRateScalar = schema.MetricValue{
-			Unit:  schema.Unit{Base: "F/s", Prefix: prefix},
+			Unit:  schema.Unit{Base: "F/s", Prefix: "G"},
 			Value: float64(sco.FlopRateScalar)}
 		scn.FlopRateSimd = schema.MetricValue{
-			Unit:  schema.Unit{Base: "F/s", Prefix: prefix},
+			Unit:  schema.Unit{Base: "F/s", Prefix: "G"},
 			Value: float64(sco.FlopRateSimd)}
 		scn.MemoryBandwidth = schema.MetricValue{
-			Unit:  schema.Unit{Base: "B/s", Prefix: prefix},
+			Unit:  schema.Unit{Base: "B/s", Prefix: "G"},
 			Value: float64(sco.MemoryBandwidth)}
 		scn.Topology = *sco.Topology
 		cn.SubClusters = append(cn.SubClusters, &scn)
@@ -200,7 +225,7 @@ func deepCopyClusterConfig(co *Cluster) schema.Cluster {
 			mcn.Aggregation = mco.Aggregation
 		}
 		mcn.Timestep = mco.Timestep
-		tmpUnit := units.ConvertUnitString(mco.Unit)
+		tmpUnit := ConvertUnitString(mco.Unit)
 		if tmpUnit.Base == "inval" {
 			mcn.Unit = schema.Unit{Base: ""}
 		} else {

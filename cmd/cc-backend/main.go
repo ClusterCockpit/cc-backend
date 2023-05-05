@@ -29,6 +29,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/generated"
+	"github.com/ClusterCockpit/cc-backend/internal/importer"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/routerConfig"
@@ -116,7 +117,10 @@ func main() {
 	}
 
 	if flagMigrateDB {
-		repository.MigrateDB(config.Keys.DBDriver, config.Keys.DB)
+		err := repository.MigrateDB(config.Keys.DBDriver, config.Keys.DB)
+		if err != nil {
+			log.Fatal(err)
+		}
 		os.Exit(0)
 	}
 
@@ -196,13 +200,13 @@ func main() {
 	}
 
 	if flagReinitDB {
-		if err := repository.InitDB(); err != nil {
+		if err := importer.InitDB(); err != nil {
 			log.Fatalf("failed to re-initialize repository DB: %s", err.Error())
 		}
 	}
 
 	if flagImportJob != "" {
-		if err := repository.HandleImportFlag(flagImportJob); err != nil {
+		if err := importer.HandleImportFlag(flagImportJob); err != nil {
 			log.Fatalf("job import failed: %s", err.Error())
 		}
 	}

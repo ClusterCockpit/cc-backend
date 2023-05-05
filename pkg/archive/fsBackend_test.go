@@ -20,7 +20,7 @@ func init() {
 
 func TestInitEmptyPath(t *testing.T) {
 	var fsa FsArchive
-	_, err := fsa.Init(json.RawMessage("{\"kind\":\"../../test/archive\"}"))
+	_, err := fsa.Init(json.RawMessage("{\"kind\":\"testdata/archive\"}"))
 	if err == nil {
 		t.Fatal(err)
 	}
@@ -28,14 +28,14 @@ func TestInitEmptyPath(t *testing.T) {
 
 func TestInitNoJson(t *testing.T) {
 	var fsa FsArchive
-	_, err := fsa.Init(json.RawMessage("\"path\":\"../../test/archive\"}"))
+	_, err := fsa.Init(json.RawMessage("\"path\":\"testdata/archive\"}"))
 	if err == nil {
 		t.Fatal(err)
 	}
 }
 func TestInitNotExists(t *testing.T) {
 	var fsa FsArchive
-	_, err := fsa.Init(json.RawMessage("{\"path\":\"../../test/job-archive\"}"))
+	_, err := fsa.Init(json.RawMessage("{\"path\":\"testdata/job-archive\"}"))
 	if err == nil {
 		t.Fatal(err)
 	}
@@ -43,11 +43,11 @@ func TestInitNotExists(t *testing.T) {
 
 func TestInit(t *testing.T) {
 	var fsa FsArchive
-	version, err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
+	version, err := fsa.Init(json.RawMessage("{\"path\":\"testdata/archive\"}"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fsa.path != "../../test/archive" {
+	if fsa.path != "testdata/archive" {
 		t.Fail()
 	}
 	if version != 1 {
@@ -60,12 +60,12 @@ func TestInit(t *testing.T) {
 
 func TestLoadJobMetaInternal(t *testing.T) {
 	var fsa FsArchive
-	_, err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
+	_, err := fsa.Init(json.RawMessage("{\"path\":\"testdata/archive\"}"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	job, err := loadJobMeta("../../test/archive/emmy/1404/397/1609300556/meta.json")
+	job, err := loadJobMeta("testdata/archive/emmy/1404/397/1609300556/meta.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +83,7 @@ func TestLoadJobMetaInternal(t *testing.T) {
 
 func TestLoadJobMeta(t *testing.T) {
 	var fsa FsArchive
-	_, err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
+	_, err := fsa.Init(json.RawMessage("{\"path\":\"testdata/archive\"}"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +111,7 @@ func TestLoadJobMeta(t *testing.T) {
 
 func TestLoadJobData(t *testing.T) {
 	var fsa FsArchive
-	_, err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
+	_, err := fsa.Init(json.RawMessage("{\"path\":\"testdata/archive\"}"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestLoadJobData(t *testing.T) {
 
 func TestLoadCluster(t *testing.T) {
 	var fsa FsArchive
-	_, err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
+	_, err := fsa.Init(json.RawMessage("{\"path\":\"testdata/archive\"}"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +154,7 @@ func TestLoadCluster(t *testing.T) {
 
 func TestIter(t *testing.T) {
 	var fsa FsArchive
-	_, err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
+	_, err := fsa.Init(json.RawMessage("{\"path\":\"testdata/archive\"}"))
 	if err != nil {
 		t.Fatal(err)
 	}

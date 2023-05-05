@@ -11,8 +11,9 @@ import (
 	"time"
 )
 
-// Non-Swaggered Comment: BaseJob
-// Non-Swaggered Comment: Common subset of Job and JobMeta. Use one of those, not this type directly.
+// BaseJob is the common part of the job metadata structs
+//
+// Common subset of Job and JobMeta. Use one of those, not this type directly.
 
 type BaseJob struct {
 	// The unique identifier of a job
@@ -21,17 +22,17 @@ type BaseJob struct {
 	Project          string            `json:"project" db:"project" example:"abcd200"`                                                                       // The unique identifier of a project
 	Cluster          string            `json:"cluster" db:"cluster" example:"fritz"`                                                                         // The unique identifier of a cluster
 	SubCluster       string            `json:"subCluster" db:"subcluster" example:"main"`                                                                    // The unique identifier of a sub cluster
-	Partition        *string           `json:"partition,omitempty" db:"partition" example:"main"`                                                            // The Slurm partition to which the job was submitted
-	ArrayJobId       *int64            `json:"arrayJobId,omitempty" db:"array_job_id" example:"123000"`                                                      // The unique identifier of an array job
+	Partition        string            `json:"partition,omitempty" db:"partition" example:"main"`                                                            // The Slurm partition to which the job was submitted
+	ArrayJobId       int64             `json:"arrayJobId,omitempty" db:"array_job_id" example:"123000"`                                                      // The unique identifier of an array job
 	NumNodes         int32             `json:"numNodes" db:"num_nodes" example:"2" minimum:"1"`                                                              // Number of nodes used (Min > 0)
-	NumHWThreads     *int32            `json:"numHwthreads,omitempty" db:"num_hwthreads" example:"20" minimum:"1"`                                           // Number of HWThreads used (Min > 0)
-	NumAcc           *int32            `json:"numAcc,omitempty" db:"num_acc" example:"2" minimum:"1"`                                                        // Number of accelerators used (Min > 0)
+	NumHWThreads     int32             `json:"numHwthreads,omitempty" db:"num_hwthreads" example:"20" minimum:"1"`                                           // Number of HWThreads used (Min > 0)
+	NumAcc           int32             `json:"numAcc,omitempty" db:"num_acc" example:"2" minimum:"1"`                                                        // Number of accelerators used (Min > 0)
 	Exclusive        int32             `json:"exclusive" db:"exclusive" example:"1" minimum:"0" maximum:"2"`                                                 // Specifies how nodes are shared: 0 - Shared among multiple jobs of multiple users, 1 - Job exclusive (Default), 2 - Shared among multiple jobs of same user
 	MonitoringStatus int32             `json:"monitoringStatus,omitempty" db:"monitoring_status" example:"1" minimum:"0" maximum:"3"`                        // State of monitoring system during job run: 0 - Disabled, 1 - Running or Archiving (Default), 2 - Archiving Failed, 3 - Archiving Successfull
-	SMT              *int32            `json:"smt,omitempty" db:"smt" example:"4"`                                                                           // SMT threads used by job
+	SMT              int32             `json:"smt,omitempty" db:"smt" example:"4"`                                                                           // SMT threads used by job
 	State            JobState          `json:"jobState" db:"job_state" example:"completed" enums:"completed,failed,cancelled,stopped,timeout,out_of_memory"` // Final state of job
 	Duration         int32             `json:"duration" db:"duration" example:"43200" minimum:"1"`                                                           // Duration of job in seconds (Min > 0)
-	Walltime         *int64            `json:"walltime,omitempty" db:"walltime" example:"86400" minimum:"1"`                                                 // Requested walltime of job in seconds (Min > 0)
+	Walltime         int64             `json:"walltime,omitempty" db:"walltime" example:"86400" minimum:"1"`                                                 // Requested walltime of job in seconds (Min > 0)
 	Tags             []*Tag            `json:"tags,omitempty"`                                                                                               // List of tags
 	RawResources     []byte            `json:"-" db:"resources"`                                                                                             // Resources used by job [As Bytes]
 	Resources        []*Resource       `json:"resources"`                                                                                                    // Resources used by job
@@ -39,9 +40,10 @@ type BaseJob struct {
 	MetaData         map[string]string `json:"metaData"`                                                                                                     // Additional information about the job
 }
 
-// Non-Swaggered Comment: Job
-// Non-Swaggered Comment: This type is used as the GraphQL interface and using sqlx as a table row.
-
+// Job struct type
+//
+// This type is used as the GraphQL interface and using sqlx as a table row.
+//
 // Job model
 // @Description Information of a HPC job.
 type Job struct {
@@ -60,13 +62,16 @@ type Job struct {
 	FileDataVolTotal float64   `json:"-" db:"file_data_vol_total"`             // FileDataVolTotal as Float64
 }
 
-// Non-Swaggered Comment: JobMeta
-// Non-Swaggered Comment: When reading from the database or sending data via GraphQL, the start time can be in the much more
-// Non-Swaggered Comment: convenient time.Time type. In the `meta.json` files, the start time is encoded as a unix epoch timestamp.
-// Non-Swaggered Comment: This is why there is this struct, which contains all fields from the regular job struct, but "overwrites"
-// Non-Swaggered Comment: the StartTime field with one of type int64.
-// Non-Swaggered Comment: ID *int64 `json:"id,omitempty"` >> never used in the job-archive, only available via REST-API
-
+//	JobMeta struct type
+//
+//	When reading from the database or sending data via GraphQL, the start time
+//	can be in the much more convenient time.Time type. In the `meta.json`
+//	files, the start time is encoded as a unix epoch timestamp. This is why
+//	there is this struct, which contains all fields from the regular job
+//	struct, but "overwrites" the StartTime field with one of type int64. ID
+//	*int64 `json:"id,omitempty"` >> never used in the job-archive, only
+//	available via REST-API
+//
 // JobMeta model
 // @Description Meta data information of a HPC job.
 type JobMeta struct {
@@ -74,7 +79,7 @@ type JobMeta struct {
 	ID *int64 `json:"id,omitempty"`
 	BaseJob
 	StartTime  int64                    `json:"startTime" db:"start_time" example:"1649723812" minimum:"1"` // Start epoch time stamp in seconds (Min > 0)
-	Statistics map[string]JobStatistics `json:"statistics,omitempty"`                                       // Metric statistics of job
+	Statistics map[string]JobStatistics `json:"statistics"`                                                 // Metric statistics of job
 }
 
 const (
@@ -90,8 +95,8 @@ var JobDefaults BaseJob = BaseJob{
 }
 
 type Unit struct {
-	Base   string  `json:"base"`
-	Prefix *string `json:"prefix,omitempty"`
+	Base   string `json:"base"`
+	Prefix string `json:"prefix,omitempty"`
 }
 
 // JobStatistics model
