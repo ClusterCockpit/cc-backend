@@ -25,32 +25,22 @@
     let w1, w2, histogramHeight = 250
     let selectedCluster = filterPresets?.cluster ? filterPresets.cluster : null
 
-    const stats = queryStore({
+    $: stats = queryStore({
         client: getContextClient(),
         query: gql`
-        query($filter: [JobFilter!]!) {
-        jobsStatistics(filter: $filter) {
+        query($filters: [JobFilter!]!) {
+        jobsStatistics(filter: $filters) {
             totalJobs
             shortJobs
             totalWalltime
             totalCoreHours
             histDuration { count, value }
             histNumNodes { count, value }
-        }
-    }`,
-    variables: {
-        filter: []
-    },
-        pause: true
+        }}`,
+        variables: { filters },
     })
 
-    // filters[filters.findIndex(filter => filter.cluster != null)] ? 
-    //                           filters[filters.findIndex(filter => filter.cluster != null)].cluster.eq :
-    //                           null
-    // Cluster filter has to be alwas @ first index, above will throw error
     $: selectedCluster = filters[0]?.cluster ? filters[0].cluster.eq : null 
-
-    query(stats)
 
     onMount(() => filters.update())
 </script>
@@ -86,15 +76,12 @@
             bind:this={filters}
             on:update={({ detail }) => {
                 let jobFilters = [...detail.filters, { user: { eq: user.username } }]
-                $stats.variables = { filter: jobFilters }
-                $stats.context.pause = false
-                $stats.reexecute()
                 filters = jobFilters
                 jobList.update(jobFilters)
             }} />
     </Col>
     <Col xs="auto" style="margin-left: auto;">
-        <Refresher on:reload={() => jobList.update()} />
+        <Refresher on:reload={() => jobList.refresh()} />
     </Col>
 </Row>
 <br/>
