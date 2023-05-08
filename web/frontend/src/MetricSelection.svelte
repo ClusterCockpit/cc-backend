@@ -53,15 +53,19 @@
         }
     }
 
+    const client = getContextClient();
+    const query = gql`
+            mutation($name: String!, $value: String!) {
+                updateConfiguration(name: $name, value: $value)
+            }
+        `;
+
     const updateConfiguration = ({ name, value }) => {
-    result = mutationStore({
-        client: getContextClient(),
-        query: gql`mutation($name: String!, $value: String!) {
-            updateConfiguration(name: $name, value: $value)
-        }`,
-        variables: {name, value}
-    })
-    }
+        mutationStore({
+            client,
+            query,
+            variables: { name, value },
+    })}
 
     let columnHovering = null
 
@@ -89,13 +93,9 @@
         isOpen = false
 
         updateConfiguration({
-                name: cluster == null ? configName : `${configName}:${cluster}`,
-                value: JSON.stringify(metrics)
-            })
-            .then(res => {
-                if (res.error)
-                    console.error(res.error)
-            })
+            name: cluster == null ? configName : `${configName}:${cluster}`,
+            value: JSON.stringify(metrics)
+        })
     }
 </script>
 

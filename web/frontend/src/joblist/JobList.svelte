@@ -34,62 +34,55 @@
     let paging = { itemsPerPage, page };
     let filter = [];
 
-    // $: {
-    //     console.log('CHANGED FILTERS IN JOBLIST TO')
-    //     console.log('filter:', ...filter.map(f => Object.entries(f)).flat(2))
-    // }
-
-    // $: {
-    //     console.log('CHANGED PAGING IN JOBLIST TO')
-    //     console.log(paging)
-    // }
+    const client = getContextClient();
+    const query = gql`
+        query (
+            $filter: [JobFilter!]!
+            $sorting: OrderByInput!
+            $paging: PageRequest!
+        ) {
+            jobs(filter: $filter, order: $sorting, page: $paging) {
+                items {
+                    id
+                    jobId
+                    user
+                    project
+                    jobName
+                    cluster
+                    subCluster
+                    startTime
+                    duration
+                    numNodes
+                    numHWThreads
+                    numAcc
+                    walltime
+                    resources {
+                        hostname
+                    }
+                    SMT
+                    exclusive
+                    partition
+                    arrayJobId
+                    monitoringStatus
+                    state
+                    tags {
+                        id
+                        type
+                        name
+                    }
+                    userData {
+                        name
+                    }
+                    metaData
+                }
+                count
+            }
+        }
+    `;
 
     $: jobs = queryStore({
-        client: getContextClient(),
-        query: gql`
-            query (
-                $filter: [JobFilter!]!
-                $sorting: OrderByInput!
-                $paging: PageRequest!
-            ) {
-                jobs(filter: $filter, order: $sorting, page: $paging) {
-                    items {
-                        id
-                        jobId
-                        user
-                        project
-                        jobName
-                        cluster
-                        subCluster
-                        startTime
-                        duration
-                        numNodes
-                        numHWThreads
-                        numAcc
-                        walltime
-                        resources {
-                            hostname
-                        }
-                        SMT
-                        exclusive
-                        partition
-                        arrayJobId
-                        monitoringStatus
-                        state
-                        tags {
-                            id
-                            type
-                            name
-                        }
-                        userData {
-                            name
-                        }
-                        metaData
-                    }
-                    count
-                }
-            }
-        `,
+        client,
+        query,
         variables: { paging, sorting, filter },
     });
 
@@ -109,8 +102,8 @@
     }
 
     const updateConfiguration = ({ value, page }) => {
-        configValue = value;
-        paging = { itemsPerPage: value, page: page };
+        configValue = value; // Trigger mutation
+        paging = { itemsPerPage: value, page: page }; // Trigger reload of jobList
     };
 
     // $: $jobs.variables = { ...$jobs.variables, sorting, paging }
@@ -129,6 +122,16 @@
 
         page = 1;
         paging = paging = { page, itemsPerPage };
+    }
+
+    // Force refresh list with existing unchanged variables (== usually would not trigger reactivity)
+    export function refresh() {
+        queryStore({
+                client,
+                query,
+                variables: { paging, sorting, filter },
+                requestPolicy: 'network-only'
+            });
     }
 
     let tableWidth = null;
