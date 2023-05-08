@@ -85,9 +85,12 @@
             .map(function (name) {
                 // Get MetricConf for this selected/requested metric
                 let thisConfig = metricConfig(cluster, name);
-                let thisSCIndex = thisConfig.subClusters.findIndex(
-                    (sc) => sc.name == job.subCluster
-                );
+                let thisSCIndex = -1
+                if (thisConfig) {
+                    thisSCIndex = thisConfig.subClusters.findIndex(
+                        (sc) => sc.name == job.subCluster
+                    );
+                };
                 // Check if Subcluster has MetricConf: If not found (index == -1), no further remove flag check required
                 if (thisSCIndex >= 0) {
                     // SubCluster Config present: Check if remove flag is set
