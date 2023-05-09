@@ -25,47 +25,52 @@
     let scopes = [job.numNodes == 1 ? "core" : "node"];
 
     const cluster = getContext("clusters").find((c) => c.name == job.cluster);
-    // Get all MetricConfs which include subCluster-specific settings for this job
-    const metricConfig = getContext("metrics");
-    const metricsQuery = queryStore({
-        client: getContextClient(),
-        query: gql`
-            query ($id: ID!, $metrics: [String!]!, $scopes: [MetricScope!]!) {
-                jobMetrics(id: $id, metrics: $metrics, scopes: $scopes) {
-                    name
-                    scope
-                    metric {
-                        unit {
-                            prefix
-                            base
-                        }
-                        timestep
-                        statisticsSeries {
+    const metricConfig = getContext("metrics"); // Get all MetricConfs which include subCluster-specific settings for this job
+    const client = getContextClient();
+    const query = gql`
+        query ($id: ID!, $metrics: [String!]!, $scopes: [MetricScope!]!) {
+            jobMetrics(id: $id, metrics: $metrics, scopes: $scopes) {
+                name
+                scope
+                metric {
+                    unit {
+                        prefix
+                        base
+                    }
+                    timestep
+                    statisticsSeries {
+                        min
+                        mean
+                        max
+                    }
+                    series {
+                        hostname
+                        id
+                        data
+                        statistics {
                             min
-                            mean
+                            avg
                             max
-                        }
-                        series {
-                            hostname
-                            id
-                            data
-                            statistics {
-                                min
-                                avg
-                                max
-                            }
                         }
                     }
                 }
             }
-        `,
-        pause: true,
-        variables: {
-            id,
-            metrics,
-            scopes,
-        },
+        }
+    `;
+
+    $: metricsQuery = queryStore({
+        client,
+        query,
+        variables: { id, metrics, scopes },
     });
+
+    function refresh() {
+        queryStore({
+            client,
+            query,
+            variables: { id, metrics, scopes },
+        });
+    }
 
     const selectScope = (jobMetrics) =>
         jobMetrics.reduce(
@@ -131,9 +136,7 @@
                 }
             });
 
-    // $: metricsQuery.variables = { id: job.id, metrics, scopes };
-
-    if (job.monitoringStatus) metricsQuery.resume();
+    if (job.monitoringStatus) refresh();
 </script>
 
 <tr>
