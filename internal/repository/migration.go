@@ -8,7 +8,6 @@ import (
 	"database/sql"
 	"embed"
 	"fmt"
-	"os"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/golang-migrate/migrate/v4"
@@ -22,37 +21,37 @@ const Version uint = 3
 //go:embed migrations/*
 var migrationFiles embed.FS
 
-func checkDBVersion(backend string, db *sql.DB) {
+func checkDBVersion(backend string, db *sql.DB) error {
 	var m *migrate.Migrate
 
-	if backend == "sqlite3" {
-
+	switch backend {
+	case "sqlite3":
 		driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 		d, err := iofs.New(migrationFiles, "migrations/sqlite3")
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 
 		m, err = migrate.NewWithInstance("iofs", d, "sqlite3", driver)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
-	} else if backend == "mysql" {
+	case "mysql":
 		driver, err := mysql.WithInstance(db, &mysql.Config{})
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 		d, err := iofs.New(migrationFiles, "migrations/mysql")
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 
 		m, err = migrate.NewWithInstance("iofs", d, "mysql", driver)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 	}
 
@@ -61,25 +60,26 @@ func checkDBVersion(backend string, db *sql.DB) {
 		if err == migrate.ErrNilVersion {
 			log.Warn("Legacy database without version or missing database file!")
 		} else {
-			log.Fatal(err)
+			return err
 		}
 	}
 
 	if v < Version {
-		log.Warnf("Unsupported database version %d, need %d.\nPlease backup your database file and run cc-backend --migrate-db", v, Version)
-		os.Exit(0)
+		return fmt.Errorf("unsupported database version %d, need %d.\nPlease backup your database file and run cc-backend --migrate-db", v, Version)
 	}
 
 	if v > Version {
-		log.Warnf("Unsupported database version %d, need %d.\nPlease refer to documentation how to downgrade db with external migrate tool!", v, Version)
-		os.Exit(0)
+		return fmt.Errorf("unsupported database version %d, need %d.\nPlease refer to documentation how to downgrade db with external migrate tool", v, Version)
 	}
+
+	return nil
 }
 
-func MigrateDB(backend string, db string) {
+func MigrateDB(backend string, db string) error {
 	var m *migrate.Migrate
 
-	if backend == "sqlite3" {
+	switch backend {
+	case "sqlite3":
 		d, err := iofs.New(migrationFiles, "migrations/sqlite3")
 		if err != nil {
 			log.Fatal(err)
@@ -87,17 +87,17 @@ func MigrateDB(backend string, db string) {
 
 		m, err = migrate.NewWithSourceInstance("iofs", d, fmt.Sprintf("sqlite3://%s?_foreign_keys=on", db))
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
-	} else if backend == "mysql" {
+	case "mysql":
 		d, err := iofs.New(migrationFiles, "migrations/mysql")
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 
 		m, err = migrate.NewWithSourceInstance("iofs", d, fmt.Sprintf("mysql://%s?multiStatements=true", db))
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 	}
 
@@ -105,9 +105,10 @@ func MigrateDB(backend string, db string) {
 		if err == migrate.ErrNoChange {
 			log.Info("DB already up to date!")
 		} else {
-			log.Fatal(err)
+			return err
 		}
 	}
 
 	m.Close()
+	return nil
 }

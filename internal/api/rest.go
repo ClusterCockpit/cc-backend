@@ -22,6 +22,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
+	"github.com/ClusterCockpit/cc-backend/internal/importer"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
@@ -252,7 +253,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 	results := make([]*schema.JobMeta, 0, len(jobs))
 	for _, job := range jobs {
 		if withMetadata {
-			if _, err := api.JobRepository.FetchMetadata(job); err != nil {
+			if _, err = api.JobRepository.FetchMetadata(job); err != nil {
 				handleError(err, http.StatusInternalServerError, rw)
 				return
 			}
@@ -396,7 +397,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	if req.State == "" {
 		req.State = schema.JobStateRunning
 	}
-	if err := repository.SanityChecks(&req.BaseJob); err != nil {
+	if err := importer.SanityChecks(&req.BaseJob); err != nil {
 		handleError(err, http.StatusBadRequest, rw)
 		return
 	}

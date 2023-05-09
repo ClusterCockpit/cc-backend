@@ -11,11 +11,9 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	_ "github.com/mattn/go-sqlite3"
 )
-
-func init() {
-	Connect("sqlite3", "../../test/test.db")
-}
 
 func setupUserTest(t *testing.T) *UserCfgRepo {
 	const testconfig = `{
@@ -34,6 +32,15 @@ func setupUserTest(t *testing.T) *UserCfgRepo {
 		"startTime": { "from": "2022-01-01T00:00:00Z", "to": null }
 	} } ]
 }`
+
+	log.Init("info", true)
+	dbfilepath := "testdata/test.db"
+	err := MigrateDB("sqlite3", dbfilepath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	Connect("sqlite3", dbfilepath)
+
 	tmpdir := t.TempDir()
 	cfgFilePath := filepath.Join(tmpdir, "config.json")
 	if err := os.WriteFile(cfgFilePath, []byte(testconfig), 0666); err != nil {
@@ -43,9 +50,10 @@ func setupUserTest(t *testing.T) *UserCfgRepo {
 	config.Init(cfgFilePath)
 	return GetUserCfgRepo()
 }
+
 func TestGetUIConfig(t *testing.T) {
 	r := setupUserTest(t)
-	u := auth.User{Username: "jan"}
+	u := auth.User{Username: "demo"}
 
 	cfg, err := r.GetUIConfig(&u)
 	if err != nil {
@@ -53,10 +61,9 @@ func TestGetUIConfig(t *testing.T) {
 	}
 
 	tmp := cfg["plot_list_selectedMetrics"]
-	metrics := tmp.([]interface{})
-
-	str := metrics[2].(string)
-	if str != "mem_bw" {
+	metrics := tmp.([]string)
+	str := metrics[2]
+	if str != "mem_used" {
 		t.Errorf("wrong config\ngot: %s \nwant: mem_bw", str)
 	}
 }
