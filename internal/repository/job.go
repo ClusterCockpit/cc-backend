@@ -707,6 +707,38 @@ func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 	return nil
 }
 
+func (r *JobRepository) FindJobsOlderThan(days int) ([]*schema.Job, error) {
+
+	query := sq.Select(jobColumns...).From("job").Where(fmt.Sprintf("job.start_time < %d",
+		time.Now().Unix()-int64(days*24*3600)))
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		log.Warn("Error while converting query to sql")
+		return nil, err
+	}
+
+	log.Debugf("SQL query: `%s`, args: %#v", sql, args)
+	rows, err := query.RunWith(r.stmtCache).Query()
+	if err != nil {
+		log.Error("Error while running query")
+		return nil, err
+	}
+
+	jobs := make([]*schema.Job, 0, 50)
+	for rows.Next() {
+		job, err := scanJob(rows)
+		if err != nil {
+			rows.Close()
+			log.Warn("Error while scanning rows")
+			return nil, err
+		}
+		jobs = append(jobs, job)
+	}
+
+	return jobs, nil
+}
+
 // GraphQL validation should make sure that no unkown values can be specified.
 var groupBy2column = map[model.Aggregate]string{
 	model.AggregateUser:    "job.user",

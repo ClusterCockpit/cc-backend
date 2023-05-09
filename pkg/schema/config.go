@@ -57,6 +57,12 @@ type ClusterConfig struct {
 	MetricDataRepository json.RawMessage `json:"metricDataRepository"`
 }
 
+type Retention struct {
+	Age      int    `json:"age"`
+	Policy   string `json:"policy"`
+	Location string `json:"location"`
+}
+
 // Format of the configuration (file). See below for the defaults.
 type ProgramConfig struct {
 	// Address where the http (or https) server will listen on (for example: 'localhost:80').

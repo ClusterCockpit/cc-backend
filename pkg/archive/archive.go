@@ -30,9 +30,9 @@ type ArchiveBackend interface {
 
 	GetClusters() []string
 
-	CleanUp() error
+	CleanUp(jobs []*schema.Job)
 
-	// Compress() error
+	Compress(jobs []*schema.Job)
 
 	Iter(loadMetricData bool) <-chan JobContainer
 }
@@ -49,16 +49,8 @@ var useArchive bool
 func Init(rawConfig json.RawMessage, disableArchive bool) error {
 	useArchive = !disableArchive
 
-    type retention struct {
-        Age int `json:"age"`
-        Policy string `json:"policy"`
-        Location string `json:"location"`
-    }
-
 	var cfg struct {
 		Kind string `json:"kind"`
-		Compression int `json:"compression"`
-		Retention retention  `json:"retention"`
 	}
 
 	if err := json.Unmarshal(rawConfig, &cfg); err != nil {
@@ -82,10 +74,6 @@ func Init(rawConfig json.RawMessage, disableArchive bool) error {
 	}
 	log.Infof("Load archive version %d", version)
 
-    switch cfg. {
-    case condition:
-        
-    }
 	return initClusterConfig()
 }
 

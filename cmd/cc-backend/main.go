@@ -7,6 +7,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -36,7 +37,9 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/runtimeEnv"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/ClusterCockpit/cc-backend/web"
+	"github.com/go-co-op/gocron"
 	"github.com/google/gops/agent"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -416,17 +419,51 @@ func main() {
 		api.JobRepository.WaitForArchiving()
 	}()
 
+	s := gocron.NewScheduler(time.Local)
+
 	if config.Keys.StopJobsExceedingWalltime > 0 {
-		go func() {
-			for range time.Tick(30 * time.Minute) {
-				err := jobRepo.StopJobsExceedingWalltimeBy(config.Keys.StopJobsExceedingWalltime)
-				if err != nil {
-					log.Warnf("Error while looking for jobs exceeding their walltime: %s", err.Error())
-				}
-				runtime.GC()
+		s.Every(1).Day().At("3:00").Do(func() {
+			err := jobRepo.StopJobsExceedingWalltimeBy(config.Keys.StopJobsExceedingWalltime)
+			if err != nil {
+				log.Warnf("Error while looking for jobs exceeding their walltime: %s", err.Error())
 			}
-		}()
+			runtime.GC()
+		})
 	}
+
+	var cfg struct {
+		Compression int              `json:"compression"`
+		Retention   schema.Retention `json:"retention"`
+	}
+
+	if err := json.Unmarshal(config.Keys.Archive, &cfg); err != nil {
+		log.Warn("Error while unmarshaling raw config json")
+	}
+
+	switch cfg.Retention.Policy {
+	case "delete":
+		s.Every(1).Day().At("4:00").Do(func() {
+			jobs, err := jobRepo.FindJobsOlderThan(cfg.Retention.Age)
+			if err != nil {
+				log.Warnf("Error while looking for retention jobs: %s", err.Error())
+			}
+			archive.GetHandle().CleanUp(jobs)
+		})
+	case "move":
+		log.Warn("Retention policy move not implemented")
+	}
+
+	if cfg.Compression > 0 {
+		s.Every(1).Day().At("5:00").Do(func() {
+			jobs, err := jobRepo.FindJobsOlderThan(cfg.Compression)
+			if err != nil {
+				log.Warnf("Error while looking for retention jobs: %s", err.Error())
+			}
+			archive.GetHandle().Compress(jobs)
+		})
+	}
+
+	s.StartAsync()
 
 	if os.Getenv("GOGC") == "" {
 		debug.SetGCPercent(25)
