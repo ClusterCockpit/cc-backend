@@ -56,6 +56,10 @@
                     "description": "Path to job archive for file backend",
                     "type": "string"
                 },
+                "compression": {
+                    "description": "Setup automatic compression for jobs older than number of days",
+                    "type": "integer"
+                },
                 "retention": {
                     "description": "Configuration keys for retention",
                     "type": "object",
@@ -69,11 +73,11 @@
                                 "move"
                             ]
                         },
-                        "time": {
-                            "description": "Act on jobs with startTime older than time",
+                        "age": {
+                            "description": "Act on jobs with startTime older than age (in days)",
                             "type": "integer"
                         },
-                        "directory": {
+                        "location": {
                             "description": "The target directory for retention. Only applicable for retention move.",
                             "type": "string"
                         }

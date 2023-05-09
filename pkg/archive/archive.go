@@ -32,6 +32,8 @@ type ArchiveBackend interface {
 
 	CleanUp() error
 
+	// Compress() error
+
 	Iter(loadMetricData bool) <-chan JobContainer
 }
 
@@ -46,21 +48,31 @@ var useArchive bool
 
 func Init(rawConfig json.RawMessage, disableArchive bool) error {
 	useArchive = !disableArchive
-	var kind struct {
+
+    type retention struct {
+        Age int `json:"age"`
+        Policy string `json:"policy"`
+        Location string `json:"location"`
+    }
+
+	var cfg struct {
 		Kind string `json:"kind"`
+		Compression int `json:"compression"`
+		Retention retention  `json:"retention"`
 	}
-	if err := json.Unmarshal(rawConfig, &kind); err != nil {
+
+	if err := json.Unmarshal(rawConfig, &cfg); err != nil {
 		log.Warn("Error while unmarshaling raw config json")
 		return err
 	}
 
-	switch kind.Kind {
+	switch cfg.Kind {
 	case "file":
 		ar = &FsArchive{}
 		// case "s3":
 		// 	ar = &S3Archive{}
 	default:
-		return fmt.Errorf("ARCHIVE/ARCHIVE > unkown archive backend '%s''", kind.Kind)
+		return fmt.Errorf("ARCHIVE/ARCHIVE > unkown archive backend '%s''", cfg.Kind)
 	}
 
 	version, err := ar.Init(rawConfig)
@@ -69,6 +81,11 @@ func Init(rawConfig json.RawMessage, disableArchive bool) error {
 		return err
 	}
 	log.Infof("Load archive version %d", version)
+
+    switch cfg. {
+    case condition:
+        
+    }
 	return initClusterConfig()
 }
 
