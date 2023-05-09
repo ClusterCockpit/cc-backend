@@ -29,22 +29,22 @@
         "Invalid list type provided!"
     );
 
-    let filter = [];
-
-    const stats = queryStore({
-        client: getContextClient(),
-        query: gql`
-        query($filter: [JobFilter!]!) {
-        rows: jobsStatistics(filter: $filter, groupBy: ${type}) {
+    const client = getContextClient();
+    const query = gql`
+        query($filters: [JobFilter!]!) {
+        rows: jobsStatistics(filter: $filters, groupBy: ${type}) {
             id
             name
             totalJobs
             totalWalltime
             totalCoreHours
         }
-    }`,
-        variables: { filter },
-        pause: true,
+    }`
+
+    $: stats = queryStore({
+        client,
+        query,
+        variables: { filters },
     });
 
     let filters;
@@ -100,8 +100,7 @@
             startTimeQuickSelect={true}
             menuText="Only {type.toLowerCase()}s with jobs that match the filters will show up"
             on:update={({ detail }) => {
-                filter = detail.filters;
-                stats.resume();
+                filters = detail.filters;
             }}
         />
     </Col>
