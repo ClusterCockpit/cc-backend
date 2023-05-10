@@ -27,7 +27,7 @@
     let hostnameFilter = ''
     let selectedMetric = ccconfig.system_view_selectedMetric
 
-    const nodesQuery = queryStore({
+    $: nodesQuery = queryStore({
         client: getContextClient(),
         query: gql`query($cluster: String!, $metrics: [String!], $from: Time!, $to: Time!) {
         nodeMetrics(cluster: $cluster, metrics: $metrics, from: $from, to: $to) {
@@ -49,7 +49,7 @@
     }`,
     variables: {
         cluster: cluster,
-        metrics: [],
+        metrics: [selectedMetric],
         from: from.toISOString(),
         to: to.toISOString()}
     })
@@ -66,7 +66,6 @@
         }
     }
 
-    $: $nodesQuery.variables = { cluster, metrics: [selectedMetric], from: from.toISOString(), to: to.toISOString() }
 </script>
 
 <Row>

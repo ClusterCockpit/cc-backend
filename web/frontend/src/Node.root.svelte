@@ -22,10 +22,8 @@
 
     const ccconfig = getContext('cc-config')
     const clusters = getContext('clusters')
-
-    const nodesQuery = queryStore({
-        client: getContextClient(),
-        query: gql`query($cluster: String!, $nodes: [String!], $from: Time!, $to: Time!) {
+    const client = getContextClient();
+    const query = gql`query($cluster: String!, $nodes: [String!], $from: Time!, $to: Time!) {
         nodeMetrics(cluster: $cluster, nodes: $nodes, from: $from, to: $to) {
             host
             subCluster
@@ -42,15 +40,18 @@
                 }
             }
         }
-    }`,
-    variables: {
-        cluster: cluster,
-        nodes: [hostname],
-        from: from.toISOString(),
-        to: to.toISOString() }
-    })
+    }`;
 
-    $: $nodesQuery.variables = { cluster, nodes: [hostname], from: from.toISOString(), to: to.toISOString() }
+    $: nodesQuery = queryStore({
+        client: client,
+        query: query,
+        variables: {
+            cluster: cluster,
+            nodes: [hostname],
+            from: from.toISOString(),
+            to: to.toISOString(),
+        }
+    });
 
     let metricUnits = {}
     $: if ($nodesQuery.data) {

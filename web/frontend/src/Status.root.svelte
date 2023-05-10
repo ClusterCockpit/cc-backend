@@ -11,9 +11,9 @@
     export let cluster
 
     let plotWidths = [], colWidth1 = 0, colWidth2
-
     let from = new Date(Date.now() - 5 * 60 * 1000), to = new Date(Date.now())
-    const mainQuery = queryStore({
+
+    $: mainQuery = queryStore({
         client: getContextClient(),
         query: gql`query($cluster: String!, $filter: [JobFilter!]!, $metrics: [String!], $from: Time!, $to: Time!) {
         nodeMetrics(cluster: $cluster, metrics: $metrics, from: $from, to: $to) {
@@ -61,7 +61,6 @@
         }
     }
 
-    query(mainQuery)
 </script>
 
 <!-- Loading indicator & Refresh -->
@@ -81,13 +80,8 @@
     </Col>
     <Col xs="auto" style="margin-left: auto;">
         <Refresher initially={120} on:reload={() => {
-            console.log('reload...')
-
             from = new Date(Date.now() - 5 * 60 * 1000)
             to = new Date(Date.now())
-
-            $mainQuery.variables = { ...$mainQuery.variables, from: from, to: to }
-            $mainQuery.reexecute({ requestPolicy: 'network-only' })
         }} />
     </Col>
 </Row>

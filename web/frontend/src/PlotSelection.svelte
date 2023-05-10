@@ -7,14 +7,16 @@
     export let metricsInHistograms
     export let metricsInScatterplots
 
-    const updateConfigurationMutation = ({ name, value }) => {
-    result = mutationStore({
-        client: getContextClient(),
-        query: gql`mutation($name: String!, $value: String!) {
-            updateConfiguration(name: $name, value: $value)
-        }`,
-        variables: { name, value }
-    })
+    const client = getContextClient();
+
+    $: updateConfigurationMutation = ({ name, value }) => {
+        mutationStore({
+            client: client,
+            query: gql`mutation($name: String!, $value: String!) {
+                updateConfiguration(name: $name, value: $value)
+            }`,
+            variables: { name, value }
+        })
     }
 
     let isHistogramConfigOpen = false, isScatterPlotConfigOpen = false
@@ -24,11 +26,7 @@
         updateConfigurationMutation({
                 name: data.name,
                 value: JSON.stringify(data.value)
-            })
-            .then(res => {
-                if (res.error)
-                    console.error(res.error)
-            });
+        })
     }
 </script>
 
