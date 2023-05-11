@@ -84,6 +84,7 @@ func loadJobData(filename string, isCompressed bool) (schema.JobData, error) {
 		log.Errorf("fsBackend LoadJobData()- %v", err)
 		return nil, err
 	}
+	defer f.Close()
 
 	if isCompressed {
 		r, err := gzip.NewReader(f)
@@ -101,7 +102,6 @@ func loadJobData(filename string, isCompressed bool) (schema.JobData, error) {
 
 		return DecodeJobData(r, filename)
 	} else {
-		defer f.Close()
 		if config.Keys.Validate {
 			if err := schema.Validate(schema.Data, bufio.NewReader(f)); err != nil {
 				return schema.JobData{}, fmt.Errorf("validate job data: %v", err)
@@ -157,6 +157,12 @@ func (fsa *FsArchive) Init(rawConfig json.RawMessage) (uint64, error) {
 	return version, nil
 }
 
+func (fsa *FsArchive) Exists(job *schema.Job) bool {
+	dir := getDirectory(job, fsa.path)
+	_, err := os.Stat(dir)
+	return !errors.Is(err, os.ErrNotExist)
+}
+
 func (fsa *FsArchive) CleanUp(jobs []*schema.Job) {
 	for _, job := range jobs {
 		dir := getDirectory(job, fsa.path)
@@ -169,7 +175,7 @@ func (fsa *FsArchive) CleanUp(jobs []*schema.Job) {
 func (fsa *FsArchive) Compress(jobs []*schema.Job) {
 	for _, job := range jobs {
 		fileIn := getPath(job, fsa.path, "data.json")
-		if !checkFileExists(fileIn) {
+		if !checkFileExists(fileIn) && (job.Duration > 600 || job.NumNodes > 4) {
 
 			originalFile, err := os.Open(fileIn)
 			if err != nil {
@@ -201,7 +207,7 @@ func (fsa *FsArchive) Compress(jobs []*schema.Job) {
 }
 
 func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
-	var isCompressed bool
+	var isCompressed bool = true
 	filename := getPath(job, fsa.path, "data.json.gz")
 	if !checkFileExists(filename) {
 		filename = getPath(job, fsa.path, "data.json")
@@ -276,7 +282,7 @@ func (fsa *FsArchive) Iter(loadMetricData bool) <-chan JobContainer {
 							}
 
 							if loadMetricData {
-								var isCompressed bool
+								var isCompressed bool = true
 								filename := filepath.Join(dirpath, startTimeDir.Name(), "data.json.gz")
 
 								if !checkFileExists(filename) {

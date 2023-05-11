@@ -18,6 +18,8 @@ const Version uint64 = 1
 type ArchiveBackend interface {
 	Init(rawConfig json.RawMessage) (uint64, error)
 
+	Exists(job *schema.Job) bool
+
 	LoadJobMeta(job *schema.Job) (*schema.JobMeta, error)
 
 	LoadJobData(job *schema.Job) (schema.JobData, error)
