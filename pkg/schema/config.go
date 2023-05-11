@@ -58,9 +58,10 @@ type ClusterConfig struct {
 }
 
 type Retention struct {
-	Age      int    `json:"age"`
-	Policy   string `json:"policy"`
-	Location string `json:"location"`
+	Age       int    `json:"age"`
+	IncludeDB bool   `json:"includeDB"`
+	Policy    string `json:"policy"`
+	Location  string `json:"location"`
 }
 
 // Format of the configuration (file). See below for the defaults.

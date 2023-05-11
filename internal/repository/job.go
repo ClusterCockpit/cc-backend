@@ -96,6 +96,21 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 	return job, nil
 }
 
+func (r *JobRepository) Optimize() error {
+	var err error
+
+	switch r.driver {
+	case "sqlite3":
+		if _, err = r.DB.Exec(`VACUUM`); err != nil {
+			return err
+		}
+	case "mysql":
+		log.Info("Optimize currently not supported for mysql driver")
+	}
+
+	return nil
+}
+
 func (r *JobRepository) Flush() error {
 	var err error
 
@@ -707,10 +722,10 @@ func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 	return nil
 }
 
-func (r *JobRepository) FindJobsOlderThan(days int) ([]*schema.Job, error) {
+func (r *JobRepository) FindJobsBefore(startTime int64) ([]*schema.Job, error) {
 
-	query := sq.Select(jobColumns...).From("job").Where(fmt.Sprintf("job.start_time < %d",
-		time.Now().Unix()-int64(days*24*3600)))
+	query := sq.Select(jobColumns...).From("job").Where(fmt.Sprintf(
+		"job.start_time < %d", startTime))
 
 	sql, args, err := query.ToSql()
 	if err != nil {

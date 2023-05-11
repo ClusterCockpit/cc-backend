@@ -73,6 +73,10 @@
                                 "move"
                             ]
                         },
+                        "includeDB": {
+                            "description": "Also remove jobs from database",
+                            "type": "boolean"
+                        },
                         "age": {
                             "description": "Act on jobs with startTime older than age (in days)",
                             "type": "integer"

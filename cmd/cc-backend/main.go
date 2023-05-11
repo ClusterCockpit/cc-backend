@@ -443,11 +443,24 @@ func main() {
 	switch cfg.Retention.Policy {
 	case "delete":
 		s.Every(1).Day().At("4:00").Do(func() {
-			jobs, err := jobRepo.FindJobsOlderThan(cfg.Retention.Age)
+			startTime := time.Now().Unix() - int64(cfg.Retention.Age*24*3600)
+			jobs, err := jobRepo.FindJobsBefore(startTime)
 			if err != nil {
 				log.Warnf("Error while looking for retention jobs: %s", err.Error())
 			}
 			archive.GetHandle().CleanUp(jobs)
+
+			if cfg.Retention.IncludeDB {
+				cnt, err := jobRepo.DeleteJobsBefore(startTime)
+				if err != nil {
+					log.Errorf("Error while deleting retention jobs from db: %s", err.Error())
+				} else {
+					log.Infof("Retention: Removed %d jobs from db", cnt)
+				}
+				if err = jobRepo.Optimize(); err != nil {
+					log.Errorf("Error occured in db optimization: %s", err.Error())
+				}
+			}
 		})
 	case "move":
 		log.Warn("Retention policy move not implemented")
@@ -455,7 +468,8 @@ func main() {
 
 	if cfg.Compression > 0 {
 		s.Every(1).Day().At("5:00").Do(func() {
-			jobs, err := jobRepo.FindJobsOlderThan(cfg.Compression)
+			startTime := time.Now().Unix() - int64(cfg.Compression*24*3600)
+			jobs, err := jobRepo.FindJobsBefore(startTime)
 			if err != nil {
 				log.Warnf("Error while looking for retention jobs: %s", err.Error())
 			}
