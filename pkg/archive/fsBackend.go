@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -20,6 +19,7 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/santhosh-tekuri/jsonschema/v5"
@@ -32,11 +32,6 @@ type FsArchiveConfig struct {
 type FsArchive struct {
 	path     string
 	clusters []string
-}
-
-func checkFileExists(filePath string) bool {
-	_, err := os.Stat(filePath)
-	return !errors.Is(err, os.ErrNotExist)
 }
 
 func getDirectory(
@@ -169,39 +164,21 @@ func (fsa *FsArchive) CleanUp(jobs []*schema.Job) {
 		if err := os.RemoveAll(dir); err != nil {
 			log.Errorf("JobArchive Cleanup() error: %v", err)
 		}
+
+		parent := filepath.Clean(filepath.Join(dir, ".."))
+		if util.GetFilecount(parent) == 0 {
+			if err := os.Remove(parent); err != nil {
+				log.Errorf("JobArchive Cleanup() error: %v", err)
+			}
+		}
 	}
 }
 
 func (fsa *FsArchive) Compress(jobs []*schema.Job) {
 	for _, job := range jobs {
 		fileIn := getPath(job, fsa.path, "data.json")
-		if !checkFileExists(fileIn) && (job.Duration > 600 || job.NumNodes > 4) {
-
-			originalFile, err := os.Open(fileIn)
-			if err != nil {
-				log.Errorf("JobArchive Compress() error: %v", err)
-			}
-			defer originalFile.Close()
-
-			fileOut := getPath(job, fsa.path, "data.json.gz")
-			gzippedFile, err := os.Create(fileOut)
-
-			if err != nil {
-				log.Errorf("JobArchive Compress() error: %v", err)
-			}
-			defer gzippedFile.Close()
-
-			gzipWriter := gzip.NewWriter(gzippedFile)
-			defer gzipWriter.Close()
-
-			_, err = io.Copy(gzipWriter, originalFile)
-			if err != nil {
-				log.Errorf("JobArchive Compress() error: %v", err)
-			}
-			gzipWriter.Flush()
-			if err := os.Remove(fileIn); err != nil {
-				log.Errorf("JobArchive Compress() error: %v", err)
-			}
+		if !util.CheckFileExists(fileIn) && util.GetFilesize(fileIn) > 2000 {
+			util.CompressFile(fileIn, getPath(job, fsa.path, "data.json.gz"))
 		}
 	}
 }
@@ -209,7 +186,8 @@ func (fsa *FsArchive) Compress(jobs []*schema.Job) {
 func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 	var isCompressed bool = true
 	filename := getPath(job, fsa.path, "data.json.gz")
-	if !checkFileExists(filename) {
+
+	if !util.CheckFileExists(filename) {
 		filename = getPath(job, fsa.path, "data.json")
 		isCompressed = false
 	}
@@ -218,7 +196,6 @@ func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 }
 
 func (fsa *FsArchive) LoadJobMeta(job *schema.Job) (*schema.JobMeta, error) {
-
 	filename := getPath(job, fsa.path, "meta.json")
 	return loadJobMeta(filename)
 }
@@ -285,7 +262,7 @@ func (fsa *FsArchive) Iter(loadMetricData bool) <-chan JobContainer {
 								var isCompressed bool = true
 								filename := filepath.Join(dirpath, startTimeDir.Name(), "data.json.gz")
 
-								if !checkFileExists(filename) {
+								if !util.CheckFileExists(filename) {
 									filename = filepath.Join(dirpath, startTimeDir.Name(), "data.json")
 									isCompressed = false
 								}
