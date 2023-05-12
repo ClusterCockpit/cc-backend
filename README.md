@@ -42,7 +42,7 @@ versions of third party packages.
 ## Demo Setup
 
 We provide a shell skript that downloads demo data and automatically builds and starts cc-backend.
-You need `wget`, `go`, and `yarn` in your path to start the demo. The demo will download 32MB of data (223MB on disk).
+You need `wget`, `go`, `node`, `rollup` and `yarn` in your path to start the demo. The demo will download 32MB of data (223MB on disk).
 
 ```sh
 git clone https://github.com/ClusterCockpit/cc-backend.git

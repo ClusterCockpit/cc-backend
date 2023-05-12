@@ -6,7 +6,6 @@ package importer
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -68,18 +67,19 @@ func HandleImportFlag(flag string) error {
 			return err
 		}
 
-		//checkJobData(&jobData)
-		//	SanityChecks(&jobMeta.BaseJob)
+		// checkJobData(&jobData)
+
 		jobMeta.MonitoringStatus = schema.MonitoringStatusArchivingSuccessful
-		if _, err = r.Find(&jobMeta.JobID, &jobMeta.Cluster, &jobMeta.StartTime); err != sql.ErrNoRows {
-			if err != nil {
-				log.Warn("Error while finding job in jobRepository")
-				return err
-			}
 
-			return fmt.Errorf("REPOSITORY/INIT > a job with that jobId, cluster and startTime does already exist")
-		}
-
+		// if _, err = r.Find(&jobMeta.JobID, &jobMeta.Cluster, &jobMeta.StartTime); err != sql.ErrNoRows {
+		// 	if err != nil {
+		// 		log.Warn("Error while finding job in jobRepository")
+		// 		return err
+		// 	}
+		//
+		// 	return fmt.Errorf("REPOSITORY/INIT > a job with that jobId, cluster and startTime does already exist")
+		// }
+		//
 		job := schema.Job{
 			BaseJob:       jobMeta.BaseJob,
 			StartTime:     time.Unix(jobMeta.StartTime, 0),

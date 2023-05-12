@@ -1,5 +1,6 @@
 TARGET = ./cc-backend
 VAR = ./var
+CFG = config.json .env
 FRONTEND = ./web/frontend
 VERSION = 1
 GIT_HASH := $(shell git rev-parse --short HEAD || echo 'development')
@@ -31,7 +32,7 @@ SVELTE_SRC = $(wildcard $(FRONTEND)/src/*.svelte)         \
 
 .NOTPARALLEL:
 
-$(TARGET): $(VAR) $(SVELTE_TARGETS)
+$(TARGET): $(VAR) $(CFG) $(SVELTE_TARGETS)
 	$(info ===>  BUILD cc-backend)
 	@go build -ldflags=${LD_FLAGS} ./cmd/cc-backend
 
@@ -59,11 +60,18 @@ tags:
 
 $(VAR):
 	@mkdir $(VAR)
-	cd web/frontend && npm install
+
+config.json:
+	$(info ===>  Initialize config.json file)
+	@cp configs/config.json config.json
+
+.env:
+	$(info ===>  Initialize .env file)
+	@cp configs/env-template.txt .env
 
 $(SVELTE_TARGETS): $(SVELTE_SRC)
 	$(info ===>  BUILD frontend)
-	cd web/frontend && npm run build
+	cd web/frontend && npm install && npm run build
 
 install: $(TARGET)
 	@WORKSPACE=$(PREFIX)

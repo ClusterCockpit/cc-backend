@@ -24,7 +24,7 @@ import (
 func LoadEnv(file string) error {
 	f, err := os.Open(file)
 	if err != nil {
-		log.Error("Error while opening file")
+		log.Error("Error while opening .env file")
 		return err
 	}
 

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/units"
+	ccunits "github.com/ClusterCockpit/cc-units"
 )
 
 func TestNormalizeFactor(t *testing.T) {
@@ -27,11 +27,11 @@ func TestNormalizeFactor(t *testing.T) {
 
 	fmt.Printf("Factor %e Count %d\n", f, e)
 
-	np := units.NewPrefix("")
+	np := ccunits.NewPrefix("")
 
 	fmt.Printf("Prefix %e Short %s\n", float64(np), np.Prefix())
 
-	p := units.NewPrefixFromFactor(np, e)
+	p := newPrefixFromFactor(np, e)
 
 	if p.Prefix() != "G" {
 		t.Errorf("Failed Prefix or unit: Want G, Got %s", p.Prefix())
@@ -52,11 +52,11 @@ func TestNormalizeKeep(t *testing.T) {
 
 	fmt.Printf("Factor %e Count %d\n", f, e)
 
-	np := units.NewPrefix("G")
+	np := ccunits.NewPrefix("G")
 
 	fmt.Printf("Prefix %e Short %s\n", float64(np), np.Prefix())
 
-	p := units.NewPrefixFromFactor(np, e)
+	p := newPrefixFromFactor(np, e)
 
 	if p.Prefix() != "G" {
 		t.Errorf("Failed Prefix or unit: Want G, Got %s", p.Prefix())

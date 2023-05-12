@@ -7,7 +7,6 @@ package importer
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"strings"
 	"time"
 
@@ -15,13 +14,16 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
-	"github.com/ClusterCockpit/cc-backend/pkg/units"
 )
 
 // Delete the tables "job", "tag" and "jobtag" from the database and
 // repopulate them using the jobs found in `archive`.
 func InitDB() error {
 	r := repository.GetJobRepository()
+	if err := r.Flush(); err != nil {
+		log.Errorf("repository initDB(): %v", err)
+		return err
+	}
 	starttime := time.Now()
 	log.Print("Building job table...")
 
@@ -154,36 +156,6 @@ func loadJobStat(job *schema.JobMeta, metric string) float64 {
 	return 0.0
 }
 
-func getNormalizationFactor(v float64) (float64, int) {
-	count := 0
-	scale := -3
-
-	if v > 1000.0 {
-		for v > 1000.0 {
-			v *= 1e-3
-			count++
-		}
-	} else {
-		for v < 1.0 {
-			v *= 1e3
-			count++
-		}
-		scale = 3
-	}
-	return math.Pow10(count * scale), count * scale
-}
-
-func normalize(avg float64, p string) (float64, string) {
-	f, e := getNormalizationFactor(avg)
-
-	if e != 0 {
-		np := units.NewPrefixFromFactor(units.NewPrefix(p), e)
-		return f, np.Prefix()
-	}
-
-	return f, p
-}
-
 func checkJobData(d *schema.JobData) error {
 	for _, scopes := range *d {
 		// var newUnit schema.Unit
@@ -200,7 +172,7 @@ func checkJobData(d *schema.JobData) error {
 				}
 
 				avg := sum / float64(len(metric.Series))
-				f, p := normalize(avg, metric.Unit.Prefix)
+				f, p := Normalize(avg, metric.Unit.Prefix)
 
 				if p != metric.Unit.Prefix {
 
