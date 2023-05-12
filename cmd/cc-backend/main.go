@@ -422,6 +422,8 @@ func main() {
 	s := gocron.NewScheduler(time.Local)
 
 	if config.Keys.StopJobsExceedingWalltime > 0 {
+		log.Info("Register undead jobs service")
+
 		s.Every(1).Day().At("3:00").Do(func() {
 			err := jobRepo.StopJobsExceedingWalltimeBy(config.Keys.StopJobsExceedingWalltime)
 			if err != nil {
@@ -436,12 +438,16 @@ func main() {
 		Retention   schema.Retention `json:"retention"`
 	}
 
+	cfg.Retention.IncludeDB = true
+
 	if err := json.Unmarshal(config.Keys.Archive, &cfg); err != nil {
 		log.Warn("Error while unmarshaling raw config json")
 	}
 
 	switch cfg.Retention.Policy {
 	case "delete":
+		log.Info("Register retention service")
+
 		s.Every(1).Day().At("4:00").Do(func() {
 			startTime := time.Now().Unix() - int64(cfg.Retention.Age*24*3600)
 			jobs, err := jobRepo.FindJobsBefore(startTime)
@@ -467,6 +473,8 @@ func main() {
 	}
 
 	if cfg.Compression > 0 {
+		log.Info("Register compression service")
+
 		s.Every(1).Day().At("5:00").Do(func() {
 			startTime := time.Now().Unix() - int64(cfg.Compression*24*3600)
 			jobs, err := jobRepo.FindJobsBefore(startTime)
