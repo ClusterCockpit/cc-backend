@@ -147,6 +147,9 @@ func BenchmarkLoadJobData(b *testing.B) {
 	jobIn.JobID = 1403244
 	jobIn.Cluster = "emmy"
 
+	util.UncompressFile(filepath.Join(jobarchive, "emmy/1403/244/1608923076/data.json.gz"),
+		filepath.Join(jobarchive, "emmy/1403/244/1608923076/data.json"))
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		fsa.LoadJobData(&jobIn)
