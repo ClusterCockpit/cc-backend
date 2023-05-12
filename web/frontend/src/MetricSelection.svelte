@@ -54,17 +54,15 @@
     }
 
     const client = getContextClient();
-    const query = gql`
-            mutation($name: String!, $value: String!) {
-                updateConfiguration(name: $name, value: $value)
-            }
-        `;
-
-    const updateConfiguration = ({ name, value }) => {
-        mutationStore({
-            client,
-            query,
-            variables: { name, value },
+    const updateConfigurationMutation = ({ name, value }) => {
+        return mutationStore({
+            client: client,
+            query: gql`
+                mutation($name: String!, $value: String!) {
+                    updateConfiguration(name: $name, value: $value)
+                }
+            `,
+            variables: { name, value }
     })}
 
     let columnHovering = null
@@ -92,9 +90,14 @@
         metrics = newMetricsOrder.filter(m => unorderedMetrics.includes(m))
         isOpen = false
 
-        updateConfiguration({
+        updateConfigurationMutation({
             name: cluster == null ? configName : `${configName}:${cluster}`,
             value: JSON.stringify(metrics)
+        }).subscribe(res => {
+            if (res.fetching === false && res.error) {
+                throw res.error
+                // console.log('Error on subscription: ' + res.error)
+            }
         })
     }
 </script>

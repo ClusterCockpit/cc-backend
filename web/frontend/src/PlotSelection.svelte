@@ -8,9 +8,8 @@
     export let metricsInScatterplots
 
     const client = getContextClient();
-
-    $: updateConfigurationMutation = ({ name, value }) => {
-        mutationStore({
+    const updateConfigurationMutation = ({ name, value }) => {
+        return mutationStore({
             client: client,
             query: gql`mutation($name: String!, $value: String!) {
                 updateConfiguration(name: $name, value: $value)
@@ -26,6 +25,11 @@
         updateConfigurationMutation({
                 name: data.name,
                 value: JSON.stringify(data.value)
+        }).subscribe(res => {
+            if (res.fetching === false && res.error) {
+                throw res.error
+                // console.log('Error on subscription: ' + res.error)
+            }
         })
     }
 </script>

@@ -81,33 +81,22 @@
     `;
 
     $: jobs = queryStore({
-        client,
-        query,
-        variables: { paging, sorting, filter },
+        client: client,
+        query: query,
+        variables: { paging, sorting, filter }
     });
 
-    const configName = 'plot_list_jobsPerPage'
-    let configValue = ''
+    $: matchedJobs = $jobs.data != null ? $jobs.data.jobs.count : 0;
 
-    $: if (configValue != '') {
-        mutationStore({
-            client: getContextClient(),
-            query: gql`
-                mutation ($configName: String!, $configValue: String!) {
-                    updateConfiguration(name: $configName, value: $configValue)
-                }
-            `,
-            variables: { configName, configValue },
+    // Force refresh list with existing unchanged variables (== usually would not trigger reactivity)
+    export function refresh() {
+        queryStore({
+            client: client,
+            query: query,
+            variables: { paging, sorting, filter },
+            requestPolicy: 'network-only'
         });
     }
-
-    const updateConfiguration = ({ value, page }) => {
-        configValue = value; // Trigger mutation
-        paging = { itemsPerPage: value, page: page }; // Trigger reload of jobList
-    };
-
-    // $: $jobs.variables = { ...$jobs.variables, sorting, paging }
-    $: matchedJobs = $jobs.data != null ? $jobs.data.jobs.count : 0;
 
     // (Re-)query and optionally set new filters.
     export function update(filters) {
@@ -116,26 +105,39 @@
             if (minRunningFor && minRunningFor > 0) {
                 filters.push({ minRunningFor });
             }
-
             filter = filters;
         }
-
         page = 1;
         paging = paging = { page, itemsPerPage };
     }
 
-    // Force refresh list with existing unchanged variables (== usually would not trigger reactivity)
-    export function refresh() {
-        queryStore({
-                client,
-                query,
-                variables: { paging, sorting, filter },
-                requestPolicy: 'network-only'
-            });
+    const updateConfigurationMutation = ({ name, value }) => {
+        return mutationStore({
+            client: client,
+            query: gql`
+                mutation ($name: String!, $value: String!) {
+                    updateConfiguration(name: $name, value: $value)
+                }
+            `,
+            variables: { name, value }
+        });
     }
+
+    function updateConfiguration(value, page) {
+        updateConfigurationMutation({ name: 'plot_list_jobsPerPage', value: value })
+        .subscribe(res => {
+            if (res.fetching === false && !res.error) {
+                paging = { itemsPerPage: value, page: page }; // Trigger reload of jobList
+            } else if (res.fetching === false && res.error) {
+                throw res.error
+                // console.log('Error on subscription: ' + res.error)
+            }
+        })
+    };
 
     let tableWidth = null;
     let jobInfoColumnWidth = 250;
+
     $: plotWidth = Math.floor(
         (tableWidth - jobInfoColumnWidth) / metrics.length - 10
     );
@@ -232,11 +234,10 @@
     totalItems={matchedJobs}
     on:update={({ detail }) => {
         if (detail.itemsPerPage != itemsPerPage) {
-            itemsPerPage = detail.itemsPerPage;
-            updateConfiguration({
-                value: itemsPerPage.toString(),
-                page: detail.page,
-            })
+            updateConfiguration(
+                detail.itemsPerPage.toString(),
+                detail.page
+            )
         } else {
             paging = { itemsPerPage: detail.itemsPerPage, page: detail.page }
         }
