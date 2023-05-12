@@ -25,19 +25,20 @@
     let w1, w2, histogramHeight = 250
     let selectedCluster = filterPresets?.cluster ? filterPresets.cluster : null
 
+    const client = getContextClient();
     $: stats = queryStore({
-        client: getContextClient(),
+        client: client,
         query: gql`
-        query($filters: [JobFilter!]!) {
-        jobsStatistics(filter: $filters) {
-            totalJobs
-            shortJobs
-            totalWalltime
-            totalCoreHours
-            histDuration { count, value }
-            histNumNodes { count, value }
-        }}`,
-        variables: { filters },
+            query($filters: [JobFilter!]!) {
+            jobsStatistics(filter: $filters) {
+                totalJobs
+                shortJobs
+                totalWalltime
+                totalCoreHours
+                histDuration { count, value }
+                histNumNodes { count, value }
+            }}`,
+        variables: { filters }
     })
 
     $: selectedCluster = filters[0]?.cluster ? filters[0].cluster.eq : null 

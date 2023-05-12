@@ -59,16 +59,16 @@
     `;
 
     $: metricsQuery = queryStore({
-        client,
-        query,
-        variables: { id, metrics, scopes },
+        client: client,
+        query: query,
+        variables: { id, metrics, scopes }
     });
 
     function refresh() {
         queryStore({
-            client,
-            query,
-            variables: { id, metrics, scopes },
+            client: client,
+            query: query,
+            variables: { id, metrics, scopes }
         });
     }
 

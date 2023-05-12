@@ -54,44 +54,44 @@
     $: statsQuery = queryStore({
         client: client,
         query: gql`
-        query($filters: [JobFilter!]!) {
-            stats: jobsStatistics(filter: $filters) {
-                totalJobs
-                shortJobs
-                totalWalltime
-                totalCoreHours
-                histDuration { count, value }
-                histNumNodes { count, value }
-            }
+            query($filters: [JobFilter!]!) {
+                stats: jobsStatistics(filter: $filters) {
+                    totalJobs
+                    shortJobs
+                    totalWalltime
+                    totalCoreHours
+                    histDuration { count, value }
+                    histNumNodes { count, value }
+                }
 
-            topUsers: jobsCount(filter: $filters, groupBy: USER, weight: NODE_HOURS, limit: 5) { name, count }
-        }
-    `, 
-    variables: { filters }
+                topUsers: jobsCount(filter: $filters, groupBy: USER, weight: NODE_HOURS, limit: 5) { name, count }
+            }
+        `, 
+        variables: { filters }
     })
 
     $: footprintsQuery = queryStore({
         client: client,
         query: gql`
-        query($filters: [JobFilter!]!, $metrics: [String!]!) {
-            footprints: jobsFootprints(filter: $filters, metrics: $metrics) {
-                nodehours,
-                metrics { metric, data }
-            }
-        }`,
-    variables:  { filters, metrics }
+            query($filters: [JobFilter!]!, $metrics: [String!]!) {
+                footprints: jobsFootprints(filter: $filters, metrics: $metrics) {
+                    nodehours,
+                    metrics { metric, data }
+                }
+            }`,
+        variables:  { filters, metrics }
     })
 
     $: rooflineQuery = queryStore({
         client: client,
         query: gql`
-        query($filters: [JobFilter!]!, $rows: Int!, $cols: Int!,
-                $minX: Float!, $minY: Float!, $maxX: Float!, $maxY: Float!) {
-            rooflineHeatmap(filter: $filters, rows: $rows, cols: $cols,
-                    minX: $minX, minY: $minY, maxX: $maxX, maxY: $maxY)
-        }
-    `,
-    variables: { filters, rows: 50, cols: 50, minX: 0.01, minY: 1., maxX: 1000., maxY },
+            query($filters: [JobFilter!]!, $rows: Int!, $cols: Int!,
+                    $minX: Float!, $minY: Float!, $maxX: Float!, $maxY: Float!) {
+                rooflineHeatmap(filter: $filters, rows: $rows, cols: $cols,
+                        minX: $minX, minY: $minY, maxX: $maxX, maxY: $maxY)
+            }
+        `,
+        variables: { filters, rows: 50, cols: 50, minX: 0.01, minY: 1., maxX: 1000., maxY }
     })
 
     onMount(() => filters.update())

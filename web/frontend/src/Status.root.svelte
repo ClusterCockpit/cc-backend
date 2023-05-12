@@ -13,8 +13,9 @@
     let plotWidths = [], colWidth1 = 0, colWidth2
     let from = new Date(Date.now() - 5 * 60 * 1000), to = new Date(Date.now())
 
+    const client = getContextClient();
     $: mainQuery = queryStore({
-        client: getContextClient(),
+        client: client,
         query: gql`query($cluster: String!, $filter: [JobFilter!]!, $metrics: [String!], $from: Time!, $to: Time!) {
         nodeMetrics(cluster: $cluster, metrics: $metrics, from: $from, to: $to) {
             host

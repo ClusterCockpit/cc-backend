@@ -30,21 +30,19 @@
     );
 
     const client = getContextClient();
-    const query = gql`
-        query($filters: [JobFilter!]!) {
-        rows: jobsStatistics(filter: $filters, groupBy: ${type}) {
-            id
-            name
-            totalJobs
-            totalWalltime
-            totalCoreHours
-        }
-    }`
-
     $: stats = queryStore({
-        client,
-        query,
-        variables: { filters },
+        client: client,
+        query: gql`
+            query($filters: [JobFilter!]!) {
+            rows: jobsStatistics(filter: $filters, groupBy: ${type}) {
+                id
+                name
+                totalJobs
+                totalWalltime
+                totalCoreHours
+            }
+        }`,
+        variables: { filters }
     });
 
     let filters;
