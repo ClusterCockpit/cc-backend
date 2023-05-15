@@ -18,6 +18,8 @@ const Version uint64 = 1
 type ArchiveBackend interface {
 	Init(rawConfig json.RawMessage) (uint64, error)
 
+	Info()
+
 	Exists(job *schema.Job) bool
 
 	LoadJobMeta(job *schema.Job) (*schema.JobMeta, error)
@@ -33,6 +35,8 @@ type ArchiveBackend interface {
 	GetClusters() []string
 
 	CleanUp(jobs []*schema.Job)
+
+	Clean(before int64, after int64)
 
 	Compress(jobs []*schema.Job)
 
