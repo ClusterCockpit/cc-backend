@@ -446,7 +446,7 @@ func main() {
 
 	switch cfg.Retention.Policy {
 	case "delete":
-		log.Info("Register retention service")
+		log.Info("Register retention delete service")
 
 		s.Every(1).Day().At("4:00").Do(func() {
 			startTime := time.Now().Unix() - int64(cfg.Retention.Age*24*3600)
@@ -469,7 +469,28 @@ func main() {
 			}
 		})
 	case "move":
-		log.Warn("Retention policy move not implemented")
+		log.Info("Register retention move service")
+
+		s.Every(1).Day().At("4:00").Do(func() {
+			startTime := time.Now().Unix() - int64(cfg.Retention.Age*24*3600)
+			jobs, err := jobRepo.FindJobsBefore(startTime)
+			if err != nil {
+				log.Warnf("Error while looking for retention jobs: %s", err.Error())
+			}
+			archive.GetHandle().Move(jobs, cfg.Retention.Location)
+
+			if cfg.Retention.IncludeDB {
+				cnt, err := jobRepo.DeleteJobsBefore(startTime)
+				if err != nil {
+					log.Errorf("Error while deleting retention jobs from db: %s", err.Error())
+				} else {
+					log.Infof("Retention: Removed %d jobs from db", cnt)
+				}
+				if err = jobRepo.Optimize(); err != nil {
+					log.Errorf("Error occured in db optimization: %s", err.Error())
+				}
+			}
+		})
 	}
 
 	if cfg.Compression > 0 {

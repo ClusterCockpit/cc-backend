@@ -302,6 +302,27 @@ func (fsa *FsArchive) Clean(before int64, after int64) {
 	}
 }
 
+func (fsa *FsArchive) Move(jobs []*schema.Job, path string) {
+	for _, job := range jobs {
+		source := getDirectory(job, fsa.path)
+		target := getDirectory(job, path)
+
+		if err := os.MkdirAll(filepath.Clean(filepath.Join(target, "..")), 0777); err != nil {
+			log.Errorf("JobArchive Move MkDir error: %v", err)
+		}
+		if err := os.Rename(source, target); err != nil {
+			log.Errorf("JobArchive Move() error: %v", err)
+		}
+
+		parent := filepath.Clean(filepath.Join(source, ".."))
+		if util.GetFilecount(parent) == 0 {
+			if err := os.Remove(parent); err != nil {
+				log.Errorf("JobArchive Move() error: %v", err)
+			}
+		}
+	}
+}
+
 func (fsa *FsArchive) CleanUp(jobs []*schema.Job) {
 	for _, job := range jobs {
 		dir := getDirectory(job, fsa.path)

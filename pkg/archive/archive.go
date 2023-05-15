@@ -36,6 +36,8 @@ type ArchiveBackend interface {
 
 	CleanUp(jobs []*schema.Job)
 
+	Move(jobs []*schema.Job, path string)
+
 	Clean(before int64, after int64)
 
 	Compress(jobs []*schema.Job)
