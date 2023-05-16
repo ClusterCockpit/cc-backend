@@ -37,6 +37,7 @@ type BaseJob struct {
 	Resources        []*Resource       `json:"resources"`                                                                                                    // Resources used by job
 	RawMetaData      []byte            `json:"-" db:"meta_data"`                                                                                             // Additional information about the job [As Bytes]
 	MetaData         map[string]string `json:"metaData"`                                                                                                     // Additional information about the job
+	ConcurrentJobs   JobLinkResultList `json:"concurrentJobs"`
 }
 
 // Non-Swaggered Comment: Job
@@ -58,6 +59,16 @@ type Job struct {
 	NetDataVolTotal  float64   `json:"-" db:"net_data_vol_total"`              // NetDataVolTotal as Float64
 	FileBwAvg        float64   `json:"-" db:"file_bw_avg"`                     // FileBwAvg as Float64
 	FileDataVolTotal float64   `json:"-" db:"file_data_vol_total"`             // FileDataVolTotal as Float64
+}
+
+type JobLink struct {
+	ID    int64 `json:"id"`
+	JobID int64 `json:"jobId"`
+}
+
+type JobLinkResultList struct {
+	Items []*JobLink `json:"items"`
+	Count int        `json:"count"`
 }
 
 // Non-Swaggered Comment: JobMeta

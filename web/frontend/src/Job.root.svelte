@@ -23,8 +23,9 @@
             monitoringStatus, state, walltime,
             tags { id, type, name },
             resources { hostname, hwthreads, accelerators },
-            metaData
-            userData { name, email }
+            metaData,
+            userData { name, email },
+            concurrentJobs { items { id, jobId }, count }
         }
     `)
 
@@ -95,12 +96,22 @@
         {#if $initq.error}
             <Card body color="danger">{$initq.error.message}</Card>
         {:else if $initq.data}
-            <JobInfo job={$initq.data.job} jobTags={jobTags} showParallelJobs={$initq.data.job.exclusive != 1}/>
+            <JobInfo job={$initq.data.job} jobTags={jobTags}/>
         {:else}
             <Spinner secondary/>
         {/if}
     </Col>
     {#if $jobMetrics.data && $initq.data}
+        {#if $initq.data.job.concurrentJobs != null} 
+            <Col>
+                <h5>Concurrent Jobs <Icon name="info-circle" style="cursor:help;" title="Shared jobs running on the same node with overlapping runtimes"/></h5>
+                <ul>
+                {#each $initq.data.job.concurrentJobs.items as pjob, index}
+                    <li><a href="/monitoring/job/{pjob.id}" target="_blank">{pjob.jobId}</a></li>
+                {/each}
+                </ul>
+            </Col>
+        {/if}
         <Col>
             <PolarPlot
                 width={polarPlotSize} height={polarPlotSize}
@@ -250,5 +261,11 @@
         border: 1px solid #bbb;
         border-radius: 5px;
         padding: 5px;
+    }
+
+    ul {
+        columns: 2;
+        -webkit-columns: 2;
+        -moz-columns: 2;
     }
 </style>

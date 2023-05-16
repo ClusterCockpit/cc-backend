@@ -239,10 +239,9 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	if filter.SelfJobID != nil {
 		query = buildStringCondition("job.job_id", filter.SelfJobID, query)
 	}
-	if filter.SelfStartTime != nil && filter.SelfDuration != nil { // Offset of 30 minutes?
-		log.Debug("SET SELFTIME FILTERS")
-		start := filter.SelfStartTime.Unix() // There does not seam to be a portable way to get the current unix timestamp accross different DBs.
-		end := start + int64(*filter.SelfDuration)
+	if filter.SelfStartTime != nil && filter.SelfDuration != nil {
+		start := filter.SelfStartTime.Unix() + 10 // There does not seem to be a portable way to get the current unix timestamp accross different DBs.
+		end := start + int64(*filter.SelfDuration) - 20
 		query = query.Where("((job.start_time BETWEEN ? AND ?) OR ((job.start_time + job.duration) BETWEEN ? AND ?))", start, end, start, end)
 	}
 	return query

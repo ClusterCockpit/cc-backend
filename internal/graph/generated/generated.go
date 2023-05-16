@@ -85,6 +85,7 @@ type ComplexityRoot struct {
 	Job struct {
 		ArrayJobId       func(childComplexity int) int
 		Cluster          func(childComplexity int) int
+		ConcurrentJobs   func(childComplexity int) int
 		Duration         func(childComplexity int) int
 		Exclusive        func(childComplexity int) int
 		ID               func(childComplexity int) int
@@ -200,7 +201,6 @@ type ComplexityRoot struct {
 		Jobs            func(childComplexity int, filter []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) int
 		JobsCount       func(childComplexity int, filter []*model.JobFilter, groupBy model.Aggregate, weight *model.Weights, limit *int) int
 		JobsFootprints  func(childComplexity int, filter []*model.JobFilter, metrics []string) int
-		JobsParallel    func(childComplexity int, filter []*model.JobFilter) int
 		JobsStatistics  func(childComplexity int, filter []*model.JobFilter, groupBy *model.Aggregate) int
 		NodeMetrics     func(childComplexity int, cluster string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) int
 		RooflineHeatmap func(childComplexity int, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) int
@@ -291,6 +291,7 @@ type JobResolver interface {
 
 	Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error)
 
+	ConcurrentJobs(ctx context.Context, obj *schema.Job) (*model.JobLinkResultList, error)
 	MetaData(ctx context.Context, obj *schema.Job) (interface{}, error)
 	UserData(ctx context.Context, obj *schema.Job) (*model.User, error)
 }
@@ -310,7 +311,6 @@ type QueryResolver interface {
 	JobMetrics(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope) ([]*model.JobMetricWithName, error)
 	JobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error)
 	Jobs(ctx context.Context, filter []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) (*model.JobResultList, error)
-	JobsParallel(ctx context.Context, filter []*model.JobFilter) (*model.JobLinkResultList, error)
 	JobsStatistics(ctx context.Context, filter []*model.JobFilter, groupBy *model.Aggregate) ([]*model.JobsStatistics, error)
 	JobsCount(ctx context.Context, filter []*model.JobFilter, groupBy model.Aggregate, weight *model.Weights, limit *int) ([]*model.Count, error)
 	RooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error)
@@ -453,6 +453,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Job.Cluster(childComplexity), true
+
+	case "Job.concurrentJobs":
+		if e.complexity.Job.ConcurrentJobs == nil {
+			break
+		}
+
+		return e.complexity.Job.ConcurrentJobs(childComplexity), true
 
 	case "Job.duration":
 		if e.complexity.Job.Duration == nil {
@@ -1041,18 +1048,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.JobsFootprints(childComplexity, args["filter"].([]*model.JobFilter), args["metrics"].([]string)), true
 
-	case "Query.jobsParallel":
-		if e.complexity.Query.JobsParallel == nil {
-			break
-		}
-
-		args, err := ec.field_Query_jobsParallel_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Query.JobsParallel(childComplexity, args["filter"].([]*model.JobFilter)), true
-
 	case "Query.jobsStatistics":
 		if e.complexity.Query.JobsStatistics == nil {
 			break
@@ -1520,6 +1515,7 @@ type Job {
   state:            JobState!
   tags:             [Tag!]!
   resources:        [Resource!]!
+  concurrentJobs:   JobLinkResultList
 
   metaData:         Any
   userData:         User
@@ -1685,7 +1681,6 @@ type Query {
   jobsFootprints(filter: [JobFilter!], metrics: [String!]!): Footprints
 
   jobs(filter: [JobFilter!], page: PageRequest, order: OrderByInput): JobResultList!
-  jobsParallel(filter: [JobFilter!]): JobLinkResultList!
   jobsStatistics(filter: [JobFilter!], groupBy: Aggregate): [JobsStatistics!]!
   jobsCount(filter: [JobFilter]!, groupBy: Aggregate!, weight: Weights, limit: Int): [Count!]!
 
@@ -2052,21 +2047,6 @@ func (ec *executionContext) field_Query_jobsFootprints_args(ctx context.Context,
 		}
 	}
 	args["metrics"] = arg1
-	return args, nil
-}
-
-func (ec *executionContext) field_Query_jobsParallel_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	args := map[string]interface{}{}
-	var arg0 []*model.JobFilter
-	if tmp, ok := rawArgs["filter"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("filter"))
-		arg0, err = ec.unmarshalOJobFilter2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐJobFilterᚄ(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["filter"] = arg0
 	return args, nil
 }
 
@@ -3960,6 +3940,53 @@ func (ec *executionContext) fieldContext_Job_resources(ctx context.Context, fiel
 	return fc, nil
 }
 
+func (ec *executionContext) _Job_concurrentJobs(ctx context.Context, field graphql.CollectedField, obj *schema.Job) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Job_concurrentJobs(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Job().ConcurrentJobs(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.JobLinkResultList)
+	fc.Result = res
+	return ec.marshalOJobLinkResultList2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐJobLinkResultList(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Job_concurrentJobs(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "items":
+				return ec.fieldContext_JobLinkResultList_items(ctx, field)
+			case "count":
+				return ec.fieldContext_JobLinkResultList_count(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type JobLinkResultList", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Job_metaData(ctx context.Context, field graphql.CollectedField, obj *schema.Job) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Job_metaData(ctx, field)
 	if err != nil {
@@ -4643,6 +4670,8 @@ func (ec *executionContext) fieldContext_JobResultList_items(ctx context.Context
 				return ec.fieldContext_Job_tags(ctx, field)
 			case "resources":
 				return ec.fieldContext_Job_resources(ctx, field)
+			case "concurrentJobs":
+				return ec.fieldContext_Job_concurrentJobs(ctx, field)
 			case "metaData":
 				return ec.fieldContext_Job_metaData(ctx, field)
 			case "userData":
@@ -6640,6 +6669,8 @@ func (ec *executionContext) fieldContext_Query_job(ctx context.Context, field gr
 				return ec.fieldContext_Job_tags(ctx, field)
 			case "resources":
 				return ec.fieldContext_Job_resources(ctx, field)
+			case "concurrentJobs":
+				return ec.fieldContext_Job_concurrentJobs(ctx, field)
 			case "metaData":
 				return ec.fieldContext_Job_metaData(ctx, field)
 			case "userData":
@@ -6839,66 +6870,6 @@ func (ec *executionContext) fieldContext_Query_jobs(ctx context.Context, field g
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_jobs_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Query_jobsParallel(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Query_jobsParallel(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().JobsParallel(rctx, fc.Args["filter"].([]*model.JobFilter))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(*model.JobLinkResultList)
-	fc.Result = res
-	return ec.marshalNJobLinkResultList2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐJobLinkResultList(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Query_jobsParallel(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "items":
-				return ec.fieldContext_JobLinkResultList_items(ctx, field)
-			case "count":
-				return ec.fieldContext_JobLinkResultList_count(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type JobLinkResultList", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Query_jobsParallel_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return
 	}
@@ -11882,6 +11853,23 @@ func (ec *executionContext) _Job(ctx context.Context, sel ast.SelectionSet, obj 
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&invalids, 1)
 			}
+		case "concurrentJobs":
+			field := field
+
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Job_concurrentJobs(ctx, field, obj)
+				return res
+			}
+
+			out.Concurrently(i, func() graphql.Marshaler {
+				return innerFunc(ctx)
+
+			})
 		case "metaData":
 			field := field
 
@@ -12656,26 +12644,6 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_jobs(ctx, field)
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx, innerFunc)
-			}
-
-			out.Concurrently(i, func() graphql.Marshaler {
-				return rrm(innerCtx)
-			})
-		case "jobsParallel":
-			field := field
-
-			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_jobsParallel(ctx, field)
 				return res
 			}
 
@@ -14241,20 +14209,6 @@ func (ec *executionContext) marshalNJobLink2ᚖgithubᚗcomᚋClusterCockpitᚋc
 	return ec._JobLink(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNJobLinkResultList2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐJobLinkResultList(ctx context.Context, sel ast.SelectionSet, v model.JobLinkResultList) graphql.Marshaler {
-	return ec._JobLinkResultList(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNJobLinkResultList2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐJobLinkResultList(ctx context.Context, sel ast.SelectionSet, v *model.JobLinkResultList) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._JobLinkResultList(ctx, sel, v)
-}
-
 func (ec *executionContext) marshalNJobMetric2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐJobMetric(ctx context.Context, sel ast.SelectionSet, v *schema.JobMetric) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -15532,6 +15486,13 @@ func (ec *executionContext) unmarshalOJobFilter2ᚖgithubᚗcomᚋClusterCockpit
 	}
 	res, err := ec.unmarshalInputJobFilter(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOJobLinkResultList2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐJobLinkResultList(ctx context.Context, sel ast.SelectionSet, v *model.JobLinkResultList) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._JobLinkResultList(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOJobState2ᚕgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐJobStateᚄ(ctx context.Context, v interface{}) ([]schema.JobState, error) {
