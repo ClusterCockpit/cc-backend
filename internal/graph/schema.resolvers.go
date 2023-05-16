@@ -42,7 +42,7 @@ func (r *jobResolver) ConcurrentJobs(ctx context.Context, obj *schema.Job) (*mod
 	exc := int(obj.Exclusive)
 	if exc != 1 {
 		filter := []*model.JobFilter{}
-		jid := string(obj.JobID)
+		jid := fmt.Sprint(obj.JobID)
 		jdu := int(obj.Duration)
 		filter = append(filter, &model.JobFilter{Exclusive: &exc})
 		filter = append(filter, &model.JobFilter{SharedNode: &model.StringInput{Contains: &obj.Resources[0].Hostname}})
