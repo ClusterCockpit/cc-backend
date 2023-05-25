@@ -10,7 +10,7 @@
 <script>
     import  { Modal, ModalBody, ModalHeader, ModalFooter, Button, ListGroup } from 'sveltestrap'
     import { getContext } from 'svelte'
-    import { mutation } from '@urql/svelte'
+    import { gql, getContextClient , mutationStore  } from '@urql/svelte'
 
     export let metrics
     export let isOpen
@@ -53,11 +53,17 @@
         }
     }
 
-    const updateConfiguration = mutation({
-        query: `mutation($name: String!, $value: String!) {
-            updateConfiguration(name: $name, value: $value)
-        }`
-    })
+    const client = getContextClient();
+    const updateConfigurationMutation = ({ name, value }) => {
+        return mutationStore({
+            client: client,
+            query: gql`
+                mutation($name: String!, $value: String!) {
+                    updateConfiguration(name: $name, value: $value)
+                }
+            `,
+            variables: { name, value }
+    })}
 
     let columnHovering = null
 
@@ -84,14 +90,15 @@
         metrics = newMetricsOrder.filter(m => unorderedMetrics.includes(m))
         isOpen = false
 
-        updateConfiguration({
-                name: cluster == null ? configName : `${configName}:${cluster}`,
-                value: JSON.stringify(metrics)
-            })
-            .then(res => {
-                if (res.error)
-                    console.error(res.error)
-            })
+        updateConfigurationMutation({
+            name: cluster == null ? configName : `${configName}:${cluster}`,
+            value: JSON.stringify(metrics)
+        }).subscribe(res => {
+            if (res.fetching === false && res.error) {
+                throw res.error
+                // console.log('Error on subscription: ' + res.error)
+            }
+        })
     }
 </script>
 

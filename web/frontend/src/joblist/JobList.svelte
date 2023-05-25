@@ -9,83 +9,144 @@
     - update(filters?: [JobFilter])
  -->
 <script>
-    import { operationStore, query, mutation } from '@urql/svelte'
-    import { getContext } from 'svelte';
-    import { Row, Table, Card, Spinner } from 'sveltestrap'
-    import Pagination from './Pagination.svelte'
-    import JobListRow from './Row.svelte'
-    import { stickyHeader } from '../utils.js'
+    import {
+        queryStore,
+        gql,
+        getContextClient,
+        mutationStore,
+    } from "@urql/svelte";
+    import { getContext } from "svelte";
+    import { Row, Table, Card, Spinner } from "sveltestrap";
+    import Pagination from "./Pagination.svelte";
+    import JobListRow from "./Row.svelte";
+    import { stickyHeader } from "../utils.js";
 
-    const ccconfig = getContext('cc-config'),
-          clusters = getContext('clusters'),
-          initialized = getContext('initialized')
+    const ccconfig = getContext("cc-config"),
+        clusters = getContext("clusters"),
+        initialized = getContext("initialized");
 
-    export let sorting = { field: "startTime", order: "DESC" }
-    export let matchedJobs = 0
-    export let metrics = ccconfig.plot_list_selectedMetrics
+    export let sorting = { field: "startTime", order: "DESC" };
+    export let matchedJobs = 0;
+    export let metrics = ccconfig.plot_list_selectedMetrics;
 
-    let itemsPerPage = ccconfig.plot_list_jobsPerPage
-    let page = 1
-    let paging = { itemsPerPage, page }
-    let filter = []
+    let itemsPerPage = ccconfig.plot_list_jobsPerPage;
+    let page = 1;
+    let paging = { itemsPerPage, page };
+    let filter = [];
 
-    const jobs = operationStore(`
-    query($filter: [JobFilter!]!, $sorting: OrderByInput!, $paging: PageRequest! ){
-        jobs(filter: $filter, order: $sorting, page: $paging) {
-            items {
-                id, jobId, user, project, jobName, cluster, subCluster, startTime,
-                duration, numNodes, numHWThreads, numAcc, walltime, resources { hostname },
-                SMT, exclusive, partition, arrayJobId,
-                monitoringStatus, state,
-                tags { id, type, name }
-                userData { name }
-                metaData
+    const client = getContextClient();
+    const query = gql`
+        query (
+            $filter: [JobFilter!]!
+            $sorting: OrderByInput!
+            $paging: PageRequest!
+        ) {
+            jobs(filter: $filter, order: $sorting, page: $paging) {
+                items {
+                    id
+                    jobId
+                    user
+                    project
+                    jobName
+                    cluster
+                    subCluster
+                    startTime
+                    duration
+                    numNodes
+                    numHWThreads
+                    numAcc
+                    walltime
+                    resources {
+                        hostname
+                    }
+                    SMT
+                    exclusive
+                    partition
+                    arrayJobId
+                    monitoringStatus
+                    state
+                    tags {
+                        id
+                        type
+                        name
+                    }
+                    userData {
+                        name
+                    }
+                    metaData
+                }
+                count
             }
-            count
         }
-    }`, {
-        paging,
-        sorting,
-        filter,
-    }, {
-        pause: true
-    })
+    `;
 
-    const updateConfiguration = mutation({
-        query: `mutation($name: String!, $value: String!) {
-            updateConfiguration(name: $name, value: $value)
-        }`
-    })
+    $: jobs = queryStore({
+        client: client,
+        query: query,
+        variables: { paging, sorting, filter }
+    });
 
-    $: $jobs.variables = { ...$jobs.variables, sorting, paging }
-    $: matchedJobs = $jobs.data != null ? $jobs.data.jobs.count : 0
+    $: matchedJobs = $jobs.data != null ? $jobs.data.jobs.count : 0;
+
+    // Force refresh list with existing unchanged variables (== usually would not trigger reactivity)
+    export function refresh() {
+        queryStore({
+            client: client,
+            query: query,
+            variables: { paging, sorting, filter },
+            requestPolicy: 'network-only'
+        });
+    }
 
     // (Re-)query and optionally set new filters.
     export function update(filters) {
         if (filters != null) {
-            let minRunningFor = ccconfig.plot_list_hideShortRunningJobs
+            let minRunningFor = ccconfig.plot_list_hideShortRunningJobs;
             if (minRunningFor && minRunningFor > 0) {
-                filters.push({ minRunningFor })
+                filters.push({ minRunningFor });
             }
-
-            $jobs.variables.filter = filters
-            // console.log('filters:', ...filters.map(f => Object.entries(f)).flat(2))
+            filter = filters;
         }
-
-        page = 1
-        $jobs.variables.paging = paging = { page, itemsPerPage };
-        $jobs.context.pause = false
-        $jobs.reexecute({ requestPolicy: 'network-only' })
+        page = 1;
+        paging = paging = { page, itemsPerPage };
     }
 
-    query(jobs)
+    const updateConfigurationMutation = ({ name, value }) => {
+        return mutationStore({
+            client: client,
+            query: gql`
+                mutation ($name: String!, $value: String!) {
+                    updateConfiguration(name: $name, value: $value)
+                }
+            `,
+            variables: { name, value }
+        });
+    }
 
-    let tableWidth = null
-    let jobInfoColumnWidth = 250
-    $: plotWidth = Math.floor((tableWidth - jobInfoColumnWidth) / metrics.length - 10)
+    function updateConfiguration(value, page) {
+        updateConfigurationMutation({ name: 'plot_list_jobsPerPage', value: value })
+        .subscribe(res => {
+            if (res.fetching === false && !res.error) {
+                paging = { itemsPerPage: value, page: page }; // Trigger reload of jobList
+            } else if (res.fetching === false && res.error) {
+                throw res.error
+                // console.log('Error on subscription: ' + res.error)
+            }
+        })
+    };
 
-    let headerPaddingTop = 0
-    stickyHeader('.cc-table-wrapper > table.table >thead > tr > th.position-sticky:nth-child(1)', (x) => (headerPaddingTop = x))
+    let tableWidth = null;
+    let jobInfoColumnWidth = 250;
+
+    $: plotWidth = Math.floor(
+        (tableWidth - jobInfoColumnWidth) / metrics.length - 10
+    );
+
+    let headerPaddingTop = 0;
+    stickyHeader(
+        ".cc-table-wrapper > table.table >thead > tr > th.position-sticky:nth-child(1)",
+        (x) => (headerPaddingTop = x)
+    );
 </script>
 
 <Row>
@@ -93,20 +154,43 @@
         <Table cellspacing="0px" cellpadding="0px">
             <thead>
                 <tr>
-                    <th class="position-sticky top-0" scope="col" style="width: {jobInfoColumnWidth}px; padding-top: {headerPaddingTop}px">
+                    <th
+                        class="position-sticky top-0"
+                        scope="col"
+                        style="width: {jobInfoColumnWidth}px; padding-top: {headerPaddingTop}px"
+                    >
                         Job Info
                     </th>
                     {#each metrics as metric (metric)}
-                        <th class="position-sticky top-0 text-center" scope="col" style="width: {plotWidth}px; padding-top: {headerPaddingTop}px">
+                        <th
+                            class="position-sticky top-0 text-center"
+                            scope="col"
+                            style="width: {plotWidth}px; padding-top: {headerPaddingTop}px"
+                        >
                             {metric}
                             {#if $initialized}
                                 ({clusters
-                                    .map(cluster => cluster.metricConfig.find(m => m.name == metric))
-                                    .filter(m => m != null)
-                                    .map(m => (m.unit?.prefix?m.unit?.prefix:'') + (m.unit?.base?m.unit?.base:'')) // Build unitStr
-                                    .reduce((arr, unitStr) => arr.includes(unitStr) ? arr : [...arr, unitStr], []) // w/o this, output would be [unitStr, unitStr]
-                                    .join(', ')
-                                })
+                                    .map((cluster) =>
+                                        cluster.metricConfig.find(
+                                            (m) => m.name == metric
+                                        )
+                                    )
+                                    .filter((m) => m != null)
+                                    .map(
+                                        (m) =>
+                                            (m.unit?.prefix
+                                                ? m.unit?.prefix
+                                                : "") +
+                                            (m.unit?.base ? m.unit?.base : "")
+                                    ) // Build unitStr
+                                    .reduce(
+                                        (arr, unitStr) =>
+                                            arr.includes(unitStr)
+                                                ? arr
+                                                : [...arr, unitStr],
+                                        []
+                                    ) // w/o this, output would be [unitStr, unitStr]
+                                    .join(", ")})
                             {/if}
                         </th>
                     {/each}
@@ -115,28 +199,27 @@
             <tbody>
                 {#if $jobs.error}
                     <tr>
-                        <td colspan="{metrics.length + 1}">
-                            <Card body color="danger" class="mb-3"><h2>{$jobs.error.message}</h2></Card>
+                        <td colspan={metrics.length + 1}>
+                            <Card body color="danger" class="mb-3"
+                                ><h2>{$jobs.error.message}</h2></Card
+                            >
                         </td>
                     </tr>
                 {:else if $jobs.fetching || !$jobs.data}
                     <tr>
-                        <td colspan="{metrics.length + 1}">
+                        <td colspan={metrics.length + 1}>
                             <Spinner secondary />
                         </td>
                     </tr>
                 {:else if $jobs.data && $initialized}
                     {#each $jobs.data.jobs.items as job (job)}
-                        <JobListRow
-                            job={job}
-                            metrics={metrics}
-                            plotWidth={plotWidth} />
+                        <JobListRow {job} {metrics} {plotWidth} />
                     {:else}
-                    <tr>
-                        <td colspan="{metrics.length + 1}">
-                            No jobs found
-                        </td>
-                    </tr>
+                        <tr>
+                            <td colspan={metrics.length + 1}>
+                                No jobs found
+                            </td>
+                        </tr>
                     {/each}
                 {/if}
             </tbody>
@@ -145,24 +228,21 @@
 </Row>
 
 <Pagination
-    bind:page={page}
+    bind:page
     {itemsPerPage}
     itemText="Jobs"
     totalItems={matchedJobs}
     on:update={({ detail }) => {
         if (detail.itemsPerPage != itemsPerPage) {
-            itemsPerPage = detail.itemsPerPage
-            updateConfiguration({
-                name: "plot_list_jobsPerPage",
-                value: itemsPerPage.toString()
-            }).then(res => {
-                if (res.error)
-                    console.error(res.error);
-            })
+            updateConfiguration(
+                detail.itemsPerPage.toString(),
+                detail.page
+            )
+        } else {
+            paging = { itemsPerPage: detail.itemsPerPage, page: detail.page }
         }
-
-        paging = { itemsPerPage: detail.itemsPerPage, page: detail.page }
-    }} />
+    }}
+/>
 
 <style>
     .cc-table-wrapper {

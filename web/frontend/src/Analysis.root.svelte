@@ -1,7 +1,7 @@
 <script>
     import { init } from './utils.js'
     import { getContext, onMount } from 'svelte'
-    import { operationStore, query } from '@urql/svelte'
+    import { queryStore, gql, getContextClient  } from '@urql/svelte'
     import { Row, Col, Spinner, Card, Table } from 'sveltestrap'
     import Filters from './filters/Filters.svelte'
     import PlotSelection from './PlotSelection.svelte'
@@ -30,6 +30,7 @@
     let rooflineMaxY
     let colWidth
     let numBins = 50
+    let maxY = -1
     const ccconfig = getContext('cc-config')
     const metricConfig = getContext('metrics')
 
@@ -44,52 +45,55 @@
             console.assert(cluster != null, `This cluster could not be found: ${filterPresets.cluster}`)
 
             rooflineMaxY = cluster.subClusters.reduce((max, part) => Math.max(max, part.flopRateSimd.value), 0)
-            $rooflineQuery.variables.maxY = rooflineMaxY
-            $rooflineQuery.context.pause = false
-            $rooflineQuery.reexecute()
+            maxY = rooflineMaxY
         }
     })
 
-    const statsQuery = operationStore(`
-        query($filter: [JobFilter!]!) {
-            stats: jobsStatistics(filter: $filter) {
-                totalJobs
-                shortJobs
-                totalWalltime
-                totalCoreHours
-                histDuration { count, value }
-                histNumNodes { count, value }
+    const client = getContextClient();
+
+    $: statsQuery = queryStore({
+        client: client,
+        query: gql`
+            query($filters: [JobFilter!]!) {
+                stats: jobsStatistics(filter: $filters) {
+                    totalJobs
+                    shortJobs
+                    totalWalltime
+                    totalCoreHours
+                    histDuration { count, value }
+                    histNumNodes { count, value }
+                }
+
+                topUsers: jobsCount(filter: $filters, groupBy: USER, weight: NODE_HOURS, limit: 5) { name, count }
             }
+        `, 
+        variables: { filters }
+    })
 
-            topUsers: jobsCount(filter: $filter, groupBy: USER, weight: NODE_HOURS, limit: 5) { name, count }
-        }
-    `, { filter: [] }, { pause: true })
+    $: footprintsQuery = queryStore({
+        client: client,
+        query: gql`
+            query($filters: [JobFilter!]!, $metrics: [String!]!) {
+                footprints: jobsFootprints(filter: $filters, metrics: $metrics) {
+                    nodehours,
+                    metrics { metric, data }
+                }
+            }`,
+        variables:  { filters, metrics }
+    })
 
-    const footprintsQuery = operationStore(`
-        query($filter: [JobFilter!]!, $metrics: [String!]!) {
-            footprints: jobsFootprints(filter: $filter, metrics: $metrics) {
-                nodehours,
-                metrics { metric, data }
+    $: rooflineQuery = queryStore({
+        client: client,
+        query: gql`
+            query($filters: [JobFilter!]!, $rows: Int!, $cols: Int!,
+                    $minX: Float!, $minY: Float!, $maxX: Float!, $maxY: Float!) {
+                rooflineHeatmap(filter: $filters, rows: $rows, cols: $cols,
+                        minX: $minX, minY: $minY, maxX: $maxX, maxY: $maxY)
             }
-        }
-    `, { filter: [], metrics }, { pause: true })
-    $: $footprintsQuery.variables = { ...$footprintsQuery.variables, metrics }
+        `,
+        variables: { filters, rows: 50, cols: 50, minX: 0.01, minY: 1., maxX: 1000., maxY }
+    })
 
-    const rooflineQuery = operationStore(`
-        query($filter: [JobFilter!]!, $rows: Int!, $cols: Int!,
-                $minX: Float!, $minY: Float!, $maxX: Float!, $maxY: Float!) {
-            rooflineHeatmap(filter: $filter, rows: $rows, cols: $cols,
-                    minX: $minX, minY: $minY, maxX: $maxX, maxY: $maxY)
-        }
-    `, {
-        filter: [],
-        rows: 50, cols: 50,
-        minX: 0.01, minY: 1., maxX: 1000., maxY: -1.
-    }, { pause: true });
-
-    query(statsQuery)
-    query(footprintsQuery)
-    query(rooflineQuery)
     onMount(() => filters.update())
 </script>
 
@@ -116,11 +120,7 @@
             disableClusterSelection={true}
             startTimeQuickSelect={true}
             on:update={({ detail }) => {
-                $statsQuery.context.pause = false
-                $statsQuery.variables = { filter: detail.filters }
-                $footprintsQuery.context.pause = false
-                $footprintsQuery.variables = { metrics, filter: detail.filters }
-                $rooflineQuery.variables = { ...$rooflineQuery.variables, filter: detail.filters }
+                filters = detail.filters;
             }} />
     </Col>
 </Row>

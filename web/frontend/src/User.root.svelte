@@ -2,7 +2,7 @@
     import { onMount, getContext } from 'svelte'
     import { init } from './utils.js'
     import { Table, Row, Col, Button, Icon, Card, Spinner } from 'sveltestrap'
-    import { operationStore, query } from '@urql/svelte'
+    import { queryStore, gql, getContextClient } from '@urql/svelte'
     import Filters from './filters/Filters.svelte'
     import JobList from './joblist/JobList.svelte'
     import Sorting from './joblist/SortSelection.svelte'
@@ -25,30 +25,23 @@
     let w1, w2, histogramHeight = 250
     let selectedCluster = filterPresets?.cluster ? filterPresets.cluster : null
 
-    const stats = operationStore(`
-    query($filter: [JobFilter!]!) {
-        jobsStatistics(filter: $filter) {
-            totalJobs
-            shortJobs
-            totalWalltime
-            totalCoreHours
-            histDuration { count, value }
-            histNumNodes { count, value }
-        }
-    }
-    `, {
-        filter: []
-    }, {
-        pause: true
+    const client = getContextClient();
+    $: stats = queryStore({
+        client: client,
+        query: gql`
+            query($filters: [JobFilter!]!) {
+            jobsStatistics(filter: $filters) {
+                totalJobs
+                shortJobs
+                totalWalltime
+                totalCoreHours
+                histDuration { count, value }
+                histNumNodes { count, value }
+            }}`,
+        variables: { filters }
     })
 
-    // filters[filters.findIndex(filter => filter.cluster != null)] ? 
-    //                           filters[filters.findIndex(filter => filter.cluster != null)].cluster.eq :
-    //                           null
-    // Cluster filter has to be alwas @ first index, above will throw error
     $: selectedCluster = filters[0]?.cluster ? filters[0].cluster.eq : null 
-
-    query(stats)
 
     onMount(() => filters.update())
 </script>
@@ -84,15 +77,12 @@
             bind:this={filters}
             on:update={({ detail }) => {
                 let jobFilters = [...detail.filters, { user: { eq: user.username } }]
-                $stats.variables = { filter: jobFilters }
-                $stats.context.pause = false
-                $stats.reexecute()
                 filters = jobFilters
                 jobList.update(jobFilters)
             }} />
     </Col>
     <Col xs="auto" style="margin-left: auto;">
-        <Refresher on:reload={() => jobList.update()} />
+        <Refresher on:reload={() => jobList.refresh()} />
     </Col>
 </Row>
 <br/>
