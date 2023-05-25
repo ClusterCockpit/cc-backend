@@ -7,6 +7,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -36,7 +37,9 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/runtimeEnv"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/ClusterCockpit/cc-backend/web"
+	"github.com/go-co-op/gocron"
 	"github.com/google/gops/agent"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -416,17 +419,94 @@ func main() {
 		api.JobRepository.WaitForArchiving()
 	}()
 
+	s := gocron.NewScheduler(time.Local)
+
 	if config.Keys.StopJobsExceedingWalltime > 0 {
-		go func() {
-			for range time.Tick(30 * time.Minute) {
-				err := jobRepo.StopJobsExceedingWalltimeBy(config.Keys.StopJobsExceedingWalltime)
-				if err != nil {
-					log.Warnf("Error while looking for jobs exceeding their walltime: %s", err.Error())
-				}
-				runtime.GC()
+		log.Info("Register undead jobs service")
+
+		s.Every(1).Day().At("3:00").Do(func() {
+			err := jobRepo.StopJobsExceedingWalltimeBy(config.Keys.StopJobsExceedingWalltime)
+			if err != nil {
+				log.Warnf("Error while looking for jobs exceeding their walltime: %s", err.Error())
 			}
-		}()
+			runtime.GC()
+		})
 	}
+
+	var cfg struct {
+		Compression int              `json:"compression"`
+		Retention   schema.Retention `json:"retention"`
+	}
+
+	cfg.Retention.IncludeDB = true
+
+	if err := json.Unmarshal(config.Keys.Archive, &cfg); err != nil {
+		log.Warn("Error while unmarshaling raw config json")
+	}
+
+	switch cfg.Retention.Policy {
+	case "delete":
+		log.Info("Register retention delete service")
+
+		s.Every(1).Day().At("4:00").Do(func() {
+			startTime := time.Now().Unix() - int64(cfg.Retention.Age*24*3600)
+			jobs, err := jobRepo.FindJobsBefore(startTime)
+			if err != nil {
+				log.Warnf("Error while looking for retention jobs: %s", err.Error())
+			}
+			archive.GetHandle().CleanUp(jobs)
+
+			if cfg.Retention.IncludeDB {
+				cnt, err := jobRepo.DeleteJobsBefore(startTime)
+				if err != nil {
+					log.Errorf("Error while deleting retention jobs from db: %s", err.Error())
+				} else {
+					log.Infof("Retention: Removed %d jobs from db", cnt)
+				}
+				if err = jobRepo.Optimize(); err != nil {
+					log.Errorf("Error occured in db optimization: %s", err.Error())
+				}
+			}
+		})
+	case "move":
+		log.Info("Register retention move service")
+
+		s.Every(1).Day().At("4:00").Do(func() {
+			startTime := time.Now().Unix() - int64(cfg.Retention.Age*24*3600)
+			jobs, err := jobRepo.FindJobsBefore(startTime)
+			if err != nil {
+				log.Warnf("Error while looking for retention jobs: %s", err.Error())
+			}
+			archive.GetHandle().Move(jobs, cfg.Retention.Location)
+
+			if cfg.Retention.IncludeDB {
+				cnt, err := jobRepo.DeleteJobsBefore(startTime)
+				if err != nil {
+					log.Errorf("Error while deleting retention jobs from db: %s", err.Error())
+				} else {
+					log.Infof("Retention: Removed %d jobs from db", cnt)
+				}
+				if err = jobRepo.Optimize(); err != nil {
+					log.Errorf("Error occured in db optimization: %s", err.Error())
+				}
+			}
+		})
+	}
+
+	if cfg.Compression > 0 {
+		log.Info("Register compression service")
+
+		s.Every(1).Day().At("5:00").Do(func() {
+			startTime := time.Now().Unix() - int64(cfg.Compression*24*3600)
+			jobs, err := jobRepo.FindJobsBefore(startTime)
+			if err != nil {
+				log.Warnf("Error while looking for retention jobs: %s", err.Error())
+			}
+			archive.GetHandle().Compress(jobs)
+		})
+	}
+
+	s.StartAsync()
 
 	if os.Getenv("GOGC") == "" {
 		debug.SetGCPercent(25)

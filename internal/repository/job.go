@@ -96,6 +96,21 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 	return job, nil
 }
 
+func (r *JobRepository) Optimize() error {
+	var err error
+
+	switch r.driver {
+	case "sqlite3":
+		if _, err = r.DB.Exec(`VACUUM`); err != nil {
+			return err
+		}
+	case "mysql":
+		log.Info("Optimize currently not supported for mysql driver")
+	}
+
+	return nil
+}
+
 func (r *JobRepository) Flush() error {
 	var err error
 
@@ -705,6 +720,38 @@ func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 	}
 	log.Infof("Timer StopJobsExceedingWalltimeBy %s", time.Since(start))
 	return nil
+}
+
+func (r *JobRepository) FindJobsBefore(startTime int64) ([]*schema.Job, error) {
+
+	query := sq.Select(jobColumns...).From("job").Where(fmt.Sprintf(
+		"job.start_time < %d", startTime))
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		log.Warn("Error while converting query to sql")
+		return nil, err
+	}
+
+	log.Debugf("SQL query: `%s`, args: %#v", sql, args)
+	rows, err := query.RunWith(r.stmtCache).Query()
+	if err != nil {
+		log.Error("Error while running query")
+		return nil, err
+	}
+
+	jobs := make([]*schema.Job, 0, 50)
+	for rows.Next() {
+		job, err := scanJob(rows)
+		if err != nil {
+			rows.Close()
+			log.Warn("Error while scanning rows")
+			return nil, err
+		}
+		jobs = append(jobs, job)
+	}
+
+	return jobs, nil
 }
 
 // GraphQL validation should make sure that no unkown values can be specified.

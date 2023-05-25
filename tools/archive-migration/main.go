@@ -219,7 +219,7 @@ func deepCopyClusterConfig(co *Cluster) schema.Cluster {
 		mcn.Name = mco.Name
 		mcn.Scope = mco.Scope
 		if mco.Aggregation == "" {
-			fmt.Println("Property aggregation missing! Please review file!")
+			fmt.Println("cluster.json - Property aggregation missing! Please review file!")
 			mcn.Aggregation = "sum"
 		} else {
 			mcn.Aggregation = mco.Aggregation
@@ -252,8 +252,8 @@ func main() {
 	flag.BoolVar(&flagLogDateTime, "logdate", false, "Set this flag to add date and time to log messages")
 	flag.StringVar(&flagLogLevel, "loglevel", "warn", "Sets the logging level: `[debug,info,warn (default),err,fatal,crit]`")
 	flag.StringVar(&flagConfigFile, "config", "./config.json", "Specify alternative path to `config.json`")
-	flag.StringVar(&srcPath, "s", "./var/job-archive", "Specify the source job archive path. Default is ./var/job-archive")
-	flag.StringVar(&dstPath, "d", "./var/job-archive-new", "Specify the destination job archive path. Default is ./var/job-archive-new")
+	flag.StringVar(&srcPath, "s", "./var/job-archive", "Specify the source job archive path")
+	flag.StringVar(&dstPath, "d", "./var/job-archive-new", "Specify the destination job archive path")
 	flag.Parse()
 
 	if _, err := os.Stat(filepath.Join(srcPath, "version.txt")); !errors.Is(err, os.ErrNotExist) {

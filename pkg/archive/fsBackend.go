@@ -11,14 +11,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/santhosh-tekuri/jsonschema/v5"
@@ -33,9 +36,17 @@ type FsArchive struct {
 	clusters []string
 }
 
-func checkFileExists(filePath string) bool {
-	_, err := os.Stat(filePath)
-	return !errors.Is(err, os.ErrNotExist)
+func getDirectory(
+	job *schema.Job,
+	rootPath string,
+) string {
+	lvl1, lvl2 := fmt.Sprintf("%d", job.JobID/1000), fmt.Sprintf("%03d", job.JobID%1000)
+
+	return filepath.Join(
+		rootPath,
+		job.Cluster,
+		lvl1, lvl2,
+		strconv.FormatInt(job.StartTime.Unix(), 10))
 }
 
 func getPath(
@@ -43,12 +54,8 @@ func getPath(
 	rootPath string,
 	file string) string {
 
-	lvl1, lvl2 := fmt.Sprintf("%d", job.JobID/1000), fmt.Sprintf("%03d", job.JobID%1000)
 	return filepath.Join(
-		rootPath,
-		job.Cluster,
-		lvl1, lvl2,
-		strconv.FormatInt(job.StartTime.Unix(), 10), file)
+		getDirectory(job, rootPath), file)
 }
 
 func loadJobMeta(filename string) (*schema.JobMeta, error) {
@@ -74,6 +81,7 @@ func loadJobData(filename string, isCompressed bool) (schema.JobData, error) {
 		log.Errorf("fsBackend LoadJobData()- %v", err)
 		return nil, err
 	}
+	defer f.Close()
 
 	if isCompressed {
 		r, err := gzip.NewReader(f)
@@ -91,7 +99,6 @@ func loadJobData(filename string, isCompressed bool) (schema.JobData, error) {
 
 		return DecodeJobData(r, filename)
 	} else {
-		defer f.Close()
 		if config.Keys.Validate {
 			if err := schema.Validate(schema.Data, bufio.NewReader(f)); err != nil {
 				return schema.JobData{}, fmt.Errorf("validate job data: %v", err)
@@ -147,10 +154,205 @@ func (fsa *FsArchive) Init(rawConfig json.RawMessage) (uint64, error) {
 	return version, nil
 }
 
+type clusterInfo struct {
+	numJobs   int
+	dateFirst int64
+	dateLast  int64
+	diskSize  float64
+}
+
+func (fsa *FsArchive) Info() {
+	fmt.Printf("Job archive %s\n", fsa.path)
+	clusters, err := os.ReadDir(fsa.path)
+	if err != nil {
+		log.Fatalf("Reading clusters failed: %s", err.Error())
+	}
+
+	ci := make(map[string]*clusterInfo)
+
+	for _, cluster := range clusters {
+		if !cluster.IsDir() {
+			continue
+		}
+
+		cc := cluster.Name()
+		ci[cc] = &clusterInfo{dateFirst: time.Now().Unix()}
+		lvl1Dirs, err := os.ReadDir(filepath.Join(fsa.path, cluster.Name()))
+		if err != nil {
+			log.Fatalf("Reading jobs failed @ lvl1 dirs: %s", err.Error())
+		}
+
+		for _, lvl1Dir := range lvl1Dirs {
+			if !lvl1Dir.IsDir() {
+				continue
+			}
+			lvl2Dirs, err := os.ReadDir(filepath.Join(fsa.path, cluster.Name(), lvl1Dir.Name()))
+			if err != nil {
+				log.Fatalf("Reading jobs failed @ lvl2 dirs: %s", err.Error())
+			}
+
+			for _, lvl2Dir := range lvl2Dirs {
+				dirpath := filepath.Join(fsa.path, cluster.Name(), lvl1Dir.Name(), lvl2Dir.Name())
+				startTimeDirs, err := os.ReadDir(dirpath)
+				if err != nil {
+					log.Fatalf("Reading jobs failed @ starttime dirs: %s", err.Error())
+				}
+
+				for _, startTimeDir := range startTimeDirs {
+					if startTimeDir.IsDir() {
+						ci[cc].numJobs++
+						startTime, err := strconv.ParseInt(startTimeDir.Name(), 10, 64)
+						if err != nil {
+							log.Fatalf("Cannot parse starttime: %s", err.Error())
+						}
+						ci[cc].dateFirst = util.Min(ci[cc].dateFirst, startTime)
+						ci[cc].dateLast = util.Max(ci[cc].dateLast, startTime)
+						ci[cc].diskSize += util.DiskUsage(filepath.Join(dirpath, startTimeDir.Name()))
+					}
+				}
+			}
+		}
+	}
+
+	cit := clusterInfo{dateFirst: time.Now().Unix()}
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', tabwriter.Debug)
+	fmt.Fprintln(w, "cluster\t#jobs\tfrom\tto\tdu (MB)")
+	for cluster, clusterInfo := range ci {
+		fmt.Fprintf(w, "%s\t%d\t%s\t%s\t%.2f\n", cluster,
+			clusterInfo.numJobs,
+			time.Unix(clusterInfo.dateFirst, 0),
+			time.Unix(clusterInfo.dateLast, 0),
+			clusterInfo.diskSize)
+
+		cit.numJobs += clusterInfo.numJobs
+		cit.dateFirst = util.Min(cit.dateFirst, clusterInfo.dateFirst)
+		cit.dateLast = util.Max(cit.dateLast, clusterInfo.dateLast)
+		cit.diskSize += clusterInfo.diskSize
+	}
+
+	fmt.Fprintf(w, "TOTAL\t%d\t%s\t%s\t%.2f\n",
+		cit.numJobs, time.Unix(cit.dateFirst, 0), time.Unix(cit.dateLast, 0), cit.diskSize)
+	w.Flush()
+}
+
+func (fsa *FsArchive) Exists(job *schema.Job) bool {
+	dir := getDirectory(job, fsa.path)
+	_, err := os.Stat(dir)
+	return !errors.Is(err, os.ErrNotExist)
+}
+
+func (fsa *FsArchive) Clean(before int64, after int64) {
+
+	if after == 0 {
+		after = math.MaxInt64
+	}
+
+	clusters, err := os.ReadDir(fsa.path)
+	if err != nil {
+		log.Fatalf("Reading clusters failed: %s", err.Error())
+	}
+
+	for _, cluster := range clusters {
+		if !cluster.IsDir() {
+			continue
+		}
+
+		lvl1Dirs, err := os.ReadDir(filepath.Join(fsa.path, cluster.Name()))
+		if err != nil {
+			log.Fatalf("Reading jobs failed @ lvl1 dirs: %s", err.Error())
+		}
+
+		for _, lvl1Dir := range lvl1Dirs {
+			if !lvl1Dir.IsDir() {
+				continue
+			}
+			lvl2Dirs, err := os.ReadDir(filepath.Join(fsa.path, cluster.Name(), lvl1Dir.Name()))
+			if err != nil {
+				log.Fatalf("Reading jobs failed @ lvl2 dirs: %s", err.Error())
+			}
+
+			for _, lvl2Dir := range lvl2Dirs {
+				dirpath := filepath.Join(fsa.path, cluster.Name(), lvl1Dir.Name(), lvl2Dir.Name())
+				startTimeDirs, err := os.ReadDir(dirpath)
+				if err != nil {
+					log.Fatalf("Reading jobs failed @ starttime dirs: %s", err.Error())
+				}
+
+				for _, startTimeDir := range startTimeDirs {
+					if startTimeDir.IsDir() {
+						startTime, err := strconv.ParseInt(startTimeDir.Name(), 10, 64)
+						if err != nil {
+							log.Fatalf("Cannot parse starttime: %s", err.Error())
+						}
+
+						if startTime < before || startTime > after {
+							if err := os.RemoveAll(filepath.Join(dirpath, startTimeDir.Name())); err != nil {
+								log.Errorf("JobArchive Cleanup() error: %v", err)
+							}
+						}
+					}
+				}
+				if util.GetFilecount(dirpath) == 0 {
+					if err := os.Remove(dirpath); err != nil {
+						log.Errorf("JobArchive Clean() error: %v", err)
+					}
+				}
+			}
+		}
+	}
+}
+
+func (fsa *FsArchive) Move(jobs []*schema.Job, path string) {
+	for _, job := range jobs {
+		source := getDirectory(job, fsa.path)
+		target := getDirectory(job, path)
+
+		if err := os.MkdirAll(filepath.Clean(filepath.Join(target, "..")), 0777); err != nil {
+			log.Errorf("JobArchive Move MkDir error: %v", err)
+		}
+		if err := os.Rename(source, target); err != nil {
+			log.Errorf("JobArchive Move() error: %v", err)
+		}
+
+		parent := filepath.Clean(filepath.Join(source, ".."))
+		if util.GetFilecount(parent) == 0 {
+			if err := os.Remove(parent); err != nil {
+				log.Errorf("JobArchive Move() error: %v", err)
+			}
+		}
+	}
+}
+
+func (fsa *FsArchive) CleanUp(jobs []*schema.Job) {
+	for _, job := range jobs {
+		dir := getDirectory(job, fsa.path)
+		if err := os.RemoveAll(dir); err != nil {
+			log.Errorf("JobArchive Cleanup() error: %v", err)
+		}
+
+		parent := filepath.Clean(filepath.Join(dir, ".."))
+		if util.GetFilecount(parent) == 0 {
+			if err := os.Remove(parent); err != nil {
+				log.Errorf("JobArchive Cleanup() error: %v", err)
+			}
+		}
+	}
+}
+
+func (fsa *FsArchive) Compress(jobs []*schema.Job) {
+	for _, job := range jobs {
+		fileIn := getPath(job, fsa.path, "data.json")
+		if !util.CheckFileExists(fileIn) && util.GetFilesize(fileIn) > 2000 {
+			util.CompressFile(fileIn, getPath(job, fsa.path, "data.json.gz"))
+		}
+	}
+}
+
 func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 	var isCompressed bool = true
 	filename := getPath(job, fsa.path, "data.json.gz")
-	if !checkFileExists(filename) {
+
+	if !util.CheckFileExists(filename) {
 		filename = getPath(job, fsa.path, "data.json")
 		isCompressed = false
 	}
@@ -159,7 +361,6 @@ func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 }
 
 func (fsa *FsArchive) LoadJobMeta(job *schema.Job) (*schema.JobMeta, error) {
-
 	filename := getPath(job, fsa.path, "meta.json")
 	return loadJobMeta(filename)
 }
@@ -226,7 +427,7 @@ func (fsa *FsArchive) Iter(loadMetricData bool) <-chan JobContainer {
 								var isCompressed bool = true
 								filename := filepath.Join(dirpath, startTimeDir.Name(), "data.json.gz")
 
-								if !checkFileExists(filename) {
+								if !util.CheckFileExists(filename) {
 									filename = filepath.Join(dirpath, startTimeDir.Name(), "data.json")
 									isCompressed = false
 								}
