@@ -14,6 +14,8 @@
     import { getContext } from 'svelte'
 
     export let dbid
+    export let authlevel
+    export let roles
 
     const { query: initq } = init(`
         job(id: "${dbid}") {
@@ -102,15 +104,22 @@
         {/if}
     </Col>
     {#if $jobMetrics.data && $initq.data}
-        {#if $initq.data.job.concurrentJobs != null} 
-            <Col>
-                <h5>Concurrent Jobs <Icon name="info-circle" style="cursor:help;" title="Shared jobs running on the same node with overlapping runtimes"/></h5>
-                <ul>
-                {#each $initq.data.job.concurrentJobs.items as pjob, index}
-                    <li><a href="/monitoring/job/{pjob.id}" target="_blank">{pjob.jobId}</a></li>
-                {/each}
-                </ul>
-            </Col>
+        {#if $initq.data.job.concurrentJobs != null}
+            {#if authlevel > roles.manager}
+                <Col>
+                    <h5>Concurrent Jobs <Icon name="info-circle" style="cursor:help;" title="Shared jobs running on the same node with overlapping runtimes"/></h5>
+                    <ul>
+                    {#each $initq.data.job.concurrentJobs.items as pjob, index}
+                        <li><a href="/monitoring/job/{pjob.id}" target="_blank">{pjob.jobId}</a></li>
+                    {/each}
+                    </ul>
+                </Col>
+            {:else}
+                <Col>
+                    <h5>{$initq.data.job.concurrentJobs.items.length} Concurrent Jobs</h5>
+                    <p>Number of shared jobs on the same node with overlapping runtimes.</p>
+                </Col>
+            {/if}
         {/if}
         <Col>
             <PolarPlot

@@ -13,6 +13,8 @@
             clusterId: "{{ .Infos.clusterId }}"
         };
         const clusterCockpitConfig = {{ .Config }};
+        const authlevel = {{ .User.GetAuthLevel }};
+        const roles = {{ .Roles }};
     </script>
     <script src='/build/job.js'></script>
 {{end}}
