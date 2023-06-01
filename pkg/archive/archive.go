@@ -18,6 +18,10 @@ const Version uint64 = 1
 type ArchiveBackend interface {
 	Init(rawConfig json.RawMessage) (uint64, error)
 
+	Info()
+
+	Exists(job *schema.Job) bool
+
 	LoadJobMeta(job *schema.Job) (*schema.JobMeta, error)
 
 	LoadJobData(job *schema.Job) (schema.JobData, error)
@@ -29,6 +33,14 @@ type ArchiveBackend interface {
 	ImportJob(jobMeta *schema.JobMeta, jobData *schema.JobData) error
 
 	GetClusters() []string
+
+	CleanUp(jobs []*schema.Job)
+
+	Move(jobs []*schema.Job, path string)
+
+	Clean(before int64, after int64)
+
+	Compress(jobs []*schema.Job)
 
 	Iter(loadMetricData bool) <-chan JobContainer
 }
@@ -44,21 +56,23 @@ var useArchive bool
 
 func Init(rawConfig json.RawMessage, disableArchive bool) error {
 	useArchive = !disableArchive
-	var kind struct {
+
+	var cfg struct {
 		Kind string `json:"kind"`
 	}
-	if err := json.Unmarshal(rawConfig, &kind); err != nil {
+
+	if err := json.Unmarshal(rawConfig, &cfg); err != nil {
 		log.Warn("Error while unmarshaling raw config json")
 		return err
 	}
 
-	switch kind.Kind {
+	switch cfg.Kind {
 	case "file":
 		ar = &FsArchive{}
 		// case "s3":
 		// 	ar = &S3Archive{}
 	default:
-		return fmt.Errorf("ARCHIVE/ARCHIVE > unkown archive backend '%s''", kind.Kind)
+		return fmt.Errorf("ARCHIVE/ARCHIVE > unkown archive backend '%s''", cfg.Kind)
 	}
 
 	version, err := ar.Init(rawConfig)
@@ -67,6 +81,7 @@ func Init(rawConfig json.RawMessage, disableArchive bool) error {
 		return err
 	}
 	log.Infof("Load archive version %d", version)
+
 	return initClusterConfig()
 }
 

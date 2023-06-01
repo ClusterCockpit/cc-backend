@@ -72,7 +72,7 @@
         <UserOrProject bind:authlevel={authlevel} bind:roles={roles} on:update={({ detail }) => filters.update(detail)}/>
     </Col>
     <Col xs="2">
-        <Refresher on:reload={() => jobList.update()} />
+        <Refresher on:reload={() => jobList.refresh()} />
     </Col>
 </Row>
 <br/>

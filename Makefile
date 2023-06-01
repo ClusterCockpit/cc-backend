@@ -1,11 +1,15 @@
 TARGET = ./cc-backend
 VAR = ./var
-DB = ./var/job.db
+CFG = config.json .env
 FRONTEND = ./web/frontend
 VERSION = 1
 GIT_HASH := $(shell git rev-parse --short HEAD || echo 'development')
 CURRENT_TIME = $(shell date +"%Y-%m-%d:T%H:%M:%S")
 LD_FLAGS = '-s -X main.buildTime=${CURRENT_TIME} -X main.version=${VERSION} -X main.hash=${GIT_HASH}'
+
+EXECUTABLES = go npm
+K := $(foreach exec,$(EXECUTABLES),\
+        $(if $(shell which $(exec)),some string,$(error "No $(exec) in PATH")))
 
 SVELTE_COMPONENTS = status   \
 					analysis \
@@ -28,17 +32,24 @@ SVELTE_SRC = $(wildcard $(FRONTEND)/src/*.svelte)         \
 
 .NOTPARALLEL:
 
-$(TARGET): $(VAR) $(DB) $(SVELTE_TARGETS)
+$(TARGET): $(VAR) $(CFG) $(SVELTE_TARGETS)
 	$(info ===>  BUILD cc-backend)
 	@go build -ldflags=${LD_FLAGS} ./cmd/cc-backend
 
 clean:
 	$(info ===>  CLEAN)
 	@go clean
-	@rm $(TARGET)
+	@rm -f $(TARGET)
+
+distclean:
+	@$(MAKE) clean
+	$(info ===>  DISTCLEAN)
+	@rm -rf $(FRONTEND)/node_modules
+	@rm -rf $(VAR)
 
 test:
 	$(info ===>  TESTING)
+	@go clean -testcache
 	@go build ./...
 	@go vet ./...
 	@go test ./...
@@ -49,15 +60,18 @@ tags:
 
 $(VAR):
 	@mkdir $(VAR)
-	@touch ./var/job.db
-	cd web/frontend && yarn install
 
-$(DB):
-	./cc-backend --migrate-db
+config.json:
+	$(info ===>  Initialize config.json file)
+	@cp configs/config.json config.json
+
+.env:
+	$(info ===>  Initialize .env file)
+	@cp configs/env-template.txt .env
 
 $(SVELTE_TARGETS): $(SVELTE_SRC)
 	$(info ===>  BUILD frontend)
-	cd web/frontend && yarn build
+	cd web/frontend && npm install && npm run build
 
 install: $(TARGET)
 	@WORKSPACE=$(PREFIX)

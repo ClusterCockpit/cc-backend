@@ -7,20 +7,17 @@ package archive
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
-func init() {
-	log.Init("info", true)
-}
-
 func TestInitEmptyPath(t *testing.T) {
 	var fsa FsArchive
-	_, err := fsa.Init(json.RawMessage("{\"kind\":\"../../test/archive\"}"))
+	_, err := fsa.Init(json.RawMessage("{\"kind\":\"testdata/archive\"}"))
 	if err == nil {
 		t.Fatal(err)
 	}
@@ -28,14 +25,14 @@ func TestInitEmptyPath(t *testing.T) {
 
 func TestInitNoJson(t *testing.T) {
 	var fsa FsArchive
-	_, err := fsa.Init(json.RawMessage("\"path\":\"../../test/archive\"}"))
+	_, err := fsa.Init(json.RawMessage("\"path\":\"testdata/archive\"}"))
 	if err == nil {
 		t.Fatal(err)
 	}
 }
 func TestInitNotExists(t *testing.T) {
 	var fsa FsArchive
-	_, err := fsa.Init(json.RawMessage("{\"path\":\"../../test/job-archive\"}"))
+	_, err := fsa.Init(json.RawMessage("{\"path\":\"testdata/job-archive\"}"))
 	if err == nil {
 		t.Fatal(err)
 	}
@@ -43,11 +40,11 @@ func TestInitNotExists(t *testing.T) {
 
 func TestInit(t *testing.T) {
 	var fsa FsArchive
-	version, err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
+	version, err := fsa.Init(json.RawMessage("{\"path\":\"testdata/archive\"}"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fsa.path != "../../test/archive" {
+	if fsa.path != "testdata/archive" {
 		t.Fail()
 	}
 	if version != 1 {
@@ -60,12 +57,12 @@ func TestInit(t *testing.T) {
 
 func TestLoadJobMetaInternal(t *testing.T) {
 	var fsa FsArchive
-	_, err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
+	_, err := fsa.Init(json.RawMessage("{\"path\":\"testdata/archive\"}"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	job, err := loadJobMeta("../../test/archive/emmy/1404/397/1609300556/meta.json")
+	job, err := loadJobMeta("testdata/archive/emmy/1404/397/1609300556/meta.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +80,7 @@ func TestLoadJobMetaInternal(t *testing.T) {
 
 func TestLoadJobMeta(t *testing.T) {
 	var fsa FsArchive
-	_, err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
+	_, err := fsa.Init(json.RawMessage("{\"path\":\"testdata/archive\"}"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +108,7 @@ func TestLoadJobMeta(t *testing.T) {
 
 func TestLoadJobData(t *testing.T) {
 	var fsa FsArchive
-	_, err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
+	_, err := fsa.Init(json.RawMessage("{\"path\": \"testdata/archive\"}"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,8 +123,8 @@ func TestLoadJobData(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for name, scopes := range data {
-		fmt.Printf("Metric name: %s\n", name)
+	for _, scopes := range data {
+		// fmt.Printf("Metric name: %s\n", name)
 
 		if _, exists := scopes[schema.MetricScopeNode]; !exists {
 			t.Fail()
@@ -135,9 +132,54 @@ func TestLoadJobData(t *testing.T) {
 	}
 }
 
+func BenchmarkLoadJobData(b *testing.B) {
+
+	tmpdir := b.TempDir()
+	jobarchive := filepath.Join(tmpdir, "job-archive")
+	util.CopyDir("./testdata/archive/", jobarchive)
+	archiveCfg := fmt.Sprintf("{\"path\": \"%s\"}", jobarchive)
+
+	var fsa FsArchive
+	fsa.Init(json.RawMessage(archiveCfg))
+
+	jobIn := schema.Job{BaseJob: schema.JobDefaults}
+	jobIn.StartTime = time.Unix(1608923076, 0)
+	jobIn.JobID = 1403244
+	jobIn.Cluster = "emmy"
+
+	util.UncompressFile(filepath.Join(jobarchive, "emmy/1403/244/1608923076/data.json.gz"),
+		filepath.Join(jobarchive, "emmy/1403/244/1608923076/data.json"))
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		fsa.LoadJobData(&jobIn)
+	}
+}
+
+func BenchmarkLoadJobDataCompressed(b *testing.B) {
+
+	tmpdir := b.TempDir()
+	jobarchive := filepath.Join(tmpdir, "job-archive")
+	util.CopyDir("./testdata/archive/", jobarchive)
+	archiveCfg := fmt.Sprintf("{\"path\": \"%s\"}", jobarchive)
+
+	var fsa FsArchive
+	fsa.Init(json.RawMessage(archiveCfg))
+
+	jobIn := schema.Job{BaseJob: schema.JobDefaults}
+	jobIn.StartTime = time.Unix(1608923076, 0)
+	jobIn.JobID = 1403244
+	jobIn.Cluster = "emmy"
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		fsa.LoadJobData(&jobIn)
+	}
+}
+
 func TestLoadCluster(t *testing.T) {
 	var fsa FsArchive
-	_, err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
+	_, err := fsa.Init(json.RawMessage("{\"path\":\"testdata/archive\"}"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +196,7 @@ func TestLoadCluster(t *testing.T) {
 
 func TestIter(t *testing.T) {
 	var fsa FsArchive
-	_, err := fsa.Init(json.RawMessage("{\"path\":\"../../test/archive\"}"))
+	_, err := fsa.Init(json.RawMessage("{\"path\":\"testdata/archive\"}"))
 	if err != nil {
 		t.Fatal(err)
 	}

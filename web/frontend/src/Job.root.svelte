@@ -134,8 +134,8 @@
                 cluster={clusters
                     .find(c => c.name == $initq.data.job.cluster).subClusters
                     .find(sc => sc.name == $initq.data.job.subCluster)}
-                flopsAny={$jobMetrics.data.jobMetrics.find(m => m.name == 'flops_any' && m.scope == 'node').metric}
-                memBw={$jobMetrics.data.jobMetrics.find(m => m.name == 'mem_bw' && m.scope == 'node').metric} />
+                flopsAny={$jobMetrics.data.jobMetrics.find(m => m.name == 'flops_any' && m.scope == 'node')}
+                memBw={$jobMetrics.data.jobMetrics.find(m => m.name == 'mem_bw' && m.scope == 'node')} />
         </Col>
     {:else}
         <Col></Col>

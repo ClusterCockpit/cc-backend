@@ -1,7 +1,7 @@
 <script>
     import { init } from './utils.js'
     import { Row, Col, InputGroup, InputGroupText, Icon, Spinner, Card } from 'sveltestrap'
-    import { operationStore, query } from '@urql/svelte'
+    import { queryStore, gql, getContextClient } from '@urql/svelte'
     import TimeSelection from './filters/TimeSelection.svelte'
     import PlotTable from './PlotTable.svelte'
     import MetricPlot from './plots/MetricPlot.svelte'
@@ -22,8 +22,8 @@
 
     const ccconfig = getContext('cc-config')
     const clusters = getContext('clusters')
-
-    const nodesQuery = operationStore(`query($cluster: String!, $nodes: [String!], $from: Time!, $to: Time!) {
+    const client = getContextClient();
+    const query = gql`query($cluster: String!, $nodes: [String!], $from: Time!, $to: Time!) {
         nodeMetrics(cluster: $cluster, nodes: $nodes, from: $from, to: $to) {
             host
             subCluster
@@ -40,14 +40,18 @@
                 }
             }
         }
-    }`, {
-        cluster: cluster,
-        nodes: [hostname],
-        from: from.toISOString(),
-        to: to.toISOString()
-    })
+    }`;
 
-    $: $nodesQuery.variables = { cluster, nodes: [hostname], from: from.toISOString(), to: to.toISOString() }
+    $: nodesQuery = queryStore({
+        client: client,
+        query: query,
+        variables: {
+            cluster: cluster,
+            nodes: [hostname],
+            from: from.toISOString(),
+            to: to.toISOString(),
+        }
+    });
 
     let metricUnits = {}
     $: if ($nodesQuery.data) {
@@ -59,9 +63,6 @@
             }
         }
     }
-
-    query(nodesQuery)
-
     // $: console.log($nodesQuery?.data?.nodeMetrics[0].metrics)
 </script>
 

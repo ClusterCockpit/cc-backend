@@ -323,7 +323,7 @@
 
     let ctx, canvasElement, prevWidth = width, prevHeight = height
     data = data != null ? data : (flopsAny && memBw
-        ? transformData(flopsAny, memBw, colorDots) // Use Metric Object from Parent
+        ? transformData(flopsAny.metric, memBw.metric, colorDots) // Use Metric Object from Parent
         : {
             tiles: tiles,
             xLabel: 'Intensity [FLOPS/byte]',

@@ -34,11 +34,13 @@ func (r *JobRepository) QueryJobs(
 
 	if order != nil {
 		field := toSnakeCase(order.Field)
-		if order.Order == model.SortDirectionEnumAsc {
+
+		switch order.Order {
+		case model.SortDirectionEnumAsc:
 			query = query.OrderBy(fmt.Sprintf("job.%s ASC", field))
-		} else if order.Order == model.SortDirectionEnumDesc {
+		case model.SortDirectionEnumDesc:
 			query = query.OrderBy(fmt.Sprintf("job.%s DESC", field))
-		} else {
+		default:
 			return nil, errors.New("REPOSITORY/QUERY > invalid sorting order")
 		}
 	}
@@ -159,7 +161,7 @@ func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (queryOut sq.Sel
 		return query.Where("job.user = ?", user.Username), nil
 	} else { // Unauthorized : Error
 		var qnil sq.SelectBuilder
-		return qnil, errors.New(fmt.Sprintf("User '%s' with unknown roles! [%#v]\n", user.Username, user.Roles))
+		return qnil, fmt.Errorf("user '%s' with unknown roles [%#v]", user.Username, user.Roles)
 	}
 }
 

@@ -1,17 +1,22 @@
 <script>
     import { Modal, ModalBody, ModalHeader, ModalFooter, InputGroup,
              Button, ListGroup, ListGroupItem, Icon } from 'sveltestrap'
-    import { mutation } from '@urql/svelte'
+    import { gql, getContextClient , mutationStore } from '@urql/svelte'
 
     export let availableMetrics
     export let metricsInHistograms
     export let metricsInScatterplots
 
-    const updateConfigurationMutation = mutation({
-        query: `mutation($name: String!, $value: String!) {
-            updateConfiguration(name: $name, value: $value)
-        }`
-    })
+    const client = getContextClient();
+    const updateConfigurationMutation = ({ name, value }) => {
+        return mutationStore({
+            client: client,
+            query: gql`mutation($name: String!, $value: String!) {
+                updateConfiguration(name: $name, value: $value)
+            }`,
+            variables: { name, value }
+        })
+    }
 
     let isHistogramConfigOpen = false, isScatterPlotConfigOpen = false
     let selectedMetric1 = null, selectedMetric2 = null
@@ -20,11 +25,12 @@
         updateConfigurationMutation({
                 name: data.name,
                 value: JSON.stringify(data.value)
-            })
-            .then(res => {
-                if (res.error)
-                    console.error(res.error)
-            });
+        }).subscribe(res => {
+            if (res.fetching === false && res.error) {
+                throw res.error
+                // console.log('Error on subscription: ' + res.error)
+            }
+        })
     }
 </script>
 

@@ -34,11 +34,11 @@ var (
 )
 
 var (
-	DebugLog *log.Logger
-	InfoLog  *log.Logger
-	WarnLog  *log.Logger
-	ErrLog   *log.Logger
-	CritLog  *log.Logger
+	DebugLog *log.Logger = log.New(DebugWriter, DebugPrefix, log.LstdFlags)
+	InfoLog  *log.Logger = log.New(InfoWriter, InfoPrefix, log.LstdFlags|log.Lshortfile)
+	WarnLog  *log.Logger = log.New(WarnWriter, WarnPrefix, log.LstdFlags|log.Lshortfile)
+	ErrLog   *log.Logger = log.New(ErrWriter, ErrPrefix, log.LstdFlags|log.Llongfile)
+	CritLog  *log.Logger = log.New(CritWriter, CritPrefix, log.LstdFlags|log.Llongfile)
 )
 
 /* CONFIG */
@@ -70,12 +70,6 @@ func Init(lvl string, logdate bool) {
 		WarnLog = log.New(WarnWriter, WarnPrefix, log.Lshortfile)
 		ErrLog = log.New(ErrWriter, ErrPrefix, log.Llongfile)
 		CritLog = log.New(CritWriter, CritPrefix, log.Llongfile)
-	} else {
-		DebugLog = log.New(DebugWriter, DebugPrefix, log.LstdFlags)
-		InfoLog = log.New(InfoWriter, InfoPrefix, log.LstdFlags|log.Lshortfile)
-		WarnLog = log.New(WarnWriter, WarnPrefix, log.LstdFlags|log.Lshortfile)
-		ErrLog = log.New(ErrWriter, ErrPrefix, log.LstdFlags|log.Llongfile)
-		CritLog = log.New(CritWriter, CritPrefix, log.LstdFlags|log.Llongfile)
 	}
 }
 

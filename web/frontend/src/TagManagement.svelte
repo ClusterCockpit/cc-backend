@@ -1,6 +1,6 @@
 <script>
     import { getContext } from 'svelte'
-    import { mutation } from '@urql/svelte'
+    import { gql, getContextClient , mutationStore } from '@urql/svelte'
     import { Icon, Button, ListGroupItem, Spinner, Modal, Input,
              ModalBody, ModalHeader, ModalFooter, Alert } from 'sveltestrap'
     import { fuzzySearchTags } from './utils.js'
@@ -15,23 +15,37 @@
     let pendingChange = false
     let isOpen = false
 
-    const createTagMutation = mutation({
-        query: `mutation($type: String!, $name: String!) {
-            createTag(type: $type, name: $name) { id, type, name }
-        }`
-    })
+    const client = getContextClient();
 
-    const addTagsToJobMutation = mutation({
-        query: `mutation($job: ID!, $tagIds: [ID!]!) {
-            addTagsToJob(job: $job, tagIds: $tagIds) { id, type, name }
-        }`
-    })
+    const createTagMutation = ({ type, name }) => {
+        return mutationStore({
+            client: client,
+            query: gql`mutation($type: String!, $name: String!) {
+                createTag(type: $type, name: $name) { id, type, name }
+            }`,
+            variables: { type, name}
+        })
+    }
 
-    const removeTagsFromJobMutation = mutation({
-        query: `mutation($job: ID!, $tagIds: [ID!]!) {
-            removeTagsFromJob(job: $job, tagIds: $tagIds) { id, type, name }
-        }`
-    })
+    const addTagsToJobMutation = ({ job, tagIds }) => {
+        return mutationStore({
+            client: client,
+            query: gql`mutation($job: ID!, $tagIds: [ID!]!) {
+                addTagsToJob(job: $job, tagIds: $tagIds) { id, type, name }
+            }`,
+            variables: {job, tagIds}
+        })
+    }
+
+    const removeTagsFromJobMutation = ({ job, tagIds }) => {
+        return mutationStore({
+            client: client,
+            query: gql`mutation($job: ID!, $tagIds: [ID!]!) {
+                removeTagsFromJob(job: $job, tagIds: $tagIds) { id, type, name }
+            }`,
+            variables: {job, tagIds}
+        })
+    }
 
     let allTagsFiltered // $initialized is in there because when it becomes true, allTags is initailzed.
     $: allTagsFiltered = ($initialized, fuzzySearchTags(filterTerm, allTags))
@@ -55,43 +69,47 @@
 
     function createTag(type, name) {
         pendingChange = true
-        return createTagMutation({ type: type, name: name })
-            .then(res => {
-                if (res.error)
-                    throw res.error
-
+        createTagMutation({ type: type, name: name })
+        .subscribe(res => {
+            if (res.fetching === false && !res.error) {
                 pendingChange = false
                 allTags = [...allTags, res.data.createTag]
                 newTagType = ''
                 newTagName = ''
-                return res.data.createTag
-            }, err => console.error(err))
+                addTagToJob(res.data.createTag)
+            } else if (res.fetching === false && res.error) {
+                throw res.error
+                // console.log('Error on subscription: ' + res.error)
+            }
+        })
     }
 
     function addTagToJob(tag) {
         pendingChange = tag.id
         addTagsToJobMutation({ job: job.id, tagIds: [tag.id] })
-            .then(res => {
-                if (res.error)
-                    throw res.error
-
+        .subscribe(res => {
+            if (res.fetching === false && !res.error) {
                 jobTags = job.tags = res.data.addTagsToJob;
                 pendingChange = false;
-            })
-            .catch(err => console.error(err))
+            } else if (res.fetching === false && res.error) {
+                throw res.error
+                // console.log('Error on subscription: ' + res.error)
+            }
+        })
     }
 
     function removeTagFromJob(tag) {
         pendingChange = tag.id
         removeTagsFromJobMutation({ job: job.id, tagIds: [tag.id] })
-            .then(res => {
-                if (res.error)
-                    throw res.error
-
+        .subscribe(res => {
+            if (res.fetching === false && !res.error) {
                 jobTags = job.tags = res.data.removeTagsFromJob
                 pendingChange = false
-            })
-            .catch(err => console.error(err))
+            } else if (res.fetching === false && res.error) {
+                throw res.error
+                // console.log('Error on subscription: ' + res.error)
+            }
+        })
     }
 </script>
 
@@ -154,8 +172,7 @@
         <br/>
         {#if newTagType && newTagName && isNewTag(newTagType, newTagName)}
             <Button outline color="success"
-                on:click={e => (e.preventDefault(), createTag(newTagType, newTagName))
-                    .then(tag => addTagToJob(tag))}>
+                on:click={e => (e.preventDefault(), createTag(newTagType, newTagName))}>
                 Create & Add Tag:
                 <Tag tag={({ type: newTagType, name: newTagName })} clickable={false}/>
             </Button>
