@@ -37,8 +37,8 @@ func Connect(driver string, db string) {
 	dbConnOnce.Do(func() {
 		opts := DatabaseOptions{
 			URL:                   db,
-			MaxOpenConnections:    5,
-			MaxIdleConnections:    5,
+			MaxOpenConnections:    4,
+			MaxIdleConnections:    4,
 			ConnectionMaxLifetime: time.Hour,
 			ConnectionMaxIdleTime: time.Hour,
 		}
