@@ -14,6 +14,8 @@
     import { getContext } from 'svelte'
 
     export let dbid
+    export let authlevel
+    export let roles
 
     const { query: initq } = init(`
         job(id: "${dbid}") {
@@ -23,8 +25,9 @@
             monitoringStatus, state, walltime,
             tags { id, type, name },
             resources { hostname, hwthreads, accelerators },
-            metaData
-            userData { name, email }
+            metaData,
+            userData { name, email },
+            concurrentJobs { items { id, jobId }, count }
         }
     `)
 
@@ -101,6 +104,23 @@
         {/if}
     </Col>
     {#if $jobMetrics.data && $initq.data}
+        {#if $initq.data.job.concurrentJobs != null}
+            {#if authlevel > roles.manager}
+                <Col>
+                    <h5>Concurrent Jobs <Icon name="info-circle" style="cursor:help;" title="Shared jobs running on the same node with overlapping runtimes"/></h5>
+                    <ul>
+                    {#each $initq.data.job.concurrentJobs.items as pjob, index}
+                        <li><a href="/monitoring/job/{pjob.id}" target="_blank">{pjob.jobId}</a></li>
+                    {/each}
+                    </ul>
+                </Col>
+            {:else}
+                <Col>
+                    <h5>{$initq.data.job.concurrentJobs.items.length} Concurrent Jobs</h5>
+                    <p>Number of shared jobs on the same node with overlapping runtimes.</p>
+                </Col>
+            {/if}
+        {/if}
         <Col>
             <PolarPlot
                 width={polarPlotSize} height={polarPlotSize}
@@ -166,7 +186,8 @@
                         metricName={item.metric}
                         rawData={item.data.map(x => x.metric)}
                         scopes={item.data.map(x => x.scope)}
-                        width={width}/>
+                        width={width}
+                        isShared={($initq.data.job.exclusive != 1)}/>
                 {:else}
                     <Card body color="warning">No data for <code>{item.metric}</code></Card>
                 {/if}
@@ -249,5 +270,11 @@
         border: 1px solid #bbb;
         border-radius: 5px;
         padding: 5px;
+    }
+
+    ul {
+        columns: 2;
+        -webkit-columns: 2;
+        -moz-columns: 2;
     }
 </style>

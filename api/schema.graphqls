@@ -27,9 +27,15 @@ type Job {
   state:            JobState!
   tags:             [Tag!]!
   resources:        [Resource!]!
+  concurrentJobs:   JobLinkResultList
 
   metaData:         Any
   userData:         User
+}
+
+type JobLink {
+  id:               ID!
+  jobId:            Int!
 }
 
 type Cluster {
@@ -230,6 +236,12 @@ input JobFilter {
   memBwAvg:    FloatRange
   loadAvg:     FloatRange
   memUsedMax:  FloatRange
+
+  exclusive:     Int
+  sharedNode:    StringInput
+  selfJobId:     StringInput
+  selfStartTime: Time
+  selfDuration:  Int
 }
 
 input OrderByInput {
@@ -244,6 +256,7 @@ enum SortDirectionEnum {
 
 input StringInput {
   eq:         String
+  neq:        String
   contains:   String
   startsWith: String
   endsWith:   String
@@ -258,6 +271,11 @@ type JobResultList {
   items:  [Job!]!
   offset: Int
   limit:  Int
+  count:  Int
+}
+
+type JobLinkResultList {
+  items:  [JobLink!]!
   count:  Int
 }
 

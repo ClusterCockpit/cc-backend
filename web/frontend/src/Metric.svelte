@@ -9,6 +9,7 @@
     export let scopes
     export let width
     export let rawData
+    export let isShared = false
 
     const dispatch = createEventDispatcher()
     const cluster = getContext('clusters').find(cluster => cluster.name == job.cluster)
@@ -87,6 +88,7 @@
             cluster={cluster} subCluster={subCluster}
             timestep={data.timestep}
             scope={selectedScope} metric={metricName}
-            series={series} />
+            series={series}
+            isShared={isShared} />
     {/if}
 {/key}

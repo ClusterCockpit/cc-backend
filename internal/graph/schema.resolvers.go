@@ -36,6 +36,39 @@ func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag,
 	return r.Repo.GetTags(&obj.ID)
 }
 
+// ConcurrentJobs is the resolver for the concurrentJobs field.
+func (r *jobResolver) ConcurrentJobs(ctx context.Context, obj *schema.Job) (*model.JobLinkResultList, error) {
+
+	exc := int(obj.Exclusive)
+	if exc != 1 {
+		filter := []*model.JobFilter{}
+		jid := fmt.Sprint(obj.JobID)
+		jdu := int(obj.Duration)
+		filter = append(filter, &model.JobFilter{Exclusive: &exc})
+		filter = append(filter, &model.JobFilter{SharedNode: &model.StringInput{Contains: &obj.Resources[0].Hostname}})
+		filter = append(filter, &model.JobFilter{SelfJobID: &model.StringInput{Neq: &jid}})
+		filter = append(filter, &model.JobFilter{SelfStartTime: &obj.StartTime, SelfDuration: &jdu})
+
+		jobLinks, err := r.Repo.QueryJobLinks(ctx, filter)
+		if err != nil {
+			log.Warn("Error while querying jobLinks")
+			return nil, err
+		}
+
+		count, err := r.Repo.CountJobs(ctx, filter)
+		if err != nil {
+			log.Warn("Error while counting jobLinks")
+			return nil, err
+		}
+
+		result := &model.JobLinkResultList{Items: jobLinks, Count: &count}
+
+		return result, nil
+	}
+
+	return nil, nil
+}
+
 // MetaData is the resolver for the metaData field.
 func (r *jobResolver) MetaData(ctx context.Context, obj *schema.Job) (interface{}, error) {
 	return r.Repo.FetchMetadata(obj)

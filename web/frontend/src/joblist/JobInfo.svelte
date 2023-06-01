@@ -24,6 +24,7 @@
         const seconds = duration;
         return `${hours}:${('0' + minutes).slice(-2)}:${('0' + seconds).slice(-2)}`;
     }
+
 </script>
 
 <div>

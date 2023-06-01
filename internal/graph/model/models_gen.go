@@ -56,6 +56,21 @@ type JobFilter struct {
 	MemBwAvg        *FloatRange       `json:"memBwAvg"`
 	LoadAvg         *FloatRange       `json:"loadAvg"`
 	MemUsedMax      *FloatRange       `json:"memUsedMax"`
+	Exclusive       *int              `json:"exclusive"`
+	SharedNode      *StringInput      `json:"sharedNode"`
+	SelfJobID       *StringInput      `json:"selfJobId"`
+	SelfStartTime   *time.Time        `json:"selfStartTime"`
+	SelfDuration    *int              `json:"selfDuration"`
+}
+
+type JobLink struct {
+	ID    string `json:"id"`
+	JobID int    `json:"jobId"`
+}
+
+type JobLinkResultList struct {
+	Items []*JobLink `json:"items"`
+	Count *int       `json:"count"`
 }
 
 type JobMetricWithName struct {
@@ -105,6 +120,7 @@ type PageRequest struct {
 
 type StringInput struct {
 	Eq         *string  `json:"eq"`
+	Neq        *string  `json:"neq"`
 	Contains   *string  `json:"contains"`
 	StartsWith *string  `json:"startsWith"`
 	EndsWith   *string  `json:"endsWith"`

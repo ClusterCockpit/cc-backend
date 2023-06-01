@@ -35,6 +35,7 @@
     export let metric
     export let useStatsSeries = null
     export let scope = 'node'
+    export let isShared = false
 
     if (useStatsSeries == null)
         useStatsSeries = statisticsSeries != null
@@ -142,13 +143,17 @@
         hooks: {
             draw: [(u) => {
                 // Draw plot type label:
-                let text = `${scope}${plotSeries.length > 2 ? 's' : ''}${
+                let textl = `${scope}${plotSeries.length > 2 ? 's' : ''}${
                     useStatsSeries ? ': min/avg/max' : (metricConfig != null && scope != metricConfig.scope ? ` (${metricConfig.aggregation})` : '')}`
+                let textr = `${(isShared && (scope != 'core' && scope != 'accelerator')) ? '[Shared]' : '' }`
                 u.ctx.save()
                 u.ctx.textAlign = 'start' // 'end'
                 u.ctx.fillStyle = 'black'
-                u.ctx.fillText(text, u.bbox.left + 10, u.bbox.top + 10)
-                // u.ctx.fillText(text, u.bbox.left + u.bbox.width - 10, u.bbox.top + u.bbox.height - 10)
+                u.ctx.fillText(textl, u.bbox.left + 10, u.bbox.top + 10)
+                u.ctx.textAlign = 'end'
+                u.ctx.fillStyle = 'black'
+                u.ctx.fillText(textr, u.bbox.left + u.bbox.width - 10, u.bbox.top + 10)
+                // u.ctx.fillText(text, u.bbox.left + u.bbox.width - 10, u.bbox.top + u.bbox.height - 10) // Recipe for bottom right
 
                 if (!thresholds) {
                     u.ctx.restore()

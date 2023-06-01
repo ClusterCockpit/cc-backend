@@ -38,6 +38,7 @@ type BaseJob struct {
 	Resources        []*Resource       `json:"resources"`                                                                                                    // Resources used by job
 	RawMetaData      []byte            `json:"-" db:"meta_data"`                                                                                             // Additional information about the job [As Bytes]
 	MetaData         map[string]string `json:"metaData"`                                                                                                     // Additional information about the job
+	ConcurrentJobs   JobLinkResultList `json:"concurrentJobs"`
 }
 
 // Job struct type
@@ -72,6 +73,17 @@ type Job struct {
 //	*int64 `json:"id,omitempty"` >> never used in the job-archive, only
 //	available via REST-API
 //
+
+type JobLink struct {
+	ID    int64 `json:"id"`
+	JobID int64 `json:"jobId"`
+}
+
+type JobLinkResultList struct {
+	Items []*JobLink `json:"items"`
+	Count int        `json:"count"`
+}
+
 // JobMeta model
 // @Description Meta data information of a HPC job.
 type JobMeta struct {

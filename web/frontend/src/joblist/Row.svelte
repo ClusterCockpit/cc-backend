@@ -174,6 +174,7 @@
                         metric={metric.data.name}
                         {cluster}
                         subCluster={job.subCluster}
+                        isShared={(job.exclusive != 1)}
                     />
                 {:else if metric.removed == true && metric.data == null}
                     <Card body color="info"
