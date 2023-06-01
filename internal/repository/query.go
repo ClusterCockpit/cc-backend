@@ -19,18 +19,11 @@ import (
 	sq "github.com/Masterminds/squirrel"
 )
 
-// QueryJobs returns a list of jobs matching the provided filters. page and order are optional-
-func (r *JobRepository) QueryJobs(
-	ctx context.Context,
+func (r *JobRepository) queryJobs(
+	query sq.SelectBuilder,
 	filters []*model.JobFilter,
 	page *model.PageRequest,
 	order *model.OrderByInput) ([]*schema.Job, error) {
-
-	query, qerr := SecurityCheck(ctx, sq.Select(jobColumns...).From("job"))
-
-	if qerr != nil {
-		return nil, qerr
-	}
 
 	if order != nil {
 		field := toSnakeCase(order.Field)
@@ -81,27 +74,71 @@ func (r *JobRepository) QueryJobs(
 	return jobs, nil
 }
 
-// CountJobs counts the number of jobs matching the filters.
-func (r *JobRepository) CountJobs(
-	ctx context.Context,
-	filters []*model.JobFilter) (int, error) {
+func (r *JobRepository) testQueryJobs(
+	filters []*model.JobFilter,
+	page *model.PageRequest,
+	order *model.OrderByInput) ([]*schema.Job, error) {
 
-	// count all jobs:
-	query, qerr := SecurityCheck(ctx, sq.Select("count(*)").From("job"))
+	return r.queryJobs(sq.Select(jobColumns...).From("job"),
+		filters, page, order)
+}
+
+// QueryJobs returns a list of jobs matching the provided filters. page and order are optional-
+func (r *JobRepository) QueryJobs(
+	ctx context.Context,
+	filters []*model.JobFilter,
+	page *model.PageRequest,
+	order *model.OrderByInput) ([]*schema.Job, error) {
+
+	query, qerr := SecurityCheck(ctx, sq.Select(jobColumns...).From("job"))
 
 	if qerr != nil {
-		return 0, qerr
+		return nil, qerr
 	}
+
+	return r.queryJobs(query,
+		filters, page, order)
+}
+
+func (r *JobRepository) countJobs(query sq.SelectBuilder,
+	filters []*model.JobFilter) (int, error) {
 
 	for _, f := range filters {
 		query = BuildWhereClause(f, query)
 	}
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		log.Warn("Error while converting query to sql")
+		return 0, nil
+	}
+
+	log.Debugf("SQL query: `%s`, args: %#v", sql, args)
 	var count int
 	if err := query.RunWith(r.DB).Scan(&count); err != nil {
 		return 0, err
 	}
 
 	return count, nil
+}
+
+func (r *JobRepository) testCountJobs(
+	filters []*model.JobFilter) (int, error) {
+
+	return r.countJobs(sq.Select("count(*)").From("job"), filters)
+}
+
+func (r *JobRepository) CountJobs(
+	ctx context.Context,
+	filters []*model.JobFilter) (int, error) {
+
+	query, qerr := SecurityCheck(ctx, sq.Select("count(*)").From("job"))
+
+	if qerr != nil {
+		return 0, qerr
+	}
+
+	return r.countJobs(query, filters)
 }
 
 func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (queryOut sq.SelectBuilder, err error) {

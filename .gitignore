@@ -12,3 +12,5 @@
 /.vscode/*
 /archive-migration
 /archive-manager
+var/job.db-shm
+var/job.db-wal

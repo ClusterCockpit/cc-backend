@@ -162,10 +162,13 @@ func (topo *Topology) GetMemoryDomainsFromHWThreads(
 
 // Temporary fix to convert back from int id to string id for accelerators
 func (topo *Topology) GetAcceleratorID(id int) (string, error) {
-	if id < len(topo.Accelerators) {
+	if id < 0 {
+		fmt.Printf("ID smaller than 0!\n")
+		return topo.Accelerators[0].ID, nil
+	} else if id < len(topo.Accelerators) {
 		return topo.Accelerators[id].ID, nil
 	} else {
-		return "", fmt.Errorf("Index %d out of range", id)
+		return "", fmt.Errorf("index %d out of range", id)
 	}
 }
 

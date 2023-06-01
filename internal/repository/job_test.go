@@ -8,20 +8,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	_ "github.com/mattn/go-sqlite3"
 )
-
-func setup(t *testing.T) *JobRepository {
-	log.Init("info", true)
-	dbfilepath := "testdata/test.db"
-	err := MigrateDB("sqlite3", dbfilepath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	Connect("sqlite3", dbfilepath)
-	return GetJobRepository()
-}
 
 func TestFind(t *testing.T) {
 	r := setup(t)
