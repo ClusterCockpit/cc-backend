@@ -5,15 +5,11 @@
 package repository
 
 import (
-	"database/sql"
-	"fmt"
 	"log"
 	"sync"
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/mattn/go-sqlite3"
-	"github.com/qustavo/sqlhooks/v2"
 )
 
 var (
@@ -26,34 +22,55 @@ type DBConnection struct {
 	Driver string
 }
 
+type DatabaseOptions struct {
+	URL                   string
+	MaxOpenConnections    int
+	MaxIdleConnections    int
+	ConnectionMaxLifetime time.Duration
+	ConnectionMaxIdleTime time.Duration
+}
+
 func Connect(driver string, db string) {
 	var err error
 	var dbHandle *sqlx.DB
 
 	dbConnOnce.Do(func() {
-		if driver == "sqlite3" {
-			sql.Register("sqlite3WithHooks", sqlhooks.Wrap(&sqlite3.SQLiteDriver{}, &Hooks{}))
-			dbHandle, err = sqlx.Open("sqlite3WithHooks", fmt.Sprintf("%s?_foreign_keys=on", db))
-			// dbHandle, err = sqlx.Open("sqlite3", fmt.Sprintf("%s?_foreign_keys=on", db))
+		opts := DatabaseOptions{
+			URL:                   db,
+			MaxOpenConnections:    4,
+			MaxIdleConnections:    4,
+			ConnectionMaxLifetime: time.Hour,
+			ConnectionMaxIdleTime: time.Hour,
+		}
+
+		switch driver {
+		case "sqlite3":
+			// sql.Register("sqlite3WithHooks", sqlhooks.Wrap(&sqlite3.SQLiteDriver{}, &Hooks{}))
+
+			// - Set WAL mode (not strictly necessary each time because it's persisted in the database, but good for first run)
+			// - Set busy timeout, so concurrent writers wait on each other instead of erroring immediately
+			// - Enable foreign key checks
+			opts.URL += "?_journal=WAL&_timeout=5000&_fk=true"
+
+			// dbHandle, err = sqlx.Open("sqlite3WithHooks", fmt.Sprintf("%s?_foreign_keys=on", db))
+			dbHandle, err = sqlx.Open("sqlite3", opts.URL)
 			if err != nil {
 				log.Fatal(err)
 			}
-
-			// sqlite does not multithread. Having more than one connection open would just mean
-			// waiting for locks.
-			dbHandle.SetMaxOpenConns(1)
-		} else if driver == "mysql" {
-			dbHandle, err = sqlx.Open("mysql", fmt.Sprintf("%s?multiStatements=true", db))
+		case "mysql":
+			opts.URL += "?multiStatements=true"
+			dbHandle, err = sqlx.Open("mysql", opts.URL)
 			if err != nil {
 				log.Fatalf("sqlx.Open() error: %v", err)
 			}
-
-			dbHandle.SetConnMaxLifetime(time.Minute * 3)
-			dbHandle.SetMaxOpenConns(10)
-			dbHandle.SetMaxIdleConns(10)
-		} else {
+		default:
 			log.Fatalf("unsupported database driver: %s", driver)
 		}
+
+		dbHandle.SetMaxOpenConns(opts.MaxOpenConnections)
+		dbHandle.SetMaxIdleConns(opts.MaxIdleConnections)
+		dbHandle.SetConnMaxLifetime(opts.ConnectionMaxLifetime)
+		dbHandle.SetConnMaxIdleTime(opts.ConnectionMaxIdleTime)
 
 		dbConnInstance = &DBConnection{DB: dbHandle, Driver: driver}
 		err = checkDBVersion(driver, dbHandle.DB)

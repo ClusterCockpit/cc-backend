@@ -74,7 +74,7 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.SubCluster, &job.StartTimeUnix, &job.Partition, &job.ArrayJobId,
 		&job.NumNodes, &job.NumHWThreads, &job.NumAcc, &job.Exclusive, &job.MonitoringStatus, &job.SMT, &job.State,
 		&job.Duration, &job.Walltime, &job.RawResources /*&job.RawMetaData*/); err != nil {
-		log.Warn("Error while scanning rows (Job)")
+		log.Warnf("Error while scanning rows (Job): %v", err)
 		return nil, err
 	}
 
