@@ -84,6 +84,8 @@ func BenchmarkDB_CountJobs(b *testing.B) {
 	filter.State = append(filter.State, "running")
 	cluster := "fritz"
 	filter.Cluster = &model.StringInput{Eq: &cluster}
+	user := "mppi133h"
+	filter.User = &model.StringInput{Eq: &user}
 
 	b.Run("CountJobs", func(b *testing.B) {
 		db := setup(b)
