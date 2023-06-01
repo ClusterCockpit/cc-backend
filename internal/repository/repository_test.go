@@ -101,6 +101,30 @@ func BenchmarkDB_CountJobs(b *testing.B) {
 	})
 }
 
+func BenchmarkDB_QueryJobs(b *testing.B) {
+	filter := &model.JobFilter{}
+	filter.State = append(filter.State, "running")
+	cluster := "fritz"
+	filter.Cluster = &model.StringInput{Eq: &cluster}
+	user := "mppi133h"
+	filter.User = &model.StringInput{Eq: &user}
+	page := &model.PageRequest{ItemsPerPage: 50, Page: 1}
+	order := &model.OrderByInput{Field: "startTime", Order: model.SortDirectionEnumDesc}
+
+	b.Run("QueryJobs", func(b *testing.B) {
+		db := setup(b)
+
+		b.ResetTimer()
+
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				_, err := db.testQueryJobs([]*model.JobFilter{filter}, page, order)
+				noErr(b, err)
+			}
+		})
+	})
+}
+
 func setup(tb testing.TB) *JobRepository {
 	tb.Helper()
 	log.Init("warn", true)
