@@ -27,7 +27,7 @@ load_avg            REAL NOT NULL DEFAULT 0.0,
 net_bw_avg          REAL NOT NULL DEFAULT 0.0,
 net_data_vol_total  REAL NOT NULL DEFAULT 0.0,
 file_bw_avg         REAL NOT NULL DEFAULT 0.0,
-file_data_vol_total REAL NOT NULL DEFAULT 0.0;
+file_data_vol_total REAL NOT NULL DEFAULT 0.0);
 
 CREATE TABLE IF NOT EXISTS tag (
 id       INTEGER PRIMARY KEY,
