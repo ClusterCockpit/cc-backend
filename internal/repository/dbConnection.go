@@ -5,11 +5,14 @@
 package repository
 
 import (
+	"database/sql"
 	"log"
 	"sync"
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/mattn/go-sqlite3"
+	"github.com/qustavo/sqlhooks/v2"
 )
 
 var (
@@ -45,15 +48,15 @@ func Connect(driver string, db string) {
 
 		switch driver {
 		case "sqlite3":
-			// sql.Register("sqlite3WithHooks", sqlhooks.Wrap(&sqlite3.SQLiteDriver{}, &Hooks{}))
+			sql.Register("sqlite3WithHooks", sqlhooks.Wrap(&sqlite3.SQLiteDriver{}, &Hooks{}))
 
 			// - Set WAL mode (not strictly necessary each time because it's persisted in the database, but good for first run)
 			// - Set busy timeout, so concurrent writers wait on each other instead of erroring immediately
 			// - Enable foreign key checks
 			opts.URL += "?_journal=WAL&_timeout=5000&_fk=true"
 
-			// dbHandle, err = sqlx.Open("sqlite3WithHooks", fmt.Sprintf("%s?_foreign_keys=on", db))
-			dbHandle, err = sqlx.Open("sqlite3", opts.URL)
+			dbHandle, err = sqlx.Open("sqlite3WithHooks", opts.URL)
+			// dbHandle, err = sqlx.Open("sqlite3", opts.URL)
 			if err != nil {
 				log.Fatal(err)
 			}
