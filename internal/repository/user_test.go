@@ -34,7 +34,7 @@ func setupUserTest(t *testing.T) *UserCfgRepo {
 }`
 
 	log.Init("info", true)
-	dbfilepath := "testdata/test.db"
+	dbfilepath := "testdata/job.db"
 	err := MigrateDB("sqlite3", dbfilepath)
 	if err != nil {
 		t.Fatal(err)
