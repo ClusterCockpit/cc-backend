@@ -33,7 +33,6 @@ file_data_vol_total REAL NOT NULL DEFAULT 0.0;
 INSERT INTO job_new SELECT * FROM job;
 DROP TABLE job;
 ALTER TABLE job_new RENAME TO job;
-VACUUM;
 
 CREATE INDEX IF NOT EXISTS job_stats        ON job (cluster,subcluster,user);
 CREATE INDEX IF NOT EXISTS job_by_user      ON job (user);

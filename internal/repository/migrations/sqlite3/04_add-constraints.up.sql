@@ -33,7 +33,6 @@ UNIQUE (job_id, cluster, start_time));
 INSERT INTO job_new SELECT * FROM job;
 DROP TABLE job;
 ALTER TABLE job_new RENAME TO job;
-VACUUM;
 
 CREATE INDEX IF NOT EXISTS job_stats        ON job (cluster,subcluster,user);
 CREATE INDEX IF NOT EXISTS job_by_user      ON job (user);
