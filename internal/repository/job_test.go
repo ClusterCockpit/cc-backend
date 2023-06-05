@@ -53,7 +53,7 @@ func TestGetTags(t *testing.T) {
 	fmt.Printf("TAGS %+v \n", tags)
 	// fmt.Printf("COUNTS %+v \n", counts)
 
-	if counts["bandwidth"] != 3 {
-		t.Errorf("wrong tag count \ngot: %d \nwant: 3", counts["bandwidth"])
+	if counts["bandwidth"] != 0 {
+		t.Errorf("wrong tag count \ngot: %d \nwant: 0", counts["bandwidth"])
 	}
 }

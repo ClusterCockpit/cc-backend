@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS job (
+CREATE TABLE IF NOT EXISTS job_new (
 id                INTEGER PRIMARY KEY,
 job_id            BIGINT NOT NULL,
 cluster           VARCHAR(255) NOT NULL,
@@ -11,7 +11,7 @@ array_job_id      BIGINT,
 duration          INT NOT NULL,
 walltime          INT NOT NULL,
 job_state         VARCHAR(255) NOT NULL
-CHECK(job_state IN ('running', 'completed', 'failed', 'canceled', 'stopped', 'timeout')),
+CHECK(job_state IN ('running', 'completed', 'failed', 'cancelled', 'stopped', 'timeout', 'preempted', 'out_of_memory')),
 meta_data         TEXT,          -- JSON
 resources         TEXT NOT NULL, -- JSON
 num_nodes         INT NOT NULL,
@@ -27,32 +27,18 @@ load_avg            REAL NOT NULL DEFAULT 0.0,
 net_bw_avg          REAL NOT NULL DEFAULT 0.0,
 net_data_vol_total  REAL NOT NULL DEFAULT 0.0,
 file_bw_avg         REAL NOT NULL DEFAULT 0.0,
-file_data_vol_total REAL NOT NULL DEFAULT 0.0);
+file_data_vol_total REAL NOT NULL DEFAULT 0.0,
+UNIQUE (job_id, cluster, start_time));
 
-CREATE TABLE IF NOT EXISTS tag (
-id       INTEGER PRIMARY KEY,
-tag_type VARCHAR(255) NOT NULL,
-tag_name VARCHAR(255) NOT NULL,
-UNIQUE (tag_type, tag_name));
+INSERT INTO job_new SELECT * FROM job;
+DROP TABLE job;
+ALTER TABLE job_new RENAME TO job;
 
-CREATE TABLE IF NOT EXISTS jobtag (
-job_id INTEGER,
-tag_id INTEGER,
-PRIMARY KEY (job_id, tag_id),
-FOREIGN KEY (job_id) REFERENCES job (id) ON DELETE CASCADE,
-FOREIGN KEY (tag_id) REFERENCES tag (id) ON DELETE CASCADE);
-
-CREATE TABLE IF NOT EXISTS configuration (
-username varchar(255),
-confkey  varchar(255),
-value    varchar(255),
-PRIMARY KEY (username, confkey),
-FOREIGN KEY (username) REFERENCES user (username) ON DELETE CASCADE ON UPDATE NO ACTION);
-
-CREATE TABLE IF NOT EXISTS user (
-username varchar(255) PRIMARY KEY NOT NULL,
-password varchar(255) DEFAULT NULL,
-ldap     tinyint      NOT NULL DEFAULT 0, /* col called "ldap" for historic reasons, fills the "AuthSource" */
-name     varchar(255) DEFAULT NULL,
-roles    varchar(255) NOT NULL DEFAULT "[]",
-email    varchar(255) DEFAULT NULL);
+CREATE INDEX IF NOT EXISTS job_stats        ON job (cluster,subcluster,user);
+CREATE INDEX IF NOT EXISTS job_by_user      ON job (user);
+CREATE INDEX IF NOT EXISTS job_by_starttime ON job (start_time);
+CREATE INDEX IF NOT EXISTS job_by_job_id    ON job (job_id, cluster, start_time);
+CREATE INDEX IF NOT EXISTS job_list         ON job (cluster, job_state);
+CREATE INDEX IF NOT EXISTS job_list_user    ON job (user, cluster, job_state);
+CREATE INDEX IF NOT EXISTS job_list_users   ON job (user, job_state);
+CREATE INDEX IF NOT EXISTS job_list_users_start ON job (start_time, user, job_state);
