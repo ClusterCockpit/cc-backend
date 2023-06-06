@@ -18,8 +18,9 @@
     export let user
     export let filterPresets
 
-    let filters = []
-    let jobList
+    let filterComponent; // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
+    let jobList;
+    let jobFilters = [];
     let sorting = { field: 'startTime', order: 'DESC' }, isSortingOpen = false
     let metrics = ccconfig.plot_list_selectedMetrics, isMetricsSelectionOpen = false
     let w1, w2, histogramHeight = 250
@@ -29,8 +30,8 @@
     $: stats = queryStore({
         client: client,
         query: gql`
-            query($filters: [JobFilter!]!) {
-            jobsStatistics(filter: $filters) {
+            query($jobFilters: [JobFilter!]!) {
+            jobsStatistics(filter: $jobFilters) {
                 totalJobs
                 shortJobs
                 totalWalltime
@@ -38,12 +39,10 @@
                 histDuration { count, value }
                 histNumNodes { count, value }
             }}`,
-        variables: { filters }
+        variables: { jobFilters }
     })
 
-    $: selectedCluster = filters[0]?.cluster ? filters[0].cluster.eq : null 
-
-    onMount(() => filters.update())
+    onMount(() => filterComponent.update())
 </script>
 
 <Row>
@@ -74,10 +73,10 @@
         <Filters
             filterPresets={filterPresets}
             startTimeQuickSelect={true}
-            bind:this={filters}
+            bind:this={filterComponent}
             on:update={({ detail }) => {
-                let jobFilters = [...detail.filters, { user: { eq: user.username } }]
-                filters = jobFilters
+                jobFilters = [...detail.filters, { user: { eq: user.username } }]
+                selectedCluster = jobFilters[0]?.cluster ? jobFilters[0].cluster.eq : null 
                 jobList.update(jobFilters)
             }} />
     </Col>
