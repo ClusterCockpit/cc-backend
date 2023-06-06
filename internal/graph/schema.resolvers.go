@@ -239,12 +239,20 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 }
 
 // JobsFootprints is the resolver for the jobsFootprints field.
-func (r *queryResolver) JobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error) {
+func (r *queryResolver) JobsFootprints(
+    ctx context.Context,
+    filter []*model.JobFilter,
+    metrics []string) (*model.Footprints, error) {
+
 	return r.jobsFootprints(ctx, filter, metrics)
 }
 
 // Jobs is the resolver for the jobs field.
-func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) (*model.JobResultList, error) {
+func (r *queryResolver) Jobs(
+    ctx context.Context,
+    filter []*model.JobFilter,
+    page *model.PageRequest,
+    order *model.OrderByInput) (*model.JobResultList, error) {
 	if page == nil {
 		page = &model.PageRequest{
 			ItemsPerPage: 50,
@@ -268,12 +276,22 @@ func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, pag
 }
 
 // JobsStatistics is the resolver for the jobsStatistics field.
-func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobFilter, groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
+func (r *queryResolver) JobsStatistics(
+    ctx context.Context,
+    filter []*model.JobFilter,
+    groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
+
 	return r.Repo.JobsStatistics(ctx, filter, groupBy)
 }
 
 // JobsCount is the resolver for the jobsCount field.
-func (r *queryResolver) JobsCount(ctx context.Context, filter []*model.JobFilter, groupBy model.Aggregate, weight *model.Weights, limit *int) ([]*model.Count, error) {
+func (r *queryResolver) JobsCount(
+    ctx context.Context,
+    filter []*model.JobFilter,
+    groupBy model.Aggregate,
+    weight *model.Weights,
+    limit *int) ([]*model.Count, error) {
+
 	counts, err := r.Repo.CountGroupedJobs(ctx, groupBy, filter, weight, limit)
 	if err != nil {
 		log.Warn("Error while counting grouped jobs")
