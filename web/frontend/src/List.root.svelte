@@ -29,12 +29,17 @@
         "Invalid list type provided!"
     );
 
+    let filterComponent; // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
+    let jobFilters = [];
+    let nameFilter = "";
+    let sorting = { field: "totalJobs", direction: "down" };
+
     const client = getContextClient();
     $: stats = queryStore({
         client: client,
         query: gql`
-            query($filters: [JobFilter!]!) {
-            rows: jobsStatistics(filter: $filters, groupBy: ${type}) {
+            query($jobFilters: [JobFilter!]!) {
+            rows: jobsStatistics(filter: $jobFilters, groupBy: ${type}) {
                 id
                 name
                 totalJobs
@@ -42,12 +47,8 @@
                 totalCoreHours
             }
         }`,
-        variables: { filters }
+        variables: { jobFilters }
     });
-
-    let filters;
-    let nameFilter = "";
-    let sorting = { field: "totalJobs", direction: "down" };
 
     function changeSorting(event, field) {
         let target = event.target;
@@ -73,7 +74,7 @@
         return stats.filter((u) => u.id.includes(nameFilter)).sort(cmp);
     }
 
-    onMount(() => filters.update());
+    onMount(() => filterComponent.update());
 </script>
 
 <Row>
@@ -93,12 +94,12 @@
     </Col>
     <Col xs="auto">
         <Filters
-            bind:this={filters}
+            bind:this={filterComponent}
             {filterPresets}
             startTimeQuickSelect={true}
             menuText="Only {type.toLowerCase()}s with jobs that match the filters will show up"
             on:update={({ detail }) => {
-                filters = detail.filters;
+                jobFilters = detail.filters;
             }}
         />
     </Col>

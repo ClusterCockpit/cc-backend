@@ -26,11 +26,6 @@ func (r *clusterResolver) Partitions(ctx context.Context, obj *schema.Cluster) (
 	return r.Repo.Partitions(obj.Name)
 }
 
-// JobName is the resolver for the jobName field.
-func (r *jobResolver) JobName(ctx context.Context, obj *schema.Job) (*string, error) {
-	return r.Repo.FetchJobName(obj)
-}
-
 // Tags is the resolver for the tags field.
 func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error) {
 	return r.Repo.GetTags(&obj.ID)
@@ -38,7 +33,6 @@ func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag,
 
 // ConcurrentJobs is the resolver for the concurrentJobs field.
 func (r *jobResolver) ConcurrentJobs(ctx context.Context, obj *schema.Job) (*model.JobLinkResultList, error) {
-
 	exc := int(obj.Exclusive)
 	if exc != 1 {
 		filter := []*model.JobFilter{}

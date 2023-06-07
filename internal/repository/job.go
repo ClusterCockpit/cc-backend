@@ -151,39 +151,6 @@ func scanJobLink(row interface{ Scan(...interface{}) error }) (*model.JobLink, e
 	return jobLink, nil
 }
 
-func (r *JobRepository) FetchJobName(job *schema.Job) (*string, error) {
-	start := time.Now()
-	cachekey := fmt.Sprintf("metadata:%d", job.ID)
-	if cached := r.cache.Get(cachekey, nil); cached != nil {
-		job.MetaData = cached.(map[string]string)
-		if jobName := job.MetaData["jobName"]; jobName != "" {
-			return &jobName, nil
-		}
-	}
-
-	if err := sq.Select("job.meta_data").From("job").Where("job.id = ?", job.ID).
-		RunWith(r.stmtCache).QueryRow().Scan(&job.RawMetaData); err != nil {
-		return nil, err
-	}
-
-	if len(job.RawMetaData) == 0 {
-		return nil, nil
-	}
-
-	if err := json.Unmarshal(job.RawMetaData, &job.MetaData); err != nil {
-		return nil, err
-	}
-
-	r.cache.Put(cachekey, job.MetaData, len(job.RawMetaData), 24*time.Hour)
-	log.Infof("Timer FetchJobName %s", time.Since(start))
-
-	if jobName := job.MetaData["jobName"]; jobName != "" {
-		return &jobName, nil
-	} else {
-		return new(string), nil
-	}
-}
-
 func (r *JobRepository) FetchMetadata(job *schema.Job) (map[string]string, error) {
 	start := time.Now()
 	cachekey := fmt.Sprintf("metadata:%d", job.ID)
@@ -597,9 +564,18 @@ func (r *JobRepository) FindColumnValue(user *auth.User, searchterm string, tabl
 		query = "%" + searchterm + "%"
 	}
 	if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
-		err := sq.Select(table+"."+selectColumn).Distinct().From(table).
-			Where(table+"."+whereColumn+compareStr, query).
-			RunWith(r.stmtCache).QueryRow().Scan(&result)
+		theQuery := sq.Select(table+"."+selectColumn).Distinct().From(table).
+			Where(table+"."+whereColumn+compareStr, query)
+
+		// theSql, args, theErr := theQuery.ToSql()
+		// if theErr != nil {
+		// 	log.Warn("Error while converting query to sql")
+		// 	return "", err
+		// }
+		// log.Debugf("SQL query (FindColumnValue): `%s`, args: %#v", theSql, args)
+
+		err := theQuery.RunWith(r.stmtCache).QueryRow().Scan(&result)
+
 		if err != nil && err != sql.ErrNoRows {
 			return "", err
 		} else if err == nil {
@@ -913,9 +889,9 @@ func (r *JobRepository) JobsStatistics(ctx context.Context,
 				user := auth.GetUser(ctx)
 				name, _ := r.FindColumnValue(user, id, "user", "name", "username", false)
 				if name != "" {
-					stats[id].Name = &name
+					stats[id].Name = name
 				} else {
-					stats[id].Name = &emptyDash
+					stats[id].Name = emptyDash
 				}
 			}
 		}
