@@ -47,7 +47,6 @@
                     jobId
                     user
                     project
-                    jobName
                     cluster
                     subCluster
                     startTime

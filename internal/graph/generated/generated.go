@@ -90,7 +90,6 @@ type ComplexityRoot struct {
 		Exclusive        func(childComplexity int) int
 		ID               func(childComplexity int) int
 		JobID            func(childComplexity int) int
-		JobName          func(childComplexity int) int
 		MetaData         func(childComplexity int) int
 		MonitoringStatus func(childComplexity int) int
 		NumAcc           func(childComplexity int) int
@@ -287,8 +286,6 @@ type ClusterResolver interface {
 	Partitions(ctx context.Context, obj *schema.Cluster) ([]string, error)
 }
 type JobResolver interface {
-	JobName(ctx context.Context, obj *schema.Job) (*string, error)
-
 	Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error)
 
 	ConcurrentJobs(ctx context.Context, obj *schema.Job) (*model.JobLinkResultList, error)
@@ -488,13 +485,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Job.JobID(childComplexity), true
-
-	case "Job.jobName":
-		if e.complexity.Job.JobName == nil {
-			break
-		}
-
-		return e.complexity.Job.JobName(childComplexity), true
 
 	case "Job.metaData":
 		if e.complexity.Job.MetaData == nil {
@@ -1498,7 +1488,6 @@ type Job {
   jobId:            Int!
   user:             String!
   project:          String!
-  jobName:          String
   cluster:          String!
   subCluster:       String!
   startTime:        Time!
@@ -1774,7 +1763,7 @@ type HistoPoint {
 
 type JobsStatistics  {
   id:             ID!            # If ` + "`" + `groupBy` + "`" + ` was used, ID of the user/project/cluster
-  name:           String         # if User-Statistics: Given Name of Account (ID) Owner
+  name:           String!        # if User-Statistics: Given Name of Account (ID) Owner
   totalJobs:      Int!           # Number of jobs that matched
   shortJobs:      Int!           # Number of jobs with a duration of less than 2 minutes
   totalWalltime:  Int!           # Sum of the duration of all matched jobs in hours
@@ -3170,47 +3159,6 @@ func (ec *executionContext) fieldContext_Job_project(ctx context.Context, field 
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Job_jobName(ctx context.Context, field graphql.CollectedField, obj *schema.Job) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Job_jobName(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Job().JobName(rctx, obj)
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*string)
-	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Job_jobName(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Job",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
 		},
@@ -4636,8 +4584,6 @@ func (ec *executionContext) fieldContext_JobResultList_items(ctx context.Context
 				return ec.fieldContext_Job_user(ctx, field)
 			case "project":
 				return ec.fieldContext_Job_project(ctx, field)
-			case "jobName":
-				return ec.fieldContext_Job_jobName(ctx, field)
 			case "cluster":
 				return ec.fieldContext_Job_cluster(ctx, field)
 			case "subCluster":
@@ -4871,11 +4817,14 @@ func (ec *executionContext) _JobsStatistics_name(ctx context.Context, field grap
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*string)
+	res := resTmp.(string)
 	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_JobsStatistics_name(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -6635,8 +6584,6 @@ func (ec *executionContext) fieldContext_Query_job(ctx context.Context, field gr
 				return ec.fieldContext_Job_user(ctx, field)
 			case "project":
 				return ec.fieldContext_Job_project(ctx, field)
-			case "jobName":
-				return ec.fieldContext_Job_jobName(ctx, field)
 			case "cluster":
 				return ec.fieldContext_Job_cluster(ctx, field)
 			case "subCluster":
@@ -11711,23 +11658,6 @@ func (ec *executionContext) _Job(ctx context.Context, sel ast.SelectionSet, obj 
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&invalids, 1)
 			}
-		case "jobName":
-			field := field
-
-			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Job_jobName(ctx, field, obj)
-				return res
-			}
-
-			out.Concurrently(i, func() graphql.Marshaler {
-				return innerFunc(ctx)
-
-			})
 		case "cluster":
 
 			out.Values[i] = ec._Job_cluster(ctx, field, obj)
@@ -12125,6 +12055,9 @@ func (ec *executionContext) _JobsStatistics(ctx context.Context, sel ast.Selecti
 
 			out.Values[i] = ec._JobsStatistics_name(ctx, field, obj)
 
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "totalJobs":
 
 			out.Values[i] = ec._JobsStatistics_totalJobs(ctx, field, obj)
