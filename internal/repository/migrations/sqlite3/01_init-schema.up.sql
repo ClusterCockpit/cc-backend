@@ -42,13 +42,6 @@ PRIMARY KEY (job_id, tag_id),
 FOREIGN KEY (job_id) REFERENCES job (id) ON DELETE CASCADE,
 FOREIGN KEY (tag_id) REFERENCES tag (id) ON DELETE CASCADE);
 
-CREATE TABLE IF NOT EXISTS configuration (
-username varchar(255),
-confkey  varchar(255),
-value    varchar(255),
-PRIMARY KEY (username, confkey),
-FOREIGN KEY (username) REFERENCES user (username) ON DELETE CASCADE ON UPDATE NO ACTION);
-
 CREATE TABLE IF NOT EXISTS user (
 username varchar(255) PRIMARY KEY NOT NULL,
 password varchar(255) DEFAULT NULL,
@@ -56,3 +49,12 @@ ldap     tinyint      NOT NULL DEFAULT 0, /* col called "ldap" for historic reas
 name     varchar(255) DEFAULT NULL,
 roles    varchar(255) NOT NULL DEFAULT "[]",
 email    varchar(255) DEFAULT NULL);
+
+CREATE TABLE IF NOT EXISTS configuration (
+username varchar(255),
+confkey  varchar(255),
+value    varchar(255),
+PRIMARY KEY (username, confkey),
+FOREIGN KEY (username) REFERENCES user (username) ON DELETE CASCADE ON UPDATE NO ACTION);
+
+
