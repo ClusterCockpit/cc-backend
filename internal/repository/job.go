@@ -126,6 +126,9 @@ func (r *JobRepository) Flush() error {
 			return err
 		}
 	case "mysql":
+		if _, err = r.DB.Exec(`SET FOREIGN_KEY_CHECKS = 0`); err != nil {
+			return err
+		}
 		if _, err = r.DB.Exec(`TRUNCATE TABLE jobtag`); err != nil {
 			return err
 		}
@@ -133,6 +136,9 @@ func (r *JobRepository) Flush() error {
 			return err
 		}
 		if _, err = r.DB.Exec(`TRUNCATE TABLE job`); err != nil {
+			return err
+		}
+		if _, err = r.DB.Exec(`SET FOREIGN_KEY_CHECKS = 1`); err != nil {
 			return err
 		}
 	}
