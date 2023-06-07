@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/generated"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
@@ -38,7 +39,6 @@ func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag,
 
 // ConcurrentJobs is the resolver for the concurrentJobs field.
 func (r *jobResolver) ConcurrentJobs(ctx context.Context, obj *schema.Job) (*model.JobLinkResultList, error) {
-
 	exc := int(obj.Exclusive)
 	if exc != 1 {
 		filter := []*model.JobFilter{}
@@ -269,7 +269,43 @@ func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, pag
 
 // JobsStatistics is the resolver for the jobsStatistics field.
 func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobFilter, groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
-	return r.Repo.JobsStatistics(ctx, filter, groupBy)
+	var err error
+	var stats []*model.JobsStatistics
+
+	if requireField(ctx, "TotalJobs") {
+		if requireField(ctx, "TotalCoreHours") {
+			if groupBy == nil {
+				stats, err = r.Repo.JobsStatsPlain(ctx, filter)
+			} else {
+				stats, err = r.Repo.JobsStats(ctx, filter, groupBy)
+			}
+		} else {
+			if groupBy == nil {
+				stats, err = r.Repo.JobsStatsPlainNoCoreH(ctx, filter)
+			} else {
+				stats, err = r.Repo.JobsStatsNoCoreH(ctx, filter, groupBy)
+			}
+		}
+	} else {
+		stats = make([]*model.JobsStatistics, 0, 1)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if requireField(ctx, "histDuration") || requireField(ctx, "histNumNodes") {
+		if groupBy == nil {
+			stats[0], err = r.Repo.AddHistograms(ctx, filter, stats[0])
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, errors.New("histograms only implemented without groupBy argument")
+		}
+	}
+
+	return stats, nil
 }
 
 // JobsCount is the resolver for the jobsCount field.
@@ -367,3 +403,21 @@ type jobResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subClusterResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//   - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//     it when you're done.
+//   - You have helper methods in this file. Move them out to keep these resolver files clean.
+func requireField(ctx context.Context, name string) bool {
+	fields := graphql.CollectAllFields(ctx)
+
+	for _, f := range fields {
+		if f == name {
+			return true
+		}
+	}
+
+	return false
+}
