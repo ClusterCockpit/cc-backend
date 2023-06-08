@@ -280,8 +280,8 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	var err error
 	var stats []*model.JobsStatistics
 
-	if requireField(ctx, "TotalJobs") {
-		if requireField(ctx, "TotalCoreHours") {
+	if requireField(ctx, "totalJobs") {
+		if requireField(ctx, "totalCoreHours") {
 			if groupBy == nil {
 				stats, err = r.Repo.JobsStatsPlain(ctx, filter)
 			} else {
