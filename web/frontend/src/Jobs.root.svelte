@@ -17,7 +17,7 @@
     export let authlevel
     export let roles
 
-    let filters = []
+    let filterComponent; // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
     let jobList, matchedJobs = null
     let sorting = { field: 'startTime', order: 'DESC' }, isSortingOpen = false, isMetricsSelectionOpen = false
     let metrics = filterPresets.cluster
@@ -25,12 +25,10 @@
         : ccconfig.plot_list_selectedMetrics
     let selectedCluster = filterPresets?.cluster ? filterPresets.cluster : null
     
-    $: selectedCluster = filters[0]?.cluster ? filters[0].cluster.eq : null 
-
     // The filterPresets are handled by the Filters component,
     // so we need to wait for it to be ready before we can start a query.
     // This is also why JobList component starts out with a paused query.
-    onMount(() => filters.update())
+    onMount(() => filterComponent.update())
 </script>
 
 <Row>
@@ -61,15 +59,16 @@
     <Col xs="auto">
         <Filters
             filterPresets={filterPresets}
-            bind:this={filters}
+            bind:this={filterComponent}
             on:update={({ detail }) => {
-                filters = detail.filters
-                jobList.update(detail.filters)}
+                selectedCluster = detail.filters[0]?.cluster ? detail.filters[0].cluster.eq : null 
+                jobList.update(detail.filters)
+            }
             } />
     </Col>
 
     <Col xs="3" style="margin-left: auto;">
-        <UserOrProject bind:authlevel={authlevel} bind:roles={roles} on:update={({ detail }) => filters.update(detail)}/>
+        <UserOrProject bind:authlevel={authlevel} bind:roles={roles} on:update={({ detail }) => filterComponent.update(detail)}/>
     </Col>
     <Col xs="2">
         <Refresher on:reload={() => jobList.refresh()} />

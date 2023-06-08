@@ -25,12 +25,13 @@
         filterPresets.startTime = { from: hourAgo.toISOString(), to: now.toISOString() }
     }
 
-    let cluster
-    let filters
-    let rooflineMaxY
-    let colWidth
-    let numBins = 50
-    let maxY = -1
+    let cluster;
+    let filterComponent; // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
+    let jobFilters = [];
+    let rooflineMaxY;
+    let colWidth;
+    let numBins = 50;
+    let maxY = -1;
     const ccconfig = getContext('cc-config')
     const metricConfig = getContext('metrics')
 
@@ -54,8 +55,8 @@
     $: statsQuery = queryStore({
         client: client,
         query: gql`
-            query($filters: [JobFilter!]!) {
-                stats: jobsStatistics(filter: $filters) {
+            query($jobFilters: [JobFilter!]!) {
+                stats: jobsStatistics(filter: $jobFilters) {
                     totalJobs
                     shortJobs
                     totalWalltime
@@ -67,34 +68,34 @@
                 topUsers: jobsCount(filter: $filters, groupBy: USER, weight: NODE_HOURS, limit: 5) { name, count }
             }
         `, 
-        variables: { filters }
+        variables: { jobFilters }
     })
 
     $: footprintsQuery = queryStore({
         client: client,
         query: gql`
-            query($filters: [JobFilter!]!, $metrics: [String!]!) {
-                footprints: jobsFootprints(filter: $filters, metrics: $metrics) {
+            query($jobFilters: [JobFilter!]!, $metrics: [String!]!) {
+                footprints: jobsFootprints(filter: $jobFilters, metrics: $metrics) {
                     nodehours,
                     metrics { metric, data }
                 }
             }`,
-        variables:  { filters, metrics }
+        variables:  { jobFilters, metrics }
     })
 
     $: rooflineQuery = queryStore({
         client: client,
         query: gql`
-            query($filters: [JobFilter!]!, $rows: Int!, $cols: Int!,
+            query($jobFilters: [JobFilter!]!, $rows: Int!, $cols: Int!,
                     $minX: Float!, $minY: Float!, $maxX: Float!, $maxY: Float!) {
-                rooflineHeatmap(filter: $filters, rows: $rows, cols: $cols,
+                rooflineHeatmap(filter: $jobFilters, rows: $rows, cols: $cols,
                         minX: $minX, minY: $minY, maxX: $maxX, maxY: $maxY)
             }
         `,
-        variables: { filters, rows: 50, cols: 50, minX: 0.01, minY: 1., maxX: 1000., maxY }
+        variables: { jobFilters, rows: 50, cols: 50, minX: 0.01, minY: 1., maxX: 1000., maxY }
     })
 
-    onMount(() => filters.update())
+    onMount(() => filterComponent.update())
 </script>
 
 <Row>
@@ -115,12 +116,12 @@
     </Col>
     <Col xs="auto">
         <Filters
-            bind:this={filters}
+            bind:this={filterComponent}
             filterPresets={filterPresets}
             disableClusterSelection={true}
             startTimeQuickSelect={true}
             on:update={({ detail }) => {
-                filters = detail.filters;
+                jobFilters = detail.filters;
             }} />
     </Col>
 </Row>

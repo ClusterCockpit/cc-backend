@@ -10,7 +10,6 @@ type Job {
   jobId:            Int!
   user:             String!
   project:          String!
-  jobName:          String
   cluster:          String!
   subCluster:       String!
   startTime:        Time!
@@ -286,7 +285,7 @@ type HistoPoint {
 
 type JobsStatistics  {
   id:             ID!            # If `groupBy` was used, ID of the user/project/cluster
-  name:           String         # if User-Statistics: Given Name of Account (ID) Owner
+  name:           String!        # if User-Statistics: Given Name of Account (ID) Owner
   totalJobs:      Int!           # Number of jobs that matched
   shortJobs:      Int!           # Number of jobs with a duration of less than 2 minutes
   totalWalltime:  Int!           # Sum of the duration of all matched jobs in hours

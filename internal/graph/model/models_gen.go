@@ -88,7 +88,7 @@ type JobResultList struct {
 
 type JobsStatistics struct {
 	ID             string        `json:"id"`
-	Name           *string       `json:"name"`
+	Name           string        `json:"name"`
 	TotalJobs      int           `json:"totalJobs"`
 	ShortJobs      int           `json:"shortJobs"`
 	TotalWalltime  int           `json:"totalWalltime"`
