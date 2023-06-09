@@ -65,7 +65,7 @@
                     histNumNodes { count, value }
                 }
 
-                topUsers: jobsCount(filter: $filters, groupBy: USER, weight: NODE_HOURS, limit: 5) { name, count }
+                topUsers: jobsCount(filter: $jobFilters, groupBy: USER, weight: NODE_HOURS, limit: 5) { name, count }
             }
         `, 
         variables: { jobFilters }
