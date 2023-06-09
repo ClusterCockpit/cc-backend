@@ -45,6 +45,7 @@
                 totalJobs
                 totalWalltime
                 totalCoreHours
+                totalAccHours
             }
         }`,
         variables: { jobFilters }
@@ -166,6 +167,18 @@
                     <Icon name="sort-numeric-down" />
                 </Button>
             </th>
+            <th scope="col">
+                Total Accelerator Hours
+                <Button
+                    color={sorting.field == "totalAccHours"
+                        ? "primary"
+                        : "light"}
+                    size="sm"
+                    on:click={(e) => changeSorting(e, "totalAccHours")}
+                >
+                    <Icon name="sort-numeric-down" />
+                </Button>
+            </th>
         </tr>
     </thead>
     <tbody>
@@ -205,6 +218,7 @@
                     <td>{row.totalJobs}</td>
                     <td>{row.totalWalltime}</td>
                     <td>{row.totalCoreHours}</td>
+                    <td>{row.totalAccHours}</td>
                 </tr>
             {:else}
                 <tr>
