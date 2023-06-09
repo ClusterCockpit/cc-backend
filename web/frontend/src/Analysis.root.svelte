@@ -143,7 +143,7 @@
                         <td>{$statsQuery.data.stats[0].totalJobs}</td>
                     </tr>
                     <tr>
-                        <th scope="col">Short Jobs (&#60; 2m)</th>
+                        <th scope="col">Short Jobs</th>
                         <td>{$statsQuery.data.stats[0].shortJobs}</td>
                     </tr>
                     <tr>
