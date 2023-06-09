@@ -304,6 +304,49 @@ func (r *JobRepository) AddJobCountGrouped(
 	return stats, nil
 }
 
+func (r *JobRepository) AddJobCount(
+	ctx context.Context,
+	filter []*model.JobFilter,
+	stats []*model.JobsStatistics,
+	kind string) ([]*model.JobsStatistics, error) {
+
+	start := time.Now()
+	query := r.buildCountQuery(filter, kind, "")
+	query, err := SecurityCheck(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := query.RunWith(r.DB).Query()
+	if err != nil {
+		log.Warn("Error while querying DB for job statistics")
+		return nil, err
+	}
+
+	counts := make(map[string]int)
+
+	for rows.Next() {
+		var cnt sql.NullInt64
+		if err := rows.Scan(&cnt); err != nil {
+			log.Warn("Error while scanning rows")
+			return nil, err
+		}
+	}
+
+	switch kind {
+	case "running":
+		for _, s := range stats {
+			s.RunningJobs = counts[s.ID]
+		}
+	case "short":
+		for _, s := range stats {
+			s.ShortJobs = counts[s.ID]
+		}
+	}
+
+	log.Infof("Timer JobStatistics %s", time.Since(start))
+	return stats, nil
+}
+
 func (r *JobRepository) AddHistograms(
 	ctx context.Context,
 	filter []*model.JobFilter,

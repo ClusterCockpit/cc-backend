@@ -284,7 +284,12 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 			stats, err = r.Repo.AddJobCountGrouped(ctx, filter, groupBy, stats, "running")
 		}
 	} else {
-		return nil, errors.New("Job counts only implemented with groupBy argument")
+		if requireField(ctx, "shortJobs") {
+			stats, err = r.Repo.AddJobCount(ctx, filter, stats, "short")
+		}
+		if requireField(ctx, "RunningJobs") {
+			stats, err = r.Repo.AddJobCount(ctx, filter, stats, "running")
+		}
 	}
 
 	if err != nil {
