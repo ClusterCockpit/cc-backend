@@ -41,6 +41,8 @@ var (
 	CritLog  *log.Logger = log.New(CritWriter, CritPrefix, log.LstdFlags|log.Llongfile)
 )
 
+var loglevel string = "info"
+
 /* CONFIG */
 
 func Init(lvl string, logdate bool) {
@@ -78,6 +80,8 @@ func Init(lvl string, logdate bool) {
 		ErrLog = log.New(ErrWriter, ErrPrefix, log.LstdFlags|log.Llongfile)
 		CritLog = log.New(CritWriter, CritPrefix, log.LstdFlags|log.Llongfile)
 	}
+
+	loglevel = lvl
 }
 
 /* PRINT */
@@ -168,6 +172,10 @@ func Critf(format string, v ...interface{}) {
 func Fatalf(format string, v ...interface{}) {
 	CritLog.Output(2, printfStr(format, v...))
 	os.Exit(1)
+}
+
+func Loglevel() string {
+	return loglevel
 }
 
 /* SPECIAL */

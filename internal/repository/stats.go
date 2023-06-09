@@ -171,7 +171,7 @@ func (r *JobRepository) JobsStatsGrouped(
 		}
 	}
 
-	log.Infof("Timer JobStatistics %s", time.Since(start))
+	log.Infof("Timer JobsStatsGrouped %s", time.Since(start))
 	return stats, nil
 }
 
@@ -212,7 +212,7 @@ func (r *JobRepository) JobsStats(
 				TotalAccHours:  totalAccHours})
 	}
 
-	log.Infof("Timer JobStatistics %s", time.Since(start))
+	log.Infof("Timer JobStats %s", time.Since(start))
 	return stats, nil
 }
 
@@ -251,7 +251,7 @@ func (r *JobRepository) JobCountGrouped(
 		}
 	}
 
-	log.Infof("Timer JobStatistics %s", time.Since(start))
+	log.Infof("Timer JobCountGrouped %s", time.Since(start))
 	return stats, nil
 }
 
@@ -300,7 +300,7 @@ func (r *JobRepository) AddJobCountGrouped(
 		}
 	}
 
-	log.Infof("Timer JobStatistics %s", time.Since(start))
+	log.Infof("Timer AddJobCountGrouped %s", time.Since(start))
 	return stats, nil
 }
 
@@ -343,7 +343,7 @@ func (r *JobRepository) AddJobCount(
 		}
 	}
 
-	log.Infof("Timer JobStatistics %s", time.Since(start))
+	log.Infof("Timer JobJobCount %s", time.Since(start))
 	return stats, nil
 }
 
@@ -351,6 +351,7 @@ func (r *JobRepository) AddHistograms(
 	ctx context.Context,
 	filter []*model.JobFilter,
 	stat *model.JobsStatistics) (*model.JobsStatistics, error) {
+	start := time.Now()
 
 	castType := r.getCastType()
 	var err error
@@ -367,6 +368,7 @@ func (r *JobRepository) AddHistograms(
 		return nil, err
 	}
 
+	log.Infof("Timer AddHistograms %s", time.Since(start))
 	return stat, nil
 }
 
