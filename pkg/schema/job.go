@@ -17,14 +17,15 @@ import (
 
 type BaseJob struct {
 	// The unique identifier of a job
-	JobID            int64             `json:"jobId" db:"job_id" example:"123000"`
-	User             string            `json:"user" db:"user" example:"abcd100h"`                                                                            // The unique identifier of a user
-	Project          string            `json:"project" db:"project" example:"abcd200"`                                                                       // The unique identifier of a project
-	Cluster          string            `json:"cluster" db:"cluster" example:"fritz"`                                                                         // The unique identifier of a cluster
-	SubCluster       string            `json:"subCluster" db:"subcluster" example:"main"`                                                                    // The unique identifier of a sub cluster
-	Partition        string            `json:"partition,omitempty" db:"partition" example:"main"`                                                            // The Slurm partition to which the job was submitted
-	ArrayJobId       int64             `json:"arrayJobId,omitempty" db:"array_job_id" example:"123000"`                                                      // The unique identifier of an array job
-	NumNodes         int32             `json:"numNodes" db:"num_nodes" example:"2" minimum:"1"`                                                              // Number of nodes used (Min > 0)
+	JobID      int64  `json:"jobId" db:"job_id" example:"123000"`
+	User       string `json:"user" db:"user" example:"abcd100h"`                       // The unique identifier of a user
+	Project    string `json:"project" db:"project" example:"abcd200"`                  // The unique identifier of a project
+	Cluster    string `json:"cluster" db:"cluster" example:"fritz"`                    // The unique identifier of a cluster
+	SubCluster string `json:"subCluster" db:"subcluster" example:"main"`               // The unique identifier of a sub cluster
+	Partition  string `json:"partition,omitempty" db:"partition" example:"main"`       // The Slurm partition to which the job was submitted
+	ArrayJobId int64  `json:"arrayJobId,omitempty" db:"array_job_id" example:"123000"` // The unique identifier of an array job
+	NumNodes   int32  `json:"numNodes" db:"num_nodes" example:"2" minimum:"1"`         // Number of nodes used (Min > 0)
+	// NumCores         int32             `json:"numCores" db:"num_cores" example:"20" minimum:"1"`                                                             // Number of HWThreads used (Min > 0)
 	NumHWThreads     int32             `json:"numHwthreads,omitempty" db:"num_hwthreads" example:"20" minimum:"1"`                                           // Number of HWThreads used (Min > 0)
 	NumAcc           int32             `json:"numAcc,omitempty" db:"num_acc" example:"2" minimum:"1"`                                                        // Number of accelerators used (Min > 0)
 	Exclusive        int32             `json:"exclusive" db:"exclusive" example:"1" minimum:"0" maximum:"2"`                                                 // Specifies how nodes are shared: 0 - Shared among multiple jobs of multiple users, 1 - Job exclusive (Default), 2 - Shared among multiple jobs of same user

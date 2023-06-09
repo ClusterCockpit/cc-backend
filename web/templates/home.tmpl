@@ -6,9 +6,8 @@
             <thead>
                 <tr>
                     <th>Name</th>
-                    <th>Running Jobs (short ones not listed)</th>
+                    <th>Running Jobs</th>
                     <th>Total Jobs</th>
-                    <th>Short Jobs in past 24h</th>
                     {{if .User.HasRole .Roles.admin}}
                         <th>System View</th>
                         <th>Analysis View</th>
@@ -19,21 +18,19 @@
                 {{if .User.HasRole .Roles.admin}}
                     {{range .Infos.clusters}}
                         <tr>
-                            <td>{{.Name}}</td>
-                            <td><a href="/monitoring/jobs/?cluster={{.Name}}&state=running">{{.RunningJobs}} jobs</a></td>
-                            <td><a href="/monitoring/jobs/?cluster={{.Name}}">{{.TotalJobs}} jobs</a></td>
-                            <td>{{.RecentShortJobs}}</td>
-                            <td><a href="/monitoring/systems/{{.Name}}">System View</a></td>
-                            <td><a href="/monitoring/analysis/{{.Name}}">Analysis View</a></td>
+                            <td>{{.ID}}</td>
+                            <td><a href="/monitoring/jobs/?cluster={{.ID}}&state=running">{{.RunningJobs}} jobs</a></td>
+                            <td><a href="/monitoring/jobs/?cluster={{.ID}}">{{.TotalJobs}} jobs</a></td>
+                            <td><a href="/monitoring/systems/{{.ID}}">System View</a></td>
+                            <td><a href="/monitoring/analysis/{{.ID}}">Analysis View</a></td>
                         </tr>
                     {{end}}
                 {{else}}
                     {{range .Infos.clusters}}
                         <tr>
-                            <td>{{.Name}}</td>
-                            <td><a href="/monitoring/jobs/?cluster={{.Name}}&state=running">{{.RunningJobs}} jobs</a></td>
-                            <td><a href="/monitoring/jobs/?cluster={{.Name}}">{{.TotalJobs}} jobs</a></td>
-                            <td>{{.RecentShortJobs}}</td>
+                            <td>{{.ID}}</td>
+                            <td><a href="/monitoring/jobs/?cluster={{.ID}}&state=running">{{.RunningJobs}} jobs</a></td>
+                            <td><a href="/monitoring/jobs/?cluster={{.ID}}">{{.TotalJobs}} jobs</a></td>
                         </tr>
                     {{end}}
                 {{end}}

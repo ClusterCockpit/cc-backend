@@ -90,8 +90,10 @@ type JobsStatistics struct {
 	ID             string        `json:"id"`
 	Name           string        `json:"name"`
 	TotalJobs      int           `json:"totalJobs"`
+	RunningJobs    int           `json:"runningJobs"`
 	ShortJobs      int           `json:"shortJobs"`
 	TotalWalltime  int           `json:"totalWalltime"`
+	TotalNodeHours int           `json:"totalNodeHours"`
 	TotalCoreHours int           `json:"totalCoreHours"`
 	HistDuration   []*HistoPoint `json:"histDuration"`
 	HistNumNodes   []*HistoPoint `json:"histNumNodes"`

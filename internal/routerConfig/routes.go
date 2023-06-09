@@ -14,12 +14,9 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/api"
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/ClusterCockpit/cc-backend/web"
 	"github.com/gorilla/mux"
 )
@@ -50,47 +47,20 @@ var routes []Route = []Route{
 }
 
 func setupHomeRoute(i InfoType, r *http.Request) InfoType {
-	type cluster struct {
-		Name            string
-		RunningJobs     int
-		TotalJobs       int
-		RecentShortJobs int
-	}
 	jobRepo := repository.GetJobRepository()
+	groupBy := model.AggregateCluster
 
-	runningJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, []*model.JobFilter{{
-		State: []schema.JobState{schema.JobStateRunning},
-	}}, nil, nil)
+	stats, err := jobRepo.JobCountGrouped(r.Context(), nil, &groupBy)
 	if err != nil {
 		log.Warnf("failed to count jobs: %s", err.Error())
-		runningJobs = map[string]int{}
-	}
-	totalJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, nil, nil, nil)
-	if err != nil {
-		log.Warnf("failed to count jobs: %s", err.Error())
-		totalJobs = map[string]int{}
-	}
-	from := time.Now().Add(-24 * time.Hour)
-	recentShortJobs, err := jobRepo.CountGroupedJobs(r.Context(), model.AggregateCluster, []*model.JobFilter{{
-		StartTime: &schema.TimeRange{From: &from, To: nil},
-		Duration:  &schema.IntRange{From: 0, To: config.Keys.ShortRunningJobsDuration},
-	}}, nil, nil)
-	if err != nil {
-		log.Warnf("failed to count jobs: %s", err.Error())
-		recentShortJobs = map[string]int{}
 	}
 
-	clusters := make([]cluster, 0)
-	for _, c := range archive.Clusters {
-		clusters = append(clusters, cluster{
-			Name:            c.Name,
-			RunningJobs:     runningJobs[c.Name],
-			TotalJobs:       totalJobs[c.Name],
-			RecentShortJobs: recentShortJobs[c.Name],
-		})
+	stats, err = jobRepo.AddJobCountGrouped(r.Context(), nil, &groupBy, stats, "running")
+	if err != nil {
+		log.Warnf("failed to count running jobs: %s", err.Error())
 	}
 
-	i["clusters"] = clusters
+	i["clusters"] = stats
 	return i
 }
 

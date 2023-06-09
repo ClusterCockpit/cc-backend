@@ -143,9 +143,11 @@ type ComplexityRoot struct {
 		HistNumNodes   func(childComplexity int) int
 		ID             func(childComplexity int) int
 		Name           func(childComplexity int) int
+		RunningJobs    func(childComplexity int) int
 		ShortJobs      func(childComplexity int) int
 		TotalCoreHours func(childComplexity int) int
 		TotalJobs      func(childComplexity int) int
+		TotalNodeHours func(childComplexity int) int
 		TotalWalltime  func(childComplexity int) int
 	}
 
@@ -731,6 +733,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.JobsStatistics.Name(childComplexity), true
 
+	case "JobsStatistics.runningJobs":
+		if e.complexity.JobsStatistics.RunningJobs == nil {
+			break
+		}
+
+		return e.complexity.JobsStatistics.RunningJobs(childComplexity), true
+
 	case "JobsStatistics.shortJobs":
 		if e.complexity.JobsStatistics.ShortJobs == nil {
 			break
@@ -751,6 +760,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.JobsStatistics.TotalJobs(childComplexity), true
+
+	case "JobsStatistics.totalNodeHours":
+		if e.complexity.JobsStatistics.TotalNodeHours == nil {
+			break
+		}
+
+		return e.complexity.JobsStatistics.TotalNodeHours(childComplexity), true
 
 	case "JobsStatistics.totalWalltime":
 		if e.complexity.JobsStatistics.TotalWalltime == nil {
@@ -1764,9 +1780,11 @@ type HistoPoint {
 type JobsStatistics  {
   id:             ID!            # If ` + "`" + `groupBy` + "`" + ` was used, ID of the user/project/cluster
   name:           String!        # if User-Statistics: Given Name of Account (ID) Owner
-  totalJobs:      Int!           # Number of jobs that matched
-  shortJobs:      Int!           # Number of jobs with a duration of less than 2 minutes
+  totalJobs:      Int!           # Number of jobs
+  runningJobs:    Int!           # Number of running jobs
+  shortJobs:      Int!           # Number of jobs with a duration of less than duration
   totalWalltime:  Int!           # Sum of the duration of all matched jobs in hours
+  totalNodeHours: Int!           # Sum of the node hours of all matched jobs
   totalCoreHours: Int!           # Sum of the core hours of all matched jobs
   histDuration:   [HistoPoint!]! # value: hour, count: number of jobs with a rounded duration of value
   histNumNodes:   [HistoPoint!]! # value: number of nodes, count: number of jobs with that number of nodes
@@ -4884,6 +4902,50 @@ func (ec *executionContext) fieldContext_JobsStatistics_totalJobs(ctx context.Co
 	return fc, nil
 }
 
+func (ec *executionContext) _JobsStatistics_runningJobs(ctx context.Context, field graphql.CollectedField, obj *model.JobsStatistics) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JobsStatistics_runningJobs(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.RunningJobs, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JobsStatistics_runningJobs(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JobsStatistics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _JobsStatistics_shortJobs(ctx context.Context, field graphql.CollectedField, obj *model.JobsStatistics) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_JobsStatistics_shortJobs(ctx, field)
 	if err != nil {
@@ -4960,6 +5022,50 @@ func (ec *executionContext) _JobsStatistics_totalWalltime(ctx context.Context, f
 }
 
 func (ec *executionContext) fieldContext_JobsStatistics_totalWalltime(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JobsStatistics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _JobsStatistics_totalNodeHours(ctx context.Context, field graphql.CollectedField, obj *model.JobsStatistics) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JobsStatistics_totalNodeHours(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalNodeHours, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JobsStatistics_totalNodeHours(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "JobsStatistics",
 		Field:      field,
@@ -6867,10 +6973,14 @@ func (ec *executionContext) fieldContext_Query_jobsStatistics(ctx context.Contex
 				return ec.fieldContext_JobsStatistics_name(ctx, field)
 			case "totalJobs":
 				return ec.fieldContext_JobsStatistics_totalJobs(ctx, field)
+			case "runningJobs":
+				return ec.fieldContext_JobsStatistics_runningJobs(ctx, field)
 			case "shortJobs":
 				return ec.fieldContext_JobsStatistics_shortJobs(ctx, field)
 			case "totalWalltime":
 				return ec.fieldContext_JobsStatistics_totalWalltime(ctx, field)
+			case "totalNodeHours":
+				return ec.fieldContext_JobsStatistics_totalNodeHours(ctx, field)
 			case "totalCoreHours":
 				return ec.fieldContext_JobsStatistics_totalCoreHours(ctx, field)
 			case "histDuration":
@@ -12065,6 +12175,13 @@ func (ec *executionContext) _JobsStatistics(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
+		case "runningJobs":
+
+			out.Values[i] = ec._JobsStatistics_runningJobs(ctx, field, obj)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "shortJobs":
 
 			out.Values[i] = ec._JobsStatistics_shortJobs(ctx, field, obj)
@@ -12075,6 +12192,13 @@ func (ec *executionContext) _JobsStatistics(ctx context.Context, sel ast.Selecti
 		case "totalWalltime":
 
 			out.Values[i] = ec._JobsStatistics_totalWalltime(ctx, field, obj)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "totalNodeHours":
+
+			out.Values[i] = ec._JobsStatistics_totalNodeHours(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
 				invalids++

@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/99designs/gqlgen/graphql"
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/generated"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
@@ -234,20 +233,12 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 }
 
 // JobsFootprints is the resolver for the jobsFootprints field.
-func (r *queryResolver) JobsFootprints(
-	ctx context.Context,
-	filter []*model.JobFilter,
-	metrics []string) (*model.Footprints, error) {
-
+func (r *queryResolver) JobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error) {
 	return r.jobsFootprints(ctx, filter, metrics)
 }
 
 // Jobs is the resolver for the jobs field.
-func (r *queryResolver) Jobs(
-	ctx context.Context,
-	filter []*model.JobFilter,
-	page *model.PageRequest,
-	order *model.OrderByInput) (*model.JobResultList, error) {
+func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) (*model.JobResultList, error) {
 	if page == nil {
 		page = &model.PageRequest{
 			ItemsPerPage: 50,
@@ -276,21 +267,24 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	var stats []*model.JobsStatistics
 
 	if requireField(ctx, "totalJobs") {
-		if requireField(ctx, "totalCoreHours") {
-			if groupBy == nil {
-				stats, err = r.Repo.JobsStatsPlain(ctx, filter)
-			} else {
-				stats, err = r.Repo.JobsStats(ctx, filter, groupBy)
-			}
+		if groupBy == nil {
+			stats, err = r.Repo.JobsStats(ctx, filter)
 		} else {
-			if groupBy == nil {
-				stats, err = r.Repo.JobsStatsPlainNoCoreH(ctx, filter)
-			} else {
-				stats, err = r.Repo.JobsStatsNoCoreH(ctx, filter, groupBy)
-			}
+			stats, err = r.Repo.JobsStatsGrouped(ctx, filter, groupBy)
 		}
 	} else {
 		stats = make([]*model.JobsStatistics, 0, 1)
+	}
+
+	if groupBy != nil {
+		if requireField(ctx, "shortJobs") {
+			stats, err = r.Repo.AddJobCountGrouped(ctx, filter, groupBy, stats, "short")
+		}
+		if requireField(ctx, "RunningJobs") {
+			stats, err = r.Repo.AddJobCountGrouped(ctx, filter, groupBy, stats, "running")
+		}
+	} else {
+		return nil, errors.New("Job counts only implemented with groupBy argument")
 	}
 
 	if err != nil {
@@ -312,13 +306,7 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 }
 
 // JobsCount is the resolver for the jobsCount field.
-func (r *queryResolver) JobsCount(
-	ctx context.Context,
-	filter []*model.JobFilter,
-	groupBy model.Aggregate,
-	weight *model.Weights,
-	limit *int) ([]*model.Count, error) {
-
+func (r *queryResolver) JobsCount(ctx context.Context, filter []*model.JobFilter, groupBy model.Aggregate, weight *model.Weights, limit *int) ([]*model.Count, error) {
 	counts, err := r.Repo.CountGroupedJobs(ctx, groupBy, filter, weight, limit)
 	if err != nil {
 		log.Warn("Error while counting grouped jobs")
@@ -412,21 +400,3 @@ type jobResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subClusterResolver struct{ *Resolver }
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//   - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//     it when you're done.
-//   - You have helper methods in this file. Move them out to keep these resolver files clean.
-func requireField(ctx context.Context, name string) bool {
-	fields := graphql.CollectAllFields(ctx)
-
-	for _, f := range fields {
-		if f == name {
-			return true
-		}
-	}
-
-	return false
-}

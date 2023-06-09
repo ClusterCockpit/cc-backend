@@ -13,7 +13,6 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
-	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	sq "github.com/Masterminds/squirrel"
 )
@@ -62,14 +61,18 @@ func (r *JobRepository) buildStatsQuery(
 	castType := r.getCastType()
 
 	if col != "" {
-		// Scan columns: id, totalJobs, totalWalltime
+		// Scan columns: id, totalJobs, totalWalltime, totalNodeHours, totalCoreHours
 		query = sq.Select(col, "COUNT(job.id)",
 			fmt.Sprintf("CAST(ROUND(SUM(job.duration) / 3600) as %s)", castType),
+			fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_nodes) / 3600) as %s)", castType),
+			fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_hwthreads) / 3600) as %s)", castType),
 		).From("job").GroupBy(col)
 	} else {
-		// Scan columns: totalJobs, totalWalltime
+		// Scan columns: totalJobs, totalWalltime, totalNodeHours, totalCoreHours
 		query = sq.Select("COUNT(job.id)",
 			fmt.Sprintf("CAST(ROUND(SUM(job.duration) / 3600) as %s)", castType),
+			fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_nodes) / 3600) as %s)", castType),
+			fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_hwthreads) / 3600) as %s)", castType),
 		).From("job")
 	}
 
@@ -105,8 +108,7 @@ func (r *JobRepository) getCastType() string {
 	return castType
 }
 
-// with groupBy and without coreHours
-func (r *JobRepository) JobsStatsNoCoreH(
+func (r *JobRepository) JobsStatsGrouped(
 	ctx context.Context,
 	filter []*model.JobFilter,
 	groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
@@ -129,8 +131,8 @@ func (r *JobRepository) JobsStatsNoCoreH(
 
 	for rows.Next() {
 		var id sql.NullString
-		var jobs, walltime sql.NullInt64
-		if err := rows.Scan(&id, &jobs, &walltime); err != nil {
+		var jobs, walltime, nodeHours, coreHours sql.NullInt64
+		if err := rows.Scan(&id, &jobs, &walltime, &nodeHours, &coreHours); err != nil {
 			log.Warn("Error while scanning rows")
 			return nil, err
 		}
@@ -141,7 +143,7 @@ func (r *JobRepository) JobsStatsNoCoreH(
 				stats = append(stats,
 					&model.JobsStatistics{
 						ID:            id.String,
-						Name:          &name,
+						Name:          name,
 						TotalJobs:     int(jobs.Int64),
 						TotalWalltime: int(walltime.Int64)})
 			} else {
@@ -158,8 +160,7 @@ func (r *JobRepository) JobsStatsNoCoreH(
 	return stats, nil
 }
 
-// without groupBy and without coreHours
-func (r *JobRepository) JobsStatsPlainNoCoreH(
+func (r *JobRepository) JobsStats(
 	ctx context.Context,
 	filter []*model.JobFilter) ([]*model.JobsStatistics, error) {
 
@@ -172,175 +173,32 @@ func (r *JobRepository) JobsStatsPlainNoCoreH(
 
 	row := query.RunWith(r.DB).QueryRow()
 	stats := make([]*model.JobsStatistics, 0, 1)
-	var jobs, walltime sql.NullInt64
-	if err := row.Scan(&jobs, &walltime); err != nil {
+
+	var jobs, walltime, nodeHours, coreHours sql.NullInt64
+	if err := row.Scan(&jobs, &walltime, &nodeHours, &coreHours); err != nil {
 		log.Warn("Error while scanning rows")
 		return nil, err
 	}
 
 	if jobs.Valid {
-		query := r.buildCountQuery(filter, "short", "")
-		query, err := SecurityCheck(ctx, query)
-		if err != nil {
-			return nil, err
-		}
-		var cnt sql.NullInt64
-		if err := query.RunWith(r.DB).QueryRow().Scan(&cnt); err != nil {
-			log.Warn("Error while scanning rows")
-			return nil, err
-		}
 		stats = append(stats,
 			&model.JobsStatistics{
 				TotalJobs:     int(jobs.Int64),
-				TotalWalltime: int(walltime.Int64),
-				ShortJobs:     int(cnt.Int64)})
+				TotalWalltime: int(walltime.Int64)})
 	}
 
 	log.Infof("Timer JobStatistics %s", time.Since(start))
 	return stats, nil
 }
 
-// without groupBy and with coreHours
-func (r *JobRepository) JobsStatsPlain(
-	ctx context.Context,
-	filter []*model.JobFilter) ([]*model.JobsStatistics, error) {
-
-	start := time.Now()
-	query := r.buildStatsQuery(filter, "")
-	query, err := SecurityCheck(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-
-	castType := r.getCastType()
-	var totalJobs, totalWalltime, totalCoreHours int64
-
-	for _, cluster := range archive.Clusters {
-		for _, subcluster := range cluster.SubClusters {
-
-			scQuery := query.Column(fmt.Sprintf(
-				"CAST(ROUND(SUM(job.duration * job.num_nodes * %d * %d) / 3600) as %s)",
-				subcluster.SocketsPerNode, subcluster.CoresPerSocket, castType))
-			scQuery = scQuery.Where("job.cluster = ?", cluster.Name).
-				Where("job.subcluster = ?", subcluster.Name)
-
-			row := scQuery.RunWith(r.DB).QueryRow()
-			var jobs, walltime, corehours sql.NullInt64
-			if err := row.Scan(&jobs, &walltime, &corehours); err != nil {
-				log.Warn("Error while scanning rows")
-				return nil, err
-			}
-
-			if jobs.Valid {
-				totalJobs += jobs.Int64
-				totalWalltime += walltime.Int64
-				totalCoreHours += corehours.Int64
-			}
-		}
-	}
-	stats := make([]*model.JobsStatistics, 0, 1)
-	stats = append(stats,
-		&model.JobsStatistics{
-			TotalJobs:      int(totalJobs),
-			TotalWalltime:  int(totalWalltime),
-			TotalCoreHours: int(totalCoreHours)})
-
-	log.Infof("Timer JobStatistics %s", time.Since(start))
-	return stats, nil
-}
-
-// with groupBy and with coreHours
-func (r *JobRepository) JobsStats(
+func (r *JobRepository) JobCountGrouped(
 	ctx context.Context,
 	filter []*model.JobFilter,
 	groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
 
 	start := time.Now()
-
-	stats := map[string]*model.JobsStatistics{}
 	col := groupBy2column[*groupBy]
-	query := r.buildStatsQuery(filter, col)
-	query, err := SecurityCheck(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-
-	castType := r.getCastType()
-
-	for _, cluster := range archive.Clusters {
-		for _, subcluster := range cluster.SubClusters {
-
-			scQuery := query.Column(fmt.Sprintf(
-				"CAST(ROUND(SUM(job.duration * job.num_nodes * %d * %d) / 3600) as %s)",
-				subcluster.SocketsPerNode, subcluster.CoresPerSocket, castType))
-
-			scQuery = scQuery.Where("job.cluster = ?", cluster.Name).
-				Where("job.subcluster = ?", subcluster.Name)
-
-			rows, err := scQuery.RunWith(r.DB).Query()
-			if err != nil {
-				log.Warn("Error while querying DB for job statistics")
-				return nil, err
-			}
-
-			for rows.Next() {
-				var id sql.NullString
-				var jobs, walltime, corehours sql.NullInt64
-				if err := rows.Scan(&id, &jobs, &walltime, &corehours); err != nil {
-					log.Warn("Error while scanning rows")
-					return nil, err
-				}
-
-				if s, ok := stats[id.String]; ok {
-					s.TotalJobs += int(jobs.Int64)
-					s.TotalWalltime += int(walltime.Int64)
-					s.TotalCoreHours += int(corehours.Int64)
-				} else {
-					if col == "job.user" {
-						name := r.getUserName(ctx, id.String)
-						stats[id.String] = &model.JobsStatistics{
-							ID:             id.String,
-							Name:           &name,
-							TotalJobs:      int(jobs.Int64),
-							TotalWalltime:  int(walltime.Int64),
-							TotalCoreHours: int(corehours.Int64),
-						}
-					} else {
-						stats[id.String] = &model.JobsStatistics{
-							ID:             id.String,
-							TotalJobs:      int(jobs.Int64),
-							TotalWalltime:  int(walltime.Int64),
-							TotalCoreHours: int(corehours.Int64),
-						}
-					}
-				}
-			}
-		}
-	}
-
-	res := make([]*model.JobsStatistics, 0, len(stats))
-	for _, stat := range stats {
-		res = append(res, stat)
-	}
-
-	log.Infof("Timer JobStatistics %s", time.Since(start))
-	return res, nil
-}
-
-type jobCountResult struct {
-	id          string
-	shortJobs   int
-	totalJobs   int
-	runningJobs int
-}
-
-func (r *JobRepository) JobCounts(
-	ctx context.Context,
-	filter []*model.JobFilter) ([]*model.JobsStatistics, error) {
-
-	counts := make(map[string]jobCountResult)
-	start := time.Now()
-	query := r.buildCountQuery(filter, "short", "cluster")
+	query := r.buildCountQuery(filter, "", col)
 	query, err := SecurityCheck(ctx, query)
 	if err != nil {
 		return nil, err
@@ -351,6 +209,8 @@ func (r *JobRepository) JobCounts(
 		return nil, err
 	}
 
+	stats := make([]*model.JobsStatistics, 0, 100)
+
 	for rows.Next() {
 		var id sql.NullString
 		var cnt sql.NullInt64
@@ -359,21 +219,39 @@ func (r *JobRepository) JobCounts(
 			return nil, err
 		}
 		if id.Valid {
-			counts[id.String] = jobCountResult{id: id.String, shortJobs: int(cnt.Int64)}
+			stats = append(stats,
+				&model.JobsStatistics{
+					ID:        id.String,
+					TotalJobs: int(cnt.Int64)})
 		}
 	}
 
-	query = r.buildCountQuery(filter, "running", "cluster")
-	query, err = SecurityCheck(ctx, query)
+	log.Infof("Timer JobStatistics %s", time.Since(start))
+	return stats, nil
+}
+
+func (r *JobRepository) AddJobCountGrouped(
+	ctx context.Context,
+	filter []*model.JobFilter,
+	groupBy *model.Aggregate,
+	stats []*model.JobsStatistics,
+	kind string) ([]*model.JobsStatistics, error) {
+
+	start := time.Now()
+	col := groupBy2column[*groupBy]
+	query := r.buildCountQuery(filter, kind, col)
+	query, err := SecurityCheck(ctx, query)
 	if err != nil {
 		return nil, err
 	}
-	rows, err = query.RunWith(r.DB).Query()
+	rows, err := query.RunWith(r.DB).Query()
 	if err != nil {
 		log.Warn("Error while querying DB for job statistics")
 		return nil, err
 	}
 
+	counts := make(map[string]int)
+
 	for rows.Next() {
 		var id sql.NullString
 		var cnt sql.NullInt64
@@ -382,18 +260,21 @@ func (r *JobRepository) JobCounts(
 			return nil, err
 		}
 		if id.Valid {
-			counts[id.String].runningJobs = int(cnt.Int64)
+			counts[id.String] = int(cnt.Int64)
 		}
 	}
 
-	stats := make([]*model.JobsStatistics, 0, 20)
-	if id.Valid {
-		stats = append(stats,
-			&model.JobsStatistics{
-				ID:          id.String,
-				TotalJobs:   int(jobs.Int64),
-				RunningJobs: int(walltime.Int64)})
+	switch kind {
+	case "running":
+		for _, s := range stats {
+			s.RunningJobs = counts[s.ID]
+		}
+	case "short":
+		for _, s := range stats {
+			s.ShortJobs = counts[s.ID]
+		}
 	}
+
 	log.Infof("Timer JobStatistics %s", time.Since(start))
 	return stats, nil
 }
