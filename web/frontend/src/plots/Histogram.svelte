@@ -24,6 +24,7 @@
     export let ylabel = ''
     export let min = null
     export let max = null
+    export let small = false
     export let label = formatNumber
 
     const fontSize = 12
@@ -108,7 +109,7 @@
         } else {
             const stepsizeX = getStepSize(maxValue, w, 120)
             for (let x = 0; x <= maxValue; x += stepsizeX) {
-                ctx.fillText(label(x), getCanvasX(x), height - paddingBottom - Math.floor(labelOffset / 2))
+                ctx.fillText(label(x), getCanvasX(x), height - paddingBottom - Math.floor(labelOffset / (small ? 8 : 2)))
             }
         }
 

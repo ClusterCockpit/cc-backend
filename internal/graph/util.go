@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
@@ -131,4 +132,16 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 		Nodehours: nodehours,
 		Metrics:   res,
 	}, nil
+}
+
+func requireField(ctx context.Context, name string) bool {
+	fields := graphql.CollectAllFields(ctx)
+
+	for _, f := range fields {
+		if f == name {
+			return true
+		}
+	}
+
+	return false
 }

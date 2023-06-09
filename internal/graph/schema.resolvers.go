@@ -263,7 +263,51 @@ func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, pag
 
 // JobsStatistics is the resolver for the jobsStatistics field.
 func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobFilter, groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
-	return r.Repo.JobsStatistics(ctx, filter, groupBy)
+	var err error
+	var stats []*model.JobsStatistics
+
+	if requireField(ctx, "totalJobs") {
+		if groupBy == nil {
+			stats, err = r.Repo.JobsStats(ctx, filter)
+		} else {
+			stats, err = r.Repo.JobsStatsGrouped(ctx, filter, groupBy)
+		}
+	} else {
+		stats = make([]*model.JobsStatistics, 0, 1)
+	}
+
+	if groupBy != nil {
+		if requireField(ctx, "shortJobs") {
+			stats, err = r.Repo.AddJobCountGrouped(ctx, filter, groupBy, stats, "short")
+		}
+		if requireField(ctx, "RunningJobs") {
+			stats, err = r.Repo.AddJobCountGrouped(ctx, filter, groupBy, stats, "running")
+		}
+	} else {
+		if requireField(ctx, "shortJobs") {
+			stats, err = r.Repo.AddJobCount(ctx, filter, stats, "short")
+		}
+		if requireField(ctx, "RunningJobs") {
+			stats, err = r.Repo.AddJobCount(ctx, filter, stats, "running")
+		}
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if requireField(ctx, "histDuration") || requireField(ctx, "histNumNodes") {
+		if groupBy == nil {
+			stats[0], err = r.Repo.AddHistograms(ctx, filter, stats[0])
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, errors.New("histograms only implemented without groupBy argument")
+		}
+	}
+
+	return stats, nil
 }
 
 // JobsCount is the resolver for the jobsCount field.
