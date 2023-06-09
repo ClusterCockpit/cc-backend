@@ -274,6 +274,8 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 		}
 	} else {
 		stats = make([]*model.JobsStatistics, 0, 1)
+		stats = append(stats,
+			&model.JobsStatistics{})
 	}
 
 	if groupBy != nil {
