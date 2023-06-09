@@ -160,7 +160,7 @@
                 {#key $statsQuery.data.topUsers}
                     <h4>Top Users (by node hours)</h4>
                     <Histogram
-                        width={colWidth - 25} height={300 * 0.5}
+                        width={colWidth - 25} height={300 * 0.5} small={true}
                         data={$statsQuery.data.topUsers.sort((a, b) => b.count - a.count).map(({ count }, idx) => ({ count, value: idx }))}
                         label={(x) => x < $statsQuery.data.topUsers.length ? $statsQuery.data.topUsers[Math.floor(x)].name : 'No Users'} 
                         ylabel="Node Hours [h]"/>
