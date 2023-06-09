@@ -61,18 +61,20 @@ func (r *JobRepository) buildStatsQuery(
 	castType := r.getCastType()
 
 	if col != "" {
-		// Scan columns: id, totalJobs, totalWalltime, totalNodeHours, totalCoreHours
+		// Scan columns: id, totalJobs, totalWalltime, totalNodeHours, totalCoreHours, totalAccHours
 		query = sq.Select(col, "COUNT(job.id)",
 			fmt.Sprintf("CAST(ROUND(SUM(job.duration) / 3600) as %s)", castType),
 			fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_nodes) / 3600) as %s)", castType),
 			fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_hwthreads) / 3600) as %s)", castType),
+			fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_acc) / 3600) as %s)", castType),
 		).From("job").GroupBy(col)
 	} else {
-		// Scan columns: totalJobs, totalWalltime, totalNodeHours, totalCoreHours
+		// Scan columns: totalJobs, totalWalltime, totalNodeHours, totalCoreHours, totalAccHours
 		query = sq.Select("COUNT(job.id)",
 			fmt.Sprintf("CAST(ROUND(SUM(job.duration) / 3600) as %s)", castType),
 			fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_nodes) / 3600) as %s)", castType),
 			fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_hwthreads) / 3600) as %s)", castType),
+			fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_acc) / 3600) as %s)", castType),
 		).From("job")
 	}
 
@@ -131,27 +133,40 @@ func (r *JobRepository) JobsStatsGrouped(
 
 	for rows.Next() {
 		var id sql.NullString
-		var jobs, walltime, nodeHours, coreHours sql.NullInt64
-		if err := rows.Scan(&id, &jobs, &walltime, &nodeHours, &coreHours); err != nil {
+		var jobs, walltime, nodeHours, coreHours, accHours sql.NullInt64
+		if err := rows.Scan(&id, &jobs, &walltime, &nodeHours, &coreHours, &accHours); err != nil {
 			log.Warn("Error while scanning rows")
 			return nil, err
 		}
 
 		if id.Valid {
+			var totalCoreHours, totalAccHours int
+
+			if coreHours.Valid {
+				totalCoreHours = int(coreHours.Int64)
+			}
+			if accHours.Valid {
+				totalAccHours = int(accHours.Int64)
+			}
+
 			if col == "job.user" {
 				name := r.getUserName(ctx, id.String)
 				stats = append(stats,
 					&model.JobsStatistics{
-						ID:            id.String,
-						Name:          name,
-						TotalJobs:     int(jobs.Int64),
-						TotalWalltime: int(walltime.Int64)})
+						ID:             id.String,
+						Name:           name,
+						TotalJobs:      int(jobs.Int64),
+						TotalWalltime:  int(walltime.Int64),
+						TotalCoreHours: totalCoreHours,
+						TotalAccHours:  totalAccHours})
 			} else {
 				stats = append(stats,
 					&model.JobsStatistics{
-						ID:            id.String,
-						TotalJobs:     int(jobs.Int64),
-						TotalWalltime: int(walltime.Int64)})
+						ID:             id.String,
+						TotalJobs:      int(jobs.Int64),
+						TotalWalltime:  int(walltime.Int64),
+						TotalCoreHours: totalCoreHours,
+						TotalAccHours:  totalAccHours})
 			}
 		}
 	}
@@ -174,17 +189,27 @@ func (r *JobRepository) JobsStats(
 	row := query.RunWith(r.DB).QueryRow()
 	stats := make([]*model.JobsStatistics, 0, 1)
 
-	var jobs, walltime, nodeHours, coreHours sql.NullInt64
-	if err := row.Scan(&jobs, &walltime, &nodeHours, &coreHours); err != nil {
+	var jobs, walltime, nodeHours, coreHours, accHours sql.NullInt64
+	if err := row.Scan(&jobs, &walltime, &nodeHours, &coreHours, &accHours); err != nil {
 		log.Warn("Error while scanning rows")
 		return nil, err
 	}
 
 	if jobs.Valid {
+		var totalCoreHours, totalAccHours int
+
+		if coreHours.Valid {
+			totalCoreHours = int(coreHours.Int64)
+		}
+		if accHours.Valid {
+			totalAccHours = int(accHours.Int64)
+		}
 		stats = append(stats,
 			&model.JobsStatistics{
-				TotalJobs:     int(jobs.Int64),
-				TotalWalltime: int(walltime.Int64)})
+				TotalJobs:      int(jobs.Int64),
+				TotalWalltime:  int(walltime.Int64),
+				TotalCoreHours: totalCoreHours,
+				TotalAccHours:  totalAccHours})
 	}
 
 	log.Infof("Timer JobStatistics %s", time.Since(start))

@@ -145,6 +145,7 @@ type ComplexityRoot struct {
 		Name           func(childComplexity int) int
 		RunningJobs    func(childComplexity int) int
 		ShortJobs      func(childComplexity int) int
+		TotalAccHours  func(childComplexity int) int
 		TotalCoreHours func(childComplexity int) int
 		TotalJobs      func(childComplexity int) int
 		TotalNodeHours func(childComplexity int) int
@@ -746,6 +747,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.JobsStatistics.ShortJobs(childComplexity), true
+
+	case "JobsStatistics.totalAccHours":
+		if e.complexity.JobsStatistics.TotalAccHours == nil {
+			break
+		}
+
+		return e.complexity.JobsStatistics.TotalAccHours(childComplexity), true
 
 	case "JobsStatistics.totalCoreHours":
 		if e.complexity.JobsStatistics.TotalCoreHours == nil {
@@ -1786,6 +1794,7 @@ type JobsStatistics  {
   totalWalltime:  Int!           # Sum of the duration of all matched jobs in hours
   totalNodeHours: Int!           # Sum of the node hours of all matched jobs
   totalCoreHours: Int!           # Sum of the core hours of all matched jobs
+  totalAccHours:  Int!           # Sum of the gpu hours of all matched jobs
   histDuration:   [HistoPoint!]! # value: hour, count: number of jobs with a rounded duration of value
   histNumNodes:   [HistoPoint!]! # value: number of nodes, count: number of jobs with that number of nodes
 }
@@ -5122,6 +5131,50 @@ func (ec *executionContext) fieldContext_JobsStatistics_totalCoreHours(ctx conte
 	return fc, nil
 }
 
+func (ec *executionContext) _JobsStatistics_totalAccHours(ctx context.Context, field graphql.CollectedField, obj *model.JobsStatistics) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JobsStatistics_totalAccHours(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalAccHours, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JobsStatistics_totalAccHours(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JobsStatistics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _JobsStatistics_histDuration(ctx context.Context, field graphql.CollectedField, obj *model.JobsStatistics) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_JobsStatistics_histDuration(ctx, field)
 	if err != nil {
@@ -6983,6 +7036,8 @@ func (ec *executionContext) fieldContext_Query_jobsStatistics(ctx context.Contex
 				return ec.fieldContext_JobsStatistics_totalNodeHours(ctx, field)
 			case "totalCoreHours":
 				return ec.fieldContext_JobsStatistics_totalCoreHours(ctx, field)
+			case "totalAccHours":
+				return ec.fieldContext_JobsStatistics_totalAccHours(ctx, field)
 			case "histDuration":
 				return ec.fieldContext_JobsStatistics_histDuration(ctx, field)
 			case "histNumNodes":
@@ -12206,6 +12261,13 @@ func (ec *executionContext) _JobsStatistics(ctx context.Context, sel ast.Selecti
 		case "totalCoreHours":
 
 			out.Values[i] = ec._JobsStatistics_totalCoreHours(ctx, field, obj)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "totalAccHours":
+
+			out.Values[i] = ec._JobsStatistics_totalAccHours(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
 				invalids++

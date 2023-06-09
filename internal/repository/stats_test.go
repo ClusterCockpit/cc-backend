@@ -11,14 +11,11 @@ import (
 
 func TestBuildJobStatsQuery(t *testing.T) {
 	r := setup(t)
-	q := r.buildJobsStatsQuery(nil, "USER")
+	q := r.buildStatsQuery(nil, "USER")
 
 	sql, _, err := q.ToSql()
 	noErr(t, err)
 
 	fmt.Printf("SQL: %s\n", sql)
 
-	if 1 != 5 {
-		t.Errorf("wrong summary for diagnostic 3\ngot: %d \nwant: 1366", 5)
-	}
 }
