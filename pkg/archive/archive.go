@@ -42,6 +42,8 @@ type ArchiveBackend interface {
 
 	Compress(jobs []*schema.Job)
 
+	CompressLast(starttime int64) int64
+
 	Iter(loadMetricData bool) <-chan JobContainer
 }
 

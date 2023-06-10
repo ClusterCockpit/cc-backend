@@ -36,6 +36,13 @@ type FsArchive struct {
 	clusters []string
 }
 
+type clusterInfo struct {
+	numJobs   int
+	dateFirst int64
+	dateLast  int64
+	diskSize  float64
+}
+
 func getDirectory(
 	job *schema.Job,
 	rootPath string,
@@ -124,7 +131,7 @@ func (fsa *FsArchive) Init(rawConfig json.RawMessage) (uint64, error) {
 
 	b, err := os.ReadFile(filepath.Join(fsa.path, "version.txt"))
 	if err != nil {
-		fmt.Println("Err")
+		log.Warnf("fsBackend Init() - %v", err)
 		return 0, err
 	}
 
@@ -152,13 +159,6 @@ func (fsa *FsArchive) Init(rawConfig json.RawMessage) (uint64, error) {
 	}
 
 	return version, nil
-}
-
-type clusterInfo struct {
-	numJobs   int
-	dateFirst int64
-	dateLast  int64
-	diskSize  float64
 }
 
 func (fsa *FsArchive) Info() {
@@ -324,6 +324,7 @@ func (fsa *FsArchive) Move(jobs []*schema.Job, path string) {
 }
 
 func (fsa *FsArchive) CleanUp(jobs []*schema.Job) {
+	start := time.Now()
 	for _, job := range jobs {
 		dir := getDirectory(job, fsa.path)
 		if err := os.RemoveAll(dir); err != nil {
@@ -337,15 +338,41 @@ func (fsa *FsArchive) CleanUp(jobs []*schema.Job) {
 			}
 		}
 	}
+
+	log.Infof("Retention Service - Remove %d files in %s", len(jobs), time.Since(start))
 }
 
 func (fsa *FsArchive) Compress(jobs []*schema.Job) {
+	var cnt int
+	start := time.Now()
+
 	for _, job := range jobs {
 		fileIn := getPath(job, fsa.path, "data.json")
 		if !util.CheckFileExists(fileIn) && util.GetFilesize(fileIn) > 2000 {
 			util.CompressFile(fileIn, getPath(job, fsa.path, "data.json.gz"))
+			cnt++
 		}
 	}
+
+	log.Infof("Compression Service - %d files took %s", cnt, time.Since(start))
+}
+
+func (fsa *FsArchive) CompressLast(starttime int64) int64 {
+
+	filename := filepath.Join(fsa.path, "compress.txt")
+	b, err := os.ReadFile(filename)
+	if err != nil {
+		log.Errorf("fsBackend Compress - %v", err)
+		return starttime
+	}
+	last, err := strconv.ParseInt(strings.TrimSuffix(string(b), "\n"), 10, 64)
+	if err != nil {
+		log.Errorf("fsBackend Compress - %v", err)
+		return starttime
+	}
+
+	os.WriteFile(filename, []byte(fmt.Sprintf("%d", starttime)), 0644)
+	return last
 }
 
 func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
@@ -476,7 +503,6 @@ func (fsa *FsArchive) StoreJobMeta(jobMeta *schema.JobMeta) error {
 }
 
 func (fsa *FsArchive) GetClusters() []string {
-
 	return fsa.clusters
 }
 

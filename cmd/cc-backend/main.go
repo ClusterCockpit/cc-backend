@@ -450,7 +450,7 @@ func main() {
 
 		s.Every(1).Day().At("4:00").Do(func() {
 			startTime := time.Now().Unix() - int64(cfg.Retention.Age*24*3600)
-			jobs, err := jobRepo.FindJobsBefore(startTime)
+			jobs, err := jobRepo.FindJobsBetween(0, startTime)
 			if err != nil {
 				log.Warnf("Error while looking for retention jobs: %s", err.Error())
 			}
@@ -473,7 +473,7 @@ func main() {
 
 		s.Every(1).Day().At("4:00").Do(func() {
 			startTime := time.Now().Unix() - int64(cfg.Retention.Age*24*3600)
-			jobs, err := jobRepo.FindJobsBefore(startTime)
+			jobs, err := jobRepo.FindJobsBetween(0, startTime)
 			if err != nil {
 				log.Warnf("Error while looking for retention jobs: %s", err.Error())
 			}
@@ -497,12 +497,14 @@ func main() {
 		log.Info("Register compression service")
 
 		s.Every(1).Day().At("5:00").Do(func() {
+			ar := archive.GetHandle()
 			startTime := time.Now().Unix() - int64(cfg.Compression*24*3600)
-			jobs, err := jobRepo.FindJobsBefore(startTime)
+			lastTime := ar.CompressLast(startTime)
+			jobs, err := jobRepo.FindJobsBetween(lastTime, startTime)
 			if err != nil {
 				log.Warnf("Error while looking for retention jobs: %s", err.Error())
 			}
-			archive.GetHandle().Compress(jobs)
+			ar.Compress(jobs)
 		})
 	}
 

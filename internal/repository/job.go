@@ -712,18 +712,22 @@ func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 	return nil
 }
 
-func (r *JobRepository) FindJobsBefore(startTime int64) ([]*schema.Job, error) {
+func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64) ([]*schema.Job, error) {
 
-	query := sq.Select(jobColumns...).From("job").Where(fmt.Sprintf(
-		"job.start_time < %d", startTime))
+	var query sq.SelectBuilder
 
-	sql, args, err := query.ToSql()
-	if err != nil {
-		log.Warn("Error while converting query to sql")
-		return nil, err
+	if startTimeBegin == startTimeEnd || startTimeBegin > startTimeEnd {
+		return nil, errors.New("startTimeBegin is equal or larger startTimeEnd")
 	}
 
-	log.Debugf("SQL query: `%s`, args: %#v", sql, args)
+	if startTimeBegin == 0 {
+		query = sq.Select(jobColumns...).From("job").Where(fmt.Sprintf(
+			"job.start_time < %d", startTimeEnd))
+	} else {
+		query = sq.Select(jobColumns...).From("job").Where(fmt.Sprintf(
+			"job.start_time BETWEEN %d AND %d", startTimeBegin, startTimeEnd))
+	}
+
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
 		log.Error("Error while running query")
