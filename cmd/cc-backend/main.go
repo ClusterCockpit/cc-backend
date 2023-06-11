@@ -482,12 +482,12 @@ func main() {
 			if cfg.Retention.IncludeDB {
 				cnt, err := jobRepo.DeleteJobsBefore(startTime)
 				if err != nil {
-					log.Errorf("Error while deleting retention jobs from db: %s", err.Error())
+					log.Errorf("Error while deleting retention jobs from db: %v", err)
 				} else {
 					log.Infof("Retention: Removed %d jobs from db", cnt)
 				}
 				if err = jobRepo.Optimize(); err != nil {
-					log.Errorf("Error occured in db optimization: %s", err.Error())
+					log.Errorf("Error occured in db optimization: %v", err)
 				}
 			}
 		})
@@ -497,12 +497,21 @@ func main() {
 		log.Info("Register compression service")
 
 		s.Every(1).Day().At("5:00").Do(func() {
+			var jobs []*schema.Job
+
 			ar := archive.GetHandle()
 			startTime := time.Now().Unix() - int64(cfg.Compression*24*3600)
 			lastTime := ar.CompressLast(startTime)
-			jobs, err := jobRepo.FindJobsBetween(lastTime, startTime)
+			if startTime == lastTime {
+				log.Info("Compression Service - Complete archive run")
+				jobs, err = jobRepo.FindJobsBetween(0, startTime)
+
+			} else {
+				jobs, err = jobRepo.FindJobsBetween(lastTime, startTime)
+			}
+
 			if err != nil {
-				log.Warnf("Error while looking for retention jobs: %s", err.Error())
+				log.Warnf("Error while looking for retention jobs: %v", err)
 			}
 			ar.Compress(jobs)
 		})
