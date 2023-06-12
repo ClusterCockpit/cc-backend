@@ -23,19 +23,9 @@
     }
 
     let timeoutId = null
+    // Compatibility: Handle "user role" and "no role" identically
     function termChanged(sleep = throttle) {
-        if (authlevel == roles.user) {
-            project = term
-
-            if (timeoutId != null)
-                clearTimeout(timeoutId)
-
-            timeoutId = setTimeout(() => {
-                dispatch('update', {
-                    project
-                })
-            }, sleep)
-        } else if (authlevel >= roles.manager) {
+        if (authlevel >= roles.manager) {
             if (mode == 'user')
                 user = term
             else
@@ -50,17 +40,21 @@
                     project
                 })
             }, sleep)
+        } else {
+            project = term
+            if (timeoutId != null)
+                clearTimeout(timeoutId)
+
+            timeoutId = setTimeout(() => {
+                dispatch('update', {
+                    project
+                })
+            }, sleep)
         }
     }
 </script>
 
-{#if authlevel == roles.user}
-    <InputGroup>
-        <Input
-            type="text" bind:value={term} on:change={() => termChanged()} on:keyup={(event) => termChanged(event.key == 'Enter' ? 0 : throttle)} placeholder='filter project...'
-        />
-    </InputGroup>
-{:else if authlevel >= roles.manager}
+{#if authlevel >= roles.manager}
     <InputGroup>
         <select style="max-width: 175px;" class="form-select"
             bind:value={mode} on:change={modeChanged}>
@@ -72,5 +66,10 @@
             placeholder={mode == 'user' ? 'filter username...' : 'filter project...'} />
     </InputGroup>
 {:else}
-    Unauthorized
+    <!-- Compatibility: Handle "user role" and "no role" identically-->
+    <InputGroup>
+        <Input
+            type="text" bind:value={term} on:change={() => termChanged()} on:keyup={(event) => termChanged(event.key == 'Enter' ? 0 : throttle)} placeholder='filter project...'
+        />
+    </InputGroup>
 {/if}

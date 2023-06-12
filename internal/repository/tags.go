@@ -88,12 +88,15 @@ func (r *JobRepository) CountTags(user *auth.User) (tags []schema.Tag, counts ma
 		LeftJoin("jobtag jt ON t.id = jt.tag_id").
 		GroupBy("t.tag_name")
 
-	if user != nil && user.HasRole(auth.RoleUser) { // USER: Only count own jobs
-		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.user = ?)", user.Username)
+	if user != nil && user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport}) { // ADMIN || SUPPORT: Count all jobs
+		log.Info("CountTags: User Admin or Support -> Count all Jobs for Tags")
+		// Unchanged: Needs to be own case still, due to UserRole/NoRole compatibility handling in else case
 	} else if user != nil && user.HasRole(auth.RoleManager) { // MANAGER: Count own jobs plus project's jobs
 		// Build ("project1", "project2", ...) list of variable length directly in SQL string
 		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.user = ? OR job.project IN (\""+strings.Join(user.Projects, "\",\"")+"\"))", user.Username)
-	} // else: ADMIN || SUPPORT: Count all jobs
+	} else if user != nil { // USER OR NO ROLE (Compatibility): Only count own jobs
+		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.user = ?)", user.Username)
+	}
 
 	rows, err := q.RunWith(r.stmtCache).Query()
 	if err != nil {
