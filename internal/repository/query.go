@@ -204,7 +204,10 @@ func (r *JobRepository) CountJobs(
 
 func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (queryOut sq.SelectBuilder, err error) {
 	user := auth.GetUser(ctx)
-	if user == nil || user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleApi}) { // Admin & Co. : All jobs
+	if user == nil {
+		var qnil sq.SelectBuilder
+		return qnil, fmt.Errorf("user context is nil!")
+	} else if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport}) { // Admin & Co. : All jobs
 		return query, nil
 	} else if user.HasRole(auth.RoleManager) { // Manager : Add filter for managed projects' jobs only + personal jobs
 		if len(user.Projects) != 0 {
@@ -215,9 +218,12 @@ func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (queryOut sq.Sel
 		}
 	} else if user.HasRole(auth.RoleUser) { // User : Only personal jobs
 		return query.Where("job.user = ?", user.Username), nil
-	} else { // Unauthorized : Error
-		var qnil sq.SelectBuilder
-		return qnil, fmt.Errorf("user '%s' with unknown roles [%#v]", user.Username, user.Roles)
+	} else {
+		// Shortterm compatibility: Return User-Query if no roles:
+		return query.Where("job.user = ?", user.Username), nil
+		// // On the longterm: Return Error instead of fallback:
+		// var qnil sq.SelectBuilder
+		// return qnil, fmt.Errorf("user '%s' with unknown roles [%#v]", user.Username, user.Roles)
 	}
 }
 

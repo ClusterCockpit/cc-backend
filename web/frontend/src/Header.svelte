@@ -65,12 +65,10 @@
                 {#each managerviews as item}
                     <NavLink href={item.href} active={window.location.pathname == item.href}><Icon name={item.icon}/> {item.title}</NavLink>
                 {/each}
-            {:else if authlevel == roles.user}
+            {:else} <!-- Compatibility: Handle "user role" or "no role" as identical-->
                 {#each userviews as item}
                     <NavLink href={item.href} active={window.location.pathname == item.href}><Icon name={item.icon}/> {item.title}</NavLink>
                 {/each}
-            {:else}
-                <p>API User or Unauthorized!</p>
             {/if}
             {#each viewsPerCluster.filter(item => item.requiredRole <= authlevel) as item}
                 <NavItem>
