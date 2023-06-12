@@ -23,6 +23,8 @@ import (
 const Version = 1
 
 var ar FsArchive
+var srcPath string
+var dstPath string
 
 func loadJobData(filename string) (*JobData, error) {
 
@@ -243,17 +245,65 @@ func deepCopyClusterConfig(co *Cluster) schema.Cluster {
 	return cn
 }
 
+func convertJob(job *JobMeta) {
+	// check if source data is available, otherwise skip job
+	src_data_path := getPath(job, srcPath, "data.json")
+	info, err := os.Stat(src_data_path)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if info.Size() == 0 {
+		fmt.Printf("Skip path %s, filesize is 0 Bytes.", src_data_path)
+		return
+	}
+
+	path := getPath(job, dstPath, "meta.json")
+	err = os.MkdirAll(filepath.Dir(path), 0750)
+	if err != nil {
+		log.Fatal(err)
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	jmn := deepCopyJobMeta(job)
+	if err = EncodeJobMeta(f, &jmn); err != nil {
+		log.Fatal(err)
+	}
+	if err = f.Close(); err != nil {
+		log.Fatal(err)
+	}
+
+	f, err = os.Create(getPath(job, dstPath, "data.json"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var jd *JobData
+	jd, err = loadJobData(src_data_path)
+	if err != nil {
+		log.Fatal(err)
+	}
+	jdn := deepCopyJobData(jd, job.Cluster, job.SubCluster)
+	if err := EncodeJobData(f, jdn); err != nil {
+		log.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		log.Fatal(err)
+	}
+}
+
 func main() {
 	var flagLogLevel, flagConfigFile string
-	var flagLogDateTime bool
-	var srcPath string
-	var dstPath string
+	var flagLogDateTime, debug bool
 
 	flag.BoolVar(&flagLogDateTime, "logdate", false, "Set this flag to add date and time to log messages")
+	flag.BoolVar(&debug, "debug", false, "Set this flag to force sequential execution for debugging")
 	flag.StringVar(&flagLogLevel, "loglevel", "warn", "Sets the logging level: `[debug,info,warn (default),err,fatal,crit]`")
 	flag.StringVar(&flagConfigFile, "config", "./config.json", "Specify alternative path to `config.json`")
-	flag.StringVar(&srcPath, "s", "./var/job-archive", "Specify the source job archive path")
-	flag.StringVar(&dstPath, "d", "./var/job-archive-new", "Specify the destination job archive path")
+	flag.StringVar(&srcPath, "src", "./var/job-archive", "Specify the source job archive path")
+	flag.StringVar(&dstPath, "dst", "./var/job-archive-new", "Specify the destination job archive path")
 	flag.Parse()
 
 	if _, err := os.Stat(filepath.Join(srcPath, "version.txt")); !errors.Is(err, os.ErrNotExist) {
@@ -302,59 +352,18 @@ func main() {
 	var wg sync.WaitGroup
 
 	for job := range ar.Iter() {
-		// fmt.Printf("Job %d\n", job.JobID)
-		job := job
-		wg.Add(1)
+		if debug {
+			fmt.Printf("Job %d\n", job.JobID)
+			convertJob(job)
+		} else {
+			job := job
+			wg.Add(1)
 
-		go func() {
-			defer wg.Done()
-			// check if source data is available, otherwise skip job
-			src_data_path := getPath(job, srcPath, "data.json")
-			info, err := os.Stat(src_data_path)
-			if err != nil {
-				log.Fatal(err)
-			}
-			if info.Size() == 0 {
-				fmt.Printf("Skip path %s, filesize is 0 Bytes.", src_data_path)
-				return
-			}
-
-			path := getPath(job, dstPath, "meta.json")
-			err = os.MkdirAll(filepath.Dir(path), 0750)
-			if err != nil {
-				log.Fatal(err)
-			}
-			f, err := os.Create(path)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			jmn := deepCopyJobMeta(job)
-			if err = EncodeJobMeta(f, &jmn); err != nil {
-				log.Fatal(err)
-			}
-			if err = f.Close(); err != nil {
-				log.Fatal(err)
-			}
-
-			f, err = os.Create(getPath(job, dstPath, "data.json"))
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			var jd *JobData
-			jd, err = loadJobData(src_data_path)
-			if err != nil {
-				log.Fatal(err)
-			}
-			jdn := deepCopyJobData(jd, job.Cluster, job.SubCluster)
-			if err := EncodeJobData(f, jdn); err != nil {
-				log.Fatal(err)
-			}
-			if err := f.Close(); err != nil {
-				log.Fatal(err)
-			}
-		}()
+			go func() {
+				defer wg.Done()
+				convertJob(job)
+			}()
+		}
 	}
 
 	wg.Wait()
