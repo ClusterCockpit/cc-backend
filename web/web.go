@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
@@ -44,6 +45,23 @@ func init() {
 		}
 		if d.IsDir() || path == "templates/base.tmpl" {
 			return nil
+		}
+
+		if path == "templates/imprint.tmpl" {
+			if _, err := os.Stat("./var/imprint.tmpl"); err == nil {
+				log.Info("overwrite imprint.tmpl with local file")
+				templates[strings.TrimPrefix(path, "templates/")] =
+					template.Must(template.Must(base.Clone()).ParseFiles("./var/imprint.tmpl"))
+				return nil
+			}
+		}
+		if path == "templates/privacy.tmpl" {
+			if _, err := os.Stat("./var/privacy.tmpl"); err == nil {
+				log.Info("overwrite privacy.tmpl with local file")
+				templates[strings.TrimPrefix(path, "templates/")] =
+					template.Must(template.Must(base.Clone()).ParseFiles("./var/privacy.tmpl"))
+				return nil
+			}
 		}
 
 		templates[strings.TrimPrefix(path, "templates/")] = template.Must(template.Must(base.Clone()).ParseFS(templateFiles, path))
