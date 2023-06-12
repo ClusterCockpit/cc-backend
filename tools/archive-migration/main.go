@@ -308,6 +308,17 @@ func main() {
 
 		go func() {
 			defer wg.Done()
+			// check if source data is available, otherwise skip job
+			src_data_path := getPath(job, srcPath, "data.json")
+			info, err := os.Stat(src_data_path)
+			if err != nil {
+				log.Fatal(err)
+			}
+			if info.Size() == 0 {
+				fmt.Printf("Skip path %s, filesize is 0 Bytes.", src_data_path)
+				return
+			}
+
 			path := getPath(job, dstPath, "meta.json")
 			err = os.MkdirAll(filepath.Dir(path), 0750)
 			if err != nil {
@@ -332,7 +343,7 @@ func main() {
 			}
 
 			var jd *JobData
-			jd, err = loadJobData(getPath(job, srcPath, "data.json"))
+			jd, err = loadJobData(src_data_path)
 			if err != nil {
 				log.Fatal(err)
 			}
