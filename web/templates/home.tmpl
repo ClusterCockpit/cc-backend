@@ -9,8 +9,8 @@
                     <th>Running Jobs</th>
                     <th>Total Jobs</th>
                     {{if .User.HasRole .Roles.admin}}
+                        <th>Status View</th>
                         <th>System View</th>
-                        <th>Analysis View</th>
                     {{end}}
                 </tr>
             </thead>
@@ -21,8 +21,8 @@
                             <td>{{.ID}}</td>
                             <td><a href="/monitoring/jobs/?cluster={{.ID}}&state=running">{{.RunningJobs}} jobs</a></td>
                             <td><a href="/monitoring/jobs/?cluster={{.ID}}">{{.TotalJobs}} jobs</a></td>
+                            <td><a href="/monitoring/status/{{.ID}}">Status View</a></td>
                             <td><a href="/monitoring/systems/{{.ID}}">System View</a></td>
-                            <td><a href="/monitoring/analysis/{{.ID}}">Analysis View</a></td>
                         </tr>
                     {{end}}
                 {{else}}
