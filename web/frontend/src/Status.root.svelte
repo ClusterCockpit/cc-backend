@@ -161,7 +161,7 @@
                 <tr class="mb-2"><th>User Name</th><th>Number of Nodes</th></tr>
                 {#each $mainQuery.data.topUsers.sort((a, b) => b.count - a.count) as { name, count }}
                     <tr>
-                        <th scope="col"><a href="/monitoring/user/{name}">{name}</a></th>
+                        <th scope="col"><a href="/monitoring/user/{name}?cluster={cluster}&state=running">{name}</a></th>
                         <td>{count}</td>
                     </tr>
                 {/each}
@@ -182,7 +182,7 @@
                 <tr class="mb-2"><th>Project Code</th><th>Number of Nodes</th></tr>
                 {#each $mainQuery.data.topProjects.sort((a, b) => b.count - a.count) as { name, count }}
                     <tr>
-                        <th scope="col"><a href="/monitoring/jobs/?project={name}&projectMatch=eq">{name}</a></th>
+                        <th scope="col"><a href="/monitoring/jobs/?cluster={cluster}&state=running&project={name}&projectMatch=eq">{name}</a></th>
                         <td>{count}</td>
                     </tr>
                 {/each}
