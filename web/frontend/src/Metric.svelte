@@ -59,7 +59,7 @@
         {metricName} ({(metricConfig?.unit?.prefix ? metricConfig.unit.prefix : '') +
                        (metricConfig?.unit?.base   ? metricConfig.unit.base   : '')})
     </InputGroupText>
-    <select id="scopeselector" class="form-select" bind:value={selectedScope}>
+    <select class="form-select" bind:value={selectedScope}>
         {#each availableScopes as scope}
             <option value={scope}>{scope}</option>
         {/each}
