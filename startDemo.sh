@@ -10,7 +10,7 @@ else
     rm ./job-archive-demo.tar
 
     cp ./configs/env-template.txt .env
-    cp ./docs/config.json config.json
+    cp ./configs/config-demo.json config.json
 
     ./cc-backend --migrate-db
     ./cc-backend --server --dev --init-db --add-user demo:admin:demo
