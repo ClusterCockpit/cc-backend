@@ -50,7 +50,8 @@ To migrate the job archive a separate tool (`archive-migration`) is required tha
 `cc-backend` source tree (build with `go build ./tools/archive-migration`) and also provided as part of releases.
 
 Migration is only supported between two subsequent versions. The migration tool
-will migrate the existing job archive into a new job archive. If the tool is
+will migrate the existing job archive into a new job archive. This means there
+has to be enough disk space for two complete job-archives. If the tool is
 called without options:
 ```
 $ ./archive-migration
