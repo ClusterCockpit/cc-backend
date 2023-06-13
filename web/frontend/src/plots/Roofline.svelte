@@ -279,8 +279,8 @@
     export function transformPerNodeData(nodes) {
         const x = [], y = [], c = []
         for (let node of nodes) {
-            let flopsAny = node.metrics.find(m => m.name == 'flops_any' && m.metric.scope == 'node')?.metric
-            let memBw    = node.metrics.find(m => m.name == 'mem_bw'    && m.metric.scope == 'node')?.metric
+            let flopsAny = node.metrics.find(m => m.name == 'flops_any' && m.scope == 'node')?.metric
+            let memBw    = node.metrics.find(m => m.name == 'mem_bw'    && m.scope == 'node')?.metric
             if (!flopsAny || !memBw) {
                 console.warn("transformPerNodeData: metrics for 'mem_bw' and/or 'flops_any' missing!")
                 continue
