@@ -11,9 +11,9 @@ mismatch is detected the application will exit and a migration is required.
 
 **IMPORTANT NOTICE**
 
-It is recommended to backup the database before any upgrade. This is mandatory
-in case the database needs to be migrated. In case of sqlite this means to stop
-`cc-backend` and copy the sqlite databse file somewhere.
+It is recommended to backup the database before any upgrade. It is mandatory
+to backup in case the database is migrated. Using sqlite this means to stop
+`cc-backend` and copy the sqlite database file somewhere.
 
 #  Migrating the database
 After backing up the database execute the the following command to migrate the
