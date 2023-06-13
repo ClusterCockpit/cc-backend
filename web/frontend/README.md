@@ -12,18 +12,15 @@ Builds on:
 
 ## Get started
 
-[Yarn](https://yarnpkg.com/) is recommended for package management.
-Due to an issue with Yarn v2 you have to stick to Yarn v1.
-
 Install the dependencies...
 
 ```bash
-yarn install
+npm install
 ```
 
 ...then build using [Rollup](https://rollupjs.org):
 
 ```bash
-yarn build
+npm run build
 ```
 

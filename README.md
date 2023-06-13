@@ -30,7 +30,7 @@ You find more detailed information here:
 
 **NOTICE**
 
-ClusterCockpit requires a recent version of the golang toolchain.
+ClusterCockpit requires a recent version of the golang toolchain and node.js.
 You can check in `go.mod` what is the current minimal golang version required.
 Homebrew and Archlinux usually have up to date golang versions. For other Linux
 distros this often means you have to install the golang compiler yourself.
@@ -107,7 +107,7 @@ Having no jobs in the job-archive at all is fine.
 
 A config file in the JSON format has to be provided using `--config` to override the defaults.
 By default, if there is a `config.json` file in the current directory of the `cc-backend` process, it will be loaded even without the `--config` flag.
-You find documentation of all supported configuration and command line options [here](./configs.README.md).
+You find documentation of all supported configuration and command line options [here](./configs/README.md).
 
 ## Database initialization and migration
 
