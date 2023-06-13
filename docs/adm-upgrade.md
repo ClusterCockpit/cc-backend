@@ -16,13 +16,13 @@ in case the database needs to be migrated. In case of sqlite this means to stop
 `cc-backend` and copy the sqlite databse file somewhere.
 
 #  Migrating the database
-After backing up the database execute the the following command to migrate the
+After doing a database backup execute the following command to migrate the
 databse to the most recent version:
 ```
 $ ./cc-backend -migrate-db
 ```
 
-The migration files are embedded into the binary but can be reviewed in the
+The migration files are embedded into the binary and can also be reviewed in the
 cc-backend [source tree](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/repository/migrations).
 There are separate migration files for both supported database backends.
 We use the [migrate library](https://github.com/golang-migrate/migrate).
