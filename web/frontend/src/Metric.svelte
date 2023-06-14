@@ -18,9 +18,9 @@
     
     let selectedHost = null, plot, fetching = false, error = null
     let selectedScope = minScope(scopes)
-    let selectedScopeIndex = scopes.findIndex(s => s == selectedScope)
 
-    $: avaliableScopes = scopes
+    $: availableScopes = scopes
+    $: selectedScopeIndex = scopes.findIndex(s => s == selectedScope)
     $: data = rawData[selectedScopeIndex]
     $: series = data?.series.filter(series => selectedHost == null || series.hostname == selectedHost)
 
@@ -43,11 +43,11 @@
 
         for (let jm of response.data.jobMetrics) {
             if (jm.scope != "node") {
-                scopes.push(jm.metric)
+                scopes = [...scopes, jm.scope]
+                rawData.push(jm.metric)
                 selectedScope = jm.scope
+                selectedScopeIndex = scopes.findIndex(s => s == jm.scope)
                 dispatch('more-loaded', jm)
-                if (!avaliableScopes.includes(selectedScope))
-                    avaliableScopes = [...avaliableScopes, selectedScope]
             }
         }
     }
@@ -60,10 +60,10 @@
                        (metricConfig?.unit?.base   ? metricConfig.unit.base   : '')})
     </InputGroupText>
     <select class="form-select" bind:value={selectedScope}>
-        {#each avaliableScopes as scope}
+        {#each availableScopes as scope}
             <option value={scope}>{scope}</option>
         {/each}
-        {#if avaliableScopes.length == 1 && metricConfig?.scope != "node"}
+        {#if availableScopes.length == 1 && metricConfig?.scope != "node"}
             <option value={"load-more"}>Load more...</option>
         {/if}
     </select>
