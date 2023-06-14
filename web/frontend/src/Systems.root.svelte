@@ -59,11 +59,13 @@
     let metricUnits = {}
     $: if ($nodesQuery.data) {
         let thisCluster = clusters.find(c => c.name == cluster)
-        for (let metric of thisCluster.metricConfig) {
-            if (metric.unit.prefix || metric.unit.base) {
-                metricUnits[metric.name] = '(' + (metric.unit.prefix ? metric.unit.prefix : '') + (metric.unit.base ? metric.unit.base : '') + ')'
-            } else { // If no unit defined: Omit Unit Display
-                metricUnits[metric.name] = ''
+        if (thisCluster) {
+            for (let metric of thisCluster.metricConfig) {
+                if (metric.unit.prefix || metric.unit.base) {
+                    metricUnits[metric.name] = '(' + (metric.unit.prefix ? metric.unit.prefix : '') + (metric.unit.base ? metric.unit.base : '') + ')'
+                } else { // If no unit defined: Omit Unit Display
+                    metricUnits[metric.name] = ''
+                }
             }
         }
     }
