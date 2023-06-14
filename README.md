@@ -50,7 +50,7 @@ cd ./cc-backend
 ./startDemo.sh
 ```
 You can access the web interface at http://localhost:8080.
-Credentials for login: `demo:AdminDev`.
+Credentials for login: `demo:demo`.
 Please note that some views do not work without a metric backend (e.g., the Systems and Status view).
 
 ## Howto Build and Run
