@@ -628,6 +628,91 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/jobs/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Job to get is specified by database ID\nReturns full job resource information according to 'JobMeta' scheme and all metrics according to 'JobData'.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "query"
+                ],
+                "summary": "Get complete job meta and metric data",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Database ID of Job",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Array of metric names",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Job resource",
+                        "schema": {
+                            "$ref": "#/definitions/schema.JobMeta"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Resource not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity: finding job failed: sql: no rows in result set",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -771,6 +856,9 @@ const docTemplate = `{
                     "type": "string",
                     "example": "fritz"
                 },
+                "concurrentJobs": {
+                    "$ref": "#/definitions/schema.JobLinkResultList"
+                },
                 "duration": {
                     "description": "Duration of job in seconds (Min \u003e 0)",
                     "type": "integer",
@@ -795,6 +883,14 @@ const docTemplate = `{
                 },
                 "jobState": {
                     "description": "Final state of job",
+                    "enum": [
+                        "completed",
+                        "failed",
+                        "cancelled",
+                        "stopped",
+                        "timeout",
+                        "out_of_memory"
+                    ],
                     "allOf": [
                         {
                             "$ref": "#/definitions/schema.JobState"
@@ -823,7 +919,7 @@ const docTemplate = `{
                     "example": 2
                 },
                 "numHwthreads": {
-                    "description": "Number of HWThreads used (Min \u003e 0)",
+                    "description": "NumCores         int32             ` + "`" + `json:\"numCores\" db:\"num_cores\" example:\"20\" minimum:\"1\"` + "`" + `                                                             // Number of HWThreads used (Min \u003e 0)",
                     "type": "integer",
                     "minimum": 1,
                     "example": 20
@@ -885,6 +981,31 @@ const docTemplate = `{
                 }
             }
         },
+        "schema.JobLink": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "jobId": {
+                    "type": "integer"
+                }
+            }
+        },
+        "schema.JobLinkResultList": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.JobLink"
+                    }
+                }
+            }
+        },
         "schema.JobMeta": {
             "description": "Meta data information of a HPC job.",
             "type": "object",
@@ -898,6 +1019,9 @@ const docTemplate = `{
                     "description": "The unique identifier of a cluster",
                     "type": "string",
                     "example": "fritz"
+                },
+                "concurrentJobs": {
+                    "$ref": "#/definitions/schema.JobLinkResultList"
                 },
                 "duration": {
                     "description": "Duration of job in seconds (Min \u003e 0)",
@@ -923,6 +1047,14 @@ const docTemplate = `{
                 },
                 "jobState": {
                     "description": "Final state of job",
+                    "enum": [
+                        "completed",
+                        "failed",
+                        "cancelled",
+                        "stopped",
+                        "timeout",
+                        "out_of_memory"
+                    ],
                     "allOf": [
                         {
                             "$ref": "#/definitions/schema.JobState"
@@ -951,7 +1083,7 @@ const docTemplate = `{
                     "example": 2
                 },
                 "numHwthreads": {
-                    "description": "Number of HWThreads used (Min \u003e 0)",
+                    "description": "NumCores         int32             ` + "`" + `json:\"numCores\" db:\"num_cores\" example:\"20\" minimum:\"1\"` + "`" + `                                                             // Number of HWThreads used (Min \u003e 0)",
                     "type": "integer",
                     "minimum": 1,
                     "example": 20
@@ -1068,9 +1200,7 @@ const docTemplate = `{
                     "example": 2000
                 },
                 "unit": {
-                    "description": "Metric unit (see schema/unit.schema.json)",
-                    "type": "string",
-                    "example": "GHz"
+                    "$ref": "#/definitions/schema.Unit"
                 }
             }
         },
@@ -1107,7 +1237,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "id": {
-                    "description": "The unique DB identifier of a tag",
+                    "description": "The unique DB identifier of a tag\nThe unique DB identifier of a tag",
                     "type": "integer"
                 },
                 "name": {
@@ -1119,6 +1249,17 @@ const docTemplate = `{
                     "description": "Tag Type",
                     "type": "string",
                     "example": "Debug"
+                }
+            }
+        },
+        "schema.Unit": {
+            "type": "object",
+            "properties": {
+                "base": {
+                    "type": "string"
+                },
+                "prefix": {
+                    "type": "string"
                 }
             }
         }
@@ -1139,7 +1280,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "0.2.0",
+	Version:          "1",
 	Host:             "localhost:8080",
 	BasePath:         "/api",
 	Schemes:          []string{},
