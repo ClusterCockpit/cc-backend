@@ -129,7 +129,7 @@
                     })
                     .sort((a, b) => a.host.localeCompare(b.host))}>
 
-                    <h4 style="width: 100%; text-align: center;"><a href="/monitoring/node/{cluster}/{item.host}">{item.host} ({item.subCluster})</a></h4>
+                    <h4 style="width: 100%; text-align: center;"><a style="display: block;padding-top: 15px;" href="/monitoring/node/{cluster}/{item.host}">{item.host} ({item.subCluster})</a></h4>
                     {#if item.removed == false && item.data != null}
                         <MetricPlot
                             width={width}
