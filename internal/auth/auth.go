@@ -317,7 +317,7 @@ func (auth *Authentication) Login(
 	onfailure func(rw http.ResponseWriter, r *http.Request, loginErr error)) http.Handler {
 
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		var err error = errors.New("no authenticator applied")
+		err := errors.New("no authenticator applied")
 		username := r.FormValue("username")
 		user := (*User)(nil)
 		if username != "" {
@@ -334,7 +334,7 @@ func (auth *Authentication) Login(
 
 			user, err = authenticator.Login(user, rw, r)
 			if err != nil {
-				log.Warnf("user '%s' login failed: %s", user.Username, err.Error())
+				log.Warnf("user login failed: %s", err.Error())
 				onfailure(rw, r, err)
 				return
 			}
