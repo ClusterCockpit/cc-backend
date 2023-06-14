@@ -137,10 +137,10 @@
                         <th scope="row">Total Core Hours</th>
                         <td>{$stats.data.jobsStatistics[0].totalCoreHours}</td>
                     </tr>
-                    <tr>
+<!--                     <tr>
                         <th scope="row">Toggle Histogram Resizing</th>
                         <td><Input id="c3" value={resize} type="switch" on:change={() => (resize = !resize)}/></td>
-                    </tr>
+                    </tr> -->
                 </tbody>
             </Table>
         </Col>
