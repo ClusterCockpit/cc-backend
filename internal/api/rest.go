@@ -69,7 +69,7 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 	// r.HandleFunc("/jobs/import/", api.importJob).Methods(http.MethodPost, http.MethodPut)
 
 	r.HandleFunc("/jobs/", api.getJobs).Methods(http.MethodGet)
-	r.HandleFunc("/jobs/{id}", api.getJobById).Methods(http.MethodGet)
+	r.HandleFunc("/jobs/{id}", api.getJobById).Methods(http.MethodPost)
 	r.HandleFunc("/jobs/tag_job/{id}", api.tagJob).Methods(http.MethodPost, http.MethodPatch)
 	r.HandleFunc("/jobs/metrics/{id}", api.getJobMetrics).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/delete_job/", api.deleteJobByRequest).Methods(http.MethodDelete)
@@ -147,7 +147,13 @@ type GetJobApiRequest []string
 
 type GetJobApiResponse struct {
 	Meta *schema.Job
-	Data []*model.JobMetricWithName
+	Data []*JobMetricWithName
+}
+
+type JobMetricWithName struct {
+	Name   string             `json:"name"`
+	Scope  schema.MetricScope `json:"scope"`
+	Metric *schema.JobMetric  `json:"metric"`
 }
 
 func handleError(err error, statusCode int, rw http.ResponseWriter) {
@@ -317,8 +323,8 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 // @accept      json
 // @produce     json
 // @param       id      path     int                   true "Database ID of Job"
-// @param       request body     api.GetJobApiRequest true "Array of metric names"
-// @success     200     {object} schema.JobMeta             "Job resource"
+// @param       request body     api.GetJobApiRequest true  "Array of metric names"
+// @success     200     {object} api.GetJobApiResponse      "Job resource"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"
@@ -326,7 +332,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 // @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/{id} [get]
+// @router      /jobs/{id} [post]
 func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
 		handleError(fmt.Errorf("missing role: %v",
@@ -356,7 +362,7 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	var metrics GetJobApiRequest
-	if err := decode(r.Body, &metrics); err != nil {
+	if err = decode(r.Body, &metrics); err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -375,10 +381,10 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := []*model.JobMetricWithName{}
+	res := []*JobMetricWithName{}
 	for name, md := range data {
 		for scope, metric := range md {
-			res = append(res, &model.JobMetricWithName{
+			res = append(res, &JobMetricWithName{
 				Name:   name,
 				Scope:  scope,
 				Metric: metric,
@@ -386,7 +392,7 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	log.Debugf("/api/job/%d: get job %d", id, job.JobID)
+	log.Debugf("/api/job/%s: get job %d", id, job.JobID)
 	rw.Header().Add("Content-Type", "application/json")
 	bw := bufio.NewWriter(rw)
 	defer bw.Flush()

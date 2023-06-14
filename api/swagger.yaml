@@ -42,6 +42,15 @@ definitions:
         description: Statustext of Errorcode
         type: string
     type: object
+  api.GetJobApiResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/api.JobMetricWithName'
+        type: array
+      meta:
+        $ref: '#/definitions/schema.Job'
+    type: object
   api.GetJobsApiResponse:
     properties:
       items:
@@ -55,6 +64,15 @@ definitions:
       page:
         description: Page id returned
         type: integer
+    type: object
+  api.JobMetricWithName:
+    properties:
+      metric:
+        $ref: '#/definitions/schema.JobMetric'
+      name:
+        type: string
+      scope:
+        $ref: '#/definitions/schema.MetricScope'
     type: object
   api.StartJobApiResponse:
     properties:
@@ -338,6 +356,19 @@ definitions:
         minimum: 1
         type: integer
     type: object
+  schema.JobMetric:
+    properties:
+      series:
+        items:
+          $ref: '#/definitions/schema.Series'
+        type: array
+      statisticsSeries:
+        $ref: '#/definitions/schema.StatsSeries'
+      timestep:
+        type: integer
+      unit:
+        $ref: '#/definitions/schema.Unit'
+    type: object
   schema.JobState:
     enum:
     - running
@@ -379,6 +410,33 @@ definitions:
       unit:
         $ref: '#/definitions/schema.Unit'
     type: object
+  schema.MetricScope:
+    enum:
+    - invalid_scope
+    - node
+    - socket
+    - memoryDomain
+    - core
+    - hwthread
+    - accelerator
+    type: string
+    x-enum-varnames:
+    - MetricScopeInvalid
+    - MetricScopeNode
+    - MetricScopeSocket
+    - MetricScopeMemoryDomain
+    - MetricScopeCore
+    - MetricScopeHWThread
+    - MetricScopeAccelerator
+  schema.MetricStatistics:
+    properties:
+      avg:
+        type: number
+      max:
+        type: number
+      min:
+        type: number
+    type: object
   schema.Resource:
     description: A resource used by a job
     properties:
@@ -398,6 +456,40 @@ definitions:
         items:
           type: integer
         type: array
+    type: object
+  schema.Series:
+    properties:
+      data:
+        items:
+          type: number
+        type: array
+      hostname:
+        type: string
+      id:
+        type: string
+      statistics:
+        $ref: '#/definitions/schema.MetricStatistics'
+    type: object
+  schema.StatsSeries:
+    properties:
+      max:
+        items:
+          type: number
+        type: array
+      mean:
+        items:
+          type: number
+        type: array
+      min:
+        items:
+          type: number
+        type: array
+      percentiles:
+        additionalProperties:
+          items:
+            type: number
+          type: array
+        type: object
     type: object
   schema.Tag:
     description: Defines a tag using name and type.
@@ -502,7 +594,7 @@ paths:
       tags:
       - query
   /jobs/{id}:
-    get:
+    post:
       consumes:
       - application/json
       description: |-
@@ -528,7 +620,7 @@ paths:
         "200":
           description: Job resource
           schema:
-            $ref: '#/definitions/schema.JobMeta'
+            $ref: '#/definitions/api.GetJobApiResponse'
         "400":
           description: Bad Request
           schema:

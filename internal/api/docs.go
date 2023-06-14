@@ -630,7 +630,7 @@ const docTemplate = `{
             }
         },
         "/jobs/{id}": {
-            "get": {
+            "post": {
                 "security": [
                     {
                         "ApiKeyAuth": []
@@ -672,7 +672,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Job resource",
                         "schema": {
-                            "$ref": "#/definitions/schema.JobMeta"
+                            "$ref": "#/definitions/api.GetJobApiResponse"
                         }
                     },
                     "400": {
@@ -775,6 +775,20 @@ const docTemplate = `{
                 }
             }
         },
+        "api.GetJobApiResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.JobMetricWithName"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/schema.Job"
+                }
+            }
+        },
         "api.GetJobsApiResponse": {
             "type": "object",
             "properties": {
@@ -792,6 +806,20 @@ const docTemplate = `{
                 "page": {
                     "description": "Page id returned",
                     "type": "integer"
+                }
+            }
+        },
+        "api.JobMetricWithName": {
+            "type": "object",
+            "properties": {
+                "metric": {
+                    "$ref": "#/definitions/schema.JobMetric"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "scope": {
+                    "$ref": "#/definitions/schema.MetricScope"
                 }
             }
         },
@@ -1154,6 +1182,26 @@ const docTemplate = `{
                 }
             }
         },
+        "schema.JobMetric": {
+            "type": "object",
+            "properties": {
+                "series": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.Series"
+                    }
+                },
+                "statisticsSeries": {
+                    "$ref": "#/definitions/schema.StatsSeries"
+                },
+                "timestep": {
+                    "type": "integer"
+                },
+                "unit": {
+                    "$ref": "#/definitions/schema.Unit"
+                }
+            }
+        },
         "schema.JobState": {
             "type": "string",
             "enum": [
@@ -1204,6 +1252,41 @@ const docTemplate = `{
                 }
             }
         },
+        "schema.MetricScope": {
+            "type": "string",
+            "enum": [
+                "invalid_scope",
+                "node",
+                "socket",
+                "memoryDomain",
+                "core",
+                "hwthread",
+                "accelerator"
+            ],
+            "x-enum-varnames": [
+                "MetricScopeInvalid",
+                "MetricScopeNode",
+                "MetricScopeSocket",
+                "MetricScopeMemoryDomain",
+                "MetricScopeCore",
+                "MetricScopeHWThread",
+                "MetricScopeAccelerator"
+            ]
+        },
+        "schema.MetricStatistics": {
+            "type": "object",
+            "properties": {
+                "avg": {
+                    "type": "number"
+                },
+                "max": {
+                    "type": "number"
+                },
+                "min": {
+                    "type": "number"
+                }
+            }
+        },
         "schema.Resource": {
             "description": "A resource used by a job",
             "type": "object",
@@ -1228,6 +1311,58 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "type": "integer"
+                    }
+                }
+            }
+        },
+        "schema.Series": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "hostname": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "statistics": {
+                    "$ref": "#/definitions/schema.MetricStatistics"
+                }
+            }
+        },
+        "schema.StatsSeries": {
+            "type": "object",
+            "properties": {
+                "max": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "mean": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "min": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "percentiles": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "number"
+                        }
                     }
                 }
             }
