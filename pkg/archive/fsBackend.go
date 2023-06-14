@@ -363,6 +363,7 @@ func (fsa *FsArchive) CompressLast(starttime int64) int64 {
 	b, err := os.ReadFile(filename)
 	if err != nil {
 		log.Errorf("fsBackend Compress - %v", err)
+		os.WriteFile(filename, []byte(fmt.Sprintf("%d", starttime)), 0644)
 		return starttime
 	}
 	last, err := strconv.ParseInt(strings.TrimSuffix(string(b), "\n"), 10, 64)
