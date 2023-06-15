@@ -59,7 +59,7 @@
     }
 
     $: {
-        if (isOpen && $initialized && pendingNumHWThreads.from == null && pendingNumHWThreads.to == null) {
+        if (isOpen && $initialized && ((pendingNumHWThreads.from == null && pendingNumHWThreads.to == null) || (isHwthreadsModified == false))) {
             pendingNumHWThreads = { from: 0, to: maxNumHWThreads }
         }
     }
