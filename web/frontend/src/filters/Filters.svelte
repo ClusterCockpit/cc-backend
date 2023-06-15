@@ -60,7 +60,10 @@
         isTagsOpen = false,
         isDurationOpen = false,
         isResourcesOpen = false,
-        isStatsOpen = false
+        isStatsOpen = false,
+        isNodesModified = false,
+        isHwthreadsModified = false,
+        isAccsModified = false
 
     // Can be called from the outside to trigger a 'update' event from this component.
     export function update(additionalFilters = null) {
@@ -181,7 +184,7 @@
                     <Icon name="tags"/> Tags
                 </DropdownItem>
                 <DropdownItem on:click={() => (isResourcesOpen = true)}>
-                    <Icon name="hdd-stack"/> Nodes/Accelerators
+                    <Icon name="hdd-stack"/> Resources
                 </DropdownItem>
                 <DropdownItem on:click={() => (isStatsOpen = true)}>
                     <Icon name="bar-chart" on:click={() => (isStatsOpen = true)}/> Statistics
@@ -268,9 +271,15 @@
             </Info>
         {/if}
 
-        {#if filters.numNodes.from != null || filters.numNodes.to != null}
+        {#if filters.numNodes.from != null          || filters.numNodes.to != null          || 
+             filters.numHWThreads.from != null      || filters.numHWThreads.to != null      || 
+             filters.numAccelerators.from != null   || filters.numAccelerators.to != null   }
             <Info icon="hdd-stack" on:click={() => (isResourcesOpen = true)}>
-                Nodes: {filters.numNodes.from} - {filters.numNodes.to}
+                {#if isNodesModified } Nodes: {filters.numNodes.from} - {filters.numNodes.to} {/if}
+                {#if isNodesModified && isHwthreadsModified }, {/if}
+                {#if isHwthreadsModified } HWThreads: {filters.numHWThreads.from} - {filters.numHWThreads.to} {/if}
+                {#if (isNodesModified || isHwthreadsModified) && isAccsModified }, {/if}
+                {#if isAccsModified } Accelerators: {filters.numAccelerators.from} - {filters.numAccelerators.to} {/if}
             </Info>
         {/if}
 
@@ -316,6 +325,9 @@
     bind:numNodes={filters.numNodes}
     bind:numHWThreads={filters.numHWThreads}
     bind:numAccelerators={filters.numAccelerators}
+    bind:isNodesModified={isNodesModified}
+    bind:isHwthreadsModified={isHwthreadsModified}
+    bind:isAccsModified={isAccsModified}
     on:update={() => update()} />
 
 <Statistics cluster={filters.cluster}

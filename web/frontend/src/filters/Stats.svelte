@@ -93,7 +93,8 @@
             <DoubleRangeSlider
                 on:change={({ detail }) => (stat.from = detail[0], stat.to = detail[1], stat.enabled = true)}
                 min={0} max={stat.peak}
-                firstSlider={stat.from} secondSlider={stat.to} />
+                firstSlider={stat.from} secondSlider={stat.to}
+                inputFieldFrom={stat.from} inputFieldTo={stat.to}/>
         {/each}
     </ModalBody>
     <ModalFooter>
@@ -104,7 +105,8 @@
         }}>Close & Apply</Button>
         <Button color="danger" on:click={() => {
             isOpen = false
-            statistics.forEach(stat => stat.enabled = false)
+            resetRange($initialized, cluster)
+            statistics.forEach(stat => (stat.enabled = false))
             stats = []
             dispatch('update', { stats })
         }}>Reset</Button>

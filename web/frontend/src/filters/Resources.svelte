@@ -9,21 +9,24 @@
           dispatch = createEventDispatcher()
 
     export let cluster = null
-    export let isModified = false
     export let isOpen = false
     export let numNodes = { from: null, to: null }
     export let numHWThreads = { from: null, to: null }
     export let numAccelerators = { from: null, to: null }
+    export let isNodesModified = false
+    export let isHwthreadsModified = false
+    export let isAccsModified = false
 
     let pendingNumNodes = numNodes, pendingNumHWThreads = numHWThreads, pendingNumAccelerators = numAccelerators
-    $: isModified = pendingNumNodes.from != numNodes.from || pendingNumNodes.to != numNodes.to
-        || pendingNumHWThreads.from != numHWThreads.from || pendingNumHWThreads.to != numHWThreads.to
-        || pendingNumAccelerators.from != numAccelerators.from || pendingNumAccelerators.to != numAccelerators.to
 
     const findMaxNumAccels = clusters => clusters.reduce((max, cluster) => Math.max(max,
         cluster.subClusters.reduce((max, sc) => Math.max(max, sc.topology.accelerators?.length || 0), 0)), 0)
 
-        // console.log(header)
+    // Limited to Single-Node Thread Count
+    const findMaxNumHWTreadsPerNode = clusters => clusters.reduce((max, cluster) => Math.max(max,
+        cluster.subClusters.reduce((max, sc) => Math.max(max, (sc.threadsPerCore * sc.coresPerSocket * sc.socketsPerNode) || 0), 0)), 0)
+
+    // console.log(header)
     let minNumNodes = 1, maxNumNodes = 0, minNumHWThreads = 1, maxNumHWThreads = 0, minNumAccelerators = 0, maxNumAccelerators = 0
     $: {
         if ($initialized) {
@@ -33,11 +36,13 @@
                 minNumNodes = filterRanges.numNodes.from
                 maxNumNodes = filterRanges.numNodes.to
                 maxNumAccelerators = findMaxNumAccels([{ subClusters }])
+                maxNumHWThreads = findMaxNumHWTreadsPerNode([{ subClusters }])
             } else if (clusters.length > 0) {
                 const { filterRanges } = header.clusters[0]
                 minNumNodes = filterRanges.numNodes.from
                 maxNumNodes = filterRanges.numNodes.to
                 maxNumAccelerators = findMaxNumAccels(clusters)
+                maxNumHWThreads = findMaxNumHWTreadsPerNode(clusters)
                 for (let cluster of header.clusters) {
                     const { filterRanges } = cluster
                     minNumNodes = Math.min(minNumNodes, filterRanges.numNodes.from)
@@ -52,27 +57,53 @@
             pendingNumNodes = { from: 0, to: maxNumNodes }
         }
     }
+
+    $: {
+        if (isOpen && $initialized && pendingNumHWThreads.from == null && pendingNumHWThreads.to == null) {
+            pendingNumHWThreads = { from: 0, to: maxNumHWThreads }
+        }
+    }
+
+    $: if ( maxNumAccelerators != null && maxNumAccelerators > 1 ) {
+        if (isOpen && $initialized && pendingNumAccelerators.from == null && pendingNumAccelerators.to == null) {
+            pendingNumAccelerators = { from: 0, to: maxNumAccelerators }
+        }
+    }
 </script>
 
 <Modal isOpen={isOpen} toggle={() => (isOpen = !isOpen)}>
     <ModalHeader>
-        Select Number of Nodes, HWThreads and Accelerators
+        Select number of utilized Resources
     </ModalHeader>
     <ModalBody>
-        <h4>Number of Nodes</h4>
+        <h6>Number of Nodes</h6>
         <DoubleRangeSlider
-            on:change={({ detail }) => (pendingNumNodes = { from: detail[0], to: detail[1] })}
+            on:change={({ detail }) => {
+                pendingNumNodes = { from: detail[0], to: detail[1] }
+                isNodesModified = true
+            }}
             min={minNumNodes} max={maxNumNodes}
-            firstSlider={pendingNumNodes.from} secondSlider={pendingNumNodes.to} />
-        <!-- <DoubleRangeSlider
-            on:change={({ detail }) => (pendingNumHWThreads = { from: detail[0], to: detail[1] })}
+            firstSlider={pendingNumNodes.from} secondSlider={pendingNumNodes.to}
+            inputFieldFrom={pendingNumNodes.from} inputFieldTo={pendingNumNodes.to}/>
+        <h6 style="margin-top: 1rem;">Number of HWThreads (Use for Single-Node Jobs)</h6>
+        <DoubleRangeSlider
+            on:change={({ detail }) => {
+                pendingNumHWThreads = { from: detail[0], to: detail[1] }
+                isHwthreadsModified = true
+            }}
             min={minNumHWThreads} max={maxNumHWThreads}
-            firstSlider={pendingNumHWThreads.from} secondSlider={pendingNumHWThreads.to} /> -->
+            firstSlider={pendingNumHWThreads.from} secondSlider={pendingNumHWThreads.to}
+            inputFieldFrom={pendingNumHWThreads.from} inputFieldTo={pendingNumHWThreads.to}/>
         {#if maxNumAccelerators != null && maxNumAccelerators > 1}
+            <h6 style="margin-top: 1rem;">Number of Accelerators</h6>
             <DoubleRangeSlider
-                on:change={({ detail }) => (pendingNumAccelerators = { from: detail[0], to: detail[1] })}
+                on:change={({ detail }) => {
+                    pendingNumAccelerators = { from: detail[0], to: detail[1] }
+                    isAccsModified = true 
+                }}
                 min={minNumAccelerators} max={maxNumAccelerators}
-                firstSlider={pendingNumAccelerators.from} secondSlider={pendingNumAccelerators.to} />
+                firstSlider={pendingNumAccelerators.from} secondSlider={pendingNumAccelerators.to} 
+                inputFieldFrom={pendingNumAccelerators.from} inputFieldTo={pendingNumAccelerators.to}/>
         {/if}
     </ModalBody>
     <ModalFooter>
@@ -80,7 +111,10 @@
             disabled={pendingNumNodes.from == null || pendingNumNodes.to == null}
             on:click={() => {
                 isOpen = false
-                numNodes = { from: pendingNumNodes.from, to: pendingNumNodes.to }
+                pendingNumNodes = isNodesModified ? pendingNumNodes : { from: null, to: null }
+                pendingNumHWThreads = isHwthreadsModified ? pendingNumHWThreads : { from: null, to: null }
+                pendingNumAccelerators = isAccsModified ? pendingNumAccelerators : { from: null, to: null }
+                numNodes ={ from: pendingNumNodes.from, to: pendingNumNodes.to }
                 numHWThreads = { from: pendingNumHWThreads.from, to: pendingNumHWThreads.to }
                 numAccelerators = { from: pendingNumAccelerators.from, to: pendingNumAccelerators.to }
                 dispatch('update', { numNodes, numHWThreads, numAccelerators })
@@ -95,6 +129,9 @@
             numNodes = { from: pendingNumNodes.from, to: pendingNumNodes.to }
             numHWThreads = { from: pendingNumHWThreads.from, to: pendingNumHWThreads.to }
             numAccelerators = { from: pendingNumAccelerators.from, to: pendingNumAccelerators.to }
+            isNodesModified = false
+            isHwthreadsModified = false
+            isAccsModified = false
             dispatch('update', { numNodes, numHWThreads, numAccelerators })
         }}>Reset</Button>
         <Button on:click={() => (isOpen = false)}>Close</Button>
