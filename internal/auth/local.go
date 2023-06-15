@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -39,7 +40,8 @@ func (la *LocalAuthenticator) Login(
 	r *http.Request) (*User, error) {
 
 	if e := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(r.FormValue("password"))); e != nil {
-		return nil, fmt.Errorf("AUTH/LOCAL > user '%s' provided the wrong password (%w)", user.Username, e)
+		log.Errorf("AUTH/LOCAL > Authentication for user %s failed!", user.Username)
+		return nil, fmt.Errorf("AUTH/LOCAL > Authentication failed")
 	}
 
 	return user, nil

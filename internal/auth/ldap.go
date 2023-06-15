@@ -6,6 +6,7 @@ package auth
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -85,8 +86,8 @@ func (la *LdapAuthenticator) Login(
 
 	userDn := strings.Replace(la.config.UserBind, "{username}", user.Username, -1)
 	if err := l.Bind(userDn, r.FormValue("password")); err != nil {
-		log.Error("Error while binding to ldap connection")
-		return nil, err
+		log.Errorf("AUTH/LOCAL > Authentication for user %s failed: %v", user.Username, err)
+		return nil, fmt.Errorf("AUTH/LDAP > Authentication failed")
 	}
 
 	return user, nil
