@@ -115,7 +115,7 @@ type Unit struct {
 // JobStatistics model
 // @Description Specification for job metric statistics.
 type JobStatistics struct {
-	Unit Unit    `json:"unit" example:"GHz"`
+	Unit Unit    `json:"unit"`
 	Avg  float64 `json:"avg" example:"2500" minimum:"0"` // Job metric average
 	Min  float64 `json:"min" example:"2000" minimum:"0"` // Job metric minimum
 	Max  float64 `json:"max" example:"3000" minimum:"0"` // Job metric maximum

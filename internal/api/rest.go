@@ -23,6 +23,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
+	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
@@ -68,7 +69,7 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 	// r.HandleFunc("/jobs/import/", api.importJob).Methods(http.MethodPost, http.MethodPut)
 
 	r.HandleFunc("/jobs/", api.getJobs).Methods(http.MethodGet)
-	// r.HandleFunc("/jobs/{id}", api.getJob).Methods(http.MethodGet)
+	r.HandleFunc("/jobs/{id}", api.getJobById).Methods(http.MethodPost)
 	r.HandleFunc("/jobs/tag_job/{id}", api.tagJob).Methods(http.MethodPost, http.MethodPatch)
 	r.HandleFunc("/jobs/metrics/{id}", api.getJobMetrics).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/delete_job/", api.deleteJobByRequest).Methods(http.MethodDelete)
@@ -141,6 +142,19 @@ type ApiTag struct {
 }
 
 type TagJobApiRequest []*ApiTag
+
+type GetJobApiRequest []string
+
+type GetJobApiResponse struct {
+	Meta *schema.Job
+	Data []*JobMetricWithName
+}
+
+type JobMetricWithName struct {
+	Name   string             `json:"name"`
+	Scope  schema.MetricScope `json:"scope"`
+	Metric *schema.JobMetric  `json:"metric"`
+}
 
 func handleError(err error, statusCode int, rw http.ResponseWriter) {
 	log.Warnf("REST ERROR : %s", err.Error())
@@ -293,6 +307,99 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 		Jobs:  results,
 		Items: page.ItemsPerPage,
 		Page:  page.Page,
+	}
+
+	if err := json.NewEncoder(bw).Encode(payload); err != nil {
+		handleError(err, http.StatusInternalServerError, rw)
+		return
+	}
+}
+
+// getJobById godoc
+// @summary   Get complete job meta and metric data
+// @tags query
+// @description Job to get is specified by database ID
+// @description Returns full job resource information according to 'JobMeta' scheme and all metrics according to 'JobData'.
+// @accept      json
+// @produce     json
+// @param       id      path     int                   true "Database ID of Job"
+// @param       request body     api.GetJobApiRequest true  "Array of metric names"
+// @success     200     {object} api.GetJobApiResponse      "Job resource"
+// @failure     400     {object} api.ErrorResponse          "Bad Request"
+// @failure     401     {object} api.ErrorResponse          "Unauthorized"
+// @failure     403     {object} api.ErrorResponse          "Forbidden"
+// @failure     404     {object} api.ErrorResponse          "Resource not found"
+// @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
+// @failure     500     {object} api.ErrorResponse          "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /jobs/{id} [post]
+func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
+	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
+		handleError(fmt.Errorf("missing role: %v",
+			auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
+		return
+	}
+
+	// Fetch job from db
+	id, ok := mux.Vars(r)["id"]
+	var job *schema.Job
+	var err error
+	if ok {
+		id, e := strconv.ParseInt(id, 10, 64)
+		if e != nil {
+			handleError(fmt.Errorf("integer expected in path for id: %w", e), http.StatusBadRequest, rw)
+			return
+		}
+
+		job, err = api.JobRepository.FindById(id)
+	} else {
+		handleError(errors.New("the parameter 'id' is required"), http.StatusBadRequest, rw)
+		return
+	}
+	if err != nil {
+		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
+		return
+	}
+
+	var metrics GetJobApiRequest
+	if err = decode(r.Body, &metrics); err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var scopes []schema.MetricScope
+
+	if job.NumNodes == 1 {
+		scopes = []schema.MetricScope{"core"}
+	} else {
+		scopes = []schema.MetricScope{"node"}
+	}
+
+	data, err := metricdata.LoadData(job, metrics, scopes, r.Context())
+	if err != nil {
+		log.Warn("Error while loading job data")
+		return
+	}
+
+	res := []*JobMetricWithName{}
+	for name, md := range data {
+		for scope, metric := range md {
+			res = append(res, &JobMetricWithName{
+				Name:   name,
+				Scope:  scope,
+				Metric: metric,
+			})
+		}
+	}
+
+	log.Debugf("/api/job/%s: get job %d", id, job.JobID)
+	rw.Header().Add("Content-Type", "application/json")
+	bw := bufio.NewWriter(rw)
+	defer bw.Flush()
+
+	payload := GetJobApiResponse{
+		Meta: job,
+		Data: res,
 	}
 
 	if err := json.NewEncoder(bw).Encode(payload); err != nil {

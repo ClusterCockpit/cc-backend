@@ -628,6 +628,91 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/jobs/{id}": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Job to get is specified by database ID\nReturns full job resource information according to 'JobMeta' scheme and all metrics according to 'JobData'.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "query"
+                ],
+                "summary": "Get complete job meta and metric data",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Database ID of Job",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Array of metric names",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Job resource",
+                        "schema": {
+                            "$ref": "#/definitions/api.GetJobApiResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Resource not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity: finding job failed: sql: no rows in result set",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -690,6 +775,20 @@ const docTemplate = `{
                 }
             }
         },
+        "api.GetJobApiResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.JobMetricWithName"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/schema.Job"
+                }
+            }
+        },
         "api.GetJobsApiResponse": {
             "type": "object",
             "properties": {
@@ -707,6 +806,20 @@ const docTemplate = `{
                 "page": {
                     "description": "Page id returned",
                     "type": "integer"
+                }
+            }
+        },
+        "api.JobMetricWithName": {
+            "type": "object",
+            "properties": {
+                "metric": {
+                    "$ref": "#/definitions/schema.JobMetric"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "scope": {
+                    "$ref": "#/definitions/schema.MetricScope"
                 }
             }
         },
@@ -771,6 +884,9 @@ const docTemplate = `{
                     "type": "string",
                     "example": "fritz"
                 },
+                "concurrentJobs": {
+                    "$ref": "#/definitions/schema.JobLinkResultList"
+                },
                 "duration": {
                     "description": "Duration of job in seconds (Min \u003e 0)",
                     "type": "integer",
@@ -795,6 +911,14 @@ const docTemplate = `{
                 },
                 "jobState": {
                     "description": "Final state of job",
+                    "enum": [
+                        "completed",
+                        "failed",
+                        "cancelled",
+                        "stopped",
+                        "timeout",
+                        "out_of_memory"
+                    ],
                     "allOf": [
                         {
                             "$ref": "#/definitions/schema.JobState"
@@ -823,7 +947,7 @@ const docTemplate = `{
                     "example": 2
                 },
                 "numHwthreads": {
-                    "description": "Number of HWThreads used (Min \u003e 0)",
+                    "description": "NumCores         int32             ` + "`" + `json:\"numCores\" db:\"num_cores\" example:\"20\" minimum:\"1\"` + "`" + `                                                             // Number of HWThreads used (Min \u003e 0)",
                     "type": "integer",
                     "minimum": 1,
                     "example": 20
@@ -885,6 +1009,31 @@ const docTemplate = `{
                 }
             }
         },
+        "schema.JobLink": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "jobId": {
+                    "type": "integer"
+                }
+            }
+        },
+        "schema.JobLinkResultList": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.JobLink"
+                    }
+                }
+            }
+        },
         "schema.JobMeta": {
             "description": "Meta data information of a HPC job.",
             "type": "object",
@@ -898,6 +1047,9 @@ const docTemplate = `{
                     "description": "The unique identifier of a cluster",
                     "type": "string",
                     "example": "fritz"
+                },
+                "concurrentJobs": {
+                    "$ref": "#/definitions/schema.JobLinkResultList"
                 },
                 "duration": {
                     "description": "Duration of job in seconds (Min \u003e 0)",
@@ -923,6 +1075,14 @@ const docTemplate = `{
                 },
                 "jobState": {
                     "description": "Final state of job",
+                    "enum": [
+                        "completed",
+                        "failed",
+                        "cancelled",
+                        "stopped",
+                        "timeout",
+                        "out_of_memory"
+                    ],
                     "allOf": [
                         {
                             "$ref": "#/definitions/schema.JobState"
@@ -951,7 +1111,7 @@ const docTemplate = `{
                     "example": 2
                 },
                 "numHwthreads": {
-                    "description": "Number of HWThreads used (Min \u003e 0)",
+                    "description": "NumCores         int32             ` + "`" + `json:\"numCores\" db:\"num_cores\" example:\"20\" minimum:\"1\"` + "`" + `                                                             // Number of HWThreads used (Min \u003e 0)",
                     "type": "integer",
                     "minimum": 1,
                     "example": 20
@@ -1022,6 +1182,26 @@ const docTemplate = `{
                 }
             }
         },
+        "schema.JobMetric": {
+            "type": "object",
+            "properties": {
+                "series": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.Series"
+                    }
+                },
+                "statisticsSeries": {
+                    "$ref": "#/definitions/schema.StatsSeries"
+                },
+                "timestep": {
+                    "type": "integer"
+                },
+                "unit": {
+                    "$ref": "#/definitions/schema.Unit"
+                }
+            }
+        },
         "schema.JobState": {
             "type": "string",
             "enum": [
@@ -1068,9 +1248,42 @@ const docTemplate = `{
                     "example": 2000
                 },
                 "unit": {
-                    "description": "Metric unit (see schema/unit.schema.json)",
-                    "type": "string",
-                    "example": "GHz"
+                    "$ref": "#/definitions/schema.Unit"
+                }
+            }
+        },
+        "schema.MetricScope": {
+            "type": "string",
+            "enum": [
+                "invalid_scope",
+                "node",
+                "socket",
+                "memoryDomain",
+                "core",
+                "hwthread",
+                "accelerator"
+            ],
+            "x-enum-varnames": [
+                "MetricScopeInvalid",
+                "MetricScopeNode",
+                "MetricScopeSocket",
+                "MetricScopeMemoryDomain",
+                "MetricScopeCore",
+                "MetricScopeHWThread",
+                "MetricScopeAccelerator"
+            ]
+        },
+        "schema.MetricStatistics": {
+            "type": "object",
+            "properties": {
+                "avg": {
+                    "type": "number"
+                },
+                "max": {
+                    "type": "number"
+                },
+                "min": {
+                    "type": "number"
                 }
             }
         },
@@ -1102,12 +1315,64 @@ const docTemplate = `{
                 }
             }
         },
+        "schema.Series": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "hostname": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "statistics": {
+                    "$ref": "#/definitions/schema.MetricStatistics"
+                }
+            }
+        },
+        "schema.StatsSeries": {
+            "type": "object",
+            "properties": {
+                "max": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "mean": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "min": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "percentiles": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "number"
+                        }
+                    }
+                }
+            }
+        },
         "schema.Tag": {
             "description": "Defines a tag using name and type.",
             "type": "object",
             "properties": {
                 "id": {
-                    "description": "The unique DB identifier of a tag",
+                    "description": "The unique DB identifier of a tag\nThe unique DB identifier of a tag",
                     "type": "integer"
                 },
                 "name": {
@@ -1119,6 +1384,17 @@ const docTemplate = `{
                     "description": "Tag Type",
                     "type": "string",
                     "example": "Debug"
+                }
+            }
+        },
+        "schema.Unit": {
+            "type": "object",
+            "properties": {
+                "base": {
+                    "type": "string"
+                },
+                "prefix": {
+                    "type": "string"
                 }
             }
         }
@@ -1139,7 +1415,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "0.2.0",
+	Version:          "1",
 	Host:             "localhost:8080",
 	BasePath:         "/api",
 	Schemes:          []string{},
