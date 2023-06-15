@@ -58,11 +58,15 @@ const (
 var metricScopeGranularity map[MetricScope]int = map[MetricScope]int{
 	MetricScopeNode:         10,
 	MetricScopeSocket:       5,
-	MetricScopeMemoryDomain: 3,
-	MetricScopeCore:         2,
-	MetricScopeHWThread:     1,
-
-	MetricScopeAccelerator: 5, // Special/Randomly choosen
+	MetricScopeMemoryDomain: 4,
+	MetricScopeCore:         3,
+	MetricScopeHWThread:     2,
+	/* Special-Case Accelerator
+	 * -> No conversion possible if native scope is HWTHREAD
+	 * -> Therefore needs to be less than HWTREAD, else max() would return unhandled case
+	 * -> If nativeScope is accelerator, accelerator metrics return correctly
+	 */
+	MetricScopeAccelerator: 1,
 
 	MetricScopeInvalid: -1,
 }
