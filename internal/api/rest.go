@@ -32,7 +32,7 @@ import (
 )
 
 // @title                      ClusterCockpit REST API
-// @version                    1
+// @version                    1.0.0
 // @description                API for batch job control.
 
 // @tag.name Job API
