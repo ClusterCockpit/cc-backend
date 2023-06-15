@@ -42,6 +42,15 @@ definitions:
         description: Statustext of Errorcode
         type: string
     type: object
+  api.GetJobApiResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/api.JobMetricWithName'
+        type: array
+      meta:
+        $ref: '#/definitions/schema.Job'
+    type: object
   api.GetJobsApiResponse:
     properties:
       items:
@@ -55,6 +64,15 @@ definitions:
       page:
         description: Page id returned
         type: integer
+    type: object
+  api.JobMetricWithName:
+    properties:
+      metric:
+        $ref: '#/definitions/schema.JobMetric'
+      name:
+        type: string
+      scope:
+        $ref: '#/definitions/schema.MetricScope'
     type: object
   api.StartJobApiResponse:
     properties:
@@ -100,6 +118,8 @@ definitions:
         description: The unique identifier of a cluster
         example: fritz
         type: string
+      concurrentJobs:
+        $ref: '#/definitions/schema.JobLinkResultList'
       duration:
         description: Duration of job in seconds (Min > 0)
         example: 43200
@@ -124,6 +144,13 @@ definitions:
         allOf:
         - $ref: '#/definitions/schema.JobState'
         description: Final state of job
+        enum:
+        - completed
+        - failed
+        - cancelled
+        - stopped
+        - timeout
+        - out_of_memory
         example: completed
       metaData:
         additionalProperties:
@@ -143,7 +170,9 @@ definitions:
         minimum: 1
         type: integer
       numHwthreads:
-        description: Number of HWThreads used (Min > 0)
+        description: NumCores         int32             `json:"numCores" db:"num_cores"
+          example:"20" minimum:"1"`                                                             //
+          Number of HWThreads used (Min > 0)
         example: 20
         minimum: 1
         type: integer
@@ -191,6 +220,22 @@ definitions:
         minimum: 1
         type: integer
     type: object
+  schema.JobLink:
+    properties:
+      id:
+        type: integer
+      jobId:
+        type: integer
+    type: object
+  schema.JobLinkResultList:
+    properties:
+      count:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/schema.JobLink'
+        type: array
+    type: object
   schema.JobMeta:
     description: Meta data information of a HPC job.
     properties:
@@ -202,6 +247,8 @@ definitions:
         description: The unique identifier of a cluster
         example: fritz
         type: string
+      concurrentJobs:
+        $ref: '#/definitions/schema.JobLinkResultList'
       duration:
         description: Duration of job in seconds (Min > 0)
         example: 43200
@@ -226,6 +273,13 @@ definitions:
         allOf:
         - $ref: '#/definitions/schema.JobState'
         description: Final state of job
+        enum:
+        - completed
+        - failed
+        - cancelled
+        - stopped
+        - timeout
+        - out_of_memory
         example: completed
       metaData:
         additionalProperties:
@@ -245,7 +299,9 @@ definitions:
         minimum: 1
         type: integer
       numHwthreads:
-        description: Number of HWThreads used (Min > 0)
+        description: NumCores         int32             `json:"numCores" db:"num_cores"
+          example:"20" minimum:"1"`                                                             //
+          Number of HWThreads used (Min > 0)
         example: 20
         minimum: 1
         type: integer
@@ -300,6 +356,19 @@ definitions:
         minimum: 1
         type: integer
     type: object
+  schema.JobMetric:
+    properties:
+      series:
+        items:
+          $ref: '#/definitions/schema.Series'
+        type: array
+      statisticsSeries:
+        $ref: '#/definitions/schema.StatsSeries'
+      timestep:
+        type: integer
+      unit:
+        $ref: '#/definitions/schema.Unit'
+    type: object
   schema.JobState:
     enum:
     - running
@@ -339,9 +408,34 @@ definitions:
         minimum: 0
         type: number
       unit:
-        description: Metric unit (see schema/unit.schema.json)
-        example: GHz
-        type: string
+        $ref: '#/definitions/schema.Unit'
+    type: object
+  schema.MetricScope:
+    enum:
+    - invalid_scope
+    - node
+    - socket
+    - memoryDomain
+    - core
+    - hwthread
+    - accelerator
+    type: string
+    x-enum-varnames:
+    - MetricScopeInvalid
+    - MetricScopeNode
+    - MetricScopeSocket
+    - MetricScopeMemoryDomain
+    - MetricScopeCore
+    - MetricScopeHWThread
+    - MetricScopeAccelerator
+  schema.MetricStatistics:
+    properties:
+      avg:
+        type: number
+      max:
+        type: number
+      min:
+        type: number
     type: object
   schema.Resource:
     description: A resource used by a job
@@ -363,11 +457,47 @@ definitions:
           type: integer
         type: array
     type: object
+  schema.Series:
+    properties:
+      data:
+        items:
+          type: number
+        type: array
+      hostname:
+        type: string
+      id:
+        type: string
+      statistics:
+        $ref: '#/definitions/schema.MetricStatistics'
+    type: object
+  schema.StatsSeries:
+    properties:
+      max:
+        items:
+          type: number
+        type: array
+      mean:
+        items:
+          type: number
+        type: array
+      min:
+        items:
+          type: number
+        type: array
+      percentiles:
+        additionalProperties:
+          items:
+            type: number
+          type: array
+        type: object
+    type: object
   schema.Tag:
     description: Defines a tag using name and type.
     properties:
       id:
-        description: The unique DB identifier of a tag
+        description: |-
+          The unique DB identifier of a tag
+          The unique DB identifier of a tag
         type: integer
       name:
         description: Tag Name
@@ -376,6 +506,13 @@ definitions:
       type:
         description: Tag Type
         example: Debug
+        type: string
+    type: object
+  schema.Unit:
+    properties:
+      base:
+        type: string
+      prefix:
         type: string
     type: object
 host: localhost:8080
@@ -389,7 +526,7 @@ info:
     name: MIT License
     url: https://opensource.org/licenses/MIT
   title: ClusterCockpit REST API
-  version: 0.2.0
+  version: "1"
 paths:
   /jobs/:
     get:
@@ -454,6 +591,64 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Lists all jobs
+      tags:
+      - query
+  /jobs/{id}:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Job to get is specified by database ID
+        Returns full job resource information according to 'JobMeta' scheme and all metrics according to 'JobData'.
+      parameters:
+      - description: Database ID of Job
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Array of metric names
+        in: body
+        name: request
+        required: true
+        schema:
+          items:
+            type: string
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job resource
+          schema:
+            $ref: '#/definitions/api.GetJobApiResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Resource not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: 'Unprocessable Entity: finding job failed: sql: no rows in
+            result set'
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get complete job meta and metric data
       tags:
       - query
   /jobs/delete_job/:
