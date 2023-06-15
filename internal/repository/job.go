@@ -450,6 +450,7 @@ func (r *JobRepository) MarkArchived(
 		case "mem_bw":
 			stmt = stmt.Set("mem_bw_avg", stats.Avg)
 		case "load":
+		case "cpu_load":
 			stmt = stmt.Set("load_avg", stats.Avg)
 		case "net_bw":
 			stmt = stmt.Set("net_bw_avg", stats.Avg)

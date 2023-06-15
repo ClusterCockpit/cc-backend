@@ -327,6 +327,7 @@
             },
             "required": [
                 "cpu_user",
+                "cpu_load",
                 "mem_used",
                 "flops_any",
                 "mem_bw"
