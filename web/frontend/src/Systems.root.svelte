@@ -59,11 +59,13 @@
     let metricUnits = {}
     $: if ($nodesQuery.data) {
         let thisCluster = clusters.find(c => c.name == cluster)
-        for (let metric of thisCluster.metricConfig) {
-            if (metric.unit.prefix || metric.unit.base) {
-                metricUnits[metric.name] = '(' + (metric.unit.prefix ? metric.unit.prefix : '') + (metric.unit.base ? metric.unit.base : '') + ')'
-            } else { // If no unit defined: Omit Unit Display
-                metricUnits[metric.name] = ''
+        if (thisCluster) {
+            for (let metric of thisCluster.metricConfig) {
+                if (metric.unit.prefix || metric.unit.base) {
+                    metricUnits[metric.name] = '(' + (metric.unit.prefix ? metric.unit.prefix : '') + (metric.unit.base ? metric.unit.base : '') + ')'
+                } else { // If no unit defined: Omit Unit Display
+                    metricUnits[metric.name] = ''
+                }
             }
         }
     }
@@ -129,7 +131,7 @@
                     })
                     .sort((a, b) => a.host.localeCompare(b.host))}>
 
-                    <h4 style="width: 100%; text-align: center;"><a href="/monitoring/node/{cluster}/{item.host}">{item.host} ({item.subCluster})</a></h4>
+                    <h4 style="width: 100%; text-align: center;"><a style="display: block;padding-top: 15px;" href="/monitoring/node/{cluster}/{item.host}">{item.host} ({item.subCluster})</a></h4>
                     {#if item.removed == false && item.data != null}
                         <MetricPlot
                             width={width}

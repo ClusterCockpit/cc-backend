@@ -55,14 +55,18 @@
 
     let metricUnits = {}
     $: if ($nodesQuery.data) {
-        for (let metric of clusters.find(c => c.name == cluster).metricConfig) {
-            if (metric.unit.prefix || metric.unit.base) {
-                metricUnits[metric.name] = '(' + (metric.unit.prefix ? metric.unit.prefix : '') + (metric.unit.base ? metric.unit.base : '') + ')'
-            } else { // If no unit defined: Omit Unit Display
-                metricUnits[metric.name] = ''
+        let thisCluster = clusters.find(c => c.name == cluster)
+        if (thisCluster) {
+            for (let metric of thisCluster.metricConfig) {
+                if (metric.unit.prefix || metric.unit.base) {
+                    metricUnits[metric.name] = '(' + (metric.unit.prefix ? metric.unit.prefix : '') + (metric.unit.base ? metric.unit.base : '') + ')'
+                } else { // If no unit defined: Omit Unit Display
+                    metricUnits[metric.name] = ''
+                }
             }
         }
     }
+
     // $: console.log($nodesQuery?.data?.nodeMetrics[0].metrics)
 </script>
 
@@ -98,7 +102,7 @@
                 let:width
                 itemsPerRow={ccconfig.plot_view_plotsPerRow}
                 items={$nodesQuery.data.nodeMetrics[0].metrics.sort((a, b) => a.name.localeCompare(b.name))}>
-                <h4 style="text-align: center;">{item.name} {metricUnits[item.name]}</h4>
+                <h4 style="text-align: center; padding-top:15px;">{item.name} {metricUnits[item.name]}</h4>
                 <MetricPlot
                     width={width} height={300} metric={item.name} timestep={item.metric.timestep}
                     cluster={clusters.find(c => c.name == cluster)} subCluster={$nodesQuery.data.nodeMetrics[0].subCluster}

@@ -265,14 +265,22 @@
     }
 
     export function findThresholds(metricConfig, scope, subCluster) {
-        if (!metricConfig || !scope || !subCluster)
+        if (!metricConfig || !scope || !subCluster) {
+            console.warn('Argument missing for findThresholds!')
             return null
+        }
 
         if (scope == 'node' || metricConfig.aggregation == 'avg') {
-            if (!metricConfig.subClusters)
+            if (metricConfig.subClusters && metricConfig.subClusters.length === 0) {
+                // console.log('subClusterConfigs array empty, use metricConfig defaults')
                 return { normal: metricConfig.normal, caution: metricConfig.caution, alert: metricConfig.alert }
-            else
+            } else if (metricConfig.subClusters && metricConfig.subClusters.length > 0) {
+                // console.log('subClusterConfigs found, find and use subCluster Settings')
                 return metricConfig.subClusters.find(sc => sc.name == subCluster.name)
+            } else {
+                console.warn('metricConfig.subClusters not found!')
+                return null
+            }
         }
 
         if (metricConfig.aggregation != 'sum') {

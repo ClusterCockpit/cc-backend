@@ -50,7 +50,13 @@
             ...(ccconfig[`job_view_polarPlotMetrics:${job.cluster}`] || ccconfig[`job_view_polarPlotMetrics`]),
             ...(ccconfig[`job_view_nodestats_selectedMetrics:${job.cluster}`] || ccconfig[`job_view_nodestats_selectedMetrics`])])
 
-        startFetching(job, [...toFetch], job.numNodes > 2 ? ["node"] : ["node", "core"])
+        // Select default Scopes to load
+        if (job.numAcc === 0) { // No Accels
+            startFetching(job, [...toFetch], job.numNodes > 2 ? ["node"] : ["node", "core"])
+        } else { // Accels
+            startFetching(job, [...toFetch], job.numNodes > 2 ? ["node", "accelerator"] : ["node", "accelerator", "core"])
+        }
+        
         isFetched = toFetch
     })
 
