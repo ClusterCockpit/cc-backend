@@ -46,16 +46,6 @@
         }
     }
 
-    const power = [1, 1e3, 1e6, 1e9, 1e12]
-    const suffix = ['', 'k', 'm', 'g']
-    function formatNumber(x) {
-        for (let i = 0; i < suffix.length; i++)
-            if (power[i] <= x && x < power[i+1])
-                return `${x / power[i]}${suffix[i]}`
-
-        return Math.abs(x) >= 1000 ? x.toExponential() : x.toString()
-    }
-
     function axisStepFactor(i, size) {
         if (size && size < 500)
             return 10
@@ -307,6 +297,7 @@
 
 <script>
     import { onMount, tick } from 'svelte'
+    import { formatNumber } from '../units.js'
 
     export let flopsAny = null
     export let memBw = null

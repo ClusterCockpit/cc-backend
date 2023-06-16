@@ -196,7 +196,7 @@
 </style>
 
 <script context="module">
-    import { formatNumber } from '../utils.js'
+    import { formatNumber } from '../units.js'
 
     export function binsFromFootprint(weights, values, numBins) {
         let min = 0, max = 0
