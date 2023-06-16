@@ -181,7 +181,7 @@
                         >Metric disabled for subcluster '{job.subCluster}'</Card
                     >
                 {:else}
-                    <Card body color="warning">Missing Data</Card>
+                    <Card body color="warning">Missing Full Dataset</Card>
                 {/if}
             </td>
         {/each}
