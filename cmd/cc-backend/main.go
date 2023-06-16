@@ -59,9 +59,9 @@ const logoString = `
 `
 
 var (
-	buildTime string
-	hash      string
-	version   string
+	date    string
+	commit  string
+	version string
 )
 
 func main() {
@@ -86,8 +86,8 @@ func main() {
 	if flagVersion {
 		fmt.Print(logoString)
 		fmt.Printf("Version:\t%s\n", version)
-		fmt.Printf("Git hash:\t%s\n", hash)
-		fmt.Printf("Build time:\t%s\n", buildTime)
+		fmt.Printf("Git hash:\t%s\n", commit)
+		fmt.Printf("Build time:\t%s\n", date)
 		fmt.Printf("SQL db version:\t%d\n", repository.Version)
 		fmt.Printf("Job archive version:\t%d\n", archive.Version)
 		os.Exit(0)
@@ -245,7 +245,7 @@ func main() {
 	}
 
 	r := mux.NewRouter()
-	buildInfo := web.Build{Version: version, Hash: hash, Buildtime: buildTime}
+	buildInfo := web.Build{Version: version, Hash: commit, Buildtime: date}
 
 	r.HandleFunc("/login", func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
@@ -320,7 +320,7 @@ func main() {
 	})
 
 	// Mount all /monitoring/... and /api/... routes.
-	routerConfig.SetupRoutes(secured, version, hash, buildTime)
+	routerConfig.SetupRoutes(secured, version, commit, date)
 	api.MountRoutes(secured)
 
 	if config.Keys.EmbedStaticFiles {
