@@ -296,3 +296,20 @@ export function stickyHeader(datatableHeaderSelector, updatePading) {
     document.addEventListener("scroll", onscroll);
     onDestroy(() => document.removeEventListener("scroll", onscroll));
 }
+
+export function checkMetricDisabled(m, c, s) { //[m]etric, [c]luster, [s]ubcluster
+    const mc = getContext("metrics");
+    const thisConfig = mc(c, m);
+    let thisSCIndex = -1;
+    if (thisConfig) {
+        thisSCIndex = thisConfig.subClusters.findIndex(
+            (subcluster) => subcluster.name == s
+        );
+    };
+    if (thisSCIndex >= 0) {
+        if (thisConfig.subClusters[thisSCIndex].remove == true) {
+            return true;
+        }
+    }
+    return false;
+}

@@ -24,14 +24,13 @@
                 else
                     row.push({ _is_placeholder: true, ri, ci })
             }
-
             rows.push(row)
         }
 
         return rows
     }
 
-    $: rows = tile(items, itemsPerRow)
+    $: rows = tile(items.filter(item => item.disabled === false), itemsPerRow)
     $: plotWidth = (tableWidth / itemsPerRow) - (padding * itemsPerRow)
 </script>
 
@@ -39,7 +38,7 @@
     {#each rows as row}
         <tr>
             {#each row as item (item)}
-                <td>
+                <td style="vertical-align:top;"> <!-- For Aligning Notice Cards -->
                     {#if !isPlaceholder(item) && plotWidth > 0}
                         <slot item={item} width={plotWidth}></slot>
                     {/if}
