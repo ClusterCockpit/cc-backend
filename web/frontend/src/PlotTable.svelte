@@ -24,14 +24,13 @@
                 else
                     row.push({ _is_placeholder: true, ri, ci })
             }
-
             rows.push(row)
         }
 
         return rows
     }
 
-    $: rows = tile(items, itemsPerRow)
+    $: rows = tile(items.filter(item => item.disabled === false), itemsPerRow)
     $: plotWidth = (tableWidth / itemsPerRow) - (padding * itemsPerRow)
 </script>
 

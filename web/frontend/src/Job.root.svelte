@@ -1,5 +1,5 @@
 <script>
-    import { init, groupByScope, fetchMetricsStore } from './utils.js'
+    import { init, groupByScope, fetchMetricsStore, checkMetricDisabled } from './utils.js'
     import { Row, Col, Card, Spinner, TabContent, TabPane,
              CardBody, CardHeader, CardTitle, Button, Icon } from 'sveltestrap'
     import PlotTable from './PlotTable.svelte'
@@ -95,7 +95,14 @@
         somethingMissing = missingMetrics.length > 0 || missingHosts.length > 0
     }
 
-    const orderAndMap = (grouped, selectedMetrics) => selectedMetrics.map(metric => ({ metric: metric, data: grouped.find((group) => group[0].name == metric) }))
+    const orderAndMap = (grouped, selectedMetrics) => 
+        selectedMetrics.map(metric => ({ 
+            metric: metric,
+            data: grouped.find((group) => 
+                group[0].name == metric
+            ),
+            disabled: checkMetricDisabled(metric, $initq.data.job.cluster, $initq.data.job.subCluster) 
+        }))
 </script>
 
 <div class="row" bind:clientWidth={fullWidth}></div>
