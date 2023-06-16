@@ -38,7 +38,7 @@
     {#each rows as row}
         <tr>
             {#each row as item (item)}
-                <td>
+                <td style="vertical-align:top;"> <!-- For Aligning Notice Cards -->
                     {#if !isPlaceholder(item) && plotWidth > 0}
                         <slot item={item} width={plotWidth}></slot>
                     {/if}
