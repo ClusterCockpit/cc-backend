@@ -3,7 +3,7 @@
 </div>
 
 <script context="module">
-    import { formatNumber } from '../utils.js'
+    import { formatNumber } from '../units.js'
 
     const axesColor = '#aaaaaa'
     const fontSize = 12
