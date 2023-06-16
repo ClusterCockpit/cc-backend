@@ -24,6 +24,7 @@
     import uPlot from 'uplot'
     import { formatNumber } from '../units.js'
     import { getContext, onMount, onDestroy } from 'svelte'
+    import { Card } from 'sveltestrap'
 
     export let width
     export let height
@@ -219,11 +220,15 @@
         }, resizeSleepTime)
     }
 
-    $: onSizeChange(width, height)
+    $: if (series[0].data.length > 0) {
+         onSizeChange(width, height)
+    }
 
     onMount(() => {
-        plotWrapper.style.backgroundColor = backgroundColor()
-        render()
+        if (series[0].data.length > 0) {
+            plotWrapper.style.backgroundColor = backgroundColor()
+            render()
+        }
     })
 
     onDestroy(() => {
@@ -312,9 +317,11 @@
 
 </script>
 
-<!--Add empty series warning card-->
-<div bind:this={plotWrapper} class="cc-plot"></div>
-
+{#if series[0].data.length > 0}
+    <div bind:this={plotWrapper} class="cc-plot"></div>
+{:else}
+    <Card style="margin-left: 2rem;margin-right: 2rem;" body color="warning">Cannot render plot: No series data found for <code>{metric}</code></Card>
+{/if}
 <style>
     .cc-plot {
         border-radius: 5px;
