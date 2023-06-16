@@ -21,6 +21,8 @@ Changes: remove dependency, text inputs, configurable value ranges, on:change ev
 	export let max;
 	export let firstSlider;
 	export let secondSlider;
+	export let inputFieldFrom = 0;
+	export let inputFieldTo = 0;
 
 	const dispatch = createEventDispatcher();
 
@@ -33,7 +35,6 @@ Changes: remove dependency, text inputs, configurable value ranges, on:change ev
 	let leftHandle;
 	let body;
 	let slider;
-	let inputFieldFrom, inputFieldTo;
 
 	let timeoutId = null;
 	function queueChangeEvent() {
@@ -45,10 +46,10 @@ Changes: remove dependency, text inputs, configurable value ranges, on:change ev
 			timeoutId = null;
 
 			// Show selection but avoid feedback loop
-			if (values[0] != null && inputFieldFrom.value != values[0].toString())
-				inputFieldFrom.value = values[0].toString();
-			if (values[1] != null && inputFieldTo.value != values[1].toString())
-				inputFieldTo.value = values[1].toString();
+			if (values[0] != null && inputFieldFrom != values[0].toString())
+				inputFieldFrom = values[0].toString();
+			if (values[1] != null && inputFieldTo != values[1].toString())
+				inputFieldTo = values[1].toString();
 
 			dispatch('change', values);
 		}, 250);
@@ -176,7 +177,7 @@ Changes: remove dependency, text inputs, configurable value ranges, on:change ev
 
 		const leftHandleLeft = leftHandle.getBoundingClientRect().left;
 
-		const pxStart = clamp((leftHandleLeft + event.detail.dx) - left, 0, parentWidth - width);
+		const pxStart = clamp((leftHandleLeft + evt.detail.dx) - left, 0, parentWidth - width);
 		const pxEnd = clamp(pxStart + width, width, parentWidth);
 
 		const pStart = pxStart / parentWidth;
@@ -190,12 +191,12 @@ Changes: remove dependency, text inputs, configurable value ranges, on:change ev
 
 <div class="double-range-container">
 	<div class="header">
-		<input class="form-control" type="text" placeholder="from..." bind:this={inputFieldFrom}
+		<input class="form-control" type="text" placeholder="from..." bind:value={inputFieldFrom}
 			on:input={(e) => inputChanged(0, e)} />
 
 		<span>Full Range: <b> {min} </b> - <b> {max} </b></span>
 
-		<input class="form-control" type="text" placeholder="to..." bind:this={inputFieldTo}
+		<input class="form-control" type="text" placeholder="to..." bind:value={inputFieldTo}
 			on:input={(e) => inputChanged(1, e)} />
 	</div>
 	<div class="slider" bind:this={slider}>

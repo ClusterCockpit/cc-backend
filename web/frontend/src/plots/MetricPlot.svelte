@@ -22,7 +22,7 @@
  -->
 <script>
     import uPlot from 'uplot'
-    import { formatNumber } from '../utils.js'
+    import { formatNumber } from '../units.js'
     import { getContext, onMount, onDestroy } from 'svelte'
 
     export let width
@@ -312,7 +312,9 @@
 
 </script>
 
+<!--Add empty series warning card-->
 <div bind:this={plotWrapper} class="cc-plot"></div>
+
 <style>
     .cc-plot {
         border-radius: 5px;

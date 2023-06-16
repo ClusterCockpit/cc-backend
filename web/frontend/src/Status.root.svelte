@@ -4,6 +4,7 @@
     import Histogram from './plots/Histogram.svelte'
     import { Row, Col, Spinner, Card, CardHeader, CardTitle, CardBody, Table, Progress, Icon } from 'sveltestrap'
     import { init } from './utils.js'
+    import { scaleNumbers } from './units.js'
     import { queryStore, gql, getContextClient  } from '@urql/svelte'
 
     const { query: initq } = init()
@@ -50,15 +51,17 @@
         ? sum + (node.metrics.find(m => m.name == metric)?.metric.series.reduce((sum, series) => sum + series.data[series.data.length - 1], 0) || 0)
         : sum, 0)
 
-    let allocatedNodes = {}, flopRate = {}, flopRateUnit = {}, memBwRate = {}, memBwRateUnit = {}
+    let allocatedNodes = {}, flopRate = {}, flopRateUnitPrefix = {}, flopRateUnitBase = {}, memBwRate = {}, memBwRateUnitPrefix = {}, memBwRateUnitBase = {}
     $: if ($initq.data && $mainQuery.data) {
         let subClusters = $initq.data.clusters.find(c => c.name == cluster).subClusters
         for (let subCluster of subClusters) {
-            allocatedNodes[subCluster.name] = $mainQuery.data.allocatedNodes.find(({ name }) => name == subCluster.name)?.count || 0
-            flopRate[subCluster.name] = Math.floor(sumUp($mainQuery.data.nodeMetrics, subCluster.name, 'flops_any') * 100) / 100
-            flopRateUnit[subCluster.name] = subCluster.flopRateSimd.unit.prefix + subCluster.flopRateSimd.unit.base
-            memBwRate[subCluster.name] = Math.floor(sumUp($mainQuery.data.nodeMetrics, subCluster.name, 'mem_bw') * 100) / 100
-            memBwRateUnit[subCluster.name] = subCluster.memoryBandwidth.unit.prefix + subCluster.memoryBandwidth.unit.base
+            allocatedNodes[subCluster.name]     = $mainQuery.data.allocatedNodes.find(({ name }) => name == subCluster.name)?.count || 0
+            flopRate[subCluster.name]           = Math.floor(sumUp($mainQuery.data.nodeMetrics, subCluster.name, 'flops_any') * 100) / 100
+            flopRateUnitPrefix[subCluster.name] = subCluster.flopRateSimd.unit.prefix
+            flopRateUnitBase[subCluster.name]   = subCluster.flopRateSimd.unit.base
+            memBwRate[subCluster.name]          = Math.floor(sumUp($mainQuery.data.nodeMetrics, subCluster.name, 'mem_bw') * 100) / 100
+            memBwRateUnitPrefix[subCluster.name] = subCluster.memoryBandwidth.unit.prefix
+            memBwRateUnitBase[subCluster.name]  = subCluster.memoryBandwidth.unit.base
         }
     }
 
@@ -111,17 +114,27 @@
                             <tr class="py-2">
                                 <th scope="col">Allocated Nodes</th>
                                 <td style="min-width: 100px;"><div class="col"><Progress value={allocatedNodes[subCluster.name]} max={subCluster.numberOfNodes}/></div></td>
-                                <td>({allocatedNodes[subCluster.name]} Nodes / {subCluster.numberOfNodes} Total Nodes)</td>
+                                <td>{allocatedNodes[subCluster.name]} / {subCluster.numberOfNodes} Nodes</td>
                             </tr>
                             <tr class="py-2">
                                 <th scope="col">Flop Rate (Any) <Icon name="info-circle" class="p-1" style="cursor: help;" title="Flops[Any] = (Flops[Double] x 2) + Flops[Single]"/></th>
                                 <td style="min-width: 100px;"><div class="col"><Progress value={flopRate[subCluster.name]} max={subCluster.flopRateSimd.value * subCluster.numberOfNodes}/></div></td>
-                                <td>({flopRate[subCluster.name]} {flopRateUnit[subCluster.name]} / {(subCluster.flopRateSimd.value * subCluster.numberOfNodes)} {flopRateUnit[subCluster.name]} [Max])</td>
+                                <td>
+                                    {scaleNumbers(flopRate[subCluster.name], 
+                                                  (subCluster.flopRateSimd.value * subCluster.numberOfNodes),
+                                                  flopRateUnitPrefix[subCluster.name])
+                                    }{flopRateUnitBase[subCluster.name]} [Max]
+                                </td>
                             </tr>
                             <tr class="py-2">
                                 <th scope="col">MemBw Rate</th>
                                 <td style="min-width: 100px;"><div class="col"><Progress value={memBwRate[subCluster.name]} max={subCluster.memoryBandwidth.value * subCluster.numberOfNodes}/></div></td>
-                                <td>({memBwRate[subCluster.name]} {memBwRateUnit[subCluster.name]} / {(subCluster.memoryBandwidth.value * subCluster.numberOfNodes)} {memBwRateUnit[subCluster.name]} [Max])</td>
+                                <td>
+                                    {scaleNumbers(memBwRate[subCluster.name],
+                                                  (subCluster.memoryBandwidth.value * subCluster.numberOfNodes), 
+                                                  memBwRateUnitPrefix[subCluster.name])
+                                    }{memBwRateUnitBase[subCluster.name]} [Max]
+                                </td>
                             </tr>
                         </Table>
                     </CardBody>

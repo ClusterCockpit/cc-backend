@@ -123,22 +123,6 @@ export function init(extraInitQuery = "") {
     };
 }
 
-export function formatNumber(x) {
-    let suffix = "";
-    if (x >= 1000000000) {
-        x /= 1000000;
-        suffix = "G";
-    } else if (x >= 1000000) {
-        x /= 1000000;
-        suffix = "M";
-    } else if (x >= 1000) {
-        x /= 1000;
-        suffix = "k";
-    }
-
-    return `${Math.round(x * 100) / 100} ${suffix}`;
-}
-
 // Use https://developer.mozilla.org/en-US/docs/Web/API/structuredClone instead?
 export function deepCopy(x) {
     return JSON.parse(JSON.stringify(x));
