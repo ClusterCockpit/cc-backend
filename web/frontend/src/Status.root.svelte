@@ -114,7 +114,7 @@
                             <tr class="py-2">
                                 <th scope="col">Allocated Nodes</th>
                                 <td style="min-width: 100px;"><div class="col"><Progress value={allocatedNodes[subCluster.name]} max={subCluster.numberOfNodes}/></div></td>
-                                <td>({allocatedNodes[subCluster.name]} Nodes / {subCluster.numberOfNodes} Total Nodes)</td>
+                                <td>{allocatedNodes[subCluster.name]} / {subCluster.numberOfNodes} Nodes</td>
                             </tr>
                             <tr class="py-2">
                                 <th scope="col">Flop Rate (Any) <Icon name="info-circle" class="p-1" style="cursor: help;" title="Flops[Any] = (Flops[Double] x 2) + Flops[Single]"/></th>
