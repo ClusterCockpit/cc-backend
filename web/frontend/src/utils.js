@@ -183,9 +183,10 @@ export function groupByScope(jobMetrics) {
 const scopeGranularity = {
     node: 10,
     socket: 5,
-    accelerator: 5,
-    core: 2,
-    hwthread: 1,
+    memorydomain: 4,
+    core: 3,
+    hwthread: 2,
+    accelerator: 1
 };
 
 export function maxScope(scopes) {
