@@ -102,7 +102,7 @@
             data: grouped.find((group) => 
                 group[0].name == metric
             ),
-            disabled: checkMetricDisabled(metric, $initq.data.job.cluster, $initq.data.job.subCluster) 
+            disabled: checkMetricDisabled(metric, $initq.data.job.cluster, $initq.data.job.subCluster)
         }))
 </script>
 
@@ -140,7 +140,7 @@
                 width={polarPlotSize} height={polarPlotSize}
                 metrics={ccconfig[`job_view_polarPlotMetrics:${$initq.data.job.cluster}`] || ccconfig[`job_view_polarPlotMetrics`]}
                 cluster={$initq.data.job.cluster}
-                jobMetrics={$jobMetrics.data.jobMetrics} />
+                jobMetrics={$jobMetrics.data.jobMetrics}/>
         </Col>
         <Col>
             <Roofline
@@ -190,6 +190,7 @@
             <PlotTable
                 let:item
                 let:width
+                renderFor="job"
                 items={orderAndMap(groupByScope($jobMetrics.data.jobMetrics), selectedMetrics)}
                 itemsPerRow={ccconfig.plot_view_plotsPerRow}>
                 {#if item.data}
@@ -203,7 +204,7 @@
                         width={width}
                         isShared={($initq.data.job.exclusive != 1)}/>
                 {:else}
-                    <Card body color="warning">No data for <code>{item.metric}</code></Card>
+                    <Card body color="warning">No dataset returned for <code>{item.metric}</code></Card>
                 {/if}
             </PlotTable>
         {/if}
