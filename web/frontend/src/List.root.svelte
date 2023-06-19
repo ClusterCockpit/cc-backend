@@ -24,6 +24,16 @@
     export let type;
     export let filterPresets;
 
+    // By default, look at the jobs of the last 30 days:
+    if (filterPresets?.startTime == null) {
+        if (filterPresets == null)
+                filterPresets = {}
+
+            const lastMonth = (new Date(Date.now() - (30*24*60*60*1000))).toISOString()
+            const now = (new Date(Date.now())).toISOString()
+            filterPresets.startTime = { from: lastMonth, to: now, text: 'Last 30 Days', url: 'last30d' }
+    }
+
     console.assert(
         type == "USER" || type == "PROJECT",
         "Invalid list type provided!"

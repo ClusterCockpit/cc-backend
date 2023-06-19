@@ -35,17 +35,17 @@
         projectMatch: filterPresets.projectMatch || 'contains',
         userMatch:    filterPresets.userMatch    || 'contains',
 
-        cluster:    filterPresets.cluster    || null,
-        partition:  filterPresets.partition  || null,
-        states:     filterPresets.states     || filterPresets.state ? [filterPresets.state].flat() : allJobStates,
-        startTime:  filterPresets.startTime  || { from: null, to: null },
-        tags:       filterPresets.tags       || [],
-        duration:   filterPresets.duration   || { from: null, to: null },
-        jobId:      filterPresets.jobId      || '',
-        arrayJobId: filterPresets.arrayJobId || null,
-        user:       filterPresets.user       || '',
-        project:    filterPresets.project    || '',
-        jobName:    filterPresets.jobName    || '',
+        cluster:     filterPresets.cluster    || null,
+        partition:   filterPresets.partition  || null,
+        states:      filterPresets.states     || filterPresets.state ? [filterPresets.state].flat() : allJobStates,
+        startTime:   filterPresets.startTime  || { from: null, to: null },
+        tags:        filterPresets.tags       || [],
+        duration:    filterPresets.duration   || { from: null, to: null },
+        jobId:       filterPresets.jobId      || '',
+        arrayJobId:  filterPresets.arrayJobId || null,
+        user:        filterPresets.user       || '',
+        project:     filterPresets.project    || '',
+        jobName:     filterPresets.jobName    || '',
 
         numNodes:         filterPresets.numNodes         || { from: null, to: null },
         numHWThreads:     filterPresets.numHWThreads     || { from: null, to: null },
@@ -120,7 +120,11 @@
             for (let state of filters.states)
                 opts.push(`state=${state}`)
         if (filters.startTime.from && filters.startTime.to)
-            opts.push(`startTime=${dateToUnixEpoch(filters.startTime.from)}-${dateToUnixEpoch(filters.startTime.to)}`)
+            // if (filters.startTime.url) {
+            //     opts.push(`startTime=${filters.startTime.url}`)
+            // } else {
+                opts.push(`startTime=${dateToUnixEpoch(filters.startTime.from)}-${dateToUnixEpoch(filters.startTime.to)}`)
+            // }
         for (let tag of filters.tags)
             opts.push(`tag=${tag}`)
         if (filters.duration.from && filters.duration.to)
@@ -193,16 +197,18 @@
                     <DropdownItem divider/>
                     <DropdownItem disabled>Start Time Qick Selection</DropdownItem>
                     {#each [
-                        { text: 'Last 6hrs',    seconds: 6*60*60 },
-                        { text: 'Last 12hrs',   seconds: 12*60*60 },
-                        { text: 'Last 24hrs',   seconds: 24*60*60 },
-                        { text: 'Last 48hrs',   seconds: 48*60*60 },
-                        { text: 'Last 7 days',  seconds: 7*24*60*60 },
-                        { text: 'Last 30 days', seconds: 30*24*60*60 }
-                    ] as {text, seconds}}
+                        { text: 'Last 6hrs', url: 'last6h',   seconds: 6*60*60 },
+                        // { text: 'Last 12hrs',   seconds: 12*60*60 },
+                        { text: 'Last 24hrs', url: 'last24h',  seconds: 24*60*60 },
+                        // { text: 'Last 48hrs',   seconds: 48*60*60 },
+                        { text: 'Last 7 days', url: 'last7d', seconds: 7*24*60*60 },
+                        { text: 'Last 30 days', url: 'last30d', seconds: 30*24*60*60 }
+                    ] as {text, url, seconds}}
                         <DropdownItem on:click={() => {
                             filters.startTime.from = (new Date(Date.now() - seconds * 1000)).toISOString()
                             filters.startTime.to = (new Date(Date.now())).toISOString()
+                            filters.startTime.text = text,
+                            filters.startTime.url = url
                             update()
                         }}>
                             <Icon name="calendar-range"/> {text}
@@ -212,27 +218,6 @@
             </DropdownMenu>
         </ButtonDropdown>
     </Col>
-    <!-- {#if startTimeQuickSelect}
-        <Col xs="auto">
-            <TimeSelection customEnabled={false} anyEnabled={true}
-                from={filters.startTime.from ? new Date(filters.startTime.from) : null}
-                to={filters.startTime.to ? new Date(filters.startTime.to) : null}
-                options={{
-                    'Last 6hrs': 6*60*60,
-                    'Last 12hrs': 12*60*60,
-                    'Last 24hrs': 24*60*60,
-                    'Last 48hrs': 48*60*60,
-                    'Last 7 days': 7*24*60*60,
-                    'Last 30 days': 30*24*60*60}}
-                on:change={({ detail: { from, to } }) => {
-                    filters.startTime.from = from?.toISOString()
-                    filters.startTime.to = to?.toISOString()
-                    // console.log(filters.startTime)
-                    update()
-                }}
-                />
-        </Col>
-    {/if} -->
     <Col xs="auto">
         {#if filters.cluster}
             <Info icon="cpu" on:click={() => (isClusterOpen = true)}>
@@ -251,8 +236,12 @@
 
         {#if filters.startTime.from || filters.startTime.to}
             <Info icon="calendar-range" on:click={() => (isStartTimeOpen = true)}>
-                {new Date(filters.startTime.from).toLocaleString()} - {new Date(filters.startTime.to).toLocaleString()}
-            </Info>
+                {#if filters.startTime.text}
+                    {filters.startTime.text}
+                {:else}
+                    {new Date(filters.startTime.from).toLocaleString()} - {new Date(filters.startTime.to).toLocaleString()}
+                {/if}
+             </Info>
         {/if}
 
         {#if filters.duration.from || filters.duration.to}
@@ -307,7 +296,11 @@
     bind:isOpen={isStartTimeOpen}
     bind:from={filters.startTime.from}
     bind:to={filters.startTime.to}
-    on:update={() => update()} />
+    on:update={() => {
+        delete filters.startTime['text']
+        delete filters.startTime['url']
+        update()
+    }} />
 
 <Duration
     bind:isOpen={isDurationOpen}
