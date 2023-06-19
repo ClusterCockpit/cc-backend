@@ -227,12 +227,13 @@
             <PlotTable
                 let:item
                 let:width
+                renderFor="analysis"
                 items={metricsInHistograms.map(metric => ({ metric, ...binsFromFootprint(
                     $footprintsQuery.data.footprints.nodehours,
                     $footprintsQuery.data.footprints.metrics.find(f => f.metric == metric).data, numBins) }))}
                 itemsPerRow={ccconfig.plot_view_plotsPerRow}>
-                <h4>Average Distribution of '{item.metric}'</h4>
 
+                <h4>Average Distribution of '{item.metric}'</h4>
                 <Histogram
                     width={width} height={250}
                     min={item.min} max={item.max}
