@@ -30,7 +30,8 @@
         return rows
     }
 
-    $: rows = tile(items.filter(item => item.disabled === false), itemsPerRow)
+    // Analysis Implements PlotTable: Disable flag can not be present, add to row if not defined explicitly (Helps with systems view also) 
+    $: rows = tile(items.filter(item => (item.disabled !== null && item.disabled === false)), itemsPerRow)
     $: plotWidth = (tableWidth / itemsPerRow) - (padding * itemsPerRow)
 </script>
 
