@@ -87,7 +87,8 @@
             metrics = $jobMetrics.data.jobMetrics,
             metricNames = clusters.find(c => c.name == job.cluster).metricConfig.map(mc => mc.name)
 
-        missingMetrics = metricNames.filter(metric => !metrics.some(jm => jm.name == metric))
+        // Metric not found in JobMetrics && Metric not explicitly disabled: Was expected, but is Missing
+        missingMetrics = metricNames.filter(metric => (!metrics.some(jm => jm.name == metric) && !checkMetricDisabled(metric, $initq.data.job.cluster, $initq.data.job.subCluster)))
         missingHosts = job.resources.map(({ hostname }) => ({
             hostname: hostname,
             metrics: metricNames.filter(metric => !metrics.some(jm => jm.scope == 'node' && jm.metric.series.some(series => series.hostname == hostname)))
