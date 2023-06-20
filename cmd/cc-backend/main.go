@@ -338,7 +338,7 @@ func main() {
 		handlers.AllowedOrigins([]string{"*"})))
 	handler := handlers.CustomLoggingHandler(io.Discard, r, func(_ io.Writer, params handlers.LogFormatterParams) {
 		if strings.HasPrefix(params.Request.RequestURI, "/api/") {
-			log.Infof("%s %s (%d, %.02fkb, %dms)",
+			log.Debugf("%s %s (%d, %.02fkb, %dms)",
 				params.Request.Method, params.URL.RequestURI(),
 				params.StatusCode, float32(params.Size)/1024,
 				time.Since(params.TimeStamp).Milliseconds())

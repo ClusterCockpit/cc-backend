@@ -55,7 +55,6 @@ func GetJobRepository() *JobRepository {
 		// start archiving worker
 		go jobRepoInstance.archivingWorker()
 	})
-
 	return jobRepoInstance
 }
 
@@ -178,7 +177,7 @@ func (r *JobRepository) FetchMetadata(job *schema.Job) (map[string]string, error
 	}
 
 	r.cache.Put(cachekey, job.MetaData, len(job.RawMetaData), 24*time.Hour)
-	log.Infof("Timer FetchMetadata %s", time.Since(start))
+	log.Debugf("Timer FetchMetadata %s", time.Since(start))
 	return job.MetaData, nil
 }
 
@@ -238,7 +237,7 @@ func (r *JobRepository) Find(
 		q = q.Where("job.start_time = ?", *startTime)
 	}
 
-	log.Infof("Timer Find %s", time.Since(start))
+	log.Debugf("Timer Find %s", time.Since(start))
 	return scanJob(q.RunWith(r.stmtCache).QueryRow())
 }
 
@@ -278,7 +277,7 @@ func (r *JobRepository) FindAll(
 		}
 		jobs = append(jobs, job)
 	}
-	log.Infof("Timer FindAll %s", time.Since(start))
+	log.Debugf("Timer FindAll %s", time.Since(start))
 	return jobs, nil
 }
 
@@ -344,7 +343,7 @@ func (r *JobRepository) DeleteJobsBefore(startTime int64) (int, error) {
 	if err != nil {
 		log.Errorf(" DeleteJobsBefore(%d): error %#v", startTime, err)
 	} else {
-		log.Infof("DeleteJobsBefore(%d): Deleted %d jobs", startTime, cnt)
+		log.Debugf("DeleteJobsBefore(%d): Deleted %d jobs", startTime, cnt)
 	}
 	return cnt, err
 }
@@ -354,7 +353,7 @@ func (r *JobRepository) DeleteJobById(id int64) error {
 	if err != nil {
 		log.Errorf("DeleteJobById(%d): error %#v", id, err)
 	} else {
-		log.Infof("DeleteJobById(%d): Success", id)
+		log.Debugf("DeleteJobById(%d): Success", id)
 	}
 	return err
 }
@@ -383,7 +382,7 @@ func (r *JobRepository) CountGroupedJobs(
 			count = fmt.Sprintf(`sum(job.num_nodes * (CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) as count`, now)
 			runner = r.DB
 		default:
-			log.Infof("CountGroupedJobs() Weight %v unknown.", *weight)
+			log.Debugf("CountGroupedJobs() Weight %v unknown.", *weight)
 		}
 	}
 
@@ -418,7 +417,7 @@ func (r *JobRepository) CountGroupedJobs(
 		counts[group] = count
 	}
 
-	log.Infof("Timer CountGroupedJobs %s", time.Since(start))
+	log.Debugf("Timer CountGroupedJobs %s", time.Since(start))
 	return counts, nil
 }
 
@@ -457,7 +456,7 @@ func (r *JobRepository) MarkArchived(
 		case "file_bw":
 			stmt = stmt.Set("file_bw_avg", stats.Avg)
 		default:
-			log.Infof("MarkArchived() Metric '%v' unknown", metric)
+			log.Debugf("MarkArchived() Metric '%v' unknown", metric)
 		}
 	}
 
@@ -476,6 +475,7 @@ func (r *JobRepository) archivingWorker() {
 			if !ok {
 				break
 			}
+			start := time.Now()
 			// not using meta data, called to load JobMeta into Cache?
 			// will fail if job meta not in repository
 			if _, err := r.FetchMetadata(job); err != nil {
@@ -498,7 +498,7 @@ func (r *JobRepository) archivingWorker() {
 				log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
 				continue
 			}
-
+			log.Debugf("archiving job %d took %s", job.JobID, time.Since(start))
 			log.Printf("archiving job (dbid: %d) successful", job.ID)
 			r.archivePending.Done()
 		}
@@ -635,7 +635,7 @@ func (r *JobRepository) Partitions(cluster string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Infof("Timer Partitions %s", time.Since(start))
+	log.Debugf("Timer Partitions %s", time.Since(start))
 	return partitions.([]string), nil
 }
 
@@ -680,7 +680,7 @@ func (r *JobRepository) AllocatedNodes(cluster string) (map[string]map[string]in
 		}
 	}
 
-	log.Infof("Timer AllocatedNodes %s", time.Since(start))
+	log.Debugf("Timer AllocatedNodes %s", time.Since(start))
 	return subclusters, nil
 }
 
@@ -709,7 +709,7 @@ func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 	if rowsAffected > 0 {
 		log.Infof("%d jobs have been marked as failed due to running too long", rowsAffected)
 	}
-	log.Infof("Timer StopJobsExceedingWalltimeBy %s", time.Since(start))
+	log.Debugf("Timer StopJobsExceedingWalltimeBy %s", time.Since(start))
 	return nil
 }
 

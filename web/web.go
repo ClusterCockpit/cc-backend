@@ -106,7 +106,7 @@ func RenderTemplate(rw http.ResponseWriter, r *http.Request, file string, page *
 		}
 	}
 
-	log.Infof("Page config : %v\n", page.Config)
+	log.Debugf("Page config : %v\n", page.Config)
 	if err := t.Execute(rw, page); err != nil {
 		log.Errorf("Template error: %s", err.Error())
 	}
