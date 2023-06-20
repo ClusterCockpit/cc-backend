@@ -28,13 +28,17 @@ SVELTE_SRC = $(wildcard $(FRONTEND)/src/*.svelte)         \
 			 $(wildcard $(FRONTEND)/src/plots/*.svelte)   \
 			 $(wildcard $(FRONTEND)/src/joblist/*.svelte)
 
-.PHONY: clean test tags $(TARGET)
+.PHONY: clean test tags frontend $(TARGET)
 
 .NOTPARALLEL:
 
 $(TARGET): $(VAR) $(CFG) $(SVELTE_TARGETS)
 	$(info ===>  BUILD cc-backend)
 	@go build -ldflags=${LD_FLAGS} ./cmd/cc-backend
+
+frontend:
+	$(info ===>  BUILD frontend)
+	cd web/frontend && npm install && npm run build
 
 clean:
 	$(info ===>  CLEAN)
