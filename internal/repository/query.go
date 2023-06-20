@@ -48,16 +48,9 @@ func (r *JobRepository) queryJobs(
 		query = BuildWhereClause(f, query)
 	}
 
-	sql, args, err := query.ToSql()
-	if err != nil {
-		log.Warn("Error while converting query to sql")
-		return nil, err
-	}
-
-	log.Debugf("SQL query: `%s`, args: %#v", sql, args)
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
-		log.Error("Error while running query")
+		log.Errorf("Error while running query: %v", err)
 		return nil, err
 	}
 
@@ -102,62 +95,6 @@ func (r *JobRepository) QueryJobs(
 		filters, page, order)
 }
 
-// SecurityCheck-less, private: returns a list of minimal job information (DB-ID and jobId) of shared jobs for link-building based the provided filters.
-func (r *JobRepository) queryJobLinks(
-	query sq.SelectBuilder,
-	filters []*model.JobFilter) ([]*model.JobLink, error) {
-
-	for _, f := range filters {
-		query = BuildWhereClause(f, query)
-	}
-
-	sql, args, err := query.ToSql()
-	if err != nil {
-		log.Warn("Error while converting query to sql")
-		return nil, err
-	}
-
-	log.Debugf("SQL query: `%s`, args: %#v", sql, args)
-	rows, err := query.RunWith(r.stmtCache).Query()
-	if err != nil {
-		log.Error("Error while running query")
-		return nil, err
-	}
-
-	jobLinks := make([]*model.JobLink, 0, 50)
-	for rows.Next() {
-		jobLink, err := scanJobLink(rows)
-		if err != nil {
-			rows.Close()
-			log.Warn("Error while scanning rows (JobLinks)")
-			return nil, err
-		}
-		jobLinks = append(jobLinks, jobLink)
-	}
-
-	return jobLinks, nil
-}
-
-// testFunction for queryJobLinks
-func (r *JobRepository) testQueryJobLinks(
-	filters []*model.JobFilter) ([]*model.JobLink, error) {
-
-	return r.queryJobLinks(sq.Select(jobColumns...).From("job"), filters)
-}
-
-func (r *JobRepository) QueryJobLinks(
-	ctx context.Context,
-	filters []*model.JobFilter) ([]*model.JobLink, error) {
-
-	query, qerr := SecurityCheck(ctx, sq.Select("job.id", "job.job_id").From("job"))
-
-	if qerr != nil {
-		return nil, qerr
-	}
-
-	return r.queryJobLinks(query, filters)
-}
-
 // SecurityCheck-less, private: Returns the number of jobs matching the filters
 func (r *JobRepository) countJobs(query sq.SelectBuilder,
 	filters []*model.JobFilter) (int, error) {
@@ -166,13 +103,6 @@ func (r *JobRepository) countJobs(query sq.SelectBuilder,
 		query = BuildWhereClause(f, query)
 	}
 
-	sql, args, err := query.ToSql()
-	if err != nil {
-		log.Warn("Error while converting query to sql")
-		return 0, nil
-	}
-
-	log.Debugf("SQL query: `%s`, args: %#v", sql, args)
 	var count int
 	if err := query.RunWith(r.DB).Scan(&count); err != nil {
 		return 0, err
