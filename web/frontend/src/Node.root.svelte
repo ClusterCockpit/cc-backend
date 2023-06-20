@@ -1,5 +1,5 @@
 <script>
-    import { init } from './utils.js'
+    import { init, checkMetricDisabled } from './utils.js'
     import { Row, Col, InputGroup, InputGroupText, Icon, Spinner, Card } from 'sveltestrap'
     import { queryStore, gql, getContextClient } from '@urql/svelte'
     import TimeSelection from './filters/TimeSelection.svelte'
@@ -100,13 +100,23 @@
             <PlotTable
                 let:item
                 let:width
+                renderFor="node"
                 itemsPerRow={ccconfig.plot_view_plotsPerRow}
-                items={$nodesQuery.data.nodeMetrics[0].metrics.sort((a, b) => a.name.localeCompare(b.name))}>
+                items={$nodesQuery.data.nodeMetrics[0].metrics
+                .map(m => ({ ...m, disabled: checkMetricDisabled(m.name, cluster, $nodesQuery.data.nodeMetrics[0].subCluster)}))
+                .sort((a, b) => a.name.localeCompare(b.name))}>
+
                 <h4 style="text-align: center; padding-top:15px;">{item.name} {metricUnits[item.name]}</h4>
-                <MetricPlot
-                    width={width} height={300} metric={item.name} timestep={item.metric.timestep}
-                    cluster={clusters.find(c => c.name == cluster)} subCluster={$nodesQuery.data.nodeMetrics[0].subCluster}
-                    series={item.metric.series} />
+                {#if item.disabled === false && item.metric}
+                    <MetricPlot
+                        width={width} height={300} metric={item.name} timestep={item.metric.timestep}
+                        cluster={clusters.find(c => c.name == cluster)} subCluster={$nodesQuery.data.nodeMetrics[0].subCluster}
+                        series={item.metric.series} />
+                {:else if item.disabled === true && item.metric}
+                    <Card style="margin-left: 2rem;margin-right: 2rem;" body color="info">Metric disabled for subcluster <code>{item.name}:{$nodesQuery.data.nodeMetrics[0].subCluster}</code></Card>
+                {:else}
+                    <Card style="margin-left: 2rem;margin-right: 2rem;" body color="warning">No dataset returned for <code>{item.name}</code></Card>
+                {/if}
             </PlotTable>
         {/if}
     </Col>

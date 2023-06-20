@@ -10,7 +10,9 @@
     export let itemsPerRow
     export let items
     export let padding = 10
+    export let renderFor
 
+    let rows = []
     let tableWidth = 0
     const isPlaceholder = x => x._is_placeholder === true
 
@@ -30,8 +32,13 @@
         return rows
     }
 
-    // Analysis Implements PlotTable: Disable flag can not be present, add to row if not defined explicitly (Helps with systems view also) 
-    $: rows = tile(items.filter(item => (item.disabled !== null && item.disabled === false)), itemsPerRow)
+
+    $: if (renderFor === 'job') {
+        rows = tile(items.filter(item => item.disabled === false), itemsPerRow)
+    } else {
+        rows = tile(items, itemsPerRow)
+    }
+
     $: plotWidth = (tableWidth / itemsPerRow) - (padding * itemsPerRow)
 </script>
 

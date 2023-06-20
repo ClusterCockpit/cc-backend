@@ -320,7 +320,7 @@
 {#if series[0].data.length > 0}
     <div bind:this={plotWrapper} class="cc-plot"></div>
 {:else}
-    <Card style="margin-left: 2rem;margin-right: 2rem;" body color="warning">Cannot render plot: No series data found for <code>{metric}</code></Card>
+    <Card style="margin-left: 2rem;margin-right: 2rem;" body color="warning">Cannot render plot: No series data returned for <code>{metric}</code></Card>
 {/if}
 <style>
     .cc-plot {

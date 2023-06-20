@@ -14,7 +14,7 @@
     import { Card, Spinner } from "sveltestrap";
     import MetricPlot from "../plots/MetricPlot.svelte";
     import JobInfo from "./JobInfo.svelte";
-    import { maxScope } from "../utils.js";
+    import { maxScope, checkMetricDisabled } from "../utils.js";
 
     export let job;
     export let metrics;
@@ -85,56 +85,17 @@
             jobMetrics[0]
         );
 
-    const sortAndSelectScope = (jobMetrics) =>
-        metrics
-            .map(function (name) {
-                // Get MetricConf for this selected/requested metric
-                let thisConfig = metricConfig(cluster, name);
-                let thisSCIndex = -1
-                if (thisConfig) {
-                    thisSCIndex = thisConfig.subClusters.findIndex(
-                        (sc) => sc.name == job.subCluster
-                    );
-                };
-                // Check if Subcluster has MetricConf: If not found (index == -1), no further remove flag check required
-                if (thisSCIndex >= 0) {
-                    // SubCluster Config present: Check if remove flag is set
-                    if (thisConfig.subClusters[thisSCIndex].remove == true) {
-                        // Return null data and informational flag
-                        return { removed: true, data: null };
-                    } else {
-                        // load and return metric, if data available
-                        let thisMetric = jobMetrics.filter(
-                            (jobMetric) => jobMetric.name == name
-                        ); // Returns Array
-                        if (thisMetric.length > 0) {
-                            return { removed: false, data: thisMetric };
-                        } else {
-                            return { removed: false, data: null };
-                        }
-                    }
-                } else {
-                    // No specific subCluster config: 'remove' flag not set, deemed false -> load and return metric, if data available
-                    let thisMetric = jobMetrics.filter(
-                        (jobMetric) => jobMetric.name == name
-                    ); // Returns Array
-                    if (thisMetric.length > 0) {
-                        return { removed: false, data: thisMetric };
-                    } else {
-                        return { removed: false, data: null };
-                    }
-                }
-            })
-            .map(function (jobMetrics) {
-                if (jobMetrics.data != null && jobMetrics.data.length > 0) {
-                    return {
-                        removed: jobMetrics.removed,
-                        data: selectScope(jobMetrics.data),
-                    };
-                } else {
-                    return jobMetrics;
-                }
-            });
+
+    const sortAndSelectScope = (jobMetrics) => metrics
+        .map(name => jobMetrics.filter(jobMetric => jobMetric.name == name))
+        .map(jobMetrics => ({ disabled: false, data: jobMetrics.length > 0 ? selectScope(jobMetrics) : null }))
+        .map(jobMetric => {
+            if (jobMetric.data) {
+                return { disabled: checkMetricDisabled(jobMetric.data.name, job.cluster, job.subCluster), data: jobMetric.data }
+            } else {
+                return jobMetric
+            }
+        })
 
     if (job.monitoringStatus) refresh();
 </script>
@@ -163,7 +124,7 @@
         {#each sortAndSelectScope($metricsQuery.data.jobMetrics) as metric, i (metric || i)}
             <td>
                 <!-- Subluster Metricconfig remove keyword for jobtables (joblist main, user joblist, project joblist) to be used here as toplevel case-->
-                {#if metric.removed == false && metric.data != null}
+                {#if metric.disabled == false && metric.data}
                     <MetricPlot
                         width={plotWidth}
                         height={plotHeight}
@@ -176,12 +137,10 @@
                         subCluster={job.subCluster}
                         isShared={(job.exclusive != 1)}
                     />
-                {:else if metric.removed == true && metric.data == null}
-                    <Card body color="info"
-                        >Metric disabled for subcluster '{job.subCluster}'</Card
-                    >
+                {:else if metric.disabled == true && metric.data}
+                    <Card body color="info">Metric disabled for subcluster <code>{metric.data.name}:{job.subCluster}</code></Card>
                 {:else}
-                    <Card body color="warning">Missing Full Dataset</Card>
+                    <Card body color="warning">No dataset returned</Card>
                 {/if}
             </td>
         {/each}
