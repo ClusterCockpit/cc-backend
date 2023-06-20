@@ -81,8 +81,7 @@ func (r *JobRepository) testQueryJobs(
 	page *model.PageRequest,
 	order *model.OrderByInput) ([]*schema.Job, error) {
 
-	return r.queryJobs(sq.Select(jobColumns...).From("job"),
-		filters, page, order)
+	return r.queryJobs(sq.Select(jobColumns...).From("job"), filters, page, order)
 }
 
 // Public function with added securityCheck, calls private queryJobs function above
@@ -98,8 +97,7 @@ func (r *JobRepository) QueryJobs(
 		return nil, qerr
 	}
 
-	return r.queryJobs(query,
-		filters, page, order)
+	return r.queryJobs(query, filters, page, order)
 }
 
 // SecurityCheck-less, private: returns a list of minimal job information (DB-ID and jobId) of shared jobs for link-building based the provided filters.
@@ -202,12 +200,12 @@ func (r *JobRepository) CountJobs(
 	return r.countJobs(query, filters)
 }
 
-func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (queryOut sq.SelectBuilder, err error) {
+func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (sq.SelectBuilder, error) {
 	user := auth.GetUser(ctx)
 	if user == nil {
 		var qnil sq.SelectBuilder
 		return qnil, fmt.Errorf("user context is nil!")
-	} else if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport}) { // Admin & Co. : All jobs
+	} else if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleApi}) { // Admin & Co. : All jobs
 		return query, nil
 	} else if user.HasRole(auth.RoleManager) { // Manager : Add filter for managed projects' jobs only + personal jobs
 		if len(user.Projects) != 0 {

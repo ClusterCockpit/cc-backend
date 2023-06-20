@@ -192,6 +192,7 @@ func decode(r io.Reader, val interface{}) error {
 // @security    ApiKeyAuth
 // @router      /jobs/ [get]
 func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
+
 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
 		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
 		return
