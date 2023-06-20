@@ -292,6 +292,26 @@ func (r *JobRepository) FindById(jobId int64) (*schema.Job, error) {
 	return scanJob(q.RunWith(r.stmtCache).QueryRow())
 }
 
+func (r *JobRepository) FindConcurrentJobs(
+    job *schema.Job) (*model.JobLinkResultList, error) {
+
+        query := sq.Select("job.id","job.job_id").From("job").Where("cluster = ?",job.Cluster)
+        var startTime := job.StartTimeUnix
+        var stopTime int64
+
+        if job.State ==  schema.JobStateRunning {
+            stopTime =  time.Now().Unix()
+        } else {
+            stopTime  = startTime + int64(job.Duration)
+        }
+
+        // Add 5m overlap for jobs start time at the end
+        stopTime -= 300
+
+        query = query.Where("start_time BETWEEN ? AND ?", startTime, stopTime)
+
+    }
+
 // Start inserts a new job in the table, returning the unique job ID.
 // Statistics are not transfered!
 func (r *JobRepository) Start(job *schema.JobMeta) (id int64, err error) {

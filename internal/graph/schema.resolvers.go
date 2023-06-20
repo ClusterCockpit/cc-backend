@@ -32,32 +32,15 @@ func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag,
 }
 
 // ConcurrentJobs is the resolver for the concurrentJobs field.
-func (r *jobResolver) ConcurrentJobs(ctx context.Context, obj *schema.Job) (*model.JobLinkResultList, error) {
-	exc := int(obj.Exclusive)
-	if exc != 1 {
-		filter := []*model.JobFilter{}
-		jid := fmt.Sprint(obj.JobID)
-		jdu := int(obj.Duration)
-		filter = append(filter, &model.JobFilter{Exclusive: &exc})
-		filter = append(filter, &model.JobFilter{SharedNode: &model.StringInput{Contains: &obj.Resources[0].Hostname}})
-		filter = append(filter, &model.JobFilter{SelfJobID: &model.StringInput{Neq: &jid}})
-		filter = append(filter, &model.JobFilter{SelfStartTime: &obj.StartTime, SelfDuration: &jdu})
+func (r *jobResolver) ConcurrentJobs(
+	ctx context.Context, obj *schema.Job) (*model.JobLinkResultList, error) {
 
-		jobLinks, err := r.Repo.QueryJobLinks(ctx, filter)
-		if err != nil {
-			log.Warn("Error while querying jobLinks")
-			return nil, err
-		}
+	if obj.State == schema.JobStateRunning {
+		obj.Duration = int32(time.Now().Unix() - obj.StartTimeUnix)
+	}
 
-		count, err := r.Repo.CountJobs(ctx, filter)
-		if err != nil {
-			log.Warn("Error while counting jobLinks")
-			return nil, err
-		}
-
-		result := &model.JobLinkResultList{Items: jobLinks, Count: &count}
-
-		return result, nil
+	if obj.Exclusive != 1 && obj.Duration > 600 {
+		return r.Repo.FindConcurrentJobs(obj)
 	}
 
 	return nil, nil
