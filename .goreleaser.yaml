@@ -4,7 +4,7 @@ before:
     - go mod tidy
 builds:
   - env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
     goos:
       - linux
       - darwin
@@ -12,7 +12,6 @@ builds:
       - amd64
       - arm64
     goamd64:
-      - v2
       - v3
     goarm:
       - "7"
@@ -20,6 +19,11 @@ builds:
     main: ./cmd/cc-backend
     tags:
       - static_build
+    hooks:
+      pre: make frontend
+    ignore:
+      - goos: linux
+        goarch: arm64
 
 archives:
   - format: tar.gz
