@@ -96,8 +96,7 @@ type Page struct {
 func RenderTemplate(rw http.ResponseWriter, r *http.Request, file string, page *Page) {
 	t, ok := templates[file]
 	if !ok {
-		log.Fatalf("WEB/WEB > template '%s' not found", file)
-		panic("template not found")
+		log.Errorf("WEB/WEB > template '%s' not found", file)
 	}
 
 	if page.Clusters == nil {
@@ -106,7 +105,47 @@ func RenderTemplate(rw http.ResponseWriter, r *http.Request, file string, page *
 		}
 	}
 
-	log.Infof("Page config : %v\n", page.Config)
+	log.Debugf("Page config : %v\n", page.Config)
+	if err := t.Execute(rw, page); err != nil {
+		log.Errorf("Template error: %s", err.Error())
+	}
+}
+
+type Message struct {
+	Title   string
+	Type    string
+	Message string
+	Icon    string
+}
+
+func RenderMessage(rw http.ResponseWriter, msgType string, msg string) {
+	var page Message
+	log.Info("render message template")
+
+	switch msgType {
+	case "success":
+		page.Title = "Success"
+		page.Type = "alert-success"
+	case "info":
+		page.Title = "Info"
+		page.Type = "alert-info"
+	case "warn":
+		page.Title = "Warning"
+		page.Type = "alert-warning"
+	case "error":
+		page.Title = "Error"
+		page.Type = "alert-danger"
+	default:
+		page.Title = "Message"
+		page.Type = "alert-secondary"
+	}
+	t, ok := templates["message.tmpl"]
+	if !ok {
+		log.Error("WEB/WEB > template message.tmpl not found")
+	}
+	page.Message = msg
+	rw.Header().Add("Content-Type", "text/html; charset=utf-8")
+
 	if err := t.Execute(rw, page); err != nil {
 		log.Errorf("Template error: %s", err.Error())
 	}

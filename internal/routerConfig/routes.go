@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/api"
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
@@ -270,8 +269,9 @@ func SetupRoutes(router *mux.Router, version string, hash string, buildTime stri
 	}
 }
 
-func HandleSearchBar(rw http.ResponseWriter, r *http.Request, api *api.RestApi) {
+func HandleSearchBar(rw http.ResponseWriter, r *http.Request) {
 	if search := r.URL.Query().Get("searchId"); search != "" {
+		repo := repository.GetJobRepository()
 		user := auth.GetUser(r.Context())
 		splitSearch := strings.Split(search, ":")
 
@@ -287,10 +287,11 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, api *api.RestApi) 
 				if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
 					http.Redirect(rw, r, "/monitoring/users/?user="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusFound)
 				} else {
-					http.Redirect(rw, r, "/monitoring/jobs/?", http.StatusPermanentRedirect) // Users: Redirect to Tablequery
+					web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Warn", Info: "Missing Access Rights"})
+					// web.RenderMessage(rw, "error", "Missing access rights!")
 				}
 			case "name":
-				usernames, _ := api.JobRepository.FindColumnValues(user, strings.Trim(splitSearch[1], " "), "user", "username", "name")
+				usernames, _ := repo.FindColumnValues(user, strings.Trim(splitSearch[1], " "), "user", "username", "name")
 				if len(usernames) != 0 {
 					joinedNames := strings.Join(usernames, "&user=")
 					http.Redirect(rw, r, "/monitoring/users/?user="+joinedNames, http.StatusFound)
@@ -298,23 +299,27 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, api *api.RestApi) 
 					if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
 						http.Redirect(rw, r, "/monitoring/users/?user=NoUserNameFound", http.StatusPermanentRedirect)
 					} else {
-						http.Redirect(rw, r, "/monitoring/jobs/?", http.StatusPermanentRedirect) // Users: Redirect to Tablequery
+						web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Warn", Info: "Missing Access Rights"})
+						// web.RenderMessage(rw, "error", "Missing access rights!")
 					}
 				}
 			default:
-				log.Warnf("Searchbar type parameter '%s' unknown", strings.Trim(splitSearch[0], " "))
-				http.Redirect(rw, r, "/monitoring/jobs/?", http.StatusPermanentRedirect) // Unknown: Redirect to Tablequery
+				web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Warn", Info: fmt.Sprintf("Unknown search term %s", strings.Trim(splitSearch[0], " "))})
+				// web.RenderMessage(rw, "error", fmt.Sprintf("Unknown search term %s", strings.Trim(splitSearch[0], " ")))
 			}
 
 		} else if len(splitSearch) == 1 {
 
-			username, project, jobname, _ := api.JobRepository.FindUserOrProjectOrJobname(user, strings.Trim(search, " "))
+			username, project, jobname, err := repo.FindUserOrProjectOrJobname(user, strings.Trim(search, " "))
+			// err := fmt.Errorf("Blabla")
 
 			/* Causes 'http: superfluous response.WriteHeader call' causing SSL error and frontend crash: Cause unknown*/
-			// if err != nil {
-			//	log.Errorf("Error while searchbar best guess: %v", err.Error())
-			//  http.Redirect(rw, r, "/monitoring/jobs/?", http.StatusPermanentRedirect) // Unknown: Redirect to Tablequery
-			//}
+			if err != nil {
+				web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Warn", Info: "No search result"})
+				return
+				// web.RenderMessage(rw, "info", "Search with no result")
+				// log.Errorf("Error while searchbar best guess: %v", err.Error())
+			}
 
 			if username != "" {
 				http.Redirect(rw, r, "/monitoring/user/"+username, http.StatusFound) // User: Redirect to user page
@@ -327,11 +332,11 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, api *api.RestApi) 
 			}
 
 		} else {
-			log.Warnf("Searchbar query parameters malformed: %v", search)
-			http.Redirect(rw, r, "/monitoring/jobs/?", http.StatusPermanentRedirect) // Unknown: Redirect to Tablequery
+			web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Warn", Info: "Searchbar query parameters malformed"})
+			// web.RenderMessage(rw, "warn", "Searchbar query parameters malformed")
 		}
-
 	} else {
-		http.Redirect(rw, r, "/monitoring/jobs/?", http.StatusTemporaryRedirect)
+		web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Warn", Info: "Empty search"})
+		// web.RenderMessage(rw, "warn", "Empty search")
 	}
 }

@@ -316,7 +316,7 @@ func main() {
 
 	// Send a searchId and then reply with a redirect to a user, or directly send query to job table for jobid and project.
 	secured.HandleFunc("/search", func(rw http.ResponseWriter, r *http.Request) {
-		routerConfig.HandleSearchBar(rw, r, api)
+		routerConfig.HandleSearchBar(rw, r)
 	})
 
 	// Mount all /monitoring/... and /api/... routes.
