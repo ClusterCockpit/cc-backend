@@ -40,7 +40,7 @@ func (r *jobResolver) ConcurrentJobs(
 	}
 
 	if obj.Exclusive != 1 && obj.Duration > 600 {
-		return r.Repo.FindConcurrentJobs(obj)
+		return r.Repo.FindConcurrentJobs(ctx, obj)
 	}
 
 	return nil, nil

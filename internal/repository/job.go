@@ -293,12 +293,18 @@ func (r *JobRepository) FindById(jobId int64) (*schema.Job, error) {
 }
 
 func (r *JobRepository) FindConcurrentJobs(
+	ctx context.Context,
 	job *schema.Job) (*model.JobLinkResultList, error) {
 	if job == nil {
 		return nil, nil
 	}
 
-	query := sq.Select("job.id", "job.job_id").From("job").Where("cluster = ?", job.Cluster)
+	query, qerr := SecurityCheck(ctx, sq.Select("job.id", "job.job_id").From("job"))
+	if qerr != nil {
+		return nil, qerr
+	}
+
+	query = query.Where("cluster = ?", job.Cluster)
 	var startTime int64
 	var stopTime int64
 
