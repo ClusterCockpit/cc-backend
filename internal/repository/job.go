@@ -523,11 +523,10 @@ var ErrForbidden = errors.New("not authorized")
 // If query is found to be an integer (= conversion to INT datatype succeeds), skip back to parent call
 // If nothing matches the search, `ErrNotFound` is returned.
 
-func (r *JobRepository) FindUserOrProjectOrJobname(ctx context.Context, searchterm string) (username string, project string, metasnip string, err error) {
+func (r *JobRepository) FindUserOrProjectOrJobname(user *auth.User, searchterm string) (username string, project string, metasnip string, err error) {
 	if _, err := strconv.Atoi(searchterm); err == nil { // Return empty on successful conversion: parent method will redirect for integer jobId
 		return "", "", "", nil
 	} else { // Has to have letters and logged-in user for other guesses
-		user := auth.GetUser(ctx)
 		if user != nil {
 			// Find username in jobs (match)
 			uresult, _ := r.FindColumnValue(user, searchterm, "job", "user", "user", false)

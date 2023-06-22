@@ -278,55 +278,57 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, api *api.RestApi) 
 		if len(splitSearch) == 2 {
 			switch strings.Trim(splitSearch[0], " ") {
 			case "jobId":
-				http.Redirect(rw, r, "/monitoring/jobs/?jobId="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusTemporaryRedirect) // All Users: Redirect to Tablequery
+				http.Redirect(rw, r, "/monitoring/jobs/?jobId="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusFound) // All Users: Redirect to Tablequery
 			case "jobName":
-				http.Redirect(rw, r, "/monitoring/jobs/?jobName="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusTemporaryRedirect) // All Users: Redirect to Tablequery
+				http.Redirect(rw, r, "/monitoring/jobs/?jobName="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusFound) // All Users: Redirect to Tablequery
 			case "projectId":
-				http.Redirect(rw, r, "/monitoring/jobs/?projectMatch=eq&project="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusTemporaryRedirect) // All Users: Redirect to Tablequery
+				http.Redirect(rw, r, "/monitoring/jobs/?projectMatch=eq&project="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusFound) // All Users: Redirect to Tablequery
 			case "username":
 				if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
-					http.Redirect(rw, r, "/monitoring/users/?user="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusTemporaryRedirect)
+					http.Redirect(rw, r, "/monitoring/users/?user="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusFound)
 				} else {
-					http.Redirect(rw, r, "/monitoring/jobs/?", http.StatusTemporaryRedirect) // Users: Redirect to Tablequery
+					http.Redirect(rw, r, "/monitoring/jobs/?", http.StatusPermanentRedirect) // Users: Redirect to Tablequery
 				}
 			case "name":
 				usernames, _ := api.JobRepository.FindColumnValues(user, strings.Trim(splitSearch[1], " "), "user", "username", "name")
 				if len(usernames) != 0 {
 					joinedNames := strings.Join(usernames, "&user=")
-					http.Redirect(rw, r, "/monitoring/users/?user="+joinedNames, http.StatusTemporaryRedirect)
+					http.Redirect(rw, r, "/monitoring/users/?user="+joinedNames, http.StatusFound)
 				} else {
 					if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
-						http.Redirect(rw, r, "/monitoring/users/?user=NoUserNameFound", http.StatusTemporaryRedirect)
+						http.Redirect(rw, r, "/monitoring/users/?user=NoUserNameFound", http.StatusPermanentRedirect)
 					} else {
-						http.Redirect(rw, r, "/monitoring/jobs/?", http.StatusTemporaryRedirect) // Users: Redirect to Tablequery
+						http.Redirect(rw, r, "/monitoring/jobs/?", http.StatusPermanentRedirect) // Users: Redirect to Tablequery
 					}
 				}
 			default:
 				log.Warnf("Searchbar type parameter '%s' unknown", strings.Trim(splitSearch[0], " "))
-				http.Redirect(rw, r, "/monitoring/jobs/?", http.StatusTemporaryRedirect) // Unknown: Redirect to Tablequery
+				http.Redirect(rw, r, "/monitoring/jobs/?", http.StatusPermanentRedirect) // Unknown: Redirect to Tablequery
 			}
 
 		} else if len(splitSearch) == 1 {
-			username, project, jobname, err := api.JobRepository.FindUserOrProjectOrJobname(r.Context(), strings.Trim(search, " "))
 
-			if err != nil {
-				log.Errorf("Error while searchbar best guess: %v", err.Error())
-				http.Redirect(rw, r, "/monitoring/jobs/?", http.StatusTemporaryRedirect) // Unknown: Redirect to Tablequery
-			}
+			username, project, jobname, _ := api.JobRepository.FindUserOrProjectOrJobname(user, strings.Trim(search, " "))
+
+			/* Causes 'http: superfluous response.WriteHeader call' causing SSL error and frontend crash: Cause unknown*/
+			// if err != nil {
+			//	log.Errorf("Error while searchbar best guess: %v", err.Error())
+			//  http.Redirect(rw, r, "/monitoring/jobs/?", http.StatusPermanentRedirect) // Unknown: Redirect to Tablequery
+			//}
 
 			if username != "" {
-				http.Redirect(rw, r, "/monitoring/user/"+username, http.StatusTemporaryRedirect) // User: Redirect to user page
+				http.Redirect(rw, r, "/monitoring/user/"+username, http.StatusFound) // User: Redirect to user page
 			} else if project != "" {
-				http.Redirect(rw, r, "/monitoring/jobs/?projectMatch=eq&project="+url.QueryEscape(strings.Trim(search, " ")), http.StatusTemporaryRedirect) // projectId (equal)
+				http.Redirect(rw, r, "/monitoring/jobs/?projectMatch=eq&project="+url.QueryEscape(strings.Trim(search, " ")), http.StatusFound) // projectId (equal)
 			} else if jobname != "" {
-				http.Redirect(rw, r, "/monitoring/jobs/?jobName="+url.QueryEscape(strings.Trim(search, " ")), http.StatusTemporaryRedirect) // JobName (contains)
+				http.Redirect(rw, r, "/monitoring/jobs/?jobName="+url.QueryEscape(strings.Trim(search, " ")), http.StatusFound) // JobName (contains)
 			} else {
-				http.Redirect(rw, r, "/monitoring/jobs/?jobId="+url.QueryEscape(strings.Trim(search, " ")), http.StatusTemporaryRedirect) // No Result: Probably jobId
+				http.Redirect(rw, r, "/monitoring/jobs/?jobId="+url.QueryEscape(strings.Trim(search, " ")), http.StatusFound) // No Result: Probably jobId
 			}
 
 		} else {
 			log.Warnf("Searchbar query parameters malformed: %v", search)
-			http.Redirect(rw, r, "/monitoring/jobs/?", http.StatusTemporaryRedirect) // Unknown: Redirect to Tablequery
+			http.Redirect(rw, r, "/monitoring/jobs/?", http.StatusPermanentRedirect) // Unknown: Redirect to Tablequery
 		}
 
 	} else {
