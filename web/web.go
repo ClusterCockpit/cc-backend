@@ -82,8 +82,8 @@ type Build struct {
 
 type Page struct {
 	Title         string                 // Page title
-	Error         string                 // For generic use (e.g. the exact error message on /login)
-	Info          string                 // For generic use (e.g. "Logout successfull" on /login)
+	MsgType       string                 // For generic use in message boxes
+	Message       string                 // For generic use in message boxes
 	User          auth.User              // Information about the currently logged in user (Full User Info)
 	Roles         map[string]auth.Role   // Available roles for frontend render checks
 	Build         Build                  // Latest information about the application
@@ -106,46 +106,6 @@ func RenderTemplate(rw http.ResponseWriter, r *http.Request, file string, page *
 	}
 
 	log.Debugf("Page config : %v\n", page.Config)
-	if err := t.Execute(rw, page); err != nil {
-		log.Errorf("Template error: %s", err.Error())
-	}
-}
-
-type Message struct {
-	Title   string
-	Type    string
-	Message string
-	Icon    string
-}
-
-func RenderMessage(rw http.ResponseWriter, msgType string, msg string) {
-	var page Message
-	log.Info("render message template")
-
-	switch msgType {
-	case "success":
-		page.Title = "Success"
-		page.Type = "alert-success"
-	case "info":
-		page.Title = "Info"
-		page.Type = "alert-info"
-	case "warn":
-		page.Title = "Warning"
-		page.Type = "alert-warning"
-	case "error":
-		page.Title = "Error"
-		page.Type = "alert-danger"
-	default:
-		page.Title = "Message"
-		page.Type = "alert-secondary"
-	}
-	t, ok := templates["message.tmpl"]
-	if !ok {
-		log.Error("WEB/WEB > template message.tmpl not found")
-	}
-	page.Message = msg
-	rw.Header().Add("Content-Type", "text/html; charset=utf-8")
-
 	if err := t.Execute(rw, page); err != nil {
 		log.Errorf("Template error: %s", err.Error())
 	}

@@ -287,8 +287,7 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request) {
 				if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
 					http.Redirect(rw, r, "/monitoring/users/?user="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusFound)
 				} else {
-					web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Warn", Info: "Missing Access Rights"})
-					// web.RenderMessage(rw, "error", "Missing access rights!")
+					web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Error", MsgType: "alert-danger", Message: "Missing Access Rights"})
 				}
 			case "name":
 				usernames, _ := repo.FindColumnValues(user, strings.Trim(splitSearch[1], " "), "user", "username", "name")
@@ -299,26 +298,18 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request) {
 					if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
 						http.Redirect(rw, r, "/monitoring/users/?user=NoUserNameFound", http.StatusPermanentRedirect)
 					} else {
-						web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Warn", Info: "Missing Access Rights"})
-						// web.RenderMessage(rw, "error", "Missing access rights!")
+						web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Error", MsgType: "alert-danger", Message: "Missing Access Rights"})
 					}
 				}
 			default:
-				web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Warn", Info: fmt.Sprintf("Unknown search term %s", strings.Trim(splitSearch[0], " "))})
-				// web.RenderMessage(rw, "error", fmt.Sprintf("Unknown search term %s", strings.Trim(splitSearch[0], " ")))
+				web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Warning", MsgType: "alert-warning", Message: fmt.Sprintf("Unknown search term %s", strings.Trim(splitSearch[0], " "))})
 			}
-
 		} else if len(splitSearch) == 1 {
 
 			username, project, jobname, err := repo.FindUserOrProjectOrJobname(user, strings.Trim(search, " "))
-			// err := fmt.Errorf("Blabla")
-
-			/* Causes 'http: superfluous response.WriteHeader call' causing SSL error and frontend crash: Cause unknown*/
 			if err != nil {
-				web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Warn", Info: "No search result"})
+				web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Info", MsgType: "alert-info", Message: "Search without result"})
 				return
-				// web.RenderMessage(rw, "info", "Search with no result")
-				// log.Errorf("Error while searchbar best guess: %v", err.Error())
 			}
 
 			if username != "" {
@@ -330,13 +321,10 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request) {
 			} else {
 				http.Redirect(rw, r, "/monitoring/jobs/?jobId="+url.QueryEscape(strings.Trim(search, " ")), http.StatusFound) // No Result: Probably jobId
 			}
-
 		} else {
-			web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Warn", Info: "Searchbar query parameters malformed"})
-			// web.RenderMessage(rw, "warn", "Searchbar query parameters malformed")
+			web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Error", MsgType: "alert-danger", Message: "Searchbar query parameters malformed"})
 		}
 	} else {
-		web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Warn", Info: "Empty search"})
-		// web.RenderMessage(rw, "warn", "Empty search")
+		web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Warning", MsgType: "alert-warning", Message: "Empty search"})
 	}
 }
