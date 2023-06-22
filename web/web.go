@@ -47,6 +47,14 @@ func init() {
 			return nil
 		}
 
+		if path == "templates/login.tmpl" {
+			if _, err := os.Stat("./var/login.tmpl"); err == nil {
+				log.Info("overwrite login.tmpl with local file")
+				templates[strings.TrimPrefix(path, "templates/")] =
+					template.Must(template.Must(base.Clone()).ParseFiles("./var/login.tmpl"))
+				return nil
+			}
+		}
 		if path == "templates/imprint.tmpl" {
 			if _, err := os.Stat("./var/imprint.tmpl"); err == nil {
 				log.Info("overwrite imprint.tmpl with local file")

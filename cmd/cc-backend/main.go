@@ -325,6 +325,13 @@ func main() {
 
 	if config.Keys.EmbedStaticFiles {
 		r.PathPrefix("/").Handler(web.ServeFiles())
+
+		if i, err := os.Stat("./var/img"); err == nil {
+			if i.IsDir() {
+				log.Info("Use local directory for static images")
+				r.Handle("/img", http.FileServer(http.Dir("./var/img")))
+			}
+		}
 	} else {
 		r.PathPrefix("/").Handler(http.FileServer(http.Dir(config.Keys.StaticFiles)))
 	}
