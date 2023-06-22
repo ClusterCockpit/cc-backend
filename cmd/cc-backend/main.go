@@ -319,11 +319,11 @@ func main() {
 
 	// Send a searchId and then reply with a redirect to a user, or directly send query to job table for jobid and project.
 	secured.HandleFunc("/search", func(rw http.ResponseWriter, r *http.Request) {
-		routerConfig.HandleSearchBar(rw, r)
+		routerConfig.HandleSearchBar(rw, r, buildInfo)
 	})
 
 	// Mount all /monitoring/... and /api/... routes.
-	routerConfig.SetupRoutes(secured, version, commit, date)
+	routerConfig.SetupRoutes(secured, buildInfo)
 	api.MountRoutes(secured)
 
 	if config.Keys.EmbedStaticFiles {

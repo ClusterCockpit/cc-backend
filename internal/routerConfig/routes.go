@@ -229,7 +229,7 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 	return filterPresets
 }
 
-func SetupRoutes(router *mux.Router, version string, hash string, buildTime string) {
+func SetupRoutes(router *mux.Router, buildInfo web.Build) {
 	userCfgRepo := repository.GetUserCfgRepo()
 	for _, route := range routes {
 		route := route
@@ -255,7 +255,7 @@ func SetupRoutes(router *mux.Router, version string, hash string, buildTime stri
 				Title:  title,
 				User:   *user,
 				Roles:  availableRoles,
-				Build:  web.Build{Version: version, Hash: hash, Buildtime: buildTime},
+				Build:  buildInfo,
 				Config: conf,
 				Infos:  infos,
 			}
@@ -269,10 +269,12 @@ func SetupRoutes(router *mux.Router, version string, hash string, buildTime stri
 	}
 }
 
-func HandleSearchBar(rw http.ResponseWriter, r *http.Request) {
+func HandleSearchBar(rw http.ResponseWriter, r *http.Request, buildInfo web.Build) {
+	user := auth.GetUser(r.Context())
+	availableRoles, _ := auth.GetValidRolesMap(user)
+
 	if search := r.URL.Query().Get("searchId"); search != "" {
 		repo := repository.GetJobRepository()
-		user := auth.GetUser(r.Context())
 		splitSearch := strings.Split(search, ":")
 
 		if len(splitSearch) == 2 {
@@ -287,7 +289,7 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request) {
 				if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
 					http.Redirect(rw, r, "/monitoring/users/?user="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusFound)
 				} else {
-					web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Error", MsgType: "alert-danger", Message: "Missing Access Rights"})
+					web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Error", MsgType: "alert-danger", Message: "Missing Access Rights", User: *user, Roles: availableRoles, Build: buildInfo})
 				}
 			case "name":
 				usernames, _ := repo.FindColumnValues(user, strings.Trim(splitSearch[1], " "), "user", "username", "name")
@@ -298,17 +300,17 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request) {
 					if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
 						http.Redirect(rw, r, "/monitoring/users/?user=NoUserNameFound", http.StatusPermanentRedirect)
 					} else {
-						web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Error", MsgType: "alert-danger", Message: "Missing Access Rights"})
+						web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Error", MsgType: "alert-danger", Message: "Missing Access Rights", User: *user, Roles: availableRoles, Build: buildInfo})
 					}
 				}
 			default:
-				web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Warning", MsgType: "alert-warning", Message: fmt.Sprintf("Unknown search term %s", strings.Trim(splitSearch[0], " "))})
+				web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Warning", MsgType: "alert-warning", Message: fmt.Sprintf("Unknown search term %s", strings.Trim(splitSearch[0], " ")), User: *user, Roles: availableRoles, Build: buildInfo})
 			}
 		} else if len(splitSearch) == 1 {
 
 			username, project, jobname, err := repo.FindUserOrProjectOrJobname(user, strings.Trim(search, " "))
 			if err != nil {
-				web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Info", MsgType: "alert-info", Message: "Search without result"})
+				web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Info", MsgType: "alert-info", Message: "Search without result", User: *user, Roles: availableRoles, Build: buildInfo})
 				return
 			}
 
@@ -322,9 +324,9 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request) {
 				http.Redirect(rw, r, "/monitoring/jobs/?jobId="+url.QueryEscape(strings.Trim(search, " ")), http.StatusFound) // No Result: Probably jobId
 			}
 		} else {
-			web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Error", MsgType: "alert-danger", Message: "Searchbar query parameters malformed"})
+			web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Error", MsgType: "alert-danger", Message: "Searchbar query parameters malformed", User: *user, Roles: availableRoles, Build: buildInfo})
 		}
 	} else {
-		web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Warning", MsgType: "alert-warning", Message: "Empty search"})
+		web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Warning", MsgType: "alert-warning", Message: "Empty search", User: *user, Roles: availableRoles, Build: buildInfo})
 	}
 }
