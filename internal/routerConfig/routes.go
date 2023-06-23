@@ -308,21 +308,20 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, buildInfo web.Buil
 			}
 		} else if len(splitSearch) == 1 {
 
-			username, project, jobname, err := repo.FindUserOrProjectOrJobname(user, strings.Trim(search, " "))
-			if err != nil {
+			jobid, username, project, jobname := repo.FindUserOrProjectOrJobname(user, strings.Trim(search, " "))
+
+			if jobid != "" {
+				http.Redirect(rw, r, "/monitoring/jobs/?jobId="+url.QueryEscape(jobid), http.StatusFound) // JobId (Match)
+			} else if username != "" {
+				http.Redirect(rw, r, "/monitoring/user/"+username, http.StatusFound) // User: Redirect to user page of first match
+			} else if project != "" {
+				http.Redirect(rw, r, "/monitoring/jobs/?projectMatch=eq&project="+url.QueryEscape(project), http.StatusFound) // projectId (equal)
+			} else if jobname != "" {
+				http.Redirect(rw, r, "/monitoring/jobs/?jobName="+url.QueryEscape(jobname), http.StatusFound) // JobName (contains)
+			} else {
 				web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Info", MsgType: "alert-info", Message: "Search without result", User: *user, Roles: availableRoles, Build: buildInfo})
-				return
 			}
 
-			if username != "" {
-				http.Redirect(rw, r, "/monitoring/user/"+username, http.StatusFound) // User: Redirect to user page
-			} else if project != "" {
-				http.Redirect(rw, r, "/monitoring/jobs/?projectMatch=eq&project="+url.QueryEscape(strings.Trim(search, " ")), http.StatusFound) // projectId (equal)
-			} else if jobname != "" {
-				http.Redirect(rw, r, "/monitoring/jobs/?jobName="+url.QueryEscape(strings.Trim(search, " ")), http.StatusFound) // JobName (contains)
-			} else {
-				http.Redirect(rw, r, "/monitoring/jobs/?jobId="+url.QueryEscape(strings.Trim(search, " ")), http.StatusFound) // No Result: Probably jobId
-			}
 		} else {
 			web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Error", MsgType: "alert-danger", Message: "Searchbar query parameters malformed", User: *user, Roles: availableRoles, Build: buildInfo})
 		}

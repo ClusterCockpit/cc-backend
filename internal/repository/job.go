@@ -517,47 +517,34 @@ func (r *JobRepository) WaitForArchiving() {
 	r.archivePending.Wait()
 }
 
-var ErrNotFound = errors.New("no such jobname, project or user")
-var ErrForbidden = errors.New("not authorized")
-
-// FindJobnameOrUserOrProject returns a jobName or a username or a projectId if a jobName or user or project matches the search term.
-// If query is found to be an integer (= conversion to INT datatype succeeds), skip back to parent call
-// If nothing matches the search, `ErrNotFound` is returned.
-
-func (r *JobRepository) FindUserOrProjectOrJobname(user *auth.User, searchterm string) (username string, project string, metasnip string, err error) {
+func (r *JobRepository) FindUserOrProjectOrJobname(user *auth.User, searchterm string) (jobid string, username string, project string, jobname string) {
 	if _, err := strconv.Atoi(searchterm); err == nil { // Return empty on successful conversion: parent method will redirect for integer jobId
-		return "", "", "", nil
+		return searchterm, "", "", ""
 	} else { // Has to have letters and logged-in user for other guesses
 		if user != nil {
 			// Find username in jobs (match)
 			uresult, _ := r.FindColumnValue(user, searchterm, "job", "user", "user", false)
 			if uresult != "" {
-				return uresult, "", "", nil
+				return "", uresult, "", ""
 			}
 			// Find username by name (like)
 			nresult, _ := r.FindColumnValue(user, searchterm, "user", "username", "name", true)
 			if nresult != "" {
-				return nresult, "", "", nil
+				return "", nresult, "", ""
 			}
 			// Find projectId in jobs (match)
 			presult, _ := r.FindColumnValue(user, searchterm, "job", "project", "project", false)
 			if presult != "" {
-				return "", presult, "", nil
-			}
-			// Still no return (or not authorized for above): Try JobName
-			// Match Metadata, on hit, parent method redirects to jobName GQL query
-			err := sq.Select("job.cluster").Distinct().From("job").
-				Where("job.meta_data LIKE ?", "%"+searchterm+"%").
-				RunWith(r.stmtCache).QueryRow().Scan(&metasnip)
-			if err != nil && err != sql.ErrNoRows {
-				return "", "", "", err
-			} else if err == nil {
-				return "", "", metasnip[0:1], nil
+				return "", "", presult, ""
 			}
 		}
-		return "", "", "", ErrNotFound
+		// Return searchterm if no match before: Forward as jobname query to GQL in handleSearchbar function
+		return "", "", "", searchterm
 	}
 }
+
+var ErrNotFound = errors.New("no such jobname, project or user")
+var ErrForbidden = errors.New("not authorized")
 
 func (r *JobRepository) FindColumnValue(user *auth.User, searchterm string, table string, selectColumn string, whereColumn string, isLike bool) (result string, err error) {
 	compareStr := " = ?"
