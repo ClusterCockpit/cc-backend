@@ -211,7 +211,7 @@ func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (sq.SelectBuilde
 		if len(user.Projects) != 0 {
 			return query.Where(sq.Or{sq.Eq{"job.project": user.Projects}, sq.Eq{"job.user": user.Username}}), nil
 		} else {
-			log.Infof("Manager-User '%s' has no defined projects to lookup! Query only personal jobs ...", user.Username)
+			log.Debugf("Manager-User '%s' has no defined projects to lookup! Query only personal jobs ...", user.Username)
 			return query.Where("job.user = ?", user.Username), nil
 		}
 	} else if user.HasRole(auth.RoleUser) { // User : Only personal jobs

@@ -523,7 +523,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	} else if err == nil {
 		for _, job := range jobs {
 			if (req.StartTime - job.StartTimeUnix) < 86400 {
-				handleError(fmt.Errorf("a job with that jobId, cluster and startTime already exists: dbid: %d", job.ID), http.StatusUnprocessableEntity, rw)
+				handleError(fmt.Errorf("a job with that jobId, cluster and startTime already exists: dbid: %d, jobid: %d", job.ID, job.JobID), http.StatusUnprocessableEntity, rw)
 				return
 			}
 		}

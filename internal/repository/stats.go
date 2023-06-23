@@ -171,7 +171,7 @@ func (r *JobRepository) JobsStatsGrouped(
 		}
 	}
 
-	log.Infof("Timer JobsStatsGrouped %s", time.Since(start))
+	log.Debugf("Timer JobsStatsGrouped %s", time.Since(start))
 	return stats, nil
 }
 
@@ -212,7 +212,7 @@ func (r *JobRepository) JobsStats(
 				TotalAccHours:  totalAccHours})
 	}
 
-	log.Infof("Timer JobStats %s", time.Since(start))
+	log.Debugf("Timer JobStats %s", time.Since(start))
 	return stats, nil
 }
 
@@ -251,7 +251,7 @@ func (r *JobRepository) JobCountGrouped(
 		}
 	}
 
-	log.Infof("Timer JobCountGrouped %s", time.Since(start))
+	log.Debugf("Timer JobCountGrouped %s", time.Since(start))
 	return stats, nil
 }
 
@@ -300,7 +300,7 @@ func (r *JobRepository) AddJobCountGrouped(
 		}
 	}
 
-	log.Infof("Timer AddJobCountGrouped %s", time.Since(start))
+	log.Debugf("Timer AddJobCountGrouped %s", time.Since(start))
 	return stats, nil
 }
 
@@ -343,7 +343,7 @@ func (r *JobRepository) AddJobCount(
 		}
 	}
 
-	log.Infof("Timer JobJobCount %s", time.Since(start))
+	log.Debugf("Timer JobJobCount %s", time.Since(start))
 	return stats, nil
 }
 
@@ -368,7 +368,7 @@ func (r *JobRepository) AddHistograms(
 		return nil, err
 	}
 
-	log.Infof("Timer AddHistograms %s", time.Since(start))
+	log.Debugf("Timer AddHistograms %s", time.Since(start))
 	return stat, nil
 }
 
@@ -406,6 +406,6 @@ func (r *JobRepository) jobsStatisticsHistogram(
 
 		points = append(points, &point)
 	}
-	log.Infof("Timer jobsStatisticsHistogram %s", time.Since(start))
+	log.Debugf("Timer jobsStatisticsHistogram %s", time.Since(start))
 	return points, nil
 }
