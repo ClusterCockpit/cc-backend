@@ -1,11 +1,42 @@
 
 {{define "content"}}
     <div class="row">
-        <div class="col">
-            <h2>{{.Title}}</h2>
-            <div class="alert {{.MsgType}}" role="alert">
-            {{.Message}}
+        <div class="col messageCol">
+            <div class="alert messageCard {{.MsgType}}" role="alert">
+                {{if eq .MsgType "alert-info"}}
+                <i class="bi-info-circle-fill messageIcon"></i>
+                <b>{{.Message}}</b>
+                {{else if eq .MsgType "alert-warning"}}
+                <i class="bi-question-circle-fill messageIcon"></i>
+                <b>{{.Message}}</b>
+                {{else if eq .MsgType "alert-danger"}}
+                <i class="bi-exclamation-circle-fill messageIcon"></i>
+                <b>{{.Message}}</b>
+                {{end}}
             </div>
         </div>
     </div>
+{{end}}
+
+{{define "stylesheets"}}
+    <style>
+        .messageCol {
+            display: flex;
+            justify-content: center;
+        }
+
+        .messageCard {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 50%;
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+        }
+
+        .messageIcon {
+            font-size: 2rem;
+            margin-right:1rem;
+        }
+    </style>
 {{end}}

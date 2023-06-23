@@ -304,7 +304,7 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, buildInfo web.Buil
 					}
 				}
 			default:
-				web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Warning", MsgType: "alert-warning", Message: fmt.Sprintf("Unknown search term %s", strings.Trim(splitSearch[0], " ")), User: *user, Roles: availableRoles, Build: buildInfo})
+				web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Warning", MsgType: "alert-warning", Message: fmt.Sprintf("Unknown search type: %s", strings.Trim(splitSearch[0], " ")), User: *user, Roles: availableRoles, Build: buildInfo})
 			}
 		} else if len(splitSearch) == 1 {
 
