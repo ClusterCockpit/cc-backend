@@ -327,6 +327,12 @@ func main() {
 	api.MountRoutes(secured)
 
 	if config.Keys.EmbedStaticFiles {
+		if i, err := os.Stat("./var/img"); err == nil {
+			if i.IsDir() {
+				log.Info("Use local directory for static images")
+				r.PathPrefix("/img/").Handler(http.StripPrefix("/img/", http.FileServer(http.Dir("./var/img"))))
+			}
+		}
 		r.PathPrefix("/").Handler(web.ServeFiles())
 	} else {
 		r.PathPrefix("/").Handler(http.FileServer(http.Dir(config.Keys.StaticFiles)))
@@ -395,14 +401,14 @@ func main() {
 	// Because this program will want to bind to a privileged port (like 80), the listener must
 	// be established first, then the user can be changed, and after that,
 	// the actual http server can be started.
-	if err := runtimeEnv.DropPrivileges(config.Keys.Group, config.Keys.User); err != nil {
+	if err = runtimeEnv.DropPrivileges(config.Keys.Group, config.Keys.User); err != nil {
 		log.Fatalf("error while preparing server start: %s", err.Error())
 	}
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
+		if err = server.Serve(listener); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("starting server failed: %v", err)
 		}
 	}()
@@ -428,7 +434,7 @@ func main() {
 		log.Info("Register undead jobs service")
 
 		s.Every(1).Day().At("3:00").Do(func() {
-			err := jobRepo.StopJobsExceedingWalltimeBy(config.Keys.StopJobsExceedingWalltime)
+			err = jobRepo.StopJobsExceedingWalltimeBy(config.Keys.StopJobsExceedingWalltime)
 			if err != nil {
 				log.Warnf("Error while looking for jobs exceeding their walltime: %s", err.Error())
 			}
@@ -443,7 +449,7 @@ func main() {
 
 	cfg.Retention.IncludeDB = true
 
-	if err := json.Unmarshal(config.Keys.Archive, &cfg); err != nil {
+	if err = json.Unmarshal(config.Keys.Archive, &cfg); err != nil {
 		log.Warn("Error while unmarshaling raw config json")
 	}
 
