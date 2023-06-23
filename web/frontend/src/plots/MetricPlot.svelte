@@ -270,6 +270,7 @@
     }
 
     export function findThresholds(metricConfig, scope, subCluster) {
+        // console.log('NAME ' + metricConfig.name + ' / SCOPE ' + scope + ' / SUBCLUSTER ' + subCluster.name)
         if (!metricConfig || !scope || !subCluster) {
             console.warn('Argument missing for findThresholds!')
             return null
@@ -280,8 +281,10 @@
                 // console.log('subClusterConfigs array empty, use metricConfig defaults')
                 return { normal: metricConfig.normal, caution: metricConfig.caution, alert: metricConfig.alert }
             } else if (metricConfig.subClusters && metricConfig.subClusters.length > 0) {
-                // console.log('subClusterConfigs found, find and use subCluster Settings')
-                return metricConfig.subClusters.find(sc => sc.name == subCluster.name)
+                // console.log('subClusterConfigs found, use subCluster Settings if matching jobs subcluster:')
+                let forSubCluster = metricConfig.subClusters.find(sc => sc.name == subCluster.name)
+                if (forSubCluster && forSubCluster.normal && forSubCluster.caution && forSubCluster.alert) return forSubCluster
+                else return { normal: metricConfig.normal, caution: metricConfig.caution, alert: metricConfig.alert }
             } else {
                 console.warn('metricConfig.subClusters not found!')
                 return null

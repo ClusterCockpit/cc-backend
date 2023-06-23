@@ -274,9 +274,10 @@ func main() {
 				rw.Header().Add("Content-Type", "text/html; charset=utf-8")
 				rw.WriteHeader(http.StatusUnauthorized)
 				web.RenderTemplate(rw, r, "login.tmpl", &web.Page{
-					Title: "Login failed - ClusterCockpit",
-					Error: err.Error(),
-					Build: buildInfo,
+					Title:   "Login failed - ClusterCockpit",
+					MsgType: "alert-warning",
+					Message: err.Error(),
+					Build:   buildInfo,
 				})
 			})).Methods(http.MethodPost)
 
@@ -284,9 +285,10 @@ func main() {
 			rw.Header().Add("Content-Type", "text/html; charset=utf-8")
 			rw.WriteHeader(http.StatusOK)
 			web.RenderTemplate(rw, r, "login.tmpl", &web.Page{
-				Title: "Bye - ClusterCockpit",
-				Info:  "Logout sucessful",
-				Build: buildInfo,
+				Title:   "Bye - ClusterCockpit",
+				MsgType: "alert-info",
+				Message: "Logout successful",
+				Build:   buildInfo,
 			})
 		}))).Methods(http.MethodPost)
 
@@ -299,9 +301,10 @@ func main() {
 				func(rw http.ResponseWriter, r *http.Request, err error) {
 					rw.WriteHeader(http.StatusUnauthorized)
 					web.RenderTemplate(rw, r, "login.tmpl", &web.Page{
-						Title: "Authentication failed - ClusterCockpit",
-						Error: err.Error(),
-						Build: buildInfo,
+						Title:   "Authentication failed - ClusterCockpit",
+						MsgType: "alert-danger",
+						Message: err.Error(),
+						Build:   buildInfo,
 					})
 				})
 		})
@@ -316,11 +319,11 @@ func main() {
 
 	// Send a searchId and then reply with a redirect to a user, or directly send query to job table for jobid and project.
 	secured.HandleFunc("/search", func(rw http.ResponseWriter, r *http.Request) {
-		routerConfig.HandleSearchBar(rw, r, api)
+		routerConfig.HandleSearchBar(rw, r, buildInfo)
 	})
 
 	// Mount all /monitoring/... and /api/... routes.
-	routerConfig.SetupRoutes(secured, version, commit, date)
+	routerConfig.SetupRoutes(secured, buildInfo)
 	api.MountRoutes(secured)
 
 	if config.Keys.EmbedStaticFiles {
