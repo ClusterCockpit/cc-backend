@@ -364,7 +364,7 @@ func (auth *Authentication) Login(
 			return
 		}
 
-		log.Warn("login failed: no authenticator applied")
+		log.Debugf("login failed: no authenticator applied")
 		onfailure(rw, r, err)
 	})
 }
@@ -380,7 +380,7 @@ func (auth *Authentication) Auth(
 		for _, authenticator := range auth.authenticators {
 			user, err := authenticator.Auth(rw, r)
 			if err != nil {
-				log.Warnf("authentication failed: %s", err.Error())
+				log.Infof("authentication failed: %s", err.Error())
 				http.Error(rw, err.Error(), http.StatusUnauthorized)
 				return
 			}
@@ -393,7 +393,7 @@ func (auth *Authentication) Auth(
 			return
 		}
 
-		log.Warnf("authentication failed: %s", "no authenticator applied")
+		log.Debugf("authentication failed: %s", "no authenticator applied")
 		// http.Error(rw, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		onfailure(rw, r, errors.New("unauthorized (login first or use a token)"))
 	})

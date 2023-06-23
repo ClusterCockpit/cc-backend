@@ -17,15 +17,9 @@
         <div class="container">
             <div class="row">
                 <div class="col-4 mx-auto">
-                    {{if .Error}}
-                        <div class="alert alert-warning" role="alert">
-                            {{.Error}}
-                        </div>
-                    {{end}}
-
-                    {{if .Info}}
-                        <div class="alert alert-success" role="alert">
-                            {{.Info}}
+                    {{if .MsgType}}
+                        <div class="alert {{.MsgType}}" role="alert">
+                            {{.Message}}
                         </div>
                     {{end}}
 

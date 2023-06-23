@@ -61,7 +61,9 @@ func InitDB() error {
 		}
 
 		// TODO: Other metrics...
+		job.LoadAvg = loadJobStat(jobMeta, "cpu_load")
 		job.FlopsAnyAvg = loadJobStat(jobMeta, "flops_any")
+		job.MemUsedMax = loadJobStat(jobMeta, "mem_used")
 		job.MemBwAvg = loadJobStat(jobMeta, "mem_bw")
 		job.NetBwAvg = loadJobStat(jobMeta, "net_bw")
 		job.FileBwAvg = loadJobStat(jobMeta, "file_bw")
@@ -150,7 +152,11 @@ func SanityChecks(job *schema.BaseJob) error {
 
 func loadJobStat(job *schema.JobMeta, metric string) float64 {
 	if stats, ok := job.Statistics[metric]; ok {
-		return stats.Avg
+		if metric == "mem_used" {
+			return stats.Max
+		} else {
+			return stats.Avg
+		}
 	}
 
 	return 0.0

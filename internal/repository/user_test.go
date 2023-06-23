@@ -63,7 +63,7 @@ func TestGetUIConfig(t *testing.T) {
 	tmp := cfg["plot_list_selectedMetrics"]
 	metrics := tmp.([]string)
 	str := metrics[2]
-	if str != "mem_used" {
-		t.Errorf("wrong config\ngot: %s \nwant: mem_bw", str)
+	if str != "flops_any" {
+		t.Errorf("wrong config\ngot: %s \nwant: flops_any", str)
 	}
 }

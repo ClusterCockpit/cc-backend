@@ -1,0 +1,17 @@
+
+{{define "content"}}
+    <div class="row justify-content-center">
+        <div class="col-4">
+            <div class="alert {{.MsgType}} p-3 text-center fs-3" role="alert">
+                {{if eq .MsgType "alert-info"}}
+                <i class="bi-info-circle-fill me-3"></i>
+                {{else if eq .MsgType "alert-warning"}}
+                <i class="bi-question-circle-fill me-3"></i>
+                {{else if eq .MsgType "alert-danger"}}
+                <i class="bi-exclamation-circle-fill me-3"></i>
+                {{end}}
+                {{.Message}}
+            </div>
+        </div>
+    </div>
+{{end}}
