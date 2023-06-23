@@ -20,11 +20,11 @@
   * JobName: Job-Table (Allows multiple identical matches, e.g. JobNames from different clusters)
   * ProjectId: Job-Table
   * Username: Users-Table
-    * **Please Note**: Only users with jobs will be shown in table! I.e., Users without jobs will be missing in table.
+    * **Please Note**: Only users with jobs will be shown in table! I.e., Users without jobs will be missing in table. Also, a `Last 30 Days` is active by default and might filter out expected users.
   * Name: Users-Table
-    * **Please Note**: Only users with jobs will be shown in table! I.e., Users without jobs will be missing in table.
+    * **Please Note**: Only users with jobs will be shown in table! I.e., Users without jobs will be missing in table. Also, a `Last 30 Days` is active by default and might filter out expected users.
   * Best guess search always redirects to Job-Table or `/monitoring/user/$USER` (first username match)
-  * Unprocessable queries will redirect to `/monitoring/jobs/?`
+  * Unprocessable queries will display messages detailing the cause (Info, Warning, Error)
 * Spaces trimmed (both for searchTag and queryString)
   * `  job12` == `job12`
   * `projectID : abcd ` == `projectId:abcd`
