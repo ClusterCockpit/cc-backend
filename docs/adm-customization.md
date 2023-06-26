@@ -1,9 +1,7 @@
 # Overview
 
-Customizing `cc-backend` means changing the logo and certain legal texts
-instead of the placeholders. To change the logo displayed in the navigation bar, the
-file `web/frontend/public/img/logo.png` in the source tree must be replaced
-and cc-backend must be rebuild.
+Customizing `cc-backend` means changing the logo, legal texts, and the login
+template instead of the placeholders.
 
 # Replace legal texts
 
@@ -11,3 +9,16 @@ To replace the `imprint.tmpl` and `privacy.tmpl` legal texts, you can place your
 version in `./var/`. At startup `cc-backend` will check if `./var/imprint.tmpl` and/or
 `./var/privacy.tmpl` exist and use them instead of the built-in placeholders.
 You can use the placeholders in `web/templates` as a blueprint.
+
+# Replace login template
+To replace the default login layout and styling, you can place your version in
+`./var/`. At startup `cc-backend` will check if `./var/login.tmpl` exist and use
+it instead of the built-in placeholder. You can use the default temaplte
+`web/templates/login.tmpl` as a blueprint.
+
+# Replace logo
+To change the logo displayed in the navigation bar, you can provide the file
+`logo.png` in the folder `./var/img/`. On startup `cc-backend` will check if the
+folder exists and use the images provided there instead of the built-in images.
+You may also place additional images there you use in a custom login template.
+
