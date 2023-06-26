@@ -7,24 +7,52 @@ builds:
       - CGO_ENABLED=1
     goos:
       - linux
-      - darwin
     goarch:
       - amd64
-      - arm64
     goamd64:
       - v3
-    goarm:
-      - "7"
     id: "cc-backend"
     main: ./cmd/cc-backend
     tags:
       - static_build
     hooks:
       pre: make frontend
-    ignore:
-      - goos: linux
-        goarch: arm64
-
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+    goamd64:
+      - v3
+    id: "archive-manager"
+    main: ./tools/archive-manager
+    tags:
+      - static_build
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+    goamd64:
+      - v3
+    id: "archive-migration"
+    main: ./tools/archive-migration
+    tags:
+      - static_build
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+    goamd64:
+      - v3
+    id: "gen-keypair"
+    main: ./tools/gen-keypair
+    tags:
+      - static_build
 archives:
   - format: tar.gz
     # this name template makes the OS and Arch compatible with the results of uname.
