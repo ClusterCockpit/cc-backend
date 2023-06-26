@@ -320,7 +320,7 @@ func (r *JobRepository) FindConcurrentJobs(
 	startTimeTail := startTime + 10
 	startTimeFront := startTime + 300
 
-	queryRunning := query.Where("job.job_state = ?").Where("(job.start_time BETWEEN ? AND ?) OR (job.start_time < ?))",
+	queryRunning := query.Where("job.job_state = ?").Where("(job.start_time BETWEEN ? AND ?) OR (job.start_time < ?)",
 		"running", startTimeTail, stopTimeTail, startTime)
 
 	query = query.Where("job.job_state != ?").Where("(job.start_time BETWEEN ? AND ?) OR ((job.start_time + job.duration) BETWEEN ? AND ?) OR ((job.start_time < ?) AND ((job.start_time + job.duration)) > ?)",
