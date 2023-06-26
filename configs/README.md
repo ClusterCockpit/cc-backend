@@ -1,10 +1,10 @@
 ## Intro
 
-cc-backend requires a configuration file specifying the cluster systems to be used. Still many  default
-options documented below are used. cc-backend tries to load a config.json from the working directory per default.
-To overwrite the default specify a json config file location using the command line option `--config <filepath>`.
-All security relevant configuration. e.g., keys and passwords, are set using environment variables.
-It is supported to specify these by means of an `.env` file located in the project root.
+cc-backend requires a configuration file that specifies the cluster systems to be used.
+To override the default, specify the location of a json configuration file with the `-config <file path>` command line option.
+All security-related configurations, e.g. keys and passwords, are set using
+environment variables.
+It is supported to set these by means of a `.env` file in the project root.
 
 ## Configuration Options
 
@@ -19,12 +19,12 @@ It is supported to specify these by means of an `.env` file located in the proje
 * `job-archive`: Type string. Path to the job-archive. Default: `./var/job-archive`.
 * `disable-archive`: Type bool. Keep all metric data in the metric data repositories, do not write to the job-archive. Default `false`.
 * `validate`: Type bool. Validate all input json documents against json schema.
-* `"session-max-age`: Type string. Specifies for how long a session shall be valid  as a string parsable by time.ParseDuration(). If 0 or empty, the session/token does not expire! Default `168h`.
-* `"jwt-max-age`: Type string. Specifies for how long a JWT token shall be valid  as a string parsable by time.ParseDuration(). If 0 or empty, the session/token does not expire! Default `0`.
+* `session-max-age`: Type string. Specifies for how long a session shall be valid  as a string parsable by time.ParseDuration(). If 0 or empty, the session/token does not expire! Default `168h`.
+* `jwt-max-age`: Type string. Specifies for how long a JWT token shall be valid  as a string parsable by time.ParseDuration(). If 0 or empty, the session/token does not expire! Default `0`.
 * `https-cert-file` and `https-key-file`: Type string. If both those options are not empty, use HTTPS using those certificates.
 * `redirect-http-to`: Type string. If not the empty string and `addr` does not end in ":80", redirect every request incoming at port 80 to that url.
 * `machine-state-dir`: Type string. Where to store MachineState files. TODO: Explain in more detail!
-* `"stop-jobs-exceeding-walltime`: Type int. If not zero, automatically mark jobs as stopped running X seconds longer than their walltime. Only applies if walltime is set for job. Default `0`.
+* `stop-jobs-exceeding-walltime`: Type int. If not zero, automatically mark jobs as stopped running X seconds longer than their walltime. Only applies if walltime is set for job. Default `0`.
 * `short-running-jobs-duration`: Type int. Do not show running jobs shorter than X seconds. Default `300`.
 * `ldap`: Type object. For LDAP Authentication and user synchronisation. Default `nil`.
    - `url`: Type string.  URL of LDAP directory server.
@@ -73,4 +73,4 @@ An example env file is found in this directory. Copy it to `.env` in the project
 * `SESSION_KEY`: Some random bytes used as secret for cookie-based sessions.
 * `LDAP_ADMIN_PASSWORD`: The LDAP admin user password (optional).
 * `CROSS_LOGIN_JWT_HS512_KEY`: Used for token based logins via another authentication service.
-* `LOGLEVEL`: Can be `err`, `warn`, `info` or `debug` (optional, `debug` by default). Can be used to reduce logging.
+* `LOGLEVEL`: Can be `err`, `warn`, `info` or `debug` (optional, `warn` by default). Can be used to reduce logging.
