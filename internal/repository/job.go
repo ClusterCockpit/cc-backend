@@ -316,15 +316,17 @@ func (r *JobRepository) FindConcurrentJobs(
 	}
 
 	// Add 5m overlap for jobs start time at the end
-	stopTimeTail := stopTime - 300
 	startTimeTail := startTime + 10
-	startTimeFront := startTime + 300
+	stopTimeTail := stopTime - 200
+	startTimeFront := startTime + 200
 
-	queryRunning := query.Where("job.job_state = ?").Where("(job.start_time BETWEEN ? AND ?) OR (job.start_time < ?)",
+	queryRunning := query.Where("job.job_state = ?").Where("(job.start_time BETWEEN ? AND ? OR job.start_time < ?)",
 		"running", startTimeTail, stopTimeTail, startTime)
+	queryRunning = queryRunning.Where("job.resources LIKE ?", fmt.Sprint("%", job.Resources[0].Hostname, "%"))
 
-	query = query.Where("job.job_state != ?").Where("(job.start_time BETWEEN ? AND ?) OR ((job.start_time + job.duration) BETWEEN ? AND ?) OR ((job.start_time < ?) AND ((job.start_time + job.duration)) > ?)",
-		"running", startTimeTail, stopTimeTail, startTimeFront, stopTime, startTime, stopTime)
+	query = query.Where("job.job_state != ?").Where("((job.start_time BETWEEN ? AND ?) OR (job.start_time + job.duration) BETWEEN ? AND ? OR (job.start_time < ?) AND (job.start_time + job.duration) > ?)",
+		"running", startTimeTail, stopTimeTail, startTimeFront, stopTimeTail, startTime, stopTime)
+	query = query.Where("job.resources LIKE ?", fmt.Sprint("%", job.Resources[0].Hostname, "%"))
 
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
@@ -345,7 +347,7 @@ func (r *JobRepository) FindConcurrentJobs(
 		if id.Valid {
 			items = append(items,
 				&model.JobLink{
-					ID:    fmt.Sprint(id),
+					ID:    fmt.Sprint(id.Int64),
 					JobID: int(jobId.Int64),
 				})
 		}
@@ -368,7 +370,7 @@ func (r *JobRepository) FindConcurrentJobs(
 		if id.Valid {
 			items = append(items,
 				&model.JobLink{
-					ID:    fmt.Sprint(id),
+					ID:    fmt.Sprint(id.Int64),
 					JobID: int(jobId.Int64),
 				})
 		}
