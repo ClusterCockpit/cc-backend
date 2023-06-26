@@ -1,9 +1,9 @@
-# CC-HANDSON - Setup ClusterCockpit from scratch (w/o docker)
+# Hands-on setup ClusterCockpit from scratch (w/o docker)
 
 ## Prerequisites
-* Perl
-* Yarn
-* Go
+* perl
+* go
+* npm
 * Optional: curl
 * Script migrateTimestamp.pl
 
@@ -33,22 +33,17 @@ Start by creating a base folder for all of the following steps.
 * Clone Repository
     - `git clone https://github.com/ClusterCockpit/cc-backend.git`
     - `cd cc-backend`
-* Setup Frontend
-    - `cd ./web/frontend`
-    - `yarn install`
-    - `yarn build`
-    - `cd ../..`
-* Build Go Executable
-    - `go build ./cmd/cc-backend/`
-* Activate & Config environment for cc-backend
+* Build
+    - `make`
+* Activate & configure environment for cc-backend
     - `cp configs/env-template.txt  .env`
-    - Optional: Have a look via `vim ./.env`
+    - Optional: Have a look via `vim .env`
     - Copy the `config.json` file included in this tarball into the root directory of cc-backend: `cp ../../config.json  ./`
 * Back to toplevel `clustercockpit`
     - `cd ..`
 * Prepare Datafolder and Database file
     - `mkdir var`
-    - `./cc-backend --migrate-db`
+    - `./cc-backend -migrate-db`
 
 ### Setup cc-metric-store
 * Clone Repository
@@ -112,7 +107,7 @@ Done for checkpoints
     - `cp source-data/job-archive-source/woody/cluster.json cc-backend/var/job-archive/woody/`
 * Initialize Job-Archive in SQLite3 job.db and add demo user
     - `cd cc-backend`
-    - `./cc-backend --init-db --add-user demo:admin:AdminDev`
+    - `./cc-backend -init-db -add-user demo:admin:demo`
     - Expected output:
 ```
 <6>[INFO]    new user "demo" created (roles: ["admin"], auth-source: 0)
@@ -123,7 +118,7 @@ Done for checkpoints
     - `cd ..`
 
 ### Startup both Apps
-* In cc-backend root:  `$./cc-backend --server --dev`
+* In cc-backend root:  `$./cc-backend -server -dev`
     - Starts Clustercockpit at `http:localhost:8080`
         - Log: `<6>[INFO]    HTTP server listening at :8080...`
     - Use local internet browser to access interface
@@ -161,7 +156,7 @@ Content-Length: 119
 ```
 
 ### Development API web interfaces
-The `--dev` flag enables web interfaces to document and test the apis:
+The `-dev` flag enables web interfaces to document and test the apis:
 * http://localhost:8080/playground - A GraphQL playground. To use it you must have a authenticated session in the same browser.
 * http://localhost:8080/swagger - A Swagger UI. To use it you have to be logged out, so no user session in the same browser. Use the JWT token with role Api generate previously to authenticate via http header.
 
