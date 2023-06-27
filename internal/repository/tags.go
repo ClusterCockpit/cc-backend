@@ -70,14 +70,14 @@ func (r *JobRepository) CreateTag(tagType string, tagName string) (tagId int64, 
 
 func (r *JobRepository) CountTags(user *auth.User) (tags []schema.Tag, counts map[string]int, err error) {
 	tags = make([]schema.Tag, 0, 100)
-	xrows, err := r.DB.Queryx("SELECT * FROM tag")
+	xrows, err := r.DB.Queryx("SELECT id, tag_type, tag_name FROM tag")
 	if err != nil {
 		return nil, nil, err
 	}
 
 	for xrows.Next() {
 		var t schema.Tag
-		if err := xrows.StructScan(&t); err != nil {
+		if err = xrows.StructScan(&t); err != nil {
 			return nil, nil, err
 		}
 		tags = append(tags, t)
@@ -89,7 +89,7 @@ func (r *JobRepository) CountTags(user *auth.User) (tags []schema.Tag, counts ma
 		GroupBy("t.tag_name")
 
 	if user != nil && user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport}) { // ADMIN || SUPPORT: Count all jobs
-		log.Info("CountTags: User Admin or Support -> Count all Jobs for Tags")
+		log.Debug("CountTags: User Admin or Support -> Count all Jobs for Tags")
 		// Unchanged: Needs to be own case still, due to UserRole/NoRole compatibility handling in else case
 	} else if user != nil && user.HasRole(auth.RoleManager) { // MANAGER: Count own jobs plus project's jobs
 		// Build ("project1", "project2", ...) list of variable length directly in SQL string
@@ -107,7 +107,7 @@ func (r *JobRepository) CountTags(user *auth.User) (tags []schema.Tag, counts ma
 	for rows.Next() {
 		var tagName string
 		var count int
-		if err := rows.Scan(&tagName, &count); err != nil {
+		if err = rows.Scan(&tagName, &count); err != nil {
 			return nil, nil, err
 		}
 		counts[tagName] = count

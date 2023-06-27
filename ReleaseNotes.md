@@ -5,7 +5,7 @@ Supports job archive version 1 and database version 4.
 This is the initial release of `cc-backend`, the API backend and frontend
 implementation of ClusterCockpit.
 
-**Breaking changes**
+** Breaking changes **
 
 The aggregate job statistic core hours is now computed using the job table
 column `num_hwthreads`. In a future release this column will be renamed to
@@ -15,6 +15,16 @@ this column then you can set this with one SQL INSERT statement. This only appli
 if you have exclusive jobs, only. Please be aware that we treat this column as
 it is the number of cores. In case you have SMT enabled and `num_hwthreads`
 is not the number of cores the core hours will be too high by a factor!
+
+** NOTE **
+If you are using the sqlite3 backend the `PRAGMA` option `foreign_keys` must be
+explicitly set to ON. If using the sqlite3 console it is per default set to
+OFF!  On every console session you must set:
+```
+sqlite> PRAGMA foreign_keys = ON;
+
+```
+Otherwise if you delete jobs the jobtag relation table will not be updated accordingly!
 
 **Notable changes**
 * Supports user roles admin, support, manager, user, and api.
