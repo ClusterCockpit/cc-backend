@@ -1,6 +1,6 @@
 {
     "$schema": "http://json-schema.org/draft/2020-12/schema",
-    "$id": "schemafs://job-metric-statistics.schema.json",
+    "$id": "embedfs://job-metric-statistics.schema.json",
     "title": "Job statistics",
     "description": "Format specification for job metric statistics",
     "type": "object",
