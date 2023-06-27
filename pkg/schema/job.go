@@ -124,9 +124,7 @@ type JobStatistics struct {
 // Tag model
 // @Description Defines a tag using name and type.
 type Tag struct {
-	// The unique DB identifier of a tag
-	// The unique DB identifier of a tag
-	ID   int64  `json:"id" db:"id"`
+	ID   int64  `json:"id" db:"id"`                           // The unique DB identifier of a tag
 	Type string `json:"type" db:"tag_type" example:"Debug"`   // Tag Type
 	Name string `json:"name" db:"tag_name" example:"Testjob"` // Tag Name
 }
