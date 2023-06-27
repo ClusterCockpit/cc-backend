@@ -372,6 +372,7 @@ func (fsa *FsArchive) CompressLast(starttime int64) int64 {
 		return starttime
 	}
 
+	log.Infof("fsBackend Compress - start %d last %d", starttime, last)
 	os.WriteFile(filename, []byte(fmt.Sprintf("%d", starttime)), 0644)
 	return last
 }

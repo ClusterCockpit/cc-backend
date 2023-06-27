@@ -30,6 +30,8 @@ file_bw_avg         REAL NOT NULL DEFAULT 0.0,
 file_data_vol_total REAL NOT NULL DEFAULT 0.0,
 UNIQUE (job_id, cluster, start_time));
 
+
+UPDATE job SET job_state='cancelled' WHERE job_state='canceled';
 INSERT INTO job_new SELECT * FROM job;
 DROP TABLE job;
 ALTER TABLE job_new RENAME TO job;
