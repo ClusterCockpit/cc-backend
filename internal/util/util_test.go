@@ -15,6 +15,10 @@ import (
 
 func TestCheckFileExists(t *testing.T) {
 	tmpdir := t.TempDir()
+	if !util.CheckFileExists(tmpdir) {
+		t.Fatal("expected true, got false")
+	}
+
 	filePath := filepath.Join(tmpdir, "version.txt")
 
 	if err := os.WriteFile(filePath, []byte(fmt.Sprintf("%d", 1)), 0666); err != nil {

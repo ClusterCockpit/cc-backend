@@ -53,6 +53,8 @@ func checkDBVersion(backend string, db *sql.DB) error {
 		if err != nil {
 			return err
 		}
+	default:
+		log.Fatalf("unsupported database backend: %s", backend)
 	}
 
 	v, _, err := m.Version()
@@ -99,6 +101,8 @@ func MigrateDB(backend string, db string) error {
 		if err != nil {
 			return err
 		}
+	default:
+		log.Fatalf("unsupported database backend: %s", backend)
 	}
 
 	if err := m.Up(); err != nil {

@@ -1,10 +1,10 @@
 # Base64 encoded Ed25519 keys (DO NOT USE THESE TWO IN PRODUCTION!)
-# You can generate your own keypair using `go run utils/gen-keypair.go`
+# You can generate your own keypair using `go run tools/gen-keypair/main.go`
 JWT_PUBLIC_KEY="kzfYrYy+TzpanWZHJ5qSdMj5uKUWgq74BWhQG6copP0="
 JWT_PRIVATE_KEY="dtPC/6dWJFKZK7KZ78CvWuynylOmjBFyMsUWArwmodOTN9itjL5POlqdZkcnmpJ0yPm4pRaCrvgFaFAbpyik/Q=="
 
 # Base64 encoded Ed25519 public key for accepting externally generated JWTs
-# Keys in PEM format can be converted, see `tools/convert-pem-pubkey-for-cc/Readme.md`
+# Keys in PEM format can be converted, see `tools/convert-pem-pubkey/Readme.md`
 CROSS_LOGIN_JWT_PUBLIC_KEY=""
 
 # Some random bytes used as secret for cookie-based sessions (DO NOT USE THIS ONE IN PRODUCTION)

@@ -35,6 +35,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/routerConfig"
 	"github.com/ClusterCockpit/cc-backend/internal/runtimeEnv"
+	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -58,15 +59,84 @@ const logoString = `
                                                     |_|
 `
 
+const envString = `
+# Base64 encoded Ed25519 keys (DO NOT USE THESE TWO IN PRODUCTION!)
+# You can generate your own keypair using the gen-keypair tool
+JWT_PUBLIC_KEY="kzfYrYy+TzpanWZHJ5qSdMj5uKUWgq74BWhQG6copP0="
+JWT_PRIVATE_KEY="dtPC/6dWJFKZK7KZ78CvWuynylOmjBFyMsUWArwmodOTN9itjL5POlqdZkcnmpJ0yPm4pRaCrvgFaFAbpyik/Q=="
+
+# Some random bytes used as secret for cookie-based sessions (DO NOT USE THIS ONE IN PRODUCTION)
+SESSION_KEY="67d829bf61dc5f87a73fd814e2c9f629"
+`
+
+const configString = `
+{
+    "addr": "127.0.0.1:8080",
+    "archive": {
+        "kind": "file",
+        "path": "./var/job-archive"
+    },
+    "clusters": [
+        {
+            "name": "name",
+            "metricDataRepository": {
+                "kind": "cc-metric-store",
+                "url": "http://localhost:8082",
+                "token": ""
+            },
+            "filterRanges": {
+                "numNodes": {
+                    "from": 1,
+                    "to": 64
+                },
+                "duration": {
+                    "from": 0,
+                    "to": 86400
+                },
+                "startTime": {
+                    "from": "2023-01-01T00:00:00Z",
+                    "to": null
+                }
+            }
+        }
+    ]
+}
+`
+
 var (
 	date    string
 	commit  string
 	version string
 )
 
+func initEnv() {
+	if util.CheckFileExists("var") {
+		fmt.Print("Directory ./var already exists. Exiting!\n")
+		os.Exit(0)
+	}
+
+	if err := os.WriteFile("config.json", []byte(configString), 0666); err != nil {
+		log.Fatalf("Writing config.json failed: %s", err.Error())
+	}
+
+	if err := os.WriteFile(".env", []byte(envString), 0666); err != nil {
+		log.Fatalf("Writing .env failed: %s", err.Error())
+	}
+
+	if err := os.Mkdir("var", 0777); err != nil {
+		log.Fatalf("Mkdir var failed: %s", err.Error())
+	}
+
+	err := repository.MigrateDB("sqlite3", "./var/job.db")
+	if err != nil {
+		log.Fatalf("Initialize job.db failed: %s", err.Error())
+	}
+}
+
 func main() {
-	var flagReinitDB, flagServer, flagSyncLDAP, flagGops, flagMigrateDB, flagDev, flagVersion, flagLogDateTime bool
+	var flagReinitDB, flagInit, flagServer, flagSyncLDAP, flagGops, flagMigrateDB, flagDev, flagVersion, flagLogDateTime bool
 	var flagNewUser, flagDelUser, flagGenJWT, flagConfigFile, flagImportJob, flagLogLevel string
+	flag.BoolVar(&flagInit, "init", false, "Setup var directory, initialize swlite database file, config.json and .env")
 	flag.BoolVar(&flagReinitDB, "init-db", false, "Go through job-archive and re-initialize the 'job', 'tag', and 'jobtag' tables (all running jobs will be lost!)")
 	flag.BoolVar(&flagSyncLDAP, "sync-ldap", false, "Sync the 'user' table with ldap")
 	flag.BoolVar(&flagServer, "server", false, "Start a server, continues listening on port after initialization and argument handling")
@@ -95,6 +165,14 @@ func main() {
 
 	// Apply config flags for pkg/log
 	log.Init(flagLogLevel, flagLogDateTime)
+
+	if flagInit {
+		initEnv()
+		fmt.Print("Succesfully setup environment!\n")
+		fmt.Print("Please review config.json and .env and adjust it to your needs.\n")
+		fmt.Print("Add your job-archive at ./var/job-archive.\n")
+		os.Exit(0)
+	}
 
 	// See https://github.com/google/gops (Runtime overhead is almost zero)
 	if flagGops {
