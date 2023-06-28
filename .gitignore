@@ -16,3 +16,4 @@ var/job.db-shm
 var/job.db-wal
 
 dist/
+*.db

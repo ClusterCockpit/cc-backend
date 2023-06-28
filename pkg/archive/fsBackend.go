@@ -348,7 +348,7 @@ func (fsa *FsArchive) Compress(jobs []*schema.Job) {
 
 	for _, job := range jobs {
 		fileIn := getPath(job, fsa.path, "data.json")
-		if !util.CheckFileExists(fileIn) && util.GetFilesize(fileIn) > 2000 {
+		if util.CheckFileExists(fileIn) && util.GetFilesize(fileIn) > 2000 {
 			util.CompressFile(fileIn, getPath(job, fsa.path, "data.json.gz"))
 			cnt++
 		}
