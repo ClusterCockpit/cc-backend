@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"sync"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -298,7 +300,7 @@ func (r *JobRepository) FindConcurrentJobs(
 		return nil, nil
 	}
 
-	query, qerr := SecurityCheck(ctx, sq.Select("job.id", "job.job_id").From("job"))
+	query, qerr := SecurityCheck(ctx, sq.Select("job.id", "job.job_id", "job.start_time").From("job"))
 	if qerr != nil {
 		return nil, qerr
 	}
@@ -308,6 +310,7 @@ func (r *JobRepository) FindConcurrentJobs(
 	var stopTime int64
 
 	startTime = job.StartTimeUnix
+	hostname := job.Resources[0].Hostname
 
 	if job.State == schema.JobStateRunning {
 		stopTime = time.Now().Unix()
@@ -322,11 +325,11 @@ func (r *JobRepository) FindConcurrentJobs(
 
 	queryRunning := query.Where("job.job_state = ?").Where("(job.start_time BETWEEN ? AND ? OR job.start_time < ?)",
 		"running", startTimeTail, stopTimeTail, startTime)
-	queryRunning = queryRunning.Where("job.resources LIKE ?", fmt.Sprint("%", job.Resources[0].Hostname, "%"))
+	queryRunning = queryRunning.Where("job.resources LIKE ?", fmt.Sprint("%", hostname, "%"))
 
 	query = query.Where("job.job_state != ?").Where("((job.start_time BETWEEN ? AND ?) OR (job.start_time + job.duration) BETWEEN ? AND ? OR (job.start_time < ?) AND (job.start_time + job.duration) > ?)",
 		"running", startTimeTail, stopTimeTail, startTimeFront, stopTimeTail, startTime, stopTime)
-	query = query.Where("job.resources LIKE ?", fmt.Sprint("%", job.Resources[0].Hostname, "%"))
+	query = query.Where("job.resources LIKE ?", fmt.Sprint("%", hostname, "%"))
 
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
@@ -335,16 +338,21 @@ func (r *JobRepository) FindConcurrentJobs(
 	}
 
 	items := make([]*model.JobLink, 0, 10)
+	minStart := int64(math.MaxInt64)
+	maxStart := int64(0)
 
 	for rows.Next() {
-		var id, jobId sql.NullInt64
+		var id, jobId, startTime sql.NullInt64
 
-		if err = rows.Scan(&id, &jobId); err != nil {
+		if err = rows.Scan(&id, &jobId, &startTime); err != nil {
 			log.Warn("Error while scanning rows")
 			return nil, err
 		}
 
 		if id.Valid {
+			minStart = util.Min(minStart, startTime.Int64)
+			maxStart = util.Max(maxStart, startTime.Int64)
+
 			items = append(items,
 				&model.JobLink{
 					ID:    fmt.Sprint(id.Int64),
@@ -360,14 +368,17 @@ func (r *JobRepository) FindConcurrentJobs(
 	}
 
 	for rows.Next() {
-		var id, jobId sql.NullInt64
+		var id, jobId, startTime sql.NullInt64
 
-		if err := rows.Scan(&id, &jobId); err != nil {
+		if err := rows.Scan(&id, &jobId, &startTime); err != nil {
 			log.Warn("Error while scanning rows")
 			return nil, err
 		}
 
 		if id.Valid {
+			minStart = util.Min(minStart, startTime.Int64)
+			maxStart = util.Max(maxStart, startTime.Int64)
+
 			items = append(items,
 				&model.JobLink{
 					ID:    fmt.Sprint(id.Int64),
@@ -377,10 +388,13 @@ func (r *JobRepository) FindConcurrentJobs(
 	}
 
 	cnt := len(items)
+	queryString := fmt.Sprintf("cluster=%s&startTime=%d-%d&node=%s",
+		job.Cluster, minStart, maxStart, hostname)
 
 	return &model.JobLinkResultList{
-		Items: items,
-		Count: &cnt,
+		ListQuery: &queryString,
+		Items:     items,
+		Count:     &cnt,
 	}, nil
 }
 

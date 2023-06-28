@@ -237,10 +237,7 @@ input JobFilter {
   memUsedMax:  FloatRange
 
   exclusive:     Int
-  sharedNode:    StringInput
-  selfJobId:     StringInput
-  selfStartTime: Time
-  selfDuration:  Int
+  node:    StringInput
 }
 
 input OrderByInput {
@@ -274,6 +271,7 @@ type JobResultList {
 }
 
 type JobLinkResultList {
+  listQuery: String
   items:  [JobLink!]!
   count:  Int
 }

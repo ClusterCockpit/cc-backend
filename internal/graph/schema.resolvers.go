@@ -32,9 +32,7 @@ func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag,
 }
 
 // ConcurrentJobs is the resolver for the concurrentJobs field.
-func (r *jobResolver) ConcurrentJobs(
-	ctx context.Context, obj *schema.Job) (*model.JobLinkResultList, error) {
-
+func (r *jobResolver) ConcurrentJobs(ctx context.Context, obj *schema.Job) (*model.JobLinkResultList, error) {
 	if obj.State == schema.JobStateRunning {
 		obj.Duration = int32(time.Now().Unix() - obj.StartTimeUnix)
 	}
