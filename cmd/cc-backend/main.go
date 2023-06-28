@@ -520,7 +520,7 @@ func main() {
 			}
 
 			if err != nil {
-				log.Warnf("Error while looking for retention jobs: %v", err)
+				log.Warnf("Error while looking for compression jobs: %v", err)
 			}
 			ar.Compress(jobs)
 		})

@@ -801,9 +801,11 @@ func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64
 	}
 
 	if startTimeBegin == 0 {
+		log.Infof("Find jobs before %d", startTimeEnd)
 		query = sq.Select(jobColumns...).From("job").Where(fmt.Sprintf(
 			"job.start_time < %d", startTimeEnd))
 	} else {
+		log.Infof("Find jobs between %d and %d", startTimeBegin, startTimeEnd)
 		query = sq.Select(jobColumns...).From("job").Where(fmt.Sprintf(
 			"job.start_time BETWEEN %d AND %d", startTimeBegin, startTimeEnd))
 	}
@@ -825,6 +827,7 @@ func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64
 		jobs = append(jobs, job)
 	}
 
+	log.Infof("Return job count %d", len(jobs))
 	return jobs, nil
 }
 

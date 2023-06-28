@@ -1,4 +1,3 @@
-# This is an example .goreleaser.yml file with some sensible defaults.
 before:
   hooks:
     - go mod tidy
@@ -12,7 +11,12 @@ builds:
     goamd64:
       - v3
     id: "cc-backend"
+    binary: cc-backend
     main: ./cmd/cc-backend
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+      - -X main.commit={{.Commit}} -X main.date={{.Date}}
+      - -linkmode external -extldflags -static
     tags:
       - static_build
     hooks:
@@ -26,6 +30,7 @@ builds:
     goamd64:
       - v3
     id: "archive-manager"
+    binary: archive-manager
     main: ./tools/archive-manager
     tags:
       - static_build
@@ -38,6 +43,7 @@ builds:
     goamd64:
       - v3
     id: "archive-migration"
+    binary: archive-migration
     main: ./tools/archive-migration
     tags:
       - static_build
@@ -50,6 +56,7 @@ builds:
     goamd64:
       - v3
     id: "gen-keypair"
+    binary: gen-keypair
     main: ./tools/gen-keypair
     tags:
       - static_build
@@ -97,6 +104,6 @@ changelog:
 release:
   draft: true
   footer: |
-    Supports job archive version 1 and database version 4.
+    Supports job archive version 1 and database version 5.
 
 # vim: set ts=2 sw=2 tw=0 fo=cnqoj

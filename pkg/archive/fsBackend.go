@@ -348,7 +348,7 @@ func (fsa *FsArchive) Compress(jobs []*schema.Job) {
 
 	for _, job := range jobs {
 		fileIn := getPath(job, fsa.path, "data.json")
-		if !util.CheckFileExists(fileIn) && util.GetFilesize(fileIn) > 2000 {
+		if util.CheckFileExists(fileIn) && util.GetFilesize(fileIn) > 2000 {
 			util.CompressFile(fileIn, getPath(job, fsa.path, "data.json.gz"))
 			cnt++
 		}
@@ -372,6 +372,7 @@ func (fsa *FsArchive) CompressLast(starttime int64) int64 {
 		return starttime
 	}
 
+	log.Infof("fsBackend Compress - start %d last %d", starttime, last)
 	os.WriteFile(filename, []byte(fmt.Sprintf("%d", starttime)), 0644)
 	return last
 }

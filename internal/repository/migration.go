@@ -65,7 +65,7 @@ func checkDBVersion(backend string, db *sql.DB) error {
 	}
 
 	if v < Version {
-		return fmt.Errorf("unsupported database version %d, need %d.\nPlease backup your database file and run cc-backend --migrate-db", v, Version)
+		return fmt.Errorf("unsupported database version %d, need %d.\nPlease backup your database file and run cc-backend -migrate-db", v, Version)
 	}
 
 	if v > Version {
