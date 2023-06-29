@@ -114,8 +114,9 @@ type ComplexityRoot struct {
 	}
 
 	JobLinkResultList struct {
-		Count func(childComplexity int) int
-		Items func(childComplexity int) int
+		Count     func(childComplexity int) int
+		Items     func(childComplexity int) int
+		ListQuery func(childComplexity int) int
 	}
 
 	JobMetric struct {
@@ -628,6 +629,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.JobLinkResultList.Items(childComplexity), true
+
+	case "JobLinkResultList.listQuery":
+		if e.complexity.JobLinkResultList.ListQuery == nil {
+			break
+		}
+
+		return e.complexity.JobLinkResultList.ListQuery(childComplexity), true
 
 	case "JobMetric.series":
 		if e.complexity.JobMetric.Series == nil {
@@ -1739,10 +1747,7 @@ input JobFilter {
   memUsedMax:  FloatRange
 
   exclusive:     Int
-  sharedNode:    StringInput
-  selfJobId:     StringInput
-  selfStartTime: Time
-  selfDuration:  Int
+  node:    StringInput
 }
 
 input OrderByInput {
@@ -1776,6 +1781,7 @@ type JobResultList {
 }
 
 type JobLinkResultList {
+  listQuery: String
   items:  [JobLink!]!
   count:  Int
 }
@@ -3951,6 +3957,8 @@ func (ec *executionContext) fieldContext_Job_concurrentJobs(ctx context.Context,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "listQuery":
+				return ec.fieldContext_JobLinkResultList_listQuery(ctx, field)
 			case "items":
 				return ec.fieldContext_JobLinkResultList_items(ctx, field)
 			case "count":
@@ -4135,6 +4143,47 @@ func (ec *executionContext) fieldContext_JobLink_jobId(ctx context.Context, fiel
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _JobLinkResultList_listQuery(ctx context.Context, field graphql.CollectedField, obj *model.JobLinkResultList) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JobLinkResultList_listQuery(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ListQuery, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JobLinkResultList_listQuery(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JobLinkResultList",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -11148,7 +11197,7 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"tags", "jobId", "arrayJobId", "user", "project", "jobName", "cluster", "partition", "duration", "minRunningFor", "numNodes", "numAccelerators", "numHWThreads", "startTime", "state", "flopsAnyAvg", "memBwAvg", "loadAvg", "memUsedMax", "exclusive", "sharedNode", "selfJobId", "selfStartTime", "selfDuration"}
+	fieldsInOrder := [...]string{"tags", "jobId", "arrayJobId", "user", "project", "jobName", "cluster", "partition", "duration", "minRunningFor", "numNodes", "numAccelerators", "numHWThreads", "startTime", "state", "flopsAnyAvg", "memBwAvg", "loadAvg", "memUsedMax", "exclusive", "node"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -11315,35 +11364,11 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			if err != nil {
 				return it, err
 			}
-		case "sharedNode":
+		case "node":
 			var err error
 
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sharedNode"))
-			it.SharedNode, err = ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
-			if err != nil {
-				return it, err
-			}
-		case "selfJobId":
-			var err error
-
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("selfJobId"))
-			it.SelfJobID, err = ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
-			if err != nil {
-				return it, err
-			}
-		case "selfStartTime":
-			var err error
-
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("selfStartTime"))
-			it.SelfStartTime, err = ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
-			if err != nil {
-				return it, err
-			}
-		case "selfDuration":
-			var err error
-
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("selfDuration"))
-			it.SelfDuration, err = ec.unmarshalOInt2ᚖint(ctx, v)
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("node"))
+			it.Node, err = ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -12055,6 +12080,10 @@ func (ec *executionContext) _JobLinkResultList(ctx context.Context, sel ast.Sele
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("JobLinkResultList")
+		case "listQuery":
+
+			out.Values[i] = ec._JobLinkResultList_listQuery(ctx, field, obj)
+
 		case "items":
 
 			out.Values[i] = ec._JobLinkResultList_items(ctx, field, obj)

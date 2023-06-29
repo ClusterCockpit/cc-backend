@@ -57,10 +57,7 @@ type JobFilter struct {
 	LoadAvg         *FloatRange       `json:"loadAvg"`
 	MemUsedMax      *FloatRange       `json:"memUsedMax"`
 	Exclusive       *int              `json:"exclusive"`
-	SharedNode      *StringInput      `json:"sharedNode"`
-	SelfJobID       *StringInput      `json:"selfJobId"`
-	SelfStartTime   *time.Time        `json:"selfStartTime"`
-	SelfDuration    *int              `json:"selfDuration"`
+	Node            *StringInput      `json:"node"`
 }
 
 type JobLink struct {
@@ -69,8 +66,9 @@ type JobLink struct {
 }
 
 type JobLinkResultList struct {
-	Items []*JobLink `json:"items"`
-	Count *int       `json:"count"`
+	ListQuery *string    `json:"listQuery"`
+	Items     []*JobLink `json:"items"`
+	Count     *int       `json:"count"`
 }
 
 type JobMetricWithName struct {
