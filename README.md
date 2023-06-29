@@ -57,10 +57,23 @@ git clone https://github.com/ClusterCockpit/cc-backend.git
 cd ./cc-backend
 ./startDemo.sh
 ```
+
+You can also try the demo using the lates release binary.
+Create a folder and put the release binary `cc-backend` into this folder.
+Execute the following steps:
+```
+$ ./cc-backend -init
+$ vim config.json (Add a second cluster entry and name the clusters alex and fritz)
+$ wget https://hpc-mover.rrze.uni-erlangen.de/HPC-Data/0x7b58aefb/eig7ahyo6fo2bais0ephuf2aitohv1ai/job-archive-demo.tar
+$ tar xf job-archive-demo.tar
+$ ./cc-backend -init-db -add-user demo:admin:demo -loglevel info
+$ ./cc-backend -server -dev -loglevel info
+```
+
 You can access the web interface at http://localhost:8080.
 Credentials for login are `demo:demo`.
 Please note that some views do not work without a metric backend (e.g., the
-Systems and Status views).
+Analysis, Systems and Status views).
 
 ## Howto build and run
 
