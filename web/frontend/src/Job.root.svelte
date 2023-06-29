@@ -27,7 +27,7 @@
             resources { hostname, hwthreads, accelerators },
             metaData,
             userData { name, email },
-            concurrentJobs { items { id, jobId }, count }
+            concurrentJobs { items { id, jobId }, count, listQuery }
         }
     `)
 
@@ -118,11 +118,12 @@
         {/if}
     </Col>
     {#if $jobMetrics.data && $initq.data}
-        {#if $initq.data.job.concurrentJobs != null}
+        {#if $initq.data.job.concurrentJobs.items.length != 0}
             {#if authlevel > roles.manager}
                 <Col>
                     <h5>Concurrent Jobs <Icon name="info-circle" style="cursor:help;" title="Shared jobs running on the same node with overlapping runtimes"/></h5>
                     <ul>
+                        <li><a href="/monitoring/jobs/?{$initq.data.job.concurrentJobs.listQuery}" target="_blank">See All</a></li>
                     {#each $initq.data.job.concurrentJobs.items as pjob, index}
                         <li><a href="/monitoring/job/{pjob.id}" target="_blank">{pjob.jobId}</a></li>
                     {/each}
