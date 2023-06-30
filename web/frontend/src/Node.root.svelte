@@ -124,7 +124,7 @@
             {:else}
                 {#if $nodeJobsData.data}
                     Currently running jobs on this node: { $nodeJobsData.data.jobs.count }
-                    [ <a href="/monitoring/jobs/?cluster={cluster}&state=running&startTime={dateToUnixEpoch(from)}-{dateToUnixEpoch(to)}&node={hostname}" target="_blank">View in Job List</a> ]
+                    [ <a href="/monitoring/jobs/?cluster={cluster}&state=running&node={hostname}" target="_blank">View in Job List</a> ]
                 {:else}
                     No currently running jobs.
                 {/if}
