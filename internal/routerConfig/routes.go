@@ -184,6 +184,9 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 			}
 		}
 	}
+	if query.Get("node") != "" {
+		filterPresets["node"] = query.Get("node")
+	}
 	if query.Get("numNodes") != "" {
 		parts := strings.Split(query.Get("numNodes"), "-")
 		if len(parts) == 2 {

@@ -47,6 +47,7 @@
         project:     filterPresets.project    || '',
         jobName:     filterPresets.jobName    || '',
 
+        node:             filterPresets.node             || null,
         numNodes:         filterPresets.numNodes         || { from: null, to: null },
         numHWThreads:     filterPresets.numHWThreads     || { from: null, to: null },
         numAccelerators:  filterPresets.numAccelerators  || { from: null, to: null },
@@ -74,6 +75,8 @@
         let items = []
         if (filters.cluster)
             items.push({ cluster: { eq: filters.cluster } })
+        if (filters.node)
+            items.push({ node: { contains: filters.node } })
         if (filters.partition)
             items.push({ partition: { eq: filters.partition } })
         if (filters.states.length != allJobStates.length)
@@ -114,6 +117,8 @@
         let opts = []
         if (filters.cluster)
             opts.push(`cluster=${filters.cluster}`)
+        if (filters.node)
+            opts.push(`node=${filters.node}`)
         if (filters.partition)
             opts.push(`partition=${filters.partition}`)
         if (filters.states.length != allJobStates.length)
@@ -272,6 +277,12 @@
             </Info>
         {/if}
 
+        {#if filters.node != null }
+           <Info icon="hdd-stack" on:click={() => (isResourcesOpen = true)}>
+               Node: {filters.node}
+           </Info>
+        {/if}
+
         {#if filters.stats.length > 0}
             <Info icon="bar-chart" on:click={() => (isStatsOpen = true)}>
                 {filters.stats.map(stat => `${stat.text}: ${stat.from} - ${stat.to}`).join(', ')}
@@ -318,6 +329,7 @@
     bind:numNodes={filters.numNodes}
     bind:numHWThreads={filters.numHWThreads}
     bind:numAccelerators={filters.numAccelerators}
+    bind:namedNode={filters.node}
     bind:isNodesModified={isNodesModified}
     bind:isHwthreadsModified={isHwthreadsModified}
     bind:isAccsModified={isAccsModified}

@@ -23,7 +23,7 @@
     const ccconfig = getContext('cc-config')
     const clusters = getContext('clusters')
     const client = getContextClient();
-    const query = gql`query($cluster: String!, $nodes: [String!], $from: Time!, $to: Time!) {
+    const nodeMetricsQuery = gql`query($cluster: String!, $nodes: [String!], $from: Time!, $to: Time!) {
         nodeMetrics(cluster: $cluster, nodes: $nodes, from: $from, to: $to) {
             host
             subCluster
@@ -42,9 +42,9 @@
         }
     }`;
 
-    $: nodesQuery = queryStore({
+    $: nodeMetricsData = queryStore({
         client: client,
-        query: query,
+        query: nodeMetricsQuery,
         variables: {
             cluster: cluster,
             nodes: [hostname],
@@ -53,8 +53,44 @@
         }
     });
 
+    let itemsPerPage = ccconfig.plot_list_jobsPerPage;
+    let page = 1;
+    let paging = { itemsPerPage, page };
+    let sorting = { field: "startTime", order: "DESC" };
+    $: filter = [
+        {cluster: { eq: cluster }},
+        {node: { eq: hostname }},
+        {state: 'running'},
+        {startTime: { 
+            from: from.toISOString(),
+            to: to.toISOString() 
+        }}    
+    ];
+
+    const nodeJobsQuery = gql`
+        query (
+            $filter: [JobFilter!]!
+            $sorting: OrderByInput!
+            $paging: PageRequest!
+        ) {
+            jobs(filter: $filter, order: $sorting, page: $paging) {
+                # items {
+                #     id
+                #     jobId
+                # }
+                count
+            }
+        }
+    `;
+
+    $: nodeJobsData = queryStore({
+        client: client,
+        query: nodeJobsQuery,
+        variables: { paging, sorting, filter }
+    });
+
     let metricUnits = {}
-    $: if ($nodesQuery.data) {
+    $: if ($nodeMetricsData.data) {
         let thisCluster = clusters.find(c => c.name == cluster)
         if (thisCluster) {
             for (let metric of thisCluster.metricConfig) {
@@ -67,7 +103,7 @@
         }
     }
 
-    // $: console.log($nodesQuery?.data?.nodeMetrics[0].metrics)
+    const dateToUnixEpoch = rfc3339 => Math.floor(Date.parse(rfc3339) / 1000)
 </script>
 
 <Row>
@@ -83,6 +119,18 @@
             </InputGroup>
         </Col>
         <Col>
+            {#if $nodeJobsData.fetching }
+                <Spinner/>
+            {:else}
+                {#if $nodeJobsData.data}
+                    Currently running jobs on this node: { $nodeJobsData.data.jobs.count }
+                    [ <a href="/monitoring/jobs/?cluster={cluster}&state=running&startTime={dateToUnixEpoch(from)}-{dateToUnixEpoch(to)}&node={hostname}" target="_blank">View in Job List</a> ]
+                {:else}
+                    No currently running jobs.
+                {/if}
+            {/if}
+        </Col>
+        <Col>
             <TimeSelection
                 bind:from={from}
                 bind:to={to} />
@@ -92,9 +140,9 @@
 <br/>
 <Row>
     <Col>
-        {#if $nodesQuery.error}
-            <Card body color="danger">{$nodesQuery.error.message}</Card>
-        {:else if $nodesQuery.fetching || $initq.fetching}
+        {#if $nodeMetricsData.error}
+            <Card body color="danger">{$nodeMetricsData.error.message}</Card>
+        {:else if $nodeMetricsData.fetching || $initq.fetching}
             <Spinner/>
         {:else}
             <PlotTable
@@ -102,18 +150,18 @@
                 let:width
                 renderFor="node"
                 itemsPerRow={ccconfig.plot_view_plotsPerRow}
-                items={$nodesQuery.data.nodeMetrics[0].metrics
-                .map(m => ({ ...m, disabled: checkMetricDisabled(m.name, cluster, $nodesQuery.data.nodeMetrics[0].subCluster)}))
+                items={$nodeMetricsData.data.nodeMetrics[0].metrics
+                .map(m => ({ ...m, disabled: checkMetricDisabled(m.name, cluster, $nodeMetricsData.data.nodeMetrics[0].subCluster)}))
                 .sort((a, b) => a.name.localeCompare(b.name))}>
 
                 <h4 style="text-align: center; padding-top:15px;">{item.name} {metricUnits[item.name]}</h4>
                 {#if item.disabled === false && item.metric}
                     <MetricPlot
                         width={width} height={300} metric={item.name} timestep={item.metric.timestep}
-                        cluster={clusters.find(c => c.name == cluster)} subCluster={$nodesQuery.data.nodeMetrics[0].subCluster}
+                        cluster={clusters.find(c => c.name == cluster)} subCluster={$nodeMetricsData.data.nodeMetrics[0].subCluster}
                         series={item.metric.series} />
                 {:else if item.disabled === true && item.metric}
-                    <Card style="margin-left: 2rem;margin-right: 2rem;" body color="info">Metric disabled for subcluster <code>{item.name}:{$nodesQuery.data.nodeMetrics[0].subCluster}</code></Card>
+                    <Card style="margin-left: 2rem;margin-right: 2rem;" body color="info">Metric disabled for subcluster <code>{item.name}:{$nodeMetricsData.data.nodeMetrics[0].subCluster}</code></Card>
                 {:else}
                     <Card style="margin-left: 2rem;margin-right: 2rem;" body color="warning">No dataset returned for <code>{item.name}</code></Card>
                 {/if}

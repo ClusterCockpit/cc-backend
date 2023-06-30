@@ -16,8 +16,9 @@
     export let isNodesModified = false
     export let isHwthreadsModified = false
     export let isAccsModified = false
+    export let namedNode = null
 
-    let pendingNumNodes = numNodes, pendingNumHWThreads = numHWThreads, pendingNumAccelerators = numAccelerators
+    let pendingNumNodes = numNodes, pendingNumHWThreads = numHWThreads, pendingNumAccelerators = numAccelerators, pendingNamedNode = namedNode
 
     const findMaxNumAccels = clusters => clusters.reduce((max, cluster) => Math.max(max,
         cluster.subClusters.reduce((max, sc) => Math.max(max, sc.topology.accelerators?.length || 0), 0)), 0)
@@ -76,7 +77,9 @@
         Select number of utilized Resources
     </ModalHeader>
     <ModalBody>
-        <h6>Number of Nodes</h6>
+        <h6>Named Node</h6>
+            <input type="text" class="form-control"  bind:value={pendingNamedNode}>
+        <h6 style="margin-top: 1rem;">Number of Nodes</h6>
         <DoubleRangeSlider
             on:change={({ detail }) => {
                 pendingNumNodes = { from: detail[0], to: detail[1] }
@@ -117,7 +120,8 @@
                 numNodes ={ from: pendingNumNodes.from, to: pendingNumNodes.to }
                 numHWThreads = { from: pendingNumHWThreads.from, to: pendingNumHWThreads.to }
                 numAccelerators = { from: pendingNumAccelerators.from, to: pendingNumAccelerators.to }
-                dispatch('update', { numNodes, numHWThreads, numAccelerators })
+                namedNode = pendingNamedNode
+                dispatch('update', { numNodes, numHWThreads, numAccelerators, namedNode })
             }}>
             Close & Apply
         </Button>
@@ -126,13 +130,15 @@
             pendingNumNodes = { from: null, to: null }
             pendingNumHWThreads = { from: null, to: null }
             pendingNumAccelerators = { from: null, to: null }
+            pendingNamedNode = null
             numNodes = { from: pendingNumNodes.from, to: pendingNumNodes.to }
             numHWThreads = { from: pendingNumHWThreads.from, to: pendingNumHWThreads.to }
             numAccelerators = { from: pendingNumAccelerators.from, to: pendingNumAccelerators.to }
             isNodesModified = false
             isHwthreadsModified = false
             isAccsModified = false
-            dispatch('update', { numNodes, numHWThreads, numAccelerators })
+            namedNode = pendingNamedNode
+            dispatch('update', { numNodes, numHWThreads, numAccelerators, namedNode})
         }}>Reset</Button>
         <Button on:click={() => (isOpen = false)}>Close</Button>
     </ModalFooter>
