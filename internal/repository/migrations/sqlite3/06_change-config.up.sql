@@ -1,4 +1,10 @@
-ALTER TABLE configuration ADD COLUMN value_new TEXT;
-INSERT INTO configuration (value_new) SELECT value FROM configuration;
-ALTER TABLE configuration DROP COLUMN  value;
-ALTER TABLE configuration RENAME COLUMN value_new TO value;
+CREATE TABLE IF NOT EXISTS configuration_new (
+username varchar(255),
+confkey  varchar(255),
+value    text,
+PRIMARY KEY (username, confkey),
+FOREIGN KEY (username) REFERENCES user (username) ON DELETE CASCADE ON UPDATE NO ACTION);
+
+INSERT INTO configuration_new SELECT * FROM configuration;
+DROP TABLE configuration;
+ALTER TABLE configuration_new RENAME TO configuration;
