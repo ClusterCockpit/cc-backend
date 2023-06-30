@@ -32,8 +32,9 @@
     export let startTimeQuickSelect = false
 
     let filters = {
-        projectMatch: filterPresets.projectMatch || 'contains',
-        userMatch:    filterPresets.userMatch    || 'contains',
+        projectMatch: filterPresets.projectMatch  || 'contains',
+        userMatch:    filterPresets.userMatch     || 'contains',
+        jobIdMatch:   filterPresets.jobIdMatch    || 'eq',
 
         cluster:     filterPresets.cluster    || null,
         partition:   filterPresets.partition  || null,
@@ -88,7 +89,7 @@
         if (filters.duration.from || filters.duration.to)
             items.push({ duration: { from: filters.duration.from, to: filters.duration.to } })
         if (filters.jobId)
-            items.push({ jobId: { eq: filters.jobId } })
+            items.push({ jobId: { [filters.jobIdMatch]: filters.jobId } })
         if (filters.arrayJobId != null)
             items.push({ arrayJobId: filters.arrayJobId })
         if (filters.numNodes.from != null || filters.numNodes.to != null)
@@ -130,6 +131,15 @@
             // } else {
                 opts.push(`startTime=${dateToUnixEpoch(filters.startTime.from)}-${dateToUnixEpoch(filters.startTime.to)}`)
             // }
+        if (filters.jobId.length != 0)
+            if (filters.jobIdMatch != 'in') {
+                opts.push(`jobId=${filters.jobId}`)
+            } else {
+                for (let singleJobId of filters.jobId)
+                opts.push(`jobId=${singleJobId}`)
+            }
+        if (filters.jobIdMatch != 'eq')
+            opts.push(`jobIdMatch=${filters.jobIdMatch}`)
         for (let tag of filters.tags)
             opts.push(`tag=${tag}`)
         if (filters.duration.from && filters.duration.to)

@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"strconv"
 	"sync"
 	"time"
@@ -18,7 +17,6 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
-	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -318,7 +316,7 @@ func (r *JobRepository) FindConcurrentJobs(
 		stopTime = startTime + int64(job.Duration)
 	}
 
-	// Add 5m overlap for jobs start time at the end
+	// Add 200s overlap for jobs start time at the end
 	startTimeTail := startTime + 10
 	stopTimeTail := stopTime - 200
 	startTimeFront := startTime + 200
@@ -338,8 +336,7 @@ func (r *JobRepository) FindConcurrentJobs(
 	}
 
 	items := make([]*model.JobLink, 0, 10)
-	minStart := int64(math.MaxInt64)
-	maxStart := int64(0)
+	queryString := fmt.Sprintf("cluster=%s", job.Cluster)
 
 	for rows.Next() {
 		var id, jobId, startTime sql.NullInt64
@@ -350,9 +347,7 @@ func (r *JobRepository) FindConcurrentJobs(
 		}
 
 		if id.Valid {
-			minStart = util.Min(minStart, startTime.Int64)
-			maxStart = util.Max(maxStart, startTime.Int64)
-
+			queryString += fmt.Sprintf("&jobId=%d", int(jobId.Int64))
 			items = append(items,
 				&model.JobLink{
 					ID:    fmt.Sprint(id.Int64),
@@ -376,9 +371,7 @@ func (r *JobRepository) FindConcurrentJobs(
 		}
 
 		if id.Valid {
-			minStart = util.Min(minStart, startTime.Int64)
-			maxStart = util.Max(maxStart, startTime.Int64)
-
+			queryString += fmt.Sprintf("&jobId=%d", int(jobId.Int64))
 			items = append(items,
 				&model.JobLink{
 					ID:    fmt.Sprint(id.Int64),
@@ -388,8 +381,6 @@ func (r *JobRepository) FindConcurrentJobs(
 	}
 
 	cnt := len(items)
-	queryString := fmt.Sprintf("cluster=%s&startTime=%d-%d&node=%s",
-		job.Cluster, minStart, maxStart, hostname)
 
 	return &model.JobLinkResultList{
 		ListQuery: &queryString,
