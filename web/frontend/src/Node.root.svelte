@@ -60,11 +60,11 @@
     $: filter = [
         {cluster: { eq: cluster }},
         {node: { eq: hostname }},
-        {state: 'running'},
-        {startTime: { 
-            from: from.toISOString(),
-            to: to.toISOString() 
-        }}    
+        {state: 'running'}
+        // {startTime: { 
+        //     from: from.toISOString(),
+        //     to: to.toISOString() 
+        // }}    
     ];
 
     const nodeJobsQuery = gql`
