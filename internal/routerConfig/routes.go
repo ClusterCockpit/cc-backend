@@ -184,6 +184,9 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 			}
 		}
 	}
+	if query.Get("node") != "" {
+		filterPresets["node"] = query.Get("node")
+	}
 	if query.Get("numNodes") != "" {
 		parts := strings.Split(query.Get("numNodes"), "-")
 		if len(parts) == 2 {
@@ -205,7 +208,13 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 		}
 	}
 	if query.Get("jobId") != "" {
-		filterPresets["jobId"] = query.Get("jobId")
+		if len(query["jobId"]) == 1 {
+			filterPresets["jobId"] = query.Get("jobId")
+			filterPresets["jobIdMatch"] = "eq"
+		} else {
+			filterPresets["jobId"] = query["jobId"]
+			filterPresets["jobIdMatch"] = "in"
+		}
 	}
 	if query.Get("arrayJobId") != "" {
 		if num, err := strconv.Atoi(query.Get("arrayJobId")); err == nil {

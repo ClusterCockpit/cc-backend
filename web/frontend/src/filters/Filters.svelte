@@ -32,8 +32,9 @@
     export let startTimeQuickSelect = false
 
     let filters = {
-        projectMatch: filterPresets.projectMatch || 'contains',
-        userMatch:    filterPresets.userMatch    || 'contains',
+        projectMatch: filterPresets.projectMatch  || 'contains',
+        userMatch:    filterPresets.userMatch     || 'contains',
+        jobIdMatch:   filterPresets.jobIdMatch    || 'eq',
 
         cluster:     filterPresets.cluster    || null,
         partition:   filterPresets.partition  || null,
@@ -47,6 +48,7 @@
         project:     filterPresets.project    || '',
         jobName:     filterPresets.jobName    || '',
 
+        node:             filterPresets.node             || null,
         numNodes:         filterPresets.numNodes         || { from: null, to: null },
         numHWThreads:     filterPresets.numHWThreads     || { from: null, to: null },
         numAccelerators:  filterPresets.numAccelerators  || { from: null, to: null },
@@ -74,6 +76,8 @@
         let items = []
         if (filters.cluster)
             items.push({ cluster: { eq: filters.cluster } })
+        if (filters.node)
+            items.push({ node: { contains: filters.node } })
         if (filters.partition)
             items.push({ partition: { eq: filters.partition } })
         if (filters.states.length != allJobStates.length)
@@ -85,7 +89,7 @@
         if (filters.duration.from || filters.duration.to)
             items.push({ duration: { from: filters.duration.from, to: filters.duration.to } })
         if (filters.jobId)
-            items.push({ jobId: { eq: filters.jobId } })
+            items.push({ jobId: { [filters.jobIdMatch]: filters.jobId } })
         if (filters.arrayJobId != null)
             items.push({ arrayJobId: filters.arrayJobId })
         if (filters.numNodes.from != null || filters.numNodes.to != null)
@@ -114,6 +118,8 @@
         let opts = []
         if (filters.cluster)
             opts.push(`cluster=${filters.cluster}`)
+        if (filters.node)
+            opts.push(`node=${filters.node}`)
         if (filters.partition)
             opts.push(`partition=${filters.partition}`)
         if (filters.states.length != allJobStates.length)
@@ -125,6 +131,15 @@
             // } else {
                 opts.push(`startTime=${dateToUnixEpoch(filters.startTime.from)}-${dateToUnixEpoch(filters.startTime.to)}`)
             // }
+        if (filters.jobId.length != 0)
+            if (filters.jobIdMatch != 'in') {
+                opts.push(`jobId=${filters.jobId}`)
+            } else {
+                for (let singleJobId of filters.jobId)
+                opts.push(`jobId=${singleJobId}`)
+            }
+        if (filters.jobIdMatch != 'eq')
+            opts.push(`jobIdMatch=${filters.jobIdMatch}`)
         for (let tag of filters.tags)
             opts.push(`tag=${tag}`)
         if (filters.duration.from && filters.duration.to)
@@ -272,6 +287,12 @@
             </Info>
         {/if}
 
+        {#if filters.node != null }
+           <Info icon="hdd-stack" on:click={() => (isResourcesOpen = true)}>
+               Node: {filters.node}
+           </Info>
+        {/if}
+
         {#if filters.stats.length > 0}
             <Info icon="bar-chart" on:click={() => (isStatsOpen = true)}>
                 {filters.stats.map(stat => `${stat.text}: ${stat.from} - ${stat.to}`).join(', ')}
@@ -318,6 +339,7 @@
     bind:numNodes={filters.numNodes}
     bind:numHWThreads={filters.numHWThreads}
     bind:numAccelerators={filters.numAccelerators}
+    bind:namedNode={filters.node}
     bind:isNodesModified={isNodesModified}
     bind:isHwthreadsModified={isHwthreadsModified}
     bind:isAccsModified={isAccsModified}
