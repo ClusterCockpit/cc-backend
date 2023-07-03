@@ -76,13 +76,11 @@ snapshot:
 changelog:
   sort: asc
   filters:
-    exclude:
-       - "^test:"
-       - "^chore"
-       - "merge conflict"
-       - Merge pull request
-       - Merge remote-tracking branch
-       - Merge branch
+    include:
+      - "^feat:"
+      - "^fix:"
+      - "^sec:"
+      - "^docs:"
   groups:
     - title: "Dependency updates"
       regexp: '^.*?(feat|fix)\(deps\)!?:.+$'
@@ -99,8 +97,6 @@ changelog:
     - title: "Documentation updates"
       regexp: ^.*?doc(\([[:word:]]+\))??!?:.+$
       order: 400
-    - title: Other work
-      order: 9999
 release:
   draft: false
   footer: |
