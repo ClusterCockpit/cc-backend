@@ -1,21 +1,37 @@
 <script>
-    import { init, groupByScope, fetchMetricsStore, checkMetricDisabled } from './utils.js'
-    import { Row, Col, Card, Spinner, TabContent, TabPane,
-             CardBody, CardHeader, CardTitle, Button, Icon } from 'sveltestrap'
-    import PlotTable from './PlotTable.svelte'
-    import Metric from './Metric.svelte'
-    import PolarPlot from './plots/Polar.svelte'
-    import Roofline from './plots/Roofline.svelte'
-    import JobInfo from './joblist/JobInfo.svelte'
-    import TagManagement from './TagManagement.svelte'
-    import MetricSelection from './MetricSelection.svelte'
-    import Zoom from './Zoom.svelte'
-    import StatsTable from './StatsTable.svelte'
-    import { getContext } from 'svelte'
+    import {
+        init,
+        groupByScope,
+        fetchMetricsStore,
+        checkMetricDisabled,
+    } from "./utils.js";
+    import {
+        Row,
+        Col,
+        Card,
+        Spinner,
+        TabContent,
+        TabPane,
+        CardBody,
+        CardHeader,
+        CardTitle,
+        Button,
+        Icon,
+    } from "sveltestrap";
+    import PlotTable from "./PlotTable.svelte";
+    import Metric from "./Metric.svelte";
+    import PolarPlot from "./plots/Polar.svelte";
+    import Roofline from "./plots/Roofline.svelte";
+    import JobInfo from "./joblist/JobInfo.svelte";
+    import TagManagement from "./TagManagement.svelte";
+    import MetricSelection from "./MetricSelection.svelte";
+    import Zoom from "./Zoom.svelte";
+    import StatsTable from "./StatsTable.svelte";
+    import { getContext } from "svelte";
 
-    export let dbid
-    export let authlevel
-    export let roles
+    export let dbid;
+    export let authlevel;
+    export let roles;
 
     const { query: initq } = init(`
         job(id: "${dbid}") {
@@ -29,146 +45,237 @@
             userData { name, email },
             concurrentJobs { items { id, jobId }, count, listQuery }
         }
-    `)
+    `);
 
-    const ccconfig = getContext('cc-config'),
-          clusters = getContext('clusters')
+    const ccconfig = getContext("cc-config"),
+        clusters = getContext("clusters");
 
-    let isMetricsSelectionOpen = false, selectedMetrics = [], isFetched = new Set()
-    const [jobMetrics, startFetching] = fetchMetricsStore()
-    getContext('on-init')(() => {
-        let job = $initq.data.job
-        if (!job)
-            return
+    let isMetricsSelectionOpen = false,
+        selectedMetrics = [],
+        isFetched = new Set();
+    const [jobMetrics, startFetching] = fetchMetricsStore();
+    getContext("on-init")(() => {
+        let job = $initq.data.job;
+        if (!job) return;
 
-        selectedMetrics = ccconfig[`job_view_selectedMetrics:${job.cluster}`]
-            || clusters.find(c => c.name == job.cluster).metricConfig.map(mc => mc.name)
+        selectedMetrics =
+            ccconfig[`job_view_selectedMetrics:${job.cluster}`] ||
+            clusters
+                .find((c) => c.name == job.cluster)
+                .metricConfig.map((mc) => mc.name);
 
         let toFetch = new Set([
-            'flops_any', 'mem_bw',
+            "flops_any",
+            "mem_bw",
             ...selectedMetrics,
-            ...(ccconfig[`job_view_polarPlotMetrics:${job.cluster}`] || ccconfig[`job_view_polarPlotMetrics`]),
-            ...(ccconfig[`job_view_nodestats_selectedMetrics:${job.cluster}`] || ccconfig[`job_view_nodestats_selectedMetrics`])])
+            ...(ccconfig[`job_view_polarPlotMetrics:${job.cluster}`] ||
+                ccconfig[`job_view_polarPlotMetrics`]),
+            ...(ccconfig[`job_view_nodestats_selectedMetrics:${job.cluster}`] ||
+                ccconfig[`job_view_nodestats_selectedMetrics`]),
+        ]);
 
         // Select default Scopes to load
-        if (job.numAcc === 0) { // No Accels
-            startFetching(job, [...toFetch], job.numNodes > 2 ? ["node"] : ["node", "core"])
-        } else { // Accels
-            startFetching(job, [...toFetch], job.numNodes > 2 ? ["node", "accelerator"] : ["node", "accelerator", "core"])
+        if (job.numAcc === 0) {
+            // No Accels
+            startFetching(
+                job,
+                [...toFetch],
+                job.numNodes > 2 ? ["node"] : ["node", "core"]
+            );
+        } else {
+            // Accels
+            startFetching(
+                job,
+                [...toFetch],
+                job.numNodes > 2
+                    ? ["node", "accelerator"]
+                    : ["node", "accelerator", "core"]
+            );
         }
-        
-        isFetched = toFetch
-    })
+
+        isFetched = toFetch;
+    });
 
     const lazyFetchMoreMetrics = () => {
-        let notYetFetched = new Set()
+        let notYetFetched = new Set();
         for (let m of selectedMetrics) {
             if (!isFetched.has(m)) {
-                notYetFetched.add(m)
-                isFetched.add(m)
+                notYetFetched.add(m);
+                isFetched.add(m);
             }
         }
 
         if (notYetFetched.size > 0)
-            startFetching($initq.data.job, [...notYetFetched], $initq.data.job.numNodes > 2 ? ["node"] : ["node", "core"])
-    }
+            startFetching(
+                $initq.data.job,
+                [...notYetFetched],
+                $initq.data.job.numNodes > 2 ? ["node"] : ["node", "core"]
+            );
+    };
 
     // Fetch more data once required:
-    $: if ($initq.data && $jobMetrics.data && selectedMetrics) lazyFetchMoreMetrics();
+    $: if ($initq.data && $jobMetrics.data && selectedMetrics)
+        lazyFetchMoreMetrics();
 
-    let plots = {}, jobTags, fullWidth, statsTable
-    $: polarPlotSize = Math.min(fullWidth / 3 - 10, 300)
-    $: document.title = $initq.fetching ? 'Loading...' : ($initq.error ? 'Error' : `Job ${$initq.data.job.jobId} - ClusterCockpit`)
+    let plots = {},
+        jobTags,
+        fullWidth,
+        statsTable;
+    $: polarPlotSize = Math.min(fullWidth / 3 - 10, 300);
+    $: document.title = $initq.fetching
+        ? "Loading..."
+        : $initq.error
+        ? "Error"
+        : `Job ${$initq.data.job.jobId} - ClusterCockpit`;
 
     // Find out what metrics or hosts are missing:
-    let missingMetrics = [], missingHosts = [], somethingMissing = false
+    let missingMetrics = [],
+        missingHosts = [],
+        somethingMissing = false;
     $: if ($initq.data && $jobMetrics.data) {
         let job = $initq.data.job,
             metrics = $jobMetrics.data.jobMetrics,
-            metricNames = clusters.find(c => c.name == job.cluster).metricConfig.map(mc => mc.name)
+            metricNames = clusters
+                .find((c) => c.name == job.cluster)
+                .metricConfig.map((mc) => mc.name);
 
         // Metric not found in JobMetrics && Metric not explicitly disabled: Was expected, but is Missing
-        missingMetrics = metricNames.filter(metric => (!metrics.some(jm => jm.name == metric) && !checkMetricDisabled(metric, $initq.data.job.cluster, $initq.data.job.subCluster)))
-        missingHosts = job.resources.map(({ hostname }) => ({
-            hostname: hostname,
-            metrics: metricNames.filter(metric => !metrics.some(jm => jm.scope == 'node' && jm.metric.series.some(series => series.hostname == hostname)))
-        })).filter(({ metrics }) => metrics.length > 0)
-        somethingMissing = missingMetrics.length > 0 || missingHosts.length > 0
+        missingMetrics = metricNames.filter(
+            (metric) =>
+                !metrics.some((jm) => jm.name == metric) &&
+                !checkMetricDisabled(
+                    metric,
+                    $initq.data.job.cluster,
+                    $initq.data.job.subCluster
+                )
+        );
+        missingHosts = job.resources
+            .map(({ hostname }) => ({
+                hostname: hostname,
+                metrics: metricNames.filter(
+                    (metric) =>
+                        !metrics.some(
+                            (jm) =>
+                                jm.scope == "node" &&
+                                jm.metric.series.some(
+                                    (series) => series.hostname == hostname
+                                )
+                        )
+                ),
+            }))
+            .filter(({ metrics }) => metrics.length > 0);
+        somethingMissing = missingMetrics.length > 0 || missingHosts.length > 0;
     }
 
-    const orderAndMap = (grouped, selectedMetrics) => 
-        selectedMetrics.map(metric => ({ 
+    const orderAndMap = (grouped, selectedMetrics) =>
+        selectedMetrics.map((metric) => ({
             metric: metric,
-            data: grouped.find((group) => 
-                group[0].name == metric
+            data: grouped.find((group) => group[0].name == metric),
+            disabled: checkMetricDisabled(
+                metric,
+                $initq.data.job.cluster,
+                $initq.data.job.subCluster
             ),
-            disabled: checkMetricDisabled(metric, $initq.data.job.cluster, $initq.data.job.subCluster)
-        }))
+        }));
 </script>
 
-<div class="row" bind:clientWidth={fullWidth}></div>
+<div class="row" bind:clientWidth={fullWidth} />
 <Row>
     <Col>
         {#if $initq.error}
             <Card body color="danger">{$initq.error.message}</Card>
         {:else if $initq.data}
-            <JobInfo job={$initq.data.job} jobTags={jobTags}/>
+            <JobInfo job={$initq.data.job} {jobTags} />
         {:else}
-            <Spinner secondary/>
+            <Spinner secondary />
         {/if}
     </Col>
     {#if $jobMetrics.data && $initq.data}
-        {#if $initq.data.job.concurrentJobs.items.length != 0}
+        {#if $initq.data.job.concurrentJobs != null && $initq.data.job.concurrentJobs.items.length != 0}
             {#if authlevel > roles.manager}
                 <Col>
-                    <h5>Concurrent Jobs <Icon name="info-circle" style="cursor:help;" title="Shared jobs running on the same node with overlapping runtimes"/></h5>
+                    <h5>
+                        Concurrent Jobs <Icon
+                            name="info-circle"
+                            style="cursor:help;"
+                            title="Shared jobs running on the same node with overlapping runtimes"
+                        />
+                    </h5>
                     <ul>
-                        <li><a href="/monitoring/jobs/?{$initq.data.job.concurrentJobs.listQuery}" target="_blank">See All</a></li>
-                    {#each $initq.data.job.concurrentJobs.items as pjob, index}
-                        <li><a href="/monitoring/job/{pjob.id}" target="_blank">{pjob.jobId}</a></li>
-                    {/each}
+                        <li>
+                            <a
+                                href="/monitoring/jobs/?{$initq.data.job
+                                    .concurrentJobs.listQuery}"
+                                target="_blank">See All</a
+                            >
+                        </li>
+                        {#each $initq.data.job.concurrentJobs.items as pjob, index}
+                            <li>
+                                <a
+                                    href="/monitoring/job/{pjob.id}"
+                                    target="_blank">{pjob.jobId}</a
+                                >
+                            </li>
+                        {/each}
                     </ul>
                 </Col>
             {:else}
                 <Col>
-                    <h5>{$initq.data.job.concurrentJobs.items.length} Concurrent Jobs</h5>
-                    <p>Number of shared jobs on the same node with overlapping runtimes.</p>
+                    <h5>
+                        {$initq.data.job.concurrentJobs.items.length} Concurrent
+                        Jobs
+                    </h5>
+                    <p>
+                        Number of shared jobs on the same node with overlapping
+                        runtimes.
+                    </p>
                 </Col>
             {/if}
         {/if}
         <Col>
             <PolarPlot
-                width={polarPlotSize} height={polarPlotSize}
-                metrics={ccconfig[`job_view_polarPlotMetrics:${$initq.data.job.cluster}`] || ccconfig[`job_view_polarPlotMetrics`]}
+                width={polarPlotSize}
+                height={polarPlotSize}
+                metrics={ccconfig[
+                    `job_view_polarPlotMetrics:${$initq.data.job.cluster}`
+                ] || ccconfig[`job_view_polarPlotMetrics`]}
                 cluster={$initq.data.job.cluster}
-                jobMetrics={$jobMetrics.data.jobMetrics}/>
+                jobMetrics={$jobMetrics.data.jobMetrics}
+            />
         </Col>
         <Col>
             <Roofline
-                width={fullWidth / 3 - 10} height={polarPlotSize}
+                width={fullWidth / 3 - 10}
+                height={polarPlotSize}
                 cluster={clusters
-                    .find(c => c.name == $initq.data.job.cluster).subClusters
-                    .find(sc => sc.name == $initq.data.job.subCluster)}
-                flopsAny={$jobMetrics.data.jobMetrics.find(m => m.name == 'flops_any' && m.scope == 'node')}
-                memBw={$jobMetrics.data.jobMetrics.find(m => m.name == 'mem_bw' && m.scope == 'node')} />
+                    .find((c) => c.name == $initq.data.job.cluster)
+                    .subClusters.find(
+                        (sc) => sc.name == $initq.data.job.subCluster
+                    )}
+                flopsAny={$jobMetrics.data.jobMetrics.find(
+                    (m) => m.name == "flops_any" && m.scope == "node"
+                )}
+                memBw={$jobMetrics.data.jobMetrics.find(
+                    (m) => m.name == "mem_bw" && m.scope == "node"
+                )}
+            />
         </Col>
     {:else}
-        <Col></Col>
-        <Col></Col>
+        <Col />
+        <Col />
     {/if}
 </Row>
-<br/>
+<br />
 <Row>
     <Col xs="auto">
         {#if $initq.data}
-            <TagManagement job={$initq.data.job} bind:jobTags={jobTags}/>
+            <TagManagement job={$initq.data.job} bind:jobTags />
         {/if}
     </Col>
     <Col xs="auto">
         {#if $initq.data}
-            <Button outline
-                on:click={() => (isMetricsSelectionOpen = true)}>
-                <Icon name="graph-up"/> Metrics
+            <Button outline on:click={() => (isMetricsSelectionOpen = true)}>
+                <Icon name="graph-up" /> Metrics
             </Button>
         {/if}
     </Col>
@@ -176,97 +283,139 @@
         <Zoom timeseriesPlots={plots} />
     </Col>
 </Row>
-<br/>
+<br />
 <Row>
     <Col>
         {#if $jobMetrics.error}
             {#if $initq.data.job.monitoringStatus == 0 || $initq.data.job.monitoringStatus == 2}
-                <Card body color="warning">Not monitored or archiving failed</Card>
-                <br/>
+                <Card body color="warning"
+                    >Not monitored or archiving failed</Card
+                >
+                <br />
             {/if}
             <Card body color="danger">{$jobMetrics.error.message}</Card>
         {:else if $jobMetrics.fetching}
-            <Spinner secondary/>
+            <Spinner secondary />
         {:else if $jobMetrics.data && $initq.data}
             <PlotTable
                 let:item
                 let:width
                 renderFor="job"
-                items={orderAndMap(groupByScope($jobMetrics.data.jobMetrics), selectedMetrics)}
-                itemsPerRow={ccconfig.plot_view_plotsPerRow}>
+                items={orderAndMap(
+                    groupByScope($jobMetrics.data.jobMetrics),
+                    selectedMetrics
+                )}
+                itemsPerRow={ccconfig.plot_view_plotsPerRow}
+            >
                 {#if item.data}
                     <Metric
                         bind:this={plots[item.metric]}
-                        on:more-loaded={({ detail }) => statsTable.moreLoaded(detail)}
+                        on:more-loaded={({ detail }) =>
+                            statsTable.moreLoaded(detail)}
                         job={$initq.data.job}
                         metricName={item.metric}
-                        rawData={item.data.map(x => x.metric)}
-                        scopes={item.data.map(x => x.scope)}
-                        width={width}
-                        isShared={($initq.data.job.exclusive != 1)}/>
+                        rawData={item.data.map((x) => x.metric)}
+                        scopes={item.data.map((x) => x.scope)}
+                        {width}
+                        isShared={$initq.data.job.exclusive != 1}
+                    />
                 {:else}
-                    <Card body color="warning">No dataset returned for <code>{item.metric}</code></Card>
+                    <Card body color="warning"
+                        >No dataset returned for <code>{item.metric}</code
+                        ></Card
+                    >
                 {/if}
             </PlotTable>
         {/if}
     </Col>
 </Row>
-<br/>
+<br />
 <Row>
     <Col>
         {#if $initq.data}
-        <TabContent>
-            {#if somethingMissing}
-                <TabPane tabId="resources" tab="Resources" active={somethingMissing}>
-                    <div style="margin: 10px;"><Card color="warning">
-                        <CardHeader>
-                            <CardTitle>Missing Metrics/Reseources</CardTitle>
-                        </CardHeader>
-                        <CardBody>
-                            {#if missingMetrics.length > 0}
-                                <p>No data at all is available for the metrics: {missingMetrics.join(', ')}</p>
-                            {/if}
-                            {#if missingHosts.length > 0}
-                                <p>Some metrics are missing for the following hosts:</p>
-                                <ul>
-                                    {#each missingHosts as missing}
-                                        <li>{missing.hostname}: {missing.metrics.join(', ')}</li>
-                                    {/each}
-                                </ul>
-                            {/if}
-                        </CardBody>
-                    </Card></div>
-                </TabPane>
-            {/if}
-            <TabPane tabId="stats" tab="Statistics Table" active={!somethingMissing}>
-                {#if $jobMetrics.data}
-                    {#key $jobMetrics.data}
-                        <StatsTable
-                            bind:this={statsTable}
-                            job={$initq.data.job}
-                            jobMetrics={$jobMetrics.data.jobMetrics} />
-                    {/key}
+            <TabContent>
+                {#if somethingMissing}
+                    <TabPane
+                        tabId="resources"
+                        tab="Resources"
+                        active={somethingMissing}
+                    >
+                        <div style="margin: 10px;">
+                            <Card color="warning">
+                                <CardHeader>
+                                    <CardTitle
+                                        >Missing Metrics/Reseources</CardTitle
+                                    >
+                                </CardHeader>
+                                <CardBody>
+                                    {#if missingMetrics.length > 0}
+                                        <p>
+                                            No data at all is available for the
+                                            metrics: {missingMetrics.join(", ")}
+                                        </p>
+                                    {/if}
+                                    {#if missingHosts.length > 0}
+                                        <p>
+                                            Some metrics are missing for the
+                                            following hosts:
+                                        </p>
+                                        <ul>
+                                            {#each missingHosts as missing}
+                                                <li>
+                                                    {missing.hostname}: {missing.metrics.join(
+                                                        ", "
+                                                    )}
+                                                </li>
+                                            {/each}
+                                        </ul>
+                                    {/if}
+                                </CardBody>
+                            </Card>
+                        </div>
+                    </TabPane>
                 {/if}
-            </TabPane>
-            <TabPane tabId="job-script" tab="Job Script">
-                <div class="pre-wrapper">
-                    {#if $initq.data.job.metaData?.jobScript}
-                        <pre><code>{$initq.data.job.metaData?.jobScript}</code></pre>
-                    {:else}
-                        <Card body color="warning">No job script available</Card>
+                <TabPane
+                    tabId="stats"
+                    tab="Statistics Table"
+                    active={!somethingMissing}
+                >
+                    {#if $jobMetrics.data}
+                        {#key $jobMetrics.data}
+                            <StatsTable
+                                bind:this={statsTable}
+                                job={$initq.data.job}
+                                jobMetrics={$jobMetrics.data.jobMetrics}
+                            />
+                        {/key}
                     {/if}
-                </div>
-            </TabPane>
-            <TabPane tabId="slurm-info" tab="Slurm Info">
-                <div class="pre-wrapper">
-                    {#if $initq.data.job.metaData?.slurmInfo}
-                        <pre><code>{$initq.data.job.metaData?.slurmInfo}</code></pre>
-                    {:else}
-                        <Card body color="warning">No additional slurm information available</Card>
-                    {/if}
-                </div>
-            </TabPane>
-        </TabContent>
+                </TabPane>
+                <TabPane tabId="job-script" tab="Job Script">
+                    <div class="pre-wrapper">
+                        {#if $initq.data.job.metaData?.jobScript}
+                            <pre><code
+                                    >{$initq.data.job.metaData?.jobScript}</code
+                                ></pre>
+                        {:else}
+                            <Card body color="warning"
+                                >No job script available</Card
+                            >
+                        {/if}
+                    </div>
+                </TabPane>
+                <TabPane tabId="slurm-info" tab="Slurm Info">
+                    <div class="pre-wrapper">
+                        {#if $initq.data.job.metaData?.slurmInfo}
+                            <pre><code
+                                    >{$initq.data.job.metaData?.slurmInfo}</code
+                                ></pre>
+                        {:else}
+                            <Card body color="warning"
+                                >No additional slurm information available</Card
+                            >
+                        {/if}
+                    </div>
+                </TabPane>
+            </TabContent>
         {/if}
     </Col>
 </Row>
@@ -276,7 +425,8 @@
         cluster={$initq.data.job.cluster}
         configName="job_view_selectedMetrics"
         bind:metrics={selectedMetrics}
-        bind:isOpen={isMetricsSelectionOpen} />
+        bind:isOpen={isMetricsSelectionOpen}
+    />
 {/if}
 
 <style>
