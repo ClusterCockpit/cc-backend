@@ -102,7 +102,7 @@ changelog:
     - title: Other work
       order: 9999
 release:
-  draft: true
+  draft: false
   footer: |
     Supports job archive version 1 and database version 6.
 
