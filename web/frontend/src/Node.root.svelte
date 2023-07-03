@@ -81,7 +81,7 @@
     let sorting = { field: "startTime", order: "DESC" };
     $: filter = [
         { cluster: { eq: cluster } },
-        { node: { eq: hostname } },
+        { node: { contains: hostname } },
         { state: ["running"] },
         // {startTime: {
         //     from: from.toISOString(),
