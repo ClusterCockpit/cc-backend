@@ -1,6 +1,6 @@
 # `cc-backend` version 1.0.0
 
-Supports job archive version 1 and database version 4.
+Supports job archive version 1 and database version 6.
 
 This is the initial release of `cc-backend`, the API backend and frontend
 implementation of ClusterCockpit.
