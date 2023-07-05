@@ -31,8 +31,8 @@ secured.Use(func(next http.Handler) http.Handler {
 ```
 
 For non API routes a JWT token can be used to initiate an authenticated user
-session. This can either happen by calling the login/ route with a token
-provided in a header or the query URL or via the `Auth()` method on first access
+session. This can either happen by calling the login route with a token
+provided in a header or query URL or via the `Auth()` method on first access
 to a secured URL via a special cookie containing the JWT token.
 For API routes the access is authenticated on every request using the JWT token
 and no session is initiated.
