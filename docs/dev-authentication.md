@@ -2,7 +2,7 @@
 
 The implementation of authentication is not easy to understand by just looking
 at the code. The authentication is implemented in `internal/auth/`. In `auth.go`
-an interface is defined that any authentication provider must fullfil. It also
+an interface is defined that any authentication provider must fulfill. It also
 acts as a dispatcher to delegate the calls to the available authentication
 providers.
 
@@ -15,7 +15,7 @@ The http router calls auth in the following cases:
 * `r.Handle("/login", authentication.Login( ... )).Methods(http.MethodPost)`:
   The POST request on the `/login` route will call the Login callback.
 * Any route in the secured subrouter will always call Auth(), on success it will
-  call the next handler in the chain, on falure it will render the login
+  call the next handler in the chain, on failure it will render the login
   template.
 ```
 secured.Use(func(next http.Handler) http.Handler {
@@ -30,10 +30,10 @@ secured.Use(func(next http.Handler) http.Handler {
 })
 ```
 
-For non API routes a JWT token can be used to initate an authenticated user
+For non API routes a JWT token can be used to initiate an authenticated user
 session. This can either happen by calling the login/ route with a token
 provided in a header or the query URL or via the `Auth()` method on first access
-to a secured URL via aspecial cookie containing the JWT token.
+to a secured URL via a special cookie containing the JWT token.
 For API routes the access is authenticated on every request using the JWT token
 and no session is initiated.
 
@@ -41,7 +41,7 @@ and no session is initiated.
 
 The Login function (located in `auth.go`):
 * Extracts the user name and gets the user from the user database table. In case the
-  user is not found the user obejct is set to nil.
+  user is not found the user object is set to nil.
 * Iterates over all authenticators and:
   - Calls the `CanLogin` function which checks if the authentication method is
     supported for this user and the user object is valid.
@@ -49,7 +49,7 @@ The Login function (located in `auth.go`):
     object is returned.
   - Creates a new session object, stores the user attributes in the session and
     saves the session.
-  - Calls the `onSuccess` http handler
+  - Starts the `onSuccess` http handler
 
 ## Local authenticator
 
@@ -105,7 +105,7 @@ The Login function:
    - `roles`: String array with roles of user
 * In case user is not yet set, which is usually the case:
    - Try to fetch user from database
-   - In case user is not yet present add user to user databse table with `AuthViaToken` AuthSource.
+   - In case user is not yet present add user to user database table with `AuthViaToken` AuthSource.
 * Return valid user object
 
 # Auth
@@ -115,8 +115,8 @@ The Auth function (located in `auth.go`):
 * This handler iterates over all authenticators
 * Calls `Auth()` on every authenticator
 * If err is not nil and the user object is valid it puts the user object in the
-  request context and starts the onsuccess http handler
-* Otherwise it calls the onfailure handler
+  request context and starts the onSuccess http handler
+* Otherwise it calls the onFailure handler
 
 ## Local
 
@@ -139,7 +139,7 @@ cookie.
 
 Finally it calls AuthViaSession in `auth.go` if a valid session exists. This is
 true if a JWT token was previously used to initiate a session. In this case the
-user object initialized with the session is returned rightaway.
+user object initialized with the session is returned right away.
 
 In case a token was found extract and parse the token:
 * Check if signing method is Ed25519/EdDSA 
