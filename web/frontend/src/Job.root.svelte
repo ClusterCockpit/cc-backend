@@ -48,7 +48,8 @@
     `);
 
     const ccconfig = getContext("cc-config"),
-        clusters = getContext("clusters");
+          clusters = getContext("clusters"),
+          metrics  = getContext("metrics")
 
     let isMetricsSelectionOpen = false,
         selectedMetrics = [],
@@ -74,16 +75,26 @@
                 ccconfig[`job_view_nodestats_selectedMetrics`]),
         ]);
 
-        // Select default Scopes to load
-        if (job.numAcc === 0) {
-            // No Accels
+        // Select default Scopes to load: Check before if accelerator metrics are not on accelerator scope by default
+        const accMetrics = ['acc_utilization', 'acc_mem_used', 'acc_power', 'nv_mem_util', 'nv_sm_clock', 'nv_temp'] 
+        const accNodeOnly = [...toFetch].some(function(m) {
+            if (accMetrics.includes(m)) {
+                const mc = metrics(job.cluster, m)
+                return mc.scope !== 'accelerator'
+            } else {
+                return false
+            }
+        })
+
+        if (job.numAcc === 0 || accNodeOnly === true) {
+            // No Accels or Accels on Node Scope
             startFetching(
                 job,
                 [...toFetch],
                 job.numNodes > 2 ? ["node"] : ["node", "core"]
             );
         } else {
-            // Accels
+            // Accels and not on node scope
             startFetching(
                 job,
                 [...toFetch],
