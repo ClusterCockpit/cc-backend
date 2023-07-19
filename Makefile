@@ -28,7 +28,7 @@ SVELTE_SRC = $(wildcard $(FRONTEND)/src/*.svelte)         \
 			 $(wildcard $(FRONTEND)/src/plots/*.svelte)   \
 			 $(wildcard $(FRONTEND)/src/joblist/*.svelte)
 
-.PHONY: clean test tags frontend $(TARGET)
+.PHONY: clean distclean test tags frontend $(TARGET)
 
 .NOTPARALLEL:
 
