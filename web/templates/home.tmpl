@@ -1,10 +1,16 @@
 {{define "content"}}
 {{if .Infos.message }}
 <div class="row justify-content-center">
-    <div class="col-4">
-        <div class="alert alert-info p-3 text-center fs-3" role="alert">
-            <i class="bi-info-circle-fill me-3"></i>
-            {{.Infos.message}}
+    <div class="col-6">
+        <div class="alert alert-info p-3" role="alert">
+            <div class="row  align-items-center">
+                <div class="col-2">
+                    <h2><i class="bi-info-circle-fill m-3"></i></h2>
+                </div>
+                <div class="col-10">
+                {{.Infos.message}}
+                </div>
+            </div>
         </div>
     </div>
 </div>
