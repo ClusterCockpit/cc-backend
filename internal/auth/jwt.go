@@ -92,7 +92,7 @@ func (ja *JWTAuthenticator) Init(auth *Authentication, conf interface{}) error {
 		}
 	} else {
 		ja.publicKeyCrossLogin = nil
-		log.Warn("environment variable 'CROSS_LOGIN_JWT_PUBLIC_KEY' not set (cross login token based authentication will not work)")
+		log.Debug("environment variable 'CROSS_LOGIN_JWT_PUBLIC_KEY' not set (cross login token based authentication will not work)")
 	}
 
 	return nil
@@ -103,7 +103,9 @@ func (ja *JWTAuthenticator) CanLogin(
 	rw http.ResponseWriter,
 	r *http.Request) bool {
 
-	return (user != nil && user.AuthSource == AuthViaToken) || r.Header.Get("Authorization") != "" || r.URL.Query().Get("login-token") != ""
+	return (user != nil && user.AuthSource == AuthViaToken) ||
+		r.Header.Get("Authorization") != "" ||
+		r.URL.Query().Get("login-token") != ""
 }
 
 func (ja *JWTAuthenticator) Login(
@@ -111,13 +113,9 @@ func (ja *JWTAuthenticator) Login(
 	rw http.ResponseWriter,
 	r *http.Request) (*User, error) {
 
-	rawtoken := r.Header.Get("X-Auth-Token")
+	rawtoken := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 	if rawtoken == "" {
-		rawtoken = r.Header.Get("Authorization")
-		rawtoken = strings.TrimPrefix(rawtoken, "Bearer ")
-		if rawtoken == "" {
-			rawtoken = r.URL.Query().Get("login-token")
-		}
+		rawtoken = r.URL.Query().Get("login-token")
 	}
 
 	token, err := jwt.Parse(rawtoken, func(t *jwt.Token) (interface{}, error) {
@@ -134,7 +132,7 @@ func (ja *JWTAuthenticator) Login(
 		return nil, err
 	}
 
-	if err := token.Claims.Valid(); err != nil {
+	if err = token.Claims.Valid(); err != nil {
 		log.Warn("jwt token claims are not valid")
 		return nil, err
 	}
@@ -220,7 +218,10 @@ func (ja *JWTAuthenticator) Auth(
 		}
 
 		// Is there more than one public key?
-		if ja.publicKeyCrossLogin != nil && ja.config != nil && ja.config.TrustedExternalIssuer != "" {
+		if ja.publicKeyCrossLogin != nil &&
+			ja.config != nil &&
+			ja.config.TrustedExternalIssuer != "" {
+
 			// Determine whether to use the external public key
 			unvalidatedIssuer, success := t.Claims.(jwt.MapClaims)["iss"].(string)
 			if success && unvalidatedIssuer == ja.config.TrustedExternalIssuer {

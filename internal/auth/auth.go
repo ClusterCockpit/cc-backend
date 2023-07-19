@@ -75,10 +75,7 @@ func getRoleEnum(roleStr string) Role {
 }
 
 func isValidRole(role string) bool {
-	if getRoleEnum(role) == RoleError {
-		return false
-	}
-	return true
+	return getRoleEnum(role) != RoleError
 }
 
 func (u *User) HasValidRole(role string) (hasRole bool, isValid bool) {
@@ -175,7 +172,7 @@ func GetValidRolesMap(user *User) (map[string]Role, error) {
 		}
 		return named, nil
 	}
-	return named, fmt.Errorf("Only known users are allowed to fetch a list of roles")
+	return named, fmt.Errorf("only known users are allowed to fetch a list of roles")
 }
 
 // Find highest role
@@ -300,6 +297,7 @@ func (auth *Authentication) AuthViaSession(
 		return nil, nil
 	}
 
+	// TODO Check if keys are present in session?
 	username, _ := session.Values["username"].(string)
 	projects, _ := session.Values["projects"].([]string)
 	roles, _ := session.Values["roles"].([]string)
@@ -320,11 +318,9 @@ func (auth *Authentication) Login(
 		err := errors.New("no authenticator applied")
 		username := r.FormValue("username")
 		user := (*User)(nil)
+
 		if username != "" {
-			if user, _ = auth.GetUser(username); err != nil {
-				// log.Warnf("login of unkown user %v", username)
-				_ = err
-			}
+			user, _ = auth.GetUser(username)
 		}
 
 		for _, authenticator := range auth.authenticators {
