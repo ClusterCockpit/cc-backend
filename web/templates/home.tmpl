@@ -1,4 +1,14 @@
 {{define "content"}}
+{{if .Message }}
+<div class="row justify-content-center">
+    <div class="col-4">
+        <div class="alert alert-info p-3 text-center fs-3" role="alert">
+            <i class="bi-info-circle-fill me-3"></i>
+            {{.Message}}
+        </div>
+    </div>
+</div>
+{{end}}
 <div class="row">
     <div class="col">
         <h2>Clusters</h2>
