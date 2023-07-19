@@ -92,7 +92,7 @@ func (ja *JWTAuthenticator) Init(auth *Authentication, conf interface{}) error {
 		}
 	} else {
 		ja.publicKeyCrossLogin = nil
-		log.Warn("environment variable 'CROSS_LOGIN_JWT_PUBLIC_KEY' not set (cross login token based authentication will not work)")
+		log.Debug("environment variable 'CROSS_LOGIN_JWT_PUBLIC_KEY' not set (cross login token based authentication will not work)")
 	}
 
 	return nil
