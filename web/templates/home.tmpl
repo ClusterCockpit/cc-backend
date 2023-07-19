@@ -1,10 +1,10 @@
 {{define "content"}}
-{{if .Message }}
+{{if .Infos.message }}
 <div class="row justify-content-center">
     <div class="col-4">
         <div class="alert alert-info p-3 text-center fs-3" role="alert">
             <i class="bi-info-circle-fill me-3"></i>
-            {{.Message}}
+            {{.Infos.message}}
         </div>
     </div>
 </div>

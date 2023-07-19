@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/web"
 	"github.com/gorilla/mux"
@@ -60,6 +62,16 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 	}
 
 	i["clusters"] = stats
+
+	if util.CheckFileExists("./var/notice.txt") {
+		msg, err := os.ReadFile("./var/notice.txt")
+		if err != nil {
+			log.Warnf("failed to read notice.txt file: %s", err.Error())
+		} else {
+			i["message"] = string(msg)
+		}
+	}
+
 	return i
 }
 
