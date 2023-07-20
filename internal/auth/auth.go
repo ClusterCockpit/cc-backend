@@ -163,10 +163,10 @@ func GetValidRoles(user *User) ([]string, error) {
 	return vals, fmt.Errorf("%s: only admins are allowed to fetch a list of roles", user.Username)
 }
 
-// Called by routerConfig web.page setup in backend: Only requires known user and/or not API user
+// Called by routerConfig web.page setup in backend: Only requires known user
 func GetValidRolesMap(user *User) (map[string]Role, error) {
 	named := make(map[string]Role)
-	if user.HasNotRoles([]Role{RoleApi, RoleAnonymous}) {
+	if user.HasNotRoles([]Role{RoleAnonymous}) {
 		for i := RoleApi; i < RoleError; i++ {
 			named[GetRoleString(i)] = i
 		}
