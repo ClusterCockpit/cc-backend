@@ -3,11 +3,11 @@
 ## Usage
 
 * Searchtags are implemented as `type:<query>` search-string
-  * Types `jobId, jobName, projectId, username, name` for roles `admin` and `support`
+  * Types `jobId, jobName, projectId, username, name, arrayJobId` for roles `admin` and `support`
     * `jobName` is jobName as persisted in `job.meta_data` table-column
     * `username` is actual account identifier as persisted in `job.user` table-column
     * `name` is account owners name as persisted in `user.name` table-column
-  * Types `jobId, jobName, projectId` for role `user`
+  * Types `jobId, jobName, projectId, arrayJobId` for role `user`
   * Examples:
     * `jobName:myJob12`
     * `jobId:123456`
@@ -23,6 +23,7 @@
     * **Please Note**: Only users with jobs will be shown in table! I.e., Users without jobs will be missing in table. Also, a `Last 30 Days` is active by default and might filter out expected users.
   * Name: Users-Table
     * **Please Note**: Only users with jobs will be shown in table! I.e., Users without jobs will be missing in table. Also, a `Last 30 Days` is active by default and might filter out expected users.
+  * ArrayJobId: Job-Table (Lists all Jobs of Queried ArrayJobId)
   * Best guess search always redirects to Job-Table or `/monitoring/user/$USER` (first username match)
   * Unprocessable queries will display messages detailing the cause (Info, Warning, Error)
 * Spaces trimmed (both for searchTag and queryString)
