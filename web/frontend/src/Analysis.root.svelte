@@ -76,7 +76,7 @@
         query: gql`
             query($jobFilters: [JobFilter!]!, $metrics: [String!]!) {
                 footprints: jobsFootprints(filter: $jobFilters, metrics: $metrics) {
-                    nodehours,
+                    timeweights,
                     metrics { metric, data }
                 }
             }`,
@@ -229,7 +229,7 @@
                 let:width
                 renderFor="analysis"
                 items={metricsInHistograms.map(metric => ({ metric, ...binsFromFootprint(
-                    $footprintsQuery.data.footprints.nodehours,
+                    $footprintsQuery.data.footprints.timeweights,
                     $footprintsQuery.data.footprints.metrics.find(f => f.metric == metric).data, numBins) }))}
                 itemsPerRow={ccconfig.plot_view_plotsPerRow}>
 
@@ -271,7 +271,7 @@
                                            (metricConfig(cluster.name, item.m1)?.unit?.base   ? metricConfig(cluster.name, item.m1)?.unit?.base   : '')}]`}
                     yLabel={`${item.m2} [${(metricConfig(cluster.name, item.m2)?.unit?.prefix ? metricConfig(cluster.name, item.m2)?.unit?.prefix : '') + 
                                            (metricConfig(cluster.name, item.m2)?.unit?.base   ? metricConfig(cluster.name, item.m2)?.unit?.base   : '')}]`}
-                    X={item.f1} Y={item.f2} S={$footprintsQuery.data.footprints.nodehours} />
+                    X={item.f1} Y={item.f2} S={$footprintsQuery.data.footprints.timeweights} />
             </PlotTable>
         </Col>
     </Row>

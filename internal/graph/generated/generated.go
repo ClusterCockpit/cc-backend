@@ -68,8 +68,8 @@ type ComplexityRoot struct {
 	}
 
 	Footprints struct {
-		Metrics   func(childComplexity int) int
-		Nodehours func(childComplexity int) int
+		Metrics     func(childComplexity int) int
+		Timeweights func(childComplexity int) int
 	}
 
 	HistoPoint struct {
@@ -406,12 +406,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Footprints.Metrics(childComplexity), true
 
-	case "Footprints.nodehours":
-		if e.complexity.Footprints.Nodehours == nil {
+	case "Footprints.timeweights":
+		if e.complexity.Footprints.Timeweights == nil {
 			break
 		}
 
-		return e.complexity.Footprints.Nodehours(childComplexity), true
+		return e.complexity.Footprints.Timeweights(childComplexity), true
 
 	case "HistoPoint.count":
 		if e.complexity.HistoPoint.Count == nil {
@@ -1666,7 +1666,7 @@ type MetricFootprints {
 }
 
 type Footprints {
-  nodehours: [NullableFloat!]!
+  timeweights: [NullableFloat!]!
   metrics:   [MetricFootprints!]!
 }
 
@@ -2753,8 +2753,8 @@ func (ec *executionContext) fieldContext_Count_count(ctx context.Context, field 
 	return fc, nil
 }
 
-func (ec *executionContext) _Footprints_nodehours(ctx context.Context, field graphql.CollectedField, obj *model.Footprints) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Footprints_nodehours(ctx, field)
+func (ec *executionContext) _Footprints_timeweights(ctx context.Context, field graphql.CollectedField, obj *model.Footprints) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Footprints_timeweights(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -2767,7 +2767,7 @@ func (ec *executionContext) _Footprints_nodehours(ctx context.Context, field gra
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Nodehours, nil
+		return obj.Timeweights, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2784,7 +2784,7 @@ func (ec *executionContext) _Footprints_nodehours(ctx context.Context, field gra
 	return ec.marshalNNullableFloat2ᚕgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐFloatᚄ(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Footprints_nodehours(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Footprints_timeweights(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Footprints",
 		Field:      field,
@@ -6945,8 +6945,8 @@ func (ec *executionContext) fieldContext_Query_jobsFootprints(ctx context.Contex
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "nodehours":
-				return ec.fieldContext_Footprints_nodehours(ctx, field)
+			case "timeweights":
+				return ec.fieldContext_Footprints_timeweights(ctx, field)
 			case "metrics":
 				return ec.fieldContext_Footprints_metrics(ctx, field)
 			}
@@ -11715,9 +11715,9 @@ func (ec *executionContext) _Footprints(ctx context.Context, sel ast.SelectionSe
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Footprints")
-		case "nodehours":
+		case "timeweights":
 
-			out.Values[i] = ec._Footprints_nodehours(ctx, field, obj)
+			out.Values[i] = ec._Footprints_timeweights(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
 				invalids++

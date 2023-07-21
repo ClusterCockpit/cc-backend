@@ -22,8 +22,8 @@ type FloatRange struct {
 }
 
 type Footprints struct {
-	Nodehours []schema.Float      `json:"nodehours"`
-	Metrics   []*MetricFootprints `json:"metrics"`
+	Timeweights []schema.Float      `json:"timeweights"`
+	Metrics     []*MetricFootprints `json:"metrics"`
 }
 
 type HistoPoint struct {

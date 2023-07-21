@@ -156,7 +156,7 @@ type MetricFootprints {
 }
 
 type Footprints {
-  nodehours: [NullableFloat!]!
+  timeweights: [NullableFloat!]!
   metrics:   [MetricFootprints!]!
 }
 

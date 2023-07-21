@@ -107,6 +107,8 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 	}
 
 	nodehours := make([]schema.Float, 0, len(jobs))
+	acchours := make([]schema.Float, 0, len(jobs))
+	hwthours := make([]schema.Float, 0, len(jobs))
 	for _, job := range jobs {
 		if job.MonitoringStatus == schema.MonitoringStatusDisabled || job.MonitoringStatus == schema.MonitoringStatusArchivingFailed {
 			continue
@@ -117,7 +119,18 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 			return nil, err
 		}
 
+		// #166 collect arrays: Null values or no null values?
 		nodehours = append(nodehours, schema.Float(float64(job.Duration)/60.0*float64(job.NumNodes)))
+		if job.NumAcc > 0 {
+			acchours = append(acchours, schema.Float(float64(job.Duration)/60.0*float64(job.NumAcc)))
+		} else {
+			acchours = append(acchours, schema.Float(0.0))
+		}
+		if job.NumHWThreads > 0 {
+			hwthours = append(hwthours, schema.Float(float64(job.Duration)/60.0*float64(job.NumHWThreads)))
+		} else {
+			hwthours = append(hwthours, schema.Float(0.0))
+		}
 	}
 
 	res := make([]*model.MetricFootprints, len(avgs))
@@ -129,8 +142,8 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 	}
 
 	return &model.Footprints{
-		Nodehours: nodehours,
-		Metrics:   res,
+		Timeweights: nodehours,
+		Metrics:     res,
 	}, nil
 }
 
