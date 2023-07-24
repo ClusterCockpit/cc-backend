@@ -279,9 +279,9 @@
             </Button>
         {/if}
     </Col>
-    <Col xs="auto">
+<!--     <Col xs="auto">
         <Zoom timeseriesPlots={plots} />
-    </Col>
+    </Col> -->
 </Row>
 <br />
 <Row>

@@ -177,7 +177,7 @@
             x: { time: false },
             y: maxY ? { range: [0., maxY * 1.1] } : {}
         },
-        cursor: { show: false },
+        cursor: { drag: { x: true, y: true } },
         legend: { show: false, live: false }
     }
 
