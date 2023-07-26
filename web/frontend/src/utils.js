@@ -313,3 +313,13 @@ export function checkMetricDisabled(m, c, s) { //[m]etric, [c]luster, [s]ubclust
     }
     return false;
 }
+
+export function convert2uplot(canvasData) {
+    // initial use: Canvas Histogram Data to Uplot
+    let uplotData = [[],[]] // [X, Y1, Y2, ...]
+    canvasData.forEach( pair => {
+        uplotData[0].push(pair.value)
+        uplotData[1].push(pair.count)
+    })
+    return uplotData
+}
