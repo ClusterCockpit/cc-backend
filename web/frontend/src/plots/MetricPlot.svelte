@@ -37,6 +37,7 @@
     export let useStatsSeries = null
     export let scope = 'node'
     export let isShared = false
+    export let forNode = false
 
     if (useStatsSeries == null)
         useStatsSeries = statisticsSeries != null
@@ -130,7 +131,7 @@
                 scale: 'x',
                 space: 35,
                 incrs: timeIncrs(timestep, maxX),
-                values: (_, vals) => vals.map(v => formatTime(v))
+                values: (_, vals) => forNode ? vals.reverse().map(v => formatTime(v, forNode)) : vals.map(v => formatTime(v))
             },
             {
                 scale: 'y',
@@ -250,15 +251,15 @@
 </script>
 <script context="module">
 
-    export function formatTime(t) {
+    export function formatTime(t, forNode = false) {
         let h = Math.floor(t / 3600)
         let m = Math.floor((t % 3600) / 60)
         if (h == 0)
-            return `${m}m`
+            return forNode ? `-${m}m` : `${m}m`
         else if (m == 0)
-            return `${h}h`
+            return forNode ? `-${h}h` : `${h}h`
         else
-            return `${h}:${m}h`
+            return forNode ? `-${h}:${m}h` : `${h}:${m}h`
     }
 
     export function timeIncrs(timestep, maxX) {

@@ -211,6 +211,7 @@
                         subCluster={$nodeMetricsData.data.nodeMetrics[0]
                             .subCluster}
                         series={item.metric.series}
+                        forNode={true}
                     />
                 {:else if item.disabled === true && item.metric}
                     <Card
