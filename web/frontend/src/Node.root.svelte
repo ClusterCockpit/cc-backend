@@ -11,6 +11,7 @@
     } from "sveltestrap";
     import { queryStore, gql, getContextClient } from "@urql/svelte";
     import TimeSelection from "./filters/TimeSelection.svelte";
+    import Refresher from './joblist/Refresher.svelte';
     import PlotTable from "./PlotTable.svelte";
     import MetricPlot from "./plots/MetricPlot.svelte";
     import { getContext } from "svelte";
@@ -159,6 +160,13 @@
             {:else}
                 No currently running jobs.
             {/if}
+        </Col>
+        <Col>
+            <Refresher on:reload={() => {
+                const diff = Date.now() - to
+                from = new Date(from.getTime() + diff)
+                to = new Date(to.getTime() + diff)
+            }} />
         </Col>
         <Col>
             <TimeSelection bind:from bind:to />

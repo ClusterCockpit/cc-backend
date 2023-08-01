@@ -1,5 +1,6 @@
 <script>
     import { init, checkMetricDisabled } from './utils.js'
+    import Refresher from './joblist/Refresher.svelte'
     import { Row, Col, Input, InputGroup, InputGroupText, Icon, Spinner, Card } from 'sveltestrap'
     import { queryStore, gql, getContextClient } from '@urql/svelte'
     import TimeSelection from './filters/TimeSelection.svelte'
@@ -78,6 +79,13 @@
     {:else if $initq.fetching}
         <Spinner/>
     {:else}
+        <Col>
+            <Refresher on:reload={() => {
+                const diff = Date.now() - to
+                from = new Date(from.getTime() + diff)
+                to = new Date(to.getTime() + diff)
+            }} />
+        </Col>
         <Col>
             <TimeSelection
                 bind:from={from}
