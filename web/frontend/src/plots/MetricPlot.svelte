@@ -131,7 +131,13 @@
                 scale: 'x',
                 space: 35,
                 incrs: timeIncrs(timestep, maxX),
-                values: (_, vals) => forNode ? vals.reverse().map(v => formatTime(v, forNode)) : vals.map(v => formatTime(v))
+                values: (_, vals) => {
+                    if (forNode === true) {
+                        return vals.map(v => formatTime(v, forNode)).reverse()
+                    } else {
+                        return vals.map(v => formatTime(v))
+                    }
+                }
             },
             {
                 scale: 'y',
