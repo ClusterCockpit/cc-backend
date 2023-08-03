@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
@@ -75,6 +76,8 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 	r.HandleFunc("/jobs/delete_job/", api.deleteJobByRequest).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job/{id}", api.deleteJobById).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job_before/{ts}", api.deleteJobBefore).Methods(http.MethodDelete)
+	r.HandleFunc("/secured/addProject/{id}/{project}", api.secureUpdateUser).Methods(http.MethodPost)
+	r.HandleFunc("/secured/addRole/{id}/{role}", api.secureUpdateUser).Methods(http.MethodPost)
 
 	if api.Authentication != nil {
 		r.HandleFunc("/jwt/", api.getJWT).Methods(http.MethodGet)
@@ -100,6 +103,11 @@ type StartJobApiResponse struct {
 
 // DeleteJobApiResponse model
 type DeleteJobApiResponse struct {
+	Message string `json:"msg"`
+}
+
+// UpdateUserApiResponse model
+type UpdateUserApiResponse struct {
 	Message string `json:"msg"`
 }
 
@@ -1040,6 +1048,77 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 		rw.Write([]byte("Remove Project Success"))
 	} else {
 		http.Error(rw, "Not Add or Del [role|project]?", http.StatusInternalServerError)
+	}
+}
+
+func (api *RestApi) secureUpdateUser(rw http.ResponseWriter, r *http.Request) {
+	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
+		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
+		return
+	}
+
+	// If nothing declared in config: deny all request to this endpint
+	if config.Keys.ApiAllowedAddrs == nil || len(config.Keys.ApiAllowedAddrs) == 0 {
+		handleError(fmt.Errorf("denied by default policy!"), http.StatusForbidden, rw)
+		return
+	}
+
+	// IP CHECK HERE (WIP)
+	// Probably better as private routine
+	IPAddress := r.Header.Get("X-Real-Ip")
+	if IPAddress == "" {
+		IPAddress = r.Header.Get("X-Forwarded-For")
+	}
+	if IPAddress == "" {
+		IPAddress = r.RemoteAddr
+	}
+
+	// Also This
+	ipOk := false
+	for _, a := range config.Keys.ApiAllowedAddrs {
+		if a == IPAddress {
+			ipOk = true
+		}
+	}
+
+	if IPAddress == "" || ipOk == false {
+		handleError(fmt.Errorf("unknown ip: %v", IPAddress), http.StatusForbidden, rw)
+		return
+	}
+	// IP CHECK END
+
+	// Get Values
+	id := mux.Vars(r)["id"]
+	newproj := mux.Vars(r)["project"]
+	newrole := mux.Vars(r)["role"]
+
+	// TODO: Handle anything but roles...
+	if newrole != "" {
+		if err := api.Authentication.AddRole(r.Context(), id, newrole); err != nil {
+			handleError(errors.New(err.Error()), http.StatusUnprocessableEntity, rw)
+			return
+		}
+
+		rw.Header().Add("Content-Type", "application/json")
+		rw.WriteHeader(http.StatusOK)
+		json.NewEncoder(rw).Encode(UpdateUserApiResponse{
+			Message: fmt.Sprintf("Successfully added role %s to %s", newrole, id),
+		})
+
+	} else if newproj != "" {
+		if err := api.Authentication.AddProject(r.Context(), id, newproj); err != nil {
+			handleError(errors.New(err.Error()), http.StatusUnprocessableEntity, rw)
+			return
+		}
+
+		rw.Header().Add("Content-Type", "application/json")
+		rw.WriteHeader(http.StatusOK)
+		json.NewEncoder(rw).Encode(UpdateUserApiResponse{
+			Message: fmt.Sprintf("Successfully added project %s to %s", newproj, id),
+		})
+
+	} else {
+		handleError(errors.New("Not Add [role|project]?"), http.StatusBadRequest, rw)
 	}
 }
 
