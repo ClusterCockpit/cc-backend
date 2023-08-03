@@ -7,6 +7,7 @@
 
     export let job
     export let jobMetrics
+    export let accMetrics
 
     const allMetrics = [...new Set(jobMetrics.map(m => m.name))].sort(),
           scopesForMetric = (metric) => jobMetrics
@@ -21,7 +22,9 @@
             || getContext('cc-config')['job_view_nodestats_selectedMetrics']
 
     for (let metric of allMetrics) {
-        selectedScopes[metric] = maxScope(scopesForMetric(metric))
+        selectedScopes[metric] = (job.exclusive != 1 || job.numNodes == 1) ? 
+            (job.numAccs != 0 && accMetrics.includes(metric)) ? 'accelerator' : 'core' 
+            : maxScope(scopesForMetric(metric))
         sorting[metric] = {
             min: { dir: 'up', active: false },
             avg: { dir: 'up', active: false },
