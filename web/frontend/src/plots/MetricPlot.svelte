@@ -137,10 +137,6 @@
         }
     }
 
-
-    // console.log("Input Series: ", metric, series)
-    // console.log("Data: ", plotData)
-
     const opts = {
         width,
         height,
