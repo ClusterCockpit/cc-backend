@@ -203,6 +203,7 @@
                         subCluster={$nodeMetricsData.data.nodeMetrics[0]
                             .subCluster}
                         series={item.metric.series}
+                        resources={[{hostname: hostname}]}
                     />
                 {:else if item.disabled === true && item.metric}
                     <Card
