@@ -57,6 +57,7 @@
     // converts the legend into a simple tooltip
     function legendAsTooltipPlugin({ className, style = { backgroundColor:"rgba(255, 249, 196, 0.92)", color: "black" } } = {}) {
         let legendEl;
+        const dataSize = series.length
 
         function init(u, opts) {
             legendEl = u.root.querySelector(".u-legend");
@@ -76,11 +77,14 @@
                 ...style
             });
 
-            // hide series color markers
-            const idents = legendEl.querySelectorAll(".u-marker");
-
-            for (let i = 0; i < idents.length; i++)
-                idents[i].style.display = "none";
+            // conditional hide series color markers:
+            if (useStatsSeries === true || // Min/Max/Avg Self-Explanatory
+                dataSize === 1          || // Only one Y-Dataseries
+                dataSize > 6            ){ // More than 6 Y-Dataseries
+                const idents = legendEl.querySelectorAll(".u-marker");
+                for (let i = 0; i < idents.length; i++)
+                    idents[i].style.display = "none";
+            }
 
             const overEl = u.over;
             overEl.style.overflow = "visible";
@@ -93,7 +97,7 @@
             overEl.addEventListener("mouseleave", () => {legendEl.style.display = "none";});
 
             // let tooltip exit plot
-        //	overEl.style.overflow = "visible";
+            // overEl.style.overflow = "visible";
         }
 
         function update(u) {
@@ -102,12 +106,16 @@
             legendEl.style.transform = "translate(" + (left - width - 15) + "px, " + (top + 15) + "px)";
         }
 
-        return {
-            hooks: {
-                init: init,
-                setCursor: update,
+        if (dataSize <= 12 || useStatsSeries === true) {
+            return {
+                hooks: {
+                    init: init,
+                    setCursor: update,
+                }
             }
-        };
+        } else { // Setting legend-opts show/live as object with false here will not work ...
+            return {}
+        }
     }
 
     function backgroundColor() {
@@ -239,6 +247,10 @@
         scales: {
             x: { time: false },
             y: maxY ? { range: [0., maxY * 1.1] } : {}
+        },
+        legend : { // Display legend until max 12 Y-dataseries
+            show: (series.length <= 12 || useStatsSeries === true) ? true : false,
+            live: (series.length <= 12 || useStatsSeries === true) ? true : false
         },
         cursor: { drag: { x: true, y: true } }
     }
