@@ -134,11 +134,11 @@
             </Table>
         </Col>
         <div class="col-4 text-center" bind:clientWidth={w1}>
-            <b>Duration Distribution</b>
             {#key $stats.data.jobsStatistics[0].histDuration}
                 <Histogramuplot
                     data={convert2uplot($stats.data.jobsStatistics[0].histDuration)}
                     width={w2 - 25} height={histogramHeight}
+                    title="Duration Distribution"
                     xlabel="Current Runtimes"
                     xunit="Hours" 
                     ylabel="Number of Jobs"
@@ -146,11 +146,11 @@
             {/key}
         </div>
         <div class="col-4 text-center" bind:clientWidth={w2}>
-            <b>Number of Nodes Distribution</b>
             {#key $stats.data.jobsStatistics[0].histNumNodes}
                 <Histogramuplot
                     data={convert2uplot($stats.data.jobsStatistics[0].histNumNodes)}
                     width={w2 - 25} height={histogramHeight}
+                    title="Number of Nodes Distribution"
                     xlabel="Allocated Nodes"
                     xunit="Nodes"
                     ylabel="Number of Jobs"

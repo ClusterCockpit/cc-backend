@@ -13,6 +13,7 @@
     export let data
     export let width = 500
     export let height = 300
+    export let title = ''
     export let xlabel = ''
     export let xunit = 'X'
     export let ylabel = ''
@@ -29,7 +30,7 @@
         let s = u.series[seriesIdx];
         let style = s.drawStyle;
 
-        let renderer = (
+        let renderer = ( // If bars to wide, change here
             style == drawStyles.bars ? (
                 bars({size: [0.75, 100]})
             ) :
@@ -102,6 +103,7 @@
         let opts = {
             width: width,
             height: height,
+            title: title,
             plugins: [
 				legendAsTooltipPlugin()
 			],
@@ -157,10 +159,10 @@
             ],
             series: [
                 {
-                    label: xunit,
+                    label: xunit !== '' ? xunit : null,
                 },
                 Object.assign({
-                    label: yunit,
+                    label:  yunit !== '' ? yunit : null,
                     width: 1 / devicePixelRatio,
                     drawStyle: drawStyles.points,
                     lineInterpolation: null,

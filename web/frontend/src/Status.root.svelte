@@ -2,8 +2,9 @@
     import Refresher from './joblist/Refresher.svelte'
     import Roofline, { transformPerNodeData } from './plots/Roofline.svelte'
     import Histogram from './plots/Histogram.svelte'
+    import Histogramuplot from './plots/Histogramuplot.svelte'
     import { Row, Col, Spinner, Card, CardHeader, CardTitle, CardBody, Table, Progress, Icon } from 'sveltestrap'
-    import { init } from './utils.js'
+    import { init, convert2uplot } from './utils.js'
     import { scaleNumbers } from './units.js'
     import { queryStore, gql, getContextClient  } from '@urql/svelte'
 
@@ -202,27 +203,32 @@
             </Table>
         </Col>
     </Row>
-    <Row cols={2} class="mt-3">
+    <hr class="my-2"/>
+    <Row cols={2}>
         <Col class="p-2">
             <div bind:clientWidth={colWidth2}>
-                <h4 class="mb-3 text-center">Duration Distribution</h4>
                 {#key $mainQuery.data.stats}
-                    <Histogram
+                    <Histogramuplot
+                        data={convert2uplot($mainQuery.data.stats[0].histDuration)}
                         width={colWidth2 - 25}
-                        data={$mainQuery.data.stats[0].histDuration}
-                        xlabel="Current Runtimes [h]" 
-                        ylabel="Number of Jobs" />
+                        title="Duration Distribution"
+                        xlabel="Current Runtimes"
+                        xunit="Hours" 
+                        ylabel="Number of Jobs"
+                        yunit="Jobs"/>
                 {/key}
             </div>
         </Col>
         <Col class="p-2">
-            <h4 class="mb-3 text-center">Number of Nodes Distribution</h4>
             {#key $mainQuery.data.stats}
-                <Histogram
+                <Histogramuplot
+                    data={convert2uplot($mainQuery.data.stats[0].histNumNodes)}
                     width={colWidth2 - 25}
-                    data={$mainQuery.data.stats[0].histNumNodes}
-                    xlabel="Allocated Nodes [#]"
-                    ylabel="Number of Jobs" />
+                    title="Number of Nodes Distribution"
+                    xlabel="Allocated Nodes"
+                    xunit="Nodes" 
+                    ylabel="Number of Jobs"
+                    yunit="Jobs"/>
             {/key}
         </Col>
     </Row>
