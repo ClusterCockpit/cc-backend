@@ -4,9 +4,14 @@
     export let scope
     export let jobMetrics
 
+    function compareIds(a, b) {
+        return a.id - b.id;
+    }
+
     $: series = jobMetrics
         .find(jm => jm.name == metric && jm.scope == scope)
         ?.metric.series.filter(s => s.hostname == host && s.statistics != null)
+        ?.sort(compareIds)
 </script>
 
 {#if series == null || series.length == 0}
