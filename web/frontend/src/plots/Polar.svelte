@@ -22,8 +22,7 @@
         LineElement
     );
 
-    export let width
-    export let height
+    export let size
     export let metrics
     export let cluster
     export let jobMetrics
@@ -88,8 +87,19 @@
     }
 
     // No custom defined options but keep for clarity 
-    const options = {}
+    const options = {
+        maintainAspectRatio: false,
+    }
 
 </script>
 
-<Radar {data} {options} {width} {height}/>
+<div class="chart-container">
+    <Radar {data} {options} width={size} height={size}/>
+</div>
+
+<style>
+    .chart-container {
+        margin: auto;
+        position: relative;
+    }
+</style>

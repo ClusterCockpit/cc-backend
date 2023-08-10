@@ -120,7 +120,6 @@
         jobTags,
         fullWidth,
         statsTable;
-    $: polarPlotSize = Math.min(fullWidth / 3 - 10, 300);
     $: document.title = $initq.fetching
         ? "Loading..."
         : $initq.error
@@ -233,8 +232,7 @@
         {/if}
         <Col>
             <Polar
-                width={polarPlotSize}
-                height={polarPlotSize}
+                size={fullWidth / 4.1}
                 metrics={ccconfig[
                     `job_view_polarPlotMetrics:${$initq.data.job.cluster}`
                 ] || ccconfig[`job_view_polarPlotMetrics`]}
@@ -245,7 +243,7 @@
         <Col>
             <Roofline
                 width={fullWidth / 3 - 10}
-                height={polarPlotSize + 20}
+                height={fullWidth / 5}
                 cluster={clusters
                     .find((c) => c.name == $initq.data.job.cluster)
                     .subClusters.find(
