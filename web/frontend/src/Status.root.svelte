@@ -1,7 +1,7 @@
 <script>
     import Refresher from './joblist/Refresher.svelte'
     import Roofline, { transformPerNodeData } from './plots/Roofline.svelte'
-    import Histogram from './plots/Histogram.svelte'
+    import Pie from './plots/Pie.svelte'
     import Histogramuplot from './plots/Histogramuplot.svelte'
     import { Row, Col, Spinner, Card, CardHeader, CardTitle, CardBody, Table, Progress, Icon } from 'sveltestrap'
     import { init, convert2uplot } from './utils.js'
@@ -160,13 +160,15 @@
     <Row cols={4}>
         <Col class="p-2">
             <div bind:clientWidth={colWidth1}>
-                <h4 class="mb-3 text-center">Top Users</h4>
+                <h4 class="text-center">Top Users</h4>
                 {#key $mainQuery.data}
-                    <Histogram
-                        width={colWidth1 - 25}
-                        data={$mainQuery.data.topUsers.sort((a, b) => b.count - a.count).map(({ count }, idx) => ({ count, value: idx }))}
-                        label={(x) => x < $mainQuery.data.topUsers.length ? $mainQuery.data.topUsers[Math.floor(x)].name : '0'}
-                        xlabel="User Name" ylabel="Number of Jobs" />
+                    <Pie
+                        size={colWidth1}
+                        sliceLabel='Jobs'
+                        quantities={$mainQuery.data.topUsers.sort((a, b) => b.count - a.count).map((tu) => tu.count)}
+                        entities={$mainQuery.data.topUsers.sort((a, b) => b.count - a.count).map((tu) => tu.name)}
+                        
+                    />
                 {/key}
             </div>
         </Col>
@@ -182,13 +184,14 @@
             </Table>
         </Col>
         <Col class="p-2">
-            <h4 class="mb-3 text-center">Top Projects</h4>
+            <h4 class="text-center">Top Projects</h4>
             {#key $mainQuery.data}
-                <Histogram
-                    width={colWidth1 - 25}
-                    data={$mainQuery.data.topProjects.sort((a, b) => b.count - a.count).map(({ count }, idx) => ({ count, value: idx }))}
-                    label={(x) => x < $mainQuery.data.topProjects.length ? $mainQuery.data.topProjects[Math.floor(x)].name : '0'}
-                    xlabel="Project Code" ylabel="Number of Jobs" />
+                <Pie
+                    size={colWidth1}
+                    sliceLabel='Jobs'
+                    quantities={$mainQuery.data.topProjects.sort((a, b) => b.count - a.count).map((tp) => tp.count)}
+                    entities={$mainQuery.data.topProjects.sort((a, b) => b.count - a.count).map((tp) => tp.name)}
+                />
             {/key}
         </Col>
         <Col class="px-4 py-2">
