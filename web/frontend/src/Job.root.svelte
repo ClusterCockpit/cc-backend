@@ -20,12 +20,11 @@
     } from "sveltestrap";
     import PlotTable from "./PlotTable.svelte";
     import Metric from "./Metric.svelte";
-    import PolarPlot from "./plots/Polar.svelte";
+    import Polar from "./plots/Polar.svelte";
     import Roofline from "./plots/Roofline.svelte";
     import JobInfo from "./joblist/JobInfo.svelte";
     import TagManagement from "./TagManagement.svelte";
     import MetricSelection from "./MetricSelection.svelte";
-    import Zoom from "./Zoom.svelte";
     import StatsTable from "./StatsTable.svelte";
     import { getContext } from "svelte";
 
@@ -233,7 +232,7 @@
             {/if}
         {/if}
         <Col>
-            <PolarPlot
+            <Polar
                 width={polarPlotSize}
                 height={polarPlotSize}
                 metrics={ccconfig[
@@ -246,7 +245,7 @@
         <Col>
             <Roofline
                 width={fullWidth / 3 - 10}
-                height={polarPlotSize}
+                height={polarPlotSize + 20}
                 cluster={clusters
                     .find((c) => c.name == $initq.data.job.cluster)
                     .subClusters.find(
