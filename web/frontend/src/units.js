@@ -6,11 +6,15 @@ const power  = [1, 1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21]
 const prefix = ['', 'K', 'M', 'G', 'T', 'P', 'E']
 
 export function formatNumber(x) {
-    for (let i = 0; i < prefix.length; i++)
-        if (power[i] <= x && x < power[i+1])
-            return `${Math.round((x / power[i]) * 100) / 100} ${prefix[i]}`
+    if ( isNaN(x) ) {
+        return x // Return if String , used in Histograms
+    } else {
+        for (let i = 0; i < prefix.length; i++)
+            if (power[i] <= x && x < power[i+1])
+                return `${Math.round((x / power[i]) * 100) / 100} ${prefix[i]}`
 
-    return Math.abs(x) >= 1000 ? x.toExponential() : x.toString()
+        return Math.abs(x) >= 1000 ? x.toExponential() : x.toString()
+    }
 }
 
 export function scaleNumbers(x, y , p = '') {

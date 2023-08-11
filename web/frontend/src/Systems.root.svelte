@@ -144,8 +144,8 @@
                             series={item.data.metric.series}
                             metric={item.data.name}
                             cluster={clusters.find(c => c.name == cluster)}
-                            subCluster={item.subCluster}
-                            forNode={true} />
+                            subCluster={item.subCluster} 
+                            resources={[{hostname: item.host}]}/>
                     {:else if item.disabled === true && item.data}
                         <Card style="margin-left: 2rem;margin-right: 2rem;" body color="info">Metric disabled for subcluster <code>{selectedMetric}:{item.subCluster}</code></Card>
                     {:else}

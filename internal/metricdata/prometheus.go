@@ -326,7 +326,6 @@ func (pdb *PrometheusDataRepository) LoadData(
 					Timestep: metricConfig.Timestep,
 					Series:   make([]schema.Series, 0),
 				}
-				jobData[metric][scope] = jobMetric
 			}
 			step := int64(metricConfig.Timestep)
 			steps := int64(to.Sub(from).Seconds()) / step
@@ -334,6 +333,10 @@ func (pdb *PrometheusDataRepository) LoadData(
 			for _, row := range result.(promm.Matrix) {
 				jobMetric.Series = append(jobMetric.Series,
 					pdb.RowToSeries(from, step, steps, row))
+			}
+			// only add metric if at least one host returned data
+			if !ok && len(jobMetric.Series) > 0{
+				jobData[metric][scope] = jobMetric
 			}
 			// sort by hostname to get uniform coloring
 			sort.Slice(jobMetric.Series, func(i, j int) bool {

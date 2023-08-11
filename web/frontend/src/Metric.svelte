@@ -89,6 +89,7 @@
             timestep={data.timestep}
             scope={selectedScope} metric={metricName}
             series={series}
-            isShared={isShared} />
+            isShared={isShared}
+            resources={job.resources} />
     {/if}
 {/key}

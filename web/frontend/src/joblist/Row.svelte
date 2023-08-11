@@ -136,6 +136,7 @@
                         {cluster}
                         subCluster={job.subCluster}
                         isShared={(job.exclusive != 1)}
+                        resources={job.resources}
                     />
                 {:else if metric.disabled == true && metric.data}
                     <Card body color="info">Metric disabled for subcluster <code>{metric.data.name}:{job.subCluster}</code></Card>
