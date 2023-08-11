@@ -2,11 +2,11 @@
     import { init, convert2uplot } from './utils.js'
     import { getContext, onMount } from 'svelte'
     import { queryStore, gql, getContextClient  } from '@urql/svelte'
-    import { Row, Col, Spinner, Card, Table } from 'sveltestrap'
+    import { Row, Col, Spinner, Card, Table, Icon } from 'sveltestrap'
     import Filters from './filters/Filters.svelte'
     import PlotSelection from './PlotSelection.svelte'
     import Histogramuplot from './plots/Histogramuplot.svelte'
-    import Pie from './plots/Pie.svelte'
+    import Pie, { colors } from './plots/Pie.svelte'
     import { binsFromFootprint } from './plots/Histogram.svelte'
     import ScatterPlot from './plots/Scatter.svelte'
     import PlotTable from './PlotTable.svelte'
@@ -172,9 +172,10 @@
         </Col>
         <Col>
             <Table>
-                <tr class="mb-2"><th>User Name</th><th>Node Hours</th></tr>
-                {#each $statsQuery.data.topUsers.sort((a, b) => b.count - a.count) as { name, count }}
+                <tr class="mb-2"><th>Legend</th><th>User Name</th><th>Node Hours</th></tr>
+                {#each $statsQuery.data.topUsers.sort((a, b) => b.count - a.count) as { name, count }, i}
                     <tr>
+                        <td><Icon name="circle-fill" style="color: {colors[i]};"/></td>
                         <th scope="col"><a href="/monitoring/user/{name}?cluster={cluster.name}">{name}</a></th>
                         <td>{count}</td>
                     </tr>

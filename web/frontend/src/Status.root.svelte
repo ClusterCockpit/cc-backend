@@ -1,7 +1,7 @@
 <script>
     import Refresher from './joblist/Refresher.svelte'
     import Roofline, { transformPerNodeData } from './plots/Roofline.svelte'
-    import Pie from './plots/Pie.svelte'
+    import Pie, { colors } from './plots/Pie.svelte'
     import Histogramuplot from './plots/Histogramuplot.svelte'
     import { Row, Col, Spinner, Card, CardHeader, CardTitle, CardBody, Table, Progress, Icon } from 'sveltestrap'
     import { init, convert2uplot } from './utils.js'
@@ -174,9 +174,10 @@
         </Col>
         <Col class="px-4 py-2">
             <Table>
-                <tr class="mb-2"><th>User Name</th><th>Number of Nodes</th></tr>
-                {#each $mainQuery.data.topUsers.sort((a, b) => b.count - a.count) as { name, count }}
+                <tr class="mb-2"><th>Legend</th><th>User Name</th><th>Number of Nodes</th></tr>
+                {#each $mainQuery.data.topUsers.sort((a, b) => b.count - a.count) as { name, count }, i}
                     <tr>
+                        <td><Icon name="circle-fill" style="color: {colors[i]};"/></td>
                         <th scope="col"><a href="/monitoring/user/{name}?cluster={cluster}&state=running">{name}</a></th>
                         <td>{count}</td>
                     </tr>
@@ -196,9 +197,10 @@
         </Col>
         <Col class="px-4 py-2">
             <Table>
-                <tr class="mb-2"><th>Project Code</th><th>Number of Nodes</th></tr>
-                {#each $mainQuery.data.topProjects.sort((a, b) => b.count - a.count) as { name, count }}
+                <tr class="mb-2"><th>Legend</th><th>Project Code</th><th>Number of Nodes</th></tr>
+                {#each $mainQuery.data.topProjects.sort((a, b) => b.count - a.count) as { name, count }, i}
                     <tr>
+                        <td><Icon name="circle-fill" style="color: {colors[i]};"/></td>
                         <th scope="col"><a href="/monitoring/jobs/?cluster={cluster}&state=running&project={name}&projectMatch=eq">{name}</a></th>
                         <td>{count}</td>
                     </tr>
@@ -236,3 +238,15 @@
         </Col>
     </Row>
 {/if}
+
+<style>
+    .colorBoxWrapper {
+        display: flex;
+    }
+
+    .colorBox {
+        width: 20px;
+        height: 20px;
+        border: 1px solid rgba(0, 0, 0, .2);
+    }
+</style>
