@@ -1,4 +1,4 @@
-// Copyright (C) 2022 NHR@FAU, University Erlangen-Nuremberg.
+// Copyright (C) 2023 NHR@FAU, University Erlangen-Nuremberg.
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
@@ -91,13 +91,6 @@ func (la *LdapAuthenticator) Login(
 	}
 
 	return user, nil
-}
-
-func (la *LdapAuthenticator) Auth(
-	rw http.ResponseWriter,
-	r *http.Request) (*User, error) {
-
-	return la.auth.AuthViaSession(rw, r)
 }
 
 func (la *LdapAuthenticator) Sync() error {

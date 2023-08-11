@@ -46,10 +46,3 @@ func (la *LocalAuthenticator) Login(
 
 	return user, nil
 }
-
-func (la *LocalAuthenticator) Auth(
-	rw http.ResponseWriter,
-	r *http.Request) (*User, error) {
-
-	return la.auth.AuthViaSession(rw, r)
-}

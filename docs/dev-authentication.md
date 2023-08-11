@@ -1,13 +1,15 @@
 # Overview
 
-The implementation of authentication is not easy to understand by just looking
-at the code. The authentication is implemented in `internal/auth/`. In `auth.go`
+The authentication is implemented in `internal/auth/`. In `auth.go`
 an interface is defined that any authentication provider must fulfill. It also
 acts as a dispatcher to delegate the calls to the available authentication
 providers.
 
-The most important routine are:
-* `CanLogin()` Check if the authentication method is supported for login attempt
+Two authentication types are available:
+* JWT authentication for the REST API that does not create a session cookie
+* Session based authentication using a session cookie
+
+The most important routines in auth are:
 * `Login()` Handle POST request to login user and start a new session
 * `Auth()`  Authenticate user and put User Object in context of the request
 
@@ -30,10 +32,9 @@ secured.Use(func(next http.Handler) http.Handler {
 })
 ```
 
-For non API routes a JWT token can be used to initiate an authenticated user
+A JWT token can be used to initiate an authenticated user
 session. This can either happen by calling the login route with a token
-provided in a header or query URL or via the `Auth()` method on first access
-to a secured URL via a special cookie containing the JWT token.
+provided in a header or via a special cookie containing the JWT token.
 For API routes the access is authenticated on every request using the JWT token
 and no session is initiated.
 
@@ -43,12 +44,13 @@ The Login function (located in `auth.go`):
 * Extracts the user name and gets the user from the user database table. In case the
   user is not found the user object is set to nil.
 * Iterates over all authenticators and:
-  - Calls the `CanLogin` function which checks if the authentication method is
-    supported for this user and the user object is valid.
-  - Calls the `Login` function to authenticate the user. On success a valid user
+  - Calls its `CanLogin` function which checks if the authentication method is
+    supported for this user.
+  - Calls its `Login` function to authenticate the user. On success a valid user
     object is returned.
   - Creates a new session object, stores the user attributes in the session and
     saves the session.
+  - If the user does not yet exist in the database try to add the user
   - Starts the `onSuccess` http handler
 
 ## Local authenticator
@@ -82,17 +84,13 @@ if err := l.Bind(userDn, r.FormValue("password")); err != nil {
 }
 ```
 
-## JWT authenticator
+## JWT Session authenticator
 
 Login via JWT token will create a session without password.
-For login the `X-Auth-Token` header is not supported.
-This authenticator is applied if either user is not nil and auth source is
-`AuthViaToken` or the Authorization header is present or the URL query key
-login-token is present:
+For login the `X-Auth-Token` header is not supported. This authenticator is
+applied if the Authorization header is present:
 ```
-return (user != nil && user.AuthSource == AuthViaToken) ||
-        r.Header.Get("Authorization") != "" ||
-        r.URL.Query().Get("login-token") != ""
+	return r.Header.Get("Authorization") != ""
 ```
 
 The Login function:
@@ -107,6 +105,25 @@ The Login function:
    - Try to fetch user from database
    - In case user is not yet present add user to user database table with `AuthViaToken` AuthSource.
 * Return valid user object
+
+## JWT Cookie Session authenticator
+
+Login via JWT cookie token will create a session without password.
+It is first checked if the required configuration keys are set:
+* `publicKeyCrossLogin`
+* `TrustedExternalIssuer`
+* `CookieName`
+
+ This authenticator is applied if the configured cookie is present:
+```
+	jwtCookie, err := r.Cookie(cookieName)
+
+	if err == nil && jwtCookie.Value != "" {
+		return true
+	}
+```
+
+The Login function:
 
 # Auth
 
