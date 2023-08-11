@@ -7,6 +7,7 @@
     export let customEnabled = true
     export let anyEnabled = false
     export let options = {
+        'Last quarter hour': 15*60,
         'Last half hour': 30*60,
         'Last hour': 60*60,
         'Last 2hrs': 2*60*60,

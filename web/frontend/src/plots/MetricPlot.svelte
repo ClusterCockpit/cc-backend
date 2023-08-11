@@ -38,6 +38,7 @@
     export let cluster
     export let subCluster
     export let isShared = false
+    export let forNode = false
 
     if (useStatsSeries == null)
         useStatsSeries = statisticsSeries != null
@@ -160,17 +161,34 @@
         : null
     const plotSeries = [{label: 'Runtime', value: (u, ts, sidx, didx) => didx == null ? null : formatTime(ts)}]
     const plotData = [new Array(longestSeries)]
-    for (let i = 0; i < longestSeries; i++) // TODO: Cache/Reuse this array?
-        plotData[0][i] = i * timestep
+
+    if (forNode === true) {
+        // Negative Timestamp Buildup
+        for (let i = 0; i <= longestSeries; i++) {
+            plotData[0][i] = (longestSeries - i) * timestep * -1
+        }
+    } else {
+        // Positive Timestamp Buildup
+        for (let j = 0; j < longestSeries; j++) // TODO: Cache/Reuse this array?
+            plotData[0][j] = j * timestep
+    }
 
     let plotBands = undefined
     if (useStatsSeries) {
         plotData.push(statisticsSeries.min)
         plotData.push(statisticsSeries.max)
         plotData.push(statisticsSeries.mean)
+
+        if (forNode === true) { // timestamp 0 with null value for reversed time axis
+            if (plotData[1].length != 0) plotData[1].push(null)
+            if (plotData[2].length != 0) plotData[2].push(null)
+            if (plotData[3].length != 0) plotData[3].push(null)
+        }
+
         plotSeries.push({ label: 'min', scale: 'y', width: lineWidth, stroke: 'red' })
         plotSeries.push({ label: 'max', scale: 'y', width: lineWidth, stroke: 'green' })
         plotSeries.push({ label: 'mean', scale: 'y', width: lineWidth, stroke: 'black' })
+      
         plotBands = [
             { series: [2,3], fill: 'rgba(0,255,0,0.1)' },
             { series: [3,1], fill: 'rgba(255,0,0,0.1)' }
@@ -178,6 +196,7 @@
     } else {
         for (let i = 0; i < series.length; i++) {
             plotData.push(series[i].data)
+            if (forNode === true && plotData[1].length != 0) plotData[1].push(null) // timestamp 0 with null value for reversed time axis
             plotSeries.push({
                 label: scope === 'node' ? resources[i].hostname : 
                        // scope === 'accelerator' ? resources[0].accelerators[i] : 
@@ -200,7 +219,7 @@
             {
                 scale: 'x',
                 space: 35,
-                incrs: timeIncrs(timestep, maxX),
+                incrs: timeIncrs(timestep, maxX, forNode),
                 values: (_, vals) => vals.map(v => formatTime(v))
             },
             {
@@ -340,12 +359,16 @@
         }
     }
 
-    export function timeIncrs(timestep, maxX) {
-        let incrs = []
-        for (let t = timestep; t < maxX; t *= 10)
-            incrs.push(t, t * 2, t * 3, t * 5)
+    export function timeIncrs(timestep, maxX, forNode) {
+        if (forNode === true) {
+            return [60, 300, 900, 1800, 3600, 7200, 14400, 21600] // forNode fixed increments
+        } else {
+            let incrs = []
+            for (let t = timestep; t < maxX; t *= 10)
+                incrs.push(t, t * 2, t * 3, t * 5)
 
-        return incrs
+            return incrs
+        }
     }
 
     export function findThresholds(metricConfig, scope, subCluster) {
