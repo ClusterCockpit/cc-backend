@@ -55,6 +55,7 @@
 
     const options = { 
         maintainAspectRatio: false,
+        animation: false,
         plugins: {
             legend: {
                 display: displayLegend

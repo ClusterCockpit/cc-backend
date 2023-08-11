@@ -89,6 +89,7 @@
     // No custom defined options but keep for clarity 
     const options = {
         maintainAspectRatio: false,
+        animation: false
     }
 
 </script>
