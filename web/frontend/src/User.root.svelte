@@ -137,7 +137,7 @@
             {#key $stats.data.jobsStatistics[0].histDuration}
                 <Histogramuplot
                     data={convert2uplot($stats.data.jobsStatistics[0].histDuration)}
-                    width={w2 - 25} height={histogramHeight}
+                    width={w1 - 25} height={histogramHeight}
                     title="Duration Distribution"
                     xlabel="Current Runtimes"
                     xunit="Hours" 

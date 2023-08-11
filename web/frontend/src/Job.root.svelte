@@ -20,12 +20,11 @@
     } from "sveltestrap";
     import PlotTable from "./PlotTable.svelte";
     import Metric from "./Metric.svelte";
-    import PolarPlot from "./plots/Polar.svelte";
+    import Polar from "./plots/Polar.svelte";
     import Roofline from "./plots/Roofline.svelte";
     import JobInfo from "./joblist/JobInfo.svelte";
     import TagManagement from "./TagManagement.svelte";
     import MetricSelection from "./MetricSelection.svelte";
-    import Zoom from "./Zoom.svelte";
     import StatsTable from "./StatsTable.svelte";
     import { getContext } from "svelte";
 
@@ -134,7 +133,6 @@
         jobTags,
         fullWidth,
         statsTable;
-    $: polarPlotSize = Math.min(fullWidth / 3 - 10, 300);
     $: document.title = $initq.fetching
         ? "Loading..."
         : $initq.error
@@ -246,9 +244,8 @@
             {/if}
         {/if}
         <Col>
-            <PolarPlot
-                width={polarPlotSize}
-                height={polarPlotSize}
+            <Polar
+                size={fullWidth / 4.1}
                 metrics={ccconfig[
                     `job_view_polarPlotMetrics:${$initq.data.job.cluster}`
                 ] || ccconfig[`job_view_polarPlotMetrics`]}
@@ -259,7 +256,7 @@
         <Col>
             <Roofline
                 width={fullWidth / 3 - 10}
-                height={polarPlotSize}
+                height={fullWidth / 5}
                 cluster={clusters
                     .find((c) => c.name == $initq.data.job.cluster)
                     .subClusters.find(
