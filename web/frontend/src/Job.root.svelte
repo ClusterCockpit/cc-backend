@@ -33,6 +33,9 @@
     export let authlevel;
     export let roles;
 
+    const accMetrics = ['acc_utilization', 'acc_mem_used', 'acc_power', 'nv_mem_util', 'nv_sm_clock', 'nv_temp'];
+    let accNodeOnly
+
     const { query: initq } = init(`
         job(id: "${dbid}") {
             id, jobId, user, project, cluster, startTime,
@@ -76,8 +79,7 @@
         ]);
 
         // Select default Scopes to load: Check before if accelerator metrics are not on accelerator scope by default
-        const accMetrics = ['acc_utilization', 'acc_mem_used', 'acc_power', 'nv_mem_util', 'nv_sm_clock', 'nv_temp'] 
-        const accNodeOnly = [...toFetch].some(function(m) {
+        accNodeOnly = [...toFetch].some(function(m) {
             if (accMetrics.includes(m)) {
                 const mc = metrics(job.cluster, m)
                 return mc.scope !== 'accelerator'
@@ -397,6 +399,8 @@
                                 bind:this={statsTable}
                                 job={$initq.data.job}
                                 jobMetrics={$jobMetrics.data.jobMetrics}
+                                accMetrics={accMetrics}
+                                accNodeOnly={accNodeOnly}
                             />
                         {/key}
                     {/if}
