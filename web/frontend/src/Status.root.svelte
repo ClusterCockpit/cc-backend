@@ -2,7 +2,7 @@
     import Refresher from './joblist/Refresher.svelte'
     import Roofline, { transformPerNodeData } from './plots/Roofline.svelte'
     import Pie, { colors } from './plots/Pie.svelte'
-    import Histogramuplot from './plots/Histogramuplot.svelte'
+    import Histogram from './plots/Histogram.svelte'
     import { Row, Col, Spinner, Card, CardHeader, CardTitle, CardBody, Table, Progress, Icon } from 'sveltestrap'
     import { init, convert2uplot } from './utils.js'
     import { scaleNumbers } from './units.js'
@@ -213,7 +213,7 @@
         <Col class="p-2">
             <div bind:clientWidth={colWidth2}>
                 {#key $mainQuery.data.stats}
-                    <Histogramuplot
+                    <Histogram
                         data={convert2uplot($mainQuery.data.stats[0].histDuration)}
                         width={colWidth2 - 25}
                         title="Duration Distribution"
@@ -226,7 +226,7 @@
         </Col>
         <Col class="p-2">
             {#key $mainQuery.data.stats}
-                <Histogramuplot
+                <Histogram
                     data={convert2uplot($mainQuery.data.stats[0].histNumNodes)}
                     width={colWidth2 - 25}
                     title="Number of Nodes Distribution"

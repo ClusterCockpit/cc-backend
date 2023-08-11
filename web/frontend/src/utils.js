@@ -6,6 +6,7 @@ import {
 } from "@urql/svelte";
 import { setContext, getContext, hasContext, onDestroy, tick } from "svelte";
 import { readable } from "svelte/store";
+import { formatNumber } from './units.js'
 
 /*
  * Call this function only at component initialization time!
@@ -322,4 +323,46 @@ export function convert2uplot(canvasData) {
         uplotData[1].push(pair.count)
     })
     return uplotData
+}
+
+export function binsFromFootprint(weights, values, numBins) {
+    let min = 0, max = 0
+    if (values.length != 0) {
+        for (let x of values) {
+            min = Math.min(min, x)
+            max = Math.max(max, x)
+        }
+        max += 1 // So that we have an exclusive range.
+    }
+
+    if (numBins == null || numBins < 3)
+        numBins = 3
+
+    const bins = new Array(numBins).fill(0)
+    for (let i = 0; i < values.length; i++)
+        bins[Math.floor(((values[i] - min) / (max - min)) * numBins)] += weights ? weights[i] : 1
+
+    // return {
+    //     label: idx => {
+    //         let start = min + (idx / numBins) * (max - min)
+    //         let stop = min + ((idx + 1) / numBins) * (max - min)
+    //         return `${formatNumber(start)} - ${formatNumber(stop)}`
+    //     },
+    //     bins: bins.map((count, idx) => ({ value: idx, count: count })),
+    //     min: min,
+    //     max: max
+    // }
+
+    return {
+        bins: bins.map((count, idx) => ({ 
+            value: idx => { // Get rounded down next integer to bins' Start-Stop Mean Value
+                let start = min + (idx / numBins) * (max - min)
+                let stop = min + ((idx + 1) / numBins) * (max - min)
+                return `${formatNumber(Math.floor((start+stop)/2))}`
+            }, 
+            count: count 
+        })),
+        min: min,
+        max: max
+    }
 }
