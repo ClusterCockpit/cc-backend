@@ -238,15 +238,3 @@
         </Col>
     </Row>
 {/if}
-
-<style>
-    .colorBoxWrapper {
-        display: flex;
-    }
-
-    .colorBox {
-        width: 20px;
-        height: 20px;
-        border: 1px solid rgba(0, 0, 0, .2);
-    }
-</style>
