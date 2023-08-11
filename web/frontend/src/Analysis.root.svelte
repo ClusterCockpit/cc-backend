@@ -1,10 +1,11 @@
 <script>
-    import { init } from './utils.js'
+    import { init, convert2uplot } from './utils.js'
     import { getContext, onMount } from 'svelte'
     import { queryStore, gql, getContextClient  } from '@urql/svelte'
     import { Row, Col, Spinner, Card, Table } from 'sveltestrap'
     import Filters from './filters/Filters.svelte'
     import PlotSelection from './PlotSelection.svelte'
+    import Histogramuplot from './plots/Histogramuplot.svelte'
     import Histogram, { binsFromFootprint } from './plots/Histogram.svelte'
     import ScatterPlot from './plots/Scatter.svelte'
     import PlotTable from './PlotTable.svelte'
@@ -169,22 +170,26 @@
         </div>
         <div class="col-3">
             {#key $statsQuery.data.stats[0].histDuration}
-                <h4>Duration Distribution</h4>
-                <Histogram
+                <Histogramuplot
+                    data={convert2uplot($statsQuery.data.stats[0].histDuration)}
                     width={colWidth - 25}
-                    data={$statsQuery.data.stats[0].histDuration} 
-                    xlabel="Current Runtimes [h]" 
-                    ylabel="Number of Jobs"/>
+                    title="Duration Distribution"
+                    xlabel="Current Runtimes"
+                    xunit="Hours" 
+                    ylabel="Number of Jobs"
+                    yunit="Jobs"/>
             {/key}
         </div>
         <div class="col-3">
             {#key $statsQuery.data.stats[0].histNumNodes}
-                <h4>Number of Nodes Distribution</h4>
-                <Histogram
+                <Histogramuplot
+                    data={convert2uplot($statsQuery.data.stats[0].histNumNodes)}
                     width={colWidth - 25}
-                    data={$statsQuery.data.stats[0].histNumNodes} 
-                    xlabel="Allocated Nodes [#]"
-                    ylabel="Number of Jobs" />
+                    title="Number of Nodes Distribution"
+                    xlabel="Allocated Nodes"
+                    xunit="Nodes"
+                    ylabel="Number of Jobs"
+                    yunit="Jobs"/>
             {/key}
         </div>
         <div class="col-3">
@@ -233,15 +238,16 @@
                     $footprintsQuery.data.footprints.metrics.find(f => f.metric == metric).data, numBins) }))}
                 itemsPerRow={ccconfig.plot_view_plotsPerRow}>
 
-                <h4>Average Distribution of '{item.metric}'</h4>
-                <Histogram
+                <Histogramuplot
+                    data={convert2uplot(item.bins)}
                     width={width} height={250}
-                    min={item.min} max={item.max}
-                    data={item.bins} 
-                    label={item.label}
-                    xlabel={`${item.metric} Average [${(metricConfig(cluster.name, item.metric)?.unit?.prefix ? metricConfig(cluster.name, item.metric)?.unit?.prefix : '') +
+                    title="Average Distribution of '{item.metric}'"
+                    xlabel={`${item.metric} average [${(metricConfig(cluster.name, item.metric)?.unit?.prefix ? metricConfig(cluster.name, item.metric)?.unit?.prefix : '') +
                                                        (metricConfig(cluster.name, item.metric)?.unit?.base   ? metricConfig(cluster.name, item.metric)?.unit?.base   : '')}]`}
-                    ylabel="Node Hours [h]" />
+                    xunit={`${(metricConfig(cluster.name, item.metric)?.unit?.prefix ? metricConfig(cluster.name, item.metric)?.unit?.prefix : '') +
+                              (metricConfig(cluster.name, item.metric)?.unit?.base   ? metricConfig(cluster.name, item.metric)?.unit?.base   : '')}`}
+                    ylabel="Node Hours"
+                    yunit="Hours"/>
             </PlotTable>
         </Col>
     </Row>

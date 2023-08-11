@@ -290,9 +290,9 @@
             </Button>
         {/if}
     </Col>
-    <Col xs="auto">
+<!--     <Col xs="auto">
         <Zoom timeseriesPlots={plots} />
-    </Col>
+    </Col> -->
 </Row>
 <br />
 <Row>
@@ -329,6 +329,7 @@
                         scopes={item.data.map((x) => x.scope)}
                         {width}
                         isShared={$initq.data.job.exclusive != 1}
+                        resources={$initq.data.job.resources}
                     />
                 {:else}
                     <Card body color="warning"
