@@ -27,9 +27,8 @@ $ ./gen-keypair
 2. Add keypair in your `.env` file. A template can be found in `./configs`.
 
 There are two usage scenarios:
-* The APIs are used during a browser session. In this case on login a JWT token
-  is issued on login, that is used by the web frontend to authorize against the
-  GraphQL and REST APIs.
+* The APIs are used during a browser session. API accesses are authorized with
+  the active session.
 * The REST API is used outside a browser session, e.g. by scripts. In this case
   you have to issue a token manually. This possible from within the
   configuration view or on the command line. It is recommended to issue a JWT
