@@ -24,8 +24,6 @@ type JWTCookieSessionAuthenticator struct {
 	privateKey          ed25519.PrivateKey
 	publicKeyCrossLogin ed25519.PublicKey // For accepting externally generated JWTs
 
-	loginTokenKey []byte // HS256 key
-
 	config *schema.JWTAuthConfig
 }
 
@@ -53,15 +51,6 @@ func (ja *JWTCookieSessionAuthenticator) Init(auth *Authentication, conf interfa
 			return err
 		}
 		ja.privateKey = ed25519.PrivateKey(bytes)
-	}
-
-	if pubKey = os.Getenv("CROSS_LOGIN_JWT_HS512_KEY"); pubKey != "" {
-		bytes, err := base64.StdEncoding.DecodeString(pubKey)
-		if err != nil {
-			log.Warn("Could not decode cross login JWT HS512 key")
-			return err
-		}
-		ja.loginTokenKey = bytes
 	}
 
 	// Look for external public keys
@@ -104,13 +93,6 @@ func (ja *JWTCookieSessionAuthenticator) CanLogin(
 	user *User,
 	rw http.ResponseWriter,
 	r *http.Request) bool {
-
-	if ja.publicKeyCrossLogin == nil ||
-		ja.config == nil ||
-		ja.config.TrustedExternalIssuer == "" {
-
-		return false
-	}
 
 	cookieName := ""
 	if ja.config != nil && ja.config.CookieName != "" {

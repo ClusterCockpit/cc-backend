@@ -62,6 +62,11 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 		rawtoken = strings.TrimPrefix(rawtoken, "Bearer ")
 	}
 
+	// there is no token
+	if rawtoken == "" {
+		return nil, nil
+	}
+
 	token, err := jwt.Parse(rawtoken, func(t *jwt.Token) (interface{}, error) {
 		if t.Method != jwt.SigningMethodEdDSA {
 			return nil, errors.New("only Ed25519/EdDSA supported")
@@ -81,6 +86,11 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 	// Token is valid, extract payload
 	claims := token.Claims.(jwt.MapClaims)
 	sub, _ := claims["sub"].(string)
+	exp, _ := claims["exp"].(float64)
+
+	if exp < float64(time.Now().Unix()) {
+		return nil, errors.New("token is expired")
+	}
 
 	var roles []string
 
@@ -109,8 +119,8 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 	return &User{
 		Username:   sub,
 		Roles:      roles,
-		AuthType:   AuthSession,
-		AuthSource: AuthViaToken,
+		AuthType:   AuthToken,
+		AuthSource: -1,
 	}, nil
 }
 

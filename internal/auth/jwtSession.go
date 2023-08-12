@@ -45,7 +45,7 @@ func (ja *JWTSessionAuthenticator) CanLogin(
 	rw http.ResponseWriter,
 	r *http.Request) bool {
 
-	return r.Header.Get("Authorization") != ""
+	return r.Header.Get("Authorization") != "" || r.URL.Query().Get("login-token") != ""
 }
 
 func (ja *JWTSessionAuthenticator) Login(
@@ -54,6 +54,10 @@ func (ja *JWTSessionAuthenticator) Login(
 	r *http.Request) (*User, error) {
 
 	rawtoken := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if rawtoken == "" {
+		rawtoken = r.URL.Query().Get("login-token")
+	}
+
 	token, err := jwt.Parse(rawtoken, func(t *jwt.Token) (interface{}, error) {
 		if t.Method == jwt.SigningMethodHS256 || t.Method == jwt.SigningMethodHS512 {
 			return ja.loginTokenKey, nil

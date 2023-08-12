@@ -39,7 +39,8 @@ func (la *LocalAuthenticator) Login(
 	rw http.ResponseWriter,
 	r *http.Request) (*User, error) {
 
-	if e := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(r.FormValue("password"))); e != nil {
+	if e := bcrypt.CompareHashAndPassword([]byte(user.Password),
+		[]byte(r.FormValue("password"))); e != nil {
 		log.Errorf("AUTH/LOCAL > Authentication for user %s failed!", user.Username)
 		return nil, fmt.Errorf("AUTH/LOCAL > Authentication failed")
 	}

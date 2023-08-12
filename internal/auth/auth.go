@@ -97,26 +97,29 @@ func (auth *Authentication) AuthViaSession(
 	if session.IsNew {
 		return nil, nil
 	}
-
-	var username string
-	var projects, roles []string
-
-	if val, ok := session.Values["username"]; ok {
-		username, _ = val.(string)
-	} else {
-		return nil, errors.New("No key username in session")
-	}
-	if val, ok := session.Values["projects"]; ok {
-		projects, _ = val.([]string)
-	} else {
-		return nil, errors.New("No key projects in session")
-	}
-	if val, ok := session.Values["projects"]; ok {
-		roles, _ = val.([]string)
-	} else {
-		return nil, errors.New("No key roles in session")
-	}
-
+	//
+	// var username string
+	// var projects, roles []string
+	//
+	// if val, ok := session.Values["username"]; ok {
+	// 	username, _ = val.(string)
+	// } else {
+	// 	return nil, errors.New("no key username in session")
+	// }
+	// if val, ok := session.Values["projects"]; ok {
+	// 	projects, _ = val.([]string)
+	// } else {
+	// 	return nil, errors.New("no key projects in session")
+	// }
+	// if val, ok := session.Values["projects"]; ok {
+	// 	roles, _ = val.([]string)
+	// } else {
+	// 	return nil, errors.New("no key roles in session")
+	// }
+	//
+	username, _ := session.Values["username"].(string)
+	projects, _ := session.Values["projects"].([]string)
+	roles, _ := session.Values["roles"].([]string)
 	return &User{
 		Username:   username,
 		Projects:   projects,
@@ -261,6 +264,12 @@ func (auth *Authentication) Auth(
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 
 		user, err := auth.JwtAuth.AuthViaJWT(rw, r)
+		if err != nil {
+			log.Infof("authentication failed: %s", err.Error())
+			http.Error(rw, err.Error(), http.StatusUnauthorized)
+			return
+		}
+
 		if user == nil {
 			user, err = auth.AuthViaSession(rw, r)
 			if err != nil {
@@ -276,7 +285,7 @@ func (auth *Authentication) Auth(
 			return
 		}
 
-		log.Debug("authentication failed: no authenticator applied")
+		log.Debug("authentication failed")
 		onfailure(rw, r, errors.New("unauthorized (please login first)"))
 	})
 }
