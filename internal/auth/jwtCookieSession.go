@@ -10,7 +10,6 @@ import (
 	"errors"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -91,6 +90,7 @@ func (ja *JWTCookieSessionAuthenticator) Init(auth *Authentication, conf interfa
 
 func (ja *JWTCookieSessionAuthenticator) CanLogin(
 	user *User,
+	username string,
 	rw http.ResponseWriter,
 	r *http.Request) bool {
 
@@ -140,7 +140,7 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 		return ja.publicKey, nil
 	})
 	if err != nil {
-		log.Warn("Error while parsing token")
+		log.Warn("error while parsing token")
 		return nil, err
 	}
 
@@ -152,7 +152,6 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 
 	claims := token.Claims.(jwt.MapClaims)
 	sub, _ := claims["sub"].(string)
-	exp, _ := claims["exp"].(float64)
 
 	var name string
 	if val, ok := claims["name"]; ok {
@@ -201,6 +200,5 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 		}
 	}
 
-	user.Expiration = time.Unix(int64(exp), 0)
 	return user, nil
 }

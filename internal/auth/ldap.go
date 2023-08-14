@@ -66,10 +66,51 @@ func (la *LdapAuthenticator) Init(
 
 func (la *LdapAuthenticator) CanLogin(
 	user *User,
+	username string,
 	rw http.ResponseWriter,
 	r *http.Request) bool {
 
-	return user != nil && user.AuthSource == AuthViaLDAP
+	if user != nil && user.AuthSource == AuthViaLDAP {
+		return true
+	} else {
+		if la.config.SyncUserOnLogin {
+			l, err := la.getLdapConnection(true)
+			if err != nil {
+				log.Error("LDAP connection error")
+			}
+
+			// Search for the given username
+			searchRequest := ldap.NewSearchRequest(
+				la.config.UserBase,
+				ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+				fmt.Sprintf("(%s(uid=%s))", la.config.UserFilter, username),
+				[]string{"dn", "uid", "gecos"}, nil)
+
+			sr, err := l.Search(searchRequest)
+			if err != nil {
+				log.Warn(err)
+				return false
+			}
+
+			if len(sr.Entries) != 1 {
+				log.Warn("User does not exist or too many entries returned")
+				return false
+			}
+
+			entry := sr.Entries[0]
+			name := entry.GetAttributeValue("gecos")
+
+			if _, err := la.auth.db.Exec(`INSERT INTO user (username, ldap, name, roles) VALUES (?, ?, ?, ?)`,
+				username, 1, name, "[\""+GetRoleString(RoleUser)+"\"]"); err != nil {
+				log.Errorf("User '%s' new in LDAP: Insert into DB failed", username)
+				return false
+			}
+
+			return true
+		}
+	}
+
+	return false
 }
 
 func (la *LdapAuthenticator) Login(
@@ -124,8 +165,10 @@ func (la *LdapAuthenticator) Sync() error {
 	defer l.Close()
 
 	ldapResults, err := l.Search(ldap.NewSearchRequest(
-		la.config.UserBase, ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		la.config.UserFilter, []string{"dn", "uid", "gecos"}, nil))
+		la.config.UserBase,
+		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+		fmt.Sprintf("(%s(uid=%s))", la.config.UserFilter, "*"),
+		[]string{"dn", "uid", "gecos"}, nil))
 	if err != nil {
 		log.Warn("LDAP search error")
 		return err

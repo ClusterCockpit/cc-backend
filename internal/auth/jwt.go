@@ -86,11 +86,6 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 	// Token is valid, extract payload
 	claims := token.Claims.(jwt.MapClaims)
 	sub, _ := claims["sub"].(string)
-	exp, _ := claims["exp"].(float64)
-
-	if exp < float64(time.Now().Unix()) {
-		return nil, errors.New("token is expired")
-	}
 
 	var roles []string
 

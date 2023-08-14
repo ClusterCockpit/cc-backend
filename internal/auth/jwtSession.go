@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/golang-jwt/jwt/v4"
@@ -42,6 +41,7 @@ func (ja *JWTSessionAuthenticator) Init(auth *Authentication, conf interface{}) 
 
 func (ja *JWTSessionAuthenticator) CanLogin(
 	user *User,
+	username string,
 	rw http.ResponseWriter,
 	r *http.Request) bool {
 
@@ -76,7 +76,6 @@ func (ja *JWTSessionAuthenticator) Login(
 
 	claims := token.Claims.(jwt.MapClaims)
 	sub, _ := claims["sub"].(string)
-	exp, _ := claims["exp"].(float64)
 
 	var name string
 	// Java/Grails Issued Token
@@ -131,6 +130,5 @@ func (ja *JWTSessionAuthenticator) Login(
 		}
 	}
 
-	user.Expiration = time.Unix(int64(exp), 0)
 	return user, nil
 }
