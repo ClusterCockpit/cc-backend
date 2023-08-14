@@ -17,10 +17,11 @@ type LdapConfig struct {
 	UserFilter      string `json:"user_filter"`
 	SyncInterval    string `json:"sync_interval"` // Parsed using time.ParseDuration.
 	SyncDelOldUsers bool   `json:"sync_del_old_users"`
+	SyncUserOnLogin bool   `json:"syncUserOnLogin"`
 }
 
 type JWTAuthConfig struct {
-	// Specifies for how long a session or JWT shall be valid
+	// Specifies for how long a JWT token shall be valid
 	// as a string parsable by time.ParseDuration().
 	MaxAge int64 `json:"max-age"`
 
@@ -105,7 +106,7 @@ type ProgramConfig struct {
 	LdapConfig *LdapConfig    `json:"ldap"`
 	JwtConfig  *JWTAuthConfig `json:"jwts"`
 
-	// If 0 or empty, the session/token does not expire!
+	// If 0 or empty, the session does not expire!
 	SessionMaxAge string `json:"session-max-age"`
 
 	// If both those options are not empty, use HTTPS using those certificates.
@@ -116,7 +117,7 @@ type ProgramConfig struct {
 	// redirect every request incoming at port 80 to that url.
 	RedirectHttpTo string `json:"redirect-http-to"`
 
-	// If overwriten, at least all the options in the defaults below must
+	// If overwritten, at least all the options in the defaults below must
 	// be provided! Most options here can be overwritten by the user.
 	UiDefaults map[string]interface{} `json:"ui-defaults"`
 

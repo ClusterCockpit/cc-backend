@@ -28,6 +28,7 @@ func (la *LocalAuthenticator) Init(
 
 func (la *LocalAuthenticator) CanLogin(
 	user *User,
+	username string,
 	rw http.ResponseWriter,
 	r *http.Request) bool {
 
@@ -39,17 +40,11 @@ func (la *LocalAuthenticator) Login(
 	rw http.ResponseWriter,
 	r *http.Request) (*User, error) {
 
-	if e := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(r.FormValue("password"))); e != nil {
+	if e := bcrypt.CompareHashAndPassword([]byte(user.Password),
+		[]byte(r.FormValue("password"))); e != nil {
 		log.Errorf("AUTH/LOCAL > Authentication for user %s failed!", user.Username)
 		return nil, fmt.Errorf("AUTH/LOCAL > Authentication failed")
 	}
 
 	return user, nil
-}
-
-func (la *LocalAuthenticator) Auth(
-	rw http.ResponseWriter,
-	r *http.Request) (*User, error) {
-
-	return la.auth.AuthViaSession(rw, r)
 }
