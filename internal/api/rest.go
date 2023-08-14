@@ -1,4 +1,4 @@
-// Copyright (C) 2022 NHR@FAU, University Erlangen-Nuremberg.
+// Copyright (C) 2023 NHR@FAU, University Erlangen-Nuremberg.
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
@@ -86,55 +86,13 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 	}
 
 	if api.Authentication != nil {
-		rw := r.MatcherFunc(
-			func(rq *http.Request, rm *mux.RouteMatch) bool {
-				user := auth.GetUser(rq.Context())
-				return user.AuthType == auth.AuthSession
-			}).Subrouter()
-		rw.HandleFunc("/jwt/", api.getJWT).Methods(http.MethodGet)
-		rw.HandleFunc("/roles/", api.getRoles).Methods(http.MethodGet)
-		rw.HandleFunc("/users/", api.createUser).Methods(http.MethodPost, http.MethodPut)
-		rw.HandleFunc("/users/", api.getUsers).Methods(http.MethodGet)
-		rw.HandleFunc("/users/", api.deleteUser).Methods(http.MethodDelete)
-		rw.HandleFunc("/user/{id}", api.updateUser).Methods(http.MethodPost)
-		rw.HandleFunc("/configuration/", api.updateConfiguration).Methods(http.MethodPost)
-
-		rs := r.PathPrefix("/secured").MatcherFunc(
-			func(rq *http.Request, rm *mux.RouteMatch) bool {
-				user := auth.GetUser(rq.Context())
-				// this only applies for token based authorization
-				if user.AuthType != auth.AuthToken {
-					return false
-				}
-
-				// If nothing declared in config: deny all request to this endpoint
-				if config.Keys.ApiAllowedIPs == nil || len(config.Keys.ApiAllowedIPs) == 0 {
-					return false
-				}
-
-				// extract IP address
-				IPAddress := rq.Header.Get("X-Real-Ip")
-				if IPAddress == "" {
-					IPAddress = rq.Header.Get("X-Forwarded-For")
-				}
-				if IPAddress == "" {
-					IPAddress = rq.RemoteAddr
-				}
-
-				// check if IP is allowed
-				if !util.Contains(config.Keys.ApiAllowedIPs, IPAddress) {
-					return false
-				}
-
-				return true
-			}).Subrouter()
-		rs.HandleFunc("/jwt/", api.getJWT).Methods(http.MethodGet)
-		rs.HandleFunc("/roles/", api.getRoles).Methods(http.MethodGet)
-		rs.HandleFunc("/users/", api.createUser).Methods(http.MethodPost, http.MethodPut)
-		rs.HandleFunc("/users/", api.getUsers).Methods(http.MethodGet)
-		rs.HandleFunc("/users/", api.deleteUser).Methods(http.MethodDelete)
-		rs.HandleFunc("/user/{id}", api.updateUser).Methods(http.MethodPost)
-		rs.HandleFunc("/configuration/", api.updateConfiguration).Methods(http.MethodPost)
+		r.HandleFunc("/jwt/", api.getJWT).Methods(http.MethodGet)
+		r.HandleFunc("/roles/", api.getRoles).Methods(http.MethodGet)
+		r.HandleFunc("/users/", api.createUser).Methods(http.MethodPost, http.MethodPut)
+		r.HandleFunc("/users/", api.getUsers).Methods(http.MethodGet)
+		r.HandleFunc("/users/", api.deleteUser).Methods(http.MethodDelete)
+		r.HandleFunc("/user/{id}", api.updateUser).Methods(http.MethodPost)
+		r.HandleFunc("/configuration/", api.updateConfiguration).Methods(http.MethodPost)
 	}
 }
 
@@ -221,6 +179,36 @@ func decode(r io.Reader, val interface{}) error {
 	dec := json.NewDecoder(r)
 	dec.DisallowUnknownFields()
 	return dec.Decode(val)
+}
+
+func securedCheck(r *http.Request) error {
+	user := auth.GetUser(r.Context())
+	if user == nil {
+		return fmt.Errorf("no user in context")
+	}
+
+	if user.AuthType == auth.AuthToken {
+		// If nothing declared in config: deny all request to this endpoint
+		if config.Keys.ApiAllowedIPs == nil || len(config.Keys.ApiAllowedIPs) == 0 {
+			return fmt.Errorf("missing configuration key ApiAllowedIPs")
+		}
+
+		// extract IP address
+		IPAddress := r.Header.Get("X-Real-Ip")
+		if IPAddress == "" {
+			IPAddress = r.Header.Get("X-Forwarded-For")
+		}
+		if IPAddress == "" {
+			IPAddress = r.RemoteAddr
+		}
+
+		// check if IP is allowed
+		if !util.Contains(config.Keys.ApiAllowedIPs, IPAddress) {
+			return fmt.Errorf("unknown ip: %v", IPAddress)
+		}
+	}
+
+	return nil
 }
 
 // getJobs godoc
@@ -943,6 +931,11 @@ func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (api *RestApi) getJWT(rw http.ResponseWriter, r *http.Request) {
+	err := securedCheck(r)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusForbidden)
+	}
+
 	rw.Header().Set("Content-Type", "text/plain")
 	username := r.FormValue("username")
 	me := auth.GetUser(r.Context())
@@ -971,6 +964,11 @@ func (api *RestApi) getJWT(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
+	err := securedCheck(r)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusForbidden)
+	}
+
 	rw.Header().Set("Content-Type", "text/plain")
 	me := auth.GetUser(r.Context())
 	if !me.HasRole(auth.RoleAdmin) {
@@ -978,17 +976,22 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username, password, role, name, email, project := r.FormValue("username"), r.FormValue("password"), r.FormValue("role"), r.FormValue("name"), r.FormValue("email"), r.FormValue("project")
+	username, password, role, name, email, project := r.FormValue("username"),
+		r.FormValue("password"), r.FormValue("role"), r.FormValue("name"),
+		r.FormValue("email"), r.FormValue("project")
+
 	if len(password) == 0 && role != auth.GetRoleString(auth.RoleApi) {
 		http.Error(rw, "Only API users are allowed to have a blank password (login will be impossible)", http.StatusBadRequest)
 		return
 	}
 
 	if len(project) != 0 && role != auth.GetRoleString(auth.RoleManager) {
-		http.Error(rw, "only managers require a project (can be changed later)", http.StatusBadRequest)
+		http.Error(rw, "only managers require a project (can be changed later)",
+			http.StatusBadRequest)
 		return
 	} else if len(project) == 0 && role == auth.GetRoleString(auth.RoleManager) {
-		http.Error(rw, "managers require a project to manage (can be changed later)", http.StatusBadRequest)
+		http.Error(rw, "managers require a project to manage (can be changed later)",
+			http.StatusBadRequest)
 		return
 	}
 
@@ -1007,6 +1010,11 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
+	err := securedCheck(r)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusForbidden)
+	}
+
 	if user := auth.GetUser(r.Context()); !user.HasRole(auth.RoleAdmin) {
 		http.Error(rw, "Only admins are allowed to delete a user", http.StatusForbidden)
 		return
@@ -1022,6 +1030,11 @@ func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
+	err := securedCheck(r)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusForbidden)
+	}
+
 	if user := auth.GetUser(r.Context()); !user.HasRole(auth.RoleAdmin) {
 		http.Error(rw, "Only admins are allowed to fetch a list of users", http.StatusForbidden)
 		return
@@ -1037,6 +1050,11 @@ func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (api *RestApi) getRoles(rw http.ResponseWriter, r *http.Request) {
+	err := securedCheck(r)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusForbidden)
+	}
+
 	user := auth.GetUser(r.Context())
 	if !user.HasRole(auth.RoleAdmin) {
 		http.Error(rw, "only admins are allowed to fetch a list of roles", http.StatusForbidden)
@@ -1053,6 +1071,11 @@ func (api *RestApi) getRoles(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
+	err := securedCheck(r)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusForbidden)
+	}
+
 	if user := auth.GetUser(r.Context()); !user.HasRole(auth.RoleAdmin) {
 		http.Error(rw, "Only admins are allowed to update a user", http.StatusForbidden)
 		return
