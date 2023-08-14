@@ -79,12 +79,26 @@ func (ja *JWTSessionAuthenticator) Login(
 	exp, _ := claims["exp"].(float64)
 
 	var name string
-	if val, ok := claims["name"]; ok {
+	// Java/Grails Issued Token
+	if wrap, ok := claims["name"].(map[string]interface{}); ok {
+		if vals, ok := wrap["values"].([]interface{}); ok {
+			name = fmt.Sprintf("%v %v", vals[0], vals[1])
+		}
+	} else if val, ok := claims["name"]; ok {
 		name, _ = val.(string)
 	}
 
 	var roles []string
-	if rawroles, ok := claims["roles"]; ok {
+	// Java/Grails Issued Token
+	if rawroles, ok := claims["roles"].([]interface{}); ok {
+		for _, rr := range rawroles {
+			if r, ok := rr.(string); ok {
+				if isValidRole(r) {
+					roles = append(roles, r)
+				}
+			}
+		}
+	} else if rawroles, ok := claims["roles"]; ok {
 		for _, r := range rawroles.([]string) {
 			if isValidRole(r) {
 				roles = append(roles, r)
@@ -92,11 +106,26 @@ func (ja *JWTSessionAuthenticator) Login(
 		}
 	}
 
+	projects := make([]string, 0)
+	// Java/Grails Issued Token
+	// if rawprojs, ok := claims["projects"].([]interface{}); ok {
+	// 	for _, pp := range rawprojs {
+	// 		if p, ok := pp.(string); ok {
+	// 			projects = append(projects, p)
+	// 		}
+	// 	}
+	// } else if rawprojs, ok := claims["projects"]; ok {
+	// 	for _, p := range rawprojs.([]string) {
+	// 		projects = append(projects, p)
+	// 	}
+	// }
+
 	if user == nil {
 		user = &User{
 			Username:   sub,
 			Name:       name,
 			Roles:      roles,
+			Projects:   projects,
 			AuthType:   AuthSession,
 			AuthSource: AuthViaToken,
 		}
