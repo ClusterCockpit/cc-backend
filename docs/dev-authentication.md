@@ -124,42 +124,8 @@ It is first checked if the required configuration keys are set:
 ```
 
 The Login function:
-
-# Auth
-
-The Auth function (located in `auth.go`):
-* Returns a new http handler function that is defined right away
-* This handler iterates over all authenticators
-* Calls `Auth()` on every authenticator
-* If err is not nil and the user object is valid it puts the user object in the
-  request context and starts the onSuccess http handler
-* Otherwise it calls the onFailure handler
-
-## Local
-
-Calls the `AuthViaSession()` function in `auth.go`. This will extract username,
-projects and roles from the session and initialize a user object with those
-values.
-
-## LDAP
-
-Calls the `AuthViaSession()` function in `auth.go`. This will extract username,
-projects and roles from the session and initialize a user object with those
-values.
-
-# JWT
-
-Check for JWT token:
-* Is token passed in the `X-Auth-Token` or `Authorization` header
-* If no token is found in a header it tries to read the token from a configured
-cookie.
-
-Finally it calls AuthViaSession in `auth.go` if a valid session exists. This is
-true if a JWT token was previously used to initiate a session. In this case the
-user object initialized with the session is returned right away.
-
-In case a token was found extract and parse the token:
-* Check if signing method is Ed25519/EdDSA 
+* Extracts and parses the token
+* Checks if signing method is Ed25519/EdDSA 
 * In case publicKeyCrossLogin is configured:
    - Check if `iss` issuer claim matched trusted issuer from configuration
    - Return public cross login key
@@ -167,7 +133,34 @@ In case a token was found extract and parse the token:
 * Check if claims are valid
 * Depending on the option `ForceJWTValidationViaDatabase ` the roles are
   extracted from JWT token or taken from user object fetched from database
-* In case the token was extracted from cookie create a new session and ask the
-  browser to delete the JWT cookie
+* Ask browser to delete the JWT cookie
 * Return valid user object
 
+# Auth
+
+The Auth function (located in `auth.go`):
+* Returns a new http handler function that is defined right away
+* This handler tries two methods to authenticate a user:
+   - Via a JWT API token in `AuthViaJWT()`
+   - Via a valid session in `AuthViaSession()`
+* If err is not nil and the user object is valid it puts the user object in the
+  request context and starts the onSuccess http handler
+* Otherwise it calls the onFailure handler
+
+## AuthViaJWT
+
+Implemented in JWTAuthenticator:
+* Extract token either from header `X-Auth-Token` or `Authorization` with Bearer
+  prefix
+* Parse token and check if it is valid. The Parse routine will also check if the
+  token is expired.
+* If the option `ForceJWTValidationViaDatabase` is set it will ensure the
+  user object exists in the database and takes the roles from the database user
+* Otherwise the roles are extracted from the roles claim
+* Returns a valid user object with AuthType set to AuthToken
+
+## AuthViaSession
+
+* Extracts session
+* Get values username, projects, and roles from session
+* Returns a valid user object with AuthType set to AuthSession

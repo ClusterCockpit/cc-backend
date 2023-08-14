@@ -17,6 +17,7 @@ type LdapConfig struct {
 	UserFilter      string `json:"user_filter"`
 	SyncInterval    string `json:"sync_interval"` // Parsed using time.ParseDuration.
 	SyncDelOldUsers bool   `json:"sync_del_old_users"`
+	SyncUserOnLogin bool   `json:"syncUserOnLogin"`
 }
 
 type JWTAuthConfig struct {

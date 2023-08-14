@@ -43,7 +43,6 @@ type User struct {
 	AuthSource AuthSource `json:"authSource"`
 	Email      string     `json:"email"`
 	Projects   []string   `json:"projects"`
-	Expiration time.Time
 }
 
 func (u *User) HasProject(project string) bool {
@@ -66,7 +65,7 @@ func GetUser(ctx context.Context) *User {
 
 type Authenticator interface {
 	Init(auth *Authentication, config interface{}) error
-	CanLogin(user *User, rw http.ResponseWriter, r *http.Request) bool
+	CanLogin(user *User, username string, rw http.ResponseWriter, r *http.Request) bool
 	Login(user *User, rw http.ResponseWriter, r *http.Request) (*User, error)
 }
 
@@ -208,7 +207,7 @@ func (auth *Authentication) Login(
 		}
 
 		for _, authenticator := range auth.authenticators {
-			if !authenticator.CanLogin(dbUser, rw, r) {
+			if !authenticator.CanLogin(dbUser, username, rw, r) {
 				continue
 			}
 

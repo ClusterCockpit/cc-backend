@@ -28,6 +28,7 @@ func (la *LocalAuthenticator) Init(
 
 func (la *LocalAuthenticator) CanLogin(
 	user *User,
+	username string,
 	rw http.ResponseWriter,
 	r *http.Request) bool {
 
