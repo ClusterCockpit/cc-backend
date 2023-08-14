@@ -7,7 +7,7 @@
     import JobList from './joblist/JobList.svelte'
     import Sorting from './joblist/SortSelection.svelte'
     import Refresher from './joblist/Refresher.svelte'
-    import Histogramuplot from './plots/Histogramuplot.svelte'
+    import Histogram from './plots/Histogram.svelte'
     import MetricSelection from './MetricSelection.svelte'
     import { scramble, scrambleNames } from './joblist/JobInfo.svelte'
 
@@ -135,7 +135,7 @@
         </Col>
         <div class="col-4 text-center" bind:clientWidth={w1}>
             {#key $stats.data.jobsStatistics[0].histDuration}
-                <Histogramuplot
+                <Histogram
                     data={convert2uplot($stats.data.jobsStatistics[0].histDuration)}
                     width={w1 - 25} height={histogramHeight}
                     title="Duration Distribution"
@@ -147,7 +147,7 @@
         </div>
         <div class="col-4 text-center" bind:clientWidth={w2}>
             {#key $stats.data.jobsStatistics[0].histNumNodes}
-                <Histogramuplot
+                <Histogram
                     data={convert2uplot($stats.data.jobsStatistics[0].histNumNodes)}
                     width={w2 - 25} height={histogramHeight}
                     title="Number of Nodes Distribution"

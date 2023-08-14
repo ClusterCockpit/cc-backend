@@ -5,9 +5,9 @@
     import { Row, Col, Spinner, Card, Table, Icon } from 'sveltestrap'
     import Filters from './filters/Filters.svelte'
     import PlotSelection from './PlotSelection.svelte'
-    import Histogramuplot from './plots/Histogramuplot.svelte'
+    import Histogram from './plots/Histogram.svelte'
     import Pie, { colors } from './plots/Pie.svelte'
-    import { binsFromFootprint } from './plots/Histogram.svelte'
+    import { binsFromFootprint } from './utils.js'
     import ScatterPlot from './plots/Scatter.svelte'
     import PlotTable from './PlotTable.svelte'
     import Roofline from './plots/Roofline.svelte'
@@ -204,7 +204,7 @@
         <Col>
             <div bind:clientWidth={colWidth3}>
             {#key $statsQuery.data.stats[0].histDuration}
-                <Histogramuplot
+                <Histogram
                     width={colWidth3} height={300}
                     data={convert2uplot($statsQuery.data.stats[0].histDuration)}
                     title="Duration Distribution"
@@ -218,7 +218,7 @@
         <Col>
             <div bind:clientWidth={colWidth4}>
             {#key $statsQuery.data.stats[0].histNumNodes}
-                <Histogramuplot
+                <Histogram
                     width={colWidth4} height={300}
                     data={convert2uplot($statsQuery.data.stats[0].histNumNodes)}
                     title="Number of Nodes Distribution"
@@ -261,7 +261,7 @@
                     $footprintsQuery.data.footprints.metrics.find(f => f.metric == metric).data, numBins) }))}
                 itemsPerRow={ccconfig.plot_view_plotsPerRow}>
 
-                <Histogramuplot
+                <Histogram
                     data={convert2uplot(item.bins)}
                     width={width} height={250}
                     title="Average Distribution of '{item.metric}'"
@@ -289,6 +289,7 @@
             <PlotTable
                 let:item
                 let:width
+                renderFor="analysis"
                 items={metricsInScatterplots.map(([m1, m2]) => ({
                     m1, f1: $footprintsQuery.data.footprints.metrics.find(f => f.metric == m1).data,
                     m2, f2: $footprintsQuery.data.footprints.metrics.find(f => f.metric == m2).data }))}

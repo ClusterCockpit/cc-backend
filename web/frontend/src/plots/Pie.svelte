@@ -23,6 +23,7 @@
         Title,
         Tooltip,
         Legend,
+        Filler,
         ArcElement,
         CategoryScale
     } from 'chart.js';
@@ -31,6 +32,7 @@
         Title,
         Tooltip,
         Legend,
+        Filler,
         ArcElement,
         CategoryScale
     );

@@ -1,229 +1,216 @@
 <!--
     @component
     Properties:
-    - width, height: Number
-    - min, max: Number
-    - label: (x-Value) => String
-    - data: [{ value: Number, count: Number }]
+    - Todo
  -->
 
-<div
-    on:mousemove={mousemove}
-    on:mouseleave={() => (infoText = '')}>
-    <span style="left: {paddingLeft + 5}px;">{infoText}</span>
-    <canvas bind:this={canvasElement} width="{width}" height="{height}"></canvas>
-</div>
-
 <script>
-    import { onMount } from 'svelte'
+    import uPlot from 'uplot'
+    import { formatNumber } from '../units.js'
+    import { onMount, onDestroy } from 'svelte'
+    import { Card } from 'sveltestrap'
 
     export let data
     export let width = 500
     export let height = 300
+    export let title = ''
     export let xlabel = ''
+    export let xunit = 'X'
     export let ylabel = ''
-    export let min = null
-    export let max = null
-    export let small = false
-    export let label = formatNumber
+    export let yunit = 'Y'
 
-    const fontSize = 12
-    const fontFamily = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"'
-    const paddingLeft = 50, paddingRight = 20, paddingTop = 20, paddingBottom = 20
+    const { bars } = uPlot.paths
 
-    let ctx, canvasElement
+    const drawStyles = {
+        bars:      1,
+        points:    2,
+    };
 
-    const maxCount = data.reduce((max, point) => Math.max(max, point.count), 0),
-          maxValue = data.reduce((max, point) => Math.max(max, point.value), 0.1)
+    function paths(u, seriesIdx, idx0, idx1, extendGap, buildClip) {
+        let s = u.series[seriesIdx];
+        let style = s.drawStyle;
 
-    function getStepSize(valueRange, pixelRange, minSpace) {
-        const proposition = valueRange / (pixelRange / minSpace)
-        const getStepSize = n => Math.pow(10, Math.floor(n / 3)) *
-            (n < 0 ? [1., 5., 2.][-n % 3] : [1., 2., 5.][n % 3])
+        let renderer = ( // If bars to wide, change here
+            style == drawStyles.bars ? (
+                bars({size: [0.75, 100]})
+            ) :
+            () => null
+        )
 
-        let n = 0
-        let stepsize = getStepSize(n)
-        while (true) {
-            let bigger = getStepSize(n + 1)
-            if (proposition > bigger) {
-                n += 1
-                stepsize = bigger
-            } else {
-                return stepsize
+        return renderer(u, seriesIdx, idx0, idx1, extendGap, buildClip);
+    }
+
+    // converts the legend into a simple tooltip
+    function legendAsTooltipPlugin({ className, style = { backgroundColor:"rgba(255, 249, 196, 0.92)", color: "black" } } = {}) {
+        let legendEl;
+
+        function init(u, opts) {
+            legendEl = u.root.querySelector(".u-legend");
+
+            legendEl.classList.remove("u-inline");
+            className && legendEl.classList.add(className);
+
+            uPlot.assign(legendEl.style, {
+                textAlign: "left",
+                pointerEvents: "none",
+                display: "none",
+                position: "absolute",
+                left: 0,
+                top: 0,
+                zIndex: 100,
+                boxShadow: "2px 2px 10px rgba(0,0,0,0.5)",
+                ...style
+            });
+
+            // hide series color markers
+            const idents = legendEl.querySelectorAll(".u-marker");
+
+            for (let i = 0; i < idents.length; i++)
+                idents[i].style.display = "none";
+
+            const overEl = u.over;
+            overEl.style.overflow = "visible";
+
+            // move legend into plot bounds
+            overEl.appendChild(legendEl);
+
+            // show/hide tooltip on enter/exit
+            overEl.addEventListener("mouseenter", () => {legendEl.style.display = null;});
+            overEl.addEventListener("mouseleave", () => {legendEl.style.display = "none";});
+
+            // let tooltip exit plot
+        //	overEl.style.overflow = "visible";
+        }
+
+        function update(u) {
+            const { left, top } = u.cursor;
+            legendEl.style.transform = "translate(" + (left + 15) + "px, " + (top + 15) + "px)";
+        }
+
+        return {
+            hooks: {
+                init: init,
+                setCursor: update,
             }
-        }
+        };
     }
 
-    let infoText = ''
-    function mousemove(event) {
-        let rect = event.target.getBoundingClientRect()
-        let x = event.clientX - rect.left
-        if (x < paddingLeft || x > width - paddingRight) {
-            infoText = ''
-            return
-        }
-
-        const w = width - paddingLeft - paddingRight
-        const barWidth = Math.round(w / (maxValue + 1))
-        x = Math.floor((x - paddingLeft) / (w - barWidth) * maxValue)
-        let point = data.find(point => point.value == x)
-
-        if (point)
-            infoText = `count: ${point.count} (value: ${label(x)})`
-        else
-            infoText = ''
-    }
-
+    let plotWrapper = null
+    let uplot = null
+    let timeoutId = null
+    
     function render() {
-        const labelOffset =  Math.floor(height * 0.1)
-        const h = height - paddingTop - paddingBottom - labelOffset
-        const w = width - paddingLeft - paddingRight
-        const barGap = 5
-        const barWidth = Math.ceil(w / (maxValue + 1)) - barGap
+        let opts = {
+            width: width,
+            height: height,
+            title: title,
+            plugins: [
+				legendAsTooltipPlugin()
+			],
+            cursor: {
+                points: {
+                    size:   (u, seriesIdx)       => u.series[seriesIdx].points.size * 2.5,
+                    width:  (u, seriesIdx, size) => size / 4,
+                    stroke: (u, seriesIdx)       => u.series[seriesIdx].points.stroke(u, seriesIdx) + '90',
+                    fill:   (u, seriesIdx)       => "#fff",
+                }
+            },
+            scales: {
+                x: {
+                    time: false
+                },
+            },
+            axes: [
+                {
+                    stroke: "#000000",
+                    // scale: 'x',
+                    label: xlabel,
+                    labelGap: 10,
+                    size: 25,
+                    incrs: [1, 2, 5, 6, 10, 12, 50, 100, 500, 1000, 5000, 10000],
+                    border: { 
+                        show: true,
+                        stroke: "#000000",
+                    },
+                    ticks: {
+                        width: 1 / devicePixelRatio,
+                        size: 5 / devicePixelRatio,
+                        stroke: "#000000",
+                    },
+                    values: (_, t) => t.map(v => formatNumber(v)),
+                },
+                {
+                    stroke: "#000000",
+                    // scale: 'y',
+                    label: ylabel,
+                    labelGap: 10,
+                    size: 35,
+                    border: { 
+                        show: true,
+                        stroke: "#000000",
+                    },
+                    ticks: {
+                        width: 1 / devicePixelRatio,
+                        size: 5 / devicePixelRatio,
+                        stroke: "#000000",
+                    },
+                    values: (_, t) => t.map(v => formatNumber(v)),
+                },
+            ],
+            series: [
+                {
+                    label: xunit !== '' ? xunit : null,
+                },
+                Object.assign({
+                    label:  yunit !== '' ? yunit : null,
+                    width: 1 / devicePixelRatio,
+                    drawStyle: drawStyles.points,
+                    lineInterpolation: null,
+                    paths,
+                }, {
+                    drawStyle: drawStyles.bars,
+                    lineInterpolation: null,
+                    stroke: "#85abce",
+                    fill: "#85abce", //  + "1A", // Transparent Fill
+                }),
+            ]
+        };
 
-        if (Number.isNaN(barWidth))
-            return
+		uplot = new uPlot(opts, data, plotWrapper)
+	}
 
-        const getCanvasX = (value) => (value / maxValue) * (w - barWidth) + paddingLeft + (barWidth / 2.)
-        const getCanvasY = (count) => (h - (count / maxCount) * h) + paddingTop
-
-        // X Axis
-        ctx.font = `bold ${fontSize}px ${fontFamily}`
-        ctx.fillStyle = 'black'
-        if (xlabel != '') {
-            let textWidth = ctx.measureText(xlabel).width
-            ctx.fillText(xlabel, Math.floor((width / 2) - (textWidth / 2) + barGap), height - Math.floor(labelOffset / 2))
-        }
-        ctx.textAlign = 'center'
-        ctx.font = `${fontSize}px ${fontFamily}`
-        if (min != null && max != null) {
-            const stepsizeX = getStepSize(max - min, w, 75)
-            let startX = 0
-            while (startX < min)
-                startX += stepsizeX
-
-            for (let x = startX; x < max; x += stepsizeX) {
-                let px = ((x - min) / (max - min)) * (w - barWidth) + paddingLeft + (barWidth / 2.)
-                ctx.fillText(`${formatNumber(x)}`, px, height - paddingBottom - Math.floor(labelOffset / 2))
-            }
-        } else {
-            const stepsizeX = getStepSize(maxValue, w, 120)
-            for (let x = 0; x <= maxValue; x += stepsizeX) {
-                ctx.fillText(label(x), getCanvasX(x), height - paddingBottom - Math.floor(labelOffset / (small ? 8 : 2)))
-            }
-        }
-
-        // Y Axis
-        ctx.fillStyle = 'black'
-        ctx.strokeStyle = '#bbbbbb'
-        ctx.font = `bold ${fontSize}px ${fontFamily}`
-        if (ylabel != '') {
-            ctx.save()
-            ctx.translate(15, Math.floor(h / 2))
-            ctx.rotate(-Math.PI / 2)
-            ctx.fillText(ylabel, 0, 0)
-            ctx.restore()
-        }
-        ctx.textAlign = 'right'
-        ctx.font = `${fontSize}px ${fontFamily}`
-        ctx.beginPath()
-        const stepsizeY = getStepSize(maxCount, h, 50)
-        for (let y = stepsizeY; y <= maxCount; y += stepsizeY) {
-            const py = Math.floor(getCanvasY(y))
-            ctx.fillText(`${formatNumber(y)}`, paddingLeft - 5, py)
-            ctx.moveTo(paddingLeft, py)
-            ctx.lineTo(width, py)
-        }
-        ctx.stroke()
-
-        // Draw bars
-        ctx.fillStyle = '#85abce'
-        for (let p of data) {
-            ctx.fillRect(
-                getCanvasX(p.value) - (barWidth / 2.),
-                getCanvasY(p.count),
-                barWidth,
-                (p.count / maxCount) * h)
-        }
-
-        // Fat lines left and below plotting area
-        ctx.strokeStyle = 'black'
-        ctx.beginPath()
-        ctx.moveTo(0, height - paddingBottom - labelOffset)
-        ctx.lineTo(width, height - paddingBottom - labelOffset)
-        ctx.moveTo(paddingLeft, 0)
-        ctx.lineTo(paddingLeft, height - Math.floor(labelOffset / 2))
-        ctx.stroke()
-    }
-
-    let mounted = false
     onMount(() => {
-        mounted = true
-        canvasElement.width = width
-        canvasElement.height = height
-        ctx = canvasElement.getContext('2d')
         render()
     })
 
-    let timeoutId = null;
+    onDestroy(() => {
+        if (uplot)
+            uplot.destroy()
+
+        if (timeoutId != null)
+            clearTimeout(timeoutId)
+    })
+
     function sizeChanged() {
         if (timeoutId != null)
             clearTimeout(timeoutId)
 
         timeoutId = setTimeout(() => {
             timeoutId = null
-            if (!canvasElement)
-                return
+            if (uplot)
+                uplot.destroy()
 
-            canvasElement.width = width
-            canvasElement.height = height
-            ctx = canvasElement.getContext('2d')
             render()
-        }, 250)
+        }, 200)
     }
 
     $: sizeChanged(width, height)
 </script>
 
-<style>
-    div {
-        position: relative;
-    }
-    div > span {
-        position: absolute;
-        top: 0px;
-    }
-</style>
+{#if data.length > 0}
+    <div bind:this={plotWrapper}/>
+{:else}
+    <Card class="mx-4" body color="warning">Cannot render histogram: No data!</Card>
+{/if}
 
-<script context="module">
-    import { formatNumber } from '../units.js'
 
-    export function binsFromFootprint(weights, values, numBins) {
-        let min = 0, max = 0
-        if (values.length != 0) {
-            for (let x of values) {
-                min = Math.min(min, x)
-                max = Math.max(max, x)
-            }
-            max += 1 // So that we have an exclusive range.
-        }
-
-        if (numBins == null || numBins < 3)
-            numBins = 3
-
-        const bins = new Array(numBins).fill(0)
-        for (let i = 0; i < values.length; i++)
-            bins[Math.floor(((values[i] - min) / (max - min)) * numBins)] += weights ? weights[i] : 1
-
-        return {
-            label: idx => {
-                let start = min + (idx / numBins) * (max - min)
-                let stop = min + ((idx + 1) / numBins) * (max - min)
-                return `${formatNumber(start)} - ${formatNumber(stop)}`
-            },
-            bins: bins.map((count, idx) => ({ value: idx, count: count })),
-            min: min,
-            max: max
-        }
-    }
-</script>
