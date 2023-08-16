@@ -211,6 +211,10 @@ func (auth *Authentication) Login(
 			if !authenticator.CanLogin(dbUser, username, rw, r) {
 				continue
 			}
+			dbUser, err = auth.GetUser(username)
+			if err != nil && err != sql.ErrNoRows {
+				log.Errorf("Error while loading user '%v'", username)
+			}
 
 			user, err := authenticator.Login(dbUser, rw, r)
 			if err != nil {
