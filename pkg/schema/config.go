@@ -70,6 +70,9 @@ type ProgramConfig struct {
 	// Address where the http (or https) server will listen on (for example: 'localhost:80').
 	Addr string `json:"addr"`
 
+	// Addresses from which the /api/secured/* API endpoints can be reached
+	ApiAllowedIPs []string `json:"apiAllowedIPs"`
+
 	// Drop root permissions once .env was read and the port was taken.
 	User  string `json:"user"`
 	Group string `json:"group"`
