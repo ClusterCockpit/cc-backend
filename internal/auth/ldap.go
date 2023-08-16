@@ -59,6 +59,8 @@ func (la *LdapAuthenticator) Init(
 				log.Print("sync done")
 			}
 		}()
+	} else {
+		return fmt.Errorf("missing LDAP configuration")
 	}
 
 	return nil
@@ -73,7 +75,7 @@ func (la *LdapAuthenticator) CanLogin(
 	if user != nil && user.AuthSource == AuthViaLDAP {
 		return true
 	} else {
-		if la.config.SyncUserOnLogin {
+		if la.config != nil && la.config.SyncUserOnLogin {
 			l, err := la.getLdapConnection(true)
 			if err != nil {
 				log.Error("LDAP connection error")

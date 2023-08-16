@@ -158,12 +158,13 @@ func Init(db *sqlx.DB,
 	}
 
 	if config, ok := configs["ldap"]; ok {
-		auth.LdapAuth = &LdapAuthenticator{}
-		if err := auth.LdapAuth.Init(auth, config); err != nil {
-			log.Error("Error while initializing authentication -> ldapAuth init failed")
-			return nil, err
+		ldapAuth := &LdapAuthenticator{}
+		if err := ldapAuth.Init(auth, config); err != nil {
+			log.Warn("Error while initializing authentication -> ldapAuth init failed")
+		} else {
+			auth.LdapAuth = ldapAuth
+			auth.authenticators = append(auth.authenticators, auth.LdapAuth)
 		}
-		auth.authenticators = append(auth.authenticators, auth.LdapAuth)
 	}
 
 	jwtSessionAuth := &JWTSessionAuthenticator{}
@@ -174,7 +175,7 @@ func Init(db *sqlx.DB,
 	}
 
 	jwtCookieSessionAuth := &JWTCookieSessionAuthenticator{}
-	if err := jwtSessionAuth.Init(auth, configs["jwt"]); err != nil {
+	if err := jwtCookieSessionAuth.Init(auth, configs["jwt"]); err != nil {
 		log.Warn("Error while initializing authentication -> jwtCookieSessionAuth init failed")
 	} else {
 		auth.authenticators = append(auth.authenticators, jwtCookieSessionAuth)
