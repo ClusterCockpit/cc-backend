@@ -14,64 +14,18 @@ import (
 	"os"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/gorilla/sessions"
 	"github.com/jmoiron/sqlx"
 )
 
-type AuthSource int
-
-const (
-	AuthViaLocalPassword AuthSource = iota
-	AuthViaLDAP
-	AuthViaToken
-)
-
-type AuthType int
-
-const (
-	AuthToken AuthType = iota
-	AuthSession
-)
-
-type User struct {
-	Username   string     `json:"username"`
-	Password   string     `json:"-"`
-	Name       string     `json:"name"`
-	Roles      []string   `json:"roles"`
-	AuthType   AuthType   `json:"authType"`
-	AuthSource AuthSource `json:"authSource"`
-	Email      string     `json:"email"`
-	Projects   []string   `json:"projects"`
-}
-
-func (u *User) HasProject(project string) bool {
-	for _, p := range u.Projects {
-		if p == project {
-			return true
-		}
-	}
-	return false
-}
-
-func GetUser(ctx context.Context) *User {
-	x := ctx.Value(ContextUserKey)
-	if x == nil {
-		return nil
-	}
-
-	return x.(*User)
-}
-
 type Authenticator interface {
 	Init(auth *Authentication, config interface{}) error
-	CanLogin(user *User, username string, rw http.ResponseWriter, r *http.Request) bool
-	Login(user *User, rw http.ResponseWriter, r *http.Request) (*User, error)
+	CanLogin(user *schema.User, username string, rw http.ResponseWriter, r *http.Request) bool
+	Login(user *schema.User, rw http.ResponseWriter, r *http.Request) (*schema.User, error)
 }
-
-type ContextKey string
-
-const ContextUserKey ContextKey = "user"
 
 type Authentication struct {
 	db            *sqlx.DB
@@ -86,7 +40,7 @@ type Authentication struct {
 
 func (auth *Authentication) AuthViaSession(
 	rw http.ResponseWriter,
-	r *http.Request) (*User, error) {
+	r *http.Request) (*schema.User, error) {
 	session, err := auth.sessionStore.Get(r, "session")
 	if err != nil {
 		log.Error("Error while getting session store")
@@ -119,11 +73,11 @@ func (auth *Authentication) AuthViaSession(
 	username, _ := session.Values["username"].(string)
 	projects, _ := session.Values["projects"].([]string)
 	roles, _ := session.Values["roles"].([]string)
-	return &User{
+	return &schema.User{
 		Username:   username,
 		Projects:   projects,
 		Roles:      roles,
-		AuthType:   AuthSession,
+		AuthType:   schema.AuthSession,
 		AuthSource: -1,
 	}, nil
 }
@@ -196,12 +150,13 @@ func (auth *Authentication) Login(
 	onfailure func(rw http.ResponseWriter, r *http.Request, loginErr error)) http.Handler {
 
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		ur := repository.GetUserRepository()
 		err := errors.New("no authenticator applied")
 		username := r.FormValue("username")
-		dbUser := (*User)(nil)
+		dbUser := (*schema.User)(nil)
 
 		if username != "" {
-			dbUser, err = auth.GetUser(username)
+			dbUser, err = ur.GetUser(username)
 			if err != nil && err != sql.ErrNoRows {
 				log.Errorf("Error while loading user '%v'", username)
 			}
@@ -211,7 +166,7 @@ func (auth *Authentication) Login(
 			if !authenticator.CanLogin(dbUser, username, rw, r) {
 				continue
 			}
-			dbUser, err = auth.GetUser(username)
+			dbUser, err = ur.GetUser(username)
 			if err != nil && err != sql.ErrNoRows {
 				log.Errorf("Error while loading user '%v'", username)
 			}
@@ -243,7 +198,7 @@ func (auth *Authentication) Login(
 			}
 
 			if dbUser == nil {
-				if err := auth.AddUser(user); err != nil {
+				if err := ur.AddUser(user); err != nil {
 					// TODO Add AuthSource
 					log.Errorf("Error while adding user '%v' to auth from XX",
 						user.Username)
@@ -251,7 +206,7 @@ func (auth *Authentication) Login(
 			}
 
 			log.Infof("login successfull: user: %#v (roles: %v, projects: %v)", user.Username, user.Roles, user.Projects)
-			ctx := context.WithValue(r.Context(), ContextUserKey, user)
+			ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 			return
 		}
@@ -284,7 +239,7 @@ func (auth *Authentication) Auth(
 		}
 
 		if user != nil {
-			ctx := context.WithValue(r.Context(), ContextUserKey, user)
+			ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 			return
 		}

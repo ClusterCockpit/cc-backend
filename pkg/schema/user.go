@@ -2,7 +2,7 @@
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
-package auth
+package schema
 
 import (
 	"fmt"
@@ -20,6 +20,41 @@ const (
 	RoleAdmin
 	RoleError
 )
+
+type AuthSource int
+
+const (
+	AuthViaLocalPassword AuthSource = iota
+	AuthViaLDAP
+	AuthViaToken
+)
+
+type AuthType int
+
+const (
+	AuthToken AuthType = iota
+	AuthSession
+)
+
+type User struct {
+	Username   string     `json:"username"`
+	Password   string     `json:"-"`
+	Name       string     `json:"name"`
+	Roles      []string   `json:"roles"`
+	AuthType   AuthType   `json:"authType"`
+	AuthSource AuthSource `json:"authSource"`
+	Email      string     `json:"email"`
+	Projects   []string   `json:"projects"`
+}
+
+func (u *User) HasProject(project string) bool {
+	for _, p := range u.Projects {
+		if p == project {
+			return true
+		}
+	}
+	return false
+}
 
 func GetRoleString(roleInt Role) string {
 	return [6]string{"anonymous", "api", "user", "manager", "support", "admin"}[roleInt]
@@ -44,12 +79,12 @@ func getRoleEnum(roleStr string) Role {
 	}
 }
 
-func isValidRole(role string) bool {
+func IsValidRole(role string) bool {
 	return getRoleEnum(role) != RoleError
 }
 
 func (u *User) HasValidRole(role string) (hasRole bool, isValid bool) {
-	if isValidRole(role) {
+	if IsValidRole(role) {
 		for _, r := range u.Roles {
 			if r == role {
 				return true, true

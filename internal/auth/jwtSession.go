@@ -12,21 +12,17 @@ import (
 	"strings"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/golang-jwt/jwt/v4"
 )
 
 type JWTSessionAuthenticator struct {
-	auth *Authentication
-
 	loginTokenKey []byte // HS256 key
 }
 
 var _ Authenticator = (*JWTSessionAuthenticator)(nil)
 
 func (ja *JWTSessionAuthenticator) Init(auth *Authentication, conf interface{}) error {
-
-	ja.auth = auth
-
 	if pubKey := os.Getenv("CROSS_LOGIN_JWT_HS512_KEY"); pubKey != "" {
 		bytes, err := base64.StdEncoding.DecodeString(pubKey)
 		if err != nil {
@@ -40,7 +36,7 @@ func (ja *JWTSessionAuthenticator) Init(auth *Authentication, conf interface{}) 
 }
 
 func (ja *JWTSessionAuthenticator) CanLogin(
-	user *User,
+	user *schema.User,
 	username string,
 	rw http.ResponseWriter,
 	r *http.Request) bool {
@@ -49,9 +45,9 @@ func (ja *JWTSessionAuthenticator) CanLogin(
 }
 
 func (ja *JWTSessionAuthenticator) Login(
-	user *User,
+	user *schema.User,
 	rw http.ResponseWriter,
-	r *http.Request) (*User, error) {
+	r *http.Request) (*schema.User, error) {
 
 	rawtoken := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 	if rawtoken == "" {
@@ -92,14 +88,14 @@ func (ja *JWTSessionAuthenticator) Login(
 	if rawroles, ok := claims["roles"].([]interface{}); ok {
 		for _, rr := range rawroles {
 			if r, ok := rr.(string); ok {
-				if isValidRole(r) {
+				if schema.IsValidRole(r) {
 					roles = append(roles, r)
 				}
 			}
 		}
 	} else if rawroles, ok := claims["roles"]; ok {
 		for _, r := range rawroles.([]string) {
-			if isValidRole(r) {
+			if schema.IsValidRole(r) {
 				roles = append(roles, r)
 			}
 		}
@@ -120,13 +116,13 @@ func (ja *JWTSessionAuthenticator) Login(
 	// }
 
 	if user == nil {
-		user = &User{
+		user = &schema.User{
 			Username:   sub,
 			Name:       name,
 			Roles:      roles,
 			Projects:   projects,
-			AuthType:   AuthSession,
-			AuthSource: AuthViaToken,
+			AuthType:   schema.AuthSession,
+			AuthSource: schema.AuthViaToken,
 		}
 	}
 

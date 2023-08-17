@@ -228,14 +228,16 @@ func main() {
 				log.Fatal("invalid argument format for user creation")
 			}
 
-			if err := authentication.AddUser(&auth.User{
+			ur := repository.GetUserRepository()
+			if err := ur.AddUser(&schema.User{
 				Username: parts[0], Projects: make([]string, 0), Password: parts[2], Roles: strings.Split(parts[1], ","),
 			}); err != nil {
 				log.Fatalf("adding '%s' user authentication failed: %v", parts[0], err)
 			}
 		}
 		if flagDelUser != "" {
-			if err := authentication.DelUser(flagDelUser); err != nil {
+			ur := repository.GetUserRepository()
+			if err := ur.DelUser(flagDelUser); err != nil {
 				log.Fatalf("deleting user failed: %v", err)
 			}
 		}
@@ -252,12 +254,13 @@ func main() {
 		}
 
 		if flagGenJWT != "" {
-			user, err := authentication.GetUser(flagGenJWT)
+			ur := repository.GetUserRepository()
+			user, err := ur.GetUser(flagGenJWT)
 			if err != nil {
 				log.Fatalf("could not get user from JWT: %v", err)
 			}
 
-			if !user.HasRole(auth.RoleApi) {
+			if !user.HasRole(schema.RoleApi) {
 				log.Warnf("user '%s' does not have the API role", user.Username)
 			}
 
@@ -327,15 +330,15 @@ func main() {
 
 	r.HandleFunc("/login", func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
-		web.RenderTemplate(rw, r, "login.tmpl", &web.Page{Title: "Login", Build: buildInfo})
+		web.RenderTemplate(rw, "login.tmpl", &web.Page{Title: "Login", Build: buildInfo})
 	}).Methods(http.MethodGet)
 	r.HandleFunc("/imprint", func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
-		web.RenderTemplate(rw, r, "imprint.tmpl", &web.Page{Title: "Imprint", Build: buildInfo})
+		web.RenderTemplate(rw, "imprint.tmpl", &web.Page{Title: "Imprint", Build: buildInfo})
 	})
 	r.HandleFunc("/privacy", func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
-		web.RenderTemplate(rw, r, "privacy.tmpl", &web.Page{Title: "Privacy", Build: buildInfo})
+		web.RenderTemplate(rw, "privacy.tmpl", &web.Page{Title: "Privacy", Build: buildInfo})
 	})
 
 	// Some routes, such as /login or /query, should only be accessible to a user that is logged in.
@@ -351,7 +354,7 @@ func main() {
 			func(rw http.ResponseWriter, r *http.Request, err error) {
 				rw.Header().Add("Content-Type", "text/html; charset=utf-8")
 				rw.WriteHeader(http.StatusUnauthorized)
-				web.RenderTemplate(rw, r, "login.tmpl", &web.Page{
+				web.RenderTemplate(rw, "login.tmpl", &web.Page{
 					Title:   "Login failed - ClusterCockpit",
 					MsgType: "alert-warning",
 					Message: err.Error(),
@@ -362,7 +365,7 @@ func main() {
 		r.Handle("/logout", authentication.Logout(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 			rw.Header().Add("Content-Type", "text/html; charset=utf-8")
 			rw.WriteHeader(http.StatusOK)
-			web.RenderTemplate(rw, r, "login.tmpl", &web.Page{
+			web.RenderTemplate(rw, "login.tmpl", &web.Page{
 				Title:   "Bye - ClusterCockpit",
 				MsgType: "alert-info",
 				Message: "Logout successful",
@@ -378,7 +381,7 @@ func main() {
 				// On failure:
 				func(rw http.ResponseWriter, r *http.Request, err error) {
 					rw.WriteHeader(http.StatusUnauthorized)
-					web.RenderTemplate(rw, r, "login.tmpl", &web.Page{
+					web.RenderTemplate(rw, "login.tmpl", &web.Page{
 						Title:   "Authentication failed - ClusterCockpit",
 						MsgType: "alert-danger",
 						Message: err.Error(),

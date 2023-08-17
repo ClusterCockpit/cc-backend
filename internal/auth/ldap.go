@@ -67,12 +67,12 @@ func (la *LdapAuthenticator) Init(
 }
 
 func (la *LdapAuthenticator) CanLogin(
-	user *User,
+	user *schema.User,
 	username string,
 	rw http.ResponseWriter,
 	r *http.Request) bool {
 
-	if user != nil && user.AuthSource == AuthViaLDAP {
+	if user != nil && user.AuthSource == schema.AuthViaLDAP {
 		return true
 	} else {
 		if la.config != nil && la.config.SyncUserOnLogin {
@@ -103,7 +103,7 @@ func (la *LdapAuthenticator) CanLogin(
 			name := entry.GetAttributeValue("gecos")
 
 			if _, err := la.auth.db.Exec(`INSERT INTO user (username, ldap, name, roles) VALUES (?, ?, ?, ?)`,
-				username, 1, name, "[\""+GetRoleString(RoleUser)+"\"]"); err != nil {
+				username, 1, name, "[\""+schema.GetRoleString(schema.RoleUser)+"\"]"); err != nil {
 				log.Errorf("User '%s' new in LDAP: Insert into DB failed", username)
 				return false
 			}
@@ -116,9 +116,9 @@ func (la *LdapAuthenticator) CanLogin(
 }
 
 func (la *LdapAuthenticator) Login(
-	user *User,
+	user *schema.User,
 	rw http.ResponseWriter,
-	r *http.Request) (*User, error) {
+	r *http.Request) (*schema.User, error) {
 
 	l, err := la.getLdapConnection(false)
 	if err != nil {
@@ -203,7 +203,7 @@ func (la *LdapAuthenticator) Sync() error {
 			name := newnames[username]
 			log.Debugf("sync: add %v (name: %v, roles: [user], ldap: true)", username, name)
 			if _, err := la.auth.db.Exec(`INSERT INTO user (username, ldap, name, roles) VALUES (?, ?, ?, ?)`,
-				username, 1, name, "[\""+GetRoleString(RoleUser)+"\"]"); err != nil {
+				username, 1, name, "[\""+schema.GetRoleString(schema.RoleUser)+"\"]"); err != nil {
 				log.Errorf("User '%s' new in LDAP: Insert into DB failed", username)
 				return err
 			}

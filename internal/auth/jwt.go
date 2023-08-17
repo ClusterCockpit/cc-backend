@@ -13,22 +13,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/golang-jwt/jwt/v4"
 )
 
 type JWTAuthenticator struct {
-	auth *Authentication
-
 	publicKey  ed25519.PublicKey
 	privateKey ed25519.PrivateKey
 	config     *schema.JWTAuthConfig
 }
 
 func (ja *JWTAuthenticator) Init(auth *Authentication, conf interface{}) error {
-
-	ja.auth = auth
 	ja.config = conf.(*schema.JWTAuthConfig)
 
 	pubKey, privKey := os.Getenv("JWT_PUBLIC_KEY"), os.Getenv("JWT_PRIVATE_KEY")
@@ -54,7 +51,7 @@ func (ja *JWTAuthenticator) Init(auth *Authentication, conf interface{}) error {
 
 func (ja *JWTAuthenticator) AuthViaJWT(
 	rw http.ResponseWriter,
-	r *http.Request) (*User, error) {
+	r *http.Request) (*schema.User, error) {
 
 	rawtoken := r.Header.Get("X-Auth-Token")
 	if rawtoken == "" {
@@ -90,8 +87,9 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 	var roles []string
 
 	// Validate user + roles from JWT against database?
-	if ja.config != nil && ja.config.ForceJWTValidationViaDatabase {
-		user, err := ja.auth.GetUser(sub)
+	if ja.config != nil && ja.config.ValidateUser {
+		ur := repository.GetUserRepository()
+		user, err := ur.GetUser(sub)
 
 		// Deny any logins for unknown usernames
 		if err != nil {
@@ -111,16 +109,16 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 		}
 	}
 
-	return &User{
+	return &schema.User{
 		Username:   sub,
 		Roles:      roles,
-		AuthType:   AuthToken,
+		AuthType:   schema.AuthToken,
 		AuthSource: -1,
 	}, nil
 }
 
 // Generate a new JWT that can be used for authentication
-func (ja *JWTAuthenticator) ProvideJWT(user *User) (string, error) {
+func (ja *JWTAuthenticator) ProvideJWT(user *schema.User) (string, error) {
 
 	if ja.privateKey == nil {
 		return "", errors.New("environment variable 'JWT_PRIVATE_KEY' not set")

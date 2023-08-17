@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -27,18 +28,18 @@ func (la *LocalAuthenticator) Init(
 }
 
 func (la *LocalAuthenticator) CanLogin(
-	user *User,
+	user *schema.User,
 	username string,
 	rw http.ResponseWriter,
 	r *http.Request) bool {
 
-	return user != nil && user.AuthSource == AuthViaLocalPassword
+	return user != nil && user.AuthSource == schema.AuthViaLocalPassword
 }
 
 func (la *LocalAuthenticator) Login(
-	user *User,
+	user *schema.User,
 	rw http.ResponseWriter,
-	r *http.Request) (*User, error) {
+	r *http.Request) (*schema.User, error) {
 
 	if e := bcrypt.CompareHashAndPassword([]byte(user.Password),
 		[]byte(r.FormValue("password"))); e != nil {

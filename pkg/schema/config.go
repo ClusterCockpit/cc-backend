@@ -17,7 +17,9 @@ type LdapConfig struct {
 	UserFilter      string `json:"user_filter"`
 	SyncInterval    string `json:"sync_interval"` // Parsed using time.ParseDuration.
 	SyncDelOldUsers bool   `json:"sync_del_old_users"`
-	SyncUserOnLogin bool   `json:"syncUserOnLogin"`
+
+	// Should an non-existent user be added to the DB if user exists in ldap directory
+	SyncUserOnLogin bool `json:"syncUserOnLogin"`
 }
 
 type JWTAuthConfig struct {
@@ -30,10 +32,13 @@ type JWTAuthConfig struct {
 
 	// Deny login for users not in database (but defined in JWT).
 	// Ignore user roles defined in JWTs ('roles' claim), get them from db.
-	ForceJWTValidationViaDatabase bool `json:"forceJWTValidationViaDatabase"`
+	ValidateUser bool `json:"validateUser"`
 
 	// Specifies which issuer should be accepted when validating external JWTs ('iss' claim)
-	TrustedExternalIssuer string `json:"trustedExternalIssuer"`
+	TrustedIssuer string `json:"trustedIssuer"`
+
+	// Should an non-existent user be added to the DB based on the information in the token
+	SyncUserOnLogin bool `json:"syncUserOnLogin"`
 }
 
 type IntRange struct {

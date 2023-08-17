@@ -73,10 +73,10 @@ func (ja *JWTCookieSessionAuthenticator) Init(auth *Authentication, conf interfa
 			log.Warn("cookieName for JWTs not configured (cross login via JWT cookie will fail)")
 			return errors.New("cookieName for JWTs not configured (cross login via JWT cookie will fail)")
 		}
-		if !ja.config.ForceJWTValidationViaDatabase {
+		if !ja.config.ValidateUser {
 			log.Warn("forceJWTValidationViaDatabase not set to true: CC will accept users and roles defined in JWTs regardless of its own database!")
 		}
-		if ja.config.TrustedExternalIssuer == "" {
+		if ja.config.TrustedIssuer == "" {
 			log.Warn("trustedExternalIssuer for JWTs not configured (cross login via JWT cookie will fail)")
 			return errors.New("trustedExternalIssuer for JWTs not configured (cross login via JWT cookie will fail)")
 		}
@@ -89,7 +89,7 @@ func (ja *JWTCookieSessionAuthenticator) Init(auth *Authentication, conf interfa
 }
 
 func (ja *JWTCookieSessionAuthenticator) CanLogin(
-	user *User,
+	user *schema.User,
 	username string,
 	rw http.ResponseWriter,
 	r *http.Request) bool {
@@ -112,9 +112,9 @@ func (ja *JWTCookieSessionAuthenticator) CanLogin(
 }
 
 func (ja *JWTCookieSessionAuthenticator) Login(
-	user *User,
+	user *schema.User,
 	rw http.ResponseWriter,
-	r *http.Request) (*User, error) {
+	r *http.Request) (*schema.User, error) {
 
 	jwtCookie, err := r.Cookie(ja.config.CookieName)
 	var rawtoken string
@@ -129,7 +129,7 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 		}
 
 		unvalidatedIssuer, success := t.Claims.(jwt.MapClaims)["iss"].(string)
-		if success && unvalidatedIssuer == ja.config.TrustedExternalIssuer {
+		if success && unvalidatedIssuer == ja.config.TrustedIssuer {
 			// The (unvalidated) issuer seems to be the expected one,
 			// use public cross login key from config
 			return ja.publicKeyCrossLogin, nil
@@ -160,7 +160,7 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 
 	var roles []string
 
-	if ja.config.ForceJWTValidationViaDatabase {
+	if ja.config.ValidateUser {
 		// Deny any logins for unknown usernames
 		if user == nil {
 			log.Warn("Could not find user from JWT in internal database.")
@@ -191,12 +191,12 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 	http.SetCookie(rw, deletedCookie)
 
 	if user == nil {
-		user = &User{
+		user = &schema.User{
 			Username:   sub,
 			Name:       name,
 			Roles:      roles,
-			AuthType:   AuthSession,
-			AuthSource: AuthViaToken,
+			AuthType:   schema.AuthSession,
+			AuthSource: schema.AuthViaToken,
 		}
 	}
 

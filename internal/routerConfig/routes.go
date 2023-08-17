@@ -13,11 +13,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/ClusterCockpit/cc-backend/web"
 	"github.com/gorilla/mux"
 )
@@ -81,12 +81,11 @@ func setupJobRoute(i InfoType, r *http.Request) InfoType {
 }
 
 func setupUserRoute(i InfoType, r *http.Request) InfoType {
-	jobRepo := repository.GetJobRepository()
 	username := mux.Vars(r)["id"]
 	i["id"] = username
 	i["username"] = username
 	// TODO: If forbidden (== err exists), redirect to error page
-	if user, _ := auth.FetchUser(r.Context(), jobRepo.DB, username); user != nil {
+	if user, _ := repository.GetUserRepository().FetchUserInCtx(r.Context(), username); user != nil {
 		i["name"] = user.Name
 		i["email"] = user.Email
 	}
@@ -125,7 +124,7 @@ func setupAnalysisRoute(i InfoType, r *http.Request) InfoType {
 
 func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 	jobRepo := repository.GetJobRepository()
-	user := auth.GetUser(r.Context())
+	user := repository.GetUserFromContext(r.Context())
 
 	tags, counts, err := jobRepo.CountTags(user)
 	tagMap := make(map[string][]map[string]interface{})
@@ -255,7 +254,7 @@ func SetupRoutes(router *mux.Router, buildInfo web.Build) {
 	for _, route := range routes {
 		route := route
 		router.HandleFunc(route.Route, func(rw http.ResponseWriter, r *http.Request) {
-			conf, err := userCfgRepo.GetUIConfig(auth.GetUser(r.Context()))
+			conf, err := userCfgRepo.GetUIConfig(repository.GetUserFromContext(r.Context()))
 			if err != nil {
 				http.Error(rw, err.Error(), http.StatusInternalServerError)
 				return
@@ -268,9 +267,9 @@ func SetupRoutes(router *mux.Router, buildInfo web.Build) {
 			}
 
 			// Get User -> What if NIL?
-			user := auth.GetUser(r.Context())
+			user := repository.GetUserFromContext(r.Context())
 			// Get Roles
-			availableRoles, _ := auth.GetValidRolesMap(user)
+			availableRoles, _ := schema.GetValidRolesMap(user)
 
 			page := web.Page{
 				Title:  title,
@@ -285,14 +284,14 @@ func SetupRoutes(router *mux.Router, buildInfo web.Build) {
 				page.FilterPresets = buildFilterPresets(r.URL.Query())
 			}
 
-			web.RenderTemplate(rw, r, route.Template, &page)
+			web.RenderTemplate(rw, route.Template, &page)
 		})
 	}
 }
 
 func HandleSearchBar(rw http.ResponseWriter, r *http.Request, buildInfo web.Build) {
-	user := auth.GetUser(r.Context())
-	availableRoles, _ := auth.GetValidRolesMap(user)
+	user := repository.GetUserFromContext(r.Context())
+	availableRoles, _ := schema.GetValidRolesMap(user)
 
 	if search := r.URL.Query().Get("searchId"); search != "" {
 		repo := repository.GetJobRepository()
@@ -309,10 +308,10 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, buildInfo web.Buil
 			case "arrayJobId":
 				http.Redirect(rw, r, "/monitoring/jobs/?arrayJobId="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusFound) // All Users: Redirect to Tablequery
 			case "username":
-				if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
+				if user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport, schema.RoleManager}) {
 					http.Redirect(rw, r, "/monitoring/users/?user="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusFound)
 				} else {
-					web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Error", MsgType: "alert-danger", Message: "Missing Access Rights", User: *user, Roles: availableRoles, Build: buildInfo})
+					web.RenderTemplate(rw, "message.tmpl", &web.Page{Title: "Error", MsgType: "alert-danger", Message: "Missing Access Rights", User: *user, Roles: availableRoles, Build: buildInfo})
 				}
 			case "name":
 				usernames, _ := repo.FindColumnValues(user, strings.Trim(splitSearch[1], " "), "user", "username", "name")
@@ -320,14 +319,14 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, buildInfo web.Buil
 					joinedNames := strings.Join(usernames, "&user=")
 					http.Redirect(rw, r, "/monitoring/users/?user="+joinedNames, http.StatusFound)
 				} else {
-					if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
+					if user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport, schema.RoleManager}) {
 						http.Redirect(rw, r, "/monitoring/users/?user=NoUserNameFound", http.StatusPermanentRedirect)
 					} else {
-						web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Error", MsgType: "alert-danger", Message: "Missing Access Rights", User: *user, Roles: availableRoles, Build: buildInfo})
+						web.RenderTemplate(rw, "message.tmpl", &web.Page{Title: "Error", MsgType: "alert-danger", Message: "Missing Access Rights", User: *user, Roles: availableRoles, Build: buildInfo})
 					}
 				}
 			default:
-				web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Warning", MsgType: "alert-warning", Message: fmt.Sprintf("Unknown search type: %s", strings.Trim(splitSearch[0], " ")), User: *user, Roles: availableRoles, Build: buildInfo})
+				web.RenderTemplate(rw, "message.tmpl", &web.Page{Title: "Warning", MsgType: "alert-warning", Message: fmt.Sprintf("Unknown search type: %s", strings.Trim(splitSearch[0], " ")), User: *user, Roles: availableRoles, Build: buildInfo})
 			}
 		} else if len(splitSearch) == 1 {
 
@@ -342,13 +341,13 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, buildInfo web.Buil
 			} else if jobname != "" {
 				http.Redirect(rw, r, "/monitoring/jobs/?jobName="+url.QueryEscape(jobname), http.StatusFound) // JobName (contains)
 			} else {
-				web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Info", MsgType: "alert-info", Message: "Search without result", User: *user, Roles: availableRoles, Build: buildInfo})
+				web.RenderTemplate(rw, "message.tmpl", &web.Page{Title: "Info", MsgType: "alert-info", Message: "Search without result", User: *user, Roles: availableRoles, Build: buildInfo})
 			}
 
 		} else {
-			web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Error", MsgType: "alert-danger", Message: "Searchbar query parameters malformed", User: *user, Roles: availableRoles, Build: buildInfo})
+			web.RenderTemplate(rw, "message.tmpl", &web.Page{Title: "Error", MsgType: "alert-danger", Message: "Searchbar query parameters malformed", User: *user, Roles: availableRoles, Build: buildInfo})
 		}
 	} else {
-		web.RenderTemplate(rw, r, "message.tmpl", &web.Page{Title: "Warning", MsgType: "alert-warning", Message: "Empty search", User: *user, Roles: availableRoles, Build: buildInfo})
+		web.RenderTemplate(rw, "message.tmpl", &web.Page{Title: "Warning", MsgType: "alert-warning", Message: "Empty search", User: *user, Roles: availableRoles, Build: buildInfo})
 	}
 }

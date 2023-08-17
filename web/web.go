@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
@@ -92,8 +91,8 @@ type Page struct {
 	Title         string                 // Page title
 	MsgType       string                 // For generic use in message boxes
 	Message       string                 // For generic use in message boxes
-	User          auth.User              // Information about the currently logged in user (Full User Info)
-	Roles         map[string]auth.Role   // Available roles for frontend render checks
+	User          schema.User            // Information about the currently logged in user (Full User Info)
+	Roles         map[string]schema.Role // Available roles for frontend render checks
 	Build         Build                  // Latest information about the application
 	Clusters      []schema.ClusterConfig // List of all clusters for use in the Header
 	FilterPresets map[string]interface{} // For pages with the Filter component, this can be used to set initial filters.
@@ -101,7 +100,7 @@ type Page struct {
 	Config        map[string]interface{} // UI settings for the currently logged in user (e.g. line width, ...)
 }
 
-func RenderTemplate(rw http.ResponseWriter, r *http.Request, file string, page *Page) {
+func RenderTemplate(rw http.ResponseWriter, file string, page *Page) {
 	t, ok := templates[file]
 	if !ok {
 		log.Errorf("WEB/WEB > template '%s' not found", file)
