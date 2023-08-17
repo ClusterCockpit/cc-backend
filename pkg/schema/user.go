@@ -27,6 +27,7 @@ const (
 	AuthViaLocalPassword AuthSource = iota
 	AuthViaLDAP
 	AuthViaToken
+	AuthViaAll
 )
 
 type AuthType int

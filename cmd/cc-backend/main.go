@@ -211,7 +211,7 @@ func main() {
 	var authentication *auth.Authentication
 	if !config.Keys.DisableAuthentication {
 		var err error
-		if authentication, err = auth.Init(db.DB, map[string]interface{}{
+		if authentication, err = auth.Init(map[string]interface{}{
 			"ldap": config.Keys.LdapConfig,
 			"jwt":  config.Keys.JwtConfig,
 		}); err != nil {

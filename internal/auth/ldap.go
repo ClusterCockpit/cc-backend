@@ -12,24 +12,21 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/go-ldap/ldap/v3"
 )
 
 type LdapAuthenticator struct {
-	auth         *Authentication
 	config       *schema.LdapConfig
 	syncPassword string
 }
 
 var _ Authenticator = (*LdapAuthenticator)(nil)
 
-func (la *LdapAuthenticator) Init(
-	auth *Authentication,
-	conf interface{}) error {
+func (la *LdapAuthenticator) Init(conf interface{}) error {
 
-	la.auth = auth
 	la.config = conf.(*schema.LdapConfig)
 
 	la.syncPassword = os.Getenv("LDAP_ADMIN_PASSWORD")
@@ -101,12 +98,29 @@ func (la *LdapAuthenticator) CanLogin(
 
 			entry := sr.Entries[0]
 			name := entry.GetAttributeValue("gecos")
+			var roles []string
+			roles = append(roles, schema.GetRoleString(schema.RoleUser))
+			projects := make([]string, 0)
 
-			if _, err := la.auth.db.Exec(`INSERT INTO user (username, ldap, name, roles) VALUES (?, ?, ?, ?)`,
-				username, 1, name, "[\""+schema.GetRoleString(schema.RoleUser)+"\"]"); err != nil {
-				log.Errorf("User '%s' new in LDAP: Insert into DB failed", username)
+			user = &schema.User{
+				Username:   username,
+				Name:       name,
+				Roles:      roles,
+				Projects:   projects,
+				AuthType:   schema.AuthSession,
+				AuthSource: schema.AuthViaLDAP,
+			}
+
+			if err := repository.GetUserRepository().AddUser(user); err != nil {
+				log.Errorf("User '%s' LDAP: Insert into DB failed", username)
 				return false
 			}
+
+			// if _, err := la.auth.db.Exec(`INSERT INTO user (username, ldap, name, roles) VALUES (?, ?, ?, ?)`,
+			// 	username, 1, name, "[\""+schema.GetRoleString(schema.RoleUser)+"\"]"); err != nil {
+			// 	log.Errorf("User '%s' new in LDAP: Insert into DB failed", username)
+			// 	return false
+			// }
 
 			return true
 		}
@@ -137,25 +151,18 @@ func (la *LdapAuthenticator) Login(
 }
 
 func (la *LdapAuthenticator) Sync() error {
-
 	const IN_DB int = 1
 	const IN_LDAP int = 2
 	const IN_BOTH int = 3
+	ur := repository.GetUserRepository()
 
 	users := map[string]int{}
-	rows, err := la.auth.db.Query(`SELECT username FROM user WHERE user.ldap = 1`)
+	usernames, err := ur.GetLdapUsernames()
 	if err != nil {
-		log.Warn("Error while querying LDAP users")
 		return err
 	}
 
-	for rows.Next() {
-		var username string
-		if err := rows.Scan(&username); err != nil {
-			log.Warnf("Error while scanning for user '%s'", username)
-			return err
-		}
-
+	for _, username := range usernames {
 		users[username] = IN_DB
 	}
 
@@ -194,17 +201,26 @@ func (la *LdapAuthenticator) Sync() error {
 
 	for username, where := range users {
 		if where == IN_DB && la.config.SyncDelOldUsers {
+			ur.DelUser(username)
 			log.Debugf("sync: remove %v (does not show up in LDAP anymore)", username)
-			if _, err := la.auth.db.Exec(`DELETE FROM user WHERE user.username = ?`, username); err != nil {
-				log.Errorf("User '%s' not in LDAP anymore: Delete from DB failed", username)
-				return err
-			}
 		} else if where == IN_LDAP {
 			name := newnames[username]
+
+			var roles []string
+			roles = append(roles, schema.GetRoleString(schema.RoleUser))
+			projects := make([]string, 0)
+
+			user := &schema.User{
+				Username:   username,
+				Name:       name,
+				Roles:      roles,
+				Projects:   projects,
+				AuthSource: schema.AuthViaLDAP,
+			}
+
 			log.Debugf("sync: add %v (name: %v, roles: [user], ldap: true)", username, name)
-			if _, err := la.auth.db.Exec(`INSERT INTO user (username, ldap, name, roles) VALUES (?, ?, ?, ?)`,
-				username, 1, name, "[\""+schema.GetRoleString(schema.RoleUser)+"\"]"); err != nil {
-				log.Errorf("User '%s' new in LDAP: Insert into DB failed", username)
+			if err := ur.AddUser(user); err != nil {
+				log.Errorf("User '%s' LDAP: Insert into DB failed", username)
 				return err
 			}
 		}

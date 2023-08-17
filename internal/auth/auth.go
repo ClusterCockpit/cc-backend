@@ -18,17 +18,15 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/gorilla/sessions"
-	"github.com/jmoiron/sqlx"
 )
 
 type Authenticator interface {
-	Init(auth *Authentication, config interface{}) error
+	Init(config interface{}) error
 	CanLogin(user *schema.User, username string, rw http.ResponseWriter, r *http.Request) bool
 	Login(user *schema.User, rw http.ResponseWriter, r *http.Request) (*schema.User, error)
 }
 
 type Authentication struct {
-	db            *sqlx.DB
 	sessionStore  *sessions.CookieStore
 	SessionMaxAge time.Duration
 
@@ -82,10 +80,8 @@ func (auth *Authentication) AuthViaSession(
 	}, nil
 }
 
-func Init(db *sqlx.DB,
-	configs map[string]interface{}) (*Authentication, error) {
+func Init(configs map[string]interface{}) (*Authentication, error) {
 	auth := &Authentication{}
-	auth.db = db
 
 	sessKey := os.Getenv("SESSION_KEY")
 	if sessKey == "" {
@@ -106,14 +102,14 @@ func Init(db *sqlx.DB,
 	}
 
 	auth.JwtAuth = &JWTAuthenticator{}
-	if err := auth.JwtAuth.Init(auth, configs["jwt"]); err != nil {
+	if err := auth.JwtAuth.Init(configs["jwt"]); err != nil {
 		log.Error("Error while initializing authentication -> jwtAuth init failed")
 		return nil, err
 	}
 
 	if config, ok := configs["ldap"]; ok {
 		ldapAuth := &LdapAuthenticator{}
-		if err := ldapAuth.Init(auth, config); err != nil {
+		if err := ldapAuth.Init(config); err != nil {
 			log.Warn("Error while initializing authentication -> ldapAuth init failed")
 		} else {
 			auth.LdapAuth = ldapAuth
@@ -122,21 +118,21 @@ func Init(db *sqlx.DB,
 	}
 
 	jwtSessionAuth := &JWTSessionAuthenticator{}
-	if err := jwtSessionAuth.Init(auth, configs["jwt"]); err != nil {
+	if err := jwtSessionAuth.Init(configs["jwt"]); err != nil {
 		log.Warn("Error while initializing authentication -> jwtSessionAuth init failed")
 	} else {
 		auth.authenticators = append(auth.authenticators, jwtSessionAuth)
 	}
 
 	jwtCookieSessionAuth := &JWTCookieSessionAuthenticator{}
-	if err := jwtCookieSessionAuth.Init(auth, configs["jwt"]); err != nil {
+	if err := jwtCookieSessionAuth.Init(configs["jwt"]); err != nil {
 		log.Warn("Error while initializing authentication -> jwtCookieSessionAuth init failed")
 	} else {
 		auth.authenticators = append(auth.authenticators, jwtCookieSessionAuth)
 	}
 
 	auth.LocalAuth = &LocalAuthenticator{}
-	if err := auth.LocalAuth.Init(auth, nil); err != nil {
+	if err := auth.LocalAuth.Init(nil); err != nil {
 		log.Error("Error while initializing authentication -> localAuth init failed")
 		return nil, err
 	}
@@ -150,13 +146,12 @@ func (auth *Authentication) Login(
 	onfailure func(rw http.ResponseWriter, r *http.Request, loginErr error)) http.Handler {
 
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		ur := repository.GetUserRepository()
 		err := errors.New("no authenticator applied")
 		username := r.FormValue("username")
 		dbUser := (*schema.User)(nil)
 
 		if username != "" {
-			dbUser, err = ur.GetUser(username)
+			dbUser, err = repository.GetUserRepository().GetUser(username)
 			if err != nil && err != sql.ErrNoRows {
 				log.Errorf("Error while loading user '%v'", username)
 			}
@@ -165,10 +160,6 @@ func (auth *Authentication) Login(
 		for _, authenticator := range auth.authenticators {
 			if !authenticator.CanLogin(dbUser, username, rw, r) {
 				continue
-			}
-			dbUser, err = ur.GetUser(username)
-			if err != nil && err != sql.ErrNoRows {
-				log.Errorf("Error while loading user '%v'", username)
 			}
 
 			user, err := authenticator.Login(dbUser, rw, r)
@@ -195,14 +186,6 @@ func (auth *Authentication) Login(
 				log.Warnf("session save failed: %s", err.Error())
 				http.Error(rw, err.Error(), http.StatusInternalServerError)
 				return
-			}
-
-			if dbUser == nil {
-				if err := ur.AddUser(user); err != nil {
-					// TODO Add AuthSource
-					log.Errorf("Error while adding user '%v' to auth from XX",
-						user.Username)
-				}
 			}
 
 			log.Infof("login successfull: user: %#v (roles: %v, projects: %v)", user.Username, user.Roles, user.Projects)

@@ -25,7 +25,7 @@ type JWTAuthenticator struct {
 	config     *schema.JWTAuthConfig
 }
 
-func (ja *JWTAuthenticator) Init(auth *Authentication, conf interface{}) error {
+func (ja *JWTAuthenticator) Init(conf interface{}) error {
 	ja.config = conf.(*schema.JWTAuthConfig)
 
 	pubKey, privKey := os.Getenv("JWT_PUBLIC_KEY"), os.Getenv("JWT_PRIVATE_KEY")

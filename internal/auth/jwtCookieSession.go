@@ -17,8 +17,6 @@ import (
 )
 
 type JWTCookieSessionAuthenticator struct {
-	auth *Authentication
-
 	publicKey           ed25519.PublicKey
 	privateKey          ed25519.PrivateKey
 	publicKeyCrossLogin ed25519.PublicKey // For accepting externally generated JWTs
@@ -28,9 +26,7 @@ type JWTCookieSessionAuthenticator struct {
 
 var _ Authenticator = (*JWTCookieSessionAuthenticator)(nil)
 
-func (ja *JWTCookieSessionAuthenticator) Init(auth *Authentication, conf interface{}) error {
-
-	ja.auth = auth
+func (ja *JWTCookieSessionAuthenticator) Init(conf interface{}) error {
 	ja.config = conf.(*schema.JWTAuthConfig)
 
 	pubKey, privKey := os.Getenv("JWT_PUBLIC_KEY"), os.Getenv("JWT_PRIVATE_KEY")

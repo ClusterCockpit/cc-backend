@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/golang-jwt/jwt/v4"
@@ -18,11 +19,15 @@ import (
 
 type JWTSessionAuthenticator struct {
 	loginTokenKey []byte // HS256 key
+
+	config *schema.JWTAuthConfig
 }
 
 var _ Authenticator = (*JWTSessionAuthenticator)(nil)
 
-func (ja *JWTSessionAuthenticator) Init(auth *Authentication, conf interface{}) error {
+func (ja *JWTSessionAuthenticator) Init(conf interface{}) error {
+	ja.config = conf.(*schema.JWTAuthConfig)
+
 	if pubKey := os.Getenv("CROSS_LOGIN_JWT_HS512_KEY"); pubKey != "" {
 		bytes, err := base64.StdEncoding.DecodeString(pubKey)
 		if err != nil {
@@ -123,6 +128,10 @@ func (ja *JWTSessionAuthenticator) Login(
 			Projects:   projects,
 			AuthType:   schema.AuthSession,
 			AuthSource: schema.AuthViaToken,
+		}
+
+		if err := repository.GetUserRepository().AddUser(user); err != nil {
+			log.Errorf("Error while adding user '%s' to DB", user.Username)
 		}
 	}
 

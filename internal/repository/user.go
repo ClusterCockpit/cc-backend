@@ -71,6 +71,28 @@ func (r *UserRepository) GetUser(username string) (*schema.User, error) {
 	return user, nil
 }
 
+func (r *UserRepository) GetLdapUsernames() ([]string, error) {
+
+	var users []string
+	rows, err := r.DB.Query(`SELECT username FROM user WHERE user.ldap = 1`)
+	if err != nil {
+		log.Warn("Error while querying usernames")
+		return nil, err
+	}
+
+	for rows.Next() {
+		var username string
+		if err := rows.Scan(&username); err != nil {
+			log.Warnf("Error while scanning for user '%s'", username)
+			return nil, err
+		}
+
+		users = append(users, username)
+	}
+
+	return users, nil
+}
+
 func (r *UserRepository) AddUser(user *schema.User) error {
 	rolesJson, _ := json.Marshal(user.Roles)
 	projectsJson, _ := json.Marshal(user.Projects)
@@ -94,6 +116,10 @@ func (r *UserRepository) AddUser(user *schema.User) error {
 		}
 		cols = append(cols, "password")
 		vals = append(vals, string(password))
+	}
+	if user.AuthSource != -1 {
+		cols = append(cols, "ldap")
+		vals = append(vals, int(user.AuthSource))
 	}
 
 	if _, err := sq.Insert("user").Columns(cols...).Values(vals...).RunWith(r.DB).Exec(); err != nil {
