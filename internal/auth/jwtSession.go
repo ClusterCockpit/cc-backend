@@ -44,9 +44,9 @@ func (ja *JWTSessionAuthenticator) CanLogin(
 	user *schema.User,
 	username string,
 	rw http.ResponseWriter,
-	r *http.Request) bool {
+	r *http.Request) (*schema.User, bool) {
 
-	return r.Header.Get("Authorization") != "" || r.URL.Query().Get("login-token") != ""
+	return user, r.Header.Get("Authorization") != "" || r.URL.Query().Get("login-token") != ""
 }
 
 func (ja *JWTSessionAuthenticator) Login(
@@ -130,8 +130,10 @@ func (ja *JWTSessionAuthenticator) Login(
 			AuthSource: schema.AuthViaToken,
 		}
 
-		if err := repository.GetUserRepository().AddUser(user); err != nil {
-			log.Errorf("Error while adding user '%s' to DB", user.Username)
+		if ja.config.SyncUserOnLogin {
+			if err := repository.GetUserRepository().AddUser(user); err != nil {
+				log.Errorf("Error while adding user '%s' to DB", user.Username)
+			}
 		}
 	}
 

@@ -22,7 +22,7 @@ import (
 
 type Authenticator interface {
 	Init(config interface{}) error
-	CanLogin(user *schema.User, username string, rw http.ResponseWriter, r *http.Request) bool
+	CanLogin(user *schema.User, username string, rw http.ResponseWriter, r *http.Request) (*schema.User, bool)
 	Login(user *schema.User, rw http.ResponseWriter, r *http.Request) (*schema.User, error)
 }
 
@@ -148,7 +148,7 @@ func (auth *Authentication) Login(
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		err := errors.New("no authenticator applied")
 		username := r.FormValue("username")
-		dbUser := (*schema.User)(nil)
+		var dbUser *schema.User
 
 		if username != "" {
 			dbUser, err = repository.GetUserRepository().GetUser(username)
@@ -158,11 +158,13 @@ func (auth *Authentication) Login(
 		}
 
 		for _, authenticator := range auth.authenticators {
-			if !authenticator.CanLogin(dbUser, username, rw, r) {
+			var ok bool
+			var user *schema.User
+			if user, ok = authenticator.CanLogin(dbUser, username, rw, r); !ok {
 				continue
 			}
 
-			user, err := authenticator.Login(dbUser, rw, r)
+			user, err = authenticator.Login(user, rw, r)
 			if err != nil {
 				log.Warnf("user login failed: %s", err.Error())
 				onfailure(rw, r, err)

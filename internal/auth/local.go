@@ -29,9 +29,9 @@ func (la *LocalAuthenticator) CanLogin(
 	user *schema.User,
 	username string,
 	rw http.ResponseWriter,
-	r *http.Request) bool {
+	r *http.Request) (*schema.User, bool) {
 
-	return user != nil && user.AuthSource == schema.AuthViaLocalPassword
+	return user, user != nil && user.AuthSource == schema.AuthViaLocalPassword
 }
 
 func (la *LocalAuthenticator) Login(

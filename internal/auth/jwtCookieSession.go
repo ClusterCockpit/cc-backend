@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/golang-jwt/jwt/v4"
@@ -88,7 +89,7 @@ func (ja *JWTCookieSessionAuthenticator) CanLogin(
 	user *schema.User,
 	username string,
 	rw http.ResponseWriter,
-	r *http.Request) bool {
+	r *http.Request) (*schema.User, bool) {
 
 	cookieName := ""
 	if ja.config != nil && ja.config.CookieName != "" {
@@ -100,11 +101,11 @@ func (ja *JWTCookieSessionAuthenticator) CanLogin(
 		jwtCookie, err := r.Cookie(cookieName)
 
 		if err == nil && jwtCookie.Value != "" {
-			return true
+			return user, true
 		}
 	}
 
-	return false
+	return nil, false
 }
 
 func (ja *JWTCookieSessionAuthenticator) Login(
@@ -193,6 +194,12 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 			Roles:      roles,
 			AuthType:   schema.AuthSession,
 			AuthSource: schema.AuthViaToken,
+		}
+
+		if ja.config.SyncUserOnLogin {
+			if err := repository.GetUserRepository().AddUser(user); err != nil {
+				log.Errorf("Error while adding user '%s' to DB", user.Username)
+			}
 		}
 	}
 

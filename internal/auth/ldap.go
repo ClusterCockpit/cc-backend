@@ -67,33 +67,34 @@ func (la *LdapAuthenticator) CanLogin(
 	user *schema.User,
 	username string,
 	rw http.ResponseWriter,
-	r *http.Request) bool {
+	r *http.Request) (*schema.User, bool) {
 
 	if user != nil && user.AuthSource == schema.AuthViaLDAP {
-		return true
+		return user, true
 	} else {
 		if la.config != nil && la.config.SyncUserOnLogin {
 			l, err := la.getLdapConnection(true)
 			if err != nil {
 				log.Error("LDAP connection error")
 			}
+			defer l.Close()
 
 			// Search for the given username
 			searchRequest := ldap.NewSearchRequest(
 				la.config.UserBase,
 				ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-				fmt.Sprintf("(%s(uid=%s))", la.config.UserFilter, username),
+				fmt.Sprintf("(&%s(uid=%s))", la.config.UserFilter, username),
 				[]string{"dn", "uid", "gecos"}, nil)
 
 			sr, err := l.Search(searchRequest)
 			if err != nil {
 				log.Warn(err)
-				return false
+				return user, false
 			}
 
 			if len(sr.Entries) != 1 {
 				log.Warn("User does not exist or too many entries returned")
-				return false
+				return user, false
 			}
 
 			entry := sr.Entries[0]
@@ -113,7 +114,7 @@ func (la *LdapAuthenticator) CanLogin(
 
 			if err := repository.GetUserRepository().AddUser(user); err != nil {
 				log.Errorf("User '%s' LDAP: Insert into DB failed", username)
-				return false
+				return nil, false
 			}
 
 			// if _, err := la.auth.db.Exec(`INSERT INTO user (username, ldap, name, roles) VALUES (?, ?, ?, ?)`,
@@ -122,11 +123,11 @@ func (la *LdapAuthenticator) CanLogin(
 			// 	return false
 			// }
 
-			return true
+			return user, true
 		}
 	}
 
-	return false
+	return nil, false
 }
 
 func (la *LdapAuthenticator) Login(
@@ -176,7 +177,7 @@ func (la *LdapAuthenticator) Sync() error {
 	ldapResults, err := l.Search(ldap.NewSearchRequest(
 		la.config.UserBase,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		fmt.Sprintf("(%s(uid=%s))", la.config.UserFilter, "*"),
+		la.config.UserFilter,
 		[]string{"dn", "uid", "gecos"}, nil))
 	if err != nil {
 		log.Warn("LDAP search error")
