@@ -107,10 +107,6 @@
             "description": "Specifies for how long a session shall be valid  as a string parsable by time.ParseDuration(). If 0 or empty, the session/token does not expire!",
             "type": "string"
         },
-        "jwt-max-age": {
-            "description": "Specifies for how long a JWT token shall be valid  as a string parsable by time.ParseDuration(). If 0 or empty, the session/token does not expire!",
-            "type": "string"
-        },
         "https-cert-file": {
             "description": "Filepath to SSL certificate. If also https-key-file is set use HTTPS using those certificates.",
             "type": "string"
@@ -165,6 +161,10 @@
                 },
                 "sync_del_old_users": {
                     "description": "Delete obsolete users in database.",
+                    "type": "boolean"
+                },
+                "syncUserOnLogin": {
+                    "description": "Add non-existent user to DB at login attempt if user exists in Ldap directory",
                     "type": "boolean"
                 }
             },

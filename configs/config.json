@@ -42,9 +42,9 @@
     ],
     "jwts": {
         "cookieName": "",
-        "forceJWTValidationViaDatabase": false,
+        "validateUser": false,
         "max-age": 0,
-        "trustedExternalIssuer": ""
+        "trustedIssuer": ""
     },
     "short-running-jobs-duration": 300
 }
