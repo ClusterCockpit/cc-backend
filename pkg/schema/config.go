@@ -17,22 +17,28 @@ type LdapConfig struct {
 	UserFilter      string `json:"user_filter"`
 	SyncInterval    string `json:"sync_interval"` // Parsed using time.ParseDuration.
 	SyncDelOldUsers bool   `json:"sync_del_old_users"`
+
+	// Should an non-existent user be added to the DB if user exists in ldap directory
+	SyncUserOnLogin bool `json:"syncUserOnLogin"`
 }
 
 type JWTAuthConfig struct {
-	// Specifies for how long a session or JWT shall be valid
+	// Specifies for how long a JWT token shall be valid
 	// as a string parsable by time.ParseDuration().
-	MaxAge int64 `json:"max-age"`
+	MaxAge string `json:"max-age"`
 
 	// Specifies which cookie should be checked for a JWT token (if no authorization header is present)
 	CookieName string `json:"cookieName"`
 
 	// Deny login for users not in database (but defined in JWT).
 	// Ignore user roles defined in JWTs ('roles' claim), get them from db.
-	ForceJWTValidationViaDatabase bool `json:"forceJWTValidationViaDatabase"`
+	ValidateUser bool `json:"validateUser"`
 
 	// Specifies which issuer should be accepted when validating external JWTs ('iss' claim)
-	TrustedExternalIssuer string `json:"trustedExternalIssuer"`
+	TrustedIssuer string `json:"trustedIssuer"`
+
+	// Should an non-existent user be added to the DB based on the information in the token
+	SyncUserOnLogin bool `json:"syncUserOnLogin"`
 }
 
 type IntRange struct {
@@ -69,6 +75,9 @@ type ProgramConfig struct {
 	// Address where the http (or https) server will listen on (for example: 'localhost:80').
 	Addr string `json:"addr"`
 
+	// Addresses from which the /api/secured/* API endpoints can be reached
+	ApiAllowedIPs []string `json:"apiAllowedIPs"`
+
 	// Drop root permissions once .env was read and the port was taken.
 	User  string `json:"user"`
 	Group string `json:"group"`
@@ -102,7 +111,7 @@ type ProgramConfig struct {
 	LdapConfig *LdapConfig    `json:"ldap"`
 	JwtConfig  *JWTAuthConfig `json:"jwts"`
 
-	// If 0 or empty, the session/token does not expire!
+	// If 0 or empty, the session does not expire!
 	SessionMaxAge string `json:"session-max-age"`
 
 	// If both those options are not empty, use HTTPS using those certificates.
@@ -113,7 +122,7 @@ type ProgramConfig struct {
 	// redirect every request incoming at port 80 to that url.
 	RedirectHttpTo string `json:"redirect-http-to"`
 
-	// If overwriten, at least all the options in the defaults below must
+	// If overwritten, at least all the options in the defaults below must
 	// be provided! Most options here can be overwritten by the user.
 	UiDefaults map[string]interface{} `json:"ui-defaults"`
 

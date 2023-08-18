@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
@@ -86,7 +85,7 @@ func (r *JobRepository) buildStatsQuery(
 }
 
 func (r *JobRepository) getUserName(ctx context.Context, id string) string {
-	user := auth.GetUser(ctx)
+	user := GetUserFromContext(ctx)
 	name, _ := r.FindColumnValue(user, id, "user", "name", "username", false)
 	if name != "" {
 		return name

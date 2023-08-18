@@ -7,7 +7,6 @@ package repository
 import (
 	"strings"
 
-	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -68,7 +67,7 @@ func (r *JobRepository) CreateTag(tagType string, tagName string) (tagId int64, 
 	return res.LastInsertId()
 }
 
-func (r *JobRepository) CountTags(user *auth.User) (tags []schema.Tag, counts map[string]int, err error) {
+func (r *JobRepository) CountTags(user *schema.User) (tags []schema.Tag, counts map[string]int, err error) {
 	tags = make([]schema.Tag, 0, 100)
 	xrows, err := r.DB.Queryx("SELECT id, tag_type, tag_name FROM tag")
 	if err != nil {
@@ -88,10 +87,10 @@ func (r *JobRepository) CountTags(user *auth.User) (tags []schema.Tag, counts ma
 		LeftJoin("jobtag jt ON t.id = jt.tag_id").
 		GroupBy("t.tag_name")
 
-	if user != nil && user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport}) { // ADMIN || SUPPORT: Count all jobs
+	if user != nil && user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport}) { // ADMIN || SUPPORT: Count all jobs
 		log.Debug("CountTags: User Admin or Support -> Count all Jobs for Tags")
 		// Unchanged: Needs to be own case still, due to UserRole/NoRole compatibility handling in else case
-	} else if user != nil && user.HasRole(auth.RoleManager) { // MANAGER: Count own jobs plus project's jobs
+	} else if user != nil && user.HasRole(schema.RoleManager) { // MANAGER: Count own jobs plus project's jobs
 		// Build ("project1", "project2", ...) list of variable length directly in SQL string
 		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.user = ? OR job.project IN (\""+strings.Join(user.Projects, "\",\"")+"\"))", user.Username)
 	} else if user != nil { // USER OR NO ROLE (Compatibility): Only count own jobs

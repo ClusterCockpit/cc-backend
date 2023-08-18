@@ -1,11 +1,16 @@
-# `cc-backend` version 1.1.0
+# `cc-backend` version 1.2.0
 
 Supports job archive version 1 and database version 6.
 
 This is a minor release of `cc-backend`, the API backend and frontend
 implementation of ClusterCockpit.
 
-** Breaking changes v1 **
+** Breaking changes **
+
+The LDAP configuration option user_filter was changed and now should not include
+the wildcard. Example:
+* Old: `"user_filter": "(&(objectclass=posixAccount)(uid=*))"`
+* New: `"user_filter": "&(objectclass=posixAccount)"`
 
 The aggregate job statistic core hours is now computed using the job table
 column `num_hwthreads`. In a future release this column will be renamed to
