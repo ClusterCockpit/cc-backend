@@ -43,7 +43,7 @@
     "jwts": {
         "cookieName": "",
         "validateUser": false,
-        "max-age": 0,
+        "max-age": "2m",
         "trustedIssuer": ""
     },
     "short-running-jobs-duration": 300
