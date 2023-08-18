@@ -342,6 +342,7 @@ func main() {
 	// Those should be mounted to this subrouter. If authentication is enabled, a middleware will prevent
 	// any unauthenticated accesses.
 	secured := r.PathPrefix("/").Subrouter()
+
 	if !config.Keys.DisableAuthentication {
 		r.Handle("/login", authentication.Login(
 			// On success:
@@ -359,16 +360,17 @@ func main() {
 				})
 			})).Methods(http.MethodPost)
 
-		r.Handle("/logout", authentication.Logout(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-			rw.Header().Add("Content-Type", "text/html; charset=utf-8")
-			rw.WriteHeader(http.StatusOK)
-			web.RenderTemplate(rw, "login.tmpl", &web.Page{
-				Title:   "Bye - ClusterCockpit",
-				MsgType: "alert-info",
-				Message: "Logout successful",
-				Build:   buildInfo,
-			})
-		}))).Methods(http.MethodPost)
+		r.Handle("/logout", authentication.Logout(
+			http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+				rw.Header().Add("Content-Type", "text/html; charset=utf-8")
+				rw.WriteHeader(http.StatusOK)
+				web.RenderTemplate(rw, "login.tmpl", &web.Page{
+					Title:   "Bye - ClusterCockpit",
+					MsgType: "alert-info",
+					Message: "Logout successful",
+					Build:   buildInfo,
+				})
+			}))).Methods(http.MethodPost)
 
 		secured.Use(func(next http.Handler) http.Handler {
 			return authentication.Auth(

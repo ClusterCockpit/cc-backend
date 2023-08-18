@@ -168,6 +168,8 @@ func (auth *Authentication) Login(
 			var user *schema.User
 			if user, ok = authenticator.CanLogin(dbUser, username, rw, r); !ok {
 				continue
+			} else {
+				log.Debugf("Can login with user %v", user)
 			}
 
 			user, err := authenticator.Login(user, rw, r)
