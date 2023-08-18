@@ -42,6 +42,9 @@ func setup(t *testing.T) *repository.JobRepository {
 		"kind": "file",
 		"path": "./var/job-archive"
 	},
+    "jwts": {
+        "max-age": "2m"
+    },
 	"clusters": [
 	{
 	   "name": "testcluster",

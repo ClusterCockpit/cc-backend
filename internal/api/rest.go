@@ -1,4 +1,4 @@
-// Copyright (C) 2022 NHR@FAU, University Erlangen-Nuremberg.
+// Copyright (C) 2023 NHR@FAU, University Erlangen-Nuremberg.
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
@@ -20,11 +20,13 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -75,6 +77,13 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 	r.HandleFunc("/jobs/delete_job/", api.deleteJobByRequest).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job/{id}", api.deleteJobById).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job_before/{ts}", api.deleteJobBefore).Methods(http.MethodDelete)
+	// r.HandleFunc("/secured/addProject/{id}/{project}", api.secureUpdateUser).Methods(http.MethodPost)
+	// r.HandleFunc("/secured/addRole/{id}/{role}", api.secureUpdateUser).Methods(http.MethodPost)
+
+	if api.MachineStateDir != "" {
+		r.HandleFunc("/machine_state/{cluster}/{host}", api.getMachineState).Methods(http.MethodGet)
+		r.HandleFunc("/machine_state/{cluster}/{host}", api.putMachineState).Methods(http.MethodPut, http.MethodPost)
+	}
 
 	if api.Authentication != nil {
 		r.HandleFunc("/jwt/", api.getJWT).Methods(http.MethodGet)
@@ -84,11 +93,6 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 		r.HandleFunc("/users/", api.deleteUser).Methods(http.MethodDelete)
 		r.HandleFunc("/user/{id}", api.updateUser).Methods(http.MethodPost)
 		r.HandleFunc("/configuration/", api.updateConfiguration).Methods(http.MethodPost)
-	}
-
-	if api.MachineStateDir != "" {
-		r.HandleFunc("/machine_state/{cluster}/{host}", api.getMachineState).Methods(http.MethodGet)
-		r.HandleFunc("/machine_state/{cluster}/{host}", api.putMachineState).Methods(http.MethodPut, http.MethodPost)
 	}
 }
 
@@ -100,6 +104,11 @@ type StartJobApiResponse struct {
 
 // DeleteJobApiResponse model
 type DeleteJobApiResponse struct {
+	Message string `json:"msg"`
+}
+
+// UpdateUserApiResponse model
+type UpdateUserApiResponse struct {
 	Message string `json:"msg"`
 }
 
@@ -172,6 +181,36 @@ func decode(r io.Reader, val interface{}) error {
 	return dec.Decode(val)
 }
 
+func securedCheck(r *http.Request) error {
+	user := repository.GetUserFromContext(r.Context())
+	if user == nil {
+		return fmt.Errorf("no user in context")
+	}
+
+	if user.AuthType == schema.AuthToken {
+		// If nothing declared in config: deny all request to this endpoint
+		if config.Keys.ApiAllowedIPs == nil || len(config.Keys.ApiAllowedIPs) == 0 {
+			return fmt.Errorf("missing configuration key ApiAllowedIPs")
+		}
+
+		// extract IP address
+		IPAddress := r.Header.Get("X-Real-Ip")
+		if IPAddress == "" {
+			IPAddress = r.Header.Get("X-Forwarded-For")
+		}
+		if IPAddress == "" {
+			IPAddress = r.RemoteAddr
+		}
+
+		// check if IP is allowed
+		if !util.Contains(config.Keys.ApiAllowedIPs, IPAddress) {
+			return fmt.Errorf("unknown ip: %v", IPAddress)
+		}
+	}
+
+	return nil
+}
+
 // getJobs godoc
 // @summary     Lists all jobs
 // @tags query
@@ -193,8 +232,10 @@ func decode(r io.Reader, val interface{}) error {
 // @router      /jobs/ [get]
 func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 
-	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
+	if user := repository.GetUserFromContext(r.Context()); user != nil &&
+		!user.HasRole(schema.RoleApi) {
+
+		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -335,9 +376,11 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /jobs/{id} [post]
 func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
-	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
+	if user := repository.GetUserFromContext(r.Context()); user != nil &&
+		!user.HasRole(schema.RoleApi) {
+
 		handleError(fmt.Errorf("missing role: %v",
-			auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
+			schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -426,8 +469,10 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /jobs/tag_job/{id} [post]
 func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
-	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
+	if user := repository.GetUserFromContext(r.Context()); user != nil &&
+		!user.HasRole(schema.RoleApi) {
+
+		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -491,8 +536,10 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /jobs/start_job/ [post]
 func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
-	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
+	if user := repository.GetUserFromContext(r.Context()); user != nil &&
+		!user.HasRole(schema.RoleApi) {
+
+		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -572,8 +619,10 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /jobs/stop_job/{id} [post]
 func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
-	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
+	if user := repository.GetUserFromContext(r.Context()); user != nil &&
+		!user.HasRole(schema.RoleApi) {
+
+		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -625,8 +674,10 @@ func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /jobs/stop_job/ [post]
 func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
-	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
+	if user := repository.GetUserFromContext(r.Context()); user != nil &&
+		!user.HasRole(schema.RoleApi) {
+
+		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -671,8 +722,8 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /jobs/delete_job/{id} [delete]
 func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
-	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
+	if user := repository.GetUserFromContext(r.Context()); user != nil && !user.HasRole(schema.RoleApi) {
+		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -719,8 +770,9 @@ func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /jobs/delete_job/ [delete]
 func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) {
-	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
+	if user := repository.GetUserFromContext(r.Context()); user != nil &&
+		!user.HasRole(schema.RoleApi) {
+		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -775,8 +827,8 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 // @security    ApiKeyAuth
 // @router      /jobs/delete_job_before/{ts} [delete]
 func (api *RestApi) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
-	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
+	if user := repository.GetUserFromContext(r.Context()); user != nil && !user.HasRole(schema.RoleApi) {
+		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
 		return
 	}
 
@@ -892,10 +944,15 @@ func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (api *RestApi) getJWT(rw http.ResponseWriter, r *http.Request) {
+	err := securedCheck(r)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusForbidden)
+	}
+
 	rw.Header().Set("Content-Type", "text/plain")
 	username := r.FormValue("username")
-	me := auth.GetUser(r.Context())
-	if !me.HasRole(auth.RoleAdmin) {
+	me := repository.GetUserFromContext(r.Context())
+	if !me.HasRole(schema.RoleAdmin) {
 		if username != me.Username {
 			http.Error(rw, "Only admins are allowed to sign JWTs not for themselves",
 				http.StatusForbidden)
@@ -903,7 +960,7 @@ func (api *RestApi) getJWT(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	user, err := api.Authentication.GetUser(username)
+	user, err := repository.GetUserRepository().GetUser(username)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 		return
@@ -920,28 +977,38 @@ func (api *RestApi) getJWT(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
+	err := securedCheck(r)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusForbidden)
+	}
+
 	rw.Header().Set("Content-Type", "text/plain")
-	me := auth.GetUser(r.Context())
-	if !me.HasRole(auth.RoleAdmin) {
+	me := repository.GetUserFromContext(r.Context())
+	if !me.HasRole(schema.RoleAdmin) {
 		http.Error(rw, "Only admins are allowed to create new users", http.StatusForbidden)
 		return
 	}
 
-	username, password, role, name, email, project := r.FormValue("username"), r.FormValue("password"), r.FormValue("role"), r.FormValue("name"), r.FormValue("email"), r.FormValue("project")
-	if len(password) == 0 && role != auth.GetRoleString(auth.RoleApi) {
+	username, password, role, name, email, project := r.FormValue("username"),
+		r.FormValue("password"), r.FormValue("role"), r.FormValue("name"),
+		r.FormValue("email"), r.FormValue("project")
+
+	if len(password) == 0 && role != schema.GetRoleString(schema.RoleApi) {
 		http.Error(rw, "Only API users are allowed to have a blank password (login will be impossible)", http.StatusBadRequest)
 		return
 	}
 
-	if len(project) != 0 && role != auth.GetRoleString(auth.RoleManager) {
-		http.Error(rw, "only managers require a project (can be changed later)", http.StatusBadRequest)
+	if len(project) != 0 && role != schema.GetRoleString(schema.RoleManager) {
+		http.Error(rw, "only managers require a project (can be changed later)",
+			http.StatusBadRequest)
 		return
-	} else if len(project) == 0 && role == auth.GetRoleString(auth.RoleManager) {
-		http.Error(rw, "managers require a project to manage (can be changed later)", http.StatusBadRequest)
+	} else if len(project) == 0 && role == schema.GetRoleString(schema.RoleManager) {
+		http.Error(rw, "managers require a project to manage (can be changed later)",
+			http.StatusBadRequest)
 		return
 	}
 
-	if err := api.Authentication.AddUser(&auth.User{
+	if err := repository.GetUserRepository().AddUser(&schema.User{
 		Username: username,
 		Name:     name,
 		Password: password,
@@ -956,13 +1023,18 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
-	if user := auth.GetUser(r.Context()); !user.HasRole(auth.RoleAdmin) {
+	err := securedCheck(r)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusForbidden)
+	}
+
+	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
 		http.Error(rw, "Only admins are allowed to delete a user", http.StatusForbidden)
 		return
 	}
 
 	username := r.FormValue("username")
-	if err := api.Authentication.DelUser(username); err != nil {
+	if err := repository.GetUserRepository().DelUser(username); err != nil {
 		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
@@ -971,12 +1043,17 @@ func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
-	if user := auth.GetUser(r.Context()); !user.HasRole(auth.RoleAdmin) {
+	err := securedCheck(r)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusForbidden)
+	}
+
+	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
 		http.Error(rw, "Only admins are allowed to fetch a list of users", http.StatusForbidden)
 		return
 	}
 
-	users, err := api.Authentication.ListUsers(r.URL.Query().Get("not-just-user") == "true")
+	users, err := repository.GetUserRepository().ListUsers(r.URL.Query().Get("not-just-user") == "true")
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
@@ -986,13 +1063,18 @@ func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (api *RestApi) getRoles(rw http.ResponseWriter, r *http.Request) {
-	user := auth.GetUser(r.Context())
-	if !user.HasRole(auth.RoleAdmin) {
+	err := securedCheck(r)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusForbidden)
+	}
+
+	user := repository.GetUserFromContext(r.Context())
+	if !user.HasRole(schema.RoleAdmin) {
 		http.Error(rw, "only admins are allowed to fetch a list of roles", http.StatusForbidden)
 		return
 	}
 
-	roles, err := auth.GetValidRoles(user)
+	roles, err := schema.GetValidRoles(user)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
@@ -1002,7 +1084,12 @@ func (api *RestApi) getRoles(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
-	if user := auth.GetUser(r.Context()); !user.HasRole(auth.RoleAdmin) {
+	err := securedCheck(r)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusForbidden)
+	}
+
+	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
 		http.Error(rw, "Only admins are allowed to update a user", http.StatusForbidden)
 		return
 	}
@@ -1015,25 +1102,25 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 
 	// TODO: Handle anything but roles...
 	if newrole != "" {
-		if err := api.Authentication.AddRole(r.Context(), mux.Vars(r)["id"], newrole); err != nil {
+		if err := repository.GetUserRepository().AddRole(r.Context(), mux.Vars(r)["id"], newrole); err != nil {
 			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 			return
 		}
 		rw.Write([]byte("Add Role Success"))
 	} else if delrole != "" {
-		if err := api.Authentication.RemoveRole(r.Context(), mux.Vars(r)["id"], delrole); err != nil {
+		if err := repository.GetUserRepository().RemoveRole(r.Context(), mux.Vars(r)["id"], delrole); err != nil {
 			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 			return
 		}
 		rw.Write([]byte("Remove Role Success"))
 	} else if newproj != "" {
-		if err := api.Authentication.AddProject(r.Context(), mux.Vars(r)["id"], newproj); err != nil {
+		if err := repository.GetUserRepository().AddProject(r.Context(), mux.Vars(r)["id"], newproj); err != nil {
 			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 			return
 		}
 		rw.Write([]byte("Add Project Success"))
 	} else if delproj != "" {
-		if err := api.Authentication.RemoveProject(r.Context(), mux.Vars(r)["id"], delproj); err != nil {
+		if err := repository.GetUserRepository().RemoveProject(r.Context(), mux.Vars(r)["id"], delproj); err != nil {
 			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 			return
 		}
@@ -1043,13 +1130,78 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// func (api *RestApi) secureUpdateUser(rw http.ResponseWriter, r *http.Request) {
+// 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
+// 		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
+// 		return
+// 	}
+//
+// 	// IP CHECK HERE (WIP)
+// 	// Probably better as private routine
+// 	IPAddress := r.Header.Get("X-Real-Ip")
+// 	if IPAddress == "" {
+// 		IPAddress = r.Header.Get("X-Forwarded-For")
+// 	}
+// 	if IPAddress == "" {
+// 		IPAddress = r.RemoteAddr
+// 	}
+//
+// 	// Also This
+// 	ipOk := false
+// 	for _, a := range config.Keys.ApiAllowedAddrs {
+// 		if a == IPAddress {
+// 			ipOk = true
+// 		}
+// 	}
+//
+// 	if IPAddress == "" || ipOk == false {
+// 		handleError(fmt.Errorf("unknown ip: %v", IPAddress), http.StatusForbidden, rw)
+// 		return
+// 	}
+// 	// IP CHECK END
+//
+// 	// Get Values
+// 	id := mux.Vars(r)["id"]
+// 	newproj := mux.Vars(r)["project"]
+// 	newrole := mux.Vars(r)["role"]
+//
+// 	// TODO: Handle anything but roles...
+// 	if newrole != "" {
+// 		if err := api.Authentication.AddRole(r.Context(), id, newrole); err != nil {
+// 			handleError(errors.New(err.Error()), http.StatusUnprocessableEntity, rw)
+// 			return
+// 		}
+//
+// 		rw.Header().Add("Content-Type", "application/json")
+// 		rw.WriteHeader(http.StatusOK)
+// 		json.NewEncoder(rw).Encode(UpdateUserApiResponse{
+// 			Message: fmt.Sprintf("Successfully added role %s to %s", newrole, id),
+// 		})
+//
+// 	} else if newproj != "" {
+// 		if err := api.Authentication.AddProject(r.Context(), id, newproj); err != nil {
+// 			handleError(errors.New(err.Error()), http.StatusUnprocessableEntity, rw)
+// 			return
+// 		}
+//
+// 		rw.Header().Add("Content-Type", "application/json")
+// 		rw.WriteHeader(http.StatusOK)
+// 		json.NewEncoder(rw).Encode(UpdateUserApiResponse{
+// 			Message: fmt.Sprintf("Successfully added project %s to %s", newproj, id),
+// 		})
+//
+// 	} else {
+// 		handleError(errors.New("Not Add [role|project]?"), http.StatusBadRequest, rw)
+// 	}
+// }
+
 func (api *RestApi) updateConfiguration(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "text/plain")
 	key, value := r.FormValue("key"), r.FormValue("value")
 
 	fmt.Printf("REST > KEY: %#v\nVALUE: %#v\n", key, value)
 
-	if err := repository.GetUserCfgRepo().UpdateConfig(key, value, auth.GetUser(r.Context())); err != nil {
+	if err := repository.GetUserCfgRepo().UpdateConfig(key, value, repository.GetUserFromContext(r.Context())); err != nil {
 		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}

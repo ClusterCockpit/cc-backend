@@ -1,4 +1,4 @@
-// Copyright (C) 2022 NHR@FAU, University Erlangen-Nuremberg.
+// Copyright (C) 2023 NHR@FAU, University Erlangen-Nuremberg.
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
@@ -12,35 +12,30 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/go-ldap/ldap/v3"
 )
 
 type LdapAuthenticator struct {
-	auth         *Authentication
-	config       *schema.LdapConfig
 	syncPassword string
 }
 
 var _ Authenticator = (*LdapAuthenticator)(nil)
 
-func (la *LdapAuthenticator) Init(
-	auth *Authentication,
-	conf interface{}) error {
-
-	la.auth = auth
-	la.config = conf.(*schema.LdapConfig)
-
+func (la *LdapAuthenticator) Init() error {
 	la.syncPassword = os.Getenv("LDAP_ADMIN_PASSWORD")
 	if la.syncPassword == "" {
 		log.Warn("environment variable 'LDAP_ADMIN_PASSWORD' not set (ldap sync will not work)")
 	}
 
-	if la.config != nil && la.config.SyncInterval != "" {
-		interval, err := time.ParseDuration(la.config.SyncInterval)
+	if config.Keys.LdapConfig.SyncInterval != "" {
+		interval, err := time.ParseDuration(config.Keys.LdapConfig.SyncInterval)
 		if err != nil {
-			log.Warnf("Could not parse duration for sync interval: %v", la.config.SyncInterval)
+			log.Warnf("Could not parse duration for sync interval: %v",
+				config.Keys.LdapConfig.SyncInterval)
 			return err
 		}
 
@@ -59,23 +54,82 @@ func (la *LdapAuthenticator) Init(
 				log.Print("sync done")
 			}
 		}()
+	} else {
+		log.Info("LDAP configuration key sync_interval invalid")
 	}
 
 	return nil
 }
 
 func (la *LdapAuthenticator) CanLogin(
-	user *User,
+	user *schema.User,
+	username string,
 	rw http.ResponseWriter,
-	r *http.Request) bool {
+	r *http.Request) (*schema.User, bool) {
 
-	return user != nil && user.AuthSource == AuthViaLDAP
+	lc := config.Keys.LdapConfig
+
+	if user != nil {
+		if user.AuthSource == schema.AuthViaLDAP {
+			return user, true
+		}
+	} else {
+		if lc.SyncUserOnLogin {
+			l, err := la.getLdapConnection(true)
+			if err != nil {
+				log.Error("LDAP connection error")
+			}
+			defer l.Close()
+
+			// Search for the given username
+			searchRequest := ldap.NewSearchRequest(
+				lc.UserBase,
+				ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+				fmt.Sprintf("(&%s(uid=%s))", lc.UserFilter, username),
+				[]string{"dn", "uid", "gecos"}, nil)
+
+			sr, err := l.Search(searchRequest)
+			if err != nil {
+				log.Warn(err)
+				return nil, false
+			}
+
+			if len(sr.Entries) != 1 {
+				log.Warn("LDAP: User does not exist or too many entries returned")
+				return nil, false
+			}
+
+			entry := sr.Entries[0]
+			name := entry.GetAttributeValue("gecos")
+			var roles []string
+			roles = append(roles, schema.GetRoleString(schema.RoleUser))
+			projects := make([]string, 0)
+
+			user = &schema.User{
+				Username:   username,
+				Name:       name,
+				Roles:      roles,
+				Projects:   projects,
+				AuthType:   schema.AuthSession,
+				AuthSource: schema.AuthViaLDAP,
+			}
+
+			if err := repository.GetUserRepository().AddUser(user); err != nil {
+				log.Errorf("User '%s' LDAP: Insert into DB failed", username)
+				return nil, false
+			}
+
+			return user, true
+		}
+	}
+
+	return nil, false
 }
 
 func (la *LdapAuthenticator) Login(
-	user *User,
+	user *schema.User,
 	rw http.ResponseWriter,
-	r *http.Request) (*User, error) {
+	r *http.Request) (*schema.User, error) {
 
 	l, err := la.getLdapConnection(false)
 	if err != nil {
@@ -84,42 +138,30 @@ func (la *LdapAuthenticator) Login(
 	}
 	defer l.Close()
 
-	userDn := strings.Replace(la.config.UserBind, "{username}", user.Username, -1)
+	userDn := strings.Replace(config.Keys.LdapConfig.UserBind, "{username}", user.Username, -1)
 	if err := l.Bind(userDn, r.FormValue("password")); err != nil {
-		log.Errorf("AUTH/LOCAL > Authentication for user %s failed: %v", user.Username, err)
-		return nil, fmt.Errorf("AUTH/LDAP > Authentication failed")
+		log.Errorf("AUTH/LDAP > Authentication for user %s failed: %v",
+			user.Username, err)
+		return nil, fmt.Errorf("Authentication failed")
 	}
 
 	return user, nil
 }
 
-func (la *LdapAuthenticator) Auth(
-	rw http.ResponseWriter,
-	r *http.Request) (*User, error) {
-
-	return la.auth.AuthViaSession(rw, r)
-}
-
 func (la *LdapAuthenticator) Sync() error {
-
 	const IN_DB int = 1
 	const IN_LDAP int = 2
 	const IN_BOTH int = 3
+	ur := repository.GetUserRepository()
+	lc := config.Keys.LdapConfig
 
 	users := map[string]int{}
-	rows, err := la.auth.db.Query(`SELECT username FROM user WHERE user.ldap = 1`)
+	usernames, err := ur.GetLdapUsernames()
 	if err != nil {
-		log.Warn("Error while querying LDAP users")
 		return err
 	}
 
-	for rows.Next() {
-		var username string
-		if err := rows.Scan(&username); err != nil {
-			log.Warnf("Error while scanning for user '%s'", username)
-			return err
-		}
-
+	for _, username := range usernames {
 		users[username] = IN_DB
 	}
 
@@ -131,8 +173,10 @@ func (la *LdapAuthenticator) Sync() error {
 	defer l.Close()
 
 	ldapResults, err := l.Search(ldap.NewSearchRequest(
-		la.config.UserBase, ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		la.config.UserFilter, []string{"dn", "uid", "gecos"}, nil))
+		lc.UserBase,
+		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+		lc.UserFilter,
+		[]string{"dn", "uid", "gecos"}, nil))
 	if err != nil {
 		log.Warn("LDAP search error")
 		return err
@@ -155,18 +199,27 @@ func (la *LdapAuthenticator) Sync() error {
 	}
 
 	for username, where := range users {
-		if where == IN_DB && la.config.SyncDelOldUsers {
+		if where == IN_DB && lc.SyncDelOldUsers {
+			ur.DelUser(username)
 			log.Debugf("sync: remove %v (does not show up in LDAP anymore)", username)
-			if _, err := la.auth.db.Exec(`DELETE FROM user WHERE user.username = ?`, username); err != nil {
-				log.Errorf("User '%s' not in LDAP anymore: Delete from DB failed", username)
-				return err
-			}
 		} else if where == IN_LDAP {
 			name := newnames[username]
+
+			var roles []string
+			roles = append(roles, schema.GetRoleString(schema.RoleUser))
+			projects := make([]string, 0)
+
+			user := &schema.User{
+				Username:   username,
+				Name:       name,
+				Roles:      roles,
+				Projects:   projects,
+				AuthSource: schema.AuthViaLDAP,
+			}
+
 			log.Debugf("sync: add %v (name: %v, roles: [user], ldap: true)", username, name)
-			if _, err := la.auth.db.Exec(`INSERT INTO user (username, ldap, name, roles) VALUES (?, ?, ?, ?)`,
-				username, 1, name, "[\""+GetRoleString(RoleUser)+"\"]"); err != nil {
-				log.Errorf("User '%s' new in LDAP: Insert into DB failed", username)
+			if err := ur.AddUser(user); err != nil {
+				log.Errorf("User '%s' LDAP: Insert into DB failed", username)
 				return err
 			}
 		}
@@ -179,14 +232,15 @@ func (la *LdapAuthenticator) Sync() error {
 // that so that connections can be reused/cached.
 func (la *LdapAuthenticator) getLdapConnection(admin bool) (*ldap.Conn, error) {
 
-	conn, err := ldap.DialURL(la.config.Url)
+	lc := config.Keys.LdapConfig
+	conn, err := ldap.DialURL(lc.Url)
 	if err != nil {
 		log.Warn("LDAP URL dial failed")
 		return nil, err
 	}
 
 	if admin {
-		if err := conn.Bind(la.config.SearchDN, la.syncPassword); err != nil {
+		if err := conn.Bind(lc.SearchDN, la.syncPassword); err != nil {
 			conn.Close()
 			log.Warn("LDAP connection bind failed")
 			return nil, err

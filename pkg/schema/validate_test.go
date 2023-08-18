@@ -11,6 +11,9 @@ import (
 
 func TestValidateConfig(t *testing.T) {
 	json := []byte(`{
+    "jwts": {
+        "max-age": "2m"
+    },
 	"clusters": [
 	{
 	   "name": "testcluster",
@@ -21,9 +24,7 @@ func TestValidateConfig(t *testing.T) {
 		"numNodes": { "from": 1, "to": 64 },
 		"duration": { "from": 0, "to": 86400 },
 		"startTime": { "from": "2022-01-01T00:00:00Z", "to": null }
-	}
-	}
-	]
+	}}]
 }`)
 
 	if err := Validate(Config, bytes.NewReader(json)); err != nil {

@@ -1,13 +1,15 @@
 # Overview
 
-The implementation of authentication is not easy to understand by just looking
-at the code. The authentication is implemented in `internal/auth/`. In `auth.go`
+The authentication is implemented in `internal/auth/`. In `auth.go`
 an interface is defined that any authentication provider must fulfill. It also
 acts as a dispatcher to delegate the calls to the available authentication
 providers.
 
-The most important routine are:
-* `CanLogin()` Check if the authentication method is supported for login attempt
+Two authentication types are available:
+* JWT authentication for the REST API that does not create a session cookie
+* Session based authentication using a session cookie
+
+The most important routines in auth are:
 * `Login()` Handle POST request to login user and start a new session
 * `Auth()`  Authenticate user and put User Object in context of the request
 
@@ -30,10 +32,9 @@ secured.Use(func(next http.Handler) http.Handler {
 })
 ```
 
-For non API routes a JWT token can be used to initiate an authenticated user
+A JWT token can be used to initiate an authenticated user
 session. This can either happen by calling the login route with a token
-provided in a header or query URL or via the `Auth()` method on first access
-to a secured URL via a special cookie containing the JWT token.
+provided in a header or via a special cookie containing the JWT token.
 For API routes the access is authenticated on every request using the JWT token
 and no session is initiated.
 
@@ -43,12 +44,13 @@ The Login function (located in `auth.go`):
 * Extracts the user name and gets the user from the user database table. In case the
   user is not found the user object is set to nil.
 * Iterates over all authenticators and:
-  - Calls the `CanLogin` function which checks if the authentication method is
-    supported for this user and the user object is valid.
-  - Calls the `Login` function to authenticate the user. On success a valid user
+  - Calls its `CanLogin` function which checks if the authentication method is
+    supported for this user.
+  - Calls its `Login` function to authenticate the user. On success a valid user
     object is returned.
   - Creates a new session object, stores the user attributes in the session and
     saves the session.
+  - If the user does not yet exist in the database try to add the user
   - Starts the `onSuccess` http handler
 
 ## Local authenticator
@@ -63,7 +65,7 @@ the user database table:
 ```
 if e := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(r.FormValue("password"))); e != nil {
 	log.Errorf("AUTH/LOCAL > Authentication for user %s failed!", user.Username)
-	return nil, fmt.Errorf("AUTH/LOCAL > Authentication failed")
+	return nil, fmt.Errorf("Authentication failed")
 }
 ```
 
@@ -77,22 +79,18 @@ return user != nil && user.AuthSource == AuthViaLDAP
 Gets the LDAP connection and tries a bind with the provided credentials:
 ```
 if err := l.Bind(userDn, r.FormValue("password")); err != nil {
-	log.Errorf("AUTH/LOCAL > Authentication for user %s failed: %v", user.Username, err)
-	return nil, fmt.Errorf("AUTH/LDAP > Authentication failed")
+	log.Errorf("AUTH/LDAP > Authentication for user %s failed: %v", user.Username, err)
+	return nil, fmt.Errorf("Authentication failed")
 }
 ```
 
-## JWT authenticator
+## JWT Session authenticator
 
 Login via JWT token will create a session without password.
-For login the `X-Auth-Token` header is not supported.
-This authenticator is applied if either user is not nil and auth source is
-`AuthViaToken` or the Authorization header is present or the URL query key
-login-token is present:
+For login the `X-Auth-Token` header is not supported. This authenticator is
+applied if the Authorization header is present:
 ```
-return (user != nil && user.AuthSource == AuthViaToken) ||
-        r.Header.Get("Authorization") != "" ||
-        r.URL.Query().Get("login-token") != ""
+	return r.Header.Get("Authorization") != ""
 ```
 
 The Login function:
@@ -108,41 +106,26 @@ The Login function:
    - In case user is not yet present add user to user database table with `AuthViaToken` AuthSource.
 * Return valid user object
 
-# Auth
+## JWT Cookie Session authenticator
 
-The Auth function (located in `auth.go`):
-* Returns a new http handler function that is defined right away
-* This handler iterates over all authenticators
-* Calls `Auth()` on every authenticator
-* If err is not nil and the user object is valid it puts the user object in the
-  request context and starts the onSuccess http handler
-* Otherwise it calls the onFailure handler
+Login via JWT cookie token will create a session without password.
+It is first checked if the required configuration keys are set:
+* `publicKeyCrossLogin`
+* `TrustedExternalIssuer`
+* `CookieName`
 
-## Local
+ This authenticator is applied if the configured cookie is present:
+```
+	jwtCookie, err := r.Cookie(cookieName)
 
-Calls the `AuthViaSession()` function in `auth.go`. This will extract username,
-projects and roles from the session and initialize a user object with those
-values.
+	if err == nil && jwtCookie.Value != "" {
+		return true
+	}
+```
 
-## LDAP
-
-Calls the `AuthViaSession()` function in `auth.go`. This will extract username,
-projects and roles from the session and initialize a user object with those
-values.
-
-# JWT
-
-Check for JWT token:
-* Is token passed in the `X-Auth-Token` or `Authorization` header
-* If no token is found in a header it tries to read the token from a configured
-cookie.
-
-Finally it calls AuthViaSession in `auth.go` if a valid session exists. This is
-true if a JWT token was previously used to initiate a session. In this case the
-user object initialized with the session is returned right away.
-
-In case a token was found extract and parse the token:
-* Check if signing method is Ed25519/EdDSA 
+The Login function:
+* Extracts and parses the token
+* Checks if signing method is Ed25519/EdDSA 
 * In case publicKeyCrossLogin is configured:
    - Check if `iss` issuer claim matched trusted issuer from configuration
    - Return public cross login key
@@ -150,7 +133,34 @@ In case a token was found extract and parse the token:
 * Check if claims are valid
 * Depending on the option `ForceJWTValidationViaDatabase ` the roles are
   extracted from JWT token or taken from user object fetched from database
-* In case the token was extracted from cookie create a new session and ask the
-  browser to delete the JWT cookie
+* Ask browser to delete the JWT cookie
 * Return valid user object
 
+# Auth
+
+The Auth function (located in `auth.go`):
+* Returns a new http handler function that is defined right away
+* This handler tries two methods to authenticate a user:
+   - Via a JWT API token in `AuthViaJWT()`
+   - Via a valid session in `AuthViaSession()`
+* If err is not nil and the user object is valid it puts the user object in the
+  request context and starts the onSuccess http handler
+* Otherwise it calls the onFailure handler
+
+## AuthViaJWT
+
+Implemented in JWTAuthenticator:
+* Extract token either from header `X-Auth-Token` or `Authorization` with Bearer
+  prefix
+* Parse token and check if it is valid. The Parse routine will also check if the
+  token is expired.
+* If the option `ForceJWTValidationViaDatabase` is set it will ensure the
+  user object exists in the database and takes the roles from the database user
+* Otherwise the roles are extracted from the roles claim
+* Returns a valid user object with AuthType set to AuthToken
+
+## AuthViaSession
+
+* Extracts session
+* Get values username, projects, and roles from session
+* Returns a valid user object with AuthType set to AuthSession
