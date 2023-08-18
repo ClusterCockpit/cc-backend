@@ -122,14 +122,14 @@ func Init() (*Authentication, error) {
 
 		jwtSessionAuth := &JWTSessionAuthenticator{}
 		if err := jwtSessionAuth.Init(); err != nil {
-            log.Info("jwtSessionAuth init failed: No JWT login support!")
+			log.Info("jwtSessionAuth init failed: No JWT login support!")
 		} else {
 			auth.authenticators = append(auth.authenticators, jwtSessionAuth)
 		}
 
 		jwtCookieSessionAuth := &JWTCookieSessionAuthenticator{}
 		if err := jwtCookieSessionAuth.Init(); err != nil {
-            log.Info("jwtCookieSessionAuth init failed: No JWT cookie login support!")
+			log.Info("jwtCookieSessionAuth init failed: No JWT cookie login support!")
 		} else {
 			auth.authenticators = append(auth.authenticators, jwtCookieSessionAuth)
 		}
@@ -152,11 +152,11 @@ func (auth *Authentication) Login(
 	onfailure func(rw http.ResponseWriter, r *http.Request, loginErr error)) http.Handler {
 
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		err := errors.New("no authenticator applied")
 		username := r.FormValue("username")
 		var dbUser *schema.User
 
 		if username != "" {
+			var err error
 			dbUser, err = repository.GetUserRepository().GetUser(username)
 			if err != nil && err != sql.ErrNoRows {
 				log.Errorf("Error while loading user '%v'", username)
@@ -170,7 +170,7 @@ func (auth *Authentication) Login(
 				continue
 			}
 
-			user, err = authenticator.Login(user, rw, r)
+			user, err := authenticator.Login(user, rw, r)
 			if err != nil {
 				log.Warnf("user login failed: %s", err.Error())
 				onfailure(rw, r, err)
@@ -203,7 +203,7 @@ func (auth *Authentication) Login(
 		}
 
 		log.Debugf("login failed: no authenticator applied")
-		onfailure(rw, r, err)
+		onfailure(rw, r, errors.New("no authenticator applied"))
 	})
 }
 
