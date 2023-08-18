@@ -140,9 +140,9 @@ func (la *LdapAuthenticator) Login(
 
 	userDn := strings.Replace(la.config.UserBind, "{username}", user.Username, -1)
 	if err := l.Bind(userDn, r.FormValue("password")); err != nil {
-		log.Errorf("AUTH/LOCAL > Authentication for user %s failed: %v",
+		log.Errorf("AUTH/LDAP > Authentication for user %s failed: %v",
 			user.Username, err)
-		return nil, fmt.Errorf("AUTH/LDAP > Authentication failed")
+		return nil, fmt.Errorf("Authentication failed")
 	}
 
 	return user, nil

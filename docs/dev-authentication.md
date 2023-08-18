@@ -65,7 +65,7 @@ the user database table:
 ```
 if e := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(r.FormValue("password"))); e != nil {
 	log.Errorf("AUTH/LOCAL > Authentication for user %s failed!", user.Username)
-	return nil, fmt.Errorf("AUTH/LOCAL > Authentication failed")
+	return nil, fmt.Errorf("Authentication failed")
 }
 ```
 
@@ -79,8 +79,8 @@ return user != nil && user.AuthSource == AuthViaLDAP
 Gets the LDAP connection and tries a bind with the provided credentials:
 ```
 if err := l.Bind(userDn, r.FormValue("password")); err != nil {
-	log.Errorf("AUTH/LOCAL > Authentication for user %s failed: %v", user.Username, err)
-	return nil, fmt.Errorf("AUTH/LDAP > Authentication failed")
+	log.Errorf("AUTH/LDAP > Authentication for user %s failed: %v", user.Username, err)
+	return nil, fmt.Errorf("Authentication failed")
 }
 ```
 

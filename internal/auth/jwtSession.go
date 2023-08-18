@@ -66,7 +66,7 @@ func (ja *JWTSessionAuthenticator) Login(
 		if t.Method == jwt.SigningMethodHS256 || t.Method == jwt.SigningMethodHS512 {
 			return ja.loginTokenKey, nil
 		}
-		return nil, fmt.Errorf("AUTH/JWT > unkown signing method for login token: %s (known: HS256, HS512, EdDSA)", t.Method.Alg())
+		return nil, fmt.Errorf("unkown signing method for login token: %s (known: HS256, HS512, EdDSA)", t.Method.Alg())
 	})
 	if err != nil {
 		log.Warn("Error while parsing jwt token")
