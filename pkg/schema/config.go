@@ -25,7 +25,7 @@ type LdapConfig struct {
 type JWTAuthConfig struct {
 	// Specifies for how long a JWT token shall be valid
 	// as a string parsable by time.ParseDuration().
-	MaxAge int64 `json:"max-age"`
+	MaxAge string `json:"max-age"`
 
 	// Specifies which cookie should be checked for a JWT token (if no authorization header is present)
 	CookieName string `json:"cookieName"`
