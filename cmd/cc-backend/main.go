@@ -109,6 +109,13 @@ var (
 	version string
 )
 
+// ErrorResponse model
+type ErrorResponse struct {
+	// Statustext of Errorcode
+	Status string `json:"status"`
+	Error  string `json:"error"` // Error Message
+}
+
 func initEnv() {
 	if util.CheckFileExists("var") {
 		fmt.Print("Directory ./var already exists. Exiting!\n")
@@ -338,9 +345,6 @@ func main() {
 		web.RenderTemplate(rw, "privacy.tmpl", &web.Page{Title: "Privacy", Build: buildInfo})
 	})
 
-	// Some routes, such as /login or /query, should only be accessible to a user that is logged in.
-	// Those should be mounted to this subrouter. If authentication is enabled, a middleware will prevent
-	// any unauthenticated accesses.
 	secured := r.PathPrefix("/").Subrouter()
 
 	if !config.Keys.DisableAuthentication {
@@ -359,6 +363,20 @@ func main() {
 					Build:   buildInfo,
 				})
 			})).Methods(http.MethodPost)
+
+		r.Handle("/jwt-login", authentication.Login(
+			// On success:
+			http.RedirectHandler("/", http.StatusTemporaryRedirect),
+
+			// On failure:
+			func(rw http.ResponseWriter, r *http.Request, err error) {
+				rw.Header().Add("Content-Type", "application/json")
+				rw.WriteHeader(http.StatusForbidden)
+				json.NewEncoder(rw).Encode(ErrorResponse{
+					Status: http.StatusText(http.StatusForbidden),
+					Error:  err.Error(),
+				})
+			})).Methods(http.MethodGet)
 
 		r.Handle("/logout", authentication.Logout(
 			http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
