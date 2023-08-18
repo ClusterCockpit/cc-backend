@@ -101,12 +101,6 @@ func Init(configs map[string]interface{}) (*Authentication, error) {
 		auth.sessionStore = sessions.NewCookieStore(bytes)
 	}
 
-	auth.JwtAuth = &JWTAuthenticator{}
-	if err := auth.JwtAuth.Init(); err != nil {
-		log.Error("Error while initializing authentication -> jwtAuth init failed")
-		return nil, err
-	}
-
 	if config, ok := configs["ldap"]; ok {
 		ldapAuth := &LdapAuthenticator{}
 		if err := ldapAuth.Init(config); err != nil {
@@ -120,6 +114,12 @@ func Init(configs map[string]interface{}) (*Authentication, error) {
 	}
 
 	if config, ok := configs["jwt"]; ok {
+		auth.JwtAuth = &JWTAuthenticator{}
+		if err := auth.JwtAuth.Init(config); err != nil {
+			log.Error("Error while initializing authentication -> jwtAuth init failed")
+			return nil, err
+		}
+
 		jwtSessionAuth := &JWTSessionAuthenticator{}
 		if err := jwtSessionAuth.Init(config); err != nil {
 			log.Warn("Error while initializing authentication -> jwtSessionAuth init failed")

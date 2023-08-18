@@ -22,9 +22,12 @@ import (
 type JWTAuthenticator struct {
 	publicKey  ed25519.PublicKey
 	privateKey ed25519.PrivateKey
+	config     *schema.JWTAuthConfig
 }
 
-func (ja *JWTAuthenticator) Init() error {
+func (ja *JWTAuthenticator) Init(conf interface{}) error {
+	ja.config = conf.(*schema.JWTAuthConfig)
+
 	pubKey, privKey := os.Getenv("JWT_PUBLIC_KEY"), os.Getenv("JWT_PRIVATE_KEY")
 	if pubKey == "" || privKey == "" {
 		log.Warn("environment variables 'JWT_PUBLIC_KEY' or 'JWT_PRIVATE_KEY' not set (token based authentication will not work)")
