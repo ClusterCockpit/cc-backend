@@ -57,7 +57,7 @@ func (la *LdapAuthenticator) Init(conf interface{}) error {
 			}
 		}()
 	} else {
-		return fmt.Errorf("missing LDAP configuration")
+		log.Info("Missing LDAP configuration key sync_interval")
 	}
 
 	return nil
@@ -69,10 +69,12 @@ func (la *LdapAuthenticator) CanLogin(
 	rw http.ResponseWriter,
 	r *http.Request) (*schema.User, bool) {
 
-	if user != nil && user.AuthSource == schema.AuthViaLDAP {
-		return user, true
+	if user != nil {
+		if user.AuthSource == schema.AuthViaLDAP {
+			return user, true
+		}
 	} else {
-		if la.config != nil && la.config.SyncUserOnLogin {
+		if la.config.SyncUserOnLogin {
 			l, err := la.getLdapConnection(true)
 			if err != nil {
 				log.Error("LDAP connection error")
@@ -89,12 +91,12 @@ func (la *LdapAuthenticator) CanLogin(
 			sr, err := l.Search(searchRequest)
 			if err != nil {
 				log.Warn(err)
-				return user, false
+				return nil, false
 			}
 
 			if len(sr.Entries) != 1 {
-				log.Warn("User does not exist or too many entries returned")
-				return user, false
+				log.Warn("LDAP: User does not exist or too many entries returned")
+				return nil, false
 			}
 
 			entry := sr.Entries[0]
@@ -117,12 +119,6 @@ func (la *LdapAuthenticator) CanLogin(
 				return nil, false
 			}
 
-			// if _, err := la.auth.db.Exec(`INSERT INTO user (username, ldap, name, roles) VALUES (?, ?, ?, ?)`,
-			// 	username, 1, name, "[\""+schema.GetRoleString(schema.RoleUser)+"\"]"); err != nil {
-			// 	log.Errorf("User '%s' new in LDAP: Insert into DB failed", username)
-			// 	return false
-			// }
-
 			return user, true
 		}
 	}
@@ -144,7 +140,8 @@ func (la *LdapAuthenticator) Login(
 
 	userDn := strings.Replace(la.config.UserBind, "{username}", user.Username, -1)
 	if err := l.Bind(userDn, r.FormValue("password")); err != nil {
-		log.Errorf("AUTH/LOCAL > Authentication for user %s failed: %v", user.Username, err)
+		log.Errorf("AUTH/LOCAL > Authentication for user %s failed: %v",
+			user.Username, err)
 		return nil, fmt.Errorf("AUTH/LDAP > Authentication failed")
 	}
 

@@ -8,6 +8,7 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 
@@ -82,6 +83,7 @@ func (ja *JWTCookieSessionAuthenticator) Init(conf interface{}) error {
 		return errors.New("config for JWTs not configured (cross login via JWT cookie will fail)")
 	}
 
+	log.Info("JWT Cookie Session authenticator successfully registered")
 	return nil
 }
 
@@ -137,7 +139,7 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 		return ja.publicKey, nil
 	})
 	if err != nil {
-		log.Warn("error while parsing token")
+		log.Warn("JWT cookie session: error while parsing token")
 		return nil, err
 	}
 
@@ -151,8 +153,16 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 	sub, _ := claims["sub"].(string)
 
 	var name string
-	if val, ok := claims["name"]; ok {
-		name, _ = val.(string)
+	if wrap, ok := claims["name"].(map[string]interface{}); ok {
+		if vals, ok := wrap["values"].([]interface{}); ok {
+			if len(vals) != 0 {
+				name = fmt.Sprintf("%v", vals[0])
+
+				for i := 1; i < len(vals); i++ {
+					name += fmt.Sprintf(" %v", vals[i])
+				}
+			}
+		}
 	}
 
 	var roles []string
@@ -188,10 +198,12 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 	http.SetCookie(rw, deletedCookie)
 
 	if user == nil {
+		projects := make([]string, 0)
 		user = &schema.User{
 			Username:   sub,
 			Name:       name,
 			Roles:      roles,
+			Projects:   projects,
 			AuthType:   schema.AuthSession,
 			AuthSource: schema.AuthViaToken,
 		}

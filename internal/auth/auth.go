@@ -102,7 +102,7 @@ func Init(configs map[string]interface{}) (*Authentication, error) {
 	}
 
 	auth.JwtAuth = &JWTAuthenticator{}
-	if err := auth.JwtAuth.Init(configs["jwt"]); err != nil {
+	if err := auth.JwtAuth.Init(); err != nil {
 		log.Error("Error while initializing authentication -> jwtAuth init failed")
 		return nil, err
 	}
@@ -115,20 +115,26 @@ func Init(configs map[string]interface{}) (*Authentication, error) {
 			auth.LdapAuth = ldapAuth
 			auth.authenticators = append(auth.authenticators, auth.LdapAuth)
 		}
+	} else {
+		log.Info("Missing LDAP configuration: No LDAP support!")
 	}
 
-	jwtSessionAuth := &JWTSessionAuthenticator{}
-	if err := jwtSessionAuth.Init(configs["jwt"]); err != nil {
-		log.Warn("Error while initializing authentication -> jwtSessionAuth init failed")
-	} else {
-		auth.authenticators = append(auth.authenticators, jwtSessionAuth)
-	}
+	if config, ok := configs["jwt"]; ok {
+		jwtSessionAuth := &JWTSessionAuthenticator{}
+		if err := jwtSessionAuth.Init(config); err != nil {
+			log.Warn("Error while initializing authentication -> jwtSessionAuth init failed")
+		} else {
+			auth.authenticators = append(auth.authenticators, jwtSessionAuth)
+		}
 
-	jwtCookieSessionAuth := &JWTCookieSessionAuthenticator{}
-	if err := jwtCookieSessionAuth.Init(configs["jwt"]); err != nil {
-		log.Warn("Error while initializing authentication -> jwtCookieSessionAuth init failed")
+		jwtCookieSessionAuth := &JWTCookieSessionAuthenticator{}
+		if err := jwtCookieSessionAuth.Init(configs["jwt"]); err != nil {
+			log.Warn("Error while initializing authentication -> jwtCookieSessionAuth init failed")
+		} else {
+			auth.authenticators = append(auth.authenticators, jwtCookieSessionAuth)
+		}
 	} else {
-		auth.authenticators = append(auth.authenticators, jwtCookieSessionAuth)
+		log.Info("Missing JWT configuration: No JWT token login support!")
 	}
 
 	auth.LocalAuth = &LocalAuthenticator{}

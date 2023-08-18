@@ -6,6 +6,7 @@ package auth
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -37,6 +38,7 @@ func (ja *JWTSessionAuthenticator) Init(conf interface{}) error {
 		ja.loginTokenKey = bytes
 	}
 
+	log.Info("JWT Session authenticator successfully registered")
 	return nil
 }
 
@@ -46,7 +48,8 @@ func (ja *JWTSessionAuthenticator) CanLogin(
 	rw http.ResponseWriter,
 	r *http.Request) (*schema.User, bool) {
 
-	return user, r.Header.Get("Authorization") != "" || r.URL.Query().Get("login-token") != ""
+	return user, r.Header.Get("Authorization") != "" ||
+		r.URL.Query().Get("login-token") != ""
 }
 
 func (ja *JWTSessionAuthenticator) Login(
@@ -79,29 +82,38 @@ func (ja *JWTSessionAuthenticator) Login(
 	sub, _ := claims["sub"].(string)
 
 	var name string
-	// Java/Grails Issued Token
 	if wrap, ok := claims["name"].(map[string]interface{}); ok {
 		if vals, ok := wrap["values"].([]interface{}); ok {
-			name = fmt.Sprintf("%v %v", vals[0], vals[1])
-		}
-	} else if val, ok := claims["name"]; ok {
-		name, _ = val.(string)
-	}
+			if len(vals) != 0 {
+				name = fmt.Sprintf("%v", vals[0])
 
-	var roles []string
-	// Java/Grails Issued Token
-	if rawroles, ok := claims["roles"].([]interface{}); ok {
-		for _, rr := range rawroles {
-			if r, ok := rr.(string); ok {
-				if schema.IsValidRole(r) {
-					roles = append(roles, r)
+				for i := 1; i < len(vals); i++ {
+					name += fmt.Sprintf(" %v", vals[i])
 				}
 			}
 		}
-	} else if rawroles, ok := claims["roles"]; ok {
-		for _, r := range rawroles.([]string) {
-			if schema.IsValidRole(r) {
-				roles = append(roles, r)
+	}
+
+	var roles []string
+
+	if ja.config.ValidateUser {
+		// Deny any logins for unknown usernames
+		if user == nil {
+			log.Warn("Could not find user from JWT in internal database.")
+			return nil, errors.New("unknown user")
+		}
+
+		// Take user roles from database instead of trusting the JWT
+		roles = user.Roles
+	} else {
+		// Extract roles from JWT (if present)
+		if rawroles, ok := claims["roles"].([]interface{}); ok {
+			for _, rr := range rawroles {
+				if r, ok := rr.(string); ok {
+					if schema.IsValidRole(r) {
+						roles = append(roles, r)
+					}
+				}
 			}
 		}
 	}
