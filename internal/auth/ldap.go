@@ -228,8 +228,6 @@ func (la *LdapAuthenticator) Sync() error {
 	return nil
 }
 
-// TODO: Add a connection pool or something like
-// that so that connections can be reused/cached.
 func (la *LdapAuthenticator) getLdapConnection(admin bool) (*ldap.Conn, error) {
 
 	lc := config.Keys.LdapConfig

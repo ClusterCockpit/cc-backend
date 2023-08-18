@@ -48,26 +48,8 @@ func (auth *Authentication) AuthViaSession(
 	if session.IsNew {
 		return nil, nil
 	}
-	//
-	// var username string
-	// var projects, roles []string
-	//
-	// if val, ok := session.Values["username"]; ok {
-	// 	username, _ = val.(string)
-	// } else {
-	// 	return nil, errors.New("no key username in session")
-	// }
-	// if val, ok := session.Values["projects"]; ok {
-	// 	projects, _ = val.([]string)
-	// } else {
-	// 	return nil, errors.New("no key projects in session")
-	// }
-	// if val, ok := session.Values["projects"]; ok {
-	// 	roles, _ = val.([]string)
-	// } else {
-	// 	return nil, errors.New("no key roles in session")
-	// }
-	//
+
+	// TODO: Check if session keys exist
 	username, _ := session.Values["username"].(string)
 	projects, _ := session.Values["projects"].([]string)
 	roles, _ := session.Values["roles"].([]string)
