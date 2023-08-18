@@ -109,13 +109,6 @@ var (
 	version string
 )
 
-// ErrorResponse model
-type ErrorResponse struct {
-	// Statustext of Errorcode
-	Status string `json:"status"`
-	Error  string `json:"error"` // Error Message
-}
-
 func initEnv() {
 	if util.CheckFileExists("var") {
 		fmt.Print("Directory ./var already exists. Exiting!\n")
@@ -370,11 +363,13 @@ func main() {
 
 			// On failure:
 			func(rw http.ResponseWriter, r *http.Request, err error) {
-				rw.Header().Add("Content-Type", "application/json")
-				rw.WriteHeader(http.StatusForbidden)
-				json.NewEncoder(rw).Encode(ErrorResponse{
-					Status: http.StatusText(http.StatusForbidden),
-					Error:  err.Error(),
+				rw.Header().Add("Content-Type", "text/html; charset=utf-8")
+				rw.WriteHeader(http.StatusUnauthorized)
+				web.RenderTemplate(rw, "login.tmpl", &web.Page{
+					Title:   "Login failed - ClusterCockpit",
+					MsgType: "alert-warning",
+					Message: err.Error(),
+					Build:   buildInfo,
 				})
 			}))
 
