@@ -130,8 +130,12 @@ func (ja *JWTAuthenticator) ProvideJWT(user *schema.User) (string, error) {
 		"roles": user.Roles,
 		"iat":   now.Unix(),
 	}
-	if ja.config != nil && ja.config.MaxAge != 0 {
-		claims["exp"] = now.Add(time.Duration(ja.config.MaxAge)).Unix()
+	if ja.config != nil && ja.config.MaxAge != "" {
+		d, err := time.ParseDuration(ja.config.MaxAge)
+		if err != nil {
+			return "", errors.New("cannot parse max-age config key")
+		}
+		claims["exp"] = now.Add(d).Unix()
 	}
 
 	return jwt.NewWithClaims(jwt.SigningMethodEdDSA, claims).SignedString(ja.privateKey)
