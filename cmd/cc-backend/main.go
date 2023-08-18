@@ -376,7 +376,7 @@ func main() {
 					Status: http.StatusText(http.StatusForbidden),
 					Error:  err.Error(),
 				})
-			})).Methods(http.MethodGet)
+			}))
 
 		r.Handle("/logout", authentication.Logout(
 			http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
