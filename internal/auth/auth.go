@@ -14,6 +14,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -21,7 +22,6 @@ import (
 )
 
 type Authenticator interface {
-	Init(config interface{}) error
 	CanLogin(user *schema.User, username string, rw http.ResponseWriter, r *http.Request) (*schema.User, bool)
 	Login(user *schema.User, rw http.ResponseWriter, r *http.Request) (*schema.User, error)
 }
@@ -80,7 +80,7 @@ func (auth *Authentication) AuthViaSession(
 	}, nil
 }
 
-func Init(configs map[string]interface{}) (*Authentication, error) {
+func Init() (*Authentication, error) {
 	auth := &Authentication{}
 
 	sessKey := os.Getenv("SESSION_KEY")
@@ -101,9 +101,9 @@ func Init(configs map[string]interface{}) (*Authentication, error) {
 		auth.sessionStore = sessions.NewCookieStore(bytes)
 	}
 
-	if config, ok := configs["ldap"]; ok {
+	if config.Keys.LdapConfig != nil {
 		ldapAuth := &LdapAuthenticator{}
-		if err := ldapAuth.Init(config); err != nil {
+		if err := ldapAuth.Init(); err != nil {
 			log.Warn("Error while initializing authentication -> ldapAuth init failed")
 		} else {
 			auth.LdapAuth = ldapAuth
@@ -113,32 +113,32 @@ func Init(configs map[string]interface{}) (*Authentication, error) {
 		log.Info("Missing LDAP configuration: No LDAP support!")
 	}
 
-	if config, ok := configs["jwt"]; ok {
+	if config.Keys.JwtConfig != nil {
 		auth.JwtAuth = &JWTAuthenticator{}
-		if err := auth.JwtAuth.Init(config); err != nil {
+		if err := auth.JwtAuth.Init(); err != nil {
 			log.Error("Error while initializing authentication -> jwtAuth init failed")
 			return nil, err
 		}
 
 		jwtSessionAuth := &JWTSessionAuthenticator{}
-		if err := jwtSessionAuth.Init(config); err != nil {
-			log.Warn("Error while initializing authentication -> jwtSessionAuth init failed")
+		if err := jwtSessionAuth.Init(); err != nil {
+			log.Info("jwtSessionAuth init failed: No JWT login support!")
 		} else {
 			auth.authenticators = append(auth.authenticators, jwtSessionAuth)
 		}
 
 		jwtCookieSessionAuth := &JWTCookieSessionAuthenticator{}
-		if err := jwtCookieSessionAuth.Init(configs["jwt"]); err != nil {
-			log.Warn("Error while initializing authentication -> jwtCookieSessionAuth init failed")
+		if err := jwtCookieSessionAuth.Init(); err != nil {
+			log.Info("jwtCookieSessionAuth init failed: No JWT cookie login support!")
 		} else {
 			auth.authenticators = append(auth.authenticators, jwtCookieSessionAuth)
 		}
 	} else {
-		log.Info("Missing JWT configuration: No JWT token login support!")
+		log.Info("Missing JWT configuration: No JWT token support!")
 	}
 
 	auth.LocalAuth = &LocalAuthenticator{}
-	if err := auth.LocalAuth.Init(nil); err != nil {
+	if err := auth.LocalAuth.Init(); err != nil {
 		log.Error("Error while initializing authentication -> localAuth init failed")
 		return nil, err
 	}
@@ -152,11 +152,11 @@ func (auth *Authentication) Login(
 	onfailure func(rw http.ResponseWriter, r *http.Request, loginErr error)) http.Handler {
 
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		err := errors.New("no authenticator applied")
 		username := r.FormValue("username")
 		var dbUser *schema.User
 
 		if username != "" {
+			var err error
 			dbUser, err = repository.GetUserRepository().GetUser(username)
 			if err != nil && err != sql.ErrNoRows {
 				log.Errorf("Error while loading user '%v'", username)
@@ -170,7 +170,7 @@ func (auth *Authentication) Login(
 				continue
 			}
 
-			user, err = authenticator.Login(user, rw, r)
+			user, err := authenticator.Login(user, rw, r)
 			if err != nil {
 				log.Warnf("user login failed: %s", err.Error())
 				onfailure(rw, r, err)
@@ -203,7 +203,7 @@ func (auth *Authentication) Login(
 		}
 
 		log.Debugf("login failed: no authenticator applied")
-		onfailure(rw, r, err)
+		onfailure(rw, r, errors.New("no authenticator applied"))
 	})
 }
 

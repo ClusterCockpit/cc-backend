@@ -22,7 +22,6 @@ var Keys schema.ProgramConfig = schema.ProgramConfig{
 	Archive:                   json.RawMessage(`{\"kind\":\"file\",\"path\":\"./var/job-archive\"}`),
 	DisableArchive:            false,
 	Validate:                  false,
-	LdapConfig:                nil,
 	SessionMaxAge:             "168h",
 	StopJobsExceedingWalltime: 0,
 	ShortRunningJobsDuration:  5 * 60,

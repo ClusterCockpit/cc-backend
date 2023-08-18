@@ -12,6 +12,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -20,15 +21,11 @@ import (
 
 type JWTSessionAuthenticator struct {
 	loginTokenKey []byte // HS256 key
-
-	config *schema.JWTAuthConfig
 }
 
 var _ Authenticator = (*JWTSessionAuthenticator)(nil)
 
-func (ja *JWTSessionAuthenticator) Init(conf interface{}) error {
-	ja.config = conf.(*schema.JWTAuthConfig)
-
+func (ja *JWTSessionAuthenticator) Init() error {
 	if pubKey := os.Getenv("CROSS_LOGIN_JWT_HS512_KEY"); pubKey != "" {
 		bytes, err := base64.StdEncoding.DecodeString(pubKey)
 		if err != nil {
@@ -96,7 +93,7 @@ func (ja *JWTSessionAuthenticator) Login(
 
 	var roles []string
 
-	if ja.config.ValidateUser {
+	if config.Keys.JwtConfig.ValidateUser {
 		// Deny any logins for unknown usernames
 		if user == nil {
 			log.Warn("Could not find user from JWT in internal database.")
@@ -142,7 +139,7 @@ func (ja *JWTSessionAuthenticator) Login(
 			AuthSource: schema.AuthViaToken,
 		}
 
-		if ja.config.SyncUserOnLogin {
+		if config.Keys.JwtConfig.SyncUserOnLogin {
 			if err := repository.GetUserRepository().AddUser(user); err != nil {
 				log.Errorf("Error while adding user '%s' to DB", user.Username)
 			}

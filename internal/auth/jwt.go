@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -22,12 +23,9 @@ import (
 type JWTAuthenticator struct {
 	publicKey  ed25519.PublicKey
 	privateKey ed25519.PrivateKey
-	config     *schema.JWTAuthConfig
 }
 
-func (ja *JWTAuthenticator) Init(conf interface{}) error {
-	ja.config = conf.(*schema.JWTAuthConfig)
-
+func (ja *JWTAuthenticator) Init() error {
 	pubKey, privKey := os.Getenv("JWT_PUBLIC_KEY"), os.Getenv("JWT_PRIVATE_KEY")
 	if pubKey == "" || privKey == "" {
 		log.Warn("environment variables 'JWT_PUBLIC_KEY' or 'JWT_PRIVATE_KEY' not set (token based authentication will not work)")
@@ -87,7 +85,7 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 	var roles []string
 
 	// Validate user + roles from JWT against database?
-	if ja.config != nil && ja.config.ValidateUser {
+	if config.Keys.JwtConfig.ValidateUser {
 		ur := repository.GetUserRepository()
 		user, err := ur.GetUser(sub)
 
@@ -130,8 +128,8 @@ func (ja *JWTAuthenticator) ProvideJWT(user *schema.User) (string, error) {
 		"roles": user.Roles,
 		"iat":   now.Unix(),
 	}
-	if ja.config != nil && ja.config.MaxAge != "" {
-		d, err := time.ParseDuration(ja.config.MaxAge)
+	if config.Keys.JwtConfig.MaxAge != "" {
+		d, err := time.ParseDuration(config.Keys.JwtConfig.MaxAge)
 		if err != nil {
 			return "", errors.New("cannot parse max-age config key")
 		}

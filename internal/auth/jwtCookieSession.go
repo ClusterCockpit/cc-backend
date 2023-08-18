@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -22,15 +23,11 @@ type JWTCookieSessionAuthenticator struct {
 	publicKey           ed25519.PublicKey
 	privateKey          ed25519.PrivateKey
 	publicKeyCrossLogin ed25519.PublicKey // For accepting externally generated JWTs
-
-	config *schema.JWTAuthConfig
 }
 
 var _ Authenticator = (*JWTCookieSessionAuthenticator)(nil)
 
-func (ja *JWTCookieSessionAuthenticator) Init(conf interface{}) error {
-	ja.config = conf.(*schema.JWTAuthConfig)
-
+func (ja *JWTCookieSessionAuthenticator) Init() error {
 	pubKey, privKey := os.Getenv("JWT_PUBLIC_KEY"), os.Getenv("JWT_PRIVATE_KEY")
 	if pubKey == "" || privKey == "" {
 		log.Warn("environment variables 'JWT_PUBLIC_KEY' or 'JWT_PRIVATE_KEY' not set (token based authentication will not work)")
@@ -65,17 +62,18 @@ func (ja *JWTCookieSessionAuthenticator) Init(conf interface{}) error {
 		return errors.New("environment variable 'CROSS_LOGIN_JWT_PUBLIC_KEY' not set (cross login token based authentication will not work)")
 	}
 
+	jc := config.Keys.JwtConfig
 	// Warn if other necessary settings are not configured
-	if ja.config != nil {
-		if ja.config.CookieName == "" {
-			log.Warn("cookieName for JWTs not configured (cross login via JWT cookie will fail)")
+	if jc != nil {
+		if jc.CookieName == "" {
+			log.Info("cookieName for JWTs not configured (cross login via JWT cookie will fail)")
 			return errors.New("cookieName for JWTs not configured (cross login via JWT cookie will fail)")
 		}
-		if !ja.config.ValidateUser {
-			log.Warn("forceJWTValidationViaDatabase not set to true: CC will accept users and roles defined in JWTs regardless of its own database!")
+		if !jc.ValidateUser {
+			log.Info("forceJWTValidationViaDatabase not set to true: CC will accept users and roles defined in JWTs regardless of its own database!")
 		}
-		if ja.config.TrustedIssuer == "" {
-			log.Warn("trustedExternalIssuer for JWTs not configured (cross login via JWT cookie will fail)")
+		if jc.TrustedIssuer == "" {
+			log.Info("trustedExternalIssuer for JWTs not configured (cross login via JWT cookie will fail)")
 			return errors.New("trustedExternalIssuer for JWTs not configured (cross login via JWT cookie will fail)")
 		}
 	} else {
@@ -93,9 +91,10 @@ func (ja *JWTCookieSessionAuthenticator) CanLogin(
 	rw http.ResponseWriter,
 	r *http.Request) (*schema.User, bool) {
 
+	jc := config.Keys.JwtConfig
 	cookieName := ""
-	if ja.config != nil && ja.config.CookieName != "" {
-		cookieName = ja.config.CookieName
+	if jc.CookieName != "" {
+		cookieName = jc.CookieName
 	}
 
 	// Try to read the JWT cookie
@@ -115,7 +114,8 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 	rw http.ResponseWriter,
 	r *http.Request) (*schema.User, error) {
 
-	jwtCookie, err := r.Cookie(ja.config.CookieName)
+	jc := config.Keys.JwtConfig
+	jwtCookie, err := r.Cookie(jc.CookieName)
 	var rawtoken string
 
 	if err == nil && jwtCookie.Value != "" {
@@ -128,7 +128,7 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 		}
 
 		unvalidatedIssuer, success := t.Claims.(jwt.MapClaims)["iss"].(string)
-		if success && unvalidatedIssuer == ja.config.TrustedIssuer {
+		if success && unvalidatedIssuer == jc.TrustedIssuer {
 			// The (unvalidated) issuer seems to be the expected one,
 			// use public cross login key from config
 			return ja.publicKeyCrossLogin, nil
@@ -167,7 +167,7 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 
 	var roles []string
 
-	if ja.config.ValidateUser {
+	if jc.ValidateUser {
 		// Deny any logins for unknown usernames
 		if user == nil {
 			log.Warn("Could not find user from JWT in internal database.")
@@ -189,7 +189,7 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 
 	// (Ask browser to) Delete JWT cookie
 	deletedCookie := &http.Cookie{
-		Name:     ja.config.CookieName,
+		Name:     jc.CookieName,
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
@@ -208,7 +208,7 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 			AuthSource: schema.AuthViaToken,
 		}
 
-		if ja.config.SyncUserOnLogin {
+		if jc.SyncUserOnLogin {
 			if err := repository.GetUserRepository().AddUser(user); err != nil {
 				log.Errorf("Error while adding user '%s' to DB", user.Username)
 			}
