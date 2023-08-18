@@ -16,6 +16,9 @@ The most important routines in auth are:
 The http router calls auth in the following cases:
 * `r.Handle("/login", authentication.Login( ... )).Methods(http.MethodPost)`:
   The POST request on the `/login` route will call the Login callback.
+* `r.Handle("/jwt-login", authentication.Login( ... ))`:
+  Any request on the `/jwt-login` route will call the Login callback. Intended
+  for use for the JWT token based authenticators.
 * Any route in the secured subrouter will always call Auth(), on success it will
   call the next handler in the chain, on failure it will render the login
   template.
@@ -50,7 +53,6 @@ The Login function (located in `auth.go`):
     object is returned.
   - Creates a new session object, stores the user attributes in the session and
     saves the session.
-  - If the user does not yet exist in the database try to add the user
   - Starts the `onSuccess` http handler
 
 ## Local authenticator
@@ -71,10 +73,19 @@ if e := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(r.FormValue(
 
 ## LDAP authenticator
 
-This authenticator is applied if 
+This authenticator is applied if the user was found in the database and its
+AuthSource is LDAP:
 ```
-return user != nil && user.AuthSource == AuthViaLDAP
+if user != nil {
+	if user.AuthSource == schema.AuthViaLDAP {
+		return user, true
+	}
+} 
 ```
+
+If the option `SyncUserOnLogin` is set it tried to sync the user from the LDAP
+directory. In case this succeeds the user is persisted to the database and can
+login.
 
 Gets the LDAP connection and tries a bind with the provided credentials:
 ```
@@ -88,33 +99,34 @@ if err := l.Bind(userDn, r.FormValue("password")); err != nil {
 
 Login via JWT token will create a session without password.
 For login the `X-Auth-Token` header is not supported. This authenticator is
-applied if the Authorization header is present:
+applied if the Authorization header or query parameter login-token is present:
 ```
-	return r.Header.Get("Authorization") != ""
+	return user, r.Header.Get("Authorization") != "" ||
+		r.URL.Query().Get("login-token") != ""
 ```
 
 The Login function:
-* Parses the token
+* Parses the token and checks if it is expired
 * Check if the signing method is EdDSA or HS256 or HS512
 * Check if claims are valid and extracts the claims
 * The following claims have to be present:
    - `sub`: The subject, in this case this is the username
    - `exp`: Expiration in Unix epoch time
    - `roles`: String array with roles of user
-* In case user is not yet set, which is usually the case:
-   - Try to fetch user from database
-   - In case user is not yet present add user to user database table with `AuthViaToken` AuthSource.
+* In case user does not exist in the database and the option `SyncUserOnLogin`
+  is set add user to user database table with `AuthViaToken` AuthSource.
 * Return valid user object
 
 ## JWT Cookie Session authenticator
 
 Login via JWT cookie token will create a session without password.
-It is first checked if the required configuration keys are set:
-* `publicKeyCrossLogin`
-* `TrustedExternalIssuer`
+It is first checked if the required configuration options are set:
+* `trustedIssuer`
 * `CookieName`
 
- This authenticator is applied if the configured cookie is present:
+and optionally the environment variable `CROSS_LOGIN_JWT_PUBLIC_KEY` is set.
+
+This authenticator is applied if the configured cookie is present:
 ```
 	jwtCookie, err := r.Cookie(cookieName)
 
@@ -131,9 +143,11 @@ The Login function:
    - Return public cross login key
    - Otherwise return standard public key
 * Check if claims are valid
-* Depending on the option `ForceJWTValidationViaDatabase ` the roles are
+* Depending on the option `validateUser` the roles are
   extracted from JWT token or taken from user object fetched from database
 * Ask browser to delete the JWT cookie
+* In case user does not exist in the database and the option `SyncUserOnLogin`
+  is set add user to user database table with `AuthViaToken` AuthSource.
 * Return valid user object
 
 # Auth
@@ -154,7 +168,7 @@ Implemented in JWTAuthenticator:
   prefix
 * Parse token and check if it is valid. The Parse routine will also check if the
   token is expired.
-* If the option `ForceJWTValidationViaDatabase` is set it will ensure the
+* If the option `validateUser` is set it will ensure the
   user object exists in the database and takes the roles from the database user
 * Otherwise the roles are extracted from the roles claim
 * Returns a valid user object with AuthType set to AuthToken

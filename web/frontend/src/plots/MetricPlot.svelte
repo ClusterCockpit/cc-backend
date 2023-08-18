@@ -154,11 +154,18 @@
         ? statisticsSeries.mean.length
         : series.reduce((n, series) => Math.max(n, series.data.length), 0)
     const maxX = longestSeries * timestep
-    const maxY = thresholds != null
-        ? useStatsSeries
+    let maxY = null
+    
+    if (thresholds !== null) {
+        maxY = useStatsSeries
             ? (statisticsSeries.max.reduce((max, x) => Math.max(max, x), thresholds.normal) || thresholds.normal)
             : (series.reduce((max, series) => Math.max(max, series.statistics?.max), thresholds.normal) || thresholds.normal)
-        : null
+
+        if (maxY >= (10 * thresholds.normal)) { // Hard y-range render limit if outliers in series data
+            maxY = (10 * thresholds.normal)
+        } 
+    }
+
     const plotSeries = [{label: 'Runtime', value: (u, ts, sidx, didx) => didx == null ? null : formatTime(ts)}]
     const plotData = [new Array(longestSeries)]
 
