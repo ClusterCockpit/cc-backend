@@ -19,9 +19,7 @@ type LocalAuthenticator struct {
 
 var _ Authenticator = (*LocalAuthenticator)(nil)
 
-func (la *LocalAuthenticator) Init(
-	_ interface{}) error {
-
+func (la *LocalAuthenticator) Init() error {
 	return nil
 }
 

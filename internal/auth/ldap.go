@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -19,25 +20,22 @@ import (
 )
 
 type LdapAuthenticator struct {
-	config       *schema.LdapConfig
 	syncPassword string
 }
 
 var _ Authenticator = (*LdapAuthenticator)(nil)
 
-func (la *LdapAuthenticator) Init(conf interface{}) error {
-
-	la.config = conf.(*schema.LdapConfig)
-
+func (la *LdapAuthenticator) Init() error {
 	la.syncPassword = os.Getenv("LDAP_ADMIN_PASSWORD")
 	if la.syncPassword == "" {
 		log.Warn("environment variable 'LDAP_ADMIN_PASSWORD' not set (ldap sync will not work)")
 	}
 
-	if la.config != nil && la.config.SyncInterval != "" {
-		interval, err := time.ParseDuration(la.config.SyncInterval)
+	if config.Keys.LdapConfig.SyncInterval != "" {
+		interval, err := time.ParseDuration(config.Keys.LdapConfig.SyncInterval)
 		if err != nil {
-			log.Warnf("Could not parse duration for sync interval: %v", la.config.SyncInterval)
+			log.Warnf("Could not parse duration for sync interval: %v",
+				config.Keys.LdapConfig.SyncInterval)
 			return err
 		}
 
@@ -57,7 +55,7 @@ func (la *LdapAuthenticator) Init(conf interface{}) error {
 			}
 		}()
 	} else {
-		log.Info("Missing LDAP configuration key sync_interval")
+		log.Info("LDAP configuration key sync_interval invalid")
 	}
 
 	return nil
@@ -69,12 +67,14 @@ func (la *LdapAuthenticator) CanLogin(
 	rw http.ResponseWriter,
 	r *http.Request) (*schema.User, bool) {
 
+	lc := config.Keys.LdapConfig
+
 	if user != nil {
 		if user.AuthSource == schema.AuthViaLDAP {
 			return user, true
 		}
 	} else {
-		if la.config.SyncUserOnLogin {
+		if lc.SyncUserOnLogin {
 			l, err := la.getLdapConnection(true)
 			if err != nil {
 				log.Error("LDAP connection error")
@@ -83,9 +83,9 @@ func (la *LdapAuthenticator) CanLogin(
 
 			// Search for the given username
 			searchRequest := ldap.NewSearchRequest(
-				la.config.UserBase,
+				lc.UserBase,
 				ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-				fmt.Sprintf("(&%s(uid=%s))", la.config.UserFilter, username),
+				fmt.Sprintf("(&%s(uid=%s))", lc.UserFilter, username),
 				[]string{"dn", "uid", "gecos"}, nil)
 
 			sr, err := l.Search(searchRequest)
@@ -138,7 +138,7 @@ func (la *LdapAuthenticator) Login(
 	}
 	defer l.Close()
 
-	userDn := strings.Replace(la.config.UserBind, "{username}", user.Username, -1)
+	userDn := strings.Replace(config.Keys.LdapConfig.UserBind, "{username}", user.Username, -1)
 	if err := l.Bind(userDn, r.FormValue("password")); err != nil {
 		log.Errorf("AUTH/LOCAL > Authentication for user %s failed: %v",
 			user.Username, err)
@@ -153,6 +153,7 @@ func (la *LdapAuthenticator) Sync() error {
 	const IN_LDAP int = 2
 	const IN_BOTH int = 3
 	ur := repository.GetUserRepository()
+	lc := config.Keys.LdapConfig
 
 	users := map[string]int{}
 	usernames, err := ur.GetLdapUsernames()
@@ -172,9 +173,9 @@ func (la *LdapAuthenticator) Sync() error {
 	defer l.Close()
 
 	ldapResults, err := l.Search(ldap.NewSearchRequest(
-		la.config.UserBase,
+		lc.UserBase,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		la.config.UserFilter,
+		lc.UserFilter,
 		[]string{"dn", "uid", "gecos"}, nil))
 	if err != nil {
 		log.Warn("LDAP search error")
@@ -198,7 +199,7 @@ func (la *LdapAuthenticator) Sync() error {
 	}
 
 	for username, where := range users {
-		if where == IN_DB && la.config.SyncDelOldUsers {
+		if where == IN_DB && lc.SyncDelOldUsers {
 			ur.DelUser(username)
 			log.Debugf("sync: remove %v (does not show up in LDAP anymore)", username)
 		} else if where == IN_LDAP {
@@ -231,14 +232,15 @@ func (la *LdapAuthenticator) Sync() error {
 // that so that connections can be reused/cached.
 func (la *LdapAuthenticator) getLdapConnection(admin bool) (*ldap.Conn, error) {
 
-	conn, err := ldap.DialURL(la.config.Url)
+	lc := config.Keys.LdapConfig
+	conn, err := ldap.DialURL(lc.Url)
 	if err != nil {
 		log.Warn("LDAP URL dial failed")
 		return nil, err
 	}
 
 	if admin {
-		if err := conn.Bind(la.config.SearchDN, la.syncPassword); err != nil {
+		if err := conn.Bind(lc.SearchDN, la.syncPassword); err != nil {
 			conn.Close()
 			log.Warn("LDAP connection bind failed")
 			return nil, err
