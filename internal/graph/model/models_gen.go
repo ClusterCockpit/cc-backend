@@ -37,27 +37,27 @@ type IntRangeOutput struct {
 }
 
 type JobFilter struct {
-	Tags            []string          `json:"tags"`
-	JobID           *StringInput      `json:"jobId"`
-	ArrayJobID      *int              `json:"arrayJobId"`
-	User            *StringInput      `json:"user"`
-	Project         *StringInput      `json:"project"`
-	JobName         *StringInput      `json:"jobName"`
-	Cluster         *StringInput      `json:"cluster"`
-	Partition       *StringInput      `json:"partition"`
-	Duration        *schema.IntRange  `json:"duration"`
-	MinRunningFor   *int              `json:"minRunningFor"`
-	NumNodes        *schema.IntRange  `json:"numNodes"`
-	NumAccelerators *schema.IntRange  `json:"numAccelerators"`
-	NumHWThreads    *schema.IntRange  `json:"numHWThreads"`
-	StartTime       *schema.TimeRange `json:"startTime"`
-	State           []schema.JobState `json:"state"`
-	FlopsAnyAvg     *FloatRange       `json:"flopsAnyAvg"`
-	MemBwAvg        *FloatRange       `json:"memBwAvg"`
-	LoadAvg         *FloatRange       `json:"loadAvg"`
-	MemUsedMax      *FloatRange       `json:"memUsedMax"`
-	Exclusive       *int              `json:"exclusive"`
-	Node            *StringInput      `json:"node"`
+	Tags            []string          `json:"tags,omitempty"`
+	JobID           *StringInput      `json:"jobId,omitempty"`
+	ArrayJobID      *int              `json:"arrayJobId,omitempty"`
+	User            *StringInput      `json:"user,omitempty"`
+	Project         *StringInput      `json:"project,omitempty"`
+	JobName         *StringInput      `json:"jobName,omitempty"`
+	Cluster         *StringInput      `json:"cluster,omitempty"`
+	Partition       *StringInput      `json:"partition,omitempty"`
+	Duration        *schema.IntRange  `json:"duration,omitempty"`
+	MinRunningFor   *int              `json:"minRunningFor,omitempty"`
+	NumNodes        *schema.IntRange  `json:"numNodes,omitempty"`
+	NumAccelerators *schema.IntRange  `json:"numAccelerators,omitempty"`
+	NumHWThreads    *schema.IntRange  `json:"numHWThreads,omitempty"`
+	StartTime       *schema.TimeRange `json:"startTime,omitempty"`
+	State           []schema.JobState `json:"state,omitempty"`
+	FlopsAnyAvg     *FloatRange       `json:"flopsAnyAvg,omitempty"`
+	MemBwAvg        *FloatRange       `json:"memBwAvg,omitempty"`
+	LoadAvg         *FloatRange       `json:"loadAvg,omitempty"`
+	MemUsedMax      *FloatRange       `json:"memUsedMax,omitempty"`
+	Exclusive       *int              `json:"exclusive,omitempty"`
+	Node            *StringInput      `json:"node,omitempty"`
 }
 
 type JobLink struct {
@@ -66,9 +66,9 @@ type JobLink struct {
 }
 
 type JobLinkResultList struct {
-	ListQuery *string    `json:"listQuery"`
+	ListQuery *string    `json:"listQuery,omitempty"`
 	Items     []*JobLink `json:"items"`
-	Count     *int       `json:"count"`
+	Count     *int       `json:"count,omitempty"`
 }
 
 type JobMetricWithName struct {
@@ -79,9 +79,9 @@ type JobMetricWithName struct {
 
 type JobResultList struct {
 	Items  []*schema.Job `json:"items"`
-	Offset *int          `json:"offset"`
-	Limit  *int          `json:"limit"`
-	Count  *int          `json:"count"`
+	Offset *int          `json:"offset,omitempty"`
+	Limit  *int          `json:"limit,omitempty"`
+	Count  *int          `json:"count,omitempty"`
 }
 
 type JobsStatistics struct {
@@ -120,12 +120,12 @@ type PageRequest struct {
 }
 
 type StringInput struct {
-	Eq         *string  `json:"eq"`
-	Neq        *string  `json:"neq"`
-	Contains   *string  `json:"contains"`
-	StartsWith *string  `json:"startsWith"`
-	EndsWith   *string  `json:"endsWith"`
-	In         []string `json:"in"`
+	Eq         *string  `json:"eq,omitempty"`
+	Neq        *string  `json:"neq,omitempty"`
+	Contains   *string  `json:"contains,omitempty"`
+	StartsWith *string  `json:"startsWith,omitempty"`
+	EndsWith   *string  `json:"endsWith,omitempty"`
+	In         []string `json:"in,omitempty"`
 }
 
 type TimeRangeOutput struct {
