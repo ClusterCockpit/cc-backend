@@ -735,14 +735,28 @@
                         "required": true
                     },
                     {
+                        "enum": [
+                            "admin",
+                            "support",
+                            "manager",
+                            "user",
+                            "api"
+                        ],
                         "type": "string",
-                        "description": "Priority 1: Role to add, one of: [admin, support, manager, user, api]",
+                        "description": "Priority 1: Role to add",
                         "name": "add-role",
                         "in": "formData"
                     },
                     {
+                        "enum": [
+                            "admin",
+                            "support",
+                            "manager",
+                            "user",
+                            "api"
+                        ],
                         "type": "string",
-                        "description": "Priority 2: Role to remove, one of: [admin, support, manager, user, api]",
+                        "description": "Priority 2: Role to remove",
                         "name": "remove-role",
                         "in": "formData"
                     },
@@ -761,7 +775,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Task successful",
+                        "description": "Success Response Message",
                         "schema": {
                             "type": "string"
                         }
@@ -769,31 +783,31 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "type": "string"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "type": "string"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "type": "string"
                         }
                     },
                     "422": {
                         "description": "Unprocessable Entity: The user could not be updated",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "type": "string"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "type": "string"
                         }
                     }
                 }
@@ -807,9 +821,6 @@
                     }
                 ],
                 "description": "Returns a JSON-encoded list of users.\nRequired query-parameter defines if all users or only users with additional special roles are returned.",
-                "consumes": [
-                    "application/json"
-                ],
                 "produces": [
                     "application/json"
                 ],
@@ -828,33 +839,36 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Users returned successfully",
+                        "description": "List of users returned successfully",
                         "schema": {
-                            "type": "string"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.ApiReturnedUser"
+                            }
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "type": "string"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "type": "string"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "type": "string"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "type": "string"
                         }
                     }
                 }
@@ -892,8 +906,15 @@
                         "required": true
                     },
                     {
+                        "enum": [
+                            "admin",
+                            "support",
+                            "manager",
+                            "user",
+                            "api"
+                        ],
                         "type": "string",
-                        "description": "User role, one of: [admin, support, manager, user, api]",
+                        "description": "User role",
                         "name": "role",
                         "in": "formData",
                         "required": true
@@ -919,7 +940,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "User added successfully",
+                        "description": "Success Response",
                         "schema": {
                             "type": "string"
                         }
@@ -927,31 +948,31 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "type": "string"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "type": "string"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "type": "string"
                         }
                     },
                     "422": {
                         "description": "Unprocessable Entity: creating user failed",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "type": "string"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "type": "string"
                         }
                     }
                 }
@@ -965,6 +986,9 @@
                 "description": "User defined by username in form data will be deleted from database.",
                 "consumes": [
                     "multipart/form-data"
+                ],
+                "produces": [
+                    "text/plain"
                 ],
                 "tags": [
                     "remove"
@@ -986,31 +1010,31 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "type": "string"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "type": "string"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "type": "string"
                         }
                     },
                     "422": {
                         "description": "Unprocessable Entity: deleting user failed",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "type": "string"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "type": "string"
                         }
                     }
                 }
@@ -1018,6 +1042,32 @@
         }
     },
     "definitions": {
+        "api.ApiReturnedUser": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "projects": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "roles": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
         "api.ApiTag": {
             "type": "object",
             "properties": {

@@ -163,6 +163,14 @@ type JobMetricWithName struct {
 	Metric *schema.JobMetric  `json:"metric"`
 }
 
+type ApiReturnedUser struct {
+	Username string   `json:"username"`
+	Name     string   `json:"name"`
+	Roles    []string `json:"roles"`
+	Email    string   `json:"email"`
+	Projects []string `json:"projects"`
+}
+
 func handleError(err error, statusCode int, rw http.ResponseWriter) {
 	log.Warnf("REST ERROR : %s", err.Error())
 	rw.Header().Add("Content-Type", "application/json")
@@ -953,16 +961,16 @@ func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 // @produce     plain
 // @param       username formData string                       true  "Unique user ID"
 // @param       password formData string                       true  "User password"
-// @param       role 	 formData string                       true  "User role, one of: [admin, support, manager, user, api]"
+// @param       role 	 formData string                       true  "User role" Enums(admin, support, manager, user, api)
 // @param       project  formData string                       false "Managed project, required for new manager role user"
 // @param       name 	 formData string                       false "Users name"
 // @param       email 	 formData string                       false "Users email"
-// @success     200      {string} string                       "User added successfully"
-// @failure     400      {object} api.ErrorResponse            "Bad Request"
-// @failure     401      {object} api.ErrorResponse            "Unauthorized"
-// @failure     403      {object} api.ErrorResponse            "Forbidden"
-// @failure     422      {object} api.ErrorResponse            "Unprocessable Entity: creating user failed"
-// @failure     500      {object} api.ErrorResponse            "Internal Server Error"
+// @success     200      {string} string                       "Success Response"
+// @failure     400      {string} string                       "Bad Request"
+// @failure     401      {string} string                       "Unauthorized"
+// @failure     403      {string} string                       "Forbidden"
+// @failure     422      {string} string                       "Unprocessable Entity: creating user failed"
+// @failure     500      {string} string                       "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /users/ [post]
 func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
@@ -1017,13 +1025,14 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 // @tags remove
 // @description User defined by username in form data will be deleted from database.
 // @accept      mpfd
-// @param       username formData string                       true "User ID to delete"
+// @produce     plain
+// @param       username formData string         true "User ID to delete"
 // @success     200      "User deleted successfully"
-// @failure     400      {object} api.ErrorResponse            "Bad Request"
-// @failure     401      {object} api.ErrorResponse            "Unauthorized"
-// @failure     403      {object} api.ErrorResponse            "Forbidden"
-// @failure     422      {object} api.ErrorResponse            "Unprocessable Entity: deleting user failed"
-// @failure     500      {object} api.ErrorResponse            "Internal Server Error"
+// @failure     400      {string} string              "Bad Request"
+// @failure     401      {string} string              "Unauthorized"
+// @failure     403      {string} string              "Forbidden"
+// @failure     422      {string} string              "Unprocessable Entity: deleting user failed"
+// @failure     500      {string} string              "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /users/ [delete]
 func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
@@ -1052,14 +1061,13 @@ func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
 // @tags query
 // @description Returns a JSON-encoded list of users.
 // @description Required query-parameter defines if all users or only users with additional special roles are returned.
-// @accept      json
 // @produce     json
 // @param       not-just-user query bool true "If returned list should contain all users or only users with additional special roles"
-// @success     200     {string} json                         "Users returned successfully"
-// @failure     400     {object} api.ErrorResponse            "Bad Request"
-// @failure     401     {object} api.ErrorResponse            "Unauthorized"
-// @failure     403     {object} api.ErrorResponse            "Forbidden"
-// @failure     500     {object} api.ErrorResponse            "Internal Server Error"
+// @success     200     {array} api.ApiReturnedUser "List of users returned successfully"
+// @failure     400     {string} string             "Bad Request"
+// @failure     401     {string} string             "Unauthorized"
+// @failure     403     {string} string             "Forbidden"
+// @failure     500     {string} string             "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /users/ [get]
 func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
@@ -1090,17 +1098,17 @@ func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 // @description If more than one formValue is set then only the highest priority field is used.
 // @accept      mpfd
 // @produce     plain
-// @param       id             path     string                true  "Database ID of User"
-// @param       add-role       formData string                false "Priority 1: Role to add, one of: [admin, support, manager, user, api]"
-// @param       remove-role    formData string                false "Priority 2: Role to remove, one of: [admin, support, manager, user, api]"
-// @param       add-project    formData string                false "Priority 3: Project to add"
-// @param       remove-project formData string                false "Priority 4: Project to remove"
-// @success     200     {string} string                       "Task successful"
-// @failure     400     {object} api.ErrorResponse            "Bad Request"
-// @failure     401     {object} api.ErrorResponse            "Unauthorized"
-// @failure     403     {object} api.ErrorResponse            "Forbidden"
-// @failure     422     {object} api.ErrorResponse            "Unprocessable Entity: The user could not be updated"
-// @failure     500     {object} api.ErrorResponse            "Internal Server Error"
+// @param       id             path     string     true  "Database ID of User"
+// @param       add-role       formData string     false "Priority 1: Role to add" Enums(admin, support, manager, user, api)
+// @param       remove-role    formData string     false "Priority 2: Role to remove" Enums(admin, support, manager, user, api)
+// @param       add-project    formData string     false "Priority 3: Project to add"
+// @param       remove-project formData string     false "Priority 4: Project to remove"
+// @success     200     {string} string            "Success Response Message"
+// @failure     400     {string} string            "Bad Request"
+// @failure     401     {string} string            "Unauthorized"
+// @failure     403     {string} string            "Forbidden"
+// @failure     422     {string} string            "Unprocessable Entity: The user could not be updated"
+// @failure     500     {string} string            "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /user/{id} [post]
 func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
