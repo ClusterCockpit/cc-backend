@@ -119,10 +119,10 @@
     <thead>
         <tr>
             <th scope="col">
-                <!-- {({ -->
-                <!--     USER: "Username", -->
-                <!--     PROJECT: "Project Name", -->
-                <!-- })[type]} -->
+                {({
+                    USER: "Username",
+                    PROJECT: "Project Name",
+                })[type]}
                 <Button
                     color={sorting.field == "id" ? "primary" : "light"}
                     size="sm"
@@ -216,14 +216,14 @@
                             >
                         {:else if type == "PROJECT"}
                             <a href="/monitoring/jobs/?project={row.id}"
-                                >{row.id}</a
+                                >{scrambleNames ? scramble(row.id) : row.id}</a
                             >
                         {:else}
                             {row.id}
                         {/if}
                     </td>
                     {#if type == "USER"}
-                        <td>{row?.name ? row.name : ""}</td>
+                        <td>{scrambleNames ? scramble(row?.name?row.name:"-") : row?.name?row.name:"-"}</td>
                     {/if}
                     <td>{row.totalJobs}</td>
                     <td>{row.totalWalltime}</td>

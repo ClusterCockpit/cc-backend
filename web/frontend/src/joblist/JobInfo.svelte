@@ -7,7 +7,10 @@
  -->
 <script context="module">
     export const scrambleNames = window.localStorage.getItem("cc-scramble-names")
-    export const scramble = (str) => [...str].reduce((x, c, i) => x * 7 + c.charCodeAt(0) * i * 21, 5).toString(32)
+    export const scramble = function(str) {
+        if (str === '-') return str
+        else return [...str].reduce((x, c, i) => x * 7 + c.charCodeAt(0) * i * 21, 5).toString(32).substr(0, 6)
+    }
 </script>
 <script>
     import Tag from '../Tag.svelte';

@@ -1,9 +1,10 @@
 <script>
     import Refresher from './joblist/Refresher.svelte'
     import Roofline, { transformPerNodeData } from './plots/Roofline.svelte'
+    import Pie, { colors } from './plots/Pie.svelte'
     import Histogram from './plots/Histogram.svelte'
     import { Row, Col, Spinner, Card, CardHeader, CardTitle, CardBody, Table, Progress, Icon } from 'sveltestrap'
-    import { init } from './utils.js'
+    import { init, convert2uplot } from './utils.js'
     import { scaleNumbers } from './units.js'
     import { queryStore, gql, getContextClient  } from '@urql/svelte'
 
@@ -159,21 +160,24 @@
     <Row cols={4}>
         <Col class="p-2">
             <div bind:clientWidth={colWidth1}>
-                <h4 class="mb-3 text-center">Top Users</h4>
+                <h4 class="text-center">Top Users</h4>
                 {#key $mainQuery.data}
-                    <Histogram
-                        width={colWidth1 - 25}
-                        data={$mainQuery.data.topUsers.sort((a, b) => b.count - a.count).map(({ count }, idx) => ({ count, value: idx }))}
-                        label={(x) => x < $mainQuery.data.topUsers.length ? $mainQuery.data.topUsers[Math.floor(x)].name : '0'}
-                        xlabel="User Name" ylabel="Number of Jobs" />
+                    <Pie
+                        size={colWidth1}
+                        sliceLabel='Jobs'
+                        quantities={$mainQuery.data.topUsers.sort((a, b) => b.count - a.count).map((tu) => tu.count)}
+                        entities={$mainQuery.data.topUsers.sort((a, b) => b.count - a.count).map((tu) => tu.name)}
+                        
+                    />
                 {/key}
             </div>
         </Col>
         <Col class="px-4 py-2">
             <Table>
-                <tr class="mb-2"><th>User Name</th><th>Number of Nodes</th></tr>
-                {#each $mainQuery.data.topUsers.sort((a, b) => b.count - a.count) as { name, count }}
+                <tr class="mb-2"><th>Legend</th><th>User Name</th><th>Number of Nodes</th></tr>
+                {#each $mainQuery.data.topUsers.sort((a, b) => b.count - a.count) as { name, count }, i}
                     <tr>
+                        <td><Icon name="circle-fill" style="color: {colors[i]};"/></td>
                         <th scope="col"><a href="/monitoring/user/{name}?cluster={cluster}&state=running">{name}</a></th>
                         <td>{count}</td>
                     </tr>
@@ -181,20 +185,22 @@
             </Table>
         </Col>
         <Col class="p-2">
-            <h4 class="mb-3 text-center">Top Projects</h4>
+            <h4 class="text-center">Top Projects</h4>
             {#key $mainQuery.data}
-                <Histogram
-                    width={colWidth1 - 25}
-                    data={$mainQuery.data.topProjects.sort((a, b) => b.count - a.count).map(({ count }, idx) => ({ count, value: idx }))}
-                    label={(x) => x < $mainQuery.data.topProjects.length ? $mainQuery.data.topProjects[Math.floor(x)].name : '0'}
-                    xlabel="Project Code" ylabel="Number of Jobs" />
+                <Pie
+                    size={colWidth1}
+                    sliceLabel='Jobs'
+                    quantities={$mainQuery.data.topProjects.sort((a, b) => b.count - a.count).map((tp) => tp.count)}
+                    entities={$mainQuery.data.topProjects.sort((a, b) => b.count - a.count).map((tp) => tp.name)}
+                />
             {/key}
         </Col>
         <Col class="px-4 py-2">
             <Table>
-                <tr class="mb-2"><th>Project Code</th><th>Number of Nodes</th></tr>
-                {#each $mainQuery.data.topProjects.sort((a, b) => b.count - a.count) as { name, count }}
+                <tr class="mb-2"><th>Legend</th><th>Project Code</th><th>Number of Nodes</th></tr>
+                {#each $mainQuery.data.topProjects.sort((a, b) => b.count - a.count) as { name, count }, i}
                     <tr>
+                        <td><Icon name="circle-fill" style="color: {colors[i]};"/></td>
                         <th scope="col"><a href="/monitoring/jobs/?cluster={cluster}&state=running&project={name}&projectMatch=eq">{name}</a></th>
                         <td>{count}</td>
                     </tr>
@@ -202,27 +208,32 @@
             </Table>
         </Col>
     </Row>
-    <Row cols={2} class="mt-3">
+    <hr class="my-2"/>
+    <Row cols={2}>
         <Col class="p-2">
             <div bind:clientWidth={colWidth2}>
-                <h4 class="mb-3 text-center">Duration Distribution</h4>
                 {#key $mainQuery.data.stats}
                     <Histogram
+                        data={convert2uplot($mainQuery.data.stats[0].histDuration)}
                         width={colWidth2 - 25}
-                        data={$mainQuery.data.stats[0].histDuration}
-                        xlabel="Current Runtimes [h]" 
-                        ylabel="Number of Jobs" />
+                        title="Duration Distribution"
+                        xlabel="Current Runtimes"
+                        xunit="Hours" 
+                        ylabel="Number of Jobs"
+                        yunit="Jobs"/>
                 {/key}
             </div>
         </Col>
         <Col class="p-2">
-            <h4 class="mb-3 text-center">Number of Nodes Distribution</h4>
             {#key $mainQuery.data.stats}
                 <Histogram
+                    data={convert2uplot($mainQuery.data.stats[0].histNumNodes)}
                     width={colWidth2 - 25}
-                    data={$mainQuery.data.stats[0].histNumNodes}
-                    xlabel="Allocated Nodes [#]"
-                    ylabel="Number of Jobs" />
+                    title="Number of Nodes Distribution"
+                    xlabel="Allocated Nodes"
+                    xunit="Nodes" 
+                    ylabel="Number of Jobs"
+                    yunit="Jobs"/>
             {/key}
         </Col>
     </Row>

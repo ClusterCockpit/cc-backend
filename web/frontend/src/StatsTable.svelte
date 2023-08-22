@@ -7,6 +7,8 @@
 
     export let job
     export let jobMetrics
+    export let accMetrics
+    export let accNodeOnly
 
     const allMetrics = [...new Set(jobMetrics.map(m => m.name))].sort(),
           scopesForMetric = (metric) => jobMetrics
@@ -19,9 +21,19 @@
         isMetricSelectionOpen = false,
         selectedMetrics = getContext('cc-config')[`job_view_nodestats_selectedMetrics:${job.cluster}`]
             || getContext('cc-config')['job_view_nodestats_selectedMetrics']
-
+            
     for (let metric of allMetrics) {
-        selectedScopes[metric] = maxScope(scopesForMetric(metric))
+        // Not Exclusive or Single Node: Get maxScope()
+        // No Accelerators in Job and not Acc-Metric: Use 'core'
+        // Accelerator Metric available on accelerator scope: Use 'accelerator'
+        // Accelerator Metric only on node scope: Fallback to 'node'
+        selectedScopes[metric] = (job.exclusive != 1 || job.numNodes == 1) ?
+                                   (job.numAccs != 0 && accMetrics.includes(metric)) ?
+                                     accNodeOnly ?
+                                       'node'
+                                     : 'accelerator' 
+                                   : 'core'
+                                 : maxScope(scopesForMetric(metric))
         sorting[metric] = {
             min: { dir: 'up', active: false },
             avg: { dir: 'up', active: false },

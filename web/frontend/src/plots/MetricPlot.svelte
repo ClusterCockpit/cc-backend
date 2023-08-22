@@ -26,17 +26,19 @@
     import { getContext, onMount, onDestroy } from 'svelte'
     import { Card } from 'sveltestrap'
 
+    export let metric
+    export let scope = 'node'
+    export let resources = []
     export let width
     export let height
     export let timestep
     export let series
+    export let useStatsSeries = null
     export let statisticsSeries = null
     export let cluster
     export let subCluster
-    export let metric
-    export let useStatsSeries = null
-    export let scope = 'node'
     export let isShared = false
+    export let forNode = false
 
     if (useStatsSeries == null)
         useStatsSeries = statisticsSeries != null
@@ -52,6 +54,70 @@
     const lineColors = clusterCockpitConfig.plot_general_colorscheme
     const backgroundColors = { normal:  'rgba(255, 255, 255, 1.0)', caution: 'rgba(255, 128, 0, 0.3)', alert: 'rgba(255, 0, 0, 0.3)' }
     const thresholds = findThresholds(metricConfig, scope, typeof subCluster == 'string' ? cluster.subClusters.find(sc => sc.name == subCluster) : subCluster)
+
+    // converts the legend into a simple tooltip
+    function legendAsTooltipPlugin({ className, style = { backgroundColor:"rgba(255, 249, 196, 0.92)", color: "black" } } = {}) {
+        let legendEl;
+        const dataSize = series.length
+
+        function init(u, opts) {
+            legendEl = u.root.querySelector(".u-legend");
+
+            legendEl.classList.remove("u-inline");
+            className && legendEl.classList.add(className);
+
+            uPlot.assign(legendEl.style, {
+                textAlign: "left",
+                pointerEvents: "none",
+                display: "none",
+                position: "absolute",
+                left: 0,
+                top: 0,
+                zIndex: 100,
+                boxShadow: "2px 2px 10px rgba(0,0,0,0.5)",
+                ...style
+            });
+
+            // conditional hide series color markers:
+            if (useStatsSeries === true || // Min/Max/Avg Self-Explanatory
+                dataSize === 1          || // Only one Y-Dataseries
+                dataSize > 6            ){ // More than 6 Y-Dataseries
+                const idents = legendEl.querySelectorAll(".u-marker");
+                for (let i = 0; i < idents.length; i++)
+                    idents[i].style.display = "none";
+            }
+
+            const overEl = u.over;
+            overEl.style.overflow = "visible";
+
+            // move legend into plot bounds
+            overEl.appendChild(legendEl);
+
+            // show/hide tooltip on enter/exit
+            overEl.addEventListener("mouseenter", () => {legendEl.style.display = null;});
+            overEl.addEventListener("mouseleave", () => {legendEl.style.display = "none";});
+
+            // let tooltip exit plot
+            // overEl.style.overflow = "visible";
+        }
+
+        function update(u) {
+            const { left, top } = u.cursor;
+            const width = u.over.querySelector(".u-legend").offsetWidth;
+            legendEl.style.transform = "translate(" + (left - width - 15) + "px, " + (top + 15) + "px)";
+        }
+
+        if (dataSize <= 12 || useStatsSeries === true) {
+            return {
+                hooks: {
+                    init: init,
+                    setCursor: update,
+                }
+            }
+        } else { // Setting legend-opts show/live as object with false here will not work ...
+            return {}
+        }
+    }
 
     function backgroundColor() {
         if (clusterCockpitConfig.plot_general_colorBackground == false
@@ -88,24 +154,48 @@
         ? statisticsSeries.mean.length
         : series.reduce((n, series) => Math.max(n, series.data.length), 0)
     const maxX = longestSeries * timestep
-    const maxY = thresholds != null
-        ? useStatsSeries
+    let maxY = null
+    
+    if (thresholds !== null) {
+        maxY = useStatsSeries
             ? (statisticsSeries.max.reduce((max, x) => Math.max(max, x), thresholds.normal) || thresholds.normal)
             : (series.reduce((max, series) => Math.max(max, series.statistics?.max), thresholds.normal) || thresholds.normal)
-        : null
-    const plotSeries = [{}]
+
+        if (maxY >= (10 * thresholds.normal)) { // Hard y-range render limit if outliers in series data
+            maxY = (10 * thresholds.normal)
+        } 
+    }
+
+    const plotSeries = [{label: 'Runtime', value: (u, ts, sidx, didx) => didx == null ? null : formatTime(ts)}]
     const plotData = [new Array(longestSeries)]
-    for (let i = 0; i < longestSeries; i++) // TODO: Cache/Reuse this array?
-        plotData[0][i] = i * timestep
+
+    if (forNode === true) {
+        // Negative Timestamp Buildup
+        for (let i = 0; i <= longestSeries; i++) {
+            plotData[0][i] = (longestSeries - i) * timestep * -1
+        }
+    } else {
+        // Positive Timestamp Buildup
+        for (let j = 0; j < longestSeries; j++) // TODO: Cache/Reuse this array?
+            plotData[0][j] = j * timestep
+    }
 
     let plotBands = undefined
     if (useStatsSeries) {
         plotData.push(statisticsSeries.min)
         plotData.push(statisticsSeries.max)
         plotData.push(statisticsSeries.mean)
-        plotSeries.push({ scale: 'y', width: lineWidth, stroke: 'red' })
-        plotSeries.push({ scale: 'y', width: lineWidth, stroke: 'green' })
-        plotSeries.push({ scale: 'y', width: lineWidth, stroke: 'black' })
+
+        if (forNode === true) { // timestamp 0 with null value for reversed time axis
+            if (plotData[1].length != 0) plotData[1].push(null)
+            if (plotData[2].length != 0) plotData[2].push(null)
+            if (plotData[3].length != 0) plotData[3].push(null)
+        }
+
+        plotSeries.push({ label: 'min', scale: 'y', width: lineWidth, stroke: 'red' })
+        plotSeries.push({ label: 'max', scale: 'y', width: lineWidth, stroke: 'green' })
+        plotSeries.push({ label: 'mean', scale: 'y', width: lineWidth, stroke: 'black' })
+      
         plotBands = [
             { series: [2,3], fill: 'rgba(0,255,0,0.1)' },
             { series: [3,1], fill: 'rgba(255,0,0,0.1)' }
@@ -113,7 +203,11 @@
     } else {
         for (let i = 0; i < series.length; i++) {
             plotData.push(series[i].data)
+            if (forNode === true && plotData[1].length != 0) plotData[1].push(null) // timestamp 0 with null value for reversed time axis
             plotSeries.push({
+                label: scope === 'node' ? resources[i].hostname : 
+                       // scope === 'accelerator' ? resources[0].accelerators[i] : 
+                       scope + ' #' + (i+1),
                 scale: 'y',
                 width: lineWidth,
                 stroke: lineColor(i, series.length)
@@ -124,12 +218,15 @@
     const opts = {
         width,
         height,
+        plugins: [
+				legendAsTooltipPlugin()
+		],
         series: plotSeries,
         axes: [
             {
                 scale: 'x',
                 space: 35,
-                incrs: timeIncrs(timestep, maxX),
+                incrs: timeIncrs(timestep, maxX, forNode),
                 values: (_, vals) => vals.map(v => formatTime(v))
             },
             {
@@ -177,8 +274,11 @@
             x: { time: false },
             y: maxY ? { range: [0., maxY * 1.1] } : {}
         },
-        cursor: { show: false },
-        legend: { show: false, live: false }
+        legend : { // Display legend until max 12 Y-dataseries
+            show: (series.length <= 12 || useStatsSeries === true) ? true : false,
+            live: (series.length <= 12 || useStatsSeries === true) ? true : false
+        },
+        cursor: { drag: { x: true, y: true } }
     }
 
     // console.log(opts)
@@ -249,24 +349,33 @@
     }
 </script>
 <script context="module">
-
     export function formatTime(t) {
-        let h = Math.floor(t / 3600)
-        let m = Math.floor((t % 3600) / 60)
-        if (h == 0)
-            return `${m}m`
-        else if (m == 0)
-            return `${h}h`
-        else
-            return `${h}:${m}h`
+        if (t !== null) {
+            if (isNaN(t)) {
+                return t
+            } else {
+                let h = Math.floor(t / 3600)
+                let m = Math.floor((t % 3600) / 60)
+                if (h == 0)
+                    return `${m}m`
+                else if (m == 0)
+                    return `${h}h`
+                else
+                    return `${h}:${m}h`
+            }
+        }
     }
 
-    export function timeIncrs(timestep, maxX) {
-        let incrs = []
-        for (let t = timestep; t < maxX; t *= 10)
-            incrs.push(t, t * 2, t * 3, t * 5)
+    export function timeIncrs(timestep, maxX, forNode) {
+        if (forNode === true) {
+            return [60, 300, 900, 1800, 3600, 7200, 14400, 21600] // forNode fixed increments
+        } else {
+            let incrs = []
+            for (let t = timestep; t < maxX; t *= 10)
+                incrs.push(t, t * 2, t * 3, t * 5)
 
-        return incrs
+            return incrs
+        }
     }
 
     export function findThresholds(metricConfig, scope, subCluster) {
@@ -323,8 +432,9 @@
 {#if series[0].data.length > 0}
     <div bind:this={plotWrapper} class="cc-plot"></div>
 {:else}
-    <Card style="margin-left: 2rem;margin-right: 2rem;" body color="warning">Cannot render plot: No series data returned for <code>{metric}</code></Card>
+    <Card class="mx-4" body color="warning">Cannot render plot: No series data returned for <code>{metric}</code></Card>
 {/if}
+
 <style>
     .cc-plot {
         border-radius: 5px;

@@ -1,5 +1,6 @@
 <script>
     import { init, checkMetricDisabled } from './utils.js'
+    import Refresher from './joblist/Refresher.svelte'
     import { Row, Col, Input, InputGroup, InputGroupText, Icon, Spinner, Card } from 'sveltestrap'
     import { queryStore, gql, getContextClient } from '@urql/svelte'
     import TimeSelection from './filters/TimeSelection.svelte'
@@ -79,6 +80,13 @@
         <Spinner/>
     {:else}
         <Col>
+            <Refresher on:reload={() => {
+                const diff = Date.now() - to
+                from = new Date(from.getTime() + diff)
+                to = new Date(to.getTime() + diff)
+            }} />
+        </Col>
+        <Col>
             <TimeSelection
                 bind:from={from}
                 bind:to={to} />
@@ -136,7 +144,8 @@
                             series={item.data.metric.series}
                             metric={item.data.name}
                             cluster={clusters.find(c => c.name == cluster)}
-                            subCluster={item.subCluster} />
+                            subCluster={item.subCluster} 
+                            resources={[{hostname: item.host}]}/>
                     {:else if item.disabled === true && item.data}
                         <Card style="margin-left: 2rem;margin-right: 2rem;" body color="info">Metric disabled for subcluster <code>{selectedMetric}:{item.subCluster}</code></Card>
                     {:else}

@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
@@ -615,7 +614,7 @@ func (r *JobRepository) WaitForArchiving() {
 	r.archivePending.Wait()
 }
 
-func (r *JobRepository) FindUserOrProjectOrJobname(user *auth.User, searchterm string) (jobid string, username string, project string, jobname string) {
+func (r *JobRepository) FindUserOrProjectOrJobname(user *schema.User, searchterm string) (jobid string, username string, project string, jobname string) {
 	if _, err := strconv.Atoi(searchterm); err == nil { // Return empty on successful conversion: parent method will redirect for integer jobId
 		return searchterm, "", "", ""
 	} else { // Has to have letters and logged-in user for other guesses
@@ -644,14 +643,14 @@ func (r *JobRepository) FindUserOrProjectOrJobname(user *auth.User, searchterm s
 var ErrNotFound = errors.New("no such jobname, project or user")
 var ErrForbidden = errors.New("not authorized")
 
-func (r *JobRepository) FindColumnValue(user *auth.User, searchterm string, table string, selectColumn string, whereColumn string, isLike bool) (result string, err error) {
+func (r *JobRepository) FindColumnValue(user *schema.User, searchterm string, table string, selectColumn string, whereColumn string, isLike bool) (result string, err error) {
 	compareStr := " = ?"
 	query := searchterm
 	if isLike {
 		compareStr = " LIKE ?"
 		query = "%" + searchterm + "%"
 	}
-	if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
+	if user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport, schema.RoleManager}) {
 		theQuery := sq.Select(table+"."+selectColumn).Distinct().From(table).
 			Where(table+"."+whereColumn+compareStr, query)
 
@@ -676,9 +675,9 @@ func (r *JobRepository) FindColumnValue(user *auth.User, searchterm string, tabl
 	}
 }
 
-func (r *JobRepository) FindColumnValues(user *auth.User, query string, table string, selectColumn string, whereColumn string) (results []string, err error) {
+func (r *JobRepository) FindColumnValues(user *schema.User, query string, table string, selectColumn string, whereColumn string) (results []string, err error) {
 	emptyResult := make([]string, 0)
-	if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleManager}) {
+	if user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport, schema.RoleManager}) {
 		rows, err := sq.Select(table+"."+selectColumn).Distinct().From(table).
 			Where(table+"."+whereColumn+" LIKE ?", fmt.Sprint("%", query, "%")).
 			RunWith(r.stmtCache).Query()

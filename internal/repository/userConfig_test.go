@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -22,6 +22,9 @@ func setupUserTest(t *testing.T) *UserCfgRepo {
 		"kind": "file",
 		"path": "./var/job-archive"
 	},
+    "jwts": {
+        "max-age": "2m"
+    },
 	"clusters": [
 	{
 	   "name": "testcluster",
@@ -53,7 +56,7 @@ func setupUserTest(t *testing.T) *UserCfgRepo {
 
 func TestGetUIConfig(t *testing.T) {
 	r := setupUserTest(t)
-	u := auth.User{Username: "demo"}
+	u := schema.User{Username: "demo"}
 
 	cfg, err := r.GetUIConfig(&u)
 	if err != nil {

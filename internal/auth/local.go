@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -18,38 +19,29 @@ type LocalAuthenticator struct {
 
 var _ Authenticator = (*LocalAuthenticator)(nil)
 
-func (la *LocalAuthenticator) Init(
-	auth *Authentication,
-	_ interface{}) error {
-
-	la.auth = auth
+func (la *LocalAuthenticator) Init() error {
 	return nil
 }
 
 func (la *LocalAuthenticator) CanLogin(
-	user *User,
+	user *schema.User,
+	username string,
 	rw http.ResponseWriter,
-	r *http.Request) bool {
+	r *http.Request) (*schema.User, bool) {
 
-	return user != nil && user.AuthSource == AuthViaLocalPassword
+	return user, user != nil && user.AuthSource == schema.AuthViaLocalPassword
 }
 
 func (la *LocalAuthenticator) Login(
-	user *User,
+	user *schema.User,
 	rw http.ResponseWriter,
-	r *http.Request) (*User, error) {
+	r *http.Request) (*schema.User, error) {
 
-	if e := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(r.FormValue("password"))); e != nil {
+	if e := bcrypt.CompareHashAndPassword([]byte(user.Password),
+		[]byte(r.FormValue("password"))); e != nil {
 		log.Errorf("AUTH/LOCAL > Authentication for user %s failed!", user.Username)
-		return nil, fmt.Errorf("AUTH/LOCAL > Authentication failed")
+		return nil, fmt.Errorf("Authentication failed")
 	}
 
 	return user, nil
-}
-
-func (la *LocalAuthenticator) Auth(
-	rw http.ResponseWriter,
-	r *http.Request) (*User, error) {
-
-	return la.auth.AuthViaSession(rw, r)
 }

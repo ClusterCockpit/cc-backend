@@ -39,6 +39,9 @@ func setup(t *testing.T) *api.RestApi {
 		"kind": "file",
 		"path": "./var/job-archive"
 	},
+    "jwts": {
+        "max-age": "2m"
+    },
 	"clusters": [
 	{
 	   "name": "testcluster",

@@ -1,6 +1,6 @@
 <script>
     import { onMount, getContext } from 'svelte'
-    import { init } from './utils.js'
+    import { init, convert2uplot } from './utils.js'
     import { Table, Row, Col, Button, Icon, Card, Spinner, Input } from 'sveltestrap'
     import { queryStore, gql, getContextClient } from '@urql/svelte'
     import Filters from './filters/Filters.svelte'
@@ -25,13 +25,6 @@
     let metrics = ccconfig.plot_list_selectedMetrics, isMetricsSelectionOpen = false
     let w1, w2, histogramHeight = 250
     let selectedCluster = filterPresets?.cluster ? filterPresets.cluster : null
-    let resize = false 
-    /* Resize Context 
-    *  A) Each viewport change triggers histogram rerender due to variable dimensions clearing canvas if not rerendered
-    *  B) Opening filters (and some other things) triggers small change in viewport dimensions (Fix here?)
-    *  A+B) Histogram rerenders if filters opened, high performance impact if dataload heavy
-    *  Solution: Default to fixed histogram dimensions, allow user to enable automatic resizing
-    */
 
     const client = getContextClient();
     $: stats = queryStore({
@@ -137,47 +130,31 @@
                         <th scope="row">Total Core Hours</th>
                         <td>{$stats.data.jobsStatistics[0].totalCoreHours}</td>
                     </tr>
-<!--                     <tr>
-                        <th scope="row">Toggle Histogram Resizing</th>
-                        <td><Input id="c3" value={resize} type="switch" on:change={() => (resize = !resize)}/></td>
-                    </tr> -->
                 </tbody>
             </Table>
         </Col>
-        <div class="col-4" style="text-align: center;" bind:clientWidth={w1}>
-            <b>Duration Distribution</b>
+        <div class="col-4 text-center" bind:clientWidth={w1}>
             {#key $stats.data.jobsStatistics[0].histDuration}
-                {#if resize == true}
                 <Histogram
-                    data={$stats.data.jobsStatistics[0].histDuration}
+                    data={convert2uplot($stats.data.jobsStatistics[0].histDuration)}
                     width={w1 - 25} height={histogramHeight}
-                    xlabel="Current Runtimes [h]" 
-                    ylabel="Number of Jobs"/>
-                {:else}
-                <Histogram
-                    data={$stats.data.jobsStatistics[0].histDuration}
-                    width={400} height={250}
-                    xlabel="Current Runtimes [h]" 
-                    ylabel="Number of Jobs"/>
-                {/if}
+                    title="Duration Distribution"
+                    xlabel="Current Runtimes"
+                    xunit="Hours" 
+                    ylabel="Number of Jobs"
+                    yunit="Jobs"/>
             {/key}
         </div>
-        <div class="col-4" style="text-align: center;" bind:clientWidth={w2}>
-            <b>Number of Nodes Distribution</b>
+        <div class="col-4 text-center" bind:clientWidth={w2}>
             {#key $stats.data.jobsStatistics[0].histNumNodes}
-                {#if resize == true}
                 <Histogram
-                    data={$stats.data.jobsStatistics[0].histNumNodes}
+                    data={convert2uplot($stats.data.jobsStatistics[0].histNumNodes)}
                     width={w2 - 25} height={histogramHeight}
-                    xlabel="Allocated Nodes [#]"
-                    ylabel="Number of Jobs" />
-                {:else}
-                <Histogram
-                    data={$stats.data.jobsStatistics[0].histNumNodes}
-                    width={400} height={250}
-                    xlabel="Allocated Nodes [#]"
-                    ylabel="Number of Jobs" />
-                {/if}
+                    title="Number of Nodes Distribution"
+                    xlabel="Allocated Nodes"
+                    xunit="Nodes"
+                    ylabel="Number of Jobs"
+                    yunit="Jobs"/>
             {/key}
         </div>
     {/if}

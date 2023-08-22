@@ -18,7 +18,9 @@
   "dependencies": {
     "@rollup/plugin-replace": "^5.0.2",
     "@urql/svelte": "^4.0.1",
+    "chart.js": "^4.3.3",
     "graphql": "^16.6.0",
+    "svelte-chartjs": "^3.1.2",
     "sveltestrap": "^5.10.0",
     "uplot": "^1.6.24",
     "wonka": "^6.3.2"

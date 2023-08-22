@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -130,20 +129,20 @@ func (r *JobRepository) CountJobs(
 }
 
 func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (sq.SelectBuilder, error) {
-	user := auth.GetUser(ctx)
+	user := GetUserFromContext(ctx)
 	if user == nil {
 		var qnil sq.SelectBuilder
 		return qnil, fmt.Errorf("user context is nil!")
-	} else if user.HasAnyRole([]auth.Role{auth.RoleAdmin, auth.RoleSupport, auth.RoleApi}) { // Admin & Co. : All jobs
+	} else if user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport, schema.RoleApi}) { // Admin & Co. : All jobs
 		return query, nil
-	} else if user.HasRole(auth.RoleManager) { // Manager : Add filter for managed projects' jobs only + personal jobs
+	} else if user.HasRole(schema.RoleManager) { // Manager : Add filter for managed projects' jobs only + personal jobs
 		if len(user.Projects) != 0 {
 			return query.Where(sq.Or{sq.Eq{"job.project": user.Projects}, sq.Eq{"job.user": user.Username}}), nil
 		} else {
 			log.Debugf("Manager-User '%s' has no defined projects to lookup! Query only personal jobs ...", user.Username)
 			return query.Where("job.user = ?", user.Username), nil
 		}
-	} else if user.HasRole(auth.RoleUser) { // User : Only personal jobs
+	} else if user.HasRole(schema.RoleUser) { // User : Only personal jobs
 		return query.Where("job.user = ?", user.Username), nil
 	} else {
 		// Shortterm compatibility: Return User-Query if no roles:
