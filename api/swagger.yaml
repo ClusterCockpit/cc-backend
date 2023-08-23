@@ -1,5 +1,22 @@
 basePath: /api
 definitions:
+  api.ApiReturnedUser:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      projects:
+        items:
+          type: string
+        type: array
+      roles:
+        items:
+          type: string
+        type: array
+      username:
+        type: string
+    type: object
   api.ApiTag:
     properties:
       name:
@@ -495,9 +512,7 @@ definitions:
     description: Defines a tag using name and type.
     properties:
       id:
-        description: |-
-          The unique DB identifier of a tag
-          The unique DB identifier of a tag
+        description: The unique DB identifier of a tag
         type: integer
       name:
         description: Tag Name
@@ -526,7 +541,7 @@ info:
     name: MIT License
     url: https://opensource.org/licenses/MIT
   title: ClusterCockpit REST API
-  version: "1"
+  version: 1.0.0
 paths:
   /jobs/:
     get:
@@ -994,6 +1009,231 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Adds one or more tags to a job
+      tags:
+      - add and modify
+  /user/{id}:
+    post:
+      consumes:
+      - multipart/form-data
+      description: |-
+        Modifies user defined by username (id) in one of four possible ways.
+        If more than one formValue is set then only the highest priority field is used.
+      parameters:
+      - description: Database ID of User
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'Priority 1: Role to add'
+        enum:
+        - admin
+        - support
+        - manager
+        - user
+        - api
+        in: formData
+        name: add-role
+        type: string
+      - description: 'Priority 2: Role to remove'
+        enum:
+        - admin
+        - support
+        - manager
+        - user
+        - api
+        in: formData
+        name: remove-role
+        type: string
+      - description: 'Priority 3: Project to add'
+        in: formData
+        name: add-project
+        type: string
+      - description: 'Priority 4: Project to remove'
+        in: formData
+        name: remove-project
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Success Response Message
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "422":
+          description: 'Unprocessable Entity: The user could not be updated'
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Updates an existing user
+      tags:
+      - add and modify
+  /users/:
+    delete:
+      consumes:
+      - multipart/form-data
+      description: User defined by username in form data will be deleted from database.
+      parameters:
+      - description: User ID to delete
+        in: formData
+        name: username
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: User deleted successfully
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "422":
+          description: 'Unprocessable Entity: deleting user failed'
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Deletes a user
+      tags:
+      - remove
+    get:
+      description: |-
+        Returns a JSON-encoded list of users.
+        Required query-parameter defines if all users or only users with additional special roles are returned.
+      parameters:
+      - description: If returned list should contain all users or only users with
+          additional special roles
+        in: query
+        name: not-just-user
+        required: true
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of users returned successfully
+          schema:
+            items:
+              $ref: '#/definitions/api.ApiReturnedUser'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Returns a list of users
+      tags:
+      - query
+    post:
+      consumes:
+      - multipart/form-data
+      description: User specified in form data will be saved to database.
+      parameters:
+      - description: Unique user ID
+        in: formData
+        name: username
+        required: true
+        type: string
+      - description: User password
+        in: formData
+        name: password
+        required: true
+        type: string
+      - description: User role
+        enum:
+        - admin
+        - support
+        - manager
+        - user
+        - api
+        in: formData
+        name: role
+        required: true
+        type: string
+      - description: Managed project, required for new manager role user
+        in: formData
+        name: project
+        type: string
+      - description: Users name
+        in: formData
+        name: name
+        type: string
+      - description: Users email
+        in: formData
+        name: email
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Success Response
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "422":
+          description: 'Unprocessable Entity: creating user failed'
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Adds a new user
       tags:
       - add and modify
 securityDefinitions:

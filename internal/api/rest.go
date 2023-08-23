@@ -77,8 +77,6 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 	r.HandleFunc("/jobs/delete_job/", api.deleteJobByRequest).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job/{id}", api.deleteJobById).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job_before/{ts}", api.deleteJobBefore).Methods(http.MethodDelete)
-	// r.HandleFunc("/secured/addProject/{id}/{project}", api.secureUpdateUser).Methods(http.MethodPost)
-	// r.HandleFunc("/secured/addRole/{id}/{role}", api.secureUpdateUser).Methods(http.MethodPost)
 
 	if api.MachineStateDir != "" {
 		r.HandleFunc("/machine_state/{cluster}/{host}", api.getMachineState).Methods(http.MethodGet)
@@ -165,6 +163,14 @@ type JobMetricWithName struct {
 	Metric *schema.JobMetric  `json:"metric"`
 }
 
+type ApiReturnedUser struct {
+	Username string   `json:"username"`
+	Name     string   `json:"name"`
+	Roles    []string `json:"roles"`
+	Email    string   `json:"email"`
+	Projects []string `json:"projects"`
+}
+
 func handleError(err error, statusCode int, rw http.ResponseWriter) {
 	log.Warnf("REST ERROR : %s", err.Error())
 	rw.Header().Add("Content-Type", "application/json")
@@ -191,6 +197,10 @@ func securedCheck(r *http.Request) error {
 		// If nothing declared in config: deny all request to this endpoint
 		if config.Keys.ApiAllowedIPs == nil || len(config.Keys.ApiAllowedIPs) == 0 {
 			return fmt.Errorf("missing configuration key ApiAllowedIPs")
+		}
+
+		if config.Keys.ApiAllowedIPs[0] == "*" {
+			return nil
 		}
 
 		// extract IP address
@@ -943,43 +953,31 @@ func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (api *RestApi) getJWT(rw http.ResponseWriter, r *http.Request) {
-	err := securedCheck(r)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusForbidden)
-	}
-
-	rw.Header().Set("Content-Type", "text/plain")
-	username := r.FormValue("username")
-	me := repository.GetUserFromContext(r.Context())
-	if !me.HasRole(schema.RoleAdmin) {
-		if username != me.Username {
-			http.Error(rw, "Only admins are allowed to sign JWTs not for themselves",
-				http.StatusForbidden)
-			return
-		}
-	}
-
-	user, err := repository.GetUserRepository().GetUser(username)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
-		return
-	}
-
-	jwt, err := api.Authentication.JwtAuth.ProvideJWT(user)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
-		return
-	}
-
-	rw.WriteHeader(http.StatusOK)
-	rw.Write([]byte(jwt))
-}
-
+// createUser godoc
+// @summary     Adds a new user
+// @tags add and modify
+// @description User specified in form data will be saved to database.
+// @accept      mpfd
+// @produce     plain
+// @param       username formData string                       true  "Unique user ID"
+// @param       password formData string                       true  "User password"
+// @param       role 	 formData string                       true  "User role" Enums(admin, support, manager, user, api)
+// @param       project  formData string                       false "Managed project, required for new manager role user"
+// @param       name 	 formData string                       false "Users name"
+// @param       email 	 formData string                       false "Users email"
+// @success     200      {string} string                       "Success Response"
+// @failure     400      {string} string                       "Bad Request"
+// @failure     401      {string} string                       "Unauthorized"
+// @failure     403      {string} string                       "Forbidden"
+// @failure     422      {string} string                       "Unprocessable Entity: creating user failed"
+// @failure     500      {string} string                       "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /users/ [post]
 func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 	err := securedCheck(r)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusForbidden)
+		return
 	}
 
 	rw.Header().Set("Content-Type", "text/plain")
@@ -1022,10 +1020,26 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 	rw.Write([]byte(fmt.Sprintf("User %v successfully created!\n", username)))
 }
 
+// deleteUser godoc
+// @summary     Deletes a user
+// @tags remove
+// @description User defined by username in form data will be deleted from database.
+// @accept      mpfd
+// @produce     plain
+// @param       username formData string         true "User ID to delete"
+// @success     200      "User deleted successfully"
+// @failure     400      {string} string              "Bad Request"
+// @failure     401      {string} string              "Unauthorized"
+// @failure     403      {string} string              "Forbidden"
+// @failure     422      {string} string              "Unprocessable Entity: deleting user failed"
+// @failure     500      {string} string              "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /users/ [delete]
 func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
 	err := securedCheck(r)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusForbidden)
+		return
 	}
 
 	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
@@ -1042,10 +1056,25 @@ func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
 	rw.WriteHeader(http.StatusOK)
 }
 
+// getUsers godoc
+// @summary     Returns a list of users
+// @tags query
+// @description Returns a JSON-encoded list of users.
+// @description Required query-parameter defines if all users or only users with additional special roles are returned.
+// @produce     json
+// @param       not-just-user query bool true "If returned list should contain all users or only users with additional special roles"
+// @success     200     {array} api.ApiReturnedUser "List of users returned successfully"
+// @failure     400     {string} string             "Bad Request"
+// @failure     401     {string} string             "Unauthorized"
+// @failure     403     {string} string             "Forbidden"
+// @failure     500     {string} string             "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /users/ [get]
 func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 	err := securedCheck(r)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusForbidden)
+		return
 	}
 
 	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
@@ -1062,31 +1091,31 @@ func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(rw).Encode(users)
 }
 
-func (api *RestApi) getRoles(rw http.ResponseWriter, r *http.Request) {
-	err := securedCheck(r)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusForbidden)
-	}
-
-	user := repository.GetUserFromContext(r.Context())
-	if !user.HasRole(schema.RoleAdmin) {
-		http.Error(rw, "only admins are allowed to fetch a list of roles", http.StatusForbidden)
-		return
-	}
-
-	roles, err := schema.GetValidRoles(user)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	json.NewEncoder(rw).Encode(roles)
-}
-
+// updateUser godoc
+// @summary     Updates an existing user
+// @tags add and modify
+// @description Modifies user defined by username (id) in one of four possible ways.
+// @description If more than one formValue is set then only the highest priority field is used.
+// @accept      mpfd
+// @produce     plain
+// @param       id             path     string     true  "Database ID of User"
+// @param       add-role       formData string     false "Priority 1: Role to add" Enums(admin, support, manager, user, api)
+// @param       remove-role    formData string     false "Priority 2: Role to remove" Enums(admin, support, manager, user, api)
+// @param       add-project    formData string     false "Priority 3: Project to add"
+// @param       remove-project formData string     false "Priority 4: Project to remove"
+// @success     200     {string} string            "Success Response Message"
+// @failure     400     {string} string            "Bad Request"
+// @failure     401     {string} string            "Unauthorized"
+// @failure     403     {string} string            "Forbidden"
+// @failure     422     {string} string            "Unprocessable Entity: The user could not be updated"
+// @failure     500     {string} string            "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /user/{id} [post]
 func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 	err := securedCheck(r)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusForbidden)
+		return
 	}
 
 	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
@@ -1130,70 +1159,61 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// func (api *RestApi) secureUpdateUser(rw http.ResponseWriter, r *http.Request) {
-// 	if user := auth.GetUser(r.Context()); user != nil && !user.HasRole(auth.RoleApi) {
-// 		handleError(fmt.Errorf("missing role: %v", auth.GetRoleString(auth.RoleApi)), http.StatusForbidden, rw)
-// 		return
-// 	}
-//
-// 	// IP CHECK HERE (WIP)
-// 	// Probably better as private routine
-// 	IPAddress := r.Header.Get("X-Real-Ip")
-// 	if IPAddress == "" {
-// 		IPAddress = r.Header.Get("X-Forwarded-For")
-// 	}
-// 	if IPAddress == "" {
-// 		IPAddress = r.RemoteAddr
-// 	}
-//
-// 	// Also This
-// 	ipOk := false
-// 	for _, a := range config.Keys.ApiAllowedAddrs {
-// 		if a == IPAddress {
-// 			ipOk = true
-// 		}
-// 	}
-//
-// 	if IPAddress == "" || ipOk == false {
-// 		handleError(fmt.Errorf("unknown ip: %v", IPAddress), http.StatusForbidden, rw)
-// 		return
-// 	}
-// 	// IP CHECK END
-//
-// 	// Get Values
-// 	id := mux.Vars(r)["id"]
-// 	newproj := mux.Vars(r)["project"]
-// 	newrole := mux.Vars(r)["role"]
-//
-// 	// TODO: Handle anything but roles...
-// 	if newrole != "" {
-// 		if err := api.Authentication.AddRole(r.Context(), id, newrole); err != nil {
-// 			handleError(errors.New(err.Error()), http.StatusUnprocessableEntity, rw)
-// 			return
-// 		}
-//
-// 		rw.Header().Add("Content-Type", "application/json")
-// 		rw.WriteHeader(http.StatusOK)
-// 		json.NewEncoder(rw).Encode(UpdateUserApiResponse{
-// 			Message: fmt.Sprintf("Successfully added role %s to %s", newrole, id),
-// 		})
-//
-// 	} else if newproj != "" {
-// 		if err := api.Authentication.AddProject(r.Context(), id, newproj); err != nil {
-// 			handleError(errors.New(err.Error()), http.StatusUnprocessableEntity, rw)
-// 			return
-// 		}
-//
-// 		rw.Header().Add("Content-Type", "application/json")
-// 		rw.WriteHeader(http.StatusOK)
-// 		json.NewEncoder(rw).Encode(UpdateUserApiResponse{
-// 			Message: fmt.Sprintf("Successfully added project %s to %s", newproj, id),
-// 		})
-//
-// 	} else {
-// 		handleError(errors.New("Not Add [role|project]?"), http.StatusBadRequest, rw)
-// 	}
-// }
+func (api *RestApi) getJWT(rw http.ResponseWriter, r *http.Request) {
+	err := securedCheck(r)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	rw.Header().Set("Content-Type", "text/plain")
+	username := r.FormValue("username")
+	me := repository.GetUserFromContext(r.Context())
+	if !me.HasRole(schema.RoleAdmin) {
+		if username != me.Username {
+			http.Error(rw, "Only admins are allowed to sign JWTs not for themselves",
+				http.StatusForbidden)
+			return
+		}
+	}
+
+	user, err := repository.GetUserRepository().GetUser(username)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
+
+	jwt, err := api.Authentication.JwtAuth.ProvideJWT(user)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
+
+	rw.WriteHeader(http.StatusOK)
+	rw.Write([]byte(jwt))
+}
+
+func (api *RestApi) getRoles(rw http.ResponseWriter, r *http.Request) {
+	err := securedCheck(r)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	user := repository.GetUserFromContext(r.Context())
+	if !user.HasRole(schema.RoleAdmin) {
+		http.Error(rw, "only admins are allowed to fetch a list of roles", http.StatusForbidden)
+		return
+	}
+
+	roles, err := schema.GetValidRoles(user)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(rw).Encode(roles)
+}
 
 func (api *RestApi) updateConfiguration(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "text/plain")
