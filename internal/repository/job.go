@@ -478,6 +478,12 @@ func (r *JobRepository) CountGroupedJobs(
 			now := time.Now().Unix()
 			count = fmt.Sprintf(`sum(job.num_nodes * (CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) as count`, now)
 			runner = r.DB
+		case model.WeightsCoreCount:
+			count = "sum(job.num_hwthreads) as count"
+		case model.WeightsCoreHours:
+			now := time.Now().Unix()
+			count = fmt.Sprintf(`sum(job.num_hwthreads * (CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) as count`, now)
+			runner = r.DB
 		default:
 			log.Debugf("CountGroupedJobs() Weight %v unknown.", *weight)
 		}

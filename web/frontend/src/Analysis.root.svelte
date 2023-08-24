@@ -67,7 +67,7 @@
                     histNumNodes { count, value }
                 }
 
-                topUsers: jobsCount(filter: $jobFilters, groupBy: USER, weight: NODE_HOURS, limit: 5) { name, count }
+                topUsers: jobsCount(filter: $jobFilters, groupBy: USER, weight: CORE_HOURS, limit: 5) { name, count }
             }
         `, 
         variables: { jobFilters }
@@ -172,7 +172,7 @@
         </Col>
         <Col>
             <Table>
-                <tr class="mb-2"><th>Legend</th><th>User Name</th><th>Node Hours</th></tr>
+                <tr class="mb-2"><th>Legend</th><th>User Name</th><th>Core Hours</th></tr>
                 {#each $statsQuery.data.topUsers.sort((a, b) => b.count - a.count) as { name, count }, i}
                     <tr>
                         <td><Icon name="circle-fill" style="color: {colors[i]};"/></td>
