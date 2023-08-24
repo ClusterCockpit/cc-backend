@@ -17,6 +17,7 @@
         DropdownItem,
         InputGroupText,
     } from "sveltestrap";
+    import NavbarLinks from "./NavbarLinks.svelte";
 
     export let username; // empty string if auth. is disabled, otherwise the username as string
     export let authlevel; // Integer
@@ -118,122 +119,60 @@
     >
         <Nav navbar>
             {#if screenSize > 1500}
-                {#each views.filter((item) => item.requiredRole <= authlevel) as item}
-                    {#if !item.perCluster}
-                        <NavLink
-                            href={item.href}
-                            active={window.location.pathname == item.href}
-                            ><Icon name={item.icon} /> {item.title}</NavLink
-                        >
-                    {:else}
-                        <Dropdown nav inNavbar>
-                            <DropdownToggle nav caret>
-                                <Icon name={item.icon} />
-                                {item.title}
-                            </DropdownToggle>
-                            <DropdownMenu class="dropdown-menu-lg-end">
-                                {#each clusters as cluster}
-                                    <DropdownItem
-                                        href={item.href + cluster.name}
-                                        active={window.location.pathname ==
-                                            item.href + cluster.name}
-                                    >
-                                        {cluster.name}
-                                    </DropdownItem>
-                                {/each}
-                            </DropdownMenu>
-                        </Dropdown>
-                    {/if}
-                {/each}
+                <NavbarLinks
+                    {clusters}
+                    links={views.filter(
+                        (item) => item.requiredRole <= authlevel
+                    )}
+                />
             {:else if screenSize > 1300}
-                {#each views.filter((item) => item.requiredRole <= authlevel && item.menu != "Stats") as item}
-                    {#if !item.perCluster}
-                        <NavLink
-                            href={item.href}
-                            active={window.location.pathname == item.href}
-                            ><Icon name={item.icon} /> {item.title}</NavLink
-                        >
-                    {:else}
-                        <Dropdown nav inNavbar>
-                            <DropdownToggle nav caret>
-                                <Icon name={item.icon} />
-                                {item.title}
-                            </DropdownToggle>
-                            <DropdownMenu class="dropdown-menu-lg-end">
-                                {#each clusters as cluster}
-                                    <DropdownItem
-                                        href={item.href + cluster.name}
-                                        active={window.location.pathname ==
-                                            item.href + cluster.name}
-                                    >
-                                        {cluster.name}
-                                    </DropdownItem>
-                                {/each}
-                            </DropdownMenu>
-                        </Dropdown>
-                    {/if}
-                {/each}
+                <NavbarLinks
+                    {clusters}
+                    links={views.filter(
+                        (item) =>
+                            item.requiredRole <= authlevel &&
+                            item.menu != "Stats"
+                    )}
+                />
                 <Dropdown nav>
                     <DropdownToggle nav caret>
                         <Icon name="graph-up" />
                         Stats
                     </DropdownToggle>
                     <DropdownMenu class="dropdown-menu-lg-end">
-                        {#each views.filter((item) => item.requiredRole <= authlevel && item.menu == "Stats") as item}
-                            <Dropdown nav inNavbar>
-                                <DropdownToggle nav caret>
-                                    <Icon name={item.icon} />
-                                    {item.title}
-                                </DropdownToggle>
-                                <DropdownMenu class="dropdown-menu-lg-end">
-                                    {#each clusters as cluster}
-                                        <DropdownItem
-                                            href={item.href + cluster.name}
-                                            active={window.location.pathname ==
-                                                item.href + cluster.name}
-                                        >
-                                            {cluster.name}
-                                        </DropdownItem>
-                                    {/each}
-                                </DropdownMenu>
-                            </Dropdown>
-                        {/each}
+                        <NavbarLinks
+                            {clusters}
+                            links={views.filter(
+                                (item) =>
+                                    item.requiredRole <= authlevel &&
+                                    item.menu == "Stats"
+                            )}
+                        />
                     </DropdownMenu>
                 </Dropdown>
             {:else}
-                {#each views.filter((item) => item.requiredRole <= authlevel && item.menu == "none") as item}
-                    <NavLink
-                        href={item.href}
-                        active={window.location.pathname == item.href}
-                        ><Icon name={item.icon} /> {item.title}</NavLink
-                    >
-                {/each}
+                <NavbarLinks
+                    {clusters}
+                    links={views.filter(
+                        (item) =>
+                            item.requiredRole <= authlevel &&
+                            item.menu == "none"
+                    )}
+                />
                 {#each Array("Groups", "Stats") as menu}
                     <Dropdown nav>
                         <DropdownToggle nav caret>
                             {menu}
                         </DropdownToggle>
                         <DropdownMenu class="dropdown-menu-lg-end">
-                            {#each views.filter((item) => item.requiredRole <= authlevel && item.menu == menu) as item}
-                                <Dropdown nav inNavbar>
-                                    <DropdownToggle nav caret>
-                                        <Icon name={item.icon} />
-                                        {item.title}
-                                    </DropdownToggle>
-                                    <DropdownMenu class="dropdown-menu-lg-end">
-                                        {#each clusters as cluster}
-                                            <DropdownItem
-                                                href={item.href + cluster.name}
-                                                active={window.location
-                                                    .pathname ==
-                                                    item.href + cluster.name}
-                                            >
-                                                {cluster.name}
-                                            </DropdownItem>
-                                        {/each}
-                                    </DropdownMenu>
-                                </Dropdown>
-                            {/each}
+                            <NavbarLinks
+                                {clusters}
+                                links={views.filter(
+                                    (item) =>
+                                        item.requiredRole <= authlevel &&
+                                        item.menu == menu
+                                )}
+                            />
                         </DropdownMenu>
                     </Dropdown>
                 {/each}
@@ -290,4 +229,3 @@
         </NavItem>
     </Nav>
 </Navbar>
-
