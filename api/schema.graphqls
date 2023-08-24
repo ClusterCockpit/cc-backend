@@ -167,7 +167,6 @@ type TimeWeights {
 }
 
 enum Aggregate { USER, PROJECT, CLUSTER }
-enum Weights { NODE_COUNT, NODE_HOURS, CORE_COUNT, CORE_HOURS }
 
 type NodeMetrics {
   host:       String!
