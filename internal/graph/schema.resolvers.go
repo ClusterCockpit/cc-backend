@@ -294,24 +294,6 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	return stats, nil
 }
 
-// JobsCount is the resolver for the jobsCount field.
-func (r *queryResolver) JobsCount(ctx context.Context, filter []*model.JobFilter, groupBy model.Aggregate, weight *model.Weights, limit *int) ([]*model.Count, error) {
-	counts, err := r.Repo.CountGroupedJobs(ctx, groupBy, filter, weight, limit)
-	if err != nil {
-		log.Warn("Error while counting grouped jobs")
-		return nil, err
-	}
-
-	res := make([]*model.Count, 0, len(counts))
-	for name, count := range counts {
-		res = append(res, &model.Count{
-			Name:  name,
-			Count: count,
-		})
-	}
-	return res, nil
-}
-
 // RooflineHeatmap is the resolver for the rooflineHeatmap field.
 func (r *queryResolver) RooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error) {
 	return r.rooflineHeatmap(ctx, filter, rows, cols, minX, minY, maxX, maxY)
