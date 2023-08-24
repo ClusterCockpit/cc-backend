@@ -13,6 +13,7 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
@@ -106,9 +107,11 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 		avgs[i] = make([]schema.Float, 0, len(jobs))
 	}
 
-	nodehours := make([]schema.Float, 0, len(jobs))
-	acchours := make([]schema.Float, 0, len(jobs))
-	hwthours := make([]schema.Float, 0, len(jobs))
+	timeweights := new(model.TimeWeights)
+	timeweights.NodeHours = make([]schema.Float, 0, len(jobs))
+	timeweights.AccHours = make([]schema.Float, 0, len(jobs))
+	timeweights.CoreHours = make([]schema.Float, 0, len(jobs))
+
 	for _, job := range jobs {
 		if job.MonitoringStatus == schema.MonitoringStatusDisabled || job.MonitoringStatus == schema.MonitoringStatusArchivingFailed {
 			continue
@@ -120,16 +123,16 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 		}
 
 		// #166 collect arrays: Null values or no null values?
-		nodehours = append(nodehours, schema.Float(float64(job.Duration)/60.0*float64(job.NumNodes)))
+		timeweights.NodeHours = append(timeweights.NodeHours, schema.Float(float64(job.Duration)/60.0*float64(job.NumNodes)))
 		if job.NumAcc > 0 {
-			acchours = append(acchours, schema.Float(float64(job.Duration)/60.0*float64(job.NumAcc)))
+			timeweights.AccHours = append(timeweights.AccHours, schema.Float(float64(job.Duration)/60.0*float64(job.NumAcc)))
 		} else {
-			acchours = append(acchours, schema.Float(0.0))
+			timeweights.AccHours = append(timeweights.AccHours, schema.Float(1.0))
 		}
 		if job.NumHWThreads > 0 {
-			hwthours = append(hwthours, schema.Float(float64(job.Duration)/60.0*float64(job.NumHWThreads)))
+			timeweights.CoreHours = append(timeweights.CoreHours, schema.Float(float64(job.Duration)/60.0*float64(numCoresForJob(job))))
 		} else {
-			hwthours = append(hwthours, schema.Float(0.0))
+			timeweights.CoreHours = append(timeweights.CoreHours, schema.Float(1.0))
 		}
 	}
 
@@ -142,9 +145,32 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 	}
 
 	return &model.Footprints{
-		Timeweights: nodehours,
+		TimeWeights: timeweights,
 		Metrics:     res,
 	}, nil
+}
+
+func numCoresForJob(job *schema.Job) (numCores int) {
+
+	subcluster, scerr := archive.GetSubCluster(job.Cluster, job.SubCluster)
+	if scerr != nil {
+		return 1
+	}
+
+	totalJobCores := 0
+	topology := subcluster.Topology
+
+	for _, host := range job.Resources {
+		hwthreads := host.HWThreads
+		if hwthreads == nil {
+			hwthreads = topology.Node
+		}
+
+		hostCores, _ := topology.GetCoresFromHWThreads(hwthreads)
+		totalJobCores += len(hostCores)
+	}
+
+	return totalJobCores
 }
 
 func requireField(ctx context.Context, name string) bool {

@@ -22,7 +22,7 @@ type FloatRange struct {
 }
 
 type Footprints struct {
-	Timeweights []schema.Float      `json:"timeweights"`
+	TimeWeights *TimeWeights        `json:"timeWeights"`
 	Metrics     []*MetricFootprints `json:"metrics"`
 }
 
@@ -133,6 +133,12 @@ type TimeRangeOutput struct {
 	To   time.Time `json:"to"`
 }
 
+type TimeWeights struct {
+	NodeHours []schema.Float `json:"nodeHours"`
+	AccHours  []schema.Float `json:"accHours"`
+	CoreHours []schema.Float `json:"coreHours"`
+}
+
 type User struct {
 	Username string `json:"username"`
 	Name     string `json:"name"`
@@ -228,16 +234,20 @@ type Weights string
 const (
 	WeightsNodeCount Weights = "NODE_COUNT"
 	WeightsNodeHours Weights = "NODE_HOURS"
+	WeightsCoreCount Weights = "CORE_COUNT"
+	WeightsCoreHours Weights = "CORE_HOURS"
 )
 
 var AllWeights = []Weights{
 	WeightsNodeCount,
 	WeightsNodeHours,
+	WeightsCoreCount,
+	WeightsCoreHours,
 }
 
 func (e Weights) IsValid() bool {
 	switch e {
-	case WeightsNodeCount, WeightsNodeHours:
+	case WeightsNodeCount, WeightsNodeHours, WeightsCoreCount, WeightsCoreHours:
 		return true
 	}
 	return false

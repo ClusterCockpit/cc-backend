@@ -78,7 +78,7 @@
         query: gql`
             query($jobFilters: [JobFilter!]!, $metrics: [String!]!) {
                 footprints: jobsFootprints(filter: $jobFilters, metrics: $metrics) {
-                    timeweights,
+                    timeWeights { nodeHours, accHours, coreHours },
                     metrics { metric, data }
                 }
             }`,
@@ -244,8 +244,9 @@
     <Row>
         <Col>
             <Card body>
-                These histograms show the distribution of the averages of all jobs matching the filters. Each job/average is weighted by its node hours.
-                Note that some metrics could be disabled for specific subclusters as per metriConfig and thus could affect shown average values.
+                These histograms show the distribution of the averages of all jobs matching the filters. Each job/average is weighted by its node hours by default 
+                (Accelerator hours for native accelerator scope metrics, coreHours for native core scope metrics).
+                Note that some metrics could be disabled for specific subclusters as per metricConfig and thus could affect shown average values.
             </Card>
             <br/>
         </Col>
@@ -257,7 +258,8 @@
                 let:width
                 renderFor="analysis"
                 items={metricsInHistograms.map(metric => ({ metric, ...binsFromFootprint(
-                    $footprintsQuery.data.footprints.timeweights,
+                    $footprintsQuery.data.footprints.timeWeights,
+                    metricConfig(cluster.name, metric)?.scope,
                     $footprintsQuery.data.footprints.metrics.find(f => f.metric == metric).data, numBins) }))}
                 itemsPerRow={ccconfig.plot_view_plotsPerRow}>
 
@@ -265,11 +267,11 @@
                     data={convert2uplot(item.bins)}
                     width={width} height={250}
                     title="Average Distribution of '{item.metric}'"
-                    xlabel={`${item.metric} average [${(metricConfig(cluster.name, item.metric)?.unit?.prefix ? metricConfig(cluster.name, item.metric)?.unit?.prefix : '') +
+                    xlabel={`${item.metric} bin maximum [${(metricConfig(cluster.name, item.metric)?.unit?.prefix ? metricConfig(cluster.name, item.metric)?.unit?.prefix : '') +
                                                        (metricConfig(cluster.name, item.metric)?.unit?.base   ? metricConfig(cluster.name, item.metric)?.unit?.base   : '')}]`}
                     xunit={`${(metricConfig(cluster.name, item.metric)?.unit?.prefix ? metricConfig(cluster.name, item.metric)?.unit?.prefix : '') +
                               (metricConfig(cluster.name, item.metric)?.unit?.base   ? metricConfig(cluster.name, item.metric)?.unit?.base   : '')}`}
-                    ylabel="Node Hours"
+                    ylabel="Normalized Hours"
                     yunit="Hours"/>
             </PlotTable>
         </Col>
@@ -279,7 +281,7 @@
         <Col>
             <Card body>
                 Each circle represents one job. The size of a circle is proportional to its node hours. Darker circles mean multiple jobs have the same averages for the respective metrics.
-                Note that some metrics could be disabled for specific subclusters as per metriConfig and thus could affect shown average values.
+                Note that some metrics could be disabled for specific subclusters as per metricConfig and thus could affect shown average values.
             </Card>
             <br/>
         </Col>
@@ -301,7 +303,7 @@
                                            (metricConfig(cluster.name, item.m1)?.unit?.base   ? metricConfig(cluster.name, item.m1)?.unit?.base   : '')}]`}
                     yLabel={`${item.m2} [${(metricConfig(cluster.name, item.m2)?.unit?.prefix ? metricConfig(cluster.name, item.m2)?.unit?.prefix : '') + 
                                            (metricConfig(cluster.name, item.m2)?.unit?.base   ? metricConfig(cluster.name, item.m2)?.unit?.base   : '')}]`}
-                    X={item.f1} Y={item.f2} S={$footprintsQuery.data.footprints.timeweights} />
+                    X={item.f1} Y={item.f2} S={$footprintsQuery.data.footprints.timeWeights.nodeHours} />
             </PlotTable>
         </Col>
     </Row>

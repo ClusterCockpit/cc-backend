@@ -69,7 +69,7 @@ type ComplexityRoot struct {
 
 	Footprints struct {
 		Metrics     func(childComplexity int) int
-		Timeweights func(childComplexity int) int
+		TimeWeights func(childComplexity int) int
 	}
 
 	HistoPoint struct {
@@ -265,6 +265,12 @@ type ComplexityRoot struct {
 		To   func(childComplexity int) int
 	}
 
+	TimeWeights struct {
+		AccHours  func(childComplexity int) int
+		CoreHours func(childComplexity int) int
+		NodeHours func(childComplexity int) int
+	}
+
 	Topology struct {
 		Accelerators func(childComplexity int) int
 		Core         func(childComplexity int) int
@@ -406,12 +412,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Footprints.Metrics(childComplexity), true
 
-	case "Footprints.timeweights":
-		if e.complexity.Footprints.Timeweights == nil {
+	case "Footprints.timeWeights":
+		if e.complexity.Footprints.TimeWeights == nil {
 			break
 		}
 
-		return e.complexity.Footprints.Timeweights(childComplexity), true
+		return e.complexity.Footprints.TimeWeights(childComplexity), true
 
 	case "HistoPoint.count":
 		if e.complexity.HistoPoint.Count == nil {
@@ -1356,6 +1362,27 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.TimeRangeOutput.To(childComplexity), true
 
+	case "TimeWeights.accHours":
+		if e.complexity.TimeWeights.AccHours == nil {
+			break
+		}
+
+		return e.complexity.TimeWeights.AccHours(childComplexity), true
+
+	case "TimeWeights.coreHours":
+		if e.complexity.TimeWeights.CoreHours == nil {
+			break
+		}
+
+		return e.complexity.TimeWeights.CoreHours(childComplexity), true
+
+	case "TimeWeights.nodeHours":
+		if e.complexity.TimeWeights.NodeHours == nil {
+			break
+		}
+
+		return e.complexity.TimeWeights.NodeHours(childComplexity), true
+
 	case "Topology.accelerators":
 		if e.complexity.Topology.Accelerators == nil {
 			break
@@ -1703,12 +1730,18 @@ type MetricFootprints {
 }
 
 type Footprints {
-  timeweights: [NullableFloat!]!
+  timeWeights: TimeWeights!
   metrics:   [MetricFootprints!]!
 }
 
+type TimeWeights {
+  nodeHours: [NullableFloat!]!
+  accHours: [NullableFloat!]!
+  coreHours: [NullableFloat!]!
+}
+
 enum Aggregate { USER, PROJECT, CLUSTER }
-enum Weights { NODE_COUNT, NODE_HOURS }
+enum Weights { NODE_COUNT, NODE_HOURS, CORE_COUNT, CORE_HOURS }
 
 type NodeMetrics {
   host:       String!
@@ -1836,7 +1869,7 @@ type JobsStatistics  {
   shortJobs:      Int!           # Number of jobs with a duration of less than duration
   totalWalltime:  Int!           # Sum of the duration of all matched jobs in hours
   totalNodeHours: Int!           # Sum of the node hours of all matched jobs
-  totalCoreHours: Int!           # Sum of the core hours of all matched jobs
+  totalCoreHours: Int!           # Sum of the core hours of all matched jobs  <-- Das nehmen statt totaljobs in hsitograms mit totaljobs + bei analysis metric histos weighted
   totalAccHours:  Int!           # Sum of the gpu hours of all matched jobs
   histDuration:   [HistoPoint!]! # value: hour, count: number of jobs with a rounded duration of value
   histNumNodes:   [HistoPoint!]! # value: number of nodes, count: number of jobs with that number of nodes
@@ -2790,8 +2823,8 @@ func (ec *executionContext) fieldContext_Count_count(ctx context.Context, field 
 	return fc, nil
 }
 
-func (ec *executionContext) _Footprints_timeweights(ctx context.Context, field graphql.CollectedField, obj *model.Footprints) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Footprints_timeweights(ctx, field)
+func (ec *executionContext) _Footprints_timeWeights(ctx context.Context, field graphql.CollectedField, obj *model.Footprints) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Footprints_timeWeights(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -2804,7 +2837,7 @@ func (ec *executionContext) _Footprints_timeweights(ctx context.Context, field g
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Timeweights, nil
+		return obj.TimeWeights, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2816,19 +2849,27 @@ func (ec *executionContext) _Footprints_timeweights(ctx context.Context, field g
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]schema.Float)
+	res := resTmp.(*model.TimeWeights)
 	fc.Result = res
-	return ec.marshalNNullableFloat2ᚕgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐFloatᚄ(ctx, field.Selections, res)
+	return ec.marshalNTimeWeights2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐTimeWeights(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Footprints_timeweights(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Footprints_timeWeights(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Footprints",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type NullableFloat does not have child fields")
+			switch field.Name {
+			case "nodeHours":
+				return ec.fieldContext_TimeWeights_nodeHours(ctx, field)
+			case "accHours":
+				return ec.fieldContext_TimeWeights_accHours(ctx, field)
+			case "coreHours":
+				return ec.fieldContext_TimeWeights_coreHours(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type TimeWeights", field.Name)
 		},
 	}
 	return fc, nil
@@ -6994,8 +7035,8 @@ func (ec *executionContext) fieldContext_Query_jobsFootprints(ctx context.Contex
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "timeweights":
-				return ec.fieldContext_Footprints_timeweights(ctx, field)
+			case "timeWeights":
+				return ec.fieldContext_Footprints_timeWeights(ctx, field)
 			case "metrics":
 				return ec.fieldContext_Footprints_metrics(ctx, field)
 			}
@@ -8925,6 +8966,138 @@ func (ec *executionContext) fieldContext_TimeRangeOutput_to(ctx context.Context,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TimeWeights_nodeHours(ctx context.Context, field graphql.CollectedField, obj *model.TimeWeights) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_TimeWeights_nodeHours(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.NodeHours, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]schema.Float)
+	fc.Result = res
+	return ec.marshalNNullableFloat2ᚕgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐFloatᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_TimeWeights_nodeHours(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TimeWeights",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type NullableFloat does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TimeWeights_accHours(ctx context.Context, field graphql.CollectedField, obj *model.TimeWeights) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_TimeWeights_accHours(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.AccHours, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]schema.Float)
+	fc.Result = res
+	return ec.marshalNNullableFloat2ᚕgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐFloatᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_TimeWeights_accHours(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TimeWeights",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type NullableFloat does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TimeWeights_coreHours(ctx context.Context, field graphql.CollectedField, obj *model.TimeWeights) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_TimeWeights_coreHours(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CoreHours, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]schema.Float)
+	fc.Result = res
+	return ec.marshalNNullableFloat2ᚕgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐFloatᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_TimeWeights_coreHours(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TimeWeights",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type NullableFloat does not have child fields")
 		},
 	}
 	return fc, nil
@@ -11848,10 +12021,8 @@ func (ec *executionContext) _Footprints(ctx context.Context, sel ast.SelectionSe
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Footprints")
-		case "timeweights":
-
-			out.Values[i] = ec._Footprints_timeweights(ctx, field, obj)
-
+		case "timeWeights":
+			out.Values[i] = ec._Footprints_timeWeights(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -13574,6 +13745,55 @@ func (ec *executionContext) _TimeRangeOutput(ctx context.Context, sel ast.Select
 			}
 		case "to":
 			out.Values[i] = ec._TimeRangeOutput_to(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var timeWeightsImplementors = []string{"TimeWeights"}
+
+func (ec *executionContext) _TimeWeights(ctx context.Context, sel ast.SelectionSet, obj *model.TimeWeights) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, timeWeightsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("TimeWeights")
+		case "nodeHours":
+			out.Values[i] = ec._TimeWeights_nodeHours(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "accHours":
+			out.Values[i] = ec._TimeWeights_accHours(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "coreHours":
+			out.Values[i] = ec._TimeWeights_coreHours(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -15331,6 +15551,16 @@ func (ec *executionContext) marshalNTime2timeᚐTime(ctx context.Context, sel as
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) marshalNTimeWeights2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐTimeWeights(ctx context.Context, sel ast.SelectionSet, v *model.TimeWeights) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._TimeWeights(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNTopology2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐTopology(ctx context.Context, sel ast.SelectionSet, v schema.Topology) graphql.Marshaler {

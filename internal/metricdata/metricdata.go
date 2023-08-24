@@ -182,7 +182,7 @@ func LoadAverages(
 	ctx context.Context) error {
 
 	if job.State != schema.JobStateRunning && useArchive {
-		return archive.LoadAveragesFromArchive(job, metrics, data) // #166 change also here
+		return archive.LoadAveragesFromArchive(job, metrics, data) // #166 change also here?
 	}
 
 	repo, ok := metricDataRepos[job.Cluster]

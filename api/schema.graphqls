@@ -156,12 +156,18 @@ type MetricFootprints {
 }
 
 type Footprints {
-  timeweights: [NullableFloat!]!
+  timeWeights: TimeWeights!
   metrics:   [MetricFootprints!]!
 }
 
+type TimeWeights {
+  nodeHours: [NullableFloat!]!
+  accHours: [NullableFloat!]!
+  coreHours: [NullableFloat!]!
+}
+
 enum Aggregate { USER, PROJECT, CLUSTER }
-enum Weights { NODE_COUNT, NODE_HOURS }
+enum Weights { NODE_COUNT, NODE_HOURS, CORE_COUNT, CORE_HOURS }
 
 type NodeMetrics {
   host:       String!
