@@ -321,7 +321,7 @@ func (r *JobRepository) AddJobCount(
 		return nil, err
 	}
 
-	counts := make(map[string]int)
+	var count int
 
 	for rows.Next() {
 		var cnt sql.NullInt64
@@ -329,20 +329,22 @@ func (r *JobRepository) AddJobCount(
 			log.Warn("Error while scanning rows")
 			return nil, err
 		}
+
+		count = int(cnt.Int64)
 	}
 
 	switch kind {
 	case "running":
 		for _, s := range stats {
-			s.RunningJobs = counts[s.ID]
+			s.RunningJobs = count
 		}
 	case "short":
 		for _, s := range stats {
-			s.ShortJobs = counts[s.ID]
+			s.ShortJobs = count
 		}
 	}
 
-	log.Debugf("Timer JobJobCount %s", time.Since(start))
+	log.Debugf("Timer AddJobCount %s", time.Since(start))
 	return stats, nil
 }
 
