@@ -13,9 +13,9 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
-	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	// "github.com/ClusterCockpit/cc-backend/pkg/archive"
 )
 
 const MAX_JOBS_FOR_ANALYSIS = 500
@@ -130,7 +130,7 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 			timeweights.AccHours = append(timeweights.AccHours, schema.Float(1.0))
 		}
 		if job.NumHWThreads > 0 {
-			timeweights.CoreHours = append(timeweights.CoreHours, schema.Float(float64(job.Duration)/60.0*float64(numCoresForJob(job))))
+			timeweights.CoreHours = append(timeweights.CoreHours, schema.Float(float64(job.Duration)/60.0*float64(job.NumHWThreads))) // SQLite HWThreads == Cores; numCoresForJob(job)
 		} else {
 			timeweights.CoreHours = append(timeweights.CoreHours, schema.Float(1.0))
 		}
@@ -150,28 +150,28 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 	}, nil
 }
 
-func numCoresForJob(job *schema.Job) (numCores int) {
+// func numCoresForJob(job *schema.Job) (numCores int) {
 
-	subcluster, scerr := archive.GetSubCluster(job.Cluster, job.SubCluster)
-	if scerr != nil {
-		return 1
-	}
+// 	subcluster, scerr := archive.GetSubCluster(job.Cluster, job.SubCluster)
+// 	if scerr != nil {
+// 		return 1
+// 	}
 
-	totalJobCores := 0
-	topology := subcluster.Topology
+// 	totalJobCores := 0
+// 	topology := subcluster.Topology
 
-	for _, host := range job.Resources {
-		hwthreads := host.HWThreads
-		if hwthreads == nil {
-			hwthreads = topology.Node
-		}
+// 	for _, host := range job.Resources {
+// 		hwthreads := host.HWThreads
+// 		if hwthreads == nil {
+// 			hwthreads = topology.Node
+// 		}
 
-		hostCores, _ := topology.GetCoresFromHWThreads(hwthreads)
-		totalJobCores += len(hostCores)
-	}
+// 		hostCores, _ := topology.GetCoresFromHWThreads(hwthreads)
+// 		totalJobCores += len(hostCores)
+// 	}
 
-	return totalJobCores
-}
+// 	return totalJobCores
+// }
 
 func requireField(ctx context.Context, name string) bool {
 	fields := graphql.CollectAllFields(ctx)
