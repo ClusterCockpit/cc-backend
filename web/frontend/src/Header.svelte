@@ -9,12 +9,10 @@
         NavbarBrand,
         Nav,
         NavItem,
-        NavLink,
         NavbarToggler,
         Dropdown,
         DropdownToggle,
         DropdownMenu,
-        DropdownItem,
         InputGroupText,
     } from "sveltestrap";
     import NavbarLinks from "./NavbarLinks.svelte";
@@ -118,7 +116,7 @@
         on:update={({ detail }) => (isOpen = detail.isOpen)}
     >
         <Nav navbar>
-            {#if screenSize > 1500}
+            {#if screenSize > 1500 || screenSize < 576}
                 <NavbarLinks
                     {clusters}
                     links={views.filter(
