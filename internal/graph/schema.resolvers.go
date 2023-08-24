@@ -256,22 +256,21 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 		}
 	} else {
 		stats = make([]*model.JobsStatistics, 0, 1)
-		stats = append(stats,
-			&model.JobsStatistics{})
+		stats = append(stats, &model.JobsStatistics{})
 	}
 
 	if groupBy != nil {
 		if requireField(ctx, "shortJobs") {
 			stats, err = r.Repo.AddJobCountGrouped(ctx, filter, groupBy, stats, "short")
 		}
-		if requireField(ctx, "RunningJobs") {
+		if requireField(ctx, "runningJobs") {
 			stats, err = r.Repo.AddJobCountGrouped(ctx, filter, groupBy, stats, "running")
 		}
 	} else {
 		if requireField(ctx, "shortJobs") {
 			stats, err = r.Repo.AddJobCount(ctx, filter, stats, "short")
 		}
-		if requireField(ctx, "RunningJobs") {
+		if requireField(ctx, "runningJobs") {
 			stats, err = r.Repo.AddJobCount(ctx, filter, stats, "running")
 		}
 	}
