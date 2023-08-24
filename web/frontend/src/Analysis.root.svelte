@@ -163,7 +163,7 @@
             {#key $statsQuery.data.topUsers}
             <Pie
                 size={colWidth1}
-                sliceLabel='Hours'
+                sliceLabel='Core Hours'
                 quantities={$statsQuery.data.topUsers.sort((a, b) => b.count - a.count).map((tu) => tu.count)}
                 entities={$statsQuery.data.topUsers.sort((a, b) => b.count - a.count).map((tu) => tu.name)}
             />
