@@ -47,7 +47,7 @@
         {
             title: jobsTitle.get(authlevel),
             requiredRole: roles.user,
-            href: `/monitoring/jobs`,
+            href: `/monitoring/jobs/`,
             icon: "card-list",
             perCluster: false,
             menu: "none",
