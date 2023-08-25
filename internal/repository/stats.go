@@ -24,10 +24,13 @@ var groupBy2column = map[model.Aggregate]string{
 }
 
 var sortBy2column = map[model.SortByAggregate]string{
-	model.SortByAggregateWalltime:  "totalWalltime",
-	model.SortByAggregateNodehours: "totalNodeHours",
-	model.SortByAggregateCorehours: "totalCoreHours",
-	model.SortByAggregateAcchours:  "totalAccHours",
+	model.SortByAggregateWalltime:   "totalWalltime",
+	model.SortByAggregateTotalnodes: "totalNodes",
+	model.SortByAggregateNodehours:  "totalNodeHours",
+	model.SortByAggregateTotalcores: "totalCores",
+	model.SortByAggregateCorehours:  "totalCoreHours",
+	model.SortByAggregateTotalaccs:  "totalAccs",
+	model.SortByAggregateAcchours:   "totalAccHours",
 }
 
 func (r *JobRepository) buildCountQuery(
@@ -67,20 +70,26 @@ func (r *JobRepository) buildStatsQuery(
 	castType := r.getCastType()
 
 	if col != "" {
-		// Scan columns: id, totalJobs, totalWalltime, totalNodeHours, totalCoreHours, totalAccHours
+		// Scan columns: id, totalJobs, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours
 		query = sq.Select(col, "COUNT(job.id)",
 			fmt.Sprintf("CAST(ROUND(SUM(job.duration) / 3600) as %s) as totalWalltime", castType),
+			fmt.Sprintf("CAST(SUM(job.num_nodes) as %s) as totalNodes", castType),
 			fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_nodes) / 3600) as %s) as totalNodeHours", castType),
+			fmt.Sprintf("CAST(SUM(job.num_hwthreads) as %s) as totalCores", castType),
 			fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_hwthreads) / 3600) as %s) as totalCoreHours", castType),
+			fmt.Sprintf("CAST(SUM(job.num_acc) as %s) as totalAccs", castType),
 			fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_acc) / 3600) as %s) as totalAccHours", castType),
 		).From("job").GroupBy(col)
 
 	} else {
-		// Scan columns: totalJobs, totalWalltime, totalNodeHours, totalCoreHours, totalAccHours
+		// Scan columns: totalJobs, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours
 		query = sq.Select("COUNT(job.id)",
 			fmt.Sprintf("CAST(ROUND(SUM(job.duration) / 3600) as %s)", castType),
+			fmt.Sprintf("CAST(SUM(job.num_nodes) as %s)", castType),
 			fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_nodes) / 3600) as %s)", castType),
+			fmt.Sprintf("CAST(SUM(job.num_hwthreads) as %s)", castType),
 			fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_hwthreads) / 3600) as %s)", castType),
+			fmt.Sprintf("CAST(SUM(job.num_acc) as %s)", castType),
 			fmt.Sprintf("CAST(ROUND(SUM(job.duration * job.num_acc) / 3600) as %s)", castType),
 		).From("job")
 	}
@@ -152,14 +161,21 @@ func (r *JobRepository) JobsStatsGrouped(
 
 	for rows.Next() {
 		var id sql.NullString
-		var jobs, walltime, nodeHours, coreHours, accHours sql.NullInt64
-		if err := rows.Scan(&id, &jobs, &walltime, &nodeHours, &coreHours, &accHours); err != nil {
+		var jobs, walltime, nodes, nodeHours, cores, coreHours, accs, accHours sql.NullInt64
+		if err := rows.Scan(&id, &jobs, &walltime, &nodes, &nodeHours, &cores, &coreHours, &accs, &accHours); err != nil {
 			log.Warn("Error while scanning rows")
 			return nil, err
 		}
 
 		if id.Valid {
-			var totalCoreHours, totalAccHours int
+			var totalCores, totalCoreHours, totalAccs, totalAccHours int
+
+			if cores.Valid {
+				totalCores = int(cores.Int64)
+			}
+			if accs.Valid {
+				totalAccs = int(accs.Int64)
+			}
 
 			if coreHours.Valid {
 				totalCoreHours = int(coreHours.Int64)
@@ -176,7 +192,9 @@ func (r *JobRepository) JobsStatsGrouped(
 						Name:           name,
 						TotalJobs:      int(jobs.Int64),
 						TotalWalltime:  int(walltime.Int64),
+						TotalCores:     totalCores,
 						TotalCoreHours: totalCoreHours,
+						TotalAccs:      totalAccs,
 						TotalAccHours:  totalAccHours})
 			} else {
 				stats = append(stats,
@@ -184,7 +202,9 @@ func (r *JobRepository) JobsStatsGrouped(
 						ID:             id.String,
 						TotalJobs:      int(jobs.Int64),
 						TotalWalltime:  int(walltime.Int64),
+						TotalCores:     totalCores,
 						TotalCoreHours: totalCoreHours,
+						TotalAccs:      totalAccs,
 						TotalAccHours:  totalAccHours})
 			}
 		}

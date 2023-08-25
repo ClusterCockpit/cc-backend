@@ -38,14 +38,42 @@
             histNumNodes { count, value }
         }
 
-        allocatedNodes(cluster: $cluster)                                                        { name, count }
-        topUsers:    jobsCount(filter: $filter, groupBy: USER,    weight: NODE_COUNT, limit: 10) { name, count }
-        topProjects: jobsCount(filter: $filter, groupBy: PROJECT, weight: NODE_COUNT, limit: 10) { name, count }
+        allocatedNodes(cluster: $cluster) { name, count }
     }`,
     variables: {
          cluster: cluster, metrics: ['flops_any', 'mem_bw'], from: from.toISOString(), to: to.toISOString(),
         filter: [{ state: ['running'] }, { cluster: { eq: cluster } }]
     }
+    })
+
+    const paging = { itemsPerPage: 10, page: 1 }; // Top 10
+    // const sorting = { field: "totalCores", order: "DESC" };
+    $: topUserQuery = queryStore({
+        client: client,
+        query: gql`
+            query($filter: [JobFilter!]!, $paging: PageRequest!) {
+                topUser: jobsStatistics(filter: $filter, page: $paging, sortBy: TOTALCORES, groupBy: USER) {
+                    id
+                    totalNodes
+                    totalCores
+                }
+            }
+        `, 
+        variables: { filter: [{ state: ['running'] }, { cluster: { eq: cluster } }], paging }
+    })
+
+    $: topProjectQuery = queryStore({
+        client: client,
+        query: gql`
+            query($filter: [JobFilter!]!, $paging: PageRequest!) {
+                topProjects: jobsStatistics(filter: $filter, page: $paging, sortBy: TOTALCORES, groupBy: PROJECT) {
+                    id
+                    totalNodes
+                    totalCores
+                }
+            }
+        `, 
+        variables: { filter: [{ state: ['running'] }, { cluster: { eq: cluster } }], paging }
     })
 
     const sumUp = (data, subcluster, metric) => data.reduce((sum, node) => node.subCluster == subcluster
@@ -161,48 +189,47 @@
         <Col class="p-2">
             <div bind:clientWidth={colWidth1}>
                 <h4 class="text-center">Top Users</h4>
-                {#key $mainQuery.data}
+                {#key $topUserQuery.data}
                     <Pie
                         size={colWidth1}
                         sliceLabel='Jobs'
-                        quantities={$mainQuery.data.topUsers.sort((a, b) => b.count - a.count).map((tu) => tu.count)}
-                        entities={$mainQuery.data.topUsers.sort((a, b) => b.count - a.count).map((tu) => tu.name)}
-                        
+                        quantities={$topUserQuery.data.topUser.map((tu) => tu.totalCores)}
+                        entities={$topUserQuery.data.topUser.map((tu) => tu.id)}
                     />
                 {/key}
             </div>
         </Col>
         <Col class="px-4 py-2">
             <Table>
-                <tr class="mb-2"><th>Legend</th><th>User Name</th><th>Number of Nodes</th></tr>
-                {#each $mainQuery.data.topUsers.sort((a, b) => b.count - a.count) as { name, count }, i}
+                <tr class="mb-2"><th>Legend</th><th>User Name</th><th>Number of Cores</th></tr>
+                {#each $topUserQuery.data.topUser as { id, totalCores, totalNodes }, i}
                     <tr>
                         <td><Icon name="circle-fill" style="color: {colors[i]};"/></td>
-                        <th scope="col"><a href="/monitoring/user/{name}?cluster={cluster}&state=running">{name}</a></th>
-                        <td>{count}</td>
+                        <th scope="col"><a href="/monitoring/user/{id}?cluster={cluster}&state=running">{id}</a></th>
+                        <td>{totalCores}</td>
                     </tr>
                 {/each}
             </Table>
         </Col>
         <Col class="p-2">
             <h4 class="text-center">Top Projects</h4>
-            {#key $mainQuery.data}
+            {#key $topProjectQuery.data}
                 <Pie
                     size={colWidth1}
                     sliceLabel='Jobs'
-                    quantities={$mainQuery.data.topProjects.sort((a, b) => b.count - a.count).map((tp) => tp.count)}
-                    entities={$mainQuery.data.topProjects.sort((a, b) => b.count - a.count).map((tp) => tp.name)}
+                    quantities={$topProjectQuery.data.topProjects.map((tp) => tp.totalCores)}
+                    entities={$topProjectQuery.data.topProjects.map((tp) => tp.id)}
                 />
             {/key}
         </Col>
         <Col class="px-4 py-2">
             <Table>
-                <tr class="mb-2"><th>Legend</th><th>Project Code</th><th>Number of Nodes</th></tr>
-                {#each $mainQuery.data.topProjects.sort((a, b) => b.count - a.count) as { name, count }, i}
+                <tr class="mb-2"><th>Legend</th><th>Project Code</th><th>Number of Cores</th></tr>
+                {#each $topProjectQuery.data.topProjects as { id, totalCores, totalNodes }, i}
                     <tr>
                         <td><Icon name="circle-fill" style="color: {colors[i]};"/></td>
-                        <th scope="col"><a href="/monitoring/jobs/?cluster={cluster}&state=running&project={name}&projectMatch=eq">{name}</a></th>
-                        <td>{count}</td>
+                        <th scope="col"><a href="/monitoring/jobs/?cluster={cluster}&state=running&project={id}&projectMatch=eq">{id}</a></th>
+                        <td>{totalCores}</td>
                     </tr>
                 {/each}
             </Table>

@@ -147,9 +147,12 @@ type ComplexityRoot struct {
 		RunningJobs    func(childComplexity int) int
 		ShortJobs      func(childComplexity int) int
 		TotalAccHours  func(childComplexity int) int
+		TotalAccs      func(childComplexity int) int
 		TotalCoreHours func(childComplexity int) int
+		TotalCores     func(childComplexity int) int
 		TotalJobs      func(childComplexity int) int
 		TotalNodeHours func(childComplexity int) int
+		TotalNodes     func(childComplexity int) int
 		TotalWalltime  func(childComplexity int) int
 	}
 
@@ -767,12 +770,26 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.JobsStatistics.TotalAccHours(childComplexity), true
 
+	case "JobsStatistics.totalAccs":
+		if e.complexity.JobsStatistics.TotalAccs == nil {
+			break
+		}
+
+		return e.complexity.JobsStatistics.TotalAccs(childComplexity), true
+
 	case "JobsStatistics.totalCoreHours":
 		if e.complexity.JobsStatistics.TotalCoreHours == nil {
 			break
 		}
 
 		return e.complexity.JobsStatistics.TotalCoreHours(childComplexity), true
+
+	case "JobsStatistics.totalCores":
+		if e.complexity.JobsStatistics.TotalCores == nil {
+			break
+		}
+
+		return e.complexity.JobsStatistics.TotalCores(childComplexity), true
 
 	case "JobsStatistics.totalJobs":
 		if e.complexity.JobsStatistics.TotalJobs == nil {
@@ -787,6 +804,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.JobsStatistics.TotalNodeHours(childComplexity), true
+
+	case "JobsStatistics.totalNodes":
+		if e.complexity.JobsStatistics.TotalNodes == nil {
+			break
+		}
+
+		return e.complexity.JobsStatistics.TotalNodes(childComplexity), true
 
 	case "JobsStatistics.totalWalltime":
 		if e.complexity.JobsStatistics.TotalWalltime == nil {
@@ -1727,7 +1751,7 @@ type TimeWeights {
 }
 
 enum Aggregate { USER, PROJECT, CLUSTER }
-enum SortByAggregate { WALLTIME, NODEHOURS, COREHOURS, ACCHOURS }
+enum SortByAggregate { WALLTIME, TOTALNODES, NODEHOURS, TOTALCORES, COREHOURS, TOTALACCS, ACCHOURS }
 
 type NodeMetrics {
   host:       String!
@@ -1853,8 +1877,11 @@ type JobsStatistics  {
   runningJobs:    Int!           # Number of running jobs
   shortJobs:      Int!           # Number of jobs with a duration of less than duration
   totalWalltime:  Int!           # Sum of the duration of all matched jobs in hours
+  totalNodes:     Int!           # Sum of the nodes of all matched jobs
   totalNodeHours: Int!           # Sum of the node hours of all matched jobs
+  totalCores:     Int!           # Sum of the cores of all matched jobs
   totalCoreHours: Int!           # Sum of the core hours of all matched jobs
+  totalAccs:      Int!         # Sum of the accs of all matched jobs
   totalAccHours:  Int!           # Sum of the gpu hours of all matched jobs
   histDuration:   [HistoPoint!]! # value: hour, count: number of jobs with a rounded duration of value
   histNumNodes:   [HistoPoint!]! # value: number of nodes, count: number of jobs with that number of nodes
@@ -5131,6 +5158,50 @@ func (ec *executionContext) fieldContext_JobsStatistics_totalWalltime(ctx contex
 	return fc, nil
 }
 
+func (ec *executionContext) _JobsStatistics_totalNodes(ctx context.Context, field graphql.CollectedField, obj *model.JobsStatistics) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JobsStatistics_totalNodes(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalNodes, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JobsStatistics_totalNodes(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JobsStatistics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _JobsStatistics_totalNodeHours(ctx context.Context, field graphql.CollectedField, obj *model.JobsStatistics) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_JobsStatistics_totalNodeHours(ctx, field)
 	if err != nil {
@@ -5175,6 +5246,50 @@ func (ec *executionContext) fieldContext_JobsStatistics_totalNodeHours(ctx conte
 	return fc, nil
 }
 
+func (ec *executionContext) _JobsStatistics_totalCores(ctx context.Context, field graphql.CollectedField, obj *model.JobsStatistics) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JobsStatistics_totalCores(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalCores, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JobsStatistics_totalCores(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JobsStatistics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _JobsStatistics_totalCoreHours(ctx context.Context, field graphql.CollectedField, obj *model.JobsStatistics) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_JobsStatistics_totalCoreHours(ctx, field)
 	if err != nil {
@@ -5207,6 +5322,50 @@ func (ec *executionContext) _JobsStatistics_totalCoreHours(ctx context.Context, 
 }
 
 func (ec *executionContext) fieldContext_JobsStatistics_totalCoreHours(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JobsStatistics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _JobsStatistics_totalAccs(ctx context.Context, field graphql.CollectedField, obj *model.JobsStatistics) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JobsStatistics_totalAccs(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalAccs, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JobsStatistics_totalAccs(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "JobsStatistics",
 		Field:      field,
@@ -7134,10 +7293,16 @@ func (ec *executionContext) fieldContext_Query_jobsStatistics(ctx context.Contex
 				return ec.fieldContext_JobsStatistics_shortJobs(ctx, field)
 			case "totalWalltime":
 				return ec.fieldContext_JobsStatistics_totalWalltime(ctx, field)
+			case "totalNodes":
+				return ec.fieldContext_JobsStatistics_totalNodes(ctx, field)
 			case "totalNodeHours":
 				return ec.fieldContext_JobsStatistics_totalNodeHours(ctx, field)
+			case "totalCores":
+				return ec.fieldContext_JobsStatistics_totalCores(ctx, field)
 			case "totalCoreHours":
 				return ec.fieldContext_JobsStatistics_totalCoreHours(ctx, field)
+			case "totalAccs":
+				return ec.fieldContext_JobsStatistics_totalAccs(ctx, field)
 			case "totalAccHours":
 				return ec.fieldContext_JobsStatistics_totalAccHours(ctx, field)
 			case "histDuration":
@@ -12573,13 +12738,28 @@ func (ec *executionContext) _JobsStatistics(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "totalNodes":
+			out.Values[i] = ec._JobsStatistics_totalNodes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "totalNodeHours":
 			out.Values[i] = ec._JobsStatistics_totalNodeHours(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "totalCores":
+			out.Values[i] = ec._JobsStatistics_totalCores(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "totalCoreHours":
 			out.Values[i] = ec._JobsStatistics_totalCoreHours(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalAccs":
+			out.Values[i] = ec._JobsStatistics_totalAccs(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

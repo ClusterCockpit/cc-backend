@@ -91,8 +91,11 @@ type JobsStatistics struct {
 	RunningJobs    int           `json:"runningJobs"`
 	ShortJobs      int           `json:"shortJobs"`
 	TotalWalltime  int           `json:"totalWalltime"`
+	TotalNodes     int           `json:"totalNodes"`
 	TotalNodeHours int           `json:"totalNodeHours"`
+	TotalCores     int           `json:"totalCores"`
 	TotalCoreHours int           `json:"totalCoreHours"`
+	TotalAccs      int           `json:"totalAccs"`
 	TotalAccHours  int           `json:"totalAccHours"`
 	HistDuration   []*HistoPoint `json:"histDuration"`
 	HistNumNodes   []*HistoPoint `json:"histNumNodes"`
@@ -191,22 +194,28 @@ func (e Aggregate) MarshalGQL(w io.Writer) {
 type SortByAggregate string
 
 const (
-	SortByAggregateWalltime  SortByAggregate = "WALLTIME"
-	SortByAggregateNodehours SortByAggregate = "NODEHOURS"
-	SortByAggregateCorehours SortByAggregate = "COREHOURS"
-	SortByAggregateAcchours  SortByAggregate = "ACCHOURS"
+	SortByAggregateWalltime   SortByAggregate = "WALLTIME"
+	SortByAggregateTotalnodes SortByAggregate = "TOTALNODES"
+	SortByAggregateNodehours  SortByAggregate = "NODEHOURS"
+	SortByAggregateTotalcores SortByAggregate = "TOTALCORES"
+	SortByAggregateCorehours  SortByAggregate = "COREHOURS"
+	SortByAggregateTotalaccs  SortByAggregate = "TOTALACCS"
+	SortByAggregateAcchours   SortByAggregate = "ACCHOURS"
 )
 
 var AllSortByAggregate = []SortByAggregate{
 	SortByAggregateWalltime,
+	SortByAggregateTotalnodes,
 	SortByAggregateNodehours,
+	SortByAggregateTotalcores,
 	SortByAggregateCorehours,
+	SortByAggregateTotalaccs,
 	SortByAggregateAcchours,
 }
 
 func (e SortByAggregate) IsValid() bool {
 	switch e {
-	case SortByAggregateWalltime, SortByAggregateNodehours, SortByAggregateCorehours, SortByAggregateAcchours:
+	case SortByAggregateWalltime, SortByAggregateTotalnodes, SortByAggregateNodehours, SortByAggregateTotalcores, SortByAggregateCorehours, SortByAggregateTotalaccs, SortByAggregateAcchours:
 		return true
 	}
 	return false

@@ -66,11 +66,24 @@
                     histDuration { count, value }
                     histNumNodes { count, value }
                 }
-
-                topUsers: jobsCount(filter: $jobFilters, groupBy: USER, weight: CORE_HOURS, limit: 5) { name, count }
             }
         `, 
         variables: { jobFilters }
+    })
+
+    const paging = { itemsPerPage: 5, page: 1 }; // Top 5
+    // const sorting = { field: "totalCoreHours", order: "DESC" };
+    $: topQuery = queryStore({
+        client: client,
+        query: gql`
+            query($jobFilters: [JobFilter!]!, $paging: PageRequest!) {
+                jobsStatistics(filter: $jobFilters, page: $paging, sortBy: TOTALCOREHOURS, groupBy: USER) {
+                    id
+                    totalCoreHours
+                }
+            }
+        `, 
+        variables: { jobFilters, paging }
     })
 
     $: footprintsQuery = queryStore({
@@ -164,8 +177,8 @@
             <Pie
                 size={colWidth1}
                 sliceLabel='Core Hours'
-                quantities={$statsQuery.data.topUsers.sort((a, b) => b.count - a.count).map((tu) => tu.count)}
-                entities={$statsQuery.data.topUsers.sort((a, b) => b.count - a.count).map((tu) => tu.name)}
+                quantities={$topQuery.data.jobsStatistics.map((tu) => tu.totalCoreHours)}
+                entities={$topQuery.data.jobsStatistics.map((tu) => tu.id)}
             />
             {/key}
             </div>
@@ -173,11 +186,11 @@
         <Col>
             <Table>
                 <tr class="mb-2"><th>Legend</th><th>User Name</th><th>Core Hours</th></tr>
-                {#each $statsQuery.data.topUsers.sort((a, b) => b.count - a.count) as { name, count }, i}
+                {#each $topQuery.data.jobsStatistics as { id, totalCoreHours }, i}
                     <tr>
                         <td><Icon name="circle-fill" style="color: {colors[i]};"/></td>
-                        <th scope="col"><a href="/monitoring/user/{name}?cluster={cluster.name}">{name}</a></th>
-                        <td>{count}</td>
+                        <th scope="col"><a href="/monitoring/user/{id}?cluster={cluster.name}">{id}</a></th>
+                        <td>{totalCoreHours}</td>
                     </tr>
                 {/each}
             </Table>
