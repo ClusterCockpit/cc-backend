@@ -167,7 +167,7 @@ type TimeWeights {
 }
 
 enum Aggregate { USER, PROJECT, CLUSTER }
-enum Weights { NODE_COUNT, NODE_HOURS, CORE_COUNT, CORE_HOURS }
+enum SortByAggregate { WALLTIME, NODEHOURS, COREHOURS, ACCHOURS }
 
 type NodeMetrics {
   host:       String!
@@ -198,7 +198,7 @@ type Query {
   jobsFootprints(filter: [JobFilter!], metrics: [String!]!): Footprints
 
   jobs(filter: [JobFilter!], page: PageRequest, order: OrderByInput): JobResultList!
-  jobsStatistics(filter: [JobFilter!], groupBy: Aggregate): [JobsStatistics!]!
+  jobsStatistics(filter: [JobFilter!], page: PageRequest, sortBy: SortByAggregate, groupBy: Aggregate): [JobsStatistics!]!
 
   rooflineHeatmap(filter: [JobFilter!]!, rows: Int!, cols: Int!, minX: Float!, minY: Float!, maxX: Float!, maxY: Float!): [[Float!]!]!
 

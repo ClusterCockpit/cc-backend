@@ -188,6 +188,51 @@ func (e Aggregate) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
+type SortByAggregate string
+
+const (
+	SortByAggregateWalltime  SortByAggregate = "WALLTIME"
+	SortByAggregateNodehours SortByAggregate = "NODEHOURS"
+	SortByAggregateCorehours SortByAggregate = "COREHOURS"
+	SortByAggregateAcchours  SortByAggregate = "ACCHOURS"
+)
+
+var AllSortByAggregate = []SortByAggregate{
+	SortByAggregateWalltime,
+	SortByAggregateNodehours,
+	SortByAggregateCorehours,
+	SortByAggregateAcchours,
+}
+
+func (e SortByAggregate) IsValid() bool {
+	switch e {
+	case SortByAggregateWalltime, SortByAggregateNodehours, SortByAggregateCorehours, SortByAggregateAcchours:
+		return true
+	}
+	return false
+}
+
+func (e SortByAggregate) String() string {
+	return string(e)
+}
+
+func (e *SortByAggregate) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = SortByAggregate(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid SortByAggregate", str)
+	}
+	return nil
+}
+
+func (e SortByAggregate) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
 type SortDirectionEnum string
 
 const (
@@ -226,50 +271,5 @@ func (e *SortDirectionEnum) UnmarshalGQL(v interface{}) error {
 }
 
 func (e SortDirectionEnum) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
-}
-
-type Weights string
-
-const (
-	WeightsNodeCount Weights = "NODE_COUNT"
-	WeightsNodeHours Weights = "NODE_HOURS"
-	WeightsCoreCount Weights = "CORE_COUNT"
-	WeightsCoreHours Weights = "CORE_HOURS"
-)
-
-var AllWeights = []Weights{
-	WeightsNodeCount,
-	WeightsNodeHours,
-	WeightsCoreCount,
-	WeightsCoreHours,
-}
-
-func (e Weights) IsValid() bool {
-	switch e {
-	case WeightsNodeCount, WeightsNodeHours, WeightsCoreCount, WeightsCoreHours:
-		return true
-	}
-	return false
-}
-
-func (e Weights) String() string {
-	return string(e)
-}
-
-func (e *Weights) UnmarshalGQL(v interface{}) error {
-	str, ok := v.(string)
-	if !ok {
-		return fmt.Errorf("enums must be strings")
-	}
-
-	*e = Weights(str)
-	if !e.IsValid() {
-		return fmt.Errorf("%s is not a valid Weights", str)
-	}
-	return nil
-}
-
-func (e Weights) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }

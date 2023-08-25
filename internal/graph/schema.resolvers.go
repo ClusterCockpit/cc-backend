@@ -244,7 +244,7 @@ func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, pag
 }
 
 // JobsStatistics is the resolver for the jobsStatistics field.
-func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobFilter, groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
+func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobFilter, page *model.PageRequest, sortBy *model.SortByAggregate, groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
 	var err error
 	var stats []*model.JobsStatistics
 
@@ -252,7 +252,7 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 		if groupBy == nil {
 			stats, err = r.Repo.JobsStats(ctx, filter)
 		} else {
-			stats, err = r.Repo.JobsStatsGrouped(ctx, filter, groupBy)
+			stats, err = r.Repo.JobsStatsGrouped(ctx, filter, page, sortBy, groupBy)
 		}
 	} else {
 		stats = make([]*model.JobsStatistics, 0, 1)
