@@ -1,21 +1,17 @@
 <script>
     import {
         Icon,
-        Button,
-        InputGroup,
-        Input,
         Collapse,
         Navbar,
         NavbarBrand,
         Nav,
-        NavItem,
         NavbarToggler,
         Dropdown,
         DropdownToggle,
-        DropdownMenu,
-        InputGroupText,
+        DropdownMenu
     } from "sveltestrap";
     import NavbarLinks from "./NavbarLinks.svelte";
+    import NavbarTools from "./NavbarTools.svelte";
 
     export let username; // empty string if auth. is disabled, otherwise the username as string
     export let authlevel; // Integer
@@ -104,7 +100,7 @@
 </script>
 
 <svelte:window bind:innerWidth={screenSize} />
-<Navbar color="light" light expand="sm" fixed="top">
+<Navbar color="light" light expand="md" fixed="top">
     <NavbarBrand href="/">
         <img alt="ClusterCockpit Logo" src="/img/logo.png" height="25rem" />
     </NavbarBrand>
@@ -112,11 +108,11 @@
     <Collapse
         {isOpen}
         navbar
-        expand="sm"
+        expand="md"
         on:update={({ detail }) => (isOpen = detail.isOpen)}
     >
-        <Nav navbar>
-            {#if screenSize > 1500 || screenSize < 576}
+        <Nav class="ms-auto" navbar>
+            {#if screenSize > 1500 || screenSize < 768}
                 <NavbarLinks
                     {clusters}
                     links={views.filter(
@@ -175,55 +171,7 @@
                     </Dropdown>
                 {/each}
             {/if}
+            <NavbarTools username={username} authlevel={authlevel} roles={roles} screenSize={screenSize}/>
         </Nav>
     </Collapse>
-    <Nav>
-        <NavItem>
-            <form method="GET" action="/search">
-                <InputGroup>
-                    <Input
-                        type="text"
-                        placeholder="Search 'type:<query>' ..."
-                        name="searchId"
-                    />
-                    <Button outline type="submit"><Icon name="search" /></Button
-                    >
-                    <InputGroupText
-                        style="cursor:help;"
-                        title={authlevel >= roles.support
-                            ? "Example: 'projectId:a100cd', Types are: jobId | jobName | projectId | arrayJobId | username | name"
-                            : "Example: 'jobName:myjob', Types are jobId | jobName | projectId | arrayJobId "}
-                        ><Icon name="info-circle" /></InputGroupText
-                    >
-                </InputGroup>
-            </form>
-        </NavItem>
-        {#if username}
-            <NavItem>
-                <form method="POST" action="/logout">
-                    <Button
-                        outline
-                        color="success"
-                        type="submit"
-                        style="margin-left: 10px;"
-                    >
-                        {#if screenSize > 1630}
-                            <Icon name="box-arrow-right" /> Logout {username}
-                        {:else}
-                            <Icon name="box-arrow-right" />
-                        {/if}
-                    </Button>
-                </form>
-            </NavItem>
-        {/if}
-        <NavItem>
-            <Button
-                outline
-                on:click={() => (window.location.href = "/config")}
-                style="margin-left: 10px;"
-            >
-                <Icon name="gear" />
-            </Button>
-        </NavItem>
-    </Nav>
 </Navbar>
