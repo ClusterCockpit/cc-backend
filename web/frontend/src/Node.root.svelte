@@ -212,6 +212,7 @@
                             .subCluster}
                         series={item.metric.series}
                         resources={[{hostname: hostname}]}
+                        forNode={true}
                     />
                 {:else if item.disabled === true && item.metric}
                     <Card
