@@ -77,7 +77,7 @@
         client: client,
         query: gql`
             query($jobFilters: [JobFilter!]!, $paging: PageRequest!) {
-                jobsStatistics(filter: $jobFilters, page: $paging, sortBy: TOTALCOREHOURS, groupBy: USER) {
+                jobsStatistics(filter: $jobFilters, page: $paging, sortBy: COREHOURS, groupBy: USER) {
                     id
                     totalCoreHours
                 }

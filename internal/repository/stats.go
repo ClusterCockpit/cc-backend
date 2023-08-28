@@ -221,14 +221,22 @@ func (r *JobRepository) jobsStats(
 	row := query.RunWith(r.DB).QueryRow()
 	stats := make([]*model.JobsStatistics, 0, 1)
 
-	var jobs, walltime, nodeHours, coreHours, accHours sql.NullInt64
-	if err := row.Scan(&jobs, &walltime, &nodeHours, &coreHours, &accHours); err != nil {
+	var jobs, walltime, nodes, nodeHours, cores, coreHours, accs, accHours sql.NullInt64
+	if err := row.Scan(&jobs, &walltime, &nodes, &nodeHours, &cores, &coreHours, &accs, &accHours); err != nil {
 		log.Warn("Error while scanning rows")
 		return nil, err
 	}
 
 	if jobs.Valid {
 		var totalCoreHours, totalAccHours int
+		// var totalCores, totalAccs int
+
+		// if cores.Valid {
+		// 	totalCores = int(cores.Int64)
+		// }
+		// if accs.Valid {
+		// 	totalAccs = int(accs.Int64)
+		// }
 
 		if coreHours.Valid {
 			totalCoreHours = int(coreHours.Int64)
