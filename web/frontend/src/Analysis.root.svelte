@@ -77,7 +77,7 @@
         client: client,
         query: gql`
             query($jobFilters: [JobFilter!]!, $paging: PageRequest!) {
-                jobsStatistics(filter: $jobFilters, page: $paging, sortBy: COREHOURS, groupBy: USER) {
+                topUser: jobsStatistics(filter: $jobFilters, page: $paging, sortBy: COREHOURS, groupBy: USER) {
                     id
                     totalCoreHours
                 }
@@ -177,8 +177,8 @@
             <Pie
                 size={colWidth1}
                 sliceLabel='Core Hours'
-                quantities={$topQuery.data.jobsStatistics.map((tu) => tu.totalCoreHours)}
-                entities={$topQuery.data.jobsStatistics.map((tu) => tu.id)}
+                quantities={$topQuery.data.topUser.map((tu) => tu.totalCoreHours)}
+                entities={$topQuery.data.topUser.map((tu) => tu.id)}
             />
             {/key}
             </div>
@@ -186,7 +186,7 @@
         <Col>
             <Table>
                 <tr class="mb-2"><th>Legend</th><th>User Name</th><th>Core Hours</th></tr>
-                {#each $topQuery.data.jobsStatistics as { id, totalCoreHours }, i}
+                {#each $topQuery.data.topUser as { id, totalCoreHours }, i}
                     <tr>
                         <td><Icon name="circle-fill" style="color: {colors[i]};"/></td>
                         <th scope="col"><a href="/monitoring/user/{id}?cluster={cluster.name}">{id}</a></th>
