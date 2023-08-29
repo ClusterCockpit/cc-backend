@@ -141,6 +141,8 @@ type ComplexityRoot struct {
 
 	JobsStatistics struct {
 		HistDuration   func(childComplexity int) int
+		HistNumAccs    func(childComplexity int) int
+		HistNumCores   func(childComplexity int) int
 		HistNumNodes   func(childComplexity int) int
 		ID             func(childComplexity int) int
 		Name           func(childComplexity int) int
@@ -727,6 +729,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.JobsStatistics.HistDuration(childComplexity), true
+
+	case "JobsStatistics.histNumAccs":
+		if e.complexity.JobsStatistics.HistNumAccs == nil {
+			break
+		}
+
+		return e.complexity.JobsStatistics.HistNumAccs(childComplexity), true
+
+	case "JobsStatistics.histNumCores":
+		if e.complexity.JobsStatistics.HistNumCores == nil {
+			break
+		}
+
+		return e.complexity.JobsStatistics.HistNumCores(childComplexity), true
 
 	case "JobsStatistics.histNumNodes":
 		if e.complexity.JobsStatistics.HistNumNodes == nil {
@@ -1751,7 +1767,7 @@ type TimeWeights {
 }
 
 enum Aggregate { USER, PROJECT, CLUSTER }
-enum SortByAggregate { WALLTIME, TOTALNODES, NODEHOURS, TOTALCORES, COREHOURS, TOTALACCS, ACCHOURS }
+enum SortByAggregate { WALLTIME, TOTALJOBS, TOTALNODES, NODEHOURS, TOTALCORES, COREHOURS, TOTALACCS, ACCHOURS }
 
 type NodeMetrics {
   host:       String!
@@ -1885,6 +1901,8 @@ type JobsStatistics  {
   totalAccHours:  Int!           # Sum of the gpu hours of all matched jobs
   histDuration:   [HistoPoint!]! # value: hour, count: number of jobs with a rounded duration of value
   histNumNodes:   [HistoPoint!]! # value: number of nodes, count: number of jobs with that number of nodes
+  histNumCores:   [HistoPoint!]! # value: number of cores, count: number of jobs with that number of cores
+  histNumAccs:    [HistoPoint!]! # value: number of accs, count: number of jobs with that number of accs
 }
 
 input PageRequest {
@@ -5522,6 +5540,106 @@ func (ec *executionContext) fieldContext_JobsStatistics_histNumNodes(ctx context
 	return fc, nil
 }
 
+func (ec *executionContext) _JobsStatistics_histNumCores(ctx context.Context, field graphql.CollectedField, obj *model.JobsStatistics) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JobsStatistics_histNumCores(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.HistNumCores, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.HistoPoint)
+	fc.Result = res
+	return ec.marshalNHistoPoint2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐHistoPointᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JobsStatistics_histNumCores(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JobsStatistics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "count":
+				return ec.fieldContext_HistoPoint_count(ctx, field)
+			case "value":
+				return ec.fieldContext_HistoPoint_value(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type HistoPoint", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _JobsStatistics_histNumAccs(ctx context.Context, field graphql.CollectedField, obj *model.JobsStatistics) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JobsStatistics_histNumAccs(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.HistNumAccs, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.HistoPoint)
+	fc.Result = res
+	return ec.marshalNHistoPoint2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐHistoPointᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JobsStatistics_histNumAccs(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JobsStatistics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "count":
+				return ec.fieldContext_HistoPoint_count(ctx, field)
+			case "value":
+				return ec.fieldContext_HistoPoint_value(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type HistoPoint", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _MetricConfig_name(ctx context.Context, field graphql.CollectedField, obj *schema.MetricConfig) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_MetricConfig_name(ctx, field)
 	if err != nil {
@@ -7309,6 +7427,10 @@ func (ec *executionContext) fieldContext_Query_jobsStatistics(ctx context.Contex
 				return ec.fieldContext_JobsStatistics_histDuration(ctx, field)
 			case "histNumNodes":
 				return ec.fieldContext_JobsStatistics_histNumNodes(ctx, field)
+			case "histNumCores":
+				return ec.fieldContext_JobsStatistics_histNumCores(ctx, field)
+			case "histNumAccs":
+				return ec.fieldContext_JobsStatistics_histNumAccs(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type JobsStatistics", field.Name)
 		},
@@ -12775,6 +12897,16 @@ func (ec *executionContext) _JobsStatistics(ctx context.Context, sel ast.Selecti
 			}
 		case "histNumNodes":
 			out.Values[i] = ec._JobsStatistics_histNumNodes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "histNumCores":
+			out.Values[i] = ec._JobsStatistics_histNumCores(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "histNumAccs":
+			out.Values[i] = ec._JobsStatistics_histNumAccs(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

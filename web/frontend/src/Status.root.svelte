@@ -14,6 +14,14 @@
 
     let plotWidths = [], colWidth1 = 0, colWidth2
     let from = new Date(Date.now() - 5 * 60 * 1000), to = new Date(Date.now())
+    const topOptions = [
+        {key: 'totalJobs',  label: 'Jobs'},
+        {key: 'totalNodes', label: 'Nodes'},
+        {key: 'totalCores', label: 'Cores'},
+        {key: 'totalAccs',  label: 'Accelerators'},
+    ]
+    let topProjectSelection = topOptions[0] // Default: Jobs
+    let topUserSelection    = topOptions[0] // Default: Jobs
 
     const client = getContextClient();
     $: mainQuery = queryStore({
@@ -51,29 +59,33 @@
     $: topUserQuery = queryStore({
         client: client,
         query: gql`
-            query($filter: [JobFilter!]!, $paging: PageRequest!) {
-                topUser: jobsStatistics(filter: $filter, page: $paging, sortBy: TOTALCORES, groupBy: USER) {
+            query($filter: [JobFilter!]!, $paging: PageRequest!, $sortBy: SortByAggregate!) {
+                topUser: jobsStatistics(filter: $filter, page: $paging, sortBy: $sortBy, groupBy: USER) {
                     id
+                    totalJobs
                     totalNodes
                     totalCores
+                    totalAccs
                 }
             }
         `, 
-        variables: { filter: [{ state: ['running'] }, { cluster: { eq: cluster } }], paging }
+        variables: { filter: [{ state: ['running'] }, { cluster: { eq: cluster } }], paging, sortBy: topUserSelection.key.toUpperCase() }
     })
 
     $: topProjectQuery = queryStore({
         client: client,
         query: gql`
-            query($filter: [JobFilter!]!, $paging: PageRequest!) {
-                topProjects: jobsStatistics(filter: $filter, page: $paging, sortBy: TOTALCORES, groupBy: PROJECT) {
+            query($filter: [JobFilter!]!, $paging: PageRequest!, $sortBy: SortByAggregate!) {
+                topProjects: jobsStatistics(filter: $filter, page: $paging, sortBy: $sortBy, groupBy: PROJECT) {
                     id
+                    totalJobs
                     totalNodes
                     totalCores
+                    totalAccs
                 }
             }
         `, 
-        variables: { filter: [{ state: ['running'] }, { cluster: { eq: cluster } }], paging }
+        variables: { filter: [{ state: ['running'] }, { cluster: { eq: cluster } }], paging, sortBy: topProjectSelection.key.toUpperCase() }
     })
 
     const sumUp = (data, subcluster, metric) => data.reduce((sum, node) => node.subCluster == subcluster
@@ -188,51 +200,99 @@
     <Row cols={4}>
         <Col class="p-2">
             <div bind:clientWidth={colWidth1}>
-                <h4 class="text-center">Top Users</h4>
-                {#key $topUserQuery.data}
+                <h4 class="text-center">Top Users on {cluster.charAt(0).toUpperCase() + cluster.slice(1)}</h4>
+                {#if $topUserQuery.fetching}
+                    <Spinner/>
+                {:else if $topUserQuery.error}
+                    <Card body color="danger">{$topUserQuery.error.message}</Card>
+                {:else}                    
                     <Pie
                         size={colWidth1}
-                        sliceLabel='Jobs'
-                        quantities={$topUserQuery.data.topUser.map((tu) => tu.totalCores)}
+                        sliceLabel={topUserSelection.label}
+                        quantities={$topUserQuery.data.topUser.map((tu) => tu[topUserSelection.key])}
                         entities={$topUserQuery.data.topUser.map((tu) => tu.id)}
                     />
-                {/key}
+                {/if}
             </div>
         </Col>
         <Col class="px-4 py-2">
-            <Table>
-                <tr class="mb-2"><th>Legend</th><th>User Name</th><th>Number of Cores</th></tr>
-                {#each $topUserQuery.data.topUser as { id, totalCores, totalNodes }, i}
-                    <tr>
-                        <td><Icon name="circle-fill" style="color: {colors[i]};"/></td>
-                        <th scope="col"><a href="/monitoring/user/{id}?cluster={cluster}&state=running">{id}</a></th>
-                        <td>{totalCores}</td>
-                    </tr>
-                {/each}
-            </Table>
-        </Col>
-        <Col class="p-2">
-            <h4 class="text-center">Top Projects</h4>
-            {#key $topProjectQuery.data}
-                <Pie
-                    size={colWidth1}
-                    sliceLabel='Jobs'
-                    quantities={$topProjectQuery.data.topProjects.map((tp) => tp.totalCores)}
-                    entities={$topProjectQuery.data.topProjects.map((tp) => tp.id)}
-                />
+            {#key $topUserQuery.data}
+                {#if $topUserQuery.fetching}
+                    <Spinner/>
+                {:else if $topUserQuery.error}
+                    <Card body color="danger">{$topUserQuery.error.message}</Card>
+                {:else}                    
+                    <Table>
+                        <tr class="mb-2">
+                            <th>Legend</th>
+                            <th>User Name</th>
+                            <th>Number of
+                                <select class="p-0" bind:value={topUserSelection}>
+                                    {#each topOptions as option}
+                                        <option value={option}>
+                                            {option.label}
+                                        </option>
+                                    {/each}
+                                </select>
+                            </th>
+                        </tr>
+                        {#each $topUserQuery.data.topUser as tu, i}
+                            <tr>
+                                <td><Icon name="circle-fill" style="color: {colors[i]};"/></td>
+                                <th scope="col"><a href="/monitoring/user/{tu.id}?cluster={cluster}&state=running">{tu.id}</a></th>
+                                <td>{tu[topUserSelection.key]}</td>
+                            </tr>
+                        {/each}
+                    </Table>
+                {/if}
             {/key}
         </Col>
+        <Col class="p-2">
+            <h4 class="text-center">Top Projects on {cluster.charAt(0).toUpperCase() + cluster.slice(1)}</h4>
+            {#if $topProjectQuery.fetching}
+                <Spinner/>
+            {:else if $topProjectQuery.error}
+                <Card body color="danger">{$topProjectQuery.error.message}</Card>
+            {:else}
+                <Pie
+                    size={colWidth1}
+                    sliceLabel={topProjectSelection.label}
+                    quantities={$topProjectQuery.data.topProjects.map((tp) => tp[topProjectSelection.key])}
+                    entities={$topProjectQuery.data.topProjects.map((tp) => tp.id)}
+                />
+            {/if}
+        </Col>
         <Col class="px-4 py-2">
-            <Table>
-                <tr class="mb-2"><th>Legend</th><th>Project Code</th><th>Number of Cores</th></tr>
-                {#each $topProjectQuery.data.topProjects as { id, totalCores, totalNodes }, i}
-                    <tr>
-                        <td><Icon name="circle-fill" style="color: {colors[i]};"/></td>
-                        <th scope="col"><a href="/monitoring/jobs/?cluster={cluster}&state=running&project={id}&projectMatch=eq">{id}</a></th>
-                        <td>{totalCores}</td>
-                    </tr>
-                {/each}
-            </Table>
+            {#key $topProjectQuery.data}
+                {#if $topProjectQuery.fetching}
+                    <Spinner/>
+                {:else if $topProjectQuery.error}
+                    <Card body color="danger">{$topProjectQuery.error.message}</Card>
+                {:else}   
+                    <Table>
+                        <tr class="mb-2">
+                            <th>Legend</th>
+                            <th>Project Code</th>
+                            <th>Number of
+                                <select class="p-0" bind:value={topProjectSelection}>
+                                    {#each topOptions as option}
+                                        <option value={option}>
+                                            {option.label}
+                                        </option>
+                                    {/each}
+                                </select>
+                            </th>
+                        </tr>
+                        {#each $topProjectQuery.data.topProjects as tp, i}
+                            <tr>
+                                <td><Icon name="circle-fill" style="color: {colors[i]};"/></td>
+                                <th scope="col"><a href="/monitoring/jobs/?cluster={cluster}&state=running&project={tp.id}&projectMatch=eq">{tp.id}</a></th>
+                                <td>{tp[topProjectSelection.key]}</td>
+                            </tr>
+                        {/each}
+                    </Table>
+                {/if}
+            {/key}
         </Col>
     </Row>
     <hr class="my-2"/>

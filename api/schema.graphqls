@@ -167,7 +167,7 @@ type TimeWeights {
 }
 
 enum Aggregate { USER, PROJECT, CLUSTER }
-enum SortByAggregate { WALLTIME, TOTALNODES, NODEHOURS, TOTALCORES, COREHOURS, TOTALACCS, ACCHOURS }
+enum SortByAggregate { WALLTIME, TOTALJOBS, TOTALNODES, NODEHOURS, TOTALCORES, COREHOURS, TOTALACCS, ACCHOURS }
 
 type NodeMetrics {
   host:       String!
@@ -301,6 +301,8 @@ type JobsStatistics  {
   totalAccHours:  Int!           # Sum of the gpu hours of all matched jobs
   histDuration:   [HistoPoint!]! # value: hour, count: number of jobs with a rounded duration of value
   histNumNodes:   [HistoPoint!]! # value: number of nodes, count: number of jobs with that number of nodes
+  histNumCores:   [HistoPoint!]! # value: number of cores, count: number of jobs with that number of cores
+  histNumAccs:    [HistoPoint!]! # value: number of accs, count: number of jobs with that number of accs
 }
 
 input PageRequest {

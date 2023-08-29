@@ -99,6 +99,8 @@ type JobsStatistics struct {
 	TotalAccHours  int           `json:"totalAccHours"`
 	HistDuration   []*HistoPoint `json:"histDuration"`
 	HistNumNodes   []*HistoPoint `json:"histNumNodes"`
+	HistNumCores   []*HistoPoint `json:"histNumCores"`
+	HistNumAccs    []*HistoPoint `json:"histNumAccs"`
 }
 
 type MetricFootprints struct {
@@ -195,6 +197,7 @@ type SortByAggregate string
 
 const (
 	SortByAggregateWalltime   SortByAggregate = "WALLTIME"
+	SortByAggregateTotaljobs  SortByAggregate = "TOTALJOBS"
 	SortByAggregateTotalnodes SortByAggregate = "TOTALNODES"
 	SortByAggregateNodehours  SortByAggregate = "NODEHOURS"
 	SortByAggregateTotalcores SortByAggregate = "TOTALCORES"
@@ -205,6 +208,7 @@ const (
 
 var AllSortByAggregate = []SortByAggregate{
 	SortByAggregateWalltime,
+	SortByAggregateTotaljobs,
 	SortByAggregateTotalnodes,
 	SortByAggregateNodehours,
 	SortByAggregateTotalcores,
@@ -215,7 +219,7 @@ var AllSortByAggregate = []SortByAggregate{
 
 func (e SortByAggregate) IsValid() bool {
 	switch e {
-	case SortByAggregateWalltime, SortByAggregateTotalnodes, SortByAggregateNodehours, SortByAggregateTotalcores, SortByAggregateCorehours, SortByAggregateTotalaccs, SortByAggregateAcchours:
+	case SortByAggregateWalltime, SortByAggregateTotaljobs, SortByAggregateTotalnodes, SortByAggregateNodehours, SortByAggregateTotalcores, SortByAggregateCorehours, SortByAggregateTotalaccs, SortByAggregateAcchours:
 		return true
 	}
 	return false
