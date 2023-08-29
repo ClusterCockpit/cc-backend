@@ -32,6 +32,7 @@ It is supported to set these by means of a `.env` file in the project root.
    - `search_dn`: Type string. DN for authenticating LDAP admin account with general read rights.
    - `user_bind`: Type string. Expression used to authenticate users via LDAP bind. Must contain `uid={username}`.
    - `user_filter`: Type string. Filter to extract users for syncing.
+   - `username_attr`: Type string. Attribute with full user name. Defaults to `gecos` if not provided.
    - `sync_interval`: Type string. Interval used for syncing local user table with LDAP directory. Parsed using time.ParseDuration.
    - `sync_del_old_users`: Type bool. Delete obsolete users in database.
 * `clusters`: Type array of objects
