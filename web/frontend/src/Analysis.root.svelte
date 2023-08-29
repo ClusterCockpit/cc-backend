@@ -42,6 +42,19 @@
 
     $: metrics = [...new Set([...metricsInHistograms, ...metricsInScatterplots.flat()])]
 
+    const sortOptions = [
+        {key: 'totalWalltime',  label: 'Walltime'},
+        {key: 'totalNodeHours', label: 'Node Hours'},
+        {key: 'totalCoreHours', label: 'Core Hours'},
+        {key: 'totalAccHours',  label: 'Accelerator Hours'}
+    ]
+    const groupOptions = [
+        {key: 'User',  label: 'User Name'},
+        {key: 'Project', label: 'Project ID'}
+    ]
+    let sortSelection = sortOptions[0] // Default: Walltime
+    let groupSelection = groupOptions[0] // Default: Users
+
     getContext('on-init')(({ data }) => {
         if (data != null) {
             cluster = data.clusters.find(c => c.name == filterPresets.cluster)
@@ -62,28 +75,31 @@
                     totalJobs
                     shortJobs
                     totalWalltime
+                    totalNodeHours
                     totalCoreHours
+                    totalAccHours
                     histDuration { count, value }
-                    histNumNodes { count, value }
+                    histNumCores { count, value }
                 }
             }
         `, 
         variables: { jobFilters }
     })
 
-    const paging = { itemsPerPage: 5, page: 1 }; // Top 5
-    // const sorting = { field: "totalCoreHours", order: "DESC" };
     $: topQuery = queryStore({
         client: client,
         query: gql`
-            query($jobFilters: [JobFilter!]!, $paging: PageRequest!) {
-                topUser: jobsStatistics(filter: $jobFilters, page: $paging, sortBy: COREHOURS, groupBy: USER) {
+            query($jobFilters: [JobFilter!]!, $paging: PageRequest!, $sortBy: SortByAggregate!, $groupBy: Aggregate!) {
+                topList: jobsStatistics(filter: $jobFilters, page: $paging, sortBy: $sortBy, groupBy: $groupBy) {
                     id
+                    totalWalltime
+                    totalNodeHours
                     totalCoreHours
+                    totalAccHours
                 }
             }
         `, 
-        variables: { jobFilters, paging }
+        variables: { jobFilters, paging: { itemsPerPage: 10, page: 1 }, sortBy: sortSelection.key.toUpperCase(), groupBy: groupSelection.key.toUpperCase() }
     })
 
     $: footprintsQuery = queryStore({
@@ -165,35 +181,81 @@
                     <td>{$statsQuery.data.stats[0].totalWalltime}</td>
                 </tr>
                 <tr>
+                    <th scope="col">Total Node Hours</th>
+                    <td>{$statsQuery.data.stats[0].totalNodeHours}</td>
+                </tr>
+                <tr>
                     <th scope="col">Total Core Hours</th>
                     <td>{$statsQuery.data.stats[0].totalCoreHours}</td>
+                </tr>
+                <tr>
+                    <th scope="col">Total Accelerator Hours</th>
+                    <td>{$statsQuery.data.stats[0].totalAccHours}</td>
                 </tr>
             </Table>
         </Col>
         <Col>
             <div bind:clientWidth={colWidth1}>
-            <h5>Top Users</h5>
-            {#key $statsQuery.data.topUsers}
-            <Pie
-                size={colWidth1}
-                sliceLabel='Core Hours'
-                quantities={$topQuery.data.topUser.map((tu) => tu.totalCoreHours)}
-                entities={$topQuery.data.topUser.map((tu) => tu.id)}
-            />
+            <h5>Top 
+                <select class="p-0" bind:value={groupSelection}>
+                    {#each groupOptions as option}
+                        <option value={option}>
+                            {option.key}s
+                        </option>
+                    {/each}
+                </select>
+            </h5>
+            {#key $topQuery.data}
+                {#if $topQuery.fetching}
+                    <Spinner/>
+                {:else if $topQuery.error}
+                    <Card body color="danger">{$topQuery.error.message}</Card>
+                {:else}                    
+                    <Pie
+                        size={colWidth1}
+                        sliceLabel={sortSelection.label}
+                        quantities={$topQuery.data.topList.map((t) => t[sortSelection.key])}
+                        entities={$topQuery.data.topList.map((t) => t.id)}
+                    />
+                {/if}
             {/key}
             </div>
         </Col>
         <Col>
-            <Table>
-                <tr class="mb-2"><th>Legend</th><th>User Name</th><th>Core Hours</th></tr>
-                {#each $topQuery.data.topUser as { id, totalCoreHours }, i}
-                    <tr>
-                        <td><Icon name="circle-fill" style="color: {colors[i]};"/></td>
-                        <th scope="col"><a href="/monitoring/user/{id}?cluster={cluster.name}">{id}</a></th>
-                        <td>{totalCoreHours}</td>
-                    </tr>
-                {/each}
-            </Table>
+            {#key $topQuery.data}
+                {#if $topQuery.fetching}
+                    <Spinner/>
+                {:else if $topQuery.error}
+                    <Card body color="danger">{$topQuery.error.message}</Card>
+                {:else}
+                    <Table>
+                        <tr class="mb-2">
+                            <th>Legend</th>
+                            <th>{groupSelection.label}</th>
+                            <th>
+                                <select class="p-0" bind:value={sortSelection}>
+                                    {#each sortOptions as option}
+                                        <option value={option}>
+                                            {option.label}
+                                        </option>
+                                    {/each}
+                                </select>
+                            </th>
+                        </tr>
+                        {#each $topQuery.data.topList as te, i}
+                            <tr>
+                                <td><Icon name="circle-fill" style="color: {colors[i]};"/></td>
+                                {#if groupSelection.key == 'User'} 
+                                    <th scope="col"><a href="/monitoring/user/{te.id}?cluster={cluster.name}">{te.id}</a></th>
+                                {:else}
+                                    <th scope="col"><a href="/monitoring/jobs/?cluster={cluster.name}&project={te.id}&projectMatch=eq">{te.id}</a></th>
+                                {/if}
+                                <td>{te[sortSelection.key]}</td>
+                            </tr>
+                        {/each}
+                    </Table>
+                {/if}
+            {/key}
         </Col>
     </Row>
     <Row cols={3} class="mb-2">
@@ -230,13 +292,13 @@
         </Col>
         <Col>
             <div bind:clientWidth={colWidth4}>
-            {#key $statsQuery.data.stats[0].histNumNodes}
+            {#key $statsQuery.data.stats[0].histNumCores}
                 <Histogram
                     width={colWidth4} height={300}
-                    data={convert2uplot($statsQuery.data.stats[0].histNumNodes)}
-                    title="Number of Nodes Distribution"
-                    xlabel="Allocated Nodes"
-                    xunit="Nodes"
+                    data={convert2uplot($statsQuery.data.stats[0].histNumCores)}
+                    title="Number of Cores Distribution"
+                    xlabel="Allocated Cores"
+                    xunit="Cores"
                     ylabel="Number of Jobs"
                     yunit="Jobs"/>
             {/key}

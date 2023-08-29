@@ -248,8 +248,8 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	var err error
 	var stats []*model.JobsStatistics
 
-	if requireField(ctx, "totalJobs") || requireField(ctx, "totalNodes") || requireField(ctx, "totalCores") || requireField(ctx, "totalAccs") ||
-		requireField(ctx, "totalNodeHours") || requireField(ctx, "totalCoreHours") || requireField(ctx, "totalAccHours") {
+	if requireField(ctx, "totalJobs") || requireField(ctx, "totalWalltime") || requireField(ctx, "totalNodes") || requireField(ctx, "totalCores") ||
+		requireField(ctx, "totalAccs") || requireField(ctx, "totalNodeHours") || requireField(ctx, "totalCoreHours") || requireField(ctx, "totalAccHours") {
 		if groupBy == nil {
 			stats, err = r.Repo.JobsStats(ctx, filter)
 		} else {

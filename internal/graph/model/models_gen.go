@@ -196,30 +196,30 @@ func (e Aggregate) MarshalGQL(w io.Writer) {
 type SortByAggregate string
 
 const (
-	SortByAggregateWalltime   SortByAggregate = "WALLTIME"
-	SortByAggregateTotaljobs  SortByAggregate = "TOTALJOBS"
-	SortByAggregateTotalnodes SortByAggregate = "TOTALNODES"
-	SortByAggregateNodehours  SortByAggregate = "NODEHOURS"
-	SortByAggregateTotalcores SortByAggregate = "TOTALCORES"
-	SortByAggregateCorehours  SortByAggregate = "COREHOURS"
-	SortByAggregateTotalaccs  SortByAggregate = "TOTALACCS"
-	SortByAggregateAcchours   SortByAggregate = "ACCHOURS"
+	SortByAggregateTotalwalltime  SortByAggregate = "TOTALWALLTIME"
+	SortByAggregateTotaljobs      SortByAggregate = "TOTALJOBS"
+	SortByAggregateTotalnodes     SortByAggregate = "TOTALNODES"
+	SortByAggregateTotalnodehours SortByAggregate = "TOTALNODEHOURS"
+	SortByAggregateTotalcores     SortByAggregate = "TOTALCORES"
+	SortByAggregateTotalcorehours SortByAggregate = "TOTALCOREHOURS"
+	SortByAggregateTotalaccs      SortByAggregate = "TOTALACCS"
+	SortByAggregateTotalacchours  SortByAggregate = "TOTALACCHOURS"
 )
 
 var AllSortByAggregate = []SortByAggregate{
-	SortByAggregateWalltime,
+	SortByAggregateTotalwalltime,
 	SortByAggregateTotaljobs,
 	SortByAggregateTotalnodes,
-	SortByAggregateNodehours,
+	SortByAggregateTotalnodehours,
 	SortByAggregateTotalcores,
-	SortByAggregateCorehours,
+	SortByAggregateTotalcorehours,
 	SortByAggregateTotalaccs,
-	SortByAggregateAcchours,
+	SortByAggregateTotalacchours,
 }
 
 func (e SortByAggregate) IsValid() bool {
 	switch e {
-	case SortByAggregateWalltime, SortByAggregateTotaljobs, SortByAggregateTotalnodes, SortByAggregateNodehours, SortByAggregateTotalcores, SortByAggregateCorehours, SortByAggregateTotalaccs, SortByAggregateAcchours:
+	case SortByAggregateTotalwalltime, SortByAggregateTotaljobs, SortByAggregateTotalnodes, SortByAggregateTotalnodehours, SortByAggregateTotalcores, SortByAggregateTotalcorehours, SortByAggregateTotalaccs, SortByAggregateTotalacchours:
 		return true
 	}
 	return false

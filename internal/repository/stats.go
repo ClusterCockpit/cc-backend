@@ -24,14 +24,14 @@ var groupBy2column = map[model.Aggregate]string{
 }
 
 var sortBy2column = map[model.SortByAggregate]string{
-	model.SortByAggregateTotaljobs:  "totalJobs",
-	model.SortByAggregateWalltime:   "totalWalltime",
-	model.SortByAggregateTotalnodes: "totalNodes",
-	model.SortByAggregateNodehours:  "totalNodeHours",
-	model.SortByAggregateTotalcores: "totalCores",
-	model.SortByAggregateCorehours:  "totalCoreHours",
-	model.SortByAggregateTotalaccs:  "totalAccs",
-	model.SortByAggregateAcchours:   "totalAccHours",
+	model.SortByAggregateTotaljobs:      "totalJobs",
+	model.SortByAggregateTotalwalltime:  "totalWalltime",
+	model.SortByAggregateTotalnodes:     "totalNodes",
+	model.SortByAggregateTotalnodehours: "totalNodeHours",
+	model.SortByAggregateTotalcores:     "totalCores",
+	model.SortByAggregateTotalcorehours: "totalCoreHours",
+	model.SortByAggregateTotalaccs:      "totalAccs",
+	model.SortByAggregateTotalacchours:  "totalAccHours",
 }
 
 func (r *JobRepository) buildCountQuery(
@@ -169,10 +169,14 @@ func (r *JobRepository) JobsStatsGrouped(
 		}
 
 		if id.Valid {
-			var totalJobs, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours int
+			var totalJobs, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours int
 
 			if jobs.Valid {
 				totalJobs = int(jobs.Int64)
+			}
+
+			if walltime.Valid {
+				totalWalltime = int(walltime.Int64)
 			}
 
 			if nodes.Valid {
@@ -202,7 +206,7 @@ func (r *JobRepository) JobsStatsGrouped(
 						ID:             id.String,
 						Name:           name,
 						TotalJobs:      totalJobs,
-						TotalWalltime:  int(walltime.Int64),
+						TotalWalltime:  totalWalltime,
 						TotalNodes:     totalNodes,
 						TotalNodeHours: totalNodeHours,
 						TotalCores:     totalCores,
