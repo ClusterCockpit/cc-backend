@@ -57,7 +57,6 @@
     })
 
     const paging = { itemsPerPage: 10, page: 1 }; // Top 10
-    // const sorting = { field: "totalCores", order: "DESC" };
     $: topUserQuery = queryStore({
         client: client,
         query: gql`
@@ -203,18 +202,20 @@
         <Col class="p-2">
             <div bind:clientWidth={colWidth1}>
                 <h4 class="text-center">Top Users on {cluster.charAt(0).toUpperCase() + cluster.slice(1)}</h4>
-                {#if $topUserQuery.fetching}
-                    <Spinner/>
-                {:else if $topUserQuery.error}
-                    <Card body color="danger">{$topUserQuery.error.message}</Card>
-                {:else}                    
-                    <Pie
-                        size={colWidth1}
-                        sliceLabel={topUserSelection.label}
-                        quantities={$topUserQuery.data.topUser.map((tu) => tu[topUserSelection.key])}
-                        entities={$topUserQuery.data.topUser.map((tu) => tu.id)}
-                    />
-                {/if}
+                {#key $topUserQuery.data}
+                    {#if $topUserQuery.fetching}
+                        <Spinner/>
+                    {:else if $topUserQuery.error}
+                        <Card body color="danger">{$topUserQuery.error.message}</Card>
+                    {:else}                    
+                        <Pie
+                            size={colWidth1}
+                            sliceLabel={topUserSelection.label}
+                            quantities={$topUserQuery.data.topUser.map((tu) => tu[topUserSelection.key])}
+                            entities={$topUserQuery.data.topUser.map((tu) => tu.id)}
+                        />
+                    {/if}
+                {/key}
             </div>
         </Col>
         <Col class="px-4 py-2">
@@ -251,18 +252,20 @@
         </Col>
         <Col class="p-2">
             <h4 class="text-center">Top Projects on {cluster.charAt(0).toUpperCase() + cluster.slice(1)}</h4>
-            {#if $topProjectQuery.fetching}
-                <Spinner/>
-            {:else if $topProjectQuery.error}
-                <Card body color="danger">{$topProjectQuery.error.message}</Card>
-            {:else}
-                <Pie
-                    size={colWidth1}
-                    sliceLabel={topProjectSelection.label}
-                    quantities={$topProjectQuery.data.topProjects.map((tp) => tp[topProjectSelection.key])}
-                    entities={$topProjectQuery.data.topProjects.map((tp) => tp.id)}
-                />
-            {/if}
+            {#key $topProjectQuery.data}
+                {#if $topProjectQuery.fetching}
+                    <Spinner/>
+                {:else if $topProjectQuery.error}
+                    <Card body color="danger">{$topProjectQuery.error.message}</Card>
+                {:else}
+                    <Pie
+                        size={colWidth1}
+                        sliceLabel={topProjectSelection.label}
+                        quantities={$topProjectQuery.data.topProjects.map((tp) => tp[topProjectSelection.key])}
+                        entities={$topProjectQuery.data.topProjects.map((tp) => tp.id)}
+                    />
+                {/if}
+            {/key}
         </Col>
         <Col class="px-4 py-2">
             {#key $topProjectQuery.data}
