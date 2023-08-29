@@ -44,6 +44,8 @@
         stats: jobsStatistics(filter: $filter) {
             histDuration { count, value }
             histNumNodes { count, value }
+            histNumCores { count, value }
+            histNumAccs { count, value }
         }
 
         allocatedNodes(cluster: $cluster) { name, count }
@@ -319,6 +321,34 @@
                     title="Number of Nodes Distribution"
                     xlabel="Allocated Nodes"
                     xunit="Nodes" 
+                    ylabel="Number of Jobs"
+                    yunit="Jobs"/>
+            {/key}
+        </Col>
+    </Row>
+    <Row cols={2}>
+        <Col class="p-2">
+            <div bind:clientWidth={colWidth2}>
+                {#key $mainQuery.data.stats}
+                    <Histogram
+                        data={convert2uplot($mainQuery.data.stats[0].histNumCores)}
+                        width={colWidth2 - 25}
+                        title="Number of Cores Distribution"
+                        xlabel="Allocated Cores"
+                        xunit="Cores" 
+                        ylabel="Number of Jobs"
+                        yunit="Jobs"/>
+                {/key}
+            </div>
+        </Col>
+        <Col class="p-2">
+            {#key $mainQuery.data.stats}
+                <Histogram
+                    data={convert2uplot($mainQuery.data.stats[0].histNumAccs)}
+                    width={colWidth2 - 25}
+                    title="Number of Accelerators Distribution"
+                    xlabel="Allocated Accs"
+                    xunit="Accs" 
                     ylabel="Number of Jobs"
                     yunit="Jobs"/>
             {/key}

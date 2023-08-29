@@ -442,6 +442,18 @@ func (r *JobRepository) AddHistograms(
 		return nil, err
 	}
 
+	stat.HistNumCores, err = r.jobsStatisticsHistogram(ctx, "job.num_hwthreads as value", filter)
+	if err != nil {
+		log.Warn("Error while loading job statistics histogram: num hwthreads")
+		return nil, err
+	}
+
+	stat.HistNumAccs, err = r.jobsStatisticsHistogram(ctx, "job.num_acc as value", filter)
+	if err != nil {
+		log.Warn("Error while loading job statistics histogram: num acc")
+		return nil, err
+	}
+
 	log.Debugf("Timer AddHistograms %s", time.Since(start))
 	return stat, nil
 }

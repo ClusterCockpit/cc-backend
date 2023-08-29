@@ -280,7 +280,7 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 		return nil, err
 	}
 
-	if requireField(ctx, "histDuration") || requireField(ctx, "histNumNodes") {
+	if requireField(ctx, "histDuration") || requireField(ctx, "histNumNodes") || requireField(ctx, "histNumCores") || requireField(ctx, "histNumAccs") {
 		if groupBy == nil {
 			stats[0], err = r.Repo.AddHistograms(ctx, filter, stats[0])
 			if err != nil {
