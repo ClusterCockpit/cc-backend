@@ -15,6 +15,7 @@ type LdapConfig struct {
 	SearchDN        string `json:"search_dn"`
 	UserBind        string `json:"user_bind"`
 	UserFilter      string `json:"user_filter"`
+	UserAttr		string `json:"username_attr"`
 	SyncInterval    string `json:"sync_interval"` // Parsed using time.ParseDuration.
 	SyncDelOldUsers bool   `json:"sync_del_old_users"`
 

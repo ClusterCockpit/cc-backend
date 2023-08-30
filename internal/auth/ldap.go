@@ -21,6 +21,7 @@ import (
 
 type LdapAuthenticator struct {
 	syncPassword string
+	UserAttr string
 }
 
 var _ Authenticator = (*LdapAuthenticator)(nil)
@@ -31,11 +32,13 @@ func (la *LdapAuthenticator) Init() error {
 		log.Warn("environment variable 'LDAP_ADMIN_PASSWORD' not set (ldap sync will not work)")
 	}
 
-	if config.Keys.LdapConfig.SyncInterval != "" {
-		interval, err := time.ParseDuration(config.Keys.LdapConfig.SyncInterval)
+	lc := config.Keys.LdapConfig
+
+	if lc.SyncInterval != "" {
+		interval, err := time.ParseDuration(lc.SyncInterval)
 		if err != nil {
 			log.Warnf("Could not parse duration for sync interval: %v",
-				config.Keys.LdapConfig.SyncInterval)
+				lc.SyncInterval)
 			return err
 		}
 
@@ -56,6 +59,12 @@ func (la *LdapAuthenticator) Init() error {
 		}()
 	} else {
 		log.Info("LDAP configuration key sync_interval invalid")
+	}
+
+	if lc.UserAttr != "" {
+		la.UserAttr = lc.UserAttr
+	} else {
+		la.UserAttr = "gecos"
 	}
 
 	return nil
@@ -86,7 +95,7 @@ func (la *LdapAuthenticator) CanLogin(
 				lc.UserBase,
 				ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 				fmt.Sprintf("(&%s(uid=%s))", lc.UserFilter, username),
-				[]string{"dn", "uid", "gecos"}, nil)
+				[]string{"dn", "uid", la.UserAttr}, nil)
 
 			sr, err := l.Search(searchRequest)
 			if err != nil {
@@ -100,7 +109,7 @@ func (la *LdapAuthenticator) CanLogin(
 			}
 
 			entry := sr.Entries[0]
-			name := entry.GetAttributeValue("gecos")
+			name := entry.GetAttributeValue(la.UserAttr)
 			var roles []string
 			roles = append(roles, schema.GetRoleString(schema.RoleUser))
 			projects := make([]string, 0)
@@ -176,7 +185,7 @@ func (la *LdapAuthenticator) Sync() error {
 		lc.UserBase,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		lc.UserFilter,
-		[]string{"dn", "uid", "gecos"}, nil))
+		[]string{"dn", "uid", la.UserAttr}, nil))
 	if err != nil {
 		log.Warn("LDAP search error")
 		return err
@@ -192,7 +201,7 @@ func (la *LdapAuthenticator) Sync() error {
 		_, ok := users[username]
 		if !ok {
 			users[username] = IN_LDAP
-			newnames[username] = entry.GetAttributeValue("gecos")
+			newnames[username] = entry.GetAttributeValue(la.UserAttr)
 		} else {
 			users[username] = IN_BOTH
 		}
