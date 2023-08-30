@@ -1,7 +1,7 @@
 <script>
     import { init, convert2uplot } from './utils.js'
     import { getContext, onMount } from 'svelte'
-    import { queryStore, gql, getContextClient  } from '@urql/svelte'
+    import { queryStore, gql, getContextClient, mutationStore } from '@urql/svelte'
     import { Row, Col, Spinner, Card, Table, Icon } from 'sveltestrap'
     import Filters from './filters/Filters.svelte'
     import PlotSelection from './PlotSelection.svelte'
@@ -49,11 +49,12 @@
         {key: 'totalAccHours',  label: 'Accelerator Hours'}
     ]
     const groupOptions = [
-        {key: 'User',  label: 'User Name'},
-        {key: 'Project', label: 'Project ID'}
+        {key: 'user',  label: 'User Name'},
+        {key: 'project', label: 'Project ID'}
     ]
-    let sortSelection = sortOptions[0] // Default: Walltime
-    let groupSelection = groupOptions[0] // Default: Users
+
+    let sortSelection = sortOptions.find((option) => option.key == ccconfig[`analysis_view_selectedTopCategory:${filterPresets.cluster}`]) || sortOptions.find((option) => option.key == ccconfig.analysis_view_selectedTopCategory)
+    let groupSelection = groupOptions.find((option) => option.key == ccconfig[`analysis_view_selectedTopEntity:${filterPresets.cluster}`]) || groupOptions.find((option) => option.key == ccconfig.analysis_view_selectedTopEntity)
 
     getContext('on-init')(({ data }) => {
         if (data != null) {
@@ -125,6 +126,53 @@
         `,
         variables: { jobFilters, rows: 50, cols: 50, minX: 0.01, minY: 1., maxX: 1000., maxY }
     })
+
+    const updateConfigurationMutation = ({ name, value }) => {
+        return mutationStore({
+            client: client,
+            query: gql`
+                mutation ($name: String!, $value: String!) {
+                    updateConfiguration(name: $name, value: $value)
+                }
+            `,
+            variables: { name, value }
+        });
+    }
+
+    function updateEntityConfiguration(select) {
+        if (ccconfig[`analysis_view_selectedTopEntity:${filterPresets.cluster}`] != select) {
+            updateConfigurationMutation({ name: `analysis_view_selectedTopEntity:${filterPresets.cluster}`, value: JSON.stringify(select) })
+            .subscribe(res => {
+                if (res.fetching === false && !res.error) {
+                    // console.log(`analysis_view_selectedTopEntity:${filterPresets.cluster}` + ' -> Updated!')
+                } else if (res.fetching === false && res.error) {
+                    throw res.error
+                }
+            })
+        } else {
+            // console.log('No Mutation Required: Entity')
+        }
+    };
+
+
+    function updateCategoryConfiguration(select) {
+        if (ccconfig[`analysis_view_selectedTopCategory:${filterPresets.cluster}`] != select) {
+            updateConfigurationMutation({ name: `analysis_view_selectedTopCategory:${filterPresets.cluster}`, value: JSON.stringify(select) })
+            .subscribe(res => {
+                if (res.fetching === false && !res.error) {
+                    // console.log(`analysis_view_selectedTopCategory:${filterPresets.cluster}` + ' -> Updated!')
+                } else if (res.fetching === false && res.error) {
+                    throw res.error
+                }
+            })
+        } else {
+            // console.log('No Mutation Required: Category')
+        }
+
+    };
+
+    $: updateEntityConfiguration(groupSelection.key)
+    $: updateCategoryConfiguration(sortSelection.key)
 
     onMount(() => filterComponent.update())
 </script>
@@ -200,7 +248,7 @@
                 <select class="p-0" bind:value={groupSelection}>
                     {#each groupOptions as option}
                         <option value={option}>
-                            {option.key}s
+                            {option.key.charAt(0).toUpperCase() + option.key.slice(1)}s
                         </option>
                     {/each}
                 </select>

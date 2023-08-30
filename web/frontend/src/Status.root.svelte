@@ -1,4 +1,5 @@
 <script>
+    import { getContext } from 'svelte'
     import Refresher from './joblist/Refresher.svelte'
     import Roofline, { transformPerNodeData } from './plots/Roofline.svelte'
     import Pie, { colors } from './plots/Pie.svelte'
@@ -6,9 +7,10 @@
     import { Row, Col, Spinner, Card, CardHeader, CardTitle, CardBody, Table, Progress, Icon } from 'sveltestrap'
     import { init, convert2uplot } from './utils.js'
     import { scaleNumbers } from './units.js'
-    import { queryStore, gql, getContextClient  } from '@urql/svelte'
+    import { queryStore, gql, getContextClient, mutationStore } from '@urql/svelte'
 
     const { query: initq } = init()
+    const ccconfig = getContext("cc-config")
 
     export let cluster
 
@@ -20,8 +22,9 @@
         {key: 'totalCores', label: 'Cores'},
         {key: 'totalAccs',  label: 'Accelerators'},
     ]
-    let topProjectSelection = topOptions[0] // Default: Jobs
-    let topUserSelection    = topOptions[0] // Default: Jobs
+
+    let topProjectSelection = topOptions.find((option) => option.key == ccconfig[`status_view_selectedTopProjectCategory:${cluster}`]) || topOptions.find((option) => option.key == ccconfig.status_view_selectedTopProjectCategory)
+    let topUserSelection    = topOptions.find((option) => option.key == ccconfig[`status_view_selectedTopUserCategory:${cluster}`])    || topOptions.find((option) => option.key == ccconfig.status_view_selectedTopUserCategory)
 
     const client = getContextClient();
     $: mainQuery = queryStore({
@@ -106,6 +109,51 @@
             memBwRateUnitBase[subCluster.name]  = subCluster.memoryBandwidth.unit.base
         }
     }
+
+    const updateConfigurationMutation = ({ name, value }) => {
+        return mutationStore({
+            client: client,
+            query: gql`
+                mutation ($name: String!, $value: String!) {
+                    updateConfiguration(name: $name, value: $value)
+                }
+            `,
+            variables: { name, value }
+        });
+    }
+
+    function updateTopUserConfiguration(select) {
+        if (ccconfig[`status_view_selectedTopUserCategory:${cluster}`] != select) {
+            updateConfigurationMutation({ name: `status_view_selectedTopUserCategory:${cluster}`, value: JSON.stringify(select) })
+            .subscribe(res => {
+                if (res.fetching === false && !res.error) {
+                    // console.log(`status_view_selectedTopUserCategory:${cluster}` + ' -> Updated!')
+                } else if (res.fetching === false && res.error) {
+                    throw res.error
+                }
+            })
+        } else {
+            // console.log('No Mutation Required: Top User')
+        }
+    }
+
+    function updateTopProjectConfiguration(select) {
+        if (ccconfig[`status_view_selectedTopProjectCategory:${cluster}`] != select) {
+            updateConfigurationMutation({ name: `status_view_selectedTopProjectCategory:${cluster}`, value: JSON.stringify(select) })
+            .subscribe(res => {
+                if (res.fetching === false && !res.error) {
+                    // console.log(`status_view_selectedTopProjectCategory:${cluster}` + ' -> Updated!')
+                } else if (res.fetching === false && res.error) {
+                    throw res.error
+                }
+            })
+        } else {
+            // console.log('No Mutation Required: Top Project')
+        }
+    };
+
+    $: updateTopUserConfiguration(topUserSelection.key)
+    $: updateTopProjectConfiguration(topProjectSelection.key)
 
 </script>
 
