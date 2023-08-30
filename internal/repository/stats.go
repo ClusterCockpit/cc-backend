@@ -233,9 +233,16 @@ func (r *JobRepository) JobsStatsGrouped(
 	return stats, nil
 }
 
-func (r *JobRepository) jobsStats(
-	query sq.SelectBuilder,
+func (r *JobRepository) JobsStats(
+	ctx context.Context,
 	filter []*model.JobFilter) ([]*model.JobsStatistics, error) {
+
+	start := time.Now()
+	query := r.buildStatsQuery(filter, "")
+	query, err := SecurityCheck(ctx, query)
+	if err != nil {
+		return nil, err
+	}
 
 	row := query.RunWith(r.DB).QueryRow()
 	stats := make([]*model.JobsStatistics, 0, 1)
@@ -267,29 +274,8 @@ func (r *JobRepository) jobsStats(
 				TotalAccHours:  totalAccHours})
 	}
 
-	return stats, nil
-}
-
-func (r *JobRepository) testJobsStats(
-	filter []*model.JobFilter) ([]*model.JobsStatistics, error) {
-
-	query := r.buildStatsQuery(filter, "")
-	return r.jobsStats(query, filter)
-}
-
-func (r *JobRepository) JobsStats(
-	ctx context.Context,
-	filter []*model.JobFilter) ([]*model.JobsStatistics, error) {
-
-	start := time.Now()
-	query := r.buildStatsQuery(filter, "")
-	query, err := SecurityCheck(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-
 	log.Debugf("Timer JobStats %s", time.Since(start))
-	return r.jobsStats(query, filter)
+	return stats, nil
 }
 
 func (r *JobRepository) JobCountGrouped(

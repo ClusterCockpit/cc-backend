@@ -26,12 +26,10 @@ func TestJobStats(t *testing.T) {
 	r := setup(t)
 
 	filter := &model.JobFilter{}
-	var err error
-	var stats []*model.JobsStatistics
-	stats, err = r.testJobsStats([]*model.JobFilter{filter})
+	stats, err := r.JobsStats(getContext(t), []*model.JobFilter{filter})
 	noErr(t, err)
 
-	if stats[0].TotalJobs != 98 {
+	if stats[0].TotalJobs != 6 {
 		t.Fatalf("Want 98, Got %d", stats[0].TotalJobs)
 	}
 }

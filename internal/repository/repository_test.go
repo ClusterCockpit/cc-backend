@@ -5,10 +5,12 @@
 package repository
 
 import (
+	"context"
 	"testing"
 
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -94,7 +96,7 @@ func BenchmarkDB_CountJobs(b *testing.B) {
 
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
-				_, err := db.testCountJobs([]*model.JobFilter{filter})
+				_, err := db.CountJobs(getContext(b), []*model.JobFilter{filter})
 				noErr(b, err)
 			}
 		})
@@ -118,11 +120,29 @@ func BenchmarkDB_QueryJobs(b *testing.B) {
 
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
-				_, err := db.testQueryJobs([]*model.JobFilter{filter}, page, order)
+				_, err := db.QueryJobs(getContext(b), []*model.JobFilter{filter}, page, order)
 				noErr(b, err)
 			}
 		})
 	})
+}
+
+func getContext(tb testing.TB) context.Context {
+	tb.Helper()
+
+	var roles []string
+	roles = append(roles, schema.GetRoleString(schema.RoleAdmin))
+	projects := make([]string, 0)
+
+	user := &schema.User{
+		Username:   "demo",
+		Name:       "The man",
+		Roles:      roles,
+		Projects:   projects,
+		AuthSource: schema.AuthViaLDAP,
+	}
+	ctx := context.Background()
+	return context.WithValue(ctx, ContextUserKey, user)
 }
 
 func setup(tb testing.TB) *JobRepository {
@@ -131,7 +151,6 @@ func setup(tb testing.TB) *JobRepository {
 	dbfile := "testdata/job.db"
 	err := MigrateDB("sqlite3", dbfile)
 	noErr(tb, err)
-
 	Connect("sqlite3", dbfile)
 	return GetJobRepository()
 }
