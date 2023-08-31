@@ -352,7 +352,7 @@ export function binsFromFootprint(weights, scope, values, numBins) {
 
     const rawBins = new Array(numBins).fill(0)
     for (let i = 0; i < values.length; i++)
-        bins[Math.floor(((values[i] - min) / (max - min)) * numBins)] += scopeWeights ? scopeWeights[i] : 1
+        rawBins[Math.floor(((values[i] - min) / (max - min)) * numBins)] += scopeWeights ? scopeWeights[i] : 1
 
     const bins = rawBins.map((count, idx) => ({ 
         value: Math.floor(min + ((idx + 1) / numBins) * (max - min)),
