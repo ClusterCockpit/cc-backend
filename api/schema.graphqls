@@ -156,12 +156,18 @@ type MetricFootprints {
 }
 
 type Footprints {
-  nodehours: [NullableFloat!]!
+  timeWeights: TimeWeights!
   metrics:   [MetricFootprints!]!
 }
 
+type TimeWeights {
+  nodeHours: [NullableFloat!]!
+  accHours: [NullableFloat!]!
+  coreHours: [NullableFloat!]!
+}
+
 enum Aggregate { USER, PROJECT, CLUSTER }
-enum Weights { NODE_COUNT, NODE_HOURS }
+enum SortByAggregate { TOTALWALLTIME, TOTALJOBS, TOTALNODES, TOTALNODEHOURS, TOTALCORES, TOTALCOREHOURS, TOTALACCS, TOTALACCHOURS }
 
 type NodeMetrics {
   host:       String!
@@ -192,8 +198,7 @@ type Query {
   jobsFootprints(filter: [JobFilter!], metrics: [String!]!): Footprints
 
   jobs(filter: [JobFilter!], page: PageRequest, order: OrderByInput): JobResultList!
-  jobsStatistics(filter: [JobFilter!], groupBy: Aggregate): [JobsStatistics!]!
-  jobsCount(filter: [JobFilter]!, groupBy: Aggregate!, weight: Weights, limit: Int): [Count!]!
+  jobsStatistics(filter: [JobFilter!], page: PageRequest, sortBy: SortByAggregate, groupBy: Aggregate): [JobsStatistics!]!
 
   rooflineHeatmap(filter: [JobFilter!]!, rows: Int!, cols: Int!, minX: Float!, minY: Float!, maxX: Float!, maxY: Float!): [[Float!]!]!
 
@@ -288,11 +293,16 @@ type JobsStatistics  {
   runningJobs:    Int!           # Number of running jobs
   shortJobs:      Int!           # Number of jobs with a duration of less than duration
   totalWalltime:  Int!           # Sum of the duration of all matched jobs in hours
+  totalNodes:     Int!           # Sum of the nodes of all matched jobs
   totalNodeHours: Int!           # Sum of the node hours of all matched jobs
+  totalCores:     Int!           # Sum of the cores of all matched jobs
   totalCoreHours: Int!           # Sum of the core hours of all matched jobs
+  totalAccs:      Int!         # Sum of the accs of all matched jobs
   totalAccHours:  Int!           # Sum of the gpu hours of all matched jobs
   histDuration:   [HistoPoint!]! # value: hour, count: number of jobs with a rounded duration of value
   histNumNodes:   [HistoPoint!]! # value: number of nodes, count: number of jobs with that number of nodes
+  histNumCores:   [HistoPoint!]! # value: number of cores, count: number of jobs with that number of cores
+  histNumAccs:    [HistoPoint!]! # value: number of accs, count: number of jobs with that number of accs
 }
 
 input PageRequest {

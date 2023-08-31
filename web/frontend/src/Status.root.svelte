@@ -1,33 +1,30 @@
 <script>
-    import Refresher from "./joblist/Refresher.svelte";
-    import Roofline, { transformPerNodeData } from "./plots/Roofline.svelte";
-    import Pie, { colors } from "./plots/Pie.svelte";
-    import Histogram from "./plots/Histogram.svelte";
-    import {
-        Row,
-        Col,
-        Spinner,
-        Card,
-        CardHeader,
-        CardTitle,
-        CardBody,
-        Table,
-        Progress,
-        Icon,
-    } from "sveltestrap";
-    import { init, convert2uplot } from "./utils.js";
-    import { scaleNumbers } from "./units.js";
-    import { queryStore, gql, getContextClient } from "@urql/svelte";
+    import { getContext } from 'svelte'
+    import Refresher from './joblist/Refresher.svelte'
+    import Roofline, { transformPerNodeData } from './plots/Roofline.svelte'
+    import Pie, { colors } from './plots/Pie.svelte'
+    import Histogram from './plots/Histogram.svelte'
+    import { Row, Col, Spinner, Card, CardHeader, CardTitle, CardBody, Table, Progress, Icon } from 'sveltestrap'
+    import { init, convert2uplot } from './utils.js'
+    import { scaleNumbers } from './units.js'
+    import { queryStore, gql, getContextClient, mutationStore } from '@urql/svelte'
 
-    const { query: initq } = init();
+    const { query: initq } = init()
+    const ccconfig = getContext("cc-config")
 
     export let cluster;
 
-    let plotWidths = [],
-        colWidth1 = 0,
-        colWidth2;
-    let from = new Date(Date.now() - 5 * 60 * 1000),
-        to = new Date(Date.now());
+    let plotWidths = [], colWidth1 = 0, colWidth2
+    let from = new Date(Date.now() - 5 * 60 * 1000), to = new Date(Date.now())
+    const topOptions = [
+        {key: 'totalJobs',  label: 'Jobs'},
+        {key: 'totalNodes', label: 'Nodes'},
+        {key: 'totalCores', label: 'Cores'},
+        {key: 'totalAccs',  label: 'Accelerators'},
+    ]
+
+    let topProjectSelection = topOptions.find((option) => option.key == ccconfig[`status_view_selectedTopProjectCategory:${cluster}`]) || topOptions.find((option) => option.key == ccconfig.status_view_selectedTopProjectCategory)
+    let topUserSelection    = topOptions.find((option) => option.key == ccconfig[`status_view_selectedTopUserCategory:${cluster}`])    || topOptions.find((option) => option.key == ccconfig.status_view_selectedTopUserCategory)
 
     const client = getContextClient();
     $: mainQuery = queryStore({
@@ -64,65 +61,57 @@
                     }
                 }
 
-                stats: jobsStatistics(filter: $filter) {
-                    histDuration {
-                        count
-                        value
-                    }
-                    histNumNodes {
-                        count
-                        value
-                    }
-                }
+        stats: jobsStatistics(filter: $filter) {
+            histDuration { count, value }
+            histNumNodes { count, value }
+            histNumCores { count, value }
+            histNumAccs { count, value }
+        }
 
-                allocatedNodes(cluster: $cluster) {
-                    name
-                    count
-                }
-                topUsers: jobsCount(
-                    filter: $filter
-                    groupBy: USER
-                    weight: NODE_COUNT
-                    limit: 10
-                ) {
-                    name
-                    count
-                }
-                topProjects: jobsCount(
-                    filter: $filter
-                    groupBy: PROJECT
-                    weight: NODE_COUNT
-                    limit: 10
-                ) {
-                    name
-                    count
+        allocatedNodes(cluster: $cluster) { name, count }
+    }`,
+    variables: {
+         cluster: cluster, metrics: ['flops_any', 'mem_bw'], from: from.toISOString(), to: to.toISOString(),
+        filter: [{ state: ['running'] }, { cluster: { eq: cluster } }]
+    }
+    })
+
+    const paging = { itemsPerPage: 10, page: 1 }; // Top 10
+    $: topUserQuery = queryStore({
+        client: client,
+        query: gql`
+            query($filter: [JobFilter!]!, $paging: PageRequest!, $sortBy: SortByAggregate!) {
+                topUser: jobsStatistics(filter: $filter, page: $paging, sortBy: $sortBy, groupBy: USER) {
+                    id
+                    totalJobs
+                    totalNodes
+                    totalCores
+                    totalAccs
                 }
             }
-        `,
-        variables: {
-            cluster: cluster,
-            metrics: ["flops_any", "mem_bw"],
-            from: from.toISOString(),
-            to: to.toISOString(),
-            filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
-        },
-    });
+        `, 
+        variables: { filter: [{ state: ['running'] }, { cluster: { eq: cluster } }], paging, sortBy: topUserSelection.key.toUpperCase() }
+    })
 
-    const sumUp = (data, subcluster, metric) =>
-        data.reduce(
-            (sum, node) =>
-                node.subCluster == subcluster
-                    ? sum +
-                      (node.metrics
-                          .find((m) => m.name == metric)
-                          ?.metric.series.reduce(
-                              (sum, series) =>
-                                  sum + series.data[series.data.length - 1],
-                              0
-                          ) || 0)
-                    : sum,
-            0
-        );
+    $: topProjectQuery = queryStore({
+        client: client,
+        query: gql`
+            query($filter: [JobFilter!]!, $paging: PageRequest!, $sortBy: SortByAggregate!) {
+                topProjects: jobsStatistics(filter: $filter, page: $paging, sortBy: $sortBy, groupBy: PROJECT) {
+                    id
+                    totalJobs
+                    totalNodes
+                    totalCores
+                    totalAccs
+                }
+            }
+        `, 
+        variables: { filter: [{ state: ['running'] }, { cluster: { eq: cluster } }], paging, sortBy: topProjectSelection.key.toUpperCase() }
+    })
+
+    const sumUp = (data, subcluster, metric) => data.reduce((sum, node) => node.subCluster == subcluster
+        ? sum + (node.metrics.find(m => m.name == metric)?.metric.series.reduce((sum, series) => sum + series.data[series.data.length - 1], 0) || 0)
+        : sum, 0)
 
     let allocatedNodes = {},
         flopRate = {},
@@ -166,6 +155,52 @@
                 subCluster.memoryBandwidth.unit.base;
         }
     }
+
+    const updateConfigurationMutation = ({ name, value }) => {
+        return mutationStore({
+            client: client,
+            query: gql`
+                mutation ($name: String!, $value: String!) {
+                    updateConfiguration(name: $name, value: $value)
+                }
+            `,
+            variables: { name, value }
+        });
+    }
+
+    function updateTopUserConfiguration(select) {
+        if (ccconfig[`status_view_selectedTopUserCategory:${cluster}`] != select) {
+            updateConfigurationMutation({ name: `status_view_selectedTopUserCategory:${cluster}`, value: JSON.stringify(select) })
+            .subscribe(res => {
+                if (res.fetching === false && !res.error) {
+                    // console.log(`status_view_selectedTopUserCategory:${cluster}` + ' -> Updated!')
+                } else if (res.fetching === false && res.error) {
+                    throw res.error
+                }
+            })
+        } else {
+            // console.log('No Mutation Required: Top User')
+        }
+    }
+
+    function updateTopProjectConfiguration(select) {
+        if (ccconfig[`status_view_selectedTopProjectCategory:${cluster}`] != select) {
+            updateConfigurationMutation({ name: `status_view_selectedTopProjectCategory:${cluster}`, value: JSON.stringify(select) })
+            .subscribe(res => {
+                if (res.fetching === false && !res.error) {
+                    // console.log(`status_view_selectedTopProjectCategory:${cluster}` + ' -> Updated!')
+                } else if (res.fetching === false && res.error) {
+                    throw res.error
+                }
+            })
+        } else {
+            // console.log('No Mutation Required: Top Project')
+        }
+    };
+
+    $: updateTopUserConfiguration(topUserSelection.key)
+    $: updateTopProjectConfiguration(topProjectSelection.key)
+
 </script>
 
 <!-- Loading indicator & Refresh -->
@@ -314,85 +349,103 @@
     <Row>
         <Col class="p-2">
             <div bind:clientWidth={colWidth1}>
-                <h4 class="text-center">Top Users</h4>
-                {#key $mainQuery.data}
-                    <Pie
-                        size={colWidth1}
-                        sliceLabel="Jobs"
-                        quantities={$mainQuery.data.topUsers
-                            .sort((a, b) => b.count - a.count)
-                            .map((tu) => tu.count)}
-                        entities={$mainQuery.data.topUsers
-                            .sort((a, b) => b.count - a.count)
-                            .map((tu) => tu.name)}
-                    />
+                <h4 class="text-center">Top Users on {cluster.charAt(0).toUpperCase() + cluster.slice(1)}</h4>
+                {#key $topUserQuery.data}
+                    {#if $topUserQuery.fetching}
+                        <Spinner/>
+                    {:else if $topUserQuery.error}
+                        <Card body color="danger">{$topUserQuery.error.message}</Card>
+                    {:else}                    
+                        <Pie
+                            size={colWidth1}
+                            sliceLabel={topUserSelection.label}
+                            quantities={$topUserQuery.data.topUser.map((tu) => tu[topUserSelection.key])}
+                            entities={$topUserQuery.data.topUser.map((tu) => tu.id)}
+                        />
+                    {/if}
                 {/key}
             </div>
         </Col>
         <Col class="px-4 py-2">
-            <Table>
-                <tr class="mb-2"
-                    ><th>Legend</th><th>User Name</th><th>Number of Nodes</th
-                    ></tr
-                >
-                {#each $mainQuery.data.topUsers.sort((a, b) => b.count - a.count) as { name, count }, i}
-                    <tr>
-                        <td
-                            ><Icon
-                                name="circle-fill"
-                                style="color: {colors[i]};"
-                            /></td
-                        >
-                        <th scope="col"
-                            ><a
-                                href="/monitoring/user/{name}?cluster={cluster}&state=running"
-                                >{name}</a
-                            ></th
-                        >
-                        <td>{count}</td>
-                    </tr>
-                {/each}
-            </Table>
+            {#key $topUserQuery.data}
+                {#if $topUserQuery.fetching}
+                    <Spinner/>
+                {:else if $topUserQuery.error}
+                    <Card body color="danger">{$topUserQuery.error.message}</Card>
+                {:else}                    
+                    <Table>
+                        <tr class="mb-2">
+                            <th>Legend</th>
+                            <th>User Name</th>
+                            <th>Number of
+                                <select class="p-0" bind:value={topUserSelection}>
+                                    {#each topOptions as option}
+                                        <option value={option}>
+                                            {option.label}
+                                        </option>
+                                    {/each}
+                                </select>
+                            </th>
+                        </tr>
+                        {#each $topUserQuery.data.topUser as tu, i}
+                            <tr>
+                                <td><Icon name="circle-fill" style="color: {colors[i]};"/></td>
+                                <th scope="col"><a href="/monitoring/user/{tu.id}?cluster={cluster}&state=running">{tu.id}</a></th>
+                                <td>{tu[topUserSelection.key]}</td>
+                            </tr>
+                        {/each}
+                    </Table>
+                {/if}
+            {/key}
         </Col>
         <Col class="p-2">
-            <h4 class="text-center">Top Projects</h4>
-            {#key $mainQuery.data}
-                <Pie
-                    size={colWidth1}
-                    sliceLabel="Jobs"
-                    quantities={$mainQuery.data.topProjects
-                        .sort((a, b) => b.count - a.count)
-                        .map((tp) => tp.count)}
-                    entities={$mainQuery.data.topProjects
-                        .sort((a, b) => b.count - a.count)
-                        .map((tp) => tp.name)}
-                />
+            <h4 class="text-center">Top Projects on {cluster.charAt(0).toUpperCase() + cluster.slice(1)}</h4>
+            {#key $topProjectQuery.data}
+                {#if $topProjectQuery.fetching}
+                    <Spinner/>
+                {:else if $topProjectQuery.error}
+                    <Card body color="danger">{$topProjectQuery.error.message}</Card>
+                {:else}
+                    <Pie
+                        size={colWidth1}
+                        sliceLabel={topProjectSelection.label}
+                        quantities={$topProjectQuery.data.topProjects.map((tp) => tp[topProjectSelection.key])}
+                        entities={$topProjectQuery.data.topProjects.map((tp) => tp.id)}
+                    />
+                {/if}
             {/key}
         </Col>
         <Col class="px-4 py-2">
-            <Table>
-                <tr class="mb-2"
-                    ><th>Legend</th><th>Project Code</th><th>Number of Nodes</th
-                    ></tr
-                >
-                {#each $mainQuery.data.topProjects.sort((a, b) => b.count - a.count) as { name, count }, i}
-                    <tr>
-                        <td
-                            ><Icon
-                                name="circle-fill"
-                                style="color: {colors[i]};"
-                            /></td
-                        >
-                        <th scope="col"
-                            ><a
-                                href="/monitoring/jobs/?cluster={cluster}&state=running&project={name}&projectMatch=eq"
-                                >{name}</a
-                            ></th
-                        >
-                        <td>{count}</td>
-                    </tr>
-                {/each}
-            </Table>
+            {#key $topProjectQuery.data}
+                {#if $topProjectQuery.fetching}
+                    <Spinner/>
+                {:else if $topProjectQuery.error}
+                    <Card body color="danger">{$topProjectQuery.error.message}</Card>
+                {:else}   
+                    <Table>
+                        <tr class="mb-2">
+                            <th>Legend</th>
+                            <th>Project Code</th>
+                            <th>Number of
+                                <select class="p-0" bind:value={topProjectSelection}>
+                                    {#each topOptions as option}
+                                        <option value={option}>
+                                            {option.label}
+                                        </option>
+                                    {/each}
+                                </select>
+                            </th>
+                        </tr>
+                        {#each $topProjectQuery.data.topProjects as tp, i}
+                            <tr>
+                                <td><Icon name="circle-fill" style="color: {colors[i]};"/></td>
+                                <th scope="col"><a href="/monitoring/jobs/?cluster={cluster}&state=running&project={tp.id}&projectMatch=eq">{tp.id}</a></th>
+                                <td>{tp[topProjectSelection.key]}</td>
+                            </tr>
+                        {/each}
+                    </Table>
+                {/if}
+            {/key}
         </Col>
     </Row>
     <hr class="my-2" />
@@ -428,5 +481,32 @@
             {/key}
         </Col>
     </Row>
+    <Row cols={2}>
+        <Col class="p-2">
+            <div bind:clientWidth={colWidth2}>
+                {#key $mainQuery.data.stats}
+                    <Histogram
+                        data={convert2uplot($mainQuery.data.stats[0].histNumCores)}
+                        width={colWidth2 - 25}
+                        title="Number of Cores Distribution"
+                        xlabel="Allocated Cores"
+                        xunit="Cores" 
+                        ylabel="Number of Jobs"
+                        yunit="Jobs"/>
+                {/key}
+            </div>
+        </Col>
+        <Col class="p-2">
+            {#key $mainQuery.data.stats}
+                <Histogram
+                    data={convert2uplot($mainQuery.data.stats[0].histNumAccs)}
+                    width={colWidth2 - 25}
+                    title="Number of Accelerators Distribution"
+                    xlabel="Allocated Accs"
+                    xunit="Accs" 
+                    ylabel="Number of Jobs"
+                    yunit="Jobs"/>
+            {/key}
+        </Col>
+    </Row>
 {/if}
-

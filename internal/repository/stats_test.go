@@ -7,6 +7,8 @@ package repository
 import (
 	"fmt"
 	"testing"
+
+	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 )
 
 func TestBuildJobStatsQuery(t *testing.T) {
@@ -18,4 +20,16 @@ func TestBuildJobStatsQuery(t *testing.T) {
 
 	fmt.Printf("SQL: %s\n", sql)
 
+}
+
+func TestJobStats(t *testing.T) {
+	r := setup(t)
+
+	filter := &model.JobFilter{}
+	stats, err := r.JobsStats(getContext(t), []*model.JobFilter{filter})
+	noErr(t, err)
+
+	if stats[0].TotalJobs != 6 {
+		t.Fatalf("Want 98, Got %d", stats[0].TotalJobs)
+	}
 }

@@ -180,6 +180,10 @@
                     "description": "Filter to extract users for syncing.",
                     "type": "string"
                 },
+                "username_attr": {
+                    "description": "Attribute with full username. Default: gecos",
+                    "type": "string"
+                },
                 "sync_interval": {
                     "description": "Interval used for syncing local user table with LDAP directory. Parsed using time.ParseDuration.",
                     "type": "string"
