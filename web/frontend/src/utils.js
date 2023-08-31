@@ -325,7 +325,7 @@ export function convert2uplot(canvasData) {
     return uplotData
 }
 
-export function binsFromFootprint(weights, values, numBins) {
+export function binsFromFootprint(weights, scope, values, numBins) {
     let min = 0, max = 0
     if (values.length != 0) {
         for (let x of values) {
@@ -338,10 +338,23 @@ export function binsFromFootprint(weights, values, numBins) {
     if (numBins == null || numBins < 3)
         numBins = 3
 
+    let scopeWeights
+    switch (scope) {
+        case 'core':
+            scopeWeights = weights.coreHours
+            break
+        case 'accelerator':
+            scopeWeights = weights.accHours
+            break
+        default: // every other scope: use 'node'
+            scopeWeights = weights.nodeHours
+    }
+
     const bins = new Array(numBins).fill(0)
     for (let i = 0; i < values.length; i++)
-        bins[Math.floor(((values[i] - min) / (max - min)) * numBins)] += weights ? weights[i] : 1
+        bins[Math.floor(((values[i] - min) / (max - min)) * numBins)] += scopeWeights ? scopeWeights[i] : 1
 
+    // Manual Canvas Original
     // return {
     //     label: idx => {
     //         let start = min + (idx / numBins) * (max - min)
@@ -355,14 +368,13 @@ export function binsFromFootprint(weights, values, numBins) {
 
     return {
         bins: bins.map((count, idx) => ({ 
-            value: idx => { // Get rounded down next integer to bins' Start-Stop Mean Value
-                let start = min + (idx / numBins) * (max - min)
+            value: idx => { // Use bins' max value instead of mean
+                // let start = min + (idx / numBins) * (max - min)
                 let stop = min + ((idx + 1) / numBins) * (max - min)
-                return `${formatNumber(Math.floor((start+stop)/2))}`
+                // return `${formatNumber(Math.floor((start+stop)/2))}`
+                return Math.floor(stop)
             }, 
             count: count 
-        })),
-        min: min,
-        max: max
+        }))
     }
 }

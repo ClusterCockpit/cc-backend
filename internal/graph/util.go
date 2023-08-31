@@ -15,6 +15,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	// "github.com/ClusterCockpit/cc-backend/pkg/archive"
 )
 
 const MAX_JOBS_FOR_ANALYSIS = 500
@@ -106,7 +107,11 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 		avgs[i] = make([]schema.Float, 0, len(jobs))
 	}
 
-	nodehours := make([]schema.Float, 0, len(jobs))
+	timeweights := new(model.TimeWeights)
+	timeweights.NodeHours = make([]schema.Float, 0, len(jobs))
+	timeweights.AccHours = make([]schema.Float, 0, len(jobs))
+	timeweights.CoreHours = make([]schema.Float, 0, len(jobs))
+
 	for _, job := range jobs {
 		if job.MonitoringStatus == schema.MonitoringStatusDisabled || job.MonitoringStatus == schema.MonitoringStatusArchivingFailed {
 			continue
@@ -117,7 +122,18 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 			return nil, err
 		}
 
-		nodehours = append(nodehours, schema.Float(float64(job.Duration)/60.0*float64(job.NumNodes)))
+		// #166 collect arrays: Null values or no null values?
+		timeweights.NodeHours = append(timeweights.NodeHours, schema.Float(float64(job.Duration)/60.0*float64(job.NumNodes)))
+		if job.NumAcc > 0 {
+			timeweights.AccHours = append(timeweights.AccHours, schema.Float(float64(job.Duration)/60.0*float64(job.NumAcc)))
+		} else {
+			timeweights.AccHours = append(timeweights.AccHours, schema.Float(1.0))
+		}
+		if job.NumHWThreads > 0 {
+			timeweights.CoreHours = append(timeweights.CoreHours, schema.Float(float64(job.Duration)/60.0*float64(job.NumHWThreads))) // SQLite HWThreads == Cores; numCoresForJob(job)
+		} else {
+			timeweights.CoreHours = append(timeweights.CoreHours, schema.Float(1.0))
+		}
 	}
 
 	res := make([]*model.MetricFootprints, len(avgs))
@@ -129,10 +145,33 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 	}
 
 	return &model.Footprints{
-		Nodehours: nodehours,
-		Metrics:   res,
+		TimeWeights: timeweights,
+		Metrics:     res,
 	}, nil
 }
+
+// func numCoresForJob(job *schema.Job) (numCores int) {
+
+// 	subcluster, scerr := archive.GetSubCluster(job.Cluster, job.SubCluster)
+// 	if scerr != nil {
+// 		return 1
+// 	}
+
+// 	totalJobCores := 0
+// 	topology := subcluster.Topology
+
+// 	for _, host := range job.Resources {
+// 		hwthreads := host.HWThreads
+// 		if hwthreads == nil {
+// 			hwthreads = topology.Node
+// 		}
+
+// 		hostCores, _ := topology.GetCoresFromHWThreads(hwthreads)
+// 		totalJobCores += len(hostCores)
+// 	}
+
+// 	return totalJobCores
+// }
 
 func requireField(ctx context.Context, name string) bool {
 	fields := graphql.CollectAllFields(ctx)

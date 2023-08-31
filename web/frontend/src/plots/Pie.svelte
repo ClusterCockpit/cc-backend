@@ -43,14 +43,14 @@
     export let entities
     export let displayLegend = false
 
-    const data = {
+    $: data = {
         labels: entities,
         datasets: [
             {
                 label: sliceLabel,
                 data: quantities,
                 fill: 1,
-                backgroundColor: colors.slice(0, quantities.length),            
+                backgroundColor: colors.slice(0, quantities.length)
             }
         ]
     }
