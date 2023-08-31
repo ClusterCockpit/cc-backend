@@ -350,31 +350,16 @@ export function binsFromFootprint(weights, scope, values, numBins) {
             scopeWeights = weights.nodeHours
     }
 
-    const bins = new Array(numBins).fill(0)
+    const rawBins = new Array(numBins).fill(0)
     for (let i = 0; i < values.length; i++)
         bins[Math.floor(((values[i] - min) / (max - min)) * numBins)] += scopeWeights ? scopeWeights[i] : 1
 
-    // Manual Canvas Original
-    // return {
-    //     label: idx => {
-    //         let start = min + (idx / numBins) * (max - min)
-    //         let stop = min + ((idx + 1) / numBins) * (max - min)
-    //         return `${formatNumber(start)} - ${formatNumber(stop)}`
-    //     },
-    //     bins: bins.map((count, idx) => ({ value: idx, count: count })),
-    //     min: min,
-    //     max: max
-    // }
+    const bins = rawBins.map((count, idx) => ({ 
+        value: Math.floor(min + ((idx + 1) / numBins) * (max - min)),
+        count: count 
+    }))
 
     return {
-        bins: bins.map((count, idx) => ({ 
-            value: idx => { // Use bins' max value instead of mean
-                // let start = min + (idx / numBins) * (max - min)
-                let stop = min + ((idx + 1) / numBins) * (max - min)
-                // return `${formatNumber(Math.floor((start+stop)/2))}`
-                return Math.floor(stop)
-            }, 
-            count: count 
-        }))
+        bins: bins
     }
 }
