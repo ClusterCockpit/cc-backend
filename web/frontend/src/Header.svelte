@@ -8,7 +8,7 @@
         NavbarToggler,
         Dropdown,
         DropdownToggle,
-        DropdownMenu
+        DropdownMenu,
     } from "sveltestrap";
     import NavbarLinks from "./NavbarLinks.svelte";
     import NavbarTools from "./NavbarTools.svelte";
@@ -106,12 +106,13 @@
     </NavbarBrand>
     <NavbarToggler on:click={() => (isOpen = !isOpen)} />
     <Collapse
+        style="justify-content: space-between"
         {isOpen}
         navbar
         expand="md"
         on:update={({ detail }) => (isOpen = detail.isOpen)}
     >
-        <Nav class="ms-auto" navbar>
+        <Nav navbar>
             {#if screenSize > 1500 || screenSize < 768}
                 <NavbarLinks
                     {clusters}
@@ -171,7 +172,7 @@
                     </Dropdown>
                 {/each}
             {/if}
-            <NavbarTools username={username} authlevel={authlevel} roles={roles} screenSize={screenSize}/>
         </Nav>
+        <NavbarTools {username} {authlevel} {roles} {screenSize} />
     </Collapse>
 </Navbar>
