@@ -16,26 +16,41 @@ It is supported to set these by means of a `.env` file in the project root.
 * `static-files`: Type string. Folder where static assets can be found, if `embed-static-files` is `false`. No default.
 * `db-driver`: Type string. 'sqlite3' or 'mysql' (mysql will work for mariadb as well). Default `sqlite3`.
 * `db`: Type string. For sqlite3 a filename, for mysql a DSN in this format: https://github.com/go-sql-driver/mysql#dsn-data-source-name (Without query parameters!). Default: `./var/job.db`.
-* `job-archive`: Type string. Path to the job-archive. Default: `./var/job-archive`.
+* `job-archive`: Type object.
+    - `kind`: Type string. At them moment only file is supported as value.
+    - `path`: Type string. Path to the job-archive. Default: `./var/job-archive`.
+    - `compression`: Type integer. Setup automatic compression for jobs older than number of days.
+    - `retention`: Type object.
+        - `policy`: Type string (required). Retention policy. Possible values none, delete,
+          move.
+        - `includeDB`: Type boolean. Also remove jobs from database.
+        - `age`: Type integer. Act on jobs with startTime older than age (in days).
+        - `location`: Type string. The target directory for retention. Only applicable for retention policy move.
 * `disable-archive`: Type bool. Keep all metric data in the metric data repositories, do not write to the job-archive. Default `false`.
 * `validate`: Type bool. Validate all input json documents against json schema.
 * `session-max-age`: Type string. Specifies for how long a session shall be valid  as a string parsable by time.ParseDuration(). If 0 or empty, the session/token does not expire! Default `168h`.
-* `jwt-max-age`: Type string. Specifies for how long a JWT token shall be valid  as a string parsable by time.ParseDuration(). If 0 or empty, the session/token does not expire! Default `0`.
 * `https-cert-file` and `https-key-file`: Type string. If both those options are not empty, use HTTPS using those certificates.
 * `redirect-http-to`: Type string. If not the empty string and `addr` does not end in ":80", redirect every request incoming at port 80 to that url.
 * `machine-state-dir`: Type string. Where to store MachineState files. TODO: Explain in more detail!
 * `stop-jobs-exceeding-walltime`: Type int. If not zero, automatically mark jobs as stopped running X seconds longer than their walltime. Only applies if walltime is set for job. Default `0`.
 * `short-running-jobs-duration`: Type int. Do not show running jobs shorter than X seconds. Default `300`.
+* `jwts`: Type object (required). For JWT Authentication.
+   - `max-age`: Type string (required). Configure how long a token is valid. As string parsable by time.ParseDuration().
+   - `cookieName`: Type string. Cookie that should be checked for a JWT token.
+   - `vaidateUser`: Type boolean. Deny login for users not in database (but defined in JWT). Overwrite roles in JWT with database roles.
+   - `trustedIssuer`: Type string. Issuer that should be accepted when validating external JWTs. 
+   - `syncUserOnLogin`: Type boolean. Add non-existent user to DB at login attempt with values provided in JWT.
 * `ldap`: Type object. For LDAP Authentication and user synchronisation. Default `nil`.
-   - `url`: Type string.  URL of LDAP directory server.
-   - `user_base`: Type string. Base DN of user tree root.
-   - `search_dn`: Type string. DN for authenticating LDAP admin account with general read rights.
-   - `user_bind`: Type string. Expression used to authenticate users via LDAP bind. Must contain `uid={username}`.
-   - `user_filter`: Type string. Filter to extract users for syncing.
+   - `url`: Type string (required). URL of LDAP directory server.
+   - `user_base`: Type string (required). Base DN of user tree root.
+   - `search_dn`: Type string (required). DN for authenticating LDAP admin account with general read rights.
+   - `user_bind`: Type string (required). Expression used to authenticate users via LDAP bind. Must contain `uid={username}`.
+   - `user_filter`: Type string (required). Filter to extract users for syncing.
    - `username_attr`: Type string. Attribute with full user name. Defaults to `gecos` if not provided.
    - `sync_interval`: Type string. Interval used for syncing local user table with LDAP directory. Parsed using time.ParseDuration.
-   - `sync_del_old_users`: Type bool. Delete obsolete users in database.
-* `clusters`: Type array of objects
+   - `sync_del_old_users`: Type boolean. Delete obsolete users in database.
+   - `syncUserOnLogin`: Type boolean. Add non-existent user to DB at login attempt if user exists in Ldap directory.
+* `clusters`: Type array of objects (required)
    - `name`: Type string. The name of the cluster.
    - `metricDataRepository`: Type object with properties: `kind` (Type string, can be one of `cc-metric-store`, `influxdb` ), `url` (Type string), `token` (Type string)
    - `filterRanges` Type object. This option controls the slider ranges for the UI controls of numNodes, duration, and startTime.  Example:
