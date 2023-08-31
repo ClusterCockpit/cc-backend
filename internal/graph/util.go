@@ -6,7 +6,6 @@ package graph
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 
@@ -33,7 +32,7 @@ func (r *queryResolver) rooflineHeatmap(
 		return nil, err
 	}
 	if len(jobs) > MAX_JOBS_FOR_ANALYSIS {
-		return nil, fmt.Errorf("GRAPH/STATS > too many jobs matched (max: %d)", MAX_JOBS_FOR_ANALYSIS)
+		return nil, fmt.Errorf("GRAPH/UTIL > too many jobs matched (max: %d)", MAX_JOBS_FOR_ANALYSIS)
 	}
 
 	fcols, frows := float64(cols), float64(rows)
@@ -50,20 +49,24 @@ func (r *queryResolver) rooflineHeatmap(
 
 		jobdata, err := metricdata.LoadData(job, []string{"flops_any", "mem_bw"}, []schema.MetricScope{schema.MetricScopeNode}, ctx)
 		if err != nil {
-			log.Error("Error while loading metrics for roofline")
+			log.Errorf("Error while loading roofline metrics for job %d", job.ID)
 			return nil, err
 		}
 
 		flops_, membw_ := jobdata["flops_any"], jobdata["mem_bw"]
 		if flops_ == nil && membw_ == nil {
-			return nil, fmt.Errorf("GRAPH/STATS > 'flops_any' or 'mem_bw' missing for job %d", job.ID)
+			log.Infof("rooflineHeatmap(): 'flops_any' or 'mem_bw' missing for job %d", job.ID)
+			continue
+			// return nil, fmt.Errorf("GRAPH/UTIL > 'flops_any' or 'mem_bw' missing for job %d", job.ID)
 		}
 
 		flops, ok1 := flops_["node"]
 		membw, ok2 := membw_["node"]
 		if !ok1 || !ok2 {
+			log.Info("rooflineHeatmap() query not implemented for where flops_any or mem_bw not available at 'node' level")
+			continue
 			// TODO/FIXME:
-			return nil, errors.New("GRAPH/STATS > todo: rooflineHeatmap() query not implemented for where flops_any or mem_bw not available at 'node' level")
+			// return nil, errors.New("GRAPH/UTIL > todo: rooflineHeatmap() query not implemented for where flops_any or mem_bw not available at 'node' level")
 		}
 
 		for n := 0; n < len(flops.Series); n++ {
@@ -99,7 +102,7 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 		return nil, err
 	}
 	if len(jobs) > MAX_JOBS_FOR_ANALYSIS {
-		return nil, fmt.Errorf("GRAPH/STATS > too many jobs matched (max: %d)", MAX_JOBS_FOR_ANALYSIS)
+		return nil, fmt.Errorf("GRAPH/UTIL > too many jobs matched (max: %d)", MAX_JOBS_FOR_ANALYSIS)
 	}
 
 	avgs := make([][]schema.Float, len(metrics))
