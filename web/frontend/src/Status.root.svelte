@@ -2,6 +2,7 @@
     import { getContext } from "svelte";
     import Refresher from "./joblist/Refresher.svelte";
     import Roofline, { transformPerNodeData } from "./plots/Roofline.svelte";
+    import Rooflineuplot from "./plots/Rooflineuplot.svelte";
     import Pie, { colors } from "./plots/Pie.svelte";
     import Histogram from "./plots/Histogram.svelte";
     import {
@@ -663,6 +664,11 @@
                     yunit="Jobs"
                 />
             {/key}
+        </Col>
+    </Row>
+    <Row>
+        <Col>
+            <Rooflineuplot/>
         </Col>
     </Row>
 {/if}
