@@ -33,7 +33,8 @@
 
     let plotWidths = [],
         colWidth1 = 0,
-        colWidth2;
+        colWidth2 = 0,
+        colWidth3 = 0;
     let from = new Date(Date.now() - 5 * 60 * 1000),
         to = new Date(Date.now());
     const topOptions = [
@@ -668,7 +669,10 @@
     </Row>
     <Row>
         <Col>
-            <Rooflineuplot/>
+            <div bind:clientWidth={colWidth3}>
+                <Rooflineuplot
+                    width={colWidth3 - 25}
+                />
         </Col>
     </Row>
 {/if}

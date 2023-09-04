@@ -4,9 +4,27 @@
     import { onMount, onDestroy } from 'svelte'
     import { Card } from 'sveltestrap'
 
+    export let flopsAny = null
+    export let memBw = null
+    export let cluster = null
+    export let maxY = null
+    export let width = 500
+    export let height = 300
+    export let tiles = null
+    export let colorDots = true
+    export let showTime = true
+    export let data = null
+
     let plotWrapper = null
     let uplot = null
     let timeoutId = null
+
+    // Three Render-Cases:
+    // #1 Single-Job Roofline -> Has Time-Information: Use data, allow colorDots && showTime
+    // #2 MultiNode Roofline - > Has No Time-Information: Transform from nodeData, only "IST"-state of nodes, no timeInfo
+    // #3 Multi-Job Roofline -> No Time Information? -> Use Backend-Prepared "Tiles" with increasing occupancy for stronger values
+
+    // Start Demo Data
 
     function randInt(min, max) {
         return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -27,21 +45,52 @@
         return arr;
     }
 
-    let points = 10000;
-    let series = 5;
+    let points = 100;
+    let series = 2;
+    let time = []
 
-    console.time("prep");
+    for (let i = 0; i < points; ++i)
+                time[i] = i;
 
-    let data = filledArr(series, v => [
-        filledArr(points, i => randInt(0,500)),
-        filledArr(points, i => randInt(0,500)),
+    data = filledArr(series, v => [
+        filledArr(points, i => randInt(0,200)),
+        filledArr(points, i => randInt(0,200)),
     ]);
 
     data[0] = null;
 
-    console.timeEnd("prep");
+    console.log("Data: ", data);
 
-    console.log(data);
+    // End Demo Data
+
+    // Helpers
+
+    function getGradientR(x) {
+        if (x < 0.5) return 0
+        if (x > 0.75) return 255
+        x = (x - 0.5) * 4.0
+        return Math.floor(x * 255.0)
+    }
+
+    function getGradientG(x) {
+        if (x > 0.25 && x < 0.75) return 255
+        if (x < 0.25) x = x * 4.0
+        else          x = 1.0 - (x - 0.75) * 4.0
+        return Math.floor(x * 255.0)
+    }
+
+    function getGradientB(x) {
+        if (x < 0.25) return 255
+        if (x > 0.5) return 0
+        x = 1.0 - (x - 0.25) * 4.0
+        return Math.floor(x * 255.0)
+    }
+
+    function getRGB(c) {
+        return `rgb(${getGradientR(c)}, ${getGradientG(c)}, ${getGradientB(c)})`
+    }
+
+    // End Helpers
 
     const drawPoints = (u, seriesIdx, idx0, idx1) => {
         const size = 5 * devicePixelRatio;
@@ -52,8 +101,6 @@
             u.ctx.fillStyle = series.stroke();
 
             let deg360 = 2 * Math.PI;
-
-            console.time("points");
 
             let p = new Path2D();
 
@@ -70,19 +117,11 @@
                 }
             }
 
-            console.timeEnd("points1");
-
             u.ctx.fill(p);
         });
 
         return null;
     };
-
-    let pxRatio;
-
-    function setPxRatio() {
-        pxRatio = devicePixelRatio;
-    }
 
     function guardedRange(u, min, max) {
         if (max == min) {
@@ -100,83 +139,99 @@
         return [min, max];
     }
 
-    setPxRatio();
-
-    window.addEventListener('dppxchange', setPxRatio);
-
-    const opts = {
-        title: "Scatter Plot",
-        mode: 2,
-        width: 1920,
-        height: 600,
-        legend: {
-            live: false,
-        },
-        hooks: {
-            drawClear: [
-                u => {
-                    u.series.forEach((s, i) => {
-                        if (i > 0)
-                            s._paths = null;
-                    });
+    function render() {
+        const opts = {
+            title: "",
+            mode: 2,
+            width: width,
+            height: height,
+            legend: {
+                live: false,
+            },
+            hooks: {
+                drawClear: [
+                    u => {
+                        u.series.forEach((s, i) => {
+                            if (i > 0)
+                                s._paths = null;
+                        });
+                    },
+                ],
+            },
+            scales: {
+                x: {
+                    time: false,
+                //	auto: false,
+                //	range: [0, 500],
+                    // remove any scale padding, use raw data limits
+                    range: guardedRange,
                 },
+                y: {
+                //	auto: false,
+                //	range: [0, 500],
+                    // remove any scale padding, use raw data limits
+                    range: guardedRange,
+                },
+            },
+            series: [
+                {
+                    /*
+                    stroke: "red",
+                    fill: "rgba(255,0,0,0.1)",
+                    paths: (u, seriesIdx, idx0, idx1) => {
+                        uPlot.orient(u, seriesIdx, (series, dataX, dataY, scaleX, scaleY, valToPosX, valToPosY, xOff, yOff, xDim, yDim) => {
+                            let d = u.data[seriesIdx];
+
+                            console.log(d);
+                        });
+
+                        return null;
+                    },
+                    */
+                },
+                {
+                    stroke: (u, seriesIdx) => {
+                        for (let i = 0; i < points; ++i) { return getRGB(time[i]) }
+					},
+                    fill: (u, seriesIdx) => {
+                        for (let i = 0; i < points; ++i) { return getRGB(time[i]) }
+					},
+                    paths: drawPoints,
+                }
             ],
-        },
-        scales: {
-            x: {
-                time: false,
-            //	auto: false,
-            //	range: [0, 500],
-                // remove any scale padding, use raw data limits
-                range: guardedRange,
-            },
-            y: {
-            //	auto: false,
-            //	range: [0, 500],
-                // remove any scale padding, use raw data limits
-                range: guardedRange,
-            },
-        },
-        series: [
-            {
-                /*
-                stroke: "red",
-                fill: "rgba(255,0,0,0.1)",
-                paths: (u, seriesIdx, idx0, idx1) => {
-                    uPlot.orient(u, seriesIdx, (series, dataX, dataY, scaleX, scaleY, valToPosX, valToPosY, xOff, yOff, xDim, yDim) => {
-                        let d = u.data[seriesIdx];
+        };
 
-                        console.log(d);
-                    });
+        uplot = new uPlot(opts, data, plotWrapper);
+    }
 
-                    return null;
-                },
-                */
-            },
-            {
-                stroke: "red",
-                fill: "rgba(255,0,0,0.1)",
-                paths: drawPoints,
-            },
-            {
-                stroke: "green",
-                fill: "rgba(0,255,0,0.1)",
-                paths: drawPoints,
-            },
-            {
-                stroke: "blue",
-                fill: "rgba(0,0,255,0.1)",
-                paths: drawPoints,
-            },
-            {
-                stroke: "magenta",
-                fill: "rgba(0,0,255,0.1)",
-                paths: drawPoints,
-            },
-        ],
-    };
+    // Copied from Histogram
+    
+    onMount(() => {
+        render()
+    })
 
-    let u = new uPlot(opts, data, document.body);
+    onDestroy(() => {
+        if (uplot)
+            uplot.destroy()
+
+        if (timeoutId != null)
+            clearTimeout(timeoutId)
+    })
+
+    function sizeChanged() {
+        if (timeoutId != null)
+            clearTimeout(timeoutId)
+
+        timeoutId = setTimeout(() => {
+            timeoutId = null
+            if (uplot)
+                uplot.destroy()
+
+            render()
+        }, 200)
+    }
+
+    $: sizeChanged(width, height)
 
 </script>
 
