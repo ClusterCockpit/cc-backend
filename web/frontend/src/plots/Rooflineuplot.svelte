@@ -6,8 +6,8 @@
 
     export let flopsAny = null
     export let memBw = null
+    export let maxY = null
     export let cluster = null
-    export let defaultMaxY = null
     export let width = 500
     export let height = 300
     export let tiles = null
@@ -18,11 +18,6 @@
     let plotWrapper = null
     let uplot = null
     let timeoutId = null
-
-    const paddingLeft = 40,
-          paddingRight = 10,
-          paddingTop = 10,
-          paddingBottom = 50
 
     // Three Render-Cases:
     // #1 Single-Job Roofline -> Has Time-Information: Use data, allow colorDots && showTime
@@ -65,34 +60,9 @@
     data[1][1] = filledArr(points, i => randFloat(1,5000)) // Performance
     data[2]    = filledArr(points, i => 0) // Time Information (Optional)
 
-    console.log("Subcluster: ", cluster);
-    console.log("Data: ", data);
-
     // End Demo Data
 
     // Helpers
-
-    const [minX, maxX, minY, maxY] = [0.01, 1000, 1., cluster?.flopRateSimd?.value || defaultMaxY]
-
-    const w = width - paddingLeft - paddingRight
-
-    const h = height - paddingTop - paddingBottom
-
-    const [log10minX, log10maxX, log10minY, log10maxY] =
-            [Math.log10(minX), Math.log10(maxX), Math.log10(minY), Math.log10(maxY)]
-
-    const getCanvasX = (x) => {
-        x = Math.log10(x)
-        x -= log10minX; x /= (log10maxX - log10minX)
-        return Math.round((x * w) + paddingLeft)
-    }
-
-    const getCanvasY = (y) => {
-        y = Math.log10(y)
-        y -= log10minY
-        y /= (log10maxY - log10minY)
-        return Math.round((h - y * h) + paddingTop)
-    }
 
     function getGradientR(x) {
         if (x < 0.5) return 0
@@ -117,6 +87,10 @@
 
     function getRGB(c) {
         return `rgb(${getGradientR(c)}, ${getGradientG(c)}, ${getGradientB(c)})`
+    }
+
+    function nearestThousand (num) {
+        return Math.ceil(num/1000) * 1000
     }
 
     function lineIntersect(x1, y1, x2, y2, x3, y3, x4, y4) {
@@ -233,6 +207,7 @@
             legend: {
                 show: false
             },
+            cursor: { drag: { x: false, y: false } },
             axes: [
                 {
                     label: 'Intensity [FLOPS/Byte]'
@@ -244,12 +219,14 @@
             scales: {
                 x: {
                     time: false,
-                    distr: 3,
-					log: 10,
+                    range: [0.01, 1000],
+                    distr: 3, // Render as log
+					log: 10, // log exp
                 },
                 y: {
-                    distr: 3,
-					log: 10,
+                    range: [1.0, nearestThousand(cluster.flopRateSimd.value || maxY)],
+                    distr: 3, // Render as log
+					log: 10, // log exp
                 },
             },
             series: [
@@ -274,47 +251,58 @@
                     },
                 ],
                 draw: [
-                        u => { // draw roofs
-                        u.ctx.strokeStyle = 'black'
-                        u.ctx.lineWidth = 2
-                        u.ctx.beginPath()
+                    u => { // draw roofs when cluster set
                         if (cluster != null) {
+                            const padding = u._padding // [top, right, bottom, left]
+
+                            u.ctx.strokeStyle = 'black'
+                            u.ctx.lineWidth = 2
+                            u.ctx.beginPath()
+
                             const ycut = 0.01 * cluster.memoryBandwidth.value
                             const scalarKnee = (cluster.flopRateScalar.value - ycut) / cluster.memoryBandwidth.value
                             const simdKnee = (cluster.flopRateSimd.value - ycut) / cluster.memoryBandwidth.value
-                            const scalarKneeX = getCanvasX(scalarKnee),
-                                simdKneeX = getCanvasX(simdKnee),
-                                flopRateScalarY = getCanvasY(cluster.flopRateScalar.value),
-                                flopRateSimdY = getCanvasY(cluster.flopRateSimd.value)
+                            const scalarKneeX = u.valToPos(scalarKnee, 'x', true), // Value, axis, toCanvasPixels
+                                simdKneeX = u.valToPos(simdKnee, 'x', true),
+                                flopRateScalarY = u.valToPos(cluster.flopRateScalar.value, 'y', true),
+                                flopRateSimdY = u.valToPos(cluster.flopRateSimd.value, 'y', true)
 
-                            if (scalarKneeX < width - paddingRight) {
+                            if (scalarKneeX < width - padding[1]) { // Top horizontal roofline
                                 u.ctx.moveTo(scalarKneeX, flopRateScalarY)
-                                u.ctx.lineTo(width - paddingRight, flopRateScalarY)
+                                u.ctx.lineTo(width - padding[1], flopRateScalarY)
                             }
 
-                            if (simdKneeX < width - paddingRight) {
+                            if (simdKneeX < width - padding[1]) { // Lower horitontal roofline
                                 u.ctx.moveTo(simdKneeX, flopRateSimdY)
-                                u.ctx.lineTo(width - paddingRight, flopRateSimdY)
+                                u.ctx.lineTo(width - padding[1], flopRateSimdY)
                             }
 
-                            let x1 = getCanvasX(0.01),
-                                y1 = getCanvasY(ycut),
-                                x2 = getCanvasX(simdKnee),
+                            let x1 = u.valToPos(0.01, 'x', true),
+                                y1 = u.valToPos(ycut, 'y', true)
+                                
+                            let x2 = u.valToPos(simdKnee, 'x', true),
                                 y2 = flopRateSimdY
 
                             let xAxisIntersect = lineIntersect(
                                 x1, y1, x2, y2,
-                                0, height - paddingBottom, width, height - paddingBottom)
+                                u.valToPos(0.01, 'x', true), u.valToPos(1.0, 'y', true),
+                                u.valToPos(1000, 'x', true), u.valToPos(1.0, 'y', true) // X-Axis Coords
+                            )
+
 
                             if (xAxisIntersect.x > x1) {
                                 x1 = xAxisIntersect.x
                                 y1 = xAxisIntersect.y
                             }
 
+                            // Diagonal
                             u.ctx.moveTo(x1, y1)
                             u.ctx.lineTo(x2, y2)
+
+                            u.ctx.stroke()
+                            // Reset lineWidth
+                            u.ctx.lineWidth = 0.15
                         }
-                        u.ctx.stroke()
                     }
                 ]
             },
