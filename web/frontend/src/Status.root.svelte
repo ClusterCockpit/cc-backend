@@ -672,6 +672,7 @@
             <div bind:clientWidth={colWidth3}>
                 <Rooflineuplot
                     width={colWidth3 - 25}
+                    cluster={$initq.data.clusters.find((c) => c.name == cluster).subClusters[0]}
                 />
         </Col>
     </Row>
