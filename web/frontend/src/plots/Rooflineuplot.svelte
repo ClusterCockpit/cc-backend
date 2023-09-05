@@ -10,9 +10,7 @@
     export let cluster = null
     export let width = 500
     export let height = 300
-    export let tiles = null
-    export let colorDots = true
-    export let showTime = true
+    export let renderTime = false
     export let data = null
 
     let plotWrapper = null
@@ -38,16 +36,20 @@
        return  Math.round((num + Number.EPSILON) * 100) / 100
     }
 
-    function filledArr(len, val) {
+    function filledArr(len, val, time) {
         let arr = Array(len);
 
         if (typeof val == "function") {
             for (let i = 0; i < len; ++i)
                 arr[i] = val(i);
         }
+        else if (time) {
+            for (let i = 0; i < len; ++i)
+                arr[i] = i / 1000;
+        }
         else {
             for (let i = 0; i < len; ++i)
-                arr[i] = val;
+                arr[i] = i;
         }
 
         return arr;
@@ -55,10 +57,12 @@
 
     let points = 1000;
 
-    data       = [null, [], []] // Null-Axis required for scatter
-    data[1][0] = filledArr(points, i => randFloat(1,5000)) // Intensity
-    data[1][1] = filledArr(points, i => randFloat(1,5000)) // Performance
-    data[2]    = filledArr(points, i => 0) // Time Information (Optional)
+    data       = [null, []] // Null-Axis required for scatter
+    data[1][0] = filledArr(points, i => randFloat(1,5000), false) // Intensity
+    data[1][1] = filledArr(points, i => randFloat(1,5000), false) // Performance
+    // data[1][0] = filledArr(points, 0, false) // Intensity
+    // data[1][1] = filledArr(points, 0, false) // Performance
+    data[2]    = filledArr(points, 0, true) // Time Information (Optional)
 
     // End Demo Data
 
@@ -167,22 +171,18 @@
 
     // End Helpers
 
-    const drawPoints = (u, seriesIdx, idx0, idx1) => {
+    const drawColorPoints = (u, seriesIdx, idx0, idx1) => {
         const size = 5 * devicePixelRatio;
 
         uPlot.orient(u, seriesIdx, (series, dataX, dataY, scaleX, scaleY, valToPosX, valToPosY, xOff, yOff, xDim, yDim, moveTo, lineTo, rect, arc) => {
             let d = u.data[seriesIdx];
-
-            u.ctx.fillStyle = series.stroke();
-
             let deg360 = 2 * Math.PI;
-
-            let p = new Path2D();
-
             for (let i = 0; i < d[0].length; i++) {
+                let p    = new Path2D();
                 let xVal = d[0][i];
                 let yVal = d[1][i];
-
+                u.ctx.strokeStyle = getRGB(u.data[2][i])
+                u.ctx.fillStyle   = getRGB(u.data[2][i])
                 if (xVal >= scaleX.min && xVal <= scaleX.max && yVal >= scaleY.min && yVal <= scaleY.max) {
                     let cx = valToPosX(xVal, scaleX, xDim, xOff);
                     let cy = valToPosY(yVal, scaleY, yDim, yOff);
@@ -190,11 +190,34 @@
                     p.moveTo(cx + size/2, cy);
                     arc(p, cx, cy, size/2, 0, deg360);
                 }
+                u.ctx.fill(p);
             }
-
-            u.ctx.fill(p);
         });
 
+        return null;
+    };
+
+    const drawPoints = (u, seriesIdx, idx0, idx1) => {
+        const size = 5 * devicePixelRatio;
+
+        uPlot.orient(u, seriesIdx, (series, dataX, dataY, scaleX, scaleY, valToPosX, valToPosY, xOff, yOff, xDim, yDim, moveTo, lineTo, rect, arc) => {
+            let d = u.data[seriesIdx];
+            u.ctx.strokeStyle = getRGB(0);
+            u.ctx.fillStyle   = getRGB(0);
+            let deg360 = 2 * Math.PI;
+            let p      = new Path2D();
+            for (let i = 0; i < d[0].length; i++) {
+                let xVal = d[0][i];
+                let yVal = d[1][i];
+                if (xVal >= scaleX.min && xVal <= scaleX.max && yVal >= scaleY.min && yVal <= scaleY.max) {
+                    let cx = valToPosX(xVal, scaleX, xDim, xOff);
+                    let cy = valToPosY(yVal, scaleY, yDim, yOff);
+                    p.moveTo(cx + size/2, cy);
+                    arc(p, cx, cy, size/2, 0, deg360);
+                }
+            }
+            u.ctx.fill(p);
+        });
         return null;
     };
 
@@ -209,12 +232,8 @@
             },
             cursor: { drag: { x: false, y: false } },
             axes: [
-                {
-                    label: 'Intensity [FLOPS/Byte]'
-                },
-                {
-                    label: 'Performace [GFLOPS]'
-                }
+                { label: 'Intensity [FLOPS/Byte]' },
+                { label: 'Performace [GFLOPS]' }
             ],
             scales: {
                 x: {
@@ -231,15 +250,7 @@
             },
             series: [
                 {},
-                {
-                    stroke: (u, seriesIdx) => {
-                        for (let i = 0; i < points; ++i) { return getRGB(data[2][i]) }
-					},
-                    fill: (u, seriesIdx) => {
-                        for (let i = 0; i < points; ++i) { return getRGB(data[2][i]) }
-					},
-                    paths: drawPoints,
-                }
+                { paths: renderTime ? drawColorPoints : drawPoints }
             ],
             hooks: {
                 drawClear: [
@@ -252,6 +263,7 @@
                 ],
                 draw: [
                     u => { // draw roofs when cluster set
+                        // console.log(u)
                         if (cluster != null) {
                             const padding = u._padding // [top, right, bottom, left]
 
@@ -285,10 +297,9 @@
 
                             let xAxisIntersect = lineIntersect(
                                 x1, y1, x2, y2,
-                                u.valToPos(0.01, 'x', true), u.valToPos(1.0, 'y', true),
-                                u.valToPos(1000, 'x', true), u.valToPos(1.0, 'y', true) // X-Axis Coords
+                                u.valToPos(0.01, 'x', true), u.valToPos(1.0, 'y', true), // X-Axis Start Coords
+                                u.valToPos(1000, 'x', true), u.valToPos(1.0, 'y', true)  // X-Axis End Coords
                             )
-
 
                             if (xAxisIntersect.x > x1) {
                                 x1 = xAxisIntersect.x
@@ -300,7 +311,7 @@
                             u.ctx.lineTo(x2, y2)
 
                             u.ctx.stroke()
-                            // Reset lineWidth
+                            // Reset grid lineWidth
                             u.ctx.lineWidth = 0.15
                         }
                     }
