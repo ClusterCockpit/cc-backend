@@ -272,7 +272,7 @@
         <Col />
     {/if}
 </Row>
-<Row class="mb-2">
+<Row class="mb-3">
     <Col xs="auto">
         {#if $initq.data}
             <TagManagement job={$initq.data.job} bind:jobTags />
