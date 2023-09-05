@@ -6,10 +6,10 @@
 
     export let data = null
     export let renderTime = false
-    export let maxY = null // Optional
+    export let allowSizeChange = false
     export let cluster = null
-    export let width = 500
-    export let height = 300
+    export let width = 600
+    export let height = 350
 
     let plotWrapper = null
     let uplot = null
@@ -135,7 +135,7 @@
                         log: 10, // log exp
                     },
                     y: {
-                        range: [1.0, nearestThousand(cluster.flopRateSimd.value || maxY)],
+                        range: [1.0, cluster?.flopRateSimd?.value ? nearestThousand(cluster.flopRateSimd.value) : 10000],
                         distr: 3, // Render as log
                         log: 10, // log exp
                     },
@@ -238,7 +238,7 @@
             render(data)
         }, 200)
     }
-    $: sizeChanged(width, height)
+    $: if (allowSizeChange) sizeChanged(width, height)
 </script>
 
 {#if data != null}

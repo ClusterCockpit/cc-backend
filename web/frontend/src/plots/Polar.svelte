@@ -25,6 +25,7 @@
     export let metrics
     export let cluster
     export let jobMetrics
+    export let height = 350
 
     const metricConfig = getContext('metrics')
 
@@ -94,7 +95,7 @@
 </script>
 
 <div class="chart-container">
-    <Radar {data} {options}/>
+    <Radar {data} {options} {height}/>
 </div>
 
 <style>

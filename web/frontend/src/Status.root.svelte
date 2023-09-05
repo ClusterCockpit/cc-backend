@@ -427,6 +427,7 @@
                 <div bind:clientWidth={plotWidths[i]}>
                     {#key $mainQuery.data.nodeMetrics}
                         <Roofline
+                            allowSizeChange={true}
                             width={plotWidths[i] - 10}
                             height={300}
                             cluster={subCluster}
