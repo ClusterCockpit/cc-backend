@@ -31,8 +31,8 @@
     export let cluster;
 
     let plotWidths = [],
-        colWidth1 = 0,
-        colWidth2 = 0
+        colWidth1,
+        colWidth2
     let from = new Date(Date.now() - 5 * 60 * 1000),
         to = new Date(Date.now());
     const topOptions = [
@@ -429,14 +429,14 @@
                         <Roofline
                             width={plotWidths[i] - 10}
                             height={300}
-                            colorDots={true}
-                            showTime={false}
                             cluster={subCluster}
-                            data={transformPerNodeDataForRoofline(
-                                $mainQuery.data.nodeMetrics.filter(
-                                    (data) => data.subCluster == subCluster.name
+                            data={
+                                transformPerNodeDataForRoofline(
+                                    $mainQuery.data.nodeMetrics.filter(
+                                        (data) => data.subCluster == subCluster.name
+                                    )
                                 )
-                            )}
+                            }
                         />
                     {/key}
                 </div>
@@ -444,7 +444,7 @@
         </Row>
     {/each}
 
-    <hr style="margin-top: -1em;" />
+    <hr/>
 
     <!-- Usage Stats as Histograms -->
 

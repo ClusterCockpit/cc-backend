@@ -4,6 +4,7 @@
         groupByScope,
         fetchMetricsStore,
         checkMetricDisabled,
+        transformDataForRoofline
     } from "./utils.js";
     import {
         Row,
@@ -130,8 +131,8 @@
         lazyFetchMoreMetrics();
 
     let plots = {},
+        roofWidth,
         jobTags,
-        fullWidth,
         statsTable;
     $: document.title = $initq.fetching
         ? "Loading..."
@@ -190,7 +191,6 @@
         }));
 </script>
 
-<div class="row" bind:clientWidth={fullWidth} />
 <Row>
     <Col>
         {#if $initq.error}
@@ -245,7 +245,6 @@
         {/if}
         <Col>
             <Polar
-                size={fullWidth / 4.1}
                 metrics={ccconfig[
                     `job_view_polarPlotMetrics:${$initq.data.job.cluster}`
                 ] || ccconfig[`job_view_polarPlotMetrics`]}
@@ -254,21 +253,24 @@
             />
         </Col>
         <Col>
-            <Roofline
-                width={fullWidth / 3 - 10}
-                height={fullWidth / 5}
-                cluster={clusters
-                    .find((c) => c.name == $initq.data.job.cluster)
-                    .subClusters.find(
-                        (sc) => sc.name == $initq.data.job.subCluster
-                    )}
-                flopsAny={$jobMetrics.data.jobMetrics.find(
-                    (m) => m.name == "flops_any" && m.scope == "node"
-                )}
-                memBw={$jobMetrics.data.jobMetrics.find(
-                    (m) => m.name == "mem_bw" && m.scope == "node"
-                )}
-            />
+            <div bind:clientWidth={roofWidth}>
+                <Roofline
+                    width={roofWidth - 10}
+                    height={(roofWidth / 2) - 5}
+                    renderTime={true}
+                    cluster={clusters
+                        .find((c) => c.name == $initq.data.job.cluster)
+                        .subClusters.find(
+                            (sc) => sc.name == $initq.data.job.subCluster
+                        )}
+                    data={
+                        transformDataForRoofline (
+                            $jobMetrics.data.jobMetrics.find((m) => m.name == "flops_any" && m.scope == "node").metric,
+                            $jobMetrics.data.jobMetrics.find((m) => m.name == "mem_bw" && m.scope == "node").metric
+                        )
+                    }
+                />
+            </div>
         </Col>
     {:else}
         <Col />

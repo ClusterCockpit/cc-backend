@@ -22,7 +22,6 @@
         LineElement
     );
 
-    export let size
     export let metrics
     export let cluster
     export let jobMetrics
@@ -95,7 +94,7 @@
 </script>
 
 <div class="chart-container">
-    <Radar {data} {options} width={size} height={size}/>
+    <Radar {data} {options}/>
 </div>
 
 <style>

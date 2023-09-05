@@ -4,99 +4,52 @@
     import { onMount, onDestroy } from 'svelte'
     import { Card } from 'sveltestrap'
 
-    export let flopsAny = null
-    export let memBw = null
-    export let maxY = null
+    export let data = null
+    export let renderTime = false
+    export let maxY = null // Optional
     export let cluster = null
     export let width = 500
     export let height = 300
-    export let renderTime = false
-    export let data = null
 
     let plotWrapper = null
     let uplot = null
     let timeoutId = null
 
-    // Three Render-Cases:
-    // #1 Single-Job Roofline -> Has Time-Information: Use data, allow renderTime
-    // #2 MultiNode Roofline - > Has No Time-Information: Transform from nodeData, only "IST"-state of nodes, no timeInfo
-    // #3 Multi-Job Roofline as Heatmap -> Keep Original
+    /* Data Format
+     * data       = [null, [], []] // 0: null-axis required for scatter, 1: Array of XY-Array for Scatter, 2: Optional Time Info
+     * data[1][0] = [100, 200, 500, ...] // X Axis -> Intensity (Vals up to clusters' flopRateScalar value)
+     * data[1][1] = [1000, 2000, 1500, ...] // Y Axis -> Performance (Vals up to clusters' flopRateSimd value)
+     * data[2]    = [0.1, 0.15, 0.2, ...] // Color Code -> Time Information (Floats from 0 to 1) (Optional)
+    */
 
-    // Start Demo Data
-
-    function randInt(min, max) {
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-    }
-
-    function randFloat(min, max) {
-        return roundTwo(((Math.random() * (max - min + 1)) + min) / randInt(1, 500));
-    }
-
-    function roundTwo(num) {
-       return  Math.round((num + Number.EPSILON) * 100) / 100
-    }
-
-    function filledArr(len, val, time) {
-        let arr = Array(len);
-
-        if (typeof val == "function") {
-            for (let i = 0; i < len; ++i)
-                arr[i] = val(i);
-        }
-        else if (time) {
-            for (let i = 0; i < len; ++i)
-                arr[i] = i / 1000;
-        }
-        else {
-            for (let i = 0; i < len; ++i)
-                arr[i] = i;
-        }
-
-        return arr;
-    }
-
-    let points = 1000;
-
-    data       = [null, []] // Null-Axis required for scatter
-    data[1][0] = filledArr(points, i => randFloat(1,5000), false) // Intensity
-    data[1][1] = filledArr(points, i => randFloat(1,5000), false) // Performance
-    // data[1][0] = filledArr(points, 0, false) // Intensity
-    // data[1][1] = filledArr(points, 0, false) // Performance
-    data[2]    = filledArr(points, 0, true) // Time Information (Optional)
-
-    // End Demo Data
+    // Check
+    // console.assert(data , "you must provide data")
 
     // Helpers
-
     function getGradientR(x) {
         if (x < 0.5) return 0
         if (x > 0.75) return 255
         x = (x - 0.5) * 4.0
         return Math.floor(x * 255.0)
     }
-
     function getGradientG(x) {
         if (x > 0.25 && x < 0.75) return 255
         if (x < 0.25) x = x * 4.0
         else          x = 1.0 - (x - 0.75) * 4.0
         return Math.floor(x * 255.0)
     }
-
     function getGradientB(x) {
         if (x < 0.25) return 255
         if (x > 0.5) return 0
         x = 1.0 - (x - 0.25) * 4.0
         return Math.floor(x * 255.0)
     }
-
     function getRGB(c) {
         return `rgb(${getGradientR(c)}, ${getGradientG(c)}, ${getGradientB(c)})`
     }
-
     function nearestThousand (num) {
         return Math.ceil(num/1000) * 1000
     }
-
     function lineIntersect(x1, y1, x2, y2, x3, y3, x4, y4) {
         let l = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1)
         let a = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / l
@@ -105,12 +58,11 @@
             y: y1 + a * (y2 - y1)
         }
     }
-
     // End Helpers
 
+    // Dot Renderers
     const drawColorPoints = (u, seriesIdx, idx0, idx1) => {
         const size = 5 * devicePixelRatio;
-
         uPlot.orient(u, seriesIdx, (series, dataX, dataY, scaleX, scaleY, valToPosX, valToPosY, xOff, yOff, xDim, yDim, moveTo, lineTo, rect, arc) => {
             let d = u.data[seriesIdx];
             let deg360 = 2 * Math.PI;
@@ -136,7 +88,6 @@
 
     const drawPoints = (u, seriesIdx, idx0, idx1) => {
         const size = 5 * devicePixelRatio;
-
         uPlot.orient(u, seriesIdx, (series, dataX, dataY, scaleX, scaleY, valToPosX, valToPosY, xOff, yOff, xDim, yDim, moveTo, lineTo, rect, arc) => {
             let d = u.data[seriesIdx];
             u.ctx.strokeStyle = getRGB(0);
@@ -158,113 +109,121 @@
         return null;
     };
 
-    function render() {
-        const opts = {
-            title: "",
-            mode: 2,
-            width: width,
-            height: height,
-            legend: {
-                show: false
-            },
-            cursor: { drag: { x: false, y: false } },
-            axes: [
-                { label: 'Intensity [FLOPS/Byte]' },
-                { label: 'Performace [GFLOPS]' }
-            ],
-            scales: {
-                x: {
-                    time: false,
-                    range: [0.01, 1000],
-                    distr: 3, // Render as log
-					log: 10, // log exp
+    // Main Function
+    function render(plotData) {
+        if (plotData) {
+            const opts = {
+                title: "",
+                mode: 2,
+                width: width,
+                height: height,
+                legend: {
+                    show: false
                 },
-                y: {
-                    range: [1.0, nearestThousand(cluster.flopRateSimd.value || maxY)],
-                    distr: 3, // Render as log
-					log: 10, // log exp
-                },
-            },
-            series: [
-                {},
-                { paths: renderTime ? drawColorPoints : drawPoints }
-            ],
-            hooks: {
-                drawClear: [
-                    u => {
-                        u.series.forEach((s, i) => {
-                            if (i > 0)
-                                s._paths = null;
-                        });
+                cursor: { drag: { x: false, y: false } },
+                axes: [
+                    { 
+                        label: 'Intensity [FLOPS/Byte]',
+                        values: (u, vals) => vals.map(v => formatNumber(v))
                     },
-                ],
-                draw: [
-                    u => { // draw roofs when cluster set
-                        // console.log(u)
-                        if (cluster != null) {
-                            const padding = u._padding // [top, right, bottom, left]
-
-                            u.ctx.strokeStyle = 'black'
-                            u.ctx.lineWidth = 2
-                            u.ctx.beginPath()
-
-                            const ycut = 0.01 * cluster.memoryBandwidth.value
-                            const scalarKnee = (cluster.flopRateScalar.value - ycut) / cluster.memoryBandwidth.value
-                            const simdKnee = (cluster.flopRateSimd.value - ycut) / cluster.memoryBandwidth.value
-                            const scalarKneeX = u.valToPos(scalarKnee, 'x', true), // Value, axis, toCanvasPixels
-                                simdKneeX = u.valToPos(simdKnee, 'x', true),
-                                flopRateScalarY = u.valToPos(cluster.flopRateScalar.value, 'y', true),
-                                flopRateSimdY = u.valToPos(cluster.flopRateSimd.value, 'y', true)
-
-                            if (scalarKneeX < width - padding[1]) { // Top horizontal roofline
-                                u.ctx.moveTo(scalarKneeX, flopRateScalarY)
-                                u.ctx.lineTo(width - padding[1], flopRateScalarY)
-                            }
-
-                            if (simdKneeX < width - padding[1]) { // Lower horitontal roofline
-                                u.ctx.moveTo(simdKneeX, flopRateSimdY)
-                                u.ctx.lineTo(width - padding[1], flopRateSimdY)
-                            }
-
-                            let x1 = u.valToPos(0.01, 'x', true),
-                                y1 = u.valToPos(ycut, 'y', true)
-                                
-                            let x2 = u.valToPos(simdKnee, 'x', true),
-                                y2 = flopRateSimdY
-
-                            let xAxisIntersect = lineIntersect(
-                                x1, y1, x2, y2,
-                                u.valToPos(0.01, 'x', true), u.valToPos(1.0, 'y', true), // X-Axis Start Coords
-                                u.valToPos(1000, 'x', true), u.valToPos(1.0, 'y', true)  // X-Axis End Coords
-                            )
-
-                            if (xAxisIntersect.x > x1) {
-                                x1 = xAxisIntersect.x
-                                y1 = xAxisIntersect.y
-                            }
-
-                            // Diagonal
-                            u.ctx.moveTo(x1, y1)
-                            u.ctx.lineTo(x2, y2)
-
-                            u.ctx.stroke()
-                            // Reset grid lineWidth
-                            u.ctx.lineWidth = 0.15
-                        }
+                    { 
+                        label: 'Performace [GFLOPS]',
+                        values: (u, vals) => vals.map(v => formatNumber(v))
                     }
-                ]
-            },
-        };
+                ],
+                scales: {
+                    x: {
+                        time: false,
+                        range: [0.01, 1000],
+                        distr: 3, // Render as log
+                        log: 10, // log exp
+                    },
+                    y: {
+                        range: [1.0, nearestThousand(cluster.flopRateSimd.value || maxY)],
+                        distr: 3, // Render as log
+                        log: 10, // log exp
+                    },
+                },
+                series: [
+                    {},
+                    { paths: renderTime ? drawColorPoints : drawPoints }
+                ],
+                hooks: {
+                    drawClear: [
+                        u => {
+                            u.series.forEach((s, i) => {
+                                if (i > 0)
+                                    s._paths = null;
+                            });
+                        },
+                    ],
+                    draw: [
+                        u => { // draw roofs when cluster set
+                            // console.log(u)
+                            if (cluster != null) {
+                                const padding = u._padding // [top, right, bottom, left]
 
-        uplot = new uPlot(opts, data, plotWrapper);
+                                u.ctx.strokeStyle = 'black'
+                                u.ctx.lineWidth = 2
+                                u.ctx.beginPath()
+
+                                const ycut = 0.01 * cluster.memoryBandwidth.value
+                                const scalarKnee = (cluster.flopRateScalar.value - ycut) / cluster.memoryBandwidth.value
+                                const simdKnee = (cluster.flopRateSimd.value - ycut) / cluster.memoryBandwidth.value
+                                const scalarKneeX = u.valToPos(scalarKnee, 'x', true), // Value, axis, toCanvasPixels
+                                    simdKneeX = u.valToPos(simdKnee, 'x', true),
+                                    flopRateScalarY = u.valToPos(cluster.flopRateScalar.value, 'y', true),
+                                    flopRateSimdY = u.valToPos(cluster.flopRateSimd.value, 'y', true)
+
+                                if (scalarKneeX < width - padding[1]) { // Top horizontal roofline
+                                    u.ctx.moveTo(scalarKneeX, flopRateScalarY)
+                                    u.ctx.lineTo(width - padding[1], flopRateScalarY)
+                                }
+
+                                if (simdKneeX < width - padding[1]) { // Lower horitontal roofline
+                                    u.ctx.moveTo(simdKneeX, flopRateSimdY)
+                                    u.ctx.lineTo(width - padding[1], flopRateSimdY)
+                                }
+
+                                let x1 = u.valToPos(0.01, 'x', true),
+                                    y1 = u.valToPos(ycut, 'y', true)
+                                    
+                                let x2 = u.valToPos(simdKnee, 'x', true),
+                                    y2 = flopRateSimdY
+
+                                let xAxisIntersect = lineIntersect(
+                                    x1, y1, x2, y2,
+                                    u.valToPos(0.01, 'x', true), u.valToPos(1.0, 'y', true), // X-Axis Start Coords
+                                    u.valToPos(1000, 'x', true), u.valToPos(1.0, 'y', true)  // X-Axis End Coords
+                                )
+
+                                if (xAxisIntersect.x > x1) {
+                                    x1 = xAxisIntersect.x
+                                    y1 = xAxisIntersect.y
+                                }
+
+                                // Diagonal
+                                u.ctx.moveTo(x1, y1)
+                                u.ctx.lineTo(x2, y2)
+
+                                u.ctx.stroke()
+                                // Reset grid lineWidth
+                                u.ctx.lineWidth = 0.15
+                            }
+                        }
+                    ]
+                },
+            };
+            uplot = new uPlot(opts, plotData, plotWrapper);
+        } else {
+            console.log('No data for roofline!')
+        }
     }
 
-    // Copied from Histogram
-    
+    // Svelte and Sizechange
     onMount(() => {
-        render()
+        render(data)
     })
-
     onDestroy(() => {
         if (uplot)
             uplot.destroy()
@@ -272,7 +231,6 @@
         if (timeoutId != null)
             clearTimeout(timeoutId)
     })
-
     function sizeChanged() {
         if (timeoutId != null)
             clearTimeout(timeoutId)
@@ -281,13 +239,10 @@
             timeoutId = null
             if (uplot)
                 uplot.destroy()
-
-            render()
+            render(data)
         }, 200)
     }
-
     $: sizeChanged(width, height)
-
 </script>
 
 {#if data != null}
