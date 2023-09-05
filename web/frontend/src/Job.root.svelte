@@ -272,8 +272,7 @@
         <Col />
     {/if}
 </Row>
-<br />
-<Row>
+<Row class="mb-2">
     <Col xs="auto">
         {#if $initq.data}
             <TagManagement job={$initq.data.job} bind:jobTags />
@@ -290,7 +289,6 @@
         <Zoom timeseriesPlots={plots} />
     </Col> -->
 </Row>
-<br />
 <Row>
     <Col>
         {#if $jobMetrics.error}
@@ -337,8 +335,7 @@
         {/if}
     </Col>
 </Row>
-<br />
-<Row>
+<Row class="mt-2">
     <Col>
         {#if $initq.data}
             <TabContent>
