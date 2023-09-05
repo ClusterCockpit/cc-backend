@@ -22,9 +22,6 @@
      * data[2]    = [0.1, 0.15, 0.2, ...] // Color Code -> Time Information (Floats from 0 to 1) (Optional)
     */
 
-    // Check
-    // console.assert(data , "you must provide data")
-
     // Helpers
     function getGradientR(x) {
         if (x < 0.5) return 0
@@ -82,7 +79,6 @@
                 u.ctx.fill(p);
             }
         });
-
         return null;
     };
 
