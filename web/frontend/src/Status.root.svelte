@@ -1,8 +1,7 @@
 <script>
     import { getContext } from "svelte";
     import Refresher from "./joblist/Refresher.svelte";
-    import Roofline, { transformPerNodeData } from "./plots/Roofline.svelte";
-    import Rooflineuplot from "./plots/Rooflineuplot.svelte";
+    import Roofline from "./plots/Roofline.svelte";
     import Pie, { colors } from "./plots/Pie.svelte";
     import Histogram from "./plots/Histogram.svelte";
     import {
@@ -17,7 +16,7 @@
         Progress,
         Icon,
     } from "sveltestrap";
-    import { init, convert2uplot } from "./utils.js";
+    import { init, convert2uplot, transformPerNodeDataForRoofline } from "./utils.js";
     import { scaleNumbers } from "./units.js";
     import {
         queryStore,
@@ -33,8 +32,7 @@
 
     let plotWidths = [],
         colWidth1 = 0,
-        colWidth2 = 0,
-        colWidth3 = 0;
+        colWidth2 = 0
     let from = new Date(Date.now() - 5 * 60 * 1000),
         to = new Date(Date.now());
     const topOptions = [
@@ -434,7 +432,7 @@
                             colorDots={true}
                             showTime={false}
                             cluster={subCluster}
-                            data={transformPerNodeData(
+                            data={transformPerNodeDataForRoofline(
                                 $mainQuery.data.nodeMetrics.filter(
                                     (data) => data.subCluster == subCluster.name
                                 )
@@ -665,15 +663,6 @@
                     yunit="Jobs"
                 />
             {/key}
-        </Col>
-    </Row>
-    <Row>
-        <Col>
-            <div bind:clientWidth={colWidth3}>
-                <Rooflineuplot
-                    width={colWidth3 - 25}
-                    cluster={$initq.data.clusters.find((c) => c.name == cluster).subClusters[0]}
-                />
         </Col>
     </Row>
 {/if}

@@ -363,3 +363,66 @@ export function binsFromFootprint(weights, scope, values, numBins) {
         bins: bins
     }
 }
+
+export function transformDataForRoofline(flopsAny, memBw, renderTime) { // Uses Metric Object
+    const nodes = flopsAny.series.length
+    const timesteps = flopsAny.series[0].data.length
+
+    /* c will contain values from 0 to 1 representing the time */
+    const x = [], y = [], c = []
+
+    if (flopsAny && memBw) {
+        for (let i = 0; i < nodes; i++) {
+            const flopsData = flopsAny.series[i].data
+            const memBwData = memBw.series[i].data
+            for (let j = 0; j < timesteps; j++) {
+                const f = flopsData[j], m = memBwData[j]
+                const intensity = f / m
+                if (Number.isNaN(intensity) || !Number.isFinite(intensity))
+                    continue
+
+                x.push(intensity)
+                y.push(f)
+                c.push(renderTime ? j / timesteps : 0)
+            }
+        }
+    } else {
+        console.warn("transformData: metrics for 'mem_bw' and/or 'flops_any' missing!")
+    }
+
+    return {
+        x, y, c,
+        xLabel: 'Intensity [FLOPS/byte]',
+        yLabel: 'Performance [GFLOPS]'
+    }
+}
+
+//  Return something to be plotted. The argument shall be the result of the
+// `nodeMetrics` GraphQL query.
+export function transformPerNodeDataForRoofline(nodes) {
+    const x = [], y = [], c = []
+    for (let node of nodes) {
+        let flopsAny = node.metrics.find(m => m.name == 'flops_any' && m.scope == 'node')?.metric
+        let memBw    = node.metrics.find(m => m.name == 'mem_bw'    && m.scope == 'node')?.metric
+        if (!flopsAny || !memBw) {
+            console.warn("transformPerNodeData: metrics for 'mem_bw' and/or 'flops_any' missing!")
+            continue
+        }
+
+        let flopsData = flopsAny.series[0].data, memBwData = memBw.series[0].data
+        const f = flopsData[flopsData.length - 1], m = memBwData[flopsData.length - 1]
+        const intensity = f / m
+        if (Number.isNaN(intensity) || !Number.isFinite(intensity))
+            continue
+
+        x.push(intensity)
+        y.push(f)
+        c.push(0)
+    }
+
+    return {
+        x, y, c,
+        xLabel: 'Intensity [FLOPS/byte]',
+        yLabel: 'Performance [GFLOPS]'
+    }
+}

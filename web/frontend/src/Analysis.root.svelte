@@ -10,7 +10,7 @@
     import { binsFromFootprint } from './utils.js'
     import ScatterPlot from './plots/Scatter.svelte'
     import PlotTable from './PlotTable.svelte'
-    import Roofline from './plots/Roofline.svelte'
+    import RooflineHeatmap from './plots/RooflineHeatmap.svelte'
 
     const { query: initq } = init()
 
@@ -315,7 +315,7 @@
             {:else if $rooflineQuery.data && cluster}
                 <div bind:clientWidth={colWidth2}>
                 {#key $rooflineQuery.data}
-                    <Roofline
+                    <RooflineHeatmap
                         width={colWidth2} height={300}
                         tiles={$rooflineQuery.data.rooflineHeatmap}
                         cluster={cluster.subClusters.length == 1 ? cluster.subClusters[0] : null}
