@@ -1,7 +1,7 @@
 <script>
     import { getContext } from "svelte";
     import Refresher from "./joblist/Refresher.svelte";
-    import Roofline, { transformPerNodeData } from "./plots/Roofline.svelte";
+    import Roofline from "./plots/Roofline.svelte";
     import Pie, { colors } from "./plots/Pie.svelte";
     import Histogram from "./plots/Histogram.svelte";
     import {
@@ -16,7 +16,7 @@
         Progress,
         Icon,
     } from "sveltestrap";
-    import { init, convert2uplot } from "./utils.js";
+    import { init, convert2uplot, transformPerNodeDataForRoofline } from "./utils.js";
     import { scaleNumbers } from "./units.js";
     import {
         queryStore,
@@ -31,8 +31,8 @@
     export let cluster;
 
     let plotWidths = [],
-        colWidth1 = 0,
-        colWidth2;
+        colWidth1,
+        colWidth2
     let from = new Date(Date.now() - 5 * 60 * 1000),
         to = new Date(Date.now());
     const topOptions = [
@@ -427,16 +427,17 @@
                 <div bind:clientWidth={plotWidths[i]}>
                     {#key $mainQuery.data.nodeMetrics}
                         <Roofline
+                            allowSizeChange={true}
                             width={plotWidths[i] - 10}
                             height={300}
-                            colorDots={true}
-                            showTime={false}
                             cluster={subCluster}
-                            data={transformPerNodeData(
-                                $mainQuery.data.nodeMetrics.filter(
-                                    (data) => data.subCluster == subCluster.name
+                            data={
+                                transformPerNodeDataForRoofline(
+                                    $mainQuery.data.nodeMetrics.filter(
+                                        (data) => data.subCluster == subCluster.name
+                                    )
                                 )
-                            )}
+                            }
                         />
                     {/key}
                 </div>
@@ -444,7 +445,7 @@
         </Row>
     {/each}
 
-    <hr style="margin-top: -1em;" />
+    <hr/>
 
     <!-- Usage Stats as Histograms -->
 

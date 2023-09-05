@@ -4,6 +4,7 @@
         groupByScope,
         fetchMetricsStore,
         checkMetricDisabled,
+        transformDataForRoofline
     } from "./utils.js";
     import {
         Row,
@@ -131,7 +132,6 @@
 
     let plots = {},
         jobTags,
-        fullWidth,
         statsTable;
     $: document.title = $initq.fetching
         ? "Loading..."
@@ -190,7 +190,6 @@
         }));
 </script>
 
-<div class="row" bind:clientWidth={fullWidth} />
 <Row>
     <Col>
         {#if $initq.error}
@@ -245,7 +244,6 @@
         {/if}
         <Col>
             <Polar
-                size={fullWidth / 4.1}
                 metrics={ccconfig[
                     `job_view_polarPlotMetrics:${$initq.data.job.cluster}`
                 ] || ccconfig[`job_view_polarPlotMetrics`]}
@@ -255,19 +253,18 @@
         </Col>
         <Col>
             <Roofline
-                width={fullWidth / 3 - 10}
-                height={fullWidth / 5}
+                renderTime={true}
                 cluster={clusters
                     .find((c) => c.name == $initq.data.job.cluster)
                     .subClusters.find(
                         (sc) => sc.name == $initq.data.job.subCluster
                     )}
-                flopsAny={$jobMetrics.data.jobMetrics.find(
-                    (m) => m.name == "flops_any" && m.scope == "node"
-                )}
-                memBw={$jobMetrics.data.jobMetrics.find(
-                    (m) => m.name == "mem_bw" && m.scope == "node"
-                )}
+                data={
+                    transformDataForRoofline (
+                        $jobMetrics.data.jobMetrics.find((m) => m.name == "flops_any" && m.scope == "node").metric,
+                        $jobMetrics.data.jobMetrics.find((m) => m.name == "mem_bw" && m.scope == "node").metric
+                    )
+                }
             />
         </Col>
     {:else}
@@ -275,8 +272,7 @@
         <Col />
     {/if}
 </Row>
-<br />
-<Row>
+<Row class="mb-3">
     <Col xs="auto">
         {#if $initq.data}
             <TagManagement job={$initq.data.job} bind:jobTags />
@@ -293,7 +289,6 @@
         <Zoom timeseriesPlots={plots} />
     </Col> -->
 </Row>
-<br />
 <Row>
     <Col>
         {#if $jobMetrics.error}
@@ -340,8 +335,7 @@
         {/if}
     </Col>
 </Row>
-<br />
-<Row>
+<Row class="mt-2">
     <Col>
         {#if $initq.data}
             <TabContent>

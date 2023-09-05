@@ -6,8 +6,8 @@ const power  = [1, 1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21]
 const prefix = ['', 'K', 'M', 'G', 'T', 'P', 'E']
 
 export function formatNumber(x) {
-    if ( isNaN(x) ) {
-        return x // Return if String , used in Histograms
+    if ( isNaN(x) || x == null) {
+        return x // Return if String or Null
     } else {
         for (let i = 0; i < prefix.length; i++)
             if (power[i] <= x && x < power[i+1])

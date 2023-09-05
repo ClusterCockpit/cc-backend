@@ -6,7 +6,7 @@ import {
 } from "@urql/svelte";
 import { setContext, getContext, hasContext, onDestroy, tick } from "svelte";
 import { readable } from "svelte/store";
-import { formatNumber } from './units.js'
+// import { formatNumber } from './units.js'
 
 /*
  * Call this function only at component initialization time!
@@ -326,8 +326,11 @@ export function convert2uplot(canvasData) {
 }
 
 export function binsFromFootprint(weights, scope, values, numBins) {
-    let min = 0, max = 0
+    let min = 0, max = 0 //, median = 0
     if (values.length != 0) {
+        // Extreme, wrong peak vlaues: Filter here or backend?
+        // median = median(values)
+
         for (let x of values) {
             min = Math.min(min, x)
             max = Math.max(max, x)
@@ -363,3 +366,75 @@ export function binsFromFootprint(weights, scope, values, numBins) {
         bins: bins
     }
 }
+
+export function transformDataForRoofline(flopsAny, memBw) { // Uses Metric Objects: {series:[{},{},...], timestep:60, name:$NAME}
+    const nodes = flopsAny.series.length
+    const timesteps = flopsAny.series[0].data.length
+
+    /* c will contain values from 0 to 1 representing the time */
+    let data = null
+    const x = [], y = [], c = []
+
+    if (flopsAny && memBw) {
+        for (let i = 0; i < nodes; i++) {
+            const flopsData = flopsAny.series[i].data
+            const memBwData = memBw.series[i].data
+            for (let j = 0; j < timesteps; j++) {
+                const f = flopsData[j], m = memBwData[j]
+                const intensity = f / m
+                if (Number.isNaN(intensity) || !Number.isFinite(intensity))
+                    continue
+
+                x.push(intensity)
+                y.push(f)
+                c.push(j / timesteps)
+            }
+        }
+    } else {
+        console.warn("transformData: metrics for 'mem_bw' and/or 'flops_any' missing!")
+    }
+    if (x.length > 0 && y.length > 0 && c.length > 0) {
+        data = [null, [x, y], c] // for dataformat see roofline.svelte
+    }
+    return data
+}
+
+//  Return something to be plotted. The argument shall be the result of the
+// `nodeMetrics` GraphQL query.
+export function transformPerNodeDataForRoofline(nodes) {
+    let data = null
+    const x = [], y = []
+    for (let node of nodes) {
+        let flopsAny = node.metrics.find(m => m.name == 'flops_any' && m.scope == 'node')?.metric
+        let memBw    = node.metrics.find(m => m.name == 'mem_bw'    && m.scope == 'node')?.metric
+        if (!flopsAny || !memBw) {
+            console.warn("transformPerNodeData: metrics for 'mem_bw' and/or 'flops_any' missing!")
+            continue
+        }
+
+        let flopsData = flopsAny.series[0].data, memBwData = memBw.series[0].data
+        const f = flopsData[flopsData.length - 1], m = memBwData[flopsData.length - 1]
+        const intensity = f / m
+        if (Number.isNaN(intensity) || !Number.isFinite(intensity))
+            continue
+
+        x.push(intensity)
+        y.push(f)
+    }
+    if (x.length > 0 && y.length > 0) {
+        data = [null, [x, y], []] // for dataformat see roofline.svelte
+    }
+    return data
+}
+
+// https://stackoverflow.com/questions/45309447/calculating-median-javascript
+// function median(numbers) {
+//     const sorted = Array.from(numbers).sort((a, b) => a - b);
+//     const middle = Math.floor(sorted.length / 2);
+  
+//     if (sorted.length % 2 === 0) {
+//         return (sorted[middle - 1] + sorted[middle]) / 2;
+//     }
+  
+//     return sorted[middle];
+// }
