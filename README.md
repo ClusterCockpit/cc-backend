@@ -1,3 +1,6 @@
+# NOTE
+Please have a look at the [Release Notes](https://github.com/ClusterCockpit/cc-backend/blob/master/ReleaseNotes.md) for breaking changes!
+
 # ClusterCockpit REST and GraphQL API backend
 
 [![Build](https://github.com/ClusterCockpit/cc-backend/actions/workflows/test.yml/badge.svg)](https://github.com/ClusterCockpit/cc-backend/actions/workflows/test.yml)
