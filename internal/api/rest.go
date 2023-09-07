@@ -210,6 +210,10 @@ func securedCheck(r *http.Request) error {
 			IPAddress = r.RemoteAddr
 		}
 
+		if strings.Contains(IPAddress, ":") {
+			IPAddress = strings.Split(IPAddress, ":")[0]
+		}
+
 		// check if IP is allowed
 		if !util.Contains(config.Keys.ApiAllowedIPs, IPAddress) {
 			return fmt.Errorf("unknown ip: %v", IPAddress)
