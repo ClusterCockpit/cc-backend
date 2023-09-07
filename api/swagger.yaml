@@ -1018,6 +1018,7 @@ paths:
       description: |-
         Modifies user defined by username (id) in one of four possible ways.
         If more than one formValue is set then only the highest priority field is used.
+        Only accessible from IPs registered with apiAllowedIPs configuration option.
       parameters:
       - description: Database ID of User
         in: path
@@ -1088,7 +1089,9 @@ paths:
     delete:
       consumes:
       - multipart/form-data
-      description: User defined by username in form data will be deleted from database.
+      description: |-
+        User defined by username in form data will be deleted from database.
+        Only accessible from IPs registered with apiAllowedIPs configuration option.
       parameters:
       - description: User ID to delete
         in: formData
@@ -1129,6 +1132,7 @@ paths:
       description: |-
         Returns a JSON-encoded list of users.
         Required query-parameter defines if all users or only users with additional special roles are returned.
+        Only accessible from IPs registered with apiAllowedIPs configuration option.
       parameters:
       - description: If returned list should contain all users or only users with
           additional special roles
@@ -1169,7 +1173,9 @@ paths:
     post:
       consumes:
       - multipart/form-data
-      description: User specified in form data will be saved to database.
+      description: |-
+        User specified in form data will be saved to database.
+        Only accessible from IPs registered with apiAllowedIPs configuration option.
       parameters:
       - description: Unique user ID
         in: formData

@@ -715,7 +715,7 @@
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Modifies user defined by username (id) in one of four possible ways.\nIf more than one formValue is set then only the highest priority field is used.",
+                "description": "Modifies user defined by username (id) in one of four possible ways.\nIf more than one formValue is set then only the highest priority field is used.\nOnly accessible from IPs registered with apiAllowedIPs configuration option.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -820,7 +820,7 @@
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Returns a JSON-encoded list of users.\nRequired query-parameter defines if all users or only users with additional special roles are returned.",
+                "description": "Returns a JSON-encoded list of users.\nRequired query-parameter defines if all users or only users with additional special roles are returned.\nOnly accessible from IPs registered with apiAllowedIPs configuration option.",
                 "produces": [
                     "application/json"
                 ],
@@ -879,7 +879,7 @@
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "User specified in form data will be saved to database.",
+                "description": "User specified in form data will be saved to database.\nOnly accessible from IPs registered with apiAllowedIPs configuration option.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -983,7 +983,7 @@
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "User defined by username in form data will be deleted from database.",
+                "description": "User defined by username in form data will be deleted from database.\nOnly accessible from IPs registered with apiAllowedIPs configuration option.",
                 "consumes": [
                     "multipart/form-data"
                 ],
