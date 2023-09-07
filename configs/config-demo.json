@@ -5,7 +5,7 @@
         "path": "./var/job-archive"
     },
     "jwts": {
-        "max-age": "2m"
+        "max-age": "2000h"
     },
     "clusters": [
         {
