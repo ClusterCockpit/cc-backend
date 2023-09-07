@@ -25,6 +25,10 @@ is not the number of cores the core hours will be too high by a factor!
   validity. Some key names have changed, please refer to
   [config documentation](./configs/README.md) for details.
 
+* The following API endpoints are only accessible from IPs registered using the apiAllowedIPs configuration option:
+   - `/users/` [GET, POST, DELETE]
+   - `/user/{id}` [POST]
+
 ** NOTE **
 If you are using the sqlite3 backend the `PRAGMA` option `foreign_keys` must be
 explicitly set to ON. If using the sqlite3 console it is per default set to
