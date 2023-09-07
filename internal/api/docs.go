@@ -36,7 +36,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "query"
+                    "Job query"
                 ],
                 "summary": "Lists all jobs",
                 "parameters": [
@@ -134,7 +134,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "remove"
+                    "Job remove"
                 ],
                 "summary": "Remove a job from the sql database",
                 "parameters": [
@@ -206,7 +206,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "remove"
+                    "Job remove"
                 ],
                 "summary": "Remove a job from the sql database",
                 "parameters": [
@@ -276,7 +276,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "remove"
+                    "Job remove"
                 ],
                 "summary": "Remove a job from the sql database",
                 "parameters": [
@@ -349,7 +349,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "add and modify"
+                    "Job add and modify"
                 ],
                 "summary": "Adds a new job as \"running\"",
                 "parameters": [
@@ -415,7 +415,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "add and modify"
+                    "Job add and modify"
                 ],
                 "summary": "Marks job as completed and triggers archiving",
                 "parameters": [
@@ -490,7 +490,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "add and modify"
+                    "Job add and modify"
                 ],
                 "summary": "Marks job as completed and triggers archiving",
                 "parameters": [
@@ -572,7 +572,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "add and modify"
+                    "Job add and modify"
                 ],
                 "summary": "Adds one or more tags to a job",
                 "parameters": [
@@ -645,7 +645,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "query"
+                    "Job query"
                 ],
                 "summary": "Get complete job meta and metric data",
                 "parameters": [
@@ -730,7 +730,7 @@ const docTemplate = `{
                     "text/plain"
                 ],
                 "tags": [
-                    "add and modify"
+                    "User"
                 ],
                 "summary": "Updates an existing user",
                 "parameters": [
@@ -832,7 +832,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "query"
+                    "User"
                 ],
                 "summary": "Returns a list of users",
                 "parameters": [
@@ -894,7 +894,7 @@ const docTemplate = `{
                     "text/plain"
                 ],
                 "tags": [
-                    "add and modify"
+                    "User"
                 ],
                 "summary": "Adds a new user",
                 "parameters": [
@@ -998,7 +998,7 @@ const docTemplate = `{
                     "text/plain"
                 ],
                 "tags": [
-                    "remove"
+                    "User"
                 ],
                 "summary": "Deletes a user",
                 "parameters": [
@@ -1764,12 +1764,7 @@ const docTemplate = `{
             "name": "X-Auth-Token",
             "in": "header"
         }
-    },
-    "tags": [
-        {
-            "name": "Job API"
-        }
-    ]
+    }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it

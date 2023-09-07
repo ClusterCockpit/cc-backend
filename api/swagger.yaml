@@ -607,7 +607,7 @@ paths:
       - ApiKeyAuth: []
       summary: Lists all jobs
       tags:
-      - query
+      - Job query
   /jobs/{id}:
     post:
       consumes:
@@ -665,7 +665,7 @@ paths:
       - ApiKeyAuth: []
       summary: Get complete job meta and metric data
       tags:
-      - query
+      - Job query
   /jobs/delete_job/:
     delete:
       consumes:
@@ -715,7 +715,7 @@ paths:
       - ApiKeyAuth: []
       summary: Remove a job from the sql database
       tags:
-      - remove
+      - Job remove
   /jobs/delete_job/{id}:
     delete:
       description: Job to remove is specified by database ID. This will not remove
@@ -762,7 +762,7 @@ paths:
       - ApiKeyAuth: []
       summary: Remove a job from the sql database
       tags:
-      - remove
+      - Job remove
   /jobs/delete_job_before/{ts}:
     delete:
       description: Remove all jobs with start time before timestamp. The jobs will
@@ -809,7 +809,7 @@ paths:
       - ApiKeyAuth: []
       summary: Remove a job from the sql database
       tags:
-      - remove
+      - Job remove
   /jobs/start_job/:
     post:
       consumes:
@@ -856,7 +856,7 @@ paths:
       - ApiKeyAuth: []
       summary: Adds a new job as "running"
       tags:
-      - add and modify
+      - Job add and modify
   /jobs/stop_job/:
     post:
       description: |-
@@ -905,7 +905,7 @@ paths:
       - ApiKeyAuth: []
       summary: Marks job as completed and triggers archiving
       tags:
-      - add and modify
+      - Job add and modify
   /jobs/stop_job/{id}:
     post:
       consumes:
@@ -961,7 +961,7 @@ paths:
       - ApiKeyAuth: []
       summary: Marks job as completed and triggers archiving
       tags:
-      - add and modify
+      - Job add and modify
   /jobs/tag_job/{id}:
     post:
       consumes:
@@ -1010,7 +1010,7 @@ paths:
       - ApiKeyAuth: []
       summary: Adds one or more tags to a job
       tags:
-      - add and modify
+      - Job add and modify
   /user/{id}:
     post:
       consumes:
@@ -1084,7 +1084,7 @@ paths:
       - ApiKeyAuth: []
       summary: Updates an existing user
       tags:
-      - add and modify
+      - User
   /users/:
     delete:
       consumes:
@@ -1127,7 +1127,7 @@ paths:
       - ApiKeyAuth: []
       summary: Deletes a user
       tags:
-      - remove
+      - User
     get:
       description: |-
         Returns a JSON-encoded list of users.
@@ -1169,7 +1169,7 @@ paths:
       - ApiKeyAuth: []
       summary: Returns a list of users
       tags:
-      - query
+      - User
     post:
       consumes:
       - multipart/form-data
@@ -1241,12 +1241,10 @@ paths:
       - ApiKeyAuth: []
       summary: Adds a new user
       tags:
-      - add and modify
+      - User
 securityDefinitions:
   ApiKeyAuth:
     in: header
     name: X-Auth-Token
     type: apiKey
 swagger: "2.0"
-tags:
-- name: Job API

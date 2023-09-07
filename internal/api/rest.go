@@ -37,8 +37,6 @@ import (
 // @version                    1.0.0
 // @description                API for batch job control.
 
-// @tag.name Job API
-
 // @contact.name               ClusterCockpit Project
 // @contact.url                https://github.com/ClusterCockpit
 // @contact.email              support@clustercockpit.org
@@ -223,7 +221,7 @@ func securedCheck(r *http.Request) error {
 
 // getJobs godoc
 // @summary     Lists all jobs
-// @tags query
+// @tags Job query
 // @description Get a list of all jobs. Filters can be applied using query parameters.
 // @description Number of results can be limited by page. Results are sorted by descending startTime.
 // @produce     json
@@ -369,7 +367,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 
 // getJobById godoc
 // @summary   Get complete job meta and metric data
-// @tags query
+// @tags Job query
 // @description Job to get is specified by database ID
 // @description Returns full job resource information according to 'JobMeta' scheme and all metrics according to 'JobData'.
 // @accept      json
@@ -464,7 +462,7 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 
 // tagJob godoc
 // @summary     Adds one or more tags to a job
-// @tags add and modify
+// @tags Job add and modify
 // @description Adds tag(s) to a job specified by DB ID. Name and Type of Tag(s) can be chosen freely.
 // @description If tagged job is already finished: Tag will be written directly to respective archive files.
 // @accept      json
@@ -531,7 +529,7 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 
 // startJob godoc
 // @summary     Adds a new job as "running"
-// @tags add and modify
+// @tags Job add and modify
 // @description Job specified in request body will be saved to database as "running" with new DB ID.
 // @description Job specifications follow the 'JobMeta' scheme, API will fail to execute if requirements are not met.
 // @accept      json
@@ -612,7 +610,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 
 // stopJobById godoc
 // @summary     Marks job as completed and triggers archiving
-// @tags add and modify
+// @tags Job add and modify
 // @description Job to stop is specified by database ID. Only stopTime and final state are required in request body.
 // @description Returns full job resource information according to 'JobMeta' scheme.
 // @accept      json
@@ -669,7 +667,7 @@ func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
 
 // stopJobByRequest godoc
 // @summary     Marks job as completed and triggers archiving
-// @tags add and modify
+// @tags Job add and modify
 // @description Job to stop is specified by request body. All fields are required in this case.
 // @description Returns full job resource information according to 'JobMeta' scheme.
 // @produce     json
@@ -718,7 +716,7 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 
 // deleteJobById godoc
 // @summary     Remove a job from the sql database
-// @tags remove
+// @tags Job remove
 // @description Job to remove is specified by database ID. This will not remove the job from the job archive.
 // @produce     json
 // @param       id      path     int                   true "Database ID of Job"
@@ -765,7 +763,7 @@ func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 
 // deleteJobByRequest godoc
 // @summary     Remove a job from the sql database
-// @tags remove
+// @tags Job remove
 // @description Job to delete is specified by request body. All fields are required in this case.
 // @accept      json
 // @produce     json
@@ -823,7 +821,7 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 
 // deleteJobBefore godoc
 // @summary     Remove a job from the sql database
-// @tags remove
+// @tags Job remove
 // @description Remove all jobs with start time before timestamp. The jobs will not be removed from the job archive.
 // @produce     json
 // @param       ts      path     int                   true "Unix epoch timestamp"
@@ -955,7 +953,7 @@ func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 
 // createUser godoc
 // @summary     Adds a new user
-// @tags add and modify
+// @tags User
 // @description User specified in form data will be saved to database.
 // @description Only accessible from IPs registered with apiAllowedIPs configuration option.
 // @accept      mpfd
@@ -1023,7 +1021,7 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 
 // deleteUser godoc
 // @summary     Deletes a user
-// @tags remove
+// @tags User
 // @description User defined by username in form data will be deleted from database.
 // @description Only accessible from IPs registered with apiAllowedIPs configuration option.
 // @accept      mpfd
@@ -1060,7 +1058,7 @@ func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
 
 // getUsers godoc
 // @summary     Returns a list of users
-// @tags query
+// @tags User
 // @description Returns a JSON-encoded list of users.
 // @description Required query-parameter defines if all users or only users with additional special roles are returned.
 // @description Only accessible from IPs registered with apiAllowedIPs configuration option.
@@ -1096,7 +1094,7 @@ func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 
 // updateUser godoc
 // @summary     Updates an existing user
-// @tags add and modify
+// @tags User
 // @description Modifies user defined by username (id) in one of four possible ways.
 // @description If more than one formValue is set then only the highest priority field is used.
 // @description Only accessible from IPs registered with apiAllowedIPs configuration option.
