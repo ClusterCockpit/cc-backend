@@ -9,6 +9,7 @@ It is supported to set these by means of a `.env` file in the project root.
 ## Configuration Options
 
 * `addr`: Type string.  Address where the http (or https) server will listen on (for example: 'localhost:80'). Default `:8080`.
+* `apiAllowedIPs`: Type string array.  Addresses from which the secured API endpoints (/users and other auth related endpoints)  can be reached
 * `user`: Type string. Drop root permissions once .env was read and the port was taken. Only applicable if using privileged port.
 * `group`: Type string.  Drop root permissions once .env was read and the port was taken. Only applicable if using privileged port.
 * `disable-authentication`: Type bool.  Disable authentication (for everything: API, Web-UI, ...). Default `false`.

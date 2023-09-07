@@ -957,6 +957,7 @@ func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 // @summary     Adds a new user
 // @tags add and modify
 // @description User specified in form data will be saved to database.
+// @description Only accessible from IPs registered with apiAllowedIPs configuration option.
 // @accept      mpfd
 // @produce     plain
 // @param       username formData string                       true  "Unique user ID"
@@ -1024,6 +1025,7 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 // @summary     Deletes a user
 // @tags remove
 // @description User defined by username in form data will be deleted from database.
+// @description Only accessible from IPs registered with apiAllowedIPs configuration option.
 // @accept      mpfd
 // @produce     plain
 // @param       username formData string         true "User ID to delete"
@@ -1061,6 +1063,7 @@ func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
 // @tags query
 // @description Returns a JSON-encoded list of users.
 // @description Required query-parameter defines if all users or only users with additional special roles are returned.
+// @description Only accessible from IPs registered with apiAllowedIPs configuration option.
 // @produce     json
 // @param       not-just-user query bool true "If returned list should contain all users or only users with additional special roles"
 // @success     200     {array} api.ApiReturnedUser "List of users returned successfully"
@@ -1096,6 +1099,7 @@ func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 // @tags add and modify
 // @description Modifies user defined by username (id) in one of four possible ways.
 // @description If more than one formValue is set then only the highest priority field is used.
+// @description Only accessible from IPs registered with apiAllowedIPs configuration option.
 // @accept      mpfd
 // @produce     plain
 // @param       id             path     string     true  "Database ID of User"
