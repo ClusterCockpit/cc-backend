@@ -101,5 +101,6 @@ release:
   draft: false
   footer: |
     Supports job archive version 1 and database version 6.
+    Please check out the [Release Notes](https://github.com/ClusterCockpit/cc-backend/blob/master/ReleaseNotes.md) for further details on breaking changes.
 
 # vim: set ts=2 sw=2 tw=0 fo=cnqoj

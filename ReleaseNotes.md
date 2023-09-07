@@ -1,4 +1,4 @@
-# `cc-backend` version 1.2.0
+# `cc-backend` version 1.2.1
 
 Supports job archive version 1 and database version 6.
 
@@ -24,6 +24,10 @@ is not the number of cores the core hours will be too high by a factor!
 * The jwts key is now mandatory in config.json. It has to set max-age for
   validity. Some key names have changed, please refer to
   [config documentation](./configs/README.md) for details.
+
+* The following API endpoints are only accessible from IPs registered using the apiAllowedIPs configuration option:
+   - `/users/` [GET, POST, DELETE]
+   - `/user/{id}` [POST]
 
 ** NOTE **
 If you are using the sqlite3 backend the `PRAGMA` option `foreign_keys` must be

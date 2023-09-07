@@ -29,7 +29,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "query"
+                    "Job query"
                 ],
                 "summary": "Lists all jobs",
                 "parameters": [
@@ -127,7 +127,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "remove"
+                    "Job remove"
                 ],
                 "summary": "Remove a job from the sql database",
                 "parameters": [
@@ -199,7 +199,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "remove"
+                    "Job remove"
                 ],
                 "summary": "Remove a job from the sql database",
                 "parameters": [
@@ -269,7 +269,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "remove"
+                    "Job remove"
                 ],
                 "summary": "Remove a job from the sql database",
                 "parameters": [
@@ -342,7 +342,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "add and modify"
+                    "Job add and modify"
                 ],
                 "summary": "Adds a new job as \"running\"",
                 "parameters": [
@@ -408,7 +408,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "add and modify"
+                    "Job add and modify"
                 ],
                 "summary": "Marks job as completed and triggers archiving",
                 "parameters": [
@@ -483,7 +483,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "add and modify"
+                    "Job add and modify"
                 ],
                 "summary": "Marks job as completed and triggers archiving",
                 "parameters": [
@@ -565,7 +565,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "add and modify"
+                    "Job add and modify"
                 ],
                 "summary": "Adds one or more tags to a job",
                 "parameters": [
@@ -638,7 +638,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "query"
+                    "Job query"
                 ],
                 "summary": "Get complete job meta and metric data",
                 "parameters": [
@@ -715,7 +715,7 @@
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Modifies user defined by username (id) in one of four possible ways.\nIf more than one formValue is set then only the highest priority field is used.",
+                "description": "Modifies user defined by username (id) in one of four possible ways.\nIf more than one formValue is set then only the highest priority field is used.\nOnly accessible from IPs registered with apiAllowedIPs configuration option.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -723,7 +723,7 @@
                     "text/plain"
                 ],
                 "tags": [
-                    "add and modify"
+                    "User"
                 ],
                 "summary": "Updates an existing user",
                 "parameters": [
@@ -820,12 +820,12 @@
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Returns a JSON-encoded list of users.\nRequired query-parameter defines if all users or only users with additional special roles are returned.",
+                "description": "Returns a JSON-encoded list of users.\nRequired query-parameter defines if all users or only users with additional special roles are returned.\nOnly accessible from IPs registered with apiAllowedIPs configuration option.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "query"
+                    "User"
                 ],
                 "summary": "Returns a list of users",
                 "parameters": [
@@ -879,7 +879,7 @@
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "User specified in form data will be saved to database.",
+                "description": "User specified in form data will be saved to database.\nOnly accessible from IPs registered with apiAllowedIPs configuration option.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -887,7 +887,7 @@
                     "text/plain"
                 ],
                 "tags": [
-                    "add and modify"
+                    "User"
                 ],
                 "summary": "Adds a new user",
                 "parameters": [
@@ -983,7 +983,7 @@
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "User defined by username in form data will be deleted from database.",
+                "description": "User defined by username in form data will be deleted from database.\nOnly accessible from IPs registered with apiAllowedIPs configuration option.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -991,7 +991,7 @@
                     "text/plain"
                 ],
                 "tags": [
-                    "remove"
+                    "User"
                 ],
                 "summary": "Deletes a user",
                 "parameters": [
@@ -1757,10 +1757,5 @@
             "name": "X-Auth-Token",
             "in": "header"
         }
-    },
-    "tags": [
-        {
-            "name": "Job API"
-        }
-    ]
+    }
 }
