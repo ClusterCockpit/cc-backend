@@ -6,6 +6,7 @@ package auth
 
 import (
 	"crypto/ed25519"
+	"database/sql"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -166,16 +167,20 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 	}
 
 	var roles []string
+	projects := make([]string, 0)
 
 	if jc.ValidateUser {
+		var err error
+		user, err = repository.GetUserRepository().GetUser(sub)
+		if err != nil && err != sql.ErrNoRows {
+			log.Errorf("Error while loading user '%v'", sub)
+		}
+
 		// Deny any logins for unknown usernames
 		if user == nil {
 			log.Warn("Could not find user from JWT in internal database.")
 			return nil, errors.New("unknown user")
 		}
-
-		// Take user roles from database instead of trusting the JWT
-		roles = user.Roles
 	} else {
 		// Extract roles from JWT (if present)
 		if rawroles, ok := claims["roles"].([]interface{}); ok {
@@ -185,20 +190,6 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 				}
 			}
 		}
-	}
-
-	// (Ask browser to) Delete JWT cookie
-	deletedCookie := &http.Cookie{
-		Name:     jc.CookieName,
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		HttpOnly: true,
-	}
-	http.SetCookie(rw, deletedCookie)
-
-	if user == nil {
-		projects := make([]string, 0)
 		user = &schema.User{
 			Username:   sub,
 			Name:       name,
@@ -214,6 +205,16 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 			}
 		}
 	}
+
+	// (Ask browser to) Delete JWT cookie
+	deletedCookie := &http.Cookie{
+		Name:     jc.CookieName,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+	}
+	http.SetCookie(rw, deletedCookie)
 
 	return user, nil
 }
