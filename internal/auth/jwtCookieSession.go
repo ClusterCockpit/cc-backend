@@ -153,19 +153,6 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 	claims := token.Claims.(jwt.MapClaims)
 	sub, _ := claims["sub"].(string)
 
-	var name string
-	if wrap, ok := claims["name"].(map[string]interface{}); ok {
-		if vals, ok := wrap["values"].([]interface{}); ok {
-			if len(vals) != 0 {
-				name = fmt.Sprintf("%v", vals[0])
-
-				for i := 1; i < len(vals); i++ {
-					name += fmt.Sprintf(" %v", vals[i])
-				}
-			}
-		}
-	}
-
 	var roles []string
 	projects := make([]string, 0)
 
@@ -182,6 +169,19 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 			return nil, errors.New("unknown user")
 		}
 	} else {
+		var name string
+		if wrap, ok := claims["name"].(map[string]interface{}); ok {
+			if vals, ok := wrap["values"].([]interface{}); ok {
+				if len(vals) != 0 {
+					name = fmt.Sprintf("%v", vals[0])
+
+					for i := 1; i < len(vals); i++ {
+						name += fmt.Sprintf(" %v", vals[i])
+					}
+				}
+			}
+		}
+
 		// Extract roles from JWT (if present)
 		if rawroles, ok := claims["roles"].([]interface{}); ok {
 			for _, rr := range rawroles {
