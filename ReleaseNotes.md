@@ -1,4 +1,4 @@
-# `cc-backend` version 1.2.1
+# `cc-backend` version 1.2.2
 
 Supports job archive version 1 and database version 6.
 
@@ -7,7 +7,7 @@ implementation of ClusterCockpit.
 
 ** Breaking changes **
 
-* The LDAP configuration option user_filter was changed and now should not include
+* The LDAP configuration option `user_filter` was changed and now should not include
 the uid wildcard. Example:
    - Old: `"user_filter": "(&(objectclass=posixAccount)(uid=*))"`
    - New: `"user_filter": "(&(objectclass=posixAccount))"`
