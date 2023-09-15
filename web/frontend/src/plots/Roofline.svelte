@@ -15,6 +15,8 @@
     let uplot = null
     let timeoutId = null
 
+    const lineWidth = clusterCockpitConfig.plot_general_lineWidth
+
     /* Data Format
      * data       = [null, [], []] // 0: null-axis required for scatter, 1: Array of XY-Array for Scatter, 2: Optional Time Info
      * data[1][0] = [100, 200, 500, ...] // X Axis -> Intensity (Vals up to clusters' flopRateScalar value)
@@ -160,7 +162,7 @@
                                 const padding = u._padding // [top, right, bottom, left]
 
                                 u.ctx.strokeStyle = 'black'
-                                u.ctx.lineWidth = 2
+                                u.ctx.lineWidth = lineWidth
                                 u.ctx.beginPath()
 
                                 const ycut = 0.01 * cluster.memoryBandwidth.value
@@ -171,14 +173,17 @@
                                     flopRateScalarY = u.valToPos(cluster.flopRateScalar.value, 'y', true),
                                     flopRateSimdY = u.valToPos(cluster.flopRateSimd.value, 'y', true)
 
-                                if (scalarKneeX < width - padding[1]) { // Top horizontal roofline
+                                // Debug get zoomLevel from browser
+                                // console.log("Zoom", Math.round(window.devicePixelRatio * 100))
+
+                                if (scalarKneeX < (width * window.devicePixelRatio) - (padding[1] * window.devicePixelRatio)) { // Top horizontal roofline
                                     u.ctx.moveTo(scalarKneeX, flopRateScalarY)
-                                    u.ctx.lineTo(width - padding[1], flopRateScalarY)
+                                    u.ctx.lineTo((width * window.devicePixelRatio) - (padding[1] * window.devicePixelRatio), flopRateScalarY)
                                 }
 
-                                if (simdKneeX < width - padding[1]) { // Lower horitontal roofline
+                                if (simdKneeX < (width * window.devicePixelRatio) - (padding[1] * window.devicePixelRatio)) { // Lower horitontal roofline
                                     u.ctx.moveTo(simdKneeX, flopRateSimdY)
-                                    u.ctx.lineTo(width - padding[1], flopRateSimdY)
+                                    u.ctx.lineTo((width * window.devicePixelRatio) - (padding[1] * window.devicePixelRatio), flopRateSimdY)
                                 }
 
                                 let x1 = u.valToPos(0.01, 'x', true),
