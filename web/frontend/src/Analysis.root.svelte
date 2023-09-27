@@ -1,7 +1,7 @@
 <script>
     import { init, convert2uplot } from './utils.js'
     import { getContext, onMount } from 'svelte'
-    import { queryStore, gql, getContextClient  } from '@urql/svelte'
+    import { queryStore, gql, getContextClient, mutationStore } from '@urql/svelte'
     import { Row, Col, Spinner, Card, Table, Icon } from 'sveltestrap'
     import Filters from './filters/Filters.svelte'
     import PlotSelection from './PlotSelection.svelte'
@@ -10,7 +10,7 @@
     import { binsFromFootprint } from './utils.js'
     import ScatterPlot from './plots/Scatter.svelte'
     import PlotTable from './PlotTable.svelte'
-    import Roofline from './plots/Roofline.svelte'
+    import RooflineHeatmap from './plots/RooflineHeatmap.svelte'
 
     const { query: initq } = init()
 
@@ -42,6 +42,20 @@
 
     $: metrics = [...new Set([...metricsInHistograms, ...metricsInScatterplots.flat()])]
 
+    const sortOptions = [
+        {key: 'totalWalltime',  label: 'Walltime'},
+        {key: 'totalNodeHours', label: 'Node Hours'},
+        {key: 'totalCoreHours', label: 'Core Hours'},
+        {key: 'totalAccHours',  label: 'Accelerator Hours'}
+    ]
+    const groupOptions = [
+        {key: 'user',  label: 'User Name'},
+        {key: 'project', label: 'Project ID'}
+    ]
+
+    let sortSelection = sortOptions.find((option) => option.key == ccconfig[`analysis_view_selectedTopCategory:${filterPresets.cluster}`]) || sortOptions.find((option) => option.key == ccconfig.analysis_view_selectedTopCategory)
+    let groupSelection = groupOptions.find((option) => option.key == ccconfig[`analysis_view_selectedTopEntity:${filterPresets.cluster}`]) || groupOptions.find((option) => option.key == ccconfig.analysis_view_selectedTopEntity)
+
     getContext('on-init')(({ data }) => {
         if (data != null) {
             cluster = data.clusters.find(c => c.name == filterPresets.cluster)
@@ -62,15 +76,31 @@
                     totalJobs
                     shortJobs
                     totalWalltime
+                    totalNodeHours
                     totalCoreHours
+                    totalAccHours
                     histDuration { count, value }
-                    histNumNodes { count, value }
+                    histNumCores { count, value }
                 }
-
-                topUsers: jobsCount(filter: $jobFilters, groupBy: USER, weight: NODE_HOURS, limit: 5) { name, count }
             }
         `, 
         variables: { jobFilters }
+    })
+
+    $: topQuery = queryStore({
+        client: client,
+        query: gql`
+            query($jobFilters: [JobFilter!]!, $paging: PageRequest!, $sortBy: SortByAggregate!, $groupBy: Aggregate!) {
+                topList: jobsStatistics(filter: $jobFilters, page: $paging, sortBy: $sortBy, groupBy: $groupBy) {
+                    id
+                    totalWalltime
+                    totalNodeHours
+                    totalCoreHours
+                    totalAccHours
+                }
+            }
+        `, 
+        variables: { jobFilters, paging: { itemsPerPage: 10, page: 1 }, sortBy: sortSelection.key.toUpperCase(), groupBy: groupSelection.key.toUpperCase() }
     })
 
     $: footprintsQuery = queryStore({
@@ -78,7 +108,7 @@
         query: gql`
             query($jobFilters: [JobFilter!]!, $metrics: [String!]!) {
                 footprints: jobsFootprints(filter: $jobFilters, metrics: $metrics) {
-                    nodehours,
+                    timeWeights { nodeHours, accHours, coreHours },
                     metrics { metric, data }
                 }
             }`,
@@ -96,6 +126,53 @@
         `,
         variables: { jobFilters, rows: 50, cols: 50, minX: 0.01, minY: 1., maxX: 1000., maxY }
     })
+
+    const updateConfigurationMutation = ({ name, value }) => {
+        return mutationStore({
+            client: client,
+            query: gql`
+                mutation ($name: String!, $value: String!) {
+                    updateConfiguration(name: $name, value: $value)
+                }
+            `,
+            variables: { name, value }
+        });
+    }
+
+    function updateEntityConfiguration(select) {
+        if (ccconfig[`analysis_view_selectedTopEntity:${filterPresets.cluster}`] != select) {
+            updateConfigurationMutation({ name: `analysis_view_selectedTopEntity:${filterPresets.cluster}`, value: JSON.stringify(select) })
+            .subscribe(res => {
+                if (res.fetching === false && !res.error) {
+                    // console.log(`analysis_view_selectedTopEntity:${filterPresets.cluster}` + ' -> Updated!')
+                } else if (res.fetching === false && res.error) {
+                    throw res.error
+                }
+            })
+        } else {
+            // console.log('No Mutation Required: Entity')
+        }
+    };
+
+
+    function updateCategoryConfiguration(select) {
+        if (ccconfig[`analysis_view_selectedTopCategory:${filterPresets.cluster}`] != select) {
+            updateConfigurationMutation({ name: `analysis_view_selectedTopCategory:${filterPresets.cluster}`, value: JSON.stringify(select) })
+            .subscribe(res => {
+                if (res.fetching === false && !res.error) {
+                    // console.log(`analysis_view_selectedTopCategory:${filterPresets.cluster}` + ' -> Updated!')
+                } else if (res.fetching === false && res.error) {
+                    throw res.error
+                }
+            })
+        } else {
+            // console.log('No Mutation Required: Category')
+        }
+
+    };
+
+    $: updateEntityConfiguration(groupSelection.key)
+    $: updateCategoryConfiguration(sortSelection.key)
 
     onMount(() => filterComponent.update())
 </script>
@@ -152,35 +229,81 @@
                     <td>{$statsQuery.data.stats[0].totalWalltime}</td>
                 </tr>
                 <tr>
+                    <th scope="col">Total Node Hours</th>
+                    <td>{$statsQuery.data.stats[0].totalNodeHours}</td>
+                </tr>
+                <tr>
                     <th scope="col">Total Core Hours</th>
                     <td>{$statsQuery.data.stats[0].totalCoreHours}</td>
+                </tr>
+                <tr>
+                    <th scope="col">Total Accelerator Hours</th>
+                    <td>{$statsQuery.data.stats[0].totalAccHours}</td>
                 </tr>
             </Table>
         </Col>
         <Col>
             <div bind:clientWidth={colWidth1}>
-            <h5>Top Users</h5>
-            {#key $statsQuery.data.topUsers}
-            <Pie
-                size={colWidth1}
-                sliceLabel='Hours'
-                quantities={$statsQuery.data.topUsers.sort((a, b) => b.count - a.count).map((tu) => tu.count)}
-                entities={$statsQuery.data.topUsers.sort((a, b) => b.count - a.count).map((tu) => tu.name)}
-            />
+            <h5>Top 
+                <select class="p-0" bind:value={groupSelection}>
+                    {#each groupOptions as option}
+                        <option value={option}>
+                            {option.key.charAt(0).toUpperCase() + option.key.slice(1)}s
+                        </option>
+                    {/each}
+                </select>
+            </h5>
+            {#key $topQuery.data}
+                {#if $topQuery.fetching}
+                    <Spinner/>
+                {:else if $topQuery.error}
+                    <Card body color="danger">{$topQuery.error.message}</Card>
+                {:else}                    
+                    <Pie
+                        size={colWidth1}
+                        sliceLabel={sortSelection.label}
+                        quantities={$topQuery.data.topList.map((t) => t[sortSelection.key])}
+                        entities={$topQuery.data.topList.map((t) => t.id)}
+                    />
+                {/if}
             {/key}
             </div>
         </Col>
         <Col>
-            <Table>
-                <tr class="mb-2"><th>Legend</th><th>User Name</th><th>Node Hours</th></tr>
-                {#each $statsQuery.data.topUsers.sort((a, b) => b.count - a.count) as { name, count }, i}
-                    <tr>
-                        <td><Icon name="circle-fill" style="color: {colors[i]};"/></td>
-                        <th scope="col"><a href="/monitoring/user/{name}?cluster={cluster.name}">{name}</a></th>
-                        <td>{count}</td>
-                    </tr>
-                {/each}
-            </Table>
+            {#key $topQuery.data}
+                {#if $topQuery.fetching}
+                    <Spinner/>
+                {:else if $topQuery.error}
+                    <Card body color="danger">{$topQuery.error.message}</Card>
+                {:else}
+                    <Table>
+                        <tr class="mb-2">
+                            <th>Legend</th>
+                            <th>{groupSelection.label}</th>
+                            <th>
+                                <select class="p-0" bind:value={sortSelection}>
+                                    {#each sortOptions as option}
+                                        <option value={option}>
+                                            {option.label}
+                                        </option>
+                                    {/each}
+                                </select>
+                            </th>
+                        </tr>
+                        {#each $topQuery.data.topList as te, i}
+                            <tr>
+                                <td><Icon name="circle-fill" style="color: {colors[i]};"/></td>
+                                {#if groupSelection.key == 'user'} 
+                                    <th scope="col"><a href="/monitoring/user/{te.id}?cluster={cluster.name}">{te.id}</a></th>
+                                {:else}
+                                    <th scope="col"><a href="/monitoring/jobs/?cluster={cluster.name}&project={te.id}&projectMatch=eq">{te.id}</a></th>
+                                {/if}
+                                <td>{te[sortSelection.key]}</td>
+                            </tr>
+                        {/each}
+                    </Table>
+                {/if}
+            {/key}
         </Col>
     </Row>
     <Row cols={3} class="mb-2">
@@ -192,7 +315,7 @@
             {:else if $rooflineQuery.data && cluster}
                 <div bind:clientWidth={colWidth2}>
                 {#key $rooflineQuery.data}
-                    <Roofline
+                    <RooflineHeatmap
                         width={colWidth2} height={300}
                         tiles={$rooflineQuery.data.rooflineHeatmap}
                         cluster={cluster.subClusters.length == 1 ? cluster.subClusters[0] : null}
@@ -217,13 +340,13 @@
         </Col>
         <Col>
             <div bind:clientWidth={colWidth4}>
-            {#key $statsQuery.data.stats[0].histNumNodes}
+            {#key $statsQuery.data.stats[0].histNumCores}
                 <Histogram
                     width={colWidth4} height={300}
-                    data={convert2uplot($statsQuery.data.stats[0].histNumNodes)}
-                    title="Number of Nodes Distribution"
-                    xlabel="Allocated Nodes"
-                    xunit="Nodes"
+                    data={convert2uplot($statsQuery.data.stats[0].histNumCores)}
+                    title="Number of Cores Distribution"
+                    xlabel="Allocated Cores"
+                    xunit="Cores"
                     ylabel="Number of Jobs"
                     yunit="Jobs"/>
             {/key}
@@ -244,8 +367,9 @@
     <Row>
         <Col>
             <Card body>
-                These histograms show the distribution of the averages of all jobs matching the filters. Each job/average is weighted by its node hours.
-                Note that some metrics could be disabled for specific subclusters as per metriConfig and thus could affect shown average values.
+                These histograms show the distribution of the averages of all jobs matching the filters. Each job/average is weighted by its node hours by default 
+                (Accelerator hours for native accelerator scope metrics, coreHours for native core scope metrics).
+                Note that some metrics could be disabled for specific subclusters as per metricConfig and thus could affect shown average values.
             </Card>
             <br/>
         </Col>
@@ -257,7 +381,8 @@
                 let:width
                 renderFor="analysis"
                 items={metricsInHistograms.map(metric => ({ metric, ...binsFromFootprint(
-                    $footprintsQuery.data.footprints.nodehours,
+                    $footprintsQuery.data.footprints.timeWeights,
+                    metricConfig(cluster.name, metric)?.scope,
                     $footprintsQuery.data.footprints.metrics.find(f => f.metric == metric).data, numBins) }))}
                 itemsPerRow={ccconfig.plot_view_plotsPerRow}>
 
@@ -265,11 +390,11 @@
                     data={convert2uplot(item.bins)}
                     width={width} height={250}
                     title="Average Distribution of '{item.metric}'"
-                    xlabel={`${item.metric} average [${(metricConfig(cluster.name, item.metric)?.unit?.prefix ? metricConfig(cluster.name, item.metric)?.unit?.prefix : '') +
+                    xlabel={`${item.metric} bin maximum [${(metricConfig(cluster.name, item.metric)?.unit?.prefix ? metricConfig(cluster.name, item.metric)?.unit?.prefix : '') +
                                                        (metricConfig(cluster.name, item.metric)?.unit?.base   ? metricConfig(cluster.name, item.metric)?.unit?.base   : '')}]`}
                     xunit={`${(metricConfig(cluster.name, item.metric)?.unit?.prefix ? metricConfig(cluster.name, item.metric)?.unit?.prefix : '') +
                               (metricConfig(cluster.name, item.metric)?.unit?.base   ? metricConfig(cluster.name, item.metric)?.unit?.base   : '')}`}
-                    ylabel="Node Hours"
+                    ylabel="Normalized Hours"
                     yunit="Hours"/>
             </PlotTable>
         </Col>
@@ -279,7 +404,7 @@
         <Col>
             <Card body>
                 Each circle represents one job. The size of a circle is proportional to its node hours. Darker circles mean multiple jobs have the same averages for the respective metrics.
-                Note that some metrics could be disabled for specific subclusters as per metriConfig and thus could affect shown average values.
+                Note that some metrics could be disabled for specific subclusters as per metricConfig and thus could affect shown average values.
             </Card>
             <br/>
         </Col>
@@ -301,7 +426,7 @@
                                            (metricConfig(cluster.name, item.m1)?.unit?.base   ? metricConfig(cluster.name, item.m1)?.unit?.base   : '')}]`}
                     yLabel={`${item.m2} [${(metricConfig(cluster.name, item.m2)?.unit?.prefix ? metricConfig(cluster.name, item.m2)?.unit?.prefix : '') + 
                                            (metricConfig(cluster.name, item.m2)?.unit?.base   ? metricConfig(cluster.name, item.m2)?.unit?.base   : '')}]`}
-                    X={item.f1} Y={item.f2} S={$footprintsQuery.data.footprints.nodehours} />
+                    X={item.f1} Y={item.f2} S={$footprintsQuery.data.footprints.timeWeights.nodeHours} />
             </PlotTable>
         </Col>
     </Row>

@@ -244,34 +244,34 @@ func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, pag
 }
 
 // JobsStatistics is the resolver for the jobsStatistics field.
-func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobFilter, groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
+func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobFilter, page *model.PageRequest, sortBy *model.SortByAggregate, groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
 	var err error
 	var stats []*model.JobsStatistics
 
-	if requireField(ctx, "totalJobs") {
+	if requireField(ctx, "totalJobs") || requireField(ctx, "totalWalltime") || requireField(ctx, "totalNodes") || requireField(ctx, "totalCores") ||
+		requireField(ctx, "totalAccs") || requireField(ctx, "totalNodeHours") || requireField(ctx, "totalCoreHours") || requireField(ctx, "totalAccHours") {
 		if groupBy == nil {
 			stats, err = r.Repo.JobsStats(ctx, filter)
 		} else {
-			stats, err = r.Repo.JobsStatsGrouped(ctx, filter, groupBy)
+			stats, err = r.Repo.JobsStatsGrouped(ctx, filter, page, sortBy, groupBy)
 		}
 	} else {
 		stats = make([]*model.JobsStatistics, 0, 1)
-		stats = append(stats,
-			&model.JobsStatistics{})
+		stats = append(stats, &model.JobsStatistics{})
 	}
 
 	if groupBy != nil {
 		if requireField(ctx, "shortJobs") {
 			stats, err = r.Repo.AddJobCountGrouped(ctx, filter, groupBy, stats, "short")
 		}
-		if requireField(ctx, "RunningJobs") {
+		if requireField(ctx, "runningJobs") {
 			stats, err = r.Repo.AddJobCountGrouped(ctx, filter, groupBy, stats, "running")
 		}
 	} else {
 		if requireField(ctx, "shortJobs") {
 			stats, err = r.Repo.AddJobCount(ctx, filter, stats, "short")
 		}
-		if requireField(ctx, "RunningJobs") {
+		if requireField(ctx, "runningJobs") {
 			stats, err = r.Repo.AddJobCount(ctx, filter, stats, "running")
 		}
 	}
@@ -280,7 +280,7 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 		return nil, err
 	}
 
-	if requireField(ctx, "histDuration") || requireField(ctx, "histNumNodes") {
+	if requireField(ctx, "histDuration") || requireField(ctx, "histNumNodes") || requireField(ctx, "histNumCores") || requireField(ctx, "histNumAccs") {
 		if groupBy == nil {
 			stats[0], err = r.Repo.AddHistograms(ctx, filter, stats[0])
 			if err != nil {
@@ -292,24 +292,6 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	}
 
 	return stats, nil
-}
-
-// JobsCount is the resolver for the jobsCount field.
-func (r *queryResolver) JobsCount(ctx context.Context, filter []*model.JobFilter, groupBy model.Aggregate, weight *model.Weights, limit *int) ([]*model.Count, error) {
-	counts, err := r.Repo.CountGroupedJobs(ctx, groupBy, filter, weight, limit)
-	if err != nil {
-		log.Warn("Error while counting grouped jobs")
-		return nil, err
-	}
-
-	res := make([]*model.Count, 0, len(counts))
-	for name, count := range counts {
-		res = append(res, &model.Count{
-			Name:  name,
-			Count: count,
-		})
-	}
-	return res, nil
 }
 
 // RooflineHeatmap is the resolver for the rooflineHeatmap field.

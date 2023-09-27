@@ -15,6 +15,7 @@ type LdapConfig struct {
 	SearchDN        string `json:"search_dn"`
 	UserBind        string `json:"user_bind"`
 	UserFilter      string `json:"user_filter"`
+	UserAttr        string `json:"username_attr"`
 	SyncInterval    string `json:"sync_interval"` // Parsed using time.ParseDuration.
 	SyncDelOldUsers bool   `json:"sync_del_old_users"`
 
@@ -75,7 +76,7 @@ type ProgramConfig struct {
 	// Address where the http (or https) server will listen on (for example: 'localhost:80').
 	Addr string `json:"addr"`
 
-	// Addresses from which the /api/secured/* API endpoints can be reached
+	// Addresses from which secured API endpoints can be reached
 	ApiAllowedIPs []string `json:"apiAllowedIPs"`
 
 	// Drop root permissions once .env was read and the port was taken.

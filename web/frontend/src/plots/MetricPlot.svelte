@@ -166,7 +166,7 @@
         } 
     }
 
-    const plotSeries = [{label: 'Runtime', value: (u, ts, sidx, didx) => didx == null ? null : formatTime(ts)}]
+    const plotSeries = [{label: 'Runtime', value: (u, ts, sidx, didx) => didx == null ? null : formatTime(ts, forNode)}]
     const plotData = [new Array(longestSeries)]
 
     if (forNode === true) {
@@ -227,7 +227,7 @@
                 scale: 'x',
                 space: 35,
                 incrs: timeIncrs(timestep, maxX, forNode),
-                values: (_, vals) => vals.map(v => formatTime(v))
+                values: (_, vals) => vals.map(v => formatTime(v, forNode))
             },
             {
                 scale: 'y',
@@ -349,19 +349,21 @@
     }
 </script>
 <script context="module">
-    export function formatTime(t) {
+    export function formatTime(t, forNode = false) {
         if (t !== null) {
             if (isNaN(t)) {
                 return t
             } else {
-                let h = Math.floor(t / 3600)
-                let m = Math.floor((t % 3600) / 60)
+                const tAbs = Math.abs(t)
+                const h = Math.floor(tAbs / 3600)
+                const m = Math.floor((tAbs % 3600) / 60)
+                // Re-Add "negativity" to time ticks only as string, so that if-cases work as intended
                 if (h == 0)
-                    return `${m}m`
+                    return `${forNode && m != 0 ? '-' : ''}${m}m`
                 else if (m == 0)
-                    return `${h}h`
+                    return `${forNode?'-':''}${h}h`
                 else
-                    return `${h}:${m}h`
+                    return `${forNode?'-':''}${h}:${m}h`
             }
         }
     }

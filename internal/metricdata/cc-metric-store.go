@@ -506,7 +506,7 @@ func (ccms *CCMetricStore) LoadStats(
 	metrics []string,
 	ctx context.Context) (map[string]map[string]schema.MetricStatistics, error) {
 
-	queries, _, err := ccms.buildQueries(job, metrics, []schema.MetricScope{schema.MetricScopeNode})
+	queries, _, err := ccms.buildQueries(job, metrics, []schema.MetricScope{schema.MetricScopeNode}) // #166 Add scope shere for analysis view accelerator normalization?
 	if err != nil {
 		log.Warn("Error while building query")
 		return nil, err
@@ -533,7 +533,9 @@ func (ccms *CCMetricStore) LoadStats(
 		metric := ccms.toLocalName(query.Metric)
 		data := res[0]
 		if data.Error != nil {
-			return nil, fmt.Errorf("METRICDATA/CCMS > fetching %s for node %s failed: %s", metric, query.Hostname, *data.Error)
+			log.Infof("fetching %s for node %s failed: %s", metric, query.Hostname, *data.Error)
+			continue
+			// return nil, fmt.Errorf("METRICDATA/CCMS > fetching %s for node %s failed: %s", metric, query.Hostname, *data.Error)
 		}
 
 		metricdata, ok := stats[metric]
@@ -543,7 +545,9 @@ func (ccms *CCMetricStore) LoadStats(
 		}
 
 		if data.Avg.IsNaN() || data.Min.IsNaN() || data.Max.IsNaN() {
-			return nil, fmt.Errorf("METRICDATA/CCMS > fetching %s for node %s failed: %s", metric, query.Hostname, "avg/min/max is NaN")
+			log.Infof("fetching %s for node %s failed: one of avg/min/max is NaN", metric, query.Hostname)
+			continue
+			// return nil, fmt.Errorf("METRICDATA/CCMS > fetching %s for node %s failed: %s", metric, query.Hostname, "avg/min/max is NaN")
 		}
 
 		metricdata[query.Hostname] = schema.MetricStatistics{

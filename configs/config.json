@@ -5,7 +5,7 @@
         "user_base": "ou=people,ou=hpc,dc=test,dc=de",
         "search_dn": "cn=hpcmonitoring,ou=roadm,ou=profile,ou=hpc,dc=test,dc=de",
         "user_bind": "uid={username},ou=people,ou=hpc,dc=test,dc=de",
-        "user_filter": "(&(objectclass=posixAccount)(uid=*))"
+        "user_filter": "(&(objectclass=posixAccount))"
     },
     "https-cert-file": "/etc/letsencrypt/live/url/fullchain.pem",
     "https-key-file": "/etc/letsencrypt/live/url/privkey.pem",
@@ -43,7 +43,7 @@
     "jwts": {
         "cookieName": "",
         "validateUser": false,
-        "max-age": "2m",
+        "max-age": "2000h",
         "trustedIssuer": ""
     },
     "short-running-jobs-duration": 300

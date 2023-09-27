@@ -1,3 +1,6 @@
+# NOTE
+Please have a look at the [Release Notes](https://github.com/ClusterCockpit/cc-backend/blob/master/ReleaseNotes.md) for breaking changes!
+
 # ClusterCockpit REST and GraphQL API backend
 
 [![Build](https://github.com/ClusterCockpit/cc-backend/actions/workflows/test.yml/badge.svg)](https://github.com/ClusterCockpit/cc-backend/actions/workflows/test.yml)
@@ -165,7 +168,7 @@ If you start `cc-backend` with the `-dev` flag, the GraphQL Playground UI is ava
 This project integrates [swagger ui] (https://swagger.io/tools/swagger-ui/) to document and test its REST API.
 The swagger documentation files can be found in `./api/`.
 You can generate the swagger-ui configuration by running `go run github.com/swaggo/swag/cmd/swag init -d ./internal/api,./pkg/schema -g rest.go -o ./api `.
-You need to move the created `./api/doc.go` to `./internal/api/doc.go`.
+You need to move the created `./api/docs.go` to `./internal/api/docs.go`.
 If you start cc-backend with the `-dev` flag, the Swagger interface is available
 at http://localhost:8080/swagger/.
 You must enter a JWT key for a user with the API role.

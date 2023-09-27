@@ -10,6 +10,7 @@
     "@rollup/plugin-commonjs": "^24.1.0",
     "@rollup/plugin-node-resolve": "^15.0.2",
     "@rollup/plugin-terser": "^0.4.1",
+    "@timohausmann/quadtree-js": "^1.2.5",
     "rollup": "^3.21.0",
     "rollup-plugin-css-only": "^4.3.0",
     "rollup-plugin-svelte": "^7.1.4",
@@ -21,7 +22,7 @@
     "chart.js": "^4.3.3",
     "graphql": "^16.6.0",
     "svelte-chartjs": "^3.1.2",
-    "sveltestrap": "^5.10.0",
+    "sveltestrap": "^5.11.1",
     "uplot": "^1.6.24",
     "wonka": "^6.3.2"
   }

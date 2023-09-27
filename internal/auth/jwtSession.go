@@ -5,6 +5,7 @@
 package auth
 
 import (
+	"database/sql"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -78,31 +79,35 @@ func (ja *JWTSessionAuthenticator) Login(
 	claims := token.Claims.(jwt.MapClaims)
 	sub, _ := claims["sub"].(string)
 
-	var name string
-	if wrap, ok := claims["name"].(map[string]interface{}); ok {
-		if vals, ok := wrap["values"].([]interface{}); ok {
-			if len(vals) != 0 {
-				name = fmt.Sprintf("%v", vals[0])
-
-				for i := 1; i < len(vals); i++ {
-					name += fmt.Sprintf(" %v", vals[i])
-				}
-			}
-		}
-	}
-
 	var roles []string
+	projects := make([]string, 0)
 
 	if config.Keys.JwtConfig.ValidateUser {
+		var err error
+		user, err = repository.GetUserRepository().GetUser(sub)
+		if err != nil && err != sql.ErrNoRows {
+			log.Errorf("Error while loading user '%v'", sub)
+		}
+
 		// Deny any logins for unknown usernames
 		if user == nil {
 			log.Warn("Could not find user from JWT in internal database.")
 			return nil, errors.New("unknown user")
 		}
-
-		// Take user roles from database instead of trusting the JWT
-		roles = user.Roles
 	} else {
+		var name string
+		if wrap, ok := claims["name"].(map[string]interface{}); ok {
+			if vals, ok := wrap["values"].([]interface{}); ok {
+				if len(vals) != 0 {
+					name = fmt.Sprintf("%v", vals[0])
+
+					for i := 1; i < len(vals); i++ {
+						name += fmt.Sprintf(" %v", vals[i])
+					}
+				}
+			}
+		}
+
 		// Extract roles from JWT (if present)
 		if rawroles, ok := claims["roles"].([]interface{}); ok {
 			for _, rr := range rawroles {
@@ -113,23 +118,17 @@ func (ja *JWTSessionAuthenticator) Login(
 				}
 			}
 		}
-	}
 
-	projects := make([]string, 0)
-	// Java/Grails Issued Token
-	// if rawprojs, ok := claims["projects"].([]interface{}); ok {
-	// 	for _, pp := range rawprojs {
-	// 		if p, ok := pp.(string); ok {
-	// 			projects = append(projects, p)
-	// 		}
-	// 	}
-	// } else if rawprojs, ok := claims["projects"]; ok {
-	// 	for _, p := range rawprojs.([]string) {
-	// 		projects = append(projects, p)
-	// 	}
-	// }
+		if rawprojs, ok := claims["projects"].([]interface{}); ok {
+			for _, pp := range rawprojs {
+				if p, ok := pp.(string); ok {
+					projects = append(projects, p)
+				}
+			}
+		} else if rawprojs, ok := claims["projects"]; ok {
+			projects = append(projects, rawprojs.([]string)...)
+		}
 
-	if user == nil {
 		user = &schema.User{
 			Username:   sub,
 			Name:       name,

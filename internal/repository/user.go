@@ -134,8 +134,12 @@ func (r *UserRepository) AddUser(user *schema.User) error {
 func (r *UserRepository) DelUser(username string) error {
 
 	_, err := r.DB.Exec(`DELETE FROM user WHERE user.username = ?`, username)
-	log.Errorf("Error while deleting user '%s' from DB", username)
-	return err
+	if err != nil {
+		log.Errorf("Error while deleting user '%s' from DB", username)
+		return err
+	}
+	log.Infof("deleted user '%s' from DB", username)
+	return nil
 }
 
 func (r *UserRepository) ListUsers(specialsOnly bool) ([]*schema.User, error) {

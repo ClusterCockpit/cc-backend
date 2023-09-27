@@ -22,10 +22,10 @@
         LineElement
     );
 
-    export let size
     export let metrics
     export let cluster
     export let jobMetrics
+    export let height = 365
 
     const metricConfig = getContext('metrics')
 
@@ -89,13 +89,19 @@
     // No custom defined options but keep for clarity 
     const options = {
         maintainAspectRatio: false,
-        animation: false
+        animation: false,
+        scales: { // fix scale
+            r: {
+                suggestedMin: 0.0,
+                suggestedMax: 1.0
+            }
+        }
     }
 
 </script>
 
 <div class="chart-container">
-    <Radar {data} {options} width={size} height={size}/>
+    <Radar {data} {options} {height}/>
 </div>
 
 <style>

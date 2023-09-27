@@ -22,8 +22,8 @@ type FloatRange struct {
 }
 
 type Footprints struct {
-	Nodehours []schema.Float      `json:"nodehours"`
-	Metrics   []*MetricFootprints `json:"metrics"`
+	TimeWeights *TimeWeights        `json:"timeWeights"`
+	Metrics     []*MetricFootprints `json:"metrics"`
 }
 
 type HistoPoint struct {
@@ -91,11 +91,16 @@ type JobsStatistics struct {
 	RunningJobs    int           `json:"runningJobs"`
 	ShortJobs      int           `json:"shortJobs"`
 	TotalWalltime  int           `json:"totalWalltime"`
+	TotalNodes     int           `json:"totalNodes"`
 	TotalNodeHours int           `json:"totalNodeHours"`
+	TotalCores     int           `json:"totalCores"`
 	TotalCoreHours int           `json:"totalCoreHours"`
+	TotalAccs      int           `json:"totalAccs"`
 	TotalAccHours  int           `json:"totalAccHours"`
 	HistDuration   []*HistoPoint `json:"histDuration"`
 	HistNumNodes   []*HistoPoint `json:"histNumNodes"`
+	HistNumCores   []*HistoPoint `json:"histNumCores"`
+	HistNumAccs    []*HistoPoint `json:"histNumAccs"`
 }
 
 type MetricFootprints struct {
@@ -131,6 +136,12 @@ type StringInput struct {
 type TimeRangeOutput struct {
 	From time.Time `json:"from"`
 	To   time.Time `json:"to"`
+}
+
+type TimeWeights struct {
+	NodeHours []schema.Float `json:"nodeHours"`
+	AccHours  []schema.Float `json:"accHours"`
+	CoreHours []schema.Float `json:"coreHours"`
 }
 
 type User struct {
@@ -182,6 +193,59 @@ func (e Aggregate) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
+type SortByAggregate string
+
+const (
+	SortByAggregateTotalwalltime  SortByAggregate = "TOTALWALLTIME"
+	SortByAggregateTotaljobs      SortByAggregate = "TOTALJOBS"
+	SortByAggregateTotalnodes     SortByAggregate = "TOTALNODES"
+	SortByAggregateTotalnodehours SortByAggregate = "TOTALNODEHOURS"
+	SortByAggregateTotalcores     SortByAggregate = "TOTALCORES"
+	SortByAggregateTotalcorehours SortByAggregate = "TOTALCOREHOURS"
+	SortByAggregateTotalaccs      SortByAggregate = "TOTALACCS"
+	SortByAggregateTotalacchours  SortByAggregate = "TOTALACCHOURS"
+)
+
+var AllSortByAggregate = []SortByAggregate{
+	SortByAggregateTotalwalltime,
+	SortByAggregateTotaljobs,
+	SortByAggregateTotalnodes,
+	SortByAggregateTotalnodehours,
+	SortByAggregateTotalcores,
+	SortByAggregateTotalcorehours,
+	SortByAggregateTotalaccs,
+	SortByAggregateTotalacchours,
+}
+
+func (e SortByAggregate) IsValid() bool {
+	switch e {
+	case SortByAggregateTotalwalltime, SortByAggregateTotaljobs, SortByAggregateTotalnodes, SortByAggregateTotalnodehours, SortByAggregateTotalcores, SortByAggregateTotalcorehours, SortByAggregateTotalaccs, SortByAggregateTotalacchours:
+		return true
+	}
+	return false
+}
+
+func (e SortByAggregate) String() string {
+	return string(e)
+}
+
+func (e *SortByAggregate) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = SortByAggregate(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid SortByAggregate", str)
+	}
+	return nil
+}
+
+func (e SortByAggregate) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
 type SortDirectionEnum string
 
 const (
@@ -220,46 +284,5 @@ func (e *SortDirectionEnum) UnmarshalGQL(v interface{}) error {
 }
 
 func (e SortDirectionEnum) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
-}
-
-type Weights string
-
-const (
-	WeightsNodeCount Weights = "NODE_COUNT"
-	WeightsNodeHours Weights = "NODE_HOURS"
-)
-
-var AllWeights = []Weights{
-	WeightsNodeCount,
-	WeightsNodeHours,
-}
-
-func (e Weights) IsValid() bool {
-	switch e {
-	case WeightsNodeCount, WeightsNodeHours:
-		return true
-	}
-	return false
-}
-
-func (e Weights) String() string {
-	return string(e)
-}
-
-func (e *Weights) UnmarshalGQL(v interface{}) error {
-	str, ok := v.(string)
-	if !ok {
-		return fmt.Errorf("enums must be strings")
-	}
-
-	*e = Weights(str)
-	if !e.IsValid() {
-		return fmt.Errorf("%s is not a valid Weights", str)
-	}
-	return nil
-}
-
-func (e Weights) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }

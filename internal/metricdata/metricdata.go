@@ -182,7 +182,7 @@ func LoadAverages(
 	ctx context.Context) error {
 
 	if job.State != schema.JobStateRunning && useArchive {
-		return archive.LoadAveragesFromArchive(job, metrics, data)
+		return archive.LoadAveragesFromArchive(job, metrics, data) // #166 change also here?
 	}
 
 	repo, ok := metricDataRepos[job.Cluster]
@@ -190,7 +190,7 @@ func LoadAverages(
 		return fmt.Errorf("METRICDATA/METRICDATA > no metric data repository configured for '%s'", job.Cluster)
 	}
 
-	stats, err := repo.LoadStats(job, metrics, ctx)
+	stats, err := repo.LoadStats(job, metrics, ctx) // #166 how to handle stats for acc normalizazion?
 	if err != nil {
 		log.Errorf("Error while loading statistics for job %v (User %v, Project %v)", job.JobID, job.User, job.Project)
 		return err
