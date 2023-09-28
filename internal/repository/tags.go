@@ -134,6 +134,19 @@ func (r *JobRepository) AddTagOrCreate(jobId int64, tagType string, tagName stri
 	return tagId, nil
 }
 
+func (r *JobRepository) HasTag(jobId int64, tagType string, tagName string) bool {
+	var id int64
+	q := sq.Select("id").From("tag").Join("jobtag ON jobtag.tag_id = tag.id").
+		Where("jobtag.job_id = ?", jobId).Where("tag.tag_type = ?", tagType).
+		Where("tag.tag_name = ?", tagName)
+	err := q.RunWith(r.stmtCache).QueryRow().Scan(&id)
+	if err != nil {
+		return false
+	} else {
+		return true
+	}
+}
+
 // TagId returns the database id of the tag with the specified type and name.
 func (r *JobRepository) TagId(tagType string, tagName string) (tagId int64, exists bool) {
 	exists = true

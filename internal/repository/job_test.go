@@ -16,9 +16,7 @@ func TestFind(t *testing.T) {
 
 	jobId, cluster, startTime := int64(398998), "fritz", int64(1675957496)
 	job, err := r.Find(&jobId, &cluster, &startTime)
-	if err != nil {
-		t.Fatal(err)
-	}
+	noErr(t, err)
 
 	// fmt.Printf("%+v", job)
 
@@ -31,9 +29,7 @@ func TestFindById(t *testing.T) {
 	r := setup(t)
 
 	job, err := r.FindById(5)
-	if err != nil {
-		t.Fatal(err)
-	}
+	noErr(t, err)
 
 	// fmt.Printf("%+v", job)
 
@@ -46,14 +42,26 @@ func TestGetTags(t *testing.T) {
 	r := setup(t)
 
 	tags, counts, err := r.CountTags(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	noErr(t, err)
 
 	fmt.Printf("TAGS %+v \n", tags)
 	// fmt.Printf("COUNTS %+v \n", counts)
 
-	if counts["bandwidth"] != 0 {
-		t.Errorf("wrong tag count \ngot: %d \nwant: 0", counts["bandwidth"])
+	if counts["bandwidth"] != 2 {
+		t.Errorf("wrong tag count \ngot: %d \nwant: 2", counts["bandwidth"])
+	}
+}
+
+func TestHasTag(t *testing.T) {
+	r := setup(t)
+
+	if !r.HasTag(5, "util", "bandwidth") {
+		t.Errorf("Expected has tag")
+	}
+	if r.HasTag(4, "patho", "idle") {
+		t.Errorf("Expected has not tag")
+	}
+	if !r.HasTag(5, "patho", "idle") {
+		t.Errorf("Expected has tag")
 	}
 }
