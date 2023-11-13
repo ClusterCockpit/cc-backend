@@ -28,6 +28,17 @@
         return `${hours}:${('0' + minutes).slice(-2)}:${('0' + seconds).slice(-2)}`;
     }
 
+    function getStateColor(state) {
+        switch (state) {
+            case 'running':
+                return 'success'
+            case 'completed':
+                return 'primary'
+            default:
+                return 'danger'
+        }
+    }
+
 </script>
 
 <div>
@@ -86,12 +97,7 @@
     <p>
         Start: <span class="fw-bold">{(new Date(job.startTime)).toLocaleString()}</span>
         <br/>
-        Duration: <span class="fw-bold">{formatDuration(job.duration)}</span>
-        {#if job.state == 'running'}
-            <Badge color="success">running</Badge>
-        {:else if job.state != 'completed'}
-            <Badge color="danger">{job.state}</Badge>
-        {/if}
+        Duration: <span class="fw-bold">{formatDuration(job.duration)}</span> <Badge color="{getStateColor(job.state)}">{job.state}</Badge>
         {#if job.walltime}
             <br/>
             Walltime: <span class="fw-bold">{formatDuration(job.walltime)}</span>
