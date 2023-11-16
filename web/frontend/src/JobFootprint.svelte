@@ -31,7 +31,7 @@
     export let size = 200
     export let displayLegend = false
 
-    const footprintMetrics = ['mem_used', 'mem_bw','flops_any', 'cpu_load', 'acc_utilization'] // missing: energy , move to central config before deployment
+    const footprintMetrics = ['mem_used', 'mem_bw','flops_any', 'cpu_load'] // 'acc_utilization' / missing: energy , move to central config before deployment
 
     const footprintMetricConfigs = footprintMetrics.map((fm) => { 
         return getContext('metrics')(job.cluster, fm)
@@ -47,16 +47,25 @@
 
     const meanVals = footprintMetrics.map((fm) => {
         let jm = jobMetrics.find((jm) => jm.name === fm)
+        let mv = null
         if (jm?.metric?.statisticsSeries) {
-            return {name: jm.name, scope: jm.scope, avg: round(mean(jm.metric.statisticsSeries.mean), 2)}
+            mv = {name: jm.name, scope: jm.scope, avg: round(mean(jm.metric.statisticsSeries.mean), 2)}
         } else if (jm?.metric?.series[0]) {
-            return {name: jm.name, scope: jm.scope, avg: jm.metric.series[0].statistics.avg}
+            mv = {name: jm.name, scope: jm.scope, avg: jm.metric.series[0].statistics.avg}
         }
+
+        if (jm?.metric?.unit?.base) {
+            return {...mv, unit: jm.metric.unit.prefix + jm.metric.unit.base}
+        } else {
+            return {...mv, unit: ''}
+        }
+
     }).filter( Boolean )
 
     console.log("MVs", meanVals)
 
-    const footprintLabels = meanVals.map((mv) => [mv.name, 'Threshold'])
+    const footprintLabels = meanVals.map((mv) => [mv.name, 'Threshold']).flat()
+    const footprintUnits  = meanVals.map((mv) => [mv.unit, mv.unit]).flat()
 
     const footprintData = meanVals.map((mv) => {
         const metricConfig = footprintMetricConfigs.find((fmc) => fmc.name === mv.name)
@@ -72,11 +81,15 @@
                 return {data: [mv.avg, levelCaution], color: ['hsl(56, 100%, 50%)', '#AAA']} // '#d5b60a'
             } else if (levelNormal > 0) {
                 return {data: [mv.avg, levelNormal], color: ['hsl(100, 100%, 60%)', '#AAA']} // 'hsl(100, 100%, 35%)'
-            } else {
+            } else if (levelPeak > 0) {
                 return {data: [mv.avg, levelPeak], color: ['hsl(180, 100%, 60%)', '#AAA']} // 'hsl(180, 100%, 35%)'
+            } else { // If avg greater than configured peak: render negative diff as zero
+                return {data: [mv.avg, 0], color: ['hsl(180, 100%, 60%)', '#AAA']} // 'hsl(180, 100%, 35%)'
             }
         } else { // Inverse Logic: Alert if usage is high, Peak is bad and limits execution
-            if (levelPeak > 0 && (levelAlert <= 0 && levelCaution <= 0 && levelNormal <= 0)) {
+            if (levelPeak <= 0 && levelAlert <= 0 && levelCaution <= 0 && levelNormal <= 0) {  // If avg greater than configured peak: render negative diff as zero
+                return {data: [mv.avg, 0], color: ['#7F00FF', '#AAA']} // '#5D3FD3'
+            } else if (levelPeak > 0 && (levelAlert <= 0 && levelCaution <= 0 && levelNormal <= 0)) {
                 return {data: [mv.avg, levelPeak], color: ['#7F00FF', '#AAA']} // '#5D3FD3'
             } else if (levelAlert > 0 && (levelCaution <= 0 && levelNormal <= 0)) {
                 return {data: [mv.avg, levelAlert], color: ['hsl(0, 100%, 60%)', '#AAA']} // 'hsl(0, 100%, 35%)'
@@ -91,7 +104,7 @@
     console.log("FPD", footprintData)
 
     $: data = {
-        labels: footprintLabels.flat(),
+        labels: footprintLabels,
         datasets: [
             {
                 backgroundColor: footprintData[0].color,
@@ -157,11 +170,19 @@
                 callbacks: {
                     label: function(context) {
                         const labelIndex = (context.datasetIndex * 2) + context.dataIndex;
-                        return context.chart.data.labels[labelIndex] + ': ' + context.formattedValue;
+                        if (context.chart.data.labels[labelIndex] === 'Threshold') {
+                            return ' -' + context.formattedValue + ' ' + footprintUnits[labelIndex]
+                        } else {
+                            return '  ' + context.formattedValue + ' ' + footprintUnits[labelIndex]
+                        }
                     },
                     title: function(context) {
                         const labelIndex = (context[0].datasetIndex * 2) + context[0].dataIndex;
-                        return context[0].chart.data.labels[labelIndex];
+                        if (context[0].chart.data.labels[labelIndex] === 'Threshold') {
+                            return 'Until ' + context[0].chart.data.labels[labelIndex]
+                        } else {
+                            return 'Average ' + context[0].chart.data.labels[labelIndex]
+                        }
                     }
                 }
             }
