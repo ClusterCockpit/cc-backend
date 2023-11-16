@@ -29,7 +29,7 @@
     export let jobMetrics
 
     export let size = 200
-    export let displayLegend = true
+    export let displayLegend = false
 
     const footprintMetrics = ['mem_used', 'mem_bw','flops_any', 'cpu_load', 'acc_utilization'] // missing: energy , move to central config before deployment
 
@@ -56,7 +56,7 @@
 
     console.log("MVs", meanVals)
 
-    const footprintLabels = meanVals.map((mv) => [mv.name, mv.name+' Threshold'])
+    const footprintLabels = meanVals.map((mv) => [mv.name, 'Threshold'])
 
     const footprintData = meanVals.map((mv) => {
         const metricConfig = footprintMetricConfigs.find((fmc) => fmc.name === mv.name)
@@ -65,35 +65,49 @@
         const levelCaution = metricConfig.caution - mv.avg
         const levelAlert   = metricConfig.alert - mv.avg
 
-        if (levelAlert > 0) {
-            return [mv.avg, levelAlert]
-        } else if (levelCaution > 0) {
-            return [mv.avg, levelCaution]
-        } else if (levelNormal > 0) {
-            return [mv.avg, levelNormal]
-        } else {
-            return [mv.avg, levelPeak]
+        if (mv.name !== 'mem_used') { // Alert if usage is low, peak is high good usage
+            if (levelAlert > 0) {
+                return {data: [mv.avg, levelAlert], color: ['hsl(0, 100%, 60%)', '#AAA']} // 'hsl(0, 100%, 35%)'
+            } else if (levelCaution > 0) {
+                return {data: [mv.avg, levelCaution], color: ['hsl(56, 100%, 50%)', '#AAA']} // '#d5b60a'
+            } else if (levelNormal > 0) {
+                return {data: [mv.avg, levelNormal], color: ['hsl(100, 100%, 60%)', '#AAA']} // 'hsl(100, 100%, 35%)'
+            } else {
+                return {data: [mv.avg, levelPeak], color: ['hsl(180, 100%, 60%)', '#AAA']} // 'hsl(180, 100%, 35%)'
+            }
+        } else { // Inverse Logic: Alert if usage is high, Peak is bad and limits execution
+            if (levelPeak > 0 && (levelAlert <= 0 && levelCaution <= 0 && levelNormal <= 0)) {
+                return {data: [mv.avg, levelPeak], color: ['#7F00FF', '#AAA']} // '#5D3FD3'
+            } else if (levelAlert > 0 && (levelCaution <= 0 && levelNormal <= 0)) {
+                return {data: [mv.avg, levelAlert], color: ['hsl(0, 100%, 60%)', '#AAA']} // 'hsl(0, 100%, 35%)'
+            } else if (levelCaution > 0 && levelNormal <= 0) {
+                return {data: [mv.avg, levelCaution], color: ['hsl(56, 100%, 50%)', '#AAA']} // '#d5b60a'
+            } else {
+                return {data: [mv.avg, levelNormal], color: ['hsl(100, 100%, 60%)', '#AAA']} // 'hsl(100, 100%, 35%)'
+            }
         }
     })
+
+    console.log("FPD", footprintData)
 
     $: data = {
         labels: footprintLabels.flat(),
         datasets: [
             {
-                backgroundColor: ['#AAA', '#777'],
-                data: footprintData[0]
+                backgroundColor: footprintData[0].color,
+                data: footprintData[0].data
             },
             {
-                backgroundColor: ['hsl(0, 100%, 60%)', 'hsl(0, 100%, 35%)'],
-                data: footprintData[1]
+                backgroundColor: footprintData[1].color,
+                data: footprintData[1].data
             },
             {
-                backgroundColor: ['hsl(100, 100%, 60%)', 'hsl(100, 100%, 35%)'],
-                data: footprintData[2]
+                backgroundColor: footprintData[2].color,
+                data: footprintData[2].data
             },
             {
-                backgroundColor: ['hsl(180, 100%, 60%)', 'hsl(180, 100%, 35%)'],
-                data: footprintData[3]
+                backgroundColor: footprintData[3].color,
+                data: footprintData[3].data
             }
         ]
     }
