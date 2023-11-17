@@ -78,35 +78,35 @@
                 return {
                     data: [mv.avg, levelAlert],
                     color: ['hsl(0, 100%, 60%)', '#AAA'],
-                    messages: ['Metric strongly below recommended level!', 'Difference towards caution threshold'],
+                    messages: ['Metric strongly below recommended levels!', 'Difference towards acceptable performace'],
                     impact: 2
                 } // 'hsl(0, 100%, 35%)'
             } else if (levelCaution > 0) {
                 return {
                     data: [mv.avg, levelCaution],
                     color: ['hsl(56, 100%, 50%)', '#AAA'],
-                    messages: ['Metric below recommended level!', 'Difference towards normal threshold'],
+                    messages: ['Metric below recommended levels', 'Difference towards normal performance'],
                     impact: 1
                 } // '#d5b60a'
             } else if (levelNormal > 0) {
                 return {
                     data: [mv.avg, levelNormal],
                     color: ['hsl(100, 100%, 60%)', '#AAA'],
-                    messages: ['Metric within recommended level!', 'Difference towards peak threshold'],
+                    messages: ['Metric within recommended levels', 'Difference towards optimal performance'],
                     impact: 0
                 } // 'hsl(100, 100%, 35%)'
             } else if (levelPeak > 0) {
                 return {
                     data: [mv.avg, levelPeak],
                     color: ['hsl(180, 100%, 60%)', '#AAA'],
-                    messages: ['Metric above recommended level!', 'Difference towards maximum'],
+                    messages: ['Metric performs better than recommended levels', 'Difference towards maximum capacity'], // "Perfomrs optimal"?
                     impact: 0
                 } // 'hsl(180, 100%, 35%)'
             } else { // If avg greater than configured peak: render negative diff as zero
                 return {
                     data: [mv.avg, 0],
                     color: ['hsl(180, 100%, 60%)', '#AAA'],
-                    messages: ['Metric above recommended level!', 'Maximum reached!'],
+                    messages: ['Metric performs at maximum capacity', 'Maximum reached'],
                     impact: 0
                 } // 'hsl(180, 100%, 35%)'
             }
@@ -115,35 +115,35 @@
                 return {
                     data: [mv.avg, 0],
                     color: ['#7F00FF', '#AAA'],
-                    messages: ['Memory usage at maximum!', 'Maximum reached!'],
+                    messages: ['Memory usage at maximum capacity!', 'Maximum reached'],
                     impact: 4
                 } // '#5D3FD3'
             } else if (levelPeak > 0 && (levelAlert <= 0 && levelCaution <= 0 && levelNormal <= 0)) {
                 return {
                     data: [mv.avg, levelPeak],
                     color: ['#7F00FF', '#AAA'],
-                    messages: ['Memory usage extremely above recommended level!', 'Difference towards maximum'],
+                    messages: ['Memory usage extremely above recommended levels!', 'Difference towards maximum memory capacity'],
                     impact: 2
                 } // '#5D3FD3'
             } else if (levelAlert > 0 && (levelCaution <= 0 && levelNormal <= 0)) {
                 return {
                     data: [mv.avg, levelAlert],
                     color: ['hsl(0, 100%, 60%)', '#AAA'],
-                    messages: ['Memory usage strongly above recommended level!', 'Difference towards peak threshold'],
+                    messages: ['Memory usage strongly above recommended levels!', 'Difference towards highly alerting memory usage'],
                     impact: 2
                 } // 'hsl(0, 100%, 35%)'
             } else if (levelCaution > 0 && levelNormal <= 0) {
                 return {
                     data: [mv.avg, levelCaution],
                     color: ['hsl(56, 100%, 50%)', '#AAA'],
-                    messages: ['Memory usage above recommended level!', 'Difference towards alert threshold'],
+                    messages: ['Memory usage above recommended levels', 'Difference towards alerting memory usage'],
                     impact: 1
                 } // '#d5b60a'
             } else {
                 return {
                     data: [mv.avg, levelNormal],
                     color: ['hsl(100, 100%, 60%)', '#AAA'],
-                    messages: ['Memory usage within recommended level!', 'Difference towards caution threshold'],
+                    messages: ['Memory usage within recommended levels', 'Difference towards increased memory usage'],
                     impact: 0
                 } // 'hsl(100, 100%, 35%)'
             }
@@ -166,7 +166,7 @@
     } else if (footprintResultSum > 3 && footprintResultSum <= 5) {
         footprintResult = 'acceptable'
     } else {
-        footprintResult = 'bad'
+        footprintResult = 'badly'
     }
 
     $: data = {
