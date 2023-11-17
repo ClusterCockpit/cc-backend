@@ -64,9 +64,6 @@
 
     console.log("MVs", meanVals)
 
-    const footprintLabels = meanVals.map((mv) => [mv.name, 'Threshold']).flat()
-    const footprintUnits  = meanVals.map((mv) => [mv.unit, mv.unit]).flat()
-
     const footprintData = meanVals.map((mv) => {
         const metricConfig = footprintMetricConfigs.find((fmc) => fmc.name === mv.name)
         const levelPeak    = metricConfig.peak - mv.avg
@@ -76,46 +73,99 @@
 
         if (mv.name !== 'mem_used') { // Alert if usage is low, peak is high good usage
             if (levelAlert > 0) {
-                return {data: [mv.avg, levelAlert], color: ['hsl(0, 100%, 60%)', '#AAA'], valueMessage: 'Metric strongly below recommended level!', thresholdMessage: 'Difference towards caution threshold', impact: 2} // 'hsl(0, 100%, 35%)'
+                return {
+                    data: [mv.avg, levelAlert],
+                    color: ['hsl(0, 100%, 60%)', '#AAA'],
+                    messages: ['Metric strongly below recommended level!', 'Difference towards caution threshold'],
+                    impact: 2
+                } // 'hsl(0, 100%, 35%)'
             } else if (levelCaution > 0) {
-                return {data: [mv.avg, levelCaution], color: ['hsl(56, 100%, 50%)', '#AAA'], valueMessage: 'Metric below recommended level!', thresholdMessage: 'Difference towards normal threshold', impact: 1} // '#d5b60a'
+                return {
+                    data: [mv.avg, levelCaution],
+                    color: ['hsl(56, 100%, 50%)', '#AAA'],
+                    messages: ['Metric below recommended level!', 'Difference towards normal threshold'],
+                    impact: 1
+                } // '#d5b60a'
             } else if (levelNormal > 0) {
-                return {data: [mv.avg, levelNormal], color: ['hsl(100, 100%, 60%)', '#AAA'], valueMessage: 'Metric within recommended level!', thresholdMessage: 'Difference towards peak threshold', impact: 0} // 'hsl(100, 100%, 35%)'
+                return {
+                    data: [mv.avg, levelNormal],
+                    color: ['hsl(100, 100%, 60%)', '#AAA'],
+                    messages: ['Metric within recommended level!', 'Difference towards peak threshold'],
+                    impact: 0
+                } // 'hsl(100, 100%, 35%)'
             } else if (levelPeak > 0) {
-                return {data: [mv.avg, levelPeak], color: ['hsl(180, 100%, 60%)', '#AAA'], valueMessage: 'Metric above recommended level!', thresholdMessage: 'Difference towards maximum', impact: 0} // 'hsl(180, 100%, 35%)'
+                return {
+                    data: [mv.avg, levelPeak],
+                    color: ['hsl(180, 100%, 60%)', '#AAA'],
+                    messages: ['Metric above recommended level!', 'Difference towards maximum'],
+                    impact: 0
+                } // 'hsl(180, 100%, 35%)'
             } else { // If avg greater than configured peak: render negative diff as zero
-                return {data: [mv.avg, 0], color: ['hsl(180, 100%, 60%)', '#AAA'], valueMessage: 'Metric above recommended level!', thresholdMessage: 'Maximum reached!', impact: 0} // 'hsl(180, 100%, 35%)'
+                return {
+                    data: [mv.avg, 0],
+                    color: ['hsl(180, 100%, 60%)', '#AAA'],
+                    messages: ['Metric above recommended level!', 'Maximum reached!'],
+                    impact: 0
+                } // 'hsl(180, 100%, 35%)'
             }
         } else { // Inverse Logic: Alert if usage is high, Peak is bad and limits execution
             if (levelPeak <= 0 && levelAlert <= 0 && levelCaution <= 0 && levelNormal <= 0) {  // If avg greater than configured peak: render negative diff as zero
-                return {data: [mv.avg, 0], color: ['#7F00FF', '#AAA'], valueMessage: 'Memory usage at maximum!', thresholdMessage: 'Maximum reached!', impact: 4} // '#5D3FD3'
+                return {
+                    data: [mv.avg, 0],
+                    color: ['#7F00FF', '#AAA'],
+                    messages: ['Memory usage at maximum!', 'Maximum reached!'],
+                    impact: 4
+                } // '#5D3FD3'
             } else if (levelPeak > 0 && (levelAlert <= 0 && levelCaution <= 0 && levelNormal <= 0)) {
-                return {data: [mv.avg, levelPeak], color: ['#7F00FF', '#AAA'], valueMessage: 'Memory usage extremely above recommended level!', thresholdMessage: 'Difference towards maximum', impact: 2} // '#5D3FD3'
+                return {
+                    data: [mv.avg, levelPeak],
+                    color: ['#7F00FF', '#AAA'],
+                    messages: ['Memory usage extremely above recommended level!', 'Difference towards maximum'],
+                    impact: 2
+                } // '#5D3FD3'
             } else if (levelAlert > 0 && (levelCaution <= 0 && levelNormal <= 0)) {
-                return {data: [mv.avg, levelAlert], color: ['hsl(0, 100%, 60%)', '#AAA'], valueMessage: 'Memory usage strongly above recommended level!', thresholdMessage: 'Difference towards peak threshold', impact: 2} // 'hsl(0, 100%, 35%)'
+                return {
+                    data: [mv.avg, levelAlert],
+                    color: ['hsl(0, 100%, 60%)', '#AAA'],
+                    messages: ['Memory usage strongly above recommended level!', 'Difference towards peak threshold'],
+                    impact: 2
+                } // 'hsl(0, 100%, 35%)'
             } else if (levelCaution > 0 && levelNormal <= 0) {
-                return {data: [mv.avg, levelCaution], color: ['hsl(56, 100%, 50%)', '#AAA'], valueMessage: 'Memory usage above recommended level!', thresholdMessage: 'Difference towards alert threshold', impact: 1} // '#d5b60a'
+                return {
+                    data: [mv.avg, levelCaution],
+                    color: ['hsl(56, 100%, 50%)', '#AAA'],
+                    messages: ['Memory usage above recommended level!', 'Difference towards alert threshold'],
+                    impact: 1
+                } // '#d5b60a'
             } else {
-                return {data: [mv.avg, levelNormal], color: ['hsl(100, 100%, 60%)', '#AAA'], valueMessage: 'Memory usage within recommended level!', thresholdMessage: 'Difference towards caution threshold', impact: 0} // 'hsl(100, 100%, 35%)'
+                return {
+                    data: [mv.avg, levelNormal],
+                    color: ['hsl(100, 100%, 60%)', '#AAA'],
+                    messages: ['Memory usage within recommended level!', 'Difference towards caution threshold'],
+                    impact: 0
+                } // 'hsl(100, 100%, 35%)'
             }
         }
     })
 
-    const footprintMessages  = footprintData.map((fpd) => [fpd.valueMessage, fpd.thresholdMessage]).flat()
+    console.log("FPD", footprintData)
+
+    // Collect data for chartjs
+    const footprintLabels    = meanVals.map((mv) => [mv.name, 'Threshold']).flat()
+    const footprintUnits     = meanVals.map((mv) => [mv.unit, mv.unit]).flat()
+    const footprintMessages  = footprintData.map((fpd) => fpd.messages).flat()
     const footprintResultSum = footprintData.map((fpd) => fpd.impact).reduce((accumulator, currentValue) => { return accumulator + currentValue }, 0)
-    let footprintResult = ''
+    let   footprintResult    = ''
 
     if (footprintResultSum <= 1) {
-        footprintResult = 'good.'
+        footprintResult = 'good'
     } else if (footprintResultSum > 1 && footprintResultSum <= 3) {
-        footprintResult = 'well.'
+        footprintResult = 'well'
     } else if (footprintResultSum > 3 && footprintResultSum <= 5) {
-        footprintResult = 'acceptable.'
+        footprintResult = 'acceptable'
     } else {
-        footprintResult = 'bad.'
+        footprintResult = 'bad'
     }
-
-    console.log("FPD", footprintData)
 
     $: data = {
         labels: footprintLabels,
@@ -217,7 +267,7 @@
     <Pie {data} {options}/>
 </div>
 <div class="mt-3 d-flex justify-content-center">
-    <b>Overall Job Performance:&nbsp;</b> Your job {job.state === 'running' ? 'performs' : 'performed'} {footprintResult}
+    <b>Overall Job Performance:&nbsp;</b> Your job {job.state === 'running' ? 'performs' : 'performed'} {footprintResult}.
 </div>
 
 
