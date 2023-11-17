@@ -33,6 +33,8 @@
 
     const footprintMetrics = ['mem_used', 'mem_bw','flops_any', 'cpu_load'] // 'acc_utilization' / missing: energy , move to central config before deployment
 
+    console.log('JMs', jobMetrics.filter((jm) => footprintMetrics.includes(jm.name)))
+
     const footprintMetricConfigs = footprintMetrics.map((fm) => { 
         return getContext('metrics')(job.cluster, fm)
     }).filter( Boolean ) // Filter only "truthy" vals, see: https://stackoverflow.com/questions/28607451/removing-undefined-values-from-array
@@ -46,12 +48,12 @@
     // console.log("FMTs", footprintMetricThresholds)
 
     const meanVals = footprintMetrics.map((fm) => {
-        let jm = jobMetrics.find((jm) => jm.name === fm)
+        let jm = jobMetrics.find((jm) => jm.name === fm && jm.scope === 'node') // Only Node Scope
         let mv = null
         if (jm?.metric?.statisticsSeries) {
-            mv = {name: jm.name, scope: jm.scope, avg: round(mean(jm.metric.statisticsSeries.mean), 2)}
+            mv = {name: jm.name, avg: round(mean(jm.metric.statisticsSeries.mean), 2)}
         } else if (jm?.metric?.series[0]) {
-            mv = {name: jm.name, scope: jm.scope, avg: jm.metric.series[0].statistics.avg}
+            mv = {name: jm.name, avg: jm.metric.series[0].statistics.avg}
         }
 
         if (jm?.metric?.unit?.base) {
