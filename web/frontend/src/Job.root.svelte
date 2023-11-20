@@ -27,7 +27,7 @@
     import TagManagement from "./TagManagement.svelte";
     import MetricSelection from "./MetricSelection.svelte";
     import StatsTable from "./StatsTable.svelte";
-    import JobFootprint from "./JobFootprint.svelte";
+    import JobFootprintBars from "./JobFootprintBars.svelte";
     import { getContext } from "svelte";
 
     export let dbid;
@@ -135,7 +135,7 @@
         jobTags,
         statsTable,
         jobFootprint;
-        
+
     $: document.title = $initq.fetching
         ? "Loading..."
         : $initq.error
@@ -206,7 +206,12 @@
     {#if $jobMetrics.data}
         {#key $jobMetrics.data}
             <Col>
-                <JobFootprint
+                <!-- <JobFootprint
+                    bind:this={jobFootprint}
+                    job={$initq.data.job}
+                    jobMetrics={$jobMetrics.data.jobMetrics}
+                /> -->
+                <JobFootprintBars
                     bind:this={jobFootprint}
                     job={$initq.data.job}
                     jobMetrics={$jobMetrics.data.jobMetrics}

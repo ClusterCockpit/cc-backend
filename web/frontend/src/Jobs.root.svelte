@@ -19,7 +19,7 @@
 
     let filterComponent; // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
     let jobList, matchedJobs = null
-    let sorting = { field: 'startTime', order: 'DESC' }, isSortingOpen = false, isMetricsSelectionOpen = false
+    let sorting = { field: 'startTime', order: 'DESC' }, isSortingOpen = false, isMetricsSelectionOpen = false, showFootprint
     let metrics = filterPresets.cluster
         ? ccconfig[`plot_list_selectedMetrics:${filterPresets.cluster}`] || ccconfig.plot_list_selectedMetrics
         : ccconfig.plot_list_selectedMetrics
@@ -81,7 +81,8 @@
             bind:metrics={metrics}
             bind:sorting={sorting}
             bind:matchedJobs={matchedJobs}
-            bind:this={jobList} />
+            bind:this={jobList}
+            bind:showFootprint={showFootprint} />
     </Col>
 </Row>
 
@@ -93,4 +94,5 @@
     bind:cluster={selectedCluster}
     configName="plot_list_selectedMetrics"
     bind:metrics={metrics}
-    bind:isOpen={isMetricsSelectionOpen} />
+    bind:isOpen={isMetricsSelectionOpen}
+    bind:showFootprint={showFootprint}/>

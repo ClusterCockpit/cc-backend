@@ -17,12 +17,14 @@
     export let configName
     export let allMetrics = null
     export let cluster = null
+    export let showFootprint
 
     const clusters = getContext('clusters'),
           onInit = getContext('on-init')
 
     let newMetricsOrder = []
     let unorderedMetrics = [...metrics]
+    let pendingShowFootprint = showFootprint || false
 
     onInit(() => {
         if (allMetrics == null) allMetrics = new Set()
@@ -90,6 +92,8 @@
         metrics = newMetricsOrder.filter(m => unorderedMetrics.includes(m))
         isOpen = false
 
+        showFootprint = pendingShowFootprint ? true : false
+
         updateConfigurationMutation({
             name: cluster == null ? configName : `${configName}:${cluster}`,
             value: JSON.stringify(metrics)
@@ -121,6 +125,10 @@
     </ModalHeader>
     <ModalBody>
         <ListGroup>
+            <li class="list-group-item">
+                <input type="checkbox" bind:checked={pendingShowFootprint}> Show Footprint
+            </li>
+            <hr/>
             {#each newMetricsOrder as metric, index (metric)}
                 <li class="cc-config-column list-group-item"
                     draggable={true} ondragover="return false"

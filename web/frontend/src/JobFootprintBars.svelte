@@ -17,18 +17,19 @@
 
     export let job
     export let jobMetrics
+    export let view = 'job'
 
     // export let size = 200
 
     const footprintMetrics = ['cpu_load', 'flops_any', 'mem_used', 'mem_bw'] // 'acc_utilization' / missing: energy , move to central config before deployment
 
-    console.log('JMs', jobMetrics.filter((jm) => footprintMetrics.includes(jm.name)))
+    // console.log('JMs', jobMetrics.filter((jm) => footprintMetrics.includes(jm.name)))
 
     const footprintMetricConfigs = footprintMetrics.map((fm) => { 
         return getContext('metrics')(job.cluster, fm)
     }).filter( Boolean ) // Filter only "truthy" vals, see: https://stackoverflow.com/questions/28607451/removing-undefined-values-from-array
 
-    console.log("FMCs", footprintMetricConfigs)
+    // console.log("FMCs", footprintMetricConfigs)
 
     // const footprintMetricThresholds = footprintMetricConfigs.map((fmc) => { // Only required if scopes smaller than node required
     //     return {name: fmc.name, ...findThresholds(fmc, 'node', job?.subCluster ? job.subCluster : '')} // Merge 2 objects
@@ -149,16 +150,18 @@
         }
     }).filter( Boolean )
 
-    console.log("FPD", footprintData)
+    // console.log("FPD", footprintData)
 
 </script>
 
 <Card class="h-auto mt-1">
+    {#if view === 'job'}
     <CardHeader>
         <CardTitle class="mb-0 d-flex justify-content-center">
             Core Metrics Footprint
         </CardTitle>
     </CardHeader>
+    {/if}
     <CardBody>
         {#each footprintData as fpd}
             <div class="mb-1 d-flex justify-content-between">

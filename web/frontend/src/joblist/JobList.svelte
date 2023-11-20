@@ -28,6 +28,7 @@
     export let sorting = { field: "startTime", order: "DESC" };
     export let matchedJobs = 0;
     export let metrics = ccconfig.plot_list_selectedMetrics;
+    export let showFootprint;
 
     let itemsPerPage = ccconfig.plot_list_jobsPerPage;
     let page = 1;
@@ -160,6 +161,15 @@
                     >
                         Job Info
                     </th>
+                    {#if showFootprint}
+                        <th
+                            class="position-sticky top-0"
+                            scope="col"
+                            style="width: {jobInfoColumnWidth}px; padding-top: {headerPaddingTop}px"
+                        >
+                            Job Footprint
+                        </th>
+                    {/if}
                     {#each metrics as metric (metric)}
                         <th
                             class="position-sticky top-0 text-center"
@@ -212,7 +222,7 @@
                     </tr>
                 {:else if $jobs.data && $initialized}
                     {#each $jobs.data.jobs.items as job (job)}
-                        <JobListRow {job} {metrics} {plotWidth} />
+                        <JobListRow {job} {metrics} {plotWidth} {showFootprint}/>
                     {:else}
                         <tr>
                             <td colspan={metrics.length + 1}>

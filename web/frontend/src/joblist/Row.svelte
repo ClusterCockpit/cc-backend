@@ -14,15 +14,22 @@
     import { Card, Spinner } from "sveltestrap";
     import MetricPlot from "../plots/MetricPlot.svelte";
     import JobInfo from "./JobInfo.svelte";
+    import JobFootprint from "../JobFootprint.svelte";
+    import JobFootprintBars from "../JobFootprintBars.svelte";
     import { maxScope, checkMetricDisabled } from "../utils.js";
 
     export let job;
     export let metrics;
     export let plotWidth;
     export let plotHeight = 275;
+    export let showFootprint;
 
     let { id } = job;
     let scopes = [job.numNodes == 1 ? "core" : "node"];
+
+    function distinct(value, index, array) {
+        return array.indexOf(value) === index;
+    }
 
     const cluster = getContext("clusters").find((c) => c.name == job.cluster);
     const metricConfig = getContext("metrics"); // Get all MetricConfs which include subCluster-specific settings for this job
@@ -63,6 +70,10 @@
         query: query,
         variables: { id, metrics, scopes }
     });
+
+    $: if (showFootprint) {
+        metrics = ['cpu_load', 'flops_any', 'mem_used', 'mem_bw', ...metrics].filter(distinct)
+    }
 
     export function refresh() {
         metricsQuery = queryStore({
@@ -122,6 +133,21 @@
             </Card>
         </td>
     {:else}
+        {#if showFootprint}
+            <!-- <td>
+                <JobFootprint
+                    job={job}
+                    jobMetrics={$metricsQuery.data.jobMetrics}
+                />
+            </td> -->
+            <td>
+                <JobFootprintBars
+                    job={job}
+                    jobMetrics={$metricsQuery.data.jobMetrics}
+                    view="list"
+                />
+            </td>
+        {/if}
         {#each sortAndSelectScope($metricsQuery.data.jobMetrics) as metric, i (metric || i)}
             <td>
                 <!-- Subluster Metricconfig remove keyword for jobtables (joblist main, user joblist, project joblist) to be used here as toplevel case-->
