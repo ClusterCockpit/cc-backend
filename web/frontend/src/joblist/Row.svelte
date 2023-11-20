@@ -35,8 +35,8 @@
     const metricConfig = getContext("metrics"); // Get all MetricConfs which include subCluster-specific settings for this job
     const client = getContextClient();
     const query = gql`
-        query ($id: ID!, $metrics: [String!]!, $scopes: [MetricScope!]!) {
-            jobMetrics(id: $id, metrics: $metrics, scopes: $scopes) {
+        query ($id: ID!, $queryMetrics: [String!]!, $scopes: [MetricScope!]!) {
+            jobMetrics(id: $id, metrics: $queryMetrics, scopes: $scopes) {
                 name
                 scope
                 metric {
@@ -68,18 +68,21 @@
     $: metricsQuery = queryStore({
         client: client,
         query: query,
-        variables: { id, metrics, scopes }
+        variables: { id, queryMetrics, scopes }
     });
 
+    let queryMetrics = null
     $: if (showFootprint) {
-        metrics = ['cpu_load', 'flops_any', 'mem_used', 'mem_bw', ...metrics].filter(distinct)
+        queryMetrics = ['cpu_load', 'flops_any', 'mem_used', 'mem_bw', ...metrics].filter(distinct)
+    } else {
+        queryMetrics = [...metrics]
     }
 
     export function refresh() {
         metricsQuery = queryStore({
             client: client,
             query: query,
-            variables: { id, metrics, scopes },
+            variables: { id, queryMetrics, scopes },
             // requestPolicy: 'network-only' // use default cache-first for refresh
         });
     }
@@ -144,6 +147,7 @@
                 <JobFootprintBars
                     job={job}
                     jobMetrics={$metricsQuery.data.jobMetrics}
+                    width={plotWidth}
                     view="list"
                 />
             </td>

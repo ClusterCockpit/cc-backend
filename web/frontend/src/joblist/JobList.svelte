@@ -28,7 +28,7 @@
     export let sorting = { field: "startTime", order: "DESC" };
     export let matchedJobs = 0;
     export let metrics = ccconfig.plot_list_selectedMetrics;
-    export let showFootprint;
+    export let showFootprint = false;
 
     let itemsPerPage = ccconfig.plot_list_jobsPerPage;
     let page = 1;
@@ -135,12 +135,19 @@
         })
     };
 
+    let plotWidth = null;
     let tableWidth = null;
     let jobInfoColumnWidth = 250;
 
-    $: plotWidth = Math.floor(
-        (tableWidth - jobInfoColumnWidth) / metrics.length - 10
-    );
+    $: if (showFootprint) {
+        plotWidth = Math.floor(
+            (tableWidth - jobInfoColumnWidth) / (metrics.length + 1) - 10
+        )
+    } else { 
+        plotWidth = Math.floor(
+            (tableWidth - jobInfoColumnWidth) / metrics.length - 10
+        )
+    }
 
     let headerPaddingTop = 0;
     stickyHeader(
@@ -165,7 +172,7 @@
                         <th
                             class="position-sticky top-0"
                             scope="col"
-                            style="width: {jobInfoColumnWidth}px; padding-top: {headerPaddingTop}px"
+                            style="width: {plotWidth}px; padding-top: {headerPaddingTop}px"
                         >
                             Job Footprint
                         </th>

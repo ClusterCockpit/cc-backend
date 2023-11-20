@@ -18,8 +18,7 @@
     export let job
     export let jobMetrics
     export let view = 'job'
-
-    // export let size = 200
+    export let width = 200
 
     const footprintMetrics = ['cpu_load', 'flops_any', 'mem_used', 'mem_bw'] // 'acc_utilization' / missing: energy , move to central config before deployment
 
@@ -154,7 +153,7 @@
 
 </script>
 
-<Card class="h-auto mt-1">
+<Card class="h-auto mt-1" style="min-width: {width}px;">
     {#if view === 'job'}
     <CardHeader>
         <CardTitle class="mb-0 d-flex justify-content-center">
