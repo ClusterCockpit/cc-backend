@@ -74,8 +74,10 @@
     let queryMetrics = null
     $: if (showFootprint) {
         queryMetrics = ['cpu_load', 'flops_any', 'mem_used', 'mem_bw', ...metrics].filter(distinct)
+        scopes       = ["node"]
     } else {
         queryMetrics = [...metrics]
+        scopes       = [job.numNodes == 1 ? "core" : "node"]
     }
 
     export function refresh() {

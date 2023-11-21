@@ -1,9 +1,6 @@
 <script>
     import { getContext } from 'svelte'
     import {
-        Row,
-        Col,
-        Spinner,
         Card,
         CardHeader,
         CardTitle,
@@ -18,7 +15,7 @@
     export let job
     export let jobMetrics
     export let view = 'job'
-    export let width = 200
+    export let width = 'auto'
 
     const footprintMetrics = ['cpu_load', 'flops_any', 'mem_used', 'mem_bw'] // 'acc_utilization' / missing: energy , move to central config before deployment
 
@@ -37,7 +34,6 @@
     // console.log("FMTs", footprintMetricThresholds)
 
     const footprintData = footprintMetrics.map((fm) => {
-        // From JobMetrics: Only Node Scope
         const jm = jobMetrics.find((jm) => jm.name === fm && jm.scope === 'node')
         // ... get Mean
         let mv = null
@@ -53,14 +49,13 @@
         } else {
             unit = ''
         }
-
         // From MetricConfig: Scope only for scaling -> Not of interest here
         const metricConfig = footprintMetricConfigs.find((fmc) => fmc.name === fm)
         // ... get Thresholds
+        const levelPeak    = fm === 'flops_any' ? round((metricConfig.peak * 0.85), 0) - mv : metricConfig.peak - mv // Scale flops_any down
         const levelNormal  = metricConfig.normal - mv
         const levelCaution = metricConfig.caution - mv
         const levelAlert   = metricConfig.alert - mv
-
         // Collect
         if (fm !== 'mem_used') { // Alert if usage is low, peak as maxmimum possible (scaled down for flops_any)
             if (levelAlert > 0) {
@@ -93,7 +88,7 @@
                     message: 'Metric within common levels',
                     impact: 1
                 }
-            } else {
+            } else if (levelPeak > 0) {
                 return {
                     name: fm,
                     unit: unit,
@@ -103,9 +98,68 @@
                     message: 'Metric performs better than common levels',
                     impact: 0
                 }
+            } else { // Possible artifacts - <5% Margin OK, >5% warning, > 50% danger
+                const checkData = {
+                    name: fm,
+                    unit: unit,
+                    avg: mv,
+                    max: fm === 'flops_any' ? round((metricConfig.peak * 0.85), 0) : metricConfig.peak
+                }
+
+                if (checkData.avg >= (1.5 * checkData.max)) {
+                    return {
+                        ...checkData,
+                        color: 'danger',
+                        message: 'Metric average at least 50% above common peak value: Check data for artifacts!',
+                        impact: -2
+                    }
+                } else if (checkData.avg >= (1.05 * checkData.max)) {
+                    return {
+                        ...checkData,
+                        color: 'warning',
+                        message: 'Metric average at least 5% above common peak value: Check data for artifacts',
+                        impact: -1
+                    }
+                } else {
+                    return {
+                        ...checkData,
+                        color: 'info',
+                        message: 'Metric performs better than common levels',
+                        impact: 0
+                    }
+                }
             }
         } else { // Inverse Logic: Alert if usage is high, Peak is bad and limits execution
-            if (levelAlert <= 0 && levelCaution <= 0 && levelNormal <= 0) {
+            if (levelPeak <= 0 && levelAlert <= 0 && levelCaution <= 0 && levelNormal <= 0) {  // Possible artifacts - <5% Margin OK, >5% warning, > 50% danger
+                const checkData = {
+                    name: fm,
+                    unit: unit,
+                    avg: mv,
+                    max: metricConfig.peak
+                }
+                if (checkData.avg >= (1.5 * checkData.max)) {
+                    return {
+                        ...checkData,
+                        color: 'danger',
+                        message: 'Memory usage at least 50% above possible maximum value: Check data for artifacts!',
+                        impact: -2
+                    }
+                } else if (checkData.avg >= (1.05 * checkData.max)) {
+                    return {
+                        ...checkData,
+                        color: 'warning',
+                        message: 'Memory usage at least 5% above possible maximum value: Check data for artifacts!',
+                        impact: -1
+                    }
+                } else {
+                    return {
+                        ...checkData,
+                        color: 'danger',
+                        message: 'Memory usage extremely above common levels!',
+                        impact: 4
+                    }
+                }
+            } else if (levelAlert <= 0 && levelCaution <= 0 && levelNormal <= 0) {
                 return {
                     name: fm,
                     unit: unit,
@@ -153,7 +207,7 @@
 
 </script>
 
-<Card class="h-auto mt-1" style="min-width: {width}px;">
+<Card class="h-auto mt-1" style="width: {width}px;">
     {#if view === 'job'}
     <CardHeader>
         <CardTitle class="mb-0 d-flex justify-content-center">
@@ -172,6 +226,10 @@
                             <Icon name="exclamation-triangle-fill" class="text-danger"/>
                         {:else if fpd.impact === 2}
                             <Icon name="exclamation-triangle" class="text-warning"/>
+                        {:else if fpd.impact === -1}
+                            <Icon name="exclamation-triangle" class="text-warning"/>
+                        {:else if fpd.impact === -2}
+                            <Icon name="exclamation-triangle-fill" class="text-danger"/>
                         {/if}
                         <!-- Emoji for all states-->
                         {#if fpd.impact === 4}
@@ -184,6 +242,10 @@
                             <Icon name="emoji-smile" class="text-success"/>
                         {:else if fpd.impact === 0}
                             <Icon name="emoji-laughing" class="text-info"/>
+                        {:else if fpd.impact === -1}
+                            <Icon name="emoji-dizzy" class="text-warning"/>
+                        {:else if fpd.impact === -2}
+                            <Icon name="emoji-dizzy" class="text-danger"/>
                         {/if}
                     </div>
                     <div>
