@@ -24,7 +24,7 @@
 
     let newMetricsOrder = []
     let unorderedMetrics = [...metrics]
-    let pendingShowFootprint = showFootprint || false
+    let pendingShowFootprint = !!showFootprint
 
     onInit(() => {
         if (allMetrics == null) allMetrics = new Set()
@@ -92,7 +92,7 @@
         metrics = newMetricsOrder.filter(m => unorderedMetrics.includes(m))
         isOpen = false
 
-        showFootprint = pendingShowFootprint ? true : false
+        showFootprint = !!pendingShowFootprint
 
         updateConfigurationMutation({
             name: cluster == null ? configName : `${configName}:${cluster}`,
@@ -101,6 +101,16 @@
             if (res.fetching === false && res.error) {
                 throw res.error
                 // console.log('Error on subscription: ' + res.error)
+            }
+        })
+
+        updateConfigurationMutation({
+            name: cluster == null ? 'plot_list_showFootprint' : `plot_list_showFootprint:${cluster}`,
+            value: JSON.stringify(showFootprint)
+        }).subscribe(res => {
+            if (res.fetching === false && res.error) {
+                console.log('Error on footprint subscription: ' + res.error)
+                throw res.error
             }
         })
     }

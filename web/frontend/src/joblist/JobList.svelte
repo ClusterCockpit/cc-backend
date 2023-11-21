@@ -28,7 +28,7 @@
     export let sorting = { field: "startTime", order: "DESC" };
     export let matchedJobs = 0;
     export let metrics = ccconfig.plot_list_selectedMetrics;
-    export let showFootprint = false;
+    export let showFootprint;
 
     let itemsPerPage = ccconfig.plot_list_jobsPerPage;
     let page = 1;
