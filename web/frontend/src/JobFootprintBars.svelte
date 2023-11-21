@@ -262,6 +262,14 @@
                 />
             </div>
         {/each}
+        {#if job?.metaData?.message}
+            <hr class="mt-1 mb-2"/>
+            <div class="rounded bg-warning">
+                <div class="mx-1">
+                    <b>Note:</b> {job.metaData.message}
+                </div>
+            </div>
+        {/if}
     </CardBody>
 </Card>
 
