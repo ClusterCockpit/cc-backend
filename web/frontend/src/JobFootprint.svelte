@@ -7,6 +7,7 @@
         CardBody,
         Progress,
         Icon,
+        Tooltip
     } from "sveltestrap";
     import { mean, round } from 'mathjs'
     // import { findThresholds } from './plots/MetricPlot.svelte'
@@ -17,17 +18,17 @@
     export let view = 'job'
     export let width = 'auto'
 
-    // console.log('CLUSTER', job.cluster)
+    console.log('CLUSTER', job.cluster)
 
     const footprintMetrics = ['cpu_load', 'flops_any', 'mem_used', 'mem_bw'] // 'acc_utilization' / missing: energy , move to central config before deployment
 
-    // console.log('JMs', jobMetrics.filter((jm) => footprintMetrics.includes(jm.name)))
+    console.log('JMs', jobMetrics.filter((jm) => footprintMetrics.includes(jm.name)))
 
     const footprintMetricConfigs = footprintMetrics.map((fm) => { 
         return getContext('metrics')(job.cluster, fm)
     }).filter( Boolean ) // Filter only "truthy" vals, see: https://stackoverflow.com/questions/28607451/removing-undefined-values-from-array
 
-    // console.log("FMCs", footprintMetricConfigs)
+    console.log("FMCs", footprintMetricConfigs)
 
     // const footprintMetricThresholds = footprintMetricConfigs.map((fmc) => { // Only required if scopes smaller than node required
     //     return {name: fmc.name, ...findThresholds(fmc, 'node', job?.subCluster ? job.subCluster : '')} // Merge 2 objects
@@ -205,7 +206,7 @@
         }
     }).filter( Boolean )
 
-    // console.log("FPD", footprintData)
+    console.log("FPD", footprintData)
 
 </script>
 
@@ -218,10 +219,10 @@
     </CardHeader>
     {/if}
     <CardBody>
-        {#each footprintData as fpd}
+        {#each footprintData as fpd, index}
             <div class="mb-1 d-flex justify-content-between">
-                <div><b>{fpd.name}</b></div>
-                <div class="cursor-help d-inline-flex" title={fpd.message}>
+                <div>&nbsp;<b>{fpd.name}</b></div> <!-- For symmetry, see below ...-->
+                <div class="cursor-help d-inline-flex" id={`footprint-${job.jobId}-${index}`}>
                     <div class="mx-1">
                         <!-- Alerts Only -->
                         {#if fpd.impact === 3}
@@ -252,11 +253,12 @@
                     </div>
                     <div>
                         <!-- Print Values -->
-                        {fpd.avg} / {fpd.max} {fpd.unit}
+                        {fpd.avg} / {fpd.max} {fpd.unit} &nbsp; <!-- To increase margin to tooltip: No other way manageable ...-->
                     </div>
                 </div>
+                <Tooltip target={`footprint-${job.jobId}-${index}`} placement="right" offset={[0, 20]}>{fpd.message}</Tooltip>
             </div>
-            <div class="mb-2"> <!-- title={fpd.message} -->
+            <div class="mb-2">
                 <Progress
                     value={fpd.avg}
                     max={fpd.max}
