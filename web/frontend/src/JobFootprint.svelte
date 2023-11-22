@@ -1,45 +1,33 @@
 <script>
     import { getContext } from 'svelte'
-    // import { Button, Table, InputGroup, InputGroupText, Icon } from 'sveltestrap'
+    import {
+        Card,
+        CardHeader,
+        CardTitle,
+        CardBody,
+        Progress,
+        Icon,
+    } from "sveltestrap";
     import { mean, round } from 'mathjs'
     // import { findThresholds } from './plots/MetricPlot.svelte'
-    // import { formatNumber } from './units.js'
-
-    import { Pie } from 'svelte-chartjs';
-    import {
-        Chart as ChartJS,
-        Title,
-        Tooltip,
-        Legend,
-        Filler,
-        ArcElement,
-        CategoryScale
-    } from 'chart.js';
-
-    ChartJS.register(
-        Title,
-        Tooltip,
-        Legend,
-        Filler,
-        ArcElement,
-        CategoryScale
-    );
+    // import { formatNumber, scaleNumbers } from './units.js'
 
     export let job
     export let jobMetrics
+    export let view = 'job'
+    export let width = 'auto'
 
-    export let size = 200
-    export let displayLegend = false
+    // console.log('CLUSTER', job.cluster)
 
-    const footprintMetrics = ['mem_used', 'mem_bw','flops_any', 'cpu_load'] // 'acc_utilization' / missing: energy , move to central config before deployment
+    const footprintMetrics = ['cpu_load', 'flops_any', 'mem_used', 'mem_bw'] // 'acc_utilization' / missing: energy , move to central config before deployment
 
-    console.log('JMs', jobMetrics.filter((jm) => footprintMetrics.includes(jm.name)))
+    // console.log('JMs', jobMetrics.filter((jm) => footprintMetrics.includes(jm.name)))
 
     const footprintMetricConfigs = footprintMetrics.map((fm) => { 
         return getContext('metrics')(job.cluster, fm)
     }).filter( Boolean ) // Filter only "truthy" vals, see: https://stackoverflow.com/questions/28607451/removing-undefined-values-from-array
 
-    console.log("FMCs", footprintMetricConfigs)
+    // console.log("FMCs", footprintMetricConfigs)
 
     // const footprintMetricThresholds = footprintMetricConfigs.map((fmc) => { // Only required if scopes smaller than node required
     //     return {name: fmc.name, ...findThresholds(fmc, 'node', job?.subCluster ? job.subCluster : '')} // Merge 2 objects
@@ -47,239 +35,244 @@
 
     // console.log("FMTs", footprintMetricThresholds)
 
-    const meanVals = footprintMetrics.map((fm) => {
-        let jm = jobMetrics.find((jm) => jm.name === fm && jm.scope === 'node') // Only Node Scope
+    const footprintData = footprintMetrics.map((fm) => {
+        const jm = jobMetrics.find((jm) => jm.name === fm && jm.scope === 'node')
+        // ... get Mean
         let mv = null
         if (jm?.metric?.statisticsSeries) {
-            mv = {name: jm.name, avg: round(mean(jm.metric.statisticsSeries.mean), 2)}
+            mv = round(mean(jm.metric.statisticsSeries.mean), 2)
         } else if (jm?.metric?.series[0]) {
-            mv = {name: jm.name, avg: jm.metric.series[0].statistics.avg}
+            mv = jm.metric.series[0].statistics.avg
         }
-
+        // ... get Unit
+        let unit = null
         if (jm?.metric?.unit?.base) {
-            return {...mv, unit: jm.metric.unit.prefix + jm.metric.unit.base}
+            unit = jm.metric.unit.prefix + jm.metric.unit.base
         } else {
-            return {...mv, unit: ''}
+            unit = ''
         }
-
-    }).filter( Boolean )
-
-    console.log("MVs", meanVals)
-
-    const footprintData = meanVals.map((mv) => {
-        const metricConfig = footprintMetricConfigs.find((fmc) => fmc.name === mv.name)
-        const levelPeak    = metricConfig.peak - mv.avg
-        const levelNormal  = metricConfig.normal - mv.avg
-        const levelCaution = metricConfig.caution - mv.avg
-        const levelAlert   = metricConfig.alert - mv.avg
-
-        if (mv.name !== 'mem_used') { // Alert if usage is low, peak is high good usage
+        // From MetricConfig: Scope only for scaling -> Not of interest here
+        const metricConfig = footprintMetricConfigs.find((fmc) => fmc.name === fm)
+        // ... get Thresholds
+        const levelPeak    = fm === 'flops_any' ? round((metricConfig.peak * 0.85), 0) - mv : metricConfig.peak - mv // Scale flops_any down
+        const levelNormal  = metricConfig.normal - mv
+        const levelCaution = metricConfig.caution - mv
+        const levelAlert   = metricConfig.alert - mv
+        // Collect
+        if (fm !== 'mem_used') { // Alert if usage is low, peak as maxmimum possible (scaled down for flops_any)
             if (levelAlert > 0) {
                 return {
-                    data: [mv.avg, levelAlert],
-                    color: ['hsl(0, 100%, 60%)', '#AAA'],
-                    messages: ['Metric strongly below recommended levels!', 'Difference towards acceptable performace'],
-                    impact: 2
-                } // 'hsl(0, 100%, 35%)'
+                    name: fm,
+                    unit: unit,
+                    avg: mv,
+                    max: fm === 'flops_any' ? round((metricConfig.peak * 0.85), 0) : metricConfig.peak,
+                    color: 'danger',
+                    message: 'Metric strongly below common levels!',
+                    impact: 3
+                }
             } else if (levelCaution > 0) {
                 return {
-                    data: [mv.avg, levelCaution],
-                    color: ['hsl(56, 100%, 50%)', '#AAA'],
-                    messages: ['Metric below recommended levels', 'Difference towards normal performance'],
-                    impact: 1
-                } // '#d5b60a'
+                    name: fm,
+                    unit: unit,
+                    avg: mv,
+                    max: fm === 'flops_any' ? round((metricConfig.peak * 0.85), 0) : metricConfig.peak,
+                    color: 'warning',
+                    message: 'Metric below common levels',
+                    impact: 2
+                }
             } else if (levelNormal > 0) {
                 return {
-                    data: [mv.avg, levelNormal],
-                    color: ['hsl(100, 100%, 60%)', '#AAA'],
-                    messages: ['Metric within recommended levels', 'Difference towards optimal performance'],
-                    impact: 0
-                } // 'hsl(100, 100%, 35%)'
+                    name: fm,
+                    unit: unit,
+                    avg: mv,
+                    max: fm === 'flops_any' ? round((metricConfig.peak * 0.85), 0) : metricConfig.peak,
+                    color: 'success',
+                    message: 'Metric within common levels',
+                    impact: 1
+                }
             } else if (levelPeak > 0) {
                 return {
-                    data: [mv.avg, levelPeak],
-                    color: ['hsl(180, 100%, 60%)', '#AAA'],
-                    messages: ['Metric performs better than recommended levels', 'Difference towards maximum capacity'], // "Perfomrs optimal"?
+                    name: fm,
+                    unit: unit,
+                    avg: mv,
+                    max: fm === 'flops_any' ? round((metricConfig.peak * 0.85), 0) : metricConfig.peak,
+                    color: 'info',
+                    message: 'Metric performs better than common levels',
                     impact: 0
-                } // 'hsl(180, 100%, 35%)'
-            } else { // If avg greater than configured peak: render negative diff as zero
-                return {
-                    data: [mv.avg, 0],
-                    color: ['hsl(180, 100%, 60%)', '#AAA'],
-                    messages: ['Metric performs at maximum capacity', 'Maximum reached'],
-                    impact: 0
-                } // 'hsl(180, 100%, 35%)'
+                }
+            } else { // Possible artifacts - <5% Margin OK, >5% warning, > 50% danger
+                const checkData = {
+                    name: fm,
+                    unit: unit,
+                    avg: mv,
+                    max: fm === 'flops_any' ? round((metricConfig.peak * 0.85), 0) : metricConfig.peak
+                }
+
+                if (checkData.avg >= (1.5 * checkData.max)) {
+                    return {
+                        ...checkData,
+                        color: 'danger',
+                        message: 'Metric average at least 50% above common peak value: Check data for artifacts!',
+                        impact: -2
+                    }
+                } else if (checkData.avg >= (1.05 * checkData.max)) {
+                    return {
+                        ...checkData,
+                        color: 'warning',
+                        message: 'Metric average at least 5% above common peak value: Check data for artifacts',
+                        impact: -1
+                    }
+                } else {
+                    return {
+                        ...checkData,
+                        color: 'info',
+                        message: 'Metric performs better than common levels',
+                        impact: 0
+                    }
+                }
             }
         } else { // Inverse Logic: Alert if usage is high, Peak is bad and limits execution
-            if (levelPeak <= 0 && levelAlert <= 0 && levelCaution <= 0 && levelNormal <= 0) {  // If avg greater than configured peak: render negative diff as zero
+            if (levelPeak <= 0 && levelAlert <= 0 && levelCaution <= 0 && levelNormal <= 0) {  // Possible artifacts - <5% Margin OK, >5% warning, > 50% danger
+                const checkData = {
+                    name: fm,
+                    unit: unit,
+                    avg: mv,
+                    max: metricConfig.peak
+                }
+                if (checkData.avg >= (1.5 * checkData.max)) {
+                    return {
+                        ...checkData,
+                        color: 'danger',
+                        message: 'Memory usage at least 50% above possible maximum value: Check data for artifacts!',
+                        impact: -2
+                    }
+                } else if (checkData.avg >= (1.05 * checkData.max)) {
+                    return {
+                        ...checkData,
+                        color: 'warning',
+                        message: 'Memory usage at least 5% above possible maximum value: Check data for artifacts!',
+                        impact: -1
+                    }
+                } else {
+                    return {
+                        ...checkData,
+                        color: 'danger',
+                        message: 'Memory usage extremely above common levels!',
+                        impact: 4
+                    }
+                }
+            } else if (levelAlert <= 0 && levelCaution <= 0 && levelNormal <= 0) {
                 return {
-                    data: [mv.avg, 0],
-                    color: ['#7F00FF', '#AAA'],
-                    messages: ['Memory usage at maximum capacity!', 'Maximum reached'],
+                    name: fm,
+                    unit: unit,
+                    avg: mv,
+                    max: metricConfig.peak,
+                    color: 'danger',
+                    message: 'Memory usage extremely above common levels!',
                     impact: 4
-                } // '#5D3FD3'
-            } else if (levelPeak > 0 && (levelAlert <= 0 && levelCaution <= 0 && levelNormal <= 0)) {
-                return {
-                    data: [mv.avg, levelPeak],
-                    color: ['#7F00FF', '#AAA'],
-                    messages: ['Memory usage extremely above recommended levels!', 'Difference towards maximum memory capacity'],
-                    impact: 2
-                } // '#5D3FD3'
+                }
             } else if (levelAlert > 0 && (levelCaution <= 0 && levelNormal <= 0)) {
                 return {
-                    data: [mv.avg, levelAlert],
-                    color: ['hsl(0, 100%, 60%)', '#AAA'],
-                    messages: ['Memory usage strongly above recommended levels!', 'Difference towards highly alerting memory usage'],
-                    impact: 2
-                } // 'hsl(0, 100%, 35%)'
+                    name: fm,
+                    unit: unit,
+                    avg: mv,
+                    max: metricConfig.peak,
+                    color: 'danger',
+                    message: 'Memory usage strongly above common levels!',
+                    impact: 3
+                }
             } else if (levelCaution > 0 && levelNormal <= 0) {
                 return {
-                    data: [mv.avg, levelCaution],
-                    color: ['hsl(56, 100%, 50%)', '#AAA'],
-                    messages: ['Memory usage above recommended levels', 'Difference towards alerting memory usage'],
-                    impact: 1
-                } // '#d5b60a'
+                    name: fm,
+                    unit: unit,
+                    avg: mv,
+                    max: metricConfig.peak,
+                    color: 'warning',
+                    message: 'Memory usage above common levels',
+                    impact: 2
+                }
             } else {
                 return {
-                    data: [mv.avg, levelNormal],
-                    color: ['hsl(100, 100%, 60%)', '#AAA'],
-                    messages: ['Memory usage within recommended levels', 'Difference towards increased memory usage'],
-                    impact: 0
-                } // 'hsl(100, 100%, 35%)'
-            }
-        }
-    })
-
-    console.log("FPD", footprintData)
-
-    // Collect data for chartjs
-    const footprintLabels    = meanVals.map((mv) => [mv.name, 'Threshold']).flat()
-    const footprintUnits     = meanVals.map((mv) => [mv.unit, mv.unit]).flat()
-    const footprintMessages  = footprintData.map((fpd) => fpd.messages).flat()
-    const footprintResultSum = footprintData.map((fpd) => fpd.impact).reduce((accumulator, currentValue) => { return accumulator + currentValue }, 0)
-    let   footprintResult    = ''
-
-    if (footprintResultSum <= 1) {
-        footprintResult = 'good'
-    } else if (footprintResultSum > 1 && footprintResultSum <= 3) {
-        footprintResult = 'well'
-    } else if (footprintResultSum > 3 && footprintResultSum <= 5) {
-        footprintResult = 'acceptable'
-    } else {
-        footprintResult = 'badly'
-    }
-
-    $: data = {
-        labels: footprintLabels,
-        datasets: [
-            {
-                backgroundColor: footprintData[0].color,
-                data: footprintData[0].data
-            },
-            {
-                backgroundColor: footprintData[1].color,
-                data: footprintData[1].data
-            },
-            {
-                backgroundColor: footprintData[2].color,
-                data: footprintData[2].data
-            },
-            {
-                backgroundColor: footprintData[3].color,
-                data: footprintData[3].data
-            }
-        ]
-    }
-
-    const options = { 
-        maintainAspectRatio: false,
-        animation: false,
-        plugins: {
-            legend: {
-                display: displayLegend,
-                labels: { // see: https://www.chartjs.org/docs/latest/samples/other-charts/multi-series-pie.html
-                    generateLabels: function(chart) {
-                        // Get the default label list
-                        const original = ChartJS.overrides.pie.plugins.legend.labels.generateLabels;
-                        const labelsOriginal = original.call(this, chart);
-
-                        // Build an array of colors used in the datasets of the chart
-                        let datasetColors = chart.data.datasets.map(function(e) {
-                        return e.backgroundColor;
-                        });
-                        datasetColors = datasetColors.flat();
-
-                        // Modify the color and hide state of each label
-                        labelsOriginal.forEach(label => {
-                        // There are twice as many labels as there are datasets. This converts the label index into the corresponding dataset index
-                        label.datasetIndex = (label.index - label.index % 2) / 2;
-
-                        // The hidden state must match the dataset's hidden state
-                        label.hidden = !chart.isDatasetVisible(label.datasetIndex);
-
-                        // Change the color to match the dataset
-                        label.fillStyle = datasetColors[label.index];
-                        });
-
-                        return labelsOriginal;
-                    }
-                },
-                onClick: function(mouseEvent, legendItem, legend) {
-                    // toggle the visibility of the dataset from what it currently is
-                    legend.chart.getDatasetMeta(
-                        legendItem.datasetIndex
-                    ).hidden = legend.chart.isDatasetVisible(legendItem.datasetIndex);
-                    legend.chart.update();
-                }
-            },
-            tooltip: {
-                callbacks: {
-                    label: function(context) {
-                        const labelIndex = (context.datasetIndex * 2) + context.dataIndex;
-                        if (context.chart.data.labels[labelIndex] === 'Threshold') {
-                            return ' -' + context.formattedValue + ' ' + footprintUnits[labelIndex]
-                        } else {
-                            return '  ' + context.formattedValue + ' ' + footprintUnits[labelIndex]
-                        }
-                    },
-                    title: function(context) {
-                        const labelIndex = (context[0].datasetIndex * 2) + context[0].dataIndex;
-                        if (context[0].chart.data.labels[labelIndex] === 'Threshold') {
-                            return 'Until ' + context[0].chart.data.labels[labelIndex]
-                        } else {
-                            return 'Average ' + context[0].chart.data.labels[labelIndex]
-                        }
-                    },
-                    footer: function(context) {
-                        const labelIndex = (context[0].datasetIndex * 2) + context[0].dataIndex;
-                        if (context[0].chart.data.labels[labelIndex] === 'Threshold') {
-                            return  footprintMessages[labelIndex]
-                        } else {
-                            return  footprintMessages[labelIndex]
-                        }
-                    }
+                    name: fm,
+                    unit: unit,
+                    avg: mv,
+                    max: metricConfig.peak,
+                    color: 'success',
+                    message: 'Memory usage within common levels',
+                    impact: 1
                 }
             }
         }
-    }
+    }).filter( Boolean )
+
+    // console.log("FPD", footprintData)
 
 </script>
 
- <div class="chart-container" style="--container-width: {size}; --container-height: {size}">
-    <Pie {data} {options}/>
-</div>
-<div class="mt-3 d-flex justify-content-center">
-    <b>Overall Job Performance:&nbsp;</b> Your job {job.state === 'running' ? 'performs' : 'performed'} {footprintResult}.
-</div>
-
+<Card class="h-auto mt-1" style="width: {width}px;">
+    {#if view === 'job'}
+    <CardHeader>
+        <CardTitle class="mb-0 d-flex justify-content-center">
+            Core Metrics Footprint
+        </CardTitle>
+    </CardHeader>
+    {/if}
+    <CardBody>
+        {#each footprintData as fpd}
+            <div class="mb-1 d-flex justify-content-between">
+                <div><b>{fpd.name}</b></div>
+                <div class="cursor-help d-inline-flex" title={fpd.message}>
+                    <div class="mx-1">
+                        <!-- Alerts Only -->
+                        {#if fpd.impact === 3}
+                            <Icon name="exclamation-triangle-fill" class="text-danger"/>
+                        {:else if fpd.impact === 2}
+                            <Icon name="exclamation-triangle" class="text-warning"/>
+                        {:else if fpd.impact === -1}
+                            <Icon name="exclamation-triangle" class="text-warning"/>
+                        {:else if fpd.impact === -2}
+                            <Icon name="exclamation-triangle-fill" class="text-danger"/>
+                        {/if}
+                        <!-- Emoji for all states-->
+                        {#if fpd.impact === 4}
+                            <Icon name="emoji-angry" class="text-danger"/>
+                        {:else if fpd.impact === 3}
+                            <Icon name="emoji-frown" class="text-danger"/>
+                        {:else if fpd.impact === 2}
+                            <Icon name="emoji-neutral" class="text-warning"/>
+                        {:else if fpd.impact === 1}
+                            <Icon name="emoji-smile" class="text-success"/>
+                        {:else if fpd.impact === 0}
+                            <Icon name="emoji-laughing" class="text-info"/>
+                        {:else if fpd.impact === -1}
+                            <Icon name="emoji-dizzy" class="text-warning"/>
+                        {:else if fpd.impact === -2}
+                            <Icon name="emoji-dizzy" class="text-danger"/>
+                        {/if}
+                    </div>
+                    <div>
+                        <!-- Print Values -->
+                        {fpd.avg} / {fpd.max} {fpd.unit}
+                    </div>
+                </div>
+            </div>
+            <div class="mb-2"> <!-- title={fpd.message} -->
+                <Progress
+                    value={fpd.avg}
+                    max={fpd.max}
+                    color={fpd.color}
+                />
+            </div>
+        {/each}
+        {#if job?.metaData?.message}
+            <hr class="mt-1 mb-2"/>
+            {@html job.metaData.message}
+        {/if}
+    </CardBody>
+</Card>
 
 <style>
-    .chart-container {
-        position: relative;
-        margin: auto;
-        height: var(--container-height);
-        width: var(--container-width);
+    .cursor-help {
+        cursor: help;
     }
 </style>
-
-

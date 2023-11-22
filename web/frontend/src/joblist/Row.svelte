@@ -15,7 +15,6 @@
     import MetricPlot from "../plots/MetricPlot.svelte";
     import JobInfo from "./JobInfo.svelte";
     import JobFootprint from "../JobFootprint.svelte";
-    import JobFootprintBars from "../JobFootprintBars.svelte";
     import { maxScope, checkMetricDisabled } from "../utils.js";
 
     export let job;
@@ -139,14 +138,8 @@
         </td>
     {:else}
         {#if showFootprint}
-            <!-- <td>
-                <JobFootprint
-                    job={job}
-                    jobMetrics={$metricsQuery.data.jobMetrics}
-                />
-            </td> -->
             <td>
-                <JobFootprintBars
+                <JobFootprint
                     job={job}
                     jobMetrics={$metricsQuery.data.jobMetrics}
                     width={plotWidth}
