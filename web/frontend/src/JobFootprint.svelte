@@ -10,7 +10,6 @@
         Tooltip
     } from "sveltestrap";
     import { mean, round } from 'mathjs'
-    // import { findThresholds } from './plots/MetricPlot.svelte'
     // import { formatNumber, scaleNumbers } from './units.js'
 
     export let job
@@ -18,9 +17,29 @@
     export let view = 'job'
     export let width = 'auto'
 
-    console.log('CLUSTER', job.cluster)
+    const isAcceleratedJob = (job.numAcc    !== 0)
+    const isSharedJob      = (job.exclusive !== 1)
 
-    const footprintMetrics = ['cpu_load', 'flops_any', 'mem_used', 'mem_bw'] // 'acc_utilization' / missing: energy , move to central config before deployment
+    // console.log('JOB', job)
+    console.log('ACCELERATED?', isAcceleratedJob)
+    console.log('SHARED?', isSharedJob)
+
+    const clusters = getContext('clusters')
+    const subclusterConfig = clusters.find((c) => c.name == job.cluster).subClusters.find((sc) => sc.name == job.subCluster)
+
+    console.log('SCC', subclusterConfig)
+
+    /* NOTES:
+        - 'mem_allocated' für shared jobs (noch todo / nicht in den jobdaten enthalten bisher)
+        > For now: 'acc_util' gegen 'mem_used' für alex
+        - Energy Metric Missiing, muss eingebaut werden
+        - Diese Config in config.json?
+        - Erste 5 / letzte 5 pts für avg auslassen? (Wenn minimallänge erreicht?) // Peak limited => Hier eigentlich nicht mein Proble, Ich zeige nur daten an die geliefert werden
+    */
+
+    const footprintMetrics = isAcceleratedJob ?
+        ['cpu_load', 'flops_any', 'acc_utilization', 'mem_bw'] :
+        ['cpu_load', 'flops_any', 'mem_used',        'mem_bw']
 
     console.log('JMs', jobMetrics.filter((jm) => footprintMetrics.includes(jm.name)))
 
@@ -30,20 +49,20 @@
 
     console.log("FMCs", footprintMetricConfigs)
 
-    // const footprintMetricThresholds = footprintMetricConfigs.map((fmc) => { // Only required if scopes smaller than node required
-    //     return {name: fmc.name, ...findThresholds(fmc, 'node', job?.subCluster ? job.subCluster : '')} // Merge 2 objects
-    // }).filter( Boolean )
+    const footprintMetricThresholds = footprintMetricConfigs.map((fmc) => {
+        return {name: fmc.name, ...findJobThresholds(fmc, job, subclusterConfig)}
+    }).filter( Boolean )
 
-    // console.log("FMTs", footprintMetricThresholds)
+    console.log("FMTs", footprintMetricThresholds)
 
     const footprintData = footprintMetrics.map((fm) => {
         const jm = jobMetrics.find((jm) => jm.name === fm && jm.scope === 'node')
         // ... get Mean
         let mv = null
         if (jm?.metric?.statisticsSeries) {
-            mv = round(mean(jm.metric.statisticsSeries.mean), 2)
+            mv = round(mean(jm.metric.statisticsSeries.mean), 2) // see above
         } else if (jm?.metric?.series[0]) {
-            mv = jm.metric.series[0].statistics.avg
+            mv = jm.metric.series[0].statistics.avg // see above
         }
         // ... get Unit
         let unit = null
@@ -52,13 +71,12 @@
         } else {
             unit = ''
         }
-        // From MetricConfig: Scope only for scaling -> Not of interest here
-        const metricConfig = footprintMetricConfigs.find((fmc) => fmc.name === fm)
-        // ... get Thresholds
-        const levelPeak    = fm === 'flops_any' ? round((metricConfig.peak * 0.85), 0) - mv : metricConfig.peak - mv // Scale flops_any down
-        const levelNormal  = metricConfig.normal - mv
-        const levelCaution = metricConfig.caution - mv
-        const levelAlert   = metricConfig.alert - mv
+        // Get Threshold Limits from scaled Thresholds per Metric
+        const scaledThresholds = footprintMetricThresholds.find((fmc) => fmc.name === fm)
+        const levelPeak    = fm === 'flops_any' ? round((scaledThresholds.peak * 0.85), 0) - mv : scaledThresholds.peak - mv // Scale flops_any down
+        const levelNormal  = scaledThresholds.normal - mv
+        const levelCaution = scaledThresholds.caution - mv
+        const levelAlert   = scaledThresholds.alert - mv
         // Collect
         if (fm !== 'mem_used') { // Alert if usage is low, peak as maxmimum possible (scaled down for flops_any)
             if (levelAlert > 0) {
@@ -66,7 +84,7 @@
                     name: fm,
                     unit: unit,
                     avg: mv,
-                    max: fm === 'flops_any' ? round((metricConfig.peak * 0.85), 0) : metricConfig.peak,
+                    max: fm === 'flops_any' ? round((scaledThresholds.peak * 0.85), 0) : scaledThresholds.peak,
                     color: 'danger',
                     message: 'Metric strongly below common levels!',
                     impact: 3
@@ -76,7 +94,7 @@
                     name: fm,
                     unit: unit,
                     avg: mv,
-                    max: fm === 'flops_any' ? round((metricConfig.peak * 0.85), 0) : metricConfig.peak,
+                    max: fm === 'flops_any' ? round((scaledThresholds.peak * 0.85), 0) : scaledThresholds.peak,
                     color: 'warning',
                     message: 'Metric below common levels',
                     impact: 2
@@ -86,7 +104,7 @@
                     name: fm,
                     unit: unit,
                     avg: mv,
-                    max: fm === 'flops_any' ? round((metricConfig.peak * 0.85), 0) : metricConfig.peak,
+                    max: fm === 'flops_any' ? round((scaledThresholds.peak * 0.85), 0) : scaledThresholds.peak,
                     color: 'success',
                     message: 'Metric within common levels',
                     impact: 1
@@ -96,7 +114,7 @@
                     name: fm,
                     unit: unit,
                     avg: mv,
-                    max: fm === 'flops_any' ? round((metricConfig.peak * 0.85), 0) : metricConfig.peak,
+                    max: fm === 'flops_any' ? round((scaledThresholds.peak * 0.85), 0) : scaledThresholds.peak,
                     color: 'info',
                     message: 'Metric performs better than common levels',
                     impact: 0
@@ -106,20 +124,20 @@
                     name: fm,
                     unit: unit,
                     avg: mv,
-                    max: fm === 'flops_any' ? round((metricConfig.peak * 0.85), 0) : metricConfig.peak
+                    max: fm === 'flops_any' ? round((scaledThresholds.peak * 0.85), 0) : scaledThresholds.peak
                 }
 
                 if (checkData.avg >= (1.5 * checkData.max)) {
                     return {
                         ...checkData,
-                        color: 'danger',
+                        color: 'secondary',
                         message: 'Metric average at least 50% above common peak value: Check data for artifacts!',
                         impact: -2
                     }
                 } else if (checkData.avg >= (1.05 * checkData.max)) {
                     return {
                         ...checkData,
-                        color: 'warning',
+                        color: 'secondary',
                         message: 'Metric average at least 5% above common peak value: Check data for artifacts',
                         impact: -1
                     }
@@ -138,19 +156,19 @@
                     name: fm,
                     unit: unit,
                     avg: mv,
-                    max: metricConfig.peak
+                    max: scaledThresholds.peak
                 }
                 if (checkData.avg >= (1.5 * checkData.max)) {
                     return {
                         ...checkData,
-                        color: 'danger',
+                        color: 'secondary',
                         message: 'Memory usage at least 50% above possible maximum value: Check data for artifacts!',
                         impact: -2
                     }
                 } else if (checkData.avg >= (1.05 * checkData.max)) {
                     return {
                         ...checkData,
-                        color: 'warning',
+                        color: 'secondary',
                         message: 'Memory usage at least 5% above possible maximum value: Check data for artifacts!',
                         impact: -1
                     }
@@ -167,7 +185,7 @@
                     name: fm,
                     unit: unit,
                     avg: mv,
-                    max: metricConfig.peak,
+                    max: scaledThresholds.peak,
                     color: 'danger',
                     message: 'Memory usage extremely above common levels!',
                     impact: 4
@@ -177,7 +195,7 @@
                     name: fm,
                     unit: unit,
                     avg: mv,
-                    max: metricConfig.peak,
+                    max: scaledThresholds.peak,
                     color: 'danger',
                     message: 'Memory usage strongly above common levels!',
                     impact: 3
@@ -187,7 +205,7 @@
                     name: fm,
                     unit: unit,
                     avg: mv,
-                    max: metricConfig.peak,
+                    max: scaledThresholds.peak,
                     color: 'warning',
                     message: 'Memory usage above common levels',
                     impact: 2
@@ -197,7 +215,7 @@
                     name: fm,
                     unit: unit,
                     avg: mv,
-                    max: metricConfig.peak,
+                    max: scaledThresholds.peak,
                     color: 'success',
                     message: 'Memory usage within common levels',
                     impact: 1
@@ -210,11 +228,66 @@
 
 </script>
 
+<script context="module">
+    export function findJobThresholds(metricConfig, job, subClusterConfig) {
+
+    console.log('Hello', metricConfig.name, '@', subClusterConfig.name)
+
+    if (!metricConfig || !job || !subClusterConfig) {
+        console.warn('Argument missing for findJobThresholds!')
+        return null
+    }
+
+    if (job.numHWThreads == subClusterConfig.topology.node.length   || // Job uses all available HWTs of one node
+        job.numAcc == subClusterConfig.topology.accelerators.length || // Job uses all available GPUs of one node
+        metricConfig.aggregation == 'avg'                           ){ // Metric uses "average" aggregation method
+
+        console.log('Job uses all available Resources of one node OR uses "average" aggregation method, use unscaled thresholds')
+
+        let subclusterThresholds = metricConfig.subClusters.find(sc => sc.name == subClusterConfig.name)
+        if (subclusterThresholds) {
+            console.log('subClusterThresholds found, use subCluster specific thresholds:', subclusterThresholds)
+            return { 
+                peak: subclusterThresholds.peak,
+                normal: subclusterThresholds.normal,
+                caution: subclusterThresholds.caution,
+                alert: subclusterThresholds.alert
+            }
+        }
+
+        return { 
+            peak: metricConfig.peak,
+            normal: metricConfig.normal,
+            caution: metricConfig.caution,
+            alert: metricConfig.alert
+        }
+    }
+
+    if (metricConfig.aggregation != 'sum') {
+        console.warn('Missing or unkown aggregation mode (sum/avg) for metric:', metricConfig)
+        return null
+    }
+
+    /* Adapt based on numAccs? */
+    const jobFraction = job.numHWThreads / subClusterConfig.topology.node.length
+    //const fractionAcc = job.numAcc / subClusterConfig.topology.accelerators.length
+
+    console.log('Fraction', jobFraction)
+
+    return {
+        peak: round((metricConfig.peak * jobFraction), 0),
+        normal: round((metricConfig.normal * jobFraction), 0),
+        caution: round((metricConfig.caution * jobFraction), 0),
+        alert: round((metricConfig.alert * jobFraction), 0)
+    }
+}
+</script>
+
 <Card class="h-auto mt-1" style="width: {width}px;">
     {#if view === 'job'}
     <CardHeader>
         <CardTitle class="mb-0 d-flex justify-content-center">
-            Core Metrics Footprint
+            Core Metrics Footprint {isSharedJob ? '(Scaled)' : ''}
         </CardTitle>
     </CardHeader>
     {/if}
