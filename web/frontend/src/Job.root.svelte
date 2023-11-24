@@ -47,7 +47,8 @@
             resources { hostname, hwthreads, accelerators },
             metaData,
             userData { name, email },
-            concurrentJobs { items { id, jobId }, count, listQuery }
+            concurrentJobs { items { id, jobId }, count, listQuery },
+            flopsAnyAvg, memBwAvg, loadAvg
         }
     `);
 

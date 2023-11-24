@@ -31,9 +31,9 @@
 
     /* NOTES:
         - 'mem_allocated' für shared jobs (noch todo / nicht in den jobdaten enthalten bisher)
-        > For now: 'acc_util' gegen 'mem_used' für alex
+        > For now: 'acc_util' gegen 'mem_used' für alex: Mem bw für shared weggefallen: dann wieder vier bars
         - Energy Metric Missiing, muss eingebaut werden
-        - Diese Config in config.json?
+        - footprintMetrics Config in config.json?
     */
 
     const footprintMetrics = isAcceleratedJob
@@ -60,9 +60,15 @@
 
     const footprintData = footprintMetrics.map((fm) => {
         const jm = jobMetrics.find((jm) => jm.name === fm && jm.scope === 'node')
-        // ... get Mean
+        // ... get Mean: Primarily use backend sourced avgs from job.*, secondarily calculate/read from metricdata
         let mv = null
-        if (jm?.metric?.statisticsSeries) {
+        if (fm === 'cpu_load' && job.loadAvg !== 0) {
+            mv = round(job.loadAvg, 2)
+        } else if (fm === 'flops_any' && job.flopsAnyAvg !== 0) {
+            mv = round(job.flopsAnyAvg, 2)
+        } else if (fm === 'mem_bw' && job.memBwAvg !== 0) {
+            mv = round(job.memBwAvg, 2)
+        } else if (jm?.metric?.statisticsSeries) {
             mv = round(mean(jm.metric.statisticsSeries.mean), 2)
         } else if (jm?.metric?.series?.length > 1) {
             const avgs = jm.metric.series.map(jms => jms.statistics.avg)
@@ -356,6 +362,13 @@
                 />
             </div>
         {/each}
+<!--         <hr class="mt-1 mb-2"/>
+        <ul>
+            <li>Load Avg {round(job.loadAvg, 2)}</li>
+            <li>Flops Any {round(job.flopsAnyAvg, 2)}</li>
+            <li>Mem Used Max {round(job.memUsedMax, 2)}</li>
+            <li>Mem BW Avg {round(job.memBwAvg, 2)}</li>
+        </ul> -->
         {#if job?.metaData?.message}
             <hr class="mt-1 mb-2"/>
             {@html job.metaData.message}

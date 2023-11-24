@@ -74,6 +74,9 @@
                         name
                     }
                     metaData
+                    flopsAnyAvg
+                    memBwAvg
+                    loadAvg
                 }
                 count
             }
