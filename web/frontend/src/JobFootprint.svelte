@@ -10,57 +10,25 @@
         Tooltip
     } from "sveltestrap";
     import { mean, round } from 'mathjs'
-    // import { formatNumber, scaleNumbers } from './units.js'
 
     export let job
     export let jobMetrics
     export let view = 'job'
     export let width = 'auto'
 
-    const isAcceleratedJob = (job.numAcc    !== 0)
-    const isSharedJob      = (job.exclusive !== 1)
-
-    console.log('JOB', job)
-    console.log('ACCELERATED?', isAcceleratedJob)
-    console.log('SHARED?', isSharedJob)
-
-    const clusters = getContext('clusters')
+    const clusters         = getContext('clusters')
     const subclusterConfig = clusters.find((c) => c.name == job.cluster).subClusters.find((sc) => sc.name == job.subCluster)
 
-    console.log('SCC', subclusterConfig)
-
-    /* NOTES:
-        - 'mem_allocated' für shared jobs (noch todo / nicht in den jobdaten enthalten bisher)
-        > For now: 'acc_util' gegen 'mem_used' für alex: Mem bw für shared weggefallen: dann wieder vier bars
-        - Energy Metric Missiing, muss eingebaut werden
-        - footprintMetrics Config in config.json?
-    */
-
-    const footprintMetrics = isAcceleratedJob
-        ? isSharedJob 
+    const footprintMetrics = (job.numAcc !== 0)
+        ? (job.exclusive !== 1) 
             ? ['cpu_load', 'flops_any', 'acc_utilization']
             : ['cpu_load', 'flops_any', 'acc_utilization', 'mem_bw']
-        : isSharedJob 
+        : (job.exclusive !== 1) 
             ? ['cpu_load', 'flops_any', 'mem_used']
             : ['cpu_load', 'flops_any', 'mem_used', 'mem_bw']
 
-    console.log('JMs', jobMetrics.filter((jm) => footprintMetrics.includes(jm.name)))
-
-    const footprintMetricConfigs = footprintMetrics.map((fm) => { 
-        return getContext('metrics')(job.cluster, fm)
-    }).filter( Boolean ) // Filter only "truthy" vals, see: https://stackoverflow.com/questions/28607451/removing-undefined-values-from-array
-
-    console.log("FMCs", footprintMetricConfigs)
-
-    const footprintMetricThresholds = footprintMetricConfigs.map((fmc) => {
-        return {name: fmc.name, ...findJobThresholds(fmc, job, subclusterConfig)}
-    }).filter( Boolean )
-
-    console.log("FMTs", footprintMetricThresholds)
-
     const footprintData = footprintMetrics.map((fm) => {
-        const jm = jobMetrics.find((jm) => jm.name === fm && jm.scope === 'node')
-        // ... get Mean: Primarily use backend sourced avgs from job.*, secondarily calculate/read from metricdata
+        // Mean: Primarily use backend sourced avgs from job.*, secondarily calculate/read from metricdata
         let mv = null
         if (fm === 'cpu_load' && job.loadAvg !== 0) {
             mv = round(job.loadAvg, 2)
@@ -68,94 +36,90 @@
             mv = round(job.flopsAnyAvg, 2)
         } else if (fm === 'mem_bw' && job.memBwAvg !== 0) {
             mv = round(job.memBwAvg, 2)
-        } else if (jm?.metric?.statisticsSeries) {
-            mv = round(mean(jm.metric.statisticsSeries.mean), 2)
-        } else if (jm?.metric?.series?.length > 1) {
-            const avgs = jm.metric.series.map(jms => jms.statistics.avg)
-            mv = round(mean(avgs), 2)
-        } else {
-            mv = jm.metric.series[0].statistics.avg
+        } else { // Calculate from jobMetrics
+            const jm  = jobMetrics.find((jm) => jm.name === fm && jm.scope === 'node')
+            if (jm?.metric?.statisticsSeries) {
+                mv = round(mean(jm.metric.statisticsSeries.mean), 2)
+            } else if (jm?.metric?.series?.length > 1) {
+                const avgs = jm.metric.series.map(jms => jms.statistics.avg)
+                mv = round(mean(avgs), 2)
+            } else {
+                mv = jm.metric.series[0].statistics.avg
+            }
         }
-        // ... get Unit
+        
+        // Unit
+        const fmc = getContext('metrics')(job.cluster, fm)
         let unit = null
-        if (jm?.metric?.unit?.base) {
-            unit = jm.metric.unit.prefix + jm.metric.unit.base
+        if (fmc?.unit?.base) {
+            unit = fmc.unit.prefix + fmc.unit.base
         } else {
             unit = ''
         }
-        // Get Threshold Limits from scaled Thresholds per Metric
-        const scaledThresholds = footprintMetricThresholds.find((fmc) => fmc.name === fm)
-        const levelPeak    = fm === 'flops_any' ? round((scaledThresholds.peak * 0.85), 0) - mv : scaledThresholds.peak - mv // Scale flops_any down
-        const levelNormal  = scaledThresholds.normal - mv
-        const levelCaution = scaledThresholds.caution - mv
-        const levelAlert   = scaledThresholds.alert - mv
+
+        // Threshold / -Differences
+        const fmt = findJobThresholds(job, fmc, subclusterConfig)
+        const levelPeak    = fm === 'flops_any' ? round((fmt.peak * 0.85), 0) - mv : fmt.peak - mv // Scale flops_any down
+        const levelNormal  = fmt.normal - mv
+        const levelCaution = fmt.caution - mv
+        const levelAlert   = fmt.alert - mv
+
+        // Define basic data
+        const fmBase = {
+            name: fm,
+            unit: unit,
+            avg: mv,
+            max: fm === 'flops_any' ? round((fmt.peak * 0.85), 0) : fmt.peak
+        }
+
         // Collect
         if (fm !== 'mem_used') { // Alert if usage is low, peak as maxmimum possible (scaled down for flops_any)
             if (levelAlert > 0) {
                 return {
-                    name: fm,
-                    unit: unit,
-                    avg: mv,
-                    max: fm === 'flops_any' ? round((scaledThresholds.peak * 0.85), 0) : scaledThresholds.peak,
+                    ...fmBase,
                     color: 'danger',
                     message: 'Metric strongly below common levels!',
                     impact: 3
                 }
             } else if (levelCaution > 0) {
                 return {
-                    name: fm,
-                    unit: unit,
-                    avg: mv,
-                    max: fm === 'flops_any' ? round((scaledThresholds.peak * 0.85), 0) : scaledThresholds.peak,
+                    ...fmBase,
                     color: 'warning',
                     message: 'Metric below common levels',
                     impact: 2
                 }
             } else if (levelNormal > 0) {
                 return {
-                    name: fm,
-                    unit: unit,
-                    avg: mv,
-                    max: fm === 'flops_any' ? round((scaledThresholds.peak * 0.85), 0) : scaledThresholds.peak,
+                    ...fmBase,
                     color: 'success',
                     message: 'Metric within common levels',
                     impact: 1
                 }
             } else if (levelPeak > 0) {
                 return {
-                    name: fm,
-                    unit: unit,
-                    avg: mv,
-                    max: fm === 'flops_any' ? round((scaledThresholds.peak * 0.85), 0) : scaledThresholds.peak,
+                    ...fmBase,
                     color: 'info',
                     message: 'Metric performs better than common levels',
                     impact: 0
                 }
             } else { // Possible artifacts - <5% Margin OK, >5% warning, > 50% danger
-                const checkData = {
-                    name: fm,
-                    unit: unit,
-                    avg: mv,
-                    max: fm === 'flops_any' ? round((scaledThresholds.peak * 0.85), 0) : scaledThresholds.peak
-                }
-
-                if (checkData.avg >= (1.5 * checkData.max)) {
+                if (fmBase.avg >= (1.5 * fmBase.max)) {
                     return {
-                        ...checkData,
+                        ...fmBase,
                         color: 'secondary',
                         message: 'Metric average at least 50% above common peak value: Check data for artifacts!',
                         impact: -2
                     }
-                } else if (checkData.avg >= (1.05 * checkData.max)) {
+                } else if (fmBase.avg >= (1.05 * fmBase.max)) {
                     return {
-                        ...checkData,
+                        ...fmBase,
                         color: 'secondary',
                         message: 'Metric average at least 5% above common peak value: Check data for artifacts',
                         impact: -1
                     }
                 } else {
                     return {
-                        ...checkData,
+                        ...fmBase,
                         color: 'info',
                         message: 'Metric performs better than common levels',
                         impact: 0
@@ -164,29 +128,23 @@
             }
         } else { // Inverse Logic: Alert if usage is high, Peak is bad and limits execution
             if (levelPeak <= 0 && levelAlert <= 0 && levelCaution <= 0 && levelNormal <= 0) {  // Possible artifacts - <5% Margin OK, >5% warning, > 50% danger
-                const checkData = {
-                    name: fm,
-                    unit: unit,
-                    avg: mv,
-                    max: scaledThresholds.peak
-                }
-                if (checkData.avg >= (1.5 * checkData.max)) {
+                if (fmBase.avg >= (1.5 * fmBase.max)) {
                     return {
-                        ...checkData,
+                        ...fmBase,
                         color: 'secondary',
                         message: 'Memory usage at least 50% above possible maximum value: Check data for artifacts!',
                         impact: -2
                     }
-                } else if (checkData.avg >= (1.05 * checkData.max)) {
+                } else if (fmBase.avg >= (1.05 * fmBase.max)) {
                     return {
-                        ...checkData,
+                        ...fmBase,
                         color: 'secondary',
                         message: 'Memory usage at least 5% above possible maximum value: Check data for artifacts!',
                         impact: -1
                     }
                 } else {
                     return {
-                        ...checkData,
+                        ...fmBase,
                         color: 'danger',
                         message: 'Memory usage extremely above common levels!',
                         impact: 4
@@ -194,109 +152,72 @@
                 }
             } else if (levelAlert <= 0 && levelCaution <= 0 && levelNormal <= 0) {
                 return {
-                    name: fm,
-                    unit: unit,
-                    avg: mv,
-                    max: scaledThresholds.peak,
+                    ...fmBase,
                     color: 'danger',
                     message: 'Memory usage extremely above common levels!',
                     impact: 4
                 }
             } else if (levelAlert > 0 && (levelCaution <= 0 && levelNormal <= 0)) {
                 return {
-                    name: fm,
-                    unit: unit,
-                    avg: mv,
-                    max: scaledThresholds.peak,
+                    ...fmBase,
                     color: 'danger',
                     message: 'Memory usage strongly above common levels!',
                     impact: 3
                 }
             } else if (levelCaution > 0 && levelNormal <= 0) {
                 return {
-                    name: fm,
-                    unit: unit,
-                    avg: mv,
-                    max: scaledThresholds.peak,
+                    ...fmBase,
                     color: 'warning',
                     message: 'Memory usage above common levels',
                     impact: 2
                 }
             } else {
                 return {
-                    name: fm,
-                    unit: unit,
-                    avg: mv,
-                    max: scaledThresholds.peak,
+                    ...fmBase,
                     color: 'success',
                     message: 'Memory usage within common levels',
                     impact: 1
                 }
             }
         }
-    }).filter( Boolean )
-
-    console.log("FPD", footprintData)
-
+    })
 </script>
 
 <script context="module">
-    export function findJobThresholds(metricConfig, job, subClusterConfig) {
+    export function findJobThresholds(job, metricConfig, subClusterConfig) {
 
-    console.log('Hello', metricConfig.name, '@', subClusterConfig.name)
-
-    if (!metricConfig || !job || !subClusterConfig) {
+    if (!job || !metricConfig || !subClusterConfig) {
         console.warn('Argument missing for findJobThresholds!')
         return null
     }
 
-    let subclusterThresholds = metricConfig.subClusters.find(sc => sc.name == subClusterConfig.name)
+    const subclusterThresholds = metricConfig.subClusters.find(sc => sc.name == subClusterConfig.name)
+    const defaultThresholds = { 
+        peak:    subclusterThresholds ? subclusterThresholds.peak    : metricConfig.peak,
+        normal:  subclusterThresholds ? subclusterThresholds.normal  : metricConfig.normal,
+        caution: subclusterThresholds ? subclusterThresholds.caution : metricConfig.caution,
+        alert:   subclusterThresholds ? subclusterThresholds.alert   : metricConfig.alert
+    }
+
     if (job.exclusive === 1) { // Exclusive: Use as defined
-        console.log('Job is exclusive: Use as defined')
-        if (subclusterThresholds) {
-            console.log('subClusterThresholds found: use subCluster specific thresholds', subclusterThresholds)
+        return defaultThresholds
+    } else { // Shared: Handle specifically
+        if (metricConfig.name === 'cpu_load') { // Special: Avg Aggregation BUT scaled based on #hwthreads
             return { 
-                peak: subclusterThresholds.peak,
-                normal: subclusterThresholds.normal,
-                caution: subclusterThresholds.caution,
-                alert: subclusterThresholds.alert
-            }
-        }
-        return { 
-            peak: metricConfig.peak,
-            normal: metricConfig.normal,
-            caution: metricConfig.caution,
-            alert: metricConfig.alert
-        }
-    } else { // Shared
-        if (metricConfig.aggregation === 'avg' ){
-            console.log('metric uses "average" aggregation method: use unscaled thresholds except if cpu_load')
-            if (subclusterThresholds) {
-                console.log('subClusterThresholds found: use subCluster specific thresholds', subclusterThresholds)
-                console.log('PEAK/NORMAL USED', metricConfig.name === 'cpu_load' ? job.numHWThreads : subclusterThresholds.peak)
-                return { // If 'cpu_load': Peak/Normal === #HWThreads, keep other thresholds
-                    peak: metricConfig.name === 'cpu_load' ? job.numHWThreads : subclusterThresholds.peak, 
-                    normal: metricConfig.name === 'cpu_load' ? job.numHWThreads : subclusterThresholds.normal,
-                    caution: subclusterThresholds.caution,
-                    alert: subclusterThresholds.alert
-                }
-            }
-            console.log('PEAK/NORMAL USED', metricConfig.name === 'cpu_load' ? job.numHWThreads : metricConfig.peak)
-            return { 
-                peak: metricConfig.name === 'cpu_load' ? job.numHWThreads : metricConfig.peak,
-                normal: metricConfig.name === 'cpu_load' ? job.numHWThreads : metricConfig.normal,
-                caution: metricConfig.caution,
-                alert: metricConfig.alert
-            }
+                peak:    job.numHWThreads,
+                normal:  job.numHWThreads,
+                caution: defaultThresholds.caution,
+                alert:   defaultThresholds.alert
+            }   
+        } else if (metricConfig.aggregation === 'avg' ){
+            return defaultThresholds
         } else if (metricConfig.aggregation === 'sum' ){
             const jobFraction = job.numHWThreads / subClusterConfig.topology.node.length
-            console.log('Fraction', jobFraction)
-
             return {
-                peak: round((metricConfig.peak * jobFraction), 0),
-                normal: round((metricConfig.normal * jobFraction), 0),
-                caution: round((metricConfig.caution * jobFraction), 0),
-                alert: round((metricConfig.alert * jobFraction), 0)
+                peak: round((defaultThresholds.peak * jobFraction), 0),
+                normal: round((defaultThresholds.normal * jobFraction), 0),
+                caution: round((defaultThresholds.caution * jobFraction), 0),
+                alert: round((defaultThresholds.alert * jobFraction), 0)
             }
         } else {
             console.warn('Missing or unkown aggregation mode (sum/avg) for metric:', metricConfig)
@@ -310,7 +231,7 @@
     {#if view === 'job'}
     <CardHeader>
         <CardTitle class="mb-0 d-flex justify-content-center">
-            Core Metrics Footprint {isSharedJob ? '(Scaled)' : ''}
+            Core Metrics Footprint
         </CardTitle>
     </CardHeader>
     {/if}
@@ -362,13 +283,6 @@
                 />
             </div>
         {/each}
-<!--         <hr class="mt-1 mb-2"/>
-        <ul>
-            <li>Load Avg {round(job.loadAvg, 2)}</li>
-            <li>Flops Any {round(job.flopsAnyAvg, 2)}</li>
-            <li>Mem Used Max {round(job.memUsedMax, 2)}</li>
-            <li>Mem BW Avg {round(job.memBwAvg, 2)}</li>
-        </ul> -->
         {#if job?.metaData?.message}
             <hr class="mt-1 mb-2"/>
             {@html job.metaData.message}
