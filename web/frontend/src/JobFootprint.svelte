@@ -20,7 +20,7 @@
     const isAcceleratedJob = (job.numAcc    !== 0)
     const isSharedJob      = (job.exclusive !== 1)
 
-    // console.log('JOB', job)
+    console.log('JOB', job)
     console.log('ACCELERATED?', isAcceleratedJob)
     console.log('SHARED?', isSharedJob)
 
@@ -34,12 +34,15 @@
         > For now: 'acc_util' gegen 'mem_used' für alex
         - Energy Metric Missiing, muss eingebaut werden
         - Diese Config in config.json?
-        - Erste 5 / letzte 5 pts für avg auslassen? (Wenn minimallänge erreicht?) // Peak limited => Hier eigentlich nicht mein Proble, Ich zeige nur daten an die geliefert werden
     */
 
-    const footprintMetrics = isAcceleratedJob ?
-        ['cpu_load', 'flops_any', 'acc_utilization', 'mem_bw'] :
-        ['cpu_load', 'flops_any', 'mem_used',        'mem_bw']
+    const footprintMetrics = isAcceleratedJob
+        ? isSharedJob 
+            ? ['cpu_load', 'flops_any', 'acc_utilization']
+            : ['cpu_load', 'flops_any', 'acc_utilization', 'mem_bw']
+        : isSharedJob 
+            ? ['cpu_load', 'flops_any', 'mem_used']
+            : ['cpu_load', 'flops_any', 'mem_used', 'mem_bw']
 
     console.log('JMs', jobMetrics.filter((jm) => footprintMetrics.includes(jm.name)))
 
@@ -60,9 +63,12 @@
         // ... get Mean
         let mv = null
         if (jm?.metric?.statisticsSeries) {
-            mv = round(mean(jm.metric.statisticsSeries.mean), 2) // see above
-        } else if (jm?.metric?.series[0]) {
-            mv = jm.metric.series[0].statistics.avg // see above
+            mv = round(mean(jm.metric.statisticsSeries.mean), 2)
+        } else if (jm?.metric?.series?.length > 1) {
+            const avgs = jm.metric.series.map(jms => jms.statistics.avg)
+            mv = round(mean(avgs), 2)
+        } else {
+            mv = jm.metric.series[0].statistics.avg
         }
         // ... get Unit
         let unit = null
@@ -238,15 +244,11 @@
         return null
     }
 
-    if (job.numHWThreads == subClusterConfig.topology.node.length   || // Job uses all available HWTs of one node
-        job.numAcc == subClusterConfig.topology.accelerators.length || // Job uses all available GPUs of one node
-        metricConfig.aggregation == 'avg'                           ){ // Metric uses "average" aggregation method
-
-        console.log('Job uses all available Resources of one node OR uses "average" aggregation method, use unscaled thresholds')
-
-        let subclusterThresholds = metricConfig.subClusters.find(sc => sc.name == subClusterConfig.name)
+    let subclusterThresholds = metricConfig.subClusters.find(sc => sc.name == subClusterConfig.name)
+    if (job.exclusive === 1) { // Exclusive: Use as defined
+        console.log('Job is exclusive: Use as defined')
         if (subclusterThresholds) {
-            console.log('subClusterThresholds found, use subCluster specific thresholds:', subclusterThresholds)
+            console.log('subClusterThresholds found: use subCluster specific thresholds', subclusterThresholds)
             return { 
                 peak: subclusterThresholds.peak,
                 normal: subclusterThresholds.normal,
@@ -254,32 +256,47 @@
                 alert: subclusterThresholds.alert
             }
         }
-
         return { 
             peak: metricConfig.peak,
             normal: metricConfig.normal,
             caution: metricConfig.caution,
             alert: metricConfig.alert
         }
-    }
+    } else { // Shared
+        if (metricConfig.aggregation === 'avg' ){
+            console.log('metric uses "average" aggregation method: use unscaled thresholds except if cpu_load')
+            if (subclusterThresholds) {
+                console.log('subClusterThresholds found: use subCluster specific thresholds', subclusterThresholds)
+                console.log('PEAK/NORMAL USED', metricConfig.name === 'cpu_load' ? job.numHWThreads : subclusterThresholds.peak)
+                return { // If 'cpu_load': Peak/Normal === #HWThreads, keep other thresholds
+                    peak: metricConfig.name === 'cpu_load' ? job.numHWThreads : subclusterThresholds.peak, 
+                    normal: metricConfig.name === 'cpu_load' ? job.numHWThreads : subclusterThresholds.normal,
+                    caution: subclusterThresholds.caution,
+                    alert: subclusterThresholds.alert
+                }
+            }
+            console.log('PEAK/NORMAL USED', metricConfig.name === 'cpu_load' ? job.numHWThreads : metricConfig.peak)
+            return { 
+                peak: metricConfig.name === 'cpu_load' ? job.numHWThreads : metricConfig.peak,
+                normal: metricConfig.name === 'cpu_load' ? job.numHWThreads : metricConfig.normal,
+                caution: metricConfig.caution,
+                alert: metricConfig.alert
+            }
+        } else if (metricConfig.aggregation === 'sum' ){
+            const jobFraction = job.numHWThreads / subClusterConfig.topology.node.length
+            console.log('Fraction', jobFraction)
 
-    if (metricConfig.aggregation != 'sum') {
-        console.warn('Missing or unkown aggregation mode (sum/avg) for metric:', metricConfig)
-        return null
-    }
-
-    /* Adapt based on numAccs? */
-    const jobFraction = job.numHWThreads / subClusterConfig.topology.node.length
-    //const fractionAcc = job.numAcc / subClusterConfig.topology.accelerators.length
-
-    console.log('Fraction', jobFraction)
-
-    return {
-        peak: round((metricConfig.peak * jobFraction), 0),
-        normal: round((metricConfig.normal * jobFraction), 0),
-        caution: round((metricConfig.caution * jobFraction), 0),
-        alert: round((metricConfig.alert * jobFraction), 0)
-    }
+            return {
+                peak: round((metricConfig.peak * jobFraction), 0),
+                normal: round((metricConfig.normal * jobFraction), 0),
+                caution: round((metricConfig.caution * jobFraction), 0),
+                alert: round((metricConfig.alert * jobFraction), 0)
+            }
+        } else {
+            console.warn('Missing or unkown aggregation mode (sum/avg) for metric:', metricConfig)
+            return null
+        }
+    } // Other job.exclusive cases?
 }
 </script>
 

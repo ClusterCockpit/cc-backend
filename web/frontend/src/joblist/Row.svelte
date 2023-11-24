@@ -72,7 +72,7 @@
 
     let queryMetrics = null
     $: if (showFootprint) {
-        queryMetrics = ['cpu_load', 'flops_any', 'mem_used', 'mem_bw', ...metrics].filter(distinct)
+        queryMetrics = ['cpu_load', 'flops_any', 'mem_used', 'mem_bw', 'acc_utilization', ...metrics].filter(distinct)
         scopes       = ["node"]
     } else {
         queryMetrics = [...metrics]
