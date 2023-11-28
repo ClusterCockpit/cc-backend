@@ -25,6 +25,9 @@
     let metrics = ccconfig.plot_list_selectedMetrics, isMetricsSelectionOpen = false
     let w1, w2, histogramHeight = 250
     let selectedCluster = filterPresets?.cluster ? filterPresets.cluster : null
+    let showFootprint = filterPresets.cluster
+        ? !!ccconfig[`plot_list_showFootprint:${filterPresets.cluster}`]
+        : !!ccconfig.plot_list_showFootprint
 
     const client = getContextClient();
     $: stats = queryStore({
@@ -165,7 +168,8 @@
         <JobList
             bind:metrics={metrics}
             bind:sorting={sorting}
-            bind:this={jobList} />
+            bind:this={jobList}
+            bind:showFootprint={showFootprint} />
     </Col>
 </Row>
 
@@ -177,4 +181,6 @@
     bind:cluster={selectedCluster}
     configName="plot_list_selectedMetrics"
     bind:metrics={metrics}
-    bind:isOpen={isMetricsSelectionOpen} />
+    bind:isOpen={isMetricsSelectionOpen}
+    bind:showFootprint={showFootprint}
+    view='list'/>

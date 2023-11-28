@@ -98,4 +98,5 @@
     configName="plot_list_selectedMetrics"
     bind:metrics={metrics}
     bind:isOpen={isMetricsSelectionOpen}
-    bind:showFootprint={showFootprint}/>
+    bind:showFootprint={showFootprint}
+    view='list'/>

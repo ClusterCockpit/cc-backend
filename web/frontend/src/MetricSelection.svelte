@@ -18,6 +18,7 @@
     export let allMetrics = null
     export let cluster = null
     export let showFootprint
+    export let view = 'job'
 
     const clusters = getContext('clusters'),
           onInit = getContext('on-init')
@@ -135,10 +136,12 @@
     </ModalHeader>
     <ModalBody>
         <ListGroup>
+            {#if view === 'list'}
             <li class="list-group-item">
                 <input type="checkbox" bind:checked={pendingShowFootprint}> Show Footprint
             </li>
             <hr/>
+            {/if}
             {#each newMetricsOrder as metric, index (metric)}
                 <li class="cc-config-column list-group-item"
                     draggable={true} ondragover="return false"
