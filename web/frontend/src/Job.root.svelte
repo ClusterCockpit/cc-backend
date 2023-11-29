@@ -93,7 +93,9 @@
             startFetching(
                 job,
                 [...toFetch],
-                job.numNodes > 2 ? ["node"] : ["node", "core"]
+                job.numNodes > 2
+                    ? ["node"]
+                    : ["node", "socket", "core"]
             );
         } else {
             // Accels and not on node scope
@@ -102,7 +104,7 @@
                 [...toFetch],
                 job.numNodes > 2
                     ? ["node", "accelerator"]
-                    : ["node", "accelerator", "core"]
+                    : ["node", "accelerator", "socket", "core"]
             );
         }
 
@@ -390,8 +392,6 @@
                                 bind:this={statsTable}
                                 job={$initq.data.job}
                                 jobMetrics={$jobMetrics.data.jobMetrics}
-                                accMetrics={accMetrics}
-                                accNodeOnly={accNodeOnly}
                             />
                         {/key}
                     {/if}
