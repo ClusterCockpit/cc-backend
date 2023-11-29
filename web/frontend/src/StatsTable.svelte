@@ -7,8 +7,6 @@
 
     export let job
     export let jobMetrics
-    export let accMetrics
-    export let accNodeOnly
 
     const allMetrics = [...new Set(jobMetrics.map(m => m.name))].sort(),
           scopesForMetric = (metric) => jobMetrics
@@ -23,17 +21,23 @@
             || getContext('cc-config')['job_view_nodestats_selectedMetrics']
             
     for (let metric of allMetrics) {
-        // Not Exclusive or Single Node: Get maxScope()
-        // No Accelerators in Job and not Acc-Metric: Use 'core'
-        // Accelerator Metric available on accelerator scope: Use 'accelerator'
-        // Accelerator Metric only on node scope: Fallback to 'node'
-        selectedScopes[metric] = (job.exclusive != 1 || job.numNodes == 1) ?
-                                   (job.numAccs != 0 && accMetrics.includes(metric)) ?
-                                     accNodeOnly ?
-                                       'node'
-                                     : 'accelerator' 
-                                   : 'core'
-                                 : maxScope(scopesForMetric(metric))
+        // Not Exclusive or Multi-Node: get maxScope directly (mostly: node)
+        //   -> Else: Load smallest available granularity as default as per availability
+        const availableScopes = scopesForMetric(metric)
+        if (job.exclusive != 1 || job.numNodes == 1) {
+            if (availableScopes.includes('accelerator')) {
+                selectedScopes[metric] = 'accelerator'
+            } else if (availableScopes.includes('core')) {
+                selectedScopes[metric] = 'core'
+            } else if (availableScopes.includes('socket')) {
+                selectedScopes[metric] = 'socket'
+            } else {
+                selectedScopes[metric] = 'node'
+            }
+        } else {
+            selectedScopes[metric] = maxScope(availableScopes)
+        }
+
         sorting[metric] = {
             min: { dir: 'up', active: false },
             avg: { dir: 'up', active: false },
@@ -84,8 +88,7 @@
                             {metric}
                         </InputGroupText>
                         <select class="form-select"
-                            bind:value={selectedScopes[metric]}
-                            disabled={scopesForMetric(metric, jobMetrics).length == 1}>
+                            bind:value={selectedScopes[metric]}>
                             {#each scopesForMetric(metric, jobMetrics) as scope}
                                 <option value={scope}>{scope}</option>
                             {/each}
