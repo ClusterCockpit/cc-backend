@@ -1,7 +1,7 @@
 <script>
     import { onMount, getContext } from 'svelte'
     import { init, convert2uplot } from './utils.js'
-    import { Table, Row, Col, Button, Icon, Card, Spinner, Input } from 'sveltestrap'
+    import { Table, Row, Col, Button, Icon, Card, Spinner } from 'sveltestrap'
     import { queryStore, gql, getContextClient } from '@urql/svelte'
     import Filters from './filters/Filters.svelte'
     import JobList from './joblist/JobList.svelte'
@@ -9,11 +9,14 @@
     import Refresher from './joblist/Refresher.svelte'
     import Histogram from './plots/Histogram.svelte'
     import MetricSelection from './MetricSelection.svelte'
+    import HistogramSelection from './HistogramSelection.svelte'
+    import PlotTable from './PlotTable.svelte'
     import { scramble, scrambleNames } from './joblist/JobInfo.svelte'
 
     const { query: initq } = init()
 
     const ccconfig = getContext('cc-config')
+    // const metricConfig = getContext('metrics')
 
     export let user
     export let filterPresets
@@ -25,21 +28,23 @@
     let metrics = ccconfig.plot_list_selectedMetrics, isMetricsSelectionOpen = false
     let w1, w2, histogramHeight = 250
     let selectedCluster = filterPresets?.cluster ? filterPresets.cluster : null
+    let metricsInHistograms = ccconfig[`user_view_histogramMetrics:${cluster}`] || ccconfig.user_view_histogramMetrics
 
     const client = getContextClient();
     $: stats = queryStore({
         client: client,
         query: gql`
-            query($jobFilters: [JobFilter!]!) {
-            jobsStatistics(filter: $jobFilters) {
+            query($jobFilters: [JobFilter!]!, $metricsInHistograms: [String!]!) {
+            jobsStatistics(filter: $jobFilters, metrics: $metricsInHistograms) {
                 totalJobs
                 shortJobs
                 totalWalltime
                 totalCoreHours
                 histDuration { count, value }
                 histNumNodes { count, value }
+                histMetrics  { metric, data { count, value } }
             }}`,
-        variables: { jobFilters }
+        variables: { jobFilters, metricsInHistograms}
     })
 
     onMount(() => filterComponent.update())
@@ -68,6 +73,11 @@
             on:click={() => (isMetricsSelectionOpen = true)}>
             <Icon name="graph-up"/> Metrics
         </Button>
+
+        <HistogramSelection
+        bind:cluster={selectedCluster}
+        bind:availableMetrics={metrics}
+        bind:metricsInHistograms={metricsInHistograms}/>
     </Col>
     <Col xs="auto">
         <Filters
@@ -158,6 +168,29 @@
             {/key}
         </div>
     {/if}
+</Row>
+<Row>
+    <Col>
+        <PlotTable
+            let:item
+            let:width
+            renderFor="analysis"
+            items={$stats.data.jobsStatistics[0].hostMetrics}>
+
+            {item}
+
+            <!-- <Histogram
+                data={convert2uplot(item.bins)}
+                width={width} height={250}
+                title="Average Distribution of '{item.metric}'"
+                xlabel={`${item.metric} bin maximum [${(metricConfig(selectedCluster, item.metric)?.unit?.prefix ? metricConfig(selectedCluster, item.metric)?.unit?.prefix : '') +
+                                                   (metricConfig(selectedCluster, item.metric)?.unit?.base   ? metricConfig(selectedCluster, item.metric)?.unit?.base   : '')}]`}
+                xunit={`${(metricConfig(selectedCluster, item.metric)?.unit?.prefix ? metricConfig(selectedCluster, item.metric)?.unit?.prefix : '') +
+                          (metricConfig(selectedCluster, item.metric)?.unit?.base   ? metricConfig(selectedCluster, item.metric)?.unit?.base   : '')}`}
+                ylabel="Normalized Hours"
+                yunit="Hours"/> -->
+        </PlotTable>
+    </Col>
 </Row>
 <br/>
 <Row>

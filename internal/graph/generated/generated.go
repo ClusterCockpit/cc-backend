@@ -25,6 +25,7 @@ import (
 // NewExecutableSchema creates an ExecutableSchema from the ResolverRoot interface.
 func NewExecutableSchema(cfg Config) graphql.ExecutableSchema {
 	return &executableSchema{
+		schema:     cfg.Schema,
 		resolvers:  cfg.Resolvers,
 		directives: cfg.Directives,
 		complexity: cfg.Complexity,
@@ -32,6 +33,7 @@ func NewExecutableSchema(cfg Config) graphql.ExecutableSchema {
 }
 
 type Config struct {
+	Schema     *ast.Schema
 	Resolvers  ResolverRoot
 	Directives DirectiveRoot
 	Complexity ComplexityRoot
@@ -141,6 +143,7 @@ type ComplexityRoot struct {
 
 	JobsStatistics struct {
 		HistDuration   func(childComplexity int) int
+		HistMetrics    func(childComplexity int) int
 		HistNumAccs    func(childComplexity int) int
 		HistNumCores   func(childComplexity int) int
 		HistNumNodes   func(childComplexity int) int
@@ -172,6 +175,11 @@ type ComplexityRoot struct {
 	}
 
 	MetricFootprints struct {
+		Data   func(childComplexity int) int
+		Metric func(childComplexity int) int
+	}
+
+	MetricHistoPoints struct {
 		Data   func(childComplexity int) int
 		Metric func(childComplexity int) int
 	}
@@ -208,7 +216,7 @@ type ComplexityRoot struct {
 		JobMetrics      func(childComplexity int, id string, metrics []string, scopes []schema.MetricScope) int
 		Jobs            func(childComplexity int, filter []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) int
 		JobsFootprints  func(childComplexity int, filter []*model.JobFilter, metrics []string) int
-		JobsStatistics  func(childComplexity int, filter []*model.JobFilter, page *model.PageRequest, sortBy *model.SortByAggregate, groupBy *model.Aggregate) int
+		JobsStatistics  func(childComplexity int, filter []*model.JobFilter, metrics []string, page *model.PageRequest, sortBy *model.SortByAggregate, groupBy *model.Aggregate) int
 		NodeMetrics     func(childComplexity int, cluster string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) int
 		RooflineHeatmap func(childComplexity int, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) int
 		Tags            func(childComplexity int) int
@@ -322,7 +330,7 @@ type QueryResolver interface {
 	JobMetrics(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope) ([]*model.JobMetricWithName, error)
 	JobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error)
 	Jobs(ctx context.Context, filter []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) (*model.JobResultList, error)
-	JobsStatistics(ctx context.Context, filter []*model.JobFilter, page *model.PageRequest, sortBy *model.SortByAggregate, groupBy *model.Aggregate) ([]*model.JobsStatistics, error)
+	JobsStatistics(ctx context.Context, filter []*model.JobFilter, metrics []string, page *model.PageRequest, sortBy *model.SortByAggregate, groupBy *model.Aggregate) ([]*model.JobsStatistics, error)
 	RooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error)
 	NodeMetrics(ctx context.Context, cluster string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) ([]*model.NodeMetrics, error)
 }
@@ -331,12 +339,16 @@ type SubClusterResolver interface {
 }
 
 type executableSchema struct {
+	schema     *ast.Schema
 	resolvers  ResolverRoot
 	directives DirectiveRoot
 	complexity ComplexityRoot
 }
 
 func (e *executableSchema) Schema() *ast.Schema {
+	if e.schema != nil {
+		return e.schema
+	}
 	return parsedSchema
 }
 
@@ -730,6 +742,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.JobsStatistics.HistDuration(childComplexity), true
 
+	case "JobsStatistics.histMetrics":
+		if e.complexity.JobsStatistics.HistMetrics == nil {
+			break
+		}
+
+		return e.complexity.JobsStatistics.HistMetrics(childComplexity), true
+
 	case "JobsStatistics.histNumAccs":
 		if e.complexity.JobsStatistics.HistNumAccs == nil {
 			break
@@ -918,6 +937,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.MetricFootprints.Metric(childComplexity), true
+
+	case "MetricHistoPoints.data":
+		if e.complexity.MetricHistoPoints.Data == nil {
+			break
+		}
+
+		return e.complexity.MetricHistoPoints.Data(childComplexity), true
+
+	case "MetricHistoPoints.metric":
+		if e.complexity.MetricHistoPoints.Metric == nil {
+			break
+		}
+
+		return e.complexity.MetricHistoPoints.Metric(childComplexity), true
 
 	case "MetricStatistics.avg":
 		if e.complexity.MetricStatistics.Avg == nil {
@@ -1112,7 +1145,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.JobsStatistics(childComplexity, args["filter"].([]*model.JobFilter), args["page"].(*model.PageRequest), args["sortBy"].(*model.SortByAggregate), args["groupBy"].(*model.Aggregate)), true
+		return e.complexity.Query.JobsStatistics(childComplexity, args["filter"].([]*model.JobFilter), args["metrics"].([]string), args["page"].(*model.PageRequest), args["sortBy"].(*model.SortByAggregate), args["groupBy"].(*model.Aggregate)), true
 
 	case "Query.nodeMetrics":
 		if e.complexity.Query.NodeMetrics == nil {
@@ -1587,14 +1620,14 @@ func (ec *executionContext) introspectSchema() (*introspection.Schema, error) {
 	if ec.DisableIntrospection {
 		return nil, errors.New("introspection disabled")
 	}
-	return introspection.WrapSchema(parsedSchema), nil
+	return introspection.WrapSchema(ec.Schema()), nil
 }
 
 func (ec *executionContext) introspectType(name string) (*introspection.Type, error) {
 	if ec.DisableIntrospection {
 		return nil, errors.New("introspection disabled")
 	}
-	return introspection.WrapTypeFromDef(parsedSchema, parsedSchema.Types[name]), nil
+	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
 var sources = []*ast.Source{
@@ -1798,7 +1831,7 @@ type Query {
   jobsFootprints(filter: [JobFilter!], metrics: [String!]!): Footprints
 
   jobs(filter: [JobFilter!], page: PageRequest, order: OrderByInput): JobResultList!
-  jobsStatistics(filter: [JobFilter!], page: PageRequest, sortBy: SortByAggregate, groupBy: Aggregate): [JobsStatistics!]!
+  jobsStatistics(filter: [JobFilter!], metrics: [String!], page: PageRequest, sortBy: SortByAggregate, groupBy: Aggregate): [JobsStatistics!]!
 
   rooflineHeatmap(filter: [JobFilter!]!, rows: Int!, cols: Int!, minX: Float!, minY: Float!, maxX: Float!, maxY: Float!): [[Float!]!]!
 
@@ -1886,6 +1919,11 @@ type HistoPoint {
   value: Int!
 }
 
+type MetricHistoPoints {
+  metric: String!
+  data: [HistoPoint!]
+}
+
 type JobsStatistics  {
   id:             ID!            # If ` + "`" + `groupBy` + "`" + ` was used, ID of the user/project/cluster
   name:           String!        # if User-Statistics: Given Name of Account (ID) Owner
@@ -1903,6 +1941,7 @@ type JobsStatistics  {
   histNumNodes:   [HistoPoint!]! # value: number of nodes, count: number of jobs with that number of nodes
   histNumCores:   [HistoPoint!]! # value: number of cores, count: number of jobs with that number of cores
   histNumAccs:    [HistoPoint!]! # value: number of accs, count: number of jobs with that number of accs
+  histMetrics:    [MetricHistoPoints!]! # value: metric average bin, count: number of jobs with that metric average
 }
 
 input PageRequest {
@@ -2142,33 +2181,42 @@ func (ec *executionContext) field_Query_jobsStatistics_args(ctx context.Context,
 		}
 	}
 	args["filter"] = arg0
-	var arg1 *model.PageRequest
+	var arg1 []string
+	if tmp, ok := rawArgs["metrics"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("metrics"))
+		arg1, err = ec.unmarshalOString2ᚕstringᚄ(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["metrics"] = arg1
+	var arg2 *model.PageRequest
 	if tmp, ok := rawArgs["page"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("page"))
-		arg1, err = ec.unmarshalOPageRequest2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐPageRequest(ctx, tmp)
+		arg2, err = ec.unmarshalOPageRequest2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐPageRequest(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["page"] = arg1
-	var arg2 *model.SortByAggregate
+	args["page"] = arg2
+	var arg3 *model.SortByAggregate
 	if tmp, ok := rawArgs["sortBy"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sortBy"))
-		arg2, err = ec.unmarshalOSortByAggregate2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐSortByAggregate(ctx, tmp)
+		arg3, err = ec.unmarshalOSortByAggregate2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐSortByAggregate(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["sortBy"] = arg2
-	var arg3 *model.Aggregate
+	args["sortBy"] = arg3
+	var arg4 *model.Aggregate
 	if tmp, ok := rawArgs["groupBy"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupBy"))
-		arg3, err = ec.unmarshalOAggregate2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐAggregate(ctx, tmp)
+		arg4, err = ec.unmarshalOAggregate2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐAggregate(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["groupBy"] = arg3
+	args["groupBy"] = arg4
 	return args, nil
 }
 
@@ -5640,6 +5688,56 @@ func (ec *executionContext) fieldContext_JobsStatistics_histNumAccs(ctx context.
 	return fc, nil
 }
 
+func (ec *executionContext) _JobsStatistics_histMetrics(ctx context.Context, field graphql.CollectedField, obj *model.JobsStatistics) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JobsStatistics_histMetrics(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.HistMetrics, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.MetricHistoPoints)
+	fc.Result = res
+	return ec.marshalNMetricHistoPoints2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐMetricHistoPointsᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JobsStatistics_histMetrics(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JobsStatistics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "metric":
+				return ec.fieldContext_MetricHistoPoints_metric(ctx, field)
+			case "data":
+				return ec.fieldContext_MetricHistoPoints_data(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MetricHistoPoints", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _MetricConfig_name(ctx context.Context, field graphql.CollectedField, obj *schema.MetricConfig) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_MetricConfig_name(ctx, field)
 	if err != nil {
@@ -6180,6 +6278,97 @@ func (ec *executionContext) fieldContext_MetricFootprints_data(ctx context.Conte
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type NullableFloat does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MetricHistoPoints_metric(ctx context.Context, field graphql.CollectedField, obj *model.MetricHistoPoints) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MetricHistoPoints_metric(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Metric, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MetricHistoPoints_metric(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MetricHistoPoints",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MetricHistoPoints_data(ctx context.Context, field graphql.CollectedField, obj *model.MetricHistoPoints) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MetricHistoPoints_data(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Data, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.HistoPoint)
+	fc.Result = res
+	return ec.marshalOHistoPoint2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐHistoPointᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MetricHistoPoints_data(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MetricHistoPoints",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "count":
+				return ec.fieldContext_HistoPoint_count(ctx, field)
+			case "value":
+				return ec.fieldContext_HistoPoint_value(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type HistoPoint", field.Name)
 		},
 	}
 	return fc, nil
@@ -7374,7 +7563,7 @@ func (ec *executionContext) _Query_jobsStatistics(ctx context.Context, field gra
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().JobsStatistics(rctx, fc.Args["filter"].([]*model.JobFilter), fc.Args["page"].(*model.PageRequest), fc.Args["sortBy"].(*model.SortByAggregate), fc.Args["groupBy"].(*model.Aggregate))
+		return ec.resolvers.Query().JobsStatistics(rctx, fc.Args["filter"].([]*model.JobFilter), fc.Args["metrics"].([]string), fc.Args["page"].(*model.PageRequest), fc.Args["sortBy"].(*model.SortByAggregate), fc.Args["groupBy"].(*model.Aggregate))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -7431,6 +7620,8 @@ func (ec *executionContext) fieldContext_Query_jobsStatistics(ctx context.Contex
 				return ec.fieldContext_JobsStatistics_histNumCores(ctx, field)
 			case "histNumAccs":
 				return ec.fieldContext_JobsStatistics_histNumAccs(ctx, field)
+			case "histMetrics":
+				return ec.fieldContext_JobsStatistics_histMetrics(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type JobsStatistics", field.Name)
 		},
@@ -12910,6 +13101,11 @@ func (ec *executionContext) _JobsStatistics(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "histMetrics":
+			out.Values[i] = ec._JobsStatistics_histMetrics(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -13035,6 +13231,47 @@ func (ec *executionContext) _MetricFootprints(ctx context.Context, sel ast.Selec
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var metricHistoPointsImplementors = []string{"MetricHistoPoints"}
+
+func (ec *executionContext) _MetricHistoPoints(ctx context.Context, sel ast.SelectionSet, obj *model.MetricHistoPoints) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, metricHistoPointsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MetricHistoPoints")
+		case "metric":
+			out.Values[i] = ec._MetricHistoPoints_metric(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "data":
+			out.Values[i] = ec._MetricHistoPoints_data(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -15310,6 +15547,60 @@ func (ec *executionContext) marshalNMetricFootprints2ᚖgithubᚗcomᚋClusterCo
 	return ec._MetricFootprints(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNMetricHistoPoints2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐMetricHistoPointsᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.MetricHistoPoints) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNMetricHistoPoints2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐMetricHistoPoints(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNMetricHistoPoints2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐMetricHistoPoints(ctx context.Context, sel ast.SelectionSet, v *model.MetricHistoPoints) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._MetricHistoPoints(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNMetricScope2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐMetricScope(ctx context.Context, v interface{}) (schema.MetricScope, error) {
 	var res schema.MetricScope
 	err := res.UnmarshalGQL(v)
@@ -16115,6 +16406,53 @@ func (ec *executionContext) marshalOFootprints2ᚖgithubᚗcomᚋClusterCockpit�
 		return graphql.Null
 	}
 	return ec._Footprints(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOHistoPoint2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐHistoPointᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.HistoPoint) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNHistoPoint2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐHistoPoint(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalOID2ᚕstringᚄ(ctx context.Context, v interface{}) ([]string, error) {

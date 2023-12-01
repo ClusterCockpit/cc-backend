@@ -63,6 +63,8 @@
                 option.key == ccconfig.status_view_selectedTopUserCategory
         );
 
+    let metricsInHistograms = ccconfig[`status_view_histogramMetrics:${cluster}`] || ccconfig.status_view_histogramMetrics
+
     const client = getContextClient();
     $: mainQuery = queryStore({
         client: client,

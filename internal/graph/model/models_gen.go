@@ -85,27 +85,33 @@ type JobResultList struct {
 }
 
 type JobsStatistics struct {
-	ID             string        `json:"id"`
-	Name           string        `json:"name"`
-	TotalJobs      int           `json:"totalJobs"`
-	RunningJobs    int           `json:"runningJobs"`
-	ShortJobs      int           `json:"shortJobs"`
-	TotalWalltime  int           `json:"totalWalltime"`
-	TotalNodes     int           `json:"totalNodes"`
-	TotalNodeHours int           `json:"totalNodeHours"`
-	TotalCores     int           `json:"totalCores"`
-	TotalCoreHours int           `json:"totalCoreHours"`
-	TotalAccs      int           `json:"totalAccs"`
-	TotalAccHours  int           `json:"totalAccHours"`
-	HistDuration   []*HistoPoint `json:"histDuration"`
-	HistNumNodes   []*HistoPoint `json:"histNumNodes"`
-	HistNumCores   []*HistoPoint `json:"histNumCores"`
-	HistNumAccs    []*HistoPoint `json:"histNumAccs"`
+	ID             string               `json:"id"`
+	Name           string               `json:"name"`
+	TotalJobs      int                  `json:"totalJobs"`
+	RunningJobs    int                  `json:"runningJobs"`
+	ShortJobs      int                  `json:"shortJobs"`
+	TotalWalltime  int                  `json:"totalWalltime"`
+	TotalNodes     int                  `json:"totalNodes"`
+	TotalNodeHours int                  `json:"totalNodeHours"`
+	TotalCores     int                  `json:"totalCores"`
+	TotalCoreHours int                  `json:"totalCoreHours"`
+	TotalAccs      int                  `json:"totalAccs"`
+	TotalAccHours  int                  `json:"totalAccHours"`
+	HistDuration   []*HistoPoint        `json:"histDuration"`
+	HistNumNodes   []*HistoPoint        `json:"histNumNodes"`
+	HistNumCores   []*HistoPoint        `json:"histNumCores"`
+	HistNumAccs    []*HistoPoint        `json:"histNumAccs"`
+	HistMetrics    []*MetricHistoPoints `json:"histMetrics"`
 }
 
 type MetricFootprints struct {
 	Metric string         `json:"metric"`
 	Data   []schema.Float `json:"data"`
+}
+
+type MetricHistoPoints struct {
+	Metric string        `json:"metric"`
+	Data   []*HistoPoint `json:"data,omitempty"`
 }
 
 type NodeMetrics struct {

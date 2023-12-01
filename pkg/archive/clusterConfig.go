@@ -8,8 +8,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
 var Clusters []*schema.Cluster

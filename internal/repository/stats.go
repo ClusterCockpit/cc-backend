@@ -12,7 +12,9 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	sq "github.com/Masterminds/squirrel"
 )
 
@@ -450,6 +452,32 @@ func (r *JobRepository) AddHistograms(
 	return stat, nil
 }
 
+// Requires thresholds for metric from config for cluster? Of all clusters and use largest? split to 10 + 1 for artifacts?
+func (r *JobRepository) AddMetricHistograms(
+	ctx context.Context,
+	filter []*model.JobFilter,
+	metrics []string,
+	stat *model.JobsStatistics) (*model.JobsStatistics, error) {
+	start := time.Now()
+
+	for i, m := range metrics {
+		// DEBUG
+		fmt.Println(i, m)
+		var err error
+		var metricHisto *model.MetricHistoPoints
+
+		metricHisto, err = r.jobsMetricStatisticsHistogram(ctx, m, filter)
+		if err != nil {
+			log.Warnf("Error while loading job metric statistics histogram: %s", m)
+			continue
+		}
+		stat.HistMetrics = append(stat.HistMetrics, metricHisto)
+	}
+
+	log.Debugf("Timer AddMetricHistograms %s", time.Since(start))
+	return stat, nil
+}
+
 // `value` must be the column grouped by, but renamed to "value"
 func (r *JobRepository) jobsStatisticsHistogram(
 	ctx context.Context,
@@ -465,6 +493,74 @@ func (r *JobRepository) jobsStatisticsHistogram(
 	}
 
 	for _, f := range filters {
+		query = BuildWhereClause(f, query)
+	}
+
+	rows, err := query.GroupBy("value").RunWith(r.DB).Query()
+	if err != nil {
+		log.Error("Error while running query")
+		return nil, err
+	}
+
+	points := make([]*model.HistoPoint, 0)
+	for rows.Next() {
+		point := model.HistoPoint{}
+		if err := rows.Scan(&point.Value, &point.Count); err != nil {
+			log.Warn("Error while scanning rows")
+			return nil, err
+		}
+
+		points = append(points, &point)
+	}
+	log.Debugf("Timer jobsStatisticsHistogram %s", time.Since(start))
+	return points, nil
+}
+
+func (r *JobRepository) jobsMetricStatisticsHistogram(
+	ctx context.Context,
+	metric string,
+	filters []*model.JobFilter) (*model.MetricHistoPoints, error) {
+
+	// "job.load_avg as value"
+
+	// switch m {
+	// case "cpu_load":
+
+	// Get specific Peak or largest Peak
+	var metricConfig *schema.MetricConfig
+	var peak float64 = 0.0
+	for _, f := range filters {
+		if f.Cluster != nil {
+			metricConfig = archive.GetMetricConfig(*f.Cluster.Eq, metric)
+			peak = metricConfig.Peak
+		} else {
+			for _, c := range archive.Clusters {
+				for _, m := range c.MetricConfig {
+					if m.Name == metric {
+						if m.Peak > peak {
+							peak = m.Peak
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Make bins
+
+	start := time.Now()
+	query, qerr := SecurityCheck(ctx,
+		sq.Select(value, "COUNT(job.id) AS count").From("job"))
+
+	if qerr != nil {
+		return nil, qerr
+	}
+
+	for _, f := range filters {
+		if f.Cluster != nil {
+			metricConfig = archive.GetMetricConfig(*f.Cluster.Eq, metric)
+			peak = metricConfig.Peak
+		}
 		query = BuildWhereClause(f, query)
 	}
 
