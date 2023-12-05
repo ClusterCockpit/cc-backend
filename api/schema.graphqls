@@ -288,7 +288,14 @@ type HistoPoint {
 
 type MetricHistoPoints {
   metric: String!
-  data: [HistoPoint!]
+  data: [MetricHistoPoint!]
+}
+
+type MetricHistoPoint {
+  min: Int!
+  max: Int!
+  count: Int!
+  bin: Int!
 }
 
 type JobsStatistics  {

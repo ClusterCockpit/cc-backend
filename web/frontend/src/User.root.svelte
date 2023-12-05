@@ -28,13 +28,13 @@
     let metrics = ccconfig.plot_list_selectedMetrics, isMetricsSelectionOpen = false
     let w1, w2, histogramHeight = 250
     let selectedCluster = filterPresets?.cluster ? filterPresets.cluster : null
-    let metricsInHistograms = ccconfig[`user_view_histogramMetrics:${cluster}`] || ccconfig.user_view_histogramMetrics
+    let metricsInHistograms = ccconfig[`user_view_histogramMetrics:${selectedCluster}`] || ccconfig.user_view_histogramMetrics || []
 
     const client = getContextClient();
     $: stats = queryStore({
         client: client,
         query: gql`
-            query($jobFilters: [JobFilter!]!, $metricsInHistograms: [String!]!) {
+            query($jobFilters: [JobFilter!]!, $metricsInHistograms: [String!]) {
             jobsStatistics(filter: $jobFilters, metrics: $metricsInHistograms) {
                 totalJobs
                 shortJobs
@@ -42,7 +42,7 @@
                 totalCoreHours
                 histDuration { count, value }
                 histNumNodes { count, value }
-                histMetrics  { metric, data { count, value } }
+                histMetrics  { metric, data { min, max, count, bin } }
             }}`,
         variables: { jobFilters, metricsInHistograms}
     })
@@ -169,29 +169,43 @@
         </div>
     {/if}
 </Row>
-<Row>
-    <Col>
-        <PlotTable
-            let:item
-            let:width
-            renderFor="analysis"
-            items={$stats.data.jobsStatistics[0].hostMetrics}>
+{#if metricsInHistograms}
+    <Row>
+        {#if $stats.error}
+            <Col>
+                <Card body color="danger">{$stats.error.message}</Card>
+            </Col>
+        {:else if !$stats.data}
+            <Col>
+                <Spinner secondary />
+            </Col>
+        {:else}
+            <Col>
+                {#key $stats.data.jobsStatistics[0].histMetrics}
+                    <PlotTable
+                        let:item
+                        let:width
+                        renderFor="analysis"
+                        items={$stats.data.jobsStatistics[0].histMetrics}>
 
-            {item}
+                        {item}
 
-            <!-- <Histogram
-                data={convert2uplot(item.bins)}
-                width={width} height={250}
-                title="Average Distribution of '{item.metric}'"
-                xlabel={`${item.metric} bin maximum [${(metricConfig(selectedCluster, item.metric)?.unit?.prefix ? metricConfig(selectedCluster, item.metric)?.unit?.prefix : '') +
-                                                   (metricConfig(selectedCluster, item.metric)?.unit?.base   ? metricConfig(selectedCluster, item.metric)?.unit?.base   : '')}]`}
-                xunit={`${(metricConfig(selectedCluster, item.metric)?.unit?.prefix ? metricConfig(selectedCluster, item.metric)?.unit?.prefix : '') +
-                          (metricConfig(selectedCluster, item.metric)?.unit?.base   ? metricConfig(selectedCluster, item.metric)?.unit?.base   : '')}`}
-                ylabel="Normalized Hours"
-                yunit="Hours"/> -->
-        </PlotTable>
-    </Col>
-</Row>
+                        <!-- <Histogram
+                            data={convert2uplot(item.bins)}
+                            width={width} height={250}
+                            title="Average Distribution of '{item.metric}'"
+                            xlabel={`${item.metric} bin maximum [${(metricConfig(selectedCluster, item.metric)?.unit?.prefix ? metricConfig(selectedCluster, item.metric)?.unit?.prefix : '') +
+                                                            (metricConfig(selectedCluster, item.metric)?.unit?.base   ? metricConfig(selectedCluster, item.metric)?.unit?.base   : '')}]`}
+                            xunit={`${(metricConfig(selectedCluster, item.metric)?.unit?.prefix ? metricConfig(selectedCluster, item.metric)?.unit?.prefix : '') +
+                                    (metricConfig(selectedCluster, item.metric)?.unit?.base   ? metricConfig(selectedCluster, item.metric)?.unit?.base   : '')}`}
+                            ylabel="Normalized Hours"
+                            yunit="Hours"/> -->
+                    </PlotTable>
+                {/key}
+            </Col>
+        {/if}
+    </Row>
+{/if}
 <br/>
 <Row>
     <Col>

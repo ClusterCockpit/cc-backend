@@ -109,9 +109,16 @@ type MetricFootprints struct {
 	Data   []schema.Float `json:"data"`
 }
 
+type MetricHistoPoint struct {
+	Min   int `json:"min"`
+	Max   int `json:"max"`
+	Count int `json:"count"`
+	Bin   int `json:"bin"`
+}
+
 type MetricHistoPoints struct {
-	Metric string        `json:"metric"`
-	Data   []*HistoPoint `json:"data,omitempty"`
+	Metric string              `json:"metric"`
+	Data   []*MetricHistoPoint `json:"data,omitempty"`
 }
 
 type NodeMetrics struct {

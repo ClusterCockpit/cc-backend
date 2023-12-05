@@ -179,6 +179,13 @@ type ComplexityRoot struct {
 		Metric func(childComplexity int) int
 	}
 
+	MetricHistoPoint struct {
+		Bin   func(childComplexity int) int
+		Count func(childComplexity int) int
+		Max   func(childComplexity int) int
+		Min   func(childComplexity int) int
+	}
+
 	MetricHistoPoints struct {
 		Data   func(childComplexity int) int
 		Metric func(childComplexity int) int
@@ -937,6 +944,34 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.MetricFootprints.Metric(childComplexity), true
+
+	case "MetricHistoPoint.bin":
+		if e.complexity.MetricHistoPoint.Bin == nil {
+			break
+		}
+
+		return e.complexity.MetricHistoPoint.Bin(childComplexity), true
+
+	case "MetricHistoPoint.count":
+		if e.complexity.MetricHistoPoint.Count == nil {
+			break
+		}
+
+		return e.complexity.MetricHistoPoint.Count(childComplexity), true
+
+	case "MetricHistoPoint.max":
+		if e.complexity.MetricHistoPoint.Max == nil {
+			break
+		}
+
+		return e.complexity.MetricHistoPoint.Max(childComplexity), true
+
+	case "MetricHistoPoint.min":
+		if e.complexity.MetricHistoPoint.Min == nil {
+			break
+		}
+
+		return e.complexity.MetricHistoPoint.Min(childComplexity), true
 
 	case "MetricHistoPoints.data":
 		if e.complexity.MetricHistoPoints.Data == nil {
@@ -1921,7 +1956,14 @@ type HistoPoint {
 
 type MetricHistoPoints {
   metric: String!
-  data: [HistoPoint!]
+  data: [MetricHistoPoint!]
+}
+
+type MetricHistoPoint {
+  min: Int!
+  max: Int!
+  count: Int!
+  bin: Int!
 }
 
 type JobsStatistics  {
@@ -1941,7 +1983,7 @@ type JobsStatistics  {
   histNumNodes:   [HistoPoint!]! # value: number of nodes, count: number of jobs with that number of nodes
   histNumCores:   [HistoPoint!]! # value: number of cores, count: number of jobs with that number of cores
   histNumAccs:    [HistoPoint!]! # value: number of accs, count: number of jobs with that number of accs
-  histMetrics:    [MetricHistoPoints!]! # value: metric average bin, count: number of jobs with that metric average
+  histMetrics:    [MetricHistoPoints!]! # metric: metricname, data array of histopoints: value: metric average bin, count: number of jobs with that metric average
 }
 
 input PageRequest {
@@ -6283,6 +6325,182 @@ func (ec *executionContext) fieldContext_MetricFootprints_data(ctx context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _MetricHistoPoint_min(ctx context.Context, field graphql.CollectedField, obj *model.MetricHistoPoint) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MetricHistoPoint_min(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Min, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MetricHistoPoint_min(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MetricHistoPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MetricHistoPoint_max(ctx context.Context, field graphql.CollectedField, obj *model.MetricHistoPoint) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MetricHistoPoint_max(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Max, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MetricHistoPoint_max(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MetricHistoPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MetricHistoPoint_count(ctx context.Context, field graphql.CollectedField, obj *model.MetricHistoPoint) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MetricHistoPoint_count(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Count, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MetricHistoPoint_count(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MetricHistoPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MetricHistoPoint_bin(ctx context.Context, field graphql.CollectedField, obj *model.MetricHistoPoint) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MetricHistoPoint_bin(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Bin, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MetricHistoPoint_bin(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MetricHistoPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _MetricHistoPoints_metric(ctx context.Context, field graphql.CollectedField, obj *model.MetricHistoPoints) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_MetricHistoPoints_metric(ctx, field)
 	if err != nil {
@@ -6350,9 +6568,9 @@ func (ec *executionContext) _MetricHistoPoints_data(ctx context.Context, field g
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.([]*model.HistoPoint)
+	res := resTmp.([]*model.MetricHistoPoint)
 	fc.Result = res
-	return ec.marshalOHistoPoint2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐHistoPointᚄ(ctx, field.Selections, res)
+	return ec.marshalOMetricHistoPoint2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐMetricHistoPointᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_MetricHistoPoints_data(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -6363,12 +6581,16 @@ func (ec *executionContext) fieldContext_MetricHistoPoints_data(ctx context.Cont
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "min":
+				return ec.fieldContext_MetricHistoPoint_min(ctx, field)
+			case "max":
+				return ec.fieldContext_MetricHistoPoint_max(ctx, field)
 			case "count":
-				return ec.fieldContext_HistoPoint_count(ctx, field)
-			case "value":
-				return ec.fieldContext_HistoPoint_value(ctx, field)
+				return ec.fieldContext_MetricHistoPoint_count(ctx, field)
+			case "bin":
+				return ec.fieldContext_MetricHistoPoint_bin(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type HistoPoint", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type MetricHistoPoint", field.Name)
 		},
 	}
 	return fc, nil
@@ -13254,6 +13476,60 @@ func (ec *executionContext) _MetricFootprints(ctx context.Context, sel ast.Selec
 	return out
 }
 
+var metricHistoPointImplementors = []string{"MetricHistoPoint"}
+
+func (ec *executionContext) _MetricHistoPoint(ctx context.Context, sel ast.SelectionSet, obj *model.MetricHistoPoint) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, metricHistoPointImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MetricHistoPoint")
+		case "min":
+			out.Values[i] = ec._MetricHistoPoint_min(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "max":
+			out.Values[i] = ec._MetricHistoPoint_max(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "count":
+			out.Values[i] = ec._MetricHistoPoint_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "bin":
+			out.Values[i] = ec._MetricHistoPoint_bin(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var metricHistoPointsImplementors = []string{"MetricHistoPoints"}
 
 func (ec *executionContext) _MetricHistoPoints(ctx context.Context, sel ast.SelectionSet, obj *model.MetricHistoPoints) graphql.Marshaler {
@@ -15547,6 +15823,16 @@ func (ec *executionContext) marshalNMetricFootprints2ᚖgithubᚗcomᚋClusterCo
 	return ec._MetricFootprints(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNMetricHistoPoint2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐMetricHistoPoint(ctx context.Context, sel ast.SelectionSet, v *model.MetricHistoPoint) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._MetricHistoPoint(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNMetricHistoPoints2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐMetricHistoPointsᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.MetricHistoPoints) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
@@ -16408,53 +16694,6 @@ func (ec *executionContext) marshalOFootprints2ᚖgithubᚗcomᚋClusterCockpit�
 	return ec._Footprints(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOHistoPoint2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐHistoPointᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.HistoPoint) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNHistoPoint2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐHistoPoint(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
 func (ec *executionContext) unmarshalOID2ᚕstringᚄ(ctx context.Context, v interface{}) ([]string, error) {
 	if v == nil {
 		return nil, nil
@@ -16693,6 +16932,53 @@ func (ec *executionContext) marshalOJobState2ᚕgithubᚗcomᚋClusterCockpitᚋ
 	for i := range v {
 		ret[i] = ec.marshalNJobState2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐJobState(ctx, sel, v[i])
 	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalOMetricHistoPoint2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐMetricHistoPointᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.MetricHistoPoint) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNMetricHistoPoint2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐMetricHistoPoint(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
 
 	for _, e := range ret {
 		if e == graphql.Null {
