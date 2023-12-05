@@ -16,7 +16,6 @@
     const { query: initq } = init()
 
     const ccconfig = getContext('cc-config')
-    // const metricConfig = getContext('metrics')
 
     export let user
     export let filterPresets
@@ -42,7 +41,7 @@
                 totalCoreHours
                 histDuration { count, value }
                 histNumNodes { count, value }
-                histMetrics  { metric, data { min, max, count, bin } }
+                histMetrics  { metric, unit, data { min, max, count, bin } }
             }}`,
         variables: { jobFilters, metricsInHistograms}
     })
@@ -185,21 +184,18 @@
                     <PlotTable
                         let:item
                         let:width
-                        renderFor="analysis"
-                        items={$stats.data.jobsStatistics[0].histMetrics}>
+                        renderFor="user"
+                        items={$stats.data.jobsStatistics[0].histMetrics}
+                        itemsPerRow={3}>
 
-                        {item}
-
-                        <!-- <Histogram
-                            data={convert2uplot(item.bins)}
+                        <Histogram
+                            data={convert2uplot(item.data)}
                             width={width} height={250}
-                            title="Average Distribution of '{item.metric}'"
-                            xlabel={`${item.metric} bin maximum [${(metricConfig(selectedCluster, item.metric)?.unit?.prefix ? metricConfig(selectedCluster, item.metric)?.unit?.prefix : '') +
-                                                            (metricConfig(selectedCluster, item.metric)?.unit?.base   ? metricConfig(selectedCluster, item.metric)?.unit?.base   : '')}]`}
-                            xunit={`${(metricConfig(selectedCluster, item.metric)?.unit?.prefix ? metricConfig(selectedCluster, item.metric)?.unit?.prefix : '') +
-                                    (metricConfig(selectedCluster, item.metric)?.unit?.base   ? metricConfig(selectedCluster, item.metric)?.unit?.base   : '')}`}
-                            ylabel="Normalized Hours"
-                            yunit="Hours"/> -->
+                            title="Distribution of '{item.metric}'"
+                            xlabel={`${item.metric} bin maximum [${item.unit}]`}
+                            xunit={item.unit}
+                            ylabel="Count"
+                            yunit="Jobs"/>
                     </PlotTable>
                 {/key}
             </Col>

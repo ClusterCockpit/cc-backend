@@ -536,11 +536,13 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 	// Get specific Peak or largest Peak
 	var metricConfig *schema.MetricConfig
 	var peak float64 = 0.0
+	var unit string = ""
 
 	for _, f := range filters {
 		if f.Cluster != nil {
 			metricConfig = archive.GetMetricConfig(*f.Cluster.Eq, metric)
 			peak = metricConfig.Peak
+			unit = metricConfig.Unit.Prefix + metricConfig.Unit.Base
 			log.Debugf("Cluster %s filter found with peak %f for %s", *f.Cluster.Eq, peak, metric)
 		}
 	}
@@ -551,6 +553,9 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 				if m.Name == metric {
 					if m.Peak > peak {
 						peak = m.Peak
+					}
+					if unit == "" {
+						unit = m.Unit.Prefix + m.Unit.Base
 					}
 				}
 			}
@@ -602,7 +607,7 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 		points = append(points, &point)
 	}
 
-	result := model.MetricHistoPoints{Metric: metric, Data: points}
+	result := model.MetricHistoPoints{Metric: metric, Unit: unit, Data: points}
 
 	log.Debugf("Timer jobsStatisticsHistogram %s", time.Since(start))
 	return &result, nil

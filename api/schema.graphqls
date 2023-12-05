@@ -288,6 +288,7 @@ type HistoPoint {
 
 type MetricHistoPoints {
   metric: String!
+  unit: String!
   data: [MetricHistoPoint!]
 }
 

@@ -318,9 +318,14 @@ export function checkMetricDisabled(m, c, s) { //[m]etric, [c]luster, [s]ubclust
 export function convert2uplot(canvasData) {
     // initial use: Canvas Histogram Data to Uplot
     let uplotData = [[],[]] // [X, Y1, Y2, ...]
-    canvasData.forEach( pair => {
-        uplotData[0].push(pair.value)
-        uplotData[1].push(pair.count)
+    canvasData.forEach( cd => {
+        if (cd.bin) { // MetricHisto Datafromat
+            uplotData[0].push(cd.max)
+            uplotData[1].push(cd.count)
+        } else { // Default
+            uplotData[0].push(cd.value)
+            uplotData[1].push(cd.count)
+        }
     })
     return uplotData
 }

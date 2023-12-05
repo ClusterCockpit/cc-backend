@@ -189,6 +189,7 @@ type ComplexityRoot struct {
 	MetricHistoPoints struct {
 		Data   func(childComplexity int) int
 		Metric func(childComplexity int) int
+		Unit   func(childComplexity int) int
 	}
 
 	MetricStatistics struct {
@@ -986,6 +987,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.MetricHistoPoints.Metric(childComplexity), true
+
+	case "MetricHistoPoints.unit":
+		if e.complexity.MetricHistoPoints.Unit == nil {
+			break
+		}
+
+		return e.complexity.MetricHistoPoints.Unit(childComplexity), true
 
 	case "MetricStatistics.avg":
 		if e.complexity.MetricStatistics.Avg == nil {
@@ -1956,6 +1964,7 @@ type HistoPoint {
 
 type MetricHistoPoints {
   metric: String!
+  unit: String!
   data: [MetricHistoPoint!]
 }
 
@@ -5771,6 +5780,8 @@ func (ec *executionContext) fieldContext_JobsStatistics_histMetrics(ctx context.
 			switch field.Name {
 			case "metric":
 				return ec.fieldContext_MetricHistoPoints_metric(ctx, field)
+			case "unit":
+				return ec.fieldContext_MetricHistoPoints_unit(ctx, field)
 			case "data":
 				return ec.fieldContext_MetricHistoPoints_data(ctx, field)
 			}
@@ -6533,6 +6544,50 @@ func (ec *executionContext) _MetricHistoPoints_metric(ctx context.Context, field
 }
 
 func (ec *executionContext) fieldContext_MetricHistoPoints_metric(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MetricHistoPoints",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MetricHistoPoints_unit(ctx context.Context, field graphql.CollectedField, obj *model.MetricHistoPoints) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MetricHistoPoints_unit(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Unit, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MetricHistoPoints_unit(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "MetricHistoPoints",
 		Field:      field,
@@ -13543,6 +13598,11 @@ func (ec *executionContext) _MetricHistoPoints(ctx context.Context, sel ast.Sele
 			out.Values[i] = graphql.MarshalString("MetricHistoPoints")
 		case "metric":
 			out.Values[i] = ec._MetricHistoPoints_metric(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unit":
+			out.Values[i] = ec._MetricHistoPoints_unit(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

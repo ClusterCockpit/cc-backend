@@ -118,6 +118,7 @@ type MetricHistoPoint struct {
 
 type MetricHistoPoints struct {
 	Metric string              `json:"metric"`
+	Unit   string              `json:"unit"`
 	Data   []*MetricHistoPoint `json:"data,omitempty"`
 }
 
