@@ -75,7 +75,6 @@
 
         <HistogramSelection
         bind:cluster={selectedCluster}
-        bind:availableMetrics={metrics}
         bind:metricsInHistograms={metricsInHistograms}/>
     </Col>
     <Col xs="auto">
@@ -194,7 +193,7 @@
                             title="Distribution of '{item.metric}'"
                             xlabel={`${item.metric} bin maximum [${item.unit}]`}
                             xunit={item.unit}
-                            ylabel="Count"
+                            ylabel="Count [Jobs]"
                             yunit="Jobs"/>
                     </PlotTable>
                 {/key}

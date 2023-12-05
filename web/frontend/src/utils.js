@@ -320,6 +320,11 @@ export function convert2uplot(canvasData) {
     let uplotData = [[],[]] // [X, Y1, Y2, ...]
     canvasData.forEach( cd => {
         if (cd.bin) { // MetricHisto Datafromat
+            // Force Zero Entry for scaling
+            if (uplotData[0].length == 0) {
+                uplotData[0].push(0)
+                uplotData[1].push(0)    
+            }
             uplotData[0].push(cd.max)
             uplotData[1].push(cd.count)
         } else { // Default
