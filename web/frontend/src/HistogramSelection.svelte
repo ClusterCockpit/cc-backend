@@ -1,13 +1,16 @@
 <script>
     import { Modal, ModalBody, ModalHeader, ModalFooter,
-             Button, ListGroup, ListGroupItem, Icon } from 'sveltestrap'
+             Button, ListGroup, ListGroupItem } from 'sveltestrap'
     import { gql, getContextClient , mutationStore } from '@urql/svelte'
 
     export let cluster
     export let availableMetrics = ['cpu_load', 'flops_any', 'mem_bw']
     export let metricsInHistograms
+    export let isOpen
 
-    const client = getContextClient();
+    let pendingMetrics = [...metricsInHistograms] // Copy
+    const client = getContextClient()
+
     const updateConfigurationMutation = ({ name, value }) => {
         return mutationStore({
             client: client,
@@ -17,8 +20,6 @@
             variables: { name, value }
         })
     }
-
-    let isHistogramConfigOpen = false
 
     function updateConfiguration(data) {
         updateConfigurationMutation({
@@ -31,43 +32,35 @@
             }
         })
     }
+
+    function closeAndApply() {
+        metricsInHistograms = [...pendingMetrics] // Set for parent
+
+        updateConfiguration({
+            name: cluster ? `user_view_histogramMetrics:${cluster}` : 'user_view_histogramMetrics',
+            value: metricsInHistograms
+        })
+
+        isOpen = false
+    }
 </script>
 
-<Button outline
-    on:click={() => (isHistogramConfigOpen = true)}>
-    <Icon name=""/>
-    Select Histograms
-</Button>
-
-<Modal isOpen={isHistogramConfigOpen}
-    toggle={() => (isHistogramConfigOpen = !isHistogramConfigOpen)}>
+<Modal {isOpen}
+    toggle={() => (isOpen = !isOpen)}>
     <ModalHeader>
         Select metrics presented in histograms
     </ModalHeader>
     <ModalBody>
         <ListGroup>
-            <!-- <li class="list-group-item">
-                <input type="checkbox" bind:checked={pendingShowFootprint}> Show Footprint
-            </li>
-            <hr/> -->
             {#each availableMetrics as metric (metric)}
                 <ListGroupItem>
-                    <input type="checkbox" bind:group={metricsInHistograms}
-                        value={metric}
-                        on:change={() => updateConfiguration({
-                            name: cluster ? `user_view_histogramMetrics:${cluster}` : 'user_view_histogramMetrics',
-                            value: metricsInHistograms
-                        })} />
-
+                    <input type="checkbox" bind:group={pendingMetrics} value={metric}>
                     {metric}
                 </ListGroupItem>
             {/each}
         </ListGroup>
     </ModalBody>
     <ModalFooter>
-        <Button color="primary"
-            on:click={() => (isHistogramConfigOpen = false)}>
-            Close
-        </Button>
+        <Button color="primary" on:click={closeAndApply}> Close & Apply </Button>
     </ModalFooter>
 </Modal>

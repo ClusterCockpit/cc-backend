@@ -25,9 +25,10 @@
     let jobFilters = [];
     let sorting = { field: 'startTime', order: 'DESC' }, isSortingOpen = false
     let metrics = ccconfig.plot_list_selectedMetrics, isMetricsSelectionOpen = false
-    let w1, w2, histogramHeight = 250
+    let w1, w2, histogramHeight = 250, isHistogramSelectionOpen = false
     let selectedCluster = filterPresets?.cluster ? filterPresets.cluster : null
-    let metricsInHistograms = ccconfig[`user_view_histogramMetrics:${selectedCluster}`] || ccconfig.user_view_histogramMetrics || []
+
+    $: metricsInHistograms = selectedCluster ? ccconfig[`user_view_histogramMetrics:${selectedCluster}`] : (ccconfig.user_view_histogramMetrics || [])
 
     const client = getContextClient();
     $: stats = queryStore({
@@ -73,9 +74,11 @@
             <Icon name="graph-up"/> Metrics
         </Button>
 
-        <HistogramSelection
-        bind:cluster={selectedCluster}
-        bind:metricsInHistograms={metricsInHistograms}/>
+        <Button
+            outline color="secondary"
+            on:click={() => (isHistogramSelectionOpen = true)}>
+            <Icon name="bar-chart-line"/> Select Histograms
+        </Button>
     </Col>
     <Col xs="auto">
         <Filters
@@ -193,7 +196,7 @@
                             title="Distribution of '{item.metric}'"
                             xlabel={`${item.metric} bin maximum [${item.unit}]`}
                             xunit={item.unit}
-                            ylabel="Count [Jobs]"
+                            ylabel="Number of Jobs"
                             yunit="Jobs"/>
                     </PlotTable>
                 {/key}
@@ -220,3 +223,8 @@
     configName="plot_list_selectedMetrics"
     bind:metrics={metrics}
     bind:isOpen={isMetricsSelectionOpen} />
+
+    <HistogramSelection
+    bind:cluster={selectedCluster}
+    bind:metricsInHistograms={metricsInHistograms}
+    bind:isOpen={isHistogramSelectionOpen} />
