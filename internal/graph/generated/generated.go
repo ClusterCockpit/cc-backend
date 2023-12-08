@@ -1969,10 +1969,10 @@ type MetricHistoPoints {
 }
 
 type MetricHistoPoint {
-  min: Int!
-  max: Int!
+  bin: Int
   count: Int!
-  bin: Int!
+  min: Int
+  max: Int
 }
 
 type JobsStatistics  {
@@ -6336,8 +6336,8 @@ func (ec *executionContext) fieldContext_MetricFootprints_data(ctx context.Conte
 	return fc, nil
 }
 
-func (ec *executionContext) _MetricHistoPoint_min(ctx context.Context, field graphql.CollectedField, obj *model.MetricHistoPoint) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_MetricHistoPoint_min(ctx, field)
+func (ec *executionContext) _MetricHistoPoint_bin(ctx context.Context, field graphql.CollectedField, obj *model.MetricHistoPoint) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MetricHistoPoint_bin(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -6350,68 +6350,21 @@ func (ec *executionContext) _MetricHistoPoint_min(ctx context.Context, field gra
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Min, nil
+		return obj.Bin, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.(int)
+	res := resTmp.(*int)
 	fc.Result = res
-	return ec.marshalNInt2int(ctx, field.Selections, res)
+	return ec.marshalOInt2ᚖint(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_MetricHistoPoint_min(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MetricHistoPoint",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _MetricHistoPoint_max(ctx context.Context, field graphql.CollectedField, obj *model.MetricHistoPoint) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_MetricHistoPoint_max(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Max, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(int)
-	fc.Result = res
-	return ec.marshalNInt2int(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_MetricHistoPoint_max(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_MetricHistoPoint_bin(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "MetricHistoPoint",
 		Field:      field,
@@ -6468,8 +6421,8 @@ func (ec *executionContext) fieldContext_MetricHistoPoint_count(ctx context.Cont
 	return fc, nil
 }
 
-func (ec *executionContext) _MetricHistoPoint_bin(ctx context.Context, field graphql.CollectedField, obj *model.MetricHistoPoint) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_MetricHistoPoint_bin(ctx, field)
+func (ec *executionContext) _MetricHistoPoint_min(ctx context.Context, field graphql.CollectedField, obj *model.MetricHistoPoint) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MetricHistoPoint_min(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -6482,24 +6435,62 @@ func (ec *executionContext) _MetricHistoPoint_bin(ctx context.Context, field gra
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Bin, nil
+		return obj.Min, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.(int)
+	res := resTmp.(*int)
 	fc.Result = res
-	return ec.marshalNInt2int(ctx, field.Selections, res)
+	return ec.marshalOInt2ᚖint(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_MetricHistoPoint_bin(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_MetricHistoPoint_min(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MetricHistoPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MetricHistoPoint_max(ctx context.Context, field graphql.CollectedField, obj *model.MetricHistoPoint) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MetricHistoPoint_max(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Max, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*int)
+	fc.Result = res
+	return ec.marshalOInt2ᚖint(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MetricHistoPoint_max(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "MetricHistoPoint",
 		Field:      field,
@@ -6636,14 +6627,14 @@ func (ec *executionContext) fieldContext_MetricHistoPoints_data(ctx context.Cont
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "bin":
+				return ec.fieldContext_MetricHistoPoint_bin(ctx, field)
+			case "count":
+				return ec.fieldContext_MetricHistoPoint_count(ctx, field)
 			case "min":
 				return ec.fieldContext_MetricHistoPoint_min(ctx, field)
 			case "max":
 				return ec.fieldContext_MetricHistoPoint_max(ctx, field)
-			case "count":
-				return ec.fieldContext_MetricHistoPoint_count(ctx, field)
-			case "bin":
-				return ec.fieldContext_MetricHistoPoint_bin(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type MetricHistoPoint", field.Name)
 		},
@@ -13542,26 +13533,17 @@ func (ec *executionContext) _MetricHistoPoint(ctx context.Context, sel ast.Selec
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("MetricHistoPoint")
-		case "min":
-			out.Values[i] = ec._MetricHistoPoint_min(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "max":
-			out.Values[i] = ec._MetricHistoPoint_max(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
+		case "bin":
+			out.Values[i] = ec._MetricHistoPoint_bin(ctx, field, obj)
 		case "count":
 			out.Values[i] = ec._MetricHistoPoint_count(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "bin":
-			out.Values[i] = ec._MetricHistoPoint_bin(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
+		case "min":
+			out.Values[i] = ec._MetricHistoPoint_min(ctx, field, obj)
+		case "max":
+			out.Values[i] = ec._MetricHistoPoint_max(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

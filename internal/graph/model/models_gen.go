@@ -110,10 +110,10 @@ type MetricFootprints struct {
 }
 
 type MetricHistoPoint struct {
-	Min   int `json:"min"`
-	Max   int `json:"max"`
-	Count int `json:"count"`
-	Bin   int `json:"bin"`
+	Bin   *int `json:"bin,omitempty"`
+	Count int  `json:"count"`
+	Min   *int `json:"min,omitempty"`
+	Max   *int `json:"max,omitempty"`
 }
 
 type MetricHistoPoints struct {

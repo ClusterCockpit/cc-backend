@@ -44,7 +44,7 @@
                 histNumNodes { count, value }
                 histMetrics  { metric, unit, data { min, max, count, bin } }
             }}`,
-        variables: { jobFilters, metricsInHistograms}
+        variables: { jobFilters, metricsInHistograms }
     })
 
     onMount(() => filterComponent.update())

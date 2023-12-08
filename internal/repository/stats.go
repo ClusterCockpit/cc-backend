@@ -460,13 +460,8 @@ func (r *JobRepository) AddMetricHistograms(
 	stat *model.JobsStatistics) (*model.JobsStatistics, error) {
 	start := time.Now()
 
-	for i, m := range metrics {
-		// DEBUG
-		fmt.Println(i, m)
-		var err error
-		var metricHisto *model.MetricHistoPoints
-
-		metricHisto, err = r.jobsMetricStatisticsHistogram(ctx, m, filter)
+	for _, m := range metrics {
+		metricHisto, err := r.jobsMetricStatisticsHistogram(ctx, m, filter)
 		if err != nil {
 			log.Warnf("Error while loading job metric statistics histogram: %s", m)
 			continue
@@ -529,6 +524,12 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 		dbMetric = "flops_any_avg"
 	case "mem_bw":
 		dbMetric = "mem_bw_avg"
+	case "mem_used":
+		dbMetric = "mem_used_max"
+	case "net_bw":
+		dbMetric = "net_bw_avg"
+	case "file_bw":
+		dbMetric = "file_bw_avg"
 	default:
 		return nil, fmt.Errorf("%s not implemented", metric)
 	}
@@ -562,46 +563,67 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 		}
 	}
 
+	// log.Debugf("Metric %s: DB %s, Peak %f, Unit %s", metric, dbMetric, peak, unit)
 	// Make bins, see https://jereze.com/code/sql-histogram/
-	// Diffs:
-	// CAST(X AS INTEGER) instead of floor(X), used also for for Min , Max selection
-	// renamed to bin for simplicity and model struct
-	// Ditched rename from job to data, as it conflicts with security check afterwards
-	start := time.Now()
-	prepQuery := sq.Select(
-		fmt.Sprintf(`CAST(min(job.%s) as INTEGER) as min`, dbMetric),
-		fmt.Sprintf(`CAST(max(job.%s) as INTEGER) as max`, dbMetric),
-		fmt.Sprintf(`count(job.%s) as count`, dbMetric),
-		fmt.Sprintf(`CAST((case when job.%s = value.max then value.max*0.999999999 else job.%s end - value.min) / (value.max - value.min) * 10 as INTEGER) +1 as bin`, dbMetric, dbMetric))
-	prepQuery = prepQuery.From("job")
-	prepQuery = prepQuery.CrossJoin(fmt.Sprintf(`(select max(%s) as max, min(%s) as min from job where %s is not null and %s < %f) as value`, dbMetric, dbMetric, dbMetric, dbMetric, peak))
-	prepQuery = prepQuery.Where(fmt.Sprintf(`job.%s is not null and job.%s < %f`, dbMetric, dbMetric, peak))
 
-	query, qerr := SecurityCheck(ctx, prepQuery)
+	start := time.Now()
+
+	crossJoinQuery := sq.Select(
+		fmt.Sprintf(`max(%s) as max`, dbMetric),
+		fmt.Sprintf(`min(%s) as min`, dbMetric),
+	).From("job").Where(
+		fmt.Sprintf(`%s is not null`, dbMetric),
+	).Where(
+		fmt.Sprintf(`%s <= %f`, dbMetric, peak),
+	)
+
+	crossJoinQuery, cjqerr := SecurityCheck(ctx, crossJoinQuery)
+	if cjqerr != nil {
+		return nil, cjqerr
+	}
+
+	crossJoinQuerySql, _, sqlerr := crossJoinQuery.ToSql()
+	if sqlerr != nil {
+		return nil, sqlerr
+	}
+
+	bins := 10
+	binQuery := fmt.Sprintf(`CAST( (case when job.%s = value.max then value.max*0.999999999 else job.%s end - value.min) / (value.max - value.min) * %d as INTEGER )`, dbMetric, dbMetric, bins)
+
+	mainQuery := sq.Select(
+		fmt.Sprintf(`%s + 1 as bin`, binQuery),
+		fmt.Sprintf(`count(job.%s) as count`, dbMetric),
+		fmt.Sprintf(`CAST(((value.max / %d) * (%s     )) as INTEGER ) as min`, bins, binQuery),
+		fmt.Sprintf(`CAST(((value.max / %d) * (%s + 1 )) as INTEGER ) as max`, bins, binQuery),
+	).From("job").CrossJoin(
+		fmt.Sprintf(`(%s) as value`, crossJoinQuerySql),
+	).Where(fmt.Sprintf(`job.%s is not null and job.%s <= %f`, dbMetric, dbMetric, peak))
+
+	mainQuery, qerr := SecurityCheck(ctx, mainQuery)
 
 	if qerr != nil {
 		return nil, qerr
 	}
 
 	for _, f := range filters {
-		query = BuildWhereClause(f, query)
+		mainQuery = BuildWhereClause(f, mainQuery)
 	}
 
 	// Finalize query with Grouping and Ordering
-	query = query.GroupBy("bin").OrderBy("bin")
+	mainQuery = mainQuery.GroupBy("bin").OrderBy("bin")
 
-	rows, err := query.RunWith(r.DB).Query()
+	rows, err := mainQuery.RunWith(r.DB).Query()
 	if err != nil {
-		log.Errorf("Error while running query: %s", err)
+		log.Errorf("Error while running mainQuery: %s", err)
 		return nil, err
 	}
 
 	points := make([]*model.MetricHistoPoint, 0)
 	for rows.Next() {
 		point := model.MetricHistoPoint{}
-		if err := rows.Scan(&point.Min, &point.Max, &point.Count, &point.Bin); err != nil {
-			log.Warn("Error while scanning rows")
-			return nil, err
+		if err := rows.Scan(&point.Bin, &point.Count, &point.Min, &point.Max); err != nil {
+			log.Warnf("Error while scanning rows for %s", metric)
+			return nil, err // Totally bricks cc-backend if returned and if all metrics requested?
 		}
 
 		points = append(points, &point)

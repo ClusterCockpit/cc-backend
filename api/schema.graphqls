@@ -293,10 +293,10 @@ type MetricHistoPoints {
 }
 
 type MetricHistoPoint {
-  min: Int!
-  max: Int!
+  bin: Int
   count: Int!
-  bin: Int!
+  min: Int
+  max: Int
 }
 
 type JobsStatistics  {

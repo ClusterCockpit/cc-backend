@@ -4,10 +4,10 @@
     import { gql, getContextClient , mutationStore } from '@urql/svelte'
 
     export let cluster
-    export let availableMetrics = ['cpu_load', 'flops_any', 'mem_bw']
     export let metricsInHistograms
     export let isOpen
 
+    let availableMetrics = ['cpu_load', 'flops_any', 'mem_used', 'mem_bw', 'net_bw', 'file_bw']
     let pendingMetrics = [...metricsInHistograms] // Copy
     const client = getContextClient()
 
