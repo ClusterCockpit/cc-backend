@@ -578,8 +578,13 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 	)
 
 	crossJoinQuery, cjqerr := SecurityCheck(ctx, crossJoinQuery)
+
 	if cjqerr != nil {
 		return nil, cjqerr
+	}
+
+	for _, f := range filters {
+		crossJoinQuery = BuildWhereClause(f, crossJoinQuery)
 	}
 
 	crossJoinQuerySql, _, sqlerr := crossJoinQuery.ToSql()
