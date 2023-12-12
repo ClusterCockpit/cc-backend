@@ -15,6 +15,7 @@
         Table,
         Progress,
         Icon,
+        Button
     } from "sveltestrap";
     import { init, convert2uplot, transformPerNodeDataForRoofline } from "./utils.js";
     import { scaleNumbers } from "./units.js";
@@ -24,6 +25,8 @@
         getContextClient,
         mutationStore,
     } from "@urql/svelte";
+    import PlotTable from './PlotTable.svelte'
+    import HistogramSelection from './HistogramSelection.svelte'
 
     const { query: initq } = init();
     const ccconfig = getContext("cc-config");
@@ -63,7 +66,8 @@
                 option.key == ccconfig.status_view_selectedTopUserCategory
         );
 
-    let metricsInHistograms = ccconfig[`status_view_histogramMetrics:${cluster}`] || ccconfig.status_view_histogramMetrics
+    let isHistogramSelectionOpen = false
+    $: metricsInHistograms = cluster ? ccconfig[`user_view_histogramMetrics:${cluster}`] : (ccconfig.user_view_histogramMetrics || [])
 
     const client = getContextClient();
     $: mainQuery = queryStore({
@@ -75,6 +79,7 @@
                 $metrics: [String!]
                 $from: Time!
                 $to: Time!
+                $metricsInHistograms: [String!]
             ) {
                 nodeMetrics(
                     cluster: $cluster
@@ -100,7 +105,7 @@
                     }
                 }
 
-                stats: jobsStatistics(filter: $filter) {
+                stats: jobsStatistics(filter: $filter, metrics: $metricsInHistograms) {
                     histDuration {
                         count
                         value
@@ -117,6 +122,16 @@
                         count
                         value
                     }
+                    histMetrics  { 
+                        metric
+                        unit
+                        data { 
+                            min
+                            max
+                            count
+                            bin
+                        }
+                    }
                 }
 
                 allocatedNodes(cluster: $cluster) {
@@ -131,6 +146,7 @@
             from: from.toISOString(),
             to: to.toISOString(),
             filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
+            metricsInHistograms: metricsInHistograms
         },
     });
 
@@ -313,7 +329,7 @@
     <Col xs="auto" style="align-self: flex-end;">
         <h4 class="mb-0">Current utilization of cluster "{cluster}"</h4>
     </Col>
-    <Col xs="auto">
+    <Col xs="auto"  style="margin-left: 0.25rem;">
         {#if $initq.fetching || $mainQuery.fetching}
             <Spinner />
         {:else if $initq.error}
@@ -323,6 +339,13 @@
         {/if}
     </Col>
     <Col xs="auto" style="margin-left: auto;">
+        <Button
+            outline color="secondary"
+            on:click={() => (isHistogramSelectionOpen = true)}>
+            <Icon name="bar-chart-line"/> Select Histograms
+        </Button>
+    </Col>
+    <Col xs="auto" style="margin-left: 0.25rem;">
         <Refresher
             initially={120}
             on:reload={() => {
@@ -668,4 +691,34 @@
             {/key}
         </Col>
     </Row>
+    <hr class="my-2" />
+    {#if metricsInHistograms}
+        <Row>
+            <Col>
+                {#key $mainQuery.data.stats[0].histMetrics}
+                    <PlotTable
+                        let:item
+                        let:width
+                        renderFor="user"
+                        items={$mainQuery.data.stats[0].histMetrics}
+                        itemsPerRow={3}>
+
+                        <Histogram
+                            data={convert2uplot(item.data)}
+                            width={width} height={250}
+                            title="Distribution of '{item.metric}'"
+                            xlabel={`${item.metric} bin maximum [${item.unit}]`}
+                            xunit={item.unit}
+                            ylabel="Number of Jobs"
+                            yunit="Jobs"/>
+                    </PlotTable>
+                {/key}
+            </Col>
+        </Row>
+    {/if}
 {/if}
+
+<HistogramSelection
+bind:cluster={cluster}
+bind:metricsInHistograms={metricsInHistograms}
+bind:isOpen={isHistogramSelectionOpen} />

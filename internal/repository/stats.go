@@ -8,10 +8,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
+	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -460,6 +462,18 @@ func (r *JobRepository) AddMetricHistograms(
 	stat *model.JobsStatistics) (*model.JobsStatistics, error) {
 	start := time.Now()
 
+	// Running Jobs Only: First query jobdata from sqlite, then query data and make bins
+	for _, f := range filter {
+		if f.State != nil {
+			if len(f.State) == 1 && f.State[0] == "running" {
+				stat.HistMetrics = r.runningJobsMetricStatisticsHistogram(ctx, metrics, filter)
+				log.Debugf("Timer AddMetricHistograms %s", time.Since(start))
+				return stat, nil
+			}
+		}
+	}
+
+	// All other cases: Query and make bins in sqlite directly
 	for _, m := range metrics {
 		metricHisto, err := r.jobsMetricStatisticsHistogram(ctx, m, filter)
 		if err != nil {
@@ -638,4 +652,103 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 
 	log.Debugf("Timer jobsStatisticsHistogram %s", time.Since(start))
 	return &result, nil
+}
+
+func (r *JobRepository) runningJobsMetricStatisticsHistogram(
+	ctx context.Context,
+	metrics []string,
+	filters []*model.JobFilter) []*model.MetricHistoPoints {
+
+	// Get Jobs
+	jobs, err := r.QueryJobs(ctx, filters, &model.PageRequest{Page: 1, ItemsPerPage: 500 + 1}, nil)
+	if err != nil {
+		log.Errorf("Error while querying jobs for footprint: %s", err)
+		return nil
+	}
+	if len(jobs) > 500 {
+		log.Errorf("too many jobs matched (max: %d)", 500)
+		return nil
+	}
+
+	// Get AVGs from metric repo
+	avgs := make([][]schema.Float, len(metrics))
+	for i := range avgs {
+		avgs[i] = make([]schema.Float, 0, len(jobs))
+	}
+
+	for _, job := range jobs {
+		if job.MonitoringStatus == schema.MonitoringStatusDisabled || job.MonitoringStatus == schema.MonitoringStatusArchivingFailed {
+			continue
+		}
+
+		if err := metricdata.LoadAverages(job, metrics, avgs, ctx); err != nil {
+			log.Errorf("Error while loading averages for histogram: %s", err)
+			return nil
+		}
+	}
+
+	// Iterate metrics to fill endresult
+	data := make([]*model.MetricHistoPoints, 0)
+	for idx, metric := range metrics {
+		// Get specific Peak or largest Peak
+		var metricConfig *schema.MetricConfig
+		var peak float64 = 0.0
+		var unit string = ""
+
+		for _, f := range filters {
+			if f.Cluster != nil {
+				metricConfig = archive.GetMetricConfig(*f.Cluster.Eq, metric)
+				peak = metricConfig.Peak
+				unit = metricConfig.Unit.Prefix + metricConfig.Unit.Base
+				log.Debugf("Cluster %s filter found with peak %f for %s", *f.Cluster.Eq, peak, metric)
+			}
+		}
+
+		if peak == 0.0 {
+			for _, c := range archive.Clusters {
+				for _, m := range c.MetricConfig {
+					if m.Name == metric {
+						if m.Peak > peak {
+							peak = m.Peak
+						}
+						if unit == "" {
+							unit = m.Unit.Prefix + m.Unit.Base
+						}
+					}
+				}
+			}
+		}
+
+		// Make and fill bins
+		bins := 10.0
+		peakBin := peak / bins
+
+		points := make([]*model.MetricHistoPoint, 0)
+		for b := 0; b < 10; b++ {
+			count := 0
+			bindex := b + 1
+			bmin := math.Round(peakBin * float64(b))
+			bmax := math.Round(peakBin * (float64(b) + 1.0))
+
+			// Iterate AVG values for indexed metric and count for bins
+			for _, val := range avgs[idx] {
+				if float64(val) >= bmin && float64(val) < bmax {
+					count += 1
+				}
+			}
+
+			bminint := int(bmin)
+			bmaxint := int(bmax)
+
+			// Append Bin to Metric Result Array
+			point := model.MetricHistoPoint{Bin: &bindex, Count: count, Min: &bminint, Max: &bmaxint}
+			points = append(points, &point)
+		}
+
+		// Append Metric Result Array to final results array
+		result := model.MetricHistoPoints{Metric: metric, Unit: unit, Data: points}
+		data = append(data, &result)
+	}
+
+	return data
 }
