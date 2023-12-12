@@ -587,7 +587,7 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 		crossJoinQuery = BuildWhereClause(f, crossJoinQuery)
 	}
 
-	crossJoinQuerySql, _, sqlerr := crossJoinQuery.ToSql()
+	crossJoinQuerySql, crossJoinQueryArgs, sqlerr := crossJoinQuery.ToSql()
 	if sqlerr != nil {
 		return nil, sqlerr
 	}
@@ -601,7 +601,7 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 		fmt.Sprintf(`CAST(((value.max / %d) * (%s     )) as INTEGER ) as min`, bins, binQuery),
 		fmt.Sprintf(`CAST(((value.max / %d) * (%s + 1 )) as INTEGER ) as max`, bins, binQuery),
 	).From("job").CrossJoin(
-		fmt.Sprintf(`(%s) as value`, crossJoinQuerySql),
+		fmt.Sprintf(`(%s) as value`, crossJoinQuerySql), crossJoinQueryArgs...,
 	).Where(fmt.Sprintf(`job.%s is not null and job.%s <= %f`, dbMetric, dbMetric, peak))
 
 	mainQuery, qerr := SecurityCheck(ctx, mainQuery)
