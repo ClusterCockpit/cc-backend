@@ -35,13 +35,11 @@
 
     function closeAndApply() {
         metricsInHistograms = [...pendingMetrics] // Set for parent
-
+        isOpen = !isOpen
         updateConfiguration({
             name: cluster ? `user_view_histogramMetrics:${cluster}` : 'user_view_histogramMetrics',
             value: metricsInHistograms
         })
-
-        isOpen = false
     }
 </script>
 
@@ -62,5 +60,6 @@
     </ModalBody>
     <ModalFooter>
         <Button color="primary" on:click={closeAndApply}> Close & Apply </Button>
+        <Button color="secondary" on:click={() => (isOpen = !isOpen)}> Close </Button>
     </ModalFooter>
 </Modal>

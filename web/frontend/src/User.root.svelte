@@ -224,7 +224,7 @@
     bind:metrics={metrics}
     bind:isOpen={isMetricsSelectionOpen} />
 
-    <HistogramSelection
+<HistogramSelection
     bind:cluster={selectedCluster}
     bind:metricsInHistograms={metricsInHistograms}
     bind:isOpen={isHistogramSelectionOpen} />
