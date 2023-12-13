@@ -705,9 +705,10 @@
 
                         <Histogram
                             data={convert2uplot(item.data)}
+                            usesBins={true}
                             width={width} height={250}
-                            title="Distribution of '{item.metric}'"
-                            xlabel={`${item.metric} bin maximum [${item.unit}]`}
+                            title="Distribution of '{item.metric}' averages"
+                            xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
                             xunit={item.unit}
                             ylabel="Number of Jobs"
                             yunit="Jobs"/>

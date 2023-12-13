@@ -318,12 +318,6 @@ export function checkMetricDisabled(m, c, s) { //[m]etric, [c]luster, [s]ubclust
 export function convert2uplot(canvasData) {
     // Prep: Uplot Data Structure
     let uplotData = [[],[]] // [X, Y1, Y2, ...]
-    // MetricHisto Only: Check if 1st bin not-null -> Set 0-Value bin for scaling
-    // Else: Only Single 0-Value bin returned -> No reset required
-    if (canvasData[0]?.bin) {
-        uplotData[0].push(0)
-        uplotData[1].push(0)
-    }
     // Iterate
     canvasData.forEach( cd => {
         if (Object.keys(cd).length == 4) { // MetricHisto Datafromat

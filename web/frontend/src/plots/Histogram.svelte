@@ -11,6 +11,7 @@
     import { Card } from 'sveltestrap'
 
     export let data
+    export let usesBins = false
     export let width = 500
     export let height = 300
     export let title = ''
@@ -160,6 +161,14 @@
             series: [
                 {
                     label: xunit !== '' ? xunit : null,
+                    value: (u, ts, sidx, didx) => {
+                        if (usesBins) {
+                            const min = u.data[sidx][didx - 1] ? u.data[sidx][didx - 1] : 0
+                            const max = u.data[sidx][didx]
+                            ts = min + ' - ' + max // narrow spaces
+                        }
+                        return ts
+                    }
                 },
                 Object.assign({
                     label:  yunit !== '' ? yunit : null,

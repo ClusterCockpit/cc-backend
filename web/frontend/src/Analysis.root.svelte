@@ -389,9 +389,10 @@
                 <Histogram
                     data={convert2uplot(item.bins)}
                     width={width} height={250}
+                    usesBins={true}
                     title="Average Distribution of '{item.metric}'"
-                    xlabel={`${item.metric} bin maximum [${(metricConfig(cluster.name, item.metric)?.unit?.prefix ? metricConfig(cluster.name, item.metric)?.unit?.prefix : '') +
-                                                       (metricConfig(cluster.name, item.metric)?.unit?.base   ? metricConfig(cluster.name, item.metric)?.unit?.base   : '')}]`}
+                    xlabel={`${item.metric} bin maximum ${(metricConfig(cluster.name, item.metric)?.unit?.prefix ? '[' + metricConfig(cluster.name, item.metric)?.unit?.prefix : '') +
+                                                          (metricConfig(cluster.name, item.metric)?.unit?.base   ? metricConfig(cluster.name, item.metric)?.unit?.base + ']'   : '')}`}
                     xunit={`${(metricConfig(cluster.name, item.metric)?.unit?.prefix ? metricConfig(cluster.name, item.metric)?.unit?.prefix : '') +
                               (metricConfig(cluster.name, item.metric)?.unit?.base   ? metricConfig(cluster.name, item.metric)?.unit?.base   : '')}`}
                     ylabel="Normalized Hours"
