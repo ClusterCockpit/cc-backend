@@ -41,7 +41,7 @@
         states:      filterPresets.states     || filterPresets.state ? [filterPresets.state].flat() : allJobStates,
         startTime:   filterPresets.startTime  || { from: null, to: null },
         tags:        filterPresets.tags       || [],
-        duration:    filterPresets.duration   || { from: null, to: null },
+        duration:    filterPresets.duration   || { lessThan: null, moreThan: null, from: null, to: null },
         jobId:       filterPresets.jobId      || '',
         arrayJobId:  filterPresets.arrayJobId || null,
         user:        filterPresets.user       || '',
@@ -88,6 +88,10 @@
             items.push({ tags: filters.tags })
         if (filters.duration.from || filters.duration.to)
             items.push({ duration: { from: filters.duration.from, to: filters.duration.to } })
+        if (filters.duration.lessThan)
+            items.push({ duration: { from: 0, to: filters.duration.lessThan } })
+        if (filters.duration.moreThan)
+            items.push({ duration: { from: filters.duration.moreThan, to: 604800 } }) // 7 days to include special jobs with long runtimes
         if (filters.jobId)
             items.push({ jobId: { [filters.jobIdMatch]: filters.jobId } })
         if (filters.arrayJobId != null)
@@ -144,6 +148,10 @@
             opts.push(`tag=${tag}`)
         if (filters.duration.from && filters.duration.to)
             opts.push(`duration=${filters.duration.from}-${filters.duration.to}`)
+        if (filters.duration.lessThan)
+            opts.push(`duration=0-${filters.duration.lessThan}`)
+        if (filters.duration.moreThan)
+            opts.push(`duration=${filters.duration.moreThan}-604800`)
         if (filters.numNodes.from && filters.numNodes.to)
             opts.push(`numNodes=${filters.numNodes.from}-${filters.numNodes.to}`)
         if (filters.numAccelerators.from && filters.numAccelerators.to)
@@ -267,6 +275,18 @@
             </Info>
         {/if}
 
+        {#if filters.duration.lessThan}
+            <Info icon="stopwatch" on:click={() => (isDurationOpen = true)}>
+                Duration less than {Math.floor(filters.duration.lessThan / 3600)}h:{Math.floor(filters.duration.lessThan % 3600 / 60)}m
+            </Info>
+        {/if}
+
+        {#if filters.duration.moreThan}
+            <Info icon="stopwatch" on:click={() => (isDurationOpen = true)}>
+                Duration more than {Math.floor(filters.duration.moreThan / 3600)}h:{Math.floor(filters.duration.moreThan % 3600 / 60)}m
+            </Info>
+        {/if}
+
         {#if filters.tags.length != 0}
             <Info icon="tags" on:click={() => (isTagsOpen = true)}>
                 {#each filters.tags as tagId}
@@ -325,6 +345,8 @@
 
 <Duration
     bind:isOpen={isDurationOpen}
+    bind:lessThan={filters.duration.lessThan}
+    bind:moreThan={filters.duration.moreThan}
     bind:from={filters.duration.from}
     bind:to={filters.duration.to}
     on:update={() => update()} />

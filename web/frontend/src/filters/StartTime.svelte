@@ -1,5 +1,6 @@
 <script>
-    import { createEventDispatcher, getContext } from 'svelte'
+    import { createEventDispatcher } from 'svelte'
+    import { parse, format, sub } from 'date-fns'
     import { Row, Button, Input, Modal, ModalBody, ModalHeader, ModalFooter, FormGroup } from 'sveltestrap'
 
     const dispatch = createEventDispatcher()
@@ -11,34 +12,29 @@
 
     let pendingFrom, pendingTo
 
+    const now = new Date(Date.now())
+    const ago = sub(now, {months: 1})
+    const defaultFrom = {date: format(ago, 'yyyy-MM-dd'), time: format(ago, 'HH:mm')}
+    const defaultTo   = {date: format(now, 'yyyy-MM-dd'), time: format(now, 'HH:mm')}
+
     function reset() {
-        pendingFrom = from == null ? { date: '0000-00-00', time: '00:00' } : fromRFC3339(from)
-        pendingTo   = to   == null ? { date: '0000-00-00', time: '00:00' } : fromRFC3339(to)
+        pendingFrom = from == null ? defaultFrom : fromRFC3339(from)
+        pendingTo   = to   == null ? defaultTo   : fromRFC3339(to)
     }
 
     reset()
 
-    function toRFC3339({ date, time }, secs = 0) {
-        const dparts = date.split('-')
-        const tparts = time.split(':')
-        const d = new Date(
-            Number.parseInt(dparts[0]),
-            Number.parseInt(dparts[1]) - 1,
-            Number.parseInt(dparts[2]),
-            Number.parseInt(tparts[0]),
-            Number.parseInt(tparts[1]), secs)
-        return d.toISOString()
+    function toRFC3339({ date, time }, secs = '00') {
+        const parsedDate = parse(date+' '+time+':'+secs, 'yyyy-MM-dd HH:mm:ss', new Date())
+        return parsedDate.toISOString()
     }
 
     function fromRFC3339(rfc3339) {
-        const d = new Date(rfc3339)
-        const pad = (n) => n.toString().padStart(2, '0')
-        const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-        const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`
-        return { date, time }
+        const parsedDate = new Date(rfc3339)
+        return { date: format(parsedDate, 'yyyy-MM-dd'), time: format(parsedDate, 'HH:mm') }
     }
 
-    $: isModified = (from != toRFC3339(pendingFrom) || to != toRFC3339(pendingTo, 59))
+    $: isModified = (from != toRFC3339(pendingFrom) || to != toRFC3339(pendingTo, '59'))
         && !(from == null && pendingFrom.date == '0000-00-00' && pendingFrom.time == '00:00')
         && !(to == null && pendingTo.date == '0000-00-00' && pendingTo.time == '00:00')
 </script>
@@ -73,7 +69,7 @@
             on:click={() => {
                 isOpen = false
                 from = toRFC3339(pendingFrom)
-                to = toRFC3339(pendingTo, 59)
+                to = toRFC3339(pendingTo, '59')
                 dispatch('update', { from, to })
             }}>
             Close & Apply

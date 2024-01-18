@@ -89,7 +89,7 @@
 
     // Force refresh list with existing unchanged variables (== usually would not trigger reactivity)
     export function refresh() {
-        queryStore({
+        jobs = queryStore({
             client: client,
             query: query,
             variables: { paging, sorting, filter },

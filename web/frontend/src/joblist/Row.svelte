@@ -64,11 +64,12 @@
         variables: { id, metrics, scopes }
     });
 
-    function refresh() {
-        queryStore({
+    export function refresh() {
+        metricsQuery = queryStore({
             client: client,
             query: query,
-            variables: { id, metrics, scopes }
+            variables: { id, metrics, scopes },
+            // requestPolicy: 'network-only' // use default cache-first for refresh
         });
     }
 
