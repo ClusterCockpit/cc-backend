@@ -50,137 +50,78 @@
         
         // Unit
         const fmc = getContext('metrics')(job.cluster, fm)
-        let unit = null
-        if (fmc?.unit?.base) {
-            unit = fmc.unit.prefix + fmc.unit.base
-        } else {
-            unit = ''
-        }
+        let unit = ''
+        if (fmc?.unit?.base) unit = fmc.unit.prefix + fmc.unit.base
 
         // Threshold / -Differences
         const fmt = findJobThresholds(job, fmc, subclusterConfig)
-        const levelPeak    = fm === 'flops_any' ? round((fmt.peak * 0.85), 0) - mv : fmt.peak - mv // Scale flops_any down
-        const levelNormal  = fmt.normal - mv
-        const levelCaution = fmt.caution - mv
-        const levelAlert   = fmt.alert - mv
+        if (fm === 'flops_any') fmt.peak = round((fmt.peak * 0.85), 0)
 
         // Define basic data
         const fmBase = {
             name: fm,
             unit: unit,
             avg: mv,
-            max: fm === 'flops_any' ? round((fmt.peak * 0.85), 0) : fmt.peak
+            max: fmt.peak
         }
 
-        // Collect
-        if (fm !== 'mem_used') { // Alert if usage is low, peak as maxmimum possible (scaled down for flops_any)
-            if (levelAlert > 0) {
-                return {
-                    ...fmBase,
-                    color: 'danger',
-                    message: 'Metric strongly below common levels!',
-                    impact: 3
-                }
-            } else if (levelCaution > 0) {
-                return {
-                    ...fmBase,
-                    color: 'warning',
-                    message: 'Metric below common levels',
-                    impact: 2
-                }
-            } else if (levelNormal > 0) {
-                return {
-                    ...fmBase,
-                    color: 'success',
-                    message: 'Metric within common levels',
-                    impact: 1
-                }
-            } else if (levelPeak > 0) {
-                return {
-                    ...fmBase,
-                    color: 'info',
-                    message: 'Metric performs better than common levels',
-                    impact: 0
-                }
-            } else { // Possible artifacts - <5% Margin OK, >5% warning, > 50% danger
-                if (fmBase.avg >= (1.5 * fmBase.max)) {
-                    return {
-                        ...fmBase,
-                        color: 'secondary',
-                        message: 'Metric average at least 50% above common peak value: Check data for artifacts!',
-                        impact: -2
-                    }
-                } else if (fmBase.avg >= (1.05 * fmBase.max)) {
-                    return {
-                        ...fmBase,
-                        color: 'secondary',
-                        message: 'Metric average at least 5% above common peak value: Check data for artifacts',
-                        impact: -1
-                    }
-                } else {
-                    return {
-                        ...fmBase,
-                        color: 'info',
-                        message: 'Metric performs better than common levels',
-                        impact: 0
-                    }
-                }
+        if (evalFootprint(fm, mv, fmt, 'alert')) {
+            return {
+                ...fmBase,
+                color: 'danger',
+                message:`Metric average way ${fm === 'mem_used' ? 'above' : 'below' } expected normal thresholds.`,
+                impact: 3
             }
-        } else { // Inverse Logic: Alert if usage is high, Peak is bad and limits execution
-            if (levelPeak <= 0 && levelAlert <= 0 && levelCaution <= 0 && levelNormal <= 0) {  // Possible artifacts - <5% Margin OK, >5% warning, > 50% danger
-                if (fmBase.avg >= (1.5 * fmBase.max)) {
-                    return {
-                        ...fmBase,
-                        color: 'secondary',
-                        message: 'Memory usage at least 50% above possible maximum value: Check data for artifacts!',
-                        impact: -2
-                    }
-                } else if (fmBase.avg >= (1.05 * fmBase.max)) {
-                    return {
-                        ...fmBase,
-                        color: 'secondary',
-                        message: 'Memory usage at least 5% above possible maximum value: Check data for artifacts!',
-                        impact: -1
-                    }
-                } else {
-                    return {
-                        ...fmBase,
-                        color: 'danger',
-                        message: 'Memory usage extremely above common levels!',
-                        impact: 4
-                    }
-                }
-            } else if (levelAlert <= 0 && levelCaution <= 0 && levelNormal <= 0) {
-                return {
-                    ...fmBase,
-                    color: 'danger',
-                    message: 'Memory usage extremely above common levels!',
-                    impact: 4
-                }
-            } else if (levelAlert > 0 && (levelCaution <= 0 && levelNormal <= 0)) {
-                return {
-                    ...fmBase,
-                    color: 'danger',
-                    message: 'Memory usage strongly above common levels!',
-                    impact: 3
-                }
-            } else if (levelCaution > 0 && levelNormal <= 0) {
-                return {
-                    ...fmBase,
-                    color: 'warning',
-                    message: 'Memory usage above common levels',
-                    impact: 2
-                }
-            } else {
-                return {
-                    ...fmBase,
-                    color: 'success',
-                    message: 'Memory usage within common levels',
-                    impact: 1
-                }
+        } else if (evalFootprint(fm, mv, fmt, 'caution')) {
+            return {
+                ...fmBase,
+                color: 'warning',
+                message: `Metric average ${fm === 'mem_used' ? 'above' : 'below' } expected normal thresholds.`,
+                impact: 2
+            }
+        } else if (evalFootprint(fm, mv, fmt, 'normal')) {
+            return {
+                ...fmBase,
+                color: 'success',
+                message: 'Metric average within expected thresholds.',
+                impact: 1
+            }
+        } else if (evalFootprint(fm, mv, fmt, 'peak')) {
+            return {
+                ...fmBase,
+                color: 'info',
+                message: 'Metric average above expected normal thresholds: Check for artifacts recommended.',
+                impact: 0
+            }
+        } else {
+            return {
+                ...fmBase,
+                color: 'secondary',
+                message: 'Metric average above expected peak threshold: Check for artifacts!',
+                impact: -1
             }
         }
     })
+
+    function evalFootprint(metric, mean, thresholds, level) {
+        // mem_used has inverse logic regarding threshold levels
+        switch (level) {
+            case 'peak':
+                if (metric === 'mem_used') return (mean <= thresholds.peak && mean > thresholds.alert)
+                else                       return (mean <= thresholds.peak && mean > thresholds.normal)
+            case 'alert':
+                if (metric === 'mem_used') return (mean <= thresholds.alert && mean > thresholds.caution)
+                else                       return (mean <= thresholds.alert && mean > 0)
+            case 'caution':
+                if (metric === 'mem_used') return (mean <= thresholds.caution && mean > thresholds.normal)
+                else                       return (mean <= thresholds.caution && mean > thresholds.alert)
+            case 'normal':
+                if (metric === 'mem_used') return (mean <= thresholds.normal && mean > 0)
+                else                       return (mean <= thresholds.normal && mean > thresholds.caution)
+            default:
+                return false
+        }
+    }
 </script>
 
 <script context="module">
@@ -242,19 +183,13 @@
                 <div class="cursor-help d-inline-flex" id={`footprint-${job.jobId}-${index}`}>
                     <div class="mx-1">
                         <!-- Alerts Only -->
-                        {#if fpd.impact === 3}
+                        {#if fpd.impact === 3 || fpd.impact === -1}
                             <Icon name="exclamation-triangle-fill" class="text-danger"/>
                         {:else if fpd.impact === 2}
                             <Icon name="exclamation-triangle" class="text-warning"/>
-                        {:else if fpd.impact === -1}
-                            <Icon name="exclamation-triangle" class="text-warning"/>
-                        {:else if fpd.impact === -2}
-                            <Icon name="exclamation-triangle-fill" class="text-danger"/>
                         {/if}
                         <!-- Emoji for all states-->
-                        {#if fpd.impact === 4}
-                            <Icon name="emoji-angry" class="text-danger"/>
-                        {:else if fpd.impact === 3}
+                        {#if fpd.impact === 3}
                             <Icon name="emoji-frown" class="text-danger"/>
                         {:else if fpd.impact === 2}
                             <Icon name="emoji-neutral" class="text-warning"/>
@@ -263,14 +198,12 @@
                         {:else if fpd.impact === 0}
                             <Icon name="emoji-laughing" class="text-info"/>
                         {:else if fpd.impact === -1}
-                            <Icon name="emoji-dizzy" class="text-warning"/>
-                        {:else if fpd.impact === -2}
                             <Icon name="emoji-dizzy" class="text-danger"/>
                         {/if}
                     </div>
                     <div>
                         <!-- Print Values -->
-                        {fpd.avg} / {fpd.max} {fpd.unit} &nbsp; <!-- To increase margin to tooltip: No other way manageable ...-->
+                        {fpd.avg} / {fpd.max} {fpd.unit} &nbsp; <!-- To increase margin to tooltip: No other way manageable ... -->
                     </div>
                 </div>
                 <Tooltip target={`footprint-${job.jobId}-${index}`} placement="right" offset={[0, 20]}>{fpd.message}</Tooltip>
