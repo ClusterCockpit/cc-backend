@@ -8,11 +8,15 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
+	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	sq "github.com/Masterminds/squirrel"
 )
 
@@ -450,6 +454,39 @@ func (r *JobRepository) AddHistograms(
 	return stat, nil
 }
 
+// Requires thresholds for metric from config for cluster? Of all clusters and use largest? split to 10 + 1 for artifacts?
+func (r *JobRepository) AddMetricHistograms(
+	ctx context.Context,
+	filter []*model.JobFilter,
+	metrics []string,
+	stat *model.JobsStatistics) (*model.JobsStatistics, error) {
+	start := time.Now()
+
+	// Running Jobs Only: First query jobdata from sqlite, then query data and make bins
+	for _, f := range filter {
+		if f.State != nil {
+			if len(f.State) == 1 && f.State[0] == "running" {
+				stat.HistMetrics = r.runningJobsMetricStatisticsHistogram(ctx, metrics, filter)
+				log.Debugf("Timer AddMetricHistograms %s", time.Since(start))
+				return stat, nil
+			}
+		}
+	}
+
+	// All other cases: Query and make bins in sqlite directly
+	for _, m := range metrics {
+		metricHisto, err := r.jobsMetricStatisticsHistogram(ctx, m, filter)
+		if err != nil {
+			log.Warnf("Error while loading job metric statistics histogram: %s", m)
+			continue
+		}
+		stat.HistMetrics = append(stat.HistMetrics, metricHisto)
+	}
+
+	log.Debugf("Timer AddMetricHistograms %s", time.Since(start))
+	return stat, nil
+}
+
 // `value` must be the column grouped by, but renamed to "value"
 func (r *JobRepository) jobsStatisticsHistogram(
 	ctx context.Context,
@@ -486,4 +523,232 @@ func (r *JobRepository) jobsStatisticsHistogram(
 	}
 	log.Debugf("Timer jobsStatisticsHistogram %s", time.Since(start))
 	return points, nil
+}
+
+func (r *JobRepository) jobsMetricStatisticsHistogram(
+	ctx context.Context,
+	metric string,
+	filters []*model.JobFilter) (*model.MetricHistoPoints, error) {
+
+	var dbMetric string
+	switch metric {
+	case "cpu_load":
+		dbMetric = "load_avg"
+	case "flops_any":
+		dbMetric = "flops_any_avg"
+	case "mem_bw":
+		dbMetric = "mem_bw_avg"
+	case "mem_used":
+		dbMetric = "mem_used_max"
+	case "net_bw":
+		dbMetric = "net_bw_avg"
+	case "file_bw":
+		dbMetric = "file_bw_avg"
+	default:
+		return nil, fmt.Errorf("%s not implemented", metric)
+	}
+
+	// Get specific Peak or largest Peak
+	var metricConfig *schema.MetricConfig
+	var peak float64 = 0.0
+	var unit string = ""
+
+	for _, f := range filters {
+		if f.Cluster != nil {
+			metricConfig = archive.GetMetricConfig(*f.Cluster.Eq, metric)
+			peak = metricConfig.Peak
+			unit = metricConfig.Unit.Prefix + metricConfig.Unit.Base
+			log.Debugf("Cluster %s filter found with peak %f for %s", *f.Cluster.Eq, peak, metric)
+		}
+	}
+
+	if peak == 0.0 {
+		for _, c := range archive.Clusters {
+			for _, m := range c.MetricConfig {
+				if m.Name == metric {
+					if m.Peak > peak {
+						peak = m.Peak
+					}
+					if unit == "" {
+						unit = m.Unit.Prefix + m.Unit.Base
+					}
+				}
+			}
+		}
+	}
+
+	// log.Debugf("Metric %s: DB %s, Peak %f, Unit %s", metric, dbMetric, peak, unit)
+	// Make bins, see https://jereze.com/code/sql-histogram/
+
+	start := time.Now()
+
+	crossJoinQuery := sq.Select(
+		fmt.Sprintf(`max(%s) as max`, dbMetric),
+		fmt.Sprintf(`min(%s) as min`, dbMetric),
+	).From("job").Where(
+		fmt.Sprintf(`%s is not null`, dbMetric),
+	).Where(
+		fmt.Sprintf(`%s <= %f`, dbMetric, peak),
+	)
+
+	crossJoinQuery, cjqerr := SecurityCheck(ctx, crossJoinQuery)
+
+	if cjqerr != nil {
+		return nil, cjqerr
+	}
+
+	for _, f := range filters {
+		crossJoinQuery = BuildWhereClause(f, crossJoinQuery)
+	}
+
+	crossJoinQuerySql, crossJoinQueryArgs, sqlerr := crossJoinQuery.ToSql()
+	if sqlerr != nil {
+		return nil, sqlerr
+	}
+
+	bins := 10
+	binQuery := fmt.Sprintf(`CAST( (case when job.%s = value.max then value.max*0.999999999 else job.%s end - value.min) / (value.max - value.min) * %d as INTEGER )`, dbMetric, dbMetric, bins)
+
+	mainQuery := sq.Select(
+		fmt.Sprintf(`%s + 1 as bin`, binQuery),
+		fmt.Sprintf(`count(job.%s) as count`, dbMetric),
+		fmt.Sprintf(`CAST(((value.max / %d) * (%s     )) as INTEGER ) as min`, bins, binQuery),
+		fmt.Sprintf(`CAST(((value.max / %d) * (%s + 1 )) as INTEGER ) as max`, bins, binQuery),
+	).From("job").CrossJoin(
+		fmt.Sprintf(`(%s) as value`, crossJoinQuerySql), crossJoinQueryArgs...,
+	).Where(fmt.Sprintf(`job.%s is not null and job.%s <= %f`, dbMetric, dbMetric, peak))
+
+	mainQuery, qerr := SecurityCheck(ctx, mainQuery)
+
+	if qerr != nil {
+		return nil, qerr
+	}
+
+	for _, f := range filters {
+		mainQuery = BuildWhereClause(f, mainQuery)
+	}
+
+	// Finalize query with Grouping and Ordering
+	mainQuery = mainQuery.GroupBy("bin").OrderBy("bin")
+
+	rows, err := mainQuery.RunWith(r.DB).Query()
+	if err != nil {
+		log.Errorf("Error while running mainQuery: %s", err)
+		return nil, err
+	}
+
+	points := make([]*model.MetricHistoPoint, 0)
+	for rows.Next() {
+		point := model.MetricHistoPoint{}
+		if err := rows.Scan(&point.Bin, &point.Count, &point.Min, &point.Max); err != nil {
+			log.Warnf("Error while scanning rows for %s", metric)
+			return nil, err // Totally bricks cc-backend if returned and if all metrics requested?
+		}
+
+		points = append(points, &point)
+	}
+
+	result := model.MetricHistoPoints{Metric: metric, Unit: unit, Data: points}
+
+	log.Debugf("Timer jobsStatisticsHistogram %s", time.Since(start))
+	return &result, nil
+}
+
+func (r *JobRepository) runningJobsMetricStatisticsHistogram(
+	ctx context.Context,
+	metrics []string,
+	filters []*model.JobFilter) []*model.MetricHistoPoints {
+
+	// Get Jobs
+	jobs, err := r.QueryJobs(ctx, filters, &model.PageRequest{Page: 1, ItemsPerPage: 500 + 1}, nil)
+	if err != nil {
+		log.Errorf("Error while querying jobs for footprint: %s", err)
+		return nil
+	}
+	if len(jobs) > 500 {
+		log.Errorf("too many jobs matched (max: %d)", 500)
+		return nil
+	}
+
+	// Get AVGs from metric repo
+	avgs := make([][]schema.Float, len(metrics))
+	for i := range avgs {
+		avgs[i] = make([]schema.Float, 0, len(jobs))
+	}
+
+	for _, job := range jobs {
+		if job.MonitoringStatus == schema.MonitoringStatusDisabled || job.MonitoringStatus == schema.MonitoringStatusArchivingFailed {
+			continue
+		}
+
+		if err := metricdata.LoadAverages(job, metrics, avgs, ctx); err != nil {
+			log.Errorf("Error while loading averages for histogram: %s", err)
+			return nil
+		}
+	}
+
+	// Iterate metrics to fill endresult
+	data := make([]*model.MetricHistoPoints, 0)
+	for idx, metric := range metrics {
+		// Get specific Peak or largest Peak
+		var metricConfig *schema.MetricConfig
+		var peak float64 = 0.0
+		var unit string = ""
+
+		for _, f := range filters {
+			if f.Cluster != nil {
+				metricConfig = archive.GetMetricConfig(*f.Cluster.Eq, metric)
+				peak = metricConfig.Peak
+				unit = metricConfig.Unit.Prefix + metricConfig.Unit.Base
+				log.Debugf("Cluster %s filter found with peak %f for %s", *f.Cluster.Eq, peak, metric)
+			}
+		}
+
+		if peak == 0.0 {
+			for _, c := range archive.Clusters {
+				for _, m := range c.MetricConfig {
+					if m.Name == metric {
+						if m.Peak > peak {
+							peak = m.Peak
+						}
+						if unit == "" {
+							unit = m.Unit.Prefix + m.Unit.Base
+						}
+					}
+				}
+			}
+		}
+
+		// Make and fill bins
+		bins := 10.0
+		peakBin := peak / bins
+
+		points := make([]*model.MetricHistoPoint, 0)
+		for b := 0; b < 10; b++ {
+			count := 0
+			bindex := b + 1
+			bmin := math.Round(peakBin * float64(b))
+			bmax := math.Round(peakBin * (float64(b) + 1.0))
+
+			// Iterate AVG values for indexed metric and count for bins
+			for _, val := range avgs[idx] {
+				if float64(val) >= bmin && float64(val) < bmax {
+					count += 1
+				}
+			}
+
+			bminint := int(bmin)
+			bmaxint := int(bmax)
+
+			// Append Bin to Metric Result Array
+			point := model.MetricHistoPoint{Bin: &bindex, Count: count, Min: &bminint, Max: &bmaxint}
+			points = append(points, &point)
+		}
+
+		// Append Metric Result Array to final results array
+		result := model.MetricHistoPoints{Metric: metric, Unit: unit, Data: points}
+		data = append(data, &result)
+	}
+
+	return data
 }

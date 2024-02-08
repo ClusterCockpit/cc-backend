@@ -96,7 +96,7 @@ func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (sq.SelectBuilde
 	user := GetUserFromContext(ctx)
 	if user == nil {
 		var qnil sq.SelectBuilder
-		return qnil, fmt.Errorf("user context is nil!")
+		return qnil, fmt.Errorf("user context is nil")
 	} else if user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport, schema.RoleApi}) { // Admin & Co. : All jobs
 		return query, nil
 	} else if user.HasRole(schema.RoleManager) { // Manager : Add filter for managed projects' jobs only + personal jobs

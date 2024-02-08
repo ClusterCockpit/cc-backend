@@ -1,7 +1,7 @@
 <script>
     import { onMount, getContext } from 'svelte'
     import { init, convert2uplot } from './utils.js'
-    import { Table, Row, Col, Button, Icon, Card, Spinner, Input } from 'sveltestrap'
+    import { Table, Row, Col, Button, Icon, Card, Spinner } from 'sveltestrap'
     import { queryStore, gql, getContextClient } from '@urql/svelte'
     import Filters from './filters/Filters.svelte'
     import JobList from './joblist/JobList.svelte'
@@ -9,6 +9,8 @@
     import Refresher from './joblist/Refresher.svelte'
     import Histogram from './plots/Histogram.svelte'
     import MetricSelection from './MetricSelection.svelte'
+    import HistogramSelection from './HistogramSelection.svelte'
+    import PlotTable from './PlotTable.svelte'
     import { scramble, scrambleNames } from './joblist/JobInfo.svelte'
 
     const { query: initq } = init()
@@ -23,26 +25,29 @@
     let jobFilters = [];
     let sorting = { field: 'startTime', order: 'DESC' }, isSortingOpen = false
     let metrics = ccconfig.plot_list_selectedMetrics, isMetricsSelectionOpen = false
-    let w1, w2, histogramHeight = 250
+    let w1, w2, histogramHeight = 250, isHistogramSelectionOpen = false
     let selectedCluster = filterPresets?.cluster ? filterPresets.cluster : null
     let showFootprint = filterPresets.cluster
         ? !!ccconfig[`plot_list_showFootprint:${filterPresets.cluster}`]
         : !!ccconfig.plot_list_showFootprint
 
+    $: metricsInHistograms = selectedCluster ? ccconfig[`user_view_histogramMetrics:${selectedCluster}`] : (ccconfig.user_view_histogramMetrics || [])
+
     const client = getContextClient();
     $: stats = queryStore({
         client: client,
         query: gql`
-            query($jobFilters: [JobFilter!]!) {
-            jobsStatistics(filter: $jobFilters) {
+            query($jobFilters: [JobFilter!]!, $metricsInHistograms: [String!]) {
+            jobsStatistics(filter: $jobFilters, metrics: $metricsInHistograms) {
                 totalJobs
                 shortJobs
                 totalWalltime
                 totalCoreHours
                 histDuration { count, value }
                 histNumNodes { count, value }
+                histMetrics  { metric, unit, data { min, max, count, bin } }
             }}`,
-        variables: { jobFilters }
+        variables: { jobFilters, metricsInHistograms }
     })
 
     onMount(() => filterComponent.update())
@@ -70,6 +75,12 @@
             outline color="primary"
             on:click={() => (isMetricsSelectionOpen = true)}>
             <Icon name="graph-up"/> Metrics
+        </Button>
+
+        <Button
+            outline color="secondary"
+            on:click={() => (isHistogramSelectionOpen = true)}>
+            <Icon name="bar-chart-line"/> Select Histograms
         </Button>
     </Col>
     <Col xs="auto">
@@ -162,6 +173,41 @@
         </div>
     {/if}
 </Row>
+{#if metricsInHistograms}
+    <Row>
+        {#if $stats.error}
+            <Col>
+                <Card body color="danger">{$stats.error.message}</Card>
+            </Col>
+        {:else if !$stats.data}
+            <Col>
+                <Spinner secondary />
+            </Col>
+        {:else}
+            <Col>
+                {#key $stats.data.jobsStatistics[0].histMetrics}
+                    <PlotTable
+                        let:item
+                        let:width
+                        renderFor="user"
+                        items={$stats.data.jobsStatistics[0].histMetrics}
+                        itemsPerRow={3}>
+
+                        <Histogram
+                            data={convert2uplot(item.data)}
+                            usesBins={true}
+                            width={width} height={250}
+                            title="Distribution of '{item.metric}' averages"
+                            xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
+                            xunit={item.unit}
+                            ylabel="Number of Jobs"
+                            yunit="Jobs"/>
+                    </PlotTable>
+                {/key}
+            </Col>
+        {/if}
+    </Row>
+{/if}
 <br/>
 <Row>
     <Col>
@@ -184,3 +230,8 @@
     bind:isOpen={isMetricsSelectionOpen}
     bind:showFootprint={showFootprint}
     view='list'/>
+      
+<HistogramSelection
+    bind:cluster={selectedCluster}
+    bind:metricsInHistograms={metricsInHistograms}
+    bind:isOpen={isHistogramSelectionOpen} />
