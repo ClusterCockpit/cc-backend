@@ -161,8 +161,8 @@
             ? (statisticsSeries.max.reduce((max, x) => Math.max(max, x), thresholds.normal) || thresholds.normal)
             : (series.reduce((max, series) => Math.max(max, series.statistics?.max), thresholds.normal) || thresholds.normal)
 
-        if (maxY >= (10 * thresholds.normal)) { // Hard y-range render limit if outliers in series data
-            maxY = (10 * thresholds.normal)
+        if (maxY >= (10 * thresholds.peak)) { // Hard y-range render limit if outliers in series data
+            maxY = (10 * thresholds.peak)
         } 
     }
 
@@ -390,12 +390,12 @@
         if (scope == 'node' || metricConfig.aggregation == 'avg') {
             if (metricConfig.subClusters && metricConfig.subClusters.length === 0) {
                 // console.log('subClusterConfigs array empty, use metricConfig defaults')
-                return { normal: metricConfig.normal, caution: metricConfig.caution, alert: metricConfig.alert }
+                return { normal: metricConfig.normal, caution: metricConfig.caution, alert: metricConfig.alert, peak: metricConfig.peak }
             } else if (metricConfig.subClusters && metricConfig.subClusters.length > 0) {
                 // console.log('subClusterConfigs found, use subCluster Settings if matching jobs subcluster:')
                 let forSubCluster = metricConfig.subClusters.find(sc => sc.name == subCluster.name)
-                if (forSubCluster && forSubCluster.normal && forSubCluster.caution && forSubCluster.alert) return forSubCluster
-                else return { normal: metricConfig.normal, caution: metricConfig.caution, alert: metricConfig.alert }
+                if (forSubCluster && forSubCluster.normal && forSubCluster.caution && forSubCluster.alert && forSubCluster.peak) return forSubCluster
+                else return { normal: metricConfig.normal, caution: metricConfig.caution, alert: metricConfig.alert, peak: metricConfig.peak}
             } else {
                 console.warn('metricConfig.subClusters not found!')
                 return null
@@ -423,6 +423,7 @@
 
         let mc = metricConfig?.subClusters?.find(sc => sc.name == subCluster.name) || metricConfig
         return {
+            peak: mc.peak / divisor,
             normal: mc.normal / divisor,
             caution: mc.caution / divisor,
             alert: mc.alert / divisor
