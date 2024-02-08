@@ -17,12 +17,15 @@
     export let configName
     export let allMetrics = null
     export let cluster = null
+    export let showFootprint
+    export let view = 'job'
 
     const clusters = getContext('clusters'),
           onInit = getContext('on-init')
 
     let newMetricsOrder = []
     let unorderedMetrics = [...metrics]
+    let pendingShowFootprint = !!showFootprint
 
     onInit(() => {
         if (allMetrics == null) allMetrics = new Set()
@@ -90,6 +93,8 @@
         metrics = newMetricsOrder.filter(m => unorderedMetrics.includes(m))
         isOpen = false
 
+        showFootprint = !!pendingShowFootprint
+
         updateConfigurationMutation({
             name: cluster == null ? configName : `${configName}:${cluster}`,
             value: JSON.stringify(metrics)
@@ -97,6 +102,16 @@
             if (res.fetching === false && res.error) {
                 throw res.error
                 // console.log('Error on subscription: ' + res.error)
+            }
+        })
+
+        updateConfigurationMutation({
+            name: cluster == null ? 'plot_list_showFootprint' : `plot_list_showFootprint:${cluster}`,
+            value: JSON.stringify(showFootprint)
+        }).subscribe(res => {
+            if (res.fetching === false && res.error) {
+                console.log('Error on footprint subscription: ' + res.error)
+                throw res.error
             }
         })
     }
@@ -121,6 +136,12 @@
     </ModalHeader>
     <ModalBody>
         <ListGroup>
+            {#if view === 'list'}
+            <li class="list-group-item">
+                <input type="checkbox" bind:checked={pendingShowFootprint}> Show Footprint
+            </li>
+            <hr/>
+            {/if}
             {#each newMetricsOrder as metric, index (metric)}
                 <li class="cc-config-column list-group-item"
                     draggable={true} ondragover="return false"

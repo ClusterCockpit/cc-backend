@@ -28,6 +28,7 @@
     export let sorting = { field: "startTime", order: "DESC" };
     export let matchedJobs = 0;
     export let metrics = ccconfig.plot_list_selectedMetrics;
+    export let showFootprint;
 
     let itemsPerPage = ccconfig.plot_list_jobsPerPage;
     let page = 1;
@@ -73,6 +74,9 @@
                         name
                     }
                     metaData
+                    flopsAnyAvg
+                    memBwAvg
+                    loadAvg
                 }
                 count
             }
@@ -134,12 +138,19 @@
         })
     };
 
+    let plotWidth = null;
     let tableWidth = null;
     let jobInfoColumnWidth = 250;
 
-    $: plotWidth = Math.floor(
-        (tableWidth - jobInfoColumnWidth) / metrics.length - 10
-    );
+    $: if (showFootprint) {
+        plotWidth = Math.floor(
+            (tableWidth - jobInfoColumnWidth) / (metrics.length + 1) - 10
+        )
+    } else { 
+        plotWidth = Math.floor(
+            (tableWidth - jobInfoColumnWidth) / metrics.length - 10
+        )
+    }
 
     let headerPaddingTop = 0;
     stickyHeader(
@@ -160,6 +171,15 @@
                     >
                         Job Info
                     </th>
+                    {#if showFootprint}
+                        <th
+                            class="position-sticky top-0"
+                            scope="col"
+                            style="width: {plotWidth}px; padding-top: {headerPaddingTop}px"
+                        >
+                            Job Footprint
+                        </th>
+                    {/if}
                     {#each metrics as metric (metric)}
                         <th
                             class="position-sticky top-0 text-center"
@@ -212,7 +232,7 @@
                     </tr>
                 {:else if $jobs.data && $initialized}
                     {#each $jobs.data.jobs.items as job (job)}
-                        <JobListRow {job} {metrics} {plotWidth} />
+                        <JobListRow {job} {metrics} {plotWidth} {showFootprint}/>
                     {:else}
                         <tr>
                             <td colspan={metrics.length + 1}>

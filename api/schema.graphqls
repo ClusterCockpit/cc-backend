@@ -28,6 +28,11 @@ type Job {
   resources:        [Resource!]!
   concurrentJobs:   JobLinkResultList
 
+  memUsedMax:       Float
+  flopsAnyAvg:      Float
+  memBwAvg:         Float
+  loadAvg:          Float
+
   metaData:         Any
   userData:         User
 }

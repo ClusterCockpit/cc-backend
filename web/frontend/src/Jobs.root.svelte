@@ -23,6 +23,9 @@
     let metrics = filterPresets.cluster
         ? ccconfig[`plot_list_selectedMetrics:${filterPresets.cluster}`] || ccconfig.plot_list_selectedMetrics
         : ccconfig.plot_list_selectedMetrics
+    let showFootprint = filterPresets.cluster
+        ? !!ccconfig[`plot_list_showFootprint:${filterPresets.cluster}`]
+        : !!ccconfig.plot_list_showFootprint
     let selectedCluster = filterPresets?.cluster ? filterPresets.cluster : null
     
     // The filterPresets are handled by the Filters component,
@@ -81,7 +84,8 @@
             bind:metrics={metrics}
             bind:sorting={sorting}
             bind:matchedJobs={matchedJobs}
-            bind:this={jobList} />
+            bind:this={jobList}
+            bind:showFootprint={showFootprint} />
     </Col>
 </Row>
 
@@ -93,4 +97,6 @@
     bind:cluster={selectedCluster}
     configName="plot_list_selectedMetrics"
     bind:metrics={metrics}
-    bind:isOpen={isMetricsSelectionOpen} />
+    bind:isOpen={isMetricsSelectionOpen}
+    bind:showFootprint={showFootprint}
+    view='list'/>

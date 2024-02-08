@@ -60,7 +60,7 @@ func GetJobRepository() *JobRepository {
 var jobColumns []string = []string{
 	"job.id", "job.job_id", "job.user", "job.project", "job.cluster", "job.subcluster", "job.start_time", "job.partition", "job.array_job_id",
 	"job.num_nodes", "job.num_hwthreads", "job.num_acc", "job.exclusive", "job.monitoring_status", "job.smt", "job.job_state",
-	"job.duration", "job.walltime", "job.resources", // "job.meta_data",
+	"job.duration", "job.walltime", "job.resources", "job.mem_used_max", "job.flops_any_avg", "job.mem_bw_avg", "job.load_avg", // "job.meta_data",
 }
 
 func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
@@ -68,7 +68,7 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 	if err := row.Scan(
 		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.SubCluster, &job.StartTimeUnix, &job.Partition, &job.ArrayJobId,
 		&job.NumNodes, &job.NumHWThreads, &job.NumAcc, &job.Exclusive, &job.MonitoringStatus, &job.SMT, &job.State,
-		&job.Duration, &job.Walltime, &job.RawResources /*&job.RawMetaData*/); err != nil {
+		&job.Duration, &job.Walltime, &job.RawResources, &job.MemUsedMax, &job.FlopsAnyAvg, &job.MemBwAvg, &job.LoadAvg /*&job.RawMetaData*/); err != nil {
 		log.Warnf("Error while scanning rows (Job): %v", err)
 		return nil, err
 	}
@@ -483,6 +483,7 @@ func (r *JobRepository) MarkArchived(
 		case "mem_bw":
 			stmt = stmt.Set("mem_bw_avg", stats.Avg)
 		case "load":
+			stmt = stmt.Set("load_avg", stats.Avg)
 		case "cpu_load":
 			stmt = stmt.Set("load_avg", stats.Avg)
 		case "net_bw":

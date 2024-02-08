@@ -176,12 +176,12 @@
                                 // Debug get zoomLevel from browser
                                 // console.log("Zoom", Math.round(window.devicePixelRatio * 100))
 
-                                if (scalarKneeX < (width * window.devicePixelRatio) - (padding[1] * window.devicePixelRatio)) { // Top horizontal roofline
+                                if (scalarKneeX < (width * window.devicePixelRatio) - (padding[1] * window.devicePixelRatio)) { // Lower horizontal roofline
                                     u.ctx.moveTo(scalarKneeX, flopRateScalarY)
                                     u.ctx.lineTo((width * window.devicePixelRatio) - (padding[1] * window.devicePixelRatio), flopRateScalarY)
                                 }
 
-                                if (simdKneeX < (width * window.devicePixelRatio) - (padding[1] * window.devicePixelRatio)) { // Lower horitontal roofline
+                                if (simdKneeX < (width * window.devicePixelRatio) - (padding[1] * window.devicePixelRatio)) { // Top horitontal roofline
                                     u.ctx.moveTo(simdKneeX, flopRateSimdY)
                                     u.ctx.lineTo((width * window.devicePixelRatio) - (padding[1] * window.devicePixelRatio), flopRateSimdY)
                                 }
@@ -214,6 +214,7 @@
                         }
                     ]
                 },
+                // cursor: { drag: { x: true, y: true } } // Activate zoom
             };
             uplot = new uPlot(opts, plotData, plotWrapper);
         } else {
