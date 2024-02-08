@@ -27,6 +27,7 @@
     import TagManagement from "./TagManagement.svelte";
     import MetricSelection from "./MetricSelection.svelte";
     import StatsTable from "./StatsTable.svelte";
+    import JobFootprint from "./JobFootprint.svelte";
     import { getContext } from "svelte";
 
     export let dbid;
@@ -46,7 +47,8 @@
             resources { hostname, hwthreads, accelerators },
             metaData,
             userData { name, email },
-            concurrentJobs { items { id, jobId }, count, listQuery }
+            concurrentJobs { items { id, jobId }, count, listQuery },
+            flopsAnyAvg, memBwAvg, loadAvg
         }
     `);
 
@@ -134,7 +136,9 @@
 
     let plots = {},
         jobTags,
-        statsTable;
+        statsTable,
+        jobFootprint;
+
     $: document.title = $initq.fetching
         ? "Loading..."
         : $initq.error
@@ -202,6 +206,17 @@
             <Spinner secondary />
         {/if}
     </Col>
+    {#if $jobMetrics.data}
+        {#key $jobMetrics.data}
+            <Col>
+                <JobFootprint
+                    bind:this={jobFootprint}
+                    job={$initq.data.job}
+                    jobMetrics={$jobMetrics.data.jobMetrics}
+                />
+            </Col>
+        {/key}
+    {/if}
     {#if $jobMetrics.data && $initq.data}
         {#if $initq.data.job.concurrentJobs != null && $initq.data.job.concurrentJobs.items.length != 0}
             {#if authlevel > roles.manager}

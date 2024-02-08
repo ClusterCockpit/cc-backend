@@ -14,22 +14,28 @@
     import { Card, Spinner } from "sveltestrap";
     import MetricPlot from "../plots/MetricPlot.svelte";
     import JobInfo from "./JobInfo.svelte";
+    import JobFootprint from "../JobFootprint.svelte";
     import { maxScope, checkMetricDisabled } from "../utils.js";
 
     export let job;
     export let metrics;
     export let plotWidth;
     export let plotHeight = 275;
+    export let showFootprint;
 
     let { id } = job;
     let scopes = [job.numNodes == 1 ? "core" : "node"];
+
+    function distinct(value, index, array) {
+        return array.indexOf(value) === index;
+    }
 
     const cluster = getContext("clusters").find((c) => c.name == job.cluster);
     const metricConfig = getContext("metrics"); // Get all MetricConfs which include subCluster-specific settings for this job
     const client = getContextClient();
     const query = gql`
-        query ($id: ID!, $metrics: [String!]!, $scopes: [MetricScope!]!) {
-            jobMetrics(id: $id, metrics: $metrics, scopes: $scopes) {
+        query ($id: ID!, $queryMetrics: [String!]!, $scopes: [MetricScope!]!) {
+            jobMetrics(id: $id, metrics: $queryMetrics, scopes: $scopes) {
                 name
                 scope
                 metric {
@@ -61,14 +67,23 @@
     $: metricsQuery = queryStore({
         client: client,
         query: query,
-        variables: { id, metrics, scopes }
+        variables: { id, queryMetrics, scopes }
     });
+
+    let queryMetrics = null
+    $: if (showFootprint) {
+        queryMetrics = ['cpu_load', 'flops_any', 'mem_used', 'mem_bw', 'acc_utilization', ...metrics].filter(distinct)
+        scopes       = ["node"]
+    } else {
+        queryMetrics = [...metrics]
+        scopes       = [job.numNodes == 1 ? "core" : "node"]
+    }
 
     export function refresh() {
         metricsQuery = queryStore({
             client: client,
             query: query,
-            variables: { id, metrics, scopes },
+            variables: { id, queryMetrics, scopes },
             // requestPolicy: 'network-only' // use default cache-first for refresh
         });
     }
@@ -122,6 +137,16 @@
             </Card>
         </td>
     {:else}
+        {#if showFootprint}
+            <td>
+                <JobFootprint
+                    job={job}
+                    jobMetrics={$metricsQuery.data.jobMetrics}
+                    width={plotWidth}
+                    view="list"
+                />
+            </td>
+        {/if}
         {#each sortAndSelectScope($metricsQuery.data.jobMetrics) as metric, i (metric || i)}
             <td>
                 <!-- Subluster Metricconfig remove keyword for jobtables (joblist main, user joblist, project joblist) to be used here as toplevel case-->

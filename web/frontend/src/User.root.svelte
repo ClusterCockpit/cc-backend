@@ -27,6 +27,9 @@
     let metrics = ccconfig.plot_list_selectedMetrics, isMetricsSelectionOpen = false
     let w1, w2, histogramHeight = 250, isHistogramSelectionOpen = false
     let selectedCluster = filterPresets?.cluster ? filterPresets.cluster : null
+    let showFootprint = filterPresets.cluster
+        ? !!ccconfig[`plot_list_showFootprint:${filterPresets.cluster}`]
+        : !!ccconfig.plot_list_showFootprint
 
     $: metricsInHistograms = selectedCluster ? ccconfig[`user_view_histogramMetrics:${selectedCluster}`] : (ccconfig.user_view_histogramMetrics || [])
 
@@ -211,7 +214,8 @@
         <JobList
             bind:metrics={metrics}
             bind:sorting={sorting}
-            bind:this={jobList} />
+            bind:this={jobList}
+            bind:showFootprint={showFootprint} />
     </Col>
 </Row>
 
@@ -223,8 +227,10 @@
     bind:cluster={selectedCluster}
     configName="plot_list_selectedMetrics"
     bind:metrics={metrics}
-    bind:isOpen={isMetricsSelectionOpen} />
-
+    bind:isOpen={isMetricsSelectionOpen}
+    bind:showFootprint={showFootprint}
+    view='list'/>
+      
 <HistogramSelection
     bind:cluster={selectedCluster}
     bind:metricsInHistograms={metricsInHistograms}

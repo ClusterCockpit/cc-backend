@@ -54,10 +54,10 @@ type Job struct {
 	BaseJob
 	StartTimeUnix    int64     `json:"-" db:"start_time" example:"1649723812"` // Start epoch time stamp in seconds
 	StartTime        time.Time `json:"startTime"`                              // Start time as 'time.Time' data type
-	MemUsedMax       float64   `json:"-" db:"mem_used_max"`                    // MemUsedMax as Float64
-	FlopsAnyAvg      float64   `json:"-" db:"flops_any_avg"`                   // FlopsAnyAvg as Float64
-	MemBwAvg         float64   `json:"-" db:"mem_bw_avg"`                      // MemBwAvg as Float64
-	LoadAvg          float64   `json:"-" db:"load_avg"`                        // LoadAvg as Float64
+	MemUsedMax       float64   `json:"memUsedMax" db:"mem_used_max"`           // MemUsedMax as Float64
+	FlopsAnyAvg      float64   `json:"flopsAnyAvg" db:"flops_any_avg"`         // FlopsAnyAvg as Float64
+	MemBwAvg         float64   `json:"memBwAvg" db:"mem_bw_avg"`               // MemBwAvg as Float64
+	LoadAvg          float64   `json:"loadAvg" db:"load_avg"`                  // LoadAvg as Float64
 	NetBwAvg         float64   `json:"-" db:"net_bw_avg"`                      // NetBwAvg as Float64
 	NetDataVolTotal  float64   `json:"-" db:"net_data_vol_total"`              // NetDataVolTotal as Float64
 	FileBwAvg        float64   `json:"-" db:"file_bw_avg"`                     // FileBwAvg as Float64
