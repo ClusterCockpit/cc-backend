@@ -44,7 +44,7 @@
                 const avgs = jm.metric.series.map(jms => jms.statistics.avg)
                 mv = round(mean(avgs), 2)
             } else {
-                mv = jm.metric.series[0].statistics.avg
+                mv = round(jm.metric.series[0].statistics.avg, 2)
             }
         }
         
