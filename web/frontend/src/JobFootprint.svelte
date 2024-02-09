@@ -111,12 +111,12 @@
                 else                       return (mean <= thresholds.peak && mean > thresholds.normal)
             case 'alert':
                 if (metric === 'mem_used') return (mean <= thresholds.alert && mean > thresholds.caution)
-                else                       return (mean <= thresholds.alert && mean > 0)
+                else                       return (mean <= thresholds.alert && mean >= 0)
             case 'caution':
                 if (metric === 'mem_used') return (mean <= thresholds.caution && mean > thresholds.normal)
                 else                       return (mean <= thresholds.caution && mean > thresholds.alert)
             case 'normal':
-                if (metric === 'mem_used') return (mean <= thresholds.normal && mean > 0)
+                if (metric === 'mem_used') return (mean <= thresholds.normal && mean >= 0)
                 else                       return (mean <= thresholds.normal && mean > thresholds.caution)
             default:
                 return false
