@@ -31,7 +31,7 @@
         ? !!ccconfig[`plot_list_showFootprint:${filterPresets.cluster}`]
         : !!ccconfig.plot_list_showFootprint
 
-    $: metricsInHistograms = selectedCluster ? ccconfig[`user_view_histogramMetrics:${selectedCluster}`] : (ccconfig.user_view_histogramMetrics || [])
+    $: metricsInHistograms = selectedCluster ? (ccconfig[`user_view_histogramMetrics:${selectedCluster}`] || []) : (ccconfig.user_view_histogramMetrics || [])
 
     const client = getContextClient();
     $: stats = queryStore({
