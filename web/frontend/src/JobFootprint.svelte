@@ -43,8 +43,10 @@
             } else if (jm?.metric?.series?.length > 1) {
                 const avgs = jm.metric.series.map(jms => jms.statistics.avg)
                 mv = round(mean(avgs), 2)
+            } else if (jm?.metric?.series) {
+                mv = round(jm.metric.series[0].statistics.avg, 2)
             } else {
-                mv = jm.metric.series[0].statistics.avg
+                mv = 0.0
             }
         }
         
@@ -111,12 +113,12 @@
                 else                       return (mean <= thresholds.peak && mean > thresholds.normal)
             case 'alert':
                 if (metric === 'mem_used') return (mean <= thresholds.alert && mean > thresholds.caution)
-                else                       return (mean <= thresholds.alert && mean > 0)
+                else                       return (mean <= thresholds.alert && mean >= 0)
             case 'caution':
                 if (metric === 'mem_used') return (mean <= thresholds.caution && mean > thresholds.normal)
                 else                       return (mean <= thresholds.caution && mean > thresholds.alert)
             case 'normal':
-                if (metric === 'mem_used') return (mean <= thresholds.normal && mean > 0)
+                if (metric === 'mem_used') return (mean <= thresholds.normal && mean >= 0)
                 else                       return (mean <= thresholds.normal && mean > thresholds.caution)
             default:
                 return false

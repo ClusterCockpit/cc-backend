@@ -7,7 +7,7 @@
     export let metricsInHistograms
     export let isOpen
 
-    let availableMetrics = ['cpu_load', 'flops_any', 'mem_used', 'mem_bw', 'net_bw', 'file_bw']
+    let availableMetrics = ['cpu_load', 'flops_any', 'mem_used', 'mem_bw'] // 'net_bw', 'file_bw'
     let pendingMetrics = [...metricsInHistograms] // Copy
     const client = getContextClient()
 
