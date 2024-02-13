@@ -67,11 +67,12 @@
                         color="success"
                         type="submit"
                         style="margin-left: 10px;"
+                        title="Logout {username}"
                     >
                         {#if screenSize > 1630}
-                            <Icon name="box-arrow-right" /> Logout {username}
+                            <Icon name="box-arrow-right"/> Logout {username}
                         {:else}
-                            <Icon name="box-arrow-right" />
+                            <Icon name="box-arrow-right"/>
                         {/if}
                     </Button>
                 </form>
