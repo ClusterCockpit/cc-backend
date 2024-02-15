@@ -24,7 +24,8 @@
     import PlotTable from "./PlotTable.svelte";
     import MetricPlot from "./plots/MetricPlot.svelte";
     import { getContext } from "svelte";
-    import PartitionSetting from "./partition/PartitionSetting.svelte";
+    import VerticalTab from "./partition/VerticalTab.svelte";
+
 
     export let cluster;
     export let from = null;
@@ -217,7 +218,7 @@
     <CardBody class="h5">
         <CardSubtitle>Create and manage LVM partitions</CardSubtitle>
         <CardText></CardText>
-        <PartitionSetting />
+        <VerticalTab />
     </CardBody>
 </Card>
-<br />
+<br/>
