@@ -21,6 +21,7 @@
     }
 
     const clusters = getContext('clusters')
+    console.log(clusters)
     const ccconfig = getContext('cc-config')
     const metricConfig = getContext('metrics')
 

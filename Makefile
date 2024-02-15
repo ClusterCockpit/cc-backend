@@ -38,7 +38,7 @@ $(TARGET): $(VAR) $(CFG) $(SVELTE_TARGETS)
 
 frontend:
 	$(info ===>  BUILD frontend)
-	cd web/frontend && npm install && npm run build
+	cd web/frontend && pnpm install && pnpm run build
 
 clean:
 	$(info ===>  CLEAN)
@@ -75,7 +75,7 @@ config.json:
 
 $(SVELTE_TARGETS): $(SVELTE_SRC)
 	$(info ===>  BUILD frontend)
-	cd web/frontend && npm install && npm run build
+	cd web/frontend && pnpm install && pnpm run build
 
 install: $(TARGET)
 	@WORKSPACE=$(PREFIX)

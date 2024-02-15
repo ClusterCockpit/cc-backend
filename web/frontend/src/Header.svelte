@@ -96,6 +96,14 @@
             perCluster: true,
             menu: "Stats",
         },
+        {
+            title: "Partitions",
+            requiredRole: roles.admin,
+            href: "partitions/systems/",
+            icon: "device-hdd",
+            perCluster: true,
+            menu: "Stats",
+        },
     ];
 </script>
 

@@ -5,8 +5,8 @@ import resolve from '@rollup/plugin-node-resolve';
 import terser from '@rollup/plugin-terser';
 import css from 'rollup-plugin-css-only';
 
-const production = !process.env.ROLLUP_WATCH;
-// const production = false
+// const production = !process.env.ROLLUP_WATCH;
+const production = false
 
 const plugins = [
     svelte({
@@ -67,5 +67,6 @@ export default [
     entrypoint('node', 'src/node.entrypoint.js'),
     entrypoint('analysis', 'src/analysis.entrypoint.js'),
     entrypoint('status', 'src/status.entrypoint.js'),
-    entrypoint('config', 'src/config.entrypoint.js')
+    entrypoint('config', 'src/config.entrypoint.js'),
+    entrypoint('partitions', 'src/partitions.entrypoint.js')
 ];
