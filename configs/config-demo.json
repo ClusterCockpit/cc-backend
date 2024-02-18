@@ -1,6 +1,7 @@
 {
     "addr": "127.0.0.1:8080",
     "db-driver": "mysql",
+    
     "db" : "root:my-secret-pw@(127.0.0.1:3306)/cockpit",
     "archive": {
         "kind": "file",
