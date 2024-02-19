@@ -64,3 +64,106 @@ CREATE TABLE IF NOT EXISTS configuration (
 	FOREIGN KEY (username) REFERENCES user (username) ON DELETE CASCADE ON UPDATE NO ACTION);
 
 
+CREATE TABLE IF NOT EXISTS notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS influxdb_configurations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    type VARCHAR(255) NOT NULL,
+    database_name VARCHAR(255) NOT NULL,
+    host VARCHAR(255) NOT NULL,
+    port INT NOT NULL,
+    user VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    organization VARCHAR(255) NOT NULL,
+    ssl_enabled BOOLEAN NOT NULL,
+    batch_size INT NOT NULL,
+    retry_interval VARCHAR(255) NOT NULL,
+    retry_exponential_base INT NOT NULL,
+    max_retries INT NOT NULL,
+    max_retry_time VARCHAR(255) NOT NULL,
+    meta_as_tags TEXT 
+);
+
+CREATE TABLE IF NOT EXISTS realtime_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    log_message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS lvm_conf (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(255) NOT NULL,
+    minAvailableSpaceGB FLOAT NOT NULL,
+    maxAvailableSpaceGB FLOAT NOT NULL
+);
+
+-- linux lvm schemas
+CREATE TABLE IF NOT EXISTS machines (
+    machine_id VARCHAR(255) PRIMARY KEY,
+    hostname VARCHAR(255) NOT NULL,
+    os_version VARCHAR(255) NOT NULL,
+    ip_address VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS logical_volumes (
+    lv_id INT AUTO_INCREMENT PRIMARY KEY,
+    machine_id VARCHAR(255) NOT NULL,
+    lv_name VARCHAR(255) NOT NULL,
+    vg_name VARCHAR(255) NOT NULL,
+    lv_attr VARCHAR(255) NOT NULL,
+    lv_size VARCHAR(255) NOT NULL,
+    FOREIGN KEY (machine_id) REFERENCES machines(machine_id)
+);
+
+CREATE TABLE IF NOT EXISTS volume_groups (
+    vg_id INT AUTO_INCREMENT PRIMARY KEY,
+    machine_id VARCHAR(255) NOT NULL,
+    vg_name VARCHAR(255) NOT NULL,
+    pv_count VARCHAR(255) NOT NULL,
+    lv_count VARCHAR(255) NOT NULL,
+    snap_count VARCHAR(255) NOT NULL,
+    vg_attr VARCHAR(255) NOT NULL,
+    vg_size VARCHAR(255) NOT NULL,
+    vg_free VARCHAR(255) NOT NULL,
+    FOREIGN KEY (machine_id) REFERENCES machines(machine_id)
+);
+
+CREATE TABLE IF NOT EXISTS physical_volumes (
+    pv_id INT AUTO_INCREMENT PRIMARY KEY,
+    machine_id VARCHAR(255) NOT NULL,
+    pv_name VARCHAR(255) NOT NULL,
+    vg_name VARCHAR(255) NOT NULL,
+    pv_fmt VARCHAR(255) NOT NULL,
+    pv_attr VARCHAR(255) NOT NULL,
+    pv_size VARCHAR(255) NOT NULL,
+    pv_free VARCHAR(255) NOT NULL,
+    FOREIGN KEY (machine_id) REFERENCES machines(machine_id)
+);
+
+
+CREATE TABLE IF NOT EXISTS lv_storage_issuer (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    machine_serial_number VARCHAR(255) NOT NULL,
+    hostname VARCHAR(255) NOT NULL,
+    username VARCHAR(255) NOT NULL,
+    minAvailableSpaceGB FLOAT NOT NULL,
+    maxAvailableSpaceGB FLOAT NOT NULL,
+    FOREIGN KEY (machine_serial_number) REFERENCES machines(machine_id)
+);
+
+CREATE TABLE IF NOT EXISTS machine_conf (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    machine_serial_number VARCHAR(255) NOT NULL,
+    hostname VARCHAR(255) NOT NULL,
+    username VARCHAR(255) NOT NULL,
+    passphrase LONGTEXT,
+    port_number INT NOT NULL,
+    password VARCHAR(255),
+    host_key VARCHAR(255),
+    folder_path VARCHAR(255) ,
+    FOREIGN KEY (machine_serial_number) REFERENCES machines(machine_id)
+);

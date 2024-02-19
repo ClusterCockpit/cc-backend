@@ -1,8 +1,9 @@
 {
     "addr": "127.0.0.1:8080",
     "db-driver": "mysql",
-    
-    "db" : "root:my-secret-pw@(127.0.0.1:3306)/cockpit",
+    "embed-static-files": false,
+    "static-files": "./web/frontend/public/",
+    "db" : "root:my-secret-pw@(127.0.0.1:3306)/clustercockpit",
     "archive": {
         "kind": "file",
         "path": "./var/job-archive"
