@@ -5,7 +5,10 @@
 package archive
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -98,5 +101,53 @@ func TestS3LoadCluster(t *testing.T) {
 
 	if cfg.SubClusters[0].CoresPerSocket != 36 {
 		t.Fail()
+	}
+}
+
+func TestS3JobImport(t *testing.T) {
+	var s3a S3Archive
+	_, err := s3a.Init(json.RawMessage("{\"endpoint\":\"192.168.1.10:9100\",\"accessKeyID\":\"uACSaCN2Chiotpnr4bBS\",\"secretAccessKey\":\"MkEbBsFvMii1K5GreUriTJZxH359B1n28Au9Kaml\",\"bucket\":\"cc-archive\",\"useSSL\":false}"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	raw, err := os.ReadFile("./testdata/archive/fritz/398/759/1675954289/meta.json")
+	if err != nil {
+		t.Fatal("Error while reading metadata file for import")
+	}
+
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	jobMeta := schema.JobMeta{BaseJob: schema.JobDefaults}
+	if err = dec.Decode(&jobMeta); err != nil {
+		t.Fatal("Error while decoding raw json metadata for import")
+	}
+
+	raw, err = os.ReadFile("./testdata/archive/fritz/398/759/1675954289/data.json")
+	if err != nil {
+		t.Fatal("Error while reading jobdata file for import")
+	}
+
+	dec = json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	jobData := schema.JobData{}
+	if err = dec.Decode(&jobData); err != nil {
+		t.Fatal("Error while decoding raw json jobdata for import")
+	}
+
+	s3a.ImportJob(&jobMeta, &jobData)
+}
+
+func TestS3Iter(t *testing.T) {
+	var s3a S3Archive
+	_, err := s3a.Init(json.RawMessage("{\"endpoint\":\"192.168.1.10:9100\",\"accessKeyID\":\"uACSaCN2Chiotpnr4bBS\",\"secretAccessKey\":\"MkEbBsFvMii1K5GreUriTJZxH359B1n28Au9Kaml\",\"bucket\":\"cc-archive\",\"useSSL\":false}"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for jobContainer := range s3a.Iter(false) {
+		if jobContainer.Meta == nil {
+			fmt.Println("Is nil")
+		}
 	}
 }

@@ -509,5 +509,6 @@ func (fsa *FsArchive) ImportJob(
 	if err := f.Close(); err != nil {
 		log.Warn("Error while closing data.json file")
 	}
-	return err
+
+	return nil
 }

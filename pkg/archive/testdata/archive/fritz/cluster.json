@@ -1,0 +1,746 @@
+{
+    "name": "fritz",
+    "metricConfig": [
+        {
+            "name": "cpu_load",
+            "unit": {
+                "base": ""
+            },
+            "scope": "node",
+            "aggregation": "avg",
+            "timestep": 60,
+            "peak": 72,
+            "normal": 72,
+            "caution": 36,
+            "alert": 20
+        },
+        {
+            "name": "cpu_user",
+            "unit": {
+                "base": ""
+            },
+            "scope": "hwthread",
+            "aggregation": "avg",
+            "timestep": 60,
+            "peak": 100,
+            "normal": 50,
+            "caution": 20,
+            "alert": 10
+        },
+        {
+            "name": "mem_used",
+            "unit": {
+                "base": "B",
+                "prefix": "G"
+            },
+            "scope": "node",
+            "aggregation": "sum",
+            "timestep": 60,
+            "peak": 256,
+            "normal": 128,
+            "caution": 200,
+            "alert": 240
+        },
+        {
+            "name": "flops_any",
+            "unit": {
+                "base": "F/s",
+                "prefix": "G"
+            },
+            "scope": "hwthread",
+            "aggregation": "sum",
+            "timestep": 60,
+            "peak": 5600,
+            "normal": 1000,
+            "caution": 200,
+            "alert": 50
+        },
+        {
+            "name": "flops_sp",
+            "unit": {
+                "base": "F/s",
+                "prefix": "G"
+            },
+            "scope": "hwthread",
+            "aggregation": "sum",
+            "timestep": 60,
+            "peak": 5600,
+            "normal": 1000,
+            "caution": 200,
+            "alert": 50
+        },
+        {
+            "name": "flops_dp",
+            "unit": {
+                "base": "F/s",
+                "prefix": "G"
+            },
+            "scope": "hwthread",
+            "aggregation": "sum",
+            "timestep": 60,
+            "peak": 2300,
+            "normal": 500,
+            "caution": 100,
+            "alert": 50
+        },
+        {
+            "name": "mem_bw",
+            "unit": {
+                "base": "B/s",
+                "prefix": "G"
+            },
+            "scope": "socket",
+            "aggregation": "sum",
+            "timestep": 60,
+            "peak": 350,
+            "normal": 100,
+            "caution": 50,
+            "alert": 10
+        },
+        {
+            "name": "clock",
+            "unit": {
+                "base": "Hz",
+                "prefix": "M"
+            },
+            "scope": "hwthread",
+            "aggregation": "avg",
+            "timestep": 60,
+            "peak": 3000,
+            "normal": 2400,
+            "caution": 1800,
+            "alert": 1200
+        },
+        {
+            "name": "cpu_power",
+            "unit": {
+                "base": "W"
+            },
+            "scope": "socket",
+            "aggregation": "sum",
+            "timestep": 60,
+            "peak": 500,
+            "normal": 250,
+            "caution": 100,
+            "alert": 50
+        },
+        {
+            "name": "mem_power",
+            "unit": {
+                "base": "W"
+            },
+            "scope": "socket",
+            "aggregation": "sum",
+            "timestep": 60,
+            "peak": 100,
+            "normal": 50,
+            "caution": 20,
+            "alert": 10
+        },
+        {
+            "name": "ipc",
+            "unit": {
+                "base": "IPC"
+            },
+            "scope": "hwthread",
+            "aggregation": "avg",
+            "timestep": 60,
+            "peak": 4,
+            "normal": 2,
+            "caution": 1,
+            "alert": 0.5
+        },
+        {
+            "name": "vectorization_ratio",
+            "unit": {
+                "base": ""
+            },
+            "scope": "hwthread",
+            "aggregation": "avg",
+            "timestep": 60,
+            "peak": 100,
+            "normal": 60,
+            "caution": 40,
+            "alert": 10
+        },
+        {
+            "name": "ib_recv",
+            "unit": {
+                "base": "B/s"
+            },
+            "scope": "node",
+            "aggregation": "sum",
+            "timestep": 60,
+            "peak": 1250000,
+            "normal": 6000000,
+            "caution": 200,
+            "alert": 1
+        },
+        {
+            "name": "ib_xmit",
+            "unit": {
+                "base": "B/s"
+            },
+            "scope": "node",
+            "aggregation": "sum",
+            "timestep": 60,
+            "peak": 1250000,
+            "normal": 6000000,
+            "caution": 200,
+            "alert": 1
+        },
+        {
+            "name": "ib_recv_pkts",
+            "unit": {
+                "base": ""
+            },
+            "scope": "node",
+            "aggregation": "sum",
+            "timestep": 60,
+            "peak": 6,
+            "normal": 4,
+            "caution": 2,
+            "alert": 1
+        },
+        {
+            "name": "ib_xmit_pkts",
+            "unit": {
+                "base": ""
+            },
+            "scope": "node",
+            "aggregation": "sum",
+            "timestep": 60,
+            "peak": 6,
+            "normal": 4,
+            "caution": 2,
+            "alert": 1
+        },
+        {
+            "name": "nfs4_read",
+            "unit": {
+                "base": "B/s",
+                "prefix": "M"
+            },
+            "scope": "node",
+            "aggregation": "sum",
+            "timestep": 60,
+            "peak": 6,
+            "normal": 4,
+            "caution": 2,
+            "alert": 1
+        },
+        {
+            "name": "nfs4_write",
+            "unit": {
+                "base": "B/s",
+                "prefix": "M"
+            },
+            "scope": "node",
+            "aggregation": "sum",
+            "timestep": 60,
+            "peak": 6,
+            "normal": 4,
+            "caution": 2,
+            "alert": 1
+        },
+        {
+            "name": "nfs4_total",
+            "unit": {
+                "base": "B/s",
+                "prefix": "M"
+            },
+            "scope": "node",
+            "aggregation": "sum",
+            "timestep": 60,
+            "peak": 6,
+            "normal": 4,
+            "caution": 2,
+            "alert": 1
+        }
+    ],
+    "subClusters": [
+        {
+            "name": "main",
+            "nodes": "f01[01-88],f02[01-88],f03[01-88],f03[01-88],f04[01-88],f05[01-88],f06[01-88],f07[01-88],f08[01-88],f09[01-88],f10[01-88],f11[01-56],f12[01-56]",
+            "processorType": "Intel Icelake",
+            "socketsPerNode": 2,
+            "coresPerSocket": 36,
+            "threadsPerCore": 1,
+            "flopRateScalar": {
+                "unit": {
+                    "base": "F/s",
+                    "prefix": "G"
+                },
+                "value": 432
+            },
+            "flopRateSimd": {
+                "unit": {
+                    "base": "F/s",
+                    "prefix": "G"
+                },
+                "value": 9216
+            },
+            "memoryBandwidth": {
+                "unit": {
+                    "base": "B/s",
+                    "prefix": "G"
+                },
+                "value": 350
+            },
+            "topology": {
+                "node": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11,
+                    12,
+                    13,
+                    14,
+                    15,
+                    16,
+                    17,
+                    18,
+                    19,
+                    20,
+                    21,
+                    22,
+                    23,
+                    24,
+                    25,
+                    26,
+                    27,
+                    28,
+                    29,
+                    30,
+                    31,
+                    32,
+                    33,
+                    34,
+                    35,
+                    36,
+                    37,
+                    38,
+                    39,
+                    40,
+                    41,
+                    42,
+                    43,
+                    44,
+                    45,
+                    46,
+                    47,
+                    48,
+                    49,
+                    50,
+                    51,
+                    52,
+                    53,
+                    54,
+                    55,
+                    56,
+                    57,
+                    58,
+                    59,
+                    60,
+                    61,
+                    62,
+                    63,
+                    64,
+                    65,
+                    66,
+                    67,
+                    68,
+                    69,
+                    70,
+                    71
+                ],
+                "socket": [
+                    [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10,
+                        11,
+                        12,
+                        13,
+                        14,
+                        15,
+                        16,
+                        17,
+                        18,
+                        19,
+                        20,
+                        21,
+                        22,
+                        23,
+                        24,
+                        25,
+                        26,
+                        27,
+                        28,
+                        29,
+                        30,
+                        31,
+                        32,
+                        33,
+                        34,
+                        35
+                    ],
+                    [
+                        36,
+                        37,
+                        38,
+                        39,
+                        40,
+                        41,
+                        42,
+                        43,
+                        44,
+                        45,
+                        46,
+                        47,
+                        48,
+                        49,
+                        50,
+                        51,
+                        52,
+                        53,
+                        54,
+                        55,
+                        56,
+                        57,
+                        58,
+                        59,
+                        60,
+                        61,
+                        62,
+                        63,
+                        64,
+                        65,
+                        66,
+                        67,
+                        68,
+                        69,
+                        70,
+                        71
+                    ]
+                ],
+                "memoryDomain": [
+                    [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10,
+                        11,
+                        12,
+                        13,
+                        14,
+                        15,
+                        16,
+                        17
+                    ],
+                    [
+                        18,
+                        19,
+                        20,
+                        21,
+                        22,
+                        23,
+                        24,
+                        25,
+                        26,
+                        27,
+                        28,
+                        29,
+                        30,
+                        31,
+                        32,
+                        33,
+                        34,
+                        35
+                    ],
+                    [
+                        36,
+                        37,
+                        38,
+                        39,
+                        40,
+                        41,
+                        42,
+                        43,
+                        44,
+                        45,
+                        46,
+                        47,
+                        48,
+                        49,
+                        50,
+                        51,
+                        52,
+                        53
+                    ],
+                    [
+                        54,
+                        55,
+                        56,
+                        57,
+                        58,
+                        59,
+                        60,
+                        61,
+                        62,
+                        63,
+                        64,
+                        65,
+                        66,
+                        67,
+                        68,
+                        69,
+                        70,
+                        71
+                    ]
+                ],
+                "core": [
+                    [
+                        0
+                    ],
+                    [
+                        1
+                    ],
+                    [
+                        2
+                    ],
+                    [
+                        3
+                    ],
+                    [
+                        4
+                    ],
+                    [
+                        5
+                    ],
+                    [
+                        6
+                    ],
+                    [
+                        7
+                    ],
+                    [
+                        8
+                    ],
+                    [
+                        9
+                    ],
+                    [
+                        10
+                    ],
+                    [
+                        11
+                    ],
+                    [
+                        12
+                    ],
+                    [
+                        13
+                    ],
+                    [
+                        14
+                    ],
+                    [
+                        15
+                    ],
+                    [
+                        16
+                    ],
+                    [
+                        17
+                    ],
+                    [
+                        18
+                    ],
+                    [
+                        19
+                    ],
+                    [
+                        20
+                    ],
+                    [
+                        21
+                    ],
+                    [
+                        22
+                    ],
+                    [
+                        23
+                    ],
+                    [
+                        24
+                    ],
+                    [
+                        25
+                    ],
+                    [
+                        26
+                    ],
+                    [
+                        27
+                    ],
+                    [
+                        28
+                    ],
+                    [
+                        29
+                    ],
+                    [
+                        30
+                    ],
+                    [
+                        31
+                    ],
+                    [
+                        32
+                    ],
+                    [
+                        33
+                    ],
+                    [
+                        34
+                    ],
+                    [
+                        35
+                    ],
+                    [
+                        36
+                    ],
+                    [
+                        37
+                    ],
+                    [
+                        38
+                    ],
+                    [
+                        39
+                    ],
+                    [
+                        40
+                    ],
+                    [
+                        41
+                    ],
+                    [
+                        42
+                    ],
+                    [
+                        43
+                    ],
+                    [
+                        44
+                    ],
+                    [
+                        45
+                    ],
+                    [
+                        46
+                    ],
+                    [
+                        47
+                    ],
+                    [
+                        48
+                    ],
+                    [
+                        49
+                    ],
+                    [
+                        50
+                    ],
+                    [
+                        51
+                    ],
+                    [
+                        52
+                    ],
+                    [
+                        53
+                    ],
+                    [
+                        54
+                    ],
+                    [
+                        55
+                    ],
+                    [
+                        56
+                    ],
+                    [
+                        57
+                    ],
+                    [
+                        58
+                    ],
+                    [
+                        59
+                    ],
+                    [
+                        60
+                    ],
+                    [
+                        61
+                    ],
+                    [
+                        62
+                    ],
+                    [
+                        63
+                    ],
+                    [
+                        64
+                    ],
+                    [
+                        65
+                    ],
+                    [
+                        66
+                    ],
+                    [
+                        67
+                    ],
+                    [
+                        68
+                    ],
+                    [
+                        69
+                    ],
+                    [
+                        70
+                    ],
+                    [
+                        71
+                    ]
+                ]
+            }
+        }
+    ]
+}
