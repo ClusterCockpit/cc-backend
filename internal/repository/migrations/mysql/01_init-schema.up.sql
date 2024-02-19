@@ -167,3 +167,9 @@ CREATE TABLE IF NOT EXISTS machine_conf (
     folder_path VARCHAR(255) ,
     FOREIGN KEY (machine_serial_number) REFERENCES machines(machine_id)
 );
+
+
+CREATE TABLE IF NOT EXISTS file_stash_url (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    url VARCHAR(255) NOT NULL
+);

@@ -13,4 +13,5 @@ DROP TABLE IF EXISTS volume_groups;
 DROP TABLE IF EXISTS physical_volumes;
 DROP TABLE IF EXISTS lvm_storage_issuer;
 DROP TABLE IF EXISTS machine_conf;
+DROP TABLE IF EXISTS file_stash_url ;
 
