@@ -328,3 +328,13 @@ input PageRequest {
   itemsPerPage: Int!
   page:         Int!
 }
+
+type FileStashUrl {
+  id: ID!
+  url: String!
+}
+
+type Query {
+  getFileStashUrl(id: ID!): FileStashUrl
+  getAllFileStashUrls: [FileStashUrl]
+}

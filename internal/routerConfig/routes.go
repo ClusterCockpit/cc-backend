@@ -44,7 +44,7 @@ var routes []Route = []Route{
 	{"/monitoring/systems/{cluster}", "monitoring/systems.tmpl", "Cluster <ID> - ClusterCockpit", false, setupClusterRoute},
 	{"/monitoring/node/{cluster}/{hostname}", "monitoring/node.tmpl", "Node <ID> - ClusterCockpit", false, setupNodeRoute},
 	{"/monitoring/analysis/{cluster}", "monitoring/analysis.tmpl", "Analysis - ClusterCockpit", true, setupAnalysisRoute},
-	{"/monitoring/status/{cluster}", "monitoring/status.tmpl", "Status of <ID> - ClusterCockpit", false, setupClusterRoute},
+	{"/monitoring/control/{cluster}", "monitoring/control.tmpl", "Status of <ID> - ClusterCockpit", false, setupClusterRoute},
 	{"/monitoring/partition/{cluster}", "partitions/systems.tmpl", "Cluster <ID> - ClusterCockpit", false, setupClusterRoute},
 	{"/monitoring/history/", "monitoring/history.tmpl", "Cluster <ID> - ClusterCockpit", false, setupClusterRoute},
 

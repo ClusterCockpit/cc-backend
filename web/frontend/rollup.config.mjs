@@ -52,7 +52,7 @@ const entrypoint = (name, path) => ({
         // we'll extract any component CSS out into
         // a separate file - better for performance
         css({ output: `${name}.css` }),
-        !production && livereload('public')
+        livereload('public')
     ],
     watch: {
         clearScreen: false
@@ -68,7 +68,7 @@ export default [
     entrypoint('systems', 'src/systems.entrypoint.js'),
     entrypoint('node', 'src/node.entrypoint.js'),
     entrypoint('analysis', 'src/analysis.entrypoint.js'),
-    entrypoint('status', 'src/status.entrypoint.js'),
+    entrypoint('control', 'src/control.entrypoint.js'),
     entrypoint('config', 'src/config.entrypoint.js'),
     entrypoint('partitions', 'src/partitions.entrypoint.js'),
     entrypoint('history', 'src/history.entrypoint.js')

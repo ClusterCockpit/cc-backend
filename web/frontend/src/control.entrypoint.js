@@ -1,5 +1,5 @@
 import {} from './header.entrypoint.js'
-import Status from './Status.root.svelte'
+import Status from './Control.root.svelte'
 
 new Status({
     target: document.getElementById('svelte-app'),

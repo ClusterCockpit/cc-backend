@@ -3,12 +3,12 @@
 {{end}}
 
 {{define "stylesheets"}}
-    <link rel='stylesheet' href='/build/status.css'>
+    <link rel='stylesheet' href='/build/control.css'>
 {{end}}
 {{define "javascript"}}
     <script>
         const infos = {{ .Infos }};
         const clusterCockpitConfig = {{ .Config }};
     </script>
-    <script src='/build/status.js'></script>
+    <script src='/build/control.js'></script>
 {{end}}
