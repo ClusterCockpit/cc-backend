@@ -38,7 +38,6 @@ var metricDataRepos map[string]MetricDataRepository = map[string]MetricDataRepos
 var useArchive bool
 
 func Init(disableArchive bool) error {
-
 	useArchive = !disableArchive
 	for _, cluster := range config.Keys.Clusters {
 		if cluster.MetricDataRepository != nil {
@@ -80,7 +79,8 @@ var cache *lrucache.Cache = lrucache.New(128 * 1024 * 1024)
 func LoadData(job *schema.Job,
 	metrics []string,
 	scopes []schema.MetricScope,
-	ctx context.Context) (schema.JobData, error) {
+	ctx context.Context,
+) (schema.JobData, error) {
 	data := cache.Get(cacheKey(job, metrics, scopes), func() (_ interface{}, ttl time.Duration, size int) {
 		var jd schema.JobData
 		var err error
@@ -109,7 +109,8 @@ func LoadData(job *schema.Job,
 			jd, err = repo.LoadData(job, metrics, scopes, ctx)
 			if err != nil {
 				if len(jd) != 0 {
-					log.Warnf("partial error: %s", err.Error())
+					log.Errorf("partial error: %s", err.Error())
+					return err, 0, 0
 				} else {
 					log.Error("Error while loading job data from metric repository")
 					return err, 0, 0
@@ -179,8 +180,8 @@ func LoadAverages(
 	job *schema.Job,
 	metrics []string,
 	data [][]schema.Float,
-	ctx context.Context) error {
-
+	ctx context.Context,
+) error {
 	if job.State != schema.JobStateRunning && useArchive {
 		return archive.LoadAveragesFromArchive(job, metrics, data) // #166 change also here?
 	}
@@ -219,8 +220,8 @@ func LoadNodeData(
 	metrics, nodes []string,
 	scopes []schema.MetricScope,
 	from, to time.Time,
-	ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
-
+	ctx context.Context,
+) (map[string]map[string][]*schema.JobMetric, error) {
 	repo, ok := metricDataRepos[cluster]
 	if !ok {
 		return nil, fmt.Errorf("METRICDATA/METRICDATA > no metric data repository configured for '%s'", cluster)
@@ -252,8 +253,8 @@ func LoadNodeData(
 func cacheKey(
 	job *schema.Job,
 	metrics []string,
-	scopes []schema.MetricScope) string {
-
+	scopes []schema.MetricScope,
+) string {
 	// Duration and StartTime do not need to be in the cache key as StartTime is less unique than
 	// job.ID and the TTL of the cache entry makes sure it does not stay there forever.
 	return fmt.Sprintf("%d(%s):[%v],[%v]",
@@ -267,8 +268,8 @@ func cacheKey(
 func prepareJobData(
 	job *schema.Job,
 	jobData schema.JobData,
-	scopes []schema.MetricScope) {
-
+	scopes []schema.MetricScope,
+) {
 	const maxSeriesSize int = 15
 	for _, scopes := range jobData {
 		for _, jm := range scopes {
@@ -295,7 +296,6 @@ func prepareJobData(
 
 // Writes a running job to the job-archive
 func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
-
 	allMetrics := make([]string, 0)
 	metricConfigs := archive.GetCluster(job.Cluster).MetricConfig
 	for _, mc := range metricConfigs {
