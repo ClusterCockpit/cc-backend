@@ -39,6 +39,7 @@
     export let subCluster
     export let isShared = false
     export let forNode = false
+    export let hwthreads = 0
 
     if (useStatsSeries == null)
         useStatsSeries = statisticsSeries != null
@@ -53,7 +54,7 @@
     const lineWidth = clusterCockpitConfig.plot_general_lineWidth / window.devicePixelRatio
     const lineColors = clusterCockpitConfig.plot_general_colorscheme
     const backgroundColors = { normal:  'rgba(255, 255, 255, 1.0)', caution: 'rgba(255, 128, 0, 0.3)', alert: 'rgba(255, 0, 0, 0.3)' }
-    const thresholds = findThresholds(metricConfig, scope, typeof subCluster == 'string' ? cluster.subClusters.find(sc => sc.name == subCluster) : subCluster)
+    const thresholds = findThresholds(metricConfig, scope, typeof subCluster == 'string' ? cluster.subClusters.find(sc => sc.name == subCluster) : subCluster, isShared, hwthreads)
 
     // converts the legend into a simple tooltip
     function legendAsTooltipPlugin({ className, style = { backgroundColor:"rgba(255, 249, 196, 0.92)", color: "black" } } = {}) {
@@ -380,14 +381,14 @@
         }
     }
 
-    export function findThresholds(metricConfig, scope, subCluster) {
+    export function findThresholds(metricConfig, scope, subCluster, isShared, hwthreads) {
         // console.log('NAME ' + metricConfig.name + ' / SCOPE ' + scope + ' / SUBCLUSTER ' + subCluster.name)
         if (!metricConfig || !scope || !subCluster) {
             console.warn('Argument missing for findThresholds!')
             return null
         }
 
-        if (scope == 'node' || metricConfig.aggregation == 'avg') {
+        if ((scope == 'node' && isShared == false) || metricConfig.aggregation == 'avg') {
             if (metricConfig.subClusters && metricConfig.subClusters.length === 0) {
                 // console.log('subClusterConfigs array empty, use metricConfig defaults')
                 return { normal: metricConfig.normal, caution: metricConfig.caution, alert: metricConfig.alert, peak: metricConfig.peak }
@@ -408,7 +409,9 @@
         }
 
         let divisor = 1
-        if (scope == 'socket')
+        if (isShared == true && hwthreads > 0) { // Shared
+            divisor = subCluster.topology.node.length / hwthreads
+        } else if (scope == 'socket')
             divisor = subCluster.topology.socket.length
         else if (scope == 'core')
             divisor = subCluster.topology.core.length
