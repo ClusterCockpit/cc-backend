@@ -16,6 +16,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -212,7 +213,7 @@ func (r *JobRepository) UpdateMetadata(job *schema.Job, key, val string) (err er
 	}
 
 	r.cache.Put(cachekey, job.MetaData, len(job.RawMetaData), 24*time.Hour)
-	return nil
+	return archive.UpdateMetadata(job, job.MetaData)
 }
 
 // Find executes a SQL query to find a specific batch job.
