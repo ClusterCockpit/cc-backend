@@ -114,7 +114,7 @@ func MigrateDB(backend string, db string) error {
 		return err
 	}
 
-	if err := m.Up(); err != nil {
+	if err := m.Migrate(Version); err != nil {
 		if err == migrate.ErrNoChange {
 			log.Info("DB already up to date!")
 		} else {
