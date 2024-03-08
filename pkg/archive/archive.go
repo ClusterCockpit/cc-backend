@@ -52,9 +52,11 @@ type JobContainer struct {
 	Data *schema.JobData
 }
 
-var cache *lrucache.Cache = lrucache.New(128 * 1024 * 1024)
-var ar ArchiveBackend
-var useArchive bool
+var (
+	cache      *lrucache.Cache = lrucache.New(128 * 1024 * 1024)
+	ar         ArchiveBackend
+	useArchive bool
+)
 
 func Init(rawConfig json.RawMessage, disableArchive bool) error {
 	useArchive = !disableArchive
@@ -95,8 +97,8 @@ func GetHandle() ArchiveBackend {
 func LoadAveragesFromArchive(
 	job *schema.Job,
 	metrics []string,
-	data [][]schema.Float) error {
-
+	data [][]schema.Float,
+) error {
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
 		log.Warn("Error while loading job metadata from archiveBackend")
@@ -115,7 +117,6 @@ func LoadAveragesFromArchive(
 }
 
 func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
-
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
 		log.Warn("Error while loading job metadata from archiveBackend")
@@ -125,10 +126,29 @@ func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
 	return metaFile.Statistics, nil
 }
 
+// If the job is archived, find its `meta.json` file and override the Metadata
+// in that JSON file. If the job is not archived, nothing is done.
+func UpdateMetadata(job *schema.Job, metadata map[string]string) error {
+	if job.State == schema.JobStateRunning || !useArchive {
+		return nil
+	}
+
+	jobMeta, err := ar.LoadJobMeta(job)
+	if err != nil {
+		log.Warn("Error while loading job metadata from archiveBackend")
+		return err
+	}
+
+	for k, v := range metadata {
+		jobMeta.MetaData[k] = v
+	}
+
+	return ar.StoreJobMeta(jobMeta)
+}
+
 // If the job is archived, find its `meta.json` file and override the tags list
 // in that JSON file. If the job is not archived, nothing is done.
 func UpdateTags(job *schema.Job, tags []*schema.Tag) error {
-
 	if job.State == schema.JobStateRunning || !useArchive {
 		return nil
 	}
