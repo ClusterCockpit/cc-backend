@@ -70,12 +70,15 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 
 	r.HandleFunc("/jobs/", api.getJobs).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/{id}", api.getJobById).Methods(http.MethodPost)
+	r.HandleFunc("/jobs/{id}", api.getCompleteJobById).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/tag_job/{id}", api.tagJob).Methods(http.MethodPost, http.MethodPatch)
 	r.HandleFunc("/jobs/edit_meta/{id}", api.editMeta).Methods(http.MethodPost, http.MethodPatch)
 	r.HandleFunc("/jobs/metrics/{id}", api.getJobMetrics).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/delete_job/", api.deleteJobByRequest).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job/{id}", api.deleteJobById).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job_before/{ts}", api.deleteJobBefore).Methods(http.MethodDelete)
+
+	r.HandleFunc("/clusters/", api.getClusters).Methods(http.MethodGet)
 
 	if api.MachineStateDir != "" {
 		r.HandleFunc("/machine_state/{cluster}/{host}", api.getMachineState).Methods(http.MethodGet)
@@ -133,6 +136,11 @@ type GetJobsApiResponse struct {
 	Page  int               `json:"page"`  // Page id returned
 }
 
+// GetClustersApiResponse model
+type GetClustersApiResponse struct {
+	Clusters []*schema.Cluster `json:"clusters"` // Array of clusters
+}
+
 // ErrorResponse model
 type ErrorResponse struct {
 	// Statustext of Errorcode
@@ -160,6 +168,11 @@ type GetJobApiRequest []string
 type GetJobApiResponse struct {
 	Meta *schema.Job
 	Data []*JobMetricWithName
+}
+
+type GetCompleteJobApiResponse struct {
+	Meta *schema.Job
+	Data schema.JobData
 }
 
 type JobMetricWithName struct {
@@ -228,6 +241,55 @@ func securedCheck(r *http.Request) error {
 	}
 
 	return nil
+}
+
+// getClusters godoc
+// @summary     Lists all cluster configs
+// @tags Cluster query
+// @description Get a list of all cluster configs. Specific cluster can be requested using query parameter.
+// @produce     json
+// @param       cluster        query    string            false "Job Cluster"
+// @success     200            {object} api.GetClustersApiResponse  "Array of clusters"
+// @failure     400            {object} api.ErrorResponse       "Bad Request"
+// @failure     401            {object} api.ErrorResponse       "Unauthorized"
+// @failure     403            {object} api.ErrorResponse       "Forbidden"
+// @failure     500            {object} api.ErrorResponse       "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /clusters/ [get]
+func (api *RestApi) getClusters(rw http.ResponseWriter, r *http.Request) {
+	if user := repository.GetUserFromContext(r.Context()); user != nil &&
+		!user.HasRole(schema.RoleApi) {
+
+		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
+		return
+	}
+
+	rw.Header().Add("Content-Type", "application/json")
+	bw := bufio.NewWriter(rw)
+	defer bw.Flush()
+
+	var clusters []*schema.Cluster
+
+	if r.URL.Query().Has("cluster") {
+		name := r.URL.Query().Get("cluster")
+		cluster := archive.GetCluster(name)
+		if cluster == nil {
+			handleError(fmt.Errorf("unknown cluster: %s", name), http.StatusBadRequest, rw)
+			return
+		}
+		clusters = append(clusters, cluster)
+	} else {
+		clusters = archive.Clusters
+	}
+
+	payload := GetClustersApiResponse{
+		Clusters: clusters,
+	}
+
+	if err := json.NewEncoder(bw).Encode(payload); err != nil {
+		handleError(err, http.StatusInternalServerError, rw)
+		return
+	}
 }
 
 // getJobs godoc
@@ -348,10 +410,8 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 		if res.MonitoringStatus == schema.MonitoringStatusArchivingSuccessful {
 			res.Statistics, err = archive.GetStatistics(job)
 			if err != nil {
-				if err != nil {
-					handleError(err, http.StatusInternalServerError, rw)
-					return
-				}
+				handleError(err, http.StatusInternalServerError, rw)
+				return
 			}
 		}
 
@@ -376,14 +436,95 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 }
 
 // getJobById godoc
-// @summary   Get complete job meta and metric data
+// @summary   Get job meta and optional all metric data
+// @tags Job query
+// @description Job to get is specified by database ID
+// @description Returns full job resource information according to 'JobMeta' scheme and all metrics according to 'JobData'.
+// @produce     json
+// @param       id          path     int                  true "Database ID of Job"
+// @param       all-metrics query    bool                 false "Include all available metrics"
+// @success     200     {object} api.GetJobApiResponse      "Job resource"
+// @failure     400     {object} api.ErrorResponse          "Bad Request"
+// @failure     401     {object} api.ErrorResponse          "Unauthorized"
+// @failure     403     {object} api.ErrorResponse          "Forbidden"
+// @failure     404     {object} api.ErrorResponse          "Resource not found"
+// @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
+// @failure     500     {object} api.ErrorResponse          "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /jobs/{id} [get]
+func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) {
+	if user := repository.GetUserFromContext(r.Context()); user != nil &&
+		!user.HasRole(schema.RoleApi) {
+
+		handleError(fmt.Errorf("missing role: %v",
+			schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
+		return
+	}
+
+	// Fetch job from db
+	id, ok := mux.Vars(r)["id"]
+	var job *schema.Job
+	var err error
+	if ok {
+		id, e := strconv.ParseInt(id, 10, 64)
+		if e != nil {
+			handleError(fmt.Errorf("integer expected in path for id: %w", e), http.StatusBadRequest, rw)
+			return
+		}
+
+		job, err = api.JobRepository.FindById(id)
+	} else {
+		handleError(errors.New("the parameter 'id' is required"), http.StatusBadRequest, rw)
+		return
+	}
+	if err != nil {
+		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
+		return
+	}
+
+	var scopes []schema.MetricScope
+
+	if job.NumNodes == 1 {
+		scopes = []schema.MetricScope{"core"}
+	} else {
+		scopes = []schema.MetricScope{"node"}
+	}
+
+	var data schema.JobData
+
+	if r.URL.Query().Has("all-metrics") {
+		data, err = metricdata.LoadData(job, nil, scopes, r.Context())
+		if err != nil {
+			log.Warn("Error while loading job data")
+			return
+		}
+	}
+
+	log.Debugf("/api/job/%s: get job %d", id, job.JobID)
+	rw.Header().Add("Content-Type", "application/json")
+	bw := bufio.NewWriter(rw)
+	defer bw.Flush()
+
+	payload := GetCompleteJobApiResponse{
+		Meta: job,
+		Data: data,
+	}
+
+	if err := json.NewEncoder(bw).Encode(payload); err != nil {
+		handleError(err, http.StatusInternalServerError, rw)
+		return
+	}
+}
+
+// getJobById godoc
+// @summary   Get job meta and configurable metric data
 // @tags Job query
 // @description Job to get is specified by database ID
 // @description Returns full job resource information according to 'JobMeta' scheme and all metrics according to 'JobData'.
 // @accept      json
 // @produce     json
-// @param       id      path     int                   true "Database ID of Job"
-// @param       request body     api.GetJobApiRequest true  "Array of metric names"
+// @param       id          path     int                  true "Database ID of Job"
+// @param       request     body     api.GetJobApiRequest true  "Array of metric names"
 // @success     200     {object} api.GetJobApiResponse      "Job resource"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
