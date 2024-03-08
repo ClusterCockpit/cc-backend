@@ -436,11 +436,14 @@ func (r *JobRepository) Stop(
 
 func (r *JobRepository) DeleteJobsBefore(startTime int64) (int, error) {
 	var cnt int
-	qs := fmt.Sprintf("SELECT count(*) FROM job WHERE job.start_time < %d", startTime)
-	err := r.DB.Get(&cnt, qs) // ignore error as it will also occur in delete statement
-	_, err = r.DB.Exec(`DELETE FROM job WHERE job.start_time < ?`, startTime)
+	q := sq.Select("count(*)").From("job").Where("job.start_time < ?", startTime)
+	q.RunWith(r.DB).QueryRow().Scan(cnt)
+	qd := sq.Delete("job").Where("job.start_time < ?", startTime)
+	_, err := qd.RunWith(r.DB).Exec()
+
 	if err != nil {
-		log.Errorf(" DeleteJobsBefore(%d): error %#v", startTime, err)
+		s, _, _ := qd.ToSql()
+		log.Errorf(" DeleteJobsBefore(%d) with %s: error %#v", startTime, s, err)
 	} else {
 		log.Debugf("DeleteJobsBefore(%d): Deleted %d jobs", startTime, cnt)
 	}
@@ -448,9 +451,12 @@ func (r *JobRepository) DeleteJobsBefore(startTime int64) (int, error) {
 }
 
 func (r *JobRepository) DeleteJobById(id int64) error {
-	_, err := r.DB.Exec(`DELETE FROM job WHERE job.id = ?`, id)
+	qd := sq.Delete("job").Where("job.id = ?", id)
+	_, err := qd.RunWith(r.DB).Exec()
+
 	if err != nil {
-		log.Errorf("DeleteJobById(%d): error %#v", id, err)
+		s, _, _ := qd.ToSql()
+		log.Errorf("DeleteJobById(%d) with %s : error %#v", id, s, err)
 	} else {
 		log.Debugf("DeleteJobById(%d): Success", id)
 	}
