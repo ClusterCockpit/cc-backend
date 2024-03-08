@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS job (
     );
 
 CREATE TABLE IF NOT EXISTS tag (
-    id       INTEGER AUTO_INCREMENT PRIMARY KEY,
+    id       INTEGER PRIMARY KEY,
     tag_type VARCHAR(255) NOT NULL,
     tag_name VARCHAR(255) NOT NULL,
     UNIQUE (tag_type, tag_name));
