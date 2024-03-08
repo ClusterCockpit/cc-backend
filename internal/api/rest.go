@@ -71,6 +71,7 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 	r.HandleFunc("/jobs/", api.getJobs).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/{id}", api.getJobById).Methods(http.MethodPost)
 	r.HandleFunc("/jobs/tag_job/{id}", api.tagJob).Methods(http.MethodPost, http.MethodPatch)
+	r.HandleFunc("/jobs/edit_meta/{id}", api.editMeta).Methods(http.MethodPost, http.MethodPatch)
 	r.HandleFunc("/jobs/metrics/{id}", api.getJobMetrics).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/delete_job/", api.deleteJobByRequest).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job/{id}", api.deleteJobById).Methods(http.MethodDelete)
@@ -144,6 +145,12 @@ type ApiTag struct {
 	// Tag Type
 	Type string `json:"type" example:"Debug"`
 	Name string `json:"name" example:"Testjob"` // Tag Name
+}
+
+// ApiMeta model
+type EditMetaRequest struct {
+	Key   string `json:"key" example:"jobScript"`
+	Value string `json:"value" example:"bash script"`
 }
 
 type TagJobApiRequest []*ApiTag
@@ -243,7 +250,6 @@ func securedCheck(r *http.Request) error {
 // @security    ApiKeyAuth
 // @router      /jobs/ [get]
 func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
-
 	if user := repository.GetUserFromContext(r.Context()); user != nil &&
 		!user.HasRole(schema.RoleApi) {
 
@@ -462,6 +468,57 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 		handleError(err, http.StatusInternalServerError, rw)
 		return
 	}
+}
+
+// editMeta godoc
+// @summary    Edit meta-data json
+// @tags Job add and modify
+// @description Edit key value pairs in job metadata json
+// @description If a key already exists its content will be overwritten
+// @accept      json
+// @produce     json
+// @param       id      path     int                  true "Job Database ID"
+// @param       request body     api.EditMetaRequest  true "Kay value pair to add"
+// @success     200     {object} schema.Job                "Updated job resource"
+// @failure     400     {object} api.ErrorResponse         "Bad Request"
+// @failure     401     {object} api.ErrorResponse         "Unauthorized"
+// @failure     404     {object} api.ErrorResponse         "Job does not exist"
+// @failure     500     {object} api.ErrorResponse         "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /jobs/edit_meta/{id} [post]
+func (api *RestApi) editMeta(rw http.ResponseWriter, r *http.Request) {
+	if user := repository.GetUserFromContext(r.Context()); user != nil &&
+		!user.HasRole(schema.RoleApi) {
+		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
+		return
+	}
+
+	iid, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	job, err := api.JobRepository.FindById(iid)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	var req EditMetaRequest
+	if err := decode(r.Body, &req); err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := api.JobRepository.UpdateMetadata(job, req.Key, req.Value); err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	rw.Header().Add("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode(job)
 }
 
 // tagJob godoc
@@ -873,7 +930,6 @@ func (api *RestApi) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Job, req StopJobApiRequest) {
-
 	// Sanity checks
 	if job == nil || job.StartTime.Unix() >= req.StopTime || job.State != schema.JobStateRunning {
 		handleError(errors.New("stopTime must be larger than startTime and only running jobs can be stopped"), http.StatusBadRequest, rw)
@@ -1015,7 +1071,8 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 		Password: password,
 		Email:    email,
 		Projects: []string{project},
-		Roles:    []string{role}}); err != nil {
+		Roles:    []string{role},
+	}); err != nil {
 		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}

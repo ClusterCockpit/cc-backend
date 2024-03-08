@@ -50,6 +50,15 @@ definitions:
       msg:
         type: string
     type: object
+  api.EditMetaRequest:
+    properties:
+      key:
+        example: jobScript
+        type: string
+      value:
+        example: bash script
+        type: string
+    type: object
   api.ErrorResponse:
     properties:
       error:
@@ -150,6 +159,9 @@ definitions:
         maximum: 2
         minimum: 0
         type: integer
+      flopsAnyAvg:
+        description: FlopsAnyAvg as Float64
+        type: number
       id:
         description: The unique identifier of a job in the database
         type: integer
@@ -169,6 +181,15 @@ definitions:
         - timeout
         - out_of_memory
         example: completed
+      loadAvg:
+        description: LoadAvg as Float64
+        type: number
+      memBwAvg:
+        description: MemBwAvg as Float64
+        type: number
+      memUsedMax:
+        description: MemUsedMax as Float64
+        type: number
       metaData:
         additionalProperties:
           type: string
@@ -810,6 +831,53 @@ paths:
       summary: Remove a job from the sql database
       tags:
       - Job remove
+  /jobs/edit_meta/{id}:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Edit key value pairs in job metadata json
+        If a key already exists its content will be overwritten
+      parameters:
+      - description: Job Database ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Kay value pair to add
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.EditMetaRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated job resource
+          schema:
+            $ref: '#/definitions/schema.Job'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Job does not exist
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Edit meta-data json
+      tags:
+      - Job add and modify
   /jobs/start_job/:
     post:
       consumes:

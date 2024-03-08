@@ -327,6 +327,76 @@
                 }
             }
         },
+        "/jobs/edit_meta/{id}": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Edit key value pairs in job metadata json\nIf a key already exists its content will be overwritten",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Job add and modify"
+                ],
+                "summary": "Edit meta-data json",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Job Database ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Kay value pair to add",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.EditMetaRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated job resource",
+                        "schema": {
+                            "$ref": "#/definitions/schema.Job"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Job does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/jobs/start_job/": {
             "post": {
                 "security": [
@@ -1114,6 +1184,19 @@
                 }
             }
         },
+        "api.EditMetaRequest": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string",
+                    "example": "jobScript"
+                },
+                "value": {
+                    "type": "string",
+                    "example": "bash script"
+                }
+            }
+        },
         "api.ErrorResponse": {
             "type": "object",
             "properties": {
@@ -1252,6 +1335,10 @@
                     "minimum": 0,
                     "example": 1
                 },
+                "flopsAnyAvg": {
+                    "description": "FlopsAnyAvg as Float64",
+                    "type": "number"
+                },
                 "id": {
                     "description": "The unique identifier of a job in the database",
                     "type": "integer"
@@ -1277,6 +1364,18 @@
                         }
                     ],
                     "example": "completed"
+                },
+                "loadAvg": {
+                    "description": "LoadAvg as Float64",
+                    "type": "number"
+                },
+                "memBwAvg": {
+                    "description": "MemBwAvg as Float64",
+                    "type": "number"
+                },
+                "memUsedMax": {
+                    "description": "MemUsedMax as Float64",
+                    "type": "number"
                 },
                 "metaData": {
                     "description": "Additional information about the job",
