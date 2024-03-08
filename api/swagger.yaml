@@ -630,6 +630,57 @@ paths:
       tags:
       - Job query
   /jobs/{id}:
+    get:
+      description: |-
+        Job to get is specified by database ID
+        Returns full job resource information according to 'JobMeta' scheme and all metrics according to 'JobData'.
+      parameters:
+      - description: Database ID of Job
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Include all available metrics
+        in: query
+        name: all-metrics
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job resource
+          schema:
+            $ref: '#/definitions/api.GetJobApiResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Resource not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: 'Unprocessable Entity: finding job failed: sql: no rows in
+            result set'
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get job meta and optional all metric data
+      tags:
+      - Job query
     post:
       consumes:
       - application/json
@@ -684,7 +735,7 @@ paths:
             $ref: '#/definitions/api.ErrorResponse'
       security:
       - ApiKeyAuth: []
-      summary: Get complete job meta and metric data
+      summary: Get job meta and configurable metric data
       tags:
       - Job query
   /jobs/delete_job/:

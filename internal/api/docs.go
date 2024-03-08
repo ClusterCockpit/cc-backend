@@ -700,6 +700,80 @@ const docTemplate = `{
             }
         },
         "/jobs/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Job to get is specified by database ID\nReturns full job resource information according to 'JobMeta' scheme and all metrics according to 'JobData'.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Job query"
+                ],
+                "summary": "Get job meta and optional all metric data",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Database ID of Job",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Include all available metrics",
+                        "name": "all-metrics",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Job resource",
+                        "schema": {
+                            "$ref": "#/definitions/api.GetJobApiResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Resource not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity: finding job failed: sql: no rows in result set",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            },
             "post": {
                 "security": [
                     {
@@ -716,7 +790,7 @@ const docTemplate = `{
                 "tags": [
                     "Job query"
                 ],
-                "summary": "Get complete job meta and metric data",
+                "summary": "Get job meta and configurable metric data",
                 "parameters": [
                     {
                         "type": "integer",
