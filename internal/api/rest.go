@@ -78,6 +78,8 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 	r.HandleFunc("/jobs/delete_job/{id}", api.deleteJobById).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job_before/{ts}", api.deleteJobBefore).Methods(http.MethodDelete)
 
+	r.HandleFunc("/clusters/", api.getClusters).Methods(http.MethodGet)
+
 	if api.MachineStateDir != "" {
 		r.HandleFunc("/machine_state/{cluster}/{host}", api.getMachineState).Methods(http.MethodGet)
 		r.HandleFunc("/machine_state/{cluster}/{host}", api.putMachineState).Methods(http.MethodPut, http.MethodPost)
@@ -132,6 +134,11 @@ type GetJobsApiResponse struct {
 	Jobs  []*schema.JobMeta `json:"jobs"`  // Array of jobs
 	Items int               `json:"items"` // Number of jobs returned
 	Page  int               `json:"page"`  // Page id returned
+}
+
+// GetClustersApiResponse model
+type GetClustersApiResponse struct {
+	Clusters []*schema.Cluster `json:"clusters"` // Array of clusters
 }
 
 // ErrorResponse model
@@ -234,6 +241,55 @@ func securedCheck(r *http.Request) error {
 	}
 
 	return nil
+}
+
+// getClusters godoc
+// @summary     Lists all cluster configs
+// @tags Cluster query
+// @description Get a list of all cluster configs. Specific cluster can be requested using query parameter.
+// @produce     json
+// @param       cluster        query    string            false "Job Cluster"
+// @success     200            {object} api.GetClustersApiResponse  "Array of clusters"
+// @failure     400            {object} api.ErrorResponse       "Bad Request"
+// @failure     401            {object} api.ErrorResponse       "Unauthorized"
+// @failure     403            {object} api.ErrorResponse       "Forbidden"
+// @failure     500            {object} api.ErrorResponse       "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /clusters/ [get]
+func (api *RestApi) getClusters(rw http.ResponseWriter, r *http.Request) {
+	if user := repository.GetUserFromContext(r.Context()); user != nil &&
+		!user.HasRole(schema.RoleApi) {
+
+		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
+		return
+	}
+
+	rw.Header().Add("Content-Type", "application/json")
+	bw := bufio.NewWriter(rw)
+	defer bw.Flush()
+
+	var clusters []*schema.Cluster
+
+	if r.URL.Query().Has("cluster") {
+		name := r.URL.Query().Get("cluster")
+		cluster := archive.GetCluster(name)
+		if cluster == nil {
+			handleError(fmt.Errorf("unknown cluster: %s", name), http.StatusBadRequest, rw)
+			return
+		}
+		clusters = append(clusters, cluster)
+	} else {
+		clusters = archive.Clusters
+	}
+
+	payload := GetClustersApiResponse{
+		Clusters: clusters,
+	}
+
+	if err := json.NewEncoder(bw).Encode(payload); err != nil {
+		handleError(err, http.StatusInternalServerError, rw)
+		return
+	}
 }
 
 // getJobs godoc
@@ -354,10 +410,8 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 		if res.MonitoringStatus == schema.MonitoringStatusArchivingSuccessful {
 			res.Statistics, err = archive.GetStatistics(job)
 			if err != nil {
-				if err != nil {
-					handleError(err, http.StatusInternalServerError, rw)
-					return
-				}
+				handleError(err, http.StatusInternalServerError, rw)
+				return
 			}
 		}
 

@@ -23,6 +23,63 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/clusters/": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Get a list of all cluster configs. Specific cluster can be requested using query parameter.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cluster query"
+                ],
+                "summary": "Lists all cluster configs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Job Cluster",
+                        "name": "cluster",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of clusters",
+                        "schema": {
+                            "$ref": "#/definitions/api.GetClustersApiResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/jobs/": {
             "get": {
                 "security": [
@@ -1290,6 +1347,18 @@ const docTemplate = `{
                 }
             }
         },
+        "api.GetClustersApiResponse": {
+            "type": "object",
+            "properties": {
+                "clusters": {
+                    "description": "Array of clusters",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.Cluster"
+                    }
+                }
+            }
+        },
         "api.GetJobApiResponse": {
             "type": "object",
             "properties": {
@@ -1382,6 +1451,40 @@ const docTemplate = `{
                     "description": "Stop Time of job as epoch",
                     "type": "integer",
                     "example": 1649763839
+                }
+            }
+        },
+        "schema.Accelerator": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "schema.Cluster": {
+            "type": "object",
+            "properties": {
+                "metricConfig": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.MetricConfig"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "subClusters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.SubCluster"
+                    }
                 }
             }
         },
@@ -1783,6 +1886,44 @@ const docTemplate = `{
                 }
             }
         },
+        "schema.MetricConfig": {
+            "type": "object",
+            "properties": {
+                "aggregation": {
+                    "type": "string"
+                },
+                "alert": {
+                    "type": "number"
+                },
+                "caution": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "normal": {
+                    "type": "number"
+                },
+                "peak": {
+                    "type": "number"
+                },
+                "scope": {
+                    "$ref": "#/definitions/schema.MetricScope"
+                },
+                "subClusters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.SubClusterConfig"
+                    }
+                },
+                "timestep": {
+                    "type": "integer"
+                },
+                "unit": {
+                    "$ref": "#/definitions/schema.Unit"
+                }
+            }
+        },
         "schema.MetricScope": {
             "type": "string",
             "enum": [
@@ -1814,6 +1955,17 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "min": {
+                    "type": "number"
+                }
+            }
+        },
+        "schema.MetricValue": {
+            "type": "object",
+            "properties": {
+                "unit": {
+                    "$ref": "#/definitions/schema.Unit"
+                },
+                "value": {
                     "type": "number"
                 }
             }
@@ -1898,6 +2050,64 @@ const docTemplate = `{
                 }
             }
         },
+        "schema.SubCluster": {
+            "type": "object",
+            "properties": {
+                "coresPerSocket": {
+                    "type": "integer"
+                },
+                "flopRateScalar": {
+                    "$ref": "#/definitions/schema.MetricValue"
+                },
+                "flopRateSimd": {
+                    "$ref": "#/definitions/schema.MetricValue"
+                },
+                "memoryBandwidth": {
+                    "$ref": "#/definitions/schema.MetricValue"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "nodes": {
+                    "type": "string"
+                },
+                "processorType": {
+                    "type": "string"
+                },
+                "socketsPerNode": {
+                    "type": "integer"
+                },
+                "threadsPerCore": {
+                    "type": "integer"
+                },
+                "topology": {
+                    "$ref": "#/definitions/schema.Topology"
+                }
+            }
+        },
+        "schema.SubClusterConfig": {
+            "type": "object",
+            "properties": {
+                "alert": {
+                    "type": "number"
+                },
+                "caution": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "normal": {
+                    "type": "number"
+                },
+                "peak": {
+                    "type": "number"
+                },
+                "remove": {
+                    "type": "boolean"
+                }
+            }
+        },
         "schema.Tag": {
             "description": "Defines a tag using name and type.",
             "type": "object",
@@ -1915,6 +2125,59 @@ const docTemplate = `{
                     "description": "Tag Type",
                     "type": "string",
                     "example": "Debug"
+                }
+            }
+        },
+        "schema.Topology": {
+            "type": "object",
+            "properties": {
+                "accelerators": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.Accelerator"
+                    }
+                },
+                "core": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "die": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "memoryDomain": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "node": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "socket": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
                 }
             }
         },
