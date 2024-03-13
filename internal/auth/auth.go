@@ -27,18 +27,18 @@ type Authenticator interface {
 }
 
 type Authentication struct {
-	sessionStore  *sessions.CookieStore
-	SessionMaxAge time.Duration
-
-	authenticators []Authenticator
+	sessionStore   *sessions.CookieStore
 	LdapAuth       *LdapAuthenticator
 	JwtAuth        *JWTAuthenticator
 	LocalAuth      *LocalAuthenticator
+	authenticators []Authenticator
+	SessionMaxAge  time.Duration
 }
 
 func (auth *Authentication) AuthViaSession(
 	rw http.ResponseWriter,
-	r *http.Request) (*schema.User, error) {
+	r *http.Request,
+) (*schema.User, error) {
 	session, err := auth.sessionStore.Get(r, "session")
 	if err != nil {
 		log.Error("Error while getting session store")
@@ -131,8 +131,8 @@ func Init() (*Authentication, error) {
 
 func (auth *Authentication) Login(
 	onsuccess http.Handler,
-	onfailure func(rw http.ResponseWriter, r *http.Request, loginErr error)) http.Handler {
-
+	onfailure func(rw http.ResponseWriter, r *http.Request, loginErr error),
+) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		username := r.FormValue("username")
 		var dbUser *schema.User
@@ -193,10 +193,9 @@ func (auth *Authentication) Login(
 
 func (auth *Authentication) Auth(
 	onsuccess http.Handler,
-	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error)) http.Handler {
-
+	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
+) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-
 		user, err := auth.JwtAuth.AuthViaJWT(rw, r)
 		if err != nil {
 			log.Infof("authentication failed: %s", err.Error())
