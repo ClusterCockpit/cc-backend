@@ -65,6 +65,7 @@
 
   let isMetricsSelectionOpen = false,
     selectedMetrics = [],
+    showFootprint = true,
     isFetched = new Set();
   const [jobMetrics, startFetching] = fetchMetricsStore();
   getContext("on-init")(() => {
@@ -76,6 +77,9 @@
       clusters
         .find((c) => c.name == job.cluster)
         .metricConfig.map((mc) => mc.name);
+
+    showFootprint =
+      ccconfig[`job_view_showFootprint`]
 
     let toFetch = new Set([
       "flops_any",
@@ -209,7 +213,7 @@
       <Spinner secondary />
     {/if}
   </Col>
-  {#if $jobMetrics.data}
+  {#if $jobMetrics.data && showFootprint}
     {#key $jobMetrics.data}
       <Col>
         <JobFootprint
