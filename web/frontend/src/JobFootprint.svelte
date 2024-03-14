@@ -20,12 +20,12 @@
     const subclusterConfig = clusters.find((c) => c.name == job.cluster).subClusters.find((sc) => sc.name == job.subCluster)
 
     const footprintMetrics = (job.numAcc !== 0)
-        ? (job.exclusive !== 1) 
-            ? ['cpu_load', 'flops_any', 'acc_utilization']
-            : ['cpu_load', 'flops_any', 'acc_utilization', 'mem_bw']
-        : (job.exclusive !== 1) 
-            ? ['cpu_load', 'flops_any', 'mem_used']
-            : ['cpu_load', 'flops_any', 'mem_used', 'mem_bw']
+        ? (job.exclusive !== 1) // GPU
+            ? ['acc_utilization', 'acc_mem_used', 'nv_sm_clock', 'nv_mem_util'] // Shared
+            : ['acc_utilization', 'acc_mem_used', 'nv_sm_clock', 'nv_mem_util'] // Exclusive
+        : (job.exclusive !== 1) // CPU only
+            ? ['flops_any', 'mem_used'] // Shared
+            : ['cpu_load', 'flops_any', 'mem_used', 'mem_bw'] // Exclusive
 
     const footprintData = footprintMetrics.map((fm) => {
         // Mean: Primarily use backend sourced avgs from job.*, secondarily calculate/read from metricdata
@@ -155,7 +155,13 @@
         } else if (metricConfig.aggregation === 'avg' ){
             return defaultThresholds
         } else if (metricConfig.aggregation === 'sum' ){
-            const jobFraction = job.numHWThreads / subClusterConfig.topology.node.length
+            let jobFraction = 0.0
+            if (job.numAcc > 0) {
+                jobFraction = job.numAcc / subClusterConfig.topology.accelerators.length
+            } else if (job.numHWThreads > 0) {
+                jobFraction = job.numHWThreads / subClusterConfig.topology.node.length
+            }
+
             return {
                 peak: round((defaultThresholds.peak * jobFraction), 0),
                 normal: round((defaultThresholds.normal * jobFraction), 0),

@@ -39,7 +39,8 @@
     export let subCluster
     export let isShared = false
     export let forNode = false
-    export let hwthreads = 0
+    export let numhwthreads = 0
+    export let numaccs = 0
 
     if (useStatsSeries == null)
         useStatsSeries = statisticsSeries != null
@@ -54,7 +55,7 @@
     const lineWidth = clusterCockpitConfig.plot_general_lineWidth / window.devicePixelRatio
     const lineColors = clusterCockpitConfig.plot_general_colorscheme
     const backgroundColors = { normal:  'rgba(255, 255, 255, 1.0)', caution: 'rgba(255, 128, 0, 0.3)', alert: 'rgba(255, 0, 0, 0.3)' }
-    const thresholds = findThresholds(metricConfig, scope, typeof subCluster == 'string' ? cluster.subClusters.find(sc => sc.name == subCluster) : subCluster, isShared, hwthreads)
+    const thresholds = findThresholds(metricConfig, scope, typeof subCluster == 'string' ? cluster.subClusters.find(sc => sc.name == subCluster) : subCluster, isShared, numhwthreads, numaccs)
 
     // converts the legend into a simple tooltip
     function legendAsTooltipPlugin({ className, style = { backgroundColor:"rgba(255, 249, 196, 0.92)", color: "black" } } = {}) {
@@ -381,7 +382,7 @@
         }
     }
 
-    export function findThresholds(metricConfig, scope, subCluster, isShared, hwthreads) {
+    export function findThresholds(metricConfig, scope, subCluster, isShared, numhwthreads, numaccs) {
         // console.log('NAME ' + metricConfig.name + ' / SCOPE ' + scope + ' / SUBCLUSTER ' + subCluster.name)
         if (!metricConfig || !scope || !subCluster) {
             console.warn('Argument missing for findThresholds!')
@@ -409,9 +410,13 @@
         }
 
         let divisor = 1
-        if (isShared == true && hwthreads > 0) { // Shared
-            divisor = subCluster.topology.node.length / hwthreads
-        } else if (scope == 'socket')
+        if (isShared == true) { // Shared
+            if (numaccs > 0) {
+                divisor = subCluster.topology.accelerators.length / numaccs
+            } else if (numhwthreads > 0) {
+                divisor = subCluster.topology.node.length / numhwthreads
+            }
+        else if (scope == 'socket')
             divisor = subCluster.topology.socket.length
         else if (scope == 'core')
             divisor = subCluster.topology.core.length
@@ -419,7 +424,7 @@
             divisor = subCluster.topology.accelerators.length
         else if (scope == 'hwthread')
             divisor = subCluster.topology.node.length
-        else {
+        else
             // console.log('TODO: how to calc thresholds for ', scope)
             return null
         }
