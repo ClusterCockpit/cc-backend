@@ -196,50 +196,6 @@
   }
 </script>
 
-<script context="module">
-    export function findJobThresholds(job, metricConfig, subClusterConfig) {
-
-    if (!job || !metricConfig || !subClusterConfig) {
-        console.warn('Argument missing for findJobThresholds!')
-        return null
-    }
-
-    const subclusterThresholds = metricConfig.subClusters.find(sc => sc.name == subClusterConfig.name)
-    const defaultThresholds = { 
-        peak:    subclusterThresholds ? subclusterThresholds.peak    : metricConfig.peak,
-        normal:  subclusterThresholds ? subclusterThresholds.normal  : metricConfig.normal,
-        caution: subclusterThresholds ? subclusterThresholds.caution : metricConfig.caution,
-        alert:   subclusterThresholds ? subclusterThresholds.alert   : metricConfig.alert
-    }
-
-    if (job.exclusive === 1) { // Exclusive: Use as defined
-        return defaultThresholds
-    } else { // Shared: Handle specifically
-        if (metricConfig.name === 'cpu_load') { // Special: Avg Aggregation BUT scaled based on #hwthreads
-            return { 
-                peak:    job.numHWThreads,
-                normal:  job.numHWThreads,
-                caution: defaultThresholds.caution,
-                alert:   defaultThresholds.alert
-            }   
-        } else if (metricConfig.aggregation === 'avg' ){
-            return defaultThresholds
-        } else if (metricConfig.aggregation === 'sum' ){
-            const jobFraction = job.numHWThreads / subClusterConfig.topology.node.length
-            return {
-                peak: round((defaultThresholds.peak * jobFraction), 0),
-                normal: round((defaultThresholds.normal * jobFraction), 0),
-                caution: round((defaultThresholds.caution * jobFraction), 0),
-                alert: round((defaultThresholds.alert * jobFraction), 0)
-            }
-        } else {
-            console.warn('Missing or unkown aggregation mode (sum/avg) for metric:', metricConfig)
-            return null
-        }
-    } // Other job.exclusive cases?
-}
-</script>
-
 <Card class="h-auto mt-1" style="width: {width}px;">
   {#if view === "job"}
     <CardHeader>
