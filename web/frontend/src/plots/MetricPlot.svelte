@@ -32,7 +32,8 @@
     scope,
     subCluster,
     isShared,
-    hwthreads,
+    numhwthreads,
+    numaccs
   ) {
     // console.log('NAME ' + metricConfig.name + ' / SCOPE ' + scope + ' / SUBCLUSTER ' + subCluster.name)
     if (!metricConfig || !scope || !subCluster) {
@@ -157,7 +158,8 @@
   export let subCluster;
   export let isShared = false;
   export let forNode = false;
-  export let hwthreads = 0;
+  export let numhwthreads = 0;
+  export let numaccs = 0;
 
   if (useStatsSeries == null) useStatsSeries = statisticsSeries != null;
 
@@ -182,7 +184,8 @@
       ? cluster.subClusters.find((sc) => sc.name == subCluster)
       : subCluster,
     isShared,
-    hwthreads,
+    numhwthreads,
+    numaccs
   );
 
   // converts the legend into a simple tooltip
