@@ -134,7 +134,7 @@ func initEnv() {
 }
 
 func main() {
-	var flagReinitDB, flagInit, flagServer, flagSyncLDAP, flagGops, flagMigrateDB, flagDev, flagVersion, flagLogDateTime bool
+	var flagReinitDB, flagInit, flagServer, flagSyncLDAP, flagGops, flagMigrateDB, flagRevertDB, flagForceDB, flagDev, flagVersion, flagLogDateTime bool
 	var flagNewUser, flagDelUser, flagGenJWT, flagConfigFile, flagImportJob, flagLogLevel string
 	flag.BoolVar(&flagInit, "init", false, "Setup var directory, initialize swlite database file, config.json and .env")
 	flag.BoolVar(&flagReinitDB, "init-db", false, "Go through job-archive and re-initialize the 'job', 'tag', and 'jobtag' tables (all running jobs will be lost!)")
@@ -144,6 +144,8 @@ func main() {
 	flag.BoolVar(&flagDev, "dev", false, "Enable development components: GraphQL Playground and Swagger UI")
 	flag.BoolVar(&flagVersion, "version", false, "Show version information and exit")
 	flag.BoolVar(&flagMigrateDB, "migrate-db", false, "Migrate database to supported version and exit")
+	flag.BoolVar(&flagRevertDB, "revert-db", false, "Migrate database to previous version and exit")
+	flag.BoolVar(&flagForceDB, "force-db", false, "Force database version, clear dirty flag and exit")
 	flag.BoolVar(&flagLogDateTime, "logdate", false, "Set this flag to add date and time to log messages")
 	flag.StringVar(&flagConfigFile, "config", "./config.json", "Specify alternative path to `config.json`")
 	flag.StringVar(&flagNewUser, "add-user", "", "Add a new user. Argument format: `<username>:[admin,support,manager,api,user]:<password>`")
@@ -199,6 +201,22 @@ func main() {
 
 	if flagMigrateDB {
 		err := repository.MigrateDB(config.Keys.DBDriver, config.Keys.DB)
+		if err != nil {
+			log.Fatal(err)
+		}
+		os.Exit(0)
+	}
+
+	if flagRevertDB {
+		err := repository.RevertDB(config.Keys.DBDriver, config.Keys.DB)
+		if err != nil {
+			log.Fatal(err)
+		}
+		os.Exit(0)
+	}
+
+	if flagForceDB {
+		err := repository.ForceDB(config.Keys.DBDriver, config.Keys.DB)
 		if err != nil {
 			log.Fatal(err)
 		}

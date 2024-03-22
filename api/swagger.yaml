@@ -50,6 +50,15 @@ definitions:
       msg:
         type: string
     type: object
+  api.EditMetaRequest:
+    properties:
+      key:
+        example: jobScript
+        type: string
+      value:
+        example: bash script
+        type: string
+    type: object
   api.ErrorResponse:
     properties:
       error:
@@ -58,6 +67,14 @@ definitions:
       status:
         description: Statustext of Errorcode
         type: string
+    type: object
+  api.GetClustersApiResponse:
+    properties:
+      clusters:
+        description: Array of clusters
+        items:
+          $ref: '#/definitions/schema.Cluster'
+        type: array
     type: object
   api.GetJobApiResponse:
     properties:
@@ -124,6 +141,28 @@ definitions:
     - jobState
     - stopTime
     type: object
+  schema.Accelerator:
+    properties:
+      id:
+        type: string
+      model:
+        type: string
+      type:
+        type: string
+    type: object
+  schema.Cluster:
+    properties:
+      metricConfig:
+        items:
+          $ref: '#/definitions/schema.MetricConfig'
+        type: array
+      name:
+        type: string
+      subClusters:
+        items:
+          $ref: '#/definitions/schema.SubCluster'
+        type: array
+    type: object
   schema.Job:
     description: Information of a HPC job.
     properties:
@@ -150,6 +189,9 @@ definitions:
         maximum: 2
         minimum: 0
         type: integer
+      flopsAnyAvg:
+        description: FlopsAnyAvg as Float64
+        type: number
       id:
         description: The unique identifier of a job in the database
         type: integer
@@ -169,6 +211,15 @@ definitions:
         - timeout
         - out_of_memory
         example: completed
+      loadAvg:
+        description: LoadAvg as Float64
+        type: number
+      memBwAvg:
+        description: MemBwAvg as Float64
+        type: number
+      memUsedMax:
+        description: MemUsedMax as Float64
+        type: number
       metaData:
         additionalProperties:
           type: string
@@ -427,6 +478,31 @@ definitions:
       unit:
         $ref: '#/definitions/schema.Unit'
     type: object
+  schema.MetricConfig:
+    properties:
+      aggregation:
+        type: string
+      alert:
+        type: number
+      caution:
+        type: number
+      name:
+        type: string
+      normal:
+        type: number
+      peak:
+        type: number
+      scope:
+        $ref: '#/definitions/schema.MetricScope'
+      subClusters:
+        items:
+          $ref: '#/definitions/schema.SubClusterConfig'
+        type: array
+      timestep:
+        type: integer
+      unit:
+        $ref: '#/definitions/schema.Unit'
+    type: object
   schema.MetricScope:
     enum:
     - invalid_scope
@@ -452,6 +528,13 @@ definitions:
       max:
         type: number
       min:
+        type: number
+    type: object
+  schema.MetricValue:
+    properties:
+      unit:
+        $ref: '#/definitions/schema.Unit'
+      value:
         type: number
     type: object
   schema.Resource:
@@ -508,6 +591,44 @@ definitions:
           type: array
         type: object
     type: object
+  schema.SubCluster:
+    properties:
+      coresPerSocket:
+        type: integer
+      flopRateScalar:
+        $ref: '#/definitions/schema.MetricValue'
+      flopRateSimd:
+        $ref: '#/definitions/schema.MetricValue'
+      memoryBandwidth:
+        $ref: '#/definitions/schema.MetricValue'
+      name:
+        type: string
+      nodes:
+        type: string
+      processorType:
+        type: string
+      socketsPerNode:
+        type: integer
+      threadsPerCore:
+        type: integer
+      topology:
+        $ref: '#/definitions/schema.Topology'
+    type: object
+  schema.SubClusterConfig:
+    properties:
+      alert:
+        type: number
+      caution:
+        type: number
+      name:
+        type: string
+      normal:
+        type: number
+      peak:
+        type: number
+      remove:
+        type: boolean
+    type: object
   schema.Tag:
     description: Defines a tag using name and type.
     properties:
@@ -522,6 +643,41 @@ definitions:
         description: Tag Type
         example: Debug
         type: string
+    type: object
+  schema.Topology:
+    properties:
+      accelerators:
+        items:
+          $ref: '#/definitions/schema.Accelerator'
+        type: array
+      core:
+        items:
+          items:
+            type: integer
+          type: array
+        type: array
+      die:
+        items:
+          items:
+            type: integer
+          type: array
+        type: array
+      memoryDomain:
+        items:
+          items:
+            type: integer
+          type: array
+        type: array
+      node:
+        items:
+          type: integer
+        type: array
+      socket:
+        items:
+          items:
+            type: integer
+          type: array
+        type: array
     type: object
   schema.Unit:
     properties:
@@ -543,6 +699,43 @@ info:
   title: ClusterCockpit REST API
   version: 1.0.0
 paths:
+  /clusters/:
+    get:
+      description: Get a list of all cluster configs. Specific cluster can be requested
+        using query parameter.
+      parameters:
+      - description: Job Cluster
+        in: query
+        name: cluster
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Array of clusters
+          schema:
+            $ref: '#/definitions/api.GetClustersApiResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Lists all cluster configs
+      tags:
+      - Cluster query
   /jobs/:
     get:
       description: |-
@@ -609,6 +802,57 @@ paths:
       tags:
       - Job query
   /jobs/{id}:
+    get:
+      description: |-
+        Job to get is specified by database ID
+        Returns full job resource information according to 'JobMeta' scheme and all metrics according to 'JobData'.
+      parameters:
+      - description: Database ID of Job
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Include all available metrics
+        in: query
+        name: all-metrics
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job resource
+          schema:
+            $ref: '#/definitions/api.GetJobApiResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Resource not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: 'Unprocessable Entity: finding job failed: sql: no rows in
+            result set'
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get job meta and optional all metric data
+      tags:
+      - Job query
     post:
       consumes:
       - application/json
@@ -663,7 +907,7 @@ paths:
             $ref: '#/definitions/api.ErrorResponse'
       security:
       - ApiKeyAuth: []
-      summary: Get complete job meta and metric data
+      summary: Get job meta and configurable metric data
       tags:
       - Job query
   /jobs/delete_job/:
@@ -810,6 +1054,53 @@ paths:
       summary: Remove a job from the sql database
       tags:
       - Job remove
+  /jobs/edit_meta/{id}:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Edit key value pairs in job metadata json
+        If a key already exists its content will be overwritten
+      parameters:
+      - description: Job Database ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Kay value pair to add
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.EditMetaRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated job resource
+          schema:
+            $ref: '#/definitions/schema.Job'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Job does not exist
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Edit meta-data json
+      tags:
+      - Job add and modify
   /jobs/start_job/:
     post:
       consumes:
