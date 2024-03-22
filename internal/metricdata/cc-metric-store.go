@@ -32,32 +32,32 @@ type CCMetricStoreConfig struct {
 }
 
 type CCMetricStore struct {
+	here2there    map[string]string
+	there2here    map[string]string
+	client        http.Client
 	jwt           string
 	url           string
 	queryEndpoint string
-	client        http.Client
-	here2there    map[string]string
-	there2here    map[string]string
 }
 
 type ApiQueryRequest struct {
 	Cluster     string     `json:"cluster"`
+	Queries     []ApiQuery `json:"queries"`
+	ForAllNodes []string   `json:"for-all-nodes"`
 	From        int64      `json:"from"`
 	To          int64      `json:"to"`
 	WithStats   bool       `json:"with-stats"`
 	WithData    bool       `json:"with-data"`
-	Queries     []ApiQuery `json:"queries"`
-	ForAllNodes []string   `json:"for-all-nodes"`
 }
 
 type ApiQuery struct {
+	Type       *string  `json:"type,omitempty"`
+	SubType    *string  `json:"subtype,omitempty"`
 	Metric     string   `json:"metric"`
 	Hostname   string   `json:"host"`
-	Aggregate  bool     `json:"aggreg"`
-	Type       *string  `json:"type,omitempty"`
 	TypeIds    []string `json:"type-ids,omitempty"`
-	SubType    *string  `json:"subtype,omitempty"`
 	SubTypeIds []string `json:"subtype-ids,omitempty"`
+	Aggregate  bool     `json:"aggreg"`
 }
 
 type ApiQueryResponse struct {
@@ -67,16 +67,15 @@ type ApiQueryResponse struct {
 
 type ApiMetricData struct {
 	Error *string        `json:"error"`
+	Data  []schema.Float `json:"data"`
 	From  int64          `json:"from"`
 	To    int64          `json:"to"`
-	Data  []schema.Float `json:"data"`
 	Avg   schema.Float   `json:"avg"`
 	Min   schema.Float   `json:"min"`
 	Max   schema.Float   `json:"max"`
 }
 
 func (ccms *CCMetricStore) Init(rawConfig json.RawMessage) error {
-
 	var config CCMetricStoreConfig
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
 		log.Warn("Error while unmarshaling raw json config")
@@ -122,8 +121,8 @@ func (ccms *CCMetricStore) toLocalName(metric string) string {
 
 func (ccms *CCMetricStore) doRequest(
 	ctx context.Context,
-	body *ApiQueryRequest) (*ApiQueryResponse, error) {
-
+	body *ApiQueryRequest,
+) (*ApiQueryResponse, error) {
 	buf := &bytes.Buffer{}
 	if err := json.NewEncoder(buf).Encode(body); err != nil {
 		log.Warn("Error while encoding request body")
@@ -162,8 +161,8 @@ func (ccms *CCMetricStore) LoadData(
 	job *schema.Job,
 	metrics []string,
 	scopes []schema.MetricScope,
-	ctx context.Context) (schema.JobData, error) {
-
+	ctx context.Context,
+) (schema.JobData, error) {
 	queries, assignedScope, err := ccms.buildQueries(job, metrics, scopes)
 	if err != nil {
 		log.Warn("Error while building queries")
@@ -186,7 +185,7 @@ func (ccms *CCMetricStore) LoadData(
 	}
 
 	var errors []string
-	var jobData schema.JobData = make(schema.JobData)
+	jobData := make(schema.JobData)
 	for i, row := range resBody.Results {
 		query := req.Queries[i]
 		metric := ccms.toLocalName(query.Metric)
@@ -267,8 +266,8 @@ var (
 func (ccms *CCMetricStore) buildQueries(
 	job *schema.Job,
 	metrics []string,
-	scopes []schema.MetricScope) ([]ApiQuery, []schema.MetricScope, error) {
-
+	scopes []schema.MetricScope,
+) ([]ApiQuery, []schema.MetricScope, error) {
 	queries := make([]ApiQuery, 0, len(metrics)*len(scopes)*len(job.Resources))
 	assignedScope := []schema.MetricScope{}
 
@@ -504,8 +503,8 @@ func (ccms *CCMetricStore) buildQueries(
 func (ccms *CCMetricStore) LoadStats(
 	job *schema.Job,
 	metrics []string,
-	ctx context.Context) (map[string]map[string]schema.MetricStatistics, error) {
-
+	ctx context.Context,
+) (map[string]map[string]schema.MetricStatistics, error) {
 	queries, _, err := ccms.buildQueries(job, metrics, []schema.MetricScope{schema.MetricScopeNode}) // #166 Add scope shere for analysis view accelerator normalization?
 	if err != nil {
 		log.Warn("Error while building query")
@@ -566,8 +565,8 @@ func (ccms *CCMetricStore) LoadNodeData(
 	metrics, nodes []string,
 	scopes []schema.MetricScope,
 	from, to time.Time,
-	ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
-
+	ctx context.Context,
+) (map[string]map[string][]*schema.JobMetric, error) {
 	req := ApiQueryRequest{
 		Cluster:   cluster,
 		From:      from.Unix(),
@@ -652,7 +651,6 @@ func (ccms *CCMetricStore) LoadNodeData(
 }
 
 func intToStringSlice(is []int) []string {
-
 	ss := make([]string, len(is))
 	for i, x := range is {
 		ss[i] = strconv.Itoa(x)
