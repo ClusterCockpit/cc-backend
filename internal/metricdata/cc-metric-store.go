@@ -206,7 +206,7 @@ func (ccms *CCMetricStore) LoadData(
 			jobData[metric][scope] = jobMetric
 		}
 
-		for _, res := range row {
+		for ndx, res := range row {
 			if res.Error != nil {
 				/* Build list for "partial errors", if any */
 				errors = append(errors, fmt.Sprintf("failed to fetch '%s' from host '%s': %s", query.Metric, query.Hostname, *res.Error))
@@ -216,7 +216,7 @@ func (ccms *CCMetricStore) LoadData(
 			id := (*string)(nil)
 			if query.Type != nil {
 				id = new(string)
-				*id = query.TypeIds[0]
+				*id = query.TypeIds[ndx]
 			}
 
 			if res.Avg.IsNaN() || res.Min.IsNaN() || res.Max.IsNaN() {
@@ -313,6 +313,11 @@ func (ccms *CCMetricStore) buildQueries(
 
 				// Accelerator -> Accelerator (Use "accelerator" scope if requested scope is lower than node)
 				if nativeScope == schema.MetricScopeAccelerator && scope.LT(schema.MetricScopeNode) {
+					if scope != schema.MetricScopeAccelerator {
+						// Skip all other catched cases
+						continue
+					}
+
 					queries = append(queries, ApiQuery{
 						Metric:    remoteName,
 						Hostname:  host.Hostname,
