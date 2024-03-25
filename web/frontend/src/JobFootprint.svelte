@@ -23,38 +23,25 @@
         : metricConfig.alert,
     };
 
-    if (job.exclusive === 1) {
-      // Exclusive: Use as defined
+    // Job_Exclusivity does not matter, only aggregation
+    if (metricConfig.aggregation === "avg") {
       return defaultThresholds;
+    } else if (metricConfig.aggregation === "sum") {
+      const jobFraction =
+        job.numHWThreads / subClusterConfig.topology.node.length;
+      return {
+        peak: round(defaultThresholds.peak * jobFraction, 0),
+        normal: round(defaultThresholds.normal * jobFraction, 0),
+        caution: round(defaultThresholds.caution * jobFraction, 0),
+        alert: round(defaultThresholds.alert * jobFraction, 0),
+      };
     } else {
-      // Shared: Handle specifically
-      if (metricConfig.name === "cpu_load") {
-        // Special: Avg Aggregation BUT scaled based on #hwthreads
-        return {
-          peak: job.numHWThreads,
-          normal: job.numHWThreads,
-          caution: defaultThresholds.caution,
-          alert: defaultThresholds.alert,
-        };
-      } else if (metricConfig.aggregation === "avg") {
-        return defaultThresholds;
-      } else if (metricConfig.aggregation === "sum") {
-        const jobFraction =
-          job.numHWThreads / subClusterConfig.topology.node.length;
-        return {
-          peak: round(defaultThresholds.peak * jobFraction, 0),
-          normal: round(defaultThresholds.normal * jobFraction, 0),
-          caution: round(defaultThresholds.caution * jobFraction, 0),
-          alert: round(defaultThresholds.alert * jobFraction, 0),
-        };
-      } else {
-        console.warn(
-          "Missing or unkown aggregation mode (sum/avg) for metric:",
-          metricConfig,
-        );
-        return null;
-      }
-    } // Other job.exclusive cases?
+      console.warn(
+        "Missing or unkown aggregation mode (sum/avg) for metric:",
+        metricConfig,
+      );
+      return defaultThresholds;
+    }
   }
 </script>
 
@@ -91,29 +78,6 @@
         : ["cpu_load", "flops_any", "mem_used", "mem_bw"]; // Exclusive
 
   const footprintData = footprintMetrics.map((fm) => {
-    // Mean: Primarily use backend sourced avgs from job.*, secondarily calculate/read from metricdata
-    let mv = null;
-    if (fm === "cpu_load" && job.loadAvg !== 0) {
-      mv = round(job.loadAvg, 2);
-    } else if (fm === "flops_any" && job.flopsAnyAvg !== 0) {
-      mv = round(job.flopsAnyAvg, 2);
-    } else if (fm === "mem_bw" && job.memBwAvg !== 0) {
-      mv = round(job.memBwAvg, 2);
-    } else {
-      // Calculate from jobMetrics
-      const jm = jobMetrics.find((jm) => jm.name === fm && jm.scope === "node");
-      if (jm?.metric?.statisticsSeries) {
-        mv = round(mean(jm.metric.statisticsSeries.mean), 2);
-      } else if (jm?.metric?.series?.length > 1) {
-        const avgs = jm.metric.series.map((jms) => jms.statistics.avg);
-        mv = round(mean(avgs), 2);
-      } else if (jm?.metric?.series) {
-        mv = round(jm.metric.series[0].statistics.avg, 2);
-      } else {
-        mv = 0.0;
-      }
-    }
-
     // Unit
     const fmc = getContext("metrics")(job.cluster, fm);
     let unit = "";
@@ -122,6 +86,44 @@
     // Threshold / -Differences
     const fmt = findJobThresholds(job, fmc, subclusterConfig);
     if (fm === "flops_any") fmt.peak = round(fmt.peak * 0.85, 0);
+
+    // Value: Primarily use backend sourced avgs from job.*, secondarily calculate/read from metricdata
+    // Exclusivity does not matter
+    let mv = 0.0;
+    if (fmc.aggregation === "avg") {
+      if (fm === "cpu_load" && job.loadAvg !== 0) {
+        mv = round(job.loadAvg, 2);
+      } else if (fm === "flops_any" && job.flopsAnyAvg !== 0) {
+        mv = round(job.flopsAnyAvg, 2);
+      } else if (fm === "mem_bw" && job.memBwAvg !== 0) {
+        mv = round(job.memBwAvg, 2);
+      } else {
+        // Calculate Avg from jobMetrics
+        const jm = jobMetrics.find((jm) => jm.name === fm && jm.scope === "node");
+        if (jm?.metric?.statisticsSeries) {
+          mv = round(mean(jm.metric.statisticsSeries.mean), 2);
+        } else if (jm?.metric?.series?.length > 1) {
+          const avgs = jm.metric.series.map((jms) => jms.statistics.avg);
+          mv = round(mean(avgs), 2);
+        } else if (jm?.metric?.series) {
+          mv = round(jm.metric.series[0].statistics.avg, 2);
+        }
+      }
+    } else if (fmc.aggregation === "sum") {
+        // Calculate Sum from jobMetrics: Sum all node averages
+        const jm = jobMetrics.find((jm) => jm.name === fm && jm.scope === "node");
+        if (jm?.metric?.series?.length > 1) { // More than 1 node
+          const avgs = jm.metric.series.map((jms) => jms.statistics.avg);
+          mv = round(avgs.reduce((a, b) => a + b, 0));
+        } else if (jm?.metric?.series) {
+          mv = round(jm.metric.series[0].statistics.avg, 2);
+        }
+    } else {
+      console.warn(
+        "Missing or unkown aggregation mode (sum/avg) for metric:",
+        metricConfig,
+      );
+    }
 
     // Define basic data
     const fmBase = {
