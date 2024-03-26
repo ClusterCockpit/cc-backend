@@ -139,10 +139,11 @@ type ComplexityRoot struct {
 	}
 
 	JobResultList struct {
-		Count  func(childComplexity int) int
-		Items  func(childComplexity int) int
-		Limit  func(childComplexity int) int
-		Offset func(childComplexity int) int
+		Count       func(childComplexity int) int
+		HasNextPage func(childComplexity int) int
+		Items       func(childComplexity int) int
+		Limit       func(childComplexity int) int
+		Offset      func(childComplexity int) int
 	}
 
 	JobsStatistics struct {
@@ -754,6 +755,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.JobResultList.Count(childComplexity), true
+
+	case "JobResultList.hasNextPage":
+		if e.complexity.JobResultList.HasNextPage == nil {
+			break
+		}
+
+		return e.complexity.JobResultList.HasNextPage(childComplexity), true
 
 	case "JobResultList.items":
 		if e.complexity.JobResultList.Items == nil {
@@ -1987,6 +1995,7 @@ type JobResultList {
   offset: Int
   limit:  Int
   count:  Int
+  hasNextPage: Boolean!
 }
 
 type JobLinkResultList {
@@ -5221,6 +5230,50 @@ func (ec *executionContext) fieldContext_JobResultList_count(ctx context.Context
 	return fc, nil
 }
 
+func (ec *executionContext) _JobResultList_hasNextPage(ctx context.Context, field graphql.CollectedField, obj *model.JobResultList) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JobResultList_hasNextPage(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.HasNextPage, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JobResultList_hasNextPage(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JobResultList",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _JobsStatistics_id(ctx context.Context, field graphql.CollectedField, obj *model.JobsStatistics) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_JobsStatistics_id(ctx, field)
 	if err != nil {
@@ -8017,6 +8070,8 @@ func (ec *executionContext) fieldContext_Query_jobs(ctx context.Context, field g
 				return ec.fieldContext_JobResultList_limit(ctx, field)
 			case "count":
 				return ec.fieldContext_JobResultList_count(ctx, field)
+			case "hasNextPage":
+				return ec.fieldContext_JobResultList_hasNextPage(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type JobResultList", field.Name)
 		},
@@ -12226,8 +12281,6 @@ func (ec *executionContext) unmarshalInputFloatRange(ctx context.Context, obj in
 		}
 		switch k {
 		case "from":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("from"))
 			data, err := ec.unmarshalNFloat2float64(ctx, v)
 			if err != nil {
@@ -12235,8 +12288,6 @@ func (ec *executionContext) unmarshalInputFloatRange(ctx context.Context, obj in
 			}
 			it.From = data
 		case "to":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("to"))
 			data, err := ec.unmarshalNFloat2float64(ctx, v)
 			if err != nil {
@@ -12264,8 +12315,6 @@ func (ec *executionContext) unmarshalInputIntRange(ctx context.Context, obj inte
 		}
 		switch k {
 		case "from":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("from"))
 			data, err := ec.unmarshalNInt2int(ctx, v)
 			if err != nil {
@@ -12273,8 +12322,6 @@ func (ec *executionContext) unmarshalInputIntRange(ctx context.Context, obj inte
 			}
 			it.From = data
 		case "to":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("to"))
 			data, err := ec.unmarshalNInt2int(ctx, v)
 			if err != nil {
@@ -12302,8 +12349,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 		}
 		switch k {
 		case "tags":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tags"))
 			data, err := ec.unmarshalOID2ᚕstringᚄ(ctx, v)
 			if err != nil {
@@ -12311,8 +12356,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.Tags = data
 		case "jobId":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("jobId"))
 			data, err := ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
 			if err != nil {
@@ -12320,8 +12363,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.JobID = data
 		case "arrayJobId":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("arrayJobId"))
 			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
 			if err != nil {
@@ -12329,8 +12370,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.ArrayJobID = data
 		case "user":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("user"))
 			data, err := ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
 			if err != nil {
@@ -12338,8 +12377,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.User = data
 		case "project":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("project"))
 			data, err := ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
 			if err != nil {
@@ -12347,8 +12384,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.Project = data
 		case "jobName":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("jobName"))
 			data, err := ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
 			if err != nil {
@@ -12356,8 +12391,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.JobName = data
 		case "cluster":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cluster"))
 			data, err := ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
 			if err != nil {
@@ -12365,8 +12398,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.Cluster = data
 		case "partition":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("partition"))
 			data, err := ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
 			if err != nil {
@@ -12374,8 +12405,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.Partition = data
 		case "duration":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("duration"))
 			data, err := ec.unmarshalOIntRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐIntRange(ctx, v)
 			if err != nil {
@@ -12383,8 +12412,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.Duration = data
 		case "minRunningFor":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("minRunningFor"))
 			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
 			if err != nil {
@@ -12392,8 +12419,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.MinRunningFor = data
 		case "numNodes":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("numNodes"))
 			data, err := ec.unmarshalOIntRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐIntRange(ctx, v)
 			if err != nil {
@@ -12401,8 +12426,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.NumNodes = data
 		case "numAccelerators":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("numAccelerators"))
 			data, err := ec.unmarshalOIntRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐIntRange(ctx, v)
 			if err != nil {
@@ -12410,8 +12433,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.NumAccelerators = data
 		case "numHWThreads":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("numHWThreads"))
 			data, err := ec.unmarshalOIntRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐIntRange(ctx, v)
 			if err != nil {
@@ -12419,8 +12440,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.NumHWThreads = data
 		case "startTime":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("startTime"))
 			data, err := ec.unmarshalOTimeRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐTimeRange(ctx, v)
 			if err != nil {
@@ -12428,8 +12447,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.StartTime = data
 		case "state":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("state"))
 			data, err := ec.unmarshalOJobState2ᚕgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐJobStateᚄ(ctx, v)
 			if err != nil {
@@ -12437,8 +12454,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.State = data
 		case "flopsAnyAvg":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("flopsAnyAvg"))
 			data, err := ec.unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFloatRange(ctx, v)
 			if err != nil {
@@ -12446,8 +12461,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.FlopsAnyAvg = data
 		case "memBwAvg":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("memBwAvg"))
 			data, err := ec.unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFloatRange(ctx, v)
 			if err != nil {
@@ -12455,8 +12468,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.MemBwAvg = data
 		case "loadAvg":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("loadAvg"))
 			data, err := ec.unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFloatRange(ctx, v)
 			if err != nil {
@@ -12464,8 +12475,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.LoadAvg = data
 		case "memUsedMax":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("memUsedMax"))
 			data, err := ec.unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFloatRange(ctx, v)
 			if err != nil {
@@ -12473,8 +12482,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.MemUsedMax = data
 		case "exclusive":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exclusive"))
 			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
 			if err != nil {
@@ -12482,8 +12489,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.Exclusive = data
 		case "node":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("node"))
 			data, err := ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
 			if err != nil {
@@ -12515,8 +12520,6 @@ func (ec *executionContext) unmarshalInputOrderByInput(ctx context.Context, obj 
 		}
 		switch k {
 		case "field":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("field"))
 			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
@@ -12524,8 +12527,6 @@ func (ec *executionContext) unmarshalInputOrderByInput(ctx context.Context, obj 
 			}
 			it.Field = data
 		case "order":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("order"))
 			data, err := ec.unmarshalNSortDirectionEnum2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐSortDirectionEnum(ctx, v)
 			if err != nil {
@@ -12553,8 +12554,6 @@ func (ec *executionContext) unmarshalInputPageRequest(ctx context.Context, obj i
 		}
 		switch k {
 		case "itemsPerPage":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("itemsPerPage"))
 			data, err := ec.unmarshalNInt2int(ctx, v)
 			if err != nil {
@@ -12562,8 +12561,6 @@ func (ec *executionContext) unmarshalInputPageRequest(ctx context.Context, obj i
 			}
 			it.ItemsPerPage = data
 		case "page":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("page"))
 			data, err := ec.unmarshalNInt2int(ctx, v)
 			if err != nil {
@@ -12591,8 +12588,6 @@ func (ec *executionContext) unmarshalInputStringInput(ctx context.Context, obj i
 		}
 		switch k {
 		case "eq":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("eq"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
@@ -12600,8 +12595,6 @@ func (ec *executionContext) unmarshalInputStringInput(ctx context.Context, obj i
 			}
 			it.Eq = data
 		case "neq":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("neq"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
@@ -12609,8 +12602,6 @@ func (ec *executionContext) unmarshalInputStringInput(ctx context.Context, obj i
 			}
 			it.Neq = data
 		case "contains":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("contains"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
@@ -12618,8 +12609,6 @@ func (ec *executionContext) unmarshalInputStringInput(ctx context.Context, obj i
 			}
 			it.Contains = data
 		case "startsWith":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("startsWith"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
@@ -12627,8 +12616,6 @@ func (ec *executionContext) unmarshalInputStringInput(ctx context.Context, obj i
 			}
 			it.StartsWith = data
 		case "endsWith":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("endsWith"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
@@ -12636,8 +12623,6 @@ func (ec *executionContext) unmarshalInputStringInput(ctx context.Context, obj i
 			}
 			it.EndsWith = data
 		case "in":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("in"))
 			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
 			if err != nil {
@@ -12665,8 +12650,6 @@ func (ec *executionContext) unmarshalInputTimeRange(ctx context.Context, obj int
 		}
 		switch k {
 		case "from":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("from"))
 			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
 			if err != nil {
@@ -12674,8 +12657,6 @@ func (ec *executionContext) unmarshalInputTimeRange(ctx context.Context, obj int
 			}
 			it.From = data
 		case "to":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("to"))
 			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
 			if err != nil {
@@ -13481,6 +13462,11 @@ func (ec *executionContext) _JobResultList(ctx context.Context, sel ast.Selectio
 			out.Values[i] = ec._JobResultList_limit(ctx, field, obj)
 		case "count":
 			out.Values[i] = ec._JobResultList_count(ctx, field, obj)
+		case "hasNextPage":
+			out.Values[i] = ec._JobResultList_hasNextPage(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
