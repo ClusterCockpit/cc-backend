@@ -278,7 +278,7 @@ type JobResultList {
   offset: Int
   limit:  Int
   count:  Int
-  hasNextPage: Boolean!
+  hasNextPage: Boolean
 }
 
 type JobLinkResultList {

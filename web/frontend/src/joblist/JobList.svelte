@@ -30,7 +30,7 @@
   export let metrics = ccconfig.plot_list_selectedMetrics;
   export let showFootprint;
 
-  let usePaging = !!ccconfig.job_list_usePaging
+  let usePaging = ccconfig.job_list_usePaging
   let itemsPerPage = usePaging ? ccconfig.plot_list_jobsPerPage : 10;
   let page = 1;
   let paging = { itemsPerPage, page };

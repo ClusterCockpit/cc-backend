@@ -82,7 +82,7 @@ type JobResultList struct {
 	Offset      *int          `json:"offset,omitempty"`
 	Limit       *int          `json:"limit,omitempty"`
 	Count       *int          `json:"count,omitempty"`
-	HasNextPage bool          `json:"hasNextPage"`
+	HasNextPage *bool         `json:"hasNextPage,omitempty"`
 }
 
 type JobsStatistics struct {

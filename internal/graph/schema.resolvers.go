@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/generated"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
@@ -234,26 +235,29 @@ func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, pag
 		return nil, err
 	}
 
-	hasNextPage := false
-	nextPage := page
-	nextPage.Page += 1
-
-	nextJobs, err := r.Repo.QueryJobs(ctx, filter, nextPage, order)
-	if err != nil {
-		log.Warn("Error while querying next jobs")
-		return nil, err
-	}
-	if len(nextJobs) > 0 {
-		hasNextPage = true
-	}
-
 	count, err := r.Repo.CountJobs(ctx, filter)
 	if err != nil {
 		log.Warn("Error while counting jobs")
 		return nil, err
 	}
 
-	return &model.JobResultList{Items: jobs, Count: &count, HasNextPage: hasNextPage}, nil
+	if !config.Keys.UiDefaults["job_list_usePaging"].(bool) {
+		hasNextPage := false
+		page.Page += 1
+
+		nextJobs, err := r.Repo.QueryJobs(ctx, filter, page, order)
+		if err != nil {
+			log.Warn("Error while querying next jobs")
+			return nil, err
+		}
+		if len(nextJobs) > 0 {
+			hasNextPage = true
+		}
+
+		return &model.JobResultList{Items: jobs, Count: &count, HasNextPage: &hasNextPage}, nil
+	} else {
+		return &model.JobResultList{Items: jobs, Count: &count}, nil
+	}
 }
 
 // JobsStatistics is the resolver for the jobsStatistics field.
