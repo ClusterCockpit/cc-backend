@@ -65,10 +65,10 @@ type ClusterConfig struct {
 }
 
 type Retention struct {
-	Age       int    `json:"age"`
-	IncludeDB bool   `json:"includeDB"`
 	Policy    string `json:"policy"`
 	Location  string `json:"location"`
+	Age       int    `json:"age"`
+	IncludeDB bool   `json:"includeDB"`
 }
 
 // Format of the configuration (file). See below for the defaults.
@@ -111,6 +111,9 @@ type ProgramConfig struct {
 	// For LDAP Authentication and user synchronisation.
 	LdapConfig *LdapConfig    `json:"ldap"`
 	JwtConfig  *JWTAuthConfig `json:"jwts"`
+
+	// Enable OpenID connect Authentication
+	OpenIDProvider string `json:"openIDProvider"`
 
 	// If 0 or empty, the session does not expire!
 	SessionMaxAge string `json:"session-max-age"`

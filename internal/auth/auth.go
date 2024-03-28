@@ -129,6 +129,29 @@ func Init() (*Authentication, error) {
 	return auth, nil
 }
 
+func (auth *Authentication) SaveSession(rw http.ResponseWriter, r *http.Request, user *schema.User) error {
+	session, err := auth.sessionStore.New(r, "session")
+	if err != nil {
+		log.Errorf("session creation failed: %s", err.Error())
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return err
+	}
+
+	if auth.SessionMaxAge != 0 {
+		session.Options.MaxAge = int(auth.SessionMaxAge.Seconds())
+	}
+	session.Values["username"] = user.Username
+	session.Values["projects"] = user.Projects
+	session.Values["roles"] = user.Roles
+	if err := auth.sessionStore.Save(r, rw, session); err != nil {
+		log.Warnf("session save failed: %s", err.Error())
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return err
+	}
+
+	return nil
+}
+
 func (auth *Authentication) Login(
 	onsuccess http.Handler,
 	onfailure func(rw http.ResponseWriter, r *http.Request, loginErr error),
@@ -161,22 +184,7 @@ func (auth *Authentication) Login(
 				return
 			}
 
-			session, err := auth.sessionStore.New(r, "session")
-			if err != nil {
-				log.Errorf("session creation failed: %s", err.Error())
-				http.Error(rw, err.Error(), http.StatusInternalServerError)
-				return
-			}
-
-			if auth.SessionMaxAge != 0 {
-				session.Options.MaxAge = int(auth.SessionMaxAge.Seconds())
-			}
-			session.Values["username"] = user.Username
-			session.Values["projects"] = user.Projects
-			session.Values["roles"] = user.Roles
-			if err := auth.sessionStore.Save(r, rw, session); err != nil {
-				log.Warnf("session save failed: %s", err.Error())
-				http.Error(rw, err.Error(), http.StatusInternalServerError)
+			if err := auth.SaveSession(rw, r, user); err != nil {
 				return
 			}
 

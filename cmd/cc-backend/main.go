@@ -286,6 +286,7 @@ func main() {
 
 			fmt.Printf("MAIN > JWT for '%s': %s\n", user.Username, jwt)
 		}
+
 	} else if flagNewUser != "" || flagDelUser != "" {
 		log.Fatal("arguments --add-user and --del-user can only be used if authentication is enabled")
 	}
@@ -343,9 +344,18 @@ func main() {
 	r := mux.NewRouter()
 	buildInfo := web.Build{Version: version, Hash: commit, Buildtime: date}
 
+	info := map[string]interface{}{}
+	info["hasOpenIDConnect"] = "false"
+
+	if config.Keys.OpenIDProvider != "" {
+		openIDConnect := auth.NewOIDC(authentication)
+		openIDConnect.RegisterEndpoints(r)
+		info["hasOpenIDConnect"] = "true"
+	}
+
 	r.HandleFunc("/login", func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
-		web.RenderTemplate(rw, "login.tmpl", &web.Page{Title: "Login", Build: buildInfo})
+		web.RenderTemplate(rw, "login.tmpl", &web.Page{Title: "Login", Build: buildInfo, Infos: info})
 	}).Methods(http.MethodGet)
 	r.HandleFunc("/imprint", func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
