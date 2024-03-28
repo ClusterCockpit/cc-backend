@@ -114,12 +114,11 @@ type UpdateUserApiResponse struct {
 
 // StopJobApiRequest model
 type StopJobApiRequest struct {
-	// Stop Time of job as epoch
+	JobId     *int64          `json:"jobId" example:"123000"`
+	Cluster   *string         `json:"cluster" example:"fritz"`
+	StartTime *int64          `json:"startTime" example:"1649723812"`
+	State     schema.JobState `json:"jobState" validate:"required" example:"completed"`
 	StopTime  int64           `json:"stopTime" validate:"required" example:"1649763839"`
-	State     schema.JobState `json:"jobState" validate:"required" example:"completed"` // Final job state
-	JobId     *int64          `json:"jobId" example:"123000"`                           // Cluster Job ID of job
-	Cluster   *string         `json:"cluster" example:"fritz"`                          // Cluster of job
-	StartTime *int64          `json:"startTime" example:"1649723812"`                   // Start Time of job as epoch
 }
 
 // DeleteJobApiRequest model
@@ -176,9 +175,9 @@ type GetCompleteJobApiResponse struct {
 }
 
 type JobMetricWithName struct {
+	Metric *schema.JobMetric  `json:"metric"`
 	Name   string             `json:"name"`
 	Scope  schema.MetricScope `json:"scope"`
-	Metric *schema.JobMetric  `json:"metric"`
 }
 
 type ApiReturnedUser struct {
@@ -482,6 +481,18 @@ func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	job.Tags, err = api.JobRepository.GetTags(&job.ID)
+	if err != nil {
+		handleError(err, http.StatusInternalServerError, rw)
+		return
+
+	}
+	if _, err = api.JobRepository.FetchMetadata(job); err != nil {
+
+		handleError(err, http.StatusInternalServerError, rw)
+		return
+	}
+
 	var scopes []schema.MetricScope
 
 	if job.NumNodes == 1 {
@@ -492,7 +503,7 @@ func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) 
 
 	var data schema.JobData
 
-	if r.URL.Query().Has("all-metrics") {
+	if r.URL.Query().Get("all-metrics") == "true" {
 		data, err = metricdata.LoadData(job, nil, scopes, r.Context())
 		if err != nil {
 			log.Warn("Error while loading job data")
@@ -561,6 +572,18 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
+		return
+	}
+
+	job.Tags, err = api.JobRepository.GetTags(&job.ID)
+	if err != nil {
+		handleError(err, http.StatusInternalServerError, rw)
+		return
+
+	}
+	if _, err = api.JobRepository.FetchMetadata(job); err != nil {
+
+		handleError(err, http.StatusInternalServerError, rw)
 		return
 	}
 
@@ -1218,7 +1241,7 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rw.Write([]byte(fmt.Sprintf("User %v successfully created!\n", username)))
+	fmt.Fprintf(rw, "User %v successfully created!\n", username)
 }
 
 // deleteUser godoc

@@ -30,13 +30,11 @@ var (
 )
 
 type JobRepository struct {
-	DB     *sqlx.DB
-	driver string
-
-	stmtCache *sq.StmtCache
-	cache     *lrucache.Cache
-
+	DB             *sqlx.DB
+	stmtCache      *sq.StmtCache
+	cache          *lrucache.Cache
 	archiveChannel chan *schema.Job
+	driver         string
 	archivePending sync.WaitGroup
 }
 

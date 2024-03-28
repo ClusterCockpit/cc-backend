@@ -31,6 +31,7 @@ var Keys schema.ProgramConfig = schema.ProgramConfig{
 		"job_view_nodestats_selectedMetrics":     []string{"flops_any", "mem_bw", "mem_used"},
 		"job_view_polarPlotMetrics":              []string{"flops_any", "mem_bw", "mem_used"},
 		"job_view_selectedMetrics":               []string{"flops_any", "mem_bw", "mem_used"},
+		"job_view_showFootprint":                 true,
 		"plot_general_colorBackground":           true,
 		"plot_general_colorscheme":               []string{"#00bfff", "#0000ff", "#ff00ff", "#ff0000", "#ff8000", "#ffff00", "#80ff00"},
 		"plot_general_lineWidth":                 3,
