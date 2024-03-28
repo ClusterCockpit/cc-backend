@@ -286,6 +286,7 @@ func main() {
 
 			fmt.Printf("MAIN > JWT for '%s': %s\n", user.Username, jwt)
 		}
+
 	} else if flagNewUser != "" || flagDelUser != "" {
 		log.Fatal("arguments --add-user and --del-user can only be used if authentication is enabled")
 	}
@@ -343,9 +344,19 @@ func main() {
 	r := mux.NewRouter()
 	buildInfo := web.Build{Version: version, Hash: commit, Buildtime: date}
 
+	info := map[string]interface{}{}
+	info["hasOpenIDConnect"] = false
+
+	if config.Keys.OpenIDConfig != nil {
+		openIDConnect := auth.NewOIDC(authentication)
+		openIDConnect.RegisterEndpoints(r)
+		info["hasOpenIDConnect"] = true
+	}
+
 	r.HandleFunc("/login", func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
-		web.RenderTemplate(rw, "login.tmpl", &web.Page{Title: "Login", Build: buildInfo})
+		log.Debugf("##%v##", info)
+		web.RenderTemplate(rw, "login.tmpl", &web.Page{Title: "Login", Build: buildInfo, Infos: info})
 	}).Methods(http.MethodGet)
 	r.HandleFunc("/imprint", func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
@@ -372,6 +383,7 @@ func main() {
 					MsgType: "alert-warning",
 					Message: err.Error(),
 					Build:   buildInfo,
+					Infos:   info,
 				})
 			})).Methods(http.MethodPost)
 
@@ -388,6 +400,7 @@ func main() {
 					MsgType: "alert-warning",
 					Message: err.Error(),
 					Build:   buildInfo,
+					Infos:   info,
 				})
 			}))
 
@@ -400,6 +413,7 @@ func main() {
 					MsgType: "alert-info",
 					Message: "Logout successful",
 					Build:   buildInfo,
+					Infos:   info,
 				})
 			}))).Methods(http.MethodPost)
 
@@ -416,6 +430,7 @@ func main() {
 						MsgType: "alert-danger",
 						Message: err.Error(),
 						Build:   buildInfo,
+						Infos:   info,
 					})
 				})
 		})
@@ -554,8 +569,8 @@ func main() {
 	}
 
 	var cfg struct {
-		Compression int              `json:"compression"`
 		Retention   schema.Retention `json:"retention"`
+		Compression int              `json:"compression"`
 	}
 
 	cfg.Retention.IncludeDB = true

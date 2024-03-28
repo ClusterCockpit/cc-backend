@@ -199,9 +199,7 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 		}
 
 		if jc.SyncUserOnLogin {
-			if err := repository.GetUserRepository().AddUser(user); err != nil {
-				log.Errorf("Error while adding user '%s' to DB", user.Username)
-			}
+			persistUser(user)
 		}
 	}
 
