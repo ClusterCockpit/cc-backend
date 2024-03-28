@@ -315,7 +315,7 @@
 
 <!-- Loading indicator & Refresh -->
 
-<Row>
+<Row cols={3}>
   <Col xs="auto" style="align-self: flex-end;">
     <h4 class="mb-0">Current utilization of cluster "{cluster}"</h4>
   </Col>
@@ -348,7 +348,7 @@
   </Col>
 </Row>
 {#if $mainQuery.error}
-  <Row>
+  <Row cols={1}>
     <Col>
       <Card body color="danger">{$mainQuery.error.message}</Card>
     </Col>
@@ -361,7 +361,7 @@
 
 {#if $initq.data && $mainQuery.data}
   {#each $initq.data.clusters.find((c) => c.name == cluster).subClusters as subCluster, i}
-    <Row class="mb-3 justify-content-center">
+    <Row cols={2} class="mb-3 justify-content-center">
       <Col md="4" class="px-3">
         <Card class="h-auto mt-1">
           <CardHeader>
@@ -457,7 +457,7 @@
 
   <!-- Usage Stats as Histograms -->
 
-  <Row>
+  <Row cols={4}>
     <Col class="p-2">
       <div bind:clientWidth={colWidth1}>
         <h4 class="text-center">
@@ -580,7 +580,7 @@
     </Col>
   </Row>
   <hr class="my-2" />
-  <Row>
+  <Row cols={2}>
     <Col class="p-2">
       <div bind:clientWidth={colWidth2}>
         {#key $mainQuery.data.stats}
