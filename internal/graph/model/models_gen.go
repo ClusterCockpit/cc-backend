@@ -78,10 +78,11 @@ type JobMetricWithName struct {
 }
 
 type JobResultList struct {
-	Items  []*schema.Job `json:"items"`
-	Offset *int          `json:"offset,omitempty"`
-	Limit  *int          `json:"limit,omitempty"`
-	Count  *int          `json:"count,omitempty"`
+	Items       []*schema.Job `json:"items"`
+	Offset      *int          `json:"offset,omitempty"`
+	Limit       *int          `json:"limit,omitempty"`
+	Count       *int          `json:"count,omitempty"`
+	HasNextPage *bool         `json:"hasNextPage,omitempty"`
 }
 
 type JobsStatistics struct {
@@ -122,6 +123,9 @@ type MetricHistoPoints struct {
 	Data   []*MetricHistoPoint `json:"data,omitempty"`
 }
 
+type Mutation struct {
+}
+
 type NodeMetrics struct {
 	Host       string               `json:"host"`
 	SubCluster string               `json:"subCluster"`
@@ -136,6 +140,9 @@ type OrderByInput struct {
 type PageRequest struct {
 	ItemsPerPage int `json:"itemsPerPage"`
 	Page         int `json:"page"`
+}
+
+type Query struct {
 }
 
 type StringInput struct {
