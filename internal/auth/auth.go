@@ -129,6 +129,19 @@ func Init() (*Authentication, error) {
 	return auth, nil
 }
 
+func persistUser(user *schema.User) {
+	r := repository.GetUserRepository()
+	_, err := r.GetUser(user.Username)
+
+	if err != nil && err != sql.ErrNoRows {
+		log.Errorf("Error while loading user '%s': %v", user.Username, err)
+	} else if err == sql.ErrNoRows {
+		if err := r.AddUser(user); err != nil {
+			log.Errorf("Error while adding user '%s' to DB: %v", user.Username, err)
+		}
+	}
+}
+
 func (auth *Authentication) SaveSession(rw http.ResponseWriter, r *http.Request, user *schema.User) error {
 	session, err := auth.sessionStore.New(r, "session")
 	if err != nil {

@@ -49,7 +49,7 @@ func setCallbackCookie(w http.ResponseWriter, r *http.Request, name, value strin
 }
 
 func NewOIDC(a *Authentication) *OIDC {
-	provider, err := oidc.NewProvider(context.Background(), config.Keys.OpenIDProvider)
+	provider, err := oidc.NewProvider(context.Background(), config.Keys.OpenIDConfig.Provider)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -89,6 +89,10 @@ func (oa *OIDC) OAuth2Callback(rw http.ResponseWriter, r *http.Request) {
 	state := c.Value
 
 	c, err = r.Cookie("verifier")
+	if err != nil {
+		http.Error(rw, "verifier cookie not found", http.StatusBadRequest)
+		return
+	}
 	codeVerifier := c.Value
 
 	_ = r.ParseForm()
@@ -152,7 +156,7 @@ func (oa *OIDC) OAuth2Callback(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if len(claims.Profile.Client.Roles) == 0 {
+	if len(roles) == 0 {
 		roles = append(roles, schema.GetRoleString(schema.RoleUser))
 	}
 
@@ -163,6 +167,11 @@ func (oa *OIDC) OAuth2Callback(rw http.ResponseWriter, r *http.Request) {
 		Projects:   projects,
 		AuthSource: schema.AuthViaOIDC,
 	}
+
+	if config.Keys.OpenIDConfig.SyncUserOnLogin {
+		persistUser(user)
+	}
+
 	oa.authentication.SaveSession(rw, r, user)
 	log.Infof("login successfull: user: %#v (roles: %v, projects: %v)", user.Username, user.Roles, user.Projects)
 	ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)

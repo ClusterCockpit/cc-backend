@@ -347,7 +347,7 @@ func main() {
 	info := map[string]interface{}{}
 	info["hasOpenIDConnect"] = false
 
-	if config.Keys.OpenIDProvider != "" {
+	if config.Keys.OpenIDConfig != nil {
 		openIDConnect := auth.NewOIDC(authentication)
 		openIDConnect.RegisterEndpoints(r)
 		info["hasOpenIDConnect"] = true
@@ -569,8 +569,8 @@ func main() {
 	}
 
 	var cfg struct {
-		Compression int              `json:"compression"`
 		Retention   schema.Retention `json:"retention"`
+		Compression int              `json:"compression"`
 	}
 
 	cfg.Retention.IncludeDB = true

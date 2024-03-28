@@ -23,6 +23,11 @@ type LdapConfig struct {
 	SyncUserOnLogin bool `json:"syncUserOnLogin"`
 }
 
+type OpenIDConfig struct {
+	Provider        string `json:"provider"`
+	SyncUserOnLogin bool   `json:"syncUserOnLogin"`
+}
+
 type JWTAuthConfig struct {
 	// Specifies for how long a JWT token shall be valid
 	// as a string parsable by time.ParseDuration().
@@ -109,11 +114,9 @@ type ProgramConfig struct {
 	Validate bool `json:"validate"`
 
 	// For LDAP Authentication and user synchronisation.
-	LdapConfig *LdapConfig    `json:"ldap"`
-	JwtConfig  *JWTAuthConfig `json:"jwts"`
-
-	// Enable OpenID connect Authentication
-	OpenIDProvider string `json:"openIDProvider"`
+	LdapConfig   *LdapConfig    `json:"ldap"`
+	JwtConfig    *JWTAuthConfig `json:"jwts"`
+	OpenIDConfig *OpenIDConfig  `json:"oidc"`
 
 	// If 0 or empty, the session does not expire!
 	SessionMaxAge string `json:"session-max-age"`
