@@ -148,24 +148,23 @@
     });
   }
 
-  window.addEventListener('scroll', () => {
-    let {
-      scrollTop,
-      scrollHeight,
-      clientHeight
-    } = document.documentElement;
-    if (scrollTop + clientHeight >= scrollHeight && !usePaging && $jobsStore.data != null && $jobsStore.data.jobs.hasNextPage) {
-      fetchMore()
-    }
-  });
+  if (!usePaging) {
+    let scrollMultiplier = 1
+    window.addEventListener('scroll', () => {
+      let {
+        scrollTop,
+        scrollHeight,
+        clientHeight
+      } = document.documentElement;
 
-  let scrollMultiplier = 1
-  function fetchMore() {
-    let pendingPaging = { ...paging }
-    scrollMultiplier += 1
-    pendingPaging.itemsPerPage = itemsPerPage * scrollMultiplier
-    paging = pendingPaging
-  }
+      if (scrollTop + clientHeight >= scrollHeight && $jobsStore.data != null && $jobsStore.data.jobs.hasNextPage) {
+        let pendingPaging = { ...paging }
+        scrollMultiplier += 1
+        pendingPaging.itemsPerPage = itemsPerPage * scrollMultiplier
+        paging = pendingPaging
+      };
+    });
+  };
 
   let plotWidth = null;
   let tableWidth = null;
