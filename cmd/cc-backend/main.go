@@ -345,16 +345,17 @@ func main() {
 	buildInfo := web.Build{Version: version, Hash: commit, Buildtime: date}
 
 	info := map[string]interface{}{}
-	info["hasOpenIDConnect"] = "false"
+	info["hasOpenIDConnect"] = false
 
 	if config.Keys.OpenIDProvider != "" {
 		openIDConnect := auth.NewOIDC(authentication)
 		openIDConnect.RegisterEndpoints(r)
-		info["hasOpenIDConnect"] = "true"
+		info["hasOpenIDConnect"] = true
 	}
 
 	r.HandleFunc("/login", func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
+		log.Debugf("##%v##", info)
 		web.RenderTemplate(rw, "login.tmpl", &web.Page{Title: "Login", Build: buildInfo, Infos: info})
 	}).Methods(http.MethodGet)
 	r.HandleFunc("/imprint", func(rw http.ResponseWriter, r *http.Request) {
@@ -382,6 +383,7 @@ func main() {
 					MsgType: "alert-warning",
 					Message: err.Error(),
 					Build:   buildInfo,
+					Infos:   info,
 				})
 			})).Methods(http.MethodPost)
 
@@ -398,6 +400,7 @@ func main() {
 					MsgType: "alert-warning",
 					Message: err.Error(),
 					Build:   buildInfo,
+					Infos:   info,
 				})
 			}))
 
@@ -410,6 +413,7 @@ func main() {
 					MsgType: "alert-info",
 					Message: "Logout successful",
 					Build:   buildInfo,
+					Infos:   info,
 				})
 			}))).Methods(http.MethodPost)
 
@@ -426,6 +430,7 @@ func main() {
 						MsgType: "alert-danger",
 						Message: err.Error(),
 						Build:   buildInfo,
+						Infos:   info,
 					})
 				})
 		})

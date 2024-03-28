@@ -61,12 +61,12 @@ func NewOIDC(a *Authentication) *OIDC {
 	if clientSecret == "" {
 		log.Warn("environment variable 'OID_CLIENT_SECRET' not set (Open ID connect auth will not work)")
 	}
-	redirectURL := "oidc-callback"
+
 	client := &oauth2.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		Endpoint:     provider.Endpoint(),
-		RedirectURL:  redirectURL,
+		RedirectURL:  "oidc-callback",
 		Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
 	}
 

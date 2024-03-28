@@ -38,14 +38,10 @@
                                     <input class="form-control" type="password" id="password" name="password" required/>
                                 </div>
                                 <button type="submit" class="btn btn-success">Submit</button>
-                        <a class="btn btn-primary" href="/oidc-login">OpenID Connect Login</a>
+                                {{- if .Infos.hasOpenIDConnect}}
+                                <a class="btn btn-primary" href="/oidc-login">OpenID Connect Login</a>
+                                {{end}}
                             </form>
-                            {{ range $key, $value := .Infos }}
-                            <strong>{{ $key }}</strong>: {{ $value }},
-                            {{ end }}
-                        {{if .Infos.hasOpenIDConnect }}
-                        <a class="btn btn-primary" href="/oidc-login">OpenID Connect Login</a>
-                        {{end}}
                         </div>
                     </div>
                 </div>
