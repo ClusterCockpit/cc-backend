@@ -24,7 +24,11 @@
   export let showFootprint;
 
   let { id } = job;
-  let scopes = [job.numNodes == 1 ? "core" : "node"];
+  let scopes = job.numNodes == 1
+    ? job.numAcc >= 1
+      ? ["core", "accelerator"]
+      : ["core"]
+    : ["node"];
 
   function distinct(value, index, array) {
     return array.indexOf(value) === index;
@@ -83,7 +87,11 @@
     scopes = ["node"];
   } else {
     queryMetrics = [...metrics];
-    scopes = [job.numNodes == 1 ? "core" : "node"];
+    scopes = job.numNodes == 1
+      ? job.numAcc >= 1
+        ? ["core", "accelerator"]
+        : ["core"]
+      : ["node"];
   }
 
   export function refresh() {
