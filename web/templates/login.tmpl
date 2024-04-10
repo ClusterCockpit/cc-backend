@@ -38,6 +38,9 @@
                                     <input class="form-control" type="password" id="password" name="password" required/>
                                 </div>
                                 <button type="submit" class="btn btn-success">Submit</button>
+                                {{- if .Infos.hasOpenIDConnect}}
+                                <a class="btn btn-primary" href="/oidc-login">OpenID Connect Login</a>
+                                {{end}}
                             </form>
                         </div>
                     </div>

@@ -21,7 +21,7 @@ import (
 
 type LdapAuthenticator struct {
 	syncPassword string
-	UserAttr string
+	UserAttr     string
 }
 
 var _ Authenticator = (*LdapAuthenticator)(nil)
@@ -74,8 +74,8 @@ func (la *LdapAuthenticator) CanLogin(
 	user *schema.User,
 	username string,
 	rw http.ResponseWriter,
-	r *http.Request) (*schema.User, bool) {
-
+	r *http.Request,
+) (*schema.User, bool) {
 	lc := config.Keys.LdapConfig
 
 	if user != nil {
@@ -138,8 +138,8 @@ func (la *LdapAuthenticator) CanLogin(
 func (la *LdapAuthenticator) Login(
 	user *schema.User,
 	rw http.ResponseWriter,
-	r *http.Request) (*schema.User, error) {
-
+	r *http.Request,
+) (*schema.User, error) {
 	l, err := la.getLdapConnection(false)
 	if err != nil {
 		log.Warn("Error while getting ldap connection")
@@ -238,7 +238,6 @@ func (la *LdapAuthenticator) Sync() error {
 }
 
 func (la *LdapAuthenticator) getLdapConnection(admin bool) (*ldap.Conn, error) {
-
 	lc := config.Keys.LdapConfig
 	conn, err := ldap.DialURL(lc.Url)
 	if err != nil {
