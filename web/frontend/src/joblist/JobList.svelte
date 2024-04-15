@@ -157,7 +157,8 @@
         clientHeight
       } = document.documentElement;
 
-      if (scrollTop + clientHeight >= scrollHeight && $jobsStore.data != null && $jobsStore.data.jobs.hasNextPage) {
+      // Add 100 px offset to trigger load earlier
+      if (scrollTop + clientHeight >= scrollHeight - 100 && $jobsStore.data != null && $jobsStore.data.jobs.hasNextPage) {
         let pendingPaging = { ...paging }
         scrollMultiplier += 1
         pendingPaging.itemsPerPage = itemsPerPage * scrollMultiplier
