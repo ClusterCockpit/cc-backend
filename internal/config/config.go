@@ -1,4 +1,4 @@
-// Copyright (C) 2022 NHR@FAU, University Erlangen-Nuremberg.
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
@@ -32,6 +32,7 @@ var Keys schema.ProgramConfig = schema.ProgramConfig{
 		"job_view_polarPlotMetrics":              []string{"flops_any", "mem_bw", "mem_used"},
 		"job_view_selectedMetrics":               []string{"flops_any", "mem_bw", "mem_used"},
 		"job_view_showFootprint":                 true,
+		"job_list_usePaging":                     true,
 		"plot_general_colorBackground":           true,
 		"plot_general_colorscheme":               []string{"#00bfff", "#0000ff", "#ff00ff", "#ff0000", "#ff8000", "#ffff00", "#80ff00"},
 		"plot_general_lineWidth":                 3,

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 NHR@FAU, University Erlangen-Nuremberg.
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
@@ -27,18 +27,18 @@ type Authenticator interface {
 }
 
 type Authentication struct {
-	sessionStore  *sessions.CookieStore
-	SessionMaxAge time.Duration
-
-	authenticators []Authenticator
+	sessionStore   *sessions.CookieStore
 	LdapAuth       *LdapAuthenticator
 	JwtAuth        *JWTAuthenticator
 	LocalAuth      *LocalAuthenticator
+	authenticators []Authenticator
+	SessionMaxAge  time.Duration
 }
 
 func (auth *Authentication) AuthViaSession(
 	rw http.ResponseWriter,
-	r *http.Request) (*schema.User, error) {
+	r *http.Request,
+) (*schema.User, error) {
 	session, err := auth.sessionStore.Get(r, "session")
 	if err != nil {
 		log.Error("Error while getting session store")
@@ -129,10 +129,46 @@ func Init() (*Authentication, error) {
 	return auth, nil
 }
 
+func persistUser(user *schema.User) {
+	r := repository.GetUserRepository()
+	_, err := r.GetUser(user.Username)
+
+	if err != nil && err != sql.ErrNoRows {
+		log.Errorf("Error while loading user '%s': %v", user.Username, err)
+	} else if err == sql.ErrNoRows {
+		if err := r.AddUser(user); err != nil {
+			log.Errorf("Error while adding user '%s' to DB: %v", user.Username, err)
+		}
+	}
+}
+
+func (auth *Authentication) SaveSession(rw http.ResponseWriter, r *http.Request, user *schema.User) error {
+	session, err := auth.sessionStore.New(r, "session")
+	if err != nil {
+		log.Errorf("session creation failed: %s", err.Error())
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return err
+	}
+
+	if auth.SessionMaxAge != 0 {
+		session.Options.MaxAge = int(auth.SessionMaxAge.Seconds())
+	}
+	session.Values["username"] = user.Username
+	session.Values["projects"] = user.Projects
+	session.Values["roles"] = user.Roles
+	if err := auth.sessionStore.Save(r, rw, session); err != nil {
+		log.Warnf("session save failed: %s", err.Error())
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return err
+	}
+
+	return nil
+}
+
 func (auth *Authentication) Login(
 	onsuccess http.Handler,
-	onfailure func(rw http.ResponseWriter, r *http.Request, loginErr error)) http.Handler {
-
+	onfailure func(rw http.ResponseWriter, r *http.Request, loginErr error),
+) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		username := r.FormValue("username")
 		var dbUser *schema.User
@@ -161,22 +197,7 @@ func (auth *Authentication) Login(
 				return
 			}
 
-			session, err := auth.sessionStore.New(r, "session")
-			if err != nil {
-				log.Errorf("session creation failed: %s", err.Error())
-				http.Error(rw, err.Error(), http.StatusInternalServerError)
-				return
-			}
-
-			if auth.SessionMaxAge != 0 {
-				session.Options.MaxAge = int(auth.SessionMaxAge.Seconds())
-			}
-			session.Values["username"] = user.Username
-			session.Values["projects"] = user.Projects
-			session.Values["roles"] = user.Roles
-			if err := auth.sessionStore.Save(r, rw, session); err != nil {
-				log.Warnf("session save failed: %s", err.Error())
-				http.Error(rw, err.Error(), http.StatusInternalServerError)
+			if err := auth.SaveSession(rw, r, user); err != nil {
 				return
 			}
 
@@ -193,10 +214,9 @@ func (auth *Authentication) Login(
 
 func (auth *Authentication) Auth(
 	onsuccess http.Handler,
-	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error)) http.Handler {
-
+	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
+) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-
 		user, err := auth.JwtAuth.AuthViaJWT(rw, r)
 		if err != nil {
 			log.Infof("authentication failed: %s", err.Error())

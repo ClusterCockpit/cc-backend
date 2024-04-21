@@ -1,4 +1,4 @@
-// Copyright (C) 2023 NHR@FAU, University Erlangen-Nuremberg.
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
@@ -199,9 +199,7 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 		}
 
 		if jc.SyncUserOnLogin {
-			if err := repository.GetUserRepository().AddUser(user); err != nil {
-				log.Errorf("Error while adding user '%s' to DB", user.Username)
-			}
+			persistUser(user)
 		}
 	}
 

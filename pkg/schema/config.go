@@ -1,4 +1,4 @@
-// Copyright (C) 2022 NHR@FAU, University Erlangen-Nuremberg.
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
@@ -21,6 +21,11 @@ type LdapConfig struct {
 
 	// Should an non-existent user be added to the DB if user exists in ldap directory
 	SyncUserOnLogin bool `json:"syncUserOnLogin"`
+}
+
+type OpenIDConfig struct {
+	Provider        string `json:"provider"`
+	SyncUserOnLogin bool   `json:"syncUserOnLogin"`
 }
 
 type JWTAuthConfig struct {
@@ -65,10 +70,10 @@ type ClusterConfig struct {
 }
 
 type Retention struct {
-	Age       int    `json:"age"`
-	IncludeDB bool   `json:"includeDB"`
 	Policy    string `json:"policy"`
 	Location  string `json:"location"`
+	Age       int    `json:"age"`
+	IncludeDB bool   `json:"includeDB"`
 }
 
 // Format of the configuration (file). See below for the defaults.
@@ -109,8 +114,9 @@ type ProgramConfig struct {
 	Validate bool `json:"validate"`
 
 	// For LDAP Authentication and user synchronisation.
-	LdapConfig *LdapConfig    `json:"ldap"`
-	JwtConfig  *JWTAuthConfig `json:"jwts"`
+	LdapConfig   *LdapConfig    `json:"ldap"`
+	JwtConfig    *JWTAuthConfig `json:"jwts"`
+	OpenIDConfig *OpenIDConfig  `json:"oidc"`
 
 	// If 0 or empty, the session does not expire!
 	SessionMaxAge string `json:"session-max-age"`

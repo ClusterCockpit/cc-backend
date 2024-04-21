@@ -30,7 +30,8 @@
   export let metrics = ccconfig.plot_list_selectedMetrics;
   export let showFootprint;
 
-  let itemsPerPage = ccconfig.plot_list_jobsPerPage;
+  let usePaging = ccconfig.job_list_usePaging
+  let itemsPerPage = usePaging ? ccconfig.plot_list_jobsPerPage : 10;
   let page = 1;
   let paging = { itemsPerPage, page };
   let filter = [];
@@ -79,21 +80,27 @@
           loadAvg
         }
         count
+        hasNextPage
       }
     }
   `;
 
-  $: jobs = queryStore({
+  $: jobsStore = queryStore({
     client: client,
     query: query,
     variables: { paging, sorting, filter },
   });
 
-  $: matchedJobs = $jobs.data != null ? $jobs.data.jobs.count : 0;
+  let jobs = []
+  $: if ($initialized && $jobsStore.data) {
+    jobs = [...$jobsStore.data.jobs.items]
+  }
+
+  $: matchedJobs = $jobsStore.data != null ? $jobsStore.data.jobs.count : 0;
 
   // Force refresh list with existing unchanged variables (== usually would not trigger reactivity)
   export function refresh() {
-    jobs = queryStore({
+    jobsStore = queryStore({
       client: client,
       query: query,
       variables: { paging, sorting, filter },
@@ -132,6 +139,7 @@
       value: value,
     }).subscribe((res) => {
       if (res.fetching === false && !res.error) {
+        jobs = [] // Empty List
         paging = { itemsPerPage: value, page: page }; // Trigger reload of jobList
       } else if (res.fetching === false && res.error) {
         throw res.error;
@@ -139,6 +147,25 @@
       }
     });
   }
+
+  if (!usePaging) {
+    let scrollMultiplier = 1
+    window.addEventListener('scroll', () => {
+      let {
+        scrollTop,
+        scrollHeight,
+        clientHeight
+      } = document.documentElement;
+
+      // Add 100 px offset to trigger load earlier
+      if (scrollTop + clientHeight >= scrollHeight - 100 && $jobsStore.data != null && $jobsStore.data.jobs.hasNextPage) {
+        let pendingPaging = { ...paging }
+        scrollMultiplier += 1
+        pendingPaging.itemsPerPage = itemsPerPage * scrollMultiplier
+        paging = pendingPaging
+      };
+    });
+  };
 
   let plotWidth = null;
   let tableWidth = null;
@@ -212,22 +239,16 @@
         </tr>
       </thead>
       <tbody>
-        {#if $jobs.error}
+        {#if $jobsStore.error}
           <tr>
             <td colspan={metrics.length + 1}>
               <Card body color="danger" class="mb-3"
-                ><h2>{$jobs.error.message}</h2></Card
+                ><h2>{$jobsStore.error.message}</h2></Card
               >
             </td>
           </tr>
-        {:else if $jobs.fetching || !$jobs.data}
-          <tr>
-            <td colspan={metrics.length + 1}>
-              <Spinner secondary />
-            </td>
-          </tr>
-        {:else if $jobs.data && $initialized}
-          {#each $jobs.data.jobs.items as job (job)}
+        {:else}
+          {#each jobs as job (job)}
             <JobListRow {job} {metrics} {plotWidth} {showFootprint} />
           {:else}
             <tr>
@@ -235,24 +256,36 @@
             </tr>
           {/each}
         {/if}
+        {#if $jobsStore.fetching || !$jobsStore.data}
+          <tr>
+            <td colspan={metrics.length + 1}>
+              <div style="text-align:center;">
+                <Spinner secondary />
+              </div>
+            </td>
+          </tr>
+        {/if}
       </tbody>
     </Table>
   </div>
 </Row>
 
-<Pagination
-  bind:page
-  {itemsPerPage}
-  itemText="Jobs"
-  totalItems={matchedJobs}
-  on:update={({ detail }) => {
-    if (detail.itemsPerPage != itemsPerPage) {
-      updateConfiguration(detail.itemsPerPage.toString(), detail.page);
-    } else {
-      paging = { itemsPerPage: detail.itemsPerPage, page: detail.page };
-    }
-  }}
-/>
+{#if usePaging}
+  <Pagination
+    bind:page
+    {itemsPerPage}
+    itemText="Jobs"
+    totalItems={matchedJobs}
+    on:update={({ detail }) => {
+      if (detail.itemsPerPage != itemsPerPage) {
+        updateConfiguration(detail.itemsPerPage.toString(), detail.page);
+      } else {
+        jobs = []
+        paging = { itemsPerPage: detail.itemsPerPage, page: detail.page };
+      }
+    }}
+  />
+{/if}
 
 <style>
   .cc-table-wrapper {
