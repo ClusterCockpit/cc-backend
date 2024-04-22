@@ -28,6 +28,11 @@ type Job {
   resources:        [Resource!]!
   concurrentJobs:   JobLinkResultList
 
+  memUsedMax:       Float
+  flopsAnyAvg:      Float
+  memBwAvg:         Float
+  loadAvg:          Float
+
   metaData:         Any
   userData:         User
 }
@@ -198,7 +203,7 @@ type Query {
   jobsFootprints(filter: [JobFilter!], metrics: [String!]!): Footprints
 
   jobs(filter: [JobFilter!], page: PageRequest, order: OrderByInput): JobResultList!
-  jobsStatistics(filter: [JobFilter!], page: PageRequest, sortBy: SortByAggregate, groupBy: Aggregate): [JobsStatistics!]!
+  jobsStatistics(filter: [JobFilter!], metrics: [String!], page: PageRequest, sortBy: SortByAggregate, groupBy: Aggregate): [JobsStatistics!]!
 
   rooflineHeatmap(filter: [JobFilter!]!, rows: Int!, cols: Int!, minX: Float!, minY: Float!, maxX: Float!, maxY: Float!): [[Float!]!]!
 
@@ -273,6 +278,7 @@ type JobResultList {
   offset: Int
   limit:  Int
   count:  Int
+  hasNextPage: Boolean
 }
 
 type JobLinkResultList {
@@ -284,6 +290,19 @@ type JobLinkResultList {
 type HistoPoint {
   count: Int!
   value: Int!
+}
+
+type MetricHistoPoints {
+  metric: String!
+  unit: String!
+  data: [MetricHistoPoint!]
+}
+
+type MetricHistoPoint {
+  bin: Int
+  count: Int!
+  min: Int
+  max: Int
 }
 
 type JobsStatistics  {
@@ -303,6 +322,7 @@ type JobsStatistics  {
   histNumNodes:   [HistoPoint!]! # value: number of nodes, count: number of jobs with that number of nodes
   histNumCores:   [HistoPoint!]! # value: number of cores, count: number of jobs with that number of cores
   histNumAccs:    [HistoPoint!]! # value: number of accs, count: number of jobs with that number of accs
+  histMetrics:    [MetricHistoPoints!]! # metric: metricname, data array of histopoints: value: metric average bin, count: number of jobs with that metric average
 }
 
 input PageRequest {

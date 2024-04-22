@@ -25,6 +25,7 @@ import (
 // NewExecutableSchema creates an ExecutableSchema from the ResolverRoot interface.
 func NewExecutableSchema(cfg Config) graphql.ExecutableSchema {
 	return &executableSchema{
+		schema:     cfg.Schema,
 		resolvers:  cfg.Resolvers,
 		directives: cfg.Directives,
 		complexity: cfg.Complexity,
@@ -32,6 +33,7 @@ func NewExecutableSchema(cfg Config) graphql.ExecutableSchema {
 }
 
 type Config struct {
+	Schema     *ast.Schema
 	Resolvers  ResolverRoot
 	Directives DirectiveRoot
 	Complexity ComplexityRoot
@@ -88,8 +90,12 @@ type ComplexityRoot struct {
 		ConcurrentJobs   func(childComplexity int) int
 		Duration         func(childComplexity int) int
 		Exclusive        func(childComplexity int) int
+		FlopsAnyAvg      func(childComplexity int) int
 		ID               func(childComplexity int) int
 		JobID            func(childComplexity int) int
+		LoadAvg          func(childComplexity int) int
+		MemBwAvg         func(childComplexity int) int
+		MemUsedMax       func(childComplexity int) int
 		MetaData         func(childComplexity int) int
 		MonitoringStatus func(childComplexity int) int
 		NumAcc           func(childComplexity int) int
@@ -133,14 +139,16 @@ type ComplexityRoot struct {
 	}
 
 	JobResultList struct {
-		Count  func(childComplexity int) int
-		Items  func(childComplexity int) int
-		Limit  func(childComplexity int) int
-		Offset func(childComplexity int) int
+		Count       func(childComplexity int) int
+		HasNextPage func(childComplexity int) int
+		Items       func(childComplexity int) int
+		Limit       func(childComplexity int) int
+		Offset      func(childComplexity int) int
 	}
 
 	JobsStatistics struct {
 		HistDuration   func(childComplexity int) int
+		HistMetrics    func(childComplexity int) int
 		HistNumAccs    func(childComplexity int) int
 		HistNumCores   func(childComplexity int) int
 		HistNumNodes   func(childComplexity int) int
@@ -176,6 +184,19 @@ type ComplexityRoot struct {
 		Metric func(childComplexity int) int
 	}
 
+	MetricHistoPoint struct {
+		Bin   func(childComplexity int) int
+		Count func(childComplexity int) int
+		Max   func(childComplexity int) int
+		Min   func(childComplexity int) int
+	}
+
+	MetricHistoPoints struct {
+		Data   func(childComplexity int) int
+		Metric func(childComplexity int) int
+		Unit   func(childComplexity int) int
+	}
+
 	MetricStatistics struct {
 		Avg func(childComplexity int) int
 		Max func(childComplexity int) int
@@ -208,7 +229,7 @@ type ComplexityRoot struct {
 		JobMetrics      func(childComplexity int, id string, metrics []string, scopes []schema.MetricScope) int
 		Jobs            func(childComplexity int, filter []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) int
 		JobsFootprints  func(childComplexity int, filter []*model.JobFilter, metrics []string) int
-		JobsStatistics  func(childComplexity int, filter []*model.JobFilter, page *model.PageRequest, sortBy *model.SortByAggregate, groupBy *model.Aggregate) int
+		JobsStatistics  func(childComplexity int, filter []*model.JobFilter, metrics []string, page *model.PageRequest, sortBy *model.SortByAggregate, groupBy *model.Aggregate) int
 		NodeMetrics     func(childComplexity int, cluster string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) int
 		RooflineHeatmap func(childComplexity int, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) int
 		Tags            func(childComplexity int) int
@@ -303,6 +324,7 @@ type JobResolver interface {
 	Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error)
 
 	ConcurrentJobs(ctx context.Context, obj *schema.Job) (*model.JobLinkResultList, error)
+
 	MetaData(ctx context.Context, obj *schema.Job) (interface{}, error)
 	UserData(ctx context.Context, obj *schema.Job) (*model.User, error)
 }
@@ -322,7 +344,7 @@ type QueryResolver interface {
 	JobMetrics(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope) ([]*model.JobMetricWithName, error)
 	JobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error)
 	Jobs(ctx context.Context, filter []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) (*model.JobResultList, error)
-	JobsStatistics(ctx context.Context, filter []*model.JobFilter, page *model.PageRequest, sortBy *model.SortByAggregate, groupBy *model.Aggregate) ([]*model.JobsStatistics, error)
+	JobsStatistics(ctx context.Context, filter []*model.JobFilter, metrics []string, page *model.PageRequest, sortBy *model.SortByAggregate, groupBy *model.Aggregate) ([]*model.JobsStatistics, error)
 	RooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error)
 	NodeMetrics(ctx context.Context, cluster string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) ([]*model.NodeMetrics, error)
 }
@@ -331,12 +353,16 @@ type SubClusterResolver interface {
 }
 
 type executableSchema struct {
+	schema     *ast.Schema
 	resolvers  ResolverRoot
 	directives DirectiveRoot
 	complexity ComplexityRoot
 }
 
 func (e *executableSchema) Schema() *ast.Schema {
+	if e.schema != nil {
+		return e.schema
+	}
 	return parsedSchema
 }
 
@@ -485,6 +511,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Job.Exclusive(childComplexity), true
 
+	case "Job.flopsAnyAvg":
+		if e.complexity.Job.FlopsAnyAvg == nil {
+			break
+		}
+
+		return e.complexity.Job.FlopsAnyAvg(childComplexity), true
+
 	case "Job.id":
 		if e.complexity.Job.ID == nil {
 			break
@@ -498,6 +531,27 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Job.JobID(childComplexity), true
+
+	case "Job.loadAvg":
+		if e.complexity.Job.LoadAvg == nil {
+			break
+		}
+
+		return e.complexity.Job.LoadAvg(childComplexity), true
+
+	case "Job.memBwAvg":
+		if e.complexity.Job.MemBwAvg == nil {
+			break
+		}
+
+		return e.complexity.Job.MemBwAvg(childComplexity), true
+
+	case "Job.memUsedMax":
+		if e.complexity.Job.MemUsedMax == nil {
+			break
+		}
+
+		return e.complexity.Job.MemUsedMax(childComplexity), true
 
 	case "Job.metaData":
 		if e.complexity.Job.MetaData == nil {
@@ -702,6 +756,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.JobResultList.Count(childComplexity), true
 
+	case "JobResultList.hasNextPage":
+		if e.complexity.JobResultList.HasNextPage == nil {
+			break
+		}
+
+		return e.complexity.JobResultList.HasNextPage(childComplexity), true
+
 	case "JobResultList.items":
 		if e.complexity.JobResultList.Items == nil {
 			break
@@ -729,6 +790,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.JobsStatistics.HistDuration(childComplexity), true
+
+	case "JobsStatistics.histMetrics":
+		if e.complexity.JobsStatistics.HistMetrics == nil {
+			break
+		}
+
+		return e.complexity.JobsStatistics.HistMetrics(childComplexity), true
 
 	case "JobsStatistics.histNumAccs":
 		if e.complexity.JobsStatistics.HistNumAccs == nil {
@@ -918,6 +986,55 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.MetricFootprints.Metric(childComplexity), true
+
+	case "MetricHistoPoint.bin":
+		if e.complexity.MetricHistoPoint.Bin == nil {
+			break
+		}
+
+		return e.complexity.MetricHistoPoint.Bin(childComplexity), true
+
+	case "MetricHistoPoint.count":
+		if e.complexity.MetricHistoPoint.Count == nil {
+			break
+		}
+
+		return e.complexity.MetricHistoPoint.Count(childComplexity), true
+
+	case "MetricHistoPoint.max":
+		if e.complexity.MetricHistoPoint.Max == nil {
+			break
+		}
+
+		return e.complexity.MetricHistoPoint.Max(childComplexity), true
+
+	case "MetricHistoPoint.min":
+		if e.complexity.MetricHistoPoint.Min == nil {
+			break
+		}
+
+		return e.complexity.MetricHistoPoint.Min(childComplexity), true
+
+	case "MetricHistoPoints.data":
+		if e.complexity.MetricHistoPoints.Data == nil {
+			break
+		}
+
+		return e.complexity.MetricHistoPoints.Data(childComplexity), true
+
+	case "MetricHistoPoints.metric":
+		if e.complexity.MetricHistoPoints.Metric == nil {
+			break
+		}
+
+		return e.complexity.MetricHistoPoints.Metric(childComplexity), true
+
+	case "MetricHistoPoints.unit":
+		if e.complexity.MetricHistoPoints.Unit == nil {
+			break
+		}
+
+		return e.complexity.MetricHistoPoints.Unit(childComplexity), true
 
 	case "MetricStatistics.avg":
 		if e.complexity.MetricStatistics.Avg == nil {
@@ -1112,7 +1229,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.JobsStatistics(childComplexity, args["filter"].([]*model.JobFilter), args["page"].(*model.PageRequest), args["sortBy"].(*model.SortByAggregate), args["groupBy"].(*model.Aggregate)), true
+		return e.complexity.Query.JobsStatistics(childComplexity, args["filter"].([]*model.JobFilter), args["metrics"].([]string), args["page"].(*model.PageRequest), args["sortBy"].(*model.SortByAggregate), args["groupBy"].(*model.Aggregate)), true
 
 	case "Query.nodeMetrics":
 		if e.complexity.Query.NodeMetrics == nil {
@@ -1587,14 +1704,14 @@ func (ec *executionContext) introspectSchema() (*introspection.Schema, error) {
 	if ec.DisableIntrospection {
 		return nil, errors.New("introspection disabled")
 	}
-	return introspection.WrapSchema(parsedSchema), nil
+	return introspection.WrapSchema(ec.Schema()), nil
 }
 
 func (ec *executionContext) introspectType(name string) (*introspection.Type, error) {
 	if ec.DisableIntrospection {
 		return nil, errors.New("introspection disabled")
 	}
-	return introspection.WrapTypeFromDef(parsedSchema, parsedSchema.Types[name]), nil
+	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
 var sources = []*ast.Source{
@@ -1627,6 +1744,11 @@ type Job {
   tags:             [Tag!]!
   resources:        [Resource!]!
   concurrentJobs:   JobLinkResultList
+
+  memUsedMax:       Float
+  flopsAnyAvg:      Float
+  memBwAvg:         Float
+  loadAvg:          Float
 
   metaData:         Any
   userData:         User
@@ -1798,7 +1920,7 @@ type Query {
   jobsFootprints(filter: [JobFilter!], metrics: [String!]!): Footprints
 
   jobs(filter: [JobFilter!], page: PageRequest, order: OrderByInput): JobResultList!
-  jobsStatistics(filter: [JobFilter!], page: PageRequest, sortBy: SortByAggregate, groupBy: Aggregate): [JobsStatistics!]!
+  jobsStatistics(filter: [JobFilter!], metrics: [String!], page: PageRequest, sortBy: SortByAggregate, groupBy: Aggregate): [JobsStatistics!]!
 
   rooflineHeatmap(filter: [JobFilter!]!, rows: Int!, cols: Int!, minX: Float!, minY: Float!, maxX: Float!, maxY: Float!): [[Float!]!]!
 
@@ -1873,6 +1995,7 @@ type JobResultList {
   offset: Int
   limit:  Int
   count:  Int
+  hasNextPage: Boolean
 }
 
 type JobLinkResultList {
@@ -1884,6 +2007,19 @@ type JobLinkResultList {
 type HistoPoint {
   count: Int!
   value: Int!
+}
+
+type MetricHistoPoints {
+  metric: String!
+  unit: String!
+  data: [MetricHistoPoint!]
+}
+
+type MetricHistoPoint {
+  bin: Int
+  count: Int!
+  min: Int
+  max: Int
 }
 
 type JobsStatistics  {
@@ -1903,6 +2039,7 @@ type JobsStatistics  {
   histNumNodes:   [HistoPoint!]! # value: number of nodes, count: number of jobs with that number of nodes
   histNumCores:   [HistoPoint!]! # value: number of cores, count: number of jobs with that number of cores
   histNumAccs:    [HistoPoint!]! # value: number of accs, count: number of jobs with that number of accs
+  histMetrics:    [MetricHistoPoints!]! # metric: metricname, data array of histopoints: value: metric average bin, count: number of jobs with that metric average
 }
 
 input PageRequest {
@@ -2142,33 +2279,42 @@ func (ec *executionContext) field_Query_jobsStatistics_args(ctx context.Context,
 		}
 	}
 	args["filter"] = arg0
-	var arg1 *model.PageRequest
+	var arg1 []string
+	if tmp, ok := rawArgs["metrics"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("metrics"))
+		arg1, err = ec.unmarshalOString2ᚕstringᚄ(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["metrics"] = arg1
+	var arg2 *model.PageRequest
 	if tmp, ok := rawArgs["page"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("page"))
-		arg1, err = ec.unmarshalOPageRequest2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐPageRequest(ctx, tmp)
+		arg2, err = ec.unmarshalOPageRequest2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐPageRequest(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["page"] = arg1
-	var arg2 *model.SortByAggregate
+	args["page"] = arg2
+	var arg3 *model.SortByAggregate
 	if tmp, ok := rawArgs["sortBy"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sortBy"))
-		arg2, err = ec.unmarshalOSortByAggregate2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐSortByAggregate(ctx, tmp)
+		arg3, err = ec.unmarshalOSortByAggregate2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐSortByAggregate(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["sortBy"] = arg2
-	var arg3 *model.Aggregate
+	args["sortBy"] = arg3
+	var arg4 *model.Aggregate
 	if tmp, ok := rawArgs["groupBy"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupBy"))
-		arg3, err = ec.unmarshalOAggregate2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐAggregate(ctx, tmp)
+		arg4, err = ec.unmarshalOAggregate2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐAggregate(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["groupBy"] = arg3
+	args["groupBy"] = arg4
 	return args, nil
 }
 
@@ -4054,6 +4200,170 @@ func (ec *executionContext) fieldContext_Job_concurrentJobs(ctx context.Context,
 	return fc, nil
 }
 
+func (ec *executionContext) _Job_memUsedMax(ctx context.Context, field graphql.CollectedField, obj *schema.Job) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Job_memUsedMax(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MemUsedMax, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalOFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Job_memUsedMax(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Job_flopsAnyAvg(ctx context.Context, field graphql.CollectedField, obj *schema.Job) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Job_flopsAnyAvg(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FlopsAnyAvg, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalOFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Job_flopsAnyAvg(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Job_memBwAvg(ctx context.Context, field graphql.CollectedField, obj *schema.Job) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Job_memBwAvg(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MemBwAvg, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalOFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Job_memBwAvg(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Job_loadAvg(ctx context.Context, field graphql.CollectedField, obj *schema.Job) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Job_loadAvg(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.LoadAvg, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalOFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Job_loadAvg(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Job_metaData(ctx context.Context, field graphql.CollectedField, obj *schema.Job) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Job_metaData(ctx, field)
 	if err != nil {
@@ -4778,6 +5088,14 @@ func (ec *executionContext) fieldContext_JobResultList_items(ctx context.Context
 				return ec.fieldContext_Job_resources(ctx, field)
 			case "concurrentJobs":
 				return ec.fieldContext_Job_concurrentJobs(ctx, field)
+			case "memUsedMax":
+				return ec.fieldContext_Job_memUsedMax(ctx, field)
+			case "flopsAnyAvg":
+				return ec.fieldContext_Job_flopsAnyAvg(ctx, field)
+			case "memBwAvg":
+				return ec.fieldContext_Job_memBwAvg(ctx, field)
+			case "loadAvg":
+				return ec.fieldContext_Job_loadAvg(ctx, field)
 			case "metaData":
 				return ec.fieldContext_Job_metaData(ctx, field)
 			case "userData":
@@ -4907,6 +5225,47 @@ func (ec *executionContext) fieldContext_JobResultList_count(ctx context.Context
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _JobResultList_hasNextPage(ctx context.Context, field graphql.CollectedField, obj *model.JobResultList) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JobResultList_hasNextPage(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.HasNextPage, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*bool)
+	fc.Result = res
+	return ec.marshalOBoolean2ᚖbool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JobResultList_hasNextPage(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JobResultList",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -5640,6 +5999,58 @@ func (ec *executionContext) fieldContext_JobsStatistics_histNumAccs(ctx context.
 	return fc, nil
 }
 
+func (ec *executionContext) _JobsStatistics_histMetrics(ctx context.Context, field graphql.CollectedField, obj *model.JobsStatistics) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JobsStatistics_histMetrics(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.HistMetrics, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.MetricHistoPoints)
+	fc.Result = res
+	return ec.marshalNMetricHistoPoints2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐMetricHistoPointsᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JobsStatistics_histMetrics(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JobsStatistics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "metric":
+				return ec.fieldContext_MetricHistoPoints_metric(ctx, field)
+			case "unit":
+				return ec.fieldContext_MetricHistoPoints_unit(ctx, field)
+			case "data":
+				return ec.fieldContext_MetricHistoPoints_data(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MetricHistoPoints", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _MetricConfig_name(ctx context.Context, field graphql.CollectedField, obj *schema.MetricConfig) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_MetricConfig_name(ctx, field)
 	if err != nil {
@@ -6180,6 +6591,312 @@ func (ec *executionContext) fieldContext_MetricFootprints_data(ctx context.Conte
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type NullableFloat does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MetricHistoPoint_bin(ctx context.Context, field graphql.CollectedField, obj *model.MetricHistoPoint) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MetricHistoPoint_bin(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Bin, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*int)
+	fc.Result = res
+	return ec.marshalOInt2ᚖint(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MetricHistoPoint_bin(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MetricHistoPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MetricHistoPoint_count(ctx context.Context, field graphql.CollectedField, obj *model.MetricHistoPoint) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MetricHistoPoint_count(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Count, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MetricHistoPoint_count(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MetricHistoPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MetricHistoPoint_min(ctx context.Context, field graphql.CollectedField, obj *model.MetricHistoPoint) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MetricHistoPoint_min(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Min, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*int)
+	fc.Result = res
+	return ec.marshalOInt2ᚖint(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MetricHistoPoint_min(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MetricHistoPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MetricHistoPoint_max(ctx context.Context, field graphql.CollectedField, obj *model.MetricHistoPoint) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MetricHistoPoint_max(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Max, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*int)
+	fc.Result = res
+	return ec.marshalOInt2ᚖint(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MetricHistoPoint_max(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MetricHistoPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MetricHistoPoints_metric(ctx context.Context, field graphql.CollectedField, obj *model.MetricHistoPoints) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MetricHistoPoints_metric(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Metric, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MetricHistoPoints_metric(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MetricHistoPoints",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MetricHistoPoints_unit(ctx context.Context, field graphql.CollectedField, obj *model.MetricHistoPoints) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MetricHistoPoints_unit(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Unit, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MetricHistoPoints_unit(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MetricHistoPoints",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MetricHistoPoints_data(ctx context.Context, field graphql.CollectedField, obj *model.MetricHistoPoints) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MetricHistoPoints_data(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Data, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.MetricHistoPoint)
+	fc.Result = res
+	return ec.marshalOMetricHistoPoint2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐMetricHistoPointᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MetricHistoPoints_data(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MetricHistoPoints",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "bin":
+				return ec.fieldContext_MetricHistoPoint_bin(ctx, field)
+			case "count":
+				return ec.fieldContext_MetricHistoPoint_count(ctx, field)
+			case "min":
+				return ec.fieldContext_MetricHistoPoint_min(ctx, field)
+			case "max":
+				return ec.fieldContext_MetricHistoPoint_max(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MetricHistoPoint", field.Name)
 		},
 	}
 	return fc, nil
@@ -7152,6 +7869,14 @@ func (ec *executionContext) fieldContext_Query_job(ctx context.Context, field gr
 				return ec.fieldContext_Job_resources(ctx, field)
 			case "concurrentJobs":
 				return ec.fieldContext_Job_concurrentJobs(ctx, field)
+			case "memUsedMax":
+				return ec.fieldContext_Job_memUsedMax(ctx, field)
+			case "flopsAnyAvg":
+				return ec.fieldContext_Job_flopsAnyAvg(ctx, field)
+			case "memBwAvg":
+				return ec.fieldContext_Job_memBwAvg(ctx, field)
+			case "loadAvg":
+				return ec.fieldContext_Job_loadAvg(ctx, field)
 			case "metaData":
 				return ec.fieldContext_Job_metaData(ctx, field)
 			case "userData":
@@ -7342,6 +8067,8 @@ func (ec *executionContext) fieldContext_Query_jobs(ctx context.Context, field g
 				return ec.fieldContext_JobResultList_limit(ctx, field)
 			case "count":
 				return ec.fieldContext_JobResultList_count(ctx, field)
+			case "hasNextPage":
+				return ec.fieldContext_JobResultList_hasNextPage(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type JobResultList", field.Name)
 		},
@@ -7374,7 +8101,7 @@ func (ec *executionContext) _Query_jobsStatistics(ctx context.Context, field gra
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().JobsStatistics(rctx, fc.Args["filter"].([]*model.JobFilter), fc.Args["page"].(*model.PageRequest), fc.Args["sortBy"].(*model.SortByAggregate), fc.Args["groupBy"].(*model.Aggregate))
+		return ec.resolvers.Query().JobsStatistics(rctx, fc.Args["filter"].([]*model.JobFilter), fc.Args["metrics"].([]string), fc.Args["page"].(*model.PageRequest), fc.Args["sortBy"].(*model.SortByAggregate), fc.Args["groupBy"].(*model.Aggregate))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -7431,6 +8158,8 @@ func (ec *executionContext) fieldContext_Query_jobsStatistics(ctx context.Contex
 				return ec.fieldContext_JobsStatistics_histNumCores(ctx, field)
 			case "histNumAccs":
 				return ec.fieldContext_JobsStatistics_histNumAccs(ctx, field)
+			case "histMetrics":
+				return ec.fieldContext_JobsStatistics_histMetrics(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type JobsStatistics", field.Name)
 		},
@@ -11549,8 +12278,6 @@ func (ec *executionContext) unmarshalInputFloatRange(ctx context.Context, obj in
 		}
 		switch k {
 		case "from":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("from"))
 			data, err := ec.unmarshalNFloat2float64(ctx, v)
 			if err != nil {
@@ -11558,8 +12285,6 @@ func (ec *executionContext) unmarshalInputFloatRange(ctx context.Context, obj in
 			}
 			it.From = data
 		case "to":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("to"))
 			data, err := ec.unmarshalNFloat2float64(ctx, v)
 			if err != nil {
@@ -11587,8 +12312,6 @@ func (ec *executionContext) unmarshalInputIntRange(ctx context.Context, obj inte
 		}
 		switch k {
 		case "from":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("from"))
 			data, err := ec.unmarshalNInt2int(ctx, v)
 			if err != nil {
@@ -11596,8 +12319,6 @@ func (ec *executionContext) unmarshalInputIntRange(ctx context.Context, obj inte
 			}
 			it.From = data
 		case "to":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("to"))
 			data, err := ec.unmarshalNInt2int(ctx, v)
 			if err != nil {
@@ -11625,8 +12346,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 		}
 		switch k {
 		case "tags":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tags"))
 			data, err := ec.unmarshalOID2ᚕstringᚄ(ctx, v)
 			if err != nil {
@@ -11634,8 +12353,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.Tags = data
 		case "jobId":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("jobId"))
 			data, err := ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
 			if err != nil {
@@ -11643,8 +12360,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.JobID = data
 		case "arrayJobId":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("arrayJobId"))
 			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
 			if err != nil {
@@ -11652,8 +12367,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.ArrayJobID = data
 		case "user":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("user"))
 			data, err := ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
 			if err != nil {
@@ -11661,8 +12374,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.User = data
 		case "project":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("project"))
 			data, err := ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
 			if err != nil {
@@ -11670,8 +12381,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.Project = data
 		case "jobName":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("jobName"))
 			data, err := ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
 			if err != nil {
@@ -11679,8 +12388,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.JobName = data
 		case "cluster":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cluster"))
 			data, err := ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
 			if err != nil {
@@ -11688,8 +12395,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.Cluster = data
 		case "partition":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("partition"))
 			data, err := ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
 			if err != nil {
@@ -11697,8 +12402,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.Partition = data
 		case "duration":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("duration"))
 			data, err := ec.unmarshalOIntRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐIntRange(ctx, v)
 			if err != nil {
@@ -11706,8 +12409,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.Duration = data
 		case "minRunningFor":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("minRunningFor"))
 			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
 			if err != nil {
@@ -11715,8 +12416,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.MinRunningFor = data
 		case "numNodes":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("numNodes"))
 			data, err := ec.unmarshalOIntRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐIntRange(ctx, v)
 			if err != nil {
@@ -11724,8 +12423,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.NumNodes = data
 		case "numAccelerators":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("numAccelerators"))
 			data, err := ec.unmarshalOIntRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐIntRange(ctx, v)
 			if err != nil {
@@ -11733,8 +12430,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.NumAccelerators = data
 		case "numHWThreads":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("numHWThreads"))
 			data, err := ec.unmarshalOIntRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐIntRange(ctx, v)
 			if err != nil {
@@ -11742,8 +12437,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.NumHWThreads = data
 		case "startTime":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("startTime"))
 			data, err := ec.unmarshalOTimeRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐTimeRange(ctx, v)
 			if err != nil {
@@ -11751,8 +12444,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.StartTime = data
 		case "state":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("state"))
 			data, err := ec.unmarshalOJobState2ᚕgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐJobStateᚄ(ctx, v)
 			if err != nil {
@@ -11760,8 +12451,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.State = data
 		case "flopsAnyAvg":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("flopsAnyAvg"))
 			data, err := ec.unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFloatRange(ctx, v)
 			if err != nil {
@@ -11769,8 +12458,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.FlopsAnyAvg = data
 		case "memBwAvg":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("memBwAvg"))
 			data, err := ec.unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFloatRange(ctx, v)
 			if err != nil {
@@ -11778,8 +12465,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.MemBwAvg = data
 		case "loadAvg":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("loadAvg"))
 			data, err := ec.unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFloatRange(ctx, v)
 			if err != nil {
@@ -11787,8 +12472,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.LoadAvg = data
 		case "memUsedMax":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("memUsedMax"))
 			data, err := ec.unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFloatRange(ctx, v)
 			if err != nil {
@@ -11796,8 +12479,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.MemUsedMax = data
 		case "exclusive":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exclusive"))
 			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
 			if err != nil {
@@ -11805,8 +12486,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 			}
 			it.Exclusive = data
 		case "node":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("node"))
 			data, err := ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
 			if err != nil {
@@ -11838,8 +12517,6 @@ func (ec *executionContext) unmarshalInputOrderByInput(ctx context.Context, obj 
 		}
 		switch k {
 		case "field":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("field"))
 			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
@@ -11847,8 +12524,6 @@ func (ec *executionContext) unmarshalInputOrderByInput(ctx context.Context, obj 
 			}
 			it.Field = data
 		case "order":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("order"))
 			data, err := ec.unmarshalNSortDirectionEnum2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐSortDirectionEnum(ctx, v)
 			if err != nil {
@@ -11876,8 +12551,6 @@ func (ec *executionContext) unmarshalInputPageRequest(ctx context.Context, obj i
 		}
 		switch k {
 		case "itemsPerPage":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("itemsPerPage"))
 			data, err := ec.unmarshalNInt2int(ctx, v)
 			if err != nil {
@@ -11885,8 +12558,6 @@ func (ec *executionContext) unmarshalInputPageRequest(ctx context.Context, obj i
 			}
 			it.ItemsPerPage = data
 		case "page":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("page"))
 			data, err := ec.unmarshalNInt2int(ctx, v)
 			if err != nil {
@@ -11914,8 +12585,6 @@ func (ec *executionContext) unmarshalInputStringInput(ctx context.Context, obj i
 		}
 		switch k {
 		case "eq":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("eq"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
@@ -11923,8 +12592,6 @@ func (ec *executionContext) unmarshalInputStringInput(ctx context.Context, obj i
 			}
 			it.Eq = data
 		case "neq":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("neq"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
@@ -11932,8 +12599,6 @@ func (ec *executionContext) unmarshalInputStringInput(ctx context.Context, obj i
 			}
 			it.Neq = data
 		case "contains":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("contains"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
@@ -11941,8 +12606,6 @@ func (ec *executionContext) unmarshalInputStringInput(ctx context.Context, obj i
 			}
 			it.Contains = data
 		case "startsWith":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("startsWith"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
@@ -11950,8 +12613,6 @@ func (ec *executionContext) unmarshalInputStringInput(ctx context.Context, obj i
 			}
 			it.StartsWith = data
 		case "endsWith":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("endsWith"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
@@ -11959,8 +12620,6 @@ func (ec *executionContext) unmarshalInputStringInput(ctx context.Context, obj i
 			}
 			it.EndsWith = data
 		case "in":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("in"))
 			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
 			if err != nil {
@@ -11988,8 +12647,6 @@ func (ec *executionContext) unmarshalInputTimeRange(ctx context.Context, obj int
 		}
 		switch k {
 		case "from":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("from"))
 			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
 			if err != nil {
@@ -11997,8 +12654,6 @@ func (ec *executionContext) unmarshalInputTimeRange(ctx context.Context, obj int
 			}
 			it.From = data
 		case "to":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("to"))
 			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
 			if err != nil {
@@ -12504,6 +13159,14 @@ func (ec *executionContext) _Job(ctx context.Context, sel ast.SelectionSet, obj 
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "memUsedMax":
+			out.Values[i] = ec._Job_memUsedMax(ctx, field, obj)
+		case "flopsAnyAvg":
+			out.Values[i] = ec._Job_flopsAnyAvg(ctx, field, obj)
+		case "memBwAvg":
+			out.Values[i] = ec._Job_memBwAvg(ctx, field, obj)
+		case "loadAvg":
+			out.Values[i] = ec._Job_loadAvg(ctx, field, obj)
 		case "metaData":
 			field := field
 
@@ -12796,6 +13459,8 @@ func (ec *executionContext) _JobResultList(ctx context.Context, sel ast.Selectio
 			out.Values[i] = ec._JobResultList_limit(ctx, field, obj)
 		case "count":
 			out.Values[i] = ec._JobResultList_count(ctx, field, obj)
+		case "hasNextPage":
+			out.Values[i] = ec._JobResultList_hasNextPage(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -12907,6 +13572,11 @@ func (ec *executionContext) _JobsStatistics(ctx context.Context, sel ast.Selecti
 			}
 		case "histNumAccs":
 			out.Values[i] = ec._JobsStatistics_histNumAccs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "histMetrics":
+			out.Values[i] = ec._JobsStatistics_histMetrics(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -13035,6 +13705,97 @@ func (ec *executionContext) _MetricFootprints(ctx context.Context, sel ast.Selec
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var metricHistoPointImplementors = []string{"MetricHistoPoint"}
+
+func (ec *executionContext) _MetricHistoPoint(ctx context.Context, sel ast.SelectionSet, obj *model.MetricHistoPoint) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, metricHistoPointImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MetricHistoPoint")
+		case "bin":
+			out.Values[i] = ec._MetricHistoPoint_bin(ctx, field, obj)
+		case "count":
+			out.Values[i] = ec._MetricHistoPoint_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "min":
+			out.Values[i] = ec._MetricHistoPoint_min(ctx, field, obj)
+		case "max":
+			out.Values[i] = ec._MetricHistoPoint_max(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var metricHistoPointsImplementors = []string{"MetricHistoPoints"}
+
+func (ec *executionContext) _MetricHistoPoints(ctx context.Context, sel ast.SelectionSet, obj *model.MetricHistoPoints) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, metricHistoPointsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MetricHistoPoints")
+		case "metric":
+			out.Values[i] = ec._MetricHistoPoints_metric(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unit":
+			out.Values[i] = ec._MetricHistoPoints_unit(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "data":
+			out.Values[i] = ec._MetricHistoPoints_data(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -15310,6 +16071,70 @@ func (ec *executionContext) marshalNMetricFootprints2ᚖgithubᚗcomᚋClusterCo
 	return ec._MetricFootprints(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNMetricHistoPoint2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐMetricHistoPoint(ctx context.Context, sel ast.SelectionSet, v *model.MetricHistoPoint) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._MetricHistoPoint(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNMetricHistoPoints2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐMetricHistoPointsᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.MetricHistoPoints) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNMetricHistoPoints2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐMetricHistoPoints(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNMetricHistoPoints2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐMetricHistoPoints(ctx context.Context, sel ast.SelectionSet, v *model.MetricHistoPoints) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._MetricHistoPoints(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNMetricScope2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐMetricScope(ctx context.Context, v interface{}) (schema.MetricScope, error) {
 	var res schema.MetricScope
 	err := res.UnmarshalGQL(v)
@@ -16355,6 +17180,53 @@ func (ec *executionContext) marshalOJobState2ᚕgithubᚗcomᚋClusterCockpitᚋ
 	for i := range v {
 		ret[i] = ec.marshalNJobState2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐJobState(ctx, sel, v[i])
 	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalOMetricHistoPoint2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐMetricHistoPointᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.MetricHistoPoint) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNMetricHistoPoint2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐMetricHistoPoint(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
 
 	for _, e := range ret {
 		if e == graphql.Null {

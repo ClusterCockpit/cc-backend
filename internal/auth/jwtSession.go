@@ -1,4 +1,4 @@
-// Copyright (C) 2022 NHR@FAU, University Erlangen-Nuremberg.
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
@@ -17,7 +17,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type JWTSessionAuthenticator struct {
@@ -44,8 +44,8 @@ func (ja *JWTSessionAuthenticator) CanLogin(
 	user *schema.User,
 	username string,
 	rw http.ResponseWriter,
-	r *http.Request) (*schema.User, bool) {
-
+	r *http.Request,
+) (*schema.User, bool) {
 	return user, r.Header.Get("Authorization") != "" ||
 		r.URL.Query().Get("login-token") != ""
 }
@@ -53,8 +53,8 @@ func (ja *JWTSessionAuthenticator) CanLogin(
 func (ja *JWTSessionAuthenticator) Login(
 	user *schema.User,
 	rw http.ResponseWriter,
-	r *http.Request) (*schema.User, error) {
-
+	r *http.Request,
+) (*schema.User, error) {
 	rawtoken := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 	if rawtoken == "" {
 		rawtoken = r.URL.Query().Get("login-token")
@@ -71,9 +71,9 @@ func (ja *JWTSessionAuthenticator) Login(
 		return nil, err
 	}
 
-	if err = token.Claims.Valid(); err != nil {
+	if !token.Valid {
 		log.Warn("jwt token claims are not valid")
-		return nil, err
+		return nil, errors.New("jwt token claims are not valid")
 	}
 
 	claims := token.Claims.(jwt.MapClaims)
@@ -139,9 +139,7 @@ func (ja *JWTSessionAuthenticator) Login(
 		}
 
 		if config.Keys.JwtConfig.SyncUserOnLogin {
-			if err := repository.GetUserRepository().AddUser(user); err != nil {
-				log.Errorf("Error while adding user '%s' to DB", user.Username)
-			}
+			persistUser(user)
 		}
 	}
 

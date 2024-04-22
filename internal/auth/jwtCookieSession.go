@@ -1,4 +1,4 @@
-// Copyright (C) 2023 NHR@FAU, University Erlangen-Nuremberg.
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
@@ -17,7 +17,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type JWTCookieSessionAuthenticator struct {
@@ -90,8 +90,8 @@ func (ja *JWTCookieSessionAuthenticator) CanLogin(
 	user *schema.User,
 	username string,
 	rw http.ResponseWriter,
-	r *http.Request) (*schema.User, bool) {
-
+	r *http.Request,
+) (*schema.User, bool) {
 	jc := config.Keys.JwtConfig
 	cookieName := ""
 	if jc.CookieName != "" {
@@ -113,8 +113,8 @@ func (ja *JWTCookieSessionAuthenticator) CanLogin(
 func (ja *JWTCookieSessionAuthenticator) Login(
 	user *schema.User,
 	rw http.ResponseWriter,
-	r *http.Request) (*schema.User, error) {
-
+	r *http.Request,
+) (*schema.User, error) {
 	jc := config.Keys.JwtConfig
 	jwtCookie, err := r.Cookie(jc.CookieName)
 	var rawtoken string
@@ -144,10 +144,9 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 		return nil, err
 	}
 
-	// Check token validity and extract paypload
-	if err := token.Claims.Valid(); err != nil {
+	if !token.Valid {
 		log.Warn("jwt token claims are not valid")
-		return nil, err
+		return nil, errors.New("jwt token claims are not valid")
 	}
 
 	claims := token.Claims.(jwt.MapClaims)
@@ -200,9 +199,7 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 		}
 
 		if jc.SyncUserOnLogin {
-			if err := repository.GetUserRepository().AddUser(user); err != nil {
-				log.Errorf("Error while adding user '%s' to DB", user.Username)
-			}
+			persistUser(user)
 		}
 	}
 

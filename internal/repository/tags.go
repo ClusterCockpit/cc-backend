@@ -1,4 +1,4 @@
-// Copyright (C) 2022 NHR@FAU, University Erlangen-Nuremberg.
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
@@ -15,8 +15,11 @@ import (
 
 // Add the tag with id `tagId` to the job with the database id `jobId`.
 func (r *JobRepository) AddTag(job int64, tag int64) ([]*schema.Tag, error) {
-	if _, err := r.stmtCache.Exec(`INSERT INTO jobtag (job_id, tag_id) VALUES ($1, $2)`, job, tag); err != nil {
-		log.Error("Error while running query")
+	q := sq.Insert("jobtag").Columns("job_id", "tag_id").Values(job, tag)
+
+	if _, err := q.RunWith(r.stmtCache).Exec(); err != nil {
+		s, _, _ := q.ToSql()
+		log.Errorf("Error adding tag with %s: %v", s, err)
 		return nil, err
 	}
 
@@ -37,8 +40,11 @@ func (r *JobRepository) AddTag(job int64, tag int64) ([]*schema.Tag, error) {
 
 // Removes a tag from a job
 func (r *JobRepository) RemoveTag(job, tag int64) ([]*schema.Tag, error) {
-	if _, err := r.stmtCache.Exec("DELETE FROM jobtag WHERE jobtag.job_id = $1 AND jobtag.tag_id = $2", job, tag); err != nil {
-		log.Error("Error while running query")
+	q := sq.Delete("jobtag").Where("jobtag.job_id = ?", job).Where("jobtag.tag_id = ?", tag)
+
+	if _, err := q.RunWith(r.stmtCache).Exec(); err != nil {
+		s, _, _ := q.ToSql()
+		log.Errorf("Error adding tag with %s: %v", s, err)
 		return nil, err
 	}
 
@@ -59,8 +65,12 @@ func (r *JobRepository) RemoveTag(job, tag int64) ([]*schema.Tag, error) {
 
 // CreateTag creates a new tag with the specified type and name and returns its database id.
 func (r *JobRepository) CreateTag(tagType string, tagName string) (tagId int64, err error) {
-	res, err := r.stmtCache.Exec("INSERT INTO tag (tag_type, tag_name) VALUES ($1, $2)", tagType, tagName)
+	q := sq.Insert("tag").Columns("tag_type", "tag_name").Values(tagType, tagName)
+
+	res, err := q.RunWith(r.stmtCache).Exec()
 	if err != nil {
+		s, _, _ := q.ToSql()
+		log.Errorf("Error inserting tag with %s: %v", s, err)
 		return 0, err
 	}
 
@@ -167,7 +177,8 @@ func (r *JobRepository) GetTags(job *int64) ([]*schema.Tag, error) {
 
 	rows, err := q.RunWith(r.stmtCache).Query()
 	if err != nil {
-		log.Error("Error while running query")
+		s, _, _ := q.ToSql()
+		log.Errorf("Error get tags with %s: %v", s, err)
 		return nil, err
 	}
 

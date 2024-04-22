@@ -78,34 +78,52 @@ type JobMetricWithName struct {
 }
 
 type JobResultList struct {
-	Items  []*schema.Job `json:"items"`
-	Offset *int          `json:"offset,omitempty"`
-	Limit  *int          `json:"limit,omitempty"`
-	Count  *int          `json:"count,omitempty"`
+	Items       []*schema.Job `json:"items"`
+	Offset      *int          `json:"offset,omitempty"`
+	Limit       *int          `json:"limit,omitempty"`
+	Count       *int          `json:"count,omitempty"`
+	HasNextPage *bool         `json:"hasNextPage,omitempty"`
 }
 
 type JobsStatistics struct {
-	ID             string        `json:"id"`
-	Name           string        `json:"name"`
-	TotalJobs      int           `json:"totalJobs"`
-	RunningJobs    int           `json:"runningJobs"`
-	ShortJobs      int           `json:"shortJobs"`
-	TotalWalltime  int           `json:"totalWalltime"`
-	TotalNodes     int           `json:"totalNodes"`
-	TotalNodeHours int           `json:"totalNodeHours"`
-	TotalCores     int           `json:"totalCores"`
-	TotalCoreHours int           `json:"totalCoreHours"`
-	TotalAccs      int           `json:"totalAccs"`
-	TotalAccHours  int           `json:"totalAccHours"`
-	HistDuration   []*HistoPoint `json:"histDuration"`
-	HistNumNodes   []*HistoPoint `json:"histNumNodes"`
-	HistNumCores   []*HistoPoint `json:"histNumCores"`
-	HistNumAccs    []*HistoPoint `json:"histNumAccs"`
+	ID             string               `json:"id"`
+	Name           string               `json:"name"`
+	TotalJobs      int                  `json:"totalJobs"`
+	RunningJobs    int                  `json:"runningJobs"`
+	ShortJobs      int                  `json:"shortJobs"`
+	TotalWalltime  int                  `json:"totalWalltime"`
+	TotalNodes     int                  `json:"totalNodes"`
+	TotalNodeHours int                  `json:"totalNodeHours"`
+	TotalCores     int                  `json:"totalCores"`
+	TotalCoreHours int                  `json:"totalCoreHours"`
+	TotalAccs      int                  `json:"totalAccs"`
+	TotalAccHours  int                  `json:"totalAccHours"`
+	HistDuration   []*HistoPoint        `json:"histDuration"`
+	HistNumNodes   []*HistoPoint        `json:"histNumNodes"`
+	HistNumCores   []*HistoPoint        `json:"histNumCores"`
+	HistNumAccs    []*HistoPoint        `json:"histNumAccs"`
+	HistMetrics    []*MetricHistoPoints `json:"histMetrics"`
 }
 
 type MetricFootprints struct {
 	Metric string         `json:"metric"`
 	Data   []schema.Float `json:"data"`
+}
+
+type MetricHistoPoint struct {
+	Bin   *int `json:"bin,omitempty"`
+	Count int  `json:"count"`
+	Min   *int `json:"min,omitempty"`
+	Max   *int `json:"max,omitempty"`
+}
+
+type MetricHistoPoints struct {
+	Metric string              `json:"metric"`
+	Unit   string              `json:"unit"`
+	Data   []*MetricHistoPoint `json:"data,omitempty"`
+}
+
+type Mutation struct {
 }
 
 type NodeMetrics struct {
@@ -122,6 +140,9 @@ type OrderByInput struct {
 type PageRequest struct {
 	ItemsPerPage int `json:"itemsPerPage"`
 	Page         int `json:"page"`
+}
+
+type Query struct {
 }
 
 type StringInput struct {

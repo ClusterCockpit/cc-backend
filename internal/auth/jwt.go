@@ -1,4 +1,4 @@
-// Copyright (C) 2022 NHR@FAU, University Erlangen-Nuremberg.
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
@@ -17,7 +17,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type JWTAuthenticator struct {
@@ -49,8 +49,8 @@ func (ja *JWTAuthenticator) Init() error {
 
 func (ja *JWTAuthenticator) AuthViaJWT(
 	rw http.ResponseWriter,
-	r *http.Request) (*schema.User, error) {
-
+	r *http.Request,
+) (*schema.User, error) {
 	rawtoken := r.Header.Get("X-Auth-Token")
 	if rawtoken == "" {
 		rawtoken = r.Header.Get("Authorization")
@@ -73,9 +73,9 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 		log.Warn("Error while parsing JWT token")
 		return nil, err
 	}
-	if err := token.Claims.Valid(); err != nil {
+	if !token.Valid {
 		log.Warn("jwt token claims are not valid")
-		return nil, err
+		return nil, errors.New("jwt token claims are not valid")
 	}
 
 	// Token is valid, extract payload
@@ -88,7 +88,6 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 	if config.Keys.JwtConfig.ValidateUser {
 		ur := repository.GetUserRepository()
 		user, err := ur.GetUser(sub)
-
 		// Deny any logins for unknown usernames
 		if err != nil {
 			log.Warn("Could not find user from JWT in internal database.")
@@ -117,7 +116,6 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 
 // Generate a new JWT that can be used for authentication
 func (ja *JWTAuthenticator) ProvideJWT(user *schema.User) (string, error) {
-
 	if ja.privateKey == nil {
 		return "", errors.New("environment variable 'JWT_PRIVATE_KEY' not set")
 	}
