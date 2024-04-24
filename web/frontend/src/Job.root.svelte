@@ -361,7 +361,7 @@
             <div style="margin: 10px;">
               <Card color="warning">
                 <CardHeader>
-                  <CardTitle>Missing Metrics/Reseources</CardTitle>
+                  <CardTitle>Missing Metrics/Resources</CardTitle>
                 </CardHeader>
                 <CardBody>
                   {#if missingMetrics.length > 0}

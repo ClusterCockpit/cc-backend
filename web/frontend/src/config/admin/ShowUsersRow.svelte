@@ -20,7 +20,7 @@
 <td>{user.name}</td>
 <td>{user.projects}</td>
 <td>{user.email}</td>
-<td><code>{user.roles.join(", ")}</code></td>
+<td><code>{user?.roles ? user.roles.join(", ") : "No Roles"}</code></td>
 <td>
   {#if !jwt}
     <Button color="success" on:click={getUserJwt(user.username)}
