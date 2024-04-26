@@ -275,7 +275,7 @@
   }
 </script>
 
-<Row cols={3} class="p-2 g-2">
+<Row cols={4} class="p-2 g-2">
   <!-- LINE WIDTH -->
   <Col
     ><Card class="h-100">
@@ -416,6 +416,60 @@
               />
             {/if}
             <label for="false">No</label>
+          </div>
+        </div>
+        <Button color="primary" type="submit">Submit</Button>
+      </form>
+    </Card></Col
+  >
+
+  <!-- PAGING -->
+  <Col
+    ><Card class="h-100">
+      <form
+        id="paging-form"
+        method="post"
+        action="/api/configuration/"
+        class="card-body"
+        on:submit|preventDefault={() =>
+          handleSettingSubmit("#paging-form", "pag")}
+      >
+        <!-- Svelte 'class' directive only on DOMs directly, normal 'class="xxx"' does not work, so style-array it is. -->
+        <CardTitle
+          style="margin-bottom: 1em; display: flex; align-items: center;"
+        >
+          <div>Paging Type</div>
+          {#if displayMessage && message.target == "pag"}<div
+              style="margin-left: auto; font-size: 0.9em;"
+            >
+              <code style="color: {message.color};" out:fade
+                >Update: {message.msg}</code
+              >
+            </div>{/if}
+        </CardTitle>
+        <input type="hidden" name="key" value="job_list_usePaging" />
+        <div class="mb-3">
+          <div>
+            {#if config.job_list_usePaging}
+              <input type="radio" id="true" name="value" value="true" checked />
+            {:else}
+              <input type="radio" id="true" name="value" value="true" />
+            {/if}
+            <label for="true">Paging with selectable count of jobs.</label>
+          </div>
+          <div>
+            {#if config.job_list_usePaging}
+              <input type="radio" id="false" name="value" value="false" />
+            {:else}
+              <input
+                type="radio"
+                id="false"
+                name="value"
+                value="false"
+                checked
+              />
+            {/if}
+            <label for="false">Continuous scroll iteratively adding 10 jobs.</label>
           </div>
         </div>
         <Button color="primary" type="submit">Submit</Button>

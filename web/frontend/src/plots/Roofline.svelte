@@ -298,6 +298,24 @@
                 // Reset grid lineWidth
                 u.ctx.lineWidth = 0.15;
               }
+              if (renderTime) {
+                // The Color Scale For Time Information
+                const posX = u.valToPos(0.1, "x", true)
+                const posXLimit = u.valToPos(100, "x", true)
+                const posY = u.valToPos(15000.0, "y", true)
+                u.ctx.fillStyle = 'black'
+                u.ctx.fillText('Start', posX, posY)
+                const start = posX + 10
+                for (let x = start; x < posXLimit; x += 10) {
+                    let c = (x - start) / (posXLimit - start)
+                    u.ctx.fillStyle = getRGB(c)
+                    u.ctx.beginPath()
+                    u.ctx.arc(x, posY, 3, 0, Math.PI * 2, false)
+                    u.ctx.fill()
+                }
+                u.ctx.fillStyle = 'black'
+                u.ctx.fillText('End', posXLimit + 23, posY)
+              }
             },
           ],
         },

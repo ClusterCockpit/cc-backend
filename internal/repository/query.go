@@ -135,7 +135,7 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 		query = buildStringCondition("job.project", filter.Project, query)
 	}
 	if filter.JobName != nil {
-		query = buildStringCondition("job.meta_data", filter.JobName, query)
+		query = buildMetaJsonCondition("jobName", filter.JobName, query)
 	}
 	if filter.Cluster != nil {
 		query = buildStringCondition("job.cluster", filter.Cluster, query)
@@ -231,6 +231,25 @@ func buildStringCondition(field string, cond *model.StringInput, query sq.Select
 			queryElements[i] = val
 		}
 		return query.Where(sq.Or{sq.Eq{field: queryElements}})
+	}
+	return query
+}
+
+func buildMetaJsonCondition(jsonField string, cond *model.StringInput, query sq.SelectBuilder) sq.SelectBuilder {
+	if cond.Eq != nil {
+		return query.Where("JSON_EXTRACT(meta_data, \"$."+jsonField+"\") = ?", *cond.Eq)
+	}
+	if cond.Neq != nil {
+		return query.Where("JSON_EXTRACT(meta_data, \"$."+jsonField+"\") != ?", *cond.Neq)
+	}
+	if cond.StartsWith != nil {
+		return query.Where("JSON_EXTRACT(meta_data, \"$."+jsonField+"\") LIKE ?", fmt.Sprint(*cond.StartsWith, "%"))
+	}
+	if cond.EndsWith != nil {
+		return query.Where("JSON_EXTRACT(meta_data, \"$."+jsonField+"\") LIKE ?", fmt.Sprint("%", *cond.EndsWith))
+	}
+	if cond.Contains != nil {
+		return query.Where("JSON_EXTRACT(meta_data, \"$."+jsonField+"\") LIKE ?", fmt.Sprint("%", *cond.Contains, "%"))
 	}
 	return query
 }

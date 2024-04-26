@@ -341,7 +341,6 @@
             scopes={item.data.map((x) => x.scope)}
             {width}
             isShared={$initq.data.job.exclusive != 1}
-            resources={$initq.data.job.resources}
           />
         {:else}
           <Card body color="warning"
@@ -361,7 +360,7 @@
             <div style="margin: 10px;">
               <Card color="warning">
                 <CardHeader>
-                  <CardTitle>Missing Metrics/Reseources</CardTitle>
+                  <CardTitle>Missing Metrics/Resources</CardTitle>
                 </CardHeader>
                 <CardBody>
                   {#if missingMetrics.length > 0}
