@@ -306,9 +306,6 @@
       </Button>
     {/if}
   </Col>
-  <!--     <Col xs="auto">
-        <Zoom timeseriesPlots={plots} />
-    </Col> -->
 </Row>
 <Row>
   <Col>
