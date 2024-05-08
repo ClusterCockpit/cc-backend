@@ -33,7 +33,7 @@
     error = null;
   let selectedScope = minScope(scopes);
 
-  let statsPattern = /(.*)-stats$/
+  let statsPattern = /(.*)-stat$/
   let statsSeries = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null)
   let selectedScopeIndex
 
@@ -92,7 +92,7 @@
     {#each availableScopes as scope, index}
       <option value={scope}>{scope}</option>
       {#if statsSeries[index]}
-        <option value={scope + '-stats'}>stats series ({scope})</option>
+        <option value={scope + '-stat'}>stats series ({scope})</option>
       {/if}
     {/each}
     {#if availableScopes.length == 1 && metricConfig?.scope != "node"}

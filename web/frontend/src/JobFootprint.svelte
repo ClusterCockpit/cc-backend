@@ -101,7 +101,7 @@
         // Calculate Avg from jobMetrics
         const jm = jobMetrics.find((jm) => jm.name === fm && jm.scope === "node");
         if (jm?.metric?.statisticsSeries) {
-          mv = round(mean(jm.metric.statisticsSeries.mean), 2);
+          mv = round(mean(jm.metric.statisticsSeries.median), 2);
         } else if (jm?.metric?.series?.length > 1) {
           const avgs = jm.metric.series.map((jms) => jms.statistics.avg);
           mv = round(mean(avgs), 2);

@@ -216,7 +216,7 @@
 
       // conditional hide series color markers:
       if (
-        useStatsSeries === true || // Min/Max/Avg Self-Explanatory
+        useStatsSeries === true || // Min/Max/Median Self-Explanatory
         dataSize === 1 || // Only one Y-Dataseries
         dataSize > 6
       ) {
@@ -296,7 +296,7 @@
   }
 
   const longestSeries = useStatsSeries
-    ? statisticsSeries.mean.length
+    ? statisticsSeries.median.length
     : series.reduce((n, series) => Math.max(n, series.data.length), 0);
   const maxX = longestSeries * timestep;
   let maxY = null;
@@ -346,13 +346,15 @@
   if (useStatsSeries) {
     plotData.push(statisticsSeries.min);
     plotData.push(statisticsSeries.max);
-    plotData.push(statisticsSeries.mean);
+    plotData.push(statisticsSeries.median);
+    // plotData.push(statisticsSeries.mean);
 
     if (forNode === true) {
       // timestamp 0 with null value for reversed time axis
       if (plotData[1].length != 0) plotData[1].push(null);
       if (plotData[2].length != 0) plotData[2].push(null);
       if (plotData[3].length != 0) plotData[3].push(null);
+      // if (plotData[4].length != 0) plotData[4].push(null);
     }
 
     plotSeries.push({
@@ -368,11 +370,17 @@
       stroke: "green",
     });
     plotSeries.push({
-      label: "mean",
+      label: "median",
       scale: "y",
       width: lineWidth,
       stroke: "black",
     });
+    // plotSeries.push({
+    //   label: "mean",
+    //   scale: "y",
+    //   width: lineWidth,
+    //   stroke: "blue",
+    // });
 
     plotBands = [
       { series: [2, 3], fill: "rgba(0,255,0,0.1)" },
@@ -422,7 +430,7 @@
           // Draw plot type label:
           let textl = `${scope}${plotSeries.length > 2 ? "s" : ""}${
             useStatsSeries
-              ? ": min/avg/max"
+              ? ": min/median/max"
               : metricConfig != null && scope != metricConfig.scope
                 ? ` (${metricConfig.aggregation})`
                 : ""
