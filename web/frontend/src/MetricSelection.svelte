@@ -24,7 +24,7 @@
   export let configName;
   export let allMetrics = null;
   export let cluster = null;
-  export let showFootprint;
+  export let showFootprint = false;
   export let view = "job";
 
   const clusters = getContext("clusters"),

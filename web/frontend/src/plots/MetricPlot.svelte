@@ -461,7 +461,7 @@
     },
     scales: {
       x: { time: false },
-      y: maxY ? { range: [0, maxY * 1.1] } : {},
+      y: maxY ? { min: 0, max: (maxY * 1.1) } : {auto: true}, // Add some space to upper render limit
     },
     legend: {
       // Display legend until max 12 Y-dataseries
