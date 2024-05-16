@@ -76,6 +76,9 @@ const configString = `
         "kind": "file",
         "path": "./var/job-archive"
     },
+    "jwts": {
+        "max-age": "2000h"
+    },
     "clusters": [
         {
             "name": "name",
@@ -115,15 +118,15 @@ func initEnv() {
 		os.Exit(0)
 	}
 
-	if err := os.WriteFile("config.json", []byte(configString), 0666); err != nil {
+	if err := os.WriteFile("config.json", []byte(configString), 0o666); err != nil {
 		log.Fatalf("Writing config.json failed: %s", err.Error())
 	}
 
-	if err := os.WriteFile(".env", []byte(envString), 0666); err != nil {
+	if err := os.WriteFile(".env", []byte(envString), 0o666); err != nil {
 		log.Fatalf("Writing .env failed: %s", err.Error())
 	}
 
-	if err := os.Mkdir("var", 0777); err != nil {
+	if err := os.Mkdir("var", 0o777); err != nil {
 		log.Fatalf("Mkdir var failed: %s", err.Error())
 	}
 
