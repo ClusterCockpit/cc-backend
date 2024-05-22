@@ -644,7 +644,7 @@
   </Row>
   <hr class="my-2" />
   {#if metricsInHistograms}
-    <Row>
+    <Row cols={1}>
       <Col>
         {#key $mainQuery.data.stats[0].histMetrics}
           <PlotTable
@@ -652,7 +652,7 @@
             let:width
             renderFor="user"
             items={$mainQuery.data.stats[0].histMetrics}
-            itemsPerRow={3}
+            itemsPerRow={2}
           >
             <Histogram
               data={convert2uplot(item.data)}
