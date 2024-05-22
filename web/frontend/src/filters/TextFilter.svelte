@@ -4,21 +4,25 @@
 
   const dispatch = createEventDispatcher();
 
-  export let user = "";
-  export let project = "";
   export let authlevel;
   export let roles;
-  let mode = "user",
-    term = "";
+  let mode = "user";
+  let term = "";
+  let user = "";
+  let project = "";
+  let jobName = "";
   const throttle = 500;
 
   function modeChanged() {
     if (mode == "user") {
       project = term;
       term = user;
-    } else {
+    } else if (mode == "project") {
       user = term;
       term = project;
+    } else {
+      jobName = term;
+      term = jobName;
     }
     termChanged(0);
   }
@@ -28,7 +32,8 @@
   function termChanged(sleep = throttle) {
     if (authlevel >= roles.manager) {
       if (mode == "user") user = term;
-      else project = term;
+      else if (mode == "project") project = term;
+      else jobName = term;
 
       if (timeoutId != null) clearTimeout(timeoutId);
 
@@ -36,49 +41,44 @@
         dispatch("update", {
           user,
           project,
+          jobName
         });
       }, sleep);
     } else {
-      project = term;
+      if (mode == "project") project = term;
+      else jobName = term;
+
       if (timeoutId != null) clearTimeout(timeoutId);
 
       timeoutId = setTimeout(() => {
         dispatch("update", {
           project,
+          jobName
         });
       }, sleep);
     }
   }
 </script>
 
-{#if authlevel >= roles.manager}
-  <InputGroup>
-    <select
-      style="max-width: 175px;"
-      class="form-select"
-      bind:value={mode}
-      on:change={modeChanged}
-    >
+<InputGroup>
+  <select
+    style="max-width: 175px;"
+    class="form-select"
+    bind:value={mode}
+    on:change={modeChanged}
+  >
+    {#if authlevel >= roles.manager}
       <option value={"user"}>Search User</option>
-      <option value={"project"}>Search Project</option>
-    </select>
-    <Input
-      type="text"
-      bind:value={term}
-      on:change={() => termChanged()}
-      on:keyup={(event) => termChanged(event.key == "Enter" ? 0 : throttle)}
-      placeholder={mode == "user" ? "filter username..." : "filter project..."}
-    />
-  </InputGroup>
-{:else}
-  <!-- Compatibility: Handle "user role" and "no role" identically-->
-  <InputGroup>
-    <Input
-      type="text"
-      bind:value={term}
-      on:change={() => termChanged()}
-      on:keyup={(event) => termChanged(event.key == "Enter" ? 0 : throttle)}
-      placeholder="filter project..."
-    />
-  </InputGroup>
-{/if}
+    {/if}
+    <option value={"project"}>Search Project</option>
+    <option value={"jobName"}>Search Jobname</option>
+  </select>
+  <Input
+    type="text"
+    bind:value={term}
+    on:change={() => termChanged()}
+    on:keyup={(event) => termChanged(event.key == "Enter" ? 0 : throttle)}
+    placeholder={`filter ${mode}...`}
+  />
+</InputGroup>
+

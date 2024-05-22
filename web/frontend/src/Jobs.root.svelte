@@ -14,7 +14,7 @@
   import Refresher from "./joblist/Refresher.svelte";
   import Sorting from "./joblist/SortSelection.svelte";
   import MetricSelection from "./MetricSelection.svelte";
-  import UserOrProject from "./filters/UserOrProject.svelte";
+  import TextFilter from "./filters/TextFilter.svelte";
 
   const { query: initq } = init();
 
@@ -86,7 +86,7 @@
   </Col>
 
   <Col xs="3" style="margin-left: auto;">
-    <UserOrProject
+    <TextFilter
       bind:authlevel
       bind:roles
       on:update={({ detail }) => filterComponent.update(detail)}
