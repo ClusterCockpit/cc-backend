@@ -315,20 +315,11 @@
 
 <!-- Loading indicator & Refresh -->
 
-<Row cols={3}>
-  <Col xs="auto" style="align-self: flex-end;">
+<Row cols={{ lg: 3, md: 3, sm: 1 }}>
+  <Col style="">
     <h4 class="mb-0">Current utilization of cluster "{cluster}"</h4>
   </Col>
-  <Col xs="auto" style="margin-left: 0.25rem;">
-    {#if $initq.fetching || $mainQuery.fetching}
-      <Spinner />
-    {:else if $initq.error}
-      <Card body color="danger">{$initq.error.message}</Card>
-    {:else}
-      <!-- ... -->
-    {/if}
-  </Col>
-  <Col xs="auto" style="margin-left: auto;">
+  <Col class="mt-2 mt-md-0 text-md-end">
     <Button
       outline
       color="secondary"
@@ -337,7 +328,7 @@
       <Icon name="bar-chart-line" /> Select Histograms
     </Button>
   </Col>
-  <Col xs="auto" style="margin-left: 0.25rem;">
+  <Col class="mt-2 mt-md-0">
     <Refresher
       initially={120}
       on:reload={() => {
@@ -345,6 +336,17 @@
         to = new Date(Date.now());
       }}
     />
+  </Col>
+</Row>
+<Row cols={1} class="text-center mt-3">
+  <Col>
+    {#if $initq.fetching || $mainQuery.fetching}
+      <Spinner />
+    {:else if $initq.error}
+      <Card body color="danger">{$initq.error.message}</Card>
+    {:else}
+      <!-- ... -->
+    {/if}
   </Col>
 </Row>
 {#if $mainQuery.error}
@@ -361,8 +363,8 @@
 
 {#if $initq.data && $mainQuery.data}
   {#each $initq.data.clusters.find((c) => c.name == cluster).subClusters as subCluster, i}
-    <Row cols={2} class="mb-3 justify-content-center">
-      <Col md="4" class="px-3">
+    <Row cols={{ lg: 2, md: 1 , sm: 1}} class="mb-3 justify-content-center">
+      <Col class="px-3">
         <Card class="h-auto mt-1">
           <CardHeader>
             <CardTitle class="mb-0">SubCluster "{subCluster.name}"</CardTitle>
@@ -433,7 +435,7 @@
           </CardBody>
         </Card>
       </Col>
-      <Col class="px-3">
+      <Col class="px-3 mt-2 mt-lg-0">
         <div bind:clientWidth={plotWidths[i]}>
           {#key $mainQuery.data.nodeMetrics}
             <Roofline
@@ -457,7 +459,7 @@
 
   <!-- Usage Stats as Histograms -->
 
-  <Row cols={4}>
+  <Row cols={{ lg: 4, md: 2, sm: 1 }}>
     <Col class="p-2">
       <div bind:clientWidth={colWidth1}>
         <h4 class="text-center">
@@ -580,7 +582,7 @@
     </Col>
   </Row>
   <hr class="my-2" />
-  <Row cols={2}>
+  <Row cols={{ lg: 2, md: 1 }}>
     <Col class="p-2">
       <div bind:clientWidth={colWidth2}>
         {#key $mainQuery.data.stats}
@@ -610,7 +612,7 @@
       {/key}
     </Col>
   </Row>
-  <Row cols={2}>
+  <Row cols={{ lg: 2, md: 1 }}>
     <Col class="p-2">
       <div bind:clientWidth={colWidth2}>
         {#key $mainQuery.data.stats}
