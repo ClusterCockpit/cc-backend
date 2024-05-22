@@ -165,10 +165,11 @@
         .find((c) => c.name == job.cluster)
         .metricConfig.map((mc) => mc.name);
 
-    // Metric not found in JobMetrics && Metric not explicitly disabled: Was expected, but is Missing
+    // Metric not found in JobMetrics && Metric not explicitly disabled in config or deselected: Was expected, but is Missing
     missingMetrics = metricNames.filter(
       (metric) =>
         !metrics.some((jm) => jm.name == metric) &&
+        selectedMetrics.includes(metric) && 
         !checkMetricDisabled(
           metric,
           $initq.data.job.cluster,
