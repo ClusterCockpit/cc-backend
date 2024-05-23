@@ -194,7 +194,7 @@
     if (filters.project) opts.push(`project=${filters.project}`);
     if (filters.jobName) opts.push(`jobName=${filters.jobName}`);
     if (filters.arrayJobId) opts.push(`arrayJobId=${filters.arrayJobId}`);
-    if (filters.projectMatch != "contains")
+    if (filters.project && filters.projectMatch != "contains")
       opts.push(`projectMatch=${filters.projectMatch}`);
 
     if (opts.length == 0 && window.location.search.length <= 1) return;

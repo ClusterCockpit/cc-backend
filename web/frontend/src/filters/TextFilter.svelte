@@ -1,28 +1,29 @@
 <script>
-  import { InputGroup, Input } from "@sveltestrap/sveltestrap";
+  import { InputGroup, Input, Button, Icon } from "@sveltestrap/sveltestrap";
   import { createEventDispatcher } from "svelte";
 
   const dispatch = createEventDispatcher();
 
-  export let authlevel;
-  export let roles;
-  let mode = "user";
+  export let presetProject = ""; // If page with this component has project preset, keep preset until reset
+  export let authlevel = null;
+  export let roles = null;
+  let mode = presetProject ? "jobName" : "project";
   let term = "";
   let user = "";
-  let project = "";
+  let project = presetProject ? presetProject : "";
   let jobName = "";
   const throttle = 500;
 
   function modeChanged() {
     if (mode == "user") {
-      project = term;
-      term = user;
+      project = presetProject ? presetProject : "";
+      jobName = "";
     } else if (mode == "project") {
-      user = term;
-      term = project;
+      user = "";
+      jobName = "";
     } else {
-      jobName = term;
-      term = jobName;
+      project = presetProject ? presetProject : "";
+      user = "";
     }
     termChanged(0);
   }
@@ -30,7 +31,7 @@
   let timeoutId = null;
   // Compatibility: Handle "user role" and "no role" identically
   function termChanged(sleep = throttle) {
-    if (authlevel >= roles.manager) {
+    if (roles && authlevel >= roles.manager) {
       if (mode == "user") user = term;
       else if (mode == "project") project = term;
       else jobName = term;
@@ -58,6 +59,14 @@
       }, sleep);
     }
   }
+
+  function resetProject () {
+    mode = "project"
+    term = ""
+    presetProject = ""
+    project = ""
+    termChanged(0);
+  }
 </script>
 
 <InputGroup>
@@ -67,10 +76,12 @@
     bind:value={mode}
     on:change={modeChanged}
   >
-    {#if authlevel >= roles.manager}
+    {#if !presetProject}
+      <option value={"project"}>Search Project</option>
+    {/if}
+    {#if roles && authlevel >= roles.manager}
       <option value={"user"}>Search User</option>
     {/if}
-    <option value={"project"}>Search Project</option>
     <option value={"jobName"}>Search Jobname</option>
   </select>
   <Input
@@ -78,7 +89,12 @@
     bind:value={term}
     on:change={() => termChanged()}
     on:keyup={(event) => termChanged(event.key == "Enter" ? 0 : throttle)}
-    placeholder={`filter ${mode}...`}
+    placeholder={presetProject ? `Filter ${mode} in ${presetProject} ...` : `Filter ${mode} ...`}
   />
+  {#if presetProject}
+  <Button title="Reset Project" on:click={resetProject}
+    ><Icon name="arrow-counterclockwise" /></Button
+  >
+  {/if}
 </InputGroup>
 

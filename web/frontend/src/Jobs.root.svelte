@@ -38,6 +38,7 @@
     ? !!ccconfig[`plot_list_showFootprint:${filterPresets.cluster}`]
     : !!ccconfig.plot_list_showFootprint;
   let selectedCluster = filterPresets?.cluster ? filterPresets.cluster : null;
+  let presetProject = filterPresets?.project ? filterPresets.project : ""
 
   // The filterPresets are handled by the Filters component,
   // so we need to wait for it to be ready before we can start a query.
@@ -87,6 +88,7 @@
 
   <Col xs="3" style="margin-left: auto;">
     <TextFilter
+      {presetProject}
       bind:authlevel
       bind:roles
       on:update={({ detail }) => filterComponent.update(detail)}
