@@ -347,7 +347,11 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, buildInfo web.Buil
 			} else if project != "" {
 				http.Redirect(rw, r, "/monitoring/jobs/?projectMatch=eq&project="+url.QueryEscape(project), http.StatusFound) // projectId (equal)
 			} else if jobname != "" {
-				http.Redirect(rw, r, "/monitoring/jobs/?jobName="+url.QueryEscape(jobname), http.StatusFound) // JobName (contains)
+				// Add Last 30 Days to migitate timeouts
+				untilTime := strconv.FormatInt(time.Now().Unix(), 10)
+				fromTime := strconv.FormatInt((time.Now().Unix() - int64(30*24*3600)), 10)
+
+				http.Redirect(rw, r, "/monitoring/jobs/?startTime="+fromTime+"-"+untilTime+"&jobName="+url.QueryEscape(jobname), http.StatusFound) // 30D Fitler + JobName (contains)
 			} else {
 				web.RenderTemplate(rw, "message.tmpl", &web.Page{Title: "Info", MsgType: "alert-info", Message: "Search without result", User: *user, Roles: availableRoles, Build: buildInfo})
 			}
