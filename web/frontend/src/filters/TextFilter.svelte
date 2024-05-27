@@ -1,6 +1,7 @@
 <script>
   import { InputGroup, Input, Button, Icon } from "@sveltestrap/sveltestrap";
   import { createEventDispatcher } from "svelte";
+  import { scramble, scrambleNames } from "../joblist/JobInfo.svelte";
 
   const dispatch = createEventDispatcher();
 
@@ -89,7 +90,7 @@
     bind:value={term}
     on:change={() => termChanged()}
     on:keyup={(event) => termChanged(event.key == "Enter" ? 0 : throttle)}
-    placeholder={presetProject ? `Filter ${mode} in ${presetProject} ...` : `Filter ${mode} ...`}
+    placeholder={presetProject ? `Filter ${mode} in ${scrambleNames ? scramble(presetProject) : presetProject} ...` : `Filter ${mode} ...`}
   />
   {#if presetProject}
   <Button title="Reset Project" on:click={resetProject}
