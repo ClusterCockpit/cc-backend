@@ -52,7 +52,7 @@
     class="card-body"
     on:submit|preventDefault={handleUserSubmit}
   >
-    <CardTitle class="mb-3">Create User</CardTitle>
+    <CardTitle class="mb-3">Add Create User</CardTitle>
     <div class="mb-3">
       <label for="username" class="form-label">Username (ID)</label>
       <input

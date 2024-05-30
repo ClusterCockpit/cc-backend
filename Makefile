@@ -36,6 +36,10 @@ $(TARGET): $(VAR) $(CFG) $(SVELTE_TARGETS)
 	$(info ===>  BUILD cc-backend)
 	@go build -ldflags=${LD_FLAGS} ./cmd/cc-backend
 
+build :
+	$(info ==>  BUILD cc-backend)
+	@go build -ldflags=${LD_FLAGS} ./cmd/cc-backend
+
 frontend:
 	$(info ===>  BUILD frontend)
 	cd web/frontend && npm install && npm run build
