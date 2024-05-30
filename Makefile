@@ -38,7 +38,7 @@ $(TARGET): $(VAR) $(CFG) $(SVELTE_TARGETS)
 
 frontend:
 	$(info ===>  BUILD frontend)
-	cd web/frontend && pnpm install && pnpm run build
+	cd web/frontend && npm install && npm run build
 
 clean:
 	$(info ===>  CLEAN)
