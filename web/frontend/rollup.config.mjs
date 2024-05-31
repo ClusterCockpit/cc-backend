@@ -52,7 +52,7 @@ const entrypoint = (name, path) => ({
         // we'll extract any component CSS out into
         // a separate file - better for performance
         css({ output: `${name}.css` }),
-        // livereload('public')
+        livereload('public')
     ],
     watch: {
         clearScreen: false
