@@ -6,8 +6,8 @@ import terser from '@rollup/plugin-terser';
 import css from 'rollup-plugin-css-only';
 import livereload from 'rollup-plugin-livereload';
 
-// const production = !process.env.ROLLUP_WATCH;
-const production = false
+const production = !process.env.ROLLUP_WATCH;
+// const production = false
 
 const plugins = [
     svelte({
