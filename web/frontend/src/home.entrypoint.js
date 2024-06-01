@@ -1,11 +1,10 @@
 import {} from './header.entrypoint.js'
-import User from './User.root.svelte'
+import Home from './Home.root.svelte'
 
-new User({
+new Home({
     target: document.getElementById('svelte-app'),
     props: {
-        filterPresets: filterPresets,
-        user: userInfos
+        isAdmin: isAdmin
     },
     context: new Map([
             ['cc-config', clusterCockpitConfig]

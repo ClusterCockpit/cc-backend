@@ -75,7 +75,7 @@
               <!-- <Button color="primary" on:click={nextPage}> -->
               <Button color="primary">Next</Button>
               <!-- dropdown for number of pages to  show -->
-              <div>
+              <!-- <div> -->
                 <Dropdown {isOpen} toggle={() => (isOpen = !isOpen)}>
                     <DropdownToggle caret>
                       {selectedPages}
@@ -88,7 +88,7 @@
                       {/each}
                     </DropdownMenu>
                   </Dropdown>
-              </div>
+              <!-- </div> -->
             </Col>
           </Row>
         </CardBody>

@@ -1,57 +1,15 @@
 {{define "content"}}
-{{if .Infos.message }}
-<div class="row justify-content-center">
-    <div class="col-6">
-        <div class="alert alert-info p-3" role="alert">
-            <div class="row  align-items-center">
-                <div class="col-2">
-                    <h2><i class="bi-info-circle-fill m-3"></i></h2>
-                </div>
-                <div class="col-10">
-                {{.Infos.message}}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+    <div id="svelte-app"></div>
 {{end}}
-<div class="row">
-    <div class="col">
-        <h2>Clusters</h2>
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Running Jobs</th>
-                    <th>Total Jobs</th>
-                    {{if .User.HasRole .Roles.admin}}
-                        <th>Status View</th>
-                        <th>System View</th>
-                    {{end}}
-                </tr>
-            </thead>
-            <tbody>
-                {{if .User.HasRole .Roles.admin}}
-                    {{range .Infos.clusters}}
-                        <tr>
-                            <td>{{.ID}}</td>
-                            <td><a href="/monitoring/jobs/?cluster={{.ID}}&state=running">{{.RunningJobs}} jobs</a></td>
-                            <td><a href="/monitoring/jobs/?cluster={{.ID}}">{{.TotalJobs}} jobs</a></td>
-                            <td><a href="/monitoring/status/{{.ID}}">Status View</a></td>
-                            <td><a href="/monitoring/systems/{{.ID}}">System View</a></td>
-                        </tr>
-                    {{end}}
-                {{else}}
-                    {{range .Infos.clusters}}
-                        <tr>
-                            <td>{{.ID}}</td>
-                            <td><a href="/monitoring/jobs/?cluster={{.ID}}&state=running">{{.RunningJobs}} jobs</a></td>
-                            <td><a href="/monitoring/jobs/?cluster={{.ID}}">{{.TotalJobs}} jobs</a></td>
-                        </tr>
-                    {{end}}
-                {{end}}
-            </tbody>
-        </table>
-    </div>
-</div>
+
+{{define "stylesheets"}}
+    <link rel='stylesheet' href='/build/home.css'>
+{{end}}
+{{define "javascript"}}
+    <script>
+        const isAdmin = {{ .User.HasRole .Roles.admin }};
+        const filterPresets = {{ .FilterPresets }};
+        const clusterCockpitConfig = {{ .Config }};
+    </script>
+    <script src='/build/home.js'></script>
 {{end}}

@@ -6,8 +6,8 @@ import terser from '@rollup/plugin-terser';
 import css from 'rollup-plugin-css-only';
 import livereload from 'rollup-plugin-livereload';
 
-const production = !process.env.ROLLUP_WATCH;
-// const production = false
+// const production = !process.env.ROLLUP_WATCH;
+const production = false
 
 const plugins = [
     svelte({
@@ -61,13 +61,14 @@ const entrypoint = (name, path) => ({
 
 export default [
     entrypoint('header', 'src/header.entrypoint.js'),
-    entrypoint('jobs', 'src/jobs.entrypoint.js'),
-    entrypoint('user', 'src/user.entrypoint.js'),
-    entrypoint('list', 'src/list.entrypoint.js'),
-    entrypoint('job', 'src/job.entrypoint.js'),
-    entrypoint('systems', 'src/systems.entrypoint.js'),
+    entrypoint('home', 'src/home.entrypoint.js'),
+    // entrypoint('jobs', 'src/jobs.entrypoint.js'),
+    // entrypoint('user', 'src/user.entrypoint.js'),
+    // entrypoint('list', 'src/list.entrypoint.js'),
+    // entrypoint('job', 'src/job.entrypoint.js'),
+    // entrypoint('systems', 'src/systems.entrypoint.js'),
     entrypoint('node', 'src/node.entrypoint.js'),
-    entrypoint('analysis', 'src/analysis.entrypoint.js'),
+    // entrypoint('analysis', 'src/analysis.entrypoint.js'),
     entrypoint('control', 'src/control.entrypoint.js'),
     entrypoint('config', 'src/config.entrypoint.js'),
     entrypoint('partitions', 'src/partitions.entrypoint.js'),
