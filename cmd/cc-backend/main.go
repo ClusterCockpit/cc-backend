@@ -337,6 +337,7 @@ func main() {
 		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
 		web.RenderTemplate(rw, "privacy.tmpl", &web.Page{Title: "Privacy", Build: buildInfo})
 	})
+	// r.NotFoundHandler
 
 	secured := r.PathPrefix("/").Subrouter()
 
