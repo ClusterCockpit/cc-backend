@@ -337,6 +337,11 @@ func main() {
 		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
 		web.RenderTemplate(rw, "privacy.tmpl", &web.Page{Title: "Privacy", Build: buildInfo})
 	})
+	r.NotFoundHandler = http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		rw.WriteHeader(http.StatusNotFound)
+		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
+		web.RenderTemplate(rw, "404.tmpl", &web.Page{Title: "Page not found", Build: buildInfo})
+	})
 
 	secured := r.PathPrefix("/").Subrouter()
 
