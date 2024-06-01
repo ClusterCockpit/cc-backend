@@ -343,7 +343,6 @@ func main() {
 		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
 		web.RenderTemplate(rw, "404.tmpl", &web.Page{Title: "Page not found", Build: buildInfo})
 	})
--
 
 	secured := r.PathPrefix("/").Subrouter()
 

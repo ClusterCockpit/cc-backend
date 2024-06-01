@@ -2,6 +2,7 @@
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+// TODO : Here is the route config
 package routerConfig
 
 import (
@@ -47,10 +48,10 @@ var routes []Route = []Route{
 	{"/monitoring/control/{cluster}", "monitoring/control.tmpl", "Status of <ID> - ClusterCockpit", false, setupClusterRoute},
 	{"/monitoring/partition/{cluster}", "partitions/systems.tmpl", "Cluster <ID> - ClusterCockpit", false, setupClusterRoute},
 	{"/monitoring/history/", "monitoring/history.tmpl", "Cluster <ID> - ClusterCockpit", false, setupClusterRoute},
-
-
-
 }
+
+
+
 
 func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 	jobRepo := repository.GetJobRepository()
