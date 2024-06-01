@@ -1,4 +1,5 @@
 #!/bin/bash
+# DB_VERSION="1
 cp ./configs/env-template.txt .env
 cp ./configs/config-demo.json config.json
 if [ ! -d ./var ]; then
@@ -8,7 +9,7 @@ if [ ! -d ./var/job-archive ]; then
     mkdir -p ./var/job-archive
 fi
 if [ ! -f ./var/job-archive/version.txt ]; then
-    cat 1 > ./var/job-archive/version.txt
+    echo 1 > ./var/job-archive/version.txt
 fi
 TARGET="./cc-backend"
 VAR="./var"
