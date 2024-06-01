@@ -1,7 +1,15 @@
 #!/bin/bash
 cp ./configs/env-template.txt .env
 cp ./configs/config-demo.json config.json
-
+if [ ! -d ./var ]; then
+    mkdir -p ./var
+fi
+if [ ! -d ./var/job-archive ]; then
+    mkdir -p ./var/job-archive
+fi
+if [ ! -f ./var/job-archive/version.txt ]; then
+    cat 1 > ./var/job-archive/version.txt
+fi
 TARGET="./cc-backend"
 VAR="./var"
 CFG="config.json .env"
