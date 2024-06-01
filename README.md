@@ -202,3 +202,9 @@ In case the REST or GraphQL API is changed the according code generators have to
 - [`gqlgen.yml`](https://github.com/ClusterCockpit/cc-backend/blob/master/gqlgen.yml) Configures the behaviour and generation of [gqlgen](https://github.com/99designs/gqlgen).
 - [`startDemo.sh`](https://github.com/ClusterCockpit/cc-backend/blob/master/startDemo.sh) is a shell script that sets up demo data, and builds and starts `cc-backend`.
 
+
+## Docker Mariadb
+
+```
+ docker run -p 3306:3306 -detach --name some-mariadb   --env MARIADB_DATABASE=clustercockpit --env MARIADB_ROOT_PASSWORD=my-secret-pw  mariadb:latest
+```
