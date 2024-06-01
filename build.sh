@@ -1,4 +1,6 @@
 #!/bin/bash
+cp ./configs/env-template.txt .env
+cp ./configs/config-demo.json config.json
 
 TARGET="./cc-backend"
 VAR="./var"
