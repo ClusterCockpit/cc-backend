@@ -109,8 +109,8 @@ func LoadData(job *schema.Job,
 			jd, err = repo.LoadData(job, metrics, scopes, ctx)
 			if err != nil {
 				if len(jd) != 0 {
-					log.Errorf("partial error: %s", err.Error())
-					return err, 0, 0
+					log.Warnf("partial error: %s", err.Error())
+					// return err, 0, 0 // Reactivating will block archiving on one partial error
 				} else {
 					log.Error("Error while loading job data from metric repository")
 					return err, 0, 0
