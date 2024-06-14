@@ -33,8 +33,17 @@
     error = null;
   let selectedScope = minScope(scopes);
 
+  let statsPattern = /(.*)-stats$/
+  let statsSeries = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null)
+  let selectedScopeIndex
+
   $: availableScopes = scopes;
-  $: selectedScopeIndex = scopes.findIndex((s) => s == selectedScope);
+  $: patternMatches = statsPattern.exec(selectedScope)
+  $: if (!patternMatches) {
+      selectedScopeIndex = scopes.findIndex((s) => s == selectedScope);
+    } else {
+      selectedScopeIndex = scopes.findIndex((s) => s == patternMatches[1]);
+    }
   $: data = rawData[selectedScopeIndex];
   $: series = data?.series.filter(
     (series) => selectedHost == null || series.hostname == selectedHost,
@@ -62,6 +71,7 @@
       if (jm.scope != "node") {
         scopes = [...scopes, jm.scope];
         rawData.push(jm.metric);
+        statsSeries = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null)
         selectedScope = jm.scope;
         selectedScopeIndex = scopes.findIndex((s) => s == jm.scope);
         dispatch("more-loaded", jm);
@@ -79,15 +89,18 @@
       : "") + (metricConfig?.unit?.base ? metricConfig.unit.base : "")})
   </InputGroupText>
   <select class="form-select" bind:value={selectedScope}>
-    {#each availableScopes as scope}
+    {#each availableScopes as scope, index}
       <option value={scope}>{scope}</option>
+      {#if statsSeries[index]}
+        <option value={scope + '-stats'}>stats series ({scope})</option>
+      {/if}
     {/each}
     {#if availableScopes.length == 1 && metricConfig?.scope != "node"}
       <option value={"load-more"}>Load more...</option>
     {/if}
   </select>
   {#if job.resources.length > 1}
-    <select class="form-select" bind:value={selectedHost}>
+    <select class="form-select" bind:value={selectedHost} disabled={patternMatches}>
       <option value={null}>All Hosts</option>
       {#each job.resources as { hostname }}
         <option value={hostname}>{hostname}</option>
@@ -100,7 +113,7 @@
     <Spinner />
   {:else if error != null}
     <Card body color="danger">{error.message}</Card>
-  {:else if series != null}
+  {:else if series != null && !patternMatches}
     <Timeseries
       bind:this={plot}
       {width}
@@ -113,6 +126,22 @@
       {series}
       {isShared}
       resources={job.resources}
+    />
+  {:else if statsSeries[selectedScopeIndex] != null && patternMatches}
+    <Timeseries
+      bind:this={plot}
+      {width}
+      height={300}
+      {cluster}
+      {subCluster}
+      timestep={data.timestep}
+      scope={selectedScope}
+      metric={metricName}
+      {series}
+      {isShared}
+      resources={job.resources}
+      statisticsSeries={statsSeries[selectedScopeIndex]}
+      useStatsSeries={!!statsSeries[selectedScopeIndex]}
     />
   {/if}
 {/key}

@@ -520,7 +520,7 @@ func (r *JobRepository) archivingWorker() {
 			// not using meta data, called to load JobMeta into Cache?
 			// will fail if job meta not in repository
 			if _, err := r.FetchMetadata(job); err != nil {
-				log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
+				log.Errorf("archiving job (dbid: %d) failed at check metadata step: %s", job.ID, err.Error())
 				r.UpdateMonitoringStatus(job.ID, schema.MonitoringStatusArchivingFailed)
 				continue
 			}
@@ -529,14 +529,14 @@ func (r *JobRepository) archivingWorker() {
 			// TODO: Maybe use context with cancel/timeout here
 			jobMeta, err := metricdata.ArchiveJob(job, context.Background())
 			if err != nil {
-				log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
+				log.Errorf("archiving job (dbid: %d) failed at archiving job step: %s", job.ID, err.Error())
 				r.UpdateMonitoringStatus(job.ID, schema.MonitoringStatusArchivingFailed)
 				continue
 			}
 
 			// Update the jobs database entry one last time:
 			if err := r.MarkArchived(job.ID, schema.MonitoringStatusArchivingSuccessful, jobMeta.Statistics); err != nil {
-				log.Errorf("archiving job (dbid: %d) failed: %s", job.ID, err.Error())
+				log.Errorf("archiving job (dbid: %d) failed at marking archived step: %s", job.ID, err.Error())
 				continue
 			}
 			log.Debugf("archiving job %d took %s", job.JobID, time.Since(start))

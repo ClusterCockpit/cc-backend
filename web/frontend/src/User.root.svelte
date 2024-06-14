@@ -12,6 +12,7 @@
   } from "@sveltestrap/sveltestrap";
   import { queryStore, gql, getContextClient } from "@urql/svelte";
   import Filters from "./filters/Filters.svelte";
+  import TextFilter from "./filters/TextFilter.svelte"
   import JobList from "./joblist/JobList.svelte";
   import Sorting from "./joblist/SortSelection.svelte";
   import Refresher from "./joblist/Refresher.svelte";
@@ -132,6 +133,11 @@
     />
   </Col>
   <Col xs="auto" style="margin-left: auto;">
+    <TextFilter
+      on:update={({ detail }) => filterComponent.update(detail)}
+    />
+  </Col>
+  <Col xs="auto">
     <Refresher on:reload={() => jobList.refresh()} />
   </Col>
 </Row>

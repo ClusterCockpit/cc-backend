@@ -18,7 +18,7 @@
 
 <td>{user.username}</td>
 <td>{user.name}</td>
-<td>{user.projects}</td>
+<td style="max-width: 200px;">{user.projects}</td>
 <td>{user.email}</td>
 <td><code>{user?.roles ? user.roles.join(", ") : "No Roles"}</code></td>
 <td>

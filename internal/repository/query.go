@@ -236,6 +236,9 @@ func buildStringCondition(field string, cond *model.StringInput, query sq.Select
 }
 
 func buildMetaJsonCondition(jsonField string, cond *model.StringInput, query sq.SelectBuilder) sq.SelectBuilder {
+	// Verify and Search Only in Valid Jsons
+	query = query.Where("JSON_VALID(meta_data)")
+	// add "AND" Sql query Block for field match
 	if cond.Eq != nil {
 		return query.Where("JSON_EXTRACT(meta_data, \"$."+jsonField+"\") = ?", *cond.Eq)
 	}
