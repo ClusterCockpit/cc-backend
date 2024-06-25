@@ -34,10 +34,10 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/routerConfig"
-	"github.com/ClusterCockpit/cc-backend/internal/runtimeEnv"
 	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/pkg/runtimeEnv"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/ClusterCockpit/cc-backend/web"
 	"github.com/go-co-op/gocron"
@@ -662,5 +662,5 @@ func main() {
 	}
 	runtimeEnv.SystemdNotifiy(true, "running")
 	wg.Wait()
-	log.Print("Gracefull shutdown completed!")
+	log.Print("Graceful shutdown completed!")
 }
