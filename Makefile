@@ -28,7 +28,7 @@ SVELTE_SRC = $(wildcard $(FRONTEND)/src/*.svelte)         \
 			 $(wildcard $(FRONTEND)/src/plots/*.svelte)   \
 			 $(wildcard $(FRONTEND)/src/joblist/*.svelte)
 
-.PHONY: clean distclean test tags frontend $(TARGET)
+.PHONY: clean distclean test tags frontend swagger $(TARGET)
 
 .NOTPARALLEL:
 
@@ -39,6 +39,11 @@ $(TARGET): $(VAR) $(CFG) $(SVELTE_TARGETS)
 frontend:
 	$(info ===>  BUILD frontend)
 	cd web/frontend && npm install && npm run build
+
+swagger:
+	$(info ===>  GENERATE swagger)
+	@go run github.com/swaggo/swag/cmd/swag init -d ./internal/api,./pkg/schema -g rest.go -o ./api
+	@mv ./api/docs.go ./internal/api/docs.go
 
 clean:
 	$(info ===>  CLEAN)
