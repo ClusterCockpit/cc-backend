@@ -28,7 +28,7 @@ SVELTE_SRC = $(wildcard $(FRONTEND)/src/*.svelte)         \
 			 $(wildcard $(FRONTEND)/src/plots/*.svelte)   \
 			 $(wildcard $(FRONTEND)/src/joblist/*.svelte)
 
-.PHONY: clean distclean test tags frontend swagger $(TARGET)
+.PHONY: clean distclean test tags frontend swagger graphql $(TARGET)
 
 .NOTPARALLEL:
 
@@ -44,6 +44,10 @@ swagger:
 	$(info ===>  GENERATE swagger)
 	@go run github.com/swaggo/swag/cmd/swag init -d ./internal/api,./pkg/schema -g rest.go -o ./api
 	@mv ./api/docs.go ./internal/api/docs.go
+
+graphql:
+	$(info ===>  GENERATE graphql)
+	@go run github.com/99designs/gqlgen
 
 clean:
 	$(info ===>  CLEAN)
