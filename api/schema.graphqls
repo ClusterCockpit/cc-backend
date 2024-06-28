@@ -27,12 +27,7 @@ type Job {
   tags:             [Tag!]!
   resources:        [Resource!]!
   concurrentJobs:   JobLinkResultList
-
-  memUsedMax:       Float
-  flopsAnyAvg:      Float
-  memBwAvg:         Float
-  loadAvg:          Float
-
+  footprint:        [MetricValue]
   metaData:         Any
   userData:         User
 }
@@ -64,6 +59,7 @@ type SubCluster {
 }
 
 type MetricValue {
+  name: String
   unit: Unit!
   value: Float!
 }
