@@ -59,7 +59,7 @@ func GetJobRepository() *JobRepository {
 var jobColumns []string = []string{
 	"job.id", "job.job_id", "job.user", "job.project", "job.cluster", "job.subcluster", "job.start_time", "job.partition", "job.array_job_id",
 	"job.num_nodes", "job.num_hwthreads", "job.num_acc", "job.exclusive", "job.monitoring_status", "job.smt", "job.job_state",
-	"job.duration", "job.walltime", "job.resources", "job.mem_used_max", "job.flops_any_avg", "job.mem_bw_avg", "job.load_avg", // "job.meta_data",
+	"job.duration", "job.walltime", "job.resources", "job.footprint", // "job.meta_data",
 }
 
 func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
@@ -67,15 +67,22 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 	if err := row.Scan(
 		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.SubCluster, &job.StartTimeUnix, &job.Partition, &job.ArrayJobId,
 		&job.NumNodes, &job.NumHWThreads, &job.NumAcc, &job.Exclusive, &job.MonitoringStatus, &job.SMT, &job.State,
-		&job.Duration, &job.Walltime, &job.RawResources, &job.MemUsedMax, &job.FlopsAnyAvg, &job.MemBwAvg, &job.LoadAvg /*&job.RawMetaData*/); err != nil {
+		&job.Duration, &job.Walltime, &job.RawResources, &job.RawFootprint /*&job.RawMetaData*/); err != nil {
 		log.Warnf("Error while scanning rows (Job): %v", err)
 		return nil, err
 	}
 
 	if err := json.Unmarshal(job.RawResources, &job.Resources); err != nil {
-		log.Warn("Error while unmarhsaling raw resources json")
+		log.Warn("Error while unmarshaling raw resources json")
 		return nil, err
 	}
+	job.RawResources = nil
+
+	if err := json.Unmarshal(job.RawFootprint, &job.Footprint); err != nil {
+		log.Warn("Error while unmarshaling raw footprint json")
+		return nil, err
+	}
+	job.RawFootprint = nil
 
 	// if err := json.Unmarshal(job.RawMetaData, &job.MetaData); err != nil {
 	// 	return nil, err
@@ -86,7 +93,6 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 		job.Duration = int32(time.Since(job.StartTime).Seconds())
 	}
 
-	job.RawResources = nil
 	return job, nil
 }
 

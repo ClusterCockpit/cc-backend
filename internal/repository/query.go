@@ -22,8 +22,8 @@ func (r *JobRepository) QueryJobs(
 	ctx context.Context,
 	filters []*model.JobFilter,
 	page *model.PageRequest,
-	order *model.OrderByInput) ([]*schema.Job, error) {
-
+	order *model.OrderByInput,
+) ([]*schema.Job, error) {
 	query, qerr := SecurityCheck(ctx, sq.Select(jobColumns...).From("job"))
 	if qerr != nil {
 		return nil, qerr
@@ -73,8 +73,8 @@ func (r *JobRepository) QueryJobs(
 
 func (r *JobRepository) CountJobs(
 	ctx context.Context,
-	filters []*model.JobFilter) (int, error) {
-
+	filters []*model.JobFilter,
+) (int, error) {
 	query, qerr := SecurityCheck(ctx, sq.Select("count(*)").From("job"))
 	if qerr != nil {
 		return 0, qerr
@@ -227,9 +227,7 @@ func buildStringCondition(field string, cond *model.StringInput, query sq.Select
 	}
 	if cond.In != nil {
 		queryElements := make([]string, len(cond.In))
-		for i, val := range cond.In {
-			queryElements[i] = val
-		}
+		copy(queryElements, cond.In)
 		return query.Where(sq.Or{sq.Eq{field: queryElements}})
 	}
 	return query
@@ -257,8 +255,10 @@ func buildMetaJsonCondition(jsonField string, cond *model.StringInput, query sq.
 	return query
 }
 
-var matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
-var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")
+var (
+	matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
+	matchAllCap   = regexp.MustCompile("([a-z0-9])([A-Z])")
+)
 
 func toSnakeCase(str string) string {
 	for _, c := range str {
