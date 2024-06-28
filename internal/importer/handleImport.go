@@ -86,13 +86,13 @@ func HandleImportFlag(flag string) error {
 			StartTimeUnix: jobMeta.StartTime,
 		}
 
-		// TODO: Other metrics...
-		job.LoadAvg = loadJobStat(&jobMeta, "cpu_load")
-		job.FlopsAnyAvg = loadJobStat(&jobMeta, "flops_any")
-		job.MemUsedMax = loadJobStat(&jobMeta, "mem_used")
-		job.MemBwAvg = loadJobStat(&jobMeta, "mem_bw")
-		job.NetBwAvg = loadJobStat(&jobMeta, "net_bw")
-		job.FileBwAvg = loadJobStat(&jobMeta, "file_bw")
+		// TODO: Do loop for new sub structure for stats
+		// job.LoadAvg = loadJobStat(&jobMeta, "cpu_load")
+		// job.FlopsAnyAvg = loadJobStat(&jobMeta, "flops_any")
+		// job.MemUsedMax = loadJobStat(&jobMeta, "mem_used")
+		// job.MemBwAvg = loadJobStat(&jobMeta, "mem_bw")
+		// job.NetBwAvg = loadJobStat(&jobMeta, "net_bw")
+		// job.FileBwAvg = loadJobStat(&jobMeta, "file_bw")
 
 		job.RawResources, err = json.Marshal(job.Resources)
 		if err != nil {
