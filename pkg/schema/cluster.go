@@ -30,16 +30,18 @@ type MetricValue struct {
 }
 
 type SubCluster struct {
-	Name            string      `json:"name"`
-	Nodes           string      `json:"nodes"`
-	ProcessorType   string      `json:"processorType"`
-	Topology        Topology    `json:"topology"`
-	FlopRateScalar  MetricValue `json:"flopRateScalar"`
-	FlopRateSimd    MetricValue `json:"flopRateSimd"`
-	MemoryBandwidth MetricValue `json:"memoryBandwidth"`
-	SocketsPerNode  int         `json:"socketsPerNode"`
-	CoresPerSocket  int         `json:"coresPerSocket"`
-	ThreadsPerCore  int         `json:"threadsPerCore"`
+	Name            string         `json:"name"`
+	Nodes           string         `json:"nodes"`
+	ProcessorType   string         `json:"processorType"`
+	Topology        Topology       `json:"topology"`
+	FlopRateScalar  MetricValue    `json:"flopRateScalar"`
+	FlopRateSimd    MetricValue    `json:"flopRateSimd"`
+	MemoryBandwidth MetricValue    `json:"memoryBandwidth"`
+	MetricConfig    []MetricConfig `json:"metricConfig,omitempty"`
+	Footprint       []string       `json:"footprint,omitempty"`
+	SocketsPerNode  int            `json:"socketsPerNode"`
+	CoresPerSocket  int            `json:"coresPerSocket"`
+	ThreadsPerCore  int            `json:"threadsPerCore"`
 }
 
 type SubClusterConfig struct {
