@@ -11,7 +11,7 @@
   let roles = [];
 
   function getUserList() {
-    fetch("/api/users/?via-ldap=false&not-just-user=true")
+    fetch("/config/users/?via-ldap=false&not-just-user=true")
       .then((res) => res.json())
       .then((usersRaw) => {
         users = usersRaw;
@@ -19,7 +19,7 @@
   }
 
   function getValidRoles() {
-    fetch("/api/roles/")
+    fetch("/config/roles/")
       .then((res) => res.json())
       .then((rolesRaw) => {
         roles = rolesRaw;

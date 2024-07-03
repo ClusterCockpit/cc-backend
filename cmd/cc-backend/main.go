@@ -371,6 +371,8 @@ func main() {
 	})
 
 	secured := r.PathPrefix("/").Subrouter()
+	securedapi := r.PathPrefix("/api").Subrouter()
+	userapi := r.PathPrefix("/userapi").Subrouter()
 
 	if !config.Keys.DisableAuthentication {
 		r.Handle("/login", authentication.Login(
@@ -437,6 +439,42 @@ func main() {
 					})
 				})
 		})
+
+		securedapi.Use(func(next http.Handler) http.Handler {
+			return authentication.AuthApi(
+				// On success;
+				next,
+
+				// On failure:
+				func(rw http.ResponseWriter, r *http.Request, err error) {
+					rw.WriteHeader(http.StatusUnauthorized)
+					web.RenderTemplate(rw, "login.tmpl", &web.Page{
+						Title:   "Authentication failed - ClusterCockpit",
+						MsgType: "alert-danger",
+						Message: err.Error(),
+						Build:   buildInfo,
+						Infos:   info,
+					})
+				})
+		})
+
+		userapi.Use(func(next http.Handler) http.Handler {
+			return authentication.AuthUserApi(
+				// On success;
+				next,
+
+				// On failure:
+				func(rw http.ResponseWriter, r *http.Request, err error) {
+					rw.WriteHeader(http.StatusUnauthorized)
+					web.RenderTemplate(rw, "login.tmpl", &web.Page{
+						Title:   "Authentication failed - ClusterCockpit",
+						MsgType: "alert-danger",
+						Message: err.Error(),
+						Build:   buildInfo,
+						Infos:   info,
+					})
+				})
+		})
 	}
 
 	if flagDev {
@@ -453,7 +491,9 @@ func main() {
 
 	// Mount all /monitoring/... and /api/... routes.
 	routerConfig.SetupRoutes(secured, buildInfo)
-	api.MountRoutes(secured)
+	api.MountConfigApiRoutes(secured)
+	api.MountApiRoutes(securedapi)
+	api.MountUserApiRoutes(userapi)
 
 	if config.Keys.EmbedStaticFiles {
 		if i, err := os.Stat("./var/img"); err == nil {

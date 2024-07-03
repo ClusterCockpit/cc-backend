@@ -23,7 +23,7 @@ func (r *JobRepository) AddTag(job int64, tag int64) ([]*schema.Tag, error) {
 		return nil, err
 	}
 
-	j, err := r.FindById(job)
+	j, err := r.FindByIdDirect(job)
 	if err != nil {
 		log.Warn("Error while finding job by id")
 		return nil, err
@@ -48,7 +48,7 @@ func (r *JobRepository) RemoveTag(job, tag int64) ([]*schema.Tag, error) {
 		return nil, err
 	}
 
-	j, err := r.FindById(job)
+	j, err := r.FindByIdDirect(job)
 	if err != nil {
 		log.Warn("Error while finding job by id")
 		return nil, err

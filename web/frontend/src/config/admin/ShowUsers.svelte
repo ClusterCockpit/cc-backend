@@ -20,7 +20,7 @@
     if (confirm("Are you sure?")) {
       let formData = new FormData();
       formData.append("username", username);
-      fetch("/api/users/", { method: "DELETE", body: formData }).then((res) => {
+      fetch("/config/users/", { method: "DELETE", body: formData }).then((res) => {
         if (res.status == 200) {
           reloadUserList();
         } else {

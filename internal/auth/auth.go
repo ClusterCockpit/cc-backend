@@ -244,6 +244,76 @@ func (auth *Authentication) Auth(
 	})
 }
 
+func (auth *Authentication) AuthApi(
+	onsuccess http.Handler,
+	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
+) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		user, err := auth.JwtAuth.AuthViaJWT(rw, r)
+		if err != nil {
+			log.Infof("authentication failed: %s", err.Error())
+			http.Error(rw, err.Error(), http.StatusUnauthorized)
+			return
+		}
+		if user != nil {
+			switch {
+			case len(user.Roles) == 1:
+				if user.HasRole(schema.RoleApi) {
+					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
+					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+					return
+				}
+			case len(user.Roles) >= 2:
+				if user.HasAllRoles([]schema.Role{schema.RoleAdmin, schema.RoleApi}) {
+					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
+					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+					return
+				}
+			default:
+				log.Debug("authentication failed")
+				onfailure(rw, r, errors.New("unauthorized (missing role)"))
+			}
+		}
+		log.Debug("authentication failed")
+		onfailure(rw, r, errors.New("unauthorized (no auth)"))
+	})
+}
+
+func (auth *Authentication) AuthUserApi(
+	onsuccess http.Handler,
+	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
+) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		user, err := auth.JwtAuth.AuthViaJWT(rw, r)
+		if err != nil {
+			log.Infof("authentication failed: %s", err.Error())
+			http.Error(rw, err.Error(), http.StatusUnauthorized)
+			return
+		}
+		if user != nil {
+			switch {
+			case len(user.Roles) == 1:
+				if user.HasRole(schema.RoleApi) {
+					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
+					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+					return
+				}
+			case len(user.Roles) >= 2:
+				if user.HasRole(schema.RoleApi) && user.HasAnyRole([]schema.Role{schema.RoleUser, schema.RoleManager, schema.RoleAdmin}) {
+					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
+					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+					return
+				}
+			default:
+				log.Debug("authentication failed")
+				onfailure(rw, r, errors.New("unauthorized (missing role)"))
+			}
+		}
+		log.Debug("authentication failed")
+		onfailure(rw, r, errors.New("unauthorized (no auth)"))
+	})
+}
+
 func (auth *Authentication) Logout(onsuccess http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		session, err := auth.sessionStore.Get(r, "session")

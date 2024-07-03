@@ -59,8 +59,7 @@ type RestApi struct {
 	RepositoryMutex sync.Mutex
 }
 
-func (api *RestApi) MountRoutes(r *mux.Router) {
-	r = r.PathPrefix("/api").Subrouter()
+func (api *RestApi) MountApiRoutes(r *mux.Router) {
 	r.StrictSlash(true)
 
 	r.HandleFunc("/jobs/start_job/", api.startJob).Methods(http.MethodPost, http.MethodPut)
@@ -84,6 +83,24 @@ func (api *RestApi) MountRoutes(r *mux.Router) {
 		r.HandleFunc("/machine_state/{cluster}/{host}", api.getMachineState).Methods(http.MethodGet)
 		r.HandleFunc("/machine_state/{cluster}/{host}", api.putMachineState).Methods(http.MethodPut, http.MethodPost)
 	}
+}
+
+func (api *RestApi) MountUserApiRoutes(r *mux.Router) {
+	r.StrictSlash(true)
+
+	r.HandleFunc("/jobs/", api.getJobs).Methods(http.MethodGet)
+	r.HandleFunc("/jobs/{id}", api.getJobById).Methods(http.MethodPost)
+	r.HandleFunc("/jobs/{id}", api.getCompleteJobById).Methods(http.MethodGet)
+	r.HandleFunc("/jobs/metrics/{id}", api.getJobMetrics).Methods(http.MethodGet)
+
+	if api.Authentication != nil {
+		r.HandleFunc("/jwt/", api.getJWT).Methods(http.MethodGet)
+	}
+}
+
+func (api *RestApi) MountConfigApiRoutes(r *mux.Router) {
+	r = r.PathPrefix("/config").Subrouter()
+	r.StrictSlash(true)
 
 	if api.Authentication != nil {
 		r.HandleFunc("/jwt/", api.getJWT).Methods(http.MethodGet)
@@ -311,13 +328,6 @@ func (api *RestApi) getClusters(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /jobs/ [get]
 func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
-	if user := repository.GetUserFromContext(r.Context()); user != nil &&
-		!user.HasRole(schema.RoleApi) {
-
-		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
-		return
-	}
-
 	withMetadata := false
 	filter := &model.JobFilter{}
 	page := &model.PageRequest{ItemsPerPage: 25, Page: 1}
@@ -434,7 +444,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// getJobById godoc
+// getCompleteJobById godoc
 // @summary   Get job meta and optional all metric data
 // @tags Job query
 // @description Job to get is specified by database ID
@@ -452,14 +462,6 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /jobs/{id} [get]
 func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) {
-	if user := repository.GetUserFromContext(r.Context()); user != nil &&
-		!user.HasRole(schema.RoleApi) {
-
-		handleError(fmt.Errorf("missing role: %v",
-			schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
-		return
-	}
-
 	// Fetch job from db
 	id, ok := mux.Vars(r)["id"]
 	var job *schema.Job
@@ -471,7 +473,7 @@ func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		job, err = api.JobRepository.FindById(id)
+		job, err = api.JobRepository.FindById(r.Context(), id) // Get Job from Repo by ID
 	} else {
 		handleError(errors.New("the parameter 'id' is required"), http.StatusBadRequest, rw)
 		return
@@ -546,14 +548,6 @@ func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) 
 // @security    ApiKeyAuth
 // @router      /jobs/{id} [post]
 func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
-	if user := repository.GetUserFromContext(r.Context()); user != nil &&
-		!user.HasRole(schema.RoleApi) {
-
-		handleError(fmt.Errorf("missing role: %v",
-			schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
-		return
-	}
-
 	// Fetch job from db
 	id, ok := mux.Vars(r)["id"]
 	var job *schema.Job
@@ -565,7 +559,7 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		job, err = api.JobRepository.FindById(id)
+		job, err = api.JobRepository.FindById(r.Context(), id)
 	} else {
 		handleError(errors.New("the parameter 'id' is required"), http.StatusBadRequest, rw)
 		return
@@ -651,19 +645,13 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /jobs/edit_meta/{id} [post]
 func (api *RestApi) editMeta(rw http.ResponseWriter, r *http.Request) {
-	if user := repository.GetUserFromContext(r.Context()); user != nil &&
-		!user.HasRole(schema.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
-		return
-	}
-
-	iid, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	job, err := api.JobRepository.FindById(iid)
+	job, err := api.JobRepository.FindById(r.Context(), id)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusNotFound)
 		return
@@ -702,20 +690,13 @@ func (api *RestApi) editMeta(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /jobs/tag_job/{id} [post]
 func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
-	if user := repository.GetUserFromContext(r.Context()); user != nil &&
-		!user.HasRole(schema.RoleApi) {
-
-		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
-		return
-	}
-
-	iid, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	job, err := api.JobRepository.FindById(iid)
+	job, err := api.JobRepository.FindById(r.Context(), id)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusNotFound)
 		return
@@ -769,13 +750,6 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /jobs/start_job/ [post]
 func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
-	if user := repository.GetUserFromContext(r.Context()); user != nil &&
-		!user.HasRole(schema.RoleApi) {
-
-		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
-		return
-	}
-
 	req := schema.JobMeta{BaseJob: schema.JobDefaults}
 	if err := decode(r.Body, &req); err != nil {
 		handleError(fmt.Errorf("parsing request body failed: %w", err), http.StatusBadRequest, rw)
@@ -852,13 +826,6 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /jobs/stop_job/{id} [post]
 func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
-	if user := repository.GetUserFromContext(r.Context()); user != nil &&
-		!user.HasRole(schema.RoleApi) {
-
-		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
-		return
-	}
-
 	// Parse request body: Only StopTime and State
 	req := StopJobApiRequest{}
 	if err := decode(r.Body, &req); err != nil {
@@ -877,7 +844,7 @@ func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		job, err = api.JobRepository.FindById(id)
+		job, err = api.JobRepository.FindById(r.Context(), id)
 	} else {
 		handleError(errors.New("the parameter 'id' is required"), http.StatusBadRequest, rw)
 		return
@@ -907,13 +874,6 @@ func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /jobs/stop_job/ [post]
 func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
-	if user := repository.GetUserFromContext(r.Context()); user != nil &&
-		!user.HasRole(schema.RoleApi) {
-
-		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
-		return
-	}
-
 	// Parse request body
 	req := StopJobApiRequest{}
 	if err := decode(r.Body, &req); err != nil {
@@ -955,11 +915,6 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /jobs/delete_job/{id} [delete]
 func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
-	if user := repository.GetUserFromContext(r.Context()); user != nil && !user.HasRole(schema.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
-		return
-	}
-
 	// Fetch job (that will be stopped) from db
 	id, ok := mux.Vars(r)["id"]
 	var err error
@@ -1003,12 +958,6 @@ func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /jobs/delete_job/ [delete]
 func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) {
-	if user := repository.GetUserFromContext(r.Context()); user != nil &&
-		!user.HasRole(schema.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
-		return
-	}
-
 	// Parse request body
 	req := DeleteJobApiRequest{}
 	if err := decode(r.Body, &req); err != nil {
@@ -1060,11 +1009,6 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 // @security    ApiKeyAuth
 // @router      /jobs/delete_job_before/{ts} [delete]
 func (api *RestApi) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
-	if user := repository.GetUserFromContext(r.Context()); user != nil && !user.HasRole(schema.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
-		return
-	}
-
 	var cnt int
 	// Fetch job (that will be stopped) from db
 	id, ok := mux.Vars(r)["ts"]

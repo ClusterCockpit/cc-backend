@@ -5,7 +5,7 @@
   let jwt = "";
 
   function getUserJwt(username) {
-    fetch(`/api/jwt/?username=${username}`)
+    fetch(`/config/jwt/?username=${username}`)
       .then((res) => res.text())
       .then((text) => {
         jwt = text;

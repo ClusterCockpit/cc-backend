@@ -172,7 +172,7 @@ func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error)
 		return nil, err
 	}
 
-	job, err := r.Repo.FindById(numericId)
+	job, err := r.Repo.FindById(ctx, numericId)
 	if err != nil {
 		log.Warn("Error while finding job by id")
 		return nil, err

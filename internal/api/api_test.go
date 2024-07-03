@@ -197,7 +197,7 @@ func TestRestApi(t *testing.T) {
 	}
 
 	r := mux.NewRouter()
-	restapi.MountRoutes(r)
+	restapi.MountApiRoutes(r)
 
 	const startJobBody string = `{
         "jobId":            123,
