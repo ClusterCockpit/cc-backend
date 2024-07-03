@@ -2,14 +2,22 @@
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
-package archive
+package archive_test
 
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	"github.com/davecgh/go-spew/spew"
 )
 
 func TestClusterConfig(t *testing.T) {
-	var fsa FsArchive
-	version, err := fsa.Init(json.RawMessage("{\"path\":\"testdata/archive\"}"))
+	if err := archive.Init(json.RawMessage("{\"kind\":\"testdata/archive\"}"), false); err != nil {
+		t.Fatal(err)
+	}
+
+	c := archive.GetCluster("fritz")
+	spew.Dump(c)
+	t.Fail()
 }
