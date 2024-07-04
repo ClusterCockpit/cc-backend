@@ -59,6 +59,7 @@ func initClusterConfig() error {
 
 			for _, sc := range cluster.SubClusters {
 				newMetric := mc
+				newMetric.SubClusters = nil
 
 				if cfg, ok := scLookup[sc.Name]; ok {
 					if !cfg.Remove {
@@ -69,12 +70,19 @@ func initClusterConfig() error {
 						newMetric.Alert = cfg.Alert
 						newMetric.Footprint = cfg.Footprint
 						sc.MetricConfig = append(sc.MetricConfig, *newMetric)
+
+						if newMetric.Footprint {
+							sc.Footprint = append(sc.Footprint, newMetric.Name)
+						}
+					}
+				} else {
+					sc.MetricConfig = append(sc.MetricConfig, *newMetric)
+
+					if newMetric.Footprint {
+						sc.Footprint = append(sc.Footprint, newMetric.Name)
 					}
 				}
 
-				if newMetric.Footprint {
-					sc.Footprint = append(sc.Footprint, newMetric.Name)
-				}
 			}
 		}
 

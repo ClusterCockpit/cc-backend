@@ -9,15 +9,22 @@ import (
 	"testing"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/davecgh/go-spew/spew"
 )
 
 func TestClusterConfig(t *testing.T) {
-	if err := archive.Init(json.RawMessage("{\"kind\":\"testdata/archive\"}"), false); err != nil {
+	if err := archive.Init(json.RawMessage("{\"kind\": \"file\",\"path\": \"testdata/archive\"}"), false); err != nil {
 		t.Fatal(err)
 	}
 
-	c := archive.GetCluster("fritz")
-	spew.Dump(c)
-	t.Fail()
+	sc, err := archive.GetSubCluster("fritz", "spr1tb")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// spew.Dump(sc.MetricConfig)
+	if len(sc.Footprint) != 3 {
+		t.Fail()
+	}
+	if len(sc.MetricConfig) != 15 {
+		t.Fail()
+	}
 }
