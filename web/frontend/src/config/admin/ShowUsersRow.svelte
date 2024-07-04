@@ -1,18 +1,17 @@
 <script>
   import { Button } from "@sveltestrap/sveltestrap";
+  import { fetchJwt } from "../../utils.js"
 
   export let user;
-  let jwt = "";
 
+  let jwt = "";
   function getUserJwt(username) {
-    fetch(`/userconfig/jwt/?username=${username}`)
-      .then((res) => res.text())
-      .then((text) => {
-        jwt = text;
-        navigator.clipboard
-          .writeText(text)
-          .catch((reason) => console.error(reason));
-      });
+    const p = fetchJwt(username);
+    p.then((content) => {
+        jwt = content
+    }).catch((error) => {
+        console.error(`Could not get JWT: ${error}`);
+    });
   }
 </script>
 

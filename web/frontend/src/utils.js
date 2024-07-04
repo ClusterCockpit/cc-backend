@@ -433,6 +433,18 @@ export function transformPerNodeDataForRoofline(nodes) {
     return data
 }
 
+export async function fetchJwt(username) {
+    const raw = await fetch(`/userconfig/jwt/?username=${username}`);
+
+    if (!raw.ok) {
+        const message = `An error has occured: ${response.status}`;
+        throw new Error(message);
+    }
+
+    const res = await raw.text();
+    return res;
+}
+
 // https://stackoverflow.com/questions/45309447/calculating-median-javascript
 // function median(numbers) {
 //     const sorted = Array.from(numbers).sort((a, b) => a - b);

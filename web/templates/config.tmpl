@@ -8,6 +8,8 @@
 {{define "javascript"}}
     <script>
         const isAdmin = {{ .User.HasRole .Roles.admin }};
+        const isApi = {{ .User.HasRole .Roles.api }};
+        const username = {{ .User.Username }};
         const filterPresets = {{ .FilterPresets }};
         const clusterCockpitConfig = {{ .Config }};
     </script>
