@@ -14,6 +14,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -86,13 +87,22 @@ func HandleImportFlag(flag string) error {
 			StartTimeUnix: jobMeta.StartTime,
 		}
 
-		// TODO: Do loop for new sub structure for stats
-		// job.LoadAvg = loadJobStat(&jobMeta, "cpu_load")
-		// job.FlopsAnyAvg = loadJobStat(&jobMeta, "flops_any")
-		// job.MemUsedMax = loadJobStat(&jobMeta, "mem_used")
-		// job.MemBwAvg = loadJobStat(&jobMeta, "mem_bw")
-		// job.NetBwAvg = loadJobStat(&jobMeta, "net_bw")
-		// job.FileBwAvg = loadJobStat(&jobMeta, "file_bw")
+		sc, err := archive.GetSubCluster(jobMeta.Cluster, jobMeta.SubCluster)
+		if err != nil {
+			log.Errorf("cannot get subcluster: %s", err.Error())
+			return err
+		}
+
+		job.Footprint = make(map[string]float64)
+
+		for _, fp := range sc.Footprint {
+			job.Footprint[fp] = util.LoadJobStat(&jobMeta, fp)
+		}
+		job.RawFootprint, err = json.Marshal(job.Footprint)
+		if err != nil {
+			log.Warn("Error while marshaling job footprint")
+			return err
+		}
 
 		job.RawResources, err = json.Marshal(job.Resources)
 		if err != nil {

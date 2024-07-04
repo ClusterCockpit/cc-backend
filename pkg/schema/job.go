@@ -16,8 +16,6 @@ import (
 // Common subset of Job and JobMeta. Use one of those, not this type directly.
 
 type BaseJob struct {
-	Footprint        map[string]float64 `json:"footPrint"`
-	MetaData         map[string]string  `json:"metaData"`
 	Cluster          string             `json:"cluster" db:"cluster" example:"fritz"`
 	SubCluster       string             `json:"subCluster" db:"subcluster" example:"main"`
 	Partition        string             `json:"partition,omitempty" db:"partition" example:"main"`
@@ -27,8 +25,10 @@ type BaseJob struct {
 	Tags             []*Tag             `json:"tags,omitempty"`
 	RawFootprint     []byte             `json:"-" db:"footprint"`
 	RawMetaData      []byte             `json:"-" db:"meta_data"`
-	Resources        []*Resource        `json:"resources"`
 	RawResources     []byte             `json:"-" db:"resources"`
+	Resources        []*Resource        `json:"resources"`
+	Footprint        map[string]float64 `json:"footPrint"`
+	MetaData         map[string]string  `json:"metaData"`
 	ConcurrentJobs   JobLinkResultList  `json:"concurrentJobs"`
 	Energy           float64            `json:"energy"`
 	ArrayJobId       int64              `json:"arrayJobId,omitempty" db:"array_job_id" example:"123000"`

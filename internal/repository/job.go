@@ -16,6 +16,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
@@ -64,6 +65,7 @@ var jobColumns []string = []string{
 
 func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 	job := &schema.Job{}
+
 	if err := row.Scan(
 		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.SubCluster, &job.StartTimeUnix, &job.Partition, &job.ArrayJobId,
 		&job.NumNodes, &job.NumHWThreads, &job.NumAcc, &job.Exclusive, &job.MonitoringStatus, &job.SMT, &job.State,
@@ -79,7 +81,7 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 	job.RawResources = nil
 
 	if err := json.Unmarshal(job.RawFootprint, &job.Footprint); err != nil {
-		log.Warn("Error while unmarshaling raw footprint json")
+		log.Warnf("Error while unmarshaling raw footprint json: %v", err)
 		return nil, err
 	}
 	job.RawFootprint = nil
@@ -242,6 +244,7 @@ func (r *JobRepository) Find(
 	}
 
 	log.Debugf("Timer Find %s", time.Since(start))
+
 	return scanJob(q.RunWith(r.stmtCache).QueryRow())
 }
 
@@ -397,6 +400,11 @@ func (r *JobRepository) FindConcurrentJobs(
 // Start inserts a new job in the table, returning the unique job ID.
 // Statistics are not transfered!
 func (r *JobRepository) Start(job *schema.JobMeta) (id int64, err error) {
+	job.RawFootprint, err = json.Marshal(job.Footprint)
+	if err != nil {
+		return -1, fmt.Errorf("REPOSITORY/JOB > encoding footprint field failed: %w", err)
+	}
+
 	job.RawResources, err = json.Marshal(job.Resources)
 	if err != nil {
 		return -1, fmt.Errorf("REPOSITORY/JOB > encoding resources field failed: %w", err)
@@ -409,10 +417,10 @@ func (r *JobRepository) Start(job *schema.JobMeta) (id int64, err error) {
 
 	res, err := r.DB.NamedExec(`INSERT INTO job (
 		job_id, user, project, cluster, subcluster, `+"`partition`"+`, array_job_id, num_nodes, num_hwthreads, num_acc,
-		exclusive, monitoring_status, smt, job_state, start_time, duration, walltime, resources, meta_data
+		exclusive, monitoring_status, smt, job_state, start_time, duration, walltime, footprint, resources, meta_data
 	) VALUES (
 		:job_id, :user, :project, :cluster, :subcluster, :partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
-		:exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :walltime, :resources, :meta_data
+    :exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :walltime, :footprint, :resources, :meta_data
 	);`, job)
 	if err != nil {
 		return -1, err
@@ -478,34 +486,32 @@ func (r *JobRepository) UpdateMonitoringStatus(job int64, monitoringStatus int32
 
 // Stop updates the job with the database id jobId using the provided arguments.
 func (r *JobRepository) MarkArchived(
-	jobId int64,
+	jobMeta *schema.JobMeta,
 	monitoringStatus int32,
-	metricStats map[string]schema.JobStatistics,
 ) error {
 	stmt := sq.Update("job").
 		Set("monitoring_status", monitoringStatus).
-		Where("job.id = ?", jobId)
+		Where("job.id = ?", jobMeta.JobID)
 
-	for metric, stats := range metricStats {
-		switch metric {
-		case "flops_any":
-			stmt = stmt.Set("flops_any_avg", stats.Avg)
-		case "mem_used":
-			stmt = stmt.Set("mem_used_max", stats.Max)
-		case "mem_bw":
-			stmt = stmt.Set("mem_bw_avg", stats.Avg)
-		case "load":
-			stmt = stmt.Set("load_avg", stats.Avg)
-		case "cpu_load":
-			stmt = stmt.Set("load_avg", stats.Avg)
-		case "net_bw":
-			stmt = stmt.Set("net_bw_avg", stats.Avg)
-		case "file_bw":
-			stmt = stmt.Set("file_bw_avg", stats.Avg)
-		default:
-			log.Debugf("MarkArchived() Metric '%v' unknown", metric)
-		}
+	sc, err := archive.GetSubCluster(jobMeta.Cluster, jobMeta.SubCluster)
+	if err != nil {
+		log.Errorf("cannot get subcluster: %s", err.Error())
+		return err
 	}
+	footprint := make(map[string]float64)
+
+	for _, fp := range sc.Footprint {
+		footprint[fp] = util.LoadJobStat(jobMeta, fp)
+	}
+
+	var rawFootprint []byte
+
+	if rawFootprint, err = json.Marshal(footprint); err != nil {
+		log.Warnf("Error while marshaling footprint for job, DB ID '%v'", jobMeta.ID)
+		return err
+	}
+
+	stmt = stmt.Set("footprint", rawFootprint)
 
 	if _, err := stmt.RunWith(r.stmtCache).Exec(); err != nil {
 		log.Warn("Error while marking job as archived")
@@ -541,7 +547,7 @@ func (r *JobRepository) archivingWorker() {
 			}
 
 			// Update the jobs database entry one last time:
-			if err := r.MarkArchived(job.ID, schema.MonitoringStatusArchivingSuccessful, jobMeta.Statistics); err != nil {
+			if err := r.MarkArchived(jobMeta, schema.MonitoringStatusArchivingSuccessful); err != nil {
 				log.Errorf("archiving job (dbid: %d) failed at marking archived step: %s", job.ID, err.Error())
 				continue
 			}
@@ -786,12 +792,10 @@ func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64
 
 const NamedJobInsert string = `INSERT INTO job (
 	job_id, user, project, cluster, subcluster, ` + "`partition`" + `, array_job_id, num_nodes, num_hwthreads, num_acc,
-	exclusive, monitoring_status, smt, job_state, start_time, duration, walltime, resources, meta_data,
-	mem_used_max, flops_any_avg, mem_bw_avg, load_avg, net_bw_avg, net_data_vol_total, file_bw_avg, file_data_vol_total
+	exclusive, monitoring_status, smt, job_state, start_time, duration, walltime, footprint, resources, meta_data
 ) VALUES (
 	:job_id, :user, :project, :cluster, :subcluster, :partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
-	:exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :walltime, :resources, :meta_data,
-	:mem_used_max, :flops_any_avg, :mem_bw_avg, :load_avg, :net_bw_avg, :net_data_vol_total, :file_bw_avg, :file_data_vol_total
+  :exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :walltime, :footprint, :resources, :meta_data
 );`
 
 func (r *JobRepository) InsertJob(job *schema.Job) (int64, error) {

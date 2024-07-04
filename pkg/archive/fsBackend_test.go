@@ -51,7 +51,7 @@ func TestInit(t *testing.T) {
 	if version != 1 {
 		t.Fail()
 	}
-	if len(fsa.clusters) != 3 || fsa.clusters[0] != "emmy" {
+	if len(fsa.clusters) != 3 || fsa.clusters[1] != "emmy" {
 		t.Fail()
 	}
 }
