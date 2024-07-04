@@ -283,7 +283,7 @@
       <form
         id="line-width-form"
         method="post"
-        action="/config/configuration/"
+        action="/userconfig//configuration/"
         class="card-body"
         on:submit|preventDefault={() =>
           handleSettingSubmit("#line-width-form", "lw")}
@@ -329,7 +329,7 @@
       <form
         id="plots-per-row-form"
         method="post"
-        action="/config/configuration/"
+        action="/userconfig/configuration/"
         class="card-body"
         on:submit|preventDefault={() =>
           handleSettingSubmit("#plots-per-row-form", "ppr")}
@@ -375,7 +375,7 @@
       <form
         id="backgrounds-form"
         method="post"
-        action="/config/configuration/"
+        action="/userconfig/configuration/"
         class="card-body"
         on:submit|preventDefault={() =>
           handleSettingSubmit("#backgrounds-form", "bg")}
@@ -429,7 +429,7 @@
       <form
         id="paging-form"
         method="post"
-        action="/config/configuration/"
+        action="/userconfig/configuration/"
         class="card-body"
         on:submit|preventDefault={() =>
           handleSettingSubmit("#paging-form", "pag")}
@@ -485,7 +485,7 @@
       <form
         id="colorscheme-form"
         method="post"
-        action="/config/configuration/"
+        action="/userconfig/configuration/"
         class="card-body"
       >
         <!-- Svelte 'class' directive only on DOMs directly, normal 'class="xxx"' does not work, so style-array it is. -->

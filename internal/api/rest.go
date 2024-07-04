@@ -92,23 +92,25 @@ func (api *RestApi) MountUserApiRoutes(r *mux.Router) {
 	r.HandleFunc("/jobs/{id}", api.getJobById).Methods(http.MethodPost)
 	r.HandleFunc("/jobs/{id}", api.getCompleteJobById).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/metrics/{id}", api.getJobMetrics).Methods(http.MethodGet)
-
-	if api.Authentication != nil {
-		r.HandleFunc("/jwt/", api.getJWT).Methods(http.MethodGet)
-	}
 }
 
 func (api *RestApi) MountConfigApiRoutes(r *mux.Router) {
-	r = r.PathPrefix("/config").Subrouter()
 	r.StrictSlash(true)
 
 	if api.Authentication != nil {
-		r.HandleFunc("/jwt/", api.getJWT).Methods(http.MethodGet)
 		r.HandleFunc("/roles/", api.getRoles).Methods(http.MethodGet)
 		r.HandleFunc("/users/", api.createUser).Methods(http.MethodPost, http.MethodPut)
 		r.HandleFunc("/users/", api.getUsers).Methods(http.MethodGet)
 		r.HandleFunc("/users/", api.deleteUser).Methods(http.MethodDelete)
 		r.HandleFunc("/user/{id}", api.updateUser).Methods(http.MethodPost)
+	}
+}
+
+func (api *RestApi) MountUserConfigApiRoutes(r *mux.Router) {
+	r.StrictSlash(true)
+
+	if api.Authentication != nil {
+		r.HandleFunc("/jwt/", api.getJWT).Methods(http.MethodGet) // Role:Admin Check in
 		r.HandleFunc("/configuration/", api.updateConfiguration).Methods(http.MethodPost)
 	}
 }
