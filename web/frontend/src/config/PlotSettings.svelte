@@ -283,7 +283,7 @@
       <form
         id="line-width-form"
         method="post"
-        action="/userconfig//configuration/"
+        action="/userconfig/configuration/"
         class="card-body"
         on:submit|preventDefault={() =>
           handleSettingSubmit("#line-width-form", "lw")}
