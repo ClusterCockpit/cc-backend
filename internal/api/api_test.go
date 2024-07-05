@@ -197,6 +197,8 @@ func TestRestApi(t *testing.T) {
 	}
 
 	r := mux.NewRouter()
+	r.PathPrefix("/api").Subrouter()
+	r.StrictSlash(true)
 	restapi.MountApiRoutes(r)
 
 	const startJobBody string = `{
