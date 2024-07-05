@@ -302,17 +302,19 @@ func TestRestApi(t *testing.T) {
 
 	var stoppedJob *schema.Job
 	if ok := t.Run("StopJob", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/api/jobs/stop_job/", bytes.NewBuffer([]byte(stopJobBody)))
+		req := httptest.NewRequest(http.MethodPost, "/jobs/stop_job/", bytes.NewBuffer([]byte(stopJobBody)))
 		recorder := httptest.NewRecorder()
 
-		r.ServeHTTP(recorder, req)
+		ctx := context.WithValue(req.Context(), contextUserKey, contextUserValue)
+
+		r.ServeHTTP(recorder, req.WithContext(ctx))
 		response := recorder.Result()
 		if response.StatusCode != http.StatusOK {
 			t.Fatal(response.Status, recorder.Body.String())
 		}
 
 		restapi.JobRepository.WaitForArchiving()
-		job, err := restapi.Resolver.Query().Job(context.Background(), strconv.Itoa(int(dbid)))
+		job, err := restapi.Resolver.Query().Job(ctx, strconv.Itoa(int(dbid)))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -354,10 +356,12 @@ func TestRestApi(t *testing.T) {
 		// Starting a job with the same jobId and cluster should only be allowed if the startTime is far appart!
 		body := strings.Replace(startJobBody, `"startTime": 123456789`, `"startTime": 123456790`, -1)
 
-		req := httptest.NewRequest(http.MethodPost, "/api/jobs/start_job/", bytes.NewBuffer([]byte(body)))
+		req := httptest.NewRequest(http.MethodPost, "/jobs/start_job/", bytes.NewBuffer([]byte(body)))
 		recorder := httptest.NewRecorder()
 
-		r.ServeHTTP(recorder, req)
+		ctx := context.WithValue(req.Context(), contextUserKey, contextUserValue)
+
+		r.ServeHTTP(recorder, req.WithContext(ctx))
 		response := recorder.Result()
 		if response.StatusCode != http.StatusUnprocessableEntity {
 			t.Fatal(response.Status, recorder.Body.String())
@@ -384,10 +388,12 @@ func TestRestApi(t *testing.T) {
 	}`
 
 	ok := t.Run("StartJobFailed", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/api/jobs/start_job/", bytes.NewBuffer([]byte(startJobBodyFailed)))
+		req := httptest.NewRequest(http.MethodPost, "/jobs/start_job/", bytes.NewBuffer([]byte(startJobBodyFailed)))
 		recorder := httptest.NewRecorder()
 
-		r.ServeHTTP(recorder, req)
+		ctx := context.WithValue(req.Context(), contextUserKey, contextUserValue)
+
+		r.ServeHTTP(recorder, req.WithContext(ctx))
 		response := recorder.Result()
 		if response.StatusCode != http.StatusCreated {
 			t.Fatal(response.Status, recorder.Body.String())
@@ -406,10 +412,12 @@ func TestRestApi(t *testing.T) {
 	}`
 
 	ok = t.Run("StopJobFailed", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/api/jobs/stop_job/", bytes.NewBuffer([]byte(stopJobBodyFailed)))
+		req := httptest.NewRequest(http.MethodPost, "/jobs/stop_job/", bytes.NewBuffer([]byte(stopJobBodyFailed)))
 		recorder := httptest.NewRecorder()
 
-		r.ServeHTTP(recorder, req)
+		ctx := context.WithValue(req.Context(), contextUserKey, contextUserValue)
+
+		r.ServeHTTP(recorder, req.WithContext(ctx))
 		response := recorder.Result()
 		if response.StatusCode != http.StatusOK {
 			t.Fatal(response.Status, recorder.Body.String())
