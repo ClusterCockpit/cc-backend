@@ -24,7 +24,7 @@
     formData.append("add-role", role);
 
     try {
-      const res = await fetch(`/api/user/${username}`, {
+      const res = await fetch(`/config/user/${username}`, {
         method: "POST",
         body: formData,
       });
@@ -56,7 +56,7 @@
     formData.append("remove-role", role);
 
     try {
-      const res = await fetch(`/api/user/${username}`, {
+      const res = await fetch(`/config/user/${username}`, {
         method: "POST",
         body: formData,
       });

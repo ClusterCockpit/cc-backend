@@ -48,7 +48,7 @@
   <form
     id="create-user-form"
     method="post"
-    action="/api/users/"
+    action="/config/users/"
     class="card-body"
     on:submit|preventDefault={handleUserSubmit}
   >

@@ -219,28 +219,138 @@ func (auth *Authentication) Auth(
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		user, err := auth.JwtAuth.AuthViaJWT(rw, r)
 		if err != nil {
-			log.Infof("authentication failed: %s", err.Error())
+			log.Infof("auth -> authentication failed: %s", err.Error())
 			http.Error(rw, err.Error(), http.StatusUnauthorized)
 			return
 		}
-
 		if user == nil {
 			user, err = auth.AuthViaSession(rw, r)
 			if err != nil {
-				log.Infof("authentication failed: %s", err.Error())
+				log.Infof("auth -> authentication failed: %s", err.Error())
 				http.Error(rw, err.Error(), http.StatusUnauthorized)
 				return
 			}
 		}
-
 		if user != nil {
 			ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 			return
 		}
 
-		log.Debug("authentication failed")
+		log.Info("auth -> authentication failed")
 		onfailure(rw, r, errors.New("unauthorized (please login first)"))
+	})
+}
+
+func (auth *Authentication) AuthApi(
+	onsuccess http.Handler,
+	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
+) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		user, err := auth.JwtAuth.AuthViaJWT(rw, r)
+		if err != nil {
+			log.Infof("auth api -> authentication failed: %s", err.Error())
+			onfailure(rw, r, err)
+			return
+		}
+		if user != nil {
+			switch {
+			case len(user.Roles) == 1:
+				if user.HasRole(schema.RoleApi) {
+					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
+					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+					return
+				}
+			case len(user.Roles) >= 2:
+				if user.HasAllRoles([]schema.Role{schema.RoleAdmin, schema.RoleApi}) {
+					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
+					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+					return
+				}
+			default:
+				log.Info("auth api -> authentication failed: missing role")
+				onfailure(rw, r, errors.New("unauthorized"))
+			}
+		}
+		log.Info("auth api -> authentication failed: no auth")
+		onfailure(rw, r, errors.New("unauthorized"))
+	})
+}
+
+func (auth *Authentication) AuthUserApi(
+	onsuccess http.Handler,
+	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
+) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		user, err := auth.JwtAuth.AuthViaJWT(rw, r)
+		if err != nil {
+			log.Infof("auth user api -> authentication failed: %s", err.Error())
+			onfailure(rw, r, err)
+			return
+		}
+		if user != nil {
+			switch {
+			case len(user.Roles) == 1:
+				if user.HasRole(schema.RoleApi) {
+					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
+					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+					return
+				}
+			case len(user.Roles) >= 2:
+				if user.HasRole(schema.RoleApi) && user.HasAnyRole([]schema.Role{schema.RoleUser, schema.RoleManager, schema.RoleAdmin}) {
+					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
+					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+					return
+				}
+			default:
+				log.Info("auth user api -> authentication failed: missing role")
+				onfailure(rw, r, errors.New("unauthorized"))
+			}
+		}
+		log.Info("auth user api -> authentication failed: no auth")
+		onfailure(rw, r, errors.New("unauthorized"))
+	})
+}
+
+func (auth *Authentication) AuthConfigApi(
+	onsuccess http.Handler,
+	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
+) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		user, err := auth.AuthViaSession(rw, r)
+		if err != nil {
+			log.Infof("auth config api -> authentication failed: %s", err.Error())
+			onfailure(rw, r, err)
+			return
+		}
+		if user != nil && user.HasRole(schema.RoleAdmin) {
+			ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
+			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+			return
+		}
+		log.Info("auth config api -> authentication failed: no auth")
+		onfailure(rw, r, errors.New("unauthorized"))
+	})
+}
+
+func (auth *Authentication) AuthFrontendApi(
+	onsuccess http.Handler,
+	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
+) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		user, err := auth.AuthViaSession(rw, r)
+		if err != nil {
+			log.Infof("auth frontend api -> authentication failed: %s", err.Error())
+			onfailure(rw, r, err)
+			return
+		}
+		if user != nil {
+			ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
+			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+			return
+		}
+		log.Info("auth frontend api -> authentication failed: no auth")
+		onfailure(rw, r, errors.New("unauthorized"))
 	})
 }
 

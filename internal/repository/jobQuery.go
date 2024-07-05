@@ -97,23 +97,25 @@ func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (sq.SelectBuilde
 	if user == nil {
 		var qnil sq.SelectBuilder
 		return qnil, fmt.Errorf("user context is nil")
-	} else if user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport, schema.RoleApi}) { // Admin & Co. : All jobs
+	}
+
+	switch {
+	case len(user.Roles) == 1 && user.HasRole(schema.RoleApi): // API-User : All jobs
 		return query, nil
-	} else if user.HasRole(schema.RoleManager) { // Manager : Add filter for managed projects' jobs only + personal jobs
+	case user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport}): // Admin & Support : All jobs
+		return query, nil
+	case user.HasRole(schema.RoleManager): // Manager : Add filter for managed projects' jobs only + personal jobs
 		if len(user.Projects) != 0 {
 			return query.Where(sq.Or{sq.Eq{"job.project": user.Projects}, sq.Eq{"job.user": user.Username}}), nil
 		} else {
 			log.Debugf("Manager-User '%s' has no defined projects to lookup! Query only personal jobs ...", user.Username)
 			return query.Where("job.user = ?", user.Username), nil
 		}
-	} else if user.HasRole(schema.RoleUser) { // User : Only personal jobs
+	case user.HasRole(schema.RoleUser): // User : Only personal jobs
 		return query.Where("job.user = ?", user.Username), nil
-	} else {
-		// Shortterm compatibility: Return User-Query if no roles:
-		return query.Where("job.user = ?", user.Username), nil
-		// // On the longterm: Return Error instead of fallback:
-		// var qnil sq.SelectBuilder
-		// return qnil, fmt.Errorf("user '%s' with unknown roles [%#v]", user.Username, user.Roles)
+	default: // No known Role, return error
+		var qnil sq.SelectBuilder
+		return qnil, fmt.Errorf("user has no or unknown roles")
 	}
 }
 

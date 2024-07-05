@@ -1,16 +1,15 @@
 <script>
-  import { getContext } from "svelte";
-  import { init } from "./utils.js";
+  // import { init } from "./utils.js";
   import { Card, CardHeader, CardTitle } from "@sveltestrap/sveltestrap";
 
-  import PlotSettings from "./config/PlotSettings.svelte";
+  import UserSettings from "./config/UserSettings.svelte";
   import AdminSettings from "./config/AdminSettings.svelte";
 
-  const { query: initq } = init();
-
-  const ccconfig = getContext("cc-config");
+  // const { query: initq } = init();
 
   export let isAdmin;
+  export let isApi;
+  export let username;
 </script>
 
 {#if isAdmin == true}
@@ -24,7 +23,7 @@
 
 <Card>
   <CardHeader>
-    <CardTitle class="mb-1">Plotting Options</CardTitle>
+    <CardTitle class="mb-1">User Options</CardTitle>
   </CardHeader>
-  <PlotSettings config={ccconfig} />
+  <UserSettings {username} {isApi}/>
 </Card>

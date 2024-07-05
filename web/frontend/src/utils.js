@@ -239,7 +239,7 @@ export async function fetchMetrics(job, metrics, scopes) {
 
     try {
         let res = await fetch(
-            `/api/jobs/metrics/${job.id}${query.length > 0 ? "?" : ""}${query.join(
+            `/frontend/jobs/metrics/${job.id}${query.length > 0 ? "?" : ""}${query.join(
                 "&"
             )}`
         );
@@ -431,6 +431,18 @@ export function transformPerNodeDataForRoofline(nodes) {
         data = [null, [x, y], []] // for dataformat see roofline.svelte
     }
     return data
+}
+
+export async function fetchJwt(username) {
+    const raw = await fetch(`/frontend/jwt/?username=${username}`);
+
+    if (!raw.ok) {
+        const message = `An error has occured: ${response.status}`;
+        throw new Error(message);
+    }
+
+    const res = await raw.text();
+    return res;
 }
 
 // https://stackoverflow.com/questions/45309447/calculating-median-javascript

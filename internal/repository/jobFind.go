@@ -86,10 +86,61 @@ func (r *JobRepository) FindAll(
 // The job is queried using the database id.
 // It returns a pointer to a schema.Job data structure and an error variable.
 // To check if no job was found test err == sql.ErrNoRows
-func (r *JobRepository) FindById(jobId int64) (*schema.Job, error) {
+func (r *JobRepository) FindById(ctx context.Context, jobId int64) (*schema.Job, error) {
+	q := sq.Select(jobColumns...).
+		From("job").Where("job.id = ?", jobId)
+
+	q, qerr := SecurityCheck(ctx, q)
+	if qerr != nil {
+		return nil, qerr
+	}
+
+	return scanJob(q.RunWith(r.stmtCache).QueryRow())
+}
+
+// FindByIdDirect executes a SQL query to find a specific batch job.
+// The job is queried using the database id.
+// It returns a pointer to a schema.Job data structure and an error variable.
+// To check if no job was found test err == sql.ErrNoRows
+func (r *JobRepository) FindByIdDirect(jobId int64) (*schema.Job, error) {
 	q := sq.Select(jobColumns...).
 		From("job").Where("job.id = ?", jobId)
 	return scanJob(q.RunWith(r.stmtCache).QueryRow())
+}
+
+// FindByJobId executes a SQL query to find a specific batch job.
+// The job is queried using the slurm id and the clustername.
+// It returns a pointer to a schema.Job data structure and an error variable.
+// To check if no job was found test err == sql.ErrNoRows
+func (r *JobRepository) FindByJobId(ctx context.Context, jobId int64, startTime int64, cluster string) (*schema.Job, error) {
+	q := sq.Select(jobColumns...).
+		From("job").
+		Where("job.job_id = ?", jobId).
+		Where("job.cluster = ?", cluster).
+		Where("job.start_time = ?", startTime)
+
+	q, qerr := SecurityCheck(ctx, q)
+	if qerr != nil {
+		return nil, qerr
+	}
+
+	return scanJob(q.RunWith(r.stmtCache).QueryRow())
+}
+
+// IsJobOwner executes a SQL query to find a specific batch job.
+// The job is queried using the slurm id,a username and the cluster.
+// It returns a bool.
+// If job was found, user is owner: test err != sql.ErrNoRows
+func (r *JobRepository) IsJobOwner(jobId int64, startTime int64, user string, cluster string) bool {
+	q := sq.Select("id").
+		From("job").
+		Where("job.job_id = ?", jobId).
+		Where("job.user = ?", user).
+		Where("job.cluster = ?", cluster).
+		Where("job.start_time = ?", startTime)
+
+	_, err := scanJob(q.RunWith(r.stmtCache).QueryRow())
+	return err != sql.ErrNoRows
 }
 
 func (r *JobRepository) FindConcurrentJobs(
