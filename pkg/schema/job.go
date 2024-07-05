@@ -16,31 +16,33 @@ import (
 // Common subset of Job and JobMeta. Use one of those, not this type directly.
 
 type BaseJob struct {
-	Cluster          string             `json:"cluster" db:"cluster" example:"fritz"`
-	SubCluster       string             `json:"subCluster" db:"subcluster" example:"main"`
-	Partition        string             `json:"partition,omitempty" db:"partition" example:"main"`
-	Project          string             `json:"project" db:"project" example:"abcd200"`
-	User             string             `json:"user" db:"user" example:"abcd100h"`
-	State            JobState           `json:"jobState" db:"job_state" example:"completed" enums:"completed,failed,cancelled,stopped,timeout,out_of_memory"`
-	Tags             []*Tag             `json:"tags,omitempty"`
-	RawFootprint     []byte             `json:"-" db:"footprint"`
-	RawMetaData      []byte             `json:"-" db:"meta_data"`
-	RawResources     []byte             `json:"-" db:"resources"`
-	Resources        []*Resource        `json:"resources"`
-	Footprint        map[string]float64 `json:"footPrint"`
-	MetaData         map[string]string  `json:"metaData"`
-	ConcurrentJobs   JobLinkResultList  `json:"concurrentJobs"`
-	Energy           float64            `json:"energy"`
-	ArrayJobId       int64              `json:"arrayJobId,omitempty" db:"array_job_id" example:"123000"`
-	Walltime         int64              `json:"walltime,omitempty" db:"walltime" example:"86400" minimum:"1"`
-	JobID            int64              `json:"jobId" db:"job_id" example:"123000"`
-	Duration         int32              `json:"duration" db:"duration" example:"43200" minimum:"1"`
-	SMT              int32              `json:"smt,omitempty" db:"smt" example:"4"`
-	MonitoringStatus int32              `json:"monitoringStatus,omitempty" db:"monitoring_status" example:"1" minimum:"0" maximum:"3"`
-	Exclusive        int32              `json:"exclusive" db:"exclusive" example:"1" minimum:"0" maximum:"2"`
-	NumAcc           int32              `json:"numAcc,omitempty" db:"num_acc" example:"2" minimum:"1"`
-	NumHWThreads     int32              `json:"numHwthreads,omitempty" db:"num_hwthreads" example:"20" minimum:"1"`
-	NumNodes         int32              `json:"numNodes" db:"num_nodes" example:"2" minimum:"1"`
+	Cluster            string             `json:"cluster" db:"cluster" example:"fritz"`
+	SubCluster         string             `json:"subCluster" db:"subcluster" example:"main"`
+	Partition          string             `json:"partition,omitempty" db:"partition" example:"main"`
+	Project            string             `json:"project" db:"project" example:"abcd200"`
+	User               string             `json:"user" db:"user" example:"abcd100h"`
+	State              JobState           `json:"jobState" db:"job_state" example:"completed" enums:"completed,failed,cancelled,stopped,timeout,out_of_memory"`
+	Tags               []*Tag             `json:"tags,omitempty"`
+	RawEnergyFootprint []byte             `json:"-" db:"energy_footprint"`
+	RawFootprint       []byte             `json:"-" db:"footprint"`
+	RawMetaData        []byte             `json:"-" db:"meta_data"`
+	RawResources       []byte             `json:"-" db:"resources"`
+	Resources          []*Resource        `json:"resources"`
+	EnergyFootprint    map[string]float64 `json:"energyFootprint"`
+	Footprint          map[string]float64 `json:"footprint"`
+	MetaData           map[string]string  `json:"metaData"`
+	ConcurrentJobs     JobLinkResultList  `json:"concurrentJobs"`
+	Energy             float64            `json:"energy"`
+	ArrayJobId         int64              `json:"arrayJobId,omitempty" db:"array_job_id" example:"123000"`
+	Walltime           int64              `json:"walltime,omitempty" db:"walltime" example:"86400" minimum:"1"`
+	JobID              int64              `json:"jobId" db:"job_id" example:"123000"`
+	Duration           int32              `json:"duration" db:"duration" example:"43200" minimum:"1"`
+	SMT                int32              `json:"smt,omitempty" db:"smt" example:"4"`
+	MonitoringStatus   int32              `json:"monitoringStatus,omitempty" db:"monitoring_status" example:"1" minimum:"0" maximum:"3"`
+	Exclusive          int32              `json:"exclusive" db:"exclusive" example:"1" minimum:"0" maximum:"2"`
+	NumAcc             int32              `json:"numAcc,omitempty" db:"num_acc" example:"2" minimum:"1"`
+	NumHWThreads       int32              `json:"numHwthreads,omitempty" db:"num_hwthreads" example:"20" minimum:"1"`
+	NumNodes           int32              `json:"numNodes" db:"num_nodes" example:"2" minimum:"1"`
 }
 
 // Job struct type
