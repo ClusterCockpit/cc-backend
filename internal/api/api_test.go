@@ -227,11 +227,22 @@ func TestRestApi(t *testing.T) {
 	}`
 
 	var dbid int64
+	const contextUserKey repository.ContextKey = "user"
+	contextUserValue := &schema.User{
+		Username:   "testuser",
+		Projects:   make([]string, 0),
+		Roles:      []string{"user"},
+		AuthType:   0,
+		AuthSource: 2,
+	}
+
 	if ok := t.Run("StartJob", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/api/jobs/start_job/", bytes.NewBuffer([]byte(startJobBody)))
+		req := httptest.NewRequest(http.MethodPost, "/jobs/start_job/", bytes.NewBuffer([]byte(startJobBody)))
 		recorder := httptest.NewRecorder()
 
-		r.ServeHTTP(recorder, req)
+		ctx := context.WithValue(req.Context(), contextUserKey, contextUserValue)
+
+		r.ServeHTTP(recorder, req.WithContext(ctx))
 		response := recorder.Result()
 		if response.StatusCode != http.StatusCreated {
 			t.Fatal(response.Status, recorder.Body.String())
@@ -242,12 +253,12 @@ func TestRestApi(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		job, err := restapi.Resolver.Query().Job(context.Background(), strconv.Itoa(int(res.DBID)))
+		job, err := restapi.Resolver.Query().Job(ctx, strconv.Itoa(int(res.DBID)))
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		job.Tags, err = restapi.Resolver.Job().Tags(context.Background(), job)
+		job.Tags, err = restapi.Resolver.Job().Tags(ctx, job)
 		if err != nil {
 			t.Fatal(err)
 		}
