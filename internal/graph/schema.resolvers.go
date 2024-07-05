@@ -44,6 +44,11 @@ func (r *jobResolver) ConcurrentJobs(ctx context.Context, obj *schema.Job) (*mod
 	return nil, nil
 }
 
+// Footprint is the resolver for the footprint field.
+func (r *jobResolver) Footprint(ctx context.Context, obj *schema.Job) ([]*schema.MetricValue, error) {
+	panic(fmt.Errorf("not implemented: Footprint - footprint"))
+}
+
 // MetaData is the resolver for the metaData field.
 func (r *jobResolver) MetaData(ctx context.Context, obj *schema.Job) (interface{}, error) {
 	return r.Repo.FetchMetadata(obj)
@@ -52,6 +57,11 @@ func (r *jobResolver) MetaData(ctx context.Context, obj *schema.Job) (interface{
 // UserData is the resolver for the userData field.
 func (r *jobResolver) UserData(ctx context.Context, obj *schema.Job) (*model.User, error) {
 	return repository.GetUserRepository().FetchUserInCtx(ctx, obj.User)
+}
+
+// Name is the resolver for the name field.
+func (r *metricValueResolver) Name(ctx context.Context, obj *schema.MetricValue) (*string, error) {
+	panic(fmt.Errorf("not implemented: Name - name"))
 }
 
 // CreateTag is the resolver for the createTag field.
@@ -392,6 +402,9 @@ func (r *Resolver) Cluster() generated.ClusterResolver { return &clusterResolver
 // Job returns generated.JobResolver implementation.
 func (r *Resolver) Job() generated.JobResolver { return &jobResolver{r} }
 
+// MetricValue returns generated.MetricValueResolver implementation.
+func (r *Resolver) MetricValue() generated.MetricValueResolver { return &metricValueResolver{r} }
+
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
 
@@ -403,6 +416,7 @@ func (r *Resolver) SubCluster() generated.SubClusterResolver { return &subCluste
 
 type clusterResolver struct{ *Resolver }
 type jobResolver struct{ *Resolver }
+type metricValueResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subClusterResolver struct{ *Resolver }

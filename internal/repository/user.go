@@ -72,7 +72,6 @@ func (r *UserRepository) GetUser(username string) (*schema.User, error) {
 }
 
 func (r *UserRepository) GetLdapUsernames() ([]string, error) {
-
 	var users []string
 	rows, err := r.DB.Query(`SELECT username FROM user WHERE user.ldap = 1`)
 	if err != nil {
@@ -132,7 +131,6 @@ func (r *UserRepository) AddUser(user *schema.User) error {
 }
 
 func (r *UserRepository) DelUser(username string) error {
-
 	_, err := r.DB.Exec(`DELETE FROM user WHERE user.username = ?`, username)
 	if err != nil {
 		log.Errorf("Error while deleting user '%s' from DB", username)
@@ -143,7 +141,6 @@ func (r *UserRepository) DelUser(username string) error {
 }
 
 func (r *UserRepository) ListUsers(specialsOnly bool) ([]*schema.User, error) {
-
 	q := sq.Select("username", "name", "email", "roles", "projects").From("user")
 	if specialsOnly {
 		q = q.Where("(roles != '[\"user\"]' AND roles != '[]')")
@@ -186,8 +183,8 @@ func (r *UserRepository) ListUsers(specialsOnly bool) ([]*schema.User, error) {
 func (r *UserRepository) AddRole(
 	ctx context.Context,
 	username string,
-	queryrole string) error {
-
+	queryrole string,
+) error {
 	newRole := strings.ToLower(queryrole)
 	user, err := r.GetUser(username)
 	if err != nil {
@@ -198,15 +195,15 @@ func (r *UserRepository) AddRole(
 	exists, valid := user.HasValidRole(newRole)
 
 	if !valid {
-		return fmt.Errorf("Supplied role is no valid option : %v", newRole)
+		return fmt.Errorf("supplied role is no valid option : %v", newRole)
 	}
 	if exists {
-		return fmt.Errorf("User %v already has role %v", username, newRole)
+		return fmt.Errorf("user %v already has role %v", username, newRole)
 	}
 
 	roles, _ := json.Marshal(append(user.Roles, newRole))
 	if _, err := sq.Update("user").Set("roles", roles).Where("user.username = ?", username).RunWith(r.DB).Exec(); err != nil {
-		log.Errorf("Error while adding new role for user '%s'", user.Username)
+		log.Errorf("error while adding new role for user '%s'", user.Username)
 		return err
 	}
 	return nil
@@ -223,14 +220,14 @@ func (r *UserRepository) RemoveRole(ctx context.Context, username string, queryr
 	exists, valid := user.HasValidRole(oldRole)
 
 	if !valid {
-		return fmt.Errorf("Supplied role is no valid option : %v", oldRole)
+		return fmt.Errorf("supplied role is no valid option : %v", oldRole)
 	}
 	if !exists {
-		return fmt.Errorf("Role already deleted for user '%v': %v", username, oldRole)
+		return fmt.Errorf("role already deleted for user '%v': %v", username, oldRole)
 	}
 
 	if oldRole == schema.GetRoleString(schema.RoleManager) && len(user.Projects) != 0 {
-		return fmt.Errorf("Cannot remove role 'manager' while user %s still has assigned project(s) : %v", username, user.Projects)
+		return fmt.Errorf("cannot remove role 'manager' while user %s still has assigned project(s) : %v", username, user.Projects)
 	}
 
 	var newroles []string
@@ -240,7 +237,7 @@ func (r *UserRepository) RemoveRole(ctx context.Context, username string, queryr
 		}
 	}
 
-	var mroles, _ = json.Marshal(newroles)
+	mroles, _ := json.Marshal(newroles)
 	if _, err := sq.Update("user").Set("roles", mroles).Where("user.username = ?", username).RunWith(r.DB).Exec(); err != nil {
 		log.Errorf("Error while removing role for user '%s'", user.Username)
 		return err
@@ -251,15 +248,15 @@ func (r *UserRepository) RemoveRole(ctx context.Context, username string, queryr
 func (r *UserRepository) AddProject(
 	ctx context.Context,
 	username string,
-	project string) error {
-
+	project string,
+) error {
 	user, err := r.GetUser(username)
 	if err != nil {
 		return err
 	}
 
 	if !user.HasRole(schema.RoleManager) {
-		return fmt.Errorf("user '%s' is not a manager!", username)
+		return fmt.Errorf("user '%s' is not a manager", username)
 	}
 
 	if user.HasProject(project) {
@@ -281,11 +278,11 @@ func (r *UserRepository) RemoveProject(ctx context.Context, username string, pro
 	}
 
 	if !user.HasRole(schema.RoleManager) {
-		return fmt.Errorf("user '%#v' is not a manager!", username)
+		return fmt.Errorf("user '%#v' is not a manager", username)
 	}
 
 	if !user.HasProject(project) {
-		return fmt.Errorf("user '%#v': Cannot remove project '%#v' - Does not match!", username, project)
+		return fmt.Errorf("user '%#v': Cannot remove project '%#v' - Does not match", username, project)
 	}
 
 	var exists bool
@@ -298,7 +295,7 @@ func (r *UserRepository) RemoveProject(ctx context.Context, username string, pro
 		}
 	}
 
-	if exists == true {
+	if exists {
 		var result interface{}
 		if len(newprojects) == 0 {
 			result = "[]"

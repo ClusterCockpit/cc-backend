@@ -16,6 +16,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
@@ -59,23 +60,31 @@ func GetJobRepository() *JobRepository {
 var jobColumns []string = []string{
 	"job.id", "job.job_id", "job.user", "job.project", "job.cluster", "job.subcluster", "job.start_time", "job.partition", "job.array_job_id",
 	"job.num_nodes", "job.num_hwthreads", "job.num_acc", "job.exclusive", "job.monitoring_status", "job.smt", "job.job_state",
-	"job.duration", "job.walltime", "job.resources", "job.mem_used_max", "job.flops_any_avg", "job.mem_bw_avg", "job.load_avg", // "job.meta_data",
+	"job.duration", "job.walltime", "job.resources", "job.footprint", // "job.meta_data",
 }
 
 func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 	job := &schema.Job{}
+
 	if err := row.Scan(
 		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.SubCluster, &job.StartTimeUnix, &job.Partition, &job.ArrayJobId,
 		&job.NumNodes, &job.NumHWThreads, &job.NumAcc, &job.Exclusive, &job.MonitoringStatus, &job.SMT, &job.State,
-		&job.Duration, &job.Walltime, &job.RawResources, &job.MemUsedMax, &job.FlopsAnyAvg, &job.MemBwAvg, &job.LoadAvg /*&job.RawMetaData*/); err != nil {
+		&job.Duration, &job.Walltime, &job.RawResources, &job.RawFootprint /*&job.RawMetaData*/); err != nil {
 		log.Warnf("Error while scanning rows (Job): %v", err)
 		return nil, err
 	}
 
 	if err := json.Unmarshal(job.RawResources, &job.Resources); err != nil {
-		log.Warn("Error while unmarhsaling raw resources json")
+		log.Warn("Error while unmarshaling raw resources json")
 		return nil, err
 	}
+	job.RawResources = nil
+
+	if err := json.Unmarshal(job.RawFootprint, &job.Footprint); err != nil {
+		log.Warnf("Error while unmarshaling raw footprint json: %v", err)
+		return nil, err
+	}
+	job.RawFootprint = nil
 
 	// if err := json.Unmarshal(job.RawMetaData, &job.MetaData); err != nil {
 	// 	return nil, err
@@ -86,7 +95,6 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 		job.Duration = int32(time.Since(job.StartTime).Seconds())
 	}
 
-	job.RawResources = nil
 	return job, nil
 }
 
@@ -214,275 +222,6 @@ func (r *JobRepository) UpdateMetadata(job *schema.Job, key, val string) (err er
 	return archive.UpdateMetadata(job, job.MetaData)
 }
 
-// Find executes a SQL query to find a specific batch job.
-// The job is queried using the batch job id, the cluster name,
-// and the start time of the job in UNIX epoch time seconds.
-// It returns a pointer to a schema.Job data structure and an error variable.
-// To check if no job was found test err == sql.ErrNoRows
-func (r *JobRepository) Find(
-	jobId *int64,
-	cluster *string,
-	startTime *int64,
-) (*schema.Job, error) {
-	start := time.Now()
-	q := sq.Select(jobColumns...).From("job").
-		Where("job.job_id = ?", *jobId)
-
-	if cluster != nil {
-		q = q.Where("job.cluster = ?", *cluster)
-	}
-	if startTime != nil {
-		q = q.Where("job.start_time = ?", *startTime)
-	}
-
-	log.Debugf("Timer Find %s", time.Since(start))
-	return scanJob(q.RunWith(r.stmtCache).QueryRow())
-}
-
-// Find executes a SQL query to find a specific batch job.
-// The job is queried using the batch job id, the cluster name,
-// and the start time of the job in UNIX epoch time seconds.
-// It returns a pointer to a schema.Job data structure and an error variable.
-// To check if no job was found test err == sql.ErrNoRows
-func (r *JobRepository) FindAll(
-	jobId *int64,
-	cluster *string,
-	startTime *int64,
-) ([]*schema.Job, error) {
-	start := time.Now()
-	q := sq.Select(jobColumns...).From("job").
-		Where("job.job_id = ?", *jobId)
-
-	if cluster != nil {
-		q = q.Where("job.cluster = ?", *cluster)
-	}
-	if startTime != nil {
-		q = q.Where("job.start_time = ?", *startTime)
-	}
-
-	rows, err := q.RunWith(r.stmtCache).Query()
-	if err != nil {
-		log.Error("Error while running query")
-		return nil, err
-	}
-
-	jobs := make([]*schema.Job, 0, 10)
-	for rows.Next() {
-		job, err := scanJob(rows)
-		if err != nil {
-			log.Warn("Error while scanning rows")
-			return nil, err
-		}
-		jobs = append(jobs, job)
-	}
-	log.Debugf("Timer FindAll %s", time.Since(start))
-	return jobs, nil
-}
-
-// FindById executes a SQL query to find a specific batch job.
-// The job is queried using the database id.
-// It returns a pointer to a schema.Job data structure and an error variable.
-// To check if no job was found test err == sql.ErrNoRows
-func (r *JobRepository) FindById(ctx context.Context, jobId int64) (*schema.Job, error) {
-	q := sq.Select(jobColumns...).
-		From("job").Where("job.id = ?", jobId)
-
-	q, qerr := SecurityCheck(ctx, q)
-	if qerr != nil {
-		return nil, qerr
-	}
-
-	return scanJob(q.RunWith(r.stmtCache).QueryRow())
-}
-
-// FindByIdDirect executes a SQL query to find a specific batch job.
-// The job is queried using the database id.
-// It returns a pointer to a schema.Job data structure and an error variable.
-// To check if no job was found test err == sql.ErrNoRows
-func (r *JobRepository) FindByIdDirect(jobId int64) (*schema.Job, error) {
-	q := sq.Select(jobColumns...).
-		From("job").Where("job.id = ?", jobId)
-	return scanJob(q.RunWith(r.stmtCache).QueryRow())
-}
-
-// FindByJobId executes a SQL query to find a specific batch job.
-// The job is queried using the slurm id and the clustername.
-// It returns a pointer to a schema.Job data structure and an error variable.
-// To check if no job was found test err == sql.ErrNoRows
-func (r *JobRepository) FindByJobId(ctx context.Context, jobId int64, startTime int64, cluster string) (*schema.Job, error) {
-	q := sq.Select(jobColumns...).
-		From("job").
-		Where("job.job_id = ?", jobId).
-		Where("job.cluster = ?", cluster).
-		Where("job.start_time = ?", startTime)
-
-	q, qerr := SecurityCheck(ctx, q)
-	if qerr != nil {
-		return nil, qerr
-	}
-
-	return scanJob(q.RunWith(r.stmtCache).QueryRow())
-}
-
-// IsJobOwner executes a SQL query to find a specific batch job.
-// The job is queried using the slurm id,a username and the cluster.
-// It returns a bool.
-// If job was found, user is owner: test err != sql.ErrNoRows
-func (r *JobRepository) IsJobOwner(jobId int64, startTime int64, user string, cluster string) bool {
-	q := sq.Select("id").
-		From("job").
-		Where("job.job_id = ?", jobId).
-		Where("job.user = ?", user).
-		Where("job.cluster = ?", cluster).
-		Where("job.start_time = ?", startTime)
-
-	_, err := scanJob(q.RunWith(r.stmtCache).QueryRow())
-	return err != sql.ErrNoRows
-}
-
-func (r *JobRepository) FindConcurrentJobs(
-	ctx context.Context,
-	job *schema.Job,
-) (*model.JobLinkResultList, error) {
-	if job == nil {
-		return nil, nil
-	}
-
-	query, qerr := SecurityCheck(ctx, sq.Select("job.id", "job.job_id", "job.start_time").From("job"))
-	if qerr != nil {
-		return nil, qerr
-	}
-
-	query = query.Where("cluster = ?", job.Cluster)
-	var startTime int64
-	var stopTime int64
-
-	startTime = job.StartTimeUnix
-	hostname := job.Resources[0].Hostname
-
-	if job.State == schema.JobStateRunning {
-		stopTime = time.Now().Unix()
-	} else {
-		stopTime = startTime + int64(job.Duration)
-	}
-
-	// Add 200s overlap for jobs start time at the end
-	startTimeTail := startTime + 10
-	stopTimeTail := stopTime - 200
-	startTimeFront := startTime + 200
-
-	queryRunning := query.Where("job.job_state = ?").Where("(job.start_time BETWEEN ? AND ? OR job.start_time < ?)",
-		"running", startTimeTail, stopTimeTail, startTime)
-	queryRunning = queryRunning.Where("job.resources LIKE ?", fmt.Sprint("%", hostname, "%"))
-
-	query = query.Where("job.job_state != ?").Where("((job.start_time BETWEEN ? AND ?) OR (job.start_time + job.duration) BETWEEN ? AND ? OR (job.start_time < ?) AND (job.start_time + job.duration) > ?)",
-		"running", startTimeTail, stopTimeTail, startTimeFront, stopTimeTail, startTime, stopTime)
-	query = query.Where("job.resources LIKE ?", fmt.Sprint("%", hostname, "%"))
-
-	rows, err := query.RunWith(r.stmtCache).Query()
-	if err != nil {
-		log.Errorf("Error while running query: %v", err)
-		return nil, err
-	}
-
-	items := make([]*model.JobLink, 0, 10)
-	queryString := fmt.Sprintf("cluster=%s", job.Cluster)
-
-	for rows.Next() {
-		var id, jobId, startTime sql.NullInt64
-
-		if err = rows.Scan(&id, &jobId, &startTime); err != nil {
-			log.Warn("Error while scanning rows")
-			return nil, err
-		}
-
-		if id.Valid {
-			queryString += fmt.Sprintf("&jobId=%d", int(jobId.Int64))
-			items = append(items,
-				&model.JobLink{
-					ID:    fmt.Sprint(id.Int64),
-					JobID: int(jobId.Int64),
-				})
-		}
-	}
-
-	rows, err = queryRunning.RunWith(r.stmtCache).Query()
-	if err != nil {
-		log.Errorf("Error while running query: %v", err)
-		return nil, err
-	}
-
-	for rows.Next() {
-		var id, jobId, startTime sql.NullInt64
-
-		if err := rows.Scan(&id, &jobId, &startTime); err != nil {
-			log.Warn("Error while scanning rows")
-			return nil, err
-		}
-
-		if id.Valid {
-			queryString += fmt.Sprintf("&jobId=%d", int(jobId.Int64))
-			items = append(items,
-				&model.JobLink{
-					ID:    fmt.Sprint(id.Int64),
-					JobID: int(jobId.Int64),
-				})
-		}
-	}
-
-	cnt := len(items)
-
-	return &model.JobLinkResultList{
-		ListQuery: &queryString,
-		Items:     items,
-		Count:     &cnt,
-	}, nil
-}
-
-// Start inserts a new job in the table, returning the unique job ID.
-// Statistics are not transfered!
-func (r *JobRepository) Start(job *schema.JobMeta) (id int64, err error) {
-	job.RawResources, err = json.Marshal(job.Resources)
-	if err != nil {
-		return -1, fmt.Errorf("REPOSITORY/JOB > encoding resources field failed: %w", err)
-	}
-
-	job.RawMetaData, err = json.Marshal(job.MetaData)
-	if err != nil {
-		return -1, fmt.Errorf("REPOSITORY/JOB > encoding metaData field failed: %w", err)
-	}
-
-	res, err := r.DB.NamedExec(`INSERT INTO job (
-		job_id, user, project, cluster, subcluster, `+"`partition`"+`, array_job_id, num_nodes, num_hwthreads, num_acc,
-		exclusive, monitoring_status, smt, job_state, start_time, duration, walltime, resources, meta_data
-	) VALUES (
-		:job_id, :user, :project, :cluster, :subcluster, :partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
-		:exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :walltime, :resources, :meta_data
-	);`, job)
-	if err != nil {
-		return -1, err
-	}
-
-	return res.LastInsertId()
-}
-
-// Stop updates the job with the database id jobId using the provided arguments.
-func (r *JobRepository) Stop(
-	jobId int64,
-	duration int32,
-	state schema.JobState,
-	monitoringStatus int32,
-) (err error) {
-	stmt := sq.Update("job").
-		Set("job_state", state).
-		Set("duration", duration).
-		Set("monitoring_status", monitoringStatus).
-		Where("job.id = ?", jobId)
-
-	_, err = stmt.RunWith(r.stmtCache).Exec()
-	return
-}
-
 func (r *JobRepository) DeleteJobsBefore(startTime int64) (int, error) {
 	var cnt int
 	q := sq.Select("count(*)").From("job").Where("job.start_time < ?", startTime)
@@ -523,34 +262,32 @@ func (r *JobRepository) UpdateMonitoringStatus(job int64, monitoringStatus int32
 
 // Stop updates the job with the database id jobId using the provided arguments.
 func (r *JobRepository) MarkArchived(
-	jobId int64,
+	jobMeta *schema.JobMeta,
 	monitoringStatus int32,
-	metricStats map[string]schema.JobStatistics,
 ) error {
 	stmt := sq.Update("job").
 		Set("monitoring_status", monitoringStatus).
-		Where("job.id = ?", jobId)
+		Where("job.id = ?", jobMeta.JobID)
 
-	for metric, stats := range metricStats {
-		switch metric {
-		case "flops_any":
-			stmt = stmt.Set("flops_any_avg", stats.Avg)
-		case "mem_used":
-			stmt = stmt.Set("mem_used_max", stats.Max)
-		case "mem_bw":
-			stmt = stmt.Set("mem_bw_avg", stats.Avg)
-		case "load":
-			stmt = stmt.Set("load_avg", stats.Avg)
-		case "cpu_load":
-			stmt = stmt.Set("load_avg", stats.Avg)
-		case "net_bw":
-			stmt = stmt.Set("net_bw_avg", stats.Avg)
-		case "file_bw":
-			stmt = stmt.Set("file_bw_avg", stats.Avg)
-		default:
-			log.Debugf("MarkArchived() Metric '%v' unknown", metric)
-		}
+	sc, err := archive.GetSubCluster(jobMeta.Cluster, jobMeta.SubCluster)
+	if err != nil {
+		log.Errorf("cannot get subcluster: %s", err.Error())
+		return err
 	}
+	footprint := make(map[string]float64)
+
+	for _, fp := range sc.Footprint {
+		footprint[fp] = util.LoadJobStat(jobMeta, fp)
+	}
+
+	var rawFootprint []byte
+
+	if rawFootprint, err = json.Marshal(footprint); err != nil {
+		log.Warnf("Error while marshaling footprint for job, DB ID '%v'", jobMeta.ID)
+		return err
+	}
+
+	stmt = stmt.Set("footprint", rawFootprint)
 
 	if _, err := stmt.RunWith(r.stmtCache).Exec(); err != nil {
 		log.Warn("Error while marking job as archived")
@@ -586,7 +323,7 @@ func (r *JobRepository) archivingWorker() {
 			}
 
 			// Update the jobs database entry one last time:
-			if err := r.MarkArchived(job.ID, schema.MonitoringStatusArchivingSuccessful, jobMeta.Statistics); err != nil {
+			if err := r.MarkArchived(jobMeta, schema.MonitoringStatusArchivingSuccessful); err != nil {
 				log.Errorf("archiving job (dbid: %d) failed at marking archived step: %s", job.ID, err.Error())
 				continue
 			}
@@ -827,29 +564,4 @@ func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64
 
 	log.Infof("Return job count %d", len(jobs))
 	return jobs, nil
-}
-
-const NamedJobInsert string = `INSERT INTO job (
-	job_id, user, project, cluster, subcluster, ` + "`partition`" + `, array_job_id, num_nodes, num_hwthreads, num_acc,
-	exclusive, monitoring_status, smt, job_state, start_time, duration, walltime, resources, meta_data,
-	mem_used_max, flops_any_avg, mem_bw_avg, load_avg, net_bw_avg, net_data_vol_total, file_bw_avg, file_data_vol_total
-) VALUES (
-	:job_id, :user, :project, :cluster, :subcluster, :partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
-	:exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :walltime, :resources, :meta_data,
-	:mem_used_max, :flops_any_avg, :mem_bw_avg, :load_avg, :net_bw_avg, :net_data_vol_total, :file_bw_avg, :file_data_vol_total
-);`
-
-func (r *JobRepository) InsertJob(job *schema.Job) (int64, error) {
-	res, err := r.DB.NamedExec(NamedJobInsert, job)
-	if err != nil {
-		log.Warn("Error while NamedJobInsert")
-		return 0, err
-	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		log.Warn("Error while getting last insert ID")
-		return 0, err
-	}
-
-	return id, nil
 }
