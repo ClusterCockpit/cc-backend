@@ -106,12 +106,13 @@ func (api *RestApi) MountConfigApiRoutes(r *mux.Router) {
 	}
 }
 
-func (api *RestApi) MountUserConfigApiRoutes(r *mux.Router) {
+func (api *RestApi) MountFrontendApiRoutes(r *mux.Router) {
 	r.StrictSlash(true)
 
 	if api.Authentication != nil {
-		r.HandleFunc("/jwt/", api.getJWT).Methods(http.MethodGet) // Role:Admin Check in
+		r.HandleFunc("/jwt/", api.getJWT).Methods(http.MethodGet)
 		r.HandleFunc("/configuration/", api.updateConfiguration).Methods(http.MethodPost)
+		r.HandleFunc("/jobs/metrics/{id}", api.getJobMetrics).Methods(http.MethodGet) // Fetched in Job.svelte: Needs All-User-Access-Session-Auth
 	}
 }
 

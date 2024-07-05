@@ -262,7 +262,7 @@
         <form
           id="colorscheme-form"
           method="post"
-          action="/userconfig/configuration/"
+          action="/frontend/configuration/"
           class="card-body"
         >
           <!-- Svelte 'class' directive only on DOMs directly, normal 'class="xxx"' does not work, so style-array it is. -->

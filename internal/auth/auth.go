@@ -219,27 +219,25 @@ func (auth *Authentication) Auth(
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		user, err := auth.JwtAuth.AuthViaJWT(rw, r)
 		if err != nil {
-			log.Infof("authentication failed: %s", err.Error())
+			log.Infof("auth -> authentication failed: %s", err.Error())
 			http.Error(rw, err.Error(), http.StatusUnauthorized)
 			return
 		}
-
 		if user == nil {
 			user, err = auth.AuthViaSession(rw, r)
 			if err != nil {
-				log.Infof("authentication failed: %s", err.Error())
+				log.Infof("auth -> authentication failed: %s", err.Error())
 				http.Error(rw, err.Error(), http.StatusUnauthorized)
 				return
 			}
 		}
-
 		if user != nil {
 			ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 			return
 		}
 
-		log.Debug("authentication failed")
+		log.Info("auth -> authentication failed")
 		onfailure(rw, r, errors.New("unauthorized (please login first)"))
 	})
 }
@@ -251,8 +249,8 @@ func (auth *Authentication) AuthApi(
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		user, err := auth.JwtAuth.AuthViaJWT(rw, r)
 		if err != nil {
-			log.Infof("authentication failed: %s", err.Error())
-			http.Error(rw, err.Error(), http.StatusUnauthorized)
+			log.Infof("auth api -> authentication failed: %s", err.Error())
+			onfailure(rw, r, err)
 			return
 		}
 		if user != nil {
@@ -270,12 +268,12 @@ func (auth *Authentication) AuthApi(
 					return
 				}
 			default:
-				log.Debug("authentication failed")
-				onfailure(rw, r, errors.New("unauthorized (missing role)"))
+				log.Info("auth api -> authentication failed: missing role")
+				onfailure(rw, r, errors.New("unauthorized"))
 			}
 		}
-		log.Debug("authentication failed")
-		onfailure(rw, r, errors.New("unauthorized (no auth)"))
+		log.Info("auth api -> authentication failed: no auth")
+		onfailure(rw, r, errors.New("unauthorized"))
 	})
 }
 
@@ -286,8 +284,8 @@ func (auth *Authentication) AuthUserApi(
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		user, err := auth.JwtAuth.AuthViaJWT(rw, r)
 		if err != nil {
-			log.Infof("authentication failed: %s", err.Error())
-			http.Error(rw, err.Error(), http.StatusUnauthorized)
+			log.Infof("auth user api -> authentication failed: %s", err.Error())
+			onfailure(rw, r, err)
 			return
 		}
 		if user != nil {
@@ -305,12 +303,12 @@ func (auth *Authentication) AuthUserApi(
 					return
 				}
 			default:
-				log.Debug("authentication failed")
-				onfailure(rw, r, errors.New("unauthorized (missing role)"))
+				log.Info("auth user api -> authentication failed: missing role")
+				onfailure(rw, r, errors.New("unauthorized"))
 			}
 		}
-		log.Debug("authentication failed")
-		onfailure(rw, r, errors.New("unauthorized (no auth)"))
+		log.Info("auth user api -> authentication failed: no auth")
+		onfailure(rw, r, errors.New("unauthorized"))
 	})
 }
 
@@ -321,8 +319,8 @@ func (auth *Authentication) AuthConfigApi(
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		user, err := auth.AuthViaSession(rw, r)
 		if err != nil {
-			log.Infof("authentication failed: %s", err.Error())
-			http.Error(rw, err.Error(), http.StatusUnauthorized)
+			log.Infof("auth config api -> authentication failed: %s", err.Error())
+			onfailure(rw, r, err)
 			return
 		}
 		if user != nil && user.HasRole(schema.RoleAdmin) {
@@ -330,20 +328,20 @@ func (auth *Authentication) AuthConfigApi(
 			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 			return
 		}
-		log.Debug("authentication failed")
-		onfailure(rw, r, errors.New("unauthorized (no auth)"))
+		log.Info("auth config api -> authentication failed: no auth")
+		onfailure(rw, r, errors.New("unauthorized"))
 	})
 }
 
-func (auth *Authentication) AuthUserConfigApi(
+func (auth *Authentication) AuthFrontendApi(
 	onsuccess http.Handler,
 	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
 ) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		user, err := auth.AuthViaSession(rw, r)
 		if err != nil {
-			log.Infof("authentication failed: %s", err.Error())
-			http.Error(rw, err.Error(), http.StatusUnauthorized)
+			log.Infof("auth frontend api -> authentication failed: %s", err.Error())
+			onfailure(rw, r, err)
 			return
 		}
 		if user != nil {
@@ -351,8 +349,8 @@ func (auth *Authentication) AuthUserConfigApi(
 			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 			return
 		}
-		log.Debug("authentication failed")
-		onfailure(rw, r, errors.New("unauthorized (no auth)"))
+		log.Info("auth frontend api -> authentication failed: no auth")
+		onfailure(rw, r, errors.New("unauthorized"))
 	})
 }
 

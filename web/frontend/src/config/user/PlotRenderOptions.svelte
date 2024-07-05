@@ -30,7 +30,7 @@
         <form
           id="line-width-form"
           method="post"
-          action="/userconfig/configuration/"
+          action="/frontend/configuration/"
           class="card-body"
           on:submit|preventDefault={() =>
             updateSetting("#line-width-form", "lw")}
@@ -76,7 +76,7 @@
         <form
           id="plots-per-row-form"
           method="post"
-          action="/userconfig/configuration/"
+          action="/frontend/configuration/"
           class="card-body"
           on:submit|preventDefault={() =>
             updateSetting("#plots-per-row-form", "ppr")}
@@ -122,7 +122,7 @@
         <form
           id="backgrounds-form"
           method="post"
-          action="/userconfig/configuration/"
+          action="/frontend/configuration/"
           class="card-body"
           on:submit|preventDefault={() =>
             updateSetting("#backgrounds-form", "bg")}

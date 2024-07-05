@@ -51,7 +51,7 @@
       <form
         id="paging-form"
         method="post"
-        action="/userconfig/configuration/"
+        action="/frontend/configuration/"
         class="card-body"
         on:submit|preventDefault={() =>
           updateSetting("#paging-form", "pag")}

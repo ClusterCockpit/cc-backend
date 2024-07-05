@@ -239,7 +239,7 @@ export async function fetchMetrics(job, metrics, scopes) {
 
     try {
         let res = await fetch(
-            `/api/jobs/metrics/${job.id}${query.length > 0 ? "?" : ""}${query.join(
+            `/frontend/jobs/metrics/${job.id}${query.length > 0 ? "?" : ""}${query.join(
                 "&"
             )}`
         );
@@ -434,7 +434,7 @@ export function transformPerNodeDataForRoofline(nodes) {
 }
 
 export async function fetchJwt(username) {
-    const raw = await fetch(`/userconfig/jwt/?username=${username}`);
+    const raw = await fetch(`/frontend/jwt/?username=${username}`);
 
     if (!raw.ok) {
         const message = `An error has occured: ${response.status}`;

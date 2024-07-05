@@ -374,7 +374,7 @@ func main() {
 	securedapi := r.PathPrefix("/api").Subrouter()
 	userapi := r.PathPrefix("/userapi").Subrouter()
 	configapi := r.PathPrefix("/config").Subrouter()
-	userconfigapi := r.PathPrefix("/userconfig").Subrouter()
+	frontendapi := r.PathPrefix("/frontend").Subrouter()
 
 	if !config.Keys.DisableAuthentication {
 		r.Handle("/login", authentication.Login(
@@ -447,15 +447,13 @@ func main() {
 				// On success;
 				next,
 
-				// On failure:
+				// On failure: JSON Response
 				func(rw http.ResponseWriter, r *http.Request, err error) {
+					rw.Header().Add("Content-Type", "application/json")
 					rw.WriteHeader(http.StatusUnauthorized)
-					web.RenderTemplate(rw, "login.tmpl", &web.Page{
-						Title:   "Authentication failed - ClusterCockpit",
-						MsgType: "alert-danger",
-						Message: err.Error(),
-						Build:   buildInfo,
-						Infos:   info,
+					json.NewEncoder(rw).Encode(map[string]string{
+						"status": http.StatusText(http.StatusUnauthorized),
+						"error":  err.Error(),
 					})
 				})
 		})
@@ -465,15 +463,13 @@ func main() {
 				// On success;
 				next,
 
-				// On failure:
+				// On failure: JSON Response
 				func(rw http.ResponseWriter, r *http.Request, err error) {
+					rw.Header().Add("Content-Type", "application/json")
 					rw.WriteHeader(http.StatusUnauthorized)
-					web.RenderTemplate(rw, "login.tmpl", &web.Page{
-						Title:   "Authentication failed - ClusterCockpit",
-						MsgType: "alert-danger",
-						Message: err.Error(),
-						Build:   buildInfo,
-						Infos:   info,
+					json.NewEncoder(rw).Encode(map[string]string{
+						"status": http.StatusText(http.StatusUnauthorized),
+						"error":  err.Error(),
 					})
 				})
 		})
@@ -483,33 +479,29 @@ func main() {
 				// On success;
 				next,
 
-				// On failure:
+				// On failure: JSON Response
 				func(rw http.ResponseWriter, r *http.Request, err error) {
+					rw.Header().Add("Content-Type", "application/json")
 					rw.WriteHeader(http.StatusUnauthorized)
-					web.RenderTemplate(rw, "login.tmpl", &web.Page{
-						Title:   "Authentication failed - ClusterCockpit",
-						MsgType: "alert-danger",
-						Message: err.Error(),
-						Build:   buildInfo,
-						Infos:   info,
+					json.NewEncoder(rw).Encode(map[string]string{
+						"status": http.StatusText(http.StatusUnauthorized),
+						"error":  err.Error(),
 					})
 				})
 		})
 
-		userconfigapi.Use(func(next http.Handler) http.Handler {
-			return authentication.AuthUserConfigApi(
+		frontendapi.Use(func(next http.Handler) http.Handler {
+			return authentication.AuthFrontendApi(
 				// On success;
 				next,
 
-				// On failure:
+				// On failure: JSON Response
 				func(rw http.ResponseWriter, r *http.Request, err error) {
+					rw.Header().Add("Content-Type", "application/json")
 					rw.WriteHeader(http.StatusUnauthorized)
-					web.RenderTemplate(rw, "login.tmpl", &web.Page{
-						Title:   "Authentication failed - ClusterCockpit",
-						MsgType: "alert-danger",
-						Message: err.Error(),
-						Build:   buildInfo,
-						Infos:   info,
+					json.NewEncoder(rw).Encode(map[string]string{
+						"status": http.StatusText(http.StatusUnauthorized),
+						"error":  err.Error(),
 					})
 				})
 		})
@@ -532,7 +524,7 @@ func main() {
 	api.MountApiRoutes(securedapi)
 	api.MountUserApiRoutes(userapi)
 	api.MountConfigApiRoutes(configapi)
-	api.MountUserConfigApiRoutes(userconfigapi)
+	api.MountFrontendApiRoutes(frontendapi)
 
 	if config.Keys.EmbedStaticFiles {
 		if i, err := os.Stat("./var/img"); err == nil {
