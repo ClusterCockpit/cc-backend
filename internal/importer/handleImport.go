@@ -13,7 +13,6 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -78,7 +77,7 @@ func HandleImportFlag(flag string) error {
 		job.Footprint = make(map[string]float64)
 
 		for _, fp := range sc.Footprint {
-			job.Footprint[fp] = util.LoadJobStat(&job, fp)
+			job.Footprint[fp] = repository.LoadJobStat(&job, fp)
 		}
 		job.RawFootprint, err = json.Marshal(job.Footprint)
 		if err != nil {

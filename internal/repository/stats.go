@@ -284,6 +284,18 @@ func (r *JobRepository) JobsStats(
 	return stats, nil
 }
 
+func LoadJobStat(job *schema.JobMeta, metric string) float64 {
+	if stats, ok := job.Statistics[metric]; ok {
+		if metric == "mem_used" {
+			return stats.Max
+		} else {
+			return stats.Avg
+		}
+	}
+
+	return 0.0
+}
+
 func (r *JobRepository) JobCountGrouped(
 	ctx context.Context,
 	filter []*model.JobFilter,

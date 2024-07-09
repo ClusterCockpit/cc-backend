@@ -16,7 +16,6 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
-	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
@@ -305,7 +304,7 @@ func (r *JobRepository) MarkArchived(
 	footprint := make(map[string]float64)
 
 	for _, fp := range sc.Footprint {
-		footprint[fp] = util.LoadJobStat(jobMeta, fp)
+		footprint[fp] = LoadJobStat(jobMeta, fp)
 	}
 
 	var rawFootprint []byte
