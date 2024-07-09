@@ -27,7 +27,7 @@ type Job {
   tags:             [Tag!]!
   resources:        [Resource!]!
   concurrentJobs:   JobLinkResultList
-  footprint:        [MetricValue]
+  footprint:        Any
   metaData:         Any
   userData:         User
 }

@@ -45,8 +45,8 @@ func (r *jobResolver) ConcurrentJobs(ctx context.Context, obj *schema.Job) (*mod
 }
 
 // Footprint is the resolver for the footprint field.
-func (r *jobResolver) Footprint(ctx context.Context, obj *schema.Job) ([]*schema.MetricValue, error) {
-	panic(fmt.Errorf("not implemented: Footprint - footprint"))
+func (r *jobResolver) Footprint(ctx context.Context, obj *schema.Job) (interface{}, error) {
+	return r.Repo.FetchFootprint(obj)
 }
 
 // MetaData is the resolver for the metaData field.

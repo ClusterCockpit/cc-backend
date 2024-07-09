@@ -222,6 +222,34 @@ func (r *JobRepository) UpdateMetadata(job *schema.Job, key, val string) (err er
 	return archive.UpdateMetadata(job, job.MetaData)
 }
 
+func (r *JobRepository) FetchFootprint(job *schema.Job) (map[string]float64, error) {
+	start := time.Now()
+	cachekey := fmt.Sprintf("footprint:%d", job.ID)
+	if cached := r.cache.Get(cachekey, nil); cached != nil {
+		job.Footprint = cached.(map[string]float64)
+		return job.Footprint, nil
+	}
+
+	if err := sq.Select("job.footprint").From("job").Where("job.id = ?", job.ID).
+		RunWith(r.stmtCache).QueryRow().Scan(&job.RawFootprint); err != nil {
+		log.Warn("Error while scanning for job footprint")
+		return nil, err
+	}
+
+	if len(job.RawFootprint) == 0 {
+		return nil, nil
+	}
+
+	if err := json.Unmarshal(job.RawFootprint, &job.Footprint); err != nil {
+		log.Warn("Error while unmarshaling raw footprint json")
+		return nil, err
+	}
+
+	r.cache.Put(cachekey, job.Footprint, len(job.Footprint), 24*time.Hour)
+	log.Debugf("Timer FetchFootprint %s", time.Since(start))
+	return job.Footprint, nil
+}
+
 func (r *JobRepository) DeleteJobsBefore(startTime int64) (int, error) {
 	var cnt int
 	q := sq.Select("count(*)").From("job").Where("job.start_time < ?", startTime)

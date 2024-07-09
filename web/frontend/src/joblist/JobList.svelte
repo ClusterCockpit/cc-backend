@@ -75,9 +75,7 @@
             name
           }
           metaData
-          flopsAnyAvg
-          memBwAvg
-          loadAvg
+          footprint
         }
         count
         hasNextPage

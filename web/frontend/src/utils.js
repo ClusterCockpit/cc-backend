@@ -42,28 +42,37 @@ export function init(extraInitQuery = "") {
         .query(
             `query {
         clusters {
-            name,
-            metricConfig {
-                name, unit { base, prefix }, peak,
-                normal, caution, alert,
-                timestep, scope,
-                aggregation,
-                subClusters { name, peak, normal, caution, alert, remove }
-            }
+            name
             partitions
             subClusters {
-                name, processorType
+                name
+                nodes
+                numberOfNodes
+                processorType
                 socketsPerNode
                 coresPerSocket
                 threadsPerCore
                 flopRateScalar { unit { base, prefix }, value }
                 flopRateSimd { unit { base, prefix }, value }
                 memoryBandwidth { unit { base, prefix }, value }
-                numberOfNodes
                 topology {
-                    node, socket, core
+                    node
+                    socket
+                    core
                     accelerators { id }
                 }
+                metricConfig {
+                    name
+                    unit { base, prefix }
+                    scope
+                    aggregation
+                    timestep
+                    peak
+                    normal
+                    caution
+                    alert
+                }
+                footprint 
             }
         }
         tags { id, name, type }
@@ -84,13 +93,18 @@ export function init(extraInitQuery = "") {
 
     const tags = [],
         clusters = [];
+    const allMetrics = [];
     setContext("tags", tags);
     setContext("clusters", clusters);
-    setContext("metrics", (cluster, metric) => {
+    setContext("allmetrics", allMetrics);
+    setContext("getMetricConfig", (cluster, subCluster, metric) => {
         if (typeof cluster !== "object")
             cluster = clusters.find((c) => c.name == cluster);
 
-        return cluster.metricConfig.find((m) => m.name == metric);
+        if (typeof subCluster !== "object")
+            subCluster = cluster.subClusters.find((sc) => sc.name == subCluster);
+
+        return subCluster.metricConfig.find((m) => m.name == metric);
     });
     setContext("on-init", (callback) =>
         state.fetching ? subscribers.push(callback) : callback(state)
@@ -111,7 +125,31 @@ export function init(extraInitQuery = "") {
 
         for (let tag of data.tags) tags.push(tag);
 
-        for (let cluster of data.clusters) clusters.push(cluster);
+        let globalmetrics = [];
+        for (let cluster of data.clusters) {
+            // Add full info to context object
+            clusters.push(cluster);
+            // Build global metric list with availability for joblist metricselect
+            for (let subcluster of cluster.subClusters) {
+                for (let scm of subcluster.metricConfig) {
+                    let match = globalmetrics.find((gm) => gm.name == scm.name);
+                    if (match) {
+                        let submatch = match.availability.find((av) => av.cluster == cluster.name);
+                        if (submatch) {
+                            submatch.subclusters.push(subcluster.name)
+                        } else {
+                            match.availability.push({cluster: cluster.name, subclusters: [subcluster.name]})
+                        }
+                    } else {
+                        globalmetrics.push({name: scm.name, availability: [{cluster: cluster.name, subclusters: [subcluster.name]}]});
+                    }
+                }
+            }
+        }
+        // Add to ctx object
+        for (let gm of globalmetrics) allMetrics.push(gm);
+
+        console.log('All Metrics List', allMetrics);
 
         state.data = data;
         tick().then(() => subscribers.forEach((cb) => cb(state)));
@@ -298,6 +336,7 @@ export function stickyHeader(datatableHeaderSelector, updatePading) {
     onDestroy(() => document.removeEventListener("scroll", onscroll));
 }
 
+// Outdated: Frontend Will Now Receive final MetricList from backend
 export function checkMetricDisabled(m, c, s) { //[m]etric, [c]luster, [s]ubcluster
     const mc = getContext("metrics");
     const thisConfig = mc(c, m);
@@ -407,6 +446,7 @@ export function transformDataForRoofline(flopsAny, memBw) { // Uses Metric Objec
 
 //  Return something to be plotted. The argument shall be the result of the
 // `nodeMetrics` GraphQL query.
+// Remove "hardcoded" here or deemed necessary?
 export function transformPerNodeDataForRoofline(nodes) {
     let data = null
     const x = [], y = []
