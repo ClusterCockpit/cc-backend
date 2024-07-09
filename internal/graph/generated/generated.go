@@ -249,9 +249,10 @@ type ComplexityRoot struct {
 	}
 
 	StatsSeries struct {
-		Max  func(childComplexity int) int
-		Mean func(childComplexity int) int
-		Min  func(childComplexity int) int
+		Max    func(childComplexity int) int
+		Mean   func(childComplexity int) int
+		Median func(childComplexity int) int
+		Min    func(childComplexity int) int
 	}
 
 	SubCluster struct {
@@ -1326,6 +1327,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.StatsSeries.Mean(childComplexity), true
 
+	case "StatsSeries.median":
+		if e.complexity.StatsSeries.Median == nil {
+			break
+		}
+
+		return e.complexity.StatsSeries.Median(childComplexity), true
+
 	case "StatsSeries.min":
 		if e.complexity.StatsSeries.Min == nil {
 			break
@@ -1860,9 +1868,10 @@ type MetricStatistics {
 }
 
 type StatsSeries {
-  mean: [NullableFloat!]!
-  min:  [NullableFloat!]!
-  max:  [NullableFloat!]!
+  mean:   [NullableFloat!]!
+  median: [NullableFloat!]!
+  min:    [NullableFloat!]!
+  max:    [NullableFloat!]!
 }
 
 type MetricFootprints {
@@ -4662,6 +4671,8 @@ func (ec *executionContext) fieldContext_JobMetric_statisticsSeries(ctx context.
 			switch field.Name {
 			case "mean":
 				return ec.fieldContext_StatsSeries_mean(ctx, field)
+			case "median":
+				return ec.fieldContext_StatsSeries_median(ctx, field)
 			case "min":
 				return ec.fieldContext_StatsSeries_min(ctx, field)
 			case "max":
@@ -8637,6 +8648,50 @@ func (ec *executionContext) _StatsSeries_mean(ctx context.Context, field graphql
 }
 
 func (ec *executionContext) fieldContext_StatsSeries_mean(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StatsSeries",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type NullableFloat does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StatsSeries_median(ctx context.Context, field graphql.CollectedField, obj *schema.StatsSeries) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_StatsSeries_median(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Median, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]schema.Float)
+	fc.Result = res
+	return ec.marshalNNullableFloat2ᚕgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐFloatᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_StatsSeries_median(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "StatsSeries",
 		Field:      field,
@@ -14428,6 +14483,11 @@ func (ec *executionContext) _StatsSeries(ctx context.Context, sel ast.SelectionS
 			out.Values[i] = graphql.MarshalString("StatsSeries")
 		case "mean":
 			out.Values[i] = ec._StatsSeries_mean(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "median":
+			out.Values[i] = ec._StatsSeries_median(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

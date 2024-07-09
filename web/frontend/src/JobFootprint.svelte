@@ -101,7 +101,7 @@
         // Calculate Avg from jobMetrics
         const jm = jobMetrics.find((jm) => jm.name === fm && jm.scope === "node");
         if (jm?.metric?.statisticsSeries) {
-          const noNan = jm.metric.statisticsSeries.mean.filter(function (val) {
+          const noNan = jm.metric.statisticsSeries.median.filter(function (val) {
             return val != null;
           });
           mv = round(mean(noNan), 2);
