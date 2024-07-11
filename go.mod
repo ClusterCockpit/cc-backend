@@ -1,12 +1,13 @@
 module github.com/ClusterCockpit/cc-backend
 
-go 1.18
+go 1.22
 
 require (
 	github.com/99designs/gqlgen v0.17.45
 	github.com/ClusterCockpit/cc-units v0.4.0
 	github.com/Masterminds/squirrel v1.5.3
 	github.com/coreos/go-oidc/v3 v3.9.0
+	github.com/davecgh/go-spew v1.1.1
 	github.com/go-co-op/gocron v1.25.0
 	github.com/go-ldap/ldap/v3 v3.4.4
 	github.com/go-sql-driver/mysql v1.7.0

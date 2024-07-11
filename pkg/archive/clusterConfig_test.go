@@ -29,4 +29,5 @@ func TestClusterConfig(t *testing.T) {
 	}
 
 	// spew.Dump(archive.GlobalMetricList)
+	// t.Fail()
 }
