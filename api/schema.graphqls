@@ -99,6 +99,7 @@ type MetricConfig {
   normal:  Float
   caution: Float!
   alert:   Float!
+  lowerIsBetter: Boolean
   subClusters: [SubClusterConfig!]!
 }
 

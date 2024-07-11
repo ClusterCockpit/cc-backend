@@ -46,28 +46,31 @@ type SubCluster struct {
 }
 
 type SubClusterConfig struct {
-	Name      string  `json:"name"`
-	Peak      float64 `json:"peak"`
-	Normal    float64 `json:"normal"`
-	Caution   float64 `json:"caution"`
-	Alert     float64 `json:"alert"`
-	Footprint bool    `json:"footprint"`
-	Remove    bool    `json:"remove"`
+	Name          string  `json:"name"`
+	Peak          float64 `json:"peak"`
+	Normal        float64 `json:"normal"`
+	Caution       float64 `json:"caution"`
+	Alert         float64 `json:"alert"`
+	Footprint     bool    `json:"footprint"`
+	Remove        bool    `json:"remove"`
+	LowerIsBetter bool    `json:"lowerIsBetter"`
+	Energy        bool    `json:"energy"`
 }
 
 type MetricConfig struct {
-	Unit        Unit                `json:"unit"`
-	Name        string              `json:"name"`
-	Scope       MetricScope         `json:"scope"`
-	Aggregation string              `json:"aggregation"`
-	SubClusters []*SubClusterConfig `json:"subClusters,omitempty"`
-	Timestep    int                 `json:"timestep"`
-	Peak        float64             `json:"peak"`
-	Normal      float64             `json:"normal"`
-	Caution     float64             `json:"caution"`
-	Alert       float64             `json:"alert"`
-	Footprint   bool                `json:"footprint"`
-	Energy      bool                `json:"energy"`
+	Unit          Unit                `json:"unit"`
+	Name          string              `json:"name"`
+	Scope         MetricScope         `json:"scope"`
+	Aggregation   string              `json:"aggregation"`
+	SubClusters   []*SubClusterConfig `json:"subClusters,omitempty"`
+	Timestep      int                 `json:"timestep"`
+	Peak          float64             `json:"peak"`
+	Normal        float64             `json:"normal"`
+	Caution       float64             `json:"caution"`
+	Alert         float64             `json:"alert"`
+	LowerIsBetter bool                `json:"lowerIsBetter"`
+	Footprint     bool                `json:"footprint"`
+	Energy        bool                `json:"energy"`
 }
 
 type Cluster struct {
