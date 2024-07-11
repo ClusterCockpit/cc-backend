@@ -27,4 +27,6 @@ func TestClusterConfig(t *testing.T) {
 	if len(sc.MetricConfig) != 15 {
 		t.Fail()
 	}
+
+	// spew.Dump(archive.GlobalMetricList)
 }

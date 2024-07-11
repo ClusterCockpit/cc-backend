@@ -13,13 +13,15 @@ import (
 )
 
 var (
-	Clusters  []*schema.Cluster
-	nodeLists map[string]map[string]NodeList
+	Clusters         []*schema.Cluster
+	GlobalMetricList []*schema.GlobalMetricListItem
+	nodeLists        map[string]map[string]NodeList
 )
 
 func initClusterConfig() error {
 	Clusters = []*schema.Cluster{}
 	nodeLists = map[string]map[string]NodeList{}
+	metricLookup := make(map[string]schema.GlobalMetricListItem)
 
 	for _, c := range ar.GetClusters() {
 
@@ -51,6 +53,12 @@ func initClusterConfig() error {
 				return errors.New("cluster.metricConfig.scope must be a valid scope ('node', 'scocket', ...)")
 			}
 
+			ml, ok := metricLookup[mc.Name]
+			if !ok {
+				metricLookup[mc.Name] = schema.GlobalMetricListItem{Name: mc.Name, Scope: mc.Scope, Unit: mc.Unit}
+				ml = metricLookup[mc.Name]
+			}
+			availability := schema.ClusterSupport{Cluster: cluster.Name}
 			scLookup := make(map[string]*schema.SubClusterConfig)
 
 			for _, scc := range mc.SubClusters {
@@ -63,6 +71,7 @@ func initClusterConfig() error {
 
 				if cfg, ok := scLookup[sc.Name]; ok {
 					if !cfg.Remove {
+						availability.SubClusters = append(availability.SubClusters, sc.Name)
 						newMetric.Peak = cfg.Peak
 						newMetric.Peak = cfg.Peak
 						newMetric.Normal = cfg.Normal
@@ -74,16 +83,24 @@ func initClusterConfig() error {
 						if newMetric.Footprint {
 							sc.Footprint = append(sc.Footprint, newMetric.Name)
 						}
+						if newMetric.Energy {
+							sc.EnergyFootprint = append(sc.EnergyFootprint, newMetric.Name)
+						}
 					}
 				} else {
+					availability.SubClusters = append(availability.SubClusters, sc.Name)
 					sc.MetricConfig = append(sc.MetricConfig, *newMetric)
 
 					if newMetric.Footprint {
 						sc.Footprint = append(sc.Footprint, newMetric.Name)
 					}
+					if newMetric.Energy {
+						sc.EnergyFootprint = append(sc.EnergyFootprint, newMetric.Name)
+					}
 				}
-
 			}
+			ml.Availability = append(metricLookup[mc.Name].Availability, availability)
+			metricLookup[mc.Name] = ml
 		}
 
 		Clusters = append(Clusters, cluster)
@@ -100,6 +117,10 @@ func initClusterConfig() error {
 			}
 			nodeLists[cluster.Name][sc.Name] = nl
 		}
+	}
+
+	for _, ml := range metricLookup {
+		GlobalMetricList = append(GlobalMetricList, &ml)
 	}
 
 	return nil

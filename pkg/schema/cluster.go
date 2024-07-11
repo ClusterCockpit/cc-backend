@@ -39,6 +39,7 @@ type SubCluster struct {
 	MemoryBandwidth MetricValue    `json:"memoryBandwidth"`
 	MetricConfig    []MetricConfig `json:"metricConfig,omitempty"`
 	Footprint       []string       `json:"footprint,omitempty"`
+	EnergyFootprint []string       `json:"energyFootprint,omitempty"`
 	SocketsPerNode  int            `json:"socketsPerNode"`
 	CoresPerSocket  int            `json:"coresPerSocket"`
 	ThreadsPerCore  int            `json:"threadsPerCore"`
@@ -66,12 +67,25 @@ type MetricConfig struct {
 	Caution     float64             `json:"caution"`
 	Alert       float64             `json:"alert"`
 	Footprint   bool                `json:"footprint"`
+	Energy      bool                `json:"energy"`
 }
 
 type Cluster struct {
 	Name         string          `json:"name"`
 	MetricConfig []*MetricConfig `json:"metricConfig"`
 	SubClusters  []*SubCluster   `json:"subClusters"`
+}
+
+type ClusterSupport struct {
+	Cluster     string   `json:"cluster"`
+	SubClusters []string `json:"subclusters"`
+}
+
+type GlobalMetricListItem struct {
+	Name         string           `json:"name"`
+	Unit         Unit             `json:"unit"`
+	Scope        MetricScope      `json:"scope"`
+	Availability []ClusterSupport `json:"availability"`
 }
 
 // Return a list of socket IDs given a list of hwthread IDs.  Even if just one

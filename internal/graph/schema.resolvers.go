@@ -150,6 +150,11 @@ func (r *queryResolver) Tags(ctx context.Context) ([]*schema.Tag, error) {
 	return r.Repo.GetTags(nil)
 }
 
+// GlobalMetrics is the resolver for the globalMetrics field.
+func (r *queryResolver) GlobalMetrics(ctx context.Context) ([]*schema.GlobalMetricListItem, error) {
+	return archive.GlobalMetricList, nil
+}
+
 // User is the resolver for the user field.
 func (r *queryResolver) User(ctx context.Context, username string) (*model.User, error) {
 	return repository.GetUserRepository().FetchUserInCtx(ctx, username)
@@ -414,9 +419,11 @@ func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 // SubCluster returns generated.SubClusterResolver implementation.
 func (r *Resolver) SubCluster() generated.SubClusterResolver { return &subClusterResolver{r} }
 
-type clusterResolver struct{ *Resolver }
-type jobResolver struct{ *Resolver }
-type metricValueResolver struct{ *Resolver }
-type mutationResolver struct{ *Resolver }
-type queryResolver struct{ *Resolver }
-type subClusterResolver struct{ *Resolver }
+type (
+	clusterResolver     struct{ *Resolver }
+	jobResolver         struct{ *Resolver }
+	metricValueResolver struct{ *Resolver }
+	mutationResolver    struct{ *Resolver }
+	queryResolver       struct{ *Resolver }
+	subClusterResolver  struct{ *Resolver }
+)
