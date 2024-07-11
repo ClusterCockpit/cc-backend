@@ -21,6 +21,12 @@ type FloatRange struct {
 	To   float64 `json:"to"`
 }
 
+type FootprintValue struct {
+	Name  string  `json:"name"`
+	Stat  string  `json:"stat"`
+	Value float64 `json:"value"`
+}
+
 type Footprints struct {
 	TimeWeights *TimeWeights        `json:"timeWeights"`
 	Metrics     []*MetricFootprints `json:"metrics"`

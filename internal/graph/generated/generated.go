@@ -74,6 +74,12 @@ type ComplexityRoot struct {
 		Name  func(childComplexity int) int
 	}
 
+	FootprintValue struct {
+		Name  func(childComplexity int) int
+		Stat  func(childComplexity int) int
+		Value func(childComplexity int) int
+	}
+
 	Footprints struct {
 		Metrics     func(childComplexity int) int
 		TimeWeights func(childComplexity int) int
@@ -338,7 +344,7 @@ type JobResolver interface {
 	Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error)
 
 	ConcurrentJobs(ctx context.Context, obj *schema.Job) (*model.JobLinkResultList, error)
-	Footprint(ctx context.Context, obj *schema.Job) (interface{}, error)
+	Footprint(ctx context.Context, obj *schema.Job) ([]*model.FootprintValue, error)
 	MetaData(ctx context.Context, obj *schema.Job) (interface{}, error)
 	UserData(ctx context.Context, obj *schema.Job) (*model.User, error)
 }
@@ -458,6 +464,27 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Count.Name(childComplexity), true
+
+	case "FootprintValue.name":
+		if e.complexity.FootprintValue.Name == nil {
+			break
+		}
+
+		return e.complexity.FootprintValue.Name(childComplexity), true
+
+	case "FootprintValue.stat":
+		if e.complexity.FootprintValue.Stat == nil {
+			break
+		}
+
+		return e.complexity.FootprintValue.Stat(childComplexity), true
+
+	case "FootprintValue.value":
+		if e.complexity.FootprintValue.Value == nil {
+			break
+		}
+
+		return e.complexity.FootprintValue.Value(childComplexity), true
 
 	case "Footprints.metrics":
 		if e.complexity.Footprints.Metrics == nil {
@@ -1811,7 +1838,7 @@ type Job {
   tags:             [Tag!]!
   resources:        [Resource!]!
   concurrentJobs:   JobLinkResultList
-  footprint:        Any
+  footprint:        [FootprintValue]
   metaData:         Any
   userData:         User
 }
@@ -1841,6 +1868,12 @@ type SubCluster {
   topology:        Topology!
   metricConfig:    [MetricConfig!]!
   footprint:       [String!]!
+}
+
+type FootprintValue {
+  name: String!
+  stat: String!
+  value: Float!
 }
 
 type MetricValue {
@@ -3074,6 +3107,138 @@ func (ec *executionContext) fieldContext_Count_count(ctx context.Context, field 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FootprintValue_name(ctx context.Context, field graphql.CollectedField, obj *model.FootprintValue) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FootprintValue_name(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FootprintValue_name(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FootprintValue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FootprintValue_stat(ctx context.Context, field graphql.CollectedField, obj *model.FootprintValue) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FootprintValue_stat(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Stat, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FootprintValue_stat(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FootprintValue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FootprintValue_value(ctx context.Context, field graphql.CollectedField, obj *model.FootprintValue) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FootprintValue_value(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Value, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FootprintValue_value(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FootprintValue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
 		},
 	}
 	return fc, nil
@@ -4515,9 +4680,9 @@ func (ec *executionContext) _Job_footprint(ctx context.Context, field graphql.Co
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(interface{})
+	res := resTmp.([]*model.FootprintValue)
 	fc.Result = res
-	return ec.marshalOAny2interface(ctx, field.Selections, res)
+	return ec.marshalOFootprintValue2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFootprintValue(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Job_footprint(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -4527,7 +4692,15 @@ func (ec *executionContext) fieldContext_Job_footprint(ctx context.Context, fiel
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Any does not have child fields")
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_FootprintValue_name(ctx, field)
+			case "stat":
+				return ec.fieldContext_FootprintValue_stat(ctx, field)
+			case "value":
+				return ec.fieldContext_FootprintValue_value(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type FootprintValue", field.Name)
 		},
 	}
 	return fc, nil
@@ -13303,6 +13476,55 @@ func (ec *executionContext) _Count(ctx context.Context, sel ast.SelectionSet, ob
 	return out
 }
 
+var footprintValueImplementors = []string{"FootprintValue"}
+
+func (ec *executionContext) _FootprintValue(ctx context.Context, sel ast.SelectionSet, obj *model.FootprintValue) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, footprintValueImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("FootprintValue")
+		case "name":
+			out.Values[i] = ec._FootprintValue_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "stat":
+			out.Values[i] = ec._FootprintValue_stat(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "value":
+			out.Values[i] = ec._FootprintValue_value(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var footprintsImplementors = []string{"Footprints"}
 
 func (ec *executionContext) _Footprints(ctx context.Context, sel ast.SelectionSet, obj *model.Footprints) graphql.Marshaler {
@@ -17629,6 +17851,54 @@ func (ec *executionContext) unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpi
 	}
 	res, err := ec.unmarshalInputFloatRange(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOFootprintValue2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFootprintValue(ctx context.Context, sel ast.SelectionSet, v []*model.FootprintValue) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOFootprintValue2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFootprintValue(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	return ret
+}
+
+func (ec *executionContext) marshalOFootprintValue2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFootprintValue(ctx context.Context, sel ast.SelectionSet, v *model.FootprintValue) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._FootprintValue(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOFootprints2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFootprints(ctx context.Context, sel ast.SelectionSet, v *model.Footprints) graphql.Marshaler {

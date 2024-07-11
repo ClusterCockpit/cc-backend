@@ -27,7 +27,7 @@ type Job {
   tags:             [Tag!]!
   resources:        [Resource!]!
   concurrentJobs:   JobLinkResultList
-  footprint:        Any
+  footprint:        [FootprintValue]
   metaData:         Any
   userData:         User
 }
@@ -57,6 +57,12 @@ type SubCluster {
   topology:        Topology!
   metricConfig:    [MetricConfig!]!
   footprint:       [String!]!
+}
+
+type FootprintValue {
+  name: String!
+  stat: String!
+  value: Float!
 }
 
 type MetricValue {

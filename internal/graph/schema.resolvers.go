@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
@@ -45,8 +46,29 @@ func (r *jobResolver) ConcurrentJobs(ctx context.Context, obj *schema.Job) (*mod
 }
 
 // Footprint is the resolver for the footprint field.
-func (r *jobResolver) Footprint(ctx context.Context, obj *schema.Job) (interface{}, error) {
-	return r.Repo.FetchFootprint(obj)
+func (r *jobResolver) Footprint(ctx context.Context, obj *schema.Job) ([]*model.FootprintValue, error) {
+	rawFootprint, err := r.Repo.FetchFootprint(obj)
+
+	if err != nil {
+		log.Warn("Error while fetching job footprint data")
+		return nil, err
+	}
+
+	res := []*model.FootprintValue{}
+	for name, value := range rawFootprint {
+
+		parts := strings.Split(name, "_")
+		statPart := parts[len(parts)-1]
+		nameParts := parts[:len(parts)-1]
+
+		res = append(res, &model.FootprintValue{
+			Name:  strings.Join(nameParts, "_"),
+			Stat:  statPart,
+			Value: value,
+		})
+	}
+
+	return res, err
 }
 
 // MetaData is the resolver for the metaData field.
@@ -419,11 +441,9 @@ func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 // SubCluster returns generated.SubClusterResolver implementation.
 func (r *Resolver) SubCluster() generated.SubClusterResolver { return &subClusterResolver{r} }
 
-type (
-	clusterResolver     struct{ *Resolver }
-	jobResolver         struct{ *Resolver }
-	metricValueResolver struct{ *Resolver }
-	mutationResolver    struct{ *Resolver }
-	queryResolver       struct{ *Resolver }
-	subClusterResolver  struct{ *Resolver }
-)
+type clusterResolver struct{ *Resolver }
+type jobResolver struct{ *Resolver }
+type metricValueResolver struct{ *Resolver }
+type mutationResolver struct{ *Resolver }
+type queryResolver struct{ *Resolver }
+type subClusterResolver struct{ *Resolver }
