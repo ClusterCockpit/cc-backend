@@ -346,7 +346,7 @@ type JobResolver interface {
 
 	ConcurrentJobs(ctx context.Context, obj *schema.Job) (*model.JobLinkResultList, error)
 	Footprint(ctx context.Context, obj *schema.Job) ([]*model.FootprintValue, error)
-	MetaData(ctx context.Context, obj *schema.Job) (interface{}, error)
+	MetaData(ctx context.Context, obj *schema.Job) (any, error)
 	UserData(ctx context.Context, obj *schema.Job) (*model.User, error)
 }
 type MetricValueResolver interface {
@@ -3152,7 +3152,7 @@ func (ec *executionContext) _FootprintValue_name(ctx context.Context, field grap
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_FootprintValue_name(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_FootprintValue_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "FootprintValue",
 		Field:      field,
@@ -3196,7 +3196,7 @@ func (ec *executionContext) _FootprintValue_stat(ctx context.Context, field grap
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_FootprintValue_stat(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_FootprintValue_stat(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "FootprintValue",
 		Field:      field,
@@ -3240,7 +3240,7 @@ func (ec *executionContext) _FootprintValue_value(ctx context.Context, field gra
 	return ec.marshalNFloat2float64(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_FootprintValue_value(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_FootprintValue_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "FootprintValue",
 		Field:      field,
