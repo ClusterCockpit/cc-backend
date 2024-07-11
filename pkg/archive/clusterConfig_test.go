@@ -28,6 +28,12 @@ func TestClusterConfig(t *testing.T) {
 		t.Fail()
 	}
 
+	for _, metric := range sc.MetricConfig {
+		if metric.LowerIsBetter && metric.Name != "mem_used" {
+			t.Fail()
+		}
+	}
+
 	// spew.Dump(archive.GlobalMetricList)
 	// t.Fail()
 }

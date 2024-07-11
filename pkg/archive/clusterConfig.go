@@ -78,6 +78,8 @@ func initClusterConfig() error {
 						newMetric.Caution = cfg.Caution
 						newMetric.Alert = cfg.Alert
 						newMetric.Footprint = cfg.Footprint
+						newMetric.Energy = cfg.Energy
+						newMetric.LowerIsBetter = cfg.LowerIsBetter
 						sc.MetricConfig = append(sc.MetricConfig, *newMetric)
 
 						if newMetric.Footprint {
