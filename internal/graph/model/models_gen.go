@@ -58,10 +58,7 @@ type JobFilter struct {
 	NumHWThreads    *schema.IntRange  `json:"numHWThreads,omitempty"`
 	StartTime       *schema.TimeRange `json:"startTime,omitempty"`
 	State           []schema.JobState `json:"state,omitempty"`
-	FlopsAnyAvg     *FloatRange       `json:"flopsAnyAvg,omitempty"`
-	MemBwAvg        *FloatRange       `json:"memBwAvg,omitempty"`
-	LoadAvg         *FloatRange       `json:"loadAvg,omitempty"`
-	MemUsedMax      *FloatRange       `json:"memUsedMax,omitempty"`
+	MetricStats     []*MetricStatItem `json:"metricStats,omitempty"`
 	Exclusive       *int              `json:"exclusive,omitempty"`
 	Node            *StringInput      `json:"node,omitempty"`
 }
@@ -127,6 +124,11 @@ type MetricHistoPoints struct {
 	Metric string              `json:"metric"`
 	Unit   string              `json:"unit"`
 	Data   []*MetricHistoPoint `json:"data,omitempty"`
+}
+
+type MetricStatItem struct {
+	MetricName string      `json:"metricName"`
+	Range      *FloatRange `json:"range"`
 }
 
 type Mutation struct {

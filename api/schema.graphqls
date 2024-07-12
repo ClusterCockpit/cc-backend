@@ -194,6 +194,7 @@ type GlobalMetricListItem {
   name: String!
   unit: Unit!
   scope: MetricScope!
+  footprint: Boolean
   availability: [ClusterSupport!]!
 }
 
@@ -206,6 +207,11 @@ type User {
   username: String!
   name:     String!
   email:    String!
+}
+
+input MetricStatItem {
+  metricName: String!
+  range: FloatRange!
 }
 
 type Query {
@@ -259,11 +265,7 @@ input JobFilter {
 
   startTime:   TimeRange
   state:       [JobState!]
-  flopsAnyAvg: FloatRange
-  memBwAvg:    FloatRange
-  loadAvg:     FloatRange
-  memUsedMax:  FloatRange
-
+  metricStats: [MetricStatItem!]
   exclusive:     Int
   node:    StringInput
 }
@@ -288,8 +290,12 @@ input StringInput {
 }
 
 input IntRange   { from: Int!,   to: Int! }
-input FloatRange { from: Float!, to: Float! }
 input TimeRange  { from: Time,   to: Time }
+
+input FloatRange {
+  from: Float!
+  to: Float!
+}
 
 type JobResultList {
   items:  [Job!]!

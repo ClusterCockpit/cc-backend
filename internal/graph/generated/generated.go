@@ -87,6 +87,7 @@ type ComplexityRoot struct {
 
 	GlobalMetricListItem struct {
 		Availability func(childComplexity int) int
+		Footprint    func(childComplexity int) int
 		Name         func(childComplexity int) int
 		Scope        func(childComplexity int) int
 		Unit         func(childComplexity int) int
@@ -507,6 +508,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.GlobalMetricListItem.Availability(childComplexity), true
+
+	case "GlobalMetricListItem.footprint":
+		if e.complexity.GlobalMetricListItem.Footprint == nil {
+			break
+		}
+
+		return e.complexity.GlobalMetricListItem.Footprint(childComplexity), true
 
 	case "GlobalMetricListItem.name":
 		if e.complexity.GlobalMetricListItem.Name == nil {
@@ -1716,6 +1724,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputFloatRange,
 		ec.unmarshalInputIntRange,
 		ec.unmarshalInputJobFilter,
+		ec.unmarshalInputMetricStatItem,
 		ec.unmarshalInputOrderByInput,
 		ec.unmarshalInputPageRequest,
 		ec.unmarshalInputStringInput,
@@ -2013,6 +2022,7 @@ type GlobalMetricListItem {
   name: String!
   unit: Unit!
   scope: MetricScope!
+  footprint: Boolean
   availability: [ClusterSupport!]!
 }
 
@@ -2025,6 +2035,11 @@ type User {
   username: String!
   name:     String!
   email:    String!
+}
+
+input MetricStatItem {
+  metricName: String!
+  range: FloatRange!
 }
 
 type Query {
@@ -2078,11 +2093,7 @@ input JobFilter {
 
   startTime:   TimeRange
   state:       [JobState!]
-  flopsAnyAvg: FloatRange
-  memBwAvg:    FloatRange
-  loadAvg:     FloatRange
-  memUsedMax:  FloatRange
-
+  metricStats: [MetricStatItem!]
   exclusive:     Int
   node:    StringInput
 }
@@ -2107,8 +2118,12 @@ input StringInput {
 }
 
 input IntRange   { from: Int!,   to: Int! }
-input FloatRange { from: Float!, to: Float! }
 input TimeRange  { from: Time,   to: Time }
+
+input FloatRange {
+  from: Float!
+  to: Float!
+}
 
 type JobResultList {
   items:  [Job!]!
@@ -3488,6 +3503,47 @@ func (ec *executionContext) fieldContext_GlobalMetricListItem_scope(_ context.Co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type MetricScope does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GlobalMetricListItem_footprint(ctx context.Context, field graphql.CollectedField, obj *schema.GlobalMetricListItem) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GlobalMetricListItem_footprint(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Footprint, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalOBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GlobalMetricListItem_footprint(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GlobalMetricListItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -8142,6 +8198,8 @@ func (ec *executionContext) fieldContext_Query_globalMetrics(_ context.Context, 
 				return ec.fieldContext_GlobalMetricListItem_unit(ctx, field)
 			case "scope":
 				return ec.fieldContext_GlobalMetricListItem_scope(ctx, field)
+			case "footprint":
+				return ec.fieldContext_GlobalMetricListItem_footprint(ctx, field)
 			case "availability":
 				return ec.fieldContext_GlobalMetricListItem_availability(ctx, field)
 			}
@@ -12975,7 +13033,7 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"tags", "jobId", "arrayJobId", "user", "project", "jobName", "cluster", "partition", "duration", "minRunningFor", "numNodes", "numAccelerators", "numHWThreads", "startTime", "state", "flopsAnyAvg", "memBwAvg", "loadAvg", "memUsedMax", "exclusive", "node"}
+	fieldsInOrder := [...]string{"tags", "jobId", "arrayJobId", "user", "project", "jobName", "cluster", "partition", "duration", "minRunningFor", "numNodes", "numAccelerators", "numHWThreads", "startTime", "state", "metricStats", "exclusive", "node"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13087,34 +13145,13 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 				return it, err
 			}
 			it.State = data
-		case "flopsAnyAvg":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("flopsAnyAvg"))
-			data, err := ec.unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFloatRange(ctx, v)
+		case "metricStats":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("metricStats"))
+			data, err := ec.unmarshalOMetricStatItem2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐMetricStatItemᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.FlopsAnyAvg = data
-		case "memBwAvg":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("memBwAvg"))
-			data, err := ec.unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFloatRange(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.MemBwAvg = data
-		case "loadAvg":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("loadAvg"))
-			data, err := ec.unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFloatRange(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.LoadAvg = data
-		case "memUsedMax":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("memUsedMax"))
-			data, err := ec.unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFloatRange(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.MemUsedMax = data
+			it.MetricStats = data
 		case "exclusive":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exclusive"))
 			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
@@ -13129,6 +13166,40 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 				return it, err
 			}
 			it.Node = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputMetricStatItem(ctx context.Context, obj interface{}) (model.MetricStatItem, error) {
+	var it model.MetricStatItem
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"metricName", "range"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "metricName":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("metricName"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MetricName = data
+		case "range":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("range"))
+			data, err := ec.unmarshalNFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFloatRange(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Range = data
 		}
 	}
 
@@ -13647,6 +13718,8 @@ func (ec *executionContext) _GlobalMetricListItem(ctx context.Context, sel ast.S
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "footprint":
+			out.Values[i] = ec._GlobalMetricListItem_footprint(ctx, field, obj)
 		case "availability":
 			out.Values[i] = ec._GlobalMetricListItem_availability(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -16369,6 +16442,11 @@ func (ec *executionContext) marshalNFloat2ᚕᚕfloat64ᚄ(ctx context.Context, 
 	return ret
 }
 
+func (ec *executionContext) unmarshalNFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFloatRange(ctx context.Context, v interface{}) (*model.FloatRange, error) {
+	res, err := ec.unmarshalInputFloatRange(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNGlobalMetricListItem2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐGlobalMetricListItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*schema.GlobalMetricListItem) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
@@ -17115,6 +17193,11 @@ func (ec *executionContext) unmarshalNMetricScope2githubᚗcomᚋClusterCockpit�
 
 func (ec *executionContext) marshalNMetricScope2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐMetricScope(ctx context.Context, sel ast.SelectionSet, v schema.MetricScope) graphql.Marshaler {
 	return v
+}
+
+func (ec *executionContext) unmarshalNMetricStatItem2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐMetricStatItem(ctx context.Context, v interface{}) (*model.MetricStatItem, error) {
+	res, err := ec.unmarshalInputMetricStatItem(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNMetricValue2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐMetricValue(ctx context.Context, sel ast.SelectionSet, v schema.MetricValue) graphql.Marshaler {
@@ -17899,14 +17982,6 @@ func (ec *executionContext) marshalOFloat2float64(ctx context.Context, sel ast.S
 	return graphql.WrapContextMarshaler(ctx, res)
 }
 
-func (ec *executionContext) unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFloatRange(ctx context.Context, v interface{}) (*model.FloatRange, error) {
-	if v == nil {
-		return nil, nil
-	}
-	res, err := ec.unmarshalInputFloatRange(ctx, v)
-	return &res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) marshalOFootprintValue2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFootprintValue(ctx context.Context, sel ast.SelectionSet, v []*model.FootprintValue) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -18293,6 +18368,26 @@ func (ec *executionContext) marshalOMetricScope2ᚕgithubᚗcomᚋClusterCockpit
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalOMetricStatItem2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐMetricStatItemᚄ(ctx context.Context, v interface{}) ([]*model.MetricStatItem, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []interface{}
+	if v != nil {
+		vSlice = graphql.CoerceList(v)
+	}
+	var err error
+	res := make([]*model.MetricStatItem, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNMetricStatItem2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐMetricStatItem(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (ec *executionContext) marshalOMetricStatistics2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋpkgᚋschemaᚐMetricStatistics(ctx context.Context, sel ast.SelectionSet, v schema.MetricStatistics) graphql.Marshaler {

@@ -48,7 +48,6 @@ func (r *jobResolver) ConcurrentJobs(ctx context.Context, obj *schema.Job) (*mod
 // Footprint is the resolver for the footprint field.
 func (r *jobResolver) Footprint(ctx context.Context, obj *schema.Job) ([]*model.FootprintValue, error) {
 	rawFootprint, err := r.Repo.FetchFootprint(obj)
-
 	if err != nil {
 		log.Warn("Error while fetching job footprint data")
 		return nil, err

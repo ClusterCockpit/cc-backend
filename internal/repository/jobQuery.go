@@ -176,17 +176,10 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	if filter.Node != nil {
 		query = buildStringCondition("job.resources", filter.Node, query)
 	}
-	if filter.FlopsAnyAvg != nil {
-		query = buildFloatCondition("job.flops_any_avg", filter.FlopsAnyAvg, query)
-	}
-	if filter.MemBwAvg != nil {
-		query = buildFloatCondition("job.mem_bw_avg", filter.MemBwAvg, query)
-	}
-	if filter.LoadAvg != nil {
-		query = buildFloatCondition("job.load_avg", filter.LoadAvg, query)
-	}
-	if filter.MemUsedMax != nil {
-		query = buildFloatCondition("job.mem_used_max", filter.MemUsedMax, query)
+	if filter.MetricStats != nil {
+		for _, m := range filter.MetricStats {
+			query = buildFloatJsonCondition("job.metric_stats", m.Range, query)
+		}
 	}
 	return query
 }
@@ -207,8 +200,8 @@ func buildTimeCondition(field string, cond *schema.TimeRange, query sq.SelectBui
 	}
 }
 
-func buildFloatCondition(field string, cond *model.FloatRange, query sq.SelectBuilder) sq.SelectBuilder {
-	return query.Where(field+" BETWEEN ? AND ?", cond.From, cond.To)
+func buildFloatJsonCondition(field string, cond *model.FloatRange, query sq.SelectBuilder) sq.SelectBuilder {
+	return query.Where("JSON_EXTRACT(footprint, '$."+field+"') BETWEEN ? AND ?", cond.From, cond.To)
 }
 
 func buildStringCondition(field string, cond *model.StringInput, query sq.SelectBuilder) sq.SelectBuilder {
