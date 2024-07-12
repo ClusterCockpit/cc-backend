@@ -55,7 +55,9 @@ func initClusterConfig() error {
 
 			ml, ok := metricLookup[mc.Name]
 			if !ok {
-				metricLookup[mc.Name] = schema.GlobalMetricListItem{Name: mc.Name, Scope: mc.Scope, Unit: mc.Unit}
+				metricLookup[mc.Name] = schema.GlobalMetricListItem{
+					Name: mc.Name, Scope: mc.Scope, Unit: mc.Unit, Footprint: mc.Footprint,
+				}
 				ml = metricLookup[mc.Name]
 			}
 			availability := schema.ClusterSupport{Cluster: cluster.Name}
@@ -84,6 +86,7 @@ func initClusterConfig() error {
 
 						if newMetric.Footprint {
 							sc.Footprint = append(sc.Footprint, newMetric.Name)
+							ml.Footprint = true
 						}
 						if newMetric.Energy {
 							sc.EnergyFootprint = append(sc.EnergyFootprint, newMetric.Name)

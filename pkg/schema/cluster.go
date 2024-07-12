@@ -88,6 +88,7 @@ type GlobalMetricListItem struct {
 	Name         string           `json:"name"`
 	Unit         Unit             `json:"unit"`
 	Scope        MetricScope      `json:"scope"`
+	Footprint    bool             `json:"footprint"`
 	Availability []ClusterSupport `json:"availability"`
 }
 
