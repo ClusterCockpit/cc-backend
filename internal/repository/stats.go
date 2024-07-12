@@ -286,6 +286,7 @@ func (r *JobRepository) JobsStats(
 	return stats, nil
 }
 
+// FIXME: Make generic
 func LoadJobStat(job *schema.JobMeta, metric string) float64 {
 	if stats, ok := job.Statistics[metric]; ok {
 		if metric == "mem_used" {
@@ -609,16 +610,16 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 	bins := 10
 	binQuery := fmt.Sprintf(`CAST( (case when %s = value.max
 	   then value.max*0.999999999 else %s end - value.min) / (value.max -
-	   value.min) * %d as INTEGER )`, metric, metric, bins)
+	   value.min) * %d as INTEGER )`, jm, jm, bins)
 
 	mainQuery := sq.Select(
 		fmt.Sprintf(`%s + 1 as bin`, binQuery),
-		fmt.Sprintf(`count(%s) as count`, metric),
+		fmt.Sprintf(`count(%s) as count`, jm),
 		fmt.Sprintf(`CAST(((value.max / %d) * (%s     )) as INTEGER ) as min`, bins, binQuery),
 		fmt.Sprintf(`CAST(((value.max / %d) * (%s + 1 )) as INTEGER ) as max`, bins, binQuery),
 	).From("job").CrossJoin(
 		fmt.Sprintf(`(%s) as value`, crossJoinQuerySql), crossJoinQueryArgs...,
-	).Where(fmt.Sprintf(`%s is not null and %s <= %f`, metric, metric, peak))
+	).Where(fmt.Sprintf(`%s is not null and %s <= %f`, jm, jm, peak))
 
 	mainQuery, qerr := SecurityCheck(ctx, mainQuery)
 
@@ -643,7 +644,7 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 	for rows.Next() {
 		point := model.MetricHistoPoint{}
 		if err := rows.Scan(&point.Bin, &point.Count, &point.Min, &point.Max); err != nil {
-			log.Warnf("Error while scanning rows for %s", metric)
+			log.Warnf("Error while scanning rows for %s", jm)
 			return nil, err // Totally bricks cc-backend if returned and if all metrics requested?
 		}
 
