@@ -162,7 +162,7 @@ func LoadData(job *schema.Job,
 			ttl = 2 * time.Minute
 		}
 
-		prepareJobData(job, jd, scopes)
+		prepareJobData(jd, scopes)
 
 		return jd, ttl, size
 	})
@@ -266,7 +266,6 @@ func cacheKey(
 // statisticsSeries should be available so that a min/median/max Graph can be
 // used instead of a lot of single lines.
 func prepareJobData(
-	job *schema.Job,
 	jobData schema.JobData,
 	scopes []schema.MetricScope,
 ) {
