@@ -47,10 +47,10 @@ func (r *JobRepository) buildCountQuery(
 
 	if col != "" {
 		// Scan columns: id, cnt
-		query = sq.Select(col, "COUNT(job.id)").From("job").GroupBy(col)
+		query = r.SQ.Select(col, "COUNT(job.id)").From("job").GroupBy(col)
 	} else {
 		// Scan columns:  cnt
-		query = sq.Select("COUNT(job.id)").From("job")
+		query = r.SQ.Select("COUNT(job.id)").From("job")
 	}
 
 	switch kind {
@@ -78,25 +78,25 @@ func (r *JobRepository) buildStatsQuery(
 
 	if col != "" {
 		// Scan columns: id, totalJobs, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours
-		query = sq.Select(col, "COUNT(job.id) as totalJobs",
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) / 3600) as %s) as totalWalltime`, time.Now().Unix(), castType),
+		query = r.SQ.Select(col, "COUNT(job.id) as totalJobs",
+			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = 'running' THEN %d - job.start_time ELSE job.duration END)) / 3600) as %s) as totalWalltime`, time.Now().Unix(), castType),
 			fmt.Sprintf(`CAST(SUM(job.num_nodes) as %s) as totalNodes`, castType),
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_nodes) / 3600) as %s) as totalNodeHours`, time.Now().Unix(), castType),
+			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = 'running' THEN %d - job.start_time ELSE job.duration END) * job.num_nodes) / 3600) as %s) as totalNodeHours`, time.Now().Unix(), castType),
 			fmt.Sprintf(`CAST(SUM(job.num_hwthreads) as %s) as totalCores`, castType),
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_hwthreads) / 3600) as %s) as totalCoreHours`, time.Now().Unix(), castType),
+			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = 'running' THEN %d - job.start_time ELSE job.duration END) * job.num_hwthreads) / 3600) as %s) as totalCoreHours`, time.Now().Unix(), castType),
 			fmt.Sprintf(`CAST(SUM(job.num_acc) as %s) as totalAccs`, castType),
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_acc) / 3600) as %s) as totalAccHours`, time.Now().Unix(), castType),
+			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = 'running' THEN %d - job.start_time ELSE job.duration END) * job.num_acc) / 3600) as %s) as totalAccHours`, time.Now().Unix(), castType),
 		).From("job").GroupBy(col)
 	} else {
 		// Scan columns: totalJobs, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours
-		query = sq.Select("COUNT(job.id)",
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) / 3600) as %s)`, time.Now().Unix(), castType),
+		query = r.SQ.Select("COUNT(job.id)",
+			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = 'running' THEN %d - job.start_time ELSE job.duration END)) / 3600) as %s)`, time.Now().Unix(), castType),
 			fmt.Sprintf(`CAST(SUM(job.num_nodes) as %s)`, castType),
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_nodes) / 3600) as %s)`, time.Now().Unix(), castType),
+			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = 'running' THEN %d - job.start_time ELSE job.duration END) * job.num_nodes) / 3600) as %s)`, time.Now().Unix(), castType),
 			fmt.Sprintf(`CAST(SUM(job.num_hwthreads) as %s)`, castType),
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_hwthreads) / 3600) as %s)`, time.Now().Unix(), castType),
+			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = 'running' THEN %d - job.start_time ELSE job.duration END) * job.num_hwthreads) / 3600) as %s)`, time.Now().Unix(), castType),
 			fmt.Sprintf(`CAST(SUM(job.num_acc) as %s)`, castType),
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_acc) / 3600) as %s)`, time.Now().Unix(), castType),
+			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = 'running' THEN %d - job.start_time ELSE job.duration END) * job.num_acc) / 3600) as %s)`, time.Now().Unix(), castType),
 		).From("job")
 	}
 
@@ -109,7 +109,7 @@ func (r *JobRepository) buildStatsQuery(
 
 func (r *JobRepository) getUserName(ctx context.Context, id string) string {
 	user := GetUserFromContext(ctx)
-	name, _ := r.FindColumnValue(user, id, "user", "name", "username", false)
+	name, _ := r.FindColumnValue(user, id, "users", "name", "username", false)
 	if name != "" {
 		return name
 	} else {
@@ -125,6 +125,8 @@ func (r *JobRepository) getCastType() string {
 		castType = "int"
 	case "mysql":
 		castType = "unsigned"
+	case "postgres":
+		castType = "int"
 	default:
 		castType = ""
 	}
@@ -143,7 +145,7 @@ func (r *JobRepository) JobsStatsGrouped(
 	col := groupBy2column[*groupBy]
 	query := r.buildStatsQuery(filter, col)
 
-	query, err := SecurityCheck(ctx, query)
+	query, err := r.SecurityCheck(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +248,7 @@ func (r *JobRepository) JobsStats(
 ) ([]*model.JobsStatistics, error) {
 	start := time.Now()
 	query := r.buildStatsQuery(filter, "")
-	query, err := SecurityCheck(ctx, query)
+	query, err := r.SecurityCheck(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -307,7 +309,7 @@ func (r *JobRepository) JobCountGrouped(
 	start := time.Now()
 	col := groupBy2column[*groupBy]
 	query := r.buildCountQuery(filter, "", col)
-	query, err := SecurityCheck(ctx, query)
+	query, err := r.SecurityCheck(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -349,7 +351,7 @@ func (r *JobRepository) AddJobCountGrouped(
 	start := time.Now()
 	col := groupBy2column[*groupBy]
 	query := r.buildCountQuery(filter, kind, col)
-	query, err := SecurityCheck(ctx, query)
+	query, err := r.SecurityCheck(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -396,7 +398,7 @@ func (r *JobRepository) AddJobCount(
 ) ([]*model.JobsStatistics, error) {
 	start := time.Now()
 	query := r.buildCountQuery(filter, kind, "")
-	query, err := SecurityCheck(ctx, query)
+	query, err := r.SecurityCheck(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -442,7 +444,7 @@ func (r *JobRepository) AddHistograms(
 
 	castType := r.getCastType()
 	var err error
-	value := fmt.Sprintf(`CAST(ROUND((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) / 3600) as %s) as value`, time.Now().Unix(), castType)
+	value := fmt.Sprintf(`CAST(ROUND((CASE WHEN job.job_state = 'running' THEN %d - job.start_time ELSE job.duration END) / 3600) as %s) as value`, time.Now().Unix(), castType)
 	stat.HistDuration, err = r.jobsStatisticsHistogram(ctx, value, filter)
 	if err != nil {
 		log.Warn("Error while loading job statistics histogram: running jobs")
@@ -512,8 +514,8 @@ func (r *JobRepository) jobsStatisticsHistogram(
 	filters []*model.JobFilter,
 ) ([]*model.HistoPoint, error) {
 	start := time.Now()
-	query, qerr := SecurityCheck(ctx,
-		sq.Select(value, "COUNT(job.id) AS count").From("job"))
+	query, qerr := r.SecurityCheck(ctx,
+		r.SQ.Select(value, "COUNT(job.id) AS count").From("job"))
 
 	if qerr != nil {
 		return nil, qerr
@@ -583,7 +585,7 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 	start := time.Now()
 	jm := fmt.Sprintf(`json_extract(footprint, "$.%s")`, metric)
 
-	crossJoinQuery := sq.Select(
+	crossJoinQuery := r.SQ.Select(
 		fmt.Sprintf(`max(%s) as max`, jm),
 		fmt.Sprintf(`min(%s) as min`, jm),
 	).From("job").Where(
@@ -592,7 +594,7 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 		fmt.Sprintf(`%s <= %f`, jm, peak),
 	)
 
-	crossJoinQuery, cjqerr := SecurityCheck(ctx, crossJoinQuery)
+	crossJoinQuery, cjqerr := r.SecurityCheck(ctx, crossJoinQuery)
 
 	if cjqerr != nil {
 		return nil, cjqerr
@@ -612,7 +614,7 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 	   then value.max*0.999999999 else %s end - value.min) / (value.max -
 	   value.min) * %d as INTEGER )`, jm, jm, bins)
 
-	mainQuery := sq.Select(
+	mainQuery := r.SQ.Select(
 		fmt.Sprintf(`%s + 1 as bin`, binQuery),
 		fmt.Sprintf(`count(%s) as count`, jm),
 		fmt.Sprintf(`CAST(((value.max / %d) * (%s     )) as INTEGER ) as min`, bins, binQuery),
@@ -621,7 +623,7 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 		fmt.Sprintf(`(%s) as value`, crossJoinQuerySql), crossJoinQueryArgs...,
 	).Where(fmt.Sprintf(`%s is not null and %s <= %f`, jm, jm, peak))
 
-	mainQuery, qerr := SecurityCheck(ctx, mainQuery)
+	mainQuery, qerr := r.SecurityCheck(ctx, mainQuery)
 
 	if qerr != nil {
 		return nil, qerr

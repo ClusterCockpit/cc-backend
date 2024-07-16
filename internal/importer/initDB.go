@@ -97,7 +97,7 @@ func InitDB() error {
 			continue
 		}
 
-		id, err := r.TransactionAdd(t, job)
+		id, err := r.TransactionAdd(t, &job)
 		if err != nil {
 			log.Errorf("repository initDB(): %v", err)
 			errorOccured++

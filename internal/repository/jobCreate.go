@@ -7,29 +7,44 @@ package repository
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
-	sq "github.com/Masterminds/squirrel"
 )
 
+// TODO conditional on r.driver
+// ` + "`partition`" + `
 const NamedJobInsert string = `INSERT INTO job (
-	job_id, user, project, cluster, subcluster, ` + "`partition`" + `, array_job_id, num_nodes, num_hwthreads, num_acc,
+	job_id, "user", project, cluster, subcluster, "partition", array_job_id, num_nodes, num_hwthreads, num_acc,
 	exclusive, monitoring_status, smt, job_state, start_time, duration, walltime, footprint, resources, meta_data
 ) VALUES (
 	:job_id, :user, :project, :cluster, :subcluster, :partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
   :exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :walltime, :footprint, :resources, :meta_data
 );`
 
-func (r *JobRepository) InsertJob(job *schema.JobMeta) (int64, error) {
-	res, err := r.DB.NamedExec(NamedJobInsert, job)
+func (r *JobRepository) InsertJob(jobMeta *schema.JobMeta) (int64, error) {
+	//res, err := r.DB.NamedExec(NamedJobInsert, job)
+	job := schema.Job{
+		BaseJob:       jobMeta.BaseJob,
+		StartTime:     time.Unix(jobMeta.StartTime, 0),
+		StartTimeUnix: jobMeta.StartTime,
+	}
+	t, err := r.TransactionInit()
+	if err != nil {
+		log.Warn("Error while initializing SQL transactions")
+		return 0, err
+	}
+
+	id, err := r.TransactionAdd(t, &job)
 	if err != nil {
 		log.Warn("Error while NamedJobInsert")
 		return 0, err
 	}
-	id, err := res.LastInsertId()
+	err = r.TransactionEnd(t)
+
+	//id, err := res.LastInsertId()
 	if err != nil {
-		log.Warn("Error while getting last insert ID")
 		return 0, err
 	}
 
@@ -64,7 +79,7 @@ func (r *JobRepository) Stop(
 	state schema.JobState,
 	monitoringStatus int32,
 ) (err error) {
-	stmt := sq.Update("job").
+	stmt := r.SQ.Update("job").
 		Set("job_state", state).
 		Set("duration", duration).
 		Set("monitoring_status", monitoringStatus).

@@ -13,6 +13,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	sq "github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -23,7 +24,7 @@ var (
 
 type UserCfgRepo struct {
 	DB         *sqlx.DB
-	Lookup     *sqlx.Stmt
+	SQ         sq.StatementBuilderType
 	uiDefaults map[string]interface{}
 	cache      *lrucache.Cache
 	lock       sync.RWMutex
@@ -33,14 +34,9 @@ func GetUserCfgRepo() *UserCfgRepo {
 	userCfgRepoOnce.Do(func() {
 		db := GetConnection()
 
-		lookupConfigStmt, err := db.DB.Preparex(`SELECT confkey, value FROM configuration WHERE configuration.username = ?`)
-		if err != nil {
-			log.Fatalf("db.DB.Preparex() error: %v", err)
-		}
-
 		userCfgRepoInstance = &UserCfgRepo{
 			DB:         db.DB,
-			Lookup:     lookupConfigStmt,
+			SQ:         db.SQ,
 			uiDefaults: config.Keys.UiDefaults,
 			cache:      lrucache.New(1024),
 		}
@@ -68,7 +64,9 @@ func (uCfg *UserCfgRepo) GetUIConfig(user *schema.User) (map[string]interface{},
 			uiconfig[k] = v
 		}
 
-		rows, err := uCfg.Lookup.Query(user.Username)
+		rows, err := uCfg.SQ.Select("confkey", "value").
+			From("configuration").Where("configuration.username = ?", user.Username).
+			RunWith(uCfg.DB).Query()
 		if err != nil {
 			log.Warnf("Error while looking up user uiconfig for user '%v'", user.Username)
 			return err, 0, 0
@@ -127,9 +125,18 @@ func (uCfg *UserCfgRepo) UpdateConfig(
 		return nil
 	}
 
-	if _, err := uCfg.DB.Exec(`REPLACE INTO configuration (username, confkey, value) VALUES (?, ?, ?)`, user.Username, key, value); err != nil {
-		log.Warnf("Error while replacing user config in DB for user '%v'", user.Username)
-		return err
+	// REPLACE is SQlite specific, use generic insert or update pattern
+	if _, err := uCfg.SQ.Insert("configuration").
+		Columns("username", "confkey", "value").
+		Values(user.Username, key, value).RunWith(uCfg.DB).Exec(); err != nil {
+		// insert failed, update key
+		if _, err = uCfg.SQ.Update("configuration").
+			Set("username", user.Username).
+			Set("confkey", key).
+			Set("value", value).RunWith(uCfg.DB).Exec(); err != nil {
+			log.Warnf("Error while replacing user config in DB for user '%v': %v", user.Username, err)
+			return err
+		}
 	}
 
 	uCfg.cache.Del(user.Username)

@@ -33,7 +33,8 @@
             "type": "string",
             "enum": [
                 "sqlite3",
-                "mysql"
+                "mysql",
+                "postgres"
             ]
         },
         "db": {

@@ -13,7 +13,6 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
-	sq "github.com/Masterminds/squirrel"
 )
 
 // Find executes a SQL query to find a specific batch job.
@@ -27,7 +26,7 @@ func (r *JobRepository) Find(
 	startTime *int64,
 ) (*schema.Job, error) {
 	start := time.Now()
-	q := sq.Select(jobColumns...).From("job").
+	q := r.SQ.Select(jobColumns...).From("job").
 		Where("job.job_id = ?", *jobId)
 
 	if cluster != nil {
@@ -53,7 +52,7 @@ func (r *JobRepository) FindAll(
 	startTime *int64,
 ) ([]*schema.Job, error) {
 	start := time.Now()
-	q := sq.Select(jobColumns...).From("job").
+	q := r.SQ.Select(jobColumns...).From("job").
 		Where("job.job_id = ?", *jobId)
 
 	if cluster != nil {
@@ -87,10 +86,10 @@ func (r *JobRepository) FindAll(
 // It returns a pointer to a schema.Job data structure and an error variable.
 // To check if no job was found test err == sql.ErrNoRows
 func (r *JobRepository) FindById(ctx context.Context, jobId int64) (*schema.Job, error) {
-	q := sq.Select(jobColumns...).
+	q := r.SQ.Select(jobColumns...).
 		From("job").Where("job.id = ?", jobId)
 
-	q, qerr := SecurityCheck(ctx, q)
+	q, qerr := r.SecurityCheck(ctx, q)
 	if qerr != nil {
 		return nil, qerr
 	}
@@ -103,7 +102,7 @@ func (r *JobRepository) FindById(ctx context.Context, jobId int64) (*schema.Job,
 // It returns a pointer to a schema.Job data structure and an error variable.
 // To check if no job was found test err == sql.ErrNoRows
 func (r *JobRepository) FindByIdDirect(jobId int64) (*schema.Job, error) {
-	q := sq.Select(jobColumns...).
+	q := r.SQ.Select(jobColumns...).
 		From("job").Where("job.id = ?", jobId)
 	return scanJob(q.RunWith(r.stmtCache).QueryRow())
 }
@@ -113,13 +112,13 @@ func (r *JobRepository) FindByIdDirect(jobId int64) (*schema.Job, error) {
 // It returns a pointer to a schema.Job data structure and an error variable.
 // To check if no job was found test err == sql.ErrNoRows
 func (r *JobRepository) FindByJobId(ctx context.Context, jobId int64, startTime int64, cluster string) (*schema.Job, error) {
-	q := sq.Select(jobColumns...).
+	q := r.SQ.Select(jobColumns...).
 		From("job").
 		Where("job.job_id = ?", jobId).
 		Where("job.cluster = ?", cluster).
 		Where("job.start_time = ?", startTime)
 
-	q, qerr := SecurityCheck(ctx, q)
+	q, qerr := r.SecurityCheck(ctx, q)
 	if qerr != nil {
 		return nil, qerr
 	}
@@ -132,7 +131,7 @@ func (r *JobRepository) FindByJobId(ctx context.Context, jobId int64, startTime 
 // It returns a bool.
 // If job was found, user is owner: test err != sql.ErrNoRows
 func (r *JobRepository) IsJobOwner(jobId int64, startTime int64, user string, cluster string) bool {
-	q := sq.Select("id").
+	q := r.SQ.Select("id").
 		From("job").
 		Where("job.job_id = ?", jobId).
 		Where("job.user = ?", user).
@@ -151,7 +150,7 @@ func (r *JobRepository) FindConcurrentJobs(
 		return nil, nil
 	}
 
-	query, qerr := SecurityCheck(ctx, sq.Select("job.id", "job.job_id", "job.start_time").From("job"))
+	query, qerr := r.SecurityCheck(ctx, r.SQ.Select("job.id", "job.job_id", "job.start_time").From("job"))
 	if qerr != nil {
 		return nil, qerr
 	}

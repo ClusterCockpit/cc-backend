@@ -10,12 +10,11 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
-	sq "github.com/Masterminds/squirrel"
 )
 
 // Add the tag with id `tagId` to the job with the database id `jobId`.
 func (r *JobRepository) AddTag(job int64, tag int64) ([]*schema.Tag, error) {
-	q := sq.Insert("jobtag").Columns("job_id", "tag_id").Values(job, tag)
+	q := r.SQ.Insert("jobtag").Columns("job_id", "tag_id").Values(job, tag)
 
 	if _, err := q.RunWith(r.stmtCache).Exec(); err != nil {
 		s, _, _ := q.ToSql()
@@ -40,7 +39,7 @@ func (r *JobRepository) AddTag(job int64, tag int64) ([]*schema.Tag, error) {
 
 // Removes a tag from a job
 func (r *JobRepository) RemoveTag(job, tag int64) ([]*schema.Tag, error) {
-	q := sq.Delete("jobtag").Where("jobtag.job_id = ?", job).Where("jobtag.tag_id = ?", tag)
+	q := r.SQ.Delete("jobtag").Where("jobtag.job_id = ?", job).Where("jobtag.tag_id = ?", tag)
 
 	if _, err := q.RunWith(r.stmtCache).Exec(); err != nil {
 		s, _, _ := q.ToSql()
@@ -65,7 +64,7 @@ func (r *JobRepository) RemoveTag(job, tag int64) ([]*schema.Tag, error) {
 
 // CreateTag creates a new tag with the specified type and name and returns its database id.
 func (r *JobRepository) CreateTag(tagType string, tagName string) (tagId int64, err error) {
-	q := sq.Insert("tag").Columns("tag_type", "tag_name").Values(tagType, tagName)
+	q := r.SQ.Insert("tag").Columns("tag_type", "tag_name").Values(tagType, tagName)
 
 	res, err := q.RunWith(r.stmtCache).Exec()
 	if err != nil {
@@ -92,7 +91,7 @@ func (r *JobRepository) CountTags(user *schema.User) (tags []schema.Tag, counts 
 		tags = append(tags, t)
 	}
 
-	q := sq.Select("t.tag_name, count(jt.tag_id)").
+	q := r.SQ.Select("t.tag_name, count(jt.tag_id)").
 		From("tag t").
 		LeftJoin("jobtag jt ON t.id = jt.tag_id").
 		GroupBy("t.tag_name")
@@ -147,7 +146,7 @@ func (r *JobRepository) AddTagOrCreate(jobId int64, tagType string, tagName stri
 // TagId returns the database id of the tag with the specified type and name.
 func (r *JobRepository) TagId(tagType string, tagName string) (tagId int64, exists bool) {
 	exists = true
-	if err := sq.Select("id").From("tag").
+	if err := r.SQ.Select("id").From("tag").
 		Where("tag.tag_type = ?", tagType).Where("tag.tag_name = ?", tagName).
 		RunWith(r.stmtCache).QueryRow().Scan(&tagId); err != nil {
 		exists = false
@@ -157,7 +156,7 @@ func (r *JobRepository) TagId(tagType string, tagName string) (tagId int64, exis
 
 // GetTags returns a list of all tags if job is nil or of the tags that the job with that database ID has.
 func (r *JobRepository) GetTags(job *int64) ([]*schema.Tag, error) {
-	q := sq.Select("id", "tag_type", "tag_name").From("tag")
+	q := r.SQ.Select("id", "tag_type", "tag_name").From("tag")
 	if job != nil {
 		q = q.Join("jobtag ON jobtag.tag_id = tag.id").Where("jobtag.job_id = ?", *job)
 	}

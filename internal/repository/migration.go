@@ -12,6 +12,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/mysql"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
@@ -50,6 +51,20 @@ func checkDBVersion(backend string, db *sql.DB) error {
 		}
 
 		m, err = migrate.NewWithInstance("iofs", d, "mysql", driver)
+		if err != nil {
+			return err
+		}
+	case "postgres":
+		driver, err := postgres.WithInstance(db, &postgres.Config{})
+		if err != nil {
+			return err
+		}
+		d, err := iofs.New(migrationFiles, "migrations/postgres")
+		if err != nil {
+			return err
+		}
+
+		m, err = migrate.NewWithInstance("iofs", d, "postgres", driver)
 		if err != nil {
 			return err
 		}
@@ -98,6 +113,16 @@ func getMigrateInstance(backend string, db string) (m *migrate.Migrate, err erro
 		}
 
 		m, err = migrate.NewWithSourceInstance("iofs", d, fmt.Sprintf("mysql://%s?multiStatements=true", db))
+		if err != nil {
+			return m, err
+		}
+	case "postgres":
+		d, err := iofs.New(migrationFiles, "migrations/postgres")
+		if err != nil {
+			return m, err
+		}
+
+		m, err = migrate.NewWithSourceInstance("iofs", d, db)
 		if err != nil {
 			return m, err
 		}

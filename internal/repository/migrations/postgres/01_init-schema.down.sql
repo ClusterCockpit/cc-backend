@@ -1,0 +1,6 @@
+DROP TABLE IF EXISTS job_meta;
+DROP TABLE IF EXISTS configuration;
+DROP TABLE IF EXISTS jobtag;
+DROP TABLE IF EXISTS tag;
+DROP TABLE IF EXISTS "user";
+DROP TABLE IF EXISTS schema_migrations;

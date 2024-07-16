@@ -28,6 +28,7 @@ var (
 
 type UserRepository struct {
 	DB     *sqlx.DB
+	SQ     sq.StatementBuilderType
 	driver string
 }
 
@@ -37,6 +38,7 @@ func GetUserRepository() *UserRepository {
 
 		userRepoInstance = &UserRepository{
 			DB:     db.DB,
+			SQ:     db.SQ,
 			driver: db.Driver,
 		}
 	})
@@ -46,8 +48,8 @@ func GetUserRepository() *UserRepository {
 func (r *UserRepository) GetUser(username string) (*schema.User, error) {
 	user := &schema.User{Username: username}
 	var hashedPassword, name, rawRoles, email, rawProjects sql.NullString
-	if err := sq.Select("password", "ldap", "name", "roles", "email", "projects").From("user").
-		Where("user.username = ?", username).RunWith(r.DB).
+	if err := r.SQ.Select("password", "ldap", "name", "roles", "email", "projects").From("users").
+		Where("users.username = ?", username).RunWith(r.DB).
 		QueryRow().Scan(&hashedPassword, &user.AuthSource, &name, &rawRoles, &email, &rawProjects); err != nil {
 		log.Warnf("Error while querying user '%v' from database", username)
 		return nil, err
@@ -73,7 +75,7 @@ func (r *UserRepository) GetUser(username string) (*schema.User, error) {
 
 func (r *UserRepository) GetLdapUsernames() ([]string, error) {
 	var users []string
-	rows, err := r.DB.Query(`SELECT username FROM user WHERE user.ldap = 1`)
+	rows, err := r.DB.Query(`SELECT username FROM users WHERE user.ldap = 1`)
 	if err != nil {
 		log.Warn("Error while querying usernames")
 		return nil, err
@@ -121,7 +123,7 @@ func (r *UserRepository) AddUser(user *schema.User) error {
 		vals = append(vals, int(user.AuthSource))
 	}
 
-	if _, err := sq.Insert("user").Columns(cols...).Values(vals...).RunWith(r.DB).Exec(); err != nil {
+	if _, err := r.SQ.Insert("users").Columns(cols...).Values(vals...).RunWith(r.DB).Exec(); err != nil {
 		log.Errorf("Error while inserting new user '%v' into DB", user.Username)
 		return err
 	}
@@ -131,7 +133,7 @@ func (r *UserRepository) AddUser(user *schema.User) error {
 }
 
 func (r *UserRepository) DelUser(username string) error {
-	_, err := r.DB.Exec(`DELETE FROM user WHERE user.username = ?`, username)
+	_, err := r.DB.Exec(`DELETE FROM users WHERE users.username = ?`, username)
 	if err != nil {
 		log.Errorf("Error while deleting user '%s' from DB", username)
 		return err
@@ -141,7 +143,7 @@ func (r *UserRepository) DelUser(username string) error {
 }
 
 func (r *UserRepository) ListUsers(specialsOnly bool) ([]*schema.User, error) {
-	q := sq.Select("username", "name", "email", "roles", "projects").From("user")
+	q := r.SQ.Select("username", "name", "email", "roles", "projects").From("users")
 	if specialsOnly {
 		q = q.Where("(roles != '[\"user\"]' AND roles != '[]')")
 	}
@@ -202,7 +204,7 @@ func (r *UserRepository) AddRole(
 	}
 
 	roles, _ := json.Marshal(append(user.Roles, newRole))
-	if _, err := sq.Update("user").Set("roles", roles).Where("user.username = ?", username).RunWith(r.DB).Exec(); err != nil {
+	if _, err := r.SQ.Update("users").Set("roles", roles).Where("users.username = ?", username).RunWith(r.DB).Exec(); err != nil {
 		log.Errorf("error while adding new role for user '%s'", user.Username)
 		return err
 	}
@@ -238,7 +240,7 @@ func (r *UserRepository) RemoveRole(ctx context.Context, username string, queryr
 	}
 
 	mroles, _ := json.Marshal(newroles)
-	if _, err := sq.Update("user").Set("roles", mroles).Where("user.username = ?", username).RunWith(r.DB).Exec(); err != nil {
+	if _, err := r.SQ.Update("users").Set("roles", mroles).Where("users.username = ?", username).RunWith(r.DB).Exec(); err != nil {
 		log.Errorf("Error while removing role for user '%s'", user.Username)
 		return err
 	}
@@ -264,7 +266,7 @@ func (r *UserRepository) AddProject(
 	}
 
 	projects, _ := json.Marshal(append(user.Projects, project))
-	if _, err := sq.Update("user").Set("projects", projects).Where("user.username = ?", username).RunWith(r.DB).Exec(); err != nil {
+	if _, err := r.SQ.Update("users").Set("projects", projects).Where("users.username = ?", username).RunWith(r.DB).Exec(); err != nil {
 		return err
 	}
 
@@ -302,7 +304,7 @@ func (r *UserRepository) RemoveProject(ctx context.Context, username string, pro
 		} else {
 			result, _ = json.Marshal(newprojects)
 		}
-		if _, err := sq.Update("user").Set("projects", result).Where("user.username = ?", username).RunWith(r.DB).Exec(); err != nil {
+		if _, err := r.SQ.Update("users").Set("projects", result).Where("users.username = ?", username).RunWith(r.DB).Exec(); err != nil {
 			return err
 		}
 		return nil
@@ -333,7 +335,7 @@ func (r *UserRepository) FetchUserInCtx(ctx context.Context, username string) (*
 
 	user := &model.User{Username: username}
 	var name, email sql.NullString
-	if err := sq.Select("name", "email").From("user").Where("user.username = ?", username).
+	if err := r.SQ.Select("name", "email").From("users").Where("users.username = ?", username).
 		RunWith(r.DB).QueryRow().Scan(&name, &email); err != nil {
 		if err == sql.ErrNoRows {
 			/* This warning will be logged *often* for non-local users, i.e. users mentioned only in job-table or archive, */

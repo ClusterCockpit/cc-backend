@@ -31,6 +31,7 @@ var (
 
 type JobRepository struct {
 	DB             *sqlx.DB
+	SQ             sq.StatementBuilderType
 	stmtCache      *sq.StmtCache
 	cache          *lrucache.Cache
 	archiveChannel chan *schema.Job
@@ -44,6 +45,7 @@ func GetJobRepository() *JobRepository {
 
 		jobRepoInstance = &JobRepository{
 			DB:     db.DB,
+			SQ:     db.SQ,
 			driver: db.Driver,
 
 			stmtCache:      sq.NewStmtCache(db.DB),
@@ -107,6 +109,10 @@ func (r *JobRepository) Optimize() error {
 		}
 	case "mysql":
 		log.Info("Optimize currently not supported for mysql driver")
+	case "postgres":
+		if _, err = r.DB.Exec(`VACUUM`); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -142,6 +148,16 @@ func (r *JobRepository) Flush() error {
 		if _, err = r.DB.Exec(`SET FOREIGN_KEY_CHECKS = 1`); err != nil {
 			return err
 		}
+	case "postgres":
+		if _, err = r.DB.Exec(`DELETE FROM jobtag`); err != nil {
+			return err
+		}
+		if _, err = r.DB.Exec(`DELETE FROM tag`); err != nil {
+			return err
+		}
+		if _, err = r.DB.Exec(`DELETE FROM job`); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -166,7 +182,7 @@ func (r *JobRepository) FetchMetadata(job *schema.Job) (map[string]string, error
 		return job.MetaData, nil
 	}
 
-	if err := sq.Select("job.meta_data").From("job").Where("job.id = ?", job.ID).
+	if err := r.SQ.Select("job.meta_data").From("job").Where("job.id = ?", job.ID).
 		RunWith(r.stmtCache).QueryRow().Scan(&job.RawMetaData); err != nil {
 		log.Warn("Error while scanning for job metadata")
 		return nil, err
@@ -212,7 +228,7 @@ func (r *JobRepository) UpdateMetadata(job *schema.Job, key, val string) (err er
 		return err
 	}
 
-	if _, err = sq.Update("job").Set("meta_data", job.RawMetaData).Where("job.id = ?", job.ID).RunWith(r.stmtCache).Exec(); err != nil {
+	if _, err = r.SQ.Update("job").Set("meta_data", job.RawMetaData).Where("job.id = ?", job.ID).RunWith(r.stmtCache).Exec(); err != nil {
 		log.Warnf("Error while updating metadata for job, DB ID '%v'", job.ID)
 		return err
 	}
@@ -229,7 +245,7 @@ func (r *JobRepository) FetchFootprint(job *schema.Job) (map[string]float64, err
 		return job.Footprint, nil
 	}
 
-	if err := sq.Select("job.footprint").From("job").Where("job.id = ?", job.ID).
+	if err := r.SQ.Select("job.footprint").From("job").Where("job.id = ?", job.ID).
 		RunWith(r.stmtCache).QueryRow().Scan(&job.RawFootprint); err != nil {
 		log.Warn("Error while scanning for job footprint")
 		return nil, err
@@ -251,9 +267,9 @@ func (r *JobRepository) FetchFootprint(job *schema.Job) (map[string]float64, err
 
 func (r *JobRepository) DeleteJobsBefore(startTime int64) (int, error) {
 	var cnt int
-	q := sq.Select("count(*)").From("job").Where("job.start_time < ?", startTime)
+	q := r.SQ.Select("count(*)").From("job").Where("job.start_time < ?", startTime)
 	q.RunWith(r.DB).QueryRow().Scan(cnt)
-	qd := sq.Delete("job").Where("job.start_time < ?", startTime)
+	qd := r.SQ.Delete("job").Where("job.start_time < ?", startTime)
 	_, err := qd.RunWith(r.DB).Exec()
 
 	if err != nil {
@@ -266,7 +282,7 @@ func (r *JobRepository) DeleteJobsBefore(startTime int64) (int, error) {
 }
 
 func (r *JobRepository) DeleteJobById(id int64) error {
-	qd := sq.Delete("job").Where("job.id = ?", id)
+	qd := r.SQ.Delete("job").Where("job.id = ?", id)
 	_, err := qd.RunWith(r.DB).Exec()
 
 	if err != nil {
@@ -279,7 +295,7 @@ func (r *JobRepository) DeleteJobById(id int64) error {
 }
 
 func (r *JobRepository) UpdateMonitoringStatus(job int64, monitoringStatus int32) (err error) {
-	stmt := sq.Update("job").
+	stmt := r.SQ.Update("job").
 		Set("monitoring_status", monitoringStatus).
 		Where("job.id = ?", job)
 
@@ -292,7 +308,7 @@ func (r *JobRepository) MarkArchived(
 	jobMeta *schema.JobMeta,
 	monitoringStatus int32,
 ) error {
-	stmt := sq.Update("job").
+	stmt := r.SQ.Update("job").
 		Set("monitoring_status", monitoringStatus).
 		Where("job.id = ?", jobMeta.JobID)
 
@@ -412,7 +428,7 @@ func (r *JobRepository) FindColumnValue(user *schema.User, searchterm string, ta
 		query = "%" + searchterm + "%"
 	}
 	if user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport, schema.RoleManager}) {
-		theQuery := sq.Select(table+"."+selectColumn).Distinct().From(table).
+		theQuery := r.SQ.Select(table+"."+selectColumn).Distinct().From(table).
 			Where(table+"."+whereColumn+compareStr, query)
 
 		// theSql, args, theErr := theQuery.ToSql()
@@ -439,7 +455,7 @@ func (r *JobRepository) FindColumnValue(user *schema.User, searchterm string, ta
 func (r *JobRepository) FindColumnValues(user *schema.User, query string, table string, selectColumn string, whereColumn string) (results []string, err error) {
 	emptyResult := make([]string, 0)
 	if user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport, schema.RoleManager}) {
-		rows, err := sq.Select(table+"."+selectColumn).Distinct().From(table).
+		rows, err := r.SQ.Select(table+"."+selectColumn).Distinct().From(table).
 			Where(table+"."+whereColumn+" LIKE ?", fmt.Sprint("%", query, "%")).
 			RunWith(r.stmtCache).Query()
 		if err != nil && err != sql.ErrNoRows {
@@ -488,7 +504,7 @@ func (r *JobRepository) Partitions(cluster string) ([]string, error) {
 func (r *JobRepository) AllocatedNodes(cluster string) (map[string]map[string]int, error) {
 	start := time.Now()
 	subclusters := make(map[string]map[string]int)
-	rows, err := sq.Select("resources", "subcluster").From("job").
+	rows, err := r.SQ.Select("resources", "subcluster").From("job").
 		Where("job.job_state = 'running'").
 		Where("job.cluster = ?", cluster).
 		RunWith(r.stmtCache).Query()
@@ -529,7 +545,7 @@ func (r *JobRepository) AllocatedNodes(cluster string) (map[string]map[string]in
 
 func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 	start := time.Now()
-	res, err := sq.Update("job").
+	res, err := r.SQ.Update("job").
 		Set("monitoring_status", schema.MonitoringStatusArchivingFailed).
 		Set("duration", 0).
 		Set("job_state", schema.JobStateFailed).
@@ -564,11 +580,11 @@ func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64
 
 	if startTimeBegin == 0 {
 		log.Infof("Find jobs before %d", startTimeEnd)
-		query = sq.Select(jobColumns...).From("job").Where(fmt.Sprintf(
+		query = r.SQ.Select(jobColumns...).From("job").Where(fmt.Sprintf(
 			"job.start_time < %d", startTimeEnd))
 	} else {
 		log.Infof("Find jobs between %d and %d", startTimeBegin, startTimeEnd)
-		query = sq.Select(jobColumns...).From("job").Where(fmt.Sprintf(
+		query = r.SQ.Select(jobColumns...).From("job").Where(fmt.Sprintf(
 			"job.start_time BETWEEN %d AND %d", startTimeBegin, startTimeEnd))
 	}
 

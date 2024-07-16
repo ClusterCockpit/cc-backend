@@ -56,25 +56,29 @@ func (r *JobRepository) TransactionCommit(t *Transaction) error {
 
 func (r *JobRepository) TransactionEnd(t *Transaction) error {
 	if err := t.tx.Commit(); err != nil {
-		log.Warn("Error while committing SQL transactions")
+		log.Warn("Error while ending SQL transactions")
 		return err
 	}
 
 	return nil
 }
 
-func (r *JobRepository) TransactionAdd(t *Transaction, job schema.Job) (int64, error) {
-	res, err := t.stmt.Exec(job)
+func (r *JobRepository) TransactionAdd(t *Transaction, job *schema.Job) (int64, error) {
+	var id int64
+	_, err := t.stmt.Exec(job)
 	if err != nil {
-		log.Errorf("repository initDB(): %v", err)
+		log.Errorf("Error while adding SQL transactions: %v", err)
 		return 0, err
 	}
 
-	id, err := res.LastInsertId()
-	if err != nil {
-		log.Errorf("repository initDB(): %v", err)
-		return 0, err
-	}
+	//id, err := res.LastInsertId()
+	// err = t.stmt.QueryRowx(job).Scan(&id)
+	id = 0
+	// if err != nil {
+	// 	log.Errorf("Error while getting last insert ID: %v", err)
+	// 	log.Debugf("Insert job %d, %s, %d", job.JobID, job.Cluster, job.StartTimeUnix)
+	// 	return 0, err
+	// }
 
 	return id, nil
 }

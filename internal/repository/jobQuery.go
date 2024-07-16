@@ -24,7 +24,7 @@ func (r *JobRepository) QueryJobs(
 	page *model.PageRequest,
 	order *model.OrderByInput,
 ) ([]*schema.Job, error) {
-	query, qerr := SecurityCheck(ctx, sq.Select(jobColumns...).From("job"))
+	query, qerr := r.SecurityCheck(ctx, r.SQ.Select(jobColumns...).From("job"))
 	if qerr != nil {
 		return nil, qerr
 	}
@@ -75,7 +75,7 @@ func (r *JobRepository) CountJobs(
 	ctx context.Context,
 	filters []*model.JobFilter,
 ) (int, error) {
-	query, qerr := SecurityCheck(ctx, sq.Select("count(*)").From("job"))
+	query, qerr := r.SecurityCheck(ctx, r.SQ.Select("count(*)").From("job"))
 	if qerr != nil {
 		return 0, qerr
 	}
@@ -92,11 +92,11 @@ func (r *JobRepository) CountJobs(
 	return count, nil
 }
 
-func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (sq.SelectBuilder, error) {
+func (r *JobRepository) SecurityCheck(ctx context.Context, query sq.SelectBuilder) (sq.SelectBuilder, error) {
 	user := GetUserFromContext(ctx)
 	if user == nil {
-		var qnil sq.SelectBuilder
-		return qnil, fmt.Errorf("user context is nil")
+		//var qnil sq.SelectBuilder
+		return r.SQ.Select(), fmt.Errorf("user context is nil")
 	}
 
 	switch {
@@ -114,8 +114,8 @@ func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (sq.SelectBuilde
 	case user.HasRole(schema.RoleUser): // User : Only personal jobs
 		return query.Where("job.user = ?", user.Username), nil
 	default: // No known Role, return error
-		var qnil sq.SelectBuilder
-		return qnil, fmt.Errorf("user has no or unknown roles")
+		//var qnil sq.SelectBuilder
+		return r.SQ.Select(), fmt.Errorf("user has no or unknown roles")
 	}
 }
 

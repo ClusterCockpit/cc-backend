@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	sqrl "github.com/Masterminds/squirrel"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
 	"github.com/mattn/go-sqlite3"
 	"github.com/qustavo/sqlhooks/v2"
@@ -22,6 +24,7 @@ var (
 
 type DBConnection struct {
 	DB     *sqlx.DB
+	SQ     sqrl.StatementBuilderType
 	Driver string
 }
 
@@ -46,6 +49,8 @@ func Connect(driver string, db string) {
 			ConnectionMaxIdleTime: time.Hour,
 		}
 
+		sq := sqrl.StatementBuilderType{}
+
 		switch driver {
 		case "sqlite3":
 			// - Set WAL mode (not strictly necessary each time because it's persisted in the database, but good for first run)
@@ -68,6 +73,13 @@ func Connect(driver string, db string) {
 			if err != nil {
 				log.Fatalf("sqlx.Open() error: %v", err)
 			}
+		case "postgres":
+			opts.URL += ""
+			dbHandle, err = sqlx.Open("pgx", opts.URL)
+			sq = sqrl.StatementBuilder.PlaceholderFormat(sqrl.Dollar)
+			if err != nil {
+				log.Fatalf("sqlx.Open() error: %v", err)
+			}
 		default:
 			log.Fatalf("unsupported database driver: %s", driver)
 		}
@@ -77,7 +89,10 @@ func Connect(driver string, db string) {
 		dbHandle.SetConnMaxLifetime(opts.ConnectionMaxLifetime)
 		dbHandle.SetConnMaxIdleTime(opts.ConnectionMaxIdleTime)
 
-		dbConnInstance = &DBConnection{DB: dbHandle, Driver: driver}
+		dbConnInstance = &DBConnection{
+			DB:     dbHandle,
+			SQ:     sq,
+			Driver: driver}
 		err = checkDBVersion(driver, dbHandle.DB)
 		if err != nil {
 			log.Fatal(err)

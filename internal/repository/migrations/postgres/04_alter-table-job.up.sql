@@ -1,0 +1,5 @@
+ALTER TABLE job
+    ALTER COLUMN partition TYPE VARCHAR(255),
+    ALTER COLUMN array_job_id TYPE BIGINT,
+    ALTER COLUMN num_hwthreads TYPE INT,
+    ALTER COLUMN num_acc TYPE INT;
