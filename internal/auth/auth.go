@@ -12,6 +12,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
@@ -25,6 +26,11 @@ type Authenticator interface {
 	CanLogin(user *schema.User, username string, rw http.ResponseWriter, r *http.Request) (*schema.User, bool)
 	Login(user *schema.User, rw http.ResponseWriter, r *http.Request) (*schema.User, error)
 }
+
+var (
+	initOnce     sync.Once
+	authInstance *Authentication
+)
 
 type Authentication struct {
 	sessionStore   *sessions.CookieStore
@@ -62,71 +68,79 @@ func (auth *Authentication) AuthViaSession(
 	}, nil
 }
 
-func Init() (*Authentication, error) {
-	auth := &Authentication{}
+func Init() {
+	initOnce.Do(func() {
+		authInstance = &Authentication{}
 
-	sessKey := os.Getenv("SESSION_KEY")
-	if sessKey == "" {
-		log.Warn("environment variable 'SESSION_KEY' not set (will use non-persistent random key)")
-		bytes := make([]byte, 32)
-		if _, err := rand.Read(bytes); err != nil {
-			log.Error("Error while initializing authentication -> failed to generate random bytes for session key")
-			return nil, err
-		}
-		auth.sessionStore = sessions.NewCookieStore(bytes)
-	} else {
-		bytes, err := base64.StdEncoding.DecodeString(sessKey)
-		if err != nil {
-			log.Error("Error while initializing authentication -> decoding session key failed")
-			return nil, err
-		}
-		auth.sessionStore = sessions.NewCookieStore(bytes)
-	}
-
-	if config.Keys.LdapConfig != nil {
-		ldapAuth := &LdapAuthenticator{}
-		if err := ldapAuth.Init(); err != nil {
-			log.Warn("Error while initializing authentication -> ldapAuth init failed")
+		sessKey := os.Getenv("SESSION_KEY")
+		if sessKey == "" {
+			log.Warn("environment variable 'SESSION_KEY' not set (will use non-persistent random key)")
+			bytes := make([]byte, 32)
+			if _, err := rand.Read(bytes); err != nil {
+				log.Fatal("Error while initializing authentication -> failed to generate random bytes for session key")
+			}
+			authInstance.sessionStore = sessions.NewCookieStore(bytes)
 		} else {
-			auth.LdapAuth = ldapAuth
-			auth.authenticators = append(auth.authenticators, auth.LdapAuth)
-		}
-	} else {
-		log.Info("Missing LDAP configuration: No LDAP support!")
-	}
-
-	if config.Keys.JwtConfig != nil {
-		auth.JwtAuth = &JWTAuthenticator{}
-		if err := auth.JwtAuth.Init(); err != nil {
-			log.Error("Error while initializing authentication -> jwtAuth init failed")
-			return nil, err
+			bytes, err := base64.StdEncoding.DecodeString(sessKey)
+			if err != nil {
+				log.Fatal("Error while initializing authentication -> decoding session key failed")
+			}
+			authInstance.sessionStore = sessions.NewCookieStore(bytes)
 		}
 
-		jwtSessionAuth := &JWTSessionAuthenticator{}
-		if err := jwtSessionAuth.Init(); err != nil {
-			log.Info("jwtSessionAuth init failed: No JWT login support!")
+		if d, err := time.ParseDuration(config.Keys.SessionMaxAge); err != nil {
+			authInstance.SessionMaxAge = d
+		}
+
+		if config.Keys.LdapConfig != nil {
+			ldapAuth := &LdapAuthenticator{}
+			if err := ldapAuth.Init(); err != nil {
+				log.Warn("Error while initializing authentication -> ldapAuth init failed")
+			} else {
+				authInstance.LdapAuth = ldapAuth
+				authInstance.authenticators = append(authInstance.authenticators, authInstance.LdapAuth)
+			}
 		} else {
-			auth.authenticators = append(auth.authenticators, jwtSessionAuth)
+			log.Info("Missing LDAP configuration: No LDAP support!")
 		}
 
-		jwtCookieSessionAuth := &JWTCookieSessionAuthenticator{}
-		if err := jwtCookieSessionAuth.Init(); err != nil {
-			log.Info("jwtCookieSessionAuth init failed: No JWT cookie login support!")
+		if config.Keys.JwtConfig != nil {
+			authInstance.JwtAuth = &JWTAuthenticator{}
+			if err := authInstance.JwtAuth.Init(); err != nil {
+				log.Fatal("Error while initializing authentication -> jwtAuth init failed")
+			}
+
+			jwtSessionAuth := &JWTSessionAuthenticator{}
+			if err := jwtSessionAuth.Init(); err != nil {
+				log.Info("jwtSessionAuth init failed: No JWT login support!")
+			} else {
+				authInstance.authenticators = append(authInstance.authenticators, jwtSessionAuth)
+			}
+
+			jwtCookieSessionAuth := &JWTCookieSessionAuthenticator{}
+			if err := jwtCookieSessionAuth.Init(); err != nil {
+				log.Info("jwtCookieSessionAuth init failed: No JWT cookie login support!")
+			} else {
+				authInstance.authenticators = append(authInstance.authenticators, jwtCookieSessionAuth)
+			}
 		} else {
-			auth.authenticators = append(auth.authenticators, jwtCookieSessionAuth)
+			log.Info("Missing JWT configuration: No JWT token support!")
 		}
-	} else {
-		log.Info("Missing JWT configuration: No JWT token support!")
+
+		authInstance.LocalAuth = &LocalAuthenticator{}
+		if err := authInstance.LocalAuth.Init(); err != nil {
+			log.Fatal("Error while initializing authentication -> localAuth init failed")
+		}
+		authInstance.authenticators = append(authInstance.authenticators, authInstance.LocalAuth)
+	})
+}
+
+func GetAuthInstance() *Authentication {
+	if authInstance == nil {
+		log.Fatal("Authentication module not initialized!")
 	}
 
-	auth.LocalAuth = &LocalAuthenticator{}
-	if err := auth.LocalAuth.Init(); err != nil {
-		log.Error("Error while initializing authentication -> localAuth init failed")
-		return nil, err
-	}
-	auth.authenticators = append(auth.authenticators, auth.LocalAuth)
-
-	return auth, nil
+	return authInstance
 }
 
 func persistUser(user *schema.User) {

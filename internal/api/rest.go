@@ -53,10 +53,17 @@ import (
 
 type RestApi struct {
 	JobRepository   *repository.JobRepository
-	Resolver        *graph.Resolver
 	Authentication  *auth.Authentication
 	MachineStateDir string
 	RepositoryMutex sync.Mutex
+}
+
+func New() *RestApi {
+	return &RestApi{
+		JobRepository:   repository.GetJobRepository(),
+		MachineStateDir: config.Keys.MachineStateDir,
+		Authentication:  auth.GetAuthInstance(),
+	}
 }
 
 func (api *RestApi) MountApiRoutes(r *mux.Router) {
@@ -893,7 +900,6 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	job, err = api.JobRepository.Find(req.JobId, req.Cluster, req.StartTime)
-
 	if err != nil {
 		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
 		return
@@ -977,7 +983,6 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 	}
 
 	job, err = api.JobRepository.Find(req.JobId, req.Cluster, req.StartTime)
-
 	if err != nil {
 		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
 		return
@@ -1105,7 +1110,8 @@ func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 		} `json:"error"`
 	}
 
-	data, err := api.Resolver.Query().JobMetrics(r.Context(), id, metrics, scopes)
+	resolver := graph.GetResolverInstance()
+	data, err := resolver.Query().JobMetrics(r.Context(), id, metrics, scopes)
 	if err != nil {
 		json.NewEncoder(rw).Encode(Respone{
 			Error: &struct {

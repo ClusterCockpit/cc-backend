@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/ClusterCockpit/cc-backend/internal/api"
+	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
@@ -144,7 +145,6 @@ func setup(t *testing.T) *api.RestApi {
 	archiveCfg := fmt.Sprintf("{\"kind\": \"file\",\"path\": \"%s\"}", jobarchive)
 
 	repository.Connect("sqlite3", dbfilepath)
-	db := repository.GetConnection()
 
 	if err := archive.Init(json.RawMessage(archiveCfg), config.Keys.DisableArchive); err != nil {
 		t.Fatal(err)
@@ -154,13 +154,10 @@ func setup(t *testing.T) *api.RestApi {
 		t.Fatal(err)
 	}
 
-	jobRepo := repository.GetJobRepository()
-	resolver := &graph.Resolver{DB: db.DB, Repo: jobRepo}
+	auth.Init()
+	graph.Init()
 
-	return &api.RestApi{
-		JobRepository: resolver.Repo,
-		Resolver:      resolver,
-	}
+	return api.New()
 }
 
 func cleanup() {
@@ -253,12 +250,13 @@ func TestRestApi(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		job, err := restapi.Resolver.Query().Job(ctx, strconv.Itoa(int(res.DBID)))
+		resolver := graph.GetResolverInstance()
+		job, err := resolver.Query().Job(ctx, strconv.Itoa(int(res.DBID)))
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		job.Tags, err = restapi.Resolver.Job().Tags(ctx, job)
+		job.Tags, err = resolver.Job().Tags(ctx, job)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -314,7 +312,8 @@ func TestRestApi(t *testing.T) {
 		}
 
 		restapi.JobRepository.WaitForArchiving()
-		job, err := restapi.Resolver.Query().Job(ctx, strconv.Itoa(int(dbid)))
+		resolver := graph.GetResolverInstance()
+		job, err := resolver.Query().Job(ctx, strconv.Itoa(int(dbid)))
 		if err != nil {
 			t.Fatal(err)
 		}
