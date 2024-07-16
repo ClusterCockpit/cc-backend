@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/archive"
 	"github.com/ClusterCockpit/cc-backend/internal/util"
-	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 

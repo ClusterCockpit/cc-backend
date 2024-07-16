@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	"github.com/ClusterCockpit/cc-backend/internal/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"

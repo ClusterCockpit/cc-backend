@@ -7,7 +7,7 @@ package repository
 import (
 	"strings"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	"github.com/ClusterCockpit/cc-backend/internal/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	sq "github.com/Masterminds/squirrel"

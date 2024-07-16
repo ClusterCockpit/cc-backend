@@ -12,10 +12,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ClusterCockpit/cc-backend/internal/archive"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 )
 

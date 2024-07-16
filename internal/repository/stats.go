@@ -11,10 +11,10 @@ import (
 	"math"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/archive"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
-	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	sq "github.com/Masterminds/squirrel"

@@ -20,7 +20,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	"github.com/ClusterCockpit/cc-backend/internal/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	promapi "github.com/prometheus/client_golang/api"

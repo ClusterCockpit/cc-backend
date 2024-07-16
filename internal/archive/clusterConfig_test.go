@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	"github.com/ClusterCockpit/cc-backend/internal/archive"
 )
 
 func TestClusterConfig(t *testing.T) {

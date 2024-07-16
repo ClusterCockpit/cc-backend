@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	"github.com/ClusterCockpit/cc-backend/internal/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 

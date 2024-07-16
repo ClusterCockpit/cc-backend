@@ -19,11 +19,11 @@ import (
 	"testing"
 
 	"github.com/ClusterCockpit/cc-backend/internal/api"
+	"github.com/ClusterCockpit/cc-backend/internal/archive"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/gorilla/mux"

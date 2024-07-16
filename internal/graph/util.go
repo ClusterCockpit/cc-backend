@@ -14,7 +14,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
-	// "github.com/ClusterCockpit/cc-backend/pkg/archive"
+	// "github.com/ClusterCockpit/cc-backend/internal/archive"
 )
 
 const MAX_JOBS_FOR_ANALYSIS = 500

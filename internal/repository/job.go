@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/archive"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
-	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
