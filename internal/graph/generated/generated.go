@@ -2022,7 +2022,7 @@ type GlobalMetricListItem {
   name: String!
   unit: Unit!
   scope: MetricScope!
-  footprint: Boolean
+  footprint: String
   availability: [ClusterSupport!]!
 }
 
@@ -3531,9 +3531,9 @@ func (ec *executionContext) _GlobalMetricListItem_footprint(ctx context.Context,
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(bool)
+	res := resTmp.(string)
 	fc.Result = res
-	return ec.marshalOBoolean2bool(ctx, field.Selections, res)
+	return ec.marshalOString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_GlobalMetricListItem_footprint(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -3543,7 +3543,7 @@ func (ec *executionContext) fieldContext_GlobalMetricListItem_footprint(_ contex
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil

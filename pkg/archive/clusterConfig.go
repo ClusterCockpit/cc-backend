@@ -84,9 +84,9 @@ func initClusterConfig() error {
 						newMetric.LowerIsBetter = cfg.LowerIsBetter
 						sc.MetricConfig = append(sc.MetricConfig, *newMetric)
 
-						if newMetric.Footprint {
+						if newMetric.Footprint != "" {
 							sc.Footprint = append(sc.Footprint, newMetric.Name)
-							ml.Footprint = true
+							ml.Footprint = newMetric.Footprint
 						}
 						if newMetric.Energy {
 							sc.EnergyFootprint = append(sc.EnergyFootprint, newMetric.Name)
@@ -96,7 +96,7 @@ func initClusterConfig() error {
 					availability.SubClusters = append(availability.SubClusters, sc.Name)
 					sc.MetricConfig = append(sc.MetricConfig, *newMetric)
 
-					if newMetric.Footprint {
+					if newMetric.Footprint != "" {
 						sc.Footprint = append(sc.Footprint, newMetric.Name)
 					}
 					if newMetric.Energy {

@@ -8,7 +8,7 @@
       },
       "scope": "node",
       "aggregation": "avg",
-      "footprint": true,
+      "footprint": "avg",
       "timestep": 60,
       "peak": 72,
       "normal": 72,
@@ -20,7 +20,7 @@
           "peak": 104,
           "normal": 104,
           "caution": 52,
-          "footprint": true,
+          "footprint": "avg",
           "alert": 20
         },
         {
@@ -28,7 +28,7 @@
           "peak": 104,
           "normal": 104,
           "caution": 52,
-          "footprint": true,
+          "footprint": "avg",
           "alert": 20
         }
       ]
@@ -54,7 +54,7 @@
       },
       "scope": "node",
       "aggregation": "sum",
-      "footprint": true,
+      "footprint": "max",
       "timestep": 60,
       "peak": 256,
       "normal": 128,
@@ -67,7 +67,7 @@
           "peak": 1024,
           "normal": 512,
           "caution": 900,
-          "footprint": true,
+          "footprint": "max",
           "lowerIsBetter": true,
           "alert": 1000
         },
@@ -76,7 +76,7 @@
           "peak": 2048,
           "normal": 1024,
           "caution": 1800,
-          "footprint": true,
+          "footprint": "max",
           "lowerIsBetter": true,
           "alert": 2000
         }
@@ -90,7 +90,7 @@
       },
       "scope": "hwthread",
       "aggregation": "sum",
-      "footprint": true,
+      "footprint": "avg",
       "timestep": 60,
       "peak": 5600,
       "normal": 1000,
@@ -103,7 +103,7 @@
           "normal": 1500,
           "caution": 400,
           "alert": 50,
-          "footprint": true
+          "footprint": "avg"
         },
         {
           "name": "spr2tb",
@@ -187,7 +187,7 @@
       },
       "scope": "socket",
       "aggregation": "sum",
-      "footprint": true,
+      "footprint": "avg",
       "timestep": 60,
       "peak": 350,
       "normal": 100,

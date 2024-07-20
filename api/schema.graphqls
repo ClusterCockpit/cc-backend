@@ -194,7 +194,7 @@ type GlobalMetricListItem {
   name: String!
   unit: Unit!
   scope: MetricScope!
-  footprint: Boolean
+  footprint: String
   availability: [ClusterSupport!]!
 }
 

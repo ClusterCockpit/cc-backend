@@ -51,7 +51,7 @@ type SubClusterConfig struct {
 	Normal        float64 `json:"normal"`
 	Caution       float64 `json:"caution"`
 	Alert         float64 `json:"alert"`
-	Footprint     bool    `json:"footprint"`
+	Footprint     string  `json:"footprint,omitempty"`
 	Remove        bool    `json:"remove"`
 	LowerIsBetter bool    `json:"lowerIsBetter"`
 	Energy        bool    `json:"energy"`
@@ -69,7 +69,7 @@ type MetricConfig struct {
 	Caution       float64             `json:"caution"`
 	Alert         float64             `json:"alert"`
 	LowerIsBetter bool                `json:"lowerIsBetter"`
-	Footprint     bool                `json:"footprint"`
+	Footprint     string              `json:"footprint,omitempty"`
 	Energy        bool                `json:"energy"`
 }
 
@@ -88,7 +88,7 @@ type GlobalMetricListItem struct {
 	Name         string           `json:"name"`
 	Unit         Unit             `json:"unit"`
 	Scope        MetricScope      `json:"scope"`
-	Footprint    bool             `json:"footprint"`
+	Footprint    string           `json:"footprint,omitempty"`
 	Availability []ClusterSupport `json:"availability"`
 }
 
