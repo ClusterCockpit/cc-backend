@@ -83,8 +83,6 @@ func main() {
 		config.Keys.DB = os.Getenv(envvar)
 	}
 
-	repository.Connect(config.Keys.DBDriver, config.Keys.DB)
-
 	if flagMigrateDB {
 		err := repository.MigrateDB(config.Keys.DBDriver, config.Keys.DB)
 		if err != nil {
@@ -108,6 +106,8 @@ func main() {
 		}
 		os.Exit(0)
 	}
+
+	repository.Connect(config.Keys.DBDriver, config.Keys.DB)
 
 	if flagInit {
 		initEnv()
@@ -226,6 +226,8 @@ func main() {
 		defer wg.Done()
 		<-sigs
 		runtimeEnv.SystemdNotifiy(false, "Shutting down ...")
+
+		serverShutdown()
 
 		taskManager.Shutdown()
 	}()

@@ -75,7 +75,7 @@ func Start() {
 
 	lc := config.Keys.LdapConfig
 
-	if lc.SyncInterval != "" {
+	if lc != nil && lc.SyncInterval != "" {
 		RegisterLdapSyncService(lc.SyncInterval)
 	}
 
