@@ -3,7 +3,7 @@
 
     Properties:
     - metrics:     [String] (can change from outside)
-    - sorting:     { field: String, order: "DESC" | "ASC" } (can change from outside)
+    - sorting:     { field: String, type: String, order: "DESC" | "ASC" } (can change from outside)
     - matchedJobs: Number (changes from inside)
     Functions:
     - update(filters?: [JobFilter])
@@ -22,10 +22,10 @@
   import { stickyHeader } from "../utils.js";
 
   const ccconfig = getContext("cc-config"),
-    clusters = getContext("clusters"),
-    initialized = getContext("initialized");
+    initialized = getContext("initialized"),
+    globalMetrics = getContext("globalMetrics");
 
-  export let sorting = { field: "startTime", order: "DESC" };
+  export let sorting = { field: "startTime", type: "col", order: "DESC" };
   export let matchedJobs = 0;
   export let metrics = ccconfig.plot_list_selectedMetrics;
   export let showFootprint;
@@ -35,6 +35,11 @@
   let page = 1;
   let paging = { itemsPerPage, page };
   let filter = [];
+
+  function getUnit(m) {
+    const rawUnit = globalMetrics.find((gm) => gm.name === m)?.unit
+    return (rawUnit?.prefix ? rawUnit.prefix : "") + (rawUnit?.base ? rawUnit.base : "")
+  } 
 
   const client = getContextClient();
   const query = gql`
@@ -75,7 +80,11 @@
             name
           }
           metaData
-          footprint
+          footprint {
+            name
+            stat
+            value
+          }
         }
         count
         hasNextPage
@@ -141,7 +150,6 @@
         paging = { itemsPerPage: value, page: page }; // Trigger reload of jobList
       } else if (res.fetching === false && res.error) {
         throw res.error;
-        // console.log('Error on subscription: ' + res.error)
       }
     });
   }
@@ -215,22 +223,7 @@
             >
               {metric}
               {#if $initialized}
-                ({clusters
-                  .map((cluster) =>
-                    cluster.metricConfig.find((m) => m.name == metric),
-                  )
-                  .filter((m) => m != null)
-                  .map(
-                    (m) =>
-                      (m.unit?.prefix ? m.unit?.prefix : "") +
-                      (m.unit?.base ? m.unit?.base : ""),
-                  ) // Build unitStr
-                  .reduce(
-                    (arr, unitStr) =>
-                      arr.includes(unitStr) ? arr : [...arr, unitStr],
-                    [],
-                  ) // w/o this, output would be [unitStr, unitStr]
-                  .join(", ")})
+                ({getUnit(metric)})
               {/if}
             </th>
           {/each}

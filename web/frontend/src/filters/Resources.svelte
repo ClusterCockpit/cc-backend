@@ -59,7 +59,6 @@
       0,
     );
 
-  // console.log(header)
   let minNumNodes = 1,
     maxNumNodes = 0,
     minNumHWThreads = 1,

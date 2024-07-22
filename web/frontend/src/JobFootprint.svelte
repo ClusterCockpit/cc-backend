@@ -1,34 +1,25 @@
 <script context="module">
-  export function findJobThresholds(job, metricConfig, subClusterConfig) {
-    if (!job || !metricConfig || !subClusterConfig) {
+  export function findJobThresholds(job, metricConfig) {
+    if (!job || !metricConfig) {
       console.warn("Argument missing for findJobThresholds!");
       return null;
     }
 
-    const subclusterThresholds = metricConfig.subClusters.find(
-      (sc) => sc.name == subClusterConfig.name,
-    );
+    // metricConfig is on subCluster-Level
     const defaultThresholds = {
-      peak: subclusterThresholds
-        ? subclusterThresholds.peak
-        : metricConfig.peak,
-      normal: subclusterThresholds
-        ? subclusterThresholds.normal
-        : metricConfig.normal,
-      caution: subclusterThresholds
-        ? subclusterThresholds.caution
-        : metricConfig.caution,
-      alert: subclusterThresholds
-        ? subclusterThresholds.alert
-        : metricConfig.alert,
+      peak: metricConfig.peak,
+      normal: metricConfig.normal,
+      caution: metricConfig.caution,
+      alert: metricConfig.alert
     };
 
     // Job_Exclusivity does not matter, only aggregation
     if (metricConfig.aggregation === "avg") {
       return defaultThresholds;
     } else if (metricConfig.aggregation === "sum") {
-      const jobFraction =
-        job.numHWThreads / subClusterConfig.topology.node.length;
+      const topol = getContext("getHardwareTopology")(job.cluster, job.subCluster)
+      const jobFraction = job.numHWThreads / topol.node.length;
+
       return {
         peak: round(defaultThresholds.peak * jobFraction, 0),
         normal: round(defaultThresholds.normal * jobFraction, 0),
@@ -55,109 +46,56 @@
     Progress,
     Icon,
     Tooltip,
+    Row,
+    Col
   } from "@sveltestrap/sveltestrap";
-  import { mean, round } from "mathjs";
+  import { round } from "mathjs";
 
   export let job;
-  export let jobMetrics;
   export let view = "job";
   export let width = "auto";
+  export let height = "310px";
 
-  const clusters = getContext("clusters");
-  const subclusterConfig = clusters
-    .find((c) => c.name == job.cluster)
-    .subClusters.find((sc) => sc.name == job.subCluster);
-
-  const footprintMetrics =
-    job.numAcc !== 0
-      ? job.exclusive !== 1 // GPU
-        ? ["acc_utilization", "acc_mem_used", "nv_sm_clock", "nv_mem_util"] // Shared
-        : ["acc_utilization", "acc_mem_used", "nv_sm_clock", "nv_mem_util"] // Exclusive
-      : (job.exclusive !== 1) // CPU Only
-        ? ["flops_any", "mem_used"] // Shared
-        : ["cpu_load", "flops_any", "mem_used", "mem_bw"]; // Exclusive
-
-  const footprintData = footprintMetrics.map((fm) => {
+  const footprintData = job?.footprint?.map((jf) => {
     // Unit
-    const fmc = getContext("metrics")(job.cluster, fm);
-    let unit = "";
-    if (fmc?.unit?.base) unit = fmc.unit.prefix + fmc.unit.base;
+    const fmc = getContext("getMetricConfig")(job.cluster, job.subCluster, jf.name);
+    const unit = (fmc?.unit?.prefix ? fmc.unit.prefix : "") + (fmc?.unit?.base ? fmc.unit.base : "")
 
     // Threshold / -Differences
-    const fmt = findJobThresholds(job, fmc, subclusterConfig);
-    if (fm === "flops_any") fmt.peak = round(fmt.peak * 0.85, 0);
+    const fmt = findJobThresholds(job, fmc);
+    if (jf.name === "flops_any") fmt.peak = round(fmt.peak * 0.85, 0);
 
-    // Value: Primarily use backend sourced avgs from job.*, secondarily calculate/read from metricdata
-    // Exclusivity does not matter
-    let mv = 0.0;
-    if (fmc.aggregation === "avg") {
-      if (fm === "cpu_load" && job.loadAvg !== 0) {
-        mv = round(job.loadAvg, 2);
-      } else if (fm === "flops_any" && job.flopsAnyAvg !== 0) {
-        mv = round(job.flopsAnyAvg, 2);
-      } else if (fm === "mem_bw" && job.memBwAvg !== 0) {
-        mv = round(job.memBwAvg, 2);
-      } else {
-        // Calculate Avg from jobMetrics
-        const jm = jobMetrics.find((jm) => jm.name === fm && jm.scope === "node");
-        if (jm?.metric?.statisticsSeries) {
-          const noNan = jm.metric.statisticsSeries.median.filter(function (val) {
-            return val != null;
-          });
-          mv = round(mean(noNan), 2);
-        } else if (jm?.metric?.series?.length > 1) {
-          const avgs = jm.metric.series.map((jms) => jms.statistics.avg);
-          mv = round(mean(avgs), 2);
-        } else if (jm?.metric?.series) {
-          mv = round(jm.metric.series[0].statistics.avg, 2);
-        }
-      }
-    } else if (fmc.aggregation === "sum") {
-        // Calculate Sum from jobMetrics: Sum all node averages
-        const jm = jobMetrics.find((jm) => jm.name === fm && jm.scope === "node");
-        if (jm?.metric?.series?.length > 1) { // More than 1 node
-          const avgs = jm.metric.series.map((jms) => jms.statistics.avg);
-          mv = round(avgs.reduce((a, b) => a + b, 0));
-        } else if (jm?.metric?.series) {
-          mv = round(jm.metric.series[0].statistics.avg, 2);
-        }
-    } else {
-      console.warn(
-        "Missing or unkown aggregation mode (sum/avg) for metric:",
-        metricConfig,
-      );
-    }
-
-    // Define basic data
+    // Define basic data -> Value: Use as Provided
     const fmBase = {
-      name: fm,
+      name: jf.name + ' (' + jf.stat + ')',
+      avg: jf.value,
       unit: unit,
-      avg: mv,
       max: fmt.peak,
+      dir: fmc.lowerIsBetter
     };
 
-    if (evalFootprint(fm, mv, fmt, "alert")) {
+    if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "alert")) {
       return {
         ...fmBase,
         color: "danger",
-        message: `Metric average way ${fm === "mem_used" ? "above" : "below"} expected normal thresholds.`,
-        impact: 3,
+        message: `Metric average way ${fmc.lowerIsBetter ? "above" : "below"} expected normal thresholds.`,
+        impact: 3
       };
-    } else if (evalFootprint(fm, mv, fmt, "caution")) {
+    } else if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "caution")) {
       return {
         ...fmBase,
         color: "warning",
-        message: `Metric average ${fm === "mem_used" ? "above" : "below"} expected normal thresholds.`,
+        message: `Metric average ${fmc.lowerIsBetter ? "above" : "below"} expected normal thresholds.`,
         impact: 2,
       };
-    } else if (evalFootprint(fm, mv, fmt, "normal")) {
+    } else if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "normal")) {
       return {
         ...fmBase,
         color: "success",
         message: "Metric average within expected thresholds.",
         impact: 1,
       };
-    } else if (evalFootprint(fm, mv, fmt, "peak")) {
+    } else if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "peak")) {
       return {
         ...fmBase,
         color: "info",
@@ -176,23 +114,23 @@
     }
   });
 
-  function evalFootprint(metric, mean, thresholds, level) {
-    // mem_used has inverse logic regarding threshold levels, notify levels triggered if mean > threshold
+  function evalFootprint(mean, thresholds, lowerIsBetter, level) {
+    // Handle Metrics in which less value is better
     switch (level) {
       case "peak":
-        if (metric === "mem_used")
-          return false; // mem_used over peak -> return false to trigger impact -1
+        if (lowerIsBetter)
+          return false; // metric over peak -> return false to trigger impact -1
         else return mean <= thresholds.peak && mean > thresholds.normal;
       case "alert":
-        if (metric === "mem_used")
+        if (lowerIsBetter)
           return mean <= thresholds.peak && mean >= thresholds.alert;
         else return mean <= thresholds.alert && mean >= 0;
       case "caution":
-        if (metric === "mem_used")
+        if (lowerIsBetter)
           return mean < thresholds.alert && mean >= thresholds.caution;
         else return mean <= thresholds.caution && mean > thresholds.alert;
       case "normal":
-        if (metric === "mem_used")
+        if (lowerIsBetter)
           return mean < thresholds.caution && mean >= 0;
         else return mean <= thresholds.normal && mean > thresholds.caution;
       default:
@@ -201,7 +139,7 @@
   }
 </script>
 
-<Card class="h-auto mt-1" style="width: {width}px;">
+<Card class="mt-1 overflow-auto" style="width: {width}; height: {height}">
   {#if view === "job"}
     <CardHeader>
       <CardTitle class="mb-0 d-flex justify-content-center">
@@ -250,9 +188,21 @@
           offset={[0, 20]}>{fpd.message}</Tooltip
         >
       </div>
-      <div class="mb-2">
-        <Progress value={fpd.avg} max={fpd.max} color={fpd.color} />
-      </div>
+      <Row cols={12} class="{(footprintData.length == (index + 1)) ? 'mb-0' : 'mb-2'}">
+        {#if fpd.dir}
+          <Col xs="1">
+            <Icon name="caret-left-fill" />
+          </Col>
+        {/if}
+        <Col xs="11" class="align-content-center">
+          <Progress value={fpd.avg} max={fpd.max} color={fpd.color} />
+        </Col>
+        {#if !fpd.dir}
+        <Col xs="1">
+          <Icon name="caret-right-fill" />
+        </Col>
+        {/if}
+      </Row>
     {/each}
     {#if job?.metaData?.message}
       <hr class="mt-1 mb-2" />

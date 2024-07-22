@@ -27,8 +27,8 @@
   export let showFootprint = false;
   export let view = "job";
 
-  const clusters = getContext("clusters"),
-    onInit = getContext("on-init");
+  const onInit = getContext("on-init")
+  const globalMetrics = getContext("globalMetrics")
 
   let newMetricsOrder = [];
   let unorderedMetrics = [...metrics];
@@ -36,27 +36,31 @@
 
   onInit(() => {
     if (allMetrics == null) allMetrics = new Set();
-    for (let c of clusters)
-      for (let metric of c.metricConfig) allMetrics.add(metric.name);
+    for (let metric of globalMetrics) allMetrics.add(metric.name);
   });
 
   $: {
     if (allMetrics != null) {
       if (cluster == null) {
-        // console.log('Reset to full metric list')
-        for (let c of clusters)
-          for (let metric of c.metricConfig) allMetrics.add(metric.name);
+        for (let metric of globalMetrics) allMetrics.add(metric.name);
       } else {
-        // console.log('Recalculate available metrics for ' + cluster)
         allMetrics.clear();
-        for (let c of clusters)
-          if (c.name == cluster)
-            for (let metric of c.metricConfig) allMetrics.add(metric.name);
+        for (let gm of globalMetrics) {
+          if (gm.availability.find((av) => av.cluster === cluster)) allMetrics.add(gm.name);
+        }
       }
-
       newMetricsOrder = [...allMetrics].filter((m) => !metrics.includes(m));
       newMetricsOrder.unshift(...metrics.filter((m) => allMetrics.has(m)));
       unorderedMetrics = unorderedMetrics.filter((m) => allMetrics.has(m));
+    }
+  }
+
+  function printAvailability(metric, cluster) {
+    const avail = globalMetrics.find((gm) => gm.name === metric)?.availability
+    if (cluster == null) {
+      return avail.map((av) => av.cluster).join(',')
+    } else {
+      return avail.find((av) => av.cluster === cluster).subClusters.join(',')
     }
   }
 
@@ -106,7 +110,6 @@
     }).subscribe((res) => {
       if (res.fetching === false && res.error) {
         throw res.error;
-        // console.log('Error on subscription: ' + res.error)
       }
     });
 
@@ -118,7 +121,6 @@
       value: JSON.stringify(showFootprint),
     }).subscribe((res) => {
       if (res.fetching === false && res.error) {
-        console.log("Error on footprint subscription: " + res.error);
         throw res.error;
       }
     });
@@ -161,34 +163,7 @@
           {/if}
           {metric}
           <span style="float: right;">
-            {cluster == null
-              ? clusters // No single cluster specified: List Clusters with Metric
-                  .filter(
-                    (c) => c.metricConfig.find((m) => m.name == metric) != null,
-                  )
-                  .map((c) => c.name)
-                  .join(", ")
-              : clusters // Single cluster requested: List Subclusters with do not have metric remove flag
-                  .filter((c) => c.name == cluster)
-                  .filter(
-                    (c) => c.metricConfig.find((m) => m.name == metric) != null,
-                  )
-                  .map(function (c) {
-                    let scNames = c.subClusters.map((sc) => sc.name);
-                    scNames.forEach(function (scName) {
-                      let met = c.metricConfig.find((m) => m.name == metric);
-                      let msc = met.subClusters.find(
-                        (msc) => msc.name == scName,
-                      );
-                      if (msc != null) {
-                        if (msc.remove == true) {
-                          scNames = scNames.filter((scn) => scn != msc.name);
-                        }
-                      }
-                    });
-                    return scNames;
-                  })
-                  .join(", ")}
+            {printAvailability(metric, cluster)}
           </span>
         </li>
       {/each}

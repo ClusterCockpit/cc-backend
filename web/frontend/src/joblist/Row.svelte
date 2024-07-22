@@ -30,16 +30,11 @@
       : ["core"]
     : ["node"];
 
-  function distinct(value, index, array) {
-    return array.indexOf(value) === index;
-  }
-
   const cluster = getContext("clusters").find((c) => c.name == job.cluster);
-  const metricConfig = getContext("metrics"); // Get all MetricConfs which include subCluster-specific settings for this job
   const client = getContextClient();
   const query = gql`
-    query ($id: ID!, $queryMetrics: [String!]!, $scopes: [MetricScope!]!) {
-      jobMetrics(id: $id, metrics: $queryMetrics, scopes: $scopes) {
+    query ($id: ID!, $metrics: [String!]!, $scopes: [MetricScope!]!) {
+      jobMetrics(id: $id, metrics: $metrics, scopes: $scopes) {
         name
         scope
         metric {
@@ -71,34 +66,14 @@
   $: metricsQuery = queryStore({
     client: client,
     query: query,
-    variables: { id, queryMetrics, scopes },
+    variables: { id, metrics, scopes },
   });
-
-  let queryMetrics = null;
-  $: if (showFootprint) {
-    queryMetrics = [
-      "cpu_load",
-      "flops_any",
-      "mem_used",
-      "mem_bw",
-      "acc_utilization",
-      ...metrics,
-    ].filter(distinct);
-    scopes = ["node"];
-  } else {
-    queryMetrics = [...metrics];
-    scopes = job.numNodes == 1
-      ? job.numAcc >= 1
-        ? ["core", "accelerator"]
-        : ["core"]
-      : ["node"];
-  }
-
+  
   export function refresh() {
     metricsQuery = queryStore({
       client: client,
       query: query,
-      variables: { id, queryMetrics, scopes },
+      variables: { id, metrics, scopes },
       // requestPolicy: 'network-only' // use default cache-first for refresh
     });
   }
@@ -166,8 +141,8 @@
       <td>
         <JobFootprint
           {job}
-          jobMetrics={$metricsQuery.data.jobMetrics}
           width={plotWidth}
+          height="{plotHeight}px"
           view="list"
         />
       </td>

@@ -2,10 +2,14 @@
   import {
     init,
     groupByScope,
-    fetchMetricsStore,
     checkMetricDisabled,
     transformDataForRoofline,
   } from "./utils.js";
+  import { 
+    queryStore,
+    gql,
+    getContextClient 
+  } from "@urql/svelte";
   import {
     Row,
     Col,
@@ -34,15 +38,27 @@
   export let authlevel;
   export let roles;
 
-  const accMetrics = [
-    "acc_utilization",
-    "acc_mem_used",
-    "acc_power",
-    "nv_mem_util",
-    "nv_sm_clock",
-    "nv_temp",
-  ];
-  let accNodeOnly;
+ // Setup General
+
+ const ccconfig = getContext("cc-config")
+
+ let isMetricsSelectionOpen = false,
+    showFootprint = !!ccconfig[`job_view_showFootprint`],
+    selectedMetrics = [],
+    selectedScopes = [];
+
+  let plots = {},
+    jobTags,
+    statsTable,
+    jobFootprint;
+
+  let missingMetrics = [],
+    missingHosts = [],
+    somethingMissing = false;
+
+  // Setup GQL
+  // First: Add Job Query to init function -> Only requires DBID as argument, received via URL-ID
+  // Second: Trigger jobMetrics query with now received jobInfos (scopes: from job metadata, selectedMetrics: from config or all, job: from url-id)
 
   const { query: initq } = init(`
         job(id: "${dbid}") {
@@ -55,99 +71,100 @@
             metaData,
             userData { name, email },
             concurrentJobs { items { id, jobId }, count, listQuery },
-            flopsAnyAvg, memBwAvg, loadAvg
+            footprint { name, stat, value }
         }
     `);
 
-  const ccconfig = getContext("cc-config"),
-    clusters = getContext("clusters"),
-    metrics = getContext("metrics");
+  const client = getContextClient();
+  const query = gql`
+    query ($dbid: ID!, $selectedMetrics: [String!]!, $selectedScopes: [MetricScope!]!) {
+      jobMetrics(id: $dbid, metrics: $selectedMetrics, scopes: $selectedScopes) {
+        name
+        scope
+        metric {
+          unit {
+            prefix
+            base
+          }
+          timestep
+          statisticsSeries {
+            min
+            median
+            max
+          }
+          series {
+            hostname
+            id
+            data
+            statistics {
+              min
+              avg
+              max
+            }
+          }
+        }
+      }
+    }
+  `;
 
-  let isMetricsSelectionOpen = false,
-    selectedMetrics = [],
-    showFootprint = true,
-    isFetched = new Set();
-  const [jobMetrics, startFetching] = fetchMetricsStore();
+  $: jobMetrics = queryStore({
+    client: client,
+    query: query,
+    variables: { dbid, selectedMetrics, selectedScopes },
+  });
+
+  function loadAllScopes() {
+    selectedScopes = [...selectedScopes, "socket", "core"]
+    jobMetrics = queryStore({
+      client: client,
+      query: query,
+      variables: { dbid, selectedMetrics, selectedScopes},
+    });
+  }
+
+  // Handle Job Query on Init -> is not executed anymore
   getContext("on-init")(() => {
     let job = $initq.data.job;
     if (!job) return;
 
-    selectedMetrics =
-      ccconfig[`job_view_selectedMetrics:${job.cluster}`] ||
-      clusters
-        .find((c) => c.name == job.cluster)
-        .metricConfig.map((mc) => mc.name);
-
-    showFootprint =
-      ccconfig[`job_view_showFootprint`]
-
-    let toFetch = new Set([
+    const pendingMetrics = [
       "flops_any",
       "mem_bw",
-      ...selectedMetrics,
+      ...(ccconfig[`job_view_selectedMetrics:${job.cluster}`] ||
+        $initq.data.globalMetrics.reduce((names, gm) => {
+          if (gm.availability.find((av) => av.cluster === job.cluster)) {
+            names.push(gm.name);
+          }
+          return names;
+        }, [])
+      ),
       ...(ccconfig[`job_view_polarPlotMetrics:${job.cluster}`] ||
-        ccconfig[`job_view_polarPlotMetrics`]),
+        ccconfig[`job_view_polarPlotMetrics`]
+      ),
       ...(ccconfig[`job_view_nodestats_selectedMetrics:${job.cluster}`] ||
-        ccconfig[`job_view_nodestats_selectedMetrics`]),
-    ]);
+        ccconfig[`job_view_nodestats_selectedMetrics`]
+      ),
+    ];
 
-    // Select default Scopes to load: Check before if accelerator metrics are not on accelerator scope by default
-    accNodeOnly = [...toFetch].some(function (m) {
-      if (accMetrics.includes(m)) {
-        const mc = metrics(job.cluster, m);
-        return mc.scope !== "accelerator";
-      } else {
-        return false;
-      }
+    // Select default Scopes to load: Check before if any metric has accelerator scope by default
+    const accScopeDefault = [...pendingMetrics].some(function (m) {
+      const cluster = $initq.data.clusters.find((c) => c.name == job.cluster);
+      const subCluster = cluster.subClusters.find((sc) => sc.name == job.subCluster);
+      return subCluster.metricConfig.find((smc) => smc.name == m)?.scope === "accelerator";
     });
 
-    if (job.numAcc === 0 || accNodeOnly === true) {
-      // No Accels or Accels on Node Scope
-      startFetching(
-        job,
-        [...toFetch],
-        job.numNodes > 2 ? ["node"] : ["node", "socket", "core"],
-      );
-    } else {
-      // Accels and not on node scope
-      startFetching(
-        job,
-        [...toFetch],
-        job.numNodes > 2
-          ? ["node", "accelerator"]
-          : ["node", "accelerator", "socket", "core"],
-      );
+    const pendingScopes = ["node"]
+    if (accScopeDefault) pendingScopes.push("accelerator")
+    if (job.numNodes === 1) {
+      pendingScopes.push("socket")
+      pendingScopes.push("core")
     }
 
-    isFetched = toFetch;
+    selectedMetrics = [...new Set(pendingMetrics)];
+    selectedScopes = [...new Set(pendingScopes)];
   });
 
-  const lazyFetchMoreMetrics = () => {
-    let notYetFetched = new Set();
-    for (let m of selectedMetrics) {
-      if (!isFetched.has(m)) {
-        notYetFetched.add(m);
-        isFetched.add(m);
-      }
-    }
-
-    if (notYetFetched.size > 0)
-      startFetching(
-        $initq.data.job,
-        [...notYetFetched],
-        $initq.data.job.numNodes > 2 ? ["node"] : ["node", "core"],
-      );
-  };
-
-  // Fetch more data once required:
-  $: if ($initq.data && $jobMetrics.data && selectedMetrics)
-    lazyFetchMoreMetrics();
-
-  let plots = {},
-    jobTags,
-    statsTable,
-    jobFootprint;
-
+  // Interactive Document Title
   $: document.title = $initq.fetching
     ? "Loading..."
     : $initq.error
@@ -155,15 +172,15 @@
       : `Job ${$initq.data.job.jobId} - ClusterCockpit`;
 
   // Find out what metrics or hosts are missing:
-  let missingMetrics = [],
-    missingHosts = [],
-    somethingMissing = false;
-  $: if ($initq.data && $jobMetrics.data) {
+  $: if ($initq?.data && $jobMetrics?.data?.jobMetrics) {
     let job = $initq.data.job,
       metrics = $jobMetrics.data.jobMetrics,
-      metricNames = clusters
-        .find((c) => c.name == job.cluster)
-        .metricConfig.map((mc) => mc.name);
+      metricNames = $initq.data.globalMetrics.reduce((names, gm) => {
+        if (gm.availability.find((av) => av.cluster === job.cluster)) {
+            names.push(gm.name);
+        }
+        return names;
+      }, []);
 
     // Metric not found in JobMetrics && Metric not explicitly disabled in config or deselected: Was expected, but is Missing
     missingMetrics = metricNames.filter(
@@ -192,6 +209,7 @@
     somethingMissing = missingMetrics.length > 0 || missingHosts.length > 0;
   }
 
+  // Helper
   const orderAndMap = (grouped, selectedMetrics) =>
     selectedMetrics.map((metric) => ({
       metric: metric,
@@ -214,18 +232,15 @@
       <Spinner secondary />
     {/if}
   </Col>
-  {#if $jobMetrics.data && showFootprint}
-    {#key $jobMetrics.data}
-      <Col>
-        <JobFootprint
-          bind:this={jobFootprint}
-          job={$initq.data.job}
-          jobMetrics={$jobMetrics.data.jobMetrics}
-        />
-      </Col>
-    {/key}
+  {#if $initq.data && showFootprint}
+    <Col>
+      <JobFootprint
+        bind:this={jobFootprint}
+        job={$initq.data.job}
+      />
+    </Col>
   {/if}
-  {#if $jobMetrics.data && $initq.data}
+  {#if $initq?.data && $jobMetrics?.data?.jobMetrics}
     {#if $initq.data.job.concurrentJobs != null && $initq.data.job.concurrentJobs.items.length != 0}
       {#if authlevel > roles.manager}
         <Col>
@@ -270,27 +285,29 @@
           `job_view_polarPlotMetrics:${$initq.data.job.cluster}`
         ] || ccconfig[`job_view_polarPlotMetrics`]}
         cluster={$initq.data.job.cluster}
+        subCluster={$initq.data.job.subCluster}
         jobMetrics={$jobMetrics.data.jobMetrics}
       />
     </Col>
     <Col>
       <Roofline
         renderTime={true}
-        cluster={clusters
+        cluster={$initq.data.clusters
           .find((c) => c.name == $initq.data.job.cluster)
           .subClusters.find((sc) => sc.name == $initq.data.job.subCluster)}
         data={transformDataForRoofline(
           $jobMetrics.data.jobMetrics.find(
             (m) => m.name == "flops_any" && m.scope == "node",
-          ).metric,
+          )?.metric,
           $jobMetrics.data.jobMetrics.find(
             (m) => m.name == "mem_bw" && m.scope == "node",
-          ).metric,
+          )?.metric,
         )}
       />
     </Col>
   {:else}
     <Col />
+      <Spinner secondary />
     <Col />
   {/if}
 </Row>
@@ -318,7 +335,7 @@
       <Card body color="danger">{$jobMetrics.error.message}</Card>
     {:else if $jobMetrics.fetching}
       <Spinner secondary />
-    {:else if $jobMetrics.data && $initq.data}
+    {:else if $initq?.data && $jobMetrics?.data?.jobMetrics}
       <PlotTable
         let:item
         let:width
@@ -332,9 +349,11 @@
         {#if item.data}
           <Metric
             bind:this={plots[item.metric]}
-            on:more-loaded={({ detail }) => statsTable.moreLoaded(detail)}
+            on:load-all={loadAllScopes}
             job={$initq.data.job}
             metricName={item.metric}
+            metricUnit={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.unit}
+            nativeScope={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.scope}
             rawData={item.data.map((x) => x.metric)}
             scopes={item.data.map((x) => x.scope)}
             {width}
@@ -388,8 +407,8 @@
           tab="Statistics Table"
           active={!somethingMissing}
         >
-          {#if $jobMetrics.data}
-            {#key $jobMetrics.data}
+          {#if $jobMetrics?.data?.jobMetrics}
+            {#key $jobMetrics.data.jobMetrics}
               <StatsTable
                 bind:this={statsTable}
                 job={$initq.data.job}

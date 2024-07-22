@@ -27,7 +27,7 @@
   let filterComponent; // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
   let jobList,
     matchedJobs = null;
-  let sorting = { field: "startTime", order: "DESC" },
+  let sorting = { field: "startTime", type: "col", order: "DESC" },
     isSortingOpen = false,
     isMetricsSelectionOpen = false;
   let metrics = filterPresets.cluster

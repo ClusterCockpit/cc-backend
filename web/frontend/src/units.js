@@ -31,3 +31,4 @@ export function scaleNumbers(x, y , p = '') {
     return Math.abs(rawYValue) >= 1000 ? `${rawXValue.toExponential()} / ${rawYValue.toExponential()}` : `${rawYValue.toString()} / ${rawYValue.toString()}`
 }
 
+// export const dateToUnixEpoch = (rfc3339) => Math.floor(Date.parse(rfc3339) / 1000);

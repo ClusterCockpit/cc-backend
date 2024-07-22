@@ -107,7 +107,6 @@
         addTagToJob(res.data.createTag);
       } else if (res.fetching === false && res.error) {
         throw res.error;
-        // console.log('Error on subscription: ' + res.error)
       }
     });
   }
@@ -120,7 +119,6 @@
         pendingChange = false;
       } else if (res.fetching === false && res.error) {
         throw res.error;
-        // console.log('Error on subscription: ' + res.error)
       }
     });
   }
@@ -134,7 +132,6 @@
           pendingChange = false;
         } else if (res.fetching === false && res.error) {
           throw res.error;
-          // console.log('Error on subscription: ' + res.error)
         }
       },
     );

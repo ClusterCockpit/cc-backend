@@ -1,5 +1,5 @@
 <script>
-  import { getContext, createEventDispatcher } from "svelte";
+  import { createEventDispatcher } from "svelte";
   import Timeseries from "./plots/MetricPlot.svelte";
   import {
     InputGroup,
@@ -7,26 +7,20 @@
     Spinner,
     Card,
   } from "@sveltestrap/sveltestrap";
-  import { fetchMetrics, minScope } from "./utils";
+  import { minScope } from "./utils";
 
   export let job;
   export let metricName;
+  export let metricUnit;
+  export let nativeScope;
   export let scopes;
   export let width;
   export let rawData;
   export let isShared = false;
 
   const dispatch = createEventDispatcher();
-  const cluster = getContext("clusters").find(
-    (cluster) => cluster.name == job.cluster,
-  );
-  const subCluster = cluster.subClusters.find(
-    (subCluster) => subCluster.name == job.subCluster,
-  );
-  const metricConfig = cluster.metricConfig.find(
-    (metricConfig) => metricConfig.name == metricName,
-  );
-
+  const unit = (metricUnit?.prefix ? metricUnit.prefix : "") + (metricUnit?.base ? metricUnit.base : "")
+    
   let selectedHost = null,
     plot,
     fetching = false,
@@ -56,37 +50,12 @@
   }
 
   $: if (plot != null) plot.setTimeRange(from, to);
-
-  export async function loadMore() {
-    fetching = true;
-    let response = await fetchMetrics(job, [metricName], ["core"]);
-    fetching = false;
-
-    if (response.error) {
-      error = response.error;
-      return;
-    }
-
-    for (let jm of response.data.jobMetrics) {
-      if (jm.scope != "node") {
-        scopes = [...scopes, jm.scope];
-        rawData.push(jm.metric);
-        statsSeries = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null)
-        selectedScope = jm.scope;
-        selectedScopeIndex = scopes.findIndex((s) => s == jm.scope);
-        dispatch("more-loaded", jm);
-      }
-    }
-  }
-
-  $: if (selectedScope == "load-more") loadMore();
+  $: if (selectedScope == "load-all") dispatch("load-all");
 </script>
 
 <InputGroup>
   <InputGroupText style="min-width: 150px;">
-    {metricName} ({(metricConfig?.unit?.prefix
-      ? metricConfig.unit.prefix
-      : "") + (metricConfig?.unit?.base ? metricConfig.unit.base : "")})
+    {metricName} ({unit})
   </InputGroupText>
   <select class="form-select" bind:value={selectedScope}>
     {#each availableScopes as scope, index}
@@ -95,8 +64,8 @@
         <option value={scope + '-stat'}>stats series ({scope})</option>
       {/if}
     {/each}
-    {#if availableScopes.length == 1 && metricConfig?.scope != "node"}
-      <option value={"load-more"}>Load more...</option>
+    {#if availableScopes.length == 1 && nativeScope != "node"}
+      <option value={"load-all"}>Load all...</option>
     {/if}
   </select>
   {#if job.resources.length > 1}
@@ -118,8 +87,8 @@
       bind:this={plot}
       {width}
       height={300}
-      {cluster}
-      {subCluster}
+      cluster={job.cluster}
+      subCluster={job.subCluster}
       timestep={data.timestep}
       scope={selectedScope}
       metric={metricName}
@@ -132,8 +101,8 @@
       bind:this={plot}
       {width}
       height={300}
-      {cluster}
-      {subCluster}
+      cluster={job.cluster}
+      subCluster={job.subCluster}
       timestep={data.timestep}
       scope={selectedScope}
       metric={metricName}

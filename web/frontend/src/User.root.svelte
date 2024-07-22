@@ -32,7 +32,7 @@
   let filterComponent; // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
   let jobList;
   let jobFilters = [];
-  let sorting = { field: "startTime", order: "DESC" },
+  let sorting = { field: "startTime", type: "col", order: "DESC" },
     isSortingOpen = false;
   let metrics = ccconfig.plot_list_selectedMetrics,
     isMetricsSelectionOpen = false;
@@ -70,6 +70,7 @@
           histMetrics {
             metric
             unit
+            stat
             data {
               min
               max
@@ -245,7 +246,7 @@
               usesBins={true}
               {width}
               height={250}
-              title="Distribution of '{item.metric}' averages"
+              title="Distribution of '{item.metric} ({item.stat})' footprints"
               xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
               xunit={item.unit}
               ylabel="Number of Jobs"

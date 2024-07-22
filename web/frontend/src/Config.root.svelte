@@ -1,11 +1,8 @@
 <script>
-  // import { init } from "./utils.js";
   import { Card, CardHeader, CardTitle } from "@sveltestrap/sveltestrap";
 
   import UserSettings from "./config/UserSettings.svelte";
   import AdminSettings from "./config/AdminSettings.svelte";
-
-  // const { query: initq } = init();
 
   export let isAdmin;
   export let isApi;

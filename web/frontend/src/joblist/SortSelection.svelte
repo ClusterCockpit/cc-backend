@@ -17,24 +17,39 @@
     ModalHeader,
     ModalFooter,
   } from "@sveltestrap/sveltestrap";
+  import { getContext } from "svelte";
+  import { getSortItems } from "../utils.js";
 
   export let isOpen = false;
-  export let sorting = { field: "startTime", order: "DESC" };
+  export let sorting = { field: "startTime", type: "col", order: "DESC" };
 
-  let sortableColumns = [
-    { field: "startTime", text: "Start Time", order: "DESC" },
-    { field: "duration", text: "Duration", order: "DESC" },
-    { field: "numNodes", text: "Number of Nodes", order: "DESC" },
-    { field: "memUsedMax", text: "Max. Memory Used", order: "DESC" },
-    { field: "flopsAnyAvg", text: "Avg. FLOPs", order: "DESC" },
-    { field: "memBwAvg", text: "Avg. Memory Bandwidth", order: "DESC" },
-    { field: "netBwAvg", text: "Avg. Network Bandwidth", order: "DESC" },
-  ];
+  let sortableColumns = [];
+  let activeColumnIdx;
 
-  let activeColumnIdx = sortableColumns.findIndex(
-    (col) => col.field == sorting.field,
-  );
-  sortableColumns[activeColumnIdx].order = sorting.order;
+  const initialized = getContext("initialized");
+  
+  function loadSortables(isInitialized) {
+    if (!isInitialized) return;
+    sortableColumns = [ 
+      { field: "startTime", type: "col", text: "Start Time", order: "DESC" },
+      { field: "duration", type: "col", text: "Duration", order: "DESC" },
+      { field: "numNodes", type: "col", text: "Number of Nodes", order: "DESC" },
+      { field: "numHwthreads", type: "col", text: "Number of HWThreads", order: "DESC" },
+      { field: "numAcc", type: "col", text: "Number of Accelerators", order: "DESC" },
+      ...getSortItems()
+    ]
+  }
+
+  function loadActiveIndex(isInitialized) {
+    if (!isInitialized) return;
+    activeColumnIdx = sortableColumns.findIndex(
+      (col) => col.field == sorting.field,
+    );
+    sortableColumns[activeColumnIdx].order = sorting.order;
+  }
+
+  $: loadSortables($initialized);
+  $: loadActiveIndex($initialized)
 </script>
 
 <Modal
@@ -62,7 +77,7 @@
               sortableColumns[i] = { ...sortableColumns[i] };
               activeColumnIdx = i;
               sortableColumns = [...sortableColumns];
-              sorting = { field: col.field, order: col.order };
+              sorting = { field: col.field, type: col.type, order: col.order };
             }}
           >
             <Icon

@@ -48,8 +48,10 @@
   let colWidth1, colWidth2, colWidth3, colWidth4;
   let numBins = 50;
   let maxY = -1;
+
+  const initialized = getContext("initialized");
+  const globalMetrics = getContext("globalMetrics");
   const ccconfig = getContext("cc-config");
-  const metricConfig = getContext("metrics");
 
   let metricsInHistograms = ccconfig.analysis_view_histogramMetrics,
     metricsInScatterplots = ccconfig.analysis_view_scatterPlotMetrics;
@@ -268,6 +270,19 @@
     }
   }
 
+  let availableMetrics = [];
+  let metricUnits = {};
+  let metricScopes = {};
+  function loadMetrics(isInitialized) {
+    if (!isInitialized) return
+    availableMetrics = [...globalMetrics.filter((gm) => gm?.availability.find((av) => av.cluster == cluster.name))]
+    for (let sm of availableMetrics) {
+      metricUnits[sm.name] = (sm?.unit?.prefix ? sm.unit.prefix : "") + (sm?.unit?.base ? sm.unit.base : "")
+      metricScopes[sm.name] = sm?.scope
+    }
+  }
+
+  $: loadMetrics($initialized)
   $: updateEntityConfiguration(groupSelection.key);
   $: updateCategoryConfiguration(sortSelection.key);
 
@@ -285,7 +300,7 @@
       <Card body color="danger">{$initq.error.message}</Card>
     {:else if cluster}
       <PlotSelection
-        availableMetrics={cluster.metricConfig.map((mc) => mc.name)}
+        availableMetrics={availableMetrics.map((av) => av.name)}
         bind:metricsInHistograms
         bind:metricsInScatterplots
       />
@@ -506,7 +521,7 @@
           metric,
           ...binsFromFootprint(
             $footprintsQuery.data.footprints.timeWeights,
-            metricConfig(cluster.name, metric)?.scope,
+            metricScopes[metric],
             $footprintsQuery.data.footprints.metrics.find(
               (f) => f.metric == metric,
             ).data,
@@ -521,22 +536,8 @@
           height={250}
           usesBins={true}
           title="Average Distribution of '{item.metric}'"
-          xlabel={`${item.metric} bin maximum ${
-            (metricConfig(cluster.name, item.metric)?.unit?.prefix
-              ? "[" + metricConfig(cluster.name, item.metric)?.unit?.prefix
-              : "") +
-            (metricConfig(cluster.name, item.metric)?.unit?.base
-              ? metricConfig(cluster.name, item.metric)?.unit?.base + "]"
-              : "")
-          }`}
-          xunit={`${
-            (metricConfig(cluster.name, item.metric)?.unit?.prefix
-              ? metricConfig(cluster.name, item.metric)?.unit?.prefix
-              : "") +
-            (metricConfig(cluster.name, item.metric)?.unit?.base
-              ? metricConfig(cluster.name, item.metric)?.unit?.base
-              : "")
-          }`}
+          xlabel={`${item.metric} bin maximum [${metricUnits[item.metric]}]`}
+          xunit={`${metricUnits[item.metric]}`}
           ylabel="Normalized Hours"
           yunit="Hours"
         />
@@ -578,22 +579,8 @@
           {width}
           height={250}
           color={"rgba(0, 102, 204, 0.33)"}
-          xLabel={`${item.m1} [${
-            (metricConfig(cluster.name, item.m1)?.unit?.prefix
-              ? metricConfig(cluster.name, item.m1)?.unit?.prefix
-              : "") +
-            (metricConfig(cluster.name, item.m1)?.unit?.base
-              ? metricConfig(cluster.name, item.m1)?.unit?.base
-              : "")
-          }]`}
-          yLabel={`${item.m2} [${
-            (metricConfig(cluster.name, item.m2)?.unit?.prefix
-              ? metricConfig(cluster.name, item.m2)?.unit?.prefix
-              : "") +
-            (metricConfig(cluster.name, item.m2)?.unit?.base
-              ? metricConfig(cluster.name, item.m2)?.unit?.base
-              : "")
-          }]`}
+          xLabel={`${item.m1} [${metricUnits[item.m1]}]`}
+          yLabel={`${item.m2} [${metricUnits[item.m2]}]`}
           X={item.f1}
           Y={item.f2}
           S={$footprintsQuery.data.footprints.timeWeights.nodeHours}

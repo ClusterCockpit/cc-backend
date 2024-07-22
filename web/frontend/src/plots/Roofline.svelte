@@ -209,7 +209,6 @@
           draw: [
             (u) => {
               // draw roofs when cluster set
-              // console.log(u)
               if (cluster != null) {
                 const padding = u._padding; // [top, right, bottom, left]
 
@@ -236,9 +235,6 @@
                     "y",
                     true,
                   );
-
-                // Debug get zoomLevel from browser
-                // console.log("Zoom", Math.round(window.devicePixelRatio * 100))
 
                 if (
                   scalarKneeX <
@@ -323,7 +319,7 @@
       };
       uplot = new uPlot(opts, plotData, plotWrapper);
     } else {
-      console.log("No data for roofline!");
+      // console.log("No data for roofline!");
     }
   }
 

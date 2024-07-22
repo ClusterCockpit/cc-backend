@@ -74,10 +74,6 @@
       return s.dir != "up" ? s1[stat] - s2[stat] : s2[stat] - s1[stat];
     });
   }
-
-  export function moreLoaded(jobMetric) {
-    jobMetrics = [...jobMetrics, jobMetric];
-  }
 </script>
 
 <Table>
@@ -85,7 +81,6 @@
     <tr>
       <th>
         <Button outline on:click={() => (isMetricSelectionOpen = true)}>
-          <!-- log to click ', console.log(isMetricSelectionOpen)' -->
           Metrics
         </Button>
       </th>

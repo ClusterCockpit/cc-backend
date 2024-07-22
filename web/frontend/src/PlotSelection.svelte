@@ -41,7 +41,6 @@
     }).subscribe((res) => {
       if (res.fetching === false && res.error) {
         throw res.error;
-        // console.log('Error on subscription: ' + res.error)
       }
     });
   }

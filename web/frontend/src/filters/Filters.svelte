@@ -136,8 +136,8 @@
     if (filters.project)
       items.push({ project: { [filters.projectMatch]: filters.project } });
     if (filters.jobName) items.push({ jobName: { contains: filters.jobName } });
-    for (let stat of filters.stats)
-      items.push({ [stat.field]: { from: stat.from, to: stat.to } });
+    if (filters.stats.length != 0)
+      items.push({ metricStats: filters.stats.map((st) => { return { metricName: st.field, range: { from: st.from, to: st.to }} }) });
 
     dispatch("update", { filters: items });
     changeURL();
@@ -412,7 +412,6 @@
 />
 
 <Statistics
-  cluster={filters.cluster}
   bind:isOpen={isStatsOpen}
   bind:stats={filters.stats}
   on:update={() => update()}

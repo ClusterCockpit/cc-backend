@@ -34,7 +34,6 @@
         reloadUserList();
       } else {
         let text = await res.text();
-        // console.log(res.statusText)
         throw new Error("Response Code " + res.status + "-> " + text);
       }
     } catch (err) {
@@ -66,7 +65,6 @@
         reloadUserList();
       } else {
         let text = await res.text();
-        // console.log(res.statusText)
         throw new Error("Response Code " + res.status + "-> " + text);
       }
     } catch (err) {

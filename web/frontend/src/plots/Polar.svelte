@@ -24,10 +24,11 @@
 
     export let metrics
     export let cluster
+    export let subCluster
     export let jobMetrics
     export let height = 365
 
-    const metricConfig = getContext('metrics')
+    const getMetricConfig = getContext("getMetricConfig")
 
     const labels = metrics.filter(name => {
         if (!jobMetrics.find(m => m.name == name && m.scope == "node")) {
@@ -38,7 +39,7 @@
     })
 
     const getValuesForStat = (getStat) => labels.map(name => {
-        const peak = metricConfig(cluster, name).peak
+        const peak = getMetricConfig(cluster, subCluster, name).peak
         const metric = jobMetrics.find(m => m.name == name && m.scope == "node")
         const value = getStat(metric.metric) / peak
         return value <= 1. ? value : 1.

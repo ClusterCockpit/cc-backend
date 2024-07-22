@@ -6,7 +6,6 @@ import {
 } from "@urql/svelte";
 import { setContext, getContext, hasContext, onDestroy, tick } from "svelte";
 import { readable } from "svelte/store";
-// import { formatNumber } from './units.js'
 
 /*
  * Call this function only at component initialization time!
@@ -16,7 +15,9 @@ import { readable } from "svelte/store";
  * - Creates a readable store 'initialization' which indicates when the values below can be used.
  * - Adds 'tags' to the context (list of all tags)
  * - Adds 'clusters' to the context (object with cluster names as keys)
- * - Adds 'metrics' to the context, a function that takes a cluster and metric name and returns the MetricConfig (or undefined)
+ * - Adds 'globalMetrics' to the context (list of globally available metric infos)
+ * - Adds 'getMetricConfig' to the context, a function that takes a cluster, subCluster and metric name and returns the MetricConfig (or undefined)
+ * - Adds 'getHardwareTopology' to the context, a function that takes a cluster nad subCluster and returns the subCluster topology (or undefined)
  */
 export function init(extraInitQuery = "") {
     const jwt = hasContext("jwt")
@@ -71,11 +72,19 @@ export function init(extraInitQuery = "") {
                     normal
                     caution
                     alert
+                    lowerIsBetter
                 }
                 footprint 
             }
         }
         tags { id, name, type }
+        globalMetrics {
+            name
+            scope
+            footprint
+            unit { base, prefix }
+            availability { cluster, subClusters }
+        }
         ${extraInitQuery}
     }`
         )
@@ -91,12 +100,13 @@ export function init(extraInitQuery = "") {
         };
     };
 
-    const tags = [],
-        clusters = [];
-    const allMetrics = [];
+    const tags = []
+    const clusters = []
+    const globalMetrics = []
+
     setContext("tags", tags);
     setContext("clusters", clusters);
-    setContext("allmetrics", allMetrics);
+    setContext("globalMetrics", globalMetrics);
     setContext("getMetricConfig", (cluster, subCluster, metric) => {
         if (typeof cluster !== "object")
             cluster = clusters.find((c) => c.name == cluster);
@@ -105,6 +115,15 @@ export function init(extraInitQuery = "") {
             subCluster = cluster.subClusters.find((sc) => sc.name == subCluster);
 
         return subCluster.metricConfig.find((m) => m.name == metric);
+    });
+    setContext("getHardwareTopology", (cluster, subCluster) => {
+        if (typeof cluster !== "object")
+            cluster = clusters.find((c) => c.name == cluster);
+
+        if (typeof subCluster !== "object")
+            subCluster = cluster.subClusters.find((sc) => sc.name == subCluster);
+
+        return subCluster?.topology;
     });
     setContext("on-init", (callback) =>
         state.fetching ? subscribers.push(callback) : callback(state)
@@ -124,32 +143,11 @@ export function init(extraInitQuery = "") {
         }
 
         for (let tag of data.tags) tags.push(tag);
+        for (let cluster of data.clusters) clusters.push(cluster);
+        for (let gm of data.globalMetrics) globalMetrics.push(gm);
 
-        let globalmetrics = [];
-        for (let cluster of data.clusters) {
-            // Add full info to context object
-            clusters.push(cluster);
-            // Build global metric list with availability for joblist metricselect
-            for (let subcluster of cluster.subClusters) {
-                for (let scm of subcluster.metricConfig) {
-                    let match = globalmetrics.find((gm) => gm.name == scm.name);
-                    if (match) {
-                        let submatch = match.availability.find((av) => av.cluster == cluster.name);
-                        if (submatch) {
-                            submatch.subclusters.push(subcluster.name)
-                        } else {
-                            match.availability.push({cluster: cluster.name, subclusters: [subcluster.name]})
-                        }
-                    } else {
-                        globalmetrics.push({name: scm.name, availability: [{cluster: cluster.name, subclusters: [subcluster.name]}]});
-                    }
-                }
-            }
-        }
-        // Add to ctx object
-        for (let gm of globalmetrics) allMetrics.push(gm);
-
-        console.log('All Metrics List', allMetrics);
+        // Unified Sort
+        globalMetrics.sort((a, b) => a.name.localeCompare(b.name))
 
         state.data = data;
         tick().then(() => subscribers.forEach((cb) => cb(state)));
@@ -159,6 +157,7 @@ export function init(extraInitQuery = "") {
         query: { subscribe },
         tags,
         clusters,
+        globalMetrics
     };
 }
 
@@ -169,6 +168,11 @@ export function deepCopy(x) {
 
 function fuzzyMatch(term, string) {
     return string.toLowerCase().includes(term);
+}
+
+// Use in filter() function to return only unique values
+export function distinct(value, index, array) {
+    return array.indexOf(value) === index;
 }
 
 export function fuzzySearchTags(term, tags) {
@@ -260,56 +264,6 @@ export function minScope(scopes) {
     return sm;
 }
 
-export async function fetchMetrics(job, metrics, scopes) {
-    if (job.monitoringStatus == 0) return null;
-
-    let query = [];
-    if (metrics != null) {
-        for (let metric of metrics) {
-            query.push(`metric=${metric}`);
-        }
-    }
-    if (scopes != null) {
-        for (let scope of scopes) {
-            query.push(`scope=${scope}`);
-        }
-    }
-
-    try {
-        let res = await fetch(
-            `/frontend/jobs/metrics/${job.id}${query.length > 0 ? "?" : ""}${query.join(
-                "&"
-            )}`
-        );
-        if (res.status != 200) {
-            return { error: { status: res.status, message: await res.text() } };
-        }
-
-        return await res.json();
-    } catch (e) {
-        return { error: e };
-    }
-}
-
-export function fetchMetricsStore() {
-    let set = null;
-    let prev = { fetching: true, error: null, data: null };
-    return [
-        readable(prev, (_set) => {
-            set = _set;
-        }),
-        (job, metrics, scopes) =>
-            fetchMetrics(job, metrics, scopes).then((res) => {
-                let next = { fetching: false, error: res.error, data: res.data };
-                if (prev.data && next.data)
-                    next.data.jobMetrics.push(...prev.data.jobMetrics);
-
-                prev = next;
-                set(next);
-            }),
-    ];
-}
-
 export function stickyHeader(datatableHeaderSelector, updatePading) {
     const header = document.querySelector("header > nav.navbar");
     if (!header) return;
@@ -336,22 +290,98 @@ export function stickyHeader(datatableHeaderSelector, updatePading) {
     onDestroy(() => document.removeEventListener("scroll", onscroll));
 }
 
-// Outdated: Frontend Will Now Receive final MetricList from backend
 export function checkMetricDisabled(m, c, s) { //[m]etric, [c]luster, [s]ubcluster
-    const mc = getContext("metrics");
-    const thisConfig = mc(c, m);
-    let thisSCIndex = -1;
-    if (thisConfig) {
-        thisSCIndex = thisConfig.subClusters.findIndex(
-            (subcluster) => subcluster.name == s
-        );
-    };
-    if (thisSCIndex >= 0) {
-        if (thisConfig.subClusters[thisSCIndex].remove == true) {
-            return true;
+    const metrics = getContext("globalMetrics");
+    const result = metrics?.find((gm) => gm.name === m)?.availability?.find((av) => av.cluster === c)?.subClusters?.includes(s)
+    return !result
+}
+
+export function getStatsItems() {
+    // console.time('stats')
+    // console.log('getStatsItems ...')
+    const globalMetrics = getContext("globalMetrics")
+    const result = globalMetrics.map((gm) => {
+        if (gm?.footprint) {
+            // Footprint contains suffix naming the used stat-type
+            // console.time('deep')
+            // console.log('Deep Config for', gm.name)
+            const mc = getMetricConfigDeep(gm.name, null, null)
+            // console.timeEnd('deep')
+            return {
+                field: gm.name + '_' + gm.footprint,
+                text: gm.name + ' (' + gm.footprint + ')',
+                metric: gm.name,
+                from: 0,
+                to: mc.peak,
+                peak: mc.peak,
+                enabled: false
+            }
         }
+        return null
+    }).filter((r) => r != null)
+    // console.timeEnd('stats')
+    return [...result];
+};
+
+export function getSortItems() {
+    //console.time('sort')
+    //console.log('getSortItems ...')
+    const globalMetrics = getContext("globalMetrics")
+    const result = globalMetrics.map((gm) => {
+        if (gm?.footprint) {
+            // Footprint contains suffix naming the used stat-type
+            return { 
+                field: gm.name + '_' + gm.footprint,
+                type: 'foot',
+                text: gm.name + ' (' + gm.footprint + ')',
+                order: 'DESC'
+            }
+        }
+        return null
+    }).filter((r) => r != null)
+    //console.timeEnd('sort')
+    return [...result];
+};
+
+function getMetricConfigDeep(metric, cluster, subCluster) {
+    const clusters = getContext("clusters");
+    if (cluster != null) {
+        let c = clusters.find((c) => c.name == cluster);
+        if (subCluster != null) {
+            let sc = c.subClusters.find((sc) => sc.name == subCluster);
+            return sc.metricConfig.find((mc) => mc.name == metric)
+        } else {
+            let result;
+            for (let sc of c.subClusters) {
+                const mc = sc.metricConfig.find((mc) => mc.name == metric)
+                if (result) { // If lowerIsBetter: Peak is still maximum value, no special case required
+                    result.alert = (mc.alert > result.alert) ? mc.alert : result.alert
+                    result.caution = (mc.caution > result.caution) ? mc.caution : result.caution
+                    result.normal = (mc.normal > result.normal) ? mc.normal : result.normal
+                    result.peak = (mc.peak > result.peak) ? mc.peak : result.peak
+                } else {
+                    if (mc) result = {...mc};
+                }
+            }
+            return result
+        }
+    } else {
+        let result;
+        for (let c of clusters) {
+            for (let sc of c.subClusters) {
+                const mc = sc.metricConfig.find((mc) => mc.name == metric)
+                if (result) { // If lowerIsBetter: Peak is still maximum value, no special case required
+                    result.alert = (mc.alert > result.alert) ? mc.alert : result.alert
+                    result.caution = (mc.caution > result.caution) ? mc.caution : result.caution
+                    result.normal = (mc.normal > result.normal) ? mc.normal : result.normal
+                    result.peak = (mc.peak > result.peak) ? mc.peak : result.peak
+                } else {
+                    if (mc) result = {...mc};
+                }
+            }
+        }
+        return result
     }
-    return false;
 }
 
 export function convert2uplot(canvasData) {
@@ -413,14 +443,14 @@ export function binsFromFootprint(weights, scope, values, numBins) {
 }
 
 export function transformDataForRoofline(flopsAny, memBw) { // Uses Metric Objects: {series:[{},{},...], timestep:60, name:$NAME}
-    const nodes = flopsAny.series.length
-    const timesteps = flopsAny.series[0].data.length
-
     /* c will contain values from 0 to 1 representing the time */
     let data = null
     const x = [], y = [], c = []
 
     if (flopsAny && memBw) {
+        const nodes = flopsAny.series.length
+        const timesteps = flopsAny.series[0].data.length
+
         for (let i = 0; i < nodes; i++) {
             const flopsData = flopsAny.series[i].data
             const memBwData = memBw.series[i].data
@@ -446,7 +476,7 @@ export function transformDataForRoofline(flopsAny, memBw) { // Uses Metric Objec
 
 //  Return something to be plotted. The argument shall be the result of the
 // `nodeMetrics` GraphQL query.
-// Remove "hardcoded" here or deemed necessary?
+// Hardcoded metric names required for correct render
 export function transformPerNodeDataForRoofline(nodes) {
     let data = null
     const x = [], y = []

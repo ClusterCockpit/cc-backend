@@ -1,5 +1,6 @@
 <script>
   import { createEventDispatcher, getContext } from "svelte";
+  import { getStatsItems } from "../utils.js";
   import {
     Button,
     Modal,
@@ -9,53 +10,26 @@
   } from "@sveltestrap/sveltestrap";
   import DoubleRangeSlider from "./DoubleRangeSlider.svelte";
 
-  const clusters = getContext("clusters"),
-    initialized = getContext("initialized"),
+  const initialized = getContext("initialized"),
     dispatch = createEventDispatcher();
 
-  export let cluster = null;
   export let isModified = false;
   export let isOpen = false;
   export let stats = [];
 
-  let statistics = [
-    {
-      field: "flopsAnyAvg",
-      text: "FLOPs (Avg.)",
-      metric: "flops_any",
-      from: 0,
-      to: 0,
-      peak: 0,
-      enabled: false,
-    },
-    {
-      field: "memBwAvg",
-      text: "Mem. Bw. (Avg.)",
-      metric: "mem_bw",
-      from: 0,
-      to: 0,
-      peak: 0,
-      enabled: false,
-    },
-    {
-      field: "loadAvg",
-      text: "Load (Avg.)",
-      metric: "cpu_load",
-      from: 0,
-      to: 0,
-      peak: 0,
-      enabled: false,
-    },
-    {
-      field: "memUsedMax",
-      text: "Mem. used (Max.)",
-      metric: "mem_used",
-      from: 0,
-      to: 0,
-      peak: 0,
-      enabled: false,
-    },
-  ];
+  let statistics = []
+  function loadRanges(isInitialized) {
+    if (!isInitialized) return;
+    statistics = getStatsItems();
+  }
+
+  function resetRanges() {
+    for (let st of statistics) {
+      st.enabled = false
+      st.from = 0
+      st.to = st.peak
+    } 
+  }
 
   $: isModified = !statistics.every((a) => {
     let b = stats.find((s) => s.field == a.field);
@@ -64,35 +38,8 @@
     return a.from == b.from && a.to == b.to;
   });
 
-  function getPeak(cluster, metric) {
-    const mc = cluster.metricConfig.find((mc) => mc.name == metric);
-    return mc ? mc.peak : 0;
-  }
+  $: loadRanges($initialized);
 
-  function resetRange(isInitialized, cluster) {
-    if (!isInitialized) return;
-
-    if (cluster != null) {
-      let c = clusters.find((c) => c.name == cluster);
-      for (let stat of statistics) {
-        stat.peak = getPeak(c, stat.metric);
-        stat.from = 0;
-        stat.to = stat.peak;
-      }
-    } else {
-      for (let stat of statistics) {
-        for (let c of clusters) {
-          stat.peak = Math.max(stat.peak, getPeak(c, stat.metric));
-        }
-        stat.from = 0;
-        stat.to = stat.peak;
-      }
-    }
-
-    statistics = [...statistics];
-  }
-
-  $: resetRange($initialized, cluster);
 </script>
 
 <Modal {isOpen} toggle={() => (isOpen = !isOpen)}>
@@ -126,8 +73,7 @@
       color="danger"
       on:click={() => {
         isOpen = false;
-        resetRange($initialized, cluster);
-        statistics.forEach((stat) => (stat.enabled = false));
+        resetRanges();
         stats = [];
         dispatch("update", { stats });
       }}>Reset</Button

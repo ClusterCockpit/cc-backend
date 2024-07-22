@@ -23,7 +23,6 @@
         popMessage(text, target, "#048109");
       } else {
         let text = await res.text();
-        // console.log(res.statusText)
         throw new Error("Response Code " + res.status + "-> " + text);
       }
     } catch (err) {

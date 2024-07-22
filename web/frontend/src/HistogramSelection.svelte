@@ -8,15 +8,25 @@
     ListGroup,
     ListGroupItem,
   } from "@sveltestrap/sveltestrap";
+  import { getContext } from "svelte";
   import { gql, getContextClient, mutationStore } from "@urql/svelte";
 
   export let cluster;
   export let metricsInHistograms;
   export let isOpen;
 
-  let availableMetrics = ["cpu_load", "flops_any", "mem_used", "mem_bw"]; // 'net_bw', 'file_bw'
-  let pendingMetrics = [...metricsInHistograms]; // Copy
   const client = getContextClient();
+  const initialized = getContext("initialized");
+
+  let availableMetrics = []
+
+  function loadHistoMetrics(isInitialized) {
+    if (!isInitialized) return;
+    const rawAvailableMetrics = getContext("globalMetrics").filter((gm) => gm?.footprint).map((fgm) => { return fgm.name })
+    availableMetrics = [...rawAvailableMetrics]
+  }
+
+  let pendingMetrics = [...metricsInHistograms]; // Copy
 
   const updateConfigurationMutation = ({ name, value }) => {
     return mutationStore({
@@ -37,7 +47,6 @@
     }).subscribe((res) => {
       if (res.fetching === false && res.error) {
         throw res.error;
-        // console.log('Error on subscription: ' + res.error)
       }
     });
   }
@@ -52,6 +61,9 @@
       value: metricsInHistograms,
     });
   }
+
+  $: loadHistoMetrics($initialized);
+
 </script>
 
 <Modal {isOpen} toggle={() => (isOpen = !isOpen)}>

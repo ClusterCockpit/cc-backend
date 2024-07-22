@@ -29,9 +29,10 @@
     from.setMinutes(from.getMinutes() - 30);
   }
 
-  const clusters = getContext("clusters");
+  const initialized = getContext("initialized");
   const ccconfig = getContext("cc-config");
-  const metricConfig = getContext("metrics");
+  const clusters = getContext("clusters");
+  const globalMetrics = getContext("globalMetrics");
 
   let plotHeight = 300;
   let hostnameFilter = "";
@@ -80,24 +81,18 @@
     },
   });
 
-  let metricUnits = {};
-  $: if ($nodesQuery.data) {
-    let thisCluster = clusters.find((c) => c.name == cluster);
-    if (thisCluster) {
-      for (let metric of thisCluster.metricConfig) {
-        if (metric.unit.prefix || metric.unit.base) {
-          metricUnits[metric.name] =
-            "(" +
-            (metric.unit.prefix ? metric.unit.prefix : "") +
-            (metric.unit.base ? metric.unit.base : "") +
-            ")";
-        } else {
-          // If no unit defined: Omit Unit Display
-          metricUnits[metric.name] = "";
-        }
-      }
+  let systemMetrics = [];
+  let systemUnits = {};
+  function loadMetrics(isInitialized) {
+    if (!isInitialized) return
+    systemMetrics = [...globalMetrics.filter((gm) => gm?.availability.find((av) => av.cluster == cluster))]
+    for (let sm of systemMetrics) {
+      systemUnits[sm.name] = (sm?.unit?.prefix ? sm.unit.prefix : "") + (sm?.unit?.base ? sm.unit.base : "")
     }
   }
+
+  $: loadMetrics($initialized)
+
 </script>
 
 <Row>
@@ -123,9 +118,9 @@
         <InputGroupText><Icon name="graph-up" /></InputGroupText>
         <InputGroupText>Metric</InputGroupText>
         <select class="form-select" bind:value={selectedMetric}>
-          {#each clusters.find((c) => c.name == cluster).metricConfig as metric}
+          {#each systemMetrics as metric}
             <option value={metric.name}
-              >{metric.name} {metricUnits[metric.name]}</option
+              >{metric.name} {systemUnits[metric.name] ? "("+systemUnits[metric.name]+")" : ""}</option
             >
           {/each}
         </select>

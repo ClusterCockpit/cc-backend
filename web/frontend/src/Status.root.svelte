@@ -146,7 +146,7 @@
     `,
     variables: {
       cluster: cluster,
-      metrics: ["flops_any", "mem_bw"],
+      metrics: ["flops_any", "mem_bw"], // Fixed names for roofline and status bars
       from: from.toISOString(),
       to: to.toISOString(),
       filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],

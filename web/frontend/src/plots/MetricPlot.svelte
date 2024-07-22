@@ -1,5 +1,5 @@
 <script context="module">
-  export function formatTime(t, forNode = false) {
+  function formatTime(t, forNode = false) {
     if (t !== null) {
       if (isNaN(t)) {
         return t;
@@ -15,7 +15,7 @@
     }
   }
 
-  export function timeIncrs(timestep, maxX, forNode) {
+  function timeIncrs(timestep, maxX, forNode) {
     if (forNode === true) {
       return [60, 300, 900, 1800, 3600, 7200, 14400, 21600]; // forNode fixed increments
     } else {
@@ -27,93 +27,63 @@
     }
   }
 
-  export function findThresholds(
+  // removed arg "subcluster": input metricconfig and topology now directly derived from subcluster
+  function findThresholds(
+    subClusterTopology,
     metricConfig,
     scope,
-    subCluster,
     isShared,
     numhwthreads,
     numaccs
   ) {
-    // console.log('NAME ' + metricConfig.name + ' / SCOPE ' + scope + ' / SUBCLUSTER ' + subCluster.name)
-    if (!metricConfig || !scope || !subCluster) {
+
+    if (!subClusterTopology || !metricConfig || !scope) {
       console.warn("Argument missing for findThresholds!");
       return null;
     }
 
     if (
       (scope == "node" && isShared == false) ||
-      metricConfig.aggregation == "avg"
+      metricConfig?.aggregation == "avg"
     ) {
-      if (metricConfig.subClusters && metricConfig.subClusters.length === 0) {
-        // console.log('subClusterConfigs array empty, use metricConfig defaults')
         return {
           normal: metricConfig.normal,
           caution: metricConfig.caution,
           alert: metricConfig.alert,
           peak: metricConfig.peak,
         };
-      } else if (
-        metricConfig.subClusters &&
-        metricConfig.subClusters.length > 0
-      ) {
-        // console.log('subClusterConfigs found, use subCluster Settings if matching jobs subcluster:')
-        let forSubCluster = metricConfig.subClusters.find(
-          (sc) => sc.name == subCluster.name,
-        );
-        if (
-          forSubCluster &&
-          forSubCluster.normal &&
-          forSubCluster.caution &&
-          forSubCluster.alert &&
-          forSubCluster.peak
-        )
-          return forSubCluster;
-        else
-          return {
-            normal: metricConfig.normal,
-            caution: metricConfig.caution,
-            alert: metricConfig.alert,
-            peak: metricConfig.peak,
-          };
-      } else {
-        console.warn("metricConfig.subClusters not found!");
+    }
+
+
+    if (metricConfig?.aggregation == "sum") {
+      let divisor = 1
+      if (isShared == true) { // Shared
+        if (numaccs > 0) divisor = subClusterTopology.accelerators.length / numaccs;
+        else if (numhwthreads > 0) divisor = subClusterTopology.node.length / numhwthreads;
+      }
+      else if (scope == 'socket') divisor = subClusterTopology.socket.length;
+      else if (scope == "core") divisor = subClusterTopology.core.length;
+      else if (scope == "accelerator")
+        divisor = subClusterTopology.accelerators.length;
+      else if (scope == "hwthread") divisor = subClusterTopology.node.length;
+      else {
+        // console.log('TODO: how to calc thresholds for ', scope)
         return null;
       }
+
+      return {
+        peak: metricConfig.peak / divisor,
+        normal: metricConfig.normal / divisor,
+        caution: metricConfig.caution / divisor,
+        alert: metricConfig.alert / divisor,
+      };
     }
 
-    if (metricConfig.aggregation != "sum") {
-      console.warn(
-        "Missing or unkown aggregation mode (sum/avg) for metric:",
-        metricConfig,
-      );
-      return null;
-    }
-
-    let divisor = 1
-    if (isShared == true) { // Shared
-      if (numaccs > 0) divisor = subCluster.topology.accelerators.length / numaccs;
-      else if (numhwthreads > 0) divisor = subCluster.topology.node.length / numhwthreads;
-    }
-    else if (scope == 'socket') divisor = subCluster.topology.socket.length;
-    else if (scope == "core") divisor = subCluster.topology.core.length;
-    else if (scope == "accelerator")
-      divisor = subCluster.topology.accelerators.length;
-    else if (scope == "hwthread") divisor = subCluster.topology.node.length;
-    else {
-      // console.log('TODO: how to calc thresholds for ', scope)
-      return null;
-    }
-
-    let mc =
-      metricConfig?.subClusters?.find((sc) => sc.name == subCluster.name) ||
-      metricConfig;
-    return {
-      peak: mc.peak / divisor,
-      normal: mc.normal / divisor,
-      caution: mc.caution / divisor,
-      alert: mc.alert / divisor,
-    };
+    console.warn(
+      "Missing or unkown aggregation mode (sum/avg) for metric:",
+      metricConfig,
+    );
+    return null;
   }
 </script>
 
@@ -165,7 +135,8 @@
 
   if (useStatsSeries == false && series == null) useStatsSeries = true;
 
-  const metricConfig = getContext("metrics")(cluster, metric);
+  const subClusterTopology = getContext("getHardwareTopology")(cluster, subCluster);
+  const metricConfig = getContext("getMetricConfig")(cluster, subCluster, metric);
   const clusterCockpitConfig = getContext("cc-config");
   const resizeSleepTime = 250;
   const normalLineColor = "#000000";
@@ -178,11 +149,9 @@
     alert: "rgba(255, 0, 0, 0.3)",
   };
   const thresholds = findThresholds(
+    subClusterTopology,
     metricConfig,
     scope,
-    typeof subCluster == "string"
-      ? cluster.subClusters.find((sc) => sc.name == subCluster)
-      : subCluster,
     isShared,
     numhwthreads,
     numaccs
@@ -478,8 +447,6 @@
     },
     cursor: { drag: { x: true, y: true } },
   };
-
-  // console.log(opts)
 
   let plotWrapper = null;
   let uplot = null;
