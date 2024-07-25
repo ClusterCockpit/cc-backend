@@ -1,3 +1,15 @@
+<!--
+    @component Filter sub-component for selecting tags
+
+    Properties:
+    - `isModified Bool?`: Is this filter component modified [Default: false]
+    - `isOpen Bool?`: Is this filter component opened [Default: false]
+    - `tags [Number]?`: The currently selected tags (as IDs) [Default: []]
+
+    Events:
+    - `set-filter, {[Number]}`: Set 'tag' filter in upstream component
+ -->
+
 <script>
   import { createEventDispatcher, getContext } from "svelte";
   import {
@@ -72,7 +84,7 @@
       on:click={() => {
         isOpen = false;
         tags = [...pendingTags];
-        dispatch("update", { tags });
+        dispatch("set-filter", { tags });
       }}>Close & Apply</Button
     >
     <Button
@@ -81,7 +93,7 @@
         isOpen = false;
         tags = [];
         pendingTags = [];
-        dispatch("update", { tags });
+        dispatch("set-filter", { tags });
       }}>Reset</Button
     >
     <Button on:click={() => (isOpen = false)}>Close</Button>

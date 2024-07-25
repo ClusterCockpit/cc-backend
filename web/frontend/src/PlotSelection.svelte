@@ -1,3 +1,12 @@
+<!--
+    @component Analysis-View subcomponent; allows selection for normalized histograms and scatterplots
+
+    Properties:
+    - `availableMetrics [String]`: Available metrics in selected cluster
+    - `metricsInHistograms [String]`: The currently selected metrics to display as histogram
+    - `metricsInScatterplots [[String, String]]`: The currently selected metrics to display as scatterplot
+ -->
+
 <script>
   import {
     Modal,

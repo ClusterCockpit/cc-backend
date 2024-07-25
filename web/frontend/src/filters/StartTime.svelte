@@ -1,3 +1,16 @@
+<!--
+    @component Filter sub-component for selecting job starttime
+
+    Properties:
+    - `isModified Bool?`: Is this filter component modified [Default: false]
+    - `isOpen Bool?`: Is this filter component opened [Default: false]
+    - `from Object?`: The currently selected from startime [Default: null]
+    - `to Object?`: The currently selected to starttime (i.e. subCluster) [Default: null]
+
+    Events:
+    - `set-filter, {String?, String?}`: Set 'from, to' filter in upstream component
+ -->
+
 <script>
   import { createEventDispatcher } from "svelte";
   import { parse, format, sub } from "date-fns";
@@ -101,7 +114,7 @@
         isOpen = false;
         from = toRFC3339(pendingFrom);
         to = toRFC3339(pendingTo, "59");
-        dispatch("update", { from, to });
+        dispatch("set-filter", { from, to });
       }}
     >
       Close & Apply
@@ -113,7 +126,7 @@
         from = null;
         to = null;
         reset();
-        dispatch("update", { from, to });
+        dispatch("set-filter", { from, to });
       }}>Reset</Button
     >
     <Button on:click={() => (isOpen = false)}>Close</Button>

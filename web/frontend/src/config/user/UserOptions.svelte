@@ -1,3 +1,17 @@
+<!--
+    @component General option selection for users
+
+    Properties:
+    - `config Object`: Current cc-config
+    - `message Object`: Message to display on success or error
+    - `displayMessage Bool`: If to display message content
+    - `username String!`: Empty string if auth. is disabled, otherwise the username as string
+    - `isApi Bool!`: Is currently logged in user api authority
+
+    Events:
+    - `update-config, {selector: String, target: String}`: Trigger upstream update of the config option
+ -->
+ 
 <script>
     import {
         Button,
@@ -37,7 +51,7 @@
 
     const dispatch = createEventDispatcher();
     function updateSetting(selector, target) {
-        dispatch('update', {
+        dispatch('update-config', {
             selector: selector,
             target: target
         });

@@ -1,3 +1,14 @@
+<!--
+    @component Polar Plot based on chartJS Radar
+
+    Properties:
+    - `metrics [String]`: Metric names to display as polar plot
+    - `cluster GraphQL.Cluster`: Cluster Object of the parent job
+    - `subCluster GraphQL.SubCluster`: SubCluster Object of the parent job
+    - `jobMetrics [GraphQL.JobMetricWithName]`: Metric data
+    - `height Number?`: Plot height [Default: 365]
+ -->
+
 <script>
     import { getContext } from 'svelte'
     import { Radar } from 'svelte-chartjs';

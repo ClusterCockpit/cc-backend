@@ -1,3 +1,10 @@
+<!--
+    @component Main analysis view component
+
+    Properties:
+    - `filterPresets Object`: Optional predefined filter values
+ -->
+
 <script>
   import { init, convert2uplot } from "./utils.js";
   import { getContext, onMount } from "svelte";
@@ -286,7 +293,7 @@
   $: updateEntityConfiguration(groupSelection.key);
   $: updateCategoryConfiguration(sortSelection.key);
 
-  onMount(() => filterComponent.update());
+  onMount(() => filterComponent.updateFilters());
 </script>
 
 <Row>
@@ -312,7 +319,7 @@
       {filterPresets}
       disableClusterSelection={true}
       startTimeQuickSelect={true}
-      on:update={({ detail }) => {
+      on:update-filters={({ detail }) => {
         jobFilters = detail.filters;
       }}
     />
@@ -445,7 +452,7 @@
               width={colWidth2}
               height={300}
               tiles={$rooflineQuery.data.rooflineHeatmap}
-              cluster={cluster.subClusters.length == 1
+              subCluster={cluster.subClusters.length == 1
                 ? cluster.subClusters[0]
                 : null}
               maxY={rooflineMaxY}

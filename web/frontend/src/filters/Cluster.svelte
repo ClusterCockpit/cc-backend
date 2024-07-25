@@ -1,3 +1,17 @@
+<!--
+    @component Filter sub-component for selecting cluster and subCluster
+
+    Properties:
+    - `disableClusterSelection Bool?`: Is the selection disabled [Default: false]
+    - `isModified Bool?`: Is this filter component modified [Default: false]
+    - `isOpen Bool?`: Is this filter component opened [Default: false]
+    - `cluster String?`: The currently selected cluster [Default: null]
+    - `partition String?`: The currently selected partition (i.e. subCluster) [Default: null]
+
+    Events:
+    - `set-filter, {String?, String?}`: Set 'cluster, subCluster' filter in upstream component
+ -->
+
 <script>
   import { createEventDispatcher, getContext } from "svelte";
   import {
@@ -78,7 +92,7 @@
         isOpen = false;
         cluster = pendingCluster;
         partition = pendingPartition;
-        dispatch("update", { cluster, partition });
+        dispatch("set-filter", { cluster, partition });
       }}>Close & Apply</Button
     >
     <Button
@@ -87,7 +101,7 @@
         isOpen = false;
         cluster = pendingCluster = null;
         partition = pendingPartition = null;
-        dispatch("update", { cluster, partition });
+        dispatch("set-filter", { cluster, partition });
       }}>Reset</Button
     >
     <Button on:click={() => (isOpen = false)}>Close</Button>

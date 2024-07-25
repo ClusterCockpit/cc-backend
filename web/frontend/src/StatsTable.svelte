@@ -1,3 +1,11 @@
+<!--
+    @component Job-View subcomponent; display table of metric data statistics with selectable scopes
+
+    Properties:
+    - `job Object`: The job object
+    - `jobMetrics [Object]`: The jobs metricdata
+ -->
+
 <script>
   import { getContext } from "svelte";
   import {
@@ -52,7 +60,7 @@
     };
   }
 
-  export function sortBy(metric, stat) {
+  function sortBy(metric, stat) {
     let s = sorting[metric][stat];
     if (s.active) {
       s.dir = s.dir == "up" ? "down" : "up";

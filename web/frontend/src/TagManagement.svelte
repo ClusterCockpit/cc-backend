@@ -1,3 +1,10 @@
+<!--
+    @component Job View Subcomponent; allows management of job tags by deletion or new entries
+
+    Properties:
+    - `job Object`: The job object
+    - `jobTags [Number]`: The array of currently designated tags
+ -->
 <script>
   import { getContext } from "svelte";
   import { gql, getContextClient, mutationStore } from "@urql/svelte";

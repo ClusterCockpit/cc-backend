@@ -1,3 +1,11 @@
+<!--
+    @component User settings wrapper
+
+    Properties:
+    - `username String!`: Empty string if auth. is disabled, otherwise the username as string
+    - `isApi Bool!`: Is currently logged in user api authority
+ -->
+
 <script>
   import { getContext } from "svelte";
   import UserOptions from "./user/UserOptions.svelte";
@@ -41,6 +49,6 @@
   }
 </script>
 
-<UserOptions config={ccconfig} {username} {isApi} bind:message bind:displayMessage on:update={(e) => handleSettingSubmit(e)}/>
-<PlotRenderOptions config={ccconfig} bind:message bind:displayMessage on:update={(e) => handleSettingSubmit(e)}/>
-<PlotColorScheme config={ccconfig} bind:message bind:displayMessage on:update={(e) => handleSettingSubmit(e)}/>
+<UserOptions config={ccconfig} {username} {isApi} bind:message bind:displayMessage on:update-config={(e) => handleSettingSubmit(e)}/>
+<PlotRenderOptions config={ccconfig} bind:message bind:displayMessage on:update-config={(e) => handleSettingSubmit(e)}/>
+<PlotColorScheme config={ccconfig} bind:message bind:displayMessage on:update-config={(e) => handleSettingSubmit(e)}/>

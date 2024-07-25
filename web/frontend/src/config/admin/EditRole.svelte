@@ -1,3 +1,13 @@
+<!--
+    @component User role edit form card
+
+    Properties:
+    - `roles [String]!`: List of roles used in app as strings
+
+    Events:
+    - `reload`: Trigger upstream reload of user list after role edit
+ -->
+
 <script>
   import { Card, CardTitle, CardBody } from "@sveltestrap/sveltestrap";
   import { createEventDispatcher } from "svelte";
@@ -8,7 +18,7 @@
   let message = { msg: "", color: "#d63384" };
   let displayMessage = false;
 
-  export let roles = [];
+  export let roles;
 
   async function handleAddRole() {
     const username = document.querySelector("#role-username").value;

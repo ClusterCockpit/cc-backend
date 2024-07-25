@@ -1,9 +1,11 @@
 <!-- 
-    @component
+    @component Organized display of plots as table
 
     Properties:
-    - itemsPerRow: Number
-    - items:       [Any]
+    - `itemsPerRow Number`: Elements to render per row
+    - `items [Any]`: List of plot components to render
+    - `padding Number`: Padding between plot elements
+    - `renderFor String`:   If 'job', filter disabled metrics
  -->
 
 <script>

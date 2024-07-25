@@ -1,3 +1,12 @@
+<!--
+    @component Main cluster metric status view component; renders current state of metrics / nodes
+
+    Properties:
+    - `cluster String`: The cluster to show status information for
+    - `from Date?`: Custom Time Range selection 'from' [Default: null]
+    - `to Date?`: Custom Time Range selection 'to' [Default: null]
+ -->
+
 <script>
   import { init, checkMetricDisabled } from "./utils.js";
   import Refresher from "./joblist/Refresher.svelte";
@@ -103,7 +112,7 @@
   {:else}
     <Col>
       <Refresher
-        on:reload={() => {
+        on:refresh={() => {
           const diff = Date.now() - to;
           from = new Date(from.getTime() + diff);
           to = new Date(to.getTime() + diff);

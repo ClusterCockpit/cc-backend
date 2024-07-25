@@ -1,5 +1,5 @@
 <!-- 
-    @component
+    @component Selector for sorting field and direction
 
     Properties:
     - sorting:  { field: String, order: "DESC" | "ASC" } (changes from inside)

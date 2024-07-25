@@ -1,3 +1,13 @@
+<!--
+    @component Main navbar component; handles view display based on user roles
+
+    Properties:
+    - `username String`: Empty string if auth. is disabled, otherwise the username as string
+    - `authlevel Number`: The current users authentication level
+    - `clusters [String]`: List of cluster names
+    - `roles [Number]`: Enum containing available roles
+ -->
+
 <script>
   import {
     Icon,
@@ -13,10 +23,10 @@
   import NavbarLinks from "./NavbarLinks.svelte";
   import NavbarTools from "./NavbarTools.svelte";
 
-  export let username; // empty string if auth. is disabled, otherwise the username as string
-  export let authlevel; // Integer
-  export let clusters; // array of names
-  export let roles; // Role Enum-Like
+  export let username;
+  export let authlevel;
+  export let clusters;
+  export let roles;
 
   let isOpen = false;
   let screenSize;

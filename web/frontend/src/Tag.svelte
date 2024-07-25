@@ -1,5 +1,5 @@
 <!-- 
-    @component
+    @component Single tag pill component
 
     Properties:
     - id: ID! (if the tag-id is known but not the tag type/name, this can be used)

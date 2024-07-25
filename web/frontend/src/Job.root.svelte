@@ -1,3 +1,13 @@
+<!--
+    @component Main single job display component; displays plots for every metric as well as various information
+
+    Properties:
+    - `username String`: Empty string if auth. is disabled, otherwise the username as string
+    - `authlevel Number`: The current users authentication level
+    - `clusters [String]`: List of cluster names
+    - `roles [Number]`: Enum containing available roles
+ -->
+
 <script>
   import {
     init,
@@ -49,8 +59,7 @@
 
   let plots = {},
     jobTags,
-    statsTable,
-    jobFootprint;
+    statsTable
 
   let missingMetrics = [],
     missingHosts = [],
@@ -235,7 +244,6 @@
   {#if $initq.data && showFootprint}
     <Col>
       <JobFootprint
-        bind:this={jobFootprint}
         job={$initq.data.job}
       />
     </Col>
@@ -292,7 +300,7 @@
     <Col>
       <Roofline
         renderTime={true}
-        cluster={$initq.data.clusters
+        subCluster={$initq.data.clusters
           .find((c) => c.name == $initq.data.job.cluster)
           .subClusters.find((sc) => sc.name == $initq.data.job.subCluster)}
         data={transformDataForRoofline(

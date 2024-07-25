@@ -1,3 +1,18 @@
+<!--
+    @component Filter sub-component for selecting job states
+
+    Properties:
+    - `isModified Bool?`: Is this filter component modified [Default: false]
+    - `isOpen Bool?`: Is this filter component opened [Default: false]
+    - `states [String]?`: The currently selected states [Default: [...allJobStates]]
+
+    Events:
+    - `set-filter, {[String]}`: Set 'states' filter in upstream component
+
+    Exported:
+    - `const allJobStates [String]`: List of all available job states used in cc-backend
+ -->
+
 <script context="module">
   export const allJobStates = [
     "running",
@@ -59,7 +74,7 @@
       on:click={() => {
         isOpen = false;
         states = [...pendingStates];
-        dispatch("update", { states });
+        dispatch("set-filter", { states });
       }}>Close & Apply</Button
     >
     <Button
@@ -68,7 +83,7 @@
         isOpen = false;
         states = [...allJobStates];
         pendingStates = [...allJobStates];
-        dispatch("update", { states });
+        dispatch("set-filter", { states });
       }}>Reset</Button
     >
     <Button on:click={() => (isOpen = false)}>Close</Button>

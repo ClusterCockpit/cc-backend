@@ -1,3 +1,13 @@
+<!--
+    @component Job-View subcomponent; Single Statistics entry component fpr statstable
+
+    Properties:
+    - `host String`: The hostname (== node)
+    - `metric String`: The metric name
+    - `scope String`: The selected scope
+    - `jobMetrics [Object]`: The jobs metricdata
+ -->
+
 <script>
   import { Icon } from "@sveltestrap/sveltestrap";
 

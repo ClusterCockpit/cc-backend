@@ -1,10 +1,14 @@
 <!-- 
-    @component
+    @component Metric selector component; allows reorder via drag and drop
 
     Properties:
-    - metrics:    [String] (changes from inside, needs to be initialised, list of selected metrics)
-    - isOpen:     Boolean  (can change from inside and outside)
-    - configName: String   (constant)
+    - `metrics [String]`: (changes from inside, needs to be initialised, list of selected metrics)
+    - `isOpen Bool`: (can change from inside and outside)
+    - `configName String`: The config key for the last saved selection (constant)
+    - `allMetrics [String]?`: List of all available metrics [Default: null]
+    - `cluster String?`: The currently selected cluster [Default: null]
+    - `showFootprint Bool?`: Upstream state of wether to render footpritn card [Default: false]
+    - `footprintSelect Bool?`: Render checkbox for footprint display in upstream component [Default: false]
  -->
 
 <script>
@@ -25,7 +29,7 @@
   export let allMetrics = null;
   export let cluster = null;
   export let showFootprint = false;
-  export let view = "job";
+  export let footprintSelect = false;
 
   const onInit = getContext("on-init")
   const globalMetrics = getContext("globalMetrics")
@@ -131,7 +135,7 @@
   <ModalHeader>Configure columns (Metric availability shown)</ModalHeader>
   <ModalBody>
     <ListGroup>
-      {#if view === "list"}
+      {#if footprintSelect}
         <li class="list-group-item">
           <input type="checkbox" bind:checked={pendingShowFootprint} /> Show Footprint
         </li>

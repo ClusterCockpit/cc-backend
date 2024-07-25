@@ -1,5 +1,15 @@
+<!--
+    @component Footprint component; Displays job.footprint data as bars in relation to thresholds
+
+    Properties:
+    - `job Object`: The GQL job object
+    - `displayTitle Bool?`: If to display cardHeader with title [Default: true]
+    - `width String?`: Width of the card [Default: 'auto']
+    - `height String?`: Height of the card [Default: '310px']
+ -->
+
 <script context="module">
-  export function findJobThresholds(job, metricConfig) {
+  function findJobThresholds(job, metricConfig) {
     if (!job || !metricConfig) {
       console.warn("Argument missing for findJobThresholds!");
       return null;
@@ -52,7 +62,7 @@
   import { round } from "mathjs";
 
   export let job;
-  export let view = "job";
+  export let displayTitle = true;
   export let width = "auto";
   export let height = "310px";
 
@@ -140,7 +150,7 @@
 </script>
 
 <Card class="mt-1 overflow-auto" style="width: {width}; height: {height}">
-  {#if view === "job"}
+  {#if displayTitle}
     <CardHeader>
       <CardTitle class="mb-0 d-flex justify-content-center">
         Core Metrics Footprint

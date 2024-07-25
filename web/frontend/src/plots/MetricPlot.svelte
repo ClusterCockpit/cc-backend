@@ -1,3 +1,26 @@
+<!--
+    @component Main plot component, based on uPlot; metricdata values by time
+
+    Only width/height should change reactively.
+
+    Properties:
+    - `metric String`: The metric name
+    - `scope String?`: Scope of the displayed data [Default: node]
+    - `resources [GraphQL.Resource]`: List of resources used for parent job
+    - `width Number`: The plot width
+    - `height Number`: The plot height
+    - `timestep Number`: The timestep used for X-axis rendering
+    - `series [GraphQL.Series]`: The metric data object
+    - `useStatsSeries Bool?`: If this plot uses the statistics Min/Max/Median representation; automatically set to according bool [Default: null]
+    - `statisticsSeries [GraphQL.StatisticsSeries]?`: Min/Max/Median representation of metric data [Default: null]
+    - `cluster GraphQL.Cluster`: Cluster Object of the parent job
+    - `subCluster String`: Name of the subCluster of the parent job
+    - `isShared Bool?`: If this job used shared resources; will adapt threshold indicators accordingly [Default: false]
+    - `forNode Bool?`: If this plot is used for node data display; will render x-axis as negative time with $now as maximum [Default: false]
+    - `numhwthreads Number?`: Number of job HWThreads [Default: 0]
+    - `numaccs Number?`: Number of job Accelerators [Default: 0]
+ -->
+
 <script context="module">
   function formatTime(t, forNode = false) {
     if (t !== null) {
@@ -87,28 +110,6 @@
   }
 </script>
 
-<!--
-    @component
-
-    Only width/height should change reactively.
-
-    Properties:
-    - width:            Number
-    - height:           Number
-    - timestep:         Number
-    - series:           [GraphQL.Series]
-    - statisticsSeries: [GraphQL.StatisticsSeries]
-    - cluster:          GraphQL.Cluster
-    - subCluster:       String
-    - metric:           String
-    - scope:            String
-    - useStatsSeries:   Boolean
-
-    Functions:
-    - setTimeRange(from, to): Void
-
-    // TODO: Move helper functions to module context?
- -->
 <script>
   import uPlot from "uplot";
   import { formatNumber } from "../units.js";
@@ -498,14 +499,6 @@
 
     if (timeoutId != null) clearTimeout(timeoutId);
   });
-
-  // `from` and `to` must be numbers between 0 and 1.
-  export function setTimeRange(from, to) {
-    if (!uplot || from > to) return false;
-
-    uplot.setScale("x", { min: from * maxX, max: to * maxX });
-    return true;
-  }
 </script>
 
 {#if series[0].data.length > 0}

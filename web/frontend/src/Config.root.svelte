@@ -1,3 +1,12 @@
+<!--
+    @component Main Config Option Component, Wrapper for admin and user sub-components
+
+    Properties:
+    - `ìsAdmin Bool!`: Is currently logged in user admin authority
+    - `isApi Bool!`: Is currently logged in user api authority
+    - `username String!`: Empty string if auth. is disabled, otherwise the username as string
+ -->
+
 <script>
   import { Card, CardHeader, CardTitle } from "@sveltestrap/sveltestrap";
 

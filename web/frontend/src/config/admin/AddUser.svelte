@@ -1,4 +1,14 @@
-<script>
+<!--
+    @component User creation form card
+
+    Properties:
+    - `roles [String]!`: List of roles used in app as strings
+
+    Events:
+    - `reload`: Trigger upstream reload of user list after user creation
+ -->
+ 
+ <script>
   import { Button, Card, CardTitle } from "@sveltestrap/sveltestrap";
   import { createEventDispatcher } from "svelte";
   import { fade } from "svelte/transition";
@@ -8,7 +18,7 @@
   let message = { msg: "", color: "#d63384" };
   let displayMessage = false;
 
-  export let roles = [];
+  export let roles;
 
   async function handleUserSubmit() {
     let form = document.querySelector("#create-user-form");

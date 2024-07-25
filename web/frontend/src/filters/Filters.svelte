@@ -1,14 +1,19 @@
 <!--
-    @component
+    @component Main filter component; handles filter object on sub-component changes before dispatching it
 
     Properties:
-    - menuText:      String? (Optional text to show in the dropdown menu)
-    - filterPresets: Object? (Optional predefined filter values)
+    - `menuText String?`: Optional text to show in the dropdown menu [Default: null]
+    - `filterPresets Object?`: Optional predefined filter values [Default: {}]
+    - `disableClusterSelection Bool?`: Is the selection disabled [Default: false]
+    - `startTimeQuickSelect Bool?`: Render startTime quick selections [Default: false]
+
     Events:
-    - 'update': The detail's 'filters' prop are new filter items to be applied
+    - `update-filters, {filters: [Object]?}`: The detail's 'filters' prop are new filter items to be applied
+    
     Functions:
-    - void update(additionalFilters: Object?): Triggers an update
+    - `void updateFilters (additionalFilters: Object?)`: Handles new filters from nested components, triggers upstream update event
  -->
+
 <script>
   import {
     Row,
@@ -29,7 +34,6 @@
   import Duration from "./Duration.svelte";
   import Resources from "./Resources.svelte";
   import Statistics from "./Stats.svelte";
-  // import TimeSelection from './TimeSelection.svelte'
 
   const dispatch = createEventDispatcher();
 
@@ -83,7 +87,7 @@
     isAccsModified = false;
 
   // Can be called from the outside to trigger a 'update' event from this component.
-  export function update(additionalFilters = null) {
+  export function updateFilters(additionalFilters = null) {
     if (additionalFilters != null)
       for (let key in additionalFilters) filters[key] = additionalFilters[key];
 
@@ -139,7 +143,7 @@
     if (filters.stats.length != 0)
       items.push({ metricStats: filters.stats.map((st) => { return { metricName: st.field, range: { from: st.from, to: st.to }} }) });
 
-    dispatch("update", { filters: items });
+    dispatch("update-filters", { filters: items });
     changeURL();
     return items;
   }
@@ -249,7 +253,7 @@
                 ).toISOString();
                 filters.startTime.to = new Date(Date.now()).toISOString();
                 (filters.startTime.text = text), (filters.startTime.url = url);
-                update();
+                updateFilters();
               }}
             >
               <Icon name="calendar-range" />
@@ -363,23 +367,23 @@
   bind:isOpen={isClusterOpen}
   bind:cluster={filters.cluster}
   bind:partition={filters.partition}
-  on:update={() => update()}
+  on:set-filter={() => updateFilters()}
 />
 
 <JobStates
   bind:isOpen={isJobStatesOpen}
   bind:states={filters.states}
-  on:update={() => update()}
+  on:set-filter={() => updateFilters()}
 />
 
 <StartTime
   bind:isOpen={isStartTimeOpen}
   bind:from={filters.startTime.from}
   bind:to={filters.startTime.to}
-  on:update={() => {
+  on:set-filter={() => {
     delete filters.startTime["text"];
     delete filters.startTime["url"];
-    update();
+    updateFilters();
   }}
 />
 
@@ -389,13 +393,13 @@
   bind:moreThan={filters.duration.moreThan}
   bind:from={filters.duration.from}
   bind:to={filters.duration.to}
-  on:update={() => update()}
+  on:set-filter={() => updateFilters()}
 />
 
 <Tags
   bind:isOpen={isTagsOpen}
   bind:tags={filters.tags}
-  on:update={() => update()}
+  on:set-filter={() => updateFilters()}
 />
 
 <Resources
@@ -408,13 +412,13 @@
   bind:isNodesModified
   bind:isHwthreadsModified
   bind:isAccsModified
-  on:update={() => update()}
+  on:set-filter={() => updateFilters()}
 />
 
 <Statistics
   bind:isOpen={isStatsOpen}
   bind:stats={filters.stats}
-  on:update={() => update()}
+  on:set-filter={() => updateFilters()}
 />
 
 <style>

@@ -1,3 +1,15 @@
+<!--
+    @component Filter sub-component for selecting job statistics
+
+    Properties:
+    - `isModified Bool?`: Is this filter component modified [Default: false]
+    - `isOpen Bool?`: Is this filter component opened [Default: false]
+    - `stats [Object]?`: The currently selected statistics filter [Default: []]
+
+    Events:
+    - `set-filter, {[Object]}`: Set 'stats' filter in upstream component
+ -->
+
 <script>
   import { createEventDispatcher, getContext } from "svelte";
   import { getStatsItems } from "../utils.js";
@@ -66,7 +78,7 @@
       on:click={() => {
         isOpen = false;
         stats = statistics.filter((stat) => stat.enabled);
-        dispatch("update", { stats });
+        dispatch("set-filter", { stats });
       }}>Close & Apply</Button
     >
     <Button
@@ -75,7 +87,7 @@
         isOpen = false;
         resetRanges();
         stats = [];
-        dispatch("update", { stats });
+        dispatch("set-filter", { stats });
       }}>Reset</Button
     >
     <Button on:click={() => (isOpen = false)}>Close</Button>

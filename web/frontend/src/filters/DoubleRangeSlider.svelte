@@ -11,6 +11,7 @@ Changes: remove dependency, text inputs, configurable value ranges, on:change ev
 	- max:          Number
 	- firstSlider:  Number (Starting position of slider #1)
 	- secondSlider: Number (Starting position of slider #2)
+	
 	Events:
 	- `change`: [Number, Number] (Positions of the two sliders)
  -->

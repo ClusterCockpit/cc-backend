@@ -1,4 +1,13 @@
-<script>
+<!--
+    @component Main job list component
+
+    Properties:
+    - `filterPresets Object?`: Optional predefined filter values [Default: {}]
+    - `authlevel Number`: The current users authentication level
+    - `roles [Number]`: Enum containing available roles
+ -->
+ 
+ <script>
   import { onMount, getContext } from "svelte";
   import { init } from "./utils.js";
   import {
@@ -43,7 +52,7 @@
   // The filterPresets are handled by the Filters component,
   // so we need to wait for it to be ready before we can start a query.
   // This is also why JobList component starts out with a paused query.
-  onMount(() => filterComponent.update());
+  onMount(() => filterComponent.updateFilters());
 </script>
 
 <Row>
@@ -77,11 +86,11 @@
     <Filters
       {filterPresets}
       bind:this={filterComponent}
-      on:update={({ detail }) => {
+      on:update-filters={({ detail }) => {
         selectedCluster = detail.filters[0]?.cluster
           ? detail.filters[0].cluster.eq
           : null;
-        jobList.update(detail.filters);
+        jobList.queryJobs(detail.filters);
       }}
     />
   </Col>
@@ -91,11 +100,14 @@
       {presetProject}
       bind:authlevel
       bind:roles
-      on:update={({ detail }) => filterComponent.update(detail)}
+      on:set-filter={({ detail }) => filterComponent.updateFilters(detail)}
     />
   </Col>
   <Col xs="2">
-    <Refresher on:reload={() => jobList.refresh()} />
+    <Refresher on:refresh={() => {
+      jobList.refreshJobs()
+      jobList.refreshAllMetrics()
+    }} />
   </Col>
 </Row>
 <br />
@@ -119,5 +131,5 @@
   bind:metrics
   bind:isOpen={isMetricsSelectionOpen}
   bind:showFootprint
-  view="list"
+  footprintSelect={true}
 />

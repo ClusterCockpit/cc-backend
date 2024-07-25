@@ -1,3 +1,13 @@
+<!--
+    @component Navbar component; renders in app resource links and user dropdown
+
+    Properties:
+    - `username String!`: Empty string if auth. is disabled, otherwise the username as string
+    - `authlevel Number`: The current users authentication level
+    - `roles [Number]`: Enum containing available roles
+    - `screenSize Number`: The current window size, will trigger different render variants
+ -->
+
 <script>
   import {
     Icon,
@@ -12,10 +22,10 @@
     Col,
   } from "@sveltestrap/sveltestrap";
 
-  export let username; // empty string if auth. is disabled, otherwise the username as string
-  export let authlevel; // Integer
-  export let roles; // Role Enum-Like
-  export let screenSize; // screensize
+  export let username;
+  export let authlevel;
+  export let roles;
+  export let screenSize;
 </script>
 
 <Nav navbar>

@@ -1,7 +1,16 @@
 <!--
-    @component
+    @component Histogram Plot based on uPlot Bars
+
     Properties:
-    - Todo
+    - `data [[],[]]`: uPlot data structure array ( [[],[]] == [X, Y] )
+    - `usesBins Bool?`: If X-Axis labels are bins ("XX-YY") [Default: false]
+    - `width Number?`: Plot width (reactively adaptive) [Default: 500]
+    - `height Number?`: Plot height (reactively adaptive) [Default: 300]
+    - `title String?`: Plot title [Default: ""]
+    - `xlabel String?`: Plot X axis label [Default: ""]
+    - `xunit String?`: Plot X axis unit [Default: ""]
+    - `ylabel String?`: Plot Y axis label [Default: ""]
+    - `yunit String?`: Plot Y axis unit [Default: ""]
  -->
 
 <script>
@@ -16,9 +25,9 @@
   export let height = 300;
   export let title = "";
   export let xlabel = "";
-  export let xunit = "X";
+  export let xunit = "";
   export let ylabel = "";
-  export let yunit = "Y";
+  export let yunit = "";
 
   const { bars } = uPlot.paths;
 

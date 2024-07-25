@@ -1,11 +1,13 @@
 <!-- 
-    @component
+    @component Data row for a single job displaying metric plots
 
     Properties:
-    - job:        GraphQL.Job (constant/key)
-    - metrics:    [String]    (can change)
-    - plotWidth:  Number
-    - plotHeight: Number
+    - `job Object`: The job object (GraphQL.Job)
+    - `metrics [String]`: Currently selected metrics
+    - `plotWidth Number`: Width of the sub-components
+    - `plotHeight Number?`: Height of the sub-components [Default: 275]
+    - `showFootprint Bool`: Display of footprint component for job
+    - `triggerMetricRefresh Bool?`: If changed to true from upstream, will trigger metric query
  -->
 
 <script>
@@ -22,6 +24,7 @@
   export let plotWidth;
   export let plotHeight = 275;
   export let showFootprint;
+  export let triggerMetricRefresh = false;
 
   let { id } = job;
   let scopes = job.numNodes == 1
@@ -69,7 +72,7 @@
     variables: { id, metrics, scopes },
   });
   
-  export function refresh() {
+  function refreshMetrics() {
     metricsQuery = queryStore({
       client: client,
       query: query,
@@ -78,6 +81,11 @@
     });
   }
 
+  $: if (job.state === 'running' && triggerMetricRefresh === true) {
+    refreshMetrics();
+  }
+
+  // Helper
   const selectScope = (jobMetrics) =>
     jobMetrics.reduce(
       (a, b) =>
@@ -113,7 +121,6 @@
         }
       });
 
-  if (job.monitoringStatus) refresh();
 </script>
 
 <tr>
@@ -143,7 +150,7 @@
           {job}
           width={plotWidth}
           height="{plotHeight}px"
-          view="list"
+          displayTitle={false}
         />
       </td>
     {/if}

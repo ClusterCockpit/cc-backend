@@ -1,3 +1,17 @@
+<!--
+    @component Pie Plot based on uPlot Pie
+
+    Properties:
+    - `size Number`: X and Y size of the plot, for square shape
+    - `sliceLabel String`: Label used in segment legends
+    - `quantities [Number]`: Data values
+    - `entities [String]`: Data identifiers
+    - `displayLegend?`: Display uPlot legend [Default: false]
+
+    Exported:
+    - `colors ['rgb(x,y,z)', ...]`: Color range used for segments; upstream used for legend
+ -->
+
 <script context="module">
     // http://tsitsul.in/blog/coloropt/ : 12 colors normal
     export const colors = [

@@ -1,7 +1,19 @@
+<!--
+    @component Search Field for Job-Lists with separate mode if project filter is active
+
+    Properties:
+    - `presetProject String?`: Currently active project filter [Default: '']
+    - `authlevel Number?`: The current users authentication level [Default: null]
+    - `roles [Number]?`: Enum containing available roles [Default: null]
+
+    Events:
+    - `set-filter, {String?, String?, String?}`: Set 'user, project, jobName' filter in upstream component
+ -->
+
 <script>
   import { InputGroup, Input, Button, Icon } from "@sveltestrap/sveltestrap";
   import { createEventDispatcher } from "svelte";
-  import { scramble, scrambleNames } from "../joblist/JobInfo.svelte";
+  import { scramble, scrambleNames } from "../utils.js";
 
   const dispatch = createEventDispatcher();
 
@@ -40,7 +52,7 @@
       if (timeoutId != null) clearTimeout(timeoutId);
 
       timeoutId = setTimeout(() => {
-        dispatch("update", {
+        dispatch("set-filter", {
           user,
           project,
           jobName
@@ -53,7 +65,7 @@
       if (timeoutId != null) clearTimeout(timeoutId);
 
       timeoutId = setTimeout(() => {
-        dispatch("update", {
+        dispatch("set-filter", {
           project,
           jobName
         });

@@ -1,6 +1,14 @@
-<div class="cc-plot">
-    <canvas bind:this={canvasElement} width="{prevWidth}" height="{prevHeight}"></canvas>
-</div>
+<!--
+    @component Roofline Model Plot as Heatmap of multiple Jobs based on Canvas
+
+    Properties:
+    - `subCluster GraphQL.SubCluster?`: SubCluster Object; contains required topology information [Default: null]
+      - **Note**: Object of first subCluster is used, how to handle multiple topologies within one cluster? [TODO]
+    - `tiles [[Float!]!]?`: Data tiles to be rendered [Default: null]
+    - `maxY Number?`: maximum flopRateSimd of all subClusters [Default: null]
+    - `width Number?`: Plot width (reactively adaptive) [Default: 500]
+    - `height Number?`: Plot height (reactively adaptive) [Default: 300]
+ -->
 
 <script context="module">
     const axesColor = '#aaaaaa'
@@ -33,11 +41,11 @@
             return 2
     }
 
-    function render(ctx, data, cluster, width, height, defaultMaxY) {
+    function render(ctx, data, subCluster, width, height, defaultMaxY) {
         if (width <= 0)
             return
 
-        const [minX, maxX, minY, maxY] = [0.01, 1000, 1., cluster?.flopRateSimd?.value || defaultMaxY]
+        const [minX, maxX, minY, maxY] = [0.01, 1000, 1., subCluster?.flopRateSimd?.value || defaultMaxY]
         const w = width - paddingLeft - paddingRight
         const h = height - paddingTop - paddingBottom
 
@@ -138,14 +146,14 @@
         ctx.strokeStyle = 'black'
         ctx.lineWidth = 2
         ctx.beginPath()
-        if (cluster != null) {
-            const ycut = 0.01 * cluster.memoryBandwidth.value
-            const scalarKnee = (cluster.flopRateScalar.value - ycut) / cluster.memoryBandwidth.value
-            const simdKnee = (cluster.flopRateSimd.value - ycut) / cluster.memoryBandwidth.value
+        if (subCluster != null) {
+            const ycut = 0.01 * subCluster.memoryBandwidth.value
+            const scalarKnee = (subCluster.flopRateScalar.value - ycut) / subCluster.memoryBandwidth.value
+            const simdKnee = (subCluster.flopRateSimd.value - ycut) / subCluster.memoryBandwidth.value
             const scalarKneeX = getCanvasX(scalarKnee),
                   simdKneeX = getCanvasX(simdKnee),
-                  flopRateScalarY = getCanvasY(cluster.flopRateScalar.value),
-                  flopRateSimdY = getCanvasY(cluster.flopRateSimd.value)
+                  flopRateScalarY = getCanvasY(subCluster.flopRateScalar.value),
+                  flopRateSimdY = getCanvasY(subCluster.flopRateSimd.value)
 
             if (scalarKneeX < width - paddingRight) {
                 ctx.moveTo(scalarKneeX, flopRateScalarY)
@@ -182,7 +190,7 @@
     import { onMount } from 'svelte'
     import { formatNumber } from '../units.js'
 
-    export let cluster  = null
+    export let subCluster  = null
     export let tiles    = null
     export let maxY     = null
     export let width    = 500
@@ -206,7 +214,7 @@
 
         canvasElement.width = width
         canvasElement.height = height
-        render(ctx, data, cluster, width, height, maxY)
+        render(ctx, data, subCluster, width, height, maxY)
     })
 
     let timeoutId = null
@@ -226,9 +234,13 @@
             timeoutId = null
             canvasElement.width = width
             canvasElement.height = height
-            render(ctx, data, cluster, width, height, maxY)
+            render(ctx, data, subCluster, width, height, maxY)
         }, 250)
     }
 
     $: sizeChanged(width, height)
 </script>
+
+<div class="cc-plot">
+    <canvas bind:this={canvasElement} width="{prevWidth}" height="{prevHeight}"></canvas>
+</div>

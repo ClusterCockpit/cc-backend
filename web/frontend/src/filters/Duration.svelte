@@ -1,4 +1,18 @@
-<script>
+<!--
+    @component Filter sub-component for selecting job duration
+
+    Properties:
+    - `isOpen Bool?`: Is this filter component opened [Default: false]
+    - `lessThan Number?`: Amount of seconds [Default: null]
+    - `moreThan Number?`: Amount of seconds [Default: null]
+    - `from Number?`: Epoch time in seconds [Default: null]
+    - `to Number?`: Epoch time in seconds [Default: null]
+
+    Events:
+    - `set-filter, {Number, Number, Number, Number}`: Set 'lessThan, moreThan, from, to' filter in upstream component
+ -->
+ 
+ <script>
   import { createEventDispatcher } from "svelte";
   import {
     Row,
@@ -212,7 +226,7 @@
         moreThan = hoursAndMinsToSecs(pendingMoreThan);
         from = hoursAndMinsToSecs(pendingFrom);
         to = hoursAndMinsToSecs(pendingTo);
-        dispatch("update", { lessThan, moreThan, from, to });
+        dispatch("set-filter", { lessThan, moreThan, from, to });
       }}
     >
       Close & Apply
@@ -236,7 +250,7 @@
         from = null;
         to = null;
         reset();
-        dispatch("update", { lessThan, moreThan, from, to });
+        dispatch("set-filter", { lessThan, moreThan, from, to });
       }}>Reset Filter</Button
     >
     <Button on:click={() => (isOpen = false)}>Close</Button>

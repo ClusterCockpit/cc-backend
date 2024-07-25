@@ -1,13 +1,18 @@
 <!--
-    @component
+    @component Main jobList component; lists jobs according to set filters
 
     Properties:
-    - metrics:     [String] (can change from outside)
-    - sorting:     { field: String, type: String, order: "DESC" | "ASC" } (can change from outside)
-    - matchedJobs: Number (changes from inside)
+    - `sorting Object?`: Currently active sorting [Default: {field: "startTime", type: "col", order: "DESC"}]
+    - `matchedJobs Number?`: Number of matched jobs for selected filters [Default: 0]
+    - `metrics [String]?`: The currently selected metrics [Default: User-Configured Selection]
+    - `showFootprint Bool`: If to display the jobFootprint component
+
     Functions:
-    - update(filters?: [JobFilter])
+    - `refreshJobs()`: Load jobs data with unchanged parameters and 'network-only' keyword
+    - `refreshAllMetrics()`: Trigger downstream refresh of all running jobs' metric data
+    - `queryJobs(filters?: [JobFilter])`: Load jobs data with new filters, starts from page 1
  -->
+
 <script>
   import {
     queryStore,
@@ -35,6 +40,7 @@
   let page = 1;
   let paging = { itemsPerPage, page };
   let filter = [];
+  let triggerMetricRefresh = false;
 
   function getUnit(m) {
     const rawUnit = globalMetrics.find((gm) => gm.name === m)?.unit
@@ -106,7 +112,7 @@
   $: matchedJobs = $jobsStore.data != null ? $jobsStore.data.jobs.count : 0;
 
   // Force refresh list with existing unchanged variables (== usually would not trigger reactivity)
-  export function refresh() {
+  export function refreshJobs() {
     jobsStore = queryStore({
       client: client,
       query: query,
@@ -115,8 +121,16 @@
     });
   }
 
-  // (Re-)query and optionally set new filters.
-  export function update(filters) {
+  export function refreshAllMetrics() {
+    // Refresh Job Metrics (Downstream will only query for running jobs)
+    triggerMetricRefresh = true
+    setTimeout(function () {
+      triggerMetricRefresh = false;
+    }, 100);
+  }
+
+  // (Re-)query and optionally set new filters; Query will be started reactively.
+  export function queryJobs(filters) {
     if (filters != null) {
       let minRunningFor = ccconfig.plot_list_hideShortRunningJobs;
       if (minRunningFor && minRunningFor > 0) {
@@ -240,7 +254,7 @@
           </tr>
         {:else}
           {#each jobs as job (job)}
-            <JobListRow {job} {metrics} {plotWidth} {showFootprint} />
+            <JobListRow bind:triggerMetricRefresh {job} {metrics} {plotWidth} {showFootprint} />
           {:else}
             <tr>
               <td colspan={metrics.length + 1}> No jobs found </td>
@@ -267,7 +281,7 @@
     {itemsPerPage}
     itemText="Jobs"
     totalItems={matchedJobs}
-    on:update={({ detail }) => {
+    on:update-paging={({ detail }) => {
       if (detail.itemsPerPage != itemsPerPage) {
         updateConfiguration(detail.itemsPerPage.toString(), detail.page);
       } else {

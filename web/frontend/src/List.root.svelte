@@ -1,9 +1,14 @@
 <!--
-    @component List of users or projects
+    @component Main component for listing users or projects
+
+    Properties:
+    - `type String?`: The type of list ['USER' || 'PROJECT']
+    - `filterPresets Object?`: Optional predefined filter values [Default: {}]
  -->
+
 <script>
   import { onMount } from "svelte";
-  import { init } from "./utils.js";
+  import { init, scramble, scrambleNames } from "./utils.js";
   import {
     Row,
     Col,
@@ -17,7 +22,6 @@
   } from "@sveltestrap/sveltestrap";
   import Filters from "./filters/Filters.svelte";
   import { queryStore, gql, getContextClient } from "@urql/svelte";
-  import { scramble, scrambleNames } from "./joblist/JobInfo.svelte";
 
   const {} = init();
 
@@ -89,7 +93,7 @@
     return stats.filter((u) => u.id.includes(nameFilter)).sort(cmp);
   }
 
-  onMount(() => filterComponent.update());
+  onMount(() => filterComponent.updateFilters());
 </script>
 
 <Row>
@@ -113,7 +117,7 @@
       {filterPresets}
       startTimeQuickSelect={true}
       menuText="Only {type.toLowerCase()}s with jobs that match the filters will show up"
-      on:update={({ detail }) => {
+      on:update-filters={({ detail }) => {
         jobFilters = detail.filters;
       }}
     />

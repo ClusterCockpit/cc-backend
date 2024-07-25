@@ -1,3 +1,11 @@
+<!--
+    @component Navbar component; renders in app navigation links as received from upstream
+
+    Properties:
+    - `clusters [String]`: List of cluster names
+    - `links [Object]`: Pre-filtered link objects based on user auth
+ -->
+
 <script>
   import {
     Icon,
@@ -8,8 +16,8 @@
     DropdownItem,
   } from "@sveltestrap/sveltestrap";
 
-  export let clusters; // array of names
-  export let links; // array of nav links
+  export let clusters;
+  export let links;
 </script>
 
 {#each links as item}

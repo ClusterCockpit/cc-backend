@@ -1,3 +1,13 @@
+<!--
+    @component System-View subcomponent; renders all current metrics for specified node
+
+    Properties:
+    - `cluster String`: Currently selected cluster
+    - `hostname String`: Currently selected host (== node)
+    - `from Date?`: Custom Time Range selection 'from' [Default: null]
+    - `to Date?`: Custom Time Range selection 'to' [Default: null]
+ -->
+
 <script>
   import { init, checkMetricDisabled } from "./utils.js";
   import {
@@ -141,7 +151,7 @@
     </Col>
     <Col>
       <Refresher
-        on:reload={() => {
+        on:refresh={() => {
           const diff = Date.now() - to;
           from = new Date(from.getTime() + diff);
           to = new Date(to.getTime() + diff);

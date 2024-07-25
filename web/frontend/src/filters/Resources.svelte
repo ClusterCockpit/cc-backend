@@ -1,4 +1,22 @@
-<script>
+<!--
+    @component Filter sub-component for selecting job resources
+
+    Properties:
+    - `cluster Object?`: The currently selected cluster config [Default: null]
+    - `isOpen Bool?`: Is this filter component opened [Default: false]
+    - `numNodes Object?`: The currently selected numNodes filter [Default: {from:null, to:null}]
+    - `numHWThreads Object?`: The currently selected numHWTreads filter [Default: {from:null, to:null}]
+    - `numAccelerators Object?`: The currently selected numAccelerators filter [Default: {from:null, to:null}]
+    - `isNodesModified Bool?`: Is the node filter modified [Default: false]
+    - `isHwtreadsModified Bool?`: Is the Hwthreads filter modified [Default: false]
+    - `isAccsModified Bool?`: Is the Accelerator filter modified [Default: false]
+    - `namedNode String?`: The currently selected single named node (= hostname) [Default: null]
+
+    Events:
+    - `set-filter, {Object, Object, Object, String}`: Set 'numNodes, numHWThreads, numAccelerators, namedNode' filter in upstream component
+ -->
+ 
+ <script>
   import { createEventDispatcher, getContext } from "svelte";
   import {
     Button,
@@ -197,7 +215,7 @@
           to: pendingNumAccelerators.to,
         };
         namedNode = pendingNamedNode;
-        dispatch("update", {
+        dispatch("set-filter", {
           numNodes,
           numHWThreads,
           numAccelerators,
@@ -228,7 +246,7 @@
         isHwthreadsModified = false;
         isAccsModified = false;
         namedNode = pendingNamedNode;
-        dispatch("update", {
+        dispatch("set-filter", {
           numNodes,
           numHWThreads,
           numAccelerators,

@@ -1,3 +1,12 @@
+<!--
+    @component Selector component for (footprint) metrics to be displayed as histogram
+
+    Properties:
+    - `cluster String`: Currently selected cluster
+    - `metricsInHistograms [String]`: The currently selected metrics to display as histogram
+    - ìsOpen Bool`: Is selection opened
+ -->
+
 <script>
   import {
     Modal,

@@ -1,25 +1,15 @@
 <!--
-    @component
+    @component Displays job metaData, serves links to detail pages
 
     Properties:
-    - job: GraphQL.Job
-    - jobTags: Defaults to job.tags, usefull for dynamically updating the tags.
+    - `job Object`: The Job Object (GraphQL.Job)
+    - `jobTags [Number]?`: The jobs tags as IDs, default useful for dynamically updating the tags [Default: job.tags]
  -->
-<script context="module">
-  export const scrambleNames = window.localStorage.getItem("cc-scramble-names");
-  export const scramble = function (str) {
-    if (str === "-") return str;
-    else
-      return [...str]
-        .reduce((x, c, i) => x * 7 + c.charCodeAt(0) * i * 21, 5)
-        .toString(32)
-        .substr(0, 6);
-  };
-</script>
 
 <script>
   import Tag from "../Tag.svelte";
   import { Badge, Icon } from "@sveltestrap/sveltestrap";
+  import { scrambleNames, scramble } from "../utils.js";
 
   export let job;
   export let jobTags = job.tags;

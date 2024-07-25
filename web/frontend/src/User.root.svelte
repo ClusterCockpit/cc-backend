@@ -1,6 +1,14 @@
+<!--
+    @component Main user jobs list display component; displays job list and additional information for a given user
+
+    Properties:
+    - `user Object`: The GraphQL user object
+    - `filterPresets Object`: Optional predefined filter values
+ -->
+
 <script>
   import { onMount, getContext } from "svelte";
-  import { init, convert2uplot } from "./utils.js";
+  import { init, convert2uplot, scramble, scrambleNames } from "./utils.js";
   import {
     Table,
     Row,
@@ -20,7 +28,6 @@
   import MetricSelection from "./MetricSelection.svelte";
   import HistogramSelection from "./HistogramSelection.svelte";
   import PlotTable from "./PlotTable.svelte";
-  import { scramble, scrambleNames } from "./joblist/JobInfo.svelte";
 
   const { query: initq } = init();
 
@@ -84,7 +91,7 @@
     variables: { jobFilters, metricsInHistograms },
   });
 
-  onMount(() => filterComponent.update());
+  onMount(() => filterComponent.updateFilters());
 </script>
 
 <Row>
@@ -124,22 +131,25 @@
       {filterPresets}
       startTimeQuickSelect={true}
       bind:this={filterComponent}
-      on:update={({ detail }) => {
+      on:update-filters={({ detail }) => {
         jobFilters = [...detail.filters, { user: { eq: user.username } }];
         selectedCluster = jobFilters[0]?.cluster
           ? jobFilters[0].cluster.eq
           : null;
-        jobList.update(jobFilters);
+        jobList.queryJobs(jobFilters);
       }}
     />
   </Col>
   <Col xs="auto" style="margin-left: auto;">
     <TextFilter
-      on:update={({ detail }) => filterComponent.update(detail)}
+      on:set-filter={({ detail }) => filterComponent.updateFilters(detail)}
     />
   </Col>
   <Col xs="auto">
-    <Refresher on:reload={() => jobList.refresh()} />
+    <Refresher on:refresh={() => {
+      jobList.refreshJobs()
+      jobList.refreshAllMetrics()
+    }} />
   </Col>
 </Row>
 <br />
@@ -273,7 +283,7 @@
   bind:metrics
   bind:isOpen={isMetricsSelectionOpen}
   bind:showFootprint
-  view="list"
+  footprintSelect={true}
 />
 
 <HistogramSelection

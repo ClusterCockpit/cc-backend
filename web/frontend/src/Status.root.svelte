@@ -1,4 +1,11 @@
-<script>
+<!--
+    @component Main cluster status view component; renders current system-usage information
+
+    Properties:
+    - `cluster String`: The cluster to show status information for
+ -->
+ 
+ <script>
   import { getContext } from "svelte";
   import Refresher from "./joblist/Refresher.svelte";
   import Roofline from "./plots/Roofline.svelte";
@@ -331,7 +338,7 @@
   <Col class="mt-2 mt-md-0">
     <Refresher
       initially={120}
-      on:reload={() => {
+      on:refresh={() => {
         from = new Date(Date.now() - 5 * 60 * 1000);
         to = new Date(Date.now());
       }}
@@ -442,7 +449,7 @@
               allowSizeChange={true}
               width={plotWidths[i] - 10}
               height={300}
-              cluster={subCluster}
+              subCluster={subCluster}
               data={transformPerNodeDataForRoofline(
                 $mainQuery.data.nodeMetrics.filter(
                   (data) => data.subCluster == subCluster.name,

@@ -1,4 +1,12 @@
-<script>
+<!--
+    @component Info pill displayed for active filters
+
+    Properties:
+    - `icon String`: Sveltestrap icon name
+    - `modified Bool?`: Optional if filter is modified [Default: false]
+ -->
+ 
+ <script>
   import { Button, Icon } from "@sveltestrap/sveltestrap";
 
   export let icon;

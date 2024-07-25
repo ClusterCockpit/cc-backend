@@ -1,3 +1,27 @@
+<!--
+    @component Roofline Model Plot based on uPlot
+
+    Properties:
+    - `data [null, [], []]`: Roofline Data Structure, see below for details [Default: null]
+    - `renderTime Bool?`: If time information should be rendered as colored dots [Default: false]
+    - `allowSizeChange Bool?`: If dimensions of rendered plot can change [Default: false]
+    - `subCluster GraphQL.SubCluster?`: SubCluster Object; contains required topology information [Default: null]
+    - `width Number?`: Plot width (reactively adaptive) [Default: 600]
+    - `height Number?`: Plot height (reactively adaptive) [Default: 350]
+ 
+  Data Format:
+   - `data = [null, [], []]` 
+     - Index 0: null-axis required for scatter
+     - Index 1: Array of XY-Arrays for Scatter
+     - Index 2: Optional Time Info
+   - `data[1][0] = [100, 200, 500, ...]`
+     - X Axis: Intensity (Vals up to clusters' flopRateScalar value)
+   - `data[1][1] = [1000, 2000, 1500, ...]`
+     - Y Axis: Performance (Vals up to clusters' flopRateSimd value)
+   - `data[2] = [0.1, 0.15, 0.2, ...]`
+     - Color Code: Time Information (Floats from 0 to 1) (Optional)
+-->
+
 <script>
   import uPlot from "uplot";
   import { formatNumber } from "../units.js";
@@ -7,7 +31,7 @@
   export let data = null;
   export let renderTime = false;
   export let allowSizeChange = false;
-  export let cluster = null;
+  export let subCluster = null;
   export let width = 600;
   export let height = 350;
 
@@ -17,12 +41,7 @@
 
   const lineWidth = clusterCockpitConfig.plot_general_lineWidth;
 
-  /* Data Format
-   * data       = [null, [], []] // 0: null-axis required for scatter, 1: Array of XY-Array for Scatter, 2: Optional Time Info
-   * data[1][0] = [100, 200, 500, ...] // X Axis -> Intensity (Vals up to clusters' flopRateScalar value)
-   * data[1][1] = [1000, 2000, 1500, ...] // Y Axis -> Performance (Vals up to clusters' flopRateSimd value)
-   * data[2]    = [0.1, 0.15, 0.2, ...] // Color Code -> Time Information (Floats from 0 to 1) (Optional)
-   */
+  
 
   // Helpers
   function getGradientR(x) {
@@ -189,8 +208,8 @@
           y: {
             range: [
               1.0,
-              cluster?.flopRateSimd?.value
-                ? nearestThousand(cluster.flopRateSimd.value)
+              subCluster?.flopRateSimd?.value
+                ? nearestThousand(subCluster.flopRateSimd.value)
                 : 10000,
             ],
             distr: 3, // Render as log
@@ -208,30 +227,30 @@
           ],
           draw: [
             (u) => {
-              // draw roofs when cluster set
-              if (cluster != null) {
+              // draw roofs when subCluster set
+              if (subCluster != null) {
                 const padding = u._padding; // [top, right, bottom, left]
 
                 u.ctx.strokeStyle = "black";
                 u.ctx.lineWidth = lineWidth;
                 u.ctx.beginPath();
 
-                const ycut = 0.01 * cluster.memoryBandwidth.value;
+                const ycut = 0.01 * subCluster.memoryBandwidth.value;
                 const scalarKnee =
-                  (cluster.flopRateScalar.value - ycut) /
-                  cluster.memoryBandwidth.value;
+                  (subCluster.flopRateScalar.value - ycut) /
+                  subCluster.memoryBandwidth.value;
                 const simdKnee =
-                  (cluster.flopRateSimd.value - ycut) /
-                  cluster.memoryBandwidth.value;
+                  (subCluster.flopRateSimd.value - ycut) /
+                  subCluster.memoryBandwidth.value;
                 const scalarKneeX = u.valToPos(scalarKnee, "x", true), // Value, axis, toCanvasPixels
                   simdKneeX = u.valToPos(simdKnee, "x", true),
                   flopRateScalarY = u.valToPos(
-                    cluster.flopRateScalar.value,
+                    subCluster.flopRateScalar.value,
                     "y",
                     true,
                   ),
                   flopRateSimdY = u.valToPos(
-                    cluster.flopRateSimd.value,
+                    subCluster.flopRateSimd.value,
                     "y",
                     true,
                   );

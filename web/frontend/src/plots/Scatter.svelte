@@ -1,6 +1,16 @@
-<div class="cc-plot">
-    <canvas bind:this={canvasElement} width="{width}" height="{height}"></canvas>
-</div>
+<!--
+    @component Scatter plot of two metrics at identical timesteps, based on canvas
+
+    Properties:
+    - `X [Number]`: Data from first selected metric as X-values
+    - `Y [Number]`: Data from second selected metric as Y-values
+    - `S GraphQl.TimeWeights.X?`: Float to scale the data with [Default: null]
+    - `color String`: Color of the drawn scatter circles
+    - `width Number`:
+    - `height Number`:
+    - `xLabel String`:
+    - `yLabel String`:
+ -->
 
 <script context="module">
     import { formatNumber } from '../units.js'
@@ -169,3 +179,7 @@
     $: sizeChanged(width, height);
 
 </script>
+
+<div class="cc-plot">
+    <canvas bind:this={canvasElement} width="{width}" height="{height}"></canvas>
+</div>

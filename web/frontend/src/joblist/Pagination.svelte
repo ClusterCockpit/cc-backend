@@ -1,12 +1,13 @@
 <!-- 
-    @component
+    @component Pagination selection component
 
     Properties:
     - page:         Number (changes from inside)
     - itemsPerPage: Number (changes from inside)
     - totalItems:   Number (only displayed)
+
     Events:
-    - "update": { page: Number, itemsPerPage: Number }
+    - "update-paging": { page: Number, itemsPerPage: Number }
       - Dispatched once immediately and then each time page or itemsPerPage changes
  -->
 
@@ -60,7 +61,7 @@
             itemsPerPage = Number(itemsPerPage);
         }
 
-        dispatch("update", { itemsPerPage, page });
+        dispatch("update-paging", { itemsPerPage, page });
     }
     $: backButtonDisabled = (page === 1);
     $: nextButtonDisabled = (page >= (totalItems / itemsPerPage));

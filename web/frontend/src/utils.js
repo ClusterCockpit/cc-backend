@@ -108,18 +108,18 @@ export function init(extraInitQuery = "") {
     setContext("clusters", clusters);
     setContext("globalMetrics", globalMetrics);
     setContext("getMetricConfig", (cluster, subCluster, metric) => {
+        // Load objects if input is string
         if (typeof cluster !== "object")
             cluster = clusters.find((c) => c.name == cluster);
-
         if (typeof subCluster !== "object")
             subCluster = cluster.subClusters.find((sc) => sc.name == subCluster);
 
         return subCluster.metricConfig.find((m) => m.name == metric);
     });
     setContext("getHardwareTopology", (cluster, subCluster) => {
+        // Load objects if input is string
         if (typeof cluster !== "object")
             cluster = clusters.find((c) => c.name == cluster);
-
         if (typeof subCluster !== "object")
             subCluster = cluster.subClusters.find((sc) => sc.name == subCluster);
 
@@ -174,6 +174,17 @@ function fuzzyMatch(term, string) {
 export function distinct(value, index, array) {
     return array.indexOf(value) === index;
 }
+
+// Load Local Bool and Handle Scrambling of input string
+export const scrambleNames = window.localStorage.getItem("cc-scramble-names");
+export const scramble = function (str) {
+  if (str === "-") return str;
+  else
+    return [...str]
+      .reduce((x, c, i) => x * 7 + c.charCodeAt(0) * i * 21, 5)
+      .toString(32)
+      .substr(0, 6);
+};
 
 export function fuzzySearchTags(term, tags) {
     if (!tags) return [];

@@ -1,3 +1,17 @@
+<!--
+    @component Metric plot wrapper with user scope selection; used in job detail view
+
+    Properties:
+      - `job Object`: The GQL job object
+      - `metricName String`: The metrics name
+      - `metricUnit Object`: The metrics GQL unit object
+      - `nativeScope String`: The metrics native scope
+      - `scopes [String]`: The scopes returned for this metric
+      - `width Number`: Nested plot width
+      - `rawData [Object]`: Metric data for all scopes returned for this metric
+      - `isShared Bool?`: If this job used shared resources; will adapt threshold indicators accordingly in downstream plots [Default: false]
+ -->
+
 <script>
   import { createEventDispatcher } from "svelte";
   import Timeseries from "./plots/MetricPlot.svelte";
@@ -43,13 +57,6 @@
     (series) => selectedHost == null || series.hostname == selectedHost,
   );
 
-  let from = null,
-    to = null;
-  export function setTimeRange(f, t) {
-    (from = f), (to = t);
-  }
-
-  $: if (plot != null) plot.setTimeRange(from, to);
   $: if (selectedScope == "load-all") dispatch("load-all");
 </script>
 

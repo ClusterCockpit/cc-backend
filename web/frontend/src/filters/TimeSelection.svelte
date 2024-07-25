@@ -1,3 +1,16 @@
+<!--
+    @component Filter sub-component for selecting specified real time ranges for data cutoff; used in systems and nodes view
+
+    Properties:
+    - `from Date`: The datetime to start data display from
+    - `to Date`: The datetime to end data display at
+    - `customEnabled Bool?`: Allow custom time window selection [Default: true]
+    - `options Object? {String:Number}`: The quick time selection options [Default: {..., "Last 24hrs": 24*60*60}]
+
+    Events:
+    - `change, {Date, Date}`: Set 'from, to' values in upstream component
+ -->
+
 <script>
   import {
     Icon,
@@ -10,7 +23,6 @@
   export let from;
   export let to;
   export let customEnabled = true;
-  export let anyEnabled = false;
   export let options = {
     "Last quarter hour": 15 * 60,
     "Last half hour": 30 * 60,
@@ -25,19 +37,13 @@
   $: pendingTo = to;
 
   const dispatch = createEventDispatcher();
-  let timeRange =
-    to && from ? (to.getTime() - from.getTime()) / 1000 : anyEnabled ? -2 : -1;
+  let timeRange = // If both times set, return diff, else: display custom select
+    (to && from) ? ((to.getTime() - from.getTime()) / 1000) : -1;
 
-  function updateTimeRange(event) {
+  function updateTimeRange() {
     if (timeRange == -1) {
       pendingFrom = null;
       pendingTo = null;
-      return;
-    }
-    if (timeRange == -2) {
-      from = pendingFrom = null;
-      to = pendingTo = null;
-      dispatch("change", { from, to });
       return;
     }
 
@@ -63,9 +69,6 @@
 
 <InputGroup class="inline-from">
   <InputGroupText><Icon name="clock-history" /></InputGroupText>
-  <!-- <InputGroupText>
-        Time
-    </InputGroupText> -->
   <select
     class="form-select"
     bind:value={timeRange}
@@ -73,9 +76,6 @@
   >
     {#if customEnabled}
       <option value={-1}>Custom</option>
-    {/if}
-    {#if anyEnabled}
-      <option value={-2}>Any</option>
     {/if}
     {#each Object.entries(options) as [name, seconds]}
       <option value={seconds}>{name}</option>
