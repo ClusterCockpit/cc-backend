@@ -4,7 +4,7 @@ Originally created by Michael Keller (https://github.com/mhkeller/svelte-double-
 Changes: remove dependency, text inputs, configurable value ranges, on:change event
 -->
 <!-- 
-	@component
+	@component Helper component to display range selections via min and max double-sliders
 
 	Properties:
 	- min:          Number
