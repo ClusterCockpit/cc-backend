@@ -15,9 +15,9 @@
     InputGroupText,
     Icon,
   } from "@sveltestrap/sveltestrap";
-  import MetricSelection from "./MetricSelection.svelte";
+  import { maxScope } from "../generic/utils.js";
   import StatsTableEntry from "./StatsTableEntry.svelte";
-  import { maxScope } from "./utils.js";
+  import MetricSelection from "../generic/Select/MetricSelection.svelte";
 
   export let job;
   export let jobMetrics;

@@ -23,7 +23,7 @@
     } from "@sveltestrap/sveltestrap";
     import { fade } from "svelte/transition";
     import { createEventDispatcher } from 'svelte';
-    import { fetchJwt } from "../../utils.js";
+    import { fetchJwt } from "../../generic/utils.js";
 
     export let config;
     export let message;

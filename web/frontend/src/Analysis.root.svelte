@@ -6,7 +6,6 @@
  -->
 
 <script>
-  import { init, convert2uplot } from "./utils.js";
   import { getContext, onMount } from "svelte";
   import {
     queryStore,
@@ -22,14 +21,18 @@
     Table,
     Icon,
   } from "@sveltestrap/sveltestrap";
-  import Filters from "./filters/Filters.svelte";
-  import PlotSelection from "./PlotSelection.svelte";
-  import Histogram from "./plots/Histogram.svelte";
-  import Pie, { colors } from "./plots/Pie.svelte";
-  import { binsFromFootprint } from "./utils.js";
-  import ScatterPlot from "./plots/Scatter.svelte";
-  import PlotTable from "./PlotTable.svelte";
-  import RooflineHeatmap from "./plots/RooflineHeatmap.svelte";
+  import {
+    init,
+    convert2uplot,
+    binsFromFootprint,
+  } from "./generic/utils.js";
+  import PlotSelection from "./analysis/PlotSelection.svelte.js";
+  import Filters from "./generic/Filters.svelte";
+  import PlotTable from "./generic/PlotTable.svelte";
+  import Histogram from "./generic/plots/Histogram.svelte";
+  import Pie, { colors } from "./generic/plots/Pie.svelte";
+  import ScatterPlot from "./generic/plots/Scatter.svelte";
+  import RooflineHeatmap from "./generic/plots/RooflineHeatmap.svelte";
 
   const { query: initq } = init();
 

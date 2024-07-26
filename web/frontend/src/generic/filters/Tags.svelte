@@ -24,7 +24,7 @@
     Icon,
   } from "@sveltestrap/sveltestrap";
   import { fuzzySearchTags } from "../utils.js";
-  import Tag from "../Tag.svelte";
+  import Tag from "../helper/Tag.svelte";
 
   const allTags = getContext("tags"),
     initialized = getContext("initialized"),

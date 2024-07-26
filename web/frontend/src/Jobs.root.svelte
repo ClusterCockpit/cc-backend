@@ -9,7 +9,6 @@
  
  <script>
   import { onMount, getContext } from "svelte";
-  import { init } from "./utils.js";
   import {
     Row,
     Col,
@@ -18,12 +17,13 @@
     Card,
     Spinner,
   } from "@sveltestrap/sveltestrap";
-  import Filters from "./filters/Filters.svelte";
-  import JobList from "./joblist/JobList.svelte";
-  import Refresher from "./joblist/Refresher.svelte";
-  import Sorting from "./joblist/SortSelection.svelte";
-  import MetricSelection from "./MetricSelection.svelte";
-  import TextFilter from "./filters/TextFilter.svelte";
+  import { init } from "./generic/utils.js";
+  import Filters from "./generic/Filters.svelte";
+  import JobList from "./generic/JobList.svelte";
+  import TextFilter from "./generic/helper/TextFilter.svelte";
+  import Refresher from "./generic/helper/Refresher.svelte";
+  import Sorting from "./generic/select/SortSelection.svelte";
+  import MetricSelection from "./generic/select/MetricSelection.svelte";
 
   const { query: initq } = init();
 

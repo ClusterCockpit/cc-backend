@@ -14,17 +14,17 @@
  -->
 
 <script>
+  import { getContext } from "svelte";
   import {
     queryStore,
     gql,
     getContextClient,
     mutationStore,
   } from "@urql/svelte";
-  import { getContext } from "svelte";
   import { Row, Table, Card, Spinner } from "@sveltestrap/sveltestrap";
-  import Pagination from "./Pagination.svelte";
-  import JobListRow from "./Row.svelte";
-  import { stickyHeader } from "../utils.js";
+  import { stickyHeader } from "./utils.js";
+  import Pagination from "./joblist/Pagination.svelte";
+  import JobListRow from "./joblist/JobListRow.svelte";
 
   const ccconfig = getContext("cc-config"),
     initialized = getContext("initialized"),

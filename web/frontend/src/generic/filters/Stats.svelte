@@ -20,7 +20,7 @@
     ModalHeader,
     ModalFooter,
   } from "@sveltestrap/sveltestrap";
-  import DoubleRangeSlider from "./DoubleRangeSlider.svelte";
+  import DoubleRangeSlider from "../select/DoubleRangeSlider.svelte";
 
   const initialized = getContext("initialized"),
     dispatch = createEventDispatcher();

@@ -14,10 +14,10 @@
   import { queryStore, gql, getContextClient } from "@urql/svelte";
   import { getContext } from "svelte";
   import { Card, Spinner } from "@sveltestrap/sveltestrap";
-  import MetricPlot from "../plots/MetricPlot.svelte";
-  import JobInfo from "./JobInfo.svelte";
-  import JobFootprint from "../JobFootprint.svelte";
   import { maxScope, checkMetricDisabled } from "../utils.js";
+  import JobInfo from "./JobInfo.svelte";
+  import MetricPlot from "../plots/MetricPlot.svelte";
+  import JobFootprint from "../helper/JobFootprint.svelte";
 
   export let job;
   export let metrics;

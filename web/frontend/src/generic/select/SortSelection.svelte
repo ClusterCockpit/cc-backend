@@ -7,6 +7,7 @@
  -->
 
 <script>
+  import { getContext } from "svelte";
   import {
     Icon,
     Button,
@@ -17,7 +18,6 @@
     ModalHeader,
     ModalFooter,
   } from "@sveltestrap/sveltestrap";
-  import { getContext } from "svelte";
   import { getSortItems } from "../utils.js";
 
   export let isOpen = false;

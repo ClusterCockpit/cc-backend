@@ -15,6 +15,7 @@
  -->
 
 <script>
+  import { createEventDispatcher } from "svelte";
   import {
     Row,
     Col,
@@ -24,16 +25,15 @@
     ButtonDropdown,
     Icon,
   } from "@sveltestrap/sveltestrap";
-  import { createEventDispatcher } from "svelte";
-  import Info from "./InfoBox.svelte";
-  import Cluster from "./Cluster.svelte";
-  import JobStates, { allJobStates } from "./JobStates.svelte";
-  import StartTime from "./StartTime.svelte";
-  import Tags from "./Tags.svelte";
-  import Tag from "../Tag.svelte";
-  import Duration from "./Duration.svelte";
-  import Resources from "./Resources.svelte";
-  import Statistics from "./Stats.svelte";
+  import Tag from "./helper/Tag.svelte";
+  import Info from "./filters/InfoBox.svelte";
+  import Cluster from "./filters/Cluster.svelte";
+  import JobStates, { allJobStates } from "./filters/JobStates.svelte";
+  import StartTime from "./filters/StartTime.svelte";
+  import Tags from "./filters/Tags.svelte";
+  import Duration from "./filters/Duration.svelte";
+  import Resources from "./filters/Resources.svelte";
+  import Statistics from "./filters/Stats.svelte";
 
   const dispatch = createEventDispatcher();
 

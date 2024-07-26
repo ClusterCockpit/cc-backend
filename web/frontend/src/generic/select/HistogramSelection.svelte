@@ -8,6 +8,7 @@
  -->
 
 <script>
+  import { getContext } from "svelte";
   import {
     Modal,
     ModalBody,
@@ -17,7 +18,6 @@
     ListGroup,
     ListGroupItem,
   } from "@sveltestrap/sveltestrap";
-  import { getContext } from "svelte";
   import { gql, getContextClient, mutationStore } from "@urql/svelte";
 
   export let cluster;

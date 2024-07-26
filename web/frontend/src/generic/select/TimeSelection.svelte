@@ -1,5 +1,5 @@
 <!--
-    @component Filter sub-component for selecting specified real time ranges for data cutoff; used in systems and nodes view
+    @component Selector for specified real time ranges for data cutoff; used in systems and nodes view
 
     Properties:
     - `from Date`: The datetime to start data display from
@@ -12,13 +12,13 @@
  -->
 
 <script>
+  import { createEventDispatcher } from "svelte";
   import {
     Icon,
     Input,
     InputGroup,
     InputGroupText,
   } from "@sveltestrap/sveltestrap";
-  import { createEventDispatcher } from "svelte";
 
   export let from;
   export let to;

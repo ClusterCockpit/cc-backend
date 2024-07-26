@@ -8,7 +8,6 @@
 
 <script>
   import { onMount } from "svelte";
-  import { init, scramble, scrambleNames } from "./utils.js";
   import {
     Row,
     Col,
@@ -20,8 +19,17 @@
     InputGroup,
     Input,
   } from "@sveltestrap/sveltestrap";
-  import Filters from "./filters/Filters.svelte";
-  import { queryStore, gql, getContextClient } from "@urql/svelte";
+  import {
+    queryStore,
+    gql,
+    getContextClient,
+  } from "@urql/svelte";
+  import {
+    init,
+    scramble,
+    scrambleNames,
+  } from "./generic/utils.js";
+  import Filters from "./generic/Filters.svelte";
 
   const {} = init();
 

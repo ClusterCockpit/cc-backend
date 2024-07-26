@@ -7,10 +7,6 @@
  
  <script>
   import { getContext } from "svelte";
-  import Refresher from "./joblist/Refresher.svelte";
-  import Roofline from "./plots/Roofline.svelte";
-  import Pie, { colors } from "./plots/Pie.svelte";
-  import Histogram from "./plots/Histogram.svelte";
   import {
     Row,
     Col,
@@ -25,19 +21,23 @@
     Button,
   } from "@sveltestrap/sveltestrap";
   import {
-    init,
-    convert2uplot,
-    transformPerNodeDataForRoofline,
-  } from "./utils.js";
-  import { scaleNumbers } from "./units.js";
-  import {
     queryStore,
     gql,
     getContextClient,
     mutationStore,
   } from "@urql/svelte";
-  import PlotTable from "./PlotTable.svelte";
-  import HistogramSelection from "./HistogramSelection.svelte";
+  import {
+    init,
+    convert2uplot,
+    transformPerNodeDataForRoofline,
+  } from "./generic/utils.js";
+  import { scaleNumbers } from "./generic/units.js";
+  import PlotTable from "./generic/PlotTable.svelte";
+  import Roofline from "./generic/plots/Roofline.svelte";
+  import Pie, { colors } from "./generic/plots/Pie.svelte";
+  import Histogram from "./generic/plots/Histogram.svelte";
+  import Refresher from "./generic/helper/Refresher.svelte";
+  import HistogramSelection from "./generic/select/HistogramSelection.svelte";
 
   const { query: initq } = init();
   const ccconfig = getContext("cc-config");

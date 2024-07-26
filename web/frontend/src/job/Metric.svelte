@@ -14,14 +14,14 @@
 
 <script>
   import { createEventDispatcher } from "svelte";
-  import Timeseries from "./plots/MetricPlot.svelte";
   import {
     InputGroup,
     InputGroupText,
     Spinner,
     Card,
   } from "@sveltestrap/sveltestrap";
-  import { minScope } from "./utils";
+  import { minScope } from "../generic/utils";
+  import Timeseries from "../generic/plots/MetricPlot.svelte";
 
   export let job;
   export let metricName;

@@ -9,7 +9,6 @@
 
 <script>
   import { Card, CardHeader, CardTitle } from "@sveltestrap/sveltestrap";
-
   import UserSettings from "./config/UserSettings.svelte";
   import AdminSettings from "./config/AdminSettings.svelte";
 

@@ -12,6 +12,7 @@
  -->
 
 <script>
+  import { getContext } from "svelte";
   import {
     Modal,
     ModalBody,
@@ -20,7 +21,6 @@
     Button,
     ListGroup,
   } from "@sveltestrap/sveltestrap";
-  import { getContext } from "svelte";
   import { gql, getContextClient, mutationStore } from "@urql/svelte";
 
   export let metrics;

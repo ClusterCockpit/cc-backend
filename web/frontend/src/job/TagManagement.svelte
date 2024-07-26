@@ -20,8 +20,8 @@
     ModalFooter,
     Alert,
   } from "@sveltestrap/sveltestrap";
-  import { fuzzySearchTags } from "./utils.js";
-  import Tag from "./Tag.svelte";
+  import { fuzzySearchTags } from "../generic/utils.js";
+  import Tag from "../generic/helper/Tag.svelte";
 
   export let job;
   export let jobTags = job.tags;

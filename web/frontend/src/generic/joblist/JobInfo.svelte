@@ -7,9 +7,9 @@
  -->
 
 <script>
-  import Tag from "../Tag.svelte";
   import { Badge, Icon } from "@sveltestrap/sveltestrap";
   import { scrambleNames, scramble } from "../utils.js";
+  import Tag from "../helper/Tag.svelte";
 
   export let job;
   export let jobTags = job.tags;

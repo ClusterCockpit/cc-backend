@@ -8,8 +8,7 @@
  -->
 
 <script>
-  import { init, checkMetricDisabled } from "./utils.js";
-  import Refresher from "./joblist/Refresher.svelte";
+  import { getContext } from "svelte";
   import {
     Row,
     Col,
@@ -20,11 +19,19 @@
     Spinner,
     Card,
   } from "@sveltestrap/sveltestrap";
-  import { queryStore, gql, getContextClient } from "@urql/svelte";
-  import TimeSelection from "./filters/TimeSelection.svelte";
-  import PlotTable from "./PlotTable.svelte";
-  import MetricPlot from "./plots/MetricPlot.svelte";
-  import { getContext } from "svelte";
+  import {
+    queryStore,
+    gql,
+    getContextClient,
+  } from "@urql/svelte";
+  import {
+    init,
+    checkMetricDisabled,
+  } from "./generic/utils.js";
+  import PlotTable from "./generic/PlotTable.svelte";
+  import MetricPlot from "./generic/plots/MetricPlot.svelte";
+  import TimeSelection from "./generic/select/TimeSelection.svelte";
+  import Refresher from "./generic/helper/Refresher.svelte";
 
   export let cluster;
   export let from = null;

@@ -8,7 +8,6 @@
 
 <script>
   import { onMount, getContext } from "svelte";
-  import { init, convert2uplot, scramble, scrambleNames } from "./utils.js";
   import {
     Table,
     Row,
@@ -18,16 +17,26 @@
     Card,
     Spinner,
   } from "@sveltestrap/sveltestrap";
-  import { queryStore, gql, getContextClient } from "@urql/svelte";
-  import Filters from "./filters/Filters.svelte";
-  import TextFilter from "./filters/TextFilter.svelte"
-  import JobList from "./joblist/JobList.svelte";
-  import Sorting from "./joblist/SortSelection.svelte";
-  import Refresher from "./joblist/Refresher.svelte";
-  import Histogram from "./plots/Histogram.svelte";
-  import MetricSelection from "./MetricSelection.svelte";
-  import HistogramSelection from "./HistogramSelection.svelte";
-  import PlotTable from "./PlotTable.svelte";
+  import {
+    queryStore,
+    gql,
+    getContextClient,
+  } from "@urql/svelte";
+  import {
+    init,
+    convert2uplot,
+    scramble,
+    scrambleNames,
+  } from "./generic/utils.js";
+  import JobList from "./generic/JobList.svelte";
+  import Filters from "./generic/Filters.svelte";
+  import PlotTable from "./generic/PlotTable.svelte";
+  import Histogram from "./generic/plots/Histogram.svelte";
+  import MetricSelection from "./generic/select/MetricSelection.svelte";
+  import HistogramSelection from "./generic/select/HistogramSelection.svelte";
+  import Sorting from "./generic/select/SortSelection.svelte";
+  import TextFilter from "./generic/helper/TextFilter.svelte"
+  import Refresher from "./generic/helper/Refresher.svelte";
 
   const { query: initq } = init();
 

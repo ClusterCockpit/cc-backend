@@ -25,7 +25,7 @@
     ModalHeader,
     ModalFooter,
   } from "@sveltestrap/sveltestrap";
-  import DoubleRangeSlider from "./DoubleRangeSlider.svelte";
+  import DoubleRangeSlider from "../select/DoubleRangeSlider.svelte";
 
   const clusters = getContext("clusters"),
     initialized = getContext("initialized"),

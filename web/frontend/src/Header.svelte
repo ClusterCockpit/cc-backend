@@ -20,8 +20,8 @@
     DropdownToggle,
     DropdownMenu,
   } from "@sveltestrap/sveltestrap";
-  import NavbarLinks from "./NavbarLinks.svelte";
-  import NavbarTools from "./NavbarTools.svelte";
+  import NavbarLinks from "./header/NavbarLinks.svelte";
+  import NavbarTools from "./header/NavbarTools.svelte";
 
   export let username;
   export let authlevel;

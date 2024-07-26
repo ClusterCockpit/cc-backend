@@ -9,12 +9,6 @@
  -->
 
 <script>
-  import {
-    init,
-    groupByScope,
-    checkMetricDisabled,
-    transformDataForRoofline,
-  } from "./utils.js";
   import { 
     queryStore,
     gql,
@@ -33,16 +27,22 @@
     Button,
     Icon,
   } from "@sveltestrap/sveltestrap";
-  import PlotTable from "./PlotTable.svelte";
-  import Metric from "./Metric.svelte";
-  import Polar from "./plots/Polar.svelte";
-  import Roofline from "./plots/Roofline.svelte";
-  import JobInfo from "./joblist/JobInfo.svelte";
-  import TagManagement from "./TagManagement.svelte";
-  import MetricSelection from "./MetricSelection.svelte";
-  import StatsTable from "./StatsTable.svelte";
-  import JobFootprint from "./JobFootprint.svelte";
   import { getContext } from "svelte";
+  import {
+    init,
+    groupByScope,
+    checkMetricDisabled,
+    transformDataForRoofline,
+  } from "./generic/utils.js";
+  import Metric from "./job/Metric.svelte.js";
+  import TagManagement from "./job/TagManagement.svelte.js";
+  import StatsTable from "./job/StatsTable.svelte.js";
+  import JobFootprint from "./generic/helper/JobFootprint.svelte";
+  import PlotTable from "./generic/PlotTable.svelte";
+  import Polar from "./generic/plots/Polar.svelte";
+  import Roofline from "./generic/plots/Roofline.svelte";
+  import JobInfo from "./generic/joblist/JobInfo.svelte";
+  import MetricSelection from "./generic/select/MetricSelection.svelte";
 
   export let dbid;
   export let authlevel;
