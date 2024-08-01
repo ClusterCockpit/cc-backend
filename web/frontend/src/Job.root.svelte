@@ -2,9 +2,9 @@
     @component Main single job display component; displays plots for every metric as well as various information
 
     Properties:
+    - `dbid Number`: The jobs DB ID
     - `username String`: Empty string if auth. is disabled, otherwise the username as string
     - `authlevel Number`: The current users authentication level
-    - `clusters [String]`: List of cluster names
     - `roles [Number]`: Enum containing available roles
  -->
 
@@ -45,6 +45,7 @@
   import MetricSelection from "./generic/select/MetricSelection.svelte";
 
   export let dbid;
+  export let username;
   export let authlevel;
   export let roles;
 
@@ -58,8 +59,7 @@
     selectedScopes = [];
 
   let plots = {},
-    jobTags,
-    statsTable
+    jobTags
 
   let missingMetrics = [],
     missingHosts = [],
@@ -322,7 +322,7 @@
 <Row class="mb-3">
   <Col xs="auto">
     {#if $initq.data}
-      <TagManagement job={$initq.data.job} bind:jobTags />
+      <TagManagement job={$initq.data.job} {username} {authlevel} {roles} bind:jobTags />
     {/if}
   </Col>
   <Col xs="auto">
@@ -418,7 +418,6 @@
           {#if $jobMetrics?.data?.jobMetrics}
             {#key $jobMetrics.data.jobMetrics}
               <StatsTable
-                bind:this={statsTable}
                 job={$initq.data.job}
                 jobMetrics={$jobMetrics.data.jobMetrics}
               />

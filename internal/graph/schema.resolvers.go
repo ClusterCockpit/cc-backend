@@ -29,7 +29,7 @@ func (r *clusterResolver) Partitions(ctx context.Context, obj *schema.Cluster) (
 
 // Tags is the resolver for the tags field.
 func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error) {
-	return r.Repo.GetTags(&obj.ID)
+	return r.Repo.GetTags(ctx, &obj.ID)
 }
 
 // ConcurrentJobs is the resolver for the concurrentJobs field.
@@ -86,14 +86,14 @@ func (r *metricValueResolver) Name(ctx context.Context, obj *schema.MetricValue)
 }
 
 // CreateTag is the resolver for the createTag field.
-func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name string) (*schema.Tag, error) {
-	id, err := r.Repo.CreateTag(typeArg, name)
+func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name string, scope string) (*schema.Tag, error) {
+	id, err := r.Repo.CreateTag(typeArg, name, scope)
 	if err != nil {
 		log.Warn("Error while creating tag")
 		return nil, err
 	}
 
-	return &schema.Tag{ID: id, Type: typeArg, Name: name}, nil
+	return &schema.Tag{ID: id, Type: typeArg, Name: name, Scope: scope}, nil
 }
 
 // DeleteTag is the resolver for the deleteTag field.
@@ -103,6 +103,7 @@ func (r *mutationResolver) DeleteTag(ctx context.Context, id string) (string, er
 
 // AddTagsToJob is the resolver for the addTagsToJob field.
 func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds []string) ([]*schema.Tag, error) {
+	// Selectable Tags Pre-Filtered by Scope in Frontend: No backend check required
 	jid, err := strconv.ParseInt(job, 10, 64)
 	if err != nil {
 		log.Warn("Error while adding tag to job")
@@ -117,7 +118,7 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 			return nil, err
 		}
 
-		if tags, err = r.Repo.AddTag(jid, tid); err != nil {
+		if tags, err = r.Repo.AddTag(ctx, jid, tid); err != nil {
 			log.Warn("Error while adding tag")
 			return nil, err
 		}
@@ -128,6 +129,7 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 
 // RemoveTagsFromJob is the resolver for the removeTagsFromJob field.
 func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, tagIds []string) ([]*schema.Tag, error) {
+	// Removable Tags Pre-Filtered by Scope in Frontend: No backend check required
 	jid, err := strconv.ParseInt(job, 10, 64)
 	if err != nil {
 		log.Warn("Error while parsing job id")
@@ -142,7 +144,7 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 			return nil, err
 		}
 
-		if tags, err = r.Repo.RemoveTag(jid, tid); err != nil {
+		if tags, err = r.Repo.RemoveTag(ctx, jid, tid); err != nil {
 			log.Warn("Error while removing tag")
 			return nil, err
 		}
@@ -168,7 +170,7 @@ func (r *queryResolver) Clusters(ctx context.Context) ([]*schema.Cluster, error)
 
 // Tags is the resolver for the tags field.
 func (r *queryResolver) Tags(ctx context.Context) ([]*schema.Tag, error) {
-	return r.Repo.GetTags(nil)
+	return r.Repo.GetTags(ctx, nil)
 }
 
 // GlobalMetrics is the resolver for the globalMetrics field.

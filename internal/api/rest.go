@@ -176,8 +176,9 @@ type ErrorResponse struct {
 // ApiTag model
 type ApiTag struct {
 	// Tag Type
-	Type string `json:"type" example:"Debug"`
-	Name string `json:"name" example:"Testjob"` // Tag Name
+	Type  string `json:"type" example:"Debug"`
+	Name  string `json:"name" example:"Testjob"` // Tag Name
+	Scope string `json:"scope" example:"global"` // Tag Scope for Frontend Display
 }
 
 // ApiMeta model
@@ -419,7 +420,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 			StartTime: job.StartTime.Unix(),
 		}
 
-		res.Tags, err = api.JobRepository.GetTags(&job.ID)
+		res.Tags, err = api.JobRepository.GetTags(r.Context(), &job.ID)
 		if err != nil {
 			handleError(err, http.StatusInternalServerError, rw)
 			return
@@ -492,7 +493,7 @@ func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	job.Tags, err = api.JobRepository.GetTags(&job.ID)
+	job.Tags, err = api.JobRepository.GetTags(r.Context(), &job.ID)
 	if err != nil {
 		handleError(err, http.StatusInternalServerError, rw)
 		return
@@ -578,7 +579,7 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job.Tags, err = api.JobRepository.GetTags(&job.ID)
+	job.Tags, err = api.JobRepository.GetTags(r.Context(), &job.ID)
 	if err != nil {
 		handleError(err, http.StatusInternalServerError, rw)
 		return
@@ -711,7 +712,7 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job.Tags, err = api.JobRepository.GetTags(&job.ID)
+	job.Tags, err = api.JobRepository.GetTags(r.Context(), &job.ID)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
@@ -724,16 +725,17 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, tag := range req {
-		tagId, err := api.JobRepository.AddTagOrCreate(job.ID, tag.Type, tag.Name)
+		tagId, err := api.JobRepository.AddTagOrCreate(r.Context(), job.ID, tag.Type, tag.Name, tag.Scope)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		job.Tags = append(job.Tags, &schema.Tag{
-			ID:   tagId,
-			Type: tag.Type,
-			Name: tag.Name,
+			ID:    tagId,
+			Type:  tag.Type,
+			Name:  tag.Name,
+			Scope: tag.Scope,
 		})
 	}
 
@@ -801,7 +803,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	unlockOnce.Do(api.RepositoryMutex.Unlock)
 
 	for _, tag := range req.Tags {
-		if _, err := api.JobRepository.AddTagOrCreate(id, tag.Type, tag.Name); err != nil {
+		if _, err := api.JobRepository.AddTagOrCreate(r.Context(), id, tag.Type, tag.Name, tag.Scope); err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			handleError(fmt.Errorf("adding tag to new job %d failed: %w", id, err), http.StatusInternalServerError, rw)
 			return

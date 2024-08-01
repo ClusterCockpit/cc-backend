@@ -4,6 +4,9 @@
     Properties:
     - `job Object`: The job object
     - `jobTags [Number]`: The array of currently designated tags
+    - `username String`: Empty string if auth. is disabled, otherwise the username as string
+    - `authlevel Number`: The current users authentication level
+    - `roles [Number]`: Enum containing available roles
  -->
 <script>
   import { getContext } from "svelte";
@@ -25,30 +28,35 @@
 
   export let job;
   export let jobTags = job.tags;
+  export let username;
+  export let authlevel;
+  export let roles;
 
   let allTags = getContext("tags"),
     initialized = getContext("initialized");
   let newTagType = "",
-    newTagName = "";
+    newTagName = "",
+    newTagScope = username;
   let filterTerm = "";
   let pendingChange = false;
   let isOpen = false;
 
   const client = getContextClient();
 
-  const createTagMutation = ({ type, name }) => {
+  const createTagMutation = ({ type, name, scope }) => {
     return mutationStore({
       client: client,
       query: gql`
-        mutation ($type: String!, $name: String!) {
-          createTag(type: $type, name: $name) {
+        mutation ($type: String!, $name: String!, $scope: String!) {
+          createTag(type: $type, name: $name, scope: $scope) {
             id
             type
             name
+            scope
           }
         }
       `,
-      variables: { type, name },
+      variables: { type, name, scope },
     });
   };
 
@@ -61,6 +69,7 @@
             id
             type
             name
+            scope
           }
         }
       `,
@@ -77,6 +86,7 @@
             id
             type
             name
+            scope
           }
         }
       `,
@@ -103,9 +113,9 @@
     return true;
   }
 
-  function createTag(type, name) {
+  function createTag(type, name, scope) {
     pendingChange = true;
-    createTagMutation({ type: type, name: name }).subscribe((res) => {
+    createTagMutation({ type: type, name: name, scope: scope }).subscribe((res) => {
       if (res.fetching === false && !res.error) {
         pendingChange = false;
         allTags = [...allTags, res.data.createTag];
@@ -206,16 +216,30 @@
     </ul>
     <br />
     {#if newTagType && newTagName && isNewTag(newTagType, newTagName)}
-      <Button
-        outline
-        color="success"
-        on:click={(e) => (
-          e.preventDefault(), createTag(newTagType, newTagName)
-        )}
-      >
-        Create & Add Tag:
-        <Tag tag={{ type: newTagType, name: newTagName }} clickable={false} />
-      </Button>
+      <div class="d-flex">
+        <Button
+          style="margin-right: 10px;"
+          outline
+          color="success"
+          on:click={(e) => (
+            e.preventDefault(), createTag(newTagType, newTagName, newTagScope)
+          )}
+        >
+          Create & Add Tag:
+          <Tag tag={{ type: newTagType, name: newTagName, scope: newTagScope }} clickable={false}/>
+        </Button>
+        {#if roles && authlevel >= roles.admin}
+          <select
+            style="max-width: 175px;"
+            class="form-select"
+            bind:value={newTagScope}
+          >
+            <option value={username}>Scope: Private</option>
+            <option value={"global"}>Scope: Global</option>
+            <option value={"admin"}>Scope: Admin</option>
+          </select>
+        {/if}
+      </div>
     {:else if allTagsFiltered.length == 0}
       <Alert>Search Term is not a valid Tag (<code>type: name</code>)</Alert>
     {/if}

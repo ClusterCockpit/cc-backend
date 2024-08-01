@@ -37,7 +37,13 @@
 
 <a target={clickable ? "_blank" : null} href={clickable ? `/monitoring/jobs/?tag=${id}` : null}>
     {#if tag}
-        <span class="badge bg-warning text-dark">{tag.type}: {tag.name}</span>
+        {#if tag?.scope === "global"}
+            <span style="background-color:#9e9e9e;" class="badge text-dark">{tag.type}: {tag.name}</span>
+        {:else if tag.scope === "admin"}
+            <span style="background-color:#80deea;" class="badge text-dark">{tag.type}: {tag.name}</span>
+        {:else}
+            <span class="badge bg-warning text-dark">{tag.type}: {tag.name}</span>
+        {/if}
     {:else}
         Loading...
     {/if}
