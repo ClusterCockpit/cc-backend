@@ -26,7 +26,7 @@
     convert2uplot,
     binsFromFootprint,
   } from "./generic/utils.js";
-  import PlotSelection from "./analysis/PlotSelection.svelte.js";
+  import PlotSelection from "./analysis/PlotSelection.svelte";
   import Filters from "./generic/Filters.svelte";
   import PlotTable from "./generic/PlotTable.svelte";
   import Histogram from "./generic/plots/Histogram.svelte";

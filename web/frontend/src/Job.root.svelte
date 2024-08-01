@@ -34,9 +34,9 @@
     checkMetricDisabled,
     transformDataForRoofline,
   } from "./generic/utils.js";
-  import Metric from "./job/Metric.svelte.js";
-  import TagManagement from "./job/TagManagement.svelte.js";
-  import StatsTable from "./job/StatsTable.svelte.js";
+  import Metric from "./job/Metric.svelte";
+  import TagManagement from "./job/TagManagement.svelte";
+  import StatsTable from "./job/StatsTable.svelte";
   import JobFootprint from "./generic/helper/JobFootprint.svelte";
   import PlotTable from "./generic/PlotTable.svelte";
   import Polar from "./generic/plots/Polar.svelte";
@@ -75,7 +75,7 @@
             duration, numNodes, numHWThreads, numAcc,
             SMT, exclusive, partition, subCluster, arrayJobId,
             monitoringStatus, state, walltime,
-            tags { id, type, name },
+            tags { id, type, name, scope },
             resources { hostname, hwthreads, accelerators },
             metaData,
             userData { name, email },

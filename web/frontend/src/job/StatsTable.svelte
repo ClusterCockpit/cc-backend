@@ -17,7 +17,7 @@
   } from "@sveltestrap/sveltestrap";
   import { maxScope } from "../generic/utils.js";
   import StatsTableEntry from "./StatsTableEntry.svelte";
-  import MetricSelection from "../generic/Select/MetricSelection.svelte";
+  import MetricSelection from "../generic/select/MetricSelection.svelte";
 
   export let job;
   export let jobMetrics;
