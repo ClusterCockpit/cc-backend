@@ -89,7 +89,7 @@ func (r *JobRepository) CountJobs(
 	ctx context.Context,
 	filters []*model.JobFilter,
 ) (int, error) {
-	query, qerr := SecurityCheck(ctx, sq.Select("count(*)").From("job"))
+	query, qerr := SecurityCheck(ctx, sq.Select("count(DISTINCT job.id)").From("job"))
 	if qerr != nil {
 		return 0, qerr
 	}
@@ -136,7 +136,7 @@ func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (sq.SelectBuilde
 // Build a sq.SelectBuilder out of a schema.JobFilter.
 func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.SelectBuilder {
 	if filter.Tags != nil {
-		query = query.Join("jobtag ON jobtag.job_id = job.id").Where(sq.Eq{"jobtag.tag_id": filter.Tags})
+		query = query.Join("jobtag ON jobtag.job_id = job.id").Where(sq.Eq{"jobtag.tag_id": filter.Tags}).Distinct()
 	}
 	if filter.JobID != nil {
 		query = buildStringCondition("job.job_id", filter.JobID, query)
