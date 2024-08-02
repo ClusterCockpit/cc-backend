@@ -89,6 +89,7 @@ func (r *JobRepository) CountJobs(
 	ctx context.Context,
 	filters []*model.JobFilter,
 ) (int, error) {
+	// DISTICT count for tags filters, does not affect other queries
 	query, qerr := SecurityCheck(ctx, sq.Select("count(DISTINCT job.id)").From("job"))
 	if qerr != nil {
 		return 0, qerr
@@ -136,6 +137,7 @@ func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (sq.SelectBuilde
 // Build a sq.SelectBuilder out of a schema.JobFilter.
 func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.SelectBuilder {
 	if filter.Tags != nil {
+		// This is an OR-Logic query: Returns all distinct jobs with at least one of the requested tags; TODO: AND-Logic query?
 		query = query.Join("jobtag ON jobtag.job_id = job.id").Where(sq.Eq{"jobtag.tag_id": filter.Tags}).Distinct()
 	}
 	if filter.JobID != nil {
