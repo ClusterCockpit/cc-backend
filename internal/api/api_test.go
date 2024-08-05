@@ -212,7 +212,7 @@ func TestRestApi(t *testing.T) {
 		"exclusive":        1,
 		"monitoringStatus": 1,
 		"smt":              1,
-		"tags":             [{ "type": "testTagType", "name": "testTagName" }],
+		"tags":             [{ "type": "testTagType", "name": "testTagName", "scope": "testuser" }],
 		"resources": [
 			{
 				"hostname": "host123",
@@ -280,7 +280,7 @@ func TestRestApi(t *testing.T) {
 			t.Fatalf("unexpected job properties: %#v", job)
 		}
 
-		if len(job.Tags) != 1 || job.Tags[0].Type != "testTagType" || job.Tags[0].Name != "testTagName" {
+		if len(job.Tags) != 1 || job.Tags[0].Type != "testTagType" || job.Tags[0].Name != "testTagName" || job.Tags[0].Scope != "testuser" {
 			t.Fatalf("unexpected tags: %#v", job.Tags)
 		}
 
