@@ -19,6 +19,7 @@ var Keys schema.ProgramConfig = schema.ProgramConfig{
 	EmbedStaticFiles:          true,
 	DBDriver:                  "sqlite3",
 	DB:                        "./var/job.db",
+	Nats:                      nil,
 	Archive:                   json.RawMessage(`{\"kind\":\"file\",\"path\":\"./var/job-archive\"}`),
 	DisableArchive:            false,
 	Validate:                  false,

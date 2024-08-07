@@ -76,6 +76,11 @@ type Retention struct {
 	IncludeDB bool   `json:"includeDB"`
 }
 
+type NatsConfig struct {
+	// Port of the nats server
+	Port int `json:"port"`
+}
+
 // Format of the configuration (file). See below for the defaults.
 type ProgramConfig struct {
 	// Address where the http (or https) server will listen on (for example: 'localhost:80').
@@ -102,6 +107,9 @@ type ProgramConfig struct {
 
 	// For sqlite3 a filename, for mysql a DSN in this format: https://github.com/go-sql-driver/mysql#dsn-data-source-name (Without query parameters!).
 	DB string `json:"db"`
+
+	// Nats Config: If !nil, start NATS-Server on startup
+	Nats *NatsConfig `json:"nats-config"`
 
 	// Config for job archive
 	Archive json.RawMessage `json:"archive"`

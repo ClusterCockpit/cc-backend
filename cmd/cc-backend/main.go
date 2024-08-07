@@ -17,6 +17,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/internal/natsMessenger"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/taskManager"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
@@ -213,9 +214,18 @@ func main() {
 
 	var wg sync.WaitGroup
 
+	// Start NATS Messenger if Config exists
+	wg.Add(1)
+	nm, err := natsMessenger.New(config.Keys.Nats)
+	if err != nil {
+		log.Fatal("Error on NATS startup!")
+	}
+	wg.Done()
+
+	// Start HTTP server
 	wg.Add(1)
 	go func() {
-		defer wg.Done()
+		wg.Done()
 		serverStart()
 	}()
 
@@ -226,6 +236,10 @@ func main() {
 		defer wg.Done()
 		<-sigs
 		runtimeEnv.SystemdNotifiy(false, "Shutting down ...")
+
+		if nm != nil {
+			nm.StopNatsMessenger()
+		}
 
 		serverShutdown()
 

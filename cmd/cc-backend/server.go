@@ -316,9 +316,9 @@ func serverStart() {
 			MinVersion:               tls.VersionTLS12,
 			PreferServerCipherSuites: true,
 		})
-		fmt.Printf("HTTPS server listening at %s...", config.Keys.Addr)
+		fmt.Printf("HTTPS server listening at %s...\n", config.Keys.Addr)
 	} else {
-		fmt.Printf("HTTP server listening at %s...", config.Keys.Addr)
+		fmt.Printf("HTTP server listening at %s...\n", config.Keys.Addr)
 	}
 
 	if err = server.Serve(listener); err != nil && err != http.ErrServerClosed {
