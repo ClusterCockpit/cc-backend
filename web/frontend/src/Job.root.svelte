@@ -75,7 +75,7 @@
             duration, numNodes, numHWThreads, numAcc,
             SMT, exclusive, partition, subCluster, arrayJobId,
             monitoringStatus, state, walltime,
-            tags { id, type, name, scope },
+            tags { id, type, name },
             resources { hostname, hwthreads, accelerators },
             metaData,
             userData { name, email },
@@ -229,6 +229,11 @@
         $initq.data.job.subCluster,
       ),
     }));
+
+
+    const loadRes = ({ detail }) => {
+      console.log(">>> UPPER RES REQUEST", detail)
+    }
 </script>
 
 <Row>
@@ -358,6 +363,7 @@
           <Metric
             bind:this={plots[item.metric]}
             on:load-all={loadAllScopes}
+            on:new-res={loadRes}
             job={$initq.data.job}
             metricName={item.metric}
             metricUnit={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.unit}

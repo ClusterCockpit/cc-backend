@@ -40,10 +40,14 @@
     fetching = false,
     error = null;
   let selectedScope = minScope(scopes);
+  let selectedResolution = 60
+  $: dispatch("new-res", selectedResolution)
 
   let statsPattern = /(.*)-stat$/
   let statsSeries = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null)
   let selectedScopeIndex
+
+  const resolutions = [60, 240, 600]
 
   $: availableScopes = scopes;
   $: patternMatches = statsPattern.exec(selectedScope)
@@ -83,6 +87,11 @@
       {/each}
     </select>
   {/if}
+  <select class="form-select" bind:value={selectedResolution}>
+    {#each resolutions as res}
+      <option value={res}>Timestep: {res}</option>
+    {/each}
+  </select>
 </InputGroup>
 {#key series}
   {#if fetching == true}
