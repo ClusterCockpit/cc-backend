@@ -1,6 +1,14 @@
-<script>
+<!--
+    @component Main job list component
+
+    Properties:
+    - `filterPresets Object?`: Optional predefined filter values [Default: {}]
+    - `authlevel Number`: The current users authentication level
+    - `roles [Number]`: Enum containing available roles
+ -->
+ 
+ <script>
   import { onMount, getContext } from "svelte";
-  import { init } from "./utils.js";
   import {
     Row,
     Col,
@@ -9,12 +17,13 @@
     Card,
     Spinner,
   } from "@sveltestrap/sveltestrap";
-  import Filters from "./filters/Filters.svelte";
-  import JobList from "./joblist/JobList.svelte";
-  import Refresher from "./joblist/Refresher.svelte";
-  import Sorting from "./joblist/SortSelection.svelte";
-  import MetricSelection from "./MetricSelection.svelte";
-  import TextFilter from "./filters/TextFilter.svelte";
+  import { init } from "./generic/utils.js";
+  import Filters from "./generic/Filters.svelte";
+  import JobList from "./generic/JobList.svelte";
+  import TextFilter from "./generic/helper/TextFilter.svelte";
+  import Refresher from "./generic/helper/Refresher.svelte";
+  import Sorting from "./generic/select/SortSelection.svelte";
+  import MetricSelection from "./generic/select/MetricSelection.svelte";
 
   const { query: initq } = init();
 
@@ -27,7 +36,7 @@
   let filterComponent; // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
   let jobList,
     matchedJobs = null;
-  let sorting = { field: "startTime", order: "DESC" },
+  let sorting = { field: "startTime", type: "col", order: "DESC" },
     isSortingOpen = false,
     isMetricsSelectionOpen = false;
   let metrics = filterPresets.cluster
@@ -43,7 +52,7 @@
   // The filterPresets are handled by the Filters component,
   // so we need to wait for it to be ready before we can start a query.
   // This is also why JobList component starts out with a paused query.
-  onMount(() => filterComponent.update());
+  onMount(() => filterComponent.updateFilters());
 </script>
 
 <Row>
@@ -77,11 +86,11 @@
     <Filters
       {filterPresets}
       bind:this={filterComponent}
-      on:update={({ detail }) => {
+      on:update-filters={({ detail }) => {
         selectedCluster = detail.filters[0]?.cluster
           ? detail.filters[0].cluster.eq
           : null;
-        jobList.update(detail.filters);
+        jobList.queryJobs(detail.filters);
       }}
     />
   </Col>
@@ -91,11 +100,14 @@
       {presetProject}
       bind:authlevel
       bind:roles
-      on:update={({ detail }) => filterComponent.update(detail)}
+      on:set-filter={({ detail }) => filterComponent.updateFilters(detail)}
     />
   </Col>
   <Col xs="2">
-    <Refresher on:reload={() => jobList.refresh()} />
+    <Refresher on:refresh={() => {
+      jobList.refreshJobs()
+      jobList.refreshAllMetrics()
+    }} />
   </Col>
 </Row>
 <br />
@@ -119,5 +131,5 @@
   bind:metrics
   bind:isOpen={isMetricsSelectionOpen}
   bind:showFootprint
-  view="list"
+  footprintSelect={true}
 />

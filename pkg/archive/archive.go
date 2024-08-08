@@ -7,6 +7,7 @@ package archive
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
@@ -53,40 +54,48 @@ type JobContainer struct {
 }
 
 var (
+	initOnce   sync.Once
 	cache      *lrucache.Cache = lrucache.New(128 * 1024 * 1024)
 	ar         ArchiveBackend
 	useArchive bool
 )
 
 func Init(rawConfig json.RawMessage, disableArchive bool) error {
-	useArchive = !disableArchive
+	var err error
 
-	var cfg struct {
-		Kind string `json:"kind"`
-	}
+	initOnce.Do(func() {
+		useArchive = !disableArchive
 
-	if err := json.Unmarshal(rawConfig, &cfg); err != nil {
-		log.Warn("Error while unmarshaling raw config json")
-		return err
-	}
+		var cfg struct {
+			Kind string `json:"kind"`
+		}
 
-	switch cfg.Kind {
-	case "file":
-		ar = &FsArchive{}
-		// case "s3":
-		// 	ar = &S3Archive{}
-	default:
-		return fmt.Errorf("ARCHIVE/ARCHIVE > unkown archive backend '%s''", cfg.Kind)
-	}
+		if err = json.Unmarshal(rawConfig, &cfg); err != nil {
+			log.Warn("Error while unmarshaling raw config json")
+			return
+		}
 
-	version, err := ar.Init(rawConfig)
-	if err != nil {
-		log.Error("Error while initializing archiveBackend")
-		return err
-	}
-	log.Infof("Load archive version %d", version)
+		switch cfg.Kind {
+		case "file":
+			ar = &FsArchive{}
+			// case "s3":
+			// 	ar = &S3Archive{}
+		default:
+			err = fmt.Errorf("ARCHIVE/ARCHIVE > unkown archive backend '%s''", cfg.Kind)
+		}
 
-	return initClusterConfig()
+		var version uint64
+		version, err = ar.Init(rawConfig)
+		if err != nil {
+			log.Error("Error while initializing archiveBackend")
+			return
+		}
+		log.Infof("Load archive version %d", version)
+
+		err = initClusterConfig()
+	})
+
+	return err
 }
 
 func GetHandle() ArchiveBackend {

@@ -162,7 +162,7 @@ func LoadData(job *schema.Job,
 			ttl = 2 * time.Minute
 		}
 
-		prepareJobData(job, jd, scopes)
+		prepareJobData(jd, scopes)
 
 		return jd, ttl, size
 	})
@@ -263,10 +263,9 @@ func cacheKey(
 
 // For /monitoring/job/<job> and some other places, flops_any and mem_bw need
 // to be available at the scope 'node'. If a job has a lot of nodes,
-// statisticsSeries should be available so that a min/mean/max Graph can be
+// statisticsSeries should be available so that a min/median/max Graph can be
 // used instead of a lot of single lines.
 func prepareJobData(
-	job *schema.Job,
 	jobData schema.JobData,
 	scopes []schema.MetricScope,
 ) {

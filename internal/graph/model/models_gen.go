@@ -21,6 +21,12 @@ type FloatRange struct {
 	To   float64 `json:"to"`
 }
 
+type FootprintValue struct {
+	Name  string  `json:"name"`
+	Stat  string  `json:"stat"`
+	Value float64 `json:"value"`
+}
+
 type Footprints struct {
 	TimeWeights *TimeWeights        `json:"timeWeights"`
 	Metrics     []*MetricFootprints `json:"metrics"`
@@ -52,10 +58,7 @@ type JobFilter struct {
 	NumHWThreads    *schema.IntRange  `json:"numHWThreads,omitempty"`
 	StartTime       *schema.TimeRange `json:"startTime,omitempty"`
 	State           []schema.JobState `json:"state,omitempty"`
-	FlopsAnyAvg     *FloatRange       `json:"flopsAnyAvg,omitempty"`
-	MemBwAvg        *FloatRange       `json:"memBwAvg,omitempty"`
-	LoadAvg         *FloatRange       `json:"loadAvg,omitempty"`
-	MemUsedMax      *FloatRange       `json:"memUsedMax,omitempty"`
+	MetricStats     []*MetricStatItem `json:"metricStats,omitempty"`
 	Exclusive       *int              `json:"exclusive,omitempty"`
 	Node            *StringInput      `json:"node,omitempty"`
 }
@@ -120,7 +123,13 @@ type MetricHistoPoint struct {
 type MetricHistoPoints struct {
 	Metric string              `json:"metric"`
 	Unit   string              `json:"unit"`
+	Stat   *string             `json:"stat,omitempty"`
 	Data   []*MetricHistoPoint `json:"data,omitempty"`
+}
+
+type MetricStatItem struct {
+	MetricName string      `json:"metricName"`
+	Range      *FloatRange `json:"range"`
 }
 
 type Mutation struct {
@@ -134,6 +143,7 @@ type NodeMetrics struct {
 
 type OrderByInput struct {
 	Field string            `json:"field"`
+	Type  string            `json:"type"`
 	Order SortDirectionEnum `json:"order"`
 }
 

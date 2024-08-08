@@ -1,9 +1,12 @@
-<script>
+<!--
+    @component Main cluster status view component; renders current system-usage information
+
+    Properties:
+    - `cluster String`: The cluster to show status information for
+ -->
+ 
+ <script>
   import { getContext } from "svelte";
-  import Refresher from "./joblist/Refresher.svelte";
-  import Roofline from "./plots/Roofline.svelte";
-  import Pie, { colors } from "./plots/Pie.svelte";
-  import Histogram from "./plots/Histogram.svelte";
   import {
     Row,
     Col,
@@ -18,19 +21,23 @@
     Button,
   } from "@sveltestrap/sveltestrap";
   import {
-    init,
-    convert2uplot,
-    transformPerNodeDataForRoofline,
-  } from "./utils.js";
-  import { scaleNumbers } from "./units.js";
-  import {
     queryStore,
     gql,
     getContextClient,
     mutationStore,
   } from "@urql/svelte";
-  import PlotTable from "./PlotTable.svelte";
-  import HistogramSelection from "./HistogramSelection.svelte";
+  import {
+    init,
+    convert2uplot,
+    transformPerNodeDataForRoofline,
+  } from "./generic/utils.js";
+  import { scaleNumbers } from "./generic/units.js";
+  import PlotTable from "./generic/PlotTable.svelte";
+  import Roofline from "./generic/plots/Roofline.svelte";
+  import Pie, { colors } from "./generic/plots/Pie.svelte";
+  import Histogram from "./generic/plots/Histogram.svelte";
+  import Refresher from "./generic/helper/Refresher.svelte";
+  import HistogramSelection from "./generic/select/HistogramSelection.svelte";
 
   const { query: initq } = init();
   const ccconfig = getContext("cc-config");
@@ -146,7 +153,7 @@
     `,
     variables: {
       cluster: cluster,
-      metrics: ["flops_any", "mem_bw"],
+      metrics: ["flops_any", "mem_bw"], // Fixed names for roofline and status bars
       from: from.toISOString(),
       to: to.toISOString(),
       filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
@@ -331,7 +338,7 @@
   <Col class="mt-2 mt-md-0">
     <Refresher
       initially={120}
-      on:reload={() => {
+      on:refresh={() => {
         from = new Date(Date.now() - 5 * 60 * 1000);
         to = new Date(Date.now());
       }}
@@ -442,7 +449,7 @@
               allowSizeChange={true}
               width={plotWidths[i] - 10}
               height={300}
-              cluster={subCluster}
+              subCluster={subCluster}
               data={transformPerNodeDataForRoofline(
                 $mainQuery.data.nodeMetrics.filter(
                   (data) => data.subCluster == subCluster.name,

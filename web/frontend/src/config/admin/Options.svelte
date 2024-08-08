@@ -1,3 +1,7 @@
+<!--
+    @component Admin option select card
+ -->
+
 <script>
   import { onMount } from "svelte";
   import { Card, CardBody, CardTitle } from "@sveltestrap/sveltestrap";

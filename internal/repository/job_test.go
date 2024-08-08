@@ -30,7 +30,7 @@ func TestFind(t *testing.T) {
 func TestFindById(t *testing.T) {
 	r := setup(t)
 
-	job, err := r.FindById(5)
+	job, err := r.FindById(getContext(t), 5)
 	if err != nil {
 		t.Fatal(err)
 	}
