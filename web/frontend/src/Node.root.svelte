@@ -27,7 +27,7 @@
   import {
     init,
     checkMetricDisabled,
-  } from "./utils.js";
+  } from "./generic/utils.js";
   import PlotTable from "./generic/PlotTable.svelte";
   import MetricPlot from "./generic/plots/MetricPlot.svelte";
   import TimeSelection from "./generic/select/TimeSelection.svelte";

@@ -75,7 +75,7 @@
             duration, numNodes, numHWThreads, numAcc,
             SMT, exclusive, partition, subCluster, arrayJobId,
             monitoringStatus, state, walltime,
-            tags { id, type, name, scope },
+            tags { id, type, name },
             resources { hostname, hwthreads, accelerators },
             metaData,
             userData { name, email },
