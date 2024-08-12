@@ -215,12 +215,22 @@ func (nm *NatsMessenger) startJobListener() (sub *nats.Subscription, err error) 
 
 func (nm *NatsMessenger) stopJobListener() (sub *nats.Subscription, err error) {
 	return nm.Connection.Subscribe("stop-job", func(m *nats.Msg) {
-		var req StopJobNatsRequest
-		if err := json.Unmarshal(m.Data, &req); err != nil {
-			log.Error("Error while unmarshaling raw json nats message content: stopJob")
-		}
+		user, err := nm.verifyMessageJWT(m)
 
-		m.Respond(nm.stopJobHandler(req))
+		if err != nil {
+			log.Warnf("not authd: %s", err.Error())
+			m.Respond([]byte("not authd: " + err.Error()))
+		} else if user != nil && user.HasRole(schema.RoleApi) {
+			var req StopJobNatsRequest
+			if err := json.Unmarshal(m.Data, &req); err != nil {
+				log.Error("Error while unmarshaling raw json nats message content: stopJob")
+				m.Respond([]byte("Error while unmarshaling raw json nats message content: stopJob"))
+			}
+			m.Respond(nm.stopJobHandler(req))
+		} else {
+			log.Warnf("missing role for nats")
+			m.Respond([]byte("missing role for nats"))
+		}
 	})
 }
 
