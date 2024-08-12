@@ -136,6 +136,7 @@ func InitDB() error {
 
 // This function also sets the subcluster if necessary!
 func SanityChecks(job *schema.BaseJob) error {
+	// Missing check on Slurm JobID?
 	if c := archive.GetCluster(job.Cluster); c == nil {
 		return fmt.Errorf("no such cluster: %v", job.Cluster)
 	}
