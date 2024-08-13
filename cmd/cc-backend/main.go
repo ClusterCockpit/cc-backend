@@ -216,7 +216,7 @@ func main() {
 
 	// Start NATS Messenger if Config exists
 	wg.Add(1)
-	nm := natsMessenger.GetNatsMessenger(config.Keys.Nats)
+	nm := natsMessenger.StartNatsMessenger(config.Keys.Nats)
 	wg.Done()
 
 	// Start HTTP server

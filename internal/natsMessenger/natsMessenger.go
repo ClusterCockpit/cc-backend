@@ -72,8 +72,8 @@ type ReceiveEventNatsRequest struct {
 	Value     *int64  `json:"value,omitempty" example:"150"`              // Optional Value Set for Evenr, eg powercap
 }
 
-// Get Singleton
-func GetNatsMessenger(config *schema.NatsConfig) *NatsMessenger {
+// Start Singleton
+func StartNatsMessenger(config *schema.NatsConfig) *NatsMessenger {
 	// Check if Config present
 	if config == nil {
 		log.Info("No NATS config found: Skip NATS init.")
@@ -132,8 +132,15 @@ func GetNatsMessenger(config *schema.NatsConfig) *NatsMessenger {
 				}
 			})
 		log.Infof("NATS server and subscriptions on port '%d' established\n", config.Port)
-	} else {
-		log.Infof("Single NatsMessenger instance already created on port '%d'\n", config.Port)
+	}
+
+	return natsMessengerInstance
+}
+
+// Get Singleton
+func GetNatsMessenger() *NatsMessenger {
+	if natsMessengerInstance == nil {
+		log.Fatalf("NatsMessengerInstance not initialized!")
 	}
 
 	return natsMessengerInstance
