@@ -7,10 +7,10 @@ UPDATE job SET footprint = json_replace(footprint, '$.flops_any_avg', job.flops_
 UPDATE job SET footprint = json_insert(footprint, '$.mem_bw_avg', job.mem_bw_avg);
 UPDATE job SET footprint = json_insert(footprint, '$.mem_used_max', job.mem_used_max);
 UPDATE job SET footprint = json_insert(footprint, '$.cpu_load_avg', job.load_avg);
-UPDATE job SET footprint = json_insert(footprint, '$.net_bw_avg', job.net_bw_avg) IF job.net_bw_avg != 0;
-UPDATE job SET footprint = json_insert(footprint, '$.net_data_vol_total', job.net_data_vol_total) IF job.net_data_vol_total != 0;
-UPDATE job SET footprint = json_insert(footprint, '$.file_bw_avg', job.file_bw_avg) IF job.file_bw_avg != 0;
-UPDATE job SET footprint = json_insert(footprint, '$.file_data_vol_total', job.file_data_vol_total) IF job.file_data_vol_total != 0;
+UPDATE job SET footprint = json_insert(footprint, '$.net_bw_avg', job.net_bw_avg) WHERE job.net_bw_avg != 0;
+UPDATE job SET footprint = json_insert(footprint, '$.net_data_vol_total', job.net_data_vol_total) WHERE job.net_data_vol_total != 0;
+UPDATE job SET footprint = json_insert(footprint, '$.file_bw_avg', job.file_bw_avg) WHERE job.file_bw_avg != 0;
+UPDATE job SET footprint = json_insert(footprint, '$.file_data_vol_total', job.file_data_vol_total) WHERE job.file_data_vol_total != 0;
 
 ALTER TABLE job DROP flops_any_avg;
 ALTER TABLE job DROP mem_bw_avg;
