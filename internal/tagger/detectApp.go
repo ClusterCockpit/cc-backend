@@ -2,18 +2,21 @@
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
-package tagger
+package main
 
 import (
 	"bufio"
 	"embed"
+	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/diegoholiveira/jsonlogic"
 )
 
 const tagType = "app"
@@ -27,7 +30,8 @@ type appInfo struct {
 }
 
 type AppTagger struct {
-	apps []appInfo
+	apps     []appInfo
+	jsonRule map[string]interface{} // Store a single JSON rule
 }
 
 func (t *AppTagger) Register() error {
@@ -56,17 +60,57 @@ func (t *AppTagger) Register() error {
 	return nil
 }
 
+// LoadRule function to load JSON logic rule from rules.json
+func (t *AppTagger) LoadRule() error {
+	file, err := os.Open("rules.json")
+	if err != nil {
+		return fmt.Errorf("error opening rules file: %v", err)
+	}
+	defer file.Close()
+
+	var rule map[string]interface{}
+	decoder := json.NewDecoder(file)
+	if err := decoder.Decode(&rule); err != nil {
+		return fmt.Errorf("error decoding rule: %v", err)
+	}
+	t.jsonRule = rule
+	return nil
+}
+
 func (t *AppTagger) Match(job *schema.Job) {
 	r := repository.GetJobRepository()
 	meta, err := r.FetchMetadata(job)
 	if err != nil {
 		log.Error("cannot fetch meta data")
+		return
 	}
+
+	// Prepare the data for JSON logic evaluation
+	data := map[string]interface{}{
+		"metaData":   meta,
+		"statistics": job.Statistics,
+	}
+
 	jobscript, ok := meta["jobScript"]
 	if ok {
 		id := job.ID
 
 	out:
+		// Apply JSON logic rule
+		if t.jsonRule != nil {
+			result, err := jsonlogic.Apply(t.jsonRule, data)
+			if err != nil {
+				log.Errorf("error applying JSON logic: %v", err)
+			} else if match, ok := result.(bool); ok && match {
+				tag := "detectedApp" // Define a tag for detected apps
+				if !r.HasTag(id, tagType, tag) {
+					r.AddTagOrCreate(id, tagType, tag)
+					break out
+				}
+			}
+		}
+
+		// Original app matching logic remains for backward compatibility (if needed).
 		for _, a := range t.apps {
 			tag := a.tag
 			for _, s := range a.strings {
@@ -82,3 +126,25 @@ func (t *AppTagger) Match(job *schema.Job) {
 		log.Infof("Cannot extract job script for job: %d on %s", job.JobID, job.Cluster)
 	}
 }
+
+func main() {
+	appTagger := &AppTagger{}
+
+	// Load the JSON logic rule
+	if err := appTagger.LoadRule(); err != nil {
+		log.Fatalf("Failed to load rules: %v", err)
+	}
+
+	// Assume you have a job to process
+	var job *schema.Job
+	// Fetch or define the job data here
+
+	// Apply the matching logic
+	appTagger.Match(job)
+}
+
+//
+//why are we using json logics, cannot we simply use read input and apply if/else logic to it??
+//the first part is to give the json logic an input
+
+//making rules for taggingthe data
