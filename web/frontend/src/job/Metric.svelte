@@ -25,7 +25,7 @@
     Spinner,
     Card,
   } from "@sveltestrap/sveltestrap";
-  import { minScope } from "../generic/utils";
+  import { minScope } from "../generic/utils.js";
   import Timeseries from "../generic/plots/MetricPlot.svelte";
 
   export let job;
@@ -87,20 +87,13 @@
   const selectedMetrics = [metricName]
 
   function loadUpdate() {
-
-    // useQuery('repoData', () =>
-    //   fetch('https://api.github.com/repos/SvelteStack/svelte-query').then(res =>
-    //     res.json()
-    //   )
-
+    console.log('S> OLD DATA:', rawData)
     metricData = queryStore({
       client: client,
       query: subQuery,
       variables: { dbid, selectedMetrics, selectedScopes, selectedResolution },
     });
 
-    console.log('S> OLD DATA:', rawData)
-    // rawData = {...$metricData?.data?.singleUpdate}
   };
 
   $: if (selectedScope == "load-all") {
@@ -121,10 +114,11 @@
     (series) => selectedHost == null || series.hostname == selectedHost,
   );
 
-  $: if ($metricData && !$metricData.fetching) console.log('S> NEW DATA:', rawData)
-  // $: console.log('Pattern', patternMatches)
+  $: if ($metricData && !$metricData.fetching) {
+    rawData = $metricData.data.singleUpdate.map((x) => x.metric)
+    console.log('S> NEW DATA:', rawData)
+  }
   $: console.log('SelectedScope', selectedScope)
-  $: console.log('ScopeIndex', selectedScopeIndex)
 </script>
 
 <InputGroup>
@@ -154,7 +148,7 @@
       scopes = ["node"]
       selectedScope = "node"
       selectedScopes = [...scopes]
-      loadUpdate
+      loadUpdate()
     }}>
     {#each resolutions as res}
       <option value={res}>Timestep: {res}</option>
