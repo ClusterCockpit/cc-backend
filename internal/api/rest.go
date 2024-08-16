@@ -1110,7 +1110,7 @@ func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	resolver := graph.GetResolverInstance()
-	data, err := resolver.Query().JobMetrics(r.Context(), id, metrics, scopes)
+	data, err := resolver.Query().JobMetrics(r.Context(), id, metrics, scopes, nil)
 	if err != nil {
 		json.NewEncoder(rw).Encode(Respone{
 			Error: &struct {

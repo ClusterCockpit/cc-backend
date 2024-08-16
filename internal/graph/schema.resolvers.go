@@ -224,13 +224,19 @@ func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error)
 }
 
 // JobMetrics is the resolver for the jobMetrics field.
-func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope) ([]*model.JobMetricWithName, error) {
+func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope, resolution *int) ([]*model.JobMetricWithName, error) {
+	defaultRes := 600
+	if resolution == nil {
+		resolution = &defaultRes
+	}
+
 	job, err := r.Query().Job(ctx, id)
 	if err != nil {
 		log.Warn("Error while querying job for metrics")
 		return nil, err
 	}
 
+	log.Debugf(">>>>> REQUEST DATA HERE FOR %v AT SCOPE %v WITH RESOLUTION OF %d", metrics, scopes, *resolution)
 	data, err := metricdata.LoadData(job, metrics, scopes, ctx)
 	if err != nil {
 		log.Warn("Error while loading job data")

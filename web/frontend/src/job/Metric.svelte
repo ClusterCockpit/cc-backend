@@ -13,7 +13,12 @@
  -->
 
 <script>
-  import { createEventDispatcher } from "svelte";
+  import { 
+    queryStore,
+    gql,
+    getContextClient 
+  } from "@urql/svelte";
+  // import { createEventDispatcher } from "svelte";
   import {
     InputGroup,
     InputGroupText,
@@ -32,24 +37,79 @@
   export let rawData;
   export let isShared = false;
 
-  const dispatch = createEventDispatcher();
-  const unit = (metricUnit?.prefix ? metricUnit.prefix : "") + (metricUnit?.base ? metricUnit.base : "")
-    
   let selectedHost = null,
     plot,
-    fetching = false,
     error = null;
   let selectedScope = minScope(scopes);
-  let selectedResolution = 60
-  $: dispatch("new-res", selectedResolution)
-
+  let selectedResolution = 600
   let statsPattern = /(.*)-stat$/
   let statsSeries = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null)
   let selectedScopeIndex
 
-  const resolutions = [60, 240, 600]
+  // const dispatch = createEventDispatcher();
+  const unit = (metricUnit?.prefix ? metricUnit.prefix : "") + (metricUnit?.base ? metricUnit.base : "")
+  const resolutions = [600, 240, 60]
+  const client = getContextClient();
+  const subQuery = gql`
+    query ($dbid: ID!, $selectedMetrics: [String!]!, $selectedScopes: [MetricScope!]!, $selectedResolution: Int) {
+      singleUpdate: jobMetrics(id: $dbid, metrics: $selectedMetrics, scopes: $selectedScopes, resolution: $selectedResolution) {
+        name
+        scope
+        metric {
+          unit {
+            prefix
+            base
+          }
+          timestep
+          statisticsSeries {
+            min
+            median
+            max
+          }
+          series {
+            hostname
+            id
+            data
+            statistics {
+              min
+              avg
+              max
+            }
+          }
+        }
+      }
+    }
+  `;
 
-  $: availableScopes = scopes;
+  let metricData;
+  let selectedScopes = [...scopes]
+  const dbid = job.id;
+  const selectedMetrics = [metricName]
+
+  function loadUpdate() {
+
+    // useQuery('repoData', () =>
+    //   fetch('https://api.github.com/repos/SvelteStack/svelte-query').then(res =>
+    //     res.json()
+    //   )
+
+    metricData = queryStore({
+      client: client,
+      query: subQuery,
+      variables: { dbid, selectedMetrics, selectedScopes, selectedResolution },
+    });
+
+    console.log('S> OLD DATA:', rawData)
+    // rawData = {...$metricData?.data?.singleUpdate}
+  };
+
+  $: if (selectedScope == "load-all") {
+    scopes = [...scopes, "socket", "core"]
+    selectedScope = nativeScope
+    selectedScopes = [...scopes]
+    loadUpdate()
+  };
+
   $: patternMatches = statsPattern.exec(selectedScope)
   $: if (!patternMatches) {
       selectedScopeIndex = scopes.findIndex((s) => s == selectedScope);
@@ -61,7 +121,10 @@
     (series) => selectedHost == null || series.hostname == selectedHost,
   );
 
-  $: if (selectedScope == "load-all") dispatch("load-all");
+  $: if ($metricData && !$metricData.fetching) console.log('S> NEW DATA:', rawData)
+  // $: console.log('Pattern', patternMatches)
+  $: console.log('SelectedScope', selectedScope)
+  $: console.log('ScopeIndex', selectedScopeIndex)
 </script>
 
 <InputGroup>
@@ -69,13 +132,13 @@
     {metricName} ({unit})
   </InputGroupText>
   <select class="form-select" bind:value={selectedScope}>
-    {#each availableScopes as scope, index}
+    {#each scopes as scope, index}
       <option value={scope}>{scope}</option>
       {#if statsSeries[index]}
         <option value={scope + '-stat'}>stats series ({scope})</option>
       {/if}
     {/each}
-    {#if availableScopes.length == 1 && nativeScope != "node"}
+    {#if scopes.length == 1 && nativeScope != "node"}
       <option value={"load-all"}>Load all...</option>
     {/if}
   </select>
@@ -87,14 +150,19 @@
       {/each}
     </select>
   {/if}
-  <select class="form-select" bind:value={selectedResolution}>
+  <select class="form-select" bind:value={selectedResolution} on:change={() => {
+      scopes = ["node"]
+      selectedScope = "node"
+      selectedScopes = [...scopes]
+      loadUpdate
+    }}>
     {#each resolutions as res}
       <option value={res}>Timestep: {res}</option>
     {/each}
   </select>
 </InputGroup>
 {#key series}
-  {#if fetching == true}
+  {#if $metricData?.fetching == true}
     <Spinner />
   {:else if error != null}
     <Card body color="danger">{error.message}</Card>
