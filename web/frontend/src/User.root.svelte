@@ -1,6 +1,13 @@
+<!--
+    @component Main user jobs list display component; displays job list and additional information for a given user
+
+    Properties:
+    - `user Object`: The GraphQL user object
+    - `filterPresets Object`: Optional predefined filter values
+ -->
+
 <script>
   import { onMount, getContext } from "svelte";
-  import { init, convert2uplot } from "./utils.js";
   import {
     Table,
     Row,
@@ -10,17 +17,26 @@
     Card,
     Spinner,
   } from "@sveltestrap/sveltestrap";
-  import { queryStore, gql, getContextClient } from "@urql/svelte";
-  import Filters from "./filters/Filters.svelte";
-  import TextFilter from "./filters/TextFilter.svelte"
-  import JobList from "./joblist/JobList.svelte";
-  import Sorting from "./joblist/SortSelection.svelte";
-  import Refresher from "./joblist/Refresher.svelte";
-  import Histogram from "./plots/Histogram.svelte";
-  import MetricSelection from "./MetricSelection.svelte";
-  import HistogramSelection from "./HistogramSelection.svelte";
-  import PlotTable from "./PlotTable.svelte";
-  import { scramble, scrambleNames } from "./joblist/JobInfo.svelte";
+  import {
+    queryStore,
+    gql,
+    getContextClient,
+  } from "@urql/svelte";
+  import {
+    init,
+    convert2uplot,
+    scramble,
+    scrambleNames,
+  } from "./generic/utils.js";
+  import JobList from "./generic/JobList.svelte";
+  import Filters from "./generic/Filters.svelte";
+  import PlotTable from "./generic/PlotTable.svelte";
+  import Histogram from "./generic/plots/Histogram.svelte";
+  import MetricSelection from "./generic/select/MetricSelection.svelte";
+  import HistogramSelection from "./generic/select/HistogramSelection.svelte";
+  import Sorting from "./generic/select/SortSelection.svelte";
+  import TextFilter from "./generic/helper/TextFilter.svelte"
+  import Refresher from "./generic/helper/Refresher.svelte";
 
   const { query: initq } = init();
 
@@ -32,7 +48,7 @@
   let filterComponent; // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
   let jobList;
   let jobFilters = [];
-  let sorting = { field: "startTime", order: "DESC" },
+  let sorting = { field: "startTime", type: "col", order: "DESC" },
     isSortingOpen = false;
   let metrics = ccconfig.plot_list_selectedMetrics,
     isMetricsSelectionOpen = false;
@@ -70,6 +86,7 @@
           histMetrics {
             metric
             unit
+            stat
             data {
               min
               max
@@ -83,7 +100,7 @@
     variables: { jobFilters, metricsInHistograms },
   });
 
-  onMount(() => filterComponent.update());
+  onMount(() => filterComponent.updateFilters());
 </script>
 
 <Row>
@@ -123,22 +140,25 @@
       {filterPresets}
       startTimeQuickSelect={true}
       bind:this={filterComponent}
-      on:update={({ detail }) => {
+      on:update-filters={({ detail }) => {
         jobFilters = [...detail.filters, { user: { eq: user.username } }];
         selectedCluster = jobFilters[0]?.cluster
           ? jobFilters[0].cluster.eq
           : null;
-        jobList.update(jobFilters);
+        jobList.queryJobs(jobFilters);
       }}
     />
   </Col>
   <Col xs="auto" style="margin-left: auto;">
     <TextFilter
-      on:update={({ detail }) => filterComponent.update(detail)}
+      on:set-filter={({ detail }) => filterComponent.updateFilters(detail)}
     />
   </Col>
   <Col xs="auto">
-    <Refresher on:reload={() => jobList.refresh()} />
+    <Refresher on:refresh={() => {
+      jobList.refreshJobs()
+      jobList.refreshAllMetrics()
+    }} />
   </Col>
 </Row>
 <br />
@@ -245,7 +265,7 @@
               usesBins={true}
               {width}
               height={250}
-              title="Distribution of '{item.metric}' averages"
+              title="Distribution of '{item.metric} ({item.stat})' footprints"
               xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
               xunit={item.unit}
               ylabel="Number of Jobs"
@@ -272,7 +292,7 @@
   bind:metrics
   bind:isOpen={isMetricsSelectionOpen}
   bind:showFootprint
-  view="list"
+  footprintSelect={true}
 />
 
 <HistogramSelection

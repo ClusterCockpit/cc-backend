@@ -1,3 +1,7 @@
+<!--
+    @component Admin settings wrapper
+ -->
+
 <script>
   import { Row, Col } from "@sveltestrap/sveltestrap";
   import { onMount } from "svelte";

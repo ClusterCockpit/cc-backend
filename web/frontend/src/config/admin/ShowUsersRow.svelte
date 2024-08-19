@@ -1,6 +1,14 @@
+<!--
+    @component User data row for table
+
+    Properties:
+    - `user Object!`: User Object
+      - {username: String, name: String, roles: [String], projects: String, email: String}
+ -->
+
 <script>
   import { Button } from "@sveltestrap/sveltestrap";
-  import { fetchJwt } from "../../utils.js"
+  import { fetchJwt } from "../../generic/utils.js"
 
   export let user;
 

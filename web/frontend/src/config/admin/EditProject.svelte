@@ -1,3 +1,10 @@
+<!--
+    @component User managed project edit form card
+
+    Events:
+    - `reload`: Trigger upstream reload of user list after project update
+ -->
+
 <script>
   import { Card, CardTitle, CardBody } from "@sveltestrap/sveltestrap";
   import { createEventDispatcher } from "svelte";
@@ -32,7 +39,6 @@
         reloadUserList();
       } else {
         let text = await res.text();
-        // console.log(res.statusText)
         throw new Error("Response Code " + res.status + "-> " + text);
       }
     } catch (err) {
@@ -64,7 +70,6 @@
         reloadUserList();
       } else {
         let text = await res.text();
-        // console.log(res.statusText)
         throw new Error("Response Code " + res.status + "-> " + text);
       }
     } catch (err) {

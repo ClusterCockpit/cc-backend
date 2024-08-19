@@ -9,8 +9,6 @@
     <script>
         const jobInfos = {
             id: "{{ .Infos.id }}",
-            jobId: "{{ .Infos.jobId }}",
-            clusterId: "{{ .Infos.clusterId }}"
         };
         const clusterCockpitConfig = {{ .Config }};
         const authlevel = {{ .User.GetAuthLevel }};

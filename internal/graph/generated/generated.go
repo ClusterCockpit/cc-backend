@@ -211,6 +211,7 @@ type ComplexityRoot struct {
 	MetricHistoPoints struct {
 		Data   func(childComplexity int) int
 		Metric func(childComplexity int) int
+		Stat   func(childComplexity int) int
 		Unit   func(childComplexity int) int
 	}
 
@@ -1103,6 +1104,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.MetricHistoPoints.Metric(childComplexity), true
+
+	case "MetricHistoPoints.stat":
+		if e.complexity.MetricHistoPoints.Stat == nil {
+			break
+		}
+
+		return e.complexity.MetricHistoPoints.Stat(childComplexity), true
 
 	case "MetricHistoPoints.unit":
 		if e.complexity.MetricHistoPoints.Unit == nil {
@@ -2100,6 +2108,7 @@ input JobFilter {
 
 input OrderByInput {
   field: String!
+  type: String!,
   order: SortDirectionEnum! = ASC
 }
 
@@ -2147,6 +2156,7 @@ type HistoPoint {
 type MetricHistoPoints {
   metric: String!
   unit: String!
+  stat: String
   data: [MetricHistoPoint!]
 }
 
@@ -6445,6 +6455,8 @@ func (ec *executionContext) fieldContext_JobsStatistics_histMetrics(_ context.Co
 				return ec.fieldContext_MetricHistoPoints_metric(ctx, field)
 			case "unit":
 				return ec.fieldContext_MetricHistoPoints_unit(ctx, field)
+			case "stat":
+				return ec.fieldContext_MetricHistoPoints_stat(ctx, field)
 			case "data":
 				return ec.fieldContext_MetricHistoPoints_data(ctx, field)
 			}
@@ -7283,6 +7295,47 @@ func (ec *executionContext) _MetricHistoPoints_unit(ctx context.Context, field g
 }
 
 func (ec *executionContext) fieldContext_MetricHistoPoints_unit(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MetricHistoPoints",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MetricHistoPoints_stat(ctx context.Context, field graphql.CollectedField, obj *model.MetricHistoPoints) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MetricHistoPoints_stat(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Stat, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MetricHistoPoints_stat(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "MetricHistoPoints",
 		Field:      field,
@@ -13217,7 +13270,7 @@ func (ec *executionContext) unmarshalInputOrderByInput(ctx context.Context, obj 
 		asMap["order"] = "ASC"
 	}
 
-	fieldsInOrder := [...]string{"field", "order"}
+	fieldsInOrder := [...]string{"field", "type", "order"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13231,6 +13284,13 @@ func (ec *executionContext) unmarshalInputOrderByInput(ctx context.Context, obj 
 				return it, err
 			}
 			it.Field = data
+		case "type":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Type = data
 		case "order":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("order"))
 			data, err := ec.unmarshalNSortDirectionEnum2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐSortDirectionEnum(ctx, v)
@@ -14673,6 +14733,8 @@ func (ec *executionContext) _MetricHistoPoints(ctx context.Context, sel ast.Sele
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "stat":
+			out.Values[i] = ec._MetricHistoPoints_stat(ctx, field, obj)
 		case "data":
 			out.Values[i] = ec._MetricHistoPoints_data(ctx, field, obj)
 		default:

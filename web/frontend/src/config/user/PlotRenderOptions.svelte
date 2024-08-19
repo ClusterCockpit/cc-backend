@@ -1,4 +1,16 @@
-<script>
+<!--
+    @component Plot render option selection for users
+
+    Properties:
+    - `config Object`: Current cc-config
+    - `message Object`: Message to display on success or error
+    - `displayMessage Bool`: If to display message content
+
+    Events:
+    - `update-config, {selector: String, target: String}`: Trigger upstream update of the config option
+ -->
+ 
+ <script>
     import {
         Button,
         Row,
@@ -15,7 +27,7 @@
 
     const dispatch = createEventDispatcher();
     function updateSetting(selector, target) {
-        dispatch('update', {
+        dispatch('update-config', {
             selector: selector,
             target: target
         });

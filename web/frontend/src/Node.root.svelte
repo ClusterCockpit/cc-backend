@@ -1,5 +1,15 @@
+<!--
+    @component System-View subcomponent; renders all current metrics for specified node
+
+    Properties:
+    - `cluster String`: Currently selected cluster
+    - `hostname String`: Currently selected host (== node)
+    - `from Date?`: Custom Time Range selection 'from' [Default: null]
+    - `to Date?`: Custom Time Range selection 'to' [Default: null]
+ -->
+
 <script>
-  import { init, checkMetricDisabled } from "./utils.js";
+  import { getContext } from "svelte";
   import {
     Row,
     Col,
@@ -9,12 +19,19 @@
     Spinner,
     Card,
   } from "@sveltestrap/sveltestrap";
-  import { queryStore, gql, getContextClient } from "@urql/svelte";
-  import TimeSelection from "./filters/TimeSelection.svelte";
-  import Refresher from "./joblist/Refresher.svelte";
-  import PlotTable from "./PlotTable.svelte";
-  import MetricPlot from "./plots/MetricPlot.svelte";
-  import { getContext } from "svelte";
+  import {
+    queryStore,
+    gql,
+    getContextClient,
+  } from "@urql/svelte";
+  import {
+    init,
+    checkMetricDisabled,
+  } from "./generic/utils.js";
+  import PlotTable from "./generic/PlotTable.svelte";
+  import MetricPlot from "./generic/plots/MetricPlot.svelte";
+  import TimeSelection from "./generic/select/TimeSelection.svelte";
+  import Refresher from "./generic/helper/Refresher.svelte";
 
   export let cluster;
   export let hostname;
@@ -29,6 +46,8 @@
     from.setMinutes(from.getMinutes() - 30);
   }
 
+  const initialized = getContext("initialized")
+  const globalMetrics = getContext("globalMetrics")
   const ccconfig = getContext("cc-config");
   const clusters = getContext("clusters");
   const client = getContextClient();
@@ -74,15 +93,11 @@
   let itemsPerPage = ccconfig.plot_list_jobsPerPage;
   let page = 1;
   let paging = { itemsPerPage, page };
-  let sorting = { field: "startTime", order: "DESC" };
+  let sorting = { field: "startTime", type: "col", order: "DESC" };
   $: filter = [
     { cluster: { eq: cluster } },
     { node: { contains: hostname } },
     { state: ["running"] },
-    // {startTime: {
-    //     from: from.toISOString(),
-    //     to: to.toISOString()
-    // }}
   ];
 
   const nodeJobsQuery = gql`
@@ -92,10 +107,6 @@
       $paging: PageRequest!
     ) {
       jobs(filter: $filter, order: $sorting, page: $paging) {
-        # items {
-        #     id
-        #     jobId
-        # }
         count
       }
     }
@@ -107,26 +118,16 @@
     variables: { paging, sorting, filter },
   });
 
-  let metricUnits = {};
-  $: if ($nodeMetricsData.data) {
-    let thisCluster = clusters.find((c) => c.name == cluster);
-    if (thisCluster) {
-      for (let metric of thisCluster.metricConfig) {
-        if (metric.unit.prefix || metric.unit.base) {
-          metricUnits[metric.name] =
-            "(" +
-            (metric.unit.prefix ? metric.unit.prefix : "") +
-            (metric.unit.base ? metric.unit.base : "") +
-            ")";
-        } else {
-          // If no unit defined: Omit Unit Display
-          metricUnits[metric.name] = "";
-        }
-      }
+  let systemUnits = {};
+  function loadUnits(isInitialized) {
+    if (!isInitialized) return
+    const systemMetrics = [...globalMetrics.filter((gm) => gm?.availability.find((av) => av.cluster == cluster))]
+    for (let sm of systemMetrics) {
+      systemUnits[sm.name] = (sm?.unit?.prefix ? sm.unit.prefix : "") + (sm?.unit?.base ? sm.unit.base : "")
     }
   }
 
-  const dateToUnixEpoch = (rfc3339) => Math.floor(Date.parse(rfc3339) / 1000);
+  $: loadUnits($initialized)
 </script>
 
 <Row>
@@ -157,7 +158,7 @@
     </Col>
     <Col>
       <Refresher
-        on:reload={() => {
+        on:refresh={() => {
           const diff = Date.now() - to;
           from = new Date(from.getTime() + diff);
           to = new Date(to.getTime() + diff);
@@ -195,7 +196,7 @@
       >
         <h4 style="text-align: center; padding-top:15px;">
           {item.name}
-          {metricUnits[item.name]}
+          {systemUnits[item.name] ? "(" + systemUnits[item.name] + ")" : ""}
         </h4>
         {#if item.disabled === false && item.metric}
           <MetricPlot

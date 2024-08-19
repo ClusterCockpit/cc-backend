@@ -307,6 +307,10 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 		scopes = append(scopes, schema.MetricScopeCore)
 	}
 
+	if job.NumAcc > 0 {
+		scopes = append(scopes, schema.MetricScopeAccelerator)
+	}
+
 	jobData, err := LoadData(job, allMetrics, scopes, ctx)
 	if err != nil {
 		log.Error("Error wile loading job data for archiving")

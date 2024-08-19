@@ -123,6 +123,7 @@ type MetricHistoPoint struct {
 type MetricHistoPoints struct {
 	Metric string              `json:"metric"`
 	Unit   string              `json:"unit"`
+	Stat   *string             `json:"stat,omitempty"`
 	Data   []*MetricHistoPoint `json:"data,omitempty"`
 }
 
@@ -142,6 +143,7 @@ type NodeMetrics struct {
 
 type OrderByInput struct {
 	Field string            `json:"field"`
+	Type  string            `json:"type"`
 	Order SortDirectionEnum `json:"order"`
 }
 

@@ -1,3 +1,13 @@
+<!--
+    @component User management table
+
+    Properties:
+    - `users [Object]?`: List of users
+
+    Events:
+    - `reload`: Trigger upstream reload of user list
+ -->
+
 <script>
   import {
     Button,

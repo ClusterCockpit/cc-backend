@@ -1,3 +1,15 @@
+<!--
+    @component Plot color scheme selection for users
+
+    Properties:
+    - `config Object`: Current cc-config
+    - `message Object`: Message to display on success or error
+    - `displayMessage Bool`: If to display message content
+
+    Events:
+    - `update-config, {selector: String, target: String}`: Trigger upstream update of the config option
+ -->
+
 <script>
     import {
         Table,
@@ -15,7 +27,7 @@
 
     const dispatch = createEventDispatcher();
     function updateSetting(selector, target) {
-        dispatch('update', {
+        dispatch('update-config', {
             selector: selector,
             target: target
         });

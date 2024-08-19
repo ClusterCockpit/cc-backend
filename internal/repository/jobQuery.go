@@ -31,14 +31,28 @@ func (r *JobRepository) QueryJobs(
 
 	if order != nil {
 		field := toSnakeCase(order.Field)
-
-		switch order.Order {
-		case model.SortDirectionEnumAsc:
-			query = query.OrderBy(fmt.Sprintf("job.%s ASC", field))
-		case model.SortDirectionEnumDesc:
-			query = query.OrderBy(fmt.Sprintf("job.%s DESC", field))
-		default:
-			return nil, errors.New("REPOSITORY/QUERY > invalid sorting order")
+		if order.Type == "col" {
+			// "col": Fixed column name query
+			switch order.Order {
+			case model.SortDirectionEnumAsc:
+				query = query.OrderBy(fmt.Sprintf("job.%s ASC", field))
+			case model.SortDirectionEnumDesc:
+				query = query.OrderBy(fmt.Sprintf("job.%s DESC", field))
+			default:
+				return nil, errors.New("REPOSITORY/QUERY > invalid sorting order for column")
+			}
+		} else {
+			// "foot": Order by footprint JSON field values
+			// Verify and Search Only in Valid Jsons
+			query = query.Where("JSON_VALID(meta_data)")
+			switch order.Order {
+			case model.SortDirectionEnumAsc:
+				query = query.OrderBy(fmt.Sprintf("JSON_EXTRACT(footprint, \"$.%s\") ASC", field))
+			case model.SortDirectionEnumDesc:
+				query = query.OrderBy(fmt.Sprintf("JSON_EXTRACT(footprint, \"$.%s\") DESC", field))
+			default:
+				return nil, errors.New("REPOSITORY/QUERY > invalid sorting order for footprint")
+			}
 		}
 	}
 
@@ -177,8 +191,8 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 		query = buildStringCondition("job.resources", filter.Node, query)
 	}
 	if filter.MetricStats != nil {
-		for _, m := range filter.MetricStats {
-			query = buildFloatJsonCondition("job.metric_stats", m.Range, query)
+		for _, ms := range filter.MetricStats {
+			query = buildFloatJsonCondition(ms.MetricName, ms.Range, query)
 		}
 	}
 	return query
@@ -200,8 +214,10 @@ func buildTimeCondition(field string, cond *schema.TimeRange, query sq.SelectBui
 	}
 }
 
-func buildFloatJsonCondition(field string, cond *model.FloatRange, query sq.SelectBuilder) sq.SelectBuilder {
-	return query.Where("JSON_EXTRACT(footprint, '$."+field+"') BETWEEN ? AND ?", cond.From, cond.To)
+func buildFloatJsonCondition(condName string, condRange *model.FloatRange, query sq.SelectBuilder) sq.SelectBuilder {
+	// Verify and Search Only in Valid Jsons
+	query = query.Where("JSON_VALID(footprint)")
+	return query.Where("JSON_EXTRACT(footprint, \"$."+condName+"\") BETWEEN ? AND ?", condRange.From, condRange.To)
 }
 
 func buildStringCondition(field string, cond *model.StringInput, query sq.SelectBuilder) sq.SelectBuilder {

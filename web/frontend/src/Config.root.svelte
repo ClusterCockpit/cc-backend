@@ -1,11 +1,16 @@
-<script>
-  // import { init } from "./utils.js";
-  import { Card, CardHeader, CardTitle } from "@sveltestrap/sveltestrap";
+<!--
+    @component Main Config Option Component, Wrapper for admin and user sub-components
 
+    Properties:
+    - `ìsAdmin Bool!`: Is currently logged in user admin authority
+    - `isApi Bool!`: Is currently logged in user api authority
+    - `username String!`: Empty string if auth. is disabled, otherwise the username as string
+ -->
+
+<script>
+  import { Card, CardHeader, CardTitle } from "@sveltestrap/sveltestrap";
   import UserSettings from "./config/UserSettings.svelte";
   import AdminSettings from "./config/AdminSettings.svelte";
-
-  // const { query: initq } = init();
 
   export let isAdmin;
   export let isApi;

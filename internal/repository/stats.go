@@ -552,12 +552,14 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 	var metricConfig *schema.MetricConfig
 	var peak float64 = 0.0
 	var unit string = ""
+	var footprintStat string = ""
 
 	for _, f := range filters {
 		if f.Cluster != nil {
 			metricConfig = archive.GetMetricConfig(*f.Cluster.Eq, metric)
 			peak = metricConfig.Peak
 			unit = metricConfig.Unit.Prefix + metricConfig.Unit.Base
+			footprintStat = metricConfig.Footprint
 			log.Debugf("Cluster %s filter found with peak %f for %s", *f.Cluster.Eq, peak, metric)
 		}
 	}
@@ -572,21 +574,26 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 					if unit == "" {
 						unit = m.Unit.Prefix + m.Unit.Base
 					}
+					if footprintStat == "" {
+						footprintStat = m.Footprint
+					}
 				}
 			}
 		}
 	}
 
-	// log.Debugf("Metric %s: DB %s, Peak %f, Unit %s", metric, dbMetric, peak, unit)
+	// log.Debugf("Metric %s, Peak %f, Unit %s, Aggregation %s", metric, peak, unit, aggreg)
 	// Make bins, see https://jereze.com/code/sql-histogram/
 
 	start := time.Now()
-	jm := fmt.Sprintf(`json_extract(footprint, "$.%s")`, metric)
+	jm := fmt.Sprintf(`json_extract(footprint, "$.%s")`, (metric + "_" + footprintStat))
 
 	crossJoinQuery := sq.Select(
 		fmt.Sprintf(`max(%s) as max`, jm),
 		fmt.Sprintf(`min(%s) as min`, jm),
 	).From("job").Where(
+		"JSON_VALID(footprint)",
+	).Where(
 		fmt.Sprintf(`%s is not null`, jm),
 	).Where(
 		fmt.Sprintf(`%s <= %f`, jm, peak),
@@ -651,7 +658,7 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 		points = append(points, &point)
 	}
 
-	result := model.MetricHistoPoints{Metric: metric, Unit: unit, Data: points}
+	result := model.MetricHistoPoints{Metric: metric, Unit: unit, Stat: &footprintStat, Data: points}
 
 	log.Debugf("Timer jobsStatisticsHistogram %s", time.Since(start))
 	return &result, nil

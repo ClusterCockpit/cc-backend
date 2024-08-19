@@ -38,6 +38,15 @@ var (
 	apiHandle *api.RestApi
 )
 
+func onFailureResponse(rw http.ResponseWriter, r *http.Request, err error) {
+	rw.Header().Add("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusUnauthorized)
+	json.NewEncoder(rw).Encode(map[string]string{
+		"status": http.StatusText(http.StatusUnauthorized),
+		"error":  err.Error(),
+	})
+}
+
 func serverInit() {
 	// Setup the http.Handler/Router used by the server
 	graph.Init()
@@ -166,64 +175,32 @@ func serverInit() {
 			return authHandle.AuthApi(
 				// On success;
 				next,
-
 				// On failure: JSON Response
-				func(rw http.ResponseWriter, r *http.Request, err error) {
-					rw.Header().Add("Content-Type", "application/json")
-					rw.WriteHeader(http.StatusUnauthorized)
-					json.NewEncoder(rw).Encode(map[string]string{
-						"status": http.StatusText(http.StatusUnauthorized),
-						"error":  err.Error(),
-					})
-				})
+				onFailureResponse)
 		})
 
 		userapi.Use(func(next http.Handler) http.Handler {
 			return authHandle.AuthUserApi(
 				// On success;
 				next,
-
 				// On failure: JSON Response
-				func(rw http.ResponseWriter, r *http.Request, err error) {
-					rw.Header().Add("Content-Type", "application/json")
-					rw.WriteHeader(http.StatusUnauthorized)
-					json.NewEncoder(rw).Encode(map[string]string{
-						"status": http.StatusText(http.StatusUnauthorized),
-						"error":  err.Error(),
-					})
-				})
+				onFailureResponse)
 		})
 
 		configapi.Use(func(next http.Handler) http.Handler {
 			return authHandle.AuthConfigApi(
 				// On success;
 				next,
-
 				// On failure: JSON Response
-				func(rw http.ResponseWriter, r *http.Request, err error) {
-					rw.Header().Add("Content-Type", "application/json")
-					rw.WriteHeader(http.StatusUnauthorized)
-					json.NewEncoder(rw).Encode(map[string]string{
-						"status": http.StatusText(http.StatusUnauthorized),
-						"error":  err.Error(),
-					})
-				})
+				onFailureResponse)
 		})
 
 		frontendapi.Use(func(next http.Handler) http.Handler {
 			return authHandle.AuthFrontendApi(
 				// On success;
 				next,
-
 				// On failure: JSON Response
-				func(rw http.ResponseWriter, r *http.Request, err error) {
-					rw.Header().Add("Content-Type", "application/json")
-					rw.WriteHeader(http.StatusUnauthorized)
-					json.NewEncoder(rw).Encode(map[string]string{
-						"status": http.StatusText(http.StatusUnauthorized),
-						"error":  err.Error(),
-					})
-				})
+				onFailureResponse)
 		})
 	}
 
