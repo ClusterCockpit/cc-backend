@@ -122,15 +122,6 @@
     variables: { dbid, selectedMetrics, selectedScopes },
   });
 
-  // function loadAllScopes() {
-  //   selectedScopes = [...selectedScopes, "socket", "core"]
-  //   jobMetrics = queryStore({
-  //     client: client,
-  //     query: query,
-  //     variables: { dbid, selectedMetrics, selectedScopes},
-  //   });
-  // }
-
   // Handle Job Query on Init -> is not executed anymore
   getContext("on-init")(() => {
     let job = $initq.data.job;
