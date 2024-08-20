@@ -41,14 +41,16 @@
     plot,
     error = null;
   let selectedScope = minScope(scopes);
-  let selectedResolution = 600
-  let statsPattern = /(.*)-stat$/
-  let statsSeries = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null)
-  let selectedScopeIndex
+  let selectedResolution;
+  let pendingResolution = 600;
+  let selectedScopeIndex = scopes.findIndex((s) => s == minScope(scopes));
+  const statsPattern = /(.*)-stat$/;
+  let patternMatches = false;
+  let statsSeries = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null);
 
   // const dispatch = createEventDispatcher();
-  const unit = (metricUnit?.prefix ? metricUnit.prefix : "") + (metricUnit?.base ? metricUnit.base : "")
-  const resolutions = [600, 240, 60]
+  const unit = (metricUnit?.prefix ? metricUnit.prefix : "") + (metricUnit?.base ? metricUnit.base : "");
+  const resolutions = [600, 240, 60] // DEV: Make configable
   const client = getContextClient();
   const subQuery = gql`
     query ($dbid: ID!, $selectedMetrics: [String!]!, $selectedScopes: [MetricScope!]!, $selectedResolution: Int) {
@@ -86,39 +88,68 @@
   const dbid = job.id;
   const selectedMetrics = [metricName]
 
-  function loadUpdate() {
-    console.log('S> OLD DATA:', rawData)
-    metricData = queryStore({
-      client: client,
-      query: subQuery,
-      variables: { dbid, selectedMetrics, selectedScopes, selectedResolution },
-    });
-
-  };
-
-  $: if (selectedScope == "load-all") {
-    scopes = [...scopes, "socket", "core"]
-    selectedScope = nativeScope
-    selectedScopes = [...scopes]
-    loadUpdate()
-  };
-
-  $: patternMatches = statsPattern.exec(selectedScope)
-  $: if (!patternMatches) {
-      selectedScopeIndex = scopes.findIndex((s) => s == selectedScope);
+  $: if (selectedScope == "load-all" || pendingResolution) {
+    
+    if (selectedScope == "load-all") {
+      console.log('Triggered load-all')
+      selectedScopes = [...scopes, "socket", "core"]
     } else {
-      selectedScopeIndex = scopes.findIndex((s) => s == patternMatches[1]);
+      console.log("Triggered scope switch:", selectedScope, pendingResolution)
     }
+
+    // What if accelerator scope / native core scopes?
+    if ((selectedResolution !== pendingResolution) && selectedScopes.length >= 2) {
+      selectedScope = String("node")
+      selectedScopes = ["node"]
+      console.log("New Resolution: Reset to node scope")
+    } else {
+      console.log("New Resolution: No change in Res or just node scope")
+    }
+
+    if (!selectedResolution) {
+      selectedResolution = Number(pendingResolution)
+    } else {
+      selectedResolution = Number(pendingResolution)
+
+      metricData = queryStore({
+        client: client,
+        query: subQuery,
+        variables: { dbid, selectedMetrics, selectedScopes, selectedResolution },
+      // requestPolicy: "network-only",
+      });
+
+      if ($metricData && !$metricData.fetching) {
+        console.log('Trigger Data Handling')
+
+        rawData = $metricData.data.singleUpdate.map((x) => x.metric)
+        scopes  = $metricData.data.singleUpdate.map((x) => x.scope)
+        statsSeries   = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null)
+
+        // Handle Selected Scope on load-all
+        if (selectedScope == "load-all") {
+          selectedScope = minScope(scopes)
+          console.log('Set New SelectedScope after Load-All', selectedScope, scopes)
+        } else {
+          console.log('Set New SelectedScope', selectedScope)
+        }
+
+        patternMatches = statsPattern.exec(selectedScope)
+        if (!patternMatches) {
+          selectedScopeIndex = scopes.findIndex((s) => s == selectedScope);
+          console.log("Selected Index # from Array", selectedScopeIndex, scopes)
+        } else {
+          selectedScopeIndex = scopes.findIndex((s) => s == patternMatches[1]);
+          console.log("Selected Stats Index # from Array", selectedScopeIndex, scopes)
+        }
+      }
+    }
+  }
+
   $: data = rawData[selectedScopeIndex];
+  
   $: series = data?.series.filter(
     (series) => selectedHost == null || series.hostname == selectedHost,
   );
-
-  $: if ($metricData && !$metricData.fetching) {
-    rawData = $metricData.data.singleUpdate.map((x) => x.metric)
-    console.log('S> NEW DATA:', rawData)
-  }
-  $: console.log('SelectedScope', selectedScope)
 </script>
 
 <InputGroup>
@@ -144,12 +175,7 @@
       {/each}
     </select>
   {/if}
-  <select class="form-select" bind:value={selectedResolution} on:change={() => {
-      scopes = ["node"]
-      selectedScope = "node"
-      selectedScopes = [...scopes]
-      loadUpdate()
-    }}>
+  <select class="form-select" bind:value={pendingResolution}>
     {#each resolutions as res}
       <option value={res}>Timestep: {res}</option>
     {/each}
