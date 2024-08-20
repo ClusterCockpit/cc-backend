@@ -88,25 +88,20 @@
   const dbid = job.id;
   const selectedMetrics = [metricName]
 
-  $: if (selectedScope == "load-all" || pendingResolution) {
+  $: if (selectedScope || pendingResolution) {
     
     if (selectedScope == "load-all") {
-      console.log('Triggered load-all')
       selectedScopes = [...scopes, "socket", "core"]
-    } else {
-      console.log("Triggered scope switch:", selectedScope, pendingResolution)
     }
 
     // What if accelerator scope / native core scopes?
     if ((selectedResolution !== pendingResolution) && selectedScopes.length >= 2) {
       selectedScope = String("node")
       selectedScopes = ["node"]
-      console.log("New Resolution: Reset to node scope")
-    } else {
-      console.log("New Resolution: No change in Res or just node scope")
     }
 
     if (!selectedResolution) {
+      // Skips reactive data load on init
       selectedResolution = Number(pendingResolution)
     } else {
       selectedResolution = Number(pendingResolution)
@@ -115,31 +110,25 @@
         client: client,
         query: subQuery,
         variables: { dbid, selectedMetrics, selectedScopes, selectedResolution },
-      // requestPolicy: "network-only",
       });
 
       if ($metricData && !$metricData.fetching) {
-        console.log('Trigger Data Handling')
 
         rawData = $metricData.data.singleUpdate.map((x) => x.metric)
         scopes  = $metricData.data.singleUpdate.map((x) => x.scope)
         statsSeries   = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null)
 
-        // Handle Selected Scope on load-all
+        // Set selected scope to min of returned scopes
         if (selectedScope == "load-all") {
           selectedScope = minScope(scopes)
-          console.log('Set New SelectedScope after Load-All', selectedScope, scopes)
-        } else {
-          console.log('Set New SelectedScope', selectedScope)
         }
 
         patternMatches = statsPattern.exec(selectedScope)
+
         if (!patternMatches) {
           selectedScopeIndex = scopes.findIndex((s) => s == selectedScope);
-          console.log("Selected Index # from Array", selectedScopeIndex, scopes)
         } else {
           selectedScopeIndex = scopes.findIndex((s) => s == patternMatches[1]);
-          console.log("Selected Stats Index # from Array", selectedScopeIndex, scopes)
         }
       }
     }
