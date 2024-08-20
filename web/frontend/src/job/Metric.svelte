@@ -18,7 +18,6 @@
     gql,
     getContextClient 
   } from "@urql/svelte";
-  // import { createEventDispatcher } from "svelte";
   import {
     InputGroup,
     InputGroupText,
@@ -44,11 +43,10 @@
   let selectedResolution;
   let pendingResolution = 600;
   let selectedScopeIndex = scopes.findIndex((s) => s == minScope(scopes));
-  const statsPattern = /(.*)-stat$/;
   let patternMatches = false;
   let statsSeries = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null);
 
-  // const dispatch = createEventDispatcher();
+  const statsPattern = /(.*)-stat$/;
   const unit = (metricUnit?.prefix ? metricUnit.prefix : "") + (metricUnit?.base ? metricUnit.base : "");
   const resolutions = [600, 240, 60] // DEV: Make configable
   const client = getContextClient();
@@ -89,21 +87,23 @@
   const selectedMetrics = [metricName]
 
   $: if (selectedScope || pendingResolution) {
-    
-    if (selectedScope == "load-all") {
-      selectedScopes = [...scopes, "socket", "core"]
-    }
-
-    // What if accelerator scope / native core scopes?
-    if ((selectedResolution !== pendingResolution) && selectedScopes.length >= 2) {
-      selectedScope = String("node")
-      selectedScopes = ["node"]
-    }
-
     if (!selectedResolution) {
       // Skips reactive data load on init
       selectedResolution = Number(pendingResolution)
+
     } else {
+
+      if (selectedScope == "load-all") {
+        selectedScopes = [...scopes, "socket", "core", "accelerator"]
+      }
+
+      if ((selectedResolution !== pendingResolution) && selectedScopes.length >= 2) {
+        selectedScope = String("node")
+        selectedScopes =  ["node"]
+        // Instead of adding acc to load-all: always add by default if native is acc
+        // selectedScopes = nativeScope == "accelerator" ? ["node", "accelerator"] : ["node"]
+      }
+
       selectedResolution = Number(pendingResolution)
 
       metricData = queryStore({
