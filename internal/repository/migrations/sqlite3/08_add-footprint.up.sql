@@ -1,8 +1,12 @@
+CREATE INDEX IF NOT EXISTS job_by_project ON job (project);
+CREATE INDEX IF NOT EXISTS job_list_projects ON job (project, job_state);
+
 ALTER TABLE job ADD COLUMN energy REAL NOT NULL DEFAULT 0.0;
 ALTER TABLE job ADD COLUMN energy_footprint TEXT DEFAULT NULL;
 
 ALTER TABLE job ADD COLUMN footprint TEXT DEFAULT NULL;
 UPDATE job SET footprint = '{"flops_any_avg": 0.0}';
+
 UPDATE job SET footprint = json_replace(footprint, '$.flops_any_avg', job.flops_any_avg);
 UPDATE job SET footprint = json_insert(footprint, '$.mem_bw_avg', job.mem_bw_avg);
 UPDATE job SET footprint = json_insert(footprint, '$.mem_used_max', job.mem_used_max);
