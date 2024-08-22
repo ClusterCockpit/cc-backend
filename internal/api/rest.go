@@ -514,8 +514,15 @@ func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) 
 
 	var data schema.JobData
 
+	metricConfigs := archive.GetCluster(job.Cluster).MetricConfig
+	resolution := 0
+
+	for _, mc := range metricConfigs {
+		resolution = max(resolution, mc.Timestep)
+	}
+
 	if r.URL.Query().Get("all-metrics") == "true" {
-		data, err = metricdata.LoadData(job, nil, scopes, r.Context())
+		data, err = metricdata.LoadData(job, nil, scopes, r.Context(), resolution)
 		if err != nil {
 			log.Warn("Error while loading job data")
 			return
@@ -604,7 +611,14 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 		scopes = []schema.MetricScope{"node"}
 	}
 
-	data, err := metricdata.LoadData(job, metrics, scopes, r.Context())
+	metricConfigs := archive.GetCluster(job.Cluster).MetricConfig
+	resolution := 0
+
+	for _, mc := range metricConfigs {
+		resolution = max(resolution, mc.Timestep)
+	}
+
+	data, err := metricdata.LoadData(job, metrics, scopes, r.Context(), resolution)
 	if err != nil {
 		log.Warn("Error while loading job data")
 		return
