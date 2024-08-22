@@ -110,7 +110,7 @@
         client: client,
         query: subQuery,
         variables: { dbid, selectedMetrics, selectedScopes, selectedResolution },
-        // requestPolicy:"network-only"
+        // Never user network-only: causes reactive load-loop!
       });
 
       if ($metricData && !$metricData.fetching) {
