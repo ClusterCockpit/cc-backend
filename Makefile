@@ -22,11 +22,21 @@ SVELTE_COMPONENTS = status   \
 					header
 
 SVELTE_TARGETS = $(addprefix $(FRONTEND)/public/build/,$(addsuffix .js, $(SVELTE_COMPONENTS)))
-SVELTE_SRC = $(wildcard $(FRONTEND)/src/*.svelte)         \
-			 $(wildcard $(FRONTEND)/src/*.js)             \
-			 $(wildcard $(FRONTEND)/src/filters/*.svelte) \
-			 $(wildcard $(FRONTEND)/src/plots/*.svelte)   \
-			 $(wildcard $(FRONTEND)/src/joblist/*.svelte)
+SVELTE_SRC = $(wildcard $(FRONTEND)/src/*.svelte)                 \
+			 $(wildcard $(FRONTEND)/src/*.js)                     \
+			 $(wildcard $(FRONTEND)/src/analysis/*.svelte)        \
+			 $(wildcard $(FRONTEND)/src/config/*.svelte)          \
+			 $(wildcard $(FRONTEND)/src/config/admin/*.svelte)    \
+			 $(wildcard $(FRONTEND)/src/config/user/*.svelte)     \
+			 $(wildcard $(FRONTEND)/src/generic/*.js)             \
+			 $(wildcard $(FRONTEND)/src/generic/*.svelte)         \
+			 $(wildcard $(FRONTEND)/src/generic/filters/*.svelte) \
+			 $(wildcard $(FRONTEND)/src/generic/plots/*.svelte)   \
+			 $(wildcard $(FRONTEND)/src/generic/joblist/*.svelte) \
+			 $(wildcard $(FRONTEND)/src/generic/helper/*.svelte)  \
+			 $(wildcard $(FRONTEND)/src/generic/select/*.svelte)  \
+			 $(wildcard $(FRONTEND)/src/header/*.svelte)          \
+			 $(wildcard $(FRONTEND)/src/job/*.svelte)
 
 .PHONY: clean distclean test tags frontend swagger graphql $(TARGET)
 
