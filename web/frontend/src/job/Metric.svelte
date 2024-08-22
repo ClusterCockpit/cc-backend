@@ -110,6 +110,7 @@
         client: client,
         query: subQuery,
         variables: { dbid, selectedMetrics, selectedScopes, selectedResolution },
+        requestPolicy:"network-only"
       });
 
       if ($metricData && !$metricData.fetching) {

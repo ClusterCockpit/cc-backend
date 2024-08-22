@@ -237,7 +237,7 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 	}
 
 	log.Debugf(">>>>> REQUEST DATA HERE FOR %v AT SCOPE %v WITH RESOLUTION OF %d", metrics, scopes, *resolution)
-	data, err := metricdata.LoadData(job, metrics, scopes, ctx)
+	data, err := metricdata.LoadData(job, metrics, scopes, ctx, *resolution)
 	if err != nil {
 		log.Warn("Error while loading job data")
 		return nil, err
