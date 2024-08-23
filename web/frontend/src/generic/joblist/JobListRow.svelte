@@ -169,7 +169,6 @@
             {cluster}
             subCluster={job.subCluster}
             isShared={job.exclusive != 1}
-            resources={job.resources}
             numhwthreads={job.numHWThreads}
             numaccs={job.numAcc}
           />

@@ -151,11 +151,6 @@
   $: series = data?.series?.filter(
     (series) => selectedHost == null || series.hostname == selectedHost,
   );
-
-  $: resources = job?.resources?.filter(
-    (resource) => selectedHost == null || resource.hostname == selectedHost,
-  );
-
 </script>
 
 <InputGroup>
@@ -204,7 +199,6 @@
       metric={metricName}
       {series}
       {isShared}
-      {resources}
     />
   {:else if statsSeries[selectedScopeIndex] != null && patternMatches}
     <Timeseries

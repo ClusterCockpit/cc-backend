@@ -6,7 +6,6 @@
     Properties:
     - `metric String`: The metric name
     - `scope String?`: Scope of the displayed data [Default: node]
-    - `resources [GraphQL.Resource]`: List of resources used for parent job
     - `width Number`: The plot width
     - `height Number`: The plot height
     - `timestep Number`: The timestep used for X-axis rendering
@@ -16,7 +15,7 @@
     - `cluster GraphQL.Cluster`: Cluster Object of the parent job
     - `subCluster String`: Name of the subCluster of the parent job
     - `isShared Bool?`: If this job used shared resources; will adapt threshold indicators accordingly [Default: false]
-    - `forNode Bool?`: If this plot is used for node data display; will render x-axis as negative time with $now as maximum [Default: false]
+    - `forNode Bool?`: If this plot is used for node data display; will ren[data, err := metricdata.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)](https://github.com/ClusterCockpit/cc-backend/blob/9fe7cdca9215220a19930779a60c8afc910276a3/internal/graph/schema.resolvers.go#L391-L392)der x-axis as negative time with $now as maximum [Default: false]
     - `numhwthreads Number?`: Number of job HWThreads [Default: 0]
     - `numaccs Number?`: Number of job Accelerators [Default: 0]
  -->
@@ -118,7 +117,6 @@
 
   export let metric;
   export let scope = "node";
-  export let resources = [];
   export let width;
   export let height;
   export let timestep;
@@ -363,9 +361,8 @@
       plotSeries.push({
         label:
           scope === "node"
-            ? resources[i].hostname
-            : // scope === 'accelerator' ? resources[0].accelerators[i] :
-              scope + " #" + (i + 1),
+            ? series[i].hostname
+            : scope + " #" + (i + 1),
         scale: "y",
         width: lineWidth,
         stroke: lineColor(i, series.length),
