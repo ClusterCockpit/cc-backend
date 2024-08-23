@@ -301,7 +301,7 @@ export function stickyHeader(datatableHeaderSelector, updatePading) {
     onDestroy(() => document.removeEventListener("scroll", onscroll));
 }
 
-export function checkMetricDisabled(m, c, s) { //[m]etric, [c]luster, [s]ubcluster
+export function checkMetricDisabled(m, c, s) { // [m]etric, [c]luster, [s]ubcluster
     const metrics = getContext("globalMetrics");
     const result = metrics?.find((gm) => gm.name === m)?.availability?.find((av) => av.cluster === c)?.subClusters?.includes(s)
     return !result
@@ -309,23 +309,22 @@ export function checkMetricDisabled(m, c, s) { //[m]etric, [c]luster, [s]ubclust
 
 export function getStatsItems() {
     // console.time('stats')
-    // console.log('getStatsItems ...')
     const globalMetrics = getContext("globalMetrics")
     const result = globalMetrics.map((gm) => {
         if (gm?.footprint) {
-            // Footprint contains suffix naming the used stat-type
             // console.time('deep')
-            // console.log('Deep Config for', gm.name)
             const mc = getMetricConfigDeep(gm.name, null, null)
             // console.timeEnd('deep')
-            return {
-                field: gm.name + '_' + gm.footprint,
-                text: gm.name + ' (' + gm.footprint + ')',
-                metric: gm.name,
-                from: 0,
-                to: mc.peak,
-                peak: mc.peak,
-                enabled: false
+            if (mc) {
+                return {
+                    field: gm.name + '_' + gm.footprint,
+                    text: gm.name + ' (' + gm.footprint + ')',
+                    metric: gm.name,
+                    from: 0,
+                    to: mc.peak,
+                    peak: mc.peak,
+                    enabled: false
+                }
             }
         }
         return null
@@ -336,11 +335,9 @@ export function getStatsItems() {
 
 export function getSortItems() {
     //console.time('sort')
-    //console.log('getSortItems ...')
     const globalMetrics = getContext("globalMetrics")
     const result = globalMetrics.map((gm) => {
         if (gm?.footprint) {
-            // Footprint contains suffix naming the used stat-type
             return { 
                 field: gm.name + '_' + gm.footprint,
                 type: 'foot',
@@ -357,21 +354,22 @@ export function getSortItems() {
 function getMetricConfigDeep(metric, cluster, subCluster) {
     const clusters = getContext("clusters");
     if (cluster != null) {
-        let c = clusters.find((c) => c.name == cluster);
+        const c = clusters.find((c) => c.name == cluster);
         if (subCluster != null) {
-            let sc = c.subClusters.find((sc) => sc.name == subCluster);
+            const sc = c.subClusters.find((sc) => sc.name == subCluster);
             return sc.metricConfig.find((mc) => mc.name == metric)
         } else {
             let result;
             for (let sc of c.subClusters) {
                 const mc = sc.metricConfig.find((mc) => mc.name == metric)
-                if (result) { // If lowerIsBetter: Peak is still maximum value, no special case required
+                if (result && mc) { // update result; If lowerIsBetter: Peak is still maximum value, no special case required
                     result.alert = (mc.alert > result.alert) ? mc.alert : result.alert
                     result.caution = (mc.caution > result.caution) ? mc.caution : result.caution
                     result.normal = (mc.normal > result.normal) ? mc.normal : result.normal
                     result.peak = (mc.peak > result.peak) ? mc.peak : result.peak
-                } else {
-                    if (mc) result = {...mc};
+                } else if (mc) {
+                    // start new result
+                    result = {...mc};
                 }
             }
             return result
@@ -381,13 +379,14 @@ function getMetricConfigDeep(metric, cluster, subCluster) {
         for (let c of clusters) {
             for (let sc of c.subClusters) {
                 const mc = sc.metricConfig.find((mc) => mc.name == metric)
-                if (result) { // If lowerIsBetter: Peak is still maximum value, no special case required
+                if (result && mc) { // update result; If lowerIsBetter: Peak is still maximum value, no special case required
                     result.alert = (mc.alert > result.alert) ? mc.alert : result.alert
                     result.caution = (mc.caution > result.caution) ? mc.caution : result.caution
                     result.normal = (mc.normal > result.normal) ? mc.normal : result.normal
                     result.peak = (mc.peak > result.peak) ? mc.peak : result.peak
-                } else {
-                    if (mc) result = {...mc};
+                } else if (mc) {
+                    // Start new result
+                    result = {...mc};
                 }
             }
         }

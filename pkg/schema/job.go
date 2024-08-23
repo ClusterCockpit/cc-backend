@@ -32,7 +32,7 @@ type BaseJob struct {
 	Footprint          map[string]float64 `json:"footprint"`
 	MetaData           map[string]string  `json:"metaData"`
 	ConcurrentJobs     JobLinkResultList  `json:"concurrentJobs"`
-	Energy             float64            `json:"energy"`
+	Energy             float64            `json:"energy" db:"energy"`
 	ArrayJobId         int64              `json:"arrayJobId,omitempty" db:"array_job_id" example:"123000"`
 	Walltime           int64              `json:"walltime,omitempty" db:"walltime" example:"86400" minimum:"1"`
 	JobID              int64              `json:"jobId" db:"job_id" example:"123000"`
