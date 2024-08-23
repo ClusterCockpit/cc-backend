@@ -47,6 +47,7 @@
   let pendingResolution = 600;
   let selectedScopeIndex = scopes.findIndex((s) => s == minScope(scopes));
   let patternMatches = false;
+  let nodeOnly = false; // If, after load-all, still only node scope returned
   let statsSeries = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null);
 
   const dispatch = createEventDispatcher();
@@ -126,6 +127,7 @@
         // Set selected scope to min of returned scopes
         if (selectedScope == "load-all") {
           selectedScope = minScope(scopes)
+          nodeOnly = (selectedScope == "node") // "node" still only scope after load-all
         }
 
         const statsTableData = $metricData.data.singleUpdate.filter((x) => x.scope !== "node")
@@ -146,9 +148,14 @@
 
   $: data = rawData[selectedScopeIndex];
   
-  $: series = data?.series.filter(
+  $: series = data?.series?.filter(
     (series) => selectedHost == null || series.hostname == selectedHost,
   );
+
+  $: resources = job?.resources?.filter(
+    (resource) => selectedHost == null || resource.hostname == selectedHost,
+  );
+
 </script>
 
 <InputGroup>
@@ -162,7 +169,7 @@
         <option value={scope + '-stat'}>stats series ({scope})</option>
       {/if}
     {/each}
-    {#if scopes.length == 1 && nativeScope != "node"}
+    {#if scopes.length == 1 && nativeScope != "node" && !nodeOnly}
       <option value={"load-all"}>Load all...</option>
     {/if}
   </select>
@@ -197,7 +204,7 @@
       metric={metricName}
       {series}
       {isShared}
-      resources={job.resources}
+      {resources}
     />
   {:else if statsSeries[selectedScopeIndex] != null && patternMatches}
     <Timeseries
@@ -211,7 +218,6 @@
       metric={metricName}
       {series}
       {isShared}
-      resources={job.resources}
       statisticsSeries={statsSeries[selectedScopeIndex]}
       useStatsSeries={!!statsSeries[selectedScopeIndex]}
     />
