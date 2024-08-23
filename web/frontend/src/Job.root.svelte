@@ -348,6 +348,7 @@
         {#if item.data}
           <Metric
             bind:this={plots[item.metric]}
+            on:more-loaded={({ detail }) => statsTable.moreLoaded(detail)}
             job={$initq.data.job}
             metricName={item.metric}
             metricUnit={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.unit}

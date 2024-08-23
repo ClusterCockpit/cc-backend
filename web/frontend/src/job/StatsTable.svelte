@@ -4,6 +4,9 @@
     Properties:
     - `job Object`: The job object
     - `jobMetrics [Object]`: The jobs metricdata
+
+    Exported:
+    - `moreLoaded`: Adds additional scopes requested from Metric.svelte in Job-View
  -->
 
 <script>
@@ -81,6 +84,10 @@
 
       return s.dir != "up" ? s1[stat] - s2[stat] : s2[stat] - s1[stat];
     });
+  }
+
+  export function moreLoaded(moreJobMetrics) {
+    jobMetrics = [...jobMetrics, ...moreJobMetrics]
   }
 </script>
 

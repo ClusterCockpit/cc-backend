@@ -14,6 +14,9 @@
 
 <script>
   import { 
+    createEventDispatcher 
+  } from "svelte";
+  import { 
     queryStore,
     gql,
     getContextClient 
@@ -46,6 +49,7 @@
   let patternMatches = false;
   let statsSeries = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null);
 
+  const dispatch = createEventDispatcher();
   const statsPattern = /(.*)-stat$/;
   const unit = (metricUnit?.prefix ? metricUnit.prefix : "") + (metricUnit?.base ? metricUnit.base : "");
   const resolutions = [600, 240, 60] // DEV: Make configable
@@ -117,11 +121,16 @@
 
         rawData = $metricData.data.singleUpdate.map((x) => x.metric)
         scopes  = $metricData.data.singleUpdate.map((x) => x.scope)
-        statsSeries   = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null)
+        statsSeries    = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null)
 
         // Set selected scope to min of returned scopes
         if (selectedScope == "load-all") {
           selectedScope = minScope(scopes)
+        }
+
+        const statsTableData = $metricData.data.singleUpdate.filter((x) => x.scope !== "node")
+        if (statsTableData.length > 0) {
+          dispatch("more-loaded", statsTableData);
         }
 
         patternMatches = statsPattern.exec(selectedScope)
