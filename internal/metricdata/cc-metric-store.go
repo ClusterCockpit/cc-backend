@@ -528,14 +528,14 @@ func (ccms *CCMetricStore) LoadStats(
 	ctx context.Context,
 ) (map[string]map[string]schema.MetricStatistics, error) {
 
-	metricConfigs := archive.GetCluster(job.Cluster).MetricConfig
-	resolution := 9000
+	// metricConfigs := archive.GetCluster(job.Cluster).MetricConfig
+	// resolution := 9000
 
-	for _, mc := range metricConfigs {
-		resolution = min(resolution, mc.Timestep)
-	}
+	// for _, mc := range metricConfigs {
+	// 	resolution = min(resolution, mc.Timestep)
+	// }
 
-	queries, _, err := ccms.buildQueries(job, metrics, []schema.MetricScope{schema.MetricScopeNode}, resolution) // #166 Add scope shere for analysis view accelerator normalization?
+	queries, _, err := ccms.buildQueries(job, metrics, []schema.MetricScope{schema.MetricScopeNode}, 0) // #166 Add scope shere for analysis view accelerator normalization?
 	if err != nil {
 		log.Warn("Error while building query")
 		return nil, err
