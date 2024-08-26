@@ -613,8 +613,9 @@ func (ccms *CCMetricStore) LoadNodeData(
 		for _, node := range nodes {
 			for _, metric := range metrics {
 				req.Queries = append(req.Queries, ApiQuery{
-					Hostname: node,
-					Metric:   ccms.toRemoteName(metric),
+					Hostname:   node,
+					Metric:     ccms.toRemoteName(metric),
+					Resolution: 60, // Default for Node Queries
 				})
 			}
 		}
