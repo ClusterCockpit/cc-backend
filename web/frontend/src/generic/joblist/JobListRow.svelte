@@ -159,6 +159,10 @@
         <!-- Subluster Metricconfig remove keyword for jobtables (joblist main, user joblist, project joblist) to be used here as toplevel case-->
         {#if metric.disabled == false && metric.data}
           <MetricPlot
+            on:zoom-in={({ detail }) => {
+              // filterComponent.updateFilters(detail)
+              console.log("Upstream New Res:", detail)
+            }}
             width={plotWidth}
             height={plotHeight}
             timestep={metric.data.metric.timestep}

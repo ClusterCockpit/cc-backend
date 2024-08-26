@@ -112,7 +112,7 @@
 <script>
   import uPlot from "uplot";
   import { formatNumber } from "../units.js";
-  import { getContext, onMount, onDestroy } from "svelte";
+  import { getContext, onMount, onDestroy, createEventDispatcher } from "svelte";
   import { Card } from "@sveltestrap/sveltestrap";
 
   export let metric;
@@ -134,6 +134,7 @@
 
   if (useStatsSeries == false && series == null) useStatsSeries = true;
 
+  const dispatch = createEventDispatcher();
   const subClusterTopology = getContext("getHardwareTopology")(cluster, subCluster);
   const metricConfig = getContext("getMetricConfig")(cluster, subCluster, metric);
   const clusterCockpitConfig = getContext("cc-config");
@@ -433,6 +434,23 @@
           u.ctx.restore();
         },
       ],
+      setScale: [
+        (u, key) => {
+          if (key === 'x') {
+            // Start
+            console.log('setScale X', key);
+
+            // Decide which resolution to request
+
+            // Dispatch request
+            const res = 1337;
+            dispatch('zoom-in', {
+              newres: res,
+            });
+
+          };
+        }
+      ]
     },
     scales: {
       x: { time: false },

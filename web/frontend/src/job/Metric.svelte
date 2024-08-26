@@ -190,6 +190,10 @@
   {:else if series != null && !patternMatches}
     <Timeseries
       bind:this={plot}
+      on:zoom-in={({ detail }) => {
+        // filterComponent.updateFilters(detail)
+        console.log("Upstream New Res:", detail)
+      }}
       {width}
       height={300}
       cluster={job.cluster}
@@ -203,6 +207,10 @@
   {:else if statsSeries[selectedScopeIndex] != null && patternMatches}
     <Timeseries
       bind:this={plot}
+      on:zoom-in={({ detail }) => {
+        // filterComponent.updateFilters(detail)
+        console.log("Upstream New Res:", detail)
+      }}
       {width}
       height={300}
       cluster={job.cluster}
