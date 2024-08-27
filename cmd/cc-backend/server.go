@@ -260,8 +260,8 @@ func serverStart() {
 	})
 
 	server = &http.Server{
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		ReadTimeout:  20 * time.Second,
+		WriteTimeout: 20 * time.Second,
 		Handler:      handler,
 		Addr:         config.Keys.Addr,
 	}

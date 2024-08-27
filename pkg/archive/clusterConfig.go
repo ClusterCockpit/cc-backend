@@ -88,7 +88,7 @@ func initClusterConfig() error {
 							sc.Footprint = append(sc.Footprint, newMetric.Name)
 							ml.Footprint = newMetric.Footprint
 						}
-						if newMetric.Energy {
+						if newMetric.Energy != "" {
 							sc.EnergyFootprint = append(sc.EnergyFootprint, newMetric.Name)
 						}
 					}
@@ -99,7 +99,7 @@ func initClusterConfig() error {
 					if newMetric.Footprint != "" {
 						sc.Footprint = append(sc.Footprint, newMetric.Name)
 					}
-					if newMetric.Energy {
+					if newMetric.Energy != "" {
 						sc.EnergyFootprint = append(sc.EnergyFootprint, newMetric.Name)
 					}
 				}

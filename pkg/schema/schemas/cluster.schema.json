@@ -50,7 +50,11 @@
           },
           "energy": {
             "description": "Is it used to calculate job energy",
-            "type": "boolean"
+            "type": "string",
+            "enum": [
+              "power",
+              "energy"
+            ]
           },
           "lowerIsBetter": {
             "description": "Is lower better.",
@@ -93,7 +97,11 @@
                 },
                 "energy": {
                   "description": "Is it used to calculate job energy. Overwrite global",
-                  "type": "boolean"
+                  "type": "string",
+                  "enum": [
+                    "power",
+                    "energy"
+                  ]
                 },
                 "lowerIsBetter": {
                   "description": "Is lower better. Overwrite global",
