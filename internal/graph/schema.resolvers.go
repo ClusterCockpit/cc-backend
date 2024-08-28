@@ -15,7 +15,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/generated"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
-	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
@@ -231,7 +231,7 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 		return nil, err
 	}
 
-	data, err := metricdata.LoadData(job, metrics, scopes, ctx)
+	data, err := metricDataDispatcher.LoadData(job, metrics, scopes, ctx)
 	if err != nil {
 		log.Warn("Error while loading job data")
 		return nil, err
@@ -383,7 +383,7 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 		}
 	}
 
-	data, err := metricdata.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)
+	data, err := metricDataDispatcher.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)
 	if err != nil {
 		log.Warn("Error while loading node data")
 		return nil, err
@@ -440,9 +440,11 @@ func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 // SubCluster returns generated.SubClusterResolver implementation.
 func (r *Resolver) SubCluster() generated.SubClusterResolver { return &subClusterResolver{r} }
 
-type clusterResolver struct{ *Resolver }
-type jobResolver struct{ *Resolver }
-type metricValueResolver struct{ *Resolver }
-type mutationResolver struct{ *Resolver }
-type queryResolver struct{ *Resolver }
-type subClusterResolver struct{ *Resolver }
+type (
+	clusterResolver     struct{ *Resolver }
+	jobResolver         struct{ *Resolver }
+	metricValueResolver struct{ *Resolver }
+	mutationResolver    struct{ *Resolver }
+	queryResolver       struct{ *Resolver }
+	subClusterResolver  struct{ *Resolver }
+)

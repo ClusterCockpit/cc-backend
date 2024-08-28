@@ -1,0 +1,81 @@
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
+// All rights reserved.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
+package archiver
+
+import (
+	"context"
+	"math"
+
+	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+)
+
+// Writes a running job to the job-archive
+func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
+	allMetrics := make([]string, 0)
+	metricConfigs := archive.GetCluster(job.Cluster).MetricConfig
+	for _, mc := range metricConfigs {
+		allMetrics = append(allMetrics, mc.Name)
+	}
+
+	// TODO: Talk about this! What resolutions to store data at...
+	scopes := []schema.MetricScope{schema.MetricScopeNode}
+	if job.NumNodes <= 8 {
+		scopes = append(scopes, schema.MetricScopeCore)
+	}
+
+	if job.NumAcc > 0 {
+		scopes = append(scopes, schema.MetricScopeAccelerator)
+	}
+
+	jobData, err := metricDataDispatcher.LoadData(job, allMetrics, scopes, ctx)
+	if err != nil {
+		log.Error("Error wile loading job data for archiving")
+		return nil, err
+	}
+
+	jobMeta := &schema.JobMeta{
+		BaseJob:    job.BaseJob,
+		StartTime:  job.StartTime.Unix(),
+		Statistics: make(map[string]schema.JobStatistics),
+	}
+
+	for metric, data := range jobData {
+		avg, min, max := 0.0, math.MaxFloat32, -math.MaxFloat32
+		nodeData, ok := data["node"]
+		if !ok {
+			// TODO/FIXME: Calc average for non-node metrics as well!
+			continue
+		}
+
+		for _, series := range nodeData.Series {
+			avg += series.Statistics.Avg
+			min = math.Min(min, series.Statistics.Min)
+			max = math.Max(max, series.Statistics.Max)
+		}
+
+		jobMeta.Statistics[metric] = schema.JobStatistics{
+			Unit: schema.Unit{
+				Prefix: archive.GetMetricConfig(job.Cluster, metric).Unit.Prefix,
+				Base:   archive.GetMetricConfig(job.Cluster, metric).Unit.Base,
+			},
+			Avg: avg / float64(job.NumNodes),
+			Min: min,
+			Max: max,
+		}
+	}
+
+	// If the file based archive is disabled,
+	// only return the JobMeta structure as the
+	// statistics in there are needed.
+	if config.Keys.DisableArchive {
+		return jobMeta, nil
+	}
+
+	return jobMeta, archive.GetHandle().ImportJob(jobMeta, &jobData)
+}

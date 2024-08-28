@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
@@ -68,119 +67,13 @@ func Init() error {
 	return nil
 }
 
-func GetMetricDataRepo(cluster string) MetricDataRepository {
+func GetMetricDataRepo(cluster string) (MetricDataRepository, error) {
+	var err error
 	repo, ok := metricDataRepos[cluster]
 
 	if !ok {
-		return fmt.Errorf("METRICDATA/METRICDATA > no metric data repository configured for '%s'", job.Cluster), 0, 0
+		err = fmt.Errorf("METRICDATA/METRICDATA > no metric data repository configured for '%s'", cluster)
 	}
 
-	return repo
-}
-
-// Used for the jobsFootprint GraphQL-Query. TODO: Rename/Generalize.
-func LoadAverages(
-	job *schema.Job,
-	metrics []string,
-	data [][]schema.Float,
-	ctx context.Context,
-) error {
-	if job.State != schema.JobStateRunning && useArchive {
-		return archive.LoadAveragesFromArchive(job, metrics, data) // #166 change also here?
-	}
-
-	repo, ok := metricDataRepos[job.Cluster]
-	if !ok {
-		return fmt.Errorf("METRICDATA/METRICDATA > no metric data repository configured for '%s'", job.Cluster)
-	}
-
-	stats, err := repo.LoadStats(job, metrics, ctx) // #166 how to handle stats for acc normalizazion?
-	if err != nil {
-		log.Errorf("Error while loading statistics for job %v (User %v, Project %v)", job.JobID, job.User, job.Project)
-		return err
-	}
-
-	for i, m := range metrics {
-		nodes, ok := stats[m]
-		if !ok {
-			data[i] = append(data[i], schema.NaN)
-			continue
-		}
-
-		sum := 0.0
-		for _, node := range nodes {
-			sum += node.Avg
-		}
-		data[i] = append(data[i], schema.Float(sum))
-	}
-
-	return nil
-}
-
-// Used for the node/system view. Returns a map of nodes to a map of metrics.
-func LoadNodeData(
-	cluster string,
-	metrics, nodes []string,
-	scopes []schema.MetricScope,
-	from, to time.Time,
-	ctx context.Context,
-) (map[string]map[string][]*schema.JobMetric, error) {
-	repo, ok := metricDataRepos[cluster]
-	if !ok {
-		return nil, fmt.Errorf("METRICDATA/METRICDATA > no metric data repository configured for '%s'", cluster)
-	}
-
-	if metrics == nil {
-		for _, m := range archive.GetCluster(cluster).MetricConfig {
-			metrics = append(metrics, m.Name)
-		}
-	}
-
-	data, err := repo.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)
-	if err != nil {
-		if len(data) != 0 {
-			log.Warnf("partial error: %s", err.Error())
-		} else {
-			log.Error("Error while loading node data from metric repository")
-			return nil, err
-		}
-	}
-
-	if data == nil {
-		return nil, fmt.Errorf("METRICDATA/METRICDATA > the metric data repository for '%s' does not support this query", cluster)
-	}
-
-	return data, nil
-}
-
-// For /monitoring/job/<job> and some other places, flops_any and mem_bw need
-// to be available at the scope 'node'. If a job has a lot of nodes,
-// statisticsSeries should be available so that a min/median/max Graph can be
-// used instead of a lot of single lines.
-func prepareJobData(
-	jobData schema.JobData,
-	scopes []schema.MetricScope,
-) {
-	const maxSeriesSize int = 15
-	for _, scopes := range jobData {
-		for _, jm := range scopes {
-			if jm.StatisticsSeries != nil || len(jm.Series) <= maxSeriesSize {
-				continue
-			}
-
-			jm.AddStatisticsSeries()
-		}
-	}
-
-	nodeScopeRequested := false
-	for _, scope := range scopes {
-		if scope == schema.MetricScopeNode {
-			nodeScopeRequested = true
-		}
-	}
-
-	if nodeScopeRequested {
-		jobData.AddNodeScope("flops_any")
-		jobData.AddNodeScope("mem_bw")
-	}
+	return repo, err
 }

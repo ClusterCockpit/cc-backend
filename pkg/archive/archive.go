@@ -5,13 +5,10 @@
 package archive
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 	"sync"
 
-	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -103,71 +100,6 @@ func Init(rawConfig json.RawMessage, disableArchive bool) error {
 
 func GetHandle() ArchiveBackend {
 	return ar
-}
-
-// Writes a running job to the job-archive
-func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
-	allMetrics := make([]string, 0)
-	metricConfigs := GetCluster(job.Cluster).MetricConfig
-	for _, mc := range metricConfigs {
-		allMetrics = append(allMetrics, mc.Name)
-	}
-
-	// TODO: Talk about this! What resolutions to store data at...
-	scopes := []schema.MetricScope{schema.MetricScopeNode}
-	if job.NumNodes <= 8 {
-		scopes = append(scopes, schema.MetricScopeCore)
-	}
-
-	if job.NumAcc > 0 {
-		scopes = append(scopes, schema.MetricScopeAccelerator)
-	}
-
-	jobData, err := metricdata.LoadData(job, allMetrics, scopes, ctx)
-	if err != nil {
-		log.Error("Error wile loading job data for archiving")
-		return nil, err
-	}
-
-	jobMeta := &schema.JobMeta{
-		BaseJob:    job.BaseJob,
-		StartTime:  job.StartTime.Unix(),
-		Statistics: make(map[string]schema.JobStatistics),
-	}
-
-	for metric, data := range jobData {
-		avg, min, max := 0.0, math.MaxFloat32, -math.MaxFloat32
-		nodeData, ok := data["node"]
-		if !ok {
-			// TODO/FIXME: Calc average for non-node metrics as well!
-			continue
-		}
-
-		for _, series := range nodeData.Series {
-			avg += series.Statistics.Avg
-			min = math.Min(min, series.Statistics.Min)
-			max = math.Max(max, series.Statistics.Max)
-		}
-
-		jobMeta.Statistics[metric] = schema.JobStatistics{
-			Unit: schema.Unit{
-				Prefix: GetMetricConfig(job.Cluster, metric).Unit.Prefix,
-				Base:   GetMetricConfig(job.Cluster, metric).Unit.Base,
-			},
-			Avg: avg / float64(job.NumNodes),
-			Min: min,
-			Max: max,
-		}
-	}
-
-	// If the file based archive is disabled,
-	// only return the JobMeta structure as the
-	// statistics in there are needed.
-	if !useArchive {
-		return jobMeta, nil
-	}
-
-	return jobMeta, archive.GetHandle().ImportJob(jobMeta, &jobData)
 }
 
 // Helper to metricdata.LoadAverages().
