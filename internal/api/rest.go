@@ -24,7 +24,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
-	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
@@ -515,7 +515,7 @@ func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) 
 	var data schema.JobData
 
 	if r.URL.Query().Get("all-metrics") == "true" {
-		data, err = metricdata.LoadData(job, nil, scopes, r.Context())
+		data, err = metricDataDispatcher.LoadData(job, nil, scopes, r.Context())
 		if err != nil {
 			log.Warn("Error while loading job data")
 			return
@@ -604,7 +604,7 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 		scopes = []schema.MetricScope{"node"}
 	}
 
-	data, err := metricdata.LoadData(job, metrics, scopes, r.Context())
+	data, err := metricDataDispatcher.LoadData(job, metrics, scopes, r.Context())
 	if err != nil {
 		log.Warn("Error while loading job data")
 		return

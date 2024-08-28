@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/internal/archiver"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -35,7 +35,7 @@ func (r *JobRepository) archivingWorker() {
 
 			// metricdata.ArchiveJob will fetch all the data from a MetricDataRepository and push into configured archive backend
 			// TODO: Maybe use context with cancel/timeout here
-			jobMeta, err := metricdata.ArchiveJob(job, context.Background())
+			jobMeta, err := archiver.ArchiveJob(job, context.Background())
 			if err != nil {
 				log.Errorf("archiving job (dbid: %d) failed at archiving job step: %s", job.ID, err.Error())
 				r.UpdateMonitoringStatus(job.ID, schema.MonitoringStatusArchivingFailed)
