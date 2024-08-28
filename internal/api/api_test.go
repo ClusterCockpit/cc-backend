@@ -156,6 +156,7 @@ func setup(t *testing.T) *api.RestApi {
 		t.Fatal(err)
 	}
 
+	archiver.Start(repository.GetJobRepository())
 	auth.Init()
 	graph.Init()
 
