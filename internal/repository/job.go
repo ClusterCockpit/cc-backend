@@ -28,12 +28,10 @@ var (
 )
 
 type JobRepository struct {
-	DB             *sqlx.DB
-	stmtCache      *sq.StmtCache
-	cache          *lrucache.Cache
-	archiveChannel chan *schema.Job
-	driver         string
-	archivePending sync.WaitGroup
+	DB        *sqlx.DB
+	stmtCache *sq.StmtCache
+	cache     *lrucache.Cache
+	driver    string
 }
 
 func GetJobRepository() *JobRepository {
@@ -44,12 +42,9 @@ func GetJobRepository() *JobRepository {
 			DB:     db.DB,
 			driver: db.Driver,
 
-			stmtCache:      sq.NewStmtCache(db.DB),
-			cache:          lrucache.New(1024 * 1024),
-			archiveChannel: make(chan *schema.Job, 128),
+			stmtCache: sq.NewStmtCache(db.DB),
+			cache:     lrucache.New(1024 * 1024),
 		}
-		// start archiving worker
-		go jobRepoInstance.archivingWorker()
 	})
 	return jobRepoInstance
 }
@@ -494,4 +489,57 @@ func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64
 
 	log.Infof("Return job count %d", len(jobs))
 	return jobs, nil
+}
+
+func (r *JobRepository) UpdateMonitoringStatus(job int64, monitoringStatus int32) (err error) {
+	stmt := sq.Update("job").
+		Set("monitoring_status", monitoringStatus).
+		Where("job.id = ?", job)
+
+	_, err = stmt.RunWith(r.stmtCache).Exec()
+	return
+}
+
+// Stop updates the job with the database id jobId using the provided arguments.
+func (r *JobRepository) MarkArchived(
+	jobMeta *schema.JobMeta,
+	monitoringStatus int32,
+) error {
+	stmt := sq.Update("job").
+		Set("monitoring_status", monitoringStatus).
+		Where("job.id = ?", jobMeta.JobID)
+
+	if _, err := stmt.RunWith(r.stmtCache).Exec(); err != nil {
+		log.Warn("Error while marking job as archived")
+		return err
+	}
+	return nil
+}
+
+func (r *JobRepository) UpdateFootprint(jobMeta *schema.JobMeta) error {
+	sc, err := archive.GetSubCluster(jobMeta.Cluster, jobMeta.SubCluster)
+	if err != nil {
+		log.Errorf("cannot get subcluster: %s", err.Error())
+		return err
+	}
+	footprint := make(map[string]float64)
+
+	for _, fp := range sc.Footprint {
+		footprint[fp] = LoadJobStat(jobMeta, fp)
+	}
+
+	var rawFootprint []byte
+
+	if rawFootprint, err = json.Marshal(footprint); err != nil {
+		log.Warnf("Error while marshaling footprint for job, DB ID '%v'", jobMeta.ID)
+		return err
+	}
+
+	stmt := sq.Update("job").Set("footprint", rawFootprint)
+
+	if _, err := stmt.RunWith(r.stmtCache).Exec(); err != nil {
+		log.Warn("Error while updating job footprint")
+		return err
+	}
+	return nil
 }

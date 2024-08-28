@@ -20,6 +20,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/ClusterCockpit/cc-backend/internal/api"
+	"github.com/ClusterCockpit/cc-backend/internal/archiver"
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
@@ -308,5 +309,5 @@ func serverShutdown() {
 	server.Shutdown(context.Background())
 
 	// Then, wait for any async archivings still pending...
-	apiHandle.JobRepository.WaitForArchiving()
+	archiver.WaitForArchiving()
 }

@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/archiver"
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
@@ -1081,7 +1082,7 @@ func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 	}
 
 	// Trigger async archiving
-	api.JobRepository.TriggerArchiving(job)
+	archiver.TriggerArchiving(job)
 }
 
 func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
