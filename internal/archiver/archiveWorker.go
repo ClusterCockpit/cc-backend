@@ -57,6 +57,10 @@ func archivingWorker() {
 				log.Errorf("archiving job (dbid: %d) failed at update Footprint step: %s", job.ID, err.Error())
 				continue
 			}
+			if err := jobRepo.UpdateEnergy(jobMeta); err != nil {
+				log.Errorf("archiving job (dbid: %d) failed at update Energy step: %s", job.ID, err.Error())
+				continue
+			}
 			// Update the jobs database entry one last time:
 			if err := jobRepo.MarkArchived(jobMeta, schema.MonitoringStatusArchivingSuccessful); err != nil {
 				log.Errorf("archiving job (dbid: %d) failed at marking archived step: %s", job.ID, err.Error())

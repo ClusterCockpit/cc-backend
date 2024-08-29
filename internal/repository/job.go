@@ -500,7 +500,7 @@ func (r *JobRepository) UpdateMonitoringStatus(job int64, monitoringStatus int32
 	return
 }
 
-// Stop updates the job with the database id jobId using the provided arguments.
+// FIXME: Combine the next three queries into one providing the db statement as function argument!
 func (r *JobRepository) MarkArchived(
 	jobMeta *schema.JobMeta,
 	monitoringStatus int32,
@@ -516,6 +516,49 @@ func (r *JobRepository) MarkArchived(
 	return nil
 }
 
+func (r *JobRepository) UpdateEnergy(jobMeta *schema.JobMeta) error {
+	sc, err := archive.GetSubCluster(jobMeta.Cluster, jobMeta.SubCluster)
+	if err != nil {
+		log.Errorf("cannot get subcluster: %s", err.Error())
+		return err
+	}
+	energyFootprint := make(map[string]float64)
+	var totalEnergy float64
+	var energy float64
+
+	for _, fp := range sc.EnergyFootprint {
+		if i, err := archive.MetricIndex(sc.MetricConfig, fp); err != nil {
+			// FIXME: Check for unit conversions
+			if sc.MetricConfig[i].Energy == "power" {
+				energy = LoadJobStat(jobMeta, fp, "avg") * float64(jobMeta.Duration)
+			} else if sc.MetricConfig[i].Energy == "energy" {
+				// FIXME: Compute sum of energy metric
+			}
+		}
+
+		energyFootprint[fp] = energy
+		totalEnergy += energy
+	}
+
+	var rawFootprint []byte
+
+	if rawFootprint, err = json.Marshal(energyFootprint); err != nil {
+		log.Warnf("Error while marshaling energy footprint for job, DB ID '%v'", jobMeta.ID)
+		return err
+	}
+
+	stmt := sq.Update("job").
+		Set("energy_footprint", rawFootprint).
+		Set("energy", totalEnergy).
+		Where("job.id = ?", jobMeta.JobID)
+
+	if _, err := stmt.RunWith(r.stmtCache).Exec(); err != nil {
+		log.Warn("Error while updating job energy footprint")
+		return err
+	}
+	return nil
+}
+
 func (r *JobRepository) UpdateFootprint(jobMeta *schema.JobMeta) error {
 	sc, err := archive.GetSubCluster(jobMeta.Cluster, jobMeta.SubCluster)
 	if err != nil {
@@ -525,7 +568,13 @@ func (r *JobRepository) UpdateFootprint(jobMeta *schema.JobMeta) error {
 	footprint := make(map[string]float64)
 
 	for _, fp := range sc.Footprint {
-		footprint[fp] = LoadJobStat(jobMeta, fp)
+		statType := "avg"
+
+		if i, err := archive.MetricIndex(sc.MetricConfig, fp); err != nil {
+			statType = sc.MetricConfig[i].Footprint
+		}
+
+		footprint[fp] = LoadJobStat(jobMeta, fp, statType)
 	}
 
 	var rawFootprint []byte
@@ -535,7 +584,8 @@ func (r *JobRepository) UpdateFootprint(jobMeta *schema.JobMeta) error {
 		return err
 	}
 
-	stmt := sq.Update("job").Set("footprint", rawFootprint)
+	stmt := sq.Update("job").Set("footprint", rawFootprint).
+		Where("job.id = ?", jobMeta.JobID)
 
 	if _, err := stmt.RunWith(r.stmtCache).Exec(); err != nil {
 		log.Warn("Error while updating job footprint")

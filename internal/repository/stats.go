@@ -286,13 +286,17 @@ func (r *JobRepository) JobsStats(
 	return stats, nil
 }
 
-// FIXME: Make generic
-func LoadJobStat(job *schema.JobMeta, metric string) float64 {
+func LoadJobStat(job *schema.JobMeta, metric string, statType string) float64 {
 	if stats, ok := job.Statistics[metric]; ok {
-		if metric == "mem_used" {
-			return stats.Max
-		} else {
+		switch statType {
+		case "avg":
 			return stats.Avg
+		case "max":
+			return stats.Max
+		case "min":
+			return stats.Min
+		default:
+			log.Errorf("Unknown stat type %s", statType)
 		}
 	}
 

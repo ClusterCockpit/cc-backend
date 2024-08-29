@@ -221,3 +221,13 @@ func GetSubClusterByNode(cluster, hostname string) (string, error) {
 
 	return "", fmt.Errorf("ARCHIVE/CLUSTERCONFIG > no subcluster found for cluster %v and host %v", cluster, hostname)
 }
+
+func MetricIndex(mc []schema.MetricConfig, name string) (int, error) {
+	for i, m := range mc {
+		if m.Name == name {
+			return i, nil
+		}
+	}
+
+	return 0, fmt.Errorf("Unknown metric name %s", name)
+}
