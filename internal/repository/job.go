@@ -453,6 +453,33 @@ func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 	return nil
 }
 
+func (r *JobRepository) FindRunningJobs(cluster string) ([]*schema.Job, error) {
+	query := sq.Select(jobColumns...).From("job").
+		Where(fmt.Sprintf("job.cluster = '%s'", cluster)).
+		Where("job.job_state = 'running'").
+		Where("job.duration>600")
+
+	rows, err := query.RunWith(r.stmtCache).Query()
+	if err != nil {
+		log.Error("Error while running query")
+		return nil, err
+	}
+
+	jobs := make([]*schema.Job, 0, 50)
+	for rows.Next() {
+		job, err := scanJob(rows)
+		if err != nil {
+			rows.Close()
+			log.Warn("Error while scanning rows")
+			return nil, err
+		}
+		jobs = append(jobs, job)
+	}
+
+	log.Infof("Return job count %d", len(jobs))
+	return jobs, nil
+}
+
 func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64) ([]*schema.Job, error) {
 	var query sq.SelectBuilder
 
@@ -532,7 +559,7 @@ func (r *JobRepository) UpdateEnergy(jobMeta *schema.JobMeta) error {
 			if sc.MetricConfig[i].Energy == "power" {
 				energy = LoadJobStat(jobMeta, fp, "avg") * float64(jobMeta.Duration)
 			} else if sc.MetricConfig[i].Energy == "energy" {
-				// FIXME: Compute sum of energy metric
+				// This assumes the metric is of aggregation type sum
 			}
 		}
 
@@ -574,7 +601,8 @@ func (r *JobRepository) UpdateFootprint(jobMeta *schema.JobMeta) error {
 			statType = sc.MetricConfig[i].Footprint
 		}
 
-		footprint[fp] = LoadJobStat(jobMeta, fp, statType)
+		name := fmt.Sprintf("%s_%s", fp, statType)
+		footprint[fp] = LoadJobStat(jobMeta, name, statType)
 	}
 
 	var rawFootprint []byte

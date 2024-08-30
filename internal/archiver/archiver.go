@@ -23,9 +23,9 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 		allMetrics = append(allMetrics, mc.Name)
 	}
 
-	// TODO: Talk about this! What resolutions to store data at...
 	scopes := []schema.MetricScope{schema.MetricScopeNode}
-	if job.NumNodes <= 8 {
+	if job.NumNodes <= 8 { // FIXME: Add a config option for this
+		// This will add the native scope if core scope is not available
 		scopes = append(scopes, schema.MetricScopeCore)
 	}
 
@@ -49,7 +49,7 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 		avg, min, max := 0.0, math.MaxFloat32, -math.MaxFloat32
 		nodeData, ok := data["node"]
 		if !ok {
-			// TODO/FIXME: Calc average for non-node metrics as well!
+			// This should never happen ?
 			continue
 		}
 
