@@ -68,7 +68,15 @@ func InitDB() error {
 		job.Footprint = make(map[string]float64)
 
 		for _, fp := range sc.Footprint {
-			job.Footprint[fp] = repository.LoadJobStat(jobMeta, fp)
+			statType := "avg"
+
+			if i, err := archive.MetricIndex(sc.MetricConfig, fp); err != nil {
+				statType = sc.MetricConfig[i].Footprint
+			}
+
+			name := fmt.Sprintf("%s_%s", fp, statType)
+
+			job.Footprint[fp] = repository.LoadJobStat(jobMeta, name, statType)
 		}
 
 		job.RawFootprint, err = json.Marshal(job.Footprint)

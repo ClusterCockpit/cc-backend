@@ -77,8 +77,16 @@ func HandleImportFlag(flag string) error {
 		job.Footprint = make(map[string]float64)
 
 		for _, fp := range sc.Footprint {
-			job.Footprint[fp] = repository.LoadJobStat(&job, fp)
+			statType := "avg"
+
+			if i, err := archive.MetricIndex(sc.MetricConfig, fp); err != nil {
+				statType = sc.MetricConfig[i].Footprint
+			}
+
+			name := fmt.Sprintf("%s_%s", fp, statType)
+			job.Footprint[fp] = repository.LoadJobStat(&job, name, statType)
 		}
+
 		job.RawFootprint, err = json.Marshal(job.Footprint)
 		if err != nil {
 			log.Warn("Error while marshaling job footprint")
