@@ -12,7 +12,6 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
-	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	// "github.com/ClusterCockpit/cc-backend/pkg/archive"
@@ -48,14 +47,14 @@ func (r *queryResolver) rooflineHeatmap(
 			continue
 		}
 
-		metricConfigs := archive.GetCluster(job.Cluster).MetricConfig
-		resolution := 0
+		// metricConfigs := archive.GetCluster(job.Cluster).MetricConfig
+		// resolution := 0
 
-		for _, mc := range metricConfigs {
-			resolution = max(resolution, mc.Timestep)
-		}
+		// for _, mc := range metricConfigs {
+		// 	resolution = max(resolution, mc.Timestep)
+		// }
 
-		jobdata, err := metricdata.LoadData(job, []string{"flops_any", "mem_bw"}, []schema.MetricScope{schema.MetricScopeNode}, ctx, resolution)
+		jobdata, err := metricdata.LoadData(job, []string{"flops_any", "mem_bw"}, []schema.MetricScope{schema.MetricScopeNode}, ctx, 0)
 		if err != nil {
 			log.Errorf("Error while loading roofline metrics for job %d", job.ID)
 			return nil, err
