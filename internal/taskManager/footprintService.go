@@ -16,7 +16,7 @@ import (
 	"github.com/go-co-op/gocron/v2"
 )
 
-func registerFootprintWorker() {
+func RegisterFootprintWorker() {
 	log.Info("Register Footprint Update service")
 	d, _ := time.ParseDuration("10m")
 	s.NewJob(gocron.DurationJob(d),
