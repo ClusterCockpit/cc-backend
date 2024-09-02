@@ -89,7 +89,7 @@ func (r *JobRepository) buildStatsQuery(
 		).From("job").Join("user ON user.username = job.user").GroupBy(col)
 	} else {
 		// Scan columns: totalJobs, name, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours
-		query = sq.Select("COUNT(job.id)", "name",
+		query = sq.Select("COUNT(job.id)",
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) / 3600) as %s)`, time.Now().Unix(), castType),
 			fmt.Sprintf(`CAST(SUM(job.num_nodes) as %s)`, castType),
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_nodes) / 3600) as %s)`, time.Now().Unix(), castType),
@@ -97,7 +97,7 @@ func (r *JobRepository) buildStatsQuery(
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_hwthreads) / 3600) as %s)`, time.Now().Unix(), castType),
 			fmt.Sprintf(`CAST(SUM(job.num_acc) as %s)`, castType),
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_acc) / 3600) as %s)`, time.Now().Unix(), castType),
-		).From("job").Join("user ON user.username = job.user")
+		).From("job")
 	}
 
 	for _, f := range filter {
