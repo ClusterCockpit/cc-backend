@@ -129,6 +129,9 @@
   export let forNode = false;
   export let numhwthreads = 0;
   export let numaccs = 0;
+  export let zoomState = null;
+
+  // $: console.log('Changed ZoomState for', metric, zoomState)
 
   if (useStatsSeries == null) useStatsSeries = statisticsSeries != null;
 
@@ -393,6 +396,19 @@
     bands: plotBands,
     padding: [5, 10, -20, 0],
     hooks: {
+      init: [
+        (u) => {
+          u.over.addEventListener("dblclick", (e) => {
+            console.log('Dispatch Reset')
+            dispatch('zoom', {
+              lastZoomState: {
+                x: { time: false },
+                y: { auto: true }
+              }
+            });
+          });
+        }
+      ],
       draw: [
         (u) => {
           // Draw plot type label:
@@ -437,17 +453,26 @@
       setScale: [
         (u, key) => {
           if (key === 'x') {
-            // Start
-            console.log('setScale X', key);
-
-            // Decide which resolution to request
-
-            // Dispatch request
-            const res = 1337;
-            dispatch('zoom-in', {
-              newres: res,
-            });
-
+            const numX = (u.series[0].idxs[1] - u.series[0].idxs[0])
+            if (numX <= 20 && timestep !== 60) { // Zoom IN if not at MAX
+              console.log('Dispatch Zoom')
+              if (timestep == 600) {
+                dispatch('zoom', {
+                  newRes: 240,
+                  lastZoomState: u?.scales
+                });
+              } else if (timestep === 240) {
+                dispatch('zoom', {
+                  newRes: 60,
+                  lastZoomState: u?.scales
+                });
+              }
+            } else {
+              console.log('Dispatch Update')
+              dispatch('zoom', {
+                lastZoomState: u?.scales
+              });
+            }
           };
         }
       ]
@@ -481,6 +506,10 @@
     if (!uplot) {
       opts.width = width;
       opts.height = height;
+      if (zoomState) {
+        // console.log('Use last state for uPlot init:', metric, scope, zoomState)
+        opts.scales = {...zoomState}
+      }
       uplot = new uPlot(opts, plotData, plotWrapper);
     } else {
       uplot.setSize({ width, height });
@@ -489,7 +518,6 @@
 
   function onSizeChange() {
     if (!uplot) return;
-
     if (timeoutId != null) clearTimeout(timeoutId);
 
     timeoutId = setTimeout(() => {

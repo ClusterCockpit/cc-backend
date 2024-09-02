@@ -27,7 +27,9 @@
     Spinner,
     Card,
   } from "@sveltestrap/sveltestrap";
-  import { minScope } from "../generic/utils.js";
+  import { 
+    minScope,
+  } from "../generic/utils.js";
   import Timeseries from "../generic/plots/MetricPlot.svelte";
 
   export let job;
@@ -39,9 +41,8 @@
   export let rawData;
   export let isShared = false;
 
-  let selectedHost = null,
-    plot,
-    error = null;
+  let selectedHost = null;
+  let error = null;
   let selectedScope = minScope(scopes);
   let selectedResolution;
   let pendingResolution = 600;
@@ -49,11 +50,12 @@
   let patternMatches = false;
   let nodeOnly = false; // If, after load-all, still only node scope returned
   let statsSeries = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null);
+  let zoomState = null;
+  let pendingZoomState = null;
 
   const dispatch = createEventDispatcher();
   const statsPattern = /(.*)-stat$/;
   const unit = (metricUnit?.prefix ? metricUnit.prefix : "") + (metricUnit?.base ? metricUnit.base : "");
-  const resolutions = [600, 240, 60] // DEV: Make configable
   const client = getContextClient();
   const subQuery = gql`
     query ($dbid: ID!, $selectedMetrics: [String!]!, $selectedScopes: [MetricScope!]!, $selectedResolution: Int) {
@@ -85,6 +87,19 @@
       }
     }
   `;
+
+  function handleZoom(detail) {
+      if ( // States have to differ, causes deathloop if just set
+          (pendingZoomState?.x?.min !== detail?.lastZoomState?.x?.min) &&
+          (pendingZoomState?.y?.max !== detail?.lastZoomState?.y?.max)
+      ) {
+          pendingZoomState = {...detail.lastZoomState}
+      }
+
+      if (detail?.newRes) { // Triggers GQL
+          pendingResolution = detail.newRes
+      }
+  }
 
   let metricData;
   let selectedScopes = [...scopes]
@@ -119,10 +134,14 @@
       });
 
       if ($metricData && !$metricData.fetching) {
-
         rawData = $metricData.data.singleUpdate.map((x) => x.metric)
         scopes  = $metricData.data.singleUpdate.map((x) => x.scope)
         statsSeries    = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null)
+
+        // Keep Zoomlevel if ResChange By Zoom
+        if (pendingZoomState) {
+          zoomState = {...pendingZoomState}
+        }
 
         // Set selected scope to min of returned scopes
         if (selectedScope == "load-all") {
@@ -176,11 +195,6 @@
       {/each}
     </select>
   {/if}
-  <select class="form-select" bind:value={pendingResolution}>
-    {#each resolutions as res}
-      <option value={res}>Timestep: {res}</option>
-    {/each}
-  </select>
 </InputGroup>
 {#key series}
   {#if $metricData?.fetching == true}
@@ -189,11 +203,7 @@
     <Card body color="danger">{error.message}</Card>
   {:else if series != null && !patternMatches}
     <Timeseries
-      bind:this={plot}
-      on:zoom-in={({ detail }) => {
-        // filterComponent.updateFilters(detail)
-        console.log("Upstream New Res:", detail)
-      }}
+      on:zoom={({detail}) => { handleZoom(detail) }}
       {width}
       height={300}
       cluster={job.cluster}
@@ -203,14 +213,11 @@
       metric={metricName}
       {series}
       {isShared}
+      {zoomState}
     />
   {:else if statsSeries[selectedScopeIndex] != null && patternMatches}
     <Timeseries
-      bind:this={plot}
-      on:zoom-in={({ detail }) => {
-        // filterComponent.updateFilters(detail)
-        console.log("Upstream New Res:", detail)
-      }}
+      on:zoom={({detail}) => { handleZoom(detail) }}
       {width}
       height={300}
       cluster={job.cluster}
@@ -220,6 +227,7 @@
       metric={metricName}
       {series}
       {isShared}
+      {zoomState}
       statisticsSeries={statsSeries[selectedScopeIndex]}
       useStatsSeries={!!statsSeries[selectedScopeIndex]}
     />
