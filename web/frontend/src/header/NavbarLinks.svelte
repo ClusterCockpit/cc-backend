@@ -21,7 +21,41 @@
 </script>
 
 {#each links as item}
-  {#if !item.perCluster}
+  {#if item.listOptions}
+    <Dropdown nav inNavbar>
+      <DropdownToggle nav caret>
+        <Icon name={item.icon} />
+        {item.title}
+      </DropdownToggle>
+      <DropdownMenu class="dropdown-menu-lg-end">
+        <DropdownItem
+          href={item.href}
+        >
+          All Clusters
+        </DropdownItem>
+        <DropdownItem divider />
+        {#each clusters as cluster}
+          <Dropdown nav direction="right">
+            <DropdownToggle nav caret class="dropdown-item py-1 px-2">
+              {cluster.name}
+            </DropdownToggle>
+            <DropdownMenu>
+              <DropdownItem class="py-1 px-2"
+                href={item.href + '?cluster=' + cluster.name}
+              >
+                All Jobs
+              </DropdownItem>
+              <DropdownItem class="py-1 px-2"
+                href={item.href + '?cluster=' + cluster.name + '&state=running'}
+              >
+                Running Jobs
+              </DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
+        {/each}
+      </DropdownMenu>
+    </Dropdown>
+  {:else if !item.perCluster}
     <NavLink href={item.href} active={window.location.pathname == item.href}
       ><Icon name={item.icon} /> {item.title}</NavLink
     >

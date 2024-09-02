@@ -77,8 +77,8 @@ func (r *JobRepository) buildStatsQuery(
 	// fmt.Sprintf(`CAST(ROUND((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) / 3600) as %s) as value`, time.Now().Unix(), castType)
 
 	if col != "" {
-		// Scan columns: id, totalJobs, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours
-		query = sq.Select(col, "COUNT(job.id) as totalJobs",
+		// Scan columns: id, totalJobs, name, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours
+		query = sq.Select(col, "COUNT(job.id) as totalJobs", "name",
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) / 3600) as %s) as totalWalltime`, time.Now().Unix(), castType),
 			fmt.Sprintf(`CAST(SUM(job.num_nodes) as %s) as totalNodes`, castType),
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_nodes) / 3600) as %s) as totalNodeHours`, time.Now().Unix(), castType),
@@ -86,10 +86,10 @@ func (r *JobRepository) buildStatsQuery(
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_hwthreads) / 3600) as %s) as totalCoreHours`, time.Now().Unix(), castType),
 			fmt.Sprintf(`CAST(SUM(job.num_acc) as %s) as totalAccs`, castType),
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_acc) / 3600) as %s) as totalAccHours`, time.Now().Unix(), castType),
-		).From("job").GroupBy(col)
+		).From("job").Join("user ON user.username = job.user").GroupBy(col)
 	} else {
-		// Scan columns: totalJobs, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours
-		query = sq.Select("COUNT(job.id)",
+		// Scan columns: totalJobs, name, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours
+		query = sq.Select("COUNT(job.id)", "name",
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) / 3600) as %s)`, time.Now().Unix(), castType),
 			fmt.Sprintf(`CAST(SUM(job.num_nodes) as %s)`, castType),
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_nodes) / 3600) as %s)`, time.Now().Unix(), castType),
@@ -97,7 +97,7 @@ func (r *JobRepository) buildStatsQuery(
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_hwthreads) / 3600) as %s)`, time.Now().Unix(), castType),
 			fmt.Sprintf(`CAST(SUM(job.num_acc) as %s)`, castType),
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_acc) / 3600) as %s)`, time.Now().Unix(), castType),
-		).From("job")
+		).From("job").Join("user ON user.username = job.user")
 	}
 
 	for _, f := range filter {
@@ -107,15 +107,15 @@ func (r *JobRepository) buildStatsQuery(
 	return query
 }
 
-func (r *JobRepository) getUserName(ctx context.Context, id string) string {
-	user := GetUserFromContext(ctx)
-	name, _ := r.FindColumnValue(user, id, "user", "name", "username", false)
-	if name != "" {
-		return name
-	} else {
-		return "-"
-	}
-}
+// func (r *JobRepository) getUserName(ctx context.Context, id string) string {
+// 	user := GetUserFromContext(ctx)
+// 	name, _ := r.FindColumnValue(user, id, "user", "name", "username", false)
+// 	if name != "" {
+// 		return name
+// 	} else {
+// 		return "-"
+// 	}
+// }
 
 func (r *JobRepository) getCastType() string {
 	var castType string
@@ -167,14 +167,20 @@ func (r *JobRepository) JobsStatsGrouped(
 
 	for rows.Next() {
 		var id sql.NullString
+		var name sql.NullString
 		var jobs, walltime, nodes, nodeHours, cores, coreHours, accs, accHours sql.NullInt64
-		if err := rows.Scan(&id, &jobs, &walltime, &nodes, &nodeHours, &cores, &coreHours, &accs, &accHours); err != nil {
+		if err := rows.Scan(&id, &jobs, &name, &walltime, &nodes, &nodeHours, &cores, &coreHours, &accs, &accHours); err != nil {
 			log.Warn("Error while scanning rows")
 			return nil, err
 		}
 
 		if id.Valid {
 			var totalJobs, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours int
+			var personName string
+
+			if name.Valid {
+				personName = name.String
+			}
 
 			if jobs.Valid {
 				totalJobs = int(jobs.Int64)
@@ -205,11 +211,11 @@ func (r *JobRepository) JobsStatsGrouped(
 			}
 
 			if col == "job.user" {
-				name := r.getUserName(ctx, id.String)
+				// name := r.getUserName(ctx, id.String)
 				stats = append(stats,
 					&model.JobsStatistics{
 						ID:             id.String,
-						Name:           name,
+						Name:           personName,
 						TotalJobs:      totalJobs,
 						TotalWalltime:  totalWalltime,
 						TotalNodes:     totalNodes,

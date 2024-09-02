@@ -90,11 +90,10 @@
     },
   });
 
-  let itemsPerPage = ccconfig.plot_list_jobsPerPage;
-  let page = 1;
-  let paging = { itemsPerPage, page };
-  let sorting = { field: "startTime", type: "col", order: "DESC" };
-  $: filter = [
+
+  const paging = { itemsPerPage: 50, page: 1 };
+  const sorting = { field: "startTime", type: "col", order: "DESC" };
+  const filter = [
     { cluster: { eq: cluster } },
     { node: { contains: hostname } },
     { state: ["running"] },

@@ -32,12 +32,14 @@
       ? ["core", "accelerator"]
       : ["core"]
     : ["node"];
+  let selectedResolution = 600;
+  let zoomStates = {};
 
   const cluster = getContext("clusters").find((c) => c.name == job.cluster);
   const client = getContextClient();
   const query = gql`
-    query ($id: ID!, $metrics: [String!]!, $scopes: [MetricScope!]!) {
-      jobMetrics(id: $id, metrics: $metrics, scopes: $scopes) {
+    query ($id: ID!, $metrics: [String!]!, $scopes: [MetricScope!]!, $selectedResolution: Int) {
+      jobMetrics(id: $id, metrics: $metrics, scopes: $scopes, resolution: $selectedResolution) {
         name
         scope
         metric {
@@ -66,17 +68,30 @@
     }
   `;
 
+  function handleZoom(detail, metric) {
+    if (
+        (zoomStates[metric]?.x?.min !== detail?.lastZoomState?.x?.min) &&
+        (zoomStates[metric]?.y?.max !== detail?.lastZoomState?.y?.max)
+    ) {
+        zoomStates[metric] = {...detail.lastZoomState}
+    }
+
+    if (detail?.newRes) { // Triggers GQL
+        selectedResolution = detail.newRes
+    }
+  }
+
   $: metricsQuery = queryStore({
     client: client,
     query: query,
-    variables: { id, metrics, scopes },
+    variables: { id, metrics, scopes, selectedResolution },
   });
   
   function refreshMetrics() {
     metricsQuery = queryStore({
       client: client,
       query: query,
-      variables: { id, metrics, scopes },
+      variables: { id, metrics, scopes, selectedResolution },
       // requestPolicy: 'network-only' // use default cache-first for refresh
     });
   }
@@ -159,6 +174,7 @@
         <!-- Subluster Metricconfig remove keyword for jobtables (joblist main, user joblist, project joblist) to be used here as toplevel case-->
         {#if metric.disabled == false && metric.data}
           <MetricPlot
+            on:zoom={({detail}) => { handleZoom(detail, metric.data.name) }}
             width={plotWidth}
             height={plotHeight}
             timestep={metric.data.metric.timestep}
@@ -171,6 +187,7 @@
             isShared={job.exclusive != 1}
             numhwthreads={job.numHWThreads}
             numaccs={job.numAcc}
+            zoomState={zoomStates[metric.data.name]}
           />
         {:else if metric.disabled == true && metric.data}
           <Card body color="info"
