@@ -48,6 +48,7 @@
       href: `/monitoring/user/${username}`,
       icon: "bar-chart-line-fill",
       perCluster: false,
+      listOptions: false,
       menu: "none",
     },
     {
@@ -56,6 +57,7 @@
       href: `/monitoring/jobs/`,
       icon: "card-list",
       perCluster: false,
+      listOptions: false,
       menu: "none",
     },
     {
@@ -63,7 +65,8 @@
       requiredRole: roles.manager,
       href: "/monitoring/users/",
       icon: "people-fill",
-      perCluster: false,
+      perCluster: true,
+      listOptions: true,
       menu: "Groups",
     },
     {
@@ -71,7 +74,8 @@
       requiredRole: roles.support,
       href: "/monitoring/projects/",
       icon: "folder",
-      perCluster: false,
+      perCluster: true,
+      listOptions: true,
       menu: "Groups",
     },
     {
@@ -80,6 +84,7 @@
       href: "/monitoring/tags/",
       icon: "tags",
       perCluster: false,
+      listOptions: false,
       menu: "Groups",
     },
     {
@@ -88,6 +93,7 @@
       href: "/monitoring/analysis/",
       icon: "graph-up",
       perCluster: true,
+      listOptions: false,
       menu: "Stats",
     },
     {
@@ -96,6 +102,7 @@
       href: "/monitoring/systems/",
       icon: "cpu",
       perCluster: true,
+      listOptions: false,
       menu: "Groups",
     },
     {
@@ -104,6 +111,7 @@
       href: "/monitoring/status/",
       icon: "cpu",
       perCluster: true,
+      listOptions: false,
       menu: "Stats",
     },
   ];
