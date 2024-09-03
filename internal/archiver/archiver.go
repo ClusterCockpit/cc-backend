@@ -24,7 +24,8 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 	}
 
 	scopes := []schema.MetricScope{schema.MetricScopeNode}
-	if job.NumNodes <= 8 { // FIXME: Add a config option for this
+	// FIXME: Add a config option for this
+	if job.NumNodes <= 8 {
 		// This will add the native scope if core scope is not available
 		scopes = append(scopes, schema.MetricScopeCore)
 	}

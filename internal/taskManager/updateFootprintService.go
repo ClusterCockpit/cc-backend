@@ -25,6 +25,12 @@ func RegisterFootprintWorker() {
 			func() {
 				s := time.Now()
 				log.Printf("Update Footprints started at %s", s.Format(time.RFC3339))
+
+				t, err := jobRepo.TransactionInit()
+				if err != nil {
+					log.Errorf("Failed TransactionInit %v", err)
+				}
+
 				for _, cluster := range archive.Clusters {
 					jobs, err := jobRepo.FindRunningJobs(cluster.Name)
 					if err != nil {
@@ -87,12 +93,22 @@ func RegisterFootprintWorker() {
 							log.Errorf("Update job (dbid: %d) failed at update Energy step: %s", job.ID, err.Error())
 							continue
 						}
-						if err := jobRepo.Execute(stmt); err != nil {
-							log.Errorf("Update job (dbid: %d) failed at db execute: %s", job.ID, err.Error())
+
+						query, args, err := stmt.ToSql()
+						if err != nil {
+							log.Errorf("Failed in ToSQL conversion %v", err)
 							continue
 						}
+						jobRepo.TransactionAdd(t, query, args)
+						// if err := jobRepo.Execute(stmt); err != nil {
+						// 	log.Errorf("Update job (dbid: %d) failed at db execute: %s", job.ID, err.Error())
+						// 	continue
+						// }
 					}
+
+					jobRepo.TransactionCommit(t)
 				}
+				jobRepo.TransactionEnd(t)
 				log.Printf("Update Footprints is done and took %s", time.Since(s))
 			}))
 }
