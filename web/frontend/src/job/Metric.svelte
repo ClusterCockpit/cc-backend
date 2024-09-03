@@ -117,13 +117,6 @@
         selectedScopes = [...scopes, "socket", "core", "accelerator"]
       }
 
-      if ((selectedResolution !== pendingResolution) && selectedScopes.length >= 2) {
-        selectedScope = String("node")
-        selectedScopes =  ["node"]
-        // Instead of adding acc to load-all: always add by default if native is acc
-        // selectedScopes = nativeScope == "accelerator" ? ["node", "accelerator"] : ["node"]
-      }
-
       selectedResolution = Number(pendingResolution)
 
       metricData = queryStore({

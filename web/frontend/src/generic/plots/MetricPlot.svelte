@@ -399,7 +399,7 @@
       init: [
         (u) => {
           u.over.addEventListener("dblclick", (e) => {
-            console.log('Dispatch Reset')
+            // console.log('Dispatch Reset')
             dispatch('zoom', {
               lastZoomState: {
                 x: { time: false },
@@ -455,7 +455,7 @@
           if (key === 'x') {
             const numX = (u.series[0].idxs[1] - u.series[0].idxs[0])
             if (numX <= 20 && timestep !== 60) { // Zoom IN if not at MAX
-              console.log('Dispatch Zoom')
+              // console.log('Dispatch Zoom')
               if (timestep == 600) {
                 dispatch('zoom', {
                   newRes: 240,
@@ -468,7 +468,7 @@
                 });
               }
             } else {
-              console.log('Dispatch Update')
+              // console.log('Dispatch Update')
               dispatch('zoom', {
                 lastZoomState: u?.scales
               });
