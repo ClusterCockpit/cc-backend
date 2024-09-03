@@ -31,44 +31,44 @@ ALTER TABLE job DROP net_data_vol_total;
 ALTER TABLE job DROP file_bw_avg;
 ALTER TABLE job DROP file_data_vol_total;
 
-CREATE INDEX jobs_cluster IF NOT EXISTS ON job (cluster);
-CREATE INDEX jobs_cluster_starttime IF NOT EXISTS ON job (cluster, start_time);
-CREATE INDEX jobs_cluster_user IF NOT EXISTS ON job (cluster, user);
-CREATE INDEX jobs_cluster_project IF NOT EXISTS ON job (cluster, project);
-CREATE INDEX jobs_cluster_subcluster IF NOT EXISTS ON job (cluster, subcluster);
+CREATE INDEX IF NOT EXISTS jobs_cluster ON job (cluster);
+CREATE INDEX IF NOT EXISTS jobs_cluster_starttime ON job (cluster, start_time);
+CREATE INDEX IF NOT EXISTS jobs_cluster_user ON job (cluster, user);
+CREATE INDEX IF NOT EXISTS jobs_cluster_project ON job (cluster, project);
+CREATE INDEX IF NOT EXISTS jobs_cluster_subcluster ON job (cluster, subcluster);
 
-CREATE INDEX jobs_cluster_partition IF NOT EXISTS ON job (cluster, partition);
-CREATE INDEX jobs_cluster_partition_starttime IF NOT EXISTS ON job (cluster, partition, start_time);
-CREATE INDEX jobs_cluster_partition_jobstate IF NOT EXISTS ON job (cluster, partition, job_state);
-CREATE INDEX jobs_cluster_partition_jobstate_user IF NOT EXISTS ON job (cluster, partition, job_state, user);
-CREATE INDEX jobs_cluster_partition_jobstate_project IF NOT EXISTS ON job (cluster, partition, job_state, project);
-CREATE INDEX jobs_cluster_partition_jobstate_starttime IF NOT EXISTS ON job (cluster, partition, job_state, start_time);
+CREATE INDEX IF NOT EXISTS jobs_cluster_partition ON job (cluster, partition);
+CREATE INDEX IF NOT EXISTS jobs_cluster_partition_starttime ON job (cluster, partition, start_time);
+CREATE INDEX IF NOT EXISTS jobs_cluster_partition_jobstate ON job (cluster, partition, job_state);
+CREATE INDEX IF NOT EXISTS jobs_cluster_partition_jobstate_user ON job (cluster, partition, job_state, user);
+CREATE INDEX IF NOT EXISTS jobs_cluster_partition_jobstate_project ON job (cluster, partition, job_state, project);
+CREATE INDEX IF NOT EXISTS jobs_cluster_partition_jobstate_starttime ON job (cluster, partition, job_state, start_time);
 
-CREATE INDEX jobs_cluster_jobstate IF NOT EXISTS ON job (cluster, job_state);
-CREATE INDEX jobs_cluster_jobstate_starttime IF NOT EXISTS ON job (cluster, job_state, starttime);
-CREATE INDEX jobs_cluster_jobstate_user IF NOT EXISTS ON job (cluster, job_state, user);
-CREATE INDEX jobs_cluster_jobstate_project IF NOT EXISTS ON job (cluster, job_state, project);
+CREATE INDEX IF NOT EXISTS jobs_cluster_jobstate ON job (cluster, job_state);
+CREATE INDEX IF NOT EXISTS jobs_cluster_jobstate_starttime ON job (cluster, job_state, starttime);
+CREATE INDEX IF NOT EXISTS jobs_cluster_jobstate_user ON job (cluster, job_state, user);
+CREATE INDEX IF NOT EXISTS jobs_cluster_jobstate_project ON job (cluster, job_state, project);
 
-CREATE INDEX jobs_user IF NOT EXISTS ON job (user);
-CREATE INDEX jobs_user_starttime IF NOT EXISTS ON job (user, start_time);
+CREATE INDEX IF NOT EXISTS jobs_user ON job (user);
+CREATE INDEX IF NOT EXISTS jobs_user_starttime ON job (user, start_time);
 
-CREATE INDEX jobs_project IF NOT EXISTS ON job (project);
-CREATE INDEX jobs_project_starttime IF NOT EXISTS ON job (project, start_time);
-CREATE INDEX jobs_project_user IF NOT EXISTS ON job (project, user);
+CREATE INDEX IF NOT EXISTS jobs_project ON job (project);
+CREATE INDEX IF NOT EXISTS jobs_project_starttime ON job (project, start_time);
+CREATE INDEX IF NOT EXISTS jobs_project_user ON job (project, user);
 
-CREATE INDEX jobs_jobstate IF NOT EXISTS ON job (job_state);
-CREATE INDEX jobs_jobstate_user IF NOT EXISTS ON job (job_state, user);
-CREATE INDEX jobs_jobstate_project IF NOT EXISTS ON job (job_state, project);
-CREATE INDEX jobs_jobstate_cluster IF NOT EXISTS ON job (job_state, cluster);
-CREATE INDEX jobs_jobstate_starttime IF NOT EXISTS ON job (job_state, start_time);
+CREATE INDEX IF NOT EXISTS jobs_jobstate ON job (job_state);
+CREATE INDEX IF NOT EXISTS jobs_jobstate_user ON job (job_state, user);
+CREATE INDEX IF NOT EXISTS jobs_jobstate_project ON job (job_state, project);
+CREATE INDEX IF NOT EXISTS jobs_jobstate_cluster ON job (job_state, cluster);
+CREATE INDEX IF NOT EXISTS jobs_jobstate_starttime ON job (job_state, start_time);
 
-CREATE INDEX jobs_arrayjobid_starttime IF NOT EXISTS ON job (array_job_id, start_time);
-CREATE INDEX jobs_cluster_arrayjobid_starttime IF NOT EXISTS ON job (cluster, array_job_id, start_time);
+CREATE INDEX IF NOT EXISTS jobs_arrayjobid_starttime ON job (array_job_id, start_time);
+CREATE INDEX jobs_cluster_arrayjobid_starttime ON job (cluster, array_job_id, start_time);
 
-CREATE INDEX jobs_starttime IF NOT EXISTS ON job (start_time);
-CREATE INDEX jobs_duration IF NOT EXISTS ON job (duration);
-CREATE INDEX jobs_numnodes IF NOT EXISTS ON job (num_nodes);
-CREATE INDEX jobs_numhwthreads IF NOT EXISTS ON job (num_hwthreads);
-CREATE INDEX jobs_numacc IF NOT EXISTS ON job (num_acc);
+CREATE INDEX IF NOT EXISTS jobs_starttime ON job (start_time);
+CREATE INDEX IF NOT EXISTS jobs_duration ON job (duration);
+CREATE INDEX IF NOT EXISTS jobs_numnodes ON job (num_nodes);
+CREATE INDEX IF NOT EXISTS jobs_numhwthreads ON job (num_hwthreads);
+CREATE INDEX IF NOT EXISTS jobs_numacc ON job (num_acc);
 
 PRAGMA optimize;
