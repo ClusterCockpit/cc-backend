@@ -25,8 +25,8 @@
   export let job;
   export let jobMetrics;
 
-  const allMetrics = [...new Set(jobMetrics.map((m) => m.name))].sort(),
-    scopesForMetric = (metric) =>
+  const allMetrics = [...new Set(jobMetrics.map((m) => m.name))].sort()
+  const scopesForMetric = (metric) =>
       jobMetrics.filter((jm) => jm.name == metric).map((jm) => jm.scope);
 
   let hosts = job.resources.map((r) => r.hostname).sort(),
@@ -87,8 +87,12 @@
   }
 
   export function moreLoaded(moreJobMetrics) {
-    jobMetrics = [...jobMetrics, ...moreJobMetrics]
-  }
+    moreJobMetrics.forEach(function (newMetric) {
+      if (!jobMetrics.some((m) => m.scope == newMetric.scope)) {
+        jobMetrics = [...jobMetrics, newMetric]
+      }
+    });
+  };
 </script>
 
 <Table>
