@@ -13,6 +13,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	sq "github.com/Masterminds/squirrel"
 	"github.com/go-co-op/gocron/v2"
 )
 
@@ -22,8 +23,8 @@ func RegisterFootprintWorker() {
 	s.NewJob(gocron.DurationJob(d),
 		gocron.NewTask(
 			func() {
-				t := time.Now()
-				log.Printf("Update Footprints started at %s", t.Format(time.RFC3339))
+				s := time.Now()
+				log.Printf("Update Footprints started at %s", s.Format(time.RFC3339))
 				for _, cluster := range archive.Clusters {
 					jobs, err := jobRepo.FindRunningJobs(cluster.Name)
 					if err != nil {
@@ -77,16 +78,21 @@ func RegisterFootprintWorker() {
 							}
 						}
 
-						if err := jobRepo.UpdateFootprint(jobMeta); err != nil {
+						stmt := sq.Update("job").Where("job.id = ?", job.ID)
+						if stmt, err = jobRepo.UpdateFootprint(stmt, jobMeta); err != nil {
 							log.Errorf("Update job (dbid: %d) failed at update Footprint step: %s", job.ID, err.Error())
 							continue
 						}
-						if err := jobRepo.UpdateEnergy(jobMeta); err != nil {
+						if stmt, err = jobRepo.UpdateEnergy(stmt, jobMeta); err != nil {
 							log.Errorf("Update job (dbid: %d) failed at update Energy step: %s", job.ID, err.Error())
+							continue
+						}
+						if err := jobRepo.Execute(stmt); err != nil {
+							log.Errorf("Update job (dbid: %d) failed at db execute: %s", job.ID, err.Error())
 							continue
 						}
 					}
 				}
-				log.Print("Update Footprints done")
+				log.Printf("Update Footprints is done and took %s", time.Since(s))
 			}))
 }

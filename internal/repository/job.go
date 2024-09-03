@@ -488,7 +488,6 @@ func (r *JobRepository) UpdateDuration() error {
 		Set("duration", sq.Expr("? - job.start_time", time.Now().Unix())).
 		Where("job_state = running").
 		RunWith(r.stmtCache).Exec(); err != nil {
-		log.Warnf("Error while updating metadata for job, DB ID '%v'", job.ID)
 		return err
 	}
 
@@ -542,27 +541,29 @@ func (r *JobRepository) UpdateMonitoringStatus(job int64, monitoringStatus int32
 	return
 }
 
-// FIXME: Combine the next three queries into one providing the db statement as function argument!
-func (r *JobRepository) MarkArchived(
-	jobMeta *schema.JobMeta,
-	monitoringStatus int32,
-) error {
-	stmt := sq.Update("job").
-		Set("monitoring_status", monitoringStatus).
-		Where("job.id = ?", jobMeta.JobID)
-
+func (r *JobRepository) Execute(stmt sq.UpdateBuilder) error {
 	if _, err := stmt.RunWith(r.stmtCache).Exec(); err != nil {
-		log.Warn("Error while marking job as archived")
 		return err
 	}
+
 	return nil
 }
 
-func (r *JobRepository) UpdateEnergy(jobMeta *schema.JobMeta) error {
+func (r *JobRepository) MarkArchived(
+	stmt sq.UpdateBuilder,
+	monitoringStatus int32,
+) sq.UpdateBuilder {
+	return stmt.Set("monitoring_status", monitoringStatus)
+}
+
+func (r *JobRepository) UpdateEnergy(
+	stmt sq.UpdateBuilder,
+	jobMeta *schema.JobMeta,
+) (sq.UpdateBuilder, error) {
 	sc, err := archive.GetSubCluster(jobMeta.Cluster, jobMeta.SubCluster)
 	if err != nil {
 		log.Errorf("cannot get subcluster: %s", err.Error())
-		return err
+		return stmt, err
 	}
 	energyFootprint := make(map[string]float64)
 	var totalEnergy float64
@@ -586,26 +587,23 @@ func (r *JobRepository) UpdateEnergy(jobMeta *schema.JobMeta) error {
 
 	if rawFootprint, err = json.Marshal(energyFootprint); err != nil {
 		log.Warnf("Error while marshaling energy footprint for job, DB ID '%v'", jobMeta.ID)
-		return err
+		return stmt, err
 	}
 
-	stmt := sq.Update("job").
-		Set("energy_footprint", rawFootprint).
-		Set("energy", totalEnergy).
-		Where("job.id = ?", jobMeta.JobID)
+	stmt.Set("energy_footprint", rawFootprint).
+		Set("energy", totalEnergy)
 
-	if _, err := stmt.RunWith(r.stmtCache).Exec(); err != nil {
-		log.Warn("Error while updating job energy footprint")
-		return err
-	}
-	return nil
+	return stmt, nil
 }
 
-func (r *JobRepository) UpdateFootprint(jobMeta *schema.JobMeta) error {
+func (r *JobRepository) UpdateFootprint(
+	stmt sq.UpdateBuilder,
+	jobMeta *schema.JobMeta,
+) (sq.UpdateBuilder, error) {
 	sc, err := archive.GetSubCluster(jobMeta.Cluster, jobMeta.SubCluster)
 	if err != nil {
 		log.Errorf("cannot get subcluster: %s", err.Error())
-		return err
+		return stmt, err
 	}
 	footprint := make(map[string]float64)
 
@@ -624,15 +622,9 @@ func (r *JobRepository) UpdateFootprint(jobMeta *schema.JobMeta) error {
 
 	if rawFootprint, err = json.Marshal(footprint); err != nil {
 		log.Warnf("Error while marshaling footprint for job, DB ID '%v'", jobMeta.ID)
-		return err
+		return stmt, err
 	}
 
-	stmt := sq.Update("job").Set("footprint", rawFootprint).
-		Where("job.id = ?", jobMeta.JobID)
-
-	if _, err := stmt.RunWith(r.stmtCache).Exec(); err != nil {
-		log.Warn("Error while updating job footprint")
-		return err
-	}
-	return nil
+	stmt.Set("footprint", rawFootprint)
+	return stmt, nil
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	sq "github.com/Masterminds/squirrel"
 )
 
 var (
@@ -53,17 +54,20 @@ func archivingWorker() {
 				continue
 			}
 
-			if err := jobRepo.UpdateFootprint(jobMeta); err != nil {
+			stmt := sq.Update("job").Where("job.id = ?", job.ID)
+
+			if stmt, err = jobRepo.UpdateFootprint(stmt, jobMeta); err != nil {
 				log.Errorf("archiving job (dbid: %d) failed at update Footprint step: %s", job.ID, err.Error())
 				continue
 			}
-			if err := jobRepo.UpdateEnergy(jobMeta); err != nil {
+			if stmt, err = jobRepo.UpdateEnergy(stmt, jobMeta); err != nil {
 				log.Errorf("archiving job (dbid: %d) failed at update Energy step: %s", job.ID, err.Error())
 				continue
 			}
 			// Update the jobs database entry one last time:
-			if err := jobRepo.MarkArchived(jobMeta, schema.MonitoringStatusArchivingSuccessful); err != nil {
-				log.Errorf("archiving job (dbid: %d) failed at marking archived step: %s", job.ID, err.Error())
+			stmt = jobRepo.MarkArchived(stmt, schema.MonitoringStatusArchivingSuccessful)
+			if err := jobRepo.Execute(stmt); err != nil {
+				log.Errorf("archiving job (dbid: %d) failed at db execute: %s", job.ID, err.Error())
 				continue
 			}
 			log.Debugf("archiving job %d took %s", job.JobID, time.Since(start))

@@ -21,6 +21,6 @@ func RegisterUpdateDurationWorker() {
 				start := time.Now()
 				log.Printf("Update duration started at %s", start.Format(time.RFC3339))
 				jobRepo.UpdateDuration()
-				log.Print("Update duration is done and took %s", time.Since(start))
+				log.Printf("Update duration is done and took %s", time.Since(start))
 			}))
 }
