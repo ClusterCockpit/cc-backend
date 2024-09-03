@@ -15,20 +15,19 @@ type Transaction struct {
 	stmt *sqlx.NamedStmt
 }
 
-func (r *JobRepository) TransactionInit() (*Transaction, error) {
+func (r *JobRepository) TransactionInit(sqlStmt string) (*Transaction, error) {
 	var err error
 	t := new(Transaction)
-	// Inserts are bundled into transactions because in sqlite,
-	// that speeds up inserts A LOT.
+
 	t.tx, err = r.DB.Beginx()
 	if err != nil {
 		log.Warn("Error while bundling transactions")
 		return nil, err
 	}
 
-	t.stmt, err = t.tx.PrepareNamed(NamedJobInsert)
+	t.stmt, err = t.tx.PrepareNamed(sqlStmt)
 	if err != nil {
-		log.Warn("Error while preparing namedJobInsert")
+		log.Warn("Error while preparing SQL statement in transaction")
 		return nil, err
 	}
 
@@ -63,8 +62,8 @@ func (r *JobRepository) TransactionEnd(t *Transaction) error {
 	return nil
 }
 
-func (r *JobRepository) TransactionAdd(t *Transaction, job schema.Job) (int64, error) {
-	res, err := t.stmt.Exec(job)
+func (r *JobRepository) TransactionAdd(t *Transaction, obj interface{}) (int64, error) {
+	res, err := t.stmt.Exec(obj)
 	if err != nil {
 		log.Errorf("repository initDB(): %v", err)
 		return 0, err

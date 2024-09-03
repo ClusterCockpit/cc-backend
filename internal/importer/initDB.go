@@ -27,7 +27,7 @@ func InitDB() error {
 	starttime := time.Now()
 	log.Print("Building job table...")
 
-	t, err := r.TransactionInit()
+	t, err := r.TransactionInit(repository.NamedJobInsert)
 	if err != nil {
 		log.Warn("Error while initializing SQL transactions")
 		return err
