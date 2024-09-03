@@ -45,7 +45,7 @@ CREATE INDEX IF NOT EXISTS jobs_cluster_partition_jobstate_project ON job (clust
 CREATE INDEX IF NOT EXISTS jobs_cluster_partition_jobstate_starttime ON job (cluster, partition, job_state, start_time);
 
 CREATE INDEX IF NOT EXISTS jobs_cluster_jobstate ON job (cluster, job_state);
-CREATE INDEX IF NOT EXISTS jobs_cluster_jobstate_starttime ON job (cluster, job_state, starttime);
+CREATE INDEX IF NOT EXISTS jobs_cluster_jobstate_starttime ON job (cluster, job_state, start_time);
 CREATE INDEX IF NOT EXISTS jobs_cluster_jobstate_user ON job (cluster, job_state, user);
 CREATE INDEX IF NOT EXISTS jobs_cluster_jobstate_project ON job (cluster, job_state, project);
 
