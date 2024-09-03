@@ -80,6 +80,7 @@ func Start() {
 	}
 
 	RegisterFootprintWorker()
+	RegisterUpdateDurationWorker()
 
 	s.Start()
 }

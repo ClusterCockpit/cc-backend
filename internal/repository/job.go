@@ -205,7 +205,10 @@ func (r *JobRepository) UpdateMetadata(job *schema.Job, key, val string) (err er
 		return err
 	}
 
-	if _, err = sq.Update("job").Set("meta_data", job.RawMetaData).Where("job.id = ?", job.ID).RunWith(r.stmtCache).Exec(); err != nil {
+	if _, err = sq.Update("job").
+		Set("meta_data", job.RawMetaData).
+		Where("job.id = ?", job.ID).
+		RunWith(r.stmtCache).Exec(); err != nil {
 		log.Warnf("Error while updating metadata for job, DB ID '%v'", job.ID)
 		return err
 	}
@@ -478,6 +481,18 @@ func (r *JobRepository) FindRunningJobs(cluster string) ([]*schema.Job, error) {
 
 	log.Infof("Return job count %d", len(jobs))
 	return jobs, nil
+}
+
+func (r *JobRepository) UpdateDuration() error {
+	if _, err := sq.Update("job").
+		Set("duration", sq.Expr("? - job.start_time", time.Now().Unix())).
+		Where("job_state = running").
+		RunWith(r.stmtCache).Exec(); err != nil {
+		log.Warnf("Error while updating metadata for job, DB ID '%v'", job.ID)
+		return err
+	}
+
+	return nil
 }
 
 func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64) ([]*schema.Job, error) {
