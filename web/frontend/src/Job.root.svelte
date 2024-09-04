@@ -38,6 +38,7 @@
   import TagManagement from "./job/TagManagement.svelte";
   import StatsTable from "./job/StatsTable.svelte";
   import JobFootprint from "./generic/helper/JobFootprint.svelte";
+  import ConcurrentJobs from "./generic/helper/ConcurrentJobs.svelte";
   import PlotTable from "./generic/PlotTable.svelte";
   import Polar from "./generic/plots/Polar.svelte";
   import Roofline from "./generic/plots/Roofline.svelte";
@@ -250,42 +251,9 @@
   {/if}
   {#if $initq?.data && $jobMetrics?.data?.jobMetrics}
     {#if $initq.data.job.concurrentJobs != null && $initq.data.job.concurrentJobs.items.length != 0}
-      {#if authlevel > roles.manager}
-        <Col>
-          <h5>
-            Concurrent Jobs <Icon
-              name="info-circle"
-              style="cursor:help;"
-              title="Shared jobs running on the same node with overlapping runtimes"
-            />
-          </h5>
-          <ul>
-            <li>
-              <a
-                href="/monitoring/jobs/?{$initq.data.job.concurrentJobs
-                  .listQuery}"
-                target="_blank">See All</a
-              >
-            </li>
-            {#each $initq.data.job.concurrentJobs.items as pjob, index}
-              <li>
-                <a href="/monitoring/job/{pjob.id}" target="_blank"
-                  >{pjob.jobId}</a
-                >
-              </li>
-            {/each}
-          </ul>
-        </Col>
-      {:else}
-        <Col>
-          <h5>
-            {$initq.data.job.concurrentJobs.items.length} Concurrent Jobs
-          </h5>
-          <p>
-            Number of shared jobs on the same node with overlapping runtimes.
-          </p>
-        </Col>
-      {/if}
+      <Col>
+        <ConcurrentJobs cJobs={$initq.data.job.concurrentJobs} showLinks={(authlevel > roles.manager)}/>
+      </Col>
     {/if}
     <Col>
       <Polar
