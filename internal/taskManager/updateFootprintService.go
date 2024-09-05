@@ -85,11 +85,14 @@ func RegisterFootprintWorker() {
 						}
 
 						stmt := sq.Update("job").Where("job.id = ?", job.ID)
-						if stmt, err = jobRepo.UpdateFootprint(stmt, jobMeta); err != nil {
+						stmt, err = jobRepo.UpdateFootprint(stmt, jobMeta)
+						if err != nil {
 							log.Errorf("Update job (dbid: %d) failed at update Footprint step: %s", job.ID, err.Error())
 							continue
 						}
-						if stmt, err = jobRepo.UpdateEnergy(stmt, jobMeta); err != nil {
+
+						stmt, err = jobRepo.UpdateEnergy(stmt, jobMeta)
+						if err != nil {
 							log.Errorf("Update job (dbid: %d) failed at update Energy step: %s", job.ID, err.Error())
 							continue
 						}
