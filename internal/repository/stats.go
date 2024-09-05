@@ -13,7 +13,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
-	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -292,13 +292,17 @@ func (r *JobRepository) JobsStats(
 	return stats, nil
 }
 
-// FIXME: Make generic
-func LoadJobStat(job *schema.JobMeta, metric string) float64 {
+func LoadJobStat(job *schema.JobMeta, metric string, statType string) float64 {
 	if stats, ok := job.Statistics[metric]; ok {
-		if metric == "mem_used" {
-			return stats.Max
-		} else {
+		switch statType {
+		case "avg":
 			return stats.Avg
+		case "max":
+			return stats.Max
+		case "min":
+			return stats.Min
+		default:
+			log.Errorf("Unknown stat type %s", statType)
 		}
 	}
 
@@ -697,7 +701,7 @@ func (r *JobRepository) runningJobsMetricStatisticsHistogram(
 			continue
 		}
 
-		if err := metricdata.LoadAverages(job, metrics, avgs, ctx); err != nil {
+		if err := metricDataDispatcher.LoadAverages(job, metrics, avgs, ctx); err != nil {
 			log.Errorf("Error while loading averages for histogram: %s", err)
 			return nil
 		}

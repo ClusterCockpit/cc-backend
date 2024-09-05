@@ -19,12 +19,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/archiver"
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
-	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
@@ -522,7 +523,7 @@ func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) 
 	}
 
 	if r.URL.Query().Get("all-metrics") == "true" {
-		data, err = metricdata.LoadData(job, nil, scopes, r.Context(), resolution)
+		data, err = metricDataDispatcher.LoadData(job, nil, scopes, r.Context(), resolution)
 		if err != nil {
 			log.Warn("Error while loading job data")
 			return
@@ -618,7 +619,7 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 		resolution = max(resolution, mc.Timestep)
 	}
 
-	data, err := metricdata.LoadData(job, metrics, scopes, r.Context(), resolution)
+	data, err := metricDataDispatcher.LoadData(job, metrics, scopes, r.Context(), resolution)
 	if err != nil {
 		log.Warn("Error while loading job data")
 		return
@@ -1095,7 +1096,7 @@ func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 	}
 
 	// Trigger async archiving
-	api.JobRepository.TriggerArchiving(job)
+	archiver.TriggerArchiving(job)
 }
 
 func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {

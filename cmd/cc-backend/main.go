@@ -181,7 +181,7 @@ func main() {
 		log.Fatalf("failed to initialize archive: %s", err.Error())
 	}
 
-	if err := metricdata.Init(config.Keys.DisableArchive); err != nil {
+	if err := metricdata.Init(); err != nil {
 		log.Fatalf("failed to initialize metricdata repository: %s", err.Error())
 	}
 

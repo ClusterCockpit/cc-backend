@@ -28,12 +28,10 @@ var (
 )
 
 type JobRepository struct {
-	DB             *sqlx.DB
-	stmtCache      *sq.StmtCache
-	cache          *lrucache.Cache
-	archiveChannel chan *schema.Job
-	driver         string
-	archivePending sync.WaitGroup
+	DB        *sqlx.DB
+	stmtCache *sq.StmtCache
+	cache     *lrucache.Cache
+	driver    string
 }
 
 func GetJobRepository() *JobRepository {
@@ -44,12 +42,9 @@ func GetJobRepository() *JobRepository {
 			DB:     db.DB,
 			driver: db.Driver,
 
-			stmtCache:      sq.NewStmtCache(db.DB),
-			cache:          lrucache.New(1024 * 1024),
-			archiveChannel: make(chan *schema.Job, 128),
+			stmtCache: sq.NewStmtCache(db.DB),
+			cache:     lrucache.New(1024 * 1024),
 		}
-		// start archiving worker
-		go jobRepoInstance.archivingWorker()
 	})
 	return jobRepoInstance
 }
@@ -210,7 +205,10 @@ func (r *JobRepository) UpdateMetadata(job *schema.Job, key, val string) (err er
 		return err
 	}
 
-	if _, err = sq.Update("job").Set("meta_data", job.RawMetaData).Where("job.id = ?", job.ID).RunWith(r.stmtCache).Exec(); err != nil {
+	if _, err = sq.Update("job").
+		Set("meta_data", job.RawMetaData).
+		Where("job.id = ?", job.ID).
+		RunWith(r.stmtCache).Exec(); err != nil {
 		log.Warnf("Error while updating metadata for job, DB ID '%v'", job.ID)
 		return err
 	}
@@ -458,6 +456,46 @@ func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 	return nil
 }
 
+func (r *JobRepository) FindRunningJobs(cluster string) ([]*schema.Job, error) {
+	query := sq.Select(jobColumns...).From("job").
+		Where(fmt.Sprintf("job.cluster = '%s'", cluster)).
+		Where("job.job_state = 'running'").
+		Where("job.duration>600")
+
+	rows, err := query.RunWith(r.stmtCache).Query()
+	if err != nil {
+		log.Error("Error while running query")
+		return nil, err
+	}
+
+	jobs := make([]*schema.Job, 0, 50)
+	for rows.Next() {
+		job, err := scanJob(rows)
+		if err != nil {
+			rows.Close()
+			log.Warn("Error while scanning rows")
+			return nil, err
+		}
+		jobs = append(jobs, job)
+	}
+
+	log.Infof("Return job count %d", len(jobs))
+	return jobs, nil
+}
+
+func (r *JobRepository) UpdateDuration() error {
+	stmnt := sq.Update("job").
+		Set("duration", sq.Expr("? - job.start_time", time.Now().Unix())).
+		Where("job_state = 'running'")
+
+	_, err := stmnt.RunWith(r.stmtCache).Exec()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64) ([]*schema.Job, error) {
 	var query sq.SelectBuilder
 
@@ -494,4 +532,101 @@ func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64
 
 	log.Infof("Return job count %d", len(jobs))
 	return jobs, nil
+}
+
+func (r *JobRepository) UpdateMonitoringStatus(job int64, monitoringStatus int32) (err error) {
+	stmt := sq.Update("job").
+		Set("monitoring_status", monitoringStatus).
+		Where("job.id = ?", job)
+
+	_, err = stmt.RunWith(r.stmtCache).Exec()
+	return
+}
+
+func (r *JobRepository) Execute(stmt sq.UpdateBuilder) error {
+	if _, err := stmt.RunWith(r.stmtCache).Exec(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *JobRepository) MarkArchived(
+	stmt sq.UpdateBuilder,
+	monitoringStatus int32,
+) sq.UpdateBuilder {
+	return stmt.Set("monitoring_status", monitoringStatus)
+}
+
+func (r *JobRepository) UpdateEnergy(
+	stmt sq.UpdateBuilder,
+	jobMeta *schema.JobMeta,
+) (sq.UpdateBuilder, error) {
+	sc, err := archive.GetSubCluster(jobMeta.Cluster, jobMeta.SubCluster)
+	if err != nil {
+		log.Errorf("cannot get subcluster: %s", err.Error())
+		return stmt, err
+	}
+	energyFootprint := make(map[string]float64)
+	var totalEnergy float64
+	var energy float64
+
+	for _, fp := range sc.EnergyFootprint {
+		if i, err := archive.MetricIndex(sc.MetricConfig, fp); err != nil {
+			// FIXME: Check for unit conversions
+			if sc.MetricConfig[i].Energy == "power" {
+				energy = LoadJobStat(jobMeta, fp, "avg") * float64(jobMeta.Duration)
+			} else if sc.MetricConfig[i].Energy == "energy" {
+				// This assumes the metric is of aggregation type sum
+			}
+		}
+
+		energyFootprint[fp] = energy
+		totalEnergy += energy
+	}
+
+	var rawFootprint []byte
+
+	if rawFootprint, err = json.Marshal(energyFootprint); err != nil {
+		log.Warnf("Error while marshaling energy footprint for job, DB ID '%v'", jobMeta.ID)
+		return stmt, err
+	}
+
+	stmt.Set("energy_footprint", rawFootprint).
+		Set("energy", totalEnergy)
+
+	return stmt, nil
+}
+
+func (r *JobRepository) UpdateFootprint(
+	stmt sq.UpdateBuilder,
+	jobMeta *schema.JobMeta,
+) (sq.UpdateBuilder, error) {
+	sc, err := archive.GetSubCluster(jobMeta.Cluster, jobMeta.SubCluster)
+	if err != nil {
+		log.Errorf("cannot get subcluster: %s", err.Error())
+		return stmt, err
+	}
+	footprint := make(map[string]float64)
+
+	for _, fp := range sc.Footprint {
+		statType := "avg"
+
+		if i, err := archive.MetricIndex(sc.MetricConfig, fp); err != nil {
+			statType = sc.MetricConfig[i].Footprint
+		}
+
+		name := fmt.Sprintf("%s_%s", fp, statType)
+		footprint[fp] = LoadJobStat(jobMeta, name, statType)
+	}
+
+	var rawFootprint []byte
+
+	if rawFootprint, err = json.Marshal(footprint); err != nil {
+		log.Warnf("Error while marshaling footprint for job, DB ID '%v'", jobMeta.ID)
+		return stmt, err
+	}
+
+	stmt.Set("footprint", rawFootprint)
+	return stmt, nil
 }

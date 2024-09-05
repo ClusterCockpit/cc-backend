@@ -88,7 +88,7 @@ func initClusterConfig() error {
 							sc.Footprint = append(sc.Footprint, newMetric.Name)
 							ml.Footprint = newMetric.Footprint
 						}
-						if newMetric.Energy {
+						if newMetric.Energy != "" {
 							sc.EnergyFootprint = append(sc.EnergyFootprint, newMetric.Name)
 						}
 					}
@@ -99,7 +99,7 @@ func initClusterConfig() error {
 					if newMetric.Footprint != "" {
 						sc.Footprint = append(sc.Footprint, newMetric.Name)
 					}
-					if newMetric.Energy {
+					if newMetric.Energy != "" {
 						sc.EnergyFootprint = append(sc.EnergyFootprint, newMetric.Name)
 					}
 				}
@@ -220,4 +220,14 @@ func GetSubClusterByNode(cluster, hostname string) (string, error) {
 	}
 
 	return "", fmt.Errorf("ARCHIVE/CLUSTERCONFIG > no subcluster found for cluster %v and host %v", cluster, hostname)
+}
+
+func MetricIndex(mc []schema.MetricConfig, name string) (int, error) {
+	for i, m := range mc {
+		if m.Name == name {
+			return i, nil
+		}
+	}
+
+	return 0, fmt.Errorf("Unknown metric name %s", name)
 }
