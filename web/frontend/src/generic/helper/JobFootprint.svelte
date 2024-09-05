@@ -67,62 +67,74 @@
   export let height = "310px";
 
   const footprintData = job?.footprint?.map((jf) => {
-    // Unit
     const fmc = getContext("getMetricConfig")(job.cluster, job.subCluster, jf.name);
-    const unit = (fmc?.unit?.prefix ? fmc.unit.prefix : "") + (fmc?.unit?.base ? fmc.unit.base : "")
+    if (fmc) {
+      // Unit
+      const unit = (fmc?.unit?.prefix ? fmc.unit.prefix : "") + (fmc?.unit?.base ? fmc.unit.base : "")
 
-    // Threshold / -Differences
-    const fmt = findJobThresholds(job, fmc);
-    if (jf.name === "flops_any") fmt.peak = round(fmt.peak * 0.85, 0);
+      // Threshold / -Differences
+      const fmt = findJobThresholds(job, fmc);
+      if (jf.name === "flops_any") fmt.peak = round(fmt.peak * 0.85, 0);
 
-    // Define basic data -> Value: Use as Provided
-    const fmBase = {
-      name: jf.name + ' (' + jf.stat + ')',
-      avg: jf.value,
-      unit: unit,
-      max: fmt.peak,
-      dir: fmc.lowerIsBetter
-    };
+      // Define basic data -> Value: Use as Provided
+      const fmBase = {
+        name: jf.name + ' (' + jf.stat + ')',
+        avg: jf.value,
+        unit: unit,
+        max: fmt.peak,
+        dir: fmc.lowerIsBetter
+      };
 
-    if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "alert")) {
+      if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "alert")) {
+        return {
+          ...fmBase,
+          color: "danger",
+          message: `Metric average way ${fmc.lowerIsBetter ? "above" : "below"} expected normal thresholds.`,
+          impact: 3
+        };
+      } else if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "caution")) {
+        return {
+          ...fmBase,
+          color: "warning",
+          message: `Metric average ${fmc.lowerIsBetter ? "above" : "below"} expected normal thresholds.`,
+          impact: 2,
+        };
+      } else if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "normal")) {
+        return {
+          ...fmBase,
+          color: "success",
+          message: "Metric average within expected thresholds.",
+          impact: 1,
+        };
+      } else if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "peak")) {
+        return {
+          ...fmBase,
+          color: "info",
+          message:
+            "Metric average above expected normal thresholds: Check for artifacts recommended.",
+          impact: 0,
+        };
+      } else {
+        return {
+          ...fmBase,
+          color: "secondary",
+          message:
+            "Metric average above expected peak threshold: Check for artifacts!",
+          impact: -1,
+        };
+      }
+    } else { // No matching metric config: display as single value
       return {
-        ...fmBase,
-        color: "danger",
-        message: `Metric average way ${fmc.lowerIsBetter ? "above" : "below"} expected normal thresholds.`,
-        impact: 3
-      };
-    } else if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "caution")) {
-      return {
-        ...fmBase,
-        color: "warning",
-        message: `Metric average ${fmc.lowerIsBetter ? "above" : "below"} expected normal thresholds.`,
-        impact: 2,
-      };
-    } else if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "normal")) {
-      return {
-        ...fmBase,
-        color: "success",
-        message: "Metric average within expected thresholds.",
-        impact: 1,
-      };
-    } else if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "peak")) {
-      return {
-        ...fmBase,
-        color: "info",
+        name: jf.name + ' (' + jf.stat + ')',
+        avg: jf.value,
         message:
-          "Metric average above expected normal thresholds: Check for artifacts recommended.",
-        impact: 0,
-      };
-    } else {
-      return {
-        ...fmBase,
-        color: "secondary",
-        message:
-          "Metric average above expected peak threshold: Check for artifacts!",
-        impact: -1,
+          `No config for metric ${jf.name} found.`,
+        impact: 4,
       };
     }
-  });
+  }).sort(function (a, b) { // Sort by impact value primarily, within impact sort name alphabetically
+    return a.impact - b.impact || ((a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0));
+  });;
 
   function evalFootprint(mean, thresholds, lowerIsBetter, level) {
     // Handle Metrics in which less value is better
@@ -159,37 +171,76 @@
   {/if}
   <CardBody>
     {#each footprintData as fpd, index}
-      <div class="mb-1 d-flex justify-content-between">
-        <div>&nbsp;<b>{fpd.name}</b></div>
-        <!-- For symmetry, see below ...-->
-        <div
-          class="cursor-help d-inline-flex"
-          id={`footprint-${job.jobId}-${index}`}
-        >
-          <div class="mx-1">
-            <!-- Alerts Only -->
-            {#if fpd.impact === 3 || fpd.impact === -1}
-              <Icon name="exclamation-triangle-fill" class="text-danger" />
-            {:else if fpd.impact === 2}
-              <Icon name="exclamation-triangle" class="text-warning" />
-            {/if}
-            <!-- Emoji for all states-->
-            {#if fpd.impact === 3}
-              <Icon name="emoji-frown" class="text-danger" />
-            {:else if fpd.impact === 2}
-              <Icon name="emoji-neutral" class="text-warning" />
-            {:else if fpd.impact === 1}
-              <Icon name="emoji-smile" class="text-success" />
-            {:else if fpd.impact === 0}
-              <Icon name="emoji-laughing" class="text-info" />
-            {:else if fpd.impact === -1}
-              <Icon name="emoji-dizzy" class="text-danger" />
-            {/if}
+      {#if fpd.impact !== 4}
+        <div class="mb-1 d-flex justify-content-between">
+          <div>&nbsp;<b>{fpd.name}</b></div>
+          <!-- For symmetry, see below ...-->
+          <div
+            class="cursor-help d-inline-flex"
+            id={`footprint-${job.jobId}-${index}`}
+          >
+            <div class="mx-1">
+              <!-- Alerts Only -->
+              {#if fpd.impact === 3 || fpd.impact === -1}
+                <Icon name="exclamation-triangle-fill" class="text-danger" />
+              {:else if fpd.impact === 2}
+                <Icon name="exclamation-triangle" class="text-warning" />
+              {/if}
+              <!-- Emoji for all states-->
+              {#if fpd.impact === 3}
+                <Icon name="emoji-frown" class="text-danger" />
+              {:else if fpd.impact === 2}
+                <Icon name="emoji-neutral" class="text-warning" />
+              {:else if fpd.impact === 1}
+                <Icon name="emoji-smile" class="text-success" />
+              {:else if fpd.impact === 0}
+                <Icon name="emoji-laughing" class="text-info" />
+              {:else if fpd.impact === -1}
+                <Icon name="emoji-dizzy" class="text-danger" />
+              {/if}
+            </div>
+            <div>
+              <!-- Print Values -->
+              {fpd.avg} / {fpd.max}
+              {fpd.unit} &nbsp; <!-- To increase margin to tooltip: No other way manageable ... -->
+            </div>
           </div>
+          <Tooltip
+            target={`footprint-${job.jobId}-${index}`}
+            placement="right"
+            offset={[0, 20]}>{fpd.message}</Tooltip
+          >
+        </div>
+        <Row cols={12} class="{(footprintData.length == (index + 1)) ? 'mb-0' : 'mb-2'}">
+          {#if fpd.dir}
+            <Col xs="1">
+              <Icon name="caret-left-fill" />
+            </Col>
+          {/if}
+          <Col xs="11" class="align-content-center">
+            <Progress value={fpd.avg} max={fpd.max} color={fpd.color} />
+          </Col>
+          {#if !fpd.dir}
+          <Col xs="1">
+            <Icon name="caret-right-fill" />
+          </Col>
+          {/if}
+        </Row>
+      {:else}
+        <div class="mb-1 d-flex justify-content-between">
           <div>
-            <!-- Print Values -->
-            {fpd.avg} / {fpd.max}
-            {fpd.unit} &nbsp; <!-- To increase margin to tooltip: No other way manageable ... -->
+            &nbsp;<b>{fpd.name}</b>
+          </div>
+          <div
+            class="cursor-help d-inline-flex"
+            id={`footprint-${job.jobId}-${index}`}
+          >
+            <div class="mx-1">
+              <Icon name="info-circle"/>
+            </div>
+            <div>
+              {fpd.avg}&nbsp;
+            </div>
           </div>
         </div>
         <Tooltip
@@ -197,22 +248,7 @@
           placement="right"
           offset={[0, 20]}>{fpd.message}</Tooltip
         >
-      </div>
-      <Row cols={12} class="{(footprintData.length == (index + 1)) ? 'mb-0' : 'mb-2'}">
-        {#if fpd.dir}
-          <Col xs="1">
-            <Icon name="caret-left-fill" />
-          </Col>
-        {/if}
-        <Col xs="11" class="align-content-center">
-          <Progress value={fpd.avg} max={fpd.max} color={fpd.color} />
-        </Col>
-        {#if !fpd.dir}
-        <Col xs="1">
-          <Icon name="caret-right-fill" />
-        </Col>
-        {/if}
-      </Row>
+      {/if}
     {/each}
     {#if job?.metaData?.message}
       <hr class="mt-1 mb-2" />

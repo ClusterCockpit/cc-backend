@@ -20,6 +20,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/ClusterCockpit/cc-backend/internal/api"
+	"github.com/ClusterCockpit/cc-backend/internal/archiver"
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
@@ -37,6 +38,15 @@ var (
 	server    *http.Server
 	apiHandle *api.RestApi
 )
+
+func onFailureResponse(rw http.ResponseWriter, r *http.Request, err error) {
+	rw.Header().Add("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusUnauthorized)
+	json.NewEncoder(rw).Encode(map[string]string{
+		"status": http.StatusText(http.StatusUnauthorized),
+		"error":  err.Error(),
+	})
+}
 
 func serverInit() {
 	// Setup the http.Handler/Router used by the server
@@ -166,64 +176,32 @@ func serverInit() {
 			return authHandle.AuthApi(
 				// On success;
 				next,
-
 				// On failure: JSON Response
-				func(rw http.ResponseWriter, r *http.Request, err error) {
-					rw.Header().Add("Content-Type", "application/json")
-					rw.WriteHeader(http.StatusUnauthorized)
-					json.NewEncoder(rw).Encode(map[string]string{
-						"status": http.StatusText(http.StatusUnauthorized),
-						"error":  err.Error(),
-					})
-				})
+				onFailureResponse)
 		})
 
 		userapi.Use(func(next http.Handler) http.Handler {
 			return authHandle.AuthUserApi(
 				// On success;
 				next,
-
 				// On failure: JSON Response
-				func(rw http.ResponseWriter, r *http.Request, err error) {
-					rw.Header().Add("Content-Type", "application/json")
-					rw.WriteHeader(http.StatusUnauthorized)
-					json.NewEncoder(rw).Encode(map[string]string{
-						"status": http.StatusText(http.StatusUnauthorized),
-						"error":  err.Error(),
-					})
-				})
+				onFailureResponse)
 		})
 
 		configapi.Use(func(next http.Handler) http.Handler {
 			return authHandle.AuthConfigApi(
 				// On success;
 				next,
-
 				// On failure: JSON Response
-				func(rw http.ResponseWriter, r *http.Request, err error) {
-					rw.Header().Add("Content-Type", "application/json")
-					rw.WriteHeader(http.StatusUnauthorized)
-					json.NewEncoder(rw).Encode(map[string]string{
-						"status": http.StatusText(http.StatusUnauthorized),
-						"error":  err.Error(),
-					})
-				})
+				onFailureResponse)
 		})
 
 		frontendapi.Use(func(next http.Handler) http.Handler {
 			return authHandle.AuthFrontendApi(
 				// On success;
 				next,
-
 				// On failure: JSON Response
-				func(rw http.ResponseWriter, r *http.Request, err error) {
-					rw.Header().Add("Content-Type", "application/json")
-					rw.WriteHeader(http.StatusUnauthorized)
-					json.NewEncoder(rw).Encode(map[string]string{
-						"status": http.StatusText(http.StatusUnauthorized),
-						"error":  err.Error(),
-					})
-				})
+				onFailureResponse)
 		})
 	}
 
@@ -283,8 +261,8 @@ func serverStart() {
 	})
 
 	server = &http.Server{
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		ReadTimeout:  20 * time.Second,
+		WriteTimeout: 20 * time.Second,
 		Handler:      handler,
 		Addr:         config.Keys.Addr,
 	}
@@ -331,5 +309,5 @@ func serverShutdown() {
 	server.Shutdown(context.Background())
 
 	// Then, wait for any async archivings still pending...
-	apiHandle.JobRepository.WaitForArchiving()
+	archiver.WaitForArchiving()
 }

@@ -19,9 +19,11 @@ import (
 	"testing"
 
 	"github.com/ClusterCockpit/cc-backend/internal/api"
+	"github.com/ClusterCockpit/cc-backend/internal/archiver"
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
+	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
@@ -150,10 +152,11 @@ func setup(t *testing.T) *api.RestApi {
 		t.Fatal(err)
 	}
 
-	if err := metricdata.Init(config.Keys.DisableArchive); err != nil {
+	if err := metricdata.Init(); err != nil {
 		t.Fatal(err)
 	}
 
+	archiver.Start(repository.GetJobRepository())
 	auth.Init()
 	graph.Init()
 
@@ -311,7 +314,7 @@ func TestRestApi(t *testing.T) {
 			t.Fatal(response.Status, recorder.Body.String())
 		}
 
-		restapi.JobRepository.WaitForArchiving()
+		archiver.WaitForArchiving()
 		resolver := graph.GetResolverInstance()
 		job, err := resolver.Query().Job(ctx, strconv.Itoa(int(dbid)))
 		if err != nil {
@@ -341,7 +344,7 @@ func TestRestApi(t *testing.T) {
 	}
 
 	t.Run("CheckArchive", func(t *testing.T) {
-		data, err := metricdata.LoadData(stoppedJob, []string{"load_one"}, []schema.MetricScope{schema.MetricScopeNode}, context.Background())
+		data, err := metricDataDispatcher.LoadData(stoppedJob, []string{"load_one"}, []schema.MetricScope{schema.MetricScopeNode}, context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -422,7 +425,7 @@ func TestRestApi(t *testing.T) {
 			t.Fatal(response.Status, recorder.Body.String())
 		}
 
-		restapi.JobRepository.WaitForArchiving()
+		archiver.WaitForArchiving()
 		jobid, cluster := int64(12345), "testcluster"
 		job, err := restapi.JobRepository.Find(&jobid, &cluster, nil)
 		if err != nil {
