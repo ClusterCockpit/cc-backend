@@ -54,7 +54,7 @@ type SubClusterConfig struct {
 	Alert         float64 `json:"alert"`
 	Remove        bool    `json:"remove"`
 	LowerIsBetter bool    `json:"lowerIsBetter"`
-	Energy        bool    `json:"energy"`
+	Energy        string  `json:"energy"`
 }
 
 type MetricConfig struct {
@@ -70,7 +70,7 @@ type MetricConfig struct {
 	Alert         float64             `json:"alert"`
 	Timestep      int                 `json:"timestep"`
 	LowerIsBetter bool                `json:"lowerIsBetter"`
-	Energy        bool                `json:"energy"`
+	Energy        string              `json:"energy"`
 }
 
 type Cluster struct {

@@ -1,5 +1,7 @@
-CREATE INDEX IF NOT EXISTS job_by_project ON job (project);
-CREATE INDEX IF NOT EXISTS job_list_projects ON job (project, job_state);
+CREATE INDEX IF NOT EXISTS jobs_cluster_orderby_starttime ON job (cluster, start_time DESC);
+CREATE INDEX IF NOT EXISTS jobs_cluster_count ON job (cluster, job_state, start_time);
+CREATE INDEX IF NOT EXISTS jobs_project_orderby_starttime ON job (project, start_time DESC);
+CREATE INDEX IF NOT EXISTS jobs_project_count ON job (project, job_state, start_time);
 
 ALTER TABLE job ADD COLUMN energy REAL NOT NULL DEFAULT 0.0;
 ALTER TABLE job ADD COLUMN energy_footprint TEXT DEFAULT NULL;
@@ -25,3 +27,5 @@ ALTER TABLE job DROP net_bw_avg;
 ALTER TABLE job DROP net_data_vol_total;
 ALTER TABLE job DROP file_bw_avg;
 ALTER TABLE job DROP file_data_vol_total;
+
+PRAGMA optimize;

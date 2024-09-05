@@ -256,7 +256,7 @@
       "normal": 250,
       "caution": 100,
       "alert": 50,
-      "energy": true
+      "energy": "power"
     },
     {
       "name": "mem_power",
@@ -270,7 +270,7 @@
       "normal": 50,
       "caution": 20,
       "alert": 10,
-      "energy": true
+      "energy": "power"
     },
     {
       "name": "ipc",
