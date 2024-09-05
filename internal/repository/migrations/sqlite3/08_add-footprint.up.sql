@@ -63,7 +63,7 @@ CREATE INDEX IF NOT EXISTS jobs_jobstate_cluster ON job (job_state, cluster);
 CREATE INDEX IF NOT EXISTS jobs_jobstate_starttime ON job (job_state, start_time);
 
 CREATE INDEX IF NOT EXISTS jobs_arrayjobid_starttime ON job (array_job_id, start_time);
-CREATE INDEX jobs_cluster_arrayjobid_starttime ON job (cluster, array_job_id, start_time);
+CREATE INDEX IF NOT EXISTS jobs_cluster_arrayjobid_starttime ON job (cluster, array_job_id, start_time);
 
 CREATE INDEX IF NOT EXISTS jobs_starttime ON job (start_time);
 CREATE INDEX IF NOT EXISTS jobs_duration ON job (duration);
