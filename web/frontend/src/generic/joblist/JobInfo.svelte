@@ -117,7 +117,7 @@
     {/if}
   </p>
 
-  <p>
+  <p class="mb-2">
     {#each jobTags as tag}
       <Tag {tag} />
     {/each}

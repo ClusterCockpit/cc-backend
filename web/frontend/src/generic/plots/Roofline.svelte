@@ -7,7 +7,7 @@
     - `allowSizeChange Bool?`: If dimensions of rendered plot can change [Default: false]
     - `subCluster GraphQL.SubCluster?`: SubCluster Object; contains required topology information [Default: null]
     - `width Number?`: Plot width (reactively adaptive) [Default: 600]
-    - `height Number?`: Plot height (reactively adaptive) [Default: 350]
+    - `height Number?`: Plot height (reactively adaptive) [Default: 380]
  
   Data Format:
    - `data = [null, [], []]` 
@@ -33,7 +33,7 @@
   export let allowSizeChange = false;
   export let subCluster = null;
   export let width = 600;
-  export let height = 350;
+  export let height = 380;
 
   let plotWrapper = null;
   let uplot = null;
@@ -317,7 +317,7 @@
                 // The Color Scale For Time Information
                 const posX = u.valToPos(0.1, "x", true)
                 const posXLimit = u.valToPos(100, "x", true)
-                const posY = u.valToPos(15000.0, "y", true)
+                const posY = u.valToPos(14000.0, "y", true)
                 u.ctx.fillStyle = 'black'
                 u.ctx.fillText('Start', posX, posY)
                 const start = posX + 10
@@ -364,7 +364,7 @@
 </script>
 
 {#if data != null}
-  <div bind:this={plotWrapper} />
+  <div bind:this={plotWrapper} class="p-2"/>
 {:else}
   <Card class="mx-4" body color="warning">Cannot render roofline: No data!</Card
   >
