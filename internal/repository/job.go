@@ -486,7 +486,7 @@ func (r *JobRepository) FindRunningJobs(cluster string) ([]*schema.Job, error) {
 func (r *JobRepository) UpdateDuration() error {
 	stmnt := sq.Update("job").
 		Set("duration", sq.Expr("? - job.start_time", time.Now().Unix())).
-		Where("job_state = running")
+		Where("job_state = 'running'")
 	sql, _, err := stmnt.ToSql()
 	log.Infof("Duration Update query %s", sql)
 
