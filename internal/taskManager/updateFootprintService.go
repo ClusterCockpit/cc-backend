@@ -47,7 +47,7 @@ func RegisterFootprintWorker() {
 					scopes = append(scopes, schema.MetricScopeAccelerator)
 
 					for _, job := range jobs {
-						jobData, err := metricDataDispatcher.LoadData(job, allMetrics, scopes, context.Background())
+						jobData, err := metricDataDispatcher.LoadData(job, allMetrics, scopes, context.Background(), 0) // 0 Resulotion-Value retrieves highest res (60s)
 						if err != nil {
 							log.Error("Error wile loading job data for footprint update")
 							continue
