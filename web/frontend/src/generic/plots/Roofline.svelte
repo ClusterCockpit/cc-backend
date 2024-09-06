@@ -41,8 +41,6 @@
 
   const lineWidth = clusterCockpitConfig.plot_general_lineWidth;
 
-  
-
   // Helpers
   function getGradientR(x) {
     if (x < 0.5) return 0;

@@ -59,7 +59,8 @@
 
   let plots = {},
     jobTags,
-    statsTable
+    statsTable,
+    roofWidth
 
   let missingMetrics = [],
     missingHosts = [],
@@ -231,9 +232,9 @@
     }));
 </script>
 
-<Row cols={4} class="mb-2">
+<Row class="mb-0 mb-xxl-2">
   <!-- Column 1: Job Info, Concurrent Jobs, Admin Message if found-->
-  <Col xs={3}>
+  <Col xs={12} md={6} xl={3} class="mb-3 mb-xxl-0">
     {#if $initq.error}
       <Card body color="danger">{$initq.error.message}</Card>
     {:else if $initq.data}
@@ -272,7 +273,7 @@
 
   <!-- If enabled:  Column 2: Job Footprint, Polar Representation, Heuristic Summary -->
    {#if showFootprint}
-    <Col xs={3}>
+    <Col xs={12} md={6} xl={4} xxl={3} class="mb-3 mb-xxl-0">
       {#if $initq.error}
         <Card body color="danger">{$initq.error.message}</Card>
       {:else if $initq?.data && $jobMetrics?.data}
@@ -281,15 +282,10 @@
         <Spinner secondary />
       {/if}
     </Col>
-  {:else}
-    <Col xs={3}/>
   {/if}
 
-  <!-- Column 3: Spacer -->
-  <Col xs={2}/>
-
-  <!-- Column 4: Job Roofline -->
-  <Col xs={4}>
+  <!-- Column 3: Job Roofline; If footprint Enabled: full width, else half width -->
+  <Col xs={12} md={showFootprint ? 12 : 6} xl={5} xxl={6}>
     {#if $initq.error || $jobMetrics.error}
       <Card body color="danger">
         <p>Initq Error: {$initq.error?.message}</p>
@@ -297,20 +293,24 @@
       </Card>
     {:else if $initq?.data && $jobMetrics?.data}
       <Card style="height: 400px;">
-        <Roofline
-          renderTime={true}
-          subCluster={$initq.data.clusters
-            .find((c) => c.name == $initq.data.job.cluster)
-            .subClusters.find((sc) => sc.name == $initq.data.job.subCluster)}
-          data={transformDataForRoofline(
-            $jobMetrics.data.jobMetrics.find(
-              (m) => m.name == "flops_any" && m.scope == "node",
-            )?.metric,
-            $jobMetrics.data.jobMetrics.find(
-              (m) => m.name == "mem_bw" && m.scope == "node",
-            )?.metric,
-          )}
-        />
+        <div bind:clientWidth={roofWidth}>
+          <Roofline
+            allowSizeChange={true}
+            width={roofWidth}
+            renderTime={true}
+            subCluster={$initq.data.clusters
+              .find((c) => c.name == $initq.data.job.cluster)
+              .subClusters.find((sc) => sc.name == $initq.data.job.subCluster)}
+            data={transformDataForRoofline(
+              $jobMetrics.data.jobMetrics.find(
+                (m) => m.name == "flops_any" && m.scope == "node",
+              )?.metric,
+              $jobMetrics.data.jobMetrics.find(
+                (m) => m.name == "mem_bw" && m.scope == "node",
+              )?.metric,
+            )}
+          />
+        </div>
       </Card>
     {:else}
         <Spinner secondary />

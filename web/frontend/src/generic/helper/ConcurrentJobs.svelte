@@ -4,7 +4,7 @@
     Properties:
     - `cJobs JobLinkResultList`: List of concurrent Jobs
     - `showLinks Bool?`: Show list as clickable links [Default: false]
-    - `displayTitle Bool?`: If to display cardHeader with title [Default: true]
+    - `renderCard Bool?`: If to render component as content only or with card wrapping [Default: true]
     - `width String?`: Width of the card [Default: 'auto']
     - `height String?`: Height of the card [Default: '310px']
  -->
@@ -64,17 +64,15 @@
   </Card>
 {:else}
   <p>
-    Jobs running on the same node with overlapping runtimes using shared resources.
+    {cJobs.items.length} Jobs running on the same node with overlapping runtimes using shared resources. 
+    ( <a
+      href="/monitoring/jobs/?{cJobs.listQuery}"
+      target="_blank">See All</a
+    > )
   </p>
   <hr/>
   {#if showLinks}
     <ul>
-      <li>
-        <a
-          href="/monitoring/jobs/?{cJobs.listQuery}"
-          target="_blank">See All</a
-        >
-      </li>
       {#each cJobs.items as cJob}
         <li>
           <a href="/monitoring/job/{cJob.id}" target="_blank"
@@ -96,8 +94,8 @@
 
 <style>
   ul {
-    columns: 2;
-    -webkit-columns: 2;
-    -moz-columns: 2;
+    columns: 3;
+    -webkit-columns: 3;
+    -moz-columns: 3;
   }
 </style>
