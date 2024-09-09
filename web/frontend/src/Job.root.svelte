@@ -60,7 +60,6 @@
 
   let plots = {},
     jobTags,
-    statsTable,
     roofWidth
 
   let missingMetrics = [],
@@ -424,7 +423,6 @@
             {#if $jobMetrics?.data?.jobMetrics}
               {#key $jobMetrics.data.jobMetrics}
                 <StatsTable
-                  bind:this={statsTable}
                   job={$initq.data.job}
                   jobMetrics={$jobMetrics.data.jobMetrics}
                 />
