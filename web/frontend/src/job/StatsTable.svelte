@@ -89,7 +89,7 @@
     <tr>
       <th>
         <Button outline on:click={() => (isMetricSelectionOpen = true)}>
-          Metrics
+          <Icon name="graph-up" /> Select Metrics
         </Button>
       </th>
       {#each selectedMetrics as metric}

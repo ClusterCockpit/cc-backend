@@ -233,7 +233,7 @@
 </script>
 
 <Row class="mb-0 mb-xxl-2">
-  <!-- Column 1: Job Info, Concurrent Jobs, Admin Message if found-->
+  <!-- Column 1: Job Info, Job Tags, Concurrent Jobs, Admin Message if found-->
   <Col xs={12} md={6} xl={3} class="mb-3 mb-xxl-0">
     {#if $initq.error}
       <Card body color="danger">{$initq.error.message}</Card>
@@ -243,6 +243,11 @@
           <TabPane tabId="meta-info" tab="Job Info" active>
             <CardBody class="pb-2">
               <JobInfo job={$initq.data.job} {jobTags} />
+            </CardBody>
+          </TabPane>
+          <TabPane tabId="job-tags" tab="Job Tags">
+            <CardBody>
+              <TagManagement job={$initq.data.job} {username} {authlevel} {roles} bind:jobTags renderModal={false}/>
             </CardBody>
           </TabPane>
           {#if $initq.data.job.concurrentJobs != null && $initq.data.job.concurrentJobs.items.length != 0}
@@ -323,13 +328,8 @@
 <Row class="mb-2">
   <Col xs="auto">
     {#if $initq.data}
-      <TagManagement job={$initq.data.job} {username} {authlevel} {roles} bind:jobTags />
-    {/if}
-  </Col>
-  <Col xs="auto">
-    {#if $initq.data}
       <Button outline on:click={() => (isMetricsSelectionOpen = true)}>
-        <Icon name="graph-up" /> Metrics
+        <Icon name="graph-up" /> Select Metrics
       </Button>
     {/if}
   </Col>
