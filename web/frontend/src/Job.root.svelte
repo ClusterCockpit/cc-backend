@@ -232,7 +232,7 @@
     }));
 </script>
 
-<Row class="mb-0 mb-xxl-2">
+<Row class="mb-3">
   <!-- Column 1: Job Info, Job Tags, Concurrent Jobs, Admin Message if found-->
   <Col xs={12} md={6} xl={3} class="mb-3 mb-xxl-0">
     {#if $initq.error}
@@ -323,64 +323,65 @@
   </Col>
 </Row>
 
-<hr/>
-
-<Row class="mb-2">
-  <Col xs="auto">
-    {#if $initq.data}
-      <Button outline on:click={() => (isMetricsSelectionOpen = true)}>
-        <Icon name="graph-up" /> Select Metrics
-      </Button>
-    {/if}
-  </Col>
-</Row>
-<Row>
-  <Col>
-    {#if $jobMetrics.error}
-      {#if $initq.data.job.monitoringStatus == 0 || $initq.data.job.monitoringStatus == 2}
-        <Card body color="warning">Not monitored or archiving failed</Card>
-        <br />
-      {/if}
-      <Card body color="danger">{$jobMetrics.error.message}</Card>
-    {:else if $jobMetrics.fetching}
-      <Spinner secondary />
-    {:else if $initq?.data && $jobMetrics?.data?.jobMetrics}
-      <PlotTable
-        let:item
-        let:width
-        renderFor="job"
-        items={orderAndMap(
-          groupByScope($jobMetrics.data.jobMetrics),
-          selectedMetrics,
-        )}
-        itemsPerRow={ccconfig.plot_view_plotsPerRow}
-      >
-        {#if item.data}
-          <Metric
-            bind:this={plots[item.metric]}
-            on:load-all={loadAllScopes}
-            job={$initq.data.job}
-            metricName={item.metric}
-            metricUnit={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.unit}
-            nativeScope={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.scope}
-            rawData={item.data.map((x) => x.metric)}
-            scopes={item.data.map((x) => x.scope)}
-            {width}
-            isShared={$initq.data.job.exclusive != 1}
-          />
-        {:else}
-          <Card body color="warning"
-            >No dataset returned for <code>{item.metric}</code></Card
-          >
+<Card class="mb-3">
+  <CardBody>
+    <Row class="mb-2">
+      <Col xs="auto">
+        {#if $initq.data}
+          <Button outline on:click={() => (isMetricsSelectionOpen = true)}>
+            <Icon name="graph-up" /> Select Metrics
+          </Button>
         {/if}
-      </PlotTable>
-    {/if}
-  </Col>
-</Row>
+      </Col>
+    </Row>
+    <hr/>
+    <Row>
+      <Col>
+        {#if $jobMetrics.error}
+          {#if $initq.data.job.monitoringStatus == 0 || $initq.data.job.monitoringStatus == 2}
+            <Card body color="warning">Not monitored or archiving failed</Card>
+            <br />
+          {/if}
+          <Card body color="danger">{$jobMetrics.error.message}</Card>
+        {:else if $jobMetrics.fetching}
+          <Spinner secondary />
+        {:else if $initq?.data && $jobMetrics?.data?.jobMetrics}
+          <PlotTable
+            let:item
+            let:width
+            renderFor="job"
+            items={orderAndMap(
+              groupByScope($jobMetrics.data.jobMetrics),
+              selectedMetrics,
+            )}
+            itemsPerRow={ccconfig.plot_view_plotsPerRow}
+          >
+            {#if item.data}
+              <Metric
+                bind:this={plots[item.metric]}
+                on:load-all={loadAllScopes}
+                job={$initq.data.job}
+                metricName={item.metric}
+                metricUnit={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.unit}
+                nativeScope={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.scope}
+                rawData={item.data.map((x) => x.metric)}
+                scopes={item.data.map((x) => x.scope)}
+                {width}
+                isShared={$initq.data.job.exclusive != 1}
+              />
+            {:else}
+              <Card body color="warning"
+                >No dataset returned for <code>{item.metric}</code></Card
+              >
+            {/if}
+          </PlotTable>
+        {/if}
+      </Col>
+    </Row>
+  </CardBody>
+</Card>
 
-<hr/>
-
-<Row>
+<Row class="mb-3">
   <Col>
     {#if $initq.data}
       <Card>
