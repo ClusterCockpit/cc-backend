@@ -272,7 +272,7 @@
   </Col>
 
   <!-- If enabled:  Column 2: Job Footprint, Polar Representation, Heuristic Summary -->
-   {#if showFootprint}
+  {#if showFootprint}
     <Col xs={12} md={6} xl={4} xxl={3} class="mb-3 mb-xxl-0">
       {#if $initq.error}
         <Card body color="danger">{$initq.error.message}</Card>
@@ -285,7 +285,7 @@
   {/if}
 
   <!-- Column 3: Job Roofline; If footprint Enabled: full width, else half width -->
-  <Col xs={12} md={showFootprint ? 12 : 6} xl={5} xxl={6}>
+  <Col xs={12} md={showFootprint ? 12 : 6} xl={showFootprint ? 5 : 6} xxl={6}>
     {#if $initq.error || $jobMetrics.error}
       <Card body color="danger">
         <p>Initq Error: {$initq.error?.message}</p>
