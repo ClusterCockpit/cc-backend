@@ -84,7 +84,7 @@
   }
 </script>
 
-<Table>
+<Table class="mb-0">
   <thead>
     <tr>
       <th>
@@ -145,8 +145,6 @@
     {/each}
   </tbody>
 </Table>
-
-<br />
 
 <MetricSelection
   cluster={job.cluster}
