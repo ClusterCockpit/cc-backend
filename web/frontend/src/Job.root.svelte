@@ -328,8 +328,8 @@
     <Row class="mb-2">
       <Col xs="auto">
         {#if $initq.data}
-          <Button outline on:click={() => (isMetricsSelectionOpen = true)}>
-            <Icon name="graph-up" /> Select Metrics
+          <Button outline on:click={() => (isMetricsSelectionOpen = true)} color="primary">
+            Select Metrics
           </Button>
         {/if}
       </Col>
