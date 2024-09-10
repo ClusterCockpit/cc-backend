@@ -11,6 +11,7 @@
   import {
     Button,
     Table,
+    Input,
     InputGroup,
     InputGroupText,
     Icon,
@@ -86,6 +87,7 @@
 
 <Table class="mb-0">
   <thead>
+    <!-- Header Row 1: Selectors -->
     <tr>
       <th>
         <Button outline on:click={() => (isMetricSelectionOpen = true)}>
@@ -93,20 +95,22 @@
         </Button>
       </th>
       {#each selectedMetrics as metric}
+        <!-- To Match Row-2 Header Field Count-->
         <th colspan={selectedScopes[metric] == "node" ? 3 : 4}>
           <InputGroup>
             <InputGroupText>
               {metric}
             </InputGroupText>
-            <select class="form-select" bind:value={selectedScopes[metric]}>
+            <Input type="select" bind:value={selectedScopes[metric]}>
               {#each scopesForMetric(metric, jobMetrics) as scope}
                 <option value={scope}>{scope}</option>
               {/each}
-            </select>
+            </Input>
           </InputGroup>
         </th>
       {/each}
     </tr>
+    <!-- Header Row 2: Fields -->
     <tr>
       <th>Node</th>
       {#each selectedMetrics as metric}

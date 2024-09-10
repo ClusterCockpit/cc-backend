@@ -419,6 +419,7 @@
           <TabPane
             tabId="stats"
             tab="Statistics Table"
+            class="overflow-x-auto"
             active={!somethingMissing}
           >
             {#if $jobMetrics?.data?.jobMetrics}
