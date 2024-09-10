@@ -354,6 +354,12 @@
         <i>No unused tags matching.</i>
       </ListGroupItem>
     </ListGroup>
+  {:else}
+    <ListGroup class="mb-3">
+      <ListGroupItem disabled>
+        <i>No unused tags available.</i>
+      </ListGroupItem>
+    </ListGroup>
   {/if}
 
   {#if newTagType && newTagName && isNewTag(newTagType, newTagName)}
@@ -381,8 +387,14 @@
         </Col>
       {/if}
     </Row>
-  {:else if allTagsFiltered.length == 0}
-    <Alert color="info">Search Term is not a valid Tag (<code>type: name</code>)</Alert>
+  {:else if filterTerm !== "" && allTagsFiltered.length == 0}
+    <Alert color="info">
+      Search Term is not a valid Tag (<code>type: name</code>)
+    </Alert>
+  {:else if filterTerm == "" && unusedTagsFiltered.length == 0}
+    <Alert color="info">
+      Type "<code>type: name</code>" into the search field to create a new tag.
+    </Alert>
   {/if}
 {/if}
 
