@@ -90,7 +90,7 @@
     <!-- Header Row 1: Selectors -->
     <tr>
       <th>
-        <Button outline on:click={() => (isMetricSelectionOpen = true)}>
+        <Button outline on:click={() => (isMetricSelectionOpen = true)} class="w-100">
           <Icon name="graph-up" /> Select Metrics
         </Button>
       </th>
