@@ -315,7 +315,13 @@
   {:else if filterTerm !== ""}
     <ListGroup class="mb-3">
       <ListGroupItem disabled>
-        <i>No used tags matching</i>
+        <i>No attached tags matching.</i>
+      </ListGroupItem>
+    </ListGroup>
+  {:else}
+    <ListGroup class="mb-3">
+      <ListGroupItem disabled>
+        <i>Job has no attached tags.</i>
       </ListGroupItem>
     </ListGroup>
   {/if}
@@ -345,7 +351,7 @@
   {:else if filterTerm !== ""}
     <ListGroup class="mb-3">
       <ListGroupItem disabled>
-        <i>No unused tags matching</i>
+        <i>No unused tags matching.</i>
       </ListGroupItem>
     </ListGroup>
   {/if}
