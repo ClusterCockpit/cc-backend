@@ -186,81 +186,130 @@
       {/if}
     </ModalHeader>
     <ModalBody>
-      <Input
-        style="width: 100%;"
-        type="text"
-        placeholder="Search Tags"
-        bind:value={filterTerm}
-      />
-
-      <Alert color="info">
-        Search using "<code>type: name</code>". If no tag matches your search, a
-        button for creating a new one will appear.
-      </Alert>
-      <br />
-      <ul class="list-group">
-        {#each allTagsFiltered as tag}
-          <ListGroupItem>
-            <Tag {tag} />
-
-            <span style="float: right;">
-              {#if pendingChange === tag.id}
-                <Spinner size="sm" secondary />
-              {:else if job.tags.find((t) => t.id == tag.id)}
-                <Button
-                  size="sm"
-                  outline
-                  color="danger"
-                  on:click={() => removeTagFromJob(tag)}
-                >
-                  <Icon name="x" />
-                </Button>
-              {:else}
-                <Button
-                  size="sm"
-                  outline
-                  color="success"
-                  on:click={() => addTagToJob(tag)}
-                >
-                  <Icon name="plus" />
-                </Button>
-              {/if}
-            </span>
-          </ListGroupItem>
+      <InputGroup class="mb-3">
+        <Input
+          type="text"
+          placeholder="Search Tags"
+          bind:value={filterTerm}
+        />
+        <InputGroupText id={`tag-management-info-modal`} style="cursor:help; font-size:larger;align-content:center;">
+          <Icon name=info-circle/>
+        </InputGroupText>
+        <Tooltip
+          target={`tag-management-info-modal`}
+          placement="right">
+            Search using "type: name". If no tag matches your search, a
+            button for creating a new one will appear.
+        </Tooltip>
+      </InputGroup>
+    
+      <div class="mb-3 scroll-group">
+        {#if usedTagsFiltered.length > 0}
+          <ListGroup class="mb-3">
+            {#each usedTagsFiltered as utag}
+              <ListGroupItem color="primary">
+                <Tag tag={utag} />
+      
+                <span style="float: right;">
+                  {#if pendingChange === utag.id}
+                    <Spinner size="sm" secondary />
+                  {:else}
+                    <Button
+                      size="sm"
+                      color="danger"
+                      on:click={() => removeTagFromJob(utag)}
+                    >
+                    <Icon name="x" />
+                  </Button>
+                  {/if}
+                </span>
+              </ListGroupItem>
+            {/each}
+          </ListGroup>
+        {:else if filterTerm !== ""}
+          <ListGroup class="mb-3">
+            <ListGroupItem disabled>
+              <i>No attached tags matching.</i>
+            </ListGroupItem>
+          </ListGroup>
         {:else}
-          <ListGroupItem disabled>
-            <i>No tags matching</i>
-          </ListGroupItem>
-        {/each}
-      </ul>
-      <br />
+          <ListGroup class="mb-3">
+            <ListGroupItem disabled>
+              <i>Job has no attached tags.</i>
+            </ListGroupItem>
+          </ListGroup>
+        {/if}
+      
+        {#if unusedTagsFiltered.length > 0}
+          <ListGroup class="">
+            {#each unusedTagsFiltered as uutag}
+              <ListGroupItem color="dark">
+                <Tag tag={uutag} />
+      
+                <span style="float: right;">
+                  {#if pendingChange === uutag.id}
+                    <Spinner size="sm" secondary />
+                  {:else}
+                    <Button
+                      size="sm"
+                      color="success"
+                      on:click={() => addTagToJob(uutag)}
+                    >
+                      <Icon name="plus" />
+                    </Button>
+                  {/if}
+                </span>
+              </ListGroupItem>
+            {/each}
+          </ListGroup>
+        {:else if filterTerm !== ""}
+          <ListGroup class="">
+            <ListGroupItem disabled>
+              <i>No unused tags matching.</i>
+            </ListGroupItem>
+          </ListGroup>
+        {:else}
+          <ListGroup class="">
+            <ListGroupItem disabled>
+              <i>No unused tags available.</i>
+            </ListGroupItem>
+          </ListGroup>
+        {/if}
+      </div>
+    
       {#if newTagType && newTagName && isNewTag(newTagType, newTagName)}
-        <div class="d-flex">
-          <Button
-            style="margin-right: 10px;"
-            outline
-            color="success"
-            on:click={(e) => (
-              e.preventDefault(), createTag(newTagType, newTagName, newTagScope)
-            )}
-          >
-            Create & Add Tag:
-            <Tag tag={{ type: newTagType, name: newTagName, scope: newTagScope }} clickable={false}/>
-          </Button>
-          {#if roles && authlevel >= roles.admin}
-            <select
-              style="max-width: 175px;"
-              class="form-select"
-              bind:value={newTagScope}
+        <Row>
+          <Col xs={isAdmin ? 7 : 12} md={12} lg={isAdmin ? 7 : 12} xl={12} xxl={isAdmin ? 7 : 12} class="mb-2">
+            <Button
+              outline
+              style="width:100%;"
+              color="success"
+              on:click={(e) => (
+                e.preventDefault(), createTag(newTagType, newTagName, newTagScope)
+              )}
             >
-              <option value={username}>Scope: Private</option>
-              <option value={"global"}>Scope: Global</option>
-              <option value={"admin"}>Scope: Admin</option>
-            </select>
+              Add new tag:
+              <Tag tag={{ type: newTagType, name: newTagName, scope: newTagScope }} clickable={false}/>
+            </Button>
+          </Col>
+          {#if isAdmin}
+            <Col xs={5} md={12} lg={5} xl={12} xxl={5} class="mb-2" style="align-content:center;">
+              <Input type="select" bind:value={newTagScope}>
+                <option value={username}>Scope: Private</option>
+                <option value={"global"}>Scope: Global</option>
+                <option value={"admin"}>Scope: Admin</option>
+              </Input>
+            </Col>
           {/if}
-        </div>
-      {:else if allTagsFiltered.length == 0}
-        <Alert>Search Term is not a valid Tag (<code>type: name</code>)</Alert>
+        </Row>
+      {:else if filterTerm !== "" && allTagsFiltered.length == 0}
+        <Alert color="info">
+          Search Term is not a valid Tag (<code>type: name</code>)
+        </Alert>
+      {:else if filterTerm == "" && unusedTagsFiltered.length == 0}
+        <Alert color="info">
+          Type "<code>type: name</code>" into the search field to create a new tag.
+        </Alert>
       {/if}
     </ModalBody>
     <ModalFooter>
@@ -271,6 +320,7 @@
   <Button outline on:click={() => (isOpen = true)}>
     Manage Tags <Icon name="tags" />
   </Button>
+
 {:else}
 
   <InputGroup class="mb-3">
@@ -399,9 +449,8 @@
 {/if}
 
 <style>
-  ul.list-group {
-    max-height: 450px;
-    margin-bottom: 10px;
-    overflow: scroll;
+  .scroll-group {
+    max-height: 500px;
+    overflow-y: auto;
   }
 </style>

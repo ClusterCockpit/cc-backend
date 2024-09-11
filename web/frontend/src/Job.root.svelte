@@ -326,13 +326,13 @@
 <Card class="mb-3">
   <CardBody>
     <Row class="mb-2">
-      <Col xs="auto">
-        {#if $initq.data}
-          <Button outline on:click={() => (isMetricsSelectionOpen = true)} color="primary">
-            Select Metrics
-          </Button>
-        {/if}
-      </Col>
+      {#if $initq.data}
+        <Col xs="auto">
+            <Button outline on:click={() => (isMetricsSelectionOpen = true)} color="primary">
+              Select Metrics
+            </Button>
+        </Col>
+      {/if}
     </Row>
     <hr/>
     <Row>
