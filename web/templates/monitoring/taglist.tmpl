@@ -8,10 +8,10 @@
                 </div>
                 {{ range $tagList }}
                     {{if eq .scope "global"}}
-                        <a style="background-color:#9e9e9e;" class="btn btn-lg" href="/monitoring/jobs/?tag={{ .id }}" role="button">
+                        <a style="background-color:#c85fc8;" class="btn btn-lg" href="/monitoring/jobs/?tag={{ .id }}" role="button">
                             {{ .name }} <span class="badge bg-light text-dark">{{ .count }}</span> </a>
                     {{else if eq .scope "admin"}}
-                        <a style="background-color:#80deea;" class="btn btn-lg" href="/monitoring/jobs/?tag={{ .id }}" role="button">
+                        <a style="background-color:#19e5e6;" class="btn btn-lg" href="/monitoring/jobs/?tag={{ .id }}" role="button">
                             {{ .name }} <span class="badge bg-light text-dark">{{ .count }}</span> </a>
                     {{else}}
                         <a class="btn btn-lg btn-warning" href="/monitoring/jobs/?tag={{ .id }}" role="button">
