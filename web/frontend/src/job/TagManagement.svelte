@@ -207,7 +207,7 @@
         {#if usedTagsFiltered.length > 0}
           <ListGroup class="mb-3">
             {#each usedTagsFiltered as utag}
-              <ListGroupItem color="primary">
+              <ListGroupItem color="light">
                 <Tag tag={utag} />
       
                 <span style="float: right;">
@@ -243,7 +243,7 @@
         {#if unusedTagsFiltered.length > 0}
           <ListGroup class="">
             {#each unusedTagsFiltered as uutag}
-              <ListGroupItem color="dark">
+              <ListGroupItem color="secondary">
                 <Tag tag={uutag} />
       
                 <span style="float: right;">
@@ -343,7 +343,7 @@
   {#if usedTagsFiltered.length > 0}
     <ListGroup class="mb-3">
       {#each usedTagsFiltered as utag}
-        <ListGroupItem color="primary">
+        <ListGroupItem color="light">
           <Tag tag={utag} />
 
           <span style="float: right;">
@@ -379,7 +379,7 @@
   {#if unusedTagsFiltered.length > 0}
     <ListGroup class="mb-3">
       {#each unusedTagsFiltered as uutag}
-        <ListGroupItem color="dark">
+        <ListGroupItem color="secondary">
           <Tag tag={uutag} />
 
           <span style="float: right;">
