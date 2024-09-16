@@ -39,7 +39,7 @@
     {#if tag}
         {#if tag?.scope === "global"}
             <span style="background-color:#c85fc8;" class="badge text-dark">{tag.type}: {tag.name}</span>
-        {:else if tag.scope === "admin"}
+        {:else if tag?.scope === "admin"}
             <span style="background-color:#19e5e6;" class="badge text-dark">{tag.type}: {tag.name}</span>
         {:else}
             <span class="badge bg-warning text-dark">{tag.type}: {tag.name}</span>
