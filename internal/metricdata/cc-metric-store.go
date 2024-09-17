@@ -140,6 +140,13 @@ func (ccms *CCMetricStore) doRequest(
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", ccms.jwt))
 	}
 
+	// versioning the cc-metric-store query API.
+	// v2 = data with resampling
+	// v1 = data without resampling
+	q := req.URL.Query()
+	q.Add("version", "v2")
+	req.URL.RawQuery = q.Encode()
+
 	res, err := ccms.client.Do(req)
 	if err != nil {
 		log.Error("Error while performing request")
@@ -198,12 +205,17 @@ func (ccms *CCMetricStore) LoadData(
 			jobData[metric] = make(map[schema.MetricScope]*schema.JobMetric)
 		}
 
+		res := row[0].Resolution
+		if res == 0 {
+			res = mc.Timestep
+		}
+
 		jobMetric, ok := jobData[metric][scope]
 
 		if !ok {
 			jobMetric = &schema.JobMetric{
 				Unit:     mc.Unit,
-				Timestep: row[0].Resolution,
+				Timestep: res,
 				Series:   make([]schema.Series, 0),
 			}
 			jobData[metric][scope] = jobMetric
@@ -623,7 +635,7 @@ func (ccms *CCMetricStore) LoadNodeData(
 
 	resBody, err := ccms.doRequest(ctx, &req)
 	if err != nil {
-		log.Error("Error while performing request")
+		log.Error(fmt.Sprintf("Error while performing request %#v\n", err))
 		return nil, err
 	}
 
