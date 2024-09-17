@@ -47,9 +47,10 @@ func RegisterFootprintWorker() {
 					scopes = append(scopes, schema.MetricScopeAccelerator)
 
 					for _, job := range jobs {
+						log.Debugf("Try job %d", job.JobID)
 						jobData, err := metricDataDispatcher.LoadData(job, allMetrics, scopes, context.Background())
 						if err != nil {
-							log.Error("Error wile loading job data for footprint update")
+							log.Errorf("Error wile loading job data for footprint update: %v", err)
 							continue
 						}
 
@@ -85,11 +86,14 @@ func RegisterFootprintWorker() {
 						}
 
 						stmt := sq.Update("job").Where("job.id = ?", job.ID)
-						if stmt, err = jobRepo.UpdateFootprint(stmt, jobMeta); err != nil {
+						stmt, err = jobRepo.UpdateFootprint(stmt, jobMeta)
+						if err != nil {
 							log.Errorf("Update job (dbid: %d) failed at update Footprint step: %s", job.ID, err.Error())
 							continue
 						}
-						if stmt, err = jobRepo.UpdateEnergy(stmt, jobMeta); err != nil {
+
+						stmt, err = jobRepo.UpdateEnergy(stmt, jobMeta)
+						if err != nil {
 							log.Errorf("Update job (dbid: %d) failed at update Energy step: %s", job.ID, err.Error())
 							continue
 						}
@@ -104,6 +108,7 @@ func RegisterFootprintWorker() {
 						// 	log.Errorf("Update job (dbid: %d) failed at db execute: %s", job.ID, err.Error())
 						// 	continue
 						// }
+						log.Debugf("Finish job %d", job.JobID)
 					}
 
 					jobRepo.TransactionCommit(t)

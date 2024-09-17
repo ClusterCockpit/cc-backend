@@ -130,6 +130,27 @@ func (r *UserRepository) AddUser(user *schema.User) error {
 	return nil
 }
 
+func (r *UserRepository) UpdateUser(dbUser *schema.User, user *schema.User) error {
+	// user contains updated info, apply to dbuser
+	// TODO: Discuss updatable fields
+	if dbUser.Name != user.Name {
+		if _, err := sq.Update("user").Set("name", user.Name).Where("user.username = ?", dbUser.Username).RunWith(r.DB).Exec(); err != nil {
+			log.Errorf("error while updating name of user '%s'", user.Username)
+			return err
+		}
+	}
+
+	// Toggled until greenlit
+	// if dbUser.HasRole(schema.RoleManager) && !reflect.DeepEqual(dbUser.Projects, user.Projects) {
+	// 	projects, _ := json.Marshal(user.Projects)
+	// 	if _, err := sq.Update("user").Set("projects", projects).Where("user.username = ?", dbUser.Username).RunWith(r.DB).Exec(); err != nil {
+	// 		return err
+	// 	}
+	// }
+
+	return nil
+}
+
 func (r *UserRepository) DelUser(username string) error {
 	_, err := r.DB.Exec(`DELETE FROM user WHERE user.username = ?`, username)
 	if err != nil {
