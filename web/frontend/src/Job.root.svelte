@@ -25,7 +25,6 @@
     CardHeader,
     CardTitle,
     Button,
-    Icon,
   } from "@sveltestrap/sveltestrap";
   import { getContext } from "svelte";
   import {
@@ -35,7 +34,6 @@
     transformDataForRoofline,
   } from "./generic/utils.js";
   import Metric from "./job/Metric.svelte";
-  import TagManagement from "./job/TagManagement.svelte";
   import StatsTable from "./job/StatsTable.svelte";
   import JobSummary from "./job/JobSummary.svelte";
   import ConcurrentJobs from "./generic/helper/ConcurrentJobs.svelte";
@@ -54,12 +52,10 @@
  const ccconfig = getContext("cc-config")
 
  let isMetricsSelectionOpen = false,
-    showFootprint = !!ccconfig[`job_view_showFootprint`],
     selectedMetrics = [],
     selectedScopes = [];
 
   let plots = {},
-    jobTags,
     roofWidth
 
   let missingMetrics = [],
@@ -240,14 +236,22 @@
     {:else if $initq.data}
       <Card class="overflow-auto" style="height: 400px;">
         <TabContent> <!-- on:tab={(e) => (status = e.detail)} -->
-          <TabPane tabId="meta-info" tab="Job Info" active>
+          {#if $initq.data?.job?.metaData?.message}
+            <TabPane tabId="admin-msg" tab="Admin Note" active>
+              <CardBody>
+                <Card body class="mb-2" color="warning">
+                  <h5>Job {$initq.data?.job?.jobId} ({$initq.data?.job?.cluster})</h5>
+                  The following note was added by administrators:
+                </Card>
+                <Card body>
+                  {@html $initq.data.job.metaData.message}
+                </Card>
+              </CardBody>
+            </TabPane>
+          {/if}
+          <TabPane tabId="meta-info" tab="Job Info" active={$initq.data?.job?.metaData?.message?false:true}>
             <CardBody class="pb-2">
-              <JobInfo job={$initq.data.job} {jobTags} />
-            </CardBody>
-          </TabPane>
-          <TabPane tabId="job-tags" tab="Job Tags">
-            <CardBody>
-              <TagManagement job={$initq.data.job} {username} {authlevel} {roles} bind:jobTags renderModal={false}/>
+              <JobInfo job={$initq.data.job} {username} {authlevel} {roles} showTags={false} showTagedit/>
             </CardBody>
           </TabPane>
           {#if $initq.data.job.concurrentJobs != null && $initq.data.job.concurrentJobs.items.length != 0}
@@ -260,15 +264,6 @@
               </CardBody>
             </TabPane>
           {/if}
-          {#if $initq.data?.job?.metaData?.message}
-            <TabPane tabId="admin-msg" tab="Admin Note">
-              <CardBody>
-                <p>This note was added by administrators:</p>
-                <hr/>
-                <p>{@html $initq.data.job.metaData.message}</p>
-              </CardBody>
-            </TabPane>
-          {/if}
         </TabContent>
       </Card>
     {:else}
@@ -276,21 +271,19 @@
     {/if}
   </Col>
 
-  <!-- If enabled:  Column 2: Job Footprint, Polar Representation, Heuristic Summary -->
-  {#if showFootprint}
-    <Col xs={12} md={6} xl={4} xxl={3} class="mb-3 mb-xxl-0">
-      {#if $initq.error}
-        <Card body color="danger">{$initq.error.message}</Card>
-      {:else if $initq?.data && $jobMetrics?.data}
-        <JobSummary job={$initq.data.job} jobMetrics={$jobMetrics.data.jobMetrics}/>
-      {:else}
-        <Spinner secondary />
-      {/if}
-    </Col>
-  {/if}
+  <!-- Column 2: Job Footprint, Polar Representation, Heuristic Summary -->
+  <Col xs={12} md={6} xl={4} xxl={3} class="mb-3 mb-xxl-0">
+    {#if $initq.error}
+      <Card body color="danger">{$initq.error.message}</Card>
+    {:else if $initq?.data && $jobMetrics?.data}
+      <JobSummary job={$initq.data.job} jobMetrics={$jobMetrics.data.jobMetrics}/>
+    {:else}
+      <Spinner secondary />
+    {/if}
+  </Col>
 
   <!-- Column 3: Job Roofline; If footprint Enabled: full width, else half width -->
-  <Col xs={12} md={showFootprint ? 12 : 6} xl={showFootprint ? 5 : 6} xxl={6}>
+  <Col xs={12} md={12} xl={5} xxl={6}>
     {#if $initq.error || $jobMetrics.error}
       <Card body color="danger">
         <p>Initq Error: {$initq.error?.message}</p>

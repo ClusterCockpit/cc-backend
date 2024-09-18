@@ -10,9 +10,14 @@
   import { Badge, Icon } from "@sveltestrap/sveltestrap";
   import { scrambleNames, scramble } from "../utils.js";
   import Tag from "../helper/Tag.svelte";
+  import TagManagement from "../helper/TagManagement.svelte";
 
   export let job;
   export let jobTags = job.tags;
+  export let showTagedit = false;
+  export let username = null;
+  export let authlevel= null;
+  export let roles = null;
 
   function formatDuration(duration) {
     const hours = Math.floor(duration / 3600);
@@ -36,7 +41,7 @@
 </script>
 
 <div>
-  <p>
+  <p class="mb-2">
     <span class="fw-bold"
       ><a href="/monitoring/job/{job.id}" target="_blank">{job.jobId}</a>
       ({job.cluster})</span
@@ -63,7 +68,7 @@
     {/if}
   </p>
 
-  <p>
+  <p class="mb-2">
     <Icon name="person-fill" />
     <a class="fst-italic" href="/monitoring/user/{job.user}" target="_blank">
       {scrambleNames ? scramble(job.user) : job.user}
@@ -84,7 +89,7 @@
     {/if}
   </p>
 
-  <p>
+  <p class="mb-2">
     {#if job.numNodes == 1}
       {job.resources[0].hostname}
     {:else}
@@ -104,7 +109,7 @@
     {job.subCluster}
   </p>
 
-  <p>
+  <p class="mb-2">
     Start: <span class="fw-bold"
       >{new Date(job.startTime).toLocaleString()}</span
     >
@@ -117,11 +122,25 @@
     {/if}
   </p>
 
-  <p class="mb-2">
-    {#each jobTags as tag}
-      <Tag {tag} />
-    {/each}
-  </p>
+  {#if showTagedit}
+    <hr class="mt-0 mb-2"/>
+    <p class="mb-1">
+      <TagManagement bind:jobTags {job} {username} {authlevel} {roles} renderModal/> : 
+      {#if jobTags?.length > 0}
+        {#each jobTags as tag}
+          <Tag {tag}/>
+        {/each}
+      {:else}
+        <span style="font-size: 0.9rem; background-color: lightgray;" class="my-1 badge text-dark">No Tags</span>
+      {/if}
+    </p>
+  {:else}
+    <p class="mb-1">
+      {#each jobTags as tag}
+        <Tag {tag} />
+      {/each}
+    </p>
+  {/if}
 </div>
 
 <style>

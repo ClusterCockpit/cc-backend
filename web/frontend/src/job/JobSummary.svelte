@@ -68,6 +68,7 @@
   export let height = "400px";
 
   const ccconfig = getContext("cc-config")
+  const showFootprint = !!ccconfig[`job_view_showFootprint`];
 
   const footprintData = job?.footprint?.map((jf) => {
     const fmc = getContext("getMetricConfig")(job.cluster, job.subCluster, jf.name);
@@ -165,101 +166,142 @@
     }
   }
 
-  function writeSummary(fpd) {
-    // Hardcoded! Needs to be retrieved from globalMetrics
-    const performanceMetrics = ['flops_any', 'mem_bw'];
-    const utilizationMetrics = ['cpu_load', 'acc_utilization'];
-    const energyMetrics = ['cpu_power'];
+  /*
+    function writeSummary(fpd) {
+      // Hardcoded! Needs to be retrieved from globalMetrics
+      const performanceMetrics = ['flops_any', 'mem_bw'];
+      const utilizationMetrics = ['cpu_load', 'acc_utilization'];
+      const energyMetrics = ['cpu_power'];
 
-    let performanceScore = 0;
-    let utilizationScore = 0;
-    let energyScore = 0;
+      let performanceScore = 0;
+      let utilizationScore = 0;
+      let energyScore = 0;
 
-    let performanceMetricsCounted = 0;
-    let utilizationMetricsCounted = 0;
-    let energyMetricsCounted = 0;
+      let performanceMetricsCounted = 0;
+      let utilizationMetricsCounted = 0;
+      let energyMetricsCounted = 0;
 
-    fpd.forEach(metric => {
-      console.log('Metric, Impact', metric.name, metric.impact)
-      if (performanceMetrics.includes(metric.name)) {
-        performanceScore += metric.impact
-        performanceMetricsCounted += 1
-      } else if (utilizationMetrics.includes(metric.name)) {
-        utilizationScore += metric.impact
-        utilizationMetricsCounted += 1
-      } else if (energyMetrics.includes(metric.name)) {
-        energyScore += metric.impact
-        energyMetricsCounted += 1 
+      fpd.forEach(metric => {
+        console.log('Metric, Impact', metric.name, metric.impact)
+        if (performanceMetrics.includes(metric.name)) {
+          performanceScore += metric.impact
+          performanceMetricsCounted += 1
+        } else if (utilizationMetrics.includes(metric.name)) {
+          utilizationScore += metric.impact
+          utilizationMetricsCounted += 1
+        } else if (energyMetrics.includes(metric.name)) {
+          energyScore += metric.impact
+          energyMetricsCounted += 1 
+        }
+      });
+
+      performanceScore = (performanceMetricsCounted == 0) ? performanceScore : (performanceScore / performanceMetricsCounted);
+      utilizationScore = (utilizationMetricsCounted == 0) ? utilizationScore : (utilizationScore / utilizationMetricsCounted);
+      energyScore = (energyMetricsCounted == 0) ? energyScore : (energyScore / energyMetricsCounted);
+
+      let res = [];
+
+      console.log('Perf', performanceScore, performanceMetricsCounted)
+      console.log('Util', utilizationScore, utilizationMetricsCounted)
+      console.log('Energy', energyScore, energyMetricsCounted)
+
+      if (performanceScore == 1) {
+        res.push('<b>Performance:</b> Your job performs well.')
+      } else if (performanceScore != 0) {
+        res.push('<b>Performance:</b> Your job performs suboptimal.')
       }
-    });
 
-    performanceScore = (performanceMetricsCounted == 0) ? performanceScore : (performanceScore / performanceMetricsCounted);
-    utilizationScore = (utilizationMetricsCounted == 0) ? utilizationScore : (utilizationScore / utilizationMetricsCounted);
-    energyScore = (energyMetricsCounted == 0) ? energyScore : (energyScore / energyMetricsCounted);
+      if (utilizationScore == 1) {
+        res.push('<b>Utilization:</b> Your job utilizes resources well.')
+      } else if (utilizationScore != 0) {
+        res.push('<b>Utilization:</b> Your job utilizes resources suboptimal.')
+      }
 
-    let res = [];
+      if (energyScore == 1) {
+        res.push('<b>Energy:</b> Your job has good energy values.')
+      } else if (energyScore != 0) {
+        res.push('<b>Energy:</b> Your job consumes more energy than necessary.')
+      }
 
-    console.log('Perf', performanceScore, performanceMetricsCounted)
-    console.log('Util', utilizationScore, utilizationMetricsCounted)
-    console.log('Energy', energyScore, energyMetricsCounted)
+      return res;
+    };
 
-    if (performanceScore == 1) {
-      res.push('<b>Performance:</b> Your job performs well.')
-    } else if (performanceScore != 0) {
-      res.push('<b>Performance:</b> Your job performs suboptimal.')
-    }
-
-    if (utilizationScore == 1) {
-      res.push('<b>Utilization:</b> Your job utilizes resources well.')
-    } else if (utilizationScore != 0) {
-      res.push('<b>Utilization:</b> Your job utilizes resources suboptimal.')
-    }
-
-    if (energyScore == 1) {
-      res.push('<b>Energy:</b> Your job has good energy values.')
-    } else if (energyScore != 0) {
-      res.push('<b>Energy:</b> Your job consumes more energy than necessary.')
-    }
-
-    return res;
-  };
-
-  $: summaryMessages = writeSummary(footprintData)
+    $: summaryMessages = writeSummary(footprintData) 
+  */
 </script>
 
 <Card class="overflow-auto" style="width: {width}; height: {height}">
   <TabContent> <!-- on:tab={(e) => (status = e.detail)} -->
-    <TabPane tabId="foot" tab="Footprint" active>
-      <CardBody>
-        {#each footprintData as fpd, index}
-          {#if fpd.impact !== 4}
-            <div class="mb-1 d-flex justify-content-between">
-              <div>&nbsp;<b>{fpd.name} ({fpd.stat})</b></div>
-              <div
-                class="cursor-help d-inline-flex"
-                id={`footprint-${job.jobId}-${index}`}
-              >
-                <div class="mx-1">
-                  {#if fpd.impact === 3 || fpd.impact === -1}
-                    <Icon name="exclamation-triangle-fill" class="text-danger" />
-                  {:else if fpd.impact === 2}
-                    <Icon name="exclamation-triangle" class="text-warning" />
-                  {/if}
-                  {#if fpd.impact === 3}
-                    <Icon name="emoji-frown" class="text-danger" />
-                  {:else if fpd.impact === 2}
-                    <Icon name="emoji-neutral" class="text-warning" />
-                  {:else if fpd.impact === 1}
-                    <Icon name="emoji-smile" class="text-success" />
-                  {:else if fpd.impact === 0}
-                    <Icon name="emoji-laughing" class="text-info" />
-                  {:else if fpd.impact === -1}
-                    <Icon name="emoji-dizzy" class="text-danger" />
-                  {/if}
+    {#if showFootprint}
+      <TabPane tabId="foot" tab="Footprint" active>
+        <CardBody>
+          {#each footprintData as fpd, index}
+            {#if fpd.impact !== 4}
+              <div class="mb-1 d-flex justify-content-between">
+                <div>&nbsp;<b>{fpd.name} ({fpd.stat})</b></div>
+                <div
+                  class="cursor-help d-inline-flex"
+                  id={`footprint-${job.jobId}-${index}`}
+                >
+                  <div class="mx-1">
+                    {#if fpd.impact === 3 || fpd.impact === -1}
+                      <Icon name="exclamation-triangle-fill" class="text-danger" />
+                    {:else if fpd.impact === 2}
+                      <Icon name="exclamation-triangle" class="text-warning" />
+                    {/if}
+                    {#if fpd.impact === 3}
+                      <Icon name="emoji-frown" class="text-danger" />
+                    {:else if fpd.impact === 2}
+                      <Icon name="emoji-neutral" class="text-warning" />
+                    {:else if fpd.impact === 1}
+                      <Icon name="emoji-smile" class="text-success" />
+                    {:else if fpd.impact === 0}
+                      <Icon name="emoji-laughing" class="text-info" />
+                    {:else if fpd.impact === -1}
+                      <Icon name="emoji-dizzy" class="text-danger" />
+                    {/if}
+                  </div>
+                  <div>
+                    {fpd.value} / {fpd.peak}
+                    {fpd.unit} &nbsp;
+                  </div>
                 </div>
+                <Tooltip
+                  target={`footprint-${job.jobId}-${index}`}
+                  placement="right"
+                >{fpd.message}</Tooltip
+                >
+              </div>
+              <Row cols={12} class="{(footprintData.length == (index + 1)) ? 'mb-0' : 'mb-2'}">
+                {#if fpd.dir}
+                  <Col xs="1">
+                    <Icon name="caret-left-fill" />
+                  </Col>
+                {/if}
+                <Col xs="11" class="align-content-center">
+                  <Progress value={fpd.value} max={fpd.peak} color={fpd.color} />
+                </Col>
+                {#if !fpd.dir}
+                <Col xs="1">
+                  <Icon name="caret-right-fill" />
+                </Col>
+                {/if}
+              </Row>
+            {:else}
+              <div class="mb-1 d-flex justify-content-between">
                 <div>
-                  {fpd.value} / {fpd.peak}
-                  {fpd.unit} &nbsp;
+                  &nbsp;<b>{fpd.name} ({fpd.stat})</b>
+                </div>
+                <div
+                  class="cursor-help d-inline-flex"
+                  id={`footprint-${job.jobId}-${index}`}
+                >
+                  <div class="mx-1">
+                    <Icon name="info-circle"/>
+                  </div>
+                  <div>
+                    {fpd.value}&nbsp;
+                  </div>
                 </div>
               </div>
               <Tooltip
@@ -267,49 +309,12 @@
                 placement="right"
               >{fpd.message}</Tooltip
               >
-            </div>
-            <Row cols={12} class="{(footprintData.length == (index + 1)) ? 'mb-0' : 'mb-2'}">
-              {#if fpd.dir}
-                <Col xs="1">
-                  <Icon name="caret-left-fill" />
-                </Col>
-              {/if}
-              <Col xs="11" class="align-content-center">
-                <Progress value={fpd.value} max={fpd.peak} color={fpd.color} />
-              </Col>
-              {#if !fpd.dir}
-              <Col xs="1">
-                <Icon name="caret-right-fill" />
-              </Col>
-              {/if}
-            </Row>
-          {:else}
-            <div class="mb-1 d-flex justify-content-between">
-              <div>
-                &nbsp;<b>{fpd.name} ({fpd.stat})</b>
-              </div>
-              <div
-                class="cursor-help d-inline-flex"
-                id={`footprint-${job.jobId}-${index}`}
-              >
-                <div class="mx-1">
-                  <Icon name="info-circle"/>
-                </div>
-                <div>
-                  {fpd.value}&nbsp;
-                </div>
-              </div>
-            </div>
-            <Tooltip
-              target={`footprint-${job.jobId}-${index}`}
-              placement="right"
-            >{fpd.message}</Tooltip
-            >
-          {/if}
-        {/each}
-      </CardBody>
-    </TabPane>
-    <TabPane tabId="polar" tab="Polar">
+            {/if}
+          {/each}
+        </CardBody>
+      </TabPane>
+    {/if}
+    <TabPane tabId="polar" tab="Polar" active={!showFootprint}>
       <CardBody>
         <Polar
           {footprintData}
@@ -317,19 +322,21 @@
         />
       </CardBody>
     </TabPane>
-    <TabPane tabId="summary" tab="Summary">
-      <CardBody>
-        <p>Based on footprint data, this job performs as follows:</p>
-        <hr/>
-        <ul>
-        {#each summaryMessages as sm}
-          <li>
-            {@html sm}
-          </li>
-        {/each}
-        </ul>
-      </CardBody>
-    </TabPane>
+    <!--
+      <TabPane tabId="summary" tab="Summary">
+        <CardBody>
+          <p>Based on footprint data, this job performs as follows:</p>
+          <hr/>
+          <ul>
+          {#each summaryMessages as sm}
+            <li>
+              {@html sm}
+            </li>
+          {/each}
+          </ul>
+        </CardBody>
+      </TabPane>
+    -->
   </TabContent>
 </Card>
 

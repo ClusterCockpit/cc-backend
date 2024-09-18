@@ -1,5 +1,5 @@
 <!--
-    @component Job View Subcomponent; allows management of job tags by deletion or new entries
+    @component Job Info Subcomponent; allows management of job tags by deletion or new entries
 
     Properties:
     - `job Object`: The job object
@@ -30,8 +30,8 @@
     Alert,
     Tooltip,
   } from "@sveltestrap/sveltestrap";
-  import { fuzzySearchTags } from "../generic/utils.js";
-  import Tag from "../generic/helper/Tag.svelte";
+  import { fuzzySearchTags } from "../utils.js";
+  import Tag from "./Tag.svelte";
 
   export let job;
   export let jobTags = job.tags;
@@ -178,12 +178,7 @@
 {#if renderModal}
   <Modal {isOpen} toggle={() => (isOpen = !isOpen)}>
     <ModalHeader>
-      Manage Tags
-      {#if pendingChange !== false}
-        <Spinner size="sm" secondary />
-      {:else}
-        <Icon name="tags" />
-      {/if}
+      Manage Tags <Icon name="tags"/>
     </ModalHeader>
     <ModalBody>
       <InputGroup class="mb-3">
@@ -317,8 +312,8 @@
     </ModalFooter>
   </Modal>
 
-  <Button outline on:click={() => (isOpen = true)}>
-    Manage Tags <Icon name="tags" />
+  <Button outline on:click={() => (isOpen = true)} size="sm" color="primary">
+    Manage {jobTags?.length ? jobTags.length : ''} Tags
   </Button>
 
 {:else}
