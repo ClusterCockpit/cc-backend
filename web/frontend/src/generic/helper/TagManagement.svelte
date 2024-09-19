@@ -104,8 +104,8 @@
   };
 
   $: allTagsFiltered = ($initialized, fuzzySearchTags(filterTerm, allTags));
-  $: usedTagsFiltered = matchJobTags(jobTags, allTagsFiltered, 'used');
-  $: unusedTagsFiltered = matchJobTags(jobTags, allTagsFiltered, 'unused');
+  $: usedTagsFiltered = matchJobTags(jobTags, allTagsFiltered, 'used', isAdmin);
+  $: unusedTagsFiltered = matchJobTags(jobTags, allTagsFiltered, 'unused', isAdmin);
 
   $: {
     newTagType = "";
@@ -117,12 +117,14 @@
     }
   }
 
-  function matchJobTags(tags, availableTags, type) {
+  function matchJobTags(tags, availableTags, type, isAdmin) {
     const jobTagIds = tags.map((t) => t.id)
     if (type == 'used') {
       return availableTags.filter((at) => jobTagIds.includes(at.id))
-    } else if (type == 'unused') {
+    } else if (type == 'unused' && isAdmin) {
       return availableTags.filter((at) => !jobTagIds.includes(at.id))
+    } else if (type == 'unused' && !isAdmin) { // Normal Users should not see unused global tags here
+      return availableTags.filter((at) => !jobTagIds.includes(at.id) && at.scope !== "global")
     }
     return []
   } 
@@ -209,13 +211,34 @@
                   {#if pendingChange === utag.id}
                     <Spinner size="sm" secondary />
                   {:else}
-                    <Button
-                      size="sm"
-                      color="danger"
-                      on:click={() => removeTagFromJob(utag)}
-                    >
-                    <Icon name="x" />
-                  </Button>
+                    {#if utag.scope === 'global' || utag.scope === 'admin'}
+                      {#if isAdmin}
+                        <Button
+                          size="sm"
+                          color="danger"
+                          on:click={() => removeTagFromJob(utag)}
+                        >
+                          <Icon name="x" />
+                        </Button>
+                      {:else}
+                      <Button
+                        size="sm"
+                        color="dark"
+                        outline
+                        disabled
+                      >
+                        Global Tag
+                      </Button>
+                      {/if}
+                    {:else}
+                      <Button
+                        size="sm"
+                        color="danger"
+                        on:click={() => removeTagFromJob(utag)}
+                      >
+                        <Icon name="x" />
+                      </Button>
+                    {/if}
                   {/if}
                 </span>
               </ListGroupItem>
@@ -245,13 +268,25 @@
                   {#if pendingChange === uutag.id}
                     <Spinner size="sm" secondary />
                   {:else}
-                    <Button
-                      size="sm"
-                      color="success"
-                      on:click={() => addTagToJob(uutag)}
-                    >
-                      <Icon name="plus" />
-                    </Button>
+                    {#if uutag.scope === 'global' || uutag.scope === 'admin'}
+                      {#if isAdmin}
+                        <Button
+                          size="sm"
+                          color="success"
+                          on:click={() => addTagToJob(uutag)}
+                        >
+                          <Icon name="plus" />
+                        </Button>
+                      {/if}
+                    {:else}
+                      <Button
+                        size="sm"
+                        color="success"
+                        on:click={() => addTagToJob(uutag)}
+                      >
+                        <Icon name="plus" />
+                      </Button>
+                    {/if}
                   {/if}
                 </span>
               </ListGroupItem>
@@ -345,13 +380,25 @@
             {#if pendingChange === utag.id}
               <Spinner size="sm" secondary />
             {:else}
-              <Button
-                size="sm"
-                color="danger"
-                on:click={() => removeTagFromJob(utag)}
-              >
-              <Icon name="x" />
-            </Button>
+              {#if utag.scope === 'global' || utag.scope === 'admin'}
+                {#if isAdmin}
+                  <Button
+                    size="sm"
+                    color="danger"
+                    on:click={() => removeTagFromJob(utag)}
+                  >
+                    <Icon name="x" />
+                  </Button>
+                {/if}
+              {:else}
+                <Button
+                  size="sm"
+                  color="danger"
+                  on:click={() => removeTagFromJob(utag)}
+                >
+                  <Icon name="x" />
+                </Button>
+              {/if}
             {/if}
           </span>
         </ListGroupItem>
@@ -381,13 +428,25 @@
             {#if pendingChange === uutag.id}
               <Spinner size="sm" secondary />
             {:else}
-              <Button
-                size="sm"
-                color="success"
-                on:click={() => addTagToJob(uutag)}
-              >
-                <Icon name="plus" />
-              </Button>
+              {#if uutag.scope === 'global' || uutag.scope === 'admin'}
+                {#if isAdmin}
+                  <Button
+                    size="sm"
+                    color="success"
+                    on:click={() => addTagToJob(uutag)}
+                  >
+                    <Icon name="plus" />
+                  </Button>
+                {/if}
+              {:else}
+                <Button
+                  size="sm"
+                  color="success"
+                  on:click={() => addTagToJob(uutag)}
+                >
+                  <Icon name="plus" />
+                </Button>
+              {/if}
             {/if}
           </span>
         </ListGroupItem>
