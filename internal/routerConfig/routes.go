@@ -133,12 +133,13 @@ func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 		return i
 	}
 
+	// Uses tag.ID as second Map-Key component to differentiate tags with identical names
 	for _, tag := range tags {
 		tagItem := map[string]interface{}{
 			"id":    tag.ID,
 			"name":  tag.Name,
 			"scope": tag.Scope,
-			"count": counts[tag.Name],
+			"count": counts[fmt.Sprint(tag.Name, tag.ID)],
 		}
 		tagMap[tag.Type] = append(tagMap[tag.Type], tagItem)
 	}

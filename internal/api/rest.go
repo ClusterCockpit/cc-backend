@@ -688,6 +688,7 @@ func (api *RestApi) editMeta(rw http.ResponseWriter, r *http.Request) {
 // @summary     Adds one or more tags to a job
 // @tags Job add and modify
 // @description Adds tag(s) to a job specified by DB ID. Name and Type of Tag(s) can be chosen freely.
+// @description Tag Scope for frontend visibility will default to "global" if none entered, other options: "admin" or specific username.
 // @description If tagged job is already finished: Tag will be written directly to respective archive files.
 // @accept      json
 // @produce     json

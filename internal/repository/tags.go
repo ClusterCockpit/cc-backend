@@ -81,6 +81,12 @@ func (r *JobRepository) RemoveTag(ctx context.Context, job, tag int64) ([]*schem
 
 // CreateTag creates a new tag with the specified type and name and returns its database id.
 func (r *JobRepository) CreateTag(tagType string, tagName string, tagScope string) (tagId int64, err error) {
+
+	// Default to "Global" scope if none defined
+	if tagScope == "" {
+		tagScope = "global"
+	}
+
 	q := sq.Insert("tag").Columns("tag_type", "tag_name", "tag_scope").Values(tagType, tagName, tagScope)
 
 	res, err := q.RunWith(r.stmtCache).Exec()
@@ -120,7 +126,7 @@ func (r *JobRepository) CountTags(ctx context.Context) (tags []schema.Tag, count
 	user := GetUserFromContext(ctx)
 
 	// Query and Count Jobs with attached Tags
-	q := sq.Select("t.tag_name, count(jt.tag_id)").
+	q := sq.Select("t.tag_name, t.id, count(jt.tag_id)").
 		From("tag t").
 		LeftJoin("jobtag jt ON t.id = jt.tag_id").
 		GroupBy("t.tag_name")
@@ -137,7 +143,7 @@ func (r *JobRepository) CountTags(ctx context.Context) (tags []schema.Tag, count
 
 	// Handle Job Ownership
 	if user != nil && user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport}) { // ADMIN || SUPPORT: Count all jobs
-		log.Debug("CountTags: User Admin or Support -> Count all Jobs for Tags")
+		// log.Debug("CountTags: User Admin or Support -> Count all Jobs for Tags")
 		// Unchanged: Needs to be own case still, due to UserRole/NoRole compatibility handling in else case
 	} else if user != nil && user.HasRole(schema.RoleManager) { // MANAGER: Count own jobs plus project's jobs
 		// Build ("project1", "project2", ...) list of variable length directly in SQL string
@@ -154,11 +160,13 @@ func (r *JobRepository) CountTags(ctx context.Context) (tags []schema.Tag, count
 	counts = make(map[string]int)
 	for rows.Next() {
 		var tagName string
+		var tagId int
 		var count int
-		if err = rows.Scan(&tagName, &count); err != nil {
+		if err = rows.Scan(&tagName, &tagId, &count); err != nil {
 			return nil, nil, err
 		}
-		counts[tagName] = count
+		// Use tagId as second Map-Key component to differentiate tags with identical names
+		counts[fmt.Sprint(tagName, tagId)] = count
 	}
 	err = rows.Err()
 
@@ -168,6 +176,11 @@ func (r *JobRepository) CountTags(ctx context.Context) (tags []schema.Tag, count
 // AddTagOrCreate adds the tag with the specified type and name to the job with the database id `jobId`.
 // If such a tag does not yet exist, it is created.
 func (r *JobRepository) AddTagOrCreate(ctx context.Context, jobId int64, tagType string, tagName string, tagScope string) (tagId int64, err error) {
+
+	// Default to "Global" scope if none defined
+	if tagScope == "" {
+		tagScope = "global"
+	}
 
 	writable, err := r.checkScopeAuth(ctx, "write", tagScope)
 	if err != nil {
@@ -237,7 +250,7 @@ func (r *JobRepository) GetTags(ctx context.Context, job *int64) ([]*schema.Tag,
 	return tags, nil
 }
 
-// GetArchiveTags returns a list of all tags *regardless of scope* if job is nil or of the tags that the job with that database ID has.
+// GetArchiveTags returns a list of all tags *regardless of scope* for archiving if job is nil or of the tags that the job with that database ID has.
 func (r *JobRepository) getArchiveTags(job *int64) ([]*schema.Tag, error) {
 	q := sq.Select("id", "tag_type", "tag_name", "tag_scope").From("tag")
 	if job != nil {
