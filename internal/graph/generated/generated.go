@@ -229,7 +229,7 @@ type ComplexityRoot struct {
 
 	Mutation struct {
 		AddTagsToJob        func(childComplexity int, job string, tagIds []string) int
-		CreateTag           func(childComplexity int, typeArg string, name string) int
+		CreateTag           func(childComplexity int, typeArg string, name string, scope string) int
 		DeleteTag           func(childComplexity int, id string) int
 		RemoveTagsFromJob   func(childComplexity int, job string, tagIds []string) int
 		UpdateConfiguration func(childComplexity int, name string, value string) int
@@ -303,9 +303,10 @@ type ComplexityRoot struct {
 	}
 
 	Tag struct {
-		ID   func(childComplexity int) int
-		Name func(childComplexity int) int
-		Type func(childComplexity int) int
+		ID    func(childComplexity int) int
+		Name  func(childComplexity int) int
+		Scope func(childComplexity int) int
+		Type  func(childComplexity int) int
 	}
 
 	TimeRangeOutput struct {
@@ -355,7 +356,7 @@ type MetricValueResolver interface {
 	Name(ctx context.Context, obj *schema.MetricValue) (*string, error)
 }
 type MutationResolver interface {
-	CreateTag(ctx context.Context, typeArg string, name string) (*schema.Tag, error)
+	CreateTag(ctx context.Context, typeArg string, name string, scope string) (*schema.Tag, error)
 	DeleteTag(ctx context.Context, id string) (string, error)
 	AddTagsToJob(ctx context.Context, job string, tagIds []string) ([]*schema.Tag, error)
 	RemoveTagsFromJob(ctx context.Context, job string, tagIds []string) ([]*schema.Tag, error)
@@ -1183,7 +1184,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.CreateTag(childComplexity, args["type"].(string), args["name"].(string)), true
+		return e.complexity.Mutation.CreateTag(childComplexity, args["type"].(string), args["name"].(string), args["scope"].(string)), true
 
 	case "Mutation.deleteTag":
 		if e.complexity.Mutation.DeleteTag == nil {
@@ -1602,6 +1603,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Tag.Name(childComplexity), true
 
+	case "Tag.scope":
+		if e.complexity.Tag.Scope == nil {
+			break
+		}
+
+		return e.complexity.Tag.Scope(childComplexity), true
+
 	case "Tag.type":
 		if e.complexity.Tag.Type == nil {
 			break
@@ -1949,6 +1957,7 @@ type Tag {
   id:   ID!
   type: String!
   name: String!
+  scope: String!
 }
 
 type Resource {
@@ -2071,7 +2080,7 @@ type Query {
 }
 
 type Mutation {
-  createTag(type: String!, name: String!): Tag!
+  createTag(type: String!, name: String!, scope: String!): Tag!
   deleteTag(id: ID!): ID!
   addTagsToJob(job: ID!, tagIds: [ID!]!): [Tag!]!
   removeTagsFromJob(job: ID!, tagIds: [ID!]!): [Tag!]!
@@ -2244,6 +2253,15 @@ func (ec *executionContext) field_Mutation_createTag_args(ctx context.Context, r
 		}
 	}
 	args["name"] = arg1
+	var arg2 string
+	if tmp, ok := rawArgs["scope"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("scope"))
+		arg2, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["scope"] = arg2
 	return args, nil
 }
 
@@ -4622,6 +4640,8 @@ func (ec *executionContext) fieldContext_Job_tags(_ context.Context, field graph
 				return ec.fieldContext_Tag_type(ctx, field)
 			case "name":
 				return ec.fieldContext_Tag_name(ctx, field)
+			case "scope":
+				return ec.fieldContext_Tag_scope(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Tag", field.Name)
 		},
@@ -7680,7 +7700,7 @@ func (ec *executionContext) _Mutation_createTag(ctx context.Context, field graph
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateTag(rctx, fc.Args["type"].(string), fc.Args["name"].(string))
+		return ec.resolvers.Mutation().CreateTag(rctx, fc.Args["type"].(string), fc.Args["name"].(string), fc.Args["scope"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -7711,6 +7731,8 @@ func (ec *executionContext) fieldContext_Mutation_createTag(ctx context.Context,
 				return ec.fieldContext_Tag_type(ctx, field)
 			case "name":
 				return ec.fieldContext_Tag_name(ctx, field)
+			case "scope":
+				return ec.fieldContext_Tag_scope(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Tag", field.Name)
 		},
@@ -7829,6 +7851,8 @@ func (ec *executionContext) fieldContext_Mutation_addTagsToJob(ctx context.Conte
 				return ec.fieldContext_Tag_type(ctx, field)
 			case "name":
 				return ec.fieldContext_Tag_name(ctx, field)
+			case "scope":
+				return ec.fieldContext_Tag_scope(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Tag", field.Name)
 		},
@@ -7892,6 +7916,8 @@ func (ec *executionContext) fieldContext_Mutation_removeTagsFromJob(ctx context.
 				return ec.fieldContext_Tag_type(ctx, field)
 			case "name":
 				return ec.fieldContext_Tag_name(ctx, field)
+			case "scope":
+				return ec.fieldContext_Tag_scope(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Tag", field.Name)
 		},
@@ -8199,6 +8225,8 @@ func (ec *executionContext) fieldContext_Query_tags(_ context.Context, field gra
 				return ec.fieldContext_Tag_type(ctx, field)
 			case "name":
 				return ec.fieldContext_Tag_name(ctx, field)
+			case "scope":
+				return ec.fieldContext_Tag_scope(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Tag", field.Name)
 		},
@@ -10535,6 +10563,50 @@ func (ec *executionContext) _Tag_name(ctx context.Context, field graphql.Collect
 }
 
 func (ec *executionContext) fieldContext_Tag_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Tag",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Tag_scope(ctx context.Context, field graphql.CollectedField, obj *schema.Tag) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Tag_scope(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Scope, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Tag_scope(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Tag",
 		Field:      field,
@@ -15663,6 +15735,11 @@ func (ec *executionContext) _Tag(ctx context.Context, sel ast.SelectionSet, obj 
 			}
 		case "name":
 			out.Values[i] = ec._Tag_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "scope":
+			out.Values[i] = ec._Tag_scope(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

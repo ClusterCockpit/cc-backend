@@ -208,7 +208,7 @@
           <Tooltip
             target={`footprint-${job.jobId}-${index}`}
             placement="right"
-            offset={[0, 20]}>{fpd.message}</Tooltip
+          >{fpd.message}</Tooltip
           >
         </div>
         <Row cols={12} class="{(footprintData.length == (index + 1)) ? 'mb-0' : 'mb-2'}">
@@ -246,7 +246,7 @@
         <Tooltip
           target={`footprint-${job.jobId}-${index}`}
           placement="right"
-          offset={[0, 20]}>{fpd.message}</Tooltip
+        >{fpd.message}</Tooltip
         >
       {/if}
     {/each}

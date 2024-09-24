@@ -81,6 +81,7 @@
             id
             type
             name
+            scope
           }
           userData {
             name

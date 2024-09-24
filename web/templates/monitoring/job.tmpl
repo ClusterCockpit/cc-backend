@@ -11,6 +11,7 @@
             id: "{{ .Infos.id }}",
         };
         const clusterCockpitConfig = {{ .Config }};
+        const username = {{ .User.Username }};
         const authlevel = {{ .User.GetAuthLevel }};
         const roles = {{ .Roles }};
     </script>

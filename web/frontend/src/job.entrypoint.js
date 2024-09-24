@@ -5,6 +5,7 @@ new Job({
     target: document.getElementById('svelte-app'),
     props: {
         dbid: jobInfos.id,
+        username: username,
         authlevel: authlevel,
         roles: roles
     },

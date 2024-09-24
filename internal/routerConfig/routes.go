@@ -124,9 +124,8 @@ func setupAnalysisRoute(i InfoType, r *http.Request) InfoType {
 
 func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 	jobRepo := repository.GetJobRepository()
-	user := repository.GetUserFromContext(r.Context())
 
-	tags, counts, err := jobRepo.CountTags(user)
+	tags, counts, err := jobRepo.CountTags(r.Context())
 	tagMap := make(map[string][]map[string]interface{})
 	if err != nil {
 		log.Warnf("GetTags failed: %s", err.Error())
@@ -134,11 +133,13 @@ func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 		return i
 	}
 
+	// Uses tag.ID as second Map-Key component to differentiate tags with identical names
 	for _, tag := range tags {
 		tagItem := map[string]interface{}{
 			"id":    tag.ID,
 			"name":  tag.Name,
-			"count": counts[tag.Name],
+			"scope": tag.Scope,
+			"count": counts[fmt.Sprint(tag.Name, tag.ID)],
 		}
 		tagMap[tag.Type] = append(tagMap[tag.Type], tagItem)
 	}

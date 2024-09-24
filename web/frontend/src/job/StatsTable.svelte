@@ -11,6 +11,7 @@
   import {
     Button,
     Table,
+    Input,
     InputGroup,
     InputGroupText,
     Icon,
@@ -84,29 +85,32 @@
   }
 </script>
 
-<Table>
+<Table class="mb-0">
   <thead>
+    <!-- Header Row 1: Selectors -->
     <tr>
       <th>
-        <Button outline on:click={() => (isMetricSelectionOpen = true)}>
-          Metrics
+        <Button outline on:click={() => (isMetricSelectionOpen = true)} class="w-100 px-2" color="primary">
+          Select Metrics
         </Button>
       </th>
       {#each selectedMetrics as metric}
+        <!-- To Match Row-2 Header Field Count-->
         <th colspan={selectedScopes[metric] == "node" ? 3 : 4}>
           <InputGroup>
             <InputGroupText>
               {metric}
             </InputGroupText>
-            <select class="form-select" bind:value={selectedScopes[metric]}>
+            <Input type="select" bind:value={selectedScopes[metric]}>
               {#each scopesForMetric(metric, jobMetrics) as scope}
                 <option value={scope}>{scope}</option>
               {/each}
-            </select>
+            </Input>
           </InputGroup>
         </th>
       {/each}
     </tr>
+    <!-- Header Row 2: Fields -->
     <tr>
       <th>Node</th>
       {#each selectedMetrics as metric}
@@ -145,8 +149,6 @@
     {/each}
   </tbody>
 </Table>
-
-<br />
 
 <MetricSelection
   cluster={job.cluster}

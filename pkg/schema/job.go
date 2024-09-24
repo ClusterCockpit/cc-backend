@@ -117,9 +117,10 @@ type JobStatistics struct {
 // Tag model
 // @Description Defines a tag using name and type.
 type Tag struct {
-	Type string `json:"type" db:"tag_type" example:"Debug"`
-	Name string `json:"name" db:"tag_name" example:"Testjob"`
-	ID   int64  `json:"id" db:"id"`
+	Type  string `json:"type" db:"tag_type" example:"Debug"`
+	Name  string `json:"name" db:"tag_name" example:"Testjob"`
+	Scope string `json:"scope" db:"tag_scope" example:"global"`
+	ID    int64  `json:"id" db:"id"`
 }
 
 // Resource model

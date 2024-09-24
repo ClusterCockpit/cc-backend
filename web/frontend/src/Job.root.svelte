@@ -2,9 +2,9 @@
     @component Main single job display component; displays plots for every metric as well as various information
 
     Properties:
+    - `dbid Number`: The jobs DB ID
     - `username String`: Empty string if auth. is disabled, otherwise the username as string
     - `authlevel Number`: The current users authentication level
-    - `clusters [String]`: List of cluster names
     - `roles [Number]`: Enum containing available roles
  -->
 
@@ -25,7 +25,6 @@
     CardHeader,
     CardTitle,
     Button,
-    Icon,
   } from "@sveltestrap/sveltestrap";
   import { getContext } from "svelte";
   import {
@@ -35,16 +34,16 @@
     transformDataForRoofline,
   } from "./generic/utils.js";
   import Metric from "./job/Metric.svelte";
-  import TagManagement from "./job/TagManagement.svelte";
   import StatsTable from "./job/StatsTable.svelte";
-  import JobFootprint from "./generic/helper/JobFootprint.svelte";
+  import JobSummary from "./job/JobSummary.svelte";
+  import ConcurrentJobs from "./generic/helper/ConcurrentJobs.svelte";
   import PlotTable from "./generic/PlotTable.svelte";
-  import Polar from "./generic/plots/Polar.svelte";
   import Roofline from "./generic/plots/Roofline.svelte";
   import JobInfo from "./generic/joblist/JobInfo.svelte";
   import MetricSelection from "./generic/select/MetricSelection.svelte";
 
   export let dbid;
+  export let username;
   export let authlevel;
   export let roles;
 
@@ -53,13 +52,11 @@
  const ccconfig = getContext("cc-config")
 
  let isMetricsSelectionOpen = false,
-    showFootprint = !!ccconfig[`job_view_showFootprint`],
     selectedMetrics = [],
     selectedScopes = [];
 
   let plots = {},
-    jobTags,
-    statsTable
+    roofWidth
 
   let missingMetrics = [],
     missingHosts = [],
@@ -75,7 +72,7 @@
             duration, numNodes, numHWThreads, numAcc,
             SMT, exclusive, partition, subCluster, arrayJobId,
             monitoringStatus, state, walltime,
-            tags { id, type, name },
+            tags { id, type, scope, name },
             resources { hostname, hwthreads, accelerators },
             metaData,
             userData { name, email },
@@ -231,221 +228,224 @@
     }));
 </script>
 
-<Row>
-  <Col>
+<Row class="mb-3">
+  <!-- Column 1: Job Info, Job Tags, Concurrent Jobs, Admin Message if found-->
+  <Col xs={12} md={6} xl={3} class="mb-3 mb-xxl-0">
     {#if $initq.error}
       <Card body color="danger">{$initq.error.message}</Card>
     {:else if $initq.data}
-      <JobInfo job={$initq.data.job} {jobTags} />
+      <Card class="overflow-auto" style="height: 400px;">
+        <TabContent> <!-- on:tab={(e) => (status = e.detail)} -->
+          {#if $initq.data?.job?.metaData?.message}
+            <TabPane tabId="admin-msg" tab="Admin Note" active>
+              <CardBody>
+                <Card body class="mb-2" color="warning">
+                  <h5>Job {$initq.data?.job?.jobId} ({$initq.data?.job?.cluster})</h5>
+                  The following note was added by administrators:
+                </Card>
+                <Card body>
+                  {@html $initq.data.job.metaData.message}
+                </Card>
+              </CardBody>
+            </TabPane>
+          {/if}
+          <TabPane tabId="meta-info" tab="Job Info" active={$initq.data?.job?.metaData?.message?false:true}>
+            <CardBody class="pb-2">
+              <JobInfo job={$initq.data.job} {username} {authlevel} {roles} showTags={false} showTagedit/>
+            </CardBody>
+          </TabPane>
+          {#if $initq.data.job.concurrentJobs != null && $initq.data.job.concurrentJobs.items.length != 0}
+            <TabPane  tabId="shared-jobs">
+              <span slot="tab">
+                {$initq.data.job.concurrentJobs.items.length} Concurrent Jobs
+              </span>
+              <CardBody>
+                <ConcurrentJobs cJobs={$initq.data.job.concurrentJobs} showLinks={(authlevel > roles.manager)}/>
+              </CardBody>
+            </TabPane>
+          {/if}
+        </TabContent>
+      </Card>
     {:else}
       <Spinner secondary />
     {/if}
   </Col>
-  {#if $initq.data && showFootprint}
-    <Col>
-      <JobFootprint
-        job={$initq.data.job}
-      />
-    </Col>
-  {/if}
-  {#if $initq?.data && $jobMetrics?.data?.jobMetrics}
-    {#if $initq.data.job.concurrentJobs != null && $initq.data.job.concurrentJobs.items.length != 0}
-      {#if authlevel > roles.manager}
-        <Col>
-          <h5>
-            Concurrent Jobs <Icon
-              name="info-circle"
-              style="cursor:help;"
-              title="Shared jobs running on the same node with overlapping runtimes"
-            />
-          </h5>
-          <ul>
-            <li>
-              <a
-                href="/monitoring/jobs/?{$initq.data.job.concurrentJobs
-                  .listQuery}"
-                target="_blank">See All</a
-              >
-            </li>
-            {#each $initq.data.job.concurrentJobs.items as pjob, index}
-              <li>
-                <a href="/monitoring/job/{pjob.id}" target="_blank"
-                  >{pjob.jobId}</a
-                >
-              </li>
-            {/each}
-          </ul>
-        </Col>
-      {:else}
-        <Col>
-          <h5>
-            {$initq.data.job.concurrentJobs.items.length} Concurrent Jobs
-          </h5>
-          <p>
-            Number of shared jobs on the same node with overlapping runtimes.
-          </p>
-        </Col>
-      {/if}
-    {/if}
-    <Col>
-      <Polar
-        metrics={ccconfig[
-          `job_view_polarPlotMetrics:${$initq.data.job.cluster}`
-        ] || ccconfig[`job_view_polarPlotMetrics`]}
-        cluster={$initq.data.job.cluster}
-        subCluster={$initq.data.job.subCluster}
-        jobMetrics={$jobMetrics.data.jobMetrics}
-      />
-    </Col>
-    <Col>
-      <Roofline
-        renderTime={true}
-        subCluster={$initq.data.clusters
-          .find((c) => c.name == $initq.data.job.cluster)
-          .subClusters.find((sc) => sc.name == $initq.data.job.subCluster)}
-        data={transformDataForRoofline(
-          $jobMetrics.data?.jobMetrics?.find(
-            (m) => m.name == "flops_any" && m.scope == "node",
-          )?.metric,
-          $jobMetrics.data?.jobMetrics?.find(
-            (m) => m.name == "mem_bw" && m.scope == "node",
-          )?.metric,
-        )}
-      />
-    </Col>
-  {:else}
-    <Col />
+
+  <!-- Column 2: Job Footprint, Polar Representation, Heuristic Summary -->
+  <Col xs={12} md={6} xl={4} xxl={3} class="mb-3 mb-xxl-0">
+    {#if $initq.error}
+      <Card body color="danger">{$initq.error.message}</Card>
+    {:else if $initq?.data && $jobMetrics?.data}
+      <JobSummary job={$initq.data.job} jobMetrics={$jobMetrics.data.jobMetrics}/>
+    {:else}
       <Spinner secondary />
-    <Col />
-  {/if}
-</Row>
-<Row class="mb-3">
-  <Col xs="auto">
-    {#if $initq.data}
-      <TagManagement job={$initq.data.job} bind:jobTags />
     {/if}
   </Col>
-  <Col xs="auto">
-    {#if $initq.data}
-      <Button outline on:click={() => (isMetricsSelectionOpen = true)}>
-        <Icon name="graph-up" /> Metrics
-      </Button>
-    {/if}
-  </Col>
-</Row>
-<Row>
-  <Col>
-    {#if $jobMetrics.error}
-      {#if $initq.data.job.monitoringStatus == 0 || $initq.data.job.monitoringStatus == 2}
-        <Card body color="warning">Not monitored or archiving failed</Card>
-        <br />
-      {/if}
-      <Card body color="danger">{$jobMetrics.error.message}</Card>
-    {:else if $jobMetrics.fetching}
-      <Spinner secondary />
-    {:else if $initq?.data && $jobMetrics?.data?.jobMetrics}
-      <PlotTable
-        let:item
-        let:width
-        renderFor="job"
-        items={orderAndMap(
-          groupByScope($jobMetrics.data.jobMetrics),
-          selectedMetrics,
-        )}
-        itemsPerRow={ccconfig.plot_view_plotsPerRow}
-      >
-        {#if item.data}
-          <Metric
-            bind:this={plots[item.metric]}
-            on:load-all={loadAllScopes}
-            job={$initq.data.job}
-            metricName={item.metric}
-            metricUnit={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.unit}
-            nativeScope={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.scope}
-            rawData={item.data.map((x) => x.metric)}
-            scopes={item.data.map((x) => x.scope)}
-            {width}
-            isShared={$initq.data.job.exclusive != 1}
+
+  <!-- Column 3: Job Roofline; If footprint Enabled: full width, else half width -->
+  <Col xs={12} md={12} xl={5} xxl={6}>
+    {#if $initq.error || $jobMetrics.error}
+      <Card body color="danger">
+        <p>Initq Error: {$initq.error?.message}</p>
+        <p>jobMetrics Error: {$jobMetrics.error?.message}</p>
+      </Card>
+    {:else if $initq?.data && $jobMetrics?.data}
+      <Card style="height: 400px;">
+        <div bind:clientWidth={roofWidth}>
+          <Roofline
+            allowSizeChange={true}
+            width={roofWidth}
+            renderTime={true}
+            subCluster={$initq.data.clusters
+              .find((c) => c.name == $initq.data.job.cluster)
+              .subClusters.find((sc) => sc.name == $initq.data.job.subCluster)}
+            data={transformDataForRoofline(
+              $jobMetrics.data?.jobMetrics?.find(
+                (m) => m.name == "flops_any" && m.scope == "node",
+              )?.metric,
+              $jobMetrics.data?.jobMetrics?.find(
+                (m) => m.name == "mem_bw" && m.scope == "node",
+              )?.metric,
+            )}
           />
-        {:else}
-          <Card body color="warning"
-            >No dataset returned for <code>{item.metric}</code></Card
-          >
-        {/if}
-      </PlotTable>
+        </div>
+      </Card>
+    {:else}
+        <Spinner secondary />
     {/if}
   </Col>
 </Row>
-<Row class="mt-2">
-  <Col>
-    {#if $initq.data}
-      <TabContent>
-        {#if somethingMissing}
-          <TabPane tabId="resources" tab="Resources" active={somethingMissing}>
-            <div style="margin: 10px;">
-              <Card color="warning">
-                <CardHeader>
-                  <CardTitle>Missing Metrics/Resources</CardTitle>
-                </CardHeader>
-                <CardBody>
-                  {#if missingMetrics.length > 0}
-                    <p>
-                      No data at all is available for the metrics: {missingMetrics.join(
-                        ", ",
-                      )}
-                    </p>
-                  {/if}
-                  {#if missingHosts.length > 0}
-                    <p>Some metrics are missing for the following hosts:</p>
-                    <ul>
-                      {#each missingHosts as missing}
-                        <li>
-                          {missing.hostname}: {missing.metrics.join(", ")}
-                        </li>
-                      {/each}
-                    </ul>
-                  {/if}
-                </CardBody>
-              </Card>
-            </div>
-          </TabPane>
-        {/if}
-        <TabPane
-          tabId="stats"
-          tab="Statistics Table"
-          active={!somethingMissing}
-        >
-          {#if $jobMetrics?.data?.jobMetrics}
-            {#key $jobMetrics.data.jobMetrics}
-              <StatsTable
-                bind:this={statsTable}
-                job={$initq.data.job}
-                jobMetrics={$jobMetrics.data.jobMetrics}
-              />
-            {/key}
+
+<Card class="mb-3">
+  <CardBody>
+    <Row class="mb-2">
+      {#if $initq.data}
+        <Col xs="auto">
+            <Button outline on:click={() => (isMetricsSelectionOpen = true)} color="primary">
+              Select Metrics
+            </Button>
+        </Col>
+      {/if}
+    </Row>
+    <hr/>
+    <Row>
+      <Col>
+        {#if $jobMetrics.error}
+          {#if $initq.data.job.monitoringStatus == 0 || $initq.data.job.monitoringStatus == 2}
+            <Card body color="warning">Not monitored or archiving failed</Card>
+            <br />
           {/if}
-        </TabPane>
-        <TabPane tabId="job-script" tab="Job Script">
-          <div class="pre-wrapper">
-            {#if $initq.data.job.metaData?.jobScript}
-              <pre><code>{$initq.data.job.metaData?.jobScript}</code></pre>
-            {:else}
-              <Card body color="warning">No job script available</Card>
-            {/if}
-          </div>
-        </TabPane>
-        <TabPane tabId="slurm-info" tab="Slurm Info">
-          <div class="pre-wrapper">
-            {#if $initq.data.job.metaData?.slurmInfo}
-              <pre><code>{$initq.data.job.metaData?.slurmInfo}</code></pre>
+          <Card body color="danger">{$jobMetrics.error.message}</Card>
+        {:else if $jobMetrics.fetching}
+          <Spinner secondary />
+        {:else if $initq?.data && $jobMetrics?.data?.jobMetrics}
+          <PlotTable
+            let:item
+            let:width
+            renderFor="job"
+            items={orderAndMap(
+              groupByScope($jobMetrics.data.jobMetrics),
+              selectedMetrics,
+            )}
+            itemsPerRow={ccconfig.plot_view_plotsPerRow}
+          >
+            {#if item.data}
+              <Metric
+                bind:this={plots[item.metric]}
+                on:load-all={loadAllScopes}
+                job={$initq.data.job}
+                metricName={item.metric}
+                metricUnit={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.unit}
+                nativeScope={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.scope}
+                rawData={item.data.map((x) => x.metric)}
+                scopes={item.data.map((x) => x.scope)}
+                {width}
+                isShared={$initq.data.job.exclusive != 1}
+              />
             {:else}
               <Card body color="warning"
-                >No additional slurm information available</Card
+                >No dataset returned for <code>{item.metric}</code></Card
               >
             {/if}
-          </div>
-        </TabPane>
-      </TabContent>
+          </PlotTable>
+        {/if}
+      </Col>
+    </Row>
+  </CardBody>
+</Card>
+
+<Row class="mb-3">
+  <Col>
+    {#if $initq.data}
+      <Card>
+        <TabContent>
+          {#if somethingMissing}
+            <TabPane tabId="resources" tab="Resources" active={somethingMissing}>
+              <div style="margin: 10px;">
+                <Card color="warning">
+                  <CardHeader>
+                    <CardTitle>Missing Metrics/Resources</CardTitle>
+                  </CardHeader>
+                  <CardBody>
+                    {#if missingMetrics.length > 0}
+                      <p>
+                        No data at all is available for the metrics: {missingMetrics.join(
+                          ", ",
+                        )}
+                      </p>
+                    {/if}
+                    {#if missingHosts.length > 0}
+                      <p>Some metrics are missing for the following hosts:</p>
+                      <ul>
+                        {#each missingHosts as missing}
+                          <li>
+                            {missing.hostname}: {missing.metrics.join(", ")}
+                          </li>
+                        {/each}
+                      </ul>
+                    {/if}
+                  </CardBody>
+                </Card>
+              </div>
+            </TabPane>
+          {/if}
+          <TabPane
+            tabId="stats"
+            tab="Statistics Table"
+            class="overflow-x-auto"
+            active={!somethingMissing}
+          >
+            {#if $jobMetrics?.data?.jobMetrics}
+              {#key $jobMetrics.data.jobMetrics}
+                <StatsTable
+                  job={$initq.data.job}
+                  jobMetrics={$jobMetrics.data.jobMetrics}
+                />
+              {/key}
+            {/if}
+          </TabPane>
+          <TabPane tabId="job-script" tab="Job Script">
+            <div class="pre-wrapper">
+              {#if $initq.data.job.metaData?.jobScript}
+                <pre><code>{$initq.data.job.metaData?.jobScript}</code></pre>
+              {:else}
+                <Card body color="warning">No job script available</Card>
+              {/if}
+            </div>
+          </TabPane>
+          <TabPane tabId="slurm-info" tab="Slurm Info">
+            <div class="pre-wrapper">
+              {#if $initq.data.job.metaData?.slurmInfo}
+                <pre><code>{$initq.data.job.metaData?.slurmInfo}</code></pre>
+              {:else}
+                <Card body color="warning"
+                  >No additional slurm information available</Card
+                >
+              {/if}
+            </div>
+          </TabPane>
+        </TabContent>
+      </Card>
     {/if}
   </Col>
 </Row>

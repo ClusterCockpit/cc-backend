@@ -120,8 +120,8 @@ func HandleImportFlag(flag string) error {
 		}
 
 		for _, tag := range job.Tags {
-			if _, err := r.AddTagOrCreate(id, tag.Type, tag.Name); err != nil {
-				log.Error("Error while adding or creating tag")
+			if err := r.ImportTag(id, tag.Type, tag.Name, tag.Scope); err != nil {
+				log.Error("Error while adding or creating tag on import")
 				return err
 			}
 		}
