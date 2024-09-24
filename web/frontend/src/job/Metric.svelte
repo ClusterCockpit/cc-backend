@@ -14,6 +14,7 @@
 
 <script>
   import { 
+    getContext,
     createEventDispatcher 
   } from "svelte";
   import { 
@@ -41,11 +42,14 @@
   export let rawData;
   export let isShared = false;
 
+  const resampleConfig = getContext("resampling") || null;
+  const resampleDefault = resampleConfig ? Math.max(...resampleConfig.resolutions) : 0;
+
   let selectedHost = null;
   let error = null;
   let selectedScope = minScope(scopes);
-  let selectedResolution;
-  let pendingResolution = 600;
+  let selectedResolution = null;
+  let pendingResolution = resampleDefault;
   let selectedScopeIndex = scopes.findIndex((s) => s == minScope(scopes));
   let patternMatches = false;
   let nodeOnly = false; // If, after load-all, still only node scope returned
@@ -112,12 +116,13 @@
       selectedResolution = Number(pendingResolution)
 
     } else {
-
       if (selectedScope == "load-all") {
         selectedScopes = [...scopes, "socket", "core", "accelerator"]
       }
 
-      selectedResolution = Number(pendingResolution)
+      if (pendingResolution) {
+        selectedResolution = Number(pendingResolution)
+      }
 
       metricData = queryStore({
         client: client,

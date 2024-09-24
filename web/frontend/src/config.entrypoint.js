@@ -9,6 +9,7 @@ new Config({
         username: username
     },
     context: new Map([
-            ['cc-config', clusterCockpitConfig]
+            ['cc-config', clusterCockpitConfig],
+            ['resampling', resampleConfig]
     ])
 })

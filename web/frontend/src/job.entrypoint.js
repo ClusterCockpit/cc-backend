@@ -9,6 +9,7 @@ new Job({
         roles: roles
     },
     context: new Map([
-            ['cc-config', clusterCockpitConfig]
+            ['cc-config', clusterCockpitConfig],
+            ['resampling', resampleConfig]
     ])
 })

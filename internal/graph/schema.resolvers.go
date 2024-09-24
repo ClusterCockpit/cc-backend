@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -225,8 +226,8 @@ func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error)
 
 // JobMetrics is the resolver for the jobMetrics field.
 func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope, resolution *int) ([]*model.JobMetricWithName, error) {
-	defaultRes := 600
-	if resolution == nil {
+	if resolution == nil && config.Keys.EnableResampling != nil {
+		defaultRes := slices.Max(config.Keys.EnableResampling.Resolutions)
 		resolution = &defaultRes
 	}
 
@@ -445,11 +446,9 @@ func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 // SubCluster returns generated.SubClusterResolver implementation.
 func (r *Resolver) SubCluster() generated.SubClusterResolver { return &subClusterResolver{r} }
 
-type (
-	clusterResolver     struct{ *Resolver }
-	jobResolver         struct{ *Resolver }
-	metricValueResolver struct{ *Resolver }
-	mutationResolver    struct{ *Resolver }
-	queryResolver       struct{ *Resolver }
-	subClusterResolver  struct{ *Resolver }
-)
+type clusterResolver struct{ *Resolver }
+type jobResolver struct{ *Resolver }
+type metricValueResolver struct{ *Resolver }
+type mutationResolver struct{ *Resolver }
+type queryResolver struct{ *Resolver }
+type subClusterResolver struct{ *Resolver }

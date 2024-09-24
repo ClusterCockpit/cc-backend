@@ -51,7 +51,5 @@
   <Col>
     <EditProject on:reload={getUserList} />
   </Col>
-  <Col>
-    <Options />
-  </Col>
+  <Options />
 </Row>

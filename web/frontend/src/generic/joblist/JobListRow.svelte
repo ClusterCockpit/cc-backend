@@ -26,13 +26,16 @@
   export let showFootprint;
   export let triggerMetricRefresh = false;
 
+  const resampleConfig = getContext("resampling") || null;
+  const resampleDefault = resampleConfig ? Math.max(...resampleConfig.resolutions) : 0;
+  
   let { id } = job;
   let scopes = job.numNodes == 1
     ? job.numAcc >= 1
       ? ["core", "accelerator"]
       : ["core"]
     : ["node"];
-  let selectedResolution = 600;
+  let selectedResolution = resampleDefault;
   let zoomStates = {};
 
   const cluster = getContext("clusters").find((c) => c.name == job.cluster);
@@ -69,7 +72,7 @@
   `;
 
   function handleZoom(detail, metric) {
-    if (
+    if ( // States have to differ, causes deathloop if just set
         (zoomStates[metric]?.x?.min !== detail?.lastZoomState?.x?.min) &&
         (zoomStates[metric]?.y?.max !== detail?.lastZoomState?.y?.max)
     ) {
@@ -187,7 +190,7 @@
             isShared={job.exclusive != 1}
             numhwthreads={job.numHWThreads}
             numaccs={job.numAcc}
-            zoomState={zoomStates[metric.data.name]}
+            zoomState={zoomStates[metric.data.name] || null}
           />
         {:else if metric.disabled == true && metric.data}
           <Card body color="info"
