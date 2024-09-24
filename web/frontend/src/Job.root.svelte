@@ -56,7 +56,8 @@
     selectedScopes = [];
 
   let plots = {},
-    roofWidth
+    roofWidth,
+    statsTable
 
   let missingMetrics = [],
     missingHosts = [],
@@ -118,15 +119,6 @@
     query: query,
     variables: { dbid, selectedMetrics, selectedScopes },
   });
-
-  function loadAllScopes() {
-    selectedScopes = [...selectedScopes, "socket", "core"]
-    jobMetrics = queryStore({
-      client: client,
-      query: query,
-      variables: { dbid, selectedMetrics, selectedScopes},
-    });
-  }
 
   // Handle Job Query on Init -> is not executed anymore
   getContext("on-init")(() => {
@@ -352,7 +344,7 @@
             {#if item.data}
               <Metric
                 bind:this={plots[item.metric]}
-                on:load-all={loadAllScopes}
+                on:more-loaded={({ detail }) => statsTable.moreLoaded(detail)}
                 job={$initq.data.job}
                 metricName={item.metric}
                 metricUnit={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.unit}
@@ -418,6 +410,7 @@
             {#if $jobMetrics?.data?.jobMetrics}
               {#key $jobMetrics.data.jobMetrics}
                 <StatsTable
+                  bind:this={statsTable}
                   job={$initq.data.job}
                   jobMetrics={$jobMetrics.data.jobMetrics}
                 />

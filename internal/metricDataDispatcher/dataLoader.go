@@ -14,6 +14,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
+	"github.com/ClusterCockpit/cc-backend/pkg/resampler"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
@@ -23,11 +24,12 @@ func cacheKey(
 	job *schema.Job,
 	metrics []string,
 	scopes []schema.MetricScope,
+	resolution int,
 ) string {
 	// Duration and StartTime do not need to be in the cache key as StartTime is less unique than
 	// job.ID and the TTL of the cache entry makes sure it does not stay there forever.
-	return fmt.Sprintf("%d(%s):[%v],[%v]",
-		job.ID, job.State, metrics, scopes)
+	return fmt.Sprintf("%d(%s):[%v],[%v]-%d",
+		job.ID, job.State, metrics, scopes, resolution)
 }
 
 // Fetches the metric data for a job.
@@ -35,8 +37,9 @@ func LoadData(job *schema.Job,
 	metrics []string,
 	scopes []schema.MetricScope,
 	ctx context.Context,
+	resolution int,
 ) (schema.JobData, error) {
-	data := cache.Get(cacheKey(job, metrics, scopes), func() (_ interface{}, ttl time.Duration, size int) {
+	data := cache.Get(cacheKey(job, metrics, scopes, resolution), func() (_ interface{}, ttl time.Duration, size int) {
 		var jd schema.JobData
 		var err error
 
@@ -60,7 +63,7 @@ func LoadData(job *schema.Job,
 				}
 			}
 
-			jd, err = repo.LoadData(job, metrics, scopes, ctx)
+			jd, err = repo.LoadData(job, metrics, scopes, ctx, resolution)
 			if err != nil {
 				if len(jd) != 0 {
 					log.Warnf("partial error: %s", err.Error())
@@ -72,10 +75,29 @@ func LoadData(job *schema.Job,
 			}
 			size = jd.Size()
 		} else {
-			jd, err = archive.GetHandle().LoadJobData(job)
+			var jd_temp schema.JobData
+			jd_temp, err = archive.GetHandle().LoadJobData(job)
 			if err != nil {
 				log.Error("Error while loading job data from archive")
 				return err, 0, 0
+			}
+
+			//Deep copy the cached archive hashmap
+			jd = metricdata.DeepCopy(jd_temp)
+
+			//Resampling for archived data.
+			//Pass the resolution from frontend here.
+			for _, v := range jd {
+				for _, v_ := range v {
+					timestep := 0
+					for i := 0; i < len(v_.Series); i += 1 {
+						v_.Series[i].Data, timestep, err = resampler.LargestTriangleThreeBucket(v_.Series[i].Data, v_.Timestep, resolution)
+						if err != nil {
+							return err, 0, 0
+						}
+					}
+					v_.Timestep = timestep
+				}
 			}
 
 			// Avoid sending unrequested data to the client:
@@ -117,6 +139,7 @@ func LoadData(job *schema.Job,
 		}
 
 		// FIXME: Review: Is this really necessary or correct.
+		// Note: Lines 142-170 formerly known as prepareJobData(jobData, scoeps)
 		// For /monitoring/job/<job> and some other places, flops_any and mem_bw need
 		// to be available at the scope 'node'. If a job has a lot of nodes,
 		// statisticsSeries should be available so that a min/median/max Graph can be

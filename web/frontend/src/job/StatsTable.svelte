@@ -4,6 +4,9 @@
     Properties:
     - `job Object`: The job object
     - `jobMetrics [Object]`: The jobs metricdata
+
+    Exported:
+    - `moreLoaded`: Adds additional scopes requested from Metric.svelte in Job-View
  -->
 
 <script>
@@ -23,8 +26,8 @@
   export let job;
   export let jobMetrics;
 
-  const allMetrics = [...new Set(jobMetrics.map((m) => m.name))].sort(),
-    scopesForMetric = (metric) =>
+  const allMetrics = [...new Set(jobMetrics.map((m) => m.name))].sort()
+  const scopesForMetric = (metric) =>
       jobMetrics.filter((jm) => jm.name == metric).map((jm) => jm.scope);
 
   let hosts = job.resources.map((r) => r.hostname).sort(),
@@ -83,6 +86,14 @@
       return s.dir != "up" ? s1[stat] - s2[stat] : s2[stat] - s1[stat];
     });
   }
+
+  export function moreLoaded(moreJobMetrics) {
+    moreJobMetrics.forEach(function (newMetric) {
+      if (!jobMetrics.some((m) => m.scope == newMetric.scope)) {
+        jobMetrics = [...jobMetrics, newMetric]
+      }
+    });
+  };
 </script>
 
 <Table class="mb-0">

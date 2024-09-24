@@ -34,7 +34,7 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 		scopes = append(scopes, schema.MetricScopeAccelerator)
 	}
 
-	jobData, err := metricDataDispatcher.LoadData(job, allMetrics, scopes, ctx)
+	jobData, err := metricDataDispatcher.LoadData(job, allMetrics, scopes, ctx, 0) // 0 Resulotion-Value retrieves highest res (60s)
 	if err != nil {
 		log.Error("Error wile loading job data for archiving")
 		return nil, err

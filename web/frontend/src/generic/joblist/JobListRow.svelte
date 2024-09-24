@@ -26,18 +26,23 @@
   export let showFootprint;
   export let triggerMetricRefresh = false;
 
+  const resampleConfig = getContext("resampling") || null;
+  const resampleDefault = resampleConfig ? Math.max(...resampleConfig.resolutions) : 0;
+  
   let { id } = job;
   let scopes = job.numNodes == 1
     ? job.numAcc >= 1
       ? ["core", "accelerator"]
       : ["core"]
     : ["node"];
+  let selectedResolution = resampleDefault;
+  let zoomStates = {};
 
   const cluster = getContext("clusters").find((c) => c.name == job.cluster);
   const client = getContextClient();
   const query = gql`
-    query ($id: ID!, $metrics: [String!]!, $scopes: [MetricScope!]!) {
-      jobMetrics(id: $id, metrics: $metrics, scopes: $scopes) {
+    query ($id: ID!, $metrics: [String!]!, $scopes: [MetricScope!]!, $selectedResolution: Int) {
+      jobMetrics(id: $id, metrics: $metrics, scopes: $scopes, resolution: $selectedResolution) {
         name
         scope
         metric {
@@ -66,17 +71,30 @@
     }
   `;
 
+  function handleZoom(detail, metric) {
+    if ( // States have to differ, causes deathloop if just set
+        (zoomStates[metric]?.x?.min !== detail?.lastZoomState?.x?.min) &&
+        (zoomStates[metric]?.y?.max !== detail?.lastZoomState?.y?.max)
+    ) {
+        zoomStates[metric] = {...detail.lastZoomState}
+    }
+
+    if (detail?.newRes) { // Triggers GQL
+        selectedResolution = detail.newRes
+    }
+  }
+
   $: metricsQuery = queryStore({
     client: client,
     query: query,
-    variables: { id, metrics, scopes },
+    variables: { id, metrics, scopes, selectedResolution },
   });
   
   function refreshMetrics() {
     metricsQuery = queryStore({
       client: client,
       query: query,
-      variables: { id, metrics, scopes },
+      variables: { id, metrics, scopes, selectedResolution },
       // requestPolicy: 'network-only' // use default cache-first for refresh
     });
   }
@@ -159,6 +177,7 @@
         <!-- Subluster Metricconfig remove keyword for jobtables (joblist main, user joblist, project joblist) to be used here as toplevel case-->
         {#if metric.disabled == false && metric.data}
           <MetricPlot
+            on:zoom={({detail}) => { handleZoom(detail, metric.data.name) }}
             width={plotWidth}
             height={plotHeight}
             timestep={metric.data.metric.timestep}
@@ -169,9 +188,9 @@
             {cluster}
             subCluster={job.subCluster}
             isShared={job.exclusive != 1}
-            resources={job.resources}
             numhwthreads={job.numHWThreads}
             numaccs={job.numAcc}
+            zoomState={zoomStates[metric.data.name] || null}
           />
         {:else if metric.disabled == true && metric.data}
           <Card body color="info"

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/util"
@@ -273,12 +274,13 @@ func SetupRoutes(router *mux.Router, buildInfo web.Build) {
 			availableRoles, _ := schema.GetValidRolesMap(user)
 
 			page := web.Page{
-				Title:  title,
-				User:   *user,
-				Roles:  availableRoles,
-				Build:  buildInfo,
-				Config: conf,
-				Infos:  infos,
+				Title:      title,
+				User:       *user,
+				Roles:      availableRoles,
+				Build:      buildInfo,
+				Config:     conf,
+				Resampling: config.Keys.EnableResampling,
+				Infos:      infos,
 			}
 
 			if route.Filter {

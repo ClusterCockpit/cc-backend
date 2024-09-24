@@ -424,6 +424,27 @@
                 "plot_general_colorscheme",
                 "plot_list_selectedMetrics"
             ]
+        },
+        "enable-resampling": {
+            "description": "Enable dynamic zoom in frontend metric plots.",
+            "type": "object",
+            "properties": {
+                "trigger": {
+                    "description": "Trigger next zoom level at less than this many visible datapoints.",
+                    "type": "integer"
+                },
+                "resolutions": {
+                    "description": "Array of resampling target resolutions, in seconds.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            },
+            "required": [
+                "trigger",
+                "resolutions"
+            ]
         }
     },
     "required": [

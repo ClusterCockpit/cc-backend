@@ -206,7 +206,6 @@
             metric={item.data.name}
             cluster={clusters.find((c) => c.name == cluster)}
             subCluster={item.subCluster}
-            resources={[{ hostname: item.host }]}
             forNode={true}
           />
         {:else if item.disabled === true && item.data}
