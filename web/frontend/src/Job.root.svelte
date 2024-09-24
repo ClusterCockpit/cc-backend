@@ -304,10 +304,10 @@
           .find((c) => c.name == $initq.data.job.cluster)
           .subClusters.find((sc) => sc.name == $initq.data.job.subCluster)}
         data={transformDataForRoofline(
-          $jobMetrics.data.jobMetrics.find(
+          $jobMetrics.data?.jobMetrics?.find(
             (m) => m.name == "flops_any" && m.scope == "node",
           )?.metric,
-          $jobMetrics.data.jobMetrics.find(
+          $jobMetrics.data?.jobMetrics?.find(
             (m) => m.name == "mem_bw" && m.scope == "node",
           )?.metric,
         )}
