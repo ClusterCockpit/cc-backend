@@ -211,26 +211,19 @@
                   {#if pendingChange === utag.id}
                     <Spinner size="sm" secondary />
                   {:else}
-                    {#if utag.scope === 'global' || utag.scope === 'admin'}
-                      {#if isAdmin}
-                        <Button
-                          size="sm"
-                          color="danger"
-                          on:click={() => removeTagFromJob(utag)}
-                        >
-                          <Icon name="x" />
-                        </Button>
+                    <Button
+                      size="sm"
+                      color="dark"
+                      outline
+                      disabled
+                    >
+                      {#if utag.scope === 'global' || utag.scope === 'admin'}
+                        {utag.scope.charAt(0).toUpperCase() + utag.scope.slice(1)} Tag
                       {:else}
-                      <Button
-                        size="sm"
-                        color="dark"
-                        outline
-                        disabled
-                      >
-                        Global Tag
-                      </Button>
+                        Private Tag
                       {/if}
-                    {:else}
+                    </Button>
+                    {#if isAdmin || (utag.scope !== 'global' && utag.scope !== 'admin')}
                       <Button
                         size="sm"
                         color="danger"
@@ -268,17 +261,19 @@
                   {#if pendingChange === uutag.id}
                     <Spinner size="sm" secondary />
                   {:else}
-                    {#if uutag.scope === 'global' || uutag.scope === 'admin'}
-                      {#if isAdmin}
-                        <Button
-                          size="sm"
-                          color="success"
-                          on:click={() => addTagToJob(uutag)}
-                        >
-                          <Icon name="plus" />
-                        </Button>
+                    <Button
+                      size="sm"
+                      color="dark"
+                      outline
+                      disabled
+                    >
+                      {#if uutag.scope === 'global' || uutag.scope === 'admin'}
+                        {uutag.scope.charAt(0).toUpperCase() + uutag.scope.slice(1)} Tag
+                      {:else}
+                        Private Tag
                       {/if}
-                    {:else}
+                    </Button>
+                    {#if isAdmin || (uutag.scope !== 'global' && uutag.scope !== 'admin')}
                       <Button
                         size="sm"
                         color="success"
