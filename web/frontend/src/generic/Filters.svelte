@@ -322,7 +322,9 @@
     {#if filters.tags.length != 0}
       <Info icon="tags" on:click={() => (isTagsOpen = true)}>
         {#each filters.tags as tagId}
-          <Tag id={tagId} clickable={false} />
+          {#key tagId}
+            <Tag id={tagId} clickable={false} />
+          {/key}
         {/each}
       </Info>
     {/if}

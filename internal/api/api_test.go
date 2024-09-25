@@ -175,7 +175,6 @@ func cleanup() {
 func TestRestApi(t *testing.T) {
 	restapi := setup(t)
 	t.Cleanup(cleanup)
-
 	testData := schema.JobData{
 		"load_one": map[schema.MetricScope]*schema.JobMetric{
 			schema.MetricScopeNode: {
@@ -192,7 +191,7 @@ func TestRestApi(t *testing.T) {
 		},
 	}
 
-	metricdata.TestLoadDataCallback = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context) (schema.JobData, error) {
+	metricdata.TestLoadDataCallback = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error) {
 		return testData, nil
 	}
 
@@ -215,7 +214,7 @@ func TestRestApi(t *testing.T) {
 		"exclusive":        1,
 		"monitoringStatus": 1,
 		"smt":              1,
-		"tags":             [{ "type": "testTagType", "name": "testTagName" }],
+		"tags":             [{ "type": "testTagType", "name": "testTagName", "scope": "testuser" }],
 		"resources": [
 			{
 				"hostname": "host123",
@@ -283,7 +282,7 @@ func TestRestApi(t *testing.T) {
 			t.Fatalf("unexpected job properties: %#v", job)
 		}
 
-		if len(job.Tags) != 1 || job.Tags[0].Type != "testTagType" || job.Tags[0].Name != "testTagName" {
+		if len(job.Tags) != 1 || job.Tags[0].Type != "testTagType" || job.Tags[0].Name != "testTagName" || job.Tags[0].Scope != "testuser" {
 			t.Fatalf("unexpected tags: %#v", job.Tags)
 		}
 
@@ -344,7 +343,7 @@ func TestRestApi(t *testing.T) {
 	}
 
 	t.Run("CheckArchive", func(t *testing.T) {
-		data, err := metricDataDispatcher.LoadData(stoppedJob, []string{"load_one"}, []schema.MetricScope{schema.MetricScopeNode}, context.Background())
+		data, err := metricDataDispatcher.LoadData(stoppedJob, []string{"load_one"}, []schema.MetricScope{schema.MetricScopeNode}, context.Background(), 60)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -69,6 +69,7 @@
 
 <InputGroup class="inline-from">
   <InputGroupText><Icon name="clock-history" /></InputGroupText>
+  <InputGroupText>Range</InputGroupText>
   <select
     class="form-select"
     bind:value={timeRange}

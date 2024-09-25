@@ -77,7 +77,7 @@ export function init(extraInitQuery = "") {
                 footprint 
             }
         }
-        tags { id, name, type }
+        tags { id, name, type, scope }
         globalMetrics {
             name
             scope

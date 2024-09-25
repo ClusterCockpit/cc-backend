@@ -79,6 +79,12 @@ type Retention struct {
 type NatsConfig struct {
 	// Port of the nats server
 	Port int `json:"port"`
+	
+type ResampleConfig struct {
+	// Trigger next zoom level at less than this many visible datapoints
+	Trigger int `json:"trigger"`
+	// Array of resampling target resolutions, in seconds; Example: [600,300,60]
+	Resolutions []int `json:"resolutions"`
 }
 
 // Format of the configuration (file). See below for the defaults.
@@ -140,6 +146,9 @@ type ProgramConfig struct {
 	// If overwritten, at least all the options in the defaults below must
 	// be provided! Most options here can be overwritten by the user.
 	UiDefaults map[string]interface{} `json:"ui-defaults"`
+
+	// If exists, will enable dynamic zoom in frontend metric plots using the configured values
+	EnableResampling *ResampleConfig `json:"enable-resampling"`
 
 	// Where to store MachineState files
 	MachineStateDir string `json:"machine-state-dir"`

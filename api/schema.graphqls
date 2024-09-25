@@ -113,6 +113,7 @@ type Tag {
   id:   ID!
   type: String!
   name: String!
+  scope: String!
 }
 
 type Resource {
@@ -223,7 +224,7 @@ type Query {
   allocatedNodes(cluster: String!): [Count!]!
 
   job(id: ID!): Job
-  jobMetrics(id: ID!, metrics: [String!], scopes: [MetricScope!]): [JobMetricWithName!]!
+  jobMetrics(id: ID!, metrics: [String!], scopes: [MetricScope!], resolution: Int): [JobMetricWithName!]!
   jobsFootprints(filter: [JobFilter!], metrics: [String!]!): Footprints
 
   jobs(filter: [JobFilter!], page: PageRequest, order: OrderByInput): JobResultList!
@@ -235,7 +236,7 @@ type Query {
 }
 
 type Mutation {
-  createTag(type: String!, name: String!): Tag!
+  createTag(type: String!, name: String!, scope: String!): Tag!
   deleteTag(id: ID!): ID!
   addTagsToJob(job: ID!, tagIds: [ID!]!): [Tag!]!
   removeTagsFromJob(job: ID!, tagIds: [ID!]!): [Tag!]!

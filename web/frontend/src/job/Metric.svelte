@@ -13,14 +13,24 @@
  -->
 
 <script>
-  import { createEventDispatcher } from "svelte";
+  import { 
+    getContext,
+    createEventDispatcher 
+  } from "svelte";
+  import { 
+    queryStore,
+    gql,
+    getContextClient 
+  } from "@urql/svelte";
   import {
     InputGroup,
     InputGroupText,
     Spinner,
     Card,
   } from "@sveltestrap/sveltestrap";
-  import { minScope } from "../generic/utils";
+  import { 
+    minScope,
+  } from "../generic/utils.js";
   import Timeseries from "../generic/plots/MetricPlot.svelte";
 
   export let job;
@@ -32,32 +42,132 @@
   export let rawData;
   export let isShared = false;
 
-  const dispatch = createEventDispatcher();
-  const unit = (metricUnit?.prefix ? metricUnit.prefix : "") + (metricUnit?.base ? metricUnit.base : "")
-    
-  let selectedHost = null,
-    plot,
-    fetching = false,
-    error = null;
+  const resampleConfig = getContext("resampling") || null;
+  const resampleDefault = resampleConfig ? Math.max(...resampleConfig.resolutions) : 0;
+
+  let selectedHost = null;
+  let error = null;
   let selectedScope = minScope(scopes);
+  let selectedResolution = null;
+  let pendingResolution = resampleDefault;
+  let selectedScopeIndex = scopes.findIndex((s) => s == minScope(scopes));
+  let patternMatches = false;
+  let nodeOnly = false; // If, after load-all, still only node scope returned
+  let statsSeries = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null);
+  let zoomState = null;
+  let pendingZoomState = null;
 
-  let statsPattern = /(.*)-stat$/
-  let statsSeries = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null)
-  let selectedScopeIndex
-
-  $: availableScopes = scopes;
-  $: patternMatches = statsPattern.exec(selectedScope)
-  $: if (!patternMatches) {
-      selectedScopeIndex = scopes.findIndex((s) => s == selectedScope);
-    } else {
-      selectedScopeIndex = scopes.findIndex((s) => s == patternMatches[1]);
+  const dispatch = createEventDispatcher();
+  const statsPattern = /(.*)-stat$/;
+  const unit = (metricUnit?.prefix ? metricUnit.prefix : "") + (metricUnit?.base ? metricUnit.base : "");
+  const client = getContextClient();
+  const subQuery = gql`
+    query ($dbid: ID!, $selectedMetrics: [String!]!, $selectedScopes: [MetricScope!]!, $selectedResolution: Int) {
+      singleUpdate: jobMetrics(id: $dbid, metrics: $selectedMetrics, scopes: $selectedScopes, resolution: $selectedResolution) {
+        name
+        scope
+        metric {
+          unit {
+            prefix
+            base
+          }
+          timestep
+          statisticsSeries {
+            min
+            median
+            max
+          }
+          series {
+            hostname
+            id
+            data
+            statistics {
+              min
+              avg
+              max
+            }
+          }
+        }
+      }
     }
+  `;
+
+  function handleZoom(detail) {
+      if ( // States have to differ, causes deathloop if just set
+          (pendingZoomState?.x?.min !== detail?.lastZoomState?.x?.min) &&
+          (pendingZoomState?.y?.max !== detail?.lastZoomState?.y?.max)
+      ) {
+          pendingZoomState = {...detail.lastZoomState}
+      }
+
+      if (detail?.newRes) { // Triggers GQL
+          pendingResolution = detail.newRes
+      }
+  }
+
+  let metricData;
+  let selectedScopes = [...scopes]
+  const dbid = job.id;
+  const selectedMetrics = [metricName]
+
+  $: if (selectedScope || pendingResolution) {
+    if (!selectedResolution) {
+      // Skips reactive data load on init
+      selectedResolution = Number(pendingResolution)
+
+    } else {
+      if (selectedScope == "load-all") {
+        selectedScopes = [...scopes, "socket", "core", "accelerator"]
+      }
+
+      if (pendingResolution) {
+        selectedResolution = Number(pendingResolution)
+      }
+
+      metricData = queryStore({
+        client: client,
+        query: subQuery,
+        variables: { dbid, selectedMetrics, selectedScopes, selectedResolution },
+        // Never user network-only: causes reactive load-loop!
+      });
+
+      if ($metricData && !$metricData.fetching) {
+        rawData = $metricData.data.singleUpdate.map((x) => x.metric)
+        scopes  = $metricData.data.singleUpdate.map((x) => x.scope)
+        statsSeries    = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null)
+
+        // Keep Zoomlevel if ResChange By Zoom
+        if (pendingZoomState) {
+          zoomState = {...pendingZoomState}
+        }
+
+        // Set selected scope to min of returned scopes
+        if (selectedScope == "load-all") {
+          selectedScope = minScope(scopes)
+          nodeOnly = (selectedScope == "node") // "node" still only scope after load-all
+        }
+
+        const statsTableData = $metricData.data.singleUpdate.filter((x) => x.scope !== "node")
+        if (statsTableData.length > 0) {
+          dispatch("more-loaded", statsTableData);
+        }
+
+        patternMatches = statsPattern.exec(selectedScope)
+
+        if (!patternMatches) {
+          selectedScopeIndex = scopes.findIndex((s) => s == selectedScope);
+        } else {
+          selectedScopeIndex = scopes.findIndex((s) => s == patternMatches[1]);
+        }
+      }
+    }
+  }
+
   $: data = rawData[selectedScopeIndex];
-  $: series = data?.series.filter(
+  
+  $: series = data?.series?.filter(
     (series) => selectedHost == null || series.hostname == selectedHost,
   );
-
-  $: if (selectedScope == "load-all") dispatch("load-all");
 </script>
 
 <InputGroup>
@@ -65,13 +175,13 @@
     {metricName} ({unit})
   </InputGroupText>
   <select class="form-select" bind:value={selectedScope}>
-    {#each availableScopes as scope, index}
+    {#each scopes as scope, index}
       <option value={scope}>{scope}</option>
       {#if statsSeries[index]}
         <option value={scope + '-stat'}>stats series ({scope})</option>
       {/if}
     {/each}
-    {#if availableScopes.length == 1 && nativeScope != "node"}
+    {#if scopes.length == 1 && nativeScope != "node" && !nodeOnly}
       <option value={"load-all"}>Load all...</option>
     {/if}
   </select>
@@ -85,13 +195,13 @@
   {/if}
 </InputGroup>
 {#key series}
-  {#if fetching == true}
+  {#if $metricData?.fetching == true}
     <Spinner />
   {:else if error != null}
     <Card body color="danger">{error.message}</Card>
   {:else if series != null && !patternMatches}
     <Timeseries
-      bind:this={plot}
+      on:zoom={({detail}) => { handleZoom(detail) }}
       {width}
       height={300}
       cluster={job.cluster}
@@ -101,11 +211,11 @@
       metric={metricName}
       {series}
       {isShared}
-      resources={job.resources}
+      {zoomState}
     />
   {:else if statsSeries[selectedScopeIndex] != null && patternMatches}
     <Timeseries
-      bind:this={plot}
+      on:zoom={({detail}) => { handleZoom(detail) }}
       {width}
       height={300}
       cluster={job.cluster}
@@ -115,7 +225,7 @@
       metric={metricName}
       {series}
       {isShared}
-      resources={job.resources}
+      {zoomState}
       statisticsSeries={statsSeries[selectedScopeIndex]}
       useStatsSeries={!!statsSeries[selectedScopeIndex]}
     />

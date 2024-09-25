@@ -171,8 +171,9 @@ func UpdateTags(job *schema.Job, tags []*schema.Tag) error {
 	jobMeta.Tags = make([]*schema.Tag, 0)
 	for _, tag := range tags {
 		jobMeta.Tags = append(jobMeta.Tags, &schema.Tag{
-			Name: tag.Name,
-			Type: tag.Type,
+			Name:  tag.Name,
+			Type:  tag.Type,
+			Scope: tag.Scope,
 		})
 	}
 

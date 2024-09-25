@@ -21,7 +21,7 @@ type MetricDataRepository interface {
 	Init(rawConfig json.RawMessage) error
 
 	// Return the JobData for the given job, only with the requested metrics.
-	LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context) (schema.JobData, error)
+	LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error)
 
 	// Return a map of metrics to a map of nodes to the metric statistics of the job. node scope assumed for now.
 	LoadStats(job *schema.Job, metrics []string, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error)

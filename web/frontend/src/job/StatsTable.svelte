@@ -4,6 +4,9 @@
     Properties:
     - `job Object`: The job object
     - `jobMetrics [Object]`: The jobs metricdata
+
+    Exported:
+    - `moreLoaded`: Adds additional scopes requested from Metric.svelte in Job-View
  -->
 
 <script>
@@ -11,6 +14,7 @@
   import {
     Button,
     Table,
+    Input,
     InputGroup,
     InputGroupText,
     Icon,
@@ -22,8 +26,8 @@
   export let job;
   export let jobMetrics;
 
-  const allMetrics = [...new Set(jobMetrics.map((m) => m.name))].sort(),
-    scopesForMetric = (metric) =>
+  const allMetrics = [...new Set(jobMetrics.map((m) => m.name))].sort()
+  const scopesForMetric = (metric) =>
       jobMetrics.filter((jm) => jm.name == metric).map((jm) => jm.scope);
 
   let hosts = job.resources.map((r) => r.hostname).sort(),
@@ -82,31 +86,42 @@
       return s.dir != "up" ? s1[stat] - s2[stat] : s2[stat] - s1[stat];
     });
   }
+
+  export function moreLoaded(moreJobMetrics) {
+    moreJobMetrics.forEach(function (newMetric) {
+      if (!jobMetrics.some((m) => m.scope == newMetric.scope)) {
+        jobMetrics = [...jobMetrics, newMetric]
+      }
+    });
+  };
 </script>
 
-<Table>
+<Table class="mb-0">
   <thead>
+    <!-- Header Row 1: Selectors -->
     <tr>
       <th>
-        <Button outline on:click={() => (isMetricSelectionOpen = true)}>
-          Metrics
+        <Button outline on:click={() => (isMetricSelectionOpen = true)} class="w-100 px-2" color="primary">
+          Select Metrics
         </Button>
       </th>
       {#each selectedMetrics as metric}
+        <!-- To Match Row-2 Header Field Count-->
         <th colspan={selectedScopes[metric] == "node" ? 3 : 4}>
           <InputGroup>
             <InputGroupText>
               {metric}
             </InputGroupText>
-            <select class="form-select" bind:value={selectedScopes[metric]}>
+            <Input type="select" bind:value={selectedScopes[metric]}>
               {#each scopesForMetric(metric, jobMetrics) as scope}
                 <option value={scope}>{scope}</option>
               {/each}
-            </select>
+            </Input>
           </InputGroup>
         </th>
       {/each}
     </tr>
+    <!-- Header Row 2: Fields -->
     <tr>
       <th>Node</th>
       {#each selectedMetrics as metric}
@@ -145,8 +160,6 @@
     {/each}
   </tbody>
 </Table>
-
-<br />
 
 <MetricSelection
   cluster={job.cluster}

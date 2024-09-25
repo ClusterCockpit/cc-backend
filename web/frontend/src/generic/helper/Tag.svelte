@@ -23,12 +23,22 @@
         if ($initialized && tag == null)
             tag = allTags.find(tag => tag.id == id)
     }
+
+    function getScopeColor(scope) {
+        switch (scope) {
+        case "admin":
+            return "#19e5e6";
+        case "global":
+            return "#c85fc8";
+        default:
+            return "#ffc107";
+        }
+    }
 </script>
 
 <style>
     a {
-        margin-left: 0.5rem;
-        line-height: 2;
+        margin-right: 0.5rem;
     }
     span {
         font-size: 0.9rem;
@@ -37,7 +47,7 @@
 
 <a target={clickable ? "_blank" : null} href={clickable ? `/monitoring/jobs/?tag=${id}` : null}>
     {#if tag}
-        <span class="badge bg-warning text-dark">{tag.type}: {tag.name}</span>
+        <span style="background-color:{getScopeColor(tag?.scope)};" class="my-1 badge text-dark">{tag.type}: {tag.name}</span>
     {:else}
         Loading...
     {/if}

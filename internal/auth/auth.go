@@ -145,13 +145,17 @@ func GetAuthInstance() *Authentication {
 
 func persistUser(user *schema.User) {
 	r := repository.GetUserRepository()
-	_, err := r.GetUser(user.Username)
+	dbUser, err := r.GetUser(user.Username)
 
 	if err != nil && err != sql.ErrNoRows {
 		log.Errorf("Error while loading user '%s': %v", user.Username, err)
-	} else if err == sql.ErrNoRows {
+	} else if err == sql.ErrNoRows { // Adds New User
 		if err := r.AddUser(user); err != nil {
 			log.Errorf("Error while adding user '%s' to DB: %v", user.Username, err)
+		}
+	} else { // Update Existing
+		if err := r.UpdateUser(dbUser, user); err != nil {
+			log.Errorf("Error while updating user '%s' to DB: %v", user.Username, err)
 		}
 	}
 }

@@ -265,6 +265,7 @@ func (pdb *PrometheusDataRepository) LoadData(
 	metrics []string,
 	scopes []schema.MetricScope,
 	ctx context.Context,
+	resolution int,
 ) (schema.JobData, error) {
 	// TODO respect requested scope
 	if len(scopes) == 0 || !contains(scopes, schema.MetricScopeNode) {
@@ -356,7 +357,7 @@ func (pdb *PrometheusDataRepository) LoadStats(
 	// map of metrics of nodes of stats
 	stats := map[string]map[string]schema.MetricStatistics{}
 
-	data, err := pdb.LoadData(job, metrics, []schema.MetricScope{schema.MetricScopeNode}, ctx)
+	data, err := pdb.LoadData(job, metrics, []schema.MetricScope{schema.MetricScopeNode}, ctx, 0 /*resolution here*/)
 	if err != nil {
 		log.Warn("Error while loading job for stats")
 		return nil, err

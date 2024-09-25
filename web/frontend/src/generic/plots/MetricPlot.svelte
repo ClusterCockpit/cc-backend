@@ -6,7 +6,6 @@
     Properties:
     - `metric String`: The metric name
     - `scope String?`: Scope of the displayed data [Default: node]
-    - `resources [GraphQL.Resource]`: List of resources used for parent job
     - `width Number`: The plot width
     - `height Number`: The plot height
     - `timestep Number`: The timestep used for X-axis rendering
@@ -16,9 +15,10 @@
     - `cluster GraphQL.Cluster`: Cluster Object of the parent job
     - `subCluster String`: Name of the subCluster of the parent job
     - `isShared Bool?`: If this job used shared resources; will adapt threshold indicators accordingly [Default: false]
-    - `forNode Bool?`: If this plot is used for node data display; will render x-axis as negative time with $now as maximum [Default: false]
+    - `forNode Bool?`: If this plot is used for node data display; will ren[data, err := metricdata.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)](https://github.com/ClusterCockpit/cc-backend/blob/9fe7cdca9215220a19930779a60c8afc910276a3/internal/graph/schema.resolvers.go#L391-L392)der x-axis as negative time with $now as maximum [Default: false]
     - `numhwthreads Number?`: Number of job HWThreads [Default: 0]
     - `numaccs Number?`: Number of job Accelerators [Default: 0]
+    - `zoomState Object?`: The last zoom state to preserve on user zoom [Default: null]
  -->
 
 <script context="module">
@@ -40,7 +40,7 @@
 
   function timeIncrs(timestep, maxX, forNode) {
     if (forNode === true) {
-      return [60, 300, 900, 1800, 3600, 7200, 14400, 21600]; // forNode fixed increments
+      return [60, 120, 240, 300, 360, 480, 600, 900, 1800, 3600, 7200, 14400, 21600]; // forNode fixed increments
     } else {
       let incrs = [];
       for (let t = timestep; t < maxX; t *= 10)
@@ -113,12 +113,11 @@
 <script>
   import uPlot from "uplot";
   import { formatNumber } from "../units.js";
-  import { getContext, onMount, onDestroy } from "svelte";
+  import { getContext, onMount, onDestroy, createEventDispatcher } from "svelte";
   import { Card } from "@sveltestrap/sveltestrap";
 
   export let metric;
   export let scope = "node";
-  export let resources = [];
   export let width;
   export let height;
   export let timestep;
@@ -131,11 +130,13 @@
   export let forNode = false;
   export let numhwthreads = 0;
   export let numaccs = 0;
+  export let zoomState = null;
 
   if (useStatsSeries == null) useStatsSeries = statisticsSeries != null;
 
   if (useStatsSeries == false && series == null) useStatsSeries = true;
 
+  const dispatch = createEventDispatcher();
   const subClusterTopology = getContext("getHardwareTopology")(cluster, subCluster);
   const metricConfig = getContext("getMetricConfig")(cluster, subCluster, metric);
   const clusterCockpitConfig = getContext("cc-config");
@@ -157,6 +158,17 @@
     numhwthreads,
     numaccs
   );
+
+  const resampleConfig = getContext("resampling");
+  let resampleTrigger;
+  let resampleResolutions;
+  let resampleMinimum;
+
+  if (resampleConfig) {
+    resampleTrigger = Number(resampleConfig.trigger)
+    resampleResolutions = [...resampleConfig.resolutions];
+    resampleMinimum = Math.min(...resampleConfig.resolutions);
+  }
 
   // converts the legend into a simple tooltip
   function legendAsTooltipPlugin({
@@ -296,7 +308,6 @@
     },
   ];
   const plotData = [new Array(longestSeries)];
-
   if (forNode === true) {
     // Negative Timestamp Buildup
     for (let i = 0; i <= longestSeries; i++) {
@@ -317,15 +328,15 @@
     plotData.push(statisticsSeries.min);
     plotData.push(statisticsSeries.max);
     plotData.push(statisticsSeries.median);
-    // plotData.push(statisticsSeries.mean);
 
-    if (forNode === true) {
-      // timestamp 0 with null value for reversed time axis
-      if (plotData[1].length != 0) plotData[1].push(null);
-      if (plotData[2].length != 0) plotData[2].push(null);
-      if (plotData[3].length != 0) plotData[3].push(null);
-      // if (plotData[4].length != 0) plotData[4].push(null);
-    }
+    /* deprecated: sparse data handled by uplot */
+    // if (forNode === true) {
+    //   if (plotData[1][-1] != null && plotData[2][-1] != null && plotData[3][-1] != null) {
+    //     if (plotData[1].length != 0) plotData[1].push(null);
+    //     if (plotData[2].length != 0) plotData[2].push(null);
+    //     if (plotData[3].length != 0) plotData[3].push(null);
+    //   }
+    // }
 
     plotSeries.push({
       label: "min",
@@ -345,12 +356,6 @@
       width: lineWidth,
       stroke: "black",
     });
-    // plotSeries.push({
-    //   label: "mean",
-    //   scale: "y",
-    //   width: lineWidth,
-    //   stroke: "blue",
-    // });
 
     plotBands = [
       { series: [2, 3], fill: "rgba(0,255,0,0.1)" },
@@ -359,13 +364,18 @@
   } else {
     for (let i = 0; i < series.length; i++) {
       plotData.push(series[i].data);
-      if (forNode === true && plotData[1].length != 0) plotData[1].push(null); // timestamp 0 with null value for reversed time axis
+      /* deprecated: sparse data handled by uplot */
+      // if (forNode === true && plotData[1].length != 0) {
+      //   if (plotData[1][-1] != null) {
+      //     plotData[1].push(null);
+      //   };
+      // };
+
       plotSeries.push({
         label:
           scope === "node"
-            ? resources[i].hostname
-            : // scope === 'accelerator' ? resources[0].accelerators[i] :
-              scope + " #" + (i + 1),
+            ? series[i].hostname
+            : scope + " #" + (i + 1),
         scale: "y",
         width: lineWidth,
         stroke: lineColor(i, series.length),
@@ -395,6 +405,22 @@
     bands: plotBands,
     padding: [5, 10, -20, 0],
     hooks: {
+      init: [
+        (u) => {
+          /* IF Zoom Enabled */
+          if (resampleConfig) {
+            u.over.addEventListener("dblclick", (e) => {
+              // console.log('Dispatch Reset')
+              dispatch('zoom', {
+                lastZoomState: {
+                  x: { time: false },
+                  y: { auto: true }
+                }
+              });
+            });
+          };
+        },
+      ],
       draw: [
         (u) => {
           // Draw plot type label:
@@ -436,6 +462,34 @@
           u.ctx.restore();
         },
       ],
+      setScale: [
+        (u, key) => { // If ZoomResample is Configured && Not System/Node View
+          if (resampleConfig && !forNode && key === 'x') {
+            const numX = (u.series[0].idxs[1] - u.series[0].idxs[0])
+            if (numX <= resampleTrigger && timestep !== resampleMinimum) {
+              /* Get closest zoom level; prevents multiple iterative zoom requests for big zoom-steps (e.g. 600 -> 300 -> 120 -> 60) */
+              // Which resolution to theoretically request to achieve 30 or more visible data points:
+              const target = (numX * timestep) / resampleTrigger
+              // Which configured resolution actually matches the closest to theoretical target:
+              const closest = resampleResolutions.reduce(function(prev, curr) {
+                return (Math.abs(curr - target) < Math.abs(prev - target) ? curr : prev);
+              });
+              // Prevents non-required dispatches
+              if (timestep !== closest) {
+                // console.log('Dispatch Zoom with Res from / to', timestep, closest)
+                dispatch('zoom', {
+                  newRes: closest,
+                  lastZoomState: u?.scales
+                });
+              }
+            } else {
+              dispatch('zoom', {
+                lastZoomState: u?.scales
+              });
+            };
+          };
+        },
+      ]
     },
     scales: {
       x: { time: false },
@@ -466,6 +520,9 @@
     if (!uplot) {
       opts.width = width;
       opts.height = height;
+      if (zoomState) {
+        opts.scales = {...zoomState}
+      }
       uplot = new uPlot(opts, plotData, plotWrapper);
     } else {
       uplot.setSize({ width, height });
@@ -474,7 +531,6 @@
 
   function onSizeChange() {
     if (!uplot) return;
-
     if (timeoutId != null) clearTimeout(timeoutId);
 
     timeoutId = setTimeout(() => {

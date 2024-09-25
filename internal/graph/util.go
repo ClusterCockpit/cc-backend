@@ -47,7 +47,14 @@ func (r *queryResolver) rooflineHeatmap(
 			continue
 		}
 
-		jobdata, err := metricDataDispatcher.LoadData(job, []string{"flops_any", "mem_bw"}, []schema.MetricScope{schema.MetricScopeNode}, ctx)
+		// metricConfigs := archive.GetCluster(job.Cluster).MetricConfig
+		// resolution := 0
+
+		// for _, mc := range metricConfigs {
+		// 	resolution = max(resolution, mc.Timestep)
+		// }
+
+		jobdata, err := metricDataDispatcher.LoadData(job, []string{"flops_any", "mem_bw"}, []schema.MetricScope{schema.MetricScopeNode}, ctx, 0)
 		if err != nil {
 			log.Errorf("Error while loading roofline metrics for job %d", job.ID)
 			return nil, err

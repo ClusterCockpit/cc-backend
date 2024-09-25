@@ -2,10 +2,11 @@
     @component Polar Plot based on chartJS Radar
 
     Properties:
-    - `metrics [String]`: Metric names to display as polar plot
-    - `cluster GraphQL.Cluster`: Cluster Object of the parent job
-    - `subCluster GraphQL.SubCluster`: SubCluster Object of the parent job
-    - `jobMetrics [GraphQL.JobMetricWithName]`: Metric data
+    - `footprintData [Object]?`: job.footprint content, evaluated in regards to peak config in jobSummary.svelte [Default: null]
+    - `metrics [String]?`: Metric names to display as polar plot [Default: null]
+    - `cluster GraphQL.Cluster?`: Cluster Object of the parent job [Default: null]
+    - `subCluster GraphQL.SubCluster?`: SubCluster Object of the parent job [Default: null]
+    - `jobMetrics [GraphQL.JobMetricWithName]?`: Metric data [Default: null]
     - `height Number?`: Plot height [Default: 365]
  -->
 
@@ -33,24 +34,52 @@
         LineElement
     );
 
-    export let metrics
-    export let cluster
-    export let subCluster
-    export let jobMetrics
-    export let height = 365
+    export let footprintData = null;
+    export let metrics = null;
+    export let cluster = null;
+    export let subCluster = null;
+    export let jobMetrics = null;
+    export let height = 350;
 
-    const getMetricConfig = getContext("getMetricConfig")
-
-    const labels = metrics.filter(name => {
-        if (!jobMetrics.find(m => m.name == name && m.scope == "node")) {
-            console.warn(`PolarPlot: No metric data for '${name}'`)
-            return false
+    function getLabels() {
+        if (footprintData) {
+            return footprintData.filter(fpd => {
+                if (!jobMetrics.find(m => m.name == fpd.name && m.scope == "node" || fpd.impact == 4)) {
+                    console.warn(`PolarPlot: No metric data (or config) for '${fpd.name}'`)
+                    return false
+                }
+                return true
+            })
+            .map(filtered => filtered.name)
+            .sort(function (a, b) {
+                return ((a > b) ? 1 : ((b > a) ? -1 : 0));
+            });
+        } else {
+            return metrics.filter(name => {
+                if (!jobMetrics.find(m => m.name == name && m.scope == "node")) {
+                    console.warn(`PolarPlot: No metric data for '${name}'`)
+                    return false
+                }
+                return true
+            })
+            .sort(function (a, b) {
+                return ((a > b) ? 1 : ((b > a) ? -1 : 0));
+            });
         }
-        return true
+    }
+
+    const labels = getLabels();
+    const getMetricConfig = getContext("getMetricConfig");
+
+    const getValuesForStatGeneric = (getStat) => labels.map(name => {
+        const peak = getMetricConfig(cluster, subCluster, name).peak
+        const metric = jobMetrics.find(m => m.name == name && m.scope == "node")
+        const value = getStat(metric.metric) / peak
+        return value <= 1. ? value : 1.
     })
 
-    const getValuesForStat = (getStat) => labels.map(name => {
-        const peak = getMetricConfig(cluster, subCluster, name).peak
+    const getValuesForStatFootprint = (getStat) => labels.map(name => {
+        const peak = footprintData.find(fpd => fpd.name === name).peak
         const metric = jobMetrics.find(m => m.name == name && m.scope == "node")
         const value = getStat(metric.metric) / peak
         return value <= 1. ? value : 1.
@@ -70,12 +99,32 @@
         return avg / metric.series.length
     }
 
+    function loadDataGeneric(type) {
+        if (type === 'avg') {
+            return getValuesForStatGeneric(getAvg)
+        } else if (type === 'max') {
+            return getValuesForStatGeneric(getMax)
+        }
+        console.log('Unknown Type For Polar Data')
+        return []
+    }
+
+    function loadDataForFootprint(type) {
+        if (type === 'avg') {
+            return getValuesForStatFootprint(getAvg)
+        } else if (type === 'max') {
+            return getValuesForStatFootprint(getMax)
+        }
+        console.log('Unknown Type For Polar Data')
+        return []
+    }
+
     const data = {
         labels: labels,
         datasets: [
             {
                 label: 'Max',
-                data: getValuesForStat(getMax),
+                data: footprintData ? loadDataForFootprint('max') : loadDataGeneric('max'), // 
                 fill: 1,
                 backgroundColor: 'rgba(0, 102, 255, 0.25)',
                 borderColor: 'rgb(0, 102, 255)',
@@ -86,7 +135,7 @@
             },
             {
                 label: 'Avg',
-                data: getValuesForStat(getAvg),
+                data: footprintData ? loadDataForFootprint('avg') : loadDataGeneric('avg'), // getValuesForStat(getAvg)
                 fill: true,
                 backgroundColor: 'rgba(255, 153, 0, 0.25)',
                 borderColor: 'rgb(255, 153, 0)',
@@ -100,7 +149,7 @@
 
     // No custom defined options but keep for clarity 
     const options = {
-        maintainAspectRatio: false,
+        maintainAspectRatio: true,
         animation: false,
         scales: { // fix scale
             r: {
