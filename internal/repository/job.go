@@ -460,7 +460,7 @@ func (r *JobRepository) FindRunningJobs(cluster string) ([]*schema.Job, error) {
 	query := sq.Select(jobColumns...).From("job").
 		Where(fmt.Sprintf("job.cluster = '%s'", cluster)).
 		Where("job.job_state = 'running'").
-		Where("job.duration>600")
+		Where("job.duration > 600")
 
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
@@ -592,10 +592,7 @@ func (r *JobRepository) UpdateEnergy(
 		return stmt, err
 	}
 
-	stmt.Set("energy_footprint", rawFootprint).
-		Set("energy", totalEnergy)
-
-	return stmt, nil
+	return stmt.Set("energy_footprint", rawFootprint).Set("energy", totalEnergy), nil
 }
 
 func (r *JobRepository) UpdateFootprint(
@@ -617,7 +614,7 @@ func (r *JobRepository) UpdateFootprint(
 		}
 
 		name := fmt.Sprintf("%s_%s", fp, statType)
-		footprint[fp] = LoadJobStat(jobMeta, name, statType)
+		footprint[name] = LoadJobStat(jobMeta, fp, statType)
 	}
 
 	var rawFootprint []byte
@@ -627,6 +624,5 @@ func (r *JobRepository) UpdateFootprint(
 		return stmt, err
 	}
 
-	stmt.Set("footprint", rawFootprint)
-	return stmt, nil
+	return stmt.Set("footprint", rawFootprint), nil
 }
