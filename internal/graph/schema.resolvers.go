@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -68,6 +69,45 @@ func (r *jobResolver) Footprint(ctx context.Context, obj *schema.Job) ([]*model.
 		})
 	}
 
+	return res, err
+}
+
+// EnergyFootprint is the resolver for the energyFootprint field.
+func (r *jobResolver) EnergyFootprint(ctx context.Context, obj *schema.Job) ([]*model.EnergyFootprintValue, error) {
+	rawEnergyFootprint, err := r.Repo.FetchEnergyFootprint(obj)
+	if err != nil {
+		log.Warn("Error while fetching job energy footprint data")
+		return nil, err
+	}
+
+	res := []*model.EnergyFootprintValue{}
+	for name, value := range rawEnergyFootprint {
+		// Suboptimal: Nearly hardcoded metric name expectations
+		matchCpu := regexp.MustCompile(`cpu|Cpu|CPU`)
+		matchAcc := regexp.MustCompile(`acc|Acc|ACC`)
+		matchMem := regexp.MustCompile(`mem|Mem|MEM`)
+		matchCore := regexp.MustCompile(`core|Core|CORE`)
+
+		hwType := ""
+		switch test := name; { // NOtice ';' for var declaration
+		case matchCpu.MatchString(test):
+			hwType = "CPU"
+		case matchAcc.MatchString(test):
+			hwType = "Accelerator"
+		case matchMem.MatchString(test):
+			hwType = "Memory"
+		case matchCore.MatchString(test):
+			hwType = "Core"
+		default:
+			hwType = "Hardware"
+		}
+
+		res = append(res, &model.EnergyFootprintValue{
+			Hardware: hwType,
+			Metric:   name,
+			Value:    value,
+		})
+	}
 	return res, err
 }
 

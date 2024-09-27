@@ -16,6 +16,12 @@ type Count struct {
 	Count int    `json:"count"`
 }
 
+type EnergyFootprintValue struct {
+	Hardware string  `json:"hardware"`
+	Metric   string  `json:"metric"`
+	Value    float64 `json:"value"`
+}
+
 type FloatRange struct {
 	From float64 `json:"from"`
 	To   float64 `json:"to"`

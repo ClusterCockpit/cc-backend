@@ -75,7 +75,6 @@ func initClusterConfig() error {
 					if !cfg.Remove {
 						availability.SubClusters = append(availability.SubClusters, sc.Name)
 						newMetric.Peak = cfg.Peak
-						newMetric.Peak = cfg.Peak
 						newMetric.Normal = cfg.Normal
 						newMetric.Caution = cfg.Caution
 						newMetric.Alert = cfg.Alert
@@ -229,5 +228,5 @@ func MetricIndex(mc []schema.MetricConfig, name string) (int, error) {
 		}
 	}
 
-	return 0, fmt.Errorf("Unknown metric name %s", name)
+	return 0, fmt.Errorf("unknown metric name %s", name)
 }

@@ -74,6 +74,12 @@ type ComplexityRoot struct {
 		Name  func(childComplexity int) int
 	}
 
+	EnergyFootprintValue struct {
+		Hardware func(childComplexity int) int
+		Metric   func(childComplexity int) int
+		Value    func(childComplexity int) int
+	}
+
 	FootprintValue struct {
 		Name  func(childComplexity int) int
 		Stat  func(childComplexity int) int
@@ -108,6 +114,8 @@ type ComplexityRoot struct {
 		Cluster          func(childComplexity int) int
 		ConcurrentJobs   func(childComplexity int) int
 		Duration         func(childComplexity int) int
+		Energy           func(childComplexity int) int
+		EnergyFootprint  func(childComplexity int) int
 		Exclusive        func(childComplexity int) int
 		Footprint        func(childComplexity int) int
 		ID               func(childComplexity int) int
@@ -349,6 +357,7 @@ type JobResolver interface {
 
 	ConcurrentJobs(ctx context.Context, obj *schema.Job) (*model.JobLinkResultList, error)
 	Footprint(ctx context.Context, obj *schema.Job) ([]*model.FootprintValue, error)
+	EnergyFootprint(ctx context.Context, obj *schema.Job) ([]*model.EnergyFootprintValue, error)
 	MetaData(ctx context.Context, obj *schema.Job) (any, error)
 	UserData(ctx context.Context, obj *schema.Job) (*model.User, error)
 }
@@ -468,6 +477,27 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Count.Name(childComplexity), true
+
+	case "EnergyFootprintValue.hardware":
+		if e.complexity.EnergyFootprintValue.Hardware == nil {
+			break
+		}
+
+		return e.complexity.EnergyFootprintValue.Hardware(childComplexity), true
+
+	case "EnergyFootprintValue.metric":
+		if e.complexity.EnergyFootprintValue.Metric == nil {
+			break
+		}
+
+		return e.complexity.EnergyFootprintValue.Metric(childComplexity), true
+
+	case "EnergyFootprintValue.value":
+		if e.complexity.EnergyFootprintValue.Value == nil {
+			break
+		}
+
+		return e.complexity.EnergyFootprintValue.Value(childComplexity), true
 
 	case "FootprintValue.name":
 		if e.complexity.FootprintValue.Name == nil {
@@ -594,6 +624,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Job.Duration(childComplexity), true
+
+	case "Job.energy":
+		if e.complexity.Job.Energy == nil {
+			break
+		}
+
+		return e.complexity.Job.Energy(childComplexity), true
+
+	case "Job.energyFootprint":
+		if e.complexity.Job.EnergyFootprint == nil {
+			break
+		}
+
+		return e.complexity.Job.EnergyFootprint(childComplexity), true
 
 	case "Job.exclusive":
 		if e.complexity.Job.Exclusive == nil {
@@ -1862,6 +1906,7 @@ type Job {
   numNodes:         Int!
   numHWThreads:     Int!
   numAcc:           Int!
+  energy:           Float!
   SMT:              Int!
   exclusive:        Int!
   partition:        String!
@@ -1872,6 +1917,7 @@ type Job {
   resources:        [Resource!]!
   concurrentJobs:   JobLinkResultList
   footprint:        [FootprintValue]
+  energyFootprint:  [EnergyFootprintValue]
   metaData:         Any
   userData:         User
 }
@@ -1906,6 +1952,12 @@ type SubCluster {
 type FootprintValue {
   name: String!
   stat: String!
+  value: Float!
+}
+
+type EnergyFootprintValue {
+  hardware: String!
+  metric: String!
   value: Float!
 }
 
@@ -3173,6 +3225,138 @@ func (ec *executionContext) fieldContext_Count_count(_ context.Context, field gr
 	return fc, nil
 }
 
+func (ec *executionContext) _EnergyFootprintValue_hardware(ctx context.Context, field graphql.CollectedField, obj *model.EnergyFootprintValue) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_EnergyFootprintValue_hardware(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Hardware, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_EnergyFootprintValue_hardware(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EnergyFootprintValue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EnergyFootprintValue_metric(ctx context.Context, field graphql.CollectedField, obj *model.EnergyFootprintValue) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_EnergyFootprintValue_metric(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Metric, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_EnergyFootprintValue_metric(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EnergyFootprintValue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EnergyFootprintValue_value(ctx context.Context, field graphql.CollectedField, obj *model.EnergyFootprintValue) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_EnergyFootprintValue_value(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Value, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_EnergyFootprintValue_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EnergyFootprintValue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _FootprintValue_name(ctx context.Context, field graphql.CollectedField, obj *model.FootprintValue) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_FootprintValue_name(ctx, field)
 	if err != nil {
@@ -4340,6 +4524,50 @@ func (ec *executionContext) fieldContext_Job_numAcc(_ context.Context, field gra
 	return fc, nil
 }
 
+func (ec *executionContext) _Job_energy(ctx context.Context, field graphql.CollectedField, obj *schema.Job) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Job_energy(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Energy, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Job_energy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Job_SMT(ctx context.Context, field graphql.CollectedField, obj *schema.Job) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Job_SMT(ctx, field)
 	if err != nil {
@@ -4805,6 +5033,55 @@ func (ec *executionContext) fieldContext_Job_footprint(_ context.Context, field 
 				return ec.fieldContext_FootprintValue_value(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type FootprintValue", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Job_energyFootprint(ctx context.Context, field graphql.CollectedField, obj *schema.Job) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Job_energyFootprint(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Job().EnergyFootprint(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.EnergyFootprintValue)
+	fc.Result = res
+	return ec.marshalOEnergyFootprintValue2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐEnergyFootprintValue(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Job_energyFootprint(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Job",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "hardware":
+				return ec.fieldContext_EnergyFootprintValue_hardware(ctx, field)
+			case "metric":
+				return ec.fieldContext_EnergyFootprintValue_metric(ctx, field)
+			case "value":
+				return ec.fieldContext_EnergyFootprintValue_value(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type EnergyFootprintValue", field.Name)
 		},
 	}
 	return fc, nil
@@ -5518,6 +5795,8 @@ func (ec *executionContext) fieldContext_JobResultList_items(_ context.Context, 
 				return ec.fieldContext_Job_numHWThreads(ctx, field)
 			case "numAcc":
 				return ec.fieldContext_Job_numAcc(ctx, field)
+			case "energy":
+				return ec.fieldContext_Job_energy(ctx, field)
 			case "SMT":
 				return ec.fieldContext_Job_SMT(ctx, field)
 			case "exclusive":
@@ -5538,6 +5817,8 @@ func (ec *executionContext) fieldContext_JobResultList_items(_ context.Context, 
 				return ec.fieldContext_Job_concurrentJobs(ctx, field)
 			case "footprint":
 				return ec.fieldContext_Job_footprint(ctx, field)
+			case "energyFootprint":
+				return ec.fieldContext_Job_energyFootprint(ctx, field)
 			case "metaData":
 				return ec.fieldContext_Job_metaData(ctx, field)
 			case "userData":
@@ -8480,6 +8761,8 @@ func (ec *executionContext) fieldContext_Query_job(ctx context.Context, field gr
 				return ec.fieldContext_Job_numHWThreads(ctx, field)
 			case "numAcc":
 				return ec.fieldContext_Job_numAcc(ctx, field)
+			case "energy":
+				return ec.fieldContext_Job_energy(ctx, field)
 			case "SMT":
 				return ec.fieldContext_Job_SMT(ctx, field)
 			case "exclusive":
@@ -8500,6 +8783,8 @@ func (ec *executionContext) fieldContext_Query_job(ctx context.Context, field gr
 				return ec.fieldContext_Job_concurrentJobs(ctx, field)
 			case "footprint":
 				return ec.fieldContext_Job_footprint(ctx, field)
+			case "energyFootprint":
+				return ec.fieldContext_Job_energyFootprint(ctx, field)
 			case "metaData":
 				return ec.fieldContext_Job_metaData(ctx, field)
 			case "userData":
@@ -13740,6 +14025,55 @@ func (ec *executionContext) _Count(ctx context.Context, sel ast.SelectionSet, ob
 	return out
 }
 
+var energyFootprintValueImplementors = []string{"EnergyFootprintValue"}
+
+func (ec *executionContext) _EnergyFootprintValue(ctx context.Context, sel ast.SelectionSet, obj *model.EnergyFootprintValue) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, energyFootprintValueImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("EnergyFootprintValue")
+		case "hardware":
+			out.Values[i] = ec._EnergyFootprintValue_hardware(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "metric":
+			out.Values[i] = ec._EnergyFootprintValue_metric(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "value":
+			out.Values[i] = ec._EnergyFootprintValue_value(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var footprintValueImplementors = []string{"FootprintValue"}
 
 func (ec *executionContext) _FootprintValue(ctx context.Context, sel ast.SelectionSet, obj *model.FootprintValue) graphql.Marshaler {
@@ -14048,6 +14382,11 @@ func (ec *executionContext) _Job(ctx context.Context, sel ast.SelectionSet, obj 
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "energy":
+			out.Values[i] = ec._Job_energy(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "SMT":
 			out.Values[i] = ec._Job_SMT(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -14162,6 +14501,39 @@ func (ec *executionContext) _Job(ctx context.Context, sel ast.SelectionSet, obj 
 					}
 				}()
 				res = ec._Job_footprint(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "energyFootprint":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Job_energyFootprint(ctx, field, obj)
 				return res
 			}
 
@@ -18118,6 +18490,54 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	}
 	res := graphql.MarshalBoolean(*v)
 	return res
+}
+
+func (ec *executionContext) marshalOEnergyFootprintValue2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐEnergyFootprintValue(ctx context.Context, sel ast.SelectionSet, v []*model.EnergyFootprintValue) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOEnergyFootprintValue2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐEnergyFootprintValue(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	return ret
+}
+
+func (ec *executionContext) marshalOEnergyFootprintValue2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐEnergyFootprintValue(ctx context.Context, sel ast.SelectionSet, v *model.EnergyFootprintValue) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._EnergyFootprintValue(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOFloat2float64(ctx context.Context, v interface{}) (float64, error) {

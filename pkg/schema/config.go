@@ -154,4 +154,8 @@ type ProgramConfig struct {
 
 	// Array of Clusters
 	Clusters []*ClusterConfig `json:"clusters"`
+
+	// Energy Mix CO2 Emission Constant [g/kWh]
+	// If entered, displays estimated CO2 emission for job based on jobs totalEnergy
+	EmissionConstant int `json:"emission-constant"`
 }

@@ -36,6 +36,7 @@
   import Metric from "./job/Metric.svelte";
   import StatsTable from "./job/StatsTable.svelte";
   import JobSummary from "./job/JobSummary.svelte";
+  import EnergySummary from "./job/EnergySummary.svelte";
   import ConcurrentJobs from "./generic/helper/ConcurrentJobs.svelte";
   import PlotTable from "./generic/PlotTable.svelte";
   import Roofline from "./generic/plots/Roofline.svelte";
@@ -70,7 +71,7 @@
   const { query: initq } = init(`
         job(id: "${dbid}") {
             id, jobId, user, project, cluster, startTime,
-            duration, numNodes, numHWThreads, numAcc,
+            duration, numNodes, numHWThreads, numAcc, energy,
             SMT, exclusive, partition, subCluster, arrayJobId,
             monitoringStatus, state, walltime,
             tags { id, type, scope, name },
@@ -78,7 +79,8 @@
             metaData,
             userData { name, email },
             concurrentJobs { items { id, jobId }, count, listQuery },
-            footprint { name, stat, value }
+            footprint { name, stat, value },
+            energyFootprint { hardware, metric, value }
         }
     `);
 
@@ -307,6 +309,14 @@
     {/if}
   </Col>
 </Row>
+
+{#if $initq?.data}
+  <Row class="mb-3">
+    <Col>
+      <EnergySummary job={$initq.data.job}/>
+    </Col>
+  </Row>
+{/if}
 
 <Card class="mb-3">
   <CardBody>

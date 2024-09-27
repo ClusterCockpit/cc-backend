@@ -78,6 +78,9 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 
 func setupJobRoute(i InfoType, r *http.Request) InfoType {
 	i["id"] = mux.Vars(r)["id"]
+	if config.Keys.EmissionConstant != 0 {
+		i["emission"] = config.Keys.EmissionConstant
+	}
 	return i
 }
 

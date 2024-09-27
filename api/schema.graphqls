@@ -18,6 +18,7 @@ type Job {
   numNodes:         Int!
   numHWThreads:     Int!
   numAcc:           Int!
+  energy:           Float!
   SMT:              Int!
   exclusive:        Int!
   partition:        String!
@@ -28,6 +29,7 @@ type Job {
   resources:        [Resource!]!
   concurrentJobs:   JobLinkResultList
   footprint:        [FootprintValue]
+  energyFootprint:  [EnergyFootprintValue]
   metaData:         Any
   userData:         User
 }
@@ -62,6 +64,12 @@ type SubCluster {
 type FootprintValue {
   name: String!
   stat: String!
+  value: Float!
+}
+
+type EnergyFootprintValue {
+  hardware: String!
+  metric: String!
   value: Float!
 }
 
