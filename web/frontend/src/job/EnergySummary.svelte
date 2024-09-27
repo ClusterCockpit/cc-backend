@@ -64,7 +64,7 @@
   <Tooltip
     target={`energy-footprint-${job.jobId}-carbon`}
     placement="top"
-  >Estimated emission based on supplier energy mix and total energy consumption.
+  >Estimated emission based on supplier energy mix ({carbonPerkWh} g/kWh) and total energy consumption.
   </Tooltip>
 {/if}
 
