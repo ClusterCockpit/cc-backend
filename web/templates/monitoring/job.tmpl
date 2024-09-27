@@ -15,6 +15,7 @@
         const authlevel = {{ .User.GetAuthLevel }};
         const roles = {{ .Roles }};
         const resampleConfig = {{ .Resampling }};
+        const emission = {{ .Infos.emission }}
     </script>
     <script src='/build/job.js'></script>
 {{end}}
