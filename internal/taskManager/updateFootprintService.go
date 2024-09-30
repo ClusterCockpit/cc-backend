@@ -74,14 +74,15 @@ func RegisterFootprintWorker() {
 								max = math.Max(max, series.Statistics.Max)
 							}
 
+							// Add values rounded to 2 digits
 							jobMeta.Statistics[metric] = schema.JobStatistics{
 								Unit: schema.Unit{
 									Prefix: archive.GetMetricConfig(job.Cluster, metric).Unit.Prefix,
 									Base:   archive.GetMetricConfig(job.Cluster, metric).Unit.Base,
 								},
-								Avg: avg / float64(job.NumNodes),
-								Min: min,
-								Max: max,
+								Avg: (math.Round((avg/float64(job.NumNodes))*100) / 100),
+								Min: (math.Round(min*100) / 100),
+								Max: (math.Round(max*100) / 100),
 							}
 						}
 
