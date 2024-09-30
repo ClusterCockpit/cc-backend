@@ -99,7 +99,7 @@ func (r *jobResolver) EnergyFootprint(ctx context.Context, obj *schema.Job) ([]*
 		case matchCore.MatchString(test):
 			hwType = "Core"
 		default:
-			hwType = "Hardware"
+			hwType = "Other"
 		}
 
 		res = append(res, &model.EnergyFootprintValue{
