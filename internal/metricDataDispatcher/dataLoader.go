@@ -139,11 +139,13 @@ func LoadData(job *schema.Job,
 		}
 
 		// FIXME: Review: Is this really necessary or correct.
-		// Note: Lines 142-170 formerly known as prepareJobData(jobData, scoeps)
+		// Note: Lines 147-170 formerly known as prepareJobData(jobData, scopes)
 		// For /monitoring/job/<job> and some other places, flops_any and mem_bw need
 		// to be available at the scope 'node'. If a job has a lot of nodes,
 		// statisticsSeries should be available so that a min/median/max Graph can be
 		// used instead of a lot of single lines.
+		// NOTE: New StatsSeries will always be calculated as 'min/median/max'
+		//       Existing (archived) StatsSeries can be 'min/mean/max'!
 		const maxSeriesSize int = 15
 		for _, scopes := range jd {
 			for _, jm := range scopes {

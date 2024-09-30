@@ -133,8 +133,8 @@
   export let zoomState = null;
 
   if (useStatsSeries == null) useStatsSeries = statisticsSeries != null;
-
   if (useStatsSeries == false && series == null) useStatsSeries = true;
+  const usesMeanStatsSeries = (useStatsSeries && statisticsSeries.mean.length != 0)
 
   const dispatch = createEventDispatcher();
   const subClusterTopology = getContext("getHardwareTopology")(cluster, subCluster);
@@ -278,7 +278,7 @@
   }
 
   const longestSeries = useStatsSeries
-    ? statisticsSeries.median.length
+    ? (usesMeanStatsSeries ? statisticsSeries.mean.length : statisticsSeries.median.length)
     : series.reduce((n, series) => Math.max(n, series.data.length), 0);
   const maxX = longestSeries * timestep;
   let maxY = null;
@@ -327,7 +327,11 @@
   if (useStatsSeries) {
     plotData.push(statisticsSeries.min);
     plotData.push(statisticsSeries.max);
-    plotData.push(statisticsSeries.median);
+    if (usesMeanStatsSeries) {
+      plotData.push(statisticsSeries.mean);
+    } else {
+      plotData.push(statisticsSeries.median);
+    }
 
     /* deprecated: sparse data handled by uplot */
     // if (forNode === true) {
@@ -426,7 +430,7 @@
           // Draw plot type label:
           let textl = `${scope}${plotSeries.length > 2 ? "s" : ""}${
             useStatsSeries
-              ? ": min/median/max"
+              ? (usesMeanStatsSeries ? ": min/mean/max" : ": min/median/max")
               : metricConfig != null && scope != metricConfig.scope
                 ? ` (${metricConfig.aggregation})`
                 : ""

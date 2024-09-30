@@ -53,6 +53,7 @@
           timestep
           statisticsSeries {
             min
+            mean
             median
             max
           }

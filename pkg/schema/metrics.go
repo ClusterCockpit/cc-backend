@@ -123,6 +123,7 @@ func (jd *JobData) Size() int {
 		for _, metric := range scopes {
 			if metric.StatisticsSeries != nil {
 				n += len(metric.StatisticsSeries.Max)
+				n += len(metric.StatisticsSeries.Mean)
 				n += len(metric.StatisticsSeries.Median)
 				n += len(metric.StatisticsSeries.Min)
 			}
