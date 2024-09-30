@@ -67,6 +67,7 @@ CREATE INDEX IF NOT EXISTS jobs_arrayjobid_starttime ON job (array_job_id, start
 CREATE INDEX IF NOT EXISTS jobs_cluster_arrayjobid_starttime ON job (cluster, array_job_id, start_time);
 
 CREATE INDEX IF NOT EXISTS jobs_starttime ON job (start_time);
+CREATE INDEX IF NOT EXISTS jobs_energy ON job (energy);
 CREATE INDEX IF NOT EXISTS jobs_duration ON job (duration);
 CREATE INDEX IF NOT EXISTS jobs_numnodes ON job (num_nodes);
 CREATE INDEX IF NOT EXISTS jobs_numhwthreads ON job (num_hwthreads);
