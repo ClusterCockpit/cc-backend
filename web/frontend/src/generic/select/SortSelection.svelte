@@ -36,6 +36,7 @@
       { field: "numNodes", type: "col", text: "Number of Nodes", order: "DESC" },
       { field: "numHwthreads", type: "col", text: "Number of HWThreads", order: "DESC" },
       { field: "numAcc", type: "col", text: "Number of Accelerators", order: "DESC" },
+      { field: "energy", type: "col", text: "Total Energy", order: "DESC" },
       ...getSortItems()
     ]
   }
