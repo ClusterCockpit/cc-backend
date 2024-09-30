@@ -310,10 +310,10 @@
   </Col>
 </Row>
 
-{#if $initq?.data}
+{#if $initq?.data && $initq.data.job.energyFootprint.length != 0}
   <Row class="mb-3">
     <Col>
-      <EnergySummary job={$initq.data.job}/>
+      <EnergySummary jobId={$initq.data.job.jobId} jobEnergy={$initq.data.job.energy} jobEnergyFootprint={$initq.data.job.energyFootprint}/>
     </Col>
   </Row>
 {/if}
