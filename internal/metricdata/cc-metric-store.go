@@ -85,7 +85,7 @@ func (ccms *CCMetricStore) Init(rawConfig json.RawMessage) error {
 	}
 
 	ccms.url = config.Url
-	ccms.queryEndpoint = fmt.Sprintf("%s/api/query/", config.Url)
+	ccms.queryEndpoint = fmt.Sprintf("%s/api/query", config.Url)
 	ccms.jwt = config.Token
 	ccms.client = http.Client{
 		Timeout: 10 * time.Second,
