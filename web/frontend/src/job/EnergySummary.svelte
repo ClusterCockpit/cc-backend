@@ -29,8 +29,8 @@
   let carbonMass;
 
   $: if (carbonPerkWh) {
-    // (( Wh / 1000 )* g/kWh) / 1000 = kg || Rounded to 2 Digits via [ round(x * 100) / 100 ]
-    carbonMass = round( (((jobEnergy ? jobEnergy : 0.0) / 1000 ) * carbonPerkWh) / 10 ) / 100;
+    // ( kWh * g/kWh) / 1000 = kg || Rounded to 2 Digits via [ round(x * 100) / 100 ]
+    carbonMass = round( ((jobEnergy ? jobEnergy : 0.0) * carbonPerkWh) / 10 ) / 100;
   }
 </script>
 
@@ -54,7 +54,7 @@
             <Icon name="plug-fill" style="font-size: 1.5rem;"/>
           </div>
           <hr class="mt-0 mb-1"/>
-          <div class="mr-2"><b>{efp.hardware}:</b> {efp.value} Wh (<i>{efp.metric}</i>)</div>
+          <div class="mr-2"><b>{efp.hardware}:</b> {efp.value} kWh (<i>{efp.metric}</i>)</div>
         </Col>
         <Tooltip
           target={`energy-footprint-${jobId}-${efp.hardware}`}
@@ -67,7 +67,7 @@
           <Icon name="lightning-charge-fill" style="font-size: 1.5rem;"/>
         </div>
         <hr class="mt-0 mb-1"/>
-        <div><b>Total Energy:</b> {jobEnergy? jobEnergy : 0} Wh</div>
+        <div><b>Total Energy:</b> {jobEnergy? jobEnergy : 0} kWh</div>
       </Col>
       {#if carbonPerkWh}
         <Col class="text-center cursor-help" id={`energy-footprint-${jobId}-carbon`}>

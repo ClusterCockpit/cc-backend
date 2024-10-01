@@ -603,12 +603,13 @@ func (r *JobRepository) UpdateEnergy(
 
 	for _, fp := range sc.EnergyFootprint {
 		if i, err := archive.MetricIndex(sc.MetricConfig, fp); err == nil {
-			// FIXME: Check for unit conversions
-			// Energy: Watts * Time // Power: Energy / Time  -> Correct labelling here?
-			if sc.MetricConfig[i].Energy == "power" {
-				// Unit: ( W * s ) / 3600 = Wh ; Rounded to 2 nearest digits
-				energy = math.Round(((LoadJobStat(jobMeta, fp, "avg")*float64(jobMeta.Duration))/3600)*100) / 100
-			} else if sc.MetricConfig[i].Energy == "energy" {
+			// Note: For DB data, calculate and save as kWh
+			// Energy: Power (in Watts) * Time (in Seconds)
+			if sc.MetricConfig[i].Energy == "energy" {
+				// Unit: ( W * s ) / 3600 / 1000 = kWh ; Rounded to 2 nearest digits
+				energy = math.Round(((LoadJobStat(jobMeta, fp, "avg")*float64(jobMeta.Duration))/3600/1000)*100) / 100
+				// Power: Use directly as sum (Or as: [Energy (in Ws) / Time (in s)]
+			} else if sc.MetricConfig[i].Energy == "power" {
 				// This assumes the metric is of aggregation type sum
 			}
 		} else {
