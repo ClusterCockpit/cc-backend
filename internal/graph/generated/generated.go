@@ -2153,6 +2153,7 @@ input JobFilter {
   cluster:     StringInput
   partition:   StringInput
   duration:    IntRange
+  energy:      FloatRange
 
   minRunningFor: Int
 
@@ -13452,7 +13453,7 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"tags", "jobId", "arrayJobId", "user", "project", "jobName", "cluster", "partition", "duration", "minRunningFor", "numNodes", "numAccelerators", "numHWThreads", "startTime", "state", "metricStats", "exclusive", "node"}
+	fieldsInOrder := [...]string{"tags", "jobId", "arrayJobId", "user", "project", "jobName", "cluster", "partition", "duration", "energy", "minRunningFor", "numNodes", "numAccelerators", "numHWThreads", "startTime", "state", "metricStats", "exclusive", "node"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13522,6 +13523,13 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj int
 				return it, err
 			}
 			it.Duration = data
+		case "energy":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("energy"))
+			data, err := ec.unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFloatRange(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Energy = data
 		case "minRunningFor":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("minRunningFor"))
 			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
@@ -18548,6 +18556,14 @@ func (ec *executionContext) unmarshalOFloat2float64(ctx context.Context, v inter
 func (ec *executionContext) marshalOFloat2float64(ctx context.Context, sel ast.SelectionSet, v float64) graphql.Marshaler {
 	res := graphql.MarshalFloatContext(v)
 	return graphql.WrapContextMarshaler(ctx, res)
+}
+
+func (ec *executionContext) unmarshalOFloatRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFloatRange(ctx context.Context, v interface{}) (*model.FloatRange, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputFloatRange(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalOFootprintValue2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐFootprintValue(ctx context.Context, sel ast.SelectionSet, v []*model.FootprintValue) graphql.Marshaler {

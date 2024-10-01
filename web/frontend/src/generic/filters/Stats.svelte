@@ -55,7 +55,7 @@
 </script>
 
 <Modal {isOpen} toggle={() => (isOpen = !isOpen)}>
-  <ModalHeader>Filter based on statistics (of non-running jobs)</ModalHeader>
+  <ModalHeader>Filter based on statistics</ModalHeader>
   <ModalBody>
     {#each statistics as stat}
       <h4>{stat.text}</h4>

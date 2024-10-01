@@ -192,6 +192,9 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	if filter.Node != nil {
 		query = buildStringCondition("job.resources", filter.Node, query)
 	}
+	if filter.Energy != nil {
+		query = buildFloatCondition("job.energy", filter.Energy, query)
+	}
 	if filter.MetricStats != nil {
 		for _, ms := range filter.MetricStats {
 			query = buildFloatJsonCondition(ms.MetricName, ms.Range, query)
@@ -201,6 +204,10 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 }
 
 func buildIntCondition(field string, cond *schema.IntRange, query sq.SelectBuilder) sq.SelectBuilder {
+	return query.Where(field+" BETWEEN ? AND ?", cond.From, cond.To)
+}
+
+func buildFloatCondition(field string, cond *model.FloatRange, query sq.SelectBuilder) sq.SelectBuilder {
 	return query.Where(field+" BETWEEN ? AND ?", cond.From, cond.To)
 }
 

@@ -32,6 +32,7 @@
   import StartTime from "./filters/StartTime.svelte";
   import Tags from "./filters/Tags.svelte";
   import Duration from "./filters/Duration.svelte";
+  import Energy from "./filters/Energy.svelte";
   import Resources from "./filters/Resources.svelte";
   import Statistics from "./filters/Stats.svelte";
 
@@ -68,6 +69,7 @@
     jobName: filterPresets.jobName || "",
 
     node: filterPresets.node || null,
+    energy: filterPresets.energy || { from: null, to: null },
     numNodes: filterPresets.numNodes || { from: null, to: null },
     numHWThreads: filterPresets.numHWThreads || { from: null, to: null },
     numAccelerators: filterPresets.numAccelerators || { from: null, to: null },
@@ -80,6 +82,7 @@
     isStartTimeOpen = false,
     isTagsOpen = false,
     isDurationOpen = false,
+    isEnergyOpen = false,
     isResourcesOpen = false,
     isStatsOpen = false,
     isNodesModified = false,
@@ -110,6 +113,10 @@
       items.push({ duration: { from: 0, to: filters.duration.lessThan } });
     if (filters.duration.moreThan)
       items.push({ duration: { from: filters.duration.moreThan, to: 604800 } }); // 7 days to include special jobs with long runtimes
+    if (filters.energy.from || filters.energy.to)
+      items.push({
+        energy: { from: filters.energy.from, to: filters.energy.to },
+      });
     if (filters.jobId)
       items.push({ jobId: { [filters.jobIdMatch]: filters.jobId } });
     if (filters.arrayJobId != null)
@@ -181,6 +188,8 @@
       opts.push(`duration=0-${filters.duration.lessThan}`);
     if (filters.duration.moreThan)
       opts.push(`duration=${filters.duration.moreThan}-604800`);
+    if (filters.energy.from && filters.energy.to)
+      opts.push(`energy=${filters.energy.from}-${filters.energy.to}`);
     if (filters.numNodes.from && filters.numNodes.to)
       opts.push(`numNodes=${filters.numNodes.from}-${filters.numNodes.to}`);
     if (filters.numAccelerators.from && filters.numAccelerators.to)
@@ -238,6 +247,9 @@
         </DropdownItem>
         <DropdownItem on:click={() => (isResourcesOpen = true)}>
           <Icon name="hdd-stack" /> Resources
+        </DropdownItem>
+        <DropdownItem on:click={() => (isEnergyOpen = true)}>
+          <Icon name="lightning-charge-fill" /> Energy
         </DropdownItem>
         <DropdownItem on:click={() => (isStatsOpen = true)}>
           <Icon name="bar-chart" on:click={() => (isStatsOpen = true)} /> Statistics
@@ -354,6 +366,12 @@
       </Info>
     {/if}
 
+    {#if filters.energy.from || filters.energy.to}
+      <Info icon="lightning-charge-fill" on:click={() => (isEnergyOpen = true)}>
+        Total Energy: {filters.energy.from} - {filters.energy.to}
+      </Info>
+    {/if}
+
     {#if filters.stats.length > 0}
       <Info icon="bar-chart" on:click={() => (isStatsOpen = true)}>
         {filters.stats
@@ -420,6 +438,12 @@
 <Statistics
   bind:isOpen={isStatsOpen}
   bind:stats={filters.stats}
+  on:set-filter={() => updateFilters()}
+/>
+
+<Energy
+  bind:isOpen={isEnergyOpen}
+  bind:energy={filters.energy}
   on:set-filter={() => updateFilters()}
 />
 

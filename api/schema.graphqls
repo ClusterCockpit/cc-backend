@@ -265,6 +265,7 @@ input JobFilter {
   cluster:     StringInput
   partition:   StringInput
   duration:    IntRange
+  energy:      FloatRange
 
   minRunningFor: Int
 

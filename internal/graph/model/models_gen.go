@@ -58,6 +58,7 @@ type JobFilter struct {
 	Cluster         *StringInput      `json:"cluster,omitempty"`
 	Partition       *StringInput      `json:"partition,omitempty"`
 	Duration        *schema.IntRange  `json:"duration,omitempty"`
+	Energy          *FloatRange       `json:"energy,omitempty"`
 	MinRunningFor   *int              `json:"minRunningFor,omitempty"`
 	NumNodes        *schema.IntRange  `json:"numNodes,omitempty"`
 	NumAccelerators *schema.IntRange  `json:"numAccelerators,omitempty"`
