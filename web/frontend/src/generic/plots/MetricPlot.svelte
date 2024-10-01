@@ -355,7 +355,7 @@
       stroke: "green",
     });
     plotSeries.push({
-      label: "median",
+      label: usesMeanStatsSeries ? "mean" : "median",
       scale: "y",
       width: lineWidth,
       stroke: "black",
