@@ -18,6 +18,9 @@
     Button,
     InputGroupText,
     Container,
+    Dropdown,
+    DropdownToggle,
+    DropdownMenu,
     Row,
     Col,
   } from "@sveltestrap/sveltestrap";
@@ -30,29 +33,49 @@
 
 <Nav navbar>
   {#if screenSize >= 768}
-    <NavItem>
-      <form method="GET" action="/search">
-        <InputGroup>
-          <Input
-            type="text"
-            placeholder="Search 'type:<query>' ..."
-            name="searchId"
-            style="margin-left: 10px;"
-          />
-          <!-- bootstrap classes w/o effect -->
-          <Button outline type="submit" title="Search"
-            ><Icon name="search" /></Button
-          >
-          <InputGroupText
-            style="cursor:help;"
-            title={authlevel >= roles.support
-              ? "Example: 'projectId:a100cd', Types are: jobId | jobName | projectId | arrayJobId | username | name"
-              : "Example: 'jobName:myjob', Types are jobId | jobName | projectId | arrayJobId "}
-            ><Icon name="info-circle" /></InputGroupText
-          >
-        </InputGroup>
-      </form>
-    </NavItem>
+    {#if screenSize <= 992}
+      <NavItem>
+        <form method="GET" action="/search">
+          <Dropdown >
+            <DropdownToggle outline color="secondary"><Icon name="search" /> Search</DropdownToggle>
+            <DropdownMenu style="width:200px;">
+              <InputGroup>
+                <Input
+                  type="search"
+                  placeholder="type:<query> ..."
+                  name="searchId"
+                  class="mx-2"
+                />
+              </InputGroup>
+            </DropdownMenu>
+          </Dropdown>
+        </form>
+      </NavItem>
+    {:else}
+      <NavItem>
+        <form method="GET" action="/search">
+          <InputGroup>
+            <Input
+              type="search"
+              placeholder="Search 'type:<query>' ..."
+              name="searchId"
+              style="margin-left: 10px;"
+            />
+            <!-- bootstrap classes w/o effect -->
+            <Button outline type="submit" title="Search"
+              ><Icon name="search" /></Button
+            >
+            <InputGroupText
+              style="cursor:help;"
+              title={authlevel >= roles.support
+                ? "Example: 'projectId:a100cd', Types are: jobId | jobName | projectId | arrayJobId | username | name"
+                : "Example: 'jobName:myjob', Types are jobId | jobName | projectId | arrayJobId "}
+              ><Icon name="info-circle" /></InputGroupText
+            >
+          </InputGroup>
+        </form>
+      </NavItem>
+    {/if}
     <NavItem>
       <a
         href="https://www.clustercockpit.org/docs/webinterface/"
