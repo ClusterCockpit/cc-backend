@@ -130,7 +130,7 @@
   $: loadUnits($initialized)
 </script>
 
-<Row>
+<Row cols={{ xs: 2, lg: 4 }}>
   {#if $initq.error}
     <Card body color="danger">{$initq.error.message}</Card>
   {:else if $initq.fetching}
@@ -149,7 +149,7 @@
       <TimeSelection bind:from bind:to />
     </Col>
     <!-- Concurrent Col -->
-    <Col>
+    <Col class="mt-2 mt-lg-0">
       {#if $nodeJobsData.fetching}
         <Spinner />
       {:else if $nodeJobsData.data}
@@ -168,7 +168,7 @@
       {/if}
     </Col>
     <!-- Refresh Col-->
-    <Col>
+    <Col class="mt-2 mt-lg-0">
       <Refresher
         on:refresh={() => {
           const diff = Date.now() - to;

@@ -111,7 +111,7 @@
 
 </script>
 
-<Row>
+<Row cols={{ xs: 2, lg: 4 }}>
   {#if $initq.error}
     <Card body color="danger">{$initq.error.message}</Card>
   {:else if $initq.fetching}
@@ -134,7 +134,7 @@
       <TimeSelection bind:from bind:to />
     </Col>
     <!-- Metric Col-->
-    <Col>
+    <Col class="mt-2 mt-lg-0">
       <InputGroup>
         <InputGroupText><Icon name="graph-up" /></InputGroupText>
         <InputGroupText>Metric</InputGroupText>
@@ -148,7 +148,7 @@
       </InputGroup>
     </Col>
     <!-- Refresh Col-->
-    <Col>
+    <Col class="mt-2 mt-lg-0">
       <Refresher
         on:refresh={() => {
           const diff = Date.now() - to;
