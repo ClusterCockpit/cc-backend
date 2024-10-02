@@ -9,7 +9,7 @@
  -->
 <script>
   import { createEventDispatcher } from "svelte";
-  import { Button, Icon, InputGroup } from "@sveltestrap/sveltestrap";
+  import { Button, Icon, Input, InputGroup } from "@sveltestrap/sveltestrap";
 
   const dispatch = createEventDispatcher();
 
@@ -32,15 +32,8 @@
 </script>
 
 <InputGroup>
-  <Button
-    outline
-    on:click={() => dispatch("refresh")}
-    disabled={refreshInterval != null}
-  >
-    <Icon name="arrow-clockwise" /> Refresh
-  </Button>
-  <select
-    class="form-select"
+  <Input
+    type="select"
     bind:value={refreshInterval}
     on:change={refreshIntervalChanged}
   >
@@ -49,6 +42,13 @@
     <option value={60 * 1000}>Update every minute</option>
     <option value={2 * 60 * 1000}>Update every two minutes</option>
     <option value={5 * 60 * 1000}>Update every 5 minutes</option>
-  </select>
+  </Input>
+  <Button
+    outline
+    on:click={() => dispatch("refresh")}
+    disabled={refreshInterval != null}
+    >
+    <Icon name="arrow-clockwise" /> Refresh
+  </Button>
 </InputGroup>
 

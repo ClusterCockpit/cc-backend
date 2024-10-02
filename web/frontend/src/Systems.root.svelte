@@ -42,7 +42,7 @@
   if (from == null || to == null) {
     to = new Date(Date.now());
     from = new Date(to.getTime());
-    from.setMinutes(from.getMinutes() - 30);
+    from.setHours(from.getHours() - 12);
   }
 
   const initialized = getContext("initialized");
@@ -117,18 +117,23 @@
   {:else if $initq.fetching}
     <Spinner />
   {:else}
+    <!-- Node Col-->
     <Col>
-      <Refresher
-        on:refresh={() => {
-          const diff = Date.now() - to;
-          from = new Date(from.getTime() + diff);
-          to = new Date(to.getTime() + diff);
-        }}
-      />
+      <InputGroup>
+        <InputGroupText><Icon name="hdd" /></InputGroupText>
+        <InputGroupText>Find Node</InputGroupText>
+        <Input
+          placeholder="hostname..."
+          type="text"
+          bind:value={hostnameFilter}
+        />
+      </InputGroup>
     </Col>
+    <!-- Range Col-->
     <Col>
       <TimeSelection bind:from bind:to />
     </Col>
+    <!-- Metric Col-->
     <Col>
       <InputGroup>
         <InputGroupText><Icon name="graph-up" /></InputGroupText>
@@ -142,16 +147,15 @@
         </select>
       </InputGroup>
     </Col>
+    <!-- Refresh Col-->
     <Col>
-      <InputGroup>
-        <InputGroupText><Icon name="hdd" /></InputGroupText>
-        <InputGroupText>Find Node</InputGroupText>
-        <Input
-          placeholder="hostname..."
-          type="text"
-          bind:value={hostnameFilter}
-        />
-      </InputGroup>
+      <Refresher
+        on:refresh={() => {
+          const diff = Date.now() - to;
+          from = new Date(from.getTime() + diff);
+          to = new Date(to.getTime() + diff);
+        }}
+      />
     </Col>
   {/if}
 </Row>
