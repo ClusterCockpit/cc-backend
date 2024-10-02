@@ -46,8 +46,8 @@
             return;
 
         const [minX, minY] = [0., 0.];
-        let maxX = X.reduce((maxX, x) => Math.max(maxX, x), minX);
-        let maxY = Y.reduce((maxY, y) => Math.max(maxY, y), minY);
+        let maxX = X ? X.reduce((maxX, x) => Math.max(maxX, x), minX) : 1.0;
+        let maxY = Y ? Y.reduce((maxY, y) => Math.max(maxY, y), minY) : 1.0;
         const w = width - paddingLeft - paddingRight;
         const h = height - paddingTop - paddingBottom;
 
@@ -68,24 +68,26 @@
 
         // Draw Data
         let size = 3
-        if (S) {
+        if (S && X && Y) {
             let max = S.reduce((max, s, i) => (X[i] == null || Y[i] == null || Number.isNaN(X[i]) || Number.isNaN(Y[i])) ? max : Math.max(max, s), 0)
             size = (w / 15) / max
         }
 
         ctx.fillStyle = color;
-        for (let i = 0; i < X.length; i++) {
-            let x = X[i], y = Y[i];
-            if (x == null || y == null || Number.isNaN(x) || Number.isNaN(y))
-                continue;
+        if (X?.length > 0) {
+            for (let i = 0; i < X.length; i++) {
+                let x = X[i], y = Y[i];
+                if (x == null || y == null || Number.isNaN(x) || Number.isNaN(y))
+                    continue;
 
-            const s = S ? S[i] * size : size;
-            const px = getCanvasX(x);
-            const py = getCanvasY(y);
+                const s = S ? S[i] * size : size;
+                const px = getCanvasX(x);
+                const py = getCanvasY(y);
 
-            ctx.beginPath();
-            ctx.arc(px, py, s, 0, Math.PI * 2, false);
-            ctx.fill();
+                ctx.beginPath();
+                ctx.arc(px, py, s, 0, Math.PI * 2, false);
+                ctx.fill();
+            }
         }
 
         // Axes

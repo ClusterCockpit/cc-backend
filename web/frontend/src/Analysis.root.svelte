@@ -28,7 +28,7 @@
   } from "./generic/utils.js";
   import PlotSelection from "./analysis/PlotSelection.svelte";
   import Filters from "./generic/Filters.svelte";
-  import PlotTable from "./generic/PlotTable.svelte";
+  import PlotGrid from "./generic/PlotGrid.svelte";
   import Histogram from "./generic/plots/Histogram.svelte";
   import Pie, { colors } from "./generic/plots/Pie.svelte";
   import ScatterPlot from "./generic/plots/Scatter.svelte";
@@ -69,6 +69,8 @@
   $: metrics = [
     ...new Set([...metricsInHistograms, ...metricsInScatterplots.flat()]),
   ];
+
+  $: console.log(">>> CLUSTER", cluster)
 
   const sortOptions = [
     { key: "totalWalltime", label: "Walltime" },
@@ -523,7 +525,7 @@
   </Row>
   <Row>
     <Col>
-      <PlotTable
+      <PlotGrid
         let:item
         let:width
         renderFor="analysis"
@@ -551,7 +553,7 @@
           ylabel="Normalized Hours"
           yunit="Hours"
         />
-      </PlotTable>
+      </PlotGrid>
     </Col>
   </Row>
   <br />
@@ -569,7 +571,7 @@
   </Row>
   <Row>
     <Col>
-      <PlotTable
+      <PlotGrid
         let:item
         let:width
         renderFor="analysis"
@@ -595,7 +597,7 @@
           Y={item.f2}
           S={$footprintsQuery.data.footprints.timeWeights.nodeHours}
         />
-      </PlotTable>
+      </PlotGrid>
     </Col>
   </Row>
 {/if}

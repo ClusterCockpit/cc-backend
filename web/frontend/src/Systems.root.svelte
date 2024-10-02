@@ -28,7 +28,7 @@
     init,
     checkMetricDisabled,
   } from "./generic/utils.js";
-  import PlotTable from "./generic/PlotTable.svelte";
+  import PlotGrid from "./generic/PlotGrid.svelte";
   import MetricPlot from "./generic/plots/MetricPlot.svelte";
   import TimeSelection from "./generic/select/TimeSelection.svelte";
   import Refresher from "./generic/helper/Refresher.svelte";
@@ -160,73 +160,77 @@
   {/if}
 </Row>
 <br />
-<Row>
-  <Col>
-    {#if $nodesQuery.error}
+{#if $nodesQuery.error}
+  <Row>
+    <Col>
       <Card body color="danger">{$nodesQuery.error.message}</Card>
-    {:else if $nodesQuery.fetching || $initq.fetching}
+    </Col>
+  </Row>
+{:else if $nodesQuery.fetching || $initq.fetching}
+  <Row>
+    <Col>
       <Spinner />
-    {:else}
-      <PlotTable
-        let:item
-        let:width
-        renderFor="systems"
-        itemsPerRow={ccconfig.plot_view_plotsPerRow}
-        items={$nodesQuery.data.nodeMetrics
-          .filter(
-            (h) =>
-              h.host.includes(hostnameFilter) &&
-              h.metrics.some(
-                (m) => m.name == selectedMetric && m.scope == "node",
-              ),
-          )
-          .map((h) => ({
-            host: h.host,
-            subCluster: h.subCluster,
-            data: h.metrics.find(
-              (m) => m.name == selectedMetric && m.scope == "node",
-            ),
-            disabled: checkMetricDisabled(
-              selectedMetric,
-              cluster,
-              h.subCluster,
-            ),
-          }))
-          .sort((a, b) => a.host.localeCompare(b.host))}
+    </Col>
+  </Row>
+{:else}
+  <PlotGrid
+    let:item
+    let:width
+    renderFor="systems"
+    itemsPerRow={ccconfig.plot_view_plotsPerRow}
+    items={$nodesQuery.data.nodeMetrics
+      .filter(
+        (h) =>
+          h.host.includes(hostnameFilter) &&
+          h.metrics.some(
+            (m) => m.name == selectedMetric && m.scope == "node",
+          ),
+      )
+      .map((h) => ({
+        host: h.host,
+        subCluster: h.subCluster,
+        data: h.metrics.find(
+          (m) => m.name == selectedMetric && m.scope == "node",
+        ),
+        disabled: checkMetricDisabled(
+          selectedMetric,
+          cluster,
+          h.subCluster,
+        ),
+      }))
+      .sort((a, b) => a.host.localeCompare(b.host))}
+  >
+    <h4 style="width: 100%; text-align: center;">
+      <a
+        style="display: block;padding-top: 15px;"
+        href="/monitoring/node/{cluster}/{item.host}"
+        >{item.host} ({item.subCluster})</a
       >
-        <h4 style="width: 100%; text-align: center;">
-          <a
-            style="display: block;padding-top: 15px;"
-            href="/monitoring/node/{cluster}/{item.host}"
-            >{item.host} ({item.subCluster})</a
-          >
-        </h4>
-        {#if item.disabled === false && item.data}
-          <MetricPlot
-            {width}
-            height={plotHeight}
-            timestep={item.data.metric.timestep}
-            series={item.data.metric.series}
-            metric={item.data.name}
-            cluster={clusters.find((c) => c.name == cluster)}
-            subCluster={item.subCluster}
-            forNode={true}
-          />
-        {:else if item.disabled === true && item.data}
-          <Card style="margin-left: 2rem;margin-right: 2rem;" body color="info"
-            >Metric disabled for subcluster <code
-              >{selectedMetric}:{item.subCluster}</code
-            ></Card
-          >
-        {:else}
-          <Card
-            style="margin-left: 2rem;margin-right: 2rem;"
-            body
-            color="warning"
-            >No dataset returned for <code>{selectedMetric}</code></Card
-          >
-        {/if}
-      </PlotTable>
+    </h4>
+    {#if item.disabled === false && item.data}
+      <MetricPlot
+        {width}
+        height={plotHeight}
+        timestep={item.data.metric.timestep}
+        series={item.data.metric.series}
+        metric={item.data.name}
+        cluster={clusters.find((c) => c.name == cluster)}
+        subCluster={item.subCluster}
+        forNode={true}
+      />
+    {:else if item.disabled === true && item.data}
+      <Card style="margin-left: 2rem;margin-right: 2rem;" body color="info"
+        >Metric disabled for subcluster <code
+          >{selectedMetric}:{item.subCluster}</code
+        ></Card
+      >
+    {:else}
+      <Card
+        style="margin-left: 2rem;margin-right: 2rem;"
+        body
+        color="warning"
+        >No dataset returned for <code>{selectedMetric}</code></Card
+      >
     {/if}
-  </Col>
-</Row>
+  </PlotGrid>
+{/if}

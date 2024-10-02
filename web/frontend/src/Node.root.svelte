@@ -29,7 +29,7 @@
     init,
     checkMetricDisabled,
   } from "./generic/utils.js";
-  import PlotTable from "./generic/PlotTable.svelte";
+  import PlotGrid from "./generic/PlotGrid.svelte";
   import MetricPlot from "./generic/plots/MetricPlot.svelte";
   import TimeSelection from "./generic/select/TimeSelection.svelte";
   import Refresher from "./generic/helper/Refresher.svelte";
@@ -187,7 +187,7 @@
     {:else if $nodeMetricsData.fetching || $initq.fetching}
       <Spinner />
     {:else}
-      <PlotTable
+      <PlotGrid
         let:item
         let:width
         renderFor="node"
@@ -233,7 +233,7 @@
             >No dataset returned for <code>{item.name}</code></Card
           >
         {/if}
-      </PlotTable>
+      </PlotGrid>
     {/if}
   </Col>
 </Row>

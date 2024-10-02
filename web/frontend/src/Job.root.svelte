@@ -38,7 +38,7 @@
   import JobSummary from "./job/JobSummary.svelte";
   import EnergySummary from "./job/EnergySummary.svelte";
   import ConcurrentJobs from "./generic/helper/ConcurrentJobs.svelte";
-  import PlotTable from "./generic/PlotTable.svelte";
+  import PlotGrid from "./generic/PlotGrid.svelte";
   import Roofline from "./generic/plots/Roofline.svelte";
   import JobInfo from "./generic/joblist/JobInfo.svelte";
   import MetricSelection from "./generic/select/MetricSelection.svelte";
@@ -330,50 +330,55 @@
         </Col>
       {/if}
     </Row>
-    <hr/>
-    <Row>
-      <Col>
-        {#if $jobMetrics.error}
+    <hr class="mb-2"/>
+
+    {#if $jobMetrics.error}
+      <Row class="mt-2">
+        <Col>
           {#if $initq.data.job.monitoringStatus == 0 || $initq.data.job.monitoringStatus == 2}
             <Card body color="warning">Not monitored or archiving failed</Card>
             <br />
           {/if}
           <Card body color="danger">{$jobMetrics.error.message}</Card>
-        {:else if $jobMetrics.fetching}
+        </Col>
+      </Row>
+    {:else if $jobMetrics.fetching}
+      <Row class="mt-2">
+        <Col>
           <Spinner secondary />
-        {:else if $initq?.data && $jobMetrics?.data?.jobMetrics}
-          <PlotTable
-            let:item
-            let:width
-            renderFor="job"
-            items={orderAndMap(
-              groupByScope($jobMetrics.data.jobMetrics),
-              selectedMetrics,
-            )}
-            itemsPerRow={ccconfig.plot_view_plotsPerRow}
+        </Col>
+      </Row>
+    {:else if $initq?.data && $jobMetrics?.data?.jobMetrics}
+      <PlotGrid
+        let:item
+        let:width
+        renderFor="job"
+        items={orderAndMap(
+          groupByScope($jobMetrics.data.jobMetrics),
+          selectedMetrics,
+        )}
+        itemsPerRow={ccconfig.plot_view_plotsPerRow}
+      >
+        {#if item.data}
+          <Metric
+            bind:this={plots[item.metric]}
+            on:more-loaded={({ detail }) => statsTable.moreLoaded(detail)}
+            job={$initq.data.job}
+            metricName={item.metric}
+            metricUnit={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.unit}
+            nativeScope={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.scope}
+            rawData={item.data.map((x) => x.metric)}
+            scopes={item.data.map((x) => x.scope)}
+            {width}
+            isShared={$initq.data.job.exclusive != 1}
+          />
+        {:else}
+          <Card body color="warning" class="mt-2"
+            >No dataset returned for <code>{item.metric}</code></Card
           >
-            {#if item.data}
-              <Metric
-                bind:this={plots[item.metric]}
-                on:more-loaded={({ detail }) => statsTable.moreLoaded(detail)}
-                job={$initq.data.job}
-                metricName={item.metric}
-                metricUnit={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.unit}
-                nativeScope={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.scope}
-                rawData={item.data.map((x) => x.metric)}
-                scopes={item.data.map((x) => x.scope)}
-                {width}
-                isShared={$initq.data.job.exclusive != 1}
-              />
-            {:else}
-              <Card body color="warning"
-                >No dataset returned for <code>{item.metric}</code></Card
-              >
-            {/if}
-          </PlotTable>
         {/if}
-      </Col>
-    </Row>
+      </PlotGrid>
+    {/if}
   </CardBody>
 </Card>
 

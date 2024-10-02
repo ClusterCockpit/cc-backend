@@ -171,7 +171,7 @@
   );
 </script>
 
-<InputGroup>
+<InputGroup class="mt-2">
   <InputGroupText style="min-width: 150px;">
     {metricName} ({unit})
   </InputGroupText>

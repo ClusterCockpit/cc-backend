@@ -549,6 +549,10 @@
 
   onMount(() => {
     if (series[0].data.length > 0) {
+      if (forNode) {
+        plotWrapper.style.paddingTop = "0.5rem"
+        plotWrapper.style.paddingBottom = "0.5rem"
+      }
       plotWrapper.style.backgroundColor = backgroundColor();
       render();
     }
@@ -562,7 +566,7 @@
 </script>
 
 {#if series[0].data.length > 0}
-  <div bind:this={plotWrapper} class="cc-plot"></div>
+  <div bind:this={plotWrapper} class="cc-plot"/>
 {:else}
   <Card class="mx-4" body color="warning"
     >Cannot render plot: No series data returned for <code>{metric}</code></Card

@@ -397,16 +397,18 @@ function getMetricConfigDeep(metric, cluster, subCluster) {
 export function convert2uplot(canvasData) {
     // Prep: Uplot Data Structure
     let uplotData = [[],[]] // [X, Y1, Y2, ...]
-    // Iterate
-    canvasData.forEach( cd => {
-        if (Object.keys(cd).length == 4) { // MetricHisto Datafromat
-            uplotData[0].push(cd?.max ? cd.max : 0)
-            uplotData[1].push(cd.count)
-        } else { // Default
-            uplotData[0].push(cd.value)
-            uplotData[1].push(cd.count)
-        }
-    })
+    // Iterate if exists
+    if (canvasData) {
+        canvasData.forEach( cd => {
+            if (Object.keys(cd).length == 4) { // MetricHisto Datafromat
+                uplotData[0].push(cd?.max ? cd.max : 0)
+                uplotData[1].push(cd.count)
+            } else { // Default
+                uplotData[0].push(cd.value)
+                uplotData[1].push(cd.count)
+            }
+        })
+    }
     return uplotData
 }
 

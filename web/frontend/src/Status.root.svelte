@@ -32,7 +32,7 @@
     transformPerNodeDataForRoofline,
   } from "./generic/utils.js";
   import { scaleNumbers } from "./generic/units.js";
-  import PlotTable from "./generic/PlotTable.svelte";
+  import PlotGrid from "./generic/PlotGrid.svelte";
   import Roofline from "./generic/plots/Roofline.svelte";
   import Pie, { colors } from "./generic/plots/Pie.svelte";
   import Histogram from "./generic/plots/Histogram.svelte";
@@ -651,31 +651,27 @@
   </Row>
   <hr class="my-2" />
   {#if metricsInHistograms}
-    <Row cols={1}>
-      <Col>
-        {#key $mainQuery.data.stats[0].histMetrics}
-          <PlotTable
-            let:item
-            let:width
-            renderFor="user"
-            items={$mainQuery.data.stats[0].histMetrics}
-            itemsPerRow={2}
-          >
-            <Histogram
-              data={convert2uplot(item.data)}
-              usesBins={true}
-              {width}
-              height={250}
-              title="Distribution of '{item.metric}' averages"
-              xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
-              xunit={item.unit}
-              ylabel="Number of Jobs"
-              yunit="Jobs"
-            />
-          </PlotTable>
-        {/key}
-      </Col>
-    </Row>
+    {#key $mainQuery.data.stats[0].histMetrics}
+      <PlotGrid
+        let:item
+        let:width
+        renderFor="user"
+        items={$mainQuery.data.stats[0].histMetrics}
+        itemsPerRow={2}
+      >
+        <Histogram
+          data={convert2uplot(item.data)}
+          usesBins={true}
+          {width}
+          height={250}
+          title="Distribution of '{item.metric}' averages"
+          xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
+          xunit={item.unit}
+          ylabel="Number of Jobs"
+          yunit="Jobs"
+        />
+      </PlotGrid>
+    {/key}
   {/if}
 {/if}
 

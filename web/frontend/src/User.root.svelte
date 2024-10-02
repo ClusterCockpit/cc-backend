@@ -30,7 +30,7 @@
   } from "./generic/utils.js";
   import JobList from "./generic/JobList.svelte";
   import Filters from "./generic/Filters.svelte";
-  import PlotTable from "./generic/PlotTable.svelte";
+  import PlotGrid from "./generic/PlotGrid.svelte";
   import Histogram from "./generic/plots/Histogram.svelte";
   import MetricSelection from "./generic/select/MetricSelection.svelte";
   import HistogramSelection from "./generic/select/HistogramSelection.svelte";
@@ -162,7 +162,7 @@
   </Col>
 </Row>
 <br />
-<Row>
+<Row cols={{ xs: 1, md: 3}}>
   {#if $stats.error}
     <Col>
       <Card body color="danger">{$stats.error.message}</Card>
@@ -172,7 +172,7 @@
       <Spinner secondary />
     </Col>
   {:else}
-    <Col xs="4">
+    <Col>
       <Table>
         <tbody>
           <tr>
@@ -210,72 +210,77 @@
         </tbody>
       </Table>
     </Col>
-    <div class="col-4 text-center" bind:clientWidth={w1}>
-      {#key $stats.data.jobsStatistics[0].histDuration}
-        <Histogram
-          data={convert2uplot($stats.data.jobsStatistics[0].histDuration)}
-          width={w1 - 25}
-          height={histogramHeight}
-          title="Duration Distribution"
-          xlabel="Current Runtimes"
-          xunit="Hours"
-          ylabel="Number of Jobs"
-          yunit="Jobs"
-        />
-      {/key}
-    </div>
-    <div class="col-4 text-center" bind:clientWidth={w2}>
-      {#key $stats.data.jobsStatistics[0].histNumNodes}
-        <Histogram
-          data={convert2uplot($stats.data.jobsStatistics[0].histNumNodes)}
-          width={w2 - 25}
-          height={histogramHeight}
-          title="Number of Nodes Distribution"
-          xlabel="Allocated Nodes"
-          xunit="Nodes"
-          ylabel="Number of Jobs"
-          yunit="Jobs"
-        />
-      {/key}
-    </div>
+    <Col class="text-center">
+      <div bind:clientWidth={w1}>
+        {#key $stats.data.jobsStatistics[0].histDuration}
+          <Histogram
+            data={convert2uplot($stats.data.jobsStatistics[0].histDuration)}
+            width={w1 - 25}
+            height={histogramHeight}
+            title="Duration Distribution"
+            xlabel="Current Runtimes"
+            xunit="Hours"
+            ylabel="Number of Jobs"
+            yunit="Jobs"
+          />
+        {/key}
+      </div>
+    </Col>
+    <Col class="text-center">
+      <div bind:clientWidth={w2}>
+        {#key $stats.data.jobsStatistics[0].histNumNodes}
+          <Histogram
+            data={convert2uplot($stats.data.jobsStatistics[0].histNumNodes)}
+            width={w2 - 25}
+            height={histogramHeight}
+            title="Number of Nodes Distribution"
+            xlabel="Allocated Nodes"
+            xunit="Nodes"
+            ylabel="Number of Jobs"
+            yunit="Jobs"
+          />
+        {/key}
+      </div>
+    </Col>
   {/if}
 </Row>
+
 {#if metricsInHistograms}
-  <Row>
-    {#if $stats.error}
+  {#if $stats.error}
+    <Row>
       <Col>
         <Card body color="danger">{$stats.error.message}</Card>
       </Col>
-    {:else if !$stats.data}
+    </Row>
+  {:else if !$stats.data}
+    <Row>
       <Col>
         <Spinner secondary />
       </Col>
-    {:else}
-      <Col>
-        {#key $stats.data.jobsStatistics[0].histMetrics}
-          <PlotTable
-            let:item
-            let:width
-            renderFor="user"
-            items={$stats.data.jobsStatistics[0].histMetrics}
-            itemsPerRow={3}
-          >
-            <Histogram
-              data={convert2uplot(item.data)}
-              usesBins={true}
-              {width}
-              height={250}
-              title="Distribution of '{item.metric} ({item.stat})' footprints"
-              xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
-              xunit={item.unit}
-              ylabel="Number of Jobs"
-              yunit="Jobs"
-            />
-          </PlotTable>
-        {/key}
-      </Col>
-    {/if}
-  </Row>
+    </Row>
+  {:else}
+    {#key $stats.data.jobsStatistics[0].histMetrics}
+      <PlotGrid
+        let:item
+        let:width
+        renderFor="user"
+        items={$stats.data.jobsStatistics[0].histMetrics}
+        itemsPerRow={3}
+      >
+        <Histogram
+          data={convert2uplot(item.data)}
+          usesBins={true}
+          {width}
+          height={250}
+          title="Distribution of '{item.metric} ({item.stat})' footprints"
+          xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
+          xunit={item.unit}
+          ylabel="Number of Jobs"
+          yunit="Jobs"
+        />
+      </PlotGrid>
+    {/key}
+  {/if}
 {/if}
 <br />
 <Row>
