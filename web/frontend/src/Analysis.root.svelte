@@ -307,7 +307,7 @@
       <Spinner />
     </Col>
   {/if}
-  <Col xs="auto">
+  <Col xs="auto" class="mb-2 mb-lg-0">
     {#if $initq.error}
       <Card body color="danger">{$initq.error.message}</Card>
     {:else if cluster}

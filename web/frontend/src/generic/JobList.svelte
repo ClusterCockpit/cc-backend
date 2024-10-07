@@ -110,7 +110,7 @@
     jobs = [...$jobsStore.data.jobs.items]
   }
 
-  $: matchedJobs = $jobsStore.data != null ? $jobsStore.data.jobs.count : 0;
+  $: matchedJobs = $jobsStore.data != null ? $jobsStore.data.jobs.count : -1;
 
   // Force refresh list with existing unchanged variables (== usually would not trigger reactivity)
   export function refreshJobs() {

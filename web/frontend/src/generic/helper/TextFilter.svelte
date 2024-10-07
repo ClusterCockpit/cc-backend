@@ -83,26 +83,28 @@
 </script>
 
 <InputGroup>
-  <select
-    style="max-width: 175px;"
+  <Input
+    type="select"
+    style="max-width: 120px;"
     class="form-select"
+    title="Search Mode"
     bind:value={mode}
     on:change={modeChanged}
   >
     {#if !presetProject}
-      <option value={"project"}>Search Project</option>
+      <option value={"project"}>Project</option>
     {/if}
     {#if roles && authlevel >= roles.manager}
-      <option value={"user"}>Search User</option>
+      <option value={"user"}>User</option>
     {/if}
-    <option value={"jobName"}>Search Jobname</option>
-  </select>
+    <option value={"jobName"}>Jobname</option>
+  </Input>
   <Input
     type="text"
     bind:value={term}
     on:change={() => termChanged()}
     on:keyup={(event) => termChanged(event.key == "Enter" ? 0 : throttle)}
-    placeholder={presetProject ? `Filter ${mode} in ${scrambleNames ? scramble(presetProject) : presetProject} ...` : `Filter ${mode} ...`}
+    placeholder={presetProject ? `Find ${mode} in ${scrambleNames ? scramble(presetProject) : presetProject} ...` : `Find ${mode} ...`}
   />
   {#if presetProject}
   <Button title="Reset Project" on:click={resetProject}

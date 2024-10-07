@@ -13,6 +13,7 @@
     Row,
     Col,
     Button,
+    ButtonGroup,
     Icon,
     Card,
     Spinner,
@@ -55,36 +56,41 @@
   onMount(() => filterComponent.updateFilters());
 </script>
 
-<Row>
-  {#if $initq.fetching}
-    <Col xs="auto">
+<!-- ROW1: Status-->
+{#if $initq.fetching}
+  <Row class="mb-3">
+    <Col>
       <Spinner />
     </Col>
-  {:else if $initq.error}
-    <Col xs="auto">
+  </Row>
+{:else if $initq.error}
+  <Row class="mb-3">
+    <Col>
       <Card body color="danger">{$initq.error.message}</Card>
     </Col>
-  {/if}
-</Row>
-<Row>
-  <Col xs="auto">
-    <Button outline color="primary" on:click={() => (isSortingOpen = true)}>
-      <Icon name="sort-up" /> Sorting
-    </Button>
-    <Button
-      outline
-      color="primary"
-      on:click={() => (isMetricsSelectionOpen = true)}
-    >
-      <Icon name="graph-up" /> Metrics
-    </Button>
-    <Button disabled outline
-      >{matchedJobs == null ? "Loading..." : `${matchedJobs} jobs`}</Button
-    >
+  </Row>
+{/if}
+
+<!-- ROW2: Tools-->
+<Row cols={{ xs: 1, md: 2, lg: 4}} class="mb-3">
+  <Col lg="2" class="mb-2 mb-lg-0">
+    <ButtonGroup class="w-100">
+      <Button outline color="primary" on:click={() => (isSortingOpen = true)}>
+        <Icon name="sort-up" /> Sorting
+      </Button>
+      <Button
+        outline
+        color="primary"
+        on:click={() => (isMetricsSelectionOpen = true)}
+      >
+        <Icon name="graph-up" /> Metrics
+      </Button>
+    </ButtonGroup>
   </Col>
-  <Col xs="auto">
+  <Col lg="4" xl="{(presetProject !== '') ? 5 : 6}" class="mb-1 mb-lg-0">
     <Filters
       {filterPresets}
+      {matchedJobs}
       bind:this={filterComponent}
       on:update-filters={({ detail }) => {
         selectedCluster = detail.filters[0]?.cluster
@@ -94,8 +100,7 @@
       }}
     />
   </Col>
-
-  <Col xs="3" style="margin-left: auto;">
+  <Col lg="3" xl="{(presetProject !== '') ? 3 : 2}" class="mb-2 mb-lg-0">
     <TextFilter
       {presetProject}
       bind:authlevel
@@ -103,21 +108,22 @@
       on:set-filter={({ detail }) => filterComponent.updateFilters(detail)}
     />
   </Col>
-  <Col xs="2">
+  <Col lg="3" xl="2" class="mb-1 mb-lg-0">
     <Refresher on:refresh={() => {
       jobList.refreshJobs()
       jobList.refreshAllMetrics()
     }} />
   </Col>
 </Row>
-<br />
+
+<!-- ROW3: Job List-->
 <Row>
   <Col>
     <JobList
+      bind:this={jobList}
       bind:metrics
       bind:sorting
       bind:matchedJobs
-      bind:this={jobList}
       bind:showFootprint
     />
   </Col>

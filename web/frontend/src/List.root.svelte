@@ -104,8 +104,8 @@
   onMount(() => filterComponent.updateFilters());
 </script>
 
-<Row>
-  <Col xs="auto">
+<Row cols={{ xs: 1, md: 2}}>
+  <Col xs="12" md="5" lg="4" xl="3" class="mb-2 mb-md-0">
     <InputGroup>
       <Button disabled outline>
         Search {type.toLowerCase()}s
@@ -119,7 +119,7 @@
       />
     </InputGroup>
   </Col>
-  <Col xs="auto">
+  <Col xs="12" md="7" lg="8" xl="9">
     <Filters
       bind:this={filterComponent}
       {filterPresets}
@@ -135,10 +135,11 @@
   <thead>
     <tr>
       <th scope="col">
-        {{
-          USER: "Username",
-          PROJECT: "Project Name",
-        }[type]}
+        {#if type === 'USER'}
+          Username
+        {:else if type === 'PROJECT'}
+          Project Name
+        {/if}
         <Button
           color={sorting.field == "id" ? "primary" : "light"}
           size="sm"

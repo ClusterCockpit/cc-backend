@@ -13,7 +13,7 @@
   export let modified = false;
 </script>
 
-<Button outline color={modified ? "warning" : "primary"} on:click>
+<Button class="mr-2 mb-1" outline color={modified ? "warning" : "primary"} on:click>
   <Icon name={icon} />
   <slot />
 </Button>

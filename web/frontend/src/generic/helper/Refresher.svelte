@@ -34,14 +34,15 @@
 <InputGroup>
   <Input
     type="select"
+    title="Periodic refresh interval"
     bind:value={refreshInterval}
     on:change={refreshIntervalChanged}
   >
-    <option value={null}>No periodic refresh</option>
-    <option value={30 * 1000}>Update every 30 seconds</option>
-    <option value={60 * 1000}>Update every minute</option>
-    <option value={2 * 60 * 1000}>Update every two minutes</option>
-    <option value={5 * 60 * 1000}>Update every 5 minutes</option>
+    <option value={null}>No Interval</option>
+    <option value={30 * 1000}>30 Seconds</option>
+    <option value={60 * 1000}>60 Seconds</option>
+    <option value={2 * 60 * 1000}>Two Minutes</option>
+    <option value={5 * 60 * 1000}>5 Minutes</option>
   </Input>
   <Button
     outline
