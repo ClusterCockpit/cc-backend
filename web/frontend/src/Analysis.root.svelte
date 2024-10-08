@@ -55,7 +55,7 @@
   let filterComponent; // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
   let jobFilters = [];
   let rooflineMaxY;
-  let colWidth1, colWidth2, colWidth3, colWidth4;
+  let colWidth1, colWidth2;
   let numBins = 50;
   let maxY = -1;
 
@@ -465,36 +465,30 @@
       {/if}
     </Col>
     <Col>
-      <div bind:clientWidth={colWidth3}>
-        {#key $statsQuery.data.stats[0].histDuration}
-          <Histogram
-            width={colWidth3}
-            height={300}
-            data={convert2uplot($statsQuery.data.stats[0].histDuration)}
-            title="Duration Distribution"
-            xlabel="Current Runtimes"
-            xunit="Hours"
-            ylabel="Number of Jobs"
-            yunit="Jobs"
-          />
-        {/key}
-      </div>
+      {#key $statsQuery.data.stats[0].histDuration}
+        <Histogram
+          height={300}
+          data={convert2uplot($statsQuery.data.stats[0].histDuration)}
+          title="Duration Distribution"
+          xlabel="Current Runtimes"
+          xunit="Hours"
+          ylabel="Number of Jobs"
+          yunit="Jobs"
+        />
+      {/key}
     </Col>
     <Col>
-      <div bind:clientWidth={colWidth4}>
-        {#key $statsQuery.data.stats[0].histNumCores}
-          <Histogram
-            width={colWidth4}
-            height={300}
-            data={convert2uplot($statsQuery.data.stats[0].histNumCores)}
-            title="Number of Cores Distribution"
-            xlabel="Allocated Cores"
-            xunit="Cores"
-            ylabel="Number of Jobs"
-            yunit="Jobs"
-          />
-        {/key}
-      </div>
+      {#key $statsQuery.data.stats[0].histNumCores}
+        <Histogram
+          height={300}
+          data={convert2uplot($statsQuery.data.stats[0].histNumCores)}
+          title="Number of Cores Distribution"
+          xlabel="Allocated Cores"
+          xunit="Cores"
+          ylabel="Number of Jobs"
+          yunit="Jobs"
+        />
+      {/key}
     </Col>
   </Row>
 {/if}
@@ -525,7 +519,6 @@
     <Col>
       <PlotGrid
         let:item
-        let:width
         renderFor="analysis"
         items={metricsInHistograms.map((metric) => ({
           metric,
@@ -542,8 +535,6 @@
       >
         <Histogram
           data={convert2uplot(item.bins)}
-          {width}
-          height={250}
           usesBins={true}
           title="Average Distribution of '{item.metric}'"
           xlabel={`${item.metric} bin maximum [${metricUnits[item.metric]}]`}

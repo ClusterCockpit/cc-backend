@@ -146,8 +146,8 @@
     export let Y;
     export let S = null;
     export let color = '#0066cc';
-    export let width;
-    export let height;
+    export let width = 250;
+    export let height = 300;
     export let xLabel;
     export let yLabel;
 

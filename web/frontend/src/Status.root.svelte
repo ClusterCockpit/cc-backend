@@ -44,9 +44,8 @@
 
   export let cluster;
 
-  let plotWidths = [],
-    colWidth1,
-    colWidth2;
+  let plotWidths = [];
+  let colWidth;
   let from = new Date(Date.now() - 5 * 60 * 1000),
     to = new Date(Date.now());
   const topOptions = [
@@ -468,7 +467,7 @@
 
   <Row cols={{ lg: 4, md: 2, sm: 1 }}>
     <Col class="p-2">
-      <div bind:clientWidth={colWidth1}>
+      <div bind:clientWidth={colWidth}>
         <h4 class="text-center">
           Top Users on {cluster.charAt(0).toUpperCase() + cluster.slice(1)}
         </h4>
@@ -479,7 +478,7 @@
             <Card body color="danger">{$topUserQuery.error.message}</Card>
           {:else}
             <Pie
-              size={colWidth1}
+              size={colWidth}
               sliceLabel={topUserSelection.label}
               quantities={$topUserQuery.data.topUser.map(
                 (tu) => tu[topUserSelection.key],
@@ -539,7 +538,7 @@
           <Card body color="danger">{$topProjectQuery.error.message}</Card>
         {:else}
           <Pie
-            size={colWidth1}
+            size={colWidth}
             sliceLabel={topProjectSelection.label}
             quantities={$topProjectQuery.data.topProjects.map(
               (tp) => tp[topProjectSelection.key],
@@ -591,25 +590,21 @@
   <hr class="my-2" />
   <Row cols={{ lg: 2, md: 1 }}>
     <Col class="p-2">
-      <div bind:clientWidth={colWidth2}>
-        {#key $mainQuery.data.stats}
-          <Histogram
-            data={convert2uplot($mainQuery.data.stats[0].histDuration)}
-            width={colWidth2 - 25}
-            title="Duration Distribution"
-            xlabel="Current Runtimes"
-            xunit="Hours"
-            ylabel="Number of Jobs"
-            yunit="Jobs"
-          />
-        {/key}
-      </div>
+      {#key $mainQuery.data.stats}
+        <Histogram
+          data={convert2uplot($mainQuery.data.stats[0].histDuration)}
+          title="Duration Distribution"
+          xlabel="Current Runtimes"
+          xunit="Hours"
+          ylabel="Number of Jobs"
+          yunit="Jobs"
+        />
+      {/key}
     </Col>
     <Col class="p-2">
       {#key $mainQuery.data.stats}
         <Histogram
           data={convert2uplot($mainQuery.data.stats[0].histNumNodes)}
-          width={colWidth2 - 25}
           title="Number of Nodes Distribution"
           xlabel="Allocated Nodes"
           xunit="Nodes"
@@ -621,25 +616,21 @@
   </Row>
   <Row cols={{ lg: 2, md: 1 }}>
     <Col class="p-2">
-      <div bind:clientWidth={colWidth2}>
-        {#key $mainQuery.data.stats}
-          <Histogram
-            data={convert2uplot($mainQuery.data.stats[0].histNumCores)}
-            width={colWidth2 - 25}
-            title="Number of Cores Distribution"
-            xlabel="Allocated Cores"
-            xunit="Cores"
-            ylabel="Number of Jobs"
-            yunit="Jobs"
-          />
-        {/key}
-      </div>
+      {#key $mainQuery.data.stats}
+        <Histogram
+          data={convert2uplot($mainQuery.data.stats[0].histNumCores)}
+          title="Number of Cores Distribution"
+          xlabel="Allocated Cores"
+          xunit="Cores"
+          ylabel="Number of Jobs"
+          yunit="Jobs"
+        />
+      {/key}
     </Col>
     <Col class="p-2">
       {#key $mainQuery.data.stats}
         <Histogram
           data={convert2uplot($mainQuery.data.stats[0].histNumAccs)}
-          width={colWidth2 - 25}
           title="Number of Accelerators Distribution"
           xlabel="Allocated Accs"
           xunit="Accs"
@@ -654,7 +645,6 @@
     {#key $mainQuery.data.stats[0].histMetrics}
       <PlotGrid
         let:item
-        let:width
         renderFor="user"
         items={$mainQuery.data.stats[0].histMetrics}
         itemsPerRow={2}
@@ -662,8 +652,6 @@
         <Histogram
           data={convert2uplot(item.data)}
           usesBins={true}
-          {width}
-          height={250}
           title="Distribution of '{item.metric}' averages"
           xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
           xunit={item.unit}

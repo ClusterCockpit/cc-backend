@@ -21,8 +21,8 @@
 
   export let data;
   export let usesBins = false;
-  export let width = 500;
-  export let height = 300;
+  export let width = null;
+  export let height = 250;
   export let title = "";
   export let xlabel = "";
   export let xunit = "";
@@ -226,10 +226,13 @@
   $: sizeChanged(width, height);
 </script>
 
-{#if data.length > 0}
-  <div bind:this={plotWrapper} />
-{:else}
-  <Card class="mx-4" body color="warning"
-    >Cannot render histogram: No data!</Card
-  >
-{/if}
+<!-- Define Wrapper and NoData Card within $width -->
+<div bind:clientWidth={width}>
+  {#if data.length > 0}
+    <div bind:this={plotWrapper} />
+  {:else}
+    <Card class="mx-4" body color="warning"
+      >Cannot render histogram: No data!</Card
+    >
+  {/if}
+</div>

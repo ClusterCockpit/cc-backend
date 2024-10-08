@@ -117,6 +117,7 @@
 
   export let metric;
   export let scope = "node";
+  export let width = null;
   export let height = 300;
   export let timestep;
   export let series;
@@ -129,8 +130,6 @@
   export let numhwthreads = 0;
   export let numaccs = 0;
   export let zoomState = null;
-
-  let width;
 
   if (useStatsSeries == null) useStatsSeries = statisticsSeries != null;
   if (useStatsSeries == false && series == null) useStatsSeries = true;

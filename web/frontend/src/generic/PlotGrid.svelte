@@ -17,8 +17,8 @@
     export let items
     export let renderFor
 
-    let rows = []
-    const isPlaceholder = x => x._is_placeholder === true
+    let rows = [];
+    const isPlaceholder = x => x._is_placeholder === true;
 
     function tile(items, itemsPerRow) {
         const rows = []

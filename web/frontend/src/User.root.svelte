@@ -54,10 +54,7 @@
     isSortingOpen = false;
   let metrics = ccconfig.plot_list_selectedMetrics,
     isMetricsSelectionOpen = false;
-  let w1,
-    w2,
-    histogramHeight = 250,
-    isHistogramSelectionOpen = false;
+  let isHistogramSelectionOpen = false;
   let selectedCluster = filterPresets?.cluster ? filterPresets.cluster : null;
   let showFootprint = filterPresets.cluster
     ? !!ccconfig[`plot_list_showFootprint:${filterPresets.cluster}`]
@@ -214,36 +211,28 @@
       </Table>
     </Col>
     <Col class="px-1">
-      <div bind:clientWidth={w1}>
-        {#key $stats.data.jobsStatistics[0].histDuration}
-          <Histogram
-            data={convert2uplot($stats.data.jobsStatistics[0].histDuration)}
-            width={w1}
-            height={histogramHeight}
-            title="Duration Distribution"
-            xlabel="Current Runtimes"
-            xunit="Hours"
-            ylabel="Number of Jobs"
-            yunit="Jobs"
-          />
-        {/key}
-      </div>
+      {#key $stats.data.jobsStatistics[0].histDuration}
+        <Histogram
+          data={convert2uplot($stats.data.jobsStatistics[0].histDuration)}
+          title="Duration Distribution"
+          xlabel="Current Runtimes"
+          xunit="Hours"
+          ylabel="Number of Jobs"
+          yunit="Jobs"
+        />
+      {/key}
     </Col>
     <Col class="px-1">
-      <div bind:clientWidth={w2}>
-        {#key $stats.data.jobsStatistics[0].histNumNodes}
-          <Histogram
-            data={convert2uplot($stats.data.jobsStatistics[0].histNumNodes)}
-            width={w2}
-            height={histogramHeight}
-            title="Number of Nodes Distribution"
-            xlabel="Allocated Nodes"
-            xunit="Nodes"
-            ylabel="Number of Jobs"
-            yunit="Jobs"
-          />
-        {/key}
-      </div>
+      {#key $stats.data.jobsStatistics[0].histNumNodes}
+        <Histogram
+          data={convert2uplot($stats.data.jobsStatistics[0].histNumNodes)}
+          title="Number of Nodes Distribution"
+          xlabel="Allocated Nodes"
+          xunit="Nodes"
+          ylabel="Number of Jobs"
+          yunit="Jobs"
+        />
+      {/key}
     </Col>
   {/if}
 </Row>
@@ -278,7 +267,6 @@
     {#key $stats.data.jobsStatistics[0].histMetrics}
       <PlotGrid
         let:item
-        let:width
         renderFor="user"
         items={$stats.data.jobsStatistics[0].histMetrics}
         itemsPerRow={3}
@@ -286,8 +274,6 @@
         <Histogram
           data={convert2uplot(item.data)}
           usesBins={true}
-          {width}
-          height={250}
           title="Distribution of '{item.metric} ({item.stat})' footprints"
           xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
           xunit={item.unit}
