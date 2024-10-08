@@ -70,8 +70,6 @@
     ...new Set([...metricsInHistograms, ...metricsInScatterplots.flat()]),
   ];
 
-  $: console.log(">>> CLUSTER", cluster)
-
   const sortOptions = [
     { key: "totalWalltime", label: "Walltime" },
     { key: "totalNodeHours", label: "Node Hours" },
