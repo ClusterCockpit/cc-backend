@@ -18,7 +18,6 @@
     export let renderFor
 
     let rows = []
-    let colWidth;
     const isPlaceholder = x => x._is_placeholder === true
 
     function tile(items, itemsPerRow) {
@@ -48,11 +47,9 @@
   <Row cols={{ xs: 1, sm: 1, md: 2, lg: itemsPerRow}}>
     {#each row as item (item)}
       <Col class="px-1">
-        <div bind:clientWidth={colWidth}>
-          {#if !isPlaceholder(item)}
-            <slot item={item} width={colWidth}/>
-          {/if}
-        </div>
+        {#if !isPlaceholder(item)}
+          <slot item={item}/>
+        {/if}
       </Col>
     {/each}
   </Row>

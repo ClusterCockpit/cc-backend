@@ -140,7 +140,7 @@
   const subClusterTopology = getContext("getHardwareTopology")(cluster, subCluster);
   const metricConfig = getContext("getMetricConfig")(cluster, subCluster, metric);
   const clusterCockpitConfig = getContext("cc-config");
-  const resizeSleepTime = 250;
+  const renderSleepTime = 100;
   const normalLineColor = "#000000";
   const lineWidth =
     clusterCockpitConfig.plot_general_lineWidth / window.devicePixelRatio;
@@ -164,13 +164,15 @@
   let resampleResolutions;
   let resampleMinimum;
 
+  let wrapperWidth = 0;
+
   if (resampleConfig) {
     resampleTrigger = Number(resampleConfig.trigger)
     resampleResolutions = [...resampleConfig.resolutions];
     resampleMinimum = Math.min(...resampleConfig.resolutions);
   }
 
-  // converts the legend into a simple tooltip
+  // UPLOT PLUGIN // converts the legend into a simple tooltip
   function legendAsTooltipPlugin({
     className,
     style = { backgroundColor: "rgba(255, 249, 196, 0.92)", color: "black" },
@@ -246,6 +248,7 @@
     }
   }
 
+  // RETURN BG COLOR FROM THRESHOLD
   function backgroundColor() {
     if (
       clusterCockpitConfig.plot_general_colorBackground == false ||
@@ -272,6 +275,7 @@
     return backgroundColors.normal;
   }
 
+  // PREPARE UPLOT ...
   function lineColor(i, n) {
     if (n >= lineColors.length) return lineColors[i % lineColors.length];
     else return lineColors[Math.floor((i / n) * lineColors.length)];
@@ -333,15 +337,6 @@
       plotData.push(statisticsSeries.median);
     }
 
-    /* deprecated: sparse data handled by uplot */
-    // if (forNode === true) {
-    //   if (plotData[1][-1] != null && plotData[2][-1] != null && plotData[3][-1] != null) {
-    //     if (plotData[1].length != 0) plotData[1].push(null);
-    //     if (plotData[2].length != 0) plotData[2].push(null);
-    //     if (plotData[3].length != 0) plotData[3].push(null);
-    //   }
-    // }
-
     plotSeries.push({
       label: "min",
       scale: "y",
@@ -368,13 +363,6 @@
   } else {
     for (let i = 0; i < series.length; i++) {
       plotData.push(series[i].data);
-      /* deprecated: sparse data handled by uplot */
-      // if (forNode === true && plotData[1].length != 0) {
-      //   if (plotData[1][-1] != null) {
-      //     plotData[1].push(null);
-      //   };
-      // };
-
       plotSeries.push({
         label:
           scope === "node"
@@ -507,74 +495,65 @@
     cursor: { drag: { x: true, y: true } },
   };
 
+  // RENDER HANDLING
   let plotWrapper = null;
   let uplot = null;
-  let timeoutId = null;
-  let prevWidth = null,
-    prevHeight = null;
+  // let timeoutId = null;
 
-  function render() {
-    if (!width || Number.isNaN(width) || width < 0) return;
-
-    if (prevWidth != null && Math.abs(prevWidth - width) < 10) return;
-
-    prevWidth = width;
-    prevHeight = height;
-
-    if (!uplot) {
-      opts.width = width;
-      opts.height = height;
+  function render(func_width, func_height) {
+    if (!uplot) { // Init uPlot
+      opts.width = func_width;
+      opts.height = func_height;
       if (zoomState) {
         opts.scales = {...zoomState}
       }
+      // console.log('Init Sizes ...', { width: opts.width, height: opts.height })
       uplot = new uPlot(opts, plotData, plotWrapper);
-    } else {
-      uplot.setSize({ width, height });
+    } else { // Update size
+      // console.log('Update uPlot ...', { width: func_width, height: func_height })
+      uplot.setSize({ width: func_width, height: func_height });
     }
   }
 
-  function onSizeChange() {
-    if (!uplot) return;
-    if (timeoutId != null) clearTimeout(timeoutId);
-
-    timeoutId = setTimeout(() => {
-      timeoutId = null;
-      render();
-    }, resizeSleepTime);
-  }
-
-  $: if (series[0].data.length > 0) {
-    onSizeChange(width, height);
-  }
-
   onMount(() => {
+    // Setup Wrapper
     if (series[0].data.length > 0) {
       if (forNode) {
         plotWrapper.style.paddingTop = "0.5rem"
         plotWrapper.style.paddingBottom = "0.5rem"
       }
       plotWrapper.style.backgroundColor = backgroundColor();
-      render();
+      plotWrapper.style.borderRadius = "5px";
     }
   });
 
   onDestroy(() => {
+    // if (timeoutId != null) clearTimeout(timeoutId);
     if (uplot) uplot.destroy();
-
-    if (timeoutId != null) clearTimeout(timeoutId);
   });
+
+  $: width = wrapperWidth;
+
+  // This renders uPlot initially and updates it on all size changes
+  $: if (width > 0 && height > 0) {
+    // console.log('Triggered render() ...')
+    
+    // if (timeoutId != null) {
+    //   clearTimeout(timeoutId);
+    //   timeoutId = null;
+    // }
+    // timeoutId = setTimeout(render(width, height), renderSleepTime);
+    
+    setTimeout(render(width, height), renderSleepTime);
+  }
 </script>
 
+<!-- Define Wrapper and NoData Card -->
 {#if series[0].data.length > 0}
-  <div bind:this={plotWrapper} class="cc-plot"/>
+  <div bind:clientWidth={wrapperWidth} bind:this={plotWrapper}/>
 {:else}
   <Card class="mx-4" body color="warning"
     >Cannot render plot: No series data returned for <code>{metric}</code></Card
   >
 {/if}
 
-<style>
-  .cc-plot {
-    border-radius: 5px;
-  }
-</style>
