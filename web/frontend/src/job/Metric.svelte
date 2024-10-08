@@ -110,8 +110,9 @@
   const selectedMetrics = [metricName]
 
   $: if (selectedScope || pendingResolution) {
-    if (!selectedResolution) {
-      // Skips reactive data load on init
+
+    if (resampleConfig && !selectedResolution) {
+      // Skips reactive data load on init || Only if resampling is enabled
       selectedResolution = Number(pendingResolution)
 
     } else {
@@ -119,14 +120,14 @@
         selectedScopes = [...scopes, "socket", "core", "accelerator"]
       }
 
-      if (pendingResolution) {
+      if (resampleConfig && pendingResolution) {
         selectedResolution = Number(pendingResolution)
       }
 
       metricData = queryStore({
         client: client,
         query: subQuery,
-        variables: { dbid, selectedMetrics, selectedScopes, selectedResolution },
+        variables: { dbid, selectedMetrics, selectedScopes, selectedResolution: (resampleConfig ? selectedResolution : 0) },
         // Never user network-only: causes reactive load-loop!
       });
 
