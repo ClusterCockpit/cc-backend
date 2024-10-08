@@ -7,7 +7,6 @@
       - `metricUnit Object`: The metrics GQL unit object
       - `nativeScope String`: The metrics native scope
       - `scopes [String]`: The scopes returned for this metric
-      - `width Number`: Nested plot width
       - `rawData [Object]`: Metric data for all scopes returned for this metric
       - `isShared Bool?`: If this job used shared resources; will adapt threshold indicators accordingly in downstream plots [Default: false]
  -->
@@ -38,7 +37,6 @@
   export let metricUnit;
   export let nativeScope;
   export let scopes;
-  export let width;
   export let rawData;
   export let isShared = false;
 
@@ -165,7 +163,6 @@
   }
 
   $: data = rawData[selectedScopeIndex];
-  
   $: series = data?.series?.filter(
     (series) => selectedHost == null || series.hostname == selectedHost,
   );
@@ -203,8 +200,6 @@
   {:else if series != null && !patternMatches}
     <Timeseries
       on:zoom={({detail}) => { handleZoom(detail) }}
-      {width}
-      height={300}
       cluster={job.cluster}
       subCluster={job.subCluster}
       timestep={data.timestep}
@@ -217,8 +212,6 @@
   {:else if statsSeries[selectedScopeIndex] != null && patternMatches}
     <Timeseries
       on:zoom={({detail}) => { handleZoom(detail) }}
-      {width}
-      height={300}
       cluster={job.cluster}
       subCluster={job.subCluster}
       timestep={data.timestep}

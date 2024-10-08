@@ -208,7 +208,6 @@
         </h4>
         {#if item.disabled === false && item.metric}
           <MetricPlot
-            height={300}
             metric={item.name}
             timestep={item.metric.timestep}
             cluster={clusters.find((c) => c.name == cluster)}

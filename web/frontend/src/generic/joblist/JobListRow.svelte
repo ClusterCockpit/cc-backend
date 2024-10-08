@@ -179,7 +179,6 @@
         {#if metric.disabled == false && metric.data}
           <MetricPlot
             on:zoom={({detail}) => { handleZoom(detail, metric.data.name) }}
-            width={plotWidth}
             height={plotHeight}
             timestep={metric.data.metric.timestep}
             scope={metric.data.scope}

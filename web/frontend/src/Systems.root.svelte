@@ -50,7 +50,6 @@
   const clusters = getContext("clusters");
   const globalMetrics = getContext("globalMetrics");
 
-  let plotHeight = 300;
   let hostnameFilter = "";
   let selectedMetric = ccconfig.system_view_selectedMetric;
 
@@ -208,7 +207,6 @@
     </h4>
     {#if item.disabled === false && item.data}
       <MetricPlot
-        height={plotHeight}
         timestep={item.data.metric.timestep}
         series={item.data.metric.series}
         metric={item.data.name}

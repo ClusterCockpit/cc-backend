@@ -6,8 +6,7 @@
     Properties:
     - `metric String`: The metric name
     - `scope String?`: Scope of the displayed data [Default: node]
-    - `width Number`: The plot width
-    - `height Number`: The plot height
+    - `height Number?`: The plot height [Default: 300]
     - `timestep Number`: The timestep used for X-axis rendering
     - `series [GraphQL.Series]`: The metric data object
     - `useStatsSeries Bool?`: If this plot uses the statistics Min/Max/Median representation; automatically set to according bool [Default: null]
@@ -118,8 +117,7 @@
 
   export let metric;
   export let scope = "node";
-  export let width;
-  export let height;
+  export let height = 300;
   export let timestep;
   export let series;
   export let useStatsSeries = null;
@@ -132,15 +130,17 @@
   export let numaccs = 0;
   export let zoomState = null;
 
+  let width;
+
   if (useStatsSeries == null) useStatsSeries = statisticsSeries != null;
   if (useStatsSeries == false && series == null) useStatsSeries = true;
-  const usesMeanStatsSeries = (useStatsSeries && statisticsSeries.mean.length != 0)
 
+  const usesMeanStatsSeries = (useStatsSeries && statisticsSeries.mean.length != 0)
   const dispatch = createEventDispatcher();
   const subClusterTopology = getContext("getHardwareTopology")(cluster, subCluster);
   const metricConfig = getContext("getMetricConfig")(cluster, subCluster, metric);
   const clusterCockpitConfig = getContext("cc-config");
-  const renderSleepTime = 100;
+  const renderSleepTime = 200;
   const normalLineColor = "#000000";
   const lineWidth =
     clusterCockpitConfig.plot_general_lineWidth / window.devicePixelRatio;
@@ -163,8 +163,6 @@
   let resampleTrigger;
   let resampleResolutions;
   let resampleMinimum;
-
-  let wrapperWidth = 0;
 
   if (resampleConfig) {
     resampleTrigger = Number(resampleConfig.trigger)
@@ -498,21 +496,30 @@
   // RENDER HANDLING
   let plotWrapper = null;
   let uplot = null;
-  // let timeoutId = null;
+  let timeoutId = null;
 
-  function render(func_width, func_height) {
+  function render(ren_width, ren_height) {
     if (!uplot) { // Init uPlot
-      opts.width = func_width;
-      opts.height = func_height;
+      opts.width = ren_width;
+      opts.height = ren_height;
       if (zoomState) {
         opts.scales = {...zoomState}
       }
       // console.log('Init Sizes ...', { width: opts.width, height: opts.height })
       uplot = new uPlot(opts, plotData, plotWrapper);
     } else { // Update size
-      // console.log('Update uPlot ...', { width: func_width, height: func_height })
-      uplot.setSize({ width: func_width, height: func_height });
+      // console.log('Update uPlot ...', { width: ren_width, height: ren_height })
+      uplot.setSize({ width: ren_width, height: ren_height });
     }
+  }
+
+  function onSizeChange(chg_width, chg_height) {
+    if (!uplot) return;
+    if (timeoutId != null) clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      timeoutId = null;
+      render(chg_width, chg_height);
+    }, renderSleepTime);
   }
 
   onMount(() => {
@@ -525,35 +532,31 @@
       plotWrapper.style.backgroundColor = backgroundColor();
       plotWrapper.style.borderRadius = "5px";
     }
+    // Init Plot
+    render(width, height);
   });
 
   onDestroy(() => {
-    // if (timeoutId != null) clearTimeout(timeoutId);
+    if (timeoutId != null) clearTimeout(timeoutId);
     if (uplot) uplot.destroy();
   });
 
-  $: width = wrapperWidth;
-
-  // This renders uPlot initially and updates it on all size changes
-  $: if (width > 0 && height > 0) {
-    // console.log('Triggered render() ...')
-    
-    // if (timeoutId != null) {
-    //   clearTimeout(timeoutId);
-    //   timeoutId = null;
-    // }
-    // timeoutId = setTimeout(render(width, height), renderSleepTime);
-    
-    setTimeout(render(width, height), renderSleepTime);
+  // This updates it on all size changes
+  // Condition for reactive triggering (eg scope change)
+  $: if (series[0].data.length > 0) {
+    onSizeChange(width, height);
   }
+
 </script>
 
-<!-- Define Wrapper and NoData Card -->
-{#if series[0].data.length > 0}
-  <div bind:clientWidth={wrapperWidth} bind:this={plotWrapper}/>
-{:else}
-  <Card class="mx-4" body color="warning"
-    >Cannot render plot: No series data returned for <code>{metric}</code></Card
-  >
-{/if}
+<!-- Define Wrapper and NoData Card within $width -->
+<div bind:clientWidth={width}>
+  {#if series[0].data.length > 0}
+    <div bind:this={plotWrapper}/>
+  {:else}
+    <Card class="mx-4" body color="warning"
+      >Cannot render plot: No series data returned for <code>{metric}</code></Card
+    >
+  {/if}
+</div>
 
