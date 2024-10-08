@@ -351,7 +351,6 @@
     {:else if $initq?.data && $jobMetrics?.data?.jobMetrics}
       <PlotGrid
         let:item
-        let:width
         renderFor="job"
         items={orderAndMap(
           groupByScope($jobMetrics.data.jobMetrics),
@@ -369,7 +368,6 @@
             nativeScope={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.scope}
             rawData={item.data.map((x) => x.metric)}
             scopes={item.data.map((x) => x.scope)}
-            {width}
             isShared={$initq.data.job.exclusive != 1}
           />
         {:else}

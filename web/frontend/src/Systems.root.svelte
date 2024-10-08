@@ -175,7 +175,6 @@
 {:else}
   <PlotGrid
     let:item
-    let:width
     renderFor="systems"
     itemsPerRow={ccconfig.plot_view_plotsPerRow}
     items={$nodesQuery.data.nodeMetrics
@@ -209,7 +208,6 @@
     </h4>
     {#if item.disabled === false && item.data}
       <MetricPlot
-        {width}
         height={plotHeight}
         timestep={item.data.metric.timestep}
         series={item.data.metric.series}
