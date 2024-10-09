@@ -4,6 +4,7 @@
     Properties:
     - `clusters [String]`: List of cluster names
     - `links [Object]`: Pre-filtered link objects based on user auth
+    - `direction String?`: The direcion of the drop-down menue [default: down]
  -->
 
 <script>
@@ -18,11 +19,12 @@
 
   export let clusters;
   export let links;
+  export let direction = "down";
 </script>
 
 {#each links as item}
   {#if item.listOptions}
-    <Dropdown nav inNavbar>
+    <Dropdown nav inNavbar {direction}>
       <DropdownToggle nav caret>
         <Icon name={item.icon} />
         {item.title}
@@ -60,7 +62,7 @@
       ><Icon name={item.icon} /> {item.title}</NavLink
     >
   {:else}
-    <Dropdown nav inNavbar>
+    <Dropdown nav inNavbar {direction}>
       <DropdownToggle nav caret>
         <Icon name={item.icon} />
         {item.title}
