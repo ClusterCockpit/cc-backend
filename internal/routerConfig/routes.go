@@ -128,7 +128,6 @@ func setupAnalysisRoute(i InfoType, r *http.Request) InfoType {
 
 func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 	jobRepo := repository.GetJobRepository()
-
 	tags, counts, err := jobRepo.CountTags(r.Context())
 	tagMap := make(map[string][]map[string]interface{})
 	if err != nil {
@@ -136,17 +135,34 @@ func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 		i["tagmap"] = tagMap
 		return i
 	}
-
+	// Reduces displayed tags for unauth'd users
+	userAuthlevel := repository.GetUserFromContext(r.Context()).GetAuthLevel()
 	// Uses tag.ID as second Map-Key component to differentiate tags with identical names
-	for _, tag := range tags {
-		tagItem := map[string]interface{}{
-			"id":    tag.ID,
-			"name":  tag.Name,
-			"scope": tag.Scope,
-			"count": counts[fmt.Sprint(tag.Name, tag.ID)],
+	if userAuthlevel >= 4 { // Support+ : Show tags for all scopes, regardless of count
+		for _, tag := range tags {
+			tagItem := map[string]interface{}{
+				"id":    tag.ID,
+				"name":  tag.Name,
+				"scope": tag.Scope,
+				"count": counts[fmt.Sprint(tag.Name, tag.ID)],
+			}
+			tagMap[tag.Type] = append(tagMap[tag.Type], tagItem)
 		}
-		tagMap[tag.Type] = append(tagMap[tag.Type], tagItem)
-	}
+	} else if userAuthlevel < 4 && userAuthlevel >= 2 { // User+ : Show global and admin scope only if at least 1 tag used, private scope regardless of count
+		for _, tag := range tags {
+			tagCount := counts[fmt.Sprint(tag.Name, tag.ID)]
+			if ((tag.Scope == "global" || tag.Scope == "admin") && tagCount >= 1) || (tag.Scope != "global" && tag.Scope != "admin") {
+				tagItem := map[string]interface{}{
+					"id":    tag.ID,
+					"name":  tag.Name,
+					"scope": tag.Scope,
+					"count": tagCount,
+				}
+				tagMap[tag.Type] = append(tagMap[tag.Type], tagItem)
+			}
+		}
+	} // auth < 2 return nothing for this route
+
 	i["tagmap"] = tagMap
 	return i
 }

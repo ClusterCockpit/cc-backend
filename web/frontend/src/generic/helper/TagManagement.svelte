@@ -48,7 +48,8 @@
   let filterTerm = "";
   let pendingChange = false;
   let isOpen = false;
-  const isAdmin = (roles && authlevel >= roles.admin);
+  const isAdmin = (roles && authlevel == roles.admin);
+  const isSupport = (roles && authlevel == roles.support);
 
   const client = getContextClient();
 
@@ -104,8 +105,8 @@
   };
 
   $: allTagsFiltered = ($initialized, fuzzySearchTags(filterTerm, allTags));
-  $: usedTagsFiltered = matchJobTags(jobTags, allTagsFiltered, 'used', isAdmin);
-  $: unusedTagsFiltered = matchJobTags(jobTags, allTagsFiltered, 'unused', isAdmin);
+  $: usedTagsFiltered = matchJobTags(jobTags, allTagsFiltered, 'used', isAdmin, isSupport);
+  $: unusedTagsFiltered = matchJobTags(jobTags, allTagsFiltered, 'unused', isAdmin, isSupport);
 
   $: {
     newTagType = "";
@@ -117,16 +118,17 @@
     }
   }
 
-  function matchJobTags(tags, availableTags, type, isAdmin) {
+  function matchJobTags(tags, availableTags, type, isAdmin, isSupport) {
     const jobTagIds = tags.map((t) => t.id)
-    if (type == 'used') {
+    if (isAdmin || type == 'used') { // Always show used tags, admin also show all unused
       return availableTags.filter((at) => jobTagIds.includes(at.id))
-    } else if (type == 'unused' && isAdmin) {
-      return availableTags.filter((at) => !jobTagIds.includes(at.id))
-    } else if (type == 'unused' && !isAdmin) { // Normal Users should not see unused global tags here
-      return availableTags.filter((at) => !jobTagIds.includes(at.id) && at.scope !== "global")
+    } else { // ... for unused
+      if (isSupport) { // ... show global tags for support
+        return availableTags.filter((at) => !jobTagIds.includes(at.id) && at.scope !== "admin")
+      } else { // ... show only private tags for user, manager
+        return availableTags.filter((at) => !jobTagIds.includes(at.id) && at.scope !== "admin" && at.scope !== "global")
+      }
     }
-    return []
   } 
 
   function isNewTag(type, name) {
@@ -223,7 +225,7 @@
                         Private Tag
                       {/if}
                     </Button>
-                    {#if isAdmin || (utag.scope !== 'global' && utag.scope !== 'admin')}
+                    {#if isAdmin || (isSupport && utag.scope == 'global') || (utag.scope !== 'global' && utag.scope !== 'admin')}
                       <Button
                         size="sm"
                         color="danger"
@@ -273,7 +275,7 @@
                         Private Tag
                       {/if}
                     </Button>
-                    {#if isAdmin || (uutag.scope !== 'global' && uutag.scope !== 'admin')}
+                    {#if isAdmin || (isSupport && uutag.scope == 'global') || (uutag.scope !== 'global' && uutag.scope !== 'admin')}
                       <Button
                         size="sm"
                         color="success"
@@ -304,7 +306,7 @@
     
       {#if newTagType && newTagName && isNewTag(newTagType, newTagName)}
         <Row>
-          <Col xs={isAdmin ? 7 : 12} md={12} lg={isAdmin ? 7 : 12} xl={12} xxl={isAdmin ? 7 : 12} class="mb-2">
+          <Col xs={(isAdmin || isSupport) ? 7 : 12} md={12} lg={(isAdmin || isSupport) ? 7 : 12} xl={12} xxl={(isAdmin || isSupport) ? 7 : 12} class="mb-2">
             <Button
               outline
               style="width:100%;"
@@ -317,12 +319,14 @@
               <Tag tag={{ type: newTagType, name: newTagName, scope: newTagScope }} clickable={false}/>
             </Button>
           </Col>
-          {#if isAdmin}
+          {#if isSupport || isAdmin}
             <Col xs={5} md={12} lg={5} xl={12} xxl={5} class="mb-2" style="align-content:center;">
               <Input type="select" bind:value={newTagScope}>
                 <option value={username}>Scope: Private</option>
                 <option value={"global"}>Scope: Global</option>
-                <option value={"admin"}>Scope: Admin</option>
+                {#if isAdmin}
+                  <option value={"admin"}>Scope: Admin</option>
+                {/if}
               </Input>
             </Col>
           {/if}

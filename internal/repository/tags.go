@@ -309,7 +309,7 @@ func (r *JobRepository) checkScopeAuth(ctx context.Context, operation string, sc
 			}
 			return false, nil
 		case operation == "write" && scope == "global":
-			if user.HasRole(schema.RoleAdmin) || (len(user.Roles) == 1 && user.HasRole(schema.RoleApi)) {
+			if user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport}) || (len(user.Roles) == 1 && user.HasRole(schema.RoleApi)) {
 				return true, nil
 			}
 			return false, nil
