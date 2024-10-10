@@ -255,7 +255,7 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 	}
 	if query.Get("startTime") != "" {
 		parts := strings.Split(query.Get("startTime"), "-")
-		if len(parts) == 2 {
+		if len(parts) == 2 { // Time in seconds, from - to
 			a, e1 := strconv.ParseInt(parts[0], 10, 64)
 			b, e2 := strconv.ParseInt(parts[1], 10, 64)
 			if e1 == nil && e2 == nil {
@@ -263,6 +263,10 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 					"from": time.Unix(a, 0).Format(time.RFC3339),
 					"to":   time.Unix(b, 0).Format(time.RFC3339),
 				}
+			}
+		} else { // named range
+			filterPresets["startTime"] = map[string]string{
+				"range": query.Get("startTime"),
 			}
 		}
 	}

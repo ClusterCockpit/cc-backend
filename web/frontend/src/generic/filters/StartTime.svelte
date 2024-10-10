@@ -6,6 +6,7 @@
     - `isOpen Bool?`: Is this filter component opened [Default: false]
     - `from Object?`: The currently selected from startime [Default: null]
     - `to Object?`: The currently selected to starttime (i.e. subCluster) [Default: null]
+    - `range String?`: The currently selected starttime range as string [Default: ""]
 
     Events:
     - `set-filter, {String?, String?}`: Set 'from, to' filter in upstream component
@@ -16,6 +17,7 @@
   import { parse, format, sub } from "date-fns";
   import {
     Row,
+    Col,
     Button,
     Input,
     Modal,
@@ -31,6 +33,7 @@
   export let isOpen = false;
   export let from = null;
   export let to = null;
+  export let range = "";
 
   let pendingFrom, pendingTo;
 
@@ -86,6 +89,14 @@
 <Modal {isOpen} toggle={() => (isOpen = !isOpen)}>
   <ModalHeader>Select Start Time</ModalHeader>
   <ModalBody>
+    {#if range !== ""}
+      <h4>Current Range</h4>
+      <Row>
+        <Col>
+          <Input type="text" value={range} disabled/>
+        </Col>
+      </Row>
+    {/if}
     <h4>From</h4>
     <Row>
       <FormGroup class="col">

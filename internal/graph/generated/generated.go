@@ -318,8 +318,9 @@ type ComplexityRoot struct {
 	}
 
 	TimeRangeOutput struct {
-		From func(childComplexity int) int
-		To   func(childComplexity int) int
+		From  func(childComplexity int) int
+		Range func(childComplexity int) int
+		To    func(childComplexity int) int
 	}
 
 	TimeWeights struct {
@@ -1668,6 +1669,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.TimeRangeOutput.From(childComplexity), true
 
+	case "TimeRangeOutput.range":
+		if e.complexity.TimeRangeOutput.Range == nil {
+			break
+		}
+
+		return e.complexity.TimeRangeOutput.Range(childComplexity), true
+
 	case "TimeRangeOutput.to":
 		if e.complexity.TimeRangeOutput.To == nil {
 			break
@@ -2141,7 +2149,7 @@ type Mutation {
 }
 
 type IntRangeOutput { from: Int!, to: Int! }
-type TimeRangeOutput { from: Time!, to: Time! }
+type TimeRangeOutput { range: String, from: Time!, to: Time! }
 
 input JobFilter {
   tags:        [ID!]
@@ -2188,8 +2196,8 @@ input StringInput {
   in:         [String!]
 }
 
-input IntRange   { from: Int!,   to: Int! }
-input TimeRange  { from: Time,   to: Time }
+input IntRange   { from: Int!, to: Int! }
+input TimeRange  { range: String, from: Time, to: Time }
 
 input FloatRange {
   from: Float!
@@ -10914,6 +10922,47 @@ func (ec *executionContext) fieldContext_Tag_scope(_ context.Context, field grap
 	return fc, nil
 }
 
+func (ec *executionContext) _TimeRangeOutput_range(ctx context.Context, field graphql.CollectedField, obj *model.TimeRangeOutput) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_TimeRangeOutput_range(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Range, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_TimeRangeOutput_range(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TimeRangeOutput",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _TimeRangeOutput_from(ctx context.Context, field graphql.CollectedField, obj *model.TimeRangeOutput) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_TimeRangeOutput_from(ctx, field)
 	if err != nil {
@@ -13781,13 +13830,20 @@ func (ec *executionContext) unmarshalInputTimeRange(ctx context.Context, obj int
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"from", "to"}
+	fieldsInOrder := [...]string{"range", "from", "to"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "range":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("range"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Range = data
 		case "from":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("from"))
 			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
@@ -16166,6 +16222,8 @@ func (ec *executionContext) _TimeRangeOutput(ctx context.Context, sel ast.Select
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("TimeRangeOutput")
+		case "range":
+			out.Values[i] = ec._TimeRangeOutput_range(ctx, field, obj)
 		case "from":
 			out.Values[i] = ec._TimeRangeOutput_from(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

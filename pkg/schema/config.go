@@ -53,8 +53,9 @@ type IntRange struct {
 }
 
 type TimeRange struct {
-	From *time.Time `json:"from"`
-	To   *time.Time `json:"to"`
+	Range string     `json:"range,omitempty"` // Optional, e.g. 'last6h'
+	From  *time.Time `json:"from"`
+	To    *time.Time `json:"to"`
 }
 
 type FilterRanges struct {

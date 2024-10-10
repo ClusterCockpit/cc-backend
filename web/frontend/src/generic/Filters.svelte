@@ -106,6 +106,10 @@
       items.push({
         startTime: { from: filters.startTime.from, to: filters.startTime.to },
       });
+    if (filters.startTime.range)
+      items.push({
+        startTime: { range: filters.startTime.range },
+      });
     if (filters.tags.length != 0) items.push({ tags: filters.tags });
     if (filters.duration.from || filters.duration.to)
       items.push({
@@ -167,13 +171,12 @@
     if (filters.states.length != allJobStates.length)
       for (let state of filters.states) opts.push(`state=${state}`);
     if (filters.startTime.from && filters.startTime.to)
-      // if (filters.startTime.url) {
-      //     opts.push(`startTime=${filters.startTime.url}`)
-      // } else {
       opts.push(
         `startTime=${dateToUnixEpoch(filters.startTime.from)}-${dateToUnixEpoch(filters.startTime.to)}`,
       );
-    // }
+    if (filters.startTime.range) {
+        opts.push(`startTime=${filters.startTime.range}`)
+    }
     if (filters.jobId.length != 0)
       if (filters.jobIdMatch != "in") {
         opts.push(`jobId=${filters.jobId}`);
@@ -259,14 +262,11 @@
       {#if startTimeQuickSelect}
         <DropdownItem divider />
         <DropdownItem disabled>Start Time Quick Selection</DropdownItem>
-        {#each [{ text: "Last 6hrs", url: "last6h", seconds: 6 * 60 * 60 }, { text: "Last 24hrs", url: "last24h", seconds: 24 * 60 * 60 }, { text: "Last 7 days", url: "last7d", seconds: 7 * 24 * 60 * 60 }, { text: "Last 30 days", url: "last30d", seconds: 30 * 24 * 60 * 60 }] as { text, url, seconds }}
+        {#each [{ text: "Last 6hrs", range: "last6h" }, { text: "Last 24hrs", range: "last24h" }, { text: "Last 7 days", range: "last7d" }, { text: "Last 30 days", range: "last30d" }] as { text, range }}
           <DropdownItem
             on:click={() => {
-              filters.startTime.from = new Date(
-                Date.now() - seconds * 1000,
-              ).toISOString();
-              filters.startTime.to = new Date(Date.now()).toISOString();
-              (filters.startTime.text = text), (filters.startTime.url = url);
+              filters.startTime.range = range;
+              filters.startTime.text = text;
               updateFilters();
             }}
           >
@@ -302,13 +302,15 @@
 
 {#if filters.startTime.from || filters.startTime.to}
   <Info icon="calendar-range" on:click={() => (isStartTimeOpen = true)}>
-    {#if filters.startTime.text}
-      {filters.startTime.text}
-    {:else}
-      {new Date(filters.startTime.from).toLocaleString()} - {new Date(
-        filters.startTime.to,
-      ).toLocaleString()}
-    {/if}
+    {new Date(filters.startTime.from).toLocaleString()} - {new Date(
+      filters.startTime.to,
+    ).toLocaleString()}
+  </Info>
+{/if}
+
+{#if filters.startTime.range}
+  <Info icon="calendar-range" on:click={() => (isStartTimeOpen = true)}>
+    {filters?.startTime?.text ? filters.startTime.text : filters.startTime.range }
   </Info>
 {/if}
 
@@ -406,9 +408,10 @@
   bind:isOpen={isStartTimeOpen}
   bind:from={filters.startTime.from}
   bind:to={filters.startTime.to}
+  bind:range={filters.startTime.range}
   on:set-filter={() => {
     delete filters.startTime["text"];
-    delete filters.startTime["url"];
+    delete filters.startTime["range"];
     updateFilters();
   }}
 />

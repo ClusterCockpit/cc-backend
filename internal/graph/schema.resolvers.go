@@ -268,7 +268,6 @@ func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error)
 
 // JobMetrics is the resolver for the jobMetrics field.
 func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope, resolution *int) ([]*model.JobMetricWithName, error) {
-
 	if resolution == nil { // Load from Config
 		if config.Keys.EnableResampling != nil {
 			defaultRes := slices.Max(config.Keys.EnableResampling.Resolutions)

@@ -172,8 +172,9 @@ type StringInput struct {
 }
 
 type TimeRangeOutput struct {
-	From time.Time `json:"from"`
-	To   time.Time `json:"to"`
+	Range *string   `json:"range,omitempty"`
+	From  time.Time `json:"from"`
+	To    time.Time `json:"to"`
 }
 
 type TimeWeights struct {

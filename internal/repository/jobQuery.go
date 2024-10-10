@@ -218,6 +218,23 @@ func buildTimeCondition(field string, cond *schema.TimeRange, query sq.SelectBui
 		return query.Where("? <= "+field, cond.From.Unix())
 	} else if cond.To != nil {
 		return query.Where(field+" <= ?", cond.To.Unix())
+	} else if cond.Range != "" {
+		now := time.Now().Unix()
+		var then int64
+		switch cond.Range {
+		case "last6h":
+			then = now - (60 * 60 * 6)
+		case "last24h":
+			then = now - (60 * 60 * 24)
+		case "last7d":
+			then = now - (60 * 60 * 24 * 7)
+		case "last30d":
+			then = now - (60 * 60 * 24 * 30)
+		default:
+			log.Debugf("No known named timeRange: startTime.range = %s", cond.Range)
+			return query
+		}
+		return query.Where(field+" BETWEEN ? AND ?", then, now)
 	} else {
 		return query
 	}

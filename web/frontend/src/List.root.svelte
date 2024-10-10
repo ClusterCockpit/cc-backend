@@ -40,15 +40,9 @@
   if (filterPresets?.startTime == null) {
     if (filterPresets == null) filterPresets = {};
 
-    const lastMonth = new Date(
-      Date.now() - 30 * 24 * 60 * 60 * 1000,
-    ).toISOString();
-    const now = new Date(Date.now()).toISOString();
     filterPresets.startTime = {
-      from: lastMonth,
-      to: now,
+      range: "last30d",
       text: "Last 30 Days",
-      url: "last30d",
     };
   }
 

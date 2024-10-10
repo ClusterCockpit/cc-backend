@@ -253,7 +253,7 @@ type Mutation {
 }
 
 type IntRangeOutput { from: Int!, to: Int! }
-type TimeRangeOutput { from: Time!, to: Time! }
+type TimeRangeOutput { range: String, from: Time!, to: Time! }
 
 input JobFilter {
   tags:        [ID!]
@@ -300,8 +300,8 @@ input StringInput {
   in:         [String!]
 }
 
-input IntRange   { from: Int!,   to: Int! }
-input TimeRange  { from: Time,   to: Time }
+input IntRange   { from: Int!, to: Int! }
+input TimeRange  { range: String, from: Time, to: Time }
 
 input FloatRange {
   from: Float!
