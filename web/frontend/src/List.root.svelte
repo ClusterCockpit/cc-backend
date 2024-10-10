@@ -1,9 +1,13 @@
 <!--
-    @component List of users or projects
+    @component Main component for listing users or projects
+
+    Properties:
+    - `type String?`: The type of list ['USER' || 'PROJECT']
+    - `filterPresets Object?`: Optional predefined filter values [Default: {}]
  -->
+
 <script>
   import { onMount } from "svelte";
-  import { init } from "./utils.js";
   import {
     Row,
     Col,
@@ -15,9 +19,17 @@
     InputGroup,
     Input,
   } from "@sveltestrap/sveltestrap";
-  import Filters from "./filters/Filters.svelte";
-  import { queryStore, gql, getContextClient } from "@urql/svelte";
-  import { scramble, scrambleNames } from "./joblist/JobInfo.svelte";
+  import {
+    queryStore,
+    gql,
+    getContextClient,
+  } from "@urql/svelte";
+  import {
+    init,
+    scramble,
+    scrambleNames,
+  } from "./generic/utils.js";
+  import Filters from "./generic/Filters.svelte";
 
   const {} = init();
 
@@ -28,15 +40,9 @@
   if (filterPresets?.startTime == null) {
     if (filterPresets == null) filterPresets = {};
 
-    const lastMonth = new Date(
-      Date.now() - 30 * 24 * 60 * 60 * 1000,
-    ).toISOString();
-    const now = new Date(Date.now()).toISOString();
     filterPresets.startTime = {
-      from: lastMonth,
-      to: now,
+      range: "last30d",
       text: "Last 30 Days",
-      url: "last30d",
     };
   }
 
@@ -89,11 +95,11 @@
     return stats.filter((u) => u.id.includes(nameFilter)).sort(cmp);
   }
 
-  onMount(() => filterComponent.update());
+  onMount(() => filterComponent.updateFilters());
 </script>
 
-<Row>
-  <Col xs="auto">
+<Row cols={{ xs: 1, md: 2}}>
+  <Col xs="12" md="5" lg="4" xl="3" class="mb-2 mb-md-0">
     <InputGroup>
       <Button disabled outline>
         Search {type.toLowerCase()}s
@@ -107,13 +113,13 @@
       />
     </InputGroup>
   </Col>
-  <Col xs="auto">
+  <Col xs="12" md="7" lg="8" xl="9">
     <Filters
       bind:this={filterComponent}
       {filterPresets}
       startTimeQuickSelect={true}
       menuText="Only {type.toLowerCase()}s with jobs that match the filters will show up"
-      on:update={({ detail }) => {
+      on:update-filters={({ detail }) => {
         jobFilters = detail.filters;
       }}
     />
@@ -123,10 +129,11 @@
   <thead>
     <tr>
       <th scope="col">
-        {{
-          USER: "Username",
-          PROJECT: "Project Name",
-        }[type]}
+        {#if type === 'USER'}
+          Username
+        {:else if type === 'PROJECT'}
+          Project Name
+        {/if}
         <Button
           color={sorting.field == "id" ? "primary" : "light"}
           size="sm"

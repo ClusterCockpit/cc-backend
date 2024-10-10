@@ -53,8 +53,9 @@ type IntRange struct {
 }
 
 type TimeRange struct {
-	From *time.Time `json:"from"`
-	To   *time.Time `json:"to"`
+	Range string     `json:"range,omitempty"` // Optional, e.g. 'last6h'
+	From  *time.Time `json:"from"`
+	To    *time.Time `json:"to"`
 }
 
 type FilterRanges struct {
@@ -74,6 +75,13 @@ type Retention struct {
 	Location  string `json:"location"`
 	Age       int    `json:"age"`
 	IncludeDB bool   `json:"includeDB"`
+}
+
+type ResampleConfig struct {
+	// Trigger next zoom level at less than this many visible datapoints
+	Trigger int `json:"trigger"`
+	// Array of resampling target resolutions, in seconds; Example: [600,300,60]
+	Resolutions []int `json:"resolutions"`
 }
 
 // Format of the configuration (file). See below for the defaults.
@@ -133,6 +141,9 @@ type ProgramConfig struct {
 	// be provided! Most options here can be overwritten by the user.
 	UiDefaults map[string]interface{} `json:"ui-defaults"`
 
+	// If exists, will enable dynamic zoom in frontend metric plots using the configured values
+	EnableResampling *ResampleConfig `json:"enable-resampling"`
+
 	// Where to store MachineState files
 	MachineStateDir string `json:"machine-state-dir"`
 
@@ -144,4 +155,8 @@ type ProgramConfig struct {
 
 	// Array of Clusters
 	Clusters []*ClusterConfig `json:"clusters"`
+
+	// Energy Mix CO2 Emission Constant [g/kWh]
+	// If entered, displays estimated CO2 emission for job based on jobs totalEnergy
+	EmissionConstant int `json:"emission-constant"`
 }

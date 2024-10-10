@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
@@ -33,33 +32,6 @@ func (la *LdapAuthenticator) Init() error {
 	}
 
 	lc := config.Keys.LdapConfig
-
-	if lc.SyncInterval != "" {
-		interval, err := time.ParseDuration(lc.SyncInterval)
-		if err != nil {
-			log.Warnf("Could not parse duration for sync interval: %v",
-				lc.SyncInterval)
-			return err
-		}
-
-		if interval == 0 {
-			log.Info("Sync interval is zero")
-			return nil
-		}
-
-		go func() {
-			ticker := time.NewTicker(interval)
-			for t := range ticker.C {
-				log.Printf("sync started at %s", t.Format(time.RFC3339))
-				if err := la.Sync(); err != nil {
-					log.Errorf("sync failed: %s", err.Error())
-				}
-				log.Print("sync done")
-			}
-		}()
-	} else {
-		log.Info("LDAP configuration key sync_interval invalid")
-	}
 
 	if lc.UserAttr != "" {
 		la.UserAttr = lc.UserAttr

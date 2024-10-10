@@ -1,6 +1,14 @@
+<!--
+    @component Main cluster metric status view component; renders current state of metrics / nodes
+
+    Properties:
+    - `cluster String`: The cluster to show status information for
+    - `from Date?`: Custom Time Range selection 'from' [Default: null]
+    - `to Date?`: Custom Time Range selection 'to' [Default: null]
+ -->
+
 <script>
-  import { init, checkMetricDisabled } from "./utils.js";
-  import Refresher from "./joblist/Refresher.svelte";
+  import { getContext } from "svelte";
   import {
     Row,
     Col,
@@ -11,11 +19,19 @@
     Spinner,
     Card,
   } from "@sveltestrap/sveltestrap";
-  import { queryStore, gql, getContextClient } from "@urql/svelte";
-  import TimeSelection from "./filters/TimeSelection.svelte";
-  import PlotTable from "./PlotTable.svelte";
-  import MetricPlot from "./plots/MetricPlot.svelte";
-  import { getContext } from "svelte";
+  import {
+    queryStore,
+    gql,
+    getContextClient,
+  } from "@urql/svelte";
+  import {
+    init,
+    checkMetricDisabled,
+  } from "./generic/utils.js";
+  import PlotGrid from "./generic/PlotGrid.svelte";
+  import MetricPlot from "./generic/plots/MetricPlot.svelte";
+  import TimeSelection from "./generic/select/TimeSelection.svelte";
+  import Refresher from "./generic/helper/Refresher.svelte";
 
   export let cluster;
   export let from = null;
@@ -26,14 +42,14 @@
   if (from == null || to == null) {
     to = new Date(Date.now());
     from = new Date(to.getTime());
-    from.setMinutes(from.getMinutes() - 30);
+    from.setHours(from.getHours() - 12);
   }
 
-  const clusters = getContext("clusters");
+  const initialized = getContext("initialized");
   const ccconfig = getContext("cc-config");
-  const metricConfig = getContext("metrics");
+  const clusters = getContext("clusters");
+  const globalMetrics = getContext("globalMetrics");
 
-  let plotHeight = 300;
   let hostnameFilter = "";
   let selectedMetric = ccconfig.system_view_selectedMetric;
 
@@ -80,57 +96,27 @@
     },
   });
 
-  let metricUnits = {};
-  $: if ($nodesQuery.data) {
-    let thisCluster = clusters.find((c) => c.name == cluster);
-    if (thisCluster) {
-      for (let metric of thisCluster.metricConfig) {
-        if (metric.unit.prefix || metric.unit.base) {
-          metricUnits[metric.name] =
-            "(" +
-            (metric.unit.prefix ? metric.unit.prefix : "") +
-            (metric.unit.base ? metric.unit.base : "") +
-            ")";
-        } else {
-          // If no unit defined: Omit Unit Display
-          metricUnits[metric.name] = "";
-        }
-      }
+  let systemMetrics = [];
+  let systemUnits = {};
+  function loadMetrics(isInitialized) {
+    if (!isInitialized) return
+    systemMetrics = [...globalMetrics.filter((gm) => gm?.availability.find((av) => av.cluster == cluster))]
+    for (let sm of systemMetrics) {
+      systemUnits[sm.name] = (sm?.unit?.prefix ? sm.unit.prefix : "") + (sm?.unit?.base ? sm.unit.base : "")
     }
   }
+
+  $: loadMetrics($initialized)
+
 </script>
 
-<Row>
+<Row cols={{ xs: 2, lg: 4 }}>
   {#if $initq.error}
     <Card body color="danger">{$initq.error.message}</Card>
   {:else if $initq.fetching}
     <Spinner />
   {:else}
-    <Col>
-      <Refresher
-        on:reload={() => {
-          const diff = Date.now() - to;
-          from = new Date(from.getTime() + diff);
-          to = new Date(to.getTime() + diff);
-        }}
-      />
-    </Col>
-    <Col>
-      <TimeSelection bind:from bind:to />
-    </Col>
-    <Col>
-      <InputGroup>
-        <InputGroupText><Icon name="graph-up" /></InputGroupText>
-        <InputGroupText>Metric</InputGroupText>
-        <select class="form-select" bind:value={selectedMetric}>
-          {#each clusters.find((c) => c.name == cluster).metricConfig as metric}
-            <option value={metric.name}
-              >{metric.name} {metricUnits[metric.name]}</option
-            >
-          {/each}
-        </select>
-      </InputGroup>
-    </Col>
+    <!-- Node Col-->
     <Col>
       <InputGroup>
         <InputGroupText><Icon name="hdd" /></InputGroupText>
@@ -142,77 +128,105 @@
         />
       </InputGroup>
     </Col>
+    <!-- Range Col-->
+    <Col>
+      <TimeSelection bind:from bind:to />
+    </Col>
+    <!-- Metric Col-->
+    <Col class="mt-2 mt-lg-0">
+      <InputGroup>
+        <InputGroupText><Icon name="graph-up" /></InputGroupText>
+        <InputGroupText>Metric</InputGroupText>
+        <select class="form-select" bind:value={selectedMetric}>
+          {#each systemMetrics as metric}
+            <option value={metric.name}
+              >{metric.name} {systemUnits[metric.name] ? "("+systemUnits[metric.name]+")" : ""}</option
+            >
+          {/each}
+        </select>
+      </InputGroup>
+    </Col>
+    <!-- Refresh Col-->
+    <Col class="mt-2 mt-lg-0">
+      <Refresher
+        on:refresh={() => {
+          const diff = Date.now() - to;
+          from = new Date(from.getTime() + diff);
+          to = new Date(to.getTime() + diff);
+        }}
+      />
+    </Col>
   {/if}
 </Row>
 <br />
-<Row>
-  <Col>
-    {#if $nodesQuery.error}
+{#if $nodesQuery.error}
+  <Row>
+    <Col>
       <Card body color="danger">{$nodesQuery.error.message}</Card>
-    {:else if $nodesQuery.fetching || $initq.fetching}
+    </Col>
+  </Row>
+{:else if $nodesQuery.fetching || $initq.fetching}
+  <Row>
+    <Col>
       <Spinner />
-    {:else}
-      <PlotTable
-        let:item
-        let:width
-        renderFor="systems"
-        itemsPerRow={ccconfig.plot_view_plotsPerRow}
-        items={$nodesQuery.data.nodeMetrics
-          .filter(
-            (h) =>
-              h.host.includes(hostnameFilter) &&
-              h.metrics.some(
-                (m) => m.name == selectedMetric && m.scope == "node",
-              ),
-          )
-          .map((h) => ({
-            host: h.host,
-            subCluster: h.subCluster,
-            data: h.metrics.find(
-              (m) => m.name == selectedMetric && m.scope == "node",
-            ),
-            disabled: checkMetricDisabled(
-              selectedMetric,
-              cluster,
-              h.subCluster,
-            ),
-          }))
-          .sort((a, b) => a.host.localeCompare(b.host))}
+    </Col>
+  </Row>
+{:else}
+  <PlotGrid
+    let:item
+    renderFor="systems"
+    itemsPerRow={ccconfig.plot_view_plotsPerRow}
+    items={$nodesQuery.data.nodeMetrics
+      .filter(
+        (h) =>
+          h.host.includes(hostnameFilter) &&
+          h.metrics.some(
+            (m) => m.name == selectedMetric && m.scope == "node",
+          ),
+      )
+      .map((h) => ({
+        host: h.host,
+        subCluster: h.subCluster,
+        data: h.metrics.find(
+          (m) => m.name == selectedMetric && m.scope == "node",
+        ),
+        disabled: checkMetricDisabled(
+          selectedMetric,
+          cluster,
+          h.subCluster,
+        ),
+      }))
+      .sort((a, b) => a.host.localeCompare(b.host))}
+  >
+    <h4 style="width: 100%; text-align: center;">
+      <a
+        style="display: block;padding-top: 15px;"
+        href="/monitoring/node/{cluster}/{item.host}"
+        >{item.host} ({item.subCluster})</a
       >
-        <h4 style="width: 100%; text-align: center;">
-          <a
-            style="display: block;padding-top: 15px;"
-            href="/monitoring/node/{cluster}/{item.host}"
-            >{item.host} ({item.subCluster})</a
-          >
-        </h4>
-        {#if item.disabled === false && item.data}
-          <MetricPlot
-            {width}
-            height={plotHeight}
-            timestep={item.data.metric.timestep}
-            series={item.data.metric.series}
-            metric={item.data.name}
-            cluster={clusters.find((c) => c.name == cluster)}
-            subCluster={item.subCluster}
-            resources={[{ hostname: item.host }]}
-            forNode={true}
-          />
-        {:else if item.disabled === true && item.data}
-          <Card style="margin-left: 2rem;margin-right: 2rem;" body color="info"
-            >Metric disabled for subcluster <code
-              >{selectedMetric}:{item.subCluster}</code
-            ></Card
-          >
-        {:else}
-          <Card
-            style="margin-left: 2rem;margin-right: 2rem;"
-            body
-            color="warning"
-            >No dataset returned for <code>{selectedMetric}</code></Card
-          >
-        {/if}
-      </PlotTable>
+    </h4>
+    {#if item.disabled === false && item.data}
+      <MetricPlot
+        timestep={item.data.metric.timestep}
+        series={item.data.metric.series}
+        metric={item.data.name}
+        cluster={clusters.find((c) => c.name == cluster)}
+        subCluster={item.subCluster}
+        forNode={true}
+      />
+    {:else if item.disabled === true && item.data}
+      <Card style="margin-left: 2rem;margin-right: 2rem;" body color="info"
+        >Metric disabled for subcluster <code
+          >{selectedMetric}:{item.subCluster}</code
+        ></Card
+      >
+    {:else}
+      <Card
+        style="margin-left: 2rem;margin-right: 2rem;"
+        body
+        color="warning"
+        >No dataset returned for <code>{selectedMetric}</code></Card
+      >
     {/if}
-  </Col>
-</Row>
+  </PlotGrid>
+{/if}

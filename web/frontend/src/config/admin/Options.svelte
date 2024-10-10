@@ -1,8 +1,14 @@
+<!--
+    @component Admin option select card
+ -->
+
 <script>
-  import { onMount } from "svelte";
-  import { Card, CardBody, CardTitle } from "@sveltestrap/sveltestrap";
+  import { getContext, onMount } from "svelte";
+  import { Col, Card, CardBody, CardTitle } from "@sveltestrap/sveltestrap";
 
   let scrambled;
+
+  const resampleConfig = getContext("resampling");
 
   onMount(() => {
     scrambled = window.localStorage.getItem("cc-scramble-names") != null;
@@ -19,16 +25,30 @@
   }
 </script>
 
-<Card class="h-100">
-  <CardBody>
-    <CardTitle class="mb-3">Scramble Names / Presentation Mode</CardTitle>
-    <input
-      type="checkbox"
-      id="scramble-names-checkbox"
-      style="margin-right: 1em;"
-      on:click={handleScramble}
-      bind:checked={scrambled}
-    />
-    Active?
-  </CardBody>
-</Card>
+<Col>
+  <Card class="h-100">
+    <CardBody>
+      <CardTitle class="mb-3">Scramble Names / Presentation Mode</CardTitle>
+      <input
+        type="checkbox"
+        id="scramble-names-checkbox"
+        style="margin-right: 1em;"
+        on:click={handleScramble}
+        bind:checked={scrambled}
+      />
+      Active?
+    </CardBody>
+  </Card>
+</Col>
+
+{#if resampleConfig}
+  <Col> 
+    <Card class="h-100">
+      <CardBody>
+        <CardTitle class="mb-3">Metric Plot Resampling</CardTitle>
+        <p>Triggered at {resampleConfig.trigger} datapoints.</p>
+        <p>Configured resolutions: {resampleConfig.resolutions}</p>
+      </CardBody>
+    </Card>
+  </Col>
+{/if}

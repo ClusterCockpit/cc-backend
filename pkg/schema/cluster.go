@@ -30,38 +30,47 @@ type MetricValue struct {
 }
 
 type SubCluster struct {
-	Name            string      `json:"name"`
-	Nodes           string      `json:"nodes"`
-	ProcessorType   string      `json:"processorType"`
-	SocketsPerNode  int         `json:"socketsPerNode"`
-	CoresPerSocket  int         `json:"coresPerSocket"`
-	ThreadsPerCore  int         `json:"threadsPerCore"`
-	FlopRateScalar  MetricValue `json:"flopRateScalar"`
-	FlopRateSimd    MetricValue `json:"flopRateSimd"`
-	MemoryBandwidth MetricValue `json:"memoryBandwidth"`
-	Topology        Topology    `json:"topology"`
+	Name            string         `json:"name"`
+	Nodes           string         `json:"nodes"`
+	ProcessorType   string         `json:"processorType"`
+	Topology        Topology       `json:"topology"`
+	FlopRateScalar  MetricValue    `json:"flopRateScalar"`
+	FlopRateSimd    MetricValue    `json:"flopRateSimd"`
+	MemoryBandwidth MetricValue    `json:"memoryBandwidth"`
+	MetricConfig    []MetricConfig `json:"metricConfig,omitempty"`
+	Footprint       []string       `json:"footprint,omitempty"`
+	EnergyFootprint []string       `json:"energyFootprint,omitempty"`
+	SocketsPerNode  int            `json:"socketsPerNode"`
+	CoresPerSocket  int            `json:"coresPerSocket"`
+	ThreadsPerCore  int            `json:"threadsPerCore"`
 }
 
 type SubClusterConfig struct {
-	Name    string  `json:"name"`
-	Peak    float64 `json:"peak"`
-	Normal  float64 `json:"normal"`
-	Caution float64 `json:"caution"`
-	Alert   float64 `json:"alert"`
-	Remove  bool    `json:"remove"`
+	Name          string  `json:"name"`
+	Footprint     string  `json:"footprint,omitempty"`
+	Peak          float64 `json:"peak"`
+	Normal        float64 `json:"normal"`
+	Caution       float64 `json:"caution"`
+	Alert         float64 `json:"alert"`
+	Remove        bool    `json:"remove"`
+	LowerIsBetter bool    `json:"lowerIsBetter"`
+	Energy        string  `json:"energy"`
 }
 
 type MetricConfig struct {
-	Name        string              `json:"name"`
-	Unit        Unit                `json:"unit"`
-	Scope       MetricScope         `json:"scope"`
-	Aggregation string              `json:"aggregation"`
-	Timestep    int                 `json:"timestep"`
-	Peak        float64             `json:"peak"`
-	Normal      float64             `json:"normal"`
-	Caution     float64             `json:"caution"`
-	Alert       float64             `json:"alert"`
-	SubClusters []*SubClusterConfig `json:"subClusters,omitempty"`
+	Unit          Unit                `json:"unit"`
+	Name          string              `json:"name"`
+	Scope         MetricScope         `json:"scope"`
+	Aggregation   string              `json:"aggregation"`
+	Footprint     string              `json:"footprint,omitempty"`
+	SubClusters   []*SubClusterConfig `json:"subClusters,omitempty"`
+	Peak          float64             `json:"peak"`
+	Normal        float64             `json:"normal"`
+	Caution       float64             `json:"caution"`
+	Alert         float64             `json:"alert"`
+	Timestep      int                 `json:"timestep"`
+	LowerIsBetter bool                `json:"lowerIsBetter"`
+	Energy        string              `json:"energy"`
 }
 
 type Cluster struct {
@@ -70,14 +79,27 @@ type Cluster struct {
 	SubClusters  []*SubCluster   `json:"subClusters"`
 }
 
+type ClusterSupport struct {
+	Cluster     string   `json:"cluster"`
+	SubClusters []string `json:"subclusters"`
+}
+
+type GlobalMetricListItem struct {
+	Name         string           `json:"name"`
+	Unit         Unit             `json:"unit"`
+	Scope        MetricScope      `json:"scope"`
+	Footprint    string           `json:"footprint,omitempty"`
+	Availability []ClusterSupport `json:"availability"`
+}
+
 // Return a list of socket IDs given a list of hwthread IDs.  Even if just one
 // hwthread is in that socket, add it to the list.  If no hwthreads other than
 // those in the argument list are assigned to one of the sockets in the first
 // return value, return true as the second value.  TODO: Optimize this, there
 // must be a more efficient way/algorithm.
 func (topo *Topology) GetSocketsFromHWThreads(
-	hwthreads []int) (sockets []int, exclusive bool) {
-
+	hwthreads []int,
+) (sockets []int, exclusive bool) {
 	socketsMap := map[int]int{}
 	for _, hwthread := range hwthreads {
 		for socket, hwthreadsInSocket := range topo.Socket {
@@ -106,8 +128,8 @@ func (topo *Topology) GetSocketsFromHWThreads(
 // return value, return true as the second value.  TODO: Optimize this, there
 // must be a more efficient way/algorithm.
 func (topo *Topology) GetCoresFromHWThreads(
-	hwthreads []int) (cores []int, exclusive bool) {
-
+	hwthreads []int,
+) (cores []int, exclusive bool) {
 	coresMap := map[int]int{}
 	for _, hwthread := range hwthreads {
 		for core, hwthreadsInCore := range topo.Core {
@@ -136,8 +158,8 @@ func (topo *Topology) GetCoresFromHWThreads(
 // memory domains in the first return value, return true as the second value.
 // TODO: Optimize this, there must be a more efficient way/algorithm.
 func (topo *Topology) GetMemoryDomainsFromHWThreads(
-	hwthreads []int) (memDoms []int, exclusive bool) {
-
+	hwthreads []int,
+) (memDoms []int, exclusive bool) {
 	memDomsMap := map[int]int{}
 	for _, hwthread := range hwthreads {
 		for memDom, hwthreadsInmemDom := range topo.MemoryDomain {

@@ -5,10 +5,13 @@ new Job({
     target: document.getElementById('svelte-app'),
     props: {
         dbid: jobInfos.id,
+        username: username,
         authlevel: authlevel,
         roles: roles
     },
     context: new Map([
-            ['cc-config', clusterCockpitConfig]
+            ['cc-config', clusterCockpitConfig],
+            ['resampling', resampleConfig],
+            ['emission', emission]
     ])
 })
