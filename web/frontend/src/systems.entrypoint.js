@@ -4,6 +4,7 @@ import Systems from './Systems.root.svelte'
 new Systems({
     target: document.getElementById('svelte-app'),
     props: {
+        displayType: displayType,
         cluster: infos.cluster,
         from: infos.from,
         to: infos.to

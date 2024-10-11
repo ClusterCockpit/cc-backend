@@ -42,10 +42,11 @@ var routes []Route = []Route{
 	{"/monitoring/projects/", "monitoring/list.tmpl", "Projects - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { i["listType"] = "PROJECT"; return i }},
 	{"/monitoring/tags/", "monitoring/taglist.tmpl", "Tags - ClusterCockpit", false, setupTaglistRoute},
 	{"/monitoring/user/{id}", "monitoring/user.tmpl", "User <ID> - ClusterCockpit", true, setupUserRoute},
-	{"/monitoring/systems/{cluster}", "monitoring/systems.tmpl", "Cluster <ID> - ClusterCockpit", false, setupClusterRoute},
+	{"/monitoring/systems/{cluster}", "monitoring/systems.tmpl", "Cluster <ID> Overview - ClusterCockpit", false, setupClusterOverviewRoute},
+	{"/monitoring/systems/list/{cluster}", "monitoring/systems.tmpl", "Cluster <ID> List - ClusterCockpit", false, setupClusterListRoute},
 	{"/monitoring/node/{cluster}/{hostname}", "monitoring/node.tmpl", "Node <ID> - ClusterCockpit", false, setupNodeRoute},
 	{"/monitoring/analysis/{cluster}", "monitoring/analysis.tmpl", "Analysis - ClusterCockpit", true, setupAnalysisRoute},
-	{"/monitoring/status/{cluster}", "monitoring/status.tmpl", "Status of <ID> - ClusterCockpit", false, setupClusterRoute},
+	{"/monitoring/status/{cluster}", "monitoring/status.tmpl", "Status of <ID> - ClusterCockpit", false, setupClusterStatusRoute},
 }
 
 func setupHomeRoute(i InfoType, r *http.Request) InfoType {
@@ -96,10 +97,38 @@ func setupUserRoute(i InfoType, r *http.Request) InfoType {
 	return i
 }
 
-func setupClusterRoute(i InfoType, r *http.Request) InfoType {
+func setupClusterStatusRoute(i InfoType, r *http.Request) InfoType {
 	vars := mux.Vars(r)
 	i["id"] = vars["cluster"]
 	i["cluster"] = vars["cluster"]
+	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
+	if from != "" || to != "" {
+		i["from"] = from
+		i["to"] = to
+	}
+	return i
+}
+
+func setupClusterOverviewRoute(i InfoType, r *http.Request) InfoType {
+	vars := mux.Vars(r)
+	i["id"] = vars["cluster"]
+	i["cluster"] = vars["cluster"]
+	i["displayType"] = "OVERVIEW"
+
+	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
+	if from != "" || to != "" {
+		i["from"] = from
+		i["to"] = to
+	}
+	return i
+}
+
+func setupClusterListRoute(i InfoType, r *http.Request) InfoType {
+	vars := mux.Vars(r)
+	i["id"] = vars["cluster"]
+	i["cluster"] = vars["cluster"]
+	i["displayType"] = "LIST"
+
 	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
 	if from != "" || to != "" {
 		i["from"] = from
