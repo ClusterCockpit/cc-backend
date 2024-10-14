@@ -45,7 +45,7 @@
   if (from == null || to == null) {
     to = new Date(Date.now());
     from = new Date(to.getTime());
-    from.setHours(from.getHours() - 12);
+    from.setHours(from.getHours() - 4);
   }
 
   const initialized = getContext("initialized");
@@ -53,12 +53,15 @@
   const globalMetrics = getContext("globalMetrics");
   const displayNodeOverview = (displayType === 'OVERVIEW')
 
-  let nodeList;
   let hostnameFilter = "";
   let selectedMetric = ccconfig.system_view_selectedMetric || "";
-  let selectedMetrics = ccconfig.node_list_selectedMetrics || ['cpu_load', 'mem_bw', 'acc_utilization', 'net_bytes_in', 'net_bytes_out'];
+  let selectedMetrics = ccconfig[`node_list_selectedMetrics:${cluster}`] || [ccconfig.system_view_selectedMetric];
   let isMetricsSelectionOpen = false;
 
+  // Todo: Add Idle State Filter (== No allocated Jobs)
+  // Todo: NodeList: Mindestens Accelerator Scope ... "Show Detail" Switch?
+  // Todo: Review performance // observed high client-side load frequency
+  
   const client = getContextClient();
   const nodeQuery = gql`
     query ($cluster: String!, $metrics: [String!], $from: Time!, $to: Time!) {
@@ -139,7 +142,7 @@
     mappedData = rawData.map((h) => ({
       host: h.host,
       subCluster: h.subCluster,
-      data: h.metrics.find(
+      data: h.metrics.filter(
         (m) => selectedMetrics.includes(m.name) && m.scope == "node",
       ),
       disabled: checkMetricsDisabled(
@@ -157,24 +160,23 @@
       h.host.includes(hostnameFilter)
     )
   }
-
 </script>
 
 <!-- ROW1: Tools-->
-<Row cols={{ xs: 2, lg: 4 }}>
+<Row cols={{ xs: 2, lg: 4 }} class="mb-3">
   {#if $initq.data}
     <!-- List Metric Select Col-->
     {#if !displayNodeOverview}
       <Col>
         <InputGroup>
           <InputGroupText><Icon name="graph-up" /></InputGroupText>
-          <InputGroupText>Metrics</InputGroupText>
+          <InputGroupText class="text-capitalize">Metrics</InputGroupText>
           <Button 
             outline
-            color="secondary"
+            color="primary"
             on:click={() => (isMetricsSelectionOpen = true)}
           >
-            Select for {cluster} ...
+            {selectedMetrics.length} selected
           </Button>
         </InputGroup>
       </Col> 
@@ -187,7 +189,6 @@
         <Input
           placeholder="Filter hostname ..."
           type="text"
-          title="Search with at least three characters ..."
           bind:value={hostnameFilter}
         />
       </InputGroup>
@@ -247,21 +248,19 @@
 {:else if $initialized && $nodesQuery?.data}
   {#if displayNodeOverview}
     <!-- ROW2-1: Node Overview (Grid Included)-->
-    <NodeOverview {ccconfig} {cluster} bind:selectedMetric data={filteredData}/>
-
+    <NodeOverview {cluster} {ccconfig} data={filteredData} bind:selectedMetric/>
   {:else}
-    <!-- ROW2-2: Node List-->
-    <Row>
-      <Col>
-        <!-- <NodeList bind:nodesData={$nodesQuery.data} {cluster} {selectedMetrics} {systemUnits} bind:hostnameFilter/> -->
-      </Col>
-    </Row>
-
-    <MetricSelection
-      {cluster}
-      configName="node_list_selectedMetrics"
-      bind:metrics={selectedMetrics}
-      bind:isOpen={isMetricsSelectionOpen}
-    />
+    <!-- ROW2-2: Node List (Grid Included)-->
+    <NodeList {cluster} {selectedMetrics} {systemUnits} data={filteredData}/>
   {/if}
 {/if}
+
+<MetricSelection
+  {cluster}
+  configName="node_list_selectedMetrics"
+  metrics={selectedMetrics}
+  bind:isOpen={isMetricsSelectionOpen}
+  on:update-metrics={({ detail }) => {
+    selectedMetrics = [...detail]
+  }}
+/>

@@ -35,7 +35,7 @@
       >{item.host} ({item.subCluster})</a
     >
   </h4>
-  {#if item?.data}
+  {#if item?.data[0]}
     {#if item?.disabled[selectedMetric]}
       <Card style="margin-left: 2rem;margin-right: 2rem;" body color="info"
         >Metric disabled for subcluster <code
@@ -44,9 +44,9 @@
       >
     {:else}
       <MetricPlot
-        timestep={item.data.metric.timestep}
-        series={item.data.metric.series}
-        metric={item.data.name}
+        timestep={item.data[0].metric.timestep}
+        series={item.data[0].metric.series}
+        metric={item.data[0].name}
         cluster={clusters.find((c) => c.name == cluster)}
         subCluster={item.subCluster}
         forNode={true}
