@@ -438,7 +438,7 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 
 	data, err := metricDataDispatcher.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)
 	if err != nil {
-		log.Warn("Error while loading node data")
+		log.Warn("error while loading node data")
 		return nil, err
 	}
 
@@ -448,7 +448,10 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 			Host:    hostname,
 			Metrics: make([]*model.JobMetricWithName, 0, len(metrics)*len(scopes)),
 		}
-		host.SubCluster, _ = archive.GetSubClusterByNode(cluster, hostname)
+		host.SubCluster, err = archive.GetSubClusterByNode(cluster, hostname)
+		if err != nil {
+			log.Warnf("error in nodeMetrics resolver: %s", err)
+		}
 
 		for metric, scopedMetrics := range metrics {
 			for _, scopedMetric := range scopedMetrics {

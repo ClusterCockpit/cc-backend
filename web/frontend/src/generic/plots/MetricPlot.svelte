@@ -227,7 +227,7 @@
 
     function update(u) {
       const { left, top } = u.cursor;
-      const width = u.over.querySelector(".u-legend").offsetWidth;
+      const width = u?.over?.querySelector(".u-legend")?.offsetWidth ? u.over.querySelector(".u-legend").offsetWidth : 0;
       legendEl.style.transform =
         "translate(" + (left - width - 15) + "px, " + (top + 15) + "px)";
     }

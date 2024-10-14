@@ -1,5 +1,10 @@
 <!--
-    @component Main jobList component; lists jobs according to set filters
+    @component Cluster Per Node List component; renders current state of SELECTABLE metrics for ALL nodes
+
+    Properties:
+    - `cluster String`: The cluster to show status information for
+    - `from Date?`: Custom Time Range selection 'from' [Default: null]
+    - `to Date?`: Custom Time Range selection 'to' [Default: null]
 
     Properties:
     - `sorting Object?`: Currently active sorting [Default: {field: "startTime", type: "col", order: "DESC"}]
@@ -14,134 +19,46 @@
  -->
 
 <script>
-  import { getContext } from "svelte";
   import {
-    queryStore,
     gql,
-    getContextClient,
     mutationStore,
   } from "@urql/svelte";
-  import { Row, Table, Card, Spinner } from "@sveltestrap/sveltestrap";
-  import { stickyHeader } from "../generic/utils.js";
-  import Pagination from "../generic/joblist/Pagination.svelte";
-  import JobListRow from "../generic/joblist/JobListRow.svelte";
+  import { Row, Table } from "@sveltestrap/sveltestrap";
+  import {
+    checkMetricsDisabled,
+    stickyHeader 
+  } from "../generic/utils.js";
+  import NodeListRow from "./nodelist/NodeListRow.svelte";
 
-  const ccconfig = getContext("cc-config"),
-    initialized = getContext("initialized"),
-    globalMetrics = getContext("globalMetrics");
+  export let cluster;
+  export let nodesData = null;
+  export let selectedMetrics = [];
+  export let systemUnits = null;
+  export let hostnameFilter = "";
 
-  export let sorting = { field: "startTime", type: "col", order: "DESC" };
-  export let matchedJobs = 0;
-  export let metrics = ccconfig.plot_list_selectedMetrics;
-  export let showFootprint;
+  // Always use ONE BIG list, but: Make copyable markers -> Nodeinfo ! (like in markdown)
 
-  let usePaging = ccconfig.job_list_usePaging
-  let itemsPerPage = usePaging ? ccconfig.plot_list_jobsPerPage : 10;
-  let page = 1;
-  let paging = { itemsPerPage, page };
-  let filter = [];
-  let triggerMetricRefresh = false;
-
-  function getUnit(m) {
-    const rawUnit = globalMetrics.find((gm) => gm.name === m)?.unit
-    return (rawUnit?.prefix ? rawUnit.prefix : "") + (rawUnit?.base ? rawUnit.base : "")
-  } 
-
-  const client = getContextClient();
-  const query = gql`
-    query (
-      $filter: [JobFilter!]!
-      $sorting: OrderByInput!
-      $paging: PageRequest!
-    ) {
-      jobs(filter: $filter, order: $sorting, page: $paging) {
-        items {
-          id
-          jobId
-          user
-          project
-          cluster
-          subCluster
-          startTime
-          duration
-          numNodes
-          numHWThreads
-          numAcc
-          walltime
-          resources {
-            hostname
-          }
-          SMT
-          exclusive
-          partition
-          arrayJobId
-          monitoringStatus
-          state
-          tags {
-            id
-            type
-            name
-            scope
-          }
-          userData {
-            name
-          }
-          metaData
-          footprint {
-            name
-            stat
-            value
-          }
-        }
-        count
-        hasNextPage
-      }
-    }
-  `;
-
-  $: jobsStore = queryStore({
-    client: client,
-    query: query,
-    variables: { paging, sorting, filter },
-  });
-
-  let jobs = []
-  $: if ($initialized && $jobsStore.data) {
-    jobs = [...$jobsStore.data.jobs.items]
-  }
-
-  $: matchedJobs = $jobsStore.data != null ? $jobsStore.data.jobs.count : -1;
-
-  // Force refresh list with existing unchanged variables (== usually would not trigger reactivity)
-  export function refreshJobs() {
-    jobsStore = queryStore({
-      client: client,
-      query: query,
-      variables: { paging, sorting, filter },
-      requestPolicy: "network-only",
-    });
-  }
-
-  export function refreshAllMetrics() {
-    // Refresh Job Metrics (Downstream will only query for running jobs)
-    triggerMetricRefresh = true
-    setTimeout(function () {
-      triggerMetricRefresh = false;
-    }, 100);
-  }
-
-  // (Re-)query and optionally set new filters; Query will be started reactively.
-  export function queryJobs(filters) {
-    if (filters != null) {
-      let minRunningFor = ccconfig.plot_list_hideShortRunningJobs;
-      if (minRunningFor && minRunningFor > 0) {
-        filters.push({ minRunningFor });
-      }
-      filter = filters;
-    }
-    page = 1;
-    paging = paging = { page, itemsPerPage };
-  }
+  $: nodes = nodesData.nodeMetrics
+    .filter(
+      (h) =>
+        h.host.includes(hostnameFilter) &&
+        h.metrics.some(
+          (m) => selectedMetrics.includes(m.name) && m.scope == "node",
+        ),
+    )
+    .map((h) => ({
+      host: h.host,
+      subCluster: h.subCluster,
+      data: h.metrics.find(
+        (m) => selectedMetrics.includes(m.name) && m.scope == "node",
+      ),
+      disabled: checkMetricsDisabled(
+        selectedMetrics,
+        cluster,
+        h.subCluster,
+      ),
+    }))
+    .sort((a, b) => a.host.localeCompare(b.host))
 
   const updateConfigurationMutation = ({ name, value }) => {
     return mutationStore({
@@ -155,51 +72,17 @@
     });
   };
 
-  function updateConfiguration(value, page) {
+  function updateConfiguration(value) {
     updateConfigurationMutation({
-      name: "plot_list_jobsPerPage",
+      name: "node_list_selectedMetrics",
       value: value,
     }).subscribe((res) => {
       if (res.fetching === false && !res.error) {
-        jobs = [] // Empty List
-        paging = { itemsPerPage: value, page: page }; // Trigger reload of jobList
+        console.log('Selected Metrics for Node List Updated')
       } else if (res.fetching === false && res.error) {
         throw res.error;
       }
     });
-  }
-
-  if (!usePaging) {
-    let scrollMultiplier = 1
-    window.addEventListener('scroll', () => {
-      let {
-        scrollTop,
-        scrollHeight,
-        clientHeight
-      } = document.documentElement;
-
-      // Add 100 px offset to trigger load earlier
-      if (scrollTop + clientHeight >= scrollHeight - 100 && $jobsStore.data != null && $jobsStore.data.jobs.hasNextPage) {
-        let pendingPaging = { ...paging }
-        scrollMultiplier += 1
-        pendingPaging.itemsPerPage = itemsPerPage * scrollMultiplier
-        paging = pendingPaging
-      };
-    });
-  };
-
-  let plotWidth = null;
-  let tableWidth = null;
-  let jobInfoColumnWidth = 250;
-
-  $: if (showFootprint) {
-    plotWidth = Math.floor(
-      (tableWidth - jobInfoColumnWidth) / (metrics.length + 1) - 10,
-    );
-  } else {
-    plotWidth = Math.floor(
-      (tableWidth - jobInfoColumnWidth) / metrics.length - 10,
-    );
   }
 
   let headerPaddingTop = 0;
@@ -210,88 +93,42 @@
 </script>
 
 <Row>
-  <div class="col cc-table-wrapper" bind:clientWidth={tableWidth}>
+  <div class="col cc-table-wrapper">
     <Table cellspacing="0px" cellpadding="0px">
       <thead>
         <tr>
           <th
             class="position-sticky top-0"
             scope="col"
-            style="width: {jobInfoColumnWidth}px; padding-top: {headerPaddingTop}px"
+            style="padding-top: {headerPaddingTop}px"
           >
-            Job Info
+            Node Info
           </th>
-          {#if showFootprint}
-            <th
-              class="position-sticky top-0"
-              scope="col"
-              style="width: {plotWidth}px; padding-top: {headerPaddingTop}px"
-            >
-              Job Footprint
-            </th>
-          {/if}
-          {#each metrics as metric (metric)}
+
+          {#each selectedMetrics as metric (metric)}
             <th
               class="position-sticky top-0 text-center"
               scope="col"
-              style="width: {plotWidth}px; padding-top: {headerPaddingTop}px"
+              style="padding-top: {headerPaddingTop}px"
             >
-              {metric}
-              {#if $initialized}
-                ({getUnit(metric)})
-              {/if}
+              {metric} ({systemUnits[metric]})
             </th>
           {/each}
         </tr>
       </thead>
       <tbody>
-        {#if $jobsStore.error}
-          <tr>
-            <td colspan={metrics.length + 1}>
-              <Card body color="danger" class="mb-3"
-                ><h2>{$jobsStore.error.message}</h2></Card
-              >
-            </td>
-          </tr>
+        {#each nodes as node (node)}
+          {node}
+          <!-- <NodeListRow {node} {selectedMetrics} /> -->
         {:else}
-          {#each jobs as job (job)}
-            <JobListRow bind:triggerMetricRefresh {job} {metrics} {plotWidth} {showFootprint} />
-          {:else}
-            <tr>
-              <td colspan={metrics.length + 1}> No jobs found </td>
-            </tr>
-          {/each}
-        {/if}
-        {#if $jobsStore.fetching || !$jobsStore.data}
           <tr>
-            <td colspan={metrics.length + 1}>
-              <div style="text-align:center;">
-                <Spinner secondary />
-              </div>
-            </td>
+            <td>No nodes found </td>
           </tr>
-        {/if}
+        {/each}
       </tbody>
     </Table>
   </div>
 </Row>
-
-{#if usePaging}
-  <Pagination
-    bind:page
-    {itemsPerPage}
-    itemText="Jobs"
-    totalItems={matchedJobs}
-    on:update-paging={({ detail }) => {
-      if (detail.itemsPerPage != itemsPerPage) {
-        updateConfiguration(detail.itemsPerPage.toString(), detail.page);
-      } else {
-        jobs = []
-        paging = { itemsPerPage: detail.itemsPerPage, page: detail.page };
-      }
-    }}
-  />
-{/if}
 
 <style>
   .cc-table-wrapper {

@@ -1,5 +1,5 @@
 <!-- 
-    @component Data row for a single job displaying metric plots
+    @component Data row for a single node displaying metric plots
 
     Properties:
     - `job Object`: The job object (GraphQL.Job)
@@ -15,9 +15,9 @@
   import { getContext } from "svelte";
   import { Card, Spinner } from "@sveltestrap/sveltestrap";
   import { maxScope, checkMetricDisabled } from "../../generic/utils.js";
-  import JobInfo from "./NodeInfo.svelte";
   import MetricPlot from "../../generic/plots/MetricPlot.svelte";
-  import JobFootprint from "../../generic/helper/JobFootprint.svelte";
+  
+  import NodeInfo from "./NodeInfo.svelte";
 
   export let job;
   export let metrics;

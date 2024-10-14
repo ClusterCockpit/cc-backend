@@ -1,5 +1,5 @@
 <!--
-    @component Displays job metaData, serves links to detail pages
+    @component Displays node info, serves link to signle node page
 
     Properties:
     - `job Object`: The Job Object (GraphQL.Job)
