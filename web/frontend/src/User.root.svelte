@@ -267,7 +267,6 @@
     {#key $stats.data.jobsStatistics[0].histMetrics}
       <PlotGrid
         let:item
-        renderFor="user"
         items={$stats.data.jobsStatistics[0].histMetrics}
         itemsPerRow={3}
       >

@@ -645,7 +645,6 @@
     {#key $mainQuery.data.stats[0].histMetrics}
       <PlotGrid
         let:item
-        renderFor="user"
         items={$mainQuery.data.stats[0].histMetrics}
         itemsPerRow={2}
       >

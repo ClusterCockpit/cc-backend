@@ -11,7 +11,7 @@
     - `series [GraphQL.Series]`: The metric data object
     - `useStatsSeries Bool?`: If this plot uses the statistics Min/Max/Median representation; automatically set to according bool [Default: null]
     - `statisticsSeries [GraphQL.StatisticsSeries]?`: Min/Max/Median representation of metric data [Default: null]
-    - `cluster GraphQL.Cluster`: Cluster Object of the parent job
+    - `cluster String`: Cluster name of the parent job / data
     - `subCluster String`: Name of the subCluster of the parent job
     - `isShared Bool?`: If this job used shared resources; will adapt threshold indicators accordingly [Default: false]
     - `forNode Bool?`: If this plot is used for node data display; will ren[data, err := metricdata.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)](https://github.com/ClusterCockpit/cc-backend/blob/9fe7cdca9215220a19930779a60c8afc910276a3/internal/graph/schema.resolvers.go#L391-L392)der x-axis as negative time with $now as maximum [Default: false]
@@ -117,13 +117,13 @@
 
   export let metric;
   export let scope = "node";
-  export let width = null;
+  export let width = 0;
   export let height = 300;
   export let timestep;
   export let series;
   export let useStatsSeries = null;
   export let statisticsSeries = null;
-  export let cluster;
+  export let cluster = "";
   export let subCluster;
   export let isShared = false;
   export let forNode = false;
@@ -522,17 +522,9 @@
   }
 
   onMount(() => {
-    // Setup Wrapper
-    if (series[0].data.length > 0) {
-      if (forNode) {
-        plotWrapper.style.paddingTop = "0.5rem"
-        plotWrapper.style.paddingBottom = "0.5rem"
-      }
-      plotWrapper.style.backgroundColor = backgroundColor();
-      plotWrapper.style.borderRadius = "5px";
+    if (plotWrapper) {
+      render(width, height);
     }
-    // Init Plot
-    render(width, height);
   });
 
   onDestroy(() => {
@@ -540,22 +532,20 @@
     if (uplot) uplot.destroy();
   });
 
-  // This updates it on all size changes
-  // Condition for reactive triggering (eg scope change)
-  $: if (series[0].data.length > 0) {
+  // This updates plot on all size changes if wrapper (== data) exists
+  $: if (plotWrapper) {
     onSizeChange(width, height);
   }
 
 </script>
 
-<!-- Define Wrapper and NoData Card within $width -->
-<div bind:clientWidth={width}>
-  {#if series[0].data.length > 0}
-    <div bind:this={plotWrapper}/>
-  {:else}
-    <Card class="mx-4" body color="warning"
-      >Cannot render plot: No series data returned for <code>{metric}</code></Card
-    >
-  {/if}
-</div>
-
+<!-- Define $width Wrapper and NoData Card -->
+{#if series[0].data.length > 0}
+  <div bind:this={plotWrapper} bind:clientWidth={width}
+        style="background-color: {backgroundColor()};" class={forNode ? 'py-2 rounded' : 'rounded'}
+  />
+{:else}
+  <Card body color="warning" class="mx-4"
+    >Cannot render plot: No series data returned for <code>{metric}</code></Card
+  >
+{/if}

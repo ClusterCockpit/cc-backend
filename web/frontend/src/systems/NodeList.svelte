@@ -36,7 +36,7 @@
           <th
             class="position-sticky top-0 text-capitalize"
             scope="col"
-            style="padding-top: {headerPaddingTop}px"
+            style="padding-top: {headerPaddingTop}px;"
           >
             {cluster} Node Info
           </th>
@@ -53,7 +53,7 @@
         </tr>
       </thead>
       <tbody>
-        {#each data as nodeData (nodeData)}
+        {#each data as nodeData (nodeData.host)}
           <NodeListRow {nodeData} {cluster} {selectedMetrics}/>
         {:else}
           <tr>

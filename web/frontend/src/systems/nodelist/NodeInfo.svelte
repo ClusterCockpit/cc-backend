@@ -56,7 +56,7 @@
 
 </script>
 
-<Card class="pb-2">
+<Card class="pb-3">
   <CardHeader class="d-inline-flex justify-content-between align-items-end">
     <div>
       <h5 class="mb-0">
@@ -106,7 +106,7 @@
       <hr class="mt-0 mb-3"/>
       <p>
         {#if $nodeJobsData.data.jobs.count > 0}
-          <InputGroup class="justify-content-between">
+          <InputGroup size="sm" class="justify-content-between">
             <InputGroupText>
               <Icon name="activity"/>
             </InputGroupText>
@@ -116,11 +116,11 @@
             <Input class="flex-grow-1" style="background-color: white;" type="text" value="{$nodeJobsData.data.jobs.count} Jobs" disabled />
             <a title="Show jobs running on this node" href="/monitoring/jobs/?cluster={cluster}&state=running&node={hostname}" target="_blank" class="btn btn-outline-primary" role="button" aria-disabled="true" >
               <Icon name="view-list" /> 
-              Show List
+              List
             </a>
           </InputGroup>
         {:else}
-          <InputGroup class="justify-content-between">
+          <InputGroup size="sm" class="justify-content-between">
             <InputGroupText>
               <Icon name="activity" />
             </InputGroupText>
@@ -132,30 +132,30 @@
         {/if}
       </p>
       <p>
-        <InputGroup class="justify-content-between">
+        <InputGroup size="sm" class="justify-content-between">
           <InputGroupText>
             <Icon name="people"/>
           </InputGroupText>
           <InputGroupText class="flex-fill">
-            Users on Node
+            Show Users on Node
           </InputGroupText>
           <a title="Show jobs running on this node" href="/monitoring/users/?cluster={cluster}&state=running&node={hostname}" target="_blank" class="btn btn-outline-primary" role="button" aria-disabled="true" >
             <Icon name="view-list" /> 
-            Show List
+            List
           </a>
         </InputGroup>
       </p>
       <p>
-        <InputGroup class="justify-content-between">
+        <InputGroup size="sm" class="justify-content-between">
           <InputGroupText>
             <Icon name="journals"/>
           </InputGroupText>
           <InputGroupText class="flex-fill">
-            Projects on Node
+            Show Projects on Node
           </InputGroupText>
           <a title="Show projects active on this node" href="/monitoring/projects/?cluster={cluster}&state=running&node={hostname}" target="_blank" class="btn btn-outline-primary" role="button" aria-disabled="true" >
             <Icon name="view-list" /> 
-            Show List
+            List
           </a>
         </InputGroup>
       </p>

@@ -9,9 +9,7 @@
  -->
 
  <script>
-  import { getContext } from "svelte";
-  import { Card } from "@sveltestrap/sveltestrap";
-  import PlotGrid from "../generic/PlotGrid.svelte";
+  import { Row, Col, Card } from "@sveltestrap/sveltestrap";
   import MetricPlot from "../generic/plots/MetricPlot.svelte";
 
   export let ccconfig = null;
@@ -19,45 +17,36 @@
   export let cluster = "";
   export let selectedMetric = "";
 
-  const clusters = getContext("clusters");
 </script>
 
-<PlotGrid
-  let:item
-  renderFor="systems"
-  itemsPerRow={ccconfig.plot_view_plotsPerRow}
-  items={data}
->
-  <h4 style="width: 100%; text-align: center;">
-    <a
-      style="display: block;padding-top: 15px;"
-      href="/monitoring/node/{cluster}/{item.host}"
-      >{item.host} ({item.subCluster})</a
-    >
-  </h4>
-  {#if item?.data[0]}
-    {#if item?.disabled[selectedMetric]}
-      <Card style="margin-left: 2rem;margin-right: 2rem;" body color="info"
-        >Metric disabled for subcluster <code
-          >{selectedMetric}:{item.subCluster}</code
-        ></Card
-      >
-    {:else}
-      <MetricPlot
-        timestep={item.data[0].metric.timestep}
-        series={item.data[0].metric.series}
-        metric={item.data[0].name}
-        cluster={clusters.find((c) => c.name == cluster)}
-        subCluster={item.subCluster}
-        forNode={true}
-      />
-    {/if}
-  {:else}
-    <Card
-      style="margin-left: 2rem;margin-right: 2rem;"
-      body
-      color="warning"
-      >No dataset returned for <code>{selectedMetric}</code></Card
-    >
-  {/if}
-</PlotGrid>
+<!-- PlotGrid flattened into this component -->
+<Row cols={{ xs: 1, sm: 2, md: 3, lg: ccconfig.plot_view_plotsPerRow}}>
+  {#each data as item (item.host)}
+    <Col class="px-1">
+      <h4 style="width: 100%; text-align: center;">
+        <a
+          style="display: block;padding-top: 15px;"
+          href="/monitoring/node/{cluster}/{item.host}"
+          >{item.host} ({item.subCluster})</a
+        >
+      </h4>
+      {#if item?.disabled[selectedMetric]}
+        <Card body class="mx-3" color="info"
+          >Metric disabled for subcluster <code
+            >{selectedMetric}:{item.subCluster}</code
+          ></Card
+        >
+      {:else}
+        <!-- "No Data"-Warning included in MetricPlot-Component -->
+        <MetricPlot
+          timestep={item.data[0].metric.timestep}
+          series={item.data[0].metric.series}
+          metric={item.data[0].name}
+          {cluster}
+          subCluster={item.subCluster}
+          forNode
+        />
+      {/if}
+    </Col>
+  {/each}
+</Row>

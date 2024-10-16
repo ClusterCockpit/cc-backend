@@ -24,32 +24,24 @@
   <td>
     <NodeInfo {cluster} subCluster={nodeData.subCluster} hostname={nodeData.host} />
   </td>
-  {#each sortOrder(nodeData?.data) as metricData}
+  {#each sortOrder(nodeData?.data) as metricData (metricData.name)}
     <td>
-      {#if metricData}
-        {#if nodeData?.disabled[metricData.name]}
-          <Card style="margin-left: 2rem;margin-right: 2rem;" body color="info"
-            >Metric disabled for subcluster <code
-              >{metricData.name}:{nodeData.subCluster}</code
-            ></Card
-          >
-        {:else}
-          <MetricPlot
-            timestep={metricData.metric.timestep}
-            series={metricData.metric.series}
-            metric={metricData.name}
-            {cluster}
-            subCluster={nodeData.subCluster}
-            forNode={true}
-          />
-        {/if}
-      {:else}
-        <Card
-          style="margin-left: 2rem;margin-right: 2rem;"
-          body
-          color="warning"
-          >No dataset returned for <code>{metricData.name}</code></Card
+      {#if nodeData?.disabled[metricData.name]}
+        <Card body class="mx-3" color="info"
+          >Metric disabled for subcluster <code
+            >{metricData.name}:{nodeData.subCluster}</code
+          ></Card
         >
+      {:else}
+        <!-- "No Data"-Warning included in MetricPlot-Component -->
+        <MetricPlot
+          timestep={metricData.metric.timestep}
+          series={metricData.metric.series}
+          metric={metricData.name}
+          {cluster}
+          subCluster={nodeData.subCluster}
+          forNode
+        />
       {/if}
     </td>
   {/each}

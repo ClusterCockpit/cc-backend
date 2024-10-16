@@ -45,7 +45,7 @@
   if (from == null || to == null) {
     to = new Date(Date.now());
     from = new Date(to.getTime());
-    from.setHours(from.getHours() - 4);
+    from.setHours(from.getHours() - 2);
   }
 
   const initialized = getContext("initialized");
@@ -61,6 +61,7 @@
   // Todo: Add Idle State Filter (== No allocated Jobs)
   // Todo: NodeList: Mindestens Accelerator Scope ... "Show Detail" Switch?
   // Todo: Review performance // observed high client-side load frequency
+  //       Is Svelte {#each} -> <MetricPlot/> -> onMount() related : Cannot be skipped ...
   
   const client = getContextClient();
   const nodeQuery = gql`
@@ -245,13 +246,13 @@
       <Spinner />
     </Col>
   </Row>
-{:else if $initialized && $nodesQuery?.data}
+{:else if filteredData?.length > 0}
   {#if displayNodeOverview}
     <!-- ROW2-1: Node Overview (Grid Included)-->
-    <NodeOverview {cluster} {ccconfig} data={filteredData} bind:selectedMetric/>
+    <NodeOverview {cluster} {ccconfig} data={filteredData}/>
   {:else}
     <!-- ROW2-2: Node List (Grid Included)-->
-    <NodeList {cluster} {selectedMetrics} {systemUnits} data={filteredData}/>
+    <NodeList {cluster} {selectedMetrics} {systemUnits} data={filteredData} bind:selectedMetric/>
   {/if}
 {/if}
 

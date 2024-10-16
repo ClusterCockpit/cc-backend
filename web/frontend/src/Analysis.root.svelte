@@ -519,7 +519,6 @@
     <Col>
       <PlotGrid
         let:item
-        renderFor="analysis"
         items={metricsInHistograms.map((metric) => ({
           metric,
           ...binsFromFootprint(
@@ -563,7 +562,6 @@
       <PlotGrid
         let:item
         let:width
-        renderFor="analysis"
         items={metricsInScatterplots.map(([m1, m2]) => ({
           m1,
           f1: $footprintsQuery.data.footprints.metrics.find(

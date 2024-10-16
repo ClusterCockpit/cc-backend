@@ -191,7 +191,6 @@
     {:else}
       <PlotGrid
         let:item
-        renderFor="node"
         itemsPerRow={ccconfig.plot_view_plotsPerRow}
         items={$nodeMetricsData.data.nodeMetrics[0].metrics
           .map((m) => ({
