@@ -1,9 +1,10 @@
 <!--
-    @component Displays node info, serves link to signle node page
+    @component Displays node info, serves links to single node page and lists
 
     Properties:
-    - `job Object`: The Job Object (GraphQL.Job)
-    - `jobTags [Number]?`: The jobs tags as IDs, default useful for dynamically updating the tags [Default: job.tags]
+    - `cluster String`: The nodes' cluster
+    - `subCluster String`: The nodes' subCluster
+    - `cluster String`: The nodes' hostname
  -->
 
 <script>

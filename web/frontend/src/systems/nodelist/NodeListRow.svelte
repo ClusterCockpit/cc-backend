@@ -2,9 +2,9 @@
     @component Data row for a single node displaying metric plots
 
     Properties:
-    - `job Object`: The job object (GraphQL.Job)
-    - `metrics [String]`: Currently selected metrics
-    - `plotWidth Number`: Width of the sub-components
+    - `cluster String`: The nodes' cluster
+    - `nodeData Object`: The node data object including metric data
+    - `selectedMetrics [String]`: The array of selected metrics
  -->
 
 <script>

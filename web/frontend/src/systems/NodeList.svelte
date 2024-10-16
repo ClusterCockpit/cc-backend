@@ -2,9 +2,10 @@
     @component Cluster Per Node List component; renders current state of SELECTABLE metrics for ALL nodes
 
     Properties:
-    - `cluster String`: The cluster to show status information for
-    - `from Date?`: Custom Time Range selection 'from' [Default: null]
-    - `to Date?`: Custom Time Range selection 'to' [Default: null]
+    - `cluster String`: The nodes' cluster
+    - `data [Object]`: The node data array for all nodes
+    - `selectedMetrics [String]`: The array of selected metrics
+    - `selectedMetrics Object`: The object of metric units
  -->
 
 <script>
