@@ -137,9 +137,9 @@
             <Icon name="people"/>
           </InputGroupText>
           <InputGroupText class="flex-fill">
-            Show Users on Node
+            Show Users
           </InputGroupText>
-          <a title="Show jobs running on this node" href="/monitoring/users/?cluster={cluster}&state=running&node={hostname}" target="_blank" class="btn btn-outline-primary" role="button" aria-disabled="true" >
+          <a title="Show users active on this node" href="/monitoring/users/?cluster={cluster}&state=running&node={hostname}" target="_blank" class="btn btn-outline-primary" role="button" aria-disabled="true" >
             <Icon name="view-list" /> 
             List
           </a>
@@ -151,7 +151,7 @@
             <Icon name="journals"/>
           </InputGroupText>
           <InputGroupText class="flex-fill">
-            Show Projects on Node
+            Show Projects
           </InputGroupText>
           <a title="Show projects active on this node" href="/monitoring/projects/?cluster={cluster}&state=running&node={hostname}" target="_blank" class="btn btn-outline-primary" role="button" aria-disabled="true" >
             <Icon name="view-list" /> 
