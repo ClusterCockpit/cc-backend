@@ -58,8 +58,9 @@
   let selectedMetrics = ccconfig[`node_list_selectedMetrics:${cluster}`] || [ccconfig.system_view_selectedMetric];
   let isMetricsSelectionOpen = false;
 
-  // Todo: Add Idle State Filter (== No allocated Jobs)
+  // Todo: Add Idle State Filter (== No allocated Jobs) [Frontend?]
   // Todo: NodeList: Mindestens Accelerator Scope ... "Show Detail" Switch?
+  // Todo: Rework GQL Query: Add Paging (Scrollable), Add Nodes Filter (see jobs-onthefly-userfilter), add scopes
   // Todo: Review performance // observed high client-side load frequency
   //       Is Svelte {#each} -> <MetricPlot/> -> onMount() related : Cannot be skipped ...
   
