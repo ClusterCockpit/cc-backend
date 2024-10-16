@@ -141,7 +141,7 @@
       <InputGroup>
         <InputGroupText><Icon name="hdd" /></InputGroupText>
         <InputGroupText>Selected Node</InputGroupText>
-        <Input style="background-color: white;"type="text" value="{hostname} ({cluster})" disabled/>
+        <Input style="background-color: white;"type="text" value="{hostname} [{cluster} ({$nodeMetricsData?.data ? $nodeMetricsData.data.nodeMetrics[0].subCluster : ''})]" disabled/>
       </InputGroup>
     </Col>
     <!-- Time Col -->
