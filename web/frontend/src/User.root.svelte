@@ -1,26 +1,43 @@
+<!--
+    @component Main user jobs list display component; displays job list and additional information for a given user
+
+    Properties:
+    - `user Object`: The GraphQL user object
+    - `filterPresets Object`: Optional predefined filter values
+ -->
+
 <script>
   import { onMount, getContext } from "svelte";
-  import { init, convert2uplot } from "./utils.js";
   import {
     Table,
     Row,
     Col,
     Button,
+    ButtonGroup,
     Icon,
     Card,
     Spinner,
   } from "@sveltestrap/sveltestrap";
-  import { queryStore, gql, getContextClient } from "@urql/svelte";
-  import Filters from "./filters/Filters.svelte";
-  import TextFilter from "./filters/TextFilter.svelte"
-  import JobList from "./joblist/JobList.svelte";
-  import Sorting from "./joblist/SortSelection.svelte";
-  import Refresher from "./joblist/Refresher.svelte";
-  import Histogram from "./plots/Histogram.svelte";
-  import MetricSelection from "./MetricSelection.svelte";
-  import HistogramSelection from "./HistogramSelection.svelte";
-  import PlotTable from "./PlotTable.svelte";
-  import { scramble, scrambleNames } from "./joblist/JobInfo.svelte";
+  import {
+    queryStore,
+    gql,
+    getContextClient,
+  } from "@urql/svelte";
+  import {
+    init,
+    convert2uplot,
+    scramble,
+    scrambleNames,
+  } from "./generic/utils.js";
+  import JobList from "./generic/JobList.svelte";
+  import Filters from "./generic/Filters.svelte";
+  import PlotGrid from "./generic/PlotGrid.svelte";
+  import Histogram from "./generic/plots/Histogram.svelte";
+  import MetricSelection from "./generic/select/MetricSelection.svelte";
+  import HistogramSelection from "./generic/select/HistogramSelection.svelte";
+  import Sorting from "./generic/select/SortSelection.svelte";
+  import TextFilter from "./generic/helper/TextFilter.svelte"
+  import Refresher from "./generic/helper/Refresher.svelte";
 
   const { query: initq } = init();
 
@@ -32,14 +49,12 @@
   let filterComponent; // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
   let jobList;
   let jobFilters = [];
-  let sorting = { field: "startTime", order: "DESC" },
+  let matchedJobs = 0;
+  let sorting = { field: "startTime", type: "col", order: "DESC" },
     isSortingOpen = false;
   let metrics = ccconfig.plot_list_selectedMetrics,
     isMetricsSelectionOpen = false;
-  let w1,
-    w2,
-    histogramHeight = 250,
-    isHistogramSelectionOpen = false;
+  let isHistogramSelectionOpen = false;
   let selectedCluster = filterPresets?.cluster ? filterPresets.cluster : null;
   let showFootprint = filterPresets.cluster
     ? !!ccconfig[`plot_list_showFootprint:${filterPresets.cluster}`]
@@ -70,6 +85,7 @@
           histMetrics {
             metric
             unit
+            stat
             data {
               min
               max
@@ -83,66 +99,70 @@
     variables: { jobFilters, metricsInHistograms },
   });
 
-  onMount(() => filterComponent.update());
+  onMount(() => filterComponent.updateFilters());
 </script>
 
-<Row>
-  {#if $initq.fetching}
+<!-- ROW1: Status-->
+{#if $initq.fetching}
+  <Row>
     <Col>
       <Spinner />
     </Col>
-  {:else if $initq.error}
-    <Col xs="auto">
+  </Row>
+{:else if $initq.error}
+  <Row>
+    <Col>
       <Card body color="danger">{$initq.error.message}</Card>
     </Col>
-  {/if}
+  </Row>
+{/if}
 
-  <Col xs="auto">
-    <Button outline color="primary" on:click={() => (isSortingOpen = true)}>
-      <Icon name="sort-up" /> Sorting
-    </Button>
-
-    <Button
-      outline
-      color="primary"
-      on:click={() => (isMetricsSelectionOpen = true)}
-    >
-      <Icon name="graph-up" /> Metrics
-    </Button>
-
-    <Button
-      outline
-      color="secondary"
-      on:click={() => (isHistogramSelectionOpen = true)}
-    >
-      <Icon name="bar-chart-line" /> Select Histograms
-    </Button>
+<!-- ROW2: Tools-->
+<Row cols={{ xs: 1, md: 2, lg: 4}} class="mb-3">
+  <Col lg="2" class="mb-2 mb-lg-0">
+    <ButtonGroup class="w-100">
+      <Button outline color="primary" on:click={() => (isSortingOpen = true)}>
+        <Icon name="sort-up" /> Sorting
+      </Button>
+      <Button
+        outline
+        color="primary"
+        on:click={() => (isMetricsSelectionOpen = true)}
+      >
+        <Icon name="graph-up" /> Metrics
+      </Button>
+    </ButtonGroup>
   </Col>
-  <Col xs="auto">
+  <Col lg="4" xl="6" class="mb-1 mb-lg-0">
     <Filters
       {filterPresets}
+      {matchedJobs}
       startTimeQuickSelect={true}
       bind:this={filterComponent}
-      on:update={({ detail }) => {
+      on:update-filters={({ detail }) => {
         jobFilters = [...detail.filters, { user: { eq: user.username } }];
         selectedCluster = jobFilters[0]?.cluster
           ? jobFilters[0].cluster.eq
           : null;
-        jobList.update(jobFilters);
+        jobList.queryJobs(jobFilters);
       }}
     />
   </Col>
-  <Col xs="auto" style="margin-left: auto;">
+  <Col lg="3" xl="2" class="mb-2 mb-lg-0">
     <TextFilter
-      on:update={({ detail }) => filterComponent.update(detail)}
+      on:set-filter={({ detail }) => filterComponent.updateFilters(detail)}
     />
   </Col>
-  <Col xs="auto">
-    <Refresher on:reload={() => jobList.refresh()} />
+  <Col lg="3" xl="2" class="mb-1 mb-lg-0">
+    <Refresher on:refresh={() => {
+      jobList.refreshJobs()
+      jobList.refreshAllMetrics()
+    }} />
   </Col>
 </Row>
-<br />
-<Row>
+
+<!-- ROW3: Base Information-->
+<Row cols={{ xs: 1, md: 3}} class="mb-2">
   {#if $stats.error}
     <Col>
       <Card body color="danger">{$stats.error.message}</Card>
@@ -152,7 +172,7 @@
       <Spinner secondary />
     </Col>
   {:else}
-    <Col xs="4">
+    <Col>
       <Table>
         <tbody>
           <tr>
@@ -190,12 +210,10 @@
         </tbody>
       </Table>
     </Col>
-    <div class="col-4 text-center" bind:clientWidth={w1}>
+    <Col class="px-1">
       {#key $stats.data.jobsStatistics[0].histDuration}
         <Histogram
           data={convert2uplot($stats.data.jobsStatistics[0].histDuration)}
-          width={w1 - 25}
-          height={histogramHeight}
           title="Duration Distribution"
           xlabel="Current Runtimes"
           xunit="Hours"
@@ -203,13 +221,11 @@
           yunit="Jobs"
         />
       {/key}
-    </div>
-    <div class="col-4 text-center" bind:clientWidth={w2}>
+    </Col>
+    <Col class="px-1">
       {#key $stats.data.jobsStatistics[0].histNumNodes}
         <Histogram
           data={convert2uplot($stats.data.jobsStatistics[0].histNumNodes)}
-          width={w2 - 25}
-          height={histogramHeight}
           title="Number of Nodes Distribution"
           xlabel="Allocated Nodes"
           xunit="Nodes"
@@ -217,50 +233,74 @@
           yunit="Jobs"
         />
       {/key}
-    </div>
+    </Col>
   {/if}
 </Row>
-{#if metricsInHistograms}
-  <Row>
-    {#if $stats.error}
+
+<!-- ROW4+5: Selectable Histograms -->
+<Row cols={{ xs: 1, md: 5}}>
+  <Col>
+    <Button
+      outline
+      color="secondary"
+      on:click={() => (isHistogramSelectionOpen = true)}
+    >
+      <Icon name="bar-chart-line" /> Select Histograms
+    </Button>
+  </Col>
+</Row>
+{#if metricsInHistograms?.length > 0}
+  {#if $stats.error}
+    <Row>
       <Col>
         <Card body color="danger">{$stats.error.message}</Card>
       </Col>
-    {:else if !$stats.data}
+    </Row>
+  {:else if !$stats.data}
+    <Row>
       <Col>
         <Spinner secondary />
       </Col>
-    {:else}
-      <Col>
-        {#key $stats.data.jobsStatistics[0].histMetrics}
-          <PlotTable
-            let:item
-            let:width
-            renderFor="user"
-            items={$stats.data.jobsStatistics[0].histMetrics}
-            itemsPerRow={3}
-          >
-            <Histogram
-              data={convert2uplot(item.data)}
-              usesBins={true}
-              {width}
-              height={250}
-              title="Distribution of '{item.metric}' averages"
-              xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
-              xunit={item.unit}
-              ylabel="Number of Jobs"
-              yunit="Jobs"
-            />
-          </PlotTable>
-        {/key}
-      </Col>
-    {/if}
+    </Row>
+  {:else}
+    <hr class="my-2"/>
+    {#key $stats.data.jobsStatistics[0].histMetrics}
+      <PlotGrid
+        let:item
+        renderFor="user"
+        items={$stats.data.jobsStatistics[0].histMetrics}
+        itemsPerRow={3}
+      >
+        <Histogram
+          data={convert2uplot(item.data)}
+          usesBins={true}
+          title="Distribution of '{item.metric} ({item.stat})' footprints"
+          xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
+          xunit={item.unit}
+          ylabel="Number of Jobs"
+          yunit="Jobs"
+        />
+      </PlotGrid>
+    {/key}
+  {/if}
+{:else}
+  <Row class="mt-2">
+    <Col>
+      <Card body>No footprint histograms selected.</Card>
+    </Col>
   </Row>
 {/if}
-<br />
-<Row>
+
+<!-- ROW6: JOB LIST-->
+<Row class="mt-3">
   <Col>
-    <JobList bind:metrics bind:sorting bind:this={jobList} bind:showFootprint />
+    <JobList
+      bind:this={jobList} 
+      bind:matchedJobs
+      bind:metrics
+      bind:sorting
+      bind:showFootprint
+    />
   </Col>
 </Row>
 
@@ -272,7 +312,7 @@
   bind:metrics
   bind:isOpen={isMetricsSelectionOpen}
   bind:showFootprint
-  view="list"
+  footprintSelect={true}
 />
 
 <HistogramSelection
