@@ -7,7 +7,7 @@
  -->
 
 <script>
-  import { Badge, Icon } from "@sveltestrap/sveltestrap";
+  import { Badge, Button, Icon } from "@sveltestrap/sveltestrap";
   import { scrambleNames, scramble } from "../utils.js";
   import Tag from "../helper/Tag.svelte";
   import TagManagement from "../helper/TagManagement.svelte";
@@ -38,16 +38,35 @@
         return "danger";
     }
   }
+
+  let displayCheck = false;
+  function clipJobId(jid) {
+    displayCheck = true;
+    navigator.clipboard
+      .writeText(jid)
+      .catch((reason) => console.error(reason));
+      setTimeout(function () {
+        displayCheck = false;
+      }, 1500);
+  }
 </script>
 
 <div>
   <p class="mb-2">
-    <span class="fw-bold"
-      ><a href="/monitoring/job/{job.id}" target="_blank">{job.jobId}</a>
-      ({job.cluster})</span
-    >
+    <span class="d-flex justify-content-between">
+      <span class="align-self-center fw-bold mr-2">
+        <a href="/monitoring/job/{job.id}" target="_blank">{job.jobId}</a>
+        ({job.cluster}) 
+      </span>
+      <Button outline color="secondary" size="sm" title="Copy JobID to Clipboard" on:click={clipJobId(job.jobId)} >
+        {#if displayCheck}
+          <Icon name="clipboard2-check-fill"/> Copied
+        {:else}
+          <Icon name="clipboard2"/> Job ID
+        {/if}
+      </Button>
+    </span>
     {#if job.metaData?.jobName}
-      <br />
       {#if job.metaData?.jobName.length <= 25}
         <div>{job.metaData.jobName}</div>
       {:else}
