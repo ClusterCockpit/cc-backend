@@ -621,13 +621,12 @@ func (r *JobRepository) UpdateEnergy(
 	}
 
 	var rawFootprint []byte
-
 	if rawFootprint, err = json.Marshal(energyFootprint); err != nil {
-		log.Warnf("Error while marshaling energy footprint for job, DB ID '%v'", jobMeta.ID)
+		log.Warnf("Error while marshaling energy footprint for job INTO BYTES, DB ID '%v'", jobMeta.ID)
 		return stmt, err
 	}
 
-	return stmt.Set("energy_footprint", rawFootprint).Set("energy", (math.Round(totalEnergy*100) / 100)), nil
+	return stmt.Set("energy_footprint", string(rawFootprint)).Set("energy", (math.Round(totalEnergy*100) / 100)), nil
 }
 
 func (r *JobRepository) UpdateFootprint(
@@ -654,11 +653,10 @@ func (r *JobRepository) UpdateFootprint(
 	}
 
 	var rawFootprint []byte
-
 	if rawFootprint, err = json.Marshal(footprint); err != nil {
-		log.Warnf("Error while marshaling footprint for job, DB ID '%v'", jobMeta.ID)
+		log.Warnf("Error while marshaling footprint for job INTO BYTES, DB ID '%v'", jobMeta.ID)
 		return stmt, err
 	}
 
-	return stmt.Set("footprint", rawFootprint), nil
+	return stmt.Set("footprint", string(rawFootprint)), nil
 }
