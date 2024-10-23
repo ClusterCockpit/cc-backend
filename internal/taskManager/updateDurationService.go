@@ -7,14 +7,21 @@ package taskManager
 import (
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/go-co-op/gocron/v2"
 )
 
 func RegisterUpdateDurationWorker() {
-	log.Info("Register duration update service")
+	var frequency string
+	if config.Keys.CronFrequency.DurationWorker != "" {
+		frequency = config.Keys.CronFrequency.DurationWorker
+	} else {
+		frequency = "5m"
+	}
+	d, _ := time.ParseDuration(frequency)
+	log.Infof("Register Duration Update service with %s interval", frequency)
 
-	d, _ := time.ParseDuration("5m")
 	s.NewJob(gocron.DurationJob(d),
 		gocron.NewTask(
 			func() {

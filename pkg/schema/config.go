@@ -84,6 +84,13 @@ type ResampleConfig struct {
 	Resolutions []int `json:"resolutions"`
 }
 
+type CronFrequency struct {
+	// Duration Update Worker [Defaults to '5m']
+	DurationWorker string `json:"duration-worker"`
+	// Metric- and Energy Footprint Update Worker [Defaults to '10m']
+	FootprintWorker string `json:"footprint-worker"`
+}
+
 // Format of the configuration (file). See below for the defaults.
 type ProgramConfig struct {
 	// Address where the http (or https) server will listen on (for example: 'localhost:80').
@@ -159,4 +166,7 @@ type ProgramConfig struct {
 	// Energy Mix CO2 Emission Constant [g/kWh]
 	// If entered, displays estimated CO2 emission for job based on jobs totalEnergy
 	EmissionConstant int `json:"emission-constant"`
+
+	// Frequency of cron job workers
+	CronFrequency *CronFrequency `json:"cron-frequency"`
 }

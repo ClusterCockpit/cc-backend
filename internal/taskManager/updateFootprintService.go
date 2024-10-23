@@ -9,6 +9,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
@@ -18,8 +19,15 @@ import (
 )
 
 func RegisterFootprintWorker() {
-	log.Info("Register Footprint Update service")
-	d, _ := time.ParseDuration("10m")
+	var frequency string
+	if config.Keys.CronFrequency.FootprintWorker != "" {
+		frequency = config.Keys.CronFrequency.FootprintWorker
+	} else {
+		frequency = "10m"
+	}
+	d, _ := time.ParseDuration(frequency)
+	log.Infof("Register Footprint Update service with %s interval", frequency)
+
 	s.NewJob(gocron.DurationJob(d),
 		gocron.NewTask(
 			func() {
