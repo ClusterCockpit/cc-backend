@@ -24,8 +24,9 @@ type LdapConfig struct {
 }
 
 type OpenIDConfig struct {
-	Provider        string `json:"provider"`
-	SyncUserOnLogin bool   `json:"syncUserOnLogin"`
+	Provider          string `json:"provider"`
+	SyncUserOnLogin   bool   `json:"syncUserOnLogin"`
+	UpdateUserOnLogin bool   `json:"updateUserOnLogin"`
 }
 
 type JWTAuthConfig struct {
@@ -45,6 +46,9 @@ type JWTAuthConfig struct {
 
 	// Should an non-existent user be added to the DB based on the information in the token
 	SyncUserOnLogin bool `json:"syncUserOnLogin"`
+
+	// Should an existent user be updated in the DB based on the information in the token
+	UpdateUserOnLogin bool `json:"updateUserOnLogin"`
 }
 
 type IntRange struct {
@@ -53,8 +57,9 @@ type IntRange struct {
 }
 
 type TimeRange struct {
-	From *time.Time `json:"from"`
-	To   *time.Time `json:"to"`
+	Range string     `json:"range,omitempty"` // Optional, e.g. 'last6h'
+	From  *time.Time `json:"from"`
+	To    *time.Time `json:"to"`
 }
 
 type FilterRanges struct {
@@ -74,6 +79,20 @@ type Retention struct {
 	Location  string `json:"location"`
 	Age       int    `json:"age"`
 	IncludeDB bool   `json:"includeDB"`
+}
+
+type ResampleConfig struct {
+	// Trigger next zoom level at less than this many visible datapoints
+	Trigger int `json:"trigger"`
+	// Array of resampling target resolutions, in seconds; Example: [600,300,60]
+	Resolutions []int `json:"resolutions"`
+}
+
+type CronFrequency struct {
+	// Duration Update Worker [Defaults to '5m']
+	DurationWorker string `json:"duration-worker"`
+	// Metric- and Energy Footprint Update Worker [Defaults to '10m']
+	FootprintWorker string `json:"footprint-worker"`
 }
 
 // Format of the configuration (file). See below for the defaults.
@@ -133,6 +152,9 @@ type ProgramConfig struct {
 	// be provided! Most options here can be overwritten by the user.
 	UiDefaults map[string]interface{} `json:"ui-defaults"`
 
+	// If exists, will enable dynamic zoom in frontend metric plots using the configured values
+	EnableResampling *ResampleConfig `json:"enable-resampling"`
+
 	// Where to store MachineState files
 	MachineStateDir string `json:"machine-state-dir"`
 
@@ -144,4 +166,11 @@ type ProgramConfig struct {
 
 	// Array of Clusters
 	Clusters []*ClusterConfig `json:"clusters"`
+
+	// Energy Mix CO2 Emission Constant [g/kWh]
+	// If entered, displays estimated CO2 emission for job based on jobs totalEnergy
+	EmissionConstant int `json:"emission-constant"`
+
+	// Frequency of cron job workers
+	CronFrequency *CronFrequency `json:"cron-frequency"`
 }

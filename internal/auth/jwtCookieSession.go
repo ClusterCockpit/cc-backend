@@ -198,8 +198,8 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 			AuthSource: schema.AuthViaToken,
 		}
 
-		if jc.SyncUserOnLogin {
-			persistUser(user)
+		if jc.SyncUserOnLogin || jc.UpdateUserOnLogin {
+			handleTokenUser(user)
 		}
 	}
 
