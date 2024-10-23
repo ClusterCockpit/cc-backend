@@ -72,7 +72,7 @@
       {:else}
         <div
           class="truncate"
-          style="cursor:help; width:230px;"
+          style="cursor:help;"
           title={job.metaData.jobName}
         >
           {job.metaData.jobName}

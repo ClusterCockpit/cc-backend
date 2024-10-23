@@ -642,7 +642,17 @@ func (r *JobRepository) UpdateFootprint(
 	footprint := make(map[string]float64)
 
 	for _, fp := range sc.Footprint {
-		statType := "avg"
+		var statType string
+		for _, gm := range archive.GlobalMetricList {
+			if gm.Name == fp {
+				statType = gm.Footprint
+			}
+		}
+
+		if statType != "avg" && statType != "min" && statType != "max" {
+			log.Warnf("unknown statType for footprint update: %s", statType)
+			return stmt, fmt.Errorf("unknown statType for footprint update: %s", statType)
+		}
 
 		if i, err := archive.MetricIndex(sc.MetricConfig, fp); err != nil {
 			statType = sc.MetricConfig[i].Footprint
