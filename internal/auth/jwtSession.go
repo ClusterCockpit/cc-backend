@@ -138,8 +138,8 @@ func (ja *JWTSessionAuthenticator) Login(
 			AuthSource: schema.AuthViaToken,
 		}
 
-		if config.Keys.JwtConfig.SyncUserOnLogin {
-			persistUser(user)
+		if config.Keys.JwtConfig.SyncUserOnLogin || config.Keys.JwtConfig.UpdateUserOnLogin {
+			handleTokenUser(user)
 		}
 	}
 

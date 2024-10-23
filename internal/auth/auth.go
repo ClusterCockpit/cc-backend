@@ -143,19 +143,36 @@ func GetAuthInstance() *Authentication {
 	return authInstance
 }
 
-func persistUser(user *schema.User) {
+func handleTokenUser(tokenUser *schema.User) {
 	r := repository.GetUserRepository()
-	dbUser, err := r.GetUser(user.Username)
+	dbUser, err := r.GetUser(tokenUser.Username)
 
 	if err != nil && err != sql.ErrNoRows {
-		log.Errorf("Error while loading user '%s': %v", user.Username, err)
-	} else if err == sql.ErrNoRows { // Adds New User
-		if err := r.AddUser(user); err != nil {
-			log.Errorf("Error while adding user '%s' to DB: %v", user.Username, err)
+		log.Errorf("Error while loading user '%s': %v", tokenUser.Username, err)
+	} else if err == sql.ErrNoRows && config.Keys.JwtConfig.SyncUserOnLogin { // Adds New User
+		if err := r.AddUser(tokenUser); err != nil {
+			log.Errorf("Error while adding user '%s' to DB: %v", tokenUser.Username, err)
 		}
-	} else { // Update Existing
-		if err := r.UpdateUser(dbUser, user); err != nil {
-			log.Errorf("Error while updating user '%s' to DB: %v", user.Username, err)
+	} else if err == nil && config.Keys.JwtConfig.UpdateUserOnLogin { // Update Existing User
+		if err := r.UpdateUser(dbUser, tokenUser); err != nil {
+			log.Errorf("Error while updating user '%s' to DB: %v", dbUser.Username, err)
+		}
+	}
+}
+
+func handleOIDCUser(OIDCUser *schema.User) {
+	r := repository.GetUserRepository()
+	dbUser, err := r.GetUser(OIDCUser.Username)
+
+	if err != nil && err != sql.ErrNoRows {
+		log.Errorf("Error while loading user '%s': %v", OIDCUser.Username, err)
+	} else if err == sql.ErrNoRows && config.Keys.OpenIDConfig.SyncUserOnLogin { // Adds New User
+		if err := r.AddUser(OIDCUser); err != nil {
+			log.Errorf("Error while adding user '%s' to DB: %v", OIDCUser.Username, err)
+		}
+	} else if err == nil && config.Keys.OpenIDConfig.UpdateUserOnLogin { // Update Existing User
+		if err := r.UpdateUser(dbUser, OIDCUser); err != nil {
+			log.Errorf("Error while updating user '%s' to DB: %v", dbUser.Username, err)
 		}
 	}
 }

@@ -24,8 +24,9 @@ type LdapConfig struct {
 }
 
 type OpenIDConfig struct {
-	Provider        string `json:"provider"`
-	SyncUserOnLogin bool   `json:"syncUserOnLogin"`
+	Provider          string `json:"provider"`
+	SyncUserOnLogin   bool   `json:"syncUserOnLogin"`
+	UpdateUserOnLogin bool   `json:"updateUserOnLogin"`
 }
 
 type JWTAuthConfig struct {
@@ -45,6 +46,9 @@ type JWTAuthConfig struct {
 
 	// Should an non-existent user be added to the DB based on the information in the token
 	SyncUserOnLogin bool `json:"syncUserOnLogin"`
+
+	// Should an existent user be updated in the DB based on the information in the token
+	UpdateUserOnLogin bool `json:"updateUserOnLogin"`
 }
 
 type IntRange struct {
