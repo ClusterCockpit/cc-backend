@@ -49,7 +49,6 @@ func (r *JobRepository) TransactionEnd(t *Transaction) error {
 		log.Warn("Error while committing SQL transactions")
 		return err
 	}
-
 	return nil
 }
 
@@ -74,11 +73,16 @@ func (r *JobRepository) TransactionAddNamed(
 }
 
 func (r *JobRepository) TransactionAdd(t *Transaction, query string, args ...interface{}) (int64, error) {
-	res := t.tx.MustExec(query, args)
+
+	res, err := t.tx.Exec(query, args...)
+	if err != nil {
+		log.Errorf("TransactionAdd(), Exec() Error: %v", err)
+		return 0, err
+	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
-		log.Errorf("repository initDB(): %v", err)
+		log.Errorf("TransactionAdd(), LastInsertId() Error: %v", err)
 		return 0, err
 	}
 

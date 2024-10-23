@@ -24,8 +24,9 @@ type LdapConfig struct {
 }
 
 type OpenIDConfig struct {
-	Provider        string `json:"provider"`
-	SyncUserOnLogin bool   `json:"syncUserOnLogin"`
+	Provider          string `json:"provider"`
+	SyncUserOnLogin   bool   `json:"syncUserOnLogin"`
+	UpdateUserOnLogin bool   `json:"updateUserOnLogin"`
 }
 
 type JWTAuthConfig struct {
@@ -45,6 +46,9 @@ type JWTAuthConfig struct {
 
 	// Should an non-existent user be added to the DB based on the information in the token
 	SyncUserOnLogin bool `json:"syncUserOnLogin"`
+
+	// Should an existent user be updated in the DB based on the information in the token
+	UpdateUserOnLogin bool `json:"updateUserOnLogin"`
 }
 
 type IntRange struct {
@@ -82,6 +86,13 @@ type ResampleConfig struct {
 	Trigger int `json:"trigger"`
 	// Array of resampling target resolutions, in seconds; Example: [600,300,60]
 	Resolutions []int `json:"resolutions"`
+}
+
+type CronFrequency struct {
+	// Duration Update Worker [Defaults to '5m']
+	DurationWorker string `json:"duration-worker"`
+	// Metric- and Energy Footprint Update Worker [Defaults to '10m']
+	FootprintWorker string `json:"footprint-worker"`
 }
 
 // Format of the configuration (file). See below for the defaults.
@@ -159,4 +170,7 @@ type ProgramConfig struct {
 	// Energy Mix CO2 Emission Constant [g/kWh]
 	// If entered, displays estimated CO2 emission for job based on jobs totalEnergy
 	EmissionConstant int `json:"emission-constant"`
+
+	// Frequency of cron job workers
+	CronFrequency *CronFrequency `json:"cron-frequency"`
 }
