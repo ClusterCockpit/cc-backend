@@ -60,9 +60,10 @@
 
   // Todo: Add Idle State Filter (== No allocated Jobs) [Frontend?]
   // Todo: NodeList: Mindestens Accelerator Scope ... "Show Detail" Switch?
-  // Todo: Rework GQL Query: Add Paging (Scrollable), Add Nodes Filter (see jobs-onthefly-userfilter), add scopes
+  // Todo: Rework GQL Query: Add Paging (Scrollable / Paging Configbar), Add Nodes Filter (see jobs-onthefly-userfilter: ccms inkompatibel!), add scopes
   // Todo: Review performance // observed high client-side load frequency
   //       Is Svelte {#each} -> <MetricPlot/> -> onMount() related : Cannot be skipped ...
+  // ==> Skip for Q4/24 Release, build from ccms upgrade (paging/filter) up
   
   const client = getContextClient();
   const nodeQuery = gql`
