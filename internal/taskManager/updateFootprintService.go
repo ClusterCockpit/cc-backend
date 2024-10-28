@@ -20,7 +20,7 @@ import (
 
 func RegisterFootprintWorker() {
 	var frequency string
-	if config.Keys.CronFrequency.FootprintWorker != "" {
+	if config.Keys.CronFrequency != nil && config.Keys.CronFrequency.FootprintWorker != "" {
 		frequency = config.Keys.CronFrequency.FootprintWorker
 	} else {
 		frequency = "10m"
