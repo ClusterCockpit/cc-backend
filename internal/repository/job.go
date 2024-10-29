@@ -235,6 +235,9 @@ func (r *JobRepository) Find(
 		q = q.Where("job.start_time = ?", *startTime)
 	}
 
+	s, _, _ := q.ToSql()
+	log.Printf("trying to find db job with query: %s", s)
+
 	log.Debugf("Timer Find %s", time.Since(start))
 	return scanJob(q.RunWith(r.stmtCache).QueryRow())
 }
