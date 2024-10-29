@@ -929,6 +929,7 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("loading db job from request for stopJobByRequest... : jobId=%d, cluster=%s, startTime=%d", *req.JobId, *req.Cluster, *req.StartTime)
 	job, err = api.JobRepository.Find(req.JobId, req.Cluster, req.StartTime)
 
 	if err != nil {
