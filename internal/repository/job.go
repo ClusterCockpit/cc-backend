@@ -235,8 +235,10 @@ func (r *JobRepository) Find(
 		q = q.Where("job.start_time = ?", *startTime)
 	}
 
-	s, _, _ := q.ToSql()
-	log.Printf("trying to find db job with query: %s", s)
+	q = q.OrderBy("job.id DESC") // always use newest matching job by db id
+
+	s, args, _ := q.ToSql()
+	log.Printf("trying to find db job with query: %s | %v", s, args)
 
 	log.Debugf("Timer Find %s", time.Since(start))
 	return scanJob(q.RunWith(r.stmtCache).QueryRow())
