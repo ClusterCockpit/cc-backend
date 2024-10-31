@@ -51,15 +51,21 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 	jobRepo := repository.GetJobRepository()
 	groupBy := model.AggregateCluster
 
+	log.Infof(">>> HELLO HOME ROUTE")
+
+	startJobCount := time.Now()
 	stats, err := jobRepo.JobCountGrouped(r.Context(), nil, &groupBy)
 	if err != nil {
 		log.Warnf("failed to count jobs: %s", err.Error())
 	}
+	log.Infof("Timer HOME ROUTE startJobCount: %s", time.Since(startJobCount))
 
+	startRunningJobCount := time.Now()
 	stats, err = jobRepo.AddJobCountGrouped(r.Context(), nil, &groupBy, stats, "running")
 	if err != nil {
 		log.Warnf("failed to count running jobs: %s", err.Error())
 	}
+	log.Infof("Timer HOME ROUTE startRunningJobCount: %s", time.Since(startRunningJobCount))
 
 	i["clusters"] = stats
 
@@ -71,6 +77,8 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 			i["message"] = string(msg)
 		}
 	}
+
+	log.Infof("... BYE HOME ROUTE")
 
 	return i
 }
@@ -254,7 +262,6 @@ func SetupRoutes(router *mux.Router, buildInfo web.Build) {
 	for _, route := range routes {
 		route := route
 		router.HandleFunc(route.Route, func(rw http.ResponseWriter, r *http.Request) {
-
 			log.Info(">>> HELLO ROUTE HANDLER ...")
 
 			conf, err := userCfgRepo.GetUIConfig(repository.GetUserFromContext(r.Context()))
@@ -264,21 +271,16 @@ func SetupRoutes(router *mux.Router, buildInfo web.Build) {
 			}
 
 			title := route.Title
-			log.Infof(">>> >>> ROUTE TITLE : %s ", title)
-
 			infos := route.Setup(map[string]interface{}{}, r)
 			if id, ok := infos["id"]; ok {
 				title = strings.Replace(route.Title, "<ID>", id.(string), 1)
 			}
-			log.Infof(">>> >>> ROUTE INFOS : %v ", infos)
 
 			// Get User -> What if NIL?
 			user := repository.GetUserFromContext(r.Context())
-			log.Infof(">>> >>> ROUTE USER : %v ", *user)
 
 			// Get Roles
 			availableRoles, _ := schema.GetValidRolesMap(user)
-			log.Infof(">>> >>> ROUTE AVAILABLE ROLES : %v ", availableRoles)
 
 			page := web.Page{
 				Title:  title,
@@ -288,12 +290,11 @@ func SetupRoutes(router *mux.Router, buildInfo web.Build) {
 				Config: conf,
 				Infos:  infos,
 			}
-			log.Infof(">>> >>> ROUTE PAGE : %v ", page)
 
 			if route.Filter {
 				page.FilterPresets = buildFilterPresets(r.URL.Query())
 			}
-			log.Infof(">>> >>> ROUTE FILTER : %v ", page.FilterPresets)
+			log.Infof("... ROUTE HANDLED: %s for %v", page.Title, page.User)
 
 			web.RenderTemplate(rw, route.Template, &page)
 		})

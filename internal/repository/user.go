@@ -324,7 +324,7 @@ func GetUserFromContext(ctx context.Context) *schema.User {
 		log.Warnf("no user retrieved from context")
 		return nil
 	}
-	log.Infof("user retrieved from context: %v", x.(*schema.User))
+	// log.Infof("user retrieved from context: %v", x.(*schema.User))
 	return x.(*schema.User)
 }
 
