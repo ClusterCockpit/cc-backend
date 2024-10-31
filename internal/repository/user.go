@@ -321,9 +321,10 @@ const ContextUserKey ContextKey = "user"
 func GetUserFromContext(ctx context.Context) *schema.User {
 	x := ctx.Value(ContextUserKey)
 	if x == nil {
+		log.Warnf("no user retrieved from context")
 		return nil
 	}
-
+	log.Infof("user retrieved from context: %v", x.(*schema.User))
 	return x.(*schema.User)
 }
 

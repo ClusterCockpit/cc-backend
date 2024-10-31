@@ -254,6 +254,9 @@ func SetupRoutes(router *mux.Router, buildInfo web.Build) {
 	for _, route := range routes {
 		route := route
 		router.HandleFunc(route.Route, func(rw http.ResponseWriter, r *http.Request) {
+
+			log.Info(">>> HELLO ROUTE HANDLER ...")
+
 			conf, err := userCfgRepo.GetUIConfig(repository.GetUserFromContext(r.Context()))
 			if err != nil {
 				http.Error(rw, err.Error(), http.StatusInternalServerError)
@@ -261,15 +264,21 @@ func SetupRoutes(router *mux.Router, buildInfo web.Build) {
 			}
 
 			title := route.Title
+			log.Infof(">>> >>> ROUTE TITLE : %s ", title)
+
 			infos := route.Setup(map[string]interface{}{}, r)
 			if id, ok := infos["id"]; ok {
 				title = strings.Replace(route.Title, "<ID>", id.(string), 1)
 			}
+			log.Infof(">>> >>> ROUTE INFOS : %v ", infos)
 
 			// Get User -> What if NIL?
 			user := repository.GetUserFromContext(r.Context())
+			log.Infof(">>> >>> ROUTE USER : %v ", *user)
+
 			// Get Roles
 			availableRoles, _ := schema.GetValidRolesMap(user)
+			log.Infof(">>> >>> ROUTE AVAILABLE ROLES : %v ", availableRoles)
 
 			page := web.Page{
 				Title:  title,
@@ -279,10 +288,12 @@ func SetupRoutes(router *mux.Router, buildInfo web.Build) {
 				Config: conf,
 				Infos:  infos,
 			}
+			log.Infof(">>> >>> ROUTE PAGE : %v ", page)
 
 			if route.Filter {
 				page.FilterPresets = buildFilterPresets(r.URL.Query())
 			}
+			log.Infof(">>> >>> ROUTE FILTER : %v ", page.FilterPresets)
 
 			web.RenderTemplate(rw, route.Template, &page)
 		})
