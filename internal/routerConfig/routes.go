@@ -51,21 +51,19 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 	jobRepo := repository.GetJobRepository()
 	groupBy := model.AggregateCluster
 
-	log.Infof(">>> HELLO HOME ROUTE")
-
-	startJobCount := time.Now()
+	// startJobCount := time.Now()
 	stats, err := jobRepo.JobCountGrouped(r.Context(), nil, &groupBy)
 	if err != nil {
 		log.Warnf("failed to count jobs: %s", err.Error())
 	}
-	log.Infof("Timer HOME ROUTE startJobCount: %s", time.Since(startJobCount))
+	// log.Infof("Timer HOME ROUTE startJobCount: %s", time.Since(startJobCount))
 
-	startRunningJobCount := time.Now()
+	// startRunningJobCount := time.Now()
 	stats, err = jobRepo.AddJobCountGrouped(r.Context(), nil, &groupBy, stats, "running")
 	if err != nil {
 		log.Warnf("failed to count running jobs: %s", err.Error())
 	}
-	log.Infof("Timer HOME ROUTE startRunningJobCount: %s", time.Since(startRunningJobCount))
+	// log.Infof("Timer HOME ROUTE startRunningJobCount: %s", time.Since(startRunningJobCount))
 
 	i["clusters"] = stats
 
@@ -77,8 +75,6 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 			i["message"] = string(msg)
 		}
 	}
-
-	log.Infof("... BYE HOME ROUTE")
 
 	return i
 }
@@ -262,8 +258,6 @@ func SetupRoutes(router *mux.Router, buildInfo web.Build) {
 	for _, route := range routes {
 		route := route
 		router.HandleFunc(route.Route, func(rw http.ResponseWriter, r *http.Request) {
-			log.Info(">>> HELLO ROUTE HANDLER ...")
-
 			conf, err := userCfgRepo.GetUIConfig(repository.GetUserFromContext(r.Context()))
 			if err != nil {
 				http.Error(rw, err.Error(), http.StatusInternalServerError)
@@ -294,7 +288,6 @@ func SetupRoutes(router *mux.Router, buildInfo web.Build) {
 			if route.Filter {
 				page.FilterPresets = buildFilterPresets(r.URL.Query())
 			}
-			log.Infof("... ROUTE HANDLED: %s for %v", page.Title, page.User)
 
 			web.RenderTemplate(rw, route.Template, &page)
 		})

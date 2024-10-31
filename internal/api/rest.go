@@ -929,7 +929,7 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("loading db job for stopJobByRequest... : stopJobApiRequest=%v", req)
+	// log.Printf("loading db job for stopJobByRequest... : stopJobApiRequest=%v", req)
 	job, err = api.JobRepository.Find(req.JobId, req.Cluster, req.StartTime)
 
 	if err != nil {
