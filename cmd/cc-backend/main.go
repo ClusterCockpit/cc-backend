@@ -204,13 +204,6 @@ func main() {
 	taskManager.Start()
 	serverInit()
 
-	// Because this program will want to bind to a privileged port (like 80), the listener must
-	// be established first, then the user can be changed, and after that,
-	// the actual http server can be started.
-	if err := runtimeEnv.DropPrivileges(config.Keys.Group, config.Keys.User); err != nil {
-		log.Fatalf("error while preparing server start: %s", err.Error())
-	}
-
 	var wg sync.WaitGroup
 
 	wg.Add(1)
@@ -218,6 +211,13 @@ func main() {
 		defer wg.Done()
 		serverStart()
 	}()
+
+	// Because this program will want to bind to a privileged port (like 80), the listener must
+	// be established first, then the user can be changed, and after that,
+	// the actual http server can be started.
+	if err := runtimeEnv.DropPrivileges(config.Keys.Group, config.Keys.User); err != nil {
+		log.Fatalf("error while preparing server start: %s", err.Error())
+	}
 
 	wg.Add(1)
 	sigs := make(chan os.Signal, 1)
