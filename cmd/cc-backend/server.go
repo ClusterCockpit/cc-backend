@@ -27,6 +27,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/graph/generated"
 	"github.com/ClusterCockpit/cc-backend/internal/routerConfig"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/pkg/runtimeEnv"
 	"github.com/ClusterCockpit/cc-backend/web"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -297,6 +298,13 @@ func serverStart() {
 		fmt.Printf("HTTPS server listening at %s...", config.Keys.Addr)
 	} else {
 		fmt.Printf("HTTP server listening at %s...", config.Keys.Addr)
+	}
+	//
+	// Because this program will want to bind to a privileged port (like 80), the listener must
+	// be established first, then the user can be changed, and after that,
+	// the actual http server can be started.
+	if err := runtimeEnv.DropPrivileges(config.Keys.Group, config.Keys.User); err != nil {
+		log.Fatalf("error while preparing server start: %s", err.Error())
 	}
 
 	if err = server.Serve(listener); err != nil && err != http.ErrServerClosed {
