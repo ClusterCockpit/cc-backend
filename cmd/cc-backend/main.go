@@ -13,6 +13,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/ClusterCockpit/cc-backend/internal/archiver"
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
@@ -201,6 +202,7 @@ func main() {
 		return
 	}
 
+	archiver.Start(repository.GetJobRepository())
 	taskManager.Start()
 	serverInit()
 
