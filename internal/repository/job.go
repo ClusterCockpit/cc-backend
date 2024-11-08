@@ -605,12 +605,10 @@ func (r *JobRepository) UpdateEnergy(
 		if i, err := archive.MetricIndex(sc.MetricConfig, fp); err == nil {
 			// Note: For DB data, calculate and save as kWh
 			// Energy: Power (in Watts) * Time (in Seconds)
-			if sc.MetricConfig[i].Energy == "energy" {
+			if sc.MetricConfig[i].Energy == "energy" { // this metric has energy as unit (Joules)
+			} else if sc.MetricConfig[i].Energy == "power" { // this metric has power as unit (Watt)
 				// Unit: ( W * s ) / 3600 / 1000 = kWh ; Rounded to 2 nearest digits
 				energy = math.Round(((LoadJobStat(jobMeta, fp, "avg")*float64(jobMeta.Duration))/3600/1000)*100) / 100
-				// Power: Use directly as sum (Or as: [Energy (in Ws) / Time (in s)]
-			} else if sc.MetricConfig[i].Energy == "power" {
-				// This assumes the metric is of aggregation type sum
 			}
 		} else {
 			log.Warnf("Error while collecting energy metric %s for job, DB ID '%v', return '0.0'", fp, jobMeta.ID)
