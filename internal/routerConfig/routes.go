@@ -52,15 +52,19 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 	jobRepo := repository.GetJobRepository()
 	groupBy := model.AggregateCluster
 
+	// startJobCount := time.Now()
 	stats, err := jobRepo.JobCountGrouped(r.Context(), nil, &groupBy)
 	if err != nil {
 		log.Warnf("failed to count jobs: %s", err.Error())
 	}
+	// log.Infof("Timer HOME ROUTE startJobCount: %s", time.Since(startJobCount))
 
+	// startRunningJobCount := time.Now()
 	stats, err = jobRepo.AddJobCountGrouped(r.Context(), nil, &groupBy, stats, "running")
 	if err != nil {
 		log.Warnf("failed to count running jobs: %s", err.Error())
 	}
+	// log.Infof("Timer HOME ROUTE startRunningJobCount: %s", time.Since(startRunningJobCount))
 
 	i["clusters"] = stats
 
@@ -293,6 +297,7 @@ func SetupRoutes(router *mux.Router, buildInfo web.Build) {
 
 			// Get User -> What if NIL?
 			user := repository.GetUserFromContext(r.Context())
+
 			// Get Roles
 			availableRoles, _ := schema.GetValidRolesMap(user)
 

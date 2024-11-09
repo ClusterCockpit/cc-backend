@@ -486,11 +486,11 @@ func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) 
 
 		job, err = api.JobRepository.FindById(r.Context(), id) // Get Job from Repo by ID
 	} else {
-		handleError(errors.New("the parameter 'id' is required"), http.StatusBadRequest, rw)
+		handleError(fmt.Errorf("the parameter 'id' is required"), http.StatusBadRequest, rw)
 		return
 	}
 	if err != nil {
-		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
+		handleError(fmt.Errorf("finding job with db id %s failed: %w", id, err), http.StatusUnprocessableEntity, rw)
 		return
 	}
 
@@ -526,7 +526,7 @@ func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) 
 	if r.URL.Query().Get("all-metrics") == "true" {
 		data, err = metricDataDispatcher.LoadData(job, nil, scopes, r.Context(), resolution)
 		if err != nil {
-			log.Warn("Error while loading job data")
+			log.Warnf("REST: error while loading all-metrics job data for JobID %d on %s", job.JobID, job.Cluster)
 			return
 		}
 	}
@@ -583,7 +583,7 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
+		handleError(fmt.Errorf("finding job with db id %s failed: %w", id, err), http.StatusUnprocessableEntity, rw)
 		return
 	}
 
@@ -622,7 +622,7 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 
 	data, err := metricDataDispatcher.LoadData(job, metrics, scopes, r.Context(), resolution)
 	if err != nil {
-		log.Warn("Error while loading job data")
+		log.Warnf("REST: error while loading job data for JobID %d on %s", job.JobID, job.Cluster)
 		return
 	}
 
@@ -916,6 +916,7 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// log.Printf("loading db job for stopJobByRequest... : stopJobApiRequest=%v", req)
 	job, err = api.JobRepository.Find(req.JobId, req.Cluster, req.StartTime)
 	if err != nil {
 		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
@@ -1065,12 +1066,12 @@ func (api *RestApi) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Job, req StopJobApiRequest) {
 	// Sanity checks
 	if job == nil || job.StartTime.Unix() >= req.StopTime || job.State != schema.JobStateRunning {
-		handleError(errors.New("stopTime must be larger than startTime and only running jobs can be stopped"), http.StatusBadRequest, rw)
+		handleError(fmt.Errorf("jobId %d (id %d) on %s : stopTime %d must be larger than startTime %d and only running jobs can be stopped (state is: %s)", job.JobID, job.ID, job.Cluster, req.StopTime, job.StartTime.Unix(), job.State), http.StatusBadRequest, rw)
 		return
 	}
 
 	if req.State != "" && !req.State.Valid() {
-		handleError(fmt.Errorf("invalid job state: %#v", req.State), http.StatusBadRequest, rw)
+		handleError(fmt.Errorf("jobId %d (id %d) on %s : invalid requested job state: %#v", job.JobID, job.ID, job.Cluster, req.State), http.StatusBadRequest, rw)
 		return
 	} else if req.State == "" {
 		req.State = schema.JobStateCompleted
@@ -1080,11 +1081,11 @@ func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 	job.Duration = int32(req.StopTime - job.StartTime.Unix())
 	job.State = req.State
 	if err := api.JobRepository.Stop(job.ID, job.Duration, job.State, job.MonitoringStatus); err != nil {
-		handleError(fmt.Errorf("marking job as stopped failed: %w", err), http.StatusInternalServerError, rw)
+		handleError(fmt.Errorf("jobId %d (id %d) on %s : marking job as '%s' (duration: %d) in DB failed: %w", job.JobID, job.ID, job.Cluster, job.State, job.Duration, err), http.StatusInternalServerError, rw)
 		return
 	}
 
-	log.Printf("archiving job... (dbid: %d): cluster=%s, jobId=%d, user=%s, startTime=%s", job.ID, job.Cluster, job.JobID, job.User, job.StartTime)
+	log.Printf("archiving job... (dbid: %d): cluster=%s, jobId=%d, user=%s, startTime=%s, duration=%d, state=%s", job.ID, job.Cluster, job.JobID, job.User, job.StartTime, job.Duration, job.State)
 
 	// Send a response (with status OK). This means that erros that happen from here on forward
 	// can *NOT* be communicated to the client. If reading from a MetricDataRepository or
