@@ -11,7 +11,7 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
-	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	// "github.com/ClusterCockpit/cc-backend/pkg/archive"
@@ -24,8 +24,8 @@ func (r *queryResolver) rooflineHeatmap(
 	ctx context.Context,
 	filter []*model.JobFilter,
 	rows int, cols int,
-	minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error) {
-
+	minX float64, minY float64, maxX float64, maxY float64,
+) ([][]float64, error) {
 	jobs, err := r.Repo.QueryJobs(ctx, filter, &model.PageRequest{Page: 1, ItemsPerPage: MAX_JOBS_FOR_ANALYSIS + 1}, nil)
 	if err != nil {
 		log.Error("Error while querying jobs for roofline")
@@ -47,7 +47,14 @@ func (r *queryResolver) rooflineHeatmap(
 			continue
 		}
 
-		jobdata, err := metricdata.LoadData(job, []string{"flops_any", "mem_bw"}, []schema.MetricScope{schema.MetricScopeNode}, ctx)
+		// metricConfigs := archive.GetCluster(job.Cluster).MetricConfig
+		// resolution := 0
+
+		// for _, mc := range metricConfigs {
+		// 	resolution = max(resolution, mc.Timestep)
+		// }
+
+		jobdata, err := metricDataDispatcher.LoadData(job, []string{"flops_any", "mem_bw"}, []schema.MetricScope{schema.MetricScopeNode}, ctx, 0)
 		if err != nil {
 			log.Errorf("Error while loading roofline metrics for job %d", job.ID)
 			return nil, err
@@ -120,7 +127,7 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 			continue
 		}
 
-		if err := metricdata.LoadAverages(job, metrics, avgs, ctx); err != nil {
+		if err := metricDataDispatcher.LoadAverages(job, metrics, avgs, ctx); err != nil {
 			log.Error("Error while loading averages for footprint")
 			return nil, err
 		}

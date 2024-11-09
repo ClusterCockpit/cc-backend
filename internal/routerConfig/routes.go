@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/util"
@@ -81,6 +82,9 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 
 func setupJobRoute(i InfoType, r *http.Request) InfoType {
 	i["id"] = mux.Vars(r)["id"]
+	if config.Keys.EmissionConstant != 0 {
+		i["emission"] = config.Keys.EmissionConstant
+	}
 	return i
 }
 
@@ -128,24 +132,41 @@ func setupAnalysisRoute(i InfoType, r *http.Request) InfoType {
 
 func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 	jobRepo := repository.GetJobRepository()
-	user := repository.GetUserFromContext(r.Context())
-
-	tags, counts, err := jobRepo.CountTags(user)
+	tags, counts, err := jobRepo.CountTags(r.Context())
 	tagMap := make(map[string][]map[string]interface{})
 	if err != nil {
 		log.Warnf("GetTags failed: %s", err.Error())
 		i["tagmap"] = tagMap
 		return i
 	}
-
-	for _, tag := range tags {
-		tagItem := map[string]interface{}{
-			"id":    tag.ID,
-			"name":  tag.Name,
-			"count": counts[tag.Name],
+	// Reduces displayed tags for unauth'd users
+	userAuthlevel := repository.GetUserFromContext(r.Context()).GetAuthLevel()
+	// Uses tag.ID as second Map-Key component to differentiate tags with identical names
+	if userAuthlevel >= 4 { // Support+ : Show tags for all scopes, regardless of count
+		for _, tag := range tags {
+			tagItem := map[string]interface{}{
+				"id":    tag.ID,
+				"name":  tag.Name,
+				"scope": tag.Scope,
+				"count": counts[fmt.Sprint(tag.Name, tag.ID)],
+			}
+			tagMap[tag.Type] = append(tagMap[tag.Type], tagItem)
 		}
-		tagMap[tag.Type] = append(tagMap[tag.Type], tagItem)
-	}
+	} else if userAuthlevel < 4 && userAuthlevel >= 2 { // User+ : Show global and admin scope only if at least 1 tag used, private scope regardless of count
+		for _, tag := range tags {
+			tagCount := counts[fmt.Sprint(tag.Name, tag.ID)]
+			if ((tag.Scope == "global" || tag.Scope == "admin") && tagCount >= 1) || (tag.Scope != "global" && tag.Scope != "admin") {
+				tagItem := map[string]interface{}{
+					"id":    tag.ID,
+					"name":  tag.Name,
+					"scope": tag.Scope,
+					"count": tagCount,
+				}
+				tagMap[tag.Type] = append(tagMap[tag.Type], tagItem)
+			}
+		}
+	} // auth < 2 return nothing for this route
+
 	i["tagmap"] = tagMap
 	return i
 }
@@ -238,7 +259,7 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 	}
 	if query.Get("startTime") != "" {
 		parts := strings.Split(query.Get("startTime"), "-")
-		if len(parts) == 2 {
+		if len(parts) == 2 { // Time in seconds, from - to
 			a, e1 := strconv.ParseInt(parts[0], 10, 64)
 			b, e2 := strconv.ParseInt(parts[1], 10, 64)
 			if e1 == nil && e2 == nil {
@@ -246,6 +267,10 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 					"from": time.Unix(a, 0).Format(time.RFC3339),
 					"to":   time.Unix(b, 0).Format(time.RFC3339),
 				}
+			}
+		} else { // named range
+			filterPresets["startTime"] = map[string]string{
+				"range": query.Get("startTime"),
 			}
 		}
 	}
@@ -277,12 +302,13 @@ func SetupRoutes(router *mux.Router, buildInfo web.Build) {
 			availableRoles, _ := schema.GetValidRolesMap(user)
 
 			page := web.Page{
-				Title:  title,
-				User:   *user,
-				Roles:  availableRoles,
-				Build:  buildInfo,
-				Config: conf,
-				Infos:  infos,
+				Title:      title,
+				User:       *user,
+				Roles:      availableRoles,
+				Build:      buildInfo,
+				Config:     conf,
+				Resampling: config.Keys.EnableResampling,
+				Infos:      infos,
 			}
 
 			if route.Filter {

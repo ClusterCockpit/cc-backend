@@ -60,7 +60,8 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 	job *schema.Job,
 	metrics []string,
 	scopes []schema.MetricScope,
-	ctx context.Context) (schema.JobData, error) {
+	ctx context.Context,
+	resolution int) (schema.JobData, error) {
 
 	measurementsConds := make([]string, 0, len(metrics))
 	for _, m := range metrics {

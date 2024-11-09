@@ -1,284 +1,327 @@
 {
-    "$schema": "http://json-schema.org/draft/2020-12/schema",
-    "$id": "embedfs://cluster.schema.json",
-    "title": "HPC cluster description",
-    "description": "Meta data information of a HPC cluster",
-    "type": "object",
-    "properties": {
-        "name": {
-            "description": "The unique identifier of a cluster",
-            "type": "string"
-        },
-        "metricConfig": {
-            "description": "Metric specifications",
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "description": "Metric name",
-                        "type": "string"
-                    },
-                    "unit": {
-                        "description": "Metric unit",
-                        "$ref": "embedfs://unit.schema.json"
-                    },
-                    "scope": {
-                        "description": "Native measurement resolution",
-                        "type": "string"
-                    },
-                    "timestep": {
-                        "description": "Frequency of timeseries points",
-                        "type": "integer"
-                    },
-                    "aggregation": {
-                        "description": "How the metric is aggregated",
-                        "type": "string",
-                        "enum": [
-                            "sum",
-                            "avg"
-                        ]
-                    },
-                    "peak": {
-                        "description": "Metric peak threshold (Upper metric limit)",
-                        "type": "number"
-                    },
-                    "normal": {
-                        "description": "Metric normal threshold",
-                        "type": "number"
-                    },
-                    "caution": {
-                        "description": "Metric caution threshold (Suspicious but does not require immediate action)",
-                        "type": "number"
-                    },
-                    "alert": {
-                        "description": "Metric alert threshold (Requires immediate action)",
-                        "type": "number"
-                    },
-                    "subClusters": {
-                        "description": "Array of cluster hardware partition metric thresholds",
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "name": {
-                                    "description": "Hardware partition name",
-                                    "type": "string"
-                                },
-                                "peak": {
-                                    "type": "number"
-                                },
-                                "normal": {
-                                    "type": "number"
-                                },
-                                "caution": {
-                                    "type": "number"
-                                },
-                                "alert": {
-                                    "type": "number"
-                                },
-                                "remove": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "name"
-                            ]
-                        }
-                    }
-                },
-                "required": [
-                    "name",
-                    "unit",
-                    "scope",
-                    "timestep",
-                    "aggregation",
-                    "peak",
-                    "normal",
-                    "caution",
-                    "alert"
-                ]
-            },
-            "minItems": 1
-        },
-        "subClusters": {
-            "description": "Array of cluster hardware partitions",
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "description": "Hardware partition name",
-                        "type": "string"
-                    },
-                    "processorType": {
-                        "description": "Processor type",
-                        "type": "string"
-                    },
-                    "socketsPerNode": {
-                        "description": "Number of sockets per node",
-                        "type": "integer"
-                    },
-                    "coresPerSocket": {
-                        "description": "Number of cores per socket",
-                        "type": "integer"
-                    },
-                    "threadsPerCore": {
-                        "description": "Number of SMT threads per core",
-                        "type": "integer"
-                    },
-                    "flopRateScalar": {
-                        "description": "Theoretical node peak flop rate for scalar code in GFlops/s",
-                        "type": "object",
-                        "properties": {
-                            "unit": {
-                                "description": "Metric unit",
-                                "$ref": "embedfs://unit.schema.json"
-                            },
-                            "value": {
-                                "type": "number"
-                            }
-                        }
-                    },
-                    "flopRateSimd": {
-                        "description": "Theoretical node peak flop rate for SIMD code in GFlops/s",
-                        "type": "object",
-                        "properties": {
-                            "unit": {
-                                "description": "Metric unit",
-                                "$ref": "embedfs://unit.schema.json"
-                            },
-                            "value": {
-                                "type": "number"
-                            }
-                        }
-                    },
-                    "memoryBandwidth": {
-                        "description": "Theoretical node peak memory bandwidth in GB/s",
-                        "type": "object",
-                        "properties": {
-                            "unit": {
-                                "description": "Metric unit",
-                                "$ref": "embedfs://unit.schema.json"
-                            },
-                            "value": {
-                                "type": "number"
-                            }
-                        }
-                    },
-                    "nodes": {
-                        "description": "Node list expression",
-                        "type": "string"
-                    },
-                    "topology": {
-                        "description": "Node topology",
-                        "type": "object",
-                        "properties": {
-                            "node": {
-                                "description": "HwTread lists of node",
-                                "type": "array",
-                                "items": {
-                                    "type": "integer"
-                                }
-                            },
-                            "socket": {
-                                "description": "HwTread lists of sockets",
-                                "type": "array",
-                                "items": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "integer"
-                                    }
-                                }
-                            },
-                            "memoryDomain": {
-                                "description": "HwTread lists of memory domains",
-                                "type": "array",
-                                "items": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "integer"
-                                    }
-                                }
-                            },
-                            "die": {
-                                "description": "HwTread lists of dies",
-                                "type": "array",
-                                "items": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "integer"
-                                    }
-                                }
-                            },
-                            "core": {
-                                "description": "HwTread lists of cores",
-                                "type": "array",
-                                "items": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "integer"
-                                    }
-                                }
-                            },
-                            "accelerators": {
-                                "type": "array",
-                                "description": "List of of accelerator devices",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "id": {
-                                            "type": "string",
-                                            "description": "The unique device id"
-                                        },
-                                        "type": {
-                                            "type": "string",
-                                            "description": "The accelerator type",
-                                            "enum": [
-                                                "Nvidia GPU",
-                                                "AMD GPU",
-                                                "Intel GPU"
-                                            ]
-                                        },
-                                        "model": {
-                                            "type": "string",
-                                            "description": "The accelerator model"
-                                        }
-                                    },
-                                    "required": [
-                                        "id",
-                                        "type",
-                                        "model"
-                                    ]
-                                }
-                            }
-                        },
-                        "required": [
-                            "node",
-                            "socket",
-                            "memoryDomain"
-                        ]
-                    }
-                },
-                "required": [
-                    "name",
-                    "nodes",
-                    "topology",
-                    "processorType",
-                    "socketsPerNode",
-                    "coresPerSocket",
-                    "threadsPerCore",
-                    "flopRateScalar",
-                    "flopRateSimd",
-                    "memoryBandwidth"
-                ]
-            },
-            "minItems": 1
-        }
+  "$schema": "http://json-schema.org/draft/2020-12/schema",
+  "$id": "embedfs://cluster.schema.json",
+  "title": "HPC cluster description",
+  "description": "Meta data information of a HPC cluster",
+  "type": "object",
+  "properties": {
+    "name": {
+      "description": "The unique identifier of a cluster",
+      "type": "string"
     },
-    "required": [
-        "name",
-        "metricConfig",
-        "subClusters"
-    ]
+    "metricConfig": {
+      "description": "Metric specifications",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Metric name",
+            "type": "string"
+          },
+          "unit": {
+            "description": "Metric unit",
+            "$ref": "embedfs://unit.schema.json"
+          },
+          "scope": {
+            "description": "Native measurement resolution",
+            "type": "string"
+          },
+          "timestep": {
+            "description": "Frequency of timeseries points",
+            "type": "integer"
+          },
+          "aggregation": {
+            "description": "How the metric is aggregated",
+            "type": "string",
+            "enum": [
+              "sum",
+              "avg"
+            ]
+          },
+          "footprint": {
+            "description": "Is it a footprint metric and what type",
+            "type": "string",
+            "enum": [
+              "avg",
+              "max",
+              "min"
+            ]
+          },
+          "energy": {
+            "description": "Is it used to calculate job energy",
+            "type": "string",
+            "enum": [
+              "power",
+              "energy"
+            ]
+          },
+          "lowerIsBetter": {
+            "description": "Is lower better.",
+            "type": "boolean"
+          },
+          "peak": {
+            "description": "Metric peak threshold (Upper metric limit)",
+            "type": "number"
+          },
+          "normal": {
+            "description": "Metric normal threshold",
+            "type": "number"
+          },
+          "caution": {
+            "description": "Metric caution threshold (Suspicious but does not require immediate action)",
+            "type": "number"
+          },
+          "alert": {
+            "description": "Metric alert threshold (Requires immediate action)",
+            "type": "number"
+          },
+          "subClusters": {
+            "description": "Array of cluster hardware partition metric thresholds",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "description": "Hardware partition name",
+                  "type": "string"
+                },
+                "footprint": {
+                  "description": "Is it a footprint metric and what type. Overwrite global setting",
+                  "type": "string",
+                  "enum": [
+                    "avg",
+                    "max",
+                    "min"
+                  ]
+                },
+                "energy": {
+                  "description": "Is it used to calculate job energy. Overwrite global",
+                  "type": "string",
+                  "enum": [
+                    "power",
+                    "energy"
+                  ]
+                },
+                "lowerIsBetter": {
+                  "description": "Is lower better. Overwrite global",
+                  "type": "boolean"
+                },
+                "peak": {
+                  "type": "number"
+                },
+                "normal": {
+                  "type": "number"
+                },
+                "caution": {
+                  "type": "number"
+                },
+                "alert": {
+                  "type": "number"
+                },
+                "remove": {
+                  "description": "Remove this metric for this subcluster",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "name"
+              ]
+            }
+          }
+        },
+        "required": [
+          "name",
+          "unit",
+          "scope",
+          "timestep",
+          "aggregation",
+          "peak",
+          "normal",
+          "caution",
+          "alert"
+        ]
+      },
+      "minItems": 1
+    },
+    "subClusters": {
+      "description": "Array of cluster hardware partitions",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Hardware partition name",
+            "type": "string"
+          },
+          "processorType": {
+            "description": "Processor type",
+            "type": "string"
+          },
+          "socketsPerNode": {
+            "description": "Number of sockets per node",
+            "type": "integer"
+          },
+          "coresPerSocket": {
+            "description": "Number of cores per socket",
+            "type": "integer"
+          },
+          "threadsPerCore": {
+            "description": "Number of SMT threads per core",
+            "type": "integer"
+          },
+          "flopRateScalar": {
+            "description": "Theoretical node peak flop rate for scalar code in GFlops/s",
+            "type": "object",
+            "properties": {
+              "unit": {
+                "description": "Metric unit",
+                "$ref": "embedfs://unit.schema.json"
+              },
+              "value": {
+                "type": "number"
+              }
+            }
+          },
+          "flopRateSimd": {
+            "description": "Theoretical node peak flop rate for SIMD code in GFlops/s",
+            "type": "object",
+            "properties": {
+              "unit": {
+                "description": "Metric unit",
+                "$ref": "embedfs://unit.schema.json"
+              },
+              "value": {
+                "type": "number"
+              }
+            }
+          },
+          "memoryBandwidth": {
+            "description": "Theoretical node peak memory bandwidth in GB/s",
+            "type": "object",
+            "properties": {
+              "unit": {
+                "description": "Metric unit",
+                "$ref": "embedfs://unit.schema.json"
+              },
+              "value": {
+                "type": "number"
+              }
+            }
+          },
+          "nodes": {
+            "description": "Node list expression",
+            "type": "string"
+          },
+          "topology": {
+            "description": "Node topology",
+            "type": "object",
+            "properties": {
+              "node": {
+                "description": "HwTread lists of node",
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                }
+              },
+              "socket": {
+                "description": "HwTread lists of sockets",
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "memoryDomain": {
+                "description": "HwTread lists of memory domains",
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "die": {
+                "description": "HwTread lists of dies",
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "core": {
+                "description": "HwTread lists of cores",
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "accelerators": {
+                "type": "array",
+                "description": "List of of accelerator devices",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The unique device id"
+                    },
+                    "type": {
+                      "type": "string",
+                      "description": "The accelerator type",
+                      "enum": [
+                        "Nvidia GPU",
+                        "AMD GPU",
+                        "Intel GPU"
+                      ]
+                    },
+                    "model": {
+                      "type": "string",
+                      "description": "The accelerator model"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "model"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "node",
+              "socket",
+              "memoryDomain"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "nodes",
+          "topology",
+          "processorType",
+          "socketsPerNode",
+          "coresPerSocket",
+          "threadsPerCore",
+          "flopRateScalar",
+          "flopRateSimd",
+          "memoryBandwidth"
+        ]
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "name",
+    "metricConfig",
+    "subClusters"
+  ]
 }

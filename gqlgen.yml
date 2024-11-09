@@ -61,23 +61,50 @@ models:
     fields:
       partitions:
         resolver: true
-  NullableFloat: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Float" }
-  MetricScope: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.MetricScope" }
-  MetricValue: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.MetricValue" }
-  JobStatistics: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.JobStatistics" }
+  NullableFloat:
+    { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Float" }
+  MetricScope:
+    { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.MetricScope" }
+  MetricValue:
+    { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.MetricValue" }
+  JobStatistics:
+    { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.JobStatistics" }
+  GlobalMetricListItem:
+    {
+      model: "github.com/ClusterCockpit/cc-backend/pkg/schema.GlobalMetricListItem",
+    }
+  ClusterSupport:
+    { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.ClusterSupport" }
   Tag: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Tag" }
-  Resource: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Resource" }
-  JobState: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.JobState" }
-  TimeRange: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.TimeRange" }
-  IntRange: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.IntRange" }
-  JobMetric: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.JobMetric" }
+  Resource:
+    { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Resource" }
+  JobState:
+    { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.JobState" }
+  TimeRange:
+    { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.TimeRange" }
+  IntRange:
+    { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.IntRange" }
+  JobMetric:
+    { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.JobMetric" }
   Series: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Series" }
-  MetricStatistics: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.MetricStatistics" }
-  MetricConfig: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.MetricConfig" }
-  SubClusterConfig: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.SubClusterConfig" }
-  Accelerator: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Accelerator" }
-  Topology: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Topology" }
-  FilterRanges: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.FilterRanges" }
-  SubCluster: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.SubCluster" }
-  StatsSeries: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.StatsSeries" }
+  MetricStatistics:
+    {
+      model: "github.com/ClusterCockpit/cc-backend/pkg/schema.MetricStatistics",
+    }
+  MetricConfig:
+    { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.MetricConfig" }
+  SubClusterConfig:
+    {
+      model: "github.com/ClusterCockpit/cc-backend/pkg/schema.SubClusterConfig",
+    }
+  Accelerator:
+    { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Accelerator" }
+  Topology:
+    { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Topology" }
+  FilterRanges:
+    { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.FilterRanges" }
+  SubCluster:
+    { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.SubCluster" }
+  StatsSeries:
+    { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.StatsSeries" }
   Unit: { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Unit" }

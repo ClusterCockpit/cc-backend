@@ -1,3 +1,13 @@
+<!--
+    @component Main navbar component; handles view display based on user roles
+
+    Properties:
+    - `username String`: Empty string if auth. is disabled, otherwise the username as string
+    - `authlevel Number`: The current users authentication level
+    - `clusters [String]`: List of cluster names
+    - `roles [Number]`: Enum containing available roles
+ -->
+
 <script>
   import {
     Icon,
@@ -10,13 +20,13 @@
     DropdownToggle,
     DropdownMenu,
   } from "@sveltestrap/sveltestrap";
-  import NavbarLinks from "./NavbarLinks.svelte";
-  import NavbarTools from "./NavbarTools.svelte";
+  import NavbarLinks from "./header/NavbarLinks.svelte";
+  import NavbarTools from "./header/NavbarTools.svelte";
 
-  export let username; // empty string if auth. is disabled, otherwise the username as string
-  export let authlevel; // Integer
-  export let clusters; // array of names
-  export let roles; // Role Enum-Like
+  export let username;
+  export let authlevel;
+  export let clusters;
+  export let roles;
 
   let isOpen = false;
   let screenSize;
@@ -30,14 +40,19 @@
   usersTitle.set(3, "Managed Users");
   usersTitle.set(4, "Users");
   usersTitle.set(5, "Users");
+  const projectsTitle = new Map();
+  projectsTitle.set(3, "Managed Projects");
+  projectsTitle.set(4, "Projects");
+  projectsTitle.set(5, "Projects");
 
   const views = [
     {
       title: "My Jobs",
       requiredRole: roles.user,
       href: `/monitoring/user/${username}`,
-      icon: "bar-chart-line-fill",
+      icon: "bar-chart-line",
       perCluster: false,
+      listOptions: false,
       menu: "none",
     },
     {
@@ -46,23 +61,8 @@
       href: `/monitoring/jobs/`,
       icon: "card-list",
       perCluster: false,
-      menu: "none",
-    },
-    {
-      title: usersTitle.get(authlevel),
-      requiredRole: roles.manager,
-      href: "/monitoring/users/",
-      icon: "people-fill",
-      perCluster: false,
-      menu: "Groups",
-    },
-    {
-      title: "Projects",
-      requiredRole: roles.support,
-      href: "/monitoring/projects/",
-      icon: "folder",
-      perCluster: false,
-      menu: "Groups",
+      listOptions: false,
+      menu: "Jobs",
     },
     {
       title: "Tags",
@@ -70,7 +70,44 @@
       href: "/monitoring/tags/",
       icon: "tags",
       perCluster: false,
+      listOptions: false,
+      menu: "Jobs",
+    },
+    {
+      title: usersTitle.get(authlevel),
+      requiredRole: roles.manager,
+      href: "/monitoring/users/",
+      icon: "people",
+      perCluster: true,
+      listOptions: true,
       menu: "Groups",
+    },
+    {
+      title: projectsTitle.get(authlevel),
+      requiredRole: roles.manager,
+      href: "/monitoring/projects/",
+      icon: "journals",
+      perCluster: true,
+      listOptions: true,
+      menu: "Groups",
+    },
+    {
+      title: "Nodes",
+      requiredRole: roles.admin,
+      href: "/monitoring/systems/",
+      icon: "hdd-rack",
+      perCluster: true,
+      listOptions: false,
+      menu: "Info",
+    },
+    {
+      title: "Status",
+      requiredRole: roles.admin,
+      href: "/monitoring/status/",
+      icon: "clipboard-data",
+      perCluster: true,
+      listOptions: false,
+      menu: "Info",
     },
     {
       title: "Analysis",
@@ -78,23 +115,8 @@
       href: "/monitoring/analysis/",
       icon: "graph-up",
       perCluster: true,
-      menu: "Stats",
-    },
-    {
-      title: "Nodes",
-      requiredRole: roles.admin,
-      href: "/monitoring/systems/",
-      icon: "cpu",
-      perCluster: true,
-      menu: "Groups",
-    },
-    {
-      title: "Status",
-      requiredRole: roles.admin,
-      href: "/monitoring/status/",
-      icon: "cpu",
-      perCluster: true,
-      menu: "Stats",
+      listOptions: false,
+      menu: "Info",
     },
   ];
 </script>
@@ -122,24 +144,27 @@
         <NavbarLinks
           {clusters}
           links={views.filter(
-            (item) => item.requiredRole <= authlevel && item.menu != "Stats",
+            (item) => item.requiredRole <= authlevel && item.menu != "Info",
           )}
         />
-        <Dropdown nav>
-          <DropdownToggle nav caret>
-            <Icon name="graph-up" />
-            Stats
-          </DropdownToggle>
-          <DropdownMenu class="dropdown-menu-lg-end">
-            <NavbarLinks
-              {clusters}
-              links={views.filter(
-                (item) =>
-                  item.requiredRole <= authlevel && item.menu == "Stats",
-              )}
-            />
-          </DropdownMenu>
-        </Dropdown>
+        {#if authlevel >= 4} <!-- Support+ Info Menu-->
+          <Dropdown nav>
+            <DropdownToggle nav caret>
+              <Icon name="graph-up" />
+              Info
+            </DropdownToggle>
+            <DropdownMenu class="dropdown-menu-lg-end">
+              <NavbarLinks
+                {clusters}
+                direction="right"
+                links={views.filter(
+                  (item) =>
+                    item.requiredRole <= authlevel && item.menu == "Info",
+                )}
+              />
+            </DropdownMenu>
+          </Dropdown>
+        {/if}
       {:else}
         <NavbarLinks
           {clusters}
@@ -147,21 +172,54 @@
             (item) => item.requiredRole <= authlevel && item.menu == "none",
           )}
         />
-        {#each Array("Groups", "Stats") as menu}
+        {#if authlevel >= 2} <!-- User+ Job Menu -->
           <Dropdown nav>
             <DropdownToggle nav caret>
-              {menu}
+              Jobs
             </DropdownToggle>
             <DropdownMenu class="dropdown-menu-lg-end">
               <NavbarLinks
                 {clusters}
+                direction="right"
                 links={views.filter(
-                  (item) => item.requiredRole <= authlevel && item.menu == menu,
+                  (item) => item.requiredRole <= authlevel && item.menu == 'Jobs',
                 )}
               />
             </DropdownMenu>
           </Dropdown>
-        {/each}
+        {/if}
+        {#if authlevel >= 3} <!-- Manager+ Group Lists Menu-->
+          <Dropdown nav>
+            <DropdownToggle nav caret>
+              Groups
+            </DropdownToggle>
+            <DropdownMenu class="dropdown-menu-lg-end">
+              <NavbarLinks
+                {clusters}
+                direction="right"
+                links={views.filter(
+                  (item) => item.requiredRole <= authlevel && item.menu == 'Groups',
+                )}
+              />
+            </DropdownMenu>
+          </Dropdown>
+        {/if}
+        {#if authlevel >= 4} <!-- Support+ Info Menu-->
+          <Dropdown nav>
+            <DropdownToggle nav caret>
+              Info
+            </DropdownToggle>
+            <DropdownMenu class="dropdown-menu-lg-end">
+              <NavbarLinks
+                {clusters}
+                direction="right"
+                links={views.filter(
+                  (item) => item.requiredRole <= authlevel && item.menu == 'Info',
+                )}
+              />
+            </DropdownMenu>
+          </Dropdown>
+        {/if}
       {/if}
     </Nav>
     <NavbarTools {username} {authlevel} {roles} {screenSize} />

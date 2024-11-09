@@ -9,12 +9,13 @@
     <script>
         const jobInfos = {
             id: "{{ .Infos.id }}",
-            jobId: "{{ .Infos.jobId }}",
-            clusterId: "{{ .Infos.clusterId }}"
         };
         const clusterCockpitConfig = {{ .Config }};
+        const username = {{ .User.Username }};
         const authlevel = {{ .User.GetAuthLevel }};
         const roles = {{ .Roles }};
+        const resampleConfig = {{ .Resampling }};
+        const emission = {{ .Infos.emission }}
     </script>
     <script src='/build/job.js'></script>
 {{end}}

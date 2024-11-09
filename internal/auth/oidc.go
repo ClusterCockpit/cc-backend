@@ -168,8 +168,8 @@ func (oa *OIDC) OAuth2Callback(rw http.ResponseWriter, r *http.Request) {
 		AuthSource: schema.AuthViaOIDC,
 	}
 
-	if config.Keys.OpenIDConfig.SyncUserOnLogin {
-		persistUser(user)
+	if config.Keys.OpenIDConfig.SyncUserOnLogin || config.Keys.OpenIDConfig.UpdateUserOnLogin {
+		handleOIDCUser(user)
 	}
 
 	oa.authentication.SaveSession(rw, r, user)

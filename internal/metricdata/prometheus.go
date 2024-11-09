@@ -166,10 +166,10 @@ func (pdb *PrometheusDataRepository) Init(rawConfig json.RawMessage) error {
 	var rt http.RoundTripper = nil
 	if prom_pw := os.Getenv("PROMETHEUS_PASSWORD"); prom_pw != "" && config.Username != "" {
 		prom_pw := promcfg.Secret(prom_pw)
-		rt = promcfg.NewBasicAuthRoundTripper(config.Username, prom_pw, "", promapi.DefaultRoundTripper)
+		rt = promcfg.NewBasicAuthRoundTripper(promcfg.NewInlineSecret(config.Username), promcfg.NewInlineSecret(string(prom_pw)), promapi.DefaultRoundTripper)
 	} else {
 		if config.Username != "" {
-			return errors.New("METRICDATA/PROMETHEUS > Prometheus username provided, but PROMETHEUS_PASSWORD not set.")
+			return errors.New("METRICDATA/PROMETHEUS > Prometheus username provided, but PROMETHEUS_PASSWORD not set")
 		}
 	}
 	// init client
@@ -204,8 +204,8 @@ func (pdb *PrometheusDataRepository) FormatQuery(
 	metric string,
 	scope schema.MetricScope,
 	nodes []string,
-	cluster string) (string, error) {
-
+	cluster string,
+) (string, error) {
 	args := PromQLArgs{}
 	if len(nodes) > 0 {
 		args.Nodes = fmt.Sprintf("(%s)%s", nodeRegex(nodes), pdb.suffix)
@@ -233,12 +233,13 @@ func (pdb *PrometheusDataRepository) RowToSeries(
 	from time.Time,
 	step int64,
 	steps int64,
-	row *promm.SampleStream) schema.Series {
+	row *promm.SampleStream,
+) schema.Series {
 	ts := from.Unix()
 	hostname := strings.TrimSuffix(string(row.Metric["exported_instance"]), pdb.suffix)
 	// init array of expected length with NaN
 	values := make([]schema.Float, steps+1)
-	for i, _ := range values {
+	for i := range values {
 		values[i] = schema.NaN
 	}
 	// copy recorded values from prom sample pair
@@ -263,8 +264,9 @@ func (pdb *PrometheusDataRepository) LoadData(
 	job *schema.Job,
 	metrics []string,
 	scopes []schema.MetricScope,
-	ctx context.Context) (schema.JobData, error) {
-
+	ctx context.Context,
+	resolution int,
+) (schema.JobData, error) {
 	// TODO respect requested scope
 	if len(scopes) == 0 || !contains(scopes, schema.MetricScopeNode) {
 		scopes = append(scopes, schema.MetricScopeNode)
@@ -306,7 +308,6 @@ func (pdb *PrometheusDataRepository) LoadData(
 				Step:  time.Duration(metricConfig.Timestep * 1e9),
 			}
 			result, warnings, err := pdb.queryClient.QueryRange(ctx, query, r)
-
 			if err != nil {
 				log.Errorf("Prometheus query error in LoadData: %v\nQuery: %s", err, query)
 				return nil, errors.New("Prometheus query error")
@@ -335,7 +336,7 @@ func (pdb *PrometheusDataRepository) LoadData(
 					pdb.RowToSeries(from, step, steps, row))
 			}
 			// only add metric if at least one host returned data
-			if !ok && len(jobMetric.Series) > 0{
+			if !ok && len(jobMetric.Series) > 0 {
 				jobData[metric][scope] = jobMetric
 			}
 			// sort by hostname to get uniform coloring
@@ -351,12 +352,12 @@ func (pdb *PrometheusDataRepository) LoadData(
 func (pdb *PrometheusDataRepository) LoadStats(
 	job *schema.Job,
 	metrics []string,
-	ctx context.Context) (map[string]map[string]schema.MetricStatistics, error) {
-
+	ctx context.Context,
+) (map[string]map[string]schema.MetricStatistics, error) {
 	// map of metrics of nodes of stats
 	stats := map[string]map[string]schema.MetricStatistics{}
 
-	data, err := pdb.LoadData(job, metrics, []schema.MetricScope{schema.MetricScopeNode}, ctx)
+	data, err := pdb.LoadData(job, metrics, []schema.MetricScope{schema.MetricScopeNode}, ctx, 0 /*resolution here*/)
 	if err != nil {
 		log.Warn("Error while loading job for stats")
 		return nil, err
@@ -376,7 +377,8 @@ func (pdb *PrometheusDataRepository) LoadNodeData(
 	metrics, nodes []string,
 	scopes []schema.MetricScope,
 	from, to time.Time,
-	ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
+	ctx context.Context,
+) (map[string]map[string][]*schema.JobMetric, error) {
 	t0 := time.Now()
 	// Map of hosts of metrics of value slices
 	data := make(map[string]map[string][]*schema.JobMetric)
@@ -411,7 +413,6 @@ func (pdb *PrometheusDataRepository) LoadNodeData(
 				Step:  time.Duration(metricConfig.Timestep * 1e9),
 			}
 			result, warnings, err := pdb.queryClient.QueryRange(ctx, query, r)
-
 			if err != nil {
 				log.Errorf("Prometheus query error in LoadNodeData: %v\n", err)
 				return nil, errors.New("Prometheus query error")

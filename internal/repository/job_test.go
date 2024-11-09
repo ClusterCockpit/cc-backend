@@ -5,9 +5,11 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -30,7 +32,7 @@ func TestFind(t *testing.T) {
 func TestFindById(t *testing.T) {
 	r := setup(t)
 
-	job, err := r.FindById(5)
+	job, err := r.FindById(getContext(t), 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +47,19 @@ func TestFindById(t *testing.T) {
 func TestGetTags(t *testing.T) {
 	r := setup(t)
 
-	tags, counts, err := r.CountTags(nil)
+	const contextUserKey ContextKey = "user"
+	contextUserValue := &schema.User{
+		Username:   "testuser",
+		Projects:   make([]string, 0),
+		Roles:      []string{"user"},
+		AuthType:   0,
+		AuthSource: 2,
+	}
+
+	ctx := context.WithValue(getContext(t), contextUserKey, contextUserValue)
+
+	// Test Tag has Scope "global"
+	tags, counts, err := r.CountTags(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

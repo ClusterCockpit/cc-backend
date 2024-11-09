@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
@@ -42,8 +41,8 @@ func HandleImportFlag(flag string) error {
 		}
 		dec := json.NewDecoder(bytes.NewReader(raw))
 		dec.DisallowUnknownFields()
-		jobMeta := schema.JobMeta{BaseJob: schema.JobDefaults}
-		if err = dec.Decode(&jobMeta); err != nil {
+		job := schema.JobMeta{BaseJob: schema.JobDefaults}
+		if err = dec.Decode(&job); err != nil {
 			log.Warn("Error while decoding raw json metadata for import")
 			return err
 		}
@@ -67,33 +66,32 @@ func HandleImportFlag(flag string) error {
 			return err
 		}
 
-		// checkJobData(&jobData)
+		job.MonitoringStatus = schema.MonitoringStatusArchivingSuccessful
 
-		jobMeta.MonitoringStatus = schema.MonitoringStatusArchivingSuccessful
-
-		// if _, err = r.Find(&jobMeta.JobID, &jobMeta.Cluster, &jobMeta.StartTime); err != sql.ErrNoRows {
-		// 	if err != nil {
-		// 		log.Warn("Error while finding job in jobRepository")
-		// 		return err
-		// 	}
-		//
-		// 	return fmt.Errorf("REPOSITORY/INIT > a job with that jobId, cluster and startTime does already exist")
-		// }
-		//
-		job := schema.Job{
-			BaseJob:       jobMeta.BaseJob,
-			StartTime:     time.Unix(jobMeta.StartTime, 0),
-			StartTimeUnix: jobMeta.StartTime,
+		sc, err := archive.GetSubCluster(job.Cluster, job.SubCluster)
+		if err != nil {
+			log.Errorf("cannot get subcluster: %s", err.Error())
+			return err
 		}
 
-		// TODO: Other metrics...
-		job.LoadAvg = loadJobStat(&jobMeta, "cpu_load")
-		job.FlopsAnyAvg = loadJobStat(&jobMeta, "flops_any")
-		job.MemUsedMax = loadJobStat(&jobMeta, "mem_used")
-		job.MemBwAvg = loadJobStat(&jobMeta, "mem_bw")
-		job.NetBwAvg = loadJobStat(&jobMeta, "net_bw")
-		job.FileBwAvg = loadJobStat(&jobMeta, "file_bw")
+		job.Footprint = make(map[string]float64)
 
+		for _, fp := range sc.Footprint {
+			statType := "avg"
+
+			if i, err := archive.MetricIndex(sc.MetricConfig, fp); err != nil {
+				statType = sc.MetricConfig[i].Footprint
+			}
+
+			name := fmt.Sprintf("%s_%s", fp, statType)
+			job.Footprint[fp] = repository.LoadJobStat(&job, name, statType)
+		}
+
+		job.RawFootprint, err = json.Marshal(job.Footprint)
+		if err != nil {
+			log.Warn("Error while marshaling job footprint")
+			return err
+		}
 		job.RawResources, err = json.Marshal(job.Resources)
 		if err != nil {
 			log.Warn("Error while marshaling job resources")
@@ -110,7 +108,7 @@ func HandleImportFlag(flag string) error {
 			return err
 		}
 
-		if err = archive.GetHandle().ImportJob(&jobMeta, &jobData); err != nil {
+		if err = archive.GetHandle().ImportJob(&job, &jobData); err != nil {
 			log.Error("Error while importing job")
 			return err
 		}
@@ -122,8 +120,8 @@ func HandleImportFlag(flag string) error {
 		}
 
 		for _, tag := range job.Tags {
-			if _, err := r.AddTagOrCreate(id, tag.Type, tag.Name); err != nil {
-				log.Error("Error while adding or creating tag")
+			if err := r.ImportTag(id, tag.Type, tag.Name, tag.Scope); err != nil {
+				log.Error("Error while adding or creating tag on import")
 				return err
 			}
 		}

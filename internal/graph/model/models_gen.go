@@ -16,9 +16,21 @@ type Count struct {
 	Count int    `json:"count"`
 }
 
+type EnergyFootprintValue struct {
+	Hardware string  `json:"hardware"`
+	Metric   string  `json:"metric"`
+	Value    float64 `json:"value"`
+}
+
 type FloatRange struct {
 	From float64 `json:"from"`
 	To   float64 `json:"to"`
+}
+
+type FootprintValue struct {
+	Name  string  `json:"name"`
+	Stat  string  `json:"stat"`
+	Value float64 `json:"value"`
 }
 
 type Footprints struct {
@@ -46,16 +58,14 @@ type JobFilter struct {
 	Cluster         *StringInput      `json:"cluster,omitempty"`
 	Partition       *StringInput      `json:"partition,omitempty"`
 	Duration        *schema.IntRange  `json:"duration,omitempty"`
+	Energy          *FloatRange       `json:"energy,omitempty"`
 	MinRunningFor   *int              `json:"minRunningFor,omitempty"`
 	NumNodes        *schema.IntRange  `json:"numNodes,omitempty"`
 	NumAccelerators *schema.IntRange  `json:"numAccelerators,omitempty"`
 	NumHWThreads    *schema.IntRange  `json:"numHWThreads,omitempty"`
 	StartTime       *schema.TimeRange `json:"startTime,omitempty"`
 	State           []schema.JobState `json:"state,omitempty"`
-	FlopsAnyAvg     *FloatRange       `json:"flopsAnyAvg,omitempty"`
-	MemBwAvg        *FloatRange       `json:"memBwAvg,omitempty"`
-	LoadAvg         *FloatRange       `json:"loadAvg,omitempty"`
-	MemUsedMax      *FloatRange       `json:"memUsedMax,omitempty"`
+	MetricStats     []*MetricStatItem `json:"metricStats,omitempty"`
 	Exclusive       *int              `json:"exclusive,omitempty"`
 	Node            *StringInput      `json:"node,omitempty"`
 }
@@ -120,7 +130,13 @@ type MetricHistoPoint struct {
 type MetricHistoPoints struct {
 	Metric string              `json:"metric"`
 	Unit   string              `json:"unit"`
+	Stat   *string             `json:"stat,omitempty"`
 	Data   []*MetricHistoPoint `json:"data,omitempty"`
+}
+
+type MetricStatItem struct {
+	MetricName string      `json:"metricName"`
+	Range      *FloatRange `json:"range"`
 }
 
 type Mutation struct {
@@ -134,6 +150,7 @@ type NodeMetrics struct {
 
 type OrderByInput struct {
 	Field string            `json:"field"`
+	Type  string            `json:"type"`
 	Order SortDirectionEnum `json:"order"`
 }
 
@@ -155,8 +172,9 @@ type StringInput struct {
 }
 
 type TimeRangeOutput struct {
-	From time.Time `json:"from"`
-	To   time.Time `json:"to"`
+	Range *string   `json:"range,omitempty"`
+	From  time.Time `json:"from"`
+	To    time.Time `json:"to"`
 }
 
 type TimeWeights struct {
