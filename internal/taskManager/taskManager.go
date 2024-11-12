@@ -79,7 +79,7 @@ func Start() {
 		RegisterLdapSyncService(lc.SyncInterval)
 	}
 
-	RegisterFootprintWorker()
+	// RegisterFootprintWorker()
 	RegisterUpdateDurationWorker()
 
 	s.Start()
