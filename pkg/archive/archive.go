@@ -14,7 +14,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
-const Version uint64 = 1
+const Version uint64 = 2
 
 type ArchiveBackend interface {
 	Init(rawConfig json.RawMessage) (uint64, error)
