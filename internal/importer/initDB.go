@@ -81,7 +81,7 @@ func InitDB() error {
 
 			name := fmt.Sprintf("%s_%s", fp, statType)
 
-			job.Footprint[fp] = repository.LoadJobStat(jobMeta, name, statType)
+			job.Footprint[name] = repository.LoadJobStat(jobMeta, fp, statType)
 		}
 
 		job.RawFootprint, err = json.Marshal(job.Footprint)
