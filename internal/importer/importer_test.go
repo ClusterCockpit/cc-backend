@@ -82,7 +82,7 @@ func setup(t *testing.T) *repository.JobRepository {
 	if err := os.Mkdir(jobarchive, 0777); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(jobarchive, "version.txt"), []byte(fmt.Sprintf("%d", 1)), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(jobarchive, "version.txt"), []byte(fmt.Sprintf("%d", 2)), 0666); err != nil {
 		t.Fatal(err)
 	}
 	fritzArchive := filepath.Join(tmpdir, "job-archive", "fritz")
