@@ -7,6 +7,7 @@ package importer
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -70,6 +71,7 @@ func InitDB() error {
 			log.Errorf("cannot get subcluster: %s", err.Error())
 			return err
 		}
+
 		job.Footprint = make(map[string]float64)
 
 		for _, fp := range sc.Footprint {
@@ -87,6 +89,33 @@ func InitDB() error {
 		job.RawFootprint, err = json.Marshal(job.Footprint)
 		if err != nil {
 			log.Warn("Error while marshaling job footprint")
+			return err
+		}
+
+		job.EnergyFootprint = make(map[string]float64)
+		var totalEnergy float64
+		var energy float64
+
+		for _, fp := range sc.EnergyFootprint {
+			if i, err := archive.MetricIndex(sc.MetricConfig, fp); err == nil {
+				// Note: For DB data, calculate and save as kWh
+				// Energy: Power (in Watts) * Time (in Seconds)
+				if sc.MetricConfig[i].Energy == "energy" { // this metric has energy as unit (Joules)
+				} else if sc.MetricConfig[i].Energy == "power" { // this metric has power as unit (Watt)
+					// Unit: ( W * s ) / 3600 / 1000 = kWh ; Rounded to 2 nearest digits
+					energy = math.Round(((repository.LoadJobStat(jobMeta, fp, "avg")*float64(jobMeta.Duration))/3600/1000)*100) / 100
+				}
+			} else {
+				log.Warnf("Error while collecting energy metric %s for job, DB ID '%v', return '0.0'", fp, jobMeta.ID)
+			}
+
+			job.EnergyFootprint[fp] = energy
+			totalEnergy += energy
+		}
+
+		job.Energy = (math.Round(totalEnergy*100) / 100)
+		if job.RawEnergyFootprint, err = json.Marshal(job.EnergyFootprint); err != nil {
+			log.Warnf("Error while marshaling energy footprint for job INTO BYTES, DB ID '%v'", jobMeta.ID)
 			return err
 		}
 
