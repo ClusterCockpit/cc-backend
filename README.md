@@ -65,7 +65,7 @@ cd ./cc-backend
 ./startDemo.sh
 ```
 
-You can also try the demo using the lates release binary.
+You can also try the demo using the latest release binary.
 Create a folder and put the release binary `cc-backend` into this folder.
 Execute the following steps:
 
@@ -88,7 +88,9 @@ Analysis, Systems and Status views).
 There is a Makefile to automate the build of cc-backend. The Makefile supports
 the following targets:
 
-* `make`: Initialize `var` directory and build svelte frontend and backend binary. Note that there is no proper prerequesite handling. Any change of frontend source files will result in a complete rebuild.
+* `make`: Initialize `var` directory and build svelte frontend and backend
+binary. Note that there is no proper prerequisite handling. Any change of
+frontend source files will result in a complete rebuild.
 * `make clean`: Clean go build cache and remove binary.
 * `make test`: Run the tests that are also run in the GitHub workflow setup.
 
@@ -147,8 +149,6 @@ contains Go packages that can be used by other projects.
 Additional command line helper tools.
   * [`archive-manager`](https://github.com/ClusterCockpit/cc-backend/tree/master/tools/archive-manager)
   Commands for getting infos about and existing job archive.
-  * [`archive-migration`](https://github.com/ClusterCockpit/cc-backend/tree/master/tools/archive-migration)
-  Tool to migrate from previous to current job archive version.
   * [`convert-pem-pubkey`](https://github.com/ClusterCockpit/cc-backend/tree/master/tools/convert-pem-pubkey)
   Tool to convert external pubkey for use in `cc-backend`.
   * [`gen-keypair`](https://github.com/ClusterCockpit/cc-backend/tree/master/tools/gen-keypair)
