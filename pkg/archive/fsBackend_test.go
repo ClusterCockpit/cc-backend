@@ -48,7 +48,7 @@ func TestInit(t *testing.T) {
 	if fsa.path != "testdata/archive" {
 		t.Fail()
 	}
-	if version != 1 {
+	if version != 2 {
 		t.Fail()
 	}
 	if len(fsa.clusters) != 3 || fsa.clusters[1] != "emmy" {

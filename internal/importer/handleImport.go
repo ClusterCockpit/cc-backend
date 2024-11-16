@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 
@@ -84,7 +85,8 @@ func HandleImportFlag(flag string) error {
 			}
 
 			name := fmt.Sprintf("%s_%s", fp, statType)
-			job.Footprint[fp] = repository.LoadJobStat(&job, name, statType)
+
+			job.Footprint[name] = repository.LoadJobStat(&job, fp, statType)
 		}
 
 		job.RawFootprint, err = json.Marshal(job.Footprint)
@@ -92,6 +94,34 @@ func HandleImportFlag(flag string) error {
 			log.Warn("Error while marshaling job footprint")
 			return err
 		}
+
+		job.EnergyFootprint = make(map[string]float64)
+		var totalEnergy float64
+		var energy float64
+
+		for _, fp := range sc.EnergyFootprint {
+			if i, err := archive.MetricIndex(sc.MetricConfig, fp); err == nil {
+				// Note: For DB data, calculate and save as kWh
+				// Energy: Power (in Watts) * Time (in Seconds)
+				if sc.MetricConfig[i].Energy == "energy" { // this metric has energy as unit (Joules)
+				} else if sc.MetricConfig[i].Energy == "power" { // this metric has power as unit (Watt)
+					// Unit: ( W * s ) / 3600 / 1000 = kWh ; Rounded to 2 nearest digits
+					energy = math.Round(((repository.LoadJobStat(&job, fp, "avg")*float64(job.Duration))/3600/1000)*100) / 100
+				}
+			} else {
+				log.Warnf("Error while collecting energy metric %s for job, DB ID '%v', return '0.0'", fp, job.ID)
+			}
+
+			job.EnergyFootprint[fp] = energy
+			totalEnergy += energy
+		}
+
+		job.Energy = (math.Round(totalEnergy*100) / 100)
+		if job.RawEnergyFootprint, err = json.Marshal(job.EnergyFootprint); err != nil {
+			log.Warnf("Error while marshaling energy footprint for job INTO BYTES, DB ID '%v'", job.ID)
+			return err
+		}
+
 		job.RawResources, err = json.Marshal(job.Resources)
 		if err != nil {
 			log.Warn("Error while marshaling job resources")
