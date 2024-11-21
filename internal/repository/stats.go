@@ -226,8 +226,6 @@ func (r *JobRepository) JobsStatsGrouped(
 						TotalAccHours:  totalAccHours,
 					})
 			} else {
-				log.Debugf(">>>> STATS ID %s", id.String)
-				log.Debugf(">>>> STATS TOTALNODES %d", totalNodes)
 				stats = append(stats,
 					&model.JobsStatistics{
 						ID:             id.String,
