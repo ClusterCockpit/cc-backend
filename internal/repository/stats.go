@@ -86,7 +86,7 @@ func (r *JobRepository) buildStatsQuery(
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_hwthreads) / 3600) as %s) as totalCoreHours`, time.Now().Unix(), castType),
 			fmt.Sprintf(`CAST(SUM(job.num_acc) as %s) as totalAccs`, castType),
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_acc) / 3600) as %s) as totalAccHours`, time.Now().Unix(), castType),
-		).From("job").Join("hpc_user ON hpc_user.username = job.hpc_user").GroupBy(col)
+		).From("job").LeftJoin("hpc_user ON hpc_user.username = job.hpc_user").GroupBy(col)
 	} else {
 		// Scan columns: totalJobs, name, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours
 		query = sq.Select("COUNT(job.id)",
@@ -226,6 +226,8 @@ func (r *JobRepository) JobsStatsGrouped(
 						TotalAccHours:  totalAccHours,
 					})
 			} else {
+				log.Debugf(">>>> STATS ID %s", id.String)
+				log.Debugf(">>>> STATS TOTALNODES %d", totalNodes)
 				stats = append(stats,
 					&model.JobsStatistics{
 						ID:             id.String,
