@@ -22,7 +22,7 @@ import (
 
 // GraphQL validation should make sure that no unkown values can be specified.
 var groupBy2column = map[model.Aggregate]string{
-	model.AggregateUser:    "job.user",
+	model.AggregateUser:    "job.hpc_user",
 	model.AggregateProject: "job.project",
 	model.AggregateCluster: "job.cluster",
 }
@@ -86,7 +86,7 @@ func (r *JobRepository) buildStatsQuery(
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_hwthreads) / 3600) as %s) as totalCoreHours`, time.Now().Unix(), castType),
 			fmt.Sprintf(`CAST(SUM(job.num_acc) as %s) as totalAccs`, castType),
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_acc) / 3600) as %s) as totalAccHours`, time.Now().Unix(), castType),
-		).From("job").Join("user ON user.username = job.user").GroupBy(col)
+		).From("job").Join("hpc_user ON hpc_user.username = job.hpc_user").GroupBy(col)
 	} else {
 		// Scan columns: totalJobs, name, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours
 		query = sq.Select("COUNT(job.id)",
@@ -109,7 +109,7 @@ func (r *JobRepository) buildStatsQuery(
 
 // func (r *JobRepository) getUserName(ctx context.Context, id string) string {
 // 	user := GetUserFromContext(ctx)
-// 	name, _ := r.FindColumnValue(user, id, "user", "name", "username", false)
+// 	name, _ := r.FindColumnValue(user, id, "hpc_user", "name", "username", false)
 // 	if name != "" {
 // 		return name
 // 	} else {
@@ -210,7 +210,7 @@ func (r *JobRepository) JobsStatsGrouped(
 				totalAccHours = int(accHours.Int64)
 			}
 
-			if col == "job.user" {
+			if col == "job.hpc_user" {
 				// name := r.getUserName(ctx, id.String)
 				stats = append(stats,
 					&model.JobsStatistics{

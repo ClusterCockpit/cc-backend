@@ -114,6 +114,14 @@ func MigrateDB(backend string, db string) error {
 		return err
 	}
 
+	v, dirty, err := m.Version()
+
+	log.Infof("unsupported database version %d, need %d.\nPlease backup your database file and run cc-backend -migrate-db", v, Version)
+
+	if dirty {
+		return fmt.Errorf("last migration to version %d has failed, please fix the db manually and force version with -force-db flag", Version)
+	}
+
 	if err := m.Up(); err != nil {
 		if err == migrate.ErrNoChange {
 			log.Info("DB already up to date!")

@@ -51,7 +51,7 @@ func GetJobRepository() *JobRepository {
 }
 
 var jobColumns []string = []string{
-	"job.id", "job.job_id", "job.user", "job.project", "job.cluster", "job.subcluster", "job.start_time", "job.partition", "job.array_job_id",
+	"job.id", "job.job_id", "job.hpc_user", "job.project", "job.cluster", "job.subcluster", "job.start_time", "job.cluster_partition", "job.array_job_id",
 	"job.num_nodes", "job.num_hwthreads", "job.num_acc", "job.exclusive", "job.monitoring_status", "job.smt", "job.job_state",
 	"job.duration", "job.walltime", "job.resources", "job.footprint", "job.energy",
 }
@@ -314,7 +314,7 @@ func (r *JobRepository) FindUserOrProjectOrJobname(user *schema.User, searchterm
 				return "", uresult, "", ""
 			}
 			// Find username by name (like)
-			nresult, _ := r.FindColumnValue(user, searchterm, "user", "username", "name", true)
+			nresult, _ := r.FindColumnValue(user, searchterm, "hpc_user", "username", "name", true)
 			if nresult != "" {
 				return "", nresult, "", ""
 			}
@@ -400,7 +400,7 @@ func (r *JobRepository) Partitions(cluster string) ([]string, error) {
 	start := time.Now()
 	partitions := r.cache.Get("partitions:"+cluster, func() (interface{}, time.Duration, int) {
 		parts := []string{}
-		if err = r.DB.Select(&parts, `SELECT DISTINCT job.partition FROM job WHERE job.cluster = ?;`, cluster); err != nil {
+		if err = r.DB.Select(&parts, `SELECT DISTINCT job.cluster_partition FROM job WHERE job.cluster = ?;`, cluster); err != nil {
 			return nil, 0, 1000
 		}
 
