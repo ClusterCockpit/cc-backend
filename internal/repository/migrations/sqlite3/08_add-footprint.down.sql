@@ -19,3 +19,85 @@ UPDATE job SET file_bw_avg = json_extract(footprint, '$.file_bw_avg');
 UPDATE job SET file_data_vol_total = json_extract(footprint, '$.file_data_vol_total');
 
 ALTER TABLE job DROP footprint;
+
+DROP INDEX IF EXISTS jobs_cluster;
+DROP INDEX IF EXISTS jobs_cluster_user;
+DROP INDEX IF EXISTS jobs_cluster_project;
+DROP INDEX IF EXISTS jobs_cluster_subcluster;
+DROP INDEX IF EXISTS jobs_cluster_starttime;
+DROP INDEX IF EXISTS jobs_cluster_duration;
+DROP INDEX IF EXISTS jobs_cluster_numnodes;
+DROP INDEX IF EXISTS jobs_cluster_numhwthreads;
+DROP INDEX IF EXISTS jobs_cluster_numacc;
+DROP INDEX IF EXISTS jobs_cluster_energy;
+
+DROP INDEX IF EXISTS jobs_cluster_partition;
+DROP INDEX IF EXISTS jobs_cluster_partition_starttime;
+DROP INDEX IF EXISTS jobs_cluster_partition_duration;
+DROP INDEX IF EXISTS jobs_cluster_partition_numnodes;
+DROP INDEX IF EXISTS jobs_cluster_partition_numhwthreads;
+DROP INDEX IF EXISTS jobs_cluster_partition_numacc;
+DROP INDEX IF EXISTS jobs_cluster_partition_energy;
+
+DROP INDEX IF EXISTS jobs_cluster_partition_jobstate;
+DROP INDEX IF EXISTS jobs_cluster_partition_jobstate_user;
+DROP INDEX IF EXISTS jobs_cluster_partition_jobstate_project;
+DROP INDEX IF EXISTS jobs_cluster_partition_jobstate_starttime;
+DROP INDEX IF EXISTS jobs_cluster_partition_jobstate_duration;
+DROP INDEX IF EXISTS jobs_cluster_partition_jobstate_numnodes;
+DROP INDEX IF EXISTS jobs_cluster_partition_jobstate_numhwthreads;
+DROP INDEX IF EXISTS jobs_cluster_partition_jobstate_numacc;
+DROP INDEX IF EXISTS jobs_cluster_partition_jobstate_energy;
+
+DROP INDEX IF EXISTS jobs_cluster_jobstate;
+DROP INDEX IF EXISTS jobs_cluster_jobstate_user;
+DROP INDEX IF EXISTS jobs_cluster_jobstate_project;
+
+DROP INDEX IF EXISTS jobs_cluster_jobstate_starttime;
+DROP INDEX IF EXISTS jobs_cluster_jobstate_duration;
+DROP INDEX IF EXISTS jobs_cluster_jobstate_numnodes;
+DROP INDEX IF EXISTS jobs_cluster_jobstate_numhwthreads;
+DROP INDEX IF EXISTS jobs_cluster_jobstate_numacc;
+DROP INDEX IF EXISTS jobs_cluster_jobstate_energy;
+
+DROP INDEX IF EXISTS jobs_user;
+DROP INDEX IF EXISTS jobs_user_starttime;
+DROP INDEX IF EXISTS jobs_user_duration;
+DROP INDEX IF EXISTS jobs_user_numnodes;
+DROP INDEX IF EXISTS jobs_user_numhwthreads;
+DROP INDEX IF EXISTS jobs_user_numacc;
+DROP INDEX IF EXISTS jobs_user_energy;
+
+DROP INDEX IF EXISTS jobs_project;
+DROP INDEX IF EXISTS jobs_project_user;
+DROP INDEX IF EXISTS jobs_project_starttime;
+DROP INDEX IF EXISTS jobs_project_duration;
+DROP INDEX IF EXISTS jobs_project_numnodes;
+DROP INDEX IF EXISTS jobs_project_numhwthreads;
+DROP INDEX IF EXISTS jobs_project_numacc;
+DROP INDEX IF EXISTS jobs_project_energy;
+
+DROP INDEX IF EXISTS jobs_jobstate;
+DROP INDEX IF EXISTS jobs_jobstate_user;
+DROP INDEX IF EXISTS jobs_jobstate_project;
+DROP INDEX IF EXISTS jobs_jobstate_starttime;
+DROP INDEX IF EXISTS jobs_jobstate_duration;
+DROP INDEX IF EXISTS jobs_jobstate_numnodes;
+DROP INDEX IF EXISTS jobs_jobstate_numhwthreads;
+DROP INDEX IF EXISTS jobs_jobstate_numacc;
+
+DROP INDEX IF EXISTS jobs_arrayjobid_starttime;
+DROP INDEX IF EXISTS jobs_cluster_arrayjobid_starttime;
+
+DROP INDEX IF EXISTS jobs_starttime;
+DROP INDEX IF EXISTS jobs_duration;
+DROP INDEX IF EXISTS jobs_numnodes;
+DROP INDEX IF EXISTS jobs_numhwthreads;
+DROP INDEX IF EXISTS jobs_numacc;
+DROP INDEX IF EXISTS jobs_energy;
+
+DROP INDEX IF EXISTS jobs_duration_starttime;
+DROP INDEX IF EXISTS jobs_numnodes_starttime;
+DROP INDEX IF EXISTS jobs_numhwthreads_starttime;
+DROP INDEX IF EXISTS jobs_numacc_starttime;
+DROP INDEX IF EXISTS jobs_energy_starttime;
