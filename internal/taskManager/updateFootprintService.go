@@ -76,19 +76,21 @@ func RegisterFootprintWorker() {
 							Statistics: make(map[string]schema.JobStatistics),
 						}
 
-						for metric, data := range jobStats { // Metric, Hostname:Stats
-							avg, min, max := 0.0, math.MaxFloat32, -math.MaxFloat32
+						for metric := range jobStats { // Metric, Hostname:Stats
+							avg, min, max := 0.0, 0.0, 0.0 // math.MaxFloat32, -math.MaxFloat32
 
-							for hostname := range data {
-								hostStats, ok := data[hostname]
-								if !ok {
-									log.Debugf("footprintWorker: NAN stats returned for job %d @ %s", job.JobID, hostname)
-								} else {
-									log.Debugf("stats returned for job %d : %#v", job.JobID, hostStats)
-									avg += hostStats.Avg
-									min = math.Min(min, hostStats.Min)
-									max = math.Max(max, hostStats.Max)
+							data, ok := jobStats[metric]
+							if ok {
+								for hostname := range data {
+									hostStats, ok := data[hostname]
+									if ok {
+										avg += hostStats.Avg
+										min = math.Min(min, hostStats.Min)
+										max = math.Max(max, hostStats.Max)
+									}
 								}
+							} else {
+								log.Debugf("no stats data return for job %d, metric %s", job.JobID, metric)
 							}
 
 							// Add values rounded to 2 digits
