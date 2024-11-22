@@ -79,10 +79,16 @@ func RegisterFootprintWorker() {
 						for metric, data := range jobStats { // Metric, Hostname:Stats
 							avg, min, max := 0.0, math.MaxFloat32, -math.MaxFloat32
 
-							for _, hostStats := range data {
-								avg += hostStats.Avg
-								min = math.Min(min, hostStats.Min)
-								max = math.Max(max, hostStats.Max)
+							for hostname := range data {
+								hostStats, ok := data[hostname]
+								if !ok {
+									log.Debugf("footprintWorker: NAN stats returned for job %d @ %s", job.JobID, hostname)
+								} else {
+									log.Debugf("stats returned for job %d : %#v", job.JobID, hostStats)
+									avg += hostStats.Avg
+									min = math.Min(min, hostStats.Min)
+									max = math.Max(max, hostStats.Max)
+								}
 							}
 
 							// Add values rounded to 2 digits
