@@ -55,7 +55,7 @@ func RegisterFootprintWorker() {
 						continue
 					}
 
-					pendingStatements := make([]sq.UpdateBuilder, len(jobs))
+					pendingStatements := []sq.UpdateBuilder{}
 
 					for _, job := range jobs {
 						log.Debugf("Try job %d", job.JobID)
