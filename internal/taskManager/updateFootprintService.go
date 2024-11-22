@@ -51,14 +51,14 @@ func RegisterFootprintWorker() {
 
 					repo, err := metricdata.GetMetricDataRepo(cluster.Name)
 					if err != nil {
-						log.Warnf("no metric data repository configured for '%s'", cluster.Name)
+						log.Errorf("no metric data repository configured for '%s'", cluster.Name)
 						continue
 					}
 
 					pendingStatements := []sq.UpdateBuilder{}
 
 					for _, job := range jobs {
-						log.Debugf("Try job %d", job.JobID)
+						log.Debugf("Prepare job %d", job.JobID)
 						cl++
 
 						s_job := time.Now()
@@ -116,7 +116,6 @@ func RegisterFootprintWorker() {
 						pendingStatements = append(pendingStatements, stmt)
 						log.Debugf("Job %d took %s", job.JobID, time.Since(s_job))
 					}
-					log.Debugf("Finish preparation for %d jobs: %d statements", len(jobs), len(pendingStatements))
 
 					t, err := jobRepo.TransactionInit()
 					if err != nil {
@@ -131,7 +130,7 @@ func RegisterFootprintWorker() {
 							ce++
 						} else {
 							// Args: JSON, JSON, ENERGY, JOBID
-							log.Infof("add transaction on index %d", idx)
+							log.Debugf("add transaction on index %d", idx)
 							jobRepo.TransactionAdd(t, query, args...)
 							c++
 						}
