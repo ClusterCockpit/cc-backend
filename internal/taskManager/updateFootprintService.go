@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
+	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -37,11 +37,6 @@ func RegisterFootprintWorker() {
 				cl := 0
 				log.Printf("Update Footprints started at %s", s.Format(time.RFC3339))
 
-				t, err := jobRepo.TransactionInit()
-				if err != nil {
-					log.Errorf("Failed TransactionInit %v", err)
-				}
-
 				for _, cluster := range archive.Clusters {
 					jobs, err := jobRepo.FindRunningJobs(cluster.Name)
 					if err != nil {
@@ -53,16 +48,21 @@ func RegisterFootprintWorker() {
 						allMetrics = append(allMetrics, mc.Name)
 					}
 
-					scopes := []schema.MetricScope{schema.MetricScopeNode}
-					scopes = append(scopes, schema.MetricScopeCore)
-					scopes = append(scopes, schema.MetricScopeAccelerator)
+					repo, err := metricdata.GetMetricDataRepo(cluster.Name)
+					if err != nil {
+						log.Warnf("no metric data repository configured for '%s'", cluster.Name)
+						continue
+					}
+
+					pendingStatements := make([]sq.UpdateBuilder, len(jobs))
 
 					for _, job := range jobs {
 						log.Debugf("Try job %d", job.JobID)
 						cl++
-						jobData, err := metricDataDispatcher.LoadData(job, allMetrics, scopes, context.Background(), 0) // 0 Resolution-Value retrieves highest res
+
+						jobStats, err := repo.LoadStats(job, allMetrics, context.Background())
 						if err != nil {
-							log.Errorf("Error wile loading job data for footprint update: %v", err)
+							log.Errorf("Error wile loading job data stats for footprint update: %v", err)
 							ce++
 							continue
 						}
@@ -73,19 +73,19 @@ func RegisterFootprintWorker() {
 							Statistics: make(map[string]schema.JobStatistics),
 						}
 
-						for metric, data := range jobData {
+						for metric, data := range jobStats { // Metric, Hostname:Stats
 							avg, min, max := 0.0, math.MaxFloat32, -math.MaxFloat32
-							nodeData, ok := data["node"]
-							if !ok {
-								// This should never happen ?
-								ce++
-								continue
-							}
+							// 	nodeData, ok := data["node"]
+							// 	if !ok {
+							// 		// This should never happen ?
+							// 		ce++
+							// 		continue
+							// 	}
 
-							for _, series := range nodeData.Series {
-								avg += series.Statistics.Avg
-								min = math.Min(min, series.Statistics.Min)
-								max = math.Max(max, series.Statistics.Max)
+							for _, hostStats := range data {
+								avg += hostStats.Avg
+								min = math.Min(min, hostStats.Min)
+								max = math.Max(max, hostStats.Max)
 							}
 
 							// Add values rounded to 2 digits
@@ -100,25 +100,34 @@ func RegisterFootprintWorker() {
 							}
 						}
 
-						// Init UpdateBuilder
+						// Build Statement per Job, Add to Pending Array
 						stmt := sq.Update("job")
-						// Add SET queries
 						stmt, err = jobRepo.UpdateFootprint(stmt, jobMeta)
 						if err != nil {
-							log.Errorf("Update job (dbid: %d) failed at update Footprint step: %s", job.ID, err.Error())
+							log.Errorf("Update job (dbid: %d) statement build failed at footprint step: %s", job.ID, err.Error())
 							ce++
 							continue
 						}
 						stmt, err = jobRepo.UpdateEnergy(stmt, jobMeta)
 						if err != nil {
-							log.Errorf("Update job (dbid: %d) failed at update Energy step: %s", job.ID, err.Error())
+							log.Errorf("update job (dbid: %d) statement build failed at energy step: %s", job.ID, err.Error())
 							ce++
 							continue
 						}
-						// Add WHERE Filter
 						stmt = stmt.Where("job.id = ?", job.ID)
 
-						query, args, err := stmt.ToSql()
+						pendingStatements = append(pendingStatements, stmt)
+						log.Debugf("Finish Job Preparation %d", job.JobID)
+					}
+
+					t, err := jobRepo.TransactionInit()
+					if err != nil {
+						log.Errorf("Failed TransactionInit %v", err)
+					}
+
+					for _, ps := range pendingStatements {
+
+						query, args, err := ps.ToSql()
 						if err != nil {
 							log.Errorf("Failed in ToSQL conversion: %v", err)
 							ce++
@@ -127,17 +136,12 @@ func RegisterFootprintWorker() {
 
 						// Args: JSON, JSON, ENERGY, JOBID
 						jobRepo.TransactionAdd(t, query, args...)
-						// if err := jobRepo.Execute(stmt); err != nil {
-						// 	log.Errorf("Update job footprint (dbid: %d) failed at db execute: %s", job.ID, err.Error())
-						// 	continue
-						// }
 						c++
-						log.Debugf("Finish Job %d", job.JobID)
 					}
-					jobRepo.TransactionCommit(t)
+
+					jobRepo.TransactionEnd(t)
 					log.Debugf("Finish Cluster %s", cluster.Name)
 				}
-				jobRepo.TransactionEnd(t)
 				log.Printf("Updating %d (of %d; Skipped %d) Footprints is done and took %s", c, cl, ce, time.Since(s))
 			}))
 }
