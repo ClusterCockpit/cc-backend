@@ -38,6 +38,7 @@ func RegisterFootprintWorker() {
 				log.Printf("Update Footprints started at %s", s.Format(time.RFC3339))
 
 				for _, cluster := range archive.Clusters {
+					s_cluster := time.Now()
 					jobs, err := jobRepo.FindRunningJobs(cluster.Name)
 					if err != nil {
 						continue
@@ -60,6 +61,8 @@ func RegisterFootprintWorker() {
 						log.Debugf("Try job %d", job.JobID)
 						cl++
 
+						s_job := time.Now()
+
 						jobStats, err := repo.LoadStats(job, allMetrics, context.Background())
 						if err != nil {
 							log.Errorf("Error wile loading job data stats for footprint update: %v", err)
@@ -75,12 +78,6 @@ func RegisterFootprintWorker() {
 
 						for metric, data := range jobStats { // Metric, Hostname:Stats
 							avg, min, max := 0.0, math.MaxFloat32, -math.MaxFloat32
-							// 	nodeData, ok := data["node"]
-							// 	if !ok {
-							// 		// This should never happen ?
-							// 		ce++
-							// 		continue
-							// 	}
 
 							for _, hostStats := range data {
 								avg += hostStats.Avg
@@ -117,7 +114,7 @@ func RegisterFootprintWorker() {
 						stmt = stmt.Where("job.id = ?", job.ID)
 
 						pendingStatements = append(pendingStatements, stmt)
-						log.Debugf("Finish Job Preparation %d", job.JobID)
+						log.Debugf("Finish Job Preparation %d, took %s", job.JobID, time.Since(s_job))
 					}
 
 					t, err := jobRepo.TransactionInit()
@@ -129,18 +126,19 @@ func RegisterFootprintWorker() {
 
 						query, args, err := ps.ToSql()
 						if err != nil {
+							log.Debugf(">>> Query: %v", query)
+							log.Debugf(">>> Args: %v", args)
 							log.Errorf("Failed in ToSQL conversion: %v", err)
 							ce++
-							continue
+						} else {
+							// Args: JSON, JSON, ENERGY, JOBID
+							jobRepo.TransactionAdd(t, query, args...)
+							c++
 						}
-
-						// Args: JSON, JSON, ENERGY, JOBID
-						jobRepo.TransactionAdd(t, query, args...)
-						c++
 					}
 
 					jobRepo.TransactionEnd(t)
-					log.Debugf("Finish Cluster %s", cluster.Name)
+					log.Debugf("Finish Cluster %s, took %s", cluster.Name, time.Since(s_cluster))
 				}
 				log.Printf("Updating %d (of %d; Skipped %d) Footprints is done and took %s", c, cl, ce, time.Since(s))
 			}))
