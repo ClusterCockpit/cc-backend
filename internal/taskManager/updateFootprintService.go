@@ -65,7 +65,7 @@ func RegisterFootprintWorker() {
 
 						jobStats, err := repo.LoadStats(job, allMetrics, context.Background())
 						if err != nil {
-							log.Errorf("Error wile loading job data stats for footprint update: %v", err)
+							log.Errorf("error wile loading job data stats for footprint update: %v", err)
 							ce++
 							continue
 						}
@@ -101,7 +101,7 @@ func RegisterFootprintWorker() {
 						stmt := sq.Update("job")
 						stmt, err = jobRepo.UpdateFootprint(stmt, jobMeta)
 						if err != nil {
-							log.Errorf("Update job (dbid: %d) statement build failed at footprint step: %s", job.ID, err.Error())
+							log.Errorf("update job (dbid: %d) statement build failed at footprint step: %s", job.ID, err.Error())
 							ce++
 							continue
 						}
@@ -114,24 +114,24 @@ func RegisterFootprintWorker() {
 						stmt = stmt.Where("job.id = ?", job.ID)
 
 						pendingStatements = append(pendingStatements, stmt)
-						log.Debugf("Finish Job Preparation %d, took %s", job.JobID, time.Since(s_job))
+						log.Debugf("Job %d took %s", job.JobID, time.Since(s_job))
 					}
+					log.Debugf("Finish preparation for %d jobs: %d statements", len(jobs), len(pendingStatements))
 
 					t, err := jobRepo.TransactionInit()
 					if err != nil {
-						log.Errorf("Failed TransactionInit %v", err)
+						log.Errorf("failed TransactionInit %v", err)
 					}
 
-					for _, ps := range pendingStatements {
+					for idx, ps := range pendingStatements {
 
 						query, args, err := ps.ToSql()
 						if err != nil {
-							log.Debugf(">>> Query: %v", query)
-							log.Debugf(">>> Args: %v", args)
-							log.Errorf("Failed in ToSQL conversion: %v", err)
+							log.Errorf("failed in ToSQL conversion: %v", err)
 							ce++
 						} else {
 							// Args: JSON, JSON, ENERGY, JOBID
+							log.Infof("add transaction on index %d", idx)
 							jobRepo.TransactionAdd(t, query, args...)
 							c++
 						}
