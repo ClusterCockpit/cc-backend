@@ -76,17 +76,18 @@ func RegisterFootprintWorker() {
 							Statistics: make(map[string]schema.JobStatistics),
 						}
 
-						for metric := range jobStats { // Metric, Hostname:Stats
+						for _, metric := range allMetrics {
 							avg, min, max := 0.0, 0.0, 0.0 // math.MaxFloat32, -math.MaxFloat32
-
-							data, ok := jobStats[metric]
+							data, ok := jobStats[metric]   // Metric:[Hostname:Stats]
 							if ok {
-								for hostname := range data {
-									hostStats, ok := data[hostname]
+								for _, res := range job.Resources {
+									hostStats, ok := data[res.Hostname]
 									if ok {
 										avg += hostStats.Avg
 										min = math.Min(min, hostStats.Min)
 										max = math.Max(max, hostStats.Max)
+									} else {
+										log.Debugf("no stats data return for host %s in job %d, metric %s", res.Hostname, job.JobID, metric)
 									}
 								}
 							} else {
