@@ -77,8 +77,8 @@ func RegisterFootprintWorker() {
 						}
 
 						for _, metric := range allMetrics {
-							avg, min, max := 0.0, 0.0, 0.0 // math.MaxFloat32, -math.MaxFloat32
-							data, ok := jobStats[metric]   // Metric:[Hostname:Stats]
+							avg, min, max := 0.0, 0.0, 0.0
+							data, ok := jobStats[metric] // Metric:[Hostname:Stats]
 							if ok {
 								for _, res := range job.Resources {
 									hostStats, ok := data[res.Hostname]
@@ -86,13 +86,15 @@ func RegisterFootprintWorker() {
 										avg += hostStats.Avg
 										min = math.Min(min, hostStats.Min)
 										max = math.Max(max, hostStats.Max)
-									} else {
-										log.Debugf("no stats data return for host %s in job %d, metric %s", res.Hostname, job.JobID, metric)
 									}
+									// else {
+									// 	log.Debugf("no stats data return for host %s in job %d, metric %s", res.Hostname, job.JobID, metric)
+									// }
 								}
-							} else {
-								log.Debugf("no stats data return for job %d, metric %s", job.JobID, metric)
 							}
+							// else {
+							// 	log.Debugf("no stats data return for job %d, metric %s", job.JobID, metric)
+							// }
 
 							// Add values rounded to 2 digits
 							jobMeta.Statistics[metric] = schema.JobStatistics{
