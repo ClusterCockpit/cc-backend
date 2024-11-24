@@ -136,7 +136,7 @@ func (r *JobRepository) IsJobOwner(jobId int64, startTime int64, user string, cl
 	q := sq.Select("id").
 		From("job").
 		Where("job.job_id = ?", jobId).
-		Where("job.user = ?", user).
+		Where("job.hpc_user = ?", user).
 		Where("job.cluster = ?", cluster).
 		Where("job.start_time = ?", startTime)
 

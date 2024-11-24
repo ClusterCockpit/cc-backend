@@ -17,7 +17,6 @@ import (
 
 // Add the tag with id `tagId` to the job with the database id `jobId`.
 func (r *JobRepository) AddTag(ctx context.Context, job int64, tag int64) ([]*schema.Tag, error) {
-
 	j, err := r.FindById(ctx, job)
 	if err != nil {
 		log.Warn("Error while finding job by id")
@@ -49,7 +48,6 @@ func (r *JobRepository) AddTag(ctx context.Context, job int64, tag int64) ([]*sc
 
 // Removes a tag from a job
 func (r *JobRepository) RemoveTag(ctx context.Context, job, tag int64) ([]*schema.Tag, error) {
-
 	j, err := r.FindById(ctx, job)
 	if err != nil {
 		log.Warn("Error while finding job by id")
@@ -81,7 +79,6 @@ func (r *JobRepository) RemoveTag(ctx context.Context, job, tag int64) ([]*schem
 
 // CreateTag creates a new tag with the specified type and name and returns its database id.
 func (r *JobRepository) CreateTag(tagType string, tagName string, tagScope string) (tagId int64, err error) {
-
 	// Default to "Global" scope if none defined
 	if tagScope == "" {
 		tagScope = "global"
@@ -147,9 +144,9 @@ func (r *JobRepository) CountTags(ctx context.Context) (tags []schema.Tag, count
 		// Unchanged: Needs to be own case still, due to UserRole/NoRole compatibility handling in else case
 	} else if user != nil && user.HasRole(schema.RoleManager) { // MANAGER: Count own jobs plus project's jobs
 		// Build ("project1", "project2", ...) list of variable length directly in SQL string
-		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.user = ? OR job.project IN (\""+strings.Join(user.Projects, "\",\"")+"\"))", user.Username)
+		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.hpc_user = ? OR job.project IN (\""+strings.Join(user.Projects, "\",\"")+"\"))", user.Username)
 	} else if user != nil { // USER OR NO ROLE (Compatibility): Only count own jobs
-		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.user = ?)", user.Username)
+		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.hpc_user = ?)", user.Username)
 	}
 
 	rows, err := q.RunWith(r.stmtCache).Query()
@@ -176,7 +173,6 @@ func (r *JobRepository) CountTags(ctx context.Context) (tags []schema.Tag, count
 // AddTagOrCreate adds the tag with the specified type and name to the job with the database id `jobId`.
 // If such a tag does not yet exist, it is created.
 func (r *JobRepository) AddTagOrCreate(ctx context.Context, jobId int64, tagType string, tagName string, tagScope string) (tagId int64, err error) {
-
 	// Default to "Global" scope if none defined
 	if tagScope == "" {
 		tagScope = "global"
