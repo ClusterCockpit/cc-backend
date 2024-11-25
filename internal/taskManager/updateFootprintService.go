@@ -43,6 +43,9 @@ func RegisterFootprintWorker() {
 					if err != nil {
 						continue
 					}
+					// NOTE: Additional Subcluster Loop Could Allow For Limited List Of (Energy)Footprint-Metrics Only.
+					//       - Chunk-Size Would Then Be 'SubCluster' (Running Jobs, Transactions) as Lists Can Change Within SCs
+					//       - Would Require Review of 'updateFootprint' And 'updateEnergy' Usage
 					allMetrics := make([]string, 0)
 					metricConfigs := archive.GetCluster(cluster.Name).MetricConfig
 					for _, mc := range metricConfigs {
@@ -78,7 +81,7 @@ func RegisterFootprintWorker() {
 
 						for _, metric := range allMetrics {
 							avg, min, max := 0.0, 0.0, 0.0
-							data, ok := jobStats[metric] // Metric:[Hostname:Stats]
+							data, ok := jobStats[metric] // JobStats[Metric1:[Hostname1:[Stats], Hostname2:[Stats], ...], Metric2[...] ...]
 							if ok {
 								for _, res := range job.Resources {
 									hostStats, ok := data[res.Hostname]
@@ -87,14 +90,9 @@ func RegisterFootprintWorker() {
 										min = math.Min(min, hostStats.Min)
 										max = math.Max(max, hostStats.Max)
 									}
-									// else {
-									// 	log.Debugf("no stats data return for host %s in job %d, metric %s", res.Hostname, job.JobID, metric)
-									// }
+
 								}
 							}
-							// else {
-							// 	log.Debugf("no stats data return for job %d, metric %s", job.JobID, metric)
-							// }
 
 							// Add values rounded to 2 digits
 							jobMeta.Statistics[metric] = schema.JobStatistics{
@@ -131,23 +129,22 @@ func RegisterFootprintWorker() {
 					t, err := jobRepo.TransactionInit()
 					if err != nil {
 						log.Errorf("failed TransactionInit %v", err)
-					}
-
-					for idx, ps := range pendingStatements {
-
-						query, args, err := ps.ToSql()
-						if err != nil {
-							log.Errorf("failed in ToSQL conversion: %v", err)
-							ce++
-						} else {
-							// Args: JSON, JSON, ENERGY, JOBID
-							log.Debugf("add transaction on index %d", idx)
-							jobRepo.TransactionAdd(t, query, args...)
-							c++
+						log.Errorf("skipped %d transactions for cluster %s", len(pendingStatements), cluster.Name)
+						ce += len(pendingStatements)
+					} else {
+						for _, ps := range pendingStatements {
+							query, args, err := ps.ToSql()
+							if err != nil {
+								log.Errorf("failed in ToSQL conversion: %v", err)
+								ce++
+							} else {
+								// args...: Footprint-JSON, Energyfootprint-JSON, TotalEnergy, JobID
+								jobRepo.TransactionAdd(t, query, args...)
+								c++
+							}
 						}
+						jobRepo.TransactionEnd(t)
 					}
-
-					jobRepo.TransactionEnd(t)
 					log.Debugf("Finish Cluster %s, took %s", cluster.Name, time.Since(s_cluster))
 				}
 				log.Printf("Updating %d (of %d; Skipped %d) Footprints is done and took %s", c, cl, ce, time.Since(s))
