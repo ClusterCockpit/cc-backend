@@ -132,7 +132,7 @@ func setupAnalysisRoute(i InfoType, r *http.Request) InfoType {
 
 func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 	jobRepo := repository.GetJobRepository()
-	tags, counts, err := jobRepo.CountTags(r.Context())
+	tags, counts, err := jobRepo.CountTags(repository.GetUserFromContext(r.Context()))
 	tagMap := make(map[string][]map[string]interface{})
 	if err != nil {
 		log.Warnf("GetTags failed: %s", err.Error())

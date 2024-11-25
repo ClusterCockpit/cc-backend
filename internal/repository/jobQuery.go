@@ -107,8 +107,7 @@ func (r *JobRepository) CountJobs(
 	return count, nil
 }
 
-func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (sq.SelectBuilder, error) {
-	user := GetUserFromContext(ctx)
+func SecurityCheckWithUser(user *schema.User, query sq.SelectBuilder) (sq.SelectBuilder, error) {
 	if user == nil {
 		var qnil sq.SelectBuilder
 		return qnil, fmt.Errorf("user context is nil")
@@ -132,6 +131,12 @@ func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (sq.SelectBuilde
 		var qnil sq.SelectBuilder
 		return qnil, fmt.Errorf("user has no or unknown roles")
 	}
+}
+
+func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (sq.SelectBuilder, error) {
+	user := GetUserFromContext(ctx)
+
+	return SecurityCheckWithUser(user, query)
 }
 
 // Build a sq.SelectBuilder out of a schema.JobFilter.

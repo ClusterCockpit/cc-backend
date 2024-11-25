@@ -82,6 +82,8 @@ func Connect(driver string, db string) {
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		startJobStartWorker()
 	})
 }
 
