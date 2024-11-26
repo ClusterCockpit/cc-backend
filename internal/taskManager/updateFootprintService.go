@@ -114,12 +114,6 @@ func RegisterFootprintWorker() {
 							ce++
 							continue
 						}
-						stmt, err = jobRepo.UpdateEnergy(stmt, jobMeta)
-						if err != nil {
-							log.Errorf("update job (dbid: %d) statement build failed at energy step: %s", job.ID, err.Error())
-							ce++
-							continue
-						}
 						stmt = stmt.Where("job.id = ?", job.ID)
 
 						pendingStatements = append(pendingStatements, stmt)
