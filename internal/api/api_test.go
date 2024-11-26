@@ -14,9 +14,9 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/api"
 	"github.com/ClusterCockpit/cc-backend/internal/archiver"
@@ -200,6 +200,10 @@ func TestRestApi(t *testing.T) {
 	r.StrictSlash(true)
 	restapi.MountApiRoutes(r)
 
+	var TestJobId int64 = 123
+	var TestClusterName string = "testcluster"
+	var TestStartTime int64 = 123456789
+
 	const startJobBody string = `{
         "jobId":            123,
 		"user":             "testuser",
@@ -225,7 +229,6 @@ func TestRestApi(t *testing.T) {
 		"startTime": 123456789
 	}`
 
-	var dbid int64
 	const contextUserKey repository.ContextKey = "user"
 	contextUserValue := &schema.User{
 		Username:   "testuser",
@@ -247,13 +250,10 @@ func TestRestApi(t *testing.T) {
 			t.Fatal(response.Status, recorder.Body.String())
 		}
 
-		var res api.StartJobApiResponse
-		if err := json.Unmarshal(recorder.Body.Bytes(), &res); err != nil {
-			t.Fatal(err)
-		}
+		time.Sleep(1 * time.Second)
 
 		resolver := graph.GetResolverInstance()
-		job, err := resolver.Query().Job(ctx, strconv.Itoa(int(res.DBID)))
+		job, err := restapi.JobRepository.Find(&TestJobId, &TestClusterName, &TestStartTime)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -285,8 +285,6 @@ func TestRestApi(t *testing.T) {
 		if len(job.Tags) != 1 || job.Tags[0].Type != "testTagType" || job.Tags[0].Name != "testTagName" || job.Tags[0].Scope != "testuser" {
 			t.Fatalf("unexpected tags: %#v", job.Tags)
 		}
-
-		dbid = res.DBID
 	}); !ok {
 		return
 	}
@@ -314,8 +312,7 @@ func TestRestApi(t *testing.T) {
 		}
 
 		archiver.WaitForArchiving()
-		resolver := graph.GetResolverInstance()
-		job, err := resolver.Query().Job(ctx, strconv.Itoa(int(dbid)))
+		job, err := restapi.JobRepository.Find(&TestJobId, &TestClusterName, &TestStartTime)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -404,8 +401,10 @@ func TestRestApi(t *testing.T) {
 		t.Fatal("subtest failed")
 	}
 
+	time.Sleep(1 * time.Second)
+
 	const stopJobBodyFailed string = `{
-        "jobId":     12345,
+    "jobId":     12345,
 		"cluster":   "testcluster",
 
 		"jobState": "failed",

@@ -6,6 +6,7 @@ package repository
 
 import (
 	"sync"
+	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -36,17 +37,29 @@ func jobStartWorker() {
 				break
 			}
 			jobRepo := GetJobRepository()
+			var id int64
 
-			id, err := jobRepo.Start(req.Job)
-			if err != nil {
-				log.Errorf("insert into database failed: %v", err)
+			for i := 0; i < 5; i++ {
+				var err error
+
+				id, err = jobRepo.Start(req.Job)
+				if err != nil {
+					log.Errorf("Attempt %d: insert into database failed: %v", i, err)
+				} else {
+					break
+				}
+				time.Sleep(1 * time.Second)
 			}
 
 			for _, tag := range req.Job.Tags {
-				if _, err := jobRepo.AddTagOrCreate(req.User, id, tag.Type, tag.Name, tag.Scope); err != nil {
+				if _, err := jobRepo.AddTagOrCreate(req.User, id,
+					tag.Type, tag.Name, tag.Scope); err != nil {
 					log.Errorf("adding tag to new job %d failed: %v", id, err)
 				}
 			}
+
+			log.Printf("new job (id: %d): cluster=%s, jobId=%d, user=%s, startTime=%d",
+				id, req.Job.Cluster, req.Job.JobID, req.Job.User, req.Job.StartTime)
 
 			jobStartPending.Done()
 		}

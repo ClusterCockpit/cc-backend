@@ -124,8 +124,7 @@ func (api *RestApi) MountFrontendApiRoutes(r *mux.Router) {
 
 // StartJobApiResponse model
 type StartJobApiResponse struct {
-	// Database ID of new job
-	DBID int64 `json:"id"`
+	Message string `json:"msg"`
 }
 
 // DeleteJobApiResponse model
@@ -806,25 +805,10 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 
 	repository.TriggerJobStart(repository.JobWithUser{Job: &req, User: repository.GetUserFromContext(r.Context())})
 
-	id, err := api.JobRepository.Start(&req)
-	if err != nil {
-		handleError(fmt.Errorf("insert into database failed: %w", err), http.StatusInternalServerError, rw)
-		return
-	}
-
-	for _, tag := range req.Tags {
-		if _, err := api.JobRepository.AddTagOrCreate(repository.GetUserFromContext(r.Context()), id, tag.Type, tag.Name, tag.Scope); err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
-			handleError(fmt.Errorf("adding tag to new job %d failed: %w", id, err), http.StatusInternalServerError, rw)
-			return
-		}
-	}
-
-	log.Printf("new job (id: %d): cluster=%s, jobId=%d, user=%s, startTime=%d", id, req.Cluster, req.JobID, req.User, req.StartTime)
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusCreated)
 	json.NewEncoder(rw).Encode(StartJobApiResponse{
-		DBID: id,
+		Message: fmt.Sprintf("Successfully triggered job start"),
 	})
 }
 
