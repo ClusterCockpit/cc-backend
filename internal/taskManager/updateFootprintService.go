@@ -43,9 +43,9 @@ func RegisterFootprintWorker() {
 					if err != nil {
 						continue
 					}
-					// NOTE: Additional Subcluster Loop Could Allow For Limited List Of (Energy)Footprint-Metrics Only.
+					// NOTE: Additional Subcluster Loop Could Allow For Limited List Of Footprint-Metrics Only.
 					//       - Chunk-Size Would Then Be 'SubCluster' (Running Jobs, Transactions) as Lists Can Change Within SCs
-					//       - Would Require Review of 'updateFootprint' And 'updateEnergy' Usage
+					//       - Would Require Review of 'updateFootprint' Usage (Logic Could Possibly Be Included Here Completely)
 					allMetrics := make([]string, 0)
 					metricConfigs := archive.GetCluster(cluster.Name).MetricConfig
 					for _, mc := range metricConfigs {

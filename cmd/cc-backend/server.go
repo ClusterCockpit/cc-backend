@@ -110,9 +110,7 @@ func serverInit() {
 
 	if !config.Keys.DisableAuthentication {
 		router.Handle("/login", authHandle.Login(
-			// On success:
-			http.RedirectHandler("/", http.StatusTemporaryRedirect),
-
+			// On success: Handled within Login()
 			// On failure:
 			func(rw http.ResponseWriter, r *http.Request, err error) {
 				rw.Header().Add("Content-Type", "text/html; charset=utf-8")
@@ -127,9 +125,7 @@ func serverInit() {
 			})).Methods(http.MethodPost)
 
 		router.Handle("/jwt-login", authHandle.Login(
-			// On success:
-			http.RedirectHandler("/", http.StatusTemporaryRedirect),
-
+			// On success: Handled within Login()
 			// On failure:
 			func(rw http.ResponseWriter, r *http.Request, err error) {
 				rw.Header().Add("Content-Type", "text/html; charset=utf-8")
@@ -165,11 +161,12 @@ func serverInit() {
 				func(rw http.ResponseWriter, r *http.Request, err error) {
 					rw.WriteHeader(http.StatusUnauthorized)
 					web.RenderTemplate(rw, "login.tmpl", &web.Page{
-						Title:   "Authentication failed - ClusterCockpit",
-						MsgType: "alert-danger",
-						Message: err.Error(),
-						Build:   buildInfo,
-						Infos:   info,
+						Title:    "Authentication failed - ClusterCockpit",
+						MsgType:  "alert-danger",
+						Message:  err.Error(),
+						Build:    buildInfo,
+						Infos:    info,
+						Redirect: r.RequestURI,
 					})
 				})
 		})

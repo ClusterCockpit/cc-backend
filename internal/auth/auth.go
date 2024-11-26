@@ -201,7 +201,6 @@ func (auth *Authentication) SaveSession(rw http.ResponseWriter, r *http.Request,
 }
 
 func (auth *Authentication) Login(
-	onsuccess http.Handler,
 	onfailure func(rw http.ResponseWriter, r *http.Request, loginErr error),
 ) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
@@ -238,7 +237,12 @@ func (auth *Authentication) Login(
 
 			log.Infof("login successfull: user: %#v (roles: %v, projects: %v)", user.Username, user.Roles, user.Projects)
 			ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
-			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+
+			if r.FormValue("redirect") != "" {
+				http.RedirectHandler(r.FormValue("redirect"), http.StatusFound).ServeHTTP(rw, r.WithContext(ctx))
+			} else {
+				http.RedirectHandler(r.FormValue("/"), http.StatusFound).ServeHTTP(rw, r.WithContext(ctx))
+			}
 			return
 		}
 
