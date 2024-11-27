@@ -110,6 +110,7 @@ func (api *RestApi) MountConfigApiRoutes(r *mux.Router) {
 		r.HandleFunc("/users/", api.getUsers).Methods(http.MethodGet)
 		r.HandleFunc("/users/", api.deleteUser).Methods(http.MethodDelete)
 		r.HandleFunc("/user/{id}", api.updateUser).Methods(http.MethodPost)
+		r.HandleFunc("/notice/", api.editNotice).Methods(http.MethodPost)
 	}
 }
 
@@ -1282,6 +1283,69 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 		rw.Write([]byte("Remove Project Success"))
 	} else {
 		http.Error(rw, "Not Add or Del [role|project]?", http.StatusInternalServerError)
+	}
+}
+
+// editNotice godoc
+// @summary     Updates or empties the notice box content
+// @tags User
+// @description Modifies the content of notice.txt, shown as notice box on the homepage.
+// @description If more than one formValue is set then only the highest priority field is used.
+// @description Only accessible from IPs registered with apiAllowedIPs configuration option.
+// @accept      mpfd
+// @produce     plain
+// @param       new-content       formData string     false "Priority 1: New content to display"
+// @success     200     {string} string            "Success Response Message"
+// @failure     400     {string} string            "Bad Request"
+// @failure     401     {string} string            "Unauthorized"
+// @failure     403     {string} string            "Forbidden"
+// @failure     422     {string} string            "Unprocessable Entity: The user could not be updated"
+// @failure     500     {string} string            "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /notice/ [post]
+func (api *RestApi) editNotice(rw http.ResponseWriter, r *http.Request) {
+	err := securedCheck(r)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
+		http.Error(rw, "Only admins are allowed to update the notice.txt file", http.StatusForbidden)
+		return
+	}
+
+	// Get Value
+	newContent := r.FormValue("new-content")
+
+	// Check FIle
+	noticeExists := util.CheckFileExists("./var/notice.txt")
+	if !noticeExists {
+		ntxt, err := os.Create("./var/notice.txt")
+		if err != nil {
+			log.Errorf("Creating ./var/notice.txt failed: %s", err.Error())
+			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+		ntxt.Close()
+	}
+
+	if newContent != "" {
+		if err := os.WriteFile("./var/notice.txt", []byte(newContent), 0o666); err != nil {
+			log.Errorf("Writing to ./var/notice.txt failed: %s", err.Error())
+			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+			return
+		} else {
+			rw.Write([]byte("Update Notice Content Success"))
+		}
+	} else {
+		if err := os.WriteFile("./var/notice.txt", []byte(""), 0o666); err != nil {
+			log.Errorf("Writing to ./var/notice.txt failed: %s", err.Error())
+			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+			return
+		} else {
+			rw.Write([]byte("Empty Notice Content Success"))
+		}
 	}
 }
 

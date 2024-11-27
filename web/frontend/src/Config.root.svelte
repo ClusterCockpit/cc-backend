@@ -15,6 +15,7 @@
   export let isAdmin;
   export let isApi;
   export let username;
+  export let ncontent;
 </script>
 
 {#if isAdmin == true}
@@ -22,7 +23,7 @@
     <CardHeader>
       <CardTitle class="mb-1">Admin Options</CardTitle>
     </CardHeader>
-    <AdminSettings />
+    <AdminSettings {ncontent}/>
   </Card>
 {/if}
 
