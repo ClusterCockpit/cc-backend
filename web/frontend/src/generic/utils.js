@@ -307,23 +307,34 @@ export function checkMetricDisabled(m, c, s) { // [m]etric, [c]luster, [s]ubclus
     return !result
 }
 
-export function getStatsItems() {
+export function getStatsItems(presetStats = []) {
     // console.time('stats')
     const globalMetrics = getContext("globalMetrics")
     const result = globalMetrics.map((gm) => {
         if (gm?.footprint) {
-            // console.time('deep')
             const mc = getMetricConfigDeep(gm.name, null, null)
-            // console.timeEnd('deep')
             if (mc) {
-                return {
-                    field: gm.name + '_' + gm.footprint,
-                    text: gm.name + ' (' + gm.footprint + ')',
-                    metric: gm.name,
-                    from: 0,
-                    to: mc.peak,
-                    peak: mc.peak,
-                    enabled: false
+                const presetEntry = presetStats.find((s) => s?.field === (gm.name + '_' + gm.footprint))
+                if (presetEntry) {
+                    return {
+                        field: gm.name + '_' + gm.footprint,
+                        text: gm.name + ' (' + gm.footprint + ')',
+                        metric: gm.name,
+                        from: presetEntry.from,
+                        to: presetEntry.to,
+                        peak: mc.peak,
+                        enabled: true
+                    }
+                } else {
+                    return {
+                        field: gm.name + '_' + gm.footprint,
+                        text: gm.name + ' (' + gm.footprint + ')',
+                        metric: gm.name,
+                        from: 0,
+                        to: mc.peak,
+                        peak: mc.peak,
+                        enabled: false
+                    }
                 }
             }
         }

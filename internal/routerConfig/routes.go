@@ -244,6 +244,16 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 			}
 		}
 	}
+	if query.Get("numHWThreads") != "" {
+		parts := strings.Split(query.Get("numHWThreads"), "-")
+		if len(parts) == 2 {
+			a, e1 := strconv.Atoi(parts[0])
+			b, e2 := strconv.Atoi(parts[1])
+			if e1 == nil && e2 == nil {
+				filterPresets["numHWThreads"] = map[string]int{"from": a, "to": b}
+			}
+		}
+	}
 	if query.Get("numAccelerators") != "" {
 		parts := strings.Split(query.Get("numAccelerators"), "-")
 		if len(parts) == 2 {
@@ -285,7 +295,35 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 			}
 		}
 	}
-
+	if query.Get("energy") != "" {
+		parts := strings.Split(query.Get("energy"), "-")
+		if len(parts) == 2 {
+			a, e1 := strconv.Atoi(parts[0])
+			b, e2 := strconv.Atoi(parts[1])
+			if e1 == nil && e2 == nil {
+				filterPresets["energy"] = map[string]int{"from": a, "to": b}
+			}
+		}
+	}
+	if len(query["stat"]) != 0 {
+		statList := make([]map[string]interface{}, 0)
+		for _, statEntry := range query["stat"] {
+			parts := strings.Split(statEntry, "-")
+			if len(parts) == 3 { // Metric Footprint Stat Field, from - to
+				a, e1 := strconv.ParseInt(parts[1], 10, 64)
+				b, e2 := strconv.ParseInt(parts[2], 10, 64)
+				if e1 == nil && e2 == nil {
+					statEntry := map[string]interface{}{
+						"field": parts[0],
+						"from":  a,
+						"to":    b,
+					}
+					statList = append(statList, statEntry)
+				}
+			}
+		}
+		filterPresets["stats"] = statList
+	}
 	return filterPresets
 }
 
