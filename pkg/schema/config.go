@@ -57,9 +57,9 @@ type IntRange struct {
 }
 
 type TimeRange struct {
-	Range string     `json:"range,omitempty"` // Optional, e.g. 'last6h'
 	From  *time.Time `json:"from"`
 	To    *time.Time `json:"to"`
+	Range string     `json:"range,omitempty"`
 }
 
 type FilterRanges struct {
@@ -82,10 +82,10 @@ type Retention struct {
 }
 
 type ResampleConfig struct {
-	// Trigger next zoom level at less than this many visible datapoints
-	Trigger int `json:"trigger"`
 	// Array of resampling target resolutions, in seconds; Example: [600,300,60]
 	Resolutions []int `json:"resolutions"`
+	// Trigger next zoom level at less than this many visible datapoints
+	Trigger int `json:"trigger"`
 }
 
 type CronFrequency struct {

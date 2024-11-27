@@ -35,7 +35,7 @@ type Route struct {
 
 var routes []Route = []Route{
 	{"/", "home.tmpl", "ClusterCockpit", false, setupHomeRoute},
-	{"/config", "config.tmpl", "Settings", false, func(i InfoType, r *http.Request) InfoType { return i }},
+	{"/config", "config.tmpl", "Settings", false, setupConfigRoute},
 	{"/monitoring/jobs/", "monitoring/jobs.tmpl", "Jobs - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { return i }},
 	{"/monitoring/job/{id:[0-9]+}", "monitoring/job.tmpl", "Job <ID> - ClusterCockpit", false, setupJobRoute},
 	{"/monitoring/users/", "monitoring/list.tmpl", "Users - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { i["listType"] = "USER"; return i }},
@@ -74,6 +74,17 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 			log.Warnf("failed to read notice.txt file: %s", err.Error())
 		} else {
 			i["message"] = string(msg)
+		}
+	}
+
+	return i
+}
+
+func setupConfigRoute(i InfoType, r *http.Request) InfoType {
+	if util.CheckFileExists("./var/notice.txt") {
+		msg, err := os.ReadFile("./var/notice.txt")
+		if err == nil {
+			i["ncontent"] = string(msg)
 		}
 	}
 
@@ -132,7 +143,7 @@ func setupAnalysisRoute(i InfoType, r *http.Request) InfoType {
 
 func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 	jobRepo := repository.GetJobRepository()
-	tags, counts, err := jobRepo.CountTags(r.Context())
+	tags, counts, err := jobRepo.CountTags(repository.GetUserFromContext(r.Context()))
 	tagMap := make(map[string][]map[string]interface{})
 	if err != nil {
 		log.Warnf("GetTags failed: %s", err.Error())

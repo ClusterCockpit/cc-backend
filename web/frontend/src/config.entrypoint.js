@@ -6,7 +6,8 @@ new Config({
     props: {
         isAdmin: isAdmin,
         isApi: isApi,
-        username: username
+        username: username,
+        ncontent: ncontent,
     },
     context: new Map([
             ['cc-config', clusterCockpitConfig],

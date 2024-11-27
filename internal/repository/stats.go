@@ -560,9 +560,9 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 ) (*model.MetricHistoPoints, error) {
 	// Get specific Peak or largest Peak
 	var metricConfig *schema.MetricConfig
-	var peak float64 = 0.0
-	var unit string = ""
-	var footprintStat string = ""
+	var peak float64
+	var unit string
+	var footprintStat string
 
 	for _, f := range filters {
 		if f.Cluster != nil {
@@ -712,8 +712,8 @@ func (r *JobRepository) runningJobsMetricStatisticsHistogram(
 	for idx, metric := range metrics {
 		// Get specific Peak or largest Peak
 		var metricConfig *schema.MetricConfig
-		var peak float64 = 0.0
-		var unit string = ""
+		var peak float64
+		var unit string
 
 		for _, f := range filters {
 			if f.Cluster != nil {

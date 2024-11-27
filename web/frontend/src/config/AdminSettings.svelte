@@ -10,6 +10,9 @@
   import AddUser from "./admin/AddUser.svelte";
   import ShowUsers from "./admin/ShowUsers.svelte";
   import Options from "./admin/Options.svelte";
+  import NoticeEdit from "./admin/NoticeEdit.svelte";
+
+  export let ncontent;
 
   let users = [];
   let roles = [];
@@ -52,4 +55,5 @@
     <EditProject on:reload={getUserList} />
   </Col>
   <Options />
+  <NoticeEdit {ncontent}/>
 </Row>

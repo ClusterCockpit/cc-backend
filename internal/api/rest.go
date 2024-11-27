@@ -72,7 +72,6 @@ func (api *RestApi) MountApiRoutes(r *mux.Router) {
 
 	r.HandleFunc("/jobs/start_job/", api.startJob).Methods(http.MethodPost, http.MethodPut)
 	r.HandleFunc("/jobs/stop_job/", api.stopJobByRequest).Methods(http.MethodPost, http.MethodPut)
-	r.HandleFunc("/jobs/stop_job/{id}", api.stopJobById).Methods(http.MethodPost, http.MethodPut)
 	// r.HandleFunc("/jobs/import/", api.importJob).Methods(http.MethodPost, http.MethodPut)
 
 	r.HandleFunc("/jobs/", api.getJobs).Methods(http.MethodGet)
@@ -111,6 +110,7 @@ func (api *RestApi) MountConfigApiRoutes(r *mux.Router) {
 		r.HandleFunc("/users/", api.getUsers).Methods(http.MethodGet)
 		r.HandleFunc("/users/", api.deleteUser).Methods(http.MethodDelete)
 		r.HandleFunc("/user/{id}", api.updateUser).Methods(http.MethodPost)
+		r.HandleFunc("/notice/", api.editNotice).Methods(http.MethodPost)
 	}
 }
 
@@ -125,8 +125,7 @@ func (api *RestApi) MountFrontendApiRoutes(r *mux.Router) {
 
 // StartJobApiResponse model
 type StartJobApiResponse struct {
-	// Database ID of new job
-	DBID int64 `json:"id"`
+	Message string `json:"msg"`
 }
 
 // DeleteJobApiResponse model
@@ -421,7 +420,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 			StartTime: job.StartTime.Unix(),
 		}
 
-		res.Tags, err = api.JobRepository.GetTags(r.Context(), &job.ID)
+		res.Tags, err = api.JobRepository.GetTags(repository.GetUserFromContext(r.Context()), &job.ID)
 		if err != nil {
 			handleError(err, http.StatusInternalServerError, rw)
 			return
@@ -494,7 +493,7 @@ func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	job.Tags, err = api.JobRepository.GetTags(r.Context(), &job.ID)
+	job.Tags, err = api.JobRepository.GetTags(repository.GetUserFromContext(r.Context()), &job.ID)
 	if err != nil {
 		handleError(err, http.StatusInternalServerError, rw)
 		return
@@ -587,7 +586,7 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job.Tags, err = api.JobRepository.GetTags(r.Context(), &job.ID)
+	job.Tags, err = api.JobRepository.GetTags(repository.GetUserFromContext(r.Context()), &job.ID)
 	if err != nil {
 		handleError(err, http.StatusInternalServerError, rw)
 		return
@@ -728,7 +727,7 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job.Tags, err = api.JobRepository.GetTags(r.Context(), &job.ID)
+	job.Tags, err = api.JobRepository.GetTags(repository.GetUserFromContext(r.Context()), &job.ID)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
@@ -741,7 +740,7 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, tag := range req {
-		tagId, err := api.JobRepository.AddTagOrCreate(r.Context(), job.ID, tag.Type, tag.Name, tag.Scope)
+		tagId, err := api.JobRepository.AddTagOrCreate(repository.GetUserFromContext(r.Context()), job.ID, tag.Type, tag.Name, tag.Scope)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
@@ -791,11 +790,6 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// aquire lock to avoid race condition between API calls
-	var unlockOnce sync.Once
-	api.RepositoryMutex.Lock()
-	defer unlockOnce.Do(api.RepositoryMutex.Unlock)
-
 	// Check if combination of (job_id, cluster_id, start_time) already exists:
 	jobs, err := api.JobRepository.FindAll(&req.JobID, &req.Cluster, nil)
 	if err != nil && err != sql.ErrNoRows {
@@ -810,78 +804,13 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	id, err := api.JobRepository.Start(&req)
-	if err != nil {
-		handleError(fmt.Errorf("insert into database failed: %w", err), http.StatusInternalServerError, rw)
-		return
-	}
-	// unlock here, adding Tags can be async
-	unlockOnce.Do(api.RepositoryMutex.Unlock)
+	repository.TriggerJobStart(repository.JobWithUser{Job: &req, User: repository.GetUserFromContext(r.Context())})
 
-	for _, tag := range req.Tags {
-		if _, err := api.JobRepository.AddTagOrCreate(r.Context(), id, tag.Type, tag.Name, tag.Scope); err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
-			handleError(fmt.Errorf("adding tag to new job %d failed: %w", id, err), http.StatusInternalServerError, rw)
-			return
-		}
-	}
-
-	log.Printf("new job (id: %d): cluster=%s, jobId=%d, user=%s, startTime=%d", id, req.Cluster, req.JobID, req.User, req.StartTime)
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusCreated)
 	json.NewEncoder(rw).Encode(StartJobApiResponse{
-		DBID: id,
+		Message: fmt.Sprintf("Successfully triggered job start"),
 	})
-}
-
-// stopJobById godoc
-// @summary     Marks job as completed and triggers archiving
-// @tags Job add and modify
-// @description Job to stop is specified by database ID. Only stopTime and final state are required in request body.
-// @description Returns full job resource information according to 'JobMeta' scheme.
-// @accept      json
-// @produce     json
-// @param       id      path     int                   true "Database ID of Job"
-// @param       request body     api.StopJobApiRequest true "stopTime and final state in request body"
-// @success     200     {object} schema.JobMeta             "Job resource"
-// @failure     400     {object} api.ErrorResponse          "Bad Request"
-// @failure     401     {object} api.ErrorResponse          "Unauthorized"
-// @failure     403     {object} api.ErrorResponse          "Forbidden"
-// @failure     404     {object} api.ErrorResponse          "Resource not found"
-// @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
-// @failure     500     {object} api.ErrorResponse          "Internal Server Error"
-// @security    ApiKeyAuth
-// @router      /jobs/stop_job/{id} [post]
-func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
-	// Parse request body: Only StopTime and State
-	req := StopJobApiRequest{}
-	if err := decode(r.Body, &req); err != nil {
-		handleError(fmt.Errorf("parsing request body failed: %w", err), http.StatusBadRequest, rw)
-		return
-	}
-
-	// Fetch job (that will be stopped) from db
-	id, ok := mux.Vars(r)["id"]
-	var job *schema.Job
-	var err error
-	if ok {
-		id, e := strconv.ParseInt(id, 10, 64)
-		if e != nil {
-			handleError(fmt.Errorf("integer expected in path for id: %w", e), http.StatusBadRequest, rw)
-			return
-		}
-
-		job, err = api.JobRepository.FindById(r.Context(), id)
-	} else {
-		handleError(errors.New("the parameter 'id' is required"), http.StatusBadRequest, rw)
-		return
-	}
-	if err != nil {
-		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
-		return
-	}
-
-	api.checkAndHandleStopJob(rw, job, req)
 }
 
 // stopJobByRequest godoc
@@ -1354,6 +1283,69 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 		rw.Write([]byte("Remove Project Success"))
 	} else {
 		http.Error(rw, "Not Add or Del [role|project]?", http.StatusInternalServerError)
+	}
+}
+
+// editNotice godoc
+// @summary     Updates or empties the notice box content
+// @tags User
+// @description Modifies the content of notice.txt, shown as notice box on the homepage.
+// @description If more than one formValue is set then only the highest priority field is used.
+// @description Only accessible from IPs registered with apiAllowedIPs configuration option.
+// @accept      mpfd
+// @produce     plain
+// @param       new-content       formData string     false "Priority 1: New content to display"
+// @success     200     {string} string            "Success Response Message"
+// @failure     400     {string} string            "Bad Request"
+// @failure     401     {string} string            "Unauthorized"
+// @failure     403     {string} string            "Forbidden"
+// @failure     422     {string} string            "Unprocessable Entity: The user could not be updated"
+// @failure     500     {string} string            "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /notice/ [post]
+func (api *RestApi) editNotice(rw http.ResponseWriter, r *http.Request) {
+	err := securedCheck(r)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
+		http.Error(rw, "Only admins are allowed to update the notice.txt file", http.StatusForbidden)
+		return
+	}
+
+	// Get Value
+	newContent := r.FormValue("new-content")
+
+	// Check FIle
+	noticeExists := util.CheckFileExists("./var/notice.txt")
+	if !noticeExists {
+		ntxt, err := os.Create("./var/notice.txt")
+		if err != nil {
+			log.Errorf("Creating ./var/notice.txt failed: %s", err.Error())
+			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+		ntxt.Close()
+	}
+
+	if newContent != "" {
+		if err := os.WriteFile("./var/notice.txt", []byte(newContent), 0o666); err != nil {
+			log.Errorf("Writing to ./var/notice.txt failed: %s", err.Error())
+			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+			return
+		} else {
+			rw.Write([]byte("Update Notice Content Success"))
+		}
+	} else {
+		if err := os.WriteFile("./var/notice.txt", []byte(""), 0o666); err != nil {
+			log.Errorf("Writing to ./var/notice.txt failed: %s", err.Error())
+			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+			return
+		} else {
+			rw.Write([]byte("Empty Notice Content Success"))
+		}
 	}
 }
 

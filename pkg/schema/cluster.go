@@ -48,29 +48,29 @@ type SubCluster struct {
 type SubClusterConfig struct {
 	Name          string  `json:"name"`
 	Footprint     string  `json:"footprint,omitempty"`
+	Energy        string  `json:"energy"`
 	Peak          float64 `json:"peak"`
 	Normal        float64 `json:"normal"`
 	Caution       float64 `json:"caution"`
 	Alert         float64 `json:"alert"`
 	Remove        bool    `json:"remove"`
 	LowerIsBetter bool    `json:"lowerIsBetter"`
-	Energy        string  `json:"energy"`
 }
 
 type MetricConfig struct {
 	Unit          Unit                `json:"unit"`
+	Energy        string              `json:"energy"`
 	Name          string              `json:"name"`
 	Scope         MetricScope         `json:"scope"`
 	Aggregation   string              `json:"aggregation"`
 	Footprint     string              `json:"footprint,omitempty"`
 	SubClusters   []*SubClusterConfig `json:"subClusters,omitempty"`
 	Peak          float64             `json:"peak"`
-	Normal        float64             `json:"normal"`
 	Caution       float64             `json:"caution"`
 	Alert         float64             `json:"alert"`
 	Timestep      int                 `json:"timestep"`
+	Normal        float64             `json:"normal"`
 	LowerIsBetter bool                `json:"lowerIsBetter"`
-	Energy        string              `json:"energy"`
 }
 
 type Cluster struct {

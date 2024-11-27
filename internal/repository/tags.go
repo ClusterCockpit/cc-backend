@@ -5,7 +5,6 @@
 package repository
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -16,8 +15,8 @@ import (
 )
 
 // Add the tag with id `tagId` to the job with the database id `jobId`.
-func (r *JobRepository) AddTag(ctx context.Context, job int64, tag int64) ([]*schema.Tag, error) {
-	j, err := r.FindById(ctx, job)
+func (r *JobRepository) AddTag(user *schema.User, job int64, tag int64) ([]*schema.Tag, error) {
+	j, err := r.FindByIdWithUser(user, job)
 	if err != nil {
 		log.Warn("Error while finding job by id")
 		return nil, err
@@ -31,7 +30,7 @@ func (r *JobRepository) AddTag(ctx context.Context, job int64, tag int64) ([]*sc
 		return nil, err
 	}
 
-	tags, err := r.GetTags(ctx, &job)
+	tags, err := r.GetTags(user, &job)
 	if err != nil {
 		log.Warn("Error while getting tags for job")
 		return nil, err
@@ -47,8 +46,8 @@ func (r *JobRepository) AddTag(ctx context.Context, job int64, tag int64) ([]*sc
 }
 
 // Removes a tag from a job
-func (r *JobRepository) RemoveTag(ctx context.Context, job, tag int64) ([]*schema.Tag, error) {
-	j, err := r.FindById(ctx, job)
+func (r *JobRepository) RemoveTag(user *schema.User, job, tag int64) ([]*schema.Tag, error) {
+	j, err := r.FindByIdWithUser(user, job)
 	if err != nil {
 		log.Warn("Error while finding job by id")
 		return nil, err
@@ -62,7 +61,7 @@ func (r *JobRepository) RemoveTag(ctx context.Context, job, tag int64) ([]*schem
 		return nil, err
 	}
 
-	tags, err := r.GetTags(ctx, &job)
+	tags, err := r.GetTags(user, &job)
 	if err != nil {
 		log.Warn("Error while getting tags for job")
 		return nil, err
@@ -96,7 +95,7 @@ func (r *JobRepository) CreateTag(tagType string, tagName string, tagScope strin
 	return res.LastInsertId()
 }
 
-func (r *JobRepository) CountTags(ctx context.Context) (tags []schema.Tag, counts map[string]int, err error) {
+func (r *JobRepository) CountTags(user *schema.User) (tags []schema.Tag, counts map[string]int, err error) {
 	// Fetch all Tags in DB for Display in Frontend Tag-View
 	tags = make([]schema.Tag, 0, 100)
 	xrows, err := r.DB.Queryx("SELECT id, tag_type, tag_name, tag_scope FROM tag")
@@ -111,7 +110,7 @@ func (r *JobRepository) CountTags(ctx context.Context) (tags []schema.Tag, count
 		}
 
 		// Handle Scope Filtering: Tag Scope is Global, Private (== Username) or User is auth'd to view Admin Tags
-		readable, err := r.checkScopeAuth(ctx, "read", t.Scope)
+		readable, err := r.checkScopeAuth(user, "read", t.Scope)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -119,8 +118,6 @@ func (r *JobRepository) CountTags(ctx context.Context) (tags []schema.Tag, count
 			tags = append(tags, t)
 		}
 	}
-
-	user := GetUserFromContext(ctx)
 
 	// Query and Count Jobs with attached Tags
 	q := sq.Select("t.tag_name, t.id, count(jt.tag_id)").
@@ -172,13 +169,13 @@ func (r *JobRepository) CountTags(ctx context.Context) (tags []schema.Tag, count
 
 // AddTagOrCreate adds the tag with the specified type and name to the job with the database id `jobId`.
 // If such a tag does not yet exist, it is created.
-func (r *JobRepository) AddTagOrCreate(ctx context.Context, jobId int64, tagType string, tagName string, tagScope string) (tagId int64, err error) {
+func (r *JobRepository) AddTagOrCreate(user *schema.User, jobId int64, tagType string, tagName string, tagScope string) (tagId int64, err error) {
 	// Default to "Global" scope if none defined
 	if tagScope == "" {
 		tagScope = "global"
 	}
 
-	writable, err := r.checkScopeAuth(ctx, "write", tagScope)
+	writable, err := r.checkScopeAuth(user, "write", tagScope)
 	if err != nil {
 		return 0, err
 	}
@@ -194,7 +191,7 @@ func (r *JobRepository) AddTagOrCreate(ctx context.Context, jobId int64, tagType
 		}
 	}
 
-	if _, err := r.AddTag(ctx, jobId, tagId); err != nil {
+	if _, err := r.AddTag(user, jobId, tagId); err != nil {
 		return 0, err
 	}
 
@@ -213,7 +210,7 @@ func (r *JobRepository) TagId(tagType string, tagName string, tagScope string) (
 }
 
 // GetTags returns a list of all scoped tags if job is nil or of the tags that the job with that database ID has.
-func (r *JobRepository) GetTags(ctx context.Context, job *int64) ([]*schema.Tag, error) {
+func (r *JobRepository) GetTags(user *schema.User, job *int64) ([]*schema.Tag, error) {
 	q := sq.Select("id", "tag_type", "tag_name", "tag_scope").From("tag")
 	if job != nil {
 		q = q.Join("jobtag ON jobtag.tag_id = tag.id").Where("jobtag.job_id = ?", *job)
@@ -234,7 +231,7 @@ func (r *JobRepository) GetTags(ctx context.Context, job *int64) ([]*schema.Tag,
 			return nil, err
 		}
 		// Handle Scope Filtering: Tag Scope is Global, Private (== Username) or User is auth'd to view Admin Tags
-		readable, err := r.checkScopeAuth(ctx, "read", tag.Scope)
+		readable, err := r.checkScopeAuth(user, "read", tag.Scope)
 		if err != nil {
 			return nil, err
 		}
@@ -295,8 +292,7 @@ func (r *JobRepository) ImportTag(jobId int64, tagType string, tagName string, t
 	return nil
 }
 
-func (r *JobRepository) checkScopeAuth(ctx context.Context, operation string, scope string) (pass bool, err error) {
-	user := GetUserFromContext(ctx)
+func (r *JobRepository) checkScopeAuth(user *schema.User, operation string, scope string) (pass bool, err error) {
 	if user != nil {
 		switch {
 		case operation == "write" && scope == "admin":
