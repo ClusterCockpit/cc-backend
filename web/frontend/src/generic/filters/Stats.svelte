@@ -29,10 +29,11 @@
   export let isOpen = false;
   export let stats = [];
 
-  let statistics = []
+  let statistics = [];
+
   function loadRanges(isInitialized) {
     if (!isInitialized) return;
-    statistics = getStatsItems();
+    statistics = getStatsItems(stats);
   }
 
   function resetRanges() {
