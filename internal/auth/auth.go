@@ -188,6 +188,10 @@ func (auth *Authentication) SaveSession(rw http.ResponseWriter, r *http.Request,
 	if auth.SessionMaxAge != 0 {
 		session.Options.MaxAge = int(auth.SessionMaxAge.Seconds())
 	}
+	if config.Keys.HttpsCertFile == "" && config.Keys.HttpsKeyFile == "" {
+		session.Options.Secure = false
+	}
+	session.Options.SameSite = http.SameSiteStrictMode
 	session.Values["username"] = user.Username
 	session.Values["projects"] = user.Projects
 	session.Values["roles"] = user.Roles
@@ -240,9 +244,10 @@ func (auth *Authentication) Login(
 
 			if r.FormValue("redirect") != "" {
 				http.RedirectHandler(r.FormValue("redirect"), http.StatusFound).ServeHTTP(rw, r.WithContext(ctx))
-			} else {
-				http.RedirectHandler(r.FormValue("/"), http.StatusFound).ServeHTTP(rw, r.WithContext(ctx))
+				return
 			}
+
+			http.RedirectHandler("/", http.StatusFound).ServeHTTP(rw, r.WithContext(ctx))
 			return
 		}
 
