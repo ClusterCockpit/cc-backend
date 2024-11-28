@@ -244,9 +244,10 @@ func (auth *Authentication) Login(
 
 			if r.FormValue("redirect") != "" {
 				http.RedirectHandler(r.FormValue("redirect"), http.StatusFound).ServeHTTP(rw, r.WithContext(ctx))
-			} else {
-				http.RedirectHandler(r.FormValue("/"), http.StatusFound).ServeHTTP(rw, r.WithContext(ctx))
+				return
 			}
+
+			http.RedirectHandler("/", http.StatusFound).ServeHTTP(rw, r.WithContext(ctx))
 			return
 		}
 
