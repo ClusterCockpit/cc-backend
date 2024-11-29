@@ -64,6 +64,12 @@
       return null;
     }
 
+    // handle special *-stat scopes
+    if (scope.match(/(.*)-stat$/)) {
+      const statParts = scope.split('-');
+      scope = statParts[0]
+    }
+
     if (
       (scope == "node" && isShared == false) ||
       metricConfig?.aggregation == "avg"
@@ -130,6 +136,7 @@
   export let numhwthreads = 0;
   export let numaccs = 0;
   export let zoomState = null;
+  export let thresholdState = null;
 
   if (useStatsSeries == null) useStatsSeries = statisticsSeries != null;
   if (useStatsSeries == false && series == null) useStatsSeries = true;
@@ -468,12 +475,14 @@
                 // console.log('Dispatch Zoom with Res from / to', timestep, closest)
                 dispatch('zoom', {
                   newRes: closest,
-                  lastZoomState: u?.scales
+                  lastZoomState: u?.scales,
+                  lastThreshold: thresholds?.normal
                 });
               }
             } else {
               dispatch('zoom', {
-                lastZoomState: u?.scales
+                lastZoomState: u?.scales,
+                lastThreshold: thresholds?.normal
               });
             };
           };
@@ -498,16 +507,19 @@
   let timeoutId = null;
 
   function render(ren_width, ren_height) {
-    if (!uplot) { // Init uPlot
+    if (!uplot) {
       opts.width = ren_width;
       opts.height = ren_height;
-      if (zoomState) {
+      if (zoomState && metricConfig?.aggregation == "avg") {
         opts.scales = {...zoomState}
+      } else if (zoomState && metricConfig?.aggregation == "sum") {
+        // Allow Zoom In === Ymin changed
+        if (zoomState.y.min !== 0) { // scope change?: only use zoomState if thresholds match
+          if ((thresholdState === thresholds?.normal)) { opts.scales = {...zoomState} };
+        } // else: reset scaling to default
       }
-      // console.log('Init Sizes ...', { width: opts.width, height: opts.height })
       uplot = new uPlot(opts, plotData, plotWrapper);
-    } else { // Update size
-      // console.log('Update uPlot ...', { width: ren_width, height: ren_height })
+    } else {
       uplot.setSize({ width: ren_width, height: ren_height });
     }
   }
