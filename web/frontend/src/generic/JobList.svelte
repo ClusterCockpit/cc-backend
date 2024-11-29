@@ -107,7 +107,11 @@
 
   let jobs = []
   $: if ($initialized && $jobsStore.data) {
-    jobs = [...$jobsStore.data.jobs.items]
+    if (usePaging) {
+      jobs = [...$jobsStore.data.jobs.items]
+    } else { // Prevents jump to table head: Extends existing list instead of rendering new list
+      jobs = jobs.concat([...$jobsStore.data.jobs.items])
+    }
   }
 
   $: matchedJobs = $jobsStore.data != null ? $jobsStore.data.jobs.count : -1;
@@ -170,7 +174,6 @@
   }
 
   if (!usePaging) {
-    let scrollMultiplier = 1
     window.addEventListener('scroll', () => {
       let {
         scrollTop,
@@ -181,8 +184,7 @@
       // Add 100 px offset to trigger load earlier
       if (scrollTop + clientHeight >= scrollHeight - 100 && $jobsStore.data != null && $jobsStore.data.jobs.hasNextPage) {
         let pendingPaging = { ...paging }
-        scrollMultiplier += 1
-        pendingPaging.itemsPerPage = itemsPerPage * scrollMultiplier
+        pendingPaging.page += 1
         paging = pendingPaging
       };
     });
