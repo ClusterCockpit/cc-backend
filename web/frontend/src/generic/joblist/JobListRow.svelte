@@ -37,6 +37,7 @@
     : ["node"];
   let selectedResolution = resampleDefault;
   let zoomStates = {};
+  let thresholdStates = {};
 
   const cluster = getContext("clusters").find((c) => c.name == job.cluster);
   const client = getContextClient();
@@ -79,6 +80,13 @@
     ) {
         zoomStates[metric] = {...detail.lastZoomState}
     }
+
+    if ( // States have to differ, causes deathloop if just set
+      detail?.lastThreshold &&
+      thresholdStates[metric] !== detail.lastThreshold
+    ) { // Handle to correctly reset on summed metric scope change
+      thresholdStates[metric] = detail.lastThreshold;
+    } 
 
     if (detail?.newRes) { // Triggers GQL
         selectedResolution = detail.newRes
@@ -191,6 +199,7 @@
             numhwthreads={job.numHWThreads}
             numaccs={job.numAcc}
             zoomState={zoomStates[metric.data.name] || null}
+            thresholdState={thresholdStates[metric.data.name] || null}
           />
         {:else if metric.disabled == true && metric.data}
           <Card body color="info"

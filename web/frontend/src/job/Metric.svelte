@@ -54,6 +54,7 @@
   let statsSeries = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null);
   let zoomState = null;
   let pendingZoomState = null;
+  let thresholdState = null;
 
   const dispatch = createEventDispatcher();
   const statsPattern = /(.*)-stat$/;
@@ -96,18 +97,24 @@
           (pendingZoomState?.x?.min !== detail?.lastZoomState?.x?.min) &&
           (pendingZoomState?.y?.max !== detail?.lastZoomState?.y?.max)
       ) {
-          pendingZoomState = {...detail.lastZoomState}
+          pendingZoomState = {...detail.lastZoomState};
+      }
+
+      if (detail?.lastThreshold) { // Handle to correctly reset on summed metric scope change
+        thresholdState = detail.lastThreshold;
+      } else {
+        thresholdState = null;
       }
 
       if (detail?.newRes) { // Triggers GQL
-          pendingResolution = detail.newRes
+          pendingResolution = detail.newRes;
       }
-  }
+  };
 
   let metricData;
-  let selectedScopes = [...scopes]
+  let selectedScopes = [...scopes];
   const dbid = job.id;
-  const selectedMetrics = [metricName]
+  const selectedMetrics = [metricName];
 
   $: if (selectedScope || pendingResolution) {
 
@@ -209,6 +216,7 @@
       {series}
       {isShared}
       {zoomState}
+      {thresholdState}
     />
   {:else if statsSeries[selectedScopeIndex] != null && patternMatches}
     <Timeseries
@@ -221,6 +229,7 @@
       {series}
       {isShared}
       {zoomState}
+      {thresholdState}
       statisticsSeries={statsSeries[selectedScopeIndex]}
       useStatsSeries={!!statsSeries[selectedScopeIndex]}
     />
