@@ -484,6 +484,8 @@
         "plot_view_showRoofline",
         "plot_view_showStatTable",
         "system_view_selectedMetric",
+        "job_view_showFootprint",
+        "job_list_usePaging",
         "analysis_view_histogramMetrics",
         "analysis_view_scatterPlotMetrics",
         "job_view_nodestats_selectedMetrics",
@@ -492,7 +494,7 @@
         "plot_general_colorscheme",
         "plot_list_selectedMetrics"
       ]
-    },
+    }
   },
   "required": [
     "jwts",
