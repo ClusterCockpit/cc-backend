@@ -164,13 +164,13 @@ type ProgramConfig struct {
 	// Defines time X in seconds in which jobs are considered to be "short" and will be filtered in specific views.
 	ShortRunningJobsDuration int `json:"short-running-jobs-duration"`
 
-	// Array of Clusters
-	Clusters []*ClusterConfig `json:"clusters"`
-
 	// Energy Mix CO2 Emission Constant [g/kWh]
 	// If entered, displays estimated CO2 emission for job based on jobs totalEnergy
 	EmissionConstant int `json:"emission-constant"`
 
 	// Frequency of cron job workers
 	CronFrequency *CronFrequency `json:"cron-frequency"`
+
+	// Array of Clusters
+	Clusters []*ClusterConfig `json:"clusters"`
 }
