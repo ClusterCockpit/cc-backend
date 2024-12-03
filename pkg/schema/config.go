@@ -91,7 +91,7 @@ type ResampleConfig struct {
 type CronFrequency struct {
 	// Duration Update Worker [Defaults to '5m']
 	DurationWorker string `json:"duration-worker"`
-	// Metric- and Energy Footprint Update Worker [Defaults to '10m']
+	// Metric-Footprint Update Worker [Defaults to '10m']
 	FootprintWorker string `json:"footprint-worker"`
 }
 
