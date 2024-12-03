@@ -10,7 +10,10 @@
     },
     "apiAllowedIPs": {
       "description": "Addresses from which secured API endpoints can be reached",
-      "type": "string"
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     },
     "user": {
       "description": "Drop root permissions once .env was read and the port was taken. Only applicable if using privileged port.",
