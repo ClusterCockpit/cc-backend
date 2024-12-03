@@ -1,454 +1,503 @@
 {
-    "$schema": "http://json-schema.org/draft/2020-12/schema",
-    "$id": "embedfs://config.schema.json",
-    "title": "cc-backend configuration file schema",
-    "type": "object",
-    "properties": {
-        "addr": {
-            "description": "Address where the http (or https) server will listen on (for example: 'localhost:80').",
-            "type": "string"
+  "$schema": "http://json-schema.org/draft/2020-12/schema",
+  "$id": "embedfs://config.schema.json",
+  "title": "cc-backend configuration file schema",
+  "type": "object",
+  "properties": {
+    "addr": {
+      "description": "Address where the http (or https) server will listen on (for example: 'localhost:80').",
+      "type": "string"
+    },
+    "apiAllowedIPs": {
+      "description": "Addresses from which secured API endpoints can be reached",
+      "type": "string"
+    },
+    "user": {
+      "description": "Drop root permissions once .env was read and the port was taken. Only applicable if using privileged port.",
+      "type": "string"
+    },
+    "group": {
+      "description": "Drop root permissions once .env was read and the port was taken. Only applicable if using privileged port.",
+      "type": "string"
+    },
+    "disable-authentication": {
+      "description": "Disable authentication (for everything: API, Web-UI, ...).",
+      "type": "boolean"
+    },
+    "embed-static-files": {
+      "description": "If all files in `web/frontend/public` should be served from within the binary itself (they are embedded) or not.",
+      "type": "boolean"
+    },
+    "static-files": {
+      "description": "Folder where static assets can be found, if embed-static-files is false.",
+      "type": "string"
+    },
+    "db-driver": {
+      "description": "sqlite3 or mysql (mysql will work for mariadb as well).",
+      "type": "string",
+      "enum": [
+        "sqlite3",
+        "mysql"
+      ]
+    },
+    "db": {
+      "description": "For sqlite3 a filename, for mysql a DSN in this format: https://github.com/go-sql-driver/mysql#dsn-data-source-name (Without query parameters!).",
+      "type": "string"
+    },
+    "archive": {
+      "description": "Configuration keys for job-archive",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "description": "Backend type for job-archive",
+          "type": "string",
+          "enum": [
+            "file",
+            "s3"
+          ]
         },
-        "user": {
-            "description": "Drop root permissions once .env was read and the port was taken. Only applicable if using privileged port.",
-            "type": "string"
+        "path": {
+          "description": "Path to job archive for file backend",
+          "type": "string"
         },
-        "group": {
-            "description": "Drop root permissions once .env was read and the port was taken. Only applicable if using privileged port.",
-            "type": "string"
+        "compression": {
+          "description": "Setup automatic compression for jobs older than number of days",
+          "type": "integer"
         },
-        "disable-authentication": {
-            "description": "Disable authentication (for everything: API, Web-UI, ...).",
-            "type": "boolean"
-        },
-        "embed-static-files": {
-            "description": "If all files in `web/frontend/public` should be served from within the binary itself (they are embedded) or not.",
-            "type": "boolean"
-        },
-        "static-files": {
-            "description": "Folder where static assets can be found, if embed-static-files is false.",
-            "type": "string"
-        },
-        "db-driver": {
-            "description": "sqlite3 or mysql (mysql will work for mariadb as well).",
-            "type": "string",
-            "enum": [
-                "sqlite3",
-                "mysql"
-            ]
-        },
-        "db": {
-            "description": "For sqlite3 a filename, for mysql a DSN in this format: https://github.com/go-sql-driver/mysql#dsn-data-source-name (Without query parameters!).",
-            "type": "string"
-        },
-        "job-archive": {
-            "description": "Configuration keys for job-archive",
-            "type": "object",
-            "properties": {
-                "kind": {
-                    "description": "Backend type for job-archive",
-                    "type": "string",
-                    "enum": [
-                        "file",
-                        "s3"
-                    ]
-                },
-                "path": {
-                    "description": "Path to job archive for file backend",
-                    "type": "string"
-                },
-                "compression": {
-                    "description": "Setup automatic compression for jobs older than number of days",
-                    "type": "integer"
-                },
-                "retention": {
-                    "description": "Configuration keys for retention",
-                    "type": "object",
-                    "properties": {
-                        "policy": {
-                            "description": "Retention policy",
-                            "type": "string",
-                            "enum": [
-                                "none",
-                                "delete",
-                                "move"
-                            ]
-                        },
-                        "includeDB": {
-                            "description": "Also remove jobs from database",
-                            "type": "boolean"
-                        },
-                        "age": {
-                            "description": "Act on jobs with startTime older than age (in days)",
-                            "type": "integer"
-                        },
-                        "location": {
-                            "description": "The target directory for retention. Only applicable for retention move.",
-                            "type": "string"
-                        }
-                    },
-                    "required": [
-                        "policy"
-                    ]
-                }
+        "retention": {
+          "description": "Configuration keys for retention",
+          "type": "object",
+          "properties": {
+            "policy": {
+              "description": "Retention policy",
+              "type": "string",
+              "enum": [
+                "none",
+                "delete",
+                "move"
+              ]
             },
-            "required": [
-                "kind"
-            ]
+            "includeDB": {
+              "description": "Also remove jobs from database",
+              "type": "boolean"
+            },
+            "age": {
+              "description": "Act on jobs with startTime older than age (in days)",
+              "type": "integer"
+            },
+            "location": {
+              "description": "The target directory for retention. Only applicable for retention move.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "policy"
+          ]
+        }
+      },
+      "required": [
+        "kind"
+      ]
+    },
+    "disable-archive": {
+      "description": "Keep all metric data in the metric data repositories, do not write to the job-archive.",
+      "type": "boolean"
+    },
+    "validate": {
+      "description": "Validate all input json documents against json schema.",
+      "type": "boolean"
+    },
+    "session-max-age": {
+      "description": "Specifies for how long a session shall be valid  as a string parsable by time.ParseDuration(). If 0 or empty, the session/token does not expire!",
+      "type": "string"
+    },
+    "https-cert-file": {
+      "description": "Filepath to SSL certificate. If also https-key-file is set use HTTPS using those certificates.",
+      "type": "string"
+    },
+    "https-key-file": {
+      "description": "Filepath to SSL key file. If also https-cert-file is set use HTTPS using those certificates.",
+      "type": "string"
+    },
+    "redirect-http-to": {
+      "description": "If not the empty string and addr does not end in :80, redirect every request incoming at port 80 to that url.",
+      "type": "string"
+    },
+    "stop-jobs-exceeding-walltime": {
+      "description": "If not zero, automatically mark jobs as stopped running X seconds longer than their walltime. Only applies if walltime is set for job.",
+      "type": "integer"
+    },
+    "short-running-jobs-duration": {
+      "description": "Do not show running jobs shorter than X seconds.",
+      "type": "integer"
+    },
+    "emission-constant": {
+      "description": ".",
+      "type": "integer"
+    },
+    "cron-frequency": {
+      "description": "Frequency of cron job workers.",
+      "type": "object",
+      "properties": {
+        "duration-worker": {
+          "description": "Duration Update Worker [Defaults to '5m']",
+          "type": "string"
         },
-        "disable-archive": {
-            "description": "Keep all metric data in the metric data repositories, do not write to the job-archive.",
-            "type": "boolean"
+        "footprint-worker": {
+          "description": "Metric-Footprint Update Worker [Defaults to '10m']",
+          "type": "string"
+        }
+      }
+    },
+    "enable-resampling": {
+      "description": "Enable dynamic zoom in frontend metric plots.",
+      "type": "object",
+      "properties": {
+        "trigger": {
+          "description": "Trigger next zoom level at less than this many visible datapoints.",
+          "type": "integer"
         },
-        "validate": {
-            "description": "Validate all input json documents against json schema.",
-            "type": "boolean"
-        },
-        "session-max-age": {
-            "description": "Specifies for how long a session shall be valid  as a string parsable by time.ParseDuration(). If 0 or empty, the session/token does not expire!",
-            "type": "string"
-        },
-        "https-cert-file": {
-            "description": "Filepath to SSL certificate. If also https-key-file is set use HTTPS using those certificates.",
-            "type": "string"
-        },
-        "https-key-file": {
-            "description": "Filepath to SSL key file. If also https-cert-file is set use HTTPS using those certificates.",
-            "type": "string"
-        },
-        "redirect-http-to": {
-            "description": "If not the empty string and addr does not end in :80, redirect every request incoming at port 80 to that url.",
-            "type": "string"
-        },
-        "stop-jobs-exceeding-walltime": {
-            "description": "If not zero, automatically mark jobs as stopped running X seconds longer than their walltime. Only applies if walltime is set for job.",
+        "resolutions": {
+          "description": "Array of resampling target resolutions, in seconds.",
+          "type": "array",
+          "items": {
             "type": "integer"
+          }
+        }
+      },
+      "required": [
+        "trigger",
+        "resolutions"
+      ]
+    },
+    "jwts": {
+      "description": "For JWT token authentication.",
+      "type": "object",
+      "properties": {
+        "max-age": {
+          "description": "Configure how long a token is valid. As string parsable by time.ParseDuration()",
+          "type": "string"
         },
-        "short-running-jobs-duration": {
-            "description": "Do not show running jobs shorter than X seconds.",
-            "type": "integer"
+        "cookieName": {
+          "description": "Cookie that should be checked for a JWT token.",
+          "type": "string"
         },
-        "jwts": {
-            "description": "For JWT token authentication.",
+        "validateUser": {
+          "description": "Deny login for users not in database (but defined in JWT). Overwrite roles in JWT with database roles.",
+          "type": "boolean"
+        },
+        "trustedIssuer": {
+          "description": "Issuer that should be accepted when validating external JWTs ",
+          "type": "string"
+        },
+        "syncUserOnLogin": {
+          "description": "Add non-existent user to DB at login attempt with values provided in JWT.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "max-age"
+      ]
+    },
+    "oidc": {
+      "provider": {
+        "description": "",
+        "type": "string"
+      },
+      "syncUserOnLogin": {
+        "description": "",
+        "type": "boolean"
+      },
+      "updateUserOnLogin": {
+        "description": "",
+        "type": "boolean"
+      },
+      "required": [
+        "provider"
+      ]
+    },
+    "ldap": {
+      "description": "For LDAP Authentication and user synchronisation.",
+      "type": "object",
+      "properties": {
+        "url": {
+          "description": "URL of LDAP directory server.",
+          "type": "string"
+        },
+        "user_base": {
+          "description": "Base DN of user tree root.",
+          "type": "string"
+        },
+        "search_dn": {
+          "description": "DN for authenticating LDAP admin account with general read rights.",
+          "type": "string"
+        },
+        "user_bind": {
+          "description": "Expression used to authenticate users via LDAP bind. Must contain uid={username}.",
+          "type": "string"
+        },
+        "user_filter": {
+          "description": "Filter to extract users for syncing.",
+          "type": "string"
+        },
+        "username_attr": {
+          "description": "Attribute with full username. Default: gecos",
+          "type": "string"
+        },
+        "sync_interval": {
+          "description": "Interval used for syncing local user table with LDAP directory. Parsed using time.ParseDuration.",
+          "type": "string"
+        },
+        "sync_del_old_users": {
+          "description": "Delete obsolete users in database.",
+          "type": "boolean"
+        },
+        "syncUserOnLogin": {
+          "description": "Add non-existent user to DB at login attempt if user exists in Ldap directory",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "url",
+        "user_base",
+        "search_dn",
+        "user_bind",
+        "user_filter"
+      ]
+    },
+    "clusters": {
+      "description": "Configuration for the clusters to be displayed.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "The name of the cluster.",
+            "type": "string"
+          },
+          "metricDataRepository": {
+            "description": "Type of the metric data repository for this cluster",
             "type": "object",
             "properties": {
-                "max-age": {
-                    "description": "Configure how long a token is valid. As string parsable by time.ParseDuration()",
-                    "type": "string"
-                },
-                "cookieName": {
-                    "description": "Cookie that should be checked for a JWT token.",
-                    "type": "string"
-                },
-                "validateUser": {
-                    "description": "Deny login for users not in database (but defined in JWT). Overwrite roles in JWT with database roles.",
-                    "type": "boolean"
-                },
-                "trustedIssuer": {
-                    "description": "Issuer that should be accepted when validating external JWTs ",
-                    "type": "string"
-                },
-                "syncUserOnLogin": {
-                    "description": "Add non-existent user to DB at login attempt with values provided in JWT.",
-                    "type": "boolean"
-                }
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "influxdb",
+                  "prometheus",
+                  "cc-metric-store",
+                  "test"
+                ]
+              },
+              "url": {
+                "type": "string"
+              },
+              "token": {
+                "type": "string"
+              }
             },
             "required": [
-                "max-age"
+              "kind",
+              "url"
             ]
-        },
-        "ldap": {
-            "description": "For LDAP Authentication and user synchronisation.",
+          },
+          "filterRanges": {
+            "description": "This option controls the slider ranges for the UI controls of numNodes, duration, and startTime.",
             "type": "object",
             "properties": {
-                "url": {
-                    "description": "URL of LDAP directory server.",
-                    "type": "string"
-                },
-                "user_base": {
-                    "description": "Base DN of user tree root.",
-                    "type": "string"
-                },
-                "search_dn": {
-                    "description": "DN for authenticating LDAP admin account with general read rights.",
-                    "type": "string"
-                },
-                "user_bind": {
-                    "description": "Expression used to authenticate users via LDAP bind. Must contain uid={username}.",
-                    "type": "string"
-                },
-                "user_filter": {
-                    "description": "Filter to extract users for syncing.",
-                    "type": "string"
-                },
-                "username_attr": {
-                    "description": "Attribute with full username. Default: gecos",
-                    "type": "string"
-                },
-                "sync_interval": {
-                    "description": "Interval used for syncing local user table with LDAP directory. Parsed using time.ParseDuration.",
-                    "type": "string"
-                },
-                "sync_del_old_users": {
-                    "description": "Delete obsolete users in database.",
-                    "type": "boolean"
-                },
-                "syncUserOnLogin": {
-                    "description": "Add non-existent user to DB at login attempt if user exists in Ldap directory",
-                    "type": "boolean"
-                }
-            },
-            "required": [
-                "url",
-                "user_base",
-                "search_dn",
-                "user_bind",
-                "user_filter"
-            ]
-        },
-        "clusters": {
-            "description": "Configuration for the clusters to be displayed.",
-            "type": "array",
-            "items": {
+              "numNodes": {
+                "description": "UI slider range for number of nodes",
                 "type": "object",
                 "properties": {
-                    "name": {
-                        "description": "The name of the cluster.",
-                        "type": "string"
-                    },
-                    "metricDataRepository": {
-                        "description": "Type of the metric data repository for this cluster",
-                        "type": "object",
-                        "properties": {
-                            "kind": {
-                                "type": "string",
-                                "enum": [
-                                    "influxdb",
-                                    "prometheus",
-                                    "cc-metric-store",
-                                    "test"
-                                ]
-                            },
-                            "url": {
-                                "type": "string"
-                            },
-                            "token": {
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "kind",
-                            "url"
-                        ]
-                    },
-                    "filterRanges": {
-                        "description": "This option controls the slider ranges for the UI controls of numNodes, duration, and startTime.",
-                        "type": "object",
-                        "properties": {
-                            "numNodes": {
-                                "description": "UI slider range for number of nodes",
-                                "type": "object",
-                                "properties": {
-                                    "from": {
-                                        "type": "integer"
-                                    },
-                                    "to": {
-                                        "type": "integer"
-                                    }
-                                },
-                                "required": [
-                                    "from",
-                                    "to"
-                                ]
-                            },
-                            "duration": {
-                                "description": "UI slider range for duration",
-                                "type": "object",
-                                "properties": {
-                                    "from": {
-                                        "type": "integer"
-                                    },
-                                    "to": {
-                                        "type": "integer"
-                                    }
-                                },
-                                "required": [
-                                    "from",
-                                    "to"
-                                ]
-                            },
-                            "startTime": {
-                                "description": "UI slider range for start time",
-                                "type": "object",
-                                "properties": {
-                                    "from": {
-                                        "type": "string",
-                                        "format": "date-time"
-                                    },
-                                    "to": {
-                                        "type": "null"
-                                    }
-                                },
-                                "required": [
-                                    "from",
-                                    "to"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "numNodes",
-                            "duration",
-                            "startTime"
-                        ]
-                    }
+                  "from": {
+                    "type": "integer"
+                  },
+                  "to": {
+                    "type": "integer"
+                  }
                 },
                 "required": [
-                    "name",
-                    "metricDataRepository",
-                    "filterRanges"
-                ],
-                "minItems": 1
-            }
-        },
-        "ui-defaults": {
-            "description": "Default configuration for web UI",
-            "type": "object",
-            "properties": {
-                "plot_general_colorBackground": {
-                    "description": "Color plot background according to job average threshold limits",
-                    "type": "boolean"
-                },
-                "plot_general_lineWidth": {
-                    "description": "Initial linewidth",
+                  "from",
+                  "to"
+                ]
+              },
+              "duration": {
+                "description": "UI slider range for duration",
+                "type": "object",
+                "properties": {
+                  "from": {
                     "type": "integer"
-                },
-                "plot_list_jobsPerPage": {
-                    "description": "Jobs shown per page in job lists",
+                  },
+                  "to": {
                     "type": "integer"
+                  }
                 },
-                "plot_view_plotsPerRow": {
-                    "description": "Number of plots per row in single job view",
-                    "type": "integer"
+                "required": [
+                  "from",
+                  "to"
+                ]
+              },
+              "startTime": {
+                "description": "UI slider range for start time",
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "to": {
+                    "type": "null"
+                  }
                 },
-                "plot_view_showPolarplot": {
-                    "description": "Option to toggle polar plot in single job view",
-                    "type": "boolean"
-                },
-                "plot_view_showRoofline": {
-                    "description": "Option to toggle roofline plot in single job view",
-                    "type": "boolean"
-                },
-                "plot_view_showStatTable": {
-                    "description": "Option to toggle the node statistic table in single job view",
-                    "type": "boolean"
-                },
-                "system_view_selectedMetric": {
-                    "description": "Initial metric shown in system view",
-                    "type": "string"
-                },
-                "analysis_view_histogramMetrics": {
-                    "description": "Metrics to show as job count histograms in analysis view",
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "minItems": 1
-                    }
-                },
-                "analysis_view_scatterPlotMetrics": {
-                    "description": "Initial scatter plto configuration in analysis view",
-                    "type": "array",
-                    "items": {
-                        "type": "array",
-                        "items": {
-                            "type": "string",
-                            "minItems": 2,
-                            "maxItems": 2
-                        },
-                        "minItems": 1
-                    }
-                },
-                "job_view_nodestats_selectedMetrics": {
-                    "description": "Initial metrics shown in node statistics table of single job view",
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "minItems": 1
-                    }
-                },
-                "job_view_polarPlotMetrics": {
-                    "description": "Metrics shown in polar plot of single job view",
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "minItems": 1
-                    }
-                },
-                "job_view_selectedMetrics": {
-                    "description": "",
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "minItems": 1
-                    }
-                },
-                "plot_general_colorscheme": {
-                    "description": "Initial color scheme",
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "minItems": 1
-                    }
-                },
-                "plot_list_selectedMetrics": {
-                    "description": "Initial metric plots shown in jobs lists",
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "minItems": 1
-                    }
-                }
+                "required": [
+                  "from",
+                  "to"
+                ]
+              }
             },
             "required": [
-                "plot_general_colorBackground",
-                "plot_general_lineWidth",
-                "plot_list_jobsPerPage",
-                "plot_view_plotsPerRow",
-                "plot_view_showPolarplot",
-                "plot_view_showRoofline",
-                "plot_view_showStatTable",
-                "system_view_selectedMetric",
-                "analysis_view_histogramMetrics",
-                "analysis_view_scatterPlotMetrics",
-                "job_view_nodestats_selectedMetrics",
-                "job_view_polarPlotMetrics",
-                "job_view_selectedMetrics",
-                "plot_general_colorscheme",
-                "plot_list_selectedMetrics"
+              "numNodes",
+              "duration",
+              "startTime"
             ]
+          }
         },
-        "enable-resampling": {
-            "description": "Enable dynamic zoom in frontend metric plots.",
-            "type": "object",
-            "properties": {
-                "trigger": {
-                    "description": "Trigger next zoom level at less than this many visible datapoints.",
-                    "type": "integer"
-                },
-                "resolutions": {
-                    "description": "Array of resampling target resolutions, in seconds.",
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                }
-            },
-            "required": [
-                "trigger",
-                "resolutions"
-            ]
-        }
+        "required": [
+          "name",
+          "metricDataRepository",
+          "filterRanges"
+        ],
+        "minItems": 1
+      }
     },
-    "required": [
-        "jwts",
-        "clusters"
-    ]
+    "ui-defaults": {
+      "description": "Default configuration for web UI",
+      "type": "object",
+      "properties": {
+        "plot_general_colorBackground": {
+          "description": "Color plot background according to job average threshold limits",
+          "type": "boolean"
+        },
+        "plot_general_lineWidth": {
+          "description": "Initial linewidth",
+          "type": "integer"
+        },
+        "plot_list_jobsPerPage": {
+          "description": "Jobs shown per page in job lists",
+          "type": "integer"
+        },
+        "plot_view_plotsPerRow": {
+          "description": "Number of plots per row in single job view",
+          "type": "integer"
+        },
+        "plot_view_showPolarplot": {
+          "description": "Option to toggle polar plot in single job view",
+          "type": "boolean"
+        },
+        "plot_view_showRoofline": {
+          "description": "Option to toggle roofline plot in single job view",
+          "type": "boolean"
+        },
+        "plot_view_showStatTable": {
+          "description": "Option to toggle the node statistic table in single job view",
+          "type": "boolean"
+        },
+        "system_view_selectedMetric": {
+          "description": "Initial metric shown in system view",
+          "type": "string"
+        },
+        "job_view_showFootprint": {
+          "description": "Option to toggle footprint ui in single job view",
+          "type": "boolean"
+        },
+        "job_list_usePaging": {
+          "description": "Option to switch from continous scroll to paging",
+          "type": "boolean"
+        },
+        "analysis_view_histogramMetrics": {
+          "description": "Metrics to show as job count histograms in analysis view",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minItems": 1
+          }
+        },
+        "analysis_view_scatterPlotMetrics": {
+          "description": "Initial scatter plto configuration in analysis view",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "minItems": 1
+          }
+        },
+        "job_view_nodestats_selectedMetrics": {
+          "description": "Initial metrics shown in node statistics table of single job view",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minItems": 1
+          }
+        },
+        "job_view_polarPlotMetrics": {
+          "description": "Metrics shown in polar plot of single job view",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minItems": 1
+          }
+        },
+        "job_view_selectedMetrics": {
+          "description": "",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minItems": 1
+          }
+        },
+        "plot_general_colorscheme": {
+          "description": "Initial color scheme",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minItems": 1
+          }
+        },
+        "plot_list_selectedMetrics": {
+          "description": "Initial metric plots shown in jobs lists",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minItems": 1
+          }
+        }
+      },
+      "required": [
+        "plot_general_colorBackground",
+        "plot_general_lineWidth",
+        "plot_list_jobsPerPage",
+        "plot_view_plotsPerRow",
+        "plot_view_showPolarplot",
+        "plot_view_showRoofline",
+        "plot_view_showStatTable",
+        "system_view_selectedMetric",
+        "job_view_showFootprint",
+        "job_list_usePaging",
+        "analysis_view_histogramMetrics",
+        "analysis_view_scatterPlotMetrics",
+        "job_view_nodestats_selectedMetrics",
+        "job_view_polarPlotMetrics",
+        "job_view_selectedMetrics",
+        "plot_general_colorscheme",
+        "plot_list_selectedMetrics"
+      ]
+    }
+  },
+  "required": [
+    "jwts",
+    "clusters"
+  ]
 }

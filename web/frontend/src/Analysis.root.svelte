@@ -422,14 +422,14 @@
                 <td><Icon name="circle-fill" style="color: {colors[i]};" /></td>
                 {#if groupSelection.key == "user"}
                   <th scope="col"
-                    ><a href="/monitoring/user/{te.id}?cluster={cluster.name}"
+                    ><a href="/monitoring/user/{te.id}?cluster={cluster}"
                       >{te.id}</a
                     ></th
                   >
                 {:else}
                   <th scope="col"
                     ><a
-                      href="/monitoring/jobs/?cluster={cluster.name}&project={te.id}&projectMatch=eq"
+                      href="/monitoring/jobs/?cluster={cluster}&project={te.id}&projectMatch=eq"
                       >{te.id}</a
                     ></th
                   >

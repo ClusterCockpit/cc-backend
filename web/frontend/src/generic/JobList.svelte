@@ -30,6 +30,10 @@
     initialized = getContext("initialized"),
     globalMetrics = getContext("globalMetrics");
 
+  const equalsCheck = (a, b) => {
+    return JSON.stringify(a) === JSON.stringify(b);
+  }
+
   export let sorting = { field: "startTime", type: "col", order: "DESC" };
   export let matchedJobs = 0;
   export let metrics = ccconfig.plot_list_selectedMetrics;
@@ -40,6 +44,8 @@
   let page = 1;
   let paging = { itemsPerPage, page };
   let filter = [];
+  let lastFilter = [];
+  let lastSorting = null;
   let triggerMetricRefresh = false;
 
   function getUnit(m) {
@@ -105,12 +111,33 @@
     variables: { paging, sorting, filter },
   });
 
-  let jobs = []
+  $: if (!usePaging && sorting) {
+    // console.log('Reset Paging ...')
+    paging = { itemsPerPage: 10, page: 1 }
+  };
+
+  let jobs = [];
   $: if ($initialized && $jobsStore.data) {
     if (usePaging) {
       jobs = [...$jobsStore.data.jobs.items]
-    } else { // Prevents jump to table head: Extends existing list instead of rendering new list
-      jobs = jobs.concat([...$jobsStore.data.jobs.items])
+    } else { // Prevents jump to table head in continiuous mode, only if no change in sort or filter
+      if (equalsCheck(filter, lastFilter) && equalsCheck(sorting, lastSorting)) {
+        // console.log('Both Equal: Continuous Addition ... Set None')
+        jobs = jobs.concat([...$jobsStore.data.jobs.items])
+      } else if (equalsCheck(filter, lastFilter)) {
+        // console.log('Filter Equal: Continuous Reset ... Set lastSorting')
+        lastSorting = { ...sorting }
+        jobs = [...$jobsStore.data.jobs.items]
+      } else if (equalsCheck(sorting, lastSorting)) {
+        // console.log('Sorting Equal: Continuous Reset ... Set lastFilter')
+        lastFilter = [ ...filter ]
+        jobs = [...$jobsStore.data.jobs.items]
+      } else {
+        // console.log('None Equal: Continuous Reset ... Set lastBoth')
+        lastSorting = { ...sorting }
+        lastFilter = [ ...filter ]
+        jobs = [...$jobsStore.data.jobs.items]
+      }
     }
   }
 

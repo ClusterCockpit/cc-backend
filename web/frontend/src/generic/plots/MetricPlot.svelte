@@ -84,19 +84,20 @@
 
 
     if (metricConfig?.aggregation == "sum") {
-      let divisor = 1
+      let divisor;
       if (isShared == true) { // Shared
         if (numaccs > 0) divisor = subClusterTopology.accelerators.length / numaccs;
-        else if (numhwthreads > 0) divisor = subClusterTopology.node.length / numhwthreads;
+        else if (numhwthreads > 0) divisor = subClusterTopology.core.length / numhwthreads;
       }
-      else if (scope == 'socket') divisor = subClusterTopology.socket.length;
-      else if (scope == "core") divisor = subClusterTopology.core.length;
-      else if (scope == "accelerator")
-        divisor = subClusterTopology.accelerators.length;
-      else if (scope == "hwthread") divisor = subClusterTopology.node.length;
+      else if (scope == 'node')         divisor = 1; // Use as configured for nodes
+      else if (scope == 'socket')       divisor = subClusterTopology.socket.length;
+      else if (scope == "memoryDomain") divisor = subClusterTopology.memoryDomain.length;
+      else if (scope == "core")         divisor = subClusterTopology.core.length;
+      else if (scope == "hwthread")     divisor = subClusterTopology.core.length; // alt. name for core
+      else if (scope == "accelerator")  divisor = subClusterTopology.accelerators.length;
       else {
-        // console.log('TODO: how to calc thresholds for ', scope)
-        return null;
+        console.log('Unknown scope, return default thresholds ', scope)
+        divisor = 1;
       }
 
       return {
