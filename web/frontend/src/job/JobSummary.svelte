@@ -23,26 +23,46 @@
       alert: metricConfig.alert
     };
 
-    // Job_Exclusivity does not matter, only aggregation
-    if (metricConfig.aggregation === "avg") {
-      return defaultThresholds;
-    } else if (metricConfig.aggregation === "sum") {
+    /*
+      NEW: Footprints should be comparable: Always use Unchanged Single Node Thresholds, except for shared jobs.
+      HW Clocks, HW Temperatures and File/Net IO Thresholds will be scaled down too, even if they are independent.
+      'jf.stats' is one of: avg, min, max -> Always relative to one nodes' thresholds as configured.
+    */
+    if (job.exclusive === 1) {
+      return defaultThresholds
+    } else {
       const topol = getContext("getHardwareTopology")(job.cluster, job.subCluster)
       const jobFraction = job.numHWThreads / topol.node.length;
-
       return {
         peak: round(defaultThresholds.peak * jobFraction, 0),
         normal: round(defaultThresholds.normal * jobFraction, 0),
         caution: round(defaultThresholds.caution * jobFraction, 0),
         alert: round(defaultThresholds.alert * jobFraction, 0),
       };
-    } else {
-      console.warn(
-        "Missing or unkown aggregation mode (sum/avg) for metric:",
-        metricConfig,
-      );
-      return defaultThresholds;
     }
+
+    /* OLD: Based on Metric Aggregation Setting
+      // Job_Exclusivity does not matter, only aggregation
+      if (metricConfig.aggregation === "avg") {
+        return defaultThresholds;
+      } else if (metricConfig.aggregation === "sum") {
+        const topol = getContext("getHardwareTopology")(job.cluster, job.subCluster)
+        const jobFraction = job.numHWThreads / topol.node.length;
+
+        return {
+          peak: round(defaultThresholds.peak * jobFraction, 0),
+          normal: round(defaultThresholds.normal * jobFraction, 0),
+          caution: round(defaultThresholds.caution * jobFraction, 0),
+          alert: round(defaultThresholds.alert * jobFraction, 0),
+        };
+      } else {
+        console.warn(
+          "Missing or unkown aggregation mode (sum/avg) for metric:",
+          metricConfig,
+        );
+        return defaultThresholds;
+      }
+    */
   }
 </script>
 
@@ -142,25 +162,25 @@
     return a.impact - b.impact || ((a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0));
   });;
 
-  function evalFootprint(mean, thresholds, lowerIsBetter, level) {
+  function evalFootprint(value, thresholds, lowerIsBetter, level) {
     // Handle Metrics in which less value is better
     switch (level) {
       case "peak":
         if (lowerIsBetter)
           return false; // metric over peak -> return false to trigger impact -1
-        else return mean <= thresholds.peak && mean > thresholds.normal;
+        else return value <= thresholds.peak && value > thresholds.normal;
       case "alert":
         if (lowerIsBetter)
-          return mean <= thresholds.peak && mean >= thresholds.alert;
-        else return mean <= thresholds.alert && mean >= 0;
+          return value <= thresholds.peak && value >= thresholds.alert;
+        else return value <= thresholds.alert && value >= 0;
       case "caution":
         if (lowerIsBetter)
-          return mean < thresholds.alert && mean >= thresholds.caution;
-        else return mean <= thresholds.caution && mean > thresholds.alert;
+          return value < thresholds.alert && value >= thresholds.caution;
+        else return value <= thresholds.caution && value > thresholds.alert;
       case "normal":
         if (lowerIsBetter)
-          return mean < thresholds.caution && mean >= 0;
-        else return mean <= thresholds.normal && mean > thresholds.caution;
+          return value < thresholds.caution && value >= 0;
+        else return value <= thresholds.normal && value > thresholds.caution;
       default:
         return false;
     }
