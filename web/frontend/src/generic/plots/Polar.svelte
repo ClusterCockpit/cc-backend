@@ -45,7 +45,7 @@
         if (footprintData) {
             return footprintData.filter(fpd => {
                 if (!jobMetrics.find(m => m.name == fpd.name && m.scope == "node" || fpd.impact == 4)) {
-                    console.warn(`PolarPlot: No metric data (or config) for '${fpd.name}'`)
+                    console.warn(`PolarPlot: No metric data for '${fpd.name}'`)
                     return false
                 }
                 return true
@@ -72,6 +72,7 @@
     const getMetricConfig = getContext("getMetricConfig");
 
     const getValuesForStatGeneric = (getStat) => labels.map(name => {
+        // TODO: Requires Scaling if Shared Job
         const peak = getMetricConfig(cluster, subCluster, name).peak
         const metric = jobMetrics.find(m => m.name == name && m.scope == "node")
         const value = getStat(metric.metric) / peak
@@ -79,6 +80,7 @@
     })
 
     const getValuesForStatFootprint = (getStat) => labels.map(name => {
+        // FootprintData 'Peak' is pre-scaled for Shared Jobs in JobSummary Component
         const peak = footprintData.find(fpd => fpd.name === name).peak
         const metric = jobMetrics.find(m => m.name == name && m.scope == "node")
         const value = getStat(metric.metric) / peak
@@ -86,14 +88,21 @@
     })
 
     function getMax(metric) {
-        let max = 0
+        let max = metric.series[0].statistics.max;
         for (let series of metric.series)
             max = Math.max(max, series.statistics.max)
         return max
     }
 
+    function getMin(metric) {
+        let min = metric.series[0].statistics.min;
+        for (let series of metric.series)
+            min = Math.min(min, series.statistics.min)
+        return min
+    }
+
     function getAvg(metric) {
-        let avg = 0
+        let avg = 0;
         for (let series of metric.series)
             avg += series.statistics.avg
         return avg / metric.series.length
@@ -104,6 +113,8 @@
             return getValuesForStatGeneric(getAvg)
         } else if (type === 'max') {
             return getValuesForStatGeneric(getMax)
+        } else if (type === 'min') {
+            return getValuesForStatGeneric(getMin)
         }
         console.log('Unknown Type For Polar Data')
         return []
@@ -114,6 +125,8 @@
             return getValuesForStatFootprint(getAvg)
         } else if (type === 'max') {
             return getValuesForStatFootprint(getMax)
+        } else if (type === 'min') {
+            return getValuesForStatFootprint(getMin)
         }
         console.log('Unknown Type For Polar Data')
         return []
@@ -124,25 +137,36 @@
         datasets: [
             {
                 label: 'Max',
-                data: footprintData ? loadDataForFootprint('max') : loadDataGeneric('max'), // 
+                data: footprintData ? loadDataForFootprint('max') : loadDataGeneric('max'), // Node Scope Only
                 fill: 1,
-                backgroundColor: 'rgba(0, 102, 255, 0.25)',
-                borderColor: 'rgb(0, 102, 255)',
-                pointBackgroundColor: 'rgb(0, 102, 255)',
+                backgroundColor: 'rgba(0, 0, 255, 0.25)',
+                borderColor: 'rgb(0, 0, 255)',
+                pointBackgroundColor: 'rgb(0, 0, 255)',
                 pointBorderColor: '#fff',
                 pointHoverBackgroundColor: '#fff',
-                pointHoverBorderColor: 'rgb(0, 102, 255)'
+                pointHoverBorderColor: 'rgb(0, 0, 255)'
             },
             {
                 label: 'Avg',
-                data: footprintData ? loadDataForFootprint('avg') : loadDataGeneric('avg'), // getValuesForStat(getAvg)
-                fill: true,
-                backgroundColor: 'rgba(255, 153, 0, 0.25)',
-                borderColor: 'rgb(255, 153, 0)',
-                pointBackgroundColor: 'rgb(255, 153, 0)',
+                data: footprintData ? loadDataForFootprint('avg') : loadDataGeneric('avg'), // Node Scope Only
+                fill: 2,
+                backgroundColor: 'rgba(255, 210, 0, 0.25)',
+                borderColor: 'rgb(255, 210, 0)',
+                pointBackgroundColor: 'rgb(255, 210, 0)',
                 pointBorderColor: '#fff',
                 pointHoverBackgroundColor: '#fff',
-                pointHoverBorderColor: 'rgb(255, 153, 0)'
+                pointHoverBorderColor: 'rgb(255, 210, 0)'
+            },
+            {
+                label: 'Min',
+                data: footprintData ? loadDataForFootprint('min') : loadDataGeneric('min'), // Node Scope Only
+                fill: true,
+                backgroundColor: 'rgba(255, 0, 0, 0.25)',
+                borderColor: 'rgb(255, 0, 0)',
+                pointBackgroundColor: 'rgb(255, 0, 0)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgb(255, 0, 0)'
             }
         ]
     }
