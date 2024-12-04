@@ -29,7 +29,6 @@ var Keys schema.ProgramConfig = schema.ProgramConfig{
 		"analysis_view_histogramMetrics":         []string{"flops_any", "mem_bw", "mem_used"},
 		"analysis_view_scatterPlotMetrics":       [][]string{{"flops_any", "mem_bw"}, {"flops_any", "cpu_load"}, {"cpu_load", "mem_bw"}},
 		"job_view_nodestats_selectedMetrics":     []string{"flops_any", "mem_bw", "mem_used"},
-		"job_view_polarPlotMetrics":              []string{"flops_any", "mem_bw", "mem_used"},
 		"job_view_selectedMetrics":               []string{"flops_any", "mem_bw", "mem_used"},
 		"job_view_showFootprint":                 true,
 		"job_list_usePaging":                     false,

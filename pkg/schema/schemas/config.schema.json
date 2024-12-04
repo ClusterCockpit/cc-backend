@@ -445,14 +445,6 @@
             "minItems": 1
           }
         },
-        "job_view_polarPlotMetrics": {
-          "description": "Metrics shown in polar plot of single job view",
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minItems": 1
-          }
-        },
         "job_view_selectedMetrics": {
           "description": "",
           "type": "array",
@@ -492,7 +484,6 @@
         "analysis_view_histogramMetrics",
         "analysis_view_scatterPlotMetrics",
         "job_view_nodestats_selectedMetrics",
-        "job_view_polarPlotMetrics",
         "job_view_selectedMetrics",
         "plot_general_colorscheme",
         "plot_list_selectedMetrics"
