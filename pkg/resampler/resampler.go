@@ -9,7 +9,7 @@ import (
 )
 
 func SimpleResampler(data []schema.Float, old_frequency int64, new_frequency int64) ([]schema.Float, error) {
-	if old_frequency == 0 || new_frequency == 0 {
+	if old_frequency == 0 || new_frequency == 0 || new_frequency <= old_frequency {
 		return nil, errors.New("either old or new frequency is set to 0")
 	}
 
@@ -37,7 +37,7 @@ func SimpleResampler(data []schema.Float, old_frequency int64, new_frequency int
 // Adapted from https://github.com/haoel/downsampling/blob/master/core/lttb.go
 func LargestTriangleThreeBucket(data []schema.Float, old_frequency int, new_frequency int) ([]schema.Float, int, error) {
 
-	if old_frequency == 0 || new_frequency == 0 {
+	if old_frequency == 0 || new_frequency == 0 || new_frequency <= old_frequency {
 		return data, old_frequency, nil
 	}
 
