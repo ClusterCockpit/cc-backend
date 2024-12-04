@@ -109,21 +109,21 @@
         return {
           ...fmBase,
           color: "danger",
-          message: `Metric average way ${fmc.lowerIsBetter ? "above" : "below"} expected normal thresholds.`,
+          message: `Footprint value way ${fmc.lowerIsBetter ? "above" : "below"} expected normal threshold.`,
           impact: 3
         };
       } else if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "caution")) {
         return {
           ...fmBase,
           color: "warning",
-          message: `Metric average ${fmc.lowerIsBetter ? "above" : "below"} expected normal thresholds.`,
+          message: `Footprint value ${fmc.lowerIsBetter ? "above" : "below"} expected normal threshold.`,
           impact: 2,
         };
       } else if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "normal")) {
         return {
           ...fmBase,
           color: "success",
-          message: "Metric average within expected thresholds.",
+          message: "Footprint value within expected thresholds.",
           impact: 1,
         };
       } else if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "peak")) {
@@ -131,7 +131,7 @@
           ...fmBase,
           color: "info",
           message:
-            "Metric average above expected normal thresholds: Check for artifacts recommended.",
+            "Footprint value above expected normal threshold: Check for artifacts recommended.",
           impact: 0,
         };
       } else {
@@ -139,7 +139,7 @@
           ...fmBase,
           color: "secondary",
           message:
-            "Metric average above expected peak threshold: Check for artifacts!",
+            "Footprint value above expected peak threshold: Check for artifacts!",
           impact: -1,
         };
       }
@@ -201,10 +201,14 @@
           >
             <div class="mx-1">
               <!-- Alerts Only -->
-              {#if fpd.impact === 3 || fpd.impact === -1}
-                <Icon name="exclamation-triangle-fill" class="text-danger" />
+              {#if fpd.impact === 3}
+              <Icon name="exclamation-triangle-fill" class="text-danger" />
               {:else if fpd.impact === 2}
                 <Icon name="exclamation-triangle" class="text-warning" />
+              {:else if fpd.impact === 0}
+                <Icon name="info-circle" class="text-info" />
+              {:else if fpd.impact === -1}
+                <Icon name="info-circle-fill" class="text-danger" />
               {/if}
               <!-- Emoji for all states-->
               {#if fpd.impact === 3}
@@ -214,7 +218,7 @@
               {:else if fpd.impact === 1}
                 <Icon name="emoji-smile" class="text-success" />
               {:else if fpd.impact === 0}
-                <Icon name="emoji-laughing" class="text-info" />
+                <Icon name="emoji-smile" class="text-info" />
               {:else if fpd.impact === -1}
                 <Icon name="emoji-dizzy" class="text-danger" />
               {/if}
