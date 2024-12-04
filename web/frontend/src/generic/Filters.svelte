@@ -219,7 +219,7 @@
       opts.push(`projectMatch=${filters.projectMatch}`);
     if (filters.stats.length != 0)
       for (let stat of filters.stats) {
-        opts.push(`stat=${stat?.field ? stat.field : stat.metricName}-${stat?.from ? stat.from : stat.range.from}-${stat?.to ? stat.to : stat.range.to}`);
+          opts.push(`stat=${stat.field}-${stat.from}-${stat.to}`);
       }
     if (opts.length == 0 && window.location.search.length <= 1) return;
 
@@ -390,7 +390,7 @@
 {#if filters.stats.length > 0}
   <Info icon="bar-chart" on:click={() => (isStatsOpen = true)}>
     {filters.stats
-      .map((stat) => `${stat?.text ? stat.text : stat.field}: ${stat?.from ? stat.from : stat.range.from} - ${stat?.to ? stat.to : stat.range.to}`)
+      .map((stat) => `${stat.field}: ${stat.from} - ${stat.to}`)
       .join(", ")}
   </Info>
 {/if}
