@@ -35,3 +35,11 @@ For release specific notes visit the [ClusterCockpit Documentation](https://clus
 - A performance and energy footprint can be freely configured on a per
   subcluster base. One can filter for footprint statistics for running and
   finished jobs.
+
+## Known issues
+
+- Currently energy footprint metrics of type energy are ignored for calculating
+  total energy.
+- Resampling for running jobs only works with cc-metric-store
+- With energy footprint metrics of type power the unit is ignored and it is
+  assumed the metric has the unit Watt.
