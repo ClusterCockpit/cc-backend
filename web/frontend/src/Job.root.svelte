@@ -139,9 +139,6 @@
           return names;
         }, [])
       ),
-      ...(ccconfig[`job_view_polarPlotMetrics:${job.cluster}`] ||
-        ccconfig[`job_view_polarPlotMetrics`]
-      ),
       ...(ccconfig[`job_view_nodestats_selectedMetrics:${job.cluster}`] ||
         ccconfig[`job_view_nodestats_selectedMetrics`]
       ),
