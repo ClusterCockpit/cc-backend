@@ -42,19 +42,6 @@ builds:
       - amd64
     goamd64:
       - v3
-    id: "archive-migration"
-    binary: archive-migration
-    main: ./tools/archive-migration
-    tags:
-      - static_build
-  - env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-    goarch:
-      - amd64
-    goamd64:
-      - v3
     id: "gen-keypair"
     binary: gen-keypair
     main: ./tools/gen-keypair
