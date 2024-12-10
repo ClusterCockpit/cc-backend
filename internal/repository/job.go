@@ -308,17 +308,17 @@ func (r *JobRepository) FindUserOrProjectOrJobname(user *schema.User, searchterm
 		return searchterm, "", "", ""
 	} else { // Has to have letters and logged-in user for other guesses
 		if user != nil {
-			// Find username in jobs (match)
-			uresult, _ := r.FindColumnValue(user, searchterm, "job", "user", "user", false)
+			// Find username by username in job table (match)
+			uresult, _ := r.FindColumnValue(user, searchterm, "job", "hpc_user", "hpc_user", false)
 			if uresult != "" {
 				return "", uresult, "", ""
 			}
-			// Find username by name (like)
+			// Find username by real name in hpc_user table (like)
 			nresult, _ := r.FindColumnValue(user, searchterm, "hpc_user", "username", "name", true)
 			if nresult != "" {
 				return "", nresult, "", ""
 			}
-			// Find projectId in jobs (match)
+			// Find projectId by projectId in job table (match)
 			presult, _ := r.FindColumnValue(user, searchterm, "job", "project", "project", false)
 			if presult != "" {
 				return "", "", presult, ""

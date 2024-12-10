@@ -14,7 +14,7 @@ var (
 func cliInit() {
 	flag.BoolVar(&flagInit, "init", false, "Setup var directory, initialize swlite database file, config.json and .env")
 	flag.BoolVar(&flagReinitDB, "init-db", false, "Go through job-archive and re-initialize the 'job', 'tag', and 'jobtag' tables (all running jobs will be lost!)")
-	flag.BoolVar(&flagSyncLDAP, "sync-ldap", false, "Sync the 'user' table with ldap")
+	flag.BoolVar(&flagSyncLDAP, "sync-ldap", false, "Sync the 'hpc_user' table with ldap")
 	flag.BoolVar(&flagServer, "server", false, "Start a server, continues listening on port after initialization and argument handling")
 	flag.BoolVar(&flagGops, "gops", false, "Listen via github.com/google/gops/agent (for debugging)")
 	flag.BoolVar(&flagDev, "dev", false, "Enable development components: GraphQL Playground and Swagger UI")
