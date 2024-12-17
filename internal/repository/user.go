@@ -73,7 +73,7 @@ func (r *UserRepository) GetUser(username string) (*schema.User, error) {
 
 func (r *UserRepository) GetLdapUsernames() ([]string, error) {
 	var users []string
-	rows, err := r.DB.Query(`SELECT username FROM hpc_user WHERE user.ldap = 1`)
+	rows, err := r.DB.Query(`SELECT username FROM hpc_user WHERE hpc_user.ldap = 1`)
 	if err != nil {
 		log.Warn("Error while querying usernames")
 		return nil, err
