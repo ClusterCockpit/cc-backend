@@ -341,7 +341,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 	withMetadata := false
 	filter := &model.JobFilter{}
 	page := &model.PageRequest{ItemsPerPage: 25, Page: 1}
-	order := &model.OrderByInput{Field: "startTime", Order: model.SortDirectionEnumDesc}
+	order := &model.OrderByInput{Field: "startTime", Type: "col", Order: model.SortDirectionEnumDesc}
 
 	for key, vals := range r.URL.Query() {
 		switch key {
