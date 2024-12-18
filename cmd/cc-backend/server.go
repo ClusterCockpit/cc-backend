@@ -25,7 +25,6 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/generated"
-	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/routerConfig"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/runtimeEnv"
@@ -313,9 +312,6 @@ func serverStart() {
 func serverShutdown() {
 	// First shut down the server gracefully (waiting for all ongoing requests)
 	server.Shutdown(context.Background())
-
-	// Then, wait for any async jobStarts still pending...
-	repository.WaitForJobStart()
 
 	// Then, wait for any async archivings still pending...
 	archiver.WaitForArchiving()

@@ -123,18 +123,8 @@ func (api *RestApi) MountFrontendApiRoutes(r *mux.Router) {
 	}
 }
 
-// StartJobApiResponse model
-type StartJobApiResponse struct {
-	Message string `json:"msg"`
-}
-
-// DeleteJobApiResponse model
-type DeleteJobApiResponse struct {
-	Message string `json:"msg"`
-}
-
-// UpdateUserApiResponse model
-type UpdateUserApiResponse struct {
+// DefaultApiResponse model
+type DefaultJobApiResponse struct {
 	Message string `json:"msg"`
 }
 
@@ -790,6 +780,11 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// aquire lock to avoid race condition between API calls
+	var unlockOnce sync.Once
+	api.RepositoryMutex.Lock()
+	defer unlockOnce.Do(api.RepositoryMutex.Unlock)
+
 	// Check if combination of (job_id, cluster_id, start_time) already exists:
 	jobs, err := api.JobRepository.FindAll(&req.JobID, &req.Cluster, nil)
 	if err != nil && err != sql.ErrNoRows {
@@ -804,12 +799,27 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	repository.TriggerJobStart(repository.JobWithUser{Job: &req, User: repository.GetUserFromContext(r.Context())})
+	id, err := api.JobRepository.Start(&req)
+	if err != nil {
+		handleError(fmt.Errorf("insert into database failed: %w", err), http.StatusInternalServerError, rw)
+		return
+	}
+	// unlock here, adding Tags can be async
+	unlockOnce.Do(api.RepositoryMutex.Unlock)
 
+	for _, tag := range req.Tags {
+		if _, err := api.JobRepository.AddTagOrCreate(repository.GetUserFromContext(r.Context()), id, tag.Type, tag.Name, tag.Scope); err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			handleError(fmt.Errorf("adding tag to new job %d failed: %w", id, err), http.StatusInternalServerError, rw)
+			return
+		}
+	}
+
+	log.Printf("new job (id: %d): cluster=%s, jobId=%d, user=%s, startTime=%d", id, req.Cluster, req.JobID, req.User, req.StartTime)
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusCreated)
-	json.NewEncoder(rw).Encode(StartJobApiResponse{
-		Message: fmt.Sprintf("Successfully triggered job start"),
+	json.NewEncoder(rw).Encode(DefaultJobApiResponse{
+		Message: "success",
 	})
 }
 
@@ -892,7 +902,7 @@ func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 	}
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(DeleteJobApiResponse{
+	json.NewEncoder(rw).Encode(DefaultJobApiResponse{
 		Message: fmt.Sprintf("Successfully deleted job %s", id),
 	})
 }
@@ -943,7 +953,7 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(DeleteJobApiResponse{
+	json.NewEncoder(rw).Encode(DefaultJobApiResponse{
 		Message: fmt.Sprintf("Successfully deleted job %d", job.ID),
 	})
 }
@@ -987,7 +997,7 @@ func (api *RestApi) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(DeleteJobApiResponse{
+	json.NewEncoder(rw).Encode(DefaultJobApiResponse{
 		Message: fmt.Sprintf("Successfully deleted %d jobs", cnt),
 	})
 }
