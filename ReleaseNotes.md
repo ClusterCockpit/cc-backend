@@ -1,4 +1,4 @@
-# `cc-backend` version 1.4.1
+# `cc-backend` version 1.4.2
 
 Supports job archive version 2 and database version 8.
 
