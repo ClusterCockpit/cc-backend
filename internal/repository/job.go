@@ -80,6 +80,10 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 	job.RawFootprint = nil
 
 	job.StartTime = time.Unix(job.StartTimeUnix, 0)
+	// Always ensure accurate duration for running jobs
+	if job.State == schema.JobStateRunning {
+		job.Duration = int32(time.Since(job.StartTime).Seconds())
+	}
 
 	return job, nil
 }
