@@ -7,7 +7,7 @@
  -->
 
 <script>
-  import { Badge, Button, Icon } from "@sveltestrap/sveltestrap";
+  import { Badge, Button, Icon, Tooltip } from "@sveltestrap/sveltestrap";
   import { scrambleNames, scramble } from "../utils.js";
   import Tag from "../helper/Tag.svelte";
   import TagManagement from "../helper/TagManagement.svelte";
@@ -42,12 +42,30 @@
   let displayCheck = false;
   function clipJobId(jid) {
     displayCheck = true;
-    navigator.clipboard
-      .writeText(jid)
-      .catch((reason) => console.error(reason));
-      setTimeout(function () {
-        displayCheck = false;
-      }, 1500);
+    // Navigator clipboard api needs a secure context (https)
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard
+          .writeText(jid)
+          .catch((reason) => console.error(reason));
+    } else {
+      // Workaround: Create, Fill, And Copy Content of Textarea
+      const textArea = document.createElement("textarea");
+      textArea.value = jid;
+      textArea.style.position = "absolute";
+      textArea.style.left = "-999999px";
+      document.body.prepend(textArea);
+      textArea.select();
+      try {
+          document.execCommand('copy');
+      } catch (error) {
+          console.error(error);
+      } finally {
+          textArea.remove();
+      }
+    }
+    setTimeout(function () {
+      displayCheck = false;
+    }, 1000);
   }
 </script>
 
@@ -58,13 +76,18 @@
         <a href="/monitoring/job/{job.id}" target="_blank">{job.jobId}</a>
         ({job.cluster}) 
       </span>
-      <Button outline color="secondary" size="sm" title="Copy JobID to Clipboard" on:click={clipJobId(job.jobId)} >
+      <Button id={`${job.cluster}-${job.jobId}-clipboard`} outline color="secondary" size="sm" on:click={clipJobId(job.jobId)} >
         {#if displayCheck}
-          <Icon name="clipboard2-check-fill"/> Copied
+          <Icon name="clipboard2-check-fill"/>
         {:else}
-          <Icon name="clipboard2"/> Job ID
+          <Icon name="clipboard2"/>
         {/if}
       </Button>
+      <Tooltip
+        target={`${job.cluster}-${job.jobId}-clipboard`}
+        placement="right">
+          { displayCheck ? 'Copied!' : 'Copy Job ID to Clipboard' }
+      </Tooltip>
     </span>
     {#if job.metaData?.jobName}
       {#if job.metaData?.jobName.length <= 25}

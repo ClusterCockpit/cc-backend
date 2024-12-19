@@ -112,7 +112,7 @@ func main() {
 
 	if flagInit {
 		initEnv()
-		fmt.Print("Succesfully setup environment!\n")
+		fmt.Print("Successfully setup environment!\n")
 		fmt.Print("Please review config.json and .env and adjust it to your needs.\n")
 		fmt.Print("Add your job-archive at ./var/job-archive.\n")
 		os.Exit(0)

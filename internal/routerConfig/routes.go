@@ -182,6 +182,7 @@ func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 	return i
 }
 
+// FIXME: Lots of redundant code. Needs refactoring
 func buildFilterPresets(query url.Values) map[string]interface{} {
 	filterPresets := map[string]interface{}{}
 

@@ -249,9 +249,6 @@ func TestRestApi(t *testing.T) {
 		if response.StatusCode != http.StatusCreated {
 			t.Fatal(response.Status, recorder.Body.String())
 		}
-
-		time.Sleep(1 * time.Second)
-
 		resolver := graph.GetResolverInstance()
 		job, err := restapi.JobRepository.Find(&TestJobId, &TestClusterName, &TestStartTime)
 		if err != nil {
