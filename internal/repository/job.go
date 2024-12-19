@@ -79,14 +79,7 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 	}
 	job.RawFootprint = nil
 
-	// if err := json.Unmarshal(job.RawMetaData, &job.MetaData); err != nil {
-	// 	return nil, err
-	// }
-
 	job.StartTime = time.Unix(job.StartTimeUnix, 0)
-	if job.Duration == 0 && job.State == schema.JobStateRunning {
-		job.Duration = int32(time.Since(job.StartTime).Seconds())
-	}
 
 	return job, nil
 }
@@ -457,6 +450,7 @@ func (r *JobRepository) AllocatedNodes(cluster string) (map[string]map[string]in
 	return subclusters, nil
 }
 
+// FIXME: Set duration to requested walltime?
 func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 	start := time.Now()
 	res, err := sq.Update("job").
