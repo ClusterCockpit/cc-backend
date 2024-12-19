@@ -12,7 +12,8 @@ For release specific notes visit the [ClusterCockpit Documentation](https://clus
   migration might require several hours!
 - You need to adapt the `cluster.json` configuration files in the job-archive,
   add new required attributes to the metric list and after that edit
-  `./job-archive/version.txt` to version 2.
+  `./job-archive/version.txt` to version 2. Only metrics that have the footprint
+  attribute set can be filtered and show up in the footprint UI and polar plot.
 - Continuous scrolling is default now in all job lists. You can change this back
   to paging globally, also every user can configure to use paging or continuous
   scrolling individually.
