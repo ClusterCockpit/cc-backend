@@ -8,64 +8,6 @@
     - `height String?`: Height of the card [Default: '310px']
  -->
 
-<script context="module">
-  function findJobThresholds(job, metricConfig) {
-    if (!job || !metricConfig) {
-      console.warn("Argument missing for findJobThresholds!");
-      return null;
-    }
-
-    // metricConfig is on subCluster-Level
-    const defaultThresholds = {
-      peak: metricConfig.peak,
-      normal: metricConfig.normal,
-      caution: metricConfig.caution,
-      alert: metricConfig.alert
-    };
-
-    /*
-      NEW: Footprints should be comparable: Always use Unchanged Single Node Thresholds, except for shared jobs.
-      HW Clocks, HW Temperatures and File/Net IO Thresholds will be scaled down too, even if they are independent.
-      'jf.stats' is one of: avg, min, max -> Always relative to one nodes' thresholds as configured.
-    */
-    if (job.exclusive === 1) {
-      return defaultThresholds
-    } else {
-      const topol = getContext("getHardwareTopology")(job.cluster, job.subCluster)
-      const jobFraction = job.numHWThreads / topol.node.length;
-      return {
-        peak: round(defaultThresholds.peak * jobFraction, 0),
-        normal: round(defaultThresholds.normal * jobFraction, 0),
-        caution: round(defaultThresholds.caution * jobFraction, 0),
-        alert: round(defaultThresholds.alert * jobFraction, 0),
-      };
-    }
-
-    /* OLD: Based on Metric Aggregation Setting
-      // Job_Exclusivity does not matter, only aggregation
-      if (metricConfig.aggregation === "avg") {
-        return defaultThresholds;
-      } else if (metricConfig.aggregation === "sum") {
-        const topol = getContext("getHardwareTopology")(job.cluster, job.subCluster)
-        const jobFraction = job.numHWThreads / topol.node.length;
-
-        return {
-          peak: round(defaultThresholds.peak * jobFraction, 0),
-          normal: round(defaultThresholds.normal * jobFraction, 0),
-          caution: round(defaultThresholds.caution * jobFraction, 0),
-          alert: round(defaultThresholds.alert * jobFraction, 0),
-        };
-      } else {
-        console.warn(
-          "Missing or unkown aggregation mode (sum/avg) for metric:",
-          metricConfig,
-        );
-        return defaultThresholds;
-      }
-    */
-  }
-</script>
-
 <script>
   import { getContext } from "svelte";
   import {
@@ -80,7 +22,7 @@
     TabPane
   } from "@sveltestrap/sveltestrap";
   import Polar from "../generic/plots/Polar.svelte";
-  import { round } from "mathjs";
+  import { findJobFootprintThresholds } from "../generic/utils.js";
 
   export let job;
   export let jobMetrics;
@@ -97,8 +39,7 @@
       const unit = (fmc?.unit?.prefix ? fmc.unit.prefix : "") + (fmc?.unit?.base ? fmc.unit.base : "")
 
       // Threshold / -Differences
-      const fmt = findJobThresholds(job, fmc);
-      if (jf.name === "flops_any") fmt.peak = round(fmt.peak * 0.85, 0);
+      const fmt = findJobFootprintThresholds(job, jf.stat, fmc);
 
       // Define basic data -> Value: Use as Provided
       const fmBase = {
