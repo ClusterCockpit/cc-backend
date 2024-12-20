@@ -78,6 +78,13 @@
       }}>Close & Apply</Button
     >
     <Button
+      color="warning"
+      on:click={() => {
+        states = [...allJobStates];
+        pendingStates = [];
+      }}>Deselect All</Button
+    >
+    <Button
       color="danger"
       on:click={() => {
         isOpen = false;
