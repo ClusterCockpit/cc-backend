@@ -50,7 +50,7 @@
   }
 
   // removed arg "subcluster": input metricconfig and topology now directly derived from subcluster
-  function findThresholds(
+  function findJobAggregationThresholds(
     subClusterTopology,
     metricConfig,
     scope,
@@ -60,7 +60,7 @@
   ) {
 
     if (!subClusterTopology || !metricConfig || !scope) {
-      console.warn("Argument missing for findThresholds!");
+      console.warn("Argument missing for findJobAggregationThresholds!");
       return null;
     }
 
@@ -96,7 +96,7 @@
       else if (scope == "hwthread")     divisor = subClusterTopology.core.length; // alt. name for core
       else if (scope == "accelerator")  divisor = subClusterTopology.accelerators.length;
       else {
-        console.log('Unknown scope, return default thresholds ', scope)
+        console.log('Unknown scope, return default aggregation thresholds ', scope)
         divisor = 1;
       }
 
@@ -157,7 +157,7 @@
     caution: "rgba(255, 128, 0, 0.3)",
     alert: "rgba(255, 0, 0, 0.3)",
   };
-  const thresholds = findThresholds(
+  const thresholds = findJobAggregationThresholds(
     subClusterTopology,
     metricConfig,
     scope,
