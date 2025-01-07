@@ -120,10 +120,13 @@
 
   function matchJobTags(tags, availableTags, type, isAdmin, isSupport) {
     const jobTagIds = tags.map((t) => t.id)
-    if (isAdmin || type == 'used') { // Always show used tags, admin also show all unused
+
+    if (type == 'used') { // Always show used tags
       return availableTags.filter((at) => jobTagIds.includes(at.id))
     } else { // ... for unused
-      if (isSupport) { // ... show global tags for support
+      if (isAdmin) { // ... show all tags for admin
+        return availableTags.filter((at) => !jobTagIds.includes(at.id))
+      } else if (isSupport) { // ... show global tags for support
         return availableTags.filter((at) => !jobTagIds.includes(at.id) && at.scope !== "admin")
       } else { // ... show only private tags for user, manager
         return availableTags.filter((at) => !jobTagIds.includes(at.id) && at.scope !== "admin" && at.scope !== "global")

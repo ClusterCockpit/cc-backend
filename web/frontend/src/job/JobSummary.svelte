@@ -8,44 +8,6 @@
     - `height String?`: Height of the card [Default: '310px']
  -->
 
-<script context="module">
-  function findJobThresholds(job, metricConfig) {
-    if (!job || !metricConfig) {
-      console.warn("Argument missing for findJobThresholds!");
-      return null;
-    }
-
-    // metricConfig is on subCluster-Level
-    const defaultThresholds = {
-      peak: metricConfig.peak,
-      normal: metricConfig.normal,
-      caution: metricConfig.caution,
-      alert: metricConfig.alert
-    };
-
-    // Job_Exclusivity does not matter, only aggregation
-    if (metricConfig.aggregation === "avg") {
-      return defaultThresholds;
-    } else if (metricConfig.aggregation === "sum") {
-      const topol = getContext("getHardwareTopology")(job.cluster, job.subCluster)
-      const jobFraction = job.numHWThreads / topol.node.length;
-
-      return {
-        peak: round(defaultThresholds.peak * jobFraction, 0),
-        normal: round(defaultThresholds.normal * jobFraction, 0),
-        caution: round(defaultThresholds.caution * jobFraction, 0),
-        alert: round(defaultThresholds.alert * jobFraction, 0),
-      };
-    } else {
-      console.warn(
-        "Missing or unkown aggregation mode (sum/avg) for metric:",
-        metricConfig,
-      );
-      return defaultThresholds;
-    }
-  }
-</script>
-
 <script>
   import { getContext } from "svelte";
   import {
@@ -60,7 +22,7 @@
     TabPane
   } from "@sveltestrap/sveltestrap";
   import Polar from "../generic/plots/Polar.svelte";
-  import { round } from "mathjs";
+  import { findJobFootprintThresholds } from "../generic/utils.js";
 
   export let job;
   export let jobMetrics;
@@ -77,8 +39,7 @@
       const unit = (fmc?.unit?.prefix ? fmc.unit.prefix : "") + (fmc?.unit?.base ? fmc.unit.base : "")
 
       // Threshold / -Differences
-      const fmt = findJobThresholds(job, fmc);
-      if (jf.name === "flops_any") fmt.peak = round(fmt.peak * 0.85, 0);
+      const fmt = findJobFootprintThresholds(job, jf.stat, fmc);
 
       // Define basic data -> Value: Use as Provided
       const fmBase = {
@@ -94,21 +55,21 @@
         return {
           ...fmBase,
           color: "danger",
-          message: `Metric average way ${fmc.lowerIsBetter ? "above" : "below"} expected normal thresholds.`,
+          message: `Footprint value way ${fmc.lowerIsBetter ? "above" : "below"} expected normal threshold.`,
           impact: 3
         };
       } else if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "caution")) {
         return {
           ...fmBase,
           color: "warning",
-          message: `Metric average ${fmc.lowerIsBetter ? "above" : "below"} expected normal thresholds.`,
+          message: `Footprint value ${fmc.lowerIsBetter ? "above" : "below"} expected normal threshold.`,
           impact: 2,
         };
       } else if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "normal")) {
         return {
           ...fmBase,
           color: "success",
-          message: "Metric average within expected thresholds.",
+          message: "Footprint value within expected thresholds.",
           impact: 1,
         };
       } else if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "peak")) {
@@ -116,7 +77,7 @@
           ...fmBase,
           color: "info",
           message:
-            "Metric average above expected normal thresholds: Check for artifacts recommended.",
+            "Footprint value above expected normal threshold: Check for artifacts recommended.",
           impact: 0,
         };
       } else {
@@ -124,7 +85,7 @@
           ...fmBase,
           color: "secondary",
           message:
-            "Metric average above expected peak threshold: Check for artifacts!",
+            "Footprint value above expected peak threshold: Check for artifacts!",
           impact: -1,
         };
       }
@@ -142,25 +103,25 @@
     return a.impact - b.impact || ((a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0));
   });;
 
-  function evalFootprint(mean, thresholds, lowerIsBetter, level) {
+  function evalFootprint(value, thresholds, lowerIsBetter, level) {
     // Handle Metrics in which less value is better
     switch (level) {
       case "peak":
         if (lowerIsBetter)
           return false; // metric over peak -> return false to trigger impact -1
-        else return mean <= thresholds.peak && mean > thresholds.normal;
+        else return value <= thresholds.peak && value > thresholds.normal;
       case "alert":
         if (lowerIsBetter)
-          return mean <= thresholds.peak && mean >= thresholds.alert;
-        else return mean <= thresholds.alert && mean >= 0;
+          return value <= thresholds.peak && value >= thresholds.alert;
+        else return value <= thresholds.alert && value >= 0;
       case "caution":
         if (lowerIsBetter)
-          return mean < thresholds.alert && mean >= thresholds.caution;
-        else return mean <= thresholds.caution && mean > thresholds.alert;
+          return value < thresholds.alert && value >= thresholds.caution;
+        else return value <= thresholds.caution && value > thresholds.alert;
       case "normal":
         if (lowerIsBetter)
-          return mean < thresholds.caution && mean >= 0;
-        else return mean <= thresholds.normal && mean > thresholds.caution;
+          return value < thresholds.caution && value >= 0;
+        else return value <= thresholds.normal && value > thresholds.caution;
       default:
         return false;
     }
@@ -244,10 +205,14 @@
                   id={`footprint-${job.jobId}-${index}`}
                 >
                   <div class="mx-1">
-                    {#if fpd.impact === 3 || fpd.impact === -1}
+                    {#if fpd.impact === 3}
                       <Icon name="exclamation-triangle-fill" class="text-danger" />
                     {:else if fpd.impact === 2}
                       <Icon name="exclamation-triangle" class="text-warning" />
+                    {:else if fpd.impact === 0}
+                      <Icon name="info-circle" class="text-info" />
+                    {:else if fpd.impact === -1}
+                      <Icon name="info-circle-fill" class="text-danger" />
                     {/if}
                     {#if fpd.impact === 3}
                       <Icon name="emoji-frown" class="text-danger" />
@@ -256,7 +221,7 @@
                     {:else if fpd.impact === 1}
                       <Icon name="emoji-smile" class="text-success" />
                     {:else if fpd.impact === 0}
-                      <Icon name="emoji-laughing" class="text-info" />
+                      <Icon name="emoji-smile" class="text-info" />
                     {:else if fpd.impact === -1}
                       <Icon name="emoji-dizzy" class="text-danger" />
                     {/if}

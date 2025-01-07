@@ -50,7 +50,7 @@
   }
 
   // removed arg "subcluster": input metricconfig and topology now directly derived from subcluster
-  function findThresholds(
+  function findJobAggregationThresholds(
     subClusterTopology,
     metricConfig,
     scope,
@@ -60,8 +60,14 @@
   ) {
 
     if (!subClusterTopology || !metricConfig || !scope) {
-      console.warn("Argument missing for findThresholds!");
+      console.warn("Argument missing for findJobAggregationThresholds!");
       return null;
+    }
+
+    // handle special *-stat scopes
+    if (scope.match(/(.*)-stat$/)) {
+      const statParts = scope.split('-');
+      scope = statParts[0]
     }
 
     if (
@@ -78,19 +84,20 @@
 
 
     if (metricConfig?.aggregation == "sum") {
-      let divisor = 1
+      let divisor;
       if (isShared == true) { // Shared
         if (numaccs > 0) divisor = subClusterTopology.accelerators.length / numaccs;
-        else if (numhwthreads > 0) divisor = subClusterTopology.node.length / numhwthreads;
+        else if (numhwthreads > 0) divisor = subClusterTopology.core.length / numhwthreads;
       }
-      else if (scope == 'socket') divisor = subClusterTopology.socket.length;
-      else if (scope == "core") divisor = subClusterTopology.core.length;
-      else if (scope == "accelerator")
-        divisor = subClusterTopology.accelerators.length;
-      else if (scope == "hwthread") divisor = subClusterTopology.node.length;
+      else if (scope == 'node')         divisor = 1; // Use as configured for nodes
+      else if (scope == 'socket')       divisor = subClusterTopology.socket.length;
+      else if (scope == "memoryDomain") divisor = subClusterTopology.memoryDomain.length;
+      else if (scope == "core")         divisor = subClusterTopology.core.length;
+      else if (scope == "hwthread")     divisor = subClusterTopology.core.length; // alt. name for core
+      else if (scope == "accelerator")  divisor = subClusterTopology.accelerators.length;
       else {
-        // console.log('TODO: how to calc thresholds for ', scope)
-        return null;
+        console.log('Unknown scope, return default aggregation thresholds ', scope)
+        divisor = 1;
       }
 
       return {
@@ -130,6 +137,7 @@
   export let numhwthreads = 0;
   export let numaccs = 0;
   export let zoomState = null;
+  export let thresholdState = null;
 
   if (useStatsSeries == null) useStatsSeries = statisticsSeries != null;
   if (useStatsSeries == false && series == null) useStatsSeries = true;
@@ -149,7 +157,7 @@
     caution: "rgba(255, 128, 0, 0.3)",
     alert: "rgba(255, 0, 0, 0.3)",
   };
-  const thresholds = findThresholds(
+  const thresholds = findJobAggregationThresholds(
     subClusterTopology,
     metricConfig,
     scope,
@@ -468,12 +476,14 @@
                 // console.log('Dispatch Zoom with Res from / to', timestep, closest)
                 dispatch('zoom', {
                   newRes: closest,
-                  lastZoomState: u?.scales
+                  lastZoomState: u?.scales,
+                  lastThreshold: thresholds?.normal
                 });
               }
             } else {
               dispatch('zoom', {
-                lastZoomState: u?.scales
+                lastZoomState: u?.scales,
+                lastThreshold: thresholds?.normal
               });
             };
           };
@@ -498,16 +508,19 @@
   let timeoutId = null;
 
   function render(ren_width, ren_height) {
-    if (!uplot) { // Init uPlot
+    if (!uplot) {
       opts.width = ren_width;
       opts.height = ren_height;
-      if (zoomState) {
+      if (zoomState && metricConfig?.aggregation == "avg") {
         opts.scales = {...zoomState}
+      } else if (zoomState && metricConfig?.aggregation == "sum") {
+        // Allow Zoom In === Ymin changed
+        if (zoomState.y.min !== 0) { // scope change?: only use zoomState if thresholds match
+          if ((thresholdState === thresholds?.normal)) { opts.scales = {...zoomState} };
+        } // else: reset scaling to default
       }
-      // console.log('Init Sizes ...', { width: opts.width, height: opts.height })
       uplot = new uPlot(opts, plotData, plotWrapper);
-    } else { // Update size
-      // console.log('Update uPlot ...', { width: ren_width, height: ren_height })
+    } else {
       uplot.setSize({ width: ren_width, height: ren_height });
     }
   }

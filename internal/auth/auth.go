@@ -188,6 +188,10 @@ func (auth *Authentication) SaveSession(rw http.ResponseWriter, r *http.Request,
 	if auth.SessionMaxAge != 0 {
 		session.Options.MaxAge = int(auth.SessionMaxAge.Seconds())
 	}
+	if config.Keys.HttpsCertFile == "" && config.Keys.HttpsKeyFile == "" {
+		session.Options.Secure = false
+	}
+	session.Options.SameSite = http.SameSiteStrictMode
 	session.Values["username"] = user.Username
 	session.Values["projects"] = user.Projects
 	session.Values["roles"] = user.Roles
@@ -201,7 +205,6 @@ func (auth *Authentication) SaveSession(rw http.ResponseWriter, r *http.Request,
 }
 
 func (auth *Authentication) Login(
-	onsuccess http.Handler,
 	onfailure func(rw http.ResponseWriter, r *http.Request, loginErr error),
 ) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
@@ -238,7 +241,13 @@ func (auth *Authentication) Login(
 
 			log.Infof("login successfull: user: %#v (roles: %v, projects: %v)", user.Username, user.Roles, user.Projects)
 			ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
-			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+
+			if r.FormValue("redirect") != "" {
+				http.RedirectHandler(r.FormValue("redirect"), http.StatusFound).ServeHTTP(rw, r.WithContext(ctx))
+				return
+			}
+
+			http.RedirectHandler("/", http.StatusFound).ServeHTTP(rw, r.WithContext(ctx))
 			return
 		}
 

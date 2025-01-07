@@ -17,17 +17,17 @@ import (
 type JobData map[string]map[MetricScope]*JobMetric
 
 type JobMetric struct {
-	Unit             Unit         `json:"unit"`
-	Timestep         int          `json:"timestep"`
-	Series           []Series     `json:"series"`
 	StatisticsSeries *StatsSeries `json:"statisticsSeries,omitempty"`
+	Unit             Unit         `json:"unit"`
+	Series           []Series     `json:"series"`
+	Timestep         int          `json:"timestep"`
 }
 
 type Series struct {
-	Hostname   string           `json:"hostname"`
 	Id         *string          `json:"id,omitempty"`
-	Statistics MetricStatistics `json:"statistics"`
+	Hostname   string           `json:"hostname"`
 	Data       []Float          `json:"data"`
+	Statistics MetricStatistics `json:"statistics"`
 }
 
 type MetricStatistics struct {
@@ -37,11 +37,11 @@ type MetricStatistics struct {
 }
 
 type StatsSeries struct {
+	Percentiles map[int][]Float `json:"percentiles,omitempty"`
 	Mean        []Float         `json:"mean"`
 	Median      []Float         `json:"median"`
 	Min         []Float         `json:"min"`
 	Max         []Float         `json:"max"`
-	Percentiles map[int][]Float `json:"percentiles,omitempty"`
 }
 
 type MetricScope string
@@ -229,7 +229,7 @@ func (jd *JobData) AddNodeScope(metric string) bool {
 		return false
 	}
 
-	var maxScope MetricScope = MetricScopeInvalid
+	maxScope := MetricScopeInvalid
 	for scope := range scopes {
 		maxScope = maxScope.Max(scope)
 	}

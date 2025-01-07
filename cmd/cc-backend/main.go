@@ -13,6 +13,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/ClusterCockpit/cc-backend/internal/archiver"
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
@@ -111,7 +112,7 @@ func main() {
 
 	if flagInit {
 		initEnv()
-		fmt.Print("Succesfully setup environment!\n")
+		fmt.Print("Successfully setup environment!\n")
 		fmt.Print("Please review config.json and .env and adjust it to your needs.\n")
 		fmt.Print("Add your job-archive at ./var/job-archive.\n")
 		os.Exit(0)
@@ -201,15 +202,9 @@ func main() {
 		return
 	}
 
+	archiver.Start(repository.GetJobRepository())
 	taskManager.Start()
 	serverInit()
-
-	// Because this program will want to bind to a privileged port (like 80), the listener must
-	// be established first, then the user can be changed, and after that,
-	// the actual http server can be started.
-	if err := runtimeEnv.DropPrivileges(config.Keys.Group, config.Keys.User); err != nil {
-		log.Fatalf("error while preparing server start: %s", err.Error())
-	}
 
 	var wg sync.WaitGroup
 

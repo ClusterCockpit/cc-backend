@@ -76,7 +76,7 @@
     numHWThreads: filterPresets.numHWThreads || { from: null, to: null },
     numAccelerators: filterPresets.numAccelerators || { from: null, to: null },
 
-    stats: [],
+    stats: filterPresets.stats || [],
   };
 
   let isClusterOpen = false,
@@ -127,27 +127,30 @@
       items.push({ jobId: { [filters.jobIdMatch]: filters.jobId } });
     if (filters.arrayJobId != null)
       items.push({ arrayJobId: filters.arrayJobId });
-    if (filters.numNodes.from != null || filters.numNodes.to != null)
+    if (filters.numNodes.from != null || filters.numNodes.to != null) {
       items.push({
         numNodes: { from: filters.numNodes.from, to: filters.numNodes.to },
       });
-    if (filters.numHWThreads.from != null || filters.numHWThreads.to != null)
+      isNodesModified = true;
+    }
+    if (filters.numHWThreads.from != null || filters.numHWThreads.to != null) {
       items.push({
         numHWThreads: {
           from: filters.numHWThreads.from,
           to: filters.numHWThreads.to,
         },
       });
-    if (
-      filters.numAccelerators.from != null ||
-      filters.numAccelerators.to != null
-    )
+      isHwthreadsModified = true;
+    }
+    if (filters.numAccelerators.from != null || filters.numAccelerators.to != null) {
       items.push({
         numAccelerators: {
           from: filters.numAccelerators.from,
           to: filters.numAccelerators.to,
         },
       });
+      isAccsModified = true;
+    }
     if (filters.user)
       items.push({ user: { [filters.userMatch]: filters.user } });
     if (filters.project)
@@ -197,10 +200,10 @@
       opts.push(`energy=${filters.energy.from}-${filters.energy.to}`);
     if (filters.numNodes.from && filters.numNodes.to)
       opts.push(`numNodes=${filters.numNodes.from}-${filters.numNodes.to}`);
+    if (filters.numHWThreads.from && filters.numHWThreads.to)
+      opts.push(`numHWThreads=${filters.numHWThreads.from}-${filters.numHWThreads.to}`);
     if (filters.numAccelerators.from && filters.numAccelerators.to)
-      opts.push(
-        `numAccelerators=${filters.numAccelerators.from}-${filters.numAccelerators.to}`,
-      );
+      opts.push(`numAccelerators=${filters.numAccelerators.from}-${filters.numAccelerators.to}`);
     if (filters.user.length != 0)
       if (filters.userMatch != "in") {
         opts.push(`user=${filters.user}`);
@@ -214,7 +217,10 @@
     if (filters.arrayJobId) opts.push(`arrayJobId=${filters.arrayJobId}`);
     if (filters.project && filters.projectMatch != "contains")
       opts.push(`projectMatch=${filters.projectMatch}`);
-
+    if (filters.stats.length != 0)
+      for (let stat of filters.stats) {
+          opts.push(`stat=${stat.field}-${stat.from}-${stat.to}`);
+      }
     if (opts.length == 0 && window.location.search.length <= 1) return;
 
     let newurl = `${window.location.pathname}?${opts.join("&")}`;
@@ -364,8 +370,7 @@
     {#if (isNodesModified || isHwthreadsModified) && isAccsModified},
     {/if}
     {#if isAccsModified}
-      Accelerators: {filters.numAccelerators.from} - {filters
-        .numAccelerators.to}
+      Accelerators: {filters.numAccelerators.from} - {filters.numAccelerators.to}
     {/if}
   </Info>
 {/if}
@@ -385,7 +390,7 @@
 {#if filters.stats.length > 0}
   <Info icon="bar-chart" on:click={() => (isStatsOpen = true)}>
     {filters.stats
-      .map((stat) => `${stat.text}: ${stat.from} - ${stat.to}`)
+      .map((stat) => `${stat.field}: ${stat.from} - ${stat.to}`)
       .join(", ")}
   </Info>
 {/if}

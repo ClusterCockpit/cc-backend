@@ -111,7 +111,7 @@ func BenchmarkDB_QueryJobs(b *testing.B) {
 	user := "mppi133h"
 	filter.User = &model.StringInput{Eq: &user}
 	page := &model.PageRequest{ItemsPerPage: 50, Page: 1}
-	order := &model.OrderByInput{Field: "startTime", Order: model.SortDirectionEnumDesc}
+	order := &model.OrderByInput{Field: "startTime", Type: "col", Order: model.SortDirectionEnumDesc}
 
 	b.Run("QueryJobs", func(b *testing.B) {
 		db := setup(b)

@@ -37,8 +37,9 @@ func (r *JobRepository) Find(
 		q = q.Where("job.start_time = ?", *startTime)
 	}
 
-	log.Debugf("Timer Find %s", time.Since(start))
+	q = q.OrderBy("job.id DESC") // always use newest matching job by db id if more than one match
 
+	log.Debugf("Timer Find %s", time.Since(start))
 	return scanJob(q.RunWith(r.stmtCache).QueryRow())
 }
 
@@ -98,6 +99,23 @@ func (r *JobRepository) FindById(ctx context.Context, jobId int64) (*schema.Job,
 	return scanJob(q.RunWith(r.stmtCache).QueryRow())
 }
 
+// FindByIdWithUser executes a SQL query to find a specific batch job.
+// The job is queried using the database id. The user is passed directly,
+// instead as part of the context.
+// It returns a pointer to a schema.Job data structure and an error variable.
+// To check if no job was found test err == sql.ErrNoRows
+func (r *JobRepository) FindByIdWithUser(user *schema.User, jobId int64) (*schema.Job, error) {
+	q := sq.Select(jobColumns...).
+		From("job").Where("job.id = ?", jobId)
+
+	q, qerr := SecurityCheckWithUser(user, q)
+	if qerr != nil {
+		return nil, qerr
+	}
+
+	return scanJob(q.RunWith(r.stmtCache).QueryRow())
+}
+
 // FindByIdDirect executes a SQL query to find a specific batch job.
 // The job is queried using the database id.
 // It returns a pointer to a schema.Job data structure and an error variable.
@@ -135,7 +153,7 @@ func (r *JobRepository) IsJobOwner(jobId int64, startTime int64, user string, cl
 	q := sq.Select("id").
 		From("job").
 		Where("job.job_id = ?", jobId).
-		Where("job.user = ?", user).
+		Where("job.hpc_user = ?", user).
 		Where("job.cluster = ?", cluster).
 		Where("job.start_time = ?", startTime)
 

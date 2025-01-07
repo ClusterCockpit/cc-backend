@@ -11,7 +11,7 @@
     "@rollup/plugin-node-resolve": "^15.3.0",
     "@rollup/plugin-terser": "^0.4.4",
     "@timohausmann/quadtree-js": "^1.2.6",
-    "rollup": "^4.24.0",
+    "rollup": "^4.27.4",
     "rollup-plugin-css-only": "^4.5.2",
     "rollup-plugin-svelte": "^7.2.2",
     "svelte": "^4.2.19"
@@ -19,8 +19,8 @@
   "dependencies": {
     "@rollup/plugin-replace": "^5.0.7",
     "@sveltestrap/sveltestrap": "^6.2.7",
-    "@urql/svelte": "^4.2.1",
-    "chart.js": "^4.4.5",
+    "@urql/svelte": "^4.2.2",
+    "chart.js": "^4.4.6",
     "date-fns": "^2.30.0",
     "graphql": "^16.9.0",
     "mathjs": "^12.4.3",

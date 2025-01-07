@@ -14,7 +14,7 @@ import (
 
 func RegisterUpdateDurationWorker() {
 	var frequency string
-	if config.Keys.CronFrequency.DurationWorker != "" {
+	if config.Keys.CronFrequency != nil && config.Keys.CronFrequency.DurationWorker != "" {
 		frequency = config.Keys.CronFrequency.DurationWorker
 	} else {
 		frequency = "5m"

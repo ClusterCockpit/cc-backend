@@ -35,7 +35,7 @@ type Route struct {
 
 var routes []Route = []Route{
 	{"/", "home.tmpl", "ClusterCockpit", false, setupHomeRoute},
-	{"/config", "config.tmpl", "Settings", false, func(i InfoType, r *http.Request) InfoType { return i }},
+	{"/config", "config.tmpl", "Settings", false, setupConfigRoute},
 	{"/monitoring/jobs/", "monitoring/jobs.tmpl", "Jobs - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { return i }},
 	{"/monitoring/job/{id:[0-9]+}", "monitoring/job.tmpl", "Job <ID> - ClusterCockpit", false, setupJobRoute},
 	{"/monitoring/users/", "monitoring/list.tmpl", "Users - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { i["listType"] = "USER"; return i }},
@@ -53,15 +53,19 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 	jobRepo := repository.GetJobRepository()
 	groupBy := model.AggregateCluster
 
+	// startJobCount := time.Now()
 	stats, err := jobRepo.JobCountGrouped(r.Context(), nil, &groupBy)
 	if err != nil {
 		log.Warnf("failed to count jobs: %s", err.Error())
 	}
+	// log.Infof("Timer HOME ROUTE startJobCount: %s", time.Since(startJobCount))
 
+	// startRunningJobCount := time.Now()
 	stats, err = jobRepo.AddJobCountGrouped(r.Context(), nil, &groupBy, stats, "running")
 	if err != nil {
 		log.Warnf("failed to count running jobs: %s", err.Error())
 	}
+	// log.Infof("Timer HOME ROUTE startRunningJobCount: %s", time.Since(startRunningJobCount))
 
 	i["clusters"] = stats
 
@@ -71,6 +75,17 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 			log.Warnf("failed to read notice.txt file: %s", err.Error())
 		} else {
 			i["message"] = string(msg)
+		}
+	}
+
+	return i
+}
+
+func setupConfigRoute(i InfoType, r *http.Request) InfoType {
+	if util.CheckFileExists("./var/notice.txt") {
+		msg, err := os.ReadFile("./var/notice.txt")
+		if err == nil {
+			i["ncontent"] = string(msg)
 		}
 	}
 
@@ -157,7 +172,7 @@ func setupAnalysisRoute(i InfoType, r *http.Request) InfoType {
 
 func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 	jobRepo := repository.GetJobRepository()
-	tags, counts, err := jobRepo.CountTags(r.Context())
+	tags, counts, err := jobRepo.CountTags(repository.GetUserFromContext(r.Context()))
 	tagMap := make(map[string][]map[string]interface{})
 	if err != nil {
 		log.Warnf("GetTags failed: %s", err.Error())
@@ -196,6 +211,7 @@ func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 	return i
 }
 
+// FIXME: Lots of redundant code. Needs refactoring
 func buildFilterPresets(query url.Values) map[string]interface{} {
 	filterPresets := map[string]interface{}{}
 
@@ -258,6 +274,16 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 			}
 		}
 	}
+	if query.Get("numHWThreads") != "" {
+		parts := strings.Split(query.Get("numHWThreads"), "-")
+		if len(parts) == 2 {
+			a, e1 := strconv.Atoi(parts[0])
+			b, e2 := strconv.Atoi(parts[1])
+			if e1 == nil && e2 == nil {
+				filterPresets["numHWThreads"] = map[string]int{"from": a, "to": b}
+			}
+		}
+	}
 	if query.Get("numAccelerators") != "" {
 		parts := strings.Split(query.Get("numAccelerators"), "-")
 		if len(parts) == 2 {
@@ -299,7 +325,35 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 			}
 		}
 	}
-
+	if query.Get("energy") != "" {
+		parts := strings.Split(query.Get("energy"), "-")
+		if len(parts) == 2 {
+			a, e1 := strconv.Atoi(parts[0])
+			b, e2 := strconv.Atoi(parts[1])
+			if e1 == nil && e2 == nil {
+				filterPresets["energy"] = map[string]int{"from": a, "to": b}
+			}
+		}
+	}
+	if len(query["stat"]) != 0 {
+		statList := make([]map[string]interface{}, 0)
+		for _, statEntry := range query["stat"] {
+			parts := strings.Split(statEntry, "-")
+			if len(parts) == 3 { // Metric Footprint Stat Field, from - to
+				a, e1 := strconv.ParseInt(parts[1], 10, 64)
+				b, e2 := strconv.ParseInt(parts[2], 10, 64)
+				if e1 == nil && e2 == nil {
+					statEntry := map[string]interface{}{
+						"field": parts[0],
+						"from":  a,
+						"to":    b,
+					}
+					statList = append(statList, statEntry)
+				}
+			}
+		}
+		filterPresets["stats"] = statList
+	}
 	return filterPresets
 }
 
@@ -322,6 +376,7 @@ func SetupRoutes(router *mux.Router, buildInfo web.Build) {
 
 			// Get User -> What if NIL?
 			user := repository.GetUserFromContext(r.Context())
+
 			// Get Roles
 			availableRoles, _ := schema.GetValidRolesMap(user)
 

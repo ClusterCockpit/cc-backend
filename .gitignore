@@ -17,3 +17,5 @@ var/job.db-wal
 
 dist/
 *.db
+internal/repository/testdata/job.db-shm
+internal/repository/testdata/job.db-wal

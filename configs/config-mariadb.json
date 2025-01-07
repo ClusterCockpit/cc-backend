@@ -8,6 +8,8 @@
   "jwts": {
     "max-age": "2000h"
   },
+  "db-driver": "mysql",
+  "db": "clustercockpit:demo@tcp(127.0.0.1:3306)/clustercockpit",
   "enable-resampling": {
     "trigger": 30,
     "resolutions": [

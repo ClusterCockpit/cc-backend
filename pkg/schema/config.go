@@ -57,9 +57,9 @@ type IntRange struct {
 }
 
 type TimeRange struct {
-	Range string     `json:"range,omitempty"` // Optional, e.g. 'last6h'
 	From  *time.Time `json:"from"`
 	To    *time.Time `json:"to"`
+	Range string     `json:"range,omitempty"`
 }
 
 type FilterRanges struct {
@@ -82,16 +82,16 @@ type Retention struct {
 }
 
 type ResampleConfig struct {
-	// Trigger next zoom level at less than this many visible datapoints
-	Trigger int `json:"trigger"`
 	// Array of resampling target resolutions, in seconds; Example: [600,300,60]
 	Resolutions []int `json:"resolutions"`
+	// Trigger next zoom level at less than this many visible datapoints
+	Trigger int `json:"trigger"`
 }
 
 type CronFrequency struct {
 	// Duration Update Worker [Defaults to '5m']
 	DurationWorker string `json:"duration-worker"`
-	// Metric- and Energy Footprint Update Worker [Defaults to '10m']
+	// Metric-Footprint Update Worker [Defaults to '10m']
 	FootprintWorker string `json:"footprint-worker"`
 }
 
@@ -164,13 +164,13 @@ type ProgramConfig struct {
 	// Defines time X in seconds in which jobs are considered to be "short" and will be filtered in specific views.
 	ShortRunningJobsDuration int `json:"short-running-jobs-duration"`
 
-	// Array of Clusters
-	Clusters []*ClusterConfig `json:"clusters"`
-
 	// Energy Mix CO2 Emission Constant [g/kWh]
 	// If entered, displays estimated CO2 emission for job based on jobs totalEnergy
 	EmissionConstant int `json:"emission-constant"`
 
 	// Frequency of cron job workers
 	CronFrequency *CronFrequency `json:"cron-frequency"`
+
+	// Array of Clusters
+	Clusters []*ClusterConfig `json:"clusters"`
 }

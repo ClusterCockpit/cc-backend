@@ -99,6 +99,7 @@ type Page struct {
 	Infos         map[string]interface{} // For generic use (e.g. username for /monitoring/user/<id>, job id for /monitoring/job/<id>)
 	Config        map[string]interface{} // UI settings for the currently logged in user (e.g. line width, ...)
 	Resampling    *schema.ResampleConfig // If not nil, defines resampling trigger and resolutions
+	Redirect      string                 // The originally requested URL, for intermediate login handling
 }
 
 func RenderTemplate(rw http.ResponseWriter, file string, page *Page) {

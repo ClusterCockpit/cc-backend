@@ -107,8 +107,7 @@ func (r *JobRepository) CountJobs(
 	return count, nil
 }
 
-func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (sq.SelectBuilder, error) {
-	user := GetUserFromContext(ctx)
+func SecurityCheckWithUser(user *schema.User, query sq.SelectBuilder) (sq.SelectBuilder, error) {
 	if user == nil {
 		var qnil sq.SelectBuilder
 		return qnil, fmt.Errorf("user context is nil")
@@ -121,17 +120,23 @@ func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (sq.SelectBuilde
 		return query, nil
 	case user.HasRole(schema.RoleManager): // Manager : Add filter for managed projects' jobs only + personal jobs
 		if len(user.Projects) != 0 {
-			return query.Where(sq.Or{sq.Eq{"job.project": user.Projects}, sq.Eq{"job.user": user.Username}}), nil
+			return query.Where(sq.Or{sq.Eq{"job.project": user.Projects}, sq.Eq{"job.hpc_user": user.Username}}), nil
 		} else {
 			log.Debugf("Manager-User '%s' has no defined projects to lookup! Query only personal jobs ...", user.Username)
-			return query.Where("job.user = ?", user.Username), nil
+			return query.Where("job.hpc_user = ?", user.Username), nil
 		}
 	case user.HasRole(schema.RoleUser): // User : Only personal jobs
-		return query.Where("job.user = ?", user.Username), nil
+		return query.Where("job.hpc_user = ?", user.Username), nil
 	default: // No known Role, return error
 		var qnil sq.SelectBuilder
 		return qnil, fmt.Errorf("user has no or unknown roles")
 	}
+}
+
+func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (sq.SelectBuilder, error) {
+	user := GetUserFromContext(ctx)
+
+	return SecurityCheckWithUser(user, query)
 }
 
 // Build a sq.SelectBuilder out of a schema.JobFilter.
@@ -147,7 +152,7 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 		query = query.Where("job.array_job_id = ?", *filter.ArrayJobID)
 	}
 	if filter.User != nil {
-		query = buildStringCondition("job.user", filter.User, query)
+		query = buildStringCondition("job.hpc_user", filter.User, query)
 	}
 	if filter.Project != nil {
 		query = buildStringCondition("job.project", filter.Project, query)
@@ -159,14 +164,13 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 		query = buildStringCondition("job.cluster", filter.Cluster, query)
 	}
 	if filter.Partition != nil {
-		query = buildStringCondition("job.partition", filter.Partition, query)
+		query = buildStringCondition("job.cluster_partition", filter.Partition, query)
 	}
 	if filter.StartTime != nil {
 		query = buildTimeCondition("job.start_time", filter.StartTime, query)
 	}
 	if filter.Duration != nil {
-		now := time.Now().Unix() // There does not seam to be a portable way to get the current unix timestamp accross different DBs.
-		query = query.Where("(CASE WHEN job.job_state = 'running' THEN (? - job.start_time) ELSE job.duration END) BETWEEN ? AND ?", now, filter.Duration.From, filter.Duration.To)
+		query = buildIntCondition("job.duration", filter.Duration, query)
 	}
 	if filter.MinRunningFor != nil {
 		now := time.Now().Unix() // There does not seam to be a portable way to get the current unix timestamp accross different DBs.

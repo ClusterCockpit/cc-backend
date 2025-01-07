@@ -31,15 +31,12 @@ func (r *clusterResolver) Partitions(ctx context.Context, obj *schema.Cluster) (
 
 // Tags is the resolver for the tags field.
 func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error) {
-	return r.Repo.GetTags(ctx, &obj.ID)
+	return r.Repo.GetTags(repository.GetUserFromContext(ctx), &obj.ID)
 }
 
 // ConcurrentJobs is the resolver for the concurrentJobs field.
 func (r *jobResolver) ConcurrentJobs(ctx context.Context, obj *schema.Job) (*model.JobLinkResultList, error) {
-	if obj.State == schema.JobStateRunning {
-		obj.Duration = int32(time.Now().Unix() - obj.StartTimeUnix)
-	}
-
+	// FIXME: Make the hardcoded duration configurable
 	if obj.Exclusive != 1 && obj.Duration > 600 {
 		return r.Repo.FindConcurrentJobs(ctx, obj)
 	}
@@ -159,7 +156,7 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 			return nil, err
 		}
 
-		if tags, err = r.Repo.AddTag(ctx, jid, tid); err != nil {
+		if tags, err = r.Repo.AddTag(repository.GetUserFromContext(ctx), jid, tid); err != nil {
 			log.Warn("Error while adding tag")
 			return nil, err
 		}
@@ -185,7 +182,7 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 			return nil, err
 		}
 
-		if tags, err = r.Repo.RemoveTag(ctx, jid, tid); err != nil {
+		if tags, err = r.Repo.RemoveTag(repository.GetUserFromContext(ctx), jid, tid); err != nil {
 			log.Warn("Error while removing tag")
 			return nil, err
 		}
@@ -211,7 +208,7 @@ func (r *queryResolver) Clusters(ctx context.Context) ([]*schema.Cluster, error)
 
 // Tags is the resolver for the tags field.
 func (r *queryResolver) Tags(ctx context.Context) ([]*schema.Tag, error) {
-	return r.Repo.GetTags(ctx, nil)
+	return r.Repo.GetTags(repository.GetUserFromContext(ctx), nil)
 }
 
 // GlobalMetrics is the resolver for the globalMetrics field.
@@ -496,9 +493,11 @@ func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 // SubCluster returns generated.SubClusterResolver implementation.
 func (r *Resolver) SubCluster() generated.SubClusterResolver { return &subClusterResolver{r} }
 
-type clusterResolver struct{ *Resolver }
-type jobResolver struct{ *Resolver }
-type metricValueResolver struct{ *Resolver }
-type mutationResolver struct{ *Resolver }
-type queryResolver struct{ *Resolver }
-type subClusterResolver struct{ *Resolver }
+type (
+	clusterResolver     struct{ *Resolver }
+	jobResolver         struct{ *Resolver }
+	metricValueResolver struct{ *Resolver }
+	mutationResolver    struct{ *Resolver }
+	queryResolver       struct{ *Resolver }
+	subClusterResolver  struct{ *Resolver }
+)

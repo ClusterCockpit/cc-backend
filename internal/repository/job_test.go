@@ -59,7 +59,7 @@ func TestGetTags(t *testing.T) {
 	ctx := context.WithValue(getContext(t), contextUserKey, contextUserValue)
 
 	// Test Tag has Scope "global"
-	tags, counts, err := r.CountTags(ctx)
+	tags, counts, err := r.CountTags(GetUserFromContext(ctx))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -18,9 +18,9 @@ import (
 type BaseJob struct {
 	Cluster            string             `json:"cluster" db:"cluster" example:"fritz"`
 	SubCluster         string             `json:"subCluster" db:"subcluster" example:"main"`
-	Partition          string             `json:"partition,omitempty" db:"partition" example:"main"`
+	Partition          string             `json:"partition,omitempty" db:"cluster_partition" example:"main"`
 	Project            string             `json:"project" db:"project" example:"abcd200"`
-	User               string             `json:"user" db:"user" example:"abcd100h"`
+	User               string             `json:"user" db:"hpc_user" example:"abcd100h"`
 	State              JobState           `json:"jobState" db:"job_state" example:"completed" enums:"completed,failed,cancelled,stopped,timeout,out_of_memory"`
 	Tags               []*Tag             `json:"tags,omitempty"`
 	RawEnergyFootprint []byte             `json:"-" db:"energy_footprint"`

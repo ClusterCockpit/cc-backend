@@ -5,10 +5,10 @@
     - `cluster Object?`: The currently selected cluster config [Default: null]
     - `isOpen Bool?`: Is this filter component opened [Default: false]
     - `numNodes Object?`: The currently selected numNodes filter [Default: {from:null, to:null}]
-    - `numHWThreads Object?`: The currently selected numHWTreads filter [Default: {from:null, to:null}]
+    - `numHWThreads Object?`: The currently selected numHWThreads filter [Default: {from:null, to:null}]
     - `numAccelerators Object?`: The currently selected numAccelerators filter [Default: {from:null, to:null}]
     - `isNodesModified Bool?`: Is the node filter modified [Default: false]
-    - `isHwtreadsModified Bool?`: Is the Hwthreads filter modified [Default: false]
+    - `isHwthreadsModified Bool?`: Is the Hwthreads filter modified [Default: false]
     - `isAccsModified Bool?`: Is the Accelerator filter modified [Default: false]
     - `namedNode String?`: The currently selected single named node (= hostname) [Default: null]
 
@@ -60,7 +60,7 @@
     );
 
   // Limited to Single-Node Thread Count
-  const findMaxNumHWTreadsPerNode = (clusters) =>
+  const findMaxNumHWThreadsPerNode = (clusters) =>
     clusters.reduce(
       (max, cluster) =>
         Math.max(
@@ -91,13 +91,13 @@
         minNumNodes = filterRanges.numNodes.from;
         maxNumNodes = filterRanges.numNodes.to;
         maxNumAccelerators = findMaxNumAccels([{ subClusters }]);
-        maxNumHWThreads = findMaxNumHWTreadsPerNode([{ subClusters }]);
+        maxNumHWThreads = findMaxNumHWThreadsPerNode([{ subClusters }]);
       } else if (clusters.length > 0) {
         const { filterRanges } = header.clusters[0];
         minNumNodes = filterRanges.numNodes.from;
         maxNumNodes = filterRanges.numNodes.to;
         maxNumAccelerators = findMaxNumAccels(clusters);
-        maxNumHWThreads = findMaxNumHWTreadsPerNode(clusters);
+        maxNumHWThreads = findMaxNumHWThreadsPerNode(clusters);
         for (let cluster of header.clusters) {
           const { filterRanges } = cluster;
           minNumNodes = Math.min(minNumNodes, filterRanges.numNodes.from);

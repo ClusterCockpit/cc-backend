@@ -42,11 +42,11 @@ type User struct {
 	Username   string     `json:"username"`
 	Password   string     `json:"-"`
 	Name       string     `json:"name"`
+	Email      string     `json:"email"`
 	Roles      []string   `json:"roles"`
+	Projects   []string   `json:"projects"`
 	AuthType   AuthType   `json:"authType"`
 	AuthSource AuthSource `json:"authSource"`
-	Email      string     `json:"email"`
-	Projects   []string   `json:"projects"`
 }
 
 func (u *User) HasProject(project string) bool {
