@@ -553,7 +553,7 @@
 </script>
 
 <!-- Define $width Wrapper and NoData Card -->
-{#if series[0].data.length > 0}
+{#if series[0]?.data && series[0].data.length > 0}
   <div bind:this={plotWrapper} bind:clientWidth={width}
         style="background-color: {backgroundColor()};" class={forNode ? 'py-2 rounded' : 'rounded'}
   />

@@ -320,12 +320,14 @@ func (idb *InfluxDBv2DataRepository) LoadNodeListData(
 	scopes []schema.MetricScope,
 	resolution int,
 	from, to time.Time,
-	page model.PageRequest,
+	page *model.PageRequest,
 	ctx context.Context,
-) (map[string]map[string]map[schema.MetricScope]*schema.JobMetric, error) {
+) (map[string]map[string]map[schema.MetricScope]*schema.JobMetric, int, bool, error) {
 
+	var totalNodes int = 0
+	var hasNextPage bool = false
 	// TODO : Implement to be used in NodeList-View
 	log.Infof("LoadNodeListData unimplemented for InfluxDBv2DataRepository, Args: cluster %s, metrics %v, nodeFilter %v, scopes %v", cluster, metrics, nodeFilter, scopes)
 
-	return nil, errors.New("METRICDATA/INFLUXV2 > unimplemented for InfluxDBv2DataRepository")
+	return nil, totalNodes, hasNextPage, errors.New("METRICDATA/INFLUXV2 > unimplemented for InfluxDBv2DataRepository")
 }

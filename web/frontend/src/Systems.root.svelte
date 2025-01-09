@@ -10,7 +10,6 @@
 
 <script>
   import { getContext } from "svelte";
-  import { queryStore, gql, getContextClient } from "@urql/svelte"
   import {
     Row,
     Col,
@@ -20,10 +19,9 @@
     InputGroupText,
     Icon,
     Button,
-    Spinner,
   } from "@sveltestrap/sveltestrap";
 
-  import { init, checkMetricsDisabled } from "./generic/utils.js";
+  import { init } from "./generic/utils.js";
   import NodeOverview from "./systems/NodeOverview.svelte";
   import NodeList from "./systems/NodeList.svelte";
   import MetricSelection from "./generic/select/MetricSelection.svelte";
@@ -32,6 +30,7 @@
 
   export let displayType;
   export let cluster;
+  export let subCluster = "";
   export let from = null;
   export let to = null;
 
@@ -45,7 +44,7 @@
   if (from == null || to == null) {
     to = new Date(Date.now());
     from = new Date(to.getTime());
-    from.setHours(from.getHours() - 2);
+    from.setHours(from.getHours() - 12);
   }
 
   const initialized = getContext("initialized");
@@ -58,79 +57,15 @@
   let selectedMetrics = ccconfig[`node_list_selectedMetrics:${cluster}`] || [ccconfig.system_view_selectedMetric];
   let isMetricsSelectionOpen = false;
 
-  // New Jan 2025
   /*
-  - Toss "add_resolution_node_systems" branch OR include/merge here if resolutions in node-overview useful
-  - Add single object field for nodeData query to CCMS query: "nodeDataQuery"
-    - Contains following fields:
-      - metrics: [String]  // List of metrics to query
-      - page: Int          // Page number
-      - itemsPerPage: Int  // Number of items per page
-      - resolution: Int    // Requested Resolution for all returned data
-      - nodeFilter: String // (partial) hostname string
-    - With this, all use-cases except "scopes" can be handled, if nodeFilter is "" (empty) all nodes are returned by default
-    - Is basically a stepped up version of the "forAllNodes" property, as "these metrics for all nodes" is still the base idea
-  - Required: Handling in CCMS, co-develop in close contact with Aditya
-  - Question: How and where to handle scope queries? (e.g. "node" vs "accelerator") -> NOT handled in ccms!
-  - NOtes: "Sorting" as use-case ignored for now, probably default to alphanumerical on hostnames of cluster
+    Note 1: Scope Selector or Auto-Scoped?
+    Note 2: "Sorting" as use-case ignored for now, probably default to alphanumerical on hostnames of cluster
+    Note 3: Add Idle State Filter (== No allocated Jobs) [Frontend?] : Cannot be handled by CCMS, requires secondary job query and refiltering of visible nodes
   */
-
-  // Todo: Add Idle State Filter (== No allocated Jobs) [Frontend?] : Cannot be handled by CCMS, requires secondary job query and refiltering of visible nodes
-  // Todo: NodeList: Mindestens Accelerator Scope ... "Show Detail" Switch?
-  // Todo: Rework GQL Query: Add Paging (Scrollable / Paging Configbar), Add Nodes Filter (see jobs-onthefly-userfilter: ccms inkompatibel!), add scopes
-  //       All three issues need either new features in ccms (paging, filter) or new implementation of ccms node queries with scopes (currently very job-specific)
-  // Todo: Review performance // observed high client-side load frequency
-  //       Is Svelte {#each} -> <MetricPlot/> -> onMount() related : Cannot be skipped ...
-  //       Will be solved as soon as dedicated paging, itemLimits and filtering is implemented in ccms
-  // ==> Skip for Q4/24 Release, build from ccms upgrade (paging/filter) up
-  
-  const client = getContextClient();
-  const nodeQuery = gql`
-    query ($cluster: String!, $metrics: [String!], $from: Time!, $to: Time!) {
-      nodeMetrics(
-        cluster: $cluster
-        metrics: $metrics
-        from: $from
-        to: $to
-      ) {
-        host
-        subCluster
-        metrics {
-          name
-          scope
-          metric {
-            timestep
-            unit {
-              base
-              prefix
-            }
-            series {
-              statistics {
-                min
-                avg
-                max
-              }
-              data
-            }
-          }
-        }
-      }
-    }
-  `
-
-  $: nodesQuery = queryStore({
-    client: client,
-    query: nodeQuery,
-    variables: {
-      cluster: cluster,
-      metrics: selectedMetrics,
-      from: from.toISOString(),
-      to: to.toISOString(),
-    },
-  });
 
   let systemMetrics = [];
   let systemUnits = {};
+
   function loadMetrics(isInitialized) {
     if (!isInitialized) return
     systemMetrics = [...globalMetrics.filter((gm) => gm?.availability.find((av) => av.cluster == cluster))]
@@ -145,43 +80,6 @@
     selectedMetrics = [selectedMetric]
   }
 
-  let rawData = []
-  $: if ($initq.data && $nodesQuery?.data) {
-    rawData = $nodesQuery?.data?.nodeMetrics.filter((h) => {
-      if (h.subCluster === '') { // Exclude nodes with empty subCluster field
-        console.warn('subCluster not configured for node', h.host)
-        return false
-      } else {
-        return h.metrics.some(
-          (m) => selectedMetrics.includes(m.name) && m.scope == "node",
-        )
-      }
-    })
-  }
-
-  let mappedData = []
-  $: if (rawData?.length > 0) {
-    mappedData = rawData.map((h) => ({
-      host: h.host,
-      subCluster: h.subCluster,
-      data: h.metrics.filter(
-        (m) => selectedMetrics.includes(m.name) && m.scope == "node",
-      ),
-      disabled: checkMetricsDisabled(
-        selectedMetrics,
-        cluster,
-        h.subCluster,
-      ),
-    }))
-    .sort((a, b) => a.host.localeCompare(b.host))
-  }
-
-  let filteredData = []
-  $: if (mappedData?.length > 0) {
-    filteredData = mappedData.filter((h) =>
-      h.host.includes(hostnameFilter)
-    )
-  }
 </script>
 
 <!-- ROW1: Tools-->
@@ -255,25 +153,13 @@
       <Card body color="danger">Unknown displayList type! </Card>
     </Col>
   </Row>
-{:else if $nodesQuery.error}
-  <Row>
-    <Col>
-      <Card body color="danger">{$nodesQuery.error.message}</Card>
-    </Col>
-  </Row>
-{:else if $nodesQuery.fetching }
-  <Row>
-    <Col>
-      <Spinner />
-    </Col>
-  </Row>
-{:else if filteredData?.length > 0}
+{:else}
   {#if displayNodeOverview}
     <!-- ROW2-1: Node Overview (Grid Included)-->
-    <NodeOverview {cluster} {ccconfig} data={filteredData}/>
+    <NodeOverview {cluster} {subCluster} {ccconfig} {selectedMetrics} {from} {to} {hostnameFilter}/>
   {:else}
     <!-- ROW2-2: Node List (Grid Included)-->
-    <NodeList {cluster} {selectedMetrics} {systemUnits} data={filteredData} bind:selectedMetric/>
+    <NodeList {cluster} {subCluster} {ccconfig} {selectedMetrics} {hostnameFilter} {from} {to} {systemUnits}/>
   {/if}
 {/if}
 

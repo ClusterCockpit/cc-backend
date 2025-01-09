@@ -6,6 +6,7 @@ new Systems({
     props: {
         displayType: displayType,
         cluster: infos.cluster,
+        subCluster: infos.subCluster,
         from: infos.from,
         to: infos.to
     },

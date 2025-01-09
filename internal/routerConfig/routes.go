@@ -44,6 +44,7 @@ var routes []Route = []Route{
 	{"/monitoring/user/{id}", "monitoring/user.tmpl", "User <ID> - ClusterCockpit", true, setupUserRoute},
 	{"/monitoring/systems/{cluster}", "monitoring/systems.tmpl", "Cluster <ID> Overview - ClusterCockpit", false, setupClusterOverviewRoute},
 	{"/monitoring/systems/list/{cluster}", "monitoring/systems.tmpl", "Cluster <ID> List - ClusterCockpit", false, setupClusterListRoute},
+	{"/monitoring/systems/list/{cluster}/{subcluster}", "monitoring/systems.tmpl", "Cluster <ID> List - ClusterCockpit", false, setupClusterListRoute},
 	{"/monitoring/node/{cluster}/{hostname}", "monitoring/node.tmpl", "Node <ID> - ClusterCockpit", false, setupNodeRoute},
 	{"/monitoring/analysis/{cluster}", "monitoring/analysis.tmpl", "Analysis - ClusterCockpit", true, setupAnalysisRoute},
 	{"/monitoring/status/{cluster}", "monitoring/status.tmpl", "Status of <ID> - ClusterCockpit", false, setupClusterStatusRoute},
@@ -142,6 +143,7 @@ func setupClusterListRoute(i InfoType, r *http.Request) InfoType {
 	vars := mux.Vars(r)
 	i["id"] = vars["cluster"]
 	i["cluster"] = vars["cluster"]
+	i["subCluster"] = vars["subcluster"]
 	i["displayType"] = "LIST"
 
 	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")

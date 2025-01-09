@@ -57,9 +57,9 @@ func (tmdr *TestMetricDataRepository) LoadNodeListData(
 	scopes []schema.MetricScope,
 	resolution int,
 	from, to time.Time,
-	page model.PageRequest,
+	page *model.PageRequest,
 	ctx context.Context,
-) (map[string]map[string]map[schema.MetricScope]*schema.JobMetric, error) {
+) (map[string]map[string]map[schema.MetricScope]*schema.JobMetric, int, bool, error) {
 
 	panic("TODO")
 }
