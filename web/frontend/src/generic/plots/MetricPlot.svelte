@@ -14,7 +14,7 @@
     - `cluster String`: Cluster name of the parent job / data
     - `subCluster String`: Name of the subCluster of the parent job
     - `isShared Bool?`: If this job used shared resources; will adapt threshold indicators accordingly [Default: false]
-    - `forNode Bool?`: If this plot is used for node data display; will ren[data, err := metricdata.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)](https://github.com/ClusterCockpit/cc-backend/blob/9fe7cdca9215220a19930779a60c8afc910276a3/internal/graph/schema.resolvers.go#L391-L392)der x-axis as negative time with $now as maximum [Default: false]
+    - `forNode Bool?`: If this plot is used for node data display; will render x-axis as negative time with $now as maximum [Default: false]
     - `numhwthreads Number?`: Number of job HWThreads [Default: 0]
     - `numaccs Number?`: Number of job Accelerators [Default: 0]
     - `zoomState Object?`: The last zoom state to preserve on user zoom [Default: null]

@@ -58,12 +58,30 @@
   let selectedMetrics = ccconfig[`node_list_selectedMetrics:${cluster}`] || [ccconfig.system_view_selectedMetric];
   let isMetricsSelectionOpen = false;
 
-  // Todo: Add Idle State Filter (== No allocated Jobs) [Frontend?]
+  // New Jan 2025
+  /*
+  - Toss "add_resolution_node_systems" branch OR include/merge here if resolutions in node-overview useful
+  - Add single object field for nodeData query to CCMS query: "nodeDataQuery"
+    - Contains following fields:
+      - metrics: [String]  // List of metrics to query
+      - page: Int          // Page number
+      - itemsPerPage: Int  // Number of items per page
+      - resolution: Int    // Requested Resolution for all returned data
+      - nodeFilter: String // (partial) hostname string
+    - With this, all use-cases except "scopes" can be handled, if nodeFilter is "" (empty) all nodes are returned by default
+    - Is basically a stepped up version of the "forAllNodes" property, as "these metrics for all nodes" is still the base idea
+  - Required: Handling in CCMS, co-develop in close contact with Aditya
+  - Question: How and where to handle scope queries? (e.g. "node" vs "accelerator") -> NOT handled in ccms!
+  - NOtes: "Sorting" as use-case ignored for now, probably default to alphanumerical on hostnames of cluster
+  */
+
+  // Todo: Add Idle State Filter (== No allocated Jobs) [Frontend?] : Cannot be handled by CCMS, requires secondary job query and refiltering of visible nodes
   // Todo: NodeList: Mindestens Accelerator Scope ... "Show Detail" Switch?
   // Todo: Rework GQL Query: Add Paging (Scrollable / Paging Configbar), Add Nodes Filter (see jobs-onthefly-userfilter: ccms inkompatibel!), add scopes
   //       All three issues need either new features in ccms (paging, filter) or new implementation of ccms node queries with scopes (currently very job-specific)
   // Todo: Review performance // observed high client-side load frequency
   //       Is Svelte {#each} -> <MetricPlot/> -> onMount() related : Cannot be skipped ...
+  //       Will be solved as soon as dedicated paging, itemLimits and filtering is implemented in ccms
   // ==> Skip for Q4/24 Release, build from ccms upgrade (paging/filter) up
   
   const client = getContextClient();
