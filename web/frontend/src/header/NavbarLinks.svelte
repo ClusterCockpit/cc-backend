@@ -3,6 +3,7 @@
 
     Properties:
     - `clusters [String]`: List of cluster names
+    - `subClusters map[String][]string`: Map of subclusters by cluster names
     - `links [Object]`: Pre-filtered link objects based on user auth
     - `direction String?`: The direcion of the drop-down menue [default: down]
  -->
@@ -18,6 +19,7 @@
   } from "@sveltestrap/sveltestrap";
 
   export let clusters;
+  export let subClusters;
   export let links;
   export let direction = "down";
 </script>
@@ -47,6 +49,13 @@
                 >
                   Node List
                 </DropdownItem>
+                {#each subClusters[cluster.name] as subCluster}
+                  <DropdownItem class="py-1 px-2"
+                    href={item.href + 'list/' + cluster.name + '/' + subCluster}
+                  >
+                  {subCluster} Node List
+                  </DropdownItem>
+                {/each}
               </DropdownMenu>
             </Dropdown>
           {/each}
