@@ -11,6 +11,7 @@ new Systems({
         to: infos.to
     },
     context: new Map([
-            ['cc-config', clusterCockpitConfig]
+            ['cc-config', clusterCockpitConfig],
+            ['resampling', resampleConfig]
     ])
 })

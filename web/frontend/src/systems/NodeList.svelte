@@ -20,6 +20,7 @@
   export let subCluster = "";
   export const ccconfig = null;
   export let selectedMetrics = [];
+  export let selectedResolution = 0;
   export let hostnameFilter = "";
   export let systemUnits = null;
   export let from = null;
@@ -39,7 +40,7 @@
   const { query: initq } = init();
   const client = getContextClient();
   const nodeListQuery = gql`
-    query ($cluster: String!, $subCluster: String!, $nodeFilter: String!, $metrics: [String!], $scopes: [MetricScope!]!, $from: Time!, $to: Time!, $paging: PageRequest!) {
+    query ($cluster: String!, $subCluster: String!, $nodeFilter: String!, $metrics: [String!], $scopes: [MetricScope!]!, $from: Time!, $to: Time!, $paging: PageRequest!, $selectedResolution: Int) {
       nodeMetricsList(
         cluster: $cluster
         subCluster: $subCluster
@@ -49,6 +50,7 @@
         from: $from
         to: $to
         page: $paging
+        resolution: $selectedResolution
       ) {
         items {
           host
@@ -63,12 +65,19 @@
                 prefix
               }
               series {
+                id
+                hostname
+                data
                 statistics {
                   min
                   avg
                   max
                 }
-                data
+              }
+              statisticsSeries {
+                min
+                median
+                max
               }
             }
           }
@@ -86,15 +95,19 @@
       cluster: cluster,
       subCluster: subCluster,
       nodeFilter: hostnameFilter,
-      scopes: ["core", "accelerator"],
+      scopes: ["core", "socket", "accelerator"],
       metrics: selectedMetrics,
       from: from.toISOString(),
       to: to.toISOString(),
       paging: paging,
+      selectedResolution: selectedResolution,
     },
+    requestPolicy: "network-only", // Resolution queries are cached, but how to access them? For now: reload on every change
   });
 
   $: matchedNodes = $nodesQuery.data?.nodeMetricsList.totalNodes || 0;
+  $: orderedData = $nodesQuery.data?.nodeMetricsList.items.sort((a, b) => a.host.localeCompare(b.host));
+
 </script>
 
 {#if $nodesQuery.error}
@@ -135,7 +148,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each $nodesQuery.data.nodeMetricsList.items as nodeData (nodeData.host)}
+          {#each orderedData as nodeData (nodeData.host)}
             <NodeListRow {nodeData} {cluster} {selectedMetrics}/>
           {:else}
             <tr>

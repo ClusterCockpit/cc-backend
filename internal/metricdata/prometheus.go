@@ -456,7 +456,7 @@ func (pdb *PrometheusDataRepository) LoadNodeListData(
 	from, to time.Time,
 	page *model.PageRequest,
 	ctx context.Context,
-) (map[string]map[string]map[schema.MetricScope]*schema.JobMetric, int, bool, error) {
+) (map[string]schema.JobData, int, bool, error) {
 
 	var totalNodes int = 0
 	var hasNextPage bool = false

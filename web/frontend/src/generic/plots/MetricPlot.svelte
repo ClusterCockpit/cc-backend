@@ -142,7 +142,7 @@
   if (useStatsSeries == null) useStatsSeries = statisticsSeries != null;
   if (useStatsSeries == false && series == null) useStatsSeries = true;
 
-  const usesMeanStatsSeries = (useStatsSeries && statisticsSeries.mean.length != 0)
+  const usesMeanStatsSeries = (useStatsSeries?.mean && statisticsSeries.mean.length != 0)
   const dispatch = createEventDispatcher();
   const subClusterTopology = getContext("getHardwareTopology")(cluster, subCluster);
   const metricConfig = getContext("getMetricConfig")(cluster, subCluster, metric);

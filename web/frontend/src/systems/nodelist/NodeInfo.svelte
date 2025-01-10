@@ -27,6 +27,7 @@
   export let cluster;
   export let subCluster
   export let hostname;
+  export let dataHealth;
 
   const client = getContextClient();
   const paging = { itemsPerPage: 50, page: 1 };
@@ -48,6 +49,11 @@
       }
     }
   `;
+
+  // Not at least one returned, selected metric: NodeHealth warning
+  const healthWarn = !dataHealth.includes(true);
+  // At least one non-returned selected metric: Metric config error?
+  const metricWarn = dataHealth.includes(false);
 
   $: nodeJobsData = queryStore({
     client: client,
@@ -78,7 +84,31 @@
       <Spinner />
     {:else if $nodeJobsData.data}
       <p>
-        {#if $nodeJobsData.data.jobs.count > 0}
+        {#if healthWarn}
+          <InputGroup>
+            <InputGroupText>
+              <Icon name="exclamation-circle"/>
+            </InputGroupText>
+            <InputGroupText>
+              Status
+            </InputGroupText>
+            <Button color="danger" disabled>
+              Unhealthy
+            </Button>
+          </InputGroup>
+        {:else if metricWarn}
+          <InputGroup>
+            <InputGroupText>
+              <Icon name="circle-half"/>
+            </InputGroupText>
+            <InputGroupText>
+              Status
+            </InputGroupText>
+            <Button color="warning" disabled>
+              Missing Metric
+            </Button>
+          </InputGroup>
+        {:else if $nodeJobsData.data.jobs.count > 0}
           <InputGroup>
             <InputGroupText>
               <Icon name="circle-fill"/>

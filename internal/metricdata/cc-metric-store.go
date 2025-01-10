@@ -701,7 +701,7 @@ func (ccms *CCMetricStore) LoadNodeListData(
 	from, to time.Time,
 	page *model.PageRequest,
 	ctx context.Context,
-) (map[string]map[string]map[schema.MetricScope]*schema.JobMetric, int, bool, error) {
+) (map[string]schema.JobData, int, bool, error) {
 
 	// 0) Init additional vars
 	var totalNodes int = 0
@@ -747,6 +747,8 @@ func (ccms *CCMetricStore) LoadNodeListData(
 		nodes = nodes[start:end]
 	}
 
+	// Note: Order of node data is not guaranteed after this point, but contents match page and filter criteria
+
 	queries, assignedScope, err := ccms.buildNodeQueries(cluster, subCluster, nodes, metrics, scopes, resolution)
 	if err != nil {
 		log.Warn("Error while building queries")
@@ -769,7 +771,7 @@ func (ccms *CCMetricStore) LoadNodeListData(
 	}
 
 	var errors []string
-	data := make(map[string]map[string]map[schema.MetricScope]*schema.JobMetric)
+	data := make(map[string]schema.JobData)
 	for i, row := range resBody.Results {
 		var query ApiQuery
 		if resBody.Queries != nil {
@@ -790,7 +792,7 @@ func (ccms *CCMetricStore) LoadNodeListData(
 		// Init Nested Map Data Structures If Not Found
 		hostData, ok := data[query.Hostname]
 		if !ok {
-			hostData = make(map[string]map[schema.MetricScope]*schema.JobMetric)
+			hostData = make(schema.JobData)
 			data[query.Hostname] = hostData
 		}
 

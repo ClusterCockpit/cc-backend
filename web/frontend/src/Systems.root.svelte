@@ -9,7 +9,7 @@
  -->
 
 <script>
-  import { getContext } from "svelte";
+  import { getContext, createEventDispatcher } from "svelte";
   import {
     Row,
     Col,
@@ -52,15 +52,22 @@
   const globalMetrics = getContext("globalMetrics");
   const displayNodeOverview = (displayType === 'OVERVIEW')
 
+  const resampleConfig = getContext("resampling") || null;
+  const resampleResolutions = resampleConfig ? [...resampleConfig.resolutions] : [];
+  const resampleDefault = resampleConfig ? Math.max(...resampleConfig.resolutions) : 0;
+  let selectedResolution = resampleConfig ? resampleDefault : 0;
+
   let hostnameFilter = "";
+  let pendingHostnameFilter = "";
   let selectedMetric = ccconfig.system_view_selectedMetric || "";
   let selectedMetrics = ccconfig[`node_list_selectedMetrics:${cluster}`] || [ccconfig.system_view_selectedMetric];
   let isMetricsSelectionOpen = false;
 
   /*
-    Note 1: Scope Selector or Auto-Scoped?
-    Note 2: "Sorting" as use-case ignored for now, probably default to alphanumerical on hostnames of cluster
+    Note 1: Scope Selector or Auto-Scoped? -> USeful auto scoping with stats view where applicable -> CHeck with JVe
+    Note 2: "Sorting" as use-case ignored for now, probably default to alphanumerical on hostnames of cluster (handled in frontend at the moment)
     Note 3: Add Idle State Filter (== No allocated Jobs) [Frontend?] : Cannot be handled by CCMS, requires secondary job query and refiltering of visible nodes
+    Note 4: Resolution changes as implemented only possible for all plots generally, not for individual metrics: Result list if build from GQL result *including* metric series
   */
 
   let systemMetrics = [];
@@ -80,10 +87,15 @@
     selectedMetrics = [selectedMetric]
   }
 
+  $: { // Wait after input for some time to prevent too many requests
+    setTimeout(function () {
+      hostnameFilter = pendingHostnameFilter;
+    }, 500);
+  }
 </script>
 
 <!-- ROW1: Tools-->
-<Row cols={{ xs: 2, lg: 4 }} class="mb-3">
+<Row cols={{ xs: 2, lg: !displayNodeOverview ? 5 : 4 }} class="mb-3">
   {#if $initq.data}
     <!-- List Metric Select Col-->
     {#if !displayNodeOverview}
@@ -91,7 +103,7 @@
         <InputGroup>
           <InputGroupText><Icon name="graph-up" /></InputGroupText>
           <InputGroupText class="text-capitalize">Metrics</InputGroupText>
-          <Button 
+          <Button
             outline
             color="primary"
             on:click={() => (isMetricsSelectionOpen = true)}
@@ -99,17 +111,30 @@
             {selectedMetrics.length} selected
           </Button>
         </InputGroup>
-      </Col> 
+      </Col>
+      <Col>
+        <InputGroup>
+          <InputGroupText><Icon name="plus-slash-minus" /></InputGroupText>
+          <InputGroupText>Resolution</InputGroupText>
+          <Input type="select" bind:value={selectedResolution}>
+            {#each resampleResolutions as res}
+              <option value={res}
+                >{res} sec</option
+              >
+            {/each}
+          </Input>
+        </InputGroup>
+      </Col>
     {/if}
     <!-- Node Col-->
-    <Col>
+    <Col class="mt-2 mt-lg-0">
       <InputGroup>
         <InputGroupText><Icon name="hdd" /></InputGroupText>
         <InputGroupText>Find Node(s)</InputGroupText>
         <Input
           placeholder="Filter hostname ..."
           type="text"
-          bind:value={hostnameFilter}
+          bind:value={pendingHostnameFilter}
         />
       </InputGroup>
     </Col>
@@ -159,7 +184,7 @@
     <NodeOverview {cluster} {subCluster} {ccconfig} {selectedMetrics} {from} {to} {hostnameFilter}/>
   {:else}
     <!-- ROW2-2: Node List (Grid Included)-->
-    <NodeList {cluster} {subCluster} {ccconfig} {selectedMetrics} {hostnameFilter} {from} {to} {systemUnits}/>
+    <NodeList {cluster} {subCluster} {ccconfig} {selectedMetrics} {selectedResolution} {hostnameFilter} {from} {to} {systemUnits}/>
   {/if}
 {/if}
 

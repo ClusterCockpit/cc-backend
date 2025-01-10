@@ -264,7 +264,7 @@ func LoadNodeListData(
 	from, to time.Time,
 	page *model.PageRequest,
 	ctx context.Context,
-) (map[string]map[string]map[schema.MetricScope]*schema.JobMetric, int, bool, error) {
+) (map[string]schema.JobData, int, bool, error) {
 	repo, err := metricdata.GetMetricDataRepo(cluster)
 	if err != nil {
 		return nil, 0, false, fmt.Errorf("METRICDATA/METRICDATA > no metric data repository configured for '%s'", cluster)
@@ -283,6 +283,19 @@ func LoadNodeListData(
 		} else {
 			log.Error("Error while loading node data from metric repository")
 			return nil, totalNodes, hasNextPage, err
+		}
+	}
+
+	// NOTE: New StatsSeries will always be calculated as 'min/median/max'
+	const maxSeriesSize int = 15
+	for _, jd := range data {
+		for _, scopes := range jd {
+			for _, jm := range scopes {
+				if jm.StatisticsSeries != nil || len(jm.Series) <= maxSeriesSize {
+					continue
+				}
+				jm.AddStatisticsSeries()
+			}
 		}
 	}
 

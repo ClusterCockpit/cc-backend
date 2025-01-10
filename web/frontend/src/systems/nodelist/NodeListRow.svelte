@@ -50,7 +50,7 @@
 
 <tr>
   <td>
-    <NodeInfo {cluster} subCluster={nodeData.subCluster} hostname={nodeData.host} />
+    <NodeInfo {cluster} subCluster={nodeData.subCluster} hostname={nodeData.host} dataHealth={nodeData?.metrics.map((m) => (m.metric.series.length > 0))}/>
   </td>
   {#each sortAndSelectScope(nodeData?.metrics) as metricData (metricData.data.name)}
     <td>
@@ -63,11 +63,14 @@
       {:else}
         <!-- "No Data"-Warning included in MetricPlot-Component -->
         <MetricPlot
-          timestep={metricData.data.metric.timestep}
-          series={metricData.data.metric.series}
-          metric={metricData.data.name}
           {cluster}
           subCluster={nodeData.subCluster}
+          metric={metricData.data.name}
+          scope={metricData.data.scope}
+          timestep={metricData.data.metric.timestep}
+          series={metricData.data.metric.series}
+          statisticsSeries={metricData.data?.metric.statisticsSeries}
+          useStatsSeries={!!metricData.data?.metric.statisticsSeries}
           forNode
         />
       {/if}
