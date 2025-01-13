@@ -42,9 +42,9 @@ var routes []Route = []Route{
 	{"/monitoring/projects/", "monitoring/list.tmpl", "Projects - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { i["listType"] = "PROJECT"; return i }},
 	{"/monitoring/tags/", "monitoring/taglist.tmpl", "Tags - ClusterCockpit", false, setupTaglistRoute},
 	{"/monitoring/user/{id}", "monitoring/user.tmpl", "User <ID> - ClusterCockpit", true, setupUserRoute},
-	{"/monitoring/systems/{cluster}", "monitoring/systems.tmpl", "Cluster <ID> Overview - ClusterCockpit", false, setupClusterOverviewRoute},
-	{"/monitoring/systems/list/{cluster}", "monitoring/systems.tmpl", "Cluster <ID> List - ClusterCockpit", false, setupClusterListRoute},
-	{"/monitoring/systems/list/{cluster}/{subcluster}", "monitoring/systems.tmpl", "Cluster <ID> List - ClusterCockpit", false, setupClusterListRoute},
+	{"/monitoring/systems/{cluster}", "monitoring/systems.tmpl", "Cluster <ID> Node Overview - ClusterCockpit", false, setupClusterOverviewRoute},
+	{"/monitoring/systems/list/{cluster}", "monitoring/systems.tmpl", "Cluster <ID> Node List - ClusterCockpit", false, setupClusterListRoute},
+	{"/monitoring/systems/list/{cluster}/{subcluster}", "monitoring/systems.tmpl", "Cluster <ID> <SID> Node List - ClusterCockpit", false, setupClusterListRoute},
 	{"/monitoring/node/{cluster}/{hostname}", "monitoring/node.tmpl", "Node <ID> - ClusterCockpit", false, setupNodeRoute},
 	{"/monitoring/analysis/{cluster}", "monitoring/analysis.tmpl", "Analysis - ClusterCockpit", true, setupAnalysisRoute},
 	{"/monitoring/status/{cluster}", "monitoring/status.tmpl", "Status of <ID> - ClusterCockpit", false, setupClusterStatusRoute},
@@ -143,6 +143,7 @@ func setupClusterListRoute(i InfoType, r *http.Request) InfoType {
 	vars := mux.Vars(r)
 	i["id"] = vars["cluster"]
 	i["cluster"] = vars["cluster"]
+	i["sid"] = vars["subcluster"]
 	i["subCluster"] = vars["subcluster"]
 	i["displayType"] = "LIST"
 
@@ -374,6 +375,9 @@ func SetupRoutes(router *mux.Router, buildInfo web.Build) {
 			infos := route.Setup(map[string]interface{}{}, r)
 			if id, ok := infos["id"]; ok {
 				title = strings.Replace(route.Title, "<ID>", id.(string), 1)
+				if sid, ok := infos["sid"]; ok { // 2nd ID element
+					title = strings.Replace(title, "<SID>", sid.(string), 1)
+				}
 			}
 
 			// Get User -> What if NIL?

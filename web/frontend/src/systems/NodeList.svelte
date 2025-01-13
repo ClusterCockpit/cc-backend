@@ -161,8 +161,8 @@
     }
   }
 
-  $: if (!usePaging && selectedMetrics) {
-    // Continous Scroll: Reset list and paging if sleectedMetrics change: Existing entries will not match new metric selection
+  $: if (!usePaging && (selectedMetrics || selectedResolution || hostnameFilter || from || to)) {
+    // Continous Scroll: Reset list and paging if parameters change: Existing entries will not match new selections
     nodes = [];
     paging = { itemsPerPage, page: 1 };
   }
@@ -202,7 +202,7 @@
             </Col>
           </Row>
         {:else}
-          {#each nodes as nodeData (nodeData.host)}
+          {#each nodes as nodeData}
             <NodeListRow {nodeData} {cluster} {selectedMetrics}/>
           {:else}
             <tr>
