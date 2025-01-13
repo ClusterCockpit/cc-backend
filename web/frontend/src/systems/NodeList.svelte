@@ -161,6 +161,12 @@
     }
   }
 
+  $: if (!usePaging && selectedMetrics) {
+    // Continous Scroll: Reset list and paging if sleectedMetrics change: Existing entries will not match new metric selection
+    nodes = [];
+    paging = { itemsPerPage, page: 1 };
+  }
+
   $: matchedNodes = $nodesQuery.data?.nodeMetricsList.totalNodes || matchedNodes;
 </script>
 
@@ -208,7 +214,13 @@
           <tr>
             <td colspan={selectedMetrics.length + 1}>
               <div style="text-align:center;">
-                <p><b>Loading nodes {nodes.length + 1} to {nodes.length + paging.itemsPerPage} {matchedNodes ? `of ${matchedNodes} total` : ``}</b></p>
+                <p><b>
+                  Loading nodes {nodes.length + 1} to 
+                  { matchedNodes 
+                    ? `${(nodes.length + paging.itemsPerPage) > matchedNodes ? matchedNodes : (nodes.length + paging.itemsPerPage)} of ${matchedNodes} total`
+                    : (nodes.length + paging.itemsPerPage)
+                  }
+                </b></p>
                 <Spinner secondary />
               </div>
             </td>
