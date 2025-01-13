@@ -28,8 +28,8 @@
   export let to = null;
 
   // Decouple from Job List Paging Params?
-  let usePaging = ccconfig.job_list_usePaging
-  let itemsPerPage = usePaging ? ccconfig.plot_list_jobsPerPage : 10;
+  let usePaging = ccconfig?.node_list_usePaging || false
+  let itemsPerPage = usePaging ? (ccconfig?.plot_list_nodesPerPage || 10) : 10;
   let page = 1;
   let paging = { itemsPerPage, page };
 
@@ -106,7 +106,7 @@
   // Decouple from Job List Paging Params?
   function updateConfiguration(value, page) {
     updateConfigurationMutation({
-      name: "plot_list_jobsPerPage",
+      name: "plot_list_nodesPerPage",
       value: value,
     }).subscribe((res) => {
       if (res.fetching === false && !res.error) {

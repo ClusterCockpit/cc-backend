@@ -4,7 +4,7 @@
 
 <script>
   import { Row, Col } from "@sveltestrap/sveltestrap";
-  import { onMount } from "svelte";
+  import { onMount, getContext } from "svelte";
   import EditRole from "./admin/EditRole.svelte";
   import EditProject from "./admin/EditProject.svelte";
   import AddUser from "./admin/AddUser.svelte";
@@ -16,6 +16,8 @@
 
   let users = [];
   let roles = [];
+
+  const ccconfig = getContext("cc-config");
 
   function getUserList() {
     fetch("/config/users/?via-ldap=false&not-just-user=true")
@@ -54,6 +56,6 @@
   <Col>
     <EditProject on:reload={getUserList} />
   </Col>
-  <Options />
+  <Options config={ccconfig}/>
   <NoticeEdit {ncontent}/>
 </Row>
