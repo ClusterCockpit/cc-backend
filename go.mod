@@ -1,6 +1,6 @@
 module github.com/ClusterCockpit/cc-backend
 
-go 1.23
+go 1.23.0
 
 require (
 	github.com/99designs/gqlgen v0.17.57
