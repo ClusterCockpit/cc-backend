@@ -24,6 +24,7 @@
     export let config;
     export let message;
     export let displayMessage;
+    export let cbmode = false;
 
     const dispatch = createEventDispatcher();
     function updateSetting(selector, target) {
@@ -265,6 +266,62 @@
       ],
     };
 
+    // https://personal.sron.nl/~pault/
+    // https://tsitsul.in/blog/coloropt/
+    const cvdschemes = {
+      HighContrast: [
+        "rgb(221,170,51)",
+        "rgb(187,85,102)",
+        "rgb(0,68,136)",
+        "rgb(0,0,0)",
+      ],
+      Bright: [
+        "rgb(68,119,170)",
+        "rgb(102,204,238)",
+        "rgb(34,136,51)",
+        "rgb(204,187,68)",
+        "rgb(238,102,119)",
+        "rgb(170,51,119)",
+        "rgb(187,187,187)",
+      ],
+      Muted: [
+        "rgb(51,34,136)",
+        "rgb(136,204,238)",
+        "rgb(68,170,153)",
+        "rgb(17,119,51)",
+        "rgb(153,153,51)",
+        "rgb(221,204,119)",
+        "rgb(204,102,119)",
+        "rgb(136,34,85)",
+        "rgb(170,68,153)",
+        "rgb(221,221,221)",
+      ],
+      NormalSixColor: [
+        "rgb(64,83,211)",
+        "rgb(221,179,16)",
+        "rgb(181,29,20)",
+        "rgb(0,190,255)",
+        "rgb(251,73,176)",
+        "rgb(0,178,93)",
+        "rgb(202,202,202)",
+      ],
+      NormalTwelveColor: [
+        "rgb(235,172,35)",
+        "rgb(184,0,88)",
+        "rgb(0,140,249)",
+        "rgb(0,110,0)",
+        "rgb(0,187,173)",
+        "rgb(209,99,230)",
+        "rgb(178,69,2)",
+        "rgb(255,146,135)",
+        "rgb(89,84,214)",
+        "rgb(0,198,248)",
+        "rgb(135,133,0)",
+        "rgb(0,167,108)",
+        "rgb(189,189,189)",
+      ]
+    }
+
 </script>
 
 <Row cols={1} class="p-2 g-2">
@@ -281,7 +338,7 @@
           <CardTitle
             style="margin-bottom: 1em; display: flex; align-items: center;"
           >
-            <div>Color Scheme for Timeseries Plots</div>
+            <div>Color Scheme for Timeseries Plots {cbmode ? `(Color Blind Friendly Palettes)` : ``}</div>
             {#if displayMessage && message.target == "cs"}<div
                 style="margin-left: auto; font-size: 0.9em;"
               >
@@ -293,7 +350,7 @@
           <input type="hidden" name="key" value="plot_general_colorscheme" />
           <Table hover>
             <tbody>
-              {#each Object.entries(colorschemes) as [name, rgbrow]}
+              {#each Object.entries(cbmode ? cvdschemes : colorschemes) as [name, rgbrow]}
                 <tr>
                   <th scope="col">{name}</th>
                   <td>
@@ -333,8 +390,9 @@
 
 <style>
 .color-dot {
-    height: 10px;
-    width: 10px;
+    margin-left: 1px;
+    height: 12px;
+    width: 12px;
     border-radius: 50%;
     display: inline-block;
 }

@@ -129,8 +129,8 @@
     >
   
     <!-- BACKGROUND -->
-    <Col
-      ><Card class="h-100">
+    <Col class="d-flex justify-content-between"
+      ><Card class="h-100" style="width: 49%;">
         <form
           id="backgrounds-form"
           method="post"
@@ -173,6 +173,50 @@
           </div>
           <Button color="primary" type="submit">Submit</Button>
         </form>
-      </Card></Col
-    >
+      </Card>
+      <Card class="h-100" style="width: 49%;">
+        <form
+          id="colorblindmode-form"
+          method="post"
+          action="/frontend/configuration/"
+          class="card-body"
+          on:submit|preventDefault={() =>
+            updateSetting("#colorblindmode-form", "cbm")}
+        >
+          <!-- Svelte 'class' directive only on DOMs directly, normal 'class="xxx"' does not work, so style-array it is. -->
+          <CardTitle
+            style="margin-bottom: 1em; display: flex; align-items: center;"
+          >
+            <div>Color Blind Mode</div>
+            {#if displayMessage && message.target == "cbm"}<div
+                style="margin-left: auto; font-size: 0.9em;"
+              >
+                <code style="color: {message.color};" out:fade
+                  >Update: {message.msg}</code
+                >
+              </div>{/if}
+          </CardTitle>
+          <input type="hidden" name="key" value="plot_general_colorblindMode" />
+          <div class="mb-3">
+            <div>
+              {#if config?.plot_general_colorblindMode}
+                <input type="radio" id="cbm-true-checked" name="value" value="true" checked />
+              {:else}
+                <input type="radio" id="cbm-true" name="value" value="true" />
+              {/if}
+              <label for="true">Yes</label>
+            </div>
+            <div>
+              {#if config?.plot_general_colorblindMode}
+                <input type="radio" id="cbm-false" name="value" value="false" />
+              {:else}
+                <input type="radio" id="cbm-false-checked" name="value" value="false" checked />
+              {/if}
+              <label for="false">No</label>
+            </div>
+          </div>
+          <Button color="primary" type="submit">Submit</Button>
+        </form>
+      </Card>
+    </Col>
 </Row>
