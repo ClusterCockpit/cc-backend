@@ -25,6 +25,7 @@
   export let height = 250;
   export let title = "";
   export let xlabel = "";
+  export let xtime = false;
   export let xunit = "";
   export let ylabel = "";
   export let yunit = "";
@@ -139,7 +140,7 @@
           label: xlabel,
           labelGap: 10,
           size: 25,
-          incrs: [1, 2, 5, 6, 10, 12, 50, 100, 500, 1000, 5000, 10000],
+          incrs: xtime ? [0.25, 0.5, 1, 2, 4, 8, 15, 30, 60, 90, 120, 180, 240] : [1, 2, 5, 10, 25, 50, 100, 250, 500, 1000, 5000, 10000],
           border: {
             show: true,
             stroke: "#000000",
@@ -149,7 +150,10 @@
             size: 5 / devicePixelRatio,
             stroke: "#000000",
           },
-          values: (_, t) => t.map((v) => formatNumber(v)),
+          values: (_, t) => t.map((v) => {
+            if (!usesBins) console.log("X Scale Val", xlabel, v)
+            return formatNumber(v)
+          }),
         },
         {
           stroke: "#000000",
@@ -166,7 +170,10 @@
             size: 5 / devicePixelRatio,
             stroke: "#000000",
           },
-          values: (_, t) => t.map((v) => formatNumber(v)),
+          values: (_, t) => t.map((v) => {
+            if (!usesBins) console.log("Y Scale Val", ylabel, v)
+            return formatNumber(v)
+          }),
         },
       ],
       series: [

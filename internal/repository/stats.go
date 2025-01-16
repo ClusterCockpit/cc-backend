@@ -450,12 +450,15 @@ func (r *JobRepository) AddHistograms(
 ) (*model.JobsStatistics, error) {
 	start := time.Now()
 
+	binSeconds := 900
+	binMinutes := binSeconds / 60
 	castType := r.getCastType()
 	var err error
-	value := fmt.Sprintf(`CAST(ROUND((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) / 3600) as %s) as value`, time.Now().Unix(), castType)
+	// Bin by job duration in sizes of binSeconds, add +1, gives Integers from 1-XX+1, re-multiply by binMinutes to get final bar x-values (logic: Jobs less than duration X in bin)
+	value := fmt.Sprintf(`CAST((ROUND(((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) / %d) + 1) * %d) as %s) as value`, time.Now().Unix(), binSeconds, binMinutes, castType)
 	stat.HistDuration, err = r.jobsStatisticsHistogram(ctx, value, filter)
 	if err != nil {
-		log.Warn("Error while loading job statistics histogram: running jobs")
+		log.Warn("Error while loading job statistics histogram: job duration")
 		return nil, err
 	}
 

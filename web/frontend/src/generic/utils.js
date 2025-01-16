@@ -405,7 +405,7 @@ function getMetricConfigDeep(metric, cluster, subCluster) {
     }
 }
 
-export function convert2uplot(canvasData) {
+export function convert2uplot(canvasData, minutesToHours = false) {
     // Prep: Uplot Data Structure
     let uplotData = [[],[]] // [X, Y1, Y2, ...]
     // Iterate if exists
@@ -415,9 +415,15 @@ export function convert2uplot(canvasData) {
                 uplotData[0].push(cd?.max ? cd.max : 0)
                 uplotData[1].push(cd.count)
             } else { // Default
-                uplotData[0].push(cd.value)
+                if (minutesToHours) {
+                    let hours = cd.value / 60
+                    console.log("x minutes to y hours", cd.value, hours)
+                    uplotData[0].push(hours)
+                } else {
+                    uplotData[0].push(cd.value)
+                }
                 uplotData[1].push(cd.count)
-            }
+             }
         })
     }
     return uplotData
