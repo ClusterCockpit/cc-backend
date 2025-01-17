@@ -9,7 +9,7 @@
     - `height Number?`: The plot height [Default: 300]
     - `timestep Number`: The timestep used for X-axis rendering
     - `series [GraphQL.Series]`: The metric data object
-    - `useStatsSeries Bool?`: If this plot uses the statistics Min/Max/Median representation; automatically set to according bool [Default: null]
+    - `useStatsSeries Bool?`: If this plot uses the statistics Min/Max/Median representation; automatically set to according bool [Default: false]
     - `statisticsSeries [GraphQL.StatisticsSeries]?`: Min/Max/Median representation of metric data [Default: null]
     - `cluster String`: Cluster name of the parent job / data
     - `subCluster String`: Name of the subCluster of the parent job
@@ -128,7 +128,7 @@
   export let height = 300;
   export let timestep;
   export let series;
-  export let useStatsSeries = null;
+  export let useStatsSeries = false;
   export let statisticsSeries = null;
   export let cluster = "";
   export let subCluster;
@@ -139,10 +139,9 @@
   export let zoomState = null;
   export let thresholdState = null;
 
-  if (useStatsSeries == null) useStatsSeries = statisticsSeries != null;
-  if (useStatsSeries == false && series == null) useStatsSeries = true;
+  if (!useStatsSeries && statisticsSeries != null) useStatsSeries = true;
 
-  const usesMeanStatsSeries = (useStatsSeries?.mean && statisticsSeries.mean.length != 0)
+  const usesMeanStatsSeries = (statisticsSeries?.mean && statisticsSeries.mean.length != 0)
   const dispatch = createEventDispatcher();
   const subClusterTopology = getContext("getHardwareTopology")(cluster, subCluster);
   const metricConfig = getContext("getMetricConfig")(cluster, subCluster, metric);
@@ -205,11 +204,10 @@
 
       // conditional hide series color markers:
       if (
-        useStatsSeries === true || // Min/Max/Median Self-Explanatory
+        useStatsSeries || // Min/Max/Median Self-Explanatory
         dataSize === 1 || // Only one Y-Dataseries
-        dataSize > 6
+        dataSize > 8 // More than 8 Y-Dataseries
       ) {
-        // More than 6 Y-Dataseries
         const idents = legendEl.querySelectorAll(".u-marker");
         for (let i = 0; i < idents.length; i++)
           idents[i].style.display = "none";
@@ -240,7 +238,7 @@
         "translate(" + (left - width - 15) + "px, " + (top + 15) + "px)";
     }
 
-    if (dataSize <= 12 || useStatsSeries === true) {
+    if (dataSize <= 12 || useStatsSeries) {
       return {
         hooks: {
           init: init,
@@ -432,13 +430,13 @@
           u.ctx.save();
           u.ctx.textAlign = "start"; // 'end'
           u.ctx.fillStyle = "black";
-          u.ctx.fillText(textl, u.bbox.left + 10, u.bbox.top + 10);
+          u.ctx.fillText(textl, u.bbox.left + 10, u.bbox.top + (forNode ? 0 : 10));
           u.ctx.textAlign = "end";
           u.ctx.fillStyle = "black";
           u.ctx.fillText(
             textr,
             u.bbox.left + u.bbox.width - 10,
-            u.bbox.top + 10,
+            u.bbox.top + (forNode ? 0 : 10),
           );
           // u.ctx.fillText(text, u.bbox.left + u.bbox.width - 10, u.bbox.top + u.bbox.height - 10) // Recipe for bottom right
 
@@ -496,10 +494,12 @@
     },
     legend: {
       // Display legend until max 12 Y-dataseries
-      show: series.length <= 12 || useStatsSeries === true ? true : false,
-      live: series.length <= 12 || useStatsSeries === true ? true : false,
+      show: series.length <= 12 || useStatsSeries,
+      live: series.length <= 12 || useStatsSeries,
     },
-    cursor: { drag: { x: true, y: true } },
+    cursor: { 
+      drag: { x: true, y: true },
+    }
   };
 
   // RENDER HANDLING

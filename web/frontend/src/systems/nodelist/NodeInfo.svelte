@@ -45,6 +45,11 @@
       $paging: PageRequest!
     ) {
       jobs(filter: $filter, order: $sorting, page: $paging) {
+        items {
+          user
+          project
+          exclusive
+        }
         count
       }
     }
@@ -60,6 +65,13 @@
     query: nodeJobsQuery,
     variables: { paging, sorting, filter },
   });
+
+  let userList;
+  let projectList;
+   $: if ($nodeJobsData?.data) {
+    userList = Array.from(new Set($nodeJobsData.data.jobs.items.map((j) => j.user))).sort((a, b) => a.localeCompare(b));
+    projectList = Array.from(new Set($nodeJobsData.data.jobs.items.map((j) => j.project))).sort((a, b) => a.localeCompare(b));
+   }
 
 </script>
 
@@ -83,113 +95,124 @@
     {#if $nodeJobsData.fetching}
       <Spinner />
     {:else if $nodeJobsData.data}
-      <p>
-        {#if healthWarn}
-          <InputGroup>
-            <InputGroupText>
-              <Icon name="exclamation-circle"/>
-            </InputGroupText>
-            <InputGroupText>
-              Status
-            </InputGroupText>
-            <Button color="danger" disabled>
-              Unhealthy
-            </Button>
-          </InputGroup>
-        {:else if metricWarn}
-          <InputGroup>
-            <InputGroupText>
-              <Icon name="circle-half"/>
-            </InputGroupText>
-            <InputGroupText>
-              Status
-            </InputGroupText>
-            <Button color="warning" disabled>
-              Missing Metric
-            </Button>
-          </InputGroup>
-        {:else if $nodeJobsData.data.jobs.count > 0}
-          <InputGroup>
-            <InputGroupText>
-              <Icon name="circle-fill"/>
-            </InputGroupText>
-            <InputGroupText>
-              Status
-            </InputGroupText>
-            <Button color="success" disabled>
-              Allocated
-            </Button>
-          </InputGroup>
-        {:else}
-          <InputGroup>
-            <InputGroupText>
-              <Icon name="circle"/>
-            </InputGroupText>
-            <InputGroupText>
-              Status
-            </InputGroupText>
-            <Button color="secondary" disabled>
-              Idle
-            </Button>
-          </InputGroup>
-        {/if}
-      </p>
-      <hr class="mt-0 mb-3"/>
-      <p>
-        {#if $nodeJobsData.data.jobs.count > 0}
-          <InputGroup size="sm" class="justify-content-between">
-            <InputGroupText>
-              <Icon name="activity"/>
-            </InputGroupText>
-            <InputGroupText>
-              Activity
-            </InputGroupText>
-            <Input class="flex-grow-1" style="background-color: white;" type="text" value="{$nodeJobsData.data.jobs.count} Jobs" disabled />
-            <a title="Show jobs running on this node" href="/monitoring/jobs/?cluster={cluster}&state=running&node={hostname}" target="_blank" class="btn btn-outline-primary" role="button" aria-disabled="true" >
-              <Icon name="view-list" /> 
-              List
-            </a>
-          </InputGroup>
-        {:else}
-          <InputGroup size="sm" class="justify-content-between">
-            <InputGroupText>
-              <Icon name="activity" />
-            </InputGroupText>
-            <InputGroupText>
-              Activity
-            </InputGroupText>
-            <Input class="flex-grow-1" type="text" style="background-color: white;" value="No running jobs." disabled />
-          </InputGroup>
-        {/if}
-      </p>
-      <p>
-        <InputGroup size="sm" class="justify-content-between">
+      {#if healthWarn}
+        <InputGroup>
           <InputGroupText>
-            <Icon name="people"/>
+            <Icon name="exclamation-circle"/>
           </InputGroupText>
-          <InputGroupText class="flex-fill">
-            Show Users
-          </InputGroupText>
-          <a title="Show users active on this node" href="/monitoring/users/?cluster={cluster}&state=running&node={hostname}" target="_blank" class="btn btn-outline-primary" role="button" aria-disabled="true" >
-            <Icon name="view-list" /> 
-            List
-          </a>
-        </InputGroup>
-      </p>
-      <p>
-        <InputGroup size="sm" class="justify-content-between">
           <InputGroupText>
-            <Icon name="journals"/>
+            Status
           </InputGroupText>
-          <InputGroupText class="flex-fill">
-            Show Projects
-          </InputGroupText>
-          <a title="Show projects active on this node" href="/monitoring/projects/?cluster={cluster}&state=running&node={hostname}" target="_blank" class="btn btn-outline-primary" role="button" aria-disabled="true" >
-            <Icon name="view-list" /> 
-            List
-          </a>
+          <Button color="danger" disabled>
+            Unhealthy
+          </Button>
         </InputGroup>
-      </p>
+      {:else if metricWarn}
+        <InputGroup>
+          <InputGroupText>
+            <Icon name="info-circle"/>
+          </InputGroupText>
+          <InputGroupText>
+            Status
+          </InputGroupText>
+          <Button color="warning" disabled>
+            Missing Metric
+          </Button>
+        </InputGroup>
+      {:else if $nodeJobsData.data.jobs.count == 1 && $nodeJobsData.data.jobs.items[0].exclusive}
+        <InputGroup>
+          <InputGroupText>
+            <Icon name="circle-fill"/>
+          </InputGroupText>
+          <InputGroupText>
+            Status
+          </InputGroupText>
+          <Button color="success" disabled>
+            Exclusive
+          </Button>
+        </InputGroup>
+      {:else if $nodeJobsData.data.jobs.count >= 1 && !$nodeJobsData.data.jobs.items[0].exclusive}
+        <InputGroup>
+          <InputGroupText>
+            <Icon name="circle-half"/>
+          </InputGroupText>
+          <InputGroupText>
+            Status
+          </InputGroupText>
+          <Button color="success" disabled>
+            Shared
+          </Button>
+        </InputGroup>
+      {:else}
+        <InputGroup>
+          <InputGroupText>
+            <Icon name="circle"/>
+          </InputGroupText>
+          <InputGroupText>
+            Status
+          </InputGroupText>
+          <Button color="secondary" disabled>
+            Idle
+          </Button>
+        </InputGroup>
+      {/if}
+      <hr class="my-3"/>
+      <!-- JOBS -->
+      <InputGroup size="sm" class="justify-content-between mb-3">
+        <InputGroupText>
+          <Icon name="activity"/>
+        </InputGroupText>
+        <InputGroupText class="justify-content-center" style="width: 4.4rem;">
+          Activity
+        </InputGroupText>
+        <Input class="flex-grow-1" style="background-color: white;" type="text" value="{$nodeJobsData?.data?.jobs?.count || 0} Job{($nodeJobsData?.data?.jobs?.count == 1) ? '': 's'}" disabled />
+        <a title="Show jobs running on this node" href="/monitoring/jobs/?cluster={cluster}&state=running&node={hostname}" target="_blank" class="btn btn-outline-primary" role="button" aria-disabled="true" >
+          <Icon name="view-list" /> 
+          List
+        </a>
+      </InputGroup>
+      <!-- USERS -->
+      <InputGroup size="sm" class="justify-content-between {(userList?.length > 0) ? 'mb-1' : 'mb-3'}">
+        <InputGroupText>
+          <Icon name="people"/>
+        </InputGroupText>
+        <InputGroupText class="justify-content-center" style="width: 4.4rem;">
+          Users
+        </InputGroupText>
+        <Input class="flex-grow-1" style="background-color: white;" type="text" value="{userList?.length || 0} User{(userList?.length == 1) ? '': 's'}" disabled />
+        <a title="Show users active on this node" href="/monitoring/users/?cluster={cluster}&state=running&node={hostname}" target="_blank" class="btn btn-outline-primary" role="button" aria-disabled="true" >
+          <Icon name="view-list" /> 
+          List
+        </a>
+      </InputGroup>
+      {#if userList?.length > 0}
+        <Card class="mb-3">
+          <div class="p-1">
+            {userList.join(", ")}
+          </div>
+        </Card>
+      {/if}
+      <!-- PROJECTS -->
+      <InputGroup size="sm" class="justify-content-between {(projectList?.length > 0) ? 'mb-1' : 'mb-3'}">
+        <InputGroupText>
+          <Icon name="journals"/>
+        </InputGroupText>
+        <InputGroupText class="justify-content-center" style="width: 4.4rem;">
+          Projects
+        </InputGroupText>
+        <Input class="flex-grow-1" style="background-color: white;" type="text" value="{projectList?.length || 0} Project{(projectList?.length == 1) ? '': 's'}" disabled />
+        <a title="Show projects active on this node" href="/monitoring/projects/?cluster={cluster}&state=running&node={hostname}" target="_blank" class="btn btn-outline-primary" role="button" aria-disabled="true" >
+          <Icon name="view-list" /> 
+          List
+        </a>
+      </InputGroup>
+      {#if projectList?.length > 0}
+        <Card>
+          <div class="p-1">
+            {projectList.join(", ")}
+          </div>
+        </Card>
+      {/if}
     {/if}
   </CardBody>
 </Card>

@@ -46,13 +46,21 @@
           return scopedNodeMetric;
         }
       });
+
+  let refinedData;
+  let dataHealth;
+  $: if (nodeData?.metrics) {
+    refinedData = sortAndSelectScope(nodeData?.metrics)
+    // Check data for series, skip disabled
+    dataHealth = refinedData.filter((rd) => rd.disabled === false).map((enabled) => (enabled.data.metric.series.length > 0))
+  }
 </script>
 
 <tr>
   <td>
-    <NodeInfo {cluster} subCluster={nodeData.subCluster} hostname={nodeData.host} dataHealth={nodeData?.metrics.map((m) => (m.metric.series.length > 0))}/>
+    <NodeInfo {cluster} subCluster={nodeData.subCluster} hostname={nodeData.host} {dataHealth}/>
   </td>
-  {#each sortAndSelectScope(nodeData?.metrics) as metricData (metricData.data.name)}
+  {#each refinedData as metricData (metricData.data.name)}
     <td>
       {#if metricData?.disabled}
         <Card body class="mx-3" color="info"
@@ -60,7 +68,7 @@
             >{metricData.data.name}:{nodeData.subCluster}</code
           ></Card
         >
-      {:else}
+      {:else if !!metricData.data?.metric.statisticsSeries}
         <!-- "No Data"-Warning included in MetricPlot-Component -->
         <MetricPlot
           {cluster}
@@ -71,6 +79,29 @@
           series={metricData.data.metric.series}
           statisticsSeries={metricData.data?.metric.statisticsSeries}
           useStatsSeries={!!metricData.data?.metric.statisticsSeries}
+          height={175}
+          forNode
+        />
+        <div class="my-2"/>
+        <MetricPlot
+          {cluster}
+          subCluster={nodeData.subCluster}
+          metric={metricData.data.name}
+          scope={metricData.data.scope}
+          timestep={metricData.data.metric.timestep}
+          series={metricData.data.metric.series}
+          height={175}
+          forNode
+        />
+      {:else}
+        <MetricPlot
+          {cluster}
+          subCluster={nodeData.subCluster}
+          metric={metricData.data.name}
+          scope={metricData.data.scope}
+          timestep={metricData.data.metric.timestep}
+          series={metricData.data.metric.series}
+          height={375}
           forNode
         />
       {/if}

@@ -287,11 +287,11 @@ func LoadNodeListData(
 	}
 
 	// NOTE: New StatsSeries will always be calculated as 'min/median/max'
-	const maxSeriesSize int = 15
+	const maxSeriesSize int = 8
 	for _, jd := range data {
 		for _, scopes := range jd {
 			for _, jm := range scopes {
-				if jm.StatisticsSeries != nil || len(jm.Series) <= maxSeriesSize {
+				if jm.StatisticsSeries != nil || len(jm.Series) < maxSeriesSize {
 					continue
 				}
 				jm.AddStatisticsSeries()

@@ -423,8 +423,8 @@ func (r *queryResolver) RooflineHeatmap(ctx context.Context, filter []*model.Job
 // NodeMetrics is the resolver for the nodeMetrics field.
 func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) ([]*model.NodeMetrics, error) {
 	user := repository.GetUserFromContext(ctx)
-	if user != nil && !user.HasRole(schema.RoleAdmin) {
-		return nil, errors.New("you need to be an administrator for this query")
+	if user != nil && !user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport}) {
+		return nil, errors.New("you need to be administrator or support staff for this query")
 	}
 
 	if metrics == nil {
@@ -479,8 +479,8 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 	}
 
 	user := repository.GetUserFromContext(ctx)
-	if user != nil && !user.HasRole(schema.RoleAdmin) {
-		return nil, errors.New("you need to be an administrator for this query")
+	if user != nil && !user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport}) {
+		return nil, errors.New("you need to be administrator or support staff for this query")
 	}
 
 	if metrics == nil {
