@@ -9,7 +9,7 @@
  -->
 
 <script>
-  import { getContext, createEventDispatcher } from "svelte";
+  import { getContext } from "svelte";
   import {
     Row,
     Col,
@@ -64,10 +64,8 @@
   let isMetricsSelectionOpen = false;
 
   /*
-    Note 1: Scope Selector or Auto-Scoped? -> USeful auto scoping with stats view where applicable -> CHeck with JVe
-    Note 2: "Sorting" as use-case ignored for now, probably default to alphanumerical on hostnames of cluster (handled in frontend at the moment)
-    Note 3: Add Idle State Filter (== No allocated Jobs) [Frontend?] : Cannot be handled by CCMS, requires secondary job query and refiltering of visible nodes
-    Note 4: Resolution changes as implemented only possible for all plots generally, not for individual metrics: Result list if build from GQL result *including* metric series
+    Note 1: "Sorting" as use-case ignored for now, probably default to alphanumerical on hostnames of cluster (handled in frontend at the moment)
+    Note 2: Add Idle State Filter (== No allocated Jobs) [Frontend?] : Cannot be handled by CCMS, requires secondary job query and refiltering of visible nodes
   */
 
   let systemMetrics = [];

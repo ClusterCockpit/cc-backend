@@ -138,6 +138,7 @@
   export let numaccs = 0;
   export let zoomState = null;
   export let thresholdState = null;
+  export let extendedLegendData = null;
 
   if (!useStatsSeries && statisticsSeries != null) useStatsSeries = true;
 
@@ -191,6 +192,7 @@
       className && legendEl.classList.add(className);
 
       uPlot.assign(legendEl.style, {
+        minWidth: extendedLegendData ? "300px" : "100px",
         textAlign: "left",
         pointerEvents: "none",
         display: "none",
@@ -307,13 +309,6 @@
     }
   }
 
-  const plotSeries = [
-    {
-      label: "Runtime",
-      value: (u, ts, sidx, didx) =>
-        didx == null ? null : formatTime(ts, forNode),
-    },
-  ];
   const plotData = [new Array(longestSeries)];
   if (forNode === true) {
     // Negative Timestamp Buildup
@@ -329,6 +324,15 @@
     )
       plotData[0][j] = j * timestep;
   }
+
+  const plotSeries = [
+    // Note: X-Legend Will not be shown as soon as Y-Axis are in extendedMode
+    {
+      label: "Runtime",
+      value: (u, ts, sidx, didx) =>
+       (didx == null) ? null : formatTime(ts, forNode),
+    }
+  ];
 
   let plotBands = undefined;
   if (useStatsSeries) {
@@ -366,15 +370,60 @@
   } else {
     for (let i = 0; i < series.length; i++) {
       plotData.push(series[i].data);
-      plotSeries.push({
-        label:
-          scope === "node"
+      // Default
+      if (!extendedLegendData) {
+        plotSeries.push({
+          label: 
+            scope === "node"
             ? series[i].hostname
-            : scope + " #" + (i + 1),
-        scale: "y",
-        width: lineWidth,
-        stroke: lineColor(i, series.length),
-      });
+            : scope === "accelerator"
+              ? 'Acc #' + (i + 1) // series[i].id.slice(9, 14) | Too Hardware Specific
+              : scope + " #" + (i + 1),
+          scale: "y",
+          width: lineWidth,
+          stroke: lineColor(i, series.length),
+        });
+      }
+      // Extended Legend For NodeList
+      else {
+        plotSeries.push({
+          label: 
+            scope === "node"
+              ? series[i].hostname
+              : scope === "accelerator"
+                ? 'Acc #' + (i + 1) // series[i].id.slice(9, 14) | Too Hardware Specific
+                : scope + " #" + (i + 1),
+          scale: "y",
+          width: lineWidth,
+          stroke: lineColor(i, series.length),
+          values: (u, sidx, idx) => {
+            // "i" = "sidx - 1" : sidx contains x-axis-data
+            if (idx == null)
+              return {
+                time: '-',
+                value: '-',
+                user: '-',
+                job: '-'
+              };
+
+            if (series[i].id in extendedLegendData) {
+              return {
+                time: formatTime(plotData[0][idx], forNode),
+                value: plotData[sidx][idx],
+                user: extendedLegendData[series[i].id].user,
+                job: extendedLegendData[series[i].id].job,
+              };
+            } else {
+              return {
+                time: formatTime(plotData[0][idx], forNode),
+                value: plotData[sidx][idx],
+                user: '-',
+                job: '-',
+              };
+            }
+          }
+        });
+      }
     }
   }
 
