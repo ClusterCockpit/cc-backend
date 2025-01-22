@@ -447,15 +447,29 @@ func (r *JobRepository) AddHistograms(
 	ctx context.Context,
 	filter []*model.JobFilter,
 	stat *model.JobsStatistics,
+	targetBinCount *int,
 ) (*model.JobsStatistics, error) {
 	start := time.Now()
 
-	binSeconds := 900
-	binMinutes := binSeconds / 60
+	// targetBinCount : Frontendargument
+	// -> Min Bins:        24   -> Min Resolution: By Hour
+	// -> In Between Bins: 48   -> Resolution by Half Hour
+	//                     96   -> Resolution by Quarter Hour (Skip for Now)
+	//                     144  -> Resolution by 10 Minutes
+	//                     288  -> Resolution by 5 Minutes
+	//                     720  -> Resolution by 2 Minutes (SKip for Now)
+	// -> Max Bins:        1440 -> Max Resolution: By Minute
+
+	if targetBinCount == nil {
+		binCount := 24
+		targetBinCount = &binCount
+	}
+	binSizeSeconds := (86400 / *targetBinCount)
+
 	castType := r.getCastType()
 	var err error
-	// Bin by job duration in sizes of binSeconds, add +1, gives Integers from 1-XX+1, re-multiply by binMinutes to get final bar x-values (logic: Jobs less than duration X in bin)
-	value := fmt.Sprintf(`CAST((ROUND(((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) / %d) + 1) * %d) as %s) as value`, time.Now().Unix(), binSeconds, binMinutes, castType)
+	// Return X-Values always as seconds, will be formatted into minutes and hours in frontend
+	value := fmt.Sprintf(`CAST(ROUND(((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) / %d) + 1) as %s) as value`, time.Now().Unix(), binSizeSeconds, castType)
 	stat.HistDuration, err = r.jobsStatisticsHistogram(ctx, value, filter)
 	if err != nil {
 		log.Warn("Error while loading job statistics histogram: job duration")
@@ -490,14 +504,20 @@ func (r *JobRepository) AddMetricHistograms(
 	filter []*model.JobFilter,
 	metrics []string,
 	stat *model.JobsStatistics,
+	targetBinCount *int,
 ) (*model.JobsStatistics, error) {
 	start := time.Now()
+
+	if targetBinCount == nil {
+		binCount := 10
+		targetBinCount = &binCount
+	}
 
 	// Running Jobs Only: First query jobdata from sqlite, then query data and make bins
 	for _, f := range filter {
 		if f.State != nil {
 			if len(f.State) == 1 && f.State[0] == "running" {
-				stat.HistMetrics = r.runningJobsMetricStatisticsHistogram(ctx, metrics, filter)
+				stat.HistMetrics = r.runningJobsMetricStatisticsHistogram(ctx, metrics, filter, targetBinCount)
 				log.Debugf("Timer AddMetricHistograms %s", time.Since(start))
 				return stat, nil
 			}
@@ -506,7 +526,7 @@ func (r *JobRepository) AddMetricHistograms(
 
 	// All other cases: Query and make bins in sqlite directly
 	for _, m := range metrics {
-		metricHisto, err := r.jobsMetricStatisticsHistogram(ctx, m, filter)
+		metricHisto, err := r.jobsMetricStatisticsHistogram(ctx, m, filter, targetBinCount)
 		if err != nil {
 			log.Warnf("Error while loading job metric statistics histogram: %s", m)
 			continue
@@ -560,6 +580,7 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 	ctx context.Context,
 	metric string,
 	filters []*model.JobFilter,
+	bins *int,
 ) (*model.MetricHistoPoints, error) {
 	// Get specific Peak or largest Peak
 	var metricConfig *schema.MetricConfig
@@ -627,7 +648,6 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 		return nil, sqlerr
 	}
 
-	bins := 10
 	binQuery := fmt.Sprintf(`CAST( (case when %s = value.max
 	   then value.max*0.999999999 else %s end - value.min) / (value.max -
 	   value.min) * %d as INTEGER )`, jm, jm, bins)
@@ -681,6 +701,7 @@ func (r *JobRepository) runningJobsMetricStatisticsHistogram(
 	ctx context.Context,
 	metrics []string,
 	filters []*model.JobFilter,
+	bins *int,
 ) []*model.MetricHistoPoints {
 	// Get Jobs
 	jobs, err := r.QueryJobs(ctx, filters, &model.PageRequest{Page: 1, ItemsPerPage: 500 + 1}, nil)
@@ -743,8 +764,7 @@ func (r *JobRepository) runningJobsMetricStatisticsHistogram(
 		}
 
 		// Make and fill bins
-		bins := 10.0
-		peakBin := peak / bins
+		peakBin := peak / float64(*bins)
 
 		points := make([]*model.MetricHistoPoint, 0)
 		for b := 0; b < 10; b++ {

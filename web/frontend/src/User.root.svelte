@@ -213,7 +213,7 @@
     <Col class="px-1">
       {#key $stats.data.jobsStatistics[0].histDuration}
         <Histogram
-          data={convert2uplot($stats.data.jobsStatistics[0].histDuration, true)}
+          data={convert2uplot($stats.data.jobsStatistics[0].histDuration)}
           title="Duration Distribution"
           xlabel="Current Runtimes (Hours)"
           xtime={true}
