@@ -361,6 +361,10 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	var err error
 	var stats []*model.JobsStatistics
 
+	// Top Level Defaults
+	var defaultDurationBins int = 24
+	var defaultMetricBins int = 10
+
 	if requireField(ctx, "totalJobs") || requireField(ctx, "totalWalltime") || requireField(ctx, "totalNodes") || requireField(ctx, "totalCores") ||
 		requireField(ctx, "totalAccs") || requireField(ctx, "totalNodeHours") || requireField(ctx, "totalCoreHours") || requireField(ctx, "totalAccHours") {
 		if groupBy == nil {
@@ -396,8 +400,7 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	if requireField(ctx, "histDuration") || requireField(ctx, "histNumNodes") || requireField(ctx, "histNumCores") || requireField(ctx, "histNumAccs") {
 
 		if numDurationBins == nil {
-			binCount := 24
-			numDurationBins = &binCount
+			numDurationBins = &defaultDurationBins
 		}
 
 		if groupBy == nil {
@@ -413,8 +416,7 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	if requireField(ctx, "histMetrics") {
 
 		if numMetricBins == nil {
-			binCount := 10
-			numMetricBins = &binCount
+			numMetricBins = &defaultMetricBins
 		}
 
 		if groupBy == nil {

@@ -8,7 +8,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
@@ -504,8 +503,6 @@ func (r *JobRepository) AddMetricHistograms(
 ) (*model.JobsStatistics, error) {
 	start := time.Now()
 
-	log.Debugf(">>> HELLO ADD HISTO Metrics: Target %d", *targetBinCount)
-
 	// Running Jobs Only: First query jobdata from sqlite, then query data and make bins
 	for _, f := range filter {
 		if f.State != nil {
@@ -699,13 +696,13 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 
 	binQuery := fmt.Sprintf(`CAST( (case when %s = value.max
 	   then value.max*0.999999999 else %s end - value.min) / (value.max -
-	   value.min) * %d as INTEGER )`, jm, jm, bins)
+	   value.min) * %v as INTEGER )`, jm, jm, *bins)
 
 	mainQuery := sq.Select(
 		fmt.Sprintf(`%s + 1 as bin`, binQuery),
 		fmt.Sprintf(`count(%s) as count`, jm),
-		fmt.Sprintf(`CAST(((value.max / %d) * (%s     )) as INTEGER ) as min`, bins, binQuery),
-		fmt.Sprintf(`CAST(((value.max / %d) * (%s + 1 )) as INTEGER ) as max`, bins, binQuery),
+		fmt.Sprintf(`CAST(((value.max / %d) * (%v     )) as INTEGER ) as min`, *bins, binQuery),
+		fmt.Sprintf(`CAST(((value.max / %d) * (%v + 1 )) as INTEGER ) as max`, *bins, binQuery),
 	).From("job").CrossJoin(
 		fmt.Sprintf(`(%s) as value`, crossJoinQuerySql), crossJoinQueryArgs...,
 	).Where(fmt.Sprintf(`%s is not null and %s <= %f`, jm, jm, peak))
@@ -729,7 +726,15 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 		return nil, err
 	}
 
+	// Setup Array
 	points := make([]*model.MetricHistoPoint, 0)
+	for i := 1; i <= *bins; i++ {
+		binMax := ((int(peak) / *bins) * i)
+		binMin := ((int(peak) / *bins) * (i - 1))
+		point := model.MetricHistoPoint{Bin: &i, Count: 0, Min: &binMin, Max: &binMax}
+		points = append(points, &point)
+	}
+
 	for rows.Next() {
 		point := model.MetricHistoPoint{}
 		if err := rows.Scan(&point.Bin, &point.Count, &point.Min, &point.Max); err != nil {
@@ -737,7 +742,20 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 			return nil, err // Totally bricks cc-backend if returned and if all metrics requested?
 		}
 
-		points = append(points, &point)
+		for _, e := range points {
+			if e.Bin != nil && point.Bin != nil {
+				if *e.Bin == *point.Bin {
+					e.Count = point.Count
+					if point.Min != nil {
+						e.Min = point.Min
+					}
+					if point.Max != nil {
+						e.Max = point.Max
+					}
+					break
+				}
+			}
+		}
 	}
 
 	result := model.MetricHistoPoints{Metric: metric, Unit: unit, Stat: &footprintStat, Data: points}
@@ -752,6 +770,7 @@ func (r *JobRepository) runningJobsMetricStatisticsHistogram(
 	filters []*model.JobFilter,
 	bins *int,
 ) []*model.MetricHistoPoints {
+
 	// Get Jobs
 	jobs, err := r.QueryJobs(ctx, filters, &model.PageRequest{Page: 1, ItemsPerPage: 500 + 1}, nil)
 	if err != nil {
@@ -793,7 +812,6 @@ func (r *JobRepository) runningJobsMetricStatisticsHistogram(
 				metricConfig = archive.GetMetricConfig(*f.Cluster.Eq, metric)
 				peak = metricConfig.Peak
 				unit = metricConfig.Unit.Prefix + metricConfig.Unit.Base
-				log.Debugf("Cluster %s filter found with peak %f for %s", *f.Cluster.Eq, peak, metric)
 			}
 		}
 
@@ -813,27 +831,24 @@ func (r *JobRepository) runningJobsMetricStatisticsHistogram(
 		}
 
 		// Make and fill bins
-		peakBin := peak / float64(*bins)
+		peakBin := int(peak) / *bins
 
 		points := make([]*model.MetricHistoPoint, 0)
-		for b := 0; b < 10; b++ {
+		for b := 0; b < *bins; b++ {
 			count := 0
 			bindex := b + 1
-			bmin := math.Round(peakBin * float64(b))
-			bmax := math.Round(peakBin * (float64(b) + 1.0))
+			bmin := peakBin * b
+			bmax := peakBin * (b + 1)
 
 			// Iterate AVG values for indexed metric and count for bins
 			for _, val := range avgs[idx] {
-				if float64(val) >= bmin && float64(val) < bmax {
+				if int(val) >= bmin && int(val) < bmax {
 					count += 1
 				}
 			}
 
-			bminint := int(bmin)
-			bmaxint := int(bmax)
-
 			// Append Bin to Metric Result Array
-			point := model.MetricHistoPoint{Bin: &bindex, Count: count, Min: &bminint, Max: &bmaxint}
+			point := model.MetricHistoPoint{Bin: &bindex, Count: count, Min: &bmin, Max: &bmax}
 			points = append(points, &point)
 		}
 

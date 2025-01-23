@@ -41,7 +41,7 @@
     points: 2,
   };
 
-  const binCounts = xtime ? [24, 48, 96, 144, 288, 720, 1440] : [10, 20, 50, 100, 200, 500, 1000];
+  const binCounts = xtime ? [24, 48, 96, 144, 288, 720, 1440] : [10, 20, 50, 100, 200]; // , 500, 1000
 
   function formatTime(t) {
     if (t !== null) {
@@ -142,7 +142,7 @@
           (u) => {
             if (zoomableHistogram) {
               u.over.addEventListener("dblclick", (e) => {
-                // console.log('Dispatch Reset')
+                console.log('Dispatch Reset')
                 dispatch('zoom', {
                   lastZoomState: {
                     x: { time: false },
@@ -159,17 +159,17 @@
               if (zoomableHistogram) {
                 const numX = (u.series[0].idxs[1] - u.series[0].idxs[0])
                 if (xtime && numX <= 12 && lastBinCount !== 1440) {
-                  console.log("Dispatch for Duration: ", numX, lastBinCount, binCounts[binCounts.indexOf(lastBinCount) + 1])
+                  // console.log("Dispatch for Duration: ", numX, lastBinCount, binCounts[binCounts.indexOf(lastBinCount) + 1])
                   dispatch('zoom', {
                     durationBinCount: binCounts[binCounts.indexOf(lastBinCount) + 1],
                     lastZoomState: u?.scales,
                   });
-                } else if (!xtime && numX <= 5 && lastBinCount !== 1000) {
+                } else if (!xtime && numX <= 6 && lastBinCount !== 200) {
                   // console.log("Dispatch for Metrics: ", numX, lastBinCount, binCounts[binCounts.indexOf(lastBinCount) + 1])
-                  // dispatch('zoom', {
-                  //   metricBinCount: binCounts[binCounts.indexOf(lastBinCount) + 1],
-                  //   lastZoomState: u?.scales,
-                  // });
+                  dispatch('zoom', {
+                    metricBinCount: binCounts[binCounts.indexOf(lastBinCount) + 1],
+                    lastZoomState: u?.scales,
+                  });
                 };
               }
             };
@@ -212,7 +212,6 @@
             stroke: "#000000",
           },
           values: (_, t) => t.map((v) => {
-            // if (!usesBins) console.log("X Scale Val", xlabel, v)
             if (xtime) {
               return formatTime(v);
             } else {
@@ -236,7 +235,6 @@
             stroke: "#000000",
           },
           values: (_, t) => t.map((v) => {
-            // if (!usesBins) console.log("Y Scale Val", ylabel, v)
             return formatNumber(v)
           }),
         },
@@ -275,6 +273,7 @@
     };
 
     if (zoomableHistogram && zoomState) {
+      console.log("Apply ZoomState ...", zoomState)
       opts.scales = {...zoomState}
     }
 

@@ -413,7 +413,7 @@ export function convert2uplot(canvasData, secondsToMinutes = false, secondsToHou
         canvasData.forEach( cd => {
             if (Object.keys(cd).length == 4) { // MetricHisto Datafromat
                 uplotData[0].push(cd?.max ? cd.max : 0)
-                uplotData[1].push(cd.count)
+                uplotData[1].push(cd?.count ? cd.count : 0)
             } else { // Default -> Fill Histodata with zero values on unused value placing -> maybe allows zoom trigger as known
                 if (secondsToHours) {
                     let hours = cd.value / 3600
