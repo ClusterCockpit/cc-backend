@@ -59,6 +59,9 @@
   let showFootprint = filterPresets.cluster
     ? !!ccconfig[`plot_list_showFootprint:${filterPresets.cluster}`]
     : !!ccconfig.plot_list_showFootprint;
+  let numDurationBins;
+  let numMetricBins;
+
 
   $: metricsInHistograms = selectedCluster
     ? ccconfig[`user_view_histogramMetrics:${selectedCluster}`] || []
@@ -68,8 +71,8 @@
   $: stats = queryStore({
     client: client,
     query: gql`
-      query ($jobFilters: [JobFilter!]!, $metricsInHistograms: [String!]) {
-        jobsStatistics(filter: $jobFilters, metrics: $metricsInHistograms) {
+      query ($jobFilters: [JobFilter!]!, $metricsInHistograms: [String!], $numDurationBins: Int, $numMetricBins: Int) {
+        jobsStatistics(filter: $jobFilters, metrics: $metricsInHistograms, numDurationBins: $numDurationBins , numMetricBins: $numMetricBins ) {
           totalJobs
           shortJobs
           totalWalltime
@@ -96,8 +99,40 @@
         }
       }
     `,
-    variables: { jobFilters, metricsInHistograms },
+    variables: { jobFilters, metricsInHistograms, numDurationBins, numMetricBins },
   });
+
+  let durationZoomState = null;
+  let metricZoomState = null;
+  let pendingDurationBinCount = null;
+  let pendingMetricBinCount = null;
+  let pendingZoomState = null;
+  function handleZoom(detail) {
+      if ( // States have to differ, causes deathloop if just set
+          (pendingZoomState?.x?.min !== detail?.lastZoomState?.x?.min) &&
+          (pendingZoomState?.y?.max !== detail?.lastZoomState?.y?.max)
+      ) {
+          pendingZoomState = {...detail.lastZoomState};
+      }
+
+      if (detail?.durationBinCount) { // Triggers GQL
+          pendingDurationBinCount = detail.durationBinCount;
+      }
+
+      if (detail?.metricBinCount) { // Triggers GQL
+          pendingMetricBinCount = detail.metricBinCount;
+      }
+  };
+
+  $: if (pendingDurationBinCount !== numDurationBins) {
+    durationZoomState = {...pendingZoomState};
+    numDurationBins = pendingDurationBinCount;
+  }
+
+  $: if (pendingMetricBinCount !== numMetricBins) {
+    metricZoomState = {...pendingZoomState};
+    numMetricBins = pendingMetricBinCount;
+  }
 
   onMount(() => filterComponent.updateFilters());
 </script>
@@ -213,13 +248,17 @@
     <Col class="px-1">
       {#key $stats.data.jobsStatistics[0].histDuration}
         <Histogram
+          on:zoom={({detail}) => { handleZoom(detail) }}
           data={convert2uplot($stats.data.jobsStatistics[0].histDuration)}
           title="Duration Distribution"
-          xlabel="Current Runtimes (Hours)"
-          xtime={true}
-          xunit="Hours"
+          xlabel="Job Runtimes"
+          xunit="Runtime"
           ylabel="Number of Jobs"
           yunit="Jobs"
+          lastBinCount={pendingDurationBinCount}
+          {durationZoomState}
+          zoomableHistogram
+          xtime
         />
       {/key}
     </Col>
@@ -273,6 +312,7 @@
         itemsPerRow={3}
       >
         <Histogram
+          on:zoom={({detail}) => { handleZoom(detail) }}
           data={convert2uplot(item.data)}
           usesBins={true}
           title="Distribution of '{item.metric} ({item.stat})' footprints"
@@ -280,6 +320,9 @@
           xunit={item.unit}
           ylabel="Number of Jobs"
           yunit="Jobs"
+          lastBinCount={pendingMetricBinCount}
+          {metricZoomState}
+          zoomableHistogram
         />
       </PlotGrid>
     {/key}

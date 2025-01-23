@@ -394,6 +394,12 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	}
 
 	if requireField(ctx, "histDuration") || requireField(ctx, "histNumNodes") || requireField(ctx, "histNumCores") || requireField(ctx, "histNumAccs") {
+
+		if numDurationBins == nil {
+			binCount := 24
+			numDurationBins = &binCount
+		}
+
 		if groupBy == nil {
 			stats[0], err = r.Repo.AddHistograms(ctx, filter, stats[0], numDurationBins)
 			if err != nil {
@@ -405,6 +411,12 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	}
 
 	if requireField(ctx, "histMetrics") {
+
+		if numMetricBins == nil {
+			binCount := 10
+			numMetricBins = &binCount
+		}
+
 		if groupBy == nil {
 			stats[0], err = r.Repo.AddMetricHistograms(ctx, filter, metrics, stats[0], numMetricBins)
 			if err != nil {

@@ -454,23 +454,19 @@ func (r *JobRepository) AddHistograms(
 	// targetBinCount : Frontendargument
 	// -> Min Bins:        24   -> Min Resolution: By Hour
 	// -> In Between Bins: 48   -> Resolution by Half Hour
-	//                     96   -> Resolution by Quarter Hour (Skip for Now)
+	//                     96   -> Resolution by Quarter Hour
 	//                     144  -> Resolution by 10 Minutes
 	//                     288  -> Resolution by 5 Minutes
-	//                     720  -> Resolution by 2 Minutes (SKip for Now)
+	//                     720  -> Resolution by 2 Minutes
 	// -> Max Bins:        1440 -> Max Resolution: By Minute
 
-	if targetBinCount == nil {
-		binCount := 24
-		targetBinCount = &binCount
-	}
 	binSizeSeconds := (86400 / *targetBinCount)
 
 	castType := r.getCastType()
 	var err error
 	// Return X-Values always as seconds, will be formatted into minutes and hours in frontend
 	value := fmt.Sprintf(`CAST(ROUND(((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) / %d) + 1) as %s) as value`, time.Now().Unix(), binSizeSeconds, castType)
-	stat.HistDuration, err = r.jobsStatisticsHistogram(ctx, value, filter)
+	stat.HistDuration, err = r.jobsDurationStatisticsHistogram(ctx, value, filter, binSizeSeconds, targetBinCount)
 	if err != nil {
 		log.Warn("Error while loading job statistics histogram: job duration")
 		return nil, err
@@ -508,10 +504,7 @@ func (r *JobRepository) AddMetricHistograms(
 ) (*model.JobsStatistics, error) {
 	start := time.Now()
 
-	if targetBinCount == nil {
-		binCount := 10
-		targetBinCount = &binCount
-	}
+	log.Debugf(">>> HELLO ADD HISTO Metrics: Target %d", *targetBinCount)
 
 	// Running Jobs Only: First query jobdata from sqlite, then query data and make bins
 	for _, f := range filter {
@@ -563,6 +556,7 @@ func (r *JobRepository) jobsStatisticsHistogram(
 	}
 
 	points := make([]*model.HistoPoint, 0)
+	// is it possible to introduce zero values here? requires info about bincount
 	for rows.Next() {
 		point := model.HistoPoint{}
 		if err := rows.Scan(&point.Value, &point.Count); err != nil {
@@ -572,6 +566,61 @@ func (r *JobRepository) jobsStatisticsHistogram(
 
 		points = append(points, &point)
 	}
+	log.Debugf("Timer jobsStatisticsHistogram %s", time.Since(start))
+	return points, nil
+}
+
+func (r *JobRepository) jobsDurationStatisticsHistogram(
+	ctx context.Context,
+	value string,
+	filters []*model.JobFilter,
+	binSizeSeconds int,
+	targetBinCount *int,
+) ([]*model.HistoPoint, error) {
+	start := time.Now()
+	query, qerr := SecurityCheck(ctx,
+		sq.Select(value, "COUNT(job.id) AS count").From("job"))
+
+	if qerr != nil {
+		return nil, qerr
+	}
+
+	// Setup Array
+	points := make([]*model.HistoPoint, 0)
+	for i := 1; i <= *targetBinCount; i++ {
+		point := model.HistoPoint{Value: i * binSizeSeconds, Count: 0}
+		points = append(points, &point)
+	}
+
+	for _, f := range filters {
+		query = BuildWhereClause(f, query)
+	}
+
+	rows, err := query.GroupBy("value").RunWith(r.DB).Query()
+	if err != nil {
+		log.Error("Error while running query")
+		return nil, err
+	}
+
+	// Fill Array at matching $Value
+	for rows.Next() {
+		point := model.HistoPoint{}
+		if err := rows.Scan(&point.Value, &point.Count); err != nil {
+			log.Warn("Error while scanning rows")
+			return nil, err
+		}
+
+		for _, e := range points {
+			if e.Value == (point.Value * binSizeSeconds) {
+				// Note:
+				//  Matching on unmodified integer value (and multiplying point.Value by binSizeSeconds after match)
+				//  causes frontend to loop into highest targetBinCount, due to zoom condition instantly being fullfilled (cause unknown)
+				e.Count = point.Count
+				break
+			}
+		}
+	}
+
 	log.Debugf("Timer jobsStatisticsHistogram %s", time.Since(start))
 	return points, nil
 }

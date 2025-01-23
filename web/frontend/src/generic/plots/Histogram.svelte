@@ -15,8 +15,8 @@
 
 <script>
   import uPlot from "uplot";
+  import { getContext, onMount, onDestroy, createEventDispatcher } from "svelte";
   import { formatNumber } from "../units.js";
-  import { onMount, onDestroy } from "svelte";
   import { Card } from "@sveltestrap/sveltestrap";
 
   export let data;
@@ -25,17 +25,39 @@
   export let height = 250;
   export let title = "";
   export let xlabel = "";
-  export let xtime = false;
   export let xunit = "";
+  export let xtime = false;
   export let ylabel = "";
   export let yunit = "";
+  export let zoomState = null;
+  export let lastBinCount = null;
+  export let zoomableHistogram = false;
 
   const { bars } = uPlot.paths;
+  const dispatch = createEventDispatcher();
 
   const drawStyles = {
     bars: 1,
     points: 2,
   };
+
+  const binCounts = xtime ? [24, 48, 96, 144, 288, 720, 1440] : [10, 20, 50, 100, 200, 500, 1000];
+
+  function formatTime(t) {
+    if (t !== null) {
+      if (isNaN(t)) {
+        return t;
+      } else {
+        const tAbs = Math.abs(t);
+        const h = Math.floor(tAbs / 3600);
+        const m = Math.floor((tAbs % 3600) / 60);
+        // Re-Add "negativity" to time ticks only as string, so that if-cases work as intended
+        if (h == 0) return `${m}m`;
+        else if (m == 0) return `${h}h`;
+        else return `${h}:${m}h`;
+      }
+    }
+  }
 
   function paths(u, seriesIdx, idx0, idx1, extendGap, buildClip) {
     let s = u.series[seriesIdx];
@@ -115,6 +137,45 @@
 
   function render() {
     let opts = {
+      hooks: {
+        init: [
+          (u) => {
+            if (zoomableHistogram) {
+              u.over.addEventListener("dblclick", (e) => {
+                // console.log('Dispatch Reset')
+                dispatch('zoom', {
+                  lastZoomState: {
+                    x: { time: false },
+                    y: { auto: true }
+                  }
+                });
+              });
+            }
+          },
+        ],
+        setScale: [
+          (u, key) => {
+            if (key === 'x') {
+              if (zoomableHistogram) {
+                const numX = (u.series[0].idxs[1] - u.series[0].idxs[0])
+                if (xtime && numX <= 12 && lastBinCount !== 1440) {
+                  console.log("Dispatch for Duration: ", numX, lastBinCount, binCounts[binCounts.indexOf(lastBinCount) + 1])
+                  dispatch('zoom', {
+                    durationBinCount: binCounts[binCounts.indexOf(lastBinCount) + 1],
+                    lastZoomState: u?.scales,
+                  });
+                } else if (!xtime && numX <= 5 && lastBinCount !== 1000) {
+                  // console.log("Dispatch for Metrics: ", numX, lastBinCount, binCounts[binCounts.indexOf(lastBinCount) + 1])
+                  // dispatch('zoom', {
+                  //   metricBinCount: binCounts[binCounts.indexOf(lastBinCount) + 1],
+                  //   lastZoomState: u?.scales,
+                  // });
+                };
+              }
+            };
+          },
+        ]
+      },
       width: width,
       height: height,
       title: title,
@@ -140,7 +201,7 @@
           label: xlabel,
           labelGap: 10,
           size: 25,
-          incrs: xtime ? [0.25, 0.5, 1, 2, 4, 8, 15, 30, 60, 90, 120, 180, 240] : [1, 2, 5, 10, 25, 50, 100, 250, 500, 1000, 5000, 10000],
+          incrs: xtime ? [60, 120, 300, 600, 900, 1800, 3600, 7200, 14400] : [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000],
           border: {
             show: true,
             stroke: "#000000",
@@ -151,8 +212,12 @@
             stroke: "#000000",
           },
           values: (_, t) => t.map((v) => {
-            if (!usesBins) console.log("X Scale Val", xlabel, v)
-            return formatNumber(v)
+            // if (!usesBins) console.log("X Scale Val", xlabel, v)
+            if (xtime) {
+              return formatTime(v);
+            } else {
+              return formatNumber(v)
+            }
           }),
         },
         {
@@ -171,7 +236,7 @@
             stroke: "#000000",
           },
           values: (_, t) => t.map((v) => {
-            if (!usesBins) console.log("Y Scale Val", ylabel, v)
+            // if (!usesBins) console.log("Y Scale Val", ylabel, v)
             return formatNumber(v)
           }),
         },
@@ -184,6 +249,8 @@
               const min = u.data[sidx][didx - 1] ? u.data[sidx][didx - 1] : 0;
               const max = u.data[sidx][didx];
               ts = min + " - " + max; // narrow spaces
+            } else if (xtime) {
+              ts = formatTime(ts);
             }
             return ts;
           },
@@ -198,6 +265,7 @@
           },
           {
             drawStyle: drawStyles.bars,
+            width: 1, // 1 / lastBinCount,
             lineInterpolation: null,
             stroke: "#85abce",
             fill: "#85abce", //  + "1A", // Transparent Fill
@@ -205,6 +273,10 @@
         ),
       ],
     };
+
+    if (zoomableHistogram && zoomState) {
+      opts.scales = {...zoomState}
+    }
 
     uplot = new uPlot(opts, data, plotWrapper);
   }
