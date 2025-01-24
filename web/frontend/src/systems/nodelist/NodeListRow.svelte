@@ -133,53 +133,55 @@
     {/if}
   </td>
   {#each refinedData as metricData (metricData.data.name)}
-    <td>
-      {#if metricData?.disabled}
-        <Card body class="mx-3" color="info"
-          >Metric disabled for subcluster <code
-            >{metricData.data.name}:{nodeData.subCluster}</code
-          ></Card
-        >
-      {:else if !!metricData.data?.metric.statisticsSeries}
-        <!-- "No Data"-Warning included in MetricPlot-Component -->
-        <MetricPlot
-          {cluster}
-          subCluster={nodeData.subCluster}
-          metric={metricData.data.name}
-          scope={metricData.data.scope}
-          timestep={metricData.data.metric.timestep}
-          series={metricData.data.metric.series}
-          statisticsSeries={metricData.data?.metric.statisticsSeries}
-          useStatsSeries={!!metricData.data?.metric.statisticsSeries}
-          height={175}
-          forNode
-        />
-        <div class="my-2"/>
-        {#key extendedLegendData}
-          <MetricPlot
-            {cluster}
-            subCluster={nodeData.subCluster}
-            metric={metricData.data.name}
-            scope={metricData.data.scope}
-            timestep={metricData.data.metric.timestep}
-            series={metricData.data.metric.series}
-            height={175}
-            {extendedLegendData}
-            forNode
-          />
-        {/key}
-      {:else}
-        <MetricPlot
-          {cluster}
-          subCluster={nodeData.subCluster}
-          metric={metricData.data.name}
-          scope={metricData.data.scope}
-          timestep={metricData.data.metric.timestep}
-          series={metricData.data.metric.series}
-          height={375}
-          forNode
-        />
-      {/if}
-    </td>
+    {#key metricData}
+      <td>
+        {#if metricData?.disabled}
+          <Card body class="mx-3" color="info"
+            >Metric disabled for subcluster <code
+              >{metricData.data.name}:{nodeData.subCluster}</code
+            ></Card
+          >
+        {:else if !!metricData.data?.metric.statisticsSeries}
+          <!-- "No Data"-Warning included in MetricPlot-Component -->
+            <MetricPlot
+              {cluster}
+              subCluster={nodeData.subCluster}
+              metric={metricData.data.name}
+              scope={metricData.data.scope}
+              timestep={metricData.data.metric.timestep}
+              series={metricData.data.metric.series}
+              statisticsSeries={metricData.data?.metric.statisticsSeries}
+              useStatsSeries={!!metricData.data?.metric.statisticsSeries}
+              height={175}
+              forNode
+            />
+          <div class="my-2"/>
+          {#key extendedLegendData}
+            <MetricPlot
+              {cluster}
+              subCluster={nodeData.subCluster}
+              metric={metricData.data.name}
+              scope={metricData.data.scope}
+              timestep={metricData.data.metric.timestep}
+              series={metricData.data.metric.series}
+              height={175}
+              {extendedLegendData}
+              forNode
+            />
+          {/key}
+        {:else}
+            <MetricPlot
+              {cluster}
+              subCluster={nodeData.subCluster}
+              metric={metricData.data.name}
+              scope={metricData.data.scope}
+              timestep={metricData.data.metric.timestep}
+              series={metricData.data.metric.series}
+              height={375}
+              forNode
+            />
+        {/if}
+      </td>
+    {/key}
   {/each}
 </tr>

@@ -181,6 +181,9 @@
             style="padding-top: {headerPaddingTop}px;"
           >
             {cluster} Node Info
+            {#if $nodesQuery.fetching}
+              <Spinner size="sm" style="margin-left:10px;" secondary />
+            {/if}
           </th>
 
           {#each selectedMetrics as metric (metric)}

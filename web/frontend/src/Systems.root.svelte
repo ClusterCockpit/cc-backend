@@ -93,7 +93,7 @@
 </script>
 
 <!-- ROW1: Tools-->
-<Row cols={{ xs: 2, lg: !displayNodeOverview ? 5 : 4 }} class="mb-3">
+<Row cols={{ xs: 2, lg: !displayNodeOverview ? (resampleConfig ? 5 : 4) : 4 }} class="mb-3">
   {#if $initq.data}
     <!-- List Metric Select Col-->
     {#if !displayNodeOverview}
@@ -110,19 +110,21 @@
           </Button>
         </InputGroup>
       </Col>
-      <Col>
-        <InputGroup>
-          <InputGroupText><Icon name="plus-slash-minus" /></InputGroupText>
-          <InputGroupText>Resolution</InputGroupText>
-          <Input type="select" bind:value={selectedResolution}>
-            {#each resampleResolutions as res}
-              <option value={res}
-                >{res} sec</option
-              >
-            {/each}
-          </Input>
-        </InputGroup>
-      </Col>
+      {#if resampleConfig}
+        <Col>
+          <InputGroup>
+            <InputGroupText><Icon name="plus-slash-minus" /></InputGroupText>
+            <InputGroupText>Resolution</InputGroupText>
+            <Input type="select" bind:value={selectedResolution}>
+              {#each resampleResolutions as res}
+                <option value={res}
+                  >{res} sec</option
+                >
+              {/each}
+            </Input>
+          </InputGroup>
+        </Col>
+      {/if}
     {/if}
     <!-- Node Col-->
     <Col class="mt-2 mt-lg-0">
