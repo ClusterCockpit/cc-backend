@@ -451,15 +451,17 @@ func (r *JobRepository) AddHistograms(
 	start := time.Now()
 
 	// targetBinCount : Frontendargument
-	// -> Min Bins:        24   -> Min Resolution: By Hour
-	// -> In Between Bins: 48   -> Resolution by Half Hour
-	//                     96   -> Resolution by Quarter Hour
-	//                     144  -> Resolution by 10 Minutes
-	//                     288  -> Resolution by 5 Minutes
-	//                     720  -> Resolution by 2 Minutes
-	// -> Max Bins:        1440 -> Max Resolution: By Minute
+	// -> Min Bins:        25   -> Min Resolution: By Hour
+	// -> In Between Bins: 50   -> Resolution by Half Hour
+	//                     100  -> Resolution by Quarter Hour
+	//                     150  -> Resolution by 10 Minutes
+	//                     300  -> Resolution by 5 Minutes
+	//                     750  -> Resolution by 2 Minutes
+	// -> Max Bins:        1500 -> Max Resolution: By Minute
 
-	binSizeSeconds := (86400 / *targetBinCount)
+	binSizeSeconds := (90000 / *targetBinCount)
+
+	// Important Note: Fixed to 25h max display range -> Too site specific! Configurable or Extend? -> Start view with "classic" by hour histogram, zoom mostly required for "small" runtimes
 
 	castType := r.getCastType()
 	var err error

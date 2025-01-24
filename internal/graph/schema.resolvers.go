@@ -362,7 +362,7 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	var stats []*model.JobsStatistics
 
 	// Top Level Defaults
-	var defaultDurationBins int = 24
+	var defaultDurationBins int = 25
 	var defaultMetricBins int = 10
 
 	if requireField(ctx, "totalJobs") || requireField(ctx, "totalWalltime") || requireField(ctx, "totalNodes") || requireField(ctx, "totalCores") ||

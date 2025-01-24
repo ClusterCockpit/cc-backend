@@ -41,7 +41,8 @@
     points: 2,
   };
 
-  const binCounts = xtime ? [24, 48, 96, 144, 288, 720, 1440] : [10, 20, 50, 100, 200]; // , 500, 1000
+  // TimeBins: Include Hour "24-25"
+  const binCounts = xtime ? [25, 50, 100, 150, 300, 750, 1500] : [10, 20, 50, 100, 200]; // , 500, 1000
 
   function formatTime(t) {
     if (t !== null) {
@@ -158,7 +159,7 @@
             if (key === 'x') {
               if (zoomableHistogram) {
                 const numX = (u.series[0].idxs[1] - u.series[0].idxs[0])
-                if (xtime && numX <= 12 && lastBinCount !== 1440) {
+                if (xtime && numX <= 12 && lastBinCount !== 1500) {
                   // console.log("Dispatch for Duration: ", numX, lastBinCount, binCounts[binCounts.indexOf(lastBinCount) + 1])
                   dispatch('zoom', {
                     durationBinCount: binCounts[binCounts.indexOf(lastBinCount) + 1],
@@ -201,7 +202,7 @@
           label: xlabel,
           labelGap: 10,
           size: 25,
-          incrs: xtime ? [60, 120, 300, 600, 900, 1800, 3600, 7200, 14400] : [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000],
+          incrs: xtime ? [60, 120, 300, 600, 900, 1800, 3600, 7200, 14400, 18000] : [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000],
           border: {
             show: true,
             stroke: "#000000",
