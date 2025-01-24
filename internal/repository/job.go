@@ -79,12 +79,9 @@ func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
 	}
 	job.RawFootprint = nil
 
-	// if err := json.Unmarshal(job.RawMetaData, &job.MetaData); err != nil {
-	// 	return nil, err
-	// }
-
 	job.StartTime = time.Unix(job.StartTimeUnix, 0)
-	if job.Duration == 0 && job.State == schema.JobStateRunning {
+	// Always ensure accurate duration for running jobs
+	if job.State == schema.JobStateRunning {
 		job.Duration = int32(time.Since(job.StartTime).Seconds())
 	}
 
@@ -308,17 +305,17 @@ func (r *JobRepository) FindUserOrProjectOrJobname(user *schema.User, searchterm
 		return searchterm, "", "", ""
 	} else { // Has to have letters and logged-in user for other guesses
 		if user != nil {
-			// Find username in jobs (match)
-			uresult, _ := r.FindColumnValue(user, searchterm, "job", "user", "user", false)
+			// Find username by username in job table (match)
+			uresult, _ := r.FindColumnValue(user, searchterm, "job", "hpc_user", "hpc_user", false)
 			if uresult != "" {
 				return "", uresult, "", ""
 			}
-			// Find username by name (like)
+			// Find username by real name in hpc_user table (like)
 			nresult, _ := r.FindColumnValue(user, searchterm, "hpc_user", "username", "name", true)
 			if nresult != "" {
 				return "", nresult, "", ""
 			}
-			// Find projectId in jobs (match)
+			// Find projectId by projectId in job table (match)
 			presult, _ := r.FindColumnValue(user, searchterm, "job", "project", "project", false)
 			if presult != "" {
 				return "", "", presult, ""
@@ -457,6 +454,7 @@ func (r *JobRepository) AllocatedNodes(cluster string) (map[string]map[string]in
 	return subclusters, nil
 }
 
+// FIXME: Set duration to requested walltime?
 func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 	start := time.Now()
 	res, err := sq.Update("job").
@@ -604,9 +602,10 @@ func (r *JobRepository) UpdateEnergy(
 	for _, fp := range sc.EnergyFootprint {
 		if i, err := archive.MetricIndex(sc.MetricConfig, fp); err == nil {
 			// Note: For DB data, calculate and save as kWh
-			// Energy: Power (in Watts) * Time (in Seconds)
-			if sc.MetricConfig[i].Energy == "energy" { // this metric has energy as unit (Joules)
+			if sc.MetricConfig[i].Energy == "energy" { // this metric has energy as unit (Joules or Wh)
+				// FIXME: Needs sum as stats type
 			} else if sc.MetricConfig[i].Energy == "power" { // this metric has power as unit (Watt)
+				// Energy: Power (in Watts) * Time (in Seconds)
 				// Unit: ( W * s ) / 3600 / 1000 = kWh ; Rounded to 2 nearest digits
 				energy = math.Round(((LoadJobStat(jobMeta, fp, "avg")*float64(jobMeta.Duration))/3600/1000)*100) / 100
 			}

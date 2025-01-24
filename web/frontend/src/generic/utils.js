@@ -6,6 +6,7 @@ import {
 } from "@urql/svelte";
 import { setContext, getContext, hasContext, onDestroy, tick } from "svelte";
 import { readable } from "svelte/store";
+import { round } from "mathjs";
 
 /*
  * Call this function only at component initialization time!
@@ -343,6 +344,38 @@ export function getStatsItems(presetStats = []) {
     // console.timeEnd('stats')
     return [...result];
 };
+
+export function findJobFootprintThresholds(job, stat, metricConfig) {
+    if (!job || !metricConfig || !stat) {
+        console.warn("Argument missing for findJobThresholds!");
+        return null;
+    }
+    // metricConfig is on subCluster-Level
+    const defaultThresholds = {
+        peak: metricConfig.peak,
+        normal: metricConfig.normal,
+        caution: metricConfig.caution,
+        alert: metricConfig.alert
+    };
+    /*
+        Footprints should be comparable:
+        Always use unchanged single node thresholds for exclusive jobs and "avg" Footprints.
+        For shared jobs, scale thresholds by the fraction of the job's HWThreads to the node's HWThreads.
+        'stat' is one of: avg, min, max
+    */
+    if (job.exclusive === 1 || stat === "avg") {
+        return defaultThresholds
+    } else {
+        const topol = getContext("getHardwareTopology")(job.cluster, job.subCluster)
+        const jobFraction = job.numHWThreads / topol.node.length;
+        return {
+        peak: round(defaultThresholds.peak * jobFraction, 0),
+        normal: round(defaultThresholds.normal * jobFraction, 0),
+        caution: round(defaultThresholds.caution * jobFraction, 0),
+        alert: round(defaultThresholds.alert * jobFraction, 0),
+        };
+    }
+}
 
 export function getSortItems() {
     //console.time('sort')

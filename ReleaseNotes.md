@@ -1,8 +1,8 @@
-# `cc-backend` version 1.4.0
+# `cc-backend` version 1.4.2
 
 Supports job archive version 2 and database version 8.
 
-This is a minor release of `cc-backend`, the API backend and frontend
+This is a small bug fix release of `cc-backend`, the API backend and frontend
 implementation of ClusterCockpit.
 For release specific notes visit the [ClusterCockpit Documentation](https://clusterockpit.org/docs/release/).
 
@@ -12,7 +12,8 @@ For release specific notes visit the [ClusterCockpit Documentation](https://clus
   migration might require several hours!
 - You need to adapt the `cluster.json` configuration files in the job-archive,
   add new required attributes to the metric list and after that edit
-  `./job-archive/version.txt` to version 2.
+  `./job-archive/version.txt` to version 2. Only metrics that have the footprint
+  attribute set can be filtered and show up in the footprint UI and polar plot.
 - Continuous scrolling is default now in all job lists. You can change this back
   to paging globally, also every user can configure to use paging or continuous
   scrolling individually.
@@ -35,3 +36,11 @@ For release specific notes visit the [ClusterCockpit Documentation](https://clus
 - A performance and energy footprint can be freely configured on a per
   subcluster base. One can filter for footprint statistics for running and
   finished jobs.
+
+## Known issues
+
+- Currently energy footprint metrics of type energy are ignored for calculating
+  total energy.
+- Resampling for running jobs only works with cc-metric-store
+- With energy footprint metrics of type power the unit is ignored and it is
+  assumed the metric has the unit Watt.
