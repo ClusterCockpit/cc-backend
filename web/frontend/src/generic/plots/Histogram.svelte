@@ -15,7 +15,7 @@
 
 <script>
   import uPlot from "uplot";
-  import { getContext, onMount, onDestroy, createEventDispatcher } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { formatNumber } from "../units.js";
   import { Card } from "@sveltestrap/sveltestrap";
 
@@ -29,20 +29,12 @@
   export let xtime = false;
   export let ylabel = "";
   export let yunit = "";
-  export let zoomState = null;
-  export let lastBinCount = null;
-  export let zoomableHistogram = false;
 
   const { bars } = uPlot.paths;
-  const dispatch = createEventDispatcher();
-
   const drawStyles = {
     bars: 1,
     points: 2,
   };
-
-  // TimeBins: Include Hour "24-25"
-  const binCounts = xtime ? [25, 50, 100, 150, 300, 750, 1500] : [10, 20, 50, 100, 200]; // , 500, 1000
 
   function formatTime(t) {
     if (t !== null) {
@@ -52,7 +44,6 @@
         const tAbs = Math.abs(t);
         const h = Math.floor(tAbs / 3600);
         const m = Math.floor((tAbs % 3600) / 60);
-        // Re-Add "negativity" to time ticks only as string, so that if-cases work as intended
         if (h == 0) return `${m}m`;
         else if (m == 0) return `${h}h`;
         else return `${h}:${m}h`;
@@ -138,45 +129,6 @@
 
   function render() {
     let opts = {
-      hooks: {
-        init: [
-          (u) => {
-            if (zoomableHistogram) {
-              u.over.addEventListener("dblclick", (e) => {
-                console.log('Dispatch Reset')
-                dispatch('zoom', {
-                  lastZoomState: {
-                    x: { time: false },
-                    y: { auto: true }
-                  }
-                });
-              });
-            }
-          },
-        ],
-        setScale: [
-          (u, key) => {
-            if (key === 'x') {
-              if (zoomableHistogram) {
-                const numX = (u.series[0].idxs[1] - u.series[0].idxs[0])
-                if (xtime && numX <= 12 && lastBinCount !== 1500) {
-                  // console.log("Dispatch for Duration: ", numX, lastBinCount, binCounts[binCounts.indexOf(lastBinCount) + 1])
-                  dispatch('zoom', {
-                    durationBinCount: binCounts[binCounts.indexOf(lastBinCount) + 1],
-                    lastZoomState: u?.scales,
-                  });
-                } else if (!xtime && numX <= 6 && lastBinCount !== 200) {
-                  // console.log("Dispatch for Metrics: ", numX, lastBinCount, binCounts[binCounts.indexOf(lastBinCount) + 1])
-                  dispatch('zoom', {
-                    metricBinCount: binCounts[binCounts.indexOf(lastBinCount) + 1],
-                    lastZoomState: u?.scales,
-                  });
-                };
-              }
-            };
-          },
-        ]
-      },
       width: width,
       height: height,
       title: title,
@@ -202,7 +154,7 @@
           label: xlabel,
           labelGap: 10,
           size: 25,
-          incrs: xtime ? [60, 120, 300, 600, 900, 1800, 3600, 7200, 14400, 18000] : [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000],
+          incrs: xtime ? [60, 120, 300, 600, 1800, 3600, 7200, 14400, 18000, 21600, 43200, 86400] : [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000],
           border: {
             show: true,
             stroke: "#000000",
@@ -244,7 +196,11 @@
         {
           label: xunit !== "" ? xunit : null,
           value: (u, ts, sidx, didx) => {
-            if (usesBins) {
+            if (usesBins && xtime) {
+              const min = u.data[sidx][didx - 1] ? formatTime(u.data[sidx][didx - 1]) : 0;
+              const max = formatTime(u.data[sidx][didx]);
+              ts = min + " - " + max; // narrow spaces
+            } else if (usesBins) {
               const min = u.data[sidx][didx - 1] ? u.data[sidx][didx - 1] : 0;
               const max = u.data[sidx][didx];
               ts = min + " - " + max; // narrow spaces
@@ -272,11 +228,6 @@
         ),
       ],
     };
-
-    if (zoomableHistogram && zoomState) {
-      console.log("Apply ZoomState ...", zoomState)
-      opts.scales = {...zoomState}
-    }
 
     uplot = new uPlot(opts, data, plotWrapper);
   }

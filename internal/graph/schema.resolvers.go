@@ -357,12 +357,12 @@ func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, pag
 }
 
 // JobsStatistics is the resolver for the jobsStatistics field.
-func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobFilter, metrics []string, page *model.PageRequest, sortBy *model.SortByAggregate, groupBy *model.Aggregate, numDurationBins *int, numMetricBins *int) ([]*model.JobsStatistics, error) {
+func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobFilter, metrics []string, page *model.PageRequest, sortBy *model.SortByAggregate, groupBy *model.Aggregate, numDurationBins *string, numMetricBins *int) ([]*model.JobsStatistics, error) {
 	var err error
 	var stats []*model.JobsStatistics
 
 	// Top Level Defaults
-	var defaultDurationBins int = 25
+	var defaultDurationBins string = "1h"
 	var defaultMetricBins int = 10
 
 	if requireField(ctx, "totalJobs") || requireField(ctx, "totalWalltime") || requireField(ctx, "totalNodes") || requireField(ctx, "totalCores") ||

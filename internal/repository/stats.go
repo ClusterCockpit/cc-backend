@@ -446,28 +446,38 @@ func (r *JobRepository) AddHistograms(
 	ctx context.Context,
 	filter []*model.JobFilter,
 	stat *model.JobsStatistics,
-	targetBinCount *int,
+	durationBins *string,
 ) (*model.JobsStatistics, error) {
 	start := time.Now()
 
-	// targetBinCount : Frontendargument
-	// -> Min Bins:        25   -> Min Resolution: By Hour
-	// -> In Between Bins: 50   -> Resolution by Half Hour
-	//                     100  -> Resolution by Quarter Hour
-	//                     150  -> Resolution by 10 Minutes
-	//                     300  -> Resolution by 5 Minutes
-	//                     750  -> Resolution by 2 Minutes
-	// -> Max Bins:        1500 -> Max Resolution: By Minute
-
-	binSizeSeconds := (90000 / *targetBinCount)
-
-	// Important Note: Fixed to 25h max display range -> Too site specific! Configurable or Extend? -> Start view with "classic" by hour histogram, zoom mostly required for "small" runtimes
+	var targetBinCount int
+	var targetBinSize int
+	switch {
+	case *durationBins == "1m": // 1 Minute Bins + Max 60 Bins -> Max 60 Minutes
+		targetBinCount = 60
+		targetBinSize = 60
+	case *durationBins == "10m": // 10 Minute Bins + Max 72 Bins -> Max 12 Hours
+		targetBinCount = 72
+		targetBinSize = 600
+	case *durationBins == "1h": // 1 Hour Bins + Max 48 Bins -> Max 48 Hours
+		targetBinCount = 48
+		targetBinSize = 3600
+	case *durationBins == "6h": // 6 Hour Bins + Max 12 Bins -> Max 3 Days
+		targetBinCount = 12
+		targetBinSize = 21600
+	case *durationBins == "12h": // 12 hour Bins + Max 14 Bins -> Max 7 Days
+		targetBinCount = 14
+		targetBinSize = 43200
+	default: // 24h
+		targetBinCount = 24
+		targetBinSize = 3600
+	}
 
 	castType := r.getCastType()
 	var err error
 	// Return X-Values always as seconds, will be formatted into minutes and hours in frontend
-	value := fmt.Sprintf(`CAST(ROUND(((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) / %d) + 1) as %s) as value`, time.Now().Unix(), binSizeSeconds, castType)
-	stat.HistDuration, err = r.jobsDurationStatisticsHistogram(ctx, value, filter, binSizeSeconds, targetBinCount)
+	value := fmt.Sprintf(`CAST(ROUND(((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) / %d) + 1) as %s) as value`, time.Now().Unix(), targetBinSize, castType)
+	stat.HistDuration, err = r.jobsDurationStatisticsHistogram(ctx, value, filter, targetBinSize, &targetBinCount)
 	if err != nil {
 		log.Warn("Error while loading job statistics histogram: job duration")
 		return nil, err
