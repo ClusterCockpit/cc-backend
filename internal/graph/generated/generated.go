@@ -48,7 +48,8 @@ type ResolverRoot interface {
 	SubCluster() SubClusterResolver
 }
 
-type DirectiveRoot struct{}
+type DirectiveRoot struct {
+}
 
 type ComplexityRoot struct {
 	Accelerator struct {
@@ -2358,7 +2359,6 @@ func (ec *executionContext) field_Mutation_addTagsToJob_args(ctx context.Context
 	args["tagIds"] = arg1
 	return args, nil
 }
-
 func (ec *executionContext) field_Mutation_addTagsToJob_argsJob(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -2423,7 +2423,6 @@ func (ec *executionContext) field_Mutation_createTag_args(ctx context.Context, r
 	args["scope"] = arg2
 	return args, nil
 }
-
 func (ec *executionContext) field_Mutation_createTag_argsType(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -2500,7 +2499,6 @@ func (ec *executionContext) field_Mutation_deleteTag_args(ctx context.Context, r
 	args["id"] = arg0
 	return args, nil
 }
-
 func (ec *executionContext) field_Mutation_deleteTag_argsID(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -2538,7 +2536,6 @@ func (ec *executionContext) field_Mutation_removeTagsFromJob_args(ctx context.Co
 	args["tagIds"] = arg1
 	return args, nil
 }
-
 func (ec *executionContext) field_Mutation_removeTagsFromJob_argsJob(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -2598,7 +2595,6 @@ func (ec *executionContext) field_Mutation_updateConfiguration_args(ctx context.
 	args["value"] = arg1
 	return args, nil
 }
-
 func (ec *executionContext) field_Mutation_updateConfiguration_argsName(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -2653,7 +2649,6 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 	args["name"] = arg0
 	return args, nil
 }
-
 func (ec *executionContext) field_Query___type_argsName(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -2686,7 +2681,6 @@ func (ec *executionContext) field_Query_allocatedNodes_args(ctx context.Context,
 	args["cluster"] = arg0
 	return args, nil
 }
-
 func (ec *executionContext) field_Query_allocatedNodes_argsCluster(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -2734,7 +2728,6 @@ func (ec *executionContext) field_Query_jobMetrics_args(ctx context.Context, raw
 	args["resolution"] = arg3
 	return args, nil
 }
-
 func (ec *executionContext) field_Query_jobMetrics_argsID(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -2833,7 +2826,6 @@ func (ec *executionContext) field_Query_job_args(ctx context.Context, rawArgs ma
 	args["id"] = arg0
 	return args, nil
 }
-
 func (ec *executionContext) field_Query_job_argsID(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -2871,7 +2863,6 @@ func (ec *executionContext) field_Query_jobsFootprints_args(ctx context.Context,
 	args["metrics"] = arg1
 	return args, nil
 }
-
 func (ec *executionContext) field_Query_jobsFootprints_argsFilter(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -2956,7 +2947,6 @@ func (ec *executionContext) field_Query_jobsStatistics_args(ctx context.Context,
 	args["numMetricBins"] = arg6
 	return args, nil
 }
-
 func (ec *executionContext) field_Query_jobsStatistics_argsFilter(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -3131,7 +3121,6 @@ func (ec *executionContext) field_Query_jobs_args(ctx context.Context, rawArgs m
 	args["order"] = arg2
 	return args, nil
 }
-
 func (ec *executionContext) field_Query_jobs_argsFilter(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -3248,7 +3237,6 @@ func (ec *executionContext) field_Query_nodeMetricsList_args(ctx context.Context
 	args["resolution"] = arg8
 	return args, nil
 }
-
 func (ec *executionContext) field_Query_nodeMetricsList_argsCluster(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -3482,7 +3470,6 @@ func (ec *executionContext) field_Query_nodeMetrics_args(ctx context.Context, ra
 	args["to"] = arg5
 	return args, nil
 }
-
 func (ec *executionContext) field_Query_nodeMetrics_argsCluster(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -3655,7 +3642,6 @@ func (ec *executionContext) field_Query_rooflineHeatmap_args(ctx context.Context
 	args["maxY"] = arg6
 	return args, nil
 }
-
 func (ec *executionContext) field_Query_rooflineHeatmap_argsFilter(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -3820,7 +3806,6 @@ func (ec *executionContext) field_Query_user_args(ctx context.Context, rawArgs m
 	args["username"] = arg0
 	return args, nil
 }
-
 func (ec *executionContext) field_Query_user_argsUsername(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -3853,7 +3838,6 @@ func (ec *executionContext) field___Type_enumValues_args(ctx context.Context, ra
 	args["includeDeprecated"] = arg0
 	return args, nil
 }
-
 func (ec *executionContext) field___Type_enumValues_argsIncludeDeprecated(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -3886,7 +3870,6 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 	args["includeDeprecated"] = arg0
 	return args, nil
 }
-
 func (ec *executionContext) field___Type_fields_argsIncludeDeprecated(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -20066,7 +20049,7 @@ func (ec *executionContext) unmarshalOAggregate2ᚖgithubᚗcomᚋClusterCockpit
 	if v == nil {
 		return nil, nil
 	}
-	res := new(model.Aggregate)
+	var res = new(model.Aggregate)
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
@@ -20665,7 +20648,7 @@ func (ec *executionContext) unmarshalOSortByAggregate2ᚖgithubᚗcomᚋClusterC
 	if v == nil {
 		return nil, nil
 	}
-	res := new(model.SortByAggregate)
+	var res = new(model.SortByAggregate)
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
