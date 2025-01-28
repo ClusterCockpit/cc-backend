@@ -17,6 +17,9 @@
     Icon,
     Card,
     Spinner,
+    Input,
+    InputGroup,
+    InputGroupText
   } from "@sveltestrap/sveltestrap";
   import {
     queryStore,
@@ -59,6 +62,11 @@
   let showFootprint = filterPresets.cluster
     ? !!ccconfig[`plot_list_showFootprint:${filterPresets.cluster}`]
     : !!ccconfig.plot_list_showFootprint;
+  
+  let numDurationBins = "1h";
+  let numMetricBins = 10;
+  let durationBinOptions = ["1m","10m","1h","6h","12h"];
+  let metricBinOptions = [10, 20, 50, 100];
 
   $: metricsInHistograms = selectedCluster
     ? ccconfig[`user_view_histogramMetrics:${selectedCluster}`] || []
@@ -68,8 +76,8 @@
   $: stats = queryStore({
     client: client,
     query: gql`
-      query ($jobFilters: [JobFilter!]!, $metricsInHistograms: [String!]) {
-        jobsStatistics(filter: $jobFilters, metrics: $metricsInHistograms) {
+      query ($jobFilters: [JobFilter!]!, $metricsInHistograms: [String!], $numDurationBins: String, $numMetricBins: Int) {
+        jobsStatistics(filter: $jobFilters, metrics: $metricsInHistograms, numDurationBins: $numDurationBins , numMetricBins: $numMetricBins ) {
           totalJobs
           shortJobs
           totalWalltime
@@ -96,7 +104,7 @@
         }
       }
     `,
-    variables: { jobFilters, metricsInHistograms },
+    variables: { jobFilters, metricsInHistograms, numDurationBins, numMetricBins },
   });
 
   onMount(() => filterComponent.updateFilters());
@@ -118,8 +126,8 @@
 {/if}
 
 <!-- ROW2: Tools-->
-<Row cols={{ xs: 1, md: 2, lg: 4}} class="mb-3">
-  <Col lg="2" class="mb-2 mb-lg-0">
+<Row cols={{ xs: 1, md: 2, lg: 6}} class="mb-3">
+  <Col class="mb-2 mb-lg-0">
     <ButtonGroup class="w-100">
       <Button outline color="primary" on:click={() => (isSortingOpen = true)}>
         <Icon name="sort-up" /> Sorting
@@ -133,7 +141,7 @@
       </Button>
     </ButtonGroup>
   </Col>
-  <Col lg="4" xl="6" class="mb-1 mb-lg-0">
+  <Col lg="4" class="mb-1 mb-lg-0">
     <Filters
       {filterPresets}
       {matchedJobs}
@@ -148,12 +156,27 @@
       }}
     />
   </Col>
-  <Col lg="3" xl="2" class="mb-2 mb-lg-0">
+  <Col class="mb-2 mb-lg-0">
+    <InputGroup>
+      <InputGroupText>
+        <Icon name="bar-chart-line-fill" />
+      </InputGroupText>
+      <InputGroupText>
+        Duration Bin Size
+      </InputGroupText>
+      <Input type="select" bind:value={numDurationBins} style="max-width: 120px;">
+        {#each durationBinOptions as dbin}
+          <option value={dbin}>{dbin}</option>
+        {/each}
+      </Input>
+    </InputGroup>
+  </Col>
+  <Col class="mb-2 mb-lg-0">
     <TextFilter
       on:set-filter={({ detail }) => filterComponent.updateFilters(detail)}
     />
   </Col>
-  <Col lg="3" xl="2" class="mb-1 mb-lg-0">
+  <Col class="mb-1 mb-lg-0">
     <Refresher on:refresh={() => {
       jobList.refreshJobs()
       jobList.refreshAllMetrics()
@@ -215,10 +238,12 @@
         <Histogram
           data={convert2uplot($stats.data.jobsStatistics[0].histDuration)}
           title="Duration Distribution"
-          xlabel="Current Runtimes"
-          xunit="Hours"
+          xlabel="Job Runtimes"
+          xunit="Runtime"
           ylabel="Number of Jobs"
           yunit="Jobs"
+          usesBins
+          xtime
         />
       {/key}
     </Col>
@@ -238,15 +263,31 @@
 </Row>
 
 <!-- ROW4+5: Selectable Histograms -->
-<Row cols={{ xs: 1, md: 5}}>
-  <Col>
+<Row>
+  <Col xs="12" md="3" lg="2" class="mb-2 mb-md-0">
     <Button
       outline
       color="secondary"
+      class="w-100"
       on:click={() => (isHistogramSelectionOpen = true)}
     >
       <Icon name="bar-chart-line" /> Select Histograms
     </Button>
+  </Col>
+  <Col xs="12" md="9" lg="10" class="mb-2 mb-md-0">
+    <InputGroup>
+      <InputGroupText>
+        <Icon name="bar-chart-line-fill" />
+      </InputGroupText>
+      <InputGroupText>
+        Metric Bins
+      </InputGroupText>
+      <Input type="select" bind:value={numMetricBins} style="max-width: 120px;">
+        {#each metricBinOptions as mbin}
+          <option value={mbin}>{mbin}</option>
+        {/each}
+      </Input>
+    </InputGroup>
   </Col>
 </Row>
 {#if metricsInHistograms?.length > 0}
@@ -273,12 +314,12 @@
       >
         <Histogram
           data={convert2uplot(item.data)}
-          usesBins={true}
           title="Distribution of '{item.metric} ({item.stat})' footprints"
           xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
           xunit={item.unit}
           ylabel="Number of Jobs"
           yunit="Jobs"
+          usesBins
         />
       </PlotGrid>
     {/key}
