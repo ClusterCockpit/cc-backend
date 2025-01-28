@@ -5,6 +5,7 @@ new Config({
     target: document.getElementById('svelte-app'),
     props: {
         isAdmin: isAdmin,
+        isSupport: isSupport,
         isApi: isApi,
         username: username,
         ncontent: ncontent,

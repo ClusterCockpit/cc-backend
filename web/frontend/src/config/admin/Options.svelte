@@ -45,7 +45,7 @@
   <Col> 
     <Card class="h-100">
       <CardBody>
-        <CardTitle class="mb-3">Metric Plot Resampling</CardTitle>
+        <CardTitle class="mb-3">Metric Plot Resampling Info</CardTitle>
         <p>Triggered at {resampleConfig.trigger} datapoints.</p>
         <p>Configured resolutions: {resampleConfig.resolutions}</p>
       </CardBody>

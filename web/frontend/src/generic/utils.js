@@ -6,6 +6,7 @@ import {
 } from "@urql/svelte";
 import { setContext, getContext, hasContext, onDestroy, tick } from "svelte";
 import { readable } from "svelte/store";
+import { round } from "mathjs";
 
 /*
  * Call this function only at component initialization time!
@@ -303,8 +304,19 @@ export function stickyHeader(datatableHeaderSelector, updatePading) {
 
 export function checkMetricDisabled(m, c, s) { // [m]etric, [c]luster, [s]ubcluster
     const metrics = getContext("globalMetrics");
-    const result = metrics?.find((gm) => gm.name === m)?.availability?.find((av) => av.cluster === c)?.subClusters?.includes(s)
-    return !result
+    const available = metrics?.find((gm) => gm.name === m)?.availability?.find((av) => av.cluster === c)?.subClusters?.includes(s)
+    // Return inverse logic
+    return !available
+}
+
+export function checkMetricsDisabled(ma, c, s) { // [m]etric[a]rray, [c]luster, [s]ubcluster
+    let result = {};
+    const metrics = getContext("globalMetrics");
+    ma.forEach((m) => {
+        // Return named inverse logic: !available
+        result[m] = !(metrics?.find((gm) => gm.name === m)?.availability?.find((av) => av.cluster === c)?.subClusters?.includes(s))
+    });
+    return result
 }
 
 export function getStatsItems(presetStats = []) {
@@ -343,6 +355,38 @@ export function getStatsItems(presetStats = []) {
     // console.timeEnd('stats')
     return [...result];
 };
+
+export function findJobFootprintThresholds(job, stat, metricConfig) {
+    if (!job || !metricConfig || !stat) {
+        console.warn("Argument missing for findJobThresholds!");
+        return null;
+    }
+    // metricConfig is on subCluster-Level
+    const defaultThresholds = {
+        peak: metricConfig.peak,
+        normal: metricConfig.normal,
+        caution: metricConfig.caution,
+        alert: metricConfig.alert
+    };
+    /*
+        Footprints should be comparable:
+        Always use unchanged single node thresholds for exclusive jobs and "avg" Footprints.
+        For shared jobs, scale thresholds by the fraction of the job's HWThreads to the node's HWThreads.
+        'stat' is one of: avg, min, max
+    */
+    if (job.exclusive === 1 || stat === "avg") {
+        return defaultThresholds
+    } else {
+        const topol = getContext("getHardwareTopology")(job.cluster, job.subCluster)
+        const jobFraction = job.numHWThreads / topol.node.length;
+        return {
+        peak: round(defaultThresholds.peak * jobFraction, 0),
+        normal: round(defaultThresholds.normal * jobFraction, 0),
+        caution: round(defaultThresholds.caution * jobFraction, 0),
+        alert: round(defaultThresholds.alert * jobFraction, 0),
+        };
+    }
+}
 
 export function getSortItems() {
     //console.time('sort')
@@ -405,7 +449,7 @@ function getMetricConfigDeep(metric, cluster, subCluster) {
     }
 }
 
-export function convert2uplot(canvasData) {
+export function convert2uplot(canvasData, secondsToMinutes = false, secondsToHours = false) {
     // Prep: Uplot Data Structure
     let uplotData = [[],[]] // [X, Y1, Y2, ...]
     // Iterate if exists
@@ -413,11 +457,21 @@ export function convert2uplot(canvasData) {
         canvasData.forEach( cd => {
             if (Object.keys(cd).length == 4) { // MetricHisto Datafromat
                 uplotData[0].push(cd?.max ? cd.max : 0)
+                uplotData[1].push(cd?.count ? cd.count : 0)
+            } else { // Default -> Fill Histodata with zero values on unused value placing -> maybe allows zoom trigger as known
+                if (secondsToHours) {
+                    let hours = cd.value / 3600
+                    console.log("x seconds to y hours", cd.value, hours)
+                    uplotData[0].push(hours)
+                } else if (secondsToMinutes) {
+                    let minutes = cd.value / 60
+                    console.log("x seconds to y minutes", cd.value, minutes)
+                    uplotData[0].push(minutes)
+                } else {
+                    uplotData[0].push(cd.value)
+                }
                 uplotData[1].push(cd.count)
-            } else { // Default
-                uplotData[0].push(cd.value)
-                uplotData[1].push(cd.count)
-            }
+             }
         })
     }
     return uplotData

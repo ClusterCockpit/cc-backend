@@ -463,7 +463,7 @@
 
   <hr />
 
-  <!-- Usage Stats as Histograms -->
+  <!-- User and Project Stats as Pie-Charts -->
 
   <Row cols={{ lg: 4, md: 2, sm: 1 }}>
     <Col class="p-2">
@@ -587,17 +587,23 @@
       {/key}
     </Col>
   </Row>
+
   <hr class="my-2" />
+
+  <!-- Static Stats as Histograms : Running Duration && Allocated Hardware Counts-->
+
   <Row cols={{ lg: 2, md: 1 }}>
     <Col class="p-2">
       {#key $mainQuery.data.stats}
         <Histogram
           data={convert2uplot($mainQuery.data.stats[0].histDuration)}
           title="Duration Distribution"
-          xlabel="Current Runtimes"
-          xunit="Hours"
+          xlabel="Current Job Runtimes"
+          xunit="Runtime"
           ylabel="Number of Jobs"
           yunit="Jobs"
+          usesBins
+          xtime
         />
       {/key}
     </Col>
@@ -640,12 +646,15 @@
       {/key}
     </Col>
   </Row>
+
   <hr class="my-2" />
+
+  <!-- Selectable Stats as Histograms : Average Values of Running Jobs -->
+
   {#if metricsInHistograms}
     {#key $mainQuery.data.stats[0].histMetrics}
       <PlotGrid
         let:item
-        renderFor="user"
         items={$mainQuery.data.stats[0].histMetrics}
         itemsPerRow={2}
       >

@@ -20,6 +20,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -445,4 +446,22 @@ func (pdb *PrometheusDataRepository) LoadNodeData(
 	t1 := time.Since(t0)
 	log.Debugf("LoadNodeData of %v nodes took %s", len(data), t1)
 	return data, nil
+}
+
+func (pdb *PrometheusDataRepository) LoadNodeListData(
+	cluster, subCluster, nodeFilter string,
+	metrics []string,
+	scopes []schema.MetricScope,
+	resolution int,
+	from, to time.Time,
+	page *model.PageRequest,
+	ctx context.Context,
+) (map[string]schema.JobData, int, bool, error) {
+
+	var totalNodes int = 0
+	var hasNextPage bool = false
+	// TODO : Implement to be used in NodeList-View
+	log.Infof("LoadNodeListData unimplemented for PrometheusDataRepository, Args: cluster %s, metrics %v, nodeFilter %v, scopes %v", cluster, metrics, nodeFilter, scopes)
+
+	return nil, totalNodes, hasNextPage, errors.New("METRICDATA/INFLUXV2 > unimplemented for PrometheusDataRepository")
 }

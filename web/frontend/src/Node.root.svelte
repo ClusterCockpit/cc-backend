@@ -44,7 +44,7 @@
   if (from == null || to == null) {
     to = new Date(Date.now());
     from = new Date(to.getTime());
-    from.setHours(from.getHours() - 12);
+    from.setHours(from.getHours() - 4);
   }
 
   const initialized = getContext("initialized")
@@ -141,7 +141,7 @@
       <InputGroup>
         <InputGroupText><Icon name="hdd" /></InputGroupText>
         <InputGroupText>Selected Node</InputGroupText>
-        <Input style="background-color: white;"type="text" value="{hostname} ({cluster})" disabled/>
+        <Input style="background-color: white;"type="text" value="{hostname} [{cluster} ({$nodeMetricsData?.data ? $nodeMetricsData.data.nodeMetrics[0].subCluster : ''})]" disabled/>
       </InputGroup>
     </Col>
     <!-- Time Col -->
@@ -153,18 +153,20 @@
       {#if $nodeJobsData.fetching}
         <Spinner />
       {:else if $nodeJobsData.data}
-      <InputGroup>
-        <InputGroupText><Icon name="activity" /></InputGroupText>
-        <InputGroupText>Activity</InputGroupText>
-        <Input style="background-color: white;"type="text" value="{$nodeJobsData.data.jobs.count} Jobs" disabled/>
-        <a title="Show jobs running on this node" href="/monitoring/jobs/?cluster={cluster}&state=running&node={hostname}" target="_blank" class="btn btn-outline-secondary" role="button" aria-disabled="true">
-          <Icon name="view-list" /> Show List
-        </a>
-      </InputGroup>
+        <InputGroup>
+          <InputGroupText><Icon name="activity" /></InputGroupText>
+          <InputGroupText>Activity</InputGroupText>
+          <Input style="background-color: white;" type="text" value="{$nodeJobsData.data.jobs.count} Jobs" disabled/>
+          <a title="Show jobs running on this node" href="/monitoring/jobs/?cluster={cluster}&state=running&node={hostname}" target="_blank" class="btn btn-outline-secondary" role="button" aria-disabled="true">
+            <Icon name="view-list" /> Show List
+          </a>
+        </InputGroup>
       {:else}
-      <Input type="text" disabled>
-        No currently running jobs.
-      </Input>
+        <InputGroup>
+          <InputGroupText><Icon name="activity" /></InputGroupText>
+          <InputGroupText>Activity</InputGroupText>
+          <Input type="text" value="No running jobs." disabled />
+        </InputGroup>
       {/if}
     </Col>
     <!-- Refresh Col-->
@@ -189,7 +191,6 @@
     {:else}
       <PlotGrid
         let:item
-        renderFor="node"
         itemsPerRow={ccconfig.plot_view_plotsPerRow}
         items={$nodeMetricsData.data.nodeMetrics[0].metrics
           .map((m) => ({

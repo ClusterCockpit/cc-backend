@@ -8,40 +8,6 @@
     - `height String?`: Height of the card [Default: '310px']
  -->
 
-<script context="module">
-  function findJobThresholds(job, stat, metricConfig) {
-    if (!job || !metricConfig || !stat) {
-      console.warn("Argument missing for findJobThresholds!");
-      return null;
-    }
-    // metricConfig is on subCluster-Level
-    const defaultThresholds = {
-      peak: metricConfig.peak,
-      normal: metricConfig.normal,
-      caution: metricConfig.caution,
-      alert: metricConfig.alert
-    };
-    /*
-      Footprints should be comparable:
-      Always use unchanged single node thresholds for exclusive jobs and "avg" Footprints.
-      For shared jobs, scale thresholds by the fraction of the job's HWThreads to the node's HWThreads.
-      'stat' is one of: avg, min, max
-    */
-    if (job.exclusive === 1 || stat === "avg") {
-      return defaultThresholds
-    } else {
-      const topol = getContext("getHardwareTopology")(job.cluster, job.subCluster)
-      const jobFraction = job.numHWThreads / topol.node.length;
-      return {
-        peak: round(defaultThresholds.peak * jobFraction, 0),
-        normal: round(defaultThresholds.normal * jobFraction, 0),
-        caution: round(defaultThresholds.caution * jobFraction, 0),
-        alert: round(defaultThresholds.alert * jobFraction, 0),
-      };
-    }
-  }
-</script>
-
 <script>
   import { getContext } from "svelte";
   import {
@@ -55,7 +21,7 @@
     Row,
     Col
   } from "@sveltestrap/sveltestrap";
-  import { round } from "mathjs";
+  import { findJobFootprintThresholds } from "../utils.js";
 
   export let job;
   export let displayTitle = true;
@@ -69,8 +35,7 @@
       const unit = (fmc?.unit?.prefix ? fmc.unit.prefix : "") + (fmc?.unit?.base ? fmc.unit.base : "")
 
       // Threshold / -Differences
-      const fmt = findJobThresholds(job, jf.stat, fmc);
-      if (jf.name === "flops_any") fmt.peak = round(fmt.peak * 0.85, 0);
+      const fmt = findJobFootprintThresholds(job, jf.stat, fmc);
 
       // Define basic data -> Value: Use as Provided
       const fmBase = {
