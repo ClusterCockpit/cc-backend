@@ -48,8 +48,7 @@ type ResolverRoot interface {
 	SubCluster() SubClusterResolver
 }
 
-type DirectiveRoot struct {
-}
+type DirectiveRoot struct{}
 
 type ComplexityRoot struct {
 	Accelerator struct {
@@ -266,7 +265,7 @@ type ComplexityRoot struct {
 		JobMetrics      func(childComplexity int, id string, metrics []string, scopes []schema.MetricScope, resolution *int) int
 		Jobs            func(childComplexity int, filter []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) int
 		JobsFootprints  func(childComplexity int, filter []*model.JobFilter, metrics []string) int
-		JobsStatistics  func(childComplexity int, filter []*model.JobFilter, metrics []string, page *model.PageRequest, sortBy *model.SortByAggregate, groupBy *model.Aggregate) int
+		JobsStatistics  func(childComplexity int, filter []*model.JobFilter, metrics []string, page *model.PageRequest, sortBy *model.SortByAggregate, groupBy *model.Aggregate, numDurationBins *string, numMetricBins *int) int
 		NodeMetrics     func(childComplexity int, cluster string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) int
 		NodeMetricsList func(childComplexity int, cluster string, subCluster string, nodeFilter string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time, page *model.PageRequest, resolution *int) int
 		RooflineHeatmap func(childComplexity int, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) int
@@ -392,7 +391,7 @@ type QueryResolver interface {
 	JobMetrics(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope, resolution *int) ([]*model.JobMetricWithName, error)
 	JobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error)
 	Jobs(ctx context.Context, filter []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) (*model.JobResultList, error)
-	JobsStatistics(ctx context.Context, filter []*model.JobFilter, metrics []string, page *model.PageRequest, sortBy *model.SortByAggregate, groupBy *model.Aggregate) ([]*model.JobsStatistics, error)
+	JobsStatistics(ctx context.Context, filter []*model.JobFilter, metrics []string, page *model.PageRequest, sortBy *model.SortByAggregate, groupBy *model.Aggregate, numDurationBins *string, numMetricBins *int) ([]*model.JobsStatistics, error)
 	RooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error)
 	NodeMetrics(ctx context.Context, cluster string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) ([]*model.NodeMetrics, error)
 	NodeMetricsList(ctx context.Context, cluster string, subCluster string, nodeFilter string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time, page *model.PageRequest, resolution *int) (*model.NodesResultList, error)
@@ -1425,7 +1424,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.JobsStatistics(childComplexity, args["filter"].([]*model.JobFilter), args["metrics"].([]string), args["page"].(*model.PageRequest), args["sortBy"].(*model.SortByAggregate), args["groupBy"].(*model.Aggregate)), true
+		return e.complexity.Query.JobsStatistics(childComplexity, args["filter"].([]*model.JobFilter), args["metrics"].([]string), args["page"].(*model.PageRequest), args["sortBy"].(*model.SortByAggregate), args["groupBy"].(*model.Aggregate), args["numDurationBins"].(*string), args["numMetricBins"].(*int)), true
 
 	case "Query.nodeMetrics":
 		if e.complexity.Query.NodeMetrics == nil {
@@ -2206,7 +2205,7 @@ type Query {
   jobsFootprints(filter: [JobFilter!], metrics: [String!]!): Footprints
 
   jobs(filter: [JobFilter!], page: PageRequest, order: OrderByInput): JobResultList!
-  jobsStatistics(filter: [JobFilter!], metrics: [String!], page: PageRequest, sortBy: SortByAggregate, groupBy: Aggregate): [JobsStatistics!]!
+  jobsStatistics(filter: [JobFilter!], metrics: [String!], page: PageRequest, sortBy: SortByAggregate, groupBy: Aggregate, numDurationBins: String, numMetricBins: Int): [JobsStatistics!]!
 
   rooflineHeatmap(filter: [JobFilter!]!, rows: Int!, cols: Int!, minX: Float!, minY: Float!, maxX: Float!, maxY: Float!): [[Float!]!]!
 
@@ -2359,6 +2358,7 @@ func (ec *executionContext) field_Mutation_addTagsToJob_args(ctx context.Context
 	args["tagIds"] = arg1
 	return args, nil
 }
+
 func (ec *executionContext) field_Mutation_addTagsToJob_argsJob(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -2423,6 +2423,7 @@ func (ec *executionContext) field_Mutation_createTag_args(ctx context.Context, r
 	args["scope"] = arg2
 	return args, nil
 }
+
 func (ec *executionContext) field_Mutation_createTag_argsType(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -2499,6 +2500,7 @@ func (ec *executionContext) field_Mutation_deleteTag_args(ctx context.Context, r
 	args["id"] = arg0
 	return args, nil
 }
+
 func (ec *executionContext) field_Mutation_deleteTag_argsID(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -2536,6 +2538,7 @@ func (ec *executionContext) field_Mutation_removeTagsFromJob_args(ctx context.Co
 	args["tagIds"] = arg1
 	return args, nil
 }
+
 func (ec *executionContext) field_Mutation_removeTagsFromJob_argsJob(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -2595,6 +2598,7 @@ func (ec *executionContext) field_Mutation_updateConfiguration_args(ctx context.
 	args["value"] = arg1
 	return args, nil
 }
+
 func (ec *executionContext) field_Mutation_updateConfiguration_argsName(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -2649,6 +2653,7 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 	args["name"] = arg0
 	return args, nil
 }
+
 func (ec *executionContext) field_Query___type_argsName(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -2681,6 +2686,7 @@ func (ec *executionContext) field_Query_allocatedNodes_args(ctx context.Context,
 	args["cluster"] = arg0
 	return args, nil
 }
+
 func (ec *executionContext) field_Query_allocatedNodes_argsCluster(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -2728,6 +2734,7 @@ func (ec *executionContext) field_Query_jobMetrics_args(ctx context.Context, raw
 	args["resolution"] = arg3
 	return args, nil
 }
+
 func (ec *executionContext) field_Query_jobMetrics_argsID(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -2826,6 +2833,7 @@ func (ec *executionContext) field_Query_job_args(ctx context.Context, rawArgs ma
 	args["id"] = arg0
 	return args, nil
 }
+
 func (ec *executionContext) field_Query_job_argsID(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -2863,6 +2871,7 @@ func (ec *executionContext) field_Query_jobsFootprints_args(ctx context.Context,
 	args["metrics"] = arg1
 	return args, nil
 }
+
 func (ec *executionContext) field_Query_jobsFootprints_argsFilter(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -2935,8 +2944,19 @@ func (ec *executionContext) field_Query_jobsStatistics_args(ctx context.Context,
 		return nil, err
 	}
 	args["groupBy"] = arg4
+	arg5, err := ec.field_Query_jobsStatistics_argsNumDurationBins(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["numDurationBins"] = arg5
+	arg6, err := ec.field_Query_jobsStatistics_argsNumMetricBins(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["numMetricBins"] = arg6
 	return args, nil
 }
+
 func (ec *executionContext) field_Query_jobsStatistics_argsFilter(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -3047,6 +3067,50 @@ func (ec *executionContext) field_Query_jobsStatistics_argsGroupBy(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Query_jobsStatistics_argsNumDurationBins(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (*string, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["numDurationBins"]
+	if !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("numDurationBins"))
+	if tmp, ok := rawArgs["numDurationBins"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_jobsStatistics_argsNumMetricBins(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (*int, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["numMetricBins"]
+	if !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("numMetricBins"))
+	if tmp, ok := rawArgs["numMetricBins"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Query_jobs_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -3067,6 +3131,7 @@ func (ec *executionContext) field_Query_jobs_args(ctx context.Context, rawArgs m
 	args["order"] = arg2
 	return args, nil
 }
+
 func (ec *executionContext) field_Query_jobs_argsFilter(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -3183,6 +3248,7 @@ func (ec *executionContext) field_Query_nodeMetricsList_args(ctx context.Context
 	args["resolution"] = arg8
 	return args, nil
 }
+
 func (ec *executionContext) field_Query_nodeMetricsList_argsCluster(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -3416,6 +3482,7 @@ func (ec *executionContext) field_Query_nodeMetrics_args(ctx context.Context, ra
 	args["to"] = arg5
 	return args, nil
 }
+
 func (ec *executionContext) field_Query_nodeMetrics_argsCluster(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -3588,6 +3655,7 @@ func (ec *executionContext) field_Query_rooflineHeatmap_args(ctx context.Context
 	args["maxY"] = arg6
 	return args, nil
 }
+
 func (ec *executionContext) field_Query_rooflineHeatmap_argsFilter(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -3752,6 +3820,7 @@ func (ec *executionContext) field_Query_user_args(ctx context.Context, rawArgs m
 	args["username"] = arg0
 	return args, nil
 }
+
 func (ec *executionContext) field_Query_user_argsUsername(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -3784,6 +3853,7 @@ func (ec *executionContext) field___Type_enumValues_args(ctx context.Context, ra
 	args["includeDeprecated"] = arg0
 	return args, nil
 }
+
 func (ec *executionContext) field___Type_enumValues_argsIncludeDeprecated(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -3816,6 +3886,7 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 	args["includeDeprecated"] = arg0
 	return args, nil
 }
+
 func (ec *executionContext) field___Type_fields_argsIncludeDeprecated(
 	ctx context.Context,
 	rawArgs map[string]interface{},
@@ -10355,7 +10426,7 @@ func (ec *executionContext) _Query_jobsStatistics(ctx context.Context, field gra
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().JobsStatistics(rctx, fc.Args["filter"].([]*model.JobFilter), fc.Args["metrics"].([]string), fc.Args["page"].(*model.PageRequest), fc.Args["sortBy"].(*model.SortByAggregate), fc.Args["groupBy"].(*model.Aggregate))
+		return ec.resolvers.Query().JobsStatistics(rctx, fc.Args["filter"].([]*model.JobFilter), fc.Args["metrics"].([]string), fc.Args["page"].(*model.PageRequest), fc.Args["sortBy"].(*model.SortByAggregate), fc.Args["groupBy"].(*model.Aggregate), fc.Args["numDurationBins"].(*string), fc.Args["numMetricBins"].(*int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -19995,7 +20066,7 @@ func (ec *executionContext) unmarshalOAggregate2ᚖgithubᚗcomᚋClusterCockpit
 	if v == nil {
 		return nil, nil
 	}
-	var res = new(model.Aggregate)
+	res := new(model.Aggregate)
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
@@ -20594,7 +20665,7 @@ func (ec *executionContext) unmarshalOSortByAggregate2ᚖgithubᚗcomᚋClusterC
 	if v == nil {
 		return nil, nil
 	}
-	var res = new(model.SortByAggregate)
+	res := new(model.SortByAggregate)
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }

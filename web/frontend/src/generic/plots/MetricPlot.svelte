@@ -152,10 +152,12 @@
   const lineWidth =
     clusterCockpitConfig.plot_general_lineWidth / window.devicePixelRatio;
   const lineColors = clusterCockpitConfig.plot_general_colorscheme;
+  const cbmode = clusterCockpitConfig?.plot_general_colorblindMode || false;
+
   const backgroundColors = {
     normal: "rgba(255, 255, 255, 1.0)",
-    caution: "rgba(255, 128, 0, 0.3)",
-    alert: "rgba(255, 0, 0, 0.3)",
+    caution: cbmode ? "rgba(239, 230, 69, 0.3)" : "rgba(255, 128, 0, 0.3)",
+    alert: cbmode ? "rgba(225, 86, 44, 0.3)" : "rgba(255, 0, 0, 0.3)",
   };
   const thresholds = findJobAggregationThresholds(
     subClusterTopology,
@@ -348,13 +350,13 @@
       label: "min",
       scale: "y",
       width: lineWidth,
-      stroke: "red",
+      stroke: cbmode ? "rgb(0,255,0)" : "red",
     });
     plotSeries.push({
       label: "max",
       scale: "y",
       width: lineWidth,
-      stroke: "green",
+      stroke: cbmode ? "rgb(0,0,255)" : "green",
     });
     plotSeries.push({
       label: usesMeanStatsSeries ? "mean" : "median",
@@ -364,8 +366,8 @@
     });
 
     plotBands = [
-      { series: [2, 3], fill: "rgba(0,255,0,0.1)" },
-      { series: [3, 1], fill: "rgba(255,0,0,0.1)" },
+      { series: [2, 3], fill: cbmode ? "rgba(0,0,255,0.1)" : "rgba(0,255,0,0.1)" },
+      { series: [3, 1], fill: cbmode ? "rgba(0,255,0,0.1)" : "rgba(255,0,0,0.1)" },
     ];
   } else {
     for (let i = 0; i < series.length; i++) {

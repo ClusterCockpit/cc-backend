@@ -354,9 +354,13 @@ func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, pag
 }
 
 // JobsStatistics is the resolver for the jobsStatistics field.
-func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobFilter, metrics []string, page *model.PageRequest, sortBy *model.SortByAggregate, groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
+func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobFilter, metrics []string, page *model.PageRequest, sortBy *model.SortByAggregate, groupBy *model.Aggregate, numDurationBins *string, numMetricBins *int) ([]*model.JobsStatistics, error) {
 	var err error
 	var stats []*model.JobsStatistics
+
+	// Top Level Defaults
+	var defaultDurationBins string = "1h"
+	var defaultMetricBins int = 10
 
 	if requireField(ctx, "totalJobs") || requireField(ctx, "totalWalltime") || requireField(ctx, "totalNodes") || requireField(ctx, "totalCores") ||
 		requireField(ctx, "totalAccs") || requireField(ctx, "totalNodeHours") || requireField(ctx, "totalCoreHours") || requireField(ctx, "totalAccHours") {
@@ -391,8 +395,13 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	}
 
 	if requireField(ctx, "histDuration") || requireField(ctx, "histNumNodes") || requireField(ctx, "histNumCores") || requireField(ctx, "histNumAccs") {
+
+		if numDurationBins == nil {
+			numDurationBins = &defaultDurationBins
+		}
+
 		if groupBy == nil {
-			stats[0], err = r.Repo.AddHistograms(ctx, filter, stats[0])
+			stats[0], err = r.Repo.AddHistograms(ctx, filter, stats[0], numDurationBins)
 			if err != nil {
 				return nil, err
 			}
@@ -402,8 +411,13 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	}
 
 	if requireField(ctx, "histMetrics") {
+
+		if numMetricBins == nil {
+			numMetricBins = &defaultMetricBins
+		}
+
 		if groupBy == nil {
-			stats[0], err = r.Repo.AddMetricHistograms(ctx, filter, metrics, stats[0])
+			stats[0], err = r.Repo.AddMetricHistograms(ctx, filter, metrics, stats[0], numMetricBins)
 			if err != nil {
 				return nil, err
 			}

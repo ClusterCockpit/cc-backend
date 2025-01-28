@@ -40,6 +40,7 @@
   let timeoutId = null;
 
   const lineWidth = clusterCockpitConfig.plot_general_lineWidth;
+  const cbmode = clusterCockpitConfig?.plot_general_colorblindMode || false;
 
   // Helpers
   function getGradientR(x) {
@@ -61,7 +62,7 @@
     return Math.floor(x * 255.0);
   }
   function getRGB(c) {
-    return `rgb(${getGradientR(c)}, ${getGradientG(c)}, ${getGradientB(c)})`;
+    return `rgb(${cbmode ? '0' : getGradientR(c)}, ${getGradientG(c)}, ${getGradientB(c)})`;
   }
   function nearestThousand(num) {
     return Math.ceil(num / 1000) * 1000;

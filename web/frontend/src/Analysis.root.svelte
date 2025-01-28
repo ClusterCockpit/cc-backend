@@ -174,6 +174,7 @@
     },
   });
 
+  // Note: Different footprints than those saved in DB per Job -> Caused by Legacy Naming
   $: footprintsQuery = queryStore({
     client: client,
     query: gql`
@@ -470,10 +471,12 @@
           height={300}
           data={convert2uplot($statsQuery.data.stats[0].histDuration)}
           title="Duration Distribution"
-          xlabel="Current Runtimes"
-          xunit="Hours"
+          xlabel="Current Job Runtimes"
+          xunit="Runtime"
           ylabel="Number of Jobs"
           yunit="Jobs"
+          usesBins
+          xtime
         />
       {/key}
     </Col>
