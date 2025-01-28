@@ -12,7 +12,7 @@
  -->
 
 <script>
-  import { getContext } from "svelte";
+  import { getContext, createEventDispatcher } from "svelte";
   import {
     Modal,
     ModalBody,
@@ -33,6 +33,7 @@
 
   const onInit = getContext("on-init")
   const globalMetrics = getContext("globalMetrics")
+  const dispatch = createEventDispatcher();
 
   let newMetricsOrder = [];
   let unorderedMetrics = [...metrics];
@@ -128,6 +129,8 @@
         throw res.error;
       }
     });
+
+    dispatch('update-metrics', metrics);
   }
 </script>
 
@@ -175,6 +178,7 @@
   </ModalBody>
   <ModalFooter>
     <Button color="primary" on:click={closeAndApply}>Close & Apply</Button>
+    <Button color="secondary" on:click={() => (isOpen = !isOpen)}>Cancel</Button>
   </ModalFooter>
 </Modal>
 

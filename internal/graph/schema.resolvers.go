@@ -437,8 +437,8 @@ func (r *queryResolver) RooflineHeatmap(ctx context.Context, filter []*model.Job
 // NodeMetrics is the resolver for the nodeMetrics field.
 func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) ([]*model.NodeMetrics, error) {
 	user := repository.GetUserFromContext(ctx)
-	if user != nil && !user.HasRole(schema.RoleAdmin) {
-		return nil, errors.New("you need to be an administrator for this query")
+	if user != nil && !user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport}) {
+		return nil, errors.New("you need to be administrator or support staff for this query")
 	}
 
 	if metrics == nil {
@@ -449,7 +449,7 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 
 	data, err := metricDataDispatcher.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)
 	if err != nil {
-		log.Warn("Error while loading node data")
+		log.Warn("error while loading node data")
 		return nil, err
 	}
 
@@ -459,7 +459,10 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 			Host:    hostname,
 			Metrics: make([]*model.JobMetricWithName, 0, len(metrics)*len(scopes)),
 		}
-		host.SubCluster, _ = archive.GetSubClusterByNode(cluster, hostname)
+		host.SubCluster, err = archive.GetSubClusterByNode(cluster, hostname)
+		if err != nil {
+			log.Warnf("error in nodeMetrics resolver: %s", err)
+		}
 
 		for metric, scopedMetrics := range metrics {
 			for _, scopedMetric := range scopedMetrics {
@@ -475,6 +478,68 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 	}
 
 	return nodeMetrics, nil
+}
+
+// NodeMetricsList is the resolver for the nodeMetricsList field.
+func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, subCluster string, nodeFilter string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time, page *model.PageRequest, resolution *int) (*model.NodesResultList, error) {
+	if resolution == nil { // Load from Config
+		if config.Keys.EnableResampling != nil {
+			defaultRes := slices.Max(config.Keys.EnableResampling.Resolutions)
+			resolution = &defaultRes
+		} else { // Set 0 (Loads configured metric timestep)
+			defaultRes := 0
+			resolution = &defaultRes
+		}
+	}
+
+	user := repository.GetUserFromContext(ctx)
+	if user != nil && !user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport}) {
+		return nil, errors.New("you need to be administrator or support staff for this query")
+	}
+
+	if metrics == nil {
+		for _, mc := range archive.GetCluster(cluster).MetricConfig {
+			metrics = append(metrics, mc.Name)
+		}
+	}
+
+	data, totalNodes, hasNextPage, err := metricDataDispatcher.LoadNodeListData(cluster, subCluster, nodeFilter, metrics, scopes, *resolution, from, to, page, ctx)
+	if err != nil {
+		log.Warn("error while loading node data")
+		return nil, err
+	}
+
+	nodeMetricsList := make([]*model.NodeMetrics, 0, len(data))
+	for hostname, metrics := range data {
+		host := &model.NodeMetrics{
+			Host:    hostname,
+			Metrics: make([]*model.JobMetricWithName, 0, len(metrics)*len(scopes)),
+		}
+		host.SubCluster, err = archive.GetSubClusterByNode(cluster, hostname)
+		if err != nil {
+			log.Warnf("error in nodeMetrics resolver: %s", err)
+		}
+
+		for metric, scopedMetrics := range metrics {
+			for scope, scopedMetric := range scopedMetrics {
+				host.Metrics = append(host.Metrics, &model.JobMetricWithName{
+					Name:   metric,
+					Scope:  scope,
+					Metric: scopedMetric,
+				})
+			}
+		}
+
+		nodeMetricsList = append(nodeMetricsList, host)
+	}
+
+	nodeMetricsListResult := &model.NodesResultList{
+		Items:       nodeMetricsList,
+		TotalNodes:  &totalNodes,
+		HasNextPage: &hasNextPage,
+	}
+
+	return nodeMetricsListResult, nil
 }
 
 // NumberOfNodes is the resolver for the numberOfNodes field.

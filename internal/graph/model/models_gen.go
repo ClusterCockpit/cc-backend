@@ -148,6 +148,15 @@ type NodeMetrics struct {
 	Metrics    []*JobMetricWithName `json:"metrics"`
 }
 
+type NodesResultList struct {
+	Items       []*NodeMetrics `json:"items"`
+	Offset      *int           `json:"offset,omitempty"`
+	Limit       *int           `json:"limit,omitempty"`
+	Count       *int           `json:"count,omitempty"`
+	TotalNodes  *int           `json:"totalNodes,omitempty"`
+	HasNextPage *bool          `json:"hasNextPage,omitempty"`
+}
+
 type OrderByInput struct {
 	Field string            `json:"field"`
 	Type  string            `json:"type"`

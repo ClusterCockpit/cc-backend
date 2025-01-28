@@ -74,7 +74,7 @@
         <CardTitle
           style="margin-bottom: 1em; display: flex; align-items: center;"
         >
-          <div>Paging Type</div>
+          <div>Job List Paging Type</div>
           {#if displayMessage && message.target == "pag"}<div
               style="margin-left: auto; font-size: 0.9em;"
             >

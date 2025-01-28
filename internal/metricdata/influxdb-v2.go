@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -311,4 +312,22 @@ func (idb *InfluxDBv2DataRepository) LoadNodeData(
 	log.Infof("LoadNodeData unimplemented for InfluxDBv2DataRepository, Args: cluster %s, metrics %v, nodes %v, scopes %v", cluster, metrics, nodes, scopes)
 
 	return nil, errors.New("METRICDATA/INFLUXV2 > unimplemented for InfluxDBv2DataRepository")
+}
+
+func (idb *InfluxDBv2DataRepository) LoadNodeListData(
+	cluster, subCluster, nodeFilter string,
+	metrics []string,
+	scopes []schema.MetricScope,
+	resolution int,
+	from, to time.Time,
+	page *model.PageRequest,
+	ctx context.Context,
+) (map[string]schema.JobData, int, bool, error) {
+
+	var totalNodes int = 0
+	var hasNextPage bool = false
+	// TODO : Implement to be used in NodeList-View
+	log.Infof("LoadNodeListData unimplemented for InfluxDBv2DataRepository, Args: cluster %s, metrics %v, nodeFilter %v, scopes %v", cluster, metrics, nodeFilter, scopes)
+
+	return nil, totalNodes, hasNextPage, errors.New("METRICDATA/INFLUXV2 > unimplemented for InfluxDBv2DataRepository")
 }

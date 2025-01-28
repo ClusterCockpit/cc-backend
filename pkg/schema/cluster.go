@@ -194,7 +194,17 @@ func (topo *Topology) GetAcceleratorID(id int) (string, error) {
 	}
 }
 
-func (topo *Topology) GetAcceleratorIDs() ([]int, error) {
+// Return list of hardware (string) accelerator IDs
+func (topo *Topology) GetAcceleratorIDs() []string {
+	accels := make([]string, 0)
+	for _, accel := range topo.Accelerators {
+		accels = append(accels, accel.ID)
+	}
+	return accels
+}
+
+// Outdated? Or: Return indices of accelerators in parent array?
+func (topo *Topology) GetAcceleratorIDsAsInt() ([]int, error) {
 	accels := make([]int, 0)
 	for _, accel := range topo.Accelerators {
 		id, err := strconv.Atoi(accel.ID)

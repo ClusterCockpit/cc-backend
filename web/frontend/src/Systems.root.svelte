@@ -1,7 +1,8 @@
 <!--
-    @component Main cluster metric status view component; renders current state of metrics / nodes
+    @component Main cluster node status view component; renders overview or list depending on type
 
     Properties:
+    - `displayType String?`: The type of node display ['OVERVIEW' || 'LIST']
     - `cluster String`: The cluster to show status information for
     - `from Date?`: Custom Time Range selection 'from' [Default: null]
     - `to Date?`: Custom Time Range selection 'to' [Default: null]
@@ -12,32 +13,33 @@
   import {
     Row,
     Col,
+    Card,
     Input,
     InputGroup,
     InputGroupText,
     Icon,
-    Spinner,
-    Card,
+    Button,
   } from "@sveltestrap/sveltestrap";
-  import {
-    queryStore,
-    gql,
-    getContextClient,
-  } from "@urql/svelte";
-  import {
-    init,
-    checkMetricDisabled,
-  } from "./generic/utils.js";
-  import PlotGrid from "./generic/PlotGrid.svelte";
-  import MetricPlot from "./generic/plots/MetricPlot.svelte";
+
+  import { init } from "./generic/utils.js";
+  import NodeOverview from "./systems/NodeOverview.svelte";
+  import NodeList from "./systems/NodeList.svelte";
+  import MetricSelection from "./generic/select/MetricSelection.svelte";
   import TimeSelection from "./generic/select/TimeSelection.svelte";
   import Refresher from "./generic/helper/Refresher.svelte";
 
+  export let displayType;
   export let cluster;
+  export let subCluster = "";
   export let from = null;
   export let to = null;
 
   const { query: initq } = init();
+
+  console.assert(
+    displayType == "OVERVIEW" || displayType == "LIST",
+    "Invalid nodes displayType provided!",
+  );
 
   if (from == null || to == null) {
     to = new Date(Date.now());
@@ -47,57 +49,28 @@
 
   const initialized = getContext("initialized");
   const ccconfig = getContext("cc-config");
-  const clusters = getContext("clusters");
   const globalMetrics = getContext("globalMetrics");
+  const displayNodeOverview = (displayType === 'OVERVIEW')
+
+  const resampleConfig = getContext("resampling") || null;
+  const resampleResolutions = resampleConfig ? [...resampleConfig.resolutions] : [];
+  const resampleDefault = resampleConfig ? Math.max(...resampleConfig.resolutions) : 0;
+  let selectedResolution = resampleConfig ? resampleDefault : 0;
 
   let hostnameFilter = "";
-  let selectedMetric = ccconfig.system_view_selectedMetric;
+  let pendingHostnameFilter = "";
+  let selectedMetric = ccconfig.system_view_selectedMetric || "";
+  let selectedMetrics = ccconfig[`node_list_selectedMetrics:${cluster}`] || [ccconfig.system_view_selectedMetric];
+  let isMetricsSelectionOpen = false;
 
-  const client = getContextClient();
-  $: nodesQuery = queryStore({
-    client: client,
-    query: gql`
-      query ($cluster: String!, $metrics: [String!], $from: Time!, $to: Time!) {
-        nodeMetrics(
-          cluster: $cluster
-          metrics: $metrics
-          from: $from
-          to: $to
-        ) {
-          host
-          subCluster
-          metrics {
-            name
-            scope
-            metric {
-              timestep
-              unit {
-                base
-                prefix
-              }
-              series {
-                statistics {
-                  min
-                  avg
-                  max
-                }
-                data
-              }
-            }
-          }
-        }
-      }
-    `,
-    variables: {
-      cluster: cluster,
-      metrics: [selectedMetric],
-      from: from.toISOString(),
-      to: to.toISOString(),
-    },
-  });
+  /*
+    Note 1: "Sorting" as use-case ignored for now, probably default to alphanumerical on hostnames of cluster (handled in frontend at the moment)
+    Note 2: Add Idle State Filter (== No allocated Jobs) [Frontend?] : Cannot be handled by CCMS, requires secondary job query and refiltering of visible nodes
+  */
 
   let systemMetrics = [];
   let systemUnits = {};
+
   function loadMetrics(isInitialized) {
     if (!isInitialized) return
     systemMetrics = [...globalMetrics.filter((gm) => gm?.availability.find((av) => av.cluster == cluster))]
@@ -108,23 +81,60 @@
 
   $: loadMetrics($initialized)
 
+  $: if (displayNodeOverview) {
+    selectedMetrics = [selectedMetric]
+  }
+
+  $: { // Wait after input for some time to prevent too many requests
+    setTimeout(function () {
+      hostnameFilter = pendingHostnameFilter;
+    }, 500);
+  }
 </script>
 
-<Row cols={{ xs: 2, lg: 4 }}>
-  {#if $initq.error}
-    <Card body color="danger">{$initq.error.message}</Card>
-  {:else if $initq.fetching}
-    <Spinner />
-  {:else}
+<!-- ROW1: Tools-->
+<Row cols={{ xs: 2, lg: !displayNodeOverview ? (resampleConfig ? 5 : 4) : 4 }} class="mb-3">
+  {#if $initq.data}
+    <!-- List Metric Select Col-->
+    {#if !displayNodeOverview}
+      <Col>
+        <InputGroup>
+          <InputGroupText><Icon name="graph-up" /></InputGroupText>
+          <InputGroupText class="text-capitalize">Metrics</InputGroupText>
+          <Button
+            outline
+            color="primary"
+            on:click={() => (isMetricsSelectionOpen = true)}
+          >
+            {selectedMetrics.length} selected
+          </Button>
+        </InputGroup>
+      </Col>
+      {#if resampleConfig}
+        <Col>
+          <InputGroup>
+            <InputGroupText><Icon name="plus-slash-minus" /></InputGroupText>
+            <InputGroupText>Resolution</InputGroupText>
+            <Input type="select" bind:value={selectedResolution}>
+              {#each resampleResolutions as res}
+                <option value={res}
+                  >{res} sec</option
+                >
+              {/each}
+            </Input>
+          </InputGroup>
+        </Col>
+      {/if}
+    {/if}
     <!-- Node Col-->
-    <Col>
+    <Col class="mt-2 mt-lg-0">
       <InputGroup>
         <InputGroupText><Icon name="hdd" /></InputGroupText>
-        <InputGroupText>Find Node</InputGroupText>
+        <InputGroupText>Find Node(s)</InputGroupText>
         <Input
-          placeholder="hostname..."
+          placeholder="Filter hostname ..."
           type="text"
-          bind:value={hostnameFilter}
+          bind:value={pendingHostnameFilter}
         />
       </InputGroup>
     </Col>
@@ -132,20 +142,22 @@
     <Col>
       <TimeSelection bind:from bind:to />
     </Col>
-    <!-- Metric Col-->
-    <Col class="mt-2 mt-lg-0">
-      <InputGroup>
-        <InputGroupText><Icon name="graph-up" /></InputGroupText>
-        <InputGroupText>Metric</InputGroupText>
-        <select class="form-select" bind:value={selectedMetric}>
-          {#each systemMetrics as metric}
-            <option value={metric.name}
-              >{metric.name} {systemUnits[metric.name] ? "("+systemUnits[metric.name]+")" : ""}</option
-            >
-          {/each}
-        </select>
-      </InputGroup>
-    </Col>
+    <!-- Overview Metric Col-->
+    {#if displayNodeOverview}
+      <Col class="mt-2 mt-lg-0">
+        <InputGroup>
+          <InputGroupText><Icon name="graph-up" /></InputGroupText>
+          <InputGroupText>Metric</InputGroupText>
+          <Input type="select" bind:value={selectedMetric}>
+            {#each systemMetrics as metric}
+              <option value={metric.name}
+                >{metric.name} {systemUnits[metric.name] ? "("+systemUnits[metric.name]+")" : ""}</option
+              >
+            {/each}
+          </Input>
+        </InputGroup>
+      </Col>
+    {/if}
     <!-- Refresh Col-->
     <Col class="mt-2 mt-lg-0">
       <Refresher
@@ -158,75 +170,30 @@
     </Col>
   {/if}
 </Row>
-<br />
-{#if $nodesQuery.error}
+
+<!-- ROW2: Content-->
+{#if displayType !== "OVERVIEW" && displayType !== "LIST"}
   <Row>
     <Col>
-      <Card body color="danger">{$nodesQuery.error.message}</Card>
-    </Col>
-  </Row>
-{:else if $nodesQuery.fetching || $initq.fetching}
-  <Row>
-    <Col>
-      <Spinner />
+      <Card body color="danger">Unknown displayList type! </Card>
     </Col>
   </Row>
 {:else}
-  <PlotGrid
-    let:item
-    renderFor="systems"
-    itemsPerRow={ccconfig.plot_view_plotsPerRow}
-    items={$nodesQuery.data.nodeMetrics
-      .filter(
-        (h) =>
-          h.host.includes(hostnameFilter) &&
-          h.metrics.some(
-            (m) => m.name == selectedMetric && m.scope == "node",
-          ),
-      )
-      .map((h) => ({
-        host: h.host,
-        subCluster: h.subCluster,
-        data: h.metrics.find(
-          (m) => m.name == selectedMetric && m.scope == "node",
-        ),
-        disabled: checkMetricDisabled(
-          selectedMetric,
-          cluster,
-          h.subCluster,
-        ),
-      }))
-      .sort((a, b) => a.host.localeCompare(b.host))}
-  >
-    <h4 style="width: 100%; text-align: center;">
-      <a
-        style="display: block;padding-top: 15px;"
-        href="/monitoring/node/{cluster}/{item.host}"
-        >{item.host} ({item.subCluster})</a
-      >
-    </h4>
-    {#if item.disabled === false && item.data}
-      <MetricPlot
-        timestep={item.data.metric.timestep}
-        series={item.data.metric.series}
-        metric={item.data.name}
-        cluster={clusters.find((c) => c.name == cluster)}
-        subCluster={item.subCluster}
-        forNode={true}
-      />
-    {:else if item.disabled === true && item.data}
-      <Card style="margin-left: 2rem;margin-right: 2rem;" body color="info"
-        >Metric disabled for subcluster <code
-          >{selectedMetric}:{item.subCluster}</code
-        ></Card
-      >
-    {:else}
-      <Card
-        style="margin-left: 2rem;margin-right: 2rem;"
-        body
-        color="warning"
-        >No dataset returned for <code>{selectedMetric}</code></Card
-      >
-    {/if}
-  </PlotGrid>
+  {#if displayNodeOverview}
+    <!-- ROW2-1: Node Overview (Grid Included)-->
+    <NodeOverview {cluster} {subCluster} {ccconfig} {selectedMetrics} {from} {to} {hostnameFilter}/>
+  {:else}
+    <!-- ROW2-2: Node List (Grid Included)-->
+    <NodeList {cluster} {subCluster} {ccconfig} {selectedMetrics} {selectedResolution} {hostnameFilter} {from} {to} {systemUnits}/>
+  {/if}
 {/if}
+
+<MetricSelection
+  {cluster}
+  configName="node_list_selectedMetrics"
+  metrics={selectedMetrics}
+  bind:isOpen={isMetricsSelectionOpen}
+  on:update-metrics={({ detail }) => {
+    selectedMetrics = [...detail]
+  }}
+/>

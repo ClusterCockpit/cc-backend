@@ -26,6 +26,7 @@
   export let username;
   export let authlevel;
   export let clusters;
+  export let subClusters;
   export let roles;
 
   let isOpen = false;
@@ -93,9 +94,18 @@
     },
     {
       title: "Nodes",
-      requiredRole: roles.admin,
+      requiredRole: roles.support,
       href: "/monitoring/systems/",
       icon: "hdd-rack",
+      perCluster: true,
+      listOptions: true,
+      menu: "Info",
+    },
+    {
+      title: "Analysis",
+      requiredRole: roles.support,
+      href: "/monitoring/analysis/",
+      icon: "graph-up",
       perCluster: true,
       listOptions: false,
       menu: "Info",
@@ -105,15 +115,6 @@
       requiredRole: roles.admin,
       href: "/monitoring/status/",
       icon: "clipboard-data",
-      perCluster: true,
-      listOptions: false,
-      menu: "Info",
-    },
-    {
-      title: "Analysis",
-      requiredRole: roles.support,
-      href: "/monitoring/analysis/",
-      icon: "graph-up",
       perCluster: true,
       listOptions: false,
       menu: "Info",
@@ -138,11 +139,13 @@
       {#if screenSize > 1500 || screenSize < 768}
         <NavbarLinks
           {clusters}
+          {subClusters}
           links={views.filter((item) => item.requiredRole <= authlevel)}
         />
       {:else if screenSize > 1300}
         <NavbarLinks
           {clusters}
+          {subClusters}
           links={views.filter(
             (item) => item.requiredRole <= authlevel && item.menu != "Info",
           )}
@@ -156,6 +159,7 @@
             <DropdownMenu class="dropdown-menu-lg-end">
               <NavbarLinks
                 {clusters}
+                {subClusters}
                 direction="right"
                 links={views.filter(
                   (item) =>
@@ -168,6 +172,7 @@
       {:else}
         <NavbarLinks
           {clusters}
+          {subClusters}
           links={views.filter(
             (item) => item.requiredRole <= authlevel && item.menu == "none",
           )}
@@ -180,6 +185,7 @@
             <DropdownMenu class="dropdown-menu-lg-end">
               <NavbarLinks
                 {clusters}
+                {subClusters}
                 direction="right"
                 links={views.filter(
                   (item) => item.requiredRole <= authlevel && item.menu == 'Jobs',
@@ -196,6 +202,7 @@
             <DropdownMenu class="dropdown-menu-lg-end">
               <NavbarLinks
                 {clusters}
+                {subClusters}
                 direction="right"
                 links={views.filter(
                   (item) => item.requiredRole <= authlevel && item.menu == 'Groups',
@@ -212,6 +219,7 @@
             <DropdownMenu class="dropdown-menu-lg-end">
               <NavbarLinks
                 {clusters}
+                {subClusters}
                 direction="right"
                 links={views.filter(
                   (item) => item.requiredRole <= authlevel && item.menu == 'Info',

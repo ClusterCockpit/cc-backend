@@ -348,7 +348,6 @@
     {:else if $initq?.data && $jobMetrics?.data?.jobMetrics}
       <PlotGrid
         let:item
-        renderFor="job"
         items={orderAndMap(
           groupByScope($jobMetrics.data.jobMetrics),
           selectedMetrics,

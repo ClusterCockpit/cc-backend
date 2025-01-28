@@ -7,8 +7,10 @@
 {{end}}
 {{define "javascript"}}
     <script>
+        const displayType = {{ .Infos.displayType }};
         const infos = {{ .Infos }};
         const clusterCockpitConfig = {{ .Config }};
+        const resampleConfig = {{ .Resampling }};
     </script>
     <script src='/build/systems.js'></script>
 {{end}}

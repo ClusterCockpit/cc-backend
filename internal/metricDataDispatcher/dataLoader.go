@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
@@ -219,7 +220,7 @@ func LoadAverages(
 	return nil
 }
 
-// Used for the node/system view. Returns a map of nodes to a map of metrics.
+// Used for the classic node/system view. Returns a map of nodes to a map of metrics.
 func LoadNodeData(
 	cluster string,
 	metrics, nodes []string,
@@ -253,4 +254,54 @@ func LoadNodeData(
 	}
 
 	return data, nil
+}
+
+func LoadNodeListData(
+	cluster, subCluster, nodeFilter string,
+	metrics []string,
+	scopes []schema.MetricScope,
+	resolution int,
+	from, to time.Time,
+	page *model.PageRequest,
+	ctx context.Context,
+) (map[string]schema.JobData, int, bool, error) {
+	repo, err := metricdata.GetMetricDataRepo(cluster)
+	if err != nil {
+		return nil, 0, false, fmt.Errorf("METRICDATA/METRICDATA > no metric data repository configured for '%s'", cluster)
+	}
+
+	if metrics == nil {
+		for _, m := range archive.GetCluster(cluster).MetricConfig {
+			metrics = append(metrics, m.Name)
+		}
+	}
+
+	data, totalNodes, hasNextPage, err := repo.LoadNodeListData(cluster, subCluster, nodeFilter, metrics, scopes, resolution, from, to, page, ctx)
+	if err != nil {
+		if len(data) != 0 {
+			log.Warnf("partial error: %s", err.Error())
+		} else {
+			log.Error("Error while loading node data from metric repository")
+			return nil, totalNodes, hasNextPage, err
+		}
+	}
+
+	// NOTE: New StatsSeries will always be calculated as 'min/median/max'
+	const maxSeriesSize int = 8
+	for _, jd := range data {
+		for _, scopes := range jd {
+			for _, jm := range scopes {
+				if jm.StatisticsSeries != nil || len(jm.Series) < maxSeriesSize {
+					continue
+				}
+				jm.AddStatisticsSeries()
+			}
+		}
+	}
+
+	if data == nil {
+		return nil, totalNodes, hasNextPage, fmt.Errorf("METRICDATA/METRICDATA > the metric data repository for '%s' does not support this query", cluster)
+	}
+
+	return data, totalNodes, hasNextPage, nil
 }
