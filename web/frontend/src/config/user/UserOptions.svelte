@@ -43,10 +43,33 @@
         }
     }
 
+    let displayCheck = false;
     function clipJwt() {
-        navigator.clipboard
-         .writeText(jwt)
-         .catch((reason) => console.error(reason));
+      displayCheck = true;
+      // Navigator clipboard api needs a secure context (https)
+      if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard
+            .writeText(jwt)
+            .catch((reason) => console.error(reason));
+      } else {
+        // Workaround: Create, Fill, And Copy Content of Textarea
+        const textArea = document.createElement("textarea");
+        textArea.value = jwt;
+        textArea.style.position = "absolute";
+        textArea.style.left = "-999999px";
+        document.body.prepend(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+        } catch (error) {
+            console.error(error);
+        } finally {
+            textArea.remove();
+        }
+      }
+      setTimeout(function () {
+        displayCheck = false;
+      }, 1000);
     }
 
     const dispatch = createEventDispatcher();
@@ -120,6 +143,11 @@
                     <p class="mt-2">
                         Your token is displayed on the right. Press this button to copy it to the clipboard.
                     </p>
+                    {#if displayCheck}
+                        <p class="mt-2">
+                            <span class="text-success">Copied!</span>
+                        </p>
+                    {/if}
                 {:else}
                     <Button color="success" on:click={getUserJwt(username)}>
                         Generate JWT for '{username}'
