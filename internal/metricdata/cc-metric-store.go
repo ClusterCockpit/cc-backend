@@ -207,9 +207,9 @@ func (ccms *CCMetricStore) LoadData(
 			jobData[metric] = make(map[schema.MetricScope]*schema.JobMetric)
 		}
 
-		res := row[0].Resolution
-		if res == 0 {
-			res = mc.Timestep
+		res := mc.Timestep
+		if len(row) > 0 {
+			res = row[0].Resolution
 		}
 
 		jobMetric, ok := jobData[metric][scope]
@@ -784,9 +784,9 @@ func (ccms *CCMetricStore) LoadNodeListData(
 		scope := assignedScope[i]
 		mc := archive.GetMetricConfig(cluster, metric)
 
-		res := row[0].Resolution
-		if res == 0 {
-			res = mc.Timestep
+		res := mc.Timestep
+		if len(row) > 0 {
+			res = row[0].Resolution
 		}
 
 		// Init Nested Map Data Structures If Not Found
