@@ -217,11 +217,6 @@ func (r *JobRepository) UpdateMetadata(job *schema.Job, key, val string) (err er
 
 func (r *JobRepository) FetchFootprint(job *schema.Job) (map[string]float64, error) {
 	start := time.Now()
-	cachekey := fmt.Sprintf("footprint:%d", job.ID)
-	if cached := r.cache.Get(cachekey, nil); cached != nil {
-		job.Footprint = cached.(map[string]float64)
-		return job.Footprint, nil
-	}
 
 	if err := sq.Select("job.footprint").From("job").Where("job.id = ?", job.ID).
 		RunWith(r.stmtCache).QueryRow().Scan(&job.RawFootprint); err != nil {
@@ -238,7 +233,6 @@ func (r *JobRepository) FetchFootprint(job *schema.Job) (map[string]float64, err
 		return nil, err
 	}
 
-	r.cache.Put(cachekey, job.Footprint, len(job.Footprint), 24*time.Hour)
 	log.Debugf("Timer FetchFootprint %s", time.Since(start))
 	return job.Footprint, nil
 }
