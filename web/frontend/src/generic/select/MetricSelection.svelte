@@ -148,10 +148,13 @@
         <li
           class="cc-config-column list-group-item"
           draggable={true}
-          ondragover="return false"
-          on:dragstart={(event) => columnsDragStart(event, index)}
-          on:drop|preventDefault={(event) => columnsDrag(event, index)}
-          on:dragenter={() => (columnHovering = index)}
+          ondragover={() => false}
+          ondragstart={(event) => columnsDragStart(event, index)}
+          ondrop={(event) => {
+            event.preventDefault()
+            columnsDrag(event, index)
+          }}
+          ondragenter={() => (columnHovering = index)}
           class:is-active={columnHovering === index}
         >
           {#if unorderedMetrics.includes(metric)}

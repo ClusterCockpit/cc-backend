@@ -153,13 +153,13 @@
       {/each}
     </div>
     <p style="display: flex; align-items: center;">
-      <Button type="submit" color="primary">Submit</Button>
-      {#if displayMessage}<div style="margin-left: 1.5em;">
-          <b
-            ><code style="color: {message.color};" out:fade>{message.msg}</code
-            ></b
-          >
-        </div>{/if}
+      <Button type="submit" color="primary" style="margin-right: 1.5em;">Submit</Button>
+      {#if displayMessage}
+        <b
+          ><code style="color: {message.color};" out:fade>{message.msg}</code
+          ></b
+        >
+      {/if}
     </p>
   </form>
 </Card>

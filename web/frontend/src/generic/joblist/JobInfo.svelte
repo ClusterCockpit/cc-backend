@@ -91,15 +91,15 @@
     </span>
     {#if job.metaData?.jobName}
       {#if job.metaData?.jobName.length <= 25}
-        <div>{job.metaData.jobName}</div>
+        <span>{job.metaData.jobName}</span>
       {:else}
-        <div
+        <span
           class="truncate"
           style="cursor:help;"
           title={job.metaData.jobName}
         >
           {job.metaData.jobName}
-        </div>
+  </span>
       {/if}
     {/if}
     {#if job.arrayJobId}

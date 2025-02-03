@@ -282,6 +282,7 @@
     <TabPane tabId="polar" tab="Polar" active={!showFootprint}>
       <CardBody>
         <Polar
+          canvasId={job.jobId}
           {footprintData}
           {jobMetrics}
         />

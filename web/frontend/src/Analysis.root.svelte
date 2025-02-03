@@ -386,6 +386,7 @@
             <Card body color="danger">{$topQuery.error.message}</Card>
           {:else}
             <Pie
+              type={groupSelection.key}
               size={colWidth1}
               sliceLabel={sortSelection.label}
               quantities={$topQuery.data.topList.map(

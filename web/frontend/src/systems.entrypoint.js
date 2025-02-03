@@ -1,7 +1,8 @@
+import { mount } from 'svelte';
 import {} from './header.entrypoint.js'
 import Systems from './Systems.root.svelte'
 
-new Systems({
+mount(Systems, {
     target: document.getElementById('svelte-app'),
     props: {
         displayType: displayType,

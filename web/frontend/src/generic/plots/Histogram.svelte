@@ -259,7 +259,7 @@
 <!-- Define Wrapper and NoData Card within $width -->
 <div bind:clientWidth={width}>
   {#if data.length > 0}
-    <div bind:this={plotWrapper} />
+    <div bind:this={plotWrapper}></div>
   {:else}
     <Card class="mx-4" body color="warning"
       >Cannot render histogram: No data!</Card

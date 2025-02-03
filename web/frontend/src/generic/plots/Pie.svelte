@@ -1,5 +1,5 @@
 <!--
-    @component Pie Plot based on uPlot Pie
+    @component Pie Plot based on chart.js Pie
 
     Properties:
     - `size Number`: X and Y size of the plot, for square shape
@@ -31,33 +31,17 @@
     ]
 </script>
 <script>
-    import { Pie } from 'svelte-chartjs';
-    import {
-        Chart as ChartJS,
-        Title,
-        Tooltip,
-        Legend,
-        Filler,
-        ArcElement,
-        CategoryScale
-    } from 'chart.js';
+    import Chart from 'chart.js/auto'
+    import { onMount } from 'svelte';
 
-    ChartJS.register(
-        Title,
-        Tooltip,
-        Legend,
-        Filler,
-        ArcElement,
-        CategoryScale
-    );
-
+    export let canvasId
     export let size
     export let sliceLabel
     export let quantities
     export let entities
     export let displayLegend = false
 
-    $: data = {
+    const data = {
         labels: entities,
         datasets: [
             {
@@ -79,10 +63,22 @@
         }
     }
 
+    onMount(() => {
+        new Chart(
+            document.getElementById(canvasId),
+            {
+                type: 'pie',
+                data: data,
+                options: options
+            }
+        );
+	});
+
 </script>
 
+<!-- <div style="width: 500px;"><canvas id="dimensions"></canvas></div><br/> -->
 <div class="chart-container" style="--container-width: {size}; --container-height: {size}">
-    <Pie {data} {options}/>
+    <canvas id={canvasId}></canvas>
 </div>
 
 <style>

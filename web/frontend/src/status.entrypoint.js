@@ -1,7 +1,8 @@
+import { mount } from 'svelte';
 import {} from './header.entrypoint.js'
 import Status from './Status.root.svelte'
 
-new Status({
+mount(Status, {
     target: document.getElementById('svelte-app'),
     props: {
         cluster: infos.cluster,

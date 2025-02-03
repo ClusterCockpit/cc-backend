@@ -1,5 +1,5 @@
 <!--
-    @component Polar Plot based on chartJS Radar
+    @component Polar Plot based on chart.js Radar
 
     Properties:
     - `footprintData [Object]?`: job.footprint content, evaluated in regards to peak config in jobSummary.svelte [Default: null]
@@ -11,29 +11,10 @@
  -->
 
 <script>
-    import { getContext } from 'svelte'
-    import { Radar } from 'svelte-chartjs';
-    import {
-        Chart as ChartJS,
-        Title,
-        Tooltip,
-        Legend,
-        Filler,
-        PointElement,
-        RadialLinearScale,
-        LineElement
-    } from 'chart.js';
+    import { getContext, onMount } from 'svelte'
+    import Chart from 'chart.js/auto'
 
-    ChartJS.register(
-        Title,
-        Tooltip,
-        Legend,
-        Filler,
-        PointElement,
-        RadialLinearScale,
-        LineElement
-    );
-
+    export let canvasId;
     export let footprintData = null;
     export let metrics = null;
     export let cluster = null;
@@ -183,10 +164,23 @@
         }
     }
 
+    onMount(() => {
+        new Chart(
+            document.getElementById(canvasId),
+            {
+                type: 'radar',
+                data: data,
+                options: options,
+                height: height
+            }
+        );
+    });
+
 </script>
 
+<!-- <div style="width: 500px;"><canvas id="dimensions"></canvas></div><br/> -->
 <div class="chart-container">
-    <Radar {data} {options} {height}/>
+    <canvas id={canvasId}></canvas>
 </div>
 
 <style>

@@ -71,26 +71,28 @@
 {:else}
   <td colspan="4">
     <table style="width: 100%;">
-      <tr>
-        {#each ["id", "min", "avg", "max"] as field}
-          <th on:click={() => sortByField(field)}>
-            Sort
-            <Icon
-              name="caret-{sorting[field].dir}{sorting[field].active
-                ? '-fill'
-                : ''}"
-            />
-          </th>
-        {/each}
-      </tr>
-      {#each series as s, i}
+      <tbody>
         <tr>
-          <th>{s.id ?? i}</th>
-          <td>{s.statistics.min}</td>
-          <td>{s.statistics.avg}</td>
-          <td>{s.statistics.max}</td>
+          {#each ["id", "min", "avg", "max"] as field}
+            <th on:click={() => sortByField(field)}>
+              Sort
+              <Icon
+                name="caret-{sorting[field].dir}{sorting[field].active
+                  ? '-fill'
+                  : ''}"
+              />
+            </th>
+          {/each}
         </tr>
-      {/each}
+        {#each series as s, i}
+          <tr>
+            <th>{s.id ?? i}</th>
+            <td>{s.statistics.min}</td>
+            <td>{s.statistics.avg}</td>
+            <td>{s.statistics.max}</td>
+          </tr>
+        {/each}
+      </tbody>
     </table>
   </td>
 {/if}
