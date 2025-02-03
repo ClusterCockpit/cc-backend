@@ -44,21 +44,21 @@
     for (let metric of globalMetrics) allMetrics.add(metric.name);
   });
 
-  $: {
-    if (allMetrics != null) {
-      if (cluster == null) {
-        for (let metric of globalMetrics) allMetrics.add(metric.name);
-      } else {
-        allMetrics.clear();
-        for (let gm of globalMetrics) {
-          if (gm.availability.find((av) => av.cluster === cluster)) allMetrics.add(gm.name);
+  $: if (newMetricsOrder.length === 0) {
+      if (allMetrics != null) {
+        if (cluster == null) {
+          for (let metric of globalMetrics) allMetrics.add(metric.name);
+        } else {
+          allMetrics.clear();
+          for (let gm of globalMetrics) {
+            if (gm.availability.find((av) => av.cluster === cluster)) allMetrics.add(gm.name);
+          }
         }
+        newMetricsOrder = [...allMetrics].filter((m) => !metrics.includes(m));
+        newMetricsOrder.unshift(...metrics.filter((m) => allMetrics.has(m)));
+        unorderedMetrics = unorderedMetrics.filter((m) => allMetrics.has(m));
       }
-      newMetricsOrder = [...allMetrics].filter((m) => !metrics.includes(m));
-      newMetricsOrder.unshift(...metrics.filter((m) => allMetrics.has(m)));
-      unorderedMetrics = unorderedMetrics.filter((m) => allMetrics.has(m));
     }
-  }
 
   function printAvailability(metric, cluster) {
     const avail = globalMetrics.find((gm) => gm.name === metric)?.availability
@@ -93,13 +93,16 @@
   function columnsDrag(event, target) {
     event.dataTransfer.dropEffect = "move";
     const start = Number.parseInt(event.dataTransfer.getData("text/plain"));
+
+    let pendingMetricsOrder = [...newMetricsOrder];
     if (start < target) {
-      newMetricsOrder.splice(target + 1, 0, newMetricsOrder[start]);
-      newMetricsOrder.splice(start, 1);
+      pendingMetricsOrder.splice(target + 1, 0, newMetricsOrder[start]);
+      pendingMetricsOrder.splice(start, 1);
     } else {
-      newMetricsOrder.splice(target, 0, newMetricsOrder[start]);
-      newMetricsOrder.splice(start + 1, 1);
+      pendingMetricsOrder.splice(target, 0, newMetricsOrder[start]);
+      pendingMetricsOrder.splice(start + 1, 1);
     }
+    newMetricsOrder = [...pendingMetricsOrder];
     columnHovering = null;
   }
 
@@ -148,8 +151,13 @@
         <li
           class="cc-config-column list-group-item"
           draggable={true}
-          ondragover={() => false}
-          ondragstart={(event) => columnsDragStart(event, index)}
+          ondragover={(event) => {
+            event.preventDefault()
+            return false
+          }}
+          ondragstart={(event) => {
+            columnsDragStart(event, index)
+          }}
           ondrop={(event) => {
             event.preventDefault()
             columnsDrag(event, index)
