@@ -80,7 +80,7 @@
     project = ""
     jobName = ""
     user = ""
-    termChanged(0, true);
+    termChanged(0);
   }
 </script>
 

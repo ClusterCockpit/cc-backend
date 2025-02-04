@@ -83,16 +83,26 @@
   }
 
   function sort(stats, sorting, nameFilter) {
-    const cmp =
-      sorting.field == "id"
-        ? sorting.direction == "up"
-          ? (a, b) => a.id < b.id
-          : (a, b) => a.id > b.id
-        : sorting.direction == "up"
-          ? (a, b) => a[sorting.field] - b[sorting.field]
-          : (a, b) => b[sorting.field] - a[sorting.field];
+    const idCmp = sorting.direction == "up"
+      ? (a, b) => b.id.localeCompare(a.id)
+      : (a, b) => a.id.localeCompare(b.id)
 
-    return stats.filter((u) => u.id.includes(nameFilter)).sort(cmp);
+    // "-50": Forces empty strings to the end of the list
+    const nameCmp = sorting.direction == "up"
+      ? (a, b) => (a.name == '') ? -50 : b.name.localeCompare(a.name)
+      : (a, b) => (b.name == '') ? -50 : a.name.localeCompare(b.name)
+
+    const intCmp = sorting.direction == "up"
+      ? (a, b) => a[sorting.field] - b[sorting.field]
+      : (a, b) => b[sorting.field] - a[sorting.field];
+
+    if (sorting.field == "id") {
+      return stats.filter((u) => u.id.includes(nameFilter)).sort(idCmp)
+    } else if (sorting.field == "name") {
+      return stats.filter((u) => u.id.includes(nameFilter)).sort(nameCmp)
+    } else {
+      return stats.filter((u) => u.id.includes(nameFilter)).sort(intCmp)
+    }
   }
 
   onMount(() => filterComponent.updateFilters());
