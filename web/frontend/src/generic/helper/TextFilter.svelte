@@ -78,7 +78,9 @@
     term = ""
     presetProject = ""
     project = ""
-    termChanged(0);
+    jobName = ""
+    user = ""
+    termChanged(0, true);
   }
 </script>
 
