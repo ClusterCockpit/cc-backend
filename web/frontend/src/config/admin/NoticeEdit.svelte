@@ -63,7 +63,7 @@
           class="btn btn-primary"
           type="button"
           id="edit-notice-button"
-          on:click|preventDefault={() => handleEditNotice}>Edit Notice</button
+          on:click|preventDefault={() => handleEditNotice()}>Edit Notice</button
         >
       </div>
       <p>

@@ -114,13 +114,13 @@
         class="btn btn-primary"
         type="button"
         id="add-project-button"
-        on:click|preventDefault={() => handleAddProject}>Add</button
+        on:click|preventDefault={() => handleAddProject()}>Add</button
       >
       <button
         class="btn btn-danger"
         type="button"
         id="remove-project-button"
-        on:click|preventDefault={() => handleRemoveProject}>Remove</button
+        on:click|preventDefault={() => handleRemoveProject()}>Remove</button
       >
     </div>
     <p>

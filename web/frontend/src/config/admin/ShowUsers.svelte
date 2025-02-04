@@ -53,7 +53,7 @@
       <Button
         color="secondary"
         size="sm"
-        on:click={() => reloadUserList}
+        on:click={() => reloadUserList()}
         style="float: right;">Reload</Button
       >
     </p>
