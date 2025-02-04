@@ -33,7 +33,7 @@
         type="checkbox"
         id="scramble-names-checkbox"
         style="margin-right: 1em;"
-        on:click={handleScramble}
+        on:click={() => handleScramble}
         bind:checked={scrambled}
       />
       Active?

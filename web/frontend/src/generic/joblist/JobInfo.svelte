@@ -76,7 +76,7 @@
         <a href="/monitoring/job/{job.id}" target="_blank">{job.jobId}</a>
         ({job.cluster}) 
       </span>
-      <Button id={`${job.cluster}-${job.jobId}-clipboard`} outline color="secondary" size="sm" on:click={clipJobId(job.jobId)} >
+      <Button id={`${job.cluster}-${job.jobId}-clipboard`} outline color="secondary" size="sm" on:click={() => clipJobId(job.jobId)} >
         {#if displayCheck}
           <Icon name="clipboard2-check-fill"/>
         {:else}

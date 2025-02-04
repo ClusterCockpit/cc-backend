@@ -137,7 +137,7 @@
             <CardBody>
                 <CardTitle>Generate JWT</CardTitle>
                 {#if jwt}
-                    <Button color="secondary" on:click={clipJwt()}>
+                    <Button color="secondary" on:click={() => clipJwt()}>
                         Copy JWT to Clipboard
                     </Button>
                     <p class="mt-2">
@@ -149,7 +149,7 @@
                         </p>
                     {/if}
                 {:else}
-                    <Button color="success" on:click={getUserJwt(username)}>
+                    <Button color="success" on:click={() => getUserJwt(username)}>
                         Generate JWT for '{username}'
                     </Button>
                     <p class="mt-2">

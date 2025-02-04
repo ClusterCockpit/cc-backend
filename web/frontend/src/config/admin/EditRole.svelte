@@ -119,13 +119,13 @@
         class="btn btn-primary"
         type="button"
         id="add-role-button"
-        on:click|preventDefault={handleAddRole}>Add</button
+        on:click|preventDefault={() => handleAddRole}>Add</button
       >
       <button
         class="btn btn-danger"
         type="button"
         id="remove-role-button"
-        on:click|preventDefault={handleRemoveRole}>Remove</button
+        on:click|preventDefault={() =>handleRemoveRole}>Remove</button
       >
     </div>
     <p>

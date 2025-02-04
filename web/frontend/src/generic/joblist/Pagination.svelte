@@ -29,13 +29,13 @@
     <div class="cc-pagination-right">
         {#if !backButtonDisabled}
         <button aria-label="page-reset"  class="reset nav" type="button"
-            on:click|preventDefault="{reset}"></button>
+            on:click|preventDefault={() => reset}></button>
         <button aria-label="page-back" class="left nav" type="button"
-            on:click|preventDefault="{() => { page -= 1; }}"></button>
+            on:click|preventDefault={() => { page -= 1; }}></button>
         {/if}
         {#if !nextButtonDisabled}
         <button aria-label="page-up" class="right nav" type="button"
-            on:click|preventDefault="{() => { page += 1; }}"></button>
+            on:click|preventDefault={() => { page += 1; }}></button>
         {/if}
     </div>
 </div>

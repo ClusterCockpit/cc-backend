@@ -53,7 +53,7 @@
       <Button
         color="secondary"
         size="sm"
-        on:click={reloadUserList}
+        on:click={() => reloadUserList}
         style="float: right;">Reload</Button
       >
     </p>
@@ -77,7 +77,7 @@
               <td
                 ><button
                   class="btn btn-danger del-user"
-                  on:click={deleteUser(user.username)}>Delete</button
+                  on:click={() => deleteUser(user.username)}>Delete</button
                 ></td
               >
             </tr>
