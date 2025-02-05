@@ -34,7 +34,7 @@
     import Chart from 'chart.js/auto'
     import { onMount } from 'svelte';
 
-    export let canvasId
+    export let canvasId = "pie-default"
     export let size
     export let sliceLabel
     export let quantities

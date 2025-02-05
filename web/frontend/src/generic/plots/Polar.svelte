@@ -14,7 +14,7 @@
     import { getContext, onMount } from 'svelte'
     import Chart from 'chart.js/auto'
 
-    export let canvasId;
+    export let canvasId = "polar-default";
     export let footprintData = null;
     export let metrics = null;
     export let cluster = null;
