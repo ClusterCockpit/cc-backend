@@ -59,6 +59,7 @@
     method="post"
     action="/config/users/"
     class="card-body"
+    autocomplete="off"
     on:submit|preventDefault={handleUserSubmit}
   >
     <CardTitle class="mb-3">Create User</CardTitle>
@@ -70,6 +71,7 @@
         id="username"
         name="username"
         aria-describedby="usernameHelp"
+        autocomplete="username"
       />
       <div id="usernameHelp" class="form-text">Must be unique.</div>
     </div>
@@ -81,6 +83,7 @@
         id="password"
         name="password"
         aria-describedby="passwordHelp"
+        autocomplete="new-password"
       />
       <div id="passwordHelp" class="form-text">
         Only API users are allowed to have a blank password. Users with a blank
@@ -109,6 +112,7 @@
         id="name"
         name="name"
         aria-describedby="nameHelp"
+        autocomplete="name"
       />
       <div id="nameHelp" class="form-text">Optional, can be blank.</div>
     </div>
@@ -120,6 +124,7 @@
         id="email"
         name="email"
         aria-describedby="emailHelp"
+        autocomplete="email"
       />
       <div id="emailHelp" class="form-text">Optional, can be blank.</div>
     </div>
