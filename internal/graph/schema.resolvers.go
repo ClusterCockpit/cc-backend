@@ -303,6 +303,7 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 
 // JobsFootprints is the resolver for the jobsFootprints field.
 func (r *queryResolver) JobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error) {
+	// NOTE: Legacy Naming! This resolver is for normalized histograms in analysis view only - *Not* related to DB "footprint" column!
 	return r.jobsFootprints(ctx, filter, metrics)
 }
 

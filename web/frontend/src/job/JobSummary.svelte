@@ -30,9 +30,18 @@
   export let height = "400px";
 
   const ccconfig = getContext("cc-config")
-  const showFootprint = !!ccconfig[`job_view_showFootprint`];
+  const showFootprintTab = !!ccconfig[`job_view_showFootprint`];
 
-  const footprintData = job?.footprint?.map((jf) => {
+  const polarMetrics = job?.footprint?.map((jf) => {
+      const fmt = findJobFootprintThresholds(job, jf.stat, getContext("getMetricConfig")(job.cluster, job.subCluster, jf.name));
+      // If no matching metric config: Metric will be omitted in polar
+      return {
+        name: jf.name,
+        peak: fmt ? fmt.peak : null
+      }
+  })
+
+  const footprintData = !showFootprintTab ? null : job?.footprint?.map((jf) => {
     const fmc = getContext("getMetricConfig")(job.cluster, job.subCluster, jf.name);
     if (fmc) {
       // Unit
@@ -193,7 +202,7 @@
 
 <Card class="overflow-auto" style="width: {width}; height: {height}">
   <TabContent> <!-- on:tab={(e) => (status = e.detail)} -->
-    {#if showFootprint}
+    {#if showFootprintTab}
       <TabPane tabId="foot" tab="Footprint" active>
         <CardBody>
           {#each footprintData as fpd, index}
@@ -279,10 +288,10 @@
         </CardBody>
       </TabPane>
     {/if}
-    <TabPane tabId="polar" tab="Polar" active={!showFootprint}>
+    <TabPane tabId="polar" tab="Polar" active={!showFootprintTab}>
       <CardBody>
         <Polar
-          {footprintData}
+          {polarMetrics}
           {jobMetrics}
         />
       </CardBody>
