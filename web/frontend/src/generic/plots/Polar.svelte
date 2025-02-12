@@ -41,7 +41,7 @@
 
     function loadData(type) {
         if (!labels) {
-            console.warn("Empty 'metrics' array prop! Cannot render Polar.")
+            console.warn("Empty 'polarMetrics' array prop! Cannot render Polar representation.")
             return []
         } else {
             if (type === 'avg') {
@@ -51,7 +51,7 @@
             } else if (type === 'min') {
                 return getValues(getMin)
             }
-            console.log('Unknown Type For Polar Data')
+            console.log('Unknown Type For Polar Data (must be one of [min, max, avg])')
             return []
         }
     }
