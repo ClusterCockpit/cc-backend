@@ -122,6 +122,38 @@ func (topo *Topology) GetSocketsFromHWThreads(
 	return sockets, exclusive
 }
 
+// Return a list of socket IDs given a list of core IDs.  Even if just one
+// core is in that socket, add it to the list.  If no cores other than
+// those in the argument list are assigned to one of the sockets in the first
+// return value, return true as the second value.  TODO: Optimize this, there
+// must be a more efficient way/algorithm.
+func (topo *Topology) GetSocketsFromCores (
+	cores []int,
+) (sockets []int, exclusive bool) {
+	socketsMap := map[int]int{}
+	for _, core := range cores {
+		for _, hwthreadInCore := range topo.Core[core] {
+			for socket, hwthreadsInSocket := range topo.Socket {
+				for _, hwthreadInSocket := range hwthreadsInSocket {
+					if hwthreadInCore == hwthreadInSocket {
+						socketsMap[socket] += 1
+					}
+				}
+			}
+		}
+	}
+
+	exclusive = true
+	hwthreadsPerSocket := len(topo.Node) / len(topo.Socket)
+	sockets = make([]int, 0, len(socketsMap))
+	for socket, count := range socketsMap {
+		sockets = append(sockets, socket)
+		exclusive = exclusive && count == hwthreadsPerSocket
+	}
+
+	return sockets, exclusive
+}
+
 // Return a list of core IDs given a list of hwthread IDs.  Even if just one
 // hwthread is in that core, add it to the list.  If no hwthreads other than
 // those in the argument list are assigned to one of the cores in the first
