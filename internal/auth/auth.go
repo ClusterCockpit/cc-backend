@@ -35,25 +35,15 @@ var (
 	authInstance *Authentication
 )
 
-var (
-	ipLimiters       sync.Map
-	usernameLimiters sync.Map
-)
+var ipUserLimiters sync.Map
 
-func getIPLimiter(ip string) *rate.Limiter {
-	limiter, ok := ipLimiters.Load(ip)
+func getIPUserLimiter(ip, username string) *rate.Limiter {
+	key := ip + ":" + username
+	limiter, ok := ipUserLimiters.Load(key)
 	if !ok {
-		limiter = rate.NewLimiter(rate.Every(time.Minute/5), 5)
-		ipLimiters.Store(ip, limiter)
-	}
-	return limiter.(*rate.Limiter)
-}
-
-func getUserLimiter(username string) *rate.Limiter {
-	limiter, ok := usernameLimiters.Load(username)
-	if !ok {
-		limiter = rate.NewLimiter(rate.Every(time.Hour/10), 10)
-		usernameLimiters.Store(username, limiter)
+		newLimiter := rate.NewLimiter(rate.Every(time.Hour/10), 10)
+		ipUserLimiters.Store(key, newLimiter)
+		return newLimiter
 	}
 	return limiter.(*rate.Limiter)
 }
@@ -241,19 +231,11 @@ func (auth *Authentication) Login(
 
 		username := r.FormValue("username")
 
-		ipLimiter := getIPLimiter(ip)
-		userLimiter := getUserLimiter(username)
-
-		if !ipLimiter.Allow() {
-			log.Warnf("AUTH/RATE > Too many login attempts from IP %s", ip)
-			onfailure(rw, r, errors.New("too many login attempts, please try again later"))
-			return
-		}
-
-		if !userLimiter.Allow() {
-			log.Warnf("AUTH/RATE > Too many failed login attempts for user %s", username)
-			onfailure(rw, r, errors.New("too many login attempts for this user, please try again later"))
-			return
+		limiter := getIPUserLimiter(ip, username)
+		if !limiter.Allow() {
+				log.Warnf("AUTH/RATE > Too many login attempts for combination IP: %s, Username: %s", ip, username)
+				onfailure(rw, r, errors.New("Too many login attempts, try again in 1 hour"))
+				return
 		}
 
 		var dbUser *schema.User
