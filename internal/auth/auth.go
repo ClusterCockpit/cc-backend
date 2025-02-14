@@ -88,7 +88,7 @@ func Init() {
 			authInstance.sessionStore = sessions.NewCookieStore(bytes)
 		}
 
-		if d, err := time.ParseDuration(config.Keys.SessionMaxAge); err != nil {
+		if d, err := time.ParseDuration(config.Keys.SessionMaxAge); err == nil {
 			authInstance.SessionMaxAge = d
 		}
 
