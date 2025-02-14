@@ -9,12 +9,12 @@
     - `height Number?`: The plot height [Default: 300]
     - `timestep Number`: The timestep used for X-axis rendering
     - `series [GraphQL.Series]`: The metric data object
-    - `useStatsSeries Bool?`: If this plot uses the statistics Min/Max/Median representation; automatically set to according bool [Default: null]
+    - `useStatsSeries Bool?`: If this plot uses the statistics Min/Max/Median representation; automatically set to according bool [Default: false]
     - `statisticsSeries [GraphQL.StatisticsSeries]?`: Min/Max/Median representation of metric data [Default: null]
-    - `cluster GraphQL.Cluster`: Cluster Object of the parent job
+    - `cluster String`: Cluster name of the parent job / data
     - `subCluster String`: Name of the subCluster of the parent job
     - `isShared Bool?`: If this job used shared resources; will adapt threshold indicators accordingly [Default: false]
-    - `forNode Bool?`: If this plot is used for node data display; will ren[data, err := metricdata.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)](https://github.com/ClusterCockpit/cc-backend/blob/9fe7cdca9215220a19930779a60c8afc910276a3/internal/graph/schema.resolvers.go#L391-L392)der x-axis as negative time with $now as maximum [Default: false]
+    - `forNode Bool?`: If this plot is used for node data display; will render x-axis as negative time with $now as maximum [Default: false]
     - `numhwthreads Number?`: Number of job HWThreads [Default: 0]
     - `numaccs Number?`: Number of job Accelerators [Default: 0]
     - `zoomState Object?`: The last zoom state to preserve on user zoom [Default: null]
@@ -124,13 +124,13 @@
 
   export let metric;
   export let scope = "node";
-  export let width = null;
+  export let width = 0;
   export let height = 300;
   export let timestep;
   export let series;
-  export let useStatsSeries = null;
+  export let useStatsSeries = false;
   export let statisticsSeries = null;
-  export let cluster;
+  export let cluster = "";
   export let subCluster;
   export let isShared = false;
   export let forNode = false;
@@ -138,11 +138,11 @@
   export let numaccs = 0;
   export let zoomState = null;
   export let thresholdState = null;
+  export let extendedLegendData = null;
 
-  if (useStatsSeries == null) useStatsSeries = statisticsSeries != null;
-  if (useStatsSeries == false && series == null) useStatsSeries = true;
+  if (!useStatsSeries && statisticsSeries != null) useStatsSeries = true;
 
-  const usesMeanStatsSeries = (useStatsSeries && statisticsSeries.mean.length != 0)
+  const usesMeanStatsSeries = (statisticsSeries?.mean && statisticsSeries.mean.length != 0)
   const dispatch = createEventDispatcher();
   const subClusterTopology = getContext("getHardwareTopology")(cluster, subCluster);
   const metricConfig = getContext("getMetricConfig")(cluster, subCluster, metric);
@@ -152,10 +152,12 @@
   const lineWidth =
     clusterCockpitConfig.plot_general_lineWidth / window.devicePixelRatio;
   const lineColors = clusterCockpitConfig.plot_general_colorscheme;
+  const cbmode = clusterCockpitConfig?.plot_general_colorblindMode || false;
+
   const backgroundColors = {
     normal: "rgba(255, 255, 255, 1.0)",
-    caution: "rgba(255, 128, 0, 0.3)",
-    alert: "rgba(255, 0, 0, 0.3)",
+    caution: cbmode ? "rgba(239, 230, 69, 0.3)" : "rgba(255, 128, 0, 0.3)",
+    alert: cbmode ? "rgba(225, 86, 44, 0.3)" : "rgba(255, 0, 0, 0.3)",
   };
   const thresholds = findJobAggregationThresholds(
     subClusterTopology,
@@ -192,6 +194,7 @@
       className && legendEl.classList.add(className);
 
       uPlot.assign(legendEl.style, {
+        minWidth: extendedLegendData ? "300px" : "100px",
         textAlign: "left",
         pointerEvents: "none",
         display: "none",
@@ -205,11 +208,10 @@
 
       // conditional hide series color markers:
       if (
-        useStatsSeries === true || // Min/Max/Median Self-Explanatory
+        useStatsSeries || // Min/Max/Median Self-Explanatory
         dataSize === 1 || // Only one Y-Dataseries
-        dataSize > 6
+        dataSize > 8 // More than 8 Y-Dataseries
       ) {
-        // More than 6 Y-Dataseries
         const idents = legendEl.querySelectorAll(".u-marker");
         for (let i = 0; i < idents.length; i++)
           idents[i].style.display = "none";
@@ -235,12 +237,12 @@
 
     function update(u) {
       const { left, top } = u.cursor;
-      const width = u.over.querySelector(".u-legend").offsetWidth;
+      const width = u?.over?.querySelector(".u-legend")?.offsetWidth ? u.over.querySelector(".u-legend").offsetWidth : 0;
       legendEl.style.transform =
         "translate(" + (left - width - 15) + "px, " + (top + 15) + "px)";
     }
 
-    if (dataSize <= 12 || useStatsSeries === true) {
+    if (dataSize <= 12 || useStatsSeries) {
       return {
         hooks: {
           init: init,
@@ -309,13 +311,6 @@
     }
   }
 
-  const plotSeries = [
-    {
-      label: "Runtime",
-      value: (u, ts, sidx, didx) =>
-        didx == null ? null : formatTime(ts, forNode),
-    },
-  ];
   const plotData = [new Array(longestSeries)];
   if (forNode === true) {
     // Negative Timestamp Buildup
@@ -332,6 +327,15 @@
       plotData[0][j] = j * timestep;
   }
 
+  const plotSeries = [
+    // Note: X-Legend Will not be shown as soon as Y-Axis are in extendedMode
+    {
+      label: "Runtime",
+      value: (u, ts, sidx, didx) =>
+       (didx == null) ? null : formatTime(ts, forNode),
+    }
+  ];
+
   let plotBands = undefined;
   if (useStatsSeries) {
     plotData.push(statisticsSeries.min);
@@ -346,13 +350,13 @@
       label: "min",
       scale: "y",
       width: lineWidth,
-      stroke: "red",
+      stroke: cbmode ? "rgb(0,255,0)" : "red",
     });
     plotSeries.push({
       label: "max",
       scale: "y",
       width: lineWidth,
-      stroke: "green",
+      stroke: cbmode ? "rgb(0,0,255)" : "green",
     });
     plotSeries.push({
       label: usesMeanStatsSeries ? "mean" : "median",
@@ -362,21 +366,66 @@
     });
 
     plotBands = [
-      { series: [2, 3], fill: "rgba(0,255,0,0.1)" },
-      { series: [3, 1], fill: "rgba(255,0,0,0.1)" },
+      { series: [2, 3], fill: cbmode ? "rgba(0,0,255,0.1)" : "rgba(0,255,0,0.1)" },
+      { series: [3, 1], fill: cbmode ? "rgba(0,255,0,0.1)" : "rgba(255,0,0,0.1)" },
     ];
   } else {
     for (let i = 0; i < series.length; i++) {
       plotData.push(series[i].data);
-      plotSeries.push({
-        label:
-          scope === "node"
+      // Default
+      if (!extendedLegendData) {
+        plotSeries.push({
+          label: 
+            scope === "node"
             ? series[i].hostname
-            : scope + " #" + (i + 1),
-        scale: "y",
-        width: lineWidth,
-        stroke: lineColor(i, series.length),
-      });
+            : scope === "accelerator"
+              ? 'Acc #' + (i + 1) // series[i].id.slice(9, 14) | Too Hardware Specific
+              : scope + " #" + (i + 1),
+          scale: "y",
+          width: lineWidth,
+          stroke: lineColor(i, series.length),
+        });
+      }
+      // Extended Legend For NodeList
+      else {
+        plotSeries.push({
+          label: 
+            scope === "node"
+              ? series[i].hostname
+              : scope === "accelerator"
+                ? 'Acc #' + (i + 1) // series[i].id.slice(9, 14) | Too Hardware Specific
+                : scope + " #" + (i + 1),
+          scale: "y",
+          width: lineWidth,
+          stroke: lineColor(i, series.length),
+          values: (u, sidx, idx) => {
+            // "i" = "sidx - 1" : sidx contains x-axis-data
+            if (idx == null)
+              return {
+                time: '-',
+                value: '-',
+                user: '-',
+                job: '-'
+              };
+
+            if (series[i].id in extendedLegendData) {
+              return {
+                time: formatTime(plotData[0][idx], forNode),
+                value: plotData[sidx][idx],
+                user: extendedLegendData[series[i].id].user,
+                job: extendedLegendData[series[i].id].job,
+              };
+            } else {
+              return {
+                time: formatTime(plotData[0][idx], forNode),
+                value: plotData[sidx][idx],
+                user: '-',
+                job: '-',
+              };
+            }
+          }
+        });
+      }
     }
   }
 
@@ -432,13 +481,13 @@
           u.ctx.save();
           u.ctx.textAlign = "start"; // 'end'
           u.ctx.fillStyle = "black";
-          u.ctx.fillText(textl, u.bbox.left + 10, u.bbox.top + 10);
+          u.ctx.fillText(textl, u.bbox.left + 10, u.bbox.top + (forNode ? 0 : 10));
           u.ctx.textAlign = "end";
           u.ctx.fillStyle = "black";
           u.ctx.fillText(
             textr,
             u.bbox.left + u.bbox.width - 10,
-            u.bbox.top + 10,
+            u.bbox.top + (forNode ? 0 : 10),
           );
           // u.ctx.fillText(text, u.bbox.left + u.bbox.width - 10, u.bbox.top + u.bbox.height - 10) // Recipe for bottom right
 
@@ -496,10 +545,12 @@
     },
     legend: {
       // Display legend until max 12 Y-dataseries
-      show: series.length <= 12 || useStatsSeries === true ? true : false,
-      live: series.length <= 12 || useStatsSeries === true ? true : false,
+      show: series.length <= 12 || useStatsSeries,
+      live: series.length <= 12 || useStatsSeries,
     },
-    cursor: { drag: { x: true, y: true } },
+    cursor: { 
+      drag: { x: true, y: true },
+    }
   };
 
   // RENDER HANDLING
@@ -535,17 +586,9 @@
   }
 
   onMount(() => {
-    // Setup Wrapper
-    if (series[0].data.length > 0) {
-      if (forNode) {
-        plotWrapper.style.paddingTop = "0.5rem"
-        plotWrapper.style.paddingBottom = "0.5rem"
-      }
-      plotWrapper.style.backgroundColor = backgroundColor();
-      plotWrapper.style.borderRadius = "5px";
+    if (plotWrapper) {
+      render(width, height);
     }
-    // Init Plot
-    render(width, height);
   });
 
   onDestroy(() => {
@@ -553,22 +596,20 @@
     if (uplot) uplot.destroy();
   });
 
-  // This updates it on all size changes
-  // Condition for reactive triggering (eg scope change)
-  $: if (series[0].data.length > 0) {
+  // This updates plot on all size changes if wrapper (== data) exists
+  $: if (plotWrapper) {
     onSizeChange(width, height);
   }
 
 </script>
 
-<!-- Define Wrapper and NoData Card within $width -->
-<div bind:clientWidth={width}>
-  {#if series[0].data.length > 0}
-    <div bind:this={plotWrapper}/>
-  {:else}
-    <Card class="mx-4" body color="warning"
-      >Cannot render plot: No series data returned for <code>{metric}</code></Card
-    >
-  {/if}
-</div>
-
+<!-- Define $width Wrapper and NoData Card -->
+{#if series[0]?.data && series[0].data.length > 0}
+  <div bind:this={plotWrapper} bind:clientWidth={width}
+        style="background-color: {backgroundColor()};" class={forNode ? 'py-2 rounded' : 'rounded'}
+  />
+{:else}
+  <Card body color="warning" class="mx-4"
+    >Cannot render plot: No series data returned for <code>{metric}</code></Card
+  >
+{/if}

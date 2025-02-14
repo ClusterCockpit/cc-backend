@@ -15,12 +15,12 @@ import (
 var (
 	Clusters         []*schema.Cluster
 	GlobalMetricList []*schema.GlobalMetricListItem
-	nodeLists        map[string]map[string]NodeList
+	NodeLists        map[string]map[string]NodeList
 )
 
 func initClusterConfig() error {
 	Clusters = []*schema.Cluster{}
-	nodeLists = map[string]map[string]NodeList{}
+	NodeLists = map[string]map[string]NodeList{}
 	metricLookup := make(map[string]schema.GlobalMetricListItem)
 
 	for _, c := range ar.GetClusters() {
@@ -109,7 +109,7 @@ func initClusterConfig() error {
 
 		Clusters = append(Clusters, cluster)
 
-		nodeLists[cluster.Name] = make(map[string]NodeList)
+		NodeLists[cluster.Name] = make(map[string]NodeList)
 		for _, sc := range cluster.SubClusters {
 			if sc.Nodes == "*" {
 				continue
@@ -119,7 +119,7 @@ func initClusterConfig() error {
 			if err != nil {
 				return fmt.Errorf("ARCHIVE/CLUSTERCONFIG > in %s/cluster.json: %w", cluster.Name, err)
 			}
-			nodeLists[cluster.Name][sc.Name] = nl
+			NodeLists[cluster.Name][sc.Name] = nl
 		}
 	}
 
@@ -187,7 +187,7 @@ func AssignSubCluster(job *schema.BaseJob) error {
 	}
 
 	host0 := job.Resources[0].Hostname
-	for sc, nl := range nodeLists[job.Cluster] {
+	for sc, nl := range NodeLists[job.Cluster] {
 		if nl != nil && nl.Contains(host0) {
 			job.SubCluster = sc
 			return nil
@@ -203,7 +203,7 @@ func AssignSubCluster(job *schema.BaseJob) error {
 }
 
 func GetSubClusterByNode(cluster, hostname string) (string, error) {
-	for sc, nl := range nodeLists[cluster] {
+	for sc, nl := range NodeLists[cluster] {
 		if nl != nil && nl.Contains(hostname) {
 			return sc, nil
 		}

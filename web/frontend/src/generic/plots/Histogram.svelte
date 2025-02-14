@@ -15,8 +15,8 @@
 
 <script>
   import uPlot from "uplot";
-  import { formatNumber } from "../units.js";
   import { onMount, onDestroy } from "svelte";
+  import { formatNumber } from "../units.js";
   import { Card } from "@sveltestrap/sveltestrap";
 
   export let data;
@@ -26,15 +26,30 @@
   export let title = "";
   export let xlabel = "";
   export let xunit = "";
+  export let xtime = false;
   export let ylabel = "";
   export let yunit = "";
 
   const { bars } = uPlot.paths;
-
   const drawStyles = {
     bars: 1,
     points: 2,
   };
+
+  function formatTime(t) {
+    if (t !== null) {
+      if (isNaN(t)) {
+        return t;
+      } else {
+        const tAbs = Math.abs(t);
+        const h = Math.floor(tAbs / 3600);
+        const m = Math.floor((tAbs % 3600) / 60);
+        if (h == 0) return `${m}m`;
+        else if (m == 0) return `${h}h`;
+        else return `${h}:${m}h`;
+      }
+    }
+  }
 
   function paths(u, seriesIdx, idx0, idx1, extendGap, buildClip) {
     let s = u.series[seriesIdx];
@@ -139,7 +154,7 @@
           label: xlabel,
           labelGap: 10,
           size: 25,
-          incrs: [1, 2, 5, 6, 10, 12, 50, 100, 500, 1000, 5000, 10000],
+          incrs: xtime ? [60, 120, 300, 600, 1800, 3600, 7200, 14400, 18000, 21600, 43200, 86400] : [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000],
           border: {
             show: true,
             stroke: "#000000",
@@ -149,7 +164,13 @@
             size: 5 / devicePixelRatio,
             stroke: "#000000",
           },
-          values: (_, t) => t.map((v) => formatNumber(v)),
+          values: (_, t) => t.map((v) => {
+            if (xtime) {
+              return formatTime(v);
+            } else {
+              return formatNumber(v)
+            }
+          }),
         },
         {
           stroke: "#000000",
@@ -166,17 +187,25 @@
             size: 5 / devicePixelRatio,
             stroke: "#000000",
           },
-          values: (_, t) => t.map((v) => formatNumber(v)),
+          values: (_, t) => t.map((v) => {
+            return formatNumber(v)
+          }),
         },
       ],
       series: [
         {
           label: xunit !== "" ? xunit : null,
           value: (u, ts, sidx, didx) => {
-            if (usesBins) {
+            if (usesBins && xtime) {
+              const min = u.data[sidx][didx - 1] ? formatTime(u.data[sidx][didx - 1]) : 0;
+              const max = formatTime(u.data[sidx][didx]);
+              ts = min + " - " + max; // narrow spaces
+            } else if (usesBins) {
               const min = u.data[sidx][didx - 1] ? u.data[sidx][didx - 1] : 0;
               const max = u.data[sidx][didx];
               ts = min + " - " + max; // narrow spaces
+            } else if (xtime) {
+              ts = formatTime(ts);
             }
             return ts;
           },
@@ -191,6 +220,7 @@
           },
           {
             drawStyle: drawStyles.bars,
+            width: 1, // 1 / lastBinCount,
             lineInterpolation: null,
             stroke: "#85abce",
             fill: "#85abce", //  + "1A", // Transparent Fill
