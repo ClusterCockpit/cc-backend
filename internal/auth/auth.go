@@ -234,7 +234,7 @@ func (auth *Authentication) Login(
 		limiter := getIPUserLimiter(ip, username)
 		if !limiter.Allow() {
 				log.Warnf("AUTH/RATE > Too many login attempts for combination IP: %s, Username: %s", ip, username)
-				onfailure(rw, r, errors.New("Too many login attempts, try again in 1 hour"))
+				onfailure(rw, r, errors.New("Too many login attempts, try again in a few minutes."))
 				return
 		}
 
