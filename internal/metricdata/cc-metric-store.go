@@ -644,7 +644,7 @@ func (ccms *CCMetricStore) LoadNodeData(
 				req.Queries = append(req.Queries, ApiQuery{
 					Hostname:   node,
 					Metric:     ccms.toRemoteName(metric),
-					Resolution: 60, // Default for Node Queries
+					Resolution: 0, // Default for Node Queries: Will return metric $Timestep Resolution
 				})
 			}
 		}

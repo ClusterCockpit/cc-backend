@@ -117,10 +117,31 @@
     }
   `;
 
+const roofQuery = gql`
+    query ($dbid: ID!, $selectedMetrics: [String!]!, $selectedScopes: [MetricScope!]!, $selectedResolution: Int) {
+      jobMetrics(id: $dbid, metrics: $selectedMetrics, scopes: $selectedScopes, resolution: $selectedResolution) {
+        name
+        scope
+        metric {
+          series {
+            data
+          }
+        }
+      }
+    }
+  `;
+
   $: jobMetrics = queryStore({
     client: client,
     query: query,
     variables: { dbid, selectedMetrics, selectedScopes },
+  });
+
+  // Roofline: Always load roofMetrics with configured timestep (Resolution: 0)
+  $: roofMetrics = queryStore({
+    client: client,
+    query: roofQuery,
+    variables: { dbid, selectedMetrics: ["flops_any", "mem_bw"], selectedScopes: ["node"], selectedResolution: 0 },
   });
 
   // Handle Job Query on Init -> is not executed anymore
@@ -129,8 +150,6 @@
     if (!job) return;
 
     const pendingMetrics = [
-      "flops_any",
-      "mem_bw",
       ...(ccconfig[`job_view_selectedMetrics:${job.cluster}`] ||
         $initq.data.globalMetrics.reduce((names, gm) => {
           if (gm.availability.find((av) => av.cluster === job.cluster)) {
@@ -276,12 +295,12 @@
 
   <!-- Column 3: Job Roofline; If footprint Enabled: full width, else half width -->
   <Col xs={12} md={12} xl={5} xxl={6}>
-    {#if $initq.error || $jobMetrics.error}
+    {#if $initq.error || $roofMetrics.error}
       <Card body color="danger">
         <p>Initq Error: {$initq.error?.message}</p>
-        <p>jobMetrics Error: {$jobMetrics.error?.message}</p>
+        <p>roofMetrics (jobMetrics) Error: {$roofMetrics.error?.message}</p>
       </Card>
-    {:else if $initq?.data && $jobMetrics?.data}
+    {:else if $initq?.data && $roofMetrics?.data}
       <Card style="height: 400px;">
         <div bind:clientWidth={roofWidth}>
           <Roofline
@@ -292,10 +311,10 @@
               .find((c) => c.name == $initq.data.job.cluster)
               .subClusters.find((sc) => sc.name == $initq.data.job.subCluster)}
             data={transformDataForRoofline(
-              $jobMetrics.data?.jobMetrics?.find(
+              $roofMetrics.data?.jobMetrics?.find(
                 (m) => m.name == "flops_any" && m.scope == "node",
               )?.metric,
-              $jobMetrics.data?.jobMetrics?.find(
+              $roofMetrics.data?.jobMetrics?.find(
                 (m) => m.name == "mem_bw" && m.scope == "node",
               )?.metric,
             )}
