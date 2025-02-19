@@ -446,7 +446,7 @@
           }
         },
         "job_view_selectedMetrics": {
-          "description": "",
+          "description": "Initial metrics shown as plots in single job view",
           "type": "array",
           "items": {
             "type": "string",
