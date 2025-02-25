@@ -30,9 +30,25 @@
   export let height = "400px";
 
   const ccconfig = getContext("cc-config")
-  const showFootprint = !!ccconfig[`job_view_showFootprint`];
+  const globalMetrics = getContext("globalMetrics")
+  const showFootprintTab = !!ccconfig[`job_view_showFootprint`];
 
-  const footprintData = job?.footprint?.map((jf) => {
+  // Metrics Configured To Be Footprints For (sub)Cluster
+  const clusterFootprintMetrics = getContext("clusters")
+    .find((c) => c.name == job.cluster)?.subClusters
+    .find((sc) => sc.name == job.subCluster)?.footprint || []
+
+  // Data For Polarplot Will Be Calculated Based On JobMetrics And Thresholds
+  const polarMetrics = globalMetrics.reduce((pms, gm) => {
+    if (clusterFootprintMetrics.includes(gm.name)) {
+      const fmt = findJobFootprintThresholds(job, gm.footprint, getContext("getMetricConfig")(job.cluster, job.subCluster, gm.name));
+      pms.push({ name: gm.name, peak: fmt ? fmt.peak : null });
+    }
+    return pms;
+  }, [])
+
+  // Prepare Job Footprint Data Based On Values Saved In Database
+  const jobFootprintData = !showFootprintTab ? null : job?.footprint?.map((jf) => {
     const fmc = getContext("getMetricConfig")(job.cluster, job.subCluster, jf.name);
     if (fmc) {
       // Unit
@@ -187,16 +203,16 @@
       return res;
     };
 
-    $: summaryMessages = writeSummary(footprintData) 
+    $: summaryMessages = writeSummary(jobFootprintData) 
   */
 </script>
 
 <Card class="overflow-auto" style="width: {width}; height: {height}">
   <TabContent> <!-- on:tab={(e) => (status = e.detail)} -->
-    {#if showFootprint}
+    {#if showFootprintTab}
       <TabPane tabId="foot" tab="Footprint" active>
         <CardBody>
-          {#each footprintData as fpd, index}
+          {#each jobFootprintData as fpd, index}
             {#if fpd.impact !== 4}
               <div class="mb-1 d-flex justify-content-between">
                 <div>&nbsp;<b>{fpd.name} ({fpd.stat})</b></div>
@@ -237,7 +253,7 @@
                 >{fpd.message}</Tooltip
                 >
               </div>
-              <Row cols={12} class="{(footprintData.length == (index + 1)) ? 'mb-0' : 'mb-2'}">
+              <Row cols={12} class="{(jobFootprintData.length == (index + 1)) ? 'mb-0' : 'mb-2'}">
                 {#if fpd.dir}
                   <Col xs="1">
                     <Icon name="caret-left-fill" />
@@ -279,10 +295,10 @@
         </CardBody>
       </TabPane>
     {/if}
-    <TabPane tabId="polar" tab="Polar" active={!showFootprint}>
+    <TabPane tabId="polar" tab="Polar" active={!showFootprintTab}>
       <CardBody>
         <Polar
-          {footprintData}
+          {polarMetrics}
           {jobMetrics}
         />
       </CardBody>

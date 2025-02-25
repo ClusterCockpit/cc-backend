@@ -148,15 +148,16 @@
           zoomState = {...pendingZoomState}
         }
 
-        // Set selected scope to min of returned scopes
+        // On additional scope request
         if (selectedScope == "load-all") {
+          // Push scope to statsTable (Needs to be in this case, else newly selected 'Metric.svelte' renders cause statsTable race condition)
+          const statsTableData = $metricData.data.singleUpdate.filter((x) => x.scope !== "node")
+          if (statsTableData.length > 0) {
+            dispatch("more-loaded", statsTableData);
+          }
+          // Set selected scope to min of returned scopes
           selectedScope = minScope(scopes)
           nodeOnly = (selectedScope == "node") // "node" still only scope after load-all
-        }
-
-        const statsTableData = $metricData.data.singleUpdate.filter((x) => x.scope !== "node")
-        if (statsTableData.length > 0) {
-          dispatch("more-loaded", statsTableData);
         }
 
         patternMatches = statsPattern.exec(selectedScope)

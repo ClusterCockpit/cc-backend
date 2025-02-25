@@ -2,16 +2,12 @@
     @component Polar Plot based on chartJS Radar
 
     Properties:
-    - `footprintData [Object]?`: job.footprint content, evaluated in regards to peak config in jobSummary.svelte [Default: null]
-    - `metrics [String]?`: Metric names to display as polar plot [Default: null]
-    - `cluster GraphQL.Cluster?`: Cluster Object of the parent job [Default: null]
-    - `subCluster GraphQL.SubCluster?`: SubCluster Object of the parent job [Default: null]
+    - `polarMetrics [Object]?`: Metric names and scaled peak values for rendering polar plot [Default: [] ]
     - `jobMetrics [GraphQL.JobMetricWithName]?`: Metric data [Default: null]
     - `height Number?`: Plot height [Default: 365]
  -->
 
 <script>
-    import { getContext } from 'svelte'
     import { Radar } from 'svelte-chartjs';
     import {
         Chart as ChartJS,
@@ -34,54 +30,37 @@
         LineElement
     );
 
-    export let footprintData = null;
-    export let metrics = null;
-    export let cluster = null;
-    export let subCluster = null;
+    export let polarMetrics = [];
     export let jobMetrics = null;
     export let height = 350;
 
-    function getLabels() {
-        if (footprintData) {
-            return footprintData.filter(fpd => {
-                if (!jobMetrics.find(m => m.name == fpd.name && m.scope == "node" || fpd.impact == 4)) {
-                    console.warn(`PolarPlot: No metric data for '${fpd.name}'`)
-                    return false
-                }
-                return true
-            })
-            .map(filtered => filtered.name)
-            .sort(function (a, b) {
-                return ((a > b) ? 1 : ((b > a) ? -1 : 0));
-            });
+    const labels = polarMetrics
+        .filter((m) => (m.peak != null))
+        .map(pm => pm.name)
+        .sort(function (a, b) {return ((a > b) ? 1 : ((b > a) ? -1 : 0))});
+
+    function loadData(type) {
+        if (!labels) {
+            console.warn("Empty 'polarMetrics' array prop! Cannot render Polar representation.")
+            return []
         } else {
-            return metrics.filter(name => {
-                if (!jobMetrics.find(m => m.name == name && m.scope == "node")) {
-                    console.warn(`PolarPlot: No metric data for '${name}'`)
-                    return false
-                }
-                return true
-            })
-            .sort(function (a, b) {
-                return ((a > b) ? 1 : ((b > a) ? -1 : 0));
-            });
+            if (type === 'avg') {
+                return getValues(getAvg)
+            } else if (type === 'max') {
+                return getValues(getMax)
+            } else if (type === 'min') {
+                return getValues(getMin)
+            }
+            console.log('Unknown Type For Polar Data (must be one of [min, max, avg])')
+            return []
         }
     }
 
-    const labels = getLabels();
-    const getMetricConfig = getContext("getMetricConfig");
+    // Helpers
 
-    const getValuesForStatGeneric = (getStat) => labels.map(name => {
-        // TODO: Requires Scaling if Shared Job
-        const peak = getMetricConfig(cluster, subCluster, name).peak
-        const metric = jobMetrics.find(m => m.name == name && m.scope == "node")
-        const value = getStat(metric.metric) / peak
-        return value <= 1. ? value : 1.
-    })
-
-    const getValuesForStatFootprint = (getStat) => labels.map(name => {
-        // FootprintData 'Peak' is pre-scaled for Shared Jobs in JobSummary Component
-        const peak = footprintData.find(fpd => fpd.name === name).peak
+    const getValues = (getStat) => labels.map(name => {
+        // Peak is adapted and scaled for job shared state
+        const peak = polarMetrics.find(m => m.name == name).peak
         const metric = jobMetrics.find(m => m.name == name && m.scope == "node")
         const value = getStat(metric.metric) / peak
         return value <= 1. ? value : 1.
@@ -108,36 +87,14 @@
         return avg / metric.series.length
     }
 
-    function loadDataGeneric(type) {
-        if (type === 'avg') {
-            return getValuesForStatGeneric(getAvg)
-        } else if (type === 'max') {
-            return getValuesForStatGeneric(getMax)
-        } else if (type === 'min') {
-            return getValuesForStatGeneric(getMin)
-        }
-        console.log('Unknown Type For Polar Data')
-        return []
-    }
-
-    function loadDataForFootprint(type) {
-        if (type === 'avg') {
-            return getValuesForStatFootprint(getAvg)
-        } else if (type === 'max') {
-            return getValuesForStatFootprint(getMax)
-        } else if (type === 'min') {
-            return getValuesForStatFootprint(getMin)
-        }
-        console.log('Unknown Type For Polar Data')
-        return []
-    }
+    // Chart JS Objects
 
     const data = {
         labels: labels,
         datasets: [
             {
                 label: 'Max',
-                data: footprintData ? loadDataForFootprint('max') : loadDataGeneric('max'), // Node Scope Only
+                data: loadData('max'), // Node Scope Only
                 fill: 1,
                 backgroundColor: 'rgba(0, 0, 255, 0.25)',
                 borderColor: 'rgb(0, 0, 255)',
@@ -148,7 +105,7 @@
             },
             {
                 label: 'Avg',
-                data: footprintData ? loadDataForFootprint('avg') : loadDataGeneric('avg'), // Node Scope Only
+                data: loadData('avg'), // Node Scope Only
                 fill: 2,
                 backgroundColor: 'rgba(255, 210, 0, 0.25)',
                 borderColor: 'rgb(255, 210, 0)',
@@ -159,7 +116,7 @@
             },
             {
                 label: 'Min',
-                data: footprintData ? loadDataForFootprint('min') : loadDataGeneric('min'), // Node Scope Only
+                data: loadData('min'), // Node Scope Only
                 fill: true,
                 backgroundColor: 'rgba(255, 0, 0, 0.25)',
                 borderColor: 'rgb(255, 0, 0)',

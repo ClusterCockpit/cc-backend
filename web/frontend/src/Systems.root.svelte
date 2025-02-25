@@ -77,6 +77,7 @@
     for (let sm of systemMetrics) {
       systemUnits[sm.name] = (sm?.unit?.prefix ? sm.unit.prefix : "") + (sm?.unit?.base ? sm.unit.base : "")
     }
+    if (!selectedMetric) selectedMetric = systemMetrics[0].name
   }
 
   $: loadMetrics($initialized)
