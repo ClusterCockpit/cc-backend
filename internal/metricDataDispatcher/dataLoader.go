@@ -170,6 +170,9 @@ func LoadData(job *schema.Job,
 			jd.AddNodeScope("mem_bw")
 		}
 
+		// Round Resulting Stat Values
+		jd.RoundMetricStats()
+
 		return jd, ttl, size
 	})
 
