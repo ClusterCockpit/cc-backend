@@ -60,12 +60,13 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 			max = math.Max(max, series.Statistics.Max)
 		}
 
+		// Round AVG Result to 2 Digits
 		jobMeta.Statistics[metric] = schema.JobStatistics{
 			Unit: schema.Unit{
 				Prefix: archive.GetMetricConfig(job.Cluster, metric).Unit.Prefix,
 				Base:   archive.GetMetricConfig(job.Cluster, metric).Unit.Base,
 			},
-			Avg: avg / float64(job.NumNodes),
+			Avg: (math.Round((avg/float64(job.NumNodes))*100) / 100),
 			Min: min,
 			Max: max,
 		}

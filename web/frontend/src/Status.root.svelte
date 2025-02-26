@@ -80,6 +80,7 @@
     : ccconfig.user_view_histogramMetrics || [];
 
   const client = getContextClient();
+  // Note: nodeMetrics are requested on configured $timestep resolution
   $: mainQuery = queryStore({
     client: client,
     query: gql`
