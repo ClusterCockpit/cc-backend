@@ -291,6 +291,21 @@ func (jd *JobData) AddNodeScope(metric string) bool {
 	return true
 }
 
+func (jd *JobData) RoundMetricStats() {
+	// TODO: Make Digit-Precision Configurable? (Currently: Fixed to 2 Digits)
+	for _, scopes := range *jd {
+		for _, jm := range scopes {
+			for index := range jm.Series {
+				jm.Series[index].Statistics = MetricStatistics{
+					Avg: (math.Round(jm.Series[index].Statistics.Avg*100) / 100),
+					Min: (math.Round(jm.Series[index].Statistics.Min*100) / 100),
+					Max: (math.Round(jm.Series[index].Statistics.Max*100) / 100),
+				}
+			}
+		}
+	}
+}
+
 func (jm *JobMetric) AddPercentiles(ps []int) bool {
 	if jm.StatisticsSeries == nil {
 		jm.AddStatisticsSeries()
