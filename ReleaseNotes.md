@@ -1,8 +1,8 @@
-# `cc-backend` version 1.4.2
+# `cc-backend` version 1.4.3
 
 Supports job archive version 2 and database version 8.
 
-This is a small bug fix release of `cc-backend`, the API backend and frontend
+This is a bug fix release of `cc-backend`, the API backend and frontend
 implementation of ClusterCockpit.
 For release specific notes visit the [ClusterCockpit Documentation](https://clusterockpit.org/docs/release/).
 
