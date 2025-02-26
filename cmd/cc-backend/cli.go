@@ -12,7 +12,7 @@ var (
 )
 
 func cliInit() {
-	flag.BoolVar(&flagInit, "init", false, "Setup var directory, initialize swlite database file, config.json and .env")
+	flag.BoolVar(&flagInit, "init", false, "Setup var directory, initialize sqlite database file, config.json and .env")
 	flag.BoolVar(&flagReinitDB, "init-db", false, "Go through job-archive and re-initialize the 'job', 'tag', and 'jobtag' tables (all running jobs will be lost!)")
 	flag.BoolVar(&flagSyncLDAP, "sync-ldap", false, "Sync the 'hpc_user' table with ldap")
 	flag.BoolVar(&flagServer, "server", false, "Start a server, continues listening on port after initialization and argument handling")
@@ -24,10 +24,10 @@ func cliInit() {
 	flag.BoolVar(&flagForceDB, "force-db", false, "Force database version, clear dirty flag and exit")
 	flag.BoolVar(&flagLogDateTime, "logdate", false, "Set this flag to add date and time to log messages")
 	flag.StringVar(&flagConfigFile, "config", "./config.json", "Specify alternative path to `config.json`")
-	flag.StringVar(&flagNewUser, "add-user", "", "Add a new user. Argument format: `<username>:[admin,support,manager,api,user]:<password>`")
-	flag.StringVar(&flagDelUser, "del-user", "", "Remove user by `username`")
+	flag.StringVar(&flagNewUser, "add-user", "", "Add a new user. Argument format: <username>:[admin,support,manager,api,user]:<password>")
+	flag.StringVar(&flagDelUser, "del-user", "", "Remove a existing user. Argument format: <username>")
 	flag.StringVar(&flagGenJWT, "jwt", "", "Generate and print a JWT for the user specified by its `username`")
 	flag.StringVar(&flagImportJob, "import-job", "", "Import a job. Argument format: `<path-to-meta.json>:<path-to-data.json>,...`")
-	flag.StringVar(&flagLogLevel, "loglevel", "warn", "Sets the logging level: `[debug,info,warn (default),err,fatal,crit]`")
+	flag.StringVar(&flagLogLevel, "loglevel", "warn", "Sets the logging level: `[debug, info (default), warn, err, crit]`")
 	flag.Parse()
 }

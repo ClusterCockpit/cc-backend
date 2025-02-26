@@ -46,12 +46,12 @@ var loglevel string = "info"
 /* CONFIG */
 
 func Init(lvl string, logdate bool) {
-
+	// Discard I/O for all writers below selected loglevel; <CRITICAL> is always written.
 	switch lvl {
 	case "crit":
 		ErrWriter = io.Discard
 		fallthrough
-	case "err", "fatal":
+	case "err":
 		WarnWriter = io.Discard
 		fallthrough
 	case "warn":
@@ -63,8 +63,7 @@ func Init(lvl string, logdate bool) {
 		// Nothing to do...
 		break
 	default:
-		fmt.Printf("pkg/log: Flag 'loglevel' has invalid value %#v\npkg/log: Will use default loglevel 'debug'\n", lvl)
-		//SetLogLevel("debug")
+		fmt.Printf("pkg/log: Flag 'loglevel' has invalid value %#v\npkg/log: Will use default loglevel '%s'\n", lvl, loglevel)
 	}
 
 	if !logdate {
@@ -107,20 +106,20 @@ func printfStr(format string, v ...interface{}) string {
 // Prints to STDOUT without string formatting; application continues.
 // Used for special cases not requiring log information like date or location.
 func Print(v ...interface{}) {
-	fmt.Fprint(os.Stdout, v...)
+	fmt.Fprintln(os.Stdout, v...)
 }
 
 // Prints to STDOUT without string formatting; application exits with error code 0.
 // Used for exiting succesfully with message after expected outcome, e.g. successful single-call application runs.
 func Exit(v ...interface{}) {
-	fmt.Fprint(os.Stdout, v...)
+	fmt.Fprintln(os.Stdout, v...)
 	os.Exit(0)
 }
 
 // Prints to STDOUT without string formatting; application exits with error code 1.
 // Used for terminating with message after to be expected errors, e.g. wrong arguments or during init().
 func Abort(v ...interface{}) {
-	fmt.Fprint(os.Stdout, v...)
+	fmt.Fprintln(os.Stdout, v...)
 	os.Exit(1)
 }
 
