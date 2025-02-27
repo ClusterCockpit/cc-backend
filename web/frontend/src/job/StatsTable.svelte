@@ -35,9 +35,8 @@
     sorting = {},
     isMetricSelectionOpen = false,
     selectedMetrics =
-      getContext("cc-config")[
-        `job_view_nodestats_selectedMetrics:${job.cluster}`
-      ] || getContext("cc-config")["job_view_nodestats_selectedMetrics"];
+      getContext("cc-config")[`job_view_nodestats_selectedMetrics:${job.cluster}`] ||
+      getContext("cc-config")["job_view_nodestats_selectedMetrics"];
 
   for (let metric of allMetrics) {
     // Not Exclusive or Multi-Node: get maxScope directly (mostly: node)
