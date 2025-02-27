@@ -7,6 +7,7 @@ package metricDataDispatcher
 import (
 	"context"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
@@ -170,6 +171,9 @@ func LoadData(job *schema.Job,
 			jd.AddNodeScope("mem_bw")
 		}
 
+		// Round Resulting Stat Values
+		jd.RoundMetricStats()
+
 		return jd, ttl, size
 	})
 
@@ -218,6 +222,52 @@ func LoadAverages(
 	}
 
 	return nil
+}
+
+// Used for polar plots in frontend
+func LoadStatData(
+	job *schema.Job,
+	metrics []string,
+	ctx context.Context,
+) (map[string]schema.MetricStatistics, error) {
+	if job.State != schema.JobStateRunning && !config.Keys.DisableArchive {
+		return archive.LoadStatsFromArchive(job, metrics)
+	}
+
+	data := make(map[string]schema.MetricStatistics, len(metrics))
+	repo, err := metricdata.GetMetricDataRepo(job.Cluster)
+	if err != nil {
+		return data, fmt.Errorf("METRICDATA/METRICDATA > no metric data repository configured for '%s'", job.Cluster)
+	}
+
+	stats, err := repo.LoadStats(job, metrics, ctx)
+	if err != nil {
+		log.Errorf("Error while loading statistics for job %v (User %v, Project %v)", job.JobID, job.User, job.Project)
+		return data, err
+	}
+
+	for _, m := range metrics {
+		sum, avg, min, max := 0.0, 0.0, 0.0, 0.0
+		nodes, ok := stats[m]
+		if !ok {
+			data[m] = schema.MetricStatistics{Min: min, Avg: avg, Max: max}
+			continue
+		}
+
+		for _, node := range nodes {
+			sum += node.Avg
+			min = math.Min(min, node.Min)
+			max = math.Max(max, node.Max)
+		}
+
+		data[m] = schema.MetricStatistics{
+			Avg: (math.Round((sum/float64(job.NumNodes))*100) / 100),
+			Min: (math.Round(min*100) / 100),
+			Max: (math.Round(max*100) / 100),
+		}
+	}
+
+	return data, nil
 }
 
 // Used for the classic node/system view. Returns a map of nodes to a map of metrics.
