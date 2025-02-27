@@ -1008,8 +1008,8 @@ func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 		return
 	}
 
-	if job == nil || job.StartTime.Unix() >= req.StopTime {
-		handleError(fmt.Errorf("jobId %d (id %d) on %s : stopTime %d must be larger than startTime %d", job.JobID, job.ID, job.Cluster, req.StopTime, job.StartTime.Unix()), http.StatusBadRequest, rw)
+	if job == nil || job.StartTime.Unix() > req.StopTime {
+		handleError(fmt.Errorf("jobId %d (id %d) on %s : stopTime %d must be larger/equal than startTime %d", job.JobID, job.ID, job.Cluster, req.StopTime, job.StartTime.Unix()), http.StatusBadRequest, rw)
 		return
 	}
 
