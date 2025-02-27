@@ -1003,8 +1003,13 @@ func (api *RestApi) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 
 func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Job, req StopJobApiRequest) {
 	// Sanity checks
-	if job == nil || job.StartTime.Unix() >= req.StopTime || job.State != schema.JobStateRunning {
-		handleError(fmt.Errorf("jobId %d (id %d) on %s : stopTime %d must be larger than startTime %d and only running jobs can be stopped (state is: %s)", job.JobID, job.ID, job.Cluster, req.StopTime, job.StartTime.Unix(), job.State), http.StatusBadRequest, rw)
+	if job.State != schema.JobStateRunning {
+		handleError(fmt.Errorf("jobId %d (id %d) on %s : job has already been stopped (state is: %s)", job.JobID, job.ID, job.Cluster, job.State), http.StatusUnprocessableEntity, rw)
+		return
+	}
+
+	if job == nil || job.StartTime.Unix() >= req.StopTime {
+		handleError(fmt.Errorf("jobId %d (id %d) on %s : stopTime %d must be larger than startTime %d", job.JobID, job.ID, job.Cluster, req.StopTime, job.StartTime.Unix()), http.StatusBadRequest, rw)
 		return
 	}
 
