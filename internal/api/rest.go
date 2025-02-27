@@ -757,7 +757,7 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 // @accept      json
 // @produce     json
 // @param       request body     schema.JobMeta          true "Job to add"
-// @success     201     {object} api.StartJobApiResponse      "Job added successfully"
+// @success     201     {object} api.DefaultJobApiResponse    "Job added successfully"
 // @failure     400     {object} api.ErrorResponse            "Bad Request"
 // @failure     401     {object} api.ErrorResponse            "Unauthorized"
 // @failure     403     {object} api.ErrorResponse            "Forbidden"
@@ -834,7 +834,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"
 // @failure     404     {object} api.ErrorResponse          "Resource not found"
-// @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
+// @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: job has already been stopped"
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /jobs/stop_job/ [post]
@@ -870,7 +870,7 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 // @description Job to remove is specified by database ID. This will not remove the job from the job archive.
 // @produce     json
 // @param       id      path     int                   true "Database ID of Job"
-// @success     200     {object} api.DeleteJobApiResponse     "Success message"
+// @success     200     {object} api.DefaultJobApiResponse  "Success message"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"
@@ -913,7 +913,7 @@ func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 // @accept      json
 // @produce     json
 // @param       request body     api.DeleteJobApiRequest true "All fields required"
-// @success     200     {object} api.DeleteJobApiResponse     "Success message"
+// @success     200     {object} api.DefaultJobApiResponse  "Success message"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"
@@ -963,7 +963,7 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 // @description Remove all jobs with start time before timestamp. The jobs will not be removed from the job archive.
 // @produce     json
 // @param       ts      path     int                   true "Unix epoch timestamp"
-// @success     200     {object} api.DeleteJobApiResponse     "Success message"
+// @success     200     {object} api.DefaultJobApiResponse  "Success message"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"

@@ -32,6 +32,11 @@ definitions:
         example: Debug
         type: string
     type: object
+  api.DefaultJobApiResponse:
+    properties:
+      msg:
+        type: string
+    type: object
   api.DeleteJobApiRequest:
     properties:
       cluster:
@@ -48,11 +53,6 @@ definitions:
         type: integer
     required:
     - jobId
-    type: object
-  api.DeleteJobApiResponse:
-    properties:
-      msg:
-        type: string
     type: object
   api.EditMetaRequest:
     properties:
@@ -111,11 +111,6 @@ definitions:
         type: string
       scope:
         $ref: '#/definitions/schema.MetricScope'
-    type: object
-  api.StartJobApiResponse:
-    properties:
-      msg:
-        type: string
     type: object
   api.StopJobApiRequest:
     properties:
@@ -906,7 +901,7 @@ paths:
         "200":
           description: Success message
           schema:
-            $ref: '#/definitions/api.DeleteJobApiResponse'
+            $ref: '#/definitions/api.DefaultJobApiResponse'
         "400":
           description: Bad Request
           schema:
@@ -953,7 +948,7 @@ paths:
         "200":
           description: Success message
           schema:
-            $ref: '#/definitions/api.DeleteJobApiResponse'
+            $ref: '#/definitions/api.DefaultJobApiResponse'
         "400":
           description: Bad Request
           schema:
@@ -1000,7 +995,7 @@ paths:
         "200":
           description: Success message
           schema:
-            $ref: '#/definitions/api.DeleteJobApiResponse'
+            $ref: '#/definitions/api.DefaultJobApiResponse'
         "400":
           description: Bad Request
           schema:
@@ -1098,7 +1093,7 @@ paths:
         "201":
           description: Job added successfully
           schema:
-            $ref: '#/definitions/api.StartJobApiResponse'
+            $ref: '#/definitions/api.DefaultJobApiResponse'
         "400":
           description: Bad Request
           schema:
@@ -1161,8 +1156,7 @@ paths:
           schema:
             $ref: '#/definitions/api.ErrorResponse'
         "422":
-          description: 'Unprocessable Entity: finding job failed: sql: no rows in
-            result set'
+          description: 'Unprocessable Entity: job has already been stopped'
           schema:
             $ref: '#/definitions/api.ErrorResponse'
         "500":
@@ -1224,6 +1218,51 @@ paths:
       summary: Adds one or more tags to a job
       tags:
       - Job add and modify
+  /notice/:
+    post:
+      consumes:
+      - multipart/form-data
+      description: |-
+        Modifies the content of notice.txt, shown as notice box on the homepage.
+        If more than one formValue is set then only the highest priority field is used.
+        Only accessible from IPs registered with apiAllowedIPs configuration option.
+      parameters:
+      - description: 'Priority 1: New content to display'
+        in: formData
+        name: new-content
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Success Response Message
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "422":
+          description: 'Unprocessable Entity: The user could not be updated'
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Updates or empties the notice box content
+      tags:
+      - User
   /user/{id}:
     post:
       consumes:
