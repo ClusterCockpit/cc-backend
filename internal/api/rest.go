@@ -772,9 +772,8 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.State == "" {
-		req.State = schema.JobStateRunning
-	}
+	req.State = schema.JobStateRunning
+
 	if err := importer.SanityChecks(&req.BaseJob); err != nil {
 		handleError(err, http.StatusBadRequest, rw)
 		return
