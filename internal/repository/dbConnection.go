@@ -59,17 +59,15 @@ func Connect(driver string, db string) {
 			} else {
 				dbHandle, err = sqlx.Open("sqlite3", opts.URL)
 			}
-			if err != nil {
-				log.Fatal(err)
-			}
 		case "mysql":
 			opts.URL += "?multiStatements=true"
 			dbHandle, err = sqlx.Open("mysql", opts.URL)
-			if err != nil {
-				log.Fatalf("sqlx.Open() error: %v", err)
-			}
 		default:
-			log.Fatalf("unsupported database driver: %s", driver)
+			log.Abortf("DB Connection: Unsupported database driver '%s'.\n", driver)
+		}
+
+		if err != nil {
+			log.Abortf("DB Connection: Could not connect to '%s' database with sqlx.Open().\nError: %s\n", driver, err.Error())
 		}
 
 		dbHandle.SetMaxOpenConns(opts.MaxOpenConnections)
@@ -80,7 +78,7 @@ func Connect(driver string, db string) {
 		dbConnInstance = &DBConnection{DB: dbHandle, Driver: driver}
 		err = checkDBVersion(driver, dbHandle.DB)
 		if err != nil {
-			log.Fatal(err)
+			log.Abortf("DB Connection: Failed DB version check.\nError: %s\n", err.Error())
 		}
 	})
 }

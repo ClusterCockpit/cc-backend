@@ -35,7 +35,7 @@ func GetUserCfgRepo() *UserCfgRepo {
 
 		lookupConfigStmt, err := db.DB.Preparex(`SELECT confkey, value FROM configuration WHERE configuration.username = ?`)
 		if err != nil {
-			log.Fatalf("db.DB.Preparex() error: %v", err)
+			log.Fatalf("User Config: Call 'db.DB.Preparex()' failed.\nError: %s\n", err.Error())
 		}
 
 		userCfgRepoInstance = &UserCfgRepo{
