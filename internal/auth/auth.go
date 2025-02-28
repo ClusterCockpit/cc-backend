@@ -10,10 +10,13 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"errors"
+	"net"
 	"net/http"
 	"os"
 	"sync"
 	"time"
+
+	"golang.org/x/time/rate"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
@@ -31,6 +34,19 @@ var (
 	initOnce     sync.Once
 	authInstance *Authentication
 )
+
+var ipUserLimiters sync.Map
+
+func getIPUserLimiter(ip, username string) *rate.Limiter {
+	key := ip + ":" + username
+	limiter, ok := ipUserLimiters.Load(key)
+	if !ok {
+		newLimiter := rate.NewLimiter(rate.Every(time.Hour/10), 10)
+		ipUserLimiters.Store(key, newLimiter)
+		return newLimiter
+	}
+	return limiter.(*rate.Limiter)
+}
 
 type Authentication struct {
 	sessionStore   *sessions.CookieStore
@@ -88,7 +104,7 @@ func Init() {
 			authInstance.sessionStore = sessions.NewCookieStore(bytes)
 		}
 
-		if d, err := time.ParseDuration(config.Keys.SessionMaxAge); err != nil {
+		if d, err := time.ParseDuration(config.Keys.SessionMaxAge); err == nil {
 			authInstance.SessionMaxAge = d
 		}
 
@@ -208,9 +224,21 @@ func (auth *Authentication) Login(
 	onfailure func(rw http.ResponseWriter, r *http.Request, loginErr error),
 ) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		username := r.FormValue("username")
-		var dbUser *schema.User
+		ip, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			ip = r.RemoteAddr
+		}
 
+		username := r.FormValue("username")
+
+		limiter := getIPUserLimiter(ip, username)
+		if !limiter.Allow() {
+				log.Warnf("AUTH/RATE > Too many login attempts for combination IP: %s, Username: %s", ip, username)
+				onfailure(rw, r, errors.New("Too many login attempts, try again in a few minutes."))
+				return
+		}
+
+		var dbUser *schema.User
 		if username != "" {
 			var err error
 			dbUser, err = repository.GetUserRepository().GetUser(username)

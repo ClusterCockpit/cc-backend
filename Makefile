@@ -82,7 +82,7 @@ tags:
 	@ctags -R
 
 $(VAR):
-	@mkdir $(VAR)
+	@mkdir -p $(VAR)
 
 config.json:
 	$(info ===>  Initialize config.json file)

@@ -3,7 +3,7 @@
 
     Properties:
     - `cluster String`: Currently selected cluster
-    - `metricsInHistograms [String]`: The currently selected metrics to display as histogram
+    - `selectedHistograms [String]`: The currently selected metrics to display as histogram
     - ìsOpen Bool`: Is selection opened
  -->
 
@@ -21,21 +21,26 @@
   import { gql, getContextClient, mutationStore } from "@urql/svelte";
 
   export let cluster;
-  export let metricsInHistograms;
+  export let selectedHistograms;
   export let isOpen;
 
   const client = getContextClient();
   const initialized = getContext("initialized");
 
-  let availableMetrics = []
+  function loadHistoMetrics(isInitialized, thisCluster) {
+    if (!isInitialized) return [];
 
-  function loadHistoMetrics(isInitialized) {
-    if (!isInitialized) return;
-    const rawAvailableMetrics = getContext("globalMetrics").filter((gm) => gm?.footprint).map((fgm) => { return fgm.name })
-    availableMetrics = [...rawAvailableMetrics]
+    if (!thisCluster) {
+      return getContext("globalMetrics")
+      .filter((gm) => gm?.footprint)
+      .map((fgm) => { return fgm.name })
+    } else {
+      return getContext("globalMetrics")
+      .filter((gm) => gm?.availability.find((av) => av.cluster == thisCluster))
+      .filter((agm) => agm?.footprint)
+      .map((afgm) => { return afgm.name })
+    }
   }
-
-  let pendingMetrics = [...metricsInHistograms]; // Copy
 
   const updateConfigurationMutation = ({ name, value }) => {
     return mutationStore({
@@ -61,17 +66,16 @@
   }
 
   function closeAndApply() {
-    metricsInHistograms = [...pendingMetrics]; // Set for parent
     isOpen = !isOpen;
     updateConfiguration({
       name: cluster
         ? `user_view_histogramMetrics:${cluster}`
         : "user_view_histogramMetrics",
-      value: metricsInHistograms,
+      value: selectedHistograms,
     });
   }
 
-  $: loadHistoMetrics($initialized);
+  $: availableMetrics = loadHistoMetrics($initialized, cluster);
 
 </script>
 
@@ -81,7 +85,7 @@
     <ListGroup>
       {#each availableMetrics as metric (metric)}
         <ListGroupItem>
-          <input type="checkbox" bind:group={pendingMetrics} value={metric} />
+          <input type="checkbox" bind:group={selectedHistograms} value={metric} />
           {metric}
         </ListGroupItem>
       {/each}

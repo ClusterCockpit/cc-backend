@@ -440,6 +440,23 @@ func (ccms *CCMetricStore) buildQueries(
 					continue
 				}
 
+				// Core -> Socket
+				if nativeScope == schema.MetricScopeCore && scope == schema.MetricScopeSocket {
+					sockets, _ := topology.GetSocketsFromCores(hwthreads)
+					for _, socket := range sockets {
+						queries = append(queries, ApiQuery{
+							Metric:     remoteName,
+							Hostname:   host.Hostname,
+							Aggregate:  true,
+							Type:       &coreString,
+							TypeIds:    intToStringSlice(topology.Socket[socket]),
+							Resolution: resolution,
+						})
+						assignedScope = append(assignedScope, scope)
+					}
+					continue
+				}
+
 				// Core -> Node
 				if nativeScope == schema.MetricScopeCore && scope == schema.MetricScopeNode {
 					cores, _ := topology.GetCoresFromHWThreads(hwthreads)
@@ -627,7 +644,7 @@ func (ccms *CCMetricStore) LoadNodeData(
 				req.Queries = append(req.Queries, ApiQuery{
 					Hostname:   node,
 					Metric:     ccms.toRemoteName(metric),
-					Resolution: 60, // Default for Node Queries
+					Resolution: 0, // Default for Node Queries: Will return metric $Timestep Resolution
 				})
 			}
 		}
@@ -1035,6 +1052,23 @@ func (ccms *CCMetricStore) buildNodeQueries(
 						Resolution: resolution,
 					})
 					assignedScope = append(assignedScope, scope)
+					continue
+				}
+
+				// Core -> Socket
+				if nativeScope == schema.MetricScopeCore && scope == schema.MetricScopeSocket {
+					sockets, _ := topology.GetSocketsFromCores(topology.Node)
+					for _, socket := range sockets {
+						queries = append(queries, ApiQuery{
+							Metric:     remoteName,
+							Hostname:   hostname,
+							Aggregate:  true,
+							Type:       &coreString,
+							TypeIds:    intToStringSlice(topology.Socket[socket]),
+							Resolution: resolution,
+						})
+						assignedScope = append(assignedScope, scope)
+					}
 					continue
 				}
 

@@ -19,6 +19,7 @@
     Progress,
     Icon,
     Button,
+    Tooltip
   } from "@sveltestrap/sveltestrap";
   import {
     queryStore,
@@ -75,11 +76,12 @@
     );
 
   let isHistogramSelectionOpen = false;
-  $: metricsInHistograms = cluster
-    ? ccconfig[`user_view_histogramMetrics:${cluster}`] || []
-    : ccconfig.user_view_histogramMetrics || [];
+  $: selectedHistograms = cluster
+    ? ccconfig[`user_view_histogramMetrics:${cluster}`] || ( ccconfig['user_view_histogramMetrics'] || [] )
+    : ccconfig['user_view_histogramMetrics'] || [];
 
   const client = getContextClient();
+  // Note: nodeMetrics are requested on configured $timestep resolution
   $: mainQuery = queryStore({
     client: client,
     query: gql`
@@ -89,7 +91,7 @@
         $metrics: [String!]
         $from: Time!
         $to: Time!
-        $metricsInHistograms: [String!]
+        $selectedHistograms: [String!]
       ) {
         nodeMetrics(
           cluster: $cluster
@@ -115,7 +117,7 @@
           }
         }
 
-        stats: jobsStatistics(filter: $filter, metrics: $metricsInHistograms) {
+        stats: jobsStatistics(filter: $filter, metrics: $selectedHistograms) {
           histDuration {
             count
             value
@@ -156,7 +158,7 @@
       from: from.toISOString(),
       to: to.toISOString(),
       filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
-      metricsInHistograms: metricsInHistograms,
+      selectedHistograms: selectedHistograms,
     },
   });
 
@@ -176,6 +178,7 @@
           groupBy: USER
         ) {
           id
+          name
           totalJobs
           totalNodes
           totalCores
@@ -515,12 +518,19 @@
             {#each $topUserQuery.data.topUser as tu, i}
               <tr>
                 <td><Icon name="circle-fill" style="color: {colors[i]};" /></td>
-                <th scope="col"
+                <th scope="col" id="topName-{tu.id}"
                   ><a
                     href="/monitoring/user/{tu.id}?cluster={cluster}&state=running"
                     >{tu.id}</a
                   ></th
                 >
+                {#if tu?.name}
+                  <Tooltip
+                    target={`topName-${tu.id}`}
+                    placement="left"
+                    >{tu.name}</Tooltip
+                  >
+                {/if}
                 <td>{tu[topUserSelection.key]}</td>
               </tr>
             {/each}
@@ -653,7 +663,7 @@
 
   <!-- Selectable Stats as Histograms : Average Values of Running Jobs -->
 
-  {#if metricsInHistograms}
+  {#if selectedHistograms}
     {#key $mainQuery.data.stats[0].histMetrics}
       <PlotGrid
         let:item
@@ -676,6 +686,6 @@
 
 <HistogramSelection
   bind:cluster
-  bind:metricsInHistograms
+  bind:selectedHistograms
   bind:isOpen={isHistogramSelectionOpen}
 />

@@ -94,7 +94,7 @@ func RegisterFootprintWorker() {
 								}
 							}
 
-							// Add values rounded to 2 digits
+							// Add values rounded to 2 digits: repo.LoadStats may return unrounded
 							jobMeta.Statistics[metric] = schema.JobStatistics{
 								Unit: schema.Unit{
 									Prefix: archive.GetMetricConfig(job.Cluster, metric).Unit.Prefix,

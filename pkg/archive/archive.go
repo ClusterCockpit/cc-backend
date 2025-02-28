@@ -102,7 +102,7 @@ func GetHandle() ArchiveBackend {
 	return ar
 }
 
-// Helper to metricdata.LoadAverages().
+// Helper to metricdataloader.LoadAverages().
 func LoadAveragesFromArchive(
 	job *schema.Job,
 	metrics []string,
@@ -123,6 +123,35 @@ func LoadAveragesFromArchive(
 	}
 
 	return nil
+}
+
+// Helper to metricdataloader.LoadStatData().
+func LoadStatsFromArchive(
+	job *schema.Job,
+	metrics []string,
+) (map[string]schema.MetricStatistics, error) {
+	data := make(map[string]schema.MetricStatistics, len(metrics))
+	metaFile, err := ar.LoadJobMeta(job)
+	if err != nil {
+		log.Warn("Error while loading job metadata from archiveBackend")
+		return data, err
+	}
+
+	for _, m := range metrics {
+		stat, ok := metaFile.Statistics[m]
+		if !ok {
+			data[m] = schema.MetricStatistics{Min: 0.0, Avg: 0.0, Max: 0.0}
+			continue
+		}
+
+		data[m] = schema.MetricStatistics{
+			Avg: stat.Avg,
+			Min: stat.Min,
+			Max: stat.Max,
+		}
+	}
+
+	return data, nil
 }
 
 func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
