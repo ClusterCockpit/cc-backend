@@ -177,6 +177,7 @@
           groupBy: USER
         ) {
           id
+          name
           totalJobs
           totalNodes
           totalCores
@@ -518,7 +519,7 @@
                 <th scope="col"
                   ><a
                     href="/monitoring/user/{tu.id}?cluster={cluster}&state=running"
-                    >{tu.id}</a
+                    >{tu.id} {tu?.name ? `(${tu.name})` : ''}</a
                   ></th
                 >
                 <td>{tu[topUserSelection.key]}</td>

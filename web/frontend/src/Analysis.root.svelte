@@ -70,6 +70,8 @@
     ...new Set([...metricsInHistograms, ...metricsInScatterplots.flat()]),
   ];
 
+  $: clusterName = cluster?.name ? cluster.name : cluster;
+
   const sortOptions = [
     { key: "totalWalltime", label: "Walltime" },
     { key: "totalNodeHours", label: "Node Hours" },
@@ -159,6 +161,7 @@
           groupBy: $groupBy
         ) {
           id
+          name
           totalWalltime
           totalNodeHours
           totalCoreHours
@@ -423,14 +426,14 @@
                 <td><Icon name="circle-fill" style="color: {colors[i]};" /></td>
                 {#if groupSelection.key == "user"}
                   <th scope="col"
-                    ><a href="/monitoring/user/{te.id}?cluster={cluster}"
-                      >{te.id}</a
+                    ><a href="/monitoring/user/{te.id}?cluster={clusterName}"
+                      >{te.id} {te?.name ? `(${te.name})` : ''}</a
                     ></th
                   >
                 {:else}
                   <th scope="col"
                     ><a
-                      href="/monitoring/jobs/?cluster={cluster}&project={te.id}&projectMatch=eq"
+                      href="/monitoring/jobs/?cluster={clusterName}&project={te.id}&projectMatch=eq"
                       >{te.id}</a
                     ></th
                   >
