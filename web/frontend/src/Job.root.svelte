@@ -58,7 +58,8 @@
   let plots = {},
     statsTable
 
-  let missingMetrics = [],
+  let availableMetrics = new Set(),
+    missingMetrics = [],
     missingHosts = [],
     somethingMissing = false;
 
@@ -293,7 +294,7 @@
       {#if $initq.data}
         <Col xs="auto">
             <Button outline on:click={() => (isMetricsSelectionOpen = true)} color="primary">
-              Select Metrics
+              Select Metrics (Selected {selectedMetrics.length} of {availableMetrics.size} available)
             </Button>
         </Col>
       {/if}
@@ -431,6 +432,7 @@
     configName="job_view_selectedMetrics"
     bind:metrics={selectedMetrics}
     bind:isOpen={isMetricsSelectionOpen}
+    bind:allMetrics={availableMetrics}
   />
 {/if}
 
