@@ -20,6 +20,7 @@
     Card,
     Table,
     Icon,
+    Tooltip
   } from "@sveltestrap/sveltestrap";
   import {
     init,
@@ -425,11 +426,18 @@
               <tr>
                 <td><Icon name="circle-fill" style="color: {colors[i]};" /></td>
                 {#if groupSelection.key == "user"}
-                  <th scope="col"
+                  <th scope="col" id="topName-{te.id}"
                     ><a href="/monitoring/user/{te.id}?cluster={clusterName}"
-                      >{te.id} {te?.name ? `(${te.name})` : ''}</a
+                      >{te.id}</a
                     ></th
                   >
+                  {#if te?.name}
+                    <Tooltip
+                      target={`topName-${te.id}`}
+                      placement="left"
+                      >{te.name}</Tooltip
+                    >
+                  {/if}
                 {:else}
                   <th scope="col"
                     ><a

@@ -19,6 +19,7 @@
     Progress,
     Icon,
     Button,
+    Tooltip
   } from "@sveltestrap/sveltestrap";
   import {
     queryStore,
@@ -516,12 +517,19 @@
             {#each $topUserQuery.data.topUser as tu, i}
               <tr>
                 <td><Icon name="circle-fill" style="color: {colors[i]};" /></td>
-                <th scope="col"
+                <th scope="col" id="topName-{tu.id}"
                   ><a
                     href="/monitoring/user/{tu.id}?cluster={cluster}&state=running"
-                    >{tu.id} {tu?.name ? `(${tu.name})` : ''}</a
+                    >{tu.id}</a
                   ></th
                 >
+                {#if tu?.name}
+                  <Tooltip
+                    target={`topName-${tu.id}`}
+                    placement="left"
+                    >{tu.name}</Tooltip
+                  >
+                {/if}
                 <td>{tu[topUserSelection.key]}</td>
               </tr>
             {/each}
