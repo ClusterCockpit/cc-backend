@@ -137,6 +137,11 @@ type JobMetricWithName {
   metric: JobMetric!
 }
 
+type JobMetricStatWithName {
+  name:   String!
+  stats:  MetricStatistics!
+}
+
 type JobMetric {
   unit:             Unit
   timestep:         Int!
@@ -242,6 +247,7 @@ type Query {
 
   job(id: ID!): Job
   jobMetrics(id: ID!, metrics: [String!], scopes: [MetricScope!], resolution: Int): [JobMetricWithName!]!
+  jobMetricStats(id: ID!, metrics: [String!]): [JobMetricStatWithName!]!
   jobsFootprints(filter: [JobFilter!], metrics: [String!]!): Footprints
 
   jobs(filter: [JobFilter!], page: PageRequest, order: OrderByInput): JobResultList!

@@ -208,7 +208,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Success message",
                         "schema": {
-                            "$ref": "#/definitions/api.DeleteJobApiResponse"
+                            "$ref": "#/definitions/api.DefaultJobApiResponse"
                         }
                     },
                     "400": {
@@ -278,7 +278,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Success message",
                         "schema": {
-                            "$ref": "#/definitions/api.DeleteJobApiResponse"
+                            "$ref": "#/definitions/api.DefaultJobApiResponse"
                         }
                     },
                     "400": {
@@ -348,7 +348,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Success message",
                         "schema": {
-                            "$ref": "#/definitions/api.DeleteJobApiResponse"
+                            "$ref": "#/definitions/api.DefaultJobApiResponse"
                         }
                     },
                     "400": {
@@ -493,7 +493,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Job added successfully",
                         "schema": {
-                            "$ref": "#/definitions/api.StartJobApiResponse"
+                            "$ref": "#/definitions/api.DefaultJobApiResponse"
                         }
                     },
                     "400": {
@@ -587,7 +587,7 @@ const docTemplate = `{
                         }
                     },
                     "422": {
-                        "description": "Unprocessable Entity: finding job failed: sql: no rows in result set",
+                        "description": "Unprocessable Entity: job has already been stopped",
                         "schema": {
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
@@ -828,6 +828,72 @@ const docTemplate = `{
                         "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/notice/": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Modifies the content of notice.txt, shown as notice box on the homepage.\nIf more than one formValue is set then only the highest priority field is used.\nOnly accessible from IPs registered with apiAllowedIPs configuration option.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "Updates or empties the notice box content",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Priority 1: New content to display",
+                        "name": "new-content",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success Response Message",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity: The user could not be updated",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 }
@@ -1213,6 +1279,14 @@ const docTemplate = `{
                 }
             }
         },
+        "api.DefaultJobApiResponse": {
+            "type": "object",
+            "properties": {
+                "msg": {
+                    "type": "string"
+                }
+            }
+        },
         "api.DeleteJobApiRequest": {
             "type": "object",
             "required": [
@@ -1233,14 +1307,6 @@ const docTemplate = `{
                     "description": "Start Time of job as epoch",
                     "type": "integer",
                     "example": 1649723812
-                }
-            }
-        },
-        "api.DeleteJobApiResponse": {
-            "type": "object",
-            "properties": {
-                "msg": {
-                    "type": "string"
                 }
             }
         },
@@ -1327,14 +1393,6 @@ const docTemplate = `{
                 },
                 "scope": {
                     "$ref": "#/definitions/schema.MetricScope"
-                }
-            }
-        },
-        "api.StartJobApiResponse": {
-            "type": "object",
-            "properties": {
-                "msg": {
-                    "type": "string"
                 }
             }
         },
