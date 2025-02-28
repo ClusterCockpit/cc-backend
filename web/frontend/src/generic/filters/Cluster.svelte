@@ -43,26 +43,31 @@
   <ModalBody>
     {#if $initialized}
       <h4>Cluster</h4>
-      <ListGroup>
-        <ListGroupItem
-          disabled={disableClusterSelection}
-          active={pendingCluster == null}
-          on:click={() => ((pendingCluster = null), (pendingPartition = null))}
-        >
-          Any Cluster
-        </ListGroupItem>
-        {#each clusters as cluster}
+      {#if disableClusterSelection}
+        <Button color="info" class="w-100 mb-2" disabled><b>Info: Cluster Selection Disabled in This View</b></Button>
+        <Button outline color="primary" class="w-100 mb-2" disabled><b>Selected Cluster: {cluster}</b></Button>
+      {:else}
+        <ListGroup>
           <ListGroupItem
             disabled={disableClusterSelection}
-            active={pendingCluster == cluster.name}
-            on:click={() => (
-              (pendingCluster = cluster.name), (pendingPartition = null)
-            )}
+            active={pendingCluster == null}
+            on:click={() => ((pendingCluster = null), (pendingPartition = null))}
           >
-            {cluster.name}
+            Any Cluster
           </ListGroupItem>
-        {/each}
-      </ListGroup>
+          {#each clusters as cluster}
+            <ListGroupItem
+              disabled={disableClusterSelection}
+              active={pendingCluster == cluster.name}
+              on:click={() => (
+                (pendingCluster = cluster.name), (pendingPartition = null)
+              )}
+            >
+              {cluster.name}
+            </ListGroupItem>
+          {/each}
+        </ListGroup>
+      {/if}
     {/if}
     {#if $initialized && pendingCluster != null}
       <br />
