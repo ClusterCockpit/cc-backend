@@ -75,7 +75,7 @@
     );
 
   let isHistogramSelectionOpen = false;
-  $: metricsInHistograms = cluster
+  $: selectedHistograms = cluster
     ? ccconfig[`user_view_histogramMetrics:${cluster}`] || ( ccconfig['user_view_histogramMetrics'] || [] )
     : ccconfig['user_view_histogramMetrics'] || [];
 
@@ -90,7 +90,7 @@
         $metrics: [String!]
         $from: Time!
         $to: Time!
-        $metricsInHistograms: [String!]
+        $selectedHistograms: [String!]
       ) {
         nodeMetrics(
           cluster: $cluster
@@ -116,7 +116,7 @@
           }
         }
 
-        stats: jobsStatistics(filter: $filter, metrics: $metricsInHistograms) {
+        stats: jobsStatistics(filter: $filter, metrics: $selectedHistograms) {
           histDuration {
             count
             value
@@ -157,7 +157,7 @@
       from: from.toISOString(),
       to: to.toISOString(),
       filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
-      metricsInHistograms: metricsInHistograms,
+      selectedHistograms: selectedHistograms,
     },
   });
 
@@ -653,7 +653,7 @@
 
   <!-- Selectable Stats as Histograms : Average Values of Running Jobs -->
 
-  {#if metricsInHistograms}
+  {#if selectedHistograms}
     {#key $mainQuery.data.stats[0].histMetrics}
       <PlotGrid
         let:item
@@ -676,6 +676,6 @@
 
 <HistogramSelection
   bind:cluster
-  bind:metricsInHistograms
+  bind:selectedHistograms
   bind:isOpen={isHistogramSelectionOpen}
 />

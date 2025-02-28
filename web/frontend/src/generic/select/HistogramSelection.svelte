@@ -3,7 +3,7 @@
 
     Properties:
     - `cluster String`: Currently selected cluster
-    - `metricsInHistograms [String]`: The currently selected metrics to display as histogram
+    - `selectedHistograms [String]`: The currently selected metrics to display as histogram
     - ìsOpen Bool`: Is selection opened
  -->
 
@@ -21,12 +21,11 @@
   import { gql, getContextClient, mutationStore } from "@urql/svelte";
 
   export let cluster;
-  export let metricsInHistograms;
+  export let selectedHistograms;
   export let isOpen;
 
   const client = getContextClient();
   const initialized = getContext("initialized");
-
 
   function loadHistoMetrics(isInitialized, thisCluster) {
     if (!isInitialized) return [];
@@ -42,8 +41,6 @@
       .map((afgm) => { return afgm.name })
     }
   }
-
-  $: pendingMetrics = [...metricsInHistograms]; // Copy on change from above
 
   const updateConfigurationMutation = ({ name, value }) => {
     return mutationStore({
@@ -69,13 +66,12 @@
   }
 
   function closeAndApply() {
-    metricsInHistograms = [...pendingMetrics]; // Set for parent
     isOpen = !isOpen;
     updateConfiguration({
       name: cluster
         ? `user_view_histogramMetrics:${cluster}`
         : "user_view_histogramMetrics",
-      value: metricsInHistograms,
+      value: selectedHistograms,
     });
   }
 
@@ -89,7 +85,7 @@
     <ListGroup>
       {#each availableMetrics as metric (metric)}
         <ListGroupItem>
-          <input type="checkbox" bind:group={pendingMetrics} value={metric} />
+          <input type="checkbox" bind:group={selectedHistograms} value={metric} />
           {metric}
         </ListGroupItem>
       {/each}
