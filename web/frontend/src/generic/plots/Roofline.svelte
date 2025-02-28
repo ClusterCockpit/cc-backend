@@ -179,7 +179,7 @@
   function render(plotData) {
     if (plotData) {
       const opts = {
-        title: "",
+        title: "CPU Roofline Diagram",
         mode: 2,
         width: width,
         height: height,
