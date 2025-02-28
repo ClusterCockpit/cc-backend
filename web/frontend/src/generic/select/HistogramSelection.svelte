@@ -27,15 +27,23 @@
   const client = getContextClient();
   const initialized = getContext("initialized");
 
-  let availableMetrics = []
 
-  function loadHistoMetrics(isInitialized) {
-    if (!isInitialized) return;
-    const rawAvailableMetrics = getContext("globalMetrics").filter((gm) => gm?.footprint).map((fgm) => { return fgm.name })
-    availableMetrics = [...rawAvailableMetrics]
+  function loadHistoMetrics(isInitialized, thisCluster) {
+    if (!isInitialized) return [];
+
+    if (!thisCluster) {
+      return getContext("globalMetrics")
+      .filter((gm) => gm?.footprint)
+      .map((fgm) => { return fgm.name })
+    } else {
+      return getContext("globalMetrics")
+      .filter((gm) => gm?.availability.find((av) => av.cluster == thisCluster))
+      .filter((agm) => agm?.footprint)
+      .map((afgm) => { return afgm.name })
+    }
   }
 
-  let pendingMetrics = [...metricsInHistograms]; // Copy
+  $: pendingMetrics = [...metricsInHistograms]; // Copy on change from above
 
   const updateConfigurationMutation = ({ name, value }) => {
     return mutationStore({
@@ -71,7 +79,7 @@
     });
   }
 
-  $: loadHistoMetrics($initialized);
+  $: availableMetrics = loadHistoMetrics($initialized, cluster);
 
 </script>
 

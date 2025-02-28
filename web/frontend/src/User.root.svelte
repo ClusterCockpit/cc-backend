@@ -69,8 +69,8 @@
   let metricBinOptions = [10, 20, 50, 100];
 
   $: metricsInHistograms = selectedCluster
-    ? ccconfig[`user_view_histogramMetrics:${selectedCluster}`] || []
-    : ccconfig.user_view_histogramMetrics || [];
+    ? ccconfig[`user_view_histogramMetrics:${selectedCluster}`] || ( ccconfig['user_view_histogramMetrics'] || [] )
+    : ccconfig['user_view_histogramMetrics'] || [];
 
   const client = getContextClient();
   $: stats = queryStore({
