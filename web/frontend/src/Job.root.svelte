@@ -129,7 +129,12 @@
 
     const pendingMetrics = [
       ...(ccconfig[`job_view_selectedMetrics:${job.cluster}`] ||
-        ccconfig[`job_view_selectedMetrics`]
+      $initq.data.globalMetrics.reduce((names, gm) => {
+          if (gm.availability.find((av) => av.cluster === job.cluster)) {
+            names.push(gm.name);
+          }
+          return names;
+        }, [])
       ),
       ...(ccconfig[`job_view_nodestats_selectedMetrics:${job.cluster}`] ||
         ccconfig[`job_view_nodestats_selectedMetrics`]
