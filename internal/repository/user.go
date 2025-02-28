@@ -19,6 +19,7 @@ import (
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 )
 
 var (
@@ -127,6 +128,30 @@ func (r *UserRepository) AddUser(user *schema.User) error {
 	}
 
 	log.Infof("new user %#v created (roles: %s, auth-source: %d, projects: %s)", user.Username, rolesJson, user.AuthSource, projectsJson)
+
+	defaultMetricsCfg, err := config.LoadDefaultMetricsConfig()
+	if err != nil {
+		log.Errorf("Error loading default metrics config: %v", err)
+	} else if defaultMetricsCfg != nil {
+		for _, cluster := range defaultMetricsCfg.Clusters {
+			metricsArray := config.ParseMetricsString(cluster.DefaultMetrics)
+			metricsJSON, err := json.Marshal(metricsArray)
+			if err != nil {
+				log.Errorf("Error marshaling default metrics for cluster %s: %v", cluster.Name, err)
+				continue
+			}
+			confKey := "job_view_selectedMetrics:" + cluster.Name
+			if _, err := sq.Insert("configuration").
+				Columns("username", "confkey", "value").
+				Values(user.Username, confKey, string(metricsJSON)).
+				RunWith(r.DB).Exec(); err != nil {
+				log.Errorf("Error inserting default job view metrics for user %s and cluster %s: %v", user.Username, cluster.Name, err)
+			} else {
+				log.Infof("Default job view metrics for user %s and cluster %s set to %s", user.Username, cluster.Name, string(metricsJSON))
+			}
+		}
+	}
+
 	return nil
 }
 
