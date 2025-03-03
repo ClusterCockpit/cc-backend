@@ -105,7 +105,7 @@
           .filter((r) => r.hostname === nodeData.host)
           .map((r) => r.accelerators)
         )
-      )).flat(2)
+      )).flat(2).filter(a => a) // Last filter(): Exclude Null, Undefined and empty Str
 
       extendedLegendData = {}
       for (const accId of accSet) {
