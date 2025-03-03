@@ -45,6 +45,14 @@
   export let startTimeQuickSelect = false;
   export let matchedJobs = -2;
 
+  const startTimeSelectOptions = [
+    { range: "", rangeLabel: "No Selection"},
+    { range: "last6h", rangeLabel: "Last 6hrs"},
+    { range: "last24h", rangeLabel: "Last 24hrs"},
+    { range: "last7d", rangeLabel: "Last 7 days"},
+    { range: "last30d", rangeLabel: "Last 30 days"}
+  ];
+
   let filters = {
     projectMatch: filterPresets.projectMatch || "contains",
     userMatch: filterPresets.userMatch || "contains",
@@ -56,7 +64,7 @@
       filterPresets.states || filterPresets.state
         ? [filterPresets.state].flat()
         : allJobStates,
-    startTime: filterPresets.startTime || { from: null, to: null },
+    startTime: filterPresets.startTime || { from: null, to: null, range: ""},
     tags: filterPresets.tags || [],
     duration: filterPresets.duration || {
       lessThan: null,
@@ -268,16 +276,17 @@
       {#if startTimeQuickSelect}
         <DropdownItem divider />
         <DropdownItem disabled>Start Time Quick Selection</DropdownItem>
-        {#each [{ text: "Last 6hrs", range: "last6h" }, { text: "Last 24hrs", range: "last24h" }, { text: "Last 7 days", range: "last7d" }, { text: "Last 30 days", range: "last30d" }] as { text, range }}
+        {#each startTimeSelectOptions.filter((stso) => stso.range !== "") as { rangeLabel, range }}
           <DropdownItem
             on:click={() => {
+              filters.startTime.from = null
+              filters.startTime.to = null
               filters.startTime.range = range;
-              filters.startTime.text = text;
               updateFilters();
             }}
           >
             <Icon name="calendar-range" />
-            {text}
+            {rangeLabel}
           </DropdownItem>
         {/each}
       {/if}
@@ -316,7 +325,7 @@
 
 {#if filters.startTime.range}
   <Info icon="calendar-range" on:click={() => (isStartTimeOpen = true)}>
-    {filters?.startTime?.text ? filters.startTime.text : filters.startTime.range }
+    {startTimeSelectOptions.find((stso) => stso.range === filters.startTime.range).rangeLabel }
   </Info>
 {/if}
 
@@ -414,11 +423,8 @@
   bind:from={filters.startTime.from}
   bind:to={filters.startTime.to}
   bind:range={filters.startTime.range}
-  on:set-filter={() => {
-    delete filters.startTime["text"];
-    delete filters.startTime["range"];
-    updateFilters();
-  }}
+  {startTimeSelectOptions}
+  on:set-filter={() => updateFilters()}
 />
 
 <Duration
