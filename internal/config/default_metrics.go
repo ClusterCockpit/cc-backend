@@ -16,7 +16,7 @@ type DefaultMetricsConfig struct {
 }
 
 func LoadDefaultMetricsConfig() (*DefaultMetricsConfig, error) {
-	filePath := "configs/default_metrics.json"
+	filePath := "default_metrics.json"
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return nil, nil
 	}

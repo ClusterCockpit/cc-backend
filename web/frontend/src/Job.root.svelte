@@ -58,7 +58,8 @@
   let plots = {},
     statsTable
 
-  let missingMetrics = [],
+  let availableMetrics = new Set(),
+    missingMetrics = [],
     missingHosts = [],
     somethingMissing = false;
 
@@ -128,7 +129,12 @@
 
     const pendingMetrics = [
       ...(ccconfig[`job_view_selectedMetrics:${job.cluster}`] ||
-        ccconfig[`job_view_selectedMetrics`]
+      $initq.data.globalMetrics.reduce((names, gm) => {
+          if (gm.availability.find((av) => av.cluster === job.cluster)) {
+            names.push(gm.name);
+          }
+          return names;
+        }, [])
       ),
       ...(ccconfig[`job_view_nodestats_selectedMetrics:${job.cluster}`] ||
         ccconfig[`job_view_nodestats_selectedMetrics`]
@@ -293,7 +299,7 @@
       {#if $initq.data}
         <Col xs="auto">
             <Button outline on:click={() => (isMetricsSelectionOpen = true)} color="primary">
-              Select Metrics
+              Select Metrics (Selected {selectedMetrics.length} of {availableMetrics.size} available)
             </Button>
         </Col>
       {/if}
@@ -431,6 +437,7 @@
     configName="job_view_selectedMetrics"
     bind:metrics={selectedMetrics}
     bind:isOpen={isMetricsSelectionOpen}
+    bind:allMetrics={availableMetrics}
   />
 {/if}
 

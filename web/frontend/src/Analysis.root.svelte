@@ -20,6 +20,7 @@
     Card,
     Table,
     Icon,
+    Tooltip
   } from "@sveltestrap/sveltestrap";
   import {
     init,
@@ -69,6 +70,8 @@
   $: metrics = [
     ...new Set([...metricsInHistograms, ...metricsInScatterplots.flat()]),
   ];
+
+  $: clusterName = cluster?.name ? cluster.name : cluster;
 
   const sortOptions = [
     { key: "totalWalltime", label: "Walltime" },
@@ -159,6 +162,7 @@
           groupBy: $groupBy
         ) {
           id
+          name
           totalWalltime
           totalNodeHours
           totalCoreHours
@@ -422,15 +426,22 @@
               <tr>
                 <td><Icon name="circle-fill" style="color: {colors[i]};" /></td>
                 {#if groupSelection.key == "user"}
-                  <th scope="col"
-                    ><a href="/monitoring/user/{te.id}?cluster={cluster}"
+                  <th scope="col" id="topName-{te.id}"
+                    ><a href="/monitoring/user/{te.id}?cluster={clusterName}"
                       >{te.id}</a
                     ></th
                   >
+                  {#if te?.name}
+                    <Tooltip
+                      target={`topName-${te.id}`}
+                      placement="left"
+                      >{te.name}</Tooltip
+                    >
+                  {/if}
                 {:else}
                   <th scope="col"
                     ><a
-                      href="/monitoring/jobs/?cluster={cluster}&project={te.id}&projectMatch=eq"
+                      href="/monitoring/jobs/?cluster={clusterName}&project={te.id}&projectMatch=eq"
                       >{te.id}</a
                     ></th
                   >
