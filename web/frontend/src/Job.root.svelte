@@ -130,7 +130,7 @@
     const pendingMetrics = [
       ...(ccconfig[`job_view_selectedMetrics:${job.cluster}`] ||
       $initq.data.globalMetrics.reduce((names, gm) => {
-          if (gm.availability.find((av) => av.cluster === job.cluster)) {
+          if (gm.availability.find((av) => av.cluster === job.cluster && av.subClusters.includes(job.subCluster))) {
             names.push(gm.name);
           }
           return names;
@@ -434,6 +434,7 @@
 {#if $initq.data}
   <MetricSelection
     cluster={$initq.data.job.cluster}
+    subCluster={$initq.data.job.subCluster}
     configName="job_view_selectedMetrics"
     bind:metrics={selectedMetrics}
     bind:isOpen={isMetricsSelectionOpen}

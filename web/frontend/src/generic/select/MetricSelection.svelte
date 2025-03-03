@@ -28,6 +28,7 @@
   export let configName;
   export let allMetrics = null;
   export let cluster = null;
+  export let subCluster = null;
   export let showFootprint = false;
   export let footprintSelect = false;
 
@@ -51,7 +52,11 @@
       } else {
         allMetrics.clear();
         for (let gm of globalMetrics) {
-          if (gm.availability.find((av) => av.cluster === cluster)) allMetrics.add(gm.name);
+          if (subCluster == null) {
+            if (gm.availability.find((av) => av.cluster === cluster)) allMetrics.add(gm.name);
+          } else {
+            if (gm.availability.find((av) => av.cluster === cluster && av.subClusters.includes(subCluster))) allMetrics.add(gm.name);
+          }
         }
       }
       newMetricsOrder = [...allMetrics].filter((m) => !metrics.includes(m));

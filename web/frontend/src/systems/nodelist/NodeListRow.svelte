@@ -102,8 +102,8 @@
     if ($nodeJobsData.data.jobs.count >= 1) { // "&& !$nodeJobsData.data.jobs.items[0].exclusive)"
       const accSet = Array.from(new Set($nodeJobsData.data.jobs.items
         .map((i) => i.resources
-          .filter((r) => r.hostname === nodeData.host)
-          .map((r) => r.accelerators)
+          .filter((r) => (r.hostname === nodeData.host) && r?.accelerators)
+          .map((r) => r?.accelerators)
         )
       )).flat(2)
 
