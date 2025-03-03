@@ -169,6 +169,7 @@
 
 <MetricSelection
   cluster={job.cluster}
+  subCluster={job.subCluster}
   configName="job_view_nodestats_selectedMetrics"
   bind:allMetrics={availableMetrics}
   bind:metrics={selectedMetrics}
