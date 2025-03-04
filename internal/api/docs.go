@@ -1518,8 +1518,7 @@ const docTemplate = `{
                         "cancelled",
                         "stopped",
                         "timeout",
-                        "out_of_memory",
-                        "node_fail"
+                        "out_of_memory"
                     ],
                     "allOf": [
                         {
@@ -1677,8 +1676,7 @@ const docTemplate = `{
                         "cancelled",
                         "stopped",
                         "timeout",
-                        "out_of_memory",
-                        "node_fail"
+                        "out_of_memory"
                     ],
                     "allOf": [
                         {

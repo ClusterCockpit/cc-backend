@@ -76,7 +76,6 @@
         "cancelled",
         "stopped",
         "out_of_memory",
-        "node_fail",
         "timeout"
       ]
     },

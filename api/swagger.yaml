@@ -201,7 +201,6 @@ definitions:
         - stopped
         - timeout
         - out_of_memory
-        - node_fail
         example: completed
       metaData:
         additionalProperties:
@@ -315,7 +314,6 @@ definitions:
         - stopped
         - timeout
         - out_of_memory
-        - node_fail
         example: completed
       metaData:
         additionalProperties:
