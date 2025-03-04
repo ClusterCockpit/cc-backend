@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS job (
     walltime          INT NOT NULL DEFAULT 0,
     job_state         VARCHAR(255) NOT NULL 
     CHECK(job_state IN ('running', 'completed', 'failed', 'cancelled',
-            'stopped', 'timeout', 'preempted', 'out_of_memory')),
+            'stopped', 'timeout', 'preempted', 'out_of_memory', 'node_fail')),
     meta_data         TEXT,          -- JSON
     resources         TEXT NOT NULL, -- JSON
 
