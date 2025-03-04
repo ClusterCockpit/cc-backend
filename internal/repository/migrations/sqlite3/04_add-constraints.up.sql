@@ -11,7 +11,7 @@ array_job_id      BIGINT,
 duration          INT NOT NULL,
 walltime          INT NOT NULL,
 job_state         VARCHAR(255) NOT NULL
-CHECK(job_state IN ('running', 'completed', 'failed', 'cancelled', 'stopped', 'timeout', 'preempted', 'out_of_memory')),
+CHECK(job_state IN ('running', 'completed', 'failed', 'cancelled', 'stopped', 'timeout', 'preempted', 'out_of_memory', 'node_fail')),
 meta_data         TEXT,          -- JSON
 resources         TEXT NOT NULL, -- JSON
 num_nodes         INT NOT NULL,
