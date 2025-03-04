@@ -1792,7 +1792,8 @@ const docTemplate = `{
                 "stopped",
                 "timeout",
                 "preempted",
-                "out_of_memory"
+                "out_of_memory",
+                "node_fail"
             ],
             "x-enum-varnames": [
                 "JobStateRunning",
@@ -1802,7 +1803,8 @@ const docTemplate = `{
                 "JobStateStopped",
                 "JobStateTimeout",
                 "JobStatePreempted",
-                "JobStateOutOfMemory"
+                "JobStateOutOfMemory",
+                "JobStateNodeFail"
             ]
         },
         "schema.JobStatistics": {

@@ -1786,7 +1786,8 @@
                 "stopped",
                 "timeout",
                 "preempted",
-                "out_of_memory"
+                "out_of_memory",
+                "node_fail"
             ],
             "x-enum-varnames": [
                 "JobStateRunning",
@@ -1796,7 +1797,8 @@
                 "JobStateStopped",
                 "JobStateTimeout",
                 "JobStatePreempted",
-                "JobStateOutOfMemory"
+                "JobStateOutOfMemory",
+                "JobStateNodeFail"
             ]
         },
         "schema.JobStatistics": {
