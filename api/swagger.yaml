@@ -395,7 +395,6 @@ definitions:
     - timeout
     - preempted
     - out_of_memory
-    - node_fail
     type: string
     x-enum-varnames:
     - JobStateRunning
@@ -406,7 +405,6 @@ definitions:
     - JobStateTimeout
     - JobStatePreempted
     - JobStateOutOfMemory
-    - JobStateNodeFail
   schema.JobStatistics:
     description: Specification for job metric statistics.
     properties:

@@ -143,7 +143,6 @@ const (
 	JobStateTimeout     JobState = "timeout"
 	JobStatePreempted   JobState = "preempted"
 	JobStateOutOfMemory JobState = "out_of_memory"
-	JobStateNodeFail    JobState = "node_fail"
 )
 
 func (e *JobState) UnmarshalGQL(v interface{}) error {
@@ -172,6 +171,5 @@ func (e JobState) Valid() bool {
 		e == JobStateStopped ||
 		e == JobStateTimeout ||
 		e == JobStatePreempted ||
-		e == JobStateOutOfMemory ||
-		e == JobStateNodeFail
+		e == JobStateOutOfMemory
 }
