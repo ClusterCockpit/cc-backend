@@ -23,6 +23,7 @@
     "timeout",
     "preempted",
     "out_of_memory",
+    "node_fail",
   ];
 </script>
 
