@@ -37,9 +37,10 @@
     sorting = {},
     isMetricSelectionOpen = false,
     availableMetrics = new Set(),
-    selectedMetrics =
-      getContext("cc-config")[`job_view_nodestats_selectedMetrics:${job.cluster}`] ||
-      getContext("cc-config")["job_view_nodestats_selectedMetrics"];
+    selectedMetrics = (
+      getContext("cc-config")[`job_view_nodestats_selectedMetrics:${job.cluster}:${job.subCluster}`] ||
+      getContext("cc-config")[`job_view_nodestats_selectedMetrics:${job.cluster}`]
+    ) || getContext("cc-config")["job_view_nodestats_selectedMetrics"];
 
   for (let metric of sortedJobMetrics) {
     // Not Exclusive or Multi-Node: get maxScope directly (mostly: node)

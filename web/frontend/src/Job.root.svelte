@@ -128,15 +128,24 @@
     if (!job) return;
 
     const pendingMetrics = [
-      ...(ccconfig[`job_view_selectedMetrics:${job.cluster}`] ||
-      $initq.data.globalMetrics.reduce((names, gm) => {
-          if (gm.availability.find((av) => av.cluster === job.cluster && av.subClusters.includes(job.subCluster))) {
-            names.push(gm.name);
-          }
-          return names;
-        }, [])
+      ...(
+        (
+          ccconfig[`job_view_selectedMetrics:${job.cluster}:${job.subCluster}`] ||
+          ccconfig[`job_view_selectedMetrics:${job.cluster}`]
+        ) ||
+        $initq.data.globalMetrics
+          .reduce((names, gm) => {
+            if (gm.availability.find((av) => av.cluster === job.cluster && av.subClusters.includes(job.subCluster))) {
+              names.push(gm.name);
+            }
+            return names;
+          }, [])
       ),
-      ...(ccconfig[`job_view_nodestats_selectedMetrics:${job.cluster}`] ||
+      ...(
+        (
+          ccconfig[`job_view_nodestats_selectedMetrics:${job.cluster}:${job.subCluster}`] ||
+          ccconfig[`job_view_nodestats_selectedMetrics:${job.cluster}`]
+        ) ||
         ccconfig[`job_view_nodestats_selectedMetrics`]
       ),
     ];
