@@ -194,7 +194,14 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 		query = buildIntCondition("job.num_hwthreads", filter.NumHWThreads, query)
 	}
 	if filter.Node != nil {
-		query = buildStringCondition("job.resources", filter.Node, query)
+		log.Infof("Applying node filter: %v", filter.Node)
+		if filter.Node.Eq != nil {
+			query = query.Where("EXISTS (SELECT 1 FROM json_each(job.resources) WHERE json_extract(value, '$.hostname') = ?)", *filter.Node.Eq)
+		} else if filter.Node.Contains != nil {
+			query = query.Where("EXISTS (SELECT 1 FROM json_each(job.resources) WHERE json_extract(value, '$.hostname') LIKE ?)", "%"+*filter.Node.Contains+"%")
+		} else {
+			query = buildStringCondition("job.resources", filter.Node, query)
+		}
 	}
 	if filter.Energy != nil {
 		query = buildFloatCondition("job.energy", filter.Energy, query)
