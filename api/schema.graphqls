@@ -137,11 +137,6 @@ type JobMetricWithName {
   metric: JobMetric!
 }
 
-type JobMetricStatWithName {
-  name:   String!
-  stats:  MetricStatistics!
-}
-
 type JobMetric {
   unit:             Unit
   timestep:         Int!
@@ -156,6 +151,30 @@ type Series {
   data:       [NullableFloat!]!
 }
 
+type StatsSeries {
+  mean:   [NullableFloat!]!
+  median: [NullableFloat!]!
+  min:    [NullableFloat!]!
+  max:    [NullableFloat!]!
+}
+
+type JobStatsWithScope {
+  name:   String!
+  scope:  MetricScope!
+  stats:  [ScopedStats!]!
+}
+
+type ScopedStats {
+  hostname:   String!
+  id:         String
+  data:       MetricStatistics!
+}
+
+type JobStats {
+  name:   String!
+  stats:  MetricStatistics!
+}
+
 type Unit {
   base: String!
   prefix: String
@@ -165,13 +184,6 @@ type MetricStatistics {
   avg: Float!
   min: Float!
   max: Float!
-}
-
-type StatsSeries {
-  mean:   [NullableFloat!]!
-  median: [NullableFloat!]!
-  min:    [NullableFloat!]!
-  max:    [NullableFloat!]!
 }
 
 type MetricFootprints {
@@ -247,7 +259,8 @@ type Query {
 
   job(id: ID!): Job
   jobMetrics(id: ID!, metrics: [String!], scopes: [MetricScope!], resolution: Int): [JobMetricWithName!]!
-  jobMetricStats(id: ID!, metrics: [String!]): [JobMetricStatWithName!]!
+  jobStats(id: ID!, metrics: [String!]): [JobStats!]!
+  scopedJobStats(id: ID!, metrics: [String!], scopes: [MetricScope!]): [JobStatsWithScope!]!
   jobsFootprints(filter: [JobFilter!], metrics: [String!]!): Footprints
 
   jobs(filter: [JobFilter!], page: PageRequest, order: OrderByInput): JobResultList!

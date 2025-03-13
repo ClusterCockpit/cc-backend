@@ -301,6 +301,18 @@ func (idb *InfluxDBv2DataRepository) LoadStats(
 	return stats, nil
 }
 
+func (idb *InfluxDBv2DataRepository) LoadScopedStats(
+	job *schema.Job,
+	metrics []string,
+	scopes []schema.MetricScope,
+	ctx context.Context) (schema.ScopedJobStats, error) {
+
+	// TODO : Implement to be used in JobView Stats Table
+	log.Infof("LoadScopedStats unimplemented for InfluxDBv2DataRepository, Args: Job-ID %d, metrics %v, scopes %v", job.JobID, metrics, scopes)
+
+	return nil, errors.New("METRICDATA/INFLUXV2 > unimplemented for InfluxDBv2DataRepository")
+}
+
 func (idb *InfluxDBv2DataRepository) LoadNodeData(
 	cluster string,
 	metrics, nodes []string,

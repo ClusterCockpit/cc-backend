@@ -32,6 +32,43 @@ func DecodeJobData(r io.Reader, k string) (schema.JobData, error) {
 	return data.(schema.JobData), nil
 }
 
+func DecodeJobStats(r io.Reader, k string) (schema.ScopedJobStats, error) {
+	jobData, err := DecodeJobData(r, k)
+	// Convert schema.JobData to schema.ScopedJobStats
+	if jobData != nil {
+		scopedJobStats := make(schema.ScopedJobStats)
+		for metric, metricData := range jobData {
+			if _, ok := scopedJobStats[metric]; !ok {
+				scopedJobStats[metric] = make(map[schema.MetricScope][]*schema.ScopedStats)
+			}
+
+			for scope, jobMetric := range metricData {
+				if _, ok := scopedJobStats[metric][scope]; !ok {
+					scopedJobStats[metric][scope] = make([]*schema.ScopedStats, 0)
+				}
+
+				for _, series := range jobMetric.Series {
+					scopedJobStats[metric][scope] = append(scopedJobStats[metric][scope], &schema.ScopedStats{
+						Hostname: series.Hostname,
+						Id:       series.Id,
+						Data:     &series.Statistics,
+					})
+				}
+
+				// So that one can later check len(scopedJobStats[metric][scope]): Remove from map if empty
+				if len(scopedJobStats[metric][scope]) == 0 {
+					delete(scopedJobStats[metric], scope)
+					if len(scopedJobStats[metric]) == 0 {
+						delete(scopedJobStats, metric)
+					}
+				}
+			}
+		}
+		return scopedJobStats, nil
+	}
+	return nil, err
+}
+
 func DecodeJobMeta(r io.Reader) (*schema.JobMeta, error) {
 	var d schema.JobMeta
 	if err := json.NewDecoder(r).Decode(&d); err != nil {

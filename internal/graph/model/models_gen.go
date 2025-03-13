@@ -81,11 +81,6 @@ type JobLinkResultList struct {
 	Count     *int       `json:"count,omitempty"`
 }
 
-type JobMetricStatWithName struct {
-	Name  string                   `json:"name"`
-	Stats *schema.MetricStatistics `json:"stats"`
-}
-
 type JobMetricWithName struct {
 	Name   string             `json:"name"`
 	Scope  schema.MetricScope `json:"scope"`
@@ -98,6 +93,17 @@ type JobResultList struct {
 	Limit       *int          `json:"limit,omitempty"`
 	Count       *int          `json:"count,omitempty"`
 	HasNextPage *bool         `json:"hasNextPage,omitempty"`
+}
+
+type JobStats struct {
+	Name  string                   `json:"name"`
+	Stats *schema.MetricStatistics `json:"stats"`
+}
+
+type JobStatsWithScope struct {
+	Name  string             `json:"name"`
+	Scope schema.MetricScope `json:"scope"`
+	Stats []*ScopedStats     `json:"stats"`
 }
 
 type JobsStatistics struct {
@@ -171,6 +177,12 @@ type OrderByInput struct {
 type PageRequest struct {
 	ItemsPerPage int `json:"itemsPerPage"`
 	Page         int `json:"page"`
+}
+
+type ScopedStats struct {
+	Hostname string                   `json:"hostname"`
+	ID       *string                  `json:"id,omitempty"`
+	Data     *schema.MetricStatistics `json:"data"`
 }
 
 type StringInput struct {

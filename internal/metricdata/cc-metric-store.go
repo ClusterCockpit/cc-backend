@@ -618,7 +618,98 @@ func (ccms *CCMetricStore) LoadStats(
 	return stats, nil
 }
 
-// TODO: Support sub-node-scope metrics! For this, the partition of a node needs to be known!
+// Scoped Stats: Basically Load Data without resolution and data query flag?
+func (ccms *CCMetricStore) LoadScopedStats(
+	job *schema.Job,
+	metrics []string,
+	scopes []schema.MetricScope,
+	ctx context.Context,
+) (schema.ScopedJobStats, error) {
+	queries, assignedScope, err := ccms.buildQueries(job, metrics, scopes, 0)
+	if err != nil {
+		log.Warn("Error while building queries")
+		return nil, err
+	}
+
+	req := ApiQueryRequest{
+		Cluster:   job.Cluster,
+		From:      job.StartTime.Unix(),
+		To:        job.StartTime.Add(time.Duration(job.Duration) * time.Second).Unix(),
+		Queries:   queries,
+		WithStats: true,
+		WithData:  false,
+	}
+
+	resBody, err := ccms.doRequest(ctx, &req)
+	if err != nil {
+		log.Error("Error while performing request")
+		return nil, err
+	}
+
+	var errors []string
+	scopedJobStats := make(schema.ScopedJobStats)
+
+	for i, row := range resBody.Results {
+		query := req.Queries[i]
+		metric := ccms.toLocalName(query.Metric)
+		scope := assignedScope[i]
+
+		if _, ok := scopedJobStats[metric]; !ok {
+			scopedJobStats[metric] = make(map[schema.MetricScope][]*schema.ScopedStats)
+		}
+
+		if _, ok := scopedJobStats[metric][scope]; !ok {
+			scopedJobStats[metric][scope] = make([]*schema.ScopedStats, 0)
+		}
+
+		for ndx, res := range row {
+			if res.Error != nil {
+				/* Build list for "partial errors", if any */
+				errors = append(errors, fmt.Sprintf("failed to fetch '%s' from host '%s': %s", query.Metric, query.Hostname, *res.Error))
+				continue
+			}
+
+			id := (*string)(nil)
+			if query.Type != nil {
+				id = new(string)
+				*id = query.TypeIds[ndx]
+			}
+
+			if res.Avg.IsNaN() || res.Min.IsNaN() || res.Max.IsNaN() {
+				// "schema.Float()" because regular float64 can not be JSONed when NaN.
+				res.Avg = schema.Float(0)
+				res.Min = schema.Float(0)
+				res.Max = schema.Float(0)
+			}
+
+			scopedJobStats[metric][scope] = append(scopedJobStats[metric][scope], &schema.ScopedStats{
+				Hostname: query.Hostname,
+				Id:       id,
+				Data: &schema.MetricStatistics{
+					Avg: float64(res.Avg),
+					Min: float64(res.Min),
+					Max: float64(res.Max),
+				},
+			})
+		}
+
+		// So that one can later check len(scopedJobStats[metric][scope]): Remove from map if empty
+		if len(scopedJobStats[metric][scope]) == 0 {
+			delete(scopedJobStats[metric], scope)
+			if len(scopedJobStats[metric]) == 0 {
+				delete(scopedJobStats, metric)
+			}
+		}
+	}
+
+	if len(errors) != 0 {
+		/* Returns list for "partial errors" */
+		return scopedJobStats, fmt.Errorf("METRICDATA/CCMS > Errors: %s", strings.Join(errors, ", "))
+	}
+	return scopedJobStats, nil
+}
+
+// TODO: Support sub-node-scope metrics! For this, the partition of a node needs to be known! - Todo Outdated with NodeListData?
 func (ccms *CCMetricStore) LoadNodeData(
 	cluster string,
 	metrics, nodes []string,

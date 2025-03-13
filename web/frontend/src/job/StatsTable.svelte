@@ -3,13 +3,14 @@
 
     Properties:
     - `job Object`: The job object
-    - `jobMetrics [Object]`: The jobs metricdata
-
-    Exported:
-    - `moreLoaded`: Adds additional scopes requested from Metric.svelte in Job-View
  -->
 
 <script>
+  import { 
+    queryStore,
+    gql,
+    getContextClient 
+  } from "@urql/svelte";
   import { getContext } from "svelte";
   import {
     Button,
@@ -26,11 +27,6 @@
   import MetricSelection from "../generic/select/MetricSelection.svelte";
 
   export let job;
-  export let jobMetrics;
-
-  const sortedJobMetrics = [...new Set(jobMetrics.map((m) => m.name))].sort()
-  const scopesForMetric = (metric) =>
-      jobMetrics.filter((jm) => jm.name == metric).map((jm) => jm.scope);
 
   let hosts = job.resources.map((r) => r.hostname).sort(),
     selectedScopes = {},
@@ -42,29 +38,63 @@
       getContext("cc-config")[`job_view_nodestats_selectedMetrics:${job.cluster}`]
     ) || getContext("cc-config")["job_view_nodestats_selectedMetrics"];
 
-  for (let metric of sortedJobMetrics) {
-    // Not Exclusive or Multi-Node: get maxScope directly (mostly: node)
-    //   -> Else: Load smallest available granularity as default as per availability
-    const availableScopes = scopesForMetric(metric);
-    if (job.exclusive != 1 || job.numNodes == 1) {
-      if (availableScopes.includes("accelerator")) {
-        selectedScopes[metric] = "accelerator";
-      } else if (availableScopes.includes("core")) {
-        selectedScopes[metric] = "core";
-      } else if (availableScopes.includes("socket")) {
-        selectedScopes[metric] = "socket";
-      } else {
-        selectedScopes[metric] = "node";
+  const client = getContextClient();
+  const query = gql`
+    query ($dbid: ID!, $selectedMetrics: [String!]!, $selectedScopes: [MetricScope!]!) {
+      scopedJobStats(id: $dbid, metrics: $selectedMetrics, scopes: $selectedScopes) {
+        name
+        scope
+        stats {
+          hostname
+          id
+          data {
+            min
+            avg
+            max
+          }
+        }
       }
-    } else {
-      selectedScopes[metric] = maxScope(availableScopes);
     }
+  `;
 
-    sorting[metric] = {
-      min: { dir: "up", active: false },
-      avg: { dir: "up", active: false },
-      max: { dir: "up", active: false },
-    };
+  $: scopedStats = queryStore({
+    client: client,
+    query: query,
+    variables: { dbid: job.id, selectedMetrics, selectedScopes: ["node"] },
+  });
+
+  $: console.log(">>>> RESULT:", $scopedStats?.data?.scopedJobStats)
+
+  $: jobMetrics = $scopedStats?.data?.scopedJobStats || [];
+
+  const scopesForMetric = (metric) =>
+      jobMetrics.filter((jm) => jm.name == metric).map((jm) => jm.scope);
+
+  $: if ($scopedStats?.data) {
+    for (let metric of selectedMetrics) {
+      // Not Exclusive or Multi-Node: get maxScope directly (mostly: node)
+      //   -> Else: Load smallest available granularity as default as per availability
+      const availableScopes = scopesForMetric(metric);
+      if (job.exclusive != 1 || job.numNodes == 1) {
+        if (availableScopes.includes("accelerator")) {
+          selectedScopes[metric] = "accelerator";
+        } else if (availableScopes.includes("core")) {
+          selectedScopes[metric] = "core";
+        } else if (availableScopes.includes("socket")) {
+          selectedScopes[metric] = "socket";
+        } else {
+          selectedScopes[metric] = "node";
+        }
+      } else {
+        selectedScopes[metric] = maxScope(availableScopes);
+      }
+
+      sorting[metric] = {
+        min: { dir: "up", active: false },
+        avg: { dir: "up", active: false },
+        max: { dir: "up", active: false },
+      };
+    }
   }
 
   function sortBy(metric, stat) {
@@ -90,13 +120,6 @@
     });
   }
 
-  export function moreLoaded(moreJobMetrics) {
-    moreJobMetrics.forEach(function (newMetric) {
-      if (!jobMetrics.some((m) => m.scope == newMetric.scope)) {
-        jobMetrics = [...jobMetrics, newMetric]
-      }
-    });
-  };
 </script>
 
 <Row>

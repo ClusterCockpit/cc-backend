@@ -448,6 +448,18 @@ func (pdb *PrometheusDataRepository) LoadNodeData(
 	return data, nil
 }
 
+func (pdb *PrometheusDataRepository) LoadScopedStats(
+	job *schema.Job,
+	metrics []string,
+	scopes []schema.MetricScope,
+	ctx context.Context) (schema.ScopedJobStats, error) {
+
+	// TODO : Implement to be used in Job-View StatsTable
+	log.Infof("LoadScopedStats unimplemented for PrometheusDataRepository, Args: job-id %v, metrics %v, scopes %v", job.JobID, metrics, scopes)
+
+	return nil, errors.New("METRICDATA/PROMETHEUS > unimplemented for PrometheusDataRepository")
+}
+
 func (pdb *PrometheusDataRepository) LoadNodeListData(
 	cluster, subCluster, nodeFilter string,
 	metrics []string,
@@ -463,5 +475,5 @@ func (pdb *PrometheusDataRepository) LoadNodeListData(
 	// TODO : Implement to be used in NodeList-View
 	log.Infof("LoadNodeListData unimplemented for PrometheusDataRepository, Args: cluster %s, metrics %v, nodeFilter %v, scopes %v", cluster, metrics, nodeFilter, scopes)
 
-	return nil, totalNodes, hasNextPage, errors.New("METRICDATA/INFLUXV2 > unimplemented for PrometheusDataRepository")
+	return nil, totalNodes, hasNextPage, errors.New("METRICDATA/PROMETHEUS > unimplemented for PrometheusDataRepository")
 }

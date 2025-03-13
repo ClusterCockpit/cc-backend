@@ -27,6 +27,8 @@ type ArchiveBackend interface {
 
 	LoadJobData(job *schema.Job) (schema.JobData, error)
 
+	LoadJobStats(job *schema.Job) (schema.ScopedJobStats, error)
+
 	LoadClusterCfg(name string) (*schema.Cluster, error)
 
 	StoreJobMeta(jobMeta *schema.JobMeta) error
@@ -125,7 +127,7 @@ func LoadAveragesFromArchive(
 	return nil
 }
 
-// Helper to metricdataloader.LoadStatData().
+// Helper to metricdataloader.LoadJobStats().
 func LoadStatsFromArchive(
 	job *schema.Job,
 	metrics []string,
@@ -149,6 +151,22 @@ func LoadStatsFromArchive(
 			Min: stat.Min,
 			Max: stat.Max,
 		}
+	}
+
+	return data, nil
+}
+
+// Helper to metricdataloader.LoadScopedJobStats().
+func LoadScopedStatsFromArchive(
+	job *schema.Job,
+	metrics []string,
+	scopes []schema.MetricScope,
+) (schema.ScopedJobStats, error) {
+
+	data, err := ar.LoadJobStats(job)
+	if err != nil {
+		log.Warn("Error while loading job metadata from archiveBackend")
+		return nil, err
 	}
 
 	return data, nil

@@ -37,8 +37,8 @@
         return s.dir != "up" ? a[field] - b[field] : b[field] - a[field];
       } else {
         return s.dir != "up"
-          ? a.statistics[field] - b.statistics[field]
-          : b.statistics[field] - a.statistics[field];
+          ? a.data[field] - b.data[field]
+          : b.data[field] - a.data[field];
       }
     });
   }
@@ -52,7 +52,7 @@
 
   $: series = jobMetrics
     .find((jm) => jm.name == metric && jm.scope == scope)
-    ?.metric.series.filter((s) => s.hostname == host && s.statistics != null)
+    ?.stats.filter((s) => s.hostname == host && s.data != null)
     ?.sort(compareNumbers);
 </script>
 
@@ -60,13 +60,13 @@
   <td colspan={scope == "node" ? 3 : 4}><i>No data</i></td>
 {:else if series.length == 1 && scope == "node"}
   <td>
-    {series[0].statistics.min}
+    {series[0].data.min}
   </td>
   <td>
-    {series[0].statistics.avg}
+    {series[0].data.avg}
   </td>
   <td>
-    {series[0].statistics.max}
+    {series[0].data.max}
   </td>
 {:else}
   <td colspan="4">
@@ -86,9 +86,9 @@
       {#each series as s, i}
         <tr>
           <th>{s.id ?? i}</th>
-          <td>{s.statistics.min}</td>
-          <td>{s.statistics.avg}</td>
-          <td>{s.statistics.max}</td>
+          <td>{s.data.min}</td>
+          <td>{s.data.avg}</td>
+          <td>{s.data.max}</td>
         </tr>
       {/each}
     </table>

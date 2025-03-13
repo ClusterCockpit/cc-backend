@@ -301,30 +301,70 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 	return res, err
 }
 
-// JobMetricStats is the resolver for the jobMetricStats field.
-func (r *queryResolver) JobMetricStats(ctx context.Context, id string, metrics []string) ([]*model.JobMetricStatWithName, error) {
-
+// JobMetricStats is the resolver for the jobStats field.
+func (r *queryResolver) JobStats(ctx context.Context, id string, metrics []string) ([]*model.JobStats, error) {
 	job, err := r.Query().Job(ctx, id)
 	if err != nil {
-		log.Warn("Error while querying job for metrics")
+		log.Warnf("Error while querying job %s for metrics", id)
 		return nil, err
 	}
 
-	data, err := metricDataDispatcher.LoadStatData(job, metrics, ctx)
+	data, err := metricDataDispatcher.LoadJobStats(job, metrics, ctx)
 	if err != nil {
-		log.Warn("Error while loading job stat data")
+		log.Warnf("Error while loading job stat data for job id %s", id)
 		return nil, err
 	}
 
-	res := []*model.JobMetricStatWithName{}
+	res := []*model.JobStats{}
 	for name, md := range data {
-		res = append(res, &model.JobMetricStatWithName{
+		res = append(res, &model.JobStats{
 			Name:  name,
 			Stats: &md,
 		})
 	}
 
 	return res, err
+}
+
+// JobStats is the resolver for the scopedJobStats field.
+func (r *queryResolver) ScopedJobStats(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope) ([]*model.JobStatsWithScope, error) {
+	job, err := r.Query().Job(ctx, id)
+	if err != nil {
+		log.Warnf("Error while querying job %s for metrics", id)
+		return nil, err
+	}
+
+	data, err := metricDataDispatcher.LoadScopedJobStats(job, metrics, scopes, ctx)
+	if err != nil {
+		log.Warnf("Error while loading scoped job stat data for job id %s", id)
+		return nil, err
+	}
+
+	res := make([]*model.JobStatsWithScope, 0)
+	for name, scoped := range data {
+		for scope, stats := range scoped {
+			// log.Debugf("HANDLE >>>>> %s @ %s -> First Array Value %#v", name, scope, *stats[0])
+
+			mdlStats := make([]*model.ScopedStats, 0)
+			for _, stat := range stats {
+				// log.Debugf("CONVERT >>>>> >>>>> %s -> %v -> %#v", stat.Hostname, stat.Id, stat.Data)
+				mdlStats = append(mdlStats, &model.ScopedStats{
+					Hostname: stat.Hostname,
+					ID:       stat.Id,
+					Data:     stat.Data,
+				})
+			}
+
+			// log.Debugf("APPEND >>>>> >>>>> %#v", mdlStats)
+			res = append(res, &model.JobStatsWithScope{
+				Name:  name,
+				Scope: scope,
+				Stats: mdlStats,
+			})
+		}
+	}
+
+	return res, nil
 }
 
 // JobsFootprints is the resolver for the jobsFootprints field.

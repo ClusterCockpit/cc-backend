@@ -127,28 +127,17 @@
     let job = $initq.data.job;
     if (!job) return;
 
-    const pendingMetrics = [
-      ...(
-        (
-          ccconfig[`job_view_selectedMetrics:${job.cluster}:${job.subCluster}`] ||
-          ccconfig[`job_view_selectedMetrics:${job.cluster}`]
-        ) ||
-        $initq.data.globalMetrics
-          .reduce((names, gm) => {
-            if (gm.availability.find((av) => av.cluster === job.cluster && av.subClusters.includes(job.subCluster))) {
-              names.push(gm.name);
-            }
-            return names;
-          }, [])
-      ),
-      ...(
-        (
-          ccconfig[`job_view_nodestats_selectedMetrics:${job.cluster}:${job.subCluster}`] ||
-          ccconfig[`job_view_nodestats_selectedMetrics:${job.cluster}`]
-        ) ||
-        ccconfig[`job_view_nodestats_selectedMetrics`]
-      ),
-    ];
+    const pendingMetrics = (
+      ccconfig[`job_view_selectedMetrics:${job.cluster}:${job.subCluster}`] ||
+      ccconfig[`job_view_selectedMetrics:${job.cluster}`]
+    ) ||
+    $initq.data.globalMetrics
+      .reduce((names, gm) => {
+        if (gm.availability.find((av) => av.cluster === job.cluster && av.subClusters.includes(job.subCluster))) {
+          names.push(gm.name);
+        }
+        return names;
+      }, [])
 
     // Select default Scopes to load: Check before if any metric has accelerator scope by default
     const accScopeDefault = [...pendingMetrics].some(function (m) {
@@ -343,7 +332,6 @@
         {#if item.data}
           <Metric
             bind:this={plots[item.metric]}
-            on:more-loaded={({ detail }) => statsTable.moreLoaded(detail)}
             job={$initq.data.job}
             metricName={item.metric}
             metricUnit={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.unit}
@@ -404,15 +392,7 @@
             class="overflow-x-auto"
             active={!somethingMissing}
           >
-            {#if $jobMetrics?.data?.jobMetrics}
-              {#key $jobMetrics.data.jobMetrics}
-                <StatsTable
-                  bind:this={statsTable}
-                  job={$initq.data.job}
-                  jobMetrics={$jobMetrics.data.jobMetrics}
-                />
-              {/key}
-            {/if}
+            <StatsTable job={$initq.data.job}/>
           </TabPane>
           <TabPane tabId="job-script" tab="Job Script">
             <div class="pre-wrapper">
