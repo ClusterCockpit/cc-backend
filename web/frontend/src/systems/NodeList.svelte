@@ -217,13 +217,15 @@
           <tr>
             <td colspan={selectedMetrics.length + 1}>
               <div style="text-align:center;">
-                <p><b>
-                  Loading nodes {nodes.length + 1} to 
-                  { matchedNodes 
-                    ? `${(nodes.length + paging.itemsPerPage) > matchedNodes ? matchedNodes : (nodes.length + paging.itemsPerPage)} of ${matchedNodes} total`
-                    : (nodes.length + paging.itemsPerPage)
-                  }
-                </b></p>
+                {#if !usePaging}
+                  <p><b>
+                    Loading nodes {nodes.length + 1} to 
+                    { matchedNodes 
+                      ? `${(nodes.length + paging.itemsPerPage) > matchedNodes ? matchedNodes : (nodes.length + paging.itemsPerPage)} of ${matchedNodes} total`
+                      : (nodes.length + paging.itemsPerPage)
+                    }
+                  </b></p>
+                {/if}
                 <Spinner secondary />
               </div>
             </td>
