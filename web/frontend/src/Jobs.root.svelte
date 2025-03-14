@@ -137,5 +137,5 @@
   bind:metrics
   bind:isOpen={isMetricsSelectionOpen}
   bind:showFootprint
-  footprintSelect={true}
+  footprintSelect
 />

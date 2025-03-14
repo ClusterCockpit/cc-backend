@@ -29,8 +29,8 @@
   import Refresher from "./generic/helper/Refresher.svelte";
 
   export let displayType;
-  export let cluster;
-  export let subCluster = "";
+  export let cluster = null;
+  export let subCluster = null;
   export let from = null;
   export let to = null;
 
@@ -60,7 +60,10 @@
   let hostnameFilter = "";
   let pendingHostnameFilter = "";
   let selectedMetric = ccconfig.system_view_selectedMetric || "";
-  let selectedMetrics = ccconfig[`node_list_selectedMetrics:${cluster}`] || [ccconfig.system_view_selectedMetric];
+  let selectedMetrics = (
+    ccconfig[`node_list_selectedMetrics:${cluster}:${subCluster}`] ||
+    ccconfig[`node_list_selectedMetrics:${cluster}`]
+  ) || [ccconfig.system_view_selectedMetric];
   let isMetricsSelectionOpen = false;
 
   /*
@@ -191,6 +194,7 @@
 
 <MetricSelection
   {cluster}
+  {subCluster}
   configName="node_list_selectedMetrics"
   metrics={selectedMetrics}
   bind:isOpen={isMetricsSelectionOpen}

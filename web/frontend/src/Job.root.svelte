@@ -31,17 +31,16 @@
     init,
     groupByScope,
     checkMetricDisabled,
-    transformDataForRoofline,
   } from "./generic/utils.js";
   import Metric from "./job/Metric.svelte";
-  import StatsTable from "./job/StatsTable.svelte";
-  import JobSummary from "./job/JobSummary.svelte";
-  import EnergySummary from "./job/EnergySummary.svelte";
-  import ConcurrentJobs from "./generic/helper/ConcurrentJobs.svelte";
-  import PlotGrid from "./generic/PlotGrid.svelte";
-  import Roofline from "./generic/plots/Roofline.svelte";
-  import JobInfo from "./generic/joblist/JobInfo.svelte";
   import MetricSelection from "./generic/select/MetricSelection.svelte";
+  import JobInfo from "./generic/joblist/JobInfo.svelte";
+  import ConcurrentJobs from "./generic/helper/ConcurrentJobs.svelte";
+  import JobSummary from "./job/JobSummary.svelte";
+  import JobRoofline from "./job/JobRoofline.svelte";
+  import EnergySummary from "./job/EnergySummary.svelte";
+  import PlotGrid from "./generic/PlotGrid.svelte";
+  import StatsTable from "./job/StatsTable.svelte";
 
   export let dbid;
   export let username;
@@ -57,10 +56,10 @@
     selectedScopes = [];
 
   let plots = {},
-    roofWidth,
     statsTable
 
-  let missingMetrics = [],
+  let availableMetrics = new Set(),
+    missingMetrics = [],
     missingHosts = [],
     somethingMissing = false;
 
@@ -117,31 +116,10 @@
     }
   `;
 
-const roofQuery = gql`
-    query ($dbid: ID!, $selectedMetrics: [String!]!, $selectedScopes: [MetricScope!]!, $selectedResolution: Int) {
-      jobMetrics(id: $dbid, metrics: $selectedMetrics, scopes: $selectedScopes, resolution: $selectedResolution) {
-        name
-        scope
-        metric {
-          series {
-            data
-          }
-        }
-      }
-    }
-  `;
-
   $: jobMetrics = queryStore({
     client: client,
     query: query,
     variables: { dbid, selectedMetrics, selectedScopes },
-  });
-
-  // Roofline: Always load roofMetrics with configured timestep (Resolution: 0)
-  $: roofMetrics = queryStore({
-    client: client,
-    query: roofQuery,
-    variables: { dbid, selectedMetrics: ["flops_any", "mem_bw"], selectedScopes: ["node"], selectedResolution: 0 },
   });
 
   // Handle Job Query on Init -> is not executed anymore
@@ -150,10 +128,24 @@ const roofQuery = gql`
     if (!job) return;
 
     const pendingMetrics = [
-      ...(ccconfig[`job_view_selectedMetrics:${job.cluster}`] ||
-        ccconfig[`job_view_selectedMetrics`]
+      ...(
+        (
+          ccconfig[`job_view_selectedMetrics:${job.cluster}:${job.subCluster}`] ||
+          ccconfig[`job_view_selectedMetrics:${job.cluster}`]
+        ) ||
+        $initq.data.globalMetrics
+          .reduce((names, gm) => {
+            if (gm.availability.find((av) => av.cluster === job.cluster && av.subClusters.includes(job.subCluster))) {
+              names.push(gm.name);
+            }
+            return names;
+          }, [])
       ),
-      ...(ccconfig[`job_view_nodestats_selectedMetrics:${job.cluster}`] ||
+      ...(
+        (
+          ccconfig[`job_view_nodestats_selectedMetrics:${job.cluster}:${job.subCluster}`] ||
+          ccconfig[`job_view_nodestats_selectedMetrics:${job.cluster}`]
+        ) ||
         ccconfig[`job_view_nodestats_selectedMetrics`]
       ),
     ];
@@ -235,7 +227,7 @@ const roofQuery = gql`
 </script>
 
 <Row class="mb-3">
-  <!-- Column 1: Job Info, Job Tags, Concurrent Jobs, Admin Message if found-->
+  <!-- Row 1, Column 1: Job Info, Job Tags, Concurrent Jobs, Admin Message if found-->
   <Col xs={12} md={6} xl={3} class="mb-3 mb-xxl-0">
     {#if $initq.error}
       <Card body color="danger">{$initq.error.message}</Card>
@@ -277,51 +269,30 @@ const roofQuery = gql`
     {/if}
   </Col>
 
-  <!-- Column 2: Job Footprint, Polar Representation, Heuristic Summary -->
+  <!-- Row 1, Column 2: Job Footprint, Polar Representation -->
   <Col xs={12} md={6} xl={4} xxl={3} class="mb-3 mb-xxl-0">
     {#if $initq.error}
       <Card body color="danger">{$initq.error.message}</Card>
-    {:else if $initq?.data && $jobMetrics?.data}
-      <JobSummary job={$initq.data.job} jobMetrics={$jobMetrics.data.jobMetrics}/>
+    {:else if $initq?.data}
+      <JobSummary job={$initq.data.job}/>
     {:else}
       <Spinner secondary />
     {/if}
   </Col>
 
-  <!-- Column 3: Job Roofline; If footprint Enabled: full width, else half width -->
+  <!-- Row 1, Column 3: Job Roofline; If footprint Enabled: full width, else half width -->
   <Col xs={12} md={12} xl={5} xxl={6}>
-    {#if $initq.error || $roofMetrics.error}
-      <Card body color="danger">
-        <p>Initq Error: {$initq.error?.message}</p>
-        <p>roofMetrics (jobMetrics) Error: {$roofMetrics.error?.message}</p>
-      </Card>
-    {:else if $initq?.data && $roofMetrics?.data}
-      <Card style="height: 400px;">
-        <div bind:clientWidth={roofWidth}>
-          <Roofline
-            allowSizeChange={true}
-            width={roofWidth}
-            renderTime={true}
-            subCluster={$initq.data.clusters
-              .find((c) => c.name == $initq.data.job.cluster)
-              .subClusters.find((sc) => sc.name == $initq.data.job.subCluster)}
-            data={transformDataForRoofline(
-              $roofMetrics.data?.jobMetrics?.find(
-                (m) => m.name == "flops_any" && m.scope == "node",
-              )?.metric,
-              $roofMetrics.data?.jobMetrics?.find(
-                (m) => m.name == "mem_bw" && m.scope == "node",
-              )?.metric,
-            )}
-          />
-        </div>
-      </Card>
+    {#if $initq.error}
+      <Card body color="danger">{$initq.error.message}</Card>
+    {:else if $initq?.data}
+      <JobRoofline job={$initq.data.job} clusters={$initq.data.clusters}/>
     {:else}
-        <Spinner secondary />
+      <Spinner secondary />
     {/if}
   </Col>
 </Row>
 
+<!-- Row 2: Energy Information if available -->
 {#if $initq?.data && $initq.data.job.energyFootprint.length != 0}
   <Row class="mb-3">
     <Col>
@@ -330,13 +301,14 @@ const roofQuery = gql`
   </Row>
 {/if}
 
+<!-- Metric Plot Grid -->
 <Card class="mb-3">
   <CardBody>
     <Row class="mb-2">
       {#if $initq.data}
         <Col xs="auto">
             <Button outline on:click={() => (isMetricsSelectionOpen = true)} color="primary">
-              Select Metrics
+              Select Metrics (Selected {selectedMetrics.length} of {availableMetrics.size} available)
             </Button>
         </Col>
       {/if}
@@ -390,6 +362,7 @@ const roofQuery = gql`
   </CardBody>
 </Card>
 
+<!-- Statistcics Table -->
 <Row class="mb-3">
   <Col>
     {#if $initq.data}
@@ -470,9 +443,11 @@ const roofQuery = gql`
 {#if $initq.data}
   <MetricSelection
     cluster={$initq.data.job.cluster}
+    subCluster={$initq.data.job.subCluster}
     configName="job_view_selectedMetrics"
     bind:metrics={selectedMetrics}
     bind:isOpen={isMetricsSelectionOpen}
+    bind:allMetrics={availableMetrics}
   />
 {/if}
 

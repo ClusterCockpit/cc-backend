@@ -3,7 +3,7 @@
 
     Properties:
     - `polarMetrics [Object]?`: Metric names and scaled peak values for rendering polar plot [Default: [] ]
-    - `jobMetrics [GraphQL.JobMetricWithName]?`: Metric data [Default: null]
+    - `polarData [GraphQL.JobMetricStatWithName]?`: Metric data [Default: null]
     - `height Number?`: Plot height [Default: 365]
  -->
 
@@ -31,7 +31,7 @@
     );
 
     export let polarMetrics = [];
-    export let jobMetrics = null;
+    export let polarData = [];
     export let height = 350;
 
     const labels = polarMetrics
@@ -40,52 +40,25 @@
         .sort(function (a, b) {return ((a > b) ? 1 : ((b > a) ? -1 : 0))});
 
     function loadData(type) {
-        if (!labels) {
+        if (labels && (type == 'avg' || type == 'min' ||type == 'max')) {
+            return getValues(type)
+        } else if (!labels) {
             console.warn("Empty 'polarMetrics' array prop! Cannot render Polar representation.")
-            return []
         } else {
-            if (type === 'avg') {
-                return getValues(getAvg)
-            } else if (type === 'max') {
-                return getValues(getMax)
-            } else if (type === 'min') {
-                return getValues(getMin)
-            }
-            console.log('Unknown Type For Polar Data (must be one of [min, max, avg])')
-            return []
+            console.warn('Unknown Type For Polar Data (must be one of [min, max, avg])')
         }
+        return []
     }
 
-    // Helpers
+    // Helper
 
-    const getValues = (getStat) => labels.map(name => {
+    const getValues = (type) => labels.map(name => {
         // Peak is adapted and scaled for job shared state
-        const peak = polarMetrics.find(m => m.name == name).peak
-        const metric = jobMetrics.find(m => m.name == name && m.scope == "node")
-        const value = getStat(metric.metric) / peak
+        const peak = polarMetrics.find(m => m?.name == name)?.peak
+        const metric = polarData.find(m => m?.name == name)?.stats
+        const value = (peak && metric) ? (metric[type] / peak) : 0
         return value <= 1. ? value : 1.
     })
-
-    function getMax(metric) {
-        let max = metric.series[0].statistics.max;
-        for (let series of metric.series)
-            max = Math.max(max, series.statistics.max)
-        return max
-    }
-
-    function getMin(metric) {
-        let min = metric.series[0].statistics.min;
-        for (let series of metric.series)
-            min = Math.min(min, series.statistics.min)
-        return min
-    }
-
-    function getAvg(metric) {
-        let avg = 0;
-        for (let series of metric.series)
-            avg += series.statistics.avg
-        return avg / metric.series.length
-    }
 
     // Chart JS Objects
 

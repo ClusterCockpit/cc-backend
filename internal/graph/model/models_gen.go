@@ -81,6 +81,11 @@ type JobLinkResultList struct {
 	Count     *int       `json:"count,omitempty"`
 }
 
+type JobMetricStatWithName struct {
+	Name  string                   `json:"name"`
+	Stats *schema.MetricStatistics `json:"stats"`
+}
+
 type JobMetricWithName struct {
 	Name   string             `json:"name"`
 	Scope  schema.MetricScope `json:"scope"`
@@ -168,9 +173,6 @@ type PageRequest struct {
 	Page         int `json:"page"`
 }
 
-type Query struct {
-}
-
 type StringInput struct {
 	Eq         *string  `json:"eq,omitempty"`
 	Neq        *string  `json:"neq,omitempty"`
@@ -224,7 +226,7 @@ func (e Aggregate) String() string {
 	return string(e)
 }
 
-func (e *Aggregate) UnmarshalGQL(v interface{}) error {
+func (e *Aggregate) UnmarshalGQL(v any) error {
 	str, ok := v.(string)
 	if !ok {
 		return fmt.Errorf("enums must be strings")
@@ -277,7 +279,7 @@ func (e SortByAggregate) String() string {
 	return string(e)
 }
 
-func (e *SortByAggregate) UnmarshalGQL(v interface{}) error {
+func (e *SortByAggregate) UnmarshalGQL(v any) error {
 	str, ok := v.(string)
 	if !ok {
 		return fmt.Errorf("enums must be strings")
@@ -318,7 +320,7 @@ func (e SortDirectionEnum) String() string {
 	return string(e)
 }
 
-func (e *SortDirectionEnum) UnmarshalGQL(v interface{}) error {
+func (e *SortDirectionEnum) UnmarshalGQL(v any) error {
 	str, ok := v.(string)
 	if !ok {
 		return fmt.Errorf("enums must be strings")
