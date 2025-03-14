@@ -28,6 +28,8 @@ For release specific notes visit the [ClusterCockpit Documentation](https://clus
 - Color Blind Mode
   - Set on a per-user basis in options
   - Applies to plot data, plot background color, statsseries colors, roofline timescale
+- Job-View metric selection is now persisted based on the jobs subcluster.
+Helpful for heterogeneous subcluster configurations.
 - Histogram Bin Select in User-View
   - Metric-Histograms: `10 Bins` now default, selectable options `20, 50, 100`
   - Job-Duration-Histogram: `48h in 1h Bins` now default, selectable options:
