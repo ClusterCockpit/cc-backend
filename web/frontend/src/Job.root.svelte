@@ -40,7 +40,7 @@
   import JobRoofline from "./job/JobRoofline.svelte";
   import EnergySummary from "./job/EnergySummary.svelte";
   import PlotGrid from "./generic/PlotGrid.svelte";
-  import StatsTable from "./job/StatsTable.svelte";
+  import StatsTab from "./job/StatsTab.svelte";
 
   export let dbid;
   export let username;
@@ -53,10 +53,8 @@
 
  let isMetricsSelectionOpen = false,
     selectedMetrics = [],
-    selectedScopes = [];
-
-  let plots = {},
-    statsTable
+    selectedScopes = [],
+    plots = {};
 
   let availableMetrics = new Set(),
     missingMetrics = [],
@@ -386,14 +384,8 @@
               </div>
             </TabPane>
           {/if}
-          <TabPane
-            tabId="stats"
-            tab="Statistics Table"
-            class="overflow-x-auto"
-            active={!somethingMissing}
-          >
-            <StatsTable job={$initq.data.job}/>
-          </TabPane>
+          <!-- Includes <TabPane> Statistics Table with Independent GQL Query -->
+          <StatsTab job={$initq.data.job} clusters={$initq.data.clusters} tabActive={!somethingMissing}/>
           <TabPane tabId="job-script" tab="Job Script">
             <div class="pre-wrapper">
               {#if $initq.data.job.metaData?.jobScript}

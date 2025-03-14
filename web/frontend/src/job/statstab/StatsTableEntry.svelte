@@ -1,11 +1,11 @@
 <!--
-    @component Job-View subcomponent; Single Statistics entry component fpr statstable
+    @component Job-View subcomponent; Single Statistics entry component for statstable
 
     Properties:
     - `host String`: The hostname (== node)
     - `metric String`: The metric name
     - `scope String`: The selected scope
-    - `jobMetrics [Object]`: The jobs metricdata
+    - `data [Object]`: The jobs statsdata
  -->
 
 <script>
@@ -14,27 +14,34 @@
   export let host;
   export let metric;
   export let scope;
-  export let jobMetrics;
+  export let data;
+
+  let entrySorting = {
+    id: { dir: "down", active: true },
+    min: { dir: "up", active: false },
+    avg: { dir: "up", active: false },
+    max: { dir: "up", active: false },
+  };
 
   function compareNumbers(a, b) {
     return a.id - b.id;
   }
 
   function sortByField(field) {
-    let s = sorting[field];
+    let s = entrySorting[field];
     if (s.active) {
       s.dir = s.dir == "up" ? "down" : "up";
     } else {
-      for (let field in sorting) sorting[field].active = false;
+      for (let field in entrySorting) entrySorting[field].active = false;
       s.active = true;
     }
 
-    sorting = { ...sorting };
-    series = series.sort((a, b) => {
+    entrySorting = { ...entrySorting };
+    stats = stats.sort((a, b) => {
       if (a == null || b == null) return -1;
 
       if (field === "id") {
-        return s.dir != "up" ? a[field] - b[field] : b[field] - a[field];
+        return s.dir != "up" ?  a[field].localeCompare(b[field]) : b[field].localeCompare(a[field])
       } else {
         return s.dir != "up"
           ? a.data[field] - b.data[field]
@@ -43,30 +50,23 @@
     });
   }
 
-  let sorting = {
-    id: { dir: "down", active: true },
-    min: { dir: "up", active: false },
-    avg: { dir: "up", active: false },
-    max: { dir: "up", active: false },
-  };
-
-  $: series = jobMetrics
-    .find((jm) => jm.name == metric && jm.scope == scope)
+  $: stats = data
+    ?.find((d) => d.name == metric && d.scope == scope)
     ?.stats.filter((s) => s.hostname == host && s.data != null)
-    ?.sort(compareNumbers);
+    ?.sort(compareNumbers) || [];
 </script>
 
-{#if series == null || series.length == 0}
+{#if stats == null || stats.length == 0}
   <td colspan={scope == "node" ? 3 : 4}><i>No data</i></td>
-{:else if series.length == 1 && scope == "node"}
+{:else if stats.length == 1 && scope == "node"}
   <td>
-    {series[0].data.min}
+    {stats[0].data.min}
   </td>
   <td>
-    {series[0].data.avg}
+    {stats[0].data.avg}
   </td>
   <td>
-    {series[0].data.max}
+    {stats[0].data.max}
   </td>
 {:else}
   <td colspan="4">
@@ -76,14 +76,14 @@
           <th on:click={() => sortByField(field)}>
             Sort
             <Icon
-              name="caret-{sorting[field].dir}{sorting[field].active
+              name="caret-{entrySorting[field].dir}{entrySorting[field].active
                 ? '-fill'
                 : ''}"
             />
           </th>
         {/each}
       </tr>
-      {#each series as s, i}
+      {#each stats as s, i}
         <tr>
           <th>{s.id ?? i}</th>
           <td>{s.data.min}</td>

@@ -343,11 +343,9 @@ func (r *queryResolver) ScopedJobStats(ctx context.Context, id string, metrics [
 	res := make([]*model.JobStatsWithScope, 0)
 	for name, scoped := range data {
 		for scope, stats := range scoped {
-			// log.Debugf("HANDLE >>>>> %s @ %s -> First Array Value %#v", name, scope, *stats[0])
 
 			mdlStats := make([]*model.ScopedStats, 0)
 			for _, stat := range stats {
-				// log.Debugf("CONVERT >>>>> >>>>> %s -> %v -> %#v", stat.Hostname, stat.Id, stat.Data)
 				mdlStats = append(mdlStats, &model.ScopedStats{
 					Hostname: stat.Hostname,
 					ID:       stat.Id,
@@ -355,7 +353,6 @@ func (r *queryResolver) ScopedJobStats(ctx context.Context, id string, metrics [
 				})
 			}
 
-			// log.Debugf("APPEND >>>>> >>>>> %#v", mdlStats)
 			res = append(res, &model.JobStatsWithScope{
 				Name:  name,
 				Scope: scope,
