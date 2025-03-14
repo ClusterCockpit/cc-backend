@@ -68,16 +68,16 @@
   let durationBinOptions = ["1m","10m","1h","6h","12h"];
   let metricBinOptions = [10, 20, 50, 100];
 
-  $: metricsInHistograms = selectedCluster
-    ? ccconfig[`user_view_histogramMetrics:${selectedCluster}`] || []
-    : ccconfig.user_view_histogramMetrics || [];
+  $: selectedHistograms = selectedCluster
+    ? ccconfig[`user_view_histogramMetrics:${selectedCluster}`] || ( ccconfig['user_view_histogramMetrics'] || [] )
+    : ccconfig['user_view_histogramMetrics'] || [];
 
   const client = getContextClient();
   $: stats = queryStore({
     client: client,
     query: gql`
-      query ($jobFilters: [JobFilter!]!, $metricsInHistograms: [String!], $numDurationBins: String, $numMetricBins: Int) {
-        jobsStatistics(filter: $jobFilters, metrics: $metricsInHistograms, numDurationBins: $numDurationBins , numMetricBins: $numMetricBins ) {
+      query ($jobFilters: [JobFilter!]!, $selectedHistograms: [String!], $numDurationBins: String, $numMetricBins: Int) {
+        jobsStatistics(filter: $jobFilters, metrics: $selectedHistograms, numDurationBins: $numDurationBins , numMetricBins: $numMetricBins ) {
           totalJobs
           shortJobs
           totalWalltime
@@ -104,7 +104,7 @@
         }
       }
     `,
-    variables: { jobFilters, metricsInHistograms, numDurationBins, numMetricBins },
+    variables: { jobFilters, selectedHistograms, numDurationBins, numMetricBins },
   });
 
   onMount(() => filterComponent.updateFilters());
@@ -290,7 +290,7 @@
     </InputGroup>
   </Col>
 </Row>
-{#if metricsInHistograms?.length > 0}
+{#if selectedHistograms?.length > 0}
   {#if $stats.error}
     <Row>
       <Col>
@@ -352,11 +352,11 @@
   bind:metrics
   bind:isOpen={isMetricsSelectionOpen}
   bind:showFootprint
-  footprintSelect={true}
+  footprintSelect
 />
 
 <HistogramSelection
   bind:cluster={selectedCluster}
-  bind:metricsInHistograms
+  bind:selectedHistograms
   bind:isOpen={isHistogramSelectionOpen}
 />
