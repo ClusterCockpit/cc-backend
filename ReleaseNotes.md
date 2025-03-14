@@ -1,12 +1,12 @@
-# `cc-backend` version 1.4.2
+# `cc-backend` version 1.4.3
 
 Supports job archive version 2 and database version 8.
 
-This is a small bug fix release of `cc-backend`, the API backend and frontend
+This is a bug fix release of `cc-backend`, the API backend and frontend
 implementation of ClusterCockpit.
 For release specific notes visit the [ClusterCockpit Documentation](https://clusterockpit.org/docs/release/).
 
-## Breaking changes
+## Breaking changes for minor release 1.4.x
 
 - You need to perform a database migration. Depending on your database size the
   migration might require several hours!
@@ -22,20 +22,21 @@ For release specific notes visit the [ClusterCockpit Documentation](https://clus
 
 ## New features
 
-- Tags have a scope now. Tags created by a basic user are only visible by that
-  user. Tags created by an admin/support role can be configured to be visible by
-  all users (global scope) or only be admin/support role.
-- Re-sampling support for running (requires a recent `cc-metric-store`) and
-  archived jobs. This greatly speeds up loading of large or very long jobs. You
-  need to add the new configuration key `enable-resampling` to the `config.json`
-  file.
-- For finished jobs a total job energy is shown in the job view.
-- Continuous scrolling in job lists is default now.
-- All database queries (especially for sqlite) were optimized resulting in
-  dramatically faster load times.
-- A performance and energy footprint can be freely configured on a per
-  subcluster base. One can filter for footprint statistics for running and
-  finished jobs.
+- Detailed Node List
+  - Adds new routes `/systems/list/$cluster` and `/systems/list/$cluster/$subcluster`
+  - Displays live, scoped metric data requested from the nodes indepenent of jobs
+- Color Blind Mode
+  - Set on a per-user basis in options
+  - Applies to plot data, plot background color, statsseries colors, roofline timescale
+- Job-View metric selection is now persisted based on the jobs subcluster.
+Helpful for heterogeneous subcluster configurations.
+- Histogram Bin Select in User-View
+  - Metric-Histograms: `10 Bins` now default, selectable options `20, 50, 100`
+  - Job-Duration-Histogram: `48h in 1h Bins` now default, selectable options:
+    - `60 minutes in 1 minute Bins`
+    - `12 hours in 10 minute Bins`
+    - `3 days in 6 hour Bins`
+    - `7 days in 12 hour Bins`
 
 ## Known issues
 
