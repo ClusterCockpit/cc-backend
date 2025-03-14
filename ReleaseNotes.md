@@ -6,7 +6,7 @@ This is a bug fix release of `cc-backend`, the API backend and frontend
 implementation of ClusterCockpit.
 For release specific notes visit the [ClusterCockpit Documentation](https://clusterockpit.org/docs/release/).
 
-## Breaking changes
+## Breaking changes for minor release 1.4.x
 
 - You need to perform a database migration. Depending on your database size the
   migration might require several hours!
