@@ -18,6 +18,8 @@
     InputGroup,
     InputGroupText,
     Icon,
+    Row,
+    Col
   } from "@sveltestrap/sveltestrap";
   import { maxScope } from "../generic/utils.js";
   import StatsTableEntry from "./StatsTableEntry.svelte";
@@ -26,7 +28,7 @@
   export let job;
   export let jobMetrics;
 
-  const allMetrics = [...new Set(jobMetrics.map((m) => m.name))].sort()
+  const sortedJobMetrics = [...new Set(jobMetrics.map((m) => m.name))].sort()
   const scopesForMetric = (metric) =>
       jobMetrics.filter((jm) => jm.name == metric).map((jm) => jm.scope);
 
@@ -34,11 +36,13 @@
     selectedScopes = {},
     sorting = {},
     isMetricSelectionOpen = false,
-    selectedMetrics =
-      getContext("cc-config")[`job_view_nodestats_selectedMetrics:${job.cluster}`] ||
-      getContext("cc-config")["job_view_nodestats_selectedMetrics"];
+    availableMetrics = new Set(),
+    selectedMetrics = (
+      getContext("cc-config")[`job_view_nodestats_selectedMetrics:${job.cluster}:${job.subCluster}`] ||
+      getContext("cc-config")[`job_view_nodestats_selectedMetrics:${job.cluster}`]
+    ) || getContext("cc-config")["job_view_nodestats_selectedMetrics"];
 
-  for (let metric of allMetrics) {
+  for (let metric of sortedJobMetrics) {
     // Not Exclusive or Multi-Node: get maxScope directly (mostly: node)
     //   -> Else: Load smallest available granularity as default as per availability
     const availableScopes = scopesForMetric(metric);
@@ -95,15 +99,19 @@
   };
 </script>
 
+<Row>
+  <Col class="m-2">
+    <Button outline on:click={() => (isMetricSelectionOpen = true)} class="w-auto px-2" color="primary">
+      Select Metrics (Selected {selectedMetrics.length} of {availableMetrics.size} available)
+    </Button>
+  </Col>
+</Row>
+<hr class="mb-1 mt-1"/>
 <Table class="mb-0">
   <thead>
     <!-- Header Row 1: Selectors -->
     <tr>
-      <th>
-        <Button outline on:click={() => (isMetricSelectionOpen = true)} class="w-100 px-2" color="primary">
-          Select Metrics
-        </Button>
-      </th>
+      <th/>
       {#each selectedMetrics as metric}
         <!-- To Match Row-2 Header Field Count-->
         <th colspan={selectedScopes[metric] == "node" ? 3 : 4}>
@@ -162,8 +170,9 @@
 
 <MetricSelection
   cluster={job.cluster}
+  subCluster={job.subCluster}
   configName="job_view_nodestats_selectedMetrics"
-  allMetrics={new Set(allMetrics)}
+  bind:allMetrics={availableMetrics}
   bind:metrics={selectedMetrics}
   bind:isOpen={isMetricSelectionOpen}
 />

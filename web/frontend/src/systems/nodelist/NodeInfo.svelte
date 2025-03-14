@@ -102,6 +102,19 @@
           Shared
         </Button>
       </InputGroup>
+    <!-- Fallback -->
+    {:else if nodeJobsData.jobs.count >= 1}
+      <InputGroup>
+        <InputGroupText>
+          <Icon name="circle-fill"/>
+        </InputGroupText>
+        <InputGroupText>
+          Status
+        </InputGroupText>
+        <Button color="success" disabled>
+          Allocated Jobs
+        </Button>
+      </InputGroup>
     {:else}
       <InputGroup>
         <InputGroupText>
