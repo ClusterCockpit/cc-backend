@@ -9,6 +9,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 	"github.com/ClusterCockpit/cc-lib/sinks"
 )
@@ -51,5 +52,6 @@ func Shutdown() {
 	}
 }
 
-func forwardJob() {
+func forwardJob(job schema.BaseJob) {
+  payload := lp.NewEvent("start_job", nil , meta map[string]string, event string, tm time.Time)
 }
