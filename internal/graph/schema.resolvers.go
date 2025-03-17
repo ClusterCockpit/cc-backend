@@ -301,17 +301,17 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 	return res, err
 }
 
-// JobMetricStats is the resolver for the jobStats field.
+// JobStats is the resolver for the jobStats field.
 func (r *queryResolver) JobStats(ctx context.Context, id string, metrics []string) ([]*model.JobStats, error) {
 	job, err := r.Query().Job(ctx, id)
 	if err != nil {
-		log.Warnf("Error while querying job %s for metrics", id)
+		log.Warnf("Error while querying job %s for metadata", id)
 		return nil, err
 	}
 
 	data, err := metricDataDispatcher.LoadJobStats(job, metrics, ctx)
 	if err != nil {
-		log.Warnf("Error while loading job stat data for job id %s", id)
+		log.Warnf("Error while loading jobStats data for job id %s", id)
 		return nil, err
 	}
 
@@ -326,17 +326,17 @@ func (r *queryResolver) JobStats(ctx context.Context, id string, metrics []strin
 	return res, err
 }
 
-// JobStats is the resolver for the scopedJobStats field.
+// ScopedJobStats is the resolver for the scopedJobStats field.
 func (r *queryResolver) ScopedJobStats(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope) ([]*model.JobStatsWithScope, error) {
 	job, err := r.Query().Job(ctx, id)
 	if err != nil {
-		log.Warnf("Error while querying job %s for metrics", id)
+		log.Warnf("Error while querying job %s for metadata", id)
 		return nil, err
 	}
 
 	data, err := metricDataDispatcher.LoadScopedJobStats(job, metrics, scopes, ctx)
 	if err != nil {
-		log.Warnf("Error while loading scoped job stat data for job id %s", id)
+		log.Warnf("Error while loading scopedJobStats data for job id %s", id)
 		return nil, err
 	}
 

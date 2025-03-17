@@ -89,7 +89,7 @@ func Init(rawConfig json.RawMessage, disableArchive bool) error {
 		var version uint64
 		version, err = ar.Init(rawConfig)
 		if err != nil {
-			log.Error("Error while initializing archiveBackend")
+			log.Errorf("Error while initializing archiveBackend: %s", err.Error())
 			return
 		}
 		log.Infof("Load archive version %d", version)
@@ -112,7 +112,7 @@ func LoadAveragesFromArchive(
 ) error {
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
-		log.Warn("Error while loading job metadata from archiveBackend")
+		log.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
 		return err
 	}
 
@@ -135,7 +135,7 @@ func LoadStatsFromArchive(
 	data := make(map[string]schema.MetricStatistics, len(metrics))
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
-		log.Warn("Error while loading job metadata from archiveBackend")
+		log.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
 		return data, err
 	}
 
@@ -165,7 +165,7 @@ func LoadScopedStatsFromArchive(
 
 	data, err := ar.LoadJobStats(job)
 	if err != nil {
-		log.Warn("Error while loading job metadata from archiveBackend")
+		log.Errorf("Error while loading job stats from archiveBackend: %s", err.Error())
 		return nil, err
 	}
 
@@ -175,7 +175,7 @@ func LoadScopedStatsFromArchive(
 func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
-		log.Warn("Error while loading job metadata from archiveBackend")
+		log.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
 		return nil, err
 	}
 
@@ -191,7 +191,7 @@ func UpdateMetadata(job *schema.Job, metadata map[string]string) error {
 
 	jobMeta, err := ar.LoadJobMeta(job)
 	if err != nil {
-		log.Warn("Error while loading job metadata from archiveBackend")
+		log.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
 		return err
 	}
 
@@ -211,7 +211,7 @@ func UpdateTags(job *schema.Job, tags []*schema.Tag) error {
 
 	jobMeta, err := ar.LoadJobMeta(job)
 	if err != nil {
-		log.Warn("Error while loading job metadata from archiveBackend")
+		log.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
 		return err
 	}
 

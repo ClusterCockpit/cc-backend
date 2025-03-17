@@ -2,8 +2,8 @@
     @component Job-View subcomponent; display table of metric data statistics with selectable scopes
 
     Properties:
-    - `job Object`: The job object
-    - `clusters Object`: The clusters object
+    - `data Object`: The data object
+    - `selectedMetrics [String]`: The selected metrics
     - `hosts [String]`: The list of hostnames of this job
  -->
 
