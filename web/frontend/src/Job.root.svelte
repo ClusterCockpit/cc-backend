@@ -231,7 +231,7 @@
   <Col xs={12} md={6} xl={3} class="mb-3 mb-xxl-0">
     {#if $initq.error}
       <Card body color="danger">{$initq.error.message}</Card>
-    {:else if $initq.data}
+    {:else if $initq?.data}
       <Card class="overflow-auto" style="height: 400px;">
         <TabContent> <!-- on:tab={(e) => (status = e.detail)} -->
           {#if $initq.data?.job?.metaData?.message}
@@ -305,7 +305,7 @@
 <Card class="mb-3">
   <CardBody>
     <Row class="mb-2">
-      {#if $initq.data}
+      {#if $initq?.data}
         <Col xs="auto">
             <Button outline on:click={() => (isMetricsSelectionOpen = true)} color="primary">
               Select Metrics (Selected {selectedMetrics.length} of {availableMetrics.size} available)
@@ -318,7 +318,7 @@
     {#if $jobMetrics.error}
       <Row class="mt-2">
         <Col>
-          {#if $initq.data.job.monitoringStatus == 0 || $initq.data.job.monitoringStatus == 2}
+          {#if $initq?.data && ($initq.data.job?.monitoringStatus == 0 || $initq.data.job?.monitoringStatus == 2)}
             <Card body color="warning">Not monitored or archiving failed</Card>
             <br />
           {/if}
@@ -365,7 +365,7 @@
 <!-- Statistcics Table -->
 <Row class="mb-3">
   <Col>
-    {#if $initq.data}
+    {#if $initq?.data}
       <Card>
         <TabContent>
           {#if somethingMissing}
@@ -440,7 +440,7 @@
   </Col>
 </Row>
 
-{#if $initq.data}
+{#if $initq?.data}
   <MetricSelection
     cluster={$initq.data.job.cluster}
     subCluster={$initq.data.job.subCluster}
