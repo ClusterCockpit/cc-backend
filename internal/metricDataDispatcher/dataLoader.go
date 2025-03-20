@@ -224,8 +224,34 @@ func LoadAverages(
 	return nil
 }
 
-// Used for polar plots in frontend
-func LoadStatData(
+// Used for statsTable in frontend: Return scoped statistics by metric.
+func LoadScopedJobStats(
+	job *schema.Job,
+	metrics []string,
+	scopes []schema.MetricScope,
+	ctx context.Context,
+) (schema.ScopedJobStats, error) {
+
+	if job.State != schema.JobStateRunning && !config.Keys.DisableArchive {
+		return archive.LoadScopedStatsFromArchive(job, metrics, scopes)
+	}
+
+	repo, err := metricdata.GetMetricDataRepo(job.Cluster)
+	if err != nil {
+		return nil, fmt.Errorf("job %d: no metric data repository configured for '%s'", job.JobID, job.Cluster)
+	}
+
+	scopedStats, err := repo.LoadScopedStats(job, metrics, scopes, ctx)
+	if err != nil {
+		log.Errorf("error while loading scoped statistics for job %d (User %s, Project %s)", job.JobID, job.User, job.Project)
+		return nil, err
+	}
+
+	return scopedStats, nil
+}
+
+// Used for polar plots in frontend: Aggregates statistics for all nodes to single values for job per metric.
+func LoadJobStats(
 	job *schema.Job,
 	metrics []string,
 	ctx context.Context,
@@ -237,12 +263,12 @@ func LoadStatData(
 	data := make(map[string]schema.MetricStatistics, len(metrics))
 	repo, err := metricdata.GetMetricDataRepo(job.Cluster)
 	if err != nil {
-		return data, fmt.Errorf("METRICDATA/METRICDATA > no metric data repository configured for '%s'", job.Cluster)
+		return data, fmt.Errorf("job %d: no metric data repository configured for '%s'", job.JobID, job.Cluster)
 	}
 
 	stats, err := repo.LoadStats(job, metrics, ctx)
 	if err != nil {
-		log.Errorf("Error while loading statistics for job %v (User %v, Project %v)", job.JobID, job.User, job.Project)
+		log.Errorf("error while loading statistics for job %d (User %s, Project %s)", job.JobID, job.User, job.Project)
 		return data, err
 	}
 
