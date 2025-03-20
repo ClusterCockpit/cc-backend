@@ -24,8 +24,11 @@ type MetricDataRepository interface {
 	// Return the JobData for the given job, only with the requested metrics.
 	LoadData(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error)
 
-	// Return a map of metrics to a map of nodes to the metric statistics of the job. node scope assumed for now.
+	// Return a map of metrics to a map of nodes to the metric statistics of the job. node scope only.
 	LoadStats(job *schema.Job, metrics []string, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error)
+
+	// Return a map of metrics to a map of scopes to the scoped metric statistics of the job.
+	LoadScopedStats(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context) (schema.ScopedJobStats, error)
 
 	// Return a map of hosts to a map of metrics at the requested scopes (currently only node) for that node.
 	LoadNodeData(cluster string, metrics, nodes []string, scopes []schema.MetricScope, from, to time.Time, ctx context.Context) (map[string]map[string][]*schema.JobMetric, error)

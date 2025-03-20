@@ -10,6 +10,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -64,6 +66,8 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 	ctx context.Context,
 	resolution int) (schema.JobData, error) {
 
+	log.Infof("InfluxDB 2 Backend: Resolution Scaling not Implemented, will return default timestep. Requested Resolution %d", resolution)
+
 	measurementsConds := make([]string, 0, len(metrics))
 	for _, m := range metrics {
 		measurementsConds = append(measurementsConds, fmt.Sprintf(`r["_measurement"] == "%s"`, m))
@@ -86,7 +90,7 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 		query := ""
 		switch scope {
 		case "node":
-			// Get Finest Granularity, Groupy By Measurement and Hostname (== Metric / Node), Calculate Mean for 60s windows
+			// Get Finest Granularity, Groupy By Measurement and Hostname (== Metric / Node), Calculate Mean for 60s windows <-- Resolution could be added here?
 			// log.Info("Scope 'node' requested. ")
 			query = fmt.Sprintf(`
 								from(bucket: "%s")
@@ -116,6 +120,12 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 			//  	idb.bucket,
 			//  	idb.formatTime(job.StartTime), idb.formatTime(idb.epochToTime(job.StartTimeUnix + int64(job.Duration) + int64(1) )),
 			//  	measurementsCond, hostsCond)
+		case "hwthread":
+			log.Info(" Scope 'hwthread' requested, but not yet supported: Will return 'node' scope only. ")
+			continue
+		case "accelerator":
+			log.Info(" Scope 'accelerator' requested, but not yet supported: Will return 'node' scope only. ")
+			continue
 		default:
 			log.Infof("Unknown scope '%s' requested: Will return 'node' scope.", scope)
 			continue
@@ -172,6 +182,11 @@ func (idb *InfluxDBv2DataRepository) LoadData(
 				}
 			}
 		case "socket":
+			continue
+		case "accelerator":
+			continue
+		case "hwthread":
+			// See below @ core
 			continue
 		case "core":
 			continue
@@ -301,6 +316,53 @@ func (idb *InfluxDBv2DataRepository) LoadStats(
 	return stats, nil
 }
 
+// Used in Job-View StatsTable
+// UNTESTED
+func (idb *InfluxDBv2DataRepository) LoadScopedStats(
+	job *schema.Job,
+	metrics []string,
+	scopes []schema.MetricScope,
+	ctx context.Context) (schema.ScopedJobStats, error) {
+
+	// Assumption: idb.loadData() only returns series node-scope - use node scope for statsTable
+	scopedJobStats := make(schema.ScopedJobStats)
+	data, err := idb.LoadData(job, metrics, []schema.MetricScope{schema.MetricScopeNode}, ctx, 0 /*resolution here*/)
+	if err != nil {
+		log.Warn("Error while loading job for scopedJobStats")
+		return nil, err
+	}
+
+	for metric, metricData := range data {
+		for _, scope := range scopes {
+			if scope != schema.MetricScopeNode {
+				logOnce.Do(func() {
+					log.Infof("Note: Scope '%s' requested, but not yet supported: Will return 'node' scope only.", scope)
+				})
+				continue
+			}
+
+			if _, ok := scopedJobStats[metric]; !ok {
+				scopedJobStats[metric] = make(map[schema.MetricScope][]*schema.ScopedStats)
+			}
+
+			if _, ok := scopedJobStats[metric][scope]; !ok {
+				scopedJobStats[metric][scope] = make([]*schema.ScopedStats, 0)
+			}
+
+			for _, series := range metricData[scope].Series {
+				scopedJobStats[metric][scope] = append(scopedJobStats[metric][scope], &schema.ScopedStats{
+					Hostname: series.Hostname,
+					Data:     &series.Statistics,
+				})
+			}
+		}
+	}
+
+	return scopedJobStats, nil
+}
+
+// Used in Systems-View @ Node-Overview
+// UNTESTED
 func (idb *InfluxDBv2DataRepository) LoadNodeData(
 	cluster string,
 	metrics, nodes []string,
@@ -308,12 +370,123 @@ func (idb *InfluxDBv2DataRepository) LoadNodeData(
 	from, to time.Time,
 	ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
 
-	// TODO : Implement to be used in Analysis- und System/Node-View
-	log.Infof("LoadNodeData unimplemented for InfluxDBv2DataRepository, Args: cluster %s, metrics %v, nodes %v, scopes %v", cluster, metrics, nodes, scopes)
+	// Note: scopes[] Array will be ignored, only return node scope
 
-	return nil, errors.New("METRICDATA/INFLUXV2 > unimplemented for InfluxDBv2DataRepository")
+	// CONVERT ARGS TO INFLUX
+	measurementsConds := make([]string, 0)
+	for _, m := range metrics {
+		measurementsConds = append(measurementsConds, fmt.Sprintf(`r["_measurement"] == "%s"`, m))
+	}
+	measurementsCond := strings.Join(measurementsConds, " or ")
+
+	hostsConds := make([]string, 0)
+	if nodes == nil {
+		var allNodes []string
+		subClusterNodeLists := archive.NodeLists[cluster]
+		for _, nodeList := range subClusterNodeLists {
+			allNodes = append(nodes, nodeList.PrintList()...)
+		}
+		for _, node := range allNodes {
+			nodes = append(nodes, node)
+			hostsConds = append(hostsConds, fmt.Sprintf(`r["hostname"] == "%s"`, node))
+		}
+	} else {
+		for _, node := range nodes {
+			hostsConds = append(hostsConds, fmt.Sprintf(`r["hostname"] == "%s"`, node))
+		}
+	}
+	hostsCond := strings.Join(hostsConds, " or ")
+
+	// BUILD AND PERFORM QUERY
+	query := fmt.Sprintf(`
+						from(bucket: "%s")
+						|> range(start: %s, stop: %s)
+						|> filter(fn: (r) => (%s) and (%s) )
+						|> drop(columns: ["_start", "_stop"])
+						|> group(columns: ["hostname", "_measurement"])
+			|> aggregateWindow(every: 60s, fn: mean)
+						|> drop(columns: ["_time"])`,
+		idb.bucket,
+		idb.formatTime(from), idb.formatTime(to),
+		measurementsCond, hostsCond)
+
+	rows, err := idb.queryClient.Query(ctx, query)
+	if err != nil {
+		log.Error("Error while performing query")
+		return nil, err
+	}
+
+	// HANDLE QUERY RETURN
+	// Collect Float Arrays for Node@Metric -> No Scope Handling!
+	influxData := make(map[string]map[string][]schema.Float)
+	for rows.Next() {
+		row := rows.Record()
+		host, field := row.ValueByKey("hostname").(string), row.Measurement()
+
+		influxHostData, ok := influxData[host]
+		if !ok {
+			influxHostData = make(map[string][]schema.Float)
+			influxData[host] = influxHostData
+		}
+
+		influxFieldData, ok := influxData[host][field]
+		if !ok {
+			influxFieldData = make([]schema.Float, 0)
+			influxData[host][field] = influxFieldData
+		}
+
+		val, ok := row.Value().(float64)
+		if ok {
+			influxData[host][field] = append(influxData[host][field], schema.Float(val))
+		} else {
+			influxData[host][field] = append(influxData[host][field], schema.Float(0))
+		}
+	}
+
+	// BUILD FUNCTION RETURN
+	data := make(map[string]map[string][]*schema.JobMetric)
+	for node, metricData := range influxData {
+
+		nodeData, ok := data[node]
+		if !ok {
+			nodeData = make(map[string][]*schema.JobMetric)
+			data[node] = nodeData
+		}
+
+		for metric, floatArray := range metricData {
+			avg, min, max := 0.0, 0.0, 0.0
+			for _, val := range floatArray {
+				avg += float64(val)
+				min = math.Min(min, float64(val))
+				max = math.Max(max, float64(val))
+			}
+
+			stats := schema.MetricStatistics{
+				Avg: (math.Round((avg/float64(len(floatArray)))*100) / 100),
+				Min: (math.Round(min*100) / 100),
+				Max: (math.Round(max*100) / 100),
+			}
+
+			mc := archive.GetMetricConfig(cluster, metric)
+			nodeData[metric] = append(nodeData[metric], &schema.JobMetric{
+				Unit:     mc.Unit,
+				Timestep: mc.Timestep,
+				Series: []schema.Series{
+					{
+						Hostname:   node,
+						Statistics: stats,
+						Data:       floatArray,
+					},
+				},
+			})
+		}
+	}
+
+	return data, nil
 }
 
+// Used in Systems-View @ Node-List
+// UNTESTED
 func (idb *InfluxDBv2DataRepository) LoadNodeListData(
 	cluster, subCluster, nodeFilter string,
 	metrics []string,
@@ -324,10 +497,79 @@ func (idb *InfluxDBv2DataRepository) LoadNodeListData(
 	ctx context.Context,
 ) (map[string]schema.JobData, int, bool, error) {
 
+	// Assumption: idb.loadData() only returns series node-scope - use node scope for NodeList
+
+	// 0) Init additional vars
 	var totalNodes int = 0
 	var hasNextPage bool = false
-	// TODO : Implement to be used in NodeList-View
-	log.Infof("LoadNodeListData unimplemented for InfluxDBv2DataRepository, Args: cluster %s, metrics %v, nodeFilter %v, scopes %v", cluster, metrics, nodeFilter, scopes)
 
-	return nil, totalNodes, hasNextPage, errors.New("METRICDATA/INFLUXV2 > unimplemented for InfluxDBv2DataRepository")
+	// 1) Get list of all nodes
+	var nodes []string
+	if subCluster != "" {
+		scNodes := archive.NodeLists[cluster][subCluster]
+		nodes = scNodes.PrintList()
+	} else {
+		subClusterNodeLists := archive.NodeLists[cluster]
+		for _, nodeList := range subClusterNodeLists {
+			nodes = append(nodes, nodeList.PrintList()...)
+		}
+	}
+
+	// 2) Filter nodes
+	if nodeFilter != "" {
+		filteredNodes := []string{}
+		for _, node := range nodes {
+			if strings.Contains(node, nodeFilter) {
+				filteredNodes = append(filteredNodes, node)
+			}
+		}
+		nodes = filteredNodes
+	}
+
+	// 2.1) Count total nodes && Sort nodes -> Sorting invalidated after return ...
+	totalNodes = len(nodes)
+	sort.Strings(nodes)
+
+	// 3) Apply paging
+	if len(nodes) > page.ItemsPerPage {
+		start := (page.Page - 1) * page.ItemsPerPage
+		end := start + page.ItemsPerPage
+		if end > len(nodes) {
+			end = len(nodes)
+			hasNextPage = false
+		} else {
+			hasNextPage = true
+		}
+		nodes = nodes[start:end]
+	}
+
+	// 4) Fetch And Convert Data, use idb.LoadNodeData() for query
+
+	rawNodeData, err := idb.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)
+	if err != nil {
+		log.Error(fmt.Sprintf("Error while loading influx nodeData for nodeListData %#v\n", err))
+		return nil, totalNodes, hasNextPage, err
+	}
+
+	data := make(map[string]schema.JobData)
+	for node, nodeData := range rawNodeData {
+		// Init Nested Map Data Structures If Not Found
+		hostData, ok := data[node]
+		if !ok {
+			hostData = make(schema.JobData)
+			data[node] = hostData
+		}
+
+		for metric, nodeMetricData := range nodeData {
+			metricData, ok := hostData[metric]
+			if !ok {
+				metricData = make(map[schema.MetricScope]*schema.JobMetric)
+				data[node][metric] = metricData
+			}
+
+			data[node][metric][schema.MetricScopeNode] = nodeMetricData[0] // Only Node Scope Returned from loadNodeData
+		}
+	}
+
+	return data, totalNodes, hasNextPage, nil
 }

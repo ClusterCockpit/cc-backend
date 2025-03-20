@@ -15,6 +15,7 @@ import (
 )
 
 type JobData map[string]map[MetricScope]*JobMetric
+type ScopedJobStats map[string]map[MetricScope][]*ScopedStats
 
 type JobMetric struct {
 	StatisticsSeries *StatsSeries `json:"statisticsSeries,omitempty"`
@@ -28,6 +29,12 @@ type Series struct {
 	Hostname   string           `json:"hostname"`
 	Data       []Float          `json:"data"`
 	Statistics MetricStatistics `json:"statistics"`
+}
+
+type ScopedStats struct {
+	Hostname string            `json:"hostname"`
+	Id       *string           `json:"id,omitempty"`
+	Data     *MetricStatistics `json:"data"`
 }
 
 type MetricStatistics struct {
