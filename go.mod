@@ -1,6 +1,7 @@
 module github.com/ClusterCockpit/cc-backend
 
 go 1.23.5
+toolchain go1.24.1
 
 require (
 	github.com/99designs/gqlgen v0.17.66
@@ -10,7 +11,7 @@ require (
 	github.com/go-co-op/gocron/v2 v2.16.0
 	github.com/go-ldap/ldap/v3 v3.4.10
 	github.com/go-sql-driver/mysql v1.9.0
-	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/golang-migrate/migrate/v4 v4.18.2
 	github.com/google/gops v0.3.28
 	github.com/gorilla/handlers v1.5.2
