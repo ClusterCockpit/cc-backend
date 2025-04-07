@@ -64,7 +64,7 @@ func serverInit() {
 			case string:
 				return fmt.Errorf("MAIN > Panic: %s", e)
 			case error:
-				return fmt.Errorf("MAIN > Panic caused by: %w", e)
+				return fmt.Errorf("MAIN > Panic caused by: %s", e.Error())
 			}
 
 			return errors.New("MAIN > Internal server error (panic)")
@@ -268,7 +268,7 @@ func serverStart() {
 	// Start http or https server
 	listener, err := net.Listen("tcp", config.Keys.Addr)
 	if err != nil {
-		log.Fatalf("starting http listener failed: %v", err)
+		log.Abortf("Server Start: Starting http listener on '%s' failed.\nError: %s\n", config.Keys.Addr, err.Error())
 	}
 
 	if !strings.HasSuffix(config.Keys.Addr, ":80") && config.Keys.RedirectHttpTo != "" {
@@ -281,7 +281,7 @@ func serverStart() {
 		cert, err := tls.LoadX509KeyPair(
 			config.Keys.HttpsCertFile, config.Keys.HttpsKeyFile)
 		if err != nil {
-			log.Fatalf("loading X509 keypair failed: %v", err)
+			log.Abortf("Server Start: Loading X509 keypair failed. Check options 'https-cert-file' and 'https-key-file' in 'config.json'.\nError: %s\n", err.Error())
 		}
 		listener = tls.NewListener(listener, &tls.Config{
 			Certificates: []tls.Certificate{cert},
@@ -292,20 +292,20 @@ func serverStart() {
 			MinVersion:               tls.VersionTLS12,
 			PreferServerCipherSuites: true,
 		})
-		fmt.Printf("HTTPS server listening at %s...", config.Keys.Addr)
+		log.Printf("HTTPS server listening at %s...\n", config.Keys.Addr)
 	} else {
-		fmt.Printf("HTTP server listening at %s...", config.Keys.Addr)
+		log.Printf("HTTP server listening at %s...\n", config.Keys.Addr)
 	}
 	//
 	// Because this program will want to bind to a privileged port (like 80), the listener must
 	// be established first, then the user can be changed, and after that,
 	// the actual http server can be started.
 	if err := runtimeEnv.DropPrivileges(config.Keys.Group, config.Keys.User); err != nil {
-		log.Fatalf("error while preparing server start: %s", err.Error())
+		log.Abortf("Server Start: Error while preparing server start.\nError: %s\n", err.Error())
 	}
 
 	if err = server.Serve(listener); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("starting server failed: %v", err)
+		log.Abortf("Server Start: Starting server failed.\nError: %s\n", err.Error())
 	}
 }
 

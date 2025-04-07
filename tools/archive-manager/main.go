@@ -22,8 +22,7 @@ func parseDate(in string) int64 {
 	if in != "" {
 		t, err := time.ParseInLocation(shortForm, in, loc)
 		if err != nil {
-			fmt.Printf("date parse error %v", err)
-			os.Exit(0)
+			log.Abortf("Archive Manager Main: Date parse failed with input: '%s'\nError: %s\n", in, err.Error())
 		}
 		return t.Unix()
 	}

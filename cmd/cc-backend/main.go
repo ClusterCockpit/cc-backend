@@ -61,15 +61,23 @@ func main() {
 	// Apply config flags for pkg/log
 	log.Init(flagLogLevel, flagLogDateTime)
 
+	// If init flag set, run tasks here before any file dependencies cause errors
+	if flagInit {
+		initEnv()
+		log.Exit("Successfully setup environment!\n" +
+			"Please review config.json and .env and adjust it to your needs.\n" +
+			"Add your job-archive at ./var/job-archive.")
+	}
+
 	// See https://github.com/google/gops (Runtime overhead is almost zero)
 	if flagGops {
 		if err := agent.Listen(agent.Options{}); err != nil {
-			log.Fatalf("gops/agent.Listen failed: %s", err.Error())
+			log.Abortf("Could not start gops agent with 'gops/agent.Listen(agent.Options{})'. Application startup failed, exited.\nError: %s\n", err.Error())
 		}
 	}
 
 	if err := runtimeEnv.LoadEnv("./.env"); err != nil && !os.IsNotExist(err) {
-		log.Fatalf("parsing './.env' file failed: %s", err.Error())
+		log.Abortf("Could not parse existing .env file at location './.env'. Application startup failed, exited.\nError: %s\n", err.Error())
 	}
 
 	// Initialize sub-modules and handle command line flags.
@@ -87,36 +95,28 @@ func main() {
 	if flagMigrateDB {
 		err := repository.MigrateDB(config.Keys.DBDriver, config.Keys.DB)
 		if err != nil {
-			log.Fatal(err)
+			log.Abortf("MigrateDB Failed: Could not migrate '%s' database at location '%s' to version %d.\nError: %s\n", config.Keys.DBDriver, config.Keys.DB, repository.Version, err.Error())
 		}
-		os.Exit(0)
+		log.Exitf("MigrateDB Success: Migrated '%s' database at location '%s' to version %d.\n", config.Keys.DBDriver, config.Keys.DB, repository.Version)
 	}
 
 	if flagRevertDB {
 		err := repository.RevertDB(config.Keys.DBDriver, config.Keys.DB)
 		if err != nil {
-			log.Fatal(err)
+			log.Abortf("RevertDB Failed: Could not revert '%s' database at location '%s' to version %d.\nError: %s\n", config.Keys.DBDriver, config.Keys.DB, (repository.Version - 1), err.Error())
 		}
-		os.Exit(0)
+		log.Exitf("RevertDB Success: Reverted '%s' database at location '%s' to version %d.\n", config.Keys.DBDriver, config.Keys.DB, (repository.Version - 1))
 	}
 
 	if flagForceDB {
 		err := repository.ForceDB(config.Keys.DBDriver, config.Keys.DB)
 		if err != nil {
-			log.Fatal(err)
+			log.Abortf("ForceDB Failed: Could not force '%s' database at location '%s' to version %d.\nError: %s\n", config.Keys.DBDriver, config.Keys.DB, repository.Version, err.Error())
 		}
-		os.Exit(0)
+		log.Exitf("ForceDB Success: Forced '%s' database at location '%s' to version %d.\n", config.Keys.DBDriver, config.Keys.DB, repository.Version)
 	}
 
 	repository.Connect(config.Keys.DBDriver, config.Keys.DB)
-
-	if flagInit {
-		initEnv()
-		fmt.Print("Successfully setup environment!\n")
-		fmt.Print("Please review config.json and .env and adjust it to your needs.\n")
-		fmt.Print("Add your job-archive at ./var/job-archive.\n")
-		os.Exit(0)
-	}
 
 	if !config.Keys.DisableAuthentication {
 
@@ -125,20 +125,27 @@ func main() {
 		if flagNewUser != "" {
 			parts := strings.SplitN(flagNewUser, ":", 3)
 			if len(parts) != 3 || len(parts[0]) == 0 {
-				log.Fatal("invalid argument format for user creation")
+				log.Abortf("Add User: Could not parse supplied argument format: No changes.\n"+
+					"Want: <username>:[admin,support,manager,api,user]:<password>\n"+
+					"Have: %s\n", flagNewUser)
 			}
 
 			ur := repository.GetUserRepository()
 			if err := ur.AddUser(&schema.User{
 				Username: parts[0], Projects: make([]string, 0), Password: parts[2], Roles: strings.Split(parts[1], ","),
 			}); err != nil {
-				log.Fatalf("adding '%s' user authentication failed: %v", parts[0], err)
+				log.Abortf("Add User: Could not add new user authentication for '%s' and roles '%s'.\nError: %s\n", parts[0], parts[1], err.Error())
+			} else {
+				log.Printf("Add User: Added new user '%s' with roles '%s'.\n", parts[0], parts[1])
 			}
 		}
+
 		if flagDelUser != "" {
 			ur := repository.GetUserRepository()
 			if err := ur.DelUser(flagDelUser); err != nil {
-				log.Fatalf("deleting user failed: %v", err)
+				log.Abortf("Delete User: Could not delete user '%s' from DB.\nError: %s\n", flagDelUser, err.Error())
+			} else {
+				log.Printf("Delete User: Deleted user '%s' from DB.\n", flagDelUser)
 			}
 		}
 
@@ -146,60 +153,64 @@ func main() {
 
 		if flagSyncLDAP {
 			if authHandle.LdapAuth == nil {
-				log.Fatal("cannot sync: LDAP authentication is not configured")
+				log.Abort("Sync LDAP: LDAP authentication is not configured, could not synchronize. No changes, exited.")
 			}
 
 			if err := authHandle.LdapAuth.Sync(); err != nil {
-				log.Fatalf("LDAP sync failed: %v", err)
+				log.Abortf("Sync LDAP: Could not synchronize, failed with error.\nError: %s\n", err.Error())
 			}
-			log.Info("LDAP sync successfull")
+			log.Print("Sync LDAP: LDAP synchronization successfull.")
 		}
 
 		if flagGenJWT != "" {
 			ur := repository.GetUserRepository()
 			user, err := ur.GetUser(flagGenJWT)
 			if err != nil {
-				log.Fatalf("could not get user from JWT: %v", err)
+				log.Abortf("JWT: Could not get supplied user '%s' from DB. No changes, exited.\nError: %s\n", flagGenJWT, err.Error())
 			}
 
 			if !user.HasRole(schema.RoleApi) {
-				log.Warnf("user '%s' does not have the API role", user.Username)
+				log.Warnf("JWT: User '%s' does not have the role 'api'. REST API endpoints will return error!\n", user.Username)
 			}
 
 			jwt, err := authHandle.JwtAuth.ProvideJWT(user)
 			if err != nil {
-				log.Fatalf("failed to provide JWT to user '%s': %v", user.Username, err)
+				log.Abortf("JWT: User '%s' found in DB, but failed to provide JWT.\nError: %s\n", user.Username, err.Error())
 			}
 
-			fmt.Printf("MAIN > JWT for '%s': %s\n", user.Username, jwt)
+			log.Printf("JWT: Successfully generated JWT for user '%s': %s\n", user.Username, jwt)
 		}
 
 	} else if flagNewUser != "" || flagDelUser != "" {
-		log.Fatal("arguments --add-user and --del-user can only be used if authentication is enabled")
+		log.Abort("Error: Arguments '--add-user' and '--del-user' can only be used if authentication is enabled. No changes, exited.")
 	}
 
 	if err := archive.Init(config.Keys.Archive, config.Keys.DisableArchive); err != nil {
-		log.Fatalf("failed to initialize archive: %s", err.Error())
+		log.Abortf("Init: Failed to initialize archive.\nError: %s\n", err.Error())
 	}
 
 	if err := metricdata.Init(); err != nil {
-		log.Fatalf("failed to initialize metricdata repository: %s", err.Error())
+		log.Abortf("Init: Failed to initialize metricdata repository.\nError %s\n", err.Error())
 	}
 
 	if flagReinitDB {
 		if err := importer.InitDB(); err != nil {
-			log.Fatalf("failed to re-initialize repository DB: %s", err.Error())
+			log.Abortf("Init DB: Failed to re-initialize repository DB.\nError: %s\n", err.Error())
+		} else {
+			log.Print("Init DB: Sucessfully re-initialized repository DB.")
 		}
 	}
 
 	if flagImportJob != "" {
 		if err := importer.HandleImportFlag(flagImportJob); err != nil {
-			log.Fatalf("job import failed: %s", err.Error())
+			log.Abortf("Import Job: Job import failed.\nError: %s\n", err.Error())
+		} else {
+			log.Printf("Import Job: Imported Job '%s' into DB.\n", flagImportJob)
 		}
 	}
 
 	if !flagServer {
-		return
+		log.Exit("No errors, server flag not set. Exiting cc-backend.")
 	}
 
 	archiver.Start(repository.GetJobRepository())
