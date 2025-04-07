@@ -205,7 +205,7 @@
             </Col>
           </Row>
         {:else}
-          {#each nodes as nodeData}
+          {#each nodes as nodeData (nodeData.host)}
             <NodeListRow {nodeData} {cluster} {selectedMetrics}/>
           {:else}
             <tr>
