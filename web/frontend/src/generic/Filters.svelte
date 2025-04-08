@@ -53,10 +53,16 @@
     { range: "last30d", rangeLabel: "Last 30 days"}
   ];
 
+  const nodeMatchLabels = {
+    eq: "",
+    contains: " Contains",
+  }
+
   let filters = {
     projectMatch: filterPresets.projectMatch || "contains",
     userMatch: filterPresets.userMatch || "contains",
     jobIdMatch: filterPresets.jobIdMatch || "eq",
+    nodeMatch: filterPresets.nodeMatch || "eq",
 
     cluster: filterPresets.cluster || null,
     partition: filterPresets.partition || null,
@@ -106,7 +112,7 @@
 
     let items = [];
     if (filters.cluster) items.push({ cluster: { eq: filters.cluster } });
-    if (filters.node) items.push({ node: { contains: filters.node } });
+    if (filters.node) items.push({ node: { [filters.nodeMatch]: filters.node } });
     if (filters.partition) items.push({ partition: { eq: filters.partition } });
     if (filters.states.length != allJobStates.length)
       items.push({ state: filters.states });
@@ -178,6 +184,8 @@
     let opts = [];
     if (filters.cluster) opts.push(`cluster=${filters.cluster}`);
     if (filters.node) opts.push(`node=${filters.node}`);
+    if (filters.node && filters.nodeMatch != "eq") // "eq" is default-case
+      opts.push(`nodeMatch=${filters.nodeMatch}`);
     if (filters.partition) opts.push(`partition=${filters.partition}`);
     if (filters.states.length != allJobStates.length)
       for (let state of filters.states) opts.push(`state=${state}`);
@@ -196,7 +204,7 @@
           opts.push(`jobId=${singleJobId}`);
       }
     if (filters.jobIdMatch != "eq")
-      opts.push(`jobIdMatch=${filters.jobIdMatch}`);
+      opts.push(`jobIdMatch=${filters.jobIdMatch}`); // "eq" is default-case
     for (let tag of filters.tags) opts.push(`tag=${tag}`);
     if (filters.duration.from && filters.duration.to)
       opts.push(`duration=${filters.duration.from}-${filters.duration.to}`);
@@ -218,13 +226,13 @@
       } else {
         for (let singleUser of filters.user) opts.push(`user=${singleUser}`);
       }
-    if (filters.userMatch != "contains")
+    if (filters.userMatch != "contains") // "contains" is default-case
       opts.push(`userMatch=${filters.userMatch}`);
     if (filters.project) opts.push(`project=${filters.project}`);
+    if (filters.project && filters.projectMatch != "contains") // "contains" is default-case
+     opts.push(`projectMatch=${filters.projectMatch}`);
     if (filters.jobName) opts.push(`jobName=${filters.jobName}`);
     if (filters.arrayJobId) opts.push(`arrayJobId=${filters.arrayJobId}`);
-    if (filters.project && filters.projectMatch != "contains")
-      opts.push(`projectMatch=${filters.projectMatch}`);
     if (filters.stats.length != 0)
       for (let stat of filters.stats) {
           opts.push(`stat=${stat.field}-${stat.from}-${stat.to}`);
@@ -386,7 +394,7 @@
 
 {#if filters.node != null}
   <Info icon="hdd-stack" on:click={() => (isResourcesOpen = true)}>
-    Node: {filters.node}
+    Node{nodeMatchLabels[filters.nodeMatch]}: {filters.node}
   </Info>
 {/if}
 
@@ -449,6 +457,7 @@
   bind:numHWThreads={filters.numHWThreads}
   bind:numAccelerators={filters.numAccelerators}
   bind:namedNode={filters.node}
+  bind:nodeMatch={filters.nodeMatch}
   bind:isNodesModified
   bind:isHwthreadsModified
   bind:isAccsModified
