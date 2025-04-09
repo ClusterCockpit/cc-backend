@@ -23,7 +23,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/clusters/": {
+        "/api/clusters/": {
             "get": {
                 "security": [
                     {
@@ -80,7 +80,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/": {
+        "/api/jobs/": {
             "get": {
                 "security": [
                     {
@@ -175,7 +175,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/delete_job/": {
+        "/api/jobs/delete_job/": {
             "delete": {
                 "security": [
                     {
@@ -250,7 +250,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/delete_job/{id}": {
+        "/api/jobs/delete_job/{id}": {
             "delete": {
                 "security": [
                     {
@@ -320,7 +320,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/delete_job_before/{ts}": {
+        "/api/jobs/delete_job_before/{ts}": {
             "delete": {
                 "security": [
                     {
@@ -390,7 +390,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/edit_meta/{id}": {
+        "/api/jobs/edit_meta/{id}": {
             "post": {
                 "security": [
                     {
@@ -460,7 +460,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/start_job/": {
+        "/api/jobs/start_job/": {
             "post": {
                 "security": [
                     {
@@ -529,7 +529,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/stop_job/": {
+        "/api/jobs/stop_job/": {
             "post": {
                 "security": [
                     {
@@ -601,7 +601,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/tag_job/{id}": {
+        "/api/jobs/tag_job/{id}": {
             "post": {
                 "security": [
                     {
@@ -674,7 +674,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/{id}": {
+        "/api/jobs/{id}": {
             "get": {
                 "security": [
                     {
@@ -833,7 +833,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/notice/": {
+        "/config/notice/": {
             "post": {
                 "security": [
                     {
@@ -899,7 +899,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/user/{id}": {
+        "/config/user/{id}": {
             "post": {
                 "security": [
                     {
@@ -1004,7 +1004,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/users/": {
+        "/config/users/": {
             "get": {
                 "security": [
                     {
@@ -2191,7 +2191,7 @@ const docTemplate = `{
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0.0",
 	Host:             "localhost:8080",
-	BasePath:         "/api",
+	BasePath:         "",
 	Schemes:          []string{},
 	Title:            "ClusterCockpit REST API",
 	Description:      "API for batch job control.",
