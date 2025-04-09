@@ -194,11 +194,13 @@ func (r *JobRepository) FindConcurrentJobs(
 
 	queryRunning := query.Where("job.job_state = ?").Where("(job.start_time BETWEEN ? AND ? OR job.start_time < ?)",
 		"running", startTimeTail, stopTimeTail, startTime)
-	queryRunning = queryRunning.Where("job.resources LIKE ?", fmt.Sprint("%", hostname, "%"))
+	// Get At Least One Exact Hostname Match from JSON Resources Array in Database
+	queryRunning = queryRunning.Where("EXISTS (SELECT 1 FROM json_each(job.resources) WHERE json_extract(value, '$.hostname') = ?)", hostname)
 
 	query = query.Where("job.job_state != ?").Where("((job.start_time BETWEEN ? AND ?) OR (job.start_time + job.duration) BETWEEN ? AND ? OR (job.start_time < ?) AND (job.start_time + job.duration) > ?)",
 		"running", startTimeTail, stopTimeTail, startTimeFront, stopTimeTail, startTime, stopTime)
-	query = query.Where("job.resources LIKE ?", fmt.Sprint("%", hostname, "%"))
+	// Get At Least One Exact Hostname Match from JSON Resources Array in Database
+	query = query.Where("EXISTS (SELECT 1 FROM json_each(job.resources) WHERE json_extract(value, '$.hostname') = ?)", hostname)
 
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {

@@ -24,6 +24,7 @@
     ModalBody,
     ModalHeader,
     ModalFooter,
+    Input
   } from "@sveltestrap/sveltestrap";
   import DoubleRangeSlider from "../select/DoubleRangeSlider.svelte";
 
@@ -40,11 +41,18 @@
   export let isHwthreadsModified = false;
   export let isAccsModified = false;
   export let namedNode = null;
+  export let nodeMatch = "eq"
 
   let pendingNumNodes = numNodes,
     pendingNumHWThreads = numHWThreads,
     pendingNumAccelerators = numAccelerators,
-    pendingNamedNode = namedNode;
+    pendingNamedNode = namedNode,
+    pendingNodeMatch = nodeMatch;
+
+  const nodeMatchLabels = {
+    eq: "Equal To",
+    contains: "Contains",
+  }
 
   const findMaxNumAccels = (clusters) =>
     clusters.reduce(
@@ -145,7 +153,17 @@
   <ModalHeader>Select number of utilized Resources</ModalHeader>
   <ModalBody>
     <h6>Named Node</h6>
-    <input type="text" class="form-control" bind:value={pendingNamedNode} />
+    <div class="d-flex">
+      <Input type="text" class="w-75" bind:value={pendingNamedNode} />
+      <div class="mx-1"></div>
+      <Input type="select" class="w-25" bind:value={pendingNodeMatch}>
+        {#each Object.entries(nodeMatchLabels) as [nodeMatchKey, nodeMatchLabel]}
+          <option value={nodeMatchKey}>
+            {nodeMatchLabel}
+          </option>
+        {/each}
+        </Input>
+    </div>
     <h6 style="margin-top: 1rem;">Number of Nodes</h6>
     <DoubleRangeSlider
       on:change={({ detail }) => {
@@ -215,11 +233,13 @@
           to: pendingNumAccelerators.to,
         };
         namedNode = pendingNamedNode;
+        nodeMatch = pendingNodeMatch;
         dispatch("set-filter", {
           numNodes,
           numHWThreads,
           numAccelerators,
           namedNode,
+          nodeMatch
         });
       }}
     >
@@ -233,6 +253,7 @@
         pendingNumHWThreads = { from: null, to: null };
         pendingNumAccelerators = { from: null, to: null };
         pendingNamedNode = null;
+        pendingNodeMatch = null;
         numNodes = { from: pendingNumNodes.from, to: pendingNumNodes.to };
         numHWThreads = {
           from: pendingNumHWThreads.from,
@@ -246,11 +267,13 @@
         isHwthreadsModified = false;
         isAccsModified = false;
         namedNode = pendingNamedNode;
+        nodeMatch = pendingNodeMatch;
         dispatch("set-filter", {
           numNodes,
           numHWThreads,
           numAccelerators,
           namedNode,
+          nodeMatch
         });
       }}>Reset</Button
     >

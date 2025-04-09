@@ -5,7 +5,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
@@ -62,24 +61,23 @@ const configString = `
 
 func initEnv() {
 	if util.CheckFileExists("var") {
-		fmt.Print("Directory ./var already exists. Exiting!\n")
-		os.Exit(0)
+		log.Exit("Directory ./var already exists. Cautiously exiting application initialization.")
 	}
 
 	if err := os.WriteFile("config.json", []byte(configString), 0o666); err != nil {
-		log.Fatalf("Writing config.json failed: %s", err.Error())
+		log.Abortf("Could not write default ./config.json with permissions '0o666'. Application initialization failed, exited.\nError: %s\n", err.Error())
 	}
 
 	if err := os.WriteFile(".env", []byte(envString), 0o666); err != nil {
-		log.Fatalf("Writing .env failed: %s", err.Error())
+		log.Abortf("Could not write default ./.env file with permissions '0o666'. Application initialization failed, exited.\nError: %s\n", err.Error())
 	}
 
 	if err := os.Mkdir("var", 0o777); err != nil {
-		log.Fatalf("Mkdir var failed: %s", err.Error())
+		log.Abortf("Could not create default ./var folder with permissions '0o777'. Application initialization failed, exited.\nError: %s\n", err.Error())
 	}
 
 	err := repository.MigrateDB("sqlite3", "./var/job.db")
 	if err != nil {
-		log.Fatalf("Initialize job.db failed: %s", err.Error())
+		log.Abortf("Could not initialize default sqlite3 database as './var/job.db'. Application initialization failed, exited.\nError: %s\n", err.Error())
 	}
 }

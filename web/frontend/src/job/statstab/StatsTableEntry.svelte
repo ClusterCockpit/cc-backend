@@ -41,7 +41,9 @@
       if (a == null || b == null) return -1;
 
       if (field === "id") {
-        return s.dir != "up" ?  a[field].localeCompare(b[field]) : b[field].localeCompare(a[field])
+        return s.dir != "up" ?
+          a[field].localeCompare(b[field], undefined, {numeric: true, sensitivity: 'base'}) :
+          b[field].localeCompare(a[field], undefined, {numeric: true, sensitivity: 'base'})
       } else {
         return s.dir != "up"
           ? a.data[field] - b.data[field]

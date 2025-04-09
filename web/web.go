@@ -26,8 +26,7 @@ var frontendFiles embed.FS
 func ServeFiles() http.Handler {
 	publicFiles, err := fs.Sub(frontendFiles, "frontend/public")
 	if err != nil {
-		log.Fatalf("WEB/WEB > cannot find frontend public files")
-		panic(err)
+		log.Abortf("Serve Files: Could not find 'frontend/public' file directory.\nError: %s\n", err.Error())
 	}
 	return http.FileServer(http.FS(publicFiles))
 }
@@ -75,8 +74,7 @@ func init() {
 		templates[strings.TrimPrefix(path, "templates/")] = template.Must(template.Must(base.Clone()).ParseFS(templateFiles, path))
 		return nil
 	}); err != nil {
-		log.Fatalf("WEB/WEB > cannot find frontend template files")
-		panic(err)
+		log.Abortf("Web init(): Could not find frontend template files.\nError: %s\n", err.Error())
 	}
 
 	_ = base
