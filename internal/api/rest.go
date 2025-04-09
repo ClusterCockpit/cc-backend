@@ -105,6 +105,7 @@ func (api *RestApi) MountConfigApiRoutes(r *mux.Router) {
 	r.StrictSlash(true)
 
 	if api.Authentication != nil {
+		log.Debug("Mounting /configuration/ route")
 		r.HandleFunc("/roles/", api.getRoles).Methods(http.MethodGet)
 		r.HandleFunc("/users/", api.createUser).Methods(http.MethodPost, http.MethodPut)
 		r.HandleFunc("/users/", api.getUsers).Methods(http.MethodGet)
@@ -229,7 +230,7 @@ func securedCheck(r *http.Request) error {
 
 	if user.AuthType == schema.AuthToken {
 		// If nothing declared in config: deny all request to this endpoint
-		if config.Keys.ApiAllowedIPs == nil || len(config.Keys.ApiAllowedIPs) == 0 {
+		if len(config.Keys.ApiAllowedIPs) == 0 {
 			return fmt.Errorf("missing configuration key ApiAllowedIPs")
 		}
 
