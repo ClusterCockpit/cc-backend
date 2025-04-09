@@ -214,7 +214,7 @@ func handleError(err error, statusCode int, rw http.ResponseWriter) {
 	})
 }
 
-func decode(r io.Reader, val interface{}) error {
+func decode(r io.Reader, val any) error {
 	dec := json.NewDecoder(r)
 	dec.DisallowUnknownFields()
 	return dec.Decode(val)
