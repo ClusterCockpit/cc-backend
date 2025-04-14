@@ -329,7 +329,7 @@ func (auth *Authentication) AuthApi(
 			return
 		}
 
-		ipErr := securedCheck(user, "api", r)
+		ipErr := securedCheck(user, r)
 		if ipErr != nil {
 			log.Infof("auth api -> secured check failed: %s", err.Error())
 			onfailure(rw, r, ipErr)
@@ -369,13 +369,6 @@ func (auth *Authentication) AuthUserApi(
 		if err != nil {
 			log.Infof("auth user api -> authentication failed: %s", err.Error())
 			onfailure(rw, r, err)
-			return
-		}
-
-		ipErr := securedCheck(user, "userapi", r)
-		if ipErr != nil {
-			log.Infof("auth user api -> secured check failed: %s", err.Error())
-			onfailure(rw, r, ipErr)
 			return
 		}
 
@@ -466,7 +459,7 @@ func (auth *Authentication) Logout(onsuccess http.Handler) http.Handler {
 }
 
 // Helper Moved To MiddleWare Auth Handlers
-func securedCheck(user *schema.User, checkEndpoint string, r *http.Request) error {
+func securedCheck(user *schema.User, r *http.Request) error {
 	if user == nil {
 		return fmt.Errorf("no user for secured check")
 	}
@@ -484,37 +477,17 @@ func securedCheck(user *schema.User, checkEndpoint string, r *http.Request) erro
 		IPAddress = strings.Split(IPAddress, ":")[0]
 	}
 
-	// Used for checking TokenAuth'd Requests Only: Remove '== schema.AuthToken'-Condition
-	if checkEndpoint == "api" {
-		// If nothing declared in config: deny all request to this api endpoint
-		if config.Keys.ApiAllowedIPs == nil || len(config.Keys.ApiAllowedIPs) == 0 {
-			return fmt.Errorf("missing configuration key ApiAllowedIPs")
-		}
-		// If wildcard declared in config: Continue
-		if config.Keys.ApiAllowedIPs[0] == "*" {
-			return nil
-		}
-		// check if IP is allowed
-		if !util.Contains(config.Keys.ApiAllowedIPs, IPAddress) {
-			return fmt.Errorf("unknown ip: %v", IPAddress)
-		}
-
-	} else if checkEndpoint == "userapi" {
-		// If nothing declared in config: deny all request to this api endpoint
-		if config.Keys.UserApiAllowedIPs == nil || len(config.Keys.UserApiAllowedIPs) == 0 {
-			return fmt.Errorf("missing configuration key UserApiAllowedIPs")
-		}
-		// If wildcard declared in config: Continue
-		if config.Keys.UserApiAllowedIPs[0] == "*" {
-			return nil
-		}
-		// check if IP is allowed
-		if !util.Contains(config.Keys.UserApiAllowedIPs, IPAddress) {
-			return fmt.Errorf("unknown user ip: %v", IPAddress)
-		}
-
-	} else {
-		return fmt.Errorf("unknown checkEndpoint for secured check")
+	// If nothing declared in config: deny all request to this api endpoint
+	if len(config.Keys.ApiAllowedIPs) == 0 {
+		return fmt.Errorf("missing configuration key ApiAllowedIPs")
+	}
+	// If wildcard declared in config: Continue
+	if config.Keys.ApiAllowedIPs[0] == "*" {
+		return nil
+	}
+	// check if IP is allowed
+	if !util.Contains(config.Keys.ApiAllowedIPs, IPAddress) {
+		return fmt.Errorf("unknown ip: %v", IPAddress)
 	}
 
 	return nil
