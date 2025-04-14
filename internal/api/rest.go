@@ -70,6 +70,11 @@ func New() *RestApi {
 func (api *RestApi) MountApiRoutes(r *mux.Router) {
 	r.StrictSlash(true)
 	// REST API Uses TokenAuth
+	// User List
+	r.HandleFunc("/users/", api.getUsers).Methods(http.MethodGet)
+	// Cluster List
+	r.HandleFunc("/clusters/", api.getClusters).Methods(http.MethodGet)
+	// Job Handler
 	r.HandleFunc("/jobs/start_job/", api.startJob).Methods(http.MethodPost, http.MethodPut)
 	r.HandleFunc("/jobs/stop_job/", api.stopJobByRequest).Methods(http.MethodPost, http.MethodPut)
 	// r.HandleFunc("/jobs/import/", api.importJob).Methods(http.MethodPost, http.MethodPut)
@@ -82,7 +87,6 @@ func (api *RestApi) MountApiRoutes(r *mux.Router) {
 	r.HandleFunc("/jobs/delete_job/", api.deleteJobByRequest).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job/{id}", api.deleteJobById).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job_before/{ts}", api.deleteJobBefore).Methods(http.MethodDelete)
-	r.HandleFunc("/clusters/", api.getClusters).Methods(http.MethodGet)
 
 	if api.MachineStateDir != "" {
 		r.HandleFunc("/machine_state/{cluster}/{host}", api.getMachineState).Methods(http.MethodGet)
