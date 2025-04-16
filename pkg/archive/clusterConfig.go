@@ -68,8 +68,23 @@ func initClusterConfig() error {
 			}
 
 			for _, sc := range cluster.SubClusters {
-				newMetric := mc
-				newMetric.SubClusters = nil
+				newMetric := &schema.MetricConfig{
+					Unit:          mc.Unit,
+					Energy:        mc.Energy,
+					Name:          mc.Name,
+					Scope:         mc.Scope,
+					Aggregation:   mc.Aggregation,
+					Peak:          mc.Peak,
+					Caution:       mc.Caution,
+					Alert:         mc.Alert,
+					Timestep:      mc.Timestep,
+					Normal:        mc.Normal,
+					LowerIsBetter: mc.LowerIsBetter,
+				}
+
+				if mc.Footprint != "" {
+					newMetric.Footprint = mc.Footprint
+				}
 
 				if cfg, ok := scLookup[sc.Name]; ok {
 					if !cfg.Remove {

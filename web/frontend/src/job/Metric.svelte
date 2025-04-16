@@ -14,7 +14,6 @@
 <script>
   import { 
     getContext,
-    createEventDispatcher 
   } from "svelte";
   import { 
     queryStore,
@@ -56,7 +55,6 @@
   let pendingZoomState = null;
   let thresholdState = null;
 
-  const dispatch = createEventDispatcher();
   const statsPattern = /(.*)-stat$/;
   const unit = (metricUnit?.prefix ? metricUnit.prefix : "") + (metricUnit?.base ? metricUnit.base : "");
   const client = getContextClient();
