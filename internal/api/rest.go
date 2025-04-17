@@ -750,6 +750,122 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(rw).Encode(job)
 }
 
+// removeTagJob godoc
+// @summary     Removes one or more tags from a job
+// @tags Job add and modify
+// @description Removes tag(s) from a job specified by DB ID. Name and Type of Tag(s) must match.
+// @description Tag Scope is required for matching, options: "global", "admin". Private tags can not be deleted via API.
+// @description If tagged job is already finished: Tag will be removed from respective archive files.
+// @accept      json
+// @produce     json
+// @param       id      path     int                  true "Job Database ID"
+// @param       request body     api.TagJobApiRequest true "Array of tag-objects to remove"
+// @success     200     {object} schema.Job                "Updated job resource"
+// @failure     400     {object} api.ErrorResponse         "Bad Request"
+// @failure     401     {object} api.ErrorResponse         "Unauthorized"
+// @failure     404     {object} api.ErrorResponse         "Job or tag does not exist"
+// @failure     500     {object} api.ErrorResponse         "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /jobs/tag_job/{id} [delete]
+func (api *RestApi) removeTagJob(rw http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	job, err := api.JobRepository.FindById(r.Context(), id)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	job.Tags, err = api.JobRepository.GetTags(repository.GetUserFromContext(r.Context()), &job.ID)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var req TagJobApiRequest
+	if err := decode(r.Body, &req); err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	for _, rtag := range req {
+		// Only Global and Admin Tags
+		if rtag.Scope != "global" && rtag.Scope != "admin" {
+			log.Warnf("Cannot delete private tag for job %d: Skip", job.JobID)
+			continue
+		}
+
+		remainingTags, err := api.JobRepository.RemoveJobTagByRequest(repository.GetUserFromContext(r.Context()), job.ID, rtag.Type, rtag.Name, rtag.Scope)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// remainingTags := job.Tags[:0]
+		// for _, tag := range job.Tags {
+		// 	if tag.Type != rtag.Type &&
+		// 		tag.Name != rtag.Name &&
+		// 		tag.Scope != rtag.Scope {
+		// 		remainingTags = append(remainingTags, tag)
+		// 	}
+		// }
+		job.Tags = remainingTags
+	}
+
+	rw.Header().Add("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode(job)
+}
+
+// removeTags godoc
+// @summary     Removes all tags and job-relations for type:name tuple
+// @tags Tag remove
+// @description Removes tags by type and name. Name and Type of Tag(s) must match.
+// @description Tag Scope is required for matching, options: "global", "admin". Private tags can not be deleted via API.
+// @description Tag wills be removed from respective archive files.
+// @accept      json
+// @produce     plain
+// @param       request body     api.TagJobApiRequest true "Array of tag-objects to remove"
+// @success     200     {string} string                    "Success Response"
+// @failure     400     {object} api.ErrorResponse         "Bad Request"
+// @failure     401     {object} api.ErrorResponse         "Unauthorized"
+// @failure     404     {object} api.ErrorResponse         "Job or tag does not exist"
+// @failure     500     {object} api.ErrorResponse         "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /jobs/tag_job/ [delete]
+func (api *RestApi) removeTags(rw http.ResponseWriter, r *http.Request) {
+	var req TagJobApiRequest
+	if err := decode(r.Body, &req); err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	targetCount := len(req)
+	currentCount := 0
+	for _, rtag := range req {
+		// Only Global and Admin Tags
+		if rtag.Scope != "global" && rtag.Scope != "admin" {
+			log.Warn("Cannot delete private tag: Skip")
+			continue
+		}
+
+		err := api.JobRepository.RemoveTagByRequest(rtag.Type, rtag.Name, rtag.Scope)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		} else {
+			currentCount++
+		}
+	}
+
+	rw.WriteHeader(http.StatusOK)
+	rw.Write([]byte(fmt.Sprintf("Deleted Tags from DB: %d of %d", currentCount, targetCount)))
+}
+
 // startJob godoc
 // @summary     Adds a new job as "running"
 // @tags Job add and modify
