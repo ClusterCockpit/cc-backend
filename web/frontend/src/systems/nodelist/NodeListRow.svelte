@@ -14,7 +14,7 @@
     getContextClient,
   } from "@urql/svelte";
   import { Card, CardBody, Spinner } from "@sveltestrap/sveltestrap";
-  import { maxScope, checkMetricDisabled } from "../../generic/utils.js";
+  import { maxScope, checkMetricDisabled, scramble, scrambleNames } from "../../generic/utils.js";
   import MetricPlot from "../../generic/plots/MetricPlot.svelte";
   import NodeInfo from "./NodeInfo.svelte";
 
@@ -110,9 +110,12 @@
       extendedLegendData = {}
       for (const accId of accSet) {
         const matchJob = $nodeJobsData.data.jobs.items.find((i) => i.resources.find((r) => r.accelerators.includes(accId)))
+        const matchUser = matchJob?.user ? matchJob.user : null
         extendedLegendData[accId] = {
-          user: matchJob?.user  ? matchJob?.user  : '-',
-          job:  matchJob?.jobId ? matchJob?.jobId : '-',
+          user: (scrambleNames && matchUser)
+            ? scramble(matchUser) 
+            : (matchUser ? matchUser : '-'),
+          job:  matchJob?.jobId ? matchJob.jobId : '-',
         }
       }
       // Theoretically extendable for hwthreadIDs
