@@ -6,8 +6,10 @@
 {{end}}
 {{define "javascript"}}
     <script>
-        const authlevel = {{ .User.GetAuthLevel }};
+        const username = {{ .User.Username }};
+        const isAdmin = {{ .User.HasRole .Roles.admin }};
         const tagmap = {{ .Infos.tagmap }};
+        const clusterCockpitConfig = {{ .Config }};
     </script>
     <script src='/build/taglist.js'></script>
 {{end}}

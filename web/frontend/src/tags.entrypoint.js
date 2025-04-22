@@ -4,9 +4,13 @@ import Tags from './Tags.root.svelte'
 new Tags({
     target: document.getElementById('svelte-app'),
     props: {
-        // authlevel: authlevel,
+        username: username,
+        isAdmin: isAdmin,
         tagmap: tagmap,
-    }
+    },
+    context: new Map([
+        ['cc-config', clusterCockpitConfig]
+    ])
 })
 
 
