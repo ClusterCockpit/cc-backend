@@ -80,58 +80,28 @@
         </div>
         <div class="d-inline-flex flex-wrap">
           {#each tagList as tag (tag.id)}
-            {#if tag.scope == "global"}
-              <InputGroup class="w-auto flex-nowrap" style="margin-right: 0.5rem; margin-bottom: 0.5rem;">
-                <Button outline color="secondary" href="/monitoring/jobs/?tag={tag.id}" target="_blank">
-                  <Badge color="light" style="font-size:medium;" border>{tag.name}</Badge> : 
-                  <Badge color="primary" pill>{tag.count} Job{(tag.count != 1)?'s':''}</Badge>
+            <InputGroup class="w-auto flex-nowrap" style="margin-right: 0.5rem; margin-bottom: 0.5rem;">
+              <Button outline color="secondary" href="/monitoring/jobs/?tag={tag.id}" target="_blank">
+                <Badge color="light" style="font-size:medium;" border>{tag.name}</Badge> : 
+                <Badge color="primary" pill>{tag.count} Job{(tag.count != 1)?'s':''}</Badge>
+                {#if tag.scope == "global"}
                   <Badge style="background-color:#c85fc8 !important;" pill>Global</Badge>
-                </Button>
-                {#if isAdmin}
-                  <Button
-                    size="sm"
-                    color="danger"
-                    on:click={() => removeTag(tag, tagType)}
-                  >
-                    <Icon name="x" />
-                  </Button>
-                {/if}
-              </InputGroup>
-            {:else if tag.scope == "admin"}
-              <InputGroup class="w-auto flex-nowrap" style="margin-right: 0.5rem; margin-bottom: 0.5rem;">
-                <Button outline color="secondary" href="/monitoring/jobs/?tag={tag.id}" target="_blank">
-                  <Badge color="light" style="font-size:medium;" border>{tag.name}</Badge> : 
-                  <Badge color="primary" pill>{tag.count} Job{(tag.count != 1)?'s':''}</Badge>
+                {:else if tag.scope == "admin"}
                   <Badge style="background-color:#19e5e6 !important;" pill>Admin</Badge>
-                </Button>
-                {#if isAdmin}
-                  <Button
-                    size="sm"
-                    color="danger"
-                    on:click={() => removeTag(tag, tagType)}
-                  >
-                    <Icon name="x" />
-                  </Button>
-                {/if}
-              </InputGroup>
-            {:else}
-              <InputGroup class="w-auto flex-nowrap" style="margin-right: 0.5rem; margin-bottom: 0.5rem;">
-                <Button outline color="secondary" href="/monitoring/jobs/?tag={tag.id}" target="_blank">
-                  <Badge color="light" style="font-size:medium;" border>{tag.name}</Badge> : 
-                  <Badge color="primary" pill>{tag.count} Job{(tag.count != 1)?'s':''}</Badge>
+                {:else}
                   <Badge color="warning" pill>Private</Badge>
-                </Button>
-                {#if tag.scope == username}
-                  <Button
-                    size="sm"
-                    color="danger"
-                    on:click={() => removeTag(tag, tagType)}
-                  >
-                    <Icon name="x" />
-                  </Button>
                 {/if}
-              </InputGroup>
-            {/if}
+              </Button>
+              {#if (isAdmin && (tag.scope == "admin" || tag.scope == "global")) || tag.scope == username }
+                <Button
+                  size="sm"
+                  color="danger"
+                  on:click={() => removeTag(tag, tagType)}
+                >
+                  <Icon name="x" />
+                </Button>
+              {/if}
+            </InputGroup>
           {/each}
         </div>
       {/each}

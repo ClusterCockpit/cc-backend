@@ -45,7 +45,7 @@ func (r *JobRepository) AddTag(user *schema.User, job int64, tag int64) ([]*sche
 	return tags, archive.UpdateTags(j, archiveTags)
 }
 
-// Removes a tag from a job by its ID
+// Removes a tag from a job by tag id
 func (r *JobRepository) RemoveTag(user *schema.User, job, tag int64) ([]*schema.Tag, error) {
 	j, err := r.FindByIdWithUser(user, job)
 	if err != nil {
@@ -146,7 +146,7 @@ func (r *JobRepository) RemoveTagByRequest(tagType string, tagName string, tagSc
 	return nil
 }
 
-// Removes a tag from db by tag info
+// Removes a tag from db by tag id
 func (r *JobRepository) RemoveTagById(tagID int64) error {
 	// Handle Delete JobTagTable
 	qJobTag := sq.Delete("jobtag").Where("jobtag.tag_id = ?", tagID)
