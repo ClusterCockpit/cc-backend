@@ -46,23 +46,22 @@
   };
 
   function removeTag(tag, tagType) {
-    pendingChange = tagType;
-    removeTagMutation({tagIds: [tag.id] }).subscribe(
-      (res) => {
-        if (res.fetching === false && !res.error) {
-          // console.log('Removed:', res.data.removeTagFromList)
-          // console.log('Targets:', tagType, tagmap[tagType])
-          // console.log('Filter:', tagmap[tagType].filter((t) => !res.data.removeTagFromList.includes(t.id)))
-          tagmap[tagType] = tagmap[tagType].filter((t) => !res.data.removeTagFromList.includes(t.id));
-          if (tagmap[tagType].length === 0) {
-            delete tagmap[tagType]
+    if (confirm("Are you sure you want to completely remove this tag?\n\n" + tagType + ':' + tag.name)) {
+      pendingChange = tagType;
+      removeTagMutation({tagIds: [tag.id] }).subscribe(
+        (res) => {
+          if (res.fetching === false && !res.error) {
+            tagmap[tagType] = tagmap[tagType].filter((t) => !res.data.removeTagFromList.includes(t.id));
+            if (tagmap[tagType].length === 0) {
+              delete tagmap[tagType]
+            }
+            pendingChange = "none";
+          } else if (res.fetching === false && res.error) {
+            throw res.error;
           }
-          pendingChange = "none";
-        } else if (res.fetching === false && res.error) {
-          throw res.error;
-        }
-      },
-    );
+        },
+      );
+    }
   }
 </script>
 
