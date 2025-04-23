@@ -79,10 +79,10 @@ func (r *JobRepository) RemoveTag(user *schema.User, job, tag int64) ([]*schema.
 // Removes a tag from a job by tag info
 func (r *JobRepository) RemoveJobTagByRequest(user *schema.User, job int64, tagType string, tagName string, tagScope string) ([]*schema.Tag, error) {
 	// Get Tag ID to delete
-	tagID, err := r.loadTagIDByInfo(tagName, tagType, tagScope)
-	if err != nil {
-		log.Warn("Error while finding tagId with: %s, %s, %s", tagName, tagType, tagScope)
-		return nil, err
+	tagID, exists := r.TagId(tagType, tagName, tagScope)
+	if !exists {
+		log.Warn("Tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
+		return nil, fmt.Errorf("Tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
 	}
 
 	// Get Job
@@ -119,12 +119,35 @@ func (r *JobRepository) RemoveJobTagByRequest(user *schema.User, job int64, tagT
 // Removes a tag from db by tag info
 func (r *JobRepository) RemoveTagByRequest(tagType string, tagName string, tagScope string) error {
 	// Get Tag ID to delete
-	tagID, err := r.loadTagIDByInfo(tagName, tagType, tagScope)
-	if err != nil {
-		log.Warn("Error while finding tagId with: %s, %s, %s", tagName, tagType, tagScope)
+	tagID, exists := r.TagId(tagType, tagName, tagScope)
+	if !exists {
+		log.Warn("Tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
+		return fmt.Errorf("Tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
+	}
+
+	// Handle Delete JobTagTable
+	qJobTag := sq.Delete("jobtag").Where("jobtag.tag_id = ?", tagID)
+
+	if _, err := qJobTag.RunWith(r.stmtCache).Exec(); err != nil {
+		s, _, _ := qJobTag.ToSql()
+		log.Errorf("Error removing tag from table 'jobTag' with %s: %v", s, err)
 		return err
 	}
 
+	// Handle Delete TagTable
+	qTag := sq.Delete("tag").Where("tag.id = ?", tagID)
+
+	if _, err := qTag.RunWith(r.stmtCache).Exec(); err != nil {
+		s, _, _ := qTag.ToSql()
+		log.Errorf("Error removing tag from table 'tag' with %s: %v", s, err)
+		return err
+	}
+
+	return nil
+}
+
+// Removes a tag from db by tag info
+func (r *JobRepository) RemoveTagById(tagID int64) error {
 	// Handle Delete JobTagTable
 	qJobTag := sq.Delete("jobtag").Where("jobtag.tag_id = ?", tagID)
 
@@ -279,6 +302,16 @@ func (r *JobRepository) TagId(tagType string, tagName string, tagScope string) (
 	return
 }
 
+// TagInfo returns the database infos of the tag with the specified id.
+func (r *JobRepository) TagInfo(tagId int64) (tagType string, tagName string, tagScope string, exists bool) {
+	exists = true
+	if err := sq.Select("tag.tag_type", "tag.tag_name", "tag.tag_scope").From("tag").Where("tag.id = ?", tagId).
+		RunWith(r.stmtCache).QueryRow().Scan(&tagType, &tagName, &tagScope); err != nil {
+		exists = false
+	}
+	return
+}
+
 // GetTags returns a list of all scoped tags if job is nil or of the tags that the job with that database ID has.
 func (r *JobRepository) GetTags(user *schema.User, job *int64) ([]*schema.Tag, error) {
 	q := sq.Select("id", "tag_type", "tag_name", "tag_scope").From("tag")
@@ -394,30 +427,4 @@ func (r *JobRepository) checkScopeAuth(user *schema.User, operation string, scop
 	} else {
 		return false, fmt.Errorf("error while checking tag operation auth: no user in context")
 	}
-}
-
-func (r *JobRepository) loadTagIDByInfo(tagType string, tagName string, tagScope string) (tagID int64, err error) {
-	// Get Tag ID to delete
-	getq := sq.Select("id").From("tag").
-		Where("tag_type = ?", tagType).
-		Where("tag_name = ?", tagName).
-		Where("tag_scope = ?", tagScope)
-
-	rows, err := getq.RunWith(r.stmtCache).Query()
-	if err != nil {
-		s, _, _ := getq.ToSql()
-		log.Errorf("Error get tags for delete with %s: %v", s, err)
-		return 0, err
-	}
-
-	dbTags := make([]*schema.Tag, 0)
-	for rows.Next() {
-		dbTag := &schema.Tag{}
-		if err := rows.Scan(&dbTag.ID); err != nil {
-			log.Warn("Error while scanning rows")
-			return 0, err
-		}
-	}
-
-	return dbTags[0].ID, nil
 }

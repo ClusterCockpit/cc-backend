@@ -277,6 +277,7 @@ type Mutation {
   deleteTag(id: ID!): ID!
   addTagsToJob(job: ID!, tagIds: [ID!]!): [Tag!]!
   removeTagsFromJob(job: ID!, tagIds: [ID!]!): [Tag!]!
+  removeTagFromList(tagIds: [ID!]!): [Int!]!
 
   updateConfiguration(name: String!, value: String!): String
 }

@@ -37,13 +37,8 @@
     return mutationStore({
       client: client,
       query: gql`
-        mutation ($job: ID!, $tagIds: [ID!]!) {
-          removeTag(tagIds: $tagIds) {
-            id
-            type
-            name
-            scope
-          }
+        mutation ($tagIds: [ID!]!) {
+          removeTagFromList(tagIds: $tagIds)
         }
       `,
       variables: { tagIds },
@@ -55,7 +50,13 @@
     removeTagMutation({tagIds: [tag.id] }).subscribe(
       (res) => {
         if (res.fetching === false && !res.error) {
-          tagmap = res.data.removeTag;
+          // console.log('Removed:', res.data.removeTagFromList)
+          // console.log('Targets:', tagType, tagmap[tagType])
+          // console.log('Filter:', tagmap[tagType].filter((t) => !res.data.removeTagFromList.includes(t.id)))
+          tagmap[tagType] = tagmap[tagType].filter((t) => !res.data.removeTagFromList.includes(t.id));
+          if (tagmap[tagType].length === 0) {
+            delete tagmap[tagType]
+          }
           pendingChange = "none";
         } else if (res.fetching === false && res.error) {
           throw res.error;
@@ -63,9 +64,6 @@
       },
     );
   }
-
-  $: console.log(username, isAdmin)
-  $: console.log(pendingChange, tagmap)
 </script>
 
 <div class="container">

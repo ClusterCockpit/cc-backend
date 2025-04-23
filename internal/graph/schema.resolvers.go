@@ -125,23 +125,41 @@ func (r *metricValueResolver) Name(ctx context.Context, obj *schema.MetricValue)
 
 // CreateTag is the resolver for the createTag field.
 func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name string, scope string) (*schema.Tag, error) {
-	id, err := r.Repo.CreateTag(typeArg, name, scope)
-	if err != nil {
-		log.Warn("Error while creating tag")
-		return nil, err
+	user := repository.GetUserFromContext(ctx)
+	if user == nil {
+		return nil, fmt.Errorf("no user in context")
 	}
 
-	return &schema.Tag{ID: id, Type: typeArg, Name: name, Scope: scope}, nil
+	// Test Access: Admins && Admin Tag OR Support/Admin and Global Tag OR Everyone && Private Tag
+	if user.HasRole(schema.RoleAdmin) && scope == "admin" ||
+		user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport}) && scope == "global" ||
+		user.Username == scope {
+		// Create in DB
+		id, err := r.Repo.CreateTag(typeArg, name, scope)
+		if err != nil {
+			log.Warn("Error while creating tag")
+			return nil, err
+		}
+		return &schema.Tag{ID: id, Type: typeArg, Name: name, Scope: scope}, nil
+	} else {
+		log.Warn("Not authorized to create tag with scope: %s", scope)
+		return nil, fmt.Errorf("Not authorized to create tag with scope: %s", scope)
+	}
 }
 
 // DeleteTag is the resolver for the deleteTag field.
 func (r *mutationResolver) DeleteTag(ctx context.Context, id string) (string, error) {
+	// This Uses ID string <-> ID string, removeTagFromList uses []string <-> []int
 	panic(fmt.Errorf("not implemented: DeleteTag - deleteTag"))
 }
 
 // AddTagsToJob is the resolver for the addTagsToJob field.
 func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds []string) ([]*schema.Tag, error) {
-	// Selectable Tags Pre-Filtered by Scope in Frontend: No backend check required
+	user := repository.GetUserFromContext(ctx)
+	if user == nil {
+		return nil, fmt.Errorf("no user in context")
+	}
+
 	jid, err := strconv.ParseInt(job, 10, 64)
 	if err != nil {
 		log.Warn("Error while adding tag to job")
@@ -150,15 +168,32 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 
 	tags := []*schema.Tag{}
 	for _, tagId := range tagIds {
+		// Get ID
 		tid, err := strconv.ParseInt(tagId, 10, 64)
 		if err != nil {
 			log.Warn("Error while parsing tag id")
 			return nil, err
 		}
 
-		if tags, err = r.Repo.AddTag(repository.GetUserFromContext(ctx), jid, tid); err != nil {
-			log.Warn("Error while adding tag")
-			return nil, err
+		// Test Exists
+		_, _, tscope, exists := r.Repo.TagInfo(tid)
+		if !exists {
+			log.Warn("Tag does not exist (ID): %d", tid)
+			return nil, fmt.Errorf("Tag does not exist (ID): %d", tid)
+		}
+
+		// Test Access: Admins && Admin Tag OR Support/Admin and Global Tag OR Everyone && Private Tag
+		if user.HasRole(schema.RoleAdmin) && tscope == "admin" ||
+			user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport}) && tscope == "global" ||
+			user.Username == tscope {
+			// Add to Job
+			if tags, err = r.Repo.AddTag(user, jid, tid); err != nil {
+				log.Warn("Error while adding tag")
+				return nil, err
+			}
+		} else {
+			log.Warn("Not authorized to add tag: %d", tid)
+			return nil, fmt.Errorf("Not authorized to add tag: %d", tid)
 		}
 	}
 
@@ -167,7 +202,11 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 
 // RemoveTagsFromJob is the resolver for the removeTagsFromJob field.
 func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, tagIds []string) ([]*schema.Tag, error) {
-	// Removable Tags Pre-Filtered by Scope in Frontend: No backend check required
+	user := repository.GetUserFromContext(ctx)
+	if user == nil {
+		return nil, fmt.Errorf("no user in context")
+	}
+
 	jid, err := strconv.ParseInt(job, 10, 64)
 	if err != nil {
 		log.Warn("Error while parsing job id")
@@ -176,18 +215,77 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 
 	tags := []*schema.Tag{}
 	for _, tagId := range tagIds {
+		// Get ID
 		tid, err := strconv.ParseInt(tagId, 10, 64)
 		if err != nil {
 			log.Warn("Error while parsing tag id")
 			return nil, err
 		}
 
-		if tags, err = r.Repo.RemoveTag(repository.GetUserFromContext(ctx), jid, tid); err != nil {
-			log.Warn("Error while removing tag")
-			return nil, err
+		// Test Exists
+		_, _, tscope, exists := r.Repo.TagInfo(tid)
+		if !exists {
+			log.Warn("Tag does not exist (ID): %d", tid)
+			return nil, fmt.Errorf("Tag does not exist (ID): %d", tid)
 		}
+
+		// Test Access: Admins && Admin Tag OR Support/Admin and Global Tag OR Everyone && Private Tag
+		if user.HasRole(schema.RoleAdmin) && tscope == "admin" ||
+			user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport}) && tscope == "global" ||
+			user.Username == tscope {
+			// Remove from Job
+			if tags, err = r.Repo.RemoveTag(user, jid, tid); err != nil {
+				log.Warn("Error while removing tag")
+				return nil, err
+			}
+		} else {
+			log.Warn("Not authorized to remove tag: %d", tid)
+			return nil, fmt.Errorf("Not authorized to remove tag: %d", tid)
+		}
+
 	}
 
+	return tags, nil
+}
+
+// RemoveTagFromList is the resolver for the removeTagFromList field.
+func (r *mutationResolver) RemoveTagFromList(ctx context.Context, tagIds []string) ([]int, error) {
+	// Needs Contextuser
+	user := repository.GetUserFromContext(ctx)
+	if user == nil {
+		return nil, fmt.Errorf("no user in context")
+	}
+
+	tags := []int{}
+	for _, tagId := range tagIds {
+		// Get ID
+		tid, err := strconv.ParseInt(tagId, 10, 64)
+		if err != nil {
+			log.Warn("Error while parsing tag id for removal")
+			return nil, err
+		}
+
+		// Test Exists
+		_, _, tscope, exists := r.Repo.TagInfo(tid)
+		if !exists {
+			log.Warn("Tag does not exist (ID): %d", tid)
+			return nil, fmt.Errorf("Tag does not exist (ID): %d", tid)
+		}
+
+		// Test Access: Admins && Admin Tag OR Everyone && Private Tag
+		if user.HasRole(schema.RoleAdmin) && (tscope == "global" || tscope == "admin") || user.Username == tscope {
+			// Remove from DB
+			if err = r.Repo.RemoveTagById(tid); err != nil {
+				log.Warn("Error while removing tag")
+				return nil, err
+			} else {
+				tags = append(tags, int(tid))
+			}
+		} else {
+			log.Warn("Not authorized to remove tag: %d", tid)
+			return nil, fmt.Errorf("Not authorized to remove tag: %d", tid)
+		}
+	}
 	return tags, nil
 }
 
