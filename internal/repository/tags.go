@@ -81,7 +81,7 @@ func (r *JobRepository) RemoveJobTagByRequest(user *schema.User, job int64, tagT
 	// Get Tag ID to delete
 	tagID, exists := r.TagId(tagType, tagName, tagScope)
 	if !exists {
-		log.Warn("Tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
+		log.Warnf("Tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
 		return nil, fmt.Errorf("Tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
 	}
 
@@ -121,7 +121,7 @@ func (r *JobRepository) RemoveTagByRequest(tagType string, tagName string, tagSc
 	// Get Tag ID to delete
 	tagID, exists := r.TagId(tagType, tagName, tagScope)
 	if !exists {
-		log.Warn("Tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
+		log.Warnf("Tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
 		return fmt.Errorf("Tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
 	}
 

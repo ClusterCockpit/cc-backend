@@ -78,12 +78,14 @@ func (api *RestApi) MountApiRoutes(r *mux.Router) {
 	r.HandleFunc("/jobs/{id}", api.getJobById).Methods(http.MethodPost)
 	r.HandleFunc("/jobs/{id}", api.getCompleteJobById).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/tag_job/{id}", api.tagJob).Methods(http.MethodPost, http.MethodPatch)
+	r.HandleFunc("/jobs/tag_job/{id}", api.removeTagJob).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/edit_meta/{id}", api.editMeta).Methods(http.MethodPost, http.MethodPatch)
 	r.HandleFunc("/jobs/metrics/{id}", api.getJobMetrics).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/delete_job/", api.deleteJobByRequest).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job/{id}", api.deleteJobById).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job_before/{ts}", api.deleteJobBefore).Methods(http.MethodDelete)
 
+	r.HandleFunc("/tags/", api.removeTags).Methods(http.MethodDelete)
 	r.HandleFunc("/clusters/", api.getClusters).Methods(http.MethodGet)
 
 	if api.MachineStateDir != "" {
@@ -805,14 +807,6 @@ func (api *RestApi) removeTagJob(rw http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// remainingTags := job.Tags[:0]
-		// for _, tag := range job.Tags {
-		// 	if tag.Type != rtag.Type &&
-		// 		tag.Name != rtag.Name &&
-		// 		tag.Scope != rtag.Scope {
-		// 		remainingTags = append(remainingTags, tag)
-		// 	}
-		// }
 		job.Tags = remainingTags
 	}
 
@@ -836,7 +830,7 @@ func (api *RestApi) removeTagJob(rw http.ResponseWriter, r *http.Request) {
 // @failure     404     {object} api.ErrorResponse         "Job or tag does not exist"
 // @failure     500     {object} api.ErrorResponse         "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/tag_job/ [delete]
+// @router      /tags/ [delete]
 func (api *RestApi) removeTags(rw http.ResponseWriter, r *http.Request) {
 	var req TagJobApiRequest
 	if err := decode(r.Body, &req); err != nil {
@@ -863,7 +857,7 @@ func (api *RestApi) removeTags(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	rw.WriteHeader(http.StatusOK)
-	rw.Write([]byte(fmt.Sprintf("Deleted Tags from DB: %d of %d", currentCount, targetCount)))
+	rw.Write([]byte(fmt.Sprintf("Deleted Tags from DB: %d successfull of %d requested\n", currentCount, targetCount)))
 }
 
 // startJob godoc

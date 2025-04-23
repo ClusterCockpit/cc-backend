@@ -142,7 +142,7 @@ func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name s
 		}
 		return &schema.Tag{ID: id, Type: typeArg, Name: name, Scope: scope}, nil
 	} else {
-		log.Warn("Not authorized to create tag with scope: %s", scope)
+		log.Warnf("Not authorized to create tag with scope: %s", scope)
 		return nil, fmt.Errorf("Not authorized to create tag with scope: %s", scope)
 	}
 }
@@ -178,7 +178,7 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 		// Test Exists
 		_, _, tscope, exists := r.Repo.TagInfo(tid)
 		if !exists {
-			log.Warn("Tag does not exist (ID): %d", tid)
+			log.Warnf("Tag does not exist (ID): %d", tid)
 			return nil, fmt.Errorf("Tag does not exist (ID): %d", tid)
 		}
 
@@ -192,7 +192,7 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 				return nil, err
 			}
 		} else {
-			log.Warn("Not authorized to add tag: %d", tid)
+			log.Warnf("Not authorized to add tag: %d", tid)
 			return nil, fmt.Errorf("Not authorized to add tag: %d", tid)
 		}
 	}
@@ -225,7 +225,7 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 		// Test Exists
 		_, _, tscope, exists := r.Repo.TagInfo(tid)
 		if !exists {
-			log.Warn("Tag does not exist (ID): %d", tid)
+			log.Warnf("Tag does not exist (ID): %d", tid)
 			return nil, fmt.Errorf("Tag does not exist (ID): %d", tid)
 		}
 
@@ -239,7 +239,7 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 				return nil, err
 			}
 		} else {
-			log.Warn("Not authorized to remove tag: %d", tid)
+			log.Warnf("Not authorized to remove tag: %d", tid)
 			return nil, fmt.Errorf("Not authorized to remove tag: %d", tid)
 		}
 
@@ -268,7 +268,7 @@ func (r *mutationResolver) RemoveTagFromList(ctx context.Context, tagIds []strin
 		// Test Exists
 		_, _, tscope, exists := r.Repo.TagInfo(tid)
 		if !exists {
-			log.Warn("Tag does not exist (ID): %d", tid)
+			log.Warnf("Tag does not exist (ID): %d", tid)
 			return nil, fmt.Errorf("Tag does not exist (ID): %d", tid)
 		}
 
@@ -282,7 +282,7 @@ func (r *mutationResolver) RemoveTagFromList(ctx context.Context, tagIds []strin
 				tags = append(tags, int(tid))
 			}
 		} else {
-			log.Warn("Not authorized to remove tag: %d", tid)
+			log.Warnf("Not authorized to remove tag: %d", tid)
 			return nil, fmt.Errorf("Not authorized to remove tag: %d", tid)
 		}
 	}
