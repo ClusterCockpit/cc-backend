@@ -1,6 +1,7 @@
 module github.com/ClusterCockpit/cc-backend
 
 go 1.23.5
+
 toolchain go1.24.1
 
 require (

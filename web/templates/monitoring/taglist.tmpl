@@ -1,37 +1,15 @@
 {{define "content"}}
-    <div class="container">
-        <div class="row  justify-content-center">
-            <div class="col-10">
-            {{ range $tagType, $tagList := .Infos.tagmap }}
-                <div class="my-3 p-2 bg-secondary rounded text-white"> <!-- text-capitalize -->
-                    Tag Type: <b>{{ $tagType }}</b>
-                    <span style="float: right; padding-bottom: 0.4rem; padding-top: 0.4rem;" class="badge bg-light text-secondary">
-                        {{len $tagList}} Tag{{if ne (len $tagList) 1}}s{{end}}
-                    </span>
-                </div>
-                {{ range $tagList }}
-                    {{if eq .scope "global"}}
-                        <a class="btn btn-outline-secondary" href="/monitoring/jobs/?tag={{ .id }}" role="button">
-                            {{ .name }}
-                            <span class="badge bg-primary mr-1">{{ .count }} Job{{if ne .count 1}}s{{end}}</span>
-                            <span style="background-color:#c85fc8;" class="badge text-dark">Global</span>
-                        </a>
-                    {{else if eq .scope "admin"}}
-                        <a class="btn btn-outline-secondary" href="/monitoring/jobs/?tag={{ .id }}" role="button">
-                            {{ .name }}
-                            <span class="badge bg-primary mr-1">{{ .count }} Job{{if ne .count 1}}s{{end}}</span>
-                            <span style="background-color:#19e5e6;" class="badge text-dark">Admin</span>
-                        </a>
-                    {{else}}
-                        <a class="btn btn-outline-secondary" href="/monitoring/jobs/?tag={{ .id }}" role="button">
-                            {{ .name }}
-                            <span class="badge bg-primary mr-1">{{ .count }} Job{{if ne .count 1}}s{{end}}</span>
-                            <span class="badge bg-warning text-dark">Private</span>
-                        </a>
-                    {{end}}
-                {{end}}
-            {{end}}
-            </div>
-        </div>
-    </div>
+    <div id="svelte-app"></div>
+{{end}}
+{{define "stylesheets"}}
+    <link rel='stylesheet' href='/build/taglist.css'>
+{{end}}
+{{define "javascript"}}
+    <script>
+        const username = {{ .User.Username }};
+        const isAdmin = {{ .User.HasRole .Roles.admin }};
+        const tagmap = {{ .Infos.tagmap }};
+        const clusterCockpitConfig = {{ .Config }};
+    </script>
+    <script src='/build/taglist.js'></script>
 {{end}}
