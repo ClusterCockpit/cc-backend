@@ -250,6 +250,7 @@ type ComplexityRoot struct {
 		AddTagsToJob        func(childComplexity int, job string, tagIds []string) int
 		CreateTag           func(childComplexity int, typeArg string, name string, scope string) int
 		DeleteTag           func(childComplexity int, id string) int
+		RemoveTagFromList   func(childComplexity int, tagIds []string) int
 		RemoveTagsFromJob   func(childComplexity int, job string, tagIds []string) int
 		UpdateConfiguration func(childComplexity int, name string, value string) int
 	}
@@ -399,6 +400,7 @@ type MutationResolver interface {
 	DeleteTag(ctx context.Context, id string) (string, error)
 	AddTagsToJob(ctx context.Context, job string, tagIds []string) ([]*schema.Tag, error)
 	RemoveTagsFromJob(ctx context.Context, job string, tagIds []string) ([]*schema.Tag, error)
+	RemoveTagFromList(ctx context.Context, tagIds []string) ([]int, error)
 	UpdateConfiguration(ctx context.Context, name string, value string) (*string, error)
 }
 type QueryResolver interface {
@@ -1309,6 +1311,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.DeleteTag(childComplexity, args["id"].(string)), true
+
+	case "Mutation.removeTagFromList":
+		if e.complexity.Mutation.RemoveTagFromList == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_removeTagFromList_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.RemoveTagFromList(childComplexity, args["tagIds"].([]string)), true
 
 	case "Mutation.removeTagsFromJob":
 		if e.complexity.Mutation.RemoveTagsFromJob == nil {
@@ -2339,6 +2353,7 @@ type Mutation {
   deleteTag(id: ID!): ID!
   addTagsToJob(job: ID!, tagIds: [ID!]!): [Tag!]!
   removeTagsFromJob(job: ID!, tagIds: [ID!]!): [Tag!]!
+  removeTagFromList(tagIds: [ID!]!): [Int!]!
 
   updateConfiguration(name: String!, value: String!): String
 }
@@ -2614,6 +2629,34 @@ func (ec *executionContext) field_Mutation_deleteTag_argsID(
 	}
 
 	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_removeTagFromList_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_removeTagFromList_argsTagIds(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["tagIds"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_removeTagFromList_argsTagIds(
+	ctx context.Context,
+	rawArgs map[string]any,
+) ([]string, error) {
+	if _, ok := rawArgs["tagIds"]; !ok {
+		var zeroVal []string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("tagIds"))
+	if tmp, ok := rawArgs["tagIds"]; ok {
+		return ec.unmarshalNID2ᚕstringᚄ(ctx, tmp)
+	}
+
+	var zeroVal []string
 	return zeroVal, nil
 }
 
@@ -9684,6 +9727,61 @@ func (ec *executionContext) fieldContext_Mutation_removeTagsFromJob(ctx context.
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_removeTagsFromJob_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_removeTagFromList(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_removeTagFromList(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().RemoveTagFromList(rctx, fc.Args["tagIds"].([]string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]int)
+	fc.Result = res
+	return ec.marshalNInt2ᚕintᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_removeTagFromList(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_removeTagFromList_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -17761,6 +17859,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "removeTagsFromJob":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_removeTagsFromJob(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "removeTagFromList":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_removeTagFromList(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

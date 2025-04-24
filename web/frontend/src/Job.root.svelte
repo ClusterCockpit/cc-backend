@@ -128,14 +128,13 @@
     const pendingMetrics = (
       ccconfig[`job_view_selectedMetrics:${job.cluster}:${job.subCluster}`] ||
       ccconfig[`job_view_selectedMetrics:${job.cluster}`]
-    ) ||
-    $initq.data.globalMetrics
-      .reduce((names, gm) => {
-        if (gm.availability.find((av) => av.cluster === job.cluster && av.subClusters.includes(job.subCluster))) {
-          names.push(gm.name);
-        }
-        return names;
-      }, [])
+    ) || 
+    $initq.data.globalMetrics.reduce((names, gm) => {
+      if (gm.availability.find((av) => av.cluster === job.cluster && av.subClusters.includes(job.subCluster))) {
+        names.push(gm.name);
+      }
+      return names;
+    }, [])
 
     // Select default Scopes to load: Check before if any metric has accelerator scope by default
     const accScopeDefault = [...pendingMetrics].some(function (m) {
@@ -338,10 +337,25 @@
             scopes={item.data.map((x) => x.scope)}
             isShared={$initq.data.job.exclusive != 1}
           />
+        {:else if item.disabled == true}
+          <Card color="info">
+            <CardHeader class="mb-0">
+              <b>Disabled Metric</b>
+            </CardHeader>
+            <CardBody>
+              <p>Metric <b>{item.metric}</b> is disabled for subcluster <b>{$initq.data.job.subCluster}</b>.</p>
+              <p class="mb-1">To remove this card, open metric selection and press "Close and Apply".</p>
+            </CardBody>
+          </Card>
         {:else}
-          <Card body color="warning" class="mt-2"
-            >No dataset returned for <code>{item.metric}</code></Card
-          >
+          <Card color="warning" class="mt-2">
+            <CardHeader class="mb-0">
+              <b>Missing Metric</b>
+            </CardHeader>
+            <CardBody>
+              <p class="mb-1">No dataset returned for <b>{item.metric}</b>.</p>
+            </CardBody>
+          </Card>
         {/if}
       </PlotGrid>
     {/if}

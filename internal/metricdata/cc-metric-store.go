@@ -302,6 +302,20 @@ func (ccms *CCMetricStore) buildQueries(
 			continue
 		}
 
+		// Skip if metric is removed for subcluster
+		if len(mc.SubClusters) != 0 {
+			isRemoved := false
+			for _, scConfig := range mc.SubClusters {
+				if scConfig.Name == job.SubCluster && scConfig.Remove == true {
+					isRemoved = true
+					break
+				}
+			}
+			if isRemoved {
+				continue
+			}
+		}
+
 		// Avoid duplicates...
 		handledScopes := make([]schema.MetricScope, 0, 3)
 
@@ -983,6 +997,20 @@ func (ccms *CCMetricStore) buildNodeQueries(
 			// return nil, fmt.Errorf("METRICDATA/CCMS > metric '%s' is not specified for cluster '%s'", metric, cluster)
 			log.Warnf("metric '%s' is not specified for cluster '%s'", metric, cluster)
 			continue
+		}
+
+		// Skip if metric is removed for subcluster
+		if mc.SubClusters != nil {
+			isRemoved := false
+			for _, scConfig := range mc.SubClusters {
+				if scConfig.Name == subCluster && scConfig.Remove == true {
+					isRemoved = true
+					break
+				}
+			}
+			if isRemoved {
+				continue
+			}
 		}
 
 		// Avoid duplicates...

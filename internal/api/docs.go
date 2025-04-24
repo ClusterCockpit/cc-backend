@@ -23,7 +23,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/clusters/": {
+        "/api/clusters/": {
             "get": {
                 "security": [
                     {
@@ -80,7 +80,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/": {
+        "/api/jobs/": {
             "get": {
                 "security": [
                     {
@@ -175,7 +175,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/delete_job/": {
+        "/api/jobs/delete_job/": {
             "delete": {
                 "security": [
                     {
@@ -250,7 +250,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/delete_job/{id}": {
+        "/api/jobs/delete_job/{id}": {
             "delete": {
                 "security": [
                     {
@@ -320,7 +320,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/delete_job_before/{ts}": {
+        "/api/jobs/delete_job_before/{ts}": {
             "delete": {
                 "security": [
                     {
@@ -390,7 +390,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/edit_meta/{id}": {
+        "/api/jobs/edit_meta/{id}": {
             "post": {
                 "security": [
                     {
@@ -460,7 +460,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/start_job/": {
+        "/api/jobs/start_job/": {
             "post": {
                 "security": [
                     {
@@ -529,7 +529,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/stop_job/": {
+        "/api/jobs/stop_job/": {
             "post": {
                 "security": [
                     {
@@ -601,7 +601,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/tag_job/{id}": {
+        "/api/jobs/tag_job/{id}": {
             "post": {
                 "security": [
                     {
@@ -674,7 +674,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/{id}": {
+        "/api/jobs/{id}": {
             "get": {
                 "security": [
                     {
@@ -833,185 +833,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/notice/": {
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Modifies the content of notice.txt, shown as notice box on the homepage.\nIf more than one formValue is set then only the highest priority field is used.\nOnly accessible from IPs registered with apiAllowedIPs configuration option.",
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "produces": [
-                    "text/plain"
-                ],
-                "tags": [
-                    "User"
-                ],
-                "summary": "Updates or empties the notice box content",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Priority 1: New content to display",
-                        "name": "new-content",
-                        "in": "formData"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Success Response Message",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "422": {
-                        "description": "Unprocessable Entity: The user could not be updated",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/user/{id}": {
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Modifies user defined by username (id) in one of four possible ways.\nIf more than one formValue is set then only the highest priority field is used.\nOnly accessible from IPs registered with apiAllowedIPs configuration option.",
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "produces": [
-                    "text/plain"
-                ],
-                "tags": [
-                    "User"
-                ],
-                "summary": "Updates an existing user",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Database ID of User",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "enum": [
-                            "admin",
-                            "support",
-                            "manager",
-                            "user",
-                            "api"
-                        ],
-                        "type": "string",
-                        "description": "Priority 1: Role to add",
-                        "name": "add-role",
-                        "in": "formData"
-                    },
-                    {
-                        "enum": [
-                            "admin",
-                            "support",
-                            "manager",
-                            "user",
-                            "api"
-                        ],
-                        "type": "string",
-                        "description": "Priority 2: Role to remove",
-                        "name": "remove-role",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Priority 3: Project to add",
-                        "name": "add-project",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Priority 4: Project to remove",
-                        "name": "remove-project",
-                        "in": "formData"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Success Response Message",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "422": {
-                        "description": "Unprocessable Entity: The user could not be updated",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/users/": {
+        "/api/users/": {
             "get": {
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Returns a JSON-encoded list of users.\nRequired query-parameter defines if all users or only users with additional special roles are returned.\nOnly accessible from IPs registered with apiAllowedIPs configuration option.",
+                "description": "Returns a JSON-encoded list of users.\nRequired query-parameter defines if all users or only users with additional special roles are returned.",
                 "produces": [
                     "application/json"
                 ],
@@ -1063,70 +892,111 @@ const docTemplate = `{
                         }
                     }
                 }
-            },
-            "post": {
+            }
+        },
+        "/jobs/tag_job/{id}": {
+            "delete": {
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "User specified in form data will be saved to database.\nOnly accessible from IPs registered with apiAllowedIPs configuration option.",
+                "description": "Removes tag(s) from a job specified by DB ID. Name and Type of Tag(s) must match.\nTag Scope is required for matching, options: \"global\", \"admin\". Private tags can not be deleted via API.\nIf tagged job is already finished: Tag will be removed from respective archive files.",
                 "consumes": [
-                    "multipart/form-data"
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Job add and modify"
+                ],
+                "summary": "Removes one or more tags from a job",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Job Database ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Array of tag-objects to remove",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.ApiTag"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated job resource",
+                        "schema": {
+                            "$ref": "#/definitions/schema.Job"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Job or tag does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tags/": {
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Removes tags by type and name. Name and Type of Tag(s) must match.\nTag Scope is required for matching, options: \"global\", \"admin\". Private tags can not be deleted via API.\nTag wills be removed from respective archive files.",
+                "consumes": [
+                    "application/json"
                 ],
                 "produces": [
                     "text/plain"
                 ],
                 "tags": [
-                    "User"
+                    "Tag remove"
                 ],
-                "summary": "Adds a new user",
+                "summary": "Removes all tags and job-relations for type:name tuple",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "Unique user ID",
-                        "name": "username",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "User password",
-                        "name": "password",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "enum": [
-                            "admin",
-                            "support",
-                            "manager",
-                            "user",
-                            "api"
-                        ],
-                        "type": "string",
-                        "description": "User role",
-                        "name": "role",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Managed project, required for new manager role user",
-                        "name": "project",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Users name",
-                        "name": "name",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Users email",
-                        "name": "email",
-                        "in": "formData"
+                        "description": "Array of tag-objects to remove",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.ApiTag"
+                            }
+                        }
                     }
                 ],
                 "responses": {
@@ -1139,93 +1009,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
-                    "403": {
-                        "description": "Forbidden",
+                    "404": {
+                        "description": "Job or tag does not exist",
                         "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "422": {
-                        "description": "Unprocessable Entity: creating user failed",
-                        "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "User defined by username in form data will be deleted from database.\nOnly accessible from IPs registered with apiAllowedIPs configuration option.",
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "produces": [
-                    "text/plain"
-                ],
-                "tags": [
-                    "User"
-                ],
-                "summary": "Deletes a user",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "User ID to delete",
-                        "name": "username",
-                        "in": "formData",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "User deleted successfully"
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "422": {
-                        "description": "Unprocessable Entity: deleting user failed",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -2191,7 +1993,7 @@ const docTemplate = `{
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0.0",
 	Host:             "localhost:8080",
-	BasePath:         "/api",
+	BasePath:         "",
 	Schemes:          []string{},
 	Title:            "ClusterCockpit REST API",
 	Description:      "API for batch job control.",

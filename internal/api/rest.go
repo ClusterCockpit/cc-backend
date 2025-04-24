@@ -46,7 +46,6 @@ import (
 // @license.url                https://opensource.org/licenses/MIT
 
 // @host                       localhost:8080
-// @basePath                   /api
 
 // @securityDefinitions.apikey ApiKeyAuth
 // @in                         header
@@ -82,11 +81,14 @@ func (api *RestApi) MountApiRoutes(r *mux.Router) {
 	r.HandleFunc("/jobs/{id}", api.getJobById).Methods(http.MethodPost)
 	r.HandleFunc("/jobs/{id}", api.getCompleteJobById).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/tag_job/{id}", api.tagJob).Methods(http.MethodPost, http.MethodPatch)
+	r.HandleFunc("/jobs/tag_job/{id}", api.removeTagJob).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/edit_meta/{id}", api.editMeta).Methods(http.MethodPost, http.MethodPatch)
 	r.HandleFunc("/jobs/metrics/{id}", api.getJobMetrics).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/delete_job/", api.deleteJobByRequest).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job/{id}", api.deleteJobById).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job_before/{ts}", api.deleteJobBefore).Methods(http.MethodDelete)
+
+	r.HandleFunc("/tags/", api.removeTags).Methods(http.MethodDelete)
 
 	if api.MachineStateDir != "" {
 		r.HandleFunc("/machine_state/{cluster}/{host}", api.getMachineState).Methods(http.MethodGet)
@@ -217,7 +219,7 @@ func handleError(err error, statusCode int, rw http.ResponseWriter) {
 	})
 }
 
-func decode(r io.Reader, val interface{}) error {
+func decode(r io.Reader, val any) error {
 	dec := json.NewDecoder(r)
 	dec.DisallowUnknownFields()
 	return dec.Decode(val)
@@ -235,7 +237,7 @@ func decode(r io.Reader, val interface{}) error {
 // @failure     403            {object} api.ErrorResponse       "Forbidden"
 // @failure     500            {object} api.ErrorResponse       "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /clusters/ [get]
+// @router      /api/clusters/ [get]
 func (api *RestApi) getClusters(rw http.ResponseWriter, r *http.Request) {
 	if user := repository.GetUserFromContext(r.Context()); user != nil &&
 		!user.HasRole(schema.RoleApi) {
@@ -290,7 +292,7 @@ func (api *RestApi) getClusters(rw http.ResponseWriter, r *http.Request) {
 // @failure     403            {object} api.ErrorResponse       "Forbidden"
 // @failure     500            {object} api.ErrorResponse       "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/ [get]
+// @router      /api/jobs/ [get]
 func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 	withMetadata := false
 	filter := &model.JobFilter{}
@@ -424,7 +426,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 // @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/{id} [get]
+// @router      /api/jobs/{id} [get]
 func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) {
 	// Fetch job from db
 	id, ok := mux.Vars(r)["id"]
@@ -517,7 +519,7 @@ func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) 
 // @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/{id} [post]
+// @router      /api/jobs/{id} [post]
 func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 	// Fetch job from db
 	id, ok := mux.Vars(r)["id"]
@@ -621,7 +623,7 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 // @failure     404     {object} api.ErrorResponse         "Job does not exist"
 // @failure     500     {object} api.ErrorResponse         "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/edit_meta/{id} [post]
+// @router      /api/jobs/edit_meta/{id} [post]
 func (api *RestApi) editMeta(rw http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
 	if err != nil {
@@ -667,7 +669,7 @@ func (api *RestApi) editMeta(rw http.ResponseWriter, r *http.Request) {
 // @failure     404     {object} api.ErrorResponse         "Job or tag does not exist"
 // @failure     500     {object} api.ErrorResponse         "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/tag_job/{id} [post]
+// @router      /api/jobs/tag_job/{id} [post]
 func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
 	if err != nil {
@@ -713,6 +715,114 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(rw).Encode(job)
 }
 
+// removeTagJob godoc
+// @summary     Removes one or more tags from a job
+// @tags Job add and modify
+// @description Removes tag(s) from a job specified by DB ID. Name and Type of Tag(s) must match.
+// @description Tag Scope is required for matching, options: "global", "admin". Private tags can not be deleted via API.
+// @description If tagged job is already finished: Tag will be removed from respective archive files.
+// @accept      json
+// @produce     json
+// @param       id      path     int                  true "Job Database ID"
+// @param       request body     api.TagJobApiRequest true "Array of tag-objects to remove"
+// @success     200     {object} schema.Job                "Updated job resource"
+// @failure     400     {object} api.ErrorResponse         "Bad Request"
+// @failure     401     {object} api.ErrorResponse         "Unauthorized"
+// @failure     404     {object} api.ErrorResponse         "Job or tag does not exist"
+// @failure     500     {object} api.ErrorResponse         "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /jobs/tag_job/{id} [delete]
+func (api *RestApi) removeTagJob(rw http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	job, err := api.JobRepository.FindById(r.Context(), id)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	job.Tags, err = api.JobRepository.GetTags(repository.GetUserFromContext(r.Context()), &job.ID)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var req TagJobApiRequest
+	if err := decode(r.Body, &req); err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	for _, rtag := range req {
+		// Only Global and Admin Tags
+		if rtag.Scope != "global" && rtag.Scope != "admin" {
+			log.Warnf("Cannot delete private tag for job %d: Skip", job.JobID)
+			continue
+		}
+
+		remainingTags, err := api.JobRepository.RemoveJobTagByRequest(repository.GetUserFromContext(r.Context()), job.ID, rtag.Type, rtag.Name, rtag.Scope)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		job.Tags = remainingTags
+	}
+
+	rw.Header().Add("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode(job)
+}
+
+// removeTags godoc
+// @summary     Removes all tags and job-relations for type:name tuple
+// @tags Tag remove
+// @description Removes tags by type and name. Name and Type of Tag(s) must match.
+// @description Tag Scope is required for matching, options: "global", "admin". Private tags can not be deleted via API.
+// @description Tag wills be removed from respective archive files.
+// @accept      json
+// @produce     plain
+// @param       request body     api.TagJobApiRequest true "Array of tag-objects to remove"
+// @success     200     {string} string                    "Success Response"
+// @failure     400     {object} api.ErrorResponse         "Bad Request"
+// @failure     401     {object} api.ErrorResponse         "Unauthorized"
+// @failure     404     {object} api.ErrorResponse         "Job or tag does not exist"
+// @failure     500     {object} api.ErrorResponse         "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /tags/ [delete]
+func (api *RestApi) removeTags(rw http.ResponseWriter, r *http.Request) {
+	var req TagJobApiRequest
+	if err := decode(r.Body, &req); err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	targetCount := len(req)
+	currentCount := 0
+	for _, rtag := range req {
+		// Only Global and Admin Tags
+		if rtag.Scope != "global" && rtag.Scope != "admin" {
+			log.Warn("Cannot delete private tag: Skip")
+			continue
+		}
+
+		err := api.JobRepository.RemoveTagByRequest(rtag.Type, rtag.Name, rtag.Scope)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		} else {
+			currentCount++
+		}
+	}
+
+	rw.WriteHeader(http.StatusOK)
+	rw.Write([]byte(fmt.Sprintf("Deleted Tags from DB: %d successfull of %d requested\n", currentCount, targetCount)))
+}
+
 // startJob godoc
 // @summary     Adds a new job as "running"
 // @tags Job add and modify
@@ -728,7 +838,7 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 // @failure     422     {object} api.ErrorResponse            "Unprocessable Entity: The combination of jobId, clusterId and startTime does already exist"
 // @failure     500     {object} api.ErrorResponse            "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/start_job/ [post]
+// @router      /api/jobs/start_job/ [post]
 func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	req := schema.JobMeta{BaseJob: schema.JobDefaults}
 	if err := decode(r.Body, &req); err != nil {
@@ -801,7 +911,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 // @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: job has already been stopped"
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/stop_job/ [post]
+// @router      /api/jobs/stop_job/ [post]
 func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 	// Parse request body
 	req := StopJobApiRequest{}
@@ -842,7 +952,7 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 // @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/delete_job/{id} [delete]
+// @router      /api/jobs/delete_job/{id} [delete]
 func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 	// Fetch job (that will be stopped) from db
 	id, ok := mux.Vars(r)["id"]
@@ -885,7 +995,7 @@ func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 // @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/delete_job/ [delete]
+// @router      /api/jobs/delete_job/ [delete]
 func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) {
 	// Parse request body
 	req := DeleteJobApiRequest{}
@@ -935,7 +1045,7 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 // @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/delete_job_before/{ts} [delete]
+// @router      /api/jobs/delete_job_before/{ts} [delete]
 func (api *RestApi) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 	var cnt int
 	// Fetch job (that will be stopped) from db
@@ -1053,26 +1163,6 @@ func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// createUser godoc
-// @summary     Adds a new user
-// @tags User
-// @description User specified in form data will be saved to database.
-// @accept      mpfd
-// @produce     plain
-// @param       username formData string                       true  "Unique user ID"
-// @param       password formData string                       true  "User password"
-// @param       role 	 formData string                       true  "User role" Enums(admin, support, manager, user, api)
-// @param       project  formData string                       false "Managed project, required for new manager role user"
-// @param       name 	 formData string                       false "Users name"
-// @param       email 	 formData string                       false "Users email"
-// @success     200      {string} string                       "Success Response"
-// @failure     400      {string} string                       "Bad Request"
-// @failure     401      {string} string                       "Unauthorized"
-// @failure     403      {string} string                       "Forbidden"
-// @failure     422      {string} string                       "Unprocessable Entity: creating user failed"
-// @failure     500      {string} string                       "Internal Server Error"
-// @security    ApiKeyAuth
-// @router      /users/ [post]
 func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
@@ -1117,21 +1207,6 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(rw, "User %v successfully created!\n", username)
 }
 
-// deleteUser godoc
-// @summary     Deletes a user
-// @tags User
-// @description User defined by username in form data will be deleted from database.
-// @accept      mpfd
-// @produce     plain
-// @param       username formData string         true "User ID to delete"
-// @success     200      "User deleted successfully"
-// @failure     400      {string} string              "Bad Request"
-// @failure     401      {string} string              "Unauthorized"
-// @failure     403      {string} string              "Forbidden"
-// @failure     422      {string} string              "Unprocessable Entity: deleting user failed"
-// @failure     500      {string} string              "Internal Server Error"
-// @security    ApiKeyAuth
-// @router      /users/ [delete]
 func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
@@ -1162,7 +1237,7 @@ func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
 // @failure     403     {string} string             "Forbidden"
 // @failure     500     {string} string             "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /users/ [get]
+// @router      /api/users/ [get]
 func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
@@ -1180,26 +1255,6 @@ func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(rw).Encode(users)
 }
 
-// updateUser godoc
-// @summary     Updates an existing user
-// @tags User
-// @description Modifies user defined by username (id) in one of four possible ways.
-// @description If more than one formValue is set then only the highest priority field is used.
-// @accept      mpfd
-// @produce     plain
-// @param       id             path     string     true  "Database ID of User"
-// @param       add-role       formData string     false "Priority 1: Role to add" Enums(admin, support, manager, user, api)
-// @param       remove-role    formData string     false "Priority 2: Role to remove" Enums(admin, support, manager, user, api)
-// @param       add-project    formData string     false "Priority 3: Project to add"
-// @param       remove-project formData string     false "Priority 4: Project to remove"
-// @success     200     {string} string            "Success Response Message"
-// @failure     400     {string} string            "Bad Request"
-// @failure     401     {string} string            "Unauthorized"
-// @failure     403     {string} string            "Forbidden"
-// @failure     422     {string} string            "Unprocessable Entity: The user could not be updated"
-// @failure     500     {string} string            "Internal Server Error"
-// @security    ApiKeyAuth
-// @router      /user/{id} [post]
 func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
@@ -1244,22 +1299,6 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// editNotice godoc
-// @summary     Updates or empties the notice box content
-// @tags User
-// @description Modifies the content of notice.txt, shown as notice box on the homepage.
-// @description If more than one formValue is set then only the highest priority field is used.
-// @accept      mpfd
-// @produce     plain
-// @param       new-content       formData string     false "Priority 1: New content to display"
-// @success     200     {string} string            "Success Response Message"
-// @failure     400     {string} string            "Bad Request"
-// @failure     401     {string} string            "Unauthorized"
-// @failure     403     {string} string            "Forbidden"
-// @failure     422     {string} string            "Unprocessable Entity: The user could not be updated"
-// @failure     500     {string} string            "Internal Server Error"
-// @security    ApiKeyAuth
-// @router      /notice/ [post]
 func (api *RestApi) editNotice(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 

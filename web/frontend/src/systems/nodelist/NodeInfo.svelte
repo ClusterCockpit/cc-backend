@@ -17,6 +17,9 @@
     Input,
     InputGroup,
     InputGroupText, } from "@sveltestrap/sveltestrap";
+  import { 
+    scramble,
+    scrambleNames, } from "../../generic/utils.js";
 
   export let cluster;
   export let subCluster
@@ -32,8 +35,8 @@
   let userList;
   let projectList;
   $: if (nodeJobsData) {
-    userList = Array.from(new Set(nodeJobsData.jobs.items.map((j) => j.user))).sort((a, b) => a.localeCompare(b));
-    projectList = Array.from(new Set(nodeJobsData.jobs.items.map((j) => j.project))).sort((a, b) => a.localeCompare(b));
+    userList = Array.from(new Set(nodeJobsData.jobs.items.map((j) => scrambleNames ? scramble(j.user) : j.user))).sort((a, b) => a.localeCompare(b));
+    projectList = Array.from(new Set(nodeJobsData.jobs.items.map((j) => scrambleNames ? scramble(j.project) : j.project))).sort((a, b) => a.localeCompare(b));
   }
 </script>
 

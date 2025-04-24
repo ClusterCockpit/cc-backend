@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/ClusterCockpit/cc-backend/internal/api"
 	"github.com/ClusterCockpit/cc-backend/internal/archiver"
@@ -31,6 +32,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/web"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
@@ -53,13 +55,24 @@ func serverInit() {
 	// Setup the http.Handler/Router used by the server
 	graph.Init()
 	resolver := graph.GetResolverInstance()
-	graphQLEndpoint := handler.NewDefaultServer(
+	graphQLServer := handler.New(
 		generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
+
+	graphQLServer.AddTransport(transport.SSE{})
+	graphQLServer.AddTransport(transport.POST{})
+	graphQLServer.AddTransport(transport.Websocket{
+		KeepAlivePingInterval: 10 * time.Second,
+		Upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		},
+	})
 
 	if os.Getenv("DEBUG") != "1" {
 		// Having this handler means that a error message is returned via GraphQL instead of the connection simply beeing closed.
 		// The problem with this is that then, no more stacktrace is printed to stderr.
-		graphQLEndpoint.SetRecoverFunc(func(ctx context.Context, err interface{}) error {
+		graphQLServer.SetRecoverFunc(func(ctx context.Context, err any) error {
 			switch e := err.(type) {
 			case string:
 				return fmt.Errorf("MAIN > Panic: %s", e)
@@ -78,7 +91,7 @@ func serverInit() {
 	router = mux.NewRouter()
 	buildInfo := web.Build{Version: version, Hash: commit, Buildtime: date}
 
-	info := map[string]interface{}{}
+	info := map[string]any{}
 	info["hasOpenIDConnect"] = false
 
 	if config.Keys.OpenIDConfig != nil {
@@ -208,7 +221,7 @@ func serverInit() {
 		router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
 			httpSwagger.URL("http://" + config.Keys.Addr + "/swagger/doc.json"))).Methods(http.MethodGet)
 	}
-	secured.Handle("/query", graphQLEndpoint)
+	secured.Handle("/query", graphQLServer)
 
 	// Send a searchId and then reply with a redirect to a user, or directly send query to job table for jobid and project.
 	secured.HandleFunc("/search", func(rw http.ResponseWriter, r *http.Request) {
