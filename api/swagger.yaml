@@ -1217,173 +1217,11 @@ paths:
       summary: Adds one or more tags to a job
       tags:
       - Job add and modify
-  /config/notice/:
-    post:
-      consumes:
-      - multipart/form-data
-      description: |-
-        Modifies the content of notice.txt, shown as notice box on the homepage.
-        If more than one formValue is set then only the highest priority field is used.
-        Only accessible from IPs registered with apiAllowedIPs configuration option.
-      parameters:
-      - description: 'Priority 1: New content to display'
-        in: formData
-        name: new-content
-        type: string
-      produces:
-      - text/plain
-      responses:
-        "200":
-          description: Success Response Message
-          schema:
-            type: string
-        "400":
-          description: Bad Request
-          schema:
-            type: string
-        "401":
-          description: Unauthorized
-          schema:
-            type: string
-        "403":
-          description: Forbidden
-          schema:
-            type: string
-        "422":
-          description: 'Unprocessable Entity: The user could not be updated'
-          schema:
-            type: string
-        "500":
-          description: Internal Server Error
-          schema:
-            type: string
-      security:
-      - ApiKeyAuth: []
-      summary: Updates or empties the notice box content
-      tags:
-      - User
-  /config/user/{id}:
-    post:
-      consumes:
-      - multipart/form-data
-      description: |-
-        Modifies user defined by username (id) in one of four possible ways.
-        If more than one formValue is set then only the highest priority field is used.
-        Only accessible from IPs registered with apiAllowedIPs configuration option.
-      parameters:
-      - description: Database ID of User
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: 'Priority 1: Role to add'
-        enum:
-        - admin
-        - support
-        - manager
-        - user
-        - api
-        in: formData
-        name: add-role
-        type: string
-      - description: 'Priority 2: Role to remove'
-        enum:
-        - admin
-        - support
-        - manager
-        - user
-        - api
-        in: formData
-        name: remove-role
-        type: string
-      - description: 'Priority 3: Project to add'
-        in: formData
-        name: add-project
-        type: string
-      - description: 'Priority 4: Project to remove'
-        in: formData
-        name: remove-project
-        type: string
-      produces:
-      - text/plain
-      responses:
-        "200":
-          description: Success Response Message
-          schema:
-            type: string
-        "400":
-          description: Bad Request
-          schema:
-            type: string
-        "401":
-          description: Unauthorized
-          schema:
-            type: string
-        "403":
-          description: Forbidden
-          schema:
-            type: string
-        "422":
-          description: 'Unprocessable Entity: The user could not be updated'
-          schema:
-            type: string
-        "500":
-          description: Internal Server Error
-          schema:
-            type: string
-      security:
-      - ApiKeyAuth: []
-      summary: Updates an existing user
-      tags:
-      - User
-  /config/users/:
-    delete:
-      consumes:
-      - multipart/form-data
-      description: |-
-        User defined by username in form data will be deleted from database.
-        Only accessible from IPs registered with apiAllowedIPs configuration option.
-      parameters:
-      - description: User ID to delete
-        in: formData
-        name: username
-        required: true
-        type: string
-      produces:
-      - text/plain
-      responses:
-        "200":
-          description: User deleted successfully
-        "400":
-          description: Bad Request
-          schema:
-            type: string
-        "401":
-          description: Unauthorized
-          schema:
-            type: string
-        "403":
-          description: Forbidden
-          schema:
-            type: string
-        "422":
-          description: 'Unprocessable Entity: deleting user failed'
-          schema:
-            type: string
-        "500":
-          description: Internal Server Error
-          schema:
-            type: string
-      security:
-      - ApiKeyAuth: []
-      summary: Deletes a user
-      tags:
-      - User
+  /api/users/:
     get:
       description: |-
         Returns a JSON-encoded list of users.
         Required query-parameter defines if all users or only users with additional special roles are returned.
-        Only accessible from IPs registered with apiAllowedIPs configuration option.
       parameters:
       - description: If returned list should contain all users or only users with
           additional special roles
@@ -1421,46 +1259,73 @@ paths:
       summary: Returns a list of users
       tags:
       - User
-    post:
+  /jobs/tag_job/{id}:
+    delete:
       consumes:
-      - multipart/form-data
+      - application/json
       description: |-
-        User specified in form data will be saved to database.
-        Only accessible from IPs registered with apiAllowedIPs configuration option.
+        Removes tag(s) from a job specified by DB ID. Name and Type of Tag(s) must match.
+        Tag Scope is required for matching, options: "global", "admin". Private tags can not be deleted via API.
+        If tagged job is already finished: Tag will be removed from respective archive files.
       parameters:
-      - description: Unique user ID
-        in: formData
-        name: username
+      - description: Job Database ID
+        in: path
+        name: id
         required: true
-        type: string
-      - description: User password
-        in: formData
-        name: password
+        type: integer
+      - description: Array of tag-objects to remove
+        in: body
+        name: request
         required: true
-        type: string
-      - description: User role
-        enum:
-        - admin
-        - support
-        - manager
-        - user
-        - api
-        in: formData
-        name: role
+        schema:
+          items:
+            $ref: '#/definitions/api.ApiTag'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated job resource
+          schema:
+            $ref: '#/definitions/schema.Job'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Job or tag does not exist
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Removes one or more tags from a job
+      tags:
+      - Job add and modify
+  /tags/:
+    delete:
+      consumes:
+      - application/json
+      description: |-
+        Removes tags by type and name. Name and Type of Tag(s) must match.
+        Tag Scope is required for matching, options: "global", "admin". Private tags can not be deleted via API.
+        Tag wills be removed from respective archive files.
+      parameters:
+      - description: Array of tag-objects to remove
+        in: body
+        name: request
         required: true
-        type: string
-      - description: Managed project, required for new manager role user
-        in: formData
-        name: project
-        type: string
-      - description: Users name
-        in: formData
-        name: name
-        type: string
-      - description: Users email
-        in: formData
-        name: email
-        type: string
+        schema:
+          items:
+            $ref: '#/definitions/api.ApiTag'
+          type: array
       produces:
       - text/plain
       responses:
@@ -1471,28 +1336,24 @@ paths:
         "400":
           description: Bad Request
           schema:
-            type: string
+            $ref: '#/definitions/api.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            type: string
-        "403":
-          description: Forbidden
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Job or tag does not exist
           schema:
-            type: string
-        "422":
-          description: 'Unprocessable Entity: creating user failed'
-          schema:
-            type: string
+            $ref: '#/definitions/api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            type: string
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - ApiKeyAuth: []
-      summary: Adds a new user
+      summary: Removes all tags and job-relations for type:name tuple
       tags:
-      - User
+      - Tag remove
 securityDefinitions:
   ApiKeyAuth:
     in: header

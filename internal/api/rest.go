@@ -1163,26 +1163,6 @@ func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// createUser godoc
-// @summary     Adds a new user
-// @tags User
-// @description User specified in form data will be saved to database.
-// @accept      mpfd
-// @produce     plain
-// @param       username formData string                       true  "Unique user ID"
-// @param       password formData string                       true  "User password"
-// @param       role 	 formData string                       true  "User role" Enums(admin, support, manager, user, api)
-// @param       project  formData string                       false "Managed project, required for new manager role user"
-// @param       name 	 formData string                       false "Users name"
-// @param       email 	 formData string                       false "Users email"
-// @success     200      {string} string                       "Success Response"
-// @failure     400      {string} string                       "Bad Request"
-// @failure     401      {string} string                       "Unauthorized"
-// @failure     403      {string} string                       "Forbidden"
-// @failure     422      {string} string                       "Unprocessable Entity: creating user failed"
-// @failure     500      {string} string                       "Internal Server Error"
-// @security    ApiKeyAuth
-// @router      /config/users/ [post]
 func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
@@ -1257,7 +1237,7 @@ func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
 // @failure     403     {string} string             "Forbidden"
 // @failure     500     {string} string             "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /config/users/ [get]
+// @router      /api/users/ [get]
 func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
@@ -1319,22 +1299,6 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// editNotice godoc
-// @summary     Updates or empties the notice box content
-// @tags User
-// @description Modifies the content of notice.txt, shown as notice box on the homepage.
-// @description If more than one formValue is set then only the highest priority field is used.
-// @accept      mpfd
-// @produce     plain
-// @param       new-content       formData string     false "Priority 1: New content to display"
-// @success     200     {string} string            "Success Response Message"
-// @failure     400     {string} string            "Bad Request"
-// @failure     401     {string} string            "Unauthorized"
-// @failure     403     {string} string            "Forbidden"
-// @failure     422     {string} string            "Unprocessable Entity: The user could not be updated"
-// @failure     500     {string} string            "Internal Server Error"
-// @security    ApiKeyAuth
-// @router      /notice/ [post]
 func (api *RestApi) editNotice(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
