@@ -46,7 +46,6 @@ import (
 // @license.url                https://opensource.org/licenses/MIT
 
 // @host                       localhost:8080
-// @basePath                   /api
 
 // @securityDefinitions.apikey ApiKeyAuth
 // @in                         header
@@ -220,7 +219,7 @@ func handleError(err error, statusCode int, rw http.ResponseWriter) {
 	})
 }
 
-func decode(r io.Reader, val interface{}) error {
+func decode(r io.Reader, val any) error {
 	dec := json.NewDecoder(r)
 	dec.DisallowUnknownFields()
 	return dec.Decode(val)
@@ -238,7 +237,7 @@ func decode(r io.Reader, val interface{}) error {
 // @failure     403            {object} api.ErrorResponse       "Forbidden"
 // @failure     500            {object} api.ErrorResponse       "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /clusters/ [get]
+// @router      /api/clusters/ [get]
 func (api *RestApi) getClusters(rw http.ResponseWriter, r *http.Request) {
 	if user := repository.GetUserFromContext(r.Context()); user != nil &&
 		!user.HasRole(schema.RoleApi) {
@@ -293,7 +292,7 @@ func (api *RestApi) getClusters(rw http.ResponseWriter, r *http.Request) {
 // @failure     403            {object} api.ErrorResponse       "Forbidden"
 // @failure     500            {object} api.ErrorResponse       "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/ [get]
+// @router      /api/jobs/ [get]
 func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 	withMetadata := false
 	filter := &model.JobFilter{}
@@ -427,7 +426,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 // @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/{id} [get]
+// @router      /api/jobs/{id} [get]
 func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) {
 	// Fetch job from db
 	id, ok := mux.Vars(r)["id"]
@@ -520,7 +519,7 @@ func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) 
 // @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/{id} [post]
+// @router      /api/jobs/{id} [post]
 func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 	// Fetch job from db
 	id, ok := mux.Vars(r)["id"]
@@ -624,7 +623,7 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 // @failure     404     {object} api.ErrorResponse         "Job does not exist"
 // @failure     500     {object} api.ErrorResponse         "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/edit_meta/{id} [post]
+// @router      /api/jobs/edit_meta/{id} [post]
 func (api *RestApi) editMeta(rw http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
 	if err != nil {
@@ -670,7 +669,7 @@ func (api *RestApi) editMeta(rw http.ResponseWriter, r *http.Request) {
 // @failure     404     {object} api.ErrorResponse         "Job or tag does not exist"
 // @failure     500     {object} api.ErrorResponse         "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/tag_job/{id} [post]
+// @router      /api/jobs/tag_job/{id} [post]
 func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
 	if err != nil {
@@ -839,7 +838,7 @@ func (api *RestApi) removeTags(rw http.ResponseWriter, r *http.Request) {
 // @failure     422     {object} api.ErrorResponse            "Unprocessable Entity: The combination of jobId, clusterId and startTime does already exist"
 // @failure     500     {object} api.ErrorResponse            "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/start_job/ [post]
+// @router      /api/jobs/start_job/ [post]
 func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	req := schema.JobMeta{BaseJob: schema.JobDefaults}
 	if err := decode(r.Body, &req); err != nil {
@@ -912,7 +911,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 // @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: job has already been stopped"
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/stop_job/ [post]
+// @router      /api/jobs/stop_job/ [post]
 func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 	// Parse request body
 	req := StopJobApiRequest{}
@@ -953,7 +952,7 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 // @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/delete_job/{id} [delete]
+// @router      /api/jobs/delete_job/{id} [delete]
 func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 	// Fetch job (that will be stopped) from db
 	id, ok := mux.Vars(r)["id"]
@@ -996,7 +995,7 @@ func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 // @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/delete_job/ [delete]
+// @router      /api/jobs/delete_job/ [delete]
 func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) {
 	// Parse request body
 	req := DeleteJobApiRequest{}
@@ -1046,7 +1045,7 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 // @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/delete_job_before/{ts} [delete]
+// @router      /api/jobs/delete_job_before/{ts} [delete]
 func (api *RestApi) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 	var cnt int
 	// Fetch job (that will be stopped) from db
@@ -1183,7 +1182,7 @@ func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 // @failure     422      {string} string                       "Unprocessable Entity: creating user failed"
 // @failure     500      {string} string                       "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /users/ [post]
+// @router      /config/users/ [post]
 func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
@@ -1258,7 +1257,7 @@ func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
 // @failure     403     {string} string             "Forbidden"
 // @failure     500     {string} string             "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /users/ [get]
+// @router      /config/users/ [get]
 func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
