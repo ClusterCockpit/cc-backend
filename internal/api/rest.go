@@ -1228,21 +1228,6 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(rw, "User %v successfully created!\n", username)
 }
 
-// deleteUser godoc
-// @summary     Deletes a user
-// @tags User
-// @description User defined by username in form data will be deleted from database.
-// @accept      mpfd
-// @produce     plain
-// @param       username formData string         true "User ID to delete"
-// @success     200      "User deleted successfully"
-// @failure     400      {string} string              "Bad Request"
-// @failure     401      {string} string              "Unauthorized"
-// @failure     403      {string} string              "Forbidden"
-// @failure     422      {string} string              "Unprocessable Entity: deleting user failed"
-// @failure     500      {string} string              "Internal Server Error"
-// @security    ApiKeyAuth
-// @router      /users/ [delete]
 func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
@@ -1291,26 +1276,6 @@ func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(rw).Encode(users)
 }
 
-// updateUser godoc
-// @summary     Updates an existing user
-// @tags User
-// @description Modifies user defined by username (id) in one of four possible ways.
-// @description If more than one formValue is set then only the highest priority field is used.
-// @accept      mpfd
-// @produce     plain
-// @param       id             path     string     true  "Database ID of User"
-// @param       add-role       formData string     false "Priority 1: Role to add" Enums(admin, support, manager, user, api)
-// @param       remove-role    formData string     false "Priority 2: Role to remove" Enums(admin, support, manager, user, api)
-// @param       add-project    formData string     false "Priority 3: Project to add"
-// @param       remove-project formData string     false "Priority 4: Project to remove"
-// @success     200     {string} string            "Success Response Message"
-// @failure     400     {string} string            "Bad Request"
-// @failure     401     {string} string            "Unauthorized"
-// @failure     403     {string} string            "Forbidden"
-// @failure     422     {string} string            "Unprocessable Entity: The user could not be updated"
-// @failure     500     {string} string            "Internal Server Error"
-// @security    ApiKeyAuth
-// @router      /user/{id} [post]
 func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
