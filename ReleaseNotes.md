@@ -1,4 +1,4 @@
-# `cc-backend` version 1.4.3
+# `cc-backend` version 1.4.4
 
 Supports job archive version 2 and database version 8.
 
@@ -22,21 +22,7 @@ For release specific notes visit the [ClusterCockpit Documentation](https://clus
 
 ## New features
 
-- Detailed Node List
-  - Adds new routes `/systems/list/$cluster` and `/systems/list/$cluster/$subcluster`
-  - Displays live, scoped metric data requested from the nodes indepenent of jobs
-- Color Blind Mode
-  - Set on a per-user basis in options
-  - Applies to plot data, plot background color, statsseries colors, roofline timescale
-- Job-View metric selection is now persisted based on the jobs subcluster.
-Helpful for heterogeneous subcluster configurations.
-- Histogram Bin Select in User-View
-  - Metric-Histograms: `10 Bins` now default, selectable options `20, 50, 100`
-  - Job-Duration-Histogram: `48h in 1h Bins` now default, selectable options:
-    - `60 minutes in 1 minute Bins`
-    - `12 hours in 10 minute Bins`
-    - `3 days in 6 hour Bins`
-    - `7 days in 12 hour Bins`
+- Enable to delete tags from the web interface
 
 ## Known issues
 
