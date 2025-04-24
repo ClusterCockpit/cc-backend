@@ -32,7 +32,6 @@ import (
 	"github.com/ClusterCockpit/cc-backend/web"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
@@ -58,16 +57,16 @@ func serverInit() {
 	graphQLServer := handler.New(
 		generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 
-	graphQLServer.AddTransport(transport.SSE{})
+	// graphQLServer.AddTransport(transport.SSE{})
 	graphQLServer.AddTransport(transport.POST{})
-	graphQLServer.AddTransport(transport.Websocket{
-		KeepAlivePingInterval: 10 * time.Second,
-		Upgrader: websocket.Upgrader{
-			CheckOrigin: func(r *http.Request) bool {
-				return true
-			},
-		},
-	})
+	// graphQLServer.AddTransport(transport.Websocket{
+	// 	KeepAlivePingInterval: 10 * time.Second,
+	// 	Upgrader: websocket.Upgrader{
+	// 		CheckOrigin: func(r *http.Request) bool {
+	// 			return true
+	// 		},
+	// 	},
+	// })
 
 	if os.Getenv("DEBUG") != "1" {
 		// Having this handler means that a error message is returned via GraphQL instead of the connection simply beeing closed.
