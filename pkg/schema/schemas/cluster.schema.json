@@ -25,10 +25,18 @@
           },
           "scope": {
             "description": "Native measurement resolution",
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "node",
+              "socket",
+              "memoryDomain",
+              "core",
+              "hwthread",
+              "accelerator"
+            ]
           },
           "timestep": {
-            "description": "Frequency of timeseries points",
+            "description": "Frequency of timeseries points in seconds",
             "type": "integer"
           },
           "aggregation": {
@@ -108,15 +116,19 @@
                   "type": "boolean"
                 },
                 "peak": {
+                  "description": "The maximum possible metric value",
                   "type": "number"
                 },
                 "normal": {
+                  "description": "A common metric value level",
                   "type": "number"
                 },
                 "caution": {
+                  "description": "Metric value requires attention",
                   "type": "number"
                 },
                 "alert": {
+                  "description": "Metric value requiring immediate attention",
                   "type": "number"
                 },
                 "remove": {

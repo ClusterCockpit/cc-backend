@@ -69,24 +69,24 @@ func New() *RestApi {
 
 func (api *RestApi) MountApiRoutes(r *mux.Router) {
 	r.StrictSlash(true)
-
+	// REST API Uses TokenAuth
+	// User List
+	r.HandleFunc("/users/", api.getUsers).Methods(http.MethodGet)
+	// Cluster List
+	r.HandleFunc("/clusters/", api.getClusters).Methods(http.MethodGet)
+	// Job Handler
 	r.HandleFunc("/jobs/start_job/", api.startJob).Methods(http.MethodPost, http.MethodPut)
 	r.HandleFunc("/jobs/stop_job/", api.stopJobByRequest).Methods(http.MethodPost, http.MethodPut)
 	// r.HandleFunc("/jobs/import/", api.importJob).Methods(http.MethodPost, http.MethodPut)
-
 	r.HandleFunc("/jobs/", api.getJobs).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/{id}", api.getJobById).Methods(http.MethodPost)
 	r.HandleFunc("/jobs/{id}", api.getCompleteJobById).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/tag_job/{id}", api.tagJob).Methods(http.MethodPost, http.MethodPatch)
-	r.HandleFunc("/jobs/tag_job/{id}", api.removeTagJob).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/edit_meta/{id}", api.editMeta).Methods(http.MethodPost, http.MethodPatch)
 	r.HandleFunc("/jobs/metrics/{id}", api.getJobMetrics).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/delete_job/", api.deleteJobByRequest).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job/{id}", api.deleteJobById).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job_before/{ts}", api.deleteJobBefore).Methods(http.MethodDelete)
-
-	r.HandleFunc("/tags/", api.removeTags).Methods(http.MethodDelete)
-	r.HandleFunc("/clusters/", api.getClusters).Methods(http.MethodGet)
 
 	if api.MachineStateDir != "" {
 		r.HandleFunc("/machine_state/{cluster}/{host}", api.getMachineState).Methods(http.MethodGet)
@@ -96,7 +96,7 @@ func (api *RestApi) MountApiRoutes(r *mux.Router) {
 
 func (api *RestApi) MountUserApiRoutes(r *mux.Router) {
 	r.StrictSlash(true)
-
+	// REST API Uses TokenAuth
 	r.HandleFunc("/jobs/", api.getJobs).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/{id}", api.getJobById).Methods(http.MethodPost)
 	r.HandleFunc("/jobs/{id}", api.getCompleteJobById).Methods(http.MethodGet)
@@ -105,9 +105,8 @@ func (api *RestApi) MountUserApiRoutes(r *mux.Router) {
 
 func (api *RestApi) MountConfigApiRoutes(r *mux.Router) {
 	r.StrictSlash(true)
-
+	// Settings Frontend Uses SessionAuth
 	if api.Authentication != nil {
-		log.Debug("Mounting /configuration/ route")
 		r.HandleFunc("/roles/", api.getRoles).Methods(http.MethodGet)
 		r.HandleFunc("/users/", api.createUser).Methods(http.MethodPost, http.MethodPut)
 		r.HandleFunc("/users/", api.getUsers).Methods(http.MethodGet)
@@ -119,7 +118,7 @@ func (api *RestApi) MountConfigApiRoutes(r *mux.Router) {
 
 func (api *RestApi) MountFrontendApiRoutes(r *mux.Router) {
 	r.StrictSlash(true)
-
+	// Settings Frontrend Uses SessionAuth
 	if api.Authentication != nil {
 		r.HandleFunc("/jwt/", api.getJWT).Methods(http.MethodGet)
 		r.HandleFunc("/configuration/", api.updateConfiguration).Methods(http.MethodPost)
@@ -222,44 +221,6 @@ func decode(r io.Reader, val interface{}) error {
 	dec := json.NewDecoder(r)
 	dec.DisallowUnknownFields()
 	return dec.Decode(val)
-}
-
-func securedCheck(r *http.Request) error {
-	user := repository.GetUserFromContext(r.Context())
-	if user == nil {
-		return fmt.Errorf("no user in context")
-	}
-
-	if user.AuthType == schema.AuthToken {
-		// If nothing declared in config: deny all request to this endpoint
-		if len(config.Keys.ApiAllowedIPs) == 0 {
-			return fmt.Errorf("missing configuration key ApiAllowedIPs")
-		}
-
-		if config.Keys.ApiAllowedIPs[0] == "*" {
-			return nil
-		}
-
-		// extract IP address
-		IPAddress := r.Header.Get("X-Real-Ip")
-		if IPAddress == "" {
-			IPAddress = r.Header.Get("X-Forwarded-For")
-		}
-		if IPAddress == "" {
-			IPAddress = r.RemoteAddr
-		}
-
-		if strings.Contains(IPAddress, ":") {
-			IPAddress = strings.Split(IPAddress, ":")[0]
-		}
-
-		// check if IP is allowed
-		if !util.Contains(config.Keys.ApiAllowedIPs, IPAddress) {
-			return fmt.Errorf("unknown ip: %v", IPAddress)
-		}
-	}
-
-	return nil
 }
 
 // getClusters godoc
@@ -752,114 +713,6 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(rw).Encode(job)
 }
 
-// removeTagJob godoc
-// @summary     Removes one or more tags from a job
-// @tags Job add and modify
-// @description Removes tag(s) from a job specified by DB ID. Name and Type of Tag(s) must match.
-// @description Tag Scope is required for matching, options: "global", "admin". Private tags can not be deleted via API.
-// @description If tagged job is already finished: Tag will be removed from respective archive files.
-// @accept      json
-// @produce     json
-// @param       id      path     int                  true "Job Database ID"
-// @param       request body     api.TagJobApiRequest true "Array of tag-objects to remove"
-// @success     200     {object} schema.Job                "Updated job resource"
-// @failure     400     {object} api.ErrorResponse         "Bad Request"
-// @failure     401     {object} api.ErrorResponse         "Unauthorized"
-// @failure     404     {object} api.ErrorResponse         "Job or tag does not exist"
-// @failure     500     {object} api.ErrorResponse         "Internal Server Error"
-// @security    ApiKeyAuth
-// @router      /jobs/tag_job/{id} [delete]
-func (api *RestApi) removeTagJob(rw http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	job, err := api.JobRepository.FindById(r.Context(), id)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusNotFound)
-		return
-	}
-
-	job.Tags, err = api.JobRepository.GetTags(repository.GetUserFromContext(r.Context()), &job.ID)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	var req TagJobApiRequest
-	if err := decode(r.Body, &req); err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	for _, rtag := range req {
-		// Only Global and Admin Tags
-		if rtag.Scope != "global" && rtag.Scope != "admin" {
-			log.Warnf("Cannot delete private tag for job %d: Skip", job.JobID)
-			continue
-		}
-
-		remainingTags, err := api.JobRepository.RemoveJobTagByRequest(repository.GetUserFromContext(r.Context()), job.ID, rtag.Type, rtag.Name, rtag.Scope)
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		job.Tags = remainingTags
-	}
-
-	rw.Header().Add("Content-Type", "application/json")
-	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(job)
-}
-
-// removeTags godoc
-// @summary     Removes all tags and job-relations for type:name tuple
-// @tags Tag remove
-// @description Removes tags by type and name. Name and Type of Tag(s) must match.
-// @description Tag Scope is required for matching, options: "global", "admin". Private tags can not be deleted via API.
-// @description Tag wills be removed from respective archive files.
-// @accept      json
-// @produce     plain
-// @param       request body     api.TagJobApiRequest true "Array of tag-objects to remove"
-// @success     200     {string} string                    "Success Response"
-// @failure     400     {object} api.ErrorResponse         "Bad Request"
-// @failure     401     {object} api.ErrorResponse         "Unauthorized"
-// @failure     404     {object} api.ErrorResponse         "Job or tag does not exist"
-// @failure     500     {object} api.ErrorResponse         "Internal Server Error"
-// @security    ApiKeyAuth
-// @router      /tags/ [delete]
-func (api *RestApi) removeTags(rw http.ResponseWriter, r *http.Request) {
-	var req TagJobApiRequest
-	if err := decode(r.Body, &req); err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	targetCount := len(req)
-	currentCount := 0
-	for _, rtag := range req {
-		// Only Global and Admin Tags
-		if rtag.Scope != "global" && rtag.Scope != "admin" {
-			log.Warn("Cannot delete private tag: Skip")
-			continue
-		}
-
-		err := api.JobRepository.RemoveTagByRequest(rtag.Type, rtag.Name, rtag.Scope)
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
-			return
-		} else {
-			currentCount++
-		}
-	}
-
-	rw.WriteHeader(http.StatusOK)
-	rw.Write([]byte(fmt.Sprintf("Deleted Tags from DB: %d successfull of %d requested\n", currentCount, targetCount)))
-}
-
 // startJob godoc
 // @summary     Adds a new job as "running"
 // @tags Job add and modify
@@ -1204,7 +1057,6 @@ func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 // @summary     Adds a new user
 // @tags User
 // @description User specified in form data will be saved to database.
-// @description Only accessible from IPs registered with apiAllowedIPs configuration option.
 // @accept      mpfd
 // @produce     plain
 // @param       username formData string                       true  "Unique user ID"
@@ -1222,11 +1074,7 @@ func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /users/ [post]
 func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
-	err := securedCheck(r)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusForbidden)
-		return
-	}
+	// SecuredCheck() only worked with TokenAuth: Removed
 
 	rw.Header().Set("Content-Type", "text/plain")
 	me := repository.GetUserFromContext(r.Context())
@@ -1273,7 +1121,6 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 // @summary     Deletes a user
 // @tags User
 // @description User defined by username in form data will be deleted from database.
-// @description Only accessible from IPs registered with apiAllowedIPs configuration option.
 // @accept      mpfd
 // @produce     plain
 // @param       username formData string         true "User ID to delete"
@@ -1286,11 +1133,7 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /users/ [delete]
 func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
-	err := securedCheck(r)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusForbidden)
-		return
-	}
+	// SecuredCheck() only worked with TokenAuth: Removed
 
 	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
 		http.Error(rw, "Only admins are allowed to delete a user", http.StatusForbidden)
@@ -1311,7 +1154,6 @@ func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
 // @tags User
 // @description Returns a JSON-encoded list of users.
 // @description Required query-parameter defines if all users or only users with additional special roles are returned.
-// @description Only accessible from IPs registered with apiAllowedIPs configuration option.
 // @produce     json
 // @param       not-just-user query bool true "If returned list should contain all users or only users with additional special roles"
 // @success     200     {array} api.ApiReturnedUser "List of users returned successfully"
@@ -1322,11 +1164,7 @@ func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /users/ [get]
 func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
-	err := securedCheck(r)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusForbidden)
-		return
-	}
+	// SecuredCheck() only worked with TokenAuth: Removed
 
 	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
 		http.Error(rw, "Only admins are allowed to fetch a list of users", http.StatusForbidden)
@@ -1347,7 +1185,6 @@ func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 // @tags User
 // @description Modifies user defined by username (id) in one of four possible ways.
 // @description If more than one formValue is set then only the highest priority field is used.
-// @description Only accessible from IPs registered with apiAllowedIPs configuration option.
 // @accept      mpfd
 // @produce     plain
 // @param       id             path     string     true  "Database ID of User"
@@ -1364,11 +1201,7 @@ func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /user/{id} [post]
 func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
-	err := securedCheck(r)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusForbidden)
-		return
-	}
+	// SecuredCheck() only worked with TokenAuth: Removed
 
 	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
 		http.Error(rw, "Only admins are allowed to update a user", http.StatusForbidden)
@@ -1416,7 +1249,6 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 // @tags User
 // @description Modifies the content of notice.txt, shown as notice box on the homepage.
 // @description If more than one formValue is set then only the highest priority field is used.
-// @description Only accessible from IPs registered with apiAllowedIPs configuration option.
 // @accept      mpfd
 // @produce     plain
 // @param       new-content       formData string     false "Priority 1: New content to display"
@@ -1429,11 +1261,7 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /notice/ [post]
 func (api *RestApi) editNotice(rw http.ResponseWriter, r *http.Request) {
-	err := securedCheck(r)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusForbidden)
-		return
-	}
+	// SecuredCheck() only worked with TokenAuth: Removed
 
 	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
 		http.Error(rw, "Only admins are allowed to update the notice.txt file", http.StatusForbidden)
@@ -1475,12 +1303,6 @@ func (api *RestApi) editNotice(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (api *RestApi) getJWT(rw http.ResponseWriter, r *http.Request) {
-	err := securedCheck(r)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusForbidden)
-		return
-	}
-
 	rw.Header().Set("Content-Type", "text/plain")
 	username := r.FormValue("username")
 	me := repository.GetUserFromContext(r.Context())
@@ -1509,11 +1331,7 @@ func (api *RestApi) getJWT(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (api *RestApi) getRoles(rw http.ResponseWriter, r *http.Request) {
-	err := securedCheck(r)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusForbidden)
-		return
-	}
+	// SecuredCheck() only worked with TokenAuth: Removed
 
 	user := repository.GetUserFromContext(r.Context())
 	if !user.HasRole(schema.RoleAdmin) {
