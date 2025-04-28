@@ -45,6 +45,9 @@ func setup(t *testing.T) *api.RestApi {
     "jwts": {
         "max-age": "2m"
     },
+  "apiAllowedIPs": [
+    "*"
+  ],
 	"clusters": [
 	{
 	   "name": "testcluster",

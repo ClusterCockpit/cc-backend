@@ -32,6 +32,18 @@ const configString = `
     "jwts": {
         "max-age": "2000h"
     },
+    "apiAllowedIPs": [
+      "*"
+    ],
+    "enable-resampling": {
+      "trigger": 30,
+      "resolutions": [
+        600,
+        300,
+        120,
+        60
+      ]
+    },
     "clusters": [
         {
             "name": "name",

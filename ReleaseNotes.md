@@ -6,6 +6,20 @@ This is a bug fix release of `cc-backend`, the API backend and frontend
 implementation of ClusterCockpit.
 For release specific notes visit the [ClusterCockpit Documentation](https://clusterockpit.org/docs/release/).
 
+## Breaking changes
+
+The option `apiAllowedIPs` is now a required configuration attribute in
+`config.json`. This option restricts access to the admin API.
+
+To retain the previous behavior that the API is per default accessible from
+everywhere set:
+
+```json
+  "apiAllowedIPs": [
+    "*"
+  ]
+```
+
 ## Breaking changes for minor release 1.4.x
 
 - You need to perform a database migration. Depending on your database size the
