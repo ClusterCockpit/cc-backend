@@ -17,6 +17,9 @@
       60
     ]
   },
+  "apiAllowedIPs": [
+    "*"
+  ],
   "emission-constant": 317,
   "clusters": [
     {

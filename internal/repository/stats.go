@@ -674,57 +674,32 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 		}
 	}
 
-	// log.Debugf("Metric %s, Peak %f, Unit %s, Aggregation %s", metric, peak, unit, aggreg)
-	// Make bins, see https://jereze.com/code/sql-histogram/
-
+	// log.Debugf("Metric %s, Peak %f, Unit %s", metric, peak, unit)
+	// Make bins, see https://jereze.com/code/sql-histogram/ (Modified here)
 	start := time.Now()
-	jm := fmt.Sprintf(`json_extract(footprint, "$.%s")`, (metric + "_" + footprintStat))
 
-	crossJoinQuery := sq.Select(
-		fmt.Sprintf(`max(%s) as max`, jm),
-		fmt.Sprintf(`min(%s) as min`, jm),
-	).From("job").Where(
-		"JSON_VALID(footprint)",
-	).Where(
-		fmt.Sprintf(`%s is not null`, jm),
-	).Where(
-		fmt.Sprintf(`%s <= %f`, jm, peak),
-	)
-
-	crossJoinQuery, cjqerr := SecurityCheck(ctx, crossJoinQuery)
-
-	if cjqerr != nil {
-		return nil, cjqerr
-	}
-
-	for _, f := range filters {
-		crossJoinQuery = BuildWhereClause(f, crossJoinQuery)
-	}
-
-	crossJoinQuerySql, crossJoinQueryArgs, sqlerr := crossJoinQuery.ToSql()
-	if sqlerr != nil {
-		return nil, sqlerr
-	}
-
-	binQuery := fmt.Sprintf(`CAST( (case when %s = value.max
-	   then value.max*0.999999999 else %s end - value.min) / (value.max -
-	   value.min) * %v as INTEGER )`, jm, jm, *bins)
+	// Find Jobs' Value Bin Number: Divide Value by Peak, Multiply by RequestedBins, then CAST to INT: Gets Bin-Number of Job
+	binQuery := fmt.Sprintf(`CAST(
+		((case when json_extract(footprint, "$.%s") = %f then %f*0.999999999 else json_extract(footprint, "$.%s") end) / %f)
+		* %v as INTEGER )`,
+		(metric + "_" + footprintStat), peak, peak, (metric + "_" + footprintStat), peak, *bins)
 
 	mainQuery := sq.Select(
 		fmt.Sprintf(`%s + 1 as bin`, binQuery),
-		fmt.Sprintf(`count(%s) as count`, jm),
-		fmt.Sprintf(`CAST(((value.max / %d) * (%v     )) as INTEGER ) as min`, *bins, binQuery),
-		fmt.Sprintf(`CAST(((value.max / %d) * (%v + 1 )) as INTEGER ) as max`, *bins, binQuery),
-	).From("job").CrossJoin(
-		fmt.Sprintf(`(%s) as value`, crossJoinQuerySql), crossJoinQueryArgs...,
-	).Where(fmt.Sprintf(`%s is not null and %s <= %f`, jm, jm, peak))
+		fmt.Sprintf(`count(*) as count`),
+		// For Debug: // fmt.Sprintf(`CAST((%f / %d) as INTEGER ) * %s as min`, peak, *bins, binQuery),
+		// For Debug: // fmt.Sprintf(`CAST((%f / %d) as INTEGER ) * (%s + 1) as max`, peak, *bins, binQuery),
+	).From("job").Where(
+		"JSON_VALID(footprint)",
+	).Where(fmt.Sprintf(`json_extract(footprint, "$.%s") is not null and json_extract(footprint, "$.%s") <= %f`, (metric + "_" + footprintStat), (metric + "_" + footprintStat), peak))
 
+	// Only accessible Jobs...
 	mainQuery, qerr := SecurityCheck(ctx, mainQuery)
-
 	if qerr != nil {
 		return nil, qerr
 	}
 
+	// Filters...
 	for _, f := range filters {
 		mainQuery = BuildWhereClause(f, mainQuery)
 	}
@@ -738,32 +713,34 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 		return nil, err
 	}
 
-	// Setup Array
+	// Setup Return Array With Bin-Numbers for Match and Min/Max based on Peak
 	points := make([]*model.MetricHistoPoint, 0)
+	binStep := int(peak) / *bins
 	for i := 1; i <= *bins; i++ {
-		binMax := ((int(peak) / *bins) * i)
-		binMin := ((int(peak) / *bins) * (i - 1))
-		point := model.MetricHistoPoint{Bin: &i, Count: 0, Min: &binMin, Max: &binMax}
-		points = append(points, &point)
+		binMin := (binStep * (i - 1))
+		binMax := (binStep * i)
+		epoint := model.MetricHistoPoint{Bin: &i, Count: 0, Min: &binMin, Max: &binMax}
+		points = append(points, &epoint)
 	}
 
-	for rows.Next() {
-		point := model.MetricHistoPoint{}
-		if err := rows.Scan(&point.Bin, &point.Count, &point.Min, &point.Max); err != nil {
-			log.Warnf("Error while scanning rows for %s", jm)
-			return nil, err // Totally bricks cc-backend if returned and if all metrics requested?
+	for rows.Next() { // Fill Count if Bin-No. Matches (Not every Bin exists in DB!)
+		rpoint := model.MetricHistoPoint{}
+		if err := rows.Scan(&rpoint.Bin, &rpoint.Count); err != nil { // Required for Debug: &rpoint.Min, &rpoint.Max
+			log.Warnf("Error while scanning rows for %s", metric)
+			return nil, err // FIXME: Totally bricks cc-backend if returned and if all metrics requested?
 		}
 
 		for _, e := range points {
-			if e.Bin != nil && point.Bin != nil {
-				if *e.Bin == *point.Bin {
-					e.Count = point.Count
-					if point.Min != nil {
-						e.Min = point.Min
-					}
-					if point.Max != nil {
-						e.Max = point.Max
-					}
+			if e.Bin != nil && rpoint.Bin != nil {
+				if *e.Bin == *rpoint.Bin {
+					e.Count = rpoint.Count
+					// Only Required For Debug: Check DB returned Min/Max against Backend Init above
+					// if rpoint.Min != nil {
+					// 	log.Warnf(">>>> Bin %d Min Set For %s to %d (Init'd with: %d)", *e.Bin, metric, *rpoint.Min, *e.Min)
+					// }
+					// if rpoint.Max != nil {
+					// 	log.Warnf(">>>> Bin %d Max Set For %s to %d (Init'd with: %d)", *e.Bin, metric, *rpoint.Max, *e.Max)
+					// }
 					break
 				}
 			}
