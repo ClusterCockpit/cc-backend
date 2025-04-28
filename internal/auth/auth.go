@@ -331,7 +331,7 @@ func (auth *Authentication) AuthApi(
 
 		ipErr := securedCheck(user, r)
 		if ipErr != nil {
-			log.Infof("auth api -> secured check failed: %s", err.Error())
+			log.Infof("auth api -> secured check failed: %s", ipErr.Error())
 			onfailure(rw, r, ipErr)
 			return
 		}
