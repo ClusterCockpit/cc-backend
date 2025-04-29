@@ -38,12 +38,13 @@
   export let matchedListJobs = 0;
   export let metrics = ccconfig.plot_list_selectedMetrics;
   export let showFootprint;
+  export let filterBuffer = [];
 
   let usePaging = ccconfig.job_list_usePaging
   let itemsPerPage = usePaging ? ccconfig.plot_list_jobsPerPage : 10;
   let page = 1;
   let paging = { itemsPerPage, page };
-  let filter = [];
+  let filter = [...filterBuffer];
   let lastFilter = [];
   let lastSorting = null;
   let triggerMetricRefresh = false;

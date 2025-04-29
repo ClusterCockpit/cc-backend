@@ -36,6 +36,7 @@
   export let roles;
 
   let filterComponent; // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
+  let filterBuffer = [];
   let jobList,
       jobCompare,
     matchedListJobs,
@@ -100,6 +101,7 @@
         selectedCluster = detail.filters[0]?.cluster
           ? detail.filters[0].cluster.eq
           : null;
+        filterBuffer = [...detail.filters]
         if (showCompare) {
           jobCompare.queryJobs(detail.filters);
         } else {
@@ -131,7 +133,7 @@
     <Button color="primary" on:click={() => {
       showCompare = !showCompare
     }} >
-      {showCompare ? 'Compare' : 'List'} Jobs
+      {showCompare ? 'List' : 'Compare'} Jobs
     </Button>
   </Col>
 </Row>
@@ -146,12 +148,14 @@
         bind:sorting
         bind:matchedListJobs
         bind:showFootprint
+        {filterBuffer}
       />
     {:else}
       <JobCompare
         bind:this={jobCompare}
         bind:metrics
         bind:matchedCompareJobs
+        {filterBuffer}
       />
     {/if}
   </Col>

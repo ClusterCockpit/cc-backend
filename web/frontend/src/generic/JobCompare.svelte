@@ -32,9 +32,10 @@
   }
 
   export let matchedCompareJobs = 0;
+  export let filterBuffer = [];
   export let metrics = ccconfig.plot_list_selectedMetrics;
 
-  let filter = [];
+  let filter = [...filterBuffer];
   const sorting = { field: "startTime", type: "col", order: "DESC" };
 
   /* GQL */
