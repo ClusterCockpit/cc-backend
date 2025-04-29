@@ -35,7 +35,7 @@
   }
 
   export let sorting = { field: "startTime", type: "col", order: "DESC" };
-  export let matchedJobs = 0;
+  export let matchedListJobs = 0;
   export let metrics = ccconfig.plot_list_selectedMetrics;
   export let showFootprint;
 
@@ -141,7 +141,7 @@
     }
   }
 
-  $: matchedJobs = $jobsStore.data != null ? $jobsStore.data.jobs.count : -1;
+  $: matchedListJobs = $jobsStore.data != null ? $jobsStore.data.jobs.count : -1;
 
   // Force refresh list with existing unchanged variables (== usually would not trigger reactivity)
   export function refreshJobs() {
@@ -310,7 +310,7 @@
     bind:page
     {itemsPerPage}
     itemText="Jobs"
-    totalItems={matchedJobs}
+    totalItems={matchedListJobs}
     on:update-paging={({ detail }) => {
       if (detail.itemsPerPage != itemsPerPage) {
         updateConfiguration(detail.itemsPerPage.toString(), detail.page);

@@ -51,6 +51,7 @@ type IntRangeOutput struct {
 type JobFilter struct {
 	Tags            []string          `json:"tags,omitempty"`
 	JobID           *StringInput      `json:"jobId,omitempty"`
+	JobIds          []string          `json:"jobIds,omitempty"`
 	ArrayJobID      *int              `json:"arrayJobId,omitempty"`
 	User            *StringInput      `json:"user,omitempty"`
 	Project         *StringInput      `json:"project,omitempty"`
@@ -96,14 +97,8 @@ type JobResultList struct {
 }
 
 type JobStats struct {
-	Name  string                   `json:"name"`
-	Stats *schema.MetricStatistics `json:"stats"`
-}
-
-type JobStatsWithScope struct {
-	Name  string             `json:"name"`
-	Scope schema.MetricScope `json:"scope"`
-	Stats []*ScopedStats     `json:"stats"`
+	JobID int           `json:"jobId"`
+	Stats []*NamedStats `json:"stats"`
 }
 
 type JobsStatistics struct {
@@ -151,6 +146,17 @@ type MetricStatItem struct {
 }
 
 type Mutation struct {
+}
+
+type NamedStats struct {
+	Name string                   `json:"name"`
+	Data *schema.MetricStatistics `json:"data"`
+}
+
+type NamedStatsWithScope struct {
+	Name  string             `json:"name"`
+	Scope schema.MetricScope `json:"scope"`
+	Stats []*ScopedStats     `json:"stats"`
 }
 
 type NodeMetrics struct {
