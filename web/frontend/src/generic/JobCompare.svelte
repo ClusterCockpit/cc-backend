@@ -19,12 +19,13 @@
     queryStore,
     gql,
     getContextClient,
-    mutationStore,
+    // mutationStore,
   } from "@urql/svelte";
   import { Row, Col, Card, Spinner } from "@sveltestrap/sveltestrap";
+  import Comparogram from "./plots/Comparogram.svelte";
 
   const ccconfig = getContext("cc-config"),
-    initialized = getContext("initialized"),
+    // initialized = getContext("initialized"),
     globalMetrics = getContext("globalMetrics");
 
   const equalsCheck = (a, b) => {
@@ -36,6 +37,8 @@
   export let metrics = ccconfig.plot_list_selectedMetrics;
 
   let filter = [...filterBuffer];
+  let comparePlotData = {};
+  let jobIds = [];
   const sorting = { field: "startTime", type: "col", order: "DESC" };
 
   /* GQL */
@@ -58,6 +61,8 @@
   }
   `;
 
+  /* REACTIVES */
+
   $: compareData = queryStore({
     client: client,
     query: compareQuery,
@@ -65,6 +70,11 @@
   });
 
   $: matchedCompareJobs = $compareData.data != null ? $compareData.data.jobsMetricStats.length : -1;
+  $: if ($compareData.data != null) {
+    jobIds = [];
+    comparePlotData = {}
+    jobs2uplot($compareData.data.jobsMetricStats, metrics)
+  }
 
  /* FUNCTIONS */
    // Force refresh list with existing unchanged variables (== usually would not trigger reactivity)
@@ -95,6 +105,32 @@
       filter = filters;
     }
   }
+
+  function jobs2uplot(jobs, metrics) {
+    // Prep
+    for (let m of metrics) {
+      // Get Unit
+      const rawUnit = globalMetrics.find((gm) => gm.name == m)?.unit
+      const metricUnit = (rawUnit?.prefix ? rawUnit.prefix : "") + (rawUnit?.base ? rawUnit.base : "")
+      // Init
+      comparePlotData[m] = {unit: metricUnit, data: [[],[],[],[]]} // data: [X, Y1, Y2, Y3]
+    }
+
+    // Iterate jobs if exists
+    if (jobs) {
+        let plotIndex = 0
+        jobs.forEach((j) => {
+            jobIds.push(j.jobId)
+            for (let s of j.stats) {
+              comparePlotData[s.name].data[0].push(plotIndex)
+              comparePlotData[s.name].data[1].push(s.data.min)
+              comparePlotData[s.name].data[2].push(s.data.avg)
+              comparePlotData[s.name].data[3].push(s.data.max)
+            }
+            plotIndex++
+        })
+    }
+}
 
   // Adapt for Persisting Job Selections in DB later down the line
   // const updateConfigurationMutation = ({ name, value }) => {
@@ -140,6 +176,18 @@
     </Col>
   </Row>
 {:else}
+  {#each metrics as m}
+    <Comparogram
+      title={'Compare '+ m}
+      xlabel="JobIds"
+      xticks={jobIds}
+      ylabel={m}
+      metric={m}
+      yunit={comparePlotData[m].unit}
+      data={comparePlotData[m].data}
+    />
+  {/each}
+  <hr/><hr/>
   {#each $compareData.data.jobsMetricStats as job (job.jobId)}
     <Row>
       <Col><b><i>{job.jobId}</i></b></Col>
