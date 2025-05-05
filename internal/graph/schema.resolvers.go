@@ -616,8 +616,9 @@ func (r *queryResolver) JobsMetricStats(ctx context.Context, filter []*model.Job
 		}
 
 		res = append(res, &model.JobStats{
-			JobID: int(job.JobID),
-			Stats: sres,
+			JobID:     int(job.JobID),
+			StartTime: int(job.StartTime.Unix()),
+			Stats:     sres,
 		})
 	}
 	return res, err

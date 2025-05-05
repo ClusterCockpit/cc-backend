@@ -24,6 +24,7 @@
   export let data;
   export let xlabel;
   export let xticks;
+  export let xtimes;
   export let ylabel;
   export let yunit;
   export let title;
@@ -120,7 +121,7 @@
     {
       label: "JobID",
       value: (u, ts, sidx, didx) => {
-        return xticks[didx];
+        return xticks[didx] + ' (' + new Date(xtimes[didx] * 1000).toLocaleString() + ')';
       },
     }
   ];

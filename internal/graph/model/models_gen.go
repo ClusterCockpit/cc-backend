@@ -97,8 +97,9 @@ type JobResultList struct {
 }
 
 type JobStats struct {
-	JobID int           `json:"jobId"`
-	Stats []*NamedStats `json:"stats"`
+	JobID     int           `json:"jobId"`
+	StartTime int           `json:"startTime"`
+	Stats     []*NamedStats `json:"stats"`
 }
 
 type JobsStatistics struct {

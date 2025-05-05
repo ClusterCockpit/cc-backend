@@ -172,6 +172,7 @@ type ScopedStats {
 
 type JobStats {
   jobId: Int!
+  startTime: Int!
   stats: [NamedStats!]!
 }
 

@@ -39,6 +39,7 @@
   let filter = [...filterBuffer];
   let comparePlotData = {};
   let jobIds = [];
+  let jobStarts = [];
   const sorting = { field: "startTime", type: "col", order: "DESC" };
 
   /* GQL */
@@ -49,6 +50,7 @@
   query ($filter: [JobFilter!]!, $metrics: [String!]!) {
     jobsMetricStats(filter: $filter, metrics: $metrics) {
       jobId
+      startTime
       stats {
         name
         data {
@@ -72,6 +74,7 @@
   $: matchedCompareJobs = $compareData.data != null ? $compareData.data.jobsMetricStats.length : -1;
   $: if ($compareData.data != null) {
     jobIds = [];
+    jobStarts = [];
     comparePlotData = {}
     jobs2uplot($compareData.data.jobsMetricStats, metrics)
   }
@@ -121,7 +124,9 @@
         let plotIndex = 0
         jobs.forEach((j) => {
             jobIds.push(j.jobId)
+            jobStarts.push(j.startTime)
             for (let s of j.stats) {
+              // comparePlotData[s.name].data[0].push(j.startTime)
               comparePlotData[s.name].data[0].push(plotIndex)
               comparePlotData[s.name].data[1].push(s.data.min)
               comparePlotData[s.name].data[2].push(s.data.avg)
@@ -181,6 +186,7 @@
       title={'Compare '+ m}
       xlabel="JobIds"
       xticks={jobIds}
+      xtimes={jobStarts}
       ylabel={m}
       metric={m}
       yunit={comparePlotData[m].unit}
@@ -188,9 +194,10 @@
     />
   {/each}
   <hr/><hr/>
-  {#each $compareData.data.jobsMetricStats as job (job.jobId)}
+  {#each $compareData.data.jobsMetricStats as job, jindex (job.jobId)}
     <Row>
-      <Col><b><i>{job.jobId}</i></b></Col>
+      <Col><b>{jindex}: <i>{job.jobId}</i></b></Col>
+      <Col><i>{new Date(job.startTime * 1000)}</i></Col>
       {#each job.stats as stat (stat.name)}
         <Col><b>{stat.name}</b></Col>
         <Col>Min {stat.data.min}</Col>
