@@ -100,6 +100,8 @@ type JobStats struct {
 	JobID           int           `json:"jobId"`
 	StartTime       int           `json:"startTime"`
 	Duration        int           `json:"duration"`
+	Cluster         string        `json:"cluster"`
+	SubCluster      string        `json:"subCluster"`
 	NumNodes        int           `json:"numNodes"`
 	NumHWThreads    *int          `json:"numHWThreads,omitempty"`
 	NumAccelerators *int          `json:"numAccelerators,omitempty"`

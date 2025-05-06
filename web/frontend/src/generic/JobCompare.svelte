@@ -41,6 +41,7 @@
   let filter = [...filterBuffer];
   let comparePlotData = {};
   let jobIds = [];
+  let jobClusters = [];
 
   /*uPlot*/
   let plotSync = uPlot.sync("compareJobsView");
@@ -54,6 +55,8 @@
       jobId
       startTime
       duration
+      cluster
+      subCluster
       numNodes
       numHWThreads
       numAccelerators
@@ -130,8 +133,9 @@
     if (jobs) {
         let plotIndex = 0
         jobs.forEach((j) => {
-            // Collect JobIDs for X-Ticks
+            // Collect JobIDs & Clusters for X-Ticks and Legend
             jobIds.push(j.jobId)
+            jobClusters.push(`${j.cluster} ${j.subCluster}`)
             // Resources
             comparePlotData['resources'].data[0].push(plotIndex)
             comparePlotData['resources'].data[1].push(j.startTime)
@@ -203,6 +207,7 @@
         title={'Compare Resources'}
         xlabel="JobIDs"
         xticks={jobIds}
+        xinfo={jobClusters}
         ylabel={'Resource Counts'}
         data={comparePlotData['resources'].data}
         {plotSync}
@@ -217,6 +222,7 @@
           title={`Compare Metric '${m}'`}
           xlabel="JobIDs"
           xticks={jobIds}
+          xinfo={jobClusters}
           ylabel={m}
           metric={m}
           yunit={comparePlotData[m].unit}

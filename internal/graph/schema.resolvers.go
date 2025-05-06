@@ -621,6 +621,8 @@ func (r *queryResolver) JobsMetricStats(ctx context.Context, filter []*model.Job
 			JobID:           int(job.JobID),
 			StartTime:       int(job.StartTime.Unix()),
 			Duration:        int(job.Duration),
+			Cluster:         job.Cluster,
+			SubCluster:      job.SubCluster,
 			NumNodes:        int(job.NumNodes),
 			NumHWThreads:    &numThreadsInt,
 			NumAccelerators: &numAccsInt,

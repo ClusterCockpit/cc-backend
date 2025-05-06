@@ -24,6 +24,7 @@
   export let data = null;
   export let xlabel = "";
   export let xticks = [];
+  export let xinfo = [];
   export let ylabel = "";
   export let yunit = "";
   export let title = "";
@@ -102,7 +103,7 @@
       label: "JobID",
       scale: "x",
       value: (u, ts, sidx, didx) => {
-        return xticks[didx];
+        return `${xticks[didx]} | ${xinfo[didx]}`;
       },
     },
     {

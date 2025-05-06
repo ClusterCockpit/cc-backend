@@ -171,6 +171,7 @@ type ComplexityRoot struct {
 	}
 
 	JobStats struct {
+		Cluster         func(childComplexity int) int
 		Duration        func(childComplexity int) int
 		JobID           func(childComplexity int) int
 		NumAccelerators func(childComplexity int) int
@@ -178,6 +179,7 @@ type ComplexityRoot struct {
 		NumNodes        func(childComplexity int) int
 		StartTime       func(childComplexity int) int
 		Stats           func(childComplexity int) int
+		SubCluster      func(childComplexity int) int
 	}
 
 	JobsStatistics struct {
@@ -945,6 +947,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.JobResultList.Offset(childComplexity), true
 
+	case "JobStats.cluster":
+		if e.complexity.JobStats.Cluster == nil {
+			break
+		}
+
+		return e.complexity.JobStats.Cluster(childComplexity), true
+
 	case "JobStats.duration":
 		if e.complexity.JobStats.Duration == nil {
 			break
@@ -993,6 +1002,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.JobStats.Stats(childComplexity), true
+
+	case "JobStats.subCluster":
+		if e.complexity.JobStats.SubCluster == nil {
+			break
+		}
+
+		return e.complexity.JobStats.SubCluster(childComplexity), true
 
 	case "JobsStatistics.histDuration":
 		if e.complexity.JobsStatistics.HistDuration == nil {
@@ -2323,6 +2339,8 @@ type JobStats {
   jobId: Int!
   startTime: Int!
   duration: Int!
+  cluster: String!
+  subCluster: String!
   numNodes: Int!
   numHWThreads: Int
   numAccelerators: Int
@@ -7533,6 +7551,94 @@ func (ec *executionContext) fieldContext_JobStats_duration(_ context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _JobStats_cluster(ctx context.Context, field graphql.CollectedField, obj *model.JobStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JobStats_cluster(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Cluster, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JobStats_cluster(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JobStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _JobStats_subCluster(ctx context.Context, field graphql.CollectedField, obj *model.JobStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JobStats_subCluster(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.SubCluster, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JobStats_subCluster(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JobStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _JobStats_numNodes(ctx context.Context, field graphql.CollectedField, obj *model.JobStats) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_JobStats_numNodes(ctx, field)
 	if err != nil {
@@ -11460,6 +11566,10 @@ func (ec *executionContext) fieldContext_Query_jobsMetricStats(ctx context.Conte
 				return ec.fieldContext_JobStats_startTime(ctx, field)
 			case "duration":
 				return ec.fieldContext_JobStats_duration(ctx, field)
+			case "cluster":
+				return ec.fieldContext_JobStats_cluster(ctx, field)
+			case "subCluster":
+				return ec.fieldContext_JobStats_subCluster(ctx, field)
 			case "numNodes":
 				return ec.fieldContext_JobStats_numNodes(ctx, field)
 			case "numHWThreads":
@@ -17803,6 +17913,16 @@ func (ec *executionContext) _JobStats(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "duration":
 			out.Values[i] = ec._JobStats_duration(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cluster":
+			out.Values[i] = ec._JobStats_cluster(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "subCluster":
+			out.Values[i] = ec._JobStats_subCluster(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
