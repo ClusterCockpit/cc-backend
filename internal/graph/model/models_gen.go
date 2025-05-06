@@ -99,6 +99,7 @@ type JobResultList struct {
 type JobStats struct {
 	JobID     int           `json:"jobId"`
 	StartTime int           `json:"startTime"`
+	Duration  int           `json:"duration"`
 	Stats     []*NamedStats `json:"stats"`
 }
 

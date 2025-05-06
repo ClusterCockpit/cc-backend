@@ -24,21 +24,37 @@
   export let data;
   export let xlabel;
   export let xticks;
-  export let xtimes;
   export let ylabel;
   export let yunit;
   export let title;
   // export let cluster = "";
   // export let subCluster = "";
 
-  // $: console.log('LABEL:', metric, yunit)
-  // $: console.log('DATA:', data)
+  $: console.log('LABEL:', metric, yunit)
+  $: console.log('DATA:', data)
+  $: console.log('XTICKS:', xticks)
 
   const metricConfig = null // DEBUG FILLER
   // const metricConfig = getContext("getMetricConfig")(cluster, subCluster, metric); // Args woher
   const clusterCockpitConfig = getContext("cc-config");
   const lineWidth = clusterCockpitConfig.plot_general_lineWidth / window.devicePixelRatio;
   const cbmode = clusterCockpitConfig?.plot_general_colorblindMode || false;
+
+  // Format Seconds to hh:mm
+  function formatTime(t) {
+    if (t !== null) {
+      if (isNaN(t)) {
+        return t;
+      } else {
+        const tAbs = Math.abs(t);
+        const h = Math.floor(tAbs / 3600);
+        const m = Math.floor((tAbs % 3600) / 60);
+        if (h == 0) return `${m}m`;
+        else if (m == 0) return `${h}h`;
+        else return `${h}:${m}h`;
+      }
+    }
+  }
 
   // UPLOT PLUGIN // converts the legend into a simple tooltip
   function legendAsTooltipPlugin({
@@ -120,34 +136,48 @@
   const plotSeries = [
     {
       label: "JobID",
+      scale: "x",
       value: (u, ts, sidx, didx) => {
-        return xticks[didx] + ' (' + new Date(xtimes[didx] * 1000).toLocaleString() + ')';
+        return xticks[didx];
       },
+    },
+    {
+      label: "Starttime",
+      scale: "xst",
+      value: (u, ts, sidx, didx) => {
+        return new Date(ts * 1000).toLocaleString();
+      },
+    },
+    {
+      label: "Duration",
+      scale: "xrt",
+      value: (u, ts, sidx, didx) => {
+        return formatTime(ts);
+      },
+    },
+    {
+      label: "Min",
+      scale: "y",
+      width: lineWidth,
+      stroke: cbmode ? "rgb(0,255,0)" : "red",
+    },
+    {
+      label: "Avg",
+      scale: "y",
+      width: lineWidth,
+      stroke: "black",
+    },
+    {
+      label: "Max",
+      scale: "y",
+      width: lineWidth,
+      stroke: cbmode ? "rgb(0,0,255)" : "green",
     }
   ];
 
-  plotSeries.push({
-    label: "min",
-    scale: "y",
-    width: lineWidth,
-    stroke: cbmode ? "rgb(0,255,0)" : "red",
-  });
-  plotSeries.push({
-    label: "avg",
-    scale: "y",
-    width: lineWidth,
-    stroke: "black",
-  });
-  plotSeries.push({
-    label: "max",
-    scale: "y",
-    width: lineWidth,
-    stroke: cbmode ? "rgb(0,0,255)" : "green",
-  });
-
   const plotBands = [
-    { series: [3, 2], fill: cbmode ? "rgba(0,0,255,0.1)" : "rgba(0,255,0,0.1)" },
-    { series: [2, 1], fill: cbmode ? "rgba(0,255,0,0.1)" : "rgba(255,0,0,0.1)" },
+    { series: [5, 4], fill: cbmode ? "rgba(0,0,255,0.1)" : "rgba(0,255,0,0.1)" },
+    { series: [4, 3], fill: cbmode ? "rgba(0,255,0,0.1)" : "rgba(255,0,0,0.1)" },
   ];
 
   const opts = {
@@ -168,6 +198,14 @@
         }
       },
       {
+        scale: "xst",
+        show: false,
+      },
+      {
+        scale: "xrt",
+        show: false,
+      },
+      {
         scale: "y",
         grid: { show: true },
         labelFont: "sans-serif",
@@ -180,8 +218,8 @@
       draw: [
         (u) => {
           // Draw plot type label:
-          let textl = "Jobs min/avg/max";
-          let textr = "";
+          let textl = "Metric Min/Avg/Max in Duration";
+          let textr = "Earlier <- StartTime -> Later";
           u.ctx.save();
           u.ctx.textAlign = "start"; // 'end'
           u.ctx.fillStyle = "black";
@@ -216,6 +254,8 @@
     },
     scales: {
       x: { time: false },
+      xst: { time: false },
+      xrt: { time: false },
       y: maxY ? { min: 0, max: (maxY * 1.1) } : {auto: true}, // Add some space to upper render limit
     },
     legend: {

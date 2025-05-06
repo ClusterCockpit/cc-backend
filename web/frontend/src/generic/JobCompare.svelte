@@ -39,7 +39,6 @@
   let filter = [...filterBuffer];
   let comparePlotData = {};
   let jobIds = [];
-  let jobStarts = [];
   const sorting = { field: "startTime", type: "col", order: "DESC" };
 
   /* GQL */
@@ -51,6 +50,7 @@
     jobsMetricStats(filter: $filter, metrics: $metrics) {
       jobId
       startTime
+      duration
       stats {
         name
         data {
@@ -74,7 +74,6 @@
   $: matchedCompareJobs = $compareData.data != null ? $compareData.data.jobsMetricStats.length : -1;
   $: if ($compareData.data != null) {
     jobIds = [];
-    jobStarts = [];
     comparePlotData = {}
     jobs2uplot($compareData.data.jobsMetricStats, metrics)
   }
@@ -116,7 +115,7 @@
       const rawUnit = globalMetrics.find((gm) => gm.name == m)?.unit
       const metricUnit = (rawUnit?.prefix ? rawUnit.prefix : "") + (rawUnit?.base ? rawUnit.base : "")
       // Init
-      comparePlotData[m] = {unit: metricUnit, data: [[],[],[],[]]} // data: [X, Y1, Y2, Y3]
+      comparePlotData[m] = {unit: metricUnit, data: [[],[],[],[],[],[]]} // data: [X, XST, XRT, YMIN, YAVG, YMAX]
     }
 
     // Iterate jobs if exists
@@ -124,13 +123,13 @@
         let plotIndex = 0
         jobs.forEach((j) => {
             jobIds.push(j.jobId)
-            jobStarts.push(j.startTime)
             for (let s of j.stats) {
-              // comparePlotData[s.name].data[0].push(j.startTime)
               comparePlotData[s.name].data[0].push(plotIndex)
-              comparePlotData[s.name].data[1].push(s.data.min)
-              comparePlotData[s.name].data[2].push(s.data.avg)
-              comparePlotData[s.name].data[3].push(s.data.max)
+              comparePlotData[s.name].data[1].push(j.startTime)
+              comparePlotData[s.name].data[2].push(j.duration)
+              comparePlotData[s.name].data[3].push(s.data.min)
+              comparePlotData[s.name].data[4].push(s.data.avg)
+              comparePlotData[s.name].data[5].push(s.data.max)
             }
             plotIndex++
         })
@@ -186,7 +185,6 @@
       title={'Compare '+ m}
       xlabel="JobIds"
       xticks={jobIds}
-      xtimes={jobStarts}
       ylabel={m}
       metric={m}
       yunit={comparePlotData[m].unit}
