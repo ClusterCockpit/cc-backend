@@ -171,10 +171,13 @@ type ComplexityRoot struct {
 	}
 
 	JobStats struct {
-		Duration  func(childComplexity int) int
-		JobID     func(childComplexity int) int
-		StartTime func(childComplexity int) int
-		Stats     func(childComplexity int) int
+		Duration        func(childComplexity int) int
+		JobID           func(childComplexity int) int
+		NumAccelerators func(childComplexity int) int
+		NumHWThreads    func(childComplexity int) int
+		NumNodes        func(childComplexity int) int
+		StartTime       func(childComplexity int) int
+		Stats           func(childComplexity int) int
 	}
 
 	JobsStatistics struct {
@@ -955,6 +958,27 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.JobStats.JobID(childComplexity), true
+
+	case "JobStats.numAccelerators":
+		if e.complexity.JobStats.NumAccelerators == nil {
+			break
+		}
+
+		return e.complexity.JobStats.NumAccelerators(childComplexity), true
+
+	case "JobStats.numHWThreads":
+		if e.complexity.JobStats.NumHWThreads == nil {
+			break
+		}
+
+		return e.complexity.JobStats.NumHWThreads(childComplexity), true
+
+	case "JobStats.numNodes":
+		if e.complexity.JobStats.NumNodes == nil {
+			break
+		}
+
+		return e.complexity.JobStats.NumNodes(childComplexity), true
 
 	case "JobStats.startTime":
 		if e.complexity.JobStats.StartTime == nil {
@@ -2299,6 +2323,9 @@ type JobStats {
   jobId: Int!
   startTime: Int!
   duration: Int!
+  numNodes: Int!
+  numHWThreads: Int
+  numAccelerators: Int
   stats: [NamedStats!]!
 }
 
@@ -7506,6 +7533,132 @@ func (ec *executionContext) fieldContext_JobStats_duration(_ context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _JobStats_numNodes(ctx context.Context, field graphql.CollectedField, obj *model.JobStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JobStats_numNodes(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.NumNodes, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JobStats_numNodes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JobStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _JobStats_numHWThreads(ctx context.Context, field graphql.CollectedField, obj *model.JobStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JobStats_numHWThreads(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.NumHWThreads, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*int)
+	fc.Result = res
+	return ec.marshalOInt2ᚖint(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JobStats_numHWThreads(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JobStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _JobStats_numAccelerators(ctx context.Context, field graphql.CollectedField, obj *model.JobStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JobStats_numAccelerators(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.NumAccelerators, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*int)
+	fc.Result = res
+	return ec.marshalOInt2ᚖint(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JobStats_numAccelerators(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JobStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _JobStats_stats(ctx context.Context, field graphql.CollectedField, obj *model.JobStats) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_JobStats_stats(ctx, field)
 	if err != nil {
@@ -11307,6 +11460,12 @@ func (ec *executionContext) fieldContext_Query_jobsMetricStats(ctx context.Conte
 				return ec.fieldContext_JobStats_startTime(ctx, field)
 			case "duration":
 				return ec.fieldContext_JobStats_duration(ctx, field)
+			case "numNodes":
+				return ec.fieldContext_JobStats_numNodes(ctx, field)
+			case "numHWThreads":
+				return ec.fieldContext_JobStats_numHWThreads(ctx, field)
+			case "numAccelerators":
+				return ec.fieldContext_JobStats_numAccelerators(ctx, field)
 			case "stats":
 				return ec.fieldContext_JobStats_stats(ctx, field)
 			}
@@ -17647,6 +17806,15 @@ func (ec *executionContext) _JobStats(ctx context.Context, sel ast.SelectionSet,
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "numNodes":
+			out.Values[i] = ec._JobStats_numNodes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "numHWThreads":
+			out.Values[i] = ec._JobStats_numHWThreads(ctx, field, obj)
+		case "numAccelerators":
+			out.Values[i] = ec._JobStats_numAccelerators(ctx, field, obj)
 		case "stats":
 			out.Values[i] = ec._JobStats_stats(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

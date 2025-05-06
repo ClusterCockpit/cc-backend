@@ -14,24 +14,24 @@
 
 <script>
   import uPlot from "uplot";
-  import { roundTwoDigits, formatTime } from "../units.js";
+  import { roundTwoDigits, formatTime, formatNumber } from "../units.js";
   import { getContext, onMount, onDestroy } from "svelte";
   import { Card } from "@sveltestrap/sveltestrap";
 
-  export let metric;
+  export let metric = "";
   export let width = 0;
   export let height = 300;
-  export let data;
-  export let xlabel;
-  export let xticks;
-  export let ylabel;
-  export let yunit;
-  export let title;
-  // export let cluster = "";
-  // export let subCluster = "";
+  export let data = null;
+  export let xlabel = "";
+  export let xticks = [];
+  export let ylabel = "";
+  export let yunit = "";
+  export let title = "";
+  export let forResources = false;
+  export let plotSync;
 
-  const metricConfig = null // DEBUG FILLER
-  // const metricConfig = getContext("getMetricConfig")(cluster, subCluster, metric); // Args woher
+  // NOTE: Metric Thresholds non-required, Cluster Mixing Allowed
+
   const clusterCockpitConfig = getContext("cc-config");
   const lineWidth = clusterCockpitConfig.plot_general_lineWidth / window.devicePixelRatio;
   const cbmode = clusterCockpitConfig?.plot_general_colorblindMode || false;
@@ -80,9 +80,6 @@
       overEl.addEventListener("mouseleave", () => {
         legendEl.style.display = "none";
       });
-
-      // let tooltip exit plot
-      // overEl.style.overflow = "visible";
     }
 
     function update(u) {
@@ -99,19 +96,6 @@
       },
     };
   }
-
-  let maxY = null;
-  // TODO: Hilfreich!
-  // if (metricConfig !== null) {
-  //   maxY = data[3].reduce( // Data[3] is JobMaxs
-  //         (max, x) => Math.max(max, x),
-  //         metricConfig.normal,
-  //       ) || metricConfig.normal
-  //   if (maxY >= 10 * metricConfig.peak) {
-  //     // Hard y-range render limit if outliers in series data
-  //     maxY = 10 * metricConfig.peak;
-  //   }
-  // }
 
   const plotSeries = [
     {
@@ -135,34 +119,62 @@
         return formatTime(ts);
       },
     },
-    {
-      label: "Min",
-      scale: "y",
-      width: lineWidth,
-      stroke: cbmode ? "rgb(0,255,0)" : "red",
-      value: (u, ts, sidx, didx) => {
-        return `${roundTwoDigits(ts)} ${yunit}`;
+  ]
+
+  if (forResources) {
+    const resSeries = [
+      {
+        label: "Nodes",
+        scale: "y",
+        width: lineWidth,
+        stroke: "black",
       },
-    },
-    {
-      label: "Avg",
-      scale: "y",
-      width: lineWidth,
-      stroke: "black",
-      value: (u, ts, sidx, didx) => {
-        return `${roundTwoDigits(ts)} ${yunit}`;
+      {
+        label: "Threads",
+        scale: "y",
+        width: lineWidth,
+        stroke: "rgb(0,0,255)",
       },
-    },
-    {
-      label: "Max",
-      scale: "y",
-      width: lineWidth,
-      stroke: cbmode ? "rgb(0,0,255)" : "green",
-      value: (u, ts, sidx, didx) => {
-        return `${roundTwoDigits(ts)} ${yunit}`;
+      {
+        label: "Accelerators",
+        scale: "y",
+        width: lineWidth,
+        stroke: cbmode ? "rgb(0,255,0)" : "red",
+      }
+    ];
+    plotSeries.push(...resSeries)
+  } else {
+    const statsSeries = [
+      {
+        label: "Min",
+        scale: "y",
+        width: lineWidth,
+        stroke: cbmode ? "rgb(0,255,0)" : "red",
+        value: (u, ts, sidx, didx) => {
+          return `${roundTwoDigits(ts)} ${yunit}`;
+        },
       },
-    }
-  ];
+      {
+        label: "Avg",
+        scale: "y",
+        width: lineWidth,
+        stroke: "black",
+        value: (u, ts, sidx, didx) => {
+          return `${roundTwoDigits(ts)} ${yunit}`;
+        },
+      },
+      {
+        label: "Max",
+        scale: "y",
+        width: lineWidth,
+        stroke: cbmode ? "rgb(0,0,255)" : "green",
+        value: (u, ts, sidx, didx) => {
+          return `${roundTwoDigits(ts)} ${yunit}`;
+        },
+      }
+    ];
+    plotSeries.push(...statsSeries)
+  };
 
   const plotBands = [
     { series: [5, 4], fill: cbmode ? "rgba(0,0,255,0.1)" : "rgba(0,255,0,0.1)" },
@@ -198,19 +210,20 @@
         scale: "y",
         grid: { show: true },
         labelFont: "sans-serif",
-        label: ylabel + (yunit ? ` (${yunit})` : '')
+        label: ylabel + (yunit ? ` (${yunit})` : ''),
+        values: (u, vals) => vals.map((v) => formatNumber(v)),
       },
     ],
-    bands: plotBands,
-    padding: [5, 10, 0, 0], // 5, 10, -20, 0
+    bands: forResources ? [] : plotBands,
+    padding: [5, 10, 0, 0],
     hooks: {
       draw: [
         (u) => {
           // Draw plot type label:
-          let textl = "Metric Min/Avg/Max for Job Duration";
+          let textl = forResources ? "Job Resources by Type" : "Metric Min/Avg/Max for Job Duration";
           let textr = "Earlier <- StartTime -> Later";
           u.ctx.save();
-          u.ctx.textAlign = "start"; // 'end'
+          u.ctx.textAlign = "start";
           u.ctx.fillStyle = "black";
           u.ctx.fillText(textl, u.bbox.left + 10, u.bbox.top + 10);
           u.ctx.textAlign = "end";
@@ -220,24 +233,8 @@
             u.bbox.left + u.bbox.width - 10,
             u.bbox.top + 10,
           );
-          // u.ctx.fillText(text, u.bbox.left + u.bbox.width - 10, u.bbox.top + u.bbox.height - 10) // Recipe for bottom right
-
-          if (!metricConfig) {
-            u.ctx.restore();
-            return;
-          }
-
-          // TODO: Braucht MetricConf
-          let y = u.valToPos(metricConfig?.normal, "y", true);
-          u.ctx.save();
-          u.ctx.lineWidth = lineWidth;
-          u.ctx.strokeStyle = "#000000"; // Black
-          u.ctx.setLineDash([5, 5]);
-          u.ctx.beginPath();
-          u.ctx.moveTo(u.bbox.left, y);
-          u.ctx.lineTo(u.bbox.left + u.bbox.width, y);
-          u.ctx.stroke();
           u.ctx.restore();
+          return;
         },
       ]
     },
@@ -245,7 +242,7 @@
       x: { time: false },
       xst: { time: false },
       xrt: { time: false },
-      y: maxY ? { min: 0, max: (maxY * 1.1) } : {auto: true}, // Add some space to upper render limit
+      y: {auto: true, distr: forResources ? 3 : 1},
     },
     legend: {
       // Display legend
@@ -254,6 +251,10 @@
     },
     cursor: { 
       drag: { x: true, y: true },
+      sync: { 
+        key: plotSync.key,
+        scales: ["x", null],
+      }
     }
   };
 
@@ -267,6 +268,7 @@
       opts.width = ren_width;
       opts.height = ren_height;
       uplot = new uPlot(opts, data, plotWrapper); // Data is uplot formatted [[X][Ymin][Yavg][Ymax]]
+      plotSync.sub(uplot)
     } else {
       uplot.setSize({ width: ren_width, height: ren_height });
     }

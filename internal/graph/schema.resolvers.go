@@ -615,11 +615,16 @@ func (r *queryResolver) JobsMetricStats(ctx context.Context, filter []*model.Job
 			})
 		}
 
+		numThreadsInt := int(job.NumHWThreads)
+		numAccsInt := int(job.NumAcc)
 		res = append(res, &model.JobStats{
-			JobID:     int(job.JobID),
-			StartTime: int(job.StartTime.Unix()),
-			Duration:  int(job.Duration),
-			Stats:     sres,
+			JobID:           int(job.JobID),
+			StartTime:       int(job.StartTime.Unix()),
+			Duration:        int(job.Duration),
+			NumNodes:        int(job.NumNodes),
+			NumHWThreads:    &numThreadsInt,
+			NumAccelerators: &numAccsInt,
+			Stats:           sres,
 		})
 	}
 	return res, err

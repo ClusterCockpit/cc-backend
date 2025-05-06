@@ -149,6 +149,14 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	if filter.JobID != nil {
 		query = buildStringCondition("job.job_id", filter.JobID, query)
 	}
+	if filter.JobIds != nil {
+		jobIds := make([]string, len(filter.JobIds))
+		for i, val := range filter.JobIds {
+			jobIds[i] = string(val)
+		}
+
+		query = query.Where(sq.Eq{"job.job_id": jobIds})
+	}
 	if filter.ArrayJobID != nil {
 		query = query.Where("job.array_job_id = ?", *filter.ArrayJobID)
 	}

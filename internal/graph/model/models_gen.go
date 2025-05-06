@@ -97,10 +97,13 @@ type JobResultList struct {
 }
 
 type JobStats struct {
-	JobID     int           `json:"jobId"`
-	StartTime int           `json:"startTime"`
-	Duration  int           `json:"duration"`
-	Stats     []*NamedStats `json:"stats"`
+	JobID           int           `json:"jobId"`
+	StartTime       int           `json:"startTime"`
+	Duration        int           `json:"duration"`
+	NumNodes        int           `json:"numNodes"`
+	NumHWThreads    *int          `json:"numHWThreads,omitempty"`
+	NumAccelerators *int          `json:"numAccelerators,omitempty"`
+	Stats           []*NamedStats `json:"stats"`
 }
 
 type JobsStatistics struct {

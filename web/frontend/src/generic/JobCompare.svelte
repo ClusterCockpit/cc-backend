@@ -15,6 +15,7 @@
 
 <script>
   import { getContext } from "svelte";
+  import uPlot from "uplot";
   import {
     queryStore,
     gql,
@@ -40,11 +41,12 @@
   let filter = [...filterBuffer];
   let comparePlotData = {};
   let jobIds = [];
-  const sorting = { field: "startTime", type: "col", order: "DESC" };
+
+  /*uPlot*/
+  let plotSync = uPlot.sync("compareJobsView");
 
   /* GQL */
-
-  const client = getContextClient();
+  const client = getContextClient();  
   // Pull All Series For Metrics Statistics Only On Node Scope
   const compareQuery = gql`
   query ($filter: [JobFilter!]!, $metrics: [String!]!) {
@@ -52,6 +54,9 @@
       jobId
       startTime
       duration
+      numNodes
+      numHWThreads
+      numAccelerators
       stats {
         name
         data {
@@ -111,11 +116,13 @@
 
   function jobs2uplot(jobs, metrics) {
     // Prep
+    // Resources Init
+    comparePlotData['resources'] = {unit:'', data: [[],[],[],[],[],[]]} // data: [X, XST, XRT, YNODES, YTHREADS, YACCS]
+    // Metric Init
     for (let m of metrics) {
       // Get Unit
       const rawUnit = globalMetrics.find((gm) => gm.name == m)?.unit
       const metricUnit = (rawUnit?.prefix ? rawUnit.prefix : "") + (rawUnit?.base ? rawUnit.base : "")
-      // Init
       comparePlotData[m] = {unit: metricUnit, data: [[],[],[],[],[],[]]} // data: [X, XST, XRT, YMIN, YAVG, YMAX]
     }
 
@@ -123,7 +130,16 @@
     if (jobs) {
         let plotIndex = 0
         jobs.forEach((j) => {
+            // Collect JobIDs for X-Ticks
             jobIds.push(j.jobId)
+            // Resources
+            comparePlotData['resources'].data[0].push(plotIndex)
+            comparePlotData['resources'].data[1].push(j.startTime)
+            comparePlotData['resources'].data[2].push(j.duration)
+            comparePlotData['resources'].data[3].push(j.numNodes)
+            comparePlotData['resources'].data[4].push(j?.numHWThreads?j.numHWThreads:0)
+            comparePlotData['resources'].data[5].push(j?.numAccelerators?j.numAccelerators:0)
+            // Metrics
             for (let s of j.stats) {
               comparePlotData[s.name].data[0].push(plotIndex)
               comparePlotData[s.name].data[1].push(j.startTime)
@@ -181,16 +197,34 @@
     </Col>
   </Row>
 {:else}
+  <Row>
+    <Col>
+      <Comparogram
+        title={'Compare Resources'}
+        xlabel="JobIDs"
+        xticks={jobIds}
+        ylabel={'Resource Counts'}
+        data={comparePlotData['resources'].data}
+        {plotSync}
+        forResources
+      />
+    </Col>
+  </Row>
   {#each metrics as m}
-    <Comparogram
-      title={'Compare '+ m}
-      xlabel="JobIds"
-      xticks={jobIds}
-      ylabel={m}
-      metric={m}
-      yunit={comparePlotData[m].unit}
-      data={comparePlotData[m].data}
-    />
+    <Row>
+      <Col>
+        <Comparogram
+          title={`Compare Metric '${m}'`}
+          xlabel="JobIDs"
+          xticks={jobIds}
+          ylabel={m}
+          metric={m}
+          yunit={comparePlotData[m].unit}
+          data={comparePlotData[m].data}
+          {plotSync}
+        />
+      </Col>
+    </Row>
   {/each}
   <hr/><hr/>
   {#each $compareData.data.jobsMetricStats as job, jindex (job.jobId)}
