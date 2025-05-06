@@ -14,7 +14,7 @@
 
 <script>
   import uPlot from "uplot";
-  import { formatNumber } from "../units.js";
+  import { roundTwoDigits, formatTime } from "../units.js";
   import { getContext, onMount, onDestroy } from "svelte";
   import { Card } from "@sveltestrap/sveltestrap";
 
@@ -30,31 +30,11 @@
   // export let cluster = "";
   // export let subCluster = "";
 
-  $: console.log('LABEL:', metric, yunit)
-  $: console.log('DATA:', data)
-  $: console.log('XTICKS:', xticks)
-
   const metricConfig = null // DEBUG FILLER
   // const metricConfig = getContext("getMetricConfig")(cluster, subCluster, metric); // Args woher
   const clusterCockpitConfig = getContext("cc-config");
   const lineWidth = clusterCockpitConfig.plot_general_lineWidth / window.devicePixelRatio;
   const cbmode = clusterCockpitConfig?.plot_general_colorblindMode || false;
-
-  // Format Seconds to hh:mm
-  function formatTime(t) {
-    if (t !== null) {
-      if (isNaN(t)) {
-        return t;
-      } else {
-        const tAbs = Math.abs(t);
-        const h = Math.floor(tAbs / 3600);
-        const m = Math.floor((tAbs % 3600) / 60);
-        if (h == 0) return `${m}m`;
-        else if (m == 0) return `${h}h`;
-        else return `${h}:${m}h`;
-      }
-    }
-  }
 
   // UPLOT PLUGIN // converts the legend into a simple tooltip
   function legendAsTooltipPlugin({
@@ -160,18 +140,27 @@
       scale: "y",
       width: lineWidth,
       stroke: cbmode ? "rgb(0,255,0)" : "red",
+      value: (u, ts, sidx, didx) => {
+        return `${roundTwoDigits(ts)} ${yunit}`;
+      },
     },
     {
       label: "Avg",
       scale: "y",
       width: lineWidth,
       stroke: "black",
+      value: (u, ts, sidx, didx) => {
+        return `${roundTwoDigits(ts)} ${yunit}`;
+      },
     },
     {
       label: "Max",
       scale: "y",
       width: lineWidth,
       stroke: cbmode ? "rgb(0,0,255)" : "green",
+      value: (u, ts, sidx, didx) => {
+        return `${roundTwoDigits(ts)} ${yunit}`;
+      },
     }
   ];
 
@@ -209,7 +198,7 @@
         scale: "y",
         grid: { show: true },
         labelFont: "sans-serif",
-        label: ylabel + ' (' + yunit + ')'
+        label: ylabel + (yunit ? ` (${yunit})` : '')
       },
     ],
     bands: plotBands,
@@ -218,7 +207,7 @@
       draw: [
         (u) => {
           // Draw plot type label:
-          let textl = "Metric Min/Avg/Max in Duration";
+          let textl = "Metric Min/Avg/Max for Job Duration";
           let textr = "Earlier <- StartTime -> Later";
           u.ctx.save();
           u.ctx.textAlign = "start"; // 'end'

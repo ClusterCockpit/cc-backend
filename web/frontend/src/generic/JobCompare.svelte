@@ -22,6 +22,7 @@
     // mutationStore,
   } from "@urql/svelte";
   import { Row, Col, Card, Spinner } from "@sveltestrap/sveltestrap";
+  import { formatTime } from "./units.js";
   import Comparogram from "./plots/Comparogram.svelte";
 
   const ccconfig = getContext("cc-config"),
@@ -195,7 +196,8 @@
   {#each $compareData.data.jobsMetricStats as job, jindex (job.jobId)}
     <Row>
       <Col><b>{jindex}: <i>{job.jobId}</i></b></Col>
-      <Col><i>{new Date(job.startTime * 1000)}</i></Col>
+      <Col><i>{new Date(job.startTime * 1000).toISOString()}</i></Col>
+      <Col><i>{formatTime(job.duration)}</i></Col>
       {#each job.stats as stat (stat.name)}
         <Col><b>{stat.name}</b></Col>
         <Col>Min {stat.data.min}</Col>
