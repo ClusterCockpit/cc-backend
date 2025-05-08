@@ -99,6 +99,7 @@
   </Col>
   <Col lg="4" class="mb-1 mb-lg-0">
     <Filters
+      showFilter={!showCompare}
       {filterPresets}
       matchedJobs={showCompare? matchedCompareJobs: matchedListJobs}
       bind:this={filterComponent}
@@ -136,18 +137,20 @@
   </Col>
   <Col lg="2" class="mb-2 mb-lg-0">
     <ButtonGroup class="w-100">
-      <Button color="primary" on:click={() => {
+      <Button color="primary" disabled={matchedListJobs >= 500 && !(selectedJobs.length != 0)} on:click={() => {
         if (selectedJobs.length != 0) filterComponent.updateFilters({dbId: selectedJobs})
-        else if (selectedJobs.length == 0) filterComponent.updateFilters({dbId: []})
         showCompare = !showCompare
       }} >
-        {showCompare ? 'List' : 'Compare'} Jobs {selectedJobs.length != 0 ? `(${selectedJobs.length} selected)` : `(Use Filter)`}
+        {showCompare ? 'Return to List' : 
+        'Compare Jobs' + (selectedJobs.length != 0 ? ` (${selectedJobs.length} selected)` : matchedListJobs >= 500 ? ` (Too Many)` : ``)}
       </Button>
-      <Button color="danger" disabled={selectedJobs.length == 0} on:click={() => {
-        selectedJobs = [] // Only empty array, filters handled by reactive reset
-      }}>
-      Reset
-      </Button>
+      {#if !showCompare && selectedJobs.length != 0}
+        <Button color="warning" on:click={() => {
+          selectedJobs = [] // Only empty array, filters handled by reactive reset
+        }}>
+        Clear
+        </Button>
+      {/if}
     </ButtonGroup>
   </Col>
 </Row>

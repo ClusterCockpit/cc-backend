@@ -44,6 +44,7 @@
   export let disableClusterSelection = false;
   export let startTimeQuickSelect = false;
   export let matchedJobs = -2;
+  export let showFilter = true;
 
   const startTimeSelectOptions = [
     { range: "", rangeLabel: "No Selection"},
@@ -253,60 +254,63 @@
 
 <!-- Dropdown-Button -->
 <ButtonGroup>
-  <ButtonDropdown class="cc-dropdown-on-hover mb-1" style="{(matchedJobs >= -1) ? '' : 'margin-right: 0.5rem;'}">
-    <DropdownToggle outline caret color="success">
-      <Icon name="sliders" />
-      Filters
-    </DropdownToggle>
-    <DropdownMenu>
-      <DropdownItem header>Manage Filters</DropdownItem>
-      {#if menuText}
-        <DropdownItem disabled>{menuText}</DropdownItem>
-        <DropdownItem divider />
-      {/if}
-      <DropdownItem on:click={() => (isClusterOpen = true)}>
-        <Icon name="cpu" /> Cluster/Partition
-      </DropdownItem>
-      <DropdownItem on:click={() => (isJobStatesOpen = true)}>
-        <Icon name="gear-fill" /> Job States
-      </DropdownItem>
-      <DropdownItem on:click={() => (isStartTimeOpen = true)}>
-        <Icon name="calendar-range" /> Start Time
-      </DropdownItem>
-      <DropdownItem on:click={() => (isDurationOpen = true)}>
-        <Icon name="stopwatch" /> Duration
-      </DropdownItem>
-      <DropdownItem on:click={() => (isTagsOpen = true)}>
-        <Icon name="tags" /> Tags
-      </DropdownItem>
-      <DropdownItem on:click={() => (isResourcesOpen = true)}>
-        <Icon name="hdd-stack" /> Resources
-      </DropdownItem>
-      <DropdownItem on:click={() => (isEnergyOpen = true)}>
-        <Icon name="lightning-charge-fill" /> Energy
-      </DropdownItem>
-      <DropdownItem on:click={() => (isStatsOpen = true)}>
-        <Icon name="bar-chart" on:click={() => (isStatsOpen = true)} /> Statistics
-      </DropdownItem>
-      {#if startTimeQuickSelect}
-        <DropdownItem divider />
-        <DropdownItem disabled>Start Time Quick Selection</DropdownItem>
-        {#each startTimeSelectOptions.filter((stso) => stso.range !== "") as { rangeLabel, range }}
-          <DropdownItem
-            on:click={() => {
-              filters.startTime.from = null
-              filters.startTime.to = null
-              filters.startTime.range = range;
-              updateFilters();
-            }}
-          >
-            <Icon name="calendar-range" />
-            {rangeLabel}
-          </DropdownItem>
-        {/each}
-      {/if}
-    </DropdownMenu>
-  </ButtonDropdown>
+  {#if showFilter}
+    <ButtonDropdown class="cc-dropdown-on-hover mb-1" style="{(matchedJobs >= -1) ? '' : 'margin-right: 0.5rem;'}">
+      <DropdownToggle outline caret color="success">
+        <Icon name="sliders" />
+        Filters
+      </DropdownToggle>
+      <DropdownMenu>
+        <DropdownItem header>Manage Filters</DropdownItem>
+        {#if menuText}
+          <DropdownItem disabled>{menuText}</DropdownItem>
+          <DropdownItem divider />
+        {/if}
+        <DropdownItem on:click={() => (isClusterOpen = true)}>
+          <Icon name="cpu" /> Cluster/Partition
+        </DropdownItem>
+        <DropdownItem on:click={() => (isJobStatesOpen = true)}>
+          <Icon name="gear-fill" /> Job States
+        </DropdownItem>
+        <DropdownItem on:click={() => (isStartTimeOpen = true)}>
+          <Icon name="calendar-range" /> Start Time
+        </DropdownItem>
+        <DropdownItem on:click={() => (isDurationOpen = true)}>
+          <Icon name="stopwatch" /> Duration
+        </DropdownItem>
+        <DropdownItem on:click={() => (isTagsOpen = true)}>
+          <Icon name="tags" /> Tags
+        </DropdownItem>
+        <DropdownItem on:click={() => (isResourcesOpen = true)}>
+          <Icon name="hdd-stack" /> Resources
+        </DropdownItem>
+        <DropdownItem on:click={() => (isEnergyOpen = true)}>
+          <Icon name="lightning-charge-fill" /> Energy
+        </DropdownItem>
+        <DropdownItem on:click={() => (isStatsOpen = true)}>
+          <Icon name="bar-chart" on:click={() => (isStatsOpen = true)} /> Statistics
+        </DropdownItem>
+        {#if startTimeQuickSelect}
+          <DropdownItem divider />
+          <DropdownItem disabled>Start Time Quick Selection</DropdownItem>
+          {#each startTimeSelectOptions.filter((stso) => stso.range !== "") as { rangeLabel, range }}
+            <DropdownItem
+              on:click={() => {
+                filters.startTime.from = null
+                filters.startTime.to = null
+                filters.startTime.range = range;
+                updateFilters();
+              }}
+            >
+              <Icon name="calendar-range" />
+              {rangeLabel}
+            </DropdownItem>
+          {/each}
+        {/if}
+      </DropdownMenu>
+    </ButtonDropdown>
+  {/if}
+
   {#if matchedJobs >= -1}
     <Button class="mb-1" style="margin-right: 0.5rem;" disabled outline>
       {matchedJobs == -1 ? 'Loading ...' : `${matchedJobs} jobs`}
@@ -314,109 +318,111 @@
   {/if}
 </ButtonGroup>
 
-<!-- SELECTED FILTER PILLS -->
-{#if filters.cluster}
-  <Info icon="cpu" on:click={() => (isClusterOpen = true)}>
-    {filters.cluster}
-    {#if filters.partition}
-      ({filters.partition})
-    {/if}
-  </Info>
-{/if}
+{#if showFilter}
+  <!-- SELECTED FILTER PILLS -->
+  {#if filters.cluster}
+    <Info icon="cpu" on:click={() => (isClusterOpen = true)}>
+      {filters.cluster}
+      {#if filters.partition}
+        ({filters.partition})
+      {/if}
+    </Info>
+  {/if}
 
-{#if filters.states.length != allJobStates.length}
-  <Info icon="gear-fill" on:click={() => (isJobStatesOpen = true)}>
-    {filters.states.join(", ")}
-  </Info>
-{/if}
+  {#if filters.states.length != allJobStates.length}
+    <Info icon="gear-fill" on:click={() => (isJobStatesOpen = true)}>
+      {filters.states.join(", ")}
+    </Info>
+  {/if}
 
-{#if filters.startTime.from || filters.startTime.to}
-  <Info icon="calendar-range" on:click={() => (isStartTimeOpen = true)}>
-    {new Date(filters.startTime.from).toLocaleString()} - {new Date(
-      filters.startTime.to,
-    ).toLocaleString()}
-  </Info>
-{/if}
+  {#if filters.startTime.from || filters.startTime.to}
+    <Info icon="calendar-range" on:click={() => (isStartTimeOpen = true)}>
+      {new Date(filters.startTime.from).toLocaleString()} - {new Date(
+        filters.startTime.to,
+      ).toLocaleString()}
+    </Info>
+  {/if}
 
-{#if filters.startTime.range}
-  <Info icon="calendar-range" on:click={() => (isStartTimeOpen = true)}>
-    {startTimeSelectOptions.find((stso) => stso.range === filters.startTime.range).rangeLabel }
-  </Info>
-{/if}
+  {#if filters.startTime.range}
+    <Info icon="calendar-range" on:click={() => (isStartTimeOpen = true)}>
+      {startTimeSelectOptions.find((stso) => stso.range === filters.startTime.range).rangeLabel }
+    </Info>
+  {/if}
 
-{#if filters.duration.from || filters.duration.to}
-  <Info icon="stopwatch" on:click={() => (isDurationOpen = true)}>
-    {Math.floor(filters.duration.from / 3600)}h:{Math.floor(
-      (filters.duration.from % 3600) / 60,
-    )}m -
-    {Math.floor(filters.duration.to / 3600)}h:{Math.floor(
-      (filters.duration.to % 3600) / 60,
-    )}m
-  </Info>
-{/if}
+  {#if filters.duration.from || filters.duration.to}
+    <Info icon="stopwatch" on:click={() => (isDurationOpen = true)}>
+      {Math.floor(filters.duration.from / 3600)}h:{Math.floor(
+        (filters.duration.from % 3600) / 60,
+      )}m -
+      {Math.floor(filters.duration.to / 3600)}h:{Math.floor(
+        (filters.duration.to % 3600) / 60,
+      )}m
+    </Info>
+  {/if}
 
-{#if filters.duration.lessThan}
-  <Info icon="stopwatch" on:click={() => (isDurationOpen = true)}>
-    Duration less than {Math.floor(
-      filters.duration.lessThan / 3600,
-    )}h:{Math.floor((filters.duration.lessThan % 3600) / 60)}m
-  </Info>
-{/if}
+  {#if filters.duration.lessThan}
+    <Info icon="stopwatch" on:click={() => (isDurationOpen = true)}>
+      Duration less than {Math.floor(
+        filters.duration.lessThan / 3600,
+      )}h:{Math.floor((filters.duration.lessThan % 3600) / 60)}m
+    </Info>
+  {/if}
 
-{#if filters.duration.moreThan}
-  <Info icon="stopwatch" on:click={() => (isDurationOpen = true)}>
-    Duration more than {Math.floor(
-      filters.duration.moreThan / 3600,
-    )}h:{Math.floor((filters.duration.moreThan % 3600) / 60)}m
-  </Info>
-{/if}
+  {#if filters.duration.moreThan}
+    <Info icon="stopwatch" on:click={() => (isDurationOpen = true)}>
+      Duration more than {Math.floor(
+        filters.duration.moreThan / 3600,
+      )}h:{Math.floor((filters.duration.moreThan % 3600) / 60)}m
+    </Info>
+  {/if}
 
-{#if filters.tags.length != 0}
-  <Info icon="tags" on:click={() => (isTagsOpen = true)}>
-    {#each filters.tags as tagId}
-      {#key tagId}
-        <Tag id={tagId} clickable={false} />
-      {/key}
-    {/each}
-  </Info>
-{/if}
+  {#if filters.tags.length != 0}
+    <Info icon="tags" on:click={() => (isTagsOpen = true)}>
+      {#each filters.tags as tagId}
+        {#key tagId}
+          <Tag id={tagId} clickable={false} />
+        {/key}
+      {/each}
+    </Info>
+  {/if}
 
-{#if filters.numNodes.from != null || filters.numNodes.to != null || filters.numHWThreads.from != null || filters.numHWThreads.to != null || filters.numAccelerators.from != null || filters.numAccelerators.to != null}
-  <Info icon="hdd-stack" on:click={() => (isResourcesOpen = true)}>
-    {#if isNodesModified}
-      Nodes: {filters.numNodes.from} - {filters.numNodes.to}
-    {/if}
-    {#if isNodesModified && isHwthreadsModified},
-    {/if}
-    {#if isHwthreadsModified}
-      HWThreads: {filters.numHWThreads.from} - {filters.numHWThreads.to}
-    {/if}
-    {#if (isNodesModified || isHwthreadsModified) && isAccsModified},
-    {/if}
-    {#if isAccsModified}
-      Accelerators: {filters.numAccelerators.from} - {filters.numAccelerators.to}
-    {/if}
-  </Info>
-{/if}
+  {#if filters.numNodes.from != null || filters.numNodes.to != null || filters.numHWThreads.from != null || filters.numHWThreads.to != null || filters.numAccelerators.from != null || filters.numAccelerators.to != null}
+    <Info icon="hdd-stack" on:click={() => (isResourcesOpen = true)}>
+      {#if isNodesModified}
+        Nodes: {filters.numNodes.from} - {filters.numNodes.to}
+      {/if}
+      {#if isNodesModified && isHwthreadsModified},
+      {/if}
+      {#if isHwthreadsModified}
+        HWThreads: {filters.numHWThreads.from} - {filters.numHWThreads.to}
+      {/if}
+      {#if (isNodesModified || isHwthreadsModified) && isAccsModified},
+      {/if}
+      {#if isAccsModified}
+        Accelerators: {filters.numAccelerators.from} - {filters.numAccelerators.to}
+      {/if}
+    </Info>
+  {/if}
 
-{#if filters.node != null}
-  <Info icon="hdd-stack" on:click={() => (isResourcesOpen = true)}>
-    Node{nodeMatchLabels[filters.nodeMatch]}: {filters.node}
-  </Info>
-{/if}
+  {#if filters.node != null}
+    <Info icon="hdd-stack" on:click={() => (isResourcesOpen = true)}>
+      Node{nodeMatchLabels[filters.nodeMatch]}: {filters.node}
+    </Info>
+  {/if}
 
-{#if filters.energy.from || filters.energy.to}
-  <Info icon="lightning-charge-fill" on:click={() => (isEnergyOpen = true)}>
-    Total Energy: {filters.energy.from} - {filters.energy.to}
-  </Info>
-{/if}
+  {#if filters.energy.from || filters.energy.to}
+    <Info icon="lightning-charge-fill" on:click={() => (isEnergyOpen = true)}>
+      Total Energy: {filters.energy.from} - {filters.energy.to}
+    </Info>
+  {/if}
 
-{#if filters.stats.length > 0}
-  <Info icon="bar-chart" on:click={() => (isStatsOpen = true)}>
-    {filters.stats
-      .map((stat) => `${stat.field}: ${stat.from} - ${stat.to}`)
-      .join(", ")}
-  </Info>
+  {#if filters.stats.length > 0}
+    <Info icon="bar-chart" on:click={() => (isStatsOpen = true)}>
+      {filters.stats
+        .map((stat) => `${stat.field}: ${stat.from} - ${stat.to}`)
+        .join(", ")}
+    </Info>
+  {/if}
 {/if}
 
 <Cluster
