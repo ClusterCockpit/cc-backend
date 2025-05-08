@@ -300,8 +300,8 @@ type TimeRangeOutput { range: String, from: Time!, to: Time! }
 
 input JobFilter {
   tags:        [ID!]
+  dbId:        [ID!]
   jobId:       StringInput
-  jobIds:      [ID!]
   arrayJobId:  Int
   user:        StringInput
   project:     StringInput

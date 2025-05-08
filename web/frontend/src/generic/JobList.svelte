@@ -39,6 +39,7 @@
   export let metrics = ccconfig.plot_list_selectedMetrics;
   export let showFootprint;
   export let filterBuffer = [];
+  export let selectedJobs = [];
 
   let usePaging = ccconfig.job_list_usePaging
   let itemsPerPage = usePaging ? ccconfig.plot_list_jobsPerPage : 10;
@@ -285,7 +286,10 @@
           </tr>
         {:else}
           {#each jobs as job (job)}
-            <JobListRow bind:triggerMetricRefresh {job} {metrics} {plotWidth} {showFootprint} />
+            <JobListRow bind:triggerMetricRefresh {job} {metrics} {plotWidth} {showFootprint} previousSelect={selectedJobs.includes(job.id)}
+              on:select-job={({detail}) => selectedJobs = [...selectedJobs, detail]}
+              on:unselect-job={({detail}) => selectedJobs = selectedJobs.filter(item => item !== detail)}
+            />
           {:else}
             <tr>
               <td colspan={metrics.length + 1}> No jobs found </td>

@@ -78,6 +78,7 @@
       from: null,
       to: null,
     },
+    dbId: filterPresets.dbId || [],
     jobId: filterPresets.jobId || "",
     arrayJobId: filterPresets.arrayJobId || null,
     user: filterPresets.user || "",
@@ -137,6 +138,8 @@
       items.push({
         energy: { from: filters.energy.from, to: filters.energy.to },
       });
+    if (filters.dbId.length != 0)
+      items.push({ dbId: filters.dbId });
     if (filters.jobId)
       items.push({ jobId: { [filters.jobIdMatch]: filters.jobId } });
     if (filters.arrayJobId != null)
@@ -180,7 +183,6 @@
 
   function changeURL() {
     const dateToUnixEpoch = (rfc3339) => Math.floor(Date.parse(rfc3339) / 1000);
-
     let opts = [];
     if (filters.cluster) opts.push(`cluster=${filters.cluster}`);
     if (filters.node) opts.push(`node=${filters.node}`);
@@ -195,6 +197,11 @@
       );
     if (filters.startTime.range) {
         opts.push(`startTime=${filters.startTime.range}`)
+    }
+    if (filters.dbId.length != 0) {
+      for (let dbi of filters.dbId) {
+        opts.push(`dbId=${dbi}`);
+      }
     }
     if (filters.jobId.length != 0)
       if (filters.jobIdMatch != "in") {

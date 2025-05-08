@@ -308,7 +308,7 @@
         style="background-color: rgba(255, 255, 255, 1.0);" class="rounded"
   />
 {:else}
-  <Card body color="warning" class="mx-4"
-    >Cannot render plot: No series data returned for <code>{metric}</code></Card
+  <Card body color="warning" class="mx-4 my-2"
+    >Cannot render plot: No series data returned for <code>{metric?metric:'job resources'}</code></Card
   >
 {/if}

@@ -50,8 +50,8 @@ type IntRangeOutput struct {
 
 type JobFilter struct {
 	Tags            []string          `json:"tags,omitempty"`
+	DbID            []string          `json:"dbId,omitempty"`
 	JobID           *StringInput      `json:"jobId,omitempty"`
-	JobIds          []string          `json:"jobIds,omitempty"`
 	ArrayJobID      *int              `json:"arrayJobId,omitempty"`
 	User            *StringInput      `json:"user,omitempty"`
 	Project         *StringInput      `json:"project,omitempty"`

@@ -2465,8 +2465,8 @@ type TimeRangeOutput { range: String, from: Time!, to: Time! }
 
 input JobFilter {
   tags:        [ID!]
+  dbId:        [ID!]
   jobId:       StringInput
-  jobIds:      [ID!]
   arrayJobId:  Int
   user:        StringInput
   project:     StringInput
@@ -16447,7 +16447,7 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj any
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"tags", "jobId", "jobIds", "arrayJobId", "user", "project", "jobName", "cluster", "partition", "duration", "energy", "minRunningFor", "numNodes", "numAccelerators", "numHWThreads", "startTime", "state", "metricStats", "exclusive", "node"}
+	fieldsInOrder := [...]string{"tags", "dbId", "jobId", "arrayJobId", "user", "project", "jobName", "cluster", "partition", "duration", "energy", "minRunningFor", "numNodes", "numAccelerators", "numHWThreads", "startTime", "state", "metricStats", "exclusive", "node"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -16461,6 +16461,13 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj any
 				return it, err
 			}
 			it.Tags = data
+		case "dbId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("dbId"))
+			data, err := ec.unmarshalOID2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DbID = data
 		case "jobId":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("jobId"))
 			data, err := ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
@@ -16468,13 +16475,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj any
 				return it, err
 			}
 			it.JobID = data
-		case "jobIds":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("jobIds"))
-			data, err := ec.unmarshalOID2ᚕstringᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.JobIds = data
 		case "arrayJobId":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("arrayJobId"))
 			data, err := ec.unmarshalOInt2ᚖint(ctx, v)

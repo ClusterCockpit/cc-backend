@@ -37,6 +37,7 @@
 
   let filterComponent; // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
   let filterBuffer = [];
+  let selectedJobs = [];
   let jobList,
       jobCompare,
     matchedListJobs,
@@ -59,6 +60,10 @@
   // so we need to wait for it to be ready before we can start a query.
   // This is also why JobList component starts out with a paused query.
   onMount(() => filterComponent.updateFilters());
+
+  $: if (filterComponent && selectedJobs.length == 0) {
+    filterComponent.updateFilters({dbId: []})
+  }
 </script>
 
 <!-- ROW1: Status-->
@@ -80,7 +85,7 @@
 <Row cols={{ xs: 1, md: 2, lg: 5}} class="mb-3">
   <Col lg="2" class="mb-2 mb-lg-0">
     <ButtonGroup class="w-100">
-      <Button outline color="primary" on:click={() => (isSortingOpen = true)}>
+      <Button outline color="primary" on:click={() => (isSortingOpen = true)} disabled={showCompare}>
         <Icon name="sort-up" /> Sorting
       </Button>
       <Button
@@ -130,11 +135,20 @@
     }} />
   </Col>
   <Col lg="2" class="mb-2 mb-lg-0">
-    <Button color="primary" on:click={() => {
-      showCompare = !showCompare
-    }} >
-      {showCompare ? 'List' : 'Compare'} Jobs
-    </Button>
+    <ButtonGroup class="w-100">
+      <Button color="primary" on:click={() => {
+        if (selectedJobs.length != 0) filterComponent.updateFilters({dbId: selectedJobs})
+        else if (selectedJobs.length == 0) filterComponent.updateFilters({dbId: []})
+        showCompare = !showCompare
+      }} >
+        {showCompare ? 'List' : 'Compare'} Jobs {selectedJobs.length != 0 ? `(${selectedJobs.length} selected)` : `(Use Filter)`}
+      </Button>
+      <Button color="danger" disabled={selectedJobs.length == 0} on:click={() => {
+        selectedJobs = [] // Only empty array, filters handled by reactive reset
+      }}>
+      Reset
+      </Button>
+    </ButtonGroup>
   </Col>
 </Row>
 
@@ -148,6 +162,7 @@
         bind:sorting
         bind:matchedListJobs
         bind:showFootprint
+        bind:selectedJobs
         {filterBuffer}
       />
     {:else}
@@ -161,7 +176,7 @@
   </Col>
 </Row>
 
-<Sorting bind:sorting bind:isOpen={isSortingOpen} />
+<Sorting bind:sorting bind:isOpen={isSortingOpen}/>
 
 <MetricSelection
   bind:cluster={selectedCluster}
