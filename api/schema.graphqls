@@ -171,7 +171,8 @@ type ScopedStats {
 }
 
 type JobStats {
-  jobId: Int!
+  id: Int!
+  jobId: String!
   startTime: Int!
   duration: Int!
   cluster: String!

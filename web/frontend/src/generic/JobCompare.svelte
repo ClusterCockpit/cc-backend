@@ -22,7 +22,7 @@
     getContextClient,
     // mutationStore,
   } from "@urql/svelte";
-  import { Row, Col, Card, Spinner } from "@sveltestrap/sveltestrap";
+  import { Row, Col, Card, Spinner, Table, Input, InputGroup, InputGroupText, Icon } from "@sveltestrap/sveltestrap";
   import { formatTime } from "./units.js";
   import Comparogram from "./plots/Comparogram.svelte";
 
@@ -42,6 +42,7 @@
   let comparePlotData = {};
   let jobIds = [];
   let jobClusters = [];
+  let tableJobIDFilter = "";
 
   /*uPlot*/
   let plotSync = uPlot.sync("compareJobsView");
@@ -52,6 +53,7 @@
   const compareQuery = gql`
   query ($filter: [JobFilter!]!, $metrics: [String!]!) {
     jobsMetricStats(filter: $filter, metrics: $metrics) {
+      id
       jobId
       startTime
       duration
@@ -234,21 +236,67 @@
       </Row>
     {/each}
   {/key}
-  <hr/><hr/>
-  {#each $compareData.data.jobsMetricStats as job, jindex (job.jobId)}
-    <Row>
-      <Col><b>{jindex}: <i>{job.jobId}</i></b></Col>
-      <Col><i>{new Date(job.startTime * 1000).toISOString()}</i></Col>
-      <Col><i>{formatTime(job.duration)}</i></Col>
-      {#each job.stats as stat (stat.name)}
-        <Col><b>{stat.name}</b></Col>
-        <Col>Min {stat.data.min}</Col>
-        <Col>Avg {stat.data.avg}</Col>
-        <Col>Max {stat.data.max}</Col>
-      {/each}
-    </Row>
-    <hr/>
-  {:else}
-    <div> No jobs found </div>
-  {/each}
+  <hr/>
+  <Card>
+    <Table hover>
+      <thead>
+        <!-- Header Row 1 -->
+        <tr>
+          <th>Index</th>
+          <th style="width:10%">JobID</th>
+          <th>Cluster</th>
+          <th>StartTime</th>
+          <th>Duration</th>
+          <th colspan="3">Resources</th>
+          {#each metrics as metric}
+            <th colspan="3">{metric}</th>
+          {/each}
+        </tr>
+        <!-- Header Row 2: Fields -->
+        <tr>
+          <th/>
+          <th style="width:10%">
+            <InputGroup>
+              <InputGroupText>
+                <Icon name="search"></Icon>
+              </InputGroupText>
+              <Input type="text" bind:value={tableJobIDFilter}/>
+            </InputGroup>
+          </th>
+          <th/>
+          <th/>
+          <th/>
+          {#each ["Nodes", "Threads", "Accs"] as res}
+            <th>{res}</th>
+          {/each}
+          {#each metrics as metric}
+            {#each ["min", "avg", "max"] as stat}
+              <th>{stat}</th>
+            {/each}
+          {/each}
+        </tr>
+      </thead>
+      <tbody>
+        {#each $compareData.data.jobsMetricStats.filter((j) => j.jobId.includes(tableJobIDFilter)) as job, jindex (job.jobId)}
+          <tr>
+            <td>{jindex}</td>
+            <td><a href="/monitoring/job/{job.id}" target="_blank">{job.jobId}</a></td>
+            <td>{job.cluster} ({job.subCluster})</td>
+            <td>{new Date(job.startTime * 1000).toISOString()}</td>
+            <td>{formatTime(job.duration)}</td>
+            <td>{job.numNodes}</td>
+            <td>{job.numHWThreads}</td>
+            <td>{job.numAccelerators}</td>
+            {#each metrics as metric}
+              <td>{job.stats.find((s) => s.name == metric).data.min}</td>
+              <td>{job.stats.find((s) => s.name == metric).data.avg}</td>
+              <td>{job.stats.find((s) => s.name == metric).data.max}</td>
+            {/each}
+          </tr>
+        {:else}
+          <tr> No jobs found </tr>
+        {/each}
+      </tbody>
+    </Table>
+  </Card>
 {/if}
