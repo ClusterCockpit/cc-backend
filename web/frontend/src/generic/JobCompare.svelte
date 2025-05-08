@@ -83,8 +83,9 @@
   $: matchedCompareJobs = $compareData.data != null ? $compareData.data.jobsMetricStats.length : -1;
   $: if ($compareData.data != null) {
     jobIds = [];
-    comparePlotData = {}
-    jobs2uplot($compareData.data.jobsMetricStats, metrics)
+    jobClusters = [];
+    comparePlotData = {};
+    jobs2uplot($compareData.data.jobsMetricStats, metrics);
   }
 
  /* FUNCTIONS */
@@ -118,7 +119,6 @@
   }
 
   function jobs2uplot(jobs, metrics) {
-    // Prep
     // Resources Init
     comparePlotData['resources'] = {unit:'', data: [[],[],[],[],[],[]]} // data: [X, XST, XRT, YNODES, YTHREADS, YACCS]
     // Metric Init
@@ -201,37 +201,39 @@
     </Col>
   </Row>
 {:else}
-  <Row>
-    <Col>
-      <Comparogram
-        title={'Compare Resources'}
-        xlabel="JobIDs"
-        xticks={jobIds}
-        xinfo={jobClusters}
-        ylabel={'Resource Counts'}
-        data={comparePlotData['resources'].data}
-        {plotSync}
-        forResources
-      />
-    </Col>
-  </Row>
-  {#each metrics as m}
+  {#key comparePlotData}
     <Row>
       <Col>
         <Comparogram
-          title={`Compare Metric '${m}'`}
+          title={'Compare Resources'}
           xlabel="JobIDs"
           xticks={jobIds}
           xinfo={jobClusters}
-          ylabel={m}
-          metric={m}
-          yunit={comparePlotData[m].unit}
-          data={comparePlotData[m].data}
+          ylabel={'Resource Counts'}
+          data={comparePlotData['resources'].data}
           {plotSync}
+          forResources
         />
       </Col>
     </Row>
-  {/each}
+    {#each metrics as m}
+      <Row>
+        <Col>
+          <Comparogram
+            title={`Compare Metric '${m}'`}
+            xlabel="JobIDs"
+            xticks={jobIds}
+            xinfo={jobClusters}
+            ylabel={m}
+            metric={m}
+            yunit={comparePlotData[m].unit}
+            data={comparePlotData[m].data}
+            {plotSync}
+          />
+        </Col>
+      </Row>
+    {/each}
+  {/key}
   <hr/><hr/>
   {#each $compareData.data.jobsMetricStats as job, jindex (job.jobId)}
     <Row>
