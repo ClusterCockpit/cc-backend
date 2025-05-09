@@ -2,7 +2,6 @@
     @component jobCompare component; compares jobs according to set filters or job selection
 
     Properties:
-    - `sorting Object?`: Currently active sorting [Default: {field: "startTime", type: "col", order: "DESC"}]
     - `matchedJobs Number?`: Number of matched jobs for selected filters [Default: 0]
     - `metrics [String]?`: The currently selected metrics [Default: User-Configured Selection]
     - `showFootprint Bool`: If to display the jobFootprint component
@@ -21,7 +20,7 @@
     // mutationStore,
   } from "@urql/svelte";
   import { Row, Col, Card, Spinner, Table, Input, InputGroup, InputGroupText, Icon } from "@sveltestrap/sveltestrap";
-  import { formatTime } from "./units.js";
+  import { formatTime, roundTwoDigits } from "./units.js";
   import Comparogram from "./plots/Comparogram.svelte";
 
   const ccconfig = getContext("cc-config"),
@@ -34,6 +33,8 @@
 
   let filter = [...filterBuffer] || [];
   let comparePlotData = {};
+  let compareTableData = [];
+  let compareTableSorting = {};
   let jobIds = [];
   let jobClusters = [];
   let tableJobIDFilter = "";
@@ -82,7 +83,31 @@
     jobIds = [];
     jobClusters = [];
     comparePlotData = {};
+    compareTableData = [...$compareData.data.jobsMetricStats];
     jobs2uplot($compareData.data.jobsMetricStats, metrics);
+  }
+
+  $: if ((!$compareData.fetching && !$compareData.error) && metrics) {
+    // Meta
+    compareTableSorting['meta'] = {
+      startTime: { dir: "down", active: true },
+      duration:  { dir: "up", active: false },
+      cluster:   { dir: "up", active: false },
+    };
+    // Resources
+    compareTableSorting['resources'] = {
+      Nodes:   { dir: "up", active: false },
+      Threads: { dir: "up", active: false },
+      Accs:    { dir: "up", active: false },
+    };
+    // Metrics
+    for (let metric of metrics) {
+      compareTableSorting[metric] = {
+        min: { dir: "up", active: false },
+        avg: { dir: "up", active: false },
+        max: { dir: "up", active: false },
+      };
+    }
   }
 
  /* FUNCTIONS */
@@ -94,6 +119,57 @@
         filters.push({ minRunningFor });
       }
       filter = filters;
+    }
+  }
+
+  function sortBy(key, field) {
+    let s = compareTableSorting[key][field];
+    if (s.active) {
+      s.dir = s.dir == "up" ? "down" : "up";
+    } else {
+      for (let key in compareTableSorting)
+        for (let field in compareTableSorting[key]) compareTableSorting[key][field].active = false;
+      s.active = true;
+    }
+    compareTableSorting = { ...compareTableSorting };
+
+    if (key == 'resources') {
+      let longField = "";
+      switch (field) {
+        case "Nodes": 
+          longField = "numNodes"
+          break
+        case "Threads":
+          longField = "numHWThreads"
+          break
+        case "Accs":
+          longField = "numAccelerators"
+          break
+        default:
+          console.log("Unknown Res Field", field)
+      } 
+      compareTableData = compareTableData.sort((j1, j2) => {
+        if (j1[longField] == null || j2[longField] == null) return -1;
+        return s.dir != "up" ? j1[longField] - j2[longField] : j2[longField] - j1[longField];
+      });
+    } else if (key == 'meta') {
+      compareTableData = compareTableData.sort((j1, j2) => {
+        if (j1[field] == null || j2[field] == null) return -1;
+        if (field == 'cluster') {
+          let c1 = `${j1.cluster} (${j1.subCluster})`
+          let c2 = `${j2.cluster} (${j2.subCluster})`
+          return s.dir != "up" ? c1.localeCompare(c2) : c2.localeCompare(c1) 
+        } else {
+          return s.dir != "up" ? j1[field] - j2[field] : j2[field] - j1[field];
+        }
+      });
+    } else {
+      compareTableData = compareTableData.sort((j1, j2) => {
+        let s1 = j1.stats.find((m) => m.name == key)?.data;
+        let s2 = j2.stats.find((m) => m.name == key)?.data;
+        if (s1 == null || s2 == null) return -1;
+        return s.dir != "up" ? s1[field] - s2[field] : s2[field] - s1[field];
+      });
     }
   }
 
@@ -219,11 +295,10 @@
       <thead>
         <!-- Header Row 1 -->
         <tr>
-          <th>Index</th>
-          <th style="width:10%">JobID</th>
-          <th>Cluster</th>
+          <th style="width:8%; max-width:10%;">JobID</th>
           <th>StartTime</th>
           <th>Duration</th>
+          <th>Cluster</th>
           <th colspan="3">Resources</th>
           {#each metrics as metric}
             <th colspan="3">{metric}</th>
@@ -231,47 +306,87 @@
         </tr>
         <!-- Header Row 2: Fields -->
         <tr>
-          <th/>
-          <th style="width:10%">
-            <InputGroup>
+          <th>
+            <InputGroup size="sm">
+              <Input type="text" bind:value={tableJobIDFilter}/>
               <InputGroupText>
                 <Icon name="search"></Icon>
               </InputGroupText>
-              <Input type="text" bind:value={tableJobIDFilter}/>
             </InputGroup>
           </th>
-          <th/>
-          <th/>
-          <th/>
+          <th on:click={() => sortBy('meta', 'startTime')}>
+            Sort
+            <Icon
+              name="caret-{compareTableSorting['meta']['startTime'].dir}{compareTableSorting['meta']['startTime']
+                .active
+                ? '-fill'
+                : ''}"
+            />
+          </th>
+          <th on:click={() => sortBy('meta', 'duration')}>
+            Sort
+            <Icon
+              name="caret-{compareTableSorting['meta']['duration'].dir}{compareTableSorting['meta']['duration']
+                .active
+                ? '-fill'
+                : ''}"
+            />
+          </th>
+          <th on:click={() => sortBy('meta', 'cluster')}>
+            Sort
+            <Icon
+              name="caret-{compareTableSorting['meta']['cluster'].dir}{compareTableSorting['meta']['cluster']
+                .active
+                ? '-fill'
+                : ''}"
+            />
+          </th>
           {#each ["Nodes", "Threads", "Accs"] as res}
-            <th>{res}</th>
+            <th on:click={() => sortBy('resources', res)}>
+              {res}
+              <Icon
+                name="caret-{compareTableSorting['resources'][res].dir}{compareTableSorting['resources'][res]
+                  .active
+                  ? '-fill'
+                  : ''}"
+              />
+            </th>
           {/each}
           {#each metrics as metric}
             {#each ["min", "avg", "max"] as stat}
-              <th>{stat}</th>
+              <th on:click={() => sortBy(metric, stat)}>
+                {stat}
+                <Icon
+                  name="caret-{compareTableSorting[metric][stat].dir}{compareTableSorting[metric][stat]
+                    .active
+                    ? '-fill'
+                    : ''}"
+                />
+              </th>
             {/each}
           {/each}
         </tr>
       </thead>
       <tbody>
-        {#each $compareData.data.jobsMetricStats.filter((j) => j.jobId.includes(tableJobIDFilter)) as job, jindex (job.jobId)}
+        {#each compareTableData.filter((j) => j.jobId.includes(tableJobIDFilter)) as job (job.id)}
           <tr>
-            <td>{jindex}</td>
-            <td><a href="/monitoring/job/{job.id}" target="_blank">{job.jobId}</a></td>
-            <td>{job.cluster} ({job.subCluster})</td>
-            <td>{new Date(job.startTime * 1000).toISOString()}</td>
+            <td><b><a href="/monitoring/job/{job.id}" target="_blank">{job.jobId}</a></b></td>
+            <td>{new Date(job.startTime * 1000).toLocaleString()}</td>
             <td>{formatTime(job.duration)}</td>
+            <td>{job.cluster} ({job.subCluster})</td>
             <td>{job.numNodes}</td>
             <td>{job.numHWThreads}</td>
             <td>{job.numAccelerators}</td>
             {#each metrics as metric}
-              <td>{job.stats.find((s) => s.name == metric).data.min}</td>
-              <td>{job.stats.find((s) => s.name == metric).data.avg}</td>
-              <td>{job.stats.find((s) => s.name == metric).data.max}</td>
+              <td>{roundTwoDigits(job.stats.find((s) => s.name == metric).data.min)}</td>
+              <td>{roundTwoDigits(job.stats.find((s) => s.name == metric).data.avg)}</td>
+              <td>{roundTwoDigits(job.stats.find((s) => s.name == metric).data.max)}</td>
             {/each}
           </tr>
         {:else}
-          <tr> No jobs found </tr>
+          <tr> 
+            <td colspan={7 + (metrics.length * 3)}><b>No jobs found.</b></td>
+          </tr>
         {/each}
       </tbody>
     </Table>
