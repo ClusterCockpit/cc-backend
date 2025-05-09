@@ -191,7 +191,7 @@
     axes: [
       {
         scale: "x",
-        // space: 35,
+        space: 25, // Tick Spacing
         rotate: 30,
         show: true,
         label: xlabel,
