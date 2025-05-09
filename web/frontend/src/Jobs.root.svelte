@@ -117,28 +117,27 @@
     />
   </Col>
   <Col lg="2" class="mb-2 mb-lg-0">
-    <TextFilter
-      {presetProject}
-      bind:authlevel
-      bind:roles
-      on:set-filter={({ detail }) => filterComponent.updateFilters(detail)}
-    />
+    {#if !showCompare}
+      <TextFilter
+        {presetProject}
+        bind:authlevel
+        bind:roles
+        on:set-filter={({ detail }) => filterComponent.updateFilters(detail)}
+      />
+    {/if}
   </Col>
   <Col lg="2" class="mb-1 mb-lg-0">
-    <Refresher on:refresh={() => {
-      if (showCompare) {
-        jobCompare.refreshJobs()
-        jobCompare.refreshAllMetrics()
-      } else {
-        jobList.refreshJobs()
-        jobList.refreshAllMetrics()
-      }
-    }} />
+    {#if !showCompare}
+      <Refresher on:refresh={() => {
+          jobList.refreshJobs()
+          jobList.refreshAllMetrics()
+      }} />
+    {/if}
   </Col>
   <Col lg="2" class="mb-2 mb-lg-0">
     <ButtonGroup class="w-100">
       <Button color="primary" disabled={matchedListJobs >= 500 && !(selectedJobs.length != 0)} on:click={() => {
-        if (selectedJobs.length != 0) filterComponent.updateFilters({dbId: selectedJobs})
+        if (selectedJobs.length != 0) filterComponent.updateFilters({dbId: selectedJobs}, true)
         showCompare = !showCompare
       }} >
         {showCompare ? 'Return to List' : 

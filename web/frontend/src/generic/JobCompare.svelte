@@ -1,5 +1,5 @@
 <!--
-    @component jobCompare component; compares jobs according to set filters
+    @component jobCompare component; compares jobs according to set filters or job selection
 
     Properties:
     - `sorting Object?`: Currently active sorting [Default: {field: "startTime", type: "col", order: "DESC"}]
@@ -8,8 +8,6 @@
     - `showFootprint Bool`: If to display the jobFootprint component
 
     Functions:
-    - `refreshJobs()`: Load jobs data with unchanged parameters and 'network-only' keyword
-    - `refreshAllMetrics()`: Trigger downstream refresh of all running jobs' metric data
     - `queryJobs(filters?: [JobFilter])`: Load jobs data with new filters, starts from page 1
  -->
 
@@ -30,15 +28,11 @@
     // initialized = getContext("initialized"),
     globalMetrics = getContext("globalMetrics");
 
-  const equalsCheck = (a, b) => {
-    return JSON.stringify(a) === JSON.stringify(b);
-  }
-
   export let matchedCompareJobs = 0;
-  export let filterBuffer = [];
   export let metrics = ccconfig.plot_list_selectedMetrics;
+  export let filterBuffer = [];
 
-  let filter = [...filterBuffer];
+  let filter = [...filterBuffer] || [];
   let comparePlotData = {};
   let jobIds = [];
   let jobClusters = [];
@@ -83,6 +77,7 @@
   });
 
   $: matchedCompareJobs = $compareData.data != null ? $compareData.data.jobsMetricStats.length : -1;
+
   $: if ($compareData.data != null) {
     jobIds = [];
     jobClusters = [];
@@ -91,24 +86,6 @@
   }
 
  /* FUNCTIONS */
-   // Force refresh list with existing unchanged variables (== usually would not trigger reactivity)
-   export function refreshJobs() {
-    compareData = queryStore({
-      client: client,
-      query: compareQuery,
-      variables: { filter, metrics },
-      requestPolicy: "network-only",
-    });
-  }
-
-  export function refreshAllMetrics() {
-    // Refresh Job Metrics (Downstream will only query for running jobs)
-    triggerMetricRefresh = true
-    setTimeout(function () {
-      triggerMetricRefresh = false;
-    }, 100);
-  }
-
   // (Re-)query and optionally set new filters; Query will be started reactively.
   export function queryJobs(filters) {
     if (filters != null) {
@@ -133,31 +110,31 @@
 
     // Iterate jobs if exists
     if (jobs) {
-        let plotIndex = 0
-        jobs.forEach((j) => {
-            // Collect JobIDs & Clusters for X-Ticks and Legend
-            jobIds.push(j.jobId)
-            jobClusters.push(`${j.cluster} ${j.subCluster}`)
-            // Resources
-            comparePlotData['resources'].data[0].push(plotIndex)
-            comparePlotData['resources'].data[1].push(j.startTime)
-            comparePlotData['resources'].data[2].push(j.duration)
-            comparePlotData['resources'].data[3].push(j.numNodes)
-            comparePlotData['resources'].data[4].push(j?.numHWThreads?j.numHWThreads:0)
-            comparePlotData['resources'].data[5].push(j?.numAccelerators?j.numAccelerators:0)
-            // Metrics
-            for (let s of j.stats) {
-              comparePlotData[s.name].data[0].push(plotIndex)
-              comparePlotData[s.name].data[1].push(j.startTime)
-              comparePlotData[s.name].data[2].push(j.duration)
-              comparePlotData[s.name].data[3].push(s.data.min)
-              comparePlotData[s.name].data[4].push(s.data.avg)
-              comparePlotData[s.name].data[5].push(s.data.max)
-            }
-            plotIndex++
-        })
+      let plotIndex = 0
+      jobs.forEach((j) => {
+        // Collect JobIDs & Clusters for X-Ticks and Legend
+        jobIds.push(j.jobId)
+        jobClusters.push(`${j.cluster} ${j.subCluster}`)
+        // Resources
+        comparePlotData['resources'].data[0].push(plotIndex)
+        comparePlotData['resources'].data[1].push(j.startTime)
+        comparePlotData['resources'].data[2].push(j.duration)
+        comparePlotData['resources'].data[3].push(j.numNodes)
+        comparePlotData['resources'].data[4].push(j?.numHWThreads?j.numHWThreads:0)
+        comparePlotData['resources'].data[5].push(j?.numAccelerators?j.numAccelerators:0)
+        // Metrics
+        for (let s of j.stats) {
+          comparePlotData[s.name].data[0].push(plotIndex)
+          comparePlotData[s.name].data[1].push(j.startTime)
+          comparePlotData[s.name].data[2].push(j.duration)
+          comparePlotData[s.name].data[3].push(s.data.min)
+          comparePlotData[s.name].data[4].push(s.data.avg)
+          comparePlotData[s.name].data[5].push(s.data.max)
+        }
+        plotIndex++
+      })
     }
-}
+  }
 
   // Adapt for Persisting Job Selections in DB later down the line
   // const updateConfigurationMutation = ({ name, value }) => {

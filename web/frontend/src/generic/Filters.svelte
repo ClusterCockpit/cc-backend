@@ -59,6 +59,39 @@
     contains: " Contains",
   }
 
+  const filterReset = {
+    projectMatch: "contains",
+    userMatch: "contains",
+    jobIdMatch: "eq",
+    nodeMatch: "eq",
+
+    cluster: null,
+    partition: null,
+    states: allJobStates,
+    startTime: { from: null, to: null, range: ""},
+    tags: [],
+    duration: {
+      lessThan: null,
+      moreThan: null,
+      from: null,
+      to: null,
+    },
+    dbId: [],
+    jobId: "",
+    arrayJobId: null,
+    user: "",
+    project: "",
+    jobName: "",
+
+    node: null,
+    energy: { from: null, to: null },
+    numNodes: { from: null, to: null },
+    numHWThreads: { from: null, to: null },
+    numAccelerators: { from: null, to: null },
+
+    stats: [],
+  };
+
   let filters = {
     projectMatch: filterPresets.projectMatch || "contains",
     userMatch: filterPresets.userMatch || "contains",
@@ -108,10 +141,17 @@
     isAccsModified = false;
 
   // Can be called from the outside to trigger a 'update' event from this component.
-  export function updateFilters(additionalFilters = null) {
-    if (additionalFilters != null)
+  // 'force' option empties existing filters and then applies only 'additionalFilters'
+  export function updateFilters(additionalFilters = null, force = false) {
+    // Empty Current Filter For Force
+    if (additionalFilters != null && force) {
+      filters = {...filterReset}
+    }
+    // Add Additional Filters
+    if (additionalFilters != null) {
       for (let key in additionalFilters) filters[key] = additionalFilters[key];
-
+    }
+    // Construct New Filter
     let items = [];
     if (filters.cluster) items.push({ cluster: { eq: filters.cluster } });
     if (filters.node) items.push({ node: { [filters.nodeMatch]: filters.node } });
@@ -185,6 +225,7 @@
   function changeURL() {
     const dateToUnixEpoch = (rfc3339) => Math.floor(Date.parse(rfc3339) / 1000);
     let opts = [];
+
     if (filters.cluster) opts.push(`cluster=${filters.cluster}`);
     if (filters.node) opts.push(`node=${filters.node}`);
     if (filters.node && filters.nodeMatch != "eq") // "eq" is default-case
@@ -245,8 +286,8 @@
       for (let stat of filters.stats) {
           opts.push(`stat=${stat.field}-${stat.from}-${stat.to}`);
       }
+    
     if (opts.length == 0 && window.location.search.length <= 1) return;
-
     let newurl = `${window.location.pathname}?${opts.join("&")}`;
     window.history.replaceState(null, "", newurl);
   }
