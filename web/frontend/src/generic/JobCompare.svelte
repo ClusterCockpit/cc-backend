@@ -301,7 +301,7 @@
           <th>Cluster</th>
           <th colspan="3">Resources</th>
           {#each metrics as metric}
-            <th colspan="3">{metric}</th>
+            <th colspan="3">{metric} {comparePlotData[metric]?.unit? `(${comparePlotData[metric]?.unit})` : ''}</th>
           {/each}
         </tr>
         <!-- Header Row 2: Fields -->
@@ -355,7 +355,7 @@
           {#each metrics as metric}
             {#each ["min", "avg", "max"] as stat}
               <th on:click={() => sortBy(metric, stat)}>
-                {stat}
+                {stat.charAt(0).toUpperCase() + stat.slice(1)}
                 <Icon
                   name="caret-{compareTableSorting[metric][stat].dir}{compareTableSorting[metric][stat]
                     .active
