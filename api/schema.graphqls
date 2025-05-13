@@ -158,7 +158,7 @@ type StatsSeries {
   max:    [NullableFloat!]!
 }
 
-type JobStatsWithScope {
+type NamedStatsWithScope {
   name:   String!
   scope:  MetricScope!
   stats:  [ScopedStats!]!
@@ -171,8 +171,21 @@ type ScopedStats {
 }
 
 type JobStats {
-  name:   String!
-  stats:  MetricStatistics!
+  id: Int!
+  jobId: String!
+  startTime: Int!
+  duration: Int!
+  cluster: String!
+  subCluster: String!
+  numNodes: Int!
+  numHWThreads: Int
+  numAccelerators: Int
+  stats: [NamedStats!]!
+}
+
+type NamedStats {
+  name:  String!
+  data:  MetricStatistics!
 }
 
 type Unit {
@@ -259,12 +272,13 @@ type Query {
 
   job(id: ID!): Job
   jobMetrics(id: ID!, metrics: [String!], scopes: [MetricScope!], resolution: Int): [JobMetricWithName!]!
-  jobStats(id: ID!, metrics: [String!]): [JobStats!]!
-  scopedJobStats(id: ID!, metrics: [String!], scopes: [MetricScope!]): [JobStatsWithScope!]!
-  jobsFootprints(filter: [JobFilter!], metrics: [String!]!): Footprints
+  jobStats(id: ID!, metrics: [String!]): [NamedStats!]!
+  scopedJobStats(id: ID!, metrics: [String!], scopes: [MetricScope!]): [NamedStatsWithScope!]!
 
   jobs(filter: [JobFilter!], page: PageRequest, order: OrderByInput): JobResultList!
   jobsStatistics(filter: [JobFilter!], metrics: [String!], page: PageRequest, sortBy: SortByAggregate, groupBy: Aggregate, numDurationBins: String, numMetricBins: Int): [JobsStatistics!]!
+  jobsMetricStats(filter: [JobFilter!], metrics: [String!]): [JobStats!]!
+  jobsFootprints(filter: [JobFilter!], metrics: [String!]!): Footprints
 
   rooflineHeatmap(filter: [JobFilter!]!, rows: Int!, cols: Int!, minX: Float!, minY: Float!, maxX: Float!, maxY: Float!): [[Float!]!]!
 
@@ -287,6 +301,7 @@ type TimeRangeOutput { range: String, from: Time!, to: Time! }
 
 input JobFilter {
   tags:        [ID!]
+  dbId:        [ID!]
   jobId:       StringInput
   arrayJobId:  Int
   user:        StringInput

@@ -16,7 +16,7 @@
 <script>
   import uPlot from "uplot";
   import { onMount, onDestroy } from "svelte";
-  import { formatNumber } from "../units.js";
+  import { formatNumber, formatTime } from "../units.js";
   import { Card } from "@sveltestrap/sveltestrap";
 
   export let data;
@@ -35,21 +35,6 @@
     bars: 1,
     points: 2,
   };
-
-  function formatTime(t) {
-    if (t !== null) {
-      if (isNaN(t)) {
-        return t;
-      } else {
-        const tAbs = Math.abs(t);
-        const h = Math.floor(tAbs / 3600);
-        const m = Math.floor((tAbs % 3600) / 60);
-        if (h == 0) return `${m}m`;
-        else if (m == 0) return `${h}h`;
-        else return `${h}:${m}h`;
-      }
-    }
-  }
 
   function paths(u, seriesIdx, idx0, idx1, extendGap, buildClip) {
     let s = u.series[seriesIdx];

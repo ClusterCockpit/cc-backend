@@ -400,7 +400,7 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 }
 
 // JobStats is the resolver for the jobStats field.
-func (r *queryResolver) JobStats(ctx context.Context, id string, metrics []string) ([]*model.JobStats, error) {
+func (r *queryResolver) JobStats(ctx context.Context, id string, metrics []string) ([]*model.NamedStats, error) {
 	job, err := r.Query().Job(ctx, id)
 	if err != nil {
 		log.Warnf("Error while querying job %s for metadata", id)
@@ -413,11 +413,11 @@ func (r *queryResolver) JobStats(ctx context.Context, id string, metrics []strin
 		return nil, err
 	}
 
-	res := []*model.JobStats{}
+	res := []*model.NamedStats{}
 	for name, md := range data {
-		res = append(res, &model.JobStats{
-			Name:  name,
-			Stats: &md,
+		res = append(res, &model.NamedStats{
+			Name: name,
+			Data: &md,
 		})
 	}
 
@@ -425,7 +425,7 @@ func (r *queryResolver) JobStats(ctx context.Context, id string, metrics []strin
 }
 
 // ScopedJobStats is the resolver for the scopedJobStats field.
-func (r *queryResolver) ScopedJobStats(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope) ([]*model.JobStatsWithScope, error) {
+func (r *queryResolver) ScopedJobStats(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope) ([]*model.NamedStatsWithScope, error) {
 	job, err := r.Query().Job(ctx, id)
 	if err != nil {
 		log.Warnf("Error while querying job %s for metadata", id)
@@ -438,7 +438,7 @@ func (r *queryResolver) ScopedJobStats(ctx context.Context, id string, metrics [
 		return nil, err
 	}
 
-	res := make([]*model.JobStatsWithScope, 0)
+	res := make([]*model.NamedStatsWithScope, 0)
 	for name, scoped := range data {
 		for scope, stats := range scoped {
 
@@ -451,7 +451,7 @@ func (r *queryResolver) ScopedJobStats(ctx context.Context, id string, metrics [
 				})
 			}
 
-			res = append(res, &model.JobStatsWithScope{
+			res = append(res, &model.NamedStatsWithScope{
 				Name:  name,
 				Scope: scope,
 				Stats: mdlStats,
@@ -460,12 +460,6 @@ func (r *queryResolver) ScopedJobStats(ctx context.Context, id string, metrics [
 	}
 
 	return res, nil
-}
-
-// JobsFootprints is the resolver for the jobsFootprints field.
-func (r *queryResolver) JobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error) {
-	// NOTE: Legacy Naming! This resolver is for normalized histograms in analysis view only - *Not* related to DB "footprint" column!
-	return r.jobsFootprints(ctx, filter, metrics)
 }
 
 // Jobs is the resolver for the jobs field.
@@ -587,6 +581,62 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	}
 
 	return stats, nil
+}
+
+// JobsMetricStats is the resolver for the jobsMetricStats field.
+func (r *queryResolver) JobsMetricStats(ctx context.Context, filter []*model.JobFilter, metrics []string) ([]*model.JobStats, error) {
+	// No Paging, Fixed Order by StartTime ASC
+	order := &model.OrderByInput{
+		Field: "startTime",
+		Type:  "col",
+		Order: "ASC",
+	}
+
+	jobs, err := r.Repo.QueryJobs(ctx, filter, nil, order)
+	if err != nil {
+		log.Warn("Error while querying jobs for comparison")
+		return nil, err
+	}
+
+	res := []*model.JobStats{}
+	for _, job := range jobs {
+		data, err := metricDataDispatcher.LoadJobStats(job, metrics, ctx)
+		if err != nil {
+			log.Warnf("Error while loading comparison jobStats data for job id %d", job.JobID)
+			continue
+			// return nil, err
+		}
+
+		sres := []*model.NamedStats{}
+		for name, md := range data {
+			sres = append(sres, &model.NamedStats{
+				Name: name,
+				Data: &md,
+			})
+		}
+
+		numThreadsInt := int(job.NumHWThreads)
+		numAccsInt := int(job.NumAcc)
+		res = append(res, &model.JobStats{
+			ID:              int(job.ID),
+			JobID:           strconv.Itoa(int(job.JobID)),
+			StartTime:       int(job.StartTime.Unix()),
+			Duration:        int(job.Duration),
+			Cluster:         job.Cluster,
+			SubCluster:      job.SubCluster,
+			NumNodes:        int(job.NumNodes),
+			NumHWThreads:    &numThreadsInt,
+			NumAccelerators: &numAccsInt,
+			Stats:           sres,
+		})
+	}
+	return res, err
+}
+
+// JobsFootprints is the resolver for the jobsFootprints field.
+func (r *queryResolver) JobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error) {
+	// NOTE: Legacy Naming! This resolver is for normalized histograms in analysis view only - *Not* related to DB "footprint" column!
+	return r.jobsFootprints(ctx, filter, metrics)
 }
 
 // RooflineHeatmap is the resolver for the rooflineHeatmap field.

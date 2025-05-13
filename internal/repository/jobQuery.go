@@ -146,6 +146,13 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 		// This is an OR-Logic query: Returns all distinct jobs with at least one of the requested tags; TODO: AND-Logic query?
 		query = query.Join("jobtag ON jobtag.job_id = job.id").Where(sq.Eq{"jobtag.tag_id": filter.Tags}).Distinct()
 	}
+	if filter.DbID != nil {
+		dbIDs := make([]string, len(filter.DbID))
+		for i, val := range filter.DbID {
+			dbIDs[i] = val
+		}
+		query = query.Where(sq.Eq{"job.id": dbIDs})
+	}
 	if filter.JobID != nil {
 		query = buildStringCondition("job.job_id", filter.JobID, query)
 	}

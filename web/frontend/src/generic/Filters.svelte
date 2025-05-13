@@ -44,6 +44,7 @@
   export let disableClusterSelection = false;
   export let startTimeQuickSelect = false;
   export let matchedJobs = -2;
+  export let showFilter = true;
 
   const startTimeSelectOptions = [
     { range: "", rangeLabel: "No Selection"},
@@ -57,6 +58,39 @@
     eq: "",
     contains: " Contains",
   }
+
+  const filterReset = {
+    projectMatch: "contains",
+    userMatch: "contains",
+    jobIdMatch: "eq",
+    nodeMatch: "eq",
+
+    cluster: null,
+    partition: null,
+    states: allJobStates,
+    startTime: { from: null, to: null, range: ""},
+    tags: [],
+    duration: {
+      lessThan: null,
+      moreThan: null,
+      from: null,
+      to: null,
+    },
+    dbId: [],
+    jobId: "",
+    arrayJobId: null,
+    user: "",
+    project: "",
+    jobName: "",
+
+    node: null,
+    energy: { from: null, to: null },
+    numNodes: { from: null, to: null },
+    numHWThreads: { from: null, to: null },
+    numAccelerators: { from: null, to: null },
+
+    stats: [],
+  };
 
   let filters = {
     projectMatch: filterPresets.projectMatch || "contains",
@@ -78,6 +112,7 @@
       from: null,
       to: null,
     },
+    dbId: filterPresets.dbId || [],
     jobId: filterPresets.jobId || "",
     arrayJobId: filterPresets.arrayJobId || null,
     user: filterPresets.user || "",
@@ -106,10 +141,17 @@
     isAccsModified = false;
 
   // Can be called from the outside to trigger a 'update' event from this component.
-  export function updateFilters(additionalFilters = null) {
-    if (additionalFilters != null)
+  // 'force' option empties existing filters and then applies only 'additionalFilters'
+  export function updateFilters(additionalFilters = null, force = false) {
+    // Empty Current Filter For Force
+    if (additionalFilters != null && force) {
+      filters = {...filterReset}
+    }
+    // Add Additional Filters
+    if (additionalFilters != null) {
       for (let key in additionalFilters) filters[key] = additionalFilters[key];
-
+    }
+    // Construct New Filter
     let items = [];
     if (filters.cluster) items.push({ cluster: { eq: filters.cluster } });
     if (filters.node) items.push({ node: { [filters.nodeMatch]: filters.node } });
@@ -137,6 +179,8 @@
       items.push({
         energy: { from: filters.energy.from, to: filters.energy.to },
       });
+    if (filters.dbId.length != 0)
+      items.push({ dbId: filters.dbId });
     if (filters.jobId)
       items.push({ jobId: { [filters.jobIdMatch]: filters.jobId } });
     if (filters.arrayJobId != null)
@@ -180,8 +224,8 @@
 
   function changeURL() {
     const dateToUnixEpoch = (rfc3339) => Math.floor(Date.parse(rfc3339) / 1000);
-
     let opts = [];
+
     if (filters.cluster) opts.push(`cluster=${filters.cluster}`);
     if (filters.node) opts.push(`node=${filters.node}`);
     if (filters.node && filters.nodeMatch != "eq") // "eq" is default-case
@@ -195,6 +239,11 @@
       );
     if (filters.startTime.range) {
         opts.push(`startTime=${filters.startTime.range}`)
+    }
+    if (filters.dbId.length != 0) {
+      for (let dbi of filters.dbId) {
+        opts.push(`dbId=${dbi}`);
+      }
     }
     if (filters.jobId.length != 0)
       if (filters.jobIdMatch != "in") {
@@ -237,8 +286,8 @@
       for (let stat of filters.stats) {
           opts.push(`stat=${stat.field}-${stat.from}-${stat.to}`);
       }
+    
     if (opts.length == 0 && window.location.search.length <= 1) return;
-
     let newurl = `${window.location.pathname}?${opts.join("&")}`;
     window.history.replaceState(null, "", newurl);
   }
@@ -246,60 +295,63 @@
 
 <!-- Dropdown-Button -->
 <ButtonGroup>
-  <ButtonDropdown class="cc-dropdown-on-hover mb-1" style="{(matchedJobs >= -1) ? '' : 'margin-right: 0.5rem;'}">
-    <DropdownToggle outline caret color="success">
-      <Icon name="sliders" />
-      Filters
-    </DropdownToggle>
-    <DropdownMenu>
-      <DropdownItem header>Manage Filters</DropdownItem>
-      {#if menuText}
-        <DropdownItem disabled>{menuText}</DropdownItem>
-        <DropdownItem divider />
-      {/if}
-      <DropdownItem on:click={() => (isClusterOpen = true)}>
-        <Icon name="cpu" /> Cluster/Partition
-      </DropdownItem>
-      <DropdownItem on:click={() => (isJobStatesOpen = true)}>
-        <Icon name="gear-fill" /> Job States
-      </DropdownItem>
-      <DropdownItem on:click={() => (isStartTimeOpen = true)}>
-        <Icon name="calendar-range" /> Start Time
-      </DropdownItem>
-      <DropdownItem on:click={() => (isDurationOpen = true)}>
-        <Icon name="stopwatch" /> Duration
-      </DropdownItem>
-      <DropdownItem on:click={() => (isTagsOpen = true)}>
-        <Icon name="tags" /> Tags
-      </DropdownItem>
-      <DropdownItem on:click={() => (isResourcesOpen = true)}>
-        <Icon name="hdd-stack" /> Resources
-      </DropdownItem>
-      <DropdownItem on:click={() => (isEnergyOpen = true)}>
-        <Icon name="lightning-charge-fill" /> Energy
-      </DropdownItem>
-      <DropdownItem on:click={() => (isStatsOpen = true)}>
-        <Icon name="bar-chart" on:click={() => (isStatsOpen = true)} /> Statistics
-      </DropdownItem>
-      {#if startTimeQuickSelect}
-        <DropdownItem divider />
-        <DropdownItem disabled>Start Time Quick Selection</DropdownItem>
-        {#each startTimeSelectOptions.filter((stso) => stso.range !== "") as { rangeLabel, range }}
-          <DropdownItem
-            on:click={() => {
-              filters.startTime.from = null
-              filters.startTime.to = null
-              filters.startTime.range = range;
-              updateFilters();
-            }}
-          >
-            <Icon name="calendar-range" />
-            {rangeLabel}
-          </DropdownItem>
-        {/each}
-      {/if}
-    </DropdownMenu>
-  </ButtonDropdown>
+  {#if showFilter}
+    <ButtonDropdown class="cc-dropdown-on-hover mb-1" style="{(matchedJobs >= -1) ? '' : 'margin-right: 0.5rem;'}">
+      <DropdownToggle outline caret color="success">
+        <Icon name="sliders" />
+        Filters
+      </DropdownToggle>
+      <DropdownMenu>
+        <DropdownItem header>Manage Filters</DropdownItem>
+        {#if menuText}
+          <DropdownItem disabled>{menuText}</DropdownItem>
+          <DropdownItem divider />
+        {/if}
+        <DropdownItem on:click={() => (isClusterOpen = true)}>
+          <Icon name="cpu" /> Cluster/Partition
+        </DropdownItem>
+        <DropdownItem on:click={() => (isJobStatesOpen = true)}>
+          <Icon name="gear-fill" /> Job States
+        </DropdownItem>
+        <DropdownItem on:click={() => (isStartTimeOpen = true)}>
+          <Icon name="calendar-range" /> Start Time
+        </DropdownItem>
+        <DropdownItem on:click={() => (isDurationOpen = true)}>
+          <Icon name="stopwatch" /> Duration
+        </DropdownItem>
+        <DropdownItem on:click={() => (isTagsOpen = true)}>
+          <Icon name="tags" /> Tags
+        </DropdownItem>
+        <DropdownItem on:click={() => (isResourcesOpen = true)}>
+          <Icon name="hdd-stack" /> Resources
+        </DropdownItem>
+        <DropdownItem on:click={() => (isEnergyOpen = true)}>
+          <Icon name="lightning-charge-fill" /> Energy
+        </DropdownItem>
+        <DropdownItem on:click={() => (isStatsOpen = true)}>
+          <Icon name="bar-chart" on:click={() => (isStatsOpen = true)} /> Statistics
+        </DropdownItem>
+        {#if startTimeQuickSelect}
+          <DropdownItem divider />
+          <DropdownItem disabled>Start Time Quick Selection</DropdownItem>
+          {#each startTimeSelectOptions.filter((stso) => stso.range !== "") as { rangeLabel, range }}
+            <DropdownItem
+              on:click={() => {
+                filters.startTime.from = null
+                filters.startTime.to = null
+                filters.startTime.range = range;
+                updateFilters();
+              }}
+            >
+              <Icon name="calendar-range" />
+              {rangeLabel}
+            </DropdownItem>
+          {/each}
+        {/if}
+      </DropdownMenu>
+    </ButtonDropdown>
+  {/if}
+
   {#if matchedJobs >= -1}
     <Button class="mb-1" style="margin-right: 0.5rem;" disabled outline>
       {matchedJobs == -1 ? 'Loading ...' : `${matchedJobs} jobs`}
@@ -307,109 +359,111 @@
   {/if}
 </ButtonGroup>
 
-<!-- SELECTED FILTER PILLS -->
-{#if filters.cluster}
-  <Info icon="cpu" on:click={() => (isClusterOpen = true)}>
-    {filters.cluster}
-    {#if filters.partition}
-      ({filters.partition})
-    {/if}
-  </Info>
-{/if}
+{#if showFilter}
+  <!-- SELECTED FILTER PILLS -->
+  {#if filters.cluster}
+    <Info icon="cpu" on:click={() => (isClusterOpen = true)}>
+      {filters.cluster}
+      {#if filters.partition}
+        ({filters.partition})
+      {/if}
+    </Info>
+  {/if}
 
-{#if filters.states.length != allJobStates.length}
-  <Info icon="gear-fill" on:click={() => (isJobStatesOpen = true)}>
-    {filters.states.join(", ")}
-  </Info>
-{/if}
+  {#if filters.states.length != allJobStates.length}
+    <Info icon="gear-fill" on:click={() => (isJobStatesOpen = true)}>
+      {filters.states.join(", ")}
+    </Info>
+  {/if}
 
-{#if filters.startTime.from || filters.startTime.to}
-  <Info icon="calendar-range" on:click={() => (isStartTimeOpen = true)}>
-    {new Date(filters.startTime.from).toLocaleString()} - {new Date(
-      filters.startTime.to,
-    ).toLocaleString()}
-  </Info>
-{/if}
+  {#if filters.startTime.from || filters.startTime.to}
+    <Info icon="calendar-range" on:click={() => (isStartTimeOpen = true)}>
+      {new Date(filters.startTime.from).toLocaleString()} - {new Date(
+        filters.startTime.to,
+      ).toLocaleString()}
+    </Info>
+  {/if}
 
-{#if filters.startTime.range}
-  <Info icon="calendar-range" on:click={() => (isStartTimeOpen = true)}>
-    {startTimeSelectOptions.find((stso) => stso.range === filters.startTime.range).rangeLabel }
-  </Info>
-{/if}
+  {#if filters.startTime.range}
+    <Info icon="calendar-range" on:click={() => (isStartTimeOpen = true)}>
+      {startTimeSelectOptions.find((stso) => stso.range === filters.startTime.range).rangeLabel }
+    </Info>
+  {/if}
 
-{#if filters.duration.from || filters.duration.to}
-  <Info icon="stopwatch" on:click={() => (isDurationOpen = true)}>
-    {Math.floor(filters.duration.from / 3600)}h:{Math.floor(
-      (filters.duration.from % 3600) / 60,
-    )}m -
-    {Math.floor(filters.duration.to / 3600)}h:{Math.floor(
-      (filters.duration.to % 3600) / 60,
-    )}m
-  </Info>
-{/if}
+  {#if filters.duration.from || filters.duration.to}
+    <Info icon="stopwatch" on:click={() => (isDurationOpen = true)}>
+      {Math.floor(filters.duration.from / 3600)}h:{Math.floor(
+        (filters.duration.from % 3600) / 60,
+      )}m -
+      {Math.floor(filters.duration.to / 3600)}h:{Math.floor(
+        (filters.duration.to % 3600) / 60,
+      )}m
+    </Info>
+  {/if}
 
-{#if filters.duration.lessThan}
-  <Info icon="stopwatch" on:click={() => (isDurationOpen = true)}>
-    Duration less than {Math.floor(
-      filters.duration.lessThan / 3600,
-    )}h:{Math.floor((filters.duration.lessThan % 3600) / 60)}m
-  </Info>
-{/if}
+  {#if filters.duration.lessThan}
+    <Info icon="stopwatch" on:click={() => (isDurationOpen = true)}>
+      Duration less than {Math.floor(
+        filters.duration.lessThan / 3600,
+      )}h:{Math.floor((filters.duration.lessThan % 3600) / 60)}m
+    </Info>
+  {/if}
 
-{#if filters.duration.moreThan}
-  <Info icon="stopwatch" on:click={() => (isDurationOpen = true)}>
-    Duration more than {Math.floor(
-      filters.duration.moreThan / 3600,
-    )}h:{Math.floor((filters.duration.moreThan % 3600) / 60)}m
-  </Info>
-{/if}
+  {#if filters.duration.moreThan}
+    <Info icon="stopwatch" on:click={() => (isDurationOpen = true)}>
+      Duration more than {Math.floor(
+        filters.duration.moreThan / 3600,
+      )}h:{Math.floor((filters.duration.moreThan % 3600) / 60)}m
+    </Info>
+  {/if}
 
-{#if filters.tags.length != 0}
-  <Info icon="tags" on:click={() => (isTagsOpen = true)}>
-    {#each filters.tags as tagId}
-      {#key tagId}
-        <Tag id={tagId} clickable={false} />
-      {/key}
-    {/each}
-  </Info>
-{/if}
+  {#if filters.tags.length != 0}
+    <Info icon="tags" on:click={() => (isTagsOpen = true)}>
+      {#each filters.tags as tagId}
+        {#key tagId}
+          <Tag id={tagId} clickable={false} />
+        {/key}
+      {/each}
+    </Info>
+  {/if}
 
-{#if filters.numNodes.from != null || filters.numNodes.to != null || filters.numHWThreads.from != null || filters.numHWThreads.to != null || filters.numAccelerators.from != null || filters.numAccelerators.to != null}
-  <Info icon="hdd-stack" on:click={() => (isResourcesOpen = true)}>
-    {#if isNodesModified}
-      Nodes: {filters.numNodes.from} - {filters.numNodes.to}
-    {/if}
-    {#if isNodesModified && isHwthreadsModified},
-    {/if}
-    {#if isHwthreadsModified}
-      HWThreads: {filters.numHWThreads.from} - {filters.numHWThreads.to}
-    {/if}
-    {#if (isNodesModified || isHwthreadsModified) && isAccsModified},
-    {/if}
-    {#if isAccsModified}
-      Accelerators: {filters.numAccelerators.from} - {filters.numAccelerators.to}
-    {/if}
-  </Info>
-{/if}
+  {#if filters.numNodes.from != null || filters.numNodes.to != null || filters.numHWThreads.from != null || filters.numHWThreads.to != null || filters.numAccelerators.from != null || filters.numAccelerators.to != null}
+    <Info icon="hdd-stack" on:click={() => (isResourcesOpen = true)}>
+      {#if isNodesModified}
+        Nodes: {filters.numNodes.from} - {filters.numNodes.to}
+      {/if}
+      {#if isNodesModified && isHwthreadsModified},
+      {/if}
+      {#if isHwthreadsModified}
+        HWThreads: {filters.numHWThreads.from} - {filters.numHWThreads.to}
+      {/if}
+      {#if (isNodesModified || isHwthreadsModified) && isAccsModified},
+      {/if}
+      {#if isAccsModified}
+        Accelerators: {filters.numAccelerators.from} - {filters.numAccelerators.to}
+      {/if}
+    </Info>
+  {/if}
 
-{#if filters.node != null}
-  <Info icon="hdd-stack" on:click={() => (isResourcesOpen = true)}>
-    Node{nodeMatchLabels[filters.nodeMatch]}: {filters.node}
-  </Info>
-{/if}
+  {#if filters.node != null}
+    <Info icon="hdd-stack" on:click={() => (isResourcesOpen = true)}>
+      Node{nodeMatchLabels[filters.nodeMatch]}: {filters.node}
+    </Info>
+  {/if}
 
-{#if filters.energy.from || filters.energy.to}
-  <Info icon="lightning-charge-fill" on:click={() => (isEnergyOpen = true)}>
-    Total Energy: {filters.energy.from} - {filters.energy.to}
-  </Info>
-{/if}
+  {#if filters.energy.from || filters.energy.to}
+    <Info icon="lightning-charge-fill" on:click={() => (isEnergyOpen = true)}>
+      Total Energy: {filters.energy.from} - {filters.energy.to}
+    </Info>
+  {/if}
 
-{#if filters.stats.length > 0}
-  <Info icon="bar-chart" on:click={() => (isStatsOpen = true)}>
-    {filters.stats
-      .map((stat) => `${stat.field}: ${stat.from} - ${stat.to}`)
-      .join(", ")}
-  </Info>
+  {#if filters.stats.length > 0}
+    <Info icon="bar-chart" on:click={() => (isStatsOpen = true)}>
+      {filters.stats
+        .map((stat) => `${stat.field}: ${stat.from} - ${stat.to}`)
+        .join(", ")}
+    </Info>
+  {/if}
 {/if}
 
 <Cluster

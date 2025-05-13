@@ -42,7 +42,7 @@
     query ($dbid: ID!, $selectedMetrics: [String!]!) {
       jobStats(id: $dbid, metrics: $selectedMetrics) {
         name
-        stats {
+        data {
           min
           avg
           max
