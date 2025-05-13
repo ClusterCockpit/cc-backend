@@ -473,6 +473,7 @@ func securedCheck(user *schema.User, r *http.Request) error {
 		IPAddress = r.RemoteAddr
 	}
 
+	// Cannot Handle ipv6! (e.g. localhost -> [::1])
 	if strings.Contains(IPAddress, ":") {
 		IPAddress = strings.Split(IPAddress, ":")[0]
 	}

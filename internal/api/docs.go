@@ -390,8 +390,71 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/jobs/edit_meta/": {
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Edit key value pairs in metadata json of job specified by jobID, StartTime and Cluster\nIf a key already exists its content will be overwritten",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Job add and modify"
+                ],
+                "summary": "Edit meta-data json by request",
+                "parameters": [
+                    {
+                        "description": "Specifies job and payload to add or update",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.JobMetaRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated job resource",
+                        "schema": {
+                            "$ref": "#/definitions/schema.Job"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Job does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/jobs/edit_meta/{id}": {
-            "post": {
+            "patch": {
                 "security": [
                     {
                         "ApiKeyAuth": []
@@ -1181,6 +1244,37 @@ const docTemplate = `{
                 "page": {
                     "description": "Page id returned",
                     "type": "integer"
+                }
+            }
+        },
+        "api.JobMetaRequest": {
+            "type": "object",
+            "required": [
+                "jobId"
+            ],
+            "properties": {
+                "cluster": {
+                    "description": "Cluster of job",
+                    "type": "string",
+                    "example": "fritz"
+                },
+                "jobId": {
+                    "description": "Cluster Job ID of job",
+                    "type": "integer",
+                    "example": 123000
+                },
+                "payload": {
+                    "description": "Content to Add to Job Meta_Data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/api.EditMetaRequest"
+                        }
+                    ]
+                },
+                "startTime": {
+                    "description": "Start Time of job as epoch",
+                    "type": "integer",
+                    "example": 1649723812
                 }
             }
         },

@@ -102,6 +102,27 @@ definitions:
         description: Page id returned
         type: integer
     type: object
+  api.JobMetaRequest:
+    properties:
+      cluster:
+        description: Cluster of job
+        example: fritz
+        type: string
+      jobId:
+        description: Cluster Job ID of job
+        example: 123000
+        type: integer
+      payload:
+        allOf:
+        - $ref: '#/definitions/api.EditMetaRequest'
+        description: Content to Add to Job Meta_Data
+      startTime:
+        description: Start Time of job as epoch
+        example: 1649723812
+        type: integer
+    required:
+    - jobId
+    type: object
   api.JobMetricWithName:
     properties:
       metric:
@@ -1025,8 +1046,50 @@ paths:
       summary: Remove a job from the sql database
       tags:
       - Job remove
+  /api/jobs/edit_meta/:
+    patch:
+      consumes:
+      - application/json
+      description: |-
+        Edit key value pairs in metadata json of job specified by jobID, StartTime and Cluster
+        If a key already exists its content will be overwritten
+      parameters:
+      - description: Specifies job and payload to add or update
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.JobMetaRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated job resource
+          schema:
+            $ref: '#/definitions/schema.Job'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Job does not exist
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Edit meta-data json by request
+      tags:
+      - Job add and modify
   /api/jobs/edit_meta/{id}:
-    post:
+    patch:
       consumes:
       - application/json
       description: |-
