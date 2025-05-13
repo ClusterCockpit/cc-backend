@@ -4,9 +4,14 @@ import Config from './Config.root.svelte'
 new Config({
     target: document.getElementById('svelte-app'),
     props: {
-        isAdmin: isAdmin
+        isAdmin: isAdmin,
+        isSupport: isSupport,
+        isApi: isApi,
+        username: username,
+        ncontent: ncontent,
     },
     context: new Map([
-            ['cc-config', clusterCockpitConfig]
+            ['cc-config', clusterCockpitConfig],
+            ['resampling', resampleConfig]
     ])
 })

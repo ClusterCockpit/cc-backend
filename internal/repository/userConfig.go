@@ -24,9 +24,9 @@ var (
 type UserCfgRepo struct {
 	DB         *sqlx.DB
 	Lookup     *sqlx.Stmt
-	lock       sync.RWMutex
 	uiDefaults map[string]interface{}
 	cache      *lrucache.Cache
+	lock       sync.RWMutex
 }
 
 func GetUserCfgRepo() *UserCfgRepo {
@@ -35,7 +35,7 @@ func GetUserCfgRepo() *UserCfgRepo {
 
 		lookupConfigStmt, err := db.DB.Preparex(`SELECT confkey, value FROM configuration WHERE configuration.username = ?`)
 		if err != nil {
-			log.Fatalf("db.DB.Preparex() error: %v", err)
+			log.Fatalf("User Config: Call 'db.DB.Preparex()' failed.\nError: %s\n", err.Error())
 		}
 
 		userCfgRepoInstance = &UserCfgRepo{
@@ -112,8 +112,8 @@ func (uCfg *UserCfgRepo) GetUIConfig(user *schema.User) (map[string]interface{},
 // configuration.
 func (uCfg *UserCfgRepo) UpdateConfig(
 	key, value string,
-	user *schema.User) error {
-
+	user *schema.User,
+) error {
 	if user == nil {
 		var val interface{}
 		if err := json.Unmarshal([]byte(value), &val); err != nil {

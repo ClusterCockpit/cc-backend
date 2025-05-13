@@ -1,3 +1,13 @@
+<!--
+    @component User role edit form card
+
+    Properties:
+    - `roles [String]!`: List of roles used in app as strings
+
+    Events:
+    - `reload`: Trigger upstream reload of user list after role edit
+ -->
+
 <script>
   import { Card, CardTitle, CardBody } from "@sveltestrap/sveltestrap";
   import { createEventDispatcher } from "svelte";
@@ -8,7 +18,7 @@
   let message = { msg: "", color: "#d63384" };
   let displayMessage = false;
 
-  export let roles = [];
+  export let roles;
 
   async function handleAddRole() {
     const username = document.querySelector("#role-username").value;
@@ -24,7 +34,7 @@
     formData.append("add-role", role);
 
     try {
-      const res = await fetch(`/api/user/${username}`, {
+      const res = await fetch(`/config/user/${username}`, {
         method: "POST",
         body: formData,
       });
@@ -34,7 +44,6 @@
         reloadUserList();
       } else {
         let text = await res.text();
-        // console.log(res.statusText)
         throw new Error("Response Code " + res.status + "-> " + text);
       }
     } catch (err) {
@@ -56,7 +65,7 @@
     formData.append("remove-role", role);
 
     try {
-      const res = await fetch(`/api/user/${username}`, {
+      const res = await fetch(`/config/user/${username}`, {
         method: "POST",
         body: formData,
       });
@@ -66,7 +75,6 @@
         reloadUserList();
       } else {
         let text = await res.text();
-        // console.log(res.statusText)
         throw new Error("Response Code " + res.status + "-> " + text);
       }
     } catch (err) {

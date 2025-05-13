@@ -23,7 +23,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/clusters/": {
+        "/api/clusters/": {
             "get": {
                 "security": [
                     {
@@ -80,7 +80,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/": {
+        "/api/jobs/": {
             "get": {
                 "security": [
                     {
@@ -175,7 +175,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/delete_job/": {
+        "/api/jobs/delete_job/": {
             "delete": {
                 "security": [
                     {
@@ -208,7 +208,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Success message",
                         "schema": {
-                            "$ref": "#/definitions/api.DeleteJobApiResponse"
+                            "$ref": "#/definitions/api.DefaultJobApiResponse"
                         }
                     },
                     "400": {
@@ -250,7 +250,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/delete_job/{id}": {
+        "/api/jobs/delete_job/{id}": {
             "delete": {
                 "security": [
                     {
@@ -278,7 +278,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Success message",
                         "schema": {
-                            "$ref": "#/definitions/api.DeleteJobApiResponse"
+                            "$ref": "#/definitions/api.DefaultJobApiResponse"
                         }
                     },
                     "400": {
@@ -320,7 +320,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/delete_job_before/{ts}": {
+        "/api/jobs/delete_job_before/{ts}": {
             "delete": {
                 "security": [
                     {
@@ -348,7 +348,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Success message",
                         "schema": {
-                            "$ref": "#/definitions/api.DeleteJobApiResponse"
+                            "$ref": "#/definitions/api.DefaultJobApiResponse"
                         }
                     },
                     "400": {
@@ -390,7 +390,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/edit_meta/{id}": {
+        "/api/jobs/edit_meta/{id}": {
             "post": {
                 "security": [
                     {
@@ -460,7 +460,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/start_job/": {
+        "/api/jobs/start_job/": {
             "post": {
                 "security": [
                     {
@@ -493,7 +493,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Job added successfully",
                         "schema": {
-                            "$ref": "#/definitions/api.StartJobApiResponse"
+                            "$ref": "#/definitions/api.DefaultJobApiResponse"
                         }
                     },
                     "400": {
@@ -529,7 +529,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/stop_job/": {
+        "/api/jobs/stop_job/": {
             "post": {
                 "security": [
                     {
@@ -587,7 +587,7 @@ const docTemplate = `{
                         }
                     },
                     "422": {
-                        "description": "Unprocessable Entity: finding job failed: sql: no rows in result set",
+                        "description": "Unprocessable Entity: job has already been stopped",
                         "schema": {
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
@@ -601,96 +601,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/stop_job/{id}": {
+        "/api/jobs/tag_job/{id}": {
             "post": {
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Job to stop is specified by database ID. Only stopTime and final state are required in request body.\nReturns full job resource information according to 'JobMeta' scheme.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Job add and modify"
-                ],
-                "summary": "Marks job as completed and triggers archiving",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Database ID of Job",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "stopTime and final state in request body",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/api.StopJobApiRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Job resource",
-                        "schema": {
-                            "$ref": "#/definitions/schema.JobMeta"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Resource not found",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "422": {
-                        "description": "Unprocessable Entity: finding job failed: sql: no rows in result set",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/jobs/tag_job/{id}": {
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Adds tag(s) to a job specified by DB ID. Name and Type of Tag(s) can be chosen freely.\nIf tagged job is already finished: Tag will be written directly to respective archive files.",
+                "description": "Adds tag(s) to a job specified by DB ID. Name and Type of Tag(s) can be chosen freely.\nTag Scope for frontend visibility will default to \"global\" if none entered, other options: \"admin\" or specific username.\nIf tagged job is already finished: Tag will be written directly to respective archive files.",
                 "consumes": [
                     "application/json"
                 ],
@@ -756,7 +674,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/jobs/{id}": {
+        "/api/jobs/{id}": {
             "get": {
                 "security": [
                     {
@@ -915,119 +833,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/user/{id}": {
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Modifies user defined by username (id) in one of four possible ways.\nIf more than one formValue is set then only the highest priority field is used.\nOnly accessible from IPs registered with apiAllowedIPs configuration option.",
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "produces": [
-                    "text/plain"
-                ],
-                "tags": [
-                    "User"
-                ],
-                "summary": "Updates an existing user",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Database ID of User",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "enum": [
-                            "admin",
-                            "support",
-                            "manager",
-                            "user",
-                            "api"
-                        ],
-                        "type": "string",
-                        "description": "Priority 1: Role to add",
-                        "name": "add-role",
-                        "in": "formData"
-                    },
-                    {
-                        "enum": [
-                            "admin",
-                            "support",
-                            "manager",
-                            "user",
-                            "api"
-                        ],
-                        "type": "string",
-                        "description": "Priority 2: Role to remove",
-                        "name": "remove-role",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Priority 3: Project to add",
-                        "name": "add-project",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Priority 4: Project to remove",
-                        "name": "remove-project",
-                        "in": "formData"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Success Response Message",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "422": {
-                        "description": "Unprocessable Entity: The user could not be updated",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/users/": {
+        "/api/users/": {
             "get": {
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Returns a JSON-encoded list of users.\nRequired query-parameter defines if all users or only users with additional special roles are returned.\nOnly accessible from IPs registered with apiAllowedIPs configuration option.",
+                "description": "Returns a JSON-encoded list of users.\nRequired query-parameter defines if all users or only users with additional special roles are returned.",
                 "produces": [
                     "application/json"
                 ],
@@ -1079,70 +892,111 @@ const docTemplate = `{
                         }
                     }
                 }
-            },
-            "post": {
+            }
+        },
+        "/jobs/tag_job/{id}": {
+            "delete": {
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "User specified in form data will be saved to database.\nOnly accessible from IPs registered with apiAllowedIPs configuration option.",
+                "description": "Removes tag(s) from a job specified by DB ID. Name and Type of Tag(s) must match.\nTag Scope is required for matching, options: \"global\", \"admin\". Private tags can not be deleted via API.\nIf tagged job is already finished: Tag will be removed from respective archive files.",
                 "consumes": [
-                    "multipart/form-data"
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Job add and modify"
+                ],
+                "summary": "Removes one or more tags from a job",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Job Database ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Array of tag-objects to remove",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.ApiTag"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated job resource",
+                        "schema": {
+                            "$ref": "#/definitions/schema.Job"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Job or tag does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tags/": {
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Removes tags by type and name. Name and Type of Tag(s) must match.\nTag Scope is required for matching, options: \"global\", \"admin\". Private tags can not be deleted via API.\nTag wills be removed from respective archive files.",
+                "consumes": [
+                    "application/json"
                 ],
                 "produces": [
                     "text/plain"
                 ],
                 "tags": [
-                    "User"
+                    "Tag remove"
                 ],
-                "summary": "Adds a new user",
+                "summary": "Removes all tags and job-relations for type:name tuple",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "Unique user ID",
-                        "name": "username",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "User password",
-                        "name": "password",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "enum": [
-                            "admin",
-                            "support",
-                            "manager",
-                            "user",
-                            "api"
-                        ],
-                        "type": "string",
-                        "description": "User role",
-                        "name": "role",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Managed project, required for new manager role user",
-                        "name": "project",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Users name",
-                        "name": "name",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Users email",
-                        "name": "email",
-                        "in": "formData"
+                        "description": "Array of tag-objects to remove",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.ApiTag"
+                            }
+                        }
                     }
                 ],
                 "responses": {
@@ -1155,93 +1009,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
-                    "403": {
-                        "description": "Forbidden",
+                    "404": {
+                        "description": "Job or tag does not exist",
                         "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "422": {
-                        "description": "Unprocessable Entity: creating user failed",
-                        "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "User defined by username in form data will be deleted from database.\nOnly accessible from IPs registered with apiAllowedIPs configuration option.",
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "produces": [
-                    "text/plain"
-                ],
-                "tags": [
-                    "User"
-                ],
-                "summary": "Deletes a user",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "User ID to delete",
-                        "name": "username",
-                        "in": "formData",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "User deleted successfully"
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "422": {
-                        "description": "Unprocessable Entity: deleting user failed",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -1283,10 +1069,23 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Testjob"
                 },
+                "scope": {
+                    "description": "Tag Scope for Frontend Display",
+                    "type": "string",
+                    "example": "global"
+                },
                 "type": {
                     "description": "Tag Type",
                     "type": "string",
                     "example": "Debug"
+                }
+            }
+        },
+        "api.DefaultJobApiResponse": {
+            "type": "object",
+            "properties": {
+                "msg": {
+                    "type": "string"
                 }
             }
         },
@@ -1310,14 +1109,6 @@ const docTemplate = `{
                     "description": "Start Time of job as epoch",
                     "type": "integer",
                     "example": 1649723812
-                }
-            }
-        },
-        "api.DeleteJobApiResponse": {
-            "type": "object",
-            "properties": {
-                "msg": {
-                    "type": "string"
                 }
             }
         },
@@ -1407,15 +1198,6 @@ const docTemplate = `{
                 }
             }
         },
-        "api.StartJobApiResponse": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "description": "Database ID of new job",
-                    "type": "integer"
-                }
-            }
-        },
         "api.StopJobApiRequest": {
             "type": "object",
             "required": [
@@ -1424,17 +1206,14 @@ const docTemplate = `{
             ],
             "properties": {
                 "cluster": {
-                    "description": "Cluster of job",
                     "type": "string",
                     "example": "fritz"
                 },
                 "jobId": {
-                    "description": "Cluster Job ID of job",
                     "type": "integer",
                     "example": 123000
                 },
                 "jobState": {
-                    "description": "Final job state",
                     "allOf": [
                         {
                             "$ref": "#/definitions/schema.JobState"
@@ -1443,12 +1222,10 @@ const docTemplate = `{
                     "example": "completed"
                 },
                 "startTime": {
-                    "description": "Start Time of job as epoch",
                     "type": "integer",
                     "example": 1649723812
                 },
                 "stopTime": {
-                    "description": "Stop Time of job as epoch",
                     "type": "integer",
                     "example": 1649763839
                 }
@@ -1493,12 +1270,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "arrayJobId": {
-                    "description": "The unique identifier of an array job",
                     "type": "integer",
                     "example": 123000
                 },
                 "cluster": {
-                    "description": "The unique identifier of a cluster",
                     "type": "string",
                     "example": "fritz"
                 },
@@ -1506,33 +1281,39 @@ const docTemplate = `{
                     "$ref": "#/definitions/schema.JobLinkResultList"
                 },
                 "duration": {
-                    "description": "Duration of job in seconds (Min \u003e 0)",
                     "type": "integer",
                     "minimum": 1,
                     "example": 43200
                 },
+                "energy": {
+                    "type": "number"
+                },
+                "energyFootprint": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number"
+                    }
+                },
                 "exclusive": {
-                    "description": "Specifies how nodes are shared: 0 - Shared among multiple jobs of multiple users, 1 - Job exclusive (Default), 2 - Shared among multiple jobs of same user",
                     "type": "integer",
                     "maximum": 2,
                     "minimum": 0,
                     "example": 1
                 },
-                "flopsAnyAvg": {
-                    "description": "FlopsAnyAvg as Float64",
-                    "type": "number"
+                "footprint": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number"
+                    }
                 },
                 "id": {
-                    "description": "The unique identifier of a job in the database",
                     "type": "integer"
                 },
                 "jobId": {
-                    "description": "The unique identifier of a job",
                     "type": "integer",
                     "example": 123000
                 },
                 "jobState": {
-                    "description": "Final state of job",
                     "enum": [
                         "completed",
                         "failed",
@@ -1548,95 +1329,69 @@ const docTemplate = `{
                     ],
                     "example": "completed"
                 },
-                "loadAvg": {
-                    "description": "LoadAvg as Float64",
-                    "type": "number"
-                },
-                "memBwAvg": {
-                    "description": "MemBwAvg as Float64",
-                    "type": "number"
-                },
-                "memUsedMax": {
-                    "description": "MemUsedMax as Float64",
-                    "type": "number"
-                },
                 "metaData": {
-                    "description": "Additional information about the job",
                     "type": "object",
                     "additionalProperties": {
                         "type": "string"
                     }
                 },
                 "monitoringStatus": {
-                    "description": "State of monitoring system during job run: 0 - Disabled, 1 - Running or Archiving (Default), 2 - Archiving Failed, 3 - Archiving Successfull",
                     "type": "integer",
                     "maximum": 3,
                     "minimum": 0,
                     "example": 1
                 },
                 "numAcc": {
-                    "description": "Number of accelerators used (Min \u003e 0)",
                     "type": "integer",
                     "minimum": 1,
                     "example": 2
                 },
                 "numHwthreads": {
-                    "description": "NumCores         int32             ` + "`" + `json:\"numCores\" db:\"num_cores\" example:\"20\" minimum:\"1\"` + "`" + `                                                             // Number of HWThreads used (Min \u003e 0)",
                     "type": "integer",
                     "minimum": 1,
                     "example": 20
                 },
                 "numNodes": {
-                    "description": "Number of nodes used (Min \u003e 0)",
                     "type": "integer",
                     "minimum": 1,
                     "example": 2
                 },
                 "partition": {
-                    "description": "The Slurm partition to which the job was submitted",
                     "type": "string",
                     "example": "main"
                 },
                 "project": {
-                    "description": "The unique identifier of a project",
                     "type": "string",
                     "example": "abcd200"
                 },
                 "resources": {
-                    "description": "Resources used by job",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/schema.Resource"
                     }
                 },
                 "smt": {
-                    "description": "SMT threads used by job",
                     "type": "integer",
                     "example": 4
                 },
                 "startTime": {
-                    "description": "Start time as 'time.Time' data type",
                     "type": "string"
                 },
                 "subCluster": {
-                    "description": "The unique identifier of a sub cluster",
                     "type": "string",
                     "example": "main"
                 },
                 "tags": {
-                    "description": "List of tags",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/schema.Tag"
                     }
                 },
                 "user": {
-                    "description": "The unique identifier of a user",
                     "type": "string",
                     "example": "abcd100h"
                 },
                 "walltime": {
-                    "description": "Requested walltime of job in seconds (Min \u003e 0)",
                     "type": "integer",
                     "minimum": 1,
                     "example": 86400
@@ -1673,12 +1428,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "arrayJobId": {
-                    "description": "The unique identifier of an array job",
                     "type": "integer",
                     "example": 123000
                 },
                 "cluster": {
-                    "description": "The unique identifier of a cluster",
                     "type": "string",
                     "example": "fritz"
                 },
@@ -1686,29 +1439,39 @@ const docTemplate = `{
                     "$ref": "#/definitions/schema.JobLinkResultList"
                 },
                 "duration": {
-                    "description": "Duration of job in seconds (Min \u003e 0)",
                     "type": "integer",
                     "minimum": 1,
                     "example": 43200
                 },
+                "energy": {
+                    "type": "number"
+                },
+                "energyFootprint": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number"
+                    }
+                },
                 "exclusive": {
-                    "description": "Specifies how nodes are shared: 0 - Shared among multiple jobs of multiple users, 1 - Job exclusive (Default), 2 - Shared among multiple jobs of same user",
                     "type": "integer",
                     "maximum": 2,
                     "minimum": 0,
                     "example": 1
                 },
+                "footprint": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number"
+                    }
+                },
                 "id": {
-                    "description": "The unique identifier of a job in the database",
                     "type": "integer"
                 },
                 "jobId": {
-                    "description": "The unique identifier of a job",
                     "type": "integer",
                     "example": 123000
                 },
                 "jobState": {
-                    "description": "Final state of job",
                     "enum": [
                         "completed",
                         "failed",
@@ -1725,91 +1488,76 @@ const docTemplate = `{
                     "example": "completed"
                 },
                 "metaData": {
-                    "description": "Additional information about the job",
                     "type": "object",
                     "additionalProperties": {
                         "type": "string"
                     }
                 },
                 "monitoringStatus": {
-                    "description": "State of monitoring system during job run: 0 - Disabled, 1 - Running or Archiving (Default), 2 - Archiving Failed, 3 - Archiving Successfull",
                     "type": "integer",
                     "maximum": 3,
                     "minimum": 0,
                     "example": 1
                 },
                 "numAcc": {
-                    "description": "Number of accelerators used (Min \u003e 0)",
                     "type": "integer",
                     "minimum": 1,
                     "example": 2
                 },
                 "numHwthreads": {
-                    "description": "NumCores         int32             ` + "`" + `json:\"numCores\" db:\"num_cores\" example:\"20\" minimum:\"1\"` + "`" + `                                                             // Number of HWThreads used (Min \u003e 0)",
                     "type": "integer",
                     "minimum": 1,
                     "example": 20
                 },
                 "numNodes": {
-                    "description": "Number of nodes used (Min \u003e 0)",
                     "type": "integer",
                     "minimum": 1,
                     "example": 2
                 },
                 "partition": {
-                    "description": "The Slurm partition to which the job was submitted",
                     "type": "string",
                     "example": "main"
                 },
                 "project": {
-                    "description": "The unique identifier of a project",
                     "type": "string",
                     "example": "abcd200"
                 },
                 "resources": {
-                    "description": "Resources used by job",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/schema.Resource"
                     }
                 },
                 "smt": {
-                    "description": "SMT threads used by job",
                     "type": "integer",
                     "example": 4
                 },
                 "startTime": {
-                    "description": "Start epoch time stamp in seconds (Min \u003e 0)",
                     "type": "integer",
                     "minimum": 1,
                     "example": 1649723812
                 },
                 "statistics": {
-                    "description": "Metric statistics of job",
                     "type": "object",
                     "additionalProperties": {
                         "$ref": "#/definitions/schema.JobStatistics"
                     }
                 },
                 "subCluster": {
-                    "description": "The unique identifier of a sub cluster",
                     "type": "string",
                     "example": "main"
                 },
                 "tags": {
-                    "description": "List of tags",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/schema.Tag"
                     }
                 },
                 "user": {
-                    "description": "The unique identifier of a user",
                     "type": "string",
                     "example": "abcd100h"
                 },
                 "walltime": {
-                    "description": "Requested walltime of job in seconds (Min \u003e 0)",
                     "type": "integer",
                     "minimum": 1,
                     "example": 86400
@@ -1898,6 +1646,15 @@ const docTemplate = `{
                 "caution": {
                     "type": "number"
                 },
+                "energy": {
+                    "type": "string"
+                },
+                "footprint": {
+                    "type": "string"
+                },
+                "lowerIsBetter": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -1975,22 +1732,18 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "accelerators": {
-                    "description": "List of of accelerator device ids",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "configuration": {
-                    "description": "The configuration options of the node",
                     "type": "string"
                 },
                 "hostname": {
-                    "description": "Name of the host (= node)",
                     "type": "string"
                 },
                 "hwthreads": {
-                    "description": "List of OS processor ids",
                     "type": "array",
                     "items": {
                         "type": "integer"
@@ -2033,6 +1786,12 @@ const docTemplate = `{
                         "type": "number"
                     }
                 },
+                "median": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
                 "min": {
                     "type": "array",
                     "items": {
@@ -2056,14 +1815,32 @@ const docTemplate = `{
                 "coresPerSocket": {
                     "type": "integer"
                 },
+                "energyFootprint": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "flopRateScalar": {
                     "$ref": "#/definitions/schema.MetricValue"
                 },
                 "flopRateSimd": {
                     "$ref": "#/definitions/schema.MetricValue"
                 },
+                "footprint": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "memoryBandwidth": {
                     "$ref": "#/definitions/schema.MetricValue"
+                },
+                "metricConfig": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.MetricConfig"
+                    }
                 },
                 "name": {
                     "type": "string"
@@ -2094,6 +1871,15 @@ const docTemplate = `{
                 "caution": {
                     "type": "number"
                 },
+                "energy": {
+                    "type": "string"
+                },
+                "footprint": {
+                    "type": "string"
+                },
+                "lowerIsBetter": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -2113,16 +1899,17 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "id": {
-                    "description": "The unique DB identifier of a tag",
                     "type": "integer"
                 },
                 "name": {
-                    "description": "Tag Name",
                     "type": "string",
                     "example": "Testjob"
                 },
+                "scope": {
+                    "type": "string",
+                    "example": "global"
+                },
                 "type": {
-                    "description": "Tag Type",
                     "type": "string",
                     "example": "Debug"
                 }
@@ -2206,7 +1993,7 @@ const docTemplate = `{
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0.0",
 	Host:             "localhost:8080",
-	BasePath:         "/api",
+	BasePath:         "",
 	Schemes:          []string{},
 	Title:            "ClusterCockpit REST API",
 	Description:      "API for batch job control.",

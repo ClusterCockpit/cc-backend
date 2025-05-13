@@ -1,56 +1,70 @@
 {
-    "addr": "127.0.0.1:8080",
-    "archive": {
-        "kind": "file",
-        "path": "./var/job-archive"
-    },
-    "jwts": {
-        "max-age": "2000h"
-    },
-    "clusters": [
-        {
-            "name": "fritz",
-            "metricDataRepository": {
-                "kind": "cc-metric-store",
-                "url": "http://localhost:8082",
-                "token": ""
-            },
-            "filterRanges": {
-                "numNodes": {
-                    "from": 1,
-                    "to": 64
-                },
-                "duration": {
-                    "from": 0,
-                    "to": 86400
-                },
-                "startTime": {
-                    "from": "2022-01-01T00:00:00Z",
-                    "to": null
-                }
-            }
-        },
-        {
-            "name": "alex",
-            "metricDataRepository": {
-                "kind": "cc-metric-store",
-                "url": "http://localhost:8082",
-                "token": ""
-            },
-            "filterRanges": {
-                "numNodes": {
-                    "from": 1,
-                    "to": 64
-                },
-                "duration": {
-                    "from": 0,
-                    "to": 86400
-                },
-                "startTime": {
-                    "from": "2022-01-01T00:00:00Z",
-                    "to": null
-                }
-            }
-        }
+  "addr": "127.0.0.1:8080",
+  "short-running-jobs-duration": 300,
+  "archive": {
+    "kind": "file",
+    "path": "./var/job-archive"
+  },
+  "jwts": {
+    "max-age": "2000h"
+  },
+  "enable-resampling": {
+    "trigger": 30,
+    "resolutions": [
+      600,
+      300,
+      120,
+      60
     ]
+  },
+  "apiAllowedIPs": [
+    "*"
+  ],
+  "emission-constant": 317,
+  "clusters": [
+    {
+      "name": "fritz",
+      "metricDataRepository": {
+        "kind": "cc-metric-store",
+        "url": "http://localhost:8082",
+        "token": ""
+      },
+      "filterRanges": {
+        "numNodes": {
+          "from": 1,
+          "to": 64
+        },
+        "duration": {
+          "from": 0,
+          "to": 86400
+        },
+        "startTime": {
+          "from": "2022-01-01T00:00:00Z",
+          "to": null
+        }
+      }
+    },
+    {
+      "name": "alex",
+      "metricDataRepository": {
+        "kind": "cc-metric-store",
+        "url": "http://localhost:8082",
+        "token": ""
+      },
+      "filterRanges": {
+        "numNodes": {
+          "from": 1,
+          "to": 64
+        },
+        "duration": {
+          "from": 0,
+          "to": 86400
+        },
+        "startTime": {
+          "from": "2022-01-01T00:00:00Z",
+          "to": null
+        }
+      }
+    }
+  ]
 }

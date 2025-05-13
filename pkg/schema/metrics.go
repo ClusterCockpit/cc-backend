@@ -10,22 +10,31 @@ import (
 	"math"
 	"sort"
 	"unsafe"
+
+	"github.com/ClusterCockpit/cc-backend/internal/util"
 )
 
 type JobData map[string]map[MetricScope]*JobMetric
+type ScopedJobStats map[string]map[MetricScope][]*ScopedStats
 
 type JobMetric struct {
-	Unit             Unit         `json:"unit"`
-	Timestep         int          `json:"timestep"`
-	Series           []Series     `json:"series"`
 	StatisticsSeries *StatsSeries `json:"statisticsSeries,omitempty"`
+	Unit             Unit         `json:"unit"`
+	Series           []Series     `json:"series"`
+	Timestep         int          `json:"timestep"`
 }
 
 type Series struct {
-	Hostname   string           `json:"hostname"`
 	Id         *string          `json:"id,omitempty"`
-	Statistics MetricStatistics `json:"statistics"`
+	Hostname   string           `json:"hostname"`
 	Data       []Float          `json:"data"`
+	Statistics MetricStatistics `json:"statistics"`
+}
+
+type ScopedStats struct {
+	Hostname string            `json:"hostname"`
+	Id       *string           `json:"id,omitempty"`
+	Data     *MetricStatistics `json:"data"`
 }
 
 type MetricStatistics struct {
@@ -35,10 +44,11 @@ type MetricStatistics struct {
 }
 
 type StatsSeries struct {
+	Percentiles map[int][]Float `json:"percentiles,omitempty"`
 	Mean        []Float         `json:"mean"`
+	Median      []Float         `json:"median"`
 	Min         []Float         `json:"min"`
 	Max         []Float         `json:"max"`
-	Percentiles map[int][]Float `json:"percentiles,omitempty"`
 }
 
 type MetricScope string
@@ -121,6 +131,7 @@ func (jd *JobData) Size() int {
 			if metric.StatisticsSeries != nil {
 				n += len(metric.StatisticsSeries.Max)
 				n += len(metric.StatisticsSeries.Mean)
+				n += len(metric.StatisticsSeries.Median)
 				n += len(metric.StatisticsSeries.Min)
 			}
 
@@ -149,53 +160,74 @@ func (jm *JobMetric) AddStatisticsSeries() {
 		}
 	}
 
-	min, mean, max := make([]Float, n), make([]Float, n), make([]Float, n)
+	// mean := make([]Float, n)
+	min, median, max := make([]Float, n), make([]Float, n), make([]Float, n)
 	i := 0
 	for ; i < m; i++ {
-		smin, ssum, smax := math.MaxFloat32, 0.0, -math.MaxFloat32
+		seriesCount := len(jm.Series)
+		// ssum := 0.0
+		smin, smed, smax := math.MaxFloat32, make([]float64, seriesCount), -math.MaxFloat32
 		notnan := 0
-		for j := 0; j < len(jm.Series); j++ {
+		for j := 0; j < seriesCount; j++ {
 			x := float64(jm.Series[j].Data[i])
 			if math.IsNaN(x) {
 				continue
 			}
 
 			notnan += 1
-			ssum += x
+			// ssum += x
+			smed[j] = x
 			smin = math.Min(smin, x)
 			smax = math.Max(smax, x)
 		}
 
 		if notnan < 3 {
 			min[i] = NaN
-			mean[i] = NaN
+			// mean[i] = NaN
+			median[i] = NaN
 			max[i] = NaN
 		} else {
 			min[i] = Float(smin)
-			mean[i] = Float(ssum / float64(notnan))
+			// mean[i] = Float(ssum / float64(notnan))
 			max[i] = Float(smax)
+
+			medianRaw, err := util.Median(smed)
+			if err != nil {
+				median[i] = NaN
+			} else {
+				median[i] = Float(medianRaw)
+			}
 		}
 	}
 
 	for ; i < n; i++ {
 		min[i] = NaN
-		mean[i] = NaN
+		// mean[i] = NaN
+		median[i] = NaN
 		max[i] = NaN
 	}
 
 	if smooth {
-		for i := 2; i < len(mean)-2; i++ {
+		for i := 2; i < len(median)-2; i++ {
 			if min[i].IsNaN() {
 				continue
 			}
 
 			min[i] = (min[i-2] + min[i-1] + min[i] + min[i+1] + min[i+2]) / 5
 			max[i] = (max[i-2] + max[i-1] + max[i] + max[i+1] + max[i+2]) / 5
-			mean[i] = (mean[i-2] + mean[i-1] + mean[i] + mean[i+1] + mean[i+2]) / 5
+			// mean[i] = (mean[i-2] + mean[i-1] + mean[i] + mean[i+1] + mean[i+2]) / 5
+			// Reduce Median further
+			smoothRaw := []float64{float64(median[i-2]), float64(median[i-1]), float64(median[i]), float64(median[i+1]), float64(median[i+2])}
+			smoothMedian, err := util.Median(smoothRaw)
+			if err != nil {
+				median[i] = NaN
+			} else {
+				median[i] = Float(smoothMedian)
+			}
 		}
 	}
 
-	jm.StatisticsSeries = &StatsSeries{Mean: mean, Min: min, Max: max}
+	jm.StatisticsSeries = &StatsSeries{Median: median, Min: min, Max: max} // Mean: mean
 }
 
 func (jd *JobData) AddNodeScope(metric string) bool {
@@ -204,7 +236,7 @@ func (jd *JobData) AddNodeScope(metric string) bool {
 		return false
 	}
 
-	var maxScope MetricScope = MetricScopeInvalid
+	maxScope := MetricScopeInvalid
 	for scope := range scopes {
 		maxScope = maxScope.Max(scope)
 	}
@@ -264,6 +296,21 @@ func (jd *JobData) AddNodeScope(metric string) bool {
 
 	scopes[MetricScopeNode] = nodeJm
 	return true
+}
+
+func (jd *JobData) RoundMetricStats() {
+	// TODO: Make Digit-Precision Configurable? (Currently: Fixed to 2 Digits)
+	for _, scopes := range *jd {
+		for _, jm := range scopes {
+			for index := range jm.Series {
+				jm.Series[index].Statistics = MetricStatistics{
+					Avg: (math.Round(jm.Series[index].Statistics.Avg*100) / 100),
+					Min: (math.Round(jm.Series[index].Statistics.Min*100) / 100),
+					Max: (math.Round(jm.Series[index].Statistics.Max*100) / 100),
+				}
+			}
+		}
+	}
 }
 
 func (jm *JobMetric) AddPercentiles(ps []int) bool {

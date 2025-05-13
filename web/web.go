@@ -13,6 +13,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/util"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
@@ -25,8 +26,7 @@ var frontendFiles embed.FS
 func ServeFiles() http.Handler {
 	publicFiles, err := fs.Sub(frontendFiles, "frontend/public")
 	if err != nil {
-		log.Fatalf("WEB/WEB > cannot find frontend public files")
-		panic(err)
+		log.Abortf("Serve Files: Could not find 'frontend/public' file directory.\nError: %s\n", err.Error())
 	}
 	return http.FileServer(http.FS(publicFiles))
 }
@@ -74,8 +74,7 @@ func init() {
 		templates[strings.TrimPrefix(path, "templates/")] = template.Must(template.Must(base.Clone()).ParseFS(templateFiles, path))
 		return nil
 	}); err != nil {
-		log.Fatalf("WEB/WEB > cannot find frontend template files")
-		panic(err)
+		log.Abortf("Web init(): Could not find frontend template files.\nError: %s\n", err.Error())
 	}
 
 	_ = base
@@ -95,9 +94,12 @@ type Page struct {
 	Roles         map[string]schema.Role // Available roles for frontend render checks
 	Build         Build                  // Latest information about the application
 	Clusters      []schema.ClusterConfig // List of all clusters for use in the Header
+	SubClusters   map[string][]string    // Map per cluster of all subClusters for use in the Header
 	FilterPresets map[string]interface{} // For pages with the Filter component, this can be used to set initial filters.
 	Infos         map[string]interface{} // For generic use (e.g. username for /monitoring/user/<id>, job id for /monitoring/job/<id>)
 	Config        map[string]interface{} // UI settings for the currently logged in user (e.g. line width, ...)
+	Resampling    *schema.ResampleConfig // If not nil, defines resampling trigger and resolutions
+	Redirect      string                 // The originally requested URL, for intermediate login handling
 }
 
 func RenderTemplate(rw http.ResponseWriter, file string, page *Page) {
@@ -109,6 +111,15 @@ func RenderTemplate(rw http.ResponseWriter, file string, page *Page) {
 	if page.Clusters == nil {
 		for _, c := range config.Keys.Clusters {
 			page.Clusters = append(page.Clusters, schema.ClusterConfig{Name: c.Name, FilterRanges: c.FilterRanges, MetricDataRepository: nil})
+		}
+	}
+
+	if page.SubClusters == nil {
+		page.SubClusters = make(map[string][]string)
+		for _, cluster := range archive.Clusters {
+			for _, sc := range cluster.SubClusters {
+				page.SubClusters[cluster.Name] = append(page.SubClusters[cluster.Name], sc.Name)
+			}
 		}
 	}
 

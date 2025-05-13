@@ -1,4 +1,3 @@
-basePath: /api
 definitions:
   api.ApiReturnedUser:
     properties:
@@ -23,9 +22,18 @@ definitions:
         description: Tag Name
         example: Testjob
         type: string
+      scope:
+        description: Tag Scope for Frontend Display
+        example: global
+        type: string
       type:
         description: Tag Type
         example: Debug
+        type: string
+    type: object
+  api.DefaultJobApiResponse:
+    properties:
+      msg:
         type: string
     type: object
   api.DeleteJobApiRequest:
@@ -44,11 +52,6 @@ definitions:
         type: integer
     required:
     - jobId
-    type: object
-  api.DeleteJobApiResponse:
-    properties:
-      msg:
-        type: string
     type: object
   api.EditMetaRequest:
     properties:
@@ -108,33 +111,22 @@ definitions:
       scope:
         $ref: '#/definitions/schema.MetricScope'
     type: object
-  api.StartJobApiResponse:
-    properties:
-      id:
-        description: Database ID of new job
-        type: integer
-    type: object
   api.StopJobApiRequest:
     properties:
       cluster:
-        description: Cluster of job
         example: fritz
         type: string
       jobId:
-        description: Cluster Job ID of job
         example: 123000
         type: integer
       jobState:
         allOf:
         - $ref: '#/definitions/schema.JobState'
-        description: Final job state
         example: completed
       startTime:
-        description: Start Time of job as epoch
         example: 1649723812
         type: integer
       stopTime:
-        description: Stop Time of job as epoch
         example: 1649763839
         type: integer
     required:
@@ -167,42 +159,40 @@ definitions:
     description: Information of a HPC job.
     properties:
       arrayJobId:
-        description: The unique identifier of an array job
         example: 123000
         type: integer
       cluster:
-        description: The unique identifier of a cluster
         example: fritz
         type: string
       concurrentJobs:
         $ref: '#/definitions/schema.JobLinkResultList'
       duration:
-        description: Duration of job in seconds (Min > 0)
         example: 43200
         minimum: 1
         type: integer
+      energy:
+        type: number
+      energyFootprint:
+        additionalProperties:
+          type: number
+        type: object
       exclusive:
-        description: 'Specifies how nodes are shared: 0 - Shared among multiple jobs
-          of multiple users, 1 - Job exclusive (Default), 2 - Shared among multiple
-          jobs of same user'
         example: 1
         maximum: 2
         minimum: 0
         type: integer
-      flopsAnyAvg:
-        description: FlopsAnyAvg as Float64
-        type: number
+      footprint:
+        additionalProperties:
+          type: number
+        type: object
       id:
-        description: The unique identifier of a job in the database
         type: integer
       jobId:
-        description: The unique identifier of a job
         example: 123000
         type: integer
       jobState:
         allOf:
         - $ref: '#/definitions/schema.JobState'
-        description: Final state of job
         enum:
         - completed
         - failed
@@ -211,79 +201,53 @@ definitions:
         - timeout
         - out_of_memory
         example: completed
-      loadAvg:
-        description: LoadAvg as Float64
-        type: number
-      memBwAvg:
-        description: MemBwAvg as Float64
-        type: number
-      memUsedMax:
-        description: MemUsedMax as Float64
-        type: number
       metaData:
         additionalProperties:
           type: string
-        description: Additional information about the job
         type: object
       monitoringStatus:
-        description: 'State of monitoring system during job run: 0 - Disabled, 1 -
-          Running or Archiving (Default), 2 - Archiving Failed, 3 - Archiving Successfull'
         example: 1
         maximum: 3
         minimum: 0
         type: integer
       numAcc:
-        description: Number of accelerators used (Min > 0)
         example: 2
         minimum: 1
         type: integer
       numHwthreads:
-        description: NumCores         int32             `json:"numCores" db:"num_cores"
-          example:"20" minimum:"1"`                                                             //
-          Number of HWThreads used (Min > 0)
         example: 20
         minimum: 1
         type: integer
       numNodes:
-        description: Number of nodes used (Min > 0)
         example: 2
         minimum: 1
         type: integer
       partition:
-        description: The Slurm partition to which the job was submitted
         example: main
         type: string
       project:
-        description: The unique identifier of a project
         example: abcd200
         type: string
       resources:
-        description: Resources used by job
         items:
           $ref: '#/definitions/schema.Resource'
         type: array
       smt:
-        description: SMT threads used by job
         example: 4
         type: integer
       startTime:
-        description: Start time as 'time.Time' data type
         type: string
       subCluster:
-        description: The unique identifier of a sub cluster
         example: main
         type: string
       tags:
-        description: List of tags
         items:
           $ref: '#/definitions/schema.Tag'
         type: array
       user:
-        description: The unique identifier of a user
         example: abcd100h
         type: string
       walltime:
-        description: Requested walltime of job in seconds (Min > 0)
         example: 86400
         minimum: 1
         type: integer
@@ -308,39 +272,40 @@ definitions:
     description: Meta data information of a HPC job.
     properties:
       arrayJobId:
-        description: The unique identifier of an array job
         example: 123000
         type: integer
       cluster:
-        description: The unique identifier of a cluster
         example: fritz
         type: string
       concurrentJobs:
         $ref: '#/definitions/schema.JobLinkResultList'
       duration:
-        description: Duration of job in seconds (Min > 0)
         example: 43200
         minimum: 1
         type: integer
+      energy:
+        type: number
+      energyFootprint:
+        additionalProperties:
+          type: number
+        type: object
       exclusive:
-        description: 'Specifies how nodes are shared: 0 - Shared among multiple jobs
-          of multiple users, 1 - Job exclusive (Default), 2 - Shared among multiple
-          jobs of same user'
         example: 1
         maximum: 2
         minimum: 0
         type: integer
+      footprint:
+        additionalProperties:
+          type: number
+        type: object
       id:
-        description: The unique identifier of a job in the database
         type: integer
       jobId:
-        description: The unique identifier of a job
         example: 123000
         type: integer
       jobState:
         allOf:
         - $ref: '#/definitions/schema.JobState'
-        description: Final state of job
         enum:
         - completed
         - failed
@@ -352,74 +317,56 @@ definitions:
       metaData:
         additionalProperties:
           type: string
-        description: Additional information about the job
         type: object
       monitoringStatus:
-        description: 'State of monitoring system during job run: 0 - Disabled, 1 -
-          Running or Archiving (Default), 2 - Archiving Failed, 3 - Archiving Successfull'
         example: 1
         maximum: 3
         minimum: 0
         type: integer
       numAcc:
-        description: Number of accelerators used (Min > 0)
         example: 2
         minimum: 1
         type: integer
       numHwthreads:
-        description: NumCores         int32             `json:"numCores" db:"num_cores"
-          example:"20" minimum:"1"`                                                             //
-          Number of HWThreads used (Min > 0)
         example: 20
         minimum: 1
         type: integer
       numNodes:
-        description: Number of nodes used (Min > 0)
         example: 2
         minimum: 1
         type: integer
       partition:
-        description: The Slurm partition to which the job was submitted
         example: main
         type: string
       project:
-        description: The unique identifier of a project
         example: abcd200
         type: string
       resources:
-        description: Resources used by job
         items:
           $ref: '#/definitions/schema.Resource'
         type: array
       smt:
-        description: SMT threads used by job
         example: 4
         type: integer
       startTime:
-        description: Start epoch time stamp in seconds (Min > 0)
         example: 1649723812
         minimum: 1
         type: integer
       statistics:
         additionalProperties:
           $ref: '#/definitions/schema.JobStatistics'
-        description: Metric statistics of job
         type: object
       subCluster:
-        description: The unique identifier of a sub cluster
         example: main
         type: string
       tags:
-        description: List of tags
         items:
           $ref: '#/definitions/schema.Tag'
         type: array
       user:
-        description: The unique identifier of a user
         example: abcd100h
         type: string
       walltime:
-        description: Requested walltime of job in seconds (Min > 0)
         example: 86400
         minimum: 1
         type: integer
@@ -486,6 +433,12 @@ definitions:
         type: number
       caution:
         type: number
+      energy:
+        type: string
+      footprint:
+        type: string
+      lowerIsBetter:
+        type: boolean
       name:
         type: string
       normal:
@@ -541,18 +494,14 @@ definitions:
     description: A resource used by a job
     properties:
       accelerators:
-        description: List of of accelerator device ids
         items:
           type: string
         type: array
       configuration:
-        description: The configuration options of the node
         type: string
       hostname:
-        description: Name of the host (= node)
         type: string
       hwthreads:
-        description: List of OS processor ids
         items:
           type: integer
         type: array
@@ -580,6 +529,10 @@ definitions:
         items:
           type: number
         type: array
+      median:
+        items:
+          type: number
+        type: array
       min:
         items:
           type: number
@@ -595,12 +548,24 @@ definitions:
     properties:
       coresPerSocket:
         type: integer
+      energyFootprint:
+        items:
+          type: string
+        type: array
       flopRateScalar:
         $ref: '#/definitions/schema.MetricValue'
       flopRateSimd:
         $ref: '#/definitions/schema.MetricValue'
+      footprint:
+        items:
+          type: string
+        type: array
       memoryBandwidth:
         $ref: '#/definitions/schema.MetricValue'
+      metricConfig:
+        items:
+          $ref: '#/definitions/schema.MetricConfig'
+        type: array
       name:
         type: string
       nodes:
@@ -620,6 +585,12 @@ definitions:
         type: number
       caution:
         type: number
+      energy:
+        type: string
+      footprint:
+        type: string
+      lowerIsBetter:
+        type: boolean
       name:
         type: string
       normal:
@@ -633,14 +604,14 @@ definitions:
     description: Defines a tag using name and type.
     properties:
       id:
-        description: The unique DB identifier of a tag
         type: integer
       name:
-        description: Tag Name
         example: Testjob
         type: string
+      scope:
+        example: global
+        type: string
       type:
-        description: Tag Type
         example: Debug
         type: string
     type: object
@@ -699,7 +670,7 @@ info:
   title: ClusterCockpit REST API
   version: 1.0.0
 paths:
-  /clusters/:
+  /api/clusters/:
     get:
       description: Get a list of all cluster configs. Specific cluster can be requested
         using query parameter.
@@ -736,7 +707,7 @@ paths:
       summary: Lists all cluster configs
       tags:
       - Cluster query
-  /jobs/:
+  /api/jobs/:
     get:
       description: |-
         Get a list of all jobs. Filters can be applied using query parameters.
@@ -801,7 +772,7 @@ paths:
       summary: Lists all jobs
       tags:
       - Job query
-  /jobs/{id}:
+  /api/jobs/{id}:
     get:
       description: |-
         Job to get is specified by database ID
@@ -910,7 +881,7 @@ paths:
       summary: Get job meta and configurable metric data
       tags:
       - Job query
-  /jobs/delete_job/:
+  /api/jobs/delete_job/:
     delete:
       consumes:
       - application/json
@@ -929,7 +900,7 @@ paths:
         "200":
           description: Success message
           schema:
-            $ref: '#/definitions/api.DeleteJobApiResponse'
+            $ref: '#/definitions/api.DefaultJobApiResponse'
         "400":
           description: Bad Request
           schema:
@@ -960,7 +931,7 @@ paths:
       summary: Remove a job from the sql database
       tags:
       - Job remove
-  /jobs/delete_job/{id}:
+  /api/jobs/delete_job/{id}:
     delete:
       description: Job to remove is specified by database ID. This will not remove
         the job from the job archive.
@@ -976,7 +947,7 @@ paths:
         "200":
           description: Success message
           schema:
-            $ref: '#/definitions/api.DeleteJobApiResponse'
+            $ref: '#/definitions/api.DefaultJobApiResponse'
         "400":
           description: Bad Request
           schema:
@@ -1007,7 +978,7 @@ paths:
       summary: Remove a job from the sql database
       tags:
       - Job remove
-  /jobs/delete_job_before/{ts}:
+  /api/jobs/delete_job_before/{ts}:
     delete:
       description: Remove all jobs with start time before timestamp. The jobs will
         not be removed from the job archive.
@@ -1023,7 +994,7 @@ paths:
         "200":
           description: Success message
           schema:
-            $ref: '#/definitions/api.DeleteJobApiResponse'
+            $ref: '#/definitions/api.DefaultJobApiResponse'
         "400":
           description: Bad Request
           schema:
@@ -1054,7 +1025,7 @@ paths:
       summary: Remove a job from the sql database
       tags:
       - Job remove
-  /jobs/edit_meta/{id}:
+  /api/jobs/edit_meta/{id}:
     post:
       consumes:
       - application/json
@@ -1101,7 +1072,7 @@ paths:
       summary: Edit meta-data json
       tags:
       - Job add and modify
-  /jobs/start_job/:
+  /api/jobs/start_job/:
     post:
       consumes:
       - application/json
@@ -1121,7 +1092,7 @@ paths:
         "201":
           description: Job added successfully
           schema:
-            $ref: '#/definitions/api.StartJobApiResponse'
+            $ref: '#/definitions/api.DefaultJobApiResponse'
         "400":
           description: Bad Request
           schema:
@@ -1148,7 +1119,7 @@ paths:
       summary: Adds a new job as "running"
       tags:
       - Job add and modify
-  /jobs/stop_job/:
+  /api/jobs/stop_job/:
     post:
       description: |-
         Job to stop is specified by request body. All fields are required in this case.
@@ -1184,8 +1155,7 @@ paths:
           schema:
             $ref: '#/definitions/api.ErrorResponse'
         "422":
-          description: 'Unprocessable Entity: finding job failed: sql: no rows in
-            result set'
+          description: 'Unprocessable Entity: job has already been stopped'
           schema:
             $ref: '#/definitions/api.ErrorResponse'
         "500":
@@ -1197,68 +1167,13 @@ paths:
       summary: Marks job as completed and triggers archiving
       tags:
       - Job add and modify
-  /jobs/stop_job/{id}:
-    post:
-      consumes:
-      - application/json
-      description: |-
-        Job to stop is specified by database ID. Only stopTime and final state are required in request body.
-        Returns full job resource information according to 'JobMeta' scheme.
-      parameters:
-      - description: Database ID of Job
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: stopTime and final state in request body
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/api.StopJobApiRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Job resource
-          schema:
-            $ref: '#/definitions/schema.JobMeta'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "404":
-          description: Resource not found
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "422":
-          description: 'Unprocessable Entity: finding job failed: sql: no rows in
-            result set'
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Marks job as completed and triggers archiving
-      tags:
-      - Job add and modify
-  /jobs/tag_job/{id}:
+  /api/jobs/tag_job/{id}:
     post:
       consumes:
       - application/json
       description: |-
         Adds tag(s) to a job specified by DB ID. Name and Type of Tag(s) can be chosen freely.
+        Tag Scope for frontend visibility will default to "global" if none entered, other options: "admin" or specific username.
         If tagged job is already finished: Tag will be written directly to respective archive files.
       parameters:
       - description: Job Database ID
@@ -1302,128 +1217,11 @@ paths:
       summary: Adds one or more tags to a job
       tags:
       - Job add and modify
-  /user/{id}:
-    post:
-      consumes:
-      - multipart/form-data
-      description: |-
-        Modifies user defined by username (id) in one of four possible ways.
-        If more than one formValue is set then only the highest priority field is used.
-        Only accessible from IPs registered with apiAllowedIPs configuration option.
-      parameters:
-      - description: Database ID of User
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: 'Priority 1: Role to add'
-        enum:
-        - admin
-        - support
-        - manager
-        - user
-        - api
-        in: formData
-        name: add-role
-        type: string
-      - description: 'Priority 2: Role to remove'
-        enum:
-        - admin
-        - support
-        - manager
-        - user
-        - api
-        in: formData
-        name: remove-role
-        type: string
-      - description: 'Priority 3: Project to add'
-        in: formData
-        name: add-project
-        type: string
-      - description: 'Priority 4: Project to remove'
-        in: formData
-        name: remove-project
-        type: string
-      produces:
-      - text/plain
-      responses:
-        "200":
-          description: Success Response Message
-          schema:
-            type: string
-        "400":
-          description: Bad Request
-          schema:
-            type: string
-        "401":
-          description: Unauthorized
-          schema:
-            type: string
-        "403":
-          description: Forbidden
-          schema:
-            type: string
-        "422":
-          description: 'Unprocessable Entity: The user could not be updated'
-          schema:
-            type: string
-        "500":
-          description: Internal Server Error
-          schema:
-            type: string
-      security:
-      - ApiKeyAuth: []
-      summary: Updates an existing user
-      tags:
-      - User
-  /users/:
-    delete:
-      consumes:
-      - multipart/form-data
-      description: |-
-        User defined by username in form data will be deleted from database.
-        Only accessible from IPs registered with apiAllowedIPs configuration option.
-      parameters:
-      - description: User ID to delete
-        in: formData
-        name: username
-        required: true
-        type: string
-      produces:
-      - text/plain
-      responses:
-        "200":
-          description: User deleted successfully
-        "400":
-          description: Bad Request
-          schema:
-            type: string
-        "401":
-          description: Unauthorized
-          schema:
-            type: string
-        "403":
-          description: Forbidden
-          schema:
-            type: string
-        "422":
-          description: 'Unprocessable Entity: deleting user failed'
-          schema:
-            type: string
-        "500":
-          description: Internal Server Error
-          schema:
-            type: string
-      security:
-      - ApiKeyAuth: []
-      summary: Deletes a user
-      tags:
-      - User
+  /api/users/:
     get:
       description: |-
         Returns a JSON-encoded list of users.
         Required query-parameter defines if all users or only users with additional special roles are returned.
-        Only accessible from IPs registered with apiAllowedIPs configuration option.
       parameters:
       - description: If returned list should contain all users or only users with
           additional special roles
@@ -1461,46 +1259,73 @@ paths:
       summary: Returns a list of users
       tags:
       - User
-    post:
+  /jobs/tag_job/{id}:
+    delete:
       consumes:
-      - multipart/form-data
+      - application/json
       description: |-
-        User specified in form data will be saved to database.
-        Only accessible from IPs registered with apiAllowedIPs configuration option.
+        Removes tag(s) from a job specified by DB ID. Name and Type of Tag(s) must match.
+        Tag Scope is required for matching, options: "global", "admin". Private tags can not be deleted via API.
+        If tagged job is already finished: Tag will be removed from respective archive files.
       parameters:
-      - description: Unique user ID
-        in: formData
-        name: username
+      - description: Job Database ID
+        in: path
+        name: id
         required: true
-        type: string
-      - description: User password
-        in: formData
-        name: password
+        type: integer
+      - description: Array of tag-objects to remove
+        in: body
+        name: request
         required: true
-        type: string
-      - description: User role
-        enum:
-        - admin
-        - support
-        - manager
-        - user
-        - api
-        in: formData
-        name: role
+        schema:
+          items:
+            $ref: '#/definitions/api.ApiTag'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated job resource
+          schema:
+            $ref: '#/definitions/schema.Job'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Job or tag does not exist
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Removes one or more tags from a job
+      tags:
+      - Job add and modify
+  /tags/:
+    delete:
+      consumes:
+      - application/json
+      description: |-
+        Removes tags by type and name. Name and Type of Tag(s) must match.
+        Tag Scope is required for matching, options: "global", "admin". Private tags can not be deleted via API.
+        Tag wills be removed from respective archive files.
+      parameters:
+      - description: Array of tag-objects to remove
+        in: body
+        name: request
         required: true
-        type: string
-      - description: Managed project, required for new manager role user
-        in: formData
-        name: project
-        type: string
-      - description: Users name
-        in: formData
-        name: name
-        type: string
-      - description: Users email
-        in: formData
-        name: email
-        type: string
+        schema:
+          items:
+            $ref: '#/definitions/api.ApiTag'
+          type: array
       produces:
       - text/plain
       responses:
@@ -1511,28 +1336,24 @@ paths:
         "400":
           description: Bad Request
           schema:
-            type: string
+            $ref: '#/definitions/api.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            type: string
-        "403":
-          description: Forbidden
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Job or tag does not exist
           schema:
-            type: string
-        "422":
-          description: 'Unprocessable Entity: creating user failed'
-          schema:
-            type: string
+            $ref: '#/definitions/api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            type: string
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - ApiKeyAuth: []
-      summary: Adds a new user
+      summary: Removes all tags and job-relations for type:name tuple
       tags:
-      - User
+      - Tag remove
 securityDefinitions:
   ApiKeyAuth:
     in: header

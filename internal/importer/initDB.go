@@ -7,6 +7,7 @@ package importer
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -14,6 +15,11 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+)
+
+const (
+	addTagQuery = "INSERT INTO tag (tag_name, tag_type) VALUES (?, ?)"
+	setTagQuery = "INSERT INTO jobtag (job_id, tag_id) VALUES (?, ?)"
 )
 
 // Delete the tables "job", "tag" and "jobtag" from the database and
@@ -60,13 +66,66 @@ func InitDB() error {
 			StartTimeUnix: jobMeta.StartTime,
 		}
 
-		// TODO: Other metrics...
-		job.LoadAvg = loadJobStat(jobMeta, "cpu_load")
-		job.FlopsAnyAvg = loadJobStat(jobMeta, "flops_any")
-		job.MemUsedMax = loadJobStat(jobMeta, "mem_used")
-		job.MemBwAvg = loadJobStat(jobMeta, "mem_bw")
-		job.NetBwAvg = loadJobStat(jobMeta, "net_bw")
-		job.FileBwAvg = loadJobStat(jobMeta, "file_bw")
+		sc, err := archive.GetSubCluster(jobMeta.Cluster, jobMeta.SubCluster)
+		if err != nil {
+			log.Errorf("cannot get subcluster: %s", err.Error())
+			return err
+		}
+
+		job.Footprint = make(map[string]float64)
+
+		for _, fp := range sc.Footprint {
+			statType := "avg"
+
+			if i, err := archive.MetricIndex(sc.MetricConfig, fp); err != nil {
+				statType = sc.MetricConfig[i].Footprint
+			}
+
+			name := fmt.Sprintf("%s_%s", fp, statType)
+
+			job.Footprint[name] = repository.LoadJobStat(jobMeta, fp, statType)
+		}
+
+		job.RawFootprint, err = json.Marshal(job.Footprint)
+		if err != nil {
+			log.Warn("Error while marshaling job footprint")
+			return err
+		}
+
+		job.EnergyFootprint = make(map[string]float64)
+
+		// Total Job Energy Outside Loop
+		totalEnergy := 0.0
+		for _, fp := range sc.EnergyFootprint {
+			// Always Init Metric Energy Inside Loop
+			metricEnergy := 0.0
+			if i, err := archive.MetricIndex(sc.MetricConfig, fp); err == nil {
+				// Note: For DB data, calculate and save as kWh
+				if sc.MetricConfig[i].Energy == "energy" { // this metric has energy as unit (Joules)
+					log.Warnf("Update EnergyFootprint for Job %d and Metric %s on cluster %s: Set to 'energy' in cluster.json: Not implemented, will return 0.0", jobMeta.JobID, jobMeta.Cluster, fp)
+					// FIXME: Needs sum as stats type
+				} else if sc.MetricConfig[i].Energy == "power" { // this metric has power as unit (Watt)
+					// Energy: Power (in Watts) * Time (in Seconds)
+					// Unit: (W * (s / 3600)) / 1000 = kWh
+					// Round 2 Digits: round(Energy * 100) / 100
+					// Here: (All-Node Metric Average * Number of Nodes) * (Job Duration in Seconds / 3600) / 1000
+					// Note: Shared Jobs handled correctly since "Node Average" is based on partial resources, while "numNodes" factor is 1
+					rawEnergy := ((repository.LoadJobStat(jobMeta, fp, "avg") * float64(jobMeta.NumNodes)) * (float64(jobMeta.Duration) / 3600.0)) / 1000.0
+					metricEnergy = math.Round(rawEnergy*100.0) / 100.0
+				}
+			} else {
+				log.Warnf("Error while collecting energy metric %s for job, DB ID '%v', return '0.0'", fp, jobMeta.ID)
+			}
+
+			job.EnergyFootprint[fp] = metricEnergy
+			totalEnergy += metricEnergy
+		}
+
+		job.Energy = (math.Round(totalEnergy*100.0) / 100.0)
+		if job.RawEnergyFootprint, err = json.Marshal(job.EnergyFootprint); err != nil {
+			log.Warnf("Error while marshaling energy footprint for job INTO BYTES, DB ID '%v'", jobMeta.ID)
+			return err
+		}
 
 		job.RawResources, err = json.Marshal(job.Resources)
 		if err != nil {
@@ -88,7 +147,8 @@ func InitDB() error {
 			continue
 		}
 
-		id, err := r.TransactionAdd(t, job)
+		id, err := r.TransactionAddNamed(t,
+			repository.NamedJobInsert, job)
 		if err != nil {
 			log.Errorf("repository initDB(): %v", err)
 			errorOccured++
@@ -99,7 +159,9 @@ func InitDB() error {
 			tagstr := tag.Name + ":" + tag.Type
 			tagId, ok := tags[tagstr]
 			if !ok {
-				tagId, err = r.TransactionAddTag(t, tag)
+				tagId, err = r.TransactionAdd(t,
+					addTagQuery,
+					tag.Name, tag.Type)
 				if err != nil {
 					log.Errorf("Error adding tag: %v", err)
 					errorOccured++
@@ -108,7 +170,9 @@ func InitDB() error {
 				tags[tagstr] = tagId
 			}
 
-			r.TransactionSetTag(t, id, tagId)
+			r.TransactionAdd(t,
+				setTagQuery,
+				id, tagId)
 		}
 
 		if err == nil {
@@ -148,18 +212,6 @@ func SanityChecks(job *schema.BaseJob) error {
 	}
 
 	return nil
-}
-
-func loadJobStat(job *schema.JobMeta, metric string) float64 {
-	if stats, ok := job.Statistics[metric]; ok {
-		if metric == "mem_used" {
-			return stats.Max
-		} else {
-			return stats.Avg
-		}
-	}
-
-	return 0.0
 }
 
 func checkJobData(d *schema.JobData) error {

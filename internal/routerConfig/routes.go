@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/util"
@@ -34,32 +35,38 @@ type Route struct {
 
 var routes []Route = []Route{
 	{"/", "home.tmpl", "ClusterCockpit", false, setupHomeRoute},
-	{"/config", "config.tmpl", "Settings", false, func(i InfoType, r *http.Request) InfoType { return i }},
+	{"/config", "config.tmpl", "Settings", false, setupConfigRoute},
 	{"/monitoring/jobs/", "monitoring/jobs.tmpl", "Jobs - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { return i }},
 	{"/monitoring/job/{id:[0-9]+}", "monitoring/job.tmpl", "Job <ID> - ClusterCockpit", false, setupJobRoute},
 	{"/monitoring/users/", "monitoring/list.tmpl", "Users - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { i["listType"] = "USER"; return i }},
 	{"/monitoring/projects/", "monitoring/list.tmpl", "Projects - ClusterCockpit", true, func(i InfoType, r *http.Request) InfoType { i["listType"] = "PROJECT"; return i }},
 	{"/monitoring/tags/", "monitoring/taglist.tmpl", "Tags - ClusterCockpit", false, setupTaglistRoute},
 	{"/monitoring/user/{id}", "monitoring/user.tmpl", "User <ID> - ClusterCockpit", true, setupUserRoute},
-	{"/monitoring/systems/{cluster}", "monitoring/systems.tmpl", "Cluster <ID> - ClusterCockpit", false, setupClusterRoute},
+	{"/monitoring/systems/{cluster}", "monitoring/systems.tmpl", "Cluster <ID> Node Overview - ClusterCockpit", false, setupClusterOverviewRoute},
+	{"/monitoring/systems/list/{cluster}", "monitoring/systems.tmpl", "Cluster <ID> Node List - ClusterCockpit", false, setupClusterListRoute},
+	{"/monitoring/systems/list/{cluster}/{subcluster}", "monitoring/systems.tmpl", "Cluster <ID> <SID> Node List - ClusterCockpit", false, setupClusterListRoute},
 	{"/monitoring/node/{cluster}/{hostname}", "monitoring/node.tmpl", "Node <ID> - ClusterCockpit", false, setupNodeRoute},
 	{"/monitoring/analysis/{cluster}", "monitoring/analysis.tmpl", "Analysis - ClusterCockpit", true, setupAnalysisRoute},
-	{"/monitoring/status/{cluster}", "monitoring/status.tmpl", "Status of <ID> - ClusterCockpit", false, setupClusterRoute},
+	{"/monitoring/status/{cluster}", "monitoring/status.tmpl", "Status of <ID> - ClusterCockpit", false, setupClusterStatusRoute},
 }
 
 func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 	jobRepo := repository.GetJobRepository()
 	groupBy := model.AggregateCluster
 
+	// startJobCount := time.Now()
 	stats, err := jobRepo.JobCountGrouped(r.Context(), nil, &groupBy)
 	if err != nil {
 		log.Warnf("failed to count jobs: %s", err.Error())
 	}
+	// log.Infof("Timer HOME ROUTE startJobCount: %s", time.Since(startJobCount))
 
+	// startRunningJobCount := time.Now()
 	stats, err = jobRepo.AddJobCountGrouped(r.Context(), nil, &groupBy, stats, "running")
 	if err != nil {
 		log.Warnf("failed to count running jobs: %s", err.Error())
 	}
+	// log.Infof("Timer HOME ROUTE startRunningJobCount: %s", time.Since(startRunningJobCount))
 
 	i["clusters"] = stats
 
@@ -75,8 +82,22 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 	return i
 }
 
+func setupConfigRoute(i InfoType, r *http.Request) InfoType {
+	if util.CheckFileExists("./var/notice.txt") {
+		msg, err := os.ReadFile("./var/notice.txt")
+		if err == nil {
+			i["ncontent"] = string(msg)
+		}
+	}
+
+	return i
+}
+
 func setupJobRoute(i InfoType, r *http.Request) InfoType {
 	i["id"] = mux.Vars(r)["id"]
+	if config.Keys.EmissionConstant != 0 {
+		i["emission"] = config.Keys.EmissionConstant
+	}
 	return i
 }
 
@@ -92,10 +113,40 @@ func setupUserRoute(i InfoType, r *http.Request) InfoType {
 	return i
 }
 
-func setupClusterRoute(i InfoType, r *http.Request) InfoType {
+func setupClusterStatusRoute(i InfoType, r *http.Request) InfoType {
 	vars := mux.Vars(r)
 	i["id"] = vars["cluster"]
 	i["cluster"] = vars["cluster"]
+	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
+	if from != "" || to != "" {
+		i["from"] = from
+		i["to"] = to
+	}
+	return i
+}
+
+func setupClusterOverviewRoute(i InfoType, r *http.Request) InfoType {
+	vars := mux.Vars(r)
+	i["id"] = vars["cluster"]
+	i["cluster"] = vars["cluster"]
+	i["displayType"] = "OVERVIEW"
+
+	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
+	if from != "" || to != "" {
+		i["from"] = from
+		i["to"] = to
+	}
+	return i
+}
+
+func setupClusterListRoute(i InfoType, r *http.Request) InfoType {
+	vars := mux.Vars(r)
+	i["id"] = vars["cluster"]
+	i["cluster"] = vars["cluster"]
+	i["sid"] = vars["subcluster"]
+	i["subCluster"] = vars["subcluster"]
+	i["displayType"] = "LIST"
+
 	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
 	if from != "" || to != "" {
 		i["from"] = from
@@ -124,28 +175,46 @@ func setupAnalysisRoute(i InfoType, r *http.Request) InfoType {
 
 func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 	jobRepo := repository.GetJobRepository()
-	user := repository.GetUserFromContext(r.Context())
-
-	tags, counts, err := jobRepo.CountTags(user)
+	tags, counts, err := jobRepo.CountTags(repository.GetUserFromContext(r.Context()))
 	tagMap := make(map[string][]map[string]interface{})
 	if err != nil {
 		log.Warnf("GetTags failed: %s", err.Error())
 		i["tagmap"] = tagMap
 		return i
 	}
-
-	for _, tag := range tags {
-		tagItem := map[string]interface{}{
-			"id":    tag.ID,
-			"name":  tag.Name,
-			"count": counts[tag.Name],
+	// Reduces displayed tags for unauth'd users
+	userAuthlevel := repository.GetUserFromContext(r.Context()).GetAuthLevel()
+	// Uses tag.ID as second Map-Key component to differentiate tags with identical names
+	if userAuthlevel >= 4 { // Support+ : Show tags for all scopes, regardless of count
+		for _, tag := range tags {
+			tagItem := map[string]interface{}{
+				"id":    tag.ID,
+				"name":  tag.Name,
+				"scope": tag.Scope,
+				"count": counts[fmt.Sprint(tag.Name, tag.ID)],
+			}
+			tagMap[tag.Type] = append(tagMap[tag.Type], tagItem)
 		}
-		tagMap[tag.Type] = append(tagMap[tag.Type], tagItem)
-	}
+	} else if userAuthlevel < 4 && userAuthlevel >= 2 { // User+ : Show global and admin scope only if at least 1 tag used, private scope regardless of count
+		for _, tag := range tags {
+			tagCount := counts[fmt.Sprint(tag.Name, tag.ID)]
+			if ((tag.Scope == "global" || tag.Scope == "admin") && tagCount >= 1) || (tag.Scope != "global" && tag.Scope != "admin") {
+				tagItem := map[string]interface{}{
+					"id":    tag.ID,
+					"name":  tag.Name,
+					"scope": tag.Scope,
+					"count": tagCount,
+				}
+				tagMap[tag.Type] = append(tagMap[tag.Type], tagItem)
+			}
+		}
+	} // auth < 2 return nothing for this route
+
 	i["tagmap"] = tagMap
 	return i
 }
 
+// FIXME: Lots of redundant code. Needs refactoring
 func buildFilterPresets(query url.Values) map[string]interface{} {
 	filterPresets := map[string]interface{}{}
 
@@ -208,6 +277,16 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 			}
 		}
 	}
+	if query.Get("numHWThreads") != "" {
+		parts := strings.Split(query.Get("numHWThreads"), "-")
+		if len(parts) == 2 {
+			a, e1 := strconv.Atoi(parts[0])
+			b, e2 := strconv.Atoi(parts[1])
+			if e1 == nil && e2 == nil {
+				filterPresets["numHWThreads"] = map[string]int{"from": a, "to": b}
+			}
+		}
+	}
 	if query.Get("numAccelerators") != "" {
 		parts := strings.Split(query.Get("numAccelerators"), "-")
 		if len(parts) == 2 {
@@ -217,6 +296,9 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 				filterPresets["numAccelerators"] = map[string]int{"from": a, "to": b}
 			}
 		}
+	}
+	if len(query["dbId"]) != 0 {
+		filterPresets["dbId"] = query["dbId"]
 	}
 	if query.Get("jobId") != "" {
 		if len(query["jobId"]) == 1 {
@@ -234,7 +316,7 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 	}
 	if query.Get("startTime") != "" {
 		parts := strings.Split(query.Get("startTime"), "-")
-		if len(parts) == 2 {
+		if len(parts) == 2 { // Time in seconds, from - to
 			a, e1 := strconv.ParseInt(parts[0], 10, 64)
 			b, e2 := strconv.ParseInt(parts[1], 10, 64)
 			if e1 == nil && e2 == nil {
@@ -243,9 +325,41 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 					"to":   time.Unix(b, 0).Format(time.RFC3339),
 				}
 			}
+		} else { // named range
+			filterPresets["startTime"] = map[string]string{
+				"range": query.Get("startTime"),
+			}
 		}
 	}
-
+	if query.Get("energy") != "" {
+		parts := strings.Split(query.Get("energy"), "-")
+		if len(parts) == 2 {
+			a, e1 := strconv.Atoi(parts[0])
+			b, e2 := strconv.Atoi(parts[1])
+			if e1 == nil && e2 == nil {
+				filterPresets["energy"] = map[string]int{"from": a, "to": b}
+			}
+		}
+	}
+	if len(query["stat"]) != 0 {
+		statList := make([]map[string]interface{}, 0)
+		for _, statEntry := range query["stat"] {
+			parts := strings.Split(statEntry, "-")
+			if len(parts) == 3 { // Metric Footprint Stat Field, from - to
+				a, e1 := strconv.ParseInt(parts[1], 10, 64)
+				b, e2 := strconv.ParseInt(parts[2], 10, 64)
+				if e1 == nil && e2 == nil {
+					statEntry := map[string]interface{}{
+						"field": parts[0],
+						"from":  a,
+						"to":    b,
+					}
+					statList = append(statList, statEntry)
+				}
+			}
+		}
+		filterPresets["stats"] = statList
+	}
 	return filterPresets
 }
 
@@ -264,20 +378,25 @@ func SetupRoutes(router *mux.Router, buildInfo web.Build) {
 			infos := route.Setup(map[string]interface{}{}, r)
 			if id, ok := infos["id"]; ok {
 				title = strings.Replace(route.Title, "<ID>", id.(string), 1)
+				if sid, ok := infos["sid"]; ok { // 2nd ID element
+					title = strings.Replace(title, "<SID>", sid.(string), 1)
+				}
 			}
 
 			// Get User -> What if NIL?
 			user := repository.GetUserFromContext(r.Context())
+
 			// Get Roles
 			availableRoles, _ := schema.GetValidRolesMap(user)
 
 			page := web.Page{
-				Title:  title,
-				User:   *user,
-				Roles:  availableRoles,
-				Build:  buildInfo,
-				Config: conf,
-				Infos:  infos,
+				Title:      title,
+				User:       *user,
+				Roles:      availableRoles,
+				Build:      buildInfo,
+				Config:     conf,
+				Resampling: config.Keys.EnableResampling,
+				Infos:      infos,
 			}
 
 			if route.Filter {
@@ -302,11 +421,19 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, buildInfo web.Buil
 			case "jobId":
 				http.Redirect(rw, r, "/monitoring/jobs/?jobId="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusFound) // All Users: Redirect to Tablequery
 			case "jobName":
-				http.Redirect(rw, r, "/monitoring/jobs/?jobName="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusFound) // All Users: Redirect to Tablequery
+				// Add Last 30 Days to migitate timeouts
+				untilTime := strconv.FormatInt(time.Now().Unix(), 10)
+				fromTime := strconv.FormatInt((time.Now().Unix() - int64(30*24*3600)), 10)
+
+				http.Redirect(rw, r, "/monitoring/jobs/?startTime="+fromTime+"-"+untilTime+"&jobName="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusFound) // All Users: Redirect to Tablequery
 			case "projectId":
 				http.Redirect(rw, r, "/monitoring/jobs/?projectMatch=eq&project="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusFound) // All Users: Redirect to Tablequery
 			case "arrayJobId":
-				http.Redirect(rw, r, "/monitoring/jobs/?arrayJobId="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusFound) // All Users: Redirect to Tablequery
+				// Add Last 30 Days to migitate timeouts
+				untilTime := strconv.FormatInt(time.Now().Unix(), 10)
+				fromTime := strconv.FormatInt((time.Now().Unix() - int64(30*24*3600)), 10)
+
+				http.Redirect(rw, r, "/monitoring/jobs/?startTime="+fromTime+"-"+untilTime+"&arrayJobId="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusFound) // All Users: Redirect to Tablequery
 			case "username":
 				if user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport, schema.RoleManager}) {
 					http.Redirect(rw, r, "/monitoring/users/?user="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusFound)
@@ -339,7 +466,11 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, buildInfo web.Buil
 			} else if project != "" {
 				http.Redirect(rw, r, "/monitoring/jobs/?projectMatch=eq&project="+url.QueryEscape(project), http.StatusFound) // projectId (equal)
 			} else if jobname != "" {
-				http.Redirect(rw, r, "/monitoring/jobs/?jobName="+url.QueryEscape(jobname), http.StatusFound) // JobName (contains)
+				// Add Last 30 Days to migitate timeouts
+				untilTime := strconv.FormatInt(time.Now().Unix(), 10)
+				fromTime := strconv.FormatInt((time.Now().Unix() - int64(30*24*3600)), 10)
+
+				http.Redirect(rw, r, "/monitoring/jobs/?startTime="+fromTime+"-"+untilTime+"&jobName="+url.QueryEscape(jobname), http.StatusFound) // 30D Fitler + JobName (contains)
 			} else {
 				web.RenderTemplate(rw, "message.tmpl", &web.Page{Title: "Info", MsgType: "alert-info", Message: "Search without result", User: *user, Roles: availableRoles, Build: buildInfo})
 			}

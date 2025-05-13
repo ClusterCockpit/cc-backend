@@ -10,12 +10,19 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"errors"
+	"fmt"
+	"net"
 	"net/http"
 	"os"
+	"strings"
+	"sync"
 	"time"
+
+	"golang.org/x/time/rate"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/gorilla/sessions"
@@ -24,6 +31,24 @@ import (
 type Authenticator interface {
 	CanLogin(user *schema.User, username string, rw http.ResponseWriter, r *http.Request) (*schema.User, bool)
 	Login(user *schema.User, rw http.ResponseWriter, r *http.Request) (*schema.User, error)
+}
+
+var (
+	initOnce     sync.Once
+	authInstance *Authentication
+)
+
+var ipUserLimiters sync.Map
+
+func getIPUserLimiter(ip, username string) *rate.Limiter {
+	key := ip + ":" + username
+	limiter, ok := ipUserLimiters.Load(key)
+	if !ok {
+		newLimiter := rate.NewLimiter(rate.Every(time.Hour/10), 10)
+		ipUserLimiters.Store(key, newLimiter)
+		return newLimiter
+	}
+	return limiter.(*rate.Limiter)
 }
 
 type Authentication struct {
@@ -62,82 +87,111 @@ func (auth *Authentication) AuthViaSession(
 	}, nil
 }
 
-func Init() (*Authentication, error) {
-	auth := &Authentication{}
+func Init() {
+	initOnce.Do(func() {
+		authInstance = &Authentication{}
 
-	sessKey := os.Getenv("SESSION_KEY")
-	if sessKey == "" {
-		log.Warn("environment variable 'SESSION_KEY' not set (will use non-persistent random key)")
-		bytes := make([]byte, 32)
-		if _, err := rand.Read(bytes); err != nil {
-			log.Error("Error while initializing authentication -> failed to generate random bytes for session key")
-			return nil, err
-		}
-		auth.sessionStore = sessions.NewCookieStore(bytes)
-	} else {
-		bytes, err := base64.StdEncoding.DecodeString(sessKey)
-		if err != nil {
-			log.Error("Error while initializing authentication -> decoding session key failed")
-			return nil, err
-		}
-		auth.sessionStore = sessions.NewCookieStore(bytes)
-	}
-
-	if config.Keys.LdapConfig != nil {
-		ldapAuth := &LdapAuthenticator{}
-		if err := ldapAuth.Init(); err != nil {
-			log.Warn("Error while initializing authentication -> ldapAuth init failed")
+		sessKey := os.Getenv("SESSION_KEY")
+		if sessKey == "" {
+			log.Warn("environment variable 'SESSION_KEY' not set (will use non-persistent random key)")
+			bytes := make([]byte, 32)
+			if _, err := rand.Read(bytes); err != nil {
+				log.Fatal("Error while initializing authentication -> failed to generate random bytes for session key")
+			}
+			authInstance.sessionStore = sessions.NewCookieStore(bytes)
 		} else {
-			auth.LdapAuth = ldapAuth
-			auth.authenticators = append(auth.authenticators, auth.LdapAuth)
-		}
-	} else {
-		log.Info("Missing LDAP configuration: No LDAP support!")
-	}
-
-	if config.Keys.JwtConfig != nil {
-		auth.JwtAuth = &JWTAuthenticator{}
-		if err := auth.JwtAuth.Init(); err != nil {
-			log.Error("Error while initializing authentication -> jwtAuth init failed")
-			return nil, err
+			bytes, err := base64.StdEncoding.DecodeString(sessKey)
+			if err != nil {
+				log.Fatal("Error while initializing authentication -> decoding session key failed")
+			}
+			authInstance.sessionStore = sessions.NewCookieStore(bytes)
 		}
 
-		jwtSessionAuth := &JWTSessionAuthenticator{}
-		if err := jwtSessionAuth.Init(); err != nil {
-			log.Info("jwtSessionAuth init failed: No JWT login support!")
+		if d, err := time.ParseDuration(config.Keys.SessionMaxAge); err == nil {
+			authInstance.SessionMaxAge = d
+		}
+
+		if config.Keys.LdapConfig != nil {
+			ldapAuth := &LdapAuthenticator{}
+			if err := ldapAuth.Init(); err != nil {
+				log.Warn("Error while initializing authentication -> ldapAuth init failed")
+			} else {
+				authInstance.LdapAuth = ldapAuth
+				authInstance.authenticators = append(authInstance.authenticators, authInstance.LdapAuth)
+			}
 		} else {
-			auth.authenticators = append(auth.authenticators, jwtSessionAuth)
+			log.Info("Missing LDAP configuration: No LDAP support!")
 		}
 
-		jwtCookieSessionAuth := &JWTCookieSessionAuthenticator{}
-		if err := jwtCookieSessionAuth.Init(); err != nil {
-			log.Info("jwtCookieSessionAuth init failed: No JWT cookie login support!")
+		if config.Keys.JwtConfig != nil {
+			authInstance.JwtAuth = &JWTAuthenticator{}
+			if err := authInstance.JwtAuth.Init(); err != nil {
+				log.Fatal("Error while initializing authentication -> jwtAuth init failed")
+			}
+
+			jwtSessionAuth := &JWTSessionAuthenticator{}
+			if err := jwtSessionAuth.Init(); err != nil {
+				log.Info("jwtSessionAuth init failed: No JWT login support!")
+			} else {
+				authInstance.authenticators = append(authInstance.authenticators, jwtSessionAuth)
+			}
+
+			jwtCookieSessionAuth := &JWTCookieSessionAuthenticator{}
+			if err := jwtCookieSessionAuth.Init(); err != nil {
+				log.Info("jwtCookieSessionAuth init failed: No JWT cookie login support!")
+			} else {
+				authInstance.authenticators = append(authInstance.authenticators, jwtCookieSessionAuth)
+			}
 		} else {
-			auth.authenticators = append(auth.authenticators, jwtCookieSessionAuth)
+			log.Info("Missing JWT configuration: No JWT token support!")
 		}
-	} else {
-		log.Info("Missing JWT configuration: No JWT token support!")
-	}
 
-	auth.LocalAuth = &LocalAuthenticator{}
-	if err := auth.LocalAuth.Init(); err != nil {
-		log.Error("Error while initializing authentication -> localAuth init failed")
-		return nil, err
-	}
-	auth.authenticators = append(auth.authenticators, auth.LocalAuth)
-
-	return auth, nil
+		authInstance.LocalAuth = &LocalAuthenticator{}
+		if err := authInstance.LocalAuth.Init(); err != nil {
+			log.Fatal("Error while initializing authentication -> localAuth init failed")
+		}
+		authInstance.authenticators = append(authInstance.authenticators, authInstance.LocalAuth)
+	})
 }
 
-func persistUser(user *schema.User) {
+func GetAuthInstance() *Authentication {
+	if authInstance == nil {
+		log.Fatal("Authentication module not initialized!")
+	}
+
+	return authInstance
+}
+
+func handleTokenUser(tokenUser *schema.User) {
 	r := repository.GetUserRepository()
-	_, err := r.GetUser(user.Username)
+	dbUser, err := r.GetUser(tokenUser.Username)
 
 	if err != nil && err != sql.ErrNoRows {
-		log.Errorf("Error while loading user '%s': %v", user.Username, err)
-	} else if err == sql.ErrNoRows {
-		if err := r.AddUser(user); err != nil {
-			log.Errorf("Error while adding user '%s' to DB: %v", user.Username, err)
+		log.Errorf("Error while loading user '%s': %v", tokenUser.Username, err)
+	} else if err == sql.ErrNoRows && config.Keys.JwtConfig.SyncUserOnLogin { // Adds New User
+		if err := r.AddUser(tokenUser); err != nil {
+			log.Errorf("Error while adding user '%s' to DB: %v", tokenUser.Username, err)
+		}
+	} else if err == nil && config.Keys.JwtConfig.UpdateUserOnLogin { // Update Existing User
+		if err := r.UpdateUser(dbUser, tokenUser); err != nil {
+			log.Errorf("Error while updating user '%s' to DB: %v", dbUser.Username, err)
+		}
+	}
+}
+
+func handleOIDCUser(OIDCUser *schema.User) {
+	r := repository.GetUserRepository()
+	dbUser, err := r.GetUser(OIDCUser.Username)
+
+	if err != nil && err != sql.ErrNoRows {
+		log.Errorf("Error while loading user '%s': %v", OIDCUser.Username, err)
+	} else if err == sql.ErrNoRows && config.Keys.OpenIDConfig.SyncUserOnLogin { // Adds New User
+		if err := r.AddUser(OIDCUser); err != nil {
+			log.Errorf("Error while adding user '%s' to DB: %v", OIDCUser.Username, err)
+		}
+	} else if err == nil && config.Keys.OpenIDConfig.UpdateUserOnLogin { // Update Existing User
+		if err := r.UpdateUser(dbUser, OIDCUser); err != nil {
+			log.Errorf("Error while updating user '%s' to DB: %v", dbUser.Username, err)
 		}
 	}
 }
@@ -153,6 +207,10 @@ func (auth *Authentication) SaveSession(rw http.ResponseWriter, r *http.Request,
 	if auth.SessionMaxAge != 0 {
 		session.Options.MaxAge = int(auth.SessionMaxAge.Seconds())
 	}
+	if config.Keys.HttpsCertFile == "" && config.Keys.HttpsKeyFile == "" {
+		session.Options.Secure = false
+	}
+	session.Options.SameSite = http.SameSiteStrictMode
 	session.Values["username"] = user.Username
 	session.Values["projects"] = user.Projects
 	session.Values["roles"] = user.Roles
@@ -166,13 +224,24 @@ func (auth *Authentication) SaveSession(rw http.ResponseWriter, r *http.Request,
 }
 
 func (auth *Authentication) Login(
-	onsuccess http.Handler,
 	onfailure func(rw http.ResponseWriter, r *http.Request, loginErr error),
 ) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		username := r.FormValue("username")
-		var dbUser *schema.User
+		ip, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			ip = r.RemoteAddr
+		}
 
+		username := r.FormValue("username")
+
+		limiter := getIPUserLimiter(ip, username)
+		if !limiter.Allow() {
+			log.Warnf("AUTH/RATE > Too many login attempts for combination IP: %s, Username: %s", ip, username)
+			onfailure(rw, r, errors.New("Too many login attempts, try again in a few minutes."))
+			return
+		}
+
+		var dbUser *schema.User
 		if username != "" {
 			var err error
 			dbUser, err = repository.GetUserRepository().GetUser(username)
@@ -203,7 +272,13 @@ func (auth *Authentication) Login(
 
 			log.Infof("login successfull: user: %#v (roles: %v, projects: %v)", user.Username, user.Roles, user.Projects)
 			ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
-			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+
+			if r.FormValue("redirect") != "" {
+				http.RedirectHandler(r.FormValue("redirect"), http.StatusFound).ServeHTTP(rw, r.WithContext(ctx))
+				return
+			}
+
+			http.RedirectHandler("/", http.StatusFound).ServeHTTP(rw, r.WithContext(ctx))
 			return
 		}
 
@@ -219,28 +294,147 @@ func (auth *Authentication) Auth(
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		user, err := auth.JwtAuth.AuthViaJWT(rw, r)
 		if err != nil {
-			log.Infof("authentication failed: %s", err.Error())
+			log.Infof("auth -> authentication failed: %s", err.Error())
 			http.Error(rw, err.Error(), http.StatusUnauthorized)
 			return
 		}
-
 		if user == nil {
 			user, err = auth.AuthViaSession(rw, r)
 			if err != nil {
-				log.Infof("authentication failed: %s", err.Error())
+				log.Infof("auth -> authentication failed: %s", err.Error())
 				http.Error(rw, err.Error(), http.StatusUnauthorized)
 				return
 			}
 		}
-
 		if user != nil {
 			ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 			return
 		}
 
-		log.Debug("authentication failed")
+		log.Info("auth -> authentication failed")
 		onfailure(rw, r, errors.New("unauthorized (please login first)"))
+	})
+}
+
+func (auth *Authentication) AuthApi(
+	onsuccess http.Handler,
+	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
+) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		user, err := auth.JwtAuth.AuthViaJWT(rw, r)
+		if err != nil {
+			log.Infof("auth api -> authentication failed: %s", err.Error())
+			onfailure(rw, r, err)
+			return
+		}
+
+		ipErr := securedCheck(user, r)
+		if ipErr != nil {
+			log.Infof("auth api -> secured check failed: %s", ipErr.Error())
+			onfailure(rw, r, ipErr)
+			return
+		}
+
+		if user != nil {
+			switch {
+			case len(user.Roles) == 1:
+				if user.HasRole(schema.RoleApi) {
+					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
+					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+					return
+				}
+			case len(user.Roles) >= 2:
+				if user.HasAllRoles([]schema.Role{schema.RoleAdmin, schema.RoleApi}) {
+					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
+					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+					return
+				}
+			default:
+				log.Info("auth api -> authentication failed: missing role")
+				onfailure(rw, r, errors.New("unauthorized"))
+			}
+		}
+		log.Info("auth api -> authentication failed: no auth")
+		onfailure(rw, r, errors.New("unauthorized"))
+	})
+}
+
+func (auth *Authentication) AuthUserApi(
+	onsuccess http.Handler,
+	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
+) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		user, err := auth.JwtAuth.AuthViaJWT(rw, r)
+		if err != nil {
+			log.Infof("auth user api -> authentication failed: %s", err.Error())
+			onfailure(rw, r, err)
+			return
+		}
+
+		if user != nil {
+			switch {
+			case len(user.Roles) == 1:
+				if user.HasRole(schema.RoleApi) {
+					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
+					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+					return
+				}
+			case len(user.Roles) >= 2:
+				if user.HasRole(schema.RoleApi) && user.HasAnyRole([]schema.Role{schema.RoleUser, schema.RoleManager, schema.RoleAdmin}) {
+					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
+					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+					return
+				}
+			default:
+				log.Info("auth user api -> authentication failed: missing role")
+				onfailure(rw, r, errors.New("unauthorized"))
+			}
+		}
+		log.Info("auth user api -> authentication failed: no auth")
+		onfailure(rw, r, errors.New("unauthorized"))
+	})
+}
+
+func (auth *Authentication) AuthConfigApi(
+	onsuccess http.Handler,
+	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
+) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		user, err := auth.AuthViaSession(rw, r)
+		if err != nil {
+			log.Infof("auth config api -> authentication failed: %s", err.Error())
+			onfailure(rw, r, err)
+			return
+		}
+		if user != nil && user.HasRole(schema.RoleAdmin) {
+			ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
+			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+			return
+		}
+		log.Info("auth config api -> authentication failed: no auth")
+		onfailure(rw, r, errors.New("unauthorized"))
+	})
+}
+
+func (auth *Authentication) AuthFrontendApi(
+	onsuccess http.Handler,
+	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
+) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		user, err := auth.AuthViaSession(rw, r)
+		if err != nil {
+			log.Infof("auth frontend api -> authentication failed: %s", err.Error())
+			onfailure(rw, r, err)
+			return
+		}
+		if user != nil {
+			ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
+			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+			return
+		}
+		log.Info("auth frontend api -> authentication failed: no auth")
+		onfailure(rw, r, errors.New("unauthorized"))
 	})
 }
 
@@ -262,4 +456,39 @@ func (auth *Authentication) Logout(onsuccess http.Handler) http.Handler {
 
 		onsuccess.ServeHTTP(rw, r)
 	})
+}
+
+// Helper Moved To MiddleWare Auth Handlers
+func securedCheck(user *schema.User, r *http.Request) error {
+	if user == nil {
+		return fmt.Errorf("no user for secured check")
+	}
+
+	// extract IP address for checking
+	IPAddress := r.Header.Get("X-Real-Ip")
+	if IPAddress == "" {
+		IPAddress = r.Header.Get("X-Forwarded-For")
+	}
+	if IPAddress == "" {
+		IPAddress = r.RemoteAddr
+	}
+
+	if strings.Contains(IPAddress, ":") {
+		IPAddress = strings.Split(IPAddress, ":")[0]
+	}
+
+	// If nothing declared in config: deny all request to this api endpoint
+	if len(config.Keys.ApiAllowedIPs) == 0 {
+		return fmt.Errorf("missing configuration key ApiAllowedIPs")
+	}
+	// If wildcard declared in config: Continue
+	if config.Keys.ApiAllowedIPs[0] == "*" {
+		return nil
+	}
+	// check if IP is allowed
+	if !util.Contains(config.Keys.ApiAllowedIPs, IPAddress) {
+		return fmt.Errorf("unknown ip: %v", IPAddress)
+	}
+
+	return nil
 }

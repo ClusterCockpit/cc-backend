@@ -1,0 +1,12 @@
+{
+  "clusters": [
+    {
+      "name": "fritz",
+      "default_metrics": "cpu_load, flops_any, core_power, lustre_open, mem_used, mem_bw, net_bytes_in"
+    },
+    {
+      "name": "alex",
+      "default_metrics": "flops_any, mem_bw, mem_used, vectorization_ratio"
+    }
+  ]
+}

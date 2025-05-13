@@ -20,6 +20,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -166,10 +167,10 @@ func (pdb *PrometheusDataRepository) Init(rawConfig json.RawMessage) error {
 	var rt http.RoundTripper = nil
 	if prom_pw := os.Getenv("PROMETHEUS_PASSWORD"); prom_pw != "" && config.Username != "" {
 		prom_pw := promcfg.Secret(prom_pw)
-		rt = promcfg.NewBasicAuthRoundTripper(config.Username, prom_pw, "", promapi.DefaultRoundTripper)
+		rt = promcfg.NewBasicAuthRoundTripper(promcfg.NewInlineSecret(config.Username), promcfg.NewInlineSecret(string(prom_pw)), promapi.DefaultRoundTripper)
 	} else {
 		if config.Username != "" {
-			return errors.New("METRICDATA/PROMETHEUS > Prometheus username provided, but PROMETHEUS_PASSWORD not set.")
+			return errors.New("METRICDATA/PROMETHEUS > Prometheus username provided, but PROMETHEUS_PASSWORD not set")
 		}
 	}
 	// init client
@@ -204,8 +205,8 @@ func (pdb *PrometheusDataRepository) FormatQuery(
 	metric string,
 	scope schema.MetricScope,
 	nodes []string,
-	cluster string) (string, error) {
-
+	cluster string,
+) (string, error) {
 	args := PromQLArgs{}
 	if len(nodes) > 0 {
 		args.Nodes = fmt.Sprintf("(%s)%s", nodeRegex(nodes), pdb.suffix)
@@ -233,12 +234,13 @@ func (pdb *PrometheusDataRepository) RowToSeries(
 	from time.Time,
 	step int64,
 	steps int64,
-	row *promm.SampleStream) schema.Series {
+	row *promm.SampleStream,
+) schema.Series {
 	ts := from.Unix()
 	hostname := strings.TrimSuffix(string(row.Metric["exported_instance"]), pdb.suffix)
 	// init array of expected length with NaN
 	values := make([]schema.Float, steps+1)
-	for i, _ := range values {
+	for i := range values {
 		values[i] = schema.NaN
 	}
 	// copy recorded values from prom sample pair
@@ -263,8 +265,9 @@ func (pdb *PrometheusDataRepository) LoadData(
 	job *schema.Job,
 	metrics []string,
 	scopes []schema.MetricScope,
-	ctx context.Context) (schema.JobData, error) {
-
+	ctx context.Context,
+	resolution int,
+) (schema.JobData, error) {
 	// TODO respect requested scope
 	if len(scopes) == 0 || !contains(scopes, schema.MetricScopeNode) {
 		scopes = append(scopes, schema.MetricScopeNode)
@@ -306,7 +309,6 @@ func (pdb *PrometheusDataRepository) LoadData(
 				Step:  time.Duration(metricConfig.Timestep * 1e9),
 			}
 			result, warnings, err := pdb.queryClient.QueryRange(ctx, query, r)
-
 			if err != nil {
 				log.Errorf("Prometheus query error in LoadData: %v\nQuery: %s", err, query)
 				return nil, errors.New("Prometheus query error")
@@ -335,7 +337,7 @@ func (pdb *PrometheusDataRepository) LoadData(
 					pdb.RowToSeries(from, step, steps, row))
 			}
 			// only add metric if at least one host returned data
-			if !ok && len(jobMetric.Series) > 0{
+			if !ok && len(jobMetric.Series) > 0 {
 				jobData[metric][scope] = jobMetric
 			}
 			// sort by hostname to get uniform coloring
@@ -351,12 +353,12 @@ func (pdb *PrometheusDataRepository) LoadData(
 func (pdb *PrometheusDataRepository) LoadStats(
 	job *schema.Job,
 	metrics []string,
-	ctx context.Context) (map[string]map[string]schema.MetricStatistics, error) {
-
+	ctx context.Context,
+) (map[string]map[string]schema.MetricStatistics, error) {
 	// map of metrics of nodes of stats
 	stats := map[string]map[string]schema.MetricStatistics{}
 
-	data, err := pdb.LoadData(job, metrics, []schema.MetricScope{schema.MetricScopeNode}, ctx)
+	data, err := pdb.LoadData(job, metrics, []schema.MetricScope{schema.MetricScopeNode}, ctx, 0 /*resolution here*/)
 	if err != nil {
 		log.Warn("Error while loading job for stats")
 		return nil, err
@@ -376,7 +378,8 @@ func (pdb *PrometheusDataRepository) LoadNodeData(
 	metrics, nodes []string,
 	scopes []schema.MetricScope,
 	from, to time.Time,
-	ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
+	ctx context.Context,
+) (map[string]map[string][]*schema.JobMetric, error) {
 	t0 := time.Now()
 	// Map of hosts of metrics of value slices
 	data := make(map[string]map[string][]*schema.JobMetric)
@@ -411,7 +414,6 @@ func (pdb *PrometheusDataRepository) LoadNodeData(
 				Step:  time.Duration(metricConfig.Timestep * 1e9),
 			}
 			result, warnings, err := pdb.queryClient.QueryRange(ctx, query, r)
-
 			if err != nil {
 				log.Errorf("Prometheus query error in LoadNodeData: %v\n", err)
 				return nil, errors.New("Prometheus query error")
@@ -444,4 +446,189 @@ func (pdb *PrometheusDataRepository) LoadNodeData(
 	t1 := time.Since(t0)
 	log.Debugf("LoadNodeData of %v nodes took %s", len(data), t1)
 	return data, nil
+}
+
+// Implemented by NHR@FAU; Used in Job-View StatsTable
+func (pdb *PrometheusDataRepository) LoadScopedStats(
+	job *schema.Job,
+	metrics []string,
+	scopes []schema.MetricScope,
+	ctx context.Context) (schema.ScopedJobStats, error) {
+
+	// Assumption: pdb.loadData() only returns series node-scope - use node scope for statsTable
+	scopedJobStats := make(schema.ScopedJobStats)
+	data, err := pdb.LoadData(job, metrics, []schema.MetricScope{schema.MetricScopeNode}, ctx, 0 /*resolution here*/)
+	if err != nil {
+		log.Warn("Error while loading job for scopedJobStats")
+		return nil, err
+	}
+
+	for metric, metricData := range data {
+		for _, scope := range scopes {
+			if scope != schema.MetricScopeNode {
+				logOnce.Do(func() {
+					log.Infof("Note: Scope '%s' requested, but not yet supported: Will return 'node' scope only.", scope)
+				})
+				continue
+			}
+
+			if _, ok := scopedJobStats[metric]; !ok {
+				scopedJobStats[metric] = make(map[schema.MetricScope][]*schema.ScopedStats)
+			}
+
+			if _, ok := scopedJobStats[metric][scope]; !ok {
+				scopedJobStats[metric][scope] = make([]*schema.ScopedStats, 0)
+			}
+
+			for _, series := range metricData[scope].Series {
+				scopedJobStats[metric][scope] = append(scopedJobStats[metric][scope], &schema.ScopedStats{
+					Hostname: series.Hostname,
+					Data:     &series.Statistics,
+				})
+			}
+		}
+	}
+
+	return scopedJobStats, nil
+}
+
+// Implemented by NHR@FAU; Used in NodeList-View
+func (pdb *PrometheusDataRepository) LoadNodeListData(
+	cluster, subCluster, nodeFilter string,
+	metrics []string,
+	scopes []schema.MetricScope,
+	resolution int,
+	from, to time.Time,
+	page *model.PageRequest,
+	ctx context.Context,
+) (map[string]schema.JobData, int, bool, error) {
+
+	// Assumption: pdb.loadData() only returns series node-scope - use node scope for NodeList
+
+	// 0) Init additional vars
+	var totalNodes int = 0
+	var hasNextPage bool = false
+
+	// 1) Get list of all nodes
+	var nodes []string
+	if subCluster != "" {
+		scNodes := archive.NodeLists[cluster][subCluster]
+		nodes = scNodes.PrintList()
+	} else {
+		subClusterNodeLists := archive.NodeLists[cluster]
+		for _, nodeList := range subClusterNodeLists {
+			nodes = append(nodes, nodeList.PrintList()...)
+		}
+	}
+
+	// 2) Filter nodes
+	if nodeFilter != "" {
+		filteredNodes := []string{}
+		for _, node := range nodes {
+			if strings.Contains(node, nodeFilter) {
+				filteredNodes = append(filteredNodes, node)
+			}
+		}
+		nodes = filteredNodes
+	}
+
+	// 2.1) Count total nodes && Sort nodes -> Sorting invalidated after return ...
+	totalNodes = len(nodes)
+	sort.Strings(nodes)
+
+	// 3) Apply paging
+	if len(nodes) > page.ItemsPerPage {
+		start := (page.Page - 1) * page.ItemsPerPage
+		end := start + page.ItemsPerPage
+		if end > len(nodes) {
+			end = len(nodes)
+			hasNextPage = false
+		} else {
+			hasNextPage = true
+		}
+		nodes = nodes[start:end]
+	}
+
+	// 4) Fetch Data, based on pdb.LoadNodeData()
+
+	t0 := time.Now()
+	// Map of hosts of jobData
+	data := make(map[string]schema.JobData)
+
+	// query db for each metric
+	// TODO: scopes seems to be always empty
+	if len(scopes) == 0 || !contains(scopes, schema.MetricScopeNode) {
+		scopes = append(scopes, schema.MetricScopeNode)
+	}
+
+	for _, scope := range scopes {
+		if scope != schema.MetricScopeNode {
+			logOnce.Do(func() {
+				log.Infof("Note: Scope '%s' requested, but not yet supported: Will return 'node' scope only.", scope)
+			})
+			continue
+		}
+
+		for _, metric := range metrics {
+			metricConfig := archive.GetMetricConfig(cluster, metric)
+			if metricConfig == nil {
+				log.Warnf("Error in LoadNodeListData: Metric %s for cluster %s not configured", metric, cluster)
+				return nil, totalNodes, hasNextPage, errors.New("Prometheus config error")
+			}
+			query, err := pdb.FormatQuery(metric, scope, nodes, cluster)
+			if err != nil {
+				log.Warn("Error while formatting prometheus query")
+				return nil, totalNodes, hasNextPage, err
+			}
+
+			// ranged query over all nodes
+			r := promv1.Range{
+				Start: from,
+				End:   to,
+				Step:  time.Duration(metricConfig.Timestep * 1e9),
+			}
+			result, warnings, err := pdb.queryClient.QueryRange(ctx, query, r)
+			if err != nil {
+				log.Errorf("Prometheus query error in LoadNodeData: %v\n", err)
+				return nil, totalNodes, hasNextPage, errors.New("Prometheus query error")
+			}
+			if len(warnings) > 0 {
+				log.Warnf("Warnings: %v\n", warnings)
+			}
+
+			step := int64(metricConfig.Timestep)
+			steps := int64(to.Sub(from).Seconds()) / step
+
+			// iter rows of host, metric, values
+			for _, row := range result.(promm.Matrix) {
+				hostname := strings.TrimSuffix(string(row.Metric["exported_instance"]), pdb.suffix)
+
+				hostdata, ok := data[hostname]
+				if !ok {
+					hostdata = make(schema.JobData)
+					data[hostname] = hostdata
+				}
+
+				metricdata, ok := hostdata[metric]
+				if !ok {
+					metricdata = make(map[schema.MetricScope]*schema.JobMetric)
+					data[hostname][metric] = metricdata
+				}
+
+				// output per host, metric and scope
+				scopeData, ok := metricdata[scope]
+				if !ok {
+					scopeData = &schema.JobMetric{
+						Unit:     metricConfig.Unit,
+						Timestep: metricConfig.Timestep,
+						Series:   []schema.Series{pdb.RowToSeries(from, step, steps, row)},
+					}
+					data[hostname][metric][scope] = scopeData
+				}
+			}
+		}
+	}
+	t1 := time.Since(t0)
+	log.Debugf("LoadNodeListData of %v nodes took %s", len(data), t1)
+	return data, totalNodes, hasNextPage, nil
 }

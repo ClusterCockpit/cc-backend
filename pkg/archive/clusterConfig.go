@@ -12,13 +12,16 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
-var Clusters []*schema.Cluster
-var nodeLists map[string]map[string]NodeList
+var (
+	Clusters         []*schema.Cluster
+	GlobalMetricList []*schema.GlobalMetricListItem
+	NodeLists        map[string]map[string]NodeList
+)
 
 func initClusterConfig() error {
-
 	Clusters = []*schema.Cluster{}
-	nodeLists = map[string]map[string]NodeList{}
+	NodeLists = map[string]map[string]NodeList{}
+	metricLookup := make(map[string]schema.GlobalMetricListItem)
 
 	for _, c := range ar.GetClusters() {
 
@@ -49,11 +52,79 @@ func initClusterConfig() error {
 			if !mc.Scope.Valid() {
 				return errors.New("cluster.metricConfig.scope must be a valid scope ('node', 'scocket', ...)")
 			}
+
+			ml, ok := metricLookup[mc.Name]
+			if !ok {
+				metricLookup[mc.Name] = schema.GlobalMetricListItem{
+					Name: mc.Name, Scope: mc.Scope, Unit: mc.Unit, Footprint: mc.Footprint,
+				}
+				ml = metricLookup[mc.Name]
+			}
+			availability := schema.ClusterSupport{Cluster: cluster.Name}
+			scLookup := make(map[string]*schema.SubClusterConfig)
+
+			for _, scc := range mc.SubClusters {
+				scLookup[scc.Name] = scc
+			}
+
+			for _, sc := range cluster.SubClusters {
+				newMetric := &schema.MetricConfig{
+					Unit:          mc.Unit,
+					Energy:        mc.Energy,
+					Name:          mc.Name,
+					Scope:         mc.Scope,
+					Aggregation:   mc.Aggregation,
+					Peak:          mc.Peak,
+					Caution:       mc.Caution,
+					Alert:         mc.Alert,
+					Timestep:      mc.Timestep,
+					Normal:        mc.Normal,
+					LowerIsBetter: mc.LowerIsBetter,
+				}
+
+				if mc.Footprint != "" {
+					newMetric.Footprint = mc.Footprint
+				}
+
+				if cfg, ok := scLookup[sc.Name]; ok {
+					if !cfg.Remove {
+						availability.SubClusters = append(availability.SubClusters, sc.Name)
+						newMetric.Peak = cfg.Peak
+						newMetric.Normal = cfg.Normal
+						newMetric.Caution = cfg.Caution
+						newMetric.Alert = cfg.Alert
+						newMetric.Footprint = cfg.Footprint
+						newMetric.Energy = cfg.Energy
+						newMetric.LowerIsBetter = cfg.LowerIsBetter
+						sc.MetricConfig = append(sc.MetricConfig, *newMetric)
+
+						if newMetric.Footprint != "" {
+							sc.Footprint = append(sc.Footprint, newMetric.Name)
+							ml.Footprint = newMetric.Footprint
+						}
+						if newMetric.Energy != "" {
+							sc.EnergyFootprint = append(sc.EnergyFootprint, newMetric.Name)
+						}
+					}
+				} else {
+					availability.SubClusters = append(availability.SubClusters, sc.Name)
+					sc.MetricConfig = append(sc.MetricConfig, *newMetric)
+
+					if newMetric.Footprint != "" {
+						sc.Footprint = append(sc.Footprint, newMetric.Name)
+					}
+					if newMetric.Energy != "" {
+						sc.EnergyFootprint = append(sc.EnergyFootprint, newMetric.Name)
+					}
+				}
+			}
+			ml.Availability = append(metricLookup[mc.Name].Availability, availability)
+			metricLookup[mc.Name] = ml
 		}
 
 		Clusters = append(Clusters, cluster)
 
-		nodeLists[cluster.Name] = make(map[string]NodeList)
+		NodeLists[cluster.Name] = make(map[string]NodeList)
 		for _, sc := range cluster.SubClusters {
 			if sc.Nodes == "*" {
 				continue
@@ -63,15 +134,18 @@ func initClusterConfig() error {
 			if err != nil {
 				return fmt.Errorf("ARCHIVE/CLUSTERCONFIG > in %s/cluster.json: %w", cluster.Name, err)
 			}
-			nodeLists[cluster.Name][sc.Name] = nl
+			NodeLists[cluster.Name][sc.Name] = nl
 		}
+	}
+
+	for _, ml := range metricLookup {
+		GlobalMetricList = append(GlobalMetricList, &ml)
 	}
 
 	return nil
 }
 
 func GetCluster(cluster string) *schema.Cluster {
-
 	for _, c := range Clusters {
 		if c.Name == cluster {
 			return c
@@ -90,11 +164,10 @@ func GetSubCluster(cluster, subcluster string) (*schema.SubCluster, error) {
 			}
 		}
 	}
-	return nil, fmt.Errorf("Subcluster '%v' not found for cluster '%v', or cluster '%v' not configured!", subcluster, cluster, cluster)
+	return nil, fmt.Errorf("subcluster '%v' not found for cluster '%v', or cluster '%v' not configured", subcluster, cluster, cluster)
 }
 
 func GetMetricConfig(cluster, metric string) *schema.MetricConfig {
-
 	for _, c := range Clusters {
 		if c.Name == cluster {
 			for _, m := range c.MetricConfig {
@@ -110,7 +183,6 @@ func GetMetricConfig(cluster, metric string) *schema.MetricConfig {
 // AssignSubCluster sets the `job.subcluster` property of the job based
 // on its cluster and resources.
 func AssignSubCluster(job *schema.BaseJob) error {
-
 	cluster := GetCluster(job.Cluster)
 	if cluster == nil {
 		return fmt.Errorf("ARCHIVE/CLUSTERCONFIG > unkown cluster: %v", job.Cluster)
@@ -130,7 +202,7 @@ func AssignSubCluster(job *schema.BaseJob) error {
 	}
 
 	host0 := job.Resources[0].Hostname
-	for sc, nl := range nodeLists[job.Cluster] {
+	for sc, nl := range NodeLists[job.Cluster] {
 		if nl != nil && nl.Contains(host0) {
 			job.SubCluster = sc
 			return nil
@@ -146,8 +218,7 @@ func AssignSubCluster(job *schema.BaseJob) error {
 }
 
 func GetSubClusterByNode(cluster, hostname string) (string, error) {
-
-	for sc, nl := range nodeLists[cluster] {
+	for sc, nl := range NodeLists[cluster] {
 		if nl != nil && nl.Contains(hostname) {
 			return sc, nil
 		}
@@ -163,4 +234,14 @@ func GetSubClusterByNode(cluster, hostname string) (string, error) {
 	}
 
 	return "", fmt.Errorf("ARCHIVE/CLUSTERCONFIG > no subcluster found for cluster %v and host %v", cluster, hostname)
+}
+
+func MetricIndex(mc []schema.MetricConfig, name string) (int, error) {
+	for i, m := range mc {
+		if m.Name == name {
+			return i, nil
+		}
+	}
+
+	return 0, fmt.Errorf("unknown metric name %s", name)
 }

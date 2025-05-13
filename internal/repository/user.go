@@ -19,6 +19,7 @@ import (
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 )
 
 var (
@@ -46,8 +47,8 @@ func GetUserRepository() *UserRepository {
 func (r *UserRepository) GetUser(username string) (*schema.User, error) {
 	user := &schema.User{Username: username}
 	var hashedPassword, name, rawRoles, email, rawProjects sql.NullString
-	if err := sq.Select("password", "ldap", "name", "roles", "email", "projects").From("user").
-		Where("user.username = ?", username).RunWith(r.DB).
+	if err := sq.Select("password", "ldap", "name", "roles", "email", "projects").From("hpc_user").
+		Where("hpc_user.username = ?", username).RunWith(r.DB).
 		QueryRow().Scan(&hashedPassword, &user.AuthSource, &name, &rawRoles, &email, &rawProjects); err != nil {
 		log.Warnf("Error while querying user '%v' from database", username)
 		return nil, err
@@ -72,9 +73,8 @@ func (r *UserRepository) GetUser(username string) (*schema.User, error) {
 }
 
 func (r *UserRepository) GetLdapUsernames() ([]string, error) {
-
 	var users []string
-	rows, err := r.DB.Query(`SELECT username FROM user WHERE user.ldap = 1`)
+	rows, err := r.DB.Query(`SELECT username FROM hpc_user WHERE hpc_user.ldap = 1`)
 	if err != nil {
 		log.Warn("Error while querying usernames")
 		return nil, err
@@ -122,18 +122,62 @@ func (r *UserRepository) AddUser(user *schema.User) error {
 		vals = append(vals, int(user.AuthSource))
 	}
 
-	if _, err := sq.Insert("user").Columns(cols...).Values(vals...).RunWith(r.DB).Exec(); err != nil {
+	if _, err := sq.Insert("hpc_user").Columns(cols...).Values(vals...).RunWith(r.DB).Exec(); err != nil {
 		log.Errorf("Error while inserting new user '%v' into DB", user.Username)
 		return err
 	}
 
 	log.Infof("new user %#v created (roles: %s, auth-source: %d, projects: %s)", user.Username, rolesJson, user.AuthSource, projectsJson)
+
+	defaultMetricsCfg, err := config.LoadDefaultMetricsConfig()
+	if err != nil {
+		log.Errorf("Error loading default metrics config: %v", err)
+	} else if defaultMetricsCfg != nil {
+		for _, cluster := range defaultMetricsCfg.Clusters {
+			metricsArray := config.ParseMetricsString(cluster.DefaultMetrics)
+			metricsJSON, err := json.Marshal(metricsArray)
+			if err != nil {
+				log.Errorf("Error marshaling default metrics for cluster %s: %v", cluster.Name, err)
+				continue
+			}
+			confKey := "job_view_selectedMetrics:" + cluster.Name
+			if _, err := sq.Insert("configuration").
+				Columns("username", "confkey", "value").
+				Values(user.Username, confKey, string(metricsJSON)).
+				RunWith(r.DB).Exec(); err != nil {
+				log.Errorf("Error inserting default job view metrics for user %s and cluster %s: %v", user.Username, cluster.Name, err)
+			} else {
+				log.Infof("Default job view metrics for user %s and cluster %s set to %s", user.Username, cluster.Name, string(metricsJSON))
+			}
+		}
+	}
+
+	return nil
+}
+
+func (r *UserRepository) UpdateUser(dbUser *schema.User, user *schema.User) error {
+	// user contains updated info, apply to dbuser
+	// TODO: Discuss updatable fields
+	if dbUser.Name != user.Name {
+		if _, err := sq.Update("hpc_user").Set("name", user.Name).Where("hpc_user.username = ?", dbUser.Username).RunWith(r.DB).Exec(); err != nil {
+			log.Errorf("error while updating name of user '%s'", user.Username)
+			return err
+		}
+	}
+
+	// Toggled until greenlit
+	// if dbUser.HasRole(schema.RoleManager) && !reflect.DeepEqual(dbUser.Projects, user.Projects) {
+	// 	projects, _ := json.Marshal(user.Projects)
+	// 	if _, err := sq.Update("hpc_user").Set("projects", projects).Where("hpc_user.username = ?", dbUser.Username).RunWith(r.DB).Exec(); err != nil {
+	// 		return err
+	// 	}
+	// }
+
 	return nil
 }
 
 func (r *UserRepository) DelUser(username string) error {
-
-	_, err := r.DB.Exec(`DELETE FROM user WHERE user.username = ?`, username)
+	_, err := r.DB.Exec(`DELETE FROM hpc_user WHERE hpc_user.username = ?`, username)
 	if err != nil {
 		log.Errorf("Error while deleting user '%s' from DB", username)
 		return err
@@ -143,8 +187,7 @@ func (r *UserRepository) DelUser(username string) error {
 }
 
 func (r *UserRepository) ListUsers(specialsOnly bool) ([]*schema.User, error) {
-
-	q := sq.Select("username", "name", "email", "roles", "projects").From("user")
+	q := sq.Select("username", "name", "email", "roles", "projects").From("hpc_user")
 	if specialsOnly {
 		q = q.Where("(roles != '[\"user\"]' AND roles != '[]')")
 	}
@@ -186,8 +229,8 @@ func (r *UserRepository) ListUsers(specialsOnly bool) ([]*schema.User, error) {
 func (r *UserRepository) AddRole(
 	ctx context.Context,
 	username string,
-	queryrole string) error {
-
+	queryrole string,
+) error {
 	newRole := strings.ToLower(queryrole)
 	user, err := r.GetUser(username)
 	if err != nil {
@@ -198,15 +241,15 @@ func (r *UserRepository) AddRole(
 	exists, valid := user.HasValidRole(newRole)
 
 	if !valid {
-		return fmt.Errorf("Supplied role is no valid option : %v", newRole)
+		return fmt.Errorf("supplied role is no valid option : %v", newRole)
 	}
 	if exists {
-		return fmt.Errorf("User %v already has role %v", username, newRole)
+		return fmt.Errorf("user %v already has role %v", username, newRole)
 	}
 
 	roles, _ := json.Marshal(append(user.Roles, newRole))
-	if _, err := sq.Update("user").Set("roles", roles).Where("user.username = ?", username).RunWith(r.DB).Exec(); err != nil {
-		log.Errorf("Error while adding new role for user '%s'", user.Username)
+	if _, err := sq.Update("hpc_user").Set("roles", roles).Where("hpc_user.username = ?", username).RunWith(r.DB).Exec(); err != nil {
+		log.Errorf("error while adding new role for user '%s'", user.Username)
 		return err
 	}
 	return nil
@@ -223,14 +266,14 @@ func (r *UserRepository) RemoveRole(ctx context.Context, username string, queryr
 	exists, valid := user.HasValidRole(oldRole)
 
 	if !valid {
-		return fmt.Errorf("Supplied role is no valid option : %v", oldRole)
+		return fmt.Errorf("supplied role is no valid option : %v", oldRole)
 	}
 	if !exists {
-		return fmt.Errorf("Role already deleted for user '%v': %v", username, oldRole)
+		return fmt.Errorf("role already deleted for user '%v': %v", username, oldRole)
 	}
 
 	if oldRole == schema.GetRoleString(schema.RoleManager) && len(user.Projects) != 0 {
-		return fmt.Errorf("Cannot remove role 'manager' while user %s still has assigned project(s) : %v", username, user.Projects)
+		return fmt.Errorf("cannot remove role 'manager' while user %s still has assigned project(s) : %v", username, user.Projects)
 	}
 
 	var newroles []string
@@ -240,8 +283,8 @@ func (r *UserRepository) RemoveRole(ctx context.Context, username string, queryr
 		}
 	}
 
-	var mroles, _ = json.Marshal(newroles)
-	if _, err := sq.Update("user").Set("roles", mroles).Where("user.username = ?", username).RunWith(r.DB).Exec(); err != nil {
+	mroles, _ := json.Marshal(newroles)
+	if _, err := sq.Update("hpc_user").Set("roles", mroles).Where("hpc_user.username = ?", username).RunWith(r.DB).Exec(); err != nil {
 		log.Errorf("Error while removing role for user '%s'", user.Username)
 		return err
 	}
@@ -251,15 +294,15 @@ func (r *UserRepository) RemoveRole(ctx context.Context, username string, queryr
 func (r *UserRepository) AddProject(
 	ctx context.Context,
 	username string,
-	project string) error {
-
+	project string,
+) error {
 	user, err := r.GetUser(username)
 	if err != nil {
 		return err
 	}
 
 	if !user.HasRole(schema.RoleManager) {
-		return fmt.Errorf("user '%s' is not a manager!", username)
+		return fmt.Errorf("user '%s' is not a manager", username)
 	}
 
 	if user.HasProject(project) {
@@ -267,7 +310,7 @@ func (r *UserRepository) AddProject(
 	}
 
 	projects, _ := json.Marshal(append(user.Projects, project))
-	if _, err := sq.Update("user").Set("projects", projects).Where("user.username = ?", username).RunWith(r.DB).Exec(); err != nil {
+	if _, err := sq.Update("hpc_user").Set("projects", projects).Where("hpc_user.username = ?", username).RunWith(r.DB).Exec(); err != nil {
 		return err
 	}
 
@@ -281,11 +324,11 @@ func (r *UserRepository) RemoveProject(ctx context.Context, username string, pro
 	}
 
 	if !user.HasRole(schema.RoleManager) {
-		return fmt.Errorf("user '%#v' is not a manager!", username)
+		return fmt.Errorf("user '%#v' is not a manager", username)
 	}
 
 	if !user.HasProject(project) {
-		return fmt.Errorf("user '%#v': Cannot remove project '%#v' - Does not match!", username, project)
+		return fmt.Errorf("user '%#v': Cannot remove project '%#v' - Does not match", username, project)
 	}
 
 	var exists bool
@@ -298,14 +341,14 @@ func (r *UserRepository) RemoveProject(ctx context.Context, username string, pro
 		}
 	}
 
-	if exists == true {
+	if exists {
 		var result interface{}
 		if len(newprojects) == 0 {
 			result = "[]"
 		} else {
 			result, _ = json.Marshal(newprojects)
 		}
-		if _, err := sq.Update("user").Set("projects", result).Where("user.username = ?", username).RunWith(r.DB).Exec(); err != nil {
+		if _, err := sq.Update("hpc_user").Set("projects", result).Where("hpc_user.username = ?", username).RunWith(r.DB).Exec(); err != nil {
 			return err
 		}
 		return nil
@@ -321,9 +364,10 @@ const ContextUserKey ContextKey = "user"
 func GetUserFromContext(ctx context.Context) *schema.User {
 	x := ctx.Value(ContextUserKey)
 	if x == nil {
+		log.Warnf("no user retrieved from context")
 		return nil
 	}
-
+	// log.Infof("user retrieved from context: %v", x.(*schema.User))
 	return x.(*schema.User)
 }
 
@@ -336,7 +380,7 @@ func (r *UserRepository) FetchUserInCtx(ctx context.Context, username string) (*
 
 	user := &model.User{Username: username}
 	var name, email sql.NullString
-	if err := sq.Select("name", "email").From("user").Where("user.username = ?", username).
+	if err := sq.Select("name", "email").From("hpc_user").Where("hpc_user.username = ?", username).
 		RunWith(r.DB).QueryRow().Scan(&name, &email); err != nil {
 		if err == sql.ErrNoRows {
 			/* This warning will be logged *often* for non-local users, i.e. users mentioned only in job-table or archive, */

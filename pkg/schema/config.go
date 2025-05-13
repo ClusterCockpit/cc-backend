@@ -24,8 +24,9 @@ type LdapConfig struct {
 }
 
 type OpenIDConfig struct {
-	Provider        string `json:"provider"`
-	SyncUserOnLogin bool   `json:"syncUserOnLogin"`
+	Provider          string `json:"provider"`
+	SyncUserOnLogin   bool   `json:"syncUserOnLogin"`
+	UpdateUserOnLogin bool   `json:"updateUserOnLogin"`
 }
 
 type JWTAuthConfig struct {
@@ -45,6 +46,9 @@ type JWTAuthConfig struct {
 
 	// Should an non-existent user be added to the DB based on the information in the token
 	SyncUserOnLogin bool `json:"syncUserOnLogin"`
+
+	// Should an existent user be updated in the DB based on the information in the token
+	UpdateUserOnLogin bool `json:"updateUserOnLogin"`
 }
 
 type IntRange struct {
@@ -53,8 +57,9 @@ type IntRange struct {
 }
 
 type TimeRange struct {
-	From *time.Time `json:"from"`
-	To   *time.Time `json:"to"`
+	From  *time.Time `json:"from"`
+	To    *time.Time `json:"to"`
+	Range string     `json:"range,omitempty"`
 }
 
 type FilterRanges struct {
@@ -76,12 +81,26 @@ type Retention struct {
 	IncludeDB bool   `json:"includeDB"`
 }
 
+type ResampleConfig struct {
+	// Array of resampling target resolutions, in seconds; Example: [600,300,60]
+	Resolutions []int `json:"resolutions"`
+	// Trigger next zoom level at less than this many visible datapoints
+	Trigger int `json:"trigger"`
+}
+
+type CronFrequency struct {
+	// Duration Update Worker [Defaults to '5m']
+	DurationWorker string `json:"duration-worker"`
+	// Metric-Footprint Update Worker [Defaults to '10m']
+	FootprintWorker string `json:"footprint-worker"`
+}
+
 // Format of the configuration (file). See below for the defaults.
 type ProgramConfig struct {
 	// Address where the http (or https) server will listen on (for example: 'localhost:80').
 	Addr string `json:"addr"`
 
-	// Addresses from which secured API endpoints can be reached
+	// Addresses from which secured admin API endpoints can be reached, can be wildcard "*"
 	ApiAllowedIPs []string `json:"apiAllowedIPs"`
 
 	// Drop root permissions once .env was read and the port was taken.
@@ -133,6 +152,9 @@ type ProgramConfig struct {
 	// be provided! Most options here can be overwritten by the user.
 	UiDefaults map[string]interface{} `json:"ui-defaults"`
 
+	// If exists, will enable dynamic zoom in frontend metric plots using the configured values
+	EnableResampling *ResampleConfig `json:"enable-resampling"`
+
 	// Where to store MachineState files
 	MachineStateDir string `json:"machine-state-dir"`
 
@@ -141,6 +163,13 @@ type ProgramConfig struct {
 
 	// Defines time X in seconds in which jobs are considered to be "short" and will be filtered in specific views.
 	ShortRunningJobsDuration int `json:"short-running-jobs-duration"`
+
+	// Energy Mix CO2 Emission Constant [g/kWh]
+	// If entered, displays estimated CO2 emission for job based on jobs totalEnergy
+	EmissionConstant int `json:"emission-constant"`
+
+	// Frequency of cron job workers
+	CronFrequency *CronFrequency `json:"cron-frequency"`
 
 	// Array of Clusters
 	Clusters []*ClusterConfig `json:"clusters"`

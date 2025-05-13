@@ -8,12 +8,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
-	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -22,7 +21,7 @@ import (
 
 // GraphQL validation should make sure that no unkown values can be specified.
 var groupBy2column = map[model.Aggregate]string{
-	model.AggregateUser:    "job.user",
+	model.AggregateUser:    "job.hpc_user",
 	model.AggregateProject: "job.project",
 	model.AggregateCluster: "job.cluster",
 }
@@ -41,8 +40,8 @@ var sortBy2column = map[model.SortByAggregate]string{
 func (r *JobRepository) buildCountQuery(
 	filter []*model.JobFilter,
 	kind string,
-	col string) sq.SelectBuilder {
-
+	col string,
+) sq.SelectBuilder {
 	var query sq.SelectBuilder
 
 	if col != "" {
@@ -69,16 +68,16 @@ func (r *JobRepository) buildCountQuery(
 
 func (r *JobRepository) buildStatsQuery(
 	filter []*model.JobFilter,
-	col string) sq.SelectBuilder {
-
+	col string,
+) sq.SelectBuilder {
 	var query sq.SelectBuilder
 	castType := r.getCastType()
 
 	// fmt.Sprintf(`CAST(ROUND((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) / 3600) as %s) as value`, time.Now().Unix(), castType)
 
 	if col != "" {
-		// Scan columns: id, totalJobs, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours
-		query = sq.Select(col, "COUNT(job.id) as totalJobs",
+		// Scan columns: id, totalJobs, name, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours
+		query = sq.Select(col, "COUNT(job.id) as totalJobs", "name",
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) / 3600) as %s) as totalWalltime`, time.Now().Unix(), castType),
 			fmt.Sprintf(`CAST(SUM(job.num_nodes) as %s) as totalNodes`, castType),
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_nodes) / 3600) as %s) as totalNodeHours`, time.Now().Unix(), castType),
@@ -86,10 +85,9 @@ func (r *JobRepository) buildStatsQuery(
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_hwthreads) / 3600) as %s) as totalCoreHours`, time.Now().Unix(), castType),
 			fmt.Sprintf(`CAST(SUM(job.num_acc) as %s) as totalAccs`, castType),
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_acc) / 3600) as %s) as totalAccHours`, time.Now().Unix(), castType),
-		).From("job").GroupBy(col)
-
+		).From("job").LeftJoin("hpc_user ON hpc_user.username = job.hpc_user").GroupBy(col)
 	} else {
-		// Scan columns: totalJobs, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours
+		// Scan columns: totalJobs, name, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours
 		query = sq.Select("COUNT(job.id)",
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) / 3600) as %s)`, time.Now().Unix(), castType),
 			fmt.Sprintf(`CAST(SUM(job.num_nodes) as %s)`, castType),
@@ -108,15 +106,15 @@ func (r *JobRepository) buildStatsQuery(
 	return query
 }
 
-func (r *JobRepository) getUserName(ctx context.Context, id string) string {
-	user := GetUserFromContext(ctx)
-	name, _ := r.FindColumnValue(user, id, "user", "name", "username", false)
-	if name != "" {
-		return name
-	} else {
-		return "-"
-	}
-}
+// func (r *JobRepository) getUserName(ctx context.Context, id string) string {
+// 	user := GetUserFromContext(ctx)
+// 	name, _ := r.FindColumnValue(user, id, "hpc_user", "name", "username", false)
+// 	if name != "" {
+// 		return name
+// 	} else {
+// 		return "-"
+// 	}
+// }
 
 func (r *JobRepository) getCastType() string {
 	var castType string
@@ -138,8 +136,8 @@ func (r *JobRepository) JobsStatsGrouped(
 	filter []*model.JobFilter,
 	page *model.PageRequest,
 	sortBy *model.SortByAggregate,
-	groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
-
+	groupBy *model.Aggregate,
+) ([]*model.JobsStatistics, error) {
 	start := time.Now()
 	col := groupBy2column[*groupBy]
 	query := r.buildStatsQuery(filter, col)
@@ -168,14 +166,20 @@ func (r *JobRepository) JobsStatsGrouped(
 
 	for rows.Next() {
 		var id sql.NullString
+		var name sql.NullString
 		var jobs, walltime, nodes, nodeHours, cores, coreHours, accs, accHours sql.NullInt64
-		if err := rows.Scan(&id, &jobs, &walltime, &nodes, &nodeHours, &cores, &coreHours, &accs, &accHours); err != nil {
+		if err := rows.Scan(&id, &jobs, &name, &walltime, &nodes, &nodeHours, &cores, &coreHours, &accs, &accHours); err != nil {
 			log.Warn("Error while scanning rows")
 			return nil, err
 		}
 
 		if id.Valid {
 			var totalJobs, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours int
+			var personName string
+
+			if name.Valid {
+				personName = name.String
+			}
 
 			if jobs.Valid {
 				totalJobs = int(jobs.Int64)
@@ -205,12 +209,12 @@ func (r *JobRepository) JobsStatsGrouped(
 				totalAccHours = int(accHours.Int64)
 			}
 
-			if col == "job.user" {
-				name := r.getUserName(ctx, id.String)
+			if col == "job.hpc_user" {
+				// name := r.getUserName(ctx, id.String)
 				stats = append(stats,
 					&model.JobsStatistics{
 						ID:             id.String,
-						Name:           name,
+						Name:           personName,
 						TotalJobs:      totalJobs,
 						TotalWalltime:  totalWalltime,
 						TotalNodes:     totalNodes,
@@ -218,7 +222,8 @@ func (r *JobRepository) JobsStatsGrouped(
 						TotalCores:     totalCores,
 						TotalCoreHours: totalCoreHours,
 						TotalAccs:      totalAccs,
-						TotalAccHours:  totalAccHours})
+						TotalAccHours:  totalAccHours,
+					})
 			} else {
 				stats = append(stats,
 					&model.JobsStatistics{
@@ -230,7 +235,8 @@ func (r *JobRepository) JobsStatsGrouped(
 						TotalCores:     totalCores,
 						TotalCoreHours: totalCoreHours,
 						TotalAccs:      totalAccs,
-						TotalAccHours:  totalAccHours})
+						TotalAccHours:  totalAccHours,
+					})
 			}
 		}
 	}
@@ -241,8 +247,8 @@ func (r *JobRepository) JobsStatsGrouped(
 
 func (r *JobRepository) JobsStats(
 	ctx context.Context,
-	filter []*model.JobFilter) ([]*model.JobsStatistics, error) {
-
+	filter []*model.JobFilter,
+) ([]*model.JobsStatistics, error) {
 	start := time.Now()
 	query := r.buildStatsQuery(filter, "")
 	query, err := SecurityCheck(ctx, query)
@@ -277,18 +283,36 @@ func (r *JobRepository) JobsStats(
 				TotalWalltime:  int(walltime.Int64),
 				TotalNodeHours: totalNodeHours,
 				TotalCoreHours: totalCoreHours,
-				TotalAccHours:  totalAccHours})
+				TotalAccHours:  totalAccHours,
+			})
 	}
 
 	log.Debugf("Timer JobStats %s", time.Since(start))
 	return stats, nil
 }
 
+func LoadJobStat(job *schema.JobMeta, metric string, statType string) float64 {
+	if stats, ok := job.Statistics[metric]; ok {
+		switch statType {
+		case "avg":
+			return stats.Avg
+		case "max":
+			return stats.Max
+		case "min":
+			return stats.Min
+		default:
+			log.Errorf("Unknown stat type %s", statType)
+		}
+	}
+
+	return 0.0
+}
+
 func (r *JobRepository) JobCountGrouped(
 	ctx context.Context,
 	filter []*model.JobFilter,
-	groupBy *model.Aggregate) ([]*model.JobsStatistics, error) {
-
+	groupBy *model.Aggregate,
+) ([]*model.JobsStatistics, error) {
 	start := time.Now()
 	col := groupBy2column[*groupBy]
 	query := r.buildCountQuery(filter, "", col)
@@ -315,7 +339,8 @@ func (r *JobRepository) JobCountGrouped(
 			stats = append(stats,
 				&model.JobsStatistics{
 					ID:        id.String,
-					TotalJobs: int(cnt.Int64)})
+					TotalJobs: int(cnt.Int64),
+				})
 		}
 	}
 
@@ -328,8 +353,8 @@ func (r *JobRepository) AddJobCountGrouped(
 	filter []*model.JobFilter,
 	groupBy *model.Aggregate,
 	stats []*model.JobsStatistics,
-	kind string) ([]*model.JobsStatistics, error) {
-
+	kind string,
+) ([]*model.JobsStatistics, error) {
 	start := time.Now()
 	col := groupBy2column[*groupBy]
 	query := r.buildCountQuery(filter, kind, col)
@@ -376,8 +401,8 @@ func (r *JobRepository) AddJobCount(
 	ctx context.Context,
 	filter []*model.JobFilter,
 	stats []*model.JobsStatistics,
-	kind string) ([]*model.JobsStatistics, error) {
-
+	kind string,
+) ([]*model.JobsStatistics, error) {
 	start := time.Now()
 	query := r.buildCountQuery(filter, kind, "")
 	query, err := SecurityCheck(ctx, query)
@@ -420,15 +445,41 @@ func (r *JobRepository) AddJobCount(
 func (r *JobRepository) AddHistograms(
 	ctx context.Context,
 	filter []*model.JobFilter,
-	stat *model.JobsStatistics) (*model.JobsStatistics, error) {
+	stat *model.JobsStatistics,
+	durationBins *string,
+) (*model.JobsStatistics, error) {
 	start := time.Now()
+
+	var targetBinCount int
+	var targetBinSize int
+	switch {
+	case *durationBins == "1m": // 1 Minute Bins + Max 60 Bins -> Max 60 Minutes
+		targetBinCount = 60
+		targetBinSize = 60
+	case *durationBins == "10m": // 10 Minute Bins + Max 72 Bins -> Max 12 Hours
+		targetBinCount = 72
+		targetBinSize = 600
+	case *durationBins == "1h": // 1 Hour Bins + Max 48 Bins -> Max 48 Hours
+		targetBinCount = 48
+		targetBinSize = 3600
+	case *durationBins == "6h": // 6 Hour Bins + Max 12 Bins -> Max 3 Days
+		targetBinCount = 12
+		targetBinSize = 21600
+	case *durationBins == "12h": // 12 hour Bins + Max 14 Bins -> Max 7 Days
+		targetBinCount = 14
+		targetBinSize = 43200
+	default: // 24h
+		targetBinCount = 24
+		targetBinSize = 3600
+	}
 
 	castType := r.getCastType()
 	var err error
-	value := fmt.Sprintf(`CAST(ROUND((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) / 3600) as %s) as value`, time.Now().Unix(), castType)
-	stat.HistDuration, err = r.jobsStatisticsHistogram(ctx, value, filter)
+	// Return X-Values always as seconds, will be formatted into minutes and hours in frontend
+	value := fmt.Sprintf(`CAST(ROUND(((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) / %d) + 1) as %s) as value`, time.Now().Unix(), targetBinSize, castType)
+	stat.HistDuration, err = r.jobsDurationStatisticsHistogram(ctx, value, filter, targetBinSize, &targetBinCount)
 	if err != nil {
-		log.Warn("Error while loading job statistics histogram: running jobs")
+		log.Warn("Error while loading job statistics histogram: job duration")
 		return nil, err
 	}
 
@@ -459,14 +510,16 @@ func (r *JobRepository) AddMetricHistograms(
 	ctx context.Context,
 	filter []*model.JobFilter,
 	metrics []string,
-	stat *model.JobsStatistics) (*model.JobsStatistics, error) {
+	stat *model.JobsStatistics,
+	targetBinCount *int,
+) (*model.JobsStatistics, error) {
 	start := time.Now()
 
 	// Running Jobs Only: First query jobdata from sqlite, then query data and make bins
 	for _, f := range filter {
 		if f.State != nil {
 			if len(f.State) == 1 && f.State[0] == "running" {
-				stat.HistMetrics = r.runningJobsMetricStatisticsHistogram(ctx, metrics, filter)
+				stat.HistMetrics = r.runningJobsMetricStatisticsHistogram(ctx, metrics, filter, targetBinCount)
 				log.Debugf("Timer AddMetricHistograms %s", time.Since(start))
 				return stat, nil
 			}
@@ -475,7 +528,7 @@ func (r *JobRepository) AddMetricHistograms(
 
 	// All other cases: Query and make bins in sqlite directly
 	for _, m := range metrics {
-		metricHisto, err := r.jobsMetricStatisticsHistogram(ctx, m, filter)
+		metricHisto, err := r.jobsMetricStatisticsHistogram(ctx, m, filter, targetBinCount)
 		if err != nil {
 			log.Warnf("Error while loading job metric statistics histogram: %s", m)
 			continue
@@ -491,8 +544,8 @@ func (r *JobRepository) AddMetricHistograms(
 func (r *JobRepository) jobsStatisticsHistogram(
 	ctx context.Context,
 	value string,
-	filters []*model.JobFilter) ([]*model.HistoPoint, error) {
-
+	filters []*model.JobFilter,
+) ([]*model.HistoPoint, error) {
 	start := time.Now()
 	query, qerr := SecurityCheck(ctx,
 		sq.Select(value, "COUNT(job.id) AS count").From("job"))
@@ -512,6 +565,7 @@ func (r *JobRepository) jobsStatisticsHistogram(
 	}
 
 	points := make([]*model.HistoPoint, 0)
+	// is it possible to introduce zero values here? requires info about bincount
 	for rows.Next() {
 		point := model.HistoPoint{}
 		if err := rows.Scan(&point.Value, &point.Count); err != nil {
@@ -525,39 +579,79 @@ func (r *JobRepository) jobsStatisticsHistogram(
 	return points, nil
 }
 
+func (r *JobRepository) jobsDurationStatisticsHistogram(
+	ctx context.Context,
+	value string,
+	filters []*model.JobFilter,
+	binSizeSeconds int,
+	targetBinCount *int,
+) ([]*model.HistoPoint, error) {
+	start := time.Now()
+	query, qerr := SecurityCheck(ctx,
+		sq.Select(value, "COUNT(job.id) AS count").From("job"))
+
+	if qerr != nil {
+		return nil, qerr
+	}
+
+	// Setup Array
+	points := make([]*model.HistoPoint, 0)
+	for i := 1; i <= *targetBinCount; i++ {
+		point := model.HistoPoint{Value: i * binSizeSeconds, Count: 0}
+		points = append(points, &point)
+	}
+
+	for _, f := range filters {
+		query = BuildWhereClause(f, query)
+	}
+
+	rows, err := query.GroupBy("value").RunWith(r.DB).Query()
+	if err != nil {
+		log.Error("Error while running query")
+		return nil, err
+	}
+
+	// Fill Array at matching $Value
+	for rows.Next() {
+		point := model.HistoPoint{}
+		if err := rows.Scan(&point.Value, &point.Count); err != nil {
+			log.Warn("Error while scanning rows")
+			return nil, err
+		}
+
+		for _, e := range points {
+			if e.Value == (point.Value * binSizeSeconds) {
+				// Note:
+				//  Matching on unmodified integer value (and multiplying point.Value by binSizeSeconds after match)
+				//  causes frontend to loop into highest targetBinCount, due to zoom condition instantly being fullfilled (cause unknown)
+				e.Count = point.Count
+				break
+			}
+		}
+	}
+
+	log.Debugf("Timer jobsStatisticsHistogram %s", time.Since(start))
+	return points, nil
+}
+
 func (r *JobRepository) jobsMetricStatisticsHistogram(
 	ctx context.Context,
 	metric string,
-	filters []*model.JobFilter) (*model.MetricHistoPoints, error) {
-
-	var dbMetric string
-	switch metric {
-	case "cpu_load":
-		dbMetric = "load_avg"
-	case "flops_any":
-		dbMetric = "flops_any_avg"
-	case "mem_bw":
-		dbMetric = "mem_bw_avg"
-	case "mem_used":
-		dbMetric = "mem_used_max"
-	case "net_bw":
-		dbMetric = "net_bw_avg"
-	case "file_bw":
-		dbMetric = "file_bw_avg"
-	default:
-		return nil, fmt.Errorf("%s not implemented", metric)
-	}
-
+	filters []*model.JobFilter,
+	bins *int,
+) (*model.MetricHistoPoints, error) {
 	// Get specific Peak or largest Peak
 	var metricConfig *schema.MetricConfig
-	var peak float64 = 0.0
-	var unit string = ""
+	var peak float64
+	var unit string
+	var footprintStat string
 
 	for _, f := range filters {
 		if f.Cluster != nil {
 			metricConfig = archive.GetMetricConfig(*f.Cluster.Eq, metric)
 			peak = metricConfig.Peak
 			unit = metricConfig.Unit.Prefix + metricConfig.Unit.Base
+			footprintStat = metricConfig.Footprint
 			log.Debugf("Cluster %s filter found with peak %f for %s", *f.Cluster.Eq, peak, metric)
 		}
 	}
@@ -572,58 +666,40 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 					if unit == "" {
 						unit = m.Unit.Prefix + m.Unit.Base
 					}
+					if footprintStat == "" {
+						footprintStat = m.Footprint
+					}
 				}
 			}
 		}
 	}
 
-	// log.Debugf("Metric %s: DB %s, Peak %f, Unit %s", metric, dbMetric, peak, unit)
-	// Make bins, see https://jereze.com/code/sql-histogram/
-
+	// log.Debugf("Metric %s, Peak %f, Unit %s", metric, peak, unit)
+	// Make bins, see https://jereze.com/code/sql-histogram/ (Modified here)
 	start := time.Now()
 
-	crossJoinQuery := sq.Select(
-		fmt.Sprintf(`max(%s) as max`, dbMetric),
-		fmt.Sprintf(`min(%s) as min`, dbMetric),
-	).From("job").Where(
-		fmt.Sprintf(`%s is not null`, dbMetric),
-	).Where(
-		fmt.Sprintf(`%s <= %f`, dbMetric, peak),
-	)
-
-	crossJoinQuery, cjqerr := SecurityCheck(ctx, crossJoinQuery)
-
-	if cjqerr != nil {
-		return nil, cjqerr
-	}
-
-	for _, f := range filters {
-		crossJoinQuery = BuildWhereClause(f, crossJoinQuery)
-	}
-
-	crossJoinQuerySql, crossJoinQueryArgs, sqlerr := crossJoinQuery.ToSql()
-	if sqlerr != nil {
-		return nil, sqlerr
-	}
-
-	bins := 10
-	binQuery := fmt.Sprintf(`CAST( (case when job.%s = value.max then value.max*0.999999999 else job.%s end - value.min) / (value.max - value.min) * %d as INTEGER )`, dbMetric, dbMetric, bins)
+	// Find Jobs' Value Bin Number: Divide Value by Peak, Multiply by RequestedBins, then CAST to INT: Gets Bin-Number of Job
+	binQuery := fmt.Sprintf(`CAST(
+		((case when json_extract(footprint, "$.%s") = %f then %f*0.999999999 else json_extract(footprint, "$.%s") end) / %f)
+		* %v as INTEGER )`,
+		(metric + "_" + footprintStat), peak, peak, (metric + "_" + footprintStat), peak, *bins)
 
 	mainQuery := sq.Select(
 		fmt.Sprintf(`%s + 1 as bin`, binQuery),
-		fmt.Sprintf(`count(job.%s) as count`, dbMetric),
-		fmt.Sprintf(`CAST(((value.max / %d) * (%s     )) as INTEGER ) as min`, bins, binQuery),
-		fmt.Sprintf(`CAST(((value.max / %d) * (%s + 1 )) as INTEGER ) as max`, bins, binQuery),
-	).From("job").CrossJoin(
-		fmt.Sprintf(`(%s) as value`, crossJoinQuerySql), crossJoinQueryArgs...,
-	).Where(fmt.Sprintf(`job.%s is not null and job.%s <= %f`, dbMetric, dbMetric, peak))
+		fmt.Sprintf(`count(*) as count`),
+		// For Debug: // fmt.Sprintf(`CAST((%f / %d) as INTEGER ) * %s as min`, peak, *bins, binQuery),
+		// For Debug: // fmt.Sprintf(`CAST((%f / %d) as INTEGER ) * (%s + 1) as max`, peak, *bins, binQuery),
+	).From("job").Where(
+		"JSON_VALID(footprint)",
+	).Where(fmt.Sprintf(`json_extract(footprint, "$.%s") is not null and json_extract(footprint, "$.%s") <= %f`, (metric + "_" + footprintStat), (metric + "_" + footprintStat), peak))
 
+	// Only accessible Jobs...
 	mainQuery, qerr := SecurityCheck(ctx, mainQuery)
-
 	if qerr != nil {
 		return nil, qerr
 	}
 
+	// Filters...
 	for _, f := range filters {
 		mainQuery = BuildWhereClause(f, mainQuery)
 	}
@@ -637,18 +713,41 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 		return nil, err
 	}
 
+	// Setup Return Array With Bin-Numbers for Match and Min/Max based on Peak
 	points := make([]*model.MetricHistoPoint, 0)
-	for rows.Next() {
-		point := model.MetricHistoPoint{}
-		if err := rows.Scan(&point.Bin, &point.Count, &point.Min, &point.Max); err != nil {
-			log.Warnf("Error while scanning rows for %s", metric)
-			return nil, err // Totally bricks cc-backend if returned and if all metrics requested?
-		}
-
-		points = append(points, &point)
+	binStep := int(peak) / *bins
+	for i := 1; i <= *bins; i++ {
+		binMin := (binStep * (i - 1))
+		binMax := (binStep * i)
+		epoint := model.MetricHistoPoint{Bin: &i, Count: 0, Min: &binMin, Max: &binMax}
+		points = append(points, &epoint)
 	}
 
-	result := model.MetricHistoPoints{Metric: metric, Unit: unit, Data: points}
+	for rows.Next() { // Fill Count if Bin-No. Matches (Not every Bin exists in DB!)
+		rpoint := model.MetricHistoPoint{}
+		if err := rows.Scan(&rpoint.Bin, &rpoint.Count); err != nil { // Required for Debug: &rpoint.Min, &rpoint.Max
+			log.Warnf("Error while scanning rows for %s", metric)
+			return nil, err // FIXME: Totally bricks cc-backend if returned and if all metrics requested?
+		}
+
+		for _, e := range points {
+			if e.Bin != nil && rpoint.Bin != nil {
+				if *e.Bin == *rpoint.Bin {
+					e.Count = rpoint.Count
+					// Only Required For Debug: Check DB returned Min/Max against Backend Init above
+					// if rpoint.Min != nil {
+					// 	log.Warnf(">>>> Bin %d Min Set For %s to %d (Init'd with: %d)", *e.Bin, metric, *rpoint.Min, *e.Min)
+					// }
+					// if rpoint.Max != nil {
+					// 	log.Warnf(">>>> Bin %d Max Set For %s to %d (Init'd with: %d)", *e.Bin, metric, *rpoint.Max, *e.Max)
+					// }
+					break
+				}
+			}
+		}
+	}
+
+	result := model.MetricHistoPoints{Metric: metric, Unit: unit, Stat: &footprintStat, Data: points}
 
 	log.Debugf("Timer jobsStatisticsHistogram %s", time.Since(start))
 	return &result, nil
@@ -657,7 +756,9 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 func (r *JobRepository) runningJobsMetricStatisticsHistogram(
 	ctx context.Context,
 	metrics []string,
-	filters []*model.JobFilter) []*model.MetricHistoPoints {
+	filters []*model.JobFilter,
+	bins *int,
+) []*model.MetricHistoPoints {
 
 	// Get Jobs
 	jobs, err := r.QueryJobs(ctx, filters, &model.PageRequest{Page: 1, ItemsPerPage: 500 + 1}, nil)
@@ -681,7 +782,7 @@ func (r *JobRepository) runningJobsMetricStatisticsHistogram(
 			continue
 		}
 
-		if err := metricdata.LoadAverages(job, metrics, avgs, ctx); err != nil {
+		if err := metricDataDispatcher.LoadAverages(job, metrics, avgs, ctx); err != nil {
 			log.Errorf("Error while loading averages for histogram: %s", err)
 			return nil
 		}
@@ -692,15 +793,14 @@ func (r *JobRepository) runningJobsMetricStatisticsHistogram(
 	for idx, metric := range metrics {
 		// Get specific Peak or largest Peak
 		var metricConfig *schema.MetricConfig
-		var peak float64 = 0.0
-		var unit string = ""
+		var peak float64
+		var unit string
 
 		for _, f := range filters {
 			if f.Cluster != nil {
 				metricConfig = archive.GetMetricConfig(*f.Cluster.Eq, metric)
 				peak = metricConfig.Peak
 				unit = metricConfig.Unit.Prefix + metricConfig.Unit.Base
-				log.Debugf("Cluster %s filter found with peak %f for %s", *f.Cluster.Eq, peak, metric)
 			}
 		}
 
@@ -720,28 +820,24 @@ func (r *JobRepository) runningJobsMetricStatisticsHistogram(
 		}
 
 		// Make and fill bins
-		bins := 10.0
-		peakBin := peak / bins
+		peakBin := int(peak) / *bins
 
 		points := make([]*model.MetricHistoPoint, 0)
-		for b := 0; b < 10; b++ {
+		for b := 0; b < *bins; b++ {
 			count := 0
 			bindex := b + 1
-			bmin := math.Round(peakBin * float64(b))
-			bmax := math.Round(peakBin * (float64(b) + 1.0))
+			bmin := peakBin * b
+			bmax := peakBin * (b + 1)
 
 			// Iterate AVG values for indexed metric and count for bins
 			for _, val := range avgs[idx] {
-				if float64(val) >= bmin && float64(val) < bmax {
+				if int(val) >= bmin && int(val) < bmax {
 					count += 1
 				}
 			}
 
-			bminint := int(bmin)
-			bmaxint := int(bmax)
-
 			// Append Bin to Metric Result Array
-			point := model.MetricHistoPoint{Bin: &bindex, Count: count, Min: &bminint, Max: &bmaxint}
+			point := model.MetricHistoPoint{Bin: &bindex, Count: count, Min: &bmin, Max: &bmax}
 			points = append(points, &point)
 		}
 

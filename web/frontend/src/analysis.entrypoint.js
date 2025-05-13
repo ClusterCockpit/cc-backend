@@ -6,7 +6,8 @@ filterPresets.cluster = cluster
 new Analysis({
     target: document.getElementById('svelte-app'),
     props: {
-        filterPresets: filterPresets
+        filterPresets: filterPresets,
+        cluster: cluster
     },
     context: new Map([
             ['cc-config', clusterCockpitConfig]

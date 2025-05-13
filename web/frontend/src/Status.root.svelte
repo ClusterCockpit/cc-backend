@@ -1,9 +1,12 @@
-<script>
+<!--
+    @component Main cluster status view component; renders current system-usage information
+
+    Properties:
+    - `cluster String`: The cluster to show status information for
+ -->
+ 
+ <script>
   import { getContext } from "svelte";
-  import Refresher from "./joblist/Refresher.svelte";
-  import Roofline from "./plots/Roofline.svelte";
-  import Pie, { colors } from "./plots/Pie.svelte";
-  import Histogram from "./plots/Histogram.svelte";
   import {
     Row,
     Col,
@@ -16,30 +19,36 @@
     Progress,
     Icon,
     Button,
+    Tooltip
   } from "@sveltestrap/sveltestrap";
-  import {
-    init,
-    convert2uplot,
-    transformPerNodeDataForRoofline,
-  } from "./utils.js";
-  import { scaleNumbers } from "./units.js";
   import {
     queryStore,
     gql,
     getContextClient,
     mutationStore,
   } from "@urql/svelte";
-  import PlotTable from "./PlotTable.svelte";
-  import HistogramSelection from "./HistogramSelection.svelte";
+  import {
+    init,
+    convert2uplot,
+    transformPerNodeDataForRoofline,
+    scramble,
+    scrambleNames,
+  } from "./generic/utils.js";
+  import { scaleNumbers } from "./generic/units.js";
+  import PlotGrid from "./generic/PlotGrid.svelte";
+  import Roofline from "./generic/plots/Roofline.svelte";
+  import Pie, { colors } from "./generic/plots/Pie.svelte";
+  import Histogram from "./generic/plots/Histogram.svelte";
+  import Refresher from "./generic/helper/Refresher.svelte";
+  import HistogramSelection from "./generic/select/HistogramSelection.svelte";
 
   const { query: initq } = init();
   const ccconfig = getContext("cc-config");
 
   export let cluster;
 
-  let plotWidths = [],
-    colWidth1,
-    colWidth2;
+  let plotWidths = [];
+  let colWidth;
   let from = new Date(Date.now() - 5 * 60 * 1000),
     to = new Date(Date.now());
   const topOptions = [
@@ -69,11 +78,12 @@
     );
 
   let isHistogramSelectionOpen = false;
-  $: metricsInHistograms = cluster
-    ? ccconfig[`user_view_histogramMetrics:${cluster}`] || []
-    : ccconfig.user_view_histogramMetrics || [];
+  $: selectedHistograms = cluster
+    ? ccconfig[`user_view_histogramMetrics:${cluster}`] || ( ccconfig['user_view_histogramMetrics'] || [] )
+    : ccconfig['user_view_histogramMetrics'] || [];
 
   const client = getContextClient();
+  // Note: nodeMetrics are requested on configured $timestep resolution
   $: mainQuery = queryStore({
     client: client,
     query: gql`
@@ -83,7 +93,7 @@
         $metrics: [String!]
         $from: Time!
         $to: Time!
-        $metricsInHistograms: [String!]
+        $selectedHistograms: [String!]
       ) {
         nodeMetrics(
           cluster: $cluster
@@ -109,7 +119,7 @@
           }
         }
 
-        stats: jobsStatistics(filter: $filter, metrics: $metricsInHistograms) {
+        stats: jobsStatistics(filter: $filter, metrics: $selectedHistograms) {
           histDuration {
             count
             value
@@ -146,11 +156,11 @@
     `,
     variables: {
       cluster: cluster,
-      metrics: ["flops_any", "mem_bw"],
+      metrics: ["flops_any", "mem_bw"], // Fixed names for roofline and status bars
       from: from.toISOString(),
       to: to.toISOString(),
       filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
-      metricsInHistograms: metricsInHistograms,
+      selectedHistograms: selectedHistograms,
     },
   });
 
@@ -170,6 +180,7 @@
           groupBy: USER
         ) {
           id
+          name
           totalJobs
           totalNodes
           totalCores
@@ -315,20 +326,11 @@
 
 <!-- Loading indicator & Refresh -->
 
-<Row cols={3}>
-  <Col xs="auto" style="align-self: flex-end;">
+<Row cols={{ lg: 3, md: 3, sm: 1 }}>
+  <Col style="">
     <h4 class="mb-0">Current utilization of cluster "{cluster}"</h4>
   </Col>
-  <Col xs="auto" style="margin-left: 0.25rem;">
-    {#if $initq.fetching || $mainQuery.fetching}
-      <Spinner />
-    {:else if $initq.error}
-      <Card body color="danger">{$initq.error.message}</Card>
-    {:else}
-      <!-- ... -->
-    {/if}
-  </Col>
-  <Col xs="auto" style="margin-left: auto;">
+  <Col class="mt-2 mt-md-0 text-md-end">
     <Button
       outline
       color="secondary"
@@ -337,14 +339,25 @@
       <Icon name="bar-chart-line" /> Select Histograms
     </Button>
   </Col>
-  <Col xs="auto" style="margin-left: 0.25rem;">
+  <Col class="mt-2 mt-md-0">
     <Refresher
       initially={120}
-      on:reload={() => {
+      on:refresh={() => {
         from = new Date(Date.now() - 5 * 60 * 1000);
         to = new Date(Date.now());
       }}
     />
+  </Col>
+</Row>
+<Row cols={1} class="text-center mt-3">
+  <Col>
+    {#if $initq.fetching || $mainQuery.fetching}
+      <Spinner />
+    {:else if $initq.error}
+      <Card body color="danger">{$initq.error.message}</Card>
+    {:else}
+      <!-- ... -->
+    {/if}
   </Col>
 </Row>
 {#if $mainQuery.error}
@@ -361,8 +374,8 @@
 
 {#if $initq.data && $mainQuery.data}
   {#each $initq.data.clusters.find((c) => c.name == cluster).subClusters as subCluster, i}
-    <Row cols={2} class="mb-3 justify-content-center">
-      <Col md="4" class="px-3">
+    <Row cols={{ lg: 2, md: 1 , sm: 1}} class="mb-3 justify-content-center">
+      <Col class="px-3">
         <Card class="h-auto mt-1">
           <CardHeader>
             <CardTitle class="mb-0">SubCluster "{subCluster.name}"</CardTitle>
@@ -433,14 +446,14 @@
           </CardBody>
         </Card>
       </Col>
-      <Col class="px-3">
+      <Col class="px-3 mt-2 mt-lg-0">
         <div bind:clientWidth={plotWidths[i]}>
           {#key $mainQuery.data.nodeMetrics}
             <Roofline
               allowSizeChange={true}
               width={plotWidths[i] - 10}
               height={300}
-              cluster={subCluster}
+              subCluster={subCluster}
               data={transformPerNodeDataForRoofline(
                 $mainQuery.data.nodeMetrics.filter(
                   (data) => data.subCluster == subCluster.name,
@@ -455,11 +468,11 @@
 
   <hr />
 
-  <!-- Usage Stats as Histograms -->
+  <!-- User and Project Stats as Pie-Charts -->
 
-  <Row cols={4}>
+  <Row cols={{ lg: 4, md: 2, sm: 1 }}>
     <Col class="p-2">
-      <div bind:clientWidth={colWidth1}>
+      <div bind:clientWidth={colWidth}>
         <h4 class="text-center">
           Top Users on {cluster.charAt(0).toUpperCase() + cluster.slice(1)}
         </h4>
@@ -470,12 +483,12 @@
             <Card body color="danger">{$topUserQuery.error.message}</Card>
           {:else}
             <Pie
-              size={colWidth1}
+              size={colWidth}
               sliceLabel={topUserSelection.label}
               quantities={$topUserQuery.data.topUser.map(
                 (tu) => tu[topUserSelection.key],
               )}
-              entities={$topUserQuery.data.topUser.map((tu) => tu.id)}
+              entities={$topUserQuery.data.topUser.map((tu) => scrambleNames ? scramble(tu.id) : tu.id)}
             />
           {/if}
         {/key}
@@ -506,12 +519,19 @@
             {#each $topUserQuery.data.topUser as tu, i}
               <tr>
                 <td><Icon name="circle-fill" style="color: {colors[i]};" /></td>
-                <th scope="col"
+                <th scope="col" id="topName-{tu.id}"
                   ><a
                     href="/monitoring/user/{tu.id}?cluster={cluster}&state=running"
-                    >{tu.id}</a
+                    >{scrambleNames ? scramble(tu.id) : tu.id}</a
                   ></th
                 >
+                {#if tu?.name}
+                  <Tooltip
+                    target={`topName-${tu.id}`}
+                    placement="left"
+                    >{scrambleNames ? scramble(tu.name) : tu.name}</Tooltip
+                  >
+                {/if}
                 <td>{tu[topUserSelection.key]}</td>
               </tr>
             {/each}
@@ -530,12 +550,12 @@
           <Card body color="danger">{$topProjectQuery.error.message}</Card>
         {:else}
           <Pie
-            size={colWidth1}
+            size={colWidth}
             sliceLabel={topProjectSelection.label}
             quantities={$topProjectQuery.data.topProjects.map(
               (tp) => tp[topProjectSelection.key],
             )}
-            entities={$topProjectQuery.data.topProjects.map((tp) => tp.id)}
+            entities={$topProjectQuery.data.topProjects.map((tp) => scrambleNames ? scramble(tp.id) : tp.id)}
           />
         {/if}
       {/key}
@@ -568,7 +588,7 @@
                 <th scope="col"
                   ><a
                     href="/monitoring/jobs/?cluster={cluster}&state=running&project={tp.id}&projectMatch=eq"
-                    >{tp.id}</a
+                    >{scrambleNames ? scramble(tp.id) : tp.id}</a
                   ></th
                 >
                 <td>{tp[topProjectSelection.key]}</td>
@@ -579,28 +599,30 @@
       {/key}
     </Col>
   </Row>
+
   <hr class="my-2" />
-  <Row cols={2}>
+
+  <!-- Static Stats as Histograms : Running Duration && Allocated Hardware Counts-->
+
+  <Row cols={{ lg: 2, md: 1 }}>
     <Col class="p-2">
-      <div bind:clientWidth={colWidth2}>
-        {#key $mainQuery.data.stats}
-          <Histogram
-            data={convert2uplot($mainQuery.data.stats[0].histDuration)}
-            width={colWidth2 - 25}
-            title="Duration Distribution"
-            xlabel="Current Runtimes"
-            xunit="Hours"
-            ylabel="Number of Jobs"
-            yunit="Jobs"
-          />
-        {/key}
-      </div>
+      {#key $mainQuery.data.stats}
+        <Histogram
+          data={convert2uplot($mainQuery.data.stats[0].histDuration)}
+          title="Duration Distribution"
+          xlabel="Current Job Runtimes"
+          xunit="Runtime"
+          ylabel="Number of Jobs"
+          yunit="Jobs"
+          usesBins
+          xtime
+        />
+      {/key}
     </Col>
     <Col class="p-2">
       {#key $mainQuery.data.stats}
         <Histogram
           data={convert2uplot($mainQuery.data.stats[0].histNumNodes)}
-          width={colWidth2 - 25}
           title="Number of Nodes Distribution"
           xlabel="Allocated Nodes"
           xunit="Nodes"
@@ -610,27 +632,23 @@
       {/key}
     </Col>
   </Row>
-  <Row cols={2}>
+  <Row cols={{ lg: 2, md: 1 }}>
     <Col class="p-2">
-      <div bind:clientWidth={colWidth2}>
-        {#key $mainQuery.data.stats}
-          <Histogram
-            data={convert2uplot($mainQuery.data.stats[0].histNumCores)}
-            width={colWidth2 - 25}
-            title="Number of Cores Distribution"
-            xlabel="Allocated Cores"
-            xunit="Cores"
-            ylabel="Number of Jobs"
-            yunit="Jobs"
-          />
-        {/key}
-      </div>
+      {#key $mainQuery.data.stats}
+        <Histogram
+          data={convert2uplot($mainQuery.data.stats[0].histNumCores)}
+          title="Number of Cores Distribution"
+          xlabel="Allocated Cores"
+          xunit="Cores"
+          ylabel="Number of Jobs"
+          yunit="Jobs"
+        />
+      {/key}
     </Col>
     <Col class="p-2">
       {#key $mainQuery.data.stats}
         <Histogram
           data={convert2uplot($mainQuery.data.stats[0].histNumAccs)}
-          width={colWidth2 - 25}
           title="Number of Accelerators Distribution"
           xlabel="Allocated Accs"
           xunit="Accs"
@@ -640,38 +658,34 @@
       {/key}
     </Col>
   </Row>
+
   <hr class="my-2" />
-  {#if metricsInHistograms}
-    <Row>
-      <Col>
-        {#key $mainQuery.data.stats[0].histMetrics}
-          <PlotTable
-            let:item
-            let:width
-            renderFor="user"
-            items={$mainQuery.data.stats[0].histMetrics}
-            itemsPerRow={3}
-          >
-            <Histogram
-              data={convert2uplot(item.data)}
-              usesBins={true}
-              {width}
-              height={250}
-              title="Distribution of '{item.metric}' averages"
-              xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
-              xunit={item.unit}
-              ylabel="Number of Jobs"
-              yunit="Jobs"
-            />
-          </PlotTable>
-        {/key}
-      </Col>
-    </Row>
+
+  <!-- Selectable Stats as Histograms : Average Values of Running Jobs -->
+
+  {#if selectedHistograms}
+    {#key $mainQuery.data.stats[0].histMetrics}
+      <PlotGrid
+        let:item
+        items={$mainQuery.data.stats[0].histMetrics}
+        itemsPerRow={2}
+      >
+        <Histogram
+          data={convert2uplot(item.data)}
+          usesBins={true}
+          title="Distribution of '{item.metric}' averages"
+          xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
+          xunit={item.unit}
+          ylabel="Number of Jobs"
+          yunit="Jobs"
+        />
+      </PlotGrid>
+    {/key}
   {/if}
 {/if}
 
 <HistogramSelection
   bind:cluster
-  bind:metricsInHistograms
+  bind:selectedHistograms
   bind:isOpen={isHistogramSelectionOpen}
 />

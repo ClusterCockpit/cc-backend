@@ -1,20 +1,31 @@
-<script>
+<!--
+    @component Main job list component
+
+    Properties:
+    - `filterPresets Object?`: Optional predefined filter values [Default: {}]
+    - `authlevel Number`: The current users authentication level
+    - `roles [Number]`: Enum containing available roles
+ -->
+ 
+ <script>
   import { onMount, getContext } from "svelte";
-  import { init } from "./utils.js";
   import {
     Row,
     Col,
     Button,
+    ButtonGroup,
     Icon,
     Card,
     Spinner,
   } from "@sveltestrap/sveltestrap";
-  import Filters from "./filters/Filters.svelte";
-  import JobList from "./joblist/JobList.svelte";
-  import Refresher from "./joblist/Refresher.svelte";
-  import Sorting from "./joblist/SortSelection.svelte";
-  import MetricSelection from "./MetricSelection.svelte";
-  import UserOrProject from "./filters/UserOrProject.svelte";
+  import { init } from "./generic/utils.js";
+  import Filters from "./generic/Filters.svelte";
+  import JobList from "./generic/JobList.svelte";
+  import JobCompare from "./generic/JobCompare.svelte";
+  import TextFilter from "./generic/helper/TextFilter.svelte";
+  import Refresher from "./generic/helper/Refresher.svelte";
+  import Sorting from "./generic/select/SortSelection.svelte";
+  import MetricSelection from "./generic/select/MetricSelection.svelte";
 
   const { query: initq } = init();
 
@@ -25,9 +36,13 @@
   export let roles;
 
   let filterComponent; // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
+  let filterBuffer = [];
+  let selectedJobs = [];
   let jobList,
-    matchedJobs = null;
-  let sorting = { field: "startTime", order: "DESC" },
+      jobCompare,
+    matchedListJobs,
+    matchedCompareJobs = null;
+  let sorting = { field: "startTime", type: "col", order: "DESC" },
     isSortingOpen = false,
     isMetricsSelectionOpen = false;
   let metrics = filterPresets.cluster
@@ -38,78 +53,132 @@
     ? !!ccconfig[`plot_list_showFootprint:${filterPresets.cluster}`]
     : !!ccconfig.plot_list_showFootprint;
   let selectedCluster = filterPresets?.cluster ? filterPresets.cluster : null;
+  let presetProject = filterPresets?.project ? filterPresets.project : ""
+  let showCompare = false;
 
   // The filterPresets are handled by the Filters component,
   // so we need to wait for it to be ready before we can start a query.
   // This is also why JobList component starts out with a paused query.
-  onMount(() => filterComponent.update());
+  onMount(() => filterComponent.updateFilters());
+
+  $: if (filterComponent && selectedJobs.length == 0) {
+    filterComponent.updateFilters({dbId: []})
+  }
 </script>
 
-<Row>
-  {#if $initq.fetching}
-    <Col xs="auto">
+<!-- ROW1: Status-->
+{#if $initq.fetching}
+  <Row class="mb-3">
+    <Col>
       <Spinner />
     </Col>
-  {:else if $initq.error}
-    <Col xs="auto">
+  </Row>
+{:else if $initq.error}
+  <Row class="mb-3">
+    <Col>
       <Card body color="danger">{$initq.error.message}</Card>
     </Col>
-  {/if}
-</Row>
-<Row>
-  <Col xs="auto">
-    <Button outline color="primary" on:click={() => (isSortingOpen = true)}>
-      <Icon name="sort-up" /> Sorting
-    </Button>
-    <Button
-      outline
-      color="primary"
-      on:click={() => (isMetricsSelectionOpen = true)}
-    >
-      <Icon name="graph-up" /> Metrics
-    </Button>
-    <Button disabled outline
-      >{matchedJobs == null ? "Loading..." : `${matchedJobs} jobs`}</Button
-    >
+  </Row>
+{/if}
+
+<!-- ROW2: Tools-->
+<Row cols={{ xs: 1, md: 2, lg: 5}} class="mb-3">
+  <Col lg="2" class="mb-2 mb-lg-0">
+    <ButtonGroup class="w-100">
+      <Button outline color="primary" on:click={() => (isSortingOpen = true)} disabled={showCompare}>
+        <Icon name="sort-up" /> Sorting
+      </Button>
+      <Button
+        outline
+        color="primary"
+        on:click={() => (isMetricsSelectionOpen = true)}
+      >
+        <Icon name="graph-up" /> Metrics
+      </Button>
+    </ButtonGroup>
   </Col>
-  <Col xs="auto">
+  <Col lg="4" class="mb-1 mb-lg-0">
     <Filters
+      showFilter={!showCompare}
       {filterPresets}
+      matchedJobs={showCompare? matchedCompareJobs: matchedListJobs}
       bind:this={filterComponent}
-      on:update={({ detail }) => {
+      on:update-filters={({ detail }) => {
         selectedCluster = detail.filters[0]?.cluster
           ? detail.filters[0].cluster.eq
           : null;
-        jobList.update(detail.filters);
+        filterBuffer = [...detail.filters]
+        if (showCompare) {
+          jobCompare.queryJobs(detail.filters);
+        } else {
+          jobList.queryJobs(detail.filters);
+        }
       }}
     />
   </Col>
-
-  <Col xs="3" style="margin-left: auto;">
-    <UserOrProject
-      bind:authlevel
-      bind:roles
-      on:update={({ detail }) => filterComponent.update(detail)}
-    />
+  <Col lg="2" class="mb-2 mb-lg-0">
+    {#if !showCompare}
+      <TextFilter
+        {presetProject}
+        bind:authlevel
+        bind:roles
+        on:set-filter={({ detail }) => filterComponent.updateFilters(detail)}
+      />
+    {/if}
   </Col>
-  <Col xs="2">
-    <Refresher on:reload={() => jobList.refresh()} />
+  <Col lg="2" class="mb-1 mb-lg-0">
+    {#if !showCompare}
+      <Refresher on:refresh={() => {
+          jobList.refreshJobs()
+          jobList.refreshAllMetrics()
+      }} />
+    {/if}
+  </Col>
+  <Col lg="2" class="mb-2 mb-lg-0">
+    <ButtonGroup class="w-100">
+      <Button color="primary" disabled={matchedListJobs >= 500 && !(selectedJobs.length != 0)} on:click={() => {
+        if (selectedJobs.length != 0) filterComponent.updateFilters({dbId: selectedJobs}, true)
+        showCompare = !showCompare
+      }} >
+        {showCompare ? 'Return to List' : 
+        'Compare Jobs' + (selectedJobs.length != 0 ? ` (${selectedJobs.length} selected)` : matchedListJobs >= 500 ? ` (Too Many)` : ``)}
+      </Button>
+      {#if !showCompare && selectedJobs.length != 0}
+        <Button color="warning" on:click={() => {
+          selectedJobs = [] // Only empty array, filters handled by reactive reset
+        }}>
+        Clear
+        </Button>
+      {/if}
+    </ButtonGroup>
   </Col>
 </Row>
-<br />
+
+<!-- ROW3: Job List / Job Compare-->
 <Row>
   <Col>
-    <JobList
-      bind:metrics
-      bind:sorting
-      bind:matchedJobs
-      bind:this={jobList}
-      bind:showFootprint
-    />
+    {#if !showCompare}
+      <JobList
+        bind:this={jobList}
+        bind:metrics
+        bind:sorting
+        bind:matchedListJobs
+        bind:showFootprint
+        bind:selectedJobs
+        {filterBuffer}
+      />
+    {:else}
+      <JobCompare
+        bind:this={jobCompare}
+        bind:metrics
+        bind:matchedCompareJobs
+        {filterBuffer}
+      />
+    {/if}
   </Col>
 </Row>
 
-<Sorting bind:sorting bind:isOpen={isSortingOpen} />
+<Sorting bind:sorting bind:isOpen={isSortingOpen}/>
 
 <MetricSelection
   bind:cluster={selectedCluster}
@@ -117,5 +186,5 @@
   bind:metrics
   bind:isOpen={isMetricsSelectionOpen}
   bind:showFootprint
-  view="list"
+  footprintSelect
 />

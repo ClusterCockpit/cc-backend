@@ -30,6 +30,7 @@ func TestInitNoJson(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
 func TestInitNotExists(t *testing.T) {
 	var fsa FsArchive
 	_, err := fsa.Init(json.RawMessage("{\"path\":\"testdata/job-archive\"}"))
@@ -47,10 +48,10 @@ func TestInit(t *testing.T) {
 	if fsa.path != "testdata/archive" {
 		t.Fail()
 	}
-	if version != 1 {
+	if version != 2 {
 		t.Fail()
 	}
-	if len(fsa.clusters) != 1 || fsa.clusters[0] != "emmy" {
+	if len(fsa.clusters) != 3 || fsa.clusters[1] != "emmy" {
 		t.Fail()
 	}
 }
@@ -133,7 +134,6 @@ func TestLoadJobData(t *testing.T) {
 }
 
 func BenchmarkLoadJobData(b *testing.B) {
-
 	tmpdir := b.TempDir()
 	jobarchive := filepath.Join(tmpdir, "job-archive")
 	util.CopyDir("./testdata/archive/", jobarchive)
@@ -157,7 +157,6 @@ func BenchmarkLoadJobData(b *testing.B) {
 }
 
 func BenchmarkLoadJobDataCompressed(b *testing.B) {
-
 	tmpdir := b.TempDir()
 	jobarchive := filepath.Join(tmpdir, "job-archive")
 	util.CopyDir("./testdata/archive/", jobarchive)

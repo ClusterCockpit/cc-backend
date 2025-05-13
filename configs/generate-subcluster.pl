@@ -117,10 +117,12 @@ foreach my $ln (split("\n", $topo)) {
 
 my $node;
 my @sockets;
+my @nodeCores;
 foreach my $socket ( @{$DOMAINS{socket}} ) {
     push @sockets, "[".join(",", @{$socket})."]";
-    $node .=  join(",", @{$socket})
+    push @nodeCores, join(",", @{$socket});
 }
+$node =  join(",", @nodeCores);
 $INFO{sockets} = join(",\n", @sockets);
 
 my @memDomains;
@@ -212,9 +214,27 @@ print <<"END";
       "socketsPerNode": $INFO{socketsPerNode},
       "coresPerSocket": $INFO{coresPerSocket},
       "threadsPerCore": $INFO{threadsPerCore},
-      "flopRateScalar": $flopsScalar,
-      "flopRateSimd": $flopsSimd,
-      "memoryBandwidth": $memBw,
+      "flopRateScalar": {
+           "unit": {
+               "base": "F/s",
+               "prefix": "G"
+           },
+           "value": $flopsScalar
+      },
+      "flopRateSimd": {
+           "unit": {
+               "base": "F/s",
+               "prefix": "G"
+           },
+           "value": $flopsSimd
+      },
+      "memoryBandwidth": {
+           "unit": {
+               "base": "B/s",
+               "prefix": "G"
+           },
+           "value": $memBw
+      },
       "nodes": "<FILL IN NODE RANGES>",
       "topology": {
           "node": [$node],

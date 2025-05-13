@@ -1,17 +1,26 @@
+<!--
+    @component Admin settings wrapper
+ -->
+
 <script>
   import { Row, Col } from "@sveltestrap/sveltestrap";
-  import { onMount } from "svelte";
+  import { onMount, getContext } from "svelte";
   import EditRole from "./admin/EditRole.svelte";
   import EditProject from "./admin/EditProject.svelte";
   import AddUser from "./admin/AddUser.svelte";
   import ShowUsers from "./admin/ShowUsers.svelte";
   import Options from "./admin/Options.svelte";
+  import NoticeEdit from "./admin/NoticeEdit.svelte";
+
+  export let ncontent;
 
   let users = [];
   let roles = [];
 
+  const ccconfig = getContext("cc-config");
+
   function getUserList() {
-    fetch("/api/users/?via-ldap=false&not-just-user=true")
+    fetch("/config/users/?via-ldap=false&not-just-user=true")
       .then((res) => res.json())
       .then((usersRaw) => {
         users = usersRaw;
@@ -19,7 +28,7 @@
   }
 
   function getValidRoles() {
-    fetch("/api/roles/")
+    fetch("/config/roles/")
       .then((res) => res.json())
       .then((rolesRaw) => {
         roles = rolesRaw;
@@ -47,7 +56,6 @@
   <Col>
     <EditProject on:reload={getUserList} />
   </Col>
-  <Col>
-    <Options />
-  </Col>
+  <Options config={ccconfig}/>
+  <NoticeEdit {ncontent}/>
 </Row>

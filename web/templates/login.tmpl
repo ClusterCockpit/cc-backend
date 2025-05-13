@@ -41,6 +41,7 @@
                                 {{- if .Infos.hasOpenIDConnect}}
                                 <a class="btn btn-primary" href="/oidc-login">OpenID Connect Login</a>
                                 {{end}}
+                                <input type="hidden" id="redirect" name="redirect" value="{{ .Redirect }}" />
                             </form>
                         </div>
                     </div>

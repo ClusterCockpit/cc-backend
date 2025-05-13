@@ -8,8 +8,13 @@
 {{define "javascript"}}
     <script>
         const isAdmin = {{ .User.HasRole .Roles.admin }};
+        const isSupport = {{ .User.HasRole .Roles.support }};
+        const isApi = {{ .User.HasRole .Roles.api }};
+        const username = {{ .User.Username }};
         const filterPresets = {{ .FilterPresets }};
         const clusterCockpitConfig = {{ .Config }};
+        const resampleConfig = {{ .Resampling }};
+        const ncontent = {{ .Infos.ncontent }};
     </script>
     <script src='/build/config.js'></script>
 {{end}}
