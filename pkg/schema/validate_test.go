@@ -14,17 +14,20 @@ func TestValidateConfig(t *testing.T) {
     "jwts": {
         "max-age": "2m"
     },
-	"clusters": [
-	{
-	   "name": "testcluster",
-	   "metricDataRepository": {
-		"kind": "cc-metric-store",
-		 "url": "localhost:8082"},
-	   "filterRanges": {
-		"numNodes": { "from": 1, "to": 64 },
-		"duration": { "from": 0, "to": 86400 },
-		"startTime": { "from": "2022-01-01T00:00:00Z", "to": null }
-	}}]
+    "apiAllowedIPs": [
+      "*"
+    ],
+    "clusters": [
+    {
+       "name": "testcluster",
+       "metricDataRepository": {
+    	"kind": "cc-metric-store",
+    	 "url": "localhost:8082"},
+       "filterRanges": {
+    	"numNodes": { "from": 1, "to": 64 },
+    	"duration": { "from": 0, "to": 86400 },
+    	"startTime": { "from": "2022-01-01T00:00:00Z", "to": null }
+    }}]
 }`)
 
 	if err := Validate(Config, bytes.NewReader(json)); err != nil {
@@ -33,7 +36,6 @@ func TestValidateConfig(t *testing.T) {
 }
 
 func TestValidateJobMeta(t *testing.T) {
-
 }
 
 func TestValidateCluster(t *testing.T) {

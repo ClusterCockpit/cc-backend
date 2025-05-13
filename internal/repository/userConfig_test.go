@@ -25,6 +25,9 @@ func setupUserTest(t *testing.T) *UserCfgRepo {
     "jwts": {
         "max-age": "2m"
     },
+  "apiAllowedIPs": [
+    "*"
+  ],
 	"clusters": [
 	{
 	   "name": "testcluster",

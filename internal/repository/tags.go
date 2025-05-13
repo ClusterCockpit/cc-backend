@@ -45,7 +45,7 @@ func (r *JobRepository) AddTag(user *schema.User, job int64, tag int64) ([]*sche
 	return tags, archive.UpdateTags(j, archiveTags)
 }
 
-// Removes a tag from a job
+// Removes a tag from a job by tag id
 func (r *JobRepository) RemoveTag(user *schema.User, job, tag int64) ([]*schema.Tag, error) {
 	j, err := r.FindByIdWithUser(user, job)
 	if err != nil {
@@ -74,6 +74,99 @@ func (r *JobRepository) RemoveTag(user *schema.User, job, tag int64) ([]*schema.
 	}
 
 	return tags, archive.UpdateTags(j, archiveTags)
+}
+
+// Removes a tag from a job by tag info
+func (r *JobRepository) RemoveJobTagByRequest(user *schema.User, job int64, tagType string, tagName string, tagScope string) ([]*schema.Tag, error) {
+	// Get Tag ID to delete
+	tagID, exists := r.TagId(tagType, tagName, tagScope)
+	if !exists {
+		log.Warnf("Tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
+		return nil, fmt.Errorf("Tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
+	}
+
+	// Get Job
+	j, err := r.FindByIdWithUser(user, job)
+	if err != nil {
+		log.Warn("Error while finding job by id")
+		return nil, err
+	}
+
+	// Handle Delete
+	q := sq.Delete("jobtag").Where("jobtag.job_id = ?", job).Where("jobtag.tag_id = ?", tagID)
+
+	if _, err := q.RunWith(r.stmtCache).Exec(); err != nil {
+		s, _, _ := q.ToSql()
+		log.Errorf("Error removing tag from table 'jobTag' with %s: %v", s, err)
+		return nil, err
+	}
+
+	tags, err := r.GetTags(user, &job)
+	if err != nil {
+		log.Warn("Error while getting tags for job")
+		return nil, err
+	}
+
+	archiveTags, err := r.getArchiveTags(&job)
+	if err != nil {
+		log.Warn("Error while getting tags for job")
+		return nil, err
+	}
+
+	return tags, archive.UpdateTags(j, archiveTags)
+}
+
+// Removes a tag from db by tag info
+func (r *JobRepository) RemoveTagByRequest(tagType string, tagName string, tagScope string) error {
+	// Get Tag ID to delete
+	tagID, exists := r.TagId(tagType, tagName, tagScope)
+	if !exists {
+		log.Warnf("Tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
+		return fmt.Errorf("Tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
+	}
+
+	// Handle Delete JobTagTable
+	qJobTag := sq.Delete("jobtag").Where("jobtag.tag_id = ?", tagID)
+
+	if _, err := qJobTag.RunWith(r.stmtCache).Exec(); err != nil {
+		s, _, _ := qJobTag.ToSql()
+		log.Errorf("Error removing tag from table 'jobTag' with %s: %v", s, err)
+		return err
+	}
+
+	// Handle Delete TagTable
+	qTag := sq.Delete("tag").Where("tag.id = ?", tagID)
+
+	if _, err := qTag.RunWith(r.stmtCache).Exec(); err != nil {
+		s, _, _ := qTag.ToSql()
+		log.Errorf("Error removing tag from table 'tag' with %s: %v", s, err)
+		return err
+	}
+
+	return nil
+}
+
+// Removes a tag from db by tag id
+func (r *JobRepository) RemoveTagById(tagID int64) error {
+	// Handle Delete JobTagTable
+	qJobTag := sq.Delete("jobtag").Where("jobtag.tag_id = ?", tagID)
+
+	if _, err := qJobTag.RunWith(r.stmtCache).Exec(); err != nil {
+		s, _, _ := qJobTag.ToSql()
+		log.Errorf("Error removing tag from table 'jobTag' with %s: %v", s, err)
+		return err
+	}
+
+	// Handle Delete TagTable
+	qTag := sq.Delete("tag").Where("tag.id = ?", tagID)
+
+	if _, err := qTag.RunWith(r.stmtCache).Exec(); err != nil {
+		s, _, _ := qTag.ToSql()
+		log.Errorf("Error removing tag from table 'tag' with %s: %v", s, err)
+		return err
+	}
+
+	return nil
 }
 
 // CreateTag creates a new tag with the specified type and name and returns its database id.
@@ -204,6 +297,16 @@ func (r *JobRepository) TagId(tagType string, tagName string, tagScope string) (
 	if err := sq.Select("id").From("tag").
 		Where("tag.tag_type = ?", tagType).Where("tag.tag_name = ?", tagName).Where("tag.tag_scope = ?", tagScope).
 		RunWith(r.stmtCache).QueryRow().Scan(&tagId); err != nil {
+		exists = false
+	}
+	return
+}
+
+// TagInfo returns the database infos of the tag with the specified id.
+func (r *JobRepository) TagInfo(tagId int64) (tagType string, tagName string, tagScope string, exists bool) {
+	exists = true
+	if err := sq.Select("tag.tag_type", "tag.tag_name", "tag.tag_scope").From("tag").Where("tag.id = ?", tagId).
+		RunWith(r.stmtCache).QueryRow().Scan(&tagType, &tagName, &tagScope); err != nil {
 		exists = false
 	}
 	return

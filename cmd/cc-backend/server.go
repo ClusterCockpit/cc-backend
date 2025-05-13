@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/ClusterCockpit/cc-backend/internal/api"
 	"github.com/ClusterCockpit/cc-backend/internal/archiver"
@@ -53,18 +54,29 @@ func serverInit() {
 	// Setup the http.Handler/Router used by the server
 	graph.Init()
 	resolver := graph.GetResolverInstance()
-	graphQLEndpoint := handler.NewDefaultServer(
+	graphQLServer := handler.New(
 		generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
+
+	// graphQLServer.AddTransport(transport.SSE{})
+	graphQLServer.AddTransport(transport.POST{})
+	// graphQLServer.AddTransport(transport.Websocket{
+	// 	KeepAlivePingInterval: 10 * time.Second,
+	// 	Upgrader: websocket.Upgrader{
+	// 		CheckOrigin: func(r *http.Request) bool {
+	// 			return true
+	// 		},
+	// 	},
+	// })
 
 	if os.Getenv("DEBUG") != "1" {
 		// Having this handler means that a error message is returned via GraphQL instead of the connection simply beeing closed.
 		// The problem with this is that then, no more stacktrace is printed to stderr.
-		graphQLEndpoint.SetRecoverFunc(func(ctx context.Context, err interface{}) error {
+		graphQLServer.SetRecoverFunc(func(ctx context.Context, err any) error {
 			switch e := err.(type) {
 			case string:
 				return fmt.Errorf("MAIN > Panic: %s", e)
 			case error:
-				return fmt.Errorf("MAIN > Panic caused by: %w", e)
+				return fmt.Errorf("MAIN > Panic caused by: %s", e.Error())
 			}
 
 			return errors.New("MAIN > Internal server error (panic)")
@@ -78,7 +90,7 @@ func serverInit() {
 	router = mux.NewRouter()
 	buildInfo := web.Build{Version: version, Hash: commit, Buildtime: date}
 
-	info := map[string]interface{}{}
+	info := map[string]any{}
 	info["hasOpenIDConnect"] = false
 
 	if config.Keys.OpenIDConfig != nil {
@@ -208,7 +220,7 @@ func serverInit() {
 		router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
 			httpSwagger.URL("http://" + config.Keys.Addr + "/swagger/doc.json"))).Methods(http.MethodGet)
 	}
-	secured.Handle("/query", graphQLEndpoint)
+	secured.Handle("/query", graphQLServer)
 
 	// Send a searchId and then reply with a redirect to a user, or directly send query to job table for jobid and project.
 	secured.HandleFunc("/search", func(rw http.ResponseWriter, r *http.Request) {
@@ -268,7 +280,7 @@ func serverStart() {
 	// Start http or https server
 	listener, err := net.Listen("tcp", config.Keys.Addr)
 	if err != nil {
-		log.Fatalf("starting http listener failed: %v", err)
+		log.Abortf("Server Start: Starting http listener on '%s' failed.\nError: %s\n", config.Keys.Addr, err.Error())
 	}
 
 	if !strings.HasSuffix(config.Keys.Addr, ":80") && config.Keys.RedirectHttpTo != "" {
@@ -281,7 +293,7 @@ func serverStart() {
 		cert, err := tls.LoadX509KeyPair(
 			config.Keys.HttpsCertFile, config.Keys.HttpsKeyFile)
 		if err != nil {
-			log.Fatalf("loading X509 keypair failed: %v", err)
+			log.Abortf("Server Start: Loading X509 keypair failed. Check options 'https-cert-file' and 'https-key-file' in 'config.json'.\nError: %s\n", err.Error())
 		}
 		listener = tls.NewListener(listener, &tls.Config{
 			Certificates: []tls.Certificate{cert},
@@ -292,20 +304,20 @@ func serverStart() {
 			MinVersion:               tls.VersionTLS12,
 			PreferServerCipherSuites: true,
 		})
-		fmt.Printf("HTTPS server listening at %s...", config.Keys.Addr)
+		log.Printf("HTTPS server listening at %s...\n", config.Keys.Addr)
 	} else {
-		fmt.Printf("HTTP server listening at %s...", config.Keys.Addr)
+		log.Printf("HTTP server listening at %s...\n", config.Keys.Addr)
 	}
 	//
 	// Because this program will want to bind to a privileged port (like 80), the listener must
 	// be established first, then the user can be changed, and after that,
 	// the actual http server can be started.
 	if err := runtimeEnv.DropPrivileges(config.Keys.Group, config.Keys.User); err != nil {
-		log.Fatalf("error while preparing server start: %s", err.Error())
+		log.Abortf("Server Start: Error while preparing server start.\nError: %s\n", err.Error())
 	}
 
 	if err = server.Serve(listener); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("starting server failed: %v", err)
+		log.Abortf("Server Start: Starting server failed.\nError: %s\n", err.Error())
 	}
 }
 

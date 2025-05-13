@@ -7,9 +7,9 @@ package config
 import (
 	"bytes"
 	"encoding/json"
-	"log"
 	"os"
 
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
@@ -53,20 +53,20 @@ func Init(flagConfigFile string) {
 	raw, err := os.ReadFile(flagConfigFile)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			log.Fatalf("CONFIG ERROR: %v", err)
+			log.Abortf("Config Init: Could not read config file '%s'.\nError: %s\n", flagConfigFile, err.Error())
 		}
 	} else {
 		if err := schema.Validate(schema.Config, bytes.NewReader(raw)); err != nil {
-			log.Fatalf("Validate config: %v\n", err)
+			log.Abortf("Config Init: Could not validate config file '%s'.\nError: %s\n", flagConfigFile, err.Error())
 		}
 		dec := json.NewDecoder(bytes.NewReader(raw))
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(&Keys); err != nil {
-			log.Fatalf("could not decode: %v", err)
+			log.Abortf("Config Init: Could not decode config file '%s'.\nError: %s\n", flagConfigFile, err.Error())
 		}
 
 		if Keys.Clusters == nil || len(Keys.Clusters) < 1 {
-			log.Fatal("At least one cluster required in config!")
+			log.Abort("Config Init: At least one cluster required in config. Exited with error.")
 		}
 	}
 }

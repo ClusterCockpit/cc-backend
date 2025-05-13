@@ -67,7 +67,8 @@ func (r *JobRepository) QueryJobs(
 
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
-		log.Errorf("Error while running query: %v", err)
+		queryString, queryVars, _ := query.ToSql()
+		log.Errorf("Error while running query '%s' %v: %v", queryString, queryVars, err)
 		return nil, err
 	}
 
@@ -145,6 +146,13 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 		// This is an OR-Logic query: Returns all distinct jobs with at least one of the requested tags; TODO: AND-Logic query?
 		query = query.Join("jobtag ON jobtag.job_id = job.id").Where(sq.Eq{"jobtag.tag_id": filter.Tags}).Distinct()
 	}
+	if filter.DbID != nil {
+		dbIDs := make([]string, len(filter.DbID))
+		for i, val := range filter.DbID {
+			dbIDs[i] = val
+		}
+		query = query.Where(sq.Eq{"job.id": dbIDs})
+	}
 	if filter.JobID != nil {
 		query = buildStringCondition("job.job_id", filter.JobID, query)
 	}
@@ -197,7 +205,7 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 		query = buildIntCondition("job.num_hwthreads", filter.NumHWThreads, query)
 	}
 	if filter.Node != nil {
-		query = buildStringCondition("job.resources", filter.Node, query)
+		query = buildResourceJsonCondition("hostname", filter.Node, query)
 	}
 	if filter.Energy != nil {
 		query = buildFloatCondition("job.energy", filter.Energy, query)
@@ -295,6 +303,28 @@ func buildMetaJsonCondition(jsonField string, cond *model.StringInput, query sq.
 	}
 	if cond.Contains != nil {
 		return query.Where("JSON_EXTRACT(meta_data, \"$."+jsonField+"\") LIKE ?", fmt.Sprint("%", *cond.Contains, "%"))
+	}
+	return query
+}
+
+func buildResourceJsonCondition(jsonField string, cond *model.StringInput, query sq.SelectBuilder) sq.SelectBuilder {
+	// Verify and Search Only in Valid Jsons
+	query = query.Where("JSON_VALID(resources)")
+	// add "AND" Sql query Block for field match
+	if cond.Eq != nil {
+		return query.Where("EXISTS (SELECT 1 FROM json_each(job.resources) WHERE json_extract(value, \"$."+jsonField+"\") = ?)", *cond.Eq)
+	}
+	if cond.Neq != nil { // Currently Unused
+		return query.Where("EXISTS (SELECT 1 FROM json_each(job.resources) WHERE json_extract(value, \"$."+jsonField+"\") != ?)", *cond.Neq)
+	}
+	if cond.StartsWith != nil { // Currently Unused
+		return query.Where("EXISTS (SELECT 1 FROM json_each(job.resources) WHERE json_extract(value, \"$."+jsonField+"\")) LIKE ?)", fmt.Sprint(*cond.StartsWith, "%"))
+	}
+	if cond.EndsWith != nil { // Currently Unused
+		return query.Where("EXISTS (SELECT 1 FROM json_each(job.resources) WHERE json_extract(value, \"$."+jsonField+"\") LIKE ?)", fmt.Sprint("%", *cond.EndsWith))
+	}
+	if cond.Contains != nil {
+		return query.Where("EXISTS (SELECT 1 FROM json_each(job.resources) WHERE json_extract(value, \"$."+jsonField+"\") LIKE ?)", fmt.Sprint("%", *cond.Contains, "%"))
 	}
 	return query
 }

@@ -31,6 +31,8 @@
     init,
     convert2uplot,
     transformPerNodeDataForRoofline,
+    scramble,
+    scrambleNames,
   } from "./generic/utils.js";
   import { scaleNumbers } from "./generic/units.js";
   import PlotGrid from "./generic/PlotGrid.svelte";
@@ -487,7 +489,7 @@
               quantities={$topUserQuery.data.topUser.map(
                 (tu) => tu[topUserSelection.key],
               )}
-              entities={$topUserQuery.data.topUser.map((tu) => tu.id)}
+              entities={$topUserQuery.data.topUser.map((tu) => scrambleNames ? scramble(tu.id) : tu.id)}
             />
           {/if}
         {/key}
@@ -521,14 +523,14 @@
                 <th scope="col" id="topName-{tu.id}"
                   ><a
                     href="/monitoring/user/{tu.id}?cluster={cluster}&state=running"
-                    >{tu.id}</a
+                    >{scrambleNames ? scramble(tu.id) : tu.id}</a
                   ></th
                 >
                 {#if tu?.name}
                   <Tooltip
                     target={`topName-${tu.id}`}
                     placement="left"
-                    >{tu.name}</Tooltip
+                    >{scrambleNames ? scramble(tu.name) : tu.name}</Tooltip
                   >
                 {/if}
                 <td>{tu[topUserSelection.key]}</td>
@@ -555,7 +557,7 @@
             quantities={$topProjectQuery.data.topProjects.map(
               (tp) => tp[topProjectSelection.key],
             )}
-            entities={$topProjectQuery.data.topProjects.map((tp) => tp.id)}
+            entities={$topProjectQuery.data.topProjects.map((tp) => scrambleNames ? scramble(tp.id) : tp.id)}
           />
         {/if}
       {/key}
@@ -588,7 +590,7 @@
                 <th scope="col"
                   ><a
                     href="/monitoring/jobs/?cluster={cluster}&state=running&project={tp.id}&projectMatch=eq"
-                    >{tp.id}</a
+                    >{scrambleNames ? scramble(tp.id) : tp.id}</a
                   ></th
                 >
                 <td>{tp[topProjectSelection.key]}</td>

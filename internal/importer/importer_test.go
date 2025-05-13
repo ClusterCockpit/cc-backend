@@ -45,6 +45,9 @@ func setup(t *testing.T) *repository.JobRepository {
     "jwts": {
         "max-age": "2m"
     },
+  "apiAllowedIPs": [
+    "*"
+  ],
 	"clusters": [
 	{
 	   "name": "testcluster",

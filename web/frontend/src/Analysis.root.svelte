@@ -26,6 +26,8 @@
     init,
     convert2uplot,
     binsFromFootprint,
+    scramble,
+    scrambleNames,
   } from "./generic/utils.js";
   import PlotSelection from "./analysis/PlotSelection.svelte";
   import Filters from "./generic/Filters.svelte";
@@ -396,7 +398,7 @@
               quantities={$topQuery.data.topList.map(
                 (t) => t[sortSelection.key],
               )}
-              entities={$topQuery.data.topList.map((t) => t.id)}
+              entities={$topQuery.data.topList.map((t) => scrambleNames ? scramble(t.id) : t.id)}
             />
           {/if}
         {/key}
@@ -429,21 +431,21 @@
                 {#if groupSelection.key == "user"}
                   <th scope="col" id="topName-{te.id}"
                     ><a href="/monitoring/user/{te.id}?cluster={clusterName}"
-                      >{te.id}</a
+                      >{scrambleNames ? scramble(te.id) : te.id}</a
                     ></th
                   >
                   {#if te?.name}
                     <Tooltip
                       target={`topName-${te.id}`}
                       placement="left"
-                      >{te.name}</Tooltip
+                      >{scrambleNames ? scramble(te.name) : te.name}</Tooltip
                     >
                   {/if}
                 {:else}
                   <th scope="col"
                     ><a
                       href="/monitoring/jobs/?cluster={clusterName}&project={te.id}&projectMatch=eq"
-                      >{te.id}</a
+                      >{scrambleNames ? scramble(te.id) : te.id}</a
                     ></th
                   >
                 {/if}

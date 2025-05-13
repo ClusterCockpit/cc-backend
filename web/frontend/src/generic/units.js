@@ -17,6 +17,10 @@ export function formatNumber(x) {
     }
 }
 
+export function roundTwoDigits(x) {
+    return Math.round(x * 100) / 100
+}
+
 export function scaleNumbers(x, y , p = '') {
     const oldPower  = power[prefix.indexOf(p)]
     const rawXValue = x * oldPower 
@@ -29,6 +33,22 @@ export function scaleNumbers(x, y , p = '') {
     }
 
     return Math.abs(rawYValue) >= 1000 ? `${rawXValue.toExponential()} / ${rawYValue.toExponential()}` : `${rawYValue.toString()} / ${rawYValue.toString()}`
+}
+
+export function formatTime(t, forNode = false) {
+    if (t !== null) {
+        if (isNaN(t)) {
+            return t;
+        } else {
+            const tAbs = Math.abs(t);
+            const h = Math.floor(tAbs / 3600);
+            const m = Math.floor((tAbs % 3600) / 60);
+            // Re-Add "negativity" to time ticks only as string, so that if-cases work as intended
+            if (h == 0) return `${forNode && m != 0 ? "-" : ""}${m}m`;
+            else if (m == 0) return `${forNode ? "-" : ""}${h}h`;
+            else return `${forNode ? "-" : ""}${h}:${m}h`;
+        }
+    }
 }
 
 // export const dateToUnixEpoch = (rfc3339) => Math.floor(Date.parse(rfc3339) / 1000);

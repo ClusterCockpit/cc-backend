@@ -40,14 +40,14 @@
     const client = getContextClient();
     const polarQuery = gql`
     query ($dbid: ID!, $selectedMetrics: [String!]!) {
-        jobMetricStats(id: $dbid, metrics: $selectedMetrics) {
+      jobStats(id: $dbid, metrics: $selectedMetrics) {
         name
-        stats {
-            min
-            avg
-            max
+        data {
+          min
+          avg
+          max
         }
-        }
+      }
     }
     `;
 
@@ -66,7 +66,7 @@
   {:else}
     <Polar
       {polarMetrics}
-      polarData={$polarData.data.jobMetricStats}
+      polarData={$polarData.data.jobStats}
     />
   {/if}
 </CardBody>

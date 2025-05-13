@@ -492,6 +492,7 @@
   },
   "required": [
     "jwts",
-    "clusters"
+    "clusters",
+    "apiAllowedIPs"
   ]
 }

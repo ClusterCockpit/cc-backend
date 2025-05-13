@@ -14,7 +14,7 @@
     getContextClient,
   } from "@urql/svelte";
   import { Card, CardBody, Spinner } from "@sveltestrap/sveltestrap";
-  import { maxScope, checkMetricDisabled } from "../../generic/utils.js";
+  import { maxScope, checkMetricDisabled, scramble, scrambleNames } from "../../generic/utils.js";
   import MetricPlot from "../../generic/plots/MetricPlot.svelte";
   import NodeInfo from "./NodeInfo.svelte";
 
@@ -98,21 +98,24 @@
 
   let extendedLegendData = null;
   $: if ($nodeJobsData?.data) {
-    // Get Shared State of Node: Only Build extended Legend For Shared Nodes
-    if ($nodeJobsData.data.jobs.count >= 1 && !$nodeJobsData.data.jobs.items[0].exclusive) {
+    // Build Extended for allocated nodes [Commented: Only Build extended Legend For Shared Nodes]
+    if ($nodeJobsData.data.jobs.count >= 1) { // "&& !$nodeJobsData.data.jobs.items[0].exclusive)"
       const accSet = Array.from(new Set($nodeJobsData.data.jobs.items
         .map((i) => i.resources
-          .filter((r) => r.hostname === nodeData.host)
-          .map((r) => r.accelerators)
+          .filter((r) => (r.hostname === nodeData.host) && r?.accelerators)
+          .map((r) => r?.accelerators)
         )
       )).flat(2)
 
       extendedLegendData = {}
       for (const accId of accSet) {
         const matchJob = $nodeJobsData.data.jobs.items.find((i) => i.resources.find((r) => r.accelerators.includes(accId)))
+        const matchUser = matchJob?.user ? matchJob.user : null
         extendedLegendData[accId] = {
-          user: matchJob?.user  ? matchJob?.user  : '-',
-          job:  matchJob?.jobId ? matchJob?.jobId : '-',
+          user: (scrambleNames && matchUser)
+            ? scramble(matchUser) 
+            : (matchUser ? matchUser : '-'),
+          job:  matchJob?.jobId ? matchJob.jobId : '-',
         }
       }
       // Theoretically extendable for hwthreadIDs

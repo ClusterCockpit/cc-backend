@@ -36,7 +36,17 @@ func (tmdr *TestMetricDataRepository) LoadData(
 
 func (tmdr *TestMetricDataRepository) LoadStats(
 	job *schema.Job,
-	metrics []string, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error) {
+	metrics []string,
+	ctx context.Context) (map[string]map[string]schema.MetricStatistics, error) {
+
+	panic("TODO")
+}
+
+func (tmdr *TestMetricDataRepository) LoadScopedStats(
+	job *schema.Job,
+	metrics []string,
+	scopes []schema.MetricScope,
+	ctx context.Context) (schema.ScopedJobStats, error) {
 
 	panic("TODO")
 }

@@ -137,11 +137,6 @@ type JobMetricWithName {
   metric: JobMetric!
 }
 
-type JobMetricStatWithName {
-  name:   String!
-  stats:  MetricStatistics!
-}
-
 type JobMetric {
   unit:             Unit
   timestep:         Int!
@@ -156,6 +151,43 @@ type Series {
   data:       [NullableFloat!]!
 }
 
+type StatsSeries {
+  mean:   [NullableFloat!]!
+  median: [NullableFloat!]!
+  min:    [NullableFloat!]!
+  max:    [NullableFloat!]!
+}
+
+type NamedStatsWithScope {
+  name:   String!
+  scope:  MetricScope!
+  stats:  [ScopedStats!]!
+}
+
+type ScopedStats {
+  hostname:   String!
+  id:         String
+  data:       MetricStatistics!
+}
+
+type JobStats {
+  id: Int!
+  jobId: String!
+  startTime: Int!
+  duration: Int!
+  cluster: String!
+  subCluster: String!
+  numNodes: Int!
+  numHWThreads: Int
+  numAccelerators: Int
+  stats: [NamedStats!]!
+}
+
+type NamedStats {
+  name:  String!
+  data:  MetricStatistics!
+}
+
 type Unit {
   base: String!
   prefix: String
@@ -165,13 +197,6 @@ type MetricStatistics {
   avg: Float!
   min: Float!
   max: Float!
-}
-
-type StatsSeries {
-  mean:   [NullableFloat!]!
-  median: [NullableFloat!]!
-  min:    [NullableFloat!]!
-  max:    [NullableFloat!]!
 }
 
 type MetricFootprints {
@@ -247,11 +272,13 @@ type Query {
 
   job(id: ID!): Job
   jobMetrics(id: ID!, metrics: [String!], scopes: [MetricScope!], resolution: Int): [JobMetricWithName!]!
-  jobMetricStats(id: ID!, metrics: [String!]): [JobMetricStatWithName!]!
-  jobsFootprints(filter: [JobFilter!], metrics: [String!]!): Footprints
+  jobStats(id: ID!, metrics: [String!]): [NamedStats!]!
+  scopedJobStats(id: ID!, metrics: [String!], scopes: [MetricScope!]): [NamedStatsWithScope!]!
 
   jobs(filter: [JobFilter!], page: PageRequest, order: OrderByInput): JobResultList!
   jobsStatistics(filter: [JobFilter!], metrics: [String!], page: PageRequest, sortBy: SortByAggregate, groupBy: Aggregate, numDurationBins: String, numMetricBins: Int): [JobsStatistics!]!
+  jobsMetricStats(filter: [JobFilter!], metrics: [String!]): [JobStats!]!
+  jobsFootprints(filter: [JobFilter!], metrics: [String!]!): Footprints
 
   rooflineHeatmap(filter: [JobFilter!]!, rows: Int!, cols: Int!, minX: Float!, minY: Float!, maxX: Float!, maxY: Float!): [[Float!]!]!
 
@@ -264,6 +291,7 @@ type Mutation {
   deleteTag(id: ID!): ID!
   addTagsToJob(job: ID!, tagIds: [ID!]!): [Tag!]!
   removeTagsFromJob(job: ID!, tagIds: [ID!]!): [Tag!]!
+  removeTagFromList(tagIds: [ID!]!): [Int!]!
 
   updateConfiguration(name: String!, value: String!): String
 }
@@ -273,6 +301,7 @@ type TimeRangeOutput { range: String, from: Time!, to: Time! }
 
 input JobFilter {
   tags:        [ID!]
+  dbId:        [ID!]
   jobId:       StringInput
   arrayJobId:  Int
   user:        StringInput

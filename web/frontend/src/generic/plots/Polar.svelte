@@ -58,7 +58,7 @@
     const getValues = (type) => labels.map(name => {
         // Peak is adapted and scaled for job shared state
         const peak = polarMetrics.find(m => m?.name == name)?.peak
-        const metric = polarData.find(m => m?.name == name)?.stats
+        const metric = polarData.find(m => m?.name == name)?.data
         const value = (peak && metric) ? (metric[type] / peak) : 0
         return value <= 1. ? value : 1.
     })

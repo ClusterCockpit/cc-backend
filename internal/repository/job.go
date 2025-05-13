@@ -590,28 +590,34 @@ func (r *JobRepository) UpdateEnergy(
 		return stmt, err
 	}
 	energyFootprint := make(map[string]float64)
-	var totalEnergy float64
-	var energy float64
 
+	// Total Job Energy Outside Loop
+	totalEnergy := 0.0
 	for _, fp := range sc.EnergyFootprint {
+		// Always Init Metric Energy Inside Loop
+		metricEnergy := 0.0
 		if i, err := archive.MetricIndex(sc.MetricConfig, fp); err == nil {
 			// Note: For DB data, calculate and save as kWh
 			if sc.MetricConfig[i].Energy == "energy" { // this metric has energy as unit (Joules or Wh)
+				log.Warnf("Update EnergyFootprint for Job %d and Metric %s on cluster %s: Set to 'energy' in cluster.json: Not implemented, will return 0.0", jobMeta.JobID, jobMeta.Cluster, fp)
 				// FIXME: Needs sum as stats type
 			} else if sc.MetricConfig[i].Energy == "power" { // this metric has power as unit (Watt)
 				// Energy: Power (in Watts) * Time (in Seconds)
-				// Unit: (( W * s ) / 3600) / 1000 = kWh ; Rounded to 2 nearest digits: (Energy * 100) / 100
-				// Here: All-Node Metric Average * Number of Nodes * Job Runtime
+				// Unit: (W * (s / 3600)) / 1000 = kWh
+				// Round 2 Digits: round(Energy * 100) / 100
+				// Here: (All-Node Metric Average * Number of Nodes) * (Job Duration in Seconds / 3600) / 1000
 				// Note: Shared Jobs handled correctly since "Node Average" is based on partial resources, while "numNodes" factor is 1
-				metricNodeSum := LoadJobStat(jobMeta, fp, "avg") * float64(jobMeta.NumNodes) * float64(jobMeta.Duration)
-				energy = math.Round(((metricNodeSum/3600)/1000)*100) / 100
+				rawEnergy := ((LoadJobStat(jobMeta, fp, "avg") * float64(jobMeta.NumNodes)) * (float64(jobMeta.Duration) / 3600.0)) / 1000.0
+				metricEnergy = math.Round(rawEnergy*100.0) / 100.0
 			}
 		} else {
 			log.Warnf("Error while collecting energy metric %s for job, DB ID '%v', return '0.0'", fp, jobMeta.ID)
 		}
 
-		energyFootprint[fp] = energy
-		totalEnergy += energy
+		energyFootprint[fp] = metricEnergy
+		totalEnergy += metricEnergy
+
+		// log.Infof("Metric %s Average %f -> %f kWh | Job %d Total -> %f kWh", fp, LoadJobStat(jobMeta, fp, "avg"), energy, jobMeta.JobID, totalEnergy)
 	}
 
 	var rawFootprint []byte
@@ -620,7 +626,7 @@ func (r *JobRepository) UpdateEnergy(
 		return stmt, err
 	}
 
-	return stmt.Set("energy_footprint", string(rawFootprint)).Set("energy", (math.Round(totalEnergy*100) / 100)), nil
+	return stmt.Set("energy_footprint", string(rawFootprint)).Set("energy", (math.Round(totalEnergy*100.0) / 100.0)), nil
 }
 
 func (r *JobRepository) UpdateFootprint(

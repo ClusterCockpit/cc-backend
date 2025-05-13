@@ -205,7 +205,7 @@
             </Col>
           </Row>
         {:else}
-          {#each nodes as nodeData}
+          {#each nodes as nodeData (nodeData.host)}
             <NodeListRow {nodeData} {cluster} {selectedMetrics}/>
           {:else}
             <tr>
@@ -221,7 +221,7 @@
                   <p><b>
                     Loading nodes {nodes.length + 1} to 
                     { matchedNodes 
-                      ? `${((nodes.length + paging.itemsPerPage) > matchedNodes) ? matchedNodes : (nodes.length + paging.itemsPerPage)} of ${matchedNodes} total`
+                      ? `${(nodes.length + paging.itemsPerPage) > matchedNodes ? matchedNodes : (nodes.length + paging.itemsPerPage)} of ${matchedNodes} total`
                       : (nodes.length + paging.itemsPerPage)
                     }
                   </b></p>

@@ -28,6 +28,7 @@
   export let configName;
   export let allMetrics = null;
   export let cluster = null;
+  export let subCluster = null;
   export let showFootprint = false;
   export let footprintSelect = false;
 
@@ -44,25 +45,29 @@
     for (let metric of globalMetrics) allMetrics.add(metric.name);
   });
 
-  $: if (newMetricsOrder.length === 0) {
-      if (allMetrics != null) {
-        if (cluster == null) {
-          for (let metric of globalMetrics) allMetrics.add(metric.name);
-        } else {
-          allMetrics.clear();
-          for (let gm of globalMetrics) {
+  $: {
+    if (allMetrics != null) {
+      if (!cluster) {
+        for (let metric of globalMetrics) allMetrics.add(metric.name);
+      } else {
+        allMetrics.clear();
+        for (let gm of globalMetrics) {
+          if (!subCluster) {
             if (gm.availability.find((av) => av.cluster === cluster)) allMetrics.add(gm.name);
+          } else {
+            if (gm.availability.find((av) => av.cluster === cluster && av.subClusters.includes(subCluster))) allMetrics.add(gm.name);
           }
         }
-        newMetricsOrder = [...allMetrics].filter((m) => !metrics.includes(m));
-        newMetricsOrder.unshift(...metrics.filter((m) => allMetrics.has(m)));
-        unorderedMetrics = unorderedMetrics.filter((m) => allMetrics.has(m));
       }
+      newMetricsOrder = [...allMetrics].filter((m) => !metrics.includes(m));
+      newMetricsOrder.unshift(...metrics.filter((m) => allMetrics.has(m)));
+      unorderedMetrics = unorderedMetrics.filter((m) => allMetrics.has(m));
     }
+  }
 
   function printAvailability(metric, cluster) {
     const avail = globalMetrics.find((gm) => gm.name === metric)?.availability
-    if (cluster == null) {
+    if (!cluster) {
       return avail.map((av) => av.cluster).join(',')
     } else {
       return avail.find((av) => av.cluster === cluster).subClusters.join(',')
@@ -110,10 +115,17 @@
     metrics = newMetricsOrder.filter((m) => unorderedMetrics.includes(m));
     isOpen = false;
 
-    showFootprint = !!pendingShowFootprint;
+    let configKey;
+    if (cluster && subCluster) {
+      configKey = `${configName}:${cluster}:${subCluster}`;
+    } else if (cluster && !subCluster) {
+      configKey = `${configName}:${cluster}`;
+    } else {
+      configKey = `${configName}`;
+    }
 
     updateConfigurationMutation({
-      name: cluster == null ? configName : `${configName}:${cluster}`,
+      name: configKey,
       value: JSON.stringify(metrics),
     }).subscribe((res) => {
       if (res.fetching === false && res.error) {
@@ -121,17 +133,20 @@
       }
     });
 
-    updateConfigurationMutation({
-      name:
-        cluster == null
-          ? "plot_list_showFootprint"
-          : `plot_list_showFootprint:${cluster}`,
-      value: JSON.stringify(showFootprint),
-    }).subscribe((res) => {
-      if (res.fetching === false && res.error) {
-        throw res.error;
-      }
-    });
+    if (footprintSelect) {
+      showFootprint = !!pendingShowFootprint;
+      updateConfigurationMutation({
+        name:
+          !cluster
+            ? "plot_list_showFootprint"
+            : `plot_list_showFootprint:${cluster}`,
+        value: JSON.stringify(showFootprint),
+      }).subscribe((res) => {
+        if (res.fetching === false && res.error) {
+          throw res.error;
+        }
+      });
+    };
 
     dispatch('update-metrics', metrics);
   }

@@ -18,6 +18,8 @@
   export let username = null;
   export let authlevel= null;
   export let roles = null;
+  export let isSelected = null;
+  export let showSelect = false;
 
   function formatDuration(duration) {
     const hours = Math.floor(duration / 3600);
@@ -76,18 +78,39 @@
         <a href="/monitoring/job/{job.id}" target="_blank">{job.jobId}</a>
         ({job.cluster}) 
       </span>
-      <Button id={`${job.cluster}-${job.jobId}-clipboard`} outline color="secondary" size="sm" on:click={() => clipJobId(job.jobId)} >
-        {#if displayCheck}
-          <Icon name="clipboard2-check-fill"/>
-        {:else}
-          <Icon name="clipboard2"/>
+      <span>
+        {#if showSelect}
+          <Button id={`${job.cluster}-${job.jobId}-select`} outline={!isSelected} color={isSelected? `success`: `secondary`} size="sm" class="mr-2"
+            on:click={() => {
+              isSelected = !isSelected
+            }}>
+            {#if isSelected}
+              <Icon name="check-square"/>
+            {:else if isSelected == false}
+              <Icon name="square"/>
+            {:else}
+              <Icon name="plus-square-dotted" />
+            {/if}
+          </Button>
+          <Tooltip
+            target={`${job.cluster}-${job.jobId}-select`}
+            placement="left">
+              { 'Add or Remove Job to/from Comparison Selection' }
+          </Tooltip>
         {/if}
-      </Button>
-      <Tooltip
-        target={`${job.cluster}-${job.jobId}-clipboard`}
-        placement="right">
-          { displayCheck ? 'Copied!' : 'Copy Job ID to Clipboard' }
-      </Tooltip>
+        <Button id={`${job.cluster}-${job.jobId}-clipboard`} outline color="secondary" size="sm" on:click={clipJobId(job.jobId)} >
+          {#if displayCheck}
+            <Icon name="clipboard2-check-fill"/>
+          {:else}
+            <Icon name="clipboard2"/>
+          {/if}
+        </Button>
+        <Tooltip
+          target={`${job.cluster}-${job.jobId}-clipboard`}
+          placement="right">
+            { displayCheck ? 'Copied!' : 'Copy Job ID to Clipboard' }
+        </Tooltip>
+      </span>
     </span>
     {#if job.metaData?.jobName}
       {#if job.metaData?.jobName.length <= 25}

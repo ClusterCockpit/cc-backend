@@ -14,7 +14,6 @@
 <script>
   import { 
     getContext,
-    createEventDispatcher 
   } from "svelte";
   import { 
     queryStore,
@@ -56,7 +55,6 @@
   let pendingZoomState = null;
   let thresholdState = null;
 
-  const dispatch = createEventDispatcher();
   const statsPattern = /(.*)-stat$/;
   const unit = (metricUnit?.prefix ? metricUnit.prefix : "") + (metricUnit?.base ? metricUnit.base : "");
   const client = getContextClient();
@@ -150,11 +148,6 @@
 
         // On additional scope request
         if (selectedScope == "load-all") {
-          // Push scope to statsTable (Needs to be in this case, else newly selected 'Metric.svelte' renders cause statsTable race condition)
-          const statsTableData = $metricData.data.singleUpdate.filter((x) => x.scope !== "node")
-          if (statsTableData.length > 0) {
-            dispatch("more-loaded", statsTableData);
-          }
           // Set selected scope to min of returned scopes
           selectedScope = minScope(scopes)
           nodeOnly = (selectedScope == "node") // "node" still only scope after load-all

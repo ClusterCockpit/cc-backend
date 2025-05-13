@@ -50,6 +50,7 @@ type IntRangeOutput struct {
 
 type JobFilter struct {
 	Tags            []string          `json:"tags,omitempty"`
+	DbID            []string          `json:"dbId,omitempty"`
 	JobID           *StringInput      `json:"jobId,omitempty"`
 	ArrayJobID      *int              `json:"arrayJobId,omitempty"`
 	User            *StringInput      `json:"user,omitempty"`
@@ -81,11 +82,6 @@ type JobLinkResultList struct {
 	Count     *int       `json:"count,omitempty"`
 }
 
-type JobMetricStatWithName struct {
-	Name  string                   `json:"name"`
-	Stats *schema.MetricStatistics `json:"stats"`
-}
-
 type JobMetricWithName struct {
 	Name   string             `json:"name"`
 	Scope  schema.MetricScope `json:"scope"`
@@ -98,6 +94,19 @@ type JobResultList struct {
 	Limit       *int          `json:"limit,omitempty"`
 	Count       *int          `json:"count,omitempty"`
 	HasNextPage *bool         `json:"hasNextPage,omitempty"`
+}
+
+type JobStats struct {
+	ID              int           `json:"id"`
+	JobID           string        `json:"jobId"`
+	StartTime       int           `json:"startTime"`
+	Duration        int           `json:"duration"`
+	Cluster         string        `json:"cluster"`
+	SubCluster      string        `json:"subCluster"`
+	NumNodes        int           `json:"numNodes"`
+	NumHWThreads    *int          `json:"numHWThreads,omitempty"`
+	NumAccelerators *int          `json:"numAccelerators,omitempty"`
+	Stats           []*NamedStats `json:"stats"`
 }
 
 type JobsStatistics struct {
@@ -147,6 +156,17 @@ type MetricStatItem struct {
 type Mutation struct {
 }
 
+type NamedStats struct {
+	Name string                   `json:"name"`
+	Data *schema.MetricStatistics `json:"data"`
+}
+
+type NamedStatsWithScope struct {
+	Name  string             `json:"name"`
+	Scope schema.MetricScope `json:"scope"`
+	Stats []*ScopedStats     `json:"stats"`
+}
+
 type NodeMetrics struct {
 	Host       string               `json:"host"`
 	SubCluster string               `json:"subCluster"`
@@ -171,6 +191,12 @@ type OrderByInput struct {
 type PageRequest struct {
 	ItemsPerPage int `json:"itemsPerPage"`
 	Page         int `json:"page"`
+}
+
+type ScopedStats struct {
+	Hostname string                   `json:"hostname"`
+	ID       *string                  `json:"id,omitempty"`
+	Data     *schema.MetricStatistics `json:"data"`
 }
 
 type StringInput struct {

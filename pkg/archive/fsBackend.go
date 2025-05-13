@@ -115,6 +115,40 @@ func loadJobData(filename string, isCompressed bool) (schema.JobData, error) {
 	}
 }
 
+func loadJobStats(filename string, isCompressed bool) (schema.ScopedJobStats, error) {
+	f, err := os.Open(filename)
+
+	if err != nil {
+		log.Errorf("fsBackend LoadJobStats()- %v", err)
+		return nil, err
+	}
+	defer f.Close()
+
+	if isCompressed {
+		r, err := gzip.NewReader(f)
+		if err != nil {
+			log.Errorf(" %v", err)
+			return nil, err
+		}
+		defer r.Close()
+
+		if config.Keys.Validate {
+			if err := schema.Validate(schema.Data, r); err != nil {
+				return nil, fmt.Errorf("validate job data: %v", err)
+			}
+		}
+
+		return DecodeJobStats(r, filename)
+	} else {
+		if config.Keys.Validate {
+			if err := schema.Validate(schema.Data, bufio.NewReader(f)); err != nil {
+				return nil, fmt.Errorf("validate job data: %v", err)
+			}
+		}
+		return DecodeJobStats(bufio.NewReader(f), filename)
+	}
+}
+
 func (fsa *FsArchive) Init(rawConfig json.RawMessage) (uint64, error) {
 
 	var config FsArchiveConfig
@@ -387,6 +421,18 @@ func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 	}
 
 	return loadJobData(filename, isCompressed)
+}
+
+func (fsa *FsArchive) LoadJobStats(job *schema.Job) (schema.ScopedJobStats, error) {
+	var isCompressed bool = true
+	filename := getPath(job, fsa.path, "data.json.gz")
+
+	if !util.CheckFileExists(filename) {
+		filename = getPath(job, fsa.path, "data.json")
+		isCompressed = false
+	}
+
+	return loadJobStats(filename, isCompressed)
 }
 
 func (fsa *FsArchive) LoadJobMeta(job *schema.Job) (*schema.JobMeta, error) {

@@ -40,7 +40,7 @@ func Start() {
 	jobRepo = repository.GetJobRepository()
 	s, err = gocron.NewScheduler()
 	if err != nil {
-		log.Fatalf("Error while creating gocron scheduler: %s", err.Error())
+		log.Abortf("Taskmanager Start: Could not create gocron scheduler.\nError: %s\n", err.Error())
 	}
 
 	if config.Keys.StopJobsExceedingWalltime > 0 {

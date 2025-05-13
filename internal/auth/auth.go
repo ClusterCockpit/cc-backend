@@ -10,9 +10,11 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,6 +22,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/gorilla/sessions"
@@ -233,9 +236,9 @@ func (auth *Authentication) Login(
 
 		limiter := getIPUserLimiter(ip, username)
 		if !limiter.Allow() {
-				log.Warnf("AUTH/RATE > Too many login attempts for combination IP: %s, Username: %s", ip, username)
-				onfailure(rw, r, errors.New("Too many login attempts, try again in a few minutes."))
-				return
+			log.Warnf("AUTH/RATE > Too many login attempts for combination IP: %s, Username: %s", ip, username)
+			onfailure(rw, r, errors.New("Too many login attempts, try again in a few minutes."))
+			return
 		}
 
 		var dbUser *schema.User
@@ -325,6 +328,14 @@ func (auth *Authentication) AuthApi(
 			onfailure(rw, r, err)
 			return
 		}
+
+		ipErr := securedCheck(user, r)
+		if ipErr != nil {
+			log.Infof("auth api -> secured check failed: %s", ipErr.Error())
+			onfailure(rw, r, ipErr)
+			return
+		}
+
 		if user != nil {
 			switch {
 			case len(user.Roles) == 1:
@@ -360,6 +371,7 @@ func (auth *Authentication) AuthUserApi(
 			onfailure(rw, r, err)
 			return
 		}
+
 		if user != nil {
 			switch {
 			case len(user.Roles) == 1:
@@ -444,4 +456,39 @@ func (auth *Authentication) Logout(onsuccess http.Handler) http.Handler {
 
 		onsuccess.ServeHTTP(rw, r)
 	})
+}
+
+// Helper Moved To MiddleWare Auth Handlers
+func securedCheck(user *schema.User, r *http.Request) error {
+	if user == nil {
+		return fmt.Errorf("no user for secured check")
+	}
+
+	// extract IP address for checking
+	IPAddress := r.Header.Get("X-Real-Ip")
+	if IPAddress == "" {
+		IPAddress = r.Header.Get("X-Forwarded-For")
+	}
+	if IPAddress == "" {
+		IPAddress = r.RemoteAddr
+	}
+
+	if strings.Contains(IPAddress, ":") {
+		IPAddress = strings.Split(IPAddress, ":")[0]
+	}
+
+	// If nothing declared in config: deny all request to this api endpoint
+	if len(config.Keys.ApiAllowedIPs) == 0 {
+		return fmt.Errorf("missing configuration key ApiAllowedIPs")
+	}
+	// If wildcard declared in config: Continue
+	if config.Keys.ApiAllowedIPs[0] == "*" {
+		return nil
+	}
+	// check if IP is allowed
+	if !util.Contains(config.Keys.ApiAllowedIPs, IPAddress) {
+		return fmt.Errorf("unknown ip: %v", IPAddress)
+	}
+
+	return nil
 }

@@ -297,6 +297,9 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 			}
 		}
 	}
+	if len(query["dbId"]) != 0 {
+		filterPresets["dbId"] = query["dbId"]
+	}
 	if query.Get("jobId") != "" {
 		if len(query["jobId"]) == 1 {
 			filterPresets["jobId"] = query.Get("jobId")

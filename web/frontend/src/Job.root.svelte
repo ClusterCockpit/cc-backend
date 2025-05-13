@@ -40,7 +40,7 @@
   import JobRoofline from "./job/JobRoofline.svelte";
   import EnergySummary from "./job/EnergySummary.svelte";
   import PlotGrid from "./generic/PlotGrid.svelte";
-  import StatsTable from "./job/StatsTable.svelte";
+  import StatsTab from "./job/StatsTab.svelte";
 
   export let dbid;
   export let username;
@@ -53,10 +53,8 @@
 
  let isMetricsSelectionOpen = false,
     selectedMetrics = [],
-    selectedScopes = [];
-
-  let plots = {},
-    statsTable
+    selectedScopes = [],
+    plots = {};
 
   let availableMetrics = new Set(),
     missingMetrics = [],
@@ -127,19 +125,16 @@
     let job = $initq.data.job;
     if (!job) return;
 
-    const pendingMetrics = [
-      ...(ccconfig[`job_view_selectedMetrics:${job.cluster}`] ||
-      $initq.data.globalMetrics.reduce((names, gm) => {
-          if (gm.availability.find((av) => av.cluster === job.cluster)) {
-            names.push(gm.name);
-          }
-          return names;
-        }, [])
-      ),
-      ...(ccconfig[`job_view_nodestats_selectedMetrics:${job.cluster}`] ||
-        ccconfig[`job_view_nodestats_selectedMetrics`]
-      ),
-    ];
+    const pendingMetrics = (
+      ccconfig[`job_view_selectedMetrics:${job.cluster}:${job.subCluster}`] ||
+      ccconfig[`job_view_selectedMetrics:${job.cluster}`]
+    ) || 
+    $initq.data.globalMetrics.reduce((names, gm) => {
+      if (gm.availability.find((av) => av.cluster === job.cluster && av.subClusters.includes(job.subCluster))) {
+        names.push(gm.name);
+      }
+      return names;
+    }, [])
 
     // Select default Scopes to load: Check before if any metric has accelerator scope by default
     const accScopeDefault = [...pendingMetrics].some(function (m) {
@@ -222,7 +217,7 @@
   <Col xs={12} md={6} xl={3} class="mb-3 mb-xxl-0">
     {#if $initq.error}
       <Card body color="danger">{$initq.error.message}</Card>
-    {:else if $initq.data}
+    {:else if $initq?.data}
       <Card class="overflow-auto" style="height: 400px;">
         <TabContent> <!-- on:tab={(e) => (status = e.detail)} -->
           {#if $initq.data?.job?.metaData?.message}
@@ -296,7 +291,7 @@
 <Card class="mb-3">
   <CardBody>
     <Row class="mb-2">
-      {#if $initq.data}
+      {#if $initq?.data}
         <Col xs="auto">
             <Button outline on:click={() => (isMetricsSelectionOpen = true)} color="primary">
               Select Metrics (Selected {selectedMetrics.length} of {availableMetrics.size} available)
@@ -309,7 +304,7 @@
     {#if $jobMetrics.error}
       <Row class="mt-2">
         <Col>
-          {#if $initq.data.job.monitoringStatus == 0 || $initq.data.job.monitoringStatus == 2}
+          {#if $initq?.data && ($initq.data.job?.monitoringStatus == 0 || $initq.data.job?.monitoringStatus == 2)}
             <Card body color="warning">Not monitored or archiving failed</Card>
             <br />
           {/if}
@@ -334,7 +329,6 @@
         {#if item.data}
           <Metric
             bind:this={plots[item.metric]}
-            on:more-loaded={({ detail }) => statsTable.moreLoaded(detail)}
             job={$initq.data.job}
             metricName={item.metric}
             metricUnit={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.unit}
@@ -343,10 +337,25 @@
             scopes={item.data.map((x) => x.scope)}
             isShared={$initq.data.job.exclusive != 1}
           />
+        {:else if item.disabled == true}
+          <Card color="info">
+            <CardHeader class="mb-0">
+              <b>Disabled Metric</b>
+            </CardHeader>
+            <CardBody>
+              <p>Metric <b>{item.metric}</b> is disabled for subcluster <b>{$initq.data.job.subCluster}</b>.</p>
+              <p class="mb-1">To remove this card, open metric selection and press "Close and Apply".</p>
+            </CardBody>
+          </Card>
         {:else}
-          <Card body color="warning" class="mt-2"
-            >No dataset returned for <code>{item.metric}</code></Card
-          >
+          <Card color="warning" class="mt-2">
+            <CardHeader class="mb-0">
+              <b>Missing Metric</b>
+            </CardHeader>
+            <CardBody>
+              <p class="mb-1">No dataset returned for <b>{item.metric}</b>.</p>
+            </CardBody>
+          </Card>
         {/if}
       </PlotGrid>
     {/if}
@@ -356,7 +365,7 @@
 <!-- Statistcics Table -->
 <Row class="mb-3">
   <Col>
-    {#if $initq.data}
+    {#if $initq?.data}
       <Card>
         <TabContent>
           {#if somethingMissing}
@@ -389,22 +398,8 @@
               </div>
             </TabPane>
           {/if}
-          <TabPane
-            tabId="stats"
-            tab="Statistics Table"
-            class="overflow-x-auto"
-            active={!somethingMissing}
-          >
-            {#if $jobMetrics?.data?.jobMetrics}
-              {#key $jobMetrics.data.jobMetrics}
-                <StatsTable
-                  bind:this={statsTable}
-                  job={$initq.data.job}
-                  jobMetrics={$jobMetrics.data.jobMetrics}
-                />
-              {/key}
-            {/if}
-          </TabPane>
+          <!-- Includes <TabPane> Statistics Table with Independent GQL Query -->
+          <StatsTab job={$initq.data.job} clusters={$initq.data.clusters} tabActive={!somethingMissing}/>
           <TabPane tabId="job-script" tab="Job Script">
             <div class="pre-wrapper">
               {#if $initq.data.job.metaData?.jobScript}
@@ -431,9 +426,10 @@
   </Col>
 </Row>
 
-{#if $initq.data}
+{#if $initq?.data}
   <MetricSelection
     cluster={$initq.data.job.cluster}
+    subCluster={$initq.data.job.subCluster}
     configName="job_view_selectedMetrics"
     bind:metrics={selectedMetrics}
     bind:isOpen={isMetricsSelectionOpen}
