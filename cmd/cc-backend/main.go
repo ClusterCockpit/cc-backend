@@ -25,6 +25,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/runtimeEnv"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/google/gops/agent"
+	"github.com/joho/godotenv"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
@@ -76,7 +77,8 @@ func main() {
 		}
 	}
 
-	if err := runtimeEnv.LoadEnv("./.env"); err != nil && !os.IsNotExist(err) {
+	err := godotenv.Load()
+	if err != nil {
 		log.Abortf("Could not parse existing .env file at location './.env'. Application startup failed, exited.\nError: %s\n", err.Error())
 	}
 
