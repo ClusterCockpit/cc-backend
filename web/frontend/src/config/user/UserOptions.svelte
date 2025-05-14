@@ -109,7 +109,7 @@
         <input type="hidden" name="key" value="job_list_usePaging" />
         <div class="mb-3">
           <div>
-            {#if config.job_list_usePaging}
+            {#if config?.job_list_usePaging}
               <input type="radio" id="true-checked" name="value" value="true" checked />
             {:else}
               <input type="radio" id="true" name="value" value="true" />
@@ -117,7 +117,7 @@
             <label for="true">Paging with selectable count of jobs.</label>
           </div>
           <div>
-            {#if config.job_list_usePaging}
+            {#if config?.job_list_usePaging}
               <input type="radio" id="false" name="value" value="false" />
             {:else}
               <input type="radio" id="false-checked" name="value" value="false" checked />
@@ -137,7 +137,7 @@
             <CardBody>
                 <CardTitle>Generate JWT</CardTitle>
                 {#if jwt}
-                    <Button color="secondary" on:click={clipJwt()}>
+                    <Button color="secondary" on:click={() => clipJwt()}>
                         Copy JWT to Clipboard
                     </Button>
                     <p class="mt-2">
@@ -149,7 +149,7 @@
                         </p>
                     {/if}
                 {:else}
-                    <Button color="success" on:click={getUserJwt(username)}>
+                    <Button color="success" on:click={() => getUserJwt(username)}>
                         Generate JWT for '{username}'
                     </Button>
                     <p class="mt-2">

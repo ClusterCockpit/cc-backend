@@ -78,6 +78,8 @@
     term = ""
     presetProject = ""
     project = ""
+    jobName = ""
+    user = ""
     termChanged(0);
   }
 </script>
@@ -107,7 +109,7 @@
     placeholder={presetProject ? `Find ${mode} in ${scrambleNames ? scramble(presetProject) : presetProject} ...` : `Find ${mode} ...`}
   />
   {#if presetProject}
-  <Button title="Reset Project" on:click={resetProject}
+  <Button title="Reset Project" on:click={() => resetProject()}
     ><Icon name="arrow-counterclockwise" /></Button
   >
   {/if}

@@ -1,7 +1,8 @@
+import { mount } from 'svelte';
 import {} from './header.entrypoint.js'
 import User from './User.root.svelte'
 
-new User({
+mount(User, {
     target: document.getElementById('svelte-app'),
     props: {
         filterPresets: filterPresets,

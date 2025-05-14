@@ -30,7 +30,7 @@
 <td><code>{user?.roles ? user.roles.join(", ") : "No Roles"}</code></td>
 <td>
   {#if !jwt}
-    <Button color="success" on:click={getUserJwt(user.username)}
+    <Button color="success" on:click={() => getUserJwt(user.username)}
       >Gen. JWT</Button
     >
   {:else}

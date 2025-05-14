@@ -6,13 +6,20 @@ import terser from '@rollup/plugin-terser';
 import css from 'rollup-plugin-css-only';
 
 const production = !process.env.ROLLUP_WATCH;
-// const production = false
 
 const plugins = [
     svelte({
         compilerOptions: {
-            // enable run-time checks when not in production
-            dev: !production
+            // Enable run-time checks when not in production
+            dev: !production,
+            // Enable Svelte 5-specific features
+            hydratable: true, // If using server-side rendering
+            immutable: true, // Optimize updates for immutable data
+            // As of sveltestrap 7.1.0, filtered warnings would appear for imported sveltestrap components
+            warningFilter: (warning) => (
+                warning.code !== 'element_invalid_self_closing_tag' &&
+                warning.code !== 'a11y_interactive_supports_focus'
+            )
         }
     }),
 
@@ -23,7 +30,7 @@ const plugins = [
     // https://github.com/rollup/plugins/tree/master/packages/commonjs
     resolve({
         browser: true,
-        dedupe: ['svelte']
+        dedupe: ['svelte', '@sveltejs/kit'] // Ensure deduplication for Svelte 5
     }),
     commonjs(),
 
@@ -32,8 +39,10 @@ const plugins = [
     production && terser(),
 
     replace({
-        "process.env.NODE_ENV": JSON.stringify("development"),
-        preventAssignment: true
+        preventAssignment: true,
+        values: {
+            "process.env.NODE_ENV": JSON.stringify(production ? "production" : "development"),
+        }
     })
 ];
 

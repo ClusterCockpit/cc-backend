@@ -98,13 +98,16 @@
   function columnsDrag(event, target) {
     event.dataTransfer.dropEffect = "move";
     const start = Number.parseInt(event.dataTransfer.getData("text/plain"));
+
+    let pendingMetricsOrder = [...newMetricsOrder];
     if (start < target) {
-      newMetricsOrder.splice(target + 1, 0, newMetricsOrder[start]);
-      newMetricsOrder.splice(start, 1);
+      pendingMetricsOrder.splice(target + 1, 0, newMetricsOrder[start]);
+      pendingMetricsOrder.splice(start, 1);
     } else {
-      newMetricsOrder.splice(target, 0, newMetricsOrder[start]);
-      newMetricsOrder.splice(start + 1, 1);
+      pendingMetricsOrder.splice(target, 0, newMetricsOrder[start]);
+      pendingMetricsOrder.splice(start + 1, 1);
     }
+    newMetricsOrder = [...pendingMetricsOrder];
     columnHovering = null;
   }
 
@@ -163,10 +166,18 @@
         <li
           class="cc-config-column list-group-item"
           draggable={true}
-          ondragover="return false"
-          on:dragstart={(event) => columnsDragStart(event, index)}
-          on:drop|preventDefault={(event) => columnsDrag(event, index)}
-          on:dragenter={() => (columnHovering = index)}
+          ondragover={(event) => {
+            event.preventDefault()
+            return false
+          }}
+          ondragstart={(event) => {
+            columnsDragStart(event, index)
+          }}
+          ondrop={(event) => {
+            event.preventDefault()
+            columnsDrag(event, index)
+          }}
+          ondragenter={() => (columnHovering = index)}
           class:is-active={columnHovering === index}
         >
           {#if unorderedMetrics.includes(metric)}
@@ -192,7 +203,7 @@
     </ListGroup>
   </ModalBody>
   <ModalFooter>
-    <Button color="primary" on:click={closeAndApply}>Close & Apply</Button>
+    <Button color="primary" on:click={() => closeAndApply()}>Close & Apply</Button>
     <Button color="secondary" on:click={() => (isOpen = !isOpen)}>Cancel</Button>
   </ModalFooter>
 </Modal>

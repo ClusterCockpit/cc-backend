@@ -28,14 +28,14 @@
     </div>
     <div class="cc-pagination-right">
         {#if !backButtonDisabled}
-        <button class="reset nav" type="button"
-            on:click|preventDefault="{reset}"></button>
-        <button class="left nav" type="button"
-            on:click|preventDefault="{() => { page -= 1; }}"></button>
+        <button aria-label="page-reset"  class="reset nav" type="button"
+            on:click|preventDefault={() => reset()}></button>
+        <button aria-label="page-back" class="left nav" type="button"
+            on:click|preventDefault={() => { page -= 1; }}></button>
         {/if}
         {#if !nextButtonDisabled}
-        <button class="right nav" type="button"
-            on:click|preventDefault="{() => { page += 1; }}"></button>
+        <button aria-label="page-up" class="right nav" type="button"
+            on:click|preventDefault={() => { page += 1; }}></button>
         {/if}
     </div>
 </div>

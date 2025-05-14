@@ -53,11 +53,11 @@
       <Button
         color="secondary"
         size="sm"
-        on:click={reloadUserList}
+        on:click={() => reloadUserList()}
         style="float: right;">Reload</Button
       >
     </p>
-    <div style="width: 100%; max-height: 500px; overflow-y: scroll;">
+    <div style="width: 100%; max-height: 725px; overflow-y: scroll;">
       <Table hover>
         <thead>
           <tr>
@@ -77,7 +77,7 @@
               <td
                 ><button
                   class="btn btn-danger del-user"
-                  on:click={deleteUser(user.username)}>Delete</button
+                  on:click={() => deleteUser(user.username)}>Delete</button
                 ></td
               >
             </tr>
