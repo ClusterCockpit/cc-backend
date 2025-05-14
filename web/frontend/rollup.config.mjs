@@ -12,7 +12,9 @@ const plugins = [
     svelte({
         compilerOptions: {
             // enable run-time checks when not in production
-            dev: !production
+            dev: !production,
+            // As of sveltestrap 7.1.0, filtered warnings would appear for imported sveltestrap components
+            warningFilter: (warning) => (warning.code !== 'element_invalid_self_closing_tag' && warning.code !== 'a11y_interactive_supports_focus')
         }
     }),
 
