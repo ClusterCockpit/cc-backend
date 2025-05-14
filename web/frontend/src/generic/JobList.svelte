@@ -3,7 +3,7 @@
 
     Properties:
     - `sorting Object?`: Currently active sorting [Default: {field: "startTime", type: "col", order: "DESC"}]
-    - `matchedJobs Number?`: Number of matched jobs for selected filters [Default: 0]
+    - `matchedListJobs Number?`: Number of matched jobs for selected filters [Default: 0]
     - `metrics [String]?`: The currently selected metrics [Default: User-Configured Selection]
     - `showFootprint Bool`: If to display the jobFootprint component
 
