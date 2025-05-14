@@ -2,7 +2,7 @@
     @component jobCompare component; compares jobs according to set filters or job selection
 
     Properties:
-    - `matchedJobs Number?`: Number of matched jobs for selected filters [Default: 0]
+    - `matchedCompareJobs Number?`: Number of matched jobs for selected filters [Default: 0]
     - `metrics [String]?`: The currently selected metrics [Default: User-Configured Selection]
     - `showFootprint Bool`: If to display the jobFootprint component
 
