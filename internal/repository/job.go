@@ -9,12 +9,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
@@ -33,6 +33,7 @@ type JobRepository struct {
 	stmtCache *sq.StmtCache
 	cache     *lrucache.Cache
 	driver    string
+	Mutex     sync.Mutex
 }
 
 func GetJobRepository() *JobRepository {
@@ -56,7 +57,7 @@ var jobColumns []string = []string{
 	"job.duration", "job.walltime", "job.resources", "job.footprint", "job.energy",
 }
 
-func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
+func scanJob(row interface{ Scan(...any) error }) (*schema.Job, error) {
 	job := &schema.Job{}
 
 	if err := row.Scan(
@@ -138,17 +139,6 @@ func (r *JobRepository) Flush() error {
 	return nil
 }
 
-func scanJobLink(row interface{ Scan(...interface{}) error }) (*model.JobLink, error) {
-	jobLink := &model.JobLink{}
-	if err := row.Scan(
-		&jobLink.ID, &jobLink.JobID); err != nil {
-		log.Warn("Error while scanning rows (jobLink)")
-		return nil, err
-	}
-
-	return jobLink, nil
-}
-
 func (r *JobRepository) FetchMetadata(job *schema.Job) (map[string]string, error) {
 	start := time.Now()
 	cachekey := fmt.Sprintf("metadata:%d", job.ID)
@@ -189,9 +179,7 @@ func (r *JobRepository) UpdateMetadata(job *schema.Job, key, val string) (err er
 
 	if job.MetaData != nil {
 		cpy := make(map[string]string, len(job.MetaData)+1)
-		for k, v := range job.MetaData {
-			cpy[k] = v
-		}
+		maps.Copy(cpy, job.MetaData)
 		cpy[key] = val
 		job.MetaData = cpy
 	} else {
@@ -389,7 +377,7 @@ func (r *JobRepository) FindColumnValues(user *schema.User, query string, table 
 func (r *JobRepository) Partitions(cluster string) ([]string, error) {
 	var err error
 	start := time.Now()
-	partitions := r.cache.Get("partitions:"+cluster, func() (interface{}, time.Duration, int) {
+	partitions := r.cache.Get("partitions:"+cluster, func() (any, time.Duration, int) {
 		parts := []string{}
 		if err = r.DB.Select(&parts, `SELECT DISTINCT job.cluster_partition FROM job WHERE job.cluster = ?;`, cluster); err != nil {
 			return nil, 0, 1000

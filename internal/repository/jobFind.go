@@ -43,6 +43,26 @@ func (r *JobRepository) Find(
 	return scanJob(q.RunWith(r.stmtCache).QueryRow())
 }
 
+func (r *JobRepository) FindCached(
+	jobId *int64,
+	cluster *string,
+	startTime *int64,
+) (*schema.Job, error) {
+	q := sq.Select(jobColumns...).From("job_cache").
+		Where("job_cache.job_id = ?", *jobId)
+
+	if cluster != nil {
+		q = q.Where("job_cache.cluster = ?", *cluster)
+	}
+	if startTime != nil {
+		q = q.Where("job_cache.start_time = ?", *startTime)
+	}
+
+	q = q.OrderBy("job_cache.id DESC") // always use newest matching job by db id if more than one match
+
+	return scanJob(q.RunWith(r.stmtCache).QueryRow())
+}
+
 // Find executes a SQL query to find a specific batch job.
 // The job is queried using the batch job id, the cluster name,
 // and the start time of the job in UNIX epoch time seconds.
