@@ -81,6 +81,7 @@ func Start() {
 
 	RegisterFootprintWorker()
 	RegisterUpdateDurationWorker()
+	RegisterCommitJobService()
 
 	s.Start()
 }
