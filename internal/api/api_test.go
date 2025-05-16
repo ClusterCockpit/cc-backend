@@ -253,6 +253,7 @@ func TestRestApi(t *testing.T) {
 			t.Fatal(response.Status, recorder.Body.String())
 		}
 		resolver := graph.GetResolverInstance()
+		restapi.JobRepository.SyncJobs()
 		job, err := restapi.JobRepository.Find(&TestJobId, &TestClusterName, &TestStartTime)
 		if err != nil {
 			t.Fatal(err)
@@ -312,7 +313,7 @@ func TestRestApi(t *testing.T) {
 		}
 
 		archiver.WaitForArchiving()
-		job, err := restapi.JobRepository.Find(&TestJobId, &TestClusterName, &TestStartTime)
+		job, err := restapi.JobRepository.FindCached(&TestJobId, &TestClusterName, &TestStartTime)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -425,7 +426,7 @@ func TestRestApi(t *testing.T) {
 
 		archiver.WaitForArchiving()
 		jobid, cluster := int64(12345), "testcluster"
-		job, err := restapi.JobRepository.Find(&jobid, &cluster, nil)
+		job, err := restapi.JobRepository.FindCached(&jobid, &cluster, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
