@@ -52,7 +52,7 @@
   let filterComponent; // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
   let jobList;
   let jobFilters = [];
-  let matchedJobs = 0;
+  let matchedListJobs = 0;
   let sorting = { field: "startTime", type: "col", order: "DESC" },
     isSortingOpen = false;
   let metrics = ccconfig.plot_list_selectedMetrics,
@@ -144,7 +144,7 @@
   <Col lg="4" class="mb-1 mb-lg-0">
     <Filters
       {filterPresets}
-      {matchedJobs}
+      matchedJobs={matchedListJobs}
       startTimeQuickSelect={true}
       bind:this={filterComponent}
       on:update-filters={({ detail }) => {
@@ -336,7 +336,7 @@
   <Col>
     <JobList
       bind:this={jobList} 
-      bind:matchedJobs
+      bind:matchedListJobs
       bind:metrics
       bind:sorting
       bind:showFootprint
