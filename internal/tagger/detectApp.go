@@ -1,5 +1,5 @@
-// Copyright (C) 2023 NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package tagger
@@ -72,7 +72,7 @@ func (t *AppTagger) Match(job *schema.Job) {
 			for _, s := range a.strings {
 				if strings.Contains(jobscript, s) {
 					if !r.HasTag(id, tagType, tag) {
-						r.AddTagOrCreate(id, tagType, tag)
+						r.AddTagOrCreateDirect(id, tagType, tag)
 						break out
 					}
 				}
