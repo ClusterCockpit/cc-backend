@@ -9,15 +9,20 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
-const tagType = "app"
+const (
+	tagType = "app"
+	appPath = "./var/tagger/apps"
+)
 
 //go:embed apps/*
 var appFiles embed.FS
@@ -31,29 +36,37 @@ type AppTagger struct {
 	apps map[string]appInfo
 }
 
-func (t *AppTagger) scanApps(files []fs.DirEntry) error {
+func (t *AppTagger) scanApp(f fs.File, fns string) {
+	scanner := bufio.NewScanner(f)
+	ai := appInfo{tag: strings.TrimSuffix(fns, filepath.Ext(fns)), strings: make([]string, 0)}
+
+	for scanner.Scan() {
+		ai.strings = append(ai.strings, scanner.Text())
+	}
+	delete(t.apps, ai.tag)
+	t.apps[ai.tag] = ai
+}
+
+func (t *AppTagger) EventMatch(s string) bool {
+	return strings.Contains(s, "apps")
+}
+
+func (t *AppTagger) EventCallback() {
+	files, err := os.ReadDir(appPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	for _, fn := range files {
 		fns := fn.Name()
 		log.Debugf("Process: %s", fns)
-		f, err := appFiles.Open(fmt.Sprintf("apps/%s", fns))
+		f, err := os.Open(fmt.Sprintf("%s/%s", appPath, fns))
 		if err != nil {
-			return fmt.Errorf("error opening app file %s: %#v", fns, err)
+			log.Errorf("error opening app file %s: %#v", fns, err)
 		}
-		scanner := bufio.NewScanner(f)
-		ai := appInfo{tag: strings.TrimSuffix(fns, filepath.Ext(fns)), strings: make([]string, 0)}
-
-		for scanner.Scan() {
-			ai.strings = append(ai.strings, scanner.Text())
-		}
-		delete(t.apps, ai.tag)
-		t.apps[ai.tag] = ai
+		t.scanApp(f, fns)
 	}
-	return nil
 }
-
-// func (t *AppTagger) Reload() error {
-//
-// }
 
 func (t *AppTagger) Register() error {
 	files, err := appFiles.ReadDir("apps")
@@ -61,7 +74,22 @@ func (t *AppTagger) Register() error {
 		return fmt.Errorf("error reading app folder: %#v", err)
 	}
 	t.apps = make(map[string]appInfo, 0)
-	return t.scanApps(files)
+	for _, fn := range files {
+		fns := fn.Name()
+		log.Debugf("Process: %s", fns)
+		f, err := appFiles.Open(fmt.Sprintf("apps/%s", fns))
+		if err != nil {
+			return fmt.Errorf("error opening app file %s: %#v", fns, err)
+		}
+		t.scanApp(f, fns)
+	}
+
+	if util.CheckFileExists(appPath) {
+		log.Infof("Setup file watch for %s", appPath)
+		util.AddListener(appPath, t)
+	}
+
+	return nil
 }
 
 func (t *AppTagger) Match(job *schema.Job) {

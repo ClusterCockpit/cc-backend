@@ -58,8 +58,10 @@ func GetJobRepository() *JobRepository {
 // }
 
 var jobColumns []string = []string{
-	"id", "job_id", "hpc_user", "project", "cluster", "subcluster", "start_time", "cluster_partition", "array_job_id", "num_nodes", "num_hwthreads", "num_acc", "exclusive", "monitoring_status", "smt", "job_state",
-	"duration", "walltime", "resources", "footprint", "energy",
+	"id", "job_id", "hpc_user", "project", "cluster", "subcluster", "start_time",
+	"cluster_partition", "array_job_id", "num_nodes", "num_hwthreads", "num_acc",
+	"exclusive", "monitoring_status", "smt", "job_state", "duration", "walltime",
+	"resources", "footprint", "energy",
 }
 
 func scanJob(row interface{ Scan(...any) error }) (*schema.Job, error) {

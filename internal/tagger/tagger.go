@@ -36,7 +36,6 @@ func Init() {
 			tagger.Register()
 		}
 
-		// jobTagger.stopTaggers = make([]Tagger, 0)
 		repository.RegisterJobJook(jobTagger)
 	})
 }
