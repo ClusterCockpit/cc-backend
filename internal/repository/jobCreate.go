@@ -46,23 +46,43 @@ func (r *JobRepository) InsertJob(job *schema.JobMeta) (int64, error) {
 	return id, nil
 }
 
-func (r *JobRepository) SyncJobs() error {
+func (r *JobRepository) SyncJobs() ([]*schema.Job, error) {
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
-	_, err := r.DB.Exec(
+
+	query := sq.Select(jobColumns...).From("job_cache")
+
+	rows, err := query.RunWith(r.stmtCache).Query()
+	if err != nil {
+		log.Errorf("Error while running query %v", err)
+		return nil, err
+	}
+
+	jobs := make([]*schema.Job, 0, 50)
+	for rows.Next() {
+		job, err := scanJob(rows)
+		if err != nil {
+			rows.Close()
+			log.Warn("Error while scanning rows")
+			return nil, err
+		}
+		jobs = append(jobs, job)
+	}
+
+	_, err = r.DB.Exec(
 		"INSERT INTO job (job_id, cluster, subcluster, start_time, hpc_user, project, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc, exclusive, monitoring_status, smt, job_state, duration, walltime, footprint, energy, energy_footprint, resources, meta_data) SELECT job_id, cluster, subcluster, start_time, hpc_user, project, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc, exclusive, monitoring_status, smt, job_state, duration, walltime, footprint, energy, energy_footprint, resources, meta_data FROM job_cache")
 	if err != nil {
 		log.Warnf("Error while Job sync: %v", err)
-		return err
+		return nil, err
 	}
 
 	_, err = r.DB.Exec("DELETE FROM job_cache")
 	if err != nil {
-		log.Warn("Error while Job cache clean")
-		return err
+		log.Warnf("Error while Job cache clean: %v", err)
+		return nil, err
 	}
 
-	return nil
+	return jobs, nil
 }
 
 // Start inserts a new job in the table, returning the unique job ID.

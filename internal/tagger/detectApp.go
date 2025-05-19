@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"embed"
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"strings"
 
@@ -27,16 +28,10 @@ type appInfo struct {
 }
 
 type AppTagger struct {
-	apps []appInfo
+	apps map[string]appInfo
 }
 
-func (t *AppTagger) Register() error {
-	files, err := appFiles.ReadDir("apps")
-	if err != nil {
-		return fmt.Errorf("error reading app folder: %#v", err)
-	}
-	t.apps = make([]appInfo, 0)
-
+func (t *AppTagger) scanApps(files []fs.DirEntry) error {
 	for _, fn := range files {
 		fns := fn.Name()
 		log.Debugf("Process: %s", fns)
@@ -50,10 +45,23 @@ func (t *AppTagger) Register() error {
 		for scanner.Scan() {
 			ai.strings = append(ai.strings, scanner.Text())
 		}
-		t.apps = append(t.apps, ai)
+		delete(t.apps, ai.tag)
+		t.apps[ai.tag] = ai
 	}
-
 	return nil
+}
+
+// func (t *AppTagger) Reload() error {
+//
+// }
+
+func (t *AppTagger) Register() error {
+	files, err := appFiles.ReadDir("apps")
+	if err != nil {
+		return fmt.Errorf("error reading app folder: %#v", err)
+	}
+	t.apps = make(map[string]appInfo, 0)
+	return t.scanApps(files)
 }
 
 func (t *AppTagger) Match(job *schema.Job) {

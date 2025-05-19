@@ -4,31 +4,54 @@
 // license that can be found in the LICENSE file.
 package repository
 
+import (
+	"sync"
+
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+)
+
 type JobHook interface {
-	jobStartCallback()
-	jobStopCallback()
+	JobStartCallback(job *schema.Job)
+	JobStopCallback(job *schema.Job)
 }
 
-var hooks []JobHook
+var (
+	initOnce sync.Once
+	hooks    []JobHook
+)
 
 func RegisterJobJook(hook JobHook) {
+	initOnce.Do(func() {
+		hooks = make([]JobHook, 0)
+	})
+
 	if hook != nil {
 		hooks = append(hooks, hook)
 	}
 }
 
-func CallJobStartHooks() {
+func CallJobStartHooks(jobs []*schema.Job) {
+	if hooks == nil {
+		return
+	}
+
 	for _, hook := range hooks {
 		if hook != nil {
-			hook.jobStartCallback()
+			for _, job := range jobs {
+				hook.JobStartCallback(job)
+			}
 		}
 	}
 }
 
-func CallJobStopHooks() {
+func CallJobStopHooks(job *schema.Job) {
+	if hooks == nil {
+		return
+	}
+
 	for _, hook := range hooks {
 		if hook != nil {
-			hook.jobStopCallback()
+			hook.JobStopCallback(job)
 		}
 	}
 }

@@ -28,8 +28,8 @@ func RegisterCommitJobService() {
 			func() {
 				start := time.Now()
 				log.Printf("Jobcache sync started at %s", start.Format(time.RFC3339))
-				jobRepo.SyncJobs()
-				repository.CallJobStartHooks()
-				log.Printf("Jobcache sync is done and took %s", time.Since(start))
+				jobs, _ := jobRepo.SyncJobs()
+				repository.CallJobStartHooks(jobs)
+				log.Printf("Jobcache sync and job callbacks are done and took %s", time.Since(start))
 			}))
 }
