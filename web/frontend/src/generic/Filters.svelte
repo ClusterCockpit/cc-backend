@@ -16,7 +16,6 @@
  -->
 
 <script>
-  import { createEventDispatcher } from "svelte";
   import {
     DropdownItem,
     DropdownMenu,
@@ -37,14 +36,16 @@
   import Resources from "./filters/Resources.svelte";
   import Statistics from "./filters/Stats.svelte";
 
-  const dispatch = createEventDispatcher();
-
-  export let menuText = null;
-  export let filterPresets = {};
-  export let disableClusterSelection = false;
-  export let startTimeQuickSelect = false;
-  export let matchedJobs = -2;
-  export let showFilter = true;
+  // Svelte 5 Props
+  let {  
+    menuText = null,
+    filterPresets = {},
+    disableClusterSelection = false,
+    startTimeQuickSelect = false,
+    matchedJobs = -2,
+    showFilter = true,
+    applyFilters
+  } = $props();
 
   const startTimeSelectOptions = [
     { range: "", rangeLabel: "No Selection"},
@@ -92,7 +93,8 @@
     stats: [],
   };
 
-  let filters = {
+  // Svelte 5 Reactive Vars
+  let filters = $state({
     projectMatch: filterPresets.projectMatch || "contains",
     userMatch: filterPresets.userMatch || "contains",
     jobIdMatch: filterPresets.jobIdMatch || "eq",
@@ -126,19 +128,19 @@
     numAccelerators: filterPresets.numAccelerators || { from: null, to: null },
 
     stats: filterPresets.stats || [],
-  };
+  });
 
-  let isClusterOpen = false,
-    isJobStatesOpen = false,
-    isStartTimeOpen = false,
-    isTagsOpen = false,
-    isDurationOpen = false,
-    isEnergyOpen = false,
-    isResourcesOpen = false,
-    isStatsOpen = false,
-    isNodesModified = false,
-    isHwthreadsModified = false,
-    isAccsModified = false;
+  let isClusterOpen = $state(false)
+  let isJobStatesOpen = $state(false)
+  let isStartTimeOpen = $state(false)
+  let isTagsOpen = $state(false)
+  let isDurationOpen = $state(false)
+  let isEnergyOpen = $state(false)
+  let isResourcesOpen = $state(false)
+  let isStatsOpen = $state(false)
+  let isNodesModified = $state(false)
+  let isHwthreadsModified = $state(false)
+  let isAccsModified = $state(false)
 
   // Can be called from the outside to trigger a 'update' event from this component.
   // 'force' option empties existing filters and then applies only 'additionalFilters'
@@ -217,7 +219,7 @@
     if (filters.stats.length != 0)
       items.push({ metricStats: filters.stats.map((st) => { return { metricName: st.field, range: { from: st.from, to: st.to }} }) });
 
-    dispatch("update-filters", { filters: items });
+    applyFilters({ filters: items });
     changeURL();
     return items;
   }
@@ -296,7 +298,7 @@
 <!-- Dropdown-Button -->
 <ButtonGroup>
   {#if showFilter}
-    <ButtonDropdown class="cc-dropdown-on-hover mb-1" style="{(matchedJobs >= -1) ? '' : 'margin-right: 0.5rem;'}">
+    <ButtonDropdown class="cc-dropdown-on-hover mb-1" style={(matchedJobs >= -1) ? '' : 'margin-right: 0.5rem;'}>
       <DropdownToggle outline caret color="success">
         <Icon name="sliders" />
         Filters

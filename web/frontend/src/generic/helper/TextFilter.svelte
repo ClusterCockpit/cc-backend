@@ -12,16 +12,19 @@
 
 <script>
   import { InputGroup, Input, Button, Icon } from "@sveltestrap/sveltestrap";
-  import { createEventDispatcher } from "svelte";
   import { scramble, scrambleNames } from "../utils.js";
 
-  const dispatch = createEventDispatcher();
+  // If page with this component has project preset, keep preset until reset
+  let {
+    presetProject = "",
+    authlevel = null,
+    roles = null,
+    setFilter
+  } = $props();
 
-  export let presetProject = ""; // If page with this component has project preset, keep preset until reset
-  export let authlevel = null;
-  export let roles = null;
-  let mode = presetProject ? "jobName" : "project";
-  let term = "";
+  let mode = $state(presetProject ? "jobName" : "project");
+  let term = $state("");
+
   let user = "";
   let project = presetProject ? presetProject : "";
   let jobName = "";
@@ -52,7 +55,7 @@
       if (timeoutId != null) clearTimeout(timeoutId);
 
       timeoutId = setTimeout(() => {
-        dispatch("set-filter", {
+        setFilter({
           user,
           project,
           jobName
@@ -65,7 +68,7 @@
       if (timeoutId != null) clearTimeout(timeoutId);
 
       timeoutId = setTimeout(() => {
-        dispatch("set-filter", {
+        setFilter({
           project,
           jobName
         });
@@ -91,7 +94,7 @@
     class="form-select"
     title="Search Mode"
     bind:value={mode}
-    on:change={modeChanged}
+    onchange={modeChanged}
   >
     {#if !presetProject}
       <option value={"project"}>Project</option>
@@ -104,12 +107,12 @@
   <Input
     type="text"
     bind:value={term}
-    on:change={() => termChanged()}
-    on:keyup={(event) => termChanged(event.key == "Enter" ? 0 : throttle)}
+    onchange={() => termChanged()}
+    onkeyup={(event) => termChanged(event.key == "Enter" ? 0 : throttle)}
     placeholder={presetProject ? `Find ${mode} in ${scrambleNames ? scramble(presetProject) : presetProject} ...` : `Find ${mode} ...`}
   />
   {#if presetProject}
-  <Button title="Reset Project" on:click={() => resetProject()}
+  <Button title="Reset Project" onclick={() => resetProject()}
     ><Icon name="arrow-counterclockwise" /></Button
   >
   {/if}
