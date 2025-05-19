@@ -51,10 +51,15 @@ func GetJobRepository() *JobRepository {
 	return jobRepoInstance
 }
 
+// var jobColumns []string = []string{
+// 	"job.id", "job.job_id", "job.hpc_user", "job.project", "job.cluster", "job.subcluster", "job.start_time", "job.cluster_partition", "job.array_job_id",
+// 	"job.num_nodes", "job.num_hwthreads", "job.num_acc", "job.exclusive", "job.monitoring_status", "job.smt", "job.job_state",
+// 	"job.duration", "job.walltime", "job.resources", "job.footprint", "job.energy",
+// }
+
 var jobColumns []string = []string{
-	"job.id", "job.job_id", "job.hpc_user", "job.project", "job.cluster", "job.subcluster", "job.start_time", "job.cluster_partition", "job.array_job_id",
-	"job.num_nodes", "job.num_hwthreads", "job.num_acc", "job.exclusive", "job.monitoring_status", "job.smt", "job.job_state",
-	"job.duration", "job.walltime", "job.resources", "job.footprint", "job.energy",
+	"id", "job_id", "hpc_user", "project", "cluster", "subcluster", "start_time", "cluster_partition", "array_job_id", "num_nodes", "num_hwthreads", "num_acc", "exclusive", "monitoring_status", "smt", "job_state",
+	"duration", "walltime", "resources", "footprint", "energy",
 }
 
 func scanJob(row interface{ Scan(...any) error }) (*schema.Job, error) {

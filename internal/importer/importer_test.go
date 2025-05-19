@@ -166,7 +166,7 @@ func TestHandleImportFlag(t *testing.T) {
 			}
 
 			result := readResult(t, testname)
-			job, err := r.Find(&result.JobId, &result.Cluster, &result.StartTime)
+			job, err := r.FindCached(&result.JobId, &result.Cluster, &result.StartTime)
 			if err != nil {
 				t.Fatal(err)
 			}

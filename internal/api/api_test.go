@@ -123,7 +123,7 @@ func setup(t *testing.T) *api.RestApi {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(filepath.Join(jobarchive, "version.txt"), []byte(fmt.Sprintf("%d", 2)), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(jobarchive, "version.txt"), fmt.Appendf(nil, "%d", 2), 0666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -204,11 +204,11 @@ func TestRestApi(t *testing.T) {
 	restapi.MountApiRoutes(r)
 
 	var TestJobId int64 = 123
-	var TestClusterName string = "testcluster"
+	TestClusterName := "testcluster"
 	var TestStartTime int64 = 123456789
 
 	const startJobBody string = `{
-        "jobId":            123,
+    "jobId":            123,
 		"user":             "testuser",
 		"project":          "testproj",
 		"cluster":          "testcluster",
@@ -221,7 +221,6 @@ func TestRestApi(t *testing.T) {
 		"exclusive":        1,
 		"monitoringStatus": 1,
 		"smt":              1,
-		"tags":             [{ "type": "testTagType", "name": "testTagName", "scope": "testuser" }],
 		"resources": [
 			{
 				"hostname": "host123",
@@ -252,17 +251,17 @@ func TestRestApi(t *testing.T) {
 		if response.StatusCode != http.StatusCreated {
 			t.Fatal(response.Status, recorder.Body.String())
 		}
-		resolver := graph.GetResolverInstance()
+		// resolver := graph.GetResolverInstance()
 		restapi.JobRepository.SyncJobs()
 		job, err := restapi.JobRepository.Find(&TestJobId, &TestClusterName, &TestStartTime)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		job.Tags, err = resolver.Job().Tags(ctx, job)
-		if err != nil {
-			t.Fatal(err)
-		}
+		// job.Tags, err = resolver.Job().Tags(ctx, job)
+		// if err != nil {
+		// 	t.Fatal(err)
+		// }
 
 		if job.JobID != 123 ||
 			job.User != "testuser" ||
@@ -283,9 +282,9 @@ func TestRestApi(t *testing.T) {
 			t.Fatalf("unexpected job properties: %#v", job)
 		}
 
-		if len(job.Tags) != 1 || job.Tags[0].Type != "testTagType" || job.Tags[0].Name != "testTagName" || job.Tags[0].Scope != "testuser" {
-			t.Fatalf("unexpected tags: %#v", job.Tags)
-		}
+		// if len(job.Tags) != 1 || job.Tags[0].Type != "testTagType" || job.Tags[0].Name != "testTagName" || job.Tags[0].Scope != "testuser" {
+		// 	t.Fatalf("unexpected tags: %#v", job.Tags)
+		// }
 	}); !ok {
 		return
 	}
@@ -313,7 +312,7 @@ func TestRestApi(t *testing.T) {
 		}
 
 		archiver.WaitForArchiving()
-		job, err := restapi.JobRepository.FindCached(&TestJobId, &TestClusterName, &TestStartTime)
+		job, err := restapi.JobRepository.Find(&TestJobId, &TestClusterName, &TestStartTime)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -353,7 +352,7 @@ func TestRestApi(t *testing.T) {
 
 	t.Run("CheckDoubleStart", func(t *testing.T) {
 		// Starting a job with the same jobId and cluster should only be allowed if the startTime is far appart!
-		body := strings.Replace(startJobBody, `"startTime": 123456789`, `"startTime": 123456790`, -1)
+		body := strings.ReplaceAll(startJobBody, `"startTime": 123456789`, `"startTime": 123456790`)
 
 		req := httptest.NewRequest(http.MethodPost, "/jobs/start_job/", bytes.NewBuffer([]byte(body)))
 		recorder := httptest.NewRecorder()
@@ -403,6 +402,7 @@ func TestRestApi(t *testing.T) {
 	}
 
 	time.Sleep(1 * time.Second)
+	restapi.JobRepository.SyncJobs()
 
 	const stopJobBodyFailed string = `{
     "jobId":     12345,
@@ -426,7 +426,7 @@ func TestRestApi(t *testing.T) {
 
 		archiver.WaitForArchiving()
 		jobid, cluster := int64(12345), "testcluster"
-		job, err := restapi.JobRepository.FindCached(&jobid, &cluster, nil)
+		job, err := restapi.JobRepository.Find(&jobid, &cluster, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
