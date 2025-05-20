@@ -51,6 +51,7 @@ func (t *AppTagger) EventMatch(s string) bool {
 	return strings.Contains(s, "apps")
 }
 
+// FIXME: Only process the file that caused the event
 func (t *AppTagger) EventCallback() {
 	files, err := os.ReadDir(appPath)
 	if err != nil {
@@ -85,6 +86,7 @@ func (t *AppTagger) Register() error {
 	}
 
 	if util.CheckFileExists(appPath) {
+		t.EventCallback()
 		log.Infof("Setup file watch for %s", appPath)
 		util.AddListener(appPath, t)
 	}

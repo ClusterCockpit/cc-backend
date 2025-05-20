@@ -44,7 +44,9 @@ func AddListener(path string, l Listener) {
 }
 
 func FsWatcherShutdown() {
-	w.Close()
+	if w != nil {
+		w.Close()
+	}
 }
 
 func watchLoop(w *fsnotify.Watcher) {
