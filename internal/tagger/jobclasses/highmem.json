@@ -1,0 +1,40 @@
+{
+  "name": "High memory usage",
+  "tag": "high_memory_load",
+  "parameters": [
+    "high_memory_load_threshold_factor",
+    "job_min_duration_seconds",
+    "sampling_interval_seconds"
+  ],
+  "metrics": [
+    "mem_used"
+  ],
+  "requirements": [
+    "job.duration > job_min_duration_seconds",
+    "required_metrics_min_samples > job_min_duration_seconds / sampling_interval_seconds",
+    "hasattr(job, \"allocated_memory\")"
+  ],
+  "terms": [
+    {
+      "memory_alloc": "job.allocated_memory"
+    },
+    {
+      "memory_used": "mem_used.max('time')"
+    },
+    {
+      "load_threshold": "memory_alloc * high_memory_load_threshold_factor"
+    },
+    {
+      "high_mem_nodes": "memory_used > load_threshold"
+    },
+    {
+      "high_mem": "high_mem_nodes.any('all')"
+    },
+    {
+      "load_perc": "memory_used / (memory_alloc * high_memory_load_threshold_factor)"
+    }
+  ],
+  "output": "high_mem",
+  "output_scalar": "load_perc",
+  "template": "Job ({{ job.jobId }})\nThis job was detected as high_memory_load because the memory usage {{ high_mem_nodes.array }} falls above the threshold {{ load_threshold }}."
+}

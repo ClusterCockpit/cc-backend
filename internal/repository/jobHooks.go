@@ -12,7 +12,7 @@ import (
 
 type JobHook interface {
 	JobStartCallback(job *schema.Job)
-	JobStopCallback(job *schema.Job)
+	JobStopCallback(job *schema.JobMeta)
 }
 
 var (
@@ -44,7 +44,7 @@ func CallJobStartHooks(jobs []*schema.Job) {
 	}
 }
 
-func CallJobStopHooks(job *schema.Job) {
+func CallJobStopHooks(job *schema.JobMeta) {
 	if hooks == nil {
 		return
 	}

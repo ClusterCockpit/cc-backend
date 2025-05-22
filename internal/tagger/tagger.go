@@ -13,7 +13,7 @@ import (
 
 type Tagger interface {
 	Register() error
-	Match(job *schema.Job)
+	Match(job *schema.JobMeta)
 }
 
 var (
@@ -31,6 +31,8 @@ func Init() {
 		jobTagger = &JobTagger{}
 		jobTagger.startTaggers = make([]Tagger, 0)
 		jobTagger.startTaggers = append(jobTagger.startTaggers, &AppTagger{})
+		jobTagger.stopTaggers = make([]Tagger, 0)
+		jobTagger.stopTaggers = append(jobTagger.startTaggers, &JobClassTagger{})
 
 		for _, tagger := range jobTagger.startTaggers {
 			tagger.Register()
@@ -46,5 +48,5 @@ func (jt *JobTagger) JobStartCallback(job *schema.Job) {
 	}
 }
 
-func (jt *JobTagger) JobStopCallback(job *schema.Job) {
+func (jt *JobTagger) JobStopCallback(job *schema.JobMeta) {
 }

@@ -5,7 +5,7 @@
 package tagger
 
 import (
-	"bufio"
+	"bytes"
 	"embed"
 	"fmt"
 	"io/fs"
@@ -17,39 +17,46 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/expr-lang/expr"
+	"github.com/expr-lang/expr/vm"
 )
 
-//go:embed apps/*
-var appFiles embed.FS
+//go:embed jobclasses/*
+var jobclassFiles embed.FS
 
-type appInfo struct {
-	tag     string
-	strings []string
+type ruleInfo struct {
+	tag  string
+	rule *vm.Program
 }
 
-type AppTagger struct {
-	apps    map[string]appInfo
+type JobClassTagger struct {
+	rules   map[string]ruleInfo
 	tagType string
 	cfgPath string
 }
 
-func (t *AppTagger) scanApp(f fs.File, fns string) {
-	scanner := bufio.NewScanner(f)
-	ai := appInfo{tag: strings.TrimSuffix(fns, filepath.Ext(fns)), strings: make([]string, 0)}
-
-	for scanner.Scan() {
-		ai.strings = append(ai.strings, scanner.Text())
+func (t *JobClassTagger) compileRule(f fs.File, fns string) {
+	buf := new(bytes.Buffer)
+	_, err := buf.ReadFrom(f)
+	if err != nil {
+		log.Errorf("error reading rule file %s: %#v", fns, err)
 	}
-	delete(t.apps, ai.tag)
-	t.apps[ai.tag] = ai
+	prg, err := expr.Compile(buf.String(), expr.AsBool())
+	if err != nil {
+		log.Errorf("error compiling rule %s: %#v", fns, err)
+	}
+	ri := ruleInfo{tag: strings.TrimSuffix(fns, filepath.Ext(fns)), rule: prg}
+
+	delete(t.rules, ri.tag)
+	t.rules[ri.tag] = ri
 }
 
-func (t *AppTagger) EventMatch(s string) bool {
-	return strings.Contains(s, "apps")
+func (t *JobClassTagger) EventMatch(s string) bool {
+	return strings.Contains(s, "jobclasses")
 }
 
 // FIXME: Only process the file that caused the event
-func (t *AppTagger) EventCallback() {
+func (t *JobClassTagger) EventCallback() {
 	files, err := os.ReadDir(t.cfgPath)
 	if err != nil {
 		log.Fatal(err)
@@ -62,28 +69,28 @@ func (t *AppTagger) EventCallback() {
 		if err != nil {
 			log.Errorf("error opening app file %s: %#v", fns, err)
 		}
-		t.scanApp(f, fns)
+		t.compileRule(f, fns)
 	}
 }
 
-func (t *AppTagger) Register() error {
-	t.cfgPath = "./var/tagger/apps"
-	t.tagType = "app"
+func (t *JobClassTagger) Register() error {
+	t.cfgPath = "./var/tagger/jobclasses"
+	t.tagType = "jobClass"
 
-	files, err := appFiles.ReadDir("apps")
+	files, err := appFiles.ReadDir("jobclasses")
 	if err != nil {
 		return fmt.Errorf("error reading app folder: %#v", err)
 	}
-	t.apps = make(map[string]appInfo, 0)
+	t.rules = make(map[string]ruleInfo, 0)
 	for _, fn := range files {
 		fns := fn.Name()
 		log.Debugf("Process: %s", fns)
 		f, err := appFiles.Open(fmt.Sprintf("apps/%s", fns))
-		defer f.Close()
 		if err != nil {
 			return fmt.Errorf("error opening app file %s: %#v", fns, err)
 		}
-		t.scanApp(f, fns)
+		defer f.Close()
+		t.compileRule(f, fns)
 	}
 
 	if util.CheckFileExists(t.cfgPath) {
@@ -95,25 +102,20 @@ func (t *AppTagger) Register() error {
 	return nil
 }
 
-func (t *AppTagger) Match(job *schema.JobMeta) {
+func (t *JobClassTagger) Match(job *schema.JobMeta) {
 	r := repository.GetJobRepository()
-	jobscript, ok := job.MetaData["jobScript"]
-	if ok {
-		id := job.ID
 
-	out:
-		for _, a := range t.apps {
-			tag := a.tag
-			for _, s := range a.strings {
-				if strings.Contains(jobscript, s) {
-					if !r.HasTag(*id, t.tagType, tag) {
-						r.AddTagOrCreateDirect(*id, t.tagType, tag)
-						break out
-					}
-				}
+	for _, ri := range t.rules {
+		tag := ri.tag
+		output, err := expr.Run(ri.rule, job)
+		if err != nil {
+			log.Errorf("error running rule %s: %#v", tag, err)
+		}
+		if output.(bool) {
+			id := job.ID
+			if !r.HasTag(*id, t.tagType, tag) {
+				r.AddTagOrCreateDirect(*id, t.tagType, tag)
 			}
 		}
-	} else {
-		log.Infof("Cannot extract job script for job: %d on %s", job.JobID, job.Cluster)
 	}
 }

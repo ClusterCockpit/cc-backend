@@ -1,0 +1,38 @@
+{
+  "name": "Low CPU load",
+  "tag": "lowload",
+  "parameters": [
+    "lowcpuload_threshold_factor",
+    "job_min_duration_seconds",
+    "sampling_interval_seconds"
+  ],
+  "metrics": [
+    "cpu_load"
+  ],
+  "requirements": [
+    "job.exclusive == 1",
+    "job.duration > job_min_duration_seconds",
+    "required_metrics_min_samples > job_min_duration_seconds / sampling_interval_seconds"
+  ],
+  "tagRule": [
+    {
+      "load_mean": "cpu_load[cpu_load_pre_cutoff_samples:].mean('all')"
+    },
+    {
+      "load_threshold": "job.numHwthreads * lowcpuload_threshold_factor"
+    },
+    {
+      "lowload_nodes": "load_mean < load_threshold"
+    },
+    {
+      "lowload": "lowload_nodes.any('all')"
+    },
+    {
+      "load_perc": "1.0 - (load_mean / load_threshold)"
+    }
+  ],
+  "valueRule": [],
+  "output": "lowload",
+  "output_scalar": "load_perc",
+  "hint": "Job ({{ job.jobId }})\nThis job was detected as lowload because the mean cpu load {{ load_mean }} falls below the threshold {{ load_threshold }}."
+}

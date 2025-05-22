@@ -1126,8 +1126,6 @@ func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 		return
 	}
 
-	repository.CallJobStopHooks(job)
-
 	// Trigger async archiving
 	archiver.TriggerArchiving(job)
 }
