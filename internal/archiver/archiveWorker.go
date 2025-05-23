@@ -73,10 +73,7 @@ func archivingWorker() {
 			log.Debugf("archiving job %d took %s", job.JobID, time.Since(start))
 			log.Printf("archiving job (dbid: %d) successful", job.ID)
 
-			id := job.ID
-			jobMeta.ID = &id
-
-			repository.CallJobStopHooks(jobMeta)
+			repository.CallJobStopHooks(job)
 			archivePending.Done()
 		default:
 			continue

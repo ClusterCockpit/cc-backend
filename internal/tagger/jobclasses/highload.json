@@ -12,27 +12,22 @@
   ],
   "requirements": [
     "job.exclusive == 1",
-    "job.duration > job_min_duration_seconds",
-    "required_metrics_min_samples > job_min_duration_seconds / sampling_interval_seconds"
+    "job.duration > job_min_duration_seconds"
   ],
   "terms": [
     {
+      "name": "",
       "load_mean": "cpu_load[cpu_load_pre_cutoff_samples].mean('all')"
     },
     {
-      "load_threshold": "(job.numHwthreads/job.numNodes) * excessivecpuload_threshold_factor"
+      "name": "load_threshold",
+      "expr": "(job.numHwthreads/job.numNodes) * excessivecpuload_threshold_factor"
     },
     {
-      "highload_nodes": "load_mean > load_threshold"
-    },
-    {
-      "highload": "highload_nodes.any('all')"
-    },
-    {
-      "load_perc": "load_mean / load_threshold"
+      "name": "load_perc",
+      "expr": "load_mean / load_threshold"
     }
   ],
-  "output": "highload",
-  "output_scalar": "load_perc",
-  "template": "Job ({{ job.jobId }})\nThis job was detected as excessiveload because the mean cpu load {{ load_mean.array }} falls above the threshold {{ load_threshold }}."
+  "rule": "cpu_load > load_threshold",
+  "hint": "This job was detected as excessiveload because the average cpu load {{ cpu_load }} falls above the threshold {{ load_threshold }}."
 }

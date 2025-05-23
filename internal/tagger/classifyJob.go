@@ -7,14 +7,16 @@ package tagger
 import (
 	"bytes"
 	"embed"
+	"encoding/json"
 	"fmt"
-	"io/fs"
+	"maps"
 	"os"
-	"path/filepath"
 	"strings"
+	"text/template"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/util"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/expr-lang/expr"
@@ -24,31 +26,100 @@ import (
 //go:embed jobclasses/*
 var jobclassFiles embed.FS
 
+type Variable struct {
+	Name string `json:"name"`
+	Expr string `json:"expr"`
+}
+
+type ruleVariable struct {
+	name string
+	expr *vm.Program
+}
+
+type RuleFormat struct {
+	Name         string     `json:"name"`
+	Tag          string     `json:"tag"`
+	Parameters   []string   `json:"parameters"`
+	Metrics      []string   `json:"metrics"`
+	Requirements []string   `json:"requirements"`
+	Variables    []Variable `json:"variables"`
+	Rule         string     `json:"rule"`
+	Hint         string     `json:"hint"`
+}
+
 type ruleInfo struct {
-	tag  string
-	rule *vm.Program
+	env          map[string]any
+	metrics      []string
+	requirements []*vm.Program
+	variables    []ruleVariable
+	rule         *vm.Program
+	hint         *template.Template
 }
 
 type JobClassTagger struct {
-	rules   map[string]ruleInfo
-	tagType string
-	cfgPath string
+	rules      map[string]ruleInfo
+	parameters map[string]any
+	tagType    string
+	cfgPath    string
 }
 
-func (t *JobClassTagger) compileRule(f fs.File, fns string) {
-	buf := new(bytes.Buffer)
-	_, err := buf.ReadFrom(f)
+func (t *JobClassTagger) prepareRule(filename string, fns string) {
+	b, err := os.ReadFile(filename)
 	if err != nil {
-		log.Errorf("error reading rule file %s: %#v", fns, err)
+		log.Warnf("prepareRule() > open file error: %v", err)
+		return
 	}
-	prg, err := expr.Compile(buf.String(), expr.AsBool())
+
+	var rule RuleFormat
+	if err := json.NewDecoder(bytes.NewReader(b)).Decode(&rule); err != nil {
+		log.Warn("Error while decoding raw job meta json")
+		return
+	}
+
+	ri := ruleInfo{}
+	ri.env = make(map[string]any)
+	ri.metrics = make([]string, 0)
+	ri.requirements = make([]*vm.Program, 0)
+	ri.variables = make([]ruleVariable, 0)
+
+	// check if all required parameters are available
+	for _, p := range rule.Parameters {
+		param, ok := t.parameters[p]
+		if !ok {
+			log.Warnf("prepareRule() > missing parameter %s in rule %s", p, fns)
+			return
+		}
+		ri.env[p] = param
+	}
+
+	// set all required metrics
+	for _, m := range rule.Metrics {
+		ri.metrics = append(ri.metrics, m)
+	}
+
+	// compile requirements
+	for _, r := range rule.Requirements {
+		req, err := expr.Compile(r, expr.AsBool())
+		if err != nil {
+			log.Errorf("error compiling requirement %s: %#v", r, err)
+			return
+		}
+		ri.requirements = append(ri.requirements, req)
+	}
+
+	// compile rule
+	exp, err := expr.Compile(rule.Rule, expr.AsBool())
 	if err != nil {
 		log.Errorf("error compiling rule %s: %#v", fns, err)
+		return
 	}
-	ri := ruleInfo{tag: strings.TrimSuffix(fns, filepath.Ext(fns)), rule: prg}
+	ri.rule = exp
 
-	delete(t.rules, ri.tag)
-	t.rules[ri.tag] = ri
+	// prepare hint template
+	ri.hint = template.Must(template.New(fns).Parse(rule.Hint))
+
+	delete(t.rules, rule.Tag)
+	t.rules[rule.Tag] = ri
 }
 
 func (t *JobClassTagger) EventMatch(s string) bool {
@@ -65,11 +136,8 @@ func (t *JobClassTagger) EventCallback() {
 	for _, fn := range files {
 		fns := fn.Name()
 		log.Debugf("Process: %s", fns)
-		f, err := os.Open(fmt.Sprintf("%s/%s", t.cfgPath, fns))
-		if err != nil {
-			log.Errorf("error opening app file %s: %#v", fns, err)
-		}
-		t.compileRule(f, fns)
+		filename := fmt.Sprintf("%s/%s", t.cfgPath, fns)
+		t.prepareRule(filename, fns)
 	}
 }
 
@@ -84,13 +152,23 @@ func (t *JobClassTagger) Register() error {
 	t.rules = make(map[string]ruleInfo, 0)
 	for _, fn := range files {
 		fns := fn.Name()
-		log.Debugf("Process: %s", fns)
-		f, err := appFiles.Open(fmt.Sprintf("apps/%s", fns))
-		if err != nil {
-			return fmt.Errorf("error opening app file %s: %#v", fns, err)
+		filename := fmt.Sprintf("%s/%s", t.cfgPath, fns)
+
+		if fn.Name() == "parameters.json" {
+			b, err := os.ReadFile(filename)
+			if err != nil {
+				log.Warnf("prepareRule() > open file error: %v", err)
+				return err
+			}
+
+			if err := json.NewDecoder(bytes.NewReader(b)).Decode(&t.parameters); err != nil {
+				log.Warn("Error while decoding parameters.json")
+				return err
+			}
+			continue
 		}
-		defer f.Close()
-		t.compileRule(f, fns)
+		log.Debugf("Process: %s", fns)
+		t.prepareRule(filename, fns)
 	}
 
 	if util.CheckFileExists(t.cfgPath) {
@@ -102,20 +180,69 @@ func (t *JobClassTagger) Register() error {
 	return nil
 }
 
-func (t *JobClassTagger) Match(job *schema.JobMeta) {
+func (t *JobClassTagger) Match(job *schema.Job) {
 	r := repository.GetJobRepository()
+	jobstats, err := archive.GetStatistics(job)
+	if err != nil {
+		log.Errorf("job classification failed for job  %d: %#v", job.JobID, err)
+		return
+	}
 
-	for _, ri := range t.rules {
-		tag := ri.tag
-		output, err := expr.Run(ri.rule, job)
+	for tag, ri := range t.rules {
+		env := make(map[string]any)
+		maps.Copy(env, ri.env)
+
+		// add metrics to env
+		for _, m := range ri.metrics {
+			stats, ok := jobstats[m]
+			if !ok {
+				log.Errorf("job classification failed for job %d: missing metric '%s'", job.JobID, m)
+				return
+			}
+			env[m] = stats.Avg
+		}
+
+		// check rule requirements apply
+		for _, r := range ri.requirements {
+			ok, err := expr.Run(r, env)
+			if err != nil {
+				log.Errorf("error running requirement for rule %s: %#v", tag, err)
+				return
+			}
+			if !ok.(bool) {
+				log.Infof("requirement for rule %s not met", tag)
+				return
+			}
+		}
+
+		// validate rule expression
+		for _, v := range ri.variables {
+			value, err := expr.Run(v.expr, env)
+			if err != nil {
+				log.Errorf("error running rule %s: %#v", tag, err)
+				return
+			}
+			env[v.name] = value
+		}
+
+		match, err := expr.Run(ri.rule, job)
 		if err != nil {
 			log.Errorf("error running rule %s: %#v", tag, err)
 		}
-		if output.(bool) {
+		if match.(bool) {
 			id := job.ID
-			if !r.HasTag(*id, t.tagType, tag) {
-				r.AddTagOrCreateDirect(*id, t.tagType, tag)
+			if !r.HasTag(id, t.tagType, tag) {
+				r.AddTagOrCreateDirect(id, t.tagType, tag)
 			}
 		}
+
+		// process hint template
+		var msg bytes.Buffer
+		if err := ri.hint.Execute(&msg, env); err != nil {
+			log.Errorf("Template error: %s", err.Error())
+		}
+
+		// FIXME: Handle case where multiple tags apply
+		r.UpdateMetadata(job, "message", msg.String())
 	}
 }

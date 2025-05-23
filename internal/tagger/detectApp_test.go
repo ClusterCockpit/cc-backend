@@ -9,7 +9,6 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
 func setup(tb testing.TB) *repository.JobRepository {
@@ -52,12 +51,7 @@ func TestMatch(t *testing.T) {
 	err = tagger.Register()
 	noErr(t, err)
 
-	jobMeta := &schema.JobMeta{
-		ID:        &job.ID,
-		BaseJob:   job.BaseJob,
-		StartTime: job.StartTime.Unix(),
-	}
-	tagger.Match(jobMeta)
+	tagger.Match(job)
 
 	if !r.HasTag(5, "app", "vasp") {
 		t.Errorf("missing tag vasp")

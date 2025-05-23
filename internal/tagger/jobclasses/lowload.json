@@ -11,28 +11,18 @@
   ],
   "requirements": [
     "job.exclusive == 1",
-    "job.duration > job_min_duration_seconds",
-    "required_metrics_min_samples > job_min_duration_seconds / sampling_interval_seconds"
+    "job.duration > job_min_duration_seconds"
   ],
-  "tagRule": [
+  "variables": [
     {
-      "load_mean": "cpu_load[cpu_load_pre_cutoff_samples:].mean('all')"
+      "name": "load_threshold",
+      "expr": "job.numHwthreads * lowcpuload_threshold_factor"
     },
     {
-      "load_threshold": "job.numHwthreads * lowcpuload_threshold_factor"
-    },
-    {
-      "lowload_nodes": "load_mean < load_threshold"
-    },
-    {
-      "lowload": "lowload_nodes.any('all')"
-    },
-    {
-      "load_perc": "1.0 - (load_mean / load_threshold)"
+      "name": "load_perc",
+      "expr": "1.0 - (cpu_load / load_threshold)"
     }
   ],
-  "valueRule": [],
-  "output": "lowload",
-  "output_scalar": "load_perc",
-  "hint": "Job ({{ job.jobId }})\nThis job was detected as lowload because the mean cpu load {{ load_mean }} falls below the threshold {{ load_threshold }}."
+  "rule": "cpu_load < load_threshold",
+  "hint": "This job was detected as lowload because the average cpu load {{ cpu_load }} falls below the threshold {{ load_threshold }}."
 }

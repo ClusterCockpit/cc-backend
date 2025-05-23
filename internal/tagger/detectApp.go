@@ -95,7 +95,7 @@ func (t *AppTagger) Register() error {
 	return nil
 }
 
-func (t *AppTagger) Match(job *schema.JobMeta) {
+func (t *AppTagger) Match(job *schema.Job) {
 	r := repository.GetJobRepository()
 	jobscript, ok := job.MetaData["jobScript"]
 	if ok {
@@ -106,8 +106,8 @@ func (t *AppTagger) Match(job *schema.JobMeta) {
 			tag := a.tag
 			for _, s := range a.strings {
 				if strings.Contains(jobscript, s) {
-					if !r.HasTag(*id, t.tagType, tag) {
-						r.AddTagOrCreateDirect(*id, t.tagType, tag)
+					if !r.HasTag(id, t.tagType, tag) {
+						r.AddTagOrCreateDirect(id, t.tagType, tag)
 						break out
 					}
 				}
