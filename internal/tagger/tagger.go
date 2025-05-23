@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
@@ -26,30 +27,58 @@ type JobTagger struct {
 	stopTaggers  []Tagger
 }
 
+func newTagger() {
+	jobTagger = &JobTagger{}
+	jobTagger.startTaggers = make([]Tagger, 0)
+	jobTagger.startTaggers = append(jobTagger.startTaggers, &AppTagger{})
+	jobTagger.stopTaggers = make([]Tagger, 0)
+	jobTagger.stopTaggers = append(jobTagger.startTaggers, &JobClassTagger{})
+
+	for _, tagger := range jobTagger.startTaggers {
+		tagger.Register()
+	}
+}
+
 func Init() {
 	initOnce.Do(func() {
-		jobTagger = &JobTagger{}
-		jobTagger.startTaggers = make([]Tagger, 0)
-		jobTagger.startTaggers = append(jobTagger.startTaggers, &AppTagger{})
-		jobTagger.stopTaggers = make([]Tagger, 0)
-		jobTagger.stopTaggers = append(jobTagger.startTaggers, &JobClassTagger{})
-
-		for _, tagger := range jobTagger.startTaggers {
-			tagger.Register()
-		}
-
+		newTagger()
 		repository.RegisterJobJook(jobTagger)
 	})
 }
 
 func (jt *JobTagger) JobStartCallback(job *schema.Job) {
-	for _, tagger := range jobTagger.startTaggers {
+	for _, tagger := range jt.startTaggers {
 		tagger.Match(job)
 	}
 }
 
 func (jt *JobTagger) JobStopCallback(job *schema.Job) {
-	for _, tagger := range jobTagger.stopTaggers {
+	for _, tagger := range jt.stopTaggers {
 		tagger.Match(job)
 	}
+}
+
+func RunTaggers() error {
+	newTagger()
+	r := repository.GetJobRepository()
+	jl, err := r.GetJobList()
+	if err != nil {
+		log.Errorf("Error while getting job list %s", err)
+		return err
+	}
+
+	for _, id := range jl {
+		job, err := r.FindByIdDirect(id)
+		if err != nil {
+			log.Errorf("Error while getting job %s", err)
+			return err
+		}
+		for _, tagger := range jobTagger.startTaggers {
+			tagger.Match(job)
+		}
+		for _, tagger := range jobTagger.stopTaggers {
+			tagger.Match(job)
+		}
+	}
+	return nil
 }

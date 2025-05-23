@@ -213,12 +213,21 @@ func main() {
 		}
 	}
 
+	if flagApplyTags {
+		if err := tagger.RunTaggers(); err != nil {
+			log.Abortf("Running job taggers.\nError: %s\n", err.Error())
+		}
+	}
+
 	if !flagServer {
 		log.Exit("No errors, server flag not set. Exiting cc-backend.")
 	}
 
 	archiver.Start(repository.GetJobRepository())
-	tagger.Init()
+
+	if config.Keys.EnableJobTaggers {
+		tagger.Init()
+	}
 	taskManager.Start()
 	serverInit()
 

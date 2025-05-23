@@ -472,6 +472,7 @@ func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 	return nil
 }
 
+// FIXME: Reconsider filtering short jobs with harcoded threshold
 func (r *JobRepository) FindRunningJobs(cluster string) ([]*schema.Job, error) {
 	query := sq.Select(jobColumns...).From("job").
 		Where(fmt.Sprintf("job.cluster = '%s'", cluster)).

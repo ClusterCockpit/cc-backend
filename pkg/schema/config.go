@@ -131,6 +131,8 @@ type ProgramConfig struct {
 	// do not write to the job-archive.
 	DisableArchive bool `json:"disable-archive"`
 
+	EnableJobTaggers bool `json:"enable-job-taggers"`
+
 	// Validate json input against schema
 	Validate bool `json:"validate"`
 
