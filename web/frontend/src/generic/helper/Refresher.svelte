@@ -8,22 +8,21 @@
     - `refresh`: When fired, the upstream component refreshes its contents
  -->
 <script>
-  import { createEventDispatcher } from "svelte";
   import { Button, Icon, Input, InputGroup } from "@sveltestrap/sveltestrap";
 
-  const dispatch = createEventDispatcher();
-
-  let refreshInterval = null;
+  let refreshInterval = $state(null);
   let refreshIntervalId = null;
+
   function refreshIntervalChanged() {
     if (refreshIntervalId != null) clearInterval(refreshIntervalId);
-
     if (refreshInterval == null) return;
-
     refreshIntervalId = setInterval(() => dispatch("refresh"), refreshInterval);
   }
 
-  export let initially = null;
+  let {
+    initially = null,
+    onRefresh
+  } = $props();
 
   if (initially != null) {
     refreshInterval = initially * 1000;
@@ -36,7 +35,7 @@
     type="select"
     title="Periodic refresh interval"
     bind:value={refreshInterval}
-    on:change={refreshIntervalChanged}
+    onchange={refreshIntervalChanged}
   >
     <option value={null}>No Interval</option>
     <option value={30 * 1000}>30 Seconds</option>
@@ -46,7 +45,7 @@
   </Input>
   <Button
     outline
-    on:click={() => dispatch("refresh")}
+    onclick={() => onRefresh()}
     disabled={refreshInterval != null}
     >
     <Icon name="arrow-clockwise" /> Refresh

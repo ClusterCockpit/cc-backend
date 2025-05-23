@@ -63,7 +63,7 @@
               >
             </div>{/if}
         </CardTitle>
-        <input type="hidden" name="key" value="node_list_usePaging" />
+        <input type="hidden" name="nodes-key" value="node_list_usePaging" />
         <div class="mb-3">
           <div>
             {#if config?.node_list_usePaging}
@@ -71,7 +71,7 @@
             {:else}
               <input type="radio" id="nodes-true" name="value" value="true" />
             {/if}
-            <label for="true">Paging with selectable count of nodes.</label>
+            <label for="nodes-true">Paging with selectable count of nodes.</label>
           </div>
           <div>
             {#if config?.node_list_usePaging}
@@ -79,7 +79,7 @@
             {:else}
               <input type="radio" id="nodes-false-checked" name="value" value="false" checked />
             {/if}
-            <label for="false">Continuous scroll iteratively adding 10 nodes.</label>
+            <label for="nodes-false">Continuous scroll iteratively adding 10 nodes.</label>
           </div>
         </div>
         <Button color="primary" type="submit">Submit</Button>

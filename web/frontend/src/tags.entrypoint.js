@@ -1,7 +1,8 @@
+import { mount } from 'svelte';
 import {} from './header.entrypoint.js'
 import Tags from './Tags.root.svelte'
 
-new Tags({
+mount(Tags, {
     target: document.getElementById('svelte-app'),
     props: {
         username: username,
@@ -12,5 +13,3 @@ new Tags({
         ['cc-config', clusterCockpitConfig]
     ])
 })
-
-

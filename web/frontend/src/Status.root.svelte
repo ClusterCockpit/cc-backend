@@ -483,6 +483,7 @@
             <Card body color="danger">{$topUserQuery.error.message}</Card>
           {:else}
             <Pie
+              canvasId="hpcpie-users"
               size={colWidth}
               sliceLabel={topUserSelection.label}
               quantities={$topUserQuery.data.topUser.map(
@@ -550,6 +551,7 @@
           <Card body color="danger">{$topProjectQuery.error.message}</Card>
         {:else}
           <Pie
+            canvasId="hpcpie-projects"
             size={colWidth}
             sliceLabel={topProjectSelection.label}
             quantities={$topProjectQuery.data.topProjects.map(

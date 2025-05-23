@@ -158,7 +158,7 @@
               height={175}
               forNode
             />
-          <div class="my-2"/>
+          <div class="my-2"></div>
           {#key extendedLegendData}
             <MetricPlot
               {cluster}
