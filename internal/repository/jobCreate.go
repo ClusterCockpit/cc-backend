@@ -50,7 +50,7 @@ func (r *JobRepository) SyncJobs() ([]*schema.Job, error) {
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
 
-	query := sq.Select(jobColumns...).From("job_cache")
+	query := sq.Select(jobCacheColumns...).From("job_cache")
 
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {

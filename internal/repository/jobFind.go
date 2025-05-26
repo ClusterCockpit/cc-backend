@@ -48,7 +48,7 @@ func (r *JobRepository) FindCached(
 	cluster *string,
 	startTime *int64,
 ) (*schema.Job, error) {
-	q := sq.Select(jobColumns...).From("job_cache").
+	q := sq.Select(jobCacheColumns...).From("job_cache").
 		Where("job_cache.job_id = ?", *jobId)
 
 	if cluster != nil {

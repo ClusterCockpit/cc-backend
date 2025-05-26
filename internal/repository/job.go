@@ -51,25 +51,30 @@ func GetJobRepository() *JobRepository {
 	return jobRepoInstance
 }
 
-// var jobColumns []string = []string{
-// 	"job.id", "job.job_id", "job.hpc_user", "job.project", "job.cluster", "job.subcluster", "job.start_time", "job.cluster_partition", "job.array_job_id",
-// 	"job.num_nodes", "job.num_hwthreads", "job.num_acc", "job.exclusive", "job.monitoring_status", "job.smt", "job.job_state",
-// 	"job.duration", "job.walltime", "job.resources", "job.footprint", "job.energy",
-// }
-
 var jobColumns []string = []string{
-	"id", "job_id", "hpc_user", "project", "cluster", "subcluster", "start_time",
-	"cluster_partition", "array_job_id", "num_nodes", "num_hwthreads", "num_acc",
-	"exclusive", "monitoring_status", "smt", "job_state", "duration", "walltime",
-	"resources", "footprint", "energy",
+	"job.id", "job.job_id", "job.hpc_user", "job.project", "job.cluster", "job.subcluster",
+	"job.start_time", "job.cluster_partition", "job.array_job_id", "job.num_nodes",
+	"job.num_hwthreads", "job.num_acc", "job.exclusive", "job.monitoring_status",
+	"job.smt", "job.job_state", "job.duration", "job.walltime", "job.resources",
+	"job.footprint", "job.energy",
+}
+
+var jobCacheColumns []string = []string{
+	"jobcache.id", "jobcache.job_id", "jobcache.hpc_user", "jobcache.project", "jobcache.cluster",
+	"jobcache.subcluster", "jobcache.start_time", "jobcache.cluster_partition",
+	"jobcache.array_job_id", "jobcache.num_nodes", "jobcache.num_hwthreads",
+	"jobcache.num_acc", "jobcache.exclusive", "jobcache.monitoring_status", "jobcache.smt",
+	"jobcache.job_state", "jobcache.duration", "jobcache.walltime", "jobcache.resources",
+	"jobcache.footprint", "jobcache.energy",
 }
 
 func scanJob(row interface{ Scan(...any) error }) (*schema.Job, error) {
 	job := &schema.Job{}
 
 	if err := row.Scan(
-		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.SubCluster, &job.StartTimeUnix, &job.Partition, &job.ArrayJobId,
-		&job.NumNodes, &job.NumHWThreads, &job.NumAcc, &job.Exclusive, &job.MonitoringStatus, &job.SMT, &job.State,
+		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.SubCluster,
+		&job.StartTimeUnix, &job.Partition, &job.ArrayJobId, &job.NumNodes, &job.NumHWThreads,
+		&job.NumAcc, &job.Exclusive, &job.MonitoringStatus, &job.SMT, &job.State,
 		&job.Duration, &job.Walltime, &job.RawResources, &job.RawFootprint, &job.Energy); err != nil {
 		log.Warnf("Error while scanning rows (Job): %v", err)
 		return nil, err
