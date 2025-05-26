@@ -277,18 +277,18 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 			if !r.HasTag(id, t.tagType, tag) {
 				r.AddTagOrCreateDirect(id, t.tagType, tag)
 			}
+
+			// process hint template
+			var msg bytes.Buffer
+			if err := ri.hint.Execute(&msg, env); err != nil {
+				log.Errorf("Template error: %s", err.Error())
+				return
+			}
+
+			// FIXME: Handle case where multiple tags apply
+			r.UpdateMetadata(job, "message", msg.String())
 		} else {
 			log.Info("Rule does not match!")
 		}
-
-		// process hint template
-		var msg bytes.Buffer
-		if err := ri.hint.Execute(&msg, env); err != nil {
-			log.Errorf("Template error: %s", err.Error())
-			return
-		}
-
-		// FIXME: Handle case where multiple tags apply
-		r.UpdateMetadata(job, "message", msg.String())
 	}
 }
