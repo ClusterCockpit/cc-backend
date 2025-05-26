@@ -21,7 +21,6 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/expr-lang/expr"
 	"github.com/expr-lang/expr/vm"
-	"github.com/gookit/goutil/dump"
 )
 
 //go:embed jobclasses/*
@@ -264,7 +263,7 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 			env[v.name] = value
 		}
 
-		dump.P(env)
+		// dump.P(env)
 
 		match, err := expr.Run(ri.rule, env)
 		if err != nil {
