@@ -60,12 +60,12 @@ var jobColumns []string = []string{
 }
 
 var jobCacheColumns []string = []string{
-	"jobcache.id", "jobcache.job_id", "jobcache.hpc_user", "jobcache.project", "jobcache.cluster",
-	"jobcache.subcluster", "jobcache.start_time", "jobcache.cluster_partition",
-	"jobcache.array_job_id", "jobcache.num_nodes", "jobcache.num_hwthreads",
-	"jobcache.num_acc", "jobcache.exclusive", "jobcache.monitoring_status", "jobcache.smt",
-	"jobcache.job_state", "jobcache.duration", "jobcache.walltime", "jobcache.resources",
-	"jobcache.footprint", "jobcache.energy",
+	"job_cache.id", "job_cache.job_id", "job_cache.hpc_user", "job_cache.project", "job_cache.cluster",
+	"job_cache.subcluster", "job_cache.start_time", "job_cache.cluster_partition",
+	"job_cache.array_job_id", "job_cache.num_nodes", "job_cache.num_hwthreads",
+	"job_cache.num_acc", "job_cache.exclusive", "job_cache.monitoring_status", "job_cache.smt",
+	"job_cache.job_state", "job_cache.duration", "job_cache.walltime", "job_cache.resources",
+	"job_cache.footprint", "job_cache.energy",
 }
 
 func scanJob(row interface{ Scan(...any) error }) (*schema.Job, error) {
