@@ -213,6 +213,10 @@ func main() {
 		}
 	}
 
+	if config.Keys.EnableJobTaggers {
+		tagger.Init()
+	}
+
 	if flagApplyTags {
 		if err := tagger.RunTaggers(); err != nil {
 			log.Abortf("Running job taggers.\nError: %s\n", err.Error())
@@ -225,9 +229,6 @@ func main() {
 
 	archiver.Start(repository.GetJobRepository())
 
-	if config.Keys.EnableJobTaggers {
-		tagger.Init()
-	}
 	taskManager.Start()
 	serverInit()
 

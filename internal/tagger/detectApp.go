@@ -79,10 +79,10 @@ func (t *AppTagger) Register() error {
 		fns := fn.Name()
 		log.Debugf("Process: %s", fns)
 		f, err := appFiles.Open(fmt.Sprintf("apps/%s", fns))
-		defer f.Close()
 		if err != nil {
 			return fmt.Errorf("error opening app file %s: %#v", fns, err)
 		}
+		defer f.Close()
 		t.scanApp(f, fns)
 	}
 
@@ -97,7 +97,13 @@ func (t *AppTagger) Register() error {
 
 func (t *AppTagger) Match(job *schema.Job) {
 	r := repository.GetJobRepository()
-	jobscript, ok := job.MetaData["jobScript"]
+	metadata, err := r.FetchMetadata(job)
+	if err != nil {
+		log.Infof("Cannot fetch metadata for job: %d on %s", job.JobID, job.Cluster)
+		return
+	}
+
+	jobscript, ok := metadata["jobScript"]
 	if ok {
 		id := job.ID
 

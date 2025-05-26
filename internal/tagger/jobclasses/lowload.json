@@ -6,9 +6,7 @@
     "job_min_duration_seconds",
     "sampling_interval_seconds"
   ],
-  "metrics": [
-    "cpu_load"
-  ],
+  "metrics": ["cpu_load"],
   "requirements": [
     "job.exclusive == 1",
     "job.duration > job_min_duration_seconds"
@@ -16,7 +14,7 @@
   "variables": [
     {
       "name": "load_threshold",
-      "expr": "job.numHwthreads * lowcpuload_threshold_factor"
+      "expr": "job.numCores * lowcpuload_threshold_factor"
     },
     {
       "name": "load_perc",
@@ -24,5 +22,5 @@
     }
   ],
   "rule": "cpu_load < load_threshold",
-  "hint": "This job was detected as lowload because the average cpu load {{ cpu_load }} falls below the threshold {{ load_threshold }}."
+  "hint": "This job was detected as lowload because the average cpu load {{.cpu_load}} falls below the threshold {{.load_threshold}}."
 }

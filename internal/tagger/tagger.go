@@ -32,9 +32,12 @@ func newTagger() {
 	jobTagger.startTaggers = make([]Tagger, 0)
 	jobTagger.startTaggers = append(jobTagger.startTaggers, &AppTagger{})
 	jobTagger.stopTaggers = make([]Tagger, 0)
-	jobTagger.stopTaggers = append(jobTagger.startTaggers, &JobClassTagger{})
+	jobTagger.stopTaggers = append(jobTagger.stopTaggers, &JobClassTagger{})
 
 	for _, tagger := range jobTagger.startTaggers {
+		tagger.Register()
+	}
+	for _, tagger := range jobTagger.stopTaggers {
 		tagger.Register()
 	}
 }
@@ -77,6 +80,7 @@ func RunTaggers() error {
 			tagger.Match(job)
 		}
 		for _, tagger := range jobTagger.stopTaggers {
+			log.Infof("Run stop tagger for job %d", job.ID)
 			tagger.Match(job)
 		}
 	}

@@ -7,27 +7,21 @@
     "job_min_duration_seconds",
     "sampling_interval_seconds"
   ],
-  "metrics": [
-    "cpu_load"
-  ],
+  "metrics": ["cpu_load"],
   "requirements": [
     "job.exclusive == 1",
     "job.duration > job_min_duration_seconds"
   ],
-  "terms": [
-    {
-      "name": "",
-      "load_mean": "cpu_load[cpu_load_pre_cutoff_samples].mean('all')"
-    },
+  "variables": [
     {
       "name": "load_threshold",
-      "expr": "(job.numHwthreads/job.numNodes) * excessivecpuload_threshold_factor"
+      "expr": "(job.numCores / job.numNodes) * excessivecpuload_threshold_factor"
     },
     {
       "name": "load_perc",
-      "expr": "load_mean / load_threshold"
+      "expr": "cpu_load / load_threshold"
     }
   ],
   "rule": "cpu_load > load_threshold",
-  "hint": "This job was detected as excessiveload because the average cpu load {{ cpu_load }} falls above the threshold {{ load_threshold }}."
+  "hint": "This job was detected as excessiveload because the average cpu load {{.cpu_load}} falls above the threshold {{.load_threshold}}."
 }
