@@ -69,16 +69,18 @@ func initClusterConfig() error {
 
 			for _, sc := range cluster.SubClusters {
 				newMetric := &schema.MetricConfig{
-					Unit:          mc.Unit,
+					Metric: schema.Metric{
+						Name:    mc.Name,
+						Unit:    mc.Unit,
+						Peak:    mc.Peak,
+						Normal:  mc.Normal,
+						Caution: mc.Caution,
+						Alert:   mc.Alert,
+					},
 					Energy:        mc.Energy,
-					Name:          mc.Name,
 					Scope:         mc.Scope,
 					Aggregation:   mc.Aggregation,
-					Peak:          mc.Peak,
-					Caution:       mc.Caution,
-					Alert:         mc.Alert,
 					Timestep:      mc.Timestep,
-					Normal:        mc.Normal,
 					LowerIsBetter: mc.LowerIsBetter,
 				}
 
@@ -165,6 +167,45 @@ func GetSubCluster(cluster, subcluster string) (*schema.SubCluster, error) {
 		}
 	}
 	return nil, fmt.Errorf("subcluster '%v' not found for cluster '%v', or cluster '%v' not configured", subcluster, cluster, cluster)
+}
+
+func GetMetricConfigSubCluster(cluster, subcluster string) map[string]*schema.Metric {
+	metrics := make(map[string]*schema.Metric)
+
+	for _, c := range Clusters {
+		if c.Name == cluster {
+			for _, m := range c.MetricConfig {
+				for _, s := range m.SubClusters {
+					if s.Name == subcluster {
+						metrics[m.Name] = &schema.Metric{
+							Name:    m.Name,
+							Unit:    s.Unit,
+							Peak:    s.Peak,
+							Normal:  s.Normal,
+							Caution: s.Caution,
+							Alert:   s.Alert,
+						}
+						break
+					}
+				}
+
+				_, ok := metrics[m.Name]
+				if !ok {
+					metrics[m.Name] = &schema.Metric{
+						Name:    m.Name,
+						Unit:    m.Unit,
+						Peak:    m.Peak,
+						Normal:  m.Normal,
+						Caution: m.Caution,
+						Alert:   m.Alert,
+					}
+				}
+			}
+			break
+		}
+	}
+
+	return metrics
 }
 
 func GetMetricConfig(cluster, metric string) *schema.MetricConfig {

@@ -145,7 +145,12 @@ const (
 	JobStateOutOfMemory JobState = "out_of_memory"
 )
 
-func (e *JobState) UnmarshalGQL(v interface{}) error {
+func (j JobMeta) GoString() string {
+	return fmt.Sprintf("JobMeta{ID:%d, StartTime:%d, JobID:%v, BaseJob:%v}",
+		j.ID, j.StartTime, j.JobID, j.BaseJob)
+}
+
+func (e *JobState) UnmarshalGQL(v any) error {
 	str, ok := v.(string)
 	if !ok {
 		return fmt.Errorf("SCHEMA/JOB > enums must be strings")

@@ -148,9 +148,7 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	}
 	if filter.DbID != nil {
 		dbIDs := make([]string, len(filter.DbID))
-		for i, val := range filter.DbID {
-			dbIDs[i] = val
-		}
+		copy(dbIDs, filter.DbID)
 		query = query.Where(sq.Eq{"job.id": dbIDs})
 	}
 	if filter.JobID != nil {

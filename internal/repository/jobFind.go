@@ -43,6 +43,26 @@ func (r *JobRepository) Find(
 	return scanJob(q.RunWith(r.stmtCache).QueryRow())
 }
 
+func (r *JobRepository) FindCached(
+	jobId *int64,
+	cluster *string,
+	startTime *int64,
+) (*schema.Job, error) {
+	q := sq.Select(jobCacheColumns...).From("job_cache").
+		Where("job_cache.job_id = ?", *jobId)
+
+	if cluster != nil {
+		q = q.Where("job_cache.cluster = ?", *cluster)
+	}
+	if startTime != nil {
+		q = q.Where("job_cache.start_time = ?", *startTime)
+	}
+
+	q = q.OrderBy("job_cache.id DESC") // always use newest matching job by db id if more than one match
+
+	return scanJob(q.RunWith(r.stmtCache).QueryRow())
+}
+
 // Find executes a SQL query to find a specific batch job.
 // The job is queried using the batch job id, the cluster name,
 // and the start time of the job in UNIX epoch time seconds.
@@ -81,6 +101,35 @@ func (r *JobRepository) FindAll(
 	}
 	log.Debugf("Timer FindAll %s", time.Since(start))
 	return jobs, nil
+}
+
+// Get complete joblist only consisting of db ids.
+// This is useful to process large job counts and intended to be used
+// together with FindById to process jobs one by one
+func (r *JobRepository) GetJobList() ([]int64, error) {
+	query := sq.Select("id").From("job").
+		Where("job.job_state != 'running'")
+
+	rows, err := query.RunWith(r.stmtCache).Query()
+	if err != nil {
+		log.Error("Error while running query")
+		return nil, err
+	}
+
+	jl := make([]int64, 0, 1000)
+	for rows.Next() {
+		var id int64
+		err := rows.Scan(&id)
+		if err != nil {
+			rows.Close()
+			log.Warn("Error while scanning rows")
+			return nil, err
+		}
+		jl = append(jl, id)
+	}
+
+	log.Infof("Return job count %d", len(jl))
+	return jl, nil
 }
 
 // FindById executes a SQL query to find a specific batch job.

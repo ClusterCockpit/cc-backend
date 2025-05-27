@@ -143,7 +143,7 @@ func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name s
 		return &schema.Tag{ID: id, Type: typeArg, Name: name, Scope: scope}, nil
 	} else {
 		log.Warnf("Not authorized to create tag with scope: %s", scope)
-		return nil, fmt.Errorf("Not authorized to create tag with scope: %s", scope)
+		return nil, fmt.Errorf("not authorized to create tag with scope: %s", scope)
 	}
 }
 
@@ -179,7 +179,7 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 		_, _, tscope, exists := r.Repo.TagInfo(tid)
 		if !exists {
 			log.Warnf("Tag does not exist (ID): %d", tid)
-			return nil, fmt.Errorf("Tag does not exist (ID): %d", tid)
+			return nil, fmt.Errorf("tag does not exist (ID): %d", tid)
 		}
 
 		// Test Access: Admins && Admin Tag OR Support/Admin and Global Tag OR Everyone && Private Tag
@@ -193,7 +193,7 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 			}
 		} else {
 			log.Warnf("Not authorized to add tag: %d", tid)
-			return nil, fmt.Errorf("Not authorized to add tag: %d", tid)
+			return nil, fmt.Errorf("not authorized to add tag: %d", tid)
 		}
 	}
 
@@ -226,7 +226,7 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 		_, _, tscope, exists := r.Repo.TagInfo(tid)
 		if !exists {
 			log.Warnf("Tag does not exist (ID): %d", tid)
-			return nil, fmt.Errorf("Tag does not exist (ID): %d", tid)
+			return nil, fmt.Errorf("tag does not exist (ID): %d", tid)
 		}
 
 		// Test Access: Admins && Admin Tag OR Support/Admin and Global Tag OR Everyone && Private Tag
@@ -240,7 +240,7 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 			}
 		} else {
 			log.Warnf("Not authorized to remove tag: %d", tid)
-			return nil, fmt.Errorf("Not authorized to remove tag: %d", tid)
+			return nil, fmt.Errorf("not authorized to remove tag: %d", tid)
 		}
 
 	}
@@ -269,7 +269,7 @@ func (r *mutationResolver) RemoveTagFromList(ctx context.Context, tagIds []strin
 		_, _, tscope, exists := r.Repo.TagInfo(tid)
 		if !exists {
 			log.Warnf("Tag does not exist (ID): %d", tid)
-			return nil, fmt.Errorf("Tag does not exist (ID): %d", tid)
+			return nil, fmt.Errorf("tag does not exist (ID): %d", tid)
 		}
 
 		// Test Access: Admins && Admin Tag OR Everyone && Private Tag
@@ -283,7 +283,7 @@ func (r *mutationResolver) RemoveTagFromList(ctx context.Context, tagIds []strin
 			}
 		} else {
 			log.Warnf("Not authorized to remove tag: %d", tid)
-			return nil, fmt.Errorf("Not authorized to remove tag: %d", tid)
+			return nil, fmt.Errorf("not authorized to remove tag: %d", tid)
 		}
 	}
 	return tags, nil
@@ -499,10 +499,7 @@ func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, pag
 		return nil, err
 	}
 
-	hasNextPage := false
-	if len(nextJobs) == 1 {
-		hasNextPage = true
-	}
+	hasNextPage := len(nextJobs) == 1
 
 	return &model.JobResultList{Items: jobs, Count: &count, HasNextPage: &hasNextPage}, nil
 }
@@ -513,8 +510,8 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	var stats []*model.JobsStatistics
 
 	// Top Level Defaults
-	var defaultDurationBins string = "1h"
-	var defaultMetricBins int = 10
+	defaultDurationBins := "1h"
+	defaultMetricBins := 10
 
 	if requireField(ctx, "totalJobs") || requireField(ctx, "totalWalltime") || requireField(ctx, "totalNodes") || requireField(ctx, "totalCores") ||
 		requireField(ctx, "totalAccs") || requireField(ctx, "totalNodeHours") || requireField(ctx, "totalCoreHours") || requireField(ctx, "totalAccHours") {
@@ -779,9 +776,11 @@ func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 // SubCluster returns generated.SubClusterResolver implementation.
 func (r *Resolver) SubCluster() generated.SubClusterResolver { return &subClusterResolver{r} }
 
-type clusterResolver struct{ *Resolver }
-type jobResolver struct{ *Resolver }
-type metricValueResolver struct{ *Resolver }
-type mutationResolver struct{ *Resolver }
-type queryResolver struct{ *Resolver }
-type subClusterResolver struct{ *Resolver }
+type (
+	clusterResolver     struct{ *Resolver }
+	jobResolver         struct{ *Resolver }
+	metricValueResolver struct{ *Resolver }
+	mutationResolver    struct{ *Resolver }
+	queryResolver       struct{ *Resolver }
+	subClusterResolver  struct{ *Resolver }
+)

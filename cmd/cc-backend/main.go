@@ -19,7 +19,9 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/internal/tagger"
 	"github.com/ClusterCockpit/cc-backend/internal/taskManager"
+	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/runtimeEnv"
@@ -211,11 +213,22 @@ func main() {
 		}
 	}
 
+	if config.Keys.EnableJobTaggers {
+		tagger.Init()
+	}
+
+	if flagApplyTags {
+		if err := tagger.RunTaggers(); err != nil {
+			log.Abortf("Running job taggers.\nError: %s\n", err.Error())
+		}
+	}
+
 	if !flagServer {
 		log.Exit("No errors, server flag not set. Exiting cc-backend.")
 	}
 
 	archiver.Start(repository.GetJobRepository())
+
 	taskManager.Start()
 	serverInit()
 
@@ -236,6 +249,8 @@ func main() {
 		runtimeEnv.SystemdNotifiy(false, "Shutting down ...")
 
 		serverShutdown()
+
+		util.FsWatcherShutdown()
 
 		taskManager.Shutdown()
 	}()

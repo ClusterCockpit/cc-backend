@@ -72,7 +72,11 @@ func archivingWorker() {
 			}
 			log.Debugf("archiving job %d took %s", job.JobID, time.Since(start))
 			log.Printf("archiving job (dbid: %d) successful", job.ID)
+
+			repository.CallJobStopHooks(job)
 			archivePending.Done()
+		default:
+			continue
 		}
 	}
 }

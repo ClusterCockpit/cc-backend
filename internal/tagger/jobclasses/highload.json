@@ -1,0 +1,27 @@
+{
+  "name": "Excessive CPU load",
+  "tag": "excessiveload",
+  "comment": "Assumptions: all nodes have the same number of cores.",
+  "parameters": [
+    "excessivecpuload_threshold_factor",
+    "job_min_duration_seconds",
+    "sampling_interval_seconds"
+  ],
+  "metrics": ["cpu_load"],
+  "requirements": [
+    "job.exclusive == 1",
+    "job.duration > job_min_duration_seconds"
+  ],
+  "variables": [
+    {
+      "name": "load_threshold",
+      "expr": "(job.numCores / job.numNodes) * excessivecpuload_threshold_factor"
+    },
+    {
+      "name": "load_perc",
+      "expr": "cpu_load.avg / load_threshold"
+    }
+  ],
+  "rule": "cpu_load > load_threshold",
+  "hint": "This job was detected as excessiveload because the average cpu load {{.cpu_load}} falls above the threshold {{.load_threshold}}."
+}

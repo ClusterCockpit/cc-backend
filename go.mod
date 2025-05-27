@@ -9,6 +9,8 @@ require (
 	github.com/ClusterCockpit/cc-units v0.4.0
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/coreos/go-oidc/v3 v3.12.0
+	github.com/expr-lang/expr v1.17.3
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-co-op/gocron/v2 v2.16.0
 	github.com/go-ldap/ldap/v3 v3.4.10
 	github.com/go-sql-driver/mysql v1.9.0
@@ -20,6 +22,7 @@ require (
 	github.com/gorilla/sessions v1.4.0
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
 	github.com/jmoiron/sqlx v1.4.0
+	github.com/joho/godotenv v1.5.1
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/prometheus/client_golang v1.21.0
 	github.com/prometheus/common v0.62.0
@@ -58,7 +61,6 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf // indirect
-	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/jonboulle/clockwork v0.5.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect

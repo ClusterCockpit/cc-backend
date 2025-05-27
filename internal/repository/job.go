@@ -9,12 +9,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
@@ -33,6 +33,7 @@ type JobRepository struct {
 	stmtCache *sq.StmtCache
 	cache     *lrucache.Cache
 	driver    string
+	Mutex     sync.Mutex
 }
 
 func GetJobRepository() *JobRepository {
@@ -51,17 +52,29 @@ func GetJobRepository() *JobRepository {
 }
 
 var jobColumns []string = []string{
-	"job.id", "job.job_id", "job.hpc_user", "job.project", "job.cluster", "job.subcluster", "job.start_time", "job.cluster_partition", "job.array_job_id",
-	"job.num_nodes", "job.num_hwthreads", "job.num_acc", "job.exclusive", "job.monitoring_status", "job.smt", "job.job_state",
-	"job.duration", "job.walltime", "job.resources", "job.footprint", "job.energy",
+	"job.id", "job.job_id", "job.hpc_user", "job.project", "job.cluster", "job.subcluster",
+	"job.start_time", "job.cluster_partition", "job.array_job_id", "job.num_nodes",
+	"job.num_hwthreads", "job.num_acc", "job.exclusive", "job.monitoring_status",
+	"job.smt", "job.job_state", "job.duration", "job.walltime", "job.resources",
+	"job.footprint", "job.energy",
 }
 
-func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
+var jobCacheColumns []string = []string{
+	"job_cache.id", "job_cache.job_id", "job_cache.hpc_user", "job_cache.project", "job_cache.cluster",
+	"job_cache.subcluster", "job_cache.start_time", "job_cache.cluster_partition",
+	"job_cache.array_job_id", "job_cache.num_nodes", "job_cache.num_hwthreads",
+	"job_cache.num_acc", "job_cache.exclusive", "job_cache.monitoring_status", "job_cache.smt",
+	"job_cache.job_state", "job_cache.duration", "job_cache.walltime", "job_cache.resources",
+	"job_cache.footprint", "job_cache.energy",
+}
+
+func scanJob(row interface{ Scan(...any) error }) (*schema.Job, error) {
 	job := &schema.Job{}
 
 	if err := row.Scan(
-		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.SubCluster, &job.StartTimeUnix, &job.Partition, &job.ArrayJobId,
-		&job.NumNodes, &job.NumHWThreads, &job.NumAcc, &job.Exclusive, &job.MonitoringStatus, &job.SMT, &job.State,
+		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.SubCluster,
+		&job.StartTimeUnix, &job.Partition, &job.ArrayJobId, &job.NumNodes, &job.NumHWThreads,
+		&job.NumAcc, &job.Exclusive, &job.MonitoringStatus, &job.SMT, &job.State,
 		&job.Duration, &job.Walltime, &job.RawResources, &job.RawFootprint, &job.Energy); err != nil {
 		log.Warnf("Error while scanning rows (Job): %v", err)
 		return nil, err
@@ -138,17 +151,6 @@ func (r *JobRepository) Flush() error {
 	return nil
 }
 
-func scanJobLink(row interface{ Scan(...interface{}) error }) (*model.JobLink, error) {
-	jobLink := &model.JobLink{}
-	if err := row.Scan(
-		&jobLink.ID, &jobLink.JobID); err != nil {
-		log.Warn("Error while scanning rows (jobLink)")
-		return nil, err
-	}
-
-	return jobLink, nil
-}
-
 func (r *JobRepository) FetchMetadata(job *schema.Job) (map[string]string, error) {
 	start := time.Now()
 	cachekey := fmt.Sprintf("metadata:%d", job.ID)
@@ -189,9 +191,7 @@ func (r *JobRepository) UpdateMetadata(job *schema.Job, key, val string) (err er
 
 	if job.MetaData != nil {
 		cpy := make(map[string]string, len(job.MetaData)+1)
-		for k, v := range job.MetaData {
-			cpy[k] = v
-		}
+		maps.Copy(cpy, job.MetaData)
 		cpy[key] = val
 		job.MetaData = cpy
 	} else {
@@ -389,7 +389,7 @@ func (r *JobRepository) FindColumnValues(user *schema.User, query string, table 
 func (r *JobRepository) Partitions(cluster string) ([]string, error) {
 	var err error
 	start := time.Now()
-	partitions := r.cache.Get("partitions:"+cluster, func() (interface{}, time.Duration, int) {
+	partitions := r.cache.Get("partitions:"+cluster, func() (any, time.Duration, int) {
 		parts := []string{}
 		if err = r.DB.Select(&parts, `SELECT DISTINCT job.cluster_partition FROM job WHERE job.cluster = ?;`, cluster); err != nil {
 			return nil, 0, 1000
@@ -477,6 +477,7 @@ func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 	return nil
 }
 
+// FIXME: Reconsider filtering short jobs with harcoded threshold
 func (r *JobRepository) FindRunningJobs(cluster string) ([]*schema.Job, error) {
 	query := sq.Select(jobColumns...).From("job").
 		Where(fmt.Sprintf("job.cluster = '%s'", cluster)).

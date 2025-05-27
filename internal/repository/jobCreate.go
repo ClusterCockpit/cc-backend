@@ -13,6 +13,14 @@ import (
 	sq "github.com/Masterminds/squirrel"
 )
 
+const NamedJobCacheInsert string = `INSERT INTO job_cache (
+	job_id, hpc_user, project, cluster, subcluster, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc,
+	exclusive, monitoring_status, smt, job_state, start_time, duration, walltime, footprint, energy, energy_footprint, resources, meta_data
+) VALUES (
+	:job_id, :hpc_user, :project, :cluster, :subcluster, :cluster_partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
+  :exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :walltime, :footprint,  :energy, :energy_footprint, :resources, :meta_data
+);`
+
 const NamedJobInsert string = `INSERT INTO job (
 	job_id, hpc_user, project, cluster, subcluster, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc,
 	exclusive, monitoring_status, smt, job_state, start_time, duration, walltime, footprint, energy, energy_footprint, resources, meta_data
@@ -22,7 +30,9 @@ const NamedJobInsert string = `INSERT INTO job (
 );`
 
 func (r *JobRepository) InsertJob(job *schema.JobMeta) (int64, error) {
-	res, err := r.DB.NamedExec(NamedJobInsert, job)
+	r.Mutex.Lock()
+	res, err := r.DB.NamedExec(NamedJobCacheInsert, job)
+	r.Mutex.Unlock()
 	if err != nil {
 		log.Warn("Error while NamedJobInsert")
 		return 0, err
@@ -34,6 +44,45 @@ func (r *JobRepository) InsertJob(job *schema.JobMeta) (int64, error) {
 	}
 
 	return id, nil
+}
+
+func (r *JobRepository) SyncJobs() ([]*schema.Job, error) {
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
+
+	query := sq.Select(jobCacheColumns...).From("job_cache")
+
+	rows, err := query.RunWith(r.stmtCache).Query()
+	if err != nil {
+		log.Errorf("Error while running query %v", err)
+		return nil, err
+	}
+
+	jobs := make([]*schema.Job, 0, 50)
+	for rows.Next() {
+		job, err := scanJob(rows)
+		if err != nil {
+			rows.Close()
+			log.Warn("Error while scanning rows")
+			return nil, err
+		}
+		jobs = append(jobs, job)
+	}
+
+	_, err = r.DB.Exec(
+		"INSERT INTO job (job_id, cluster, subcluster, start_time, hpc_user, project, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc, exclusive, monitoring_status, smt, job_state, duration, walltime, footprint, energy, energy_footprint, resources, meta_data) SELECT job_id, cluster, subcluster, start_time, hpc_user, project, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc, exclusive, monitoring_status, smt, job_state, duration, walltime, footprint, energy, energy_footprint, resources, meta_data FROM job_cache")
+	if err != nil {
+		log.Warnf("Error while Job sync: %v", err)
+		return nil, err
+	}
+
+	_, err = r.DB.Exec("DELETE FROM job_cache")
+	if err != nil {
+		log.Warnf("Error while Job cache clean: %v", err)
+		return nil, err
+	}
+
+	return jobs, nil
 }
 
 // Start inserts a new job in the table, returning the unique job ID.
@@ -65,6 +114,22 @@ func (r *JobRepository) Stop(
 	monitoringStatus int32,
 ) (err error) {
 	stmt := sq.Update("job").
+		Set("job_state", state).
+		Set("duration", duration).
+		Set("monitoring_status", monitoringStatus).
+		Where("job.id = ?", jobId)
+
+	_, err = stmt.RunWith(r.stmtCache).Exec()
+	return
+}
+
+func (r *JobRepository) StopCached(
+	jobId int64,
+	duration int32,
+	state schema.JobState,
+	monitoringStatus int32,
+) (err error) {
+	stmt := sq.Update("job_cache").
 		Set("job_state", state).
 		Set("duration", duration).
 		Set("monitoring_status", monitoringStatus).

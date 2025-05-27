@@ -28,12 +28,13 @@ const (
 //go:embed schemas/*
 var schemaFiles embed.FS
 
-func Validate(k Kind, r io.Reader) (err error) {
+func Validate(k Kind, r io.Reader) error {
 	jsonschema.Loaders["embedfs"] = func(s string) (io.ReadCloser, error) {
 		f := filepath.Join("schemas", strings.Split(s, "//")[1])
 		return schemaFiles.Open(f)
 	}
 	var s *jsonschema.Schema
+	var err error
 
 	switch k {
 	case Meta:
@@ -54,7 +55,7 @@ func Validate(k Kind, r io.Reader) (err error) {
 	}
 
 	var v interface{}
-	if err := json.NewDecoder(r).Decode(&v); err != nil {
+	if err = json.NewDecoder(r).Decode(&v); err != nil {
 		log.Warnf("Error while decoding raw json schema: %#v", err)
 		return err
 	}

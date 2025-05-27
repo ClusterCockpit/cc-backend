@@ -820,7 +820,7 @@ func (api *RestApi) removeTags(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	rw.WriteHeader(http.StatusOK)
-	rw.Write([]byte(fmt.Sprintf("Deleted Tags from DB: %d successfull of %d requested\n", currentCount, targetCount)))
+	fmt.Fprintf(rw, "Deleted Tags from DB: %d successfull of %d requested\n", currentCount, targetCount)
 }
 
 // startJob godoc
@@ -846,6 +846,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("REST: %s\n", req.GoString())
 	req.State = schema.JobStateRunning
 
 	if err := importer.SanityChecks(&req.BaseJob); err != nil {
@@ -931,8 +932,12 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 	// log.Printf("loading db job for stopJobByRequest... : stopJobApiRequest=%v", req)
 	job, err = api.JobRepository.Find(req.JobId, req.Cluster, req.StartTime)
 	if err != nil {
-		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
-		return
+		job, err = api.JobRepository.FindCached(req.JobId, req.Cluster, req.StartTime)
+		// FIXME: Previous error is hidden
+		if err != nil {
+			handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
+			return
+		}
 	}
 
 	api.checkAndHandleStopJob(rw, job, req)
@@ -1097,10 +1102,15 @@ func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 	// Mark job as stopped in the database (update state and duration)
 	job.Duration = int32(req.StopTime - job.StartTime.Unix())
 	job.State = req.State
+	api.JobRepository.Mutex.Lock()
 	if err := api.JobRepository.Stop(job.ID, job.Duration, job.State, job.MonitoringStatus); err != nil {
-		handleError(fmt.Errorf("jobId %d (id %d) on %s : marking job as '%s' (duration: %d) in DB failed: %w", job.JobID, job.ID, job.Cluster, job.State, job.Duration, err), http.StatusInternalServerError, rw)
-		return
+		if err := api.JobRepository.StopCached(job.ID, job.Duration, job.State, job.MonitoringStatus); err != nil {
+			api.JobRepository.Mutex.Unlock()
+			handleError(fmt.Errorf("jobId %d (id %d) on %s : marking job as '%s' (duration: %d) in DB failed: %w", job.JobID, job.ID, job.Cluster, job.State, job.Duration, err), http.StatusInternalServerError, rw)
+			return
+		}
 	}
+	api.JobRepository.Mutex.Unlock()
 
 	log.Printf("archiving job... (dbid: %d): cluster=%s, jobId=%d, user=%s, startTime=%s, duration=%d, state=%s", job.ID, job.Cluster, job.JobID, job.User, job.StartTime, job.Duration, job.State)
 
