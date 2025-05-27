@@ -19,7 +19,7 @@
     },
     {
       "name": "load_perc",
-      "expr": "cpu_load / load_threshold"
+      "expr": "cpu_load.avg / load_threshold"
     }
   ],
   "rule": "cpu_load > load_threshold",

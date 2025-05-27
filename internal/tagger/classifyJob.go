@@ -226,6 +226,7 @@ func (t *JobClassTagger) Register() error {
 func (t *JobClassTagger) Match(job *schema.Job) {
 	r := repository.GetJobRepository()
 	jobstats, err := archive.GetStatistics(job)
+	metricsList := archive.GetMetricConfigSubCluster(job.Cluster, job.SubCluster)
 	log.Infof("Enter  match rule with %d rules for job %d", len(t.rules), job.JobID)
 	if err != nil {
 		log.Errorf("job classification failed for job  %d: %#v", job.JobID, err)
@@ -255,7 +256,17 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 				log.Errorf("job classification failed for job %d: missing metric '%s'", job.JobID, m)
 				return
 			}
-			env[m] = stats.Avg
+			env[m] = map[string]any{
+				"min": stats.Min,
+				"max": stats.Max,
+				"avg": stats.Avg,
+				"limits": map[string]float64{
+					"peak":    metricsList[m].Peak,
+					"normal":  metricsList[m].Normal,
+					"caution": metricsList[m].Caution,
+					"alert":   metricsList[m].Alert,
+				},
+			}
 		}
 
 		// check rule requirements apply

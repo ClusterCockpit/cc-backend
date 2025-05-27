@@ -21,6 +21,6 @@
       "expr": "1.0 - (cpu_load / load_threshold)"
     }
   ],
-  "rule": "cpu_load < load_threshold",
+  "rule": "cpu_load.avg < load_threshold",
   "hint": "This job was detected as lowload because the average cpu load {{.cpu_load}} falls below the threshold {{.load_threshold}}."
 }
