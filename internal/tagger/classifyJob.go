@@ -124,7 +124,6 @@ func (t *JobClassTagger) prepareRule(b []byte, fns string) {
 	}
 	log.Infof("prepareRule() > processing %s with %d requirements and %d variables", fns, len(ri.requirements), len(ri.variables))
 
-	delete(t.rules, rule.Tag)
 	t.rules[rule.Tag] = ri
 }
 
@@ -139,16 +138,33 @@ func (t *JobClassTagger) EventCallback() {
 		log.Fatal(err)
 	}
 
-	for _, fn := range files {
-		fns := fn.Name()
-		log.Debugf("Process: %s", fns)
-		filename := fmt.Sprintf("%s/%s", t.cfgPath, fns)
-		b, err := os.ReadFile(filename)
+	if util.CheckFileExists(t.cfgPath + "/parameters.json") {
+		log.Info("Merge parameters")
+		b, err := os.ReadFile(t.cfgPath + "/parameters.json")
 		if err != nil {
 			log.Warnf("prepareRule() > open file error: %v", err)
-			return
 		}
-		t.prepareRule(b, fns)
+
+		var paramTmp map[string]any
+		if err := json.NewDecoder(bytes.NewReader(b)).Decode(&paramTmp); err != nil {
+			log.Warn("Error while decoding parameters.json")
+		}
+
+		maps.Copy(t.parameters, paramTmp)
+	}
+
+	for _, fn := range files {
+		fns := fn.Name()
+		if fns != "parameters.json" {
+			log.Debugf("Process: %s", fns)
+			filename := fmt.Sprintf("%s/%s", t.cfgPath, fns)
+			b, err := os.ReadFile(filename)
+			if err != nil {
+				log.Warnf("prepareRule() > open file error: %v", err)
+				return
+			}
+			t.prepareRule(b, fns)
+		}
 	}
 }
 
@@ -220,6 +236,8 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 		env := make(map[string]any)
 		maps.Copy(env, ri.env)
 		log.Infof("Try to match rule %s for job %d", tag, job.JobID)
+
+		// Initialize environment
 		env["job"] = map[string]any{
 			"exclusive": job.Exclusive,
 			"duration":  job.Duration,
