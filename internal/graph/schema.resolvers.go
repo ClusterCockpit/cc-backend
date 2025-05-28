@@ -31,7 +31,7 @@ func (r *clusterResolver) Partitions(ctx context.Context, obj *schema.Cluster) (
 
 // Tags is the resolver for the tags field.
 func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error) {
-	return r.Repo.GetTags(repository.GetUserFromContext(ctx), &obj.ID)
+	return r.Repo.GetTags(repository.GetUserFromContext(ctx), obj.ID)
 }
 
 // ConcurrentJobs is the resolver for the concurrentJobs field.
@@ -615,9 +615,9 @@ func (r *queryResolver) JobsMetricStats(ctx context.Context, filter []*model.Job
 		numThreadsInt := int(job.NumHWThreads)
 		numAccsInt := int(job.NumAcc)
 		res = append(res, &model.JobStats{
-			ID:              int(job.ID),
+			ID:              int(*job.ID),
 			JobID:           strconv.Itoa(int(job.JobID)),
-			StartTime:       int(job.StartTime.Unix()),
+			StartTime:       int(job.StartTime),
 			Duration:        int(job.Duration),
 			Cluster:         job.Cluster,
 			SubCluster:      job.SubCluster,

@@ -301,7 +301,7 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 		}
 		if match.(bool) {
 			log.Info("Rule matches!")
-			id := job.ID
+			id := *job.ID
 			if !r.HasTag(id, t.tagType, tag) {
 				r.AddTagOrCreateDirect(id, t.tagType, tag)
 			}

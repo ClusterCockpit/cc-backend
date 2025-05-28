@@ -69,8 +69,8 @@ func DecodeJobStats(r io.Reader, k string) (schema.ScopedJobStats, error) {
 	return nil, err
 }
 
-func DecodeJobMeta(r io.Reader) (*schema.JobMeta, error) {
-	var d schema.JobMeta
+func DecodeJobMeta(r io.Reader) (*schema.Job, error) {
+	var d schema.Job
 	if err := json.NewDecoder(r).Decode(&d); err != nil {
 		log.Warn("Error while decoding raw job meta json")
 		return &d, err
@@ -103,7 +103,7 @@ func EncodeJobData(w io.Writer, d *schema.JobData) error {
 	return nil
 }
 
-func EncodeJobMeta(w io.Writer, d *schema.JobMeta) error {
+func EncodeJobMeta(w io.Writer, d *schema.Job) error {
 	// Sanitize parameters
 	if err := json.NewEncoder(w).Encode(d); err != nil {
 		log.Warn("Error while encoding new job meta json")

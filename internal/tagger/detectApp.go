@@ -105,7 +105,7 @@ func (t *AppTagger) Match(job *schema.Job) {
 
 	jobscript, ok := metadata["jobScript"]
 	if ok {
-		id := job.ID
+		id := *job.ID
 
 	out:
 		for _, a := range t.apps {

@@ -16,7 +16,7 @@ import (
 )
 
 // Writes a running job to the job-archive
-func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
+func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.Job, error) {
 	allMetrics := make([]string, 0)
 	metricConfigs := archive.GetCluster(job.Cluster).MetricConfig
 	for _, mc := range metricConfigs {
@@ -40,11 +40,7 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 		return nil, err
 	}
 
-	jobMeta := &schema.JobMeta{
-		BaseJob:    job.BaseJob,
-		StartTime:  job.StartTime.Unix(),
-		Statistics: make(map[string]schema.JobStatistics),
-	}
+	job.Statistics = make(map[string]schema.JobStatistics)
 
 	for metric, data := range jobData {
 		avg, min, max := 0.0, math.MaxFloat32, -math.MaxFloat32
@@ -61,7 +57,7 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 		}
 
 		// Round AVG Result to 2 Digits
-		jobMeta.Statistics[metric] = schema.JobStatistics{
+		job.Statistics[metric] = schema.JobStatistics{
 			Unit: schema.Unit{
 				Prefix: archive.GetMetricConfig(job.Cluster, metric).Unit.Prefix,
 				Base:   archive.GetMetricConfig(job.Cluster, metric).Unit.Base,
@@ -76,8 +72,8 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 	// only return the JobMeta structure as the
 	// statistics in there are needed.
 	if config.Keys.DisableArchive {
-		return jobMeta, nil
+		return job, nil
 	}
 
-	return jobMeta, archive.GetHandle().ImportJob(jobMeta, &jobData)
+	return job, archive.GetHandle().ImportJob(job, &jobData)
 }

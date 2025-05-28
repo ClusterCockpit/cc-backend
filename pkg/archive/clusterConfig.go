@@ -223,7 +223,7 @@ func GetMetricConfig(cluster, metric string) *schema.MetricConfig {
 
 // AssignSubCluster sets the `job.subcluster` property of the job based
 // on its cluster and resources.
-func AssignSubCluster(job *schema.BaseJob) error {
+func AssignSubCluster(job *schema.Job) error {
 	cluster := GetCluster(job.Cluster)
 	if cluster == nil {
 		return fmt.Errorf("ARCHIVE/CLUSTERCONFIG > unkown cluster: %v", job.Cluster)

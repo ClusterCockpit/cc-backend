@@ -73,7 +73,7 @@ func scanJob(row interface{ Scan(...any) error }) (*schema.Job, error) {
 
 	if err := row.Scan(
 		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.SubCluster,
-		&job.StartTimeUnix, &job.Partition, &job.ArrayJobId, &job.NumNodes, &job.NumHWThreads,
+		&job.StartTime, &job.Partition, &job.ArrayJobId, &job.NumNodes, &job.NumHWThreads,
 		&job.NumAcc, &job.Exclusive, &job.MonitoringStatus, &job.SMT, &job.State,
 		&job.Duration, &job.Walltime, &job.RawResources, &job.RawFootprint, &job.Energy); err != nil {
 		log.Warnf("Error while scanning rows (Job): %v", err)
@@ -92,10 +92,9 @@ func scanJob(row interface{ Scan(...any) error }) (*schema.Job, error) {
 	}
 	job.RawFootprint = nil
 
-	job.StartTime = time.Unix(job.StartTimeUnix, 0)
 	// Always ensure accurate duration for running jobs
 	if job.State == schema.JobStateRunning {
-		job.Duration = int32(time.Since(job.StartTime).Seconds())
+		job.Duration = int32(time.Now().Unix() - job.StartTime)
 	}
 
 	return job, nil
@@ -582,7 +581,7 @@ func (r *JobRepository) MarkArchived(
 
 func (r *JobRepository) UpdateEnergy(
 	stmt sq.UpdateBuilder,
-	jobMeta *schema.JobMeta,
+	jobMeta *schema.Job,
 ) (sq.UpdateBuilder, error) {
 	/* Note: Only Called for Running Jobs during Intermediate Update or on Archiving */
 	sc, err := archive.GetSubCluster(jobMeta.Cluster, jobMeta.SubCluster)
@@ -632,7 +631,7 @@ func (r *JobRepository) UpdateEnergy(
 
 func (r *JobRepository) UpdateFootprint(
 	stmt sq.UpdateBuilder,
-	jobMeta *schema.JobMeta,
+	jobMeta *schema.Job,
 ) (sq.UpdateBuilder, error) {
 	/* Note: Only Called for Running Jobs during Intermediate Update or on Archiving */
 	sc, err := archive.GetSubCluster(jobMeta.Cluster, jobMeta.SubCluster)

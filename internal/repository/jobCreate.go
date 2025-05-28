@@ -29,7 +29,7 @@ const NamedJobInsert string = `INSERT INTO job (
   :exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :walltime, :footprint,  :energy, :energy_footprint, :resources, :meta_data
 );`
 
-func (r *JobRepository) InsertJob(job *schema.JobMeta) (int64, error) {
+func (r *JobRepository) InsertJob(job *schema.Job) (int64, error) {
 	r.Mutex.Lock()
 	res, err := r.DB.NamedExec(NamedJobCacheInsert, job)
 	r.Mutex.Unlock()
@@ -87,7 +87,7 @@ func (r *JobRepository) SyncJobs() ([]*schema.Job, error) {
 
 // Start inserts a new job in the table, returning the unique job ID.
 // Statistics are not transfered!
-func (r *JobRepository) Start(job *schema.JobMeta) (id int64, err error) {
+func (r *JobRepository) Start(job *schema.Job) (id int64, err error) {
 	job.RawFootprint, err = json.Marshal(job.Footprint)
 	if err != nil {
 		return -1, fmt.Errorf("REPOSITORY/JOB > encoding footprint field failed: %w", err)

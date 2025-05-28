@@ -41,7 +41,7 @@ func archivingWorker() {
 			// will fail if job meta not in repository
 			if _, err := jobRepo.FetchMetadata(job); err != nil {
 				log.Errorf("archiving job (dbid: %d) failed at check metadata step: %s", job.ID, err.Error())
-				jobRepo.UpdateMonitoringStatus(job.ID, schema.MonitoringStatusArchivingFailed)
+				jobRepo.UpdateMonitoringStatus(*job.ID, schema.MonitoringStatusArchivingFailed)
 				continue
 			}
 
@@ -50,7 +50,7 @@ func archivingWorker() {
 			jobMeta, err := ArchiveJob(job, context.Background())
 			if err != nil {
 				log.Errorf("archiving job (dbid: %d) failed at archiving job step: %s", job.ID, err.Error())
-				jobRepo.UpdateMonitoringStatus(job.ID, schema.MonitoringStatusArchivingFailed)
+				jobRepo.UpdateMonitoringStatus(*job.ID, schema.MonitoringStatusArchivingFailed)
 				continue
 			}
 

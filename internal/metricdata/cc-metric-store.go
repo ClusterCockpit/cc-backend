@@ -183,8 +183,8 @@ func (ccms *CCMetricStore) LoadData(
 
 	req := ApiQueryRequest{
 		Cluster:   job.Cluster,
-		From:      job.StartTime.Unix(),
-		To:        job.StartTime.Add(time.Duration(job.Duration) * time.Second).Unix(),
+		From:      job.StartTime,
+		To:        job.StartTime + int64(job.Duration),
 		Queries:   queries,
 		WithStats: true,
 		WithData:  true,
@@ -570,7 +570,6 @@ func (ccms *CCMetricStore) LoadStats(
 	metrics []string,
 	ctx context.Context,
 ) (map[string]map[string]schema.MetricStatistics, error) {
-
 	queries, _, err := ccms.buildQueries(job, metrics, []schema.MetricScope{schema.MetricScopeNode}, 0) // #166 Add scope shere for analysis view accelerator normalization?
 	if err != nil {
 		log.Errorf("Error while building queries for jobId %d, Metrics %v: %s", job.JobID, metrics, err.Error())
@@ -579,8 +578,8 @@ func (ccms *CCMetricStore) LoadStats(
 
 	req := ApiQueryRequest{
 		Cluster:   job.Cluster,
-		From:      job.StartTime.Unix(),
-		To:        job.StartTime.Add(time.Duration(job.Duration) * time.Second).Unix(),
+		From:      job.StartTime,
+		To:        job.StartTime + int64(job.Duration),
 		Queries:   queries,
 		WithStats: true,
 		WithData:  false,
@@ -638,8 +637,8 @@ func (ccms *CCMetricStore) LoadScopedStats(
 
 	req := ApiQueryRequest{
 		Cluster:   job.Cluster,
-		From:      job.StartTime.Unix(),
-		To:        job.StartTime.Add(time.Duration(job.Duration) * time.Second).Unix(),
+		From:      job.StartTime,
+		To:        job.StartTime + int64(job.Duration),
 		Queries:   queries,
 		WithStats: true,
 		WithData:  false,
@@ -816,7 +815,6 @@ func (ccms *CCMetricStore) LoadNodeListData(
 	page *model.PageRequest,
 	ctx context.Context,
 ) (map[string]schema.JobData, int, bool, error) {
-
 	// 0) Init additional vars
 	var totalNodes int = 0
 	var hasNextPage bool = false
@@ -975,7 +973,6 @@ func (ccms *CCMetricStore) buildNodeQueries(
 	scopes []schema.MetricScope,
 	resolution int,
 ) ([]ApiQuery, []schema.MetricScope, error) {
-
 	queries := make([]ApiQuery, 0, len(metrics)*len(scopes)*len(nodes))
 	assignedScope := []schema.MetricScope{}
 
