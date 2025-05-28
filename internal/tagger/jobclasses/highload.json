@@ -1,7 +1,6 @@
 {
   "name": "Excessive CPU load",
   "tag": "excessiveload",
-  "comment": "Assumptions: all nodes have the same number of cores.",
   "parameters": [
     "excessivecpuload_threshold_factor",
     "job_min_duration_seconds",
@@ -19,9 +18,9 @@
     },
     {
       "name": "load_perc",
-      "expr": "cpu_load.avg / load_threshold"
+      "expr": "cpu_load.avg / cpu_load.limits.peak"
     }
   ],
-  "rule": "cpu_load > load_threshold",
-  "hint": "This job was detected as excessiveload because the average cpu load {{.cpu_load}} falls above the threshold {{.load_threshold}}."
+  "rule": "cpu_load.avg > cpu_load.limits.peak",
+  "hint": "This job was detected as excessiveload because the average cpu load {{.cpu_load.avg}} falls above the threshold {{.cpu_load.limits.peak}}."
 }
