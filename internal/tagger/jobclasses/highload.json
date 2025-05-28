@@ -18,7 +18,7 @@
     },
     {
       "name": "load_perc",
-      "expr": "cpu_load.avg / cpu_load.limits.peak"
+      "expr": "1.0 - (cpu_load.avg / cpu_load.limits.peak)"
     }
   ],
   "rule": "cpu_load.avg > cpu_load.limits.peak",
