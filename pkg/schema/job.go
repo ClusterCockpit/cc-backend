@@ -68,6 +68,14 @@ type Job struct {
 //	*int64 `json:"id,omitempty"` >> never used in the job-archive, only
 //	available via REST-API
 //
+// JobMeta model
+// @Description Meta data information of a HPC job.
+type JobMeta struct {
+	ID         *int64                   `json:"id,omitempty"`
+	Statistics map[string]JobStatistics `json:"statistics"`
+	BaseJob
+	StartTime int64 `json:"startTime" db:"start_time" example:"1649723812" minimum:"1"`
+}
 
 type JobLink struct {
 	ID    int64 `json:"id"`
@@ -77,15 +85,6 @@ type JobLink struct {
 type JobLinkResultList struct {
 	Items []*JobLink `json:"items"`
 	Count int        `json:"count"`
-}
-
-// JobMeta model
-// @Description Meta data information of a HPC job.
-type JobMeta struct {
-	ID         *int64                   `json:"id,omitempty"`
-	Statistics map[string]JobStatistics `json:"statistics"`
-	BaseJob
-	StartTime int64 `json:"startTime" db:"start_time" example:"1649723812" minimum:"1"`
 }
 
 const (
