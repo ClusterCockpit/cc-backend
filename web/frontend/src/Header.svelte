@@ -24,25 +24,21 @@
   import NavbarLinks from "./header/NavbarLinks.svelte";
   import NavbarTools from "./header/NavbarTools.svelte";
 
+  /* Svelte 5 Props */
   let { username, authlevel, clusters, subClusters, roles } = $props();
 
-  let isOpen = $state(false);
-  let screenSize = $state(0);
-
-  let showMax = $derived(screenSize >= 1500);
-  let showMid = $derived(screenSize < 1500 && screenSize >= 1300);
-  let showSml = $derived(screenSize < 1300 && screenSize >= 768);
-  let showBrg = $derived(screenSize < 768);
-
+  /* Const Init */
   const jobsTitle = new Map();
   jobsTitle.set(2, "Job Search");
   jobsTitle.set(3, "Managed Jobs");
   jobsTitle.set(4, "Jobs");
   jobsTitle.set(5, "Jobs");
+
   const usersTitle = new Map();
   usersTitle.set(3, "Managed Users");
   usersTitle.set(4, "Users");
   usersTitle.set(5, "Users");
+
   const projectsTitle = new Map();
   projectsTitle.set(3, "Managed Projects");
   projectsTitle.set(4, "Projects");
@@ -122,6 +118,16 @@
       menu: "Info",
     },
   ];
+
+  /* State Init */
+  let isOpen = $state(false);
+  let screenSize = $state(0);
+
+  /* Derived Vars */
+  let showMax = $derived(screenSize >= 1500);
+  let showMid = $derived(screenSize < 1500 && screenSize >= 1300);
+  let showSml = $derived(screenSize < 1300 && screenSize >= 768);
+  let showBrg = $derived(screenSize < 768);
 </script>
 
 <svelte:window bind:innerWidth={screenSize} />

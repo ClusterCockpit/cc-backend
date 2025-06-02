@@ -27,13 +27,15 @@
   import Sorting from "./generic/select/SortSelection.svelte";
   import MetricSelection from "./generic/select/MetricSelection.svelte";
 
-  const { query: initq } = init();
-  const ccconfig = getContext("cc-config");
-
-  // Svelte 5 Props
+  /* Svelte 5 Props */
   let { filterPresets, authlevel, roles } = $props();
 
-  // Svelte 5 Reactive Vars
+  /* Const Init */
+  const { query: initq } = init();
+  const ccconfig = getContext("cc-config");
+  const presetProject = filterPresets?.project ? filterPresets.project : ""
+
+  /* State Init */
   let filterComponent = $state(); // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
   let selectedJobs = $state([]);
   let filterBuffer = $state([]);
@@ -56,20 +58,14 @@
     : !!ccconfig.plot_list_showFootprint
   );
 
-  // Classic Inits
-  let presetProject = filterPresets?.project ? filterPresets.project : ""
-
-  // The filterPresets are handled by the Filters component,
-  // so we need to wait for it to be ready before we can start a query.
-  // This is also why JobList component starts out with a paused query.
-  onMount(() => filterComponent.updateFilters());
-
+  /* Functions */
   function resetJobSelection() {
     if (filterComponent && selectedJobs.length === 0) {
       filterComponent.updateFilters({ dbId: [] });
     };
   };
 
+  /* Reactive Effects */
   $effect(() => {
     // Reactive : Trigger Effect
     selectedJobs.length
@@ -79,6 +75,11 @@
     });
 	});
 
+  /* On Mount */
+  // The filterPresets are handled by the Filters component,
+  // so we need to wait for it to be ready before we can start a query.
+  // This is also why JobList component starts out with a paused query.
+  onMount(() => filterComponent.updateFilters());
 </script>
 
 <!-- ROW1: Status-->

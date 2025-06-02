@@ -6,6 +6,12 @@ const headerDomTarget = document.getElementById('svelte-header');
 if (headerDomTarget != null) {
     mount(Header, {
         target: headerDomTarget,
-        props: { ...header },
+        props: { // { ...header },
+            username: hUsername, 
+            authlevel: hAuthlevel,
+            clusters: hClusters, 
+            subClusters: hSubClusters,
+            roles: hRoles,
+        },
     });
 }

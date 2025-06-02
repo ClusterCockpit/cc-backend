@@ -25,18 +25,18 @@
     ButtonDropdown,
     Icon,
   } from "@sveltestrap/sveltestrap";
-  import Tag from "./helper/Tag.svelte";
   import Info from "./filters/InfoBox.svelte";
   import Cluster from "./filters/Cluster.svelte";
   import JobStates, { allJobStates } from "./filters/JobStates.svelte";
-  import StartTime from "./filters/StartTime.svelte";
-  import Tags from "./filters/Tags.svelte";
+  import StartTime, { startTimeSelectOptions } from "./filters/StartTime.svelte";
   import Duration from "./filters/Duration.svelte";
-  import Energy from "./filters/Energy.svelte";
+  import Tags from "./filters/Tags.svelte";
+  import Tag from "./helper/Tag.svelte";
   import Resources from "./filters/Resources.svelte";
+  import Energy from "./filters/Energy.svelte";
   import Statistics from "./filters/Stats.svelte";
 
-  // Svelte 5 Props
+  /* Svelte 5 Props */
   let {  
     menuText = null,
     filterPresets = {},
@@ -47,59 +47,55 @@
     applyFilters
   } = $props();
 
-  const startTimeSelectOptions = [
-    { range: "", rangeLabel: "No Selection"},
-    { range: "last6h", rangeLabel: "Last 6hrs"},
-    { range: "last24h", rangeLabel: "Last 24hrs"},
-    { range: "last7d", rangeLabel: "Last 7 days"},
-    { range: "last30d", rangeLabel: "Last 30 days"}
-  ];
-
+  /* Const Init */
   const nodeMatchLabels = {
     eq: "",
     contains: " Contains",
   }
-
   const filterReset = {
-    projectMatch: "contains",
-    userMatch: "contains",
+    // Direct Filters
+    dbId: [],
+    jobId: "",
     jobIdMatch: "eq",
-    nodeMatch: "eq",
-
+    arrayJobId: null,
+    jobName: "",
+    // View Filters
+    project: "",
+    projectMatch: "contains",
+    user: "",
+    userMatch: "contains",
+    // Filter Modals
     cluster: null,
     partition: null,
     states: allJobStates,
     startTime: { from: null, to: null, range: ""},
-    tags: [],
     duration: {
       lessThan: null,
       moreThan: null,
       from: null,
       to: null,
     },
-    dbId: [],
-    jobId: "",
-    arrayJobId: null,
-    user: "",
-    project: "",
-    jobName: "",
-
-    node: null,
-    energy: { from: null, to: null },
+    tags: [],
     numNodes: { from: null, to: null },
     numHWThreads: { from: null, to: null },
     numAccelerators: { from: null, to: null },
-
+    node: null,
+    nodeMatch: "eq",
+    energy: { from: null, to: null },
     stats: [],
   };
 
-  // Svelte 5 Reactive Vars
+  /* State Init */
   let filters = $state({
-    projectMatch: filterPresets.projectMatch || "contains",
-    userMatch: filterPresets.userMatch || "contains",
+    dbId: filterPresets.dbId || [],
+    jobId: filterPresets.jobId || "",
     jobIdMatch: filterPresets.jobIdMatch || "eq",
-    nodeMatch: filterPresets.nodeMatch || "eq",
-
+    arrayJobId: filterPresets.arrayJobId || null,
+    jobName: filterPresets.jobName || "",
+    project: filterPresets.project || "",
+    projectMatch: filterPresets.projectMatch || "contains",
+    user: filterPresets.user || "",
+    userMatch: filterPresets.userMatch || "contains",
     cluster: filterPresets.cluster || null,
     partition: filterPresets.partition || null,
     states:
@@ -107,41 +103,33 @@
         ? [filterPresets.state].flat()
         : allJobStates,
     startTime: filterPresets.startTime || { from: null, to: null, range: ""},
-    tags: filterPresets.tags || [],
     duration: filterPresets.duration || {
       lessThan: null,
       moreThan: null,
       from: null,
       to: null,
     },
-    dbId: filterPresets.dbId || [],
-    jobId: filterPresets.jobId || "",
-    arrayJobId: filterPresets.arrayJobId || null,
-    user: filterPresets.user || "",
-    project: filterPresets.project || "",
-    jobName: filterPresets.jobName || "",
-
-    node: filterPresets.node || null,
-    energy: filterPresets.energy || { from: null, to: null },
+    tags: filterPresets.tags || [],
     numNodes: filterPresets.numNodes || { from: null, to: null },
     numHWThreads: filterPresets.numHWThreads || { from: null, to: null },
     numAccelerators: filterPresets.numAccelerators || { from: null, to: null },
-
+    node: filterPresets.node || null,
+    nodeMatch: filterPresets.nodeMatch || "eq",
+    energy: filterPresets.energy || { from: null, to: null },
     stats: filterPresets.stats || [],
   });
 
+  /* Opened States */
   let isClusterOpen = $state(false)
   let isJobStatesOpen = $state(false)
   let isStartTimeOpen = $state(false)
-  let isTagsOpen = $state(false)
   let isDurationOpen = $state(false)
-  let isEnergyOpen = $state(false)
+  let isTagsOpen = $state(false)
   let isResourcesOpen = $state(false)
+  let isEnergyOpen = $state(false)
   let isStatsOpen = $state(false)
-  let isNodesModified = $state(false)
-  let isHwthreadsModified = $state(false)
-  let isAccsModified = $state(false)
 
+  /* Functions */
   // Can be called from the outside to trigger a 'update' event from this component.
   // 'force' option empties existing filters and then applies only 'additionalFilters'
   export function updateFilters(additionalFilters = null, force = false) {
@@ -155,10 +143,20 @@
     }
     // Construct New Filter
     let items = [];
+    if (filters.dbId.length != 0)
+      items.push({ dbId: filters.dbId });
+    if (filters.jobId)
+      items.push({ jobId: { [filters.jobIdMatch]: filters.jobId } });
+    if (filters.arrayJobId != null)
+      items.push({ arrayJobId: filters.arrayJobId });
+    if (filters.jobName) items.push({ jobName: { contains: filters.jobName } });
+    if (filters.project)
+      items.push({ project: { [filters.projectMatch]: filters.project } });
+    if (filters.user)
+      items.push({ user: { [filters.userMatch]: filters.user } });
     if (filters.cluster) items.push({ cluster: { eq: filters.cluster } });
-    if (filters.node) items.push({ node: { [filters.nodeMatch]: filters.node } });
     if (filters.partition) items.push({ partition: { eq: filters.partition } });
-    if (filters.states.length != allJobStates.length)
+    if (filters.states.length != allJobStates?.length)
       items.push({ state: filters.states });
     if (filters.startTime.from || filters.startTime.to)
       items.push({
@@ -168,7 +166,6 @@
       items.push({
         startTime: { range: filters.startTime.range },
       });
-    if (filters.tags.length != 0) items.push({ tags: filters.tags });
     if (filters.duration.from || filters.duration.to)
       items.push({
         duration: { from: filters.duration.from, to: filters.duration.to },
@@ -177,21 +174,11 @@
       items.push({ duration: { from: 0, to: filters.duration.lessThan } });
     if (filters.duration.moreThan)
       items.push({ duration: { from: filters.duration.moreThan, to: 604800 } }); // 7 days to include special jobs with long runtimes
-    if (filters.energy.from || filters.energy.to)
-      items.push({
-        energy: { from: filters.energy.from, to: filters.energy.to },
-      });
-    if (filters.dbId.length != 0)
-      items.push({ dbId: filters.dbId });
-    if (filters.jobId)
-      items.push({ jobId: { [filters.jobIdMatch]: filters.jobId } });
-    if (filters.arrayJobId != null)
-      items.push({ arrayJobId: filters.arrayJobId });
+    if (filters.tags.length != 0) items.push({ tags: filters.tags });
     if (filters.numNodes.from != null || filters.numNodes.to != null) {
       items.push({
         numNodes: { from: filters.numNodes.from, to: filters.numNodes.to },
       });
-      isNodesModified = true;
     }
     if (filters.numHWThreads.from != null || filters.numHWThreads.to != null) {
       items.push({
@@ -200,7 +187,6 @@
           to: filters.numHWThreads.to,
         },
       });
-      isHwthreadsModified = true;
     }
     if (filters.numAccelerators.from != null || filters.numAccelerators.to != null) {
       items.push({
@@ -209,13 +195,12 @@
           to: filters.numAccelerators.to,
         },
       });
-      isAccsModified = true;
     }
-    if (filters.user)
-      items.push({ user: { [filters.userMatch]: filters.user } });
-    if (filters.project)
-      items.push({ project: { [filters.projectMatch]: filters.project } });
-    if (filters.jobName) items.push({ jobName: { contains: filters.jobName } });
+    if (filters.node) items.push({ node: { [filters.nodeMatch]: filters.node } });
+    if (filters.energy.from || filters.energy.to)
+      items.push({
+        energy: { from: filters.energy.from, to: filters.energy.to },
+      });
     if (filters.stats.length != 0)
       items.push({ metricStats: filters.stats.map((st) => { return { metricName: st.field, range: { from: st.from, to: st.to }} }) });
 
@@ -228,20 +213,7 @@
     const dateToUnixEpoch = (rfc3339) => Math.floor(Date.parse(rfc3339) / 1000);
     let opts = [];
 
-    if (filters.cluster) opts.push(`cluster=${filters.cluster}`);
-    if (filters.node) opts.push(`node=${filters.node}`);
-    if (filters.node && filters.nodeMatch != "eq") // "eq" is default-case
-      opts.push(`nodeMatch=${filters.nodeMatch}`);
-    if (filters.partition) opts.push(`partition=${filters.partition}`);
-    if (filters.states.length != allJobStates.length)
-      for (let state of filters.states) opts.push(`state=${state}`);
-    if (filters.startTime.from && filters.startTime.to)
-      opts.push(
-        `startTime=${dateToUnixEpoch(filters.startTime.from)}-${dateToUnixEpoch(filters.startTime.to)}`,
-      );
-    if (filters.startTime.range) {
-        opts.push(`startTime=${filters.startTime.range}`)
-    }
+    // Direct Filters
     if (filters.dbId.length != 0) {
       for (let dbi of filters.dbId) {
         opts.push(`dbId=${dbi}`);
@@ -256,21 +228,12 @@
       }
     if (filters.jobIdMatch != "eq")
       opts.push(`jobIdMatch=${filters.jobIdMatch}`); // "eq" is default-case
-    for (let tag of filters.tags) opts.push(`tag=${tag}`);
-    if (filters.duration.from && filters.duration.to)
-      opts.push(`duration=${filters.duration.from}-${filters.duration.to}`);
-    if (filters.duration.lessThan)
-      opts.push(`duration=0-${filters.duration.lessThan}`);
-    if (filters.duration.moreThan)
-      opts.push(`duration=${filters.duration.moreThan}-604800`);
-    if (filters.energy.from && filters.energy.to)
-      opts.push(`energy=${filters.energy.from}-${filters.energy.to}`);
-    if (filters.numNodes.from && filters.numNodes.to)
-      opts.push(`numNodes=${filters.numNodes.from}-${filters.numNodes.to}`);
-    if (filters.numHWThreads.from && filters.numHWThreads.to)
-      opts.push(`numHWThreads=${filters.numHWThreads.from}-${filters.numHWThreads.to}`);
-    if (filters.numAccelerators.from && filters.numAccelerators.to)
-      opts.push(`numAccelerators=${filters.numAccelerators.from}-${filters.numAccelerators.to}`);
+    if (filters.arrayJobId) opts.push(`arrayJobId=${filters.arrayJobId}`);
+    if (filters.jobName) opts.push(`jobName=${filters.jobName}`);
+    // View Filters
+    if (filters.project) opts.push(`project=${filters.project}`);
+    if (filters.project && filters.projectMatch != "contains") // "contains" is default-case
+     opts.push(`projectMatch=${filters.projectMatch}`);
     if (filters.user.length != 0)
       if (filters.userMatch != "in") {
         opts.push(`user=${filters.user}`);
@@ -279,16 +242,42 @@
       }
     if (filters.userMatch != "contains") // "contains" is default-case
       opts.push(`userMatch=${filters.userMatch}`);
-    if (filters.project) opts.push(`project=${filters.project}`);
-    if (filters.project && filters.projectMatch != "contains") // "contains" is default-case
-     opts.push(`projectMatch=${filters.projectMatch}`);
-    if (filters.jobName) opts.push(`jobName=${filters.jobName}`);
-    if (filters.arrayJobId) opts.push(`arrayJobId=${filters.arrayJobId}`);
+    // Filter Modals
+    if (filters.cluster) opts.push(`cluster=${filters.cluster}`);
+    if (filters.partition) opts.push(`partition=${filters.partition}`);
+    if (filters.states.length != allJobStates?.length)
+      for (let state of filters.states) opts.push(`state=${state}`);
+    if (filters.startTime.from && filters.startTime.to)
+      opts.push(
+        `startTime=${dateToUnixEpoch(filters.startTime.from)}-${dateToUnixEpoch(filters.startTime.to)}`,
+      );
+    if (filters.startTime.range) {
+        opts.push(`startTime=${filters.startTime.range}`)
+    }
+    if (filters.duration.from && filters.duration.to)
+      opts.push(`duration=${filters.duration.from}-${filters.duration.to}`);
+    if (filters.duration.lessThan)
+      opts.push(`duration=0-${filters.duration.lessThan}`);
+    if (filters.duration.moreThan)
+      opts.push(`duration=${filters.duration.moreThan}-604800`);
+    if (filters.tags.length != 0)
+      for (let tag of filters.tags) opts.push(`tag=${tag}`);
+    if (filters.numNodes.from && filters.numNodes.to)
+      opts.push(`numNodes=${filters.numNodes.from}-${filters.numNodes.to}`);
+    if (filters.numHWThreads.from && filters.numHWThreads.to)
+      opts.push(`numHWThreads=${filters.numHWThreads.from}-${filters.numHWThreads.to}`);
+    if (filters.numAccelerators.from && filters.numAccelerators.to)
+      opts.push(`numAccelerators=${filters.numAccelerators.from}-${filters.numAccelerators.to}`);
+    if (filters.node) opts.push(`node=${filters.node}`);
+    if (filters.node && filters.nodeMatch != "eq") // "eq" is default-case
+      opts.push(`nodeMatch=${filters.nodeMatch}`);
+    if (filters.energy.from && filters.energy.to)
+      opts.push(`energy=${filters.energy.from}-${filters.energy.to}`);
     if (filters.stats.length != 0)
       for (let stat of filters.stats) {
           opts.push(`stat=${stat.field}-${stat.from}-${stat.to}`);
       }
-    
+    // Build && Return
     if (opts.length == 0 && window.location.search.length <= 1) return;
     let newurl = `${window.location.pathname}?${opts.join("&")}`;
     window.history.replaceState(null, "", newurl);
@@ -309,36 +298,36 @@
           <DropdownItem disabled>{menuText}</DropdownItem>
           <DropdownItem divider />
         {/if}
-        <DropdownItem on:click={() => (isClusterOpen = true)}>
+        <DropdownItem onclick={() => (isClusterOpen = true)}>
           <Icon name="cpu" /> Cluster/Partition
         </DropdownItem>
-        <DropdownItem on:click={() => (isJobStatesOpen = true)}>
+        <DropdownItem onclick={() => (isJobStatesOpen = true)}>
           <Icon name="gear-fill" /> Job States
         </DropdownItem>
-        <DropdownItem on:click={() => (isStartTimeOpen = true)}>
+        <DropdownItem onclick={() => (isStartTimeOpen = true)}>
           <Icon name="calendar-range" /> Start Time
         </DropdownItem>
-        <DropdownItem on:click={() => (isDurationOpen = true)}>
+        <DropdownItem onclick={() => (isDurationOpen = true)}>
           <Icon name="stopwatch" /> Duration
         </DropdownItem>
-        <DropdownItem on:click={() => (isTagsOpen = true)}>
+        <DropdownItem onclick={() => (isTagsOpen = true)}>
           <Icon name="tags" /> Tags
         </DropdownItem>
-        <DropdownItem on:click={() => (isResourcesOpen = true)}>
+        <DropdownItem onclick={() => (isResourcesOpen = true)}>
           <Icon name="hdd-stack" /> Resources
         </DropdownItem>
-        <DropdownItem on:click={() => (isEnergyOpen = true)}>
+        <DropdownItem onclick={() => (isEnergyOpen = true)}>
           <Icon name="lightning-charge-fill" /> Energy
         </DropdownItem>
-        <DropdownItem on:click={() => (isStatsOpen = true)}>
-          <Icon name="bar-chart" on:click={() => (isStatsOpen = true)} /> Statistics
+        <DropdownItem onclick={() => (isStatsOpen = true)}>
+          <Icon name="bar-chart" onclick={() => (isStatsOpen = true)} /> Statistics
         </DropdownItem>
         {#if startTimeQuickSelect}
           <DropdownItem divider />
           <DropdownItem disabled>Start Time Quick Selection</DropdownItem>
           {#each startTimeSelectOptions.filter((stso) => stso.range !== "") as { rangeLabel, range }}
             <DropdownItem
-              on:click={() => {
+              onclick={() => {
                 filters.startTime.from = null
                 filters.startTime.to = null
                 filters.startTime.range = range;
@@ -364,7 +353,7 @@
 {#if showFilter}
   <!-- SELECTED FILTER PILLS -->
   {#if filters.cluster}
-    <Info icon="cpu" on:click={() => (isClusterOpen = true)}>
+    <Info icon="cpu" onclick={() => (isClusterOpen = true)}>
       {filters.cluster}
       {#if filters.partition}
         ({filters.partition})
@@ -372,14 +361,14 @@
     </Info>
   {/if}
 
-  {#if filters.states.length != allJobStates.length}
-    <Info icon="gear-fill" on:click={() => (isJobStatesOpen = true)}>
+  {#if filters.states.length != allJobStates?.length}
+    <Info icon="gear-fill" onclick={() => (isJobStatesOpen = true)}>
       {filters.states.join(", ")}
     </Info>
   {/if}
 
   {#if filters.startTime.from || filters.startTime.to}
-    <Info icon="calendar-range" on:click={() => (isStartTimeOpen = true)}>
+    <Info icon="calendar-range" onclick={() => (isStartTimeOpen = true)}>
       {new Date(filters.startTime.from).toLocaleString()} - {new Date(
         filters.startTime.to,
       ).toLocaleString()}
@@ -387,13 +376,13 @@
   {/if}
 
   {#if filters.startTime.range}
-    <Info icon="calendar-range" on:click={() => (isStartTimeOpen = true)}>
+    <Info icon="calendar-range" onclick={() => (isStartTimeOpen = true)}>
       {startTimeSelectOptions.find((stso) => stso.range === filters.startTime.range).rangeLabel }
     </Info>
   {/if}
 
   {#if filters.duration.from || filters.duration.to}
-    <Info icon="stopwatch" on:click={() => (isDurationOpen = true)}>
+    <Info icon="stopwatch" onclick={() => (isDurationOpen = true)}>
       {Math.floor(filters.duration.from / 3600)}h:{Math.floor(
         (filters.duration.from % 3600) / 60,
       )}m -
@@ -404,7 +393,7 @@
   {/if}
 
   {#if filters.duration.lessThan}
-    <Info icon="stopwatch" on:click={() => (isDurationOpen = true)}>
+    <Info icon="stopwatch" onclick={() => (isDurationOpen = true)}>
       Duration less than {Math.floor(
         filters.duration.lessThan / 3600,
       )}h:{Math.floor((filters.duration.lessThan % 3600) / 60)}m
@@ -412,7 +401,7 @@
   {/if}
 
   {#if filters.duration.moreThan}
-    <Info icon="stopwatch" on:click={() => (isDurationOpen = true)}>
+    <Info icon="stopwatch" onclick={() => (isDurationOpen = true)}>
       Duration more than {Math.floor(
         filters.duration.moreThan / 3600,
       )}h:{Math.floor((filters.duration.moreThan % 3600) / 60)}m
@@ -420,47 +409,45 @@
   {/if}
 
   {#if filters.tags.length != 0}
-    <Info icon="tags" on:click={() => (isTagsOpen = true)}>
+    <Info icon="tags" onclick={() => (isTagsOpen = true)}>
       {#each filters.tags as tagId}
-        {#key tagId}
-          <Tag id={tagId} clickable={false} />
-        {/key}
+        <Tag id={tagId} clickable={false} />
       {/each}
     </Info>
   {/if}
 
-  {#if filters.numNodes.from != null || filters.numNodes.to != null || filters.numHWThreads.from != null || filters.numHWThreads.to != null || filters.numAccelerators.from != null || filters.numAccelerators.to != null}
-    <Info icon="hdd-stack" on:click={() => (isResourcesOpen = true)}>
-      {#if isNodesModified}
+  {#if filters.numNodes.from != null || filters.numNodes.to != null}
+    <Info icon="hdd-stack" onclick={() => (isResourcesOpen = true)}>
         Nodes: {filters.numNodes.from} - {filters.numNodes.to}
-      {/if}
-      {#if isNodesModified && isHwthreadsModified},
-      {/if}
-      {#if isHwthreadsModified}
+    </Info>
+  {/if}
+
+  {#if filters.numHWThreads.from != null || filters.numHWThreads.to != null}
+    <Info icon="cpu" onclick={() => (isResourcesOpen = true)}>
         HWThreads: {filters.numHWThreads.from} - {filters.numHWThreads.to}
-      {/if}
-      {#if (isNodesModified || isHwthreadsModified) && isAccsModified},
-      {/if}
-      {#if isAccsModified}
+    </Info>
+  {/if}
+
+  {#if filters.numAccelerators.from != null || filters.numAccelerators.to != null}
+    <Info icon="gpu-card" onclick={() => (isResourcesOpen = true)}>
         Accelerators: {filters.numAccelerators.from} - {filters.numAccelerators.to}
-      {/if}
     </Info>
   {/if}
 
   {#if filters.node != null}
-    <Info icon="hdd-stack" on:click={() => (isResourcesOpen = true)}>
+    <Info icon="hdd-stack" onclick={() => (isResourcesOpen = true)}>
       Node{nodeMatchLabels[filters.nodeMatch]}: {filters.node}
     </Info>
   {/if}
 
   {#if filters.energy.from || filters.energy.to}
-    <Info icon="lightning-charge-fill" on:click={() => (isEnergyOpen = true)}>
+    <Info icon="lightning-charge-fill" onclick={() => (isEnergyOpen = true)}>
       Total Energy: {filters.energy.from} - {filters.energy.to}
     </Info>
   {/if}
 
   {#if filters.stats.length > 0}
-    <Info icon="bar-chart" on:click={() => (isStatsOpen = true)}>
+    <Info icon="bar-chart" onclick={() => (isStatsOpen = true)}>
       {filters.stats
         .map((stat) => `${stat.field}: ${stat.from} - ${stat.to}`)
         .join(", ")}
@@ -469,68 +456,61 @@
 {/if}
 
 <Cluster
-  {disableClusterSelection}
   bind:isOpen={isClusterOpen}
-  bind:cluster={filters.cluster}
-  bind:partition={filters.partition}
-  on:set-filter={() => updateFilters()}
+  presetCluster={filters.cluster}
+  presetPartition={filters.partition}
+  {disableClusterSelection}
+  setFilter={(filter) => updateFilters(filter)}
 />
 
 <JobStates
   bind:isOpen={isJobStatesOpen}
-  bind:states={filters.states}
-  on:set-filter={() => updateFilters()}
+  presetStates={filters.states}
+  setFilter={(filter) => updateFilters(filter)}
 />
 
 <StartTime
   bind:isOpen={isStartTimeOpen}
-  bind:from={filters.startTime.from}
-  bind:to={filters.startTime.to}
-  bind:range={filters.startTime.range}
-  {startTimeSelectOptions}
-  on:set-filter={() => updateFilters()}
+  presetStartTime={filters.startTime}
+  setFilter={(filter) => updateFilters(filter)}
 />
 
 <Duration
   bind:isOpen={isDurationOpen}
-  bind:lessThan={filters.duration.lessThan}
-  bind:moreThan={filters.duration.moreThan}
-  bind:from={filters.duration.from}
-  bind:to={filters.duration.to}
-  on:set-filter={() => updateFilters()}
+  presetDuration={filters.duration}
+  setFilter={(filter) => updateFilters(filter)}
 />
 
 <Tags
   bind:isOpen={isTagsOpen}
-  bind:tags={filters.tags}
-  on:set-filter={() => updateFilters()}
+  presetTags={filters.tags}
+  setFilter={(filter) => updateFilters(filter)}
 />
 
 <Resources
-  cluster={filters.cluster}
   bind:isOpen={isResourcesOpen}
-  bind:numNodes={filters.numNodes}
-  bind:numHWThreads={filters.numHWThreads}
-  bind:numAccelerators={filters.numAccelerators}
-  bind:namedNode={filters.node}
-  bind:nodeMatch={filters.nodeMatch}
-  bind:isNodesModified
-  bind:isHwthreadsModified
-  bind:isAccsModified
-  on:set-filter={() => updateFilters()}
-/>
-
-<Statistics
-  bind:isOpen={isStatsOpen}
-  bind:stats={filters.stats}
-  on:set-filter={() => updateFilters()}
+  activeCluster={filters.cluster}
+  presetNumNodes={filters.numNodes}
+  presetNumHWThreads={filters.numHWThreads}
+  presetNumAccelerators={filters.numAccelerators}
+  presetNamedNode={filters.node}
+  presetNodeMatch={filters.nodeMatch}
+  setFilter={(filter) => updateFilters(filter)}
 />
 
 <Energy
   bind:isOpen={isEnergyOpen}
-  bind:energy={filters.energy}
-  on:set-filter={() => updateFilters()}
+  presetEnergy={filters.energy}
+  setFilter={(filter) => updateFilters(filter)}
 />
+
+<Statistics
+  bind:isOpen={isStatsOpen}
+  presetStats={filters.stats}
+  setFilter={(filter) => updateFilters(filter)}
+/>
+
+
 
 <style>
   :global(.cc-dropdown-on-hover:hover .dropdown-menu) {

@@ -13,7 +13,7 @@
     - `const allJobStates [String]`: List of all available job states used in cc-backend
  -->
 
-<script context="module">
+<script module>
   export const allJobStates = [
     "running",
     "completed",
@@ -27,7 +27,8 @@
 </script>
 
 <script>
-  import { createEventDispatcher } from "svelte";
+  /* Note: Ignore VSCode reported 'A component can only have one instance-level <script> element' error */
+  
   import {
     Button,
     ListGroup,
@@ -38,16 +39,16 @@
     ModalFooter,
   } from "@sveltestrap/sveltestrap";
 
-  const dispatch = createEventDispatcher();
+  /* Svelte 5 Props */
+  let {
+    isOpen = $bindable(false),
+    presetStates = [...allJobStates],
+    setFilter
+  } = $props();
 
-  export let isModified = false;
-  export let isOpen = false;
-  export let states = [...allJobStates];
+  /* State Init */
+  let pendingStates = $state([...presetStates]);
 
-  let pendingStates = [...states];
-  $: isModified =
-    states.length != pendingStates.length ||
-    !states.every((state) => pendingStates.includes(state));
 </script>
 
 <Modal {isOpen} toggle={() => (isOpen = !isOpen)}>
@@ -71,28 +72,25 @@
     <Button
       color="primary"
       disabled={pendingStates.length == 0}
-      on:click={() => {
+      onclick={() => {
         isOpen = false;
-        states = [...pendingStates];
-        dispatch("set-filter", { states });
+        setFilter({ states: [...pendingStates] });
       }}>Close & Apply</Button
     >
     <Button
       color="warning"
-      on:click={() => {
-        states = [...allJobStates];
+      onclick={() => {
         pendingStates = [];
       }}>Deselect All</Button
     >
     <Button
       color="danger"
-      on:click={() => {
+      onclick={() => {
         isOpen = false;
-        states = [...allJobStates];
         pendingStates = [...allJobStates];
-        dispatch("set-filter", { states });
+        setFilter({ states: [...pendingStates] });
       }}>Reset</Button
     >
-    <Button on:click={() => (isOpen = false)}>Close</Button>
+    <Button onclick={() => (isOpen = false)}>Close</Button>
   </ModalFooter>
 </Modal>

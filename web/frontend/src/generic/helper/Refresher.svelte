@@ -10,15 +10,7 @@
 <script>
   import { Button, Icon, Input, InputGroup } from "@sveltestrap/sveltestrap";
 
-  let refreshInterval = $state(null);
-  let refreshIntervalId = null;
-
-  function refreshIntervalChanged() {
-    if (refreshIntervalId != null) clearInterval(refreshIntervalId);
-    if (refreshInterval == null) return;
-    refreshIntervalId = setInterval(() => dispatch("refresh"), refreshInterval);
-  }
-
+  /* Svelte 5 Props */
   let {
     initially = null,
     onRefresh
@@ -27,6 +19,19 @@
   if (initially != null) {
     refreshInterval = initially * 1000;
     refreshIntervalChanged();
+  }
+
+  /* State Init */
+  let refreshInterval = $state(null);
+
+  /* Var Init */
+  let refreshIntervalId = null;
+
+  /* Functions */
+  function refreshIntervalChanged() {
+    if (refreshIntervalId != null) clearInterval(refreshIntervalId);
+    if (refreshInterval == null) return;
+    refreshIntervalId = setInterval(() => onRefresh(), refreshInterval);
   }
 </script>
 

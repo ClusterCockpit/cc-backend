@@ -2,7 +2,6 @@
     @component Filter sub-component for selecting job statistics
 
     Properties:
-    - `isModified Bool?`: Is this filter component modified [Default: false]
     - `isOpen Bool?`: Is this filter component opened [Default: false]
     - `stats [Object]?`: The currently selected statistics filter [Default: []]
 
@@ -11,7 +10,6 @@
  -->
 
 <script>
-  import { createEventDispatcher, getContext } from "svelte";
   import { getStatsItems } from "../utils.js";
   import {
     Button,
@@ -22,75 +20,68 @@
   } from "@sveltestrap/sveltestrap";
   import DoubleRangeSlider from "../select/DoubleRangeSlider.svelte";
 
-  const initialized = getContext("initialized"),
-    dispatch = createEventDispatcher();
+  /* Svelte 5 Props */
+  let { 
+    isOpen = $bindable(),
+    presetStats,
+    setFilter
+   } = $props();
 
-  export let isModified = false;
-  export let isOpen = false;
-  export let stats = [];
+  /* Derived Init */
+  const availableStats = $derived(getStatsItems(presetStats));
 
-  let statistics = [];
-
-  function loadRanges(isInitialized) {
-    if (!isInitialized) return;
-    statistics = getStatsItems(stats);
-  }
-
+  /* Functions */
   function resetRanges() {
-    for (let st of statistics) {
-      st.enabled = false
-      st.from = 0
-      st.to = st.peak
-    } 
+    for (let as of availableStats) {
+      as.enabled = false
+      as.from = 0
+      as.to = as.peak
+    };
   }
-
-  $: isModified = !statistics.every((a) => {
-    let b = stats.find((s) => s.field == a.field);
-    if (b == null) return !a.enabled;
-
-    return a.from == b.from && a.to == b.to;
-  });
-
-  $: loadRanges($initialized);
-
 </script>
 
 <Modal {isOpen} toggle={() => (isOpen = !isOpen)}>
-  <ModalHeader>Filter based on statistics</ModalHeader>
+  <ModalHeader>
+    <span>Filter based on statistics</span>
+  </ModalHeader>
   <ModalBody>
-    {#each statistics as stat}
-      <h4>{stat.text}</h4>
-      <DoubleRangeSlider
-        on:change={({ detail }) => (
-          (stat.from = detail[0]), (stat.to = detail[1]), (stat.enabled = true)
-        )}
-        min={0}
-        max={stat.peak}
-        firstSlider={stat.from}
-        secondSlider={stat.to}
-        inputFieldFrom={stat.from}
-        inputFieldTo={stat.to}
-      />
+    {#each availableStats as aStat}
+      <div class="mb-3">
+        <div class="mb-0"><b>{aStat.text}</b></div>
+        <DoubleRangeSlider
+          changeRange={(detail) => {
+            aStat.from = detail[0];
+            aStat.to = detail[1];
+            if (aStat.from == 0 && aStat.to == aStat.peak) {
+              aStat.enabled = false;
+            } else {
+              aStat.enabled = true;
+            }
+          }}
+          sliderMin={0.0}
+          sliderMax={aStat.peak}
+          fromPreset={aStat.from}
+          toPreset={aStat.to}
+        />
+      </div>
     {/each}
   </ModalBody>
   <ModalFooter>
     <Button
       color="primary"
-      on:click={() => {
+      onclick={() => {
         isOpen = false;
-        stats = statistics.filter((stat) => stat.enabled);
-        dispatch("set-filter", { stats });
+        setFilter({ stats: [...availableStats.filter((as) => as.enabled)] });
       }}>Close & Apply</Button
     >
     <Button
       color="danger"
-      on:click={() => {
+      onclick={() => {
         isOpen = false;
         resetRanges();
-        stats = [];
-        dispatch("set-filter", { stats });
+        setFilter({stats: []});
       }}>Reset</Button
     >
-    <Button on:click={() => (isOpen = false)}>Close</Button>
+    <Button onclick={() => (isOpen = false)}>Close</Button>
   </ModalFooter>
 </Modal>

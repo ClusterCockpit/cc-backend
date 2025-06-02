@@ -14,7 +14,8 @@
   import { InputGroup, Input, Button, Icon } from "@sveltestrap/sveltestrap";
   import { scramble, scrambleNames } from "../utils.js";
 
-  // If page with this component has project preset, keep preset until reset
+  // Note: If page with this component has project preset, keep preset until reset
+  /* Svelte 5 Props */
   let {
     presetProject = "",
     authlevel = null,
@@ -22,14 +23,20 @@
     setFilter
   } = $props();
 
-  let mode = $state(presetProject ? "jobName" : "project");
-  let term = $state("");
+  /* Const Init*/
+  const throttle = 500;
 
+  /* Var Init */
   let user = "";
   let project = presetProject ? presetProject : "";
   let jobName = "";
-  const throttle = 500;
+  let timeoutId = null;
 
+  /* State Init */
+  let mode = $state(presetProject ? "jobName" : "project");
+  let term = $state("");
+
+  /* Functions */
   function modeChanged() {
     if (mode == "user") {
       project = presetProject ? presetProject : "";
@@ -44,7 +51,6 @@
     termChanged(0);
   }
 
-  let timeoutId = null;
   // Compatibility: Handle "user role" and "no role" identically
   function termChanged(sleep = throttle) {
     if (roles && authlevel >= roles.manager) {
