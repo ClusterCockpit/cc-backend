@@ -8,42 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"time"
 )
-
-// BaseJob is the common part of the job metadata structs
-//
-// Common subset of Job and JobMeta. Use one of those, not this type directly.
-
-type BaseJob struct {
-	Cluster            string             `json:"cluster" db:"cluster" example:"fritz"`
-	SubCluster         string             `json:"subCluster" db:"subcluster" example:"main"`
-	Partition          string             `json:"partition,omitempty" db:"cluster_partition" example:"main"`
-	Project            string             `json:"project" db:"project" example:"abcd200"`
-	User               string             `json:"user" db:"hpc_user" example:"abcd100h"`
-	State              JobState           `json:"jobState" db:"job_state" example:"completed" enums:"completed,failed,cancelled,stopped,timeout,out_of_memory"`
-	Tags               []*Tag             `json:"tags,omitempty"`
-	RawEnergyFootprint []byte             `json:"-" db:"energy_footprint"`
-	RawFootprint       []byte             `json:"-" db:"footprint"`
-	RawMetaData        []byte             `json:"-" db:"meta_data"`
-	RawResources       []byte             `json:"-" db:"resources"`
-	Resources          []*Resource        `json:"resources"`
-	EnergyFootprint    map[string]float64 `json:"energyFootprint"`
-	Footprint          map[string]float64 `json:"footprint"`
-	MetaData           map[string]string  `json:"metaData"`
-	ConcurrentJobs     JobLinkResultList  `json:"concurrentJobs"`
-	Energy             float64            `json:"energy" db:"energy"`
-	ArrayJobId         int64              `json:"arrayJobId,omitempty" db:"array_job_id" example:"123000"`
-	Walltime           int64              `json:"walltime,omitempty" db:"walltime" example:"86400" minimum:"1"`
-	JobID              int64              `json:"jobId" db:"job_id" example:"123000"`
-	Duration           int32              `json:"duration" db:"duration" example:"43200" minimum:"1"`
-	SMT                int32              `json:"smt,omitempty" db:"smt" example:"4"`
-	MonitoringStatus   int32              `json:"monitoringStatus,omitempty" db:"monitoring_status" example:"1" minimum:"0" maximum:"3"`
-	Exclusive          int32              `json:"exclusive" db:"exclusive" example:"1" minimum:"0" maximum:"2"`
-	NumAcc             int32              `json:"numAcc,omitempty" db:"num_acc" example:"2" minimum:"1"`
-	NumHWThreads       int32              `json:"numHwthreads,omitempty" db:"num_hwthreads" example:"20" minimum:"1"`
-	NumNodes           int32              `json:"numNodes" db:"num_nodes" example:"2" minimum:"1"`
-}
 
 // Job struct type
 //
@@ -52,10 +17,36 @@ type BaseJob struct {
 // Job model
 // @Description Information of a HPC job.
 type Job struct {
-	StartTime time.Time `json:"startTime"`
-	BaseJob
-	ID            int64 `json:"id" db:"id"`
-	StartTimeUnix int64 `json:"-" db:"start_time" example:"1649723812"`
+	Cluster            string                   `json:"cluster" db:"cluster" example:"fritz"`
+	SubCluster         string                   `json:"subCluster" db:"subcluster" example:"main"`
+	Partition          string                   `json:"partition,omitempty" db:"cluster_partition" example:"main"`
+	Project            string                   `json:"project" db:"project" example:"abcd200"`
+	User               string                   `json:"user" db:"hpc_user" example:"abcd100h"`
+	State              JobState                 `json:"jobState" db:"job_state" example:"completed" enums:"completed,failed,cancelled,stopped,timeout,out_of_memory"`
+	Tags               []*Tag                   `json:"tags,omitempty"`
+	RawEnergyFootprint []byte                   `json:"-" db:"energy_footprint"`
+	RawFootprint       []byte                   `json:"-" db:"footprint"`
+	RawMetaData        []byte                   `json:"-" db:"meta_data"`
+	RawResources       []byte                   `json:"-" db:"resources"`
+	Resources          []*Resource              `json:"resources"`
+	EnergyFootprint    map[string]float64       `json:"energyFootprint"`
+	Footprint          map[string]float64       `json:"footprint"`
+	MetaData           map[string]string        `json:"metaData"`
+	ConcurrentJobs     JobLinkResultList        `json:"concurrentJobs"`
+	Energy             float64                  `json:"energy" db:"energy"`
+	ArrayJobId         int64                    `json:"arrayJobId,omitempty" db:"array_job_id" example:"123000"`
+	Walltime           int64                    `json:"walltime,omitempty" db:"walltime" example:"86400" minimum:"1"`
+	JobID              int64                    `json:"jobId" db:"job_id" example:"123000"`
+	Duration           int32                    `json:"duration" db:"duration" example:"43200" minimum:"1"`
+	SMT                int32                    `json:"smt,omitempty" db:"smt" example:"4"`
+	MonitoringStatus   int32                    `json:"monitoringStatus,omitempty" db:"monitoring_status" example:"1" minimum:"0" maximum:"3"`
+	Exclusive          int32                    `json:"exclusive" db:"exclusive" example:"1" minimum:"0" maximum:"2"`
+	NumAcc             int32                    `json:"numAcc,omitempty" db:"num_acc" example:"2" minimum:"1"`
+	NumHWThreads       int32                    `json:"numHwthreads,omitempty" db:"num_hwthreads" example:"20" minimum:"1"`
+	NumNodes           int32                    `json:"numNodes" db:"num_nodes" example:"2" minimum:"1"`
+	Statistics         map[string]JobStatistics `json:"statistics"`
+	ID                 *int64                   `json:"id,omitempty" db:"id"`
+	StartTime          int64                    `json:"startTime" db:"start_time" example:"1649723812"`
 }
 
 //	JobMeta struct type
@@ -70,12 +61,12 @@ type Job struct {
 //
 // JobMeta model
 // @Description Meta data information of a HPC job.
-type JobMeta struct {
-	ID         *int64                   `json:"id,omitempty"`
-	Statistics map[string]JobStatistics `json:"statistics"`
-	BaseJob
-	StartTime int64 `json:"startTime" db:"start_time" example:"1649723812" minimum:"1"`
-}
+// type JobMeta struct {
+// 	ID         *int64                   `json:"id,omitempty"`
+// 	BaseJob
+// 	Statistics map[string]JobStatistics `json:"statistics"`
+// 	StartTime int64 `json:"startTime" db:"start_time" example:"1649723812" minimum:"1"`
+// }
 
 type JobLink struct {
 	ID    int64 `json:"id"`
@@ -94,10 +85,10 @@ const (
 	MonitoringStatusArchivingSuccessful int32 = 3
 )
 
-var JobDefaults BaseJob = BaseJob{
-	Exclusive:        1,
-	MonitoringStatus: MonitoringStatusRunningOrArchiving,
-}
+// var JobDefaults Job = Job{
+// 	Exclusive:        1,
+// 	MonitoringStatus: MonitoringStatusRunningOrArchiving,
+// }
 
 type Unit struct {
 	Base   string `json:"base"`
@@ -144,9 +135,9 @@ const (
 	JobStateOutOfMemory JobState = "out_of_memory"
 )
 
-func (j JobMeta) GoString() string {
-	return fmt.Sprintf("JobMeta{ID:%d, StartTime:%d, JobID:%v, BaseJob:%v}",
-		j.ID, j.StartTime, j.JobID, j.BaseJob)
+func (j Job) GoString() string {
+	return fmt.Sprintf("Job{ID:%d, StartTime:%d, JobID:%v, BaseJob:%v}",
+		j.ID, j.StartTime, j.JobID, j)
 }
 
 func (e *JobState) UnmarshalGQL(v any) error {

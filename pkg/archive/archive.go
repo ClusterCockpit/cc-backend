@@ -23,7 +23,7 @@ type ArchiveBackend interface {
 
 	Exists(job *schema.Job) bool
 
-	LoadJobMeta(job *schema.Job) (*schema.JobMeta, error)
+	LoadJobMeta(job *schema.Job) (*schema.Job, error)
 
 	LoadJobData(job *schema.Job) (schema.JobData, error)
 
@@ -31,9 +31,9 @@ type ArchiveBackend interface {
 
 	LoadClusterCfg(name string) (*schema.Cluster, error)
 
-	StoreJobMeta(jobMeta *schema.JobMeta) error
+	StoreJobMeta(jobMeta *schema.Job) error
 
-	ImportJob(jobMeta *schema.JobMeta, jobData *schema.JobData) error
+	ImportJob(jobMeta *schema.Job, jobData *schema.JobData) error
 
 	GetClusters() []string
 
@@ -51,7 +51,7 @@ type ArchiveBackend interface {
 }
 
 type JobContainer struct {
-	Meta *schema.JobMeta
+	Meta *schema.Job
 	Data *schema.JobData
 }
 
@@ -162,7 +162,6 @@ func LoadScopedStatsFromArchive(
 	metrics []string,
 	scopes []schema.MetricScope,
 ) (schema.ScopedJobStats, error) {
-
 	data, err := ar.LoadJobStats(job)
 	if err != nil {
 		log.Errorf("Error while loading job stats from archiveBackend: %s", err.Error())

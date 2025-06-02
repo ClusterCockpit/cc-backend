@@ -24,7 +24,7 @@ func TestFind(t *testing.T) {
 
 	// fmt.Printf("%+v", job)
 
-	if job.ID != 5 {
+	if *job.ID != 5 {
 		t.Errorf("wrong summary for diagnostic 3\ngot: %d \nwant: 1366", job.JobID)
 	}
 }

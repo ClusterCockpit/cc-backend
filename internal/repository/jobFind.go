@@ -227,7 +227,7 @@ func (r *JobRepository) FindConcurrentJobs(
 	var startTime int64
 	var stopTime int64
 
-	startTime = job.StartTimeUnix
+	startTime = job.StartTime
 	hostname := job.Resources[0].Hostname
 
 	if job.State == schema.JobStateRunning {

@@ -398,6 +398,8 @@ type ClusterResolver interface {
 	Partitions(ctx context.Context, obj *schema.Cluster) ([]string, error)
 }
 type JobResolver interface {
+	StartTime(ctx context.Context, obj *schema.Job) (*time.Time, error)
+
 	Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error)
 
 	ConcurrentJobs(ctx context.Context, obj *schema.Job) (*model.JobLinkResultList, error)
@@ -5456,9 +5458,9 @@ func (ec *executionContext) _Job_id(ctx context.Context, field graphql.Collected
 		}
 		return graphql.Null
 	}
-	res := resTmp.(int64)
+	res := resTmp.(*int64)
 	fc.Result = res
-	return ec.marshalNID2int64(ctx, field.Selections, res)
+	return ec.marshalNID2ᚖint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Job_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -5708,7 +5710,7 @@ func (ec *executionContext) _Job_startTime(ctx context.Context, field graphql.Co
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.StartTime, nil
+		return ec.resolvers.Job().StartTime(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -5720,17 +5722,17 @@ func (ec *executionContext) _Job_startTime(ctx context.Context, field graphql.Co
 		}
 		return graphql.Null
 	}
-	res := resTmp.(time.Time)
+	res := resTmp.(*time.Time)
 	fc.Result = res
-	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+	return ec.marshalNTime2ᚖtimeᚐTime(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Job_startTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Job",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Time does not have child fields")
 		},
@@ -17424,10 +17426,41 @@ func (ec *executionContext) _Job(ctx context.Context, sel ast.SelectionSet, obj 
 				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "startTime":
-			out.Values[i] = ec._Job_startTime(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Job_startTime(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "duration":
 			out.Values[i] = ec._Job_duration(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -20580,6 +20613,27 @@ func (ec *executionContext) marshalNID2ᚕstringᚄ(ctx context.Context, sel ast
 	return ret
 }
 
+func (ec *executionContext) unmarshalNID2ᚖint64(ctx context.Context, v any) (*int64, error) {
+	res, err := graphql.UnmarshalInt64(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNID2ᚖint64(ctx context.Context, sel ast.SelectionSet, v *int64) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	res := graphql.MarshalInt64(*v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
+}
+
 func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v any) (int, error) {
 	res, err := graphql.UnmarshalInt(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -21791,6 +21845,27 @@ func (ec *executionContext) unmarshalNTime2timeᚐTime(ctx context.Context, v an
 
 func (ec *executionContext) marshalNTime2timeᚐTime(ctx context.Context, sel ast.SelectionSet, v time.Time) graphql.Marshaler {
 	res := graphql.MarshalTime(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
+}
+
+func (ec *executionContext) unmarshalNTime2ᚖtimeᚐTime(ctx context.Context, v any) (*time.Time, error) {
+	res, err := graphql.UnmarshalTime(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNTime2ᚖtimeᚐTime(ctx context.Context, sel ast.SelectionSet, v *time.Time) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	res := graphql.MarshalTime(*v)
 	if res == graphql.Null {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")

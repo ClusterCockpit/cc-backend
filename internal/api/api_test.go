@@ -278,7 +278,7 @@ func TestRestApi(t *testing.T) {
 			job.MonitoringStatus != 1 ||
 			job.SMT != 1 ||
 			!reflect.DeepEqual(job.Resources, []*schema.Resource{{Hostname: "host123", HWThreads: []int{0, 1, 2, 3, 4, 5, 6, 7}}}) ||
-			job.StartTime.Unix() != 123456789 {
+			job.StartTime != 123456789 {
 			t.Fatalf("unexpected job properties: %#v", job)
 		}
 

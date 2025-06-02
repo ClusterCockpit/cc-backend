@@ -291,7 +291,7 @@ func (r *JobRepository) JobsStats(
 	return stats, nil
 }
 
-func LoadJobStat(job *schema.JobMeta, metric string, statType string) float64 {
+func LoadJobStat(job *schema.Job, metric string, statType string) float64 {
 	if stats, ok := job.Statistics[metric]; ok {
 		switch statType {
 		case "avg":
@@ -759,7 +759,6 @@ func (r *JobRepository) runningJobsMetricStatisticsHistogram(
 	filters []*model.JobFilter,
 	bins *int,
 ) []*model.MetricHistoPoints {
-
 	// Get Jobs
 	jobs, err := r.QueryJobs(ctx, filters, &model.PageRequest{Page: 1, ItemsPerPage: 500 + 1}, nil)
 	if err != nil {
