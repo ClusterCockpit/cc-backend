@@ -103,15 +103,17 @@
         setFilter({ cluster: pendingCluster, partition: pendingPartition });
       }}>Close & Apply</Button
     >
-    <Button
-      color="danger"
-      onclick={() => {
-        isOpen = false;
-        pendingCluster = null;
-        pendingPartition = null;
-        setFilter({ cluster: pendingCluster, partition: pendingPartition})
-      }}>Reset</Button
-    >
+    {#if !disableClusterSelection}
+      <Button
+        color="danger"
+        onclick={() => {
+          isOpen = false;
+          pendingCluster = null;
+          pendingPartition = null;
+          setFilter({ cluster: pendingCluster, partition: pendingPartition})
+        }}>Reset</Button
+      >
+    {/if}
     <Button onclick={() => (isOpen = false)}>Close</Button>
   </ModalFooter>
 </Modal>
