@@ -165,7 +165,7 @@
     <!-- Refresh Col-->
     <Col class="mt-2 mt-lg-0">
       <Refresher
-        on:refresh={() => {
+        onRefresh={() => {
           const diff = Date.now() - to;
           from = new Date(from.getTime() + diff);
           to = new Date(to.getTime() + diff);

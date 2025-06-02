@@ -16,13 +16,8 @@
     onRefresh
   } = $props();
 
-  if (initially != null) {
-    refreshInterval = initially * 1000;
-    refreshIntervalChanged();
-  }
-
   /* State Init */
-  let refreshInterval = $state(null);
+  let refreshInterval = $state(initially ? initially * 1000 : null);
 
   /* Var Init */
   let refreshIntervalId = null;
@@ -33,6 +28,11 @@
     if (refreshInterval == null) return;
     refreshIntervalId = setInterval(() => onRefresh(), refreshInterval);
   }
+
+  /* Svelte 5 onMount */
+  $effect(() => {
+    refreshIntervalChanged();
+  });
 </script>
 
 <InputGroup>

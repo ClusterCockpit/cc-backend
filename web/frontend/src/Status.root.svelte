@@ -342,7 +342,7 @@
   <Col class="mt-2 mt-md-0">
     <Refresher
       initially={120}
-      on:refresh={() => {
+      onRefresh={() => {
         from = new Date(Date.now() - 5 * 60 * 1000);
         to = new Date(Date.now());
       }}
