@@ -33,7 +33,7 @@
   let loadScopes = false;
   let selectedScopes = [];
   let selectedMetrics = [];
-  let availableMetrics = new Set(); // For Info Only, filled by MetricSelection Component
+  let totalMetrics = 0; // For Info Only, filled by MetricSelection Component
   let isMetricSelectionOpen = false;
 
   const client = getContextClient();
@@ -99,7 +99,7 @@
   <Row>
     <Col class="m-2">
       <Button outline on:click={() => (isMetricSelectionOpen = true)} class="px-2" color="primary" style="margin-right:0.5rem">
-        Select Metrics (Selected {selectedMetrics.length} of {availableMetrics.size} available)
+        Select Metrics (Selected {selectedMetrics.length} of {totalMetrics} available)
       </Button>
       {#if job.numNodes > 1}
         <Button class="px-2 ml-auto" color="success" outline on:click={() => (loadScopes = !loadScopes)} disabled={loadScopes}>
@@ -136,10 +136,13 @@
 </TabPane>
 
 <MetricSelection
+  bind:isOpen={isMetricSelectionOpen}
+  bind:totalMetrics
+  presetMetrics={selectedMetrics}
   cluster={job.cluster}
   subCluster={job.subCluster}
   configName="job_view_nodestats_selectedMetrics"
-  bind:allMetrics={availableMetrics}
-  bind:metrics={selectedMetrics}
-  bind:isOpen={isMetricSelectionOpen}
+  applyMetrics={(newMetrics) => 
+    selectedMetrics = [...newMetrics]
+  }
 />

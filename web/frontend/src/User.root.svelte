@@ -366,12 +366,15 @@
 <Sorting bind:sorting bind:isOpen={isSortingOpen} />
 
 <MetricSelection
-  bind:cluster={selectedCluster}
-  configName="plot_list_selectedMetrics"
-  bind:metrics
-  bind:isOpen={isMetricsSelectionOpen}
-  bind:showFootprint
-  footprintSelect
+    bind:isOpen={isMetricsSelectionOpen}
+    bind:showFootprint
+    presetMetrics={metrics}
+    cluster={selectedCluster}
+    configName="plot_list_selectedMetrics"
+    applyMetrics={(newMetrics) => 
+      metrics = [...newMetrics]
+    }
+    footprintSelect
 />
 
 <HistogramSelection

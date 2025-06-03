@@ -193,12 +193,12 @@
 {/if}
 
 <MetricSelection
+  bind:isOpen={isMetricsSelectionOpen}
+  presetMetrics={selectedMetrics}
   {cluster}
   {subCluster}
   configName="node_list_selectedMetrics"
-  metrics={selectedMetrics}
-  bind:isOpen={isMetricsSelectionOpen}
-  on:update-metrics={({ detail }) => {
-    selectedMetrics = [...detail]
-  }}
+  applyMetrics={(newMetrics) => 
+    selectedMetrics = [...newMetrics]
+  }
 />

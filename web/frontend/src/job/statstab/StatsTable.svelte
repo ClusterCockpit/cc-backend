@@ -81,7 +81,7 @@
   <thead>
     <!-- Header Row 1: Selectors -->
     <tr>
-      <th/>
+      <th></th>
       {#each selectedMetrics as metric}
         <!-- To Match Row-2 Header Field Count-->
         <th colspan={selectedScopes[metric] == "node" ? 3 : 4}>
