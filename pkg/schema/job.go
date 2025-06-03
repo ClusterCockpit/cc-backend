@@ -36,6 +36,7 @@ type Job struct {
 	Energy             float64                  `json:"energy" db:"energy"`
 	ArrayJobId         int64                    `json:"arrayJobId,omitempty" db:"array_job_id" example:"123000"`
 	Walltime           int64                    `json:"walltime,omitempty" db:"walltime" example:"86400" minimum:"1"`
+	RequestedMemory    int64                    `json:"requestedMemory,omitempty" db:"requested_memory" example:"128000" minimum:"1"` // in MB
 	JobID              int64                    `json:"jobId" db:"job_id" example:"123000"`
 	Duration           int32                    `json:"duration" db:"duration" example:"43200" minimum:"1"`
 	SMT                int32                    `json:"smt,omitempty" db:"smt" example:"4"`
