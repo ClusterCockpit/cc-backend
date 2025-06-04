@@ -129,7 +129,7 @@
   {:else}
     <StatsTable 
       hosts={job.resources.map((r) => r.hostname).sort()}
-      data={$scopedStats?.data?.scopedJobStats}
+      jobStats={$scopedStats?.data?.scopedJobStats}
       {selectedMetrics}
     />
   {/if}
@@ -142,6 +142,7 @@
   cluster={job.cluster}
   subCluster={job.subCluster}
   configName="job_view_nodestats_selectedMetrics"
+  preInitialized
   applyMetrics={(newMetrics) => 
     selectedMetrics = [...newMetrics]
   }
