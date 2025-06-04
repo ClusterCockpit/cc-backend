@@ -304,6 +304,21 @@ func (r *mutationResolver) UpdateConfiguration(ctx context.Context, name string,
 	return nil, nil
 }
 
+// NodeState is the resolver for the nodeState field.
+func (r *nodeResolver) NodeState(ctx context.Context, obj *schema.Node) (string, error) {
+	panic(fmt.Errorf("not implemented: NodeState - nodeState"))
+}
+
+// HealthState is the resolver for the HealthState field.
+func (r *nodeResolver) HealthState(ctx context.Context, obj *schema.Node) (schema.NodeState, error) {
+	panic(fmt.Errorf("not implemented: HealthState - HealthState"))
+}
+
+// MetaData is the resolver for the metaData field.
+func (r *nodeResolver) MetaData(ctx context.Context, obj *schema.Node) (any, error) {
+	panic(fmt.Errorf("not implemented: MetaData - metaData"))
+}
+
 // Clusters is the resolver for the clusters field.
 func (r *queryResolver) Clusters(ctx context.Context) ([]*schema.Cluster, error) {
 	return archive.Clusters, nil
@@ -775,6 +790,9 @@ func (r *Resolver) MetricValue() generated.MetricValueResolver { return &metricV
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
 
+// Node returns generated.NodeResolver implementation.
+func (r *Resolver) Node() generated.NodeResolver { return &nodeResolver{r} }
+
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
@@ -785,5 +803,6 @@ type clusterResolver struct{ *Resolver }
 type jobResolver struct{ *Resolver }
 type metricValueResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
+type nodeResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subClusterResolver struct{ *Resolver }

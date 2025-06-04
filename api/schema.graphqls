@@ -4,61 +4,78 @@ scalar Any
 scalar NullableFloat
 scalar MetricScope
 scalar JobState
+scalar NodeState
+scalar MonitoringState
+
+type Node {
+  id: ID!
+  hostname: String!
+  cluster: String!
+  subCluster: String!
+  nodeState: NodeState!
+  HealthState: MonitoringState!
+  metaData: Any
+}
+
+type NodeStats {
+  state: String!
+  count: Int!
+}
 
 type Job {
-  id:               ID!
-  jobId:            Int!
-  user:             String!
-  project:          String!
-  cluster:          String!
-  subCluster:       String!
-  startTime:        Time!
-  duration:         Int!
-  walltime:         Int!
-  numNodes:         Int!
-  numHWThreads:     Int!
-  numAcc:           Int!
-  energy:           Float!
-  SMT:              Int!
-  exclusive:        Int!
-  partition:        String!
-  arrayJobId:       Int!
+  id: ID!
+  jobId: Int!
+  user: String!
+  project: String!
+  cluster: String!
+  subCluster: String!
+  startTime: Time!
+  duration: Int!
+  walltime: Int!
+  numNodes: Int!
+  numHWThreads: Int!
+  numAcc: Int!
+  energy: Float!
+  SMT: Int!
+  exclusive: Int!
+  partition: String!
+  arrayJobId: Int!
   monitoringStatus: Int!
-  state:            JobState!
-  tags:             [Tag!]!
-  resources:        [Resource!]!
-  concurrentJobs:   JobLinkResultList
-  footprint:        [FootprintValue]
-  energyFootprint:  [EnergyFootprintValue]
-  metaData:         Any
-  userData:         User
+  state: JobState!
+  tags: [Tag!]!
+  resources: [Resource!]!
+  concurrentJobs: JobLinkResultList
+  footprint: [FootprintValue]
+  energyFootprint: [EnergyFootprintValue]
+  metaData: Any
+  userData: User
 }
 
 type JobLink {
-  id:               ID!
-  jobId:            Int!
+  id: ID!
+  jobId: Int!
 }
 
 type Cluster {
-  name:         String!
-  partitions:   [String!]!        # Slurm partitions
-  subClusters:  [SubCluster!]!    # Hardware partitions/subclusters
+  name: String!
+  partitions: [String!]! # Slurm partitions
+  subClusters: [SubCluster!]! # Hardware partitions/subclusters
 }
 
 type SubCluster {
-  name:            String!
-  nodes:           String!
-  numberOfNodes:   Int!
-  processorType:   String!
-  socketsPerNode:  Int!
-  coresPerSocket:  Int!
-  threadsPerCore:  Int!
-  flopRateScalar:  MetricValue!
-  flopRateSimd:    MetricValue!
+  name: String!
+  nodes: String!
+  numberOfNodes: Int!
+  processorType: String!
+  socketsPerNode: Int!
+  coresPerSocket: Int!
+  threadsPerCore: Int!
+  flopRateScalar: MetricValue!
+  flopRateSimd: MetricValue!
   memoryBandwidth: MetricValue!
-  topology:        Topology!
-  metricConfig:    [MetricConfig!]!
-  footprint:       [String!]!
+  topology: Topology!
+  metricConfig: [MetricConfig!]!
+  footprint: [String!]!
 }
 
 type FootprintValue {
@@ -80,94 +97,94 @@ type MetricValue {
 }
 
 type Topology {
-  node:         [Int!]
-  socket:       [[Int!]!]
+  node: [Int!]
+  socket: [[Int!]!]
   memoryDomain: [[Int!]!]
-  die:          [[Int!]!]
-  core:         [[Int!]!]
+  die: [[Int!]!]
+  core: [[Int!]!]
   accelerators: [Accelerator!]
 }
 
 type Accelerator {
-  id:    String!
-  type:  String!
+  id: String!
+  type: String!
   model: String!
 }
 
 type SubClusterConfig {
-  name:    String!
-  peak:    Float
-  normal:  Float
+  name: String!
+  peak: Float
+  normal: Float
   caution: Float
-  alert:   Float
-  remove:  Boolean
+  alert: Float
+  remove: Boolean
 }
 
 type MetricConfig {
-  name:        String!
-  unit:        Unit!
-  scope:       MetricScope!
+  name: String!
+  unit: Unit!
+  scope: MetricScope!
   aggregation: String!
-  timestep:    Int!
-  peak:    Float!
-  normal:  Float
+  timestep: Int!
+  peak: Float!
+  normal: Float
   caution: Float!
-  alert:   Float!
+  alert: Float!
   lowerIsBetter: Boolean
   subClusters: [SubClusterConfig!]!
 }
 
 type Tag {
-  id:   ID!
+  id: ID!
   type: String!
   name: String!
   scope: String!
 }
 
 type Resource {
-  hostname:      String!
-  hwthreads:     [Int!]
-  accelerators:  [String!]
+  hostname: String!
+  hwthreads: [Int!]
+  accelerators: [String!]
   configuration: String
 }
 
 type JobMetricWithName {
-  name:   String!
-  scope:  MetricScope!
+  name: String!
+  scope: MetricScope!
   metric: JobMetric!
 }
 
 type JobMetric {
-  unit:             Unit
-  timestep:         Int!
-  series:           [Series!]
+  unit: Unit
+  timestep: Int!
+  series: [Series!]
   statisticsSeries: StatsSeries
 }
 
 type Series {
-  hostname:   String!
-  id:         String
+  hostname: String!
+  id: String
   statistics: MetricStatistics
-  data:       [NullableFloat!]!
+  data: [NullableFloat!]!
 }
 
 type StatsSeries {
-  mean:   [NullableFloat!]!
+  mean: [NullableFloat!]!
   median: [NullableFloat!]!
-  min:    [NullableFloat!]!
-  max:    [NullableFloat!]!
+  min: [NullableFloat!]!
+  max: [NullableFloat!]!
 }
 
 type NamedStatsWithScope {
-  name:   String!
-  scope:  MetricScope!
-  stats:  [ScopedStats!]!
+  name: String!
+  scope: MetricScope!
+  stats: [ScopedStats!]!
 }
 
 type ScopedStats {
-  hostname:   String!
-  id:         String
-  data:       MetricStatistics!
+  hostname: String!
+  id: String
+  data: MetricStatistics!
 }
 
 type JobStats {
@@ -184,8 +201,8 @@ type JobStats {
 }
 
 type NamedStats {
-  name:  String!
-  data:  MetricStatistics!
+  name: String!
+  data: MetricStatistics!
 }
 
 type Unit {
@@ -201,12 +218,12 @@ type MetricStatistics {
 
 type MetricFootprints {
   metric: String!
-  data:   [NullableFloat!]!
+  data: [NullableFloat!]!
 }
 
 type Footprints {
   timeWeights: TimeWeights!
-  metrics:   [MetricFootprints!]!
+  metrics: [MetricFootprints!]!
 }
 
 type TimeWeights {
@@ -215,20 +232,33 @@ type TimeWeights {
   coreHours: [NullableFloat!]!
 }
 
-enum Aggregate { USER, PROJECT, CLUSTER }
-enum SortByAggregate { TOTALWALLTIME, TOTALJOBS, TOTALNODES, TOTALNODEHOURS, TOTALCORES, TOTALCOREHOURS, TOTALACCS, TOTALACCHOURS }
+enum Aggregate {
+  USER
+  PROJECT
+  CLUSTER
+}
+enum SortByAggregate {
+  TOTALWALLTIME
+  TOTALJOBS
+  TOTALNODES
+  TOTALNODEHOURS
+  TOTALCORES
+  TOTALCOREHOURS
+  TOTALACCS
+  TOTALACCHOURS
+}
 
 type NodeMetrics {
-  host:       String!
+  host: String!
   subCluster: String!
-  metrics:    [JobMetricWithName!]!
+  metrics: [JobMetricWithName!]!
 }
 
 type NodesResultList {
-  items:  [NodeMetrics!]!
+  items: [NodeMetrics!]!
   offset: Int
-  limit:  Int
-  count:  Int
+  limit: Int
+  count: Int
   totalNodes: Int
   hasNextPage: Boolean
 }
@@ -247,14 +277,14 @@ type GlobalMetricListItem {
 }
 
 type Count {
-  name:  String!
+  name: String!
   count: Int!
 }
 
 type User {
   username: String!
-  name:     String!
-  email:    String!
+  name: String!
+  email: String!
 }
 
 input MetricStatItem {
@@ -263,27 +293,81 @@ input MetricStatItem {
 }
 
 type Query {
-  clusters:     [Cluster!]!   # List of all clusters
-  tags:         [Tag!]!       # List of all tags
-  globalMetrics:   [GlobalMetricListItem!]!
+  clusters: [Cluster!]! # List of all clusters
+  tags: [Tag!]! # List of all tags
+  globalMetrics: [GlobalMetricListItem!]!
 
   user(username: String!): User
   allocatedNodes(cluster: String!): [Count!]!
 
-  job(id: ID!): Job
-  jobMetrics(id: ID!, metrics: [String!], scopes: [MetricScope!], resolution: Int): [JobMetricWithName!]!
-  jobStats(id: ID!, metrics: [String!]): [NamedStats!]!
-  scopedJobStats(id: ID!, metrics: [String!], scopes: [MetricScope!]): [NamedStatsWithScope!]!
+  node(id: ID!): Node
+  nodes(filter: [NodeFilter!], order: OrderByInput): NodesResultList!
+  nodeStats(filter: [NodeFilter!]): [NodeStats!]!
 
-  jobs(filter: [JobFilter!], page: PageRequest, order: OrderByInput): JobResultList!
-  jobsStatistics(filter: [JobFilter!], metrics: [String!], page: PageRequest, sortBy: SortByAggregate, groupBy: Aggregate, numDurationBins: String, numMetricBins: Int): [JobsStatistics!]!
+  job(id: ID!): Job
+  jobMetrics(
+    id: ID!
+    metrics: [String!]
+    scopes: [MetricScope!]
+    resolution: Int
+  ): [JobMetricWithName!]!
+
+  jobStats(id: ID!, metrics: [String!]): [NamedStats!]!
+
+  scopedJobStats(
+    id: ID!
+    metrics: [String!]
+    scopes: [MetricScope!]
+  ): [NamedStatsWithScope!]!
+
+  jobs(
+    filter: [JobFilter!]
+    page: PageRequest
+    order: OrderByInput
+  ): JobResultList!
+
+  jobsStatistics(
+    filter: [JobFilter!]
+    metrics: [String!]
+    page: PageRequest
+    sortBy: SortByAggregate
+    groupBy: Aggregate
+    numDurationBins: String
+    numMetricBins: Int
+  ): [JobsStatistics!]!
+
   jobsMetricStats(filter: [JobFilter!], metrics: [String!]): [JobStats!]!
   jobsFootprints(filter: [JobFilter!], metrics: [String!]!): Footprints
 
-  rooflineHeatmap(filter: [JobFilter!]!, rows: Int!, cols: Int!, minX: Float!, minY: Float!, maxX: Float!, maxY: Float!): [[Float!]!]!
+  rooflineHeatmap(
+    filter: [JobFilter!]!
+    rows: Int!
+    cols: Int!
+    minX: Float!
+    minY: Float!
+    maxX: Float!
+    maxY: Float!
+  ): [[Float!]!]!
 
-  nodeMetrics(cluster: String!, nodes: [String!], scopes: [MetricScope!], metrics: [String!], from: Time!, to: Time!): [NodeMetrics!]!
-  nodeMetricsList(cluster: String!, subCluster: String!, nodeFilter: String!, scopes: [MetricScope!], metrics: [String!], from: Time!, to: Time!, page: PageRequest, resolution: Int): NodesResultList!
+  nodeMetrics(
+    cluster: String!
+    nodes: [String!]
+    scopes: [MetricScope!]
+    metrics: [String!]
+    from: Time!
+    to: Time!
+  ): [NodeMetrics!]!
+  nodeMetricsList(
+    cluster: String!
+    subCluster: String!
+    nodeFilter: String!
+    scopes: [MetricScope!]
+    metrics: [String!]
+    from: Time!
+    to: Time!
+    page: PageRequest
+    resolution: Int
+  ): NodesResultList!
 }
 
 type Mutation {
@@ -296,38 +380,53 @@ type Mutation {
   updateConfiguration(name: String!, value: String!): String
 }
 
-type IntRangeOutput { from: Int!, to: Int! }
-type TimeRangeOutput { range: String, from: Time!, to: Time! }
+type IntRangeOutput {
+  from: Int!
+  to: Int!
+}
+type TimeRangeOutput {
+  range: String
+  from: Time!
+  to: Time!
+}
+
+input NodeFilter {
+  hostname: StringInput
+  cluster: StringInput
+  subCluster: StringInput
+  nodeState: NodeState
+  healthState: MonitoringState
+}
 
 input JobFilter {
-  tags:        [ID!]
-  dbId:        [ID!]
-  jobId:       StringInput
-  arrayJobId:  Int
-  user:        StringInput
-  project:     StringInput
-  jobName:     StringInput
-  cluster:     StringInput
-  partition:   StringInput
-  duration:    IntRange
-  energy:      FloatRange
+  tags: [ID!]
+  dbId: [ID!]
+  jobId: StringInput
+  arrayJobId: Int
+  user: StringInput
+  project: StringInput
+  jobName: StringInput
+  cluster: StringInput
+  partition: StringInput
+  duration: IntRange
+  energy: FloatRange
 
   minRunningFor: Int
 
-  numNodes:        IntRange
+  numNodes: IntRange
   numAccelerators: IntRange
-  numHWThreads:    IntRange
+  numHWThreads: IntRange
 
-  startTime:   TimeRange
-  state:       [JobState!]
+  startTime: TimeRange
+  state: [JobState!]
   metricStats: [MetricStatItem!]
-  exclusive:     Int
-  node:    StringInput
+  exclusive: Int
+  node: StringInput
 }
 
 input OrderByInput {
   field: String!
-  type: String!,
+  type: String!
   order: SortDirectionEnum! = ASC
 }
 
@@ -337,34 +436,46 @@ enum SortDirectionEnum {
 }
 
 input StringInput {
-  eq:         String
-  neq:        String
-  contains:   String
+  eq: String
+  neq: String
+  contains: String
   startsWith: String
-  endsWith:   String
-  in:         [String!]
+  endsWith: String
+  in: [String!]
 }
 
-input IntRange   { from: Int!, to: Int! }
-input TimeRange  { range: String, from: Time, to: Time }
+input IntRange {
+  from: Int!
+  to: Int!
+}
+input TimeRange {
+  range: String
+  from: Time
+  to: Time
+}
 
 input FloatRange {
   from: Float!
   to: Float!
 }
 
+type NodesResultList {
+  items: [Node!]!
+  count: Int
+}
+
 type JobResultList {
-  items:  [Job!]!
+  items: [Job!]!
   offset: Int
-  limit:  Int
-  count:  Int
+  limit: Int
+  count: Int
   hasNextPage: Boolean
 }
 
 type JobLinkResultList {
   listQuery: String
-  items:  [JobLink!]!
-  count:  Int
+  items: [JobLink!]!
+  count: Int
 }
 
 type HistoPoint {
@@ -386,27 +497,27 @@ type MetricHistoPoint {
   max: Int
 }
 
-type JobsStatistics  {
-  id:             ID!            # If `groupBy` was used, ID of the user/project/cluster
-  name:           String!        # if User-Statistics: Given Name of Account (ID) Owner
-  totalJobs:      Int!           # Number of jobs
-  runningJobs:    Int!           # Number of running jobs
-  shortJobs:      Int!           # Number of jobs with a duration of less than duration
-  totalWalltime:  Int!           # Sum of the duration of all matched jobs in hours
-  totalNodes:     Int!           # Sum of the nodes of all matched jobs
-  totalNodeHours: Int!           # Sum of the node hours of all matched jobs
-  totalCores:     Int!           # Sum of the cores of all matched jobs
-  totalCoreHours: Int!           # Sum of the core hours of all matched jobs
-  totalAccs:      Int!         # Sum of the accs of all matched jobs
-  totalAccHours:  Int!           # Sum of the gpu hours of all matched jobs
-  histDuration:   [HistoPoint!]! # value: hour, count: number of jobs with a rounded duration of value
-  histNumNodes:   [HistoPoint!]! # value: number of nodes, count: number of jobs with that number of nodes
-  histNumCores:   [HistoPoint!]! # value: number of cores, count: number of jobs with that number of cores
-  histNumAccs:    [HistoPoint!]! # value: number of accs, count: number of jobs with that number of accs
-  histMetrics:    [MetricHistoPoints!]! # metric: metricname, data array of histopoints: value: metric average bin, count: number of jobs with that metric average
+type JobsStatistics {
+  id: ID! # If `groupBy` was used, ID of the user/project/cluster
+  name: String! # if User-Statistics: Given Name of Account (ID) Owner
+  totalJobs: Int! # Number of jobs
+  runningJobs: Int! # Number of running jobs
+  shortJobs: Int! # Number of jobs with a duration of less than duration
+  totalWalltime: Int! # Sum of the duration of all matched jobs in hours
+  totalNodes: Int! # Sum of the nodes of all matched jobs
+  totalNodeHours: Int! # Sum of the node hours of all matched jobs
+  totalCores: Int! # Sum of the cores of all matched jobs
+  totalCoreHours: Int! # Sum of the core hours of all matched jobs
+  totalAccs: Int! # Sum of the accs of all matched jobs
+  totalAccHours: Int! # Sum of the gpu hours of all matched jobs
+  histDuration: [HistoPoint!]! # value: hour, count: number of jobs with a rounded duration of value
+  histNumNodes: [HistoPoint!]! # value: number of nodes, count: number of jobs with that number of nodes
+  histNumCores: [HistoPoint!]! # value: number of cores, count: number of jobs with that number of cores
+  histNumAccs: [HistoPoint!]! # value: number of accs, count: number of jobs with that number of accs
+  histMetrics: [MetricHistoPoints!]! # metric: metricname, data array of histopoints: value: metric average bin, count: number of jobs with that metric average
 }
 
 input PageRequest {
   itemsPerPage: Int!
-  page:         Int!
+  page: Int!
 }
