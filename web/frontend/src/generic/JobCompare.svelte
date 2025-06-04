@@ -133,6 +133,7 @@
     }
     compareTableSorting = { ...compareTableSorting };
 
+    let pendingCompareData;
     if (key == 'resources') {
       let longField = "";
       switch (field) {
@@ -148,12 +149,13 @@
         default:
           console.log("Unknown Res Field", field)
       } 
-      compareTableData = compareTableData.sort((j1, j2) => {
+
+      pendingCompareData = compareTableData.sort((j1, j2) => {
         if (j1[longField] == null || j2[longField] == null) return -1;
         return s.dir != "up" ? j1[longField] - j2[longField] : j2[longField] - j1[longField];
       });
     } else if (key == 'meta') {
-      compareTableData = compareTableData.sort((j1, j2) => {
+      pendingCompareData = compareTableData.sort((j1, j2) => {
         if (j1[field] == null || j2[field] == null) return -1;
         if (field == 'cluster') {
           let c1 = `${j1.cluster} (${j1.subCluster})`
@@ -164,13 +166,15 @@
         }
       });
     } else {
-      compareTableData = compareTableData.sort((j1, j2) => {
+      pendingCompareData = compareTableData.sort((j1, j2) => {
         let s1 = j1.stats.find((m) => m.name == key)?.data;
         let s2 = j2.stats.find((m) => m.name == key)?.data;
         if (s1 == null || s2 == null) return -1;
         return s.dir != "up" ? s1[field] - s2[field] : s2[field] - s1[field];
       });
     }
+
+    compareTableData = [...pendingCompareData]
   }
 
   function jobs2uplot(jobs, metrics) {
