@@ -42,28 +42,26 @@
 <Row cols={1} class="p-2 g-2">
   <Col>
     <Card class="h-100">
+      <!-- Svelte 'class' directive only on DOMs directly, normal 'class="xxx"' does not work, so style-array it is. -->
+      <CardTitle
+        style="margin-bottom: 1em; display: flex; align-items: center;"
+      >
+        <div>Node List Paging Type</div>
+        {#if displayMessage && message.target == "npag"}<div
+            style="margin-left: auto; font-size: 0.9em;"
+          >
+            <code style="color: {message.color};" out:fade
+              >Update: {message.msg}</code
+            >
+          </div>{/if}
+      </CardTitle>
       <form
         id="node-paging-form"
         method="post"
         action="/frontend/configuration/"
         class="card-body"
-        on:submit|preventDefault={() =>
-          handleSettingSubmit("#node-paging-form", "npag")}
-      >
-        <!-- Svelte 'class' directive only on DOMs directly, normal 'class="xxx"' does not work, so style-array it is. -->
-        <CardTitle
-          style="margin-bottom: 1em; display: flex; align-items: center;"
-        >
-          <div>Node List Paging Type</div>
-          {#if displayMessage && message.target == "npag"}<div
-              style="margin-left: auto; font-size: 0.9em;"
-            >
-              <code style="color: {message.color};" out:fade
-                >Update: {message.msg}</code
-              >
-            </div>{/if}
-        </CardTitle>
-        <input type="hidden" name="nodes-key" value="node_list_usePaging" />
+        on:submit|preventDefault={() => handleSettingSubmit("#node-paging-form", "npag")}>
+        <input type="hidden" name="key" value="node_list_usePaging" />
         <div class="mb-3">
           <div>
             {#if config?.node_list_usePaging}

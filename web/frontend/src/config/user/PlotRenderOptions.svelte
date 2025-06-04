@@ -156,17 +156,17 @@
           <div class="mb-3">
             <div>
               {#if config.plot_general_colorBackground}
-                <input type="radio" id="true-checked" name="value" value="true" checked />
+                <input type="radio" id="colb-true-checked" name="value" value="true" checked />
               {:else}
-                <input type="radio" id="true" name="value" value="true" />
+                <input type="radio" id="colb-true" name="value" value="true" />
               {/if}
               <label for="true">Yes</label>
             </div>
             <div>
               {#if config.plot_general_colorBackground}
-                <input type="radio" id="false" name="value" value="false" />
+                <input type="radio" id="colb-false" name="value" value="false" />
               {:else}
-                <input type="radio" id="false-checked" name="value" value="false" checked />
+                <input type="radio" id="colb-false-checked" name="value" value="false" checked />
               {/if}
               <label for="false">No</label>
             </div>
