@@ -70,17 +70,18 @@
   ];
 
   /* Var Init */
-  let availableMetrics = [];
   let metricUnits = {};
   let metricScopes = {};
-  let rooflineMaxY;
-  let cluster;
-  let colWidth1, colWidth2;
   let numBins = 50;
   let maxY = -1;
 
   /* State Init */
   let filterComponent = $state(); // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
+  let cluster = $state("");
+  let availableMetrics = $state([]);
+  let rooflineMaxY = $state(0);
+  let colWidth1 = $state(0);
+  let colWidth2 = $state(0);
   let jobFilters = $state([]);
   let metricsInHistograms = $state(ccconfig.analysis_view_histogramMetrics)
   let metricsInScatterplots = $state(ccconfig.analysis_view_scatterPlotMetrics)
