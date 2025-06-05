@@ -7,7 +7,7 @@ mount(Tags, {
     props: {
         username: username,
         isAdmin: isAdmin,
-        tagmap: tagmap,
+        presetTagmap: tagmap,
     },
     context: new Map([
         ['cc-config', clusterCockpitConfig]
