@@ -113,7 +113,7 @@
       </Button>
     </ButtonGroup>
   </Col>
-  <Col lg="4" class="mb-1 mb-lg-0">
+  <Col lg="5" class="mb-1 mb-lg-0">
     <Filters
       bind:this={filterComponent}
       {filterPresets}
@@ -142,25 +142,27 @@
       />
     {/if}
   </Col>
-  <Col lg="2" class="mb-1 mb-lg-0">
+  <Col lg="3" class="mb-1 mb-lg-0 d-inline-flex align-items-start justify-content-end ">
     {#if !showCompare}
-      <Refresher onRefresh={() => {
+      <Refresher presetClass="w-auto" onRefresh={() => {
           jobList.refreshJobs()
           jobList.refreshAllMetrics()
       }} />
     {/if}
-  </Col>
-  <Col lg="2" class="mb-2 mb-lg-0">
-    <ButtonGroup class="w-100">
-      <Button color="primary" disabled={matchedListJobs >= 500 && !(selectedJobs.length != 0)} onclick={() => {
+    <div class="mx-1"></div>
+    <ButtonGroup class="w-50">
+      <Button color="primary" disabled={(matchedListJobs >= 500 && !(selectedJobs.length != 0)) || $initq.fetching} onclick={() => {
         if (selectedJobs.length != 0) filterComponent.updateFilters({dbId: selectedJobs}, true)
         showCompare = !showCompare
       }} >
         {showCompare ? 'Return to List' : 
-        'Compare Jobs' + (selectedJobs.length != 0 ? ` (${selectedJobs.length} selected)` : matchedListJobs >= 500 ? ` (Too Many)` : ``)}
+           matchedListJobs >= 500 && selectedJobs.length == 0
+            ? 'Compare Disabled'
+            : 'Compare' + (selectedJobs.length != 0 ? ` ${selectedJobs.length} ` : ' ') + 'Jobs'
+        }
       </Button>
       {#if !showCompare && selectedJobs.length != 0}
-        <Button color="warning" onclick={() => {
+        <Button class="w-auto" color="warning" onclick={() => {
           selectedJobs = [] // Only empty array, filters handled by reactive reset
         }}>
         Clear

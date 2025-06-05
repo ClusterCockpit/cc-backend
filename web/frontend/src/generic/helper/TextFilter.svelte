@@ -97,7 +97,7 @@
   <Input
     type="select"
     style="max-width: 120px;"
-    class="form-select"
+    class="form-select w-auto"
     title="Search Mode"
     bind:value={mode}
     onchange={modeChanged}
@@ -115,7 +115,7 @@
     bind:value={term}
     onchange={() => termChanged()}
     onkeyup={(event) => termChanged(event.key == "Enter" ? 0 : throttle)}
-    placeholder={presetProject ? `Find ${mode} in ${scrambleNames ? scramble(presetProject) : presetProject} ...` : `Find ${mode} ...`}
+    placeholder={presetProject ? `Find in ${scrambleNames ? scramble(presetProject) : presetProject} ...` : `Find ${mode} ...`}
   />
   {#if presetProject}
   <Button title="Reset Project" onclick={() => resetProject()}

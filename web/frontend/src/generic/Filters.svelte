@@ -344,7 +344,7 @@
   {/if}
 
   {#if matchedJobs >= -1}
-    <Button class="mb-1" style="margin-right: 0.5rem;" disabled outline>
+    <Button class="mb-1" style="margin-right: 0.25rem;" disabled outline>
       {matchedJobs == -1 ? 'Loading ...' : `${matchedJobs} jobs`}
     </Button>
   {/if}

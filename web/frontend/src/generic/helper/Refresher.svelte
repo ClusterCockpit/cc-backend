@@ -13,6 +13,7 @@
   /* Svelte 5 Props */
   let {
     initially = null,
+    presetClass = "",
     onRefresh
   } = $props();
 
@@ -35,7 +36,7 @@
   });
 </script>
 
-<InputGroup>
+<InputGroup class={presetClass}>
   <Input
     type="select"
     title="Periodic refresh interval"
