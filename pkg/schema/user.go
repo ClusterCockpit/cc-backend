@@ -6,6 +6,7 @@ package schema
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -50,12 +51,7 @@ type User struct {
 }
 
 func (u *User) HasProject(project string) bool {
-	for _, p := range u.Projects {
-		if p == project {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(u.Projects, project)
 }
 
 func GetRoleString(roleInt Role) string {
