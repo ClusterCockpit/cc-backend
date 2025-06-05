@@ -7,6 +7,7 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -26,7 +27,7 @@ type UpdateNodeStatesRequest struct {
 // this routine assumes that only one of them applies per node
 func determineState(states []string) schema.NodeState {
 	for _, state := range states {
-		switch state {
+		switch strings.ToLower(state) {
 		case "allocated":
 			return schema.NodeStateAllocated
 		case "reserved":
