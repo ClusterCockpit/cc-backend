@@ -7,6 +7,9 @@ package api
 import (
 	"fmt"
 	"net/http"
+
+	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
 type Node struct {
@@ -26,5 +29,13 @@ func (api *RestApi) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 	if err := decode(r.Body, &req); err != nil {
 		handleError(fmt.Errorf("parsing request body failed: %w", err), http.StatusBadRequest, rw)
 		return
+	}
+	repo := repository.GetNodeRepository()
+
+	for _, node := range req.Nodes {
+		state := schema.NodeStateUnknown
+		// TODO: Determine valid node state
+		repo.UpdateNodeState(node.Name, req.Cluster, &state)
+
 	}
 }

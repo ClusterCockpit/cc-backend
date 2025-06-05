@@ -5,12 +5,14 @@
 package repository
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"maps"
 	"sync"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
@@ -134,16 +136,11 @@ func (r *NodeRepository) GetNode(id int64, withMeta bool) (*schema.Node, error) 
 }
 
 const NamedNodeInsert string = `
-INSERT INTO node (hostname, cluster, subcluster, node_state, health_state, raw_meta_data)
-	VALUES (:hostname, :cluster, :subcluster, :node_state, :health_state, :raw_meta_data);`
+INSERT INTO node (hostname, cluster, subcluster, node_state, health_state)
+	VALUES (:hostname, :cluster, :subcluster, :node_state, :health_state);`
 
 func (r *NodeRepository) AddNode(node *schema.Node) (int64, error) {
 	var err error
-	node.RawMetaData, err = json.Marshal(node.MetaData)
-	if err != nil {
-		log.Errorf("Error while marshaling metadata for node '%v'", node.Hostname)
-		return 0, err
-	}
 
 	res, err := r.DB.NamedExec(NamedNodeInsert, node)
 	if err != nil {
@@ -159,8 +156,35 @@ func (r *NodeRepository) AddNode(node *schema.Node) (int64, error) {
 	return node.ID, nil
 }
 
-func (r *NodeRepository) UpdateNodeState(hostname string, nodeState *schema.NodeState) error {
-	if _, err := sq.Update("node").Set("node_state", nodeState).Where("node.hostname = ?", hostname).RunWith(r.DB).Exec(); err != nil {
+func (r *NodeRepository) UpdateNodeState(hostname string, cluster string, nodeState *schema.NodeState) error {
+	var id int64
+	if err := sq.Select("id").From("node").
+		Where("node.hostname = ?", hostname).Where("node.cluster = ?", cluster).RunWith(r.DB).
+		QueryRow().Scan(&id); err != nil {
+		if err == sql.ErrNoRows {
+			subcluster, err := archive.GetSubClusterByNode(cluster, hostname)
+			if err != nil {
+				log.Errorf("Error while getting subcluster for node '%s' in cluster '%s': %v", hostname, cluster, err)
+				return err
+			}
+			node := schema.Node{
+				Hostname: hostname, Cluster: cluster, SubCluster: subcluster, NodeState: *nodeState,
+				HealthState: schema.MonitoringStateFull,
+			}
+			_, err = r.AddNode(&node)
+			if err != nil {
+				log.Errorf("Error while adding node '%s' to database: %v", hostname, err)
+				return err
+			}
+
+			return nil
+		} else {
+			log.Warnf("Error while querying node '%v' from database", id)
+			return err
+		}
+	}
+
+	if _, err := sq.Update("node").Set("node_state", nodeState).Where("node.id = ?", id).RunWith(r.DB).Exec(); err != nil {
 		log.Errorf("error while updating node '%s'", hostname)
 		return err
 	}
@@ -168,14 +192,14 @@ func (r *NodeRepository) UpdateNodeState(hostname string, nodeState *schema.Node
 	return nil
 }
 
-func (r *NodeRepository) UpdateHealthState(hostname string, healthState *schema.MonitoringState) error {
-	if _, err := sq.Update("node").Set("health_state", healthState).Where("node.id = ?", id).RunWith(r.DB).Exec(); err != nil {
-		log.Errorf("error while updating node '%d'", id)
-		return err
-	}
-
-	return nil
-}
+// func (r *NodeRepository) UpdateHealthState(hostname string, healthState *schema.MonitoringState) error {
+// 	if _, err := sq.Update("node").Set("health_state", healthState).Where("node.id = ?", id).RunWith(r.DB).Exec(); err != nil {
+// 		log.Errorf("error while updating node '%d'", id)
+// 		return err
+// 	}
+//
+// 	return nil
+// }
 
 func (r *NodeRepository) DeleteNode(id int64) error {
 	_, err := r.DB.Exec(`DELETE FROM node WHERE node.id = ?`, id)
