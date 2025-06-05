@@ -60,11 +60,6 @@ func InitDB() error {
 		}
 
 		jobMeta.MonitoringStatus = schema.MonitoringStatusArchivingSuccessful
-		job := schema.Job{
-			BaseJob:       jobMeta.BaseJob,
-			StartTime:     time.Unix(jobMeta.StartTime, 0),
-			StartTimeUnix: jobMeta.StartTime,
-		}
 
 		sc, err := archive.GetSubCluster(jobMeta.Cluster, jobMeta.SubCluster)
 		if err != nil {
@@ -72,7 +67,7 @@ func InitDB() error {
 			return err
 		}
 
-		job.Footprint = make(map[string]float64)
+		jobMeta.Footprint = make(map[string]float64)
 
 		for _, fp := range sc.Footprint {
 			statType := "avg"
@@ -83,16 +78,16 @@ func InitDB() error {
 
 			name := fmt.Sprintf("%s_%s", fp, statType)
 
-			job.Footprint[name] = repository.LoadJobStat(jobMeta, fp, statType)
+			jobMeta.Footprint[name] = repository.LoadJobStat(jobMeta, fp, statType)
 		}
 
-		job.RawFootprint, err = json.Marshal(job.Footprint)
+		jobMeta.RawFootprint, err = json.Marshal(jobMeta.Footprint)
 		if err != nil {
 			log.Warn("Error while marshaling job footprint")
 			return err
 		}
 
-		job.EnergyFootprint = make(map[string]float64)
+		jobMeta.EnergyFootprint = make(map[string]float64)
 
 		// Total Job Energy Outside Loop
 		totalEnergy := 0.0
@@ -117,45 +112,45 @@ func InitDB() error {
 				log.Warnf("Error while collecting energy metric %s for job, DB ID '%v', return '0.0'", fp, jobMeta.ID)
 			}
 
-			job.EnergyFootprint[fp] = metricEnergy
+			jobMeta.EnergyFootprint[fp] = metricEnergy
 			totalEnergy += metricEnergy
 		}
 
-		job.Energy = (math.Round(totalEnergy*100.0) / 100.0)
-		if job.RawEnergyFootprint, err = json.Marshal(job.EnergyFootprint); err != nil {
+		jobMeta.Energy = (math.Round(totalEnergy*100.0) / 100.0)
+		if jobMeta.RawEnergyFootprint, err = json.Marshal(jobMeta.EnergyFootprint); err != nil {
 			log.Warnf("Error while marshaling energy footprint for job INTO BYTES, DB ID '%v'", jobMeta.ID)
 			return err
 		}
 
-		job.RawResources, err = json.Marshal(job.Resources)
+		jobMeta.RawResources, err = json.Marshal(jobMeta.Resources)
 		if err != nil {
 			log.Errorf("repository initDB(): %v", err)
 			errorOccured++
 			continue
 		}
 
-		job.RawMetaData, err = json.Marshal(job.MetaData)
+		jobMeta.RawMetaData, err = json.Marshal(jobMeta.MetaData)
 		if err != nil {
 			log.Errorf("repository initDB(): %v", err)
 			errorOccured++
 			continue
 		}
 
-		if err := SanityChecks(&job.BaseJob); err != nil {
+		if err := SanityChecks(jobMeta); err != nil {
 			log.Errorf("repository initDB(): %v", err)
 			errorOccured++
 			continue
 		}
 
 		id, err := r.TransactionAddNamed(t,
-			repository.NamedJobInsert, job)
+			repository.NamedJobInsert, jobMeta)
 		if err != nil {
 			log.Errorf("repository initDB(): %v", err)
 			errorOccured++
 			continue
 		}
 
-		for _, tag := range job.Tags {
+		for _, tag := range jobMeta.Tags {
 			tagstr := tag.Name + ":" + tag.Type
 			tagId, ok := tags[tagstr]
 			if !ok {
@@ -190,7 +185,7 @@ func InitDB() error {
 }
 
 // This function also sets the subcluster if necessary!
-func SanityChecks(job *schema.BaseJob) error {
+func SanityChecks(job *schema.Job) error {
 	if c := archive.GetCluster(job.Cluster); c == nil {
 		return fmt.Errorf("no such cluster: %v", job.Cluster)
 	}

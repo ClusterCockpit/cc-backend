@@ -42,7 +42,10 @@ func HandleImportFlag(flag string) error {
 		}
 		dec := json.NewDecoder(bytes.NewReader(raw))
 		dec.DisallowUnknownFields()
-		job := schema.JobMeta{BaseJob: schema.JobDefaults}
+		job := schema.Job{
+			Exclusive:        1,
+			MonitoringStatus: schema.MonitoringStatusRunningOrArchiving,
+		}
 		if err = dec.Decode(&job); err != nil {
 			log.Warn("Error while decoding raw json metadata for import")
 			return err
@@ -141,7 +144,7 @@ func HandleImportFlag(flag string) error {
 			return err
 		}
 
-		if err = SanityChecks(&job.BaseJob); err != nil {
+		if err = SanityChecks(&job); err != nil {
 			log.Warn("BaseJob SanityChecks failed")
 			return err
 		}

@@ -1,0 +1,21 @@
+{
+    "and": [
+      {
+        "in": [
+          "a40",
+          {
+            "var": "metaData.jobScript"
+          }
+        ]
+      },
+      {
+        ">": [
+          {
+            "var": "statistics.clock.min"
+          },
+          2000
+        ]
+      }
+    ]
+  }
+  

@@ -29,9 +29,14 @@ func (r *clusterResolver) Partitions(ctx context.Context, obj *schema.Cluster) (
 	return r.Repo.Partitions(obj.Name)
 }
 
+// StartTime is the resolver for the startTime field.
+func (r *jobResolver) StartTime(ctx context.Context, obj *schema.Job) (*time.Time, error) {
+	panic(fmt.Errorf("not implemented: StartTime - startTime"))
+}
+
 // Tags is the resolver for the tags field.
 func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error) {
-	return r.Repo.GetTags(repository.GetUserFromContext(ctx), &obj.ID)
+	return r.Repo.GetTags(repository.GetUserFromContext(ctx), obj.ID)
 }
 
 // ConcurrentJobs is the resolver for the concurrentJobs field.
@@ -143,7 +148,7 @@ func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name s
 		return &schema.Tag{ID: id, Type: typeArg, Name: name, Scope: scope}, nil
 	} else {
 		log.Warnf("Not authorized to create tag with scope: %s", scope)
-		return nil, fmt.Errorf("Not authorized to create tag with scope: %s", scope)
+		return nil, fmt.Errorf("not authorized to create tag with scope: %s", scope)
 	}
 }
 
@@ -179,7 +184,7 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 		_, _, tscope, exists := r.Repo.TagInfo(tid)
 		if !exists {
 			log.Warnf("Tag does not exist (ID): %d", tid)
-			return nil, fmt.Errorf("Tag does not exist (ID): %d", tid)
+			return nil, fmt.Errorf("tag does not exist (ID): %d", tid)
 		}
 
 		// Test Access: Admins && Admin Tag OR Support/Admin and Global Tag OR Everyone && Private Tag
@@ -193,7 +198,7 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 			}
 		} else {
 			log.Warnf("Not authorized to add tag: %d", tid)
-			return nil, fmt.Errorf("Not authorized to add tag: %d", tid)
+			return nil, fmt.Errorf("not authorized to add tag: %d", tid)
 		}
 	}
 
@@ -226,7 +231,7 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 		_, _, tscope, exists := r.Repo.TagInfo(tid)
 		if !exists {
 			log.Warnf("Tag does not exist (ID): %d", tid)
-			return nil, fmt.Errorf("Tag does not exist (ID): %d", tid)
+			return nil, fmt.Errorf("tag does not exist (ID): %d", tid)
 		}
 
 		// Test Access: Admins && Admin Tag OR Support/Admin and Global Tag OR Everyone && Private Tag
@@ -240,7 +245,7 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 			}
 		} else {
 			log.Warnf("Not authorized to remove tag: %d", tid)
-			return nil, fmt.Errorf("Not authorized to remove tag: %d", tid)
+			return nil, fmt.Errorf("not authorized to remove tag: %d", tid)
 		}
 
 	}
@@ -269,7 +274,7 @@ func (r *mutationResolver) RemoveTagFromList(ctx context.Context, tagIds []strin
 		_, _, tscope, exists := r.Repo.TagInfo(tid)
 		if !exists {
 			log.Warnf("Tag does not exist (ID): %d", tid)
-			return nil, fmt.Errorf("Tag does not exist (ID): %d", tid)
+			return nil, fmt.Errorf("tag does not exist (ID): %d", tid)
 		}
 
 		// Test Access: Admins && Admin Tag OR Everyone && Private Tag
@@ -283,7 +288,7 @@ func (r *mutationResolver) RemoveTagFromList(ctx context.Context, tagIds []strin
 			}
 		} else {
 			log.Warnf("Not authorized to remove tag: %d", tid)
-			return nil, fmt.Errorf("Not authorized to remove tag: %d", tid)
+			return nil, fmt.Errorf("not authorized to remove tag: %d", tid)
 		}
 	}
 	return tags, nil
@@ -297,6 +302,21 @@ func (r *mutationResolver) UpdateConfiguration(ctx context.Context, name string,
 	}
 
 	return nil, nil
+}
+
+// NodeState is the resolver for the nodeState field.
+func (r *nodeResolver) NodeState(ctx context.Context, obj *schema.Node) (string, error) {
+	panic(fmt.Errorf("not implemented: NodeState - nodeState"))
+}
+
+// HealthState is the resolver for the HealthState field.
+func (r *nodeResolver) HealthState(ctx context.Context, obj *schema.Node) (schema.NodeState, error) {
+	panic(fmt.Errorf("not implemented: HealthState - HealthState"))
+}
+
+// MetaData is the resolver for the metaData field.
+func (r *nodeResolver) MetaData(ctx context.Context, obj *schema.Node) (any, error) {
+	panic(fmt.Errorf("not implemented: MetaData - metaData"))
 }
 
 // Clusters is the resolver for the clusters field.
@@ -336,6 +356,21 @@ func (r *queryResolver) AllocatedNodes(ctx context.Context, cluster string) ([]*
 	}
 
 	return counts, nil
+}
+
+// Node is the resolver for the node field.
+func (r *queryResolver) Node(ctx context.Context, id string) (*schema.Node, error) {
+	panic(fmt.Errorf("not implemented: Node - node"))
+}
+
+// Nodes is the resolver for the nodes field.
+func (r *queryResolver) Nodes(ctx context.Context, filter []*model.NodeFilter, order *model.OrderByInput) (*model.NodeStateResultList, error) {
+	panic(fmt.Errorf("not implemented: Nodes - nodes"))
+}
+
+// NodeStats is the resolver for the nodeStats field.
+func (r *queryResolver) NodeStats(ctx context.Context, filter []*model.NodeFilter) ([]*model.NodeStats, error) {
+	panic(fmt.Errorf("not implemented: NodeStats - nodeStats"))
 }
 
 // Job is the resolver for the job field.
@@ -499,10 +534,7 @@ func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, pag
 		return nil, err
 	}
 
-	hasNextPage := false
-	if len(nextJobs) == 1 {
-		hasNextPage = true
-	}
+	hasNextPage := len(nextJobs) == 1
 
 	return &model.JobResultList{Items: jobs, Count: &count, HasNextPage: &hasNextPage}, nil
 }
@@ -513,8 +545,8 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	var stats []*model.JobsStatistics
 
 	// Top Level Defaults
-	var defaultDurationBins string = "1h"
-	var defaultMetricBins int = 10
+	defaultDurationBins := "1h"
+	defaultMetricBins := 10
 
 	if requireField(ctx, "totalJobs") || requireField(ctx, "totalWalltime") || requireField(ctx, "totalNodes") || requireField(ctx, "totalCores") ||
 		requireField(ctx, "totalAccs") || requireField(ctx, "totalNodeHours") || requireField(ctx, "totalCoreHours") || requireField(ctx, "totalAccHours") {
@@ -618,9 +650,9 @@ func (r *queryResolver) JobsMetricStats(ctx context.Context, filter []*model.Job
 		numThreadsInt := int(job.NumHWThreads)
 		numAccsInt := int(job.NumAcc)
 		res = append(res, &model.JobStats{
-			ID:              int(job.ID),
+			ID:              int(*job.ID),
 			JobID:           strconv.Itoa(int(job.JobID)),
-			StartTime:       int(job.StartTime.Unix()),
+			StartTime:       int(job.StartTime),
 			Duration:        int(job.Duration),
 			Cluster:         job.Cluster,
 			SubCluster:      job.SubCluster,
@@ -773,6 +805,9 @@ func (r *Resolver) MetricValue() generated.MetricValueResolver { return &metricV
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
 
+// Node returns generated.NodeResolver implementation.
+func (r *Resolver) Node() generated.NodeResolver { return &nodeResolver{r} }
+
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
@@ -783,5 +818,6 @@ type clusterResolver struct{ *Resolver }
 type jobResolver struct{ *Resolver }
 type metricValueResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
+type nodeResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subClusterResolver struct{ *Resolver }

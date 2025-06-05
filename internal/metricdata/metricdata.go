@@ -54,8 +54,6 @@ func Init() error {
 			switch kind.Kind {
 			case "cc-metric-store":
 				mdr = &CCMetricStore{}
-			case "influxdb":
-				mdr = &InfluxDBv2DataRepository{}
 			case "prometheus":
 				mdr = &PrometheusDataRepository{}
 			case "test":

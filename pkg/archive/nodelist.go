@@ -61,7 +61,7 @@ func (nl *NodeList) PrintList() []string {
 }
 
 func (nl *NodeList) NodeCount() int {
-	var out int = 0
+	out := 0
 	for _, term := range *nl {
 		if len(term) == 1 { // If only String-Part in Term: Single Node Name -> add one
 			out += 1
@@ -160,7 +160,7 @@ func (nle NLExprIntRange) limits() []map[string]int {
 	m["start"] = int(nle.start)
 	m["end"] = int(nle.end)
 	m["digits"] = int(nle.digits)
-	if nle.zeroPadded == true {
+	if nle.zeroPadded {
 		m["zeroPadded"] = 1
 	} else {
 		m["zeroPadded"] = 0
@@ -183,14 +183,15 @@ func ParseNodeList(raw string) (NodeList, error) {
 	rawterms := []string{}
 	prevterm := 0
 	for i := 0; i < len(raw); i++ {
-		if raw[i] == '[' {
+		switch raw[i] {
+		case '[':
 			for i < len(raw) && raw[i] != ']' {
 				i++
 			}
 			if i == len(raw) {
 				return nil, fmt.Errorf("ARCHIVE/NODELIST > unclosed '['")
 			}
-		} else if raw[i] == ',' {
+		case ',':
 			rawterms = append(rawterms, raw[prevterm:i])
 			prevterm = i + 1
 		}
