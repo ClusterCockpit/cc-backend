@@ -301,7 +301,7 @@ type Query {
   allocatedNodes(cluster: String!): [Count!]!
 
   node(id: ID!): Node
-  nodes(filter: [NodeFilter!], order: OrderByInput): NodesResultList!
+  nodes(filter: [NodeFilter!], order: OrderByInput): NodeStateResultList!
   nodeStats(filter: [NodeFilter!]): [NodeStats!]!
 
   job(id: ID!): Job
@@ -459,7 +459,7 @@ input FloatRange {
   to: Float!
 }
 
-type NodesResultList {
+type NodeStateResultList {
   items: [Node!]!
   count: Int
 }

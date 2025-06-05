@@ -358,6 +358,21 @@ func (r *queryResolver) AllocatedNodes(ctx context.Context, cluster string) ([]*
 	return counts, nil
 }
 
+// Node is the resolver for the node field.
+func (r *queryResolver) Node(ctx context.Context, id string) (*schema.Node, error) {
+	panic(fmt.Errorf("not implemented: Node - node"))
+}
+
+// Nodes is the resolver for the nodes field.
+func (r *queryResolver) Nodes(ctx context.Context, filter []*model.NodeFilter, order *model.OrderByInput) (*model.NodeStateResultList, error) {
+	panic(fmt.Errorf("not implemented: Nodes - nodes"))
+}
+
+// NodeStats is the resolver for the nodeStats field.
+func (r *queryResolver) NodeStats(ctx context.Context, filter []*model.NodeFilter) ([]*model.NodeStats, error) {
+	panic(fmt.Errorf("not implemented: NodeStats - nodeStats"))
+}
+
 // Job is the resolver for the job field.
 func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error) {
 	numericId, err := strconv.ParseInt(id, 10, 64)
