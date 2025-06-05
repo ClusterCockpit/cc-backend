@@ -159,16 +159,16 @@ func (r *NodeRepository) AddNode(node *schema.Node) (int64, error) {
 	return node.ID, nil
 }
 
-func (r *NodeRepository) UpdateNodeState(id int64, nodeState *schema.NodeState) error {
-	if _, err := sq.Update("node").Set("node_state", nodeState).Where("node.id = ?", id).RunWith(r.DB).Exec(); err != nil {
-		log.Errorf("error while updating node '%d'", id)
+func (r *NodeRepository) UpdateNodeState(hostname string, nodeState *schema.NodeState) error {
+	if _, err := sq.Update("node").Set("node_state", nodeState).Where("node.hostname = ?", hostname).RunWith(r.DB).Exec(); err != nil {
+		log.Errorf("error while updating node '%s'", hostname)
 		return err
 	}
 
 	return nil
 }
 
-func (r *NodeRepository) UpdateHealthState(id int64, healthState *schema.MonitoringState) error {
+func (r *NodeRepository) UpdateHealthState(hostname string, healthState *schema.MonitoringState) error {
 	if _, err := sq.Update("node").Set("health_state", healthState).Where("node.id = ?", id).RunWith(r.DB).Exec(); err != nil {
 		log.Errorf("error while updating node '%d'", id)
 		return err

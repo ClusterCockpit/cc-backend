@@ -167,10 +167,28 @@ type NamedStatsWithScope struct {
 	Stats []*ScopedStats     `json:"stats"`
 }
 
+type NodeFilter struct {
+	Hostname    *StringInput      `json:"hostname,omitempty"`
+	Cluster     *StringInput      `json:"cluster,omitempty"`
+	SubCluster  *StringInput      `json:"subCluster,omitempty"`
+	NodeState   *string           `json:"nodeState,omitempty"`
+	HealthState *schema.NodeState `json:"healthState,omitempty"`
+}
+
 type NodeMetrics struct {
 	Host       string               `json:"host"`
 	SubCluster string               `json:"subCluster"`
 	Metrics    []*JobMetricWithName `json:"metrics"`
+}
+
+type NodeStateResultList struct {
+	Items []*schema.Node `json:"items"`
+	Count *int           `json:"count,omitempty"`
+}
+
+type NodeStats struct {
+	State string `json:"state"`
+	Count int    `json:"count"`
 }
 
 type NodesResultList struct {
