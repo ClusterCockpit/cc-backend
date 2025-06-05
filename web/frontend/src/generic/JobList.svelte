@@ -113,11 +113,6 @@
     variables: { paging, sorting, filter },
   });
 
-  $: if (!usePaging && sorting) {
-    // console.log('Reset Paging ...')
-    paging = { itemsPerPage: 10, page: 1 }
-  };
-
   let jobs = [];
   $: if ($initialized && $jobsStore.data) {
     if (usePaging) {
@@ -143,10 +138,20 @@
     }
   }
 
+  $: if (!usePaging && (sorting || filter)) {
+    // Continous Scroll: Reset list and paging if parameters change: Existing entries will not match new selections
+    jobs = [];
+    paging = { itemsPerPage: 10, page: 1 };
+  }
+
   $: matchedListJobs = $jobsStore.data != null ? $jobsStore.data.jobs.count : -1;
 
   // Force refresh list with existing unchanged variables (== usually would not trigger reactivity)
   export function refreshJobs() {
+    if (!usePaging) {
+      jobs = []; // Empty Joblist before refresh, prevents infinite buildup
+      paging = { itemsPerPage: 10, page: 1 };
+    }
     jobsStore = queryStore({
       client: client,
       query: query,
