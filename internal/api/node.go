@@ -24,7 +24,7 @@ type UpdateNodeStatesRequest struct {
 	Cluster string `json:"cluster" example:"fritz"`
 }
 
-// this routine assumes that only one of them applies per node
+// this routine assumes that only one of them exists per node
 func determineState(states []string) schema.NodeState {
 	for _, state := range states {
 		switch strings.ToLower(state) {

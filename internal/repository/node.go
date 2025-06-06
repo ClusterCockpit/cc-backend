@@ -177,6 +177,7 @@ func (r *NodeRepository) UpdateNodeState(hostname string, cluster string, nodeSt
 				return err
 			}
 
+			log.Infof("Added node '%s' to database", hostname)
 			return nil
 		} else {
 			log.Warnf("Error while querying node '%v' from database", id)
@@ -188,7 +189,7 @@ func (r *NodeRepository) UpdateNodeState(hostname string, cluster string, nodeSt
 		log.Errorf("error while updating node '%s'", hostname)
 		return err
 	}
-
+	log.Infof("Updated node '%s' in database", hostname)
 	return nil
 }
 
