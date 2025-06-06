@@ -214,9 +214,11 @@ func (r *NodeRepository) DeleteNode(id int64) error {
 	return nil
 }
 
+// TODO: Implement order by
 func (r *NodeRepository) QueryNodes(
 	ctx context.Context,
 	filters []*model.NodeFilter,
+	order *model.OrderByInput,
 ) ([]*schema.Node, error) {
 	query, qerr := SecurityCheck(ctx, sq.Select(jobColumns...).From("node"))
 	if qerr != nil {
