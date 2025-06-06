@@ -72,7 +72,7 @@
 </script>
 
 <div>
-  <p class="mb-2">
+  <p class="mb-2 text-truncate">
     <span class="d-flex justify-content-between">
       <span class="align-self-center fw-bold mr-2">
         <a href="/monitoring/job/{job.id}" target="_blank">{job.jobId}</a>
@@ -113,11 +113,10 @@
       </span>
     </span>
     {#if job.metaData?.jobName}
-      {#if job.metaData?.jobName.length <= 25}
+      {#if job.metaData?.jobName.length <= 20}
         <span>{job.metaData.jobName}</span>
       {:else}
         <span
-          class="truncate"
           style="cursor:help;"
           title={job.metaData.jobName}
         >
@@ -207,11 +206,3 @@
     </p>
   {/if}
 </div>
-
-<style>
-  .truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-</style>

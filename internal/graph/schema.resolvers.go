@@ -31,7 +31,8 @@ func (r *clusterResolver) Partitions(ctx context.Context, obj *schema.Cluster) (
 
 // StartTime is the resolver for the startTime field.
 func (r *jobResolver) StartTime(ctx context.Context, obj *schema.Job) (*time.Time, error) {
-	panic(fmt.Errorf("not implemented: StartTime - startTime"))
+	timestamp := time.Unix(obj.StartTime, 0)
+	return &timestamp, nil
 }
 
 // Tags is the resolver for the tags field.

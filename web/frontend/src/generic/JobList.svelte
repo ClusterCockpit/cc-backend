@@ -290,7 +290,7 @@
             </td>
           </tr>
         {:else}
-          {#each jobs as job (job)}
+          {#each jobs as job (job.id)}
             <JobListRow bind:triggerMetricRefresh {job} {metrics} {plotWidth} {showFootprint} previousSelect={selectedJobs.includes(job.id)}
               on:select-job={({detail}) => selectedJobs = [...selectedJobs, detail]}
               on:unselect-job={({detail}) => selectedJobs = selectedJobs.filter(item => item !== detail)}

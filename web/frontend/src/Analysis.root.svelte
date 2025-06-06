@@ -55,8 +55,6 @@
   /* Const Init */
   const { query: initq } = init();
   const client = getContextClient();
-  const initialized = getContext("initialized");
-  const globalMetrics = getContext("globalMetrics");
   const ccconfig = getContext("cc-config");
   const sortOptions = [
     { key: "totalWalltime", label: "Walltime" },
@@ -73,13 +71,12 @@
   let metricUnits = {};
   let metricScopes = {};
   let numBins = 50;
-  let maxY = -1;
 
   /* State Init */
   let filterComponent = $state(); // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
-  let cluster = $state("");
-  let availableMetrics = $state([]);
+  let cluster = $state(filterPresets?.cluster);
   let rooflineMaxY = $state(0);
+  let maxY = $state(-1);
   let colWidth1 = $state(0);
   let colWidth2 = $state(0);
   let jobFilters = $state([]);
@@ -124,8 +121,9 @@
   });
 
   /* Derived Vars */
-  let clusterName = $derived(cluster?.name ? cluster.name : cluster);
-  let metrics = $derived(
+  const clusterName = $derived(cluster?.name ? cluster.name : cluster);
+  const availableMetrics = $derived(loadAvailable($initq?.data?.globalMetrics, clusterName));
+  const metrics = $derived(
     [...new Set([...metricsInHistograms, ...metricsInScatterplots.flat()])]
   );
 
@@ -251,7 +249,7 @@
 
   /* Reactive Effects */
   $effect(() => {
-    loadMetrics($initialized)
+    loadUnitsAndScopes(availableMetrics.length, availableMetrics);
   });
   $effect(() => {
     updateEntityConfiguration(groupSelection.key);
@@ -313,12 +311,22 @@
     }
   }
 
-  function loadMetrics(isInitialized) {
-    if (!isInitialized) return
-    availableMetrics = [...globalMetrics.filter((gm) => gm?.availability.find((av) => av.cluster == cluster.name))]
-    for (let sm of availableMetrics) {
-      metricUnits[sm.name] = (sm?.unit?.prefix ? sm.unit.prefix : "") + (sm?.unit?.base ? sm.unit.base : "")
-      metricScopes[sm.name] = sm?.scope
+  function loadAvailable(globals, name) {
+    const availableMetrics = new Set();
+    if (globals && globals.length > 0) {
+      for (let gm of globals) {
+        if (gm.availability.find((av) => av.cluster == name)) {
+          availableMetrics.add({name: gm.name, scope: gm.scope, unit: gm.unit});
+        };
+      }
+    }
+    return [...availableMetrics]
+  };
+
+  function loadUnitsAndScopes(length, available) {
+    for (let am of available) {
+      metricUnits[am.name] = (am?.unit?.prefix ? am.unit.prefix : "") + (am?.unit?.base ? am.unit.base : "")
+      metricScopes[am.name] = am?.scope
     }
   }
 
