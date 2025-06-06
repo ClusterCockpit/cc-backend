@@ -3,7 +3,7 @@
  -->
 
 <script>
-  import { Row, Col, Card, CardTitle, Button} from "@sveltestrap/sveltestrap";
+  import { Row, Col, Card, CardTitle, CardBody, Button} from "@sveltestrap/sveltestrap";
   import { fade } from "svelte/transition";
 
   export let config;
@@ -43,9 +43,7 @@
   <Col>
     <Card class="h-100">
       <!-- Svelte 'class' directive only on DOMs directly, normal 'class="xxx"' does not work, so style-array it is. -->
-      <CardTitle
-        style="margin-bottom: 1em; display: flex; align-items: center;"
-      >
+      <CardTitle class="m-3 d-flex align-items-center">
         <div>Node List Paging Type</div>
         {#if displayMessage && message.target == "npag"}<div
             style="margin-left: auto; font-size: 0.9em;"
@@ -55,33 +53,34 @@
             >
           </div>{/if}
       </CardTitle>
-      <form
-        id="node-paging-form"
-        method="post"
-        action="/frontend/configuration/"
-        class="card-body"
-        on:submit|preventDefault={() => handleSettingSubmit("#node-paging-form", "npag")}>
-        <input type="hidden" name="key" value="node_list_usePaging" />
-        <div class="mb-3">
-          <div>
-            {#if config?.node_list_usePaging}
-              <input type="radio" id="nodes-true-checked" name="value" value="true" checked />
-            {:else}
-              <input type="radio" id="nodes-true" name="value" value="true" />
-            {/if}
-            <label for="nodes-true">Paging with selectable count of nodes.</label>
+      <CardBody>
+        <form
+          id="node-paging-form"
+          method="post"
+          action="/frontend/configuration/"
+          on:submit|preventDefault={() => handleSettingSubmit("#node-paging-form", "npag")}>
+          <input type="hidden" name="key" value="node_list_usePaging" />
+          <div class="mb-3">
+            <div>
+              {#if config?.node_list_usePaging}
+                <input type="radio" id="nodes-true-checked" name="value" value="true" checked />
+              {:else}
+                <input type="radio" id="nodes-true" name="value" value="true" />
+              {/if}
+              <label for="nodes-true">Paging with selectable count of nodes.</label>
+            </div>
+            <div>
+              {#if config?.node_list_usePaging}
+                <input type="radio" id="nodes-false" name="value" value="false" />
+              {:else}
+                <input type="radio" id="nodes-false-checked" name="value" value="false" checked />
+              {/if}
+              <label for="nodes-false">Continuous scroll iteratively adding 10 nodes.</label>
+            </div>
           </div>
-          <div>
-            {#if config?.node_list_usePaging}
-              <input type="radio" id="nodes-false" name="value" value="false" />
-            {:else}
-              <input type="radio" id="nodes-false-checked" name="value" value="false" checked />
-            {/if}
-            <label for="nodes-false">Continuous scroll iteratively adding 10 nodes.</label>
-          </div>
-        </div>
-        <Button color="primary" type="submit">Submit</Button>
-      </form>
+          <Button color="primary" type="submit">Submit</Button>
+        </form>
+      </CardBody>
     </Card>
   </Col>
 </Row>
