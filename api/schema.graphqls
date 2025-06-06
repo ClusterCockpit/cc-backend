@@ -393,7 +393,6 @@ type TimeRangeOutput {
 input NodeFilter {
   hostname: StringInput
   cluster: StringInput
-  subCluster: StringInput
   nodeState: NodeState
   healthState: MonitoringState
 }
