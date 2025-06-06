@@ -46,16 +46,16 @@ func determineState(states []string) schema.NodeState {
 
 // updateNodeStates godoc
 // @summary     Deliver updated Slurm node states
-// @tags node
+// @tags Nodestates
 // @description Returns a JSON-encoded list of users.
 // @description Required query-parameter defines if all users or only users with additional special roles are returned.
 // @produce     json
 // @param       request body UpdateNodeStatesRequest true "Request body containing nodes and their states"
-// @success     200     {array} api.SuccessResponse "Success"
-// @failure     400     {string} string             "Bad Request"
-// @failure     401     {string} string             "Unauthorized"
-// @failure     403     {string} string             "Forbidden"
-// @failure     500     {string} string             "Internal Server Error"
+// @success     200     {object} api.DefaultApiResponse "Success message"
+// @failure     400     {object} api.ErrorResponse      "Bad Request"
+// @failure     401     {object} api.ErrorResponse      "Unauthorized"
+// @failure     403     {object} api.ErrorResponse      "Forbidden"
+// @failure     500     {object} api.ErrorResponse      "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /api/nodestats/ [post]
 func (api *RestApi) updateNodeStates(rw http.ResponseWriter, r *http.Request) {

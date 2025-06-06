@@ -35,9 +35,6 @@ func TestValidateConfig(t *testing.T) {
 	}
 }
 
-func TestValidateJobMeta(t *testing.T) {
-}
-
 func TestValidateCluster(t *testing.T) {
 	json := []byte(`{
 		"name": "emmy",

@@ -31,7 +31,7 @@ definitions:
         example: Debug
         type: string
     type: object
-  api.DefaultJobApiResponse:
+  api.DefaultApiResponse:
     properties:
       msg:
         type: string
@@ -96,7 +96,7 @@ definitions:
       jobs:
         description: Array of jobs
         items:
-          $ref: '#/definitions/schema.JobMeta'
+          $ref: '#/definitions/schema.Job'
         type: array
       page:
         description: Page id returned
@@ -110,6 +110,15 @@ definitions:
         type: string
       scope:
         $ref: '#/definitions/schema.MetricScope'
+    type: object
+  api.Node:
+    properties:
+      hostname:
+        type: string
+      states:
+        items:
+          type: string
+        type: array
     type: object
   api.StopJobApiRequest:
     properties:
@@ -132,6 +141,16 @@ definitions:
     required:
     - jobState
     - stopTime
+    type: object
+  api.UpdateNodeStatesRequest:
+    properties:
+      cluster:
+        example: fritz
+        type: string
+      nodes:
+        items:
+          $ref: '#/definitions/api.Node'
+        type: array
     type: object
   schema.Accelerator:
     properties:
@@ -156,7 +175,6 @@ definitions:
         type: array
     type: object
   schema.Job:
-    description: Information of a HPC job.
     properties:
       arrayJobId:
         example: 123000
@@ -228,6 +246,11 @@ definitions:
       project:
         example: abcd200
         type: string
+      requestedMemory:
+        description: in MB
+        example: 128000
+        minimum: 1
+        type: integer
       resources:
         items:
           $ref: '#/definitions/schema.Resource'
@@ -236,7 +259,12 @@ definitions:
         example: 4
         type: integer
       startTime:
-        type: string
+        example: 1649723812
+        type: integer
+      statistics:
+        additionalProperties:
+          $ref: '#/definitions/schema.JobStatistics'
+        type: object
       subCluster:
         example: main
         type: string
@@ -267,109 +295,6 @@ definitions:
         items:
           $ref: '#/definitions/schema.JobLink'
         type: array
-    type: object
-  schema.JobMeta:
-    description: Meta data information of a HPC job.
-    properties:
-      arrayJobId:
-        example: 123000
-        type: integer
-      cluster:
-        example: fritz
-        type: string
-      concurrentJobs:
-        $ref: '#/definitions/schema.JobLinkResultList'
-      duration:
-        example: 43200
-        minimum: 1
-        type: integer
-      energy:
-        type: number
-      energyFootprint:
-        additionalProperties:
-          type: number
-        type: object
-      exclusive:
-        example: 1
-        maximum: 2
-        minimum: 0
-        type: integer
-      footprint:
-        additionalProperties:
-          type: number
-        type: object
-      id:
-        type: integer
-      jobId:
-        example: 123000
-        type: integer
-      jobState:
-        allOf:
-        - $ref: '#/definitions/schema.JobState'
-        enum:
-        - completed
-        - failed
-        - cancelled
-        - stopped
-        - timeout
-        - out_of_memory
-        example: completed
-      metaData:
-        additionalProperties:
-          type: string
-        type: object
-      monitoringStatus:
-        example: 1
-        maximum: 3
-        minimum: 0
-        type: integer
-      numAcc:
-        example: 2
-        minimum: 1
-        type: integer
-      numHwthreads:
-        example: 20
-        minimum: 1
-        type: integer
-      numNodes:
-        example: 2
-        minimum: 1
-        type: integer
-      partition:
-        example: main
-        type: string
-      project:
-        example: abcd200
-        type: string
-      resources:
-        items:
-          $ref: '#/definitions/schema.Resource'
-        type: array
-      smt:
-        example: 4
-        type: integer
-      startTime:
-        example: 1649723812
-        minimum: 1
-        type: integer
-      statistics:
-        additionalProperties:
-          $ref: '#/definitions/schema.JobStatistics'
-        type: object
-      subCluster:
-        example: main
-        type: string
-      tags:
-        items:
-          $ref: '#/definitions/schema.Tag'
-        type: array
-      user:
-        example: abcd100h
-        type: string
-      walltime:
-        example: 86400
-        minimum: 1
-        type: integer
     type: object
   schema.JobMetric:
     properties:
@@ -599,6 +524,8 @@ definitions:
         type: number
       remove:
         type: boolean
+      unit:
+        $ref: '#/definitions/schema.Unit'
     type: object
   schema.Tag:
     description: Defines a tag using name and type.
@@ -776,7 +703,7 @@ paths:
     get:
       description: |-
         Job to get is specified by database ID
-        Returns full job resource information according to 'JobMeta' scheme and all metrics according to 'JobData'.
+        Returns full job resource information according to 'Job' scheme and all metrics according to 'JobData'.
       parameters:
       - description: Database ID of Job
         in: path
@@ -829,7 +756,7 @@ paths:
       - application/json
       description: |-
         Job to get is specified by database ID
-        Returns full job resource information according to 'JobMeta' scheme and all metrics according to 'JobData'.
+        Returns full job resource information according to 'Job' scheme and all metrics according to 'JobData'.
       parameters:
       - description: Database ID of Job
         in: path
@@ -900,7 +827,7 @@ paths:
         "200":
           description: Success message
           schema:
-            $ref: '#/definitions/api.DefaultJobApiResponse'
+            $ref: '#/definitions/api.DefaultApiResponse'
         "400":
           description: Bad Request
           schema:
@@ -947,7 +874,7 @@ paths:
         "200":
           description: Success message
           schema:
-            $ref: '#/definitions/api.DefaultJobApiResponse'
+            $ref: '#/definitions/api.DefaultApiResponse'
         "400":
           description: Bad Request
           schema:
@@ -994,7 +921,7 @@ paths:
         "200":
           description: Success message
           schema:
-            $ref: '#/definitions/api.DefaultJobApiResponse'
+            $ref: '#/definitions/api.DefaultApiResponse'
         "400":
           description: Bad Request
           schema:
@@ -1078,21 +1005,21 @@ paths:
       - application/json
       description: |-
         Job specified in request body will be saved to database as "running" with new DB ID.
-        Job specifications follow the 'JobMeta' scheme, API will fail to execute if requirements are not met.
+        Job specifications follow the 'Job' scheme, API will fail to execute if requirements are not met.
       parameters:
       - description: Job to add
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/schema.JobMeta'
+          $ref: '#/definitions/schema.Job'
       produces:
       - application/json
       responses:
         "201":
           description: Job added successfully
           schema:
-            $ref: '#/definitions/api.DefaultJobApiResponse'
+            $ref: '#/definitions/api.DefaultApiResponse'
         "400":
           description: Bad Request
           schema:
@@ -1123,7 +1050,7 @@ paths:
     post:
       description: |-
         Job to stop is specified by request body. All fields are required in this case.
-        Returns full job resource information according to 'JobMeta' scheme.
+        Returns full job resource information according to 'Job' scheme.
       parameters:
       - description: All fields required
         in: body
@@ -1137,7 +1064,7 @@ paths:
         "200":
           description: Success message
           schema:
-            $ref: '#/definitions/schema.JobMeta'
+            $ref: '#/definitions/schema.Job'
         "400":
           description: Bad Request
           schema:
@@ -1217,6 +1144,46 @@ paths:
       summary: Adds one or more tags to a job
       tags:
       - Job add and modify
+  /api/nodestats/:
+    post:
+      description: |-
+        Returns a JSON-encoded list of users.
+        Required query-parameter defines if all users or only users with additional special roles are returned.
+      parameters:
+      - description: Request body containing nodes and their states
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.UpdateNodeStatesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success message
+          schema:
+            $ref: '#/definitions/api.DefaultApiResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Deliver updated Slurm node states
+      tags:
+      - Nodestates
   /api/users/:
     get:
       description: |-

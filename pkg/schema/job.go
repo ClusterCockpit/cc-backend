@@ -12,10 +12,11 @@ import (
 
 // Job struct type
 //
-// This type is used as the GraphQL interface and using sqlx as a table row.
+// This type contains all metadata of a HPC job.
 //
 // Job model
 // @Description Information of a HPC job.
+
 type Job struct {
 	Cluster            string                   `json:"cluster" db:"cluster" example:"fritz"`
 	SubCluster         string                   `json:"subCluster" db:"subcluster" example:"main"`
@@ -49,25 +50,6 @@ type Job struct {
 	ID                 *int64                   `json:"id,omitempty" db:"id"`
 	StartTime          int64                    `json:"startTime" db:"start_time" example:"1649723812"`
 }
-
-//	JobMeta struct type
-//
-//	When reading from the database or sending data via GraphQL, the start time
-//	can be in the much more convenient time.Time type. In the `meta.json`
-//	files, the start time is encoded as a unix epoch timestamp. This is why
-//	there is this struct, which contains all fields from the regular job
-//	struct, but "overwrites" the StartTime field with one of type int64. ID
-//	*int64 `json:"id,omitempty"` >> never used in the job-archive, only
-//	available via REST-API
-//
-// JobMeta model
-// @Description Meta data information of a HPC job.
-// type JobMeta struct {
-// 	ID         *int64                   `json:"id,omitempty"`
-// 	BaseJob
-// 	Statistics map[string]JobStatistics `json:"statistics"`
-// 	StartTime int64 `json:"startTime" db:"start_time" example:"1649723812" minimum:"1"`
-// }
 
 type JobLink struct {
 	ID    int64 `json:"id"`
