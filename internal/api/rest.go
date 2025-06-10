@@ -124,6 +124,11 @@ type ErrorResponse struct {
 	Error  string `json:"error"` // Error Message
 }
 
+// DefaultApiResponse model
+type DefaultApiResponse struct {
+	Message string `json:"msg"`
+}
+
 func handleError(err error, statusCode int, rw http.ResponseWriter) {
 	log.Warnf("REST ERROR : %s", err.Error())
 	rw.Header().Add("Content-Type", "application/json")

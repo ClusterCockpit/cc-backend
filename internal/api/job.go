@@ -28,11 +28,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// DefaultApiResponse model
-type DefaultJobApiResponse struct {
-	Message string `json:"msg"`
-}
-
 // StopJobApiRequest model
 type StopJobApiRequest struct {
 	JobId     *int64          `json:"jobId" example:"123000"`
@@ -224,7 +219,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 // @summary   Get job meta and optional all metric data
 // @tags Job query
 // @description Job to get is specified by database ID
-// @description Returns full job resource information according to 'JobMeta' scheme and all metrics according to 'JobData'.
+// @description Returns full job resource information according to 'Job' scheme and all metrics according to 'JobData'.
 // @produce     json
 // @param       id          path     int                  true "Database ID of Job"
 // @param       all-metrics query    bool                 false "Include all available metrics"
@@ -316,7 +311,7 @@ func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) 
 // @summary   Get job meta and configurable metric data
 // @tags Job query
 // @description Job to get is specified by database ID
-// @description Returns full job resource information according to 'JobMeta' scheme and all metrics according to 'JobData'.
+// @description Returns full job resource information according to 'Job' scheme and all metrics according to 'JobData'.
 // @accept      json
 // @produce     json
 // @param       id          path     int                  true "Database ID of Job"
@@ -637,11 +632,11 @@ func (api *RestApi) removeTags(rw http.ResponseWriter, r *http.Request) {
 // @summary     Adds a new job as "running"
 // @tags Job add and modify
 // @description Job specified in request body will be saved to database as "running" with new DB ID.
-// @description Job specifications follow the 'JobMeta' scheme, API will fail to execute if requirements are not met.
+// @description Job specifications follow the 'Job' scheme, API will fail to execute if requirements are not met.
 // @accept      json
 // @produce     json
-// @param       request body     schema.JobMeta          true "Job to add"
-// @success     201     {object} api.DefaultJobApiResponse    "Job added successfully"
+// @param       request body     schema.Job true "Job to add"
+// @success     201     {object} api.DefaultApiResponse    "Job added successfully"
 // @failure     400     {object} api.ErrorResponse            "Bad Request"
 // @failure     401     {object} api.ErrorResponse            "Unauthorized"
 // @failure     403     {object} api.ErrorResponse            "Forbidden"
@@ -705,7 +700,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	log.Printf("new job (id: %d): cluster=%s, jobId=%d, user=%s, startTime=%d", id, req.Cluster, req.JobID, req.User, req.StartTime)
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusCreated)
-	json.NewEncoder(rw).Encode(DefaultJobApiResponse{
+	json.NewEncoder(rw).Encode(DefaultApiResponse{
 		Message: "success",
 	})
 }
@@ -714,10 +709,10 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 // @summary     Marks job as completed and triggers archiving
 // @tags Job add and modify
 // @description Job to stop is specified by request body. All fields are required in this case.
-// @description Returns full job resource information according to 'JobMeta' scheme.
+// @description Returns full job resource information according to 'Job' scheme.
 // @produce     json
 // @param       request body     api.StopJobApiRequest true "All fields required"
-// @success     200     {object} schema.JobMeta             "Success message"
+// @success     200     {object} schema.Job                 "Success message"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"
@@ -762,7 +757,7 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 // @description Job to remove is specified by database ID. This will not remove the job from the job archive.
 // @produce     json
 // @param       id      path     int                   true "Database ID of Job"
-// @success     200     {object} api.DefaultJobApiResponse  "Success message"
+// @success     200     {object} api.DefaultApiResponse  "Success message"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"
@@ -793,7 +788,7 @@ func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 	}
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(DefaultJobApiResponse{
+	json.NewEncoder(rw).Encode(DefaultApiResponse{
 		Message: fmt.Sprintf("Successfully deleted job %s", id),
 	})
 }
@@ -805,7 +800,7 @@ func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 // @accept      json
 // @produce     json
 // @param       request body     api.DeleteJobApiRequest true "All fields required"
-// @success     200     {object} api.DefaultJobApiResponse  "Success message"
+// @success     200     {object} api.DefaultApiResponse  "Success message"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"
@@ -844,7 +839,7 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(DefaultJobApiResponse{
+	json.NewEncoder(rw).Encode(DefaultApiResponse{
 		Message: fmt.Sprintf("Successfully deleted job %d", job.ID),
 	})
 }
@@ -855,7 +850,7 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 // @description Remove all jobs with start time before timestamp. The jobs will not be removed from the job archive.
 // @produce     json
 // @param       ts      path     int                   true "Unix epoch timestamp"
-// @success     200     {object} api.DefaultJobApiResponse  "Success message"
+// @success     200     {object} api.DefaultApiResponse  "Success message"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"
@@ -888,7 +883,7 @@ func (api *RestApi) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(DefaultJobApiResponse{
+	json.NewEncoder(rw).Encode(DefaultApiResponse{
 		Message: fmt.Sprintf("Successfully deleted %d jobs", cnt),
 	})
 }
@@ -927,7 +922,7 @@ func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 
 	log.Printf("archiving job... (dbid: %d): cluster=%s, jobId=%d, user=%s, startTime=%d, duration=%d, state=%s", job.ID, job.Cluster, job.JobID, job.User, job.StartTime, job.Duration, job.State)
 
-	// Send a response (with status OK). This means that erros that happen from here on forward
+	// Send a response (with status OK). This means that errors that happen from here on forward
 	// can *NOT* be communicated to the client. If reading from a MetricDataRepository or
 	// writing to the filesystem fails, the client will not know.
 	rw.Header().Add("Content-Type", "application/json")

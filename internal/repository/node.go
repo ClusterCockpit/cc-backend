@@ -5,6 +5,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
@@ -177,6 +179,7 @@ func (r *NodeRepository) UpdateNodeState(hostname string, cluster string, nodeSt
 				return err
 			}
 
+			log.Infof("Added node '%s' to database", hostname)
 			return nil
 		} else {
 			log.Warnf("Error while querying node '%v' from database", id)
@@ -188,7 +191,7 @@ func (r *NodeRepository) UpdateNodeState(hostname string, cluster string, nodeSt
 		log.Errorf("error while updating node '%s'", hostname)
 		return err
 	}
-
+	log.Infof("Updated node '%s' in database", hostname)
 	return nil
 }
 
@@ -211,8 +214,53 @@ func (r *NodeRepository) DeleteNode(id int64) error {
 	return nil
 }
 
-func (r *NodeRepository) QueryNodes() ([]*schema.Node, error) {
-	return nil, nil
+// TODO: Implement order by
+func (r *NodeRepository) QueryNodes(
+	ctx context.Context,
+	filters []*model.NodeFilter,
+	order *model.OrderByInput,
+) ([]*schema.Node, error) {
+	query, qerr := SecurityCheck(ctx, sq.Select(jobColumns...).From("node"))
+	if qerr != nil {
+		return nil, qerr
+	}
+
+	for _, f := range filters {
+		if f.Hostname != nil {
+			query = buildStringCondition("node.hostname", f.Hostname, query)
+		}
+		if f.Cluster != nil {
+			query = buildStringCondition("node.cluster", f.Cluster, query)
+		}
+		if f.NodeState != nil {
+			query = query.Where("node.node_state = ?", f.NodeState)
+		}
+		if f.HealthState != nil {
+			query = query.Where("node.health_state = ?", f.HealthState)
+		}
+	}
+
+	rows, err := query.RunWith(r.stmtCache).Query()
+	if err != nil {
+		queryString, queryVars, _ := query.ToSql()
+		log.Errorf("Error while running query '%s' %v: %v", queryString, queryVars, err)
+		return nil, err
+	}
+
+	nodes := make([]*schema.Node, 0, 50)
+	for rows.Next() {
+		node := schema.Node{}
+
+		if err := rows.Scan(&node.Hostname, &node.Cluster, &node.SubCluster,
+			&node.NodeState, &node.HealthState); err != nil {
+			rows.Close()
+			log.Warn("Error while scanning rows (Nodes)")
+			return nil, err
+		}
+		nodes = append(nodes, &node)
+	}
+
+	return nodes, nil
 }
 
 func (r *NodeRepository) ListNodes(cluster string) ([]*schema.Node, error) {

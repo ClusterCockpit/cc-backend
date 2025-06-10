@@ -686,7 +686,7 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 
 	mainQuery := sq.Select(
 		fmt.Sprintf(`%s + 1 as bin`, binQuery),
-		fmt.Sprintf(`count(*) as count`),
+		`count(*) as count`,
 		// For Debug: // fmt.Sprintf(`CAST((%f / %d) as INTEGER ) * %s as min`, peak, *bins, binQuery),
 		// For Debug: // fmt.Sprintf(`CAST((%f / %d) as INTEGER ) * (%s + 1) as max`, peak, *bins, binQuery),
 	).From("job").Where(

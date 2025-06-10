@@ -361,12 +361,21 @@ func (r *queryResolver) AllocatedNodes(ctx context.Context, cluster string) ([]*
 
 // Node is the resolver for the node field.
 func (r *queryResolver) Node(ctx context.Context, id string) (*schema.Node, error) {
-	panic(fmt.Errorf("not implemented: Node - node"))
+	repo := repository.GetNodeRepository()
+	numericId, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		log.Warn("Error while parsing job id")
+		return nil, err
+	}
+	return repo.GetNode(numericId, false)
 }
 
 // Nodes is the resolver for the nodes field.
 func (r *queryResolver) Nodes(ctx context.Context, filter []*model.NodeFilter, order *model.OrderByInput) (*model.NodeStateResultList, error) {
-	panic(fmt.Errorf("not implemented: Nodes - nodes"))
+	repo := repository.GetNodeRepository()
+	nodes, err := repo.QueryNodes(ctx, filter, order)
+	count := len(nodes)
+	return &model.NodeStateResultList{Items: nodes, Count: &count}, err
 }
 
 // NodeStats is the resolver for the nodeStats field.
@@ -815,10 +824,12 @@ func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 // SubCluster returns generated.SubClusterResolver implementation.
 func (r *Resolver) SubCluster() generated.SubClusterResolver { return &subClusterResolver{r} }
 
-type clusterResolver struct{ *Resolver }
-type jobResolver struct{ *Resolver }
-type metricValueResolver struct{ *Resolver }
-type mutationResolver struct{ *Resolver }
-type nodeResolver struct{ *Resolver }
-type queryResolver struct{ *Resolver }
-type subClusterResolver struct{ *Resolver }
+type (
+	clusterResolver     struct{ *Resolver }
+	jobResolver         struct{ *Resolver }
+	metricValueResolver struct{ *Resolver }
+	mutationResolver    struct{ *Resolver }
+	nodeResolver        struct{ *Resolver }
+	queryResolver       struct{ *Resolver }
+	subClusterResolver  struct{ *Resolver }
+)

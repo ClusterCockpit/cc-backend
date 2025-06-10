@@ -1,4 +1,3 @@
-GROMACS
 gromacs
-GMX
+gmx
 mdrun
