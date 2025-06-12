@@ -8,8 +8,8 @@ mount(Systems, {
         displayType: displayType,
         cluster: infos.cluster,
         subCluster: infos.subCluster,
-        from: infos.from,
-        to: infos.to
+        fromPreset: infos.from,
+        toPreset: infos.to
     },
     context: new Map([
             ['cc-config', clusterCockpitConfig],
