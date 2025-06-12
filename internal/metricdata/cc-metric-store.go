@@ -850,7 +850,7 @@ func (ccms *CCMetricStore) LoadNodeListData(
 	if len(nodes) > page.ItemsPerPage {
 		start := (page.Page - 1) * page.ItemsPerPage
 		end := start + page.ItemsPerPage
-		if end > len(nodes) {
+		if end >= len(nodes) {
 			end = len(nodes)
 			hasNextPage = false
 		} else {

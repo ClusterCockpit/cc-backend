@@ -86,11 +86,10 @@
   let page = $state(1);
   let itemsPerPage = $state(usePaging ? (ccconfig?.plot_list_nodesPerPage || 10) : 10);
   let headerPaddingTop = $state(0);
+  let matchedNodes = $state(0);
 
   /* Derived */
   const paging = $derived({ itemsPerPage, page });
-  const matchedNodes = $derived($nodesQuery?.data?.nodeMetricsList?.totalNodes || 0);
-
   const nodesQuery = $derived(queryStore({
     client: client,
     query: nodeListQuery,
@@ -119,7 +118,7 @@
         } = document.documentElement;
 
         // Add 100 px offset to trigger load earlier
-        if (scrollTop + clientHeight >= scrollHeight - 100 && $nodesQuery?.data != null && $nodesQuery.data?.nodeMetricsList.hasNextPage) {
+        if (scrollTop + clientHeight >= scrollHeight - 100  && $nodesQuery?.data?.nodeMetricsList?.hasNextPage) {
           page += 1
         };
       });
@@ -127,7 +126,7 @@
   });
 
   $effect(() => {
-    handleNodes($nodesQuery?.data?.nodeMetricsList?.items);
+    handleNodes($nodesQuery?.data?.nodeMetricsList);
   });
 
   $effect(() => {
@@ -145,14 +144,15 @@
   /* Functions */
   function handleNodes(data) {
     if (data) {
+      matchedNodes = data.totalNodes;
       if (usePaging || nodes.length == 0) {
-        nodes = [...data].sort((a, b) => a.host.localeCompare(b.host));
+        nodes = [...data.items].sort((a, b) => a.host.localeCompare(b.host));
       } else {
         // Workaround to ignore secondary store triggers (reason tbd)
         const oldNodes = $state.snapshot(nodes)
-        const newNodes = [...data].map((d) => d.host)
+        const newNodes = [...data.items].map((d) => d.host)
         if (!oldNodes.some((n) => newNodes.includes(n.host))) {
-          nodes = nodes.concat([...data].sort((a, b) => a.host.localeCompare(b.host)))
+          nodes = nodes.concat([...data.items].sort((a, b) => a.host.localeCompare(b.host)))
         };
       };
     };
