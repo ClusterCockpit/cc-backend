@@ -306,7 +306,7 @@
 {#if data && data[0].length > 0}
   <div bind:this={plotWrapper} bind:clientWidth={width}
         style="background-color: rgba(255, 255, 255, 1.0);" class="rounded"
-  />
+  ></div>
 {:else}
   <Card body color="warning" class="mx-4 my-2"
     >Cannot render plot: No series data returned for <code>{metric?metric:'job resources'}</code></Card
