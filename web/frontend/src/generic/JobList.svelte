@@ -321,7 +321,7 @@
     {itemsPerPage}
     itemText="Jobs"
     totalItems={matchedListJobs}
-    on:update-paging={({ detail }) => {
+    updatePaging={(detail) => {
       if (detail.itemsPerPage != itemsPerPage) {
         updateConfiguration(detail.itemsPerPage.toString(), detail.page);
       } else {

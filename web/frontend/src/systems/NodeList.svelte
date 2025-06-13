@@ -266,7 +266,7 @@
     {itemsPerPage}
     itemText="Nodes"
     totalItems={matchedNodes}
-    on:update-paging={({ detail }) => {
+    updatePaging={(detail) => {
       if (detail.itemsPerPage != itemsPerPage) {
         updateConfiguration(detail.itemsPerPage, detail.page);
       } else {
