@@ -20,8 +20,10 @@
     import Polar from "../../generic/plots/Polar.svelte";
     import { findJobFootprintThresholds } from "../../generic/utils.js";
   
-    export let job;
+    /* Svelte 5 Props */
+    let { job } = $props();
   
+    /* Const Init */
     // Metric Names Configured To Be Footprints For (sub)Cluster
     const clusterFootprintMetrics = getContext("clusters")
     .find((c) => c.name == job.cluster)?.subClusters
@@ -39,23 +41,24 @@
     // Pull All Series For Footprint Metrics Statistics Only On Node Scope
     const client = getContextClient();
     const polarQuery = gql`
-    query ($dbid: ID!, $selectedMetrics: [String!]!) {
-      jobStats(id: $dbid, metrics: $selectedMetrics) {
-        name
-        data {
-          min
-          avg
-          max
+      query ($dbid: ID!, $selectedMetrics: [String!]!) {
+        jobStats(id: $dbid, metrics: $selectedMetrics) {
+          name
+          data {
+            min
+            avg
+            max
+          }
         }
       }
-    }
     `;
 
-    $: polarData = queryStore({
+    /* Derived */
+    const polarData = $derived(queryStore({
       client: client,
       query: polarQuery,
       variables:{ dbid: job.id, selectedMetrics: clusterFootprintMetrics },
-    });
+    }));
 </script>
 
 <CardBody>
