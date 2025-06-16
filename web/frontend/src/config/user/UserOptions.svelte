@@ -22,16 +22,23 @@
         CardBody
     } from "@sveltestrap/sveltestrap";
     import { fade } from "svelte/transition";
-    import { createEventDispatcher } from 'svelte';
     import { fetchJwt } from "../../generic/utils.js";
 
-    export let config;
-    export let message;
-    export let displayMessage;
-    export let username;
-    export let isApi;
+    /* Svelte 5 Props */
+    let {
+      config,
+      message = $bindable(),
+      displayMessage = $bindable(),
+      username,
+      isApi,
+      updateSetting
+    } = $props();
 
-    let jwt = "";
+    /* State Init */
+    let jwt = $state("");
+    let displayCheck = $state(false);
+
+    /* Functions */
     function getUserJwt(username) {
         if (username) {
             const p = fetchJwt(username);
@@ -43,7 +50,6 @@
         }
     }
 
-    let displayCheck = false;
     function clipJwt() {
       displayCheck = true;
       // Navigator clipboard api needs a secure context (https)
@@ -71,14 +77,6 @@
         displayCheck = false;
       }, 1000);
     }
-
-    const dispatch = createEventDispatcher();
-    function updateSetting(selector, target) {
-        dispatch('update-config', {
-            selector: selector,
-            target: target
-        });
-    }
 </script>
 
 <Row cols={isApi ? 3 : 1} class="p-2 g-2">
@@ -90,8 +88,10 @@
         method="post"
         action="/frontend/configuration/"
         class="card-body"
-        on:submit|preventDefault={() =>
-          updateSetting("#paging-form", "pag")}
+        onsubmit={(e) => updateSetting(e, {
+          selector: "#paging-form",
+          target: "pag",
+        })}
       >
         <!-- Svelte 'class' directive only on DOMs directly, normal 'class="xxx"' does not work, so style-array it is. -->
         <CardTitle
@@ -137,7 +137,7 @@
             <CardBody>
                 <CardTitle>Generate JWT</CardTitle>
                 {#if jwt}
-                    <Button color="secondary" on:click={() => clipJwt()}>
+                    <Button color="secondary" onclick={() => clipJwt()}>
                         Copy JWT to Clipboard
                     </Button>
                     <p class="mt-2">
@@ -149,7 +149,7 @@
                         </p>
                     {/if}
                 {:else}
-                    <Button color="success" on:click={() => getUserJwt(username)}>
+                    <Button color="success" onclick={() => getUserJwt(username)}>
                         Generate JWT for '{username}'
                     </Button>
                     <p class="mt-2">

@@ -10,9 +10,13 @@
   import { Button } from "@sveltestrap/sveltestrap";
   import { fetchJwt } from "../../generic/utils.js"
 
-  export let user;
+  /* Svelte 5 Props */
+  let { user } = $props();
 
-  let jwt = "";
+  /* State Init */
+  let jwt = $state("");
+
+  /* Functions */
   function getUserJwt(username) {
     const p = fetchJwt(username);
     p.then((content) => {
@@ -30,7 +34,7 @@
 <td><code>{user?.roles ? user.roles.join(", ") : "No Roles"}</code></td>
 <td>
   {#if !jwt}
-    <Button color="success" on:click={() => getUserJwt(user.username)}
+    <Button color="success" onclick={() => getUserJwt(user.username)}
       >Gen. JWT</Button
     >
   {:else}

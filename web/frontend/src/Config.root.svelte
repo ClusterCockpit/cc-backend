@@ -14,15 +14,18 @@
   import SupportSettings from "./config/SupportSettings.svelte";
   import AdminSettings from "./config/AdminSettings.svelte";
 
-  export let isAdmin;
-  export let isSupport;
-  export let isApi;
-  export let username;
-  export let ncontent;
+  /* Svelte 5 Props */
+  let {
+    isAdmin,
+    isSupport,
+    isApi,
+    username,
+    ncontent,
+  } = $props();
 </script>
 
 {#if isAdmin}
-  <Card style="margin-bottom: 1.5em;">
+  <Card style="margin-bottom: 1.5rem;">
     <CardHeader>
       <CardTitle class="mb-1">Admin Options</CardTitle>
     </CardHeader>
@@ -31,7 +34,7 @@
 {/if}
 
 {#if isSupport || isAdmin}
-  <Card style="margin-bottom: 1.5em;">
+  <Card style="margin-bottom: 1.5rem;">
     <CardHeader>
       <CardTitle class="mb-1">Support Options</CardTitle>
     </CardHeader>

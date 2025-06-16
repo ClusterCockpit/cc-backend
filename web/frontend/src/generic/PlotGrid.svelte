@@ -19,6 +19,7 @@
     * Requirements
     * - Parent Components must be already Migrated
     * - TODO: Job.root.svelte, Node.root.svelte
+    * - DONE: Analysis, Status, User
     * 
     * How-To
     * - Define "Plot-Slotcode" as SV5 Snippet with argument "item" in parent (!)

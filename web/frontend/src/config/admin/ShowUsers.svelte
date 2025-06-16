@@ -16,23 +16,19 @@
     CardTitle,
     CardBody,
   } from "@sveltestrap/sveltestrap";
-  import { createEventDispatcher } from "svelte";
   import ShowUsersRow from "./ShowUsersRow.svelte";
 
-  export let users = [];
+  /*Svelte 5 Props */
+  let { users = $bindable([]), reloadUser } = $props();
 
-  const dispatch = createEventDispatcher();
-  function reloadUserList() {
-    dispatch("reload");
-  }
-
+  /* Functions */
   function deleteUser(username) {
     if (confirm("Are you sure?")) {
       let formData = new FormData();
       formData.append("username", username);
       fetch("/config/users/", { method: "DELETE", body: formData }).then((res) => {
         if (res.status == 200) {
-          reloadUserList();
+          reloadUser();
         } else {
           confirm(res.statusText);
         }
@@ -40,7 +36,6 @@
     }
   }
 
-  $: userList = users;
 </script>
 
 <Card class="h-100">
@@ -53,7 +48,7 @@
       <Button
         color="secondary"
         size="sm"
-        on:click={() => reloadUserList()}
+        onclick={() => reloadUser()}
         style="float: right;">Reload</Button
       >
     </p>
@@ -71,13 +66,13 @@
           </tr>
         </thead>
         <tbody id="users-list">
-          {#each userList as user}
+          {#each users as user}
             <tr id="user-{user.username}">
               <ShowUsersRow {user} />
               <td
                 ><button
                   class="btn btn-danger del-user"
-                  on:click={() => deleteUser(user.username)}>Delete</button
+                  onclick={() => deleteUser(user.username)}>Delete</button
                 ></td
               >
             </tr>

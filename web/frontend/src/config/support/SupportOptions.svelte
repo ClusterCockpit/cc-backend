@@ -6,12 +6,17 @@
   import { Row, Col, Card, CardTitle, CardBody, Button} from "@sveltestrap/sveltestrap";
   import { fade } from "svelte/transition";
 
-  export let config;
+  /* Svelte 5 Props */
+  let { config } = $props();
 
-  let message;
-  let displayMessage;
+  /* State Init */
+  let message = $state("");
+  let displayMessage = $state(false);
 
-  async function handleSettingSubmit(selector, target) {
+  /* Functions */
+  async function handleSettingSubmit(event, selector, target) {
+    event.preventDefault()
+
     let form = document.querySelector(selector);
     let formData = new FormData(form);
     try {
@@ -58,7 +63,7 @@
           id="node-paging-form"
           method="post"
           action="/frontend/configuration/"
-          on:submit|preventDefault={() => handleSettingSubmit("#node-paging-form", "npag")}>
+          onsubmit={(e) => handleSettingSubmit(e, "#node-paging-form", "npag")}>
           <input type="hidden" name="key" value="node_list_usePaging" />
           <div class="mb-3">
             <div>

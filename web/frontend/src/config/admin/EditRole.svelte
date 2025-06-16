@@ -10,17 +10,19 @@
 
 <script>
   import { Card, CardTitle, CardBody } from "@sveltestrap/sveltestrap";
-  import { createEventDispatcher } from "svelte";
   import { fade } from "svelte/transition";
 
-  const dispatch = createEventDispatcher();
+  /* SVelte 5 Props */
+  let {roles, reloadUser } = $props();
 
-  let message = { msg: "", color: "#d63384" };
-  let displayMessage = false;
+  /* State Init */
+  let message = $state({ msg: "", color: "#d63384" });
+  let displayMessage = $state(false);
 
-  export let roles;
+  /* Functions */
+  async function handleAddRole(event) {
+    event.preventDefault();
 
-  async function handleAddRole() {
     const username = document.querySelector("#role-username").value;
     const role = document.querySelector("#role-select").value;
 
@@ -41,7 +43,7 @@
       if (res.ok) {
         let text = await res.text();
         popMessage(text, "#048109");
-        reloadUserList();
+        reloadUser();
       } else {
         let text = await res.text();
         throw new Error("Response Code " + res.status + "-> " + text);
@@ -51,7 +53,9 @@
     }
   }
 
-  async function handleRemoveRole() {
+  async function handleRemoveRole(event) {
+    event.preventDefault();
+
     const username = document.querySelector("#role-username").value;
     const role = document.querySelector("#role-select").value;
 
@@ -72,7 +76,7 @@
       if (res.ok) {
         let text = await res.text();
         popMessage(text, "#048109");
-        reloadUserList();
+        reloadUser();
       } else {
         let text = await res.text();
         throw new Error("Response Code " + res.status + "-> " + text);
@@ -88,10 +92,6 @@
     setTimeout(function () {
       displayMessage = false;
     }, 3500);
-  }
-
-  function reloadUserList() {
-    dispatch("reload");
   }
 </script>
 
@@ -113,19 +113,17 @@
           >
         {/each}
       </select>
-      <!-- PreventDefault on Sveltestrap-Button more complex to achieve than just use good ol' html button -->
-      <!-- see: https://stackoverflow.com/questions/69630422/svelte-how-to-use-event-modifiers-in-my-own-components -->
       <button
         class="btn btn-primary"
         type="button"
         id="add-role-button"
-        on:click|preventDefault={() => handleAddRole()}>Add</button
+        onclick={(e) => handleAddRole(e)}>Add</button
       >
       <button
         class="btn btn-danger"
         type="button"
         id="remove-role-button"
-        on:click|preventDefault={() =>handleRemoveRole()}>Remove</button
+        onclick={(e) =>handleRemoveRole(e)}>Remove</button
       >
     </div>
     <p>
