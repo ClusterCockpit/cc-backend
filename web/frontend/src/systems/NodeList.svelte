@@ -262,7 +262,7 @@
 
 {#if usePaging}
   <Pagination
-    bind:page
+    {page}
     {itemsPerPage}
     itemText="Nodes"
     totalItems={matchedNodes}

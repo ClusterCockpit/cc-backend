@@ -14,7 +14,7 @@
 <script>
     /* Svelte 5 Props */
     let {
-        page = $bindable(1),
+        page = 1,
         itemsPerPage = 10,
         totalItems = 0,
         itemText = "items",
@@ -63,7 +63,7 @@
             <span class="focus"></span>
         </div>
         <span class="cc-pagination-text">
-            { (page - 1) * itemsPerPage } - { Math.min((page - 1) * itemsPerPage + itemsPerPage, totalItems) } of { totalItems } { itemText }
+            { ((page - 1) * itemsPerPage) + 1 } - { Math.min((page - 1) * itemsPerPage + itemsPerPage, totalItems) } of { totalItems } { itemText }
         </span>
     </div>
     <div class="cc-pagination-right">

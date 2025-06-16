@@ -317,7 +317,7 @@
 
 {#if usePaging}
   <Pagination
-    bind:page
+    {page}
     {itemsPerPage}
     itemText="Jobs"
     totalItems={matchedListJobs}
