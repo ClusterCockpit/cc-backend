@@ -146,7 +146,14 @@
     </Col>
     <!-- Time Col -->
     <Col>
-      <TimeSelection bind:from bind:to />
+      <TimeSelection
+        presetFrom={from}
+        presetTo={to}
+        applyTime={(newFrom, newTo) => {
+          from = newFrom;
+          to = newTo;
+        }}
+      />
     </Col>
     <!-- Concurrent Col -->
     <Col class="mt-2 mt-lg-0">

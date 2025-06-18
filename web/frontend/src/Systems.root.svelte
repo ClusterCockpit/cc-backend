@@ -56,7 +56,7 @@
 
   /* State Init */
   let to = $state(toPreset || new Date(Date.now()));
-  let from = $state(fromPreset || new Date(nowDate.setHours(nowDate.getHours() - 12)));
+  let from = $state(fromPreset || new Date(nowDate.setHours(nowDate.getHours() - 4)));
   let selectedResolution = $state(resampleConfig ? resampleDefault : 0);
   let hostnameFilter = $state("");
   let pendingHostnameFilter = $state("");
@@ -147,7 +147,14 @@
     </Col>
     <!-- Range Col-->
     <Col>
-      <TimeSelection bind:from bind:to />
+      <TimeSelection
+        presetFrom={from}
+        presetTo={to}
+        applyTime={(newFrom, newTo) => {
+          from = newFrom;
+          to = newTo;
+        }}
+      />
     </Col>
     <!-- Overview Metric Col-->
     {#if displayNodeOverview}

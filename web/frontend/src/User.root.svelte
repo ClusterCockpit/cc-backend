@@ -62,6 +62,7 @@
   let isMetricsSelectionOpen = $state(false);
   let sorting = $state({ field: "startTime", type: "col", order: "DESC" });
   let selectedCluster = $state(filterPresets?.cluster ? filterPresets.cluster : null);
+  let selectedHistogramsBuffer = $state({ all: (ccconfig['user_view_histogramMetrics'] || []) })
   let metrics = $state(filterPresets.cluster
     ? ccconfig[`plot_list_selectedMetrics:${filterPresets.cluster}`] ||
       ccconfig.plot_list_selectedMetrics
@@ -85,10 +86,7 @@
   // let matchedCompareJobs = $state(0);
 
   /* Derived Vars */
-  let selectedHistograms = $derived(selectedCluster
-  ? ccconfig[`user_view_histogramMetrics:${selectedCluster}`] || ( ccconfig['user_view_histogramMetrics'] || [] )
-  : ccconfig['user_view_histogramMetrics'] || []);
-
+  let selectedHistograms = $derived(selectedCluster ? selectedHistogramsBuffer[selectedCluster] : selectedHistogramsBuffer['all']);
   let stats = $derived(
     queryStore({
       client: client,
@@ -125,8 +123,21 @@
     })
   );
 
+  /* Effect */
+  $effect(() => {
+    if (!selectedHistogramsBuffer[selectedCluster]) {
+      selectedHistogramsBuffer[selectedCluster] = ccconfig[`user_view_histogramMetrics:${selectedCluster}`];
+    };
+  });
+
   /* On Mount */
-  onMount(() => filterComponent.updateFilters());
+  onMount(() => {
+    filterComponent.updateFilters();
+    // Why? -> `$derived(ccconfig[$cluster])` only loads array from last Backend-Query if $cluster changed reactively (without reload)
+    if (filterPresets?.cluster) {
+      selectedHistogramsBuffer[filterPresets.cluster] = ccconfig[`user_view_histogramMetrics:${filterPresets.cluster}`];
+    };
+  });
 </script>
 
 <!-- ROW1: Status-->
@@ -363,7 +374,13 @@
   </Col>
 </Row>
 
-<Sorting bind:sorting bind:isOpen={isSortingOpen} />
+<Sorting
+  bind:isOpen={isSortingOpen}
+  presetSorting={sorting}
+  applySorting={(newSort) =>
+    sorting = {...newSort}
+  }
+/>
 
 <MetricSelection
     bind:isOpen={isMetricsSelectionOpen}
@@ -378,7 +395,10 @@
 />
 
 <HistogramSelection
-  bind:cluster={selectedCluster}
-  bind:selectedHistograms
+  cluster={selectedCluster}
   bind:isOpen={isHistogramSelectionOpen}
+  presetSelectedHistograms={selectedHistograms}
+  applyChange={(newSelection) => {
+    selectedHistogramsBuffer[selectedCluster || 'all'] = [...newSelection];
+  }}
 />

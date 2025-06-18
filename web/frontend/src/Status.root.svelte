@@ -697,7 +697,10 @@
 {/if}
 
 <HistogramSelection
-  bind:cluster
-  bind:selectedHistograms
+  {cluster}
   bind:isOpen={isHistogramSelectionOpen}
+  presetSelectedHistograms={selectedHistograms}
+  applyChange={(newSelection) => {
+    selectedHistograms = [...newSelection];
+  }}
 />

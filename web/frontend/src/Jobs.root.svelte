@@ -196,7 +196,12 @@
   </Col>
 </Row>
 
-<Sorting bind:sorting bind:isOpen={isSortingOpen}/>
+<Sorting
+  bind:isOpen={isSortingOpen}
+  presetSorting={sorting}
+  applySorting={(newSort) =>
+    sorting = {...newSort}
+  }/>
 
 <MetricSelection
     bind:isOpen={isMetricsSelectionOpen}

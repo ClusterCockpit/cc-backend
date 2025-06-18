@@ -388,24 +388,6 @@ export function findJobFootprintThresholds(job, stat, metricConfig) {
     }
 }
 
-export function getSortItems() {
-    //console.time('sort')
-    const globalMetrics = getContext("globalMetrics")
-    const result = globalMetrics.map((gm) => {
-        if (gm?.footprint) {
-            return { 
-                field: gm.name + '_' + gm.footprint,
-                type: 'foot',
-                text: gm.name + ' (' + gm.footprint + ')',
-                order: 'DESC'
-            }
-        }
-        return null
-    }).filter((r) => r != null)
-    //console.timeEnd('sort')
-    return [...result];
-};
-
 function getMetricConfigDeep(metric, cluster, subCluster) {
     const clusters = getContext("clusters");
     if (cluster != null) {
