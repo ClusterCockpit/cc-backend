@@ -14,8 +14,14 @@ import (
 )
 
 type Node struct {
-	Name   string   `json:"hostname"`
-	States []string `json:"states"`
+	Name            string   `json:"hostname"`
+	States          []string `json:"states"`
+	CpusAllocated   int      `json:"cpusAllocated"`
+	CpusTotal       int      `json:"cpusTotal"`
+	MemoryAllocated int      `json:"memoryAllocated"`
+	MemoryTotal     int      `json:"memoryTotal"`
+	GpusAllocated   int      `json:"gpusAllocated"`
+	GpusTotal       int      `json:"gpusTotal"`
 }
 
 // updateNodeStatesRequest model
