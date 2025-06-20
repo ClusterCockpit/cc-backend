@@ -26,16 +26,14 @@
   import MetricSelection from "../generic/select/MetricSelection.svelte";
   import StatsTable from "./statstab/StatsTable.svelte";
 
-  export let job;
-  export let clusters;
-  export let tabActive;
+  /* Svelte 5 Props */
+  let {
+    job,
+    clusters,
+    tabActive,
+  } = $props();
 
-  let loadScopes = false;
-  let selectedScopes = [];
-  let selectedMetrics = [];
-  let totalMetrics = 0; // For Info Only, filled by MetricSelection Component
-  let isMetricSelectionOpen = false;
-
+  /* Const Init */
   const client = getContextClient();
   const query = gql`
     query ($dbid: ID!, $selectedMetrics: [String!]!, $selectedScopes: [MetricScope!]!) {
@@ -55,16 +53,29 @@
     }
   `;
 
-  $: scopedStats = queryStore({
-    client: client,
-    query: query,
-    variables: { dbid: job.id, selectedMetrics, selectedScopes },
-  });
+  /* State Init */
+  let moreScopes = $state(false);
+  let selectedScopes = $state([]);
+  let selectedMetrics = $state([]);
+  let totalMetrics = $state(0); // For Info Only, filled by MetricSelection Component
+  let isMetricSelectionOpen = $state(false);
 
-  $: if (loadScopes) {
+  /* Derived */
+  const scopedStats = $derived(queryStore({
+      client: client,
+      query: query,
+      variables: { dbid: job.id, selectedMetrics, selectedScopes },
+    })
+  );
+
+  /* Functions  */
+  function loadScopes() {
+    // Archived Jobs Load All Scopes By Default (See Backend)
+    moreScopes = true;
     selectedScopes = ["node", "socket", "core", "hwthread", "accelerator"];
-  }
+  };
 
+  /* On Init */
   // Handle Job Query on Init -> is not executed anymore
   getContext("on-init")(() => {
     if (!job) return;
@@ -98,12 +109,12 @@
 <TabPane tabId="stats" tab="Statistics Table" class="overflow-x-auto" active={tabActive}>
   <Row>
     <Col class="m-2">
-      <Button outline on:click={() => (isMetricSelectionOpen = true)} class="px-2" color="primary" style="margin-right:0.5rem">
+      <Button outline onclick={() => (isMetricSelectionOpen = true)} class="px-2" color="primary" style="margin-right:0.5rem">
         Select Metrics (Selected {selectedMetrics.length} of {totalMetrics} available)
       </Button>
-      {#if job.numNodes > 1}
-        <Button class="px-2 ml-auto" color="success" outline on:click={() => (loadScopes = !loadScopes)} disabled={loadScopes}>
-          {#if !loadScopes}
+      {#if job.numNodes > 1 && job.state === "running"}
+        <Button class="px-2 ml-auto" color="success" outline onclick={loadScopes} disabled={moreScopes}>
+          {#if !moreScopes}
             <Icon name="plus-square-fill" style="margin-right:0.25rem"/> Add More Scopes
           {:else}
             <Icon name="check-square-fill" style="margin-right:0.25rem"/> OK: Scopes Added
