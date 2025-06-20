@@ -7,8 +7,8 @@ mount(Node, {
     props: {
         cluster: infos.cluster,
         hostname: infos.hostname,
-        from: infos.from,
-        to: infos.to
+        presetFrom: infos.from,
+        presetTo: infos.to
     },
     context: new Map([
             ['cc-config', clusterCockpitConfig]
