@@ -13,7 +13,7 @@
  -->
 
 <script>
-  import { createEventDispatcher, getContext } from "svelte";
+  import { getContext } from "svelte";
   import {
     Button,
     ListGroup,
@@ -24,18 +24,23 @@
     ModalFooter,
   } from "@sveltestrap/sveltestrap";
 
-  const clusters = getContext("clusters"),
-    initialized = getContext("initialized"),
-    dispatch = createEventDispatcher();
+  /* Svelte 5 Props */
+  let {
+    isOpen = $bindable(false),
+    presetCluster = "",
+    presetPartition = "",
+    disableClusterSelection = false,
+    setFilter
+  } = $props();
 
-  export let disableClusterSelection = false;
-  export let isModified = false;
-  export let isOpen = false;
-  export let cluster = null;
-  export let partition = null;
-  let pendingCluster = cluster,
-    pendingPartition = partition;
-  $: isModified = pendingCluster != cluster || pendingPartition != partition;
+  /* State Init */
+  let pendingCluster = $state(presetCluster);
+  let pendingPartition = $state(presetPartition);
+
+  /* Derived Vars */
+  const clusters = $derived(getContext("clusters"));
+  const initialized = $derived(getContext("initialized"));
+
 </script>
 
 <Modal {isOpen} toggle={() => (isOpen = !isOpen)}>
@@ -45,13 +50,13 @@
       <h4>Cluster</h4>
       {#if disableClusterSelection}
         <Button color="info" class="w-100 mb-2" disabled><b>Info: Cluster Selection Disabled in This View</b></Button>
-        <Button outline color="primary" class="w-100 mb-2" disabled><b>Selected Cluster: {cluster}</b></Button>
+        <Button outline color="primary" class="w-100 mb-2" disabled><b>Selected Cluster: {presetCluster}</b></Button>
       {:else}
         <ListGroup>
           <ListGroupItem
             disabled={disableClusterSelection}
             active={pendingCluster == null}
-            on:click={() => ((pendingCluster = null), (pendingPartition = null))}
+            onclick={() => ((pendingCluster = null), (pendingPartition = null))}
           >
             Any Cluster
           </ListGroupItem>
@@ -59,7 +64,7 @@
             <ListGroupItem
               disabled={disableClusterSelection}
               active={pendingCluster == cluster.name}
-              on:click={() => (
+              onclick={() => (
                 (pendingCluster = cluster.name), (pendingPartition = null)
               )}
             >
@@ -75,14 +80,14 @@
       <ListGroup>
         <ListGroupItem
           active={pendingPartition == null}
-          on:click={() => (pendingPartition = null)}
+          onclick={() => (pendingPartition = null)}
         >
           Any Partition
         </ListGroupItem>
-        {#each clusters.find((c) => c.name == pendingCluster).partitions as partition}
+        {#each clusters?.find((c) => c.name == pendingCluster)?.partitions as partition}
           <ListGroupItem
             active={pendingPartition == partition}
-            on:click={() => (pendingPartition = partition)}
+            onclick={() => (pendingPartition = partition)}
           >
             {partition}
           </ListGroupItem>
@@ -93,22 +98,22 @@
   <ModalFooter>
     <Button
       color="primary"
-      on:click={() => {
+      onclick={() => {
         isOpen = false;
-        cluster = pendingCluster;
-        partition = pendingPartition;
-        dispatch("set-filter", { cluster, partition });
+        setFilter({ cluster: pendingCluster, partition: pendingPartition });
       }}>Close & Apply</Button
     >
-    <Button
-      color="danger"
-      on:click={() => {
-        isOpen = false;
-        cluster = pendingCluster = null;
-        partition = pendingPartition = null;
-        dispatch("set-filter", { cluster, partition });
-      }}>Reset</Button
-    >
-    <Button on:click={() => (isOpen = false)}>Close</Button>
+    {#if !disableClusterSelection}
+      <Button
+        color="danger"
+        onclick={() => {
+          isOpen = false;
+          pendingCluster = null;
+          pendingPartition = null;
+          setFilter({ cluster: pendingCluster, partition: pendingPartition})
+        }}>Reset</Button
+      >
+    {/if}
+    <Button onclick={() => (isOpen = false)}>Close</Button>
   </ModalFooter>
 </Modal>

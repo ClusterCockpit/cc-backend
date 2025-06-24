@@ -21,10 +21,14 @@
   } from "@sveltestrap/sveltestrap";
   import { gql, getContextClient, mutationStore } from "@urql/svelte";
 
-  export let availableMetrics;
-  export let metricsInHistograms;
-  export let metricsInScatterplots;
+  /* Svelte 5 Props */
+  let {
+    availableMetrics,
+    metricsInHistograms = $bindable(),
+    metricsInScatterplots = $bindable(),
+  } = $props();
 
+  /* Const Init */
   const client = getContextClient();
   const updateConfigurationMutation = ({ name, value }) => {
     return mutationStore({
@@ -38,11 +42,13 @@
     });
   };
 
-  let isHistogramConfigOpen = false,
-    isScatterPlotConfigOpen = false;
-  let selectedMetric1 = null,
-    selectedMetric2 = null;
+  /* State Init */
+  let isHistogramConfigOpen = $state(false);
+  let isScatterPlotConfigOpen = $state(false);
+  let selectedMetric1 = $state(null);
+  let selectedMetric2 = $state(null);
 
+  /* Functions */
   function updateConfiguration(data) {
     updateConfigurationMutation({
       name: data.name,
@@ -55,12 +61,12 @@
   }
 </script>
 
-<Button outline on:click={() => (isHistogramConfigOpen = true)}>
+<Button outline onclick={() => (isHistogramConfigOpen = true)}>
   <Icon name="" />
   Select Plots for Histograms
 </Button>
 
-<Button outline on:click={() => (isScatterPlotConfigOpen = true)}>
+<Button outline onclick={() => (isScatterPlotConfigOpen = true)}>
   <Icon name="" />
   Select Plots in Scatter Plots
 </Button>
@@ -78,7 +84,7 @@
             type="checkbox"
             bind:group={metricsInHistograms}
             value={metric}
-            on:change={() =>
+            onchange={() =>
               updateConfiguration({
                 name: "analysis_view_histogramMetrics",
                 value: metricsInHistograms,
@@ -91,7 +97,7 @@
     </ListGroup>
   </ModalBody>
   <ModalFooter>
-    <Button color="primary" on:click={() => (isHistogramConfigOpen = false)}>
+    <Button color="primary" onclick={() => (isHistogramConfigOpen = false)}>
       Close
     </Button>
   </ModalFooter>
@@ -112,7 +118,7 @@
             style="float: right;"
             outline
             color="danger"
-            on:click={() => {
+            onclick={() => {
               metricsInScatterplots = metricsInScatterplots.filter(
                 (p) => pair != p,
               );
@@ -146,7 +152,7 @@
       <Button
         outline
         disabled={selectedMetric1 == null || selectedMetric2 == null}
-        on:click={() => {
+        onclick={() => {
           metricsInScatterplots = [
             ...metricsInScatterplots,
             [selectedMetric1, selectedMetric2],
@@ -164,7 +170,7 @@
     </InputGroup>
   </ModalBody>
   <ModalFooter>
-    <Button color="primary" on:click={() => (isScatterPlotConfigOpen = false)}>
+    <Button color="primary" onclick={() => (isScatterPlotConfigOpen = false)}>
       Close
     </Button>
   </ModalFooter>

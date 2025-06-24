@@ -14,6 +14,18 @@
 
     export let itemsPerRow
     export let items
+
+    /* Migtation Notes 
+    * Requirements
+    * - Parent Components must be already Migrated
+    * - TODO: Job.root.svelte, Node.root.svelte
+    * - DONE: Analysis, Status, User
+    * 
+    * How-To
+    * - Define "Plot-Slotcode" as SV5 Snippet with argument "item" in parent (!)
+    * - Pass new snippet as argument/prop to here
+    * - @render snippet in items-loop with argument == item
+    */
 </script>
 
 <Row cols={{ xs: 1, sm: 2, md: 3, lg: itemsPerRow}}>

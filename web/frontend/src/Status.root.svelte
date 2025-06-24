@@ -42,15 +42,14 @@
   import Refresher from "./generic/helper/Refresher.svelte";
   import HistogramSelection from "./generic/select/HistogramSelection.svelte";
 
+  /* Svelte 5 Props */
+  let { cluster } = $props();
+
+  /* Const Init */
   const { query: initq } = init();
   const ccconfig = getContext("cc-config");
-
-  export let cluster;
-
-  let plotWidths = [];
-  let colWidth;
-  let from = new Date(Date.now() - 5 * 60 * 1000),
-    to = new Date(Date.now());
+  const client = getContextClient();
+  const paging = { itemsPerPage: 10, page: 1 }; // Top 10
   const topOptions = [
     { key: "totalJobs", label: "Jobs" },
     { key: "totalNodes", label: "Nodes" },
@@ -58,7 +57,26 @@
     { key: "totalAccs", label: "Accelerators" },
   ];
 
-  let topProjectSelection =
+  /* State Init */
+  let from = $state(new Date(Date.now() - 5 * 60 * 1000));
+  let to = $state(new Date(Date.now()));
+  let isHistogramSelectionOpen = $state(false);
+  let colWidth = $state(0);
+  let plotWidths = $state([]);
+  // Bar Gauges
+  let allocatedNodes = $state({});
+  let flopRate = $state({});
+  let flopRateUnitPrefix = $state({});
+  let flopRateUnitBase = $state({});
+  let memBwRate = $state({});
+  let memBwRateUnitPrefix = $state({});
+  let memBwRateUnitBase = $state({});
+
+  let selectedHistograms = $state(cluster
+    ? ccconfig[`user_view_histogramMetrics:${cluster}`] || ( ccconfig['user_view_histogramMetrics'] || [] )
+    : ccconfig['user_view_histogramMetrics'] || []);
+
+  let topProjectSelection = $state(
     topOptions.find(
       (option) =>
         option.key ==
@@ -66,8 +84,10 @@
     ) ||
     topOptions.find(
       (option) => option.key == ccconfig.status_view_selectedTopProjectCategory,
-    );
-  let topUserSelection =
+    )
+  );
+
+  let topUserSelection = $state(
     topOptions.find(
       (option) =>
         option.key ==
@@ -75,16 +95,12 @@
     ) ||
     topOptions.find(
       (option) => option.key == ccconfig.status_view_selectedTopUserCategory,
-    );
+    )
+  );
 
-  let isHistogramSelectionOpen = false;
-  $: selectedHistograms = cluster
-    ? ccconfig[`user_view_histogramMetrics:${cluster}`] || ( ccconfig['user_view_histogramMetrics'] || [] )
-    : ccconfig['user_view_histogramMetrics'] || [];
-
-  const client = getContextClient();
+  /* Derived */
   // Note: nodeMetrics are requested on configured $timestep resolution
-  $: mainQuery = queryStore({
+  const mainQuery = $derived(queryStore({
     client: client,
     query: gql`
       query (
@@ -162,10 +178,9 @@
       filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
       selectedHistograms: selectedHistograms,
     },
-  });
+  }));
 
-  const paging = { itemsPerPage: 10, page: 1 }; // Top 10
-  $: topUserQuery = queryStore({
+  const topUserQuery = $derived(queryStore({
     client: client,
     query: gql`
       query (
@@ -193,9 +208,9 @@
       paging,
       sortBy: topUserSelection.key.toUpperCase(),
     },
-  });
+  }));
 
-  $: topProjectQuery = queryStore({
+  const topProjectQuery = $derived(queryStore({
     client: client,
     query: gql`
       query (
@@ -222,8 +237,46 @@
       paging,
       sortBy: topProjectSelection.key.toUpperCase(),
     },
+  }));
+
+  /* Effects */
+  $effect(() => {
+    if ($initq.data && $mainQuery.data) {
+      let subClusters = $initq.data.clusters.find(
+        (c) => c.name == cluster,
+      ).subClusters;
+      for (let subCluster of subClusters) {
+        allocatedNodes[subCluster.name] =
+          $mainQuery.data.allocatedNodes.find(
+            ({ name }) => name == subCluster.name,
+          )?.count || 0;
+        flopRate[subCluster.name] =
+          Math.floor(
+            sumUp($mainQuery.data.nodeMetrics, subCluster.name, "flops_any") *
+              100,
+          ) / 100;
+        flopRateUnitPrefix[subCluster.name] = subCluster.flopRateSimd.unit.prefix;
+        flopRateUnitBase[subCluster.name] = subCluster.flopRateSimd.unit.base;
+        memBwRate[subCluster.name] =
+          Math.floor(
+            sumUp($mainQuery.data.nodeMetrics, subCluster.name, "mem_bw") * 100,
+          ) / 100;
+        memBwRateUnitPrefix[subCluster.name] =
+          subCluster.memoryBandwidth.unit.prefix;
+        memBwRateUnitBase[subCluster.name] = subCluster.memoryBandwidth.unit.base;
+      }
+    }
   });
 
+  $effect(() => {
+    updateTopUserConfiguration(topUserSelection.key);
+  });
+
+  $effect(() => {
+    updateTopProjectConfiguration(topProjectSelection.key);
+  });
+
+  /* Const Functions */
   const sumUp = (data, subcluster, metric) =>
     data.reduce(
       (sum, node) =>
@@ -239,39 +292,6 @@
       0,
     );
 
-  let allocatedNodes = {},
-    flopRate = {},
-    flopRateUnitPrefix = {},
-    flopRateUnitBase = {},
-    memBwRate = {},
-    memBwRateUnitPrefix = {},
-    memBwRateUnitBase = {};
-  $: if ($initq.data && $mainQuery.data) {
-    let subClusters = $initq.data.clusters.find(
-      (c) => c.name == cluster,
-    ).subClusters;
-    for (let subCluster of subClusters) {
-      allocatedNodes[subCluster.name] =
-        $mainQuery.data.allocatedNodes.find(
-          ({ name }) => name == subCluster.name,
-        )?.count || 0;
-      flopRate[subCluster.name] =
-        Math.floor(
-          sumUp($mainQuery.data.nodeMetrics, subCluster.name, "flops_any") *
-            100,
-        ) / 100;
-      flopRateUnitPrefix[subCluster.name] = subCluster.flopRateSimd.unit.prefix;
-      flopRateUnitBase[subCluster.name] = subCluster.flopRateSimd.unit.base;
-      memBwRate[subCluster.name] =
-        Math.floor(
-          sumUp($mainQuery.data.nodeMetrics, subCluster.name, "mem_bw") * 100,
-        ) / 100;
-      memBwRateUnitPrefix[subCluster.name] =
-        subCluster.memoryBandwidth.unit.prefix;
-      memBwRateUnitBase[subCluster.name] = subCluster.memoryBandwidth.unit.base;
-    }
-  }
-
   const updateConfigurationMutation = ({ name, value }) => {
     return mutationStore({
       client: client,
@@ -284,20 +304,17 @@
     });
   };
 
+  /* Functions */
   function updateTopUserConfiguration(select) {
     if (ccconfig[`status_view_selectedTopUserCategory:${cluster}`] != select) {
       updateConfigurationMutation({
         name: `status_view_selectedTopUserCategory:${cluster}`,
         value: JSON.stringify(select),
       }).subscribe((res) => {
-        if (res.fetching === false && !res.error) {
-          // console.log(`status_view_selectedTopUserCategory:${cluster}` + ' -> Updated!')
-        } else if (res.fetching === false && res.error) {
+        if (res.fetching === false && res.error) {
           throw res.error;
         }
       });
-    } else {
-      // console.log('No Mutation Required: Top User')
     }
   }
 
@@ -309,19 +326,12 @@
         name: `status_view_selectedTopProjectCategory:${cluster}`,
         value: JSON.stringify(select),
       }).subscribe((res) => {
-        if (res.fetching === false && !res.error) {
-          // console.log(`status_view_selectedTopProjectCategory:${cluster}` + ' -> Updated!')
-        } else if (res.fetching === false && res.error) {
+        if (res.fetching === false && res.error) {
           throw res.error;
         }
       });
-    } else {
-      // console.log('No Mutation Required: Top Project')
     }
   }
-
-  $: updateTopUserConfiguration(topUserSelection.key);
-  $: updateTopProjectConfiguration(topProjectSelection.key);
 </script>
 
 <!-- Loading indicator & Refresh -->
@@ -334,7 +344,7 @@
     <Button
       outline
       color="secondary"
-      on:click={() => (isHistogramSelectionOpen = true)}
+      onclick={() => (isHistogramSelectionOpen = true)}
     >
       <Icon name="bar-chart-line" /> Select Histograms
     </Button>
@@ -342,7 +352,7 @@
   <Col class="mt-2 mt-md-0">
     <Refresher
       initially={120}
-      on:refresh={() => {
+      onRefresh={() => {
         from = new Date(Date.now() - 5 * 60 * 1000);
         to = new Date(Date.now());
       }}
@@ -483,6 +493,7 @@
             <Card body color="danger">{$topUserQuery.error.message}</Card>
           {:else}
             <Pie
+              canvasId="hpcpie-users"
               size={colWidth}
               sliceLabel={topUserSelection.label}
               quantities={$topUserQuery.data.topUser.map(
@@ -550,6 +561,7 @@
           <Card body color="danger">{$topProjectQuery.error.message}</Card>
         {:else}
           <Pie
+            canvasId="hpcpie-projects"
             size={colWidth}
             sliceLabel={topProjectSelection.label}
             quantities={$topProjectQuery.data.topProjects.map(
@@ -685,7 +697,10 @@
 {/if}
 
 <HistogramSelection
-  bind:cluster
-  bind:selectedHistograms
+  {cluster}
   bind:isOpen={isHistogramSelectionOpen}
+  presetSelectedHistograms={selectedHistograms}
+  applyChange={(newSelection) => {
+    selectedHistograms = [...newSelection];
+  }}
 />

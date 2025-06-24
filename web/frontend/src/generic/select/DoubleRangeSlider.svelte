@@ -2,6 +2,7 @@
 Copyright (c) 2021 Michael Keller
 Originally created by Michael Keller (https://github.com/mhkeller/svelte-double-range-slider)
 Changes: remove dependency, text inputs, configurable value ranges, on:change event
+Changes #2: Rewritten for Svelte 5, removed bodyHandler
 -->
 <!-- 
 	@component Selector component to display range selections via min and max double-sliders
@@ -9,82 +10,80 @@ Changes: remove dependency, text inputs, configurable value ranges, on:change ev
 	Properties:
 	- min:          Number
 	- max:          Number
-	- firstSlider:  Number (Starting position of slider #1)
-	- secondSlider: Number (Starting position of slider #2)
+	- sliderHandleFrom:  Number (Starting position of slider #1)
+	- sliderHandleTo: Number (Starting position of slider #2)
 	
 	Events:
 	- `change`: [Number, Number] (Positions of the two sliders)
  -->
+
 <script>
-	import { createEventDispatcher } from "svelte";
+	let {
+		sliderMin,
+		sliderMax,
+		fromPreset = 1,
+		toPreset = 100,
+		changeRange
+	} = $props();
 
-	export let min;
-	export let max;
-	export let firstSlider;
-	export let secondSlider;
-	export let inputFieldFrom = 0;
-	export let inputFieldTo = 0;
-
-	const dispatch = createEventDispatcher();
-
-	let values;
-	let start, end; /* Positions of sliders from 0 to 1 */
-	$: values = [firstSlider, secondSlider]; /* Avoid feedback loop */
-	$: start = Math.max(((firstSlider  == null ? min : firstSlider)  - min) / (max - min), 0);
-	$: end =   Math.min(((secondSlider == null ? min : secondSlider) - min) / (max - min), 1);
-
-	let leftHandle;
-	let body;
-	let slider;
+	let pendingValues = $state([fromPreset, toPreset]);
+	let sliderFrom = $state(Math.max(((fromPreset  == null ? sliderMin : fromPreset)  - sliderMin) / (sliderMax - sliderMin), 0.));
+	let sliderTo = $state(Math.min(((toPreset == null ? sliderMin : toPreset) - sliderMin) / (sliderMax - sliderMin), 1.));
+	let inputFieldFrom = $state(fromPreset.toString());
+	let inputFieldTo = $state(toPreset.toString());
+	let leftHandle = $state();
+	let sliderMain = $state();
 
 	let timeoutId = null;
 	function queueChangeEvent() {
 		if (timeoutId !== null) {
-			clearTimeout(timeoutId);
+			clearTimeout(timeoutId)
 		}
-
 		timeoutId = setTimeout(() => {
-			timeoutId = null;
-
-			// Show selection but avoid feedback loop
-			if (values[0] != null && inputFieldFrom != values[0].toString())
-				inputFieldFrom = values[0].toString();
-			if (values[1] != null && inputFieldTo != values[1].toString())
-				inputFieldTo = values[1].toString();
-
-			dispatch('change', values);
-		}, 250);
+			timeoutId = null
+			changeRange(pendingValues);
+		}, 100);
 	}
 
-	function update() {
-		values = [
-			Math.floor(min + start  * (max - min)),
-			Math.floor(min + end * (max - min))
-		];
-		queueChangeEvent();
-	}
-
-	function inputChanged(idx, event) {
-		let val = Number.parseInt(event.target.value);
-		if (Number.isNaN(val) || val < min) {
-			event.target.classList.add('bad');
-			return;
+	function updateStates(newValue, newPosition, target) {
+		if (target === 'from') {
+			pendingValues[0] = isNaN(newValue) ? null : newValue;
+			inputFieldFrom = isNaN(newValue) ? null : newValue.toString();
+			sliderFrom = newPosition;
+		} else if (target === 'to') {
+			pendingValues[1] = isNaN(newValue) ? null : newValue;
+			inputFieldTo = isNaN(newValue) ? null : newValue.toString();
+			sliderTo = newPosition;
 		}
 
-		values[idx] = val;
-		event.target.classList.remove('bad');
-		if (idx == 0)
-			start = clamp((val - min) / (max - min), 0., 1.);
-		else
-			end = clamp((val - min) / (max - min), 0., 1.);
-
 		queueChangeEvent();
 	}
 
-	function clamp(x, min, max) {
-		return x < min
-			? min
-			: (x < max ? x : max);
+	function rangeChanged (evt, target) {
+		evt.preventDefault()
+		evt.stopPropagation()
+		const { left, right } = sliderMain.getBoundingClientRect();
+		const parentWidth = right - left;
+		const newP = Math.min(Math.max((evt.detail.x - left) / parentWidth, 0), 1);
+		const newV = Math.floor(sliderMin + newP * (sliderMax - sliderMin));
+		updateStates(newV, newP, target);
+	}
+
+	function inputChanged(evt, target) {
+		evt.preventDefault()
+		evt.stopPropagation()
+		const newV = Number.parseInt(evt.target.value);
+		const newP = clamp((newV - sliderMin) / (sliderMax - sliderMin), 0., 1.)
+		updateStates(newV, newP, target);
+	}
+
+	function clamp(x, testMin, testMax) {
+		return x < testMin
+			? testMin
+			: (x > testMax 
+				? testMax
+				: x
+			);
 	}
 
 	function draggable(node) {
@@ -151,84 +150,38 @@ Changes: remove dependency, text inputs, configurable value ranges, on:change ev
 		};
 	}
 
-	function setHandlePosition (which) {
-		return function (evt) {
-			const { left, right } = slider.getBoundingClientRect();
-			const parentWidth = right - left;
-
-			const p = Math.min(Math.max((evt.detail.x - left) / parentWidth, 0), 1);
-
-			if (which === 'start') {
-				start = p;
-				end = Math.max(end, p);
-			} else {
-				start = Math.min(p, start);
-				end = p;
-			}
-
-			update();
-		}
-	}
-
-	function setHandlesFromBody (evt) {
-		const { width } = body.getBoundingClientRect();
-		const { left, right } = slider.getBoundingClientRect();
-
-		const parentWidth = right - left;
-
-		const leftHandleLeft = leftHandle.getBoundingClientRect().left;
-
-		const pxStart = clamp((leftHandleLeft + evt.detail.dx) - left, 0, parentWidth - width);
-		const pxEnd = clamp(pxStart + width, width, parentWidth);
-
-		const pStart = pxStart / parentWidth;
-		const pEnd = pxEnd / parentWidth;
-
-		start = pStart;
-		end = pEnd;
-		update();
-	}
 </script>
 
 <div class="double-range-container">
 	<div class="header">
-		<input class="form-control" type="text" placeholder="from..." bind:value={inputFieldFrom}
-			on:input={(e) => inputChanged(0, e)} />
+		<input class="form-control" type="text" placeholder="from..." value={inputFieldFrom}
+			oninput={(e) => inputChanged(e, 'from')} />
 
-		<span>Full Range: <b> {min} </b> - <b> {max} </b></span>
+		<span>Full Range: <b> {sliderMin} </b> - <b> {sliderMax} </b></span>
 
-		<input class="form-control" type="text" placeholder="to..." bind:value={inputFieldTo}
-			on:input={(e) => inputChanged(1, e)} />
+		<input class="form-control" type="text" placeholder="to..." value={inputFieldTo}
+			oninput={(e) => inputChanged(e, 'to')} />
 	</div>
-	<div class="slider" bind:this={slider}>
+
+	<div id="slider-active" class="slider" bind:this={sliderMain}>
 		<div
-			class="body"
-			bind:this={body}
-			use:draggable
-			on:dragmove|preventDefault|stopPropagation="{setHandlesFromBody}"
-			style="
-				left: {100 * start}%;
-				right: {100 * (1 - end)}%;
-			"
+			class="slider-body"
+			style="left: {100 * sliderFrom}%;right: {100 * (1 - sliderTo)}%;"
 			></div>
 		<div
-			class="handle"
+			class="slider-handle"
 			bind:this={leftHandle}
-			data-which="start"
+			data-which="from"
 			use:draggable
-			on:dragmove|preventDefault|stopPropagation="{setHandlePosition('start')}"
-			style="
-				left: {100 * start}%
-			"
+			ondragmove={(e) => rangeChanged(e, 'from')}
+			style="left: {100 * sliderFrom}%"
 		></div>
 		<div
-			class="handle"
-			data-which="end"
+			class="slider-handle"
+			data-which="to"
 			use:draggable
-			on:dragmove|preventDefault|stopPropagation="{setHandlePosition('end')}"
-			style="
-				left: {100 * end}%
-			"
+			ondragmove={(e) => rangeChanged(e, 'to')}
+			style="left: {100 * sliderTo}%"
 		></div>
 	</div>
 </div>
@@ -238,7 +191,8 @@ Changes: remove dependency, text inputs, configurable value ranges, on:change ev
 		width: 100%;
 		display: flex;
 		justify-content: space-between;
-		margin-bottom: -5px;
+		align-items: flex-end;
+		margin-bottom: 5px;
 	}
 	.header :nth-child(2) {
 		padding-top: 10px;
@@ -249,17 +203,13 @@ Changes: remove dependency, text inputs, configurable value ranges, on:change ev
 		width: 100px;
 	}
 
-	:global(.double-range-container .header input[type="text"].bad) {
-		color: #ff5c33;
-		border-color: #ff5c33;
-	}
-
 	.double-range-container {
 		width: 100%;
 		height: 50px;
 		user-select: none;
 		box-sizing: border-box;
-		white-space: nowrap
+		white-space: nowrap;
+		margin-top: -4px;
 	}
 	.slider {
 		position: relative;
@@ -271,13 +221,13 @@ Changes: remove dependency, text inputs, configurable value ranges, on:change ev
 		box-shadow: inset 0 7px 10px -5px #4a4a4a, inset 0 -1px 0px 0px #9c9c9c;
 		border-radius: 6px;
 	}
-	.handle {
+	.slider-handle {
 		position: absolute;
 		top: 50%;
 		width: 0;
 		height: 0;
 	}
-	.handle:after {
+	.slider-handle:after {
 		content: ' ';
 		box-sizing: border-box;
 		position: absolute;
@@ -291,11 +241,11 @@ Changes: remove dependency, text inputs, configurable value ranges, on:change ev
 	/* .handle[data-which="end"]:after{
 		transform: translate(-100%, -50%);
 	} */
-	.handle:active:after {
+	.slider-handle:active:after {
 		background-color: #ddd;
 		z-index: 9;
 	}
-	.body {
+	.slider-body {
 		top: 0;
 		position: absolute;
 		background-color: #34a1ff;

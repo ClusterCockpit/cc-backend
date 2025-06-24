@@ -18,86 +18,30 @@
   import { getContext, onMount, onDestroy } from "svelte";
   import { Card } from "@sveltestrap/sveltestrap";
 
-  export let metric = "";
-  export let width = 0;
-  export let height = 300;
-  export let data = null;
-  export let xlabel = "";
-  export let xticks = [];
-  export let xinfo = [];
-  export let ylabel = "";
-  export let yunit = "";
-  export let title = "";
-  export let forResources = false;
-  export let plotSync;
-
   // NOTE: Metric Thresholds non-required, Cluster Mixing Allowed
 
+  /* Svelte 5 Props */
+  let {
+    metric = "",
+    width = 0,
+    height = 300,
+    data = null,
+    xlabel = "",
+    xticks = [],
+    xinfo = [],
+    ylabel = "",
+    yunit = "",
+    title = "",
+    forResources = false,
+    plotSync,
+  } = $props();
+
+  /* Const Init */
   const clusterCockpitConfig = getContext("cc-config");
   const lineWidth = clusterCockpitConfig.plot_general_lineWidth / window.devicePixelRatio;
   const cbmode = clusterCockpitConfig?.plot_general_colorblindMode || false;
 
-  // UPLOT PLUGIN // converts the legend into a simple tooltip
-  function legendAsTooltipPlugin({
-    className,
-    style = { backgroundColor: "rgba(255, 249, 196, 0.92)", color: "black" },
-  } = {}) {
-    let legendEl;
-
-    function init(u, opts) {
-      legendEl = u.root.querySelector(".u-legend");
-
-      legendEl.classList.remove("u-inline");
-      className && legendEl.classList.add(className);
-
-      uPlot.assign(legendEl.style, {
-        minWidth: "100px",
-        textAlign: "left",
-        pointerEvents: "none",
-        display: "none",
-        position: "absolute",
-        left: 0,
-        top: 0,
-        zIndex: 100,
-        boxShadow: "2px 2px 10px rgba(0,0,0,0.5)",
-        ...style,
-      });
-
-      //  hide series color markers:
-      const idents = legendEl.querySelectorAll(".u-marker");
-      for (let i = 0; i < idents.length; i++)
-        idents[i].style.display = "none";
-
-      const overEl = u.over;
-      overEl.style.overflow = "visible";
-
-      // move legend into plot bounds
-      overEl.appendChild(legendEl);
-
-      // show/hide tooltip on enter/exit
-      overEl.addEventListener("mouseenter", () => {
-        legendEl.style.display = null;
-      });
-      overEl.addEventListener("mouseleave", () => {
-        legendEl.style.display = "none";
-      });
-    }
-
-    function update(u) {
-      const { left, top } = u.cursor;
-      const width = u?.over?.querySelector(".u-legend")?.offsetWidth ? u.over.querySelector(".u-legend").offsetWidth : 0;
-      legendEl.style.transform =
-        "translate(" + (left - width - 15) + "px, " + (top + 15) + "px)";
-    }
-
-    return {
-      hooks: {
-        init: init,
-        setCursor: update,
-      },
-    };
-  }
-
+  // UPLOT SERIES INIT //
   const plotSeries = [
     {
       label: "JobID",
@@ -122,6 +66,7 @@
     },
   ]
 
+  // UPLOT SCALES INIT //
   if (forResources) {
     const resSeries = [
       {
@@ -177,11 +122,13 @@
     plotSeries.push(...statsSeries)
   };
 
+  // UPLOT BAND COLORS //
   const plotBands = [
     { series: [5, 4], fill: cbmode ? "rgba(0,0,255,0.1)" : "rgba(0,255,0,0.1)" },
     { series: [4, 3], fill: cbmode ? "rgba(0,255,0,0.1)" : "rgba(255,0,0,0.1)" },
   ];
 
+  // UPLOT OPTIONS //
   const opts = {
     width,
     height,
@@ -259,11 +206,83 @@
     }
   };
 
-  // RENDER HANDLING
-  let plotWrapper = null;
-  let uplot = null;
+  /* Var Init */
   let timeoutId = null;
+  let uplot = null;
 
+  /* State Init */
+  let plotWrapper = $state(null);
+
+  /* Effects */
+  $effect(() => {
+    if (plotWrapper) {
+      onSizeChange(width, height);
+    }
+  });
+
+  /* Functions */
+  // UPLOT PLUGIN // converts the legend into a simple tooltip
+  function legendAsTooltipPlugin({
+    className,
+    style = { backgroundColor: "rgba(255, 249, 196, 0.92)", color: "black" },
+  } = {}) {
+    let legendEl;
+
+    function init(u, opts) {
+      legendEl = u.root.querySelector(".u-legend");
+
+      legendEl.classList.remove("u-inline");
+      className && legendEl.classList.add(className);
+
+      uPlot.assign(legendEl.style, {
+        minWidth: "100px",
+        textAlign: "left",
+        pointerEvents: "none",
+        display: "none",
+        position: "absolute",
+        left: 0,
+        top: 0,
+        zIndex: 100,
+        boxShadow: "2px 2px 10px rgba(0,0,0,0.5)",
+        ...style,
+      });
+
+      //  hide series color markers:
+      const idents = legendEl.querySelectorAll(".u-marker");
+      for (let i = 0; i < idents.length; i++)
+        idents[i].style.display = "none";
+
+      const overEl = u.over;
+      overEl.style.overflow = "visible";
+
+      // move legend into plot bounds
+      overEl.appendChild(legendEl);
+
+      // show/hide tooltip on enter/exit
+      overEl.addEventListener("mouseenter", () => {
+        legendEl.style.display = null;
+      });
+      overEl.addEventListener("mouseleave", () => {
+        legendEl.style.display = "none";
+      });
+    }
+
+    function update(u) {
+      const { left, top } = u.cursor;
+      const width = u?.over?.querySelector(".u-legend")?.offsetWidth ? u.over.querySelector(".u-legend").offsetWidth : 0;
+      legendEl.style.transform =
+        "translate(" + (left - width - 15) + "px, " + (top + 15) + "px)";
+    }
+
+    return {
+      hooks: {
+        init: init,
+        setCursor: update,
+      },
+    };
+  }
+
+  // RENDER HANDLING
   function render(ren_width, ren_height) {
     if (!uplot) {
       opts.width = ren_width;
@@ -284,29 +303,25 @@
     }, 200);
   }
 
+  /* On Mount */
   onMount(() => {
     if (plotWrapper) {
       render(width, height);
     }
   });
 
+  /* On Destroy */
   onDestroy(() => {
     if (timeoutId != null) clearTimeout(timeoutId);
     if (uplot) uplot.destroy();
   });
-
-  // This updates plot on all size changes if wrapper (== data) exists
-  $: if (plotWrapper) {
-    onSizeChange(width, height);
-  }
-
 </script>
 
 <!-- Define $width Wrapper and NoData Card -->
 {#if data && data[0].length > 0}
   <div bind:this={plotWrapper} bind:clientWidth={width}
         style="background-color: rgba(255, 255, 255, 1.0);" class="rounded"
-  />
+  ></div>
 {:else}
   <Card body color="warning" class="mx-4 my-2"
     >Cannot render plot: No series data returned for <code>{metric?metric:'job resources'}</code></Card

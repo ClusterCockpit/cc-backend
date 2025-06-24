@@ -363,7 +363,7 @@
 </script>
 
 {#if data != null}
-  <div bind:this={plotWrapper} class="p-2"/>
+  <div bind:this={plotWrapper} class="p-2"></div>
 {:else}
   <Card class="mx-4" body color="warning">Cannot render roofline: No data!</Card
   >

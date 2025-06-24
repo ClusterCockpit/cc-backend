@@ -19,21 +19,20 @@
         CardTitle,
     } from "@sveltestrap/sveltestrap";
     import { fade } from "svelte/transition";
-    import { createEventDispatcher } from 'svelte';
 
-    export let config;
-    export let message;
-    export let displayMessage;
-    export let cbmode = false;
+    /* Svelte 5 Props */
+    let {
+      config,
+      message = $bindable(),
+      displayMessage = $bindable(),
+      cbmode = $bindable(false),
+      updateSetting
+    } = $props();
 
-    const dispatch = createEventDispatcher();
-    function updateSetting(selector, target) {
-        dispatch('update-config', {
-            selector: selector,
-            target: target
-        });
-    }
-  
+    /* State Init */
+    let activeRow = $state(JSON.stringify(config?.plot_general_colorscheme));
+
+    /* Const Init */
     const colorschemes = {
       Default: [
         "#00bfff",
@@ -321,7 +320,6 @@
         "rgb(189,189,189)",
       ]
     }
-
 </script>
 
 <Row cols={1} class="p-2 g-2">
@@ -350,37 +348,34 @@
           <input type="hidden" name="key" value="plot_general_colorscheme" />
           <Table hover>
             <tbody>
-              {#each Object.entries(cbmode ? cvdschemes : colorschemes) as [name, rgbrow]}
-                <tr>
-                  <th scope="col">{name}</th>
-                  <td>
-                    {#if rgbrow.join(",") == config.plot_general_colorscheme}
+              {#key activeRow}
+                {#each Object.entries(cbmode ? cvdschemes : colorschemes) as [name, rgbrow]}
+                  <tr>
+                    <th scope="col">{name}</th>
+                    <td>
                       <input
                         type="radio"
                         name="value"
                         value={JSON.stringify(rgbrow)}
-                        checked
-                        on:click={() =>
-                          updateSetting("#colorscheme-form", "cs")}
+                        checked={activeRow == JSON.stringify(rgbrow)}
+                        onclick={(e) => {
+                          activeRow = JSON.stringify(rgbrow)
+                          updateSetting(e, {
+                            selector: "#colorscheme-form",
+                            target: "cs",
+                          });
+                        }}
                       />
-                    {:else}
-                      <input
-                        type="radio"
-                        name="value"
-                        value={JSON.stringify(rgbrow)}
-                        on:click={() =>
-                          updateSetting("#colorscheme-form", "cs")}
-                      />
-                    {/if}
-                  </td>
-                  <td>
-                    {#each rgbrow as rgb}
-                      <span class="color-dot" style="background-color: {rgb};"
-                      ></span>
-                    {/each}
-                  </td>
-                </tr>
-              {/each}
+                    </td>
+                    <td>
+                      {#each rgbrow as rgb}
+                        <span class="color-dot" style="background-color: {rgb};"
+                        ></span>
+                      {/each}
+                    </td>
+                  </tr>
+                {/each}
+              {/key}
             </tbody>
           </Table>
         </form>

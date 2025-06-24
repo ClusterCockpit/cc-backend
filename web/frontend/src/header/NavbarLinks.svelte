@@ -18,10 +18,13 @@
     DropdownItem,
   } from "@sveltestrap/sveltestrap";
 
-  export let clusters;
-  export let subClusters;
-  export let links;
-  export let direction = "down";
+  /* Svelte 5 Props */
+  let {
+    clusters,
+    subClusters,
+    links,
+    direction = "down"
+  } = $props();
 </script>
 
 {#each links as item}

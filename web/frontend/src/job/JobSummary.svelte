@@ -18,9 +18,12 @@
   import JobFootprintPolar from "./jobsummary/JobFootprintPolar.svelte";
 
 
-  export let job;
-  export let width = "auto";
-  export let height = "400px";
+  /* Svelte 5 Props */
+  let {
+    job,
+    width = "auto",
+    height = "400px",
+  } = $props();
 
   const showFootprintTab = !!getContext("cc-config")[`job_view_showFootprint`];
 </script>

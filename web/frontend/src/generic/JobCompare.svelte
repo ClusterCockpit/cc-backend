@@ -23,94 +23,91 @@
   import { formatTime, roundTwoDigits } from "./units.js";
   import Comparogram from "./plots/Comparogram.svelte";
 
-  const ccconfig = getContext("cc-config"),
-    // initialized = getContext("initialized"),
-    globalMetrics = getContext("globalMetrics");
+  /* Svelte 5 Props */
+  let {
+    matchedCompareJobs = $bindable(0),
+    metrics = $bindable(ccconfig?.plot_list_selectedMetrics),
+    filterBuffer = [],
+  } = $props();
 
-  export let matchedCompareJobs = 0;
-  export let metrics = ccconfig.plot_list_selectedMetrics;
-  export let filterBuffer = [];
-
-  let filter = [...filterBuffer] || [];
-  let comparePlotData = {};
-  let compareTableData = [];
-  let compareTableSorting = {};
-  let jobIds = [];
-  let jobClusters = [];
-  let tableJobIDFilter = "";
-
-  /*uPlot*/
-  let plotSync = uPlot.sync("compareJobsView");
-
-  /* GQL */
-  const client = getContextClient();  
+  /* Const Init */
+  const client = getContextClient(); 
+  const ccconfig = getContext("cc-config");
+  const globalMetrics = getContext("globalMetrics");
+  // const initialized = getContext("initialized");
   // Pull All Series For Metrics Statistics Only On Node Scope
   const compareQuery = gql`
-  query ($filter: [JobFilter!]!, $metrics: [String!]!) {
-    jobsMetricStats(filter: $filter, metrics: $metrics) {
-      id
-      jobId
-      startTime
-      duration
-      cluster
-      subCluster
-      numNodes
-      numHWThreads
-      numAccelerators
-      stats {
-        name
-        data {
-          min
-          avg
-          max
+    query ($filter: [JobFilter!]!, $metrics: [String!]!) {
+      jobsMetricStats(filter: $filter, metrics: $metrics) {
+        id
+        jobId
+        startTime
+        duration
+        cluster
+        subCluster
+        numNodes
+        numHWThreads
+        numAccelerators
+        stats {
+          name
+          data {
+            min
+            avg
+            max
+          }
         }
       }
     }
-  }
   `;
 
-  /* REACTIVES */
+  /* Var Init*/
+  let plotSync = uPlot.sync("compareJobsView");
 
-  $: compareData = queryStore({
-    client: client,
-    query: compareQuery,
-    variables:{ filter, metrics },
-  });
+  /* State Init */
+  let filter = $state([...filterBuffer] || []);
+  let tableJobIDFilter = $state("");
 
-  $: matchedCompareJobs = $compareData.data != null ? $compareData.data.jobsMetricStats.length : -1;
-
-  $: if ($compareData.data != null) {
-    jobIds = [];
-    jobClusters = [];
-    comparePlotData = {};
-    compareTableData = [...$compareData.data.jobsMetricStats];
-    jobs2uplot($compareData.data.jobsMetricStats, metrics);
-  }
-
-  $: if ((!$compareData.fetching && !$compareData.error) && metrics) {
+  /* Derived*/
+  const compareData = $derived(queryStore({
+      client: client,
+      query: compareQuery,
+      variables:{ filter, metrics },
+    })
+  );
+  let jobIds = $derived($compareData?.data ? $compareData.data.jobsMetricStats.map((jms) => jms.jobId) : []);
+  let jobClusters = $derived($compareData?.data ? $compareData.data.jobsMetricStats.map((jms) => `${jms.cluster} ${jms.subCluster}`) : []);
+  let compareTableData = $derived($compareData?.data ? [...$compareData.data.jobsMetricStats] : []);
+  let comparePlotData = $derived($compareData?.data ? jobs2uplot($compareData.data.jobsMetricStats, metrics) : {});
+  let compareTableSorting = $derived.by(() => {
+    let pendingSort = {};
     // Meta
-    compareTableSorting['meta'] = {
+    pendingSort['meta'] = {
       startTime: { dir: "down", active: true },
       duration:  { dir: "up", active: false },
       cluster:   { dir: "up", active: false },
     };
     // Resources
-    compareTableSorting['resources'] = {
+    pendingSort['resources'] = {
       Nodes:   { dir: "up", active: false },
       Threads: { dir: "up", active: false },
       Accs:    { dir: "up", active: false },
     };
-    // Metrics
     for (let metric of metrics) {
-      compareTableSorting[metric] = {
+      pendingSort[metric] = {
         min: { dir: "up", active: false },
         avg: { dir: "up", active: false },
         max: { dir: "up", active: false },
       };
     }
-  }
+    return pendingSort;
+  });
 
- /* FUNCTIONS */
+  /* Effect */
+  $effect(() => {
+    matchedCompareJobs = $compareData?.data != null ? $compareData.data.jobsMetricStats.length : -1;
+  });
+
+  /* Functions */
   // (Re-)query and optionally set new filters; Query will be started reactively.
   export function queryJobs(filters) {
     if (filters != null) {
@@ -133,6 +130,7 @@
     }
     compareTableSorting = { ...compareTableSorting };
 
+    let pendingCompareData;
     if (key == 'resources') {
       let longField = "";
       switch (field) {
@@ -148,12 +146,13 @@
         default:
           console.log("Unknown Res Field", field)
       } 
-      compareTableData = compareTableData.sort((j1, j2) => {
+
+      pendingCompareData = compareTableData.sort((j1, j2) => {
         if (j1[longField] == null || j2[longField] == null) return -1;
         return s.dir != "up" ? j1[longField] - j2[longField] : j2[longField] - j1[longField];
       });
     } else if (key == 'meta') {
-      compareTableData = compareTableData.sort((j1, j2) => {
+      pendingCompareData = compareTableData.sort((j1, j2) => {
         if (j1[field] == null || j2[field] == null) return -1;
         if (field == 'cluster') {
           let c1 = `${j1.cluster} (${j1.subCluster})`
@@ -164,52 +163,54 @@
         }
       });
     } else {
-      compareTableData = compareTableData.sort((j1, j2) => {
+      pendingCompareData = compareTableData.sort((j1, j2) => {
         let s1 = j1.stats.find((m) => m.name == key)?.data;
         let s2 = j2.stats.find((m) => m.name == key)?.data;
         if (s1 == null || s2 == null) return -1;
         return s.dir != "up" ? s1[field] - s2[field] : s2[field] - s1[field];
       });
     }
+
+    compareTableData = [...pendingCompareData]
   }
 
   function jobs2uplot(jobs, metrics) {
+    // Proxy Init
+    let pendingComparePlotData = {};
     // Resources Init
-    comparePlotData['resources'] = {unit:'', data: [[],[],[],[],[],[]]} // data: [X, XST, XRT, YNODES, YTHREADS, YACCS]
+    pendingComparePlotData['resources'] = {unit:'', data: [[],[],[],[],[],[]]} // data: [X, XST, XRT, YNODES, YTHREADS, YACCS]
     // Metric Init
     for (let m of metrics) {
       // Get Unit
       const rawUnit = globalMetrics.find((gm) => gm.name == m)?.unit
       const metricUnit = (rawUnit?.prefix ? rawUnit.prefix : "") + (rawUnit?.base ? rawUnit.base : "")
-      comparePlotData[m] = {unit: metricUnit, data: [[],[],[],[],[],[]]} // data: [X, XST, XRT, YMIN, YAVG, YMAX]
+      pendingComparePlotData[m] = {unit: metricUnit, data: [[],[],[],[],[],[]]} // data: [X, XST, XRT, YMIN, YAVG, YMAX]
     }
 
     // Iterate jobs if exists
     if (jobs) {
       let plotIndex = 0
       jobs.forEach((j) => {
-        // Collect JobIDs & Clusters for X-Ticks and Legend
-        jobIds.push(j.jobId)
-        jobClusters.push(`${j.cluster} ${j.subCluster}`)
         // Resources
-        comparePlotData['resources'].data[0].push(plotIndex)
-        comparePlotData['resources'].data[1].push(j.startTime)
-        comparePlotData['resources'].data[2].push(j.duration)
-        comparePlotData['resources'].data[3].push(j.numNodes)
-        comparePlotData['resources'].data[4].push(j?.numHWThreads?j.numHWThreads:0)
-        comparePlotData['resources'].data[5].push(j?.numAccelerators?j.numAccelerators:0)
+        pendingComparePlotData['resources'].data[0].push(plotIndex)
+        pendingComparePlotData['resources'].data[1].push(j.startTime)
+        pendingComparePlotData['resources'].data[2].push(j.duration)
+        pendingComparePlotData['resources'].data[3].push(j.numNodes)
+        pendingComparePlotData['resources'].data[4].push(j?.numHWThreads?j.numHWThreads:0)
+        pendingComparePlotData['resources'].data[5].push(j?.numAccelerators?j.numAccelerators:0)
         // Metrics
         for (let s of j.stats) {
-          comparePlotData[s.name].data[0].push(plotIndex)
-          comparePlotData[s.name].data[1].push(j.startTime)
-          comparePlotData[s.name].data[2].push(j.duration)
-          comparePlotData[s.name].data[3].push(s.data.min)
-          comparePlotData[s.name].data[4].push(s.data.avg)
-          comparePlotData[s.name].data[5].push(s.data.max)
+          pendingComparePlotData[s.name].data[0].push(plotIndex)
+          pendingComparePlotData[s.name].data[1].push(j.startTime)
+          pendingComparePlotData[s.name].data[2].push(j.duration)
+          pendingComparePlotData[s.name].data[3].push(s.data.min)
+          pendingComparePlotData[s.name].data[4].push(s.data.avg)
+          pendingComparePlotData[s.name].data[5].push(s.data.max)
         }
         plotIndex++
       })
     }
+    return {...pendingComparePlotData};
   }
 
   // Adapt for Persisting Job Selections in DB later down the line
@@ -238,7 +239,6 @@
   //     }
   //   });
   // }
-
 </script>
 
 {#if $compareData.fetching}
@@ -265,7 +265,7 @@
           xticks={jobIds}
           xinfo={jobClusters}
           ylabel={'Resource Counts'}
-          data={comparePlotData['resources'].data}
+          data={comparePlotData['resources']?.data}
           {plotSync}
           forResources
         />
@@ -281,8 +281,8 @@
             xinfo={jobClusters}
             ylabel={m}
             metric={m}
-            yunit={comparePlotData[m].unit}
-            data={comparePlotData[m].data}
+            yunit={comparePlotData[m]?.unit}
+            data={comparePlotData[m]?.data}
             {plotSync}
           />
         </Col>
@@ -314,7 +314,7 @@
               </InputGroupText>
             </InputGroup>
           </th>
-          <th on:click={() => sortBy('meta', 'startTime')}>
+          <th onclick={() => sortBy('meta', 'startTime')}>
             Sort
             <Icon
               name="caret-{compareTableSorting['meta']['startTime'].dir}{compareTableSorting['meta']['startTime']
@@ -323,7 +323,7 @@
                 : ''}"
             />
           </th>
-          <th on:click={() => sortBy('meta', 'duration')}>
+          <th onclick={() => sortBy('meta', 'duration')}>
             Sort
             <Icon
               name="caret-{compareTableSorting['meta']['duration'].dir}{compareTableSorting['meta']['duration']
@@ -332,7 +332,7 @@
                 : ''}"
             />
           </th>
-          <th on:click={() => sortBy('meta', 'cluster')}>
+          <th onclick={() => sortBy('meta', 'cluster')}>
             Sort
             <Icon
               name="caret-{compareTableSorting['meta']['cluster'].dir}{compareTableSorting['meta']['cluster']
@@ -342,7 +342,7 @@
             />
           </th>
           {#each ["Nodes", "Threads", "Accs"] as res}
-            <th on:click={() => sortBy('resources', res)}>
+            <th onclick={() => sortBy('resources', res)}>
               {res}
               <Icon
                 name="caret-{compareTableSorting['resources'][res].dir}{compareTableSorting['resources'][res]
@@ -354,7 +354,7 @@
           {/each}
           {#each metrics as metric}
             {#each ["min", "avg", "max"] as stat}
-              <th on:click={() => sortBy(metric, stat)}>
+              <th onclick={() => sortBy(metric, stat)}>
                 {stat.charAt(0).toUpperCase() + stat.slice(1)}
                 <Icon
                   name="caret-{compareTableSorting[metric][stat].dir}{compareTableSorting[metric][stat]

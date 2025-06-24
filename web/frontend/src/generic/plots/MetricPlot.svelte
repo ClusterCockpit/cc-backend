@@ -591,7 +591,7 @@
 {#if series[0]?.data && series[0].data.length > 0}
   <div bind:this={plotWrapper} bind:clientWidth={width}
         style="background-color: {backgroundColor()};" class={forNode ? 'py-2 rounded' : 'rounded'}
-  />
+  ></div>
 {:else}
   <Card body color="warning" class="mx-4"
     >Cannot render plot: No series data returned for <code>{metric}</code></Card

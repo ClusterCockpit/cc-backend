@@ -12,21 +12,31 @@
 
 <script>
   import { InputGroup, Input, Button, Icon } from "@sveltestrap/sveltestrap";
-  import { createEventDispatcher } from "svelte";
   import { scramble, scrambleNames } from "../utils.js";
 
-  const dispatch = createEventDispatcher();
+  // Note: If page with this component has project preset, keep preset until reset
+  /* Svelte 5 Props */
+  let {
+    presetProject = "",
+    authlevel = null,
+    roles = null,
+    setFilter
+  } = $props();
 
-  export let presetProject = ""; // If page with this component has project preset, keep preset until reset
-  export let authlevel = null;
-  export let roles = null;
-  let mode = presetProject ? "jobName" : "project";
-  let term = "";
+  /* Const Init*/
+  const throttle = 500;
+
+  /* Var Init */
   let user = "";
   let project = presetProject ? presetProject : "";
   let jobName = "";
-  const throttle = 500;
+  let timeoutId = null;
 
+  /* State Init */
+  let mode = $state(presetProject ? "jobName" : "project");
+  let term = $state("");
+
+  /* Functions */
   function modeChanged() {
     if (mode == "user") {
       project = presetProject ? presetProject : "";
@@ -41,7 +51,6 @@
     termChanged(0);
   }
 
-  let timeoutId = null;
   // Compatibility: Handle "user role" and "no role" identically
   function termChanged(sleep = throttle) {
     if (roles && authlevel >= roles.manager) {
@@ -52,7 +61,7 @@
       if (timeoutId != null) clearTimeout(timeoutId);
 
       timeoutId = setTimeout(() => {
-        dispatch("set-filter", {
+        setFilter({
           user,
           project,
           jobName
@@ -65,7 +74,7 @@
       if (timeoutId != null) clearTimeout(timeoutId);
 
       timeoutId = setTimeout(() => {
-        dispatch("set-filter", {
+        setFilter({
           project,
           jobName
         });
@@ -78,6 +87,8 @@
     term = ""
     presetProject = ""
     project = ""
+    jobName = ""
+    user = ""
     termChanged(0);
   }
 </script>
@@ -86,10 +97,10 @@
   <Input
     type="select"
     style="max-width: 120px;"
-    class="form-select"
+    class="form-select w-auto"
     title="Search Mode"
     bind:value={mode}
-    on:change={modeChanged}
+    onchange={modeChanged}
   >
     {#if !presetProject}
       <option value={"project"}>Project</option>
@@ -102,12 +113,12 @@
   <Input
     type="text"
     bind:value={term}
-    on:change={() => termChanged()}
-    on:keyup={(event) => termChanged(event.key == "Enter" ? 0 : throttle)}
-    placeholder={presetProject ? `Find ${mode} in ${scrambleNames ? scramble(presetProject) : presetProject} ...` : `Find ${mode} ...`}
+    onchange={() => termChanged()}
+    onkeyup={(event) => termChanged(event.key == "Enter" ? 0 : throttle)}
+    placeholder={presetProject ? `Find in ${scrambleNames ? scramble(presetProject) : presetProject} ...` : `Find ${mode} ...`}
   />
   {#if presetProject}
-  <Button title="Reset Project" on:click={resetProject}
+  <Button title="Reset Project" onclick={() => resetProject()}
     ><Icon name="arrow-counterclockwise" /></Button
   >
   {/if}

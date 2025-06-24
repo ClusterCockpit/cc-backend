@@ -19,33 +19,29 @@
         CardTitle,
     } from "@sveltestrap/sveltestrap";
     import { fade } from "svelte/transition";
-    import { createEventDispatcher } from 'svelte';
 
-    export let config;
-    export let message;
-    export let displayMessage;
-
-    const dispatch = createEventDispatcher();
-    function updateSetting(selector, target) {
-        dispatch('update-config', {
-            selector: selector,
-            target: target
-        });
-    }
+    /* Svelte 5 Props */
+    let {
+      config,
+      message = $bindable(),
+      displayMessage = $bindable(),
+      updateSetting
+    } = $props();
 </script>
 
 <Row cols={3} class="p-2 g-2">
     <!-- LINE WIDTH -->
     <Col
       ><Card class="h-100">
-        <!-- Important: Function with arguments needs to be event-triggered like on:submit={() => functionName('Some','Args')} OR no arguments and like this: on:submit={functionName} -->
         <form
           id="line-width-form"
           method="post"
           action="/frontend/configuration/"
           class="card-body"
-          on:submit|preventDefault={() =>
-            updateSetting("#line-width-form", "lw")}
+          onsubmit={(e) => updateSetting(e, {
+            selector: "#line-width-form",
+            target: "lw",
+          })}
         >
           <!-- Svelte 'class' directive only on DOMs directly, normal 'class="xxx"' does not work, so style-array it is. -->
           <CardTitle
@@ -90,8 +86,10 @@
           method="post"
           action="/frontend/configuration/"
           class="card-body"
-          on:submit|preventDefault={() =>
-            updateSetting("#plots-per-row-form", "ppr")}
+          onsubmit={(e) => updateSetting(e, {
+            selector: "#plots-per-row-form",
+            target: "ppr",
+          })}
         >
           <!-- Svelte 'class' directive only on DOMs directly, normal 'class="xxx"' does not work, so style-array it is. -->
           <CardTitle
@@ -136,8 +134,10 @@
           method="post"
           action="/frontend/configuration/"
           class="card-body"
-          on:submit|preventDefault={() =>
-            updateSetting("#backgrounds-form", "bg")}
+          onsubmit={(e) => updateSetting(e, {
+            selector: "#backgrounds-form",
+            target: "bg",
+          })}
         >
           <!-- Svelte 'class' directive only on DOMs directly, normal 'class="xxx"' does not work, so style-array it is. -->
           <CardTitle
@@ -156,17 +156,17 @@
           <div class="mb-3">
             <div>
               {#if config.plot_general_colorBackground}
-                <input type="radio" id="true-checked" name="value" value="true" checked />
+                <input type="radio" id="colb-true-checked" name="value" value="true" checked />
               {:else}
-                <input type="radio" id="true" name="value" value="true" />
+                <input type="radio" id="colb-true" name="value" value="true" />
               {/if}
               <label for="true">Yes</label>
             </div>
             <div>
               {#if config.plot_general_colorBackground}
-                <input type="radio" id="false" name="value" value="false" />
+                <input type="radio" id="colb-false" name="value" value="false" />
               {:else}
-                <input type="radio" id="false-checked" name="value" value="false" checked />
+                <input type="radio" id="colb-false-checked" name="value" value="false" checked />
               {/if}
               <label for="false">No</label>
             </div>
@@ -180,8 +180,10 @@
           method="post"
           action="/frontend/configuration/"
           class="card-body"
-          on:submit|preventDefault={() =>
-            updateSetting("#colorblindmode-form", "cbm")}
+          onsubmit={(e) => updateSetting(e, {
+            selector: "#colorblindmode-form",
+            target: "cbm",
+          })}
         >
           <!-- Svelte 'class' directive only on DOMs directly, normal 'class="xxx"' does not work, so style-array it is. -->
           <CardTitle

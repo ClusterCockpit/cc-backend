@@ -12,7 +12,7 @@
  -->
 
 <script>
-  import { getContext, createEventDispatcher } from "svelte";
+  import { getContext } from "svelte";
   import {
     Modal,
     ModalBody,
@@ -23,57 +23,23 @@
   } from "@sveltestrap/sveltestrap";
   import { gql, getContextClient, mutationStore } from "@urql/svelte";
 
-  export let metrics;
-  export let isOpen;
-  export let configName;
-  export let allMetrics = null;
-  export let cluster = null;
-  export let subCluster = null;
-  export let showFootprint = false;
-  export let footprintSelect = false;
+  /* Svelte 5 Props */
+  let {
+    isOpen = $bindable(false),
+    showFootprint = $bindable(false),
+    totalMetrics = $bindable(0),
+    presetMetrics = [],
+    cluster = null,
+    subCluster = null,
+    footprintSelect = false,
+    preInitialized = false, // Job View is Pre-Init'd: $initialized "alone" store returns false
+    configName,
+    applyMetrics
+  } = $props();
 
-  const onInit = getContext("on-init")
-  const globalMetrics = getContext("globalMetrics")
-  const dispatch = createEventDispatcher();
-
-  let newMetricsOrder = [];
-  let unorderedMetrics = [...metrics];
-  let pendingShowFootprint = !!showFootprint;
-
-  onInit(() => {
-    if (allMetrics == null) allMetrics = new Set();
-    for (let metric of globalMetrics) allMetrics.add(metric.name);
-  });
-
-  $: {
-    if (allMetrics != null) {
-      if (!cluster) {
-        for (let metric of globalMetrics) allMetrics.add(metric.name);
-      } else {
-        allMetrics.clear();
-        for (let gm of globalMetrics) {
-          if (!subCluster) {
-            if (gm.availability.find((av) => av.cluster === cluster)) allMetrics.add(gm.name);
-          } else {
-            if (gm.availability.find((av) => av.cluster === cluster && av.subClusters.includes(subCluster))) allMetrics.add(gm.name);
-          }
-        }
-      }
-      newMetricsOrder = [...allMetrics].filter((m) => !metrics.includes(m));
-      newMetricsOrder.unshift(...metrics.filter((m) => allMetrics.has(m)));
-      unorderedMetrics = unorderedMetrics.filter((m) => allMetrics.has(m));
-    }
-  }
-
-  function printAvailability(metric, cluster) {
-    const avail = globalMetrics.find((gm) => gm.name === metric)?.availability
-    if (!cluster) {
-      return avail.map((av) => av.cluster).join(',')
-    } else {
-      return avail.find((av) => av.cluster === cluster).subClusters.join(',')
-    }
-  }
-
+  /* Const Init */
+  const globalMetrics = getContext("globalMetrics");
+  const initialized = getContext("initialized");
   const client = getContextClient();
   const updateConfigurationMutation = ({ name, value }) => {
     return mutationStore({
@@ -87,7 +53,51 @@
     });
   };
 
-  let columnHovering = null;
+  /* State Init */
+  let pendingMetrics = $state(presetMetrics);
+  let pendingShowFootprint = $state(!!showFootprint);
+  let listedMetrics = $state([]);
+  let columnHovering = $state(null);
+
+  /* Derives States */
+  const allMetrics = $derived(loadAvailable(preInitialized || $initialized));
+
+  /* Reactive Effects */
+  $effect(() => {
+    totalMetrics = allMetrics.size;
+  });
+
+  $effect(() => {
+    listedMetrics = [...presetMetrics, ...allMetrics.difference(new Set(presetMetrics))]; // List (preset) active metrics first, then list inactives
+  });
+
+  /* Functions */
+  function loadAvailable(init) {
+    const availableMetrics = new Set();
+    if (init) {
+      for (let gm of globalMetrics) {
+        if (!cluster) {
+          availableMetrics.add(gm.name)
+        } else {
+          if (!subCluster) {
+            if (gm.availability.find((av) => av.cluster === cluster)) availableMetrics.add(gm.name);
+          } else {
+            if (gm.availability.find((av) => av.cluster === cluster && av.subClusters.includes(subCluster))) availableMetrics.add(gm.name);
+          }
+        }
+      }
+    }
+    return availableMetrics
+  }
+
+  function printAvailability(metric, cluster) {
+    const avail = globalMetrics.find((gm) => gm.name === metric)?.availability
+    if (!cluster) {
+      return avail.map((av) => av.cluster).join(',')
+    } else {
+      return avail.find((av) => av.cluster === cluster).subClusters.join(',')
+    }
+  }
 
   function columnsDragStart(event, i) {
     event.dataTransfer.effectAllowed = "move";
@@ -98,18 +108,21 @@
   function columnsDrag(event, target) {
     event.dataTransfer.dropEffect = "move";
     const start = Number.parseInt(event.dataTransfer.getData("text/plain"));
+
+    let pendingMetricsOrder = [...listedMetrics];
     if (start < target) {
-      newMetricsOrder.splice(target + 1, 0, newMetricsOrder[start]);
-      newMetricsOrder.splice(start, 1);
+      pendingMetricsOrder.splice(target + 1, 0, listedMetrics[start]);
+      pendingMetricsOrder.splice(start, 1);
     } else {
-      newMetricsOrder.splice(target, 0, newMetricsOrder[start]);
-      newMetricsOrder.splice(start + 1, 1);
+      pendingMetricsOrder.splice(target, 0, listedMetrics[start]);
+      pendingMetricsOrder.splice(start + 1, 1);
     }
+    listedMetrics = [...pendingMetricsOrder];
     columnHovering = null;
   }
 
   function closeAndApply() {
-    metrics = newMetricsOrder.filter((m) => unorderedMetrics.includes(m));
+    pendingMetrics = listedMetrics.filter((m) => pendingMetrics.includes(m));
     isOpen = false;
 
     let configKey;
@@ -123,7 +136,7 @@
 
     updateConfigurationMutation({
       name: configKey,
-      value: JSON.stringify(metrics),
+      value: JSON.stringify(pendingMetrics),
     }).subscribe((res) => {
       if (res.fetching === false && res.error) {
         throw res.error;
@@ -145,7 +158,7 @@
       });
     };
 
-    dispatch('update-metrics', metrics);
+    applyMetrics(pendingMetrics);
   }
 </script>
 
@@ -159,27 +172,35 @@
         </li>
         <hr />
       {/if}
-      {#each newMetricsOrder as metric, index (metric)}
+      {#each listedMetrics as metric, index (metric)}
         <li
           class="cc-config-column list-group-item"
           draggable={true}
-          ondragover="return false"
-          on:dragstart={(event) => columnsDragStart(event, index)}
-          on:drop|preventDefault={(event) => columnsDrag(event, index)}
-          on:dragenter={() => (columnHovering = index)}
+          ondragover={(event) => {
+            event.preventDefault()
+            return false
+          }}
+          ondragstart={(event) => {
+            columnsDragStart(event, index)
+          }}
+          ondrop={(event) => {
+            event.preventDefault()
+            columnsDrag(event, index)
+          }}
+          ondragenter={() => (columnHovering = index)}
           class:is-active={columnHovering === index}
         >
-          {#if unorderedMetrics.includes(metric)}
+          {#if pendingMetrics.includes(metric)}
             <input
               type="checkbox"
-              bind:group={unorderedMetrics}
+              bind:group={pendingMetrics}
               value={metric}
               checked
             />
           {:else}
             <input
               type="checkbox"
-              bind:group={unorderedMetrics}
+              bind:group={pendingMetrics}
               value={metric}
             />
           {/if}
@@ -192,8 +213,8 @@
     </ListGroup>
   </ModalBody>
   <ModalFooter>
-    <Button color="primary" on:click={closeAndApply}>Close & Apply</Button>
-    <Button color="secondary" on:click={() => (isOpen = !isOpen)}>Cancel</Button>
+    <Button color="primary" onclick={() => closeAndApply()}>Close & Apply</Button>
+    <Button color="secondary" onclick={() => (isOpen = !isOpen)}>Cancel</Button>
   </ModalFooter>
 </Modal>
 

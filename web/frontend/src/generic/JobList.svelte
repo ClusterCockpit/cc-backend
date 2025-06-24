@@ -113,11 +113,6 @@
     variables: { paging, sorting, filter },
   });
 
-  $: if (!usePaging && sorting) {
-    // console.log('Reset Paging ...')
-    paging = { itemsPerPage: 10, page: 1 }
-  };
-
   let jobs = [];
   $: if ($initialized && $jobsStore.data) {
     if (usePaging) {
@@ -143,10 +138,20 @@
     }
   }
 
+  $: if (!usePaging && (sorting || filter)) {
+    // Continous Scroll: Reset list and paging if parameters change: Existing entries will not match new selections
+    jobs = [];
+    paging = { itemsPerPage: 10, page: 1 };
+  }
+
   $: matchedListJobs = $jobsStore.data != null ? $jobsStore.data.jobs.count : -1;
 
   // Force refresh list with existing unchanged variables (== usually would not trigger reactivity)
   export function refreshJobs() {
+    if (!usePaging) {
+      jobs = []; // Empty Joblist before refresh, prevents infinite buildup
+      paging = { itemsPerPage: 10, page: 1 };
+    }
     jobsStore = queryStore({
       client: client,
       query: query,
@@ -285,7 +290,7 @@
             </td>
           </tr>
         {:else}
-          {#each jobs as job (job)}
+          {#each jobs as job (job.id)}
             <JobListRow bind:triggerMetricRefresh {job} {metrics} {plotWidth} {showFootprint} previousSelect={selectedJobs.includes(job.id)}
               on:select-job={({detail}) => selectedJobs = [...selectedJobs, detail]}
               on:unselect-job={({detail}) => selectedJobs = selectedJobs.filter(item => item !== detail)}
@@ -312,11 +317,11 @@
 
 {#if usePaging}
   <Pagination
-    bind:page
+    {page}
     {itemsPerPage}
     itemText="Jobs"
     totalItems={matchedListJobs}
-    on:update-paging={({ detail }) => {
+    updatePaging={(detail) => {
       if (detail.itemsPerPage != itemsPerPage) {
         updateConfiguration(detail.itemsPerPage.toString(), detail.page);
       } else {

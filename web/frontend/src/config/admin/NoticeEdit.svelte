@@ -6,14 +6,18 @@
   import { Col, Card, CardTitle, CardBody } from "@sveltestrap/sveltestrap";
   import { fade } from "svelte/transition";
 
-  export let ncontent;
+  /* Svelte 5 Props */
+  let { ncontent } = $props();
 
-  let message = { msg: "", color: "#d63384" };
-  let displayMessage = false;
+  /* State Init */
+  let message = $state({ msg: "", color: "#d63384" });
+  let displayMessage = $state(false);
 
-  async function handleEditNotice() {
+  /* Functions */
+  async function handleEditNotice(event) {
+    event.preventDefault();
+
     const content = document.querySelector("#notice-content").value;
-
     let formData = new FormData();
     formData.append("new-content", content);
 
@@ -56,14 +60,11 @@
           value={ncontent}
           id="notice-content"
         />
-
-        <!-- PreventDefault on Sveltestrap-Button more complex to achieve than just use good ol' html button -->
-        <!-- see: https://stackoverflow.com/questions/69630422/svelte-how-to-use-event-modifiers-in-my-own-components -->
         <button
           class="btn btn-primary"
           type="button"
           id="edit-notice-button"
-          on:click|preventDefault={handleEditNotice}>Edit Notice</button
+          onclick={(e) => handleEditNotice(e)}>Edit Notice</button
         >
       </div>
       <p>

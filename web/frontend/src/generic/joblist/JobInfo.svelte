@@ -12,15 +12,22 @@
   import Tag from "../helper/Tag.svelte";
   import TagManagement from "../helper/TagManagement.svelte";
 
-  export let job;
-  export let jobTags = job.tags;
-  export let showTagedit = false;
-  export let username = null;
-  export let authlevel= null;
-  export let roles = null;
-  export let isSelected = null;
-  export let showSelect = false;
+  /* Svelte 5 Props */
+  let {
+    job,
+    jobTags = job.tags,
+    showTagedit = false,
+    username = null,
+    authlevel= null,
+    roles = null,
+    isSelected = null,
+    showSelect = false,
+  } = $props();
 
+  /* State Init */
+  let displayCheck = $state(false);
+
+  /* Functions */
   function formatDuration(duration) {
     const hours = Math.floor(duration / 3600);
     duration -= hours * 3600;
@@ -41,9 +48,8 @@
     }
   }
 
-  let displayCheck = false;
   function clipJobId(jid) {
-    displayCheck = true;
+    
     // Navigator clipboard api needs a secure context (https)
     if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard
@@ -65,14 +71,11 @@
           textArea.remove();
       }
     }
-    setTimeout(function () {
-      displayCheck = false;
-    }, 1000);
   }
 </script>
 
 <div>
-  <p class="mb-2">
+  <p class="mb-2 text-truncate">
     <span class="d-flex justify-content-between">
       <span class="align-self-center fw-bold mr-2">
         <a href="/monitoring/job/{job.id}" target="_blank">{job.jobId}</a>
@@ -81,7 +84,7 @@
       <span>
         {#if showSelect}
           <Button id={`${job.cluster}-${job.jobId}-select`} outline={!isSelected} color={isSelected? `success`: `secondary`} size="sm" class="mr-2"
-            on:click={() => {
+            onclick={() => {
               isSelected = !isSelected
             }}>
             {#if isSelected}
@@ -98,7 +101,13 @@
               { 'Add or Remove Job to/from Comparison Selection' }
           </Tooltip>
         {/if}
-        <Button id={`${job.cluster}-${job.jobId}-clipboard`} outline color="secondary" size="sm" on:click={clipJobId(job.jobId)} >
+        <Button id={`${job.cluster}-${job.jobId}-clipboard`} outline color="secondary" size="sm" onclick={() => {
+          displayCheck = true;
+          clipJobId(job.jobId);
+          setTimeout(function () {
+            displayCheck = false;
+          }, 1000);
+        }}>
           {#if displayCheck}
             <Icon name="clipboard2-check-fill"/>
           {:else}
@@ -113,16 +122,15 @@
       </span>
     </span>
     {#if job.metaData?.jobName}
-      {#if job.metaData?.jobName.length <= 25}
-        <div>{job.metaData.jobName}</div>
+      {#if job.metaData?.jobName.length <= 20}
+        <span>{job.metaData.jobName}</span>
       {:else}
-        <div
-          class="truncate"
+        <span
           style="cursor:help;"
           title={job.metaData.jobName}
         >
           {job.metaData.jobName}
-        </div>
+  </span>
       {/if}
     {/if}
     {#if job.arrayJobId}
@@ -207,11 +215,3 @@
     </p>
   {/if}
 </div>
-
-<style>
-  .truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-</style>

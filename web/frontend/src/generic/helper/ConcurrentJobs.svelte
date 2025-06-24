@@ -17,11 +17,14 @@
     Icon
   } from "@sveltestrap/sveltestrap";
 
-  export let cJobs;
-  export let showLinks = false;
-  export let renderCard = false;
-  export let width = "auto";
-  export let height = "400px";
+  /* Svelte 5 Props */
+  let {
+    cJobs,
+    showLinks = false,
+    renderCard = false,
+    width = "auto",
+    height = "400px",
+  } = $props();
 </script>
 
 {#if renderCard}

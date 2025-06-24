@@ -8,7 +8,7 @@
  -->
  
  <script>
-  import { onMount, getContext } from "svelte";
+  import { untrack, onMount, getContext } from "svelte";
   import {
     Row,
     Col,
@@ -27,43 +27,59 @@
   import Sorting from "./generic/select/SortSelection.svelte";
   import MetricSelection from "./generic/select/MetricSelection.svelte";
 
+  /* Svelte 5 Props */
+  let { filterPresets, authlevel, roles } = $props();
+
+  /* Const Init */
   const { query: initq } = init();
-
   const ccconfig = getContext("cc-config");
+  const presetProject = filterPresets?.project ? filterPresets.project : ""
 
-  export let filterPresets = {};
-  export let authlevel;
-  export let roles;
-
-  let filterComponent; // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
-  let filterBuffer = [];
-  let selectedJobs = [];
-  let jobList,
-      jobCompare,
-    matchedListJobs,
-    matchedCompareJobs = null;
-  let sorting = { field: "startTime", type: "col", order: "DESC" },
-    isSortingOpen = false,
-    isMetricsSelectionOpen = false;
-  let metrics = filterPresets.cluster
+  /* State Init */
+  let filterComponent = $state(); // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
+  let selectedJobs = $state([]);
+  let filterBuffer = $state([]);
+  let jobList = $state(null);
+  let jobCompare = $state(null);
+  let matchedListJobs = $state(0);
+  let matchedCompareJobs = $state(0);
+  let isSortingOpen = $state(false);
+  let showCompare = $state(false);
+  let isMetricsSelectionOpen = $state(false);
+  let sorting = $state({ field: "startTime", type: "col", order: "DESC" });
+  let selectedCluster = $state(filterPresets?.cluster ? filterPresets.cluster : null);
+  let metrics = $state(filterPresets.cluster
     ? ccconfig[`plot_list_selectedMetrics:${filterPresets.cluster}`] ||
       ccconfig.plot_list_selectedMetrics
-    : ccconfig.plot_list_selectedMetrics;
-  let showFootprint = filterPresets.cluster
+    : ccconfig.plot_list_selectedMetrics
+  );
+  let showFootprint = $state(filterPresets.cluster
     ? !!ccconfig[`plot_list_showFootprint:${filterPresets.cluster}`]
-    : !!ccconfig.plot_list_showFootprint;
-  let selectedCluster = filterPresets?.cluster ? filterPresets.cluster : null;
-  let presetProject = filterPresets?.project ? filterPresets.project : ""
-  let showCompare = false;
+    : !!ccconfig.plot_list_showFootprint
+  );
 
+  /* Functions */
+  function resetJobSelection() {
+    if (filterComponent && selectedJobs.length === 0) {
+      filterComponent.updateFilters({ dbId: [] });
+    };
+  };
+
+  /* Reactive Effects */
+  $effect(() => {
+    // Reactive : Trigger Effect
+    selectedJobs.length
+    untrack(() => {
+      // Unreactive : Apply Reset w/o starting infinite loop
+      resetJobSelection()
+    });
+	});
+
+  /* On Mount */
   // The filterPresets are handled by the Filters component,
   // so we need to wait for it to be ready before we can start a query.
   // This is also why JobList component starts out with a paused query.
   onMount(() => filterComponent.updateFilters());
-
-  $: if (filterComponent && selectedJobs.length == 0) {
-    filterComponent.updateFilters({dbId: []})
-  }
 </script>
 
 <!-- ROW1: Status-->
@@ -85,25 +101,25 @@
 <Row cols={{ xs: 1, md: 2, lg: 5}} class="mb-3">
   <Col lg="2" class="mb-2 mb-lg-0">
     <ButtonGroup class="w-100">
-      <Button outline color="primary" on:click={() => (isSortingOpen = true)} disabled={showCompare}>
+      <Button outline color="primary" onclick={() => (isSortingOpen = true)} disabled={showCompare}>
         <Icon name="sort-up" /> Sorting
       </Button>
       <Button
         outline
         color="primary"
-        on:click={() => (isMetricsSelectionOpen = true)}
+        onclick={() => (isMetricsSelectionOpen = true)}
       >
         <Icon name="graph-up" /> Metrics
       </Button>
     </ButtonGroup>
   </Col>
-  <Col lg="4" class="mb-1 mb-lg-0">
+  <Col lg="5" class="mb-1 mb-lg-0">
     <Filters
-      showFilter={!showCompare}
-      {filterPresets}
-      matchedJobs={showCompare? matchedCompareJobs: matchedListJobs}
       bind:this={filterComponent}
-      on:update-filters={({ detail }) => {
+      {filterPresets}
+      showFilter={!showCompare}
+      matchedJobs={showCompare? matchedCompareJobs: matchedListJobs}
+      applyFilters={(detail) => {
         selectedCluster = detail.filters[0]?.cluster
           ? detail.filters[0].cluster.eq
           : null;
@@ -122,29 +138,31 @@
         {presetProject}
         bind:authlevel
         bind:roles
-        on:set-filter={({ detail }) => filterComponent.updateFilters(detail)}
+        setFilter={(filter) => filterComponent.updateFilters(filter)}
       />
     {/if}
   </Col>
-  <Col lg="2" class="mb-1 mb-lg-0">
+  <Col lg="3" class="mb-1 mb-lg-0 d-inline-flex align-items-start justify-content-end ">
     {#if !showCompare}
-      <Refresher on:refresh={() => {
+      <Refresher presetClass="w-auto" onRefresh={() => {
           jobList.refreshJobs()
           jobList.refreshAllMetrics()
       }} />
     {/if}
-  </Col>
-  <Col lg="2" class="mb-2 mb-lg-0">
-    <ButtonGroup class="w-100">
-      <Button color="primary" disabled={matchedListJobs >= 500 && !(selectedJobs.length != 0)} on:click={() => {
+    <div class="mx-1"></div>
+    <ButtonGroup class="w-50">
+      <Button color="primary" disabled={(matchedListJobs >= 500 && !(selectedJobs.length != 0)) || $initq.fetching} onclick={() => {
         if (selectedJobs.length != 0) filterComponent.updateFilters({dbId: selectedJobs}, true)
         showCompare = !showCompare
       }} >
         {showCompare ? 'Return to List' : 
-        'Compare Jobs' + (selectedJobs.length != 0 ? ` (${selectedJobs.length} selected)` : matchedListJobs >= 500 ? ` (Too Many)` : ``)}
+           matchedListJobs >= 500 && selectedJobs.length == 0
+            ? 'Compare Disabled'
+            : 'Compare' + (selectedJobs.length != 0 ? ` ${selectedJobs.length} ` : ' ') + 'Jobs'
+        }
       </Button>
       {#if !showCompare && selectedJobs.length != 0}
-        <Button color="warning" on:click={() => {
+        <Button class="w-auto" color="warning" onclick={() => {
           selectedJobs = [] // Only empty array, filters handled by reactive reset
         }}>
         Clear
@@ -178,13 +196,21 @@
   </Col>
 </Row>
 
-<Sorting bind:sorting bind:isOpen={isSortingOpen}/>
+<Sorting
+  bind:isOpen={isSortingOpen}
+  presetSorting={sorting}
+  applySorting={(newSort) =>
+    sorting = {...newSort}
+  }/>
 
 <MetricSelection
-  bind:cluster={selectedCluster}
-  configName="plot_list_selectedMetrics"
-  bind:metrics
-  bind:isOpen={isMetricsSelectionOpen}
-  bind:showFootprint
-  footprintSelect
+    bind:isOpen={isMetricsSelectionOpen}
+    bind:showFootprint
+    presetMetrics={metrics}
+    cluster={selectedCluster}
+    configName="plot_list_selectedMetrics"
+    footprintSelect
+    applyMetrics={(newMetrics) => 
+      metrics = [...newMetrics]
+    }
 />
