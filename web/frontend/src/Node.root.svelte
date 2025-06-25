@@ -204,20 +204,7 @@
     {:else if $nodeMetricsData.fetching || $initq.fetching}
       <Spinner />
     {:else}
-      <PlotGrid
-        let:item
-        itemsPerRow={ccconfig.plot_view_plotsPerRow}
-        items={$nodeMetricsData.data.nodeMetrics[0].metrics
-          .map((m) => ({
-            ...m,
-            disabled: checkMetricDisabled(
-              m.name,
-              cluster,
-              $nodeMetricsData.data.nodeMetrics[0].subCluster,
-            ),
-          }))
-          .sort((a, b) => a.name.localeCompare(b.name))}
-      >
+      {#snippet gridContent(item)}
         <h4 style="text-align: center; padding-top:15px;">
           {item.name}
           {systemUnits[item.name] ? "(" + systemUnits[item.name] + ")" : ""}
@@ -246,7 +233,22 @@
             >No dataset returned for <code>{item.name}</code></Card
           >
         {/if}
-      </PlotGrid>
+      {/snippet}
+
+      <PlotGrid
+        items={$nodeMetricsData.data.nodeMetrics[0].metrics
+          .map((m) => ({
+            ...m,
+            disabled: checkMetricDisabled(
+              m.name,
+              cluster,
+              $nodeMetricsData.data.nodeMetrics[0].subCluster,
+            ),
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name))}
+        itemsPerRow={ccconfig.plot_view_plotsPerRow}
+        {gridContent}
+      />
     {/if}
   </Col>
 </Row>

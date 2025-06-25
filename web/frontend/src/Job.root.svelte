@@ -170,7 +170,7 @@
       return [];
     }
   });
-  
+
   const somethingMissing = $derived(missingMetrics?.length > 0 || missingHosts?.length > 0);
 
   /* Effects */
@@ -334,14 +334,8 @@
         </Col>
       </Row>
     {:else if $initq?.data && $jobMetrics?.data?.jobMetrics}
-      <PlotGrid
-        let:item
-        items={orderAndMap(
-          groupByScope($jobMetrics.data.jobMetrics),
-          selectedMetrics,
-        )}
-        itemsPerRow={ccconfig.plot_view_plotsPerRow}
-      >
+      <!-- Note: Ignore 'Expected If ...' Error in IDE -->
+      {#snippet gridContent(item)}
         {#if item.data}
           <Metric
             bind:this={plots[item.metric]}
@@ -373,7 +367,16 @@
             </CardBody>
           </Card>
         {/if}
-      </PlotGrid>
+      {/snippet}
+
+      <PlotGrid
+        items={orderAndMap(
+          groupByScope($jobMetrics.data.jobMetrics),
+          selectedMetrics,
+        )}
+        itemsPerRow={ccconfig.plot_view_plotsPerRow}
+        {gridContent}
+      />
     {/if}
   </CardBody>
 </Card>

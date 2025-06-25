@@ -335,22 +335,24 @@
     </Row>
   {:else}
     <hr class="my-2"/>
+    {#snippet gridContent(item)}
+      <Histogram
+        data={convert2uplot(item.data)}
+        title="Distribution of '{item.metric} ({item.stat})' footprints"
+        xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
+        xunit={item.unit}
+        ylabel="Number of Jobs"
+        yunit="Jobs"
+        usesBins
+      />
+    {/snippet}
+
     {#key $stats.data.jobsStatistics[0].histMetrics}
       <PlotGrid
-        let:item
         items={$stats.data.jobsStatistics[0].histMetrics}
         itemsPerRow={3}
-      >
-        <Histogram
-          data={convert2uplot(item.data)}
-          title="Distribution of '{item.metric} ({item.stat})' footprints"
-          xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
-          xunit={item.unit}
-          ylabel="Number of Jobs"
-          yunit="Jobs"
-          usesBins
-        />
-      </PlotGrid>
+        {gridContent}
+      />
     {/key}
   {/if}
 {:else}
