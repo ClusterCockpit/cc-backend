@@ -9,10 +9,11 @@
  -->
 
 <script>
+  import { getContext } from "svelte";
   import { 
     queryStore,
     gql,
-    getContextClient 
+    getContextClient,
   } from "@urql/svelte";
   import {
     Row,
@@ -26,7 +27,6 @@
     CardTitle,
     Button,
   } from "@sveltestrap/sveltestrap";
-  import { getContext } from "svelte";
   import {
     init,
     groupByScope,
@@ -42,46 +42,33 @@
   import PlotGrid from "./generic/PlotGrid.svelte";
   import StatsTab from "./job/StatsTab.svelte";
 
-  export let dbid;
-  export let username;
-  export let authlevel;
-  export let roles;
+  /* Svelte 5 Props */
+  let {
+    dbid,
+    username,
+    authlevel,
+    roles
+  } = $props();
 
- // Setup General
-
- const ccconfig = getContext("cc-config")
-
- let isMetricsSelectionOpen = false,
-    selectedMetrics = [],
-    selectedScopes = [],
-    plots = {};
-
-  let totalMetrics = 0;
-  let missingMetrics = [],
-    missingHosts = [],
-    somethingMissing = false;
-
-  // Setup GQL
-  // First: Add Job Query to init function -> Only requires DBID as argument, received via URL-ID
-  // Second: Trigger jobMetrics query with now received jobInfos (scopes: from job metadata, selectedMetrics: from config or all, job: from url-id)
-
+  /* Const Init */
+  // Important: init() needs to be first const declaration or contextclient will not be initialized before "const client = ..."
   const { query: initq } = init(`
-        job(id: "${dbid}") {
-            id, jobId, user, project, cluster, startTime,
-            duration, numNodes, numHWThreads, numAcc, energy,
-            SMT, exclusive, partition, subCluster, arrayJobId,
-            monitoringStatus, state, walltime,
-            tags { id, type, scope, name },
-            resources { hostname, hwthreads, accelerators },
-            metaData,
-            userData { name, email },
-            concurrentJobs { items { id, jobId }, count, listQuery },
-            footprint { name, stat, value },
-            energyFootprint { hardware, metric, value }
-        }
-    `);
-
+    job(id: "${dbid}") {
+      id, jobId, user, project, cluster, startTime,
+      duration, numNodes, numHWThreads, numAcc, energy,
+      SMT, exclusive, partition, subCluster, arrayJobId,
+      monitoringStatus, state, walltime,
+      tags { id, type, scope, name },
+      resources { hostname, hwthreads, accelerators },
+      metaData,
+      userData { name, email },
+      concurrentJobs { items { id, jobId }, count, listQuery },
+      footprint { name, stat, value },
+      energyFootprint { hardware, metric, value }
+    }
+  `);
   const client = getContextClient();
+  const ccconfig = getContext("cc-config");
   const query = gql`
     query ($dbid: ID!, $selectedMetrics: [String!]!, $selectedScopes: [MetricScope!]!) {
       jobMetrics(id: $dbid, metrics: $selectedMetrics, scopes: $selectedScopes) {
@@ -114,17 +101,91 @@
     }
   `;
 
-  $: jobMetrics = queryStore({
-    client: client,
-    query: query,
-    variables: { dbid, selectedMetrics, selectedScopes },
+  /* State Init */
+  let plots = $state({});
+  let isMetricsSelectionOpen = $state(false);
+  let selectedMetrics = $state([]);
+  let selectedScopes = $state([]);
+  let totalMetrics = $state(0);
+
+  /* Derived */
+  const jobMetrics = $derived(queryStore({
+      client: client,
+      query: query,
+      variables: { dbid, selectedMetrics, selectedScopes },
+    })
+  );
+  
+  const missingMetrics = $derived.by(() => {
+    if ($initq?.data && $jobMetrics?.data) {
+      let job = $initq.data.job;
+      let metrics = $jobMetrics.data.jobMetrics;
+      let metricNames = $initq.data.globalMetrics.reduce((names, gm) => {
+          if (gm.availability.find((av) => av.cluster === job.cluster)) {
+              names.push(gm.name);
+          }
+          return names;
+        }, []);
+
+      return metricNames.filter(
+        (metric) =>
+          !metrics.some((jm) => jm.name == metric) &&
+          selectedMetrics.includes(metric) && 
+          !checkMetricDisabled(
+            metric,
+            $initq.data.job.cluster,
+            $initq.data.job.subCluster,
+          ),
+      );
+    } else {
+      return []
+    }
   });
 
-  // Handle Job Query on Init -> is not executed anymore
-  getContext("on-init")(() => {
+  const missingHosts = $derived.by(() => {
+    if ($initq?.data && $jobMetrics?.data) {
+      let job = $initq.data.job;
+      let metrics = $jobMetrics.data.jobMetrics;
+      let metricNames = $initq.data.globalMetrics.reduce((names, gm) => {
+          if (gm.availability.find((av) => av.cluster === job.cluster)) {
+              names.push(gm.name);
+          }
+          return names;
+        }, []);
+
+      return job.resources
+        .map(({ hostname }) => ({
+          hostname: hostname,
+          metrics: metricNames.filter(
+            (metric) =>
+              !metrics.some(
+                (jm) =>
+                  jm.scope == "node" &&
+                  jm.metric.series.some((series) => series.hostname == hostname),
+              ),
+          ),
+        }))
+        .filter(({ metrics }) => metrics.length > 0);
+    } else {
+      return [];
+    }
+  });
+  
+  const somethingMissing = $derived(missingMetrics?.length > 0 || missingHosts?.length > 0);
+
+  /* Effects */
+  $effect(() => {
+    document.title = $initq.fetching
+      ? "Loading..."
+      : $initq.error
+        ? "Error"
+        : `Job ${$initq.data.job.jobId} - ClusterCockpit`;
+  });
+
+  /* On Init */
+  getContext("on-init")(() => {    
     let job = $initq.data.job;
     if (!job) return;
-
     const pendingMetrics = (
       ccconfig[`job_view_selectedMetrics:${job.cluster}:${job.subCluster}`] ||
       ccconfig[`job_view_selectedMetrics:${job.cluster}`]
@@ -154,52 +215,7 @@
     selectedScopes = [...new Set(pendingScopes)];
   });
 
-  // Interactive Document Title
-  $: document.title = $initq.fetching
-    ? "Loading..."
-    : $initq.error
-      ? "Error"
-      : `Job ${$initq.data.job.jobId} - ClusterCockpit`;
-
-  // Find out what metrics or hosts are missing:
-  $: if ($initq?.data && $jobMetrics?.data?.jobMetrics) {
-    let job = $initq.data.job,
-      metrics = $jobMetrics.data.jobMetrics,
-      metricNames = $initq.data.globalMetrics.reduce((names, gm) => {
-        if (gm.availability.find((av) => av.cluster === job.cluster)) {
-            names.push(gm.name);
-        }
-        return names;
-      }, []);
-
-    // Metric not found in JobMetrics && Metric not explicitly disabled in config or deselected: Was expected, but is Missing
-    missingMetrics = metricNames.filter(
-      (metric) =>
-        !metrics.some((jm) => jm.name == metric) &&
-        selectedMetrics.includes(metric) && 
-        !checkMetricDisabled(
-          metric,
-          $initq.data.job.cluster,
-          $initq.data.job.subCluster,
-        ),
-    );
-    missingHosts = job.resources
-      .map(({ hostname }) => ({
-        hostname: hostname,
-        metrics: metricNames.filter(
-          (metric) =>
-            !metrics.some(
-              (jm) =>
-                jm.scope == "node" &&
-                jm.metric.series.some((series) => series.hostname == hostname),
-            ),
-        ),
-      }))
-      .filter(({ metrics }) => metrics.length > 0);
-    somethingMissing = missingMetrics.length > 0 || missingHosts.length > 0;
-  }
-
-  // Helper
+  /* Functions */
   const orderAndMap = (grouped, selectedMetrics) =>
     selectedMetrics.map((metric) => ({
       metric: metric,
@@ -293,7 +309,7 @@
     <Row class="mb-2">
       {#if $initq?.data}
         <Col xs="auto">
-            <Button outline on:click={() => (isMetricsSelectionOpen = true)} color="primary">
+            <Button outline onclick={() => (isMetricsSelectionOpen = true)} color="primary">
               Select Metrics (Selected {selectedMetrics.length} of {totalMetrics} available)
             </Button>
         </Col>
