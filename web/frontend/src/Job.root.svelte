@@ -75,26 +75,8 @@
         name
         scope
         metric {
-          unit {
-            prefix
-            base
-          }
-          timestep
-          statisticsSeries {
-            min
-            mean
-            median
-            max
-          }
           series {
             hostname
-            id
-            data
-            statistics {
-              min
-              avg
-              max
-            }
           }
         }
       }
@@ -343,8 +325,7 @@
             metricName={item.metric}
             metricUnit={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.unit}
             nativeScope={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.scope}
-            rawData={item.data.map((x) => x.metric)}
-            scopes={item.data.map((x) => x.scope)}
+            presetScopes={item.data.map((x) => x.scope)}
             isShared={$initq.data.job.exclusive != 1}
           />
         {:else if item.disabled == true}

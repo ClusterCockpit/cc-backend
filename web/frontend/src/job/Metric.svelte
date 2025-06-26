@@ -31,33 +31,22 @@
   } from "../generic/utils.js";
   import Timeseries from "../generic/plots/MetricPlot.svelte";
 
-  export let job;
-  export let metricName;
-  export let metricUnit;
-  export let nativeScope;
-  export let scopes;
-  export let rawData;
-  export let isShared = false;
+  /* Svelte 5 Props */
+  let {
+    job,
+    metricName,
+    metricUnit,
+    nativeScope,
+    presetScopes,
+    isShared = false,
+  } = $props();
 
+  /* Const Init */
+  const client = getContextClient();
+  const statsPattern = /(.*)-stat$/;
   const resampleConfig = getContext("resampling") || null;
   const resampleDefault = resampleConfig ? Math.max(...resampleConfig.resolutions) : 0;
-
-  let selectedHost = null;
-  let error = null;
-  let selectedScope = minScope(scopes);
-  let selectedResolution = null;
-  let pendingResolution = resampleDefault;
-  let selectedScopeIndex = scopes.findIndex((s) => s == minScope(scopes));
-  let patternMatches = false;
-  let nodeOnly = false; // If, after load-all, still only node scope returned
-  let statsSeries = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null);
-  let zoomState = null;
-  let pendingZoomState = null;
-  let thresholdState = null;
-
-  const statsPattern = /(.*)-stat$/;
   const unit = (metricUnit?.prefix ? metricUnit.prefix : "") + (metricUnit?.base ? metricUnit.base : "");
-  const client = getContextClient();
   const subQuery = gql`
     query ($dbid: ID!, $selectedMetrics: [String!]!, $selectedScopes: [MetricScope!]!, $selectedResolution: Int) {
       singleUpdate: jobMetrics(id: $dbid, metrics: $selectedMetrics, scopes: $selectedScopes, resolution: $selectedResolution) {
@@ -90,84 +79,68 @@
     }
   `;
 
-  function handleZoom(detail) {
-      if ( // States have to differ, causes deathloop if just set
-          (pendingZoomState?.x?.min !== detail?.lastZoomState?.x?.min) &&
-          (pendingZoomState?.y?.max !== detail?.lastZoomState?.y?.max)
-      ) {
-          pendingZoomState = {...detail.lastZoomState};
-      }
+  /* State Init */
+  let requestedScopes = $state(presetScopes);
+  let selectedResolution = $state(resampleConfig ? resampleDefault : 0);
 
-      if (detail?.lastThreshold) { // Handle to correctly reset on summed metric scope change
-        thresholdState = detail.lastThreshold;
-      } else {
-        thresholdState = null;
-      }
+  let selectedHost = $state(null);
+  let zoomState = $state(null);
+  let thresholdState = $state(null);
 
-      if (detail?.newRes) { // Triggers GQL
-          pendingResolution = detail.newRes;
-      }
-  };
-
-  let metricData;
-  let selectedScopes = [...scopes];
-  const dbid = job.id;
-  const selectedMetrics = [metricName];
-
-  $: if (selectedScope || pendingResolution) {
-
-    if (resampleConfig && !selectedResolution) {
-      // Skips reactive data load on init || Only if resampling is enabled
-      selectedResolution = Number(pendingResolution)
-
-    } else {
-      if (selectedScope == "load-all") {
-        selectedScopes = [...scopes, "socket", "core", "accelerator"]
-      }
-
-      if (resampleConfig && pendingResolution) {
-        selectedResolution = Number(pendingResolution)
-      }
-
-      metricData = queryStore({
-        client: client,
-        query: subQuery,
-        variables: { dbid, selectedMetrics, selectedScopes, selectedResolution: (resampleConfig ? selectedResolution : 0) },
-        // Never user network-only: causes reactive load-loop!
-      });
-
-      if ($metricData && !$metricData.fetching) {
-        rawData = $metricData.data.singleUpdate.map((x) => x.metric)
-        scopes  = $metricData.data.singleUpdate.map((x) => x.scope)
-        statsSeries    = rawData.map((data) => data?.statisticsSeries ? data.statisticsSeries : null)
-
-        // Keep Zoomlevel if ResChange By Zoom
-        if (pendingZoomState) {
-          zoomState = {...pendingZoomState}
-        }
-
-        // On additional scope request
-        if (selectedScope == "load-all") {
-          // Set selected scope to min of returned scopes
-          selectedScope = minScope(scopes)
-          nodeOnly = (selectedScope == "node") // "node" still only scope after load-all
-        }
-
-        patternMatches = statsPattern.exec(selectedScope)
-
-        if (!patternMatches) {
-          selectedScopeIndex = scopes.findIndex((s) => s == selectedScope);
-        } else {
-          selectedScopeIndex = scopes.findIndex((s) => s == patternMatches[1]);
-        }
-      }
-    }
-  }
-
-  $: data = rawData[selectedScopeIndex];
-  $: series = data?.series?.filter(
-    (series) => selectedHost == null || series.hostname == selectedHost,
+  /* Derived */
+  const metricData = $derived(queryStore({
+      client: client,
+      query: subQuery,
+      variables: { 
+        dbid: job.id,
+        selectedMetrics: [metricName],
+        selectedScopes: [...requestedScopes],
+        selectedResolution
+      },
+      // Never user network-only: causes reactive load-loop!
+    })
   );
+
+  const rawData = $derived($metricData?.data ? $metricData.data.singleUpdate.map((x) => x.metric) : []);
+  const availableScopes = $derived($metricData?.data ? $metricData.data.singleUpdate.map((x) => x.scope) : presetScopes);
+  let selectedScope = $derived(minScope(availableScopes));
+  const patternMatches = $derived(statsPattern.exec(selectedScope));
+  const selectedScopeIndex = $derived.by(() => {
+    if (!patternMatches) {
+      return availableScopes.findIndex((s) => s == selectedScope);
+    } else {
+      return availableScopes.findIndex((s) => s == patternMatches[1]);
+    }
+  });
+  const selectedData = $derived(rawData[selectedScopeIndex]);
+  const selectedSeries = $derived(rawData[selectedScopeIndex]?.series?.filter(
+      (series) => selectedHost == null || series.hostname == selectedHost
+    )
+  );
+  const statsSeries = $derived(rawData.map((rd) => rd?.statisticsSeries ? rd.statisticsSeries : null));
+
+  /* Effect */
+  $effect(() => {
+    // Only triggered once
+    if (selectedScope == "load-all") {
+      requestedScopes = ["node", "socket", "core", "accelerator"];
+    }
+  });
+
+  /* Functions */
+  function handleZoom(detail) {
+    // Buffer last zoom state to allow seamless zoom on rerender
+    // console.log('Update zoomState with:', {...detail.lastZoomState})
+    zoomState = detail?.lastZoomState ? {...detail.lastZoomState} : null;
+    // Handle to correctly reset on summed metric scope change
+    // console.log('Update thresholdState with:', detail.lastThreshold)
+    thresholdState = detail?.lastThreshold ? detail.lastThreshold : null;
+    // Triggers GQL
+    if (detail?.newRes) { 
+      // console.log('Update selectedResolution with:', detail.newRes)
+      selectedResolution = detail.newRes;
+    }
+  };
 </script>
 
 <InputGroup class="mt-2">
@@ -175,13 +148,13 @@
     {metricName} ({unit})
   </InputGroupText>
   <select class="form-select" bind:value={selectedScope}>
-    {#each scopes as scope, index}
+    {#each availableScopes as scope, index}
       <option value={scope}>{scope}</option>
       {#if statsSeries[index]}
         <option value={scope + '-stat'}>stats series ({scope})</option>
       {/if}
     {/each}
-    {#if scopes.length == 1 && nativeScope != "node" && !nodeOnly}
+    {#if requestedScopes.length == 1 && nativeScope != "node"}
       <option value={"load-all"}>Load all...</option>
     {/if}
   </select>
@@ -194,37 +167,37 @@
     </select>
   {/if}
 </InputGroup>
-{#key series}
-  {#if $metricData?.fetching == true}
+{#key selectedSeries}
+  {#if $metricData.fetching}
     <Spinner />
-  {:else if error != null}
-    <Card body color="danger">{error.message}</Card>
-  {:else if series != null && !patternMatches}
+  {:else if $metricData.error}
+    <Card body color="danger">{$metricData.error.message}</Card>
+  {:else if selectedSeries != null && !patternMatches}
     <Timeseries
-      on:zoom={({detail}) => { handleZoom(detail) }}
+      on:zoom={({detail}) => handleZoom(detail)}
       cluster={job.cluster}
       subCluster={job.subCluster}
-      timestep={data.timestep}
+      timestep={selectedData.timestep}
       scope={selectedScope}
       metric={metricName}
       numaccs={job.numAcc}
       numhwthreads={job.numHWThreads}
-      {series}
+      series={selectedSeries}
       {isShared}
       {zoomState}
       {thresholdState}
     />
   {:else if statsSeries[selectedScopeIndex] != null && patternMatches}
     <Timeseries
-      on:zoom={({detail}) => { handleZoom(detail) }}
+      on:zoom={({detail}) => handleZoom(detail)}
       cluster={job.cluster}
       subCluster={job.subCluster}
-      timestep={data.timestep}
+      timestep={selectedData.timestep}
       scope={selectedScope}
       metric={metricName}
       numaccs={job.numAcc}
       numhwthreads={job.numHWThreads}
-      {series}
+      series={selectedSeries}
       {isShared}
       {zoomState}
       {thresholdState}

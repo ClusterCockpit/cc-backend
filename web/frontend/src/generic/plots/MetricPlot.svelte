@@ -440,7 +440,7 @@
           /* IF Zoom Enabled */
           if (resampleConfig) {
             u.over.addEventListener("dblclick", (e) => {
-              // console.log('Dispatch Reset')
+              // console.log('Dispatch: Zoom Reset')
               dispatch('zoom', {
                 lastZoomState: {
                   x: { time: false },
@@ -506,7 +506,7 @@
               });
               // Prevents non-required dispatches
               if (timestep !== closest) {
-                // console.log('Dispatch Zoom with Res from / to', timestep, closest)
+                // console.log('Dispatch: Zoom with Res from / to', timestep, closest)
                 dispatch('zoom', {
                   newRes: closest,
                   lastZoomState: u?.scales,
@@ -514,6 +514,7 @@
                 });
               }
             } else {
+              // console.log('Dispatch: Zoom Update States')
               dispatch('zoom', {
                 lastZoomState: u?.scales,
                 lastThreshold: thresholds?.normal
