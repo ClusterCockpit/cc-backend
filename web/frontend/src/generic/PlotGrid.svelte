@@ -6,18 +6,18 @@
     - `items [Any]`: List of plot components to render
  -->
 
- <script>
-    import {
-        Row,
-        Col,
-    } from "@sveltestrap/sveltestrap";
+<script>
+  import {
+    Row,
+    Col,
+  } from "@sveltestrap/sveltestrap";
 
-    /* Svelte 5 Props */
-    let {
-      items,
-      itemsPerRow,
-      gridContent
-    } = $props();
+  /* Svelte 5 Props */
+  let {
+    items,
+    itemsPerRow,
+    gridContent
+  } = $props();
 </script>
 
 <Row cols={{ xs: 1, sm: 2, md: 3, lg: itemsPerRow}}>
