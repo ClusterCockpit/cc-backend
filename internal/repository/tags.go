@@ -152,13 +152,13 @@ func (r *JobRepository) removeTagFromArchiveJobs(jobIds []int64) {
 	for _, j := range jobIds {
 		tags, err := r.getArchiveTags(&j)
 		if err != nil {
-			log.Warn("Error while getting tags for job")
+			log.Warnf("Error while getting tags for job %d", j)
 			continue
 		}
 
 		job, err := r.FindByIdDirect(j)
 		if err != nil {
-			log.Warn("Error while getting job")
+			log.Warnf("Error while getting job %d", j)
 			continue
 		}
 
