@@ -21,7 +21,7 @@
 
   /* Svelte 5 Props */
   let {
-    triggerMetricRefresh = $bindable(false),
+    triggerMetricRefresh = false,
     job,
     metrics,
     plotWidth,
@@ -35,7 +35,7 @@
   /* Const Init */
   const client = getContextClient();
   const jobId = job.id;
-  const cluster = getContext("clusters").find((c) => c.name == job.cluster);
+  const cluster = getContext("clusters");
   const scopes = (job.numNodes == 1)
     ? (job.numAcc >= 1)
       ? ["core", "accelerator"]
@@ -151,6 +151,7 @@
       .map((jobMetric) => {
         if (jobMetric.data) {
           return {
+            name: jobMetric.data.name,
             disabled: checkMetricDisabled(
               jobMetric.data.name,
               job.cluster,
@@ -195,7 +196,7 @@
         />
       </td>
     {/if}
-    {#each sortAndSelectScope($metricsQuery.data.jobMetrics) as metric, i (metric || i)}
+    {#each sortAndSelectScope($metricsQuery.data.jobMetrics) as metric, i (metric?.name || i)}
       <td>
         <!-- Subluster Metricconfig remove keyword for jobtables (joblist main, user joblist, project joblist) to be used here as toplevel case-->
         {#if metric.disabled == false && metric.data}
@@ -207,7 +208,7 @@
             series={metric.data.metric.series}
             statisticsSeries={metric.data.metric.statisticsSeries}
             metric={metric.data.name}
-            {cluster}
+            cluster={cluster.find((c) => c.name == job.cluster)}
             subCluster={job.subCluster}
             isShared={job.exclusive != 1}
             numhwthreads={job.numHWThreads}

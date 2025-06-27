@@ -14,7 +14,7 @@
  -->
 
 <script>
-  import { getContext } from "svelte";
+  import { getContext, untrack } from "svelte";
   import {
     queryStore,
     gql,
@@ -94,16 +94,12 @@
     }
   `;
 
-  /* Var Init */
-  let lastFilter = [];
-  let lastSorting = null;
-
   /* State Init */
   let headerPaddingTop = $state(0);
   let jobs = $state([]);
   let filter = $state([...filterBuffer]);
   let page = $state(1);
-  let itemsPerPage = $state(usePaging ? (ccconfig?.plot_list_jobsPerPag || 10) : 10);
+  let itemsPerPage = $state(usePaging ? (ccconfig?.plot_list_jobsPerPage || 10) : 10);
   let triggerMetricRefresh = $state(false);
   let tableWidth = $state(0);
 
@@ -118,18 +114,11 @@
       client: client,
       query: query,
       variables: { paging, sorting, filter },
+      requestPolicy: "network-only",
     })
   );
 
   /* Effects */
-  $effect(() => {
-    if ($jobsStore?.data) {
-      matchedListJobs = $jobsStore.data.jobs.count;
-    } else {
-      matchedListJobs = -1
-    }
-  });
-
   $effect(() => {
     if (!usePaging) {
       window.addEventListener('scroll', () => {
@@ -148,56 +137,32 @@
   });
 
   $effect(() => {
-    // Triggers (Except Paging)
-    sorting
+    //Triggers
     filter
-    // Continous Scroll: Reset jobs and paging if parameters change: Existing entries will not match new selections
+    sorting
+    // Reset Continous Jobs
     if (!usePaging) {
-      jobs = [];
       page = 1;
     }
   });
 
   $effect(() => {
-    if ($initialized && $jobsStore?.data) {
-      if (usePaging) {
-        jobs = [...$jobsStore.data.jobs.items]
-      } else { // Prevents jump to table head in continiuous mode, only if no change in sort or filter
-        if (equalsCheck(filter, lastFilter) && equalsCheck(sorting, lastSorting)) {
-          // console.log('Both Equal: Continuous Addition ... Set None')
-          jobs = jobs.concat([...$jobsStore.data.jobs.items])
-        } else if (equalsCheck(filter, lastFilter)) {
-          // console.log('Filter Equal: Continuous Reset ... Set lastSorting')
-          lastSorting = { ...sorting }
-          jobs = [...$jobsStore.data.jobs.items]
-        } else if (equalsCheck(sorting, lastSorting)) {
-          // console.log('Sorting Equal: Continuous Reset ... Set lastFilter')
-          lastFilter = [ ...filter ]
-          jobs = [...$jobsStore.data.jobs.items]
-        } else {
-          // console.log('None Equal: Continuous Reset ... Set lastBoth')
-          lastSorting = { ...sorting }
-          lastFilter = [ ...filter ]
-          jobs = [...$jobsStore.data.jobs.items]
-        }
-      }
+    if ($jobsStore?.data) {
+      untrack(() => {
+        handleJobs($jobsStore.data.jobs.items);
+      });
     };
   });
 
   /* Functions */
-  // Force refresh list with existing unchanged variables (== usually would not trigger reactivity)
+  // Force refresh list with existing unchanged variables
   export function refreshJobs() {
-    if (!usePaging) {
-      jobs = []; // Empty Joblist before refresh, prevents infinite buildup
+    if (usePaging) {
+      paging = {...paging}
+    } else {
       page = 1;
     }
-    jobsStore = queryStore({
-      client: client,
-      query: query,
-      variables: { paging, sorting, filter },
-      requestPolicy: "network-only",
-    });
-  }
+  };
 
   export function refreshAllMetrics() {
     // Refresh Job Metrics (Downstream will only query for running jobs)
@@ -214,19 +179,38 @@
       if (minRunningFor && minRunningFor > 0) {
         filters.push({ minRunningFor });
       }
-      filter = filters;
+      filter = [...filters];
     }
-    page = 1;
+  };
+
+  function handleJobs(newJobs) {
+    if (newJobs) {
+      if (usePaging) {
+        console.log('New Paging', $state.snapshot(paging))
+        jobs = [...newJobs]
+      } else {
+        if ($state.snapshot(page) == 1) {
+          console.log('Page 1 Reset', [...newJobs])
+          jobs = [...newJobs]
+        } else {
+          console.log('Add Jobs', $state.snapshot(jobs), [...newJobs])
+          jobs = jobs.concat([...newJobs])
+        }
+      }
+      matchedListJobs = $jobsStore.data.jobs.count;
+    } else {
+      matchedListJobs = -1
+    }
   };
 
   function updateConfiguration(value, newPage) {
     updateConfigurationMutation({
       name: "plot_list_jobsPerPage",
-      value: value,
+      value: value.toString(),
     }).subscribe((res) => {
       if (res.fetching === false && !res.error) {
-        jobs = [] // Empty List
-        paging = { itemsPerPage: value, page: newPage }; // Trigger reload of jobList
+        itemsPerPage =  value
+        page = newPage // Trigger reload of jobList
       } else if (res.fetching === false && res.error) {
         throw res.error;
       }
@@ -307,7 +291,7 @@
           </tr>
         {:else}
           {#each jobs as job (job.id)}
-            <JobListRow bind:triggerMetricRefresh {job} {metrics} {plotWidth} {showFootprint} previousSelect={selectedJobs.includes(job.id)}
+            <JobListRow {triggerMetricRefresh} {job} {metrics} {plotWidth} {showFootprint} previousSelect={selectedJobs.includes(job.id)}
               selectJob={(detail) => selectedJobs = [...selectedJobs, detail]}
               unselectJob={(detail) => selectedJobs = selectedJobs.filter(item => item !== detail)}
             />
@@ -339,10 +323,10 @@
     totalItems={matchedListJobs}
     updatePaging={(detail) => {
       if (detail.itemsPerPage != itemsPerPage) {
-        updateConfiguration(detail.itemsPerPage.toString(), detail.page);
+        updateConfiguration(detail.itemsPerPage, detail.page);
       } else {
-        jobs = []
-        paging = { itemsPerPage: detail.itemsPerPage, page: detail.page };
+        itemsPerPage = detail.itemsPerPage
+        page = detail.page
       }
     }}
   />
