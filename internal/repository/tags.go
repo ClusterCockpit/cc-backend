@@ -75,7 +75,8 @@ func (r *JobRepository) AddTagDirect(job int64, tag int64) ([]*schema.Tag, error
 	return tags, archive.UpdateTags(j, archiveTags)
 }
 
-// Removes a tag from a job by tag id
+// Removes a tag from a job by tag id.
+// Used by GraphQL API
 func (r *JobRepository) RemoveTag(user *schema.User, job, tag int64) ([]*schema.Tag, error) {
 	j, err := r.FindByIdWithUser(user, job)
 	if err != nil {
@@ -107,6 +108,7 @@ func (r *JobRepository) RemoveTag(user *schema.User, job, tag int64) ([]*schema.
 }
 
 // Removes a tag from a job by tag info
+// Used by REST API
 func (r *JobRepository) RemoveJobTagByRequest(user *schema.User, job int64, tagType string, tagName string, tagScope string) ([]*schema.Tag, error) {
 	// Get Tag ID to delete
 	tagID, exists := r.TagId(tagType, tagName, tagScope)
@@ -146,7 +148,26 @@ func (r *JobRepository) RemoveJobTagByRequest(user *schema.User, job int64, tagT
 	return tags, archive.UpdateTags(j, archiveTags)
 }
 
+func (r *JobRepository) removeTagFromArchiveJobs(jobIds []int64) {
+	for _, j := range jobIds {
+		tags, err := r.getArchiveTags(&j)
+		if err != nil {
+			log.Warn("Error while getting tags for job")
+			continue
+		}
+
+		job, err := r.FindByIdDirect(j)
+		if err != nil {
+			log.Warn("Error while getting job")
+			continue
+		}
+
+		archive.UpdateTags(job, tags)
+	}
+}
+
 // Removes a tag from db by tag info
+// Used by REST API. Does not update tagged jobs in Job archive.
 func (r *JobRepository) RemoveTagByRequest(tagType string, tagName string, tagScope string) error {
 	// Get Tag ID to delete
 	tagID, exists := r.TagId(tagType, tagName, tagScope)
@@ -155,29 +176,17 @@ func (r *JobRepository) RemoveTagByRequest(tagType string, tagName string, tagSc
 		return fmt.Errorf("tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
 	}
 
-	// Handle Delete JobTagTable
-	qJobTag := sq.Delete("jobtag").Where("jobtag.tag_id = ?", tagID)
-
-	if _, err := qJobTag.RunWith(r.stmtCache).Exec(); err != nil {
-		s, _, _ := qJobTag.ToSql()
-		log.Errorf("Error removing tag from table 'jobTag' with %s: %v", s, err)
-		return err
-	}
-
-	// Handle Delete TagTable
-	qTag := sq.Delete("tag").Where("tag.id = ?", tagID)
-
-	if _, err := qTag.RunWith(r.stmtCache).Exec(); err != nil {
-		s, _, _ := qTag.ToSql()
-		log.Errorf("Error removing tag from table 'tag' with %s: %v", s, err)
-		return err
-	}
-
-	return nil
+	return r.RemoveTagById(tagID)
 }
 
 // Removes a tag from db by tag id
+// Used by GraphQL API.
 func (r *JobRepository) RemoveTagById(tagID int64) error {
+	jobIds, err := r.FindJobIdsByTag(tagID)
+	if err != nil {
+		return err
+	}
+
 	// Handle Delete JobTagTable
 	qJobTag := sq.Delete("jobtag").Where("jobtag.tag_id = ?", tagID)
 
@@ -195,6 +204,9 @@ func (r *JobRepository) RemoveTagById(tagID int64) error {
 		log.Errorf("Error removing tag from table 'tag' with %s: %v", s, err)
 		return err
 	}
+
+	// asynchronously update archive jobs
+	go r.removeTagFromArchiveJobs(jobIds)
 
 	return nil
 }
@@ -321,6 +333,7 @@ func (r *JobRepository) AddTagOrCreate(user *schema.User, jobId int64, tagType s
 	return tagId, nil
 }
 
+// used in auto tagger plugins
 func (r *JobRepository) AddTagOrCreateDirect(jobId int64, tagType string, tagName string) (tagId int64, err error) {
 	tagScope := "global"
 

@@ -476,6 +476,32 @@ func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 	return nil
 }
 
+func (r *JobRepository) FindJobIdsByTag(tagId int64) ([]int64, error) {
+	query := sq.Select("job.id").From("job").
+		Join("jobtag ON jobtag.job_id = job.id").
+		Where(sq.Eq{"jobtag.tag_id": tagId}).Distinct()
+	rows, err := query.RunWith(r.stmtCache).Query()
+	if err != nil {
+		log.Error("Error while running query")
+		return nil, err
+	}
+	jobIds := make([]int64, 0, 100)
+
+	for rows.Next() {
+		var jobId int64
+
+		if err := rows.Scan(&jobId); err != nil {
+			rows.Close()
+			log.Warn("Error while scanning rows")
+			return nil, err
+		}
+
+		jobIds = append(jobIds, jobId)
+	}
+
+	return jobIds, nil
+}
+
 // FIXME: Reconsider filtering short jobs with harcoded threshold
 func (r *JobRepository) FindRunningJobs(cluster string) ([]*schema.Job, error) {
 	query := sq.Select(jobColumns...).From("job").
