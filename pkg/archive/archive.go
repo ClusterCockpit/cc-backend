@@ -7,6 +7,7 @@ package archive
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"sync"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
@@ -60,6 +61,7 @@ var (
 	cache      *lrucache.Cache = lrucache.New(128 * 1024 * 1024)
 	ar         ArchiveBackend
 	useArchive bool
+	mutex      sync.Mutex
 )
 
 func Init(rawConfig json.RawMessage, disableArchive bool) error {
@@ -184,6 +186,9 @@ func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
 // If the job is archived, find its `meta.json` file and override the Metadata
 // in that JSON file. If the job is not archived, nothing is done.
 func UpdateMetadata(job *schema.Job, metadata map[string]string) error {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	if job.State == schema.JobStateRunning || !useArchive {
 		return nil
 	}
@@ -194,9 +199,7 @@ func UpdateMetadata(job *schema.Job, metadata map[string]string) error {
 		return err
 	}
 
-	for k, v := range metadata {
-		jobMeta.MetaData[k] = v
-	}
+	maps.Copy(jobMeta.MetaData, metadata)
 
 	return ar.StoreJobMeta(jobMeta)
 }
@@ -204,6 +207,9 @@ func UpdateMetadata(job *schema.Job, metadata map[string]string) error {
 // If the job is archived, find its `meta.json` file and override the tags list
 // in that JSON file. If the job is not archived, nothing is done.
 func UpdateTags(job *schema.Job, tags []*schema.Tag) error {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	if job.State == schema.JobStateRunning || !useArchive {
 		return nil
 	}

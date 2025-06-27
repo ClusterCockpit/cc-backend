@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
@@ -111,7 +112,8 @@ func (t *AppTagger) Match(job *schema.Job) {
 		for _, a := range t.apps {
 			tag := a.tag
 			for _, s := range a.strings {
-				if strings.Contains(strings.ToLower(jobscript), s) {
+				matched, _ := regexp.MatchString(s, strings.ToLower(jobscript))
+				if matched {
 					if !r.HasTag(id, t.tagType, tag) {
 						r.AddTagOrCreateDirect(id, t.tagType, tag)
 						break out
