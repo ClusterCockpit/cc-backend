@@ -69,15 +69,14 @@
   `);
   const client = getContextClient();
   const ccconfig = getContext("cc-config");
+  /* Note: Actual metric data queried in <Metric> Component, only require base infos here -> reduce backend load by requesting just stats */
   const query = gql`
     query ($dbid: ID!, $selectedMetrics: [String!]!, $selectedScopes: [MetricScope!]!) {
-      jobMetrics(id: $dbid, metrics: $selectedMetrics, scopes: $selectedScopes) {
+      scopedJobStats(id: $dbid, metrics: $selectedMetrics, scopes: $selectedScopes) {
         name
         scope
-        metric {
-          series {
-            hostname
-          }
+        stats {
+          hostname
         }
       }
     }
@@ -101,7 +100,7 @@
   const missingMetrics = $derived.by(() => {
     if ($initq?.data && $jobMetrics?.data) {
       let job = $initq.data.job;
-      let metrics = $jobMetrics.data.jobMetrics;
+      let metrics = $jobMetrics.data.scopedJobStats;
       let metricNames = $initq.data.globalMetrics.reduce((names, gm) => {
           if (gm.availability.find((av) => av.cluster === job.cluster)) {
               names.push(gm.name);
@@ -127,7 +126,7 @@
   const missingHosts = $derived.by(() => {
     if ($initq?.data && $jobMetrics?.data) {
       let job = $initq.data.job;
-      let metrics = $jobMetrics.data.jobMetrics;
+      let metrics = $jobMetrics.data.scopedJobStats;
       let metricNames = $initq.data.globalMetrics.reduce((names, gm) => {
           if (gm.availability.find((av) => av.cluster === job.cluster)) {
               names.push(gm.name);
@@ -143,7 +142,7 @@
               !metrics.some(
                 (jm) =>
                   jm.scope == "node" &&
-                  jm.metric.series.some((series) => series.hostname == hostname),
+                  jm.stats.some((s) => s.hostname == hostname),
               ),
           ),
         }))
@@ -315,7 +314,7 @@
           <Spinner secondary />
         </Col>
       </Row>
-    {:else if $initq?.data && $jobMetrics?.data?.jobMetrics}
+    {:else if $initq?.data && $jobMetrics?.data?.scopedJobStats}
       <!-- Note: Ignore 'Expected If ...' Error in IDE -->
       {#snippet gridContent(item)}
         {#if item.data}
@@ -352,7 +351,7 @@
 
       <PlotGrid
         items={orderAndMap(
-          groupByScope($jobMetrics.data.jobMetrics),
+          groupByScope($jobMetrics.data.scopedJobStats),
           selectedMetrics,
         )}
         itemsPerRow={ccconfig.plot_view_plotsPerRow}
