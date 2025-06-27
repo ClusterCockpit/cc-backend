@@ -38,10 +38,7 @@
     "db-driver": {
       "description": "sqlite3 or mysql (mysql will work for mariadb as well).",
       "type": "string",
-      "enum": [
-        "sqlite3",
-        "mysql"
-      ]
+      "enum": ["sqlite3", "mysql"]
     },
     "db": {
       "description": "For sqlite3 a filename, for mysql a DSN in this format: https://github.com/go-sql-driver/mysql#dsn-data-source-name (Without query parameters!).",
@@ -54,10 +51,7 @@
         "kind": {
           "description": "Backend type for job-archive",
           "type": "string",
-          "enum": [
-            "file",
-            "s3"
-          ]
+          "enum": ["file", "s3"]
         },
         "path": {
           "description": "Path to job archive for file backend",
@@ -74,11 +68,7 @@
             "policy": {
               "description": "Retention policy",
               "type": "string",
-              "enum": [
-                "none",
-                "delete",
-                "move"
-              ]
+              "enum": ["none", "delete", "move"]
             },
             "includeDB": {
               "description": "Also remove jobs from database",
@@ -93,17 +83,17 @@
               "type": "string"
             }
           },
-          "required": [
-            "policy"
-          ]
+          "required": ["policy"]
         }
       },
-      "required": [
-        "kind"
-      ]
+      "required": ["kind"]
     },
     "disable-archive": {
       "description": "Keep all metric data in the metric data repositories, do not write to the job-archive.",
+      "type": "boolean"
+    },
+    "enable-job-taggers": {
+      "description": "Turn on automatic application and jobclass taggers",
       "type": "boolean"
     },
     "validate": {
@@ -168,10 +158,7 @@
           }
         }
       },
-      "required": [
-        "trigger",
-        "resolutions"
-      ]
+      "required": ["trigger", "resolutions"]
     },
     "jwts": {
       "description": "For JWT token authentication.",
@@ -198,9 +185,7 @@
           "type": "boolean"
         }
       },
-      "required": [
-        "max-age"
-      ]
+      "required": ["max-age"]
     },
     "oidc": {
       "provider": {
@@ -215,9 +200,7 @@
         "description": "",
         "type": "boolean"
       },
-      "required": [
-        "provider"
-      ]
+      "required": ["provider"]
     },
     "ldap": {
       "description": "For LDAP Authentication and user synchronisation.",
@@ -260,13 +243,7 @@
           "type": "boolean"
         }
       },
-      "required": [
-        "url",
-        "user_base",
-        "search_dn",
-        "user_bind",
-        "user_filter"
-      ]
+      "required": ["url", "user_base", "search_dn", "user_bind", "user_filter"]
     },
     "clusters": {
       "description": "Configuration for the clusters to be displayed.",
@@ -284,12 +261,7 @@
             "properties": {
               "kind": {
                 "type": "string",
-                "enum": [
-                  "influxdb",
-                  "prometheus",
-                  "cc-metric-store",
-                  "test"
-                ]
+                "enum": ["influxdb", "prometheus", "cc-metric-store", "test"]
               },
               "url": {
                 "type": "string"
@@ -298,10 +270,7 @@
                 "type": "string"
               }
             },
-            "required": [
-              "kind",
-              "url"
-            ]
+            "required": ["kind", "url"]
           },
           "filterRanges": {
             "description": "This option controls the slider ranges for the UI controls of numNodes, duration, and startTime.",
@@ -318,10 +287,7 @@
                     "type": "integer"
                   }
                 },
-                "required": [
-                  "from",
-                  "to"
-                ]
+                "required": ["from", "to"]
               },
               "duration": {
                 "description": "UI slider range for duration",
@@ -334,10 +300,7 @@
                     "type": "integer"
                   }
                 },
-                "required": [
-                  "from",
-                  "to"
-                ]
+                "required": ["from", "to"]
               },
               "startTime": {
                 "description": "UI slider range for start time",
@@ -351,24 +314,13 @@
                     "type": "null"
                   }
                 },
-                "required": [
-                  "from",
-                  "to"
-                ]
+                "required": ["from", "to"]
               }
             },
-            "required": [
-              "numNodes",
-              "duration",
-              "startTime"
-            ]
+            "required": ["numNodes", "duration", "startTime"]
           }
         },
-        "required": [
-          "name",
-          "metricDataRepository",
-          "filterRanges"
-        ],
+        "required": ["name", "metricDataRepository", "filterRanges"],
         "minItems": 1
       }
     },
@@ -490,9 +442,5 @@
       ]
     }
   },
-  "required": [
-    "jwts",
-    "clusters",
-    "apiAllowedIPs"
-  ]
+  "required": ["jwts", "clusters", "apiAllowedIPs"]
 }
