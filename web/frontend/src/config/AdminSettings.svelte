@@ -12,13 +12,17 @@
   import Options from "./admin/Options.svelte";
   import NoticeEdit from "./admin/NoticeEdit.svelte";
 
-  export let ncontent;
+  /* Svelte 5 Props */
+  let { ncontent } = $props();
 
-  let users = [];
-  let roles = [];
-
+  /* Const Init*/
   const ccconfig = getContext("cc-config");
 
+  /* State Init */
+  let users = $state([]);
+  let roles = $state([]);
+
+  /* Functions */
   function getUserList() {
     fetch("/config/users/?via-ldap=false&not-just-user=true")
       .then((res) => res.json())
@@ -40,21 +44,22 @@
     getValidRoles();
   }
 
+  /* on Mount */
   onMount(() => initAdmin());
 </script>
 
 <Row cols={2} class="p-2 g-2">
   <Col class="mb-1">
-    <AddUser {roles} on:reload={getUserList} />
+    <AddUser {roles} reloadUser={() => getUserList()} />
   </Col>
   <Col class="mb-1">
-    <ShowUsers on:reload={getUserList} bind:users />
+    <ShowUsers reloadUser={() => getUserList()} bind:users />
   </Col>
   <Col>
-    <EditRole {roles} on:reload={getUserList} />
+    <EditRole {roles} reloadUser={() => getUserList()} />
   </Col>
   <Col>
-    <EditProject on:reload={getUserList} />
+    <EditProject reloadUser={() => getUserList()} />
   </Col>
   <Options config={ccconfig}/>
   <NoticeEdit {ncontent}/>

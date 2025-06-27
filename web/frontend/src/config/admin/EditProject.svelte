@@ -7,15 +7,19 @@
 
 <script>
   import { Card, CardTitle, CardBody } from "@sveltestrap/sveltestrap";
-  import { createEventDispatcher } from "svelte";
   import { fade } from "svelte/transition";
 
-  const dispatch = createEventDispatcher();
+  /* Svelte 5 Props */
+  let { reloadUser } = $props();
 
-  let message = { msg: "", color: "#d63384" };
-  let displayMessage = false;
+  /* State Init */
+  let message = $state({ msg: "", color: "#d63384" });
+  let displayMessage = $state(false);
 
-  async function handleAddProject() {
+  /* Functions */
+  async function handleAddProject(event) {
+    event.preventDefault();
+
     const username = document.querySelector("#project-username").value;
     const project = document.querySelector("#project-id").value;
 
@@ -36,7 +40,7 @@
       if (res.ok) {
         let text = await res.text();
         popMessage(text, "#048109");
-        reloadUserList();
+        reloadUser();
       } else {
         let text = await res.text();
         throw new Error("Response Code " + res.status + "-> " + text);
@@ -46,7 +50,9 @@
     }
   }
 
-  async function handleRemoveProject() {
+  async function handleRemoveProject(event) {
+    event.preventDefault();
+
     const username = document.querySelector("#project-username").value;
     const project = document.querySelector("#project-id").value;
 
@@ -67,7 +73,7 @@
       if (res.ok) {
         let text = await res.text();
         popMessage(text, "#048109");
-        reloadUserList();
+        reloadUser();
       } else {
         let text = await res.text();
         throw new Error("Response Code " + res.status + "-> " + text);
@@ -83,10 +89,6 @@
     setTimeout(function () {
       displayMessage = false;
     }, 3500);
-  }
-
-  function reloadUserList() {
-    dispatch("reload");
   }
 </script>
 
@@ -108,19 +110,17 @@
         placeholder="project-id"
         id="project-id"
       />
-      <!-- PreventDefault on Sveltestrap-Button more complex to achieve than just use good ol' html button -->
-      <!-- see: https://stackoverflow.com/questions/69630422/svelte-how-to-use-event-modifiers-in-my-own-components -->
       <button
         class="btn btn-primary"
         type="button"
         id="add-project-button"
-        on:click|preventDefault={handleAddProject}>Add</button
+        onclick={(e) => handleAddProject(e)}>Add</button
       >
       <button
         class="btn btn-danger"
         type="button"
         id="remove-project-button"
-        on:click|preventDefault={handleRemoveProject}>Remove</button
+        onclick={(e) => handleRemoveProject(e)}>Remove</button
       >
     </div>
     <p>

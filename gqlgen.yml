@@ -62,6 +62,11 @@ models:
     fields:
       partitions:
         resolver: true
+  Node:
+    model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Node"
+    fields:
+      metaData:
+        resolver: true
   NullableFloat:
     { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Float" }
   MetricScope:
@@ -81,6 +86,10 @@ models:
     { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.Resource" }
   JobState:
     { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.JobState" }
+  MonitoringState:
+    { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.NodeState" }
+  HealthState:
+    { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.MonitoringState" }
   TimeRange:
     { model: "github.com/ClusterCockpit/cc-backend/pkg/schema.TimeRange" }
   IntRange:

@@ -11,11 +11,51 @@
       - Dispatched once immediately and then each time page or itemsPerPage changes
  -->
 
+<script>
+    /* Svelte 5 Props */
+    let {
+        page = 1,
+        itemsPerPage = 10,
+        totalItems = 0,
+        itemText = "items",
+        pageSizes = [10,25,50],
+        updatePaging
+    } = $props();
+
+    /* Derived */
+    const backButtonDisabled = $derived((page === 1));
+    const nextButtonDisabled = $derived((page >= (totalItems / itemsPerPage)));
+
+    /* Functions */
+    function pageUp ( event ) {
+        event.preventDefault();
+        page += 1;
+        updatePaging({ itemsPerPage, page });
+    }
+    
+    function pageBack ( event ) {
+        event.preventDefault();
+        page -= 1;
+        updatePaging({ itemsPerPage, page });
+    }
+
+    function pageReset ( event ) {
+        event.preventDefault();
+        page = 1;
+        updatePaging({ itemsPerPage, page });
+    }
+
+    function updateItems ( event ) {
+        event.preventDefault();
+        updatePaging({ itemsPerPage, page });
+    }
+</script>
+
 <div class="cc-pagination" >
     <div class="cc-pagination-left">
         <label for="cc-pagination-select">{ itemText } per page:</label>
         <div class="cc-pagination-select-wrapper">
-            <select on:blur|preventDefault={reset} bind:value={itemsPerPage} id="cc-pagination-select" class="cc-pagination-select">
+            <select onblur={(e) => pageReset(e)} onchange={(e) => updateItems(e)} bind:value={itemsPerPage} id="cc-pagination-select" class="cc-pagination-select">
                 {#each pageSizes as size}
                     <option value="{size}">{size}</option>
                 {/each}
@@ -23,53 +63,22 @@
             <span class="focus"></span>
         </div>
         <span class="cc-pagination-text">
-            { (page - 1) * itemsPerPage } - { Math.min((page - 1) * itemsPerPage + itemsPerPage, totalItems) } of { totalItems } { itemText }
+            { ((page - 1) * itemsPerPage) + 1 } - { Math.min((page - 1) * itemsPerPage + itemsPerPage, totalItems) } of { totalItems } { itemText }
         </span>
     </div>
     <div class="cc-pagination-right">
         {#if !backButtonDisabled}
-        <button class="reset nav" type="button"
-            on:click|preventDefault="{reset}"></button>
-        <button class="left nav" type="button"
-            on:click|preventDefault="{() => { page -= 1; }}"></button>
+        <button aria-label="page-reset"  class="reset nav" type="button"
+            onclick={(e) => pageReset(e)}></button>
+        <button aria-label="page-back" class="left nav" type="button"
+            onclick={(e) => pageBack(e)}></button>
         {/if}
         {#if !nextButtonDisabled}
-        <button class="right nav" type="button"
-            on:click|preventDefault="{() => { page += 1; }}"></button>
+        <button aria-label="page-up" class="right nav" type="button"
+            onclick={(e) => pageUp(e)}></button>
         {/if}
     </div>
 </div>
-
-<script>
-    import { createEventDispatcher } from "svelte";
-    export let page = 1;
-    export let itemsPerPage = 10;
-    export let totalItems = 0;
-    export let itemText = "items";
-    export let pageSizes = [10,25,50];
-
-    let backButtonDisabled, nextButtonDisabled;
-
-    const dispatch = createEventDispatcher();
-
-    $: {
-        if (typeof page !== "number") {
-            page = Number(page);
-        }
-
-        if (typeof itemsPerPage !== "number") {
-            itemsPerPage = Number(itemsPerPage);
-        }
-
-        dispatch("update-paging", { itemsPerPage, page });
-    }
-    $: backButtonDisabled = (page === 1);
-    $: nextButtonDisabled = (page >= (totalItems / itemsPerPage));
-
-    function reset ( event ) {
-        page = 1;
-    }
-</script>
 
 <style>
     *, *::before, *::after {

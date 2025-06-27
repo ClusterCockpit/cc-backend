@@ -388,24 +388,6 @@ export function findJobFootprintThresholds(job, stat, metricConfig) {
     }
 }
 
-export function getSortItems() {
-    //console.time('sort')
-    const globalMetrics = getContext("globalMetrics")
-    const result = globalMetrics.map((gm) => {
-        if (gm?.footprint) {
-            return { 
-                field: gm.name + '_' + gm.footprint,
-                type: 'foot',
-                text: gm.name + ' (' + gm.footprint + ')',
-                order: 'DESC'
-            }
-        }
-        return null
-    }).filter((r) => r != null)
-    //console.timeEnd('sort')
-    return [...result];
-};
-
 function getMetricConfigDeep(metric, cluster, subCluster) {
     const clusters = getContext("clusters");
     if (cluster != null) {
@@ -461,11 +443,11 @@ export function convert2uplot(canvasData, secondsToMinutes = false, secondsToHou
             } else { // Default -> Fill Histodata with zero values on unused value placing -> maybe allows zoom trigger as known
                 if (secondsToHours) {
                     let hours = cd.value / 3600
-                    console.log("x seconds to y hours", cd.value, hours)
+                    // console.log("x seconds to y hours", cd.value, hours)
                     uplotData[0].push(hours)
                 } else if (secondsToMinutes) {
                     let minutes = cd.value / 60
-                    console.log("x seconds to y minutes", cd.value, minutes)
+                    // console.log("x seconds to y minutes", cd.value, minutes)
                     uplotData[0].push(minutes)
                 } else {
                     uplotData[0].push(cd.value)

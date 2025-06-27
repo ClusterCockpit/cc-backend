@@ -9,21 +9,30 @@
 
 <script>
     import { getContext } from 'svelte'
-    const allTags = getContext('tags'),
-          initialized = getContext('initialized')
+    
+    /* Svelte 5 Props */
+    let {
+        id = null,
+        tag = null,
+        clickable = true
+    } = $props();
 
-    export let id = null
-    export let tag = null
-    export let clickable = true
+    /* Derived */
+    const allTags = $derived(getContext('tags'));
+    const initialized = $derived(getContext('initialized'));
 
-    if (tag != null && id == null)
-        id = tag.id
+    /* Effects */
+    $effect(() => {
+        if (tag != null && id == null)
+            id = tag.id
+    });
 
-    $: {
+    $effect(() => {
         if ($initialized && tag == null)
             tag = allTags.find(tag => tag.id == id)
-    }
+    });
 
+    /* Function*/
     function getScopeColor(scope) {
         switch (scope) {
         case "admin":

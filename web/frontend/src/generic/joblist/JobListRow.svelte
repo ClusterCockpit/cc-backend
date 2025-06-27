@@ -12,7 +12,7 @@
 
 <script>
   import { queryStore, gql, getContextClient } from "@urql/svelte";
-  import { getContext } from "svelte";
+  import { getContext, createEventDispatcher } from "svelte";
   import { Card, Spinner } from "@sveltestrap/sveltestrap";
   import { maxScope, checkMetricDisabled } from "../utils.js";
   import JobInfo from "./JobInfo.svelte";
@@ -25,7 +25,9 @@
   export let plotHeight = 275;
   export let showFootprint;
   export let triggerMetricRefresh = false;
+  export let previousSelect = false;
 
+  const dispatch = createEventDispatcher();
   const resampleConfig = getContext("resampling") || null;
   const resampleDefault = resampleConfig ? Math.max(...resampleConfig.resolutions) : 0;
   
@@ -38,6 +40,8 @@
   let selectedResolution = resampleDefault;
   let zoomStates = {};
   let thresholdStates = {};
+  
+  $: isSelected = previousSelect || null;
 
   const cluster = getContext("clusters").find((c) => c.name == job.cluster);
   const client = getContextClient();
@@ -112,6 +116,12 @@
     refreshMetrics();
   }
 
+  $: if (isSelected == true && previousSelect == false) {
+    dispatch("select-job", job.id)
+  } else if (isSelected == false && previousSelect == true) {
+    dispatch("unselect-job", job.id)
+  }
+
   // Helper
   const selectScope = (jobMetrics) =>
     jobMetrics.reduce(
@@ -152,7 +162,7 @@
 
 <tr>
   <td>
-    <JobInfo {job} />
+    <JobInfo {job} bind:isSelected showSelect/>
   </td>
   {#if job.monitoringStatus == 0 || job.monitoringStatus == 2}
     <td colspan={metrics.length}>

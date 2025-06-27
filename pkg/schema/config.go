@@ -89,6 +89,8 @@ type ResampleConfig struct {
 }
 
 type CronFrequency struct {
+	// Duration Update Worker [Defaults to '2m']
+	CommitJobWorker string `json:"commit-job-worker"`
 	// Duration Update Worker [Defaults to '5m']
 	DurationWorker string `json:"duration-worker"`
 	// Metric-Footprint Update Worker [Defaults to '10m']
@@ -129,6 +131,8 @@ type ProgramConfig struct {
 	// do not write to the job-archive.
 	DisableArchive bool `json:"disable-archive"`
 
+	EnableJobTaggers bool `json:"enable-job-taggers"`
+
 	// Validate json input against schema
 	Validate bool `json:"validate"`
 
@@ -150,7 +154,7 @@ type ProgramConfig struct {
 
 	// If overwritten, at least all the options in the defaults below must
 	// be provided! Most options here can be overwritten by the user.
-	UiDefaults map[string]interface{} `json:"ui-defaults"`
+	UiDefaults map[string]any `json:"ui-defaults"`
 
 	// If exists, will enable dynamic zoom in frontend metric plots using the configured values
 	EnableResampling *ResampleConfig `json:"enable-resampling"`

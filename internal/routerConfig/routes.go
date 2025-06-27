@@ -161,7 +161,7 @@ func setupNodeRoute(i InfoType, r *http.Request) InfoType {
 	i["hostname"] = vars["hostname"]
 	i["id"] = fmt.Sprintf("%s (%s)", vars["cluster"], vars["hostname"])
 	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
-	if from != "" || to != "" {
+	if from != "" && to != "" {
 		i["from"] = from
 		i["to"] = to
 	}
@@ -296,6 +296,9 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 				filterPresets["numAccelerators"] = map[string]int{"from": a, "to": b}
 			}
 		}
+	}
+	if len(query["dbId"]) != 0 {
+		filterPresets["dbId"] = query["dbId"]
 	}
 	if query.Get("jobId") != "" {
 		if len(query["jobId"]) == 1 {

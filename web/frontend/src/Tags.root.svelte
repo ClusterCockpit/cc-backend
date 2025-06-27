@@ -24,15 +24,22 @@
     init,
   } from "./generic/utils.js";
 
-  export let username;
-  export let isAdmin;
-  export let tagmap;
+  /* Svelte 5 Props */
+  let {
+    username,
+    isAdmin,
+    presetTagmap,
+  } = $props();
 
+  /* Const Init */
   const {} = init();
   const client = getContextClient();
 
-  let pendingChange = "none";
+  /* State Init */
+  let pendingChange = $state("none");
+  let tagmap = $state(presetTagmap)
 
+  /* Functions */
   const removeTagMutation = ({ tagIds }) => {
     return mutationStore({
       client: client,
@@ -96,7 +103,7 @@
                 <Button
                   size="sm"
                   color="danger"
-                  on:click={() => removeTag(tag, tagType)}
+                  onclick={() => removeTag(tag, tagType)}
                 >
                   <Icon name="x" />
                 </Button>

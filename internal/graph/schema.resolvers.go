@@ -29,9 +29,15 @@ func (r *clusterResolver) Partitions(ctx context.Context, obj *schema.Cluster) (
 	return r.Repo.Partitions(obj.Name)
 }
 
+// StartTime is the resolver for the startTime field.
+func (r *jobResolver) StartTime(ctx context.Context, obj *schema.Job) (*time.Time, error) {
+	timestamp := time.Unix(obj.StartTime, 0)
+	return &timestamp, nil
+}
+
 // Tags is the resolver for the tags field.
 func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error) {
-	return r.Repo.GetTags(repository.GetUserFromContext(ctx), &obj.ID)
+	return r.Repo.GetTags(repository.GetUserFromContext(ctx), obj.ID)
 }
 
 // ConcurrentJobs is the resolver for the concurrentJobs field.
@@ -143,7 +149,7 @@ func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name s
 		return &schema.Tag{ID: id, Type: typeArg, Name: name, Scope: scope}, nil
 	} else {
 		log.Warnf("Not authorized to create tag with scope: %s", scope)
-		return nil, fmt.Errorf("Not authorized to create tag with scope: %s", scope)
+		return nil, fmt.Errorf("not authorized to create tag with scope: %s", scope)
 	}
 }
 
@@ -179,7 +185,7 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 		_, _, tscope, exists := r.Repo.TagInfo(tid)
 		if !exists {
 			log.Warnf("Tag does not exist (ID): %d", tid)
-			return nil, fmt.Errorf("Tag does not exist (ID): %d", tid)
+			return nil, fmt.Errorf("tag does not exist (ID): %d", tid)
 		}
 
 		// Test Access: Admins && Admin Tag OR Support/Admin and Global Tag OR Everyone && Private Tag
@@ -193,7 +199,7 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 			}
 		} else {
 			log.Warnf("Not authorized to add tag: %d", tid)
-			return nil, fmt.Errorf("Not authorized to add tag: %d", tid)
+			return nil, fmt.Errorf("not authorized to add tag: %d", tid)
 		}
 	}
 
@@ -226,7 +232,7 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 		_, _, tscope, exists := r.Repo.TagInfo(tid)
 		if !exists {
 			log.Warnf("Tag does not exist (ID): %d", tid)
-			return nil, fmt.Errorf("Tag does not exist (ID): %d", tid)
+			return nil, fmt.Errorf("tag does not exist (ID): %d", tid)
 		}
 
 		// Test Access: Admins && Admin Tag OR Support/Admin and Global Tag OR Everyone && Private Tag
@@ -240,7 +246,7 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 			}
 		} else {
 			log.Warnf("Not authorized to remove tag: %d", tid)
-			return nil, fmt.Errorf("Not authorized to remove tag: %d", tid)
+			return nil, fmt.Errorf("not authorized to remove tag: %d", tid)
 		}
 
 	}
@@ -269,7 +275,7 @@ func (r *mutationResolver) RemoveTagFromList(ctx context.Context, tagIds []strin
 		_, _, tscope, exists := r.Repo.TagInfo(tid)
 		if !exists {
 			log.Warnf("Tag does not exist (ID): %d", tid)
-			return nil, fmt.Errorf("Tag does not exist (ID): %d", tid)
+			return nil, fmt.Errorf("tag does not exist (ID): %d", tid)
 		}
 
 		// Test Access: Admins && Admin Tag OR Everyone && Private Tag
@@ -283,7 +289,7 @@ func (r *mutationResolver) RemoveTagFromList(ctx context.Context, tagIds []strin
 			}
 		} else {
 			log.Warnf("Not authorized to remove tag: %d", tid)
-			return nil, fmt.Errorf("Not authorized to remove tag: %d", tid)
+			return nil, fmt.Errorf("not authorized to remove tag: %d", tid)
 		}
 	}
 	return tags, nil
@@ -297,6 +303,21 @@ func (r *mutationResolver) UpdateConfiguration(ctx context.Context, name string,
 	}
 
 	return nil, nil
+}
+
+// NodeState is the resolver for the nodeState field.
+func (r *nodeResolver) NodeState(ctx context.Context, obj *schema.Node) (string, error) {
+	panic(fmt.Errorf("not implemented: NodeState - nodeState"))
+}
+
+// HealthState is the resolver for the HealthState field.
+func (r *nodeResolver) HealthState(ctx context.Context, obj *schema.Node) (schema.NodeState, error) {
+	panic(fmt.Errorf("not implemented: HealthState - HealthState"))
+}
+
+// MetaData is the resolver for the metaData field.
+func (r *nodeResolver) MetaData(ctx context.Context, obj *schema.Node) (any, error) {
+	panic(fmt.Errorf("not implemented: MetaData - metaData"))
 }
 
 // Clusters is the resolver for the clusters field.
@@ -336,6 +357,30 @@ func (r *queryResolver) AllocatedNodes(ctx context.Context, cluster string) ([]*
 	}
 
 	return counts, nil
+}
+
+// Node is the resolver for the node field.
+func (r *queryResolver) Node(ctx context.Context, id string) (*schema.Node, error) {
+	repo := repository.GetNodeRepository()
+	numericId, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		log.Warn("Error while parsing job id")
+		return nil, err
+	}
+	return repo.GetNode(numericId, false)
+}
+
+// Nodes is the resolver for the nodes field.
+func (r *queryResolver) Nodes(ctx context.Context, filter []*model.NodeFilter, order *model.OrderByInput) (*model.NodeStateResultList, error) {
+	repo := repository.GetNodeRepository()
+	nodes, err := repo.QueryNodes(ctx, filter, order)
+	count := len(nodes)
+	return &model.NodeStateResultList{Items: nodes, Count: &count}, err
+}
+
+// NodeStats is the resolver for the nodeStats field.
+func (r *queryResolver) NodeStats(ctx context.Context, filter []*model.NodeFilter) ([]*model.NodeStats, error) {
+	panic(fmt.Errorf("not implemented: NodeStats - nodeStats"))
 }
 
 // Job is the resolver for the job field.
@@ -400,7 +445,7 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 }
 
 // JobStats is the resolver for the jobStats field.
-func (r *queryResolver) JobStats(ctx context.Context, id string, metrics []string) ([]*model.JobStats, error) {
+func (r *queryResolver) JobStats(ctx context.Context, id string, metrics []string) ([]*model.NamedStats, error) {
 	job, err := r.Query().Job(ctx, id)
 	if err != nil {
 		log.Warnf("Error while querying job %s for metadata", id)
@@ -413,11 +458,11 @@ func (r *queryResolver) JobStats(ctx context.Context, id string, metrics []strin
 		return nil, err
 	}
 
-	res := []*model.JobStats{}
+	res := []*model.NamedStats{}
 	for name, md := range data {
-		res = append(res, &model.JobStats{
-			Name:  name,
-			Stats: &md,
+		res = append(res, &model.NamedStats{
+			Name: name,
+			Data: &md,
 		})
 	}
 
@@ -425,7 +470,7 @@ func (r *queryResolver) JobStats(ctx context.Context, id string, metrics []strin
 }
 
 // ScopedJobStats is the resolver for the scopedJobStats field.
-func (r *queryResolver) ScopedJobStats(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope) ([]*model.JobStatsWithScope, error) {
+func (r *queryResolver) ScopedJobStats(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope) ([]*model.NamedStatsWithScope, error) {
 	job, err := r.Query().Job(ctx, id)
 	if err != nil {
 		log.Warnf("Error while querying job %s for metadata", id)
@@ -438,7 +483,7 @@ func (r *queryResolver) ScopedJobStats(ctx context.Context, id string, metrics [
 		return nil, err
 	}
 
-	res := make([]*model.JobStatsWithScope, 0)
+	res := make([]*model.NamedStatsWithScope, 0)
 	for name, scoped := range data {
 		for scope, stats := range scoped {
 
@@ -451,7 +496,7 @@ func (r *queryResolver) ScopedJobStats(ctx context.Context, id string, metrics [
 				})
 			}
 
-			res = append(res, &model.JobStatsWithScope{
+			res = append(res, &model.NamedStatsWithScope{
 				Name:  name,
 				Scope: scope,
 				Stats: mdlStats,
@@ -460,12 +505,6 @@ func (r *queryResolver) ScopedJobStats(ctx context.Context, id string, metrics [
 	}
 
 	return res, nil
-}
-
-// JobsFootprints is the resolver for the jobsFootprints field.
-func (r *queryResolver) JobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error) {
-	// NOTE: Legacy Naming! This resolver is for normalized histograms in analysis view only - *Not* related to DB "footprint" column!
-	return r.jobsFootprints(ctx, filter, metrics)
 }
 
 // Jobs is the resolver for the jobs field.
@@ -505,10 +544,7 @@ func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, pag
 		return nil, err
 	}
 
-	hasNextPage := false
-	if len(nextJobs) == 1 {
-		hasNextPage = true
-	}
+	hasNextPage := len(nextJobs) == 1
 
 	return &model.JobResultList{Items: jobs, Count: &count, HasNextPage: &hasNextPage}, nil
 }
@@ -519,8 +555,8 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	var stats []*model.JobsStatistics
 
 	// Top Level Defaults
-	var defaultDurationBins string = "1h"
-	var defaultMetricBins int = 10
+	defaultDurationBins := "1h"
+	defaultMetricBins := 10
 
 	if requireField(ctx, "totalJobs") || requireField(ctx, "totalWalltime") || requireField(ctx, "totalNodes") || requireField(ctx, "totalCores") ||
 		requireField(ctx, "totalAccs") || requireField(ctx, "totalNodeHours") || requireField(ctx, "totalCoreHours") || requireField(ctx, "totalAccHours") {
@@ -587,6 +623,62 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	}
 
 	return stats, nil
+}
+
+// JobsMetricStats is the resolver for the jobsMetricStats field.
+func (r *queryResolver) JobsMetricStats(ctx context.Context, filter []*model.JobFilter, metrics []string) ([]*model.JobStats, error) {
+	// No Paging, Fixed Order by StartTime ASC
+	order := &model.OrderByInput{
+		Field: "startTime",
+		Type:  "col",
+		Order: "ASC",
+	}
+
+	jobs, err := r.Repo.QueryJobs(ctx, filter, nil, order)
+	if err != nil {
+		log.Warn("Error while querying jobs for comparison")
+		return nil, err
+	}
+
+	res := []*model.JobStats{}
+	for _, job := range jobs {
+		data, err := metricDataDispatcher.LoadJobStats(job, metrics, ctx)
+		if err != nil {
+			log.Warnf("Error while loading comparison jobStats data for job id %d", job.JobID)
+			continue
+			// return nil, err
+		}
+
+		sres := []*model.NamedStats{}
+		for name, md := range data {
+			sres = append(sres, &model.NamedStats{
+				Name: name,
+				Data: &md,
+			})
+		}
+
+		numThreadsInt := int(job.NumHWThreads)
+		numAccsInt := int(job.NumAcc)
+		res = append(res, &model.JobStats{
+			ID:              int(*job.ID),
+			JobID:           strconv.Itoa(int(job.JobID)),
+			StartTime:       int(job.StartTime),
+			Duration:        int(job.Duration),
+			Cluster:         job.Cluster,
+			SubCluster:      job.SubCluster,
+			NumNodes:        int(job.NumNodes),
+			NumHWThreads:    &numThreadsInt,
+			NumAccelerators: &numAccsInt,
+			Stats:           sres,
+		})
+	}
+	return res, err
+}
+
+// JobsFootprints is the resolver for the jobsFootprints field.
+func (r *queryResolver) JobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error) {
+	// NOTE: Legacy Naming! This resolver is for normalized histograms in analysis view only - *Not* related to DB "footprint" column!
+	return r.jobsFootprints(ctx, filter, metrics)
 }
 
 // RooflineHeatmap is the resolver for the rooflineHeatmap field.
@@ -723,15 +815,21 @@ func (r *Resolver) MetricValue() generated.MetricValueResolver { return &metricV
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
 
+// Node returns generated.NodeResolver implementation.
+func (r *Resolver) Node() generated.NodeResolver { return &nodeResolver{r} }
+
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
 // SubCluster returns generated.SubClusterResolver implementation.
 func (r *Resolver) SubCluster() generated.SubClusterResolver { return &subClusterResolver{r} }
 
-type clusterResolver struct{ *Resolver }
-type jobResolver struct{ *Resolver }
-type metricValueResolver struct{ *Resolver }
-type mutationResolver struct{ *Resolver }
-type queryResolver struct{ *Resolver }
-type subClusterResolver struct{ *Resolver }
+type (
+	clusterResolver     struct{ *Resolver }
+	jobResolver         struct{ *Resolver }
+	metricValueResolver struct{ *Resolver }
+	mutationResolver    struct{ *Resolver }
+	nodeResolver        struct{ *Resolver }
+	queryResolver       struct{ *Resolver }
+	subClusterResolver  struct{ *Resolver }
+)

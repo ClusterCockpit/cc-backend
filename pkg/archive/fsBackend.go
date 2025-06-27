@@ -53,28 +53,27 @@ func getDirectory(
 		rootPath,
 		job.Cluster,
 		lvl1, lvl2,
-		strconv.FormatInt(job.StartTime.Unix(), 10))
+		strconv.FormatInt(job.StartTime, 10))
 }
 
 func getPath(
 	job *schema.Job,
 	rootPath string,
-	file string) string {
-
+	file string,
+) string {
 	return filepath.Join(
 		getDirectory(job, rootPath), file)
 }
 
-func loadJobMeta(filename string) (*schema.JobMeta, error) {
-
+func loadJobMeta(filename string) (*schema.Job, error) {
 	b, err := os.ReadFile(filename)
 	if err != nil {
 		log.Errorf("loadJobMeta() > open file error: %v", err)
-		return &schema.JobMeta{}, err
+		return nil, err
 	}
 	if config.Keys.Validate {
 		if err := schema.Validate(schema.Meta, bytes.NewReader(b)); err != nil {
-			return &schema.JobMeta{}, fmt.Errorf("validate job meta: %v", err)
+			return nil, fmt.Errorf("validate job meta: %v", err)
 		}
 	}
 
@@ -83,7 +82,6 @@ func loadJobMeta(filename string) (*schema.JobMeta, error) {
 
 func loadJobData(filename string, isCompressed bool) (schema.JobData, error) {
 	f, err := os.Open(filename)
-
 	if err != nil {
 		log.Errorf("fsBackend LoadJobData()- %v", err)
 		return nil, err
@@ -117,7 +115,6 @@ func loadJobData(filename string, isCompressed bool) (schema.JobData, error) {
 
 func loadJobStats(filename string, isCompressed bool) (schema.ScopedJobStats, error) {
 	f, err := os.Open(filename)
-
 	if err != nil {
 		log.Errorf("fsBackend LoadJobStats()- %v", err)
 		return nil, err
@@ -150,7 +147,6 @@ func loadJobStats(filename string, isCompressed bool) (schema.ScopedJobStats, er
 }
 
 func (fsa *FsArchive) Init(rawConfig json.RawMessage) (uint64, error) {
-
 	var config FsArchiveConfig
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
 		log.Warnf("Init() > Unmarshal error: %#v", err)
@@ -276,7 +272,6 @@ func (fsa *FsArchive) Exists(job *schema.Job) bool {
 }
 
 func (fsa *FsArchive) Clean(before int64, after int64) {
-
 	if after == 0 {
 		after = math.MaxInt64
 	}
@@ -392,7 +387,6 @@ func (fsa *FsArchive) Compress(jobs []*schema.Job) {
 }
 
 func (fsa *FsArchive) CompressLast(starttime int64) int64 {
-
 	filename := filepath.Join(fsa.path, "compress.txt")
 	b, err := os.ReadFile(filename)
 	if err != nil {
@@ -435,13 +429,12 @@ func (fsa *FsArchive) LoadJobStats(job *schema.Job) (schema.ScopedJobStats, erro
 	return loadJobStats(filename, isCompressed)
 }
 
-func (fsa *FsArchive) LoadJobMeta(job *schema.Job) (*schema.JobMeta, error) {
+func (fsa *FsArchive) LoadJobMeta(job *schema.Job) (*schema.Job, error) {
 	filename := getPath(job, fsa.path, "meta.json")
 	return loadJobMeta(filename)
 }
 
 func (fsa *FsArchive) LoadClusterCfg(name string) (*schema.Cluster, error) {
-
 	b, err := os.ReadFile(filepath.Join(fsa.path, name, "cluster.json"))
 	if err != nil {
 		log.Errorf("LoadClusterCfg() > open file error: %v", err)
@@ -456,7 +449,6 @@ func (fsa *FsArchive) LoadClusterCfg(name string) (*schema.Cluster, error) {
 }
 
 func (fsa *FsArchive) Iter(loadMetricData bool) <-chan JobContainer {
-
 	ch := make(chan JobContainer)
 	go func() {
 		clustersDir, err := os.ReadDir(fsa.path)
@@ -526,19 +518,13 @@ func (fsa *FsArchive) Iter(loadMetricData bool) <-chan JobContainer {
 	return ch
 }
 
-func (fsa *FsArchive) StoreJobMeta(jobMeta *schema.JobMeta) error {
-
-	job := schema.Job{
-		BaseJob:       jobMeta.BaseJob,
-		StartTime:     time.Unix(jobMeta.StartTime, 0),
-		StartTimeUnix: jobMeta.StartTime,
-	}
-	f, err := os.Create(getPath(&job, fsa.path, "meta.json"))
+func (fsa *FsArchive) StoreJobMeta(job *schema.Job) error {
+	f, err := os.Create(getPath(job, fsa.path, "meta.json"))
 	if err != nil {
 		log.Error("Error while creating filepath for meta.json")
 		return err
 	}
-	if err := EncodeJobMeta(f, jobMeta); err != nil {
+	if err := EncodeJobMeta(f, job); err != nil {
 		log.Error("Error while encoding job metadata to meta.json file")
 		return err
 	}
@@ -555,15 +541,10 @@ func (fsa *FsArchive) GetClusters() []string {
 }
 
 func (fsa *FsArchive) ImportJob(
-	jobMeta *schema.JobMeta,
-	jobData *schema.JobData) error {
-
-	job := schema.Job{
-		BaseJob:       jobMeta.BaseJob,
-		StartTime:     time.Unix(jobMeta.StartTime, 0),
-		StartTimeUnix: jobMeta.StartTime,
-	}
-	dir := getPath(&job, fsa.path, "")
+	jobMeta *schema.Job,
+	jobData *schema.JobData,
+) error {
+	dir := getPath(jobMeta, fsa.path, "")
 	if err := os.MkdirAll(dir, 0777); err != nil {
 		log.Error("Error while creating job archive path")
 		return err
@@ -582,28 +563,6 @@ func (fsa *FsArchive) ImportJob(
 		log.Warn("Error while closing meta.json file")
 		return err
 	}
-
-	// var isCompressed bool = true
-	// // TODO Use shortJob Config for check
-	// if jobMeta.Duration < 300 {
-	// 	isCompressed = false
-	// 	f, err = os.Create(path.Join(dir, "data.json"))
-	// } else {
-	// 	f, err = os.Create(path.Join(dir, "data.json.gz"))
-	// }
-	// if err != nil {
-	// 	return err
-	// }
-	//
-	// if isCompressed {
-	// 	if err := EncodeJobData(gzip.NewWriter(f), jobData); err != nil {
-	// 		return err
-	// 	}
-	// } else {
-	// 	if err := EncodeJobData(f, jobData); err != nil {
-	// 		return err
-	// 	}
-	// }
 
 	f, err = os.Create(path.Join(dir, "data.json"))
 	if err != nil {

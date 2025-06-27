@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
@@ -32,12 +31,12 @@ func setup(t *testing.T) archive.ArchiveBackend {
 	jobs[0] = &schema.Job{}
 	jobs[0].JobID = 1403244
 	jobs[0].Cluster = "emmy"
-	jobs[0].StartTime = time.Unix(1608923076, 0)
+	jobs[0].StartTime = 1608923076
 
 	jobs[1] = &schema.Job{}
 	jobs[0].JobID = 1404397
 	jobs[0].Cluster = "emmy"
-	jobs[0].StartTime = time.Unix(1609300556, 0)
+	jobs[0].StartTime = 1609300556
 
 	return archive.GetHandle()
 }

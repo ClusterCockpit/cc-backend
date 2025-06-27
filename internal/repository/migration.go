@@ -16,7 +16,7 @@ import (
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
 
-const Version uint = 8
+const Version uint = 10
 
 //go:embed migrations/*
 var migrationFiles embed.FS
@@ -115,8 +115,17 @@ func MigrateDB(backend string, db string) error {
 	}
 
 	v, dirty, err := m.Version()
+	if err != nil {
+		if err == migrate.ErrNilVersion {
+			log.Warn("Legacy database without version or missing database file!")
+		} else {
+			return err
+		}
+	}
 
-	log.Infof("unsupported database version %d, need %d.\nPlease backup your database file and run cc-backend -migrate-db", v, Version)
+	if v < Version {
+		log.Infof("unsupported database version %d, need %d.\nPlease backup your database file and run cc-backend -migrate-db", v, Version)
+	}
 
 	if dirty {
 		return fmt.Errorf("last migration to version %d has failed, please fix the db manually and force version with -force-db flag", Version)

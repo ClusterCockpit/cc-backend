@@ -1,5 +1,5 @@
 <!--
-    @component Polar Plot based on chartJS Radar
+    @component Polar Plot based on chart.js Radar
 
     Properties:
     - `polarMetrics [Object]?`: Metric names and scaled peak values for rendering polar plot [Default: [] ]
@@ -8,7 +8,8 @@
  -->
 
 <script>
-    import { Radar } from 'svelte-chartjs';
+    import { getContext, onMount } from 'svelte'
+    import Chart from 'chart.js/auto'
     import {
         Chart as ChartJS,
         Title,
@@ -30,8 +31,10 @@
         LineElement
     );
 
+
     export let polarMetrics = [];
     export let polarData = [];
+    export let canvasId = "polar-default";
     export let height = 350;
 
     const labels = polarMetrics
@@ -55,7 +58,7 @@
     const getValues = (type) => labels.map(name => {
         // Peak is adapted and scaled for job shared state
         const peak = polarMetrics.find(m => m?.name == name)?.peak
-        const metric = polarData.find(m => m?.name == name)?.stats
+        const metric = polarData.find(m => m?.name == name)?.data
         const value = (peak && metric) ? (metric[type] / peak) : 0
         return value <= 1. ? value : 1.
     })
@@ -113,10 +116,23 @@
         }
     }
 
+    onMount(() => {
+        new Chart(
+            document.getElementById(canvasId),
+            {
+                type: 'radar',
+                data: data,
+                options: options,
+                height: height
+            }
+        );
+    });
+
 </script>
 
+<!-- <div style="width: 500px;"><canvas id="dimensions"></canvas></div><br/> -->
 <div class="chart-container">
-    <Radar {data} {options} {height}/>
+    <canvas id={canvasId}></canvas>
 </div>
 
 <style>

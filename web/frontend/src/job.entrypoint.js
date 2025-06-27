@@ -1,7 +1,8 @@
+import { mount } from 'svelte';
 import {} from './header.entrypoint.js'
 import Job from './Job.root.svelte'
 
-new Job({
+mount(Job, {
     target: document.getElementById('svelte-app'),
     props: {
         dbid: jobInfos.id,

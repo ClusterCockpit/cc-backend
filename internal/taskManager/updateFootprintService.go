@@ -73,11 +73,7 @@ func RegisterFootprintWorker() {
 							continue
 						}
 
-						jobMeta := &schema.JobMeta{
-							BaseJob:    job.BaseJob,
-							StartTime:  job.StartTime.Unix(),
-							Statistics: make(map[string]schema.JobStatistics),
-						}
+						job.Statistics = make(map[string]schema.JobStatistics)
 
 						for _, metric := range allMetrics {
 							avg, min, max := 0.0, 0.0, 0.0
@@ -95,7 +91,7 @@ func RegisterFootprintWorker() {
 							}
 
 							// Add values rounded to 2 digits: repo.LoadStats may return unrounded
-							jobMeta.Statistics[metric] = schema.JobStatistics{
+							job.Statistics[metric] = schema.JobStatistics{
 								Unit: schema.Unit{
 									Prefix: archive.GetMetricConfig(job.Cluster, metric).Unit.Prefix,
 									Base:   archive.GetMetricConfig(job.Cluster, metric).Unit.Base,
@@ -108,7 +104,7 @@ func RegisterFootprintWorker() {
 
 						// Build Statement per Job, Add to Pending Array
 						stmt := sq.Update("job")
-						stmt, err = jobRepo.UpdateFootprint(stmt, jobMeta)
+						stmt, err = jobRepo.UpdateFootprint(stmt, job)
 						if err != nil {
 							log.Errorf("update job (dbid: %d) statement build failed at footprint step: %s", job.ID, err.Error())
 							ce++

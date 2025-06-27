@@ -279,8 +279,8 @@ func (pdb *PrometheusDataRepository) LoadData(
 	for i, resource := range job.Resources {
 		nodes[i] = resource.Hostname
 	}
-	from := job.StartTime
-	to := job.StartTime.Add(time.Duration(job.Duration) * time.Second)
+	from := time.Unix(job.StartTime, 0)
+	to := time.Unix(job.StartTime+int64(job.Duration), 0)
 
 	for _, scope := range scopes {
 		if scope != schema.MetricScopeNode {
@@ -453,8 +453,8 @@ func (pdb *PrometheusDataRepository) LoadScopedStats(
 	job *schema.Job,
 	metrics []string,
 	scopes []schema.MetricScope,
-	ctx context.Context) (schema.ScopedJobStats, error) {
-
+	ctx context.Context,
+) (schema.ScopedJobStats, error) {
 	// Assumption: pdb.loadData() only returns series node-scope - use node scope for statsTable
 	scopedJobStats := make(schema.ScopedJobStats)
 	data, err := pdb.LoadData(job, metrics, []schema.MetricScope{schema.MetricScopeNode}, ctx, 0 /*resolution here*/)
@@ -502,7 +502,6 @@ func (pdb *PrometheusDataRepository) LoadNodeListData(
 	page *model.PageRequest,
 	ctx context.Context,
 ) (map[string]schema.JobData, int, bool, error) {
-
 	// Assumption: pdb.loadData() only returns series node-scope - use node scope for NodeList
 
 	// 0) Init additional vars
@@ -540,7 +539,7 @@ func (pdb *PrometheusDataRepository) LoadNodeListData(
 	if len(nodes) > page.ItemsPerPage {
 		start := (page.Page - 1) * page.ItemsPerPage
 		end := start + page.ItemsPerPage
-		if end > len(nodes) {
+		if end >= len(nodes) {
 			end = len(nodes)
 			hasNextPage = false
 		} else {

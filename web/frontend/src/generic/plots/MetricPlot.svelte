@@ -21,22 +21,6 @@
  -->
 
 <script context="module">
-  function formatTime(t, forNode = false) {
-    if (t !== null) {
-      if (isNaN(t)) {
-        return t;
-      } else {
-        const tAbs = Math.abs(t);
-        const h = Math.floor(tAbs / 3600);
-        const m = Math.floor((tAbs % 3600) / 60);
-        // Re-Add "negativity" to time ticks only as string, so that if-cases work as intended
-        if (h == 0) return `${forNode && m != 0 ? "-" : ""}${m}m`;
-        else if (m == 0) return `${forNode ? "-" : ""}${h}h`;
-        else return `${forNode ? "-" : ""}${h}:${m}h`;
-      }
-    }
-  }
-
   function timeIncrs(timestep, maxX, forNode) {
     if (forNode === true) {
       return [60, 120, 240, 300, 360, 480, 600, 900, 1800, 3600, 7200, 14400, 21600]; // forNode fixed increments
@@ -118,7 +102,7 @@
 
 <script>
   import uPlot from "uplot";
-  import { formatNumber } from "../units.js";
+  import { formatNumber, formatTime } from "../units.js";
   import { getContext, onMount, onDestroy, createEventDispatcher } from "svelte";
   import { Card } from "@sveltestrap/sveltestrap";
 
@@ -607,7 +591,7 @@
 {#if series[0]?.data && series[0].data.length > 0}
   <div bind:this={plotWrapper} bind:clientWidth={width}
         style="background-color: {backgroundColor()};" class={forNode ? 'py-2 rounded' : 'rounded'}
-  />
+  ></div>
 {:else}
   <Card body color="warning" class="mx-4"
     >Cannot render plot: No series data returned for <code>{metric}</code></Card

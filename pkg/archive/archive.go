@@ -7,6 +7,7 @@ package archive
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"sync"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
@@ -23,7 +24,7 @@ type ArchiveBackend interface {
 
 	Exists(job *schema.Job) bool
 
-	LoadJobMeta(job *schema.Job) (*schema.JobMeta, error)
+	LoadJobMeta(job *schema.Job) (*schema.Job, error)
 
 	LoadJobData(job *schema.Job) (schema.JobData, error)
 
@@ -31,9 +32,9 @@ type ArchiveBackend interface {
 
 	LoadClusterCfg(name string) (*schema.Cluster, error)
 
-	StoreJobMeta(jobMeta *schema.JobMeta) error
+	StoreJobMeta(jobMeta *schema.Job) error
 
-	ImportJob(jobMeta *schema.JobMeta, jobData *schema.JobData) error
+	ImportJob(jobMeta *schema.Job, jobData *schema.JobData) error
 
 	GetClusters() []string
 
@@ -51,7 +52,7 @@ type ArchiveBackend interface {
 }
 
 type JobContainer struct {
-	Meta *schema.JobMeta
+	Meta *schema.Job
 	Data *schema.JobData
 }
 
@@ -60,6 +61,7 @@ var (
 	cache      *lrucache.Cache = lrucache.New(128 * 1024 * 1024)
 	ar         ArchiveBackend
 	useArchive bool
+	mutex      sync.Mutex
 )
 
 func Init(rawConfig json.RawMessage, disableArchive bool) error {
@@ -162,7 +164,6 @@ func LoadScopedStatsFromArchive(
 	metrics []string,
 	scopes []schema.MetricScope,
 ) (schema.ScopedJobStats, error) {
-
 	data, err := ar.LoadJobStats(job)
 	if err != nil {
 		log.Errorf("Error while loading job stats from archiveBackend: %s", err.Error())
@@ -185,6 +186,9 @@ func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
 // If the job is archived, find its `meta.json` file and override the Metadata
 // in that JSON file. If the job is not archived, nothing is done.
 func UpdateMetadata(job *schema.Job, metadata map[string]string) error {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	if job.State == schema.JobStateRunning || !useArchive {
 		return nil
 	}
@@ -195,9 +199,7 @@ func UpdateMetadata(job *schema.Job, metadata map[string]string) error {
 		return err
 	}
 
-	for k, v := range metadata {
-		jobMeta.MetaData[k] = v
-	}
+	maps.Copy(jobMeta.MetaData, metadata)
 
 	return ar.StoreJobMeta(jobMeta)
 }
@@ -205,6 +207,9 @@ func UpdateMetadata(job *schema.Job, metadata map[string]string) error {
 // If the job is archived, find its `meta.json` file and override the tags list
 // in that JSON file. If the job is not archived, nothing is done.
 func UpdateTags(job *schema.Job, tags []*schema.Tag) error {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	if job.State == schema.JobStateRunning || !useArchive {
 		return nil
 	}

@@ -5,6 +5,7 @@
     - `username String`: Empty string if auth. is disabled, otherwise the username as string
     - `authlevel Number`: The current users authentication level
     - `clusters [String]`: List of cluster names
+    - `subClusters [String]`: List of subCluster names
     - `roles [Number]`: Enum containing available roles
  -->
 
@@ -23,24 +24,21 @@
   import NavbarLinks from "./header/NavbarLinks.svelte";
   import NavbarTools from "./header/NavbarTools.svelte";
 
-  export let username;
-  export let authlevel;
-  export let clusters;
-  export let subClusters;
-  export let roles;
+  /* Svelte 5 Props */
+  let { username, authlevel, clusters, subClusters, roles } = $props();
 
-  let isOpen = false;
-  let screenSize;
-
+  /* Const Init */
   const jobsTitle = new Map();
   jobsTitle.set(2, "Job Search");
   jobsTitle.set(3, "Managed Jobs");
   jobsTitle.set(4, "Jobs");
   jobsTitle.set(5, "Jobs");
+
   const usersTitle = new Map();
   usersTitle.set(3, "Managed Users");
   usersTitle.set(4, "Users");
   usersTitle.set(5, "Users");
+
   const projectsTitle = new Map();
   projectsTitle.set(3, "Managed Projects");
   projectsTitle.set(4, "Projects");
@@ -120,29 +118,41 @@
       menu: "Info",
     },
   ];
+
+  /* State Init */
+  let isOpen = $state(false);
+  let screenSize = $state(0);
+
+  /* Derived Vars */
+  let showMax = $derived(screenSize >= 1500);
+  let showMid = $derived(screenSize < 1500 && screenSize >= 1300);
+  let showSml = $derived(screenSize < 1300 && screenSize >= 768);
+  let showBrg = $derived(screenSize < 768);
 </script>
 
 <svelte:window bind:innerWidth={screenSize} />
+
 <Navbar color="light" light expand="md" fixed="top">
   <NavbarBrand href="/">
     <img alt="ClusterCockpit Logo" src="/img/logo.png" height="25rem" />
   </NavbarBrand>
-  <NavbarToggler on:click={() => (isOpen = !isOpen)} />
+  <NavbarToggler onclick={() => (isOpen = !isOpen)} />
   <Collapse
     style="justify-content: space-between"
     {isOpen}
     navbar
     expand="md"
-    on:update={({ detail }) => (isOpen = detail.isOpen)}
+    onupdate={({ detail }) => (isOpen = detail.isOpen)}
   >
     <Nav navbar>
-      {#if screenSize > 1500 || screenSize < 768}
+      {#if showMax || showBrg}
         <NavbarLinks
           {clusters}
           {subClusters}
           links={views.filter((item) => item.requiredRole <= authlevel)}
         />
-      {:else if screenSize > 1300}
+
+      {:else if showMid}
         <NavbarLinks
           {clusters}
           {subClusters}
@@ -169,7 +179,8 @@
             </DropdownMenu>
           </Dropdown>
         {/if}
-      {:else}
+
+      {:else if showSml}
         <NavbarLinks
           {clusters}
           {subClusters}
@@ -228,6 +239,9 @@
             </DropdownMenu>
           </Dropdown>
         {/if}
+
+      {:else}
+          <span>Error: Unknown Window Size!</span>
       {/if}
     </Nav>
     <NavbarTools {username} {authlevel} {roles} {screenSize} />

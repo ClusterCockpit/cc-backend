@@ -1,9 +1,10 @@
+import { mount } from 'svelte';
 import {} from './header.entrypoint.js'
 import Analysis from './Analysis.root.svelte'
 
 filterPresets.cluster = cluster
 
-new Analysis({
+mount(Analysis, {
     target: document.getElementById('svelte-app'),
     props: {
         filterPresets: filterPresets,

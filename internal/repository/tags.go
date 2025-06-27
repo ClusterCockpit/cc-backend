@@ -45,7 +45,38 @@ func (r *JobRepository) AddTag(user *schema.User, job int64, tag int64) ([]*sche
 	return tags, archive.UpdateTags(j, archiveTags)
 }
 
-// Removes a tag from a job by tag id
+func (r *JobRepository) AddTagDirect(job int64, tag int64) ([]*schema.Tag, error) {
+	j, err := r.FindByIdDirect(job)
+	if err != nil {
+		log.Warn("Error while finding job by id")
+		return nil, err
+	}
+
+	q := sq.Insert("jobtag").Columns("job_id", "tag_id").Values(job, tag)
+
+	if _, err := q.RunWith(r.stmtCache).Exec(); err != nil {
+		s, _, _ := q.ToSql()
+		log.Errorf("Error adding tag with %s: %v", s, err)
+		return nil, err
+	}
+
+	tags, err := r.GetTagsDirect(&job)
+	if err != nil {
+		log.Warn("Error while getting tags for job")
+		return nil, err
+	}
+
+	archiveTags, err := r.getArchiveTags(&job)
+	if err != nil {
+		log.Warn("Error while getting tags for job")
+		return nil, err
+	}
+
+	return tags, archive.UpdateTags(j, archiveTags)
+}
+
+// Removes a tag from a job by tag id.
+// Used by GraphQL API
 func (r *JobRepository) RemoveTag(user *schema.User, job, tag int64) ([]*schema.Tag, error) {
 	j, err := r.FindByIdWithUser(user, job)
 	if err != nil {
@@ -77,12 +108,13 @@ func (r *JobRepository) RemoveTag(user *schema.User, job, tag int64) ([]*schema.
 }
 
 // Removes a tag from a job by tag info
+// Used by REST API
 func (r *JobRepository) RemoveJobTagByRequest(user *schema.User, job int64, tagType string, tagName string, tagScope string) ([]*schema.Tag, error) {
 	// Get Tag ID to delete
 	tagID, exists := r.TagId(tagType, tagName, tagScope)
 	if !exists {
 		log.Warnf("Tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
-		return nil, fmt.Errorf("Tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
+		return nil, fmt.Errorf("tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
 	}
 
 	// Get Job
@@ -116,38 +148,45 @@ func (r *JobRepository) RemoveJobTagByRequest(user *schema.User, job int64, tagT
 	return tags, archive.UpdateTags(j, archiveTags)
 }
 
+func (r *JobRepository) removeTagFromArchiveJobs(jobIds []int64) {
+	for _, j := range jobIds {
+		tags, err := r.getArchiveTags(&j)
+		if err != nil {
+			log.Warnf("Error while getting tags for job %d", j)
+			continue
+		}
+
+		job, err := r.FindByIdDirect(j)
+		if err != nil {
+			log.Warnf("Error while getting job %d", j)
+			continue
+		}
+
+		archive.UpdateTags(job, tags)
+	}
+}
+
 // Removes a tag from db by tag info
+// Used by REST API. Does not update tagged jobs in Job archive.
 func (r *JobRepository) RemoveTagByRequest(tagType string, tagName string, tagScope string) error {
 	// Get Tag ID to delete
 	tagID, exists := r.TagId(tagType, tagName, tagScope)
 	if !exists {
 		log.Warnf("Tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
-		return fmt.Errorf("Tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
+		return fmt.Errorf("tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
 	}
 
-	// Handle Delete JobTagTable
-	qJobTag := sq.Delete("jobtag").Where("jobtag.tag_id = ?", tagID)
-
-	if _, err := qJobTag.RunWith(r.stmtCache).Exec(); err != nil {
-		s, _, _ := qJobTag.ToSql()
-		log.Errorf("Error removing tag from table 'jobTag' with %s: %v", s, err)
-		return err
-	}
-
-	// Handle Delete TagTable
-	qTag := sq.Delete("tag").Where("tag.id = ?", tagID)
-
-	if _, err := qTag.RunWith(r.stmtCache).Exec(); err != nil {
-		s, _, _ := qTag.ToSql()
-		log.Errorf("Error removing tag from table 'tag' with %s: %v", s, err)
-		return err
-	}
-
-	return nil
+	return r.RemoveTagById(tagID)
 }
 
 // Removes a tag from db by tag id
+// Used by GraphQL API.
 func (r *JobRepository) RemoveTagById(tagID int64) error {
+	jobIds, err := r.FindJobIdsByTag(tagID)
+	if err != nil {
+		return err
+	}
+
 	// Handle Delete JobTagTable
 	qJobTag := sq.Delete("jobtag").Where("jobtag.tag_id = ?", tagID)
 
@@ -165,6 +204,9 @@ func (r *JobRepository) RemoveTagById(tagID int64) error {
 		log.Errorf("Error removing tag from table 'tag' with %s: %v", s, err)
 		return err
 	}
+
+	// asynchronously update archive jobs
+	go r.removeTagFromArchiveJobs(jobIds)
 
 	return nil
 }
@@ -291,6 +333,38 @@ func (r *JobRepository) AddTagOrCreate(user *schema.User, jobId int64, tagType s
 	return tagId, nil
 }
 
+// used in auto tagger plugins
+func (r *JobRepository) AddTagOrCreateDirect(jobId int64, tagType string, tagName string) (tagId int64, err error) {
+	tagScope := "global"
+
+	tagId, exists := r.TagId(tagType, tagName, tagScope)
+	if !exists {
+		tagId, err = r.CreateTag(tagType, tagName, tagScope)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	if _, err := r.AddTagDirect(jobId, tagId); err != nil {
+		return 0, err
+	}
+
+	return tagId, nil
+}
+
+func (r *JobRepository) HasTag(jobId int64, tagType string, tagName string) bool {
+	var id int64
+	q := sq.Select("id").From("tag").Join("jobtag ON jobtag.tag_id = tag.id").
+		Where("jobtag.job_id = ?", jobId).Where("tag.tag_type = ?", tagType).
+		Where("tag.tag_name = ?", tagName)
+	err := q.RunWith(r.stmtCache).QueryRow().Scan(&id)
+	if err != nil {
+		return false
+	} else {
+		return true
+	}
+}
+
 // TagId returns the database id of the tag with the specified type and name.
 func (r *JobRepository) TagId(tagType string, tagName string, tagScope string) (tagId int64, exists bool) {
 	exists = true
@@ -341,6 +415,32 @@ func (r *JobRepository) GetTags(user *schema.User, job *int64) ([]*schema.Tag, e
 		if readable {
 			tags = append(tags, tag)
 		}
+	}
+
+	return tags, nil
+}
+
+func (r *JobRepository) GetTagsDirect(job *int64) ([]*schema.Tag, error) {
+	q := sq.Select("id", "tag_type", "tag_name", "tag_scope").From("tag")
+	if job != nil {
+		q = q.Join("jobtag ON jobtag.tag_id = tag.id").Where("jobtag.job_id = ?", *job)
+	}
+
+	rows, err := q.RunWith(r.stmtCache).Query()
+	if err != nil {
+		s, _, _ := q.ToSql()
+		log.Errorf("Error get tags with %s: %v", s, err)
+		return nil, err
+	}
+
+	tags := make([]*schema.Tag, 0)
+	for rows.Next() {
+		tag := &schema.Tag{}
+		if err := rows.Scan(&tag.ID, &tag.Type, &tag.Name, &tag.Scope); err != nil {
+			log.Warn("Error while scanning rows")
+			return nil, err
+		}
+		tags = append(tags, tag)
 	}
 
 	return tags, nil

@@ -3,7 +3,7 @@
 
     Properties:
     - `sorting Object?`: Currently active sorting [Default: {field: "startTime", type: "col", order: "DESC"}]
-    - `matchedJobs Number?`: Number of matched jobs for selected filters [Default: 0]
+    - `matchedListJobs Number?`: Number of matched jobs for selected filters [Default: 0]
     - `metrics [String]?`: The currently selected metrics [Default: User-Configured Selection]
     - `showFootprint Bool`: If to display the jobFootprint component
 
@@ -35,15 +35,17 @@
   }
 
   export let sorting = { field: "startTime", type: "col", order: "DESC" };
-  export let matchedJobs = 0;
+  export let matchedListJobs = 0;
   export let metrics = ccconfig.plot_list_selectedMetrics;
   export let showFootprint;
+  export let filterBuffer = [];
+  export let selectedJobs = [];
 
   let usePaging = ccconfig.job_list_usePaging
   let itemsPerPage = usePaging ? ccconfig.plot_list_jobsPerPage : 10;
   let page = 1;
   let paging = { itemsPerPage, page };
-  let filter = [];
+  let filter = [...filterBuffer];
   let lastFilter = [];
   let lastSorting = null;
   let triggerMetricRefresh = false;
@@ -111,11 +113,6 @@
     variables: { paging, sorting, filter },
   });
 
-  $: if (!usePaging && sorting) {
-    // console.log('Reset Paging ...')
-    paging = { itemsPerPage: 10, page: 1 }
-  };
-
   let jobs = [];
   $: if ($initialized && $jobsStore.data) {
     if (usePaging) {
@@ -141,10 +138,20 @@
     }
   }
 
-  $: matchedJobs = $jobsStore.data != null ? $jobsStore.data.jobs.count : -1;
+  $: if (!usePaging && (sorting || filter)) {
+    // Continous Scroll: Reset list and paging if parameters change: Existing entries will not match new selections
+    jobs = [];
+    paging = { itemsPerPage: 10, page: 1 };
+  }
+
+  $: matchedListJobs = $jobsStore.data != null ? $jobsStore.data.jobs.count : -1;
 
   // Force refresh list with existing unchanged variables (== usually would not trigger reactivity)
   export function refreshJobs() {
+    if (!usePaging) {
+      jobs = []; // Empty Joblist before refresh, prevents infinite buildup
+      paging = { itemsPerPage: 10, page: 1 };
+    }
     jobsStore = queryStore({
       client: client,
       query: query,
@@ -283,8 +290,11 @@
             </td>
           </tr>
         {:else}
-          {#each jobs as job (job)}
-            <JobListRow bind:triggerMetricRefresh {job} {metrics} {plotWidth} {showFootprint} />
+          {#each jobs as job (job.id)}
+            <JobListRow bind:triggerMetricRefresh {job} {metrics} {plotWidth} {showFootprint} previousSelect={selectedJobs.includes(job.id)}
+              on:select-job={({detail}) => selectedJobs = [...selectedJobs, detail]}
+              on:unselect-job={({detail}) => selectedJobs = selectedJobs.filter(item => item !== detail)}
+            />
           {:else}
             <tr>
               <td colspan={metrics.length + 1}> No jobs found </td>
@@ -307,11 +317,11 @@
 
 {#if usePaging}
   <Pagination
-    bind:page
+    {page}
     {itemsPerPage}
     itemText="Jobs"
-    totalItems={matchedJobs}
-    on:update-paging={({ detail }) => {
+    totalItems={matchedListJobs}
+    updatePaging={(detail) => {
       if (detail.itemsPerPage != itemsPerPage) {
         updateConfiguration(detail.itemsPerPage.toString(), detail.page);
       } else {

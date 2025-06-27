@@ -56,8 +56,8 @@
     selectedScopes = [],
     plots = {};
 
-  let availableMetrics = new Set(),
-    missingMetrics = [],
+  let totalMetrics = 0;
+  let missingMetrics = [],
     missingHosts = [],
     somethingMissing = false;
 
@@ -294,7 +294,7 @@
       {#if $initq?.data}
         <Col xs="auto">
             <Button outline on:click={() => (isMetricsSelectionOpen = true)} color="primary">
-              Select Metrics (Selected {selectedMetrics.length} of {availableMetrics.size} available)
+              Select Metrics (Selected {selectedMetrics.length} of {totalMetrics} available)
             </Button>
         </Col>
       {/if}
@@ -428,12 +428,16 @@
 
 {#if $initq?.data}
   <MetricSelection
+    bind:isOpen={isMetricsSelectionOpen}
+    bind:totalMetrics
+    presetMetrics={selectedMetrics}
     cluster={$initq.data.job.cluster}
     subCluster={$initq.data.job.subCluster}
     configName="job_view_selectedMetrics"
-    bind:metrics={selectedMetrics}
-    bind:isOpen={isMetricsSelectionOpen}
-    bind:allMetrics={availableMetrics}
+    preInitialized
+    applyMetrics={(newMetrics) => 
+      selectedMetrics = [...newMetrics]
+    }
   />
 {/if}
 

@@ -2,14 +2,11 @@
     @component Filter sub-component for selecting job resources
 
     Properties:
-    - `cluster Object?`: The currently selected cluster config [Default: null]
     - `isOpen Bool?`: Is this filter component opened [Default: false]
+    - `activeCluster String?`: The currently selected cluster name [Default: null]
     - `numNodes Object?`: The currently selected numNodes filter [Default: {from:null, to:null}]
     - `numHWThreads Object?`: The currently selected numHWThreads filter [Default: {from:null, to:null}]
     - `numAccelerators Object?`: The currently selected numAccelerators filter [Default: {from:null, to:null}]
-    - `isNodesModified Bool?`: Is the node filter modified [Default: false]
-    - `isHwthreadsModified Bool?`: Is the Hwthreads filter modified [Default: false]
-    - `isAccsModified Bool?`: Is the Accelerator filter modified [Default: false]
     - `namedNode String?`: The currently selected single named node (= hostname) [Default: null]
 
     Events:
@@ -17,7 +14,7 @@
  -->
  
  <script>
-  import { createEventDispatcher, getContext } from "svelte";
+  import { getContext } from "svelte";
   import {
     Button,
     Modal,
@@ -28,27 +25,19 @@
   } from "@sveltestrap/sveltestrap";
   import DoubleRangeSlider from "../select/DoubleRangeSlider.svelte";
 
-  const clusters = getContext("clusters"),
-    initialized = getContext("initialized"),
-    dispatch = createEventDispatcher();
+  /* Svelte 5 Props*/
+  let {
+    isOpen = $bindable(false),
+    activeCluster = null,
+    presetNumNodes = { from: null, to: null },
+    presetNumHWThreads = { from: null, to: null },
+    presetNumAccelerators = { from: null, to: null },
+    presetNamedNode = null,
+    presetNodeMatch = "eq",
+    setFilter
+  } = $props()
 
-  export let cluster = null;
-  export let isOpen = false;
-  export let numNodes = { from: null, to: null };
-  export let numHWThreads = { from: null, to: null };
-  export let numAccelerators = { from: null, to: null };
-  export let isNodesModified = false;
-  export let isHwthreadsModified = false;
-  export let isAccsModified = false;
-  export let namedNode = null;
-  export let nodeMatch = "eq"
-
-  let pendingNumNodes = numNodes,
-    pendingNumHWThreads = numHWThreads,
-    pendingNumAccelerators = numAccelerators,
-    pendingNamedNode = namedNode,
-    pendingNodeMatch = nodeMatch;
-
+  /* Const Init */
   const nodeMatchLabels = {
     eq: "Equal To",
     contains: "Contains",
@@ -85,75 +74,133 @@
       0,
     );
 
-  let minNumNodes = 1,
-    maxNumNodes = 0,
-    minNumHWThreads = 1,
-    maxNumHWThreads = 0,
-    minNumAccelerators = 0,
-    maxNumAccelerators = 0;
-  $: {
+  /* State Init*/
+  // Counts
+  let minNumNodes = $state(1);
+  let maxNumNodes = $state(0);
+  let maxNumHWThreads = $state(0);
+  let maxNumAccelerators = $state(0);
+  // Pending
+  let pendingNumNodes = $state(presetNumNodes);
+  let pendingNumHWThreads = $state(presetNumHWThreads);
+  let pendingNumAccelerators = $state(presetNumAccelerators);
+  let pendingNamedNode = $state(presetNamedNode);
+  let pendingNodeMatch = $state(presetNodeMatch);
+  // Changable States
+  let nodesState = $state(presetNumNodes);
+  let threadState = $state(presetNumHWThreads);
+  let accState = $state(presetNumAccelerators);
+
+  /* Derived States */
+  const clusters = $derived(getContext("clusters"));
+  const initialized = $derived(getContext("initialized"));
+  // Is Selection Active
+  const nodesActive = $derived(!(JSON.stringify(nodesState) === JSON.stringify({ from: 1, to: maxNumNodes })));
+  const threadActive = $derived(!(JSON.stringify(threadState) === JSON.stringify({ from: 1, to: maxNumHWThreads })));
+  const accActive = $derived(!(JSON.stringify(accState) === JSON.stringify({ from: 0, to: maxNumAccelerators })));
+  // Block Apply if null
+  const disableApply = $derived(
+    nodesState.from === null || nodesState.to === null ||
+    threadState.from === null || threadState.to === null ||
+    accState.from === null || accState.to === null
+  );
+
+  /* Reactive Effects | Svelte 5 onMount */
+  $effect(() => {
     if ($initialized) {
-      if (cluster != null) {
-        const { subClusters } = clusters.find((c) => c.name == cluster);
-        const { filterRanges } = header.clusters.find((c) => c.name == cluster);
+      // 'hClusters' defined in templates/base.tmpl
+      if (activeCluster != null) {
+        const { filterRanges } = hClusters.find((c) => c.name == activeCluster);
         minNumNodes = filterRanges.numNodes.from;
         maxNumNodes = filterRanges.numNodes.to;
+      } else if (clusters.length > 0) {
+        for (let hc of hClusters) {
+          const { filterRanges } = hc;
+          minNumNodes = Math.min(minNumNodes, filterRanges.numNodes.from);
+          maxNumNodes = Math.max(maxNumNodes, filterRanges.numNodes.to);
+        };
+      };
+    };
+  });
+  
+  $effect(() => {
+    if ($initialized) {
+      // 'hClusters' defined in templates/base.tmpl
+      if (activeCluster != null) {
+        const { subClusters } = clusters.find((c) => c.name == activeCluster);
         maxNumAccelerators = findMaxNumAccels([{ subClusters }]);
         maxNumHWThreads = findMaxNumHWThreadsPerNode([{ subClusters }]);
       } else if (clusters.length > 0) {
-        const { filterRanges } = header.clusters[0];
-        minNumNodes = filterRanges.numNodes.from;
-        maxNumNodes = filterRanges.numNodes.to;
         maxNumAccelerators = findMaxNumAccels(clusters);
         maxNumHWThreads = findMaxNumHWThreadsPerNode(clusters);
-        for (let cluster of header.clusters) {
-          const { filterRanges } = cluster;
-          minNumNodes = Math.min(minNumNodes, filterRanges.numNodes.from);
-          maxNumNodes = Math.max(maxNumNodes, filterRanges.numNodes.to);
-        }
       }
     }
-  }
+  });
 
-  $: {
+  $effect(() => {
     if (
-      isOpen &&
       $initialized &&
       pendingNumNodes.from == null &&
       pendingNumNodes.to == null
     ) {
-      pendingNumNodes = { from: 0, to: maxNumNodes };
+      nodesState = { from: 1, to: maxNumNodes };
     }
-  }
+  });
 
-  $: {
+  $effect(() => {
     if (
-      isOpen &&
       $initialized &&
-      ((pendingNumHWThreads.from == null && pendingNumHWThreads.to == null) ||
-        isHwthreadsModified == false)
+      pendingNumHWThreads.from == null && 
+      pendingNumHWThreads.to == null 
     ) {
-      pendingNumHWThreads = { from: 0, to: maxNumHWThreads };
+      threadState = { from: 1, to: maxNumHWThreads };
     }
-  }
+  });
 
-  $: if (maxNumAccelerators != null && maxNumAccelerators > 1) {
+  $effect(() => {
     if (
-      isOpen &&
       $initialized &&
       pendingNumAccelerators.from == null &&
       pendingNumAccelerators.to == null
     ) {
-      pendingNumAccelerators = { from: 0, to: maxNumAccelerators };
+      accState = { from: 0, to: maxNumAccelerators };
     }
-  }
+  });
+
+  /* Functions */
+  function setResources() {
+    if (nodesActive) {
+      pendingNumNodes = {...nodesState};
+    } else {
+      pendingNumNodes = { from: null, to: null };
+    };
+    if (threadActive) {
+      pendingNumHWThreads = {...threadState};
+    } else {
+      pendingNumHWThreads = { from: null, to: null };
+    };
+    if (accActive) {
+      pendingNumAccelerators = {...accState};
+    } else {
+      pendingNumAccelerators = { from: null, to: null };
+    };
+  };
+
+  function resetResources() {
+    pendingNumNodes = { from: null, to: null };
+    pendingNumHWThreads = { from: null, to: null };
+    pendingNumAccelerators = { from: null, to: null };
+    pendingNamedNode = null;
+    pendingNodeMatch = "eq";
+  };
+
 </script>
 
 <Modal {isOpen} toggle={() => (isOpen = !isOpen)}>
   <ModalHeader>Select number of utilized Resources</ModalHeader>
   <ModalBody>
-    <h6>Named Node</h6>
-    <div class="d-flex">
+    <div><b>Named Node</b></div>
+    <div class="d-flex mb-3">
       <Input type="text" class="w-75" bind:value={pendingNamedNode} />
       <div class="mx-1"></div>
       <Input type="select" class="w-25" bind:value={pendingNodeMatch}>
@@ -164,82 +211,63 @@
         {/each}
         </Input>
     </div>
-    <h6 style="margin-top: 1rem;">Number of Nodes</h6>
-    <DoubleRangeSlider
-      on:change={({ detail }) => {
-        pendingNumNodes = { from: detail[0], to: detail[1] };
-        isNodesModified = true;
-      }}
-      min={minNumNodes}
-      max={maxNumNodes}
-      firstSlider={pendingNumNodes.from}
-      secondSlider={pendingNumNodes.to}
-      inputFieldFrom={pendingNumNodes.from}
-      inputFieldTo={pendingNumNodes.to}
-    />
-    <h6 style="margin-top: 1rem;">
-      Number of HWThreads (Use for Single-Node Jobs)
-    </h6>
-    <DoubleRangeSlider
-      on:change={({ detail }) => {
-        pendingNumHWThreads = { from: detail[0], to: detail[1] };
-        isHwthreadsModified = true;
-      }}
-      min={minNumHWThreads}
-      max={maxNumHWThreads}
-      firstSlider={pendingNumHWThreads.from}
-      secondSlider={pendingNumHWThreads.to}
-      inputFieldFrom={pendingNumHWThreads.from}
-      inputFieldTo={pendingNumHWThreads.to}
-    />
-    {#if maxNumAccelerators != null && maxNumAccelerators > 1}
-      <h6 style="margin-top: 1rem;">Number of Accelerators</h6>
+
+    <div class="mb-3">
+      <div class="mb-0"><b>Number of Nodes</b></div>
       <DoubleRangeSlider
-        on:change={({ detail }) => {
-          pendingNumAccelerators = { from: detail[0], to: detail[1] };
-          isAccsModified = true;
+        changeRange={(detail) => {
+          nodesState.from = detail[0];
+          nodesState.to = detail[1];
         }}
-        min={minNumAccelerators}
-        max={maxNumAccelerators}
-        firstSlider={pendingNumAccelerators.from}
-        secondSlider={pendingNumAccelerators.to}
-        inputFieldFrom={pendingNumAccelerators.from}
-        inputFieldTo={pendingNumAccelerators.to}
+        sliderMin={minNumNodes}
+        sliderMax={maxNumNodes}
+        fromPreset={nodesState.from}
+        toPreset={nodesState.to}
       />
+    </div>
+
+    <div class="mb-3">
+      <div class="mb-0"><b>Number of HWThreads</b> (Use for Single-Node Jobs)</div>
+      <DoubleRangeSlider
+        changeRange={(detail) => {
+          threadState.from = detail[0];
+          threadState.to = detail[1];
+        }}
+        sliderMin={1}
+        sliderMax={maxNumHWThreads}
+        fromPreset={threadState.from}
+        toPreset={threadState.to}
+      />
+    </div>
+    {#if maxNumAccelerators != null && maxNumAccelerators > 1}
+      <div>
+        <div class="mb-0"><b>Number of Accelerators</b></div>
+        <DoubleRangeSlider
+          changeRange={(detail) => {
+            accState.from = detail[0];
+            accState.to = detail[1];
+          }}
+          sliderMin={0}
+          sliderMax={maxNumAccelerators}
+          fromPreset={accState.from}
+          toPreset={accState.to}
+        />
+      </div>
     {/if}
   </ModalBody>
   <ModalFooter>
     <Button
       color="primary"
-      disabled={pendingNumNodes.from == null || pendingNumNodes.to == null}
-      on:click={() => {
+      disabled={disableApply}
+      onclick={() => {
         isOpen = false;
-        pendingNumNodes = isNodesModified
-          ? pendingNumNodes
-          : { from: null, to: null };
-        pendingNumHWThreads = isHwthreadsModified
-          ? pendingNumHWThreads
-          : { from: null, to: null };
-        pendingNumAccelerators = isAccsModified
-          ? pendingNumAccelerators
-          : { from: null, to: null };
-        numNodes = { from: pendingNumNodes.from, to: pendingNumNodes.to };
-        numHWThreads = {
-          from: pendingNumHWThreads.from,
-          to: pendingNumHWThreads.to,
-        };
-        numAccelerators = {
-          from: pendingNumAccelerators.from,
-          to: pendingNumAccelerators.to,
-        };
-        namedNode = pendingNamedNode;
-        nodeMatch = pendingNodeMatch;
-        dispatch("set-filter", {
-          numNodes,
-          numHWThreads,
-          numAccelerators,
-          namedNode,
-          nodeMatch
+        setResources();
+        setFilter({
+          numNodes: pendingNumNodes,
+          numHWThreads: pendingNumHWThreads,
+          numAccelerators: pendingNumAccelerators,
+          node: pendingNamedNode,
+          nodeMatch: pendingNodeMatch
         });
       }}
     >
@@ -247,36 +275,18 @@
     </Button>
     <Button
       color="danger"
-      on:click={() => {
+      onclick={() => {
         isOpen = false;
-        pendingNumNodes = { from: null, to: null };
-        pendingNumHWThreads = { from: null, to: null };
-        pendingNumAccelerators = { from: null, to: null };
-        pendingNamedNode = null;
-        pendingNodeMatch = null;
-        numNodes = { from: pendingNumNodes.from, to: pendingNumNodes.to };
-        numHWThreads = {
-          from: pendingNumHWThreads.from,
-          to: pendingNumHWThreads.to,
-        };
-        numAccelerators = {
-          from: pendingNumAccelerators.from,
-          to: pendingNumAccelerators.to,
-        };
-        isNodesModified = false;
-        isHwthreadsModified = false;
-        isAccsModified = false;
-        namedNode = pendingNamedNode;
-        nodeMatch = pendingNodeMatch;
-        dispatch("set-filter", {
-          numNodes,
-          numHWThreads,
-          numAccelerators,
-          namedNode,
-          nodeMatch
+        resetResources();
+        setFilter({
+          numNodes: pendingNumNodes,
+          numHWThreads: pendingNumHWThreads,
+          numAccelerators: pendingNumAccelerators,
+          node: pendingNamedNode,
+          nodeMatch: pendingNodeMatch
         });
       }}>Reset</Button
     >
-    <Button on:click={() => (isOpen = false)}>Close</Button>
+    <Button onclick={() => (isOpen = false)}>Close</Button>
   </ModalFooter>
 </Modal>

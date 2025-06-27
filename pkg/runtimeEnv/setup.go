@@ -5,84 +5,15 @@
 package runtimeEnv
 
 import (
-	"bufio"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"os/user"
 	"strconv"
-	"strings"
 	"syscall"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 )
-
-// Very simple and limited .env file reader.
-// All variable definitions found are directly
-// added to the processes environment.
-func LoadEnv(file string) error {
-	f, err := os.Open(file)
-	if err != nil {
-		log.Error("Error while opening .env file")
-		return err
-	}
-
-	defer f.Close()
-	s := bufio.NewScanner(bufio.NewReader(f))
-	for s.Scan() {
-		line := s.Text()
-		if strings.HasPrefix(line, "#") || len(line) == 0 {
-			continue
-		}
-
-		if strings.Contains(line, "#") {
-			return errors.New("'#' are only supported at the start of a line")
-		}
-
-		line = strings.TrimPrefix(line, "export ")
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) != 2 {
-			return fmt.Errorf("RUNTIME/SETUP > unsupported line: %#v", line)
-		}
-
-		key := strings.TrimSpace(parts[0])
-		val := strings.TrimSpace(parts[1])
-		if strings.HasPrefix(val, "\"") {
-			if !strings.HasSuffix(val, "\"") {
-				return fmt.Errorf("RUNTIME/SETUP > unsupported line: %#v", line)
-			}
-
-			runes := []rune(val[1 : len(val)-1])
-			sb := strings.Builder{}
-			for i := 0; i < len(runes); i++ {
-				if runes[i] == '\\' {
-					i++
-					switch runes[i] {
-					case 'n':
-						sb.WriteRune('\n')
-					case 'r':
-						sb.WriteRune('\r')
-					case 't':
-						sb.WriteRune('\t')
-					case '"':
-						sb.WriteRune('"')
-					default:
-						return fmt.Errorf("RUNTIME/SETUP > unsupported escape sequence in quoted string: backslash %#v", runes[i])
-					}
-					continue
-				}
-				sb.WriteRune(runes[i])
-			}
-
-			val = sb.String()
-		}
-
-		os.Setenv(key, val)
-	}
-
-	return s.Err()
-}
 
 // Changes the processes user and group to that
 // specified in the config.json. The go runtime
