@@ -35,8 +35,8 @@ func TestRegister(t *testing.T) {
 	err := tagger.Register()
 	noErr(t, err)
 
-	if len(tagger.apps) != 14 {
-		t.Errorf("wrong summary for diagnostic \ngot: %d \nwant: 14", len(tagger.apps))
+	if len(tagger.apps) != 16 {
+		t.Errorf("wrong summary for diagnostic \ngot: %d \nwant: 16", len(tagger.apps))
 	}
 }
 
