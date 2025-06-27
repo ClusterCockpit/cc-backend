@@ -111,7 +111,7 @@ func (t *AppTagger) Match(job *schema.Job) {
 		for _, a := range t.apps {
 			tag := a.tag
 			for _, s := range a.strings {
-				if strings.Contains(strings.ToLower(jobscript), s) {
+				if strings.Contains(strings.ToLower(jobscript), fmt.Sprintf(" %s ", s)) {
 					if !r.HasTag(id, t.tagType, tag) {
 						r.AddTagOrCreateDirect(id, t.tagType, tag)
 						break out
