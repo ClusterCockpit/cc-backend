@@ -186,14 +186,14 @@
   function handleJobs(newJobs) {
     if (newJobs) {
       if (usePaging) {
-        console.log('New Paging', $state.snapshot(paging))
+        // console.log('New Paging', $state.snapshot(paging))
         jobs = [...newJobs]
       } else {
         if ($state.snapshot(page) == 1) {
-          console.log('Page 1 Reset', [...newJobs])
+          // console.log('Page 1 Reset', [...newJobs])
           jobs = [...newJobs]
         } else {
-          console.log('Add Jobs', $state.snapshot(jobs), [...newJobs])
+          // console.log('Add Jobs', $state.snapshot(jobs), [...newJobs])
           jobs = jobs.concat([...newJobs])
         }
       }
