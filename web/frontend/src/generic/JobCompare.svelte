@@ -26,7 +26,7 @@
   /* Svelte 5 Props */
   let {
     matchedCompareJobs = $bindable(0),
-    metrics = $bindable(ccconfig?.plot_list_selectedMetrics),
+    metrics = ccconfig?.plot_list_selectedMetrics,
     filterBuffer = [],
   } = $props();
 

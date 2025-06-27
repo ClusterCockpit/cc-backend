@@ -315,7 +315,7 @@
         </Col>
       </Row>
     {:else if $initq?.data && $jobMetrics?.data?.scopedJobStats}
-      <!-- Note: Ignore 'Expected If ...' Error in IDE -->
+      <!-- Note: Ignore '#snippet' Error in IDE -->
       {#snippet gridContent(item)}
         {#if item.data}
           <Metric

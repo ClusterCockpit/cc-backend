@@ -204,6 +204,7 @@
     {:else if $nodeMetricsData.fetching || $initq.fetching}
       <Spinner />
     {:else}
+      <!-- Note: Ignore '#snippet' Error in IDE -->
       {#snippet gridContent(item)}
         <h4 style="text-align: center; padding-top:15px;">
           {item.name}

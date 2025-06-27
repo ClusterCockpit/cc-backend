@@ -335,6 +335,7 @@
     </Row>
   {:else}
     <hr class="my-2"/>
+    <!-- Note: Ignore '#snippet' Error in IDE -->
     {#snippet gridContent(item)}
       <Histogram
         data={convert2uplot(item.data)}
@@ -369,9 +370,9 @@
     <JobList
       bind:this={jobList} 
       bind:matchedListJobs
-      bind:metrics
-      bind:sorting
-      bind:showFootprint
+      {metrics}
+      {sorting}
+      {showFootprint}
     />
   </Col>
 </Row>
@@ -390,10 +391,10 @@
     presetMetrics={metrics}
     cluster={selectedCluster}
     configName="plot_list_selectedMetrics"
+    footprintSelect
     applyMetrics={(newMetrics) => 
       metrics = [...newMetrics]
     }
-    footprintSelect
 />
 
 <HistogramSelection

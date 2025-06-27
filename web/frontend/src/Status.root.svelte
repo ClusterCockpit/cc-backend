@@ -676,6 +676,7 @@
   <!-- Selectable Stats as Histograms : Average Values of Running Jobs -->
 
   {#if selectedHistograms}
+    <!-- Note: Ignore '#snippet' Error in IDE -->
     {#snippet gridContent(item)}
       <Histogram
         data={convert2uplot(item.data)}

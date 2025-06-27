@@ -12,39 +12,37 @@
 
 <script>
   import { queryStore, gql, getContextClient } from "@urql/svelte";
-  import { getContext, createEventDispatcher } from "svelte";
+  import { getContext } from "svelte";
   import { Card, Spinner } from "@sveltestrap/sveltestrap";
   import { maxScope, checkMetricDisabled } from "../utils.js";
   import JobInfo from "./JobInfo.svelte";
   import MetricPlot from "../plots/MetricPlot.svelte";
   import JobFootprint from "../helper/JobFootprint.svelte";
 
-  export let job;
-  export let metrics;
-  export let plotWidth;
-  export let plotHeight = 275;
-  export let showFootprint;
-  export let triggerMetricRefresh = false;
-  export let previousSelect = false;
+  /* Svelte 5 Props */
+  let {
+    triggerMetricRefresh = $bindable(false),
+    job,
+    metrics,
+    plotWidth,
+    plotHeight = 275,
+    showFootprint,
+    previousSelect = false,
+    selectJob,
+    unselectJob
+  } = $props();
 
-  const dispatch = createEventDispatcher();
-  const resampleConfig = getContext("resampling") || null;
-  const resampleDefault = resampleConfig ? Math.max(...resampleConfig.resolutions) : 0;
-  
-  let { id } = job;
-  let scopes = job.numNodes == 1
-    ? job.numAcc >= 1
+  /* Const Init */
+  const client = getContextClient();
+  const jobId = job.id;
+  const cluster = getContext("clusters").find((c) => c.name == job.cluster);
+  const scopes = (job.numNodes == 1)
+    ? (job.numAcc >= 1)
       ? ["core", "accelerator"]
       : ["core"]
     : ["node"];
-  let selectedResolution = resampleDefault;
-  let zoomStates = {};
-  let thresholdStates = {};
-  
-  $: isSelected = previousSelect || null;
-
-  const cluster = getContext("clusters").find((c) => c.name == job.cluster);
-  const client = getContextClient();
+  const resampleConfig = getContext("resampling") || null;
+  const resampleDefault = resampleConfig ? Math.max(...resampleConfig.resolutions) : 0;
   const query = gql`
     query ($id: ID!, $metrics: [String!]!, $scopes: [MetricScope!]!, $selectedResolution: Int) {
       jobMetrics(id: $id, metrics: $metrics, scopes: $scopes, resolution: $selectedResolution) {
@@ -77,52 +75,59 @@
     }
   `;
 
-  function handleZoom(detail, metric) {
-    if ( // States have to differ, causes deathloop if just set
-        (zoomStates[metric]?.x?.min !== detail?.lastZoomState?.x?.min) &&
-        (zoomStates[metric]?.y?.max !== detail?.lastZoomState?.y?.max)
-    ) {
-        zoomStates[metric] = {...detail.lastZoomState}
+  /* State Init */
+  let selectedResolution = $state(resampleDefault);
+  let zoomStates = $state({});
+  let thresholdStates = $state({});
+
+  /* Derived */
+  let isSelected = $derived(previousSelect);
+  let metricsQuery = $derived(queryStore({
+      client: client,
+      query: query,
+      variables: { id: jobId, metrics, scopes, selectedResolution },
+    })
+  );
+
+  /* Effects */
+  $effect(() => {
+    if (job.state === 'running' && triggerMetricRefresh === true) {
+      refreshMetrics();
     }
+  });
 
-    if ( // States have to differ, causes deathloop if just set
-      detail?.lastThreshold &&
-      thresholdStates[metric] !== detail.lastThreshold
-    ) { // Handle to correctly reset on summed metric scope change
-      thresholdStates[metric] = detail.lastThreshold;
-    } 
+  $effect(() => {
+    if (isSelected == true && previousSelect == false) {
+      selectJob(jobId)
+    } else if (isSelected == false && previousSelect == true) {
+      unselectJob(jobId)
+    }
+  });
 
-    if (detail?.newRes) { // Triggers GQL
-        selectedResolution = detail.newRes
+  /* Functions */
+  function handleZoom(detail, metric) {
+    // Buffer last zoom state to allow seamless zoom on rerender
+    // console.log('Update zoomState for/with:', metric, {...detail.lastZoomState})
+    zoomStates[metric] = detail?.lastZoomState ? {...detail.lastZoomState} : null;
+    // Handle to correctly reset on summed metric scope change
+    // console.log('Update thresholdState for/with:', metric, detail.lastThreshold)
+    thresholdStates[metric] = detail?.lastThreshold ? detail.lastThreshold : null;
+    // Triggers GQL
+    if (detail?.newRes) { 
+      // console.log('Update selectedResolution for/with:', metric, detail.newRes)
+      selectedResolution = detail.newRes;
     }
   }
 
-  $: metricsQuery = queryStore({
-    client: client,
-    query: query,
-    variables: { id, metrics, scopes, selectedResolution },
-  });
-  
   function refreshMetrics() {
     metricsQuery = queryStore({
       client: client,
       query: query,
-      variables: { id, metrics, scopes, selectedResolution },
+      variables: { id: jobId, metrics, scopes, selectedResolution },
       // requestPolicy: 'network-only' // use default cache-first for refresh
     });
   }
 
-  $: if (job.state === 'running' && triggerMetricRefresh === true) {
-    refreshMetrics();
-  }
-
-  $: if (isSelected == true && previousSelect == false) {
-    dispatch("select-job", job.id)
-  } else if (isSelected == false && previousSelect == true) {
-    dispatch("unselect-job", job.id)
-  }
-
-  // Helper
   const selectScope = (jobMetrics) =>
     jobMetrics.reduce(
       (a, b) =>
@@ -157,7 +162,6 @@
           return jobMetric;
         }
       });
-
 </script>
 
 <tr>
@@ -196,7 +200,7 @@
         <!-- Subluster Metricconfig remove keyword for jobtables (joblist main, user joblist, project joblist) to be used here as toplevel case-->
         {#if metric.disabled == false && metric.data}
           <MetricPlot
-            on:zoom={({detail}) => { handleZoom(detail, metric.data.name) }}
+            on:zoom={({detail}) => handleZoom(detail, metric.data.name)}
             height={plotHeight}
             timestep={metric.data.metric.timestep}
             scope={metric.data.scope}

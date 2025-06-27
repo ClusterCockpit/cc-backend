@@ -81,7 +81,7 @@
 
   /* State Init */
   let requestedScopes = $state(presetScopes);
-  let selectedResolution = $state(resampleConfig ? resampleDefault : 0);
+  let selectedResolution = $state(resampleDefault);
 
   let selectedHost = $state(null);
   let zoomState = $state(null);

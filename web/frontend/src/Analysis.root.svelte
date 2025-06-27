@@ -562,6 +562,7 @@
   </Row>
   <Row>
     <Col>
+      <!-- Note: Ignore '#snippet' Error in IDE -->
       {#snippet histoGridContent(item)}
         <Histogram
           data={convert2uplot(item.bins)}
