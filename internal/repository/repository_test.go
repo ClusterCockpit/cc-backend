@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package repository
@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -65,7 +65,7 @@ func BenchmarkDB_FindJobById(b *testing.B) {
 func BenchmarkDB_FindJob(b *testing.B) {
 	var jobId int64 = 107266
 	var startTime int64 = 1657557241
-	var cluster = "fritz"
+	cluster := "fritz"
 
 	b.Run("FindJob", func(b *testing.B) {
 		db := setup(b)
@@ -147,7 +147,7 @@ func getContext(tb testing.TB) context.Context {
 
 func setup(tb testing.TB) *JobRepository {
 	tb.Helper()
-	log.Init("warn", true)
+	cclog.Init("warn", true)
 	dbfile := "testdata/job.db"
 	err := MigrateDB("sqlite3", dbfile)
 	noErr(tb, err)

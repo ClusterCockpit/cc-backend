@@ -1,5 +1,5 @@
-// Copyright (C) 2022 NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package tagger
@@ -8,12 +8,12 @@ import (
 	"testing"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 )
 
 func setup(tb testing.TB) *repository.JobRepository {
 	tb.Helper()
-	log.Init("warn", true)
+	cclog.Init("warn", true)
 	dbfile := "../repository/testdata/job.db"
 	err := repository.MigrateDB("sqlite3", dbfile)
 	noErr(tb, err)

@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package metricdata
@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
 var TestLoadDataCallback func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error) = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error) {
@@ -29,16 +29,16 @@ func (tmdr *TestMetricDataRepository) LoadData(
 	metrics []string,
 	scopes []schema.MetricScope,
 	ctx context.Context,
-	resolution int) (schema.JobData, error) {
-
+	resolution int,
+) (schema.JobData, error) {
 	return TestLoadDataCallback(job, metrics, scopes, ctx, resolution)
 }
 
 func (tmdr *TestMetricDataRepository) LoadStats(
 	job *schema.Job,
 	metrics []string,
-	ctx context.Context) (map[string]map[string]schema.MetricStatistics, error) {
-
+	ctx context.Context,
+) (map[string]map[string]schema.MetricStatistics, error) {
 	panic("TODO")
 }
 
@@ -46,8 +46,8 @@ func (tmdr *TestMetricDataRepository) LoadScopedStats(
 	job *schema.Job,
 	metrics []string,
 	scopes []schema.MetricScope,
-	ctx context.Context) (schema.ScopedJobStats, error) {
-
+	ctx context.Context,
+) (schema.ScopedJobStats, error) {
 	panic("TODO")
 }
 
@@ -56,8 +56,8 @@ func (tmdr *TestMetricDataRepository) LoadNodeData(
 	metrics, nodes []string,
 	scopes []schema.MetricScope,
 	from, to time.Time,
-	ctx context.Context) (map[string]map[string][]*schema.JobMetric, error) {
-
+	ctx context.Context,
+) (map[string]map[string][]*schema.JobMetric, error) {
 	panic("TODO")
 }
 
@@ -70,7 +70,6 @@ func (tmdr *TestMetricDataRepository) LoadNodeListData(
 	page *model.PageRequest,
 	ctx context.Context,
 ) (map[string]schema.JobData, int, bool, error) {
-
 	panic("TODO")
 }
 

@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package archive
@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 )
 
 type NodeList [][]interface {
@@ -51,7 +51,7 @@ func (nl *NodeList) PrintList() []string {
 					if inner["zeroPadded"] == 1 {
 						out = append(out, fmt.Sprintf("%s%0*d", prefix, inner["digits"], i))
 					} else {
-						log.Error("node list: only zero-padded ranges are allowed")
+						cclog.Error("node list: only zero-padded ranges are allowed")
 					}
 				}
 			}
@@ -129,7 +129,7 @@ type NLExprIntRange struct {
 
 func (nle NLExprIntRange) consume(input string) (next string, ok bool) {
 	if !nle.zeroPadded || nle.digits < 1 {
-		log.Error("only zero-padded ranges are allowed")
+		cclog.Error("only zero-padded ranges are allowed")
 		return "", false
 	}
 

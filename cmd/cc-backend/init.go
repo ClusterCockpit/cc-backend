@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package main
@@ -8,8 +8,8 @@ import (
 	"os"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-backend/internal/util"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/util"
 )
 
 const envString = `
@@ -73,23 +73,23 @@ const configString = `
 
 func initEnv() {
 	if util.CheckFileExists("var") {
-		log.Exit("Directory ./var already exists. Cautiously exiting application initialization.")
+		cclog.Exit("Directory ./var already exists. Cautiously exiting application initialization.")
 	}
 
 	if err := os.WriteFile("config.json", []byte(configString), 0o666); err != nil {
-		log.Abortf("Could not write default ./config.json with permissions '0o666'. Application initialization failed, exited.\nError: %s\n", err.Error())
+		cclog.Abortf("Could not write default ./config.json with permissions '0o666'. Application initialization failed, exited.\nError: %s\n", err.Error())
 	}
 
 	if err := os.WriteFile(".env", []byte(envString), 0o666); err != nil {
-		log.Abortf("Could not write default ./.env file with permissions '0o666'. Application initialization failed, exited.\nError: %s\n", err.Error())
+		cclog.Abortf("Could not write default ./.env file with permissions '0o666'. Application initialization failed, exited.\nError: %s\n", err.Error())
 	}
 
 	if err := os.Mkdir("var", 0o777); err != nil {
-		log.Abortf("Could not create default ./var folder with permissions '0o777'. Application initialization failed, exited.\nError: %s\n", err.Error())
+		cclog.Abortf("Could not create default ./var folder with permissions '0o777'. Application initialization failed, exited.\nError: %s\n", err.Error())
 	}
 
 	err := repository.MigrateDB("sqlite3", "./var/job.db")
 	if err != nil {
-		log.Abortf("Could not initialize default sqlite3 database as './var/job.db'. Application initialization failed, exited.\nError: %s\n", err.Error())
+		cclog.Abortf("Could not initialize default sqlite3 database as './var/job.db'. Application initialization failed, exited.\nError: %s\n", err.Error())
 	}
 }

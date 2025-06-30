@@ -15,10 +15,10 @@ import (
 	"text/template"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-lib/util"
 	"github.com/expr-lang/expr"
 	"github.com/expr-lang/expr/vm"
 )
@@ -66,7 +66,7 @@ type JobClassTagger struct {
 func (t *JobClassTagger) prepareRule(b []byte, fns string) {
 	var rule RuleFormat
 	if err := json.NewDecoder(bytes.NewReader(b)).Decode(&rule); err != nil {
-		log.Warn("Error while decoding raw job meta json")
+		cclog.Warn("Error while decoding raw job meta json")
 		return
 	}
 
@@ -80,7 +80,7 @@ func (t *JobClassTagger) prepareRule(b []byte, fns string) {
 	for _, p := range rule.Parameters {
 		param, ok := t.parameters[p]
 		if !ok {
-			log.Warnf("prepareRule() > missing parameter %s in rule %s", p, fns)
+			cclog.Warnf("prepareRule() > missing parameter %s in rule %s", p, fns)
 			return
 		}
 		ri.env[p] = param
@@ -93,7 +93,7 @@ func (t *JobClassTagger) prepareRule(b []byte, fns string) {
 	for _, r := range rule.Requirements {
 		req, err := expr.Compile(r, expr.AsBool())
 		if err != nil {
-			log.Errorf("error compiling requirement %s: %#v", r, err)
+			cclog.Errorf("error compiling requirement %s: %#v", r, err)
 			return
 		}
 		ri.requirements = append(ri.requirements, req)
@@ -103,7 +103,7 @@ func (t *JobClassTagger) prepareRule(b []byte, fns string) {
 	for _, v := range rule.Variables {
 		req, err := expr.Compile(v.Expr, expr.AsFloat64())
 		if err != nil {
-			log.Errorf("error compiling requirement %s: %#v", v.Name, err)
+			cclog.Errorf("error compiling requirement %s: %#v", v.Name, err)
 			return
 		}
 		ri.variables = append(ri.variables, ruleVariable{name: v.Name, expr: req})
@@ -112,7 +112,7 @@ func (t *JobClassTagger) prepareRule(b []byte, fns string) {
 	// compile rule
 	exp, err := expr.Compile(rule.Rule, expr.AsBool())
 	if err != nil {
-		log.Errorf("error compiling rule %s: %#v", fns, err)
+		cclog.Errorf("error compiling rule %s: %#v", fns, err)
 		return
 	}
 	ri.rule = exp
@@ -120,9 +120,9 @@ func (t *JobClassTagger) prepareRule(b []byte, fns string) {
 	// prepare hint template
 	ri.hint, err = template.New(fns).Parse(rule.Hint)
 	if err != nil {
-		log.Errorf("error processing template %s: %#v", fns, err)
+		cclog.Errorf("error processing template %s: %#v", fns, err)
 	}
-	log.Infof("prepareRule() > processing %s with %d requirements and %d variables", fns, len(ri.requirements), len(ri.variables))
+	cclog.Infof("prepareRule() > processing %s with %d requirements and %d variables", fns, len(ri.requirements), len(ri.variables))
 
 	t.rules[rule.Tag] = ri
 }
@@ -135,19 +135,19 @@ func (t *JobClassTagger) EventMatch(s string) bool {
 func (t *JobClassTagger) EventCallback() {
 	files, err := os.ReadDir(t.cfgPath)
 	if err != nil {
-		log.Fatal(err)
+		cclog.Fatal(err)
 	}
 
 	if util.CheckFileExists(t.cfgPath + "/parameters.json") {
-		log.Info("Merge parameters")
+		cclog.Info("Merge parameters")
 		b, err := os.ReadFile(t.cfgPath + "/parameters.json")
 		if err != nil {
-			log.Warnf("prepareRule() > open file error: %v", err)
+			cclog.Warnf("prepareRule() > open file error: %v", err)
 		}
 
 		var paramTmp map[string]any
 		if err := json.NewDecoder(bytes.NewReader(b)).Decode(&paramTmp); err != nil {
-			log.Warn("Error while decoding parameters.json")
+			cclog.Warn("Error while decoding parameters.json")
 		}
 
 		maps.Copy(t.parameters, paramTmp)
@@ -156,11 +156,11 @@ func (t *JobClassTagger) EventCallback() {
 	for _, fn := range files {
 		fns := fn.Name()
 		if fns != "parameters.json" {
-			log.Debugf("Process: %s", fns)
+			cclog.Debugf("Process: %s", fns)
 			filename := fmt.Sprintf("%s/%s", t.cfgPath, fns)
 			b, err := os.ReadFile(filename)
 			if err != nil {
-				log.Warnf("prepareRule() > open file error: %v", err)
+				cclog.Warnf("prepareRule() > open file error: %v", err)
 				return
 			}
 			t.prepareRule(b, fns)
@@ -169,15 +169,15 @@ func (t *JobClassTagger) EventCallback() {
 }
 
 func (t *JobClassTagger) initParameters() error {
-	log.Info("Initialize parameters")
+	cclog.Info("Initialize parameters")
 	b, err := jobclassFiles.ReadFile("jobclasses/parameters.json")
 	if err != nil {
-		log.Warnf("prepareRule() > open file error: %v", err)
+		cclog.Warnf("prepareRule() > open file error: %v", err)
 		return err
 	}
 
 	if err := json.NewDecoder(bytes.NewReader(b)).Decode(&t.parameters); err != nil {
-		log.Warn("Error while decoding parameters.json")
+		cclog.Warn("Error while decoding parameters.json")
 		return err
 	}
 
@@ -190,7 +190,7 @@ func (t *JobClassTagger) Register() error {
 
 	err := t.initParameters()
 	if err != nil {
-		log.Warnf("error reading parameters.json: %v", err)
+		cclog.Warnf("error reading parameters.json: %v", err)
 		return err
 	}
 
@@ -203,11 +203,11 @@ func (t *JobClassTagger) Register() error {
 		fns := fn.Name()
 		if fns != "parameters.json" {
 			filename := fmt.Sprintf("jobclasses/%s", fns)
-			log.Infof("Process: %s", fns)
+			cclog.Infof("Process: %s", fns)
 
 			b, err := jobclassFiles.ReadFile(filename)
 			if err != nil {
-				log.Warnf("prepareRule() > open file error: %v", err)
+				cclog.Warnf("prepareRule() > open file error: %v", err)
 				return err
 			}
 			t.prepareRule(b, fns)
@@ -216,7 +216,7 @@ func (t *JobClassTagger) Register() error {
 
 	if util.CheckFileExists(t.cfgPath) {
 		t.EventCallback()
-		log.Infof("Setup file watch for %s", t.cfgPath)
+		cclog.Infof("Setup file watch for %s", t.cfgPath)
 		util.AddListener(t.cfgPath, t)
 	}
 
@@ -227,16 +227,16 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 	r := repository.GetJobRepository()
 	jobstats, err := archive.GetStatistics(job)
 	metricsList := archive.GetMetricConfigSubCluster(job.Cluster, job.SubCluster)
-	log.Infof("Enter  match rule with %d rules for job %d", len(t.rules), job.JobID)
+	cclog.Infof("Enter  match rule with %d rules for job %d", len(t.rules), job.JobID)
 	if err != nil {
-		log.Errorf("job classification failed for job  %d: %#v", job.JobID, err)
+		cclog.Errorf("job classification failed for job  %d: %#v", job.JobID, err)
 		return
 	}
 
 	for tag, ri := range t.rules {
 		env := make(map[string]any)
 		maps.Copy(env, ri.env)
-		log.Infof("Try to match rule %s for job %d", tag, job.JobID)
+		cclog.Infof("Try to match rule %s for job %d", tag, job.JobID)
 
 		// Initialize environment
 		env["job"] = map[string]any{
@@ -253,7 +253,7 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 		for _, m := range ri.metrics {
 			stats, ok := jobstats[m]
 			if !ok {
-				log.Errorf("job classification failed for job %d: missing metric '%s'", job.JobID, m)
+				cclog.Errorf("job classification failed for job %d: missing metric '%s'", job.JobID, m)
 				return
 			}
 			env[m] = map[string]any{
@@ -273,11 +273,11 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 		for _, r := range ri.requirements {
 			ok, err := expr.Run(r, env)
 			if err != nil {
-				log.Errorf("error running requirement for rule %s: %#v", tag, err)
+				cclog.Errorf("error running requirement for rule %s: %#v", tag, err)
 				return
 			}
 			if !ok.(bool) {
-				log.Infof("requirement for rule %s not met", tag)
+				cclog.Infof("requirement for rule %s not met", tag)
 				return
 			}
 		}
@@ -286,7 +286,7 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 		for _, v := range ri.variables {
 			value, err := expr.Run(v.expr, env)
 			if err != nil {
-				log.Errorf("error running rule %s: %#v", tag, err)
+				cclog.Errorf("error running rule %s: %#v", tag, err)
 				return
 			}
 			env[v.name] = value
@@ -296,11 +296,11 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 
 		match, err := expr.Run(ri.rule, env)
 		if err != nil {
-			log.Errorf("error running rule %s: %#v", tag, err)
+			cclog.Errorf("error running rule %s: %#v", tag, err)
 			return
 		}
 		if match.(bool) {
-			log.Info("Rule matches!")
+			cclog.Info("Rule matches!")
 			id := *job.ID
 			if !r.HasTag(id, t.tagType, tag) {
 				r.AddTagOrCreateDirect(id, t.tagType, tag)
@@ -309,14 +309,14 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 			// process hint template
 			var msg bytes.Buffer
 			if err := ri.hint.Execute(&msg, env); err != nil {
-				log.Errorf("Template error: %s", err.Error())
+				cclog.Errorf("Template error: %s", err.Error())
 				return
 			}
 
 			// FIXME: Handle case where multiple tags apply
 			r.UpdateMetadata(job, "message", msg.String())
 		} else {
-			log.Info("Rule does not match!")
+			cclog.Info("Rule does not match!")
 		}
 	}
 }

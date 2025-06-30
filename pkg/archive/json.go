@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package archive
@@ -9,15 +9,15 @@ import (
 	"io"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
 func DecodeJobData(r io.Reader, k string) (schema.JobData, error) {
 	data := cache.Get(k, func() (value interface{}, ttl time.Duration, size int) {
 		var d schema.JobData
 		if err := json.NewDecoder(r).Decode(&d); err != nil {
-			log.Warn("Error while decoding raw job data json")
+			cclog.Warn("Error while decoding raw job data json")
 			return err, 0, 1000
 		}
 
@@ -25,7 +25,7 @@ func DecodeJobData(r io.Reader, k string) (schema.JobData, error) {
 	})
 
 	if err, ok := data.(error); ok {
-		log.Warn("Error in decoded job data set")
+		cclog.Warn("Error in decoded job data set")
 		return nil, err
 	}
 
@@ -72,7 +72,7 @@ func DecodeJobStats(r io.Reader, k string) (schema.ScopedJobStats, error) {
 func DecodeJobMeta(r io.Reader) (*schema.Job, error) {
 	var d schema.Job
 	if err := json.NewDecoder(r).Decode(&d); err != nil {
-		log.Warn("Error while decoding raw job meta json")
+		cclog.Warn("Error while decoding raw job meta json")
 		return &d, err
 	}
 
@@ -84,7 +84,7 @@ func DecodeJobMeta(r io.Reader) (*schema.Job, error) {
 func DecodeCluster(r io.Reader) (*schema.Cluster, error) {
 	var c schema.Cluster
 	if err := json.NewDecoder(r).Decode(&c); err != nil {
-		log.Warn("Error while decoding raw cluster json")
+		cclog.Warn("Error while decoding raw cluster json")
 		return &c, err
 	}
 
@@ -96,7 +96,7 @@ func DecodeCluster(r io.Reader) (*schema.Cluster, error) {
 func EncodeJobData(w io.Writer, d *schema.JobData) error {
 	// Sanitize parameters
 	if err := json.NewEncoder(w).Encode(d); err != nil {
-		log.Warn("Error while encoding new job data json")
+		cclog.Warn("Error while encoding new job data json")
 		return err
 	}
 
@@ -106,7 +106,7 @@ func EncodeJobData(w io.Writer, d *schema.JobData) error {
 func EncodeJobMeta(w io.Writer, d *schema.Job) error {
 	// Sanitize parameters
 	if err := json.NewEncoder(w).Encode(d); err != nil {
-		log.Warn("Error while encoding new job meta json")
+		cclog.Warn("Error while encoding new job meta json")
 		return err
 	}
 

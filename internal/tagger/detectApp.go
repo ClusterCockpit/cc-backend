@@ -15,9 +15,9 @@ import (
 	"strings"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-backend/internal/util"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-lib/util"
 )
 
 //go:embed apps/*
@@ -53,15 +53,15 @@ func (t *AppTagger) EventMatch(s string) bool {
 func (t *AppTagger) EventCallback() {
 	files, err := os.ReadDir(t.cfgPath)
 	if err != nil {
-		log.Fatal(err)
+		cclog.Fatal(err)
 	}
 
 	for _, fn := range files {
 		fns := fn.Name()
-		log.Debugf("Process: %s", fns)
+		cclog.Debugf("Process: %s", fns)
 		f, err := os.Open(fmt.Sprintf("%s/%s", t.cfgPath, fns))
 		if err != nil {
-			log.Errorf("error opening app file %s: %#v", fns, err)
+			cclog.Errorf("error opening app file %s: %#v", fns, err)
 		}
 		t.scanApp(f, fns)
 	}
@@ -78,7 +78,7 @@ func (t *AppTagger) Register() error {
 	t.apps = make(map[string]appInfo, 0)
 	for _, fn := range files {
 		fns := fn.Name()
-		log.Debugf("Process: %s", fns)
+		cclog.Debugf("Process: %s", fns)
 		f, err := appFiles.Open(fmt.Sprintf("apps/%s", fns))
 		if err != nil {
 			return fmt.Errorf("error opening app file %s: %#v", fns, err)
@@ -89,7 +89,7 @@ func (t *AppTagger) Register() error {
 
 	if util.CheckFileExists(t.cfgPath) {
 		t.EventCallback()
-		log.Infof("Setup file watch for %s", t.cfgPath)
+		cclog.Infof("Setup file watch for %s", t.cfgPath)
 		util.AddListener(t.cfgPath, t)
 	}
 
@@ -100,7 +100,7 @@ func (t *AppTagger) Match(job *schema.Job) {
 	r := repository.GetJobRepository()
 	metadata, err := r.FetchMetadata(job)
 	if err != nil {
-		log.Infof("Cannot fetch metadata for job: %d on %s", job.JobID, job.Cluster)
+		cclog.Infof("Cannot fetch metadata for job: %d on %s", job.JobID, job.Cluster)
 		return
 	}
 
@@ -122,6 +122,6 @@ func (t *AppTagger) Match(job *schema.Job) {
 			}
 		}
 	} else {
-		log.Infof("Cannot extract job script for job: %d on %s", job.JobID, job.Cluster)
+		cclog.Infof("Cannot extract job script for job: %d on %s", job.JobID, job.Cluster)
 	}
 }

@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -32,7 +32,7 @@ func Init() {
 
 func GetResolverInstance() *Resolver {
 	if resolverInstance == nil {
-		log.Fatal("Authentication module not initialized!")
+		cclog.Fatal("Authentication module not initialized!")
 	}
 
 	return resolverInstance

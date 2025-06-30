@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
 type Count struct {
@@ -170,7 +170,6 @@ type NamedStatsWithScope struct {
 type NodeFilter struct {
 	Hostname    *StringInput      `json:"hostname,omitempty"`
 	Cluster     *StringInput      `json:"cluster,omitempty"`
-	SubCluster  *StringInput      `json:"subCluster,omitempty"`
 	NodeState   *string           `json:"nodeState,omitempty"`
 	HealthState *schema.NodeState `json:"healthState,omitempty"`
 }

@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package api
@@ -16,9 +16,9 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-backend/internal/util"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-lib/util"
 	"github.com/gorilla/mux"
 )
 
@@ -130,7 +130,7 @@ type DefaultApiResponse struct {
 }
 
 func handleError(err error, statusCode int, rw http.ResponseWriter) {
-	log.Warnf("REST ERROR : %s", err.Error())
+	cclog.Warnf("REST ERROR : %s", err.Error())
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(statusCode)
 	json.NewEncoder(rw).Encode(ErrorResponse{
@@ -161,7 +161,7 @@ func (api *RestApi) editNotice(rw http.ResponseWriter, r *http.Request) {
 	if !noticeExists {
 		ntxt, err := os.Create("./var/notice.txt")
 		if err != nil {
-			log.Errorf("Creating ./var/notice.txt failed: %s", err.Error())
+			cclog.Errorf("Creating ./var/notice.txt failed: %s", err.Error())
 			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 			return
 		}
@@ -170,7 +170,7 @@ func (api *RestApi) editNotice(rw http.ResponseWriter, r *http.Request) {
 
 	if newContent != "" {
 		if err := os.WriteFile("./var/notice.txt", []byte(newContent), 0o666); err != nil {
-			log.Errorf("Writing to ./var/notice.txt failed: %s", err.Error())
+			cclog.Errorf("Writing to ./var/notice.txt failed: %s", err.Error())
 			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 			return
 		} else {
@@ -178,7 +178,7 @@ func (api *RestApi) editNotice(rw http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		if err := os.WriteFile("./var/notice.txt", []byte(""), 0o666); err != nil {
-			log.Errorf("Writing to ./var/notice.txt failed: %s", err.Error())
+			cclog.Errorf("Writing to ./var/notice.txt failed: %s", err.Error())
 			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 			return
 		} else {
