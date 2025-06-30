@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package repository
@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	sq "github.com/Masterminds/squirrel"
 )
 
@@ -39,7 +39,7 @@ func (r *JobRepository) Find(
 
 	q = q.OrderBy("job.id DESC") // always use newest matching job by db id if more than one match
 
-	log.Debugf("Timer Find %s", time.Since(start))
+	cclog.Debugf("Timer Find %s", time.Since(start))
 	return scanJob(q.RunWith(r.stmtCache).QueryRow())
 }
 
@@ -86,7 +86,7 @@ func (r *JobRepository) FindAll(
 
 	rows, err := q.RunWith(r.stmtCache).Query()
 	if err != nil {
-		log.Error("Error while running query")
+		cclog.Error("Error while running query")
 		return nil, err
 	}
 
@@ -94,12 +94,12 @@ func (r *JobRepository) FindAll(
 	for rows.Next() {
 		job, err := scanJob(rows)
 		if err != nil {
-			log.Warn("Error while scanning rows")
+			cclog.Warn("Error while scanning rows")
 			return nil, err
 		}
 		jobs = append(jobs, job)
 	}
-	log.Debugf("Timer FindAll %s", time.Since(start))
+	cclog.Debugf("Timer FindAll %s", time.Since(start))
 	return jobs, nil
 }
 
@@ -112,7 +112,7 @@ func (r *JobRepository) GetJobList() ([]int64, error) {
 
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
-		log.Error("Error while running query")
+		cclog.Error("Error while running query")
 		return nil, err
 	}
 
@@ -122,13 +122,13 @@ func (r *JobRepository) GetJobList() ([]int64, error) {
 		err := rows.Scan(&id)
 		if err != nil {
 			rows.Close()
-			log.Warn("Error while scanning rows")
+			cclog.Warn("Error while scanning rows")
 			return nil, err
 		}
 		jl = append(jl, id)
 	}
 
-	log.Infof("Return job count %d", len(jl))
+	cclog.Infof("Return job count %d", len(jl))
 	return jl, nil
 }
 
@@ -253,7 +253,7 @@ func (r *JobRepository) FindConcurrentJobs(
 
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
-		log.Errorf("Error while running query: %v", err)
+		cclog.Errorf("Error while running query: %v", err)
 		return nil, err
 	}
 
@@ -264,7 +264,7 @@ func (r *JobRepository) FindConcurrentJobs(
 		var id, jobId, startTime sql.NullInt64
 
 		if err = rows.Scan(&id, &jobId, &startTime); err != nil {
-			log.Warn("Error while scanning rows")
+			cclog.Warn("Error while scanning rows")
 			return nil, err
 		}
 
@@ -280,7 +280,7 @@ func (r *JobRepository) FindConcurrentJobs(
 
 	rows, err = queryRunning.RunWith(r.stmtCache).Query()
 	if err != nil {
-		log.Errorf("Error while running query: %v", err)
+		cclog.Errorf("Error while running query: %v", err)
 		return nil, err
 	}
 
@@ -288,7 +288,7 @@ func (r *JobRepository) FindConcurrentJobs(
 		var id, jobId, startTime sql.NullInt64
 
 		if err := rows.Scan(&id, &jobId, &startTime); err != nil {
-			log.Warn("Error while scanning rows")
+			cclog.Warn("Error while scanning rows")
 			return nil, err
 		}
 

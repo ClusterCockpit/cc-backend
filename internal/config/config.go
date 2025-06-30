@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package config
@@ -9,8 +9,8 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
 var Keys schema.ProgramConfig = schema.ProgramConfig{
@@ -53,20 +53,20 @@ func Init(flagConfigFile string) {
 	raw, err := os.ReadFile(flagConfigFile)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			log.Abortf("Config Init: Could not read config file '%s'.\nError: %s\n", flagConfigFile, err.Error())
+			cclog.Abortf("Config Init: Could not read config file '%s'.\nError: %s\n", flagConfigFile, err.Error())
 		}
 	} else {
 		if err := schema.Validate(schema.Config, bytes.NewReader(raw)); err != nil {
-			log.Abortf("Config Init: Could not validate config file '%s'.\nError: %s\n", flagConfigFile, err.Error())
+			cclog.Abortf("Config Init: Could not validate config file '%s'.\nError: %s\n", flagConfigFile, err.Error())
 		}
 		dec := json.NewDecoder(bytes.NewReader(raw))
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(&Keys); err != nil {
-			log.Abortf("Config Init: Could not decode config file '%s'.\nError: %s\n", flagConfigFile, err.Error())
+			cclog.Abortf("Config Init: Could not decode config file '%s'.\nError: %s\n", flagConfigFile, err.Error())
 		}
 
 		if Keys.Clusters == nil || len(Keys.Clusters) < 1 {
-			log.Abort("Config Init: At least one cluster required in config. Exited with error.")
+			cclog.Abort("Config Init: At least one cluster required in config. Exited with error.")
 		}
 	}
 }

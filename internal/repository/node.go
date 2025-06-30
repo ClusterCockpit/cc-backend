@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package repository
@@ -15,9 +15,9 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/lrucache"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
 )
@@ -59,7 +59,7 @@ func (r *NodeRepository) FetchMetadata(node *schema.Node) (map[string]string, er
 
 	if err := sq.Select("node.meta_data").From("node").Where("node.id = ?", node.ID).
 		RunWith(r.stmtCache).QueryRow().Scan(&node.RawMetaData); err != nil {
-		log.Warn("Error while scanning for node metadata")
+		cclog.Warn("Error while scanning for node metadata")
 		return nil, err
 	}
 
@@ -68,12 +68,12 @@ func (r *NodeRepository) FetchMetadata(node *schema.Node) (map[string]string, er
 	}
 
 	if err := json.Unmarshal(node.RawMetaData, &node.MetaData); err != nil {
-		log.Warn("Error while unmarshaling raw metadata json")
+		cclog.Warn("Error while unmarshaling raw metadata json")
 		return nil, err
 	}
 
 	r.cache.Put(cachekey, node.MetaData, len(node.RawMetaData), 24*time.Hour)
-	log.Debugf("Timer FetchMetadata %s", time.Since(start))
+	cclog.Debugf("Timer FetchMetadata %s", time.Since(start))
 	return node.MetaData, nil
 }
 
@@ -82,7 +82,7 @@ func (r *NodeRepository) UpdateMetadata(node *schema.Node, key, val string) (err
 	r.cache.Del(cachekey)
 	if node.MetaData == nil {
 		if _, err = r.FetchMetadata(node); err != nil {
-			log.Warnf("Error while fetching metadata for node, DB ID '%v'", node.ID)
+			cclog.Warnf("Error while fetching metadata for node, DB ID '%v'", node.ID)
 			return err
 		}
 	}
@@ -97,7 +97,7 @@ func (r *NodeRepository) UpdateMetadata(node *schema.Node, key, val string) (err
 	}
 
 	if node.RawMetaData, err = json.Marshal(node.MetaData); err != nil {
-		log.Warnf("Error while marshaling metadata for node, DB ID '%v'", node.ID)
+		cclog.Warnf("Error while marshaling metadata for node, DB ID '%v'", node.ID)
 		return err
 	}
 
@@ -105,7 +105,7 @@ func (r *NodeRepository) UpdateMetadata(node *schema.Node, key, val string) (err
 		Set("meta_data", node.RawMetaData).
 		Where("node.id = ?", node.ID).
 		RunWith(r.stmtCache).Exec(); err != nil {
-		log.Warnf("Error while updating metadata for node, DB ID '%v'", node.ID)
+		cclog.Warnf("Error while updating metadata for node, DB ID '%v'", node.ID)
 		return err
 	}
 
@@ -120,7 +120,7 @@ func (r *NodeRepository) GetNode(id int64, withMeta bool) (*schema.Node, error) 
 		Where("node.id = ?", id).RunWith(r.DB).
 		QueryRow().Scan(&node.ID, &node.Hostname, &node.Cluster, &node.SubCluster, &node.NodeState,
 		&node.HealthState); err != nil {
-		log.Warnf("Error while querying node '%v' from database", id)
+		cclog.Warnf("Error while querying node '%v' from database", id)
 		return nil, err
 	}
 
@@ -128,7 +128,7 @@ func (r *NodeRepository) GetNode(id int64, withMeta bool) (*schema.Node, error) 
 		var err error
 		var meta map[string]string
 		if meta, err = r.FetchMetadata(node); err != nil {
-			log.Warnf("Error while fetching metadata for node '%v'", id)
+			cclog.Warnf("Error while fetching metadata for node '%v'", id)
 			return nil, err
 		}
 		node.MetaData = meta
@@ -146,12 +146,12 @@ func (r *NodeRepository) AddNode(node *schema.Node) (int64, error) {
 
 	res, err := r.DB.NamedExec(NamedNodeInsert, node)
 	if err != nil {
-		log.Errorf("Error while adding node '%v' to database", node.Hostname)
+		cclog.Errorf("Error while adding node '%v' to database", node.Hostname)
 		return 0, err
 	}
 	node.ID, err = res.LastInsertId()
 	if err != nil {
-		log.Errorf("Error while getting last insert id for node '%v' from database", node.Hostname)
+		cclog.Errorf("Error while getting last insert id for node '%v' from database", node.Hostname)
 		return 0, err
 	}
 
@@ -166,7 +166,7 @@ func (r *NodeRepository) UpdateNodeState(hostname string, cluster string, nodeSt
 		if err == sql.ErrNoRows {
 			subcluster, err := archive.GetSubClusterByNode(cluster, hostname)
 			if err != nil {
-				log.Errorf("Error while getting subcluster for node '%s' in cluster '%s': %v", hostname, cluster, err)
+				cclog.Errorf("Error while getting subcluster for node '%s' in cluster '%s': %v", hostname, cluster, err)
 				return err
 			}
 			node := schema.Node{
@@ -175,29 +175,29 @@ func (r *NodeRepository) UpdateNodeState(hostname string, cluster string, nodeSt
 			}
 			_, err = r.AddNode(&node)
 			if err != nil {
-				log.Errorf("Error while adding node '%s' to database: %v", hostname, err)
+				cclog.Errorf("Error while adding node '%s' to database: %v", hostname, err)
 				return err
 			}
 
-			log.Infof("Added node '%s' to database", hostname)
+			cclog.Infof("Added node '%s' to database", hostname)
 			return nil
 		} else {
-			log.Warnf("Error while querying node '%v' from database", id)
+			cclog.Warnf("Error while querying node '%v' from database", id)
 			return err
 		}
 	}
 
 	if _, err := sq.Update("node").Set("node_state", nodeState).Where("node.id = ?", id).RunWith(r.DB).Exec(); err != nil {
-		log.Errorf("error while updating node '%s'", hostname)
+		cclog.Errorf("error while updating node '%s'", hostname)
 		return err
 	}
-	log.Infof("Updated node '%s' in database", hostname)
+	cclog.Infof("Updated node '%s' in database", hostname)
 	return nil
 }
 
 // func (r *NodeRepository) UpdateHealthState(hostname string, healthState *schema.MonitoringState) error {
 // 	if _, err := sq.Update("node").Set("health_state", healthState).Where("node.id = ?", id).RunWith(r.DB).Exec(); err != nil {
-// 		log.Errorf("error while updating node '%d'", id)
+// 		cclog.Errorf("error while updating node '%d'", id)
 // 		return err
 // 	}
 //
@@ -207,10 +207,10 @@ func (r *NodeRepository) UpdateNodeState(hostname string, cluster string, nodeSt
 func (r *NodeRepository) DeleteNode(id int64) error {
 	_, err := r.DB.Exec(`DELETE FROM node WHERE node.id = ?`, id)
 	if err != nil {
-		log.Errorf("Error while deleting node '%d' from DB", id)
+		cclog.Errorf("Error while deleting node '%d' from DB", id)
 		return err
 	}
-	log.Infof("deleted node '%d' from DB", id)
+	cclog.Infof("deleted node '%d' from DB", id)
 	return nil
 }
 
@@ -243,7 +243,7 @@ func (r *NodeRepository) QueryNodes(
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
 		queryString, queryVars, _ := query.ToSql()
-		log.Errorf("Error while running query '%s' %v: %v", queryString, queryVars, err)
+		cclog.Errorf("Error while running query '%s' %v: %v", queryString, queryVars, err)
 		return nil, err
 	}
 
@@ -254,7 +254,7 @@ func (r *NodeRepository) QueryNodes(
 		if err := rows.Scan(&node.Hostname, &node.Cluster, &node.SubCluster,
 			&node.NodeState, &node.HealthState); err != nil {
 			rows.Close()
-			log.Warn("Error while scanning rows (Nodes)")
+			cclog.Warn("Error while scanning rows (Nodes)")
 			return nil, err
 		}
 		nodes = append(nodes, &node)
@@ -269,7 +269,7 @@ func (r *NodeRepository) ListNodes(cluster string) ([]*schema.Node, error) {
 
 	rows, err := q.RunWith(r.DB).Query()
 	if err != nil {
-		log.Warn("Error while querying user list")
+		cclog.Warn("Error while querying user list")
 		return nil, err
 	}
 	nodeList := make([]*schema.Node, 0, 100)
@@ -278,7 +278,7 @@ func (r *NodeRepository) ListNodes(cluster string) ([]*schema.Node, error) {
 		node := &schema.Node{}
 		if err := rows.Scan(&node.Hostname, &node.Cluster,
 			&node.SubCluster, &node.NodeState, &node.HealthState); err != nil {
-			log.Warn("Error while scanning node list")
+			cclog.Warn("Error while scanning node list")
 			return nil, err
 		}
 

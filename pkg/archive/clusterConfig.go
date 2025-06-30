@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package archive
@@ -8,8 +8,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
 var (
@@ -27,7 +27,7 @@ func initClusterConfig() error {
 
 		cluster, err := ar.LoadClusterCfg(c)
 		if err != nil {
-			log.Warnf("Error while loading cluster config for cluster '%v'", c)
+			cclog.Warnf("Error while loading cluster config for cluster '%v'", c)
 			return err
 		}
 

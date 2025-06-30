@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package auth
@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -27,19 +27,19 @@ func (la *LocalAuthenticator) CanLogin(
 	user *schema.User,
 	username string,
 	rw http.ResponseWriter,
-	r *http.Request) (*schema.User, bool) {
-
+	r *http.Request,
+) (*schema.User, bool) {
 	return user, user != nil && user.AuthSource == schema.AuthViaLocalPassword
 }
 
 func (la *LocalAuthenticator) Login(
 	user *schema.User,
 	rw http.ResponseWriter,
-	r *http.Request) (*schema.User, error) {
-
+	r *http.Request,
+) (*schema.User, error) {
 	if e := bcrypt.CompareHashAndPassword([]byte(user.Password),
 		[]byte(r.FormValue("password"))); e != nil {
-		log.Errorf("AUTH/LOCAL > Authentication for user %s failed!", user.Username)
+		cclog.Errorf("AUTH/LOCAL > Authentication for user %s failed!", user.Username)
 		return nil, fmt.Errorf("Authentication failed")
 	}
 

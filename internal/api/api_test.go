@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package api_test
@@ -27,8 +27,8 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/gorilla/mux"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -116,7 +116,7 @@ func setup(t *testing.T) *api.RestApi {
 		]
 	}`
 
-	log.Init("info", true)
+	cclog.Init("info", true)
 	tmpdir := t.TempDir()
 	jobarchive := filepath.Join(tmpdir, "job-archive")
 	if err := os.Mkdir(jobarchive, 0777); err != nil {

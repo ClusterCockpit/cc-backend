@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package auth
@@ -15,8 +15,8 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -28,17 +28,17 @@ type JWTAuthenticator struct {
 func (ja *JWTAuthenticator) Init() error {
 	pubKey, privKey := os.Getenv("JWT_PUBLIC_KEY"), os.Getenv("JWT_PRIVATE_KEY")
 	if pubKey == "" || privKey == "" {
-		log.Warn("environment variables 'JWT_PUBLIC_KEY' or 'JWT_PRIVATE_KEY' not set (token based authentication will not work)")
+		cclog.Warn("environment variables 'JWT_PUBLIC_KEY' or 'JWT_PRIVATE_KEY' not set (token based authentication will not work)")
 	} else {
 		bytes, err := base64.StdEncoding.DecodeString(pubKey)
 		if err != nil {
-			log.Warn("Could not decode JWT public key")
+			cclog.Warn("Could not decode JWT public key")
 			return err
 		}
 		ja.publicKey = ed25519.PublicKey(bytes)
 		bytes, err = base64.StdEncoding.DecodeString(privKey)
 		if err != nil {
-			log.Warn("Could not decode JWT private key")
+			cclog.Warn("Could not decode JWT private key")
 			return err
 		}
 		ja.privateKey = ed25519.PrivateKey(bytes)
@@ -70,11 +70,11 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 		return ja.publicKey, nil
 	})
 	if err != nil {
-		log.Warn("Error while parsing JWT token")
+		cclog.Warn("Error while parsing JWT token")
 		return nil, err
 	}
 	if !token.Valid {
-		log.Warn("jwt token claims are not valid")
+		cclog.Warn("jwt token claims are not valid")
 		return nil, errors.New("jwt token claims are not valid")
 	}
 
@@ -90,7 +90,7 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 		user, err := ur.GetUser(sub)
 		// Deny any logins for unknown usernames
 		if err != nil {
-			log.Warn("Could not find user from JWT in internal database.")
+			cclog.Warn("Could not find user from JWT in internal database.")
 			return nil, errors.New("unknown user")
 		}
 		// Take user roles from database instead of trusting the JWT

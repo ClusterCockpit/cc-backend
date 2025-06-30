@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package graph
@@ -12,9 +12,8 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
-	// "github.com/ClusterCockpit/cc-backend/pkg/archive"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
 const MAX_JOBS_FOR_ANALYSIS = 500
@@ -28,7 +27,7 @@ func (r *queryResolver) rooflineHeatmap(
 ) ([][]float64, error) {
 	jobs, err := r.Repo.QueryJobs(ctx, filter, &model.PageRequest{Page: 1, ItemsPerPage: MAX_JOBS_FOR_ANALYSIS + 1}, nil)
 	if err != nil {
-		log.Error("Error while querying jobs for roofline")
+		cclog.Error("Error while querying jobs for roofline")
 		return nil, err
 	}
 	if len(jobs) > MAX_JOBS_FOR_ANALYSIS {
@@ -56,13 +55,13 @@ func (r *queryResolver) rooflineHeatmap(
 
 		jobdata, err := metricDataDispatcher.LoadData(job, []string{"flops_any", "mem_bw"}, []schema.MetricScope{schema.MetricScopeNode}, ctx, 0)
 		if err != nil {
-			log.Errorf("Error while loading roofline metrics for job %d", job.ID)
+			cclog.Errorf("Error while loading roofline metrics for job %d", job.ID)
 			return nil, err
 		}
 
 		flops_, membw_ := jobdata["flops_any"], jobdata["mem_bw"]
 		if flops_ == nil && membw_ == nil {
-			log.Infof("rooflineHeatmap(): 'flops_any' or 'mem_bw' missing for job %d", job.ID)
+			cclog.Infof("rooflineHeatmap(): 'flops_any' or 'mem_bw' missing for job %d", job.ID)
 			continue
 			// return nil, fmt.Errorf("GRAPH/UTIL > 'flops_any' or 'mem_bw' missing for job %d", job.ID)
 		}
@@ -70,7 +69,7 @@ func (r *queryResolver) rooflineHeatmap(
 		flops, ok1 := flops_["node"]
 		membw, ok2 := membw_["node"]
 		if !ok1 || !ok2 {
-			log.Info("rooflineHeatmap() query not implemented for where flops_any or mem_bw not available at 'node' level")
+			cclog.Info("rooflineHeatmap() query not implemented for where flops_any or mem_bw not available at 'node' level")
 			continue
 			// TODO/FIXME:
 			// return nil, errors.New("GRAPH/UTIL > todo: rooflineHeatmap() query not implemented for where flops_any or mem_bw not available at 'node' level")
@@ -105,7 +104,7 @@ func (r *queryResolver) rooflineHeatmap(
 func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error) {
 	jobs, err := r.Repo.QueryJobs(ctx, filter, &model.PageRequest{Page: 1, ItemsPerPage: MAX_JOBS_FOR_ANALYSIS + 1}, nil)
 	if err != nil {
-		log.Error("Error while querying jobs for footprint")
+		cclog.Error("Error while querying jobs for footprint")
 		return nil, err
 	}
 	if len(jobs) > MAX_JOBS_FOR_ANALYSIS {
@@ -128,7 +127,7 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 		}
 
 		if err := metricDataDispatcher.LoadAverages(job, metrics, avgs, ctx); err != nil {
-			log.Error("Error while loading averages for footprint")
+			cclog.Error("Error while loading averages for footprint")
 			return nil, err
 		}
 

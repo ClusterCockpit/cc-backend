@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package api
@@ -23,8 +23,8 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/gorilla/mux"
 )
 
@@ -198,7 +198,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 		results = append(results, job)
 	}
 
-	log.Debugf("/api/jobs: %d jobs returned", len(results))
+	cclog.Debugf("/api/jobs: %d jobs returned", len(results))
 	rw.Header().Add("Content-Type", "application/json")
 	bw := bufio.NewWriter(rw)
 	defer bw.Flush()
@@ -286,12 +286,12 @@ func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) 
 	if r.URL.Query().Get("all-metrics") == "true" {
 		data, err = metricDataDispatcher.LoadData(job, nil, scopes, r.Context(), resolution)
 		if err != nil {
-			log.Warnf("REST: error while loading all-metrics job data for JobID %d on %s", job.JobID, job.Cluster)
+			cclog.Warnf("REST: error while loading all-metrics job data for JobID %d on %s", job.JobID, job.Cluster)
 			return
 		}
 	}
 
-	log.Debugf("/api/job/%s: get job %d", id, job.JobID)
+	cclog.Debugf("/api/job/%s: get job %d", id, job.JobID)
 	rw.Header().Add("Content-Type", "application/json")
 	bw := bufio.NewWriter(rw)
 	defer bw.Flush()
@@ -382,7 +382,7 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 
 	data, err := metricDataDispatcher.LoadData(job, metrics, scopes, r.Context(), resolution)
 	if err != nil {
-		log.Warnf("REST: error while loading job data for JobID %d on %s", job.JobID, job.Cluster)
+		cclog.Warnf("REST: error while loading job data for JobID %d on %s", job.JobID, job.Cluster)
 		return
 	}
 
@@ -397,7 +397,7 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	log.Debugf("/api/job/%s: get job %d", id, job.JobID)
+	cclog.Debugf("/api/job/%s: get job %d", id, job.JobID)
 	rw.Header().Add("Content-Type", "application/json")
 	bw := bufio.NewWriter(rw)
 	defer bw.Flush()
@@ -565,7 +565,7 @@ func (api *RestApi) removeTagJob(rw http.ResponseWriter, r *http.Request) {
 	for _, rtag := range req {
 		// Only Global and Admin Tags
 		if rtag.Scope != "global" && rtag.Scope != "admin" {
-			log.Warnf("Cannot delete private tag for job %d: Skip", job.JobID)
+			cclog.Warnf("Cannot delete private tag for job %d: Skip", job.JobID)
 			continue
 		}
 
@@ -611,7 +611,7 @@ func (api *RestApi) removeTags(rw http.ResponseWriter, r *http.Request) {
 	for _, rtag := range req {
 		// Only Global and Admin Tags
 		if rtag.Scope != "global" && rtag.Scope != "admin" {
-			log.Warn("Cannot delete private tag: Skip")
+			cclog.Warn("Cannot delete private tag: Skip")
 			continue
 		}
 
@@ -654,7 +654,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("REST: %s\n", req.GoString())
+	cclog.Printf("REST: %s\n", req.GoString())
 	req.State = schema.JobStateRunning
 
 	if err := importer.SanityChecks(&req); err != nil {
@@ -697,7 +697,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	log.Printf("new job (id: %d): cluster=%s, jobId=%d, user=%s, startTime=%d", id, req.Cluster, req.JobID, req.User, req.StartTime)
+	cclog.Printf("new job (id: %d): cluster=%s, jobId=%d, user=%s, startTime=%d", id, req.Cluster, req.JobID, req.User, req.StartTime)
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusCreated)
 	json.NewEncoder(rw).Encode(DefaultApiResponse{
@@ -737,7 +737,7 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// log.Printf("loading db job for stopJobByRequest... : stopJobApiRequest=%v", req)
+	// cclog.Printf("loading db job for stopJobByRequest... : stopJobApiRequest=%v", req)
 	job, err = api.JobRepository.Find(req.JobId, req.Cluster, req.StartTime)
 	if err != nil {
 		job, err = api.JobRepository.FindCached(req.JobId, req.Cluster, req.StartTime)
@@ -920,7 +920,7 @@ func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 	}
 	api.JobRepository.Mutex.Unlock()
 
-	log.Printf("archiving job... (dbid: %d): cluster=%s, jobId=%d, user=%s, startTime=%d, duration=%d, state=%s", job.ID, job.Cluster, job.JobID, job.User, job.StartTime, job.Duration, job.State)
+	cclog.Printf("archiving job... (dbid: %d): cluster=%s, jobId=%d, user=%s, startTime=%d, duration=%d, state=%s", job.ID, job.Cluster, job.JobID, job.User, job.StartTime, job.Duration, job.State)
 
 	// Send a response (with status OK). This means that errors that happen from here on forward
 	// can *NOT* be communicated to the client. If reading from a MetricDataRepository or

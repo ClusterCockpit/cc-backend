@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package taskManager
@@ -10,8 +10,8 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/go-co-op/gocron/v2"
 )
 
@@ -23,13 +23,13 @@ var (
 func parseDuration(s string) (time.Duration, error) {
 	interval, err := time.ParseDuration(s)
 	if err != nil {
-		log.Warnf("Could not parse duration for sync interval: %v",
+		cclog.Warnf("Could not parse duration for sync interval: %v",
 			s)
 		return 0, err
 	}
 
 	if interval == 0 {
-		log.Info("TaskManager: Sync interval is zero")
+		cclog.Info("TaskManager: Sync interval is zero")
 	}
 
 	return interval, nil
@@ -40,7 +40,7 @@ func Start() {
 	jobRepo = repository.GetJobRepository()
 	s, err = gocron.NewScheduler()
 	if err != nil {
-		log.Abortf("Taskmanager Start: Could not create gocron scheduler.\nError: %s\n", err.Error())
+		cclog.Abortf("Taskmanager Start: Could not create gocron scheduler.\nError: %s\n", err.Error())
 	}
 
 	if config.Keys.StopJobsExceedingWalltime > 0 {
@@ -54,7 +54,7 @@ func Start() {
 	cfg.Retention.IncludeDB = true
 
 	if err := json.Unmarshal(config.Keys.Archive, &cfg); err != nil {
-		log.Warn("Error while unmarshaling raw config json")
+		cclog.Warn("Error while unmarshaling raw config json")
 	}
 
 	switch cfg.Retention.Policy {

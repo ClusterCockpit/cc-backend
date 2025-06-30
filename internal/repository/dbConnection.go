@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package repository
@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/jmoiron/sqlx"
 	"github.com/mattn/go-sqlite3"
 	"github.com/qustavo/sqlhooks/v2"
@@ -53,7 +53,7 @@ func Connect(driver string, db string) {
 			// - Enable foreign key checks
 			opts.URL += "?_journal=WAL&_timeout=5000&_fk=true"
 
-			if log.Loglevel() == "debug" {
+			if cclog.Loglevel() == "debug" {
 				sql.Register("sqlite3WithHooks", sqlhooks.Wrap(&sqlite3.SQLiteDriver{}, &Hooks{}))
 				dbHandle, err = sqlx.Open("sqlite3WithHooks", opts.URL)
 			} else {
@@ -63,11 +63,11 @@ func Connect(driver string, db string) {
 			opts.URL += "?multiStatements=true"
 			dbHandle, err = sqlx.Open("mysql", opts.URL)
 		default:
-			log.Abortf("DB Connection: Unsupported database driver '%s'.\n", driver)
+			cclog.Abortf("DB Connection: Unsupported database driver '%s'.\n", driver)
 		}
 
 		if err != nil {
-			log.Abortf("DB Connection: Could not connect to '%s' database with sqlx.Open().\nError: %s\n", driver, err.Error())
+			cclog.Abortf("DB Connection: Could not connect to '%s' database with sqlx.Open().\nError: %s\n", driver, err.Error())
 		}
 
 		dbHandle.SetMaxOpenConns(opts.MaxOpenConnections)
@@ -78,14 +78,14 @@ func Connect(driver string, db string) {
 		dbConnInstance = &DBConnection{DB: dbHandle, Driver: driver}
 		err = checkDBVersion(driver, dbHandle.DB)
 		if err != nil {
-			log.Abortf("DB Connection: Failed DB version check.\nError: %s\n", err.Error())
+			cclog.Abortf("DB Connection: Failed DB version check.\nError: %s\n", err.Error())
 		}
 	})
 }
 
 func GetConnection() *DBConnection {
 	if dbConnInstance == nil {
-		log.Fatalf("Database connection not initialized!")
+		cclog.Fatalf("Database connection not initialized!")
 	}
 
 	return dbConnInstance

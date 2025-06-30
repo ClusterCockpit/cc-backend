@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package repository
@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	sq "github.com/Masterminds/squirrel"
 )
 
@@ -18,7 +18,7 @@ import (
 func (r *JobRepository) AddTag(user *schema.User, job int64, tag int64) ([]*schema.Tag, error) {
 	j, err := r.FindByIdWithUser(user, job)
 	if err != nil {
-		log.Warn("Error while finding job by id")
+		cclog.Warn("Error while finding job by id")
 		return nil, err
 	}
 
@@ -26,19 +26,19 @@ func (r *JobRepository) AddTag(user *schema.User, job int64, tag int64) ([]*sche
 
 	if _, err := q.RunWith(r.stmtCache).Exec(); err != nil {
 		s, _, _ := q.ToSql()
-		log.Errorf("Error adding tag with %s: %v", s, err)
+		cclog.Errorf("Error adding tag with %s: %v", s, err)
 		return nil, err
 	}
 
 	tags, err := r.GetTags(user, &job)
 	if err != nil {
-		log.Warn("Error while getting tags for job")
+		cclog.Warn("Error while getting tags for job")
 		return nil, err
 	}
 
 	archiveTags, err := r.getArchiveTags(&job)
 	if err != nil {
-		log.Warn("Error while getting tags for job")
+		cclog.Warn("Error while getting tags for job")
 		return nil, err
 	}
 
@@ -48,7 +48,7 @@ func (r *JobRepository) AddTag(user *schema.User, job int64, tag int64) ([]*sche
 func (r *JobRepository) AddTagDirect(job int64, tag int64) ([]*schema.Tag, error) {
 	j, err := r.FindByIdDirect(job)
 	if err != nil {
-		log.Warn("Error while finding job by id")
+		cclog.Warn("Error while finding job by id")
 		return nil, err
 	}
 
@@ -56,19 +56,19 @@ func (r *JobRepository) AddTagDirect(job int64, tag int64) ([]*schema.Tag, error
 
 	if _, err := q.RunWith(r.stmtCache).Exec(); err != nil {
 		s, _, _ := q.ToSql()
-		log.Errorf("Error adding tag with %s: %v", s, err)
+		cclog.Errorf("Error adding tag with %s: %v", s, err)
 		return nil, err
 	}
 
 	tags, err := r.GetTagsDirect(&job)
 	if err != nil {
-		log.Warn("Error while getting tags for job")
+		cclog.Warn("Error while getting tags for job")
 		return nil, err
 	}
 
 	archiveTags, err := r.getArchiveTags(&job)
 	if err != nil {
-		log.Warn("Error while getting tags for job")
+		cclog.Warn("Error while getting tags for job")
 		return nil, err
 	}
 
@@ -80,7 +80,7 @@ func (r *JobRepository) AddTagDirect(job int64, tag int64) ([]*schema.Tag, error
 func (r *JobRepository) RemoveTag(user *schema.User, job, tag int64) ([]*schema.Tag, error) {
 	j, err := r.FindByIdWithUser(user, job)
 	if err != nil {
-		log.Warn("Error while finding job by id")
+		cclog.Warn("Error while finding job by id")
 		return nil, err
 	}
 
@@ -88,19 +88,19 @@ func (r *JobRepository) RemoveTag(user *schema.User, job, tag int64) ([]*schema.
 
 	if _, err := q.RunWith(r.stmtCache).Exec(); err != nil {
 		s, _, _ := q.ToSql()
-		log.Errorf("Error removing tag with %s: %v", s, err)
+		cclog.Errorf("Error removing tag with %s: %v", s, err)
 		return nil, err
 	}
 
 	tags, err := r.GetTags(user, &job)
 	if err != nil {
-		log.Warn("Error while getting tags for job")
+		cclog.Warn("Error while getting tags for job")
 		return nil, err
 	}
 
 	archiveTags, err := r.getArchiveTags(&job)
 	if err != nil {
-		log.Warn("Error while getting tags for job")
+		cclog.Warn("Error while getting tags for job")
 		return nil, err
 	}
 
@@ -113,14 +113,14 @@ func (r *JobRepository) RemoveJobTagByRequest(user *schema.User, job int64, tagT
 	// Get Tag ID to delete
 	tagID, exists := r.TagId(tagType, tagName, tagScope)
 	if !exists {
-		log.Warnf("Tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
+		cclog.Warnf("Tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
 		return nil, fmt.Errorf("tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
 	}
 
 	// Get Job
 	j, err := r.FindByIdWithUser(user, job)
 	if err != nil {
-		log.Warn("Error while finding job by id")
+		cclog.Warn("Error while finding job by id")
 		return nil, err
 	}
 
@@ -129,19 +129,19 @@ func (r *JobRepository) RemoveJobTagByRequest(user *schema.User, job int64, tagT
 
 	if _, err := q.RunWith(r.stmtCache).Exec(); err != nil {
 		s, _, _ := q.ToSql()
-		log.Errorf("Error removing tag from table 'jobTag' with %s: %v", s, err)
+		cclog.Errorf("Error removing tag from table 'jobTag' with %s: %v", s, err)
 		return nil, err
 	}
 
 	tags, err := r.GetTags(user, &job)
 	if err != nil {
-		log.Warn("Error while getting tags for job")
+		cclog.Warn("Error while getting tags for job")
 		return nil, err
 	}
 
 	archiveTags, err := r.getArchiveTags(&job)
 	if err != nil {
-		log.Warn("Error while getting tags for job")
+		cclog.Warn("Error while getting tags for job")
 		return nil, err
 	}
 
@@ -152,13 +152,13 @@ func (r *JobRepository) removeTagFromArchiveJobs(jobIds []int64) {
 	for _, j := range jobIds {
 		tags, err := r.getArchiveTags(&j)
 		if err != nil {
-			log.Warnf("Error while getting tags for job %d", j)
+			cclog.Warnf("Error while getting tags for job %d", j)
 			continue
 		}
 
 		job, err := r.FindByIdDirect(j)
 		if err != nil {
-			log.Warnf("Error while getting job %d", j)
+			cclog.Warnf("Error while getting job %d", j)
 			continue
 		}
 
@@ -172,7 +172,7 @@ func (r *JobRepository) RemoveTagByRequest(tagType string, tagName string, tagSc
 	// Get Tag ID to delete
 	tagID, exists := r.TagId(tagType, tagName, tagScope)
 	if !exists {
-		log.Warnf("Tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
+		cclog.Warnf("Tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
 		return fmt.Errorf("tag does not exist (name, type, scope): %s, %s, %s", tagName, tagType, tagScope)
 	}
 
@@ -192,7 +192,7 @@ func (r *JobRepository) RemoveTagById(tagID int64) error {
 
 	if _, err := qJobTag.RunWith(r.stmtCache).Exec(); err != nil {
 		s, _, _ := qJobTag.ToSql()
-		log.Errorf("Error removing tag from table 'jobTag' with %s: %v", s, err)
+		cclog.Errorf("Error removing tag from table 'jobTag' with %s: %v", s, err)
 		return err
 	}
 
@@ -201,7 +201,7 @@ func (r *JobRepository) RemoveTagById(tagID int64) error {
 
 	if _, err := qTag.RunWith(r.stmtCache).Exec(); err != nil {
 		s, _, _ := qTag.ToSql()
-		log.Errorf("Error removing tag from table 'tag' with %s: %v", s, err)
+		cclog.Errorf("Error removing tag from table 'tag' with %s: %v", s, err)
 		return err
 	}
 
@@ -223,7 +223,7 @@ func (r *JobRepository) CreateTag(tagType string, tagName string, tagScope strin
 	res, err := q.RunWith(r.stmtCache).Exec()
 	if err != nil {
 		s, _, _ := q.ToSql()
-		log.Errorf("Error inserting tag with %s: %v", s, err)
+		cclog.Errorf("Error inserting tag with %s: %v", s, err)
 		return 0, err
 	}
 
@@ -272,7 +272,7 @@ func (r *JobRepository) CountTags(user *schema.User) (tags []schema.Tag, counts 
 
 	// Handle Job Ownership
 	if user != nil && user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport}) { // ADMIN || SUPPORT: Count all jobs
-		// log.Debug("CountTags: User Admin or Support -> Count all Jobs for Tags")
+		// cclog.Debug("CountTags: User Admin or Support -> Count all Jobs for Tags")
 		// Unchanged: Needs to be own case still, due to UserRole/NoRole compatibility handling in else case
 	} else if user != nil && user.HasRole(schema.RoleManager) { // MANAGER: Count own jobs plus project's jobs
 		// Build ("project1", "project2", ...) list of variable length directly in SQL string
@@ -396,7 +396,7 @@ func (r *JobRepository) GetTags(user *schema.User, job *int64) ([]*schema.Tag, e
 	rows, err := q.RunWith(r.stmtCache).Query()
 	if err != nil {
 		s, _, _ := q.ToSql()
-		log.Errorf("Error get tags with %s: %v", s, err)
+		cclog.Errorf("Error get tags with %s: %v", s, err)
 		return nil, err
 	}
 
@@ -404,7 +404,7 @@ func (r *JobRepository) GetTags(user *schema.User, job *int64) ([]*schema.Tag, e
 	for rows.Next() {
 		tag := &schema.Tag{}
 		if err := rows.Scan(&tag.ID, &tag.Type, &tag.Name, &tag.Scope); err != nil {
-			log.Warn("Error while scanning rows")
+			cclog.Warn("Error while scanning rows")
 			return nil, err
 		}
 		// Handle Scope Filtering: Tag Scope is Global, Private (== Username) or User is auth'd to view Admin Tags
@@ -429,7 +429,7 @@ func (r *JobRepository) GetTagsDirect(job *int64) ([]*schema.Tag, error) {
 	rows, err := q.RunWith(r.stmtCache).Query()
 	if err != nil {
 		s, _, _ := q.ToSql()
-		log.Errorf("Error get tags with %s: %v", s, err)
+		cclog.Errorf("Error get tags with %s: %v", s, err)
 		return nil, err
 	}
 
@@ -437,7 +437,7 @@ func (r *JobRepository) GetTagsDirect(job *int64) ([]*schema.Tag, error) {
 	for rows.Next() {
 		tag := &schema.Tag{}
 		if err := rows.Scan(&tag.ID, &tag.Type, &tag.Name, &tag.Scope); err != nil {
-			log.Warn("Error while scanning rows")
+			cclog.Warn("Error while scanning rows")
 			return nil, err
 		}
 		tags = append(tags, tag)
@@ -456,7 +456,7 @@ func (r *JobRepository) getArchiveTags(job *int64) ([]*schema.Tag, error) {
 	rows, err := q.RunWith(r.stmtCache).Query()
 	if err != nil {
 		s, _, _ := q.ToSql()
-		log.Errorf("Error get tags with %s: %v", s, err)
+		cclog.Errorf("Error get tags with %s: %v", s, err)
 		return nil, err
 	}
 
@@ -464,7 +464,7 @@ func (r *JobRepository) getArchiveTags(job *int64) ([]*schema.Tag, error) {
 	for rows.Next() {
 		tag := &schema.Tag{}
 		if err := rows.Scan(&tag.ID, &tag.Type, &tag.Name, &tag.Scope); err != nil {
-			log.Warn("Error while scanning rows")
+			cclog.Warn("Error while scanning rows")
 			return nil, err
 		}
 		tags = append(tags, tag)
@@ -488,7 +488,7 @@ func (r *JobRepository) ImportTag(jobId int64, tagType string, tagName string, t
 
 	if _, err := q.RunWith(r.stmtCache).Exec(); err != nil {
 		s, _, _ := q.ToSql()
-		log.Errorf("Error adding tag on import with %s: %v", s, err)
+		cclog.Errorf("Error adding tag on import with %s: %v", s, err)
 		return err
 	}
 

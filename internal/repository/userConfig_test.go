@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package repository
@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -39,7 +39,7 @@ func setupUserTest(t *testing.T) *UserCfgRepo {
 	} } ]
 }`
 
-	log.Init("info", true)
+	cclog.Init("info", true)
 	dbfilepath := "testdata/job.db"
 	err := MigrateDB("sqlite3", dbfilepath)
 	if err != nil {
