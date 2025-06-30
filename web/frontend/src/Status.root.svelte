@@ -676,22 +676,25 @@
   <!-- Selectable Stats as Histograms : Average Values of Running Jobs -->
 
   {#if selectedHistograms}
+    <!-- Note: Ignore '#snippet' Error in IDE -->
+    {#snippet gridContent(item)}
+      <Histogram
+        data={convert2uplot(item.data)}
+        usesBins={true}
+        title="Distribution of '{item.metric}' averages"
+        xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
+        xunit={item.unit}
+        ylabel="Number of Jobs"
+        yunit="Jobs"
+      />
+    {/snippet}
+    
     {#key $mainQuery.data.stats[0].histMetrics}
       <PlotGrid
-        let:item
         items={$mainQuery.data.stats[0].histMetrics}
         itemsPerRow={2}
-      >
-        <Histogram
-          data={convert2uplot(item.data)}
-          usesBins={true}
-          title="Distribution of '{item.metric}' averages"
-          xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
-          xunit={item.unit}
-          ylabel="Number of Jobs"
-          yunit="Jobs"
-        />
-      </PlotGrid>
+        {gridContent}
+      />
     {/key}
   {/if}
 {/if}

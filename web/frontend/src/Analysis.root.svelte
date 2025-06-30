@@ -562,8 +562,20 @@
   </Row>
   <Row>
     <Col>
+      <!-- Note: Ignore '#snippet' Error in IDE -->
+      {#snippet histoGridContent(item)}
+        <Histogram
+          data={convert2uplot(item.bins)}
+          usesBins={true}
+          title="Average Distribution of '{item.metric}'"
+          xlabel={`${item.metric} bin maximum [${metricUnits[item.metric]}]`}
+          xunit={`${metricUnits[item.metric]}`}
+          ylabel="Normalized Hours"
+          yunit="Hours"
+        />
+      {/snippet}
+
       <PlotGrid
-        let:item
         items={metricsInHistograms.map((metric) => ({
           metric,
           ...binsFromFootprint(
@@ -576,17 +588,8 @@
           ),
         }))}
         itemsPerRow={ccconfig.plot_view_plotsPerRow}
-      >
-        <Histogram
-          data={convert2uplot(item.bins)}
-          usesBins={true}
-          title="Average Distribution of '{item.metric}'"
-          xlabel={`${item.metric} bin maximum [${metricUnits[item.metric]}]`}
-          xunit={`${metricUnits[item.metric]}`}
-          ylabel="Normalized Hours"
-          yunit="Hours"
-        />
-      </PlotGrid>
+        gridContent={histoGridContent}
+      />
     </Col>
   </Row>
   <br />
@@ -604,9 +607,19 @@
   </Row>
   <Row>
     <Col>
+      {#snippet metricsGridContent(item)}
+        <ScatterPlot
+          height={250}
+          color={"rgba(0, 102, 204, 0.33)"}
+          xLabel={`${item.m1} [${metricUnits[item.m1]}]`}
+          yLabel={`${item.m2} [${metricUnits[item.m2]}]`}
+          X={item.f1}
+          Y={item.f2}
+          S={$footprintsQuery.data.footprints.timeWeights.nodeHours}
+        />
+      {/snippet}
+
       <PlotGrid
-        let:item
-        let:width
         items={metricsInScatterplots.map(([m1, m2]) => ({
           m1,
           f1: $footprintsQuery.data.footprints.metrics.find(
@@ -618,18 +631,8 @@
           ).data,
         }))}
         itemsPerRow={ccconfig.plot_view_plotsPerRow}
-      >
-        <ScatterPlot
-          {width}
-          height={250}
-          color={"rgba(0, 102, 204, 0.33)"}
-          xLabel={`${item.m1} [${metricUnits[item.m1]}]`}
-          yLabel={`${item.m2} [${metricUnits[item.m2]}]`}
-          X={item.f1}
-          Y={item.f2}
-          S={$footprintsQuery.data.footprints.timeWeights.nodeHours}
-        />
-      </PlotGrid>
+        gridContent={metricsGridContent}
+      />
     </Col>
   </Row>
 {/if}

@@ -108,7 +108,7 @@
   }));
   
   /* Effects */
-    $effect(() => {
+  $effect(() => {
     if (!usePaging) {
       window.addEventListener('scroll', () => {
         let {

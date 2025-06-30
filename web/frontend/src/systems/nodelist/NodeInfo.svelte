@@ -16,28 +16,37 @@
     CardBody,
     Input,
     InputGroup,
-    InputGroupText, } from "@sveltestrap/sveltestrap";
+    InputGroupText,
+  } from "@sveltestrap/sveltestrap";
   import { 
     scramble,
-    scrambleNames, } from "../../generic/utils.js";
+    scrambleNames,
+  } from "../../generic/utils.js";
 
-  export let cluster;
-  export let subCluster
-  export let hostname;
-  export let dataHealth;
-  export let nodeJobsData = null;
+  /* Svelte 5 Props */
+  let {
+    cluster,
+    subCluster,
+    hostname,
+    dataHealth,
+    nodeJobsData = null,
+  } = $props();
 
+  /* Const Init */
   // Not at least one returned, selected metric: NodeHealth warning
   const healthWarn = !dataHealth.includes(true);
   // At least one non-returned selected metric: Metric config error?
   const metricWarn = dataHealth.includes(false);
 
-  let userList;
-  let projectList;
-  $: if (nodeJobsData) {
-    userList = Array.from(new Set(nodeJobsData.jobs.items.map((j) => scrambleNames ? scramble(j.user) : j.user))).sort((a, b) => a.localeCompare(b));
-    projectList = Array.from(new Set(nodeJobsData.jobs.items.map((j) => scrambleNames ? scramble(j.project) : j.project))).sort((a, b) => a.localeCompare(b));
-  }
+  /* Derived */
+  const userList = $derived(nodeJobsData
+    ? Array.from(new Set(nodeJobsData.jobs.items.map((j) => scrambleNames ? scramble(j.user) : j.user))).sort((a, b) => a.localeCompare(b))
+    : []
+  );
+  const projectList = $derived(nodeJobsData
+    ? Array.from(new Set(nodeJobsData.jobs.items.map((j) => scrambleNames ? scramble(j.project) : j.project))).sort((a, b) => a.localeCompare(b)) 
+    : []);
+
 </script>
 
 <Card class="pb-3">

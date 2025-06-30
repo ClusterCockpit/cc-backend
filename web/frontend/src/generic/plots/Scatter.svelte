@@ -182,6 +182,6 @@
 
 </script>
 
-<div class="cc-plot">
-    <canvas bind:this={canvasElement} width="{width}" height="{height}"></canvas>
+<div class="cc-plot" bind:clientWidth={width}>
+    <canvas bind:this={canvasElement}  {width} {height}></canvas>
 </div>

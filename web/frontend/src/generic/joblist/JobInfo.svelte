@@ -20,7 +20,7 @@
     username = null,
     authlevel= null,
     roles = null,
-    isSelected = null,
+    isSelected = $bindable(),
     showSelect = false,
   } = $props();
 
@@ -89,10 +89,8 @@
             }}>
             {#if isSelected}
               <Icon name="check-square"/>
-            {:else if isSelected == false}
-              <Icon name="square"/>
-            {:else}
-              <Icon name="plus-square-dotted" />
+            {:else }
+              <Icon name="plus-square-dotted"/>
             {/if}
           </Button>
           <Tooltip

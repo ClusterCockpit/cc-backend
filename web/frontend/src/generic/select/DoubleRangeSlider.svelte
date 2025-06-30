@@ -18,6 +18,7 @@ Changes #2: Rewritten for Svelte 5, removed bodyHandler
  -->
 
 <script>
+	/* Svelte 5 Props */
 	let {
 		sliderMin,
 		sliderMax,
@@ -26,6 +27,7 @@ Changes #2: Rewritten for Svelte 5, removed bodyHandler
 		changeRange
 	} = $props();
 
+	/* State Init */
 	let pendingValues = $state([fromPreset, toPreset]);
 	let sliderFrom = $state(Math.max(((fromPreset  == null ? sliderMin : fromPreset)  - sliderMin) / (sliderMax - sliderMin), 0.));
 	let sliderTo = $state(Math.min(((toPreset == null ? sliderMin : toPreset) - sliderMin) / (sliderMax - sliderMin), 1.));
@@ -34,7 +36,10 @@ Changes #2: Rewritten for Svelte 5, removed bodyHandler
 	let leftHandle = $state();
 	let sliderMain = $state();
 
+	/* Var Init */
 	let timeoutId = null;
+
+	/* Functions */
 	function queueChangeEvent() {
 		if (timeoutId !== null) {
 			clearTimeout(timeoutId)

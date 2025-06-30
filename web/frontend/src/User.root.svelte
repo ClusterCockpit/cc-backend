@@ -335,22 +335,25 @@
     </Row>
   {:else}
     <hr class="my-2"/>
+    <!-- Note: Ignore '#snippet' Error in IDE -->
+    {#snippet gridContent(item)}
+      <Histogram
+        data={convert2uplot(item.data)}
+        title="Distribution of '{item.metric} ({item.stat})' footprints"
+        xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
+        xunit={item.unit}
+        ylabel="Number of Jobs"
+        yunit="Jobs"
+        usesBins
+      />
+    {/snippet}
+
     {#key $stats.data.jobsStatistics[0].histMetrics}
       <PlotGrid
-        let:item
         items={$stats.data.jobsStatistics[0].histMetrics}
         itemsPerRow={3}
-      >
-        <Histogram
-          data={convert2uplot(item.data)}
-          title="Distribution of '{item.metric} ({item.stat})' footprints"
-          xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
-          xunit={item.unit}
-          ylabel="Number of Jobs"
-          yunit="Jobs"
-          usesBins
-        />
-      </PlotGrid>
+        {gridContent}
+      />
     {/key}
   {/if}
 {:else}
@@ -367,9 +370,9 @@
     <JobList
       bind:this={jobList} 
       bind:matchedListJobs
-      bind:metrics
-      bind:sorting
-      bind:showFootprint
+      {metrics}
+      {sorting}
+      {showFootprint}
     />
   </Col>
 </Row>
@@ -388,10 +391,10 @@
     presetMetrics={metrics}
     cluster={selectedCluster}
     configName="plot_list_selectedMetrics"
+    footprintSelect
     applyMetrics={(newMetrics) => 
       metrics = [...newMetrics]
     }
-    footprintSelect
 />
 
 <HistogramSelection

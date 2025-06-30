@@ -178,18 +178,18 @@
     {#if !showCompare}
       <JobList
         bind:this={jobList}
-        bind:metrics
-        bind:sorting
         bind:matchedListJobs
-        bind:showFootprint
         bind:selectedJobs
+        {metrics}
+        {sorting}
+        {showFootprint}
         {filterBuffer}
       />
     {:else}
       <JobCompare
         bind:this={jobCompare}
-        bind:metrics
         bind:matchedCompareJobs
+        {metrics}
         {filterBuffer}
       />
     {/if}
@@ -201,7 +201,8 @@
   presetSorting={sorting}
   applySorting={(newSort) =>
     sorting = {...newSort}
-  }/>
+  }
+/>
 
 <MetricSelection
     bind:isOpen={isMetricsSelectionOpen}
