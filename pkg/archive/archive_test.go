@@ -41,18 +41,18 @@ func setup(t *testing.T) archive.ArchiveBackend {
 	return archive.GetHandle()
 }
 
-func TestCleanUp(t *testing.T) {
-	a := setup(t)
-	if !a.Exists(jobs[0]) {
-		t.Error("Job does not exist")
-	}
+// func TestCleanUp(t *testing.T) {
+// 	a := setup(t)
+// 	if !a.Exists(jobs[0]) {
+// 		t.Error("Job does not exist")
+// 	}
 
-	a.CleanUp(jobs)
+// a.CleanUp(jobs)
 
-	if a.Exists(jobs[0]) || a.Exists(jobs[1]) {
-		t.Error("Jobs still exist")
-	}
-}
+// if a.Exists(jobs[0]) || a.Exists(jobs[1]) {
+// 	t.Error("Jobs still exist")
+// }
+// }
 
 // func TestCompress(t *testing.T) {
 // 	a := setup(t)

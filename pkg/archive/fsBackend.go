@@ -355,6 +355,10 @@ func (fsa *FsArchive) Move(jobs []*schema.Job, path string) {
 func (fsa *FsArchive) CleanUp(jobs []*schema.Job) {
 	start := time.Now()
 	for _, job := range jobs {
+		if job == nil {
+			cclog.Errorf("JobArchive Cleanup() error: job is nil")
+			continue
+		}
 		dir := getDirectory(job, fsa.path)
 		if err := os.RemoveAll(dir); err != nil {
 			cclog.Errorf("JobArchive Cleanup() error: %v", err)
