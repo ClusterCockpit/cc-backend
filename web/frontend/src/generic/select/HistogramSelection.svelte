@@ -99,7 +99,7 @@
     </ListGroup>
   </ModalBody>
   <ModalFooter>
-    <Button color="primary" on:click={() => closeAndApply()}>Close & Apply</Button>
-    <Button color="secondary" on:click={() => (isOpen = !isOpen)}>Close</Button>
+    <Button color="primary" onclick={() => closeAndApply()}>Close & Apply</Button>
+    <Button color="secondary" onclick={() => (isOpen = !isOpen)}>Close</Button>
   </ModalFooter>
 </Modal>

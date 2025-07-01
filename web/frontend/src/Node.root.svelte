@@ -217,7 +217,7 @@
             cluster={clusters.find((c) => c.name == cluster)}
             subCluster={$nodeMetricsData.data.nodeMetrics[0].subCluster}
             series={item.metric.series}
-            forNode={true}
+            forNode
           />
         {:else if item.disabled === true && item.metric}
           <Card style="margin-left: 2rem;margin-right: 2rem;" body color="info"

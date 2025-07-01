@@ -353,10 +353,10 @@
   </Col>
   <Col xs="auto">
     <Filters
+      disableClusterSelection
+      startTimeQuickSelect
       bind:this={filterComponent}
       {filterPresets}
-      disableClusterSelection={true}
-      startTimeQuickSelect={true}
       applyFilters={(detail) => {
         jobFilters = detail.filters;
       }}
@@ -565,8 +565,8 @@
       <!-- Note: Ignore '#snippet' Error in IDE -->
       {#snippet histoGridContent(item)}
         <Histogram
+          usesBins
           data={convert2uplot(item.bins)}
-          usesBins={true}
           title="Average Distribution of '{item.metric}'"
           xlabel={`${item.metric} bin maximum [${metricUnits[item.metric]}]`}
           xunit={`${metricUnits[item.metric]}`}

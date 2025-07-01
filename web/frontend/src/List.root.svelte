@@ -127,9 +127,9 @@
   </Col>
   <Col xs="12" md="7" lg="8" xl="9">
     <Filters
+      startTimeQuickSelect
       bind:this={filterComponent}
       {filterPresets}
-      startTimeQuickSelect={true}
       menuText="Only {type.toLowerCase()}s with jobs that match the filters will show up"
       applyFilters={(detail) => {
         jobFilters = detail.filters;

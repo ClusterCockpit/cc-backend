@@ -173,10 +173,10 @@
   </Col>
   <Col lg="4" class="mb-1 mb-lg-0">
     <Filters
+      startTimeQuickSelect
       bind:this={filterComponent}
       {filterPresets}
       matchedJobs={matchedListJobs}
-      startTimeQuickSelect={true}
       applyFilters={(detail) => {
         jobFilters = [...detail.filters, { user: { eq: user.username } }];
         selectedCluster = jobFilters[0]?.cluster

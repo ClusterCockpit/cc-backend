@@ -174,8 +174,9 @@
       {/if}
       {#each listedMetrics as metric, index (metric)}
         <li
+          draggable
           class="cc-config-column list-group-item"
-          draggable={true}
+          class:is-active={columnHovering === index}
           ondragover={(event) => {
             event.preventDefault()
             return false
@@ -188,7 +189,6 @@
             columnsDrag(event, index)
           }}
           ondragenter={() => (columnHovering = index)}
-          class:is-active={columnHovering === index}
         >
           {#if pendingMetrics.includes(metric)}
             <input

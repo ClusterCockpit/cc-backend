@@ -460,7 +460,7 @@
         <div bind:clientWidth={plotWidths[i]}>
           {#key $mainQuery.data.nodeMetrics}
             <Roofline
-              allowSizeChange={true}
+              allowSizeChange
               width={plotWidths[i] - 10}
               height={300}
               subCluster={subCluster}
@@ -680,12 +680,12 @@
     {#snippet gridContent(item)}
       <Histogram
         data={convert2uplot(item.data)}
-        usesBins={true}
         title="Distribution of '{item.metric}' averages"
         xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
         xunit={item.unit}
         ylabel="Number of Jobs"
         yunit="Jobs"
+        usesBins
       />
     {/snippet}
     

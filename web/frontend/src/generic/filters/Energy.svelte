@@ -51,19 +51,19 @@
   <ModalFooter>
     <Button
       color="primary"
-      on:click={() => {
+      onclick={() => {
         isOpen = false;
         setFilter({ energy: energyState });
       }}>Close & Apply</Button
     >
     <Button
       color="danger"
-      on:click={() => {
+      onclick={() => {
         isOpen = false;
         energyState = {from: null, to: null};
         setFilter({ energy: energyState });
       }}>Reset</Button
     >
-    <Button on:click={() => (isOpen = false)}>Close</Button>
+    <Button onclick={() => (isOpen = false)}>Close</Button>
   </ModalFooter>
 </Modal>
