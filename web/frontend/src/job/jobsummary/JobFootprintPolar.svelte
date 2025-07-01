@@ -17,9 +17,9 @@
       CardBody,
       Spinner
     } from "@sveltestrap/sveltestrap";
-    import Polar from "../../generic/plots/Polar.svelte";
     import { findJobFootprintThresholds } from "../../generic/utils.js";
-  
+    import Polar from "../../generic/plots/Polar.svelte";
+
     /* Svelte 5 Props */
     let { job } = $props();
   
