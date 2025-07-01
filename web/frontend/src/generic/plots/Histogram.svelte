@@ -19,23 +19,41 @@
   import { formatNumber, formatTime } from "../units.js";
   import { Card } from "@sveltestrap/sveltestrap";
 
-  export let data;
-  export let usesBins = false;
-  export let width = null;
-  export let height = 250;
-  export let title = "";
-  export let xlabel = "";
-  export let xunit = "";
-  export let xtime = false;
-  export let ylabel = "";
-  export let yunit = "";
+  /* Svelte 5 Props */
+  let {
+    data,
+    usesBins = false,
+    width = null,
+    height = 250,
+    title = "",
+    xlabel = "",
+    xunit = "",
+    xtime = false,
+    ylabel = "",
+    yunit = "",
+  } = $props();
 
+  /* Const Init */
   const { bars } = uPlot.paths;
   const drawStyles = {
     bars: 1,
     points: 2,
   };
 
+  /* Var Init */
+  let timeoutId = null;
+
+  /* State Init */
+  let plotWrapper = $state(null);
+  let uplot = $state(null);
+
+  /* Effect */
+  $effect(() => {
+    sizeChanged(width, height);
+  });
+
+  /* Functions */
+  // Render Helper
   function paths(u, seriesIdx, idx0, idx1, extendGap, buildClip) {
     let s = u.series[seriesIdx];
     let style = s.drawStyle;
@@ -108,9 +126,17 @@
     };
   }
 
-  let plotWrapper = null;
-  let uplot = null;
-  let timeoutId = null;
+  // Main Functions
+  function sizeChanged() {
+    if (timeoutId != null) clearTimeout(timeoutId);
+
+    timeoutId = setTimeout(() => {
+      timeoutId = null;
+      if (uplot) uplot.destroy();
+
+      render();
+    }, 200);
+  };
 
   function render() {
     let opts = {
@@ -217,28 +243,16 @@
     uplot = new uPlot(opts, data, plotWrapper);
   }
 
+  /* On Mount */
   onMount(() => {
     render();
   });
 
+  /* On Destroy */
   onDestroy(() => {
     if (uplot) uplot.destroy();
-
     if (timeoutId != null) clearTimeout(timeoutId);
   });
-
-  function sizeChanged() {
-    if (timeoutId != null) clearTimeout(timeoutId);
-
-    timeoutId = setTimeout(() => {
-      timeoutId = null;
-      if (uplot) uplot.destroy();
-
-      render();
-    }, 200);
-  }
-
-  $: sizeChanged(width, height);
 </script>
 
 <!-- Define Wrapper and NoData Card within $width -->

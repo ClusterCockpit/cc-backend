@@ -28,21 +28,34 @@
   import { onMount, onDestroy } from "svelte";
   import { Card } from "@sveltestrap/sveltestrap";
 
-  export let data = null;
-  export let renderTime = false;
-  export let allowSizeChange = false;
-  export let subCluster = null;
-  export let width = 600;
-  export let height = 380;
+  /* Svelte 5 Props */
+  let {
+    data = null,
+    renderTime = false,
+    allowSizeChange = false,
+    subCluster = null,
+    width = 600,
+    height = 380,
+  } = $props();
 
-  let plotWrapper = null;
-  let uplot = null;
-  let timeoutId = null;
-
-  const lineWidth = clusterCockpitConfig.plot_general_lineWidth;
+  /* Const Init */
+  const lineWidth = clusterCockpitConfig?.plot_general_lineWidth || 2;
   const cbmode = clusterCockpitConfig?.plot_general_colorblindMode || false;
 
-  // Helpers
+  /* Var Init */
+  let timeoutId = null;
+
+  /* State Init */
+  let plotWrapper = $state(null);
+  let uplot = $state(null);
+
+  /* Effect */
+  $effect(() => {
+    if (allowSizeChange) sizeChanged(width, height);
+  });
+
+  /* Functions */
+  // Helper
   function getGradientR(x) {
     if (x < 0.5) return 0;
     if (x > 0.75) return 255;
@@ -75,7 +88,6 @@
       y: y1 + a * (y2 - y1),
     };
   }
-  // End Helpers
 
   // Dot Renderers
   const drawColorPoints = (u, seriesIdx, idx0, idx1) => {
@@ -175,7 +187,17 @@
     return null;
   };
 
-  // Main Function
+  // Main Functions
+  function sizeChanged() {
+    if (timeoutId != null) clearTimeout(timeoutId);
+
+    timeoutId = setTimeout(() => {
+      timeoutId = null;
+      if (uplot) uplot.destroy();
+      render(data);
+    }, 200);
+  }
+
   function render(plotData) {
     if (plotData) {
       const opts = {
@@ -341,25 +363,16 @@
     }
   }
 
-  // Svelte and Sizechange
+  /* On Mount */
   onMount(() => {
     render(data);
   });
+
+  /* On Destroy */
   onDestroy(() => {
     if (uplot) uplot.destroy();
-
     if (timeoutId != null) clearTimeout(timeoutId);
   });
-  function sizeChanged() {
-    if (timeoutId != null) clearTimeout(timeoutId);
-
-    timeoutId = setTimeout(() => {
-      timeoutId = null;
-      if (uplot) uplot.destroy();
-      render(data);
-    }, 200);
-  }
-  $: if (allowSizeChange) sizeChanged(width, height);
 </script>
 
 {#if data != null}
