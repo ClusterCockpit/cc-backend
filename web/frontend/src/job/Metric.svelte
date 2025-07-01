@@ -29,7 +29,7 @@
   import { 
     minScope,
   } from "../generic/utils.js";
-  import Timeseries from "../generic/plots/MetricPlot.svelte";
+  import MetricPlot from "../generic/plots/MetricPlot.svelte";
 
   /* Svelte 5 Props */
   let {
@@ -173,8 +173,8 @@
   {:else if $metricData.error}
     <Card body color="danger">{$metricData.error.message}</Card>
   {:else if selectedSeries != null && !patternMatches}
-    <Timeseries
-      on:zoom={({detail}) => handleZoom(detail)}
+    <MetricPlot
+      onZoom={(detail) => handleZoom(detail)}
       cluster={job.cluster}
       subCluster={job.subCluster}
       timestep={selectedData.timestep}
@@ -188,8 +188,8 @@
       {thresholdState}
     />
   {:else if statsSeries[selectedScopeIndex] != null && patternMatches}
-    <Timeseries
-      on:zoom={({detail}) => handleZoom(detail)}
+    <MetricPlot
+      onZoom={(detail) => handleZoom(detail)}
       cluster={job.cluster}
       subCluster={job.subCluster}
       timestep={selectedData.timestep}

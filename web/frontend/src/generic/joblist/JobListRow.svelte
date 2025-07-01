@@ -201,7 +201,7 @@
         <!-- Subluster Metricconfig remove keyword for jobtables (joblist main, user joblist, project joblist) to be used here as toplevel case-->
         {#if metric.disabled == false && metric.data}
           <MetricPlot
-            on:zoom={({detail}) => handleZoom(detail, metric.data.name)}
+            onZoom={(detail) => handleZoom(detail, metric.data.name)}
             height={plotHeight}
             timestep={metric.data.metric.timestep}
             scope={metric.data.scope}
