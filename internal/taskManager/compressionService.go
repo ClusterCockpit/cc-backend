@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package taskManager
@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/go-co-op/gocron/v2"
 )
 
 func RegisterCompressionService(compressOlderThan int) {
-	log.Info("Register compression service")
+	cclog.Info("Register compression service")
 
 	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(05, 0, 0))),
 		gocron.NewTask(
@@ -26,7 +26,7 @@ func RegisterCompressionService(compressOlderThan int) {
 				startTime := time.Now().Unix() - int64(compressOlderThan*24*3600)
 				lastTime := ar.CompressLast(startTime)
 				if startTime == lastTime {
-					log.Info("Compression Service - Complete archive run")
+					cclog.Info("Compression Service - Complete archive run")
 					jobs, err = jobRepo.FindJobsBetween(0, startTime)
 
 				} else {
@@ -34,7 +34,7 @@ func RegisterCompressionService(compressOlderThan int) {
 				}
 
 				if err != nil {
-					log.Warnf("Error while looking for compression jobs: %v", err)
+					cclog.Warnf("Error while looking for compression jobs: %v", err)
 				}
 				ar.Compress(jobs)
 			}))

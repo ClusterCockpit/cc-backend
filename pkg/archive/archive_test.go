@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package archive_test
@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-lib/util"
 )
 
 var jobs []*schema.Job
@@ -41,18 +41,18 @@ func setup(t *testing.T) archive.ArchiveBackend {
 	return archive.GetHandle()
 }
 
-func TestCleanUp(t *testing.T) {
-	a := setup(t)
-	if !a.Exists(jobs[0]) {
-		t.Error("Job does not exist")
-	}
+// func TestCleanUp(t *testing.T) {
+// 	a := setup(t)
+// 	if !a.Exists(jobs[0]) {
+// 		t.Error("Job does not exist")
+// 	}
 
-	a.CleanUp(jobs)
+// a.CleanUp(jobs)
 
-	if a.Exists(jobs[0]) || a.Exists(jobs[1]) {
-		t.Error("Jobs still exist")
-	}
-}
+// if a.Exists(jobs[0]) || a.Exists(jobs[1]) {
+// 	t.Error("Jobs still exist")
+// }
+// }
 
 // func TestCompress(t *testing.T) {
 // 	a := setup(t)

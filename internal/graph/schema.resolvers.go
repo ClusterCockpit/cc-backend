@@ -20,8 +20,8 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
 // Partitions is the resolver for the partitions field.
@@ -54,7 +54,7 @@ func (r *jobResolver) ConcurrentJobs(ctx context.Context, obj *schema.Job) (*mod
 func (r *jobResolver) Footprint(ctx context.Context, obj *schema.Job) ([]*model.FootprintValue, error) {
 	rawFootprint, err := r.Repo.FetchFootprint(obj)
 	if err != nil {
-		log.Warn("Error while fetching job footprint data")
+		cclog.Warn("Error while fetching job footprint data")
 		return nil, err
 	}
 
@@ -79,7 +79,7 @@ func (r *jobResolver) Footprint(ctx context.Context, obj *schema.Job) ([]*model.
 func (r *jobResolver) EnergyFootprint(ctx context.Context, obj *schema.Job) ([]*model.EnergyFootprintValue, error) {
 	rawEnergyFootprint, err := r.Repo.FetchEnergyFootprint(obj)
 	if err != nil {
-		log.Warn("Error while fetching job energy footprint data")
+		cclog.Warn("Error while fetching job energy footprint data")
 		return nil, err
 	}
 
@@ -143,12 +143,12 @@ func (r *mutationResolver) CreateTag(ctx context.Context, typeArg string, name s
 		// Create in DB
 		id, err := r.Repo.CreateTag(typeArg, name, scope)
 		if err != nil {
-			log.Warn("Error while creating tag")
+			cclog.Warn("Error while creating tag")
 			return nil, err
 		}
 		return &schema.Tag{ID: id, Type: typeArg, Name: name, Scope: scope}, nil
 	} else {
-		log.Warnf("Not authorized to create tag with scope: %s", scope)
+		cclog.Warnf("Not authorized to create tag with scope: %s", scope)
 		return nil, fmt.Errorf("not authorized to create tag with scope: %s", scope)
 	}
 }
@@ -168,7 +168,7 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 
 	jid, err := strconv.ParseInt(job, 10, 64)
 	if err != nil {
-		log.Warn("Error while adding tag to job")
+		cclog.Warn("Error while adding tag to job")
 		return nil, err
 	}
 
@@ -177,14 +177,14 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 		// Get ID
 		tid, err := strconv.ParseInt(tagId, 10, 64)
 		if err != nil {
-			log.Warn("Error while parsing tag id")
+			cclog.Warn("Error while parsing tag id")
 			return nil, err
 		}
 
 		// Test Exists
 		_, _, tscope, exists := r.Repo.TagInfo(tid)
 		if !exists {
-			log.Warnf("Tag does not exist (ID): %d", tid)
+			cclog.Warnf("Tag does not exist (ID): %d", tid)
 			return nil, fmt.Errorf("tag does not exist (ID): %d", tid)
 		}
 
@@ -194,11 +194,11 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 			user.Username == tscope {
 			// Add to Job
 			if tags, err = r.Repo.AddTag(user, jid, tid); err != nil {
-				log.Warn("Error while adding tag")
+				cclog.Warn("Error while adding tag")
 				return nil, err
 			}
 		} else {
-			log.Warnf("Not authorized to add tag: %d", tid)
+			cclog.Warnf("Not authorized to add tag: %d", tid)
 			return nil, fmt.Errorf("not authorized to add tag: %d", tid)
 		}
 	}
@@ -215,7 +215,7 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 
 	jid, err := strconv.ParseInt(job, 10, 64)
 	if err != nil {
-		log.Warn("Error while parsing job id")
+		cclog.Warn("Error while parsing job id")
 		return nil, err
 	}
 
@@ -224,14 +224,14 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 		// Get ID
 		tid, err := strconv.ParseInt(tagId, 10, 64)
 		if err != nil {
-			log.Warn("Error while parsing tag id")
+			cclog.Warn("Error while parsing tag id")
 			return nil, err
 		}
 
 		// Test Exists
 		_, _, tscope, exists := r.Repo.TagInfo(tid)
 		if !exists {
-			log.Warnf("Tag does not exist (ID): %d", tid)
+			cclog.Warnf("Tag does not exist (ID): %d", tid)
 			return nil, fmt.Errorf("tag does not exist (ID): %d", tid)
 		}
 
@@ -241,11 +241,11 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 			user.Username == tscope {
 			// Remove from Job
 			if tags, err = r.Repo.RemoveTag(user, jid, tid); err != nil {
-				log.Warn("Error while removing tag")
+				cclog.Warn("Error while removing tag")
 				return nil, err
 			}
 		} else {
-			log.Warnf("Not authorized to remove tag: %d", tid)
+			cclog.Warnf("Not authorized to remove tag: %d", tid)
 			return nil, fmt.Errorf("not authorized to remove tag: %d", tid)
 		}
 
@@ -267,14 +267,14 @@ func (r *mutationResolver) RemoveTagFromList(ctx context.Context, tagIds []strin
 		// Get ID
 		tid, err := strconv.ParseInt(tagId, 10, 64)
 		if err != nil {
-			log.Warn("Error while parsing tag id for removal")
+			cclog.Warn("Error while parsing tag id for removal")
 			return nil, err
 		}
 
 		// Test Exists
 		_, _, tscope, exists := r.Repo.TagInfo(tid)
 		if !exists {
-			log.Warnf("Tag does not exist (ID): %d", tid)
+			cclog.Warnf("Tag does not exist (ID): %d", tid)
 			return nil, fmt.Errorf("tag does not exist (ID): %d", tid)
 		}
 
@@ -282,13 +282,13 @@ func (r *mutationResolver) RemoveTagFromList(ctx context.Context, tagIds []strin
 		if user.HasRole(schema.RoleAdmin) && (tscope == "global" || tscope == "admin") || user.Username == tscope {
 			// Remove from DB
 			if err = r.Repo.RemoveTagById(tid); err != nil {
-				log.Warn("Error while removing tag")
+				cclog.Warn("Error while removing tag")
 				return nil, err
 			} else {
 				tags = append(tags, int(tid))
 			}
 		} else {
-			log.Warnf("Not authorized to remove tag: %d", tid)
+			cclog.Warnf("Not authorized to remove tag: %d", tid)
 			return nil, fmt.Errorf("not authorized to remove tag: %d", tid)
 		}
 	}
@@ -298,7 +298,7 @@ func (r *mutationResolver) RemoveTagFromList(ctx context.Context, tagIds []strin
 // UpdateConfiguration is the resolver for the updateConfiguration field.
 func (r *mutationResolver) UpdateConfiguration(ctx context.Context, name string, value string) (*string, error) {
 	if err := repository.GetUserCfgRepo().UpdateConfig(name, value, repository.GetUserFromContext(ctx)); err != nil {
-		log.Warn("Error while updating user config")
+		cclog.Warn("Error while updating user config")
 		return nil, err
 	}
 
@@ -344,7 +344,7 @@ func (r *queryResolver) User(ctx context.Context, username string) (*model.User,
 func (r *queryResolver) AllocatedNodes(ctx context.Context, cluster string) ([]*model.Count, error) {
 	data, err := r.Repo.AllocatedNodes(cluster)
 	if err != nil {
-		log.Warn("Error while fetching allocated nodes")
+		cclog.Warn("Error while fetching allocated nodes")
 		return nil, err
 	}
 
@@ -364,7 +364,7 @@ func (r *queryResolver) Node(ctx context.Context, id string) (*schema.Node, erro
 	repo := repository.GetNodeRepository()
 	numericId, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
-		log.Warn("Error while parsing job id")
+		cclog.Warn("Error while parsing job id")
 		return nil, err
 	}
 	return repo.GetNode(numericId, false)
@@ -387,13 +387,13 @@ func (r *queryResolver) NodeStats(ctx context.Context, filter []*model.NodeFilte
 func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error) {
 	numericId, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
-		log.Warn("Error while parsing job id")
+		cclog.Warn("Error while parsing job id")
 		return nil, err
 	}
 
 	job, err := r.Repo.FindById(ctx, numericId)
 	if err != nil {
-		log.Warn("Error while finding job by id")
+		cclog.Warn("Error while finding job by id")
 		return nil, err
 	}
 
@@ -420,13 +420,13 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 
 	job, err := r.Query().Job(ctx, id)
 	if err != nil {
-		log.Warn("Error while querying job for metrics")
+		cclog.Warn("Error while querying job for metrics")
 		return nil, err
 	}
 
 	data, err := metricDataDispatcher.LoadData(job, metrics, scopes, ctx, *resolution)
 	if err != nil {
-		log.Warn("Error while loading job data")
+		cclog.Warn("Error while loading job data")
 		return nil, err
 	}
 
@@ -448,13 +448,13 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 func (r *queryResolver) JobStats(ctx context.Context, id string, metrics []string) ([]*model.NamedStats, error) {
 	job, err := r.Query().Job(ctx, id)
 	if err != nil {
-		log.Warnf("Error while querying job %s for metadata", id)
+		cclog.Warnf("Error while querying job %s for metadata", id)
 		return nil, err
 	}
 
 	data, err := metricDataDispatcher.LoadJobStats(job, metrics, ctx)
 	if err != nil {
-		log.Warnf("Error while loading jobStats data for job id %s", id)
+		cclog.Warnf("Error while loading jobStats data for job id %s", id)
 		return nil, err
 	}
 
@@ -473,13 +473,13 @@ func (r *queryResolver) JobStats(ctx context.Context, id string, metrics []strin
 func (r *queryResolver) ScopedJobStats(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope) ([]*model.NamedStatsWithScope, error) {
 	job, err := r.Query().Job(ctx, id)
 	if err != nil {
-		log.Warnf("Error while querying job %s for metadata", id)
+		cclog.Warnf("Error while querying job %s for metadata", id)
 		return nil, err
 	}
 
 	data, err := metricDataDispatcher.LoadScopedJobStats(job, metrics, scopes, ctx)
 	if err != nil {
-		log.Warnf("Error while loading scopedJobStats data for job id %s", id)
+		cclog.Warnf("Error while loading scopedJobStats data for job id %s", id)
 		return nil, err
 	}
 
@@ -518,13 +518,13 @@ func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, pag
 
 	jobs, err := r.Repo.QueryJobs(ctx, filter, page, order)
 	if err != nil {
-		log.Warn("Error while querying jobs")
+		cclog.Warn("Error while querying jobs")
 		return nil, err
 	}
 
 	count, err := r.Repo.CountJobs(ctx, filter)
 	if err != nil {
-		log.Warn("Error while counting jobs")
+		cclog.Warn("Error while counting jobs")
 		return nil, err
 	}
 
@@ -540,7 +540,7 @@ func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, pag
 	}
 	nextJobs, err := r.Repo.QueryJobs(ctx, filter, nextPage, order)
 	if err != nil {
-		log.Warn("Error while querying next jobs")
+		cclog.Warn("Error while querying next jobs")
 		return nil, err
 	}
 
@@ -636,7 +636,7 @@ func (r *queryResolver) JobsMetricStats(ctx context.Context, filter []*model.Job
 
 	jobs, err := r.Repo.QueryJobs(ctx, filter, nil, order)
 	if err != nil {
-		log.Warn("Error while querying jobs for comparison")
+		cclog.Warn("Error while querying jobs for comparison")
 		return nil, err
 	}
 
@@ -644,7 +644,7 @@ func (r *queryResolver) JobsMetricStats(ctx context.Context, filter []*model.Job
 	for _, job := range jobs {
 		data, err := metricDataDispatcher.LoadJobStats(job, metrics, ctx)
 		if err != nil {
-			log.Warnf("Error while loading comparison jobStats data for job id %d", job.JobID)
+			cclog.Warnf("Error while loading comparison jobStats data for job id %d", job.JobID)
 			continue
 			// return nil, err
 		}
@@ -701,7 +701,7 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 
 	data, err := metricDataDispatcher.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)
 	if err != nil {
-		log.Warn("error while loading node data")
+		cclog.Warn("error while loading node data")
 		return nil, err
 	}
 
@@ -713,7 +713,7 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 		}
 		host.SubCluster, err = archive.GetSubClusterByNode(cluster, hostname)
 		if err != nil {
-			log.Warnf("error in nodeMetrics resolver: %s", err)
+			cclog.Warnf("error in nodeMetrics resolver: %s", err)
 		}
 
 		for metric, scopedMetrics := range metrics {
@@ -757,7 +757,7 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 
 	data, totalNodes, hasNextPage, err := metricDataDispatcher.LoadNodeListData(cluster, subCluster, nodeFilter, metrics, scopes, *resolution, from, to, page, ctx)
 	if err != nil {
-		log.Warn("error while loading node data")
+		cclog.Warn("error while loading node data")
 		return nil, err
 	}
 
@@ -769,7 +769,7 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 		}
 		host.SubCluster, err = archive.GetSubClusterByNode(cluster, hostname)
 		if err != nil {
-			log.Warnf("error in nodeMetrics resolver: %s", err)
+			cclog.Warnf("error in nodeMetrics resolver: %s", err)
 		}
 
 		for metric, scopedMetrics := range metrics {
@@ -824,12 +824,10 @@ func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 // SubCluster returns generated.SubClusterResolver implementation.
 func (r *Resolver) SubCluster() generated.SubClusterResolver { return &subClusterResolver{r} }
 
-type (
-	clusterResolver     struct{ *Resolver }
-	jobResolver         struct{ *Resolver }
-	metricValueResolver struct{ *Resolver }
-	mutationResolver    struct{ *Resolver }
-	nodeResolver        struct{ *Resolver }
-	queryResolver       struct{ *Resolver }
-	subClusterResolver  struct{ *Resolver }
-)
+type clusterResolver struct{ *Resolver }
+type jobResolver struct{ *Resolver }
+type metricValueResolver struct{ *Resolver }
+type mutationResolver struct{ *Resolver }
+type nodeResolver struct{ *Resolver }
+type queryResolver struct{ *Resolver }
+type subClusterResolver struct{ *Resolver }

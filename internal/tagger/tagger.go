@@ -1,5 +1,5 @@
-// Copyright (C) 2023 NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package tagger
@@ -8,8 +8,8 @@ import (
 	"sync"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
 type Tagger interface {
@@ -66,21 +66,21 @@ func RunTaggers() error {
 	r := repository.GetJobRepository()
 	jl, err := r.GetJobList()
 	if err != nil {
-		log.Errorf("Error while getting job list %s", err)
+		cclog.Errorf("Error while getting job list %s", err)
 		return err
 	}
 
 	for _, id := range jl {
 		job, err := r.FindByIdDirect(id)
 		if err != nil {
-			log.Errorf("Error while getting job %s", err)
+			cclog.Errorf("Error while getting job %s", err)
 			return err
 		}
 		for _, tagger := range jobTagger.startTaggers {
 			tagger.Match(job)
 		}
 		for _, tagger := range jobTagger.stopTaggers {
-			log.Infof("Run stop tagger for job %d", job.ID)
+			cclog.Infof("Run stop tagger for job %d", job.ID)
 			tagger.Match(job)
 		}
 	}

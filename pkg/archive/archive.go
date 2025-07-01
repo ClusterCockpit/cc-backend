@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package archive
@@ -10,9 +10,9 @@ import (
 	"maps"
 	"sync"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/lrucache"
+	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
 const Version uint64 = 2
@@ -75,7 +75,7 @@ func Init(rawConfig json.RawMessage, disableArchive bool) error {
 		}
 
 		if err = json.Unmarshal(rawConfig, &cfg); err != nil {
-			log.Warn("Error while unmarshaling raw config json")
+			cclog.Warn("Error while unmarshaling raw config json")
 			return
 		}
 
@@ -91,10 +91,10 @@ func Init(rawConfig json.RawMessage, disableArchive bool) error {
 		var version uint64
 		version, err = ar.Init(rawConfig)
 		if err != nil {
-			log.Errorf("Error while initializing archiveBackend: %s", err.Error())
+			cclog.Errorf("Error while initializing archiveBackend: %s", err.Error())
 			return
 		}
-		log.Infof("Load archive version %d", version)
+		cclog.Infof("Load archive version %d", version)
 
 		err = initClusterConfig()
 	})
@@ -114,7 +114,7 @@ func LoadAveragesFromArchive(
 ) error {
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
-		log.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
+		cclog.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
 		return err
 	}
 
@@ -137,7 +137,7 @@ func LoadStatsFromArchive(
 	data := make(map[string]schema.MetricStatistics, len(metrics))
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
-		log.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
+		cclog.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
 		return data, err
 	}
 
@@ -166,7 +166,7 @@ func LoadScopedStatsFromArchive(
 ) (schema.ScopedJobStats, error) {
 	data, err := ar.LoadJobStats(job)
 	if err != nil {
-		log.Errorf("Error while loading job stats from archiveBackend: %s", err.Error())
+		cclog.Errorf("Error while loading job stats from archiveBackend: %s", err.Error())
 		return nil, err
 	}
 
@@ -176,7 +176,7 @@ func LoadScopedStatsFromArchive(
 func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
-		log.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
+		cclog.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
 		return nil, err
 	}
 
@@ -195,7 +195,7 @@ func UpdateMetadata(job *schema.Job, metadata map[string]string) error {
 
 	jobMeta, err := ar.LoadJobMeta(job)
 	if err != nil {
-		log.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
+		cclog.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
 		return err
 	}
 
@@ -216,7 +216,7 @@ func UpdateTags(job *schema.Job, tags []*schema.Tag) error {
 
 	jobMeta, err := ar.LoadJobMeta(job)
 	if err != nil {
-		log.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
+		cclog.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
 		return err
 	}
 

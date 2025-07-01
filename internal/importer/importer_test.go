@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package importer_test
@@ -16,7 +16,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 )
 
 func copyFile(s string, d string) error {
@@ -78,7 +78,7 @@ func setup(t *testing.T) *repository.JobRepository {
 	 }
 	]}`
 
-	log.Init("info", true)
+	cclog.Init("info", true)
 	tmpdir := t.TempDir()
 
 	jobarchive := filepath.Join(tmpdir, "job-archive")

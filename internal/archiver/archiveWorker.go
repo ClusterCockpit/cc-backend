@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package archiver
@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	sq "github.com/Masterminds/squirrel"
 )
 
@@ -40,7 +40,7 @@ func archivingWorker() {
 			// not using meta data, called to load JobMeta into Cache?
 			// will fail if job meta not in repository
 			if _, err := jobRepo.FetchMetadata(job); err != nil {
-				log.Errorf("archiving job (dbid: %d) failed at check metadata step: %s", job.ID, err.Error())
+				cclog.Errorf("archiving job (dbid: %d) failed at check metadata step: %s", job.ID, err.Error())
 				jobRepo.UpdateMonitoringStatus(*job.ID, schema.MonitoringStatusArchivingFailed)
 				continue
 			}
@@ -49,7 +49,7 @@ func archivingWorker() {
 			// TODO: Maybe use context with cancel/timeout here
 			jobMeta, err := ArchiveJob(job, context.Background())
 			if err != nil {
-				log.Errorf("archiving job (dbid: %d) failed at archiving job step: %s", job.ID, err.Error())
+				cclog.Errorf("archiving job (dbid: %d) failed at archiving job step: %s", job.ID, err.Error())
 				jobRepo.UpdateMonitoringStatus(*job.ID, schema.MonitoringStatusArchivingFailed)
 				continue
 			}
@@ -57,21 +57,21 @@ func archivingWorker() {
 			stmt := sq.Update("job").Where("job.id = ?", job.ID)
 
 			if stmt, err = jobRepo.UpdateFootprint(stmt, jobMeta); err != nil {
-				log.Errorf("archiving job (dbid: %d) failed at update Footprint step: %s", job.ID, err.Error())
+				cclog.Errorf("archiving job (dbid: %d) failed at update Footprint step: %s", job.ID, err.Error())
 				continue
 			}
 			if stmt, err = jobRepo.UpdateEnergy(stmt, jobMeta); err != nil {
-				log.Errorf("archiving job (dbid: %d) failed at update Energy step: %s", job.ID, err.Error())
+				cclog.Errorf("archiving job (dbid: %d) failed at update Energy step: %s", job.ID, err.Error())
 				continue
 			}
 			// Update the jobs database entry one last time:
 			stmt = jobRepo.MarkArchived(stmt, schema.MonitoringStatusArchivingSuccessful)
 			if err := jobRepo.Execute(stmt); err != nil {
-				log.Errorf("archiving job (dbid: %d) failed at db execute: %s", job.ID, err.Error())
+				cclog.Errorf("archiving job (dbid: %d) failed at db execute: %s", job.ID, err.Error())
 				continue
 			}
-			log.Debugf("archiving job %d took %s", job.JobID, time.Since(start))
-			log.Printf("archiving job (dbid: %d) successful", job.ID)
+			cclog.Debugf("archiving job %d took %s", job.JobID, time.Since(start))
+			cclog.Printf("archiving job (dbid: %d) successful", job.ID)
 
 			repository.CallJobStopHooks(job)
 			archivePending.Done()
@@ -84,7 +84,7 @@ func archivingWorker() {
 // Trigger async archiving
 func TriggerArchiving(job *schema.Job) {
 	if archiveChannel == nil {
-		log.Fatal("Cannot archive without archiving channel. Did you Start the archiver?")
+		cclog.Fatal("Cannot archive without archiving channel. Did you Start the archiver?")
 	}
 
 	archivePending.Add(1)

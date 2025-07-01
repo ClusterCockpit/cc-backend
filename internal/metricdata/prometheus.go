@@ -1,5 +1,5 @@
 // Copyright (C) 2022 DKRZ
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package metricdata
@@ -22,8 +22,8 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	promapi "github.com/prometheus/client_golang/api"
 	promv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	promcfg "github.com/prometheus/common/config"
@@ -160,7 +160,7 @@ func (pdb *PrometheusDataRepository) Init(rawConfig json.RawMessage) error {
 	var config PrometheusDataRepositoryConfig
 	// parse config
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
-		log.Warn("Error while unmarshaling raw json config")
+		cclog.Warn("Error while unmarshaling raw json config")
 		return err
 	}
 	// support basic authentication
@@ -179,7 +179,7 @@ func (pdb *PrometheusDataRepository) Init(rawConfig json.RawMessage) error {
 		RoundTripper: rt,
 	})
 	if err != nil {
-		log.Error("Error while initializing new prometheus client")
+		cclog.Error("Error while initializing new prometheus client")
 		return err
 	}
 	// init query client
@@ -192,9 +192,9 @@ func (pdb *PrometheusDataRepository) Init(rawConfig json.RawMessage) error {
 	for metric, templ := range config.Templates {
 		pdb.templates[metric], err = template.New(metric).Parse(templ)
 		if err == nil {
-			log.Debugf("Added PromQL template for %s: %s", metric, templ)
+			cclog.Debugf("Added PromQL template for %s: %s", metric, templ)
 		} else {
-			log.Warnf("Failed to parse PromQL template %s for metric %s", templ, metric)
+			cclog.Warnf("Failed to parse PromQL template %s for metric %s", templ, metric)
 		}
 	}
 	return nil
@@ -221,7 +221,7 @@ func (pdb *PrometheusDataRepository) FormatQuery(
 			return "", errors.New(fmt.Sprintf("METRICDATA/PROMETHEUS > Error compiling template %v", templ))
 		} else {
 			query := buf.String()
-			log.Debugf("PromQL: %s", query)
+			cclog.Debugf("PromQL: %s", query)
 			return query, nil
 		}
 	} else {
@@ -285,7 +285,7 @@ func (pdb *PrometheusDataRepository) LoadData(
 	for _, scope := range scopes {
 		if scope != schema.MetricScopeNode {
 			logOnce.Do(func() {
-				log.Infof("Scope '%s' requested, but not yet supported: Will return 'node' scope only.", scope)
+				cclog.Infof("Scope '%s' requested, but not yet supported: Will return 'node' scope only.", scope)
 			})
 			continue
 		}
@@ -293,12 +293,12 @@ func (pdb *PrometheusDataRepository) LoadData(
 		for _, metric := range metrics {
 			metricConfig := archive.GetMetricConfig(job.Cluster, metric)
 			if metricConfig == nil {
-				log.Warnf("Error in LoadData: Metric %s for cluster %s not configured", metric, job.Cluster)
+				cclog.Warnf("Error in LoadData: Metric %s for cluster %s not configured", metric, job.Cluster)
 				return nil, errors.New("Prometheus config error")
 			}
 			query, err := pdb.FormatQuery(metric, scope, nodes, job.Cluster)
 			if err != nil {
-				log.Warn("Error while formatting prometheus query")
+				cclog.Warn("Error while formatting prometheus query")
 				return nil, err
 			}
 
@@ -310,11 +310,11 @@ func (pdb *PrometheusDataRepository) LoadData(
 			}
 			result, warnings, err := pdb.queryClient.QueryRange(ctx, query, r)
 			if err != nil {
-				log.Errorf("Prometheus query error in LoadData: %v\nQuery: %s", err, query)
+				cclog.Errorf("Prometheus query error in LoadData: %v\nQuery: %s", err, query)
 				return nil, errors.New("Prometheus query error")
 			}
 			if len(warnings) > 0 {
-				log.Warnf("Warnings: %v\n", warnings)
+				cclog.Warnf("Warnings: %v\n", warnings)
 			}
 
 			// init data structures
@@ -360,7 +360,7 @@ func (pdb *PrometheusDataRepository) LoadStats(
 
 	data, err := pdb.LoadData(job, metrics, []schema.MetricScope{schema.MetricScopeNode}, ctx, 0 /*resolution here*/)
 	if err != nil {
-		log.Warn("Error while loading job for stats")
+		cclog.Warn("Error while loading job for stats")
 		return nil, err
 	}
 	for metric, metricData := range data {
@@ -391,19 +391,19 @@ func (pdb *PrometheusDataRepository) LoadNodeData(
 	for _, scope := range scopes {
 		if scope != schema.MetricScopeNode {
 			logOnce.Do(func() {
-				log.Infof("Note: Scope '%s' requested, but not yet supported: Will return 'node' scope only.", scope)
+				cclog.Infof("Note: Scope '%s' requested, but not yet supported: Will return 'node' scope only.", scope)
 			})
 			continue
 		}
 		for _, metric := range metrics {
 			metricConfig := archive.GetMetricConfig(cluster, metric)
 			if metricConfig == nil {
-				log.Warnf("Error in LoadNodeData: Metric %s for cluster %s not configured", metric, cluster)
+				cclog.Warnf("Error in LoadNodeData: Metric %s for cluster %s not configured", metric, cluster)
 				return nil, errors.New("Prometheus config error")
 			}
 			query, err := pdb.FormatQuery(metric, scope, nodes, cluster)
 			if err != nil {
-				log.Warn("Error while formatting prometheus query")
+				cclog.Warn("Error while formatting prometheus query")
 				return nil, err
 			}
 
@@ -415,11 +415,11 @@ func (pdb *PrometheusDataRepository) LoadNodeData(
 			}
 			result, warnings, err := pdb.queryClient.QueryRange(ctx, query, r)
 			if err != nil {
-				log.Errorf("Prometheus query error in LoadNodeData: %v\n", err)
+				cclog.Errorf("Prometheus query error in LoadNodeData: %v\n", err)
 				return nil, errors.New("Prometheus query error")
 			}
 			if len(warnings) > 0 {
-				log.Warnf("Warnings: %v\n", warnings)
+				cclog.Warnf("Warnings: %v\n", warnings)
 			}
 
 			step := int64(metricConfig.Timestep)
@@ -444,7 +444,7 @@ func (pdb *PrometheusDataRepository) LoadNodeData(
 		}
 	}
 	t1 := time.Since(t0)
-	log.Debugf("LoadNodeData of %v nodes took %s", len(data), t1)
+	cclog.Debugf("LoadNodeData of %v nodes took %s", len(data), t1)
 	return data, nil
 }
 
@@ -459,7 +459,7 @@ func (pdb *PrometheusDataRepository) LoadScopedStats(
 	scopedJobStats := make(schema.ScopedJobStats)
 	data, err := pdb.LoadData(job, metrics, []schema.MetricScope{schema.MetricScopeNode}, ctx, 0 /*resolution here*/)
 	if err != nil {
-		log.Warn("Error while loading job for scopedJobStats")
+		cclog.Warn("Error while loading job for scopedJobStats")
 		return nil, err
 	}
 
@@ -467,7 +467,7 @@ func (pdb *PrometheusDataRepository) LoadScopedStats(
 		for _, scope := range scopes {
 			if scope != schema.MetricScopeNode {
 				logOnce.Do(func() {
-					log.Infof("Note: Scope '%s' requested, but not yet supported: Will return 'node' scope only.", scope)
+					cclog.Infof("Note: Scope '%s' requested, but not yet supported: Will return 'node' scope only.", scope)
 				})
 				continue
 			}
@@ -563,7 +563,7 @@ func (pdb *PrometheusDataRepository) LoadNodeListData(
 	for _, scope := range scopes {
 		if scope != schema.MetricScopeNode {
 			logOnce.Do(func() {
-				log.Infof("Note: Scope '%s' requested, but not yet supported: Will return 'node' scope only.", scope)
+				cclog.Infof("Note: Scope '%s' requested, but not yet supported: Will return 'node' scope only.", scope)
 			})
 			continue
 		}
@@ -571,12 +571,12 @@ func (pdb *PrometheusDataRepository) LoadNodeListData(
 		for _, metric := range metrics {
 			metricConfig := archive.GetMetricConfig(cluster, metric)
 			if metricConfig == nil {
-				log.Warnf("Error in LoadNodeListData: Metric %s for cluster %s not configured", metric, cluster)
+				cclog.Warnf("Error in LoadNodeListData: Metric %s for cluster %s not configured", metric, cluster)
 				return nil, totalNodes, hasNextPage, errors.New("Prometheus config error")
 			}
 			query, err := pdb.FormatQuery(metric, scope, nodes, cluster)
 			if err != nil {
-				log.Warn("Error while formatting prometheus query")
+				cclog.Warn("Error while formatting prometheus query")
 				return nil, totalNodes, hasNextPage, err
 			}
 
@@ -588,11 +588,11 @@ func (pdb *PrometheusDataRepository) LoadNodeListData(
 			}
 			result, warnings, err := pdb.queryClient.QueryRange(ctx, query, r)
 			if err != nil {
-				log.Errorf("Prometheus query error in LoadNodeData: %v\n", err)
+				cclog.Errorf("Prometheus query error in LoadNodeData: %v\n", err)
 				return nil, totalNodes, hasNextPage, errors.New("Prometheus query error")
 			}
 			if len(warnings) > 0 {
-				log.Warnf("Warnings: %v\n", warnings)
+				cclog.Warnf("Warnings: %v\n", warnings)
 			}
 
 			step := int64(metricConfig.Timestep)
@@ -628,6 +628,6 @@ func (pdb *PrometheusDataRepository) LoadNodeListData(
 		}
 	}
 	t1 := time.Since(t0)
-	log.Debugf("LoadNodeListData of %v nodes took %s", len(data), t1)
+	cclog.Debugf("LoadNodeListData of %v nodes took %s", len(data), t1)
 	return data, totalNodes, hasNextPage, nil
 }
