@@ -1,12 +1,12 @@
 <!--
-    @component Main job list component
+  @component Main job list component
 
-    Properties:
-    - `filterPresets Object?`: Optional predefined filter values [Default: {}]
-    - `authlevel Number`: The current users authentication level
-    - `roles [Number]`: Enum containing available roles
- -->
- 
+  Properties:
+  - `filterPresets Object`: Optional predefined filter values
+  - `authlevel Number`: The current users authentication level
+  - `roles [Number]`: Enum containing available roles
+-->
+
  <script>
   import { untrack, onMount, getContext } from "svelte";
   import {
@@ -28,7 +28,11 @@
   import MetricSelection from "./generic/select/MetricSelection.svelte";
 
   /* Svelte 5 Props */
-  let { filterPresets, authlevel, roles } = $props();
+  let { 
+    filterPresets,
+    authlevel,
+    roles
+  } = $props();
 
   /* Const Init */
   const { query: initq } = init();

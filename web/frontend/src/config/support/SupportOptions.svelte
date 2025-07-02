@@ -1,13 +1,18 @@
 <!--
-    @component Support option select card
- -->
+  @component Support option select card
+
+  Properties:
+  - `config Object`: Config includes latest option states
+-->
 
 <script>
   import { Row, Col, Card, CardTitle, CardBody, Button} from "@sveltestrap/sveltestrap";
   import { fade } from "svelte/transition";
 
   /* Svelte 5 Props */
-  let { config } = $props();
+  let {
+    config
+  } = $props();
 
   /* State Init */
   let message = $state("");

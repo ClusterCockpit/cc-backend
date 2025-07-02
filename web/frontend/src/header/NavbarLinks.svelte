@@ -1,12 +1,12 @@
 <!--
-    @component Navbar component; renders in app navigation links as received from upstream
+  @component Navbar component; renders in app navigation links as received from upstream
 
-    Properties:
-    - `clusters [String]`: List of cluster names
-    - `subClusters map[String][]string`: Map of subclusters by cluster names
-    - `links [Object]`: Pre-filtered link objects based on user auth
-    - `direction String?`: The direcion of the drop-down menue [default: down]
- -->
+  Properties:
+  - `clusters [String]`: List of cluster names
+  - `subClusters map[String][]string`: Map of subclusters by cluster names
+  - `links [Object]`: Pre-filtered link objects based on user auth
+  - `direction String?`: The direcion of the drop-down menue [default: down]
+-->
 
 <script>
   import {

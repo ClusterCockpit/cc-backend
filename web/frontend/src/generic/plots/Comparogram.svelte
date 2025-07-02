@@ -1,16 +1,22 @@
 <!--
-    @component Main plot component, based on uPlot; metricdata values by time
+  @component Job Data Compare Plot Component, based on uPlot; metricData values by jobId/startTime
 
-    Only width/height should change reactively.
+  Only width/height should change reactively.
 
-    Properties:
-    - `metric String`: The metric name
-    - `width Number?`: The plot width [Default: 0]
-    - `height Number?`: The plot height [Default: 300]
-    - `data [Array]`: The metric data object
-    - `cluster String`: Cluster name of the parent job / data
-    - `subCluster String`: Name of the subCluster of the parent job
- -->
+  Properties:
+  - `metric String?`: The metric name [Default: ""]
+  - `width Number?`: The plot width [Default: 0]
+  - `height Number?`: The plot height [Default: 300]
+  - `data [Array]`: The data object [Default: null]
+  - `title String?`: Plot title [Default: ""]
+  - `xlabel String?`: Plot X axis label [Default: ""]
+  - `ylabel String?`: Plot Y axis label [Default: ""]
+  - `yunit String?`: Plot Y axis unit [Default: ""]
+  - `xticks Array`: Array containing jobIDs [Default: []]
+  - `xinfo Array`: Array containing job information [Default: []]
+  - `forResources Bool?`: Render this plot for allocated jobResources [Default: false]
+  - `plot Sync Object!`: uPlot cursor synchronization key
+-->
 
 <script>
   import uPlot from "uplot";

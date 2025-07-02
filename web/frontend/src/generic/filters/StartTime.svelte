@@ -1,16 +1,15 @@
 <!--
-    @component Filter sub-component for selecting job starttime
+  @component Filter sub-component for selecting job starttime
 
-    Properties:
-    - `isModified Bool?`: Is this filter component modified [Default: false]
-    - `isOpen Bool?`: Is this filter component opened [Default: false]
-    - `from Object?`: The currently selected from startime [Default: null]
-    - `to Object?`: The currently selected to starttime (i.e. subCluster) [Default: null]
-    - `range String?`: The currently selected starttime range as string [Default: ""]
+  Properties:
+  - `isOpen Bool?`: Is this filter component opened [Bindable, Default: false]
+  - `presetStartTime Object?`: Object containing the latest duration filter parameters
+    - Default: { from: null, to: null, range: "" }
+  - `setFilter Func`: The callback function to apply current filter selection
 
-    Events:
-    - `set-filter, {String?, String?}`: Set 'from, to' filter in upstream component
- -->
+  Exported:
+  - `const startTimeSelectOptions [Object]`: List of available fixed startTimes used in cc-backend
+-->
 
 <script module>
   export const startTimeSelectOptions = [
@@ -24,7 +23,6 @@
 
 <script>
   /* Note: Ignore VSCode reported 'A component can only have one instance-level <script> element' error */
-
   import { parse, format, sub } from "date-fns";
   import {
     Row,

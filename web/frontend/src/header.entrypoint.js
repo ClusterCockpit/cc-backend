@@ -6,7 +6,7 @@ const headerDomTarget = document.getElementById('svelte-header');
 if (headerDomTarget != null) {
     mount(Header, {
         target: headerDomTarget,
-        props: { // { ...header },
+        props: {
             username: hUsername, 
             authlevel: hAuthlevel,
             clusters: hClusters, 

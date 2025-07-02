@@ -1,19 +1,20 @@
 <!--
-    @component User role edit form card
+  @component User role edit form card
 
-    Properties:
-    - `roles [String]!`: List of roles used in app as strings
-
-    Events:
-    - `reload`: Trigger upstream reload of user list after role edit
- -->
+  Properties:
+  - `roles [String]!`: List of roles used in app as strings
+  - `reloadUser Func`: The callback function to reload the user list
+-->
 
 <script>
   import { Card, CardTitle, CardBody } from "@sveltestrap/sveltestrap";
   import { fade } from "svelte/transition";
 
   /* SVelte 5 Props */
-  let {roles, reloadUser } = $props();
+  let {
+    roles,
+    reloadUser
+  } = $props();
 
   /* State Init */
   let message = $state({ msg: "", color: "#d63384" });

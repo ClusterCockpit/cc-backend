@@ -1,10 +1,12 @@
 <!-- 
-    @component Selector for sorting field and direction
+  @component Selector for sorting field and direction
 
-    Properties:
-    - sorting:  { field: String, order: "DESC" | "ASC" } (changes from inside)
-    - isOpen:   Boolean  (can change from inside and outside)
- -->
+  Properties:
+  - `presetSorting Object?`: The latest sort selection state
+    - Default { field: "startTime", type: "col", order: "DESC" }
+  - `isOpen Bool?`: Is modal opened [Bindable, Default: false]
+  - `applySorting Func`: The callback function to apply current selection
+-->
 
 <script>
   import { getContext, onMount } from "svelte";

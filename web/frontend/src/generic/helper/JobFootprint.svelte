@@ -1,12 +1,12 @@
 <!--
-    @component Footprint component; Displays job.footprint data as bars in relation to thresholds
+  @component Footprint component; Displays job.footprint data as bars in relation to thresholds
 
-    Properties:
-    - `job Object`: The GQL job object
-    - `displayTitle Bool?`: If to display cardHeader with title [Default: true]
-    - `width String?`: Width of the card [Default: 'auto']
-    - `height String?`: Height of the card [Default: '310px']
- -->
+  Properties:
+  - `job Object`: The GQL job object
+  - `displayTitle Bool?`: If to display cardHeader with title [Default: true]
+  - `width String?`: Width of the card [Default: 'auto']
+  - `height String?`: Height of the card [Default: '310px']
+-->
 
 <script>
   import { getContext } from "svelte";

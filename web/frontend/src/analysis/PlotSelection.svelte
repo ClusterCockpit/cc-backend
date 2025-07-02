@@ -1,11 +1,13 @@
 <!--
-    @component Analysis-View subcomponent; allows selection for normalized histograms and scatterplots
+  @component Analysis-View subcomponent; allows selection for normalized histograms and scatterplots
 
-    Properties:
-    - `availableMetrics [String]`: Available metrics in selected cluster
-    - `metricsInHistograms [String]`: The currently selected metrics to display as histogram
-    - `metricsInScatterplots [[String, String]]`: The currently selected metrics to display as scatterplot
- -->
+  Properties:
+  - `availableMetrics [String]`: Available metrics in selected cluster
+  - `presetMetricsInHistograms [String]`: The latest selected metrics to display as histogram
+  - `presetMetricsInScatterplots [[String, String]]`: The latest selected metrics to display as scatterplot
+  - `applyHistograms Func`: The callback function to apply current histogramMetrics selection
+  - `applyScatter Func`: The callback function to apply current scatterMetrics selection
+-->
 
 <script>
   import {
@@ -24,8 +26,10 @@
   /* Svelte 5 Props */
   let {
     availableMetrics,
-    metricsInHistograms = $bindable(),
-    metricsInScatterplots = $bindable(),
+    presetMetricsInHistograms,
+    presetMetricsInScatterplots,
+    applyHistograms,
+    applyScatter
   } = $props();
 
   /* Const Init */
@@ -45,6 +49,8 @@
   /* State Init */
   let isHistogramConfigOpen = $state(false);
   let isScatterPlotConfigOpen = $state(false);
+  let metricsInHistograms = $state(presetMetricsInHistograms);
+  let metricsInScatterplots = $state(presetMetricsInScatterplots);
   let selectedMetric1 = $state(null);
   let selectedMetric2 = $state(null);
 
@@ -84,11 +90,13 @@
             type="checkbox"
             bind:group={metricsInHistograms}
             value={metric}
-            onchange={() =>
+            onchange={() => {
               updateConfiguration({
                 name: "analysis_view_histogramMetrics",
                 value: metricsInHistograms,
-              })}
+              });
+              applyHistograms(metricsInHistograms);
+            }}
           />
 
           {metric}
@@ -126,6 +134,7 @@
                 name: "analysis_view_scatterPlotMetrics",
                 value: metricsInScatterplots,
               });
+              applyScatter(metricsInScatterplots);
             }}
           >
             <Icon name="x" />
@@ -163,6 +172,7 @@
             name: "analysis_view_scatterPlotMetrics",
             value: metricsInScatterplots,
           });
+          applyScatter(metricsInScatterplots);
         }}
       >
         Add Plot

@@ -1,11 +1,11 @@
 <!--
-    @component Job-View subcomponent; Wraps the statsTable in a TabPane and contains GQL query for scoped statsData
+  @component Job-View subcomponent; Wraps the statsTable in a TabPane and contains GQL query for scoped statsData
 
-    Properties:
-    - `job Object`: The job object
-    - `clusters Object`: The clusters object
-    - `tabActive bool`: Boolean if StatsTabe Tab is Active on Creation
- -->
+  Properties:
+  - `job Object`: The job object
+  - `clusters Object`: The clusters object
+  - `tabActive bool`: Boolean if StatsTabe Tab is Active on Creation
+-->
 
 <script>
   import { 

@@ -1,14 +1,15 @@
 <!--
-    @component Job Info Subcomponent; allows management of job tags by deletion or new entries
+  @component Job Info Subcomponent; allows management of job tags by deletion or new entries
 
-    Properties:
-    - `job Object`: The job object
-    - `jobTags [Number]`: The array of currently designated tags
-    - `username String`: Empty string if auth. is disabled, otherwise the username as string
-    - `authlevel Number`: The current users authentication level
-    - `roles [Number]`: Enum containing available roles
-    - `renderModal Bool?`: If component is rendered as bootstrap modal button [Default: true]
- -->
+  Properties:
+  - `jobTags [Number]`: The array of currently designated tags [Bindable]
+  - `job Object`: The job object
+  - `username String`: Empty string if auth. is disabled, otherwise the username as string
+  - `authlevel Number`: The current users authentication level
+  - `roles [Number]`: Enum containing available roles
+  - `renderModal Bool?`: If component is rendered as bootstrap modal button [Default: true]
+-->
+
 <script>
   import { getContext } from "svelte";
   import { gql, getContextClient, mutationStore } from "@urql/svelte";

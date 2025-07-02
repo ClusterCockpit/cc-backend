@@ -1,15 +1,18 @@
 <!-- 
-    @component Metric selector component; allows reorder via drag and drop
+  @component Metric selector component; allows reorder via drag and drop
 
-    Properties:
-    - `metrics [String]`: (changes from inside, needs to be initialised, list of selected metrics)
-    - `isOpen Bool`: (can change from inside and outside)
-    - `configName String`: The config key for the last saved selection (constant)
-    - `allMetrics [String]?`: List of all available metrics [Default: null]
-    - `cluster String?`: The currently selected cluster [Default: null]
-    - `showFootprint Bool?`: Upstream state of wether to render footpritn card [Default: false]
-    - `footprintSelect Bool?`: Render checkbox for footprint display in upstream component [Default: false]
- -->
+  Properties:
+  - `isOpen Bool`: Is selection modal opened [Bindable, Default: false]
+  - `showFootprint Bool?`: Upstream state of whether to render footprint card [Bindable, Default: false]
+  - `totalMetrics Number?`: Total available metrics [Bindable, Default: 0]
+  - `presetMetrics [String]`: Latest selection of metrics [Default: []]
+  - `cluster String?`: The currently selected cluster [Default: null]
+  - `subCluster String?`: The currently selected subCluster [Default: null]
+  - `footprintSelect Bool?`: Render checkbox for footprint display in upstream component [Default: false]
+  - `preInitialized Bool?`: If the parent component has a dedicated call to init() [Default: false]
+  - `configName String`: The config key for the last saved selection (constant)
+  - `applyMetrics Func`: The callback function to apply current selection
+-->
 
 <script>
   import { getContext } from "svelte";
@@ -64,7 +67,7 @@
 
   /* Reactive Effects */
   $effect(() => {
-    totalMetrics = allMetrics.size;
+    totalMetrics = allMetrics?.size || 0;
   });
 
   $effect(() => {

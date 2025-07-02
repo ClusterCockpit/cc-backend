@@ -1,17 +1,16 @@
 <!--
-    @component Filter sub-component for selecting job resources
+  @component Filter sub-component for selecting job resources
 
-    Properties:
-    - `isOpen Bool?`: Is this filter component opened [Default: false]
-    - `activeCluster String?`: The currently selected cluster name [Default: null]
-    - `numNodes Object?`: The currently selected numNodes filter [Default: {from:null, to:null}]
-    - `numHWThreads Object?`: The currently selected numHWThreads filter [Default: {from:null, to:null}]
-    - `numAccelerators Object?`: The currently selected numAccelerators filter [Default: {from:null, to:null}]
-    - `namedNode String?`: The currently selected single named node (= hostname) [Default: null]
-
-    Events:
-    - `set-filter, {Object, Object, Object, String}`: Set 'numNodes, numHWThreads, numAccelerators, namedNode' filter in upstream component
- -->
+  Properties:
+  - `isOpen Bool?`: Is this filter component opened [Bindable, Default: false]
+  - `activeCluster String?`: The currently selected cluster name [Default: null]
+  - `presetNumNodes Object?`: The currently selected numNodes filter [Default: {from:null, to:null}]
+  - `presetNumHWThreads Object?`: The currently selected numHWThreads filter [Default: {from:null, to:null}]
+  - `presetNumAccelerators Object?`: The currently selected numAccelerators filter [Default: {from:null, to:null}]
+  - `presetNamedNode String?`: The currently selected single named node (= hostname) [Default: null]
+  - `presetNodeMatch String?`: The currently selected single named node (= hostname) [Default: "eq"]
+  - `setFilter Func`: The callback function to apply current filter selection
+-->
  
  <script>
   import { getContext } from "svelte";

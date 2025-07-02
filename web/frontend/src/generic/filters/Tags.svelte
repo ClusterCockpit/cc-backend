@@ -1,14 +1,11 @@
 <!--
-    @component Filter sub-component for selecting tags
+  @component Filter sub-component for selecting tags
 
-    Properties:
-    - `isModified Bool?`: Is this filter component modified [Default: false]
-    - `isOpen Bool?`: Is this filter component opened [Default: false]
-    - `tags [Number]?`: The currently selected tags (as IDs) [Default: []]
-
-    Events:
-    - `set-filter, {[Number]}`: Set 'tag' filter in upstream component
- -->
+  Properties:
+  - `isOpen Bool?`: Is this filter component opened [Bindable, Default: false]
+  - `presetTags [Number]?`: The currently selected tags (as IDs) [Default: []]
+  - `setFilter Func`: The callback function to apply current filter selection
+-->
 
 <script>
   import { getContext } from "svelte";

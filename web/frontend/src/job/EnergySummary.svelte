@@ -1,11 +1,11 @@
 <!--
-    @component Energy Summary component; Displays job energy information.
+  @component Energy Summary component; Displays job energy information.
 
-    Properties:
-    - `jobId Number`: The job id
-    - `jobEnergy Number?`: The total job energy [Default: null]
-    - `jobEnergyFootprint [Object]?`: The partial job energy contributions [Default: null]
- -->
+  Properties:
+  - `jobId Number`: The job id
+  - `jobEnergy Number?`: The total job energy [Default: null]
+  - `jobEnergyFootprint [Object]?`: The partial job energy contributions [Default: null]
+-->
 
 <script>
   import { 

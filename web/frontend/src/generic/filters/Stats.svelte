@@ -1,13 +1,11 @@
 <!--
-    @component Filter sub-component for selecting job statistics
+  @component Filter sub-component for selecting job statistics
 
-    Properties:
-    - `isOpen Bool?`: Is this filter component opened [Default: false]
-    - `stats [Object]?`: The currently selected statistics filter [Default: []]
-
-    Events:
-    - `set-filter, {[Object]}`: Set 'stats' filter in upstream component
- -->
+  Properties:
+  - `isOpen Bool?`: Is this filter component opened [Bindable, Default: false]
+  - `presetStats [Object]?`: The latest selected statistics filter
+  - `setFilter Func`: The callback function to apply current filter selection
+-->
 
 <script>
   import { getStatsItems } from "../utils.js";

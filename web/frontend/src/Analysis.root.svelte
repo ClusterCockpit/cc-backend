@@ -1,9 +1,9 @@
 <!--
-    @component Main analysis view component
+  @component Main analysis view component
 
-    Properties:
-    - `filterPresets Object`: Optional predefined filter values
- -->
+  Properties:
+  - `filterPresets Object`: Optional predefined filter values
+-->
 
 <script>
   import { getContext, onMount } from "svelte";
@@ -38,7 +38,9 @@
   import RooflineHeatmap from "./generic/plots/RooflineHeatmap.svelte";
 
   /* Svelte 5 Props */
-  let { filterPresets } = $props();
+  let {
+    filterPresets
+  } = $props();
 
   // By default, look at the jobs of the last 6 hours:
   if (filterPresets?.startTime == null) {
@@ -346,8 +348,10 @@
     {:else if cluster}
       <PlotSelection
         availableMetrics={availableMetrics.map((av) => av.name)}
-        bind:metricsInHistograms
-        bind:metricsInScatterplots
+        presetMetricsInHistograms={metricsInHistograms}
+        presetMetricsInScatterplots={metricsInScatterplots}
+        applyHistograms={(metrics) => metricsInHistograms = [...metrics]}
+        applyScatter={(metrics) => metricsInScatterplots = [...metrics]}
       />
     {/if}
   </Col>

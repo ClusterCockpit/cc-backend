@@ -1,11 +1,12 @@
 <!--
-    @component Polar Plot based on chart.js Radar
+  @component Polar Plot based on chart.js Radar
 
-    Properties:
-    - `polarMetrics [Object]?`: Metric names and scaled peak values for rendering polar plot [Default: [] ]
-    - `polarData [GraphQL.JobMetricStatWithName]?`: Metric data [Default: null]
-    - `height Number?`: Plot height [Default: 365]
- -->
+  Properties:
+  - `polarMetrics [Object]?`: Metric names and scaled peak values for rendering polar plot [Default: [] ]
+  - `polarData [GraphQL.JobMetricStatWithName]?`: Metric data [Default: null]
+  - `canvasId String?`: Unique ID for correct parallel chart.js rendering [Default: "polar-default"]
+  - `height Number?`: Plot height [Default: 365]
+-->
 
 <script>
   import { onMount } from 'svelte'

@@ -1,17 +1,19 @@
 <!--
-    @component Main jobList component; lists jobs according to set filters
+  @component Main jobList component; lists jobs according to set filters
 
-    Properties:
-    - `sorting Object?`: Currently active sorting [Default: {field: "startTime", type: "col", order: "DESC"}]
-    - `matchedListJobs Number?`: Number of matched jobs for selected filters [Default: 0]
-    - `metrics [String]?`: The currently selected metrics [Default: User-Configured Selection]
-    - `showFootprint Bool`: If to display the jobFootprint component
+  Properties:
+  - `sorting Object?`: Currently active sorting [Default: {field: "startTime", type: "col", order: "DESC"}]
+  - `matchedListJobs Number?`: Number of matched jobs for selected filters [Bindable, Default: 0]
+  - `metrics [String]?`: The currently selected metrics [Default: User-Configured Selection]
+  - `showFootprint Bool?`: If to display the jobFootprint component [Default: false]
+  - `selectedJobs [Number]?`: IDs of jobs selected for job comparison [Bindable, Default: []]
+  - `filterBuffer [Object]?`: Latest selected filters to keep for view switch to job compare [Default: []]
 
-    Functions:
-    - `refreshJobs()`: Load jobs data with unchanged parameters and 'network-only' keyword
-    - `refreshAllMetrics()`: Trigger downstream refresh of all running jobs' metric data
-    - `queryJobs(filters?: [JobFilter])`: Load jobs data with new filters, starts from page 1
- -->
+  Functions:
+  - `refreshJobs()`: Load jobs data with unchanged parameters and 'network-only' keyword
+  - `refreshAllMetrics()`: Trigger downstream refresh of all running jobs' metric data
+  - `queryJobs(filters?: [JobFilter])`: Load jobs data with new filters, starts from page 1
+-->
 
 <script>
   import { getContext, untrack } from "svelte";

@@ -1,11 +1,13 @@
 <!--
-    @component Displays node info, serves links to single node page and lists
+  @component Displays node info, serves links to single node page and lists
 
-    Properties:
-    - `cluster String`: The nodes' cluster
-    - `subCluster String`: The nodes' subCluster
-    - `cluster String`: The nodes' hostname
- -->
+  Properties:
+  - `cluster String`: The nodes' cluster
+  - `subCluster String`: The nodes' subCluster
+  - `hostname String`: The nodes' hostname
+  - `dataHealth [Bool]`: Array of Booleans depicting state of returned data per metric
+  - `nodeJobsData [Object]`: Data returned by GQL for jobs runninig on this node [Default: null] 
+-->
 
 <script>
   import { 

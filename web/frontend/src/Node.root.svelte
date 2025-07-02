@@ -1,12 +1,12 @@
 <!--
-    @component System-View subcomponent; renders all current metrics for specified node
+  @component System-View subcomponent; renders all current metrics for specified node
 
-    Properties:
-    - `cluster String`: Currently selected cluster
-    - `hostname String`: Currently selected host (== node)
-    - `from Date?`: Custom Time Range selection 'from' [Default: null]
-    - `to Date?`: Custom Time Range selection 'to' [Default: null]
- -->
+  Properties:
+  - `cluster String`: Currently selected cluster
+  - `hostname String`: Currently selected host (== node)
+  - `presetFrom Date?`: Custom Time Range selection 'from' [Default: null]
+  - `presetTo Date?`: Custom Time Range selection 'to' [Default: null]
+-->
 
 <script>
   import { 

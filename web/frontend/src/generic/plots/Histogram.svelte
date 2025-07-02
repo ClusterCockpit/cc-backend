@@ -1,17 +1,20 @@
 <!--
-    @component Histogram Plot based on uPlot Bars
+  @component Histogram Plot based on uPlot Bars
 
-    Properties:
-    - `data [[],[]]`: uPlot data structure array ( [[],[]] == [X, Y] )
-    - `usesBins Bool?`: If X-Axis labels are bins ("XX-YY") [Default: false]
-    - `width Number?`: Plot width (reactively adaptive) [Default: 500]
-    - `height Number?`: Plot height (reactively adaptive) [Default: 300]
-    - `title String?`: Plot title [Default: ""]
-    - `xlabel String?`: Plot X axis label [Default: ""]
-    - `xunit String?`: Plot X axis unit [Default: ""]
-    - `ylabel String?`: Plot Y axis label [Default: ""]
-    - `yunit String?`: Plot Y axis unit [Default: ""]
- -->
+  Only width/height should change reactively.
+
+  Properties:
+  - `data [[],[]]`: uPlot data structure array ( [[],[]] == [X, Y] )
+  - `usesBins Bool?`: If X-Axis labels are bins ("XX-YY") [Default: false]
+  - `width Number?`: Plot width (reactively adaptive) [Default: null]
+  - `height Number?`: Plot height (reactively adaptive) [Default: 250]
+  - `title String?`: Plot title [Default: ""]
+  - `xlabel String?`: Plot X axis label [Default: ""]
+  - `xunit String?`: Plot X axis unit [Default: ""]
+  - `xtime Bool?`: If X-Axis is based on time information [Default: false]
+  - `ylabel String?`: Plot Y axis label [Default: ""]
+  - `yunit String?`: Plot Y axis unit [Default: ""]
+-->
 
 <script>
   import uPlot from "uplot";

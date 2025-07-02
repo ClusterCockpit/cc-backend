@@ -1,13 +1,12 @@
 <!--
-    @component Filter sub-component for selecting job energies
+  @component Filter sub-component for selecting job energies
 
-    Properties:
-    - `isOpen Bool?`: Is this filter component opened [Default: false]
-    - `energy Object?`: The currently selected total energy filter [Default: {from:null, to:null}]
-
-    Events:
-    - `set-filter, {Object}`: Set 'energy' filter in upstream component
- -->
+  Properties:
+  - `isOpen Bool?`: Is this filter component opened [Bindable, efault: false]
+  - `presetEnergy Object?`: Object containing the latest energy filter parameters
+    - Default: { from: null, to: null }
+  - `setFilter Func`: The callback function to apply current filter selection
+-->
 
 <script>
   import {
@@ -22,13 +21,15 @@
   /* Svelte 5 Props */
   let {
     isOpen = $bindable(false),
-    presetEnergy= {from: null, to: null},
+    presetEnergy = {
+      from: null,
+      to: null
+    },
     setFilter,
   } = $props();
 
   /* State Init */
   let energyState = $state(presetEnergy);
-
 </script>
 
 <Modal {isOpen} toggle={() => (isOpen = !isOpen)}>

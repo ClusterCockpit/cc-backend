@@ -1,13 +1,13 @@
 <!--
-    @component Main navbar component; handles view display based on user roles
+  @component Main navbar component; handles view display based on user roles
 
-    Properties:
-    - `username String`: Empty string if auth. is disabled, otherwise the username as string
-    - `authlevel Number`: The current users authentication level
-    - `clusters [String]`: List of cluster names
-    - `subClusters [String]`: List of subCluster names
-    - `roles [Number]`: Enum containing available roles
- -->
+  Properties:
+  - `username String`: Empty string if auth. is disabled, otherwise the username as string
+  - `authlevel Number`: The current users authentication level
+  - `clusters [String]`: List of cluster names
+  - `subClusters [String]`: List of subCluster names
+  - `roles [Number]`: Enum containing available roles
+-->
 
 <script>
   import {
@@ -25,7 +25,13 @@
   import NavbarTools from "./header/NavbarTools.svelte";
 
   /* Svelte 5 Props */
-  let { username, authlevel, clusters, subClusters, roles } = $props();
+  let { 
+    username,
+    authlevel,
+    clusters,
+    subClusters,
+    roles
+  } = $props();
 
   /* Const Init */
   const jobsTitle = new Map();
@@ -123,11 +129,11 @@
   let isOpen = $state(false);
   let screenSize = $state(0);
 
-  /* Derived Vars */
-  let showMax = $derived(screenSize >= 1500);
-  let showMid = $derived(screenSize < 1500 && screenSize >= 1300);
-  let showSml = $derived(screenSize < 1300 && screenSize >= 768);
-  let showBrg = $derived(screenSize < 768);
+  /* Derived */
+  const showMax = $derived(screenSize >= 1500);
+  const showMid = $derived(screenSize < 1500 && screenSize >= 1300);
+  const showSml = $derived(screenSize < 1300 && screenSize >= 768);
+  const showBrg = $derived(screenSize < 768);
 </script>
 
 <svelte:window bind:innerWidth={screenSize} />

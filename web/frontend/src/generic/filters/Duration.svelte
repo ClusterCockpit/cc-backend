@@ -1,16 +1,12 @@
 <!--
-    @component Filter sub-component for selecting job duration
+  @component Filter sub-component for selecting job duration
 
-    Properties:
-    - `isOpen Bool?`: Is this filter component opened [Default: false]
-    - `lessThan Number?`: Amount of seconds [Default: null]
-    - `moreThan Number?`: Amount of seconds [Default: null]
-    - `from Number?`: Epoch time in seconds [Default: null]
-    - `to Number?`: Epoch time in seconds [Default: null]
-
-    Events:
-    - `set-filter, {Number, Number, Number, Number}`: Set 'lessThan, moreThan, from, to' filter in upstream component
- -->
+  Properties:
+  - `isOpen Bool?`: Is this filter component opened [Bindable, Default: false]
+  - `presetDuration Object?`: Object containing the latest duration filter parameters
+    - Default: { lessThan: null, moreThan: null, from: null, to: null }
+  - `setFilter Func`: The callback function to apply current filter selection
+-->
  
  <script>
   import {
@@ -26,7 +22,12 @@
   /* Svelte 5 Props */
   let {
     isOpen = $bindable(false),
-    presetDuration ={lessThan: null, moreThan: null, from: null, to: null},
+    presetDuration = {
+      lessThan: null,
+      moreThan: null,
+      from: null,
+      to: null
+    },
     setFilter
   } = $props();
 
