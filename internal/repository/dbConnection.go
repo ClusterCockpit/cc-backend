@@ -6,6 +6,8 @@ package repository
 
 import (
 	"database/sql"
+	"fmt"
+	"net/url"
 	"sync"
 	"time"
 
@@ -33,6 +35,27 @@ type DatabaseOptions struct {
 	ConnectionMaxIdleTime time.Duration
 }
 
+func setupSqlite(db *sql.DB) (err error) {
+	pragmas := []string{
+		// "journal_mode = WAL",
+		// "busy_timeout = 5000",
+		// "synchronous = NORMAL",
+		// "cache_size = 1000000000", // 1GB
+		// "foreign_keys = true",
+		"temp_store = memory",
+		// "mmap_size = 3000000000",
+	}
+
+	for _, pragma := range pragmas {
+		_, err = db.Exec("PRAGMA " + pragma)
+		if err != nil {
+			return
+		}
+	}
+
+	return nil
+}
+
 func Connect(driver string, db string) {
 	var err error
 	var dbHandle *sqlx.DB
@@ -48,10 +71,16 @@ func Connect(driver string, db string) {
 
 		switch driver {
 		case "sqlite3":
-			// - Set WAL mode (not strictly necessary each time because it's persisted in the database, but good for first run)
-			// - Set busy timeout, so concurrent writers wait on each other instead of erroring immediately
-			// - Enable foreign key checks
-			opts.URL += "?_journal=WAL&_timeout=5000&_fk=true"
+			// TODO: Have separate DB handles for Writes and Reads
+			// Optimize SQLite connection: https://kerkour.com/sqlite-for-servers
+			connectionUrlParams := make(url.Values)
+			connectionUrlParams.Add("_txlock", "immediate")
+			connectionUrlParams.Add("_journal_mode", "WAL")
+			connectionUrlParams.Add("_busy_timeout", "5000")
+			connectionUrlParams.Add("_synchronous", "NORMAL")
+			connectionUrlParams.Add("_cache_size", "1000000000")
+			connectionUrlParams.Add("_foreign_keys", "true")
+			opts.URL = fmt.Sprintf("file:%s?%s", opts.URL, connectionUrlParams.Encode())
 
 			if cclog.Loglevel() == "debug" {
 				sql.Register("sqlite3WithHooks", sqlhooks.Wrap(&sqlite3.SQLiteDriver{}, &Hooks{}))
@@ -59,6 +88,8 @@ func Connect(driver string, db string) {
 			} else {
 				dbHandle, err = sqlx.Open("sqlite3", opts.URL)
 			}
+
+			setupSqlite(dbHandle.DB)
 		case "mysql":
 			opts.URL += "?multiStatements=true"
 			dbHandle, err = sqlx.Open("mysql", opts.URL)
