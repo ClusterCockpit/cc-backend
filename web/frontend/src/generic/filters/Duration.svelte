@@ -1,19 +1,14 @@
 <!--
-    @component Filter sub-component for selecting job duration
+  @component Filter sub-component for selecting job duration
 
-    Properties:
-    - `isOpen Bool?`: Is this filter component opened [Default: false]
-    - `lessThan Number?`: Amount of seconds [Default: null]
-    - `moreThan Number?`: Amount of seconds [Default: null]
-    - `from Number?`: Epoch time in seconds [Default: null]
-    - `to Number?`: Epoch time in seconds [Default: null]
-
-    Events:
-    - `set-filter, {Number, Number, Number, Number}`: Set 'lessThan, moreThan, from, to' filter in upstream component
- -->
+  Properties:
+  - `isOpen Bool?`: Is this filter component opened [Bindable, Default: false]
+  - `presetDuration Object?`: Object containing the latest duration filter parameters
+    - Default: { lessThan: null, moreThan: null, from: null, to: null }
+  - `setFilter Func`: The callback function to apply current filter selection
+-->
  
  <script>
-  import { createEventDispatcher } from "svelte";
   import {
     Row,
     Col,
@@ -24,61 +19,86 @@
     ModalFooter,
   } from "@sveltestrap/sveltestrap";
 
-  const dispatch = createEventDispatcher();
+  /* Svelte 5 Props */
+  let {
+    isOpen = $bindable(false),
+    presetDuration = {
+      lessThan: null,
+      moreThan: null,
+      from: null,
+      to: null
+    },
+    setFilter
+  } = $props();
 
-  export let isOpen = false;
-  export let lessThan = null;
-  export let moreThan = null;
-  export let from = null;
-  export let to = null;
+  /* State Init */
+  let pendingDuration = $state(presetDuration);
+  let lessState = $state(secsToHoursAndMins(presetDuration?.lessThan));
+  let moreState = $state(secsToHoursAndMins(presetDuration?.moreThan));
+  let fromState = $state(secsToHoursAndMins(presetDuration?.from));
+  let toState = $state(secsToHoursAndMins(presetDuration?.to));
 
-  let pendingLessThan, pendingMoreThan, pendingFrom, pendingTo;
-  let lessDisabled = false,
-    moreDisabled = false,
-    betweenDisabled = false;
+  /* Derived Init */
+  const lessDisabled = $derived(
+    moreState.hours !== 0 ||
+    moreState.mins !== 0 ||
+    fromState.hours !== 0 ||
+    fromState.mins !== 0 ||
+    toState.hours !== 0 ||
+    toState.mins !== 0
+  );
 
-  function reset() {
-    pendingLessThan =
-      lessThan == null ? { hours: 0, mins: 0 } : secsToHoursAndMins(lessThan);
-    pendingMoreThan =
-      moreThan == null ? { hours: 0, mins: 0 } : secsToHoursAndMins(moreThan);
-    pendingFrom =
-      from == null ? { hours: 0, mins: 0 } : secsToHoursAndMins(from);
-    pendingTo = to == null ? { hours: 0, mins: 0 } : secsToHoursAndMins(to);
+  const moreDisabled = $derived(
+    lessState.hours !== 0 ||
+    lessState.mins !== 0 ||
+    fromState.hours !== 0 ||
+    fromState.mins !== 0 ||
+    toState.hours !== 0 ||
+    toState.mins !== 0
+  );
+
+  const betweenDisabled = $derived(
+    moreState.hours !== 0 ||
+    moreState.mins !== 0 ||
+    lessState.hours !== 0 ||
+    lessState.mins !== 0
+  )
+
+  /* Functions */
+  function resetPending() {
+    pendingDuration = {
+      lessThan: null,
+      moreThan: null,
+      from: null,
+      to: null
+    }
+  };
+
+  function resetStates() {
+    lessState = { hours: 0, mins: 0 }
+    moreState = { hours: 0, mins: 0 }
+    fromState = { hours: 0, mins: 0 }
+    toState = { hours: 0, mins: 0 }
+  };
+
+  function secsToHoursAndMins(seconds) {
+    if (seconds) {
+      const hours = Math.floor(seconds / 3600);
+      seconds -= hours * 3600;
+      const mins = Math.floor(seconds / 60);
+      return { hours, mins };
+    } else {
+      return { hours: 0, mins: 0 }
+    }
   }
 
-  reset();
-
-  function secsToHoursAndMins(duration) {
-    const hours = Math.floor(duration / 3600);
-    duration -= hours * 3600;
-    const mins = Math.floor(duration / 60);
-    return { hours, mins };
+  function hoursAndMinsToSecs(hoursAndMins) {
+    if (hoursAndMins) {
+      return hoursAndMins.hours * 3600 + hoursAndMins.mins * 60;
+    } else {
+      return 0
+    }
   }
-
-  function hoursAndMinsToSecs({ hours, mins }) {
-    return hours * 3600 + mins * 60;
-  }
-
-  $: lessDisabled =
-    pendingMoreThan.hours !== 0 ||
-    pendingMoreThan.mins !== 0 ||
-    pendingFrom.hours !== 0 ||
-    pendingFrom.mins !== 0 ||
-    pendingTo.hours !== 0 ||
-    pendingTo.mins !== 0;
-  $: moreDisabled =
-    pendingLessThan.hours !== 0 ||
-    pendingLessThan.mins !== 0 ||
-    pendingFrom.hours !== 0 ||
-    pendingFrom.mins !== 0 ||
-    pendingTo.hours !== 0 ||
-    pendingTo.mins !== 0;
-  $: betweenDisabled =
-    pendingMoreThan.hours !== 0 ||
-    pendingMoreThan.mins !== 0 ||
-    pendingLessThan.hours !== 0 ||
-    pendingLessThan.mins !== 0;
 </script>
 
 <Modal {isOpen} toggle={() => (isOpen = !isOpen)}>
@@ -92,7 +112,7 @@
             type="number"
             min="0"
             class="form-control"
-            bind:value={pendingMoreThan.hours}
+            bind:value={moreState.hours}
             disabled={moreDisabled}
           />
           <div class="input-group-append">
@@ -107,7 +127,7 @@
             min="0"
             max="59"
             class="form-control"
-            bind:value={pendingMoreThan.mins}
+            bind:value={moreState.mins}
             disabled={moreDisabled}
           />
           <div class="input-group-append">
@@ -126,7 +146,7 @@
             type="number"
             min="0"
             class="form-control"
-            bind:value={pendingLessThan.hours}
+            bind:value={lessState.hours}
             disabled={lessDisabled}
           />
           <div class="input-group-append">
@@ -141,7 +161,7 @@
             min="0"
             max="59"
             class="form-control"
-            bind:value={pendingLessThan.mins}
+            bind:value={lessState.mins}
             disabled={lessDisabled}
           />
           <div class="input-group-append">
@@ -160,7 +180,7 @@
             type="number"
             min="0"
             class="form-control"
-            bind:value={pendingFrom.hours}
+            bind:value={fromState.hours}
             disabled={betweenDisabled}
           />
           <div class="input-group-append">
@@ -175,7 +195,7 @@
             min="0"
             max="59"
             class="form-control"
-            bind:value={pendingFrom.mins}
+            bind:value={fromState.mins}
             disabled={betweenDisabled}
           />
           <div class="input-group-append">
@@ -192,7 +212,7 @@
             type="number"
             min="0"
             class="form-control"
-            bind:value={pendingTo.hours}
+            bind:value={toState.hours}
             disabled={betweenDisabled}
           />
           <div class="input-group-append">
@@ -207,7 +227,7 @@
             min="0"
             max="59"
             class="form-control"
-            bind:value={pendingTo.mins}
+            bind:value={toState.mins}
             disabled={betweenDisabled}
           />
           <div class="input-group-append">
@@ -220,39 +240,32 @@
   <ModalFooter>
     <Button
       color="primary"
-      on:click={() => {
+      onclick={() => {
         isOpen = false;
-        lessThan = hoursAndMinsToSecs(pendingLessThan);
-        moreThan = hoursAndMinsToSecs(pendingMoreThan);
-        from = hoursAndMinsToSecs(pendingFrom);
-        to = hoursAndMinsToSecs(pendingTo);
-        dispatch("set-filter", { lessThan, moreThan, from, to });
+        pendingDuration.lessThan = hoursAndMinsToSecs(lessState);
+        pendingDuration.moreThan = hoursAndMinsToSecs(moreState);
+        pendingDuration.from = hoursAndMinsToSecs(fromState);
+        pendingDuration.to = hoursAndMinsToSecs(toState);
+        setFilter({duration: pendingDuration});
       }}
     >
       Close & Apply
     </Button>
     <Button
       color="warning"
-      on:click={() => {
-        lessThan = null;
-        moreThan = null;
-        from = null;
-        to = null;
-        reset();
+      onclick={() => {
+        resetStates();
       }}>Reset Values</Button
     >
     <Button
       color="danger"
-      on:click={() => {
+      onclick={() => {
         isOpen = false;
-        lessThan = null;
-        moreThan = null;
-        from = null;
-        to = null;
-        reset();
-        dispatch("set-filter", { lessThan, moreThan, from, to });
+        resetStates();
+        resetPending();
+        setFilter({duration: pendingDuration});
       }}>Reset Filter</Button
     >
-    <Button on:click={() => (isOpen = false)}>Close</Button>
+    <Button onclick={() => (isOpen = false)}>Close</Button>
   </ModalFooter>
 </Modal>

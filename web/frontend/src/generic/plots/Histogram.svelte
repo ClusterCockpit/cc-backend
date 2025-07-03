@@ -1,56 +1,62 @@
 <!--
-    @component Histogram Plot based on uPlot Bars
+  @component Histogram Plot based on uPlot Bars
 
-    Properties:
-    - `data [[],[]]`: uPlot data structure array ( [[],[]] == [X, Y] )
-    - `usesBins Bool?`: If X-Axis labels are bins ("XX-YY") [Default: false]
-    - `width Number?`: Plot width (reactively adaptive) [Default: 500]
-    - `height Number?`: Plot height (reactively adaptive) [Default: 300]
-    - `title String?`: Plot title [Default: ""]
-    - `xlabel String?`: Plot X axis label [Default: ""]
-    - `xunit String?`: Plot X axis unit [Default: ""]
-    - `ylabel String?`: Plot Y axis label [Default: ""]
-    - `yunit String?`: Plot Y axis unit [Default: ""]
- -->
+  Only width/height should change reactively.
+
+  Properties:
+  - `data [[],[]]`: uPlot data structure array ( [[],[]] == [X, Y] )
+  - `usesBins Bool?`: If X-Axis labels are bins ("XX-YY") [Default: false]
+  - `width Number?`: Plot width (reactively adaptive) [Default: null]
+  - `height Number?`: Plot height (reactively adaptive) [Default: 250]
+  - `title String?`: Plot title [Default: ""]
+  - `xlabel String?`: Plot X axis label [Default: ""]
+  - `xunit String?`: Plot X axis unit [Default: ""]
+  - `xtime Bool?`: If X-Axis is based on time information [Default: false]
+  - `ylabel String?`: Plot Y axis label [Default: ""]
+  - `yunit String?`: Plot Y axis unit [Default: ""]
+-->
 
 <script>
   import uPlot from "uplot";
   import { onMount, onDestroy } from "svelte";
-  import { formatNumber } from "../units.js";
+  import { formatNumber, formatTime } from "../units.js";
   import { Card } from "@sveltestrap/sveltestrap";
 
-  export let data;
-  export let usesBins = false;
-  export let width = null;
-  export let height = 250;
-  export let title = "";
-  export let xlabel = "";
-  export let xunit = "";
-  export let xtime = false;
-  export let ylabel = "";
-  export let yunit = "";
+  /* Svelte 5 Props */
+  let {
+    data,
+    usesBins = false,
+    width = null,
+    height = 250,
+    title = "",
+    xlabel = "",
+    xunit = "",
+    xtime = false,
+    ylabel = "",
+    yunit = "",
+  } = $props();
 
+  /* Const Init */
   const { bars } = uPlot.paths;
   const drawStyles = {
     bars: 1,
     points: 2,
   };
 
-  function formatTime(t) {
-    if (t !== null) {
-      if (isNaN(t)) {
-        return t;
-      } else {
-        const tAbs = Math.abs(t);
-        const h = Math.floor(tAbs / 3600);
-        const m = Math.floor((tAbs % 3600) / 60);
-        if (h == 0) return `${m}m`;
-        else if (m == 0) return `${h}h`;
-        else return `${h}:${m}h`;
-      }
-    }
-  }
+  /* Var Init */
+  let timeoutId = null;
 
+  /* State Init */
+  let plotWrapper = $state(null);
+  let uplot = $state(null);
+
+  /* Effect */
+  $effect(() => {
+    sizeChanged(width, height);
+  });
+
+  /* Functions */
+  // Render Helper
   function paths(u, seriesIdx, idx0, idx1, extendGap, buildClip) {
     let s = u.series[seriesIdx];
     let style = s.drawStyle;
@@ -123,9 +129,17 @@
     };
   }
 
-  let plotWrapper = null;
-  let uplot = null;
-  let timeoutId = null;
+  // Main Functions
+  function sizeChanged() {
+    if (timeoutId != null) clearTimeout(timeoutId);
+
+    timeoutId = setTimeout(() => {
+      timeoutId = null;
+      if (uplot) uplot.destroy();
+
+      render();
+    }, 200);
+  };
 
   function render() {
     let opts = {
@@ -232,34 +246,22 @@
     uplot = new uPlot(opts, data, plotWrapper);
   }
 
+  /* On Mount */
   onMount(() => {
     render();
   });
 
+  /* On Destroy */
   onDestroy(() => {
     if (uplot) uplot.destroy();
-
     if (timeoutId != null) clearTimeout(timeoutId);
   });
-
-  function sizeChanged() {
-    if (timeoutId != null) clearTimeout(timeoutId);
-
-    timeoutId = setTimeout(() => {
-      timeoutId = null;
-      if (uplot) uplot.destroy();
-
-      render();
-    }, 200);
-  }
-
-  $: sizeChanged(width, height);
 </script>
 
 <!-- Define Wrapper and NoData Card within $width -->
 <div bind:clientWidth={width}>
   {#if data.length > 0}
-    <div bind:this={plotWrapper} />
+    <div bind:this={plotWrapper}></div>
   {:else}
     <Card class="mx-4" body color="warning"
       >Cannot render histogram: No data!</Card

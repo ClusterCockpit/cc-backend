@@ -1,11 +1,12 @@
 <!--
-    @component Selector component for (footprint) metrics to be displayed as histogram
+  @component Selector component for (footprint) metrics to be displayed as histogram
 
-    Properties:
-    - `cluster String`: Currently selected cluster
-    - `selectedHistograms [String]`: The currently selected metrics to display as histogram
-    - ìsOpen Bool`: Is selection opened
- -->
+  Properties:
+  - `cluster String`: Currently selected cluster
+  - `selectedHistograms [String]`: The currently selected metrics to display as histogram
+  - `ìsOpen Bool`: Is selection opened [Bindable]
+  - `applyChange Func`: The callback function to apply current selection
+-->
 
 <script>
   import { getContext } from "svelte";
@@ -20,16 +21,24 @@
   } from "@sveltestrap/sveltestrap";
   import { gql, getContextClient, mutationStore } from "@urql/svelte";
 
-  export let cluster;
-  export let selectedHistograms;
-  export let isOpen;
+  /* Svelte 5 Props */
+  let {
+    cluster,
+    isOpen = $bindable(),
+    presetSelectedHistograms,
+    applyChange
+  } = $props();
 
+  /* Const Init */
   const client = getContextClient();
-  const initialized = getContext("initialized");
 
-  function loadHistoMetrics(isInitialized, thisCluster) {
-    if (!isInitialized) return [];
+  /* Derived */
+  let selectedHistograms = $derived(presetSelectedHistograms); // Non-Const Derived: Is settable
+  const availableMetrics = $derived(loadHistoMetrics(cluster));
 
+  /* Functions */
+  function loadHistoMetrics(thisCluster) {
+    // isInit Check Removed: Parent Component has finished Init-Query: Globalmetrics available here.
     if (!thisCluster) {
       return getContext("globalMetrics")
       .filter((gm) => gm?.footprint)
@@ -41,18 +50,6 @@
       .map((afgm) => { return afgm.name })
     }
   }
-
-  const updateConfigurationMutation = ({ name, value }) => {
-    return mutationStore({
-      client: client,
-      query: gql`
-        mutation ($name: String!, $value: String!) {
-          updateConfiguration(name: $name, value: $value)
-        }
-      `,
-      variables: { name, value },
-    });
-  };
 
   function updateConfiguration(data) {
     updateConfigurationMutation({
@@ -67,6 +64,7 @@
 
   function closeAndApply() {
     isOpen = !isOpen;
+    applyChange(selectedHistograms)
     updateConfiguration({
       name: cluster
         ? `user_view_histogramMetrics:${cluster}`
@@ -75,8 +73,18 @@
     });
   }
 
-  $: availableMetrics = loadHistoMetrics($initialized, cluster);
-
+  /* Mutation */
+  const updateConfigurationMutation = ({ name, value }) => {
+    return mutationStore({
+      client: client,
+      query: gql`
+        mutation ($name: String!, $value: String!) {
+          updateConfiguration(name: $name, value: $value)
+        }
+      `,
+      variables: { name, value },
+    });
+  };
 </script>
 
 <Modal {isOpen} toggle={() => (isOpen = !isOpen)}>
@@ -92,7 +100,7 @@
     </ListGroup>
   </ModalBody>
   <ModalFooter>
-    <Button color="primary" on:click={closeAndApply}>Close & Apply</Button>
-    <Button color="secondary" on:click={() => (isOpen = !isOpen)}>Close</Button>
+    <Button color="primary" onclick={() => closeAndApply()}>Close & Apply</Button>
+    <Button color="secondary" onclick={() => (isOpen = !isOpen)}>Close</Button>
   </ModalFooter>
 </Modal>

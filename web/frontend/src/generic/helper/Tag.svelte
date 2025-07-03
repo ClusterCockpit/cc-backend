@@ -1,54 +1,63 @@
 <!-- 
-    @component Single tag pill component
+  @component Single tag pill component
 
-    Properties:
-    - id: ID! (if the tag-id is known but not the tag type/name, this can be used)
-    - tag: { id: ID!, type: String, name: String }
-    - clickable: Boolean (default is true)
- -->
+  Properties:
+  - `id ID!`: (if the tag-id is known but not the tag type/name, this can be used)
+  - `tag Object`: The tag Object
+  - `clickable Bool`: If tag should be click reactive [Default: true]
+-->
 
 <script>
-    import { getContext } from 'svelte'
-    const allTags = getContext('tags'),
-          initialized = getContext('initialized')
+  import { getContext } from 'svelte'
+  
+  /* Svelte 5 Props */
+  let {
+    id = null,
+    tag = null,
+    clickable = true
+  } = $props();
 
-    export let id = null
-    export let tag = null
-    export let clickable = true
+  /* Derived */
+  const allTags = $derived(getContext('tags'));
+  const initialized = $derived(getContext('initialized'));
 
+  /* Effects */
+  $effect(() => {
     if (tag != null && id == null)
-        id = tag.id
+      id = tag.id
+  });
 
-    $: {
-        if ($initialized && tag == null)
-            tag = allTags.find(tag => tag.id == id)
-    }
+  $effect(() => {
+    if ($initialized && tag == null)
+      tag = allTags.find(tag => tag.id == id)
+  });
 
-    function getScopeColor(scope) {
-        switch (scope) {
-        case "admin":
-            return "#19e5e6";
-        case "global":
-            return "#c85fc8";
-        default:
-            return "#ffc107";
-        }
+  /* Function*/
+  function getScopeColor(scope) {
+    switch (scope) {
+      case "admin":
+        return "#19e5e6";
+      case "global":
+        return "#c85fc8";
+      default:
+        return "#ffc107";
     }
+  }
 </script>
 
-<style>
-    a {
-        margin-right: 0.5rem;
-    }
-    span {
-        font-size: 0.9rem;
-    }
-</style>
-
 <a target={clickable ? "_blank" : null} href={clickable ? `/monitoring/jobs/?tag=${id}` : null}>
-    {#if tag}
-        <span style="background-color:{getScopeColor(tag?.scope)};" class="my-1 badge text-dark">{tag.type}: {tag.name}</span>
-    {:else}
-        Loading...
-    {/if}
+  {#if tag}
+    <span style="background-color:{getScopeColor(tag?.scope)};" class="my-1 badge text-dark">{tag.type}: {tag.name}</span>
+  {:else}
+    Loading...
+  {/if}
 </a>
+
+<style>
+  a {
+    margin-right: 0.5rem;
+  }
+  span {
+    font-size: 0.9rem;
+  }
+</style>

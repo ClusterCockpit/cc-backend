@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package auth
@@ -15,8 +15,8 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -30,13 +30,13 @@ func (ja *JWTSessionAuthenticator) Init() error {
 	if pubKey := os.Getenv("CROSS_LOGIN_JWT_HS512_KEY"); pubKey != "" {
 		bytes, err := base64.StdEncoding.DecodeString(pubKey)
 		if err != nil {
-			log.Warn("Could not decode cross login JWT HS512 key")
+			cclog.Warn("Could not decode cross login JWT HS512 key")
 			return err
 		}
 		ja.loginTokenKey = bytes
 	}
 
-	log.Info("JWT Session authenticator successfully registered")
+	cclog.Info("JWT Session authenticator successfully registered")
 	return nil
 }
 
@@ -67,12 +67,12 @@ func (ja *JWTSessionAuthenticator) Login(
 		return nil, fmt.Errorf("unkown signing method for login token: %s (known: HS256, HS512, EdDSA)", t.Method.Alg())
 	})
 	if err != nil {
-		log.Warn("Error while parsing jwt token")
+		cclog.Warn("Error while parsing jwt token")
 		return nil, err
 	}
 
 	if !token.Valid {
-		log.Warn("jwt token claims are not valid")
+		cclog.Warn("jwt token claims are not valid")
 		return nil, errors.New("jwt token claims are not valid")
 	}
 
@@ -86,12 +86,12 @@ func (ja *JWTSessionAuthenticator) Login(
 		var err error
 		user, err = repository.GetUserRepository().GetUser(sub)
 		if err != nil && err != sql.ErrNoRows {
-			log.Errorf("Error while loading user '%v'", sub)
+			cclog.Errorf("Error while loading user '%v'", sub)
 		}
 
 		// Deny any logins for unknown usernames
 		if user == nil {
-			log.Warn("Could not find user from JWT in internal database.")
+			cclog.Warn("Could not find user from JWT in internal database.")
 			return nil, errors.New("unknown user")
 		}
 	} else {

@@ -1,11 +1,11 @@
 <!--
-    @component Job Summary component; Displays aggregated job footprint statistics and performance indicators
+  @component Job Summary component; Displays aggregated job footprint statistics and performance indicators
 
-    Properties:
-    - `job Object`: The GQL job object
-    - `width String?`: Width of the card [Default: 'auto']
-    - `height String?`: Height of the card [Default: '310px']
- -->
+  Properties:
+  - `job Object`: The GQL job object
+  - `width String?`: Width of the card [Default: 'auto']
+  - `height String?`: Height of the card [Default: '400px']
+-->
 
 <script>
   import { getContext } from "svelte";
@@ -17,11 +17,14 @@
   import JobFootprintBars from "./jobsummary/JobFootprintBars.svelte";
   import JobFootprintPolar from "./jobsummary/JobFootprintPolar.svelte";
 
+  /* Svelte 5 Props */
+  let {
+    job,
+    width = "auto",
+    height = "400px",
+  } = $props();
 
-  export let job;
-  export let width = "auto";
-  export let height = "400px";
-
+  /* Const Init */
   const showFootprintTab = !!getContext("cc-config")[`job_view_showFootprint`];
 </script>
 

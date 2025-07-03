@@ -12,10 +12,10 @@ import (
 	"strings"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-lib/util"
 )
 
 /// Go's embed is only allowed to embed files in a subdirectory of the embedding package ([see here](https://github.com/golang/go/issues/46056)).
@@ -26,7 +26,7 @@ var frontendFiles embed.FS
 func ServeFiles() http.Handler {
 	publicFiles, err := fs.Sub(frontendFiles, "frontend/public")
 	if err != nil {
-		log.Abortf("Serve Files: Could not find 'frontend/public' file directory.\nError: %s\n", err.Error())
+		cclog.Abortf("Serve Files: Could not find 'frontend/public' file directory.\nError: %s\n", err.Error())
 	}
 	return http.FileServer(http.FS(publicFiles))
 }
@@ -48,25 +48,22 @@ func init() {
 
 		if path == "templates/login.tmpl" {
 			if util.CheckFileExists("./var/login.tmpl") {
-				log.Info("overwrite login.tmpl with local file")
-				templates[strings.TrimPrefix(path, "templates/")] =
-					template.Must(template.Must(base.Clone()).ParseFiles("./var/login.tmpl"))
+				cclog.Info("overwrite login.tmpl with local file")
+				templates[strings.TrimPrefix(path, "templates/")] = template.Must(template.Must(base.Clone()).ParseFiles("./var/login.tmpl"))
 				return nil
 			}
 		}
 		if path == "templates/imprint.tmpl" {
 			if util.CheckFileExists("./var/imprint.tmpl") {
-				log.Info("overwrite imprint.tmpl with local file")
-				templates[strings.TrimPrefix(path, "templates/")] =
-					template.Must(template.Must(base.Clone()).ParseFiles("./var/imprint.tmpl"))
+				cclog.Info("overwrite imprint.tmpl with local file")
+				templates[strings.TrimPrefix(path, "templates/")] = template.Must(template.Must(base.Clone()).ParseFiles("./var/imprint.tmpl"))
 				return nil
 			}
 		}
 		if path == "templates/privacy.tmpl" {
 			if util.CheckFileExists("./var/privacy.tmpl") {
-				log.Info("overwrite privacy.tmpl with local file")
-				templates[strings.TrimPrefix(path, "templates/")] =
-					template.Must(template.Must(base.Clone()).ParseFiles("./var/privacy.tmpl"))
+				cclog.Info("overwrite privacy.tmpl with local file")
+				templates[strings.TrimPrefix(path, "templates/")] = template.Must(template.Must(base.Clone()).ParseFiles("./var/privacy.tmpl"))
 				return nil
 			}
 		}
@@ -74,7 +71,7 @@ func init() {
 		templates[strings.TrimPrefix(path, "templates/")] = template.Must(template.Must(base.Clone()).ParseFS(templateFiles, path))
 		return nil
 	}); err != nil {
-		log.Abortf("Web init(): Could not find frontend template files.\nError: %s\n", err.Error())
+		cclog.Abortf("Web init(): Could not find frontend template files.\nError: %s\n", err.Error())
 	}
 
 	_ = base
@@ -105,7 +102,7 @@ type Page struct {
 func RenderTemplate(rw http.ResponseWriter, file string, page *Page) {
 	t, ok := templates[file]
 	if !ok {
-		log.Errorf("WEB/WEB > template '%s' not found", file)
+		cclog.Errorf("WEB/WEB > template '%s' not found", file)
 	}
 
 	if page.Clusters == nil {
@@ -123,8 +120,8 @@ func RenderTemplate(rw http.ResponseWriter, file string, page *Page) {
 		}
 	}
 
-	log.Debugf("Page config : %v\n", page.Config)
+	cclog.Debugf("Page config : %v\n", page.Config)
 	if err := t.Execute(rw, page); err != nil {
-		log.Errorf("Template error: %s", err.Error())
+		cclog.Errorf("Template error: %s", err.Error())
 	}
 }

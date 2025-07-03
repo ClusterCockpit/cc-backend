@@ -1,0 +1,10 @@
+dscf
+grad
+ridft
+rdgrad
+ricc2
+statpt
+aoforce
+escf
+egrad
+odft

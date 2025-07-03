@@ -1,16 +1,14 @@
 <!--
-    @component Filter sub-component for selecting job energies
+  @component Filter sub-component for selecting job energies
 
-    Properties:
-    - `isOpen Bool?`: Is this filter component opened [Default: false]
-    - `energy Object?`: The currently selected total energy filter [Default: {from:null, to:null}]
-
-    Events:
-    - `set-filter, {Object}`: Set 'energy' filter in upstream component
- -->
+  Properties:
+  - `isOpen Bool?`: Is this filter component opened [Bindable, efault: false]
+  - `presetEnergy Object?`: Object containing the latest energy filter parameters
+    - Default: { from: null, to: null }
+  - `setFilter Func`: The callback function to apply current filter selection
+-->
 
 <script>
-  import { createEventDispatcher } from "svelte";
   import {
     Button,
     Modal,
@@ -20,51 +18,53 @@
   } from "@sveltestrap/sveltestrap";
   import DoubleRangeSlider from "../select/DoubleRangeSlider.svelte";
 
-  const dispatch = createEventDispatcher();
+  /* Svelte 5 Props */
+  let {
+    isOpen = $bindable(false),
+    presetEnergy = {
+      from: null,
+      to: null
+    },
+    setFilter,
+  } = $props();
 
-  const energyMaximum = 1000.0;
-
-  export let isOpen = false;
-  export let energy= {from: null, to: null};
-
-  function resetRanges() {
-      energy.from = null
-      energy.to = null
-  }
+  /* State Init */
+  let energyState = $state(presetEnergy);
 </script>
 
 <Modal {isOpen} toggle={() => (isOpen = !isOpen)}>
   <ModalHeader>Filter based on energy</ModalHeader>
   <ModalBody>
-    <h4>Total Job Energy (kWh)</h4>
-    <DoubleRangeSlider
-      on:change={({ detail }) => (
-        (energy.from = detail[0]), (energy.to = detail[1])
-      )}
-      min={0.0}
-      max={energyMaximum}
-      firstSlider={energy?.from ? energy.from : 0.0}
-      secondSlider={energy?.to ? energy.to : energyMaximum}
-      inputFieldFrom={energy?.from ? energy.from : null}
-      inputFieldTo={energy?.to ? energy.to : null}
-    />
+    <div class="mb-3">
+      <div class="mb-0"><b>Total Job Energy (kWh)</b></div>
+      <DoubleRangeSlider
+        changeRange={(detail) => {
+          energyState.from = detail[0];
+          energyState.to = detail[1];
+        }}
+        sliderMin={0.0}
+        sliderMax={1000.0}
+        fromPreset={energyState?.from? energyState.from : 0.0}
+        toPreset={energyState?.to? energyState.to : 1000.0}
+      />
+    </div>
   </ModalBody>
   <ModalFooter>
     <Button
       color="primary"
-      on:click={() => {
+      onclick={() => {
         isOpen = false;
-        dispatch("set-filter", { energy });
+        setFilter({ energy: energyState });
       }}>Close & Apply</Button
     >
     <Button
       color="danger"
-      on:click={() => {
+      onclick={() => {
         isOpen = false;
-        resetRanges();
-        dispatch("set-filter", { energy });
+        energyState = {from: null, to: null};
+        setFilter({ energy: energyState });
       }}>Reset</Button
     >
-    <Button on:click={() => (isOpen = false)}>Close</Button>
+    <Button onclick={() => (isOpen = false)}>Close</Button>
   </ModalFooter>
 </Modal>

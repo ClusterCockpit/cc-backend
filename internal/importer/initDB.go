@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package importer
@@ -13,8 +13,8 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
 const (
@@ -27,15 +27,15 @@ const (
 func InitDB() error {
 	r := repository.GetJobRepository()
 	if err := r.Flush(); err != nil {
-		log.Errorf("repository initDB(): %v", err)
+		cclog.Errorf("repository initDB(): %v", err)
 		return err
 	}
 	starttime := time.Now()
-	log.Print("Building job table...")
+	cclog.Print("Building job table...")
 
 	t, err := r.TransactionInit()
 	if err != nil {
-		log.Warn("Error while initializing SQL transactions")
+		cclog.Warn("Error while initializing SQL transactions")
 		return err
 	}
 	tags := make(map[string]int64)
@@ -60,19 +60,14 @@ func InitDB() error {
 		}
 
 		jobMeta.MonitoringStatus = schema.MonitoringStatusArchivingSuccessful
-		job := schema.Job{
-			BaseJob:       jobMeta.BaseJob,
-			StartTime:     time.Unix(jobMeta.StartTime, 0),
-			StartTimeUnix: jobMeta.StartTime,
-		}
 
 		sc, err := archive.GetSubCluster(jobMeta.Cluster, jobMeta.SubCluster)
 		if err != nil {
-			log.Errorf("cannot get subcluster: %s", err.Error())
+			cclog.Errorf("cannot get subcluster: %s", err.Error())
 			return err
 		}
 
-		job.Footprint = make(map[string]float64)
+		jobMeta.Footprint = make(map[string]float64)
 
 		for _, fp := range sc.Footprint {
 			statType := "avg"
@@ -83,16 +78,16 @@ func InitDB() error {
 
 			name := fmt.Sprintf("%s_%s", fp, statType)
 
-			job.Footprint[name] = repository.LoadJobStat(jobMeta, fp, statType)
+			jobMeta.Footprint[name] = repository.LoadJobStat(jobMeta, fp, statType)
 		}
 
-		job.RawFootprint, err = json.Marshal(job.Footprint)
+		jobMeta.RawFootprint, err = json.Marshal(jobMeta.Footprint)
 		if err != nil {
-			log.Warn("Error while marshaling job footprint")
+			cclog.Warn("Error while marshaling job footprint")
 			return err
 		}
 
-		job.EnergyFootprint = make(map[string]float64)
+		jobMeta.EnergyFootprint = make(map[string]float64)
 
 		// Total Job Energy Outside Loop
 		totalEnergy := 0.0
@@ -102,7 +97,7 @@ func InitDB() error {
 			if i, err := archive.MetricIndex(sc.MetricConfig, fp); err == nil {
 				// Note: For DB data, calculate and save as kWh
 				if sc.MetricConfig[i].Energy == "energy" { // this metric has energy as unit (Joules)
-					log.Warnf("Update EnergyFootprint for Job %d and Metric %s on cluster %s: Set to 'energy' in cluster.json: Not implemented, will return 0.0", jobMeta.JobID, jobMeta.Cluster, fp)
+					cclog.Warnf("Update EnergyFootprint for Job %d and Metric %s on cluster %s: Set to 'energy' in cluster.json: Not implemented, will return 0.0", jobMeta.JobID, jobMeta.Cluster, fp)
 					// FIXME: Needs sum as stats type
 				} else if sc.MetricConfig[i].Energy == "power" { // this metric has power as unit (Watt)
 					// Energy: Power (in Watts) * Time (in Seconds)
@@ -114,48 +109,48 @@ func InitDB() error {
 					metricEnergy = math.Round(rawEnergy*100.0) / 100.0
 				}
 			} else {
-				log.Warnf("Error while collecting energy metric %s for job, DB ID '%v', return '0.0'", fp, jobMeta.ID)
+				cclog.Warnf("Error while collecting energy metric %s for job, DB ID '%v', return '0.0'", fp, jobMeta.ID)
 			}
 
-			job.EnergyFootprint[fp] = metricEnergy
+			jobMeta.EnergyFootprint[fp] = metricEnergy
 			totalEnergy += metricEnergy
 		}
 
-		job.Energy = (math.Round(totalEnergy*100.0) / 100.0)
-		if job.RawEnergyFootprint, err = json.Marshal(job.EnergyFootprint); err != nil {
-			log.Warnf("Error while marshaling energy footprint for job INTO BYTES, DB ID '%v'", jobMeta.ID)
+		jobMeta.Energy = (math.Round(totalEnergy*100.0) / 100.0)
+		if jobMeta.RawEnergyFootprint, err = json.Marshal(jobMeta.EnergyFootprint); err != nil {
+			cclog.Warnf("Error while marshaling energy footprint for job INTO BYTES, DB ID '%v'", jobMeta.ID)
 			return err
 		}
 
-		job.RawResources, err = json.Marshal(job.Resources)
+		jobMeta.RawResources, err = json.Marshal(jobMeta.Resources)
 		if err != nil {
-			log.Errorf("repository initDB(): %v", err)
+			cclog.Errorf("repository initDB(): %v", err)
 			errorOccured++
 			continue
 		}
 
-		job.RawMetaData, err = json.Marshal(job.MetaData)
+		jobMeta.RawMetaData, err = json.Marshal(jobMeta.MetaData)
 		if err != nil {
-			log.Errorf("repository initDB(): %v", err)
+			cclog.Errorf("repository initDB(): %v", err)
 			errorOccured++
 			continue
 		}
 
-		if err := SanityChecks(&job.BaseJob); err != nil {
-			log.Errorf("repository initDB(): %v", err)
+		if err := SanityChecks(jobMeta); err != nil {
+			cclog.Errorf("repository initDB(): %v", err)
 			errorOccured++
 			continue
 		}
 
 		id, err := r.TransactionAddNamed(t,
-			repository.NamedJobInsert, job)
+			repository.NamedJobInsert, jobMeta)
 		if err != nil {
-			log.Errorf("repository initDB(): %v", err)
+			cclog.Errorf("repository initDB(): %v", err)
 			errorOccured++
 			continue
 		}
 
-		for _, tag := range job.Tags {
+		for _, tag := range jobMeta.Tags {
 			tagstr := tag.Name + ":" + tag.Type
 			tagId, ok := tags[tagstr]
 			if !ok {
@@ -163,7 +158,7 @@ func InitDB() error {
 					addTagQuery,
 					tag.Name, tag.Type)
 				if err != nil {
-					log.Errorf("Error adding tag: %v", err)
+					cclog.Errorf("Error adding tag: %v", err)
 					errorOccured++
 					continue
 				}
@@ -181,21 +176,21 @@ func InitDB() error {
 	}
 
 	if errorOccured > 0 {
-		log.Warnf("Error in import of %d jobs!", errorOccured)
+		cclog.Warnf("Error in import of %d jobs!", errorOccured)
 	}
 
 	r.TransactionEnd(t)
-	log.Printf("A total of %d jobs have been registered in %.3f seconds.\n", i, time.Since(starttime).Seconds())
+	cclog.Printf("A total of %d jobs have been registered in %.3f seconds.\n", i, time.Since(starttime).Seconds())
 	return nil
 }
 
 // This function also sets the subcluster if necessary!
-func SanityChecks(job *schema.BaseJob) error {
+func SanityChecks(job *schema.Job) error {
 	if c := archive.GetCluster(job.Cluster); c == nil {
 		return fmt.Errorf("no such cluster: %v", job.Cluster)
 	}
 	if err := archive.AssignSubCluster(job); err != nil {
-		log.Warn("Error while assigning subcluster to job")
+		cclog.Warn("Error while assigning subcluster to job")
 		return err
 	}
 	if !job.State.Valid() {

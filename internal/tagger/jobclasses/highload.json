@@ -1,0 +1,26 @@
+{
+  "name": "Excessive CPU load",
+  "tag": "excessiveload",
+  "parameters": [
+    "excessivecpuload_threshold_factor",
+    "job_min_duration_seconds",
+    "sampling_interval_seconds"
+  ],
+  "metrics": ["cpu_load"],
+  "requirements": [
+    "job.exclusive == 1",
+    "job.duration > job_min_duration_seconds"
+  ],
+  "variables": [
+    {
+      "name": "load_threshold",
+      "expr": "cpu_load.limits.peak * excessivecpuload_threshold_factor"
+    },
+    {
+      "name": "load_perc",
+      "expr": "1.0 - (cpu_load.avg / cpu_load.limits.peak)"
+    }
+  ],
+  "rule": "cpu_load.avg > load_threshold",
+  "hint": "This job was detected as excessiveload because the average cpu load {{.cpu_load.avg}} falls above the threshold {{.load_threshold}}."
+}

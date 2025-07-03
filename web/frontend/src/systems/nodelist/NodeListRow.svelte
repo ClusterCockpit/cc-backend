@@ -1,11 +1,11 @@
 <!-- 
-    @component Data row for a single node displaying metric plots
+  @component Data row for a single node displaying metric plots
 
-    Properties:
-    - `cluster String`: The nodes' cluster
-    - `nodeData Object`: The node data object including metric data
-    - `selectedMetrics [String]`: The array of selected metrics
- -->
+  Properties:
+  - `cluster String`: The nodes' cluster
+  - `nodeData Object`: The node data object including metric data
+  - `selectedMetrics [String]`: The array of selected metrics
+-->
 
 <script>
   import {
@@ -18,10 +18,14 @@
   import MetricPlot from "../../generic/plots/MetricPlot.svelte";
   import NodeInfo from "./NodeInfo.svelte";
 
-  export let cluster;
-  export let nodeData;
-  export let selectedMetrics;
+  /* Svelte 5 Props */
+  let {
+    cluster,
+    nodeData,
+    selectedMetrics,
+  } = $props();
 
+  /* Const Init */
   const client = getContextClient();
   const paging = { itemsPerPage: 50, page: 1 };
   const sorting = { field: "startTime", type: "col", order: "DESC" };
@@ -30,7 +34,6 @@
     { node: { contains: nodeData.host } },
     { state: ["running"] },
   ];
-
   const nodeJobsQuery = gql`
     query (
       $filter: [JobFilter!]!
@@ -53,13 +56,19 @@
     }
   `;
 
-  $: nodeJobsData = queryStore({
-    client: client,
-    query: nodeJobsQuery,
-    variables: { paging, sorting, filter },
-  });
+  /* Derived */
+  const nodeJobsData = $derived(queryStore({
+      client: client,
+      query: nodeJobsQuery,
+      variables: { paging, sorting, filter },
+    })
+  );
 
-  // Helper
+  let extendedLegendData = $derived($nodeJobsData?.data ? buildExtendedLegend() : null);
+  let refinedData = $derived(nodeData?.metrics ? sortAndSelectScope(nodeData.metrics) : null);
+  let dataHealth = $derived(refinedData.filter((rd) => rd.disabled === false).map((enabled) => (enabled.data.metric.series.length > 0)));
+
+  /* Functions */
   const selectScope = (nodeMetrics) =>
     nodeMetrics.reduce(
       (a, b) =>
@@ -89,15 +98,8 @@
         }
       });
 
-  let refinedData;
-  let dataHealth;
-  $: if (nodeData?.metrics) {
-    refinedData = sortAndSelectScope(nodeData?.metrics)
-    dataHealth = refinedData.filter((rd) => rd.disabled === false).map((enabled) => (enabled.data.metric.series.length > 0))
-  }
-
-  let extendedLegendData = null;
-  $: if ($nodeJobsData?.data) {
+  function buildExtendedLegend() {
+    let pendingExtendedLegendData = null
     // Build Extended for allocated nodes [Commented: Only Build extended Legend For Shared Nodes]
     if ($nodeJobsData.data.jobs.count >= 1) { // "&& !$nodeJobsData.data.jobs.items[0].exclusive)"
       const accSet = Array.from(new Set($nodeJobsData.data.jobs.items
@@ -107,11 +109,11 @@
         )
       )).flat(2)
 
-      extendedLegendData = {}
+      pendingExtendedLegendData = {};
       for (const accId of accSet) {
         const matchJob = $nodeJobsData.data.jobs.items.find((i) => i.resources.find((r) => r.accelerators.includes(accId)))
         const matchUser = matchJob?.user ? matchJob.user : null
-        extendedLegendData[accId] = {
+        pendingExtendedLegendData[accId] = {
           user: (scrambleNames && matchUser)
             ? scramble(matchUser) 
             : (matchUser ? matchUser : '-'),
@@ -120,6 +122,7 @@
       }
       // Theoretically extendable for hwthreadIDs
     }
+    return pendingExtendedLegendData;
   }
 </script>
 
@@ -158,7 +161,7 @@
               height={175}
               forNode
             />
-          <div class="my-2"/>
+          <div class="my-2"></div>
           {#key extendedLegendData}
             <MetricPlot
               {cluster}

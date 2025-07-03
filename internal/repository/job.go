@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package repository
@@ -9,16 +9,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/lrucache"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
 )
@@ -33,6 +33,7 @@ type JobRepository struct {
 	stmtCache *sq.StmtCache
 	cache     *lrucache.Cache
 	driver    string
+	Mutex     sync.Mutex
 }
 
 func GetJobRepository() *JobRepository {
@@ -51,38 +52,49 @@ func GetJobRepository() *JobRepository {
 }
 
 var jobColumns []string = []string{
-	"job.id", "job.job_id", "job.hpc_user", "job.project", "job.cluster", "job.subcluster", "job.start_time", "job.cluster_partition", "job.array_job_id",
-	"job.num_nodes", "job.num_hwthreads", "job.num_acc", "job.exclusive", "job.monitoring_status", "job.smt", "job.job_state",
-	"job.duration", "job.walltime", "job.resources", "job.footprint", "job.energy",
+	"job.id", "job.job_id", "job.hpc_user", "job.project", "job.cluster", "job.subcluster",
+	"job.start_time", "job.cluster_partition", "job.array_job_id", "job.num_nodes",
+	"job.num_hwthreads", "job.num_acc", "job.exclusive", "job.monitoring_status",
+	"job.smt", "job.job_state", "job.duration", "job.walltime", "job.resources",
+	"job.footprint", "job.energy",
 }
 
-func scanJob(row interface{ Scan(...interface{}) error }) (*schema.Job, error) {
+var jobCacheColumns []string = []string{
+	"job_cache.id", "job_cache.job_id", "job_cache.hpc_user", "job_cache.project", "job_cache.cluster",
+	"job_cache.subcluster", "job_cache.start_time", "job_cache.cluster_partition",
+	"job_cache.array_job_id", "job_cache.num_nodes", "job_cache.num_hwthreads",
+	"job_cache.num_acc", "job_cache.exclusive", "job_cache.monitoring_status", "job_cache.smt",
+	"job_cache.job_state", "job_cache.duration", "job_cache.walltime", "job_cache.resources",
+	"job_cache.footprint", "job_cache.energy",
+}
+
+func scanJob(row interface{ Scan(...any) error }) (*schema.Job, error) {
 	job := &schema.Job{}
 
 	if err := row.Scan(
-		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.SubCluster, &job.StartTimeUnix, &job.Partition, &job.ArrayJobId,
-		&job.NumNodes, &job.NumHWThreads, &job.NumAcc, &job.Exclusive, &job.MonitoringStatus, &job.SMT, &job.State,
+		&job.ID, &job.JobID, &job.User, &job.Project, &job.Cluster, &job.SubCluster,
+		&job.StartTime, &job.Partition, &job.ArrayJobId, &job.NumNodes, &job.NumHWThreads,
+		&job.NumAcc, &job.Exclusive, &job.MonitoringStatus, &job.SMT, &job.State,
 		&job.Duration, &job.Walltime, &job.RawResources, &job.RawFootprint, &job.Energy); err != nil {
-		log.Warnf("Error while scanning rows (Job): %v", err)
+		cclog.Warnf("Error while scanning rows (Job): %v", err)
 		return nil, err
 	}
 
 	if err := json.Unmarshal(job.RawResources, &job.Resources); err != nil {
-		log.Warn("Error while unmarshaling raw resources json")
+		cclog.Warn("Error while unmarshaling raw resources json")
 		return nil, err
 	}
 	job.RawResources = nil
 
 	if err := json.Unmarshal(job.RawFootprint, &job.Footprint); err != nil {
-		log.Warnf("Error while unmarshaling raw footprint json: %v", err)
+		cclog.Warnf("Error while unmarshaling raw footprint json: %v", err)
 		return nil, err
 	}
 	job.RawFootprint = nil
 
-	job.StartTime = time.Unix(job.StartTimeUnix, 0)
 	// Always ensure accurate duration for running jobs
 	if job.State == schema.JobStateRunning {
-		job.Duration = int32(time.Since(job.StartTime).Seconds())
+		job.Duration = int32(time.Now().Unix() - job.StartTime)
 	}
 
 	return job, nil
@@ -97,7 +109,7 @@ func (r *JobRepository) Optimize() error {
 			return err
 		}
 	case "mysql":
-		log.Info("Optimize currently not supported for mysql driver")
+		cclog.Info("Optimize currently not supported for mysql driver")
 	}
 
 	return nil
@@ -138,17 +150,6 @@ func (r *JobRepository) Flush() error {
 	return nil
 }
 
-func scanJobLink(row interface{ Scan(...interface{}) error }) (*model.JobLink, error) {
-	jobLink := &model.JobLink{}
-	if err := row.Scan(
-		&jobLink.ID, &jobLink.JobID); err != nil {
-		log.Warn("Error while scanning rows (jobLink)")
-		return nil, err
-	}
-
-	return jobLink, nil
-}
-
 func (r *JobRepository) FetchMetadata(job *schema.Job) (map[string]string, error) {
 	start := time.Now()
 	cachekey := fmt.Sprintf("metadata:%d", job.ID)
@@ -159,7 +160,7 @@ func (r *JobRepository) FetchMetadata(job *schema.Job) (map[string]string, error
 
 	if err := sq.Select("job.meta_data").From("job").Where("job.id = ?", job.ID).
 		RunWith(r.stmtCache).QueryRow().Scan(&job.RawMetaData); err != nil {
-		log.Warn("Error while scanning for job metadata")
+		cclog.Warn("Error while scanning for job metadata")
 		return nil, err
 	}
 
@@ -168,12 +169,12 @@ func (r *JobRepository) FetchMetadata(job *schema.Job) (map[string]string, error
 	}
 
 	if err := json.Unmarshal(job.RawMetaData, &job.MetaData); err != nil {
-		log.Warn("Error while unmarshaling raw metadata json")
+		cclog.Warn("Error while unmarshaling raw metadata json")
 		return nil, err
 	}
 
 	r.cache.Put(cachekey, job.MetaData, len(job.RawMetaData), 24*time.Hour)
-	log.Debugf("Timer FetchMetadata %s", time.Since(start))
+	cclog.Debugf("Timer FetchMetadata %s", time.Since(start))
 	return job.MetaData, nil
 }
 
@@ -182,16 +183,14 @@ func (r *JobRepository) UpdateMetadata(job *schema.Job, key, val string) (err er
 	r.cache.Del(cachekey)
 	if job.MetaData == nil {
 		if _, err = r.FetchMetadata(job); err != nil {
-			log.Warnf("Error while fetching metadata for job, DB ID '%v'", job.ID)
+			cclog.Warnf("Error while fetching metadata for job, DB ID '%v'", job.ID)
 			return err
 		}
 	}
 
 	if job.MetaData != nil {
 		cpy := make(map[string]string, len(job.MetaData)+1)
-		for k, v := range job.MetaData {
-			cpy[k] = v
-		}
+		maps.Copy(cpy, job.MetaData)
 		cpy[key] = val
 		job.MetaData = cpy
 	} else {
@@ -199,7 +198,7 @@ func (r *JobRepository) UpdateMetadata(job *schema.Job, key, val string) (err er
 	}
 
 	if job.RawMetaData, err = json.Marshal(job.MetaData); err != nil {
-		log.Warnf("Error while marshaling metadata for job, DB ID '%v'", job.ID)
+		cclog.Warnf("Error while marshaling metadata for job, DB ID '%v'", job.ID)
 		return err
 	}
 
@@ -207,7 +206,7 @@ func (r *JobRepository) UpdateMetadata(job *schema.Job, key, val string) (err er
 		Set("meta_data", job.RawMetaData).
 		Where("job.id = ?", job.ID).
 		RunWith(r.stmtCache).Exec(); err != nil {
-		log.Warnf("Error while updating metadata for job, DB ID '%v'", job.ID)
+		cclog.Warnf("Error while updating metadata for job, DB ID '%v'", job.ID)
 		return err
 	}
 
@@ -220,7 +219,7 @@ func (r *JobRepository) FetchFootprint(job *schema.Job) (map[string]float64, err
 
 	if err := sq.Select("job.footprint").From("job").Where("job.id = ?", job.ID).
 		RunWith(r.stmtCache).QueryRow().Scan(&job.RawFootprint); err != nil {
-		log.Warn("Error while scanning for job footprint")
+		cclog.Warn("Error while scanning for job footprint")
 		return nil, err
 	}
 
@@ -229,11 +228,11 @@ func (r *JobRepository) FetchFootprint(job *schema.Job) (map[string]float64, err
 	}
 
 	if err := json.Unmarshal(job.RawFootprint, &job.Footprint); err != nil {
-		log.Warn("Error while unmarshaling raw footprint json")
+		cclog.Warn("Error while unmarshaling raw footprint json")
 		return nil, err
 	}
 
-	log.Debugf("Timer FetchFootprint %s", time.Since(start))
+	cclog.Debugf("Timer FetchFootprint %s", time.Since(start))
 	return job.Footprint, nil
 }
 
@@ -247,7 +246,7 @@ func (r *JobRepository) FetchEnergyFootprint(job *schema.Job) (map[string]float6
 
 	if err := sq.Select("job.energy_footprint").From("job").Where("job.id = ?", job.ID).
 		RunWith(r.stmtCache).QueryRow().Scan(&job.RawEnergyFootprint); err != nil {
-		log.Warn("Error while scanning for job energy_footprint")
+		cclog.Warn("Error while scanning for job energy_footprint")
 		return nil, err
 	}
 
@@ -256,12 +255,12 @@ func (r *JobRepository) FetchEnergyFootprint(job *schema.Job) (map[string]float6
 	}
 
 	if err := json.Unmarshal(job.RawEnergyFootprint, &job.EnergyFootprint); err != nil {
-		log.Warn("Error while unmarshaling raw energy footprint json")
+		cclog.Warn("Error while unmarshaling raw energy footprint json")
 		return nil, err
 	}
 
 	r.cache.Put(cachekey, job.EnergyFootprint, len(job.EnergyFootprint), 24*time.Hour)
-	log.Debugf("Timer FetchEnergyFootprint %s", time.Since(start))
+	cclog.Debugf("Timer FetchEnergyFootprint %s", time.Since(start))
 	return job.EnergyFootprint, nil
 }
 
@@ -274,9 +273,9 @@ func (r *JobRepository) DeleteJobsBefore(startTime int64) (int, error) {
 
 	if err != nil {
 		s, _, _ := qd.ToSql()
-		log.Errorf(" DeleteJobsBefore(%d) with %s: error %#v", startTime, s, err)
+		cclog.Errorf(" DeleteJobsBefore(%d) with %s: error %#v", startTime, s, err)
 	} else {
-		log.Debugf("DeleteJobsBefore(%d): Deleted %d jobs", startTime, cnt)
+		cclog.Debugf("DeleteJobsBefore(%d): Deleted %d jobs", startTime, cnt)
 	}
 	return cnt, err
 }
@@ -287,9 +286,9 @@ func (r *JobRepository) DeleteJobById(id int64) error {
 
 	if err != nil {
 		s, _, _ := qd.ToSql()
-		log.Errorf("DeleteJobById(%d) with %s : error %#v", id, s, err)
+		cclog.Errorf("DeleteJobById(%d) with %s : error %#v", id, s, err)
 	} else {
-		log.Debugf("DeleteJobById(%d): Success", id)
+		cclog.Debugf("DeleteJobById(%d): Success", id)
 	}
 	return err
 }
@@ -352,7 +351,7 @@ func (r *JobRepository) FindColumnValue(user *schema.User, searchterm string, ta
 		}
 		return "", ErrNotFound
 	} else {
-		log.Infof("Non-Admin User %s : Requested Query '%s' on table '%s' : Forbidden", user.Name, query, table)
+		cclog.Infof("Non-Admin User %s : Requested Query '%s' on table '%s' : Forbidden", user.Name, query, table)
 		return "", ErrForbidden
 	}
 }
@@ -371,7 +370,7 @@ func (r *JobRepository) FindColumnValues(user *schema.User, query string, table 
 				err := rows.Scan(&result)
 				if err != nil {
 					rows.Close()
-					log.Warnf("Error while scanning rows: %v", err)
+					cclog.Warnf("Error while scanning rows: %v", err)
 					return emptyResult, err
 				}
 				results = append(results, result)
@@ -381,7 +380,7 @@ func (r *JobRepository) FindColumnValues(user *schema.User, query string, table 
 		return emptyResult, ErrNotFound
 
 	} else {
-		log.Infof("Non-Admin User %s : Requested Query '%s' on table '%s' : Forbidden", user.Name, query, table)
+		cclog.Infof("Non-Admin User %s : Requested Query '%s' on table '%s' : Forbidden", user.Name, query, table)
 		return emptyResult, ErrForbidden
 	}
 }
@@ -389,7 +388,7 @@ func (r *JobRepository) FindColumnValues(user *schema.User, query string, table 
 func (r *JobRepository) Partitions(cluster string) ([]string, error) {
 	var err error
 	start := time.Now()
-	partitions := r.cache.Get("partitions:"+cluster, func() (interface{}, time.Duration, int) {
+	partitions := r.cache.Get("partitions:"+cluster, func() (any, time.Duration, int) {
 		parts := []string{}
 		if err = r.DB.Select(&parts, `SELECT DISTINCT job.cluster_partition FROM job WHERE job.cluster = ?;`, cluster); err != nil {
 			return nil, 0, 1000
@@ -400,7 +399,7 @@ func (r *JobRepository) Partitions(cluster string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Debugf("Timer Partitions %s", time.Since(start))
+	cclog.Debugf("Timer Partitions %s", time.Since(start))
 	return partitions.([]string), nil
 }
 
@@ -414,7 +413,7 @@ func (r *JobRepository) AllocatedNodes(cluster string) (map[string]map[string]in
 		Where("job.cluster = ?", cluster).
 		RunWith(r.stmtCache).Query()
 	if err != nil {
-		log.Error("Error while running query")
+		cclog.Error("Error while running query")
 		return nil, err
 	}
 
@@ -425,11 +424,11 @@ func (r *JobRepository) AllocatedNodes(cluster string) (map[string]map[string]in
 		var resources []*schema.Resource
 		var subcluster string
 		if err := rows.Scan(&raw, &subcluster); err != nil {
-			log.Warn("Error while scanning rows")
+			cclog.Warn("Error while scanning rows")
 			return nil, err
 		}
 		if err := json.Unmarshal(raw, &resources); err != nil {
-			log.Warn("Error while unmarshaling raw resources json")
+			cclog.Warn("Error while unmarshaling raw resources json")
 			return nil, err
 		}
 
@@ -444,7 +443,7 @@ func (r *JobRepository) AllocatedNodes(cluster string) (map[string]map[string]in
 		}
 	}
 
-	log.Debugf("Timer AllocatedNodes %s", time.Since(start))
+	cclog.Debugf("Timer AllocatedNodes %s", time.Since(start))
 	return subclusters, nil
 }
 
@@ -460,23 +459,50 @@ func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 		Where(fmt.Sprintf("(%d - job.start_time) > (job.walltime + %d)", time.Now().Unix(), seconds)).
 		RunWith(r.DB).Exec()
 	if err != nil {
-		log.Warn("Error while stopping jobs exceeding walltime")
+		cclog.Warn("Error while stopping jobs exceeding walltime")
 		return err
 	}
 
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		log.Warn("Error while fetching affected rows after stopping due to exceeded walltime")
+		cclog.Warn("Error while fetching affected rows after stopping due to exceeded walltime")
 		return err
 	}
 
 	if rowsAffected > 0 {
-		log.Infof("%d jobs have been marked as failed due to running too long", rowsAffected)
+		cclog.Infof("%d jobs have been marked as failed due to running too long", rowsAffected)
 	}
-	log.Debugf("Timer StopJobsExceedingWalltimeBy %s", time.Since(start))
+	cclog.Debugf("Timer StopJobsExceedingWalltimeBy %s", time.Since(start))
 	return nil
 }
 
+func (r *JobRepository) FindJobIdsByTag(tagId int64) ([]int64, error) {
+	query := sq.Select("job.id").From("job").
+		Join("jobtag ON jobtag.job_id = job.id").
+		Where(sq.Eq{"jobtag.tag_id": tagId}).Distinct()
+	rows, err := query.RunWith(r.stmtCache).Query()
+	if err != nil {
+		cclog.Error("Error while running query")
+		return nil, err
+	}
+	jobIds := make([]int64, 0, 100)
+
+	for rows.Next() {
+		var jobId int64
+
+		if err := rows.Scan(&jobId); err != nil {
+			rows.Close()
+			cclog.Warn("Error while scanning rows")
+			return nil, err
+		}
+
+		jobIds = append(jobIds, jobId)
+	}
+
+	return jobIds, nil
+}
+
+// FIXME: Reconsider filtering short jobs with harcoded threshold
 func (r *JobRepository) FindRunningJobs(cluster string) ([]*schema.Job, error) {
 	query := sq.Select(jobColumns...).From("job").
 		Where(fmt.Sprintf("job.cluster = '%s'", cluster)).
@@ -485,7 +511,7 @@ func (r *JobRepository) FindRunningJobs(cluster string) ([]*schema.Job, error) {
 
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
-		log.Error("Error while running query")
+		cclog.Error("Error while running query")
 		return nil, err
 	}
 
@@ -494,13 +520,13 @@ func (r *JobRepository) FindRunningJobs(cluster string) ([]*schema.Job, error) {
 		job, err := scanJob(rows)
 		if err != nil {
 			rows.Close()
-			log.Warn("Error while scanning rows")
+			cclog.Warn("Error while scanning rows")
 			return nil, err
 		}
 		jobs = append(jobs, job)
 	}
 
-	log.Infof("Return job count %d", len(jobs))
+	cclog.Infof("Return job count %d", len(jobs))
 	return jobs, nil
 }
 
@@ -525,18 +551,18 @@ func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64
 	}
 
 	if startTimeBegin == 0 {
-		log.Infof("Find jobs before %d", startTimeEnd)
+		cclog.Infof("Find jobs before %d", startTimeEnd)
 		query = sq.Select(jobColumns...).From("job").Where(fmt.Sprintf(
 			"job.start_time < %d", startTimeEnd))
 	} else {
-		log.Infof("Find jobs between %d and %d", startTimeBegin, startTimeEnd)
+		cclog.Infof("Find jobs between %d and %d", startTimeBegin, startTimeEnd)
 		query = sq.Select(jobColumns...).From("job").Where(fmt.Sprintf(
 			"job.start_time BETWEEN %d AND %d", startTimeBegin, startTimeEnd))
 	}
 
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
-		log.Error("Error while running query")
+		cclog.Error("Error while running query")
 		return nil, err
 	}
 
@@ -545,13 +571,13 @@ func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64
 		job, err := scanJob(rows)
 		if err != nil {
 			rows.Close()
-			log.Warn("Error while scanning rows")
+			cclog.Warn("Error while scanning rows")
 			return nil, err
 		}
 		jobs = append(jobs, job)
 	}
 
-	log.Infof("Return job count %d", len(jobs))
+	cclog.Infof("Return job count %d", len(jobs))
 	return jobs, nil
 }
 
@@ -581,12 +607,12 @@ func (r *JobRepository) MarkArchived(
 
 func (r *JobRepository) UpdateEnergy(
 	stmt sq.UpdateBuilder,
-	jobMeta *schema.JobMeta,
+	jobMeta *schema.Job,
 ) (sq.UpdateBuilder, error) {
 	/* Note: Only Called for Running Jobs during Intermediate Update or on Archiving */
 	sc, err := archive.GetSubCluster(jobMeta.Cluster, jobMeta.SubCluster)
 	if err != nil {
-		log.Errorf("cannot get subcluster: %s", err.Error())
+		cclog.Errorf("cannot get subcluster: %s", err.Error())
 		return stmt, err
 	}
 	energyFootprint := make(map[string]float64)
@@ -599,7 +625,7 @@ func (r *JobRepository) UpdateEnergy(
 		if i, err := archive.MetricIndex(sc.MetricConfig, fp); err == nil {
 			// Note: For DB data, calculate and save as kWh
 			if sc.MetricConfig[i].Energy == "energy" { // this metric has energy as unit (Joules or Wh)
-				log.Warnf("Update EnergyFootprint for Job %d and Metric %s on cluster %s: Set to 'energy' in cluster.json: Not implemented, will return 0.0", jobMeta.JobID, jobMeta.Cluster, fp)
+				cclog.Warnf("Update EnergyFootprint for Job %d and Metric %s on cluster %s: Set to 'energy' in cluster.json: Not implemented, will return 0.0", jobMeta.JobID, jobMeta.Cluster, fp)
 				// FIXME: Needs sum as stats type
 			} else if sc.MetricConfig[i].Energy == "power" { // this metric has power as unit (Watt)
 				// Energy: Power (in Watts) * Time (in Seconds)
@@ -611,18 +637,18 @@ func (r *JobRepository) UpdateEnergy(
 				metricEnergy = math.Round(rawEnergy*100.0) / 100.0
 			}
 		} else {
-			log.Warnf("Error while collecting energy metric %s for job, DB ID '%v', return '0.0'", fp, jobMeta.ID)
+			cclog.Warnf("Error while collecting energy metric %s for job, DB ID '%v', return '0.0'", fp, jobMeta.ID)
 		}
 
 		energyFootprint[fp] = metricEnergy
 		totalEnergy += metricEnergy
 
-		// log.Infof("Metric %s Average %f -> %f kWh | Job %d Total -> %f kWh", fp, LoadJobStat(jobMeta, fp, "avg"), energy, jobMeta.JobID, totalEnergy)
+		// cclog.Infof("Metric %s Average %f -> %f kWh | Job %d Total -> %f kWh", fp, LoadJobStat(jobMeta, fp, "avg"), energy, jobMeta.JobID, totalEnergy)
 	}
 
 	var rawFootprint []byte
 	if rawFootprint, err = json.Marshal(energyFootprint); err != nil {
-		log.Warnf("Error while marshaling energy footprint for job INTO BYTES, DB ID '%v'", jobMeta.ID)
+		cclog.Warnf("Error while marshaling energy footprint for job INTO BYTES, DB ID '%v'", jobMeta.ID)
 		return stmt, err
 	}
 
@@ -631,12 +657,12 @@ func (r *JobRepository) UpdateEnergy(
 
 func (r *JobRepository) UpdateFootprint(
 	stmt sq.UpdateBuilder,
-	jobMeta *schema.JobMeta,
+	jobMeta *schema.Job,
 ) (sq.UpdateBuilder, error) {
 	/* Note: Only Called for Running Jobs during Intermediate Update or on Archiving */
 	sc, err := archive.GetSubCluster(jobMeta.Cluster, jobMeta.SubCluster)
 	if err != nil {
-		log.Errorf("cannot get subcluster: %s", err.Error())
+		cclog.Errorf("cannot get subcluster: %s", err.Error())
 		return stmt, err
 	}
 	footprint := make(map[string]float64)
@@ -650,7 +676,7 @@ func (r *JobRepository) UpdateFootprint(
 		}
 
 		if statType != "avg" && statType != "min" && statType != "max" {
-			log.Warnf("unknown statType for footprint update: %s", statType)
+			cclog.Warnf("unknown statType for footprint update: %s", statType)
 			return stmt, fmt.Errorf("unknown statType for footprint update: %s", statType)
 		}
 
@@ -664,7 +690,7 @@ func (r *JobRepository) UpdateFootprint(
 
 	var rawFootprint []byte
 	if rawFootprint, err = json.Marshal(footprint); err != nil {
-		log.Warnf("Error while marshaling footprint for job INTO BYTES, DB ID '%v'", jobMeta.ID)
+		cclog.Warnf("Error while marshaling footprint for job INTO BYTES, DB ID '%v'", jobMeta.ID)
 		return stmt, err
 	}
 

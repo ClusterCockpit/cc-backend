@@ -1,10 +1,10 @@
 <!--
-    @component Main user jobs list display component; displays job list and additional information for a given user
+  @component Main user jobs list display component; displays job list and additional information for a given user
 
-    Properties:
-    - `user Object`: The GraphQL user object
-    - `filterPresets Object`: Optional predefined filter values
- -->
+  Properties:
+  - `user Object`: The GraphQL user object
+  - `filterPresets Object`: Optional predefined filter values
+-->
 
 <script>
   import { onMount, getContext } from "svelte";
@@ -42,72 +42,105 @@
   import TextFilter from "./generic/helper/TextFilter.svelte"
   import Refresher from "./generic/helper/Refresher.svelte";
 
+  /* Svelte 5 Props */
+  let {
+    user,
+    filterPresets 
+  } = $props();
+
+  /* Const Init */
   const { query: initq } = init();
-
   const ccconfig = getContext("cc-config");
-
-  export let user;
-  export let filterPresets;
-
-  let filterComponent; // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
-  let jobList;
-  let jobFilters = [];
-  let matchedJobs = 0;
-  let sorting = { field: "startTime", type: "col", order: "DESC" },
-    isSortingOpen = false;
-  let metrics = ccconfig.plot_list_selectedMetrics,
-    isMetricsSelectionOpen = false;
-  let isHistogramSelectionOpen = false;
-  let selectedCluster = filterPresets?.cluster ? filterPresets.cluster : null;
-  let showFootprint = filterPresets.cluster
-    ? !!ccconfig[`plot_list_showFootprint:${filterPresets.cluster}`]
-    : !!ccconfig.plot_list_showFootprint;
-  
-  let numDurationBins = "1h";
-  let numMetricBins = 10;
-  let durationBinOptions = ["1m","10m","1h","6h","12h"];
-  let metricBinOptions = [10, 20, 50, 100];
-
-  $: selectedHistograms = selectedCluster
-    ? ccconfig[`user_view_histogramMetrics:${selectedCluster}`] || ( ccconfig['user_view_histogramMetrics'] || [] )
-    : ccconfig['user_view_histogramMetrics'] || [];
-
   const client = getContextClient();
-  $: stats = queryStore({
-    client: client,
-    query: gql`
-      query ($jobFilters: [JobFilter!]!, $selectedHistograms: [String!], $numDurationBins: String, $numMetricBins: Int) {
-        jobsStatistics(filter: $jobFilters, metrics: $selectedHistograms, numDurationBins: $numDurationBins , numMetricBins: $numMetricBins ) {
-          totalJobs
-          shortJobs
-          totalWalltime
-          totalCoreHours
-          histDuration {
-            count
-            value
-          }
-          histNumNodes {
-            count
-            value
-          }
-          histMetrics {
-            metric
-            unit
-            stat
-            data {
-              min
-              max
+  const durationBinOptions = ["1m","10m","1h","6h","12h"];
+  const metricBinOptions = [10, 20, 50, 100];
+
+  /* State Init */
+  // List & Control Vars
+  let filterComponent = $state(); // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
+  let jobFilters = $state([]);
+  let jobList = $state(null);
+  let matchedListJobs = $state(0);
+  let isSortingOpen = $state(false);
+  let isMetricsSelectionOpen = $state(false);
+  let sorting = $state({ field: "startTime", type: "col", order: "DESC" });
+  let selectedCluster = $state(filterPresets?.cluster ? filterPresets.cluster : null);
+  let selectedHistogramsBuffer = $state({ all: (ccconfig['user_view_histogramMetrics'] || []) })
+  let metrics = $state(filterPresets.cluster
+    ? ccconfig[`plot_list_selectedMetrics:${filterPresets.cluster}`] ||
+      ccconfig.plot_list_selectedMetrics
+    : ccconfig.plot_list_selectedMetrics
+  );
+  let showFootprint = $state(filterPresets.cluster
+    ? !!ccconfig[`plot_list_showFootprint:${filterPresets.cluster}`]
+    : !!ccconfig.plot_list_showFootprint
+  );
+
+  // Histogram Vars
+  let isHistogramSelectionOpen = $state(false);
+  let numDurationBins = $state("1h");
+  let numMetricBins = $state(10);
+
+  // Compare Vars (TODO)
+  // let jobCompare = $state(null);
+  // let showCompare = $state(false);
+  // let selectedJobs = $state([]);
+  // let filterBuffer = $state([]);
+  // let matchedCompareJobs = $state(0);
+
+  /* Derived Vars */
+  let selectedHistograms = $derived(selectedCluster ? selectedHistogramsBuffer[selectedCluster] : selectedHistogramsBuffer['all']);
+  let stats = $derived(
+    queryStore({
+      client: client,
+      query: gql`
+        query ($jobFilters: [JobFilter!]!, $selectedHistograms: [String!], $numDurationBins: String, $numMetricBins: Int) {
+          jobsStatistics(filter: $jobFilters, metrics: $selectedHistograms, numDurationBins: $numDurationBins , numMetricBins: $numMetricBins ) {
+            totalJobs
+            shortJobs
+            totalWalltime
+            totalCoreHours
+            histDuration {
               count
-              bin
+              value
+            }
+            histNumNodes {
+              count
+              value
+            }
+            histMetrics {
+              metric
+              unit
+              stat
+              data {
+                min
+                max
+                count
+                bin
+              }
             }
           }
         }
-      }
-    `,
-    variables: { jobFilters, selectedHistograms, numDurationBins, numMetricBins },
+      `,
+      variables: { jobFilters, selectedHistograms, numDurationBins, numMetricBins },
+    })
+  );
+
+  /* Effect */
+  $effect(() => {
+    if (!selectedHistogramsBuffer[selectedCluster]) {
+      selectedHistogramsBuffer[selectedCluster] = ccconfig[`user_view_histogramMetrics:${selectedCluster}`];
+    };
   });
 
-  onMount(() => filterComponent.updateFilters());
+  /* On Mount */
+  onMount(() => {
+    filterComponent.updateFilters();
+    // Why? -> `$derived(ccconfig[$cluster])` only loads array from last Backend-Query if $cluster changed reactively (without reload)
+    if (filterPresets?.cluster) {
+      selectedHistogramsBuffer[filterPresets.cluster] = ccconfig[`user_view_histogramMetrics:${filterPresets.cluster}`];
+    };
+  });
 </script>
 
 <!-- ROW1: Status-->
@@ -129,13 +162,13 @@
 <Row cols={{ xs: 1, md: 2, lg: 6}} class="mb-3">
   <Col class="mb-2 mb-lg-0">
     <ButtonGroup class="w-100">
-      <Button outline color="primary" on:click={() => (isSortingOpen = true)}>
+      <Button outline color="primary" onclick={() => (isSortingOpen = true)}>
         <Icon name="sort-up" /> Sorting
       </Button>
       <Button
         outline
         color="primary"
-        on:click={() => (isMetricsSelectionOpen = true)}
+        onclick={() => (isMetricsSelectionOpen = true)}
       >
         <Icon name="graph-up" /> Metrics
       </Button>
@@ -143,11 +176,11 @@
   </Col>
   <Col lg="4" class="mb-1 mb-lg-0">
     <Filters
-      {filterPresets}
-      {matchedJobs}
-      startTimeQuickSelect={true}
+      startTimeQuickSelect
       bind:this={filterComponent}
-      on:update-filters={({ detail }) => {
+      {filterPresets}
+      matchedJobs={matchedListJobs}
+      applyFilters={(detail) => {
         jobFilters = [...detail.filters, { user: { eq: user.username } }];
         selectedCluster = jobFilters[0]?.cluster
           ? jobFilters[0].cluster.eq
@@ -173,11 +206,11 @@
   </Col>
   <Col class="mb-2 mb-lg-0">
     <TextFilter
-      on:set-filter={({ detail }) => filterComponent.updateFilters(detail)}
+      setFilter={(filter) => filterComponent.updateFilters(filter)}
     />
   </Col>
   <Col class="mb-1 mb-lg-0">
-    <Refresher on:refresh={() => {
+    <Refresher onRefresh={() => {
       jobList.refreshJobs()
       jobList.refreshAllMetrics()
     }} />
@@ -269,7 +302,7 @@
       outline
       color="secondary"
       class="w-100"
-      on:click={() => (isHistogramSelectionOpen = true)}
+      onclick={() => (isHistogramSelectionOpen = true)}
     >
       <Icon name="bar-chart-line" /> Select Histograms
     </Button>
@@ -305,22 +338,25 @@
     </Row>
   {:else}
     <hr class="my-2"/>
+    <!-- Note: Ignore '#snippet' Error in IDE -->
+    {#snippet gridContent(item)}
+      <Histogram
+        data={convert2uplot(item.data)}
+        title="Distribution of '{item.metric} ({item.stat})' footprints"
+        xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
+        xunit={item.unit}
+        ylabel="Number of Jobs"
+        yunit="Jobs"
+        usesBins
+      />
+    {/snippet}
+
     {#key $stats.data.jobsStatistics[0].histMetrics}
       <PlotGrid
-        let:item
         items={$stats.data.jobsStatistics[0].histMetrics}
         itemsPerRow={3}
-      >
-        <Histogram
-          data={convert2uplot(item.data)}
-          title="Distribution of '{item.metric} ({item.stat})' footprints"
-          xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
-          xunit={item.unit}
-          ylabel="Number of Jobs"
-          yunit="Jobs"
-          usesBins
-        />
-      </PlotGrid>
+        {gridContent}
+      />
     {/key}
   {/if}
 {:else}
@@ -336,27 +372,39 @@
   <Col>
     <JobList
       bind:this={jobList} 
-      bind:matchedJobs
-      bind:metrics
-      bind:sorting
-      bind:showFootprint
+      bind:matchedListJobs
+      {metrics}
+      {sorting}
+      {showFootprint}
     />
   </Col>
 </Row>
 
-<Sorting bind:sorting bind:isOpen={isSortingOpen} />
+<Sorting
+  bind:isOpen={isSortingOpen}
+  presetSorting={sorting}
+  applySorting={(newSort) =>
+    sorting = {...newSort}
+  }
+/>
 
 <MetricSelection
-  bind:cluster={selectedCluster}
-  configName="plot_list_selectedMetrics"
-  bind:metrics
-  bind:isOpen={isMetricsSelectionOpen}
-  bind:showFootprint
-  footprintSelect
+    bind:isOpen={isMetricsSelectionOpen}
+    bind:showFootprint
+    presetMetrics={metrics}
+    cluster={selectedCluster}
+    configName="plot_list_selectedMetrics"
+    footprintSelect
+    applyMetrics={(newMetrics) => 
+      metrics = [...newMetrics]
+    }
 />
 
 <HistogramSelection
-  bind:cluster={selectedCluster}
-  bind:selectedHistograms
+  cluster={selectedCluster}
   bind:isOpen={isHistogramSelectionOpen}
+  presetSelectedHistograms={selectedHistograms}
+  applyChange={(newSelection) => {
+    selectedHistogramsBuffer[selectedCluster || 'all'] = [...newSelection];
+  }}
 />

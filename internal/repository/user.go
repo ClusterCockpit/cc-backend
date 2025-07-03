@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package repository
@@ -13,13 +13,13 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 )
 
 var (
@@ -50,7 +50,7 @@ func (r *UserRepository) GetUser(username string) (*schema.User, error) {
 	if err := sq.Select("password", "ldap", "name", "roles", "email", "projects").From("hpc_user").
 		Where("hpc_user.username = ?", username).RunWith(r.DB).
 		QueryRow().Scan(&hashedPassword, &user.AuthSource, &name, &rawRoles, &email, &rawProjects); err != nil {
-		log.Warnf("Error while querying user '%v' from database", username)
+		cclog.Warnf("Error while querying user '%v' from database", username)
 		return nil, err
 	}
 
@@ -59,7 +59,7 @@ func (r *UserRepository) GetUser(username string) (*schema.User, error) {
 	user.Email = email.String
 	if rawRoles.Valid {
 		if err := json.Unmarshal([]byte(rawRoles.String), &user.Roles); err != nil {
-			log.Warn("Error while unmarshaling raw roles from DB")
+			cclog.Warn("Error while unmarshaling raw roles from DB")
 			return nil, err
 		}
 	}
@@ -76,14 +76,14 @@ func (r *UserRepository) GetLdapUsernames() ([]string, error) {
 	var users []string
 	rows, err := r.DB.Query(`SELECT username FROM hpc_user WHERE hpc_user.ldap = 1`)
 	if err != nil {
-		log.Warn("Error while querying usernames")
+		cclog.Warn("Error while querying usernames")
 		return nil, err
 	}
 
 	for rows.Next() {
 		var username string
 		if err := rows.Scan(&username); err != nil {
-			log.Warnf("Error while scanning for user '%s'", username)
+			cclog.Warnf("Error while scanning for user '%s'", username)
 			return nil, err
 		}
 
@@ -111,7 +111,7 @@ func (r *UserRepository) AddUser(user *schema.User) error {
 	if user.Password != "" {
 		password, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 		if err != nil {
-			log.Error("Error while encrypting new user password")
+			cclog.Error("Error while encrypting new user password")
 			return err
 		}
 		cols = append(cols, "password")
@@ -123,21 +123,21 @@ func (r *UserRepository) AddUser(user *schema.User) error {
 	}
 
 	if _, err := sq.Insert("hpc_user").Columns(cols...).Values(vals...).RunWith(r.DB).Exec(); err != nil {
-		log.Errorf("Error while inserting new user '%v' into DB", user.Username)
+		cclog.Errorf("Error while inserting new user '%v' into DB", user.Username)
 		return err
 	}
 
-	log.Infof("new user %#v created (roles: %s, auth-source: %d, projects: %s)", user.Username, rolesJson, user.AuthSource, projectsJson)
+	cclog.Infof("new user %#v created (roles: %s, auth-source: %d, projects: %s)", user.Username, rolesJson, user.AuthSource, projectsJson)
 
 	defaultMetricsCfg, err := config.LoadDefaultMetricsConfig()
 	if err != nil {
-		log.Errorf("Error loading default metrics config: %v", err)
+		cclog.Errorf("Error loading default metrics config: %v", err)
 	} else if defaultMetricsCfg != nil {
 		for _, cluster := range defaultMetricsCfg.Clusters {
 			metricsArray := config.ParseMetricsString(cluster.DefaultMetrics)
 			metricsJSON, err := json.Marshal(metricsArray)
 			if err != nil {
-				log.Errorf("Error marshaling default metrics for cluster %s: %v", cluster.Name, err)
+				cclog.Errorf("Error marshaling default metrics for cluster %s: %v", cluster.Name, err)
 				continue
 			}
 			confKey := "job_view_selectedMetrics:" + cluster.Name
@@ -145,9 +145,9 @@ func (r *UserRepository) AddUser(user *schema.User) error {
 				Columns("username", "confkey", "value").
 				Values(user.Username, confKey, string(metricsJSON)).
 				RunWith(r.DB).Exec(); err != nil {
-				log.Errorf("Error inserting default job view metrics for user %s and cluster %s: %v", user.Username, cluster.Name, err)
+				cclog.Errorf("Error inserting default job view metrics for user %s and cluster %s: %v", user.Username, cluster.Name, err)
 			} else {
-				log.Infof("Default job view metrics for user %s and cluster %s set to %s", user.Username, cluster.Name, string(metricsJSON))
+				cclog.Infof("Default job view metrics for user %s and cluster %s set to %s", user.Username, cluster.Name, string(metricsJSON))
 			}
 		}
 	}
@@ -160,7 +160,7 @@ func (r *UserRepository) UpdateUser(dbUser *schema.User, user *schema.User) erro
 	// TODO: Discuss updatable fields
 	if dbUser.Name != user.Name {
 		if _, err := sq.Update("hpc_user").Set("name", user.Name).Where("hpc_user.username = ?", dbUser.Username).RunWith(r.DB).Exec(); err != nil {
-			log.Errorf("error while updating name of user '%s'", user.Username)
+			cclog.Errorf("error while updating name of user '%s'", user.Username)
 			return err
 		}
 	}
@@ -179,10 +179,10 @@ func (r *UserRepository) UpdateUser(dbUser *schema.User, user *schema.User) erro
 func (r *UserRepository) DelUser(username string) error {
 	_, err := r.DB.Exec(`DELETE FROM hpc_user WHERE hpc_user.username = ?`, username)
 	if err != nil {
-		log.Errorf("Error while deleting user '%s' from DB", username)
+		cclog.Errorf("Error while deleting user '%s' from DB", username)
 		return err
 	}
-	log.Infof("deleted user '%s' from DB", username)
+	cclog.Infof("deleted user '%s' from DB", username)
 	return nil
 }
 
@@ -194,7 +194,7 @@ func (r *UserRepository) ListUsers(specialsOnly bool) ([]*schema.User, error) {
 
 	rows, err := q.RunWith(r.DB).Query()
 	if err != nil {
-		log.Warn("Error while querying user list")
+		cclog.Warn("Error while querying user list")
 		return nil, err
 	}
 
@@ -206,12 +206,12 @@ func (r *UserRepository) ListUsers(specialsOnly bool) ([]*schema.User, error) {
 		user := &schema.User{}
 		var name, email sql.NullString
 		if err := rows.Scan(&user.Username, &name, &email, &rawroles, &rawprojects); err != nil {
-			log.Warn("Error while scanning user list")
+			cclog.Warn("Error while scanning user list")
 			return nil, err
 		}
 
 		if err := json.Unmarshal([]byte(rawroles), &user.Roles); err != nil {
-			log.Warn("Error while unmarshaling raw role list")
+			cclog.Warn("Error while unmarshaling raw role list")
 			return nil, err
 		}
 
@@ -234,7 +234,7 @@ func (r *UserRepository) AddRole(
 	newRole := strings.ToLower(queryrole)
 	user, err := r.GetUser(username)
 	if err != nil {
-		log.Warnf("Could not load user '%s'", username)
+		cclog.Warnf("Could not load user '%s'", username)
 		return err
 	}
 
@@ -249,7 +249,7 @@ func (r *UserRepository) AddRole(
 
 	roles, _ := json.Marshal(append(user.Roles, newRole))
 	if _, err := sq.Update("hpc_user").Set("roles", roles).Where("hpc_user.username = ?", username).RunWith(r.DB).Exec(); err != nil {
-		log.Errorf("error while adding new role for user '%s'", user.Username)
+		cclog.Errorf("error while adding new role for user '%s'", user.Username)
 		return err
 	}
 	return nil
@@ -259,7 +259,7 @@ func (r *UserRepository) RemoveRole(ctx context.Context, username string, queryr
 	oldRole := strings.ToLower(queryrole)
 	user, err := r.GetUser(username)
 	if err != nil {
-		log.Warnf("Could not load user '%s'", username)
+		cclog.Warnf("Could not load user '%s'", username)
 		return err
 	}
 
@@ -285,7 +285,7 @@ func (r *UserRepository) RemoveRole(ctx context.Context, username string, queryr
 
 	mroles, _ := json.Marshal(newroles)
 	if _, err := sq.Update("hpc_user").Set("roles", mroles).Where("hpc_user.username = ?", username).RunWith(r.DB).Exec(); err != nil {
-		log.Errorf("Error while removing role for user '%s'", user.Username)
+		cclog.Errorf("Error while removing role for user '%s'", user.Username)
 		return err
 	}
 	return nil
@@ -364,10 +364,10 @@ const ContextUserKey ContextKey = "user"
 func GetUserFromContext(ctx context.Context) *schema.User {
 	x := ctx.Value(ContextUserKey)
 	if x == nil {
-		log.Warnf("no user retrieved from context")
+		cclog.Warnf("no user retrieved from context")
 		return nil
 	}
-	// log.Infof("user retrieved from context: %v", x.(*schema.User))
+	// cclog.Infof("user retrieved from context: %v", x.(*schema.User))
 	return x.(*schema.User)
 }
 
@@ -385,11 +385,11 @@ func (r *UserRepository) FetchUserInCtx(ctx context.Context, username string) (*
 		if err == sql.ErrNoRows {
 			/* This warning will be logged *often* for non-local users, i.e. users mentioned only in job-table or archive, */
 			/* since FetchUser will be called to retrieve full name and mail for every job in query/list									 */
-			// log.Warnf("User '%s' Not found in DB", username)
+			// cclog.Warnf("User '%s' Not found in DB", username)
 			return nil, nil
 		}
 
-		log.Warnf("Error while fetching user '%s'", username)
+		cclog.Warnf("Error while fetching user '%s'", username)
 		return nil, err
 	}
 

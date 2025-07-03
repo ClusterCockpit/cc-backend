@@ -1,47 +1,41 @@
 <!--
-    @component Cluster Per Node List component; renders current state of SELECTABLE metrics for ALL nodes
+  @component Cluster Per Node List component; renders current state of SELECTABLE metrics for ALL nodes
 
-    Properties:
-    - `cluster String`: The nodes' cluster
-    - `subCluster String`: The nodes' subCluster
-    - `ccconfig Object?`: The ClusterCockpit Config Context [Default: null]
-    - `selectedMetrics [String]`: The array of selected metrics
-    - `systemUnits Object`: The object of metric units
- -->
+  Properties:
+  - `cluster String`: The nodes' cluster
+  - `subCluster String`: The nodes' subCluster [Default: ""]
+  - `ccconfig Object?`: The ClusterCockpit Config Context [Default: null]
+  - `selectedMetrics [String]`: The array of selected metrics [Default []]
+  - `selectedResolution Number?`: The selected data resolution [Default: 0]
+  - `hostnameFilter String?`: The active hostnamefilter [Default: ""]
+  - `presetSystemUnits Object`: The object of metric units [Default: null]
+  - `from Date?`: The selected "from" date [Default: null]
+  - `to Date?`: The selected "to" date [Default: null]
+-->
 
 <script>
-  import { getContext } from "svelte";
   import { queryStore, gql, getContextClient, mutationStore } from "@urql/svelte";
   import { Row, Col, Card, Table, Spinner } from "@sveltestrap/sveltestrap";
   import { stickyHeader } from "../generic/utils.js";
   import NodeListRow from "./nodelist/NodeListRow.svelte";
   import Pagination from "../generic/joblist/Pagination.svelte";
 
-  export let cluster;
-  export let subCluster = "";
-  export let ccconfig = null;
-  export let selectedMetrics = [];
-  export let selectedResolution = 0;
-  export let hostnameFilter = "";
-  export let systemUnits = null;
-  export let from = null;
-  export let to = null;
+  /* Svelte 5 Props */
+  let {
+    cluster,
+    subCluster = "",
+    ccconfig = null,
+    selectedMetrics = [],
+    selectedResolution = 0,
+    hostnameFilter = "",
+    presetSystemUnits = null,
+    from = null,
+    to = null
+  } = $props();
 
-  // Decouple from Job List Paging Params?
-  let usePaging = ccconfig?.node_list_usePaging || false
-  let itemsPerPage = usePaging ? (ccconfig?.plot_list_nodesPerPage || 10) : 10;
-  let page = 1;
-  let paging = { itemsPerPage, page };
-
-  let headerPaddingTop = 0;
-  stickyHeader(
-    ".cc-table-wrapper > table.table >thead > tr > th.position-sticky:nth-child(1)",
-    (x) => (headerPaddingTop = x),
-  );
-
-  // const { query: initq } = init();
-  const initialized = getContext("initialized");
+  /* Const Init */
   const client = getContextClient();
+  const usePaging = ccconfig?.node_list_usePaging || false;
   const nodeListQuery = gql`
     query ($cluster: String!, $subCluster: String!, $nodeFilter: String!, $metrics: [String!], $scopes: [MetricScope!]!, $from: Time!, $to: Time!, $paging: PageRequest!, $selectedResolution: Int) {
       nodeMetricsList(
@@ -91,51 +85,16 @@
     }
   `
 
-  const updateConfigurationMutation = ({ name, value }) => {
-    return mutationStore({
-      client: client,
-      query: gql`
-        mutation ($name: String!, $value: String!) {
-          updateConfiguration(name: $name, value: $value)
-        }
-      `,
-      variables: { name, value },
-    });
-  };
+  /* State Init */
+  let nodes = $state([]);
+  let page = $state(1);
+  let itemsPerPage = $state(usePaging ? (ccconfig?.plot_list_nodesPerPage || 10) : 10);
+  let headerPaddingTop = $state(0);
+  let matchedNodes = $state(0);
 
-  // Decouple from Job List Paging Params?
-  function updateConfiguration(value, page) {
-    updateConfigurationMutation({
-      name: "plot_list_nodesPerPage",
-      value: value,
-    }).subscribe((res) => {
-      if (res.fetching === false && !res.error) {
-        nodes = [] // Empty List
-        paging = { itemsPerPage: value, page: page }; // Trigger reload of nodeList
-      } else if (res.fetching === false && res.error) {
-        throw res.error;
-      }
-    });
-  }
-
-  if (!usePaging) {
-    window.addEventListener('scroll', () => {
-      let {
-        scrollTop,
-        scrollHeight,
-        clientHeight
-      } = document.documentElement;
-
-      // Add 100 px offset to trigger load earlier
-      if (scrollTop + clientHeight >= scrollHeight - 100 && $nodesQuery?.data != null && $nodesQuery.data?.nodeMetricsList.hasNextPage) {
-        let pendingPaging = { ...paging }
-        pendingPaging.page += 1
-        paging = pendingPaging
-      };
-    });
-  };
-
-  $: nodesQuery = queryStore({
+  /* Derived */
+  const paging = $derived({ itemsPerPage, page });
+  const nodesQuery = $derived(queryStore({
     client: client,
     query: nodeListQuery,
     variables: {
@@ -150,24 +109,93 @@
       selectedResolution: selectedResolution,
     },
     requestPolicy: "network-only", // Resolution queries are cached, but how to access them? For now: reload on every change
+  }));
+  
+  /* Effects */
+  $effect(() => {
+    if (!usePaging) {
+      window.addEventListener('scroll', () => {
+        let {
+          scrollTop,
+          scrollHeight,
+          clientHeight
+        } = document.documentElement;
+
+        // Add 100 px offset to trigger load earlier
+        if (scrollTop + clientHeight >= scrollHeight - 100  && $nodesQuery?.data?.nodeMetricsList?.hasNextPage) {
+          page += 1
+        };
+      });
+    };
   });
 
-  let nodes = [];
-  $: if ($initialized && $nodesQuery.data) {
-    if (usePaging) {
-      nodes = [...$nodesQuery.data.nodeMetricsList.items].sort((a, b) => a.host.localeCompare(b.host));
-    } else { 
-      nodes = nodes.concat([...$nodesQuery.data.nodeMetricsList.items].sort((a, b) => a.host.localeCompare(b.host)))
+  $effect(() => {
+    handleNodes($nodesQuery?.data?.nodeMetricsList);
+  });
+
+  $effect(() => {
+    // Triggers (Except Paging)
+    from, to
+    selectedMetrics, selectedResolution
+    hostnameFilter
+    // Continous Scroll: Reset nodes and paging if parameters change: Existing entries will not match new selections
+    if (!usePaging) {
+      nodes = [];
+      page = 1;
     }
+  });
+
+  /* Functions */
+  function handleNodes(data) {
+    if (data) {
+      matchedNodes = data.totalNodes;
+      if (usePaging || nodes.length == 0) {
+        nodes = [...data.items].sort((a, b) => a.host.localeCompare(b.host));
+      } else {
+        // Workaround to ignore secondary store triggers (reason tbd)
+        const oldNodes = $state.snapshot(nodes)
+        const newNodes = [...data.items].map((d) => d.host)
+        if (!oldNodes.some((n) => newNodes.includes(n.host))) {
+          nodes = nodes.concat([...data.items].sort((a, b) => a.host.localeCompare(b.host)))
+        };
+      };
+    };
+  };
+
+  // Decouple from Job List Paging Params?
+  function updateConfiguration(newItems, newPage) {
+    updateConfigurationMutation({
+      name: "plot_list_nodesPerPage",
+      value: newItems.toString(),
+    }).subscribe((res) => {
+      if (res.fetching === false && !res.error) {
+        nodes = []; // Empty List
+        itemsPerPage = newItems;
+        page = newPage; // Trigger reload of nodeList
+      } else if (res.fetching === false && res.error) {
+        throw res.error;
+      }
+    });
   }
 
-  $: if (!usePaging && (selectedMetrics || selectedResolution || hostnameFilter || from || to)) {
-    // Continous Scroll: Reset list and paging if parameters change: Existing entries will not match new selections
-    nodes = [];
-    paging = { itemsPerPage, page: 1 };
-  }
+  /* Const Functions */
+  const updateConfigurationMutation = ({ name, value }) => {
+    return mutationStore({
+      client: client,
+      query: gql`
+        mutation ($name: String!, $value: String!) {
+          updateConfiguration(name: $name, value: $value)
+        }
+      `,
+      variables: { name, value },
+    });
+  };
 
-  $: matchedNodes = $nodesQuery.data?.nodeMetricsList.totalNodes || matchedNodes;
+  /* Init Header */
+  stickyHeader(
+    ".cc-table-wrapper > table.table >thead > tr > th.position-sticky:nth-child(1)",
+    (x) => (headerPaddingTop = x),
+  );
 </script>
 
 <Row>
@@ -192,7 +220,7 @@
               scope="col"
               style="padding-top: {headerPaddingTop}px"
             >
-              {metric} ({systemUnits[metric]})
+              {metric} ({presetSystemUnits[metric]})
             </th>
           {/each}
         </tr>
@@ -212,7 +240,7 @@
               <td colspan={selectedMetrics.length + 1}> No nodes found </td>
             </tr>
           {/each}
-          {/if}
+        {/if}
         {#if $nodesQuery.fetching || !$nodesQuery.data}
           <tr>
             <td colspan={selectedMetrics.length + 1}>
@@ -238,16 +266,17 @@
 
 {#if usePaging}
   <Pagination
-    bind:page
+    {page}
     {itemsPerPage}
     itemText="Nodes"
     totalItems={matchedNodes}
-    on:update-paging={({ detail }) => {
+    updatePaging={(detail) => {
       if (detail.itemsPerPage != itemsPerPage) {
-        updateConfiguration(detail.itemsPerPage.toString(), detail.page);
+        updateConfiguration(detail.itemsPerPage, detail.page);
       } else {
-        nodes = []
-        paging = { itemsPerPage: detail.itemsPerPage, page: detail.page };
+        nodes = [];
+        itemsPerPage = detail.itemsPerPage;
+        page = detail.page;
       }
     }}
   />

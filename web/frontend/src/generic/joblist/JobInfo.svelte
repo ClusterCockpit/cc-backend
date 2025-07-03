@@ -1,10 +1,16 @@
 <!--
-    @component Displays job metaData, serves links to detail pages
+  @component Displays job metaData, serves links to detail pages
 
-    Properties:
-    - `job Object`: The Job Object (GraphQL.Job)
-    - `jobTags [Number]?`: The jobs tags as IDs, default useful for dynamically updating the tags [Default: job.tags]
- -->
+  Properties:
+  - `job Object`: The Job Object (GraphQL.Job)
+  - `jobTags [Number]?`: The jobs tags as IDs, default useful for dynamically updating the tags [Default: job.tags]
+  - `showJobSelect Bool?`: Show job selection interface for job comparison [Default: false]
+  - `showTagEdit Bool?`: Show tag editing interface [Default: false]
+  - `username String?`: The current username
+  - `authlevel Number`: The current user authentication level
+  - `roles [String]`: Available roles
+  - `isSelected Bool`: Whether job is selected for comparison [Bindable, Default: false]
+-->
 
 <script>
   import { Badge, Button, Icon, Tooltip } from "@sveltestrap/sveltestrap";
@@ -12,13 +18,22 @@
   import Tag from "../helper/Tag.svelte";
   import TagManagement from "../helper/TagManagement.svelte";
 
-  export let job;
-  export let jobTags = job.tags;
-  export let showTagedit = false;
-  export let username = null;
-  export let authlevel= null;
-  export let roles = null;
+  /* Svelte 5 Props */
+  let {
+    job,
+    jobTags = job.tags,
+    showJobSelect = false,
+    showTagEdit = false,
+    username = null,
+    authlevel = null,
+    roles = null,
+    isSelected = $bindable(false),
+  } = $props();
 
+  /* State Init */
+  let displayCheck = $state(false);
+
+  /* Functions */
   function formatDuration(duration) {
     const hours = Math.floor(duration / 3600);
     duration -= hours * 3600;
@@ -39,9 +54,7 @@
     }
   }
 
-  let displayCheck = false;
   function clipJobId(jid) {
-    displayCheck = true;
     // Navigator clipboard api needs a secure context (https)
     if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard
@@ -63,43 +76,64 @@
           textArea.remove();
       }
     }
-    setTimeout(function () {
-      displayCheck = false;
-    }, 1000);
   }
 </script>
 
 <div>
-  <p class="mb-2">
+  <p class="mb-2 text-truncate">
     <span class="d-flex justify-content-between">
       <span class="align-self-center fw-bold mr-2">
         <a href="/monitoring/job/{job.id}" target="_blank">{job.jobId}</a>
         ({job.cluster}) 
       </span>
-      <Button id={`${job.cluster}-${job.jobId}-clipboard`} outline color="secondary" size="sm" on:click={clipJobId(job.jobId)} >
-        {#if displayCheck}
-          <Icon name="clipboard2-check-fill"/>
-        {:else}
-          <Icon name="clipboard2"/>
+      <span>
+        {#if showJobSelect}
+          <Button id={`${job.cluster}-${job.jobId}-select`} outline={!isSelected} color={isSelected? `success`: `secondary`} size="sm" class="mr-2"
+            onclick={() => {
+              isSelected = !isSelected
+            }}>
+            {#if isSelected}
+              <Icon name="check-square"/>
+            {:else }
+              <Icon name="plus-square-dotted"/>
+            {/if}
+          </Button>
+          <Tooltip
+            target={`${job.cluster}-${job.jobId}-select`}
+            placement="left">
+              { 'Add or Remove Job to/from Comparison Selection' }
+          </Tooltip>
         {/if}
-      </Button>
-      <Tooltip
-        target={`${job.cluster}-${job.jobId}-clipboard`}
-        placement="right">
-          { displayCheck ? 'Copied!' : 'Copy Job ID to Clipboard' }
-      </Tooltip>
+        <Button id={`${job.cluster}-${job.jobId}-clipboard`} outline color="secondary" size="sm" onclick={() => {
+          displayCheck = true;
+          clipJobId(job.jobId);
+          setTimeout(function () {
+            displayCheck = false;
+          }, 1000);
+        }}>
+          {#if displayCheck}
+            <Icon name="clipboard2-check-fill"/>
+          {:else}
+            <Icon name="clipboard2"/>
+          {/if}
+        </Button>
+        <Tooltip
+          target={`${job.cluster}-${job.jobId}-clipboard`}
+          placement="right">
+            { displayCheck ? 'Copied!' : 'Copy Job ID to Clipboard' }
+        </Tooltip>
+      </span>
     </span>
     {#if job.metaData?.jobName}
-      {#if job.metaData?.jobName.length <= 25}
-        <div>{job.metaData.jobName}</div>
+      {#if job.metaData?.jobName.length <= 20}
+        <span>{job.metaData.jobName}</span>
       {:else}
-        <div
-          class="truncate"
+        <span
           style="cursor:help;"
           title={job.metaData.jobName}
         >
           {job.metaData.jobName}
-        </div>
+  </span>
       {/if}
     {/if}
     {#if job.arrayJobId}
@@ -164,7 +198,7 @@
     {/if}
   </p>
 
-  {#if showTagedit}
+  {#if showTagEdit}
     <hr class="mt-0 mb-2"/>
     <p class="mb-1">
       <TagManagement bind:jobTags {job} {username} {authlevel} {roles} renderModal/> : 
@@ -184,11 +218,3 @@
     </p>
   {/if}
 </div>
-
-<style>
-  .truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-</style>

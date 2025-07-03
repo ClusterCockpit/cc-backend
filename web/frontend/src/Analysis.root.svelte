@@ -1,9 +1,9 @@
 <!--
-    @component Main analysis view component
+  @component Main analysis view component
 
-    Properties:
-    - `filterPresets Object`: Optional predefined filter values
- -->
+  Properties:
+  - `filterPresets Object`: Optional predefined filter values
+-->
 
 <script>
   import { getContext, onMount } from "svelte";
@@ -37,14 +37,14 @@
   import ScatterPlot from "./generic/plots/Scatter.svelte";
   import RooflineHeatmap from "./generic/plots/RooflineHeatmap.svelte";
 
-  const { query: initq } = init();
-
-  export let filterPresets;
+  /* Svelte 5 Props */
+  let {
+    filterPresets
+  } = $props();
 
   // By default, look at the jobs of the last 6 hours:
   if (filterPresets?.startTime == null) {
     if (filterPresets == null) filterPresets = {};
-
     let now = new Date(Date.now());
     let hourAgo = new Date(now);
     hourAgo.setHours(hourAgo.getHours() - 6);
@@ -54,27 +54,10 @@
     };
   }
 
-  let cluster;
-  let filterComponent; // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
-  let jobFilters = [];
-  let rooflineMaxY;
-  let colWidth1, colWidth2;
-  let numBins = 50;
-  let maxY = -1;
-
-  const initialized = getContext("initialized");
-  const globalMetrics = getContext("globalMetrics");
+  /* Const Init */
+  const { query: initq } = init();
+  const client = getContextClient();
   const ccconfig = getContext("cc-config");
-
-  let metricsInHistograms = ccconfig.analysis_view_histogramMetrics,
-    metricsInScatterplots = ccconfig.analysis_view_scatterPlotMetrics;
-
-  $: metrics = [
-    ...new Set([...metricsInHistograms, ...metricsInScatterplots.flat()]),
-  ];
-
-  $: clusterName = cluster?.name ? cluster.name : cluster;
-
   const sortOptions = [
     { key: "totalWalltime", label: "Walltime" },
     { key: "totalNodeHours", label: "Node Hours" },
@@ -86,7 +69,22 @@
     { key: "project", label: "Project ID" },
   ];
 
-  let sortSelection =
+  /* Var Init */
+  let metricUnits = {};
+  let metricScopes = {};
+  let numBins = 50;
+
+  /* State Init */
+  let filterComponent = $state(); // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
+  let cluster = $state(filterPresets?.cluster);
+  let rooflineMaxY = $state(0);
+  let maxY = $state(-1);
+  let colWidth1 = $state(0);
+  let colWidth2 = $state(0);
+  let jobFilters = $state([]);
+  let metricsInHistograms = $state(ccconfig.analysis_view_histogramMetrics)
+  let metricsInScatterplots = $state(ccconfig.analysis_view_scatterPlotMetrics)
+  let sortSelection = $state(
     sortOptions.find(
       (option) =>
         option.key ==
@@ -94,17 +92,20 @@
     ) ||
     sortOptions.find(
       (option) => option.key == ccconfig.analysis_view_selectedTopCategory,
-    );
-  let groupSelection =
-    groupOptions.find(
-      (option) =>
-        option.key ==
-        ccconfig[`analysis_view_selectedTopEntity:${filterPresets.cluster}`],
-    ) ||
-    groupOptions.find(
-      (option) => option.key == ccconfig.analysis_view_selectedTopEntity,
-    );
+    )
+  );
+  let groupSelection = $state(
+      groupOptions.find(
+        (option) =>
+          option.key ==
+          ccconfig[`analysis_view_selectedTopEntity:${filterPresets.cluster}`],
+      ) ||
+      groupOptions.find(
+        (option) => option.key == ccconfig.analysis_view_selectedTopEntity,
+      )
+  );
 
+  /* Init Function */
   getContext("on-init")(({ data }) => {
     if (data != null) {
       cluster = data.clusters.find((c) => c.name == filterPresets.cluster);
@@ -121,120 +122,145 @@
     }
   });
 
-  const client = getContextClient();
+  /* Derived Vars */
+  const clusterName = $derived(cluster?.name ? cluster.name : cluster);
+  const availableMetrics = $derived(loadAvailable($initq?.data?.globalMetrics, clusterName));
+  const metrics = $derived(
+    [...new Set([...metricsInHistograms, ...metricsInScatterplots.flat()])]
+  );
 
-  $: statsQuery = queryStore({
-    client: client,
-    query: gql`
-      query ($jobFilters: [JobFilter!]!) {
-        stats: jobsStatistics(filter: $jobFilters) {
-          totalJobs
-          shortJobs
-          totalWalltime
-          totalNodeHours
-          totalCoreHours
-          totalAccHours
-          histDuration {
-            count
-            value
-          }
-          histNumCores {
-            count
-            value
+  let statsQuery = $derived(
+    queryStore({
+      client: client,
+      query: gql`
+        query ($jobFilters: [JobFilter!]!) {
+          stats: jobsStatistics(filter: $jobFilters) {
+            totalJobs
+            shortJobs
+            totalWalltime
+            totalNodeHours
+            totalCoreHours
+            totalAccHours
+            histDuration {
+              count
+              value
+            }
+            histNumCores {
+              count
+              value
+            }
           }
         }
-      }
-    `,
-    variables: { jobFilters },
-  });
+      `,
+      variables: { jobFilters },
+    })
+  );
 
-  $: topQuery = queryStore({
-    client: client,
-    query: gql`
-      query (
-        $jobFilters: [JobFilter!]!
-        $paging: PageRequest!
-        $sortBy: SortByAggregate!
-        $groupBy: Aggregate!
-      ) {
-        topList: jobsStatistics(
-          filter: $jobFilters
-          page: $paging
-          sortBy: $sortBy
-          groupBy: $groupBy
+  let topQuery = $derived(
+    queryStore({
+      client: client,
+      query: gql`
+        query (
+          $jobFilters: [JobFilter!]!
+          $paging: PageRequest!
+          $sortBy: SortByAggregate!
+          $groupBy: Aggregate!
         ) {
-          id
-          name
-          totalWalltime
-          totalNodeHours
-          totalCoreHours
-          totalAccHours
+          topList: jobsStatistics(
+            filter: $jobFilters
+            page: $paging
+            sortBy: $sortBy
+            groupBy: $groupBy
+          ) {
+            id
+            name
+            totalWalltime
+            totalNodeHours
+            totalCoreHours
+            totalAccHours
+          }
         }
-      }
-    `,
-    variables: {
-      jobFilters,
-      paging: { itemsPerPage: 10, page: 1 },
-      sortBy: sortSelection.key.toUpperCase(),
-      groupBy: groupSelection.key.toUpperCase(),
-    },
-  });
+      `,
+      variables: {
+        jobFilters,
+        paging: { itemsPerPage: 10, page: 1 },
+        sortBy: sortSelection.key.toUpperCase(),
+        groupBy: groupSelection.key.toUpperCase(),
+      },
+    })
+  );
 
   // Note: Different footprints than those saved in DB per Job -> Caused by Legacy Naming
-  $: footprintsQuery = queryStore({
-    client: client,
-    query: gql`
-      query ($jobFilters: [JobFilter!]!, $metrics: [String!]!) {
-        footprints: jobsFootprints(filter: $jobFilters, metrics: $metrics) {
-          timeWeights {
-            nodeHours
-            accHours
-            coreHours
-          }
-          metrics {
-            metric
-            data
+  let footprintsQuery = $derived(
+    queryStore({
+      client: client,
+      query: gql`
+        query ($jobFilters: [JobFilter!]!, $metrics: [String!]!) {
+          footprints: jobsFootprints(filter: $jobFilters, metrics: $metrics) {
+            timeWeights {
+              nodeHours
+              accHours
+              coreHours
+            }
+            metrics {
+              metric
+              data
+            }
           }
         }
-      }
-    `,
-    variables: { jobFilters, metrics },
+      `,
+      variables: { jobFilters, metrics },
+    })
+  );
+
+  let rooflineQuery = $derived(
+    queryStore({
+      client: client,
+      query: gql`
+        query (
+          $jobFilters: [JobFilter!]!
+          $rows: Int!
+          $cols: Int!
+          $minX: Float!
+          $minY: Float!
+          $maxX: Float!
+          $maxY: Float!
+        ) {
+          rooflineHeatmap(
+            filter: $jobFilters
+            rows: $rows
+            cols: $cols
+            minX: $minX
+            minY: $minY
+            maxX: $maxX
+            maxY: $maxY
+          )
+        }
+      `,
+      variables: {
+        jobFilters,
+        rows: 50,
+        cols: 50,
+        minX: 0.01,
+        minY: 1,
+        maxX: 1000,
+        maxY,
+      },
+    })
+  );
+
+  /* Reactive Effects */
+  $effect(() => {
+    loadUnitsAndScopes(availableMetrics.length, availableMetrics);
+  });
+  $effect(() => {
+    updateEntityConfiguration(groupSelection.key);
+  });
+  $effect(() => {
+    updateCategoryConfiguration(sortSelection.key);
   });
 
-  $: rooflineQuery = queryStore({
-    client: client,
-    query: gql`
-      query (
-        $jobFilters: [JobFilter!]!
-        $rows: Int!
-        $cols: Int!
-        $minX: Float!
-        $minY: Float!
-        $maxX: Float!
-        $maxY: Float!
-      ) {
-        rooflineHeatmap(
-          filter: $jobFilters
-          rows: $rows
-          cols: $cols
-          minX: $minX
-          minY: $minY
-          maxX: $maxX
-          maxY: $maxY
-        )
-      }
-    `,
-    variables: {
-      jobFilters,
-      rows: 50,
-      cols: 50,
-      minX: 0.01,
-      minY: 1,
-      maxX: 1000,
-      maxY,
-    },
-  });
-
+  /* Functions */
   const updateConfigurationMutation = ({ name, value }) => {
     return mutationStore({
       client: client,
@@ -287,22 +313,26 @@
     }
   }
 
-  let availableMetrics = [];
-  let metricUnits = {};
-  let metricScopes = {};
-  function loadMetrics(isInitialized) {
-    if (!isInitialized) return
-    availableMetrics = [...globalMetrics.filter((gm) => gm?.availability.find((av) => av.cluster == cluster.name))]
-    for (let sm of availableMetrics) {
-      metricUnits[sm.name] = (sm?.unit?.prefix ? sm.unit.prefix : "") + (sm?.unit?.base ? sm.unit.base : "")
-      metricScopes[sm.name] = sm?.scope
+  function loadAvailable(globals, name) {
+    const availableMetrics = new Set();
+    if (globals && globals.length > 0) {
+      for (let gm of globals) {
+        if (gm.availability.find((av) => av.cluster == name)) {
+          availableMetrics.add({name: gm.name, scope: gm.scope, unit: gm.unit});
+        };
+      }
+    }
+    return [...availableMetrics]
+  };
+
+  function loadUnitsAndScopes(length, available) {
+    for (let am of available) {
+      metricUnits[am.name] = (am?.unit?.prefix ? am.unit.prefix : "") + (am?.unit?.base ? am.unit.base : "")
+      metricScopes[am.name] = am?.scope
     }
   }
 
-  $: loadMetrics($initialized)
-  $: updateEntityConfiguration(groupSelection.key);
-  $: updateCategoryConfiguration(sortSelection.key);
-
+  /* On Mount */
   onMount(() => filterComponent.updateFilters());
 </script>
 
@@ -318,18 +348,20 @@
     {:else if cluster}
       <PlotSelection
         availableMetrics={availableMetrics.map((av) => av.name)}
-        bind:metricsInHistograms
-        bind:metricsInScatterplots
+        presetMetricsInHistograms={metricsInHistograms}
+        presetMetricsInScatterplots={metricsInScatterplots}
+        applyHistograms={(metrics) => metricsInHistograms = [...metrics]}
+        applyScatter={(metrics) => metricsInScatterplots = [...metrics]}
       />
     {/if}
   </Col>
   <Col xs="auto">
     <Filters
+      disableClusterSelection
+      startTimeQuickSelect
       bind:this={filterComponent}
       {filterPresets}
-      disableClusterSelection={true}
-      startTimeQuickSelect={true}
-      on:update-filters={({ detail }) => {
+      applyFilters={(detail) => {
         jobFilters = detail.filters;
       }}
     />
@@ -392,6 +424,7 @@
             <Card body color="danger">{$topQuery.error.message}</Card>
           {:else}
             <Pie
+              canvasId={`pie-${groupSelection.key}`}
               size={colWidth1}
               sliceLabel={sortSelection.label}
               quantities={$topQuery.data.topList.map(
@@ -533,8 +566,20 @@
   </Row>
   <Row>
     <Col>
+      <!-- Note: Ignore '#snippet' Error in IDE -->
+      {#snippet histoGridContent(item)}
+        <Histogram
+          usesBins
+          data={convert2uplot(item.bins)}
+          title="Average Distribution of '{item.metric}'"
+          xlabel={`${item.metric} bin maximum [${metricUnits[item.metric]}]`}
+          xunit={`${metricUnits[item.metric]}`}
+          ylabel="Normalized Hours"
+          yunit="Hours"
+        />
+      {/snippet}
+
       <PlotGrid
-        let:item
         items={metricsInHistograms.map((metric) => ({
           metric,
           ...binsFromFootprint(
@@ -547,17 +592,8 @@
           ),
         }))}
         itemsPerRow={ccconfig.plot_view_plotsPerRow}
-      >
-        <Histogram
-          data={convert2uplot(item.bins)}
-          usesBins={true}
-          title="Average Distribution of '{item.metric}'"
-          xlabel={`${item.metric} bin maximum [${metricUnits[item.metric]}]`}
-          xunit={`${metricUnits[item.metric]}`}
-          ylabel="Normalized Hours"
-          yunit="Hours"
-        />
-      </PlotGrid>
+        gridContent={histoGridContent}
+      />
     </Col>
   </Row>
   <br />
@@ -575,9 +611,19 @@
   </Row>
   <Row>
     <Col>
+      {#snippet metricsGridContent(item)}
+        <ScatterPlot
+          height={250}
+          color={"rgba(0, 102, 204, 0.33)"}
+          xLabel={`${item.m1} [${metricUnits[item.m1]}]`}
+          yLabel={`${item.m2} [${metricUnits[item.m2]}]`}
+          X={item.f1}
+          Y={item.f2}
+          S={$footprintsQuery.data.footprints.timeWeights.nodeHours}
+        />
+      {/snippet}
+
       <PlotGrid
-        let:item
-        let:width
         items={metricsInScatterplots.map(([m1, m2]) => ({
           m1,
           f1: $footprintsQuery.data.footprints.metrics.find(
@@ -589,18 +635,8 @@
           ).data,
         }))}
         itemsPerRow={ccconfig.plot_view_plotsPerRow}
-      >
-        <ScatterPlot
-          {width}
-          height={250}
-          color={"rgba(0, 102, 204, 0.33)"}
-          xLabel={`${item.m1} [${metricUnits[item.m1]}]`}
-          yLabel={`${item.m2} [${metricUnits[item.m2]}]`}
-          X={item.f1}
-          Y={item.f2}
-          S={$footprintsQuery.data.footprints.timeWeights.nodeHours}
-        />
-      </PlotGrid>
+        gridContent={metricsGridContent}
+      />
     </Col>
   </Row>
 {/if}

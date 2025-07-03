@@ -1,19 +1,28 @@
 <!--
-    @component Filter sub-component for selecting job starttime
+  @component Filter sub-component for selecting job starttime
 
-    Properties:
-    - `isModified Bool?`: Is this filter component modified [Default: false]
-    - `isOpen Bool?`: Is this filter component opened [Default: false]
-    - `from Object?`: The currently selected from startime [Default: null]
-    - `to Object?`: The currently selected to starttime (i.e. subCluster) [Default: null]
-    - `range String?`: The currently selected starttime range as string [Default: ""]
+  Properties:
+  - `isOpen Bool?`: Is this filter component opened [Bindable, Default: false]
+  - `presetStartTime Object?`: Object containing the latest duration filter parameters
+    - Default: { from: null, to: null, range: "" }
+  - `setFilter Func`: The callback function to apply current filter selection
 
-    Events:
-    - `set-filter, {String?, String?}`: Set 'from, to' filter in upstream component
- -->
+  Exported:
+  - `const startTimeSelectOptions [Object]`: List of available fixed startTimes used in cc-backend
+-->
+
+<script module>
+  export const startTimeSelectOptions = [
+    { range: "", rangeLabel: "No Selection"},
+    { range: "last6h", rangeLabel: "Last 6hrs"},
+    { range: "last24h", rangeLabel: "Last 24hrs"},
+    { range: "last7d", rangeLabel: "Last 7 days"},
+    { range: "last30d", rangeLabel: "Last 30 days"}
+  ];
+</script>
 
 <script>
-  import { createEventDispatcher } from "svelte";
+  /* Note: Ignore VSCode reported 'A component can only have one instance-level <script> element' error */
   import { parse, format, sub } from "date-fns";
   import {
     Row,
@@ -26,44 +35,39 @@
     FormGroup,
   } from "@sveltestrap/sveltestrap";
 
-  const dispatch = createEventDispatcher();
+  /* Svelte 5 Props */
+  let {
+    isOpen = $bindable(false),
+    presetStartTime = { from: null, to: null, range: "" },
+    setFilter
+  } = $props();
 
-  export let isModified = false;
-  export let isOpen = false;
-  export let from = null;
-  export let to = null;
-  export let range = "";
-  export let startTimeSelectOptions;
-
+  /* Const Init */
   const now = new Date(Date.now());
   const ago = sub(now, { months: 1 });
-  const defaultFrom = {
-    date: format(ago, "yyyy-MM-dd"),
-    time: format(ago, "HH:mm"),
-  };
-  const defaultTo = {
-    date: format(now, "yyyy-MM-dd"),
-    time: format(now, "HH:mm"),
-  };
+  const resetFrom = { date: format(ago, "yyyy-MM-dd"), time: format(ago, "HH:mm")};
+  const resetTo = { date: format(now, "yyyy-MM-dd"), time: format(now, "HH:mm")};
 
-  $: pendingFrom = (from == null) ? defaultFrom : fromRFC3339(from)
-  $: pendingTo = (to == null) ? defaultTo : fromRFC3339(to)
-  $: pendingRange = range
+  /* State Init */
+  let pendingStartTime = $state(presetStartTime);
+  let fromState = $state(fromRFC3339(presetStartTime?.from, resetFrom));
+  let toState = $state(fromRFC3339(presetStartTime?.to, resetTo));
 
-  $: isModified =
-    (from != toRFC3339(pendingFrom) || to != toRFC3339(pendingTo, "59")) &&
-    (range != pendingRange) &&
-    !(
-      from == null &&
-      pendingFrom.date == "0000-00-00" &&
-      pendingFrom.time == "00:00"
-    ) &&
-    !(
-      to == null &&
-      pendingTo.date == "0000-00-00" &&
-      pendingTo.time == "00:00"
-    ) &&
-    !( range == "" && pendingRange == "");
+  /* Derived Init*/
+  const rangeSelect = $derived(pendingStartTime?.range ? pendingStartTime.range : "")
+
+  /* Functions */
+  function fromRFC3339(rfc3339, reset) {
+    if (rfc3339) {
+      const parsedDate = new Date(rfc3339);
+      return {
+        date: format(parsedDate, "yyyy-MM-dd"),
+        time: format(parsedDate, "HH:mm"),
+      }
+    } else {
+      return reset
+    } 
+  }
 
   function toRFC3339({ date, time }, secs = "00") {
     const parsedDate = parse(
@@ -73,26 +77,18 @@
     );
     return parsedDate.toISOString();
   }
-
-  function fromRFC3339(rfc3339) {
-    const parsedDate = new Date(rfc3339);
-    return {
-      date: format(parsedDate, "yyyy-MM-dd"),
-      time: format(parsedDate, "HH:mm"),
-    };
-  }
 </script>
 
 <Modal {isOpen} toggle={() => (isOpen = !isOpen)}>
   <ModalHeader>Select Start Time</ModalHeader>
   <ModalBody>
-    {#if range !== ""}
+    {#if rangeSelect !== ""}
       <h4>Current Range</h4>
       <Row>
         <FormGroup class="col">
-          <Input type ="select" bind:value={pendingRange} >
+          <Input type ="select" bind:value={pendingStartTime.range} >
             {#each startTimeSelectOptions as { rangeLabel, range }}
-              <option label={rangeLabel} value={range}/>
+              <option label={rangeLabel} value={range}></option>
             {/each}
           </Input>
         </FormGroup>
@@ -101,42 +97,41 @@
     <h4>From</h4>
     <Row>
       <FormGroup class="col">
-        <Input type="date" bind:value={pendingFrom.date} disabled={pendingRange !== ""}/>
+        <Input type="date" bind:value={fromState.date} disabled={rangeSelect !== ""}/>
       </FormGroup>
       <FormGroup class="col">
-        <Input type="time" bind:value={pendingFrom.time} disabled={pendingRange !== ""}/>
+        <Input type="time" bind:value={fromState.time} disabled={rangeSelect !== ""}/>
       </FormGroup>
     </Row>
     <h4>To</h4>
     <Row>
       <FormGroup class="col">
-        <Input type="date" bind:value={pendingTo.date} disabled={pendingRange !== ""}/>
+        <Input type="date" bind:value={toState.date} disabled={rangeSelect !== ""}/>
       </FormGroup>
       <FormGroup class="col">
-        <Input type="time" bind:value={pendingTo.time} disabled={pendingRange !== ""}/>
+        <Input type="time" bind:value={toState.time} disabled={rangeSelect !== ""}/>
       </FormGroup>
     </Row>
   </ModalBody>
   <ModalFooter>
-    {#if pendingRange !== ""}
+    {#if rangeSelect !== ""}
       <Button
         color="warning"
-        disabled={pendingRange === ""}
-        on:click={() => {
-          pendingRange = ""
+        disabled={rangeSelect === ""}
+        onclick={() => {
+          pendingStartTime.range = "";
         }}
       >
         Reset Range
       </Button>
       <Button
         color="primary"
-        disabled={pendingRange === ""}
-        on:click={() => {
+        disabled={rangeSelect === ""}
+        onclick={() => {
           isOpen = false;
-          from = null;
-          to = null;
-          range = pendingRange;
-          dispatch("set-filter", { from, to, range });
+          pendingStartTime.from = null;
+          pendingStartTime.to = null;
+          setFilter({ startTime: pendingStartTime });
         }}
       >
         Close & Apply Range
@@ -144,14 +139,14 @@
     {:else}
       <Button
         color="primary"
-        disabled={pendingFrom.date == "0000-00-00" ||
-          pendingTo.date == "0000-00-00"}
-        on:click={() => {
+        disabled={fromState.date == "0000-00-00" ||
+          toState.date == "0000-00-00"}
+        onclick={() => {
           isOpen = false;
-          from = toRFC3339(pendingFrom);
-          to = toRFC3339(pendingTo, "59");
-          range = "";
-          dispatch("set-filter", { from, to, range });
+          pendingStartTime.from = toRFC3339(fromState);
+          pendingStartTime.to = toRFC3339(toState, "59");
+          pendingStartTime.range = "";
+          setFilter({ startTime: pendingStartTime });
         }}
       >
         Close & Apply Dates
@@ -159,14 +154,16 @@
     {/if}
     <Button
       color="danger"
-      on:click={() => {
+      onclick={() => {
         isOpen = false;
-        from = null;
-        to = null;
-        range = "";
-        dispatch("set-filter", { from, to, range });
+        fromState = resetFrom;
+        toState = resetTo;
+        pendingStartTime.from = null;
+        pendingStartTime.to = null;
+        pendingStartTime.range = "";
+        setFilter({ startTime: pendingStartTime });
       }}>Reset</Button
     >
-    <Button on:click={() => (isOpen = false)}>Close</Button>
+    <Button onclick={() => (isOpen = false)}>Close</Button>
   </ModalFooter>
 </Modal>

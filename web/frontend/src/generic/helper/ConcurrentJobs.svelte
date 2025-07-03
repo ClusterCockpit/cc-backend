@@ -1,13 +1,13 @@
 <!--
-    @component Concurrent Jobs Component; Lists all concurrent jobs in one scrollable card.
+  @component Concurrent Jobs Component; Lists all concurrent jobs in one scrollable card.
 
-    Properties:
-    - `cJobs JobLinkResultList`: List of concurrent Jobs
-    - `showLinks Bool?`: Show list as clickable links [Default: false]
-    - `renderCard Bool?`: If to render component as content only or with card wrapping [Default: true]
-    - `width String?`: Width of the card [Default: 'auto']
-    - `height String?`: Height of the card [Default: '310px']
- -->
+  Properties:
+  - `cJobs JobLinkResultList`: List of concurrent Jobs
+  - `showLinks Bool?`: Show list as clickable links [Default: false]
+  - `renderCard Bool?`: If to render component as content only or with card wrapping [Default: false]
+  - `width String?`: Width of the card [Default: 'auto']
+  - `height String?`: Height of the card [Default: '400px']
+-->
 
 <script>
   import {
@@ -17,22 +17,25 @@
     Icon
   } from "@sveltestrap/sveltestrap";
 
-  export let cJobs;
-  export let showLinks = false;
-  export let renderCard = false;
-  export let width = "auto";
-  export let height = "400px";
+  /* Svelte 5 Props */
+  let {
+    cJobs,
+    showLinks = false,
+    renderCard = false,
+    width = "auto",
+    height = "400px",
+  } = $props();
 </script>
 
 {#if renderCard}
   <Card class="overflow-auto" style="width: {width}; height: {height}">
     <CardHeader class="mb-0 d-flex justify-content-center">
-        {cJobs.items.length} Concurrent Jobs
-        <Icon
-          style="cursor:help; margin-left:0.5rem;"
-          name="info-circle"
-          title="Jobs running on the same node with overlapping runtimes using shared resources"
-        />
+      {cJobs.items.length} Concurrent Jobs
+      <Icon
+        style="cursor:help; margin-left:0.5rem;"
+        name="info-circle"
+        title="Jobs running on the same node with overlapping runtimes using shared resources"
+      />
     </CardHeader>
     <CardBody>
       {#if showLinks}

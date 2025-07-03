@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package main
@@ -7,8 +7,9 @@ package main
 import "flag"
 
 var (
-	flagReinitDB, flagInit, flagServer, flagSyncLDAP, flagGops, flagMigrateDB, flagRevertDB, flagForceDB, flagDev, flagVersion, flagLogDateTime bool
-	flagNewUser, flagDelUser, flagGenJWT, flagConfigFile, flagImportJob, flagLogLevel                                                           string
+	flagReinitDB, flagInit, flagServer, flagSyncLDAP, flagGops, flagMigrateDB, flagRevertDB,
+	flagForceDB, flagDev, flagVersion, flagLogDateTime, flagApplyTags bool
+	flagNewUser, flagDelUser, flagGenJWT, flagConfigFile, flagImportJob, flagLogLevel string
 )
 
 func cliInit() {
@@ -21,6 +22,7 @@ func cliInit() {
 	flag.BoolVar(&flagVersion, "version", false, "Show version information and exit")
 	flag.BoolVar(&flagMigrateDB, "migrate-db", false, "Migrate database to supported version and exit")
 	flag.BoolVar(&flagRevertDB, "revert-db", false, "Migrate database to previous version and exit")
+	flag.BoolVar(&flagApplyTags, "apply-tags", false, "Run taggers on all completed jobs and exit")
 	flag.BoolVar(&flagForceDB, "force-db", false, "Force database version, clear dirty flag and exit")
 	flag.BoolVar(&flagLogDateTime, "logdate", false, "Set this flag to add date and time to log messages")
 	flag.StringVar(&flagConfigFile, "config", "./config.json", "Specify alternative path to `config.json`")

@@ -1,15 +1,18 @@
 <!--
-    @component Admin option select card
- -->
+  @component Admin option select card
+-->
 
 <script>
   import { getContext, onMount } from "svelte";
   import { Col, Card, CardBody, CardTitle } from "@sveltestrap/sveltestrap";
 
-  let scrambled;
-
+  /*Const Init */
   const resampleConfig = getContext("resampling");
 
+  /* State Init */
+  let scrambled = $state(false);
+  
+  /* on Mount */
   onMount(() => {
     scrambled = window.localStorage.getItem("cc-scramble-names") != null;
   });
@@ -33,7 +36,7 @@
         type="checkbox"
         id="scramble-names-checkbox"
         style="margin-right: 1em;"
-        on:click={handleScramble}
+        onclick={() => handleScramble()}
         bind:checked={scrambled}
       />
       Active?

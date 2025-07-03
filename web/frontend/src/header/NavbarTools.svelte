@@ -1,12 +1,12 @@
 <!--
-    @component Navbar component; renders in app resource links and user dropdown
+  @component Navbar component; renders in app resource links and user dropdown
 
-    Properties:
-    - `username String!`: Empty string if auth. is disabled, otherwise the username as string
-    - `authlevel Number`: The current users authentication level
-    - `roles [Number]`: Enum containing available roles
-    - `screenSize Number`: The current window size, will trigger different render variants
- -->
+  Properties:
+  - `username String!`: Empty string if auth. is disabled, otherwise the username as string
+  - `authlevel Number`: The current users authentication level
+  - `roles [Number]`: Enum containing available roles
+  - `screenSize Number`: The current window size, will trigger different render variants
+-->
 
 <script>
   import {
@@ -25,10 +25,13 @@
     Col,
   } from "@sveltestrap/sveltestrap";
 
-  export let username;
-  export let authlevel;
-  export let roles;
-  export let screenSize;
+  /* Svelte 5 Props */
+  let {
+    username,
+    authlevel,
+    roles,
+    screenSize
+  } = $props();
 </script>
 
 <Nav navbar>
@@ -91,7 +94,7 @@
     <NavItem>
       <Button
         outline
-        on:click={() => (window.location.href = "/config")}
+        onclick={() => (window.location.href = "/config")}
         style="margin-left: 10px;"
         title="Settings"
       >
@@ -136,7 +139,7 @@
           <Col xs="4">
             <Button
               outline
-              on:click={() => (window.location.href = "/config")}
+              onclick={() => (window.location.href = "/config")}
               size="sm"
               class="my-2 w-100"
             >
