@@ -21,3 +21,15 @@ CREATE TABLE "node" (
     meta_data TEXT,          -- JSON
     UNIQUE (hostname, cluster)
 );
+
+-- Add Indices For New Node Table VARCHAR Fields
+CREATE INDEX IF NOT EXISTS nodes_cluster ON node (cluster);
+CREATE INDEX IF NOT EXISTS nodes_cluster_subcluster ON node (cluster, subcluster);
+CREATE INDEX IF NOT EXISTS nodes_state ON node (node_state);
+CREATE INDEX IF NOT EXISTS nodes_cluster_state ON node (cluster, node_state);
+CREATE INDEX IF NOT EXISTS nodes_health ON node (health_state);
+CREATE INDEX IF NOT EXISTS nodes_cluster_health ON node (cluster, health_state);
+
+-- Add Indices For Increased Amounts of Tags
+CREATE INDEX IF NOT EXISTS tags_jobid ON jobtag (job_id);
+CREATE INDEX IF NOT EXISTS tags_tagid ON jobtag (tag_id);
