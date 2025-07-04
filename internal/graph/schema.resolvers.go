@@ -380,7 +380,24 @@ func (r *queryResolver) Nodes(ctx context.Context, filter []*model.NodeFilter, o
 
 // NodeStats is the resolver for the nodeStats field.
 func (r *queryResolver) NodeStats(ctx context.Context, filter []*model.NodeFilter) ([]*model.NodeStats, error) {
-	panic(fmt.Errorf("not implemented: NodeStats - nodeStats"))
+	repo := repository.GetNodeRepository()
+
+	stateCounts, serr := repo.CountNodeStates(ctx, filter)
+	if serr != nil {
+		cclog.Warnf("Error while counting nodeStates: %s", serr.Error())
+		return nil, serr
+	}
+
+	healthCounts, herr := repo.CountHealthStates(ctx, filter)
+	if herr != nil {
+		cclog.Warnf("Error while counting healthStates: %s", herr.Error())
+		return nil, herr
+	}
+
+	allCounts := make([]*model.NodeStats, 0)
+	allCounts = append(stateCounts, healthCounts...)
+
+	return allCounts, nil
 }
 
 // Job is the resolver for the job field.

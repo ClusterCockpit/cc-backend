@@ -2714,6 +2714,7 @@ type TimeRangeOutput {
 input NodeFilter {
   hostname: StringInput
   cluster: StringInput
+  subcluster: StringInput
   nodeState: NodeState
   healthState: MonitoringState
 }
@@ -17745,7 +17746,7 @@ func (ec *executionContext) unmarshalInputNodeFilter(ctx context.Context, obj an
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"hostname", "cluster", "nodeState", "healthState"}
+	fieldsInOrder := [...]string{"hostname", "cluster", "subcluster", "nodeState", "healthState"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -17766,6 +17767,13 @@ func (ec *executionContext) unmarshalInputNodeFilter(ctx context.Context, obj an
 				return it, err
 			}
 			it.Cluster = data
+		case "subcluster":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("subcluster"))
+			data, err := ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Subcluster = data
 		case "nodeState":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nodeState"))
 			data, err := ec.unmarshalONodeState2ᚖstring(ctx, v)

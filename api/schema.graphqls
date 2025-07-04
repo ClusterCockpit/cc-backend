@@ -300,6 +300,7 @@ type Query {
   user(username: String!): User
   allocatedNodes(cluster: String!): [Count!]!
 
+  ## Node Queries New
   node(id: ID!): Node
   nodes(filter: [NodeFilter!], order: OrderByInput): NodeStateResultList!
   nodeStats(filter: [NodeFilter!]): [NodeStats!]!
@@ -393,6 +394,7 @@ type TimeRangeOutput {
 input NodeFilter {
   hostname: StringInput
   cluster: StringInput
+  subcluster: StringInput
   nodeState: NodeState
   healthState: MonitoringState
 }
