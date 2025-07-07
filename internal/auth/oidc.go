@@ -13,7 +13,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
@@ -21,6 +20,12 @@ import (
 	"github.com/gorilla/mux"
 	"golang.org/x/oauth2"
 )
+
+type OpenIDConfig struct {
+	Provider          string `json:"provider"`
+	SyncUserOnLogin   bool   `json:"syncUserOnLogin"`
+	UpdateUserOnLogin bool   `json:"updateUserOnLogin"`
+}
 
 type OIDC struct {
 	client         *oauth2.Config
@@ -49,7 +54,7 @@ func setCallbackCookie(w http.ResponseWriter, r *http.Request, name, value strin
 }
 
 func NewOIDC(a *Authentication) *OIDC {
-	provider, err := oidc.NewProvider(context.Background(), config.Keys.OpenIDConfig.Provider)
+	provider, err := oidc.NewProvider(context.Background(), Keys.OpenIDConfig.Provider)
 	if err != nil {
 		cclog.Fatal(err)
 	}
@@ -168,7 +173,7 @@ func (oa *OIDC) OAuth2Callback(rw http.ResponseWriter, r *http.Request) {
 		AuthSource: schema.AuthViaOIDC,
 	}
 
-	if config.Keys.OpenIDConfig.SyncUserOnLogin || config.Keys.OpenIDConfig.UpdateUserOnLogin {
+	if Keys.OpenIDConfig.SyncUserOnLogin || Keys.OpenIDConfig.UpdateUserOnLogin {
 		handleOIDCUser(user)
 	}
 

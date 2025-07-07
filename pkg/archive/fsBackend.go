@@ -147,17 +147,17 @@ func loadJobStats(filename string, isCompressed bool) (schema.ScopedJobStats, er
 }
 
 func (fsa *FsArchive) Init(rawConfig json.RawMessage) (uint64, error) {
-	var config FsArchiveConfig
-	if err := json.Unmarshal(rawConfig, &config); err != nil {
+	var cfg FsArchiveConfig
+	if err := json.Unmarshal(rawConfig, &cfg); err != nil {
 		cclog.Warnf("Init() > Unmarshal error: %#v", err)
 		return 0, err
 	}
-	if config.Path == "" {
+	if cfg.Path == "" {
 		err := fmt.Errorf("Init() : empty config.Path")
 		cclog.Errorf("Init() > config.Path error: %v", err)
 		return 0, err
 	}
-	fsa.path = config.Path
+	fsa.path = cfg.Path
 
 	b, err := os.ReadFile(filepath.Join(fsa.path, "version.txt"))
 	if err != nil {

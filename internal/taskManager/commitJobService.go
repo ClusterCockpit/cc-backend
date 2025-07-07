@@ -7,7 +7,6 @@ package taskManager
 import (
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/go-co-op/gocron/v2"
@@ -15,8 +14,8 @@ import (
 
 func RegisterCommitJobService() {
 	var frequency string
-	if config.Keys.CronFrequency != nil && config.Keys.CronFrequency.CommitJobWorker != "" {
-		frequency = config.Keys.CronFrequency.CommitJobWorker
+	if Keys.CommitJobWorker != "" {
+		frequency = Keys.CommitJobWorker
 	} else {
 		frequency = "2m"
 	}

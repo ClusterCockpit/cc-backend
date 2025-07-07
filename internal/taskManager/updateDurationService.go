@@ -7,15 +7,14 @@ package taskManager
 import (
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/go-co-op/gocron/v2"
 )
 
 func RegisterUpdateDurationWorker() {
 	var frequency string
-	if config.Keys.CronFrequency != nil && config.Keys.CronFrequency.DurationWorker != "" {
-		frequency = config.Keys.CronFrequency.DurationWorker
+	if Keys.DurationWorker != "" {
+		frequency = Keys.DurationWorker
 	} else {
 		frequency = "5m"
 	}

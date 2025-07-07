@@ -13,6 +13,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 )
 
@@ -47,7 +48,19 @@ func main() {
 	archiveCfg := fmt.Sprintf("{\"kind\": \"file\",\"path\": \"%s\"}", srcPath)
 
 	cclog.Init(flagLogLevel, flagLogDateTime)
-	config.Init(flagConfigFile)
+
+	ccconf.Init(flagConfigFile)
+
+	// Load and check main configuration
+	if cfg := ccconf.GetPackageConfig("main"); cfg != nil {
+		if clustercfg := ccconf.GetPackageConfig("clusters"); clustercfg != nil {
+			config.Init(cfg, clustercfg)
+		} else {
+			cclog.Abort("Cluster configuration must be present")
+		}
+	} else {
+		cclog.Abort("Main configuration must be present")
+	}
 
 	if err := archive.Init(json.RawMessage(archiveCfg), false); err != nil {
 		cclog.Fatal(err)

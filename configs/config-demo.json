@@ -1,26 +1,19 @@
 {
-  "addr": "127.0.0.1:8080",
-  "short-running-jobs-duration": 300,
-  "archive": {
-    "kind": "file",
-    "path": "./var/job-archive"
+  "main": {
+    "addr": "127.0.0.1:8080",
+    "short-running-jobs-duration": 300,
+    "resampling": {
+      "trigger": 30,
+      "resolutions": [600, 300, 120, 60]
+    },
+    "apiAllowedIPs": ["*"],
+    "emission-constant": 317
   },
-  "jwts": {
-    "max-age": "2000h"
+  "auth": {
+    "jwts": {
+      "max-age": "2000h"
+    }
   },
-  "enable-resampling": {
-    "trigger": 30,
-    "resolutions": [
-      600,
-      300,
-      120,
-      60
-    ]
-  },
-  "apiAllowedIPs": [
-    "*"
-  ],
-  "emission-constant": 317,
   "clusters": [
     {
       "name": "fritz",

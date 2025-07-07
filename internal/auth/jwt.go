@@ -13,12 +13,33 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/golang-jwt/jwt/v5"
 )
+
+type JWTAuthConfig struct {
+	// Specifies for how long a JWT token shall be valid
+	// as a string parsable by time.ParseDuration().
+	MaxAge string `json:"max-age"`
+
+	// Specifies which cookie should be checked for a JWT token (if no authorization header is present)
+	CookieName string `json:"cookieName"`
+
+	// Deny login for users not in database (but defined in JWT).
+	// Ignore user roles defined in JWTs ('roles' claim), get them from db.
+	ValidateUser bool `json:"validateUser"`
+
+	// Specifies which issuer should be accepted when validating external JWTs ('iss' claim)
+	TrustedIssuer string `json:"trustedIssuer"`
+
+	// Should an non-existent user be added to the DB based on the information in the token
+	SyncUserOnLogin bool `json:"syncUserOnLogin"`
+
+	// Should an existent user be updated in the DB based on the information in the token
+	UpdateUserOnLogin bool `json:"updateUserOnLogin"`
+}
 
 type JWTAuthenticator struct {
 	publicKey  ed25519.PublicKey
@@ -62,7 +83,7 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 		return nil, nil
 	}
 
-	token, err := jwt.Parse(rawtoken, func(t *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(rawtoken, func(t *jwt.Token) (any, error) {
 		if t.Method != jwt.SigningMethodEdDSA {
 			return nil, errors.New("only Ed25519/EdDSA supported")
 		}
@@ -85,7 +106,7 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 	var roles []string
 
 	// Validate user + roles from JWT against database?
-	if config.Keys.JwtConfig.ValidateUser {
+	if Keys.JwtConfig.ValidateUser {
 		ur := repository.GetUserRepository()
 		user, err := ur.GetUser(sub)
 		// Deny any logins for unknown usernames
@@ -97,7 +118,7 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 		roles = user.Roles
 	} else {
 		// Extract roles from JWT (if present)
-		if rawroles, ok := claims["roles"].([]interface{}); ok {
+		if rawroles, ok := claims["roles"].([]any); ok {
 			for _, rr := range rawroles {
 				if r, ok := rr.(string); ok {
 					roles = append(roles, r)
@@ -126,8 +147,8 @@ func (ja *JWTAuthenticator) ProvideJWT(user *schema.User) (string, error) {
 		"roles": user.Roles,
 		"iat":   now.Unix(),
 	}
-	if config.Keys.JwtConfig.MaxAge != "" {
-		d, err := time.ParseDuration(config.Keys.JwtConfig.MaxAge)
+	if Keys.JwtConfig.MaxAge != "" {
+		d, err := time.ParseDuration(Keys.JwtConfig.MaxAge)
 		if err != nil {
 			return "", errors.New("cannot parse max-age config key")
 		}

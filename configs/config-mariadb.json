@@ -12,12 +12,7 @@
   "db": "clustercockpit:demo@tcp(127.0.0.1:3306)/clustercockpit",
   "enable-resampling": {
     "trigger": 30,
-    "resolutions": [
-      600,
-      300,
-      120,
-      60
-    ]
+    "resolutions": [600, 300, 120, 60]
   },
   "emission-constant": 317,
   "clusters": [

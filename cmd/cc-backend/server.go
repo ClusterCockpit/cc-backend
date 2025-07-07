@@ -27,9 +27,9 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/generated"
 	"github.com/ClusterCockpit/cc-backend/internal/routerConfig"
-	"github.com/ClusterCockpit/cc-backend/pkg/runtimeEnv"
 	"github.com/ClusterCockpit/cc-backend/web"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/runtimeEnv"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -93,7 +93,7 @@ func serverInit() {
 	info := map[string]any{}
 	info["hasOpenIDConnect"] = false
 
-	if config.Keys.OpenIDConfig != nil {
+	if auth.Keys.OpenIDConfig != nil {
 		openIDConnect := auth.NewOIDC(authHandle)
 		openIDConnect.RegisterEndpoints(router)
 		info["hasOpenIDConnect"] = true

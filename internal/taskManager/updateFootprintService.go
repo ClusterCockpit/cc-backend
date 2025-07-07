@@ -9,7 +9,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
@@ -20,8 +19,8 @@ import (
 
 func RegisterFootprintWorker() {
 	var frequency string
-	if config.Keys.CronFrequency != nil && config.Keys.CronFrequency.FootprintWorker != "" {
-		frequency = config.Keys.CronFrequency.FootprintWorker
+	if Keys.FootprintWorker != "" {
+		frequency = Keys.FootprintWorker
 	} else {
 		frequency = "10m"
 	}

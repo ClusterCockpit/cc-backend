@@ -11,12 +11,25 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/go-ldap/ldap/v3"
 )
+
+type LdapConfig struct {
+	Url             string `json:"url"`
+	UserBase        string `json:"user_base"`
+	SearchDN        string `json:"search_dn"`
+	UserBind        string `json:"user_bind"`
+	UserFilter      string `json:"user_filter"`
+	UserAttr        string `json:"username_attr"`
+	SyncInterval    string `json:"sync_interval"` // Parsed using time.ParseDuration.
+	SyncDelOldUsers bool   `json:"sync_del_old_users"`
+
+	// Should an non-existent user be added to the DB if user exists in ldap directory
+	SyncUserOnLogin bool `json:"syncUserOnLogin"`
+}
 
 type LdapAuthenticator struct {
 	syncPassword string
@@ -31,10 +44,8 @@ func (la *LdapAuthenticator) Init() error {
 		cclog.Warn("environment variable 'LDAP_ADMIN_PASSWORD' not set (ldap sync will not work)")
 	}
 
-	lc := config.Keys.LdapConfig
-
-	if lc.UserAttr != "" {
-		la.UserAttr = lc.UserAttr
+	if Keys.LdapConfig.UserAttr != "" {
+		la.UserAttr = Keys.LdapConfig.UserAttr
 	} else {
 		la.UserAttr = "gecos"
 	}
@@ -48,7 +59,7 @@ func (la *LdapAuthenticator) CanLogin(
 	rw http.ResponseWriter,
 	r *http.Request,
 ) (*schema.User, bool) {
-	lc := config.Keys.LdapConfig
+	lc := Keys.LdapConfig
 
 	if user != nil {
 		if user.AuthSource == schema.AuthViaLDAP {
@@ -119,7 +130,7 @@ func (la *LdapAuthenticator) Login(
 	}
 	defer l.Close()
 
-	userDn := strings.Replace(config.Keys.LdapConfig.UserBind, "{username}", user.Username, -1)
+	userDn := strings.Replace(Keys.LdapConfig.UserBind, "{username}", user.Username, -1)
 	if err := l.Bind(userDn, r.FormValue("password")); err != nil {
 		cclog.Errorf("AUTH/LDAP > Authentication for user %s failed: %v",
 			user.Username, err)
@@ -134,7 +145,7 @@ func (la *LdapAuthenticator) Sync() error {
 	const IN_LDAP int = 2
 	const IN_BOTH int = 3
 	ur := repository.GetUserRepository()
-	lc := config.Keys.LdapConfig
+	lc := Keys.LdapConfig
 
 	users := map[string]int{}
 	usernames, err := ur.GetLdapUsernames()
@@ -210,7 +221,7 @@ func (la *LdapAuthenticator) Sync() error {
 }
 
 func (la *LdapAuthenticator) getLdapConnection(admin bool) (*ldap.Conn, error) {
-	lc := config.Keys.LdapConfig
+	lc := Keys.LdapConfig
 	conn, err := ldap.DialURL(lc.Url)
 	if err != nil {
 		cclog.Warn("LDAP URL dial failed")

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
+	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
 	_ "github.com/mattn/go-sqlite3"
@@ -17,17 +18,16 @@ import (
 
 func setupUserTest(t *testing.T) *UserCfgRepo {
 	const testconfig = `{
-	"addr":            "0.0.0.0:8080",
+	"main": {
+	 "addr":   "0.0.0.0:8080",
+   "apiAllowedIPs": [
+     "*"
+   ]
+  },
 	"archive": {
 		"kind": "file",
 		"path": "./var/job-archive"
 	},
-    "jwts": {
-        "max-age": "2m"
-    },
-  "apiAllowedIPs": [
-    "*"
-  ],
 	"clusters": [
 	{
 	   "name": "testcluster",
@@ -36,7 +36,8 @@ func setupUserTest(t *testing.T) *UserCfgRepo {
 		"numNodes": { "from": 1, "to": 64 },
 		"duration": { "from": 0, "to": 86400 },
 		"startTime": { "from": "2022-01-01T00:00:00Z", "to": null }
-	} } ]
+	}
+	}]
 }`
 
 	cclog.Init("info", true)
@@ -53,7 +54,19 @@ func setupUserTest(t *testing.T) *UserCfgRepo {
 		t.Fatal(err)
 	}
 
-	config.Init(cfgFilePath)
+	ccconf.Init(cfgFilePath)
+
+	// Load and check main configuration
+	if cfg := ccconf.GetPackageConfig("main"); cfg != nil {
+		if clustercfg := ccconf.GetPackageConfig("clusters"); clustercfg != nil {
+			config.Init(cfg, clustercfg)
+		} else {
+			t.Fatal("Cluster configuration must be present")
+		}
+	} else {
+		t.Fatal("Main configuration must be present")
+	}
+
 	return GetUserCfgRepo()
 }
 

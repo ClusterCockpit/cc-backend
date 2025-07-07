@@ -27,6 +27,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/gorilla/mux"
@@ -36,18 +37,22 @@ import (
 
 func setup(t *testing.T) *api.RestApi {
 	const testconfig = `{
+		"main": {
 	"addr":            "0.0.0.0:8080",
 	"validate": false,
+  "apiAllowedIPs": [
+    "*"
+  ]
+	},
 	"archive": {
 		"kind": "file",
 		"path": "./var/job-archive"
 	},
-    "jwts": {
-        "max-age": "2m"
-    },
-  "apiAllowedIPs": [
-    "*"
-  ],
+	"auth": {
+  "jwts": {
+      "max-age": "2m"
+  }
+	},
 	"clusters": [
 	{
 	   "name": "testcluster",
@@ -146,7 +151,18 @@ func setup(t *testing.T) *api.RestApi {
 		t.Fatal(err)
 	}
 
-	config.Init(cfgFilePath)
+	ccconf.Init(cfgFilePath)
+
+	// Load and check main configuration
+	if cfg := ccconf.GetPackageConfig("main"); cfg != nil {
+		if clustercfg := ccconf.GetPackageConfig("clusters"); clustercfg != nil {
+			config.Init(cfg, clustercfg)
+		} else {
+			cclog.Abort("Cluster configuration must be present")
+		}
+	} else {
+		cclog.Abort("Main configuration must be present")
+	}
 	archiveCfg := fmt.Sprintf("{\"kind\": \"file\",\"path\": \"%s\"}", jobarchive)
 
 	repository.Connect("sqlite3", dbfilepath)
@@ -160,7 +176,14 @@ func setup(t *testing.T) *api.RestApi {
 	}
 
 	archiver.Start(repository.GetJobRepository())
-	auth.Init()
+
+	if cfg := ccconf.GetPackageConfig("auth"); cfg != nil {
+		auth.Init(&cfg)
+	} else {
+		cclog.Warn("Authentication disabled due to missing configuration")
+		auth.Init(nil)
+	}
+
 	graph.Init()
 
 	return api.New()
