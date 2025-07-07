@@ -1,17 +1,19 @@
 <!--
-    @component User data row for table
+  @component User data row for table
 
-    Properties:
-    - `user Object!`: User Object
-      - {username: String, name: String, roles: [String], projects: String, email: String}
- -->
+  Properties:
+  - `user Object!`: User Object
+    - {username: String, name: String, roles: [String], projects: String, email: String}
+-->
 
 <script>
   import { Button } from "@sveltestrap/sveltestrap";
   import { fetchJwt } from "../../generic/utils.js"
 
   /* Svelte 5 Props */
-  let { user } = $props();
+  let {
+    user
+  } = $props();
 
   /* State Init */
   let jwt = $state("");

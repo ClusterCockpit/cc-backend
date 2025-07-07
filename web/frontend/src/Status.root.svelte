@@ -1,10 +1,10 @@
 <!--
-    @component Main cluster status view component; renders current system-usage information
+  @component Main cluster status view component; renders current system-usage information
 
-    Properties:
-    - `cluster String`: The cluster to show status information for
- -->
- 
+  Properties:
+  - `cluster String`: The cluster to show status information for
+-->
+
  <script>
   import { getContext } from "svelte";
   import {
@@ -43,7 +43,9 @@
   import HistogramSelection from "./generic/select/HistogramSelection.svelte";
 
   /* Svelte 5 Props */
-  let { cluster } = $props();
+  let {
+    cluster
+  } = $props();
 
   /* Const Init */
   const { query: initq } = init();
@@ -60,9 +62,13 @@
   /* State Init */
   let from = $state(new Date(Date.now() - 5 * 60 * 1000));
   let to = $state(new Date(Date.now()));
-  let isHistogramSelectionOpen = $state(false);
   let colWidth = $state(0);
   let plotWidths = $state([]);
+  // Histrogram
+  let isHistogramSelectionOpen = $state(false);
+  let selectedHistograms = $state(cluster
+    ? ccconfig[`user_view_histogramMetrics:${cluster}`] || ( ccconfig['user_view_histogramMetrics'] || [] )
+    : ccconfig['user_view_histogramMetrics'] || []);
   // Bar Gauges
   let allocatedNodes = $state({});
   let flopRate = $state({});
@@ -71,11 +77,7 @@
   let memBwRate = $state({});
   let memBwRateUnitPrefix = $state({});
   let memBwRateUnitBase = $state({});
-
-  let selectedHistograms = $state(cluster
-    ? ccconfig[`user_view_histogramMetrics:${cluster}`] || ( ccconfig['user_view_histogramMetrics'] || [] )
-    : ccconfig['user_view_histogramMetrics'] || []);
-
+  // Pie Charts
   let topProjectSelection = $state(
     topOptions.find(
       (option) =>
@@ -86,7 +88,6 @@
       (option) => option.key == ccconfig.status_view_selectedTopProjectCategory,
     )
   );
-
   let topUserSelection = $state(
     topOptions.find(
       (option) =>

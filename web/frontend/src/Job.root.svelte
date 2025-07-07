@@ -1,12 +1,12 @@
 <!--
-    @component Main single job display component; displays plots for every metric as well as various information
+  @component Main single job display component; displays plots for every metric as well as various information
 
-    Properties:
-    - `dbid Number`: The jobs DB ID
-    - `username String`: Empty string if auth. is disabled, otherwise the username as string
-    - `authlevel Number`: The current users authentication level
-    - `roles [Number]`: Enum containing available roles
- -->
+  Properties:
+  - `dbid Number`: The jobs DB ID
+  - `username String`: Empty string if auth. is disabled, otherwise the username as string
+  - `authlevel Number`: The current users authentication level
+  - `roles [Number]`: Enum containing available roles
+-->
 
 <script>
   import { getContext } from "svelte";
@@ -156,9 +156,9 @@
 
   /* Effects */
   $effect(() => {
-    document.title = $initq.fetching
+    document.title = $initq?.fetching
       ? "Loading..."
-      : $initq.error
+      : $initq?.error
         ? "Error"
         : `Job ${$initq.data.job.jobId} - ClusterCockpit`;
   });

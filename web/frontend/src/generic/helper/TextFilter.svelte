@@ -1,14 +1,12 @@
 <!--
-    @component Search Field for Job-Lists with separate mode if project filter is active
+  @component Search Field for Job-Lists with separate mode if project filter is active
 
-    Properties:
-    - `presetProject String?`: Currently active project filter [Default: '']
-    - `authlevel Number?`: The current users authentication level [Default: null]
-    - `roles [Number]?`: Enum containing available roles [Default: null]
-
-    Events:
-    - `set-filter, {String?, String?, String?}`: Set 'user, project, jobName' filter in upstream component
- -->
+  Properties:
+  - `presetProject String?`: Currently active project filter [Default: '']
+  - `authlevel Number?`: The current users authentication level [Default: null]
+  - `roles [Number]?`: Enum containing available roles [Default: null]
+  - `setFilter Func`: The callback function to apply current filter selection
+-->
 
 <script>
   import { InputGroup, Input, Button, Icon } from "@sveltestrap/sveltestrap";

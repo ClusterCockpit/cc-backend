@@ -1,19 +1,20 @@
 <!--
-    @component Main filter component; handles filter object on sub-component changes before dispatching it
+  @component Main filter component; handles filter object on sub-component changes before dispatching it
 
-    Properties:
-    - `menuText String?`: Optional text to show in the dropdown menu [Default: null]
-    - `filterPresets Object?`: Optional predefined filter values [Default: {}]
-    - `disableClusterSelection Bool?`: Is the selection disabled [Default: false]
-    - `startTimeQuickSelect Bool?`: Render startTime quick selections [Default: false]
-    - `matchedJobs Number?`: Number of jobs matching the filter [Default: -2]
-
-    Events:
-    - `update-filters, {filters: [Object]?}`: The detail's 'filters' prop are new filter items to be applied
-    
-    Functions:
-    - `void updateFilters (additionalFilters: Object?)`: Handles new filters from nested components, triggers upstream update event
- -->
+  Properties:
+  - `menuText String?`: Optional text to show in the dropdown menu [Default: null]
+  - `filterPresets Object?`: Optional predefined filter values [Default: {}]
+  - `disableClusterSelection Bool?`: Is the selection disabled [Default: false]
+  - `startTimeQuickSelect Bool?`: Render startTime quick selections [Default: false]
+  - `matchedJobs Number?`: Number of jobs matching the filter [Default: -2]
+  - `showFilter Func`: If the filter component should be rendered in addition to total count info [Default: true]
+  - `applyFilters Func`: The callback function to apply current filter selection
+  
+  Functions:
+  - `void updateFilters (additionalFilters: Object, force: Bool)`:
+    Handles new filters from nested components, triggers upstream update event. 
+    'additionalFilters' usually added to existing selection, but can be forced to overwrite instead.
+-->
 
 <script>
   import {
@@ -509,8 +510,6 @@
   presetStats={filters.stats}
   setFilter={(filter) => updateFilters(filter)}
 />
-
-
 
 <style>
   :global(.cc-dropdown-on-hover:hover .dropdown-menu) {

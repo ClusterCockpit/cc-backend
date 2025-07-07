@@ -1,24 +1,27 @@
 <!--
-    @component Main plot component, based on uPlot; metricdata values by time
+  @component Main plot component, based on uPlot; metricdata values by time
 
-    Only width/height should change reactively.
+  Only width/height should change reactively.
 
-    Properties:
-    - `metric String`: The metric name
-    - `scope String?`: Scope of the displayed data [Default: node]
-    - `height Number?`: The plot height [Default: 300]
-    - `timestep Number`: The timestep used for X-axis rendering
-    - `series [GraphQL.Series]`: The metric data object
-    - `useStatsSeries Bool?`: If this plot uses the statistics Min/Max/Median representation; automatically set to according bool [Default: false]
-    - `statisticsSeries [GraphQL.StatisticsSeries]?`: Min/Max/Median representation of metric data [Default: null]
-    - `cluster String`: Cluster name of the parent job / data
-    - `subCluster String`: Name of the subCluster of the parent job
-    - `isShared Bool?`: If this job used shared resources; will adapt threshold indicators accordingly [Default: false]
-    - `forNode Bool?`: If this plot is used for node data display; will render x-axis as negative time with $now as maximum [Default: false]
-    - `numhwthreads Number?`: Number of job HWThreads [Default: 0]
-    - `numaccs Number?`: Number of job Accelerators [Default: 0]
-    - `zoomState Object?`: The last zoom state to preserve on user zoom [Default: null]
- -->
+  Properties:
+  - `metric String`: The metric name
+  - `scope String?`: Scope of the displayed data [Default: node]
+  - `height Number?`: The plot height [Default: 300]
+  - `timestep Number`: The timestep used for X-axis rendering
+  - `series [GraphQL.Series]`: The metric data object
+  - `useStatsSeries Bool?`: If this plot uses the statistics Min/Max/Median representation; automatically set to according bool [Default: false]
+  - `statisticsSeries [GraphQL.StatisticsSeries]?`: Min/Max/Median representation of metric data [Default: null]
+  - `cluster String?`: Cluster name of the parent job / data [Default: ""]
+  - `subCluster String`: Name of the subCluster of the parent job
+  - `isShared Bool?`: If this job used shared resources; will adapt threshold indicators accordingly [Default: false]
+  - `forNode Bool?`: If this plot is used for node data display; will render x-axis as negative time with $now as maximum [Default: false]
+  - `numhwthreads Number?`: Number of job HWThreads [Default: 0]
+  - `numaccs Number?`: Number of job Accelerators [Default: 0]
+  - `zoomState Object?`: The last zoom state to preserve on user zoom [Default: null]
+  - `thersholdState Object?`: The last threshold state to preserve on user zoom [Default: null]
+  - `extendedLegendData Object?`: Additional information to be rendered in an extended legend [Default: null]
+  - `onZoom Func`: Callback function to handle zoom-in event
+-->
 
 <script>
   import uPlot from "uplot";

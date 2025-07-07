@@ -1,12 +1,12 @@
 <!--
-    @component Navbar component; renders in app resource links and user dropdown
+  @component Navbar component; renders in app resource links and user dropdown
 
-    Properties:
-    - `username String!`: Empty string if auth. is disabled, otherwise the username as string
-    - `authlevel Number`: The current users authentication level
-    - `roles [Number]`: Enum containing available roles
-    - `screenSize Number`: The current window size, will trigger different render variants
- -->
+  Properties:
+  - `username String!`: Empty string if auth. is disabled, otherwise the username as string
+  - `authlevel Number`: The current users authentication level
+  - `roles [Number]`: Enum containing available roles
+  - `screenSize Number`: The current window size, will trigger different render variants
+-->
 
 <script>
   import {

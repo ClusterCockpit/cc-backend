@@ -1,16 +1,18 @@
 <!--
-    @component User managed project edit form card
+  @component User managed project edit form card
 
-    Events:
-    - `reload`: Trigger upstream reload of user list after project update
- -->
+  Properties:
+  - `reloadUser Func`: The callback function to reload the user list
+-->
 
 <script>
   import { Card, CardTitle, CardBody } from "@sveltestrap/sveltestrap";
   import { fade } from "svelte/transition";
 
   /* Svelte 5 Props */
-  let { reloadUser } = $props();
+  let {
+    reloadUser
+  } = $props();
 
   /* State Init */
   let message = $state({ msg: "", color: "#d63384" });

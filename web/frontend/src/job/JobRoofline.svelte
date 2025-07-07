@@ -1,10 +1,10 @@
 <!--
-    @component Job View Roofline component; Queries data for and renders roofline plot.
+  @component Job View Roofline component; Queries data for and renders roofline plot.
 
-    Properties:
-    - `job Object`: The GQL job object
-    - `clusters Array`: The GQL clusters array
- -->
+  Properties:
+  - `job Object`: The GQL job object
+  - `clusters Array`: The GQL clusters array
+-->
 
  <script>
   import { 

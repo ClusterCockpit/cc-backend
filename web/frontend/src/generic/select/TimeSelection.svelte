@@ -1,15 +1,13 @@
 <!--
-    @component Selector for specified real time ranges for data cutoff; used in systems and nodes view
+  @component Selector for specified real time ranges for data cutoff; used in systems and nodes view
 
-    Properties:
-    - `from Date`: The datetime to start data display from
-    - `to Date`: The datetime to end data display at
-    - `customEnabled Bool?`: Allow custom time window selection [Default: true]
-    - `options Object? {String:Number}`: The quick time selection options [Default: {..., "Last 24hrs": 24*60*60}]
-
-    Events:
-    - `change, {Date, Date}`: Set 'from, to' values in upstream component
- -->
+  Properties:
+  - `presetFrom Date`: The latest "from" JS Date Object 
+  - `presetTo Date`: The latest Date "to" JS Date Object
+  - `customEnabled Bool?`: Allow custom time window selection [Default: true]
+  - `options Object? {String:Number}`: The quick time selection options [Default: {..., "Last 24hrs": 24*60*60}]
+  - `applyTime Func`: The callback function to apply current selection
+-->
 
 <script>
   import {

@@ -1,10 +1,10 @@
 <!--
-    @component Main component for listing users or projects
+  @component Main component for listing users or projects
 
-    Properties:
-    - `type String?`: The type of list ['USER' || 'PROJECT']
-    - `filterPresets Object?`: Optional predefined filter values [Default: {}]
- -->
+  Properties:
+  - `type String?`: The type of list ['USER' || 'PROJECT']
+  - `filterPresets Object?`: Optional predefined filter values [Default: {}]
+-->
 
 <script>
   import { onMount } from "svelte";
@@ -32,18 +32,12 @@
   import Filters from "./generic/Filters.svelte";
 
   /* Svelte 5 Props */
-  let { type, filterPresets } = $props();
+  let {
+    type,
+    filterPresets
+  } = $props();
 
-  // By default, look at the jobs of the last 30 days:
-  if (filterPresets?.startTime == null) {
-    if (filterPresets == null) filterPresets = {};
-
-    filterPresets.startTime = {
-      range: "last30d",
-      text: "Last 30 Days",
-    };
-  }
-
+  /* Validate Type */
   console.assert(
     type == "USER" || type == "PROJECT",
     "Invalid list type provided!",
@@ -64,16 +58,16 @@
     queryStore({
       client: client,
       query: gql`
-              query($jobFilters: [JobFilter!]!) {
-              rows: jobsStatistics(filter: $jobFilters, groupBy: ${type}) {
-                  id
-                  name
-                  totalJobs
-                  totalWalltime
-                  totalCoreHours
-                  totalAccHours
-              }
-          }`,
+        query($jobFilters: [JobFilter!]!) {
+          rows: jobsStatistics(filter: $jobFilters, groupBy: ${type}) {
+            id
+            name
+            totalJobs
+            totalWalltime
+            totalCoreHours
+            totalAccHours
+          }
+        }`,
       variables: { jobFilters },
     })
   );
@@ -107,7 +101,19 @@
   }
 
   /* On Mount */
-  onMount(() => filterComponent.updateFilters());
+  onMount(() => {
+    // By default, look at the jobs of the last 30 days:
+    if (filterPresets?.startTime == null) {
+      if (filterPresets == null) filterPresets = {};
+
+      filterPresets.startTime = {
+        range: "last30d",
+        text: "Last 30 Days",
+      };
+    };
+    // Init Filter
+    filterComponent.updateFilters();
+  });
 </script>
 
 <Row cols={{ xs: 1, md: 2}}>

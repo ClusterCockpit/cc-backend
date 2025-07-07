@@ -1,10 +1,16 @@
 <!--
-    @component Displays job metaData, serves links to detail pages
+  @component Displays job metaData, serves links to detail pages
 
-    Properties:
-    - `job Object`: The Job Object (GraphQL.Job)
-    - `jobTags [Number]?`: The jobs tags as IDs, default useful for dynamically updating the tags [Default: job.tags]
- -->
+  Properties:
+  - `job Object`: The Job Object (GraphQL.Job)
+  - `jobTags [Number]?`: The jobs tags as IDs, default useful for dynamically updating the tags [Default: job.tags]
+  - `showJobSelect Bool?`: Show job selection interface for job comparison [Default: false]
+  - `showTagEdit Bool?`: Show tag editing interface [Default: false]
+  - `username String?`: The current username
+  - `authlevel Number`: The current user authentication level
+  - `roles [String]`: Available roles
+  - `isSelected Bool`: Whether job is selected for comparison [Bindable, Default: false]
+-->
 
 <script>
   import { Badge, Button, Icon, Tooltip } from "@sveltestrap/sveltestrap";
@@ -16,12 +22,12 @@
   let {
     job,
     jobTags = job.tags,
-    showTagedit = false,
+    showJobSelect = false,
+    showTagEdit = false,
     username = null,
-    authlevel= null,
+    authlevel = null,
     roles = null,
-    isSelected = $bindable(),
-    showSelect = false,
+    isSelected = $bindable(false),
   } = $props();
 
   /* State Init */
@@ -49,7 +55,6 @@
   }
 
   function clipJobId(jid) {
-    
     // Navigator clipboard api needs a secure context (https)
     if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard
@@ -82,7 +87,7 @@
         ({job.cluster}) 
       </span>
       <span>
-        {#if showSelect}
+        {#if showJobSelect}
           <Button id={`${job.cluster}-${job.jobId}-select`} outline={!isSelected} color={isSelected? `success`: `secondary`} size="sm" class="mr-2"
             onclick={() => {
               isSelected = !isSelected
@@ -193,7 +198,7 @@
     {/if}
   </p>
 
-  {#if showTagedit}
+  {#if showTagEdit}
     <hr class="mt-0 mb-2"/>
     <p class="mb-1">
       <TagManagement bind:jobTags {job} {username} {authlevel} {roles} renderModal/> : 

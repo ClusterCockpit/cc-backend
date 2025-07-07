@@ -1,14 +1,17 @@
 <!-- 
-    @component Data row for a single job displaying metric plots
+  @component Data row for a single job displaying metric plots
 
-    Properties:
-    - `job Object`: The job object (GraphQL.Job)
-    - `metrics [String]`: Currently selected metrics
-    - `plotWidth Number`: Width of the sub-components
-    - `plotHeight Number?`: Height of the sub-components [Default: 275]
-    - `showFootprint Bool`: Display of footprint component for job
-    - `triggerMetricRefresh Bool?`: If changed to true from upstream, will trigger metric query
- -->
+  Properties:
+  - `job Object`: The job object (GraphQL.Job)
+  - `metrics [String]`: Currently selected metrics
+  - `plotWidth Number`: Width of the sub-components
+  - `plotHeight Number?`: Height of the sub-components [Default: 275]
+  - `showFootprint Bool`: Display of footprint component for job [Default: false]
+  - `previousSelect Bool`: The latest job select state for job comparison [Default: false]
+  - `triggerMetricRefresh Bool?`: If changed to true from upstream, will trigger metric query [Default: false]
+  - `selectJob Func`: The callback function to select a job for comparison
+  - `unselectJob Func`: The callback function to unselect a job from comparison
+-->
 
 <script>
   import { queryStore, gql, getContextClient } from "@urql/svelte";
@@ -21,15 +24,15 @@
 
   /* Svelte 5 Props */
   let {
-    triggerMetricRefresh = false,
     job,
     metrics,
     plotWidth,
     plotHeight = 275,
-    showFootprint,
+    showFootprint = false,
     previousSelect = false,
+    triggerMetricRefresh = false,
     selectJob,
-    unselectJob
+    unselectJob,
   } = $props();
 
   /* Const Init */

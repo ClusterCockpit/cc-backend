@@ -1,12 +1,12 @@
 <!-- 
-    @component Triggers upstream data refresh in selectable intervals
+  @component Triggers upstream data refresh in selectable intervals
 
-    Properties:
-    - `initially Number?`: Initial refresh interval on component mount, in seconds [Default: null]
+  Properties:
+  - `initially Number?`: Initial refresh interval on component mount, in seconds [Default: null]
+  - `presetClass String?`: Custom class to apply to main <InputGroup>
+  - `onRefresh Func`: The callback function to perform at refresh times
+-->
 
-    Events:
-    - `refresh`: When fired, the upstream component refreshes its contents
- -->
 <script>
   import { Button, Icon, Input, InputGroup } from "@sveltestrap/sveltestrap";
 

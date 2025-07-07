@@ -1,11 +1,11 @@
 <!--:
-    @component Job-View subcomponent; display table of metric data statistics with selectable scopes
+  @component Job-View subcomponent; display table of metric data statistics with selectable scopes
 
-    Properties:
-    - `hosts [String]`: The list of hostnames of this job
-    - `jobStats Object`: The data object
-    - `selectedMetrics [String]`: The selected metrics
- -->
+  Properties:
+  - `hosts [String]`: The list of hostnames of this job
+  - `jobStats Object`: The data object
+  - `selectedMetrics [String]`: The selected metrics
+-->
 
 <script>
   import {
@@ -123,7 +123,6 @@
       return s.dir != "up" ? s1[stat] - s2[stat] : s2[stat] - s1[stat];
     });
   }
-
 </script>
 
 <Table class="mb-0">

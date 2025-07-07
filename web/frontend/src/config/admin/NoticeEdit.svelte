@@ -1,13 +1,18 @@
 <!--
-    @component Admin edit notice.txt content card
- -->
+  @component Admin edit notice content card
+
+  Properties:
+  - `ncontent String`: The homepage notice content
+-->
 
 <script>
   import { Col, Card, CardTitle, CardBody } from "@sveltestrap/sveltestrap";
   import { fade } from "svelte/transition";
 
   /* Svelte 5 Props */
-  let { ncontent } = $props();
+  let {
+    ncontent
+  } = $props();
 
   /* State Init */
   let message = $state({ msg: "", color: "#d63384" });

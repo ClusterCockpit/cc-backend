@@ -1,15 +1,14 @@
 <!--
-    @component Metric plot wrapper with user scope selection; used in job detail view
+  @component Metric plot wrapper with user scope selection; used in job detail view
 
-    Properties:
-      - `job Object`: The GQL job object
-      - `metricName String`: The metrics name
-      - `metricUnit Object`: The metrics GQL unit object
-      - `nativeScope String`: The metrics native scope
-      - `scopes [String]`: The scopes returned for this metric
-      - `rawData [Object]`: Metric data for all scopes returned for this metric
-      - `isShared Bool?`: If this job used shared resources; will adapt threshold indicators accordingly in downstream plots [Default: false]
- -->
+  Properties:
+    - `job Object`: The GQL job object
+    - `metricName String`: The metrics name
+    - `metricUnit Object`: The metrics GQL unit object
+    - `nativeScope String`: The metrics native scope
+    - `presetScopes [String]`: The preset scopes returned for this metric
+    - `isShared Bool?`: If this job used shared resources; will adapt threshold indicators accordingly in downstream plots [Default: false]
+-->
 
 <script>
   import { 

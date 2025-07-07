@@ -1,12 +1,10 @@
 <!--
-    @component User management table
+  @component User management table
 
-    Properties:
-    - `users [Object]?`: List of users
-
-    Events:
-    - `reload`: Trigger upstream reload of user list
- -->
+  Properties:
+  - `users [Object]?`: List of users [Bindable, Default: []]
+  - `reloadUser Func`: The callback function to reload the user list
+-->
 
 <script>
   import {
@@ -19,7 +17,10 @@
   import ShowUsersRow from "./ShowUsersRow.svelte";
 
   /*Svelte 5 Props */
-  let { users = $bindable([]), reloadUser } = $props();
+  let { 
+    users = $bindable([]),
+    reloadUser
+  } = $props();
 
   /* Functions */
   function deleteUser(username) {

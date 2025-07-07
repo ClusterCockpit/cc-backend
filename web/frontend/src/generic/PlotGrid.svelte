@@ -1,9 +1,10 @@
 <!-- 
-    @component Organized display of plots as bootstrap (sveltestrap) grid
+  @component Organized display of svelte 5 snippets as bootstrap (sveltestrap) grid
 
-    Properties:
-    - `itemsPerRow Number`: Elements to render per row
-    - `items [Any]`: List of plot components to render
+  Properties:
+  - `items [Any]`: Array of information required for gridContent SV5 snippet
+  - `itemsPerRow Number`: Elements to render per row
+  - `gridContent Func`: Svelte 5 Snippet from Upstream; Defines what and how to render $item data
  -->
 
 <script>

@@ -1,25 +1,25 @@
 <!--
-    @component Roofline Model Plot based on uPlot
+  @component Roofline Model Plot based on uPlot
 
-    Properties:
-    - `data [null, [], []]`: Roofline Data Structure, see below for details [Default: null]
-    - `renderTime Bool?`: If time information should be rendered as colored dots [Default: false]
-    - `allowSizeChange Bool?`: If dimensions of rendered plot can change [Default: false]
-    - `subCluster GraphQL.SubCluster?`: SubCluster Object; contains required topology information [Default: null]
-    - `width Number?`: Plot width (reactively adaptive) [Default: 600]
-    - `height Number?`: Plot height (reactively adaptive) [Default: 380]
- 
+  Properties:
+  - `data [null, [], []]`: Roofline Data Structure, see below for details [Default: null]
+  - `renderTime Bool?`: If time information should be rendered as colored dots [Default: false]
+  - `allowSizeChange Bool?`: If dimensions of rendered plot can change [Default: false]
+  - `subCluster GraphQL.SubCluster?`: SubCluster Object; contains required topology information [Default: null]
+  - `width Number?`: Plot width (reactively adaptive) [Default: 600]
+  - `height Number?`: Plot height (reactively adaptive) [Default: 380]
+
   Data Format:
-   - `data = [null, [], []]` 
-     - Index 0: null-axis required for scatter
-     - Index 1: Array of XY-Arrays for Scatter
-     - Index 2: Optional Time Info
-   - `data[1][0] = [100, 200, 500, ...]`
-     - X Axis: Intensity (Vals up to clusters' flopRateScalar value)
-   - `data[1][1] = [1000, 2000, 1500, ...]`
-     - Y Axis: Performance (Vals up to clusters' flopRateSimd value)
-   - `data[2] = [0.1, 0.15, 0.2, ...]`
-     - Color Code: Time Information (Floats from 0 to 1) (Optional)
+  - `data = [null, [], []]` 
+    - Index 0: null-axis required for scatter
+    - Index 1: Array of XY-Arrays for Scatter
+    - Index 2: Optional Time Info
+  - `data[1][0] = [100, 200, 500, ...]`
+    - X Axis: Intensity (Vals up to clusters' flopRateScalar value)
+  - `data[1][1] = [1000, 2000, 1500, ...]`
+    - Y Axis: Performance (Vals up to clusters' flopRateSimd value)
+  - `data[2] = [0.1, 0.15, 0.2, ...]`
+    - Color Code: Time Information (Floats from 0 to 1) (Optional)
 -->
 
 <script>

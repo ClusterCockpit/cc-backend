@@ -1,6 +1,6 @@
 <!--
-    @component Admin option select card
- -->
+  @component Admin option select card
+-->
 
 <script>
   import { getContext, onMount } from "svelte";

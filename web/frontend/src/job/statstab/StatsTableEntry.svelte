@@ -1,10 +1,10 @@
 <!--
-    @component Job-View subcomponent; Single Statistics entry component for statstable
+  @component Job-View subcomponent; Single Statistics entry component for statstable
 
-    Properties:
-    - `data [Object]`: The jobs statsdata for host-metric-scope
-    - `scope String`: The selected scope
- -->
+  Properties:
+  - `data [Object]`: The jobs statsdata for host-metric-scope
+  - `scope String`: The selected scope
+-->
 
 <script>
   import { Icon } from "@sveltestrap/sveltestrap";

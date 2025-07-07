@@ -5,12 +5,13 @@
   - `X [Number]`: Data from first selected metric as X-values
   - `Y [Number]`: Data from second selected metric as Y-values
   - `S GraphQl.TimeWeights.X?`: Float to scale the data with [Default: null]
-  - `color String`: Color of the drawn scatter circles
-  - `width Number`:
-  - `height Number`:
-  - `xLabel String`:
-  - `yLabel String`:
- -->
+  - `color String?`: Color of the drawn scatter circles [Default: '#0066cc']
+  - `width Number?`: Width of the plot [Default: 250]
+  - `height Number?`: Height of the plot [Default: 300]
+  - `xLabel String?`: X-Axis Label [Ðefault: ""]
+  - `yLabel String?`: Y-Axis Label [Default: ""]
+-->
+
 <script>
   import { onMount } from 'svelte';
   import { formatNumber } from '../units.js'
@@ -23,8 +24,8 @@
     color = '#0066cc',
     width = 250,
     height = 300,
-    xLabel,
-    yLabel,
+    xLabel = "",
+    yLabel = "",
   } = $props();
 
   /* Const Init */

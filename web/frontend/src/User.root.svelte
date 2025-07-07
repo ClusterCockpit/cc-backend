@@ -1,10 +1,10 @@
 <!--
-    @component Main user jobs list display component; displays job list and additional information for a given user
+  @component Main user jobs list display component; displays job list and additional information for a given user
 
-    Properties:
-    - `user Object`: The GraphQL user object
-    - `filterPresets Object`: Optional predefined filter values
- -->
+  Properties:
+  - `user Object`: The GraphQL user object
+  - `filterPresets Object`: Optional predefined filter values
+-->
 
 <script>
   import { onMount, getContext } from "svelte";
@@ -43,7 +43,10 @@
   import Refresher from "./generic/helper/Refresher.svelte";
 
   /* Svelte 5 Props */
-  let { user, filterPresets } = $props();
+  let {
+    user,
+    filterPresets 
+  } = $props();
 
   /* Const Init */
   const { query: initq } = init();

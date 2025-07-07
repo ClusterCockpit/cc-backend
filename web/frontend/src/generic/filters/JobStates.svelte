@@ -1,17 +1,14 @@
 <!--
-    @component Filter sub-component for selecting job states
+  @component Filter sub-component for selecting job states
 
-    Properties:
-    - `isModified Bool?`: Is this filter component modified [Default: false]
-    - `isOpen Bool?`: Is this filter component opened [Default: false]
-    - `states [String]?`: The currently selected states [Default: [...allJobStates]]
+  Properties:
+  - `isOpen Bool?`: Is this filter component opened [Bindable, Default: false]
+  - `presetStates [String]?`: The latest selected filter state [Default: [...allJobStates]]
+  - `setFilter Func`: The callback function to apply current filter selection
 
-    Events:
-    - `set-filter, {[String]}`: Set 'states' filter in upstream component
-
-    Exported:
-    - `const allJobStates [String]`: List of all available job states used in cc-backend
- -->
+  Exported:
+  - `const allJobStates [String]`: List of all available job states used in cc-backend
+-->
 
 <script module>
   export const allJobStates = [

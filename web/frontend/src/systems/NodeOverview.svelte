@@ -1,11 +1,14 @@
 <!--
-    @component Cluster Per Node Overview component; renders current state of ONE metric for ALL nodes
+  @component Cluster Per Node Overview component; renders current state of ONE metric for ALL nodes
 
-    Properties:
-    - `ccconfig Object?`: The ClusterCockpit Config Context [Default: null]
-    - `cluster String`: The cluster to show status information for
-    - `selectedMetric String?`: The selectedMetric input [Default: ""]
- -->
+  Properties:
+  - `ccconfig Object?`: The ClusterCockpit Config Context [Default: null]
+  - `cluster String`: The cluster to show status information for
+  - `selectedMetric String?`: The selectedMetric input [Default: ""]
+  - `hostnameFilter String?`: The active hostnamefilter [Default: ""]
+  - `from Date?`: The selected "from" date [Default: null]
+  - `to Date?`: The selected "to" date [Default: null]
+-->
 
  <script>
   import { queryStore, gql, getContextClient } from "@urql/svelte";

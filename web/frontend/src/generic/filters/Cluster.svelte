@@ -1,16 +1,13 @@
 <!--
-    @component Filter sub-component for selecting cluster and subCluster
+  @component Filter sub-component for selecting cluster and subCluster
 
-    Properties:
-    - `disableClusterSelection Bool?`: Is the selection disabled [Default: false]
-    - `isModified Bool?`: Is this filter component modified [Default: false]
-    - `isOpen Bool?`: Is this filter component opened [Default: false]
-    - `cluster String?`: The currently selected cluster [Default: null]
-    - `partition String?`: The currently selected partition (i.e. subCluster) [Default: null]
-
-    Events:
-    - `set-filter, {String?, String?}`: Set 'cluster, subCluster' filter in upstream component
- -->
+  Properties:
+  - `isOpen Bool?`: Is this filter component opened [Bindable, Default: false]
+  - `presetCluster String?`: The latest selected cluster [Default: ""]
+  - `presetPartition String?`: The latest selected partition [Default: ""]
+  - `disableClusterSelection Bool?`: Is the selection disabled [Default: false]
+  - `setFilter Func`: The callback function to apply current filter selection
+-->
 
 <script>
   import { getContext } from "svelte";
@@ -33,14 +30,13 @@
     setFilter
   } = $props();
 
+  /* Const Init */
+  const clusters = getContext("clusters");
+  const initialized = getContext("initialized");
+
   /* State Init */
   let pendingCluster = $state(presetCluster);
   let pendingPartition = $state(presetPartition);
-
-  /* Derived Vars */
-  const clusters = $derived(getContext("clusters"));
-  const initialized = $derived(getContext("initialized"));
-
 </script>
 
 <Modal {isOpen} toggle={() => (isOpen = !isOpen)}>

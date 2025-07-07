@@ -1,6 +1,9 @@
 <!--
-    @component Admin settings wrapper
- -->
+  @component Admin settings wrapper
+
+  Properties:
+  - `ncontent String`: The homepage notice content
+-->
 
 <script>
   import { Row, Col } from "@sveltestrap/sveltestrap";
@@ -13,7 +16,9 @@
   import NoticeEdit from "./admin/NoticeEdit.svelte";
 
   /* Svelte 5 Props */
-  let { ncontent } = $props();
+  let {
+    ncontent
+  } = $props();
 
   /* Const Init*/
   const ccconfig = getContext("cc-config");

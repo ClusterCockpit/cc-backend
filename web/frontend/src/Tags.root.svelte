@@ -1,11 +1,11 @@
 <!--
-    @component Tag List Svelte Component. Displays All Tags, Allows deletion.
+  @component Tag List Svelte Component. Displays All Tags, Allows deletion.
 
-    Properties:
-    - `username String!`: Users username.
-    - `isAdmin Bool!`: User has Admin Auth.
-    - `tagmap Object!`: Map of accessible, appwide tags. Prefiltered in backend.
- -->
+  Properties:
+  - `username String!`: Users username.
+  - `isAdmin Bool!`: User has Admin Auth.
+  - `presetTagmap Object!`: Map of accessible, appwide tags. Prefiltered in backend.
+-->
 
 <script>
   import {
@@ -37,7 +37,7 @@
 
   /* State Init */
   let pendingChange = $state("none");
-  let tagmap = $state(presetTagmap)
+  let tagmap = $state(presetTagmap);
 
   /* Functions */
   const removeTagMutation = ({ tagIds }) => {
@@ -68,8 +68,8 @@
           }
         },
       );
-    }
-  }
+    };
+  };
 </script>
 
 <div class="container">

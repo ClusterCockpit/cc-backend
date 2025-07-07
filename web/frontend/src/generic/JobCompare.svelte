@@ -1,13 +1,13 @@
 <!--
-    @component jobCompare component; compares jobs according to set filters or job selection
+  @component jobCompare component; compares jobs according to set filters or job selection
 
-    Properties:
-    - `matchedCompareJobs Number?`: Number of matched jobs for selected filters [Default: 0]
-    - `metrics [String]?`: The currently selected metrics [Default: User-Configured Selection]
-    - `showFootprint Bool`: If to display the jobFootprint component
+  Properties:
+  - `matchedCompareJobs Number?`: Number of matched jobs for selected filters [Bindable, Default: 0]
+  - `metrics [String]?`: The currently selected metrics [Default: User-Configured Selection]
+  - `filterBuffer [Object]?`: Latest selected filters to keep for view switch to job list [Default: []]
 
-    Functions:
-    - `queryJobs(filters?: [JobFilter])`: Load jobs data with new filters, starts from page 1
+  Functions:
+  - `queryJobs(filters?: [JobFilter])`: Load jobs data with new filters, starts from page 1
  -->
 
 <script>
@@ -104,6 +104,7 @@
 
   /* Effect */
   $effect(() => {
+    // Update bound property
     matchedCompareJobs = $compareData?.data != null ? $compareData.data.jobsMetricStats.length : -1;
   });
 

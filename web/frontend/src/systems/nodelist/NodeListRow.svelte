@@ -1,11 +1,11 @@
 <!-- 
-    @component Data row for a single node displaying metric plots
+  @component Data row for a single node displaying metric plots
 
-    Properties:
-    - `cluster String`: The nodes' cluster
-    - `nodeData Object`: The node data object including metric data
-    - `selectedMetrics [String]`: The array of selected metrics
- -->
+  Properties:
+  - `cluster String`: The nodes' cluster
+  - `nodeData Object`: The node data object including metric data
+  - `selectedMetrics [String]`: The array of selected metrics
+-->
 
 <script>
   import {

@@ -1,19 +1,20 @@
 <!--
-    @component User creation form card
+  @component User creation form card
 
-    Properties:
-    - `roles [String]!`: List of roles used in app as strings
+  Properties:
+  - `roles [String]!`: List of roles used in app as strings
+  - `reloadUser Func`: The callback function to reload the user list
+-->
 
-    Events:
-    - `reload`: Trigger upstream reload of user list after user creation
- -->
- 
  <script>
   import { Button, Card, CardTitle } from "@sveltestrap/sveltestrap";
   import { fade } from "svelte/transition";
 
   /* Svelte 5 Props */
-  let { roles, reloadUser } = $props();
+  let {
+    roles,
+    reloadUser
+  } = $props();
 
   /* State Init */
   let message = $state({ msg: "", color: "#d63384" });

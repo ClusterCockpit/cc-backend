@@ -1,10 +1,10 @@
 <!--
-    @component User settings wrapper
+  @component User settings wrapper
 
-    Properties:
-    - `username String!`: Empty string if auth. is disabled, otherwise the username as string
-    - `isApi Bool!`: Is currently logged in user api authority
- -->
+  Properties:
+  - `username String!`: Empty string if auth. is disabled, otherwise the username as string
+  - `isApi Bool!`: Is currently logged in user api authority
+-->
 
 <script>
   import { getContext } from "svelte";

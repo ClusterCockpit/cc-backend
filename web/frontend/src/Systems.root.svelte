@@ -1,12 +1,13 @@
 <!--
-    @component Main cluster node status view component; renders overview or list depending on type
+  @component Main cluster node status view component; renders overview or list depending on type
 
-    Properties:
-    - `displayType String?`: The type of node display ['OVERVIEW' || 'LIST']
-    - `cluster String`: The cluster to show status information for
-    - `from Date?`: Custom Time Range selection 'from' [Default: null]
-    - `to Date?`: Custom Time Range selection 'to' [Default: null]
- -->
+  Properties:
+  - `displayType String?`: The type of node display ['OVERVIEW' || 'LIST']
+  - `cluster String`: The cluster to show status information for [Default: null]
+  - `subCluster String`: The subCluster to show status information for [Default: null]
+  - `presetFrom Date?`: Custom Time Range selection 'from' [Default: null]
+  - `presetTo Date?`: Custom Time Range selection 'to' [Default: null]
+-->
 
 <script>
   import { getContext } from "svelte";
@@ -38,8 +39,8 @@
     displayType,
     cluster = null,
     subCluster = null,
-    fromPreset = null,
-    toPreset = null,
+    presetFrom = null,
+    presetTo = null,
   } = $props();
 
   /* Const Init */
@@ -54,9 +55,12 @@
   const resampleDefault = resampleConfig ? Math.max(...resampleConfig.resolutions) : 0;
   const nowDate = new Date(Date.now());
 
+  /* Var Init */
+  let timeoutId = null;
+
   /* State Init */
-  let to = $state(toPreset || new Date(Date.now()));
-  let from = $state(fromPreset || new Date(nowDate.setHours(nowDate.getHours() - 4)));
+  let to = $state(presetTo || new Date(Date.now()));
+  let from = $state(presetFrom || new Date(nowDate.setHours(nowDate.getHours() - 4)));
   let selectedResolution = $state(resampleConfig ? resampleDefault : 0);
   let hostnameFilter = $state("");
   let pendingHostnameFilter = $state("");
@@ -89,7 +93,6 @@
   };
 
   // Wait after input for some time to prevent too many requests
-  let timeoutId = null;
   function updateHostnameFilter() {
     if (timeoutId != null) clearTimeout(timeoutId);
     timeoutId = setTimeout(function () {

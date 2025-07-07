@@ -1,11 +1,12 @@
 <!--
-    @component Selector component for (footprint) metrics to be displayed as histogram
+  @component Selector component for (footprint) metrics to be displayed as histogram
 
-    Properties:
-    - `cluster String`: Currently selected cluster
-    - `selectedHistograms [String]`: The currently selected metrics to display as histogram
-    - ìsOpen Bool`: Is selection opened
- -->
+  Properties:
+  - `cluster String`: Currently selected cluster
+  - `selectedHistograms [String]`: The currently selected metrics to display as histogram
+  - `ìsOpen Bool`: Is selection opened [Bindable]
+  - `applyChange Func`: The callback function to apply current selection
+-->
 
 <script>
   import { getContext } from "svelte";

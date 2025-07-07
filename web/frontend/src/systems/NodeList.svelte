@@ -1,13 +1,17 @@
 <!--
-    @component Cluster Per Node List component; renders current state of SELECTABLE metrics for ALL nodes
+  @component Cluster Per Node List component; renders current state of SELECTABLE metrics for ALL nodes
 
-    Properties:
-    - `cluster String`: The nodes' cluster
-    - `subCluster String`: The nodes' subCluster
-    - `ccconfig Object?`: The ClusterCockpit Config Context [Default: null]
-    - `selectedMetrics [String]`: The array of selected metrics
-    - `systemUnits Object`: The object of metric units
- -->
+  Properties:
+  - `cluster String`: The nodes' cluster
+  - `subCluster String`: The nodes' subCluster [Default: ""]
+  - `ccconfig Object?`: The ClusterCockpit Config Context [Default: null]
+  - `selectedMetrics [String]`: The array of selected metrics [Default []]
+  - `selectedResolution Number?`: The selected data resolution [Default: 0]
+  - `hostnameFilter String?`: The active hostnamefilter [Default: ""]
+  - `presetSystemUnits Object`: The object of metric units [Default: null]
+  - `from Date?`: The selected "from" date [Default: null]
+  - `to Date?`: The selected "to" date [Default: null]
+-->
 
 <script>
   import { queryStore, gql, getContextClient, mutationStore } from "@urql/svelte";
