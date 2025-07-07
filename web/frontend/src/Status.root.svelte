@@ -6,349 +6,37 @@
 -->
 
  <script>
-  import { getContext } from "svelte";
   import {
     Row,
     Col,
-    Spinner,
     Card,
-    CardHeader,
-    CardTitle,
     CardBody,
-    Table,
-    Progress,
-    Icon,
-    Button,
-    Tooltip
+    TabContent,
+    TabPane
   } from "@sveltestrap/sveltestrap";
-  import {
-    queryStore,
-    gql,
-    getContextClient,
-    mutationStore,
-  } from "@urql/svelte";
-  import {
-    init,
-    convert2uplot,
-    transformPerNodeDataForRoofline,
-    scramble,
-    scrambleNames,
-  } from "./generic/utils.js";
-  import { scaleNumbers } from "./generic/units.js";
-  import PlotGrid from "./generic/PlotGrid.svelte";
-  import Roofline from "./generic/plots/Roofline.svelte";
-  import Pie, { colors } from "./generic/plots/Pie.svelte";
-  import Histogram from "./generic/plots/Histogram.svelte";
+
   import Refresher from "./generic/helper/Refresher.svelte";
-  import HistogramSelection from "./generic/select/HistogramSelection.svelte";
+  import StatusDash from "./status/StatusDash.svelte";
+  import UsageDash from "./status/UsageDash.svelte";
+  import NodeDash from "./status/NodeDash.svelte";
+  import StatisticsDash from "./status/StatisticsDash.svelte";
 
   /* Svelte 5 Props */
   let {
     cluster
   } = $props();
 
-  /* Const Init */
-  const { query: initq } = init();
-  const ccconfig = getContext("cc-config");
-  const client = getContextClient();
-  const paging = { itemsPerPage: 10, page: 1 }; // Top 10
-  const topOptions = [
-    { key: "totalJobs", label: "Jobs" },
-    { key: "totalNodes", label: "Nodes" },
-    { key: "totalCores", label: "Cores" },
-    { key: "totalAccs", label: "Accelerators" },
-  ];
-
   /* State Init */
   let from = $state(new Date(Date.now() - 5 * 60 * 1000));
   let to = $state(new Date(Date.now()));
-  let colWidth = $state(0);
-  let plotWidths = $state([]);
-  // Histrogram
-  let isHistogramSelectionOpen = $state(false);
-  let selectedHistograms = $state(cluster
-    ? ccconfig[`user_view_histogramMetrics:${cluster}`] || ( ccconfig['user_view_histogramMetrics'] || [] )
-    : ccconfig['user_view_histogramMetrics'] || []);
-  // Bar Gauges
-  let allocatedNodes = $state({});
-  let flopRate = $state({});
-  let flopRateUnitPrefix = $state({});
-  let flopRateUnitBase = $state({});
-  let memBwRate = $state({});
-  let memBwRateUnitPrefix = $state({});
-  let memBwRateUnitBase = $state({});
-  // Pie Charts
-  let topProjectSelection = $state(
-    topOptions.find(
-      (option) =>
-        option.key ==
-        ccconfig[`status_view_selectedTopProjectCategory:${cluster}`],
-    ) ||
-    topOptions.find(
-      (option) => option.key == ccconfig.status_view_selectedTopProjectCategory,
-    )
-  );
-  let topUserSelection = $state(
-    topOptions.find(
-      (option) =>
-        option.key ==
-        ccconfig[`status_view_selectedTopUserCategory:${cluster}`],
-    ) ||
-    topOptions.find(
-      (option) => option.key == ccconfig.status_view_selectedTopUserCategory,
-    )
-  );
 
-  /* Derived */
-  // Note: nodeMetrics are requested on configured $timestep resolution
-  const mainQuery = $derived(queryStore({
-    client: client,
-    query: gql`
-      query (
-        $cluster: String!
-        $filter: [JobFilter!]!
-        $metrics: [String!]
-        $from: Time!
-        $to: Time!
-        $selectedHistograms: [String!]
-      ) {
-        nodeMetrics(
-          cluster: $cluster
-          metrics: $metrics
-          from: $from
-          to: $to
-        ) {
-          host
-          subCluster
-          metrics {
-            name
-            scope
-            metric {
-              timestep
-              unit {
-                base
-                prefix
-              }
-              series {
-                data
-              }
-            }
-          }
-        }
-
-        stats: jobsStatistics(filter: $filter, metrics: $selectedHistograms) {
-          histDuration {
-            count
-            value
-          }
-          histNumNodes {
-            count
-            value
-          }
-          histNumCores {
-            count
-            value
-          }
-          histNumAccs {
-            count
-            value
-          }
-          histMetrics {
-            metric
-            unit
-            data {
-              min
-              max
-              count
-              bin
-            }
-          }
-        }
-
-        allocatedNodes(cluster: $cluster) {
-          name
-          count
-        }
-      }
-    `,
-    variables: {
-      cluster: cluster,
-      metrics: ["flops_any", "mem_bw"], // Fixed names for roofline and status bars
-      from: from.toISOString(),
-      to: to.toISOString(),
-      filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
-      selectedHistograms: selectedHistograms,
-    },
-  }));
-
-  const topUserQuery = $derived(queryStore({
-    client: client,
-    query: gql`
-      query (
-        $filter: [JobFilter!]!
-        $paging: PageRequest!
-        $sortBy: SortByAggregate!
-      ) {
-        topUser: jobsStatistics(
-          filter: $filter
-          page: $paging
-          sortBy: $sortBy
-          groupBy: USER
-        ) {
-          id
-          name
-          totalJobs
-          totalNodes
-          totalCores
-          totalAccs
-        }
-      }
-    `,
-    variables: {
-      filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
-      paging,
-      sortBy: topUserSelection.key.toUpperCase(),
-    },
-  }));
-
-  const topProjectQuery = $derived(queryStore({
-    client: client,
-    query: gql`
-      query (
-        $filter: [JobFilter!]!
-        $paging: PageRequest!
-        $sortBy: SortByAggregate!
-      ) {
-        topProjects: jobsStatistics(
-          filter: $filter
-          page: $paging
-          sortBy: $sortBy
-          groupBy: PROJECT
-        ) {
-          id
-          totalJobs
-          totalNodes
-          totalCores
-          totalAccs
-        }
-      }
-    `,
-    variables: {
-      filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
-      paging,
-      sortBy: topProjectSelection.key.toUpperCase(),
-    },
-  }));
-
-  /* Effects */
-  $effect(() => {
-    if ($initq.data && $mainQuery.data) {
-      let subClusters = $initq.data.clusters.find(
-        (c) => c.name == cluster,
-      ).subClusters;
-      for (let subCluster of subClusters) {
-        allocatedNodes[subCluster.name] =
-          $mainQuery.data.allocatedNodes.find(
-            ({ name }) => name == subCluster.name,
-          )?.count || 0;
-        flopRate[subCluster.name] =
-          Math.floor(
-            sumUp($mainQuery.data.nodeMetrics, subCluster.name, "flops_any") *
-              100,
-          ) / 100;
-        flopRateUnitPrefix[subCluster.name] = subCluster.flopRateSimd.unit.prefix;
-        flopRateUnitBase[subCluster.name] = subCluster.flopRateSimd.unit.base;
-        memBwRate[subCluster.name] =
-          Math.floor(
-            sumUp($mainQuery.data.nodeMetrics, subCluster.name, "mem_bw") * 100,
-          ) / 100;
-        memBwRateUnitPrefix[subCluster.name] =
-          subCluster.memoryBandwidth.unit.prefix;
-        memBwRateUnitBase[subCluster.name] = subCluster.memoryBandwidth.unit.base;
-      }
-    }
-  });
-
-  $effect(() => {
-    updateTopUserConfiguration(topUserSelection.key);
-  });
-
-  $effect(() => {
-    updateTopProjectConfiguration(topProjectSelection.key);
-  });
-
-  /* Const Functions */
-  const sumUp = (data, subcluster, metric) =>
-    data.reduce(
-      (sum, node) =>
-        node.subCluster == subcluster
-          ? sum +
-            (node.metrics
-              .find((m) => m.name == metric)
-              ?.metric.series.reduce(
-                (sum, series) => sum + series.data[series.data.length - 1],
-                0,
-              ) || 0)
-          : sum,
-      0,
-    );
-
-  const updateConfigurationMutation = ({ name, value }) => {
-    return mutationStore({
-      client: client,
-      query: gql`
-        mutation ($name: String!, $value: String!) {
-          updateConfiguration(name: $name, value: $value)
-        }
-      `,
-      variables: { name, value },
-    });
-  };
-
-  /* Functions */
-  function updateTopUserConfiguration(select) {
-    if (ccconfig[`status_view_selectedTopUserCategory:${cluster}`] != select) {
-      updateConfigurationMutation({
-        name: `status_view_selectedTopUserCategory:${cluster}`,
-        value: JSON.stringify(select),
-      }).subscribe((res) => {
-        if (res.fetching === false && res.error) {
-          throw res.error;
-        }
-      });
-    }
-  }
-
-  function updateTopProjectConfiguration(select) {
-    if (
-      ccconfig[`status_view_selectedTopProjectCategory:${cluster}`] != select
-    ) {
-      updateConfigurationMutation({
-        name: `status_view_selectedTopProjectCategory:${cluster}`,
-        value: JSON.stringify(select),
-      }).subscribe((res) => {
-        if (res.fetching === false && res.error) {
-          throw res.error;
-        }
-      });
-    }
-  }
 </script>
 
 <!-- Loading indicator & Refresh -->
 
-<Row cols={{ lg: 3, md: 3, sm: 1 }}>
-  <Col style="">
+<Row cols={{ xs: 2 }} class="mb-2">
+  <Col>
     <h4 class="mb-0">Current utilization of cluster "{cluster}"</h4>
-  </Col>
-  <Col class="mt-2 mt-md-0 text-md-end">
-    <Button
-      outline
-      color="secondary"
-      onclick={() => (isHistogramSelectionOpen = true)}
-    >
-      <Icon name="bar-chart-line" /> Select Histograms
-    </Button>
   </Col>
   <Col class="mt-2 mt-md-0">
     <Refresher
@@ -360,14 +48,13 @@
     />
   </Col>
 </Row>
-<Row cols={1} class="text-center mt-3">
+
+<!-- <Row cols={1} class="text-center mt-3">
   <Col>
     {#if $initq.fetching || $mainQuery.fetching}
       <Spinner />
     {:else if $initq.error}
       <Card body color="danger">{$initq.error.message}</Card>
-    {:else}
-      <!-- ... -->
     {/if}
   </Col>
 </Row>
@@ -377,334 +64,32 @@
       <Card body color="danger">{$mainQuery.error.message}</Card>
     </Col>
   </Row>
-{/if}
+{/if} -->
 
-<hr />
+<Card class="overflow-auto" style="height: auto;">
+  <TabContent>
+    <TabPane tabId="status-dash" tab="Status" active>
+      <CardBody>
+        <StatusDash {cluster}></StatusDash>
+      </CardBody>
+    </TabPane>
 
-<!-- Gauges & Roofline per Subcluster-->
+    <TabPane tabId="usage-dash" tab="Usage">
+      <CardBody>
+        <UsageDash {cluster}></UsageDash>
+      </CardBody>
+    </TabPane>
 
-{#if $initq.data && $mainQuery.data}
-  {#each $initq.data.clusters.find((c) => c.name == cluster).subClusters as subCluster, i}
-    <Row cols={{ lg: 2, md: 1 , sm: 1}} class="mb-3 justify-content-center">
-      <Col class="px-3">
-        <Card class="h-auto mt-1">
-          <CardHeader>
-            <CardTitle class="mb-0">SubCluster "{subCluster.name}"</CardTitle>
-          </CardHeader>
-          <CardBody>
-            <Table borderless>
-              <tr class="py-2">
-                <th scope="col">Allocated Nodes</th>
-                <td style="min-width: 100px;"
-                  ><div class="col">
-                    <Progress
-                      value={allocatedNodes[subCluster.name]}
-                      max={subCluster.numberOfNodes}
-                    />
-                  </div></td
-                >
-                <td
-                  >{allocatedNodes[subCluster.name]} / {subCluster.numberOfNodes}
-                  Nodes</td
-                >
-              </tr>
-              <tr class="py-2">
-                <th scope="col"
-                  >Flop Rate (Any) <Icon
-                    name="info-circle"
-                    class="p-1"
-                    style="cursor: help;"
-                    title="Flops[Any] = (Flops[Double] x 2) + Flops[Single]"
-                  /></th
-                >
-                <td style="min-width: 100px;"
-                  ><div class="col">
-                    <Progress
-                      value={flopRate[subCluster.name]}
-                      max={subCluster.flopRateSimd.value *
-                        subCluster.numberOfNodes}
-                    />
-                  </div></td
-                >
-                <td>
-                  {scaleNumbers(
-                    flopRate[subCluster.name],
-                    subCluster.flopRateSimd.value * subCluster.numberOfNodes,
-                    flopRateUnitPrefix[subCluster.name],
-                  )}{flopRateUnitBase[subCluster.name]} [Max]
-                </td>
-              </tr>
-              <tr class="py-2">
-                <th scope="col">MemBw Rate</th>
-                <td style="min-width: 100px;"
-                  ><div class="col">
-                    <Progress
-                      value={memBwRate[subCluster.name]}
-                      max={subCluster.memoryBandwidth.value *
-                        subCluster.numberOfNodes}
-                    />
-                  </div></td
-                >
-                <td>
-                  {scaleNumbers(
-                    memBwRate[subCluster.name],
-                    subCluster.memoryBandwidth.value * subCluster.numberOfNodes,
-                    memBwRateUnitPrefix[subCluster.name],
-                  )}{memBwRateUnitBase[subCluster.name]} [Max]
-                </td>
-              </tr>
-            </Table>
-          </CardBody>
-        </Card>
-      </Col>
-      <Col class="px-3 mt-2 mt-lg-0">
-        <div bind:clientWidth={plotWidths[i]}>
-          {#key $mainQuery.data.nodeMetrics}
-            <Roofline
-              allowSizeChange
-              width={plotWidths[i] - 10}
-              height={300}
-              subCluster={subCluster}
-              data={transformPerNodeDataForRoofline(
-                $mainQuery.data.nodeMetrics.filter(
-                  (data) => data.subCluster == subCluster.name,
-                ),
-              )}
-            />
-          {/key}
-        </div>
-      </Col>
-    </Row>
-  {/each}
+    <TabPane tabId="node-dash" tab="Nodes">
+      <CardBody>
+        <NodeDash {cluster}></NodeDash>
+      </CardBody>
+    </TabPane>
 
-  <hr />
-
-  <!-- User and Project Stats as Pie-Charts -->
-
-  <Row cols={{ lg: 4, md: 2, sm: 1 }}>
-    <Col class="p-2">
-      <div bind:clientWidth={colWidth}>
-        <h4 class="text-center">
-          Top Users on {cluster.charAt(0).toUpperCase() + cluster.slice(1)}
-        </h4>
-        {#key $topUserQuery.data}
-          {#if $topUserQuery.fetching}
-            <Spinner />
-          {:else if $topUserQuery.error}
-            <Card body color="danger">{$topUserQuery.error.message}</Card>
-          {:else}
-            <Pie
-              canvasId="hpcpie-users"
-              size={colWidth}
-              sliceLabel={topUserSelection.label}
-              quantities={$topUserQuery.data.topUser.map(
-                (tu) => tu[topUserSelection.key],
-              )}
-              entities={$topUserQuery.data.topUser.map((tu) => scrambleNames ? scramble(tu.id) : tu.id)}
-            />
-          {/if}
-        {/key}
-      </div>
-    </Col>
-    <Col class="px-4 py-2">
-      {#key $topUserQuery.data}
-        {#if $topUserQuery.fetching}
-          <Spinner />
-        {:else if $topUserQuery.error}
-          <Card body color="danger">{$topUserQuery.error.message}</Card>
-        {:else}
-          <Table>
-            <tr class="mb-2">
-              <th>Legend</th>
-              <th>User Name</th>
-              <th
-                >Number of
-                <select class="p-0" bind:value={topUserSelection}>
-                  {#each topOptions as option}
-                    <option value={option}>
-                      {option.label}
-                    </option>
-                  {/each}
-                </select>
-              </th>
-            </tr>
-            {#each $topUserQuery.data.topUser as tu, i}
-              <tr>
-                <td><Icon name="circle-fill" style="color: {colors[i]};" /></td>
-                <th scope="col" id="topName-{tu.id}"
-                  ><a
-                    href="/monitoring/user/{tu.id}?cluster={cluster}&state=running"
-                    >{scrambleNames ? scramble(tu.id) : tu.id}</a
-                  ></th
-                >
-                {#if tu?.name}
-                  <Tooltip
-                    target={`topName-${tu.id}`}
-                    placement="left"
-                    >{scrambleNames ? scramble(tu.name) : tu.name}</Tooltip
-                  >
-                {/if}
-                <td>{tu[topUserSelection.key]}</td>
-              </tr>
-            {/each}
-          </Table>
-        {/if}
-      {/key}
-    </Col>
-    <Col class="p-2">
-      <h4 class="text-center">
-        Top Projects on {cluster.charAt(0).toUpperCase() + cluster.slice(1)}
-      </h4>
-      {#key $topProjectQuery.data}
-        {#if $topProjectQuery.fetching}
-          <Spinner />
-        {:else if $topProjectQuery.error}
-          <Card body color="danger">{$topProjectQuery.error.message}</Card>
-        {:else}
-          <Pie
-            canvasId="hpcpie-projects"
-            size={colWidth}
-            sliceLabel={topProjectSelection.label}
-            quantities={$topProjectQuery.data.topProjects.map(
-              (tp) => tp[topProjectSelection.key],
-            )}
-            entities={$topProjectQuery.data.topProjects.map((tp) => scrambleNames ? scramble(tp.id) : tp.id)}
-          />
-        {/if}
-      {/key}
-    </Col>
-    <Col class="px-4 py-2">
-      {#key $topProjectQuery.data}
-        {#if $topProjectQuery.fetching}
-          <Spinner />
-        {:else if $topProjectQuery.error}
-          <Card body color="danger">{$topProjectQuery.error.message}</Card>
-        {:else}
-          <Table>
-            <tr class="mb-2">
-              <th>Legend</th>
-              <th>Project Code</th>
-              <th
-                >Number of
-                <select class="p-0" bind:value={topProjectSelection}>
-                  {#each topOptions as option}
-                    <option value={option}>
-                      {option.label}
-                    </option>
-                  {/each}
-                </select>
-              </th>
-            </tr>
-            {#each $topProjectQuery.data.topProjects as tp, i}
-              <tr>
-                <td><Icon name="circle-fill" style="color: {colors[i]};" /></td>
-                <th scope="col"
-                  ><a
-                    href="/monitoring/jobs/?cluster={cluster}&state=running&project={tp.id}&projectMatch=eq"
-                    >{scrambleNames ? scramble(tp.id) : tp.id}</a
-                  ></th
-                >
-                <td>{tp[topProjectSelection.key]}</td>
-              </tr>
-            {/each}
-          </Table>
-        {/if}
-      {/key}
-    </Col>
-  </Row>
-
-  <hr class="my-2" />
-
-  <!-- Static Stats as Histograms : Running Duration && Allocated Hardware Counts-->
-
-  <Row cols={{ lg: 2, md: 1 }}>
-    <Col class="p-2">
-      {#key $mainQuery.data.stats}
-        <Histogram
-          data={convert2uplot($mainQuery.data.stats[0].histDuration)}
-          title="Duration Distribution"
-          xlabel="Current Job Runtimes"
-          xunit="Runtime"
-          ylabel="Number of Jobs"
-          yunit="Jobs"
-          usesBins
-          xtime
-        />
-      {/key}
-    </Col>
-    <Col class="p-2">
-      {#key $mainQuery.data.stats}
-        <Histogram
-          data={convert2uplot($mainQuery.data.stats[0].histNumNodes)}
-          title="Number of Nodes Distribution"
-          xlabel="Allocated Nodes"
-          xunit="Nodes"
-          ylabel="Number of Jobs"
-          yunit="Jobs"
-        />
-      {/key}
-    </Col>
-  </Row>
-  <Row cols={{ lg: 2, md: 1 }}>
-    <Col class="p-2">
-      {#key $mainQuery.data.stats}
-        <Histogram
-          data={convert2uplot($mainQuery.data.stats[0].histNumCores)}
-          title="Number of Cores Distribution"
-          xlabel="Allocated Cores"
-          xunit="Cores"
-          ylabel="Number of Jobs"
-          yunit="Jobs"
-        />
-      {/key}
-    </Col>
-    <Col class="p-2">
-      {#key $mainQuery.data.stats}
-        <Histogram
-          data={convert2uplot($mainQuery.data.stats[0].histNumAccs)}
-          title="Number of Accelerators Distribution"
-          xlabel="Allocated Accs"
-          xunit="Accs"
-          ylabel="Number of Jobs"
-          yunit="Jobs"
-        />
-      {/key}
-    </Col>
-  </Row>
-
-  <hr class="my-2" />
-
-  <!-- Selectable Stats as Histograms : Average Values of Running Jobs -->
-
-  {#if selectedHistograms}
-    <!-- Note: Ignore '#snippet' Error in IDE -->
-    {#snippet gridContent(item)}
-      <Histogram
-        data={convert2uplot(item.data)}
-        title="Distribution of '{item.metric}' averages"
-        xlabel={`${item.metric} bin maximum ${item?.unit ? `[${item.unit}]` : ``}`}
-        xunit={item.unit}
-        ylabel="Number of Jobs"
-        yunit="Jobs"
-        usesBins
-      />
-    {/snippet}
-    
-    {#key $mainQuery.data.stats[0].histMetrics}
-      <PlotGrid
-        items={$mainQuery.data.stats[0].histMetrics}
-        itemsPerRow={2}
-        {gridContent}
-      />
-    {/key}
-  {/if}
-{/if}
-
-<HistogramSelection
-  {cluster}
-  bind:isOpen={isHistogramSelectionOpen}
-  presetSelectedHistograms={selectedHistograms}
-  applyChange={(newSelection) => {
-    selectedHistograms = [...newSelection];
-  }}
-/>
+    <TabPane tabId="metric-dash" tab="Statistics">
+      <CardBody>
+        <StatisticsDash {cluster}></StatisticsDash>
+      </CardBody>
+    </TabPane>
+  </TabContent>
+</Card>
