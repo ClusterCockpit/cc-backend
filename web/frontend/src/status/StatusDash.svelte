@@ -54,6 +54,7 @@
 
   /* Derived */
   // Note: nodeMetrics are requested on configured $timestep resolution
+  // Result: The latest 5 minutes (datapoints) for each node independent of job
   const statusQuery = $derived(queryStore({
     client: client,
     query: gql`

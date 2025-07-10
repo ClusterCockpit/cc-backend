@@ -79,7 +79,7 @@
   }));
 
   /* Functions */
-  // TODO: Originally Uses User View Selection! -> Change to Status View 
+  // TODO: Originally Uses User View Selection! -> Change to Status View : Adapt Mutations from TopUserSelect
   // function updateTopUserConfiguration(select) {
   //   if (ccconfig[`status_view_selectedHistograms:${cluster}`] != select) {
   //     updateConfigurationMutation({
