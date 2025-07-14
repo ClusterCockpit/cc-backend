@@ -20,6 +20,7 @@
   import UsageDash from "./status/UsageDash.svelte";
   import NodeDash from "./status/NodeDash.svelte";
   import StatisticsDash from "./status/StatisticsDash.svelte";
+  import DevelDash from "./status/DevelDash.svelte";
 
   /* Svelte 5 Props */
   let {
@@ -68,7 +69,13 @@
 
 <Card class="overflow-auto" style="height: auto;">
   <TabContent>
-    <TabPane tabId="status-dash" tab="Status" active>
+    <TabPane tabId="devel-dash" tab="Devel" active>
+      <CardBody>
+        <DevelDash {cluster}></DevelDash>
+      </CardBody>
+    </TabPane>
+
+    <TabPane tabId="status-dash" tab="Status">
       <CardBody>
         <StatusDash {cluster}></StatusDash>
       </CardBody>
