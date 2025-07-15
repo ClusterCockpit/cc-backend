@@ -93,7 +93,7 @@
     return Math.floor(x * 255.0);
   }
   function getRGB(c, makeTransparent = false) {
-    if (makeTransparent) return `rgba(${cbmode ? '0' : getGradientR(c)}, ${getGradientG(c)}, ${getGradientB(c)}, 0.33)`;
+    if (makeTransparent) return `rgba(${cbmode ? '0' : getGradientR(c)}, ${getGradientG(c)}, ${getGradientB(c)}, 0.5)`;
     else return `rgb(${cbmode ? '0' : getGradientR(c)}, ${getGradientG(c)}, ${getGradientB(c)})`;
   }
   function nearestThousand(num) {
@@ -246,7 +246,7 @@
     return (u, seriesIdx, idx0, idx1) => {
       uPlot.orient(u, seriesIdx, (series, dataX, dataY, scaleX, scaleY, valToPosX, valToPosY, xOff, yOff, xDim, yDim, moveTo, lineTo, rect, arc) => {
         let d = u.data[seriesIdx];
-        let strokeWidth = 2;
+        let strokeWidth = 1;
         let deg360 = 2 * Math.PI;
         /* Alt.: Sizes based on other Data Rows */
         // let sizes = disp.size.values(u, seriesIdx, idx0, idx1);
