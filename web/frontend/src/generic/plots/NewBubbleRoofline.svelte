@@ -37,8 +37,6 @@
     height = 380,
   } = $props();
 
-  $inspect(jobsData)
-
   /* Const Init */
   const lineWidth = clusterCockpitConfig?.plot_general_lineWidth || 2;
   const cbmode = clusterCockpitConfig?.plot_general_colorblindMode || false;
@@ -58,6 +56,7 @@
   // Copied Example Vars for Uplot Bubble
   // https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/isPointInPath
   let qt;
+  let hRect;
   let pxRatio;
   function setPxRatio() {
     pxRatio = uPlot.pxRatio;
@@ -66,7 +65,7 @@
 	window.addEventListener('dppxchange', setPxRatio);
   // let minSize = 6;
   let maxSize = 60;
-  let maxArea = Math.PI * (maxSize / 2) ** 2;
+  // let maxArea = Math.PI * (maxSize / 2) ** 2;
   // let minArea = Math.PI * (minSize / 2) ** 2;
 
   /* Functions */
@@ -94,7 +93,7 @@
     return Math.floor(x * 255.0);
   }
   function getRGB(c, makeTransparent = false) {
-    if (makeTransparent) return `rgb(${cbmode ? '0' : getGradientR(c)}, ${getGradientG(c)}, ${getGradientB(c)}, 0.33)`;
+    if (makeTransparent) return `rgba(${cbmode ? '0' : getGradientR(c)}, ${getGradientG(c)}, ${getGradientB(c)}, 0.33)`;
     else return `rgb(${cbmode ? '0' : getGradientR(c)}, ${getGradientG(c)}, ${getGradientB(c)})`;
   }
   function nearestThousand(num) {
@@ -110,28 +109,28 @@
   }
 
   // quadratic scaling (px area)
-  function getSize(value, minValue, maxValue) {
-    let pct = value / maxValue;
-    // clamp to min area
-    //let area = Math.max(maxArea * pct, minArea);
-    let area = maxArea * pct;
-    return Math.sqrt(area / Math.PI) * 2;
-  }
+  // function getSize(value, minValue, maxValue) {
+  //   let pct = value / maxValue;
+  //   // clamp to min area
+  //   //let area = Math.max(maxArea * pct, minArea);
+  //   let area = maxArea * pct;
+  //   return Math.sqrt(area / Math.PI) * 2;
+  // }
 
-  function getSizeMinMax(u) {
-    let minValue = Infinity;
-    let maxValue = -Infinity;
-    for (let i = 1; i < u.series.length; i++) {
-      let sizeData = u.data[i][2];
-      for (let j = 0; j < sizeData.length; j++) {
-        minValue = Math.min(minValue, sizeData[j]);
-        maxValue = Math.max(maxValue, sizeData[j]);
-      }
-    }
-    return [minValue, maxValue];
-  }
+  // function getSizeMinMax(u) {
+  //   let minValue = Infinity;
+  //   let maxValue = -Infinity;
+  //   for (let i = 1; i < u.series.length; i++) {
+  //     let sizeData = u.data[i][2];
+  //     for (let j = 0; j < sizeData.length; j++) {
+  //       minValue = Math.min(minValue, sizeData[j]);
+  //       maxValue = Math.max(maxValue, sizeData[j]);
+  //     }
+  //   }
+  //   return [minValue, maxValue];
+  // }
 
-  // Quadtree Object (How to import?)
+  // Quadtree Object (TODO: Split and Import)
   class Quadtree {
     constructor (x, y, w, h, l) {
       let t = this;
@@ -239,43 +238,24 @@
     }
   }
 
-  // Dot Renderers
+  // Dot Renderer
   const makeDrawPoints = (opts) => {
-    let {/*size,*/ disp, each = () => {}} = opts;
+    let {/*size, disp,*/ each = () => {}} = opts;
     const sizeBase = 5 * pxRatio;
 
     return (u, seriesIdx, idx0, idx1) => {
       uPlot.orient(u, seriesIdx, (series, dataX, dataY, scaleX, scaleY, valToPosX, valToPosY, xOff, yOff, xDim, yDim, moveTo, lineTo, rect, arc) => {
         let d = u.data[seriesIdx];
-
         let strokeWidth = 2;
-
-        u.ctx.save();
-
-        u.ctx.rect(u.bbox.left, u.bbox.top, u.bbox.width, u.bbox.height);
-        u.ctx.clip();
-
-        // u.ctx.fillStyle = series.fill();
-        // u.ctx.strokeStyle = series.stroke();
-        u.ctx.lineWidth = strokeWidth;
-
         let deg360 = 2 * Math.PI;
-
-        // console.time("points");
-
-        //	let cir = new Path2D();
-        //	cir.moveTo(0, 0);
-        //	arc(cir, 0, 0, 3, 0, deg360);
-
-          // Create transformation matrix that moves 200 points to the right
-        //	let m = document.createElementNS('http://www.w3.org/2000/svg', 'svg').createSVGMatrix();
-        //	m.a = 1;   m.b = 0;
-        //	m.c = 0;   m.d = 1;
-        //	m.e = 200; m.f = 0;
-
-        // compute bubble dims
+        /* Alt.: Sizes based on other Data Rows */
         // let sizes = disp.size.values(u, seriesIdx, idx0, idx1);
 
+        u.ctx.save();
+        u.ctx.rect(u.bbox.left, u.bbox.top, u.bbox.width, u.bbox.height);
+        u.ctx.clip();
+        u.ctx.lineWidth = strokeWidth;
+        
         // todo: this depends on direction & orientation
         // todo: calc once per redraw, not per path
         let filtLft = u.posToVal(-maxSize / 2, scaleX.key);
@@ -284,15 +264,14 @@
         let filtTop = u.posToVal(-maxSize / 2, scaleY.key);
 
         for (let i = 0; i < d[0].length; i++) {
-          // Import from Roofline
+          // Color based on Duration
           u.ctx.strokeStyle = getRGB(u.data[2][i]);
           u.ctx.fillStyle = getRGB(u.data[2][i], true);
-          // End
-
+          // Get Values
           let xVal = d[0][i];
           let yVal = d[1][i];
-          const size = sizeBase + (jobsData[i]?.numAcc ? jobsData[i].numAcc / 2 : jobsData[i].numNodes);
-         // let size = sizes[i] * pxRatio;
+          // Calc Size; Alt.: size = sizes[i] * pxRatio
+          const size = sizeBase + (jobsData[i]?.numAcc ? jobsData[i].numAcc / 2 : jobsData[i].numNodes); // In NodeMode: Scale with Number of Jobs?
 
           if (xVal >= filtLft && xVal <= filtRgt && yVal >= filtBtm && yVal <= filtTop) {
             let cx = valToPosX(xVal, scaleX, xDim, xOff);
@@ -312,28 +291,25 @@
             );
           }
         }
-
-        // console.timeEnd("points");
-
         u.ctx.restore();
       });
-
       return null;
     };
   };
 
   let drawPoints = makeDrawPoints({
-    disp: {
-      size: {
-        unit: 3, // raw CSS pixels
-      //	discr: true,
-        values: (u, seriesIdx, idx0, idx1) => {
-          // TODO: only run once per setData() call
-          let [minValue, maxValue] = getSizeMinMax(u);
-          return u.data[seriesIdx][2].map(v => getSize(v, minValue, maxValue));
-        },
-      },
-    },
+    // disp: {
+    //   size: {
+    //     // unit: 3, // raw CSS pixels
+    //     //	discr: true,
+    //     values: (u, seriesIdx, idx0, idx1) => {
+    //       /* Func to get sizes from additional subSeries [series][2...x] ([0,1] is [x,y]) */
+    //       // TODO: only run once per setData() call
+    //       let [minValue, maxValue] = getSizeMinMax(u);
+    //       return u.data[seriesIdx][2].map(v => getSize(v, minValue, maxValue));
+    //     },
+    //   },
+    // },
     each: (u, seriesIdx, dataIdx, lft, top, wid, hgt) => {
       // we get back raw canvas coords (included axes & padding). translate to the plotting area origin
       lft -= u.bbox.left;
@@ -470,19 +446,17 @@
     }, 200);
   }
 
-  let hRect;
   function render(roofdata, jobsData) {
     if (roofdata) {
       const opts = {
-        title: "Job Average Roofline Diagram (Bubble)",
+        title: "Job Average Roofline Diagram",
         mode: 2,
         width: width,
         height: height,
         legend: {
-          // show: true,
+           show: true,
         },
         cursor: { 
-          drag: { x: true, y: false }, // Activate zoom
           dataIdx: (u, seriesIdx) => {
 						if (seriesIdx == 1) {
 							hRect = null;
@@ -521,22 +495,27 @@
 								}
 							});
 						}
-
 						return hRect && seriesIdx == hRect.sidx ? hRect.didx : null;
 					},
-					points: {
-						size: (u, seriesIdx) => {
-							return hRect && seriesIdx == hRect.sidx ? hRect.w / pxRatio : 0;
-						}
-					},
-					focus: {
-						prox: 1e3,
-						alpha: 0.3,
-						dist: (u, seriesIdx) => {
-							let prox = (hRect?.sidx === seriesIdx ? 0 : Infinity);
-							return prox;
-						},
-					}
+          // /* Render "Fill" on Data Point Hover: Works in Example Bubble, does not work here? */
+					// points: {
+					// 	size: (u, seriesIdx) => {
+					// 		return hRect && seriesIdx == hRect.sidx ? hRect.w / pxRatio : 0;
+					// 	}
+					// },
+          /* Make all non-focused series semi-transparent: Useless unless more than one series rendered */
+					// focus: {
+					// 	prox: 1e3,
+					// 	alpha: 0.3,
+					// 	dist: (u, seriesIdx) => {
+					// 		let prox = (hRect?.sidx === seriesIdx ? 0 : Infinity);
+					// 		return prox;
+					// 	},
+					// },
+          drag: { // Activates Zoom
+            x: true,
+            y: false
+          },
         },
         axes: [
           {
@@ -569,16 +548,17 @@
         series: [
           null,
           {
-            facets: [
-							{
-								scale: 'x',
-								auto: true,
-							},
-							{
-								scale: 'y',
-								auto: true,
-							}
-						],
+            /* Facets: Define Purpose of Sub-Arrays in Series-Array, e.g. x, y, size, label, color, ... */
+            // facets: [
+						// 	{
+						// 		scale: 'x',
+						// 		auto: true,
+						// 	},
+						// 	{
+						// 		scale: 'y',
+						// 		auto: true,
+						// 	}
+						// ],
             paths: drawPoints,
             values: legendValues
           }
@@ -591,8 +571,10 @@
               qt = qt || new Quadtree(0, 0, u.bbox.width, u.bbox.height);
 							qt.clear();
 
+              // force-clear the path cache to cause drawBars() to rebuild new quadtree
               u.series.forEach((s, i) => {
-                if (i > 0) s._paths = null;
+                if (i > 0) 
+                  s._paths = null;
               });
             },
           ],
