@@ -62,7 +62,7 @@
     pxRatio = uPlot.pxRatio;
   }
   setPxRatio();
-	window.addEventListener('dppxchange', setPxRatio);
+  window.addEventListener('dppxchange', setPxRatio);
   // let minSize = 6;
   let maxSize = 60;
   // let maxArea = Math.PI * (maxSize / 2) ** 2;
@@ -92,8 +92,8 @@
     x = 1.0 - (x - 0.25) * 4.0;
     return Math.floor(x * 255.0);
   }
-  function getRGB(c, makeTransparent = false) {
-    if (makeTransparent) return `rgba(${cbmode ? '0' : getGradientR(c)}, ${getGradientG(c)}, ${getGradientB(c)}, 0.5)`;
+  function getRGB(c, transparent = false) {
+    if (transparent) return `rgba(${cbmode ? '0' : getGradientR(c)}, ${getGradientG(c)}, ${getGradientB(c)}, 0.5)`;
     else return `rgb(${cbmode ? '0' : getGradientR(c)}, ${getGradientG(c)}, ${getGradientB(c)})`;
   }
   function nearestThousand(num) {
@@ -240,7 +240,7 @@
 
   // Dot Renderer
   const makeDrawPoints = (opts) => {
-    let {/*size, disp,*/ each = () => {}} = opts;
+    let {/*size, disp,*/ transparentFill, each = () => {}} = opts;
     const sizeBase = 5 * pxRatio;
 
     return (u, seriesIdx, idx0, idx1) => {
@@ -264,9 +264,10 @@
         let filtTop = u.posToVal(-maxSize / 2, scaleY.key);
 
         for (let i = 0; i < d[0].length; i++) {
-          // Color based on Duration
+          // Color based on Duration, check index for transparency highlighting
           u.ctx.strokeStyle = getRGB(u.data[2][i]);
-          u.ctx.fillStyle = getRGB(u.data[2][i], true);
+          u.ctx.fillStyle = getRGB(u.data[2][i], transparentFill);
+          
           // Get Values
           let xVal = d[0][i];
           let yVal = d[1][i];
@@ -310,6 +311,7 @@
     //     },
     //   },
     // },
+    transparentFill: true,
     each: (u, seriesIdx, dataIdx, lft, top, wid, hgt) => {
       // we get back raw canvas coords (included axes & padding). translate to the plotting area origin
       lft -= u.bbox.left;
@@ -454,64 +456,64 @@
         width: width,
         height: height,
         legend: {
-           show: true,
+          show: true,
         },
         cursor: { 
           dataIdx: (u, seriesIdx) => {
-						if (seriesIdx == 1) {
-							hRect = null;
+            if (seriesIdx == 1) {
+              hRect = null;
 
-							let dist = Infinity;
-							let area = Infinity;
-							let cx = u.cursor.left * pxRatio;
-							let cy = u.cursor.top * pxRatio;
+              let dist = Infinity;
+              let area = Infinity;
+              let cx = u.cursor.left * pxRatio;
+              let cy = u.cursor.top * pxRatio;
 
-							qt.get(cx, cy, 1, 1, o => {
-								if (pointWithin(cx, cy, o.x, o.y, o.x + o.w, o.y + o.h)) {
-									let ocx = o.x + o.w / 2;
-									let ocy = o.y + o.h / 2;
+              qt.get(cx, cy, 1, 1, o => {
+                if (pointWithin(cx, cy, o.x, o.y, o.x + o.w, o.y + o.h)) {
+                  let ocx = o.x + o.w / 2;
+                  let ocy = o.y + o.h / 2;
 
-									let dx = ocx - cx;
-									let dy = ocy - cy;
+                  let dx = ocx - cx;
+                  let dy = ocy - cy;
 
-									let d = Math.sqrt(dx ** 2 + dy ** 2);
+                  let d = Math.sqrt(dx ** 2 + dy ** 2);
 
-									// test against radius for actual hover
-									if (d <= o.w / 2) {
-										let a = o.w * o.h;
+                  // test against radius for actual hover
+                  if (d <= o.w / 2) {
+                    let a = o.w * o.h;
 
-										// prefer smallest
-										if (a < area) {
-											area = a;
-											dist = d;
-											hRect = o;
-										}
-										// only hover bbox with closest distance
-										else if (a == area && d <= dist) {
-											dist = d;
-											hRect = o;
-										}
-									}
-								}
-							});
-						}
-						return hRect && seriesIdx == hRect.sidx ? hRect.didx : null;
-					},
-          // /* Render "Fill" on Data Point Hover: Works in Example Bubble, does not work here? */
-					// points: {
-					// 	size: (u, seriesIdx) => {
-					// 		return hRect && seriesIdx == hRect.sidx ? hRect.w / pxRatio : 0;
-					// 	}
-					// },
+                    // prefer smallest
+                    if (a < area) {
+                      area = a;
+                      dist = d;
+                      hRect = o;
+                    }
+                    // only hover bbox with closest distance
+                    else if (a == area && d <= dist) {
+                      dist = d;
+                      hRect = o;
+                    }
+                  }
+                }
+              });
+            }
+            return hRect && seriesIdx == hRect.sidx ? hRect.didx : null;
+          },
+          /* Render "Fill" on Data Point Hover: Works in Example Bubble, does not work here? Guess: Interference with tooltip */
+          // points: {
+          //   size: (u, seriesIdx) => {
+          //     return hRect && seriesIdx == hRect.sidx ? hRect.w / pxRatio : 0;
+          //   }
+          // },
           /* Make all non-focused series semi-transparent: Useless unless more than one series rendered */
-					// focus: {
-					// 	prox: 1e3,
-					// 	alpha: 0.3,
-					// 	dist: (u, seriesIdx) => {
-					// 		let prox = (hRect?.sidx === seriesIdx ? 0 : Infinity);
-					// 		return prox;
-					// 	},
-					// },
+          // focus: {
+          //   prox: 1e3,
+          //   alpha: 0.3,
+          //   dist: (u, seriesIdx) => {
+          //     let prox = (hRect?.sidx === seriesIdx ? 0 : Infinity);
+          //     return prox;
+          //   },
+          // },
           drag: { // Activates Zoom
             x: true,
             y: false
@@ -550,26 +552,26 @@
           {
             /* Facets: Define Purpose of Sub-Arrays in Series-Array, e.g. x, y, size, label, color, ... */
             // facets: [
-						// 	{
-						// 		scale: 'x',
-						// 		auto: true,
-						// 	},
-						// 	{
-						// 		scale: 'y',
-						// 		auto: true,
-						// 	}
-						// ],
+            //   {
+            //     scale: 'x',
+            //     auto: true,
+            //   },
+            //   {
+            //     scale: 'y',
+            //     auto: true,
+            //   }
+            // ],
             paths: drawPoints,
             values: legendValues
           }
         ],
         hooks: {
           // setSeries: [ (u, seriesIdx) => console.log('setSeries', seriesIdx) ],
-					// setLegend: [ u => console.log('setLegend', u.legend.idxs) ],
+          // setLegend: [ u => console.log('setLegend', u.legend.idxs) ],
           drawClear: [
             (u) => {
               qt = qt || new Quadtree(0, 0, u.bbox.width, u.bbox.height);
-							qt.clear();
+              qt.clear();
 
               // force-clear the path cache to cause drawBars() to rebuild new quadtree
               u.series.forEach((s, i) => {
@@ -675,11 +677,11 @@
               u.ctx.fillText('Short', posX, posY)
               const start = posX + 10
               for (let x = start; x < posXLimit; x += 10) {
-                  let c = (x - start) / (posXLimit - start)
-                  u.ctx.fillStyle = getRGB(c)
-                  u.ctx.beginPath()
-                  u.ctx.arc(x, posY, 3, 0, Math.PI * 2, false)
-                  u.ctx.fill()
+                let c = (x - start) / (posXLimit - start)
+                u.ctx.fillStyle = getRGB(c)
+                u.ctx.beginPath()
+                u.ctx.arc(x, posY, 3, 0, Math.PI * 2, false)
+                u.ctx.fill()
               }
               u.ctx.fillStyle = 'black'
               u.ctx.fillText('Long', posXLimit + 23, posY)
@@ -687,13 +689,13 @@
           ],
         },
         plugins: [
-					tooltipPlugin({
-						onclick(u, dataIdx) {
-							window.open(`/monitoring/job/${jobsData[dataIdx].id}`);
-						},
+          tooltipPlugin({
+            onclick(u, dataIdx) {
+              window.open(`/monitoring/job/${jobsData[dataIdx].id}`);
+            },
             getJobData: (u, dataIdx) => { return jobsData[dataIdx] }
-					}),
-				],
+          }),
+        ],
       };
       uplot = new uPlot(opts, roofdata, plotWrapper);
     } else {
@@ -716,6 +718,5 @@
 {#if roofData != null}
   <div bind:this={plotWrapper} class="p-2"></div>
 {:else}
-  <Card class="mx-4" body color="warning">Cannot render roofline: No data!</Card
-  >
+  <Card class="mx-4" body color="warning">Cannot render roofline: No data!</Card>
 {/if}
