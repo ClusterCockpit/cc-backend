@@ -186,7 +186,7 @@ type NodeStateResultList struct {
 	Count *int           `json:"count,omitempty"`
 }
 
-type NodeStats struct {
+type NodeStates struct {
 	State string `json:"state"`
 	Count int    `json:"count"`
 }

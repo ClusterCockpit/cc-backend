@@ -50,8 +50,9 @@ func GetNodeRepository() *NodeRepository {
 }
 
 var nodeColumns []string = []string{
-	"node.id", "node.hostname", "node.cluster", "node.subcluster",
-	"node.node_state", "node.health_state", "node.meta_data",
+	// "node.id,"
+	"node.hostname", "node.cluster", "node.subcluster",
+	"node.node_state", "node.health_state", // "node.meta_data",
 }
 
 func (r *NodeRepository) FetchMetadata(node *schema.Node) (map[string]string, error) {
@@ -223,7 +224,7 @@ func (r *NodeRepository) DeleteNode(id int64) error {
 func (r *NodeRepository) QueryNodes(
 	ctx context.Context,
 	filters []*model.NodeFilter,
-	order *model.OrderByInput,
+	order *model.OrderByInput, // Currently unused!
 ) ([]*schema.Node, error) {
 	query, qerr := AccessCheck(ctx, sq.Select(nodeColumns...).From("node"))
 	if qerr != nil {
@@ -296,7 +297,7 @@ func (r *NodeRepository) ListNodes(cluster string) ([]*schema.Node, error) {
 	return nodeList, nil
 }
 
-func (r *NodeRepository) CountNodeStates(ctx context.Context, filters []*model.NodeFilter) ([]*model.NodeStats, error) {
+func (r *NodeRepository) CountNodeStates(ctx context.Context, filters []*model.NodeFilter) ([]*model.NodeStates, error) {
 	query, qerr := AccessCheck(ctx, sq.Select("node_state AS state", "count(*) AS count").From("node"))
 	if qerr != nil {
 		return nil, qerr
@@ -327,13 +328,13 @@ func (r *NodeRepository) CountNodeStates(ctx context.Context, filters []*model.N
 		return nil, err
 	}
 
-	nodes := make([]*model.NodeStats, 0)
+	nodes := make([]*model.NodeStates, 0)
 	for rows.Next() {
-		node := model.NodeStats{}
+		node := model.NodeStates{}
 
 		if err := rows.Scan(&node.State, &node.Count); err != nil {
 			rows.Close()
-			cclog.Warn("Error while scanning rows (NodeStats)")
+			cclog.Warn("Error while scanning rows (NodeStates)")
 			return nil, err
 		}
 		nodes = append(nodes, &node)
@@ -342,7 +343,7 @@ func (r *NodeRepository) CountNodeStates(ctx context.Context, filters []*model.N
 	return nodes, nil
 }
 
-func (r *NodeRepository) CountHealthStates(ctx context.Context, filters []*model.NodeFilter) ([]*model.NodeStats, error) {
+func (r *NodeRepository) CountHealthStates(ctx context.Context, filters []*model.NodeFilter) ([]*model.NodeStates, error) {
 	query, qerr := AccessCheck(ctx, sq.Select("health_state AS state", "count(*) AS count").From("node"))
 	if qerr != nil {
 		return nil, qerr
@@ -373,13 +374,13 @@ func (r *NodeRepository) CountHealthStates(ctx context.Context, filters []*model
 		return nil, err
 	}
 
-	nodes := make([]*model.NodeStats, 0)
+	nodes := make([]*model.NodeStates, 0)
 	for rows.Next() {
-		node := model.NodeStats{}
+		node := model.NodeStates{}
 
 		if err := rows.Scan(&node.State, &node.Count); err != nil {
 			rows.Close()
-			cclog.Warn("Error while scanning rows (NodeStats)")
+			cclog.Warn("Error while scanning rows (NodeStates)")
 			return nil, err
 		}
 		nodes = append(nodes, &node)

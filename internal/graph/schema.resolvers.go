@@ -305,14 +305,20 @@ func (r *mutationResolver) UpdateConfiguration(ctx context.Context, name string,
 	return nil, nil
 }
 
-// NodeState is the resolver for the nodeState field.
-func (r *nodeResolver) NodeState(ctx context.Context, obj *schema.Node) (string, error) {
-	panic(fmt.Errorf("not implemented: NodeState - nodeState"))
+// RunningJobs is the resolver for the runningJobs field.
+func (r *nodeResolver) RunningJobs(ctx context.Context, obj *schema.Node) (int, error) {
+	panic(fmt.Errorf("not implemented: RunningJobs - runningJobs"))
 }
 
-// HealthState is the resolver for the HealthState field.
+// NodeState is the resolver for the nodeState field.
+func (r *nodeResolver) NodeState(ctx context.Context, obj *schema.Node) (string, error) {
+	return string(obj.NodeState), nil
+}
+
+// HealthState is the resolver for the healthState field.
 func (r *nodeResolver) HealthState(ctx context.Context, obj *schema.Node) (schema.NodeState, error) {
-	panic(fmt.Errorf("not implemented: HealthState - HealthState"))
+	// FIXME: Why is Output of schema.NodeState Type?
+	panic(fmt.Errorf("not implemented: HealthState - healthState"))
 }
 
 // MetaData is the resolver for the metaData field.
@@ -378,8 +384,8 @@ func (r *queryResolver) Nodes(ctx context.Context, filter []*model.NodeFilter, o
 	return &model.NodeStateResultList{Items: nodes, Count: &count}, err
 }
 
-// NodeStats is the resolver for the nodeStats field.
-func (r *queryResolver) NodeStats(ctx context.Context, filter []*model.NodeFilter) ([]*model.NodeStats, error) {
+// NodeStates is the resolver for the nodeStates field.
+func (r *queryResolver) NodeStates(ctx context.Context, filter []*model.NodeFilter) ([]*model.NodeStates, error) {
 	repo := repository.GetNodeRepository()
 
 	stateCounts, serr := repo.CountNodeStates(ctx, filter)
@@ -394,7 +400,7 @@ func (r *queryResolver) NodeStats(ctx context.Context, filter []*model.NodeFilte
 		return nil, herr
 	}
 
-	allCounts := make([]*model.NodeStats, 0)
+	allCounts := make([]*model.NodeStates, 0)
 	allCounts = append(stateCounts, healthCounts...)
 
 	return allCounts, nil

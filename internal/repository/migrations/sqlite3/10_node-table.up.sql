@@ -3,6 +3,7 @@ CREATE TABLE "node" (
     hostname VARCHAR(255) NOT NULL,
     cluster VARCHAR(255) NOT NULL,
     subcluster VARCHAR(255) NOT NULL,
+    jobs_running INTEGER DEFAULT 0 NOT NULL,
     cpus_allocated INTEGER DEFAULT 0 NOT NULL,
     cpus_total INTEGER DEFAULT 0 NOT NULL,
     memory_allocated INTEGER DEFAULT 0 NOT NULL,

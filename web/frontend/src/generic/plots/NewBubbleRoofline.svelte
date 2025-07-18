@@ -31,8 +31,10 @@
   let {
     roofData = null,
     jobsData = null,
-    allowSizeChange = false,
+    nodesData = null,
+    cluster = null,
     subCluster = null,
+    allowSizeChange = false,
     width = 600,
     height = 380,
   } = $props();
@@ -264,16 +266,43 @@
         let filtTop = u.posToVal(-maxSize / 2, scaleY.key);
 
         for (let i = 0; i < d[0].length; i++) {
-          // Color based on Duration, check index for transparency highlighting
-          u.ctx.strokeStyle = getRGB(u.data[2][i]);
-          u.ctx.fillStyle = getRGB(u.data[2][i], transparentFill);
-          
+          // Jobs: Color based on Duration
+          if (jobsData) {
+            u.ctx.strokeStyle = getRGB(u.data[2][i]);
+            u.ctx.fillStyle = getRGB(u.data[2][i], transparentFill);
+          // Nodes: Color based on Idle vs. Allocated
+          } else if (nodesData) {
+            // console.log('In Plot Handler NodesData', nodesData)
+            if (nodesData[i]?.nodeState == "idle") {
+              u.ctx.strokeStyle = "rgb(0, 0, 255)";
+              u.ctx.fillStyle = "rgba(0, 0, 255, 0.5)";
+            } else if (nodesData[i]?.nodeState == "allocated") {
+              u.ctx.strokeStyle = "rgb(0, 255, 0)";
+              u.ctx.fillStyle = "rgba(0, 255, 0, 0.5)";
+            } else if (nodesData[i]?.nodeState == "notindb") {
+              u.ctx.strokeStyle = "rgb(0, 0, 0)";
+              u.ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+            } else { // Fallback: All other DEFINED states
+              u.ctx.strokeStyle = "rgb(255, 0, 0)";
+              u.ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
+            }
+          }
+
           // Get Values
           let xVal = d[0][i];
           let yVal = d[1][i];
-          // Calc Size; Alt.: size = sizes[i] * pxRatio
-          const size = sizeBase + (jobsData[i]?.numAcc ? jobsData[i].numAcc / 2 : jobsData[i].numNodes); // In NodeMode: Scale with Number of Jobs?
 
+          // Calc Size; Alt.: size = sizes[i] * pxRatio
+          let size = 1;
+
+          // Jobs: Size based on Resourcecount
+          if (jobsData) {
+            size = sizeBase + (jobsData[i]?.numAcc ? jobsData[i].numAcc / 2 : jobsData[i].numNodes)
+          // Nodes: Size based on Jobcount
+          } else if (nodesData) {
+            size = sizeBase + nodesData[i]?.numJobs
+          };
+          
           if (xVal >= filtLft && xVal <= filtRgt && yVal >= filtBtm && yVal <= filtTop) {
             let cx = valToPosX(xVal, scaleX, xDim, xOff);
             let cy = valToPosY(yVal, scaleY, yDim, yOff);
@@ -338,7 +367,7 @@
   };
 
   // Tooltip Plugin
-  function tooltipPlugin({onclick, getJobData, shiftX = 10, shiftY = 10}) {
+  function tooltipPlugin({onclick, getLegendData, shiftX = 10, shiftY = 10}) {
     let tooltipLeftOffset = 0;
     let tooltipTopOffset = 0;
 
@@ -388,11 +417,34 @@
       tooltip.style.top  = (tooltipTopOffset  + top + shiftX) + "px";
       tooltip.style.left = (tooltipLeftOffset + lft + shiftY) + "px";
 
-      tooltip.style.borderColor = getRGB(u.data[2][i]);
-      tooltip.textContent = (
-        // Tooltip Content as String
-        `Job ID: ${getJobData(u, i).jobId}\nNodes: ${getJobData(u, i).numNodes}${getJobData(u, i)?.numAcc?`\nAccelerators: ${getJobData(u, i).numAcc}`:''}`
-      );
+
+      // Jobs: Color based on Duration
+      if (jobsData) {
+        tooltip.style.borderColor = getRGB(u.data[2][i]);
+      // Nodes: Color based on Idle vs. Allocated
+      } else if (nodesData) {
+        if (nodesData[i]?.nodeState == "idle") {
+          tooltip.style.borderColor = "rgb(0, 0, 255)";
+        } else if (nodesData[i]?.nodeState == "allocated") {
+          tooltip.style.borderColor = "rgb(0, 255, 0)";
+        } else if (nodesData[i]?.nodeState == "notindb") { // Missing from DB table
+          tooltip.style.borderColor = "rgb(0, 0, 0)";
+        } else { // Fallback: All other DEFINED states
+          tooltip.style.borderColor = "rgb(255, 0, 0)";
+        }
+      }
+
+      if (jobsData) {
+        tooltip.textContent = (
+          // Tooltip Content as String for Job
+          `Job ID: ${getLegendData(u, i).jobId}\nNodes: ${getLegendData(u, i).numNodes}${getLegendData(u, i)?.numAcc?`\nAccelerators: ${getLegendData(u, i).numAcc}`:''}`
+        );
+      } else if (nodesData) {
+        tooltip.textContent = (
+          // Tooltip Content as String for Node
+          `Host: ${getLegendData(u, i).nodeName}\nState: ${getLegendData(u, i).nodeState}\nJobs: ${getLegendData(u, i).numJobs}`
+        );
+      }
     }
 
     return {
@@ -444,14 +496,18 @@
     timeoutId = setTimeout(() => {
       timeoutId = null;
       if (uplot) uplot.destroy();
-      render(roofData, jobsData);
+      render(roofData, jobsData, nodesData);
     }, 200);
   }
 
-  function render(roofdata, jobsData) {
-    if (roofdata) {
+  function render(roofData, jobsData, nodesData) {
+    let plotTitle = "CPU Roofline Diagram";
+    if (jobsData) plotTitle = "Job Average Roofline Diagram";
+    if (nodesData) plotTitle = "Node Average Roofline Diagram";
+
+    if (roofData) {
       const opts = {
-        title: "Job Average Roofline Diagram",
+        title: plotTitle,
         mode: 2,
         width: width,
         height: height,
@@ -669,35 +725,87 @@
                 u.ctx.lineWidth = 0.15;
               }
 
-              // The Color Scale For Time Information
-              const posX = u.valToPos(0.1, "x", true)
-              const posXLimit = u.valToPos(100, "x", true)
-              const posY = u.valToPos(14000.0, "y", true)
-              u.ctx.fillStyle = 'black'
-              u.ctx.fillText('Short', posX, posY)
-              const start = posX + 10
-              for (let x = start; x < posXLimit; x += 10) {
-                let c = (x - start) / (posXLimit - start)
-                u.ctx.fillStyle = getRGB(c)
-                u.ctx.beginPath()
-                u.ctx.arc(x, posY, 3, 0, Math.PI * 2, false)
-                u.ctx.fill()
+              // Jobs: The Color Scale For Time Information
+              if (jobsData) {
+                const posX = u.valToPos(0.1, "x", true)
+                const posXLimit = u.valToPos(100, "x", true)
+                const posY = u.valToPos(14000.0, "y", true)
+                u.ctx.fillStyle = 'black'
+                u.ctx.fillText('Short', posX, posY)
+                const start = posX + 10
+                for (let x = start; x < posXLimit; x += 10) {
+                  let c = (x - start) / (posXLimit - start)
+                  u.ctx.fillStyle = getRGB(c)
+                  u.ctx.beginPath()
+                  u.ctx.arc(x, posY, 3, 0, Math.PI * 2, false)
+                  u.ctx.fill()
+                }
+                u.ctx.fillStyle = 'black'
+                u.ctx.fillText('Long', posXLimit + 23, posY)
               }
-              u.ctx.fillStyle = 'black'
-              u.ctx.fillText('Long', posXLimit + 23, posY)
+
+              // Nodes: The Colors Of NodeStates (Just 3)
+              if (nodesData) {
+                const posY = u.valToPos(14000.0, "y", true)
+
+                const posAllocDot = u.valToPos(0.1, "x", true)
+                const posAllocText = posAllocDot + 60
+                u.ctx.fillStyle = "rgb(0, 255, 0)"
+                u.ctx.beginPath()
+                u.ctx.arc(posAllocDot, posY, 3, 0, Math.PI * 2, false)
+                u.ctx.fill()
+                u.ctx.fillStyle = 'black'
+                u.ctx.fillText('Allocated', posAllocText, posY)
+
+                const posIdleDot = posAllocDot + 150
+                const posIdleText = posAllocText + 120
+                u.ctx.fillStyle = "rgb(0, 0, 255)"
+                u.ctx.beginPath()
+                u.ctx.arc(posIdleDot, posY, 3, 0, Math.PI * 2, false)
+                u.ctx.fill()
+                u.ctx.fillStyle = 'black'
+                u.ctx.fillText('Idle', posIdleText, posY)
+
+                const posOtherDot = posIdleDot + 150
+                const posOtherText = posIdleText + 160
+                u.ctx.fillStyle = "rgb(255, 0, 0)"
+                u.ctx.beginPath()
+                u.ctx.arc(posOtherDot, posY, 3, 0, Math.PI * 2, false)
+                u.ctx.fill()
+                u.ctx.fillStyle = 'black'
+                u.ctx.fillText('Other', posOtherText, posY)
+
+                const posMissingDot = posOtherDot + 150
+                const posMissingText = posOtherText + 190
+                u.ctx.fillStyle = 'black'
+                u.ctx.beginPath()
+                u.ctx.arc(posMissingDot, posY, 3, 0, Math.PI * 2, false)
+                u.ctx.fill()
+                u.ctx.fillText('Missing in DB', posMissingText, posY)
+              }
             },
           ],
         },
         plugins: [
           tooltipPlugin({
             onclick(u, dataIdx) {
-              window.open(`/monitoring/job/${jobsData[dataIdx].id}`);
+              if (jobsData) {
+                window.open(`/monitoring/job/${jobsData[dataIdx].id}`)
+              } else if (nodesData) {
+                window.open(`/monitoring/node/${cluster}/${nodesData[dataIdx].nodeName}`)
+              }
             },
-            getJobData: (u, dataIdx) => { return jobsData[dataIdx] }
+            getLegendData: (u, dataIdx) => {
+              if (jobsData) {
+                return jobsData[dataIdx]
+              } else if (nodesData) {
+                return nodesData[dataIdx]
+              }
+            }
           }),
         ],
       };
-      uplot = new uPlot(opts, roofdata, plotWrapper);
+      uplot = new uPlot(opts, roofData, plotWrapper);
     } else {
       // console.log("No data for roofline!");
     }
@@ -705,7 +813,7 @@
 
   /* On Mount */
   onMount(() => {
-    render(roofData, jobsData);
+    render(roofData, jobsData, nodesData);
   });
 
   /* On Destroy */

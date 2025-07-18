@@ -12,12 +12,13 @@ type Node {
   hostname: String!
   cluster: String!
   subCluster: String!
+  runningJobs: Int!
   nodeState: NodeState!
-  HealthState: MonitoringState!
+  healthState: MonitoringState!
   metaData: Any
 }
 
-type NodeStats {
+type NodeStates {
   state: String!
   count: Int!
 }
@@ -303,7 +304,7 @@ type Query {
   ## Node Queries New
   node(id: ID!): Node
   nodes(filter: [NodeFilter!], order: OrderByInput): NodeStateResultList!
-  nodeStats(filter: [NodeFilter!]): [NodeStats!]!
+  nodeStates(filter: [NodeFilter!]): [NodeStates!]!
 
   job(id: ID!): Job
   jobMetrics(
