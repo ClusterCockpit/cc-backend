@@ -135,7 +135,8 @@ var uiConfigSchema = `
           "description": "If footprint bars are shown as first column by default.",
           "type": "boolean"
         }
-      }
+      },
+      "required": ["usePaging", "showFootprint"]
     },
     "nodeList": {
       "description": "Node list defaults. Applies to node list view.",
@@ -145,7 +146,8 @@ var uiConfigSchema = `
           "description": "If classic paging is used instead of continuous scrolling by default.",
           "type": "boolean"
         }
-      }
+      },
+      "required": ["usePaging"]
     },
     "jobView": {
       "description": "Job view defaults.",
@@ -167,7 +169,8 @@ var uiConfigSchema = `
           "description": "If the job metric statistics table is shown by default.",
           "type": "boolean"
         }
-      }
+      },
+      "required": ["showFootprint"]
     },
     "metricConfig": {
       "description": "Global initial metric selections for primary views of all clusters.",
@@ -177,21 +180,24 @@ var uiConfigSchema = `
           "description": "Initial metrics shown for new users in job lists (User and jobs view).",
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "minItems": 1
           }
         },
         "jobViewPlotMetrics": {
           "description": "Initial metrics shown for new users as job view metric plots.",
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "minItems": 1
           }
         },
         "jobViewTableMetrics": {
           "description": "Initial metrics shown for new users in job view statistics table.",
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "minItems": 1
           }
         },
         "clusters": {
@@ -218,29 +224,37 @@ var uiConfigSchema = `
                       "description": "Initial metrics shown for new users in job lists (User and jobs view) for subcluster.",
                       "type": "array",
                       "items": {
-                        "type": "string"
+                        "type": "string",
+                        "minItems": 1
                       }
                     },
                     "jobViewPlotMetrics": {
                       "description": "Initial metrics shown for new users as job view timeplots for subcluster.",
                       "type": "array",
                       "items": {
-                        "type": "string"
+                        "type": "string",
+                        "minItems": 1
                       }
                     },
                     "jobViewTableMetrics": {
                       "description": "Initial metrics shown for new users in job view statistics table for subcluster.",
                       "type": "array",
                       "items": {
-                        "type": "string"
+                        "type": "string",
+                        "minItems": 1
                       }
                     }
-                  }
+                  },
+                  "required": ["name"],
+                  "minItems": 1
                 }
               }
-            }
+            },
+            "required": ["name", "subClusters"],
+            "minItems": 1
           }
-        }
+        },
+        "required": ["jobListMetrics", "jobViewPlotMetrics", "jobViewTableMetrics"]
       }
     },
     "plotConfiguration": {
@@ -266,85 +280,87 @@ var uiConfigSchema = `
             "type": "string"
           }
         }
-      }
+      },
+      "required": ["colorBackground", "plotsPerRow", "lineWidth"]
     }
   }`
 
 var clustersSchema = `
-	{
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "description": "The name of the cluster.",
-            "type": "string"
-          },
-          "metricDataRepository": {
-            "description": "Type of the metric data repository for this cluster",
-            "type": "object",
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": ["influxdb", "prometheus", "cc-metric-store", "test"]
-              },
-              "url": {
-                "type": "string"
-              },
-              "token": {
-                "type": "string"
-              }
-            },
-            "required": ["kind", "url"]
-          },
-          "filterRanges": {
-            "description": "This option controls the slider ranges for the UI controls of numNodes, duration, and startTime.",
-            "type": "object",
-            "properties": {
-              "numNodes": {
-                "description": "UI slider range for number of nodes",
-                "type": "object",
-                "properties": {
-                  "from": {
-                    "type": "integer"
-                  },
-                  "to": {
-                    "type": "integer"
-                  }
-                },
-                "required": ["from", "to"]
-              },
-              "duration": {
-                "description": "UI slider range for duration",
-                "type": "object",
-                "properties": {
-                  "from": {
-                    "type": "integer"
-                  },
-                  "to": {
-                    "type": "integer"
-                  }
-                },
-                "required": ["from", "to"]
-              },
-              "startTime": {
-                "description": "UI slider range for start time",
-                "type": "object",
-                "properties": {
-                  "from": {
-                    "type": "string",
-                    "format": "date-time"
-                  },
-                  "to": {
-                    "type": "null"
-                  }
-                },
-                "required": ["from", "to"]
-              }
-            },
-            "required": ["numNodes", "duration", "startTime"]
-          }
+  {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The name of the cluster.",
+          "type": "string"
         },
-        "required": ["name", "metricDataRepository", "filterRanges"],
-        "minItems": 1
-      }}`
+        "metricDataRepository": {
+          "description": "Type of the metric data repository for this cluster",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": ["influxdb", "prometheus", "cc-metric-store", "test"]
+            },
+            "url": {
+              "type": "string"
+            },
+            "token": {
+              "type": "string"
+            }
+          },
+          "required": ["kind", "url"]
+        },
+        "filterRanges": {
+          "description": "This option controls the slider ranges for the UI controls of numNodes, duration, and startTime.",
+          "type": "object",
+          "properties": {
+            "numNodes": {
+              "description": "UI slider range for number of nodes",
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "integer"
+                },
+                "to": {
+                  "type": "integer"
+                }
+              },
+              "required": ["from", "to"]
+            },
+            "duration": {
+              "description": "UI slider range for duration",
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "integer"
+                },
+                "to": {
+                  "type": "integer"
+                }
+              },
+              "required": ["from", "to"]
+            },
+            "startTime": {
+              "description": "UI slider range for start time",
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "to": {
+                  "type": "null"
+                }
+              },
+              "required": ["from", "to"]
+            }
+          },
+          "required": ["numNodes", "duration", "startTime"]
+        }
+      },
+      "required": ["name", "metricDataRepository", "filterRanges"],
+      "minItems": 1
+    }
+  }`
