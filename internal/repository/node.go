@@ -321,6 +321,9 @@ func (r *NodeRepository) CountNodeStates(ctx context.Context, filters []*model.N
 		}
 	}
 
+	// Add Group and Order
+	query = query.GroupBy("state").OrderBy("count DESC")
+
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
 		queryString, queryVars, _ := query.ToSql()
@@ -366,6 +369,9 @@ func (r *NodeRepository) CountHealthStates(ctx context.Context, filters []*model
 			query = query.Where("node.health_state = ?", f.HealthState)
 		}
 	}
+
+	// Add Group and Order
+	query = query.GroupBy("state").OrderBy("count DESC")
 
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {

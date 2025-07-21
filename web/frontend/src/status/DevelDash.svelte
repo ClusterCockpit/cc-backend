@@ -9,6 +9,8 @@
   import {
     Row,
     Col,
+    Table,
+    Icon
   } from "@sveltestrap/sveltestrap";
   import {
     queryStore,
@@ -18,8 +20,9 @@
   import {
     init,
   } from "../generic/utils.js";
-  import Roofline from "../generic/plots/Roofline.svelte";
+  //import Roofline from "../generic/plots/Roofline.svelte";
   import NewBubbleRoofline from "../generic/plots/NewBubbleRoofline.svelte";
+  import Pie, { colors } from "../generic/plots/Pie.svelte";
 
   /* Svelte 5 Props */
   let {
@@ -34,8 +37,10 @@
   let from = $state(new Date(Date.now() - 5 * 60 * 1000));
   let to = $state(new Date(Date.now()));
   let plotWidths = $state([]);
-  let nodesCounts = $state({});
-  let jobsJounts = $state({});
+  let statesWidth = $state(0);
+  let healthWidth = $state(0);
+  // let nodesCounts = $state({});
+  // let jobsJounts = $state({});
 
   /* Derived */
   // Note: nodeMetrics are requested on configured $timestep resolution
@@ -182,6 +187,33 @@
       // Subcluster filter?
     },
   }));
+
+  // Accumulated NodeStates for Piecharts
+  const nodesStateCounts = $derived(queryStore({
+    client: client,
+    query: gql`
+      query ($filter: [NodeFilter!]) {
+        nodeStates(filter: $filter) {
+          state
+          count
+        }
+      }
+    `,
+    variables: {
+      filter: { cluster: { eq: cluster }}
+    },
+  }));
+
+  $inspect($nodesStateCounts?.data?.nodeStates)
+
+  const refinedStateData = $derived.by(() => {
+    return $nodesStateCounts?.data?.nodeStates.filter((e) => ['allocated', 'reserved', 'idle', 'mixed','down', 'unknown'].includes(e.state))
+  });
+
+  const refinedHealthData = $derived.by(() => {
+    return $nodesStateCounts?.data?.nodeStates.filter((e) => ['full', 'partial', 'failed'].includes(e.state))
+  });
+
 
   /* Function */
   function transformJobsStatsToData(subclusterData) {
@@ -338,4 +370,93 @@
       </Col>
     </Row>
   {/each}
+{/if}
+
+<hr/>
+<hr/>
+
+{#if $initq.data && $nodesStateCounts.data}
+  <Row cols={{ lg: 4, md: 2 , sm: 1}} class="mb-3 justify-content-center">
+    <Col class="px-3 mt-2 mt-lg-0">
+      <b>Node State</b>
+      <div bind:clientWidth={statesWidth}>
+        {#key refinedStateData}
+          <b>Total: {refinedStateData.reduce((sum, item) => {
+              return sum + item.count;
+            }, 0)} Nodes
+          </b>
+            <Pie
+              canvasId="hpcpie-slurm"
+              size={statesWidth}
+              sliceLabel="Nodes"
+              quantities={refinedStateData.map(
+                (sd) => sd.count,
+              )}
+              entities={refinedStateData.map(
+                (sd) => sd.state,
+              )}
+            />
+        {/key}
+      </div>
+    </Col>
+    <Col class="px-4 py-2">
+      {#key refinedStateData}
+        <Table>
+          <tr class="mb-2">
+            <th>Legend</th>
+            <th>Current State</th>
+            <th>#Nodes</th>
+          </tr>
+          {#each refinedStateData as sd, i}
+            <tr>
+              <td><Icon name="circle-fill" style="color: {colors[i]};" /></td>
+              <td>{sd.state}</td>
+              <td>{sd.count}</td>
+            </tr>
+          {/each}
+        </Table>
+      {/key}
+    </Col>
+
+    <Col class="px-3 mt-2 mt-lg-0">
+      <b>Node Health</b>
+      <div bind:clientWidth={healthWidth}>
+        {#key refinedHealthData}
+          <b>Total: {refinedStateData.reduce((sum, item) => {
+              return sum + item.count;
+            }, 0)} Nodes
+          </b>
+            <Pie
+              canvasId="hpcpie-health"
+              size={healthWidth}
+              sliceLabel="Nodes"
+              quantities={refinedHealthData.map(
+                (sd) => sd.count,
+              )}
+              entities={refinedHealthData.map(
+                (sd) => sd.state,
+              )}
+            />
+        {/key}
+      </div>
+    </Col>
+    <Col class="px-4 py-2">
+      {#key refinedHealthData}
+        <Table>
+          <tr class="mb-2">
+            <th>Legend</th>
+            <th>Current Health</th>
+            <th>#Nodes</th>
+          </tr>
+          {#each refinedHealthData as hd, i}
+            <tr>
+              <td><Icon name="circle-fill" style="color: {colors[i]};" /></td>
+              <td>{hd.state}</td>
+              <td>{hd.count}</td>
+            </tr>
+          {/each}
+        </Table>
+      {/key}
+    </Col>
+  </Row>
 {/if}
