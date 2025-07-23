@@ -204,8 +204,6 @@
     },
   }));
 
-  $inspect($nodesStateCounts?.data?.nodeStates)
-
   const refinedStateData = $derived.by(() => {
     return $nodesStateCounts?.data?.nodeStates.filter((e) => ['allocated', 'reserved', 'idle', 'mixed','down', 'unknown'].includes(e.state))
   });
