@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
@@ -216,7 +217,7 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	return query
 }
 
-func buildIntCondition(field string, cond *schema.IntRange, query sq.SelectBuilder) sq.SelectBuilder {
+func buildIntCondition(field string, cond *config.IntRange, query sq.SelectBuilder) sq.SelectBuilder {
 	return query.Where(field+" BETWEEN ? AND ?", cond.From, cond.To)
 }
 
@@ -224,7 +225,7 @@ func buildFloatCondition(field string, cond *model.FloatRange, query sq.SelectBu
 	return query.Where(field+" BETWEEN ? AND ?", cond.From, cond.To)
 }
 
-func buildTimeCondition(field string, cond *schema.TimeRange, query sq.SelectBuilder) sq.SelectBuilder {
+func buildTimeCondition(field string, cond *config.TimeRange, query sq.SelectBuilder) sq.SelectBuilder {
 	if cond.From != nil && cond.To != nil {
 		return query.Where(field+" BETWEEN ? AND ?", cond.From.Unix(), cond.To.Unix())
 	} else if cond.From != nil {

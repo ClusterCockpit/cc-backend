@@ -13,7 +13,6 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/go-co-op/gocron/v2"
 )
 
@@ -73,8 +72,8 @@ func Start(cronCfg, archiveConfig json.RawMessage) {
 	}
 
 	var cfg struct {
-		Retention   schema.Retention `json:"retention"`
-		Compression int              `json:"compression"`
+		Retention   Retention `json:"retention"`
+		Compression int       `json:"compression"`
 	}
 	cfg.Retention.IncludeDB = true
 

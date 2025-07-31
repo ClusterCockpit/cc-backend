@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/archiver"
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
@@ -142,7 +143,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 				return
 			}
 			ufrom, uto := time.Unix(from, 0), time.Unix(to, 0)
-			filter.StartTime = &schema.TimeRange{From: &ufrom, To: &uto}
+			filter.StartTime = &config.TimeRange{From: &ufrom, To: &uto}
 		case "page":
 			x, err := strconv.Atoi(vals[0])
 			if err != nil {
