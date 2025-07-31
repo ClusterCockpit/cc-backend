@@ -1,5 +1,6 @@
 CREATE TABLE "node" (
     id INTEGER PRIMARY KEY,
+    time_stamp INTEGER NOT NULL,
     hostname VARCHAR(255) NOT NULL,
     cluster VARCHAR(255) NOT NULL,
     subcluster VARCHAR(255) NOT NULL,
