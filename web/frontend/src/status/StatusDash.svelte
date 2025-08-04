@@ -45,12 +45,17 @@
   let plotWidths = $state([]);
   // Bar Gauges
   let allocatedNodes = $state({});
+  let allocatedAccs = $state({});
   let flopRate = $state({});
   let flopRateUnitPrefix = $state({});
   let flopRateUnitBase = $state({});
   let memBwRate = $state({});
   let memBwRateUnitPrefix = $state({});
   let memBwRateUnitBase = $state({});
+  // Plain Infos
+  let runningJobs = $state({});
+  let activeUsers = $state({});
+  let totalAccs = $state({});
 
   /* Derived */
   // Note: nodeMetrics are requested on configured $timestep resolution
@@ -63,6 +68,8 @@
         $metrics: [String!]
         $from: Time!
         $to: Time!
+        $filter: [JobFilter!]!
+        $paging: PageRequest!
       ) {
         nodeMetrics(
           cluster: $cluster
@@ -87,10 +94,22 @@
             }
           }
         }
-
+        # Only counts shared nodes once 
         allocatedNodes(cluster: $cluster) {
           name
           count
+        }
+        # totalNodes includes multiples if shared jobs
+        jobsStatistics(
+          filter: $filter
+          page: $paging
+          sortBy: TOTALJOBS
+          groupBy: SUBCLUSTER
+        ) {
+          id
+          totalJobs
+          totalUsers
+          totalAccs
         }
       }
     `,
@@ -99,7 +118,8 @@
       metrics: ["flops_any", "mem_bw"], // Fixed names for roofline and status bars
       from: from.toISOString(),
       to: to.toISOString(),
-      // filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
+      filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
+      paging: { itemsPerPage: -1, page: 1 }, // Get all: -1
     },
   }));
 
@@ -110,10 +130,27 @@
         (c) => c.name == cluster,
       ).subClusters;
       for (let subCluster of subClusters) {
+        // Allocations
         allocatedNodes[subCluster.name] =
           $statusQuery.data.allocatedNodes.find(
             ({ name }) => name == subCluster.name,
           )?.count || 0;
+        allocatedAccs[subCluster.name] =
+          $statusQuery.data.jobsStatistics.find(
+            ({ id }) => id == subCluster.name,
+          )?.totalAccs || 0;
+        // Infos
+        activeUsers[subCluster.name] =
+          $statusQuery.data.jobsStatistics.find(
+            ({ id }) => id == subCluster.name,
+          )?.totalUsers || 0;
+        runningJobs[subCluster.name] =
+          $statusQuery.data.jobsStatistics.find(
+            ({ id }) => id == subCluster.name,
+          )?.totalJobs || 0;
+        totalAccs[subCluster.name] =
+          (subCluster?.numberOfNodes * subCluster?.topology?.accelerators?.length) || null;
+        // Keymetrics
         flopRate[subCluster.name] =
           Math.floor(
             sumUp($statusQuery.data.nodeMetrics, subCluster.name, "flops_any") *
@@ -158,9 +195,15 @@
         <Card class="h-auto mt-1">
           <CardHeader>
             <CardTitle class="mb-0">SubCluster "{subCluster.name}"</CardTitle>
+            <span>{subCluster.processorType}</span>
           </CardHeader>
           <CardBody>
             <Table borderless>
+              <tr class="py-2">
+                <td style="font-size:x-large;">{runningJobs[subCluster.name]} Running Jobs</td>
+                <td colspan="2" style="font-size:x-large;">{activeUsers[subCluster.name]} Active Users</td>
+              </tr>
+              <hr class="my-1"/>
               <tr class="py-2">
                 <th scope="col">Allocated Nodes</th>
                 <td style="min-width: 100px;"
@@ -176,6 +219,23 @@
                   Nodes</td
                 >
               </tr>
+              {#if totalAccs[subCluster.name] !== null}
+                <tr class="py-2">
+                  <th scope="col">Allocated Accelerators</th>
+                  <td style="min-width: 100px;"
+                    ><div class="col">
+                      <Progress
+                        value={allocatedAccs[subCluster.name]}
+                        max={totalAccs[subCluster.name]}
+                      />
+                    </div></td
+                  >
+                  <td
+                    >{allocatedAccs[subCluster.name]} / {totalAccs[subCluster.name]}
+                    Accelerators</td
+                  >
+                </tr>
+              {/if}
               <tr class="py-2">
                 <th scope="col"
                   >Flop Rate (Any) <Icon

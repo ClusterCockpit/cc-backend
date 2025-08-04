@@ -201,6 +201,7 @@ type ComplexityRoot struct {
 		TotalJobs      func(childComplexity int) int
 		TotalNodeHours func(childComplexity int) int
 		TotalNodes     func(childComplexity int) int
+		TotalUsers     func(childComplexity int) int
 		TotalWalltime  func(childComplexity int) int
 	}
 
@@ -1165,6 +1166,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.JobsStatistics.TotalNodes(childComplexity), true
+
+	case "JobsStatistics.totalUsers":
+		if e.complexity.JobsStatistics.TotalUsers == nil {
+			break
+		}
+
+		return e.complexity.JobsStatistics.TotalUsers(childComplexity), true
 
 	case "JobsStatistics.totalWalltime":
 		if e.complexity.JobsStatistics.TotalWalltime == nil {
@@ -2567,10 +2575,12 @@ enum Aggregate {
   USER
   PROJECT
   CLUSTER
+  SUBCLUSTER
 }
 enum SortByAggregate {
   TOTALWALLTIME
   TOTALJOBS
+  TOTALUSERS
   TOTALNODES
   TOTALNODEHOURS
   TOTALCORES
@@ -2831,8 +2841,9 @@ type MetricHistoPoint {
 }
 
 type JobsStatistics {
-  id: ID! # If ` + "`" + `groupBy` + "`" + ` was used, ID of the user/project/cluster
+  id: ID! # If ` + "`" + `groupBy` + "`" + ` was used, ID of the user/project/cluster/subcluster
   name: String! # if User-Statistics: Given Name of Account (ID) Owner
+  totalUsers: Int! # if *not* User-Statistics: Number of active users (based on running jobs)
   totalJobs: Int! # Number of jobs
   runningJobs: Int! # Number of running jobs
   shortJobs: Int! # Number of jobs with a duration of less than duration
@@ -8334,6 +8345,50 @@ func (ec *executionContext) fieldContext_JobsStatistics_name(_ context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _JobsStatistics_totalUsers(ctx context.Context, field graphql.CollectedField, obj *model.JobsStatistics) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_JobsStatistics_totalUsers(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalUsers, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_JobsStatistics_totalUsers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "JobsStatistics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _JobsStatistics_totalJobs(ctx context.Context, field graphql.CollectedField, obj *model.JobsStatistics) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_JobsStatistics_totalJobs(ctx, field)
 	if err != nil {
@@ -12636,6 +12691,8 @@ func (ec *executionContext) fieldContext_Query_jobsStatistics(ctx context.Contex
 				return ec.fieldContext_JobsStatistics_id(ctx, field)
 			case "name":
 				return ec.fieldContext_JobsStatistics_name(ctx, field)
+			case "totalUsers":
+				return ec.fieldContext_JobsStatistics_totalUsers(ctx, field)
 			case "totalJobs":
 				return ec.fieldContext_JobsStatistics_totalJobs(ctx, field)
 			case "runningJobs":
@@ -19237,6 +19294,11 @@ func (ec *executionContext) _JobsStatistics(ctx context.Context, sel ast.Selecti
 			}
 		case "name":
 			out.Values[i] = ec._JobsStatistics_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalUsers":
+			out.Values[i] = ec._JobsStatistics_totalUsers(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
