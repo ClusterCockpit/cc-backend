@@ -297,7 +297,6 @@ func TestRestApi(t *testing.T) {
 			job.NumNodes != 1 ||
 			job.NumHWThreads != 8 ||
 			job.NumAcc != 0 ||
-			job.Exclusive != 1 ||
 			job.MonitoringStatus != 1 ||
 			job.SMT != 1 ||
 			!reflect.DeepEqual(job.Resources, []*schema.Resource{{Hostname: "host123", HWThreads: []int{0, 1, 2, 3, 4, 5, 6, 7}}}) ||

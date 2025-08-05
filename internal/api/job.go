@@ -647,7 +647,7 @@ func (api *RestApi) removeTags(rw http.ResponseWriter, r *http.Request) {
 // @router      /api/jobs/start_job/ [post]
 func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	req := schema.Job{
-		Exclusive:        1,
+		Shared:           "none",
 		MonitoringStatus: schema.MonitoringStatusRunningOrArchiving,
 	}
 	if err := decode(r.Body, &req); err != nil {

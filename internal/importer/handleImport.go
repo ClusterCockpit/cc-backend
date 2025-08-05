@@ -43,7 +43,7 @@ func HandleImportFlag(flag string) error {
 		dec := json.NewDecoder(bytes.NewReader(raw))
 		dec.DisallowUnknownFields()
 		job := schema.Job{
-			Exclusive:        1,
+			Shared:           "none",
 			MonitoringStatus: schema.MonitoringStatusRunningOrArchiving,
 		}
 		if err = dec.Decode(&job); err != nil {
