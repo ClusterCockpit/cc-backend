@@ -28,7 +28,7 @@
 
   } from "../generic/utils.js";
   import { scaleNumbers, formatTime } from "../generic/units.js";
-  import NewBubbleRoofline from "../generic/plots/NewBubbleRoofline.svelte";
+  import Roofline from "../generic/plots/Roofline.svelte";
 
   /* Svelte 5 Props */
   let {
@@ -457,7 +457,7 @@
       <Col class="px-3 mt-2 mt-lg-0">
         <div bind:clientWidth={plotWidths[i]}>
           {#key $statusQuery?.data?.nodeMetrics}
-            <NewBubbleRoofline
+            <Roofline
               useColors={true}
               allowSizeChange
               width={plotWidths[i] - 10}
@@ -479,7 +479,7 @@
       <Col class="px-3 mt-2 mt-lg-0">
         <div bind:clientWidth={plotWidths[i]}>
           {#key $statusQuery?.data?.jobsMetricStats}
-            <NewBubbleRoofline
+            <Roofline
               useColors={true}
               allowSizeChange
               width={plotWidths[i] - 10}

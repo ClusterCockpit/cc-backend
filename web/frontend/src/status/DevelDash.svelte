@@ -21,7 +21,7 @@
     init,
   } from "../generic/utils.js";
   //import Roofline from "../generic/plots/Roofline.svelte";
-  import NewBubbleRoofline from "../generic/plots/NewBubbleRoofline.svelte";
+  import Roofline from "../generic/plots/Roofline.svelte";
   import Pie, { colors } from "../generic/plots/Pie.svelte";
   import { formatTime } from "../generic/units.js";
 
@@ -325,7 +325,7 @@
             <b>{subCluster.name} Total: {$jobRoofQuery.data.jobsMetricStats.filter(
                   (data) => data.subCluster == subCluster.name,
                 ).length} Jobs</b>
-            <NewBubbleRoofline
+            <Roofline
               allowSizeChange
               width={plotWidths[i] - 10}
               height={300}
@@ -350,7 +350,7 @@
             <b>{subCluster.name} Total: {$jobRoofQuery.data.jobsMetricStats.filter(
                   (data) => data.subCluster == subCluster.name,
                 ).length} Jobs</b>
-            <NewBubbleRoofline
+            <Roofline
               allowSizeChange
               width={plotWidths[i] - 10}
               height={300}

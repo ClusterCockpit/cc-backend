@@ -19,7 +19,7 @@
   import {
     transformDataForRoofline,
   } from "../generic/utils.js";
-  import Roofline from "../generic/plots/Roofline.svelte";
+  import Roofline from "../generic/plots/RooflineLegacy.svelte";
 
   /* Svelte 5 Props */
   let {
