@@ -35,6 +35,7 @@
     cluster = null,
     subCluster = null,
     allowSizeChange = false,
+    useColors = true,
     width = 600,
     height = 380,
   } = $props();
@@ -243,7 +244,7 @@
   // Dot Renderer
   const makeDrawPoints = (opts) => {
     let {/*size, disp,*/ transparentFill, each = () => {}} = opts;
-    const sizeBase = 5 * pxRatio;
+    const sizeBase = 6 * pxRatio;
 
     return (u, seriesIdx, idx0, idx1) => {
       uPlot.orient(u, seriesIdx, (series, dataX, dataY, scaleX, scaleY, valToPosX, valToPosY, xOff, yOff, xDim, yDim, moveTo, lineTo, rect, arc) => {
@@ -266,26 +267,33 @@
         let filtTop = u.posToVal(-maxSize / 2, scaleY.key);
 
         for (let i = 0; i < d[0].length; i++) {
-          // Jobs: Color based on Duration
-          if (jobsData) {
-            u.ctx.strokeStyle = getRGB(u.data[2][i]);
-            u.ctx.fillStyle = getRGB(u.data[2][i], transparentFill);
-          // Nodes: Color based on Idle vs. Allocated
-          } else if (nodesData) {
-            // console.log('In Plot Handler NodesData', nodesData)
-            if (nodesData[i]?.nodeState == "idle") {
-              u.ctx.strokeStyle = "rgb(0, 0, 255)";
-              u.ctx.fillStyle = "rgba(0, 0, 255, 0.5)";
-            } else if (nodesData[i]?.nodeState == "allocated") {
-              u.ctx.strokeStyle = "rgb(0, 255, 0)";
-              u.ctx.fillStyle = "rgba(0, 255, 0, 0.5)";
-            } else if (nodesData[i]?.nodeState == "notindb") {
-              u.ctx.strokeStyle = "rgb(0, 0, 0)";
-              u.ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-            } else { // Fallback: All other DEFINED states
-              u.ctx.strokeStyle = "rgb(255, 0, 0)";
-              u.ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
+          if (useColors) {
+            u.ctx.strokeStyle = "rgb(0, 0, 0)";
+            // Jobs: Color based on Duration
+            if (jobsData) {
+              //u.ctx.strokeStyle = getRGB(u.data[2][i]);
+              u.ctx.fillStyle = getRGB(u.data[2][i], transparentFill);
+            // Nodes: Color based on Idle vs. Allocated
+            } else if (nodesData) {
+              // console.log('In Plot Handler NodesData', nodesData)
+              if (nodesData[i]?.nodeState == "idle") {
+                //u.ctx.strokeStyle = "rgb(0, 0, 255)";
+                u.ctx.fillStyle = "rgba(0, 0, 255, 0.5)";
+              } else if (nodesData[i]?.nodeState == "allocated") {
+                //u.ctx.strokeStyle = "rgb(0, 255, 0)";
+                u.ctx.fillStyle = "rgba(0, 255, 0, 0.5)";
+              } else if (nodesData[i]?.nodeState == "notindb") {
+                //u.ctx.strokeStyle = "rgb(0, 0, 0)";
+                u.ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+              } else { // Fallback: All other DEFINED states
+                //u.ctx.strokeStyle = "rgb(255, 0, 0)";
+                u.ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
+              }
             }
+          } else {
+            // No Colors: Use Black
+            u.ctx.strokeStyle = "rgb(0, 0, 0)";
+            u.ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
           }
 
           // Get Values
@@ -297,10 +305,15 @@
 
           // Jobs: Size based on Resourcecount
           if (jobsData) {
-            size = sizeBase + (jobsData[i]?.numAcc ? jobsData[i].numAcc / 2 : jobsData[i].numNodes)
+            const scaling = jobsData[i].numNodes > 12
+              ? 24 // Capped Dot Size 
+              : jobsData[i].numNodes > 1
+                ? jobsData[i].numNodes * 2 // MultiNode Scaling
+                : jobsData[i]?.numAcc ? jobsData[i].numAcc : jobsData[i].numNodes * 2 // Single Node or Scale by Accs
+            size = sizeBase + scaling
           // Nodes: Size based on Jobcount
           } else if (nodesData) {
-            size = sizeBase + nodesData[i]?.numJobs
+            size = sizeBase + (nodesData[i]?.numJobs * 1.5) // Max Jobs Scale: 8 * 1.5 = 12
           };
           
           if (xVal >= filtLft && xVal <= filtRgt && yVal >= filtBtm && yVal <= filtTop) {
@@ -377,7 +390,7 @@
     tooltip.style.fontSize = "10pt";
     tooltip.style.position = "absolute";
     tooltip.style.background = "#fcfcfc";
-    tooltip.style.display = "nonde";
+    tooltip.style.display = "none";
     tooltip.style.border = "2px solid black";
     tooltip.style.padding = "4px";
     tooltip.style.pointerEvents = "none";
@@ -417,32 +430,41 @@
       tooltip.style.top  = (tooltipTopOffset  + top + shiftX) + "px";
       tooltip.style.left = (tooltipLeftOffset + lft + shiftY) + "px";
 
-
-      // Jobs: Color based on Duration
-      if (jobsData) {
-        tooltip.style.borderColor = getRGB(u.data[2][i]);
-      // Nodes: Color based on Idle vs. Allocated
-      } else if (nodesData) {
-        if (nodesData[i]?.nodeState == "idle") {
-          tooltip.style.borderColor = "rgb(0, 0, 255)";
-        } else if (nodesData[i]?.nodeState == "allocated") {
-          tooltip.style.borderColor = "rgb(0, 255, 0)";
-        } else if (nodesData[i]?.nodeState == "notindb") { // Missing from DB table
-          tooltip.style.borderColor = "rgb(0, 0, 0)";
-        } else { // Fallback: All other DEFINED states
-          tooltip.style.borderColor = "rgb(255, 0, 0)";
+      if (useColors) {
+        // Jobs: Color based on Duration
+        if (jobsData) {
+          tooltip.style.borderColor = getRGB(u.data[2][i]);
+        // Nodes: Color based on Idle vs. Allocated
+        } else if (nodesData) {
+          if (nodesData[i]?.nodeState == "idle") {
+            tooltip.style.borderColor = "rgb(0, 0, 255)";
+          } else if (nodesData[i]?.nodeState == "allocated") {
+            tooltip.style.borderColor = "rgb(0, 255, 0)";
+          } else if (nodesData[i]?.nodeState == "notindb") { // Missing from DB table
+            tooltip.style.borderColor = "rgb(0, 0, 0)";
+          } else { // Fallback: All other DEFINED states
+            tooltip.style.borderColor = "rgb(255, 0, 0)";
+          }
         }
+      } else {
+        // No Colors: Use Black
+        tooltip.style.borderColor = "rgb(0, 0, 0)";
       }
 
       if (jobsData) {
         tooltip.textContent = (
           // Tooltip Content as String for Job
-          `Job ID: ${getLegendData(u, i).jobId}\nNodes: ${getLegendData(u, i).numNodes}${getLegendData(u, i)?.numAcc?`\nAccelerators: ${getLegendData(u, i).numAcc}`:''}`
+          `Job ID: ${getLegendData(u, i).jobId}\nRuntime: ${getLegendData(u, i).duration}\nNodes: ${getLegendData(u, i).numNodes}${getLegendData(u, i)?.numAcc?`\nAccelerators: ${getLegendData(u, i).numAcc}`:''}`
         );
-      } else if (nodesData) {
+      } else if (nodesData && useColors) {
         tooltip.textContent = (
           // Tooltip Content as String for Node
           `Host: ${getLegendData(u, i).nodeName}\nState: ${getLegendData(u, i).nodeState}\nJobs: ${getLegendData(u, i).numJobs}`
+        );
+      } else if (nodesData && !useColors) {
+        tooltip.textContent = (
+          // Tooltip Content as String for Node
+          `Host: ${getLegendData(u, i).nodeName}\nJobs: ${getLegendData(u, i).numJobs}`
         );
       }
     }
@@ -570,7 +592,7 @@
           //     return prox;
           //   },
           // },
-          drag: { // Activates Zoom
+          drag: { // Activates Zoom: Only one Dimension; YX Breaks Zoom Reset (Reason TBD)
             x: true,
             y: false
           },
@@ -725,63 +747,67 @@
                 u.ctx.lineWidth = 0.15;
               }
 
-              // Jobs: The Color Scale For Time Information
-              if (jobsData) {
-                const posX = u.valToPos(0.1, "x", true)
-                const posXLimit = u.valToPos(100, "x", true)
-                const posY = u.valToPos(14000.0, "y", true)
-                u.ctx.fillStyle = 'black'
-                u.ctx.fillText('Short', posX, posY)
-                const start = posX + 10
-                for (let x = start; x < posXLimit; x += 10) {
-                  let c = (x - start) / (posXLimit - start)
-                  u.ctx.fillStyle = getRGB(c)
-                  u.ctx.beginPath()
-                  u.ctx.arc(x, posY, 3, 0, Math.PI * 2, false)
-                  u.ctx.fill()
+              /* Render Scales */
+              if (useColors) {
+                // Jobs: The Color Scale For Time Information
+                if (jobsData) {
+                  const posX = u.valToPos(0.1, "x", true)
+                  const posXLimit = u.valToPos(100, "x", true)
+                  const posY = u.valToPos(17500.0, "y", true)
+                  u.ctx.fillStyle = 'black'
+                  u.ctx.fillText('0 Hours', posX, posY)
+                  const start = posX + 10
+                  for (let x = start; x < posXLimit; x += 10) {
+                    let c = (x - start) / (posXLimit - start)
+                    u.ctx.fillStyle = getRGB(c)
+                    u.ctx.beginPath()
+                    u.ctx.arc(x, posY, 3, 0, Math.PI * 2, false)
+                    u.ctx.fill()
+                  }
+                  u.ctx.fillStyle = 'black'
+                  u.ctx.fillText('24 Hours', posXLimit + 55, posY)
                 }
-                u.ctx.fillStyle = 'black'
-                u.ctx.fillText('Long', posXLimit + 23, posY)
-              }
 
-              // Nodes: The Colors Of NodeStates (Just 3)
-              if (nodesData) {
-                const posY = u.valToPos(14000.0, "y", true)
+                // Nodes: The Colors Of NodeStates
+                if (nodesData) {
+                  const posY = u.valToPos(17500.0, "y", true)
 
-                const posAllocDot = u.valToPos(0.1, "x", true)
-                const posAllocText = posAllocDot + 60
-                u.ctx.fillStyle = "rgb(0, 255, 0)"
-                u.ctx.beginPath()
-                u.ctx.arc(posAllocDot, posY, 3, 0, Math.PI * 2, false)
-                u.ctx.fill()
-                u.ctx.fillStyle = 'black'
-                u.ctx.fillText('Allocated', posAllocText, posY)
+                  const posAllocDot = u.valToPos(0.03, "x", true)
+                  const posAllocText = posAllocDot + 60
+                  const posIdleDot = u.valToPos(0.3, "x", true)
+                  const posIdleText = posIdleDot + 30
+                  const posOtherDot = u.valToPos(3, "x", true)
+                  const posOtherText = posOtherDot + 40
+                  const posMissingDot = u.valToPos(30, "x", true)
+                  const posMissingText = posMissingDot + 80
 
-                const posIdleDot = posAllocDot + 150
-                const posIdleText = posAllocText + 120
-                u.ctx.fillStyle = "rgb(0, 0, 255)"
-                u.ctx.beginPath()
-                u.ctx.arc(posIdleDot, posY, 3, 0, Math.PI * 2, false)
-                u.ctx.fill()
-                u.ctx.fillStyle = 'black'
-                u.ctx.fillText('Idle', posIdleText, posY)
+                  u.ctx.fillStyle = "rgb(0, 255, 0)"
+                  u.ctx.beginPath()
+                  u.ctx.arc(posAllocDot, posY, 3, 0, Math.PI * 2, false)
+                  u.ctx.fill()
+                  u.ctx.fillStyle = 'black'
+                  u.ctx.fillText('Allocated', posAllocText, posY)
 
-                const posOtherDot = posIdleDot + 150
-                const posOtherText = posIdleText + 160
-                u.ctx.fillStyle = "rgb(255, 0, 0)"
-                u.ctx.beginPath()
-                u.ctx.arc(posOtherDot, posY, 3, 0, Math.PI * 2, false)
-                u.ctx.fill()
-                u.ctx.fillStyle = 'black'
-                u.ctx.fillText('Other', posOtherText, posY)
+                  u.ctx.fillStyle = "rgb(0, 0, 255)"
+                  u.ctx.beginPath()
+                  u.ctx.arc(posIdleDot, posY, 3, 0, Math.PI * 2, false)
+                  u.ctx.fill()
+                  u.ctx.fillStyle = 'black'
+                  u.ctx.fillText('Idle', posIdleText, posY)
 
-                const posMissingDot = posOtherDot + 150
-                const posMissingText = posOtherText + 190
-                u.ctx.fillStyle = 'black'
-                u.ctx.beginPath()
-                u.ctx.arc(posMissingDot, posY, 3, 0, Math.PI * 2, false)
-                u.ctx.fill()
-                u.ctx.fillText('Missing in DB', posMissingText, posY)
+                  u.ctx.fillStyle = "rgb(255, 0, 0)"
+                  u.ctx.beginPath()
+                  u.ctx.arc(posOtherDot, posY, 3, 0, Math.PI * 2, false)
+                  u.ctx.fill()
+                  u.ctx.fillStyle = 'black'
+                  u.ctx.fillText('Other', posOtherText, posY)
+
+                  u.ctx.fillStyle = 'black'
+                  u.ctx.beginPath()
+                  u.ctx.arc(posMissingDot, posY, 3, 0, Math.PI * 2, false)
+                  u.ctx.fill()
+                  u.ctx.fillText('Missing in DB', posMissingText, posY)
+                }
               }
             },
           ],

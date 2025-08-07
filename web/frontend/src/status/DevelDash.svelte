@@ -23,6 +23,7 @@
   //import Roofline from "../generic/plots/Roofline.svelte";
   import NewBubbleRoofline from "../generic/plots/NewBubbleRoofline.svelte";
   import Pie, { colors } from "../generic/plots/Pie.svelte";
+  import { formatTime } from "../generic/units.js";
 
   /* Svelte 5 Props */
   let {
@@ -131,7 +132,7 @@
 
   // Load for jobcount per node only -- might me required for total running jobs anyways in parent component!
   // Also, think about extra query with only TotalJobCount and Items [Resources, ...some meta infos], not including metric data
-  const paging = { itemsPerPage: 1500, page: 1 };
+  const paging = { itemsPerPage: -1, page: 1 };
   const sorting = { field: "startTime", type: "col", order: "DESC" };
   const filter = [
     { cluster: { eq: cluster } },
@@ -281,7 +282,7 @@
 
   function transformJobsStatsToInfo(subclusterData) {
     if (subclusterData) {
-        return subclusterData.map((sc) => { return {id: sc.id, jobId: sc.jobId, numNodes: sc.numNodes, numAcc: sc?.numAccelerators? sc.numAccelerators : 0} })
+        return subclusterData.map((sc) => { return {id: sc.id, jobId: sc.jobId, numNodes: sc.numNodes, numAcc: sc?.numAccelerators? sc.numAccelerators : 0, duration: formatTime(sc.duration)} })
     } else {
         console.warn("transformJobsStatsToInfo: jobInfo missing!")
         return []

@@ -112,6 +112,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 
 	for key, vals := range r.URL.Query() {
 		switch key {
+		// TODO: add project filter
 		case "state":
 			for _, s := range vals {
 				state := schema.JobState(s)
@@ -124,7 +125,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 			}
 		case "cluster":
 			filter.Cluster = &model.StringInput{Eq: &vals[0]}
-		case "start-time":
+		case "start-time": // ?startTime=1753707480-1754053139
 			st := strings.Split(vals[0], "-")
 			if len(st) != 2 {
 				handleError(fmt.Errorf("invalid query parameter value: startTime"),
