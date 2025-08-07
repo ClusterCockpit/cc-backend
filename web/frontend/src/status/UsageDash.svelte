@@ -27,7 +27,7 @@
     scramble,
     scrambleNames,
   } from "../generic/utils.js";
-  import Pie, { colors } from "../generic/plots/Pie.svelte";
+  import Pie, { colors, cbColors } from "../generic/plots/Pie.svelte";
 
   /* Svelte 5 Props */
   let {
@@ -48,6 +48,7 @@
 
   /* State Init */
   let colWidth = $state(0);
+  let cbmode = $state(ccconfig?.plot_general_colorblindMode || false)
 
   // Pie Charts
   let topProjectSelection = $state(
@@ -234,7 +235,7 @@
             </tr>
             {#each $topUserQuery.data.topUser as tu, i}
               <tr>
-                <td><Icon name="circle-fill" style="color: {colors[i]};" /></td>
+                <td><Icon name="circle-fill" style="color: {cbmode ? cbColors[i] : colors[i]};" /></td>
                 <th scope="col" id="topName-{tu.id}"
                   ><a
                     href="/monitoring/user/{tu.id}?cluster={cluster}&state=running"
@@ -301,7 +302,7 @@
             </tr>
             {#each $topProjectQuery.data.topProjects as tp, i}
               <tr>
-                <td><Icon name="circle-fill" style="color: {colors[i]};" /></td>
+                <td><Icon name="circle-fill" style="color: {cbmode ? cbColors[i] : colors[i]};" /></td>
                 <th scope="col"
                   ><a
                     href="/monitoring/jobs/?cluster={cluster}&state=running&project={tp.id}&projectMatch=eq"

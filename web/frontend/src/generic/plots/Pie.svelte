@@ -14,8 +14,47 @@
 -->
 
 <script module>
-  // http://tsitsul.in/blog/coloropt/ : 12 colors normal
   export const colors = [
+    "#0022bb",
+    "#ba0098",
+    "#fa0066",
+    "#ff6234",
+    "#ffae00",
+    "#b1af00",
+    "#67a630",
+    "#009753",
+    "#00836c",
+    "#006d77",
+    "#005671",
+    "#003f5c",
+    // Var 2
+    // "#00876c",
+    // "#449c6e",
+    // "#70af6f",
+    // "#9bc271",
+    // "#c8d377",
+    // "#f7e382",
+    // "#f6c468",
+    // "#f3a457",
+    // "#ed834e",
+    // "#e3614d",
+    // "#d43d51",
+    // Var 3
+    // "#ab0000",
+    // "#c33b00",
+    // "#d96000",
+    // "#ed8300",
+    // "#ffa600",
+    // "#ff7c43",
+    // "#f95d6a",
+    // "#d45087",
+    // "#a05195",
+    // "#665191",
+    // "#2f4b7c",
+    // "#003f5c"
+  ];
+  // http://tsitsul.in/blog/coloropt/ : 12 colors normal
+  export const cbColors = [
     'rgb(235,172,35)',
     'rgb(184,0,88)',
     'rgb(0,140,249)',
@@ -34,8 +73,8 @@
 
 <script>
   /* Ignore Double Script Section Error in IDE */
+  import { onMount, getContext } from "svelte";
   import Chart from 'chart.js/auto';
-  import { onMount } from 'svelte';
 
   /* Svelte 5 Props */
   let {
@@ -48,18 +87,7 @@
   } = $props();
 
   /* Const Init */
-  const data = {
-    labels: entities,
-    datasets: [
-      {
-        label: sliceLabel,
-        data: quantities,
-        fill: 1,
-        backgroundColor: colors.slice(0, quantities.length)
-      }
-    ]
-  };
-
+  const ccconfig = getContext("cc-config");
   const options = { 
     maintainAspectRatio: false,
     animation: false,
@@ -69,6 +97,22 @@
       }
     }
   };
+
+  /* State Init */
+  let cbmode = $state(ccconfig?.plot_general_colorblindMode || false)
+
+  /* Derived */
+  const data = $derived({
+    labels: entities,
+    datasets: [
+      {
+        label: sliceLabel,
+        data: quantities,
+        fill: 1,
+        backgroundColor: cbmode ? cbColors.slice(0, quantities.length) : colors.slice(0, quantities.length)
+      }
+    ]
+  });
 
   /* On Mount */
   onMount(() => {
