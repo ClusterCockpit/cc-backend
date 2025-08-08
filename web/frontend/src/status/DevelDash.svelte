@@ -22,7 +22,7 @@
   } from "../generic/utils.js";
   //import Roofline from "../generic/plots/Roofline.svelte";
   import Roofline from "../generic/plots/Roofline.svelte";
-  import Pie, { colors } from "../generic/plots/Pie.svelte";
+  import Pie, { cbColors, colors } from "../generic/plots/Pie.svelte";
   import { formatTime } from "../generic/units.js";
 
   /* Svelte 5 Props */
@@ -40,6 +40,7 @@
   let plotWidths = $state([]);
   let statesWidth = $state(0);
   let healthWidth = $state(0);
+  let cbmode = $state(false);
   // let nodesCounts = $state({});
   // let jobsJounts = $state({});
 
@@ -449,7 +450,7 @@
           </tr>
           {#each refinedHealthData as hd, i}
             <tr>
-              <td><Icon name="circle-fill" style="color: {colors[i]};" /></td>
+              <td><Icon name="circle-fill" style="color: {cbmode ? cbColors[i] : colors[i]};" /></td>
               <td>{hd.state}</td>
               <td>{hd.count}</td>
             </tr>

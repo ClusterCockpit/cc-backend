@@ -14,7 +14,22 @@
 -->
 
 <script module>
+  // https://www.learnui.design/tools/data-color-picker.html#divergent: 11, Shallow Green-Red
   export const colors = [
+    "#00876c",
+    "#449c6e",
+    "#70af6f",
+    "#9bc271",
+    "#c8d377",
+    "#f7e382",
+    "#f6c468",
+    "#f3a457",
+    "#ed834e",
+    "#e3614d",
+    "#d43d51",
+  ];
+  // https://www.learnui.design/tools/data-color-picker.html#palette: 12, Colorwheel-Like
+  export const altColors = [
     "#0022bb",
     "#ba0098",
     "#fa0066",
@@ -27,32 +42,7 @@
     "#006d77",
     "#005671",
     "#003f5c",
-    // Var 2
-    // "#00876c",
-    // "#449c6e",
-    // "#70af6f",
-    // "#9bc271",
-    // "#c8d377",
-    // "#f7e382",
-    // "#f6c468",
-    // "#f3a457",
-    // "#ed834e",
-    // "#e3614d",
-    // "#d43d51",
-    // Var 3
-    // "#ab0000",
-    // "#c33b00",
-    // "#d96000",
-    // "#ed8300",
-    // "#ffa600",
-    // "#ff7c43",
-    // "#f95d6a",
-    // "#d45087",
-    // "#a05195",
-    // "#665191",
-    // "#2f4b7c",
-    // "#003f5c"
-  ];
+  ]
   // http://tsitsul.in/blog/coloropt/ : 12 colors normal
   export const cbColors = [
     'rgb(235,172,35)',

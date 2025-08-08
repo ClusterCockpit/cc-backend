@@ -404,52 +404,6 @@
                   >
                 </tr>
               {/if}
-              <hr class="my-1"/>
-              <!-- <tr class="py-2">
-                <th scope="col"
-                  >Flop Rate (Any) <Icon
-                    name="info-circle"
-                    class="p-1"
-                    style="cursor: help;"
-                    title="Flops[Any] = (Flops[Double] x 2) + Flops[Single]"
-                  /></th
-                >
-                <td style="min-width: 100px;"
-                  ><div class="col">
-                    <Progress
-                      value={flopRate[subCluster.name]}
-                      max={subCluster.flopRateSimd.value *
-                        subCluster.numberOfNodes}
-                    />
-                  </div></td
-                >
-                <td>
-                  {scaleNumbers(
-                    flopRate[subCluster.name],
-                    subCluster.flopRateSimd.value * subCluster.numberOfNodes,
-                    flopRateUnitPrefix[subCluster.name],
-                  )}{flopRateUnitBase[subCluster.name]} [Max]
-                </td>
-              </tr>
-              <tr class="py-2">
-                <th scope="col">MemBw Rate</th>
-                <td style="min-width: 100px;"
-                  ><div class="col">
-                    <Progress
-                      value={memBwRate[subCluster.name]}
-                      max={subCluster.memoryBandwidth.value *
-                        subCluster.numberOfNodes}
-                    />
-                  </div></td
-                >
-                <td>
-                  {scaleNumbers(
-                    memBwRate[subCluster.name],
-                    subCluster.memoryBandwidth.value * subCluster.numberOfNodes,
-                    memBwRateUnitPrefix[subCluster.name],
-                  )}{memBwRateUnitBase[subCluster.name]} [Max]
-                </td>
-              </tr> -->
             </Table>
           </CardBody>
         </Card>
@@ -499,4 +453,6 @@
       </Col>
     </Row>
   {/each}
+{:else}
+  <Card class="mx-4" body color="warning">Cannot render status tab: No data!</Card>
 {/if}
