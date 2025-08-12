@@ -198,7 +198,7 @@
   <Spinner />
 {:else if $topJobsQuery.data && $nodeStatusQuery.data}
   <Row>
-    <Col xs="4" class="p-2">
+    <Col xs="12" lg="4" class="p-2">
       <Histogram
         data={convert2uplot($nodeStatusQuery.data.jobsStatistics[0].histDuration)}
         title="Duration Distribution"
@@ -211,7 +211,7 @@
         xtime
       />
     </Col>
-    <Col xs="2" class="p-2">
+    <Col xs="6" md="3" lg="2" class="p-2">
       <div bind:clientWidth={colWidthJobs}>
         <h4 class="text-center">
           Top Users: Jobs
@@ -228,7 +228,7 @@
         />
       </div>
     </Col>
-    <Col xs="2" class="p-2">
+    <Col xs="6" md="3" lg="2" class="p-2">
       <Table>
         <tr class="mb-2">
           <th></th>
@@ -256,7 +256,7 @@
       </Table>
     </Col>
 
-    <Col xs="2" class="p-2">
+    <Col xs="6" md="3" lg="2" class="p-2">
       <h4 class="text-center">
         Top Projects: Jobs
       </h4>
@@ -271,7 +271,7 @@
         entities={$topJobsQuery.data.topProjects.map((tp) => scrambleNames ? scramble(tp.id) : tp.id)}
       />
     </Col>
-    <Col xs="2" class="p-2">
+    <Col xs="6" md="3" lg="2" class="p-2">
       <Table>
         <tr class="mb-2">
           <th></th>
@@ -303,7 +303,7 @@
   <Spinner />
 {:else if $topNodesQuery.data && $nodeStatusQuery.data}
   <Row>
-    <Col xs="4" class="p-2">
+    <Col xs="12" lg="4" class="p-2">
       <Histogram
         data={convert2uplot($nodeStatusQuery.data.jobsStatistics[0].histNumNodes)}
         title="Number of Nodes Distribution"
@@ -314,7 +314,7 @@
         height="275"
       />
     </Col>
-    <Col xs="2" class="p-2">
+    <Col xs="6" md="3" lg="2" class="p-2">
       <div bind:clientWidth={colWidthNodes}>
         <h4 class="text-center">
           Top Users: Nodes
@@ -331,7 +331,7 @@
         />
       </div>
     </Col>
-    <Col xs="2" class="p-2">
+    <Col xs="6" md="3" lg="2" class="p-2">
       <Table>
         <tr class="mb-2">
           <th></th>
@@ -359,7 +359,7 @@
       </Table>
     </Col>
 
-    <Col xs="2" class="p-2">
+    <Col xs="6" md="3" lg="2" class="p-2">
       <h4 class="text-center">
         Top Projects: Nodes
       </h4>
@@ -374,7 +374,7 @@
         entities={$topNodesQuery.data.topProjects.map((tp) => scrambleNames ? scramble(tp.id) : tp.id)}
       />
     </Col>
-    <Col xs="2" class="p-2">
+    <Col xs="6" md="3" lg="2" class="p-2">
       <Table>
         <tr class="mb-2">
           <th></th>
@@ -406,7 +406,7 @@
   <Spinner />
 {:else if $topAccsQuery.data && $nodeStatusQuery.data}
   <Row>
-    <Col xs="4" class="p-2">
+    <Col xs="12" lg="4" class="p-2">
       <Histogram
         data={convert2uplot($nodeStatusQuery.data.jobsStatistics[0].histNumAccs)}
         title="Number of Accelerators Distribution"
@@ -417,7 +417,7 @@
         height="275"
       />
     </Col>
-    <Col xs="2" class="p-2">
+    <Col xs="6" md="3" lg="2" class="p-2">
       <div bind:clientWidth={colWidthAccs}>
         <h4 class="text-center">
           Top Users: GPUs
@@ -434,7 +434,7 @@
         />
       </div>
     </Col>
-    <Col xs="2" class="p-2">
+    <Col xs="6" md="3" lg="2" class="p-2">
       <Table>
         <tr class="mb-2">
           <th></th>
@@ -462,7 +462,7 @@
       </Table>
     </Col>
 
-    <Col xs="2" class="p-2">
+    <Col xs="6" md="3" lg="2" class="p-2">
       <h4 class="text-center">
         Top Projects: GPUs
       </h4>
@@ -477,7 +477,7 @@
         entities={$topAccsQuery.data.topProjects.map((tp) => scrambleNames ? scramble(tp.id) : tp.id)}
       />
     </Col>
-    <Col xs="2" class="p-2">
+    <Col xs="6" md="3" lg="2" class="p-2">
       <Table>
         <tr class="mb-2">
           <th></th>
