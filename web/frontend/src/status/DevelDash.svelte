@@ -22,12 +22,13 @@
   } from "../generic/utils.js";
   //import Roofline from "../generic/plots/Roofline.svelte";
   import Roofline from "../generic/plots/Roofline.svelte";
-  import Pie, { cbColors, colors } from "../generic/plots/Pie.svelte";
+  import Pie, { colors } from "../generic/plots/Pie.svelte";
   import { formatTime } from "../generic/units.js";
 
   /* Svelte 5 Props */
   let {
-    cluster
+    cluster,
+    useCbColors = false
   } = $props();
 
   /* Const Init */
@@ -40,7 +41,6 @@
   let plotWidths = $state([]);
   let statesWidth = $state(0);
   let healthWidth = $state(0);
-  let cbmode = $state(false);
   // let nodesCounts = $state({});
   // let jobsJounts = $state({});
 
@@ -313,6 +313,12 @@
     return result
   }
 
+  function legendColors(targetIdx) {
+    // Reuses first color if targetIdx overflows
+    let c = [...colors['default']];
+    return  c[(c.length + targetIdx) % c.length];
+  }
+
 </script>
 
 <!-- Gauges & Roofline per Subcluster-->
@@ -386,7 +392,7 @@
             }, 0)} Nodes
           </b>
             <Pie
-              canvasId="hpcpie-slurm"
+              canvasId="hpcpie-slurm-old"
               size={statesWidth}
               sliceLabel="Nodes"
               quantities={refinedStateData.map(
@@ -409,7 +415,7 @@
           </tr>
           {#each refinedStateData as sd, i}
             <tr>
-              <td><Icon name="circle-fill" style="color: {colors[i]};" /></td>
+              <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
               <td>{sd.state}</td>
               <td>{sd.count}</td>
             </tr>
@@ -427,7 +433,7 @@
             }, 0)} Nodes
           </b>
             <Pie
-              canvasId="hpcpie-health"
+              canvasId="hpcpie-health-old"
               size={healthWidth}
               sliceLabel="Nodes"
               quantities={refinedHealthData.map(
@@ -450,7 +456,7 @@
           </tr>
           {#each refinedHealthData as hd, i}
             <tr>
-              <td><Icon name="circle-fill" style="color: {cbmode ? cbColors[i] : colors[i]};" /></td>
+              <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
               <td>{hd.state}</td>
               <td>{hd.count}</td>
             </tr>

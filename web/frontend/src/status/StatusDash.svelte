@@ -15,7 +15,7 @@
     CardBody,
     Table,
     Progress,
-    // Icon,
+    Icon,
   } from "@sveltestrap/sveltestrap";
   import {
     queryStore,
@@ -24,15 +24,16 @@
   } from "@urql/svelte";
   import {
     init,
-    // transformPerNodeDataForRoofline,
-
   } from "../generic/utils.js";
   import { scaleNumbers, formatTime } from "../generic/units.js";
   import Roofline from "../generic/plots/Roofline.svelte";
+  import Pie, { colors } from "../generic/plots/Pie.svelte";
 
   /* Svelte 5 Props */
   let {
-    cluster
+    cluster,
+    useCbColors = false,
+    useAltColors = false,
   } = $props();
 
   /* Const Init */
@@ -42,6 +43,7 @@
   /* State Init */
   let from = $state(new Date(Date.now() - 5 * 60 * 1000));
   let to = $state(new Date(Date.now()));
+  let pieWidth = $state(0);
   let plotWidths = $state([]);
   // Bar Gauges
   let allocatedNodes = $state({});
@@ -58,6 +60,30 @@
   let totalAccs = $state({});
 
   /* Derived */
+  // Accumulated NodeStates for Piecharts
+  const nodesStateCounts = $derived(queryStore({
+    client: client,
+    query: gql`
+      query ($filter: [NodeFilter!]) {
+        nodeStates(filter: $filter) {
+          state
+          count
+        }
+      }
+    `,
+    variables: {
+      filter: { cluster: { eq: cluster }}
+    },
+  }));
+
+  const refinedStateData = $derived.by(() => {
+    return $nodesStateCounts?.data?.nodeStates.filter((e) => ['allocated', 'reserved', 'idle', 'mixed','down', 'unknown'].includes(e.state))
+  });
+
+  const refinedHealthData = $derived.by(() => {
+    return $nodesStateCounts?.data?.nodeStates.filter((e) => ['full', 'partial', 'failed'].includes(e.state))
+  });
+
   // Note: nodeMetrics are requested on configured $timestep resolution
   // Result: The latest 5 minutes (datapoints) for each node independent of job
   const statusQuery = $derived(queryStore({
@@ -334,8 +360,107 @@
     return result
   }
 
+  function legendColors(targetIdx) {
+    // Reuses first color if targetIdx overflows
+    let c;
+      if (useCbColors) {
+        c = [...colors['colorblind']];
+      } else if (useAltColors) {
+        c = [...colors['alternative']];
+      } else {
+        c = [...colors['default']];
+      }
+    return  c[(c.length + targetIdx) % c.length];
+  }
+
 </script>
 
+<!-- Node Health Pis, later Charts -->
+{#if $initq.data && $nodesStateCounts.data}
+  <Row cols={{ lg: 4, md: 2 , sm: 1}} class="mb-3 justify-content-center">
+    <Col class="px-3 mt-2 mt-lg-0">
+      <div bind:clientWidth={pieWidth}>
+        {#key refinedStateData}
+          <h4 class="text-center">
+            {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Node States
+          </h4>
+          <Pie
+            {useAltColors}
+            canvasId="hpcpie-slurm"
+            size={pieWidth * 0.55}
+            sliceLabel="Nodes"
+            quantities={refinedStateData.map(
+              (sd) => sd.count,
+            )}
+            entities={refinedStateData.map(
+              (sd) => sd.state,
+            )}
+          />
+        {/key}
+      </div>
+    </Col>
+    <Col class="px-4 py-2">
+      {#key refinedStateData}
+        <Table>
+          <tr class="mb-2">
+            <th></th>
+            <th>Current State</th>
+            <th>Nodes</th>
+          </tr>
+          {#each refinedStateData as sd, i}
+            <tr>
+              <td><Icon name="circle-fill" style="color: {legendColors(i)};"/></td>
+              <td>{sd.state}</td>
+              <td>{sd.count}</td>
+            </tr>
+          {/each}
+        </Table>
+      {/key}
+    </Col>
+
+    <Col class="px-3 mt-2 mt-lg-0">
+      <div bind:clientWidth={pieWidth}>
+        {#key refinedHealthData}
+          <h4 class="text-center">
+            {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Node Health
+          </h4>
+          <Pie
+            {useAltColors}
+            canvasId="hpcpie-health"
+            size={pieWidth * 0.55}
+            sliceLabel="Nodes"
+            quantities={refinedHealthData.map(
+              (sd) => sd.count,
+            )}
+            entities={refinedHealthData.map(
+              (sd) => sd.state,
+            )}
+          />
+        {/key}
+      </div>
+    </Col>
+    <Col class="px-4 py-2">
+      {#key refinedHealthData}
+        <Table>
+          <tr class="mb-2">
+            <th></th>
+            <th>Current Health</th>
+            <th>Nodes</th>
+          </tr>
+          {#each refinedHealthData as hd, i}
+            <tr>
+              <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
+              <td>{hd.state}</td>
+              <td>{hd.count}</td>
+            </tr>
+          {/each}
+        </Table>
+      {/key}
+    </Col>
+  </Row>
+{/if}
+
+<hr/>
 <!-- Gauges & Roofline per Subcluster-->
 {#if $initq.data && $statusQuery.data}
   {#each $initq.data.clusters.find((c) => c.name == cluster).subClusters as subCluster, i}
@@ -454,5 +579,5 @@
     </Row>
   {/each}
 {:else}
-  <Card class="mx-4" body color="warning">Cannot render status tab: No data!</Card>
+  <Card class="mx-4" body color="warning">Cannot render status rooflines: No data!</Card>
 {/if}

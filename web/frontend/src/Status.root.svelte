@@ -7,6 +7,9 @@
 
  <script>
   import {
+    getContext
+  } from "svelte"
+  import {
     Row,
     Col,
     Card,
@@ -26,6 +29,9 @@
   let {
     cluster
   } = $props();
+
+  /*Const Init */
+  const useCbColors = getContext("cc-config")?.plot_general_colorblindMode || false
 
   /* State Init */
   let from = $state(new Date(Date.now() - 5 * 60 * 1000));
@@ -69,33 +75,21 @@
 
 <Card class="overflow-auto" style="height: auto;">
   <TabContent>
-    <TabPane tabId="devel-dash" tab="Devel" active>
+    <TabPane tabId="status-dash" tab="Status" active>
       <CardBody>
-        <DevelDash {cluster}></DevelDash>
-      </CardBody>
-    </TabPane>
-
-    <TabPane tabId="status-dash" tab="Status">
-      <CardBody>
-        <StatusDash {cluster}></StatusDash>
+        <StatusDash {cluster} {useCbColors} useAltColors></StatusDash>
       </CardBody>
     </TabPane>
 
     <TabPane tabId="usage-dash" tab="Usage">
       <CardBody>
-        <UsageDash {cluster}></UsageDash>
+        <UsageDash {cluster} {useCbColors}></UsageDash>
       </CardBody>
     </TabPane>
-
-    <TabPane tabId="node-dash" tab="Nodes">
-      <CardBody>
-        <NodeDash {cluster}></NodeDash>
-      </CardBody>
-    </TabPane>
-
+    
     <TabPane tabId="metric-dash" tab="Statistics">
       <CardBody>
-        <StatisticsDash {cluster}></StatisticsDash>
+        <StatisticsDash {cluster} {useCbColors}></StatisticsDash>
       </CardBody>
     </TabPane>
   </TabContent>

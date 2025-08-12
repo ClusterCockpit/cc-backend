@@ -6,7 +6,6 @@
 -->
 
  <script>
-  import { getContext } from "svelte";
   import {
     Row,
     Col,
@@ -20,310 +19,485 @@
     queryStore,
     gql,
     getContextClient,
-    mutationStore,
   } from "@urql/svelte";
   import {
     init,
     scramble,
     scrambleNames,
+    convert2uplot,
   } from "../generic/utils.js";
-  import Pie, { colors, cbColors } from "../generic/plots/Pie.svelte";
+  import Pie, { colors } from "../generic/plots/Pie.svelte";
+  import Histogram from "../generic/plots/Histogram.svelte";
 
   /* Svelte 5 Props */
   let {
-    cluster
+    cluster,
+    useCbColors = false,
+    useAltColors = false
   } = $props();
 
   /* Const Init */
   const { query: initq } = init();
-  const ccconfig = getContext("cc-config");
   const client = getContextClient();
-  const paging = { itemsPerPage: 10, page: 1 }; // Top 10
-  const topOptions = [
-    { key: "totalJobs", label: "Jobs" },
-    { key: "totalNodes", label: "Nodes" },
-    { key: "totalCores", label: "Cores" },
-    { key: "totalAccs", label: "Accelerators" },
-  ];
 
   /* State Init */
-  let colWidth = $state(0);
-  let cbmode = $state(ccconfig?.plot_general_colorblindMode || false)
-
-  // Pie Charts
-  let topProjectSelection = $state(
-    topOptions.find(
-      (option) =>
-        option.key ==
-        ccconfig[`status_view_selectedTopProjectCategory:${cluster}`],
-    ) ||
-    topOptions.find(
-      (option) => option.key == ccconfig.status_view_selectedTopProjectCategory,
-    )
-  );
-  let topUserSelection = $state(
-    topOptions.find(
-      (option) =>
-        option.key ==
-        ccconfig[`status_view_selectedTopUserCategory:${cluster}`],
-    ) ||
-    topOptions.find(
-      (option) => option.key == ccconfig.status_view_selectedTopUserCategory,
-    )
-  );
+  let colWidthJobs = $state(0);
+  let colWidthNodes = $state(0);
+  let colWidthAccs = $state(0);
 
   /* Derived */
-  const topUserQuery = $derived(queryStore({
+  const topJobsQuery = $derived(queryStore({
     client: client,
     query: gql`
       query (
         $filter: [JobFilter!]!
         $paging: PageRequest!
-        $sortBy: SortByAggregate!
       ) {
         topUser: jobsStatistics(
           filter: $filter
           page: $paging
-          sortBy: $sortBy
+          sortBy: TOTALJOBS
           groupBy: USER
         ) {
           id
           name
           totalJobs
-          totalNodes
-          totalCores
-          totalAccs
+        }
+        topProjects: jobsStatistics(
+          filter: $filter
+          page: $paging
+          sortBy: TOTALJOBS
+          groupBy: PROJECT
+        ) {
+          id
+          totalJobs
         }
       }
     `,
     variables: {
       filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
-      paging,
-      sortBy: topUserSelection.key.toUpperCase(),
+      paging: { itemsPerPage: 10, page: 1 } // Top 10
     },
   }));
 
-  const topProjectQuery = $derived(queryStore({
+  const topNodesQuery = $derived(queryStore({
     client: client,
     query: gql`
       query (
         $filter: [JobFilter!]!
         $paging: PageRequest!
-        $sortBy: SortByAggregate!
       ) {
+        topUser: jobsStatistics(
+          filter: $filter
+          page: $paging
+          sortBy: TOTALNODES
+          groupBy: USER
+        ) {
+          id
+          name
+          totalNodes
+        }
         topProjects: jobsStatistics(
           filter: $filter
           page: $paging
-          sortBy: $sortBy
+          sortBy: TOTALNODES
           groupBy: PROJECT
         ) {
           id
-          totalJobs
           totalNodes
-          totalCores
+        }
+      }
+    `,
+    variables: {
+      filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
+      paging: { itemsPerPage: 10, page: 1 } // Top 10
+    },
+  }));
+
+  const topAccsQuery = $derived(queryStore({
+    client: client,
+    query: gql`
+      query (
+        $filter: [JobFilter!]!
+        $paging: PageRequest!
+      ) {
+        topUser: jobsStatistics(
+          filter: $filter
+          page: $paging
+          sortBy: TOTALACCS
+          groupBy: USER
+        ) {
+          id
+          name
+          totalAccs
+        }
+        topProjects: jobsStatistics(
+          filter: $filter
+          page: $paging
+          sortBy: TOTALACCS
+          groupBy: PROJECT
+        ) {
+          id
           totalAccs
         }
       }
     `,
     variables: {
       filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
-      paging,
-      sortBy: topProjectSelection.key.toUpperCase(),
+      paging: { itemsPerPage: 10, page: 1 } // Top 10
     },
   }));
 
-  /* Effects */
-  $effect(() => {
-    updateTopUserConfiguration(topUserSelection.key);
-  });
-
-  $effect(() => {
-    updateTopProjectConfiguration(topProjectSelection.key);
-  });
-
-  /* Const Functions */
-  const updateConfigurationMutation = ({ name, value }) => {
-    return mutationStore({
-      client: client,
-      query: gql`
-        mutation ($name: String!, $value: String!) {
-          updateConfiguration(name: $name, value: $value)
+  // Note: nodeMetrics are requested on configured $timestep resolution
+  const nodeStatusQuery = $derived(queryStore({
+    client: client,
+    query: gql`
+      query (
+        $filter: [JobFilter!]!
+        $selectedHistograms: [String!]
+      ) {
+        jobsStatistics(filter: $filter, metrics: $selectedHistograms) {
+          histDuration {
+            count
+            value
+          }
+          histNumNodes {
+            count
+            value
+          }
+          histNumAccs {
+            count
+            value
+          }
         }
-      `,
-      variables: { name, value },
-    });
-  };
+      }
+    `,
+    variables: {
+      filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
+      selectedHistograms: [], // No Metrics requested for node hardware stats
+    },
+  }));
 
   /* Functions */
-  function updateTopUserConfiguration(select) {
-    if (ccconfig[`status_view_selectedTopUserCategory:${cluster}`] != select) {
-      updateConfigurationMutation({
-        name: `status_view_selectedTopUserCategory:${cluster}`,
-        value: JSON.stringify(select),
-      }).subscribe((res) => {
-        if (res.fetching === false && res.error) {
-          throw res.error;
-        }
-      });
-    }
-  }
-
-  function updateTopProjectConfiguration(select) {
-    if (
-      ccconfig[`status_view_selectedTopProjectCategory:${cluster}`] != select
-    ) {
-      updateConfigurationMutation({
-        name: `status_view_selectedTopProjectCategory:${cluster}`,
-        value: JSON.stringify(select),
-      }).subscribe((res) => {
-        if (res.fetching === false && res.error) {
-          throw res.error;
-        }
-      });
-    }
-  }
-
-  function legendColor(targetIdx) {
+  function legendColors(targetIdx) {
     // Reuses first color if targetIdx overflows
-    if (cbmode) {
-      return cbColors[(colors.length + targetIdx) % colors.length]
-    } else {
-      return colors[(colors.length + targetIdx) % colors.length]
-    }
+    let c;
+      if (useCbColors) {
+        c = [...colors['colorblind']];
+      } else if (useAltColors) {
+        c = [...colors['alternative']];
+      } else {
+        c = [...colors['default']];
+      }
+    return  c[(c.length + targetIdx) % c.length];
   }
 </script>
 
-{#if $initq.data}
-  <!-- User and Project Stats as Pie-Charts -->
-  <Row cols={{ lg: 4, md: 2, sm: 1 }}>
-    <Col class="p-2">
-      <div bind:clientWidth={colWidth}>
+<!-- Job Duration, Top Users and Projects-->
+{#if $topJobsQuery.fetching || $nodeStatusQuery.fetching}
+  <Spinner />
+{:else if $topJobsQuery.data && $nodeStatusQuery.data}
+  <Row>
+    <Col xs="4" class="p-2">
+      <Histogram
+        data={convert2uplot($nodeStatusQuery.data.jobsStatistics[0].histDuration)}
+        title="Duration Distribution"
+        xlabel="Current Job Runtimes"
+        xunit="Runtime"
+        ylabel="Number of Jobs"
+        yunit="Jobs"
+        height="275"
+        usesBins
+        xtime
+      />
+    </Col>
+    <Col xs="2" class="p-2">
+      <div bind:clientWidth={colWidthJobs}>
         <h4 class="text-center">
-          Top Users on {cluster.charAt(0).toUpperCase() + cluster.slice(1)}
+          Top Users: Jobs
         </h4>
-        {#key $topUserQuery.data}
-          {#if $topUserQuery.fetching}
-            <Spinner />
-          {:else if $topUserQuery.error}
-            <Card body color="danger">{$topUserQuery.error.message}</Card>
-          {:else}
-            <Pie
-              canvasId="hpcpie-users"
-              size={colWidth}
-              sliceLabel={topUserSelection.label}
-              quantities={$topUserQuery.data.topUser.map(
-                (tu) => tu[topUserSelection.key],
-              )}
-              entities={$topUserQuery.data.topUser.map((tu) => scrambleNames ? scramble(tu.id) : tu.id)}
-            />
-          {/if}
-        {/key}
+        <Pie
+          {useAltColors}
+          canvasId="hpcpie-jobs-users"
+          size={colWidthJobs * 0.75}
+          sliceLabel="Jobs"
+          quantities={$topJobsQuery.data.topUser.map(
+            (tu) => tu['totalJobs'],
+          )}
+          entities={$topJobsQuery.data.topUser.map((tu) => scrambleNames ? scramble(tu.id) : tu.id)}
+        />
       </div>
     </Col>
-    <Col class="px-4 py-2">
-      {#key $topUserQuery.data}
-        {#if $topUserQuery.fetching}
-          <Spinner />
-        {:else if $topUserQuery.error}
-          <Card body color="danger">{$topUserQuery.error.message}</Card>
-        {:else}
-          <Table>
-            <tr class="mb-2">
-              <th>Legend</th>
-              <th>User Name</th>
-              <th
-                >Number of
-                <select class="p-0" bind:value={topUserSelection}>
-                  {#each topOptions as option}
-                    <option value={option}>
-                      {option.label}
-                    </option>
-                  {/each}
-                </select>
-              </th>
-            </tr>
-            {#each $topUserQuery.data.topUser as tu, i}
-              <tr>
-                <td><Icon name="circle-fill" style="color: {legendColor(i)};" /></td>
-                <th scope="col" id="topName-{tu.id}"
-                  ><a
-                    href="/monitoring/user/{tu.id}?cluster={cluster}&state=running"
-                    >{scrambleNames ? scramble(tu.id) : tu.id}</a
-                  ></th
-                >
-                {#if tu?.name}
-                  <Tooltip
-                    target={`topName-${tu.id}`}
-                    placement="left"
-                    >{scrambleNames ? scramble(tu.name) : tu.name}</Tooltip
-                  >
-                {/if}
-                <td>{tu[topUserSelection.key]}</td>
-              </tr>
-            {/each}
-          </Table>
-        {/if}
-      {/key}
+    <Col xs="2" class="p-2">
+      <Table>
+        <tr class="mb-2">
+          <th></th>
+          <th style="padding-left: 0.5rem;">User</th>
+          <th>Active Jobs</th>
+        </tr>
+        {#each $topJobsQuery.data.topUser as tu, i}
+          <tr>
+            <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
+            <td id="topName-jobs-{tu.id}">
+              <a target="_blank" href="/monitoring/user/{tu.id}?cluster={cluster}&state=running"
+                >{scrambleNames ? scramble(tu.id) : tu.id}
+              </a>
+            </td>
+            {#if tu?.name}
+              <Tooltip
+                target={`topName-jobs-${tu.id}`}
+                placement="left"
+                >{scrambleNames ? scramble(tu.name) : tu.name}</Tooltip
+              >
+            {/if}
+            <td>{tu['totalJobs']}</td>
+          </tr>
+        {/each}
+      </Table>
     </Col>
-    <Col class="p-2">
+
+    <Col xs="2" class="p-2">
       <h4 class="text-center">
-        Top Projects on {cluster.charAt(0).toUpperCase() + cluster.slice(1)}
+        Top Projects: Jobs
       </h4>
-      {#key $topProjectQuery.data}
-        {#if $topProjectQuery.fetching}
-          <Spinner />
-        {:else if $topProjectQuery.error}
-          <Card body color="danger">{$topProjectQuery.error.message}</Card>
-        {:else}
-          <Pie
-            canvasId="hpcpie-projects"
-            size={colWidth}
-            sliceLabel={topProjectSelection.label}
-            quantities={$topProjectQuery.data.topProjects.map(
-              (tp) => tp[topProjectSelection.key],
-            )}
-            entities={$topProjectQuery.data.topProjects.map((tp) => scrambleNames ? scramble(tp.id) : tp.id)}
-          />
-        {/if}
-      {/key}
+      <Pie
+        {useAltColors}
+        canvasId="hpcpie-jobs-projects"
+        size={colWidthJobs * 0.75}
+        sliceLabel={'Jobs'}
+        quantities={$topJobsQuery.data.topProjects.map(
+          (tp) => tp['totalJobs'],
+        )}
+        entities={$topJobsQuery.data.topProjects.map((tp) => scrambleNames ? scramble(tp.id) : tp.id)}
+      />
     </Col>
-    <Col class="px-4 py-2">
-      {#key $topProjectQuery.data}
-        {#if $topProjectQuery.fetching}
-          <Spinner />
-        {:else if $topProjectQuery.error}
-          <Card body color="danger">{$topProjectQuery.error.message}</Card>
-        {:else}
-          <Table>
-            <tr class="mb-2">
-              <th>Legend</th>
-              <th>Project Code</th>
-              <th
-                >Number of
-                <select class="p-0" bind:value={topProjectSelection}>
-                  {#each topOptions as option}
-                    <option value={option}>
-                      {option.label}
-                    </option>
-                  {/each}
-                </select>
-              </th>
-            </tr>
-            {#each $topProjectQuery.data.topProjects as tp, i}
-              <tr>
-                <td><Icon name="circle-fill" style="color: {legendColor(i)};" /></td>
-                <th scope="col"
-                  ><a
-                    href="/monitoring/jobs/?cluster={cluster}&state=running&project={tp.id}&projectMatch=eq"
-                    >{scrambleNames ? scramble(tp.id) : tp.id}</a
-                  ></th
-                >
-                <td>{tp[topProjectSelection.key]}</td>
-              </tr>
-            {/each}
-          </Table>
-        {/if}
-      {/key}
+    <Col xs="2" class="p-2">
+      <Table>
+        <tr class="mb-2">
+          <th></th>
+          <th style="padding-left: 0.5rem;">Project</th>
+          <th>Active Jobs</th>
+        </tr>
+        {#each $topJobsQuery.data.topProjects as tp, i}
+          <tr>
+            <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
+            <td>
+              <a target="_blank" href="/monitoring/jobs/?cluster={cluster}&state=running&project={tp.id}&projectMatch=eq"
+                >{scrambleNames ? scramble(tp.id) : tp.id}
+              </a>
+            </td>
+            <td>{tp['totalJobs']}</td>
+          </tr>
+        {/each}
+      </Table>
     </Col>
   </Row>
+{:else}
+  <Card class="mx-4" body color="warning">Cannot render job status charts: No data!</Card>
+{/if}
+
+<hr/>
+
+<!-- Node Distribution, Top Users and Projects-->
+{#if $topNodesQuery.fetching || $nodeStatusQuery.fetching}
+  <Spinner />
+{:else if $topNodesQuery.data && $nodeStatusQuery.data}
+  <Row>
+    <Col xs="4" class="p-2">
+      <Histogram
+        data={convert2uplot($nodeStatusQuery.data.jobsStatistics[0].histNumNodes)}
+        title="Number of Nodes Distribution"
+        xlabel="Allocated Nodes"
+        xunit="Nodes"
+        ylabel="Number of Jobs"
+        yunit="Jobs"
+        height="275"
+      />
+    </Col>
+    <Col xs="2" class="p-2">
+      <div bind:clientWidth={colWidthNodes}>
+        <h4 class="text-center">
+          Top Users: Nodes
+        </h4>
+        <Pie
+          {useAltColors}
+          canvasId="hpcpie-nodes-users"
+          size={colWidthNodes * 0.75}
+          sliceLabel="Nodes"
+          quantities={$topNodesQuery.data.topUser.map(
+            (tu) => tu['totalNodes'],
+          )}
+          entities={$topNodesQuery.data.topUser.map((tu) => scrambleNames ? scramble(tu.id) : tu.id)}
+        />
+      </div>
+    </Col>
+    <Col xs="2" class="p-2">
+      <Table>
+        <tr class="mb-2">
+          <th></th>
+          <th style="padding-left: 0.5rem;">User</th>
+          <th>Nodes</th>
+        </tr>
+        {#each $topNodesQuery.data.topUser as tu, i}
+          <tr>
+            <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
+            <td id="topName-nodes-{tu.id}">
+              <a target="_blank" href="/monitoring/user/{tu.id}?cluster={cluster}&state=running"
+                >{scrambleNames ? scramble(tu.id) : tu.id}
+              </a>
+            </td>
+            {#if tu?.name}
+              <Tooltip
+                target={`topName-nodes-${tu.id}`}
+                placement="left"
+                >{scrambleNames ? scramble(tu.name) : tu.name}</Tooltip
+              >
+            {/if}
+            <td>{tu['totalNodes']}</td>
+          </tr>
+        {/each}
+      </Table>
+    </Col>
+
+    <Col xs="2" class="p-2">
+      <h4 class="text-center">
+        Top Projects: Nodes
+      </h4>
+      <Pie
+        {useAltColors}
+        canvasId="hpcpie-nodes-projects"
+        size={colWidthNodes * 0.75}
+        sliceLabel={'Nodes'}
+        quantities={$topNodesQuery.data.topProjects.map(
+          (tp) => tp['totalNodes'],
+        )}
+        entities={$topNodesQuery.data.topProjects.map((tp) => scrambleNames ? scramble(tp.id) : tp.id)}
+      />
+    </Col>
+    <Col xs="2" class="p-2">
+      <Table>
+        <tr class="mb-2">
+          <th></th>
+          <th style="padding-left: 0.5rem;">Project</th>
+          <th>Nodes</th>
+        </tr>
+        {#each $topNodesQuery.data.topProjects as tp, i}
+          <tr>
+            <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
+            <td>
+              <a target="_blank" href="/monitoring/jobs/?cluster={cluster}&state=running&project={tp.id}&projectMatch=eq"
+                >{scrambleNames ? scramble(tp.id) : tp.id}
+              </a>
+            </td>
+            <td>{tp['totalNodes']}</td>
+          </tr>
+        {/each}
+      </Table>
+    </Col>
+  </Row>
+{:else}
+  <Card class="mx-4" body color="warning">Cannot render node status charts: No data!</Card>
+{/if}
+
+<hr/>
+
+<!-- Acc Distribution, Top Users and Projects-->
+{#if $topAccsQuery.fetching || $nodeStatusQuery.fetching}
+  <Spinner />
+{:else if $topAccsQuery.data && $nodeStatusQuery.data}
+  <Row>
+    <Col xs="4" class="p-2">
+      <Histogram
+        data={convert2uplot($nodeStatusQuery.data.jobsStatistics[0].histNumAccs)}
+        title="Number of Accelerators Distribution"
+        xlabel="Allocated Accs"
+        xunit="Accs"
+        ylabel="Number of Jobs"
+        yunit="Jobs"
+        height="275"
+      />
+    </Col>
+    <Col xs="2" class="p-2">
+      <div bind:clientWidth={colWidthAccs}>
+        <h4 class="text-center">
+          Top Users: GPUs
+        </h4>
+        <Pie
+          {useAltColors}
+          canvasId="hpcpie-accs-users"
+          size={colWidthAccs * 0.75}
+          sliceLabel="GPUs"
+          quantities={$topAccsQuery.data.topUser.map(
+            (tu) => tu['totalAccs'],
+          )}
+          entities={$topAccsQuery.data.topUser.map((tu) => scrambleNames ? scramble(tu.id) : tu.id)}
+        />
+      </div>
+    </Col>
+    <Col xs="2" class="p-2">
+      <Table>
+        <tr class="mb-2">
+          <th></th>
+          <th style="padding-left: 0.5rem;">User</th>
+          <th>GPUs</th>
+        </tr>
+        {#each $topAccsQuery.data.topUser as tu, i}
+          <tr>
+            <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
+            <td id="topName-accs-{tu.id}">
+              <a target="_blank" href="/monitoring/user/{tu.id}?cluster={cluster}&state=running"
+                >{scrambleNames ? scramble(tu.id) : tu.id}
+              </a>
+            </td>
+            {#if tu?.name}
+              <Tooltip
+                target={`topName-accs-${tu.id}`}
+                placement="left"
+                >{scrambleNames ? scramble(tu.name) : tu.name}</Tooltip
+              >
+            {/if}
+            <td>{tu['totalAccs']}</td>
+          </tr>
+        {/each}
+      </Table>
+    </Col>
+
+    <Col xs="2" class="p-2">
+      <h4 class="text-center">
+        Top Projects: GPUs
+      </h4>
+      <Pie
+        {useAltColors}
+        canvasId="hpcpie-accs-projects"
+        size={colWidthAccs * 0.75}
+        sliceLabel={'GPUs'}
+        quantities={$topAccsQuery.data.topProjects.map(
+          (tp) => tp['totalAccs'],
+        )}
+        entities={$topAccsQuery.data.topProjects.map((tp) => scrambleNames ? scramble(tp.id) : tp.id)}
+      />
+    </Col>
+    <Col xs="2" class="p-2">
+      <Table>
+        <tr class="mb-2">
+          <th></th>
+          <th style="padding-left: 0.5rem;">Project</th>
+          <th>GPUs</th>
+        </tr>
+        {#each $topAccsQuery.data.topProjects as tp, i}
+          <tr>
+            <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
+            <td>
+              <a target="_blank" href="/monitoring/jobs/?cluster={cluster}&state=running&project={tp.id}&projectMatch=eq"
+                >{scrambleNames ? scramble(tp.id) : tp.id}
+              </a>
+            </td>
+            <td>{tp['totalAccs']}</td>
+          </tr>
+        {/each}
+      </Table>
+    </Col>
+  </Row>
+{:else}
+  <Card class="mx-4" body color="warning">Cannot render accelerator status charts: No data!</Card>
 {/if}
