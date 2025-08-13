@@ -72,7 +72,8 @@ func (api *RestApi) MountApiRoutes(r *mux.Router) {
 	r.HandleFunc("/jobs/{id}", api.getCompleteJobById).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/tag_job/{id}", api.tagJob).Methods(http.MethodPost, http.MethodPatch)
 	r.HandleFunc("/jobs/tag_job/{id}", api.removeTagJob).Methods(http.MethodDelete)
-	r.HandleFunc("/jobs/edit_meta/{id}", api.editMeta).Methods(http.MethodPost, http.MethodPatch)
+	r.HandleFunc("/jobs/edit_meta/", api.editMetaByRequest).Methods(http.MethodPatch)
+	r.HandleFunc("/jobs/edit_meta/{id}", api.editMeta).Methods(http.MethodPatch)
 	r.HandleFunc("/jobs/metrics/{id}", api.getJobMetrics).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/delete_job/", api.deleteJobByRequest).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job/{id}", api.deleteJobById).Methods(http.MethodDelete)
@@ -88,7 +89,7 @@ func (api *RestApi) MountApiRoutes(r *mux.Router) {
 
 func (api *RestApi) MountUserApiRoutes(r *mux.Router) {
 	r.StrictSlash(true)
-	// REST API Uses TokenAuth
+	// USER REST API Uses TokenAuth
 	r.HandleFunc("/jobs/", api.getJobs).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/{id}", api.getJobById).Methods(http.MethodPost)
 	r.HandleFunc("/jobs/{id}", api.getCompleteJobById).Methods(http.MethodGet)

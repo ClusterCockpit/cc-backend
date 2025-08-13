@@ -66,6 +66,14 @@ type EditMetaRequest struct {
 	Value string `json:"value" example:"bash script"`
 }
 
+// JobMetaRequest model
+type JobMetaRequest struct {
+	JobId     *int64          `json:"jobId" validate:"required" example:"123000"` // Cluster Job ID of job
+	Cluster   *string         `json:"cluster" example:"fritz"`                    // Cluster of job
+	StartTime *int64          `json:"startTime" example:"1649723812"`             // Start Time of job as epoch
+	Payload   EditMetaRequest `json:"payload"`                                    // Content to Add to Job Meta_Data
+}
+
 type TagJobApiRequest []*ApiTag
 
 type GetJobApiRequest []string
@@ -415,21 +423,21 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 }
 
 // editMeta godoc
-// @summary    Edit meta-data json
+// @summary    Edit meta-data json of job identified by database id
 // @tags Job add and modify
-// @description Edit key value pairs in job metadata json
+// @description Edit key value pairs in job metadata json of job specified by database id
 // @description If a key already exists its content will be overwritten
 // @accept      json
 // @produce     json
 // @param       id      path     int                  true "Job Database ID"
-// @param       request body     api.EditMetaRequest  true "Kay value pair to add"
+// @param       request body     api.EditMetaRequest  true "Metadata Key value pair to add or update"
 // @success     200     {object} schema.Job                "Updated job resource"
 // @failure     400     {object} api.ErrorResponse         "Bad Request"
 // @failure     401     {object} api.ErrorResponse         "Unauthorized"
 // @failure     404     {object} api.ErrorResponse         "Job does not exist"
 // @failure     500     {object} api.ErrorResponse         "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /api/jobs/edit_meta/{id} [post]
+// @router      /api/jobs/edit_meta/{id} [patch]
 func (api *RestApi) editMeta(rw http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
 	if err != nil {
@@ -450,6 +458,54 @@ func (api *RestApi) editMeta(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := api.JobRepository.UpdateMetadata(job, req.Key, req.Value); err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	rw.Header().Add("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode(job)
+}
+
+// editMetaByRequest godoc
+// @summary    Edit meta-data json of job identified by request
+// @tags Job add and modify
+// @description Edit key value pairs in metadata json of job specified by jobID, StartTime and Cluster
+// @description If a key already exists its content will be overwritten
+// @accept      json
+// @produce     json
+// @param       request body     api.JobMetaRequest   true "Specifies job and payload to add or update"
+// @success     200     {object} schema.Job                "Updated job resource"
+// @failure     400     {object} api.ErrorResponse         "Bad Request"
+// @failure     401     {object} api.ErrorResponse         "Unauthorized"
+// @failure     404     {object} api.ErrorResponse         "Job does not exist"
+// @failure     500     {object} api.ErrorResponse         "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /api/jobs/edit_meta/ [patch]
+func (api *RestApi) editMetaByRequest(rw http.ResponseWriter, r *http.Request) {
+	// Parse request body
+	req := JobMetaRequest{}
+	if err := decode(r.Body, &req); err != nil {
+		handleError(fmt.Errorf("parsing request body failed: %w", err), http.StatusBadRequest, rw)
+		return
+	}
+
+	// Fetch job (that will have its meta_data edited) from db
+	var job *schema.Job
+	var err error
+	if req.JobId == nil {
+		handleError(errors.New("the field 'jobId' is required"), http.StatusBadRequest, rw)
+		return
+	}
+
+	// log.Printf("loading db job for editMetaByRequest... : JobMetaRequest=%v", req)
+	job, err = api.JobRepository.Find(req.JobId, req.Cluster, req.StartTime)
+	if err != nil {
+		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
+		return
+	}
+
+	if err := api.JobRepository.UpdateMetadata(job, req.Payload.Key, req.Payload.Value); err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
 	}
