@@ -10,6 +10,7 @@ import (
 	"maps"
 	"sync"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/lrucache"
 	"github.com/ClusterCockpit/cc-lib/schema"
@@ -74,6 +75,7 @@ func Init(rawConfig json.RawMessage, disableArchive bool) error {
 			Kind string `json:"kind"`
 		}
 
+		config.Validate(configSchema, rawConfig)
 		if err = json.Unmarshal(rawConfig, &cfg); err != nil {
 			cclog.Warn("Error while unmarshaling raw config json")
 			return

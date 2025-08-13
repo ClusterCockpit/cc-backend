@@ -6,6 +6,7 @@ package repository
 
 import (
 	"encoding/json"
+	"maps"
 	"sync"
 	"time"
 
@@ -24,7 +25,7 @@ var (
 type UserCfgRepo struct {
 	DB         *sqlx.DB
 	Lookup     *sqlx.Stmt
-	uiDefaults map[string]interface{}
+	uiDefaults map[string]any
 	cache      *lrucache.Cache
 	lock       sync.RWMutex
 }
@@ -51,22 +52,18 @@ func GetUserCfgRepo() *UserCfgRepo {
 
 // Return the personalised UI config for the currently authenticated
 // user or return the plain default config.
-func (uCfg *UserCfgRepo) GetUIConfig(user *schema.User) (map[string]interface{}, error) {
+func (uCfg *UserCfgRepo) GetUIConfig(user *schema.User) (map[string]any, error) {
 	if user == nil {
 		uCfg.lock.RLock()
-		copy := make(map[string]interface{}, len(uCfg.uiDefaults))
-		for k, v := range uCfg.uiDefaults {
-			copy[k] = v
-		}
+		copy := make(map[string]any, len(uCfg.uiDefaults))
+		maps.Copy(copy, uCfg.uiDefaults)
 		uCfg.lock.RUnlock()
 		return copy, nil
 	}
 
-	data := uCfg.cache.Get(user.Username, func() (interface{}, time.Duration, int) {
-		uiconfig := make(map[string]interface{}, len(uCfg.uiDefaults))
-		for k, v := range uCfg.uiDefaults {
-			uiconfig[k] = v
-		}
+	data := uCfg.cache.Get(user.Username, func() (any, time.Duration, int) {
+		uiconfig := make(map[string]any, len(uCfg.uiDefaults))
+		maps.Copy(uiconfig, uCfg.uiDefaults)
 
 		rows, err := uCfg.Lookup.Query(user.Username)
 		if err != nil {
@@ -83,7 +80,7 @@ func (uCfg *UserCfgRepo) GetUIConfig(user *schema.User) (map[string]interface{},
 				return err, 0, 0
 			}
 
-			var val interface{}
+			var val any
 			if err := json.Unmarshal([]byte(rawval), &val); err != nil {
 				cclog.Warn("Error while unmarshaling raw user uiconfig json")
 				return err, 0, 0
@@ -104,7 +101,7 @@ func (uCfg *UserCfgRepo) GetUIConfig(user *schema.User) (map[string]interface{},
 		return nil, err
 	}
 
-	return data.(map[string]interface{}), nil
+	return data.(map[string]any), nil
 }
 
 // If the context does not have a user, update the global ui configuration
@@ -115,7 +112,7 @@ func (uCfg *UserCfgRepo) UpdateConfig(
 	user *schema.User,
 ) error {
 	if user == nil {
-		var val interface{}
+		var val any
 		if err := json.Unmarshal([]byte(value), &val); err != nil {
 			cclog.Warn("Error while unmarshaling raw user config json")
 			return err

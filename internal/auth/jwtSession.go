@@ -13,7 +13,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
@@ -60,7 +59,7 @@ func (ja *JWTSessionAuthenticator) Login(
 		rawtoken = r.URL.Query().Get("login-token")
 	}
 
-	token, err := jwt.Parse(rawtoken, func(t *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(rawtoken, func(t *jwt.Token) (any, error) {
 		if t.Method == jwt.SigningMethodHS256 || t.Method == jwt.SigningMethodHS512 {
 			return ja.loginTokenKey, nil
 		}
@@ -82,7 +81,7 @@ func (ja *JWTSessionAuthenticator) Login(
 	var roles []string
 	projects := make([]string, 0)
 
-	if config.Keys.JwtConfig.ValidateUser {
+	if Keys.JwtConfig.ValidateUser {
 		var err error
 		user, err = repository.GetUserRepository().GetUser(sub)
 		if err != nil && err != sql.ErrNoRows {
@@ -96,8 +95,8 @@ func (ja *JWTSessionAuthenticator) Login(
 		}
 	} else {
 		var name string
-		if wrap, ok := claims["name"].(map[string]interface{}); ok {
-			if vals, ok := wrap["values"].([]interface{}); ok {
+		if wrap, ok := claims["name"].(map[string]any); ok {
+			if vals, ok := wrap["values"].([]any); ok {
 				if len(vals) != 0 {
 					name = fmt.Sprintf("%v", vals[0])
 
@@ -109,7 +108,7 @@ func (ja *JWTSessionAuthenticator) Login(
 		}
 
 		// Extract roles from JWT (if present)
-		if rawroles, ok := claims["roles"].([]interface{}); ok {
+		if rawroles, ok := claims["roles"].([]any); ok {
 			for _, rr := range rawroles {
 				if r, ok := rr.(string); ok {
 					if schema.IsValidRole(r) {
@@ -119,7 +118,7 @@ func (ja *JWTSessionAuthenticator) Login(
 			}
 		}
 
-		if rawprojs, ok := claims["projects"].([]interface{}); ok {
+		if rawprojs, ok := claims["projects"].([]any); ok {
 			for _, pp := range rawprojs {
 				if p, ok := pp.(string); ok {
 					projects = append(projects, p)
@@ -138,7 +137,7 @@ func (ja *JWTSessionAuthenticator) Login(
 			AuthSource: schema.AuthViaToken,
 		}
 
-		if config.Keys.JwtConfig.SyncUserOnLogin || config.Keys.JwtConfig.UpdateUserOnLogin {
+		if Keys.JwtConfig.SyncUserOnLogin || Keys.JwtConfig.UpdateUserOnLogin {
 			handleTokenUser(user)
 		}
 	}

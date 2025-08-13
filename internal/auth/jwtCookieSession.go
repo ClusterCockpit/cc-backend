@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
@@ -63,17 +62,16 @@ func (ja *JWTCookieSessionAuthenticator) Init() error {
 		return errors.New("environment variable 'CROSS_LOGIN_JWT_PUBLIC_KEY' not set (cross login token based authentication will not work)")
 	}
 
-	jc := config.Keys.JwtConfig
 	// Warn if other necessary settings are not configured
-	if jc != nil {
-		if jc.CookieName == "" {
+	if Keys.JwtConfig != nil {
+		if Keys.JwtConfig.CookieName == "" {
 			cclog.Info("cookieName for JWTs not configured (cross login via JWT cookie will fail)")
 			return errors.New("cookieName for JWTs not configured (cross login via JWT cookie will fail)")
 		}
-		if !jc.ValidateUser {
+		if !Keys.JwtConfig.ValidateUser {
 			cclog.Info("forceJWTValidationViaDatabase not set to true: CC will accept users and roles defined in JWTs regardless of its own database!")
 		}
-		if jc.TrustedIssuer == "" {
+		if Keys.JwtConfig.TrustedIssuer == "" {
 			cclog.Info("trustedExternalIssuer for JWTs not configured (cross login via JWT cookie will fail)")
 			return errors.New("trustedExternalIssuer for JWTs not configured (cross login via JWT cookie will fail)")
 		}
@@ -92,7 +90,7 @@ func (ja *JWTCookieSessionAuthenticator) CanLogin(
 	rw http.ResponseWriter,
 	r *http.Request,
 ) (*schema.User, bool) {
-	jc := config.Keys.JwtConfig
+	jc := Keys.JwtConfig
 	cookieName := ""
 	if jc.CookieName != "" {
 		cookieName = jc.CookieName
@@ -115,7 +113,7 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 	rw http.ResponseWriter,
 	r *http.Request,
 ) (*schema.User, error) {
-	jc := config.Keys.JwtConfig
+	jc := Keys.JwtConfig
 	jwtCookie, err := r.Cookie(jc.CookieName)
 	var rawtoken string
 
@@ -123,7 +121,7 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 		rawtoken = jwtCookie.Value
 	}
 
-	token, err := jwt.Parse(rawtoken, func(t *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(rawtoken, func(t *jwt.Token) (any, error) {
 		if t.Method != jwt.SigningMethodEdDSA {
 			return nil, errors.New("only Ed25519/EdDSA supported")
 		}
@@ -169,8 +167,8 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 		}
 	} else {
 		var name string
-		if wrap, ok := claims["name"].(map[string]interface{}); ok {
-			if vals, ok := wrap["values"].([]interface{}); ok {
+		if wrap, ok := claims["name"].(map[string]any); ok {
+			if vals, ok := wrap["values"].([]any); ok {
 				if len(vals) != 0 {
 					name = fmt.Sprintf("%v", vals[0])
 
@@ -182,7 +180,7 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 		}
 
 		// Extract roles from JWT (if present)
-		if rawroles, ok := claims["roles"].([]interface{}); ok {
+		if rawroles, ok := claims["roles"].([]any); ok {
 			for _, rr := range rawroles {
 				if r, ok := rr.(string); ok {
 					roles = append(roles, r)

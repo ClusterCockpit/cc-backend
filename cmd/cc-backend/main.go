@@ -5,6 +5,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -22,8 +23,9 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/tagger"
 	"github.com/ClusterCockpit/cc-backend/internal/taskManager"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/runtimeEnv"
+	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/runtimeEnv"
 	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/ClusterCockpit/cc-lib/util"
 	"github.com/google/gops/agent"
@@ -85,14 +87,17 @@ func main() {
 
 	// Initialize sub-modules and handle command line flags.
 	// The order here is important!
-	config.Init(flagConfigFile)
+	ccconf.Init(flagConfigFile)
 
-	// As a special case for `db`, allow using an environment variable instead of the value
-	// stored in the config. This can be done for people having security concerns about storing
-	// the password for their mysql database in config.json.
-	if strings.HasPrefix(config.Keys.DB, "env:") {
-		envvar := strings.TrimPrefix(config.Keys.DB, "env:")
-		config.Keys.DB = os.Getenv(envvar)
+	// Load and check main configuration
+	if cfg := ccconf.GetPackageConfig("main"); cfg != nil {
+		if clustercfg := ccconf.GetPackageConfig("clusters"); clustercfg != nil {
+			config.Init(cfg, clustercfg)
+		} else {
+			cclog.Abort("Cluster configuration must be present")
+		}
+	} else {
+		cclog.Abort("Main configuration must be present")
 	}
 
 	if flagMigrateDB {
@@ -123,7 +128,12 @@ func main() {
 
 	if !config.Keys.DisableAuthentication {
 
-		auth.Init()
+		if cfg := ccconf.GetPackageConfig("auth"); cfg != nil {
+			auth.Init(&cfg)
+		} else {
+			cclog.Warn("Authentication disabled due to missing configuration")
+			auth.Init(nil)
+		}
 
 		if flagNewUser != "" {
 			parts := strings.SplitN(flagNewUser, ":", 3)
@@ -188,7 +198,12 @@ func main() {
 		cclog.Abort("Error: Arguments '--add-user' and '--del-user' can only be used if authentication is enabled. No changes, exited.")
 	}
 
-	if err := archive.Init(config.Keys.Archive, config.Keys.DisableArchive); err != nil {
+	if archiveCfg := ccconf.GetPackageConfig("archive"); archiveCfg != nil {
+		err = archive.Init(archiveCfg, config.Keys.DisableArchive)
+	} else {
+		err = archive.Init(json.RawMessage(`{\"kind\":\"file\",\"path\":\"./var/job-archive\"}`), config.Keys.DisableArchive)
+	}
+	if err != nil {
 		cclog.Abortf("Init: Failed to initialize archive.\nError: %s\n", err.Error())
 	}
 
@@ -228,7 +243,8 @@ func main() {
 
 	archiver.Start(repository.GetJobRepository())
 
-	taskManager.Start()
+	taskManager.Start(ccconf.GetPackageConfig("cron"),
+		ccconf.GetPackageConfig("archive"))
 	serverInit()
 
 	var wg sync.WaitGroup

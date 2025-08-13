@@ -16,6 +16,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 )
 
@@ -36,18 +37,16 @@ func copyFile(s string, d string) error {
 
 func setup(t *testing.T) *repository.JobRepository {
 	const testconfig = `{
+		"main": {
 	"addr":            "0.0.0.0:8080",
 	"validate": false,
+  "apiAllowedIPs": [
+    "*"
+  ]},
 	"archive": {
 		"kind": "file",
 		"path": "./var/job-archive"
 	},
-    "jwts": {
-        "max-age": "2m"
-    },
-  "apiAllowedIPs": [
-    "*"
-  ],
 	"clusters": [
 	{
 	   "name": "testcluster",
@@ -108,7 +107,19 @@ func setup(t *testing.T) *repository.JobRepository {
 		t.Fatal(err)
 	}
 
-	config.Init(cfgFilePath)
+	ccconf.Init(cfgFilePath)
+
+	// Load and check main configuration
+	if cfg := ccconf.GetPackageConfig("main"); cfg != nil {
+		if clustercfg := ccconf.GetPackageConfig("clusters"); clustercfg != nil {
+			config.Init(cfg, clustercfg)
+		} else {
+			t.Fatal("Cluster configuration must be present")
+		}
+	} else {
+		t.Fatal("Main configuration must be present")
+	}
+
 	archiveCfg := fmt.Sprintf("{\"kind\": \"file\",\"path\": \"%s\"}", jobarchive)
 
 	if err := archive.Init(json.RawMessage(archiveCfg), config.Keys.DisableArchive); err != nil {

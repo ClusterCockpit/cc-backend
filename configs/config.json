@@ -1,24 +1,18 @@
 {
-  "addr": "0.0.0.0:443",
-  "ldap": {
-    "url": "ldaps://test",
-    "user_base": "ou=people,ou=hpc,dc=test,dc=de",
-    "search_dn": "cn=hpcmonitoring,ou=roadm,ou=profile,ou=hpc,dc=test,dc=de",
-    "user_bind": "uid={username},ou=people,ou=hpc,dc=test,dc=de",
-    "user_filter": "(&(objectclass=posixAccount))"
+  "main": {
+    "addr": "0.0.0.0:443",
+    "https-cert-file": "/etc/letsencrypt/live/url/fullchain.pem",
+    "https-key-file": "/etc/letsencrypt/live/url/privkey.pem",
+    "user": "clustercockpit",
+    "group": "clustercockpit",
+    "validate": false,
+    "apiAllowedIPs": ["*"],
+    "short-running-jobs-duration": 300,
+    "resampling": {
+      "trigger": 30,
+      "resolutions": [600, 300, 120, 60]
+    }
   },
-  "https-cert-file": "/etc/letsencrypt/live/url/fullchain.pem",
-  "https-key-file": "/etc/letsencrypt/live/url/privkey.pem",
-  "user": "clustercockpit",
-  "group": "clustercockpit",
-  "archive": {
-    "kind": "file",
-    "path": "./var/job-archive"
-  },
-  "validate": false,
-  "apiAllowedIPs": [
-    "*"
-  ],
   "clusters": [
     {
       "name": "test",
@@ -42,21 +36,5 @@
         }
       }
     }
-  ],
-  "jwts": {
-    "cookieName": "",
-    "validateUser": false,
-    "max-age": "2000h",
-    "trustedIssuer": ""
-  },
-  "enable-resampling": {
-    "trigger": 30,
-    "resolutions": [
-      600,
-      300,
-      120,
-      60
-    ]
-  },
-  "short-running-jobs-duration": 300
+  ]
 }

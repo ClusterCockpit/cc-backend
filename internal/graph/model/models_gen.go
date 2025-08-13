@@ -3,11 +3,13 @@
 package model
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"strconv"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
@@ -58,13 +60,13 @@ type JobFilter struct {
 	JobName         *StringInput      `json:"jobName,omitempty"`
 	Cluster         *StringInput      `json:"cluster,omitempty"`
 	Partition       *StringInput      `json:"partition,omitempty"`
-	Duration        *schema.IntRange  `json:"duration,omitempty"`
+	Duration        *config.IntRange  `json:"duration,omitempty"`
 	Energy          *FloatRange       `json:"energy,omitempty"`
 	MinRunningFor   *int              `json:"minRunningFor,omitempty"`
-	NumNodes        *schema.IntRange  `json:"numNodes,omitempty"`
-	NumAccelerators *schema.IntRange  `json:"numAccelerators,omitempty"`
-	NumHWThreads    *schema.IntRange  `json:"numHWThreads,omitempty"`
-	StartTime       *schema.TimeRange `json:"startTime,omitempty"`
+	NumNodes        *config.IntRange  `json:"numNodes,omitempty"`
+	NumAccelerators *config.IntRange  `json:"numAccelerators,omitempty"`
+	NumHWThreads    *config.IntRange  `json:"numHWThreads,omitempty"`
+	StartTime       *config.TimeRange `json:"startTime,omitempty"`
 	State           []schema.JobState `json:"state,omitempty"`
 	MetricStats     []*MetricStatItem `json:"metricStats,omitempty"`
 	Exclusive       *int              `json:"exclusive,omitempty"`
@@ -290,6 +292,20 @@ func (e Aggregate) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
+func (e *Aggregate) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e Aggregate) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type SortByAggregate string
 
 const (
@@ -345,6 +361,20 @@ func (e SortByAggregate) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
+func (e *SortByAggregate) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e SortByAggregate) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type SortDirectionEnum string
 
 const (
@@ -384,4 +414,18 @@ func (e *SortDirectionEnum) UnmarshalGQL(v any) error {
 
 func (e SortDirectionEnum) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *SortDirectionEnum) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e SortDirectionEnum) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }

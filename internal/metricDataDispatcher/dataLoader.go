@@ -41,7 +41,7 @@ func LoadData(job *schema.Job,
 	ctx context.Context,
 	resolution int,
 ) (schema.JobData, error) {
-	data := cache.Get(cacheKey(job, metrics, scopes, resolution), func() (_ interface{}, ttl time.Duration, size int) {
+	data := cache.Get(cacheKey(job, metrics, scopes, resolution), func() (_ any, ttl time.Duration, size int) {
 		var jd schema.JobData
 		var err error
 

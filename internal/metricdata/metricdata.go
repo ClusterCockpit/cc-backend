@@ -40,7 +40,7 @@ type MetricDataRepository interface {
 var metricDataRepos map[string]MetricDataRepository = map[string]MetricDataRepository{}
 
 func Init() error {
-	for _, cluster := range config.Keys.Clusters {
+	for _, cluster := range config.Clusters {
 		if cluster.MetricDataRepository != nil {
 			var kind struct {
 				Kind string `json:"kind"`

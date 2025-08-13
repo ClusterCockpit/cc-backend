@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved. This file is part of cc-backend.
+// All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package archive
@@ -86,7 +86,7 @@ func TestLoadJobMeta(t *testing.T) {
 	}
 
 	jobIn := schema.Job{
-		Exclusive:        1,
+		Shared:           "none",
 		MonitoringStatus: schema.MonitoringStatusRunningOrArchiving,
 	}
 	jobIn.StartTime = 1608923076
@@ -117,7 +117,7 @@ func TestLoadJobData(t *testing.T) {
 	}
 
 	jobIn := schema.Job{
-		Exclusive:        1,
+		Shared:           "none",
 		MonitoringStatus: schema.MonitoringStatusRunningOrArchiving,
 	}
 	jobIn.StartTime = 1608923076
@@ -148,7 +148,7 @@ func BenchmarkLoadJobData(b *testing.B) {
 	fsa.Init(json.RawMessage(archiveCfg))
 
 	jobIn := schema.Job{
-		Exclusive:        1,
+		Shared:           "none",
 		MonitoringStatus: schema.MonitoringStatusRunningOrArchiving,
 	}
 	jobIn.StartTime = 1608923076
@@ -174,7 +174,7 @@ func BenchmarkLoadJobDataCompressed(b *testing.B) {
 	fsa.Init(json.RawMessage(archiveCfg))
 
 	jobIn := schema.Job{
-		Exclusive:        1,
+		Shared:           "none",
 		MonitoringStatus: schema.MonitoringStatusRunningOrArchiving,
 	}
 	jobIn.StartTime = 1608923076

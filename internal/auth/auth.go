@@ -5,10 +5,12 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -51,6 +53,14 @@ func getIPUserLimiter(ip, username string) *rate.Limiter {
 	return limiter.(*rate.Limiter)
 }
 
+type AuthConfig struct {
+	LdapConfig   *LdapConfig    `json:"ldap"`
+	JwtConfig    *JWTAuthConfig `json:"jwts"`
+	OpenIDConfig *OpenIDConfig  `json:"oidc"`
+}
+
+var Keys AuthConfig
+
 type Authentication struct {
 	sessionStore   *sessions.CookieStore
 	LdapAuth       *LdapAuthenticator
@@ -87,7 +97,7 @@ func (auth *Authentication) AuthViaSession(
 	}, nil
 }
 
-func Init() {
+func Init(authCfg *json.RawMessage) {
 	initOnce.Do(func() {
 		authInstance = &Authentication{}
 
@@ -111,7 +121,18 @@ func Init() {
 			authInstance.SessionMaxAge = d
 		}
 
-		if config.Keys.LdapConfig != nil {
+		if authCfg == nil {
+			return
+		}
+
+		config.Validate(configSchema, *authCfg)
+		dec := json.NewDecoder(bytes.NewReader(*authCfg))
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&Keys); err != nil {
+			cclog.Errorf("error while decoding ldap config: %v", err)
+		}
+
+		if Keys.LdapConfig != nil {
 			ldapAuth := &LdapAuthenticator{}
 			if err := ldapAuth.Init(); err != nil {
 				cclog.Warn("Error while initializing authentication -> ldapAuth init failed")
@@ -123,7 +144,7 @@ func Init() {
 			cclog.Info("Missing LDAP configuration: No LDAP support!")
 		}
 
-		if config.Keys.JwtConfig != nil {
+		if Keys.JwtConfig != nil {
 			authInstance.JwtAuth = &JWTAuthenticator{}
 			if err := authInstance.JwtAuth.Init(); err != nil {
 				cclog.Fatal("Error while initializing authentication -> jwtAuth init failed")
@@ -168,11 +189,11 @@ func handleTokenUser(tokenUser *schema.User) {
 
 	if err != nil && err != sql.ErrNoRows {
 		cclog.Errorf("Error while loading user '%s': %v", tokenUser.Username, err)
-	} else if err == sql.ErrNoRows && config.Keys.JwtConfig.SyncUserOnLogin { // Adds New User
+	} else if err == sql.ErrNoRows && Keys.JwtConfig.SyncUserOnLogin { // Adds New User
 		if err := r.AddUser(tokenUser); err != nil {
 			cclog.Errorf("Error while adding user '%s' to DB: %v", tokenUser.Username, err)
 		}
-	} else if err == nil && config.Keys.JwtConfig.UpdateUserOnLogin { // Update Existing User
+	} else if err == nil && Keys.JwtConfig.UpdateUserOnLogin { // Update Existing User
 		if err := r.UpdateUser(dbUser, tokenUser); err != nil {
 			cclog.Errorf("Error while updating user '%s' to DB: %v", dbUser.Username, err)
 		}
@@ -185,11 +206,11 @@ func handleOIDCUser(OIDCUser *schema.User) {
 
 	if err != nil && err != sql.ErrNoRows {
 		cclog.Errorf("Error while loading user '%s': %v", OIDCUser.Username, err)
-	} else if err == sql.ErrNoRows && config.Keys.OpenIDConfig.SyncUserOnLogin { // Adds New User
+	} else if err == sql.ErrNoRows && Keys.OpenIDConfig.SyncUserOnLogin { // Adds New User
 		if err := r.AddUser(OIDCUser); err != nil {
 			cclog.Errorf("Error while adding user '%s' to DB: %v", OIDCUser.Username, err)
 		}
-	} else if err == nil && config.Keys.OpenIDConfig.UpdateUserOnLogin { // Update Existing User
+	} else if err == nil && Keys.OpenIDConfig.UpdateUserOnLogin { // Update Existing User
 		if err := r.UpdateUser(dbUser, OIDCUser); err != nil {
 			cclog.Errorf("Error while updating user '%s' to DB: %v", dbUser.Username, err)
 		}

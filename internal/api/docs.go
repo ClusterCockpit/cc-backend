@@ -1261,8 +1261,26 @@ const docTemplate = `{
         "api.Node": {
             "type": "object",
             "properties": {
+                "cpusAllocated": {
+                    "type": "integer"
+                },
+                "cpusTotal": {
+                    "type": "integer"
+                },
+                "gpusAllocated": {
+                    "type": "integer"
+                },
+                "gpusTotal": {
+                    "type": "integer"
+                },
                 "hostname": {
                     "type": "string"
+                },
+                "memoryAllocated": {
+                    "type": "integer"
+                },
+                "memoryTotal": {
+                    "type": "integer"
                 },
                 "states": {
                     "type": "array",
@@ -1379,7 +1397,8 @@ const docTemplate = `{
                 "energyFootprint": {
                     "type": "object",
                     "additionalProperties": {
-                        "type": "number"
+                        "type": "number",
+                        "format": "float64"
                     }
                 },
                 "exclusive": {
@@ -1391,7 +1410,8 @@ const docTemplate = `{
                 "footprint": {
                     "type": "object",
                     "additionalProperties": {
-                        "type": "number"
+                        "type": "number",
+                        "format": "float64"
                     }
                 },
                 "id": {
@@ -1482,6 +1502,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "main"
                 },
+                "submitTime": {
+                    "type": "integer",
+                    "example": 1649723812
+                },
                 "tags": {
                     "type": "array",
                     "items": {
@@ -1547,24 +1571,32 @@ const docTemplate = `{
         "schema.JobState": {
             "type": "string",
             "enum": [
-                "running",
-                "completed",
-                "failed",
+                "boot_fail",
                 "cancelled",
-                "stopped",
-                "timeout",
+                "completed",
+                "deadline",
+                "failed",
+                "node_fail",
+                "out_of_memory",
+                "pending",
                 "preempted",
-                "out_of_memory"
+                "running",
+                "suspended",
+                "timeout"
             ],
             "x-enum-varnames": [
-                "JobStateRunning",
-                "JobStateCompleted",
-                "JobStateFailed",
+                "JobStateBootFail",
                 "JobStateCancelled",
-                "JobStateStopped",
-                "JobStateTimeout",
+                "JobStateCompleted",
+                "JobStateDeadline",
+                "JobStateFailed",
+                "JobStateNodeFail",
+                "JobStateOutOfMemory",
+                "JobStatePending",
                 "JobStatePreempted",
-                "JobStateOutOfMemory"
+                "JobStateRunning",
+                "JobStateSuspended",
+                "JobStateTimeout"
             ]
         },
         "schema.JobStatistics": {
@@ -1763,7 +1795,8 @@ const docTemplate = `{
                     "additionalProperties": {
                         "type": "array",
                         "items": {
-                            "type": "number"
+                            "type": "number",
+                            "format": "float64"
                         }
                     }
                 }
