@@ -2,7 +2,7 @@
   @component Main cluster status view component; renders current system-usage information
 
   Properties:
-  - `cluster String`: The cluster to show status information for
+  - `presetCluster String`: The cluster to show status information for
 -->
 
  <script>
@@ -19,7 +19,6 @@
     queryStore,
     gql,
     getContextClient,
-    // mutationStore,
   } from "@urql/svelte";
   import {
     init,
@@ -28,10 +27,11 @@
   import PlotGrid from "../generic/PlotGrid.svelte";
   import Histogram from "../generic/plots/Histogram.svelte";
   import HistogramSelection from "../generic/select/HistogramSelection.svelte";
+  import Refresher from "../generic/helper/Refresher.svelte";
 
   /* Svelte 5 Props */
   let {
-    cluster
+    presetCluster
   } = $props();
 
   /* Const Init */
@@ -40,16 +40,17 @@
   const client = getContextClient();
 
   /* State Init */
-
-  // Histrogram
+  let cluster = $state(presetCluster);
+  // Histogram
   let isHistogramSelectionOpen = $state(false);
-
-  // TODO: Originally Uses User View Selection! -> Change to Status View 
-  let selectedHistograms = $state(cluster
-    ? ccconfig[`user_view_histogramMetrics:${cluster}`] || ( ccconfig['user_view_histogramMetrics'] || [] )
-    : ccconfig['user_view_histogramMetrics'] || []);
+  let from = $state(new Date(Date.now() - (30 * 24 * 60 * 60 * 1000))); // Simple way to retrigger GQL: Jobs Started last Month
+  let to = $state(new Date(Date.now()));
 
   /* Derived */
+  let selectedHistograms = $derived(cluster
+    ? ccconfig[`status_view_selectedHistograms:${cluster}`] || ( ccconfig['status_view_selectedHistograms'] || [] )
+    : ccconfig['status_view_selectedHistograms'] || []);
+
   // Note: nodeMetrics are requested on configured $timestep resolution
   const metricStatusQuery = $derived(queryStore({
     client: client,
@@ -73,43 +74,16 @@
       }
     `,
     variables: {
-      filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
+      filter: [{ state: ["running"] }, { cluster: { eq: cluster}}, {startTime: { from, to }}],
       selectedHistograms: selectedHistograms,
     },
   }));
 
-  /* Functions */
-  // TODO: Originally Uses User View Selection! -> Change to Status View : Adapt Mutations from TopUserSelect
-  // function updateTopUserConfiguration(select) {
-  //   if (ccconfig[`status_view_selectedHistograms:${cluster}`] != select) {
-  //     updateConfigurationMutation({
-  //       name: `status_view_selectedHistograms:${cluster}`,
-  //       value: JSON.stringify(select),
-  //     }).subscribe((res) => {
-  //       if (res.fetching === false && res.error) {
-  //         throw res.error;
-  //       }
-  //     });
-  //   }
-  // };
-
-  // const updateConfigurationMutation = ({ name, value }) => {
-  //   return mutationStore({
-  //     client: client,
-  //     query: gql`
-  //       mutation ($name: String!, $value: String!) {
-  //         updateConfiguration(name: $name, value: $value)
-  //       }
-  //     `,
-  //     variables: { name, value },
-  //   });
-  // };
-
 </script>
 
 <!-- Loading indicators & Metric Sleect -->
-<Row cols={{ xs: 1 }}>
-  <Col class="text-md-end">
+<Row class="justify-content-between">
+  <Col class="mb-2 mb-md-0" xs="12" md="5" lg="4" xl="3">
     <Button
       outline
       color="secondary"
@@ -118,7 +92,17 @@
       <Icon name="bar-chart-line" /> Select Histograms
     </Button>
   </Col>
+  <Col xs="12" md="5" lg="4" xl="3">
+    <Refresher
+      initially={120}
+      onRefresh={() => {
+        from = new Date(Date.now() - (30 * 24 * 60 * 60 * 1000)); // Triggers GQL
+        to = new Date(Date.now());
+      }}
+    />
+  </Col>
 </Row>
+
 <Row cols={1} class="text-center mt-3">
   <Col>
     {#if $initq.fetching || $metricStatusQuery.fetching}
@@ -168,6 +152,7 @@
   {cluster}
   bind:isOpen={isHistogramSelectionOpen}
   presetSelectedHistograms={selectedHistograms}
+  configName="status_view_selectedHistograms"
   applyChange={(newSelection) => {
     selectedHistograms = [...newSelection];
   }}

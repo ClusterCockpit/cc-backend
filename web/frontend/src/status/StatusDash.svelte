@@ -2,7 +2,7 @@
   @component Main cluster status view component; renders current system-usage information
 
   Properties:
-  - `cluster String`: The cluster to show status information for
+  - `presetCluster String`: The cluster to show status information for
 -->
 
  <script>
@@ -26,12 +26,13 @@
     init,
   } from "../generic/utils.js";
   import { scaleNumbers, formatTime } from "../generic/units.js";
+  import Refresher from "../generic/helper/Refresher.svelte";
   import Roofline from "../generic/plots/Roofline.svelte";
   import Pie, { colors } from "../generic/plots/Pie.svelte";
 
   /* Svelte 5 Props */
   let {
-    cluster,
+    presetCluster,
     useCbColors = false,
     useAltColors = false,
   } = $props();
@@ -41,10 +42,11 @@
   const client = getContextClient();
 
   /* State Init */
-  let from = $state(new Date(Date.now() - 5 * 60 * 1000));
-  let to = $state(new Date(Date.now()));
+  let cluster = $state(presetCluster);
   let pieWidth = $state(0);
   let plotWidths = $state([]);
+  let from = $state(new Date(Date.now() - 5 * 60 * 1000));
+  let to = $state(new Date(Date.now()));
   // Bar Gauges
   let allocatedNodes = $state({});
   let allocatedAccs = $state({});
@@ -232,7 +234,6 @@
   });
 
   /* Const Functions */
-  // New: Sum Up Node Averages
   const sumUp = (data, subcluster, metric) =>
     data.reduce(
       (sum, node) =>
@@ -245,22 +246,6 @@
           : sum,
       0,
     );
-
-  // Old: SumUp Metric Time Data
-  // const sumUp = (data, subcluster, metric) =>
-  //   data.reduce(
-  //     (sum, node) =>
-  //       node.subCluster == subcluster
-  //         ? sum +
-  //           (node.metrics
-  //             .find((m) => m.name == metric)
-  //             ?.metric.series.reduce(
-  //               (sum, series) => sum + series.data[series.data.length - 1],
-  //               0,
-  //             ) || 0)
-  //         : sum,
-  //     0,
-  //   );
 
   /* Functions */
   function transformJobsStatsToData(subclusterData) {
@@ -311,8 +296,7 @@
 
         let intensity = f / m
         if (Number.isNaN(intensity) || !Number.isFinite(intensity)) {
-            // continue // Old: Introduces mismatch between Data and Info Arrays
-            intensity = 0.0 // New: Set to Float Zero: Will not show in Log-Plot (Always below render limit)
+            intensity = 0.0 // Set to Float Zero: Will not show in Log-Plot (Always below render limit)
         }
 
         x.push(intensity)
@@ -342,8 +326,6 @@
     if (subClusterData) { //  && $nodesState?.data) {
       // Use Nodes as Returned from CCMS, *NOT* as saved in DB via SlurmState-API!
       for (let j = 0; j < subClusterData.length; j++) {
-        // nodesCounts[subClusterData[i].subCluster] = $nodesState.data.nodes.count; // Probably better as own derived!
-
         const nodeName = subClusterData[j]?.host ? subClusterData[j].host : "unknown"
         const nodeMatch = $statusQuery?.data?.nodes?.items?.find((n) => n.hostname == nodeName && n.subCluster == subClusterData[j].subCluster);
         const nodeState = nodeMatch?.nodeState ? nodeMatch.nodeState : "notindb"
@@ -374,6 +356,21 @@
   }
 
 </script>
+
+<!-- Refresher and space for other options -->
+<Row class="justify-content-end">
+  <Col xs="12" md="5" lg="4" xl="3">
+    <Refresher
+      initially={120}
+      onRefresh={() => {
+        from = new Date(Date.now() - 5 * 60 * 1000);
+        to = new Date(Date.now());
+      }}
+    />
+  </Col>
+</Row>
+
+<hr/>
 
 <!-- Node Health Pis, later Charts -->
 {#if $initq.data && $nodesStateCounts.data}

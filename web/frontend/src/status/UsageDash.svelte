@@ -2,7 +2,7 @@
   @component Main cluster status view component; renders current system-usage information
 
   Properties:
-  - `cluster String`: The cluster to show status information for
+  - `presetCluster String`: The cluster to show status information for
 -->
 
  <script>
@@ -13,7 +13,10 @@
     Card,
     Table,
     Icon,
-    Tooltip
+    Tooltip,
+    Input,
+    InputGroup,
+    InputGroupText
   } from "@sveltestrap/sveltestrap";
   import {
     queryStore,
@@ -28,10 +31,11 @@
   } from "../generic/utils.js";
   import Pie, { colors } from "../generic/plots/Pie.svelte";
   import Histogram from "../generic/plots/Histogram.svelte";
+  import Refresher from "../generic/helper/Refresher.svelte";
 
   /* Svelte 5 Props */
   let {
-    cluster,
+    presetCluster,
     useCbColors = false,
     useAltColors = false
   } = $props();
@@ -39,11 +43,16 @@
   /* Const Init */
   const { query: initq } = init();
   const client = getContextClient();
+  const durationBinOptions = ["1m","10m","1h","6h","12h"];
 
   /* State Init */
+  let cluster = $state(presetCluster)
+  let from = $state(new Date(Date.now() - (30 * 24 * 60 * 60 * 1000))); // Simple way to retrigger GQL: Jobs Started last Month
+  let to = $state(new Date(Date.now()));
   let colWidthJobs = $state(0);
   let colWidthNodes = $state(0);
   let colWidthAccs = $state(0);
+  let numDurationBins = $state("1h");
 
   /* Derived */
   const topJobsQuery = $derived(queryStore({
@@ -75,7 +84,7 @@
       }
     `,
     variables: {
-      filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
+      filter: [{ state: ["running"] }, { cluster: { eq: cluster}}, {startTime: { from, to }}],
       paging: { itemsPerPage: 10, page: 1 } // Top 10
     },
   }));
@@ -109,7 +118,7 @@
       }
     `,
     variables: {
-      filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
+      filter: [{ state: ["running"] }, { cluster: { eq: cluster }}, {startTime: { from, to }}],
       paging: { itemsPerPage: 10, page: 1 } // Top 10
     },
   }));
@@ -143,7 +152,7 @@
       }
     `,
     variables: {
-      filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
+      filter: [{ state: ["running"] }, { cluster: { eq: cluster }}, {startTime: { from, to }}],
       paging: { itemsPerPage: 10, page: 1 } // Top 10
     },
   }));
@@ -155,8 +164,9 @@
       query (
         $filter: [JobFilter!]!
         $selectedHistograms: [String!]
+        $numDurationBins: String
       ) {
-        jobsStatistics(filter: $filter, metrics: $selectedHistograms) {
+        jobsStatistics(filter: $filter, metrics: $selectedHistograms, numDurationBins: $numDurationBins) {
           histDuration {
             count
             value
@@ -173,8 +183,9 @@
       }
     `,
     variables: {
-      filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
+      filter: [{ state: ["running"] }, { cluster: { eq: cluster }}, {startTime: { from, to }}],
       selectedHistograms: [], // No Metrics requested for node hardware stats
+      numDurationBins: numDurationBins,
     },
   }));
 
@@ -191,7 +202,38 @@
       }
     return  c[(c.length + targetIdx) % c.length];
   }
+
 </script>
+
+<!-- Refresher and space for other options -->
+<Row class="justify-content-between">
+    <Col class="mb-2 mb-md-0" xs="12" md="5" lg="4" xl="3">
+    <InputGroup>
+      <InputGroupText>
+        <Icon name="bar-chart-line-fill" />
+      </InputGroupText>
+      <InputGroupText>
+        Duration Bin Size
+      </InputGroupText>
+      <Input type="select" bind:value={numDurationBins}>
+        {#each durationBinOptions as dbin}
+          <option value={dbin}>{dbin}</option>
+        {/each}
+      </Input>
+    </InputGroup>
+  </Col>
+  <Col xs="12" md="5" lg="4" xl="3">
+    <Refresher
+      initially={120}
+      onRefresh={() => {
+        from = new Date(Date.now() - (30 * 24 * 60 * 60 * 1000)); // Triggers GQL
+        to = new Date(Date.now());
+      }}
+    />
+  </Col>
+</Row>
+
+<hr/>
 
 <!-- Job Duration, Top Users and Projects-->
 {#if $topJobsQuery.fetching || $nodeStatusQuery.fetching}
@@ -199,17 +241,19 @@
 {:else if $topJobsQuery.data && $nodeStatusQuery.data}
   <Row>
     <Col xs="12" lg="4" class="p-2">
-      <Histogram
-        data={convert2uplot($nodeStatusQuery.data.jobsStatistics[0].histDuration)}
-        title="Duration Distribution"
-        xlabel="Current Job Runtimes"
-        xunit="Runtime"
-        ylabel="Number of Jobs"
-        yunit="Jobs"
-        height="275"
-        usesBins
-        xtime
-      />
+      {#key $nodeStatusQuery.data.jobsStatistics[0].histDuration}
+        <Histogram
+          data={convert2uplot($nodeStatusQuery.data.jobsStatistics[0].histDuration)}
+          title="Duration Distribution"
+          xlabel="Current Job Runtimes"
+          xunit="Runtime"
+          ylabel="Number of Jobs"
+          yunit="Jobs"
+          height="275"
+          usesBins
+          xtime
+        />
+      {/key}
     </Col>
     <Col xs="6" md="3" lg="2" class="p-2">
       <div bind:clientWidth={colWidthJobs}>
@@ -233,7 +277,7 @@
         <tr class="mb-2">
           <th></th>
           <th style="padding-left: 0.5rem;">User</th>
-          <th>Active Jobs</th>
+          <th>Jobs</th>
         </tr>
         {#each $topJobsQuery.data.topUser as tu, i}
           <tr>
@@ -276,7 +320,7 @@
         <tr class="mb-2">
           <th></th>
           <th style="padding-left: 0.5rem;">Project</th>
-          <th>Active Jobs</th>
+          <th>Jobs</th>
         </tr>
         {#each $topJobsQuery.data.topProjects as tp, i}
           <tr>

@@ -404,6 +404,7 @@
   cluster={selectedCluster}
   bind:isOpen={isHistogramSelectionOpen}
   presetSelectedHistograms={selectedHistograms}
+  configName="user_view_histogramMetrics"
   applyChange={(newSelection) => {
     selectedHistogramsBuffer[selectedCluster || 'all'] = [...newSelection];
   }}
