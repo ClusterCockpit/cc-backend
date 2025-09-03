@@ -7,6 +7,7 @@ package taskManager
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
@@ -65,10 +66,14 @@ func Start(cronCfg, archiveConfig json.RawMessage) {
 		RegisterStopJobsExceedTime()
 	}
 
+	fmt.Printf("Keys : %#v\n", Keys)
+	fmt.Printf("cronCfg : %#v\n", cronCfg)
+	fmt.Printf("archiveConfig : %#v\n", archiveConfig)
+
 	dec := json.NewDecoder(bytes.NewReader(cronCfg))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&Keys); err != nil {
-		cclog.Errorf("error while decoding ldap config: %v", err)
+		cclog.Errorf("error while decoding cron config: %v", err)
 	}
 
 	var cfg struct {

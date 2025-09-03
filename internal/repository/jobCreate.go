@@ -14,19 +14,19 @@ import (
 )
 
 const NamedJobCacheInsert string = `INSERT INTO job_cache (
-	job_id, hpc_user, project, cluster, subcluster, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc,
-	exclusive, monitoring_status, smt, job_state, start_time, duration, walltime, footprint, energy, energy_footprint, resources, meta_data
+	job_id, hpc_user, project, hpc_cluster, subcluster, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc,
+	shared, monitoring_status, smt, job_state, start_time, duration, walltime, footprint, energy, energy_footprint, resources, meta_data
 ) VALUES (
-	:job_id, :hpc_user, :project, :cluster, :subcluster, :cluster_partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
-  :exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :walltime, :footprint,  :energy, :energy_footprint, :resources, :meta_data
+	:job_id, :hpc_user, :project, :hpc_cluster, :subcluster, :cluster_partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
+  :shared, :monitoring_status, :smt, :job_state, :start_time, :duration, :walltime, :footprint,  :energy, :energy_footprint, :resources, :meta_data
 );`
 
 const NamedJobInsert string = `INSERT INTO job (
-	job_id, hpc_user, project, cluster, subcluster, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc,
-	exclusive, monitoring_status, smt, job_state, start_time, duration, walltime, footprint, energy, energy_footprint, resources, meta_data
+	job_id, hpc_user, project, hpc_cluster, subcluster, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc,
+	shared, monitoring_status, smt, job_state, start_time, duration, walltime, footprint, energy, energy_footprint, resources, meta_data
 ) VALUES (
-	:job_id, :hpc_user, :project, :cluster, :subcluster, :cluster_partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
-  :exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :walltime, :footprint,  :energy, :energy_footprint, :resources, :meta_data
+	:job_id, :hpc_user, :project, :hpc_cluster, :subcluster, :cluster_partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
+  :shared, :monitoring_status, :smt, :job_state, :start_time, :duration, :walltime, :footprint,  :energy, :energy_footprint, :resources, :meta_data
 );`
 
 func (r *JobRepository) InsertJob(job *schema.Job) (int64, error) {

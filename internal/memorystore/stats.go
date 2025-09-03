@@ -5,7 +5,6 @@ import (
 	"math"
 
 	"github.com/ClusterCockpit/cc-lib/util"
-	"github.com/ClusterCockpit/cc-metric-store/internal/config"
 )
 
 type Stats struct {
@@ -105,9 +104,9 @@ func (m *MemoryStore) Stats(selector util.Selector, metric string, from, to int6
 		return nil, 0, 0, ErrNoData
 	}
 
-	if minfo.Aggregation == config.AvgAggregation {
+	if minfo.Aggregation == AvgAggregation {
 		avg /= util.Float(n)
-	} else if n > 1 && minfo.Aggregation != config.SumAggregation {
+	} else if n > 1 && minfo.Aggregation != SumAggregation {
 		return nil, 0, 0, errors.New("invalid aggregation")
 	}
 

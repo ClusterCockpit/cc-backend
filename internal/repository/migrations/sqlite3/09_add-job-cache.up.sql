@@ -3,7 +3,7 @@ CREATE TABLE "job_cache" (
     job_id BIGINT NOT NULL,
     hpc_cluster VARCHAR(255) NOT NULL,
     subcluster VARCHAR(255) NOT NULL,
-    submit_time BIGINT NOT NULL, -- Unix timestamp
+    submit_time BIGINT NOT NULL DEFAULT 0, -- Unix timestamp
     start_time BIGINT NOT NULL DEFAULT 0, -- Unix timestamp
     hpc_user VARCHAR(255) NOT NULL,
     project VARCHAR(255) NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE "job_cache" (
     energy REAL NOT NULL DEFAULT 0.0,
     energy_footprint TEXT DEFAULT NULL,
     footprint TEXT DEFAULT NULL,
-    UNIQUE (job_id, cluster, start_time)
+    UNIQUE (job_id, hpc_cluster, start_time)
 );
 
 CREATE TABLE "job_new" (
@@ -65,10 +65,21 @@ CREATE TABLE "job_new" (
     energy REAL NOT NULL DEFAULT 0.0,
     energy_footprint TEXT DEFAULT NULL,
     footprint TEXT DEFAULT NULL,
-    UNIQUE (job_id, cluster, start_time)
+    UNIQUE (job_id, hpc_cluster, start_time)
 );
 
 ALTER TABLE job RENAME COLUMN cluster TO hpc_cluster;
-INSERT INTO job_new SELECT * FROM job;
+INSERT INTO job_new (
+    id, job_id, hpc_cluster, subcluster, submit_time, start_time, hpc_user, project, 
+    cluster_partition, array_job_id, duration, walltime, job_state, meta_data, resources, 
+    num_nodes, num_hwthreads, num_acc, smt, shared, monitoring_status, energy, 
+    energy_footprint, footprint
+)
+SELECT 
+    id, job_id, hpc_cluster, subcluster, 0, start_time, hpc_user, project, 
+    cluster_partition, array_job_id, duration, walltime, job_state, meta_data, resources, 
+    num_nodes, num_hwthreads, num_acc, smt, exclusive, monitoring_status, energy, 
+    energy_footprint, footprint
+FROM job;
 DROP TABLE job;
 ALTER TABLE job_new RENAME TO job;

@@ -19,7 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/avro"
+	"github.com/ClusterCockpit/cc-backend/internal/avro"
 	"github.com/ClusterCockpit/cc-lib/util"
 	"github.com/linkedin/goavro/v2"
 )

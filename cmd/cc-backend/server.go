@@ -26,6 +26,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/generated"
+	"github.com/ClusterCockpit/cc-backend/internal/memorystore"
 	"github.com/ClusterCockpit/cc-backend/internal/routerConfig"
 	"github.com/ClusterCockpit/cc-backend/web"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
@@ -324,6 +325,9 @@ func serverStart() {
 func serverShutdown() {
 	// First shut down the server gracefully (waiting for all ongoing requests)
 	server.Shutdown(context.Background())
+
+	//Archive all the metric store data
+	memorystore.Shutdown()
 
 	// Then, wait for any async archivings still pending...
 	archiver.WaitForArchiving()
