@@ -20,15 +20,16 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/avro"
-	"github.com/ClusterCockpit/cc-lib/util"
+	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/linkedin/goavro/v2"
 )
 
 // Whenever changed, update MarshalJSON as well!
 type CheckpointMetrics struct {
-	Data      []util.Float `json:"data"`
-	Frequency int64        `json:"frequency"`
-	Start     int64        `json:"start"`
+	Data      []schema.Float `json:"data"`
+	Frequency int64          `json:"frequency"`
+	Start     int64          `json:"start"`
 }
 
 type CheckpointFile struct {
@@ -43,12 +44,12 @@ var lastCheckpoint time.Time
 func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 	lastCheckpoint = time.Now()
 
-	if Keys.Checkpoints.FileFormat == "json" {
+	if config.MetricStoreKeys.Checkpoints.FileFormat == "json" {
 		ms := GetMemoryStore()
 
 		go func() {
 			defer wg.Done()
-			d, err := time.ParseDuration(Keys.Checkpoints.Interval)
+			d, err := time.ParseDuration(config.MetricStoreKeys.Checkpoints.Interval)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -67,14 +68,14 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 				case <-ctx.Done():
 					return
 				case <-ticks:
-					log.Printf("start checkpointing (starting at %s)...\n", lastCheckpoint.Format(time.RFC3339))
+					log.Printf("[METRICSTORE]> start checkpointing (starting at %s)...\n", lastCheckpoint.Format(time.RFC3339))
 					now := time.Now()
-					n, err := ms.ToCheckpoint(Keys.Checkpoints.RootDir,
+					n, err := ms.ToCheckpoint(config.MetricStoreKeys.Checkpoints.RootDir,
 						lastCheckpoint.Unix(), now.Unix())
 					if err != nil {
-						log.Printf("checkpointing failed: %s\n", err.Error())
+						log.Printf("[METRICSTORE]> checkpointing failed: %s\n", err.Error())
 					} else {
-						log.Printf("done: %d checkpoint files created\n", n)
+						log.Printf("[METRICSTORE]> done: %d checkpoint files created\n", n)
 						lastCheckpoint = now
 					}
 				}
@@ -90,7 +91,7 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 				return
 			case <-time.After(time.Duration(avro.CheckpointBufferMinutes) * time.Minute):
 				// This is the first tick untill we collect the data for given minutes.
-				avro.GetAvroStore().ToCheckpoint(Keys.Checkpoints.RootDir, false)
+				avro.GetAvroStore().ToCheckpoint(config.MetricStoreKeys.Checkpoints.RootDir, false)
 				// log.Printf("Checkpointing %d avro files", count)
 
 			}
@@ -108,7 +109,7 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 					return
 				case <-ticks:
 					// Regular ticks of 1 minute to write data.
-					avro.GetAvroStore().ToCheckpoint(Keys.Checkpoints.RootDir, false)
+					avro.GetAvroStore().ToCheckpoint(config.MetricStoreKeys.Checkpoints.RootDir, false)
 					// log.Printf("Checkpointing %d avro files", count)
 				}
 			}
@@ -179,7 +180,7 @@ func (m *MemoryStore) ToCheckpoint(dir string, from, to int64) (int, error) {
 						continue
 					}
 
-					log.Printf("error while checkpointing %#v: %s", workItem.selector, err.Error())
+					log.Printf("[METRICSTORE]> error while checkpointing %#v: %s", workItem.selector, err.Error())
 					atomic.AddInt32(&errs, 1)
 				} else {
 					atomic.AddInt32(&n, 1)
@@ -201,7 +202,7 @@ func (m *MemoryStore) ToCheckpoint(dir string, from, to int64) (int, error) {
 	wg.Wait()
 
 	if errs > 0 {
-		return int(n), fmt.Errorf("%d errors happend while creating checkpoints (%d successes)", errs, n)
+		return int(n), fmt.Errorf("[METRICSTORE]> %d errors happend while creating checkpoints (%d successes)", errs, n)
 	}
 	return int(n), nil
 }
@@ -235,14 +236,14 @@ func (l *Level) toCheckpointFile(from, to int64, m *MemoryStore) (*CheckpointFil
 			continue
 		}
 
-		data := make([]util.Float, (to-from)/b.frequency+1)
+		data := make([]schema.Float, (to-from)/b.frequency+1)
 		data, start, end, err := b.read(from, to, data)
 		if err != nil {
 			return nil, err
 		}
 
 		for i := int((end - start) / b.frequency); i < len(data); i++ {
-			data[i] = util.NaN
+			data[i] = schema.NaN
 		}
 
 		retval.Metrics[metric] = &CheckpointMetrics{
@@ -314,7 +315,7 @@ func (m *MemoryStore) FromCheckpoint(dir string, from int64, extension string) (
 				lvl := m.root.findLevelOrCreate(host[:], len(m.Metrics))
 				nn, err := lvl.fromCheckpoint(m, filepath.Join(dir, host[0], host[1]), from, extension)
 				if err != nil {
-					log.Fatalf("error while loading checkpoints: %s", err.Error())
+					log.Fatalf("[METRICSTORE]> error while loading checkpoints: %s", err.Error())
 					atomic.AddInt32(&errs, 1)
 				}
 				atomic.AddInt32(&n, int32(nn))
@@ -326,7 +327,7 @@ func (m *MemoryStore) FromCheckpoint(dir string, from int64, extension string) (
 	clustersDir, err := os.ReadDir(dir)
 	for _, clusterDir := range clustersDir {
 		if !clusterDir.IsDir() {
-			err = errors.New("expected only directories at first level of checkpoints/ directory")
+			err = errors.New("[METRICSTORE]> expected only directories at first level of checkpoints/ directory")
 			goto done
 		}
 
@@ -338,7 +339,7 @@ func (m *MemoryStore) FromCheckpoint(dir string, from int64, extension string) (
 
 		for _, hostDir := range hostsDir {
 			if !hostDir.IsDir() {
-				err = errors.New("expected only directories at second level of checkpoints/ directory")
+				err = errors.New("[METRICSTORE]> expected only directories at second level of checkpoints/ directory")
 				goto done
 			}
 
@@ -364,7 +365,7 @@ done:
 	}
 
 	if errs > 0 {
-		return int(n), fmt.Errorf("%d errors happend while creating checkpoints (%d successes)", errs, n)
+		return int(n), fmt.Errorf("[METRICSTORE]> %d errors happend while creating checkpoints (%d successes)", errs, n)
 	}
 	return int(n), nil
 }
@@ -377,13 +378,13 @@ func (m *MemoryStore) FromCheckpointFiles(dir string, from int64) (int, error) {
 		// The directory does not exist, so create it using os.MkdirAll()
 		err := os.MkdirAll(dir, 0755) // 0755 sets the permissions for the directory
 		if err != nil {
-			log.Fatalf("Error creating directory: %#v\n", err)
+			log.Fatalf("[METRICSTORE]> Error creating directory: %#v\n", err)
 		}
-		fmt.Printf("%#v Directory created successfully.\n", dir)
+		fmt.Printf("[METRICSTORE]> %#v Directory created successfully.\n", dir)
 	}
 
 	// Config read (replace with your actual config read)
-	fileFormat := Keys.Checkpoints.FileFormat
+	fileFormat := config.MetricStoreKeys.Checkpoints.FileFormat
 	if fileFormat == "" {
 		fileFormat = "avro"
 	}
@@ -396,22 +397,22 @@ func (m *MemoryStore) FromCheckpointFiles(dir string, from int64) (int, error) {
 
 	// First, attempt to load the specified format
 	if found, err := checkFilesWithExtension(dir, fileFormat); err != nil {
-		return 0, fmt.Errorf("error checking files with extension: %v", err)
+		return 0, fmt.Errorf("[METRICSTORE]> error checking files with extension: %v", err)
 	} else if found {
-		log.Printf("Loading %s files because fileformat is %s\n", fileFormat, fileFormat)
+		log.Printf("[METRICSTORE]> Loading %s files because fileformat is %s\n", fileFormat, fileFormat)
 		return m.FromCheckpoint(dir, from, fileFormat)
 	}
 
 	// If not found, attempt the opposite format
 	altFormat := oppositeFormat[fileFormat]
 	if found, err := checkFilesWithExtension(dir, altFormat); err != nil {
-		return 0, fmt.Errorf("error checking files with extension: %v", err)
+		return 0, fmt.Errorf("[METRICSTORE]> error checking files with extension: %v", err)
 	} else if found {
-		log.Printf("Loading %s files but fileformat is %s\n", altFormat, fileFormat)
+		log.Printf("[METRICSTORE]> Loading %s files but fileformat is %s\n", altFormat, fileFormat)
 		return m.FromCheckpoint(dir, from, altFormat)
 	}
 
-	log.Println("No valid checkpoint files found in the directory.")
+	log.Println("[METRICSTORE]> No valid checkpoint files found in the directory.")
 	return 0, nil
 }
 
@@ -420,7 +421,7 @@ func checkFilesWithExtension(dir string, extension string) (bool, error) {
 
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return fmt.Errorf("error accessing path %s: %v", path, err)
+			return fmt.Errorf("[METRICSTORE]> error accessing path %s: %v", path, err)
 		}
 		if !info.IsDir() && filepath.Ext(info.Name()) == "."+extension {
 			found = true
@@ -429,7 +430,7 @@ func checkFilesWithExtension(dir string, extension string) (bool, error) {
 		return nil
 	})
 	if err != nil {
-		return false, fmt.Errorf("error walking through directories: %s", err)
+		return false, fmt.Errorf("[METRICSTORE]> error walking through directories: %s", err)
 	}
 
 	return found, nil
@@ -441,7 +442,7 @@ func (l *Level) loadAvroFile(m *MemoryStore, f *os.File, from int64) error {
 	fileName := f.Name()[strings.LastIndex(f.Name(), "/")+1:]
 	resolution, err := strconv.ParseInt(fileName[0:strings.Index(fileName, "_")], 10, 64)
 	if err != nil {
-		return fmt.Errorf("error while reading avro file (resolution parsing) : %s", err)
+		return fmt.Errorf("[METRICSTORE]> error while reading avro file (resolution parsing) : %s", err)
 	}
 
 	from_timestamp, err := strconv.ParseInt(fileName[strings.Index(fileName, "_")+1:len(fileName)-5], 10, 64)
@@ -450,7 +451,7 @@ func (l *Level) loadAvroFile(m *MemoryStore, f *os.File, from int64) error {
 	from_timestamp -= (resolution / 2)
 
 	if err != nil {
-		return fmt.Errorf("error converting timestamp from the avro file : %s", err)
+		return fmt.Errorf("[METRICSTORE]> error converting timestamp from the avro file : %s", err)
 	}
 
 	// fmt.Printf("File : %s with resolution : %d\n", fileName, resolution)
@@ -463,21 +464,21 @@ func (l *Level) loadAvroFile(m *MemoryStore, f *os.File, from int64) error {
 		panic(err)
 	}
 
-	metricsData := make(map[string]util.FloatArray)
+	metricsData := make(map[string]schema.FloatArray)
 
 	for ocfReader.Scan() {
 		datum, err := ocfReader.Read()
 		if err != nil {
-			return fmt.Errorf("error while reading avro file : %s", err)
+			return fmt.Errorf("[METRICSTORE]> error while reading avro file : %s", err)
 		}
 
 		record, ok := datum.(map[string]interface{})
 		if !ok {
-			panic("failed to assert datum as map[string]interface{}")
+			panic("[METRICSTORE]> failed to assert datum as map[string]interface{}")
 		}
 
 		for key, value := range record {
-			metricsData[key] = append(metricsData[key], util.ConvertToFloat(value.(float64)))
+			metricsData[key] = append(metricsData[key], schema.ConvertToFloat(value.(float64)))
 		}
 
 		recordCounter += 1
@@ -518,12 +519,12 @@ func (l *Level) loadAvroFile(m *MemoryStore, f *os.File, from int64) error {
 			leafMetricName := subString[len(subString)-1]
 			err = lvl.createBuffer(m, leafMetricName, floatArray, from_timestamp, resolution)
 			if err != nil {
-				return fmt.Errorf("error while creating buffers from avroReader : %s", err)
+				return fmt.Errorf("[METRICSTORE]> error while creating buffers from avroReader : %s", err)
 			}
 		} else {
 			err = l.createBuffer(m, metricName, floatArray, from_timestamp, resolution)
 			if err != nil {
-				return fmt.Errorf("error while creating buffers from avroReader : %s", err)
+				return fmt.Errorf("[METRICSTORE]> error while creating buffers from avroReader : %s", err)
 			}
 		}
 
@@ -532,7 +533,7 @@ func (l *Level) loadAvroFile(m *MemoryStore, f *os.File, from int64) error {
 	return nil
 }
 
-func (l *Level) createBuffer(m *MemoryStore, metricName string, floatArray util.FloatArray, from int64, resolution int64) error {
+func (l *Level) createBuffer(m *MemoryStore, metricName string, floatArray schema.FloatArray, from int64, resolution int64) error {
 	n := len(floatArray)
 	b := &buffer{
 		frequency: resolution,
@@ -566,7 +567,7 @@ func (l *Level) createBuffer(m *MemoryStore, metricName string, floatArray util.
 			missingCount /= int(b.frequency)
 
 			for range missingCount {
-				prev.data = append(prev.data, util.NaN)
+				prev.data = append(prev.data, schema.NaN)
 			}
 
 			prev.data = prev.data[0:len(prev.data):len(prev.data)]

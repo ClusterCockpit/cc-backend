@@ -248,8 +248,10 @@ func main() {
 		cclog.Exit("No errors, server flag not set. Exiting cc-backend.")
 	}
 
+	var wg sync.WaitGroup
+
 	//Metric Store starts after all flags have been processes
-	memorystore.Init()
+	memorystore.Init(wg)
 
 	archiver.Start(repository.GetJobRepository())
 
@@ -258,8 +260,6 @@ func main() {
 	// 	ccconf.GetPackageConfig("archive"))
 
 	serverInit()
-
-	var wg sync.WaitGroup
 
 	wg.Add(1)
 	go func() {

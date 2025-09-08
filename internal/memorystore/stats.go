@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-lib/util"
 )
 
@@ -104,9 +105,9 @@ func (m *MemoryStore) Stats(selector util.Selector, metric string, from, to int6
 		return nil, 0, 0, ErrNoData
 	}
 
-	if minfo.Aggregation == AvgAggregation {
+	if minfo.Aggregation == config.AvgAggregation {
 		avg /= util.Float(n)
-	} else if n > 1 && minfo.Aggregation != SumAggregation {
+	} else if n > 1 && minfo.Aggregation != config.SumAggregation {
 		return nil, 0, 0, errors.New("invalid aggregation")
 	}
 

@@ -3,7 +3,7 @@ package avro
 import (
 	"sync"
 
-	"github.com/ClusterCockpit/cc-lib/util"
+	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
 var (
@@ -20,7 +20,7 @@ type AvroStruct struct {
 	Cluster    string
 	Node       string
 	Selector   []string
-	Value      util.Float
+	Value      schema.Float
 	Timestamp  int64
 }
 
@@ -32,7 +32,7 @@ var avroStore AvroStore
 
 type AvroLevel struct {
 	children map[string]*AvroLevel
-	data     map[int64]map[string]util.Float
+	data     map[int64]map[string]schema.Float
 	lock     sync.RWMutex
 }
 
@@ -81,7 +81,7 @@ func (l *AvroLevel) findAvroLevelOrCreate(selector []string) *AvroLevel {
 	}
 
 	child = &AvroLevel{
-		data:     make(map[int64]map[string]util.Float, 0),
+		data:     make(map[int64]map[string]schema.Float, 0),
 		children: nil,
 	}
 
@@ -94,7 +94,7 @@ func (l *AvroLevel) findAvroLevelOrCreate(selector []string) *AvroLevel {
 	return child.findAvroLevelOrCreate(selector[1:])
 }
 
-func (l *AvroLevel) addMetric(metricName string, value util.Float, timestamp int64, Freq int) {
+func (l *AvroLevel) addMetric(metricName string, value schema.Float, timestamp int64, Freq int) {
 	l.lock.Lock()
 	defer l.lock.Unlock()
 
@@ -104,7 +104,7 @@ func (l *AvroLevel) addMetric(metricName string, value util.Float, timestamp int
 	if len(l.data) != KeyCounter {
 		if len(l.data) == 0 {
 			for i := range KeyCounter {
-				l.data[timestamp+int64(i*Freq)] = make(map[string]util.Float, 0)
+				l.data[timestamp+int64(i*Freq)] = make(map[string]schema.Float, 0)
 			}
 		} else {
 			// Get the last timestamp
@@ -115,7 +115,7 @@ func (l *AvroLevel) addMetric(metricName string, value util.Float, timestamp int
 				}
 			}
 			// Create keys for the next KeyCounter timestamps
-			l.data[lastTs+int64(Freq)] = make(map[string]util.Float, 0)
+			l.data[lastTs+int64(Freq)] = make(map[string]schema.Float, 0)
 		}
 	}
 

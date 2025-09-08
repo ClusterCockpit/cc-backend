@@ -5,23 +5,22 @@
 package metricdata
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
+	"github.com/ClusterCockpit/cc-backend/internal/memorystore"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
+// Bloat Code
 type CCMetricStoreConfig struct {
 	Kind  string `json:"kind"`
 	Url   string `json:"url"`
@@ -33,139 +32,14 @@ type CCMetricStoreConfig struct {
 	Renamings map[string]string `json:"metricRenamings"`
 }
 
+// Bloat Code
 type CCMetricStore struct {
-	here2there    map[string]string
-	there2here    map[string]string
-	client        http.Client
-	jwt           string
-	url           string
-	queryEndpoint string
 }
 
-type ApiQueryRequest struct {
-	Cluster     string     `json:"cluster"`
-	Queries     []ApiQuery `json:"queries"`
-	ForAllNodes []string   `json:"for-all-nodes"`
-	From        int64      `json:"from"`
-	To          int64      `json:"to"`
-	WithStats   bool       `json:"with-stats"`
-	WithData    bool       `json:"with-data"`
-}
-
-type ApiQuery struct {
-	Type       *string  `json:"type,omitempty"`
-	SubType    *string  `json:"subtype,omitempty"`
-	Metric     string   `json:"metric"`
-	Hostname   string   `json:"host"`
-	Resolution int      `json:"resolution"`
-	TypeIds    []string `json:"type-ids,omitempty"`
-	SubTypeIds []string `json:"subtype-ids,omitempty"`
-	Aggregate  bool     `json:"aggreg"`
-}
-
-type ApiQueryResponse struct {
-	Queries []ApiQuery        `json:"queries,omitempty"`
-	Results [][]ApiMetricData `json:"results"`
-}
-
-type ApiMetricData struct {
-	Error      *string        `json:"error"`
-	Data       []schema.Float `json:"data"`
-	From       int64          `json:"from"`
-	To         int64          `json:"to"`
-	Resolution int            `json:"resolution"`
-	Avg        schema.Float   `json:"avg"`
-	Min        schema.Float   `json:"min"`
-	Max        schema.Float   `json:"max"`
-}
-
+// Bloat Code
 func (ccms *CCMetricStore) Init(rawConfig json.RawMessage) error {
-	var config CCMetricStoreConfig
-	if err := json.Unmarshal(rawConfig, &config); err != nil {
-		cclog.Warn("Error while unmarshaling raw json config")
-		return err
-	}
-
-	ccms.url = config.Url
-	ccms.queryEndpoint = fmt.Sprintf("%s/api/query", config.Url)
-	ccms.jwt = config.Token
-	ccms.client = http.Client{
-		Timeout: 10 * time.Second,
-	}
-
-	if config.Renamings != nil {
-		ccms.here2there = config.Renamings
-		ccms.there2here = make(map[string]string, len(config.Renamings))
-		for k, v := range ccms.here2there {
-			ccms.there2here[v] = k
-		}
-	} else {
-		ccms.here2there = make(map[string]string)
-		ccms.there2here = make(map[string]string)
-	}
 
 	return nil
-}
-
-func (ccms *CCMetricStore) toRemoteName(metric string) string {
-	if renamed, ok := ccms.here2there[metric]; ok {
-		return renamed
-	}
-
-	return metric
-}
-
-func (ccms *CCMetricStore) toLocalName(metric string) string {
-	if renamed, ok := ccms.there2here[metric]; ok {
-		return renamed
-	}
-
-	return metric
-}
-
-func (ccms *CCMetricStore) doRequest(
-	ctx context.Context,
-	body *ApiQueryRequest,
-) (*ApiQueryResponse, error) {
-	buf := &bytes.Buffer{}
-	if err := json.NewEncoder(buf).Encode(body); err != nil {
-		cclog.Errorf("Error while encoding request body: %s", err.Error())
-		return nil, err
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ccms.queryEndpoint, buf)
-	if err != nil {
-		cclog.Errorf("Error while building request body: %s", err.Error())
-		return nil, err
-	}
-	if ccms.jwt != "" {
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", ccms.jwt))
-	}
-
-	// versioning the cc-metric-store query API.
-	// v2 = data with resampling
-	// v1 = data without resampling
-	q := req.URL.Query()
-	q.Add("version", "v2")
-	req.URL.RawQuery = q.Encode()
-
-	res, err := ccms.client.Do(req)
-	if err != nil {
-		cclog.Errorf("Error while performing request: %s", err.Error())
-		return nil, err
-	}
-
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("'%s': HTTP Status: %s", ccms.queryEndpoint, res.Status)
-	}
-
-	var resBody ApiQueryResponse
-	if err := json.NewDecoder(bufio.NewReader(res.Body)).Decode(&resBody); err != nil {
-		cclog.Errorf("Error while decoding result body: %s", err.Error())
-		return nil, err
-	}
-
-	return &resBody, nil
 }
 
 func (ccms *CCMetricStore) LoadData(
@@ -175,13 +49,13 @@ func (ccms *CCMetricStore) LoadData(
 	ctx context.Context,
 	resolution int,
 ) (schema.JobData, error) {
-	queries, assignedScope, err := ccms.buildQueries(job, metrics, scopes, resolution)
+	queries, assignedScope, err := ccms.buildQueries(job, metrics, scopes, int64(resolution))
 	if err != nil {
 		cclog.Errorf("Error while building queries for jobId %d, Metrics %v, Scopes %v: %s", job.JobID, metrics, scopes, err.Error())
 		return nil, err
 	}
 
-	req := ApiQueryRequest{
+	req := memorystore.ApiQueryRequest{
 		Cluster:   job.Cluster,
 		From:      job.StartTime,
 		To:        job.StartTime + int64(job.Duration),
@@ -190,9 +64,9 @@ func (ccms *CCMetricStore) LoadData(
 		WithData:  true,
 	}
 
-	resBody, err := ccms.doRequest(ctx, &req)
+	resBody, err := memorystore.FetchData(req)
 	if err != nil {
-		cclog.Errorf("Error while performing request: %s", err.Error())
+		cclog.Errorf("Error while fetching data : %s", err.Error())
 		return nil, err
 	}
 
@@ -200,7 +74,7 @@ func (ccms *CCMetricStore) LoadData(
 	jobData := make(schema.JobData)
 	for i, row := range resBody.Results {
 		query := req.Queries[i]
-		metric := ccms.toLocalName(query.Metric)
+		metric := query.Metric
 		scope := assignedScope[i]
 		mc := archive.GetMetricConfig(job.Cluster, metric)
 		if _, ok := jobData[metric]; !ok {
@@ -209,7 +83,7 @@ func (ccms *CCMetricStore) LoadData(
 
 		res := mc.Timestep
 		if len(row) > 0 {
-			res = row[0].Resolution
+			res = int(row[0].Resolution)
 		}
 
 		jobMetric, ok := jobData[metric][scope]
@@ -282,9 +156,9 @@ func (ccms *CCMetricStore) buildQueries(
 	job *schema.Job,
 	metrics []string,
 	scopes []schema.MetricScope,
-	resolution int,
-) ([]ApiQuery, []schema.MetricScope, error) {
-	queries := make([]ApiQuery, 0, len(metrics)*len(scopes)*len(job.Resources))
+	resolution int64,
+) ([]memorystore.ApiQuery, []schema.MetricScope, error) {
+	queries := make([]memorystore.ApiQuery, 0, len(metrics)*len(scopes)*len(job.Resources))
 	assignedScope := []schema.MetricScope{}
 
 	subcluster, scerr := archive.GetSubCluster(job.Cluster, job.SubCluster)
@@ -294,7 +168,6 @@ func (ccms *CCMetricStore) buildQueries(
 	topology := subcluster.Topology
 
 	for _, metric := range metrics {
-		remoteName := ccms.toRemoteName(metric)
 		mc := archive.GetMetricConfig(job.Cluster, metric)
 		if mc == nil {
 			// return nil, fmt.Errorf("METRICDATA/CCMS > metric '%s' is not specified for cluster '%s'", metric, job.Cluster)
@@ -306,7 +179,7 @@ func (ccms *CCMetricStore) buildQueries(
 		if len(mc.SubClusters) != 0 {
 			isRemoved := false
 			for _, scConfig := range mc.SubClusters {
-				if scConfig.Name == job.SubCluster && scConfig.Remove == true {
+				if scConfig.Name == job.SubCluster && scConfig.Remove {
 					isRemoved = true
 					break
 				}
@@ -347,8 +220,8 @@ func (ccms *CCMetricStore) buildQueries(
 						continue
 					}
 
-					queries = append(queries, ApiQuery{
-						Metric:     remoteName,
+					queries = append(queries, memorystore.ApiQuery{
+						Metric:     metric,
 						Hostname:   host.Hostname,
 						Aggregate:  false,
 						Type:       &acceleratorString,
@@ -365,8 +238,8 @@ func (ccms *CCMetricStore) buildQueries(
 						continue
 					}
 
-					queries = append(queries, ApiQuery{
-						Metric:     remoteName,
+					queries = append(queries, memorystore.ApiQuery{
+						Metric:     metric,
 						Hostname:   host.Hostname,
 						Aggregate:  true,
 						Type:       &acceleratorString,
@@ -379,8 +252,8 @@ func (ccms *CCMetricStore) buildQueries(
 
 				// HWThread -> HWThead
 				if nativeScope == schema.MetricScopeHWThread && scope == schema.MetricScopeHWThread {
-					queries = append(queries, ApiQuery{
-						Metric:     remoteName,
+					queries = append(queries, memorystore.ApiQuery{
+						Metric:     metric,
 						Hostname:   host.Hostname,
 						Aggregate:  false,
 						Type:       &hwthreadString,
@@ -395,8 +268,8 @@ func (ccms *CCMetricStore) buildQueries(
 				if nativeScope == schema.MetricScopeHWThread && scope == schema.MetricScopeCore {
 					cores, _ := topology.GetCoresFromHWThreads(hwthreads)
 					for _, core := range cores {
-						queries = append(queries, ApiQuery{
-							Metric:     remoteName,
+						queries = append(queries, memorystore.ApiQuery{
+							Metric:     metric,
 							Hostname:   host.Hostname,
 							Aggregate:  true,
 							Type:       &hwthreadString,
@@ -412,8 +285,8 @@ func (ccms *CCMetricStore) buildQueries(
 				if nativeScope == schema.MetricScopeHWThread && scope == schema.MetricScopeSocket {
 					sockets, _ := topology.GetSocketsFromHWThreads(hwthreads)
 					for _, socket := range sockets {
-						queries = append(queries, ApiQuery{
-							Metric:     remoteName,
+						queries = append(queries, memorystore.ApiQuery{
+							Metric:     metric,
 							Hostname:   host.Hostname,
 							Aggregate:  true,
 							Type:       &hwthreadString,
@@ -427,8 +300,8 @@ func (ccms *CCMetricStore) buildQueries(
 
 				// HWThread -> Node
 				if nativeScope == schema.MetricScopeHWThread && scope == schema.MetricScopeNode {
-					queries = append(queries, ApiQuery{
-						Metric:     remoteName,
+					queries = append(queries, memorystore.ApiQuery{
+						Metric:     metric,
 						Hostname:   host.Hostname,
 						Aggregate:  true,
 						Type:       &hwthreadString,
@@ -442,8 +315,8 @@ func (ccms *CCMetricStore) buildQueries(
 				// Core -> Core
 				if nativeScope == schema.MetricScopeCore && scope == schema.MetricScopeCore {
 					cores, _ := topology.GetCoresFromHWThreads(hwthreads)
-					queries = append(queries, ApiQuery{
-						Metric:     remoteName,
+					queries = append(queries, memorystore.ApiQuery{
+						Metric:     metric,
 						Hostname:   host.Hostname,
 						Aggregate:  false,
 						Type:       &coreString,
@@ -458,8 +331,8 @@ func (ccms *CCMetricStore) buildQueries(
 				if nativeScope == schema.MetricScopeCore && scope == schema.MetricScopeSocket {
 					sockets, _ := topology.GetSocketsFromCores(hwthreads)
 					for _, socket := range sockets {
-						queries = append(queries, ApiQuery{
-							Metric:     remoteName,
+						queries = append(queries, memorystore.ApiQuery{
+							Metric:     metric,
 							Hostname:   host.Hostname,
 							Aggregate:  true,
 							Type:       &coreString,
@@ -474,8 +347,8 @@ func (ccms *CCMetricStore) buildQueries(
 				// Core -> Node
 				if nativeScope == schema.MetricScopeCore && scope == schema.MetricScopeNode {
 					cores, _ := topology.GetCoresFromHWThreads(hwthreads)
-					queries = append(queries, ApiQuery{
-						Metric:     remoteName,
+					queries = append(queries, memorystore.ApiQuery{
+						Metric:     metric,
 						Hostname:   host.Hostname,
 						Aggregate:  true,
 						Type:       &coreString,
@@ -489,8 +362,8 @@ func (ccms *CCMetricStore) buildQueries(
 				// MemoryDomain -> MemoryDomain
 				if nativeScope == schema.MetricScopeMemoryDomain && scope == schema.MetricScopeMemoryDomain {
 					sockets, _ := topology.GetMemoryDomainsFromHWThreads(hwthreads)
-					queries = append(queries, ApiQuery{
-						Metric:     remoteName,
+					queries = append(queries, memorystore.ApiQuery{
+						Metric:     metric,
 						Hostname:   host.Hostname,
 						Aggregate:  false,
 						Type:       &memoryDomainString,
@@ -504,8 +377,8 @@ func (ccms *CCMetricStore) buildQueries(
 				// MemoryDoman -> Node
 				if nativeScope == schema.MetricScopeMemoryDomain && scope == schema.MetricScopeNode {
 					sockets, _ := topology.GetMemoryDomainsFromHWThreads(hwthreads)
-					queries = append(queries, ApiQuery{
-						Metric:     remoteName,
+					queries = append(queries, memorystore.ApiQuery{
+						Metric:     metric,
 						Hostname:   host.Hostname,
 						Aggregate:  true,
 						Type:       &memoryDomainString,
@@ -519,8 +392,8 @@ func (ccms *CCMetricStore) buildQueries(
 				// Socket -> Socket
 				if nativeScope == schema.MetricScopeSocket && scope == schema.MetricScopeSocket {
 					sockets, _ := topology.GetSocketsFromHWThreads(hwthreads)
-					queries = append(queries, ApiQuery{
-						Metric:     remoteName,
+					queries = append(queries, memorystore.ApiQuery{
+						Metric:     metric,
 						Hostname:   host.Hostname,
 						Aggregate:  false,
 						Type:       &socketString,
@@ -534,8 +407,8 @@ func (ccms *CCMetricStore) buildQueries(
 				// Socket -> Node
 				if nativeScope == schema.MetricScopeSocket && scope == schema.MetricScopeNode {
 					sockets, _ := topology.GetSocketsFromHWThreads(hwthreads)
-					queries = append(queries, ApiQuery{
-						Metric:     remoteName,
+					queries = append(queries, memorystore.ApiQuery{
+						Metric:     metric,
 						Hostname:   host.Hostname,
 						Aggregate:  true,
 						Type:       &socketString,
@@ -548,8 +421,8 @@ func (ccms *CCMetricStore) buildQueries(
 
 				// Node -> Node
 				if nativeScope == schema.MetricScopeNode && scope == schema.MetricScopeNode {
-					queries = append(queries, ApiQuery{
-						Metric:     remoteName,
+					queries = append(queries, memorystore.ApiQuery{
+						Metric:     metric,
 						Hostname:   host.Hostname,
 						Resolution: resolution,
 					})
@@ -576,7 +449,7 @@ func (ccms *CCMetricStore) LoadStats(
 		return nil, err
 	}
 
-	req := ApiQueryRequest{
+	req := memorystore.ApiQueryRequest{
 		Cluster:   job.Cluster,
 		From:      job.StartTime,
 		To:        job.StartTime + int64(job.Duration),
@@ -585,16 +458,16 @@ func (ccms *CCMetricStore) LoadStats(
 		WithData:  false,
 	}
 
-	resBody, err := ccms.doRequest(ctx, &req)
+	resBody, err := memorystore.FetchData(req)
 	if err != nil {
-		cclog.Errorf("Error while performing request: %s", err.Error())
+		cclog.Errorf("Error while fetching data : %s", err.Error())
 		return nil, err
 	}
 
 	stats := make(map[string]map[string]schema.MetricStatistics, len(metrics))
 	for i, res := range resBody.Results {
 		query := req.Queries[i]
-		metric := ccms.toLocalName(query.Metric)
+		metric := query.Metric
 		data := res[0]
 		if data.Error != nil {
 			cclog.Errorf("fetching %s for node %s failed: %s", metric, query.Hostname, *data.Error)
@@ -635,7 +508,7 @@ func (ccms *CCMetricStore) LoadScopedStats(
 		return nil, err
 	}
 
-	req := ApiQueryRequest{
+	req := memorystore.ApiQueryRequest{
 		Cluster:   job.Cluster,
 		From:      job.StartTime,
 		To:        job.StartTime + int64(job.Duration),
@@ -644,9 +517,9 @@ func (ccms *CCMetricStore) LoadScopedStats(
 		WithData:  false,
 	}
 
-	resBody, err := ccms.doRequest(ctx, &req)
+	resBody, err := memorystore.FetchData(req)
 	if err != nil {
-		cclog.Errorf("Error while performing request: %s", err.Error())
+		cclog.Errorf("Error while fetching data : %s", err.Error())
 		return nil, err
 	}
 
@@ -655,7 +528,7 @@ func (ccms *CCMetricStore) LoadScopedStats(
 
 	for i, row := range resBody.Results {
 		query := req.Queries[i]
-		metric := ccms.toLocalName(query.Metric)
+		metric := query.Metric
 		scope := assignedScope[i]
 
 		if _, ok := scopedJobStats[metric]; !ok {
@@ -721,7 +594,7 @@ func (ccms *CCMetricStore) LoadNodeData(
 	from, to time.Time,
 	ctx context.Context,
 ) (map[string]map[string][]*schema.JobMetric, error) {
-	req := ApiQueryRequest{
+	req := memorystore.ApiQueryRequest{
 		Cluster:   cluster,
 		From:      from.Unix(),
 		To:        to.Unix(),
@@ -730,38 +603,36 @@ func (ccms *CCMetricStore) LoadNodeData(
 	}
 
 	if nodes == nil {
-		for _, metric := range metrics {
-			req.ForAllNodes = append(req.ForAllNodes, ccms.toRemoteName(metric))
-		}
+		req.ForAllNodes = append(req.ForAllNodes, metrics...)
 	} else {
 		for _, node := range nodes {
 			for _, metric := range metrics {
-				req.Queries = append(req.Queries, ApiQuery{
+				req.Queries = append(req.Queries, memorystore.ApiQuery{
 					Hostname:   node,
-					Metric:     ccms.toRemoteName(metric),
+					Metric:     metric,
 					Resolution: 0, // Default for Node Queries: Will return metric $Timestep Resolution
 				})
 			}
 		}
 	}
 
-	resBody, err := ccms.doRequest(ctx, &req)
+	resBody, err := memorystore.FetchData(req)
 	if err != nil {
-		cclog.Errorf("Error while performing request: %s", err.Error())
+		cclog.Errorf("Error while fetching data : %s", err.Error())
 		return nil, err
 	}
 
 	var errors []string
 	data := make(map[string]map[string][]*schema.JobMetric)
 	for i, res := range resBody.Results {
-		var query ApiQuery
+		var query memorystore.ApiQuery
 		if resBody.Queries != nil {
 			query = resBody.Queries[i]
 		} else {
 			query = req.Queries[i]
 		}
 
-		metric := ccms.toLocalName(query.Metric)
+		metric := query.Metric
 		qdata := res[0]
 		if qdata.Error != nil {
 			/* Build list for "partial errors", if any */
@@ -861,13 +732,13 @@ func (ccms *CCMetricStore) LoadNodeListData(
 
 	// Note: Order of node data is not guaranteed after this point, but contents match page and filter criteria
 
-	queries, assignedScope, err := ccms.buildNodeQueries(cluster, subCluster, nodes, metrics, scopes, resolution)
+	queries, assignedScope, err := ccms.buildNodeQueries(cluster, subCluster, nodes, metrics, scopes, int64(resolution))
 	if err != nil {
 		cclog.Errorf("Error while building node queries for Cluster %s, SubCLuster %s, Metrics %v, Scopes %v: %s", cluster, subCluster, metrics, scopes, err.Error())
 		return nil, totalNodes, hasNextPage, err
 	}
 
-	req := ApiQueryRequest{
+	req := memorystore.ApiQueryRequest{
 		Cluster:   cluster,
 		Queries:   queries,
 		From:      from.Unix(),
@@ -876,29 +747,29 @@ func (ccms *CCMetricStore) LoadNodeListData(
 		WithData:  true,
 	}
 
-	resBody, err := ccms.doRequest(ctx, &req)
+	resBody, err := memorystore.FetchData(req)
 	if err != nil {
-		cclog.Errorf("Error while performing request: %s", err.Error())
+		cclog.Errorf("Error while fetching data : %s", err.Error())
 		return nil, totalNodes, hasNextPage, err
 	}
 
 	var errors []string
 	data := make(map[string]schema.JobData)
 	for i, row := range resBody.Results {
-		var query ApiQuery
+		var query memorystore.ApiQuery
 		if resBody.Queries != nil {
 			query = resBody.Queries[i]
 		} else {
 			query = req.Queries[i]
 		}
 		// qdata := res[0]
-		metric := ccms.toLocalName(query.Metric)
+		metric := query.Metric
 		scope := assignedScope[i]
 		mc := archive.GetMetricConfig(cluster, metric)
 
 		res := mc.Timestep
 		if len(row) > 0 {
-			res = row[0].Resolution
+			res = int(row[0].Resolution)
 		}
 
 		// Init Nested Map Data Structures If Not Found
@@ -971,9 +842,9 @@ func (ccms *CCMetricStore) buildNodeQueries(
 	nodes []string,
 	metrics []string,
 	scopes []schema.MetricScope,
-	resolution int,
-) ([]ApiQuery, []schema.MetricScope, error) {
-	queries := make([]ApiQuery, 0, len(metrics)*len(scopes)*len(nodes))
+	resolution int64,
+) ([]memorystore.ApiQuery, []schema.MetricScope, error) {
+	queries := make([]memorystore.ApiQuery, 0, len(metrics)*len(scopes)*len(nodes))
 	assignedScope := []schema.MetricScope{}
 
 	// Get Topol before loop if subCluster given
@@ -988,7 +859,7 @@ func (ccms *CCMetricStore) buildNodeQueries(
 	}
 
 	for _, metric := range metrics {
-		remoteName := ccms.toRemoteName(metric)
+		metric := metric
 		mc := archive.GetMetricConfig(cluster, metric)
 		if mc == nil {
 			// return nil, fmt.Errorf("METRICDATA/CCMS > metric '%s' is not specified for cluster '%s'", metric, cluster)
@@ -1000,7 +871,7 @@ func (ccms *CCMetricStore) buildNodeQueries(
 		if mc.SubClusters != nil {
 			isRemoved := false
 			for _, scConfig := range mc.SubClusters {
-				if scConfig.Name == subCluster && scConfig.Remove == true {
+				if scConfig.Name == subCluster && scConfig.Remove {
 					isRemoved = true
 					break
 				}
@@ -1056,8 +927,8 @@ func (ccms *CCMetricStore) buildNodeQueries(
 						continue
 					}
 
-					queries = append(queries, ApiQuery{
-						Metric:     remoteName,
+					queries = append(queries, memorystore.ApiQuery{
+						Metric:     metric,
 						Hostname:   hostname,
 						Aggregate:  false,
 						Type:       &acceleratorString,
@@ -1074,8 +945,8 @@ func (ccms *CCMetricStore) buildNodeQueries(
 						continue
 					}
 
-					queries = append(queries, ApiQuery{
-						Metric:     remoteName,
+					queries = append(queries, memorystore.ApiQuery{
+						Metric:     metric,
 						Hostname:   hostname,
 						Aggregate:  true,
 						Type:       &acceleratorString,
@@ -1088,8 +959,8 @@ func (ccms *CCMetricStore) buildNodeQueries(
 
 				// HWThread -> HWThead
 				if nativeScope == schema.MetricScopeHWThread && scope == schema.MetricScopeHWThread {
-					queries = append(queries, ApiQuery{
-						Metric:     remoteName,
+					queries = append(queries, memorystore.ApiQuery{
+						Metric:     metric,
 						Hostname:   hostname,
 						Aggregate:  false,
 						Type:       &hwthreadString,
@@ -1104,8 +975,8 @@ func (ccms *CCMetricStore) buildNodeQueries(
 				if nativeScope == schema.MetricScopeHWThread && scope == schema.MetricScopeCore {
 					cores, _ := topology.GetCoresFromHWThreads(topology.Node)
 					for _, core := range cores {
-						queries = append(queries, ApiQuery{
-							Metric:     remoteName,
+						queries = append(queries, memorystore.ApiQuery{
+							Metric:     metric,
 							Hostname:   hostname,
 							Aggregate:  true,
 							Type:       &hwthreadString,
@@ -1121,8 +992,8 @@ func (ccms *CCMetricStore) buildNodeQueries(
 				if nativeScope == schema.MetricScopeHWThread && scope == schema.MetricScopeSocket {
 					sockets, _ := topology.GetSocketsFromHWThreads(topology.Node)
 					for _, socket := range sockets {
-						queries = append(queries, ApiQuery{
-							Metric:     remoteName,
+						queries = append(queries, memorystore.ApiQuery{
+							Metric:     metric,
 							Hostname:   hostname,
 							Aggregate:  true,
 							Type:       &hwthreadString,
@@ -1136,8 +1007,8 @@ func (ccms *CCMetricStore) buildNodeQueries(
 
 				// HWThread -> Node
 				if nativeScope == schema.MetricScopeHWThread && scope == schema.MetricScopeNode {
-					queries = append(queries, ApiQuery{
-						Metric:     remoteName,
+					queries = append(queries, memorystore.ApiQuery{
+						Metric:     metric,
 						Hostname:   hostname,
 						Aggregate:  true,
 						Type:       &hwthreadString,
@@ -1151,8 +1022,8 @@ func (ccms *CCMetricStore) buildNodeQueries(
 				// Core -> Core
 				if nativeScope == schema.MetricScopeCore && scope == schema.MetricScopeCore {
 					cores, _ := topology.GetCoresFromHWThreads(topology.Node)
-					queries = append(queries, ApiQuery{
-						Metric:     remoteName,
+					queries = append(queries, memorystore.ApiQuery{
+						Metric:     metric,
 						Hostname:   hostname,
 						Aggregate:  false,
 						Type:       &coreString,
@@ -1167,8 +1038,8 @@ func (ccms *CCMetricStore) buildNodeQueries(
 				if nativeScope == schema.MetricScopeCore && scope == schema.MetricScopeSocket {
 					sockets, _ := topology.GetSocketsFromCores(topology.Node)
 					for _, socket := range sockets {
-						queries = append(queries, ApiQuery{
-							Metric:     remoteName,
+						queries = append(queries, memorystore.ApiQuery{
+							Metric:     metric,
 							Hostname:   hostname,
 							Aggregate:  true,
 							Type:       &coreString,
@@ -1183,8 +1054,8 @@ func (ccms *CCMetricStore) buildNodeQueries(
 				// Core -> Node
 				if nativeScope == schema.MetricScopeCore && scope == schema.MetricScopeNode {
 					cores, _ := topology.GetCoresFromHWThreads(topology.Node)
-					queries = append(queries, ApiQuery{
-						Metric:     remoteName,
+					queries = append(queries, memorystore.ApiQuery{
+						Metric:     metric,
 						Hostname:   hostname,
 						Aggregate:  true,
 						Type:       &coreString,
@@ -1198,8 +1069,8 @@ func (ccms *CCMetricStore) buildNodeQueries(
 				// MemoryDomain -> MemoryDomain
 				if nativeScope == schema.MetricScopeMemoryDomain && scope == schema.MetricScopeMemoryDomain {
 					sockets, _ := topology.GetMemoryDomainsFromHWThreads(topology.Node)
-					queries = append(queries, ApiQuery{
-						Metric:     remoteName,
+					queries = append(queries, memorystore.ApiQuery{
+						Metric:     metric,
 						Hostname:   hostname,
 						Aggregate:  false,
 						Type:       &memoryDomainString,
@@ -1213,8 +1084,8 @@ func (ccms *CCMetricStore) buildNodeQueries(
 				// MemoryDoman -> Node
 				if nativeScope == schema.MetricScopeMemoryDomain && scope == schema.MetricScopeNode {
 					sockets, _ := topology.GetMemoryDomainsFromHWThreads(topology.Node)
-					queries = append(queries, ApiQuery{
-						Metric:     remoteName,
+					queries = append(queries, memorystore.ApiQuery{
+						Metric:     metric,
 						Hostname:   hostname,
 						Aggregate:  true,
 						Type:       &memoryDomainString,
@@ -1228,8 +1099,8 @@ func (ccms *CCMetricStore) buildNodeQueries(
 				// Socket -> Socket
 				if nativeScope == schema.MetricScopeSocket && scope == schema.MetricScopeSocket {
 					sockets, _ := topology.GetSocketsFromHWThreads(topology.Node)
-					queries = append(queries, ApiQuery{
-						Metric:     remoteName,
+					queries = append(queries, memorystore.ApiQuery{
+						Metric:     metric,
 						Hostname:   hostname,
 						Aggregate:  false,
 						Type:       &socketString,
@@ -1243,8 +1114,8 @@ func (ccms *CCMetricStore) buildNodeQueries(
 				// Socket -> Node
 				if nativeScope == schema.MetricScopeSocket && scope == schema.MetricScopeNode {
 					sockets, _ := topology.GetSocketsFromHWThreads(topology.Node)
-					queries = append(queries, ApiQuery{
-						Metric:     remoteName,
+					queries = append(queries, memorystore.ApiQuery{
+						Metric:     metric,
 						Hostname:   hostname,
 						Aggregate:  true,
 						Type:       &socketString,
@@ -1257,8 +1128,8 @@ func (ccms *CCMetricStore) buildNodeQueries(
 
 				// Node -> Node
 				if nativeScope == schema.MetricScopeNode && scope == schema.MetricScopeNode {
-					queries = append(queries, ApiQuery{
-						Metric:     remoteName,
+					queries = append(queries, memorystore.ApiQuery{
+						Metric:     metric,
 						Hostname:   hostname,
 						Resolution: resolution,
 					})

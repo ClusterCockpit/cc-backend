@@ -119,6 +119,7 @@ func serverInit() {
 	userapi := router.PathPrefix("/userapi").Subrouter()
 	configapi := router.PathPrefix("/config").Subrouter()
 	frontendapi := router.PathPrefix("/frontend").Subrouter()
+	metricstoreapi := router.PathPrefix("/metricstore").Subrouter()
 
 	if !config.Keys.DisableAuthentication {
 		router.Handle("/login", authHandle.Login(
@@ -199,6 +200,14 @@ func serverInit() {
 				onFailureResponse)
 		})
 
+		metricstoreapi.Use(func(next http.Handler) http.Handler {
+			return authHandle.AuthMetricStoreApi(
+				// On success;
+				next,
+				// On failure: JSON Response
+				onFailureResponse)
+		})
+
 		configapi.Use(func(next http.Handler) http.Handler {
 			return authHandle.AuthConfigApi(
 				// On success;
@@ -232,6 +241,7 @@ func serverInit() {
 	routerConfig.SetupRoutes(secured, buildInfo)
 	apiHandle.MountApiRoutes(securedapi)
 	apiHandle.MountUserApiRoutes(userapi)
+	apiHandle.MountMetricStoreApiRoutes(metricstoreapi)
 	apiHandle.MountConfigApiRoutes(configapi)
 	apiHandle.MountFrontendApiRoutes(frontendapi)
 

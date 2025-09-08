@@ -17,15 +17,16 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 )
 
 func Archiving(wg *sync.WaitGroup, ctx context.Context) {
 	go func() {
 		defer wg.Done()
-		d, err := time.ParseDuration(Keys.Archive.Interval)
+		d, err := time.ParseDuration(config.MetricStoreKeys.Archive.Interval)
 		if err != nil {
-			cclog.Fatalf("error parsing archive interval duration: %v\n", err)
+			cclog.Fatalf("[METRICSTORE]> error parsing archive interval duration: %v\n", err)
 		}
 		if d <= 0 {
 			return
@@ -43,14 +44,14 @@ func Archiving(wg *sync.WaitGroup, ctx context.Context) {
 				return
 			case <-ticks:
 				t := time.Now().Add(-d)
-				cclog.Infof("start archiving checkpoints (older than %s)...\n", t.Format(time.RFC3339))
-				n, err := ArchiveCheckpoints(Keys.Checkpoints.RootDir,
-					Keys.Archive.RootDir, t.Unix(), Keys.Archive.DeleteInstead)
+				cclog.Infof("[METRICSTORE]> start archiving checkpoints (older than %s)...\n", t.Format(time.RFC3339))
+				n, err := ArchiveCheckpoints(config.MetricStoreKeys.Checkpoints.RootDir,
+					config.MetricStoreKeys.Archive.RootDir, t.Unix(), config.MetricStoreKeys.Archive.DeleteInstead)
 
 				if err != nil {
-					cclog.Warnf("archiving failed: %s\n", err.Error())
+					cclog.Warnf("[METRICSTORE]> archiving failed: %s\n", err.Error())
 				} else {
-					cclog.Infof("done: %d files zipped and moved to archive\n", n)
+					cclog.Infof("[METRICSTORE]> done: %d files zipped and moved to archive\n", n)
 				}
 			}
 		}
@@ -127,7 +128,7 @@ func archiveCheckpoints(dir string, archiveDir string, from int64, deleteInstead
 		return 0, err
 	}
 
-	extension := Keys.Checkpoints.FileFormat
+	extension := config.MetricStoreKeys.Checkpoints.FileFormat
 	files, err := findFiles(entries, from, extension, false)
 	if err != nil {
 		return 0, err

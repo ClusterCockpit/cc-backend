@@ -59,7 +59,7 @@ func (l *Level) healthCheck(m *MemoryStore, count int64) (int64, error) {
 func (m *MemoryStore) HealthCheck(w *bufio.Writer, selector []string) error {
 	lvl := m.root.findLevel(selector)
 	if lvl == nil {
-		return fmt.Errorf("not found: %#v", selector)
+		return fmt.Errorf("[METRICSTORE]> not found: %#v", selector)
 	}
 
 	buf := make([]byte, 0, 25)

@@ -87,7 +87,7 @@ func (l *Level) debugDump(m *MemoryStore, w *bufio.Writer, lvlname string, buf [
 func (m *MemoryStore) DebugDump(w *bufio.Writer, selector []string) error {
 	lvl := m.root.findLevel(selector)
 	if lvl == nil {
-		return fmt.Errorf("not found: %#v", selector)
+		return fmt.Errorf("[METRICSTORE]> not found: %#v", selector)
 	}
 
 	buf := make([]byte, 0, 2048)

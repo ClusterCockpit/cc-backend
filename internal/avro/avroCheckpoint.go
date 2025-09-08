@@ -19,7 +19,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ClusterCockpit/cc-lib/util"
+	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/linkedin/goavro/v2"
 )
 
@@ -139,7 +140,7 @@ func getTimestamp(dir string) int64 {
 		}
 	}
 
-	interval, _ := time.ParseDuration(Keys.Checkpoints.Interval)
+	interval, _ := time.ParseDuration(config.MetricStoreKeys.Checkpoints.Interval)
 	updateTime := time.Unix(maxTs, 0).Add(interval).Add(time.Duration(CheckpointBufferMinutes-1) * time.Minute).Unix()
 
 	if updateTime < time.Now().Unix() {
@@ -408,7 +409,7 @@ func compareSchema(schemaRead, schemaGen string) (bool, string, error) {
 	return true, string(mergedSchemaJson), nil
 }
 
-func generateSchema(data map[string]util.Float) (string, error) {
+func generateSchema(data map[string]schema.Float) (string, error) {
 	// Define the Avro schema structure
 	schema := map[string]interface{}{
 		"type":   "record",
@@ -440,7 +441,7 @@ func generateSchema(data map[string]util.Float) (string, error) {
 	return string(schemaString), nil
 }
 
-func generateRecord(data map[string]util.Float) map[string]interface{} {
+func generateRecord(data map[string]schema.Float) map[string]interface{} {
 	record := make(map[string]interface{})
 
 	// Iterate through each map in data

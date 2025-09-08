@@ -6,13 +6,14 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 )
 
 func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 
 	// AvroPool is a pool of Avro writers.
 	go func() {
-		if Keys.Checkpoints.FileFormat == "json" {
+		if config.MetricStoreKeys.Checkpoints.FileFormat == "json" {
 			wg.Done() // Mark this goroutine as done
 			return    // Exit the goroutine
 		}
@@ -28,7 +29,7 @@ func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 				return
 			case val := <-LineProtocolMessages:
 				//Fetch the frequency of the metric from the global configuration
-				freq, err := Keys.GetMetricFrequency(val.MetricName)
+				freq, err := config.MetricStoreKeys.GetMetricFrequency(val.MetricName)
 				if err != nil {
 					fmt.Printf("Error fetching metric frequency: %s\n", err)
 					continue

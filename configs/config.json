@@ -13,6 +13,10 @@
       "resolutions": [600, 300, 120, 60]
     }
   },
+  "archive": {
+    "kind": "file",
+    "path": "./var/job-archive"
+  },
   "clusters": [
     {
       "name": "test",

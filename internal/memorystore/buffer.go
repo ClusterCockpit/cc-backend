@@ -4,7 +4,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/ClusterCockpit/cc-lib/util"
+	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
 // Default buffer capacity.
@@ -19,14 +19,14 @@ const (
 var bufferPool sync.Pool = sync.Pool{
 	New: func() interface{} {
 		return &buffer{
-			data: make([]util.Float, 0, BUFFER_CAP),
+			data: make([]schema.Float, 0, BUFFER_CAP),
 		}
 	},
 }
 
 var (
-	ErrNoData           error = errors.New("no data for this metric/level")
-	ErrDataDoesNotAlign error = errors.New("data from lower granularities does not align")
+	ErrNoData           error = errors.New("[METRICSTORE]> no data for this metric/level")
+	ErrDataDoesNotAlign error = errors.New("[METRICSTORE]> data from lower granularities does not align")
 )
 
 // Each metric on each level has it's own buffer.
@@ -36,7 +36,7 @@ var (
 type buffer struct {
 	prev      *buffer
 	next      *buffer
-	data      []util.Float
+	data      []schema.Float
 	frequency int64
 	start     int64
 	archived  bool
@@ -59,9 +59,9 @@ func newBuffer(ts, freq int64) *buffer {
 // Otherwise, the existing buffer is returnd.
 // Normaly, only "newer" data should be written, but if the value would
 // end up in the same buffer anyways it is allowed.
-func (b *buffer) write(ts int64, value util.Float) (*buffer, error) {
+func (b *buffer) write(ts int64, value schema.Float) (*buffer, error) {
 	if ts < b.start {
-		return nil, errors.New("cannot write value to buffer from past")
+		return nil, errors.New("[METRICSTORE]> cannot write value to buffer from past")
 	}
 
 	// idx := int((ts - b.start + (b.frequency / 3)) / b.frequency)
@@ -83,7 +83,7 @@ func (b *buffer) write(ts int64, value util.Float) (*buffer, error) {
 
 	// Fill up unwritten slots with NaN
 	for i := len(b.data); i < idx; i++ {
-		b.data = append(b.data, util.NaN)
+		b.data = append(b.data, schema.NaN)
 	}
 
 	b.data = append(b.data, value)
@@ -147,7 +147,7 @@ func (b *buffer) close() {
 // This function goes back the buffer chain if `from` is older than the currents buffer start.
 // The loaded values are added to `data` and `data` is returned, possibly with a shorter length.
 // If `data` is not long enough to hold all values, this function will panic!
-func (b *buffer) read(from, to int64, data []util.Float) ([]util.Float, int64, int64, error) {
+func (b *buffer) read(from, to int64, data []schema.Float) ([]schema.Float, int64, int64, error) {
 	if from < b.firstWrite() {
 		if b.prev != nil {
 			return b.prev.read(from, to, data)
@@ -171,9 +171,9 @@ func (b *buffer) read(from, to int64, data []util.Float) ([]util.Float, int64, i
 			if b.next == nil || to <= b.next.start {
 				break
 			}
-			data[i] += util.NaN
+			data[i] += schema.NaN
 		} else if t < b.start {
-			data[i] += util.NaN
+			data[i] += schema.NaN
 			// } else if b.data[idx].IsNaN() {
 			// 	data[i] += interpolate(idx, b.data)
 		} else {
