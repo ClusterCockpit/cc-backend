@@ -29,7 +29,7 @@ func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 				return
 			case val := <-LineProtocolMessages:
 				//Fetch the frequency of the metric from the global configuration
-				freq, err := config.MetricStoreKeys.GetMetricFrequency(val.MetricName)
+				freq, err := config.GetMetricFrequency(val.MetricName)
 				if err != nil {
 					fmt.Printf("Error fetching metric frequency: %s\n", err)
 					continue

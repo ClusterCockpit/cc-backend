@@ -4,10 +4,22 @@
     "short-running-jobs-duration": 300,
     "resampling": {
       "trigger": 30,
-      "resolutions": [600, 300, 120, 60]
+      "resolutions": [
+        600,
+        300,
+        120,
+        60
+      ]
     },
-    "apiAllowedIPs": ["*"],
+    "apiAllowedIPs": [
+      "*"
+    ],
     "emission-constant": 317
+  },
+  "cron": {
+    "commit-job-worker": "2m",
+    "duration-worker": "5m",
+    "footprint-worker": "10m"
   },
   "archive": {
     "kind": "file",

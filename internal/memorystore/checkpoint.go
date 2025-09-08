@@ -380,7 +380,7 @@ func (m *MemoryStore) FromCheckpointFiles(dir string, from int64) (int, error) {
 		if err != nil {
 			log.Fatalf("[METRICSTORE]> Error creating directory: %#v\n", err)
 		}
-		fmt.Printf("[METRICSTORE]> %#v Directory created successfully.\n", dir)
+		log.Printf("[METRICSTORE]> %#v Directory created successfully.\n", dir)
 	}
 
 	// Config read (replace with your actual config read)

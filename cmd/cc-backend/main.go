@@ -251,13 +251,13 @@ func main() {
 	var wg sync.WaitGroup
 
 	//Metric Store starts after all flags have been processes
-	memorystore.Init(wg)
+	memorystore.Init(&wg)
 
 	archiver.Start(repository.GetJobRepository())
 
 	// // Comment out
-	// taskManager.Start(ccconf.GetPackageConfig("cron"),
-	// 	ccconf.GetPackageConfig("archive"))
+	taskManager.Start(ccconf.GetPackageConfig("cron"),
+		ccconf.GetPackageConfig("archive"))
 
 	serverInit()
 

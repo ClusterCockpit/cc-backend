@@ -97,7 +97,6 @@ func (api *RestApi) MountUserApiRoutes(r *mux.Router) {
 }
 
 func (api *RestApi) MountMetricStoreApiRoutes(r *mux.Router) {
-	r.StrictSlash(true)
 	// REST API Uses TokenAuth
 	r.HandleFunc("/api/free", memorystore.HandleFree).Methods(http.MethodPost)
 	r.HandleFunc("/api/write", memorystore.HandleWrite).Methods(http.MethodPost)

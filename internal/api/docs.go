@@ -1401,12 +1401,6 @@ const docTemplate = `{
                         "format": "float64"
                     }
                 },
-                "exclusive": {
-                    "type": "integer",
-                    "maximum": 2,
-                    "minimum": 0,
-                    "example": 1
-                },
                 "footprint": {
                     "type": "object",
                     "additionalProperties": {
@@ -1423,12 +1417,18 @@ const docTemplate = `{
                 },
                 "jobState": {
                     "enum": [
-                        "completed",
-                        "failed",
+                        "boot_fail",
                         "cancelled",
-                        "stopped",
-                        "timeout",
-                        "out_of_memory"
+                        "completed",
+                        "deadline",
+                        "failed",
+                        "node_fail",
+                        "out-of-memory",
+                        "pending",
+                        "preempted",
+                        "running",
+                        "suspended",
+                        "timeout"
                     ],
                     "allOf": [
                         {
@@ -1483,6 +1483,14 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/schema.Resource"
                     }
+                },
+                "shared": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "single_user",
+                        "multi_user"
+                    ]
                 },
                 "smt": {
                     "type": "integer",

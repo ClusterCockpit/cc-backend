@@ -69,7 +69,7 @@ type JobFilter struct {
 	StartTime       *config.TimeRange `json:"startTime,omitempty"`
 	State           []schema.JobState `json:"state,omitempty"`
 	MetricStats     []*MetricStatItem `json:"metricStats,omitempty"`
-	Exclusive       *int              `json:"exclusive,omitempty"`
+	Shared          *StringInput      `json:"shared,omitempty"`
 	Node            *StringInput      `json:"node,omitempty"`
 }
 

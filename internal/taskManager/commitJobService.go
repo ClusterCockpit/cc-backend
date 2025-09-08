@@ -26,9 +26,9 @@ func RegisterCommitJobService() {
 		gocron.NewTask(
 			func() {
 				start := time.Now()
-				cclog.Printf("Jobcache sync started at %s", start.Format(time.RFC3339))
+				cclog.Printf("Jobcache sync started at %s\n", start.Format(time.RFC3339))
 				jobs, _ := jobRepo.SyncJobs()
 				repository.CallJobStartHooks(jobs)
-				cclog.Printf("Jobcache sync and job callbacks are done and took %s", time.Since(start))
+				cclog.Printf("Jobcache sync and job callbacks are done and took %s\n", time.Since(start))
 			}))
 }

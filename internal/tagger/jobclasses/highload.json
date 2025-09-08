@@ -8,7 +8,7 @@
   ],
   "metrics": ["cpu_load"],
   "requirements": [
-    "job.exclusive == 1",
+    "job.shared == \"none\"",
     "job.duration > job_min_duration_seconds"
   ],
   "variables": [

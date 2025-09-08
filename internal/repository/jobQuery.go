@@ -168,7 +168,7 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 		query = buildMetaJsonCondition("jobName", filter.JobName, query)
 	}
 	if filter.Cluster != nil {
-		query = buildStringCondition("job.cluster", filter.Cluster, query)
+		query = buildStringCondition("job.hpc_cluster", filter.Cluster, query)
 	}
 	if filter.Partition != nil {
 		query = buildStringCondition("job.cluster_partition", filter.Partition, query)
@@ -183,8 +183,8 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 		now := time.Now().Unix() // There does not seam to be a portable way to get the current unix timestamp accross different DBs.
 		query = query.Where("(job.job_state != 'running' OR (? - job.start_time) > ?)", now, *filter.MinRunningFor)
 	}
-	if filter.Exclusive != nil {
-		query = query.Where("job.exclusive = ?", *filter.Exclusive)
+	if filter.Shared != nil {
+		query = query.Where("job.shared = ?", *filter.Shared)
 	}
 	if filter.State != nil {
 		states := make([]string, len(filter.State))

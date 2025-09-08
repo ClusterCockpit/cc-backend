@@ -47,7 +47,7 @@ type MemoryStore struct {
 	root    Level
 }
 
-func Init(wg sync.WaitGroup) {
+func Init(wg *sync.WaitGroup) {
 	startupTime := time.Now()
 
 	//Pass the config.MetricStoreKeys
@@ -82,10 +82,10 @@ func Init(wg sync.WaitGroup) {
 
 	wg.Add(4)
 
-	Retention(&wg, ctx)
-	Checkpointing(&wg, ctx)
-	Archiving(&wg, ctx)
-	avro.DataStaging(&wg, ctx)
+	Retention(wg, ctx)
+	Checkpointing(wg, ctx)
+	Archiving(wg, ctx)
+	avro.DataStaging(wg, ctx)
 
 	wg.Add(1)
 	sigs := make(chan os.Signal, 1)
@@ -337,12 +337,12 @@ func (m *MemoryStore) WriteToLevel(l *Level, selector []string, ts int64, metric
 // the range asked for if no data was available.
 func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, resolution int64) ([]schema.Float, int64, int64, int64, error) {
 	if from > to {
-		return nil, 0, 0, 0, errors.New("[METRICSTORE]> invalid time range")
+		return nil, 0, 0, 0, errors.New("[METRICSTORE]> invalid time range\n")
 	}
 
 	minfo, ok := m.Metrics[metric]
 	if !ok {
-		return nil, 0, 0, 0, errors.New("[METRICSTORE]> unkown metric: " + metric)
+		return nil, 0, 0, 0, errors.New("[METRICSTORE]> unkown metric: \n" + metric)
 	}
 
 	n, data := 0, make([]schema.Float, (to-from)/minfo.Frequency+1)
@@ -381,7 +381,7 @@ func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, reso
 	if err != nil {
 		return nil, 0, 0, 0, err
 	} else if n == 0 {
-		return nil, 0, 0, 0, errors.New("[METRICSTORE]> metric or host not found")
+		return nil, 0, 0, 0, errors.New("[METRICSTORE]> metric or host not found\n")
 	} else if n > 1 {
 		if minfo.Aggregation == config.AvgAggregation {
 			normalize := 1. / schema.Float(n)

@@ -97,10 +97,10 @@ func InitMetricStore(msConfig json.RawMessage) {
 	}
 }
 
-func (c *MetricStoreConfig) GetMetricFrequency(metricName string) (int64, error) {
-	// if metric, ok := c.Metrics[metricName]; ok {
-	// 	return metric.Frequency, nil
-	// }
+func GetMetricFrequency(metricName string) (int64, error) {
+	if metric, ok := Metrics[metricName]; ok {
+		return metric.Frequency, nil
+	}
 	return 0, fmt.Errorf("[METRICSTORE]> metric %s not found", metricName)
 }
 

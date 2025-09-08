@@ -35,11 +35,6 @@ func (r *jobResolver) StartTime(ctx context.Context, obj *schema.Job) (*time.Tim
 	return &timestamp, nil
 }
 
-// Exclusive is the resolver for the exclusive field.
-func (r *jobResolver) Exclusive(ctx context.Context, obj *schema.Job) (int, error) {
-	panic(fmt.Errorf("not implemented: Exclusive - exclusive"))
-}
-
 // Tags is the resolver for the tags field.
 func (r *jobResolver) Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error) {
 	return r.Repo.GetTags(repository.GetUserFromContext(ctx), obj.ID)

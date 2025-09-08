@@ -25,8 +25,8 @@ func RegisterUpdateDurationWorker() {
 		gocron.NewTask(
 			func() {
 				start := time.Now()
-				cclog.Printf("Update duration started at %s", start.Format(time.RFC3339))
+				cclog.Printf("Update duration started at %s\n", start.Format(time.RFC3339))
 				jobRepo.UpdateDuration()
-				cclog.Printf("Update duration is done and took %s", time.Since(start))
+				cclog.Printf("Update duration is done and took %s\n", time.Since(start))
 			}))
 }

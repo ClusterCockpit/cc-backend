@@ -7,7 +7,6 @@ package taskManager
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
@@ -65,10 +64,6 @@ func Start(cronCfg, archiveConfig json.RawMessage) {
 	if config.Keys.StopJobsExceedingWalltime > 0 {
 		RegisterStopJobsExceedTime()
 	}
-
-	fmt.Printf("Keys : %#v\n", Keys)
-	fmt.Printf("cronCfg : %#v\n", cronCfg)
-	fmt.Printf("archiveConfig : %#v\n", archiveConfig)
 
 	dec := json.NewDecoder(bytes.NewReader(cronCfg))
 	dec.DisallowUnknownFields()

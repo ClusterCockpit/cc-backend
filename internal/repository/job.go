@@ -52,18 +52,18 @@ func GetJobRepository() *JobRepository {
 }
 
 var jobColumns []string = []string{
-	"job.id", "job.job_id", "job.hpc_user", "job.project", "job.cluster", "job.subcluster",
+	"job.id", "job.job_id", "job.hpc_user", "job.project", "job.hpc_cluster", "job.subcluster",
 	"job.start_time", "job.cluster_partition", "job.array_job_id", "job.num_nodes",
-	"job.num_hwthreads", "job.num_acc", "job.exclusive", "job.monitoring_status",
+	"job.num_hwthreads", "job.num_acc", "job.shared", "job.monitoring_status",
 	"job.smt", "job.job_state", "job.duration", "job.walltime", "job.resources",
 	"job.footprint", "job.energy",
 }
 
 var jobCacheColumns []string = []string{
-	"job_cache.id", "job_cache.job_id", "job_cache.hpc_user", "job_cache.project", "job_cache.cluster",
+	"job_cache.id", "job_cache.job_id", "job_cache.hpc_user", "job_cache.project", "job_cache.hpc_cluster",
 	"job_cache.subcluster", "job_cache.start_time", "job_cache.cluster_partition",
 	"job_cache.array_job_id", "job_cache.num_nodes", "job_cache.num_hwthreads",
-	"job_cache.num_acc", "job_cache.exclusive", "job_cache.monitoring_status", "job_cache.smt",
+	"job_cache.num_acc", "job_cache.shared", "job_cache.monitoring_status", "job_cache.smt",
 	"job_cache.job_state", "job_cache.duration", "job_cache.walltime", "job_cache.resources",
 	"job_cache.footprint", "job_cache.energy",
 }
@@ -390,7 +390,7 @@ func (r *JobRepository) Partitions(cluster string) ([]string, error) {
 	start := time.Now()
 	partitions := r.cache.Get("partitions:"+cluster, func() (any, time.Duration, int) {
 		parts := []string{}
-		if err = r.DB.Select(&parts, `SELECT DISTINCT job.cluster_partition FROM job WHERE job.cluster = ?;`, cluster); err != nil {
+		if err = r.DB.Select(&parts, `SELECT DISTINCT job.cluster_partition FROM job WHERE job.hpc_cluster = ?;`, cluster); err != nil {
 			return nil, 0, 1000
 		}
 
@@ -410,7 +410,7 @@ func (r *JobRepository) AllocatedNodes(cluster string) (map[string]map[string]in
 	subclusters := make(map[string]map[string]int)
 	rows, err := sq.Select("resources", "subcluster").From("job").
 		Where("job.job_state = 'running'").
-		Where("job.cluster = ?", cluster).
+		Where("job.hpc_cluster = ?", cluster).
 		RunWith(r.stmtCache).Query()
 	if err != nil {
 		cclog.Error("Error while running query")
@@ -505,7 +505,7 @@ func (r *JobRepository) FindJobIdsByTag(tagId int64) ([]int64, error) {
 // FIXME: Reconsider filtering short jobs with harcoded threshold
 func (r *JobRepository) FindRunningJobs(cluster string) ([]*schema.Job, error) {
 	query := sq.Select(jobColumns...).From("job").
-		Where(fmt.Sprintf("job.cluster = '%s'", cluster)).
+		Where(fmt.Sprintf("job.hpc_cluster = '%s'", cluster)).
 		Where("job.job_state = 'running'").
 		Where("job.duration > 600")
 
