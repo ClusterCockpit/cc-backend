@@ -142,10 +142,6 @@ func InitDB() error {
 			continue
 		}
 
-		if jobMeta.Shared == "" {
-			jobMeta.Shared = "none"
-		}
-
 		id, err := r.TransactionAddNamed(t,
 			repository.NamedJobInsert, jobMeta)
 		if err != nil {
