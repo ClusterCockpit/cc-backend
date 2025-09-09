@@ -1,3 +1,7 @@
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
+// All rights reserved. This file is part of cc-backend.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
 package avro
 
 import (
@@ -37,9 +41,9 @@ type AvroLevel struct {
 }
 
 type AvroField struct {
-	Name    string      `json:"name"`
-	Type    interface{} `json:"type"`
-	Default interface{} `json:"default,omitempty"`
+	Name    string `json:"name"`
+	Type    any    `json:"type"`
+	Default any    `json:"default,omitempty"`
 }
 
 type AvroSchema struct {

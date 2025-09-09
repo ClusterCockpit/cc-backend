@@ -1,8 +1,13 @@
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
+// All rights reserved. This file is part of cc-backend.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
 package avro
 
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 	"sync"
 
@@ -10,7 +15,6 @@ import (
 )
 
 func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
-
 	// AvroPool is a pool of Avro writers.
 	go func() {
 		if config.MetricStoreKeys.Checkpoints.FileFormat == "json" {
@@ -28,7 +32,7 @@ func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case val := <-LineProtocolMessages:
-				//Fetch the frequency of the metric from the global configuration
+				// Fetch the frequency of the metric from the global configuration
 				freq, err := config.GetMetricFrequency(val.MetricName)
 				if err != nil {
 					fmt.Printf("Error fetching metric frequency: %s\n", err)
@@ -58,7 +62,7 @@ func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 					if avroLevel == nil {
 						fmt.Printf("Error creating or finding the level with cluster : %s, node : %s, metric : %s\n", val.Cluster, val.Node, val.MetricName)
 					}
-					oldSelector = append([]string{}, selector...)
+					oldSelector = slices.Clone(selector)
 				}
 
 				avroLevel.addMetric(metricName, val.Value, val.Timestamp, int(freq))

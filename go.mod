@@ -6,10 +6,10 @@ toolchain go1.24.1
 
 require (
 	github.com/99designs/gqlgen v0.17.78
-	github.com/ClusterCockpit/cc-lib v0.7.0
+	github.com/ClusterCockpit/cc-lib v0.8.0
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/coreos/go-oidc/v3 v3.12.0
-	github.com/expr-lang/expr v1.17.5
+	github.com/expr-lang/expr v1.17.6
 	github.com/go-co-op/gocron/v2 v2.16.0
 	github.com/go-ldap/ldap/v3 v3.4.10
 	github.com/go-sql-driver/mysql v1.9.0
@@ -24,17 +24,17 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/linkedin/goavro/v2 v2.14.0
 	github.com/mattn/go-sqlite3 v1.14.24
-	github.com/nats-io/nats.go v1.44.0
-	github.com/prometheus/client_golang v1.23.0
-	github.com/prometheus/common v0.65.0
+	github.com/nats-io/nats.go v1.45.0
+	github.com/prometheus/client_golang v1.23.2
+	github.com/prometheus/common v0.66.1
 	github.com/qustavo/sqlhooks/v2 v2.1.0
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/swaggo/http-swagger v1.3.4
 	github.com/swaggo/swag v1.16.6
 	github.com/vektah/gqlparser/v2 v2.5.30
-	golang.org/x/crypto v0.40.0
+	golang.org/x/crypto v0.41.0
 	golang.org/x/oauth2 v0.30.0
-	golang.org/x/time v0.5.0
+	golang.org/x/time v0.12.0
 )
 
 require (
@@ -87,13 +87,12 @@ require (
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	golang.org/x/mod v0.26.0 // indirect
-	golang.org/x/net v0.42.0 // indirect
+	golang.org/x/net v0.43.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.34.0 // indirect
-	golang.org/x/text v0.27.0 // indirect
+	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/text v0.28.0 // indirect
 	golang.org/x/tools v0.35.0 // indirect
-	google.golang.org/protobuf v1.36.6 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
+	google.golang.org/protobuf v1.36.8 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
