@@ -2741,7 +2741,7 @@ input JobFilter {
   startTime: TimeRange
   state: [JobState!]
   metricStats: [MetricStatItem!]
-  shared: StringInput
+  shared: String
   node: StringInput
 }
 
@@ -16490,7 +16490,7 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj any
 			it.MetricStats = data
 		case "shared":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("shared"))
-			data, err := ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}

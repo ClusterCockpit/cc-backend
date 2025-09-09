@@ -172,7 +172,7 @@
       {job.numNodes}
     {/if}
     <Icon name="pc-horizontal" />
-    {#if job.exclusive != 1}
+    {#if job.shared != "none"}
       (shared)
     {/if}
     {#if job.numAcc > 0}

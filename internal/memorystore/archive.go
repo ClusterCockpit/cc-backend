@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -26,7 +27,7 @@ func Archiving(wg *sync.WaitGroup, ctx context.Context) {
 		defer wg.Done()
 		d, err := time.ParseDuration(config.MetricStoreKeys.Archive.Interval)
 		if err != nil {
-			cclog.Fatalf("[METRICSTORE]> error parsing archive interval duration: %v\n", err)
+			log.Fatalf("[METRICSTORE]> error parsing archive interval duration: %v\n", err)
 		}
 		if d <= 0 {
 			return
@@ -44,14 +45,14 @@ func Archiving(wg *sync.WaitGroup, ctx context.Context) {
 				return
 			case <-ticks:
 				t := time.Now().Add(-d)
-				cclog.Infof("[METRICSTORE]> start archiving checkpoints (older than %s)...\n", t.Format(time.RFC3339))
+				log.Printf("[METRICSTORE]> start archiving checkpoints (older than %s)...\n", t.Format(time.RFC3339))
 				n, err := ArchiveCheckpoints(config.MetricStoreKeys.Checkpoints.RootDir,
 					config.MetricStoreKeys.Archive.RootDir, t.Unix(), config.MetricStoreKeys.Archive.DeleteInstead)
 
 				if err != nil {
-					cclog.Warnf("[METRICSTORE]> archiving failed: %s\n", err.Error())
+					log.Printf("[METRICSTORE]> archiving failed: %s\n", err.Error())
 				} else {
-					cclog.Infof("[METRICSTORE]> done: %d files zipped and moved to archive\n", n)
+					log.Printf("[METRICSTORE]> done: %d files zipped and moved to archive\n", n)
 				}
 			}
 		}

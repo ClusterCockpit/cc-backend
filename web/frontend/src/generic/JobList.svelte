@@ -69,7 +69,7 @@
             hostname
           }
           SMT
-          exclusive
+          shared
           partition
           arrayJobId
           monitoringStatus

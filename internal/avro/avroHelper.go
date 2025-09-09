@@ -6,7 +6,7 @@ package avro
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"slices"
 	"strconv"
 	"sync"
@@ -35,7 +35,7 @@ func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 				// Fetch the frequency of the metric from the global configuration
 				freq, err := config.GetMetricFrequency(val.MetricName)
 				if err != nil {
-					fmt.Printf("Error fetching metric frequency: %s\n", err)
+					log.Printf("Error fetching metric frequency: %s\n", err)
 					continue
 				}
 
@@ -60,7 +60,7 @@ func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 
 					// If the Avro level is nil, create a new one
 					if avroLevel == nil {
-						fmt.Printf("Error creating or finding the level with cluster : %s, node : %s, metric : %s\n", val.Cluster, val.Node, val.MetricName)
+						log.Printf("Error creating or finding the level with cluster : %s, node : %s, metric : %s\n", val.Cluster, val.Node, val.MetricName)
 					}
 					oldSelector = slices.Clone(selector)
 				}

@@ -92,7 +92,7 @@
           Missing Metric
         </Button>
       </InputGroup>
-    {:else if nodeJobsData.jobs.count == 1 && nodeJobsData.jobs.items[0].exclusive}
+    {:else if nodeJobsData.jobs.count == 1 && nodeJobsData.jobs.items[0].shared == "none"}
       <InputGroup>
         <InputGroupText>
           <Icon name="circle-fill"/>
@@ -104,7 +104,7 @@
           Exclusive
         </Button>
       </InputGroup>
-    {:else if nodeJobsData.jobs.count >= 1 && !nodeJobsData.jobs.items[0].exclusive}
+    {:else if nodeJobsData.jobs.count >= 1 && !(nodeJobsData.jobs.items[0].shared == "none")}
       <InputGroup>
         <InputGroupText>
           <Icon name="circle-half"/>

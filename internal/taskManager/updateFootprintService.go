@@ -34,7 +34,7 @@ func RegisterFootprintWorker() {
 				c := 0
 				ce := 0
 				cl := 0
-				cclog.Printf("Update Footprints started at %s", s.Format(time.RFC3339))
+				cclog.Printf("Update Footprints started at %s\n", s.Format(time.RFC3339))
 
 				for _, cluster := range archive.Clusters {
 					s_cluster := time.Now()

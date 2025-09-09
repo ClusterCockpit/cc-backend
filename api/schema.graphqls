@@ -419,7 +419,7 @@ input JobFilter {
   startTime: TimeRange
   state: [JobState!]
   metricStats: [MetricStatItem!]
-  shared: StringInput
+  shared: String
   node: StringInput
 }
 
