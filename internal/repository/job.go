@@ -337,10 +337,10 @@ func (r *JobRepository) FindColumnValue(user *schema.User, searchterm string, ta
 
 		// theSql, args, theErr := theQuery.ToSql()
 		// if theErr != nil {
-		// 	log.Warn("Error while converting query to sql")
+		// 	cclog.Warn("Error while converting query to sql")
 		// 	return "", err
 		// }
-		// log.Debugf("SQL query (FindColumnValue): `%s`, args: %#v", theSql, args)
+		// cclog.Debugf("SQL query (FindColumnValue): `%s`, args: %#v", theSql, args)
 
 		err := theQuery.RunWith(r.stmtCache).QueryRow().Scan(&result)
 

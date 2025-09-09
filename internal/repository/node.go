@@ -49,6 +49,12 @@ func GetNodeRepository() *NodeRepository {
 	return nodeRepoInstance
 }
 
+var nodeColumns []string = []string{
+	// "node.id,"
+	"node.hostname", "node.cluster", "node.subcluster",
+	"node.node_state", "node.health_state", // "node.meta_data",
+}
+
 func (r *NodeRepository) FetchMetadata(node *schema.Node) (map[string]string, error) {
 	start := time.Now()
 	cachekey := fmt.Sprintf("metadata:%d", node.ID)
@@ -218,9 +224,9 @@ func (r *NodeRepository) DeleteNode(id int64) error {
 func (r *NodeRepository) QueryNodes(
 	ctx context.Context,
 	filters []*model.NodeFilter,
-	order *model.OrderByInput,
+	order *model.OrderByInput, // Currently unused!
 ) ([]*schema.Node, error) {
-	query, qerr := SecurityCheck(ctx, sq.Select(jobColumns...).From("node"))
+	query, qerr := AccessCheck(ctx, sq.Select(nodeColumns...).From("node"))
 	if qerr != nil {
 		return nil, qerr
 	}
@@ -231,6 +237,9 @@ func (r *NodeRepository) QueryNodes(
 		}
 		if f.Cluster != nil {
 			query = buildStringCondition("node.cluster", f.Cluster, query)
+		}
+		if f.Subcluster != nil {
+			query = buildStringCondition("node.subcluster", f.Subcluster, query)
 		}
 		if f.NodeState != nil {
 			query = query.Where("node.node_state = ?", f.NodeState)
@@ -286,4 +295,124 @@ func (r *NodeRepository) ListNodes(cluster string) ([]*schema.Node, error) {
 	}
 
 	return nodeList, nil
+}
+
+func (r *NodeRepository) CountNodeStates(ctx context.Context, filters []*model.NodeFilter) ([]*model.NodeStates, error) {
+	query, qerr := AccessCheck(ctx, sq.Select("node_state AS state", "count(*) AS count").From("node"))
+	if qerr != nil {
+		return nil, qerr
+	}
+
+	for _, f := range filters {
+		if f.Hostname != nil {
+			query = buildStringCondition("node.hostname", f.Hostname, query)
+		}
+		if f.Cluster != nil {
+			query = buildStringCondition("node.cluster", f.Cluster, query)
+		}
+		if f.Subcluster != nil {
+			query = buildStringCondition("node.subcluster", f.Subcluster, query)
+		}
+		if f.NodeState != nil {
+			query = query.Where("node.node_state = ?", f.NodeState)
+		}
+		if f.HealthState != nil {
+			query = query.Where("node.health_state = ?", f.HealthState)
+		}
+	}
+
+	// Add Group and Order
+	query = query.GroupBy("state").OrderBy("count DESC")
+
+	rows, err := query.RunWith(r.stmtCache).Query()
+	if err != nil {
+		queryString, queryVars, _ := query.ToSql()
+		cclog.Errorf("Error while running query '%s' %v: %v", queryString, queryVars, err)
+		return nil, err
+	}
+
+	nodes := make([]*model.NodeStates, 0)
+	for rows.Next() {
+		node := model.NodeStates{}
+
+		if err := rows.Scan(&node.State, &node.Count); err != nil {
+			rows.Close()
+			cclog.Warn("Error while scanning rows (NodeStates)")
+			return nil, err
+		}
+		nodes = append(nodes, &node)
+	}
+
+	return nodes, nil
+}
+
+func (r *NodeRepository) CountHealthStates(ctx context.Context, filters []*model.NodeFilter) ([]*model.NodeStates, error) {
+	query, qerr := AccessCheck(ctx, sq.Select("health_state AS state", "count(*) AS count").From("node"))
+	if qerr != nil {
+		return nil, qerr
+	}
+
+	for _, f := range filters {
+		if f.Hostname != nil {
+			query = buildStringCondition("node.hostname", f.Hostname, query)
+		}
+		if f.Cluster != nil {
+			query = buildStringCondition("node.cluster", f.Cluster, query)
+		}
+		if f.Subcluster != nil {
+			query = buildStringCondition("node.subcluster", f.Subcluster, query)
+		}
+		if f.NodeState != nil {
+			query = query.Where("node.node_state = ?", f.NodeState)
+		}
+		if f.HealthState != nil {
+			query = query.Where("node.health_state = ?", f.HealthState)
+		}
+	}
+
+	// Add Group and Order
+	query = query.GroupBy("state").OrderBy("count DESC")
+
+	rows, err := query.RunWith(r.stmtCache).Query()
+	if err != nil {
+		queryString, queryVars, _ := query.ToSql()
+		cclog.Errorf("Error while running query '%s' %v: %v", queryString, queryVars, err)
+		return nil, err
+	}
+
+	nodes := make([]*model.NodeStates, 0)
+	for rows.Next() {
+		node := model.NodeStates{}
+
+		if err := rows.Scan(&node.State, &node.Count); err != nil {
+			rows.Close()
+			cclog.Warn("Error while scanning rows (NodeStates)")
+			return nil, err
+		}
+		nodes = append(nodes, &node)
+	}
+
+	return nodes, nil
+}
+
+func AccessCheck(ctx context.Context, query sq.SelectBuilder) (sq.SelectBuilder, error) {
+	user := GetUserFromContext(ctx)
+	return AccessCheckWithUser(user, query)
+}
+
+func AccessCheckWithUser(user *schema.User, query sq.SelectBuilder) (sq.SelectBuilder, error) {
+	if user == nil {
+		var qnil sq.SelectBuilder
+		return qnil, fmt.Errorf("user context is nil")
+	}
+
+	switch {
+	// case len(user.Roles) == 1 && user.HasRole(schema.RoleApi): // API-User : Access NodeInfos
+	// 	return query, nil
+	case user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport}): // Admin & Support : Access NodeInfos
+		return query, nil
+	default: // No known Role: No Access, return error
+		var qnil sq.SelectBuilder
+		return qnil, fmt.Errorf("user has no or unknown roles")
+	}
 }

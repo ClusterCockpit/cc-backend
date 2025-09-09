@@ -5,7 +5,7 @@ import Status from './Status.root.svelte'
 mount(Status, {
     target: document.getElementById('svelte-app'),
     props: {
-        cluster: infos.cluster,
+        presetCluster: infos.cluster,
     },
     context: new Map([
             ['cc-config', clusterCockpitConfig]

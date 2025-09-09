@@ -21,13 +21,15 @@ import (
 
 // GraphQL validation should make sure that no unkown values can be specified.
 var groupBy2column = map[model.Aggregate]string{
-	model.AggregateUser:    "job.hpc_user",
-	model.AggregateProject: "job.project",
-	model.AggregateCluster: "job.cluster",
+	model.AggregateUser:       "job.hpc_user",
+	model.AggregateProject:    "job.project",
+	model.AggregateCluster:    "job.cluster",
+	model.AggregateSubcluster: "job.subcluster",
 }
 
 var sortBy2column = map[model.SortByAggregate]string{
 	model.SortByAggregateTotaljobs:      "totalJobs",
+	model.SortByAggregateTotalusers:     "totalUsers",
 	model.SortByAggregateTotalwalltime:  "totalWalltime",
 	model.SortByAggregateTotalnodes:     "totalNodes",
 	model.SortByAggregateTotalnodehours: "totalNodeHours",
@@ -76,8 +78,12 @@ func (r *JobRepository) buildStatsQuery(
 	// fmt.Sprintf(`CAST(ROUND((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) / 3600) as %s) as value`, time.Now().Unix(), castType)
 
 	if col != "" {
-		// Scan columns: id, totalJobs, name, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours
-		query = sq.Select(col, "COUNT(job.id) as totalJobs", "name",
+		// Scan columns: id, name, totalJobs, totalUsers, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours
+		query = sq.Select(
+			col,
+			"name",
+			"COUNT(job.id) as totalJobs",
+			"COUNT(DISTINCT job.hpc_user) AS totalUsers",
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) / 3600) as %s) as totalWalltime`, time.Now().Unix(), castType),
 			fmt.Sprintf(`CAST(SUM(job.num_nodes) as %s) as totalNodes`, castType),
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_nodes) / 3600) as %s) as totalNodeHours`, time.Now().Unix(), castType),
@@ -87,8 +93,10 @@ func (r *JobRepository) buildStatsQuery(
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_acc) / 3600) as %s) as totalAccHours`, time.Now().Unix(), castType),
 		).From("job").LeftJoin("hpc_user ON hpc_user.username = job.hpc_user").GroupBy(col)
 	} else {
-		// Scan columns: totalJobs, name, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours
-		query = sq.Select("COUNT(job.id)",
+		// Scan columns: totalJobs, totalUsers, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours
+		query = sq.Select(
+			"COUNT(job.id) as totalJobs",
+			"COUNT(DISTINCT job.hpc_user) AS totalUsers",
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) / 3600) as %s)`, time.Now().Unix(), castType),
 			fmt.Sprintf(`CAST(SUM(job.num_nodes) as %s)`, castType),
 			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_nodes) / 3600) as %s)`, time.Now().Unix(), castType),
@@ -167,14 +175,14 @@ func (r *JobRepository) JobsStatsGrouped(
 	for rows.Next() {
 		var id sql.NullString
 		var name sql.NullString
-		var jobs, walltime, nodes, nodeHours, cores, coreHours, accs, accHours sql.NullInt64
-		if err := rows.Scan(&id, &jobs, &name, &walltime, &nodes, &nodeHours, &cores, &coreHours, &accs, &accHours); err != nil {
+		var jobs, users, walltime, nodes, nodeHours, cores, coreHours, accs, accHours sql.NullInt64
+		if err := rows.Scan(&id, &name, &jobs, &users, &walltime, &nodes, &nodeHours, &cores, &coreHours, &accs, &accHours); err != nil {
 			cclog.Warn("Error while scanning rows")
 			return nil, err
 		}
 
 		if id.Valid {
-			var totalJobs, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours int
+			var totalJobs, totalUsers, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours int
 			var personName string
 
 			if name.Valid {
@@ -183,6 +191,10 @@ func (r *JobRepository) JobsStatsGrouped(
 
 			if jobs.Valid {
 				totalJobs = int(jobs.Int64)
+			}
+
+			if users.Valid {
+				totalUsers = int(users.Int64)
 			}
 
 			if walltime.Valid {
@@ -228,8 +240,9 @@ func (r *JobRepository) JobsStatsGrouped(
 				stats = append(stats,
 					&model.JobsStatistics{
 						ID:             id.String,
-						TotalJobs:      int(jobs.Int64),
-						TotalWalltime:  int(walltime.Int64),
+						TotalJobs:      totalJobs,
+						TotalUsers:     totalUsers,
+						TotalWalltime:  totalWalltime,
 						TotalNodes:     totalNodes,
 						TotalNodeHours: totalNodeHours,
 						TotalCores:     totalCores,
@@ -259,8 +272,8 @@ func (r *JobRepository) JobsStats(
 	row := query.RunWith(r.DB).QueryRow()
 	stats := make([]*model.JobsStatistics, 0, 1)
 
-	var jobs, walltime, nodes, nodeHours, cores, coreHours, accs, accHours sql.NullInt64
-	if err := row.Scan(&jobs, &walltime, &nodes, &nodeHours, &cores, &coreHours, &accs, &accHours); err != nil {
+	var jobs, users, walltime, nodes, nodeHours, cores, coreHours, accs, accHours sql.NullInt64
+	if err := row.Scan(&jobs, &users, &walltime, &nodes, &nodeHours, &cores, &coreHours, &accs, &accHours); err != nil {
 		cclog.Warn("Error while scanning rows")
 		return nil, err
 	}
@@ -280,6 +293,7 @@ func (r *JobRepository) JobsStats(
 		stats = append(stats,
 			&model.JobsStatistics{
 				TotalJobs:      int(jobs.Int64),
+				TotalUsers:     int(users.Int64),
 				TotalWalltime:  int(walltime.Int64),
 				TotalNodeHours: totalNodeHours,
 				TotalCoreHours: totalCoreHours,

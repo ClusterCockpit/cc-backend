@@ -40,7 +40,7 @@ func InitDB() error {
 	}
 	tags := make(map[string]int64)
 
-	// Not using log.Print because we want the line to end with `\r` and
+	// Not using cclog.Print because we want the line to end with `\r` and
 	// this function is only ever called when a special command line flag
 	// is passed anyways.
 	fmt.Printf("%d jobs inserted...\r", 0)

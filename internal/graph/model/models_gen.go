@@ -114,6 +114,7 @@ type JobStats struct {
 type JobsStatistics struct {
 	ID             string               `json:"id"`
 	Name           string               `json:"name"`
+	TotalUsers     int                  `json:"totalUsers"`
 	TotalJobs      int                  `json:"totalJobs"`
 	RunningJobs    int                  `json:"runningJobs"`
 	ShortJobs      int                  `json:"shortJobs"`
@@ -172,6 +173,7 @@ type NamedStatsWithScope struct {
 type NodeFilter struct {
 	Hostname    *StringInput      `json:"hostname,omitempty"`
 	Cluster     *StringInput      `json:"cluster,omitempty"`
+	Subcluster  *StringInput      `json:"subcluster,omitempty"`
 	NodeState   *string           `json:"nodeState,omitempty"`
 	HealthState *schema.NodeState `json:"healthState,omitempty"`
 }
@@ -187,7 +189,7 @@ type NodeStateResultList struct {
 	Count *int           `json:"count,omitempty"`
 }
 
-type NodeStats struct {
+type NodeStates struct {
 	State string `json:"state"`
 	Count int    `json:"count"`
 }
@@ -248,20 +250,22 @@ type User struct {
 type Aggregate string
 
 const (
-	AggregateUser    Aggregate = "USER"
-	AggregateProject Aggregate = "PROJECT"
-	AggregateCluster Aggregate = "CLUSTER"
+	AggregateUser       Aggregate = "USER"
+	AggregateProject    Aggregate = "PROJECT"
+	AggregateCluster    Aggregate = "CLUSTER"
+	AggregateSubcluster Aggregate = "SUBCLUSTER"
 )
 
 var AllAggregate = []Aggregate{
 	AggregateUser,
 	AggregateProject,
 	AggregateCluster,
+	AggregateSubcluster,
 }
 
 func (e Aggregate) IsValid() bool {
 	switch e {
-	case AggregateUser, AggregateProject, AggregateCluster:
+	case AggregateUser, AggregateProject, AggregateCluster, AggregateSubcluster:
 		return true
 	}
 	return false
@@ -307,6 +311,7 @@ type SortByAggregate string
 const (
 	SortByAggregateTotalwalltime  SortByAggregate = "TOTALWALLTIME"
 	SortByAggregateTotaljobs      SortByAggregate = "TOTALJOBS"
+	SortByAggregateTotalusers     SortByAggregate = "TOTALUSERS"
 	SortByAggregateTotalnodes     SortByAggregate = "TOTALNODES"
 	SortByAggregateTotalnodehours SortByAggregate = "TOTALNODEHOURS"
 	SortByAggregateTotalcores     SortByAggregate = "TOTALCORES"
@@ -318,6 +323,7 @@ const (
 var AllSortByAggregate = []SortByAggregate{
 	SortByAggregateTotalwalltime,
 	SortByAggregateTotaljobs,
+	SortByAggregateTotalusers,
 	SortByAggregateTotalnodes,
 	SortByAggregateTotalnodehours,
 	SortByAggregateTotalcores,
@@ -328,7 +334,7 @@ var AllSortByAggregate = []SortByAggregate{
 
 func (e SortByAggregate) IsValid() bool {
 	switch e {
-	case SortByAggregateTotalwalltime, SortByAggregateTotaljobs, SortByAggregateTotalnodes, SortByAggregateTotalnodehours, SortByAggregateTotalcores, SortByAggregateTotalcorehours, SortByAggregateTotalaccs, SortByAggregateTotalacchours:
+	case SortByAggregateTotalwalltime, SortByAggregateTotaljobs, SortByAggregateTotalusers, SortByAggregateTotalnodes, SortByAggregateTotalnodehours, SortByAggregateTotalcores, SortByAggregateTotalcorehours, SortByAggregateTotalaccs, SortByAggregateTotalacchours:
 		return true
 	}
 	return false
