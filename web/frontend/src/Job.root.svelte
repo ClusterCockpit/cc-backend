@@ -56,7 +56,7 @@
     job(id: "${dbid}") {
       id, jobId, user, project, cluster, startTime,
       duration, numNodes, numHWThreads, numAcc, energy,
-      SMT, exclusive, partition, subCluster, arrayJobId,
+      SMT, shared, partition, subCluster, arrayJobId,
       monitoringStatus, state, walltime,
       tags { id, type, scope, name },
       resources { hostname, hwthreads, accelerators },
@@ -325,7 +325,7 @@
             metricUnit={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.unit}
             nativeScope={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.scope}
             presetScopes={item.data.map((x) => x.scope)}
-            isShared={$initq.data.job.exclusive != 1}
+            isShared={$initq.data.job.shared != "none"}
           />
         {:else if item.disabled == true}
           <Card color="info">

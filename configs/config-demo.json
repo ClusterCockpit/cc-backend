@@ -80,7 +80,7 @@
       "restore": "48h"
     },
     "archive": {
-      "interval": "48h",
+      "interval": "2h",
       "directory": "./var/archive"
     },
     "retention-in-memory": "48h"
