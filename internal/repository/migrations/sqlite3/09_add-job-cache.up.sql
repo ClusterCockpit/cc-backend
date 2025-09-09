@@ -69,17 +69,29 @@ CREATE TABLE "job_new" (
 );
 
 ALTER TABLE job RENAME COLUMN cluster TO hpc_cluster;
+
+CREATE TABLE IF NOT EXISTS lookup_exclusive (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
+);
+
+INSERT INTO lookup_exclusive (id, name) VALUES
+    (0, 'multi_user'),
+    (1, 'none'),
+    (2, 'single_user');
+
 INSERT INTO job_new (
-    id, job_id, hpc_cluster, subcluster, submit_time, start_time, hpc_user, project, 
-    cluster_partition, array_job_id, duration, walltime, job_state, meta_data, resources, 
-    num_nodes, num_hwthreads, num_acc, smt, shared, monitoring_status, energy, 
+    id, job_id, hpc_cluster, subcluster, submit_time, start_time, hpc_user, project,
+    cluster_partition, array_job_id, duration, walltime, job_state, meta_data, resources,
+    num_nodes, num_hwthreads, num_acc, smt, shared, monitoring_status, energy,
     energy_footprint, footprint
-)
-SELECT 
-    id, job_id, hpc_cluster, subcluster, 0, start_time, hpc_user, project, 
-    cluster_partition, array_job_id, duration, walltime, job_state, meta_data, resources, 
-    num_nodes, num_hwthreads, num_acc, smt, exclusive, monitoring_status, energy, 
+) SELECT
+    id, job_id, hpc_cluster, subcluster, 0, start_time, hpc_user, project,
+    cluster_partition, array_job_id, duration, walltime, job_state, meta_data, resources,
+    num_nodes, num_hwthreads, num_acc, smt, (SELECT name FROM lookup_exclusive WHERE id=job.exclusive), monitoring_status, energy,
     energy_footprint, footprint
 FROM job;
+
+DROP TABLE lookup_exclusive;
 DROP TABLE job;
 ALTER TABLE job_new RENAME TO job;
