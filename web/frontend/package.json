@@ -17,7 +17,7 @@
     "svelte": "^4.2.19"
   },
   "dependencies": {
-    "@rollup/plugin-replace": "^5.0.7",
+    "@rollup/plugin-replace": "^6.0.2",
     "@sveltestrap/sveltestrap": "^6.2.7",
     "@urql/svelte": "^4.2.2",
     "chart.js": "^4.4.6",
