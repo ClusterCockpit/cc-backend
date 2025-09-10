@@ -11,6 +11,7 @@
 -->
 
  <script>
+  import { getContext } from "svelte";
   import { queryStore, gql, getContextClient } from "@urql/svelte";
   import { Row, Col, Card, Spinner } from "@sveltestrap/sveltestrap";
   import { checkMetricDisabled } from "../generic/utils.js";
@@ -27,6 +28,7 @@
   } = $props();
 
   /* Const Init */
+  const initialized = getContext("initialized");
   const client = getContextClient();
 
   /* Derived */
@@ -72,11 +74,11 @@
     },
   }));
 
-  const mappedData = $derived(handleQueryData($nodesQuery?.data));
+  const mappedData = $derived(handleQueryData($initialized, $nodesQuery?.data));
   const filteredData = $derived(mappedData.filter((h) => h.host.includes(hostnameFilter)));
 
   /* Functions */
-  function handleQueryData(queryData) {
+  function handleQueryData(isInitialized, queryData) {
     let rawData = []
     if (queryData) { 
       rawData = queryData.nodeMetrics.filter((h) => {
@@ -96,11 +98,7 @@
         data: h.metrics.filter(
           (m) => m?.name == selectedMetric && m.scope == "node",
         ),
-        disabled: checkMetricDisabled(
-          selectedMetric,
-          cluster,
-          h.subCluster,
-        ),
+        disabled: isInitialized ? checkMetricDisabled(selectedMetric, cluster, h.subCluster) : null,
       }))
       .sort((a, b) => a.host.localeCompare(b.host))
     }
@@ -124,42 +122,43 @@
 {:else if filteredData?.length > 0}
   <!-- PlotGrid flattened into this component -->
   <Row cols={{ xs: 1, sm: 2, md: 3, lg: ccconfig.plot_view_plotsPerRow}}>
-    {#each filteredData as item (item.host)}
-      <Col class="px-1">
-        <h4 style="width: 100%; text-align: center;">
-          <a
-            style="display: block;padding-top: 15px;"
-            href="/monitoring/node/{cluster}/{item.host}"
-            >{item.host} ({item.subCluster})</a
-          >
-        </h4>
-        {#key item?.disabled}
-          {#if item?.disabled === true}
+    {#key selectedMetric}
+      {#each filteredData as item (item.host)}
+        <Col class="px-1">
+          <h4 style="width: 100%; text-align: center;">
+            <a
+              style="display: block;padding-top: 15px;"
+              href="/monitoring/node/{cluster}/{item.host}"
+              >{item.host} ({item.subCluster})</a
+            >
+          </h4>
+          {#if item.disabled === true}
             <Card body class="mx-3" color="info"
               >Metric disabled for subcluster <code
                 >{selectedMetric}:{item.subCluster}</code
               ></Card
             >
-          {:else if item?.disabled === false}
+          {:else if item.disabled === false}
             <!-- "No Data"-Warning included in MetricPlot-Component   -->
             <!-- #key: X-axis keeps last selected timerange otherwise -->
-            <MetricPlot
-              timestep={item.data[0].metric.timestep}
-              series={item.data[0].metric.series}
-              metric={item.data[0].name}
-              {cluster}
-              subCluster={item.subCluster}
-              forNode
-            />
-          {:else}
-            <Card body class="mx-3"
-              >Metric Query Empty: Please Reload Page <code
-                >{selectedMetric}:{item.subCluster}</code
-              ></Card
-            >
+            {#key item.data[0].metric.series[0].data.length}
+              <MetricPlot
+                timestep={item.data[0].metric.timestep}
+                series={item.data[0].metric.series}
+                metric={item.data[0].name}
+                {cluster}
+                subCluster={item.subCluster}
+                forNode
+              />
+            {/key}
+          {:else if item.disabled === null}
+            <Card body class="mx-3" color="info">
+              Global Metric List Not Initialized
+              Can not determine {selectedMetric} availability: Please Reload Page
+            </Card>
           {/if}
-        {/key}
-      </Col>
-    {/each}
+        </Col>
+      {/each}
+    {/key}
   </Row>
 {/if}
