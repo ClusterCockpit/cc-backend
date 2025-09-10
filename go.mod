@@ -8,7 +8,7 @@ require (
 	github.com/99designs/gqlgen v0.17.66
 	github.com/ClusterCockpit/cc-units v0.4.0
 	github.com/Masterminds/squirrel v1.5.4
-	github.com/coreos/go-oidc/v3 v3.12.0
+	github.com/coreos/go-oidc/v3 v3.15.0
 	github.com/go-co-op/gocron/v2 v2.16.0
 	github.com/go-ldap/ldap/v3 v3.4.10
 	github.com/go-sql-driver/mysql v1.9.0
@@ -30,7 +30,7 @@ require (
 	github.com/vektah/gqlparser/v2 v2.5.22
 	golang.org/x/crypto v0.36.0
 	golang.org/x/exp v0.0.0-20250218142911-aa4b98e5adaa
-	golang.org/x/oauth2 v0.27.0
+	golang.org/x/oauth2 v0.28.0
 	golang.org/x/time v0.5.0
 )
 
