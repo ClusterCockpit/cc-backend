@@ -124,25 +124,25 @@
 {:else if filteredData?.length > 0}
   <!-- PlotGrid flattened into this component -->
   <Row cols={{ xs: 1, sm: 2, md: 3, lg: ccconfig.plot_view_plotsPerRow}}>
-    {#each filteredData as item (item.host)}
-      <Col class="px-1">
-        <h4 style="width: 100%; text-align: center;">
-          <a
-            style="display: block;padding-top: 15px;"
-            href="/monitoring/node/{cluster}/{item.host}"
-            >{item.host} ({item.subCluster})</a
-          >
-        </h4>
-        {#if item?.disabled}
-          <Card body class="mx-3" color="info"
-            >Metric disabled for subcluster <code
-              >{selectedMetric}:{item.subCluster}</code
-            ></Card
-          >
-        {:else}
-          <!-- "No Data"-Warning included in MetricPlot-Component   -->
-          <!-- #key: X-axis keeps last selected timerange otherwise -->
-          {#key item.data[0].metric.series[0].data.length}
+    {#key filteredData}
+      {#each filteredData as item (item.host)}
+        <Col class="px-1">
+          <h4 style="width: 100%; text-align: center;">
+            <a
+              style="display: block;padding-top: 15px;"
+              href="/monitoring/node/{cluster}/{item.host}"
+              >{item.host} ({item.subCluster})</a
+            >
+          </h4>
+          {#if item?.disabled}
+            <Card body class="mx-3" color="info"
+              >Metric disabled for subcluster <code
+                >{selectedMetric}:{item.subCluster}</code
+              ></Card
+            >
+          {:else}
+            <!-- "No Data"-Warning included in MetricPlot-Component   -->
+            <!-- #key: X-axis keeps last selected timerange otherwise -->
             <MetricPlot
               timestep={item.data[0].metric.timestep}
               series={item.data[0].metric.series}
@@ -151,9 +151,9 @@
               subCluster={item.subCluster}
               forNode
             />
-          {/key}
-        {/if}
-      </Col>
-    {/each}
+          {/if}
+        </Col>
+      {/each}
+    {/key}
   </Row>
 {/if}
