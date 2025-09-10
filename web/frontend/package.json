@@ -21,7 +21,7 @@
     "@sveltestrap/sveltestrap": "^6.2.7",
     "@urql/svelte": "^4.2.2",
     "chart.js": "^4.4.6",
-    "date-fns": "^2.30.0",
+    "date-fns": "^4.1.0",
     "graphql": "^16.9.0",
     "mathjs": "^12.4.3",
     "svelte-chartjs": "^3.1.5",
