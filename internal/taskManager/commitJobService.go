@@ -20,15 +20,15 @@ func RegisterCommitJobService() {
 		frequency = "2m"
 	}
 	d, _ := time.ParseDuration(frequency)
-	cclog.Infof("Register commitJob service with %s interval", frequency)
+	cclog.Infof("register commitJob service with %s interval", frequency)
 
 	s.NewJob(gocron.DurationJob(d),
 		gocron.NewTask(
 			func() {
 				start := time.Now()
-				cclog.Printf("Jobcache sync started at %s\n", start.Format(time.RFC3339))
+				cclog.Debugf("jobcache sync started at %s\n", start.Format(time.RFC3339))
 				jobs, _ := jobRepo.SyncJobs()
 				repository.CallJobStartHooks(jobs)
-				cclog.Printf("Jobcache sync and job callbacks are done and took %s\n", time.Since(start))
+				cclog.Debugf("jobcache sync and job callbacks are done and took %s\n", time.Since(start))
 			}))
 }
