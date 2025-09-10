@@ -14,19 +14,19 @@ import (
 )
 
 const NamedJobCacheInsert string = `INSERT INTO job_cache (
-	job_id, hpc_user, project, cluster, subcluster, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc,
-	exclusive, monitoring_status, smt, job_state, start_time, duration, walltime, footprint, energy, energy_footprint, resources, meta_data
+	job_id, hpc_user, project, hpc_cluster, subcluster, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc,
+	shared, monitoring_status, smt, job_state, start_time, duration, walltime, footprint, energy, energy_footprint, resources, meta_data
 ) VALUES (
-	:job_id, :hpc_user, :project, :cluster, :subcluster, :cluster_partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
-  :exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :walltime, :footprint,  :energy, :energy_footprint, :resources, :meta_data
+	:job_id, :hpc_user, :project, :hpc_cluster, :subcluster, :cluster_partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
+  :shared, :monitoring_status, :smt, :job_state, :start_time, :duration, :walltime, :footprint,  :energy, :energy_footprint, :resources, :meta_data
 );`
 
 const NamedJobInsert string = `INSERT INTO job (
-	job_id, hpc_user, project, cluster, subcluster, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc,
-	exclusive, monitoring_status, smt, job_state, start_time, duration, walltime, footprint, energy, energy_footprint, resources, meta_data
+	job_id, hpc_user, project, hpc_cluster, subcluster, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc,
+	shared, monitoring_status, smt, job_state, start_time, duration, walltime, footprint, energy, energy_footprint, resources, meta_data
 ) VALUES (
-	:job_id, :hpc_user, :project, :cluster, :subcluster, :cluster_partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
-  :exclusive, :monitoring_status, :smt, :job_state, :start_time, :duration, :walltime, :footprint,  :energy, :energy_footprint, :resources, :meta_data
+	:job_id, :hpc_user, :project, :hpc_cluster, :subcluster, :cluster_partition, :array_job_id, :num_nodes, :num_hwthreads, :num_acc,
+  :shared, :monitoring_status, :smt, :job_state, :start_time, :duration, :walltime, :footprint,  :energy, :energy_footprint, :resources, :meta_data
 );`
 
 func (r *JobRepository) InsertJob(job *schema.Job) (int64, error) {
@@ -70,7 +70,7 @@ func (r *JobRepository) SyncJobs() ([]*schema.Job, error) {
 	}
 
 	_, err = r.DB.Exec(
-		"INSERT INTO job (job_id, cluster, subcluster, start_time, hpc_user, project, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc, exclusive, monitoring_status, smt, job_state, duration, walltime, footprint, energy, energy_footprint, resources, meta_data) SELECT job_id, cluster, subcluster, start_time, hpc_user, project, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc, exclusive, monitoring_status, smt, job_state, duration, walltime, footprint, energy, energy_footprint, resources, meta_data FROM job_cache")
+		"INSERT INTO job (job_id, hpc_cluster, subcluster, start_time, hpc_user, project, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc, shared, monitoring_status, smt, job_state, duration, walltime, footprint, energy, energy_footprint, resources, meta_data) SELECT job_id, hpc_cluster, subcluster, start_time, hpc_user, project, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc, shared, monitoring_status, smt, job_state, duration, walltime, footprint, energy, energy_footprint, resources, meta_data FROM job_cache")
 	if err != nil {
 		cclog.Warnf("Error while Job sync: %v", err)
 		return nil, err

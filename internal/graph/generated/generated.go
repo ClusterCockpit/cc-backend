@@ -118,7 +118,6 @@ type ComplexityRoot struct {
 		Duration         func(childComplexity int) int
 		Energy           func(childComplexity int) int
 		EnergyFootprint  func(childComplexity int) int
-		Exclusive        func(childComplexity int) int
 		Footprint        func(childComplexity int) int
 		ID               func(childComplexity int) int
 		JobID            func(childComplexity int) int
@@ -131,6 +130,7 @@ type ComplexityRoot struct {
 		Project          func(childComplexity int) int
 		Resources        func(childComplexity int) int
 		SMT              func(childComplexity int) int
+		Shared           func(childComplexity int) int
 		StartTime        func(childComplexity int) int
 		State            func(childComplexity int) int
 		SubCluster       func(childComplexity int) int
@@ -426,8 +426,6 @@ type ClusterResolver interface {
 }
 type JobResolver interface {
 	StartTime(ctx context.Context, obj *schema.Job) (*time.Time, error)
-
-	Exclusive(ctx context.Context, obj *schema.Job) (int, error)
 
 	Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error)
 
@@ -729,13 +727,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Job.EnergyFootprint(childComplexity), true
 
-	case "Job.exclusive":
-		if e.complexity.Job.Exclusive == nil {
-			break
-		}
-
-		return e.complexity.Job.Exclusive(childComplexity), true
-
 	case "Job.footprint":
 		if e.complexity.Job.Footprint == nil {
 			break
@@ -819,6 +810,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Job.SMT(childComplexity), true
+
+	case "Job.shared":
+		if e.complexity.Job.Shared == nil {
+			break
+		}
+
+		return e.complexity.Job.Shared(childComplexity), true
 
 	case "Job.startTime":
 		if e.complexity.Job.StartTime == nil {
@@ -2379,7 +2377,7 @@ type Job {
   numAcc: Int!
   energy: Float!
   SMT: Int!
-  exclusive: Int!
+  shared: String!
   partition: String!
   arrayJobId: Int!
   monitoringStatus: Int!
@@ -2766,7 +2764,7 @@ input JobFilter {
   startTime: TimeRange
   state: [JobState!]
   metricStats: [MetricStatItem!]
-  exclusive: Int
+  shared: String
   node: StringInput
 }
 
@@ -5241,8 +5239,8 @@ func (ec *executionContext) fieldContext_Job_SMT(_ context.Context, field graphq
 	return fc, nil
 }
 
-func (ec *executionContext) _Job_exclusive(ctx context.Context, field graphql.CollectedField, obj *schema.Job) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Job_exclusive(ctx, field)
+func (ec *executionContext) _Job_shared(ctx context.Context, field graphql.CollectedField, obj *schema.Job) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Job_shared(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5255,7 +5253,7 @@ func (ec *executionContext) _Job_exclusive(ctx context.Context, field graphql.Co
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Job().Exclusive(rctx, obj)
+		return obj.Shared, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -5267,19 +5265,19 @@ func (ec *executionContext) _Job_exclusive(ctx context.Context, field graphql.Co
 		}
 		return graphql.Null
 	}
-	res := resTmp.(int)
+	res := resTmp.(string)
 	fc.Result = res
-	return ec.marshalNInt2int(ctx, field.Selections, res)
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Job_exclusive(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Job_shared(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Job",
 		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
+		IsMethod:   false,
+		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -6428,8 +6426,8 @@ func (ec *executionContext) fieldContext_JobResultList_items(_ context.Context, 
 				return ec.fieldContext_Job_energy(ctx, field)
 			case "SMT":
 				return ec.fieldContext_Job_SMT(ctx, field)
-			case "exclusive":
-				return ec.fieldContext_Job_exclusive(ctx, field)
+			case "shared":
+				return ec.fieldContext_Job_shared(ctx, field)
 			case "partition":
 				return ec.fieldContext_Job_partition(ctx, field)
 			case "arrayJobId":
@@ -11158,8 +11156,8 @@ func (ec *executionContext) fieldContext_Query_job(ctx context.Context, field gr
 				return ec.fieldContext_Job_energy(ctx, field)
 			case "SMT":
 				return ec.fieldContext_Job_SMT(ctx, field)
-			case "exclusive":
-				return ec.fieldContext_Job_exclusive(ctx, field)
+			case "shared":
+				return ec.fieldContext_Job_shared(ctx, field)
 			case "partition":
 				return ec.fieldContext_Job_partition(ctx, field)
 			case "arrayJobId":
@@ -16475,7 +16473,7 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj any
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"tags", "dbId", "jobId", "arrayJobId", "user", "project", "jobName", "cluster", "partition", "duration", "energy", "minRunningFor", "numNodes", "numAccelerators", "numHWThreads", "startTime", "state", "metricStats", "exclusive", "node"}
+	fieldsInOrder := [...]string{"tags", "dbId", "jobId", "arrayJobId", "user", "project", "jobName", "cluster", "partition", "duration", "energy", "minRunningFor", "numNodes", "numAccelerators", "numHWThreads", "startTime", "state", "metricStats", "shared", "node"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -16608,13 +16606,13 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj any
 				return it, err
 			}
 			it.MetricStats = data
-		case "exclusive":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exclusive"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+		case "shared":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("shared"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.Exclusive = data
+			it.Shared = data
 		case "node":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("node"))
 			data, err := ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
@@ -17522,42 +17520,11 @@ func (ec *executionContext) _Job(ctx context.Context, sel ast.SelectionSet, obj 
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
-		case "exclusive":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Job_exclusive(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
+		case "shared":
+			out.Values[i] = ec._Job_shared(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
 			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "partition":
 			out.Values[i] = ec._Job_partition(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

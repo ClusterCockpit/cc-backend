@@ -91,14 +91,14 @@ func LoadData(job *schema.Job,
 			// Pass the resolution from frontend here.
 			for _, v := range jd {
 				for _, v_ := range v {
-					timestep := 0
+					timestep := int64(0)
 					for i := 0; i < len(v_.Series); i += 1 {
-						v_.Series[i].Data, timestep, err = resampler.LargestTriangleThreeBucket(v_.Series[i].Data, v_.Timestep, resolution)
+						v_.Series[i].Data, timestep, err = resampler.LargestTriangleThreeBucket(v_.Series[i].Data, int64(v_.Timestep), int64(resolution))
 						if err != nil {
 							return err, 0, 0
 						}
 					}
-					v_.Timestep = timestep
+					v_.Timestep = int(timestep)
 				}
 			}
 

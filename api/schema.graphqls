@@ -38,7 +38,7 @@ type Job {
   numAcc: Int!
   energy: Float!
   SMT: Int!
-  exclusive: Int!
+  shared: String!
   partition: String!
   arrayJobId: Int!
   monitoringStatus: Int!
@@ -425,7 +425,7 @@ input JobFilter {
   startTime: TimeRange
   state: [JobState!]
   metricStats: [MetricStatItem!]
-  exclusive: Int
+  shared: String
   node: StringInput
 }
 

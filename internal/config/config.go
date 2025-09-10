@@ -162,7 +162,7 @@ func Init(mainConfig json.RawMessage, clusterConfig json.RawMessage) {
 		cclog.Abortf("Config Init: Could not decode config file '%s'.\nError: %s\n", mainConfig, err.Error())
 	}
 
-	if Clusters == nil || len(Clusters) < 1 {
+	if len(Clusters) < 1 {
 		cclog.Abort("Config Init: At least one cluster required in config. Exited with error.")
 	}
 }

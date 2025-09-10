@@ -207,11 +207,6 @@ definitions:
           format: float64
           type: number
         type: object
-      exclusive:
-        example: 1
-        maximum: 2
-        minimum: 0
-        type: integer
       footprint:
         additionalProperties:
           format: float64
@@ -226,12 +221,18 @@ definitions:
         allOf:
         - $ref: '#/definitions/schema.JobState'
         enum:
-        - completed
-        - failed
+        - boot_fail
         - cancelled
-        - stopped
+        - completed
+        - deadline
+        - failed
+        - node_fail
+        - out-of-memory
+        - pending
+        - preempted
+        - running
+        - suspended
         - timeout
-        - out_of_memory
         example: completed
       metaData:
         additionalProperties:
@@ -269,6 +270,12 @@ definitions:
         items:
           $ref: '#/definitions/schema.Resource'
         type: array
+      shared:
+        enum:
+        - none
+        - single_user
+        - multi_user
+        type: string
       smt:
         example: 4
         type: integer

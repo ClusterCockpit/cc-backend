@@ -15,6 +15,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-backend/internal/memorystore"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
@@ -93,6 +94,19 @@ func (api *RestApi) MountUserApiRoutes(r *mux.Router) {
 	r.HandleFunc("/jobs/{id}", api.getJobById).Methods(http.MethodPost)
 	r.HandleFunc("/jobs/{id}", api.getCompleteJobById).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/metrics/{id}", api.getJobMetrics).Methods(http.MethodGet)
+}
+
+func (api *RestApi) MountMetricStoreApiRoutes(r *mux.Router) {
+	// REST API Uses TokenAuth
+	r.HandleFunc("/api/free", memorystore.HandleFree).Methods(http.MethodPost)
+	r.HandleFunc("/api/write", memorystore.HandleWrite).Methods(http.MethodPost)
+	r.HandleFunc("/api/debug", memorystore.HandleDebug).Methods(http.MethodGet)
+	r.HandleFunc("/api/healthcheck", memorystore.HandleHealthCheck).Methods(http.MethodGet)
+	// Refactor
+	r.HandleFunc("/api/free/", memorystore.HandleFree).Methods(http.MethodPost)
+	r.HandleFunc("/api/write/", memorystore.HandleWrite).Methods(http.MethodPost)
+	r.HandleFunc("/api/debug/", memorystore.HandleDebug).Methods(http.MethodGet)
+	r.HandleFunc("/api/healthcheck/", memorystore.HandleHealthCheck).Methods(http.MethodGet)
 }
 
 func (api *RestApi) MountConfigApiRoutes(r *mux.Router) {

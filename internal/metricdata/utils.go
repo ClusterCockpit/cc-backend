@@ -74,9 +74,8 @@ func (tmdr *TestMetricDataRepository) LoadNodeListData(
 }
 
 func DeepCopy(jd_temp schema.JobData) schema.JobData {
-	var jd schema.JobData
 
-	jd = make(schema.JobData, len(jd_temp))
+	jd := make(schema.JobData, len(jd_temp))
 	for k, v := range jd_temp {
 		jd[k] = make(map[schema.MetricScope]*schema.JobMetric, len(jd_temp[k]))
 		for k_, v_ := range v {

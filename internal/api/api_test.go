@@ -241,7 +241,7 @@ func TestRestApi(t *testing.T) {
 		"numNodes":         1,
 		"numHwthreads":     8,
 		"numAcc":           0,
-		"exclusive":        1,
+		"shared":           "none",
 		"monitoringStatus": 1,
 		"smt":              1,
 		"resources": [
@@ -396,7 +396,7 @@ func TestRestApi(t *testing.T) {
 		"partition":        "default",
 		"walltime":         3600,
 		"numNodes":         1,
-		"exclusive":        1,
+		"shared":        	"none",
 		"monitoringStatus": 1,
 		"smt":              1,
 		"resources": [

@@ -68,7 +68,7 @@ func Start(cronCfg, archiveConfig json.RawMessage) {
 	dec := json.NewDecoder(bytes.NewReader(cronCfg))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&Keys); err != nil {
-		cclog.Errorf("error while decoding ldap config: %v", err)
+		cclog.Errorf("error while decoding cron config: %v", err)
 	}
 
 	var cfg struct {

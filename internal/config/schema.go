@@ -144,7 +144,7 @@ var clustersSchema = `
                 "type": "string"
               }
             },
-            "required": ["kind", "url"]
+            "required": ["kind"]
           },
           "filterRanges": {
             "description": "This option controls the slider ranges for the UI controls of numNodes, duration, and startTime.",

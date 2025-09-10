@@ -6,12 +6,28 @@
     "user": "clustercockpit",
     "group": "clustercockpit",
     "validate": false,
-    "apiAllowedIPs": ["*"],
+    "apiAllowedIPs": [
+      "*"
+    ],
     "short-running-jobs-duration": 300,
     "resampling": {
       "trigger": 30,
-      "resolutions": [600, 300, 120, 60]
+      "resolutions": [
+        600,
+        300,
+        120,
+        60
+      ]
     }
+  },
+  "cron": {
+    "commit-job-worker": "2m",
+    "duration-worker": "5m",
+    "footprint-worker": "10m"
+  },
+  "archive": {
+    "kind": "file",
+    "path": "./var/job-archive"
   },
   "clusters": [
     {

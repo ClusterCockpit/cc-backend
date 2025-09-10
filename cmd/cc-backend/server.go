@@ -26,6 +26,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/generated"
+	"github.com/ClusterCockpit/cc-backend/internal/memorystore"
 	"github.com/ClusterCockpit/cc-backend/internal/routerConfig"
 	"github.com/ClusterCockpit/cc-backend/web"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
@@ -118,6 +119,7 @@ func serverInit() {
 	userapi := router.PathPrefix("/userapi").Subrouter()
 	configapi := router.PathPrefix("/config").Subrouter()
 	frontendapi := router.PathPrefix("/frontend").Subrouter()
+	metricstoreapi := router.PathPrefix("/metricstore").Subrouter()
 
 	if !config.Keys.DisableAuthentication {
 		router.Handle("/login", authHandle.Login(
@@ -198,6 +200,14 @@ func serverInit() {
 				onFailureResponse)
 		})
 
+		metricstoreapi.Use(func(next http.Handler) http.Handler {
+			return authHandle.AuthMetricStoreApi(
+				// On success;
+				next,
+				// On failure: JSON Response
+				onFailureResponse)
+		})
+
 		configapi.Use(func(next http.Handler) http.Handler {
 			return authHandle.AuthConfigApi(
 				// On success;
@@ -231,6 +241,7 @@ func serverInit() {
 	routerConfig.SetupRoutes(secured, buildInfo)
 	apiHandle.MountApiRoutes(securedapi)
 	apiHandle.MountUserApiRoutes(userapi)
+	apiHandle.MountMetricStoreApiRoutes(metricstoreapi)
 	apiHandle.MountConfigApiRoutes(configapi)
 	apiHandle.MountFrontendApiRoutes(frontendapi)
 
@@ -324,6 +335,9 @@ func serverStart() {
 func serverShutdown() {
 	// First shut down the server gracefully (waiting for all ongoing requests)
 	server.Shutdown(context.Background())
+
+	//Archive all the metric store data
+	memorystore.Shutdown()
 
 	// Then, wait for any async archivings still pending...
 	archiver.WaitForArchiving()

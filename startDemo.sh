@@ -13,5 +13,7 @@ else
     cp ./configs/config-demo.json config.json
 
     ./cc-backend -migrate-db
-    ./cc-backend -server -dev -init-db -add-user demo:admin:demo
+    ./cc-backend -dev -init-db -add-user demo:admin,api:demo
+    ./cc-backend -server -dev
+
 fi

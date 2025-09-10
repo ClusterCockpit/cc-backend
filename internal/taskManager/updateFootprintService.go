@@ -34,7 +34,7 @@ func RegisterFootprintWorker() {
 				c := 0
 				ce := 0
 				cl := 0
-				cclog.Printf("Update Footprints started at %s", s.Format(time.RFC3339))
+				cclog.Printf("Update Footprints started at %s\n", s.Format(time.RFC3339))
 
 				for _, cluster := range archive.Clusters {
 					s_cluster := time.Now()
@@ -134,8 +134,8 @@ func RegisterFootprintWorker() {
 						}
 						jobRepo.TransactionEnd(t)
 					}
-					cclog.Debugf("Finish Cluster %s, took %s", cluster.Name, time.Since(s_cluster))
+					cclog.Debugf("Finish Cluster %s, took %s\n", cluster.Name, time.Since(s_cluster))
 				}
-				cclog.Printf("Updating %d (of %d; Skipped %d) Footprints is done and took %s", c, cl, ce, time.Since(s))
+				cclog.Printf("Updating %d (of %d; Skipped %d) Footprints is done and took %s\n", c, cl, ce, time.Since(s))
 			}))
 }

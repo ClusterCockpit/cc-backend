@@ -21,10 +21,9 @@ import (
 
 // GraphQL validation should make sure that no unkown values can be specified.
 var groupBy2column = map[model.Aggregate]string{
-	model.AggregateUser:       "job.hpc_user",
-	model.AggregateProject:    "job.project",
-	model.AggregateCluster:    "job.cluster",
-	model.AggregateSubcluster: "job.subcluster",
+	model.AggregateUser:    "job.hpc_user",
+	model.AggregateProject: "job.project",
+	model.AggregateCluster: "job.hpc_cluster",
 }
 
 var sortBy2column = map[model.SortByAggregate]string{
