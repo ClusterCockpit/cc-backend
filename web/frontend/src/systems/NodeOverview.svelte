@@ -124,23 +124,23 @@
 {:else if filteredData?.length > 0}
   <!-- PlotGrid flattened into this component -->
   <Row cols={{ xs: 1, sm: 2, md: 3, lg: ccconfig.plot_view_plotsPerRow}}>
-    {#key filteredData}
-      {#each filteredData as item (item.host)}
-        <Col class="px-1">
-          <h4 style="width: 100%; text-align: center;">
-            <a
-              style="display: block;padding-top: 15px;"
-              href="/monitoring/node/{cluster}/{item.host}"
-              >{item.host} ({item.subCluster})</a
-            >
-          </h4>
-          {#if item?.disabled}
+    {#each filteredData as item (item.host)}
+      <Col class="px-1">
+        <h4 style="width: 100%; text-align: center;">
+          <a
+            style="display: block;padding-top: 15px;"
+            href="/monitoring/node/{cluster}/{item.host}"
+            >{item.host} ({item.subCluster})</a
+          >
+        </h4>
+        {#key item?.disabled}
+          {#if item?.disabled === true}
             <Card body class="mx-3" color="info"
               >Metric disabled for subcluster <code
                 >{selectedMetric}:{item.subCluster}</code
               ></Card
             >
-          {:else}
+          {:else if item?.disabled === false}
             <!-- "No Data"-Warning included in MetricPlot-Component   -->
             <!-- #key: X-axis keeps last selected timerange otherwise -->
             <MetricPlot
@@ -151,9 +151,15 @@
               subCluster={item.subCluster}
               forNode
             />
+          {:else}
+            <Card body class="mx-3"
+              >Metric Query Empty: Please Reload Page <code
+                >{selectedMetric}:{item.subCluster}</code
+              ></Card
+            >
           {/if}
-        </Col>
-      {/each}
-    {/key}
+        {/key}
+      </Col>
+    {/each}
   </Row>
 {/if}
