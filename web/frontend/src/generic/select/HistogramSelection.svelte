@@ -3,8 +3,9 @@
 
   Properties:
   - `cluster String`: Currently selected cluster
-  - `selectedHistograms [String]`: The currently selected metrics to display as histogram
   - `ìsOpen Bool`: Is selection opened [Bindable]
+  - `configName String`: The config id string to be updated in database on selection change
+  - `presetSelectedHistograms [String]`: The currently selected metrics to display as histogram
   - `applyChange Func`: The callback function to apply current selection
 -->
 
@@ -25,6 +26,7 @@
   let {
     cluster,
     isOpen = $bindable(),
+    configName,
     presetSelectedHistograms,
     applyChange
   } = $props();
@@ -67,8 +69,8 @@
     applyChange(selectedHistograms)
     updateConfiguration({
       name: cluster
-        ? `user_view_histogramMetrics:${cluster}`
-        : "user_view_histogramMetrics",
+        ? `${configName}:${cluster}`
+        : configName,
       value: selectedHistograms,
     });
   }

@@ -96,9 +96,9 @@
   function printAvailability(metric, cluster) {
     const avail = globalMetrics.find((gm) => gm.name === metric)?.availability
     if (!cluster) {
-      return avail.map((av) => av.cluster).join(',')
+      return avail.map((av) => av.cluster).join(', ')
     } else {
-      return avail.find((av) => av.cluster === cluster).subClusters.join(',')
+      return avail.find((av) => av.cluster === cluster).subClusters.join(', ')
     }
   }
 
@@ -208,7 +208,7 @@
             />
           {/if}
           {metric}
-          <span style="float: right;">
+          <span style="float: right; text-align: justify;">
             {printAvailability(metric, cluster)}
           </span>
         </li>

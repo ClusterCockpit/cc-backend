@@ -402,7 +402,7 @@ func (auth *Authentication) AuthUserApi(
 					return
 				}
 			case len(user.Roles) >= 2:
-				if user.HasRole(schema.RoleApi) && user.HasAnyRole([]schema.Role{schema.RoleUser, schema.RoleManager, schema.RoleAdmin}) {
+				if user.HasRole(schema.RoleApi) && user.HasAnyRole([]schema.Role{schema.RoleUser, schema.RoleManager, schema.RoleSupport, schema.RoleAdmin}) {
 					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 					return
@@ -530,6 +530,7 @@ func securedCheck(user *schema.User, r *http.Request) error {
 		IPAddress = r.RemoteAddr
 	}
 
+	// FIXME: IPV6 not handled
 	if strings.Contains(IPAddress, ":") {
 		IPAddress = strings.Split(IPAddress, ":")[0]
 	}

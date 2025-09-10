@@ -44,7 +44,7 @@
 
   /* Const Init */
   const clusterCockpitConfig = getContext("cc-config");
-  const lineWidth = clusterCockpitConfig.plot_general_lineWidth / window.devicePixelRatio;
+  const lineWidth = clusterCockpitConfig?.plot_general_lineWidth / window.devicePixelRatio || 2;
   const cbmode = clusterCockpitConfig?.plot_general_colorblindMode || false;
 
   // UPLOT SERIES INIT //

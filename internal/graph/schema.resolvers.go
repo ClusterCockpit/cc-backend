@@ -305,14 +305,20 @@ func (r *mutationResolver) UpdateConfiguration(ctx context.Context, name string,
 	return nil, nil
 }
 
-// NodeState is the resolver for the nodeState field.
-func (r *nodeResolver) NodeState(ctx context.Context, obj *schema.Node) (string, error) {
-	panic(fmt.Errorf("not implemented: NodeState - nodeState"))
+// RunningJobs is the resolver for the runningJobs field.
+func (r *nodeResolver) RunningJobs(ctx context.Context, obj *schema.Node) (int, error) {
+	panic(fmt.Errorf("not implemented: RunningJobs - runningJobs"))
 }
 
-// HealthState is the resolver for the HealthState field.
+// NodeState is the resolver for the nodeState field.
+func (r *nodeResolver) NodeState(ctx context.Context, obj *schema.Node) (string, error) {
+	return string(obj.NodeState), nil
+}
+
+// HealthState is the resolver for the healthState field.
 func (r *nodeResolver) HealthState(ctx context.Context, obj *schema.Node) (schema.NodeState, error) {
-	panic(fmt.Errorf("not implemented: HealthState - HealthState"))
+	// FIXME: Why is Output of schema.NodeState Type?
+	panic(fmt.Errorf("not implemented: HealthState - healthState"))
 }
 
 // MetaData is the resolver for the metaData field.
@@ -378,9 +384,26 @@ func (r *queryResolver) Nodes(ctx context.Context, filter []*model.NodeFilter, o
 	return &model.NodeStateResultList{Items: nodes, Count: &count}, err
 }
 
-// NodeStats is the resolver for the nodeStats field.
-func (r *queryResolver) NodeStats(ctx context.Context, filter []*model.NodeFilter) ([]*model.NodeStats, error) {
-	panic(fmt.Errorf("not implemented: NodeStats - nodeStats"))
+// NodeStates is the resolver for the nodeStates field.
+func (r *queryResolver) NodeStates(ctx context.Context, filter []*model.NodeFilter) ([]*model.NodeStates, error) {
+	repo := repository.GetNodeRepository()
+
+	stateCounts, serr := repo.CountNodeStates(ctx, filter)
+	if serr != nil {
+		cclog.Warnf("Error while counting nodeStates: %s", serr.Error())
+		return nil, serr
+	}
+
+	healthCounts, herr := repo.CountHealthStates(ctx, filter)
+	if herr != nil {
+		cclog.Warnf("Error while counting healthStates: %s", herr.Error())
+		return nil, herr
+	}
+
+	allCounts := make([]*model.NodeStates, 0)
+	allCounts = append(stateCounts, healthCounts...)
+
+	return allCounts, nil
 }
 
 // Job is the resolver for the job field.
@@ -558,7 +581,7 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	defaultDurationBins := "1h"
 	defaultMetricBins := 10
 
-	if requireField(ctx, "totalJobs") || requireField(ctx, "totalWalltime") || requireField(ctx, "totalNodes") || requireField(ctx, "totalCores") ||
+	if requireField(ctx, "totalJobs") || requireField(ctx, "totalUsers") || requireField(ctx, "totalWalltime") || requireField(ctx, "totalNodes") || requireField(ctx, "totalCores") ||
 		requireField(ctx, "totalAccs") || requireField(ctx, "totalNodeHours") || requireField(ctx, "totalCoreHours") || requireField(ctx, "totalAccHours") {
 		if groupBy == nil {
 			stats, err = r.Repo.JobsStats(ctx, filter)
