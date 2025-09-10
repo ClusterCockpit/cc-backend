@@ -34,7 +34,9 @@
     {
       "name": "fritz",
       "metricDataRepository": {
-        "kind": "cc-metric-store"
+        "kind": "cc-metric-store",
+        "url": "http://localhost:8082",
+        "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJFZERTQSJ9"
       },
       "filterRanges": {
         "numNodes": {
@@ -54,7 +56,9 @@
     {
       "name": "alex",
       "metricDataRepository": {
-        "kind": "cc-metric-store"
+        "kind": "cc-metric-store",
+        "url": "http://localhost:8082",
+        "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJFZERTQSJ9"
       },
       "filterRanges": {
         "numNodes": {

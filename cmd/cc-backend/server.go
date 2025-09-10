@@ -241,9 +241,12 @@ func serverInit() {
 	routerConfig.SetupRoutes(secured, buildInfo)
 	apiHandle.MountApiRoutes(securedapi)
 	apiHandle.MountUserApiRoutes(userapi)
-	apiHandle.MountMetricStoreApiRoutes(metricstoreapi)
 	apiHandle.MountConfigApiRoutes(configapi)
 	apiHandle.MountFrontendApiRoutes(frontendapi)
+
+	if config.InternalCCMSFlag {
+		apiHandle.MountMetricStoreApiRoutes(metricstoreapi)
+	}
 
 	if config.Keys.EmbedStaticFiles {
 		if i, err := os.Stat("./var/img"); err == nil {
@@ -337,7 +340,9 @@ func serverShutdown() {
 	server.Shutdown(context.Background())
 
 	//Archive all the metric store data
-	memorystore.Shutdown()
+	if config.InternalCCMSFlag {
+		memorystore.Shutdown()
+	}
 
 	// Then, wait for any async archivings still pending...
 	archiver.WaitForArchiving()

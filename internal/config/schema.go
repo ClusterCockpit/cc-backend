@@ -135,7 +135,7 @@ var clustersSchema = `
             "properties": {
               "kind": {
                 "type": "string",
-                "enum": ["influxdb", "prometheus", "cc-metric-store", "test"]
+                "enum": ["influxdb", "prometheus", "cc-metric-store", "cc-metric-store-internal", "test"]
               },
               "url": {
                 "type": "string"
@@ -144,7 +144,7 @@ var clustersSchema = `
                 "type": "string"
               }
             },
-            "required": ["kind"]
+            "required": ["kind","url"]
           },
           "filterRanges": {
             "description": "This option controls the slider ranges for the UI controls of numNodes, duration, and startTime.",

@@ -97,12 +97,6 @@ func main() {
 		} else {
 			cclog.Abort("Cluster configuration must be present")
 		}
-
-		if mscfg := ccconf.GetPackageConfig("metric-store"); mscfg != nil {
-			config.InitMetricStore(mscfg)
-		} else {
-			cclog.Abort("Metric Store configuration must be present")
-		}
 	} else {
 		cclog.Abort("Main configuration must be present")
 	}
@@ -251,8 +245,15 @@ func main() {
 	var wg sync.WaitGroup
 
 	//Metric Store starts after all flags have been processes
-	memorystore.Init(&wg)
+	if config.InternalCCMSFlag {
+		if mscfg := ccconf.GetPackageConfig("metric-store"); mscfg != nil {
+			config.InitMetricStore(mscfg)
+		} else {
+			cclog.Abort("Metric Store configuration must be present")
+		}
 
+		memorystore.Init(&wg)
+	}
 	archiver.Start(repository.GetJobRepository())
 
 	// // Comment out
