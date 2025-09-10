@@ -1,6 +1,6 @@
 module github.com/ClusterCockpit/cc-backend
 
-go 1.23.5
+go 1.24.0
 
 toolchain go1.24.1
 
@@ -30,7 +30,7 @@ require (
 	github.com/vektah/gqlparser/v2 v2.5.22
 	golang.org/x/crypto v0.36.0
 	golang.org/x/exp v0.0.0-20250218142911-aa4b98e5adaa
-	golang.org/x/oauth2 v0.27.0
+	golang.org/x/oauth2 v0.31.0
 	golang.org/x/time v0.5.0
 )
 
