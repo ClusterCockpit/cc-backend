@@ -54,6 +54,9 @@ func Init() error {
 			switch kind.Kind {
 			case "cc-metric-store":
 				mdr = &CCMetricStore{}
+			case "cc-metric-store-internal":
+				mdr = &CCMetricStoreInternal{}
+				config.InternalCCMSFlag = true
 			case "prometheus":
 				mdr = &PrometheusDataRepository{}
 			case "test":

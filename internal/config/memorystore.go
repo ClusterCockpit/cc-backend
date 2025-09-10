@@ -8,6 +8,8 @@ import (
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 )
 
+var InternalCCMSFlag bool = false
+
 // --------------------
 // Metric Store config
 // --------------------
