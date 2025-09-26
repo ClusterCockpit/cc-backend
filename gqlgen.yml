@@ -32,6 +32,7 @@ resolver:
 autobind:
   - "github.com/99designs/gqlgen/graphql/introspection"
   - "github.com/ClusterCockpit/cc-backend/internal/graph/model"
+  - "github.com/ClusterCockpit/cc-backend/internal/config"
 
 # This section declares type mapping between the GraphQL and go type systems
 #
@@ -83,8 +84,6 @@ models:
     { model: "github.com/ClusterCockpit/cc-lib/schema.NodeState" }
   HealthState:
     { model: "github.com/ClusterCockpit/cc-lib/schema.MonitoringState" }
-  TimeRange: { model: "github.com/ClusterCockpit/cc-lib/schema.TimeRange" }
-  IntRange: { model: "github.com/ClusterCockpit/cc-lib/schema.IntRange" }
   JobMetric: { model: "github.com/ClusterCockpit/cc-lib/schema.JobMetric" }
   Series: { model: "github.com/ClusterCockpit/cc-lib/schema.Series" }
   MetricStatistics:

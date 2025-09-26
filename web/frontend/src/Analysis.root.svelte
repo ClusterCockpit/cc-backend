@@ -459,7 +459,7 @@
             </tr>
             {#each $topQuery.data.topList as te, i}
               <tr>
-                <td><Icon name="circle-fill" style="color: {colors[i]};" /></td>
+                <td><Icon name="circle-fill" style="color: {colors['colorblind'][i]};" /></td>
                 {#if groupSelection.key == "user"}
                   <th scope="col" id="topName-{te.id}"
                     ><a href="/monitoring/user/{te.id}?cluster={clusterName}"

@@ -12,12 +12,13 @@ type Node {
   hostname: String!
   cluster: String!
   subCluster: String!
+  runningJobs: Int!
   nodeState: NodeState!
-  HealthState: MonitoringState!
+  healthState: MonitoringState!
   metaData: Any
 }
 
-type NodeStats {
+type NodeStates {
   state: String!
   count: Int!
 }
@@ -37,7 +38,7 @@ type Job {
   numAcc: Int!
   energy: Float!
   SMT: Int!
-  exclusive: Int!
+  shared: String!
   partition: String!
   arrayJobId: Int!
   monitoringStatus: Int!
@@ -236,10 +237,12 @@ enum Aggregate {
   USER
   PROJECT
   CLUSTER
+  SUBCLUSTER
 }
 enum SortByAggregate {
   TOTALWALLTIME
   TOTALJOBS
+  TOTALUSERS
   TOTALNODES
   TOTALNODEHOURS
   TOTALCORES
@@ -300,9 +303,10 @@ type Query {
   user(username: String!): User
   allocatedNodes(cluster: String!): [Count!]!
 
+  ## Node Queries New
   node(id: ID!): Node
   nodes(filter: [NodeFilter!], order: OrderByInput): NodeStateResultList!
-  nodeStats(filter: [NodeFilter!]): [NodeStats!]!
+  nodeStates(filter: [NodeFilter!]): [NodeStates!]!
 
   job(id: ID!): Job
   jobMetrics(
@@ -357,6 +361,7 @@ type Query {
     from: Time!
     to: Time!
   ): [NodeMetrics!]!
+  
   nodeMetricsList(
     cluster: String!
     subCluster: String!
@@ -393,6 +398,7 @@ type TimeRangeOutput {
 input NodeFilter {
   hostname: StringInput
   cluster: StringInput
+  subcluster: StringInput
   nodeState: NodeState
   healthState: MonitoringState
 }
@@ -419,7 +425,7 @@ input JobFilter {
   startTime: TimeRange
   state: [JobState!]
   metricStats: [MetricStatItem!]
-  exclusive: Int
+  shared: String
   node: StringInput
 }
 
@@ -497,11 +503,12 @@ type MetricHistoPoint {
 }
 
 type JobsStatistics {
-  id: ID! # If `groupBy` was used, ID of the user/project/cluster
+  id: ID! # If `groupBy` was used, ID of the user/project/cluster/subcluster
   name: String! # if User-Statistics: Given Name of Account (ID) Owner
+  totalUsers: Int! # if *not* User-Statistics: Number of active users (based on running jobs)
   totalJobs: Int! # Number of jobs
   runningJobs: Int! # Number of running jobs
-  shortJobs: Int! # Number of jobs with a duration of less than duration
+  shortJobs: Int! # Number of jobs with a duration of less than config'd ShortRunningJobsDuration
   totalWalltime: Int! # Sum of the duration of all matched jobs in hours
   totalNodes: Int! # Sum of the nodes of all matched jobs
   totalNodeHours: Int! # Sum of the node hours of all matched jobs

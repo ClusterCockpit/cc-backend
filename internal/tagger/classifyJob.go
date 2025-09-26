@@ -240,13 +240,13 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 
 		// Initialize environment
 		env["job"] = map[string]any{
-			"exclusive": job.Exclusive,
-			"duration":  job.Duration,
-			"numCores":  job.NumHWThreads,
-			"numNodes":  job.NumNodes,
-			"jobState":  job.State,
-			"numAcc":    job.NumAcc,
-			"smt":       job.SMT,
+			"shared":   job.Shared,
+			"duration": job.Duration,
+			"numCores": job.NumHWThreads,
+			"numNodes": job.NumNodes,
+			"jobState": job.State,
+			"numAcc":   job.NumAcc,
+			"smt":      job.SMT,
 		}
 
 		// add metrics to env

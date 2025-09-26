@@ -31,7 +31,7 @@ func (r *JobRepository) Find(
 		Where("job.job_id = ?", *jobId)
 
 	if cluster != nil {
-		q = q.Where("job.cluster = ?", *cluster)
+		q = q.Where("job.hpc_cluster = ?", *cluster)
 	}
 	if startTime != nil {
 		q = q.Where("job.start_time = ?", *startTime)
@@ -52,7 +52,7 @@ func (r *JobRepository) FindCached(
 		Where("job_cache.job_id = ?", *jobId)
 
 	if cluster != nil {
-		q = q.Where("job_cache.cluster = ?", *cluster)
+		q = q.Where("job_cache.hpc_cluster = ?", *cluster)
 	}
 	if startTime != nil {
 		q = q.Where("job_cache.start_time = ?", *startTime)
@@ -78,7 +78,7 @@ func (r *JobRepository) FindAll(
 		Where("job.job_id = ?", *jobId)
 
 	if cluster != nil {
-		q = q.Where("job.cluster = ?", *cluster)
+		q = q.Where("job.hpc_cluster = ?", *cluster)
 	}
 	if startTime != nil {
 		q = q.Where("job.start_time = ?", *startTime)
@@ -183,7 +183,7 @@ func (r *JobRepository) FindByJobId(ctx context.Context, jobId int64, startTime 
 	q := sq.Select(jobColumns...).
 		From("job").
 		Where("job.job_id = ?", jobId).
-		Where("job.cluster = ?", cluster).
+		Where("job.hpc_cluster = ?", cluster).
 		Where("job.start_time = ?", startTime)
 
 	q, qerr := SecurityCheck(ctx, q)
@@ -203,7 +203,7 @@ func (r *JobRepository) IsJobOwner(jobId int64, startTime int64, user string, cl
 		From("job").
 		Where("job.job_id = ?", jobId).
 		Where("job.hpc_user = ?", user).
-		Where("job.cluster = ?", cluster).
+		Where("job.hpc_cluster = ?", cluster).
 		Where("job.start_time = ?", startTime)
 
 	_, err := scanJob(q.RunWith(r.stmtCache).QueryRow())

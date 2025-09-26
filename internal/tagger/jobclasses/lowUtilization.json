@@ -4,7 +4,7 @@
   "parameters": ["job_min_duration_seconds"],
   "metrics": ["flops_any", "mem_bw"],
   "requirements": [
-    "job.exclusive == 1",
+    "job.shared == \"none\"",
     "job.duration > job_min_duration_seconds"
   ],
   "variables": [

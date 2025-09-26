@@ -1261,8 +1261,26 @@ const docTemplate = `{
         "api.Node": {
             "type": "object",
             "properties": {
+                "cpusAllocated": {
+                    "type": "integer"
+                },
+                "cpusTotal": {
+                    "type": "integer"
+                },
+                "gpusAllocated": {
+                    "type": "integer"
+                },
+                "gpusTotal": {
+                    "type": "integer"
+                },
                 "hostname": {
                     "type": "string"
+                },
+                "memoryAllocated": {
+                    "type": "integer"
+                },
+                "memoryTotal": {
+                    "type": "integer"
                 },
                 "states": {
                     "type": "array",
@@ -1379,19 +1397,15 @@ const docTemplate = `{
                 "energyFootprint": {
                     "type": "object",
                     "additionalProperties": {
-                        "type": "number"
+                        "type": "number",
+                        "format": "float64"
                     }
-                },
-                "exclusive": {
-                    "type": "integer",
-                    "maximum": 2,
-                    "minimum": 0,
-                    "example": 1
                 },
                 "footprint": {
                     "type": "object",
                     "additionalProperties": {
-                        "type": "number"
+                        "type": "number",
+                        "format": "float64"
                     }
                 },
                 "id": {
@@ -1403,12 +1417,18 @@ const docTemplate = `{
                 },
                 "jobState": {
                     "enum": [
-                        "completed",
-                        "failed",
+                        "boot_fail",
                         "cancelled",
-                        "stopped",
-                        "timeout",
-                        "out_of_memory"
+                        "completed",
+                        "deadline",
+                        "failed",
+                        "node_fail",
+                        "out-of-memory",
+                        "pending",
+                        "preempted",
+                        "running",
+                        "suspended",
+                        "timeout"
                     ],
                     "allOf": [
                         {
@@ -1464,6 +1484,14 @@ const docTemplate = `{
                         "$ref": "#/definitions/schema.Resource"
                     }
                 },
+                "shared": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "single_user",
+                        "multi_user"
+                    ]
+                },
                 "smt": {
                     "type": "integer",
                     "example": 4
@@ -1481,6 +1509,10 @@ const docTemplate = `{
                 "subCluster": {
                     "type": "string",
                     "example": "main"
+                },
+                "submitTime": {
+                    "type": "integer",
+                    "example": 1649723812
                 },
                 "tags": {
                     "type": "array",
@@ -1547,24 +1579,32 @@ const docTemplate = `{
         "schema.JobState": {
             "type": "string",
             "enum": [
-                "running",
-                "completed",
-                "failed",
+                "boot_fail",
                 "cancelled",
-                "stopped",
-                "timeout",
+                "completed",
+                "deadline",
+                "failed",
+                "node_fail",
+                "out_of_memory",
+                "pending",
                 "preempted",
-                "out_of_memory"
+                "running",
+                "suspended",
+                "timeout"
             ],
             "x-enum-varnames": [
-                "JobStateRunning",
-                "JobStateCompleted",
-                "JobStateFailed",
+                "JobStateBootFail",
                 "JobStateCancelled",
-                "JobStateStopped",
-                "JobStateTimeout",
+                "JobStateCompleted",
+                "JobStateDeadline",
+                "JobStateFailed",
+                "JobStateNodeFail",
+                "JobStateOutOfMemory",
+                "JobStatePending",
                 "JobStatePreempted",
-                "JobStateOutOfMemory"
+                "JobStateRunning",
+                "JobStateSuspended",
+                "JobStateTimeout"
             ]
         },
         "schema.JobStatistics": {
@@ -1763,7 +1803,8 @@ const docTemplate = `{
                     "additionalProperties": {
                         "type": "array",
                         "items": {
-                            "type": "number"
+                            "type": "number",
+                            "format": "float64"
                         }
                     }
                 }

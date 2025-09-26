@@ -86,7 +86,7 @@ func TestLoadJobMeta(t *testing.T) {
 	}
 
 	jobIn := schema.Job{
-		Exclusive:        1,
+		Shared:           "none",
 		MonitoringStatus: schema.MonitoringStatusRunningOrArchiving,
 	}
 	jobIn.StartTime = 1608923076
@@ -117,7 +117,7 @@ func TestLoadJobData(t *testing.T) {
 	}
 
 	jobIn := schema.Job{
-		Exclusive:        1,
+		Shared:           "none",
 		MonitoringStatus: schema.MonitoringStatusRunningOrArchiving,
 	}
 	jobIn.StartTime = 1608923076
@@ -148,7 +148,7 @@ func BenchmarkLoadJobData(b *testing.B) {
 	fsa.Init(json.RawMessage(archiveCfg))
 
 	jobIn := schema.Job{
-		Exclusive:        1,
+		Shared:           "none",
 		MonitoringStatus: schema.MonitoringStatusRunningOrArchiving,
 	}
 	jobIn.StartTime = 1608923076
@@ -174,7 +174,7 @@ func BenchmarkLoadJobDataCompressed(b *testing.B) {
 	fsa.Init(json.RawMessage(archiveCfg))
 
 	jobIn := schema.Job{
-		Exclusive:        1,
+		Shared:           "none",
 		MonitoringStatus: schema.MonitoringStatusRunningOrArchiving,
 	}
 	jobIn.StartTime = 1608923076

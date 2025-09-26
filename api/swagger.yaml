@@ -113,8 +113,20 @@ definitions:
     type: object
   api.Node:
     properties:
+      cpusAllocated:
+        type: integer
+      cpusTotal:
+        type: integer
+      gpusAllocated:
+        type: integer
+      gpusTotal:
+        type: integer
       hostname:
         type: string
+      memoryAllocated:
+        type: integer
+      memoryTotal:
+        type: integer
       states:
         items:
           type: string
@@ -192,15 +204,12 @@ definitions:
         type: number
       energyFootprint:
         additionalProperties:
+          format: float64
           type: number
         type: object
-      exclusive:
-        example: 1
-        maximum: 2
-        minimum: 0
-        type: integer
       footprint:
         additionalProperties:
+          format: float64
           type: number
         type: object
       id:
@@ -212,12 +221,18 @@ definitions:
         allOf:
         - $ref: '#/definitions/schema.JobState'
         enum:
-        - completed
-        - failed
+        - boot_fail
         - cancelled
-        - stopped
+        - completed
+        - deadline
+        - failed
+        - node_fail
+        - out-of-memory
+        - pending
+        - preempted
+        - running
+        - suspended
         - timeout
-        - out_of_memory
         example: completed
       metaData:
         additionalProperties:
@@ -255,6 +270,12 @@ definitions:
         items:
           $ref: '#/definitions/schema.Resource'
         type: array
+      shared:
+        enum:
+        - none
+        - single_user
+        - multi_user
+        type: string
       smt:
         example: 4
         type: integer
@@ -268,6 +289,9 @@ definitions:
       subCluster:
         example: main
         type: string
+      submitTime:
+        example: 1649723812
+        type: integer
       tags:
         items:
           $ref: '#/definitions/schema.Tag'
@@ -311,24 +335,32 @@ definitions:
     type: object
   schema.JobState:
     enum:
-    - running
-    - completed
-    - failed
+    - boot_fail
     - cancelled
-    - stopped
-    - timeout
-    - preempted
+    - completed
+    - deadline
+    - failed
+    - node_fail
     - out_of_memory
+    - pending
+    - preempted
+    - running
+    - suspended
+    - timeout
     type: string
     x-enum-varnames:
-    - JobStateRunning
-    - JobStateCompleted
-    - JobStateFailed
+    - JobStateBootFail
     - JobStateCancelled
-    - JobStateStopped
-    - JobStateTimeout
-    - JobStatePreempted
+    - JobStateCompleted
+    - JobStateDeadline
+    - JobStateFailed
+    - JobStateNodeFail
     - JobStateOutOfMemory
+    - JobStatePending
+    - JobStatePreempted
+    - JobStateRunning
+    - JobStateSuspended
+    - JobStateTimeout
   schema.JobStatistics:
     description: Specification for job metric statistics.
     properties:
@@ -465,6 +497,7 @@ definitions:
       percentiles:
         additionalProperties:
           items:
+            format: float64
             type: number
           type: array
         type: object

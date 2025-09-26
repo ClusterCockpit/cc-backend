@@ -45,7 +45,7 @@
           jobId
           user
           project
-          exclusive
+          shared
           resources {
             hostname
             accelerators
@@ -101,7 +101,7 @@
   function buildExtendedLegend() {
     let pendingExtendedLegendData = null
     // Build Extended for allocated nodes [Commented: Only Build extended Legend For Shared Nodes]
-    if ($nodeJobsData.data.jobs.count >= 1) { // "&& !$nodeJobsData.data.jobs.items[0].exclusive)"
+    if ($nodeJobsData.data.jobs.count >= 1) { 
       const accSet = Array.from(new Set($nodeJobsData.data.jobs.items
         .map((i) => i.resources
           .filter((r) => (r.hostname === nodeData.host) && r?.accelerators)

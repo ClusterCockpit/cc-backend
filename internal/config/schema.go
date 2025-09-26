@@ -208,6 +208,11 @@ var uiConfigSchema = `
             "properties": {
               "name": {
                 "description": "The name of the cluster.",
+              "kind": {
+                "type": "string",
+                "enum": ["influxdb", "prometheus", "cc-metric-store", "cc-metric-store-internal", "test"]
+              },
+              "url": {
                 "type": "string"
               },
               "subClusters" {

@@ -4,10 +4,26 @@
     "short-running-jobs-duration": 300,
     "resampling": {
       "trigger": 30,
-      "resolutions": [600, 300, 120, 60]
+      "resolutions": [
+        600,
+        300,
+        120,
+        60
+      ]
     },
-    "apiAllowedIPs": ["*"],
+    "apiAllowedIPs": [
+      "*"
+    ],
     "emission-constant": 317
+  },
+  "cron": {
+    "commit-job-worker": "2m",
+    "duration-worker": "5m",
+    "footprint-worker": "10m"
+  },
+  "archive": {
+    "kind": "file",
+    "path": "./var/job-archive"
   },
   "auth": {
     "jwts": {
@@ -20,7 +36,7 @@
       "metricDataRepository": {
         "kind": "cc-metric-store",
         "url": "http://localhost:8082",
-        "token": ""
+        "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJFZERTQSJ9"
       },
       "filterRanges": {
         "numNodes": {
@@ -42,7 +58,7 @@
       "metricDataRepository": {
         "kind": "cc-metric-store",
         "url": "http://localhost:8082",
-        "token": ""
+        "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJFZERTQSJ9"
       },
       "filterRanges": {
         "numNodes": {
@@ -59,5 +75,18 @@
         }
       }
     }
-  ]
+  ],
+  "metric-store": {
+    "checkpoints": {
+      "file-format": "avro",
+      "interval": "2h",
+      "directory": "./var/checkpoints",
+      "restore": "48h"
+    },
+    "archive": {
+      "interval": "2h",
+      "directory": "./var/archive"
+    },
+    "retention-in-memory": "48h"
+  }
 }

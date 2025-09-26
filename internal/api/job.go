@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/archiver"
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
@@ -112,6 +113,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 
 	for key, vals := range r.URL.Query() {
 		switch key {
+		// TODO: add project filter
 		case "state":
 			for _, s := range vals {
 				state := schema.JobState(s)
@@ -124,7 +126,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 			}
 		case "cluster":
 			filter.Cluster = &model.StringInput{Eq: &vals[0]}
-		case "start-time":
+		case "start-time": // ?startTime=1753707480-1754053139
 			st := strings.Split(vals[0], "-")
 			if len(st) != 2 {
 				handleError(fmt.Errorf("invalid query parameter value: startTime"),
@@ -142,7 +144,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 				return
 			}
 			ufrom, uto := time.Unix(from, 0), time.Unix(to, 0)
-			filter.StartTime = &schema.TimeRange{From: &ufrom, To: &uto}
+			filter.StartTime = &config.TimeRange{From: &ufrom, To: &uto}
 		case "page":
 			x, err := strconv.Atoi(vals[0])
 			if err != nil {
@@ -646,7 +648,7 @@ func (api *RestApi) removeTags(rw http.ResponseWriter, r *http.Request) {
 // @router      /api/jobs/start_job/ [post]
 func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	req := schema.Job{
-		Exclusive:        1,
+		Shared:           "none",
 		MonitoringStatus: schema.MonitoringStatusRunningOrArchiving,
 	}
 	if err := decode(r.Body, &req); err != nil {

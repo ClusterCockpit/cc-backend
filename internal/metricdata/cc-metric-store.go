@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved. This file is part of cc-backend.
+// All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package metricdata
@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -270,14 +269,6 @@ func (ccms *CCMetricStore) LoadData(
 	return jobData, nil
 }
 
-var (
-	hwthreadString     = string(schema.MetricScopeHWThread)
-	coreString         = string(schema.MetricScopeCore)
-	memoryDomainString = string(schema.MetricScopeMemoryDomain)
-	socketString       = string(schema.MetricScopeSocket)
-	acceleratorString  = string(schema.MetricScopeAccelerator)
-)
-
 func (ccms *CCMetricStore) buildQueries(
 	job *schema.Job,
 	metrics []string,
@@ -306,7 +297,7 @@ func (ccms *CCMetricStore) buildQueries(
 		if len(mc.SubClusters) != 0 {
 			isRemoved := false
 			for _, scConfig := range mc.SubClusters {
-				if scConfig.Name == job.SubCluster && scConfig.Remove == true {
+				if scConfig.Name == job.SubCluster && scConfig.Remove {
 					isRemoved = true
 					break
 				}
@@ -570,6 +561,7 @@ func (ccms *CCMetricStore) LoadStats(
 	metrics []string,
 	ctx context.Context,
 ) (map[string]map[string]schema.MetricStatistics, error) {
+
 	queries, _, err := ccms.buildQueries(job, metrics, []schema.MetricScope{schema.MetricScopeNode}, 0) // #166 Add scope shere for analysis view accelerator normalization?
 	if err != nil {
 		cclog.Errorf("Error while building queries for jobId %d, Metrics %v: %s", job.JobID, metrics, err.Error())
@@ -815,6 +807,7 @@ func (ccms *CCMetricStore) LoadNodeListData(
 	page *model.PageRequest,
 	ctx context.Context,
 ) (map[string]schema.JobData, int, bool, error) {
+
 	// 0) Init additional vars
 	var totalNodes int = 0
 	var hasNextPage bool = false
@@ -850,7 +843,7 @@ func (ccms *CCMetricStore) LoadNodeListData(
 	if len(nodes) > page.ItemsPerPage {
 		start := (page.Page - 1) * page.ItemsPerPage
 		end := start + page.ItemsPerPage
-		if end >= len(nodes) {
+		if end > len(nodes) {
 			end = len(nodes)
 			hasNextPage = false
 		} else {
@@ -973,6 +966,7 @@ func (ccms *CCMetricStore) buildNodeQueries(
 	scopes []schema.MetricScope,
 	resolution int,
 ) ([]ApiQuery, []schema.MetricScope, error) {
+
 	queries := make([]ApiQuery, 0, len(metrics)*len(scopes)*len(nodes))
 	assignedScope := []schema.MetricScope{}
 
@@ -1000,7 +994,7 @@ func (ccms *CCMetricStore) buildNodeQueries(
 		if mc.SubClusters != nil {
 			isRemoved := false
 			for _, scConfig := range mc.SubClusters {
-				if scConfig.Name == subCluster && scConfig.Remove == true {
+				if scConfig.Name == subCluster && scConfig.Remove {
 					isRemoved = true
 					break
 				}
@@ -1272,12 +1266,4 @@ func (ccms *CCMetricStore) buildNodeQueries(
 	}
 
 	return queries, assignedScope, nil
-}
-
-func intToStringSlice(is []int) []string {
-	ss := make([]string, len(is))
-	for i, x := range is {
-		ss[i] = strconv.Itoa(x)
-	}
-	return ss
 }

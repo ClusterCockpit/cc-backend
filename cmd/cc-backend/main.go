@@ -18,6 +18,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
+	"github.com/ClusterCockpit/cc-backend/internal/memorystore"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/tagger"
@@ -201,7 +202,7 @@ func main() {
 	if archiveCfg := ccconf.GetPackageConfig("archive"); archiveCfg != nil {
 		err = archive.Init(archiveCfg, config.Keys.DisableArchive)
 	} else {
-		err = archive.Init(json.RawMessage(`{\"kind\":\"file\",\"path\":\"./var/job-archive\"}`), config.Keys.DisableArchive)
+		err = archive.Init(json.RawMessage("{\"kind\":\"file\",\"path\":\"./var/job-archive\"}"), config.Keys.DisableArchive)
 	}
 	if err != nil {
 		cclog.Abortf("Init: Failed to initialize archive.\nError: %s\n", err.Error())
@@ -241,13 +242,25 @@ func main() {
 		cclog.Exit("No errors, server flag not set. Exiting cc-backend.")
 	}
 
+	var wg sync.WaitGroup
+
+	//Metric Store starts after all flags have been processes
+	if config.InternalCCMSFlag {
+		if mscfg := ccconf.GetPackageConfig("metric-store"); mscfg != nil {
+			config.InitMetricStore(mscfg)
+		} else {
+			cclog.Abort("Metric Store configuration must be present")
+		}
+
+		memorystore.Init(&wg)
+	}
 	archiver.Start(repository.GetJobRepository())
 
+	// // Comment out
 	taskManager.Start(ccconf.GetPackageConfig("cron"),
 		ccconf.GetPackageConfig("archive"))
-	serverInit()
 
-	var wg sync.WaitGroup
+	serverInit()
 
 	wg.Add(1)
 	go func() {

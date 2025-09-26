@@ -402,7 +402,7 @@ func (auth *Authentication) AuthUserApi(
 					return
 				}
 			case len(user.Roles) >= 2:
-				if user.HasRole(schema.RoleApi) && user.HasAnyRole([]schema.Role{schema.RoleUser, schema.RoleManager, schema.RoleAdmin}) {
+				if user.HasRole(schema.RoleApi) && user.HasAnyRole([]schema.Role{schema.RoleUser, schema.RoleManager, schema.RoleSupport, schema.RoleAdmin}) {
 					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 					return
@@ -413,6 +413,42 @@ func (auth *Authentication) AuthUserApi(
 			}
 		}
 		cclog.Info("auth user api -> authentication failed: no auth")
+		onfailure(rw, r, errors.New("unauthorized"))
+	})
+}
+
+func (auth *Authentication) AuthMetricStoreApi(
+	onsuccess http.Handler,
+	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
+) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		user, err := auth.JwtAuth.AuthViaJWT(rw, r)
+		if err != nil {
+			cclog.Infof("auth metricstore api -> authentication failed: %s", err.Error())
+			onfailure(rw, r, err)
+			return
+		}
+
+		if user != nil {
+			switch {
+			case len(user.Roles) == 1:
+				if user.HasRole(schema.RoleApi) {
+					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
+					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+					return
+				}
+			case len(user.Roles) >= 2:
+				if user.HasRole(schema.RoleApi) && user.HasAnyRole([]schema.Role{schema.RoleUser, schema.RoleManager, schema.RoleAdmin}) {
+					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
+					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+					return
+				}
+			default:
+				cclog.Info("auth metricstore api -> authentication failed: missing role")
+				onfailure(rw, r, errors.New("unauthorized"))
+			}
+		}
+		cclog.Info("auth metricstore api -> authentication failed: no auth")
 		onfailure(rw, r, errors.New("unauthorized"))
 	})
 }
@@ -494,6 +530,7 @@ func securedCheck(user *schema.User, r *http.Request) error {
 		IPAddress = r.RemoteAddr
 	}
 
+	// FIXME: IPV6 not handled
 	if strings.Contains(IPAddress, ":") {
 		IPAddress = strings.Split(IPAddress, ":")[0]
 	}

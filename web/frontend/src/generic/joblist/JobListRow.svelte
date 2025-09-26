@@ -213,7 +213,7 @@
             metric={metric.data.name}
             cluster={cluster.find((c) => c.name == job.cluster)}
             subCluster={job.subCluster}
-            isShared={job.exclusive != 1}
+            isShared={job.shared != "none"}
             numhwthreads={job.numHWThreads}
             numaccs={job.numAcc}
             zoomState={zoomStates[metric.data.name] || null}
