@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package archive
 
 import (
@@ -336,7 +337,7 @@ func (fsa *FsArchive) Move(jobs []*schema.Job, path string) {
 		source := getDirectory(job, fsa.path)
 		target := getDirectory(job, path)
 
-		if err := os.MkdirAll(filepath.Clean(filepath.Join(target, "..")), 0777); err != nil {
+		if err := os.MkdirAll(filepath.Clean(filepath.Join(target, "..")), 0o777); err != nil {
 			cclog.Errorf("JobArchive Move MkDir error: %v", err)
 		}
 		if err := os.Rename(source, target); err != nil {
@@ -395,7 +396,7 @@ func (fsa *FsArchive) CompressLast(starttime int64) int64 {
 	b, err := os.ReadFile(filename)
 	if err != nil {
 		cclog.Errorf("fsBackend Compress - %v", err)
-		os.WriteFile(filename, []byte(fmt.Sprintf("%d", starttime)), 0644)
+		os.WriteFile(filename, fmt.Appendf(nil, "%d", starttime), 0o644)
 		return starttime
 	}
 	last, err := strconv.ParseInt(strings.TrimSuffix(string(b), "\n"), 10, 64)
@@ -405,12 +406,12 @@ func (fsa *FsArchive) CompressLast(starttime int64) int64 {
 	}
 
 	cclog.Infof("fsBackend Compress - start %d last %d", starttime, last)
-	os.WriteFile(filename, []byte(fmt.Sprintf("%d", starttime)), 0644)
+	os.WriteFile(filename, fmt.Appendf(nil, "%d", starttime), 0o644)
 	return last
 }
 
 func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
-	var isCompressed bool = true
+	isCompressed := true
 	filename := getPath(job, fsa.path, "data.json.gz")
 
 	if !util.CheckFileExists(filename) {
@@ -422,7 +423,7 @@ func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 }
 
 func (fsa *FsArchive) LoadJobStats(job *schema.Job) (schema.ScopedJobStats, error) {
-	var isCompressed bool = true
+	isCompressed := true
 	filename := getPath(job, fsa.path, "data.json.gz")
 
 	if !util.CheckFileExists(filename) {
@@ -495,7 +496,7 @@ func (fsa *FsArchive) Iter(loadMetricData bool) <-chan JobContainer {
 							}
 
 							if loadMetricData {
-								var isCompressed bool = true
+								isCompressed := true
 								filename := filepath.Join(dirpath, startTimeDir.Name(), "data.json.gz")
 
 								if !util.CheckFileExists(filename) {
@@ -549,7 +550,7 @@ func (fsa *FsArchive) ImportJob(
 	jobData *schema.JobData,
 ) error {
 	dir := getPath(jobMeta, fsa.path, "")
-	if err := os.MkdirAll(dir, 0777); err != nil {
+	if err := os.MkdirAll(dir, 0o777); err != nil {
 		cclog.Error("Error while creating job archive path")
 		return err
 	}

@@ -2,6 +2,8 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
+// Package auth implements various authentication methods
 package auth
 
 import (
@@ -338,7 +340,7 @@ func (auth *Authentication) Auth(
 	})
 }
 
-func (auth *Authentication) AuthApi(
+func (auth *Authentication) AuthAPI(
 	onsuccess http.Handler,
 	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
 ) http.Handler {
@@ -381,7 +383,7 @@ func (auth *Authentication) AuthApi(
 	})
 }
 
-func (auth *Authentication) AuthUserApi(
+func (auth *Authentication) AuthUserAPI(
 	onsuccess http.Handler,
 	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
 ) http.Handler {
@@ -417,7 +419,7 @@ func (auth *Authentication) AuthUserApi(
 	})
 }
 
-func (auth *Authentication) AuthMetricStoreApi(
+func (auth *Authentication) AuthMetricStoreAPI(
 	onsuccess http.Handler,
 	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
 ) http.Handler {
@@ -453,7 +455,7 @@ func (auth *Authentication) AuthMetricStoreApi(
 	})
 }
 
-func (auth *Authentication) AuthConfigApi(
+func (auth *Authentication) AuthConfigAPI(
 	onsuccess http.Handler,
 	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
 ) http.Handler {
@@ -474,7 +476,7 @@ func (auth *Authentication) AuthConfigApi(
 	})
 }
 
-func (auth *Authentication) AuthFrontendApi(
+func (auth *Authentication) AuthFrontendAPI(
 	onsuccess http.Handler,
 	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
 ) http.Handler {

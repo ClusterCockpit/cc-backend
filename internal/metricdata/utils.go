@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package metricdata
 
 import (
@@ -17,7 +18,7 @@ var TestLoadDataCallback func(job *schema.Job, metrics []string, scopes []schema
 	panic("TODO")
 }
 
-// Only a mock for unit-testing.
+// TestMetricDataRepository is only a mock for unit-testing.
 type TestMetricDataRepository struct{}
 
 func (tmdr *TestMetricDataRepository) Init(_ json.RawMessage) error {
@@ -73,11 +74,10 @@ func (tmdr *TestMetricDataRepository) LoadNodeListData(
 	panic("TODO")
 }
 
-func DeepCopy(jd_temp schema.JobData) schema.JobData {
-
-	jd := make(schema.JobData, len(jd_temp))
-	for k, v := range jd_temp {
-		jd[k] = make(map[schema.MetricScope]*schema.JobMetric, len(jd_temp[k]))
+func DeepCopy(jdTemp schema.JobData) schema.JobData {
+	jd := make(schema.JobData, len(jdTemp))
+	for k, v := range jdTemp {
+		jd[k] = make(map[schema.MetricScope]*schema.JobMetric, len(jdTemp[k]))
 		for k_, v_ := range v {
 			jd[k][k_] = new(schema.JobMetric)
 			jd[k][k_].Series = make([]schema.Series, len(v_.Series))

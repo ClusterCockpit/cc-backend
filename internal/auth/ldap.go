@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package auth
 
 import (
@@ -18,7 +19,7 @@ import (
 )
 
 type LdapConfig struct {
-	Url             string `json:"url"`
+	URL             string `json:"url"`
 	UserBase        string `json:"user_base"`
 	SearchDN        string `json:"search_dn"`
 	UserBind        string `json:"user_bind"`
@@ -130,7 +131,7 @@ func (la *LdapAuthenticator) Login(
 	}
 	defer l.Close()
 
-	userDn := strings.Replace(Keys.LdapConfig.UserBind, "{username}", user.Username, -1)
+	userDn := strings.ReplaceAll(Keys.LdapConfig.UserBind, "{username}", user.Username)
 	if err := l.Bind(userDn, r.FormValue("password")); err != nil {
 		cclog.Errorf("AUTH/LDAP > Authentication for user %s failed: %v",
 			user.Username, err)
@@ -141,9 +142,9 @@ func (la *LdapAuthenticator) Login(
 }
 
 func (la *LdapAuthenticator) Sync() error {
-	const IN_DB int = 1
-	const IN_LDAP int = 2
-	const IN_BOTH int = 3
+	const InDB int = 1
+	const InLdap int = 2
+	const InBoth int = 3
 	ur := repository.GetUserRepository()
 	lc := Keys.LdapConfig
 
@@ -154,7 +155,7 @@ func (la *LdapAuthenticator) Sync() error {
 	}
 
 	for _, username := range usernames {
-		users[username] = IN_DB
+		users[username] = InDB
 	}
 
 	l, err := la.getLdapConnection(true)
@@ -183,18 +184,18 @@ func (la *LdapAuthenticator) Sync() error {
 
 		_, ok := users[username]
 		if !ok {
-			users[username] = IN_LDAP
+			users[username] = InLdap
 			newnames[username] = entry.GetAttributeValue(la.UserAttr)
 		} else {
-			users[username] = IN_BOTH
+			users[username] = InBoth
 		}
 	}
 
 	for username, where := range users {
-		if where == IN_DB && lc.SyncDelOldUsers {
+		if where == InDB && lc.SyncDelOldUsers {
 			ur.DelUser(username)
 			cclog.Debugf("sync: remove %v (does not show up in LDAP anymore)", username)
-		} else if where == IN_LDAP {
+		} else if where == InLdap {
 			name := newnames[username]
 
 			var roles []string
@@ -222,7 +223,7 @@ func (la *LdapAuthenticator) Sync() error {
 
 func (la *LdapAuthenticator) getLdapConnection(admin bool) (*ldap.Conn, error) {
 	lc := Keys.LdapConfig
-	conn, err := ldap.DialURL(lc.Url)
+	conn, err := ldap.DialURL(lc.URL)
 	if err != nil {
 		cclog.Warn("LDAP URL dial failed")
 		return nil, err

@@ -185,7 +185,7 @@ func serverInit() {
 		})
 
 		securedapi.Use(func(next http.Handler) http.Handler {
-			return authHandle.AuthApi(
+			return authHandle.AuthAPI(
 				// On success;
 				next,
 				// On failure: JSON Response
@@ -193,7 +193,7 @@ func serverInit() {
 		})
 
 		userapi.Use(func(next http.Handler) http.Handler {
-			return authHandle.AuthUserApi(
+			return authHandle.AuthUserAPI(
 				// On success;
 				next,
 				// On failure: JSON Response
@@ -201,7 +201,7 @@ func serverInit() {
 		})
 
 		metricstoreapi.Use(func(next http.Handler) http.Handler {
-			return authHandle.AuthMetricStoreApi(
+			return authHandle.AuthMetricStoreAPI(
 				// On success;
 				next,
 				// On failure: JSON Response
@@ -209,7 +209,7 @@ func serverInit() {
 		})
 
 		configapi.Use(func(next http.Handler) http.Handler {
-			return authHandle.AuthConfigApi(
+			return authHandle.AuthConfigAPI(
 				// On success;
 				next,
 				// On failure: JSON Response
@@ -217,7 +217,7 @@ func serverInit() {
 		})
 
 		frontendapi.Use(func(next http.Handler) http.Handler {
-			return authHandle.AuthFrontendApi(
+			return authHandle.AuthFrontendAPI(
 				// On success;
 				next,
 				// On failure: JSON Response
@@ -255,7 +255,7 @@ func serverInit() {
 				router.PathPrefix("/img/").Handler(http.StripPrefix("/img/", http.FileServer(http.Dir("./var/img"))))
 			}
 		}
-		router.PathPrefix("/").Handler(web.ServeFiles())
+		router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", web.ServeFiles()))
 	} else {
 		router.PathPrefix("/").Handler(http.FileServer(http.Dir(config.Keys.StaticFiles)))
 	}
@@ -267,6 +267,35 @@ func serverInit() {
 		handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization", "Origin"}),
 		handlers.AllowedMethods([]string{"GET", "POST", "HEAD", "OPTIONS"}),
 		handlers.AllowedOrigins([]string{"*"})))
+
+	secured.NotFoundHandler = http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		page := web.Page{
+			Title: "ClusterCockpit - Not Found",
+			Build: buildInfo,
+		}
+		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
+		web.RenderTemplate(rw, "404.tmpl", &page)
+	})
+
+	// secured.NotFoundHandler = http.HandlerFunc(http.NotFound)
+	// router.NotFoundHandler = router.NewRoute().HandlerFunc(http.NotFound).GetHandler()
+
+	// printEndpoints(router)
+}
+
+func printEndpoints(r *mux.Router) {
+	r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		path, err := route.GetPathTemplate()
+		if err != nil {
+			path = "nopath"
+		}
+		methods, err := route.GetMethods()
+		if err != nil {
+			methods = append(methods, "nomethod")
+		}
+		fmt.Printf("%v %s\n", methods, path)
+		return nil
+	})
 }
 
 func serverStart() {
@@ -339,7 +368,7 @@ func serverShutdown() {
 	// First shut down the server gracefully (waiting for all ongoing requests)
 	server.Shutdown(context.Background())
 
-	//Archive all the metric store data
+	// Archive all the metric store data
 	if config.InternalCCMSFlag {
 		memorystore.Shutdown()
 	}

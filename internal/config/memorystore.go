@@ -10,9 +10,6 @@ import (
 
 var InternalCCMSFlag bool = false
 
-// --------------------
-// Metric Store config
-// --------------------
 type MetricStoreConfig struct {
 	Checkpoints struct {
 		FileFormat string `json:"file-format"`
@@ -41,7 +38,7 @@ type NatsConfig struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 
-	//Creds file path
+	// Creds file path
 	Credsfilepath string `json:"creds-file-path"`
 
 	Subscriptions []struct {
@@ -55,7 +52,7 @@ type NatsConfig struct {
 
 var MetricStoreKeys MetricStoreConfig
 
-// For aggregation over multiple values at different cpus/sockets/..., not time!
+// AggregationStrategy for aggregation over multiple values at different cpus/sockets/..., not time!
 type AggregationStrategy int
 
 const (
@@ -93,7 +90,7 @@ var Metrics map[string]MetricConfig
 func InitMetricStore(msConfig json.RawMessage) {
 	// Validate(msConfigSchema, msConfig)
 	dec := json.NewDecoder(bytes.NewReader(msConfig))
-	dec.DisallowUnknownFields()
+	// dec.DisallowUnknownFields()
 	if err := dec.Decode(&MetricStoreKeys); err != nil {
 		cclog.Abortf("[METRICSTORE]> Metric Store Config Init: Could not decode config file '%s'.\nError: %s\n", msConfig, err.Error())
 	}
@@ -106,11 +103,10 @@ func GetMetricFrequency(metricName string) (int64, error) {
 	return 0, fmt.Errorf("[METRICSTORE]> metric %s not found", metricName)
 }
 
-// add logic to add metrics. Redundant metrics should be updated with max frequency.
+// AddMetric adds logic to add metrics. Redundant metrics should be updated with max frequency.
 // use metric.Name to check if the metric already exists.
 // if not, add it to the Metrics map.
 func AddMetric(name string, metric MetricConfig) error {
-
 	if Metrics == nil {
 		Metrics = make(map[string]MetricConfig, 0)
 	}

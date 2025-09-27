@@ -2,6 +2,8 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
+// Package archive implements the job archive interface and various backend implementations
 package archive
 
 import (
@@ -108,7 +110,6 @@ func GetHandle() ArchiveBackend {
 	return ar
 }
 
-// Helper to metricdataloader.LoadAverages().
 func LoadAveragesFromArchive(
 	job *schema.Job,
 	metrics []string,
@@ -131,7 +132,6 @@ func LoadAveragesFromArchive(
 	return nil
 }
 
-// Helper to metricdataloader.LoadJobStats().
 func LoadStatsFromArchive(
 	job *schema.Job,
 	metrics []string,
@@ -160,7 +160,6 @@ func LoadStatsFromArchive(
 	return data, nil
 }
 
-// Helper to metricdataloader.LoadScopedJobStats().
 func LoadScopedStatsFromArchive(
 	job *schema.Job,
 	metrics []string,
@@ -185,7 +184,7 @@ func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
 	return metaFile.Statistics, nil
 }
 
-// If the job is archived, find its `meta.json` file and override the Metadata
+// UpdateMetadata checks if the job is archived, find its `meta.json` file and override the Metadata
 // in that JSON file. If the job is not archived, nothing is done.
 func UpdateMetadata(job *schema.Job, metadata map[string]string) error {
 	mutex.Lock()
@@ -206,7 +205,7 @@ func UpdateMetadata(job *schema.Job, metadata map[string]string) error {
 	return ar.StoreJobMeta(jobMeta)
 }
 
-// If the job is archived, find its `meta.json` file and override the tags list
+// UpdateTags checks if the job is archived, find its `meta.json` file and override the tags list
 // in that JSON file. If the job is not archived, nothing is done.
 func UpdateTags(job *schema.Job, tags []*schema.Tag) error {
 	mutex.Lock()

@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package archive
 
 import (
@@ -79,8 +80,8 @@ type NLExprString string
 
 func (nle NLExprString) consume(input string) (next string, ok bool) {
 	str := string(nle)
-	if strings.HasPrefix(input, str) {
-		return strings.TrimPrefix(input, str), true
+	if after, ok0 := strings.CutPrefix(input, str); ok0 {
+		return after, true
 	}
 	return "", false
 }

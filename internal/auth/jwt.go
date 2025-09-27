@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package auth
 
 import (
@@ -135,7 +136,7 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 	}, nil
 }
 
-// Generate a new JWT that can be used for authentication
+// ProvideJWT generates a new JWT that can be used for authentication
 func (ja *JWTAuthenticator) ProvideJWT(user *schema.User) (string, error) {
 	if ja.privateKey == nil {
 		return "", errors.New("environment variable 'JWT_PRIVATE_KEY' not set")

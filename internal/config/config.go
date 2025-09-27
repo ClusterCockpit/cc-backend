@@ -2,6 +2,8 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
+// Package config implements the program configuration data structures, validation and parsing
 package config
 
 import (
@@ -12,20 +14,12 @@ import (
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 )
 
-type ResampleConfig struct {
-	// Array of resampling target resolutions, in seconds; Example: [600,300,60]
-	Resolutions []int `json:"resolutions"`
-	// Trigger next zoom level at less than this many visible datapoints
-	Trigger int `json:"trigger"`
-}
-
-// Format of the configuration (file). See below for the defaults.
 type ProgramConfig struct {
 	// Address where the http (or https) server will listen on (for example: 'localhost:80').
 	Addr string `json:"addr"`
 
 	// Addresses from which secured admin API endpoints can be reached, can be wildcard "*"
-	ApiAllowedIPs []string `json:"apiAllowedIPs"`
+	APIAllowedIPs []string `json:"apiAllowedIPs"`
 
 	// Drop root permissions once .env was read and the port was taken.
 	User  string `json:"user"`
@@ -59,16 +53,12 @@ type ProgramConfig struct {
 	SessionMaxAge string `json:"session-max-age"`
 
 	// If both those options are not empty, use HTTPS using those certificates.
-	HttpsCertFile string `json:"https-cert-file"`
-	HttpsKeyFile  string `json:"https-key-file"`
+	HTTPSCertFile string `json:"https-cert-file"`
+	HTTPSKeyFile  string `json:"https-key-file"`
 
 	// If not the empty string and `addr` does not end in ":80",
 	// redirect every request incoming at port 80 to that url.
-	RedirectHttpTo string `json:"redirect-http-to"`
-
-	// If overwritten, at least all the options in the defaults below must
-	// be provided! Most options here can be overwritten by the user.
-	UiDefaults map[string]any `json:"ui-defaults"`
+	RedirectHTTPTo string `json:"redirect-http-to"`
 
 	// Where to store MachineState files
 	MachineStateDir string `json:"machine-state-dir"`
@@ -85,6 +75,13 @@ type ProgramConfig struct {
 
 	// If exists, will enable dynamic zoom in frontend metric plots using the configured values
 	EnableResampling *ResampleConfig `json:"resampling"`
+}
+
+type ResampleConfig struct {
+	// Array of resampling target resolutions, in seconds; Example: [600,300,60]
+	Resolutions []int `json:"resolutions"`
+	// Trigger next zoom level at less than this many visible datapoints
+	Trigger int `json:"trigger"`
 }
 
 type IntRange struct {
@@ -123,28 +120,6 @@ var Keys ProgramConfig = ProgramConfig{
 	SessionMaxAge:             "168h",
 	StopJobsExceedingWalltime: 0,
 	ShortRunningJobsDuration:  5 * 60,
-	UiDefaults: map[string]any{
-		"analysis_view_histogramMetrics":         []string{"flops_any", "mem_bw", "mem_used"},
-		"analysis_view_scatterPlotMetrics":       [][]string{{"flops_any", "mem_bw"}, {"flops_any", "cpu_load"}, {"cpu_load", "mem_bw"}},
-		"job_view_nodestats_selectedMetrics":     []string{"flops_any", "mem_bw", "mem_used"},
-		"job_view_selectedMetrics":               []string{"flops_any", "mem_bw", "mem_used"},
-		"job_view_showFootprint":                 true,
-		"job_list_usePaging":                     false,
-		"plot_general_colorBackground":           true,
-		"plot_general_colorscheme":               []string{"#00bfff", "#0000ff", "#ff00ff", "#ff0000", "#ff8000", "#ffff00", "#80ff00"},
-		"plot_general_lineWidth":                 3,
-		"plot_list_jobsPerPage":                  50,
-		"plot_list_selectedMetrics":              []string{"cpu_load", "mem_used", "flops_any", "mem_bw"},
-		"plot_view_plotsPerRow":                  3,
-		"plot_view_showPolarplot":                true,
-		"plot_view_showRoofline":                 true,
-		"plot_view_showStatTable":                true,
-		"system_view_selectedMetric":             "cpu_load",
-		"analysis_view_selectedTopEntity":        "user",
-		"analysis_view_selectedTopCategory":      "totalWalltime",
-		"status_view_selectedTopUserCategory":    "totalJobs",
-		"status_view_selectedTopProjectCategory": "totalJobs",
-	},
 }
 
 func Init(mainConfig json.RawMessage, clusterConfig json.RawMessage) {

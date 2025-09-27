@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package archive
 
 import (
@@ -14,7 +15,7 @@ import (
 )
 
 func DecodeJobData(r io.Reader, k string) (schema.JobData, error) {
-	data := cache.Get(k, func() (value interface{}, ttl time.Duration, size int) {
+	data := cache.Get(k, func() (value any, ttl time.Duration, size int) {
 		var d schema.JobData
 		if err := json.NewDecoder(r).Decode(&d); err != nil {
 			cclog.Warn("Error while decoding raw job data json")
