@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-backend/web"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/lrucache"
 	"github.com/ClusterCockpit/cc-lib/schema"
@@ -25,7 +26,7 @@ var (
 type UserCfgRepo struct {
 	DB         *sqlx.DB
 	Lookup     *sqlx.Stmt
-	uiDefaults map[string]any
+	uiDefaults web.WebConfig
 	cache      *lrucache.Cache
 	lock       sync.RWMutex
 }
@@ -42,7 +43,7 @@ func GetUserCfgRepo() *UserCfgRepo {
 		userCfgRepoInstance = &UserCfgRepo{
 			DB:         db.DB,
 			Lookup:     lookupConfigStmt,
-			uiDefaults: config.Keys.UiDefaults,
+			uiDefaults: web.UIDefaults,
 			cache:      lrucache.New(1024),
 		}
 	})

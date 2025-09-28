@@ -20,7 +20,6 @@ CREATE TABLE "node" (
     CHECK (health_state IN (
         'full', 'partial', 'failed'
     )),
-    meta_data TEXT,          -- JSON
     UNIQUE (hostname, cluster)
 );
 

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-lib/schema"
@@ -68,13 +69,23 @@ func (api *RestApi) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 	// Parse request body
 	req := UpdateNodeStatesRequest{}
 	if err := decode(r.Body, &req); err != nil {
-		handleError(fmt.Errorf("parsing request body failed: %w", err), http.StatusBadRequest, rw)
+		handleError(fmt.Errorf("parsing request body failed: %w", err),
+			http.StatusBadRequest, rw)
 		return
 	}
 	repo := repository.GetNodeRepository()
 
 	for _, node := range req.Nodes {
 		state := determineState(node.States)
-		repo.UpdateNodeState(node.Name, req.Cluster, &state)
+		nodeState := schema.Node{
+			TimeStamp: time.Now().Unix(), NodeState: state,
+			Hostname: node.Name, Cluster: req.Cluster,
+			CpusAllocated: node.CpusAllocated, CpusTotal: node.CpusTotal,
+			MemoryAllocated: node.MemoryAllocated, MemoryTotal: node.MemoryTotal,
+			GpusAllocated: node.GpusAllocated, GpusTotal: node.GpusTotal,
+			HealthState: schema.MonitoringStateFull,
+		}
+
+		repo.InsertNodeState(&nodeState)
 	}
 }

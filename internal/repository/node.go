@@ -144,8 +144,10 @@ func (r *NodeRepository) GetNode(id int64, withMeta bool) (*schema.Node, error) 
 }
 
 const NamedNodeInsert string = `
-INSERT INTO node (hostname, cluster, subcluster, node_state, health_state)
-	VALUES (:hostname, :cluster, :subcluster, :node_state, :health_state);`
+INSERT INTO node (time_stamp, hostname, cluster, subcluster, node_state, health_state,
+	cpus_allocated, cpus_total, memory_allocated, memory_total, gpus_allocated, gpus_total)
+	VALUES (:time_stamp, :hostname, :cluster, :subcluster, :node_state, :health_state,
+	:cpus_allocated, :cpus_total, :memory_allocated, :memory_total, :gpus_allocated, :gpus_total);`
 
 func (r *NodeRepository) AddNode(node *schema.Node) (int64, error) {
 	var err error
@@ -162,6 +164,24 @@ func (r *NodeRepository) AddNode(node *schema.Node) (int64, error) {
 	}
 
 	return node.ID, nil
+}
+
+func (r *NodeRepository) InsertNodeState(nodeState *schema.Node) error {
+	subcluster, err := archive.GetSubClusterByNode(nodeState.Cluster, nodeState.Hostname)
+	if err != nil {
+		cclog.Errorf("Error while getting subcluster for node '%s' in cluster '%s': %v", nodeState.Hostname, nodeState.Cluster, err)
+		return err
+	}
+
+	nodeState.SubCluster = subcluster
+
+	_, err = r.DB.NamedExec(NamedNodeInsert, nodeState)
+	if err != nil {
+		cclog.Errorf("Error while adding node '%v' to database", nodeState.Hostname)
+		return err
+	}
+
+	return nil
 }
 
 func (r *NodeRepository) UpdateNodeState(hostname string, cluster string, nodeState *schema.NodeState) error {
