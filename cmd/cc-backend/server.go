@@ -326,15 +326,15 @@ func serverStart() {
 		cclog.Abortf("Server Start: Starting http listener on '%s' failed.\nError: %s\n", config.Keys.Addr, err.Error())
 	}
 
-	if !strings.HasSuffix(config.Keys.Addr, ":80") && config.Keys.RedirectHttpTo != "" {
+	if !strings.HasSuffix(config.Keys.Addr, ":80") && config.Keys.RedirectHTTPTo != "" {
 		go func() {
-			http.ListenAndServe(":80", http.RedirectHandler(config.Keys.RedirectHttpTo, http.StatusMovedPermanently))
+			http.ListenAndServe(":80", http.RedirectHandler(config.Keys.RedirectHTTPTo, http.StatusMovedPermanently))
 		}()
 	}
 
-	if config.Keys.HttpsCertFile != "" && config.Keys.HttpsKeyFile != "" {
+	if config.Keys.HTTPSCertFile != "" && config.Keys.HTTPSKeyFile != "" {
 		cert, err := tls.LoadX509KeyPair(
-			config.Keys.HttpsCertFile, config.Keys.HttpsKeyFile)
+			config.Keys.HTTPSCertFile, config.Keys.HTTPSKeyFile)
 		if err != nil {
 			cclog.Abortf("Server Start: Loading X509 keypair failed. Check options 'https-cert-file' and 'https-key-file' in 'config.json'.\nError: %s\n", err.Error())
 		}
