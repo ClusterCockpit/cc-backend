@@ -54,8 +54,11 @@ type MetricConfig struct {
 }
 
 type ClusterConfig struct {
-	Name        string             `json:"name"`
-	SubClusters []SubClusterConfig `json:"subClusters"`
+	Name                string             `json:"name"`
+	JobListMetrics      []string           `json:"jobListMetrics"`
+	JobViewPlotMetrics  []string           `json:"jobViewPlotMetrics"`
+	JobViewTableMetrics []string           `json:"jobViewTableMetrics"`
+	SubClusters         []SubClusterConfig `json:"subClusters"`
 }
 
 type SubClusterConfig struct {
@@ -74,7 +77,7 @@ type PlotConfiguration struct {
 
 var initOnce sync.Once
 
-var Keys = WebConfig{
+var UIDefaults = WebConfig{
 	JobList: JobListConfig{
 		UsePaging:     false,
 		ShowFootprint: true,
@@ -119,7 +122,7 @@ func Init(rawConfig json.RawMessage, disableArchive bool) error {
 
 	initOnce.Do(func() {
 		config.Validate(configSchema, rawConfig)
-		if err = json.Unmarshal(rawConfig, &Keys); err != nil {
+		if err = json.Unmarshal(rawConfig, &UIDefaults); err != nil {
 			cclog.Warn("Error while unmarshaling raw config json")
 			return
 		}

@@ -93,13 +93,7 @@ var configSchema = `
             "type": "object",
             "properties": {
               "name": {
-                "description": "The name of the cluster.",
-              "kind": {
-                "type": "string",
-                "enum": ["influxdb", "prometheus", "cc-metric-store", "cc-metric-store-internal", "test"]
-              },
-              "url": {
-                "type": "string"
+                "description": "The name of the cluster."
               },
               "subClusters" {
                 "description": "The array of overrides per subcluster.",
