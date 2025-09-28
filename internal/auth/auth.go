@@ -230,7 +230,7 @@ func (auth *Authentication) SaveSession(rw http.ResponseWriter, r *http.Request,
 	if auth.SessionMaxAge != 0 {
 		session.Options.MaxAge = int(auth.SessionMaxAge.Seconds())
 	}
-	if config.Keys.HttpsCertFile == "" && config.Keys.HttpsKeyFile == "" {
+	if config.Keys.HTTPSCertFile == "" && config.Keys.HTTPSKeyFile == "" {
 		session.Options.Secure = false
 	}
 	session.Options.SameSite = http.SameSiteStrictMode
@@ -538,15 +538,15 @@ func securedCheck(user *schema.User, r *http.Request) error {
 	}
 
 	// If nothing declared in config: deny all request to this api endpoint
-	if len(config.Keys.ApiAllowedIPs) == 0 {
+	if len(config.Keys.APIAllowedIPs) == 0 {
 		return fmt.Errorf("missing configuration key ApiAllowedIPs")
 	}
 	// If wildcard declared in config: Continue
-	if config.Keys.ApiAllowedIPs[0] == "*" {
+	if config.Keys.APIAllowedIPs[0] == "*" {
 		return nil
 	}
 	// check if IP is allowed
-	if !util.Contains(config.Keys.ApiAllowedIPs, IPAddress) {
+	if !util.Contains(config.Keys.APIAllowedIPs, IPAddress) {
 		return fmt.Errorf("unknown ip: %v", IPAddress)
 	}
 
