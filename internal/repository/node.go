@@ -149,6 +149,7 @@ func (r *NodeRepository) GetNode(id int64, withMeta bool) (*schema.Node, error) 
 //	cpus_allocated, cpus_total, memory_allocated, memory_total, gpus_allocated, gpus_total)
 //	VALUES (:time_stamp, :hostname, :cluster, :subcluster, :node_state, :health_state,
 //	:cpus_allocated, :cpus_total, :memory_allocated, :memory_total, :gpus_allocated, :gpus_total);`
+
 const NamedNodeInsert string = `
 INSERT INTO node (hostname, cluster, subcluster)
 	VALUES (:hostname, :cluster, :subcluster);`
@@ -190,8 +191,13 @@ func (r *NodeRepository) InsertNodeState(nodeState *schema.Node) error {
 	return nil
 }
 
+const NamedNodeStateInsert string = `
+INSERT INTO node (hostname, cluster, subcluster)
+	VALUES (:hostname, :cluster, :subcluster);`
+
 func (r *NodeRepository) UpdateNodeState(hostname string, cluster string, nodeState *schema.NodeState) error {
 	var id int64
+
 	if err := sq.Select("id").From("node").
 		Where("node.hostname = ?", hostname).Where("node.cluster = ?", cluster).RunWith(r.DB).
 		QueryRow().Scan(&id); err != nil {
@@ -205,7 +211,7 @@ func (r *NodeRepository) UpdateNodeState(hostname string, cluster string, nodeSt
 				Hostname: hostname, Cluster: cluster, SubCluster: subcluster, NodeState: *nodeState,
 				HealthState: schema.MonitoringStateFull,
 			}
-			_, err = r.AddNode(&node)
+			id, err = r.AddNode(&node)
 			if err != nil {
 				cclog.Errorf("Error while adding node '%s' to database: %v", hostname, err)
 				return err
@@ -219,7 +225,7 @@ func (r *NodeRepository) UpdateNodeState(hostname string, cluster string, nodeSt
 		}
 	}
 
-	if _, err := sq.Update("node").Set("node_state", nodeState).Where("node.id = ?", id).RunWith(r.DB).Exec(); err != nil {
+	if _, err := sq.Insert("node_state").Set("node_state", nodeState).Where("node.id = ?", id).RunWith(r.DB).Exec(); err != nil {
 		cclog.Errorf("error while updating node '%s'", hostname)
 		return err
 	}
