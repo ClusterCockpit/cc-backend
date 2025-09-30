@@ -13,7 +13,6 @@ import (
 	"io/fs"
 	"net/http"
 	"strings"
-	"sync"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
@@ -75,8 +74,6 @@ type PlotConfiguration struct {
 	ColorScheme     []string `json:"colorScheme"`
 }
 
-var initOnce sync.Once
-
 var UIDefaults = WebConfig{
 	JobList: JobListConfig{
 		UsePaging:     false,
@@ -104,6 +101,8 @@ var UIDefaults = WebConfig{
 	},
 }
 
+var UIDefaultsMap map[string]any
+
 //
 // 	map[string]any{
 // 	"analysis_view_histogramMetrics":         []string{"flops_any", "mem_bw", "mem_used"},
@@ -117,16 +116,60 @@ var UIDefaults = WebConfig{
 // 	"status_view_selectedTopProjectCategory": "totalJobs",
 // }
 
-func Init(rawConfig json.RawMessage, disableArchive bool) error {
+func Init(rawConfig json.RawMessage) error {
 	var err error
 
-	initOnce.Do(func() {
+	if rawConfig != nil {
 		config.Validate(configSchema, rawConfig)
 		if err = json.Unmarshal(rawConfig, &UIDefaults); err != nil {
 			cclog.Warn("Error while unmarshaling raw config json")
-			return
+			return err
 		}
-	})
+	}
+
+	UIDefaultsMap = make(map[string]any)
+
+	UIDefaultsMap["joblist_usePaging"] = UIDefaults.JobList.UsePaging
+	UIDefaultsMap["joblist_showFootprint"] = UIDefaults.JobList.ShowFootprint
+	UIDefaultsMap["nodelist_usePaging"] = UIDefaults.NodeList.UsePaging
+	UIDefaultsMap["jobview_showPolarPlot"] = UIDefaults.JobView.ShowPolarPlot
+	UIDefaultsMap["jobview_showFootprint"] = UIDefaults.JobView.ShowFootprint
+	UIDefaultsMap["jobview_showRoofline"] = UIDefaults.JobView.ShowRoofline
+	UIDefaultsMap["jobview_showStatTable"] = UIDefaults.JobView.ShowStatTable
+
+	UIDefaultsMap["metricConfig_jobListMetrics"] = UIDefaults.MetricConfig.JobListMetrics
+	UIDefaultsMap["metricConfig_jobViewPlotMetrics"] = UIDefaults.MetricConfig.JobViewPlotMetrics
+	UIDefaultsMap["metricConfig_jobViewTableMetrics"] = UIDefaults.MetricConfig.JobViewTableMetrics
+
+	UIDefaultsMap["plotConfiguration_colorBackground"] = UIDefaults.PlotConfiguration.ColorBackground
+	UIDefaultsMap["plotConfiguration_plotsPerRow"] = UIDefaults.PlotConfiguration.PlotsPerRow
+	UIDefaultsMap["plotConfiguration_lineWidth"] = UIDefaults.PlotConfiguration.LineWidth
+	UIDefaultsMap["plotConfiguration_colorScheme"] = UIDefaults.PlotConfiguration.ColorScheme
+
+	for _, c := range UIDefaults.MetricConfig.Clusters {
+		if c.JobListMetrics != nil {
+			UIDefaultsMap["metricConfig_jobListMetrics:"+c.Name] = c.JobListMetrics
+		}
+		if c.JobViewPlotMetrics != nil {
+			UIDefaultsMap["metricConfig_jobViewPlotMetrics:"+c.Name] = c.JobViewPlotMetrics
+		}
+		if c.JobViewTableMetrics != nil {
+			UIDefaultsMap["metricConfig_jobViewTableMetrics:"+c.Name] = c.JobViewTableMetrics
+		}
+
+		for _, sc := range c.SubClusters {
+			suffix := strings.Join([]string{c.Name, sc.Name}, ":")
+			if sc.JobListMetrics != nil {
+				UIDefaultsMap["metricConfig_jobListMetrics:"+suffix] = sc.JobListMetrics
+			}
+			if sc.JobViewPlotMetrics != nil {
+				UIDefaultsMap["metricConfig_jobViewPlotMetrics:"+suffix] = sc.JobViewPlotMetrics
+			}
+			if sc.JobViewTableMetrics != nil {
+				UIDefaultsMap["metricConfig_jobViewTableMetrics:"+suffix] = sc.JobViewTableMetrics
+			}
+		}
+	}
 
 	return err
 }

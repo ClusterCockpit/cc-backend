@@ -5,8 +5,7 @@
 
 package web
 
-var configSchema = `
-	{
+const configSchema = `{
   "type": "object",
   "properties": {
     "jobList": {
@@ -21,8 +20,7 @@ var configSchema = `
           "description": "If footprint bars are shown as first column by default.",
           "type": "boolean"
         }
-      },
-      "required": ["usePaging", "showFootprint"]
+      }
     },
     "nodeList": {
       "description": "Node list defaults. Applies to node list view.",
@@ -32,8 +30,7 @@ var configSchema = `
           "description": "If classic paging is used instead of continuous scrolling by default.",
           "type": "boolean"
         }
-      },
-      "required": ["usePaging"]
+      }
     },
     "jobView": {
       "description": "Job view defaults.",
@@ -55,8 +52,7 @@ var configSchema = `
           "description": "If the job metric statistics table is shown by default.",
           "type": "boolean"
         }
-      },
-      "required": ["showFootprint"]
+      }
     },
     "metricConfig": {
       "description": "Global initial metric selections for primary views of all clusters.",
@@ -95,9 +91,33 @@ var configSchema = `
               "name": {
                 "description": "The name of the cluster."
               },
-              "subClusters" {
+              "jobListMetrics": {
+                "description": "Initial metrics shown for new users in job lists (User and jobs view) for subcluster.",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minItems": 1
+                }
+              },
+              "jobViewPlotMetrics": {
+                "description": "Initial metrics shown for new users as job view timeplots for subcluster.",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minItems": 1
+                }
+              },
+              "jobViewTableMetrics": {
+                "description": "Initial metrics shown for new users in job view statistics table for subcluster.",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minItems": 1
+                }
+              },
+              "subClusters": {
                 "description": "The array of overrides per subcluster.",
-                "type":"array",
+                "type": "array",
                 "items": {
                   "type": "object",
                   "properties": {
@@ -138,8 +158,7 @@ var configSchema = `
             "required": ["name", "subClusters"],
             "minItems": 1
           }
-        },
-        "required": ["jobListMetrics", "jobViewPlotMetrics", "jobViewTableMetrics"]
+        }
       }
     },
     "plotConfiguration": {
@@ -165,7 +184,7 @@ var configSchema = `
             "type": "string"
           }
         }
-      },
-      "required": ["colorBackground", "plotsPerRow", "lineWidth"]
+      }
     }
-  }`
+  }
+}`

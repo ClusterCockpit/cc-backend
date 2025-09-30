@@ -26,7 +26,7 @@ var (
 type UserCfgRepo struct {
 	DB         *sqlx.DB
 	Lookup     *sqlx.Stmt
-	uiDefaults web.WebConfig
+	uiDefaults map[string]any
 	cache      *lrucache.Cache
 	lock       sync.RWMutex
 }
@@ -43,7 +43,7 @@ func GetUserCfgRepo() *UserCfgRepo {
 		userCfgRepoInstance = &UserCfgRepo{
 			DB:         db.DB,
 			Lookup:     lookupConfigStmt,
-			uiDefaults: web.UIDefaults,
+			uiDefaults: web.UIDefaultsMap,
 			cache:      lrucache.New(1024),
 		}
 	})
@@ -55,13 +55,12 @@ func GetUserCfgRepo() *UserCfgRepo {
 // user or return the plain default config.
 func (uCfg *UserCfgRepo) GetUIConfig(user *schema.User) (map[string]any, error) {
 	if user == nil {
-		uCfg.lock.RLock()
 		copy := make(map[string]any, len(uCfg.uiDefaults))
 		maps.Copy(copy, uCfg.uiDefaults)
-		uCfg.lock.RUnlock()
 		return copy, nil
 	}
 
+	// Is the cache invalidated in case the options are changed?
 	data := uCfg.cache.Get(user.Username, func() (any, time.Duration, int) {
 		uiconfig := make(map[string]any, len(uCfg.uiDefaults))
 		maps.Copy(uiconfig, uCfg.uiDefaults)
@@ -113,15 +112,6 @@ func (uCfg *UserCfgRepo) UpdateConfig(
 	user *schema.User,
 ) error {
 	if user == nil {
-		var val any
-		if err := json.Unmarshal([]byte(value), &val); err != nil {
-			cclog.Warn("Error while unmarshaling raw user config json")
-			return err
-		}
-
-		uCfg.lock.Lock()
-		defer uCfg.lock.Unlock()
-		uCfg.uiDefaults[key] = val
 		return nil
 	}
 
