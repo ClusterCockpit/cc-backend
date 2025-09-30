@@ -143,12 +143,18 @@ func (r *NodeRepository) GetNode(id int64, withMeta bool) (*schema.Node, error) 
 	return node, nil
 }
 
+// const NamedNodeInsert string = `
+// INSERT INTO node (time_stamp, hostname, cluster, subcluster, node_state, health_state,
+//
+//	cpus_allocated, cpus_total, memory_allocated, memory_total, gpus_allocated, gpus_total)
+//	VALUES (:time_stamp, :hostname, :cluster, :subcluster, :node_state, :health_state,
+//	:cpus_allocated, :cpus_total, :memory_allocated, :memory_total, :gpus_allocated, :gpus_total);`
 const NamedNodeInsert string = `
-INSERT INTO node (time_stamp, hostname, cluster, subcluster, node_state, health_state,
-	cpus_allocated, cpus_total, memory_allocated, memory_total, gpus_allocated, gpus_total)
-	VALUES (:time_stamp, :hostname, :cluster, :subcluster, :node_state, :health_state,
-	:cpus_allocated, :cpus_total, :memory_allocated, :memory_total, :gpus_allocated, :gpus_total);`
+INSERT INTO node (hostname, cluster, subcluster)
+	VALUES (:hostname, :cluster, :subcluster);`
 
+// AddNode adds a Node to the node table. This can be triggered by a node collector registration or
+// from a nodestate update from the job scheduler.
 func (r *NodeRepository) AddNode(node *schema.Node) (int64, error) {
 	var err error
 
@@ -177,7 +183,7 @@ func (r *NodeRepository) InsertNodeState(nodeState *schema.Node) error {
 
 	_, err = r.DB.NamedExec(NamedNodeInsert, nodeState)
 	if err != nil {
-		cclog.Errorf("Error while adding node '%v' to database", nodeState.Hostname)
+		cclog.Errorf("Error while insert node '%v' to database", nodeState.Hostname)
 		return err
 	}
 

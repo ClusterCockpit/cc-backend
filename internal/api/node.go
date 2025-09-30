@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package api
 
 import (
@@ -25,7 +26,6 @@ type Node struct {
 	GpusTotal       int      `json:"gpusTotal"`
 }
 
-// updateNodeStatesRequest model
 type UpdateNodeStatesRequest struct {
 	Nodes   []Node `json:"nodes"`
 	Cluster string `json:"cluster" example:"fritz"`
