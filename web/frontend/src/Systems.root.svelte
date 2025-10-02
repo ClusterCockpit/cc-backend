@@ -21,6 +21,10 @@
     Icon,
     Button,
   } from "@sveltestrap/sveltestrap";
+  import {
+    gql,
+    mutationStore,
+  } from "@urql/svelte";
 
   import { init } from "./generic/utils.js";
   import NodeOverview from "./systems/NodeOverview.svelte";
@@ -65,20 +69,28 @@
   let hostnameFilter = $state("");
   let pendingHostnameFilter = $state("");
   let isMetricsSelectionOpen = $state(false);
-  let selectedMetric = $state(ccconfig.system_view_selectedMetric || "");
-  let selectedMetrics = $state((
-    ccconfig[`node_list_selectedMetrics:${cluster}:${subCluster}`] ||
-    ccconfig[`node_list_selectedMetrics:${cluster}`]
-  ) || [ccconfig.system_view_selectedMetric]);
 
   /* Derived States */
   const systemMetrics = $derived($initialized ? [...globalMetrics.filter((gm) => gm?.availability.find((av) => av.cluster == cluster))] : []);
   const presetSystemUnits = $derived(loadUnits(systemMetrics));
+  let selectedMetric = $derived((
+      ccconfig[`nodeOverview_selectedMetric:${cluster}:${subCluster}`] ||
+      ccconfig[`nodeOverview_selectedMetric:${cluster}`]
+    ) || 
+    systemMetrics ? systemMetrics[0] : ""
+  );
+  let selectedMetrics = $derived((
+      ccconfig[`nodeList_selectedMetrics:${cluster}:${subCluster}`] ||
+      ccconfig[`nodeList_selectedMetrics:${cluster}`]
+    ) || 
+    systemMetrics ? [systemMetrics[0], systemMetrics[1], systemMetrics[2]] : []
+  );
 
   /* Effects */
   $effect(() => {
     // OnMount: Ping Var, without this, OVERVIEW metric select is empty (reason tbd) 
-    systemMetrics
+    // systemMetrics
+    updateOverviewMetric(selectedMetric)
   });
 
   /* Functions */
@@ -99,6 +111,37 @@
       hostnameFilter = pendingHostnameFilter;
     }, 500);
   };
+
+  function updateOverviewMetric(newMetric) {
+    let configKey;
+    if (subCluster) {
+      configKey = `nodeOverview_selectedMetric:${cluster}:${subCluster}`;
+    } else {
+      configKey = `nodeOverview_selectedMetric:${cluster}`;
+    }
+
+    updateConfigurationMutation({
+      name: configKey,
+      value: newMetric,
+    }).subscribe((res) => {
+      if (res.fetching === false && res.error) {
+        throw res.error;
+      }
+    });
+  };
+
+  const updateConfigurationMutation = ({ name, value }) => {
+    return mutationStore({
+      client: client,
+      query: gql`
+        mutation ($name: String!, $value: String!) {
+          updateConfiguration(name: $name, value: $value)
+        }
+      `,
+      variables: { name, value },
+    });
+  };
+
 </script>
 
 <!-- ROW1: Tools-->
@@ -213,7 +256,7 @@
     presetMetrics={selectedMetrics}
     {cluster}
     {subCluster}
-    configName="node_list_selectedMetrics"
+    configName="nodeList_selectedMetrics"
     applyMetrics={(newMetrics) => 
       selectedMetrics = [...newMetrics]
     }

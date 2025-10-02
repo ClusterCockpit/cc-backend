@@ -65,15 +65,15 @@
   let isMetricsSelectionOpen = $state(false);
   let sorting = $state({ field: "startTime", type: "col", order: "DESC" });
   let selectedCluster = $state(filterPresets?.cluster ? filterPresets.cluster : null);
-  let selectedHistogramsBuffer = $state({ all: (ccconfig['user_view_histogramMetrics'] || []) })
+  let selectedHistogramsBuffer = $state({ all: (ccconfig['userView_histogramMetrics'] || []) })
   let metrics = $state(filterPresets.cluster
-    ? ccconfig[`plot_list_selectedMetrics:${filterPresets.cluster}`] ||
-      ccconfig.plot_list_selectedMetrics
-    : ccconfig.plot_list_selectedMetrics
+    ? ccconfig[`metricConfig_jobListMetrics:${filterPresets.cluster}`] ||
+      ccconfig.metricConfig_jobListMetrics
+    : ccconfig.metricConfig_jobListMetrics
   );
   let showFootprint = $state(filterPresets.cluster
-    ? !!ccconfig[`plot_list_showFootprint:${filterPresets.cluster}`]
-    : !!ccconfig.plot_list_showFootprint
+    ? !!ccconfig[`jobList_showFootprint:${filterPresets.cluster}`]
+    : !!ccconfig.jobList_showFootprint
   );
 
   // Histogram Vars
@@ -129,7 +129,7 @@
   /* Effect */
   $effect(() => {
     if (!selectedHistogramsBuffer[selectedCluster]) {
-      selectedHistogramsBuffer[selectedCluster] = ccconfig[`user_view_histogramMetrics:${selectedCluster}`];
+      selectedHistogramsBuffer[selectedCluster] = ccconfig[`userView_histogramMetrics:${selectedCluster}`];
     };
   });
 
@@ -138,7 +138,7 @@
     filterComponent.updateFilters();
     // Why? -> `$derived(ccconfig[$cluster])` only loads array from last Backend-Query if $cluster changed reactively (without reload)
     if (filterPresets?.cluster) {
-      selectedHistogramsBuffer[filterPresets.cluster] = ccconfig[`user_view_histogramMetrics:${filterPresets.cluster}`];
+      selectedHistogramsBuffer[filterPresets.cluster] = ccconfig[`userView_histogramMetrics:${filterPresets.cluster}`];
     };
   });
 </script>
@@ -393,7 +393,7 @@
     bind:showFootprint
     presetMetrics={metrics}
     cluster={selectedCluster}
-    configName="plot_list_selectedMetrics"
+    configName="metricConfig_jobListMetrics"
     footprintSelect
     applyMetrics={(newMetrics) => 
       metrics = [...newMetrics]
@@ -404,7 +404,7 @@
   cluster={selectedCluster}
   bind:isOpen={isHistogramSelectionOpen}
   presetSelectedHistograms={selectedHistograms}
-  configName="user_view_histogramMetrics"
+  configName="userView_histogramMetrics"
   applyChange={(newSelection) => {
     selectedHistogramsBuffer[selectedCluster || 'all'] = [...newSelection];
   }}

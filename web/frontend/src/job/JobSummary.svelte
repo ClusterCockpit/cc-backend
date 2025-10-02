@@ -25,20 +25,23 @@
   } = $props();
 
   /* Const Init */
-  const showFootprintTab = !!getContext("cc-config")[`job_view_showFootprint`];
+  const showFootprintTab = !!getContext("cc-config")[`jobView_showFootprint`];
+  const showPolarTab = !!getContext("cc-config")[`jobView_showPolarPlot`];
 </script>
 
 <Card class="overflow-auto" style="width: {width}; height: {height}">
   <TabContent>
     {#if showFootprintTab}
-      <TabPane tabId="foot" tab="Footprint" active>
+      <TabPane tabId="foot" tab="Footprint" active={showFootprintTab}>
         <!-- Bars CardBody Here-->
         <JobFootprintBars {job} />
       </TabPane>
     {/if}
-    <TabPane tabId="polar" tab="Polar" active={!showFootprintTab}>
-      <!-- Polar Plot CardBody Here -->
-       <JobFootprintPolar {job} />
-    </TabPane>
+    {#if showPolarTab}
+      <TabPane tabId="polar" tab="Polar" active={showPolarTab && !showFootprintTab}>
+        <!-- Polar Plot CardBody Here -->
+        <JobFootprintPolar {job} />
+      </TabPane>
+    {/if}
   </TabContent>
 </Card>

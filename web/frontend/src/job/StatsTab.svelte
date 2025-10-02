@@ -81,9 +81,9 @@
     if (!job) return;
 
     const pendingMetrics = (
-      getContext("cc-config")[`job_view_nodestats_selectedMetrics:${job.cluster}:${job.subCluster}`] ||
-      getContext("cc-config")[`job_view_nodestats_selectedMetrics:${job.cluster}`]
-    ) || getContext("cc-config")["job_view_nodestats_selectedMetrics"];
+      getContext("cc-config")[`metricConfig_jobViewTableMetrics:${job.cluster}:${job.subCluster}`] ||
+      getContext("cc-config")[`metricConfig_jobViewTableMetrics:${job.cluster}`]
+    ) || getContext("cc-config")["metricConfig_jobViewTableMetrics"];
 
     // Select default Scopes to load: Check before if any metric has accelerator scope by default
     const accScopeDefault = [...pendingMetrics].some(function (m) {
@@ -152,7 +152,7 @@
   presetMetrics={selectedMetrics}
   cluster={job.cluster}
   subCluster={job.subCluster}
-  configName="job_view_nodestats_selectedMetrics"
+  configName="metricConfig_jobViewTableMetrics"
   preInitialized
   applyMetrics={(newMetrics) => 
     selectedMetrics = [...newMetrics]

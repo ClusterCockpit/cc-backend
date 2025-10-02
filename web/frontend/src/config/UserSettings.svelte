@@ -24,7 +24,7 @@
   /* State Init */
   let message = $state({ msg: "", target: "", color: "#d63384" });
   let displayMessage = $state(false);
-  let cbmode = $state(ccconfig?.plot_general_colorblindMode || false);
+  let cbmode = $state(ccconfig?.plotConfiguration_colorblindMode || false);
 
   /* Functions */
   async function handleSettingSubmit(event, setting) {
@@ -38,7 +38,7 @@
       const res = await fetch(form.action, { method: "POST", body: formData });
       if (res.ok) {
         let text = await res.text();
-        if (formData.get("key") === "plot_general_colorblindMode") {
+        if (formData.get("key") === "plotConfiguration_colorblindMode") {
           cbmode = JSON.parse(formData.get("value"));
         }
         popMessage(text, target, "#048109");

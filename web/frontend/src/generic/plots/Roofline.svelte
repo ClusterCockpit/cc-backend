@@ -41,8 +41,8 @@
   } = $props();
 
   /* Const Init */
-  const lineWidth = clusterCockpitConfig?.plot_general_lineWidth || 2;
-  const cbmode = clusterCockpitConfig?.plot_general_colorblindMode || false;
+  const lineWidth = clusterCockpitConfig.plotConfiguration_lineWidth;
+  const cbmode = clusterCockpitConfig?.plotConfiguration_colorblindMode || false;
 
   /* Var Init */
   let timeoutId = null;

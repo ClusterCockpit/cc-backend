@@ -69,10 +69,10 @@
           method="post"
           action="/frontend/configuration/"
           onsubmit={(e) => handleSettingSubmit(e, "#node-paging-form", "npag")}>
-          <input type="hidden" name="key" value="node_list_usePaging" />
+          <input type="hidden" name="key" value="nodeList_usePaging" />
           <div class="mb-3">
             <div>
-              {#if config?.node_list_usePaging}
+              {#if config?.nodeList_usePaging}
                 <input type="radio" id="nodes-true-checked" name="value" value="true" checked />
               {:else}
                 <input type="radio" id="nodes-true" name="value" value="true" />
@@ -80,7 +80,7 @@
               <label for="nodes-true">Paging with selectable count of nodes.</label>
             </div>
             <div>
-              {#if config?.node_list_usePaging}
+              {#if config?.nodeList_usePaging}
                 <input type="radio" id="nodes-false" name="value" value="false" />
               {:else}
                 <input type="radio" id="nodes-false-checked" name="value" value="false" checked />

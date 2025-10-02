@@ -247,7 +247,7 @@
             ),
           }))
           .sort((a, b) => a.name.localeCompare(b.name))}
-        itemsPerRow={ccconfig.plot_view_plotsPerRow}
+        itemsPerRow={ccconfig.plotConfiguration_plotsPerRow}
         {gridContent}
       />
     {/if}

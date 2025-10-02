@@ -151,8 +151,8 @@
       updateConfigurationMutation({
         name:
           !cluster
-            ? "plot_list_showFootprint"
-            : `plot_list_showFootprint:${cluster}`,
+            ? "jobList_showFootprint"
+            : `jobList_showFootprint:${cluster}`,
         value: JSON.stringify(showFootprint),
       }).subscribe((res) => {
         if (res.fetching === false && res.error) {

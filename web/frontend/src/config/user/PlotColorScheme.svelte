@@ -29,10 +29,10 @@
   } = $props();
 
   /* State Init */
-  let activeRow = $state(JSON.stringify(config?.plot_general_colorscheme));
+  let activeRow = $state(JSON.stringify(config?.plotConfiguration_colorScheme));
 
   /* Const Init */
-  const colorschemes = {
+  const colorSchemes = {
     Default: [
       "#00bfff",
       "#0000ff",
@@ -266,7 +266,7 @@
 
   // https://personal.sron.nl/~pault/
   // https://tsitsul.in/blog/coloropt/
-  const cvdschemes = {
+  const cvdSchemes = {
     HighContrast: [
       "rgb(221,170,51)",
       "rgb(187,85,102)",
@@ -344,11 +344,11 @@
             </div>
           {/if}
         </CardTitle>
-        <input type="hidden" name="key" value="plot_general_colorscheme" />
+        <input type="hidden" name="key" value="plotConfiguration_colorScheme" />
         <Table hover>
           <tbody>
             {#key activeRow}
-              {#each Object.entries(cbmode ? cvdschemes : colorschemes) as [name, rgbrow]}
+              {#each Object.entries(cbmode ? cvdSchemes : colorSchemes) as [name, rgbrow]}
                 <tr>
                   <th scope="col">{name}</th>
                   <td>

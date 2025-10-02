@@ -26,7 +26,7 @@
   /* Svelte 5 Props */
   let {
     matchedCompareJobs = $bindable(0),
-    metrics = getContext("cc-config")?.plot_list_selectedMetrics,
+    metrics = getContext("cc-config")?.metricConfig_jobListMetrics,
     filterBuffer = [],
   } = $props();
 
@@ -112,7 +112,7 @@
   // (Re-)query and optionally set new filters; Query will be started reactively.
   export function queryJobs(filters) {
     if (filters != null) {
-      let minRunningFor = ccconfig.plot_list_hideShortRunningJobs;
+      let minRunningFor = ccconfig.jobList_hideShortRunningJobs;
       if (minRunningFor && minRunningFor > 0) {
         filters.push({ minRunningFor });
       }
@@ -229,7 +229,7 @@
 
   // function updateConfiguration(value, page) {
   //   updateConfigurationMutation({
-  //     name: "plot_list_jobsPerPage",
+  //     name: "jobList_jobsPerPage",
   //     value: value,
   //   }).subscribe((res) => {
   //     if (res.fetching === false && !res.error) {

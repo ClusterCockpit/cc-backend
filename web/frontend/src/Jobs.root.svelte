@@ -53,13 +53,13 @@
   let sorting = $state({ field: "startTime", type: "col", order: "DESC" });
   let selectedCluster = $state(filterPresets?.cluster ? filterPresets.cluster : null);
   let metrics = $state(filterPresets.cluster
-    ? ccconfig[`plot_list_selectedMetrics:${filterPresets.cluster}`] ||
-      ccconfig.plot_list_selectedMetrics
-    : ccconfig.plot_list_selectedMetrics
+    ? ccconfig[`metricConfig_jobListMetrics:${filterPresets.cluster}`] ||
+      ccconfig.metricConfig_jobListMetrics
+    : ccconfig.metricConfig_jobListMetrics
   );
   let showFootprint = $state(filterPresets.cluster
-    ? !!ccconfig[`plot_list_showFootprint:${filterPresets.cluster}`]
-    : !!ccconfig.plot_list_showFootprint
+    ? !!ccconfig[`jobList_showFootprint:${filterPresets.cluster}`]
+    : !!ccconfig.jobList_showFootprint
   );
 
   /* Functions */
@@ -213,7 +213,7 @@
     bind:showFootprint
     presetMetrics={metrics}
     cluster={selectedCluster}
-    configName="plot_list_selectedMetrics"
+    configName="metricConfig_jobListMetrics"
     footprintSelect
     applyMetrics={(newMetrics) => 
       metrics = [...newMetrics]
