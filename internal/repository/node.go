@@ -224,8 +224,7 @@ func (r *NodeRepository) UpdateNodeState(hostname string, cluster string, nodeSt
 			return err
 		}
 	}
-
-	if _, err := sq.Insert("node_state").Set("node_state", nodeState).Where("node.id = ?", id).RunWith(r.DB).Exec(); err != nil {
+	if _, err := sq.Update("node_state").Set("node_state", nodeState).Where("node.id = ?", id).RunWith(r.DB).Exec(); err != nil {
 		cclog.Errorf("error while updating node '%s'", hostname)
 		return err
 	}
