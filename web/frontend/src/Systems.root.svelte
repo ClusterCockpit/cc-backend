@@ -23,6 +23,7 @@
   } from "@sveltestrap/sveltestrap";
   import {
     gql,
+    getContextClient,
     mutationStore,
   } from "@urql/svelte";
 
@@ -49,6 +50,7 @@
 
   /* Const Init */
   const { query: initq } = init();
+  const client = getContextClient();
   const displayNodeOverview = (displayType === 'OVERVIEW');
   const ccconfig = getContext("cc-config");
   const initialized = getContext("initialized");
@@ -73,24 +75,41 @@
   /* Derived States */
   const systemMetrics = $derived($initialized ? [...globalMetrics.filter((gm) => gm?.availability.find((av) => av.cluster == cluster))] : []);
   const presetSystemUnits = $derived(loadUnits(systemMetrics));
-  let selectedMetric = $derived((
-      ccconfig[`nodeOverview_selectedMetric:${cluster}:${subCluster}`] ||
-      ccconfig[`nodeOverview_selectedMetric:${cluster}`]
-    ) || 
-    systemMetrics ? systemMetrics[0] : ""
-  );
-  let selectedMetrics = $derived((
-      ccconfig[`nodeList_selectedMetrics:${cluster}:${subCluster}`] ||
-      ccconfig[`nodeList_selectedMetrics:${cluster}`]
-    ) || 
-    systemMetrics ? [systemMetrics[0], systemMetrics[1], systemMetrics[2]] : []
-  );
+  let selectedMetric = $derived.by(() => {
+    let configKey = `nodeOverview_selectedMetric`;
+    if (cluster) configKey += `:${cluster}`;
+    if (subCluster) configKey += `:${subCluster}`;
+
+    if ($initialized) {
+      if (ccconfig[configKey]) return ccconfig[configKey]
+      else if (systemMetrics.length !== 0) return systemMetrics[0].name
+    }
+    return ""
+  });
+  let selectedMetrics = $derived.by(() => {
+    let configKey = `nodeList_selectedMetrics`;
+    if (cluster) configKey += `:${cluster}`;
+    if (subCluster) configKey += `:${subCluster}`;
+
+    if ($initialized) {
+      if (ccconfig[configKey]) return ccconfig[configKey]
+      else if (systemMetrics.length >= 3) return [systemMetrics[0].name, systemMetrics[1].name, systemMetrics[2].name]
+    }
+    return []
+  });
+
+  // $inspect('System', systemMetrics)
+  // $inspect('List', selectedMetrics)
+  // $inspect('Overview', selectedMetric)
+  // console.log('Config', ccconfig)
+  // console.log('Config List', ccconfig[`nodeOverview_selectedMetrics:${cluster}`], cluster)
+  // console.log('Config Overview', ccconfig[`nodeOverview_selectedMetric:${cluster}`], cluster)
 
   /* Effects */
   $effect(() => {
-    // OnMount: Ping Var, without this, OVERVIEW metric select is empty (reason tbd) 
-    // systemMetrics
-    updateOverviewMetric(selectedMetric)
+    if (displayNodeOverview) {
+      updateOverviewMetric(selectedMetric)
+    }
   });
 
   /* Functions */
@@ -113,16 +132,13 @@
   };
 
   function updateOverviewMetric(newMetric) {
-    let configKey;
-    if (subCluster) {
-      configKey = `nodeOverview_selectedMetric:${cluster}:${subCluster}`;
-    } else {
-      configKey = `nodeOverview_selectedMetric:${cluster}`;
-    }
+    let configKey = `nodeOverview_selectedMetric`;
+    if (cluster) configKey += `:${cluster}`;
+    if (subCluster) configKey += `:${subCluster}`;
 
     updateConfigurationMutation({
       name: configKey,
-      value: newMetric,
+      value: JSON.stringify(newMetric),
     }).subscribe((res) => {
       if (res.fetching === false && res.error) {
         throw res.error;

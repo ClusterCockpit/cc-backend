@@ -57,12 +57,12 @@
   };
 
   /* State Init */
-  let pendingMetrics = $state(presetMetrics);
   let pendingShowFootprint = $state(!!showFootprint);
   let listedMetrics = $state([]);
   let columnHovering = $state(null);
 
   /* Derives States */
+  let pendingMetrics = $derived(presetMetrics);
   const allMetrics = $derived(loadAvailable(preInitialized || $initialized));
 
   /* Reactive Effects */
