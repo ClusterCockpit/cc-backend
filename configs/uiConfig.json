@@ -1,0 +1,45 @@
+{
+  "jobList": {
+    "usePaging": false,
+    "showFootprint":false
+  },
+  "jobView": {
+    "showPolarPlot": true,
+    "showFootprint": true,
+    "showRoofline": true,
+    "showStatTable": true
+  },
+  "metricConfig": {
+    "jobListMetrics": ["mem_bw", "flops_dp"],
+    "jobViewPlotMetrics": ["mem_bw", "flops_dp"],
+    "jobViewTableMetrics": ["mem_bw", "flops_dp"],
+    "clusters": [
+      {
+        "name": "test",
+        "subClusters": [
+          {
+            "name": "one",
+            "jobListMetrics": ["mem_used", "flops_sp"]
+          }
+        ]
+      }
+    ]
+  },
+  "nodeList": {
+    "usePaging": true
+  },
+  "plotConfiguration": {
+    "plotsPerRow": 3,
+    "colorBackground": true,
+    "lineWidth": 3,
+    "colorScheme": [
+	"#00bfff",
+	"#0000ff",
+	"#ff00ff",
+	"#ff0000",
+	"#ff8000",
+	"#ffff00",
+	"#80ff00"
+    ]
+  }
+}
