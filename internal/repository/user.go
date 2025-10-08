@@ -129,6 +129,7 @@ func (r *UserRepository) AddUser(user *schema.User) error {
 
 	cclog.Infof("new user %#v created (roles: %s, auth-source: %d, projects: %s)", user.Username, rolesJson, user.AuthSource, projectsJson)
 
+	// DEPRECATED: SUPERSEDED BY NEW USER CONFIG - userConfig.go / web.go
 	defaultMetricsCfg, err := config.LoadDefaultMetricsConfig()
 	if err != nil {
 		cclog.Errorf("Error loading default metrics config: %v", err)
@@ -140,7 +141,8 @@ func (r *UserRepository) AddUser(user *schema.User) error {
 				cclog.Errorf("Error marshaling default metrics for cluster %s: %v", cluster.Name, err)
 				continue
 			}
-			confKey := "job_view_selectedMetrics:" + cluster.Name
+			// Note: StatisticsTable now has different key (metricConfig_jobViewTableMetrics): Not updated here.
+			confKey := "metricConfig_jobViewPlotMetrics:" + cluster.Name
 			if _, err := sq.Insert("configuration").
 				Columns("username", "confkey", "value").
 				Values(user.Username, confKey, string(metricsJSON)).
@@ -151,6 +153,7 @@ func (r *UserRepository) AddUser(user *schema.User) error {
 			}
 		}
 	}
+	// END DEPRECATION
 
 	return nil
 }

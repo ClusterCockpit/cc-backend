@@ -11,6 +11,8 @@ import (
 	"strings"
 )
 
+// DEPRECATED: SUPERSEDED BY NEW USER CONFIG - userConfig.go / web.go
+
 type DefaultMetricsCluster struct {
 	Name           string `json:"name"`
 	DefaultMetrics string `json:"default_metrics"`
