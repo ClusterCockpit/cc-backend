@@ -235,7 +235,7 @@
           {/if}
           <TabPane tabId="meta-info" tab="Job Info" active={$initq.data?.job?.metaData?.message?false:true}>
             <CardBody class="pb-2">
-              <JobInfo job={$initq.data.job} {username} {authlevel} {roles} showTagedit/>
+              <JobInfo job={$initq.data.job} {username} {authlevel} {roles} showTagEdit/>
             </CardBody>
           </TabPane>
           {#if $initq.data.job.concurrentJobs != null && $initq.data.job.concurrentJobs.items.length != 0}
