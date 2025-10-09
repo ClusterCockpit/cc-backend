@@ -98,13 +98,6 @@
     return []
   });
 
-  // $inspect('System', systemMetrics)
-  // $inspect('List', selectedMetrics)
-  // $inspect('Overview', selectedMetric)
-  // console.log('Config', ccconfig)
-  // console.log('Config List', ccconfig[`nodeOverview_selectedMetrics:${cluster}`], cluster)
-  // console.log('Config Overview', ccconfig[`nodeOverview_selectedMetric:${cluster}`], cluster)
-
   /* Effects */
   $effect(() => {
     if (displayNodeOverview) {

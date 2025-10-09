@@ -82,27 +82,21 @@
   let colWidth1 = $state(0);
   let colWidth2 = $state(0);
   let jobFilters = $state([]);
-  let metricsInHistograms = $state(ccconfig.analysisView_histogramMetrics)
-  let metricsInScatterplots = $state(ccconfig.analysisView_scatterPlotMetrics)
+  let metricsInHistograms = $state(ccconfig?.analysisView_histogramMetrics || [])
+  let metricsInScatterplots = $state(ccconfig?.analysisView_scatterPlotMetrics || [])
   let sortSelection = $state(
     sortOptions.find(
       (option) =>
         option.key ==
         ccconfig[`analysisView_selectedTopCategory:${filterPresets.cluster}`],
-    ) ||
-    sortOptions.find(
-      (option) => option.key == ccconfig.analysisView_selectedTopCategory,
-    )
+    ) || sortOptions[0]
   );
   let groupSelection = $state(
       groupOptions.find(
         (option) =>
           option.key ==
           ccconfig[`analysisView_selectedTopEntity:${filterPresets.cluster}`],
-      ) ||
-      groupOptions.find(
-        (option) => option.key == ccconfig.analysisView_selectedTopEntity,
-      )
+      ) || groupOptions[0]
   );
 
   /* Init Function */

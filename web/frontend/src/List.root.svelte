@@ -136,7 +136,7 @@
       startTimeQuickSelect
       bind:this={filterComponent}
       {filterPresets}
-      menuText="Only {type.toLowerCase()}s with jobs that match the filters will show up"
+      menuText="Only {type.toLowerCase()}s with matching jobs will be displayed."
       applyFilters={(detail) => {
         jobFilters = detail.filters;
       }}
