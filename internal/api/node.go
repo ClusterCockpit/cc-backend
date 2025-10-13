@@ -16,14 +16,12 @@ import (
 )
 
 type Node struct {
-	Name            string   `json:"hostname"`
+	Hostname        string   `json:"hostname"`
 	States          []string `json:"states"`
 	CpusAllocated   int      `json:"cpusAllocated"`
-	CpusTotal       int      `json:"cpusTotal"`
 	MemoryAllocated int      `json:"memoryAllocated"`
-	MemoryTotal     int      `json:"memoryTotal"`
 	GpusAllocated   int      `json:"gpusAllocated"`
-	GpusTotal       int      `json:"gpusTotal"`
+	JobsRunning     int      `json:"jobsRunning"`
 }
 
 type UpdateNodeStatesRequest struct {
@@ -32,7 +30,7 @@ type UpdateNodeStatesRequest struct {
 }
 
 // this routine assumes that only one of them exists per node
-func determineState(states []string) schema.NodeState {
+func determineState(states []string) schema.SchedulerState {
 	for _, state := range states {
 		switch strings.ToLower(state) {
 		case "allocated":
@@ -77,15 +75,15 @@ func (api *RestApi) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 
 	for _, node := range req.Nodes {
 		state := determineState(node.States)
-		nodeState := schema.Node{
+		nodeState := schema.NodeState{
 			TimeStamp: time.Now().Unix(), NodeState: state,
-			Hostname: node.Name, Cluster: req.Cluster,
-			CpusAllocated: node.CpusAllocated, CpusTotal: node.CpusTotal,
-			MemoryAllocated: node.MemoryAllocated, MemoryTotal: node.MemoryTotal,
-			GpusAllocated: node.GpusAllocated, GpusTotal: node.GpusTotal,
-			HealthState: schema.MonitoringStateFull,
+			CpusAllocated:   node.CpusAllocated,
+			MemoryAllocated: node.MemoryAllocated,
+			GpusAllocated:   node.GpusAllocated,
+			HealthState:     schema.MonitoringStateFull,
+			JobsRunning:     node.JobsRunning,
 		}
 
-		repo.InsertNodeState(&nodeState)
+		repo.UpdateNodeState(node.Hostname, req.Cluster, &nodeState)
 	}
 }

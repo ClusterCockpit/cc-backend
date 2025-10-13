@@ -305,24 +305,18 @@ func (r *mutationResolver) UpdateConfiguration(ctx context.Context, name string,
 	return nil, nil
 }
 
-// RunningJobs is the resolver for the runningJobs field.
-func (r *nodeResolver) RunningJobs(ctx context.Context, obj *schema.Node) (int, error) {
-	panic(fmt.Errorf("not implemented: RunningJobs - runningJobs"))
-}
-
 // NodeState is the resolver for the nodeState field.
-func (r *nodeResolver) NodeState(ctx context.Context, obj *schema.Node) (string, error) {
-	return string(obj.NodeState), nil
+func (r *nodeResolver) NodeState(ctx context.Context, obj *model.Node) (string, error) {
+	panic(fmt.Errorf("not implemented: NodeState - nodeState"))
 }
 
 // HealthState is the resolver for the healthState field.
-func (r *nodeResolver) HealthState(ctx context.Context, obj *schema.Node) (schema.NodeState, error) {
-	// FIXME: Why is Output of schema.NodeState Type?
+func (r *nodeResolver) HealthState(ctx context.Context, obj *model.Node) (schema.SchedulerState, error) {
 	panic(fmt.Errorf("not implemented: HealthState - healthState"))
 }
 
 // MetaData is the resolver for the metaData field.
-func (r *nodeResolver) MetaData(ctx context.Context, obj *schema.Node) (any, error) {
+func (r *nodeResolver) MetaData(ctx context.Context, obj *model.Node) (any, error) {
 	panic(fmt.Errorf("not implemented: MetaData - metaData"))
 }
 
@@ -366,44 +360,18 @@ func (r *queryResolver) AllocatedNodes(ctx context.Context, cluster string) ([]*
 }
 
 // Node is the resolver for the node field.
-func (r *queryResolver) Node(ctx context.Context, id string) (*schema.Node, error) {
-	repo := repository.GetNodeRepository()
-	numericId, err := strconv.ParseInt(id, 10, 64)
-	if err != nil {
-		cclog.Warn("Error while parsing job id")
-		return nil, err
-	}
-	return repo.GetNode(numericId, false)
+func (r *queryResolver) Node(ctx context.Context, id string) (*model.Node, error) {
+	panic(fmt.Errorf("not implemented: Node - node"))
 }
 
 // Nodes is the resolver for the nodes field.
 func (r *queryResolver) Nodes(ctx context.Context, filter []*model.NodeFilter, order *model.OrderByInput) (*model.NodeStateResultList, error) {
-	repo := repository.GetNodeRepository()
-	nodes, err := repo.QueryNodes(ctx, filter, order)
-	count := len(nodes)
-	return &model.NodeStateResultList{Items: nodes, Count: &count}, err
+	panic(fmt.Errorf("not implemented: Nodes - nodes"))
 }
 
 // NodeStates is the resolver for the nodeStates field.
 func (r *queryResolver) NodeStates(ctx context.Context, filter []*model.NodeFilter) ([]*model.NodeStates, error) {
-	repo := repository.GetNodeRepository()
-
-	stateCounts, serr := repo.CountNodeStates(ctx, filter)
-	if serr != nil {
-		cclog.Warnf("Error while counting nodeStates: %s", serr.Error())
-		return nil, serr
-	}
-
-	healthCounts, herr := repo.CountHealthStates(ctx, filter)
-	if herr != nil {
-		cclog.Warnf("Error while counting healthStates: %s", herr.Error())
-		return nil, herr
-	}
-
-	allCounts := make([]*model.NodeStates, 0)
-	allCounts = append(stateCounts, healthCounts...)
-
-	return allCounts, nil
+	panic(fmt.Errorf("not implemented: NodeStates - nodeStates"))
 }
 
 // Job is the resolver for the job field.
@@ -854,15 +822,3 @@ type mutationResolver struct{ *Resolver }
 type nodeResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subClusterResolver struct{ *Resolver }
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//    it when you're done.
-//  - You have helper methods in this file. Move them out to keep these resolver files clean.
-/*
-	func (r *jobResolver) Exclusive(ctx context.Context, obj *schema.Job) (int, error) {
-	panic(fmt.Errorf("not implemented: Exclusive - exclusive"))
-}
-*/

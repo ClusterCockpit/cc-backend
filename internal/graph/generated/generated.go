@@ -447,10 +447,9 @@ type MutationResolver interface {
 	UpdateConfiguration(ctx context.Context, name string, value string) (*string, error)
 }
 type NodeResolver interface {
-	RunningJobs(ctx context.Context, obj *schema.Node) (int, error)
-	NodeState(ctx context.Context, obj *schema.Node) (string, error)
-	HealthState(ctx context.Context, obj *schema.Node) (schema.NodeState, error)
-	MetaData(ctx context.Context, obj *schema.Node) (any, error)
+	NodeState(ctx context.Context, obj *model.Node) (string, error)
+	HealthState(ctx context.Context, obj *model.Node) (schema.SchedulerState, error)
+	MetaData(ctx context.Context, obj *model.Node) (any, error)
 }
 type QueryResolver interface {
 	Clusters(ctx context.Context) ([]*schema.Cluster, error)
@@ -458,7 +457,7 @@ type QueryResolver interface {
 	GlobalMetrics(ctx context.Context) ([]*schema.GlobalMetricListItem, error)
 	User(ctx context.Context, username string) (*model.User, error)
 	AllocatedNodes(ctx context.Context, cluster string) ([]*model.Count, error)
-	Node(ctx context.Context, id string) (*schema.Node, error)
+	Node(ctx context.Context, id string) (*model.Node, error)
 	Nodes(ctx context.Context, filter []*model.NodeFilter, order *model.OrderByInput) (*model.NodeStateResultList, error)
 	NodeStates(ctx context.Context, filter []*model.NodeFilter) ([]*model.NodeStates, error)
 	Job(ctx context.Context, id string) (*schema.Job, error)
@@ -2700,7 +2699,7 @@ type Query {
     from: Time!
     to: Time!
   ): [NodeMetrics!]!
-  
+
   nodeMetricsList(
     cluster: String!
     subCluster: String!
@@ -9680,7 +9679,7 @@ func (ec *executionContext) fieldContext_NamedStatsWithScope_stats(_ context.Con
 	return fc, nil
 }
 
-func (ec *executionContext) _Node_id(ctx context.Context, field graphql.CollectedField, obj *schema.Node) (ret graphql.Marshaler) {
+func (ec *executionContext) _Node_id(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Node_id(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -9724,7 +9723,7 @@ func (ec *executionContext) fieldContext_Node_id(_ context.Context, field graphq
 	return fc, nil
 }
 
-func (ec *executionContext) _Node_hostname(ctx context.Context, field graphql.CollectedField, obj *schema.Node) (ret graphql.Marshaler) {
+func (ec *executionContext) _Node_hostname(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Node_hostname(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -9768,7 +9767,7 @@ func (ec *executionContext) fieldContext_Node_hostname(_ context.Context, field 
 	return fc, nil
 }
 
-func (ec *executionContext) _Node_cluster(ctx context.Context, field graphql.CollectedField, obj *schema.Node) (ret graphql.Marshaler) {
+func (ec *executionContext) _Node_cluster(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Node_cluster(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -9812,7 +9811,7 @@ func (ec *executionContext) fieldContext_Node_cluster(_ context.Context, field g
 	return fc, nil
 }
 
-func (ec *executionContext) _Node_subCluster(ctx context.Context, field graphql.CollectedField, obj *schema.Node) (ret graphql.Marshaler) {
+func (ec *executionContext) _Node_subCluster(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Node_subCluster(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -9856,7 +9855,7 @@ func (ec *executionContext) fieldContext_Node_subCluster(_ context.Context, fiel
 	return fc, nil
 }
 
-func (ec *executionContext) _Node_runningJobs(ctx context.Context, field graphql.CollectedField, obj *schema.Node) (ret graphql.Marshaler) {
+func (ec *executionContext) _Node_runningJobs(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Node_runningJobs(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -9870,7 +9869,7 @@ func (ec *executionContext) _Node_runningJobs(ctx context.Context, field graphql
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Node().RunningJobs(rctx, obj)
+		return obj.RunningJobs, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -9891,8 +9890,8 @@ func (ec *executionContext) fieldContext_Node_runningJobs(_ context.Context, fie
 	fc = &graphql.FieldContext{
 		Object:     "Node",
 		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
+		IsMethod:   false,
+		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
 		},
@@ -9900,7 +9899,7 @@ func (ec *executionContext) fieldContext_Node_runningJobs(_ context.Context, fie
 	return fc, nil
 }
 
-func (ec *executionContext) _Node_nodeState(ctx context.Context, field graphql.CollectedField, obj *schema.Node) (ret graphql.Marshaler) {
+func (ec *executionContext) _Node_nodeState(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Node_nodeState(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -9944,7 +9943,7 @@ func (ec *executionContext) fieldContext_Node_nodeState(_ context.Context, field
 	return fc, nil
 }
 
-func (ec *executionContext) _Node_healthState(ctx context.Context, field graphql.CollectedField, obj *schema.Node) (ret graphql.Marshaler) {
+func (ec *executionContext) _Node_healthState(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Node_healthState(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -9970,9 +9969,9 @@ func (ec *executionContext) _Node_healthState(ctx context.Context, field graphql
 		}
 		return graphql.Null
 	}
-	res := resTmp.(schema.NodeState)
+	res := resTmp.(schema.SchedulerState)
 	fc.Result = res
-	return ec.marshalNMonitoringState2githubᚗcomᚋClusterCockpitᚋccᚑlibᚋschemaᚐNodeState(ctx, field.Selections, res)
+	return ec.marshalNMonitoringState2githubᚗcomᚋClusterCockpitᚋccᚑlibᚋschemaᚐSchedulerState(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Node_healthState(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -9988,7 +9987,7 @@ func (ec *executionContext) fieldContext_Node_healthState(_ context.Context, fie
 	return fc, nil
 }
 
-func (ec *executionContext) _Node_metaData(ctx context.Context, field graphql.CollectedField, obj *schema.Node) (ret graphql.Marshaler) {
+func (ec *executionContext) _Node_metaData(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Node_metaData(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -10195,9 +10194,9 @@ func (ec *executionContext) _NodeStateResultList_items(ctx context.Context, fiel
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*schema.Node)
+	res := resTmp.([]*model.Node)
 	fc.Result = res
-	return ec.marshalNNode2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑlibᚋschemaᚐNodeᚄ(ctx, field.Selections, res)
+	return ec.marshalNNode2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐNodeᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_NodeStateResultList_items(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -10923,9 +10922,9 @@ func (ec *executionContext) _Query_node(ctx context.Context, field graphql.Colle
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*schema.Node)
+	res := resTmp.(*model.Node)
 	fc.Result = res
-	return ec.marshalONode2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑlibᚋschemaᚐNode(ctx, field.Selections, res)
+	return ec.marshalONode2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐNode(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_node(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -16704,7 +16703,7 @@ func (ec *executionContext) unmarshalInputNodeFilter(ctx context.Context, obj an
 			it.NodeState = data
 		case "healthState":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("healthState"))
-			data, err := ec.unmarshalOMonitoringState2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑlibᚋschemaᚐNodeState(ctx, v)
+			data, err := ec.unmarshalOMonitoringState2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑlibᚋschemaᚐSchedulerState(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -18726,7 +18725,7 @@ func (ec *executionContext) _NamedStatsWithScope(ctx context.Context, sel ast.Se
 
 var nodeImplementors = []string{"Node"}
 
-func (ec *executionContext) _Node(ctx context.Context, sel ast.SelectionSet, obj *schema.Node) graphql.Marshaler {
+func (ec *executionContext) _Node(ctx context.Context, sel ast.SelectionSet, obj *model.Node) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, nodeImplementors)
 
 	out := graphql.NewFieldSet(fields)
@@ -18756,41 +18755,10 @@ func (ec *executionContext) _Node(ctx context.Context, sel ast.SelectionSet, obj
 				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "runningJobs":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Node_runningJobs(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
+			out.Values[i] = ec._Node_runningJobs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
 			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "nodeState":
 			field := field
 
@@ -21654,13 +21622,13 @@ func (ec *executionContext) marshalNMetricValue2githubᚗcomᚋClusterCockpitᚋ
 	return ec._MetricValue(ctx, sel, &v)
 }
 
-func (ec *executionContext) unmarshalNMonitoringState2githubᚗcomᚋClusterCockpitᚋccᚑlibᚋschemaᚐNodeState(ctx context.Context, v any) (schema.NodeState, error) {
+func (ec *executionContext) unmarshalNMonitoringState2githubᚗcomᚋClusterCockpitᚋccᚑlibᚋschemaᚐSchedulerState(ctx context.Context, v any) (schema.SchedulerState, error) {
 	tmp, err := graphql.UnmarshalString(v)
-	res := schema.NodeState(tmp)
+	res := schema.SchedulerState(tmp)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNMonitoringState2githubᚗcomᚋClusterCockpitᚋccᚑlibᚋschemaᚐNodeState(ctx context.Context, sel ast.SelectionSet, v schema.NodeState) graphql.Marshaler {
+func (ec *executionContext) marshalNMonitoringState2githubᚗcomᚋClusterCockpitᚋccᚑlibᚋschemaᚐSchedulerState(ctx context.Context, sel ast.SelectionSet, v schema.SchedulerState) graphql.Marshaler {
 	_ = sel
 	res := graphql.MarshalString(string(v))
 	if res == graphql.Null {
@@ -21779,7 +21747,7 @@ func (ec *executionContext) marshalNNamedStatsWithScope2ᚖgithubᚗcomᚋCluste
 	return ec._NamedStatsWithScope(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNNode2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑlibᚋschemaᚐNodeᚄ(ctx context.Context, sel ast.SelectionSet, v []*schema.Node) graphql.Marshaler {
+func (ec *executionContext) marshalNNode2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐNodeᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Node) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -21803,7 +21771,7 @@ func (ec *executionContext) marshalNNode2ᚕᚖgithubᚗcomᚋClusterCockpitᚋc
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNNode2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑlibᚋschemaᚐNode(ctx, sel, v[i])
+			ret[i] = ec.marshalNNode2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐNode(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -21823,7 +21791,7 @@ func (ec *executionContext) marshalNNode2ᚕᚖgithubᚗcomᚋClusterCockpitᚋc
 	return ret
 }
 
-func (ec *executionContext) marshalNNode2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑlibᚋschemaᚐNode(ctx context.Context, sel ast.SelectionSet, v *schema.Node) graphql.Marshaler {
+func (ec *executionContext) marshalNNode2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐNode(ctx context.Context, sel ast.SelectionSet, v *model.Node) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -23249,16 +23217,16 @@ func (ec *executionContext) marshalOMetricStatistics2githubᚗcomᚋClusterCockp
 	return ec._MetricStatistics(ctx, sel, &v)
 }
 
-func (ec *executionContext) unmarshalOMonitoringState2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑlibᚋschemaᚐNodeState(ctx context.Context, v any) (*schema.NodeState, error) {
+func (ec *executionContext) unmarshalOMonitoringState2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑlibᚋschemaᚐSchedulerState(ctx context.Context, v any) (*schema.SchedulerState, error) {
 	if v == nil {
 		return nil, nil
 	}
 	tmp, err := graphql.UnmarshalString(v)
-	res := schema.NodeState(tmp)
+	res := schema.SchedulerState(tmp)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOMonitoringState2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑlibᚋschemaᚐNodeState(ctx context.Context, sel ast.SelectionSet, v *schema.NodeState) graphql.Marshaler {
+func (ec *executionContext) marshalOMonitoringState2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑlibᚋschemaᚐSchedulerState(ctx context.Context, sel ast.SelectionSet, v *schema.SchedulerState) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -23268,7 +23236,7 @@ func (ec *executionContext) marshalOMonitoringState2ᚖgithubᚗcomᚋClusterCoc
 	return res
 }
 
-func (ec *executionContext) marshalONode2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑlibᚋschemaᚐNode(ctx context.Context, sel ast.SelectionSet, v *schema.Node) graphql.Marshaler {
+func (ec *executionContext) marshalONode2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐNode(ctx context.Context, sel ast.SelectionSet, v *model.Node) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}

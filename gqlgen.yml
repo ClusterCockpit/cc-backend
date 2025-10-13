@@ -63,11 +63,11 @@ models:
     fields:
       partitions:
         resolver: true
-  Node:
-    model: "github.com/ClusterCockpit/cc-lib/schema.Node"
-    fields:
-      metaData:
-        resolver: true
+  # Node:
+  #   model: "github.com/ClusterCockpit/cc-lib/schema.Node"
+  #   fields:
+  #     metaData:
+  #       resolver: true
   NullableFloat: { model: "github.com/ClusterCockpit/cc-lib/schema.Float" }
   MetricScope: { model: "github.com/ClusterCockpit/cc-lib/schema.MetricScope" }
   MetricValue: { model: "github.com/ClusterCockpit/cc-lib/schema.MetricValue" }
@@ -81,7 +81,7 @@ models:
   Resource: { model: "github.com/ClusterCockpit/cc-lib/schema.Resource" }
   JobState: { model: "github.com/ClusterCockpit/cc-lib/schema.JobState" }
   MonitoringState:
-    { model: "github.com/ClusterCockpit/cc-lib/schema.NodeState" }
+    { model: "github.com/ClusterCockpit/cc-lib/schema.SchedulerState" }
   HealthState:
     { model: "github.com/ClusterCockpit/cc-lib/schema.MonitoringState" }
   JobMetric: { model: "github.com/ClusterCockpit/cc-lib/schema.JobMetric" }

@@ -1,12 +1,12 @@
 module github.com/ClusterCockpit/cc-backend
 
-go 1.23.5
+go 1.24.0
 
 toolchain go1.24.1
 
 require (
 	github.com/99designs/gqlgen v0.17.78
-	github.com/ClusterCockpit/cc-lib v0.8.0
+	github.com/ClusterCockpit/cc-lib v0.9.1
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/coreos/go-oidc/v3 v3.12.0
 	github.com/expr-lang/expr v1.17.6
@@ -34,7 +34,7 @@ require (
 	github.com/vektah/gqlparser/v2 v2.5.30
 	golang.org/x/crypto v0.41.0
 	golang.org/x/oauth2 v0.30.0
-	golang.org/x/time v0.12.0
+	golang.org/x/time v0.13.0
 )
 
 require (
@@ -89,7 +89,7 @@ require (
 	golang.org/x/mod v0.26.0 // indirect
 	golang.org/x/net v0.43.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
 	golang.org/x/tools v0.35.0 // indirect
 	google.golang.org/protobuf v1.36.8 // indirect
