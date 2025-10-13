@@ -294,11 +294,12 @@
         Filters
       </DropdownToggle>
       <DropdownMenu>
-        <DropdownItem header>Manage Filters</DropdownItem>
         {#if menuText}
+          <DropdownItem header>Note</DropdownItem>
           <DropdownItem disabled>{menuText}</DropdownItem>
           <DropdownItem divider />
         {/if}
+        <DropdownItem header>Manage Filters</DropdownItem>
         <DropdownItem onclick={() => (isClusterOpen = true)}>
           <Icon name="cpu" /> Cluster/Partition
         </DropdownItem>
@@ -325,7 +326,7 @@
         </DropdownItem>
         {#if startTimeQuickSelect}
           <DropdownItem divider />
-          <DropdownItem disabled>Start Time Quick Selection</DropdownItem>
+          <DropdownItem header>Start Time Quick Selection</DropdownItem>
           {#each startTimeSelectOptions.filter((stso) => stso.range !== "") as { rangeLabel, range }}
             <DropdownItem
               onclick={() => {

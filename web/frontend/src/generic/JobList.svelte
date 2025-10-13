@@ -32,7 +32,7 @@
   let {
     matchedListJobs = $bindable(0),
     selectedJobs = $bindable([]),
-    metrics = getContext("cc-config").plot_list_selectedMetrics,
+    metrics = getContext("cc-config").metricConfig_jobListMetrics,
     sorting = { field: "startTime", type: "col", order: "DESC" },
     showFootprint = false,
     filterBuffer = [],
@@ -42,7 +42,7 @@
   const ccconfig = getContext("cc-config");
   const initialized = getContext("initialized");
   const globalMetrics = getContext("globalMetrics");
-  const usePaging = ccconfig?.job_list_usePaging || false;
+  const usePaging = ccconfig?.jobList_usePaging || false;
   const jobInfoColumnWidth = 250;
   const client = getContextClient();
   const query = gql`
@@ -101,7 +101,7 @@
   let jobs = $state([]);
   let filter = $state([...filterBuffer]);
   let page = $state(1);
-  let itemsPerPage = $state(usePaging ? (ccconfig?.plot_list_jobsPerPage || 10) : 10);
+  let itemsPerPage = $state(usePaging ? (ccconfig?.jobList_jobsPerPage || 10) : 10);
   let triggerMetricRefresh = $state(false);
   let tableWidth = $state(0);
 
@@ -177,7 +177,7 @@
   // (Re-)query and optionally set new filters; Query will be started reactively.
   export function queryJobs(filters) {
     if (filters != null) {
-      let minRunningFor = ccconfig.plot_list_hideShortRunningJobs;
+      let minRunningFor = ccconfig.jobList_hideShortRunningJobs;
       if (minRunningFor && minRunningFor > 0) {
         filters.push({ minRunningFor });
       }
@@ -207,7 +207,7 @@
 
   function updateConfiguration(value, newPage) {
     updateConfigurationMutation({
-      name: "plot_list_jobsPerPage",
+      name: "jobList_jobsPerPage",
       value: value.toString(),
     }).subscribe((res) => {
       if (res.fetching === false && !res.error) {
@@ -235,10 +235,6 @@
       variables: { name, value },
     });
   };
-
-  const equalsCheck = (a, b) => {
-    return JSON.stringify(a) === JSON.stringify(b);
-  }
 
   /* Init Header */
   stickyHeader(

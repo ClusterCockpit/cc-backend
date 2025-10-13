@@ -91,8 +91,8 @@ func (uCfg *UserCfgRepo) GetUIConfig(user *schema.User) (map[string]any, error) 
 			uiconfig[key] = val
 		}
 
-		// Add global ShortRunningJobsDuration setting as plot_list_hideShortRunningJobs
-		uiconfig["plot_list_hideShortRunningJobs"] = config.Keys.ShortRunningJobsDuration
+		// Add global ShortRunningJobsDuration setting as jobList_hideShortRunningJobs
+		uiconfig["jobList_hideShortRunningJobs"] = config.Keys.ShortRunningJobsDuration
 
 		return uiconfig, 24 * time.Hour, size
 	})

@@ -52,6 +52,8 @@ func onFailureResponse(rw http.ResponseWriter, r *http.Request, err error) {
 }
 
 func serverInit() {
+	// Init Web Package (Primarily: uiDefaults)
+	web.Init(flagUiConfigFile)
 	// Setup the http.Handler/Router used by the server
 	graph.Init()
 	resolver := graph.GetResolverInstance()

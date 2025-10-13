@@ -35,7 +35,7 @@
 
   /* Const Init */
   const client = getContextClient();
-  const usePaging = ccconfig?.node_list_usePaging || false;
+  const usePaging = ccconfig?.nodeList_usePaging || false;
   const nodeListQuery = gql`
     query ($cluster: String!, $subCluster: String!, $nodeFilter: String!, $metrics: [String!], $scopes: [MetricScope!]!, $from: Time!, $to: Time!, $paging: PageRequest!, $selectedResolution: Int) {
       nodeMetricsList(
@@ -88,7 +88,7 @@
   /* State Init */
   let nodes = $state([]);
   let page = $state(1);
-  let itemsPerPage = $state(usePaging ? (ccconfig?.plot_list_nodesPerPage || 10) : 10);
+  let itemsPerPage = $state(usePaging ? (ccconfig?.nodeList_nodesPerPage || 10) : 10);
   let headerPaddingTop = $state(0);
   let matchedNodes = $state(0);
 
@@ -165,7 +165,7 @@
   // Decouple from Job List Paging Params?
   function updateConfiguration(newItems, newPage) {
     updateConfigurationMutation({
-      name: "plot_list_nodesPerPage",
+      name: "nodeList_nodesPerPage",
       value: newItems.toString(),
     }).subscribe((res) => {
       if (res.fetching === false && !res.error) {

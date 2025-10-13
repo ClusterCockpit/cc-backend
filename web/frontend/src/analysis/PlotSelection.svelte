@@ -92,7 +92,7 @@
             value={metric}
             onchange={() => {
               updateConfiguration({
-                name: "analysis_view_histogramMetrics",
+                name: "analysisView_histogramMetrics",
                 value: metricsInHistograms,
               });
               applyHistograms(metricsInHistograms);
@@ -131,7 +131,7 @@
                 (p) => pair != p,
               );
               updateConfiguration({
-                name: "analysis_view_scatterPlotMetrics",
+                name: "analysisView_scatterPlotMetrics",
                 value: metricsInScatterplots,
               });
               applyScatter(metricsInScatterplots);
@@ -169,7 +169,7 @@
           selectedMetric1 = null;
           selectedMetric2 = null;
           updateConfiguration({
-            name: "analysis_view_scatterPlotMetrics",
+            name: "analysisView_scatterPlotMetrics",
             value: metricsInScatterplots,
           });
           applyScatter(metricsInScatterplots);

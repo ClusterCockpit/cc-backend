@@ -51,4 +51,8 @@ export function formatTime(t, forNode = false) {
     }
 }
 
+// const equalsCheck = (a, b) => {
+//   return JSON.stringify(a) === JSON.stringify(b);
+// }
+
 // export const dateToUnixEpoch = (rfc3339) => Math.floor(Date.parse(rfc3339) / 1000);

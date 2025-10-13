@@ -56,9 +56,9 @@
   const resampleConfig = getContext("resampling");
   const subClusterTopology = getContext("getHardwareTopology")(cluster, subCluster);
   const metricConfig = getContext("getMetricConfig")(cluster, subCluster, metric);
-  const lineWidth = clusterCockpitConfig?.plot_general_lineWidth / window.devicePixelRatio || 2;
-  const lineColors = clusterCockpitConfig?.plot_general_colorscheme || ["#00bfff","#0000ff","#ff00ff","#ff0000","#ff8000","#ffff00","#80ff00"];
-  const cbmode = clusterCockpitConfig?.plot_general_colorblindMode || false;
+  const lineColors = clusterCockpitConfig.plotConfiguration_colorScheme;
+  const lineWidth = clusterCockpitConfig.plotConfiguration_lineWidth / window.devicePixelRatio;
+  const cbmode = clusterCockpitConfig?.plotConfiguration_colorblindMode || false;
   const renderSleepTime = 200;
   const normalLineColor = "#000000";
   const backgroundColors = {
@@ -416,7 +416,7 @@
   // RETURN BG COLOR FROM THRESHOLD
   function backgroundColor() {
     if (
-      clusterCockpitConfig.plot_general_colorBackground == false ||
+      clusterCockpitConfig.plotConfiguration_colorBackground == false ||
       !thresholds ||
       !(series && series.every((s) => s.statistics != null))
     )

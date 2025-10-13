@@ -57,12 +57,12 @@
   };
 
   /* State Init */
-  let pendingMetrics = $state(presetMetrics);
   let pendingShowFootprint = $state(!!showFootprint);
   let listedMetrics = $state([]);
   let columnHovering = $state(null);
 
   /* Derives States */
+  let pendingMetrics = $derived(presetMetrics);
   const allMetrics = $derived(loadAvailable(preInitialized || $initialized));
 
   /* Reactive Effects */
@@ -151,8 +151,8 @@
       updateConfigurationMutation({
         name:
           !cluster
-            ? "plot_list_showFootprint"
-            : `plot_list_showFootprint:${cluster}`,
+            ? "jobList_showFootprint"
+            : `jobList_showFootprint:${cluster}`,
         value: JSON.stringify(showFootprint),
       }).subscribe((res) => {
         if (res.fetching === false && res.error) {

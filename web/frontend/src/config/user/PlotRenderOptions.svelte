@@ -55,7 +55,7 @@
             </div>
           {/if}
         </CardTitle>
-        <input type="hidden" name="key" value="plot_general_lineWidth" />
+        <input type="hidden" name="key" value="plotConfiguration_lineWidth" />
         <div class="mb-3">
           <label for="value" class="form-label">Line Width</label>
           <input
@@ -64,7 +64,7 @@
             id="lwvalue"
             name="value"
             aria-describedby="lineWidthHelp"
-            value={config.plot_general_lineWidth}
+            value={config.plotConfiguration_lineWidth}
             min="1"
           />
           <div id="lineWidthHelp" class="form-text">
@@ -102,7 +102,7 @@
             </div>
           {/if}
         </CardTitle>
-        <input type="hidden" name="key" value="plot_view_plotsPerRow" />
+        <input type="hidden" name="key" value="plotConfiguration_plotsPerRow" />
         <div class="mb-3">
           <label for="value" class="form-label">Plots per Row</label>
           <input
@@ -111,7 +111,7 @@
             id="pprvalue"
             name="value"
             aria-describedby="plotsperrowHelp"
-            value={config.plot_view_plotsPerRow}
+            value={config.plotConfiguration_plotsPerRow}
             min="1"
           />
           <div id="plotsperrowHelp" class="form-text">
@@ -150,10 +150,10 @@
             </div>
           {/if}
         </CardTitle>
-        <input type="hidden" name="key" value="plot_general_colorBackground" />
+        <input type="hidden" name="key" value="plotConfiguration_colorBackground" />
         <div class="mb-3">
           <div>
-            {#if config.plot_general_colorBackground}
+            {#if config.plotConfiguration_colorBackground}
               <input type="radio" id="colb-true-checked" name="value" value="true" checked />
             {:else}
               <input type="radio" id="colb-true" name="value" value="true" />
@@ -161,7 +161,7 @@
             <label for="true">Yes</label>
           </div>
           <div>
-            {#if config.plot_general_colorBackground}
+            {#if config.plotConfiguration_colorBackground}
               <input type="radio" id="colb-false" name="value" value="false" />
             {:else}
               <input type="radio" id="colb-false-checked" name="value" value="false" checked />
@@ -196,10 +196,10 @@
             </div>
           {/if}
         </CardTitle>
-        <input type="hidden" name="key" value="plot_general_colorblindMode" />
+        <input type="hidden" name="key" value="plotConfiguration_colorblindMode" />
         <div class="mb-3">
           <div>
-            {#if config?.plot_general_colorblindMode}
+            {#if config?.plotConfiguration_colorblindMode}
               <input type="radio" id="cbm-true-checked" name="value" value="true" checked />
             {:else}
               <input type="radio" id="cbm-true" name="value" value="true" />
@@ -207,7 +207,7 @@
             <label for="true">Yes</label>
           </div>
           <div>
-            {#if config?.plot_general_colorblindMode}
+            {#if config?.plotConfiguration_colorblindMode}
               <input type="radio" id="cbm-false" name="value" value="false" />
             {:else}
               <input type="radio" id="cbm-false-checked" name="value" value="false" checked />

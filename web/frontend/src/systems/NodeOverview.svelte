@@ -121,7 +121,7 @@
   </Row>
 {:else if filteredData?.length > 0}
   <!-- PlotGrid flattened into this component -->
-  <Row cols={{ xs: 1, sm: 2, md: 3, lg: ccconfig.plot_view_plotsPerRow}}>
+  <Row cols={{ xs: 1, sm: 2, md: 3, lg: ccconfig.plotConfiguration_plotsPerRow}}>
     {#key selectedMetric}
       {#each filteredData as item (item.host)}
         <Col class="px-1">

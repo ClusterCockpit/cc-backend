@@ -82,27 +82,21 @@
   let colWidth1 = $state(0);
   let colWidth2 = $state(0);
   let jobFilters = $state([]);
-  let metricsInHistograms = $state(ccconfig.analysis_view_histogramMetrics)
-  let metricsInScatterplots = $state(ccconfig.analysis_view_scatterPlotMetrics)
+  let metricsInHistograms = $state(ccconfig?.analysisView_histogramMetrics || [])
+  let metricsInScatterplots = $state(ccconfig?.analysisView_scatterPlotMetrics || [])
   let sortSelection = $state(
     sortOptions.find(
       (option) =>
         option.key ==
-        ccconfig[`analysis_view_selectedTopCategory:${filterPresets.cluster}`],
-    ) ||
-    sortOptions.find(
-      (option) => option.key == ccconfig.analysis_view_selectedTopCategory,
-    )
+        ccconfig[`analysisView_selectedTopCategory:${filterPresets.cluster}`],
+    ) || sortOptions[0]
   );
   let groupSelection = $state(
       groupOptions.find(
         (option) =>
           option.key ==
-          ccconfig[`analysis_view_selectedTopEntity:${filterPresets.cluster}`],
-      ) ||
-      groupOptions.find(
-        (option) => option.key == ccconfig.analysis_view_selectedTopEntity,
-      )
+          ccconfig[`analysisView_selectedTopEntity:${filterPresets.cluster}`],
+      ) || groupOptions[0]
   );
 
   /* Init Function */
@@ -275,15 +269,15 @@
 
   function updateEntityConfiguration(select) {
     if (
-      ccconfig[`analysis_view_selectedTopEntity:${filterPresets.cluster}`] !=
+      ccconfig[`analysisView_selectedTopEntity:${filterPresets.cluster}`] !=
       select
     ) {
       updateConfigurationMutation({
-        name: `analysis_view_selectedTopEntity:${filterPresets.cluster}`,
+        name: `analysisView_selectedTopEntity:${filterPresets.cluster}`,
         value: JSON.stringify(select),
       }).subscribe((res) => {
         if (res.fetching === false && !res.error) {
-          // console.log(`analysis_view_selectedTopEntity:${filterPresets.cluster}` + ' -> Updated!')
+          // console.log(`analysisView_selectedTopEntity:${filterPresets.cluster}` + ' -> Updated!')
         } else if (res.fetching === false && res.error) {
           throw res.error;
         }
@@ -295,15 +289,15 @@
 
   function updateCategoryConfiguration(select) {
     if (
-      ccconfig[`analysis_view_selectedTopCategory:${filterPresets.cluster}`] !=
+      ccconfig[`analysisView_selectedTopCategory:${filterPresets.cluster}`] !=
       select
     ) {
       updateConfigurationMutation({
-        name: `analysis_view_selectedTopCategory:${filterPresets.cluster}`,
+        name: `analysisView_selectedTopCategory:${filterPresets.cluster}`,
         value: JSON.stringify(select),
       }).subscribe((res) => {
         if (res.fetching === false && !res.error) {
-          // console.log(`analysis_view_selectedTopCategory:${filterPresets.cluster}` + ' -> Updated!')
+          // console.log(`analysisView_selectedTopCategory:${filterPresets.cluster}` + ' -> Updated!')
         } else if (res.fetching === false && res.error) {
           throw res.error;
         }
@@ -591,7 +585,7 @@
             numBins,
           ),
         }))}
-        itemsPerRow={ccconfig.plot_view_plotsPerRow}
+        itemsPerRow={ccconfig.plotConfiguration_plotsPerRow}
         gridContent={histoGridContent}
       />
     </Col>
@@ -634,7 +628,7 @@
             (f) => f.metric == m2,
           ).data,
         }))}
-        itemsPerRow={ccconfig.plot_view_plotsPerRow}
+        itemsPerRow={ccconfig.plotConfiguration_plotsPerRow}
         gridContent={metricsGridContent}
       />
     </Col>

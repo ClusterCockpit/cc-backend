@@ -170,7 +170,7 @@
 
 <tr>
   <td>
-    <JobInfo {job} bind:isSelected showSelect/>
+    <JobInfo {job} bind:isSelected showJobSelect/>
   </td>
   {#if job.monitoringStatus == 0 || job.monitoringStatus == 2}
     <td colspan={metrics.length}>

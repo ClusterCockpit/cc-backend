@@ -48,8 +48,8 @@
 
   /* Derived */
   let selectedHistograms = $derived(cluster
-    ? ccconfig[`status_view_selectedHistograms:${cluster}`] || ( ccconfig['status_view_selectedHistograms'] || [] )
-    : ccconfig['status_view_selectedHistograms'] || []);
+    ? ccconfig[`statusView_selectedHistograms:${cluster}`] || ( ccconfig['statusView_selectedHistograms'] || [] )
+    : ccconfig['statusView_selectedHistograms'] || []);
 
   // Note: nodeMetrics are requested on configured $timestep resolution
   const metricStatusQuery = $derived(queryStore({
@@ -152,7 +152,7 @@
   {cluster}
   bind:isOpen={isHistogramSelectionOpen}
   presetSelectedHistograms={selectedHistograms}
-  configName="status_view_selectedHistograms"
+  configName="statusView_selectedHistograms"
   applyChange={(newSelection) => {
     selectedHistograms = [...newSelection];
   }}

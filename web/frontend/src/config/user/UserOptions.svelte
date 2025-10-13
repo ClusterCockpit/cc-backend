@@ -104,10 +104,10 @@
               >
             </div>{/if}
         </CardTitle>
-        <input type="hidden" name="key" value="job_list_usePaging" />
+        <input type="hidden" name="key" value="jobList_usePaging" />
         <div class="mb-3">
           <div>
-            {#if config?.job_list_usePaging}
+            {#if config?.jobList_usePaging}
               <input type="radio" id="true-checked" name="value" value="true" checked />
             {:else}
               <input type="radio" id="true" name="value" value="true" />
@@ -115,7 +115,7 @@
             <label for="true">Paging with selectable count of jobs.</label>
           </div>
           <div>
-            {#if config?.job_list_usePaging}
+            {#if config?.jobList_usePaging}
               <input type="radio" id="false" name="value" value="false" />
             {:else}
               <input type="radio" id="false-checked" name="value" value="false" checked />

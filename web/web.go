@@ -11,7 +11,9 @@ import (
 	"encoding/json"
 	"html/template"
 	"io/fs"
+	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
@@ -109,16 +111,24 @@ var UIDefaultsMap map[string]any
 // 	"analysis_view_scatterPlotMetrics":       [][]string{{"flops_any", "mem_bw"}, {"flops_any", "cpu_load"}, {"cpu_load", "mem_bw"}},
 // 	"job_view_nodestats_selectedMetrics":     []string{"flops_any", "mem_bw", "mem_used"},
 // 	"plot_list_jobsPerPage":                  50,
-// 	"system_view_selectedMetric":             "cpu_load",
 // 	"analysis_view_selectedTopEntity":        "user",
 // 	"analysis_view_selectedTopCategory":      "totalWalltime",
 // 	"status_view_selectedTopUserCategory":    "totalJobs",
 // 	"status_view_selectedTopProjectCategory": "totalJobs",
 // }
 
-func Init(rawConfig json.RawMessage) error {
-	var err error
+func Init(configFilePath string) error {
+	var rawConfig json.RawMessage = nil
+	raw, rerr := os.ReadFile(configFilePath)
+	if rerr != nil {
+		if !os.IsNotExist(rerr) {
+			log.Fatalf("UI-CONFIG ERROR: %v", rerr)
+		}
+	} else {
+		rawConfig = json.RawMessage(raw)
+	}
 
+	var err error
 	if rawConfig != nil {
 		config.Validate(configSchema, rawConfig)
 		if err = json.Unmarshal(rawConfig, &UIDefaults); err != nil {
@@ -129,13 +139,13 @@ func Init(rawConfig json.RawMessage) error {
 
 	UIDefaultsMap = make(map[string]any)
 
-	UIDefaultsMap["joblist_usePaging"] = UIDefaults.JobList.UsePaging
-	UIDefaultsMap["joblist_showFootprint"] = UIDefaults.JobList.ShowFootprint
-	UIDefaultsMap["nodelist_usePaging"] = UIDefaults.NodeList.UsePaging
-	UIDefaultsMap["jobview_showPolarPlot"] = UIDefaults.JobView.ShowPolarPlot
-	UIDefaultsMap["jobview_showFootprint"] = UIDefaults.JobView.ShowFootprint
-	UIDefaultsMap["jobview_showRoofline"] = UIDefaults.JobView.ShowRoofline
-	UIDefaultsMap["jobview_showStatTable"] = UIDefaults.JobView.ShowStatTable
+	UIDefaultsMap["jobList_usePaging"] = UIDefaults.JobList.UsePaging
+	UIDefaultsMap["jobList_showFootprint"] = UIDefaults.JobList.ShowFootprint
+	UIDefaultsMap["nodeList_usePaging"] = UIDefaults.NodeList.UsePaging
+	UIDefaultsMap["jobView_showPolarPlot"] = UIDefaults.JobView.ShowPolarPlot
+	UIDefaultsMap["jobView_showFootprint"] = UIDefaults.JobView.ShowFootprint
+	UIDefaultsMap["jobView_showRoofline"] = UIDefaults.JobView.ShowRoofline
+	UIDefaultsMap["jobView_showStatTable"] = UIDefaults.JobView.ShowStatTable
 
 	UIDefaultsMap["metricConfig_jobListMetrics"] = UIDefaults.MetricConfig.JobListMetrics
 	UIDefaultsMap["metricConfig_jobViewPlotMetrics"] = UIDefaults.MetricConfig.JobViewPlotMetrics

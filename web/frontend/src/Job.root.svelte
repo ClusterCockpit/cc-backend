@@ -69,6 +69,9 @@
   `);
   const client = getContextClient();
   const ccconfig = getContext("cc-config");
+  const showRoofline = !!ccconfig[`jobView_showRoofline`];
+  const showStatsTable = !!ccconfig[`jobView_showStatTable`];
+
   /* Note: Actual metric data queried in <Metric> Component, only require base infos here -> reduce backend load by requesting just stats */
   const query = gql`
     query ($dbid: ID!, $selectedMetrics: [String!]!, $selectedScopes: [MetricScope!]!) {
@@ -168,8 +171,8 @@
     let job = $initq.data.job;
     if (!job) return;
     const pendingMetrics = (
-      ccconfig[`job_view_selectedMetrics:${job.cluster}:${job.subCluster}`] ||
-      ccconfig[`job_view_selectedMetrics:${job.cluster}`]
+      ccconfig[`metricConfig_jobViewPlotMetrics:${job.cluster}:${job.subCluster}`] ||
+      ccconfig[`metricConfig_jobViewPlotMetrics:${job.cluster}`]
     ) || 
     $initq.data.globalMetrics.reduce((names, gm) => {
       if (gm.availability.find((av) => av.cluster === job.cluster && av.subClusters.includes(job.subCluster))) {
@@ -232,7 +235,7 @@
           {/if}
           <TabPane tabId="meta-info" tab="Job Info" active={$initq.data?.job?.metaData?.message?false:true}>
             <CardBody class="pb-2">
-              <JobInfo job={$initq.data.job} {username} {authlevel} {roles} showTagedit/>
+              <JobInfo job={$initq.data.job} {username} {authlevel} {roles} showTagEdit/>
             </CardBody>
           </TabPane>
           {#if $initq.data.job.concurrentJobs != null && $initq.data.job.concurrentJobs.items.length != 0}
@@ -268,7 +271,9 @@
     {#if $initq.error}
       <Card body color="danger">{$initq.error.message}</Card>
     {:else if $initq?.data}
-      <JobRoofline job={$initq.data.job} clusters={$initq.data.clusters}/>
+      {#if showRoofline}
+        <JobRoofline job={$initq.data.job} clusters={$initq.data.clusters}/>
+      {/if}    
     {:else}
       <Spinner secondary />
     {/if}
@@ -354,14 +359,14 @@
           groupByScope($jobMetrics.data.scopedJobStats),
           selectedMetrics,
         )}
-        itemsPerRow={ccconfig.plot_view_plotsPerRow}
+        itemsPerRow={ccconfig.plotConfiguration_plotsPerRow}
         {gridContent}
       />
     {/if}
   </CardBody>
 </Card>
 
-<!-- Statistcics Table -->
+<!-- Metadata && Statistcics Table -->
 <Row class="mb-3">
   <Col>
     {#if $initq?.data}
@@ -397,8 +402,10 @@
               </div>
             </TabPane>
           {/if}
-          <!-- Includes <TabPane> Statistics Table with Independent GQL Query -->
-          <StatsTab job={$initq.data.job} clusters={$initq.data.clusters} tabActive={!somethingMissing}/>
+          {#if showStatsTable}
+            <!-- Includes <TabPane> Statistics Table with Independent GQL Query -->
+            <StatsTab job={$initq.data.job} clusters={$initq.data.clusters} tabActive={!somethingMissing}/>
+          {/if}
           <TabPane tabId="job-script" tab="Job Script">
             <div class="pre-wrapper">
               {#if $initq.data.job.metaData?.jobScript}
@@ -432,7 +439,7 @@
     presetMetrics={selectedMetrics}
     cluster={$initq.data.job.cluster}
     subCluster={$initq.data.job.subCluster}
-    configName="job_view_selectedMetrics"
+    configName="metricConfig_jobViewPlotMetrics"
     preInitialized
     applyMetrics={(newMetrics) => 
       selectedMetrics = [...newMetrics]

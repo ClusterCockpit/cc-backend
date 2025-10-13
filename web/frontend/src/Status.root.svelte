@@ -28,7 +28,7 @@
   } = $props();
 
   /*Const Init */
-  const useCbColors = getContext("cc-config")?.plot_general_colorblindMode || false
+  const useCbColors = getContext("cc-config")?.plotConfiguration_colorblindMode || false
 
 </script>
 
