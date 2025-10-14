@@ -43,8 +43,6 @@
   let cluster = $state(presetCluster);
   // Histogram
   let isHistogramSelectionOpen = $state(false);
-  let from = $state(new Date(Date.now() - (30 * 24 * 60 * 60 * 1000))); // Simple way to retrigger GQL: Jobs Started last Month
-  let to = $state(new Date(Date.now()));
 
   /* Derived */
   let selectedHistograms = $derived(cluster
@@ -74,11 +72,11 @@
       }
     `,
     variables: {
-      filter: [{ state: ["running"] }, { cluster: { eq: cluster}}, {startTime: { from, to }}],
-      selectedHistograms: selectedHistograms,
+      filter: [{ state: ["running"] }, { cluster: { eq: cluster} }],
+      selectedHistograms: selectedHistograms
     },
+    requestPolicy: "network-only"
   }));
-
 </script>
 
 <!-- Loading indicators & Metric Sleect -->
@@ -96,8 +94,7 @@
     <Refresher
       initially={120}
       onRefresh={() => {
-        from = new Date(Date.now() - (30 * 24 * 60 * 60 * 1000)); // Triggers GQL
-        to = new Date(Date.now());
+        selectedHistograms = [...$state.snapshot(selectedHistograms)]
       }}
     />
   </Col>

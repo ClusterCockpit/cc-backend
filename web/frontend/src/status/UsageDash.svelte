@@ -47,8 +47,8 @@
 
   /* State Init */
   let cluster = $state(presetCluster)
-  let from = $state(new Date(Date.now() - (30 * 24 * 60 * 60 * 1000))); // Simple way to retrigger GQL: Jobs Started last Month
-  let to = $state(new Date(Date.now()));
+  let pagingState = $state({page: 1, itemsPerPage: 10}) // Top 10
+  let selectedHistograms = $state([]) // Dummy For Refresh 
   let colWidthJobs = $state(0);
   let colWidthNodes = $state(0);
   let colWidthAccs = $state(0);
@@ -84,9 +84,10 @@
       }
     `,
     variables: {
-      filter: [{ state: ["running"] }, { cluster: { eq: cluster}}, {startTime: { from, to }}],
-      paging: { itemsPerPage: 10, page: 1 } // Top 10
+      filter: [{ state: ["running"] }, { cluster: { eq: cluster} }],
+      paging: pagingState // Top 10
     },
+    requestPolicy: "network-only"
   }));
 
   const topNodesQuery = $derived(queryStore({
@@ -118,9 +119,10 @@
       }
     `,
     variables: {
-      filter: [{ state: ["running"] }, { cluster: { eq: cluster }}, {startTime: { from, to }}],
-      paging: { itemsPerPage: 10, page: 1 } // Top 10
+      filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
+      paging: pagingState
     },
+    requestPolicy: "network-only"
   }));
 
   const topAccsQuery = $derived(queryStore({
@@ -152,9 +154,10 @@
       }
     `,
     variables: {
-      filter: [{ state: ["running"] }, { cluster: { eq: cluster }}, {startTime: { from, to }}],
-      paging: { itemsPerPage: 10, page: 1 } // Top 10
+      filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
+      paging: pagingState
     },
+    requestPolicy: "network-only"
   }));
 
   // Note: nodeMetrics are requested on configured $timestep resolution
@@ -183,10 +186,11 @@
       }
     `,
     variables: {
-      filter: [{ state: ["running"] }, { cluster: { eq: cluster }}, {startTime: { from, to }}],
-      selectedHistograms: [], // No Metrics requested for node hardware stats
+      filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
+      selectedHistograms: selectedHistograms, // No Metrics requested for node hardware stats
       numDurationBins: numDurationBins,
     },
+    requestPolicy: "network-only"
   }));
 
   /* Functions */
@@ -202,7 +206,6 @@
       }
     return  c[(c.length + targetIdx) % c.length];
   }
-
 </script>
 
 <!-- Refresher and space for other options -->
@@ -226,8 +229,8 @@
     <Refresher
       initially={120}
       onRefresh={() => {
-        from = new Date(Date.now() - (30 * 24 * 60 * 60 * 1000)); // Triggers GQL
-        to = new Date(Date.now());
+        pagingState = { page:1, itemsPerPage: 10 };
+        selectedHistograms = [...$state.snapshot(selectedHistograms)];
       }}
     />
   </Col>
