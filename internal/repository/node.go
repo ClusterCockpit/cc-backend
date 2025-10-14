@@ -49,11 +49,8 @@ func GetNodeRepository() *NodeRepository {
 	return nodeRepoInstance
 }
 
-var nodeColumns []string = []string{
-	// "node.id,"
-	"node.hostname", "node.cluster", "node.subcluster",
-	"node.node_state", "node.health_state", // "node.meta_data",
-}
+// "node.id,", "node.meta_data"
+var nodeColumns []string = []string{"node.hostname", "node.cluster", "node.subcluster"}
 
 func (r *NodeRepository) FetchMetadata(node *schema.Node) (map[string]string, error) {
 	start := time.Now()
@@ -195,6 +192,7 @@ const NamedNodeStateInsert string = `
 INSERT INTO node (hostname, cluster, subcluster)
 	VALUES (:hostname, :cluster, :subcluster);`
 
+// Outdated?
 func (r *NodeRepository) UpdateNodeState(hostname string, cluster string, nodeState *schema.NodeState) error {
 	var id int64
 
@@ -262,6 +260,10 @@ func (r *NodeRepository) QueryNodes(
 		return nil, qerr
 	}
 
+	// Get latest Info aka closest Timestamp to $now
+	now := time.Now().Unix()
+	query = query.Join("node_state ON node_state.node_id = node.id").Where(sq.Gt{"node_state.time_stamp": (now - 60)}) // .Distinct()
+
 	for _, f := range filters {
 		if f.Hostname != nil {
 			query = buildStringCondition("node.hostname", f.Hostname, query)
@@ -304,12 +306,16 @@ func (r *NodeRepository) QueryNodes(
 }
 
 func (r *NodeRepository) ListNodes(cluster string) ([]*schema.Node, error) {
-	q := sq.Select("hostname", "cluster", "subcluster", "node_state",
-		"health_state").From("node").Where("node.cluster = ?", cluster).OrderBy("node.hostname ASC")
+	// Get latest Info aka closest Timestamo to $now
+	now := time.Now().Unix()
+	q := sq.Select("hostname", "cluster", "subcluster", "node_state", "health_state").
+		From("node").
+		Join("node_state ON node_state.node_id = node.id").Where(sq.Gt{"node_state.time_stamp": (now - 60)}).
+		Where("node.cluster = ?", cluster).OrderBy("node.hostname ASC")
 
 	rows, err := q.RunWith(r.DB).Query()
 	if err != nil {
-		cclog.Warn("Error while querying user list")
+		cclog.Warn("Error while querying node list")
 		return nil, err
 	}
 	nodeList := make([]*schema.Node, 0, 100)
@@ -329,10 +335,14 @@ func (r *NodeRepository) ListNodes(cluster string) ([]*schema.Node, error) {
 }
 
 func (r *NodeRepository) CountNodeStates(ctx context.Context, filters []*model.NodeFilter) ([]*model.NodeStates, error) {
-	query, qerr := AccessCheck(ctx, sq.Select("node_state AS state", "count(*) AS count").From("node"))
+	query, qerr := AccessCheck(ctx, sq.Select("node_state", "count(*) AS count").From("node"))
 	if qerr != nil {
 		return nil, qerr
 	}
+
+	// Get latest Info aka closest Timestamp to $now
+	now := time.Now().Unix()
+	query = query.Join("node_state ON node_state.node_id = node.id").Where(sq.Gt{"node_state.time_stamp": (now - 60)}) // .Distinct()
 
 	for _, f := range filters {
 		if f.Hostname != nil {
@@ -353,7 +363,7 @@ func (r *NodeRepository) CountNodeStates(ctx context.Context, filters []*model.N
 	}
 
 	// Add Group and Order
-	query = query.GroupBy("state").OrderBy("count DESC")
+	query = query.GroupBy("node_state").OrderBy("count DESC")
 
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
@@ -378,10 +388,14 @@ func (r *NodeRepository) CountNodeStates(ctx context.Context, filters []*model.N
 }
 
 func (r *NodeRepository) CountHealthStates(ctx context.Context, filters []*model.NodeFilter) ([]*model.NodeStates, error) {
-	query, qerr := AccessCheck(ctx, sq.Select("health_state AS state", "count(*) AS count").From("node"))
+	query, qerr := AccessCheck(ctx, sq.Select("health_state", "count(*) AS count").From("node"))
 	if qerr != nil {
 		return nil, qerr
 	}
+
+	// Get latest Info aka closest Timestamp to $now
+	now := time.Now().Unix()
+	query = query.Join("node_state ON node_state.node_id = node.id").Where(sq.Gt{"node_state.time_stamp": (now - 60)}) // .Distinct()
 
 	for _, f := range filters {
 		if f.Hostname != nil {
@@ -402,7 +416,7 @@ func (r *NodeRepository) CountHealthStates(ctx context.Context, filters []*model
 	}
 
 	// Add Group and Order
-	query = query.GroupBy("state").OrderBy("count DESC")
+	query = query.GroupBy("health_state").OrderBy("count DESC")
 
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
