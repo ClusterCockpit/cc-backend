@@ -234,10 +234,6 @@
     }
   });
 
-  $inspect('From', from)
-  $inspect('To', to)
-  $inspect('Query', statusQuery)
-
   /* Const Functions */
   const sumUp = (data, subcluster, metric) =>
     data.reduce(
