@@ -23,7 +23,7 @@ import (
 var groupBy2column = map[model.Aggregate]string{
 	model.AggregateUser:       "job.hpc_user",
 	model.AggregateProject:    "job.project",
-	model.AggregateCluster:    "job.hpc_cluster",
+	model.AggregateCluster:    "job.cluster",
 	model.AggregateSubcluster: "job.subcluster",
 }
 

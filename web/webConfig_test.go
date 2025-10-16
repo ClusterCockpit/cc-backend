@@ -16,7 +16,7 @@ import (
 func TestInit(t *testing.T) {
 	fp := "../../configs/config.json"
 	ccconf.Init(fp)
-	cfg := ccconf.GetPackageConfig("web")
+	cfg := ccconf.GetPackageConfig("ui")
 
 	Init(cfg)
 

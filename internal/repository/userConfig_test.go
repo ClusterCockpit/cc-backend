@@ -50,7 +50,7 @@ func setupUserTest(t *testing.T) *UserCfgRepo {
 
 	tmpdir := t.TempDir()
 	cfgFilePath := filepath.Join(tmpdir, "config.json")
-	if err := os.WriteFile(cfgFilePath, []byte(testconfig), 0666); err != nil {
+	if err := os.WriteFile(cfgFilePath, []byte(testconfig), 0o666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -79,10 +79,15 @@ func TestGetUIConfig(t *testing.T) {
 		t.Fatal("No config")
 	}
 
-	tmp := cfg["plot_list_selectedMetrics"]
-	metrics := tmp.([]string)
-	str := metrics[2]
-	if str != "flops_any" {
-		t.Errorf("wrong config\ngot: %s \nwant: flops_any", str)
+	tmp, exists := cfg["metricConfig_jobListMetrics"]
+	if exists {
+
+		metrics := tmp.([]string)
+		str := metrics[2]
+		if str != "flops_any" {
+			t.Errorf("wrong config\ngot: %s \nwant: flops_any", str)
+		}
+	} else {
+		t.Fatal("Key metricConfig_jobListMetrics is missing")
 	}
 }

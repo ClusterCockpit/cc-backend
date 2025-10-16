@@ -1,7 +1,7 @@
 CREATE TABLE "job_cache" (
     id INTEGER PRIMARY KEY,
     job_id BIGINT NOT NULL,
-    hpc_cluster VARCHAR(255) NOT NULL,
+    cluster VARCHAR(255) NOT NULL,
     subcluster VARCHAR(255) NOT NULL,
     submit_time BIGINT NOT NULL DEFAULT 0, -- Unix timestamp
     start_time BIGINT NOT NULL DEFAULT 0, -- Unix timestamp
@@ -30,13 +30,13 @@ CREATE TABLE "job_cache" (
     energy REAL NOT NULL DEFAULT 0.0,
     energy_footprint TEXT DEFAULT NULL,
     footprint TEXT DEFAULT NULL,
-    UNIQUE (job_id, hpc_cluster, start_time)
+    UNIQUE (job_id, cluster, start_time)
 );
 
 CREATE TABLE "job_new" (
     id INTEGER PRIMARY KEY,
     job_id BIGINT NOT NULL,
-    hpc_cluster TEXT NOT NULL,
+    cluster TEXT NOT NULL,
     subcluster TEXT NOT NULL,
     submit_time BIGINT NOT NULL DEFAULT 0, -- Unix timestamp
     start_time BIGINT NOT NULL DEFAULT 0, -- Unix timestamp
@@ -65,10 +65,9 @@ CREATE TABLE "job_new" (
     energy REAL NOT NULL DEFAULT 0.0,
     energy_footprint TEXT DEFAULT NULL,
     footprint TEXT DEFAULT NULL,
-    UNIQUE (job_id, hpc_cluster, start_time)
+    UNIQUE (job_id, cluster, start_time)
 );
 
-ALTER TABLE job RENAME COLUMN cluster TO hpc_cluster;
 
 CREATE TABLE IF NOT EXISTS lookup_exclusive (
     id INTEGER PRIMARY KEY,
@@ -76,20 +75,43 @@ CREATE TABLE IF NOT EXISTS lookup_exclusive (
 );
 
 INSERT INTO lookup_exclusive (id, name) VALUES
-    (0, 'multi_user'),
-    (1, 'none'),
-    (2, 'single_user');
+(0, 'multi_user'),
+(1, 'none'),
+(2, 'single_user');
 
 INSERT INTO job_new (
-    id, job_id, hpc_cluster, subcluster, submit_time, start_time, hpc_user, project,
+    id, job_id, cluster, subcluster, submit_time, start_time, hpc_user, project,
     cluster_partition, array_job_id, duration, walltime, job_state, meta_data, resources,
     num_nodes, num_hwthreads, num_acc, smt, shared, monitoring_status, energy,
     energy_footprint, footprint
 ) SELECT
-    id, job_id, hpc_cluster, subcluster, 0, start_time, hpc_user, project,
-    cluster_partition, array_job_id, duration, walltime, job_state, meta_data, resources,
-    num_nodes, num_hwthreads, num_acc, smt, (SELECT name FROM lookup_exclusive WHERE id=job.exclusive), monitoring_status, energy,
-    energy_footprint, footprint
+    id,
+    job_id,
+    cluster,
+    subcluster,
+    0,
+    start_time,
+    hpc_user,
+    project,
+    cluster_partition,
+    array_job_id,
+    duration,
+    walltime,
+    job_state,
+    meta_data,
+    resources,
+    num_nodes,
+    num_hwthreads,
+    num_acc,
+    smt,
+    (
+        SELECT name FROM lookup_exclusive
+        WHERE id = job.exclusive
+    ),
+    monitoring_status,
+    energy,
+    energy_footprint,
+    footprint
 FROM job;
 
 DROP TABLE lookup_exclusive;

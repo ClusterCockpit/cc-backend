@@ -168,7 +168,7 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 		query = buildMetaJsonCondition("jobName", filter.JobName, query)
 	}
 	if filter.Cluster != nil {
-		query = buildStringCondition("job.hpc_cluster", filter.Cluster, query)
+		query = buildStringCondition("job.cluster", filter.Cluster, query)
 	}
 	if filter.Partition != nil {
 		query = buildStringCondition("job.cluster_partition", filter.Partition, query)

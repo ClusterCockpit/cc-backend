@@ -9,7 +9,7 @@ import "flag"
 var (
 	flagReinitDB, flagInit, flagServer, flagSyncLDAP, flagGops, flagMigrateDB, flagRevertDB,
 	flagForceDB, flagDev, flagVersion, flagLogDateTime, flagApplyTags bool
-	flagNewUser, flagDelUser, flagGenJWT, flagConfigFile, flagUiConfigFile, flagImportJob, flagLogLevel string
+	flagNewUser, flagDelUser, flagGenJWT, flagConfigFile, flagImportJob, flagLogLevel string
 )
 
 func cliInit() {
@@ -26,7 +26,6 @@ func cliInit() {
 	flag.BoolVar(&flagForceDB, "force-db", false, "Force database version, clear dirty flag and exit")
 	flag.BoolVar(&flagLogDateTime, "logdate", false, "Set this flag to add date and time to log messages")
 	flag.StringVar(&flagConfigFile, "config", "./config.json", "Specify alternative path to `config.json`")
-	flag.StringVar(&flagUiConfigFile, "ui-config", "./uiConfig.json", "Specify alternative path to `uiConfig.json`")
 	flag.StringVar(&flagNewUser, "add-user", "", "Add a new user. Argument format: <username>:[admin,support,manager,api,user]:<password>")
 	flag.StringVar(&flagDelUser, "del-user", "", "Remove a existing user. Argument format: <username>")
 	flag.StringVar(&flagGenJWT, "jwt", "", "Generate and print a JWT for the user specified by its `username`")

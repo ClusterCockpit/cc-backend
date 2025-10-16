@@ -24,6 +24,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/tagger"
 	"github.com/ClusterCockpit/cc-backend/internal/taskManager"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	"github.com/ClusterCockpit/cc-backend/web"
 	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/runtimeEnv"
@@ -244,7 +245,7 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	//Metric Store starts after all flags have been processes
+	// Metric Store starts after all flags have been processes
 	if config.InternalCCMSFlag {
 		if mscfg := ccconf.GetPackageConfig("metric-store"); mscfg != nil {
 			config.InitMetricStore(mscfg)
@@ -259,6 +260,9 @@ func main() {
 	// // Comment out
 	taskManager.Start(ccconf.GetPackageConfig("cron"),
 		ccconf.GetPackageConfig("archive"))
+
+	cfg := ccconf.GetPackageConfig("ui")
+	web.Init(cfg)
 
 	serverInit()
 

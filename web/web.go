@@ -11,9 +11,7 @@ import (
 	"encoding/json"
 	"html/template"
 	"io/fs"
-	"log"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
@@ -117,18 +115,9 @@ var UIDefaultsMap map[string]any
 // 	"status_view_selectedTopProjectCategory": "totalJobs",
 // }
 
-func Init(configFilePath string) error {
-	var rawConfig json.RawMessage = nil
-	raw, rerr := os.ReadFile(configFilePath)
-	if rerr != nil {
-		if !os.IsNotExist(rerr) {
-			log.Fatalf("UI-CONFIG ERROR: %v", rerr)
-		}
-	} else {
-		rawConfig = json.RawMessage(raw)
-	}
-
+func Init(rawConfig json.RawMessage) error {
 	var err error
+
 	if rawConfig != nil {
 		config.Validate(configSchema, rawConfig)
 		if err = json.Unmarshal(rawConfig, &UIDefaults); err != nil {

@@ -6,18 +6,11 @@
     "user": "clustercockpit",
     "group": "clustercockpit",
     "validate": false,
-    "apiAllowedIPs": [
-      "*"
-    ],
+    "apiAllowedIPs": ["*"],
     "short-running-jobs-duration": 300,
     "resampling": {
       "trigger": 30,
-      "resolutions": [
-        600,
-        300,
-        120,
-        60
-      ]
+      "resolutions": [600, 300, 120, 60]
     }
   },
   "cron": {
@@ -54,3 +47,4 @@
     }
   ]
 }
+
