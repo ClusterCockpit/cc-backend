@@ -171,11 +171,11 @@ type NamedStatsWithScope struct {
 }
 
 type NodeFilter struct {
-	Hostname    *StringInput           `json:"hostname,omitempty"`
-	Cluster     *StringInput           `json:"cluster,omitempty"`
-	Subcluster  *StringInput           `json:"subcluster,omitempty"`
-	NodeState   *string                `json:"nodeState,omitempty"`
-	HealthState *schema.SchedulerState `json:"healthState,omitempty"`
+	Hostname       *StringInput           `json:"hostname,omitempty"`
+	Cluster        *StringInput           `json:"cluster,omitempty"`
+	Subcluster     *StringInput           `json:"subcluster,omitempty"`
+	SchedulerState *schema.SchedulerState `json:"schedulerState,omitempty"`
+	HealthState    *string                `json:"healthState,omitempty"`
 }
 
 type NodeMetrics struct {
@@ -185,8 +185,8 @@ type NodeMetrics struct {
 }
 
 type NodeStateResultList struct {
-	Items []*Node `json:"items"`
-	Count *int    `json:"count,omitempty"`
+	Items []*schema.Node `json:"items"`
+	Count *int           `json:"count,omitempty"`
 }
 
 type NodeStates struct {

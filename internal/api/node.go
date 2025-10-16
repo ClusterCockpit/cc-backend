@@ -15,18 +15,9 @@ import (
 	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
-type Node struct {
-	Hostname        string   `json:"hostname"`
-	States          []string `json:"states"`
-	CpusAllocated   int      `json:"cpusAllocated"`
-	MemoryAllocated int      `json:"memoryAllocated"`
-	GpusAllocated   int      `json:"gpusAllocated"`
-	JobsRunning     int      `json:"jobsRunning"`
-}
-
 type UpdateNodeStatesRequest struct {
-	Nodes   []Node `json:"nodes"`
-	Cluster string `json:"cluster" example:"fritz"`
+	Nodes   []schema.NodePayload `json:"nodes"`
+	Cluster string               `json:"cluster" example:"fritz"`
 }
 
 // this routine assumes that only one of them exists per node
@@ -75,7 +66,7 @@ func (api *RestApi) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 
 	for _, node := range req.Nodes {
 		state := determineState(node.States)
-		nodeState := schema.NodeState{
+		nodeState := schema.NodeStateDB{
 			TimeStamp: time.Now().Unix(), NodeState: state,
 			CpusAllocated:   node.CpusAllocated,
 			MemoryAllocated: node.MemoryAllocated,

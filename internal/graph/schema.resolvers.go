@@ -305,18 +305,23 @@ func (r *mutationResolver) UpdateConfiguration(ctx context.Context, name string,
 	return nil, nil
 }
 
-// NodeState is the resolver for the nodeState field.
-func (r *nodeResolver) NodeState(ctx context.Context, obj *model.Node) (string, error) {
-	panic(fmt.Errorf("not implemented: NodeState - nodeState"))
+// ID is the resolver for the id field.
+func (r *nodeResolver) ID(ctx context.Context, obj *schema.Node) (string, error) {
+	panic(fmt.Errorf("not implemented: ID - id"))
+}
+
+// SchedulerState is the resolver for the schedulerState field.
+func (r *nodeResolver) SchedulerState(ctx context.Context, obj *schema.Node) (schema.SchedulerState, error) {
+	panic(fmt.Errorf("not implemented: SchedulerState - schedulerState"))
 }
 
 // HealthState is the resolver for the healthState field.
-func (r *nodeResolver) HealthState(ctx context.Context, obj *model.Node) (schema.SchedulerState, error) {
+func (r *nodeResolver) HealthState(ctx context.Context, obj *schema.Node) (string, error) {
 	panic(fmt.Errorf("not implemented: HealthState - healthState"))
 }
 
 // MetaData is the resolver for the metaData field.
-func (r *nodeResolver) MetaData(ctx context.Context, obj *model.Node) (any, error) {
+func (r *nodeResolver) MetaData(ctx context.Context, obj *schema.Node) (any, error) {
 	panic(fmt.Errorf("not implemented: MetaData - metaData"))
 }
 
@@ -360,7 +365,7 @@ func (r *queryResolver) AllocatedNodes(ctx context.Context, cluster string) ([]*
 }
 
 // Node is the resolver for the node field.
-func (r *queryResolver) Node(ctx context.Context, id string) (*model.Node, error) {
+func (r *queryResolver) Node(ctx context.Context, id string) (*schema.Node, error) {
 	panic(fmt.Errorf("not implemented: Node - node"))
 }
 
@@ -822,3 +827,15 @@ type mutationResolver struct{ *Resolver }
 type nodeResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subClusterResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//    it when you're done.
+//  - You have helper methods in this file. Move them out to keep these resolver files clean.
+/*
+	func (r *nodeResolver) NodeState(ctx context.Context, obj *model.Node) (string, error) {
+	panic(fmt.Errorf("not implemented: NodeState - nodeState"))
+}
+*/

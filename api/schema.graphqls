@@ -4,7 +4,7 @@ scalar Any
 scalar NullableFloat
 scalar MetricScope
 scalar JobState
-scalar NodeState
+scalar SchedulerState
 scalar MonitoringState
 
 type Node {
@@ -12,8 +12,11 @@ type Node {
   hostname: String!
   cluster: String!
   subCluster: String!
-  runningJobs: Int!
-  nodeState: NodeState!
+  jobsRunning: Int!
+  cpusAllocated: Int
+  memoryAllocated: Int
+  gpusAllocated: Int
+  schedulerState: SchedulerState!
   healthState: MonitoringState!
   metaData: Any
 }
@@ -399,7 +402,7 @@ input NodeFilter {
   hostname: StringInput
   cluster: StringInput
   subcluster: StringInput
-  nodeState: NodeState
+  schedulerState: SchedulerState
   healthState: MonitoringState
 }
 

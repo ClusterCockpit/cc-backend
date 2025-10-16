@@ -80,7 +80,8 @@ models:
   Tag: { model: "github.com/ClusterCockpit/cc-lib/schema.Tag" }
   Resource: { model: "github.com/ClusterCockpit/cc-lib/schema.Resource" }
   JobState: { model: "github.com/ClusterCockpit/cc-lib/schema.JobState" }
-  MonitoringState:
+  Node: { model: "github.com/ClusterCockpit/cc-lib/schema.Node" }
+  SchedulerState:
     { model: "github.com/ClusterCockpit/cc-lib/schema.SchedulerState" }
   HealthState:
     { model: "github.com/ClusterCockpit/cc-lib/schema.MonitoringState" }
