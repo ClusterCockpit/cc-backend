@@ -820,22 +820,12 @@ func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 // SubCluster returns generated.SubClusterResolver implementation.
 func (r *Resolver) SubCluster() generated.SubClusterResolver { return &subClusterResolver{r} }
 
-type clusterResolver struct{ *Resolver }
-type jobResolver struct{ *Resolver }
-type metricValueResolver struct{ *Resolver }
-type mutationResolver struct{ *Resolver }
-type nodeResolver struct{ *Resolver }
-type queryResolver struct{ *Resolver }
-type subClusterResolver struct{ *Resolver }
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//    it when you're done.
-//  - You have helper methods in this file. Move them out to keep these resolver files clean.
-/*
-	func (r *nodeResolver) NodeState(ctx context.Context, obj *model.Node) (string, error) {
-	panic(fmt.Errorf("not implemented: NodeState - nodeState"))
-}
-*/
+type (
+	clusterResolver     struct{ *Resolver }
+	jobResolver         struct{ *Resolver }
+	metricValueResolver struct{ *Resolver }
+	mutationResolver    struct{ *Resolver }
+	nodeResolver        struct{ *Resolver }
+	queryResolver       struct{ *Resolver }
+	subClusterResolver  struct{ *Resolver }
+)

@@ -21,9 +21,10 @@ import (
 
 // GraphQL validation should make sure that no unkown values can be specified.
 var groupBy2column = map[model.Aggregate]string{
-	model.AggregateUser:    "job.hpc_user",
-	model.AggregateProject: "job.project",
-	model.AggregateCluster: "job.hpc_cluster",
+	model.AggregateUser:       "job.hpc_user",
+	model.AggregateProject:    "job.project",
+	model.AggregateCluster:    "job.hpc_cluster",
+	model.AggregateSubcluster: "job.subcluster",
 }
 
 var sortBy2column = map[model.SortByAggregate]string{
@@ -176,7 +177,7 @@ func (r *JobRepository) JobsStatsGrouped(
 		var name sql.NullString
 		var jobs, users, walltime, nodes, nodeHours, cores, coreHours, accs, accHours sql.NullInt64
 		if err := rows.Scan(&id, &name, &jobs, &users, &walltime, &nodes, &nodeHours, &cores, &coreHours, &accs, &accHours); err != nil {
-			cclog.Warn("Error while scanning rows")
+			cclog.Warnf("Error while scanning rows: %s", err.Error())
 			return nil, err
 		}
 

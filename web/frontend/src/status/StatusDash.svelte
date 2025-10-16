@@ -185,6 +185,7 @@
       paging: { itemsPerPage: -1, page: 1 }, // Get all: -1
       sorting: { field: "startTime", type: "col", order: "DESC" }
     },
+    requestPolicy: "network-only"
   }));
 
   /* Effects */
@@ -363,6 +364,7 @@
     <Refresher
       initially={120}
       onRefresh={() => {
+        console.log('Trigger Refresh StatusTab')
         from = new Date(Date.now() - 5 * 60 * 1000);
         to = new Date(Date.now());
       }}
