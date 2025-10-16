@@ -244,15 +244,11 @@ func (r *NodeRepository) QueryNodes(
 ) ([]*schema.Node, error) {
 	query, qerr := AccessCheck(ctx,
 		sq.Select("node.hostname", "node.cluster", "node.subcluster", "node_state.node_state",
-			"node_state.health_state", "MAX(node_state.time_stamp)").From("node_state").
-			Join("node ON nodes_state.node_id = node.id").GroupBy("node_state.node_id"))
+			"node_state.health_state", "MAX(node_state.time_stamp)").From("node").
+			Join("node_state ON nodes_state.node_id = node.id").GroupBy("node_state.node_id"))
 	if qerr != nil {
 		return nil, qerr
 	}
-
-	// Get latest Info aka closest Timestamp to $now
-	now := time.Now().Unix()
-	query = query.Join("node_state ON node_state.node_id = node.id").Where(sq.Gt{"node_state.time_stamp": (now - 60)}) // .Distinct()
 
 	for _, f := range filters {
 		if f.Hostname != nil {
@@ -296,11 +292,9 @@ func (r *NodeRepository) QueryNodes(
 }
 
 func (r *NodeRepository) ListNodes(cluster string) ([]*schema.Node, error) {
-	// Get latest Info aka closest Timestamo to $now
-	now := time.Now().Unix()
-	q := sq.Select("hostname", "cluster", "subcluster", "node_state", "health_state").
-		From("node").
-		Join("node_state ON node_state.node_id = node.id").Where(sq.Gt{"node_state.time_stamp": (now - 60)}).
+	q := sq.Select("node.hostname", "node.cluster", "node.subcluster", "node_state.node_state",
+		"node_state.health_state", "MAX(node_state.time_stamp)").From("node").
+		Join("node_state ON node_state.node_id = node.id").GroupBy("node_state.node_id").
 		Where("node.cluster = ?", cluster).OrderBy("node.hostname ASC")
 
 	rows, err := q.RunWith(r.DB).Query()
