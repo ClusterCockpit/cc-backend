@@ -6,7 +6,7 @@ toolchain go1.24.1
 
 require (
 	github.com/99designs/gqlgen v0.17.78
-	github.com/ClusterCockpit/cc-lib v0.10.0
+	github.com/ClusterCockpit/cc-lib v0.10.1
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/coreos/go-oidc/v3 v3.12.0
 	github.com/expr-lang/expr v1.17.6

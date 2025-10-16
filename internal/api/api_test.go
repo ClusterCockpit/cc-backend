@@ -124,19 +124,19 @@ func setup(t *testing.T) *api.RestApi {
 	cclog.Init("info", true)
 	tmpdir := t.TempDir()
 	jobarchive := filepath.Join(tmpdir, "job-archive")
-	if err := os.Mkdir(jobarchive, 0777); err != nil {
+	if err := os.Mkdir(jobarchive, 0o777); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(filepath.Join(jobarchive, "version.txt"), fmt.Appendf(nil, "%d", 2), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(jobarchive, "version.txt"), fmt.Appendf(nil, "%d", 2), 0o666); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.Mkdir(filepath.Join(jobarchive, "testcluster"), 0777); err != nil {
+	if err := os.Mkdir(filepath.Join(jobarchive, "testcluster"), 0o777); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(filepath.Join(jobarchive, "testcluster", "cluster.json"), []byte(testclusterJson), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(jobarchive, "testcluster", "cluster.json"), []byte(testclusterJson), 0o666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -147,7 +147,7 @@ func setup(t *testing.T) *api.RestApi {
 	}
 
 	cfgFilePath := filepath.Join(tmpdir, "config.json")
-	if err := os.WriteFile(cfgFilePath, []byte(testconfig), 0666); err != nil {
+	if err := os.WriteFile(cfgFilePath, []byte(testconfig), 0o666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -293,7 +293,7 @@ func TestRestApi(t *testing.T) {
 			job.SubCluster != "sc1" ||
 			job.Partition != "default" ||
 			job.Walltime != 3600 ||
-			job.ArrayJobId != 0 ||
+			job.ArrayJobID != 0 ||
 			job.NumNodes != 1 ||
 			job.NumHWThreads != 8 ||
 			job.NumAcc != 0 ||

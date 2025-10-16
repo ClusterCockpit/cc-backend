@@ -112,7 +112,7 @@ type ComplexityRoot struct {
 	}
 
 	Job struct {
-		ArrayJobId       func(childComplexity int) int
+		ArrayJobID       func(childComplexity int) int
 		Cluster          func(childComplexity int) int
 		ConcurrentJobs   func(childComplexity int) int
 		Duration         func(childComplexity int) int
@@ -690,11 +690,11 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		return e.complexity.IntRangeOutput.To(childComplexity), true
 
 	case "Job.arrayJobId":
-		if e.complexity.Job.ArrayJobId == nil {
+		if e.complexity.Job.ArrayJobID == nil {
 			break
 		}
 
-		return e.complexity.Job.ArrayJobId(childComplexity), true
+		return e.complexity.Job.ArrayJobID(childComplexity), true
 
 	case "Job.cluster":
 		if e.complexity.Job.Cluster == nil {
@@ -5369,7 +5369,7 @@ func (ec *executionContext) _Job_arrayJobId(ctx context.Context, field graphql.C
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.ArrayJobId, nil
+		return obj.ArrayJobID, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)

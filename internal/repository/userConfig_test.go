@@ -79,15 +79,15 @@ func TestGetUIConfig(t *testing.T) {
 		t.Fatal("No config")
 	}
 
-	for key := range cfg {
-		print("%s\n", key)
-	}
-	// t.Fatal("No config")
+	tmp, exists := cfg["metricConfig_jobListMetrics"]
+	if exists {
 
-	// tmp := cfg["plot_list_selectedMetrics"]
-	// metrics := tmp.([]string)
-	// str := metrics[2]
-	// if str != "flops_any" {
-	// 	t.Errorf("wrong config\ngot: %s \nwant: flops_any", str)
-	// }
+		metrics := tmp.([]string)
+		str := metrics[2]
+		if str != "flops_any" {
+			t.Errorf("wrong config\ngot: %s \nwant: flops_any", str)
+		}
+	} else {
+		t.Fatal("Key metricConfig_jobListMetrics is missing")
+	}
 }
