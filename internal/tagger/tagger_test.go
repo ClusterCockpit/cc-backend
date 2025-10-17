@@ -18,14 +18,14 @@ func TestInit(t *testing.T) {
 func TestJobStartCallback(t *testing.T) {
 	Init()
 	r := setup(t)
-	job, err := r.FindByIdDirect(2)
+	job, err := r.FindByIdDirect(525)
 	noErr(t, err)
 
 	jobs := make([]*schema.Job, 0, 1)
 	jobs = append(jobs, job)
 
 	repository.CallJobStartHooks(jobs)
-	if !r.HasTag(2, "app", "python") {
+	if !r.HasTag(525, "app", "python") {
 		t.Errorf("missing tag python")
 	}
 }

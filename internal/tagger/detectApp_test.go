@@ -43,7 +43,7 @@ func TestRegister(t *testing.T) {
 func TestMatch(t *testing.T) {
 	r := setup(t)
 
-	job, err := r.FindByIdDirect(5)
+	job, err := r.FindByIdDirect(317)
 	noErr(t, err)
 
 	var tagger AppTagger
@@ -53,7 +53,7 @@ func TestMatch(t *testing.T) {
 
 	tagger.Match(job)
 
-	if !r.HasTag(5, "app", "vasp") {
+	if !r.HasTag(317, "app", "vasp") {
 		t.Errorf("missing tag vasp")
 	}
 }

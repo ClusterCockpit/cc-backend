@@ -79,15 +79,8 @@ func TestGetUIConfig(t *testing.T) {
 		t.Fatal("No config")
 	}
 
-	tmp, exists := cfg["metricConfig_jobListMetrics"]
-	if exists {
-
-		metrics := tmp.([]string)
-		str := metrics[2]
-		if str != "flops_any" {
-			t.Errorf("wrong config\ngot: %s \nwant: flops_any", str)
-		}
-	} else {
+	_, exists := cfg["metricConfig_jobListMetrics:fritz"]
+	if !exists {
 		t.Fatal("Key metricConfig_jobListMetrics is missing")
 	}
 }

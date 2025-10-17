@@ -16,31 +16,31 @@ import (
 func TestFind(t *testing.T) {
 	r := setup(t)
 
-	jobId, cluster, startTime := int64(398998), "fritz", int64(1675957496)
-	job, err := r.Find(&jobId, &cluster, &startTime)
+	jobID, cluster, startTime := int64(398800), "fritz", int64(1675954712)
+	job, err := r.Find(&jobID, &cluster, &startTime)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// fmt.Printf("%+v", job)
 
-	if *job.ID != 5 {
-		t.Errorf("wrong summary for diagnostic 3\ngot: %d \nwant: 1366", job.JobID)
+	if *job.ID != 345 {
+		t.Errorf("wrong summary for diagnostic \ngot: %d \nwant: 345", job.JobID)
 	}
 }
 
 func TestFindById(t *testing.T) {
 	r := setup(t)
 
-	job, err := r.FindById(getContext(t), 5)
+	job, err := r.FindById(getContext(t), 338)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// fmt.Printf("%+v", job)
 
-	if job.JobID != 398998 {
-		t.Errorf("wrong summary for diagnostic 3\ngot: %d \nwant: 1404396", job.JobID)
+	if job.JobID != 398793 {
+		t.Errorf("wrong summary for diagnostic \ngot: %d \nwant: 1404396", job.JobID)
 	}
 }
 
