@@ -20,7 +20,7 @@
 
 <script>
   import uPlot from "uplot";
-  import { roundTwoDigits, formatTime, formatNumber } from "../units.js";
+  import { roundTwoDigits, formatDurationTime, formatNumber } from "../units.js";
   import { getContext, onMount, onDestroy } from "svelte";
   import { Card } from "@sveltestrap/sveltestrap";
 
@@ -67,7 +67,7 @@
       label: "Duration",
       scale: "xrt",
       value: (u, ts, sidx, didx) => {
-        return formatTime(ts);
+        return formatDurationTime(ts);
       },
     },
   ]

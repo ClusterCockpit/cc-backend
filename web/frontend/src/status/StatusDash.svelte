@@ -25,7 +25,7 @@
   import {
     init,
   } from "../generic/utils.js";
-  import { scaleNumbers, formatTime } from "../generic/units.js";
+  import { scaleNumbers, formatDurationTime } from "../generic/units.js";
   import Refresher from "../generic/helper/Refresher.svelte";
   import Roofline from "../generic/plots/Roofline.svelte";
   import Pie, { colors } from "../generic/plots/Pie.svelte";
@@ -44,6 +44,7 @@
   /* State Init */
   let cluster = $state(presetCluster);
   let pieWidth = $state(0);
+  let stackedWidth = $state(0);
   let plotWidths = $state([]);
   let from = $state(new Date(Date.now() - 5 * 60 * 1000));
   let to = $state(new Date(Date.now()));
@@ -85,6 +86,24 @@
   const refinedHealthData = $derived.by(() => {
     return $nodesStateCounts?.data?.nodeStates.filter((e) => ['full', 'partial', 'failed'].includes(e.state))
   });
+
+  // NodeStates for Stacked charts
+  const nodesStateTimes = $derived(queryStore({
+    client: client,
+    query: gql`
+      query ($filter: [NodeFilter!]) {
+        nodeStatesTimed(filter: $filter) {
+          state
+          type
+          count
+          time
+        }
+      }
+    `,
+    variables: {
+      filter: { cluster: { eq: cluster }, timeStart: Date.now() - (24 * 3600 * 1000)} // Add Selector for Timeframe (4h, 12h, 24h)?
+    },
+  }));
 
   // Note: nodeMetrics are requested on configured $timestep resolution
   // Result: The latest 5 minutes (datapoints) for each node independent of job
@@ -315,7 +334,7 @@
 
   function transformJobsStatsToInfo(subclusterData) {
     if (subclusterData) {
-        return subclusterData.map((sc) => { return {id: sc.id, jobId: sc.jobId, numNodes: sc.numNodes, numAcc: sc?.numAccelerators? sc.numAccelerators : 0, duration: formatTime(sc.duration)} })
+        return subclusterData.map((sc) => { return {id: sc.id, jobId: sc.jobId, numNodes: sc.numNodes, numAcc: sc?.numAccelerators? sc.numAccelerators : 0, duration: formatDurationTime(sc.duration)} })
     } else {
         console.warn("transformJobsStatsToInfo: jobInfo missing!")
         return []
@@ -373,6 +392,55 @@
 </Row>
 
 <hr/>
+
+<!-- Node Stack Charts Dev-->
+<!--
+{#if $initq.data && $nodesStateTimes.data}
+  <Row cols={{ lg: 4, md: 2 , sm: 1}} class="mb-3 justify-content-center">
+    <Col class="px-3 mt-2 mt-lg-0">
+      <div bind:clientWidth={stackedWidth}>
+        {#key $nodesStateTimes.data}
+          <h4 class="text-center">
+            {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Node States Over Time
+          </h4>
+          <Stacked
+            {cluster}
+            data={$nodesStateTimes?.data}
+            width={stackedWidth * 0.55}
+            xLabel="Time"
+            yLabel="Nodes"
+            yunit = "#Count"
+            title = "Slurm States"
+            stateType = "slurm"
+          />
+        {/key}
+      </div>
+    </Col>
+    <Col class="px-3 mt-2 mt-lg-0">
+      <div bind:clientWidth={stackedWidth}>
+        {#key $nodesStateTimes.data}
+          <h4 class="text-center">
+            {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Health States Over Time
+          </h4>
+          <Stacked
+            {cluster}
+            data={$nodesStateTimes?.data}
+            width={stackedWidth * 0.55}
+            xLabel="Time"
+            yLabel="Nodes"
+            yunit = "#Count"
+            title = "Health States"
+            stateType = "health"
+          />
+        {/key}
+      </div>
+    </Col>
+  </Row>
+{/if}
+
+<hr/>
+<hr/>
+-->
 
 <!-- Node Health Pis, later Charts -->
 {#if $initq.data && $nodesStateCounts.data}

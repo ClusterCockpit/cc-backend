@@ -35,7 +35,7 @@ export function scaleNumbers(x, y , p = '') {
     return Math.abs(rawYValue) >= 1000 ? `${rawXValue.toExponential()} / ${rawYValue.toExponential()}` : `${rawYValue.toString()} / ${rawYValue.toString()}`
 }
 
-export function formatTime(t, forNode = false) {
+export function formatDurationTime(t, forNode = false) {
     if (t !== null) {
         if (isNaN(t)) {
             return t;
@@ -47,6 +47,16 @@ export function formatTime(t, forNode = false) {
             if (h == 0) return `${forNode && m != 0 ? "-" : ""}${m}m`;
             else if (m == 0) return `${forNode ? "-" : ""}${h}h`;
             else return `${forNode ? "-" : ""}${h}:${m}h`;
+        }
+    }
+}
+
+export function formatUnixTime(t) {
+    if (t !== null) {
+        if (isNaN(t)) {
+            return t;
+        } else {
+            return new Date(t * 1000).toLocaleString()
         }
     }
 }
