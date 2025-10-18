@@ -25,7 +25,7 @@
 
 <script>
   import uPlot from "uplot";
-  import { formatNumber, formatTime } from "../units.js";
+  import { formatNumber, formatDurationTime } from "../units.js";
   import { getContext, onMount, onDestroy } from "svelte";
   import { Card } from "@sveltestrap/sveltestrap";
 
@@ -162,7 +162,7 @@
       {
         label: "Runtime",
         value: (u, ts, sidx, didx) =>
-        (didx == null) ? null : formatTime(ts, forNode),
+        (didx == null) ? null : formatDurationTime(ts, forNode),
       }
     ];
     // Y
@@ -226,14 +226,14 @@
 
               if (series[i].id in extendedLegendData) {
                 return {
-                  time: formatTime(plotData[0][idx], forNode),
+                  time: formatDurationTime(plotData[0][idx], forNode),
                   value: plotData[sidx][idx],
                   user: extendedLegendData[series[i].id].user,
                   job: extendedLegendData[series[i].id].job,
                 };
               } else {
                 return {
-                  time: formatTime(plotData[0][idx], forNode),
+                  time: formatDurationTime(plotData[0][idx], forNode),
                   value: plotData[sidx][idx],
                   user: '-',
                   job: '-',
@@ -457,7 +457,7 @@
           scale: "x",
           space: 35,
           incrs: timeIncrs(timestep, maxX, forNode),
-          values: (_, vals) => vals.map((v) => formatTime(v, forNode)),
+          values: (_, vals) => vals.map((v) => formatDurationTime(v, forNode)),
         },
         {
           scale: "y",

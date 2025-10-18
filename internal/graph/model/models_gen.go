@@ -176,6 +176,7 @@ type NodeFilter struct {
 	Subcluster     *StringInput           `json:"subcluster,omitempty"`
 	SchedulerState *schema.SchedulerState `json:"schedulerState,omitempty"`
 	HealthState    *string                `json:"healthState,omitempty"`
+	TimeStart      *int                   `json:"timeStart,omitempty"`
 }
 
 type NodeMetrics struct {
@@ -192,6 +193,13 @@ type NodeStateResultList struct {
 type NodeStates struct {
 	State string `json:"state"`
 	Count int    `json:"count"`
+}
+
+type NodeStatesTimed struct {
+	State string `json:"state"`
+	Type  string `json:"type"`
+	Count int    `json:"count"`
+	Time  int    `json:"time"`
 }
 
 type NodesResultList struct {

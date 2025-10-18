@@ -20,7 +20,7 @@
     // mutationStore,
   } from "@urql/svelte";
   import { Row, Col, Card, Spinner, Table, Input, InputGroup, InputGroupText, Icon } from "@sveltestrap/sveltestrap";
-  import { formatTime, roundTwoDigits } from "./units.js";
+  import { formatDurationTime, roundTwoDigits } from "./units.js";
   import Comparogram from "./plots/Comparogram.svelte";
 
   /* Svelte 5 Props */
@@ -373,7 +373,7 @@
           <tr>
             <td><b><a href="/monitoring/job/{job.id}" target="_blank">{job.jobId}</a></b></td>
             <td>{new Date(job.startTime * 1000).toLocaleString()}</td>
-            <td>{formatTime(job.duration)}</td>
+            <td>{formatDurationTime(job.duration)}</td>
             <td>{job.cluster} ({job.subCluster})</td>
             <td>{job.numNodes}</td>
             <td>{job.numHWThreads}</td>

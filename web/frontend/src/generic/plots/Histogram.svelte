@@ -19,7 +19,7 @@
 <script>
   import uPlot from "uplot";
   import { onMount, onDestroy } from "svelte";
-  import { formatNumber, formatTime } from "../units.js";
+  import { formatNumber, formatDurationTime } from "../units.js";
   import { Card } from "@sveltestrap/sveltestrap";
 
   /* Svelte 5 Props */
@@ -180,7 +180,7 @@
           },
           values: (_, t) => t.map((v) => {
             if (xtime) {
-              return formatTime(v);
+              return formatDurationTime(v);
             } else {
               return formatNumber(v)
             }
@@ -211,15 +211,15 @@
           label: xunit !== "" ? xunit : null,
           value: (u, ts, sidx, didx) => {
             if (usesBins && xtime) {
-              const min = u.data[sidx][didx - 1] ? formatTime(u.data[sidx][didx - 1]) : 0;
-              const max = formatTime(u.data[sidx][didx]);
+              const min = u.data[sidx][didx - 1] ? formatDurationTime(u.data[sidx][didx - 1]) : 0;
+              const max = formatDurationTime(u.data[sidx][didx]);
               ts = min + " - " + max; // narrow spaces
             } else if (usesBins) {
               const min = u.data[sidx][didx - 1] ? u.data[sidx][didx - 1] : 0;
               const max = u.data[sidx][didx];
               ts = min + " - " + max; // narrow spaces
             } else if (xtime) {
-              ts = formatTime(ts);
+              ts = formatDurationTime(ts);
             }
             return ts;
           },
