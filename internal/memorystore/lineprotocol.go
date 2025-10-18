@@ -1,3 +1,8 @@
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
+// All rights reserved. This file is part of cc-backend.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
+
 package memorystore
 
 import (
@@ -7,8 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/avro"
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/influxdata/line-protocol/v2/lineprotocol"
 	"github.com/nats-io/nats.go"
@@ -77,10 +80,10 @@ import (
 // 	return nil
 // }
 
-// Connect to a nats server and subscribe to "updates". This is a blocking
-// function. handleLine will be called for each line recieved via nats.
-// Send `true` through the done channel for gracefull termination.
-func ReceiveNats(conf *(config.NatsConfig),
+// ReceiveNats connects to a nats server and subscribes to "updates". This is a
+// blocking function. handleLine will be called for each line recieved via
+// nats. Send `true` through the done channel for gracefull termination.
+func ReceiveNats(conf *(NatsConfig),
 	ms *MemoryStore,
 	workers int,
 	ctx context.Context,
@@ -170,7 +173,7 @@ func reorder(buf, prefix []byte) []byte {
 		for i := m - 1; i >= 0; i-- {
 			buf[i+n] = buf[i]
 		}
-		for i := 0; i < n; i++ {
+		for i := range n {
 			buf[i] = prefix[i]
 		}
 		return buf
@@ -329,14 +332,15 @@ func decodeLine(dec *lineprotocol.Decoder,
 
 		time := t.Unix()
 
-		if config.MetricStoreKeys.Checkpoints.FileFormat != "json" {
-			avro.LineProtocolMessages <- &avro.AvroStruct{
+		if Keys.Checkpoints.FileFormat != "json" {
+			LineProtocolMessages <- &AvroStruct{
 				MetricName: string(metricBuf),
 				Cluster:    cluster,
 				Node:       host,
 				Selector:   append([]string{}, selector...),
 				Value:      metric.Value,
-				Timestamp:  time}
+				Timestamp:  time,
+			}
 		}
 
 		if err := ms.WriteToLevel(lvl, selector, time, []Metric{metric}); err != nil {

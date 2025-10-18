@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package memorystore
 
 import (
@@ -18,14 +19,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 )
 
 func Archiving(wg *sync.WaitGroup, ctx context.Context) {
 	go func() {
 		defer wg.Done()
-		d, err := time.ParseDuration(config.MetricStoreKeys.Archive.Interval)
+		d, err := time.ParseDuration(Keys.Archive.Interval)
 		if err != nil {
 			log.Fatalf("[METRICSTORE]> error parsing archive interval duration: %v\n", err)
 		}
@@ -46,8 +46,8 @@ func Archiving(wg *sync.WaitGroup, ctx context.Context) {
 			case <-ticks:
 				t := time.Now().Add(-d)
 				log.Printf("[METRICSTORE]> start archiving checkpoints (older than %s)...\n", t.Format(time.RFC3339))
-				n, err := ArchiveCheckpoints(config.MetricStoreKeys.Checkpoints.RootDir,
-					config.MetricStoreKeys.Archive.RootDir, t.Unix(), config.MetricStoreKeys.Archive.DeleteInstead)
+				n, err := ArchiveCheckpoints(Keys.Checkpoints.RootDir,
+					Keys.Archive.RootDir, t.Unix(), Keys.Archive.DeleteInstead)
 
 				if err != nil {
 					log.Printf("[METRICSTORE]> archiving failed: %s\n", err.Error())
@@ -59,7 +59,7 @@ func Archiving(wg *sync.WaitGroup, ctx context.Context) {
 	}()
 }
 
-var ErrNoNewData error = errors.New("all data already archived")
+var ErrNoNewArchiveData error = errors.New("all data already archived")
 
 // ZIP all checkpoint files older than `from` together and write them to the `archiveDir`,
 // deleting them from the `checkpointsDir`.
@@ -129,7 +129,7 @@ func archiveCheckpoints(dir string, archiveDir string, from int64, deleteInstead
 		return 0, err
 	}
 
-	extension := config.MetricStoreKeys.Checkpoints.FileFormat
+	extension := Keys.Checkpoints.FileFormat
 	files, err := findFiles(entries, from, extension, false)
 	if err != nil {
 		return 0, err

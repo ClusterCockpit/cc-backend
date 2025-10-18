@@ -2,7 +2,8 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
-package avro
+
+package memorystore
 
 import (
 	"context"
@@ -10,14 +11,12 @@ import (
 	"slices"
 	"strconv"
 	"sync"
-
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 )
 
 func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 	// AvroPool is a pool of Avro writers.
 	go func() {
-		if config.MetricStoreKeys.Checkpoints.FileFormat == "json" {
+		if Keys.Checkpoints.FileFormat == "json" {
 			wg.Done() // Mark this goroutine as done
 			return    // Exit the goroutine
 		}
@@ -33,7 +32,7 @@ func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 				return
 			case val := <-LineProtocolMessages:
 				// Fetch the frequency of the metric from the global configuration
-				freq, err := config.GetMetricFrequency(val.MetricName)
+				freq, err := GetMetricFrequency(val.MetricName)
 				if err != nil {
 					log.Printf("Error fetching metric frequency: %s\n", err)
 					continue
@@ -41,8 +40,8 @@ func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 
 				metricName := ""
 
-				for _, selector_name := range val.Selector {
-					metricName += selector_name + Delimiter
+				for _, selectorName := range val.Selector {
+					metricName += selectorName + Delimiter
 				}
 
 				metricName += val.MetricName

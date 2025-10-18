@@ -1,10 +1,14 @@
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
+// All rights reserved. This file is part of cc-backend.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
+
 package memorystore
 
 import (
 	"errors"
 	"math"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-lib/util"
 )
 
@@ -78,7 +82,7 @@ func (m *MemoryStore) Stats(selector util.Selector, metric string, from, to int6
 
 	n, samples := 0, 0
 	avg, min, max := util.Float(0), math.MaxFloat32, -math.MaxFloat32
-	err := m.root.findBuffers(selector, minfo.Offset, func(b *buffer) error {
+	err := m.root.findBuffers(selector, minfo.offset, func(b *buffer) error {
 		stats, cfrom, cto, err := b.stats(from, to)
 		if err != nil {
 			return err
@@ -105,9 +109,9 @@ func (m *MemoryStore) Stats(selector util.Selector, metric string, from, to int6
 		return nil, 0, 0, ErrNoData
 	}
 
-	if minfo.Aggregation == config.AvgAggregation {
+	if minfo.Aggregation == AvgAggregation {
 		avg /= util.Float(n)
-	} else if n > 1 && minfo.Aggregation != config.SumAggregation {
+	} else if n > 1 && minfo.Aggregation != SumAggregation {
 		return nil, 0, 0, errors.New("invalid aggregation")
 	}
 

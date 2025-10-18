@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package metricdata
 
 import (
@@ -12,6 +13,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
+	"github.com/ClusterCockpit/cc-backend/internal/memorystore"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
 )
@@ -56,7 +58,7 @@ func Init() error {
 				mdr = &CCMetricStore{}
 			case "cc-metric-store-internal":
 				mdr = &CCMetricStoreInternal{}
-				config.InternalCCMSFlag = true
+				memorystore.InternalCCMSFlag = true
 			case "prometheus":
 				mdr = &PrometheusDataRepository{}
 			case "test":

@@ -2,7 +2,8 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
-package avro
+
+package memorystore
 
 import (
 	"bufio"
@@ -19,12 +20,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/linkedin/goavro/v2"
 )
 
-var NumWorkers int = 4
+var NumAvroWorkers int = 4
 
 var ErrNoNewData error = errors.New("no data in the pool")
 
@@ -58,9 +58,9 @@ func (as *AvroStore) ToCheckpoint(dir string, dumpAll bool) (int, error) {
 	n, errs := int32(0), int32(0)
 
 	var wg sync.WaitGroup
-	wg.Add(NumWorkers)
-	work := make(chan workItem, NumWorkers*2)
-	for range NumWorkers {
+	wg.Add(NumAvroWorkers)
+	work := make(chan workItem, NumAvroWorkers*2)
+	for range NumAvroWorkers {
 		go func() {
 			defer wg.Done()
 
@@ -68,7 +68,7 @@ func (as *AvroStore) ToCheckpoint(dir string, dumpAll bool) (int, error) {
 				from := getTimestamp(workItem.dir)
 
 				if err := workItem.level.toCheckpoint(workItem.dir, from, dumpAll); err != nil {
-					if err == ErrNoNewData {
+					if err == ErrNoNewArchiveData {
 						continue
 					}
 
@@ -113,7 +113,7 @@ func getTimestamp(dir string) int64 {
 	if err != nil {
 		return 0
 	}
-	var maxTs int64 = 0
+	var maxTS int64 = 0
 
 	if len(files) == 0 {
 		return 0
@@ -135,19 +135,19 @@ func getTimestamp(dir string) int64 {
 			continue
 		}
 
-		if ts > maxTs {
-			maxTs = ts
+		if ts > maxTS {
+			maxTS = ts
 		}
 	}
 
-	interval, _ := time.ParseDuration(config.MetricStoreKeys.Checkpoints.Interval)
-	updateTime := time.Unix(maxTs, 0).Add(interval).Add(time.Duration(CheckpointBufferMinutes-1) * time.Minute).Unix()
+	interval, _ := time.ParseDuration(Keys.Checkpoints.Interval)
+	updateTime := time.Unix(maxTS, 0).Add(interval).Add(time.Duration(CheckpointBufferMinutes-1) * time.Minute).Unix()
 
 	if updateTime < time.Now().Unix() {
 		return 0
 	}
 
-	return maxTs
+	return maxTS
 }
 
 func (l *AvroLevel) toCheckpoint(dir string, from int64, dumpAll bool) error {
@@ -156,27 +156,27 @@ func (l *AvroLevel) toCheckpoint(dir string, from int64, dumpAll bool) error {
 
 	// fmt.Printf("Checkpointing directory: %s\n", dir)
 	// filepath contains the resolution
-	int_res, _ := strconv.Atoi(path.Base(dir))
+	intRes, _ := strconv.Atoi(path.Base(dir))
 
 	// find smallest overall timestamp in l.data map and delete it from l.data
-	minTs := int64(1<<63 - 1)
+	minTS := int64(1<<63 - 1)
 	for ts, dat := range l.data {
-		if ts < minTs && len(dat) != 0 {
-			minTs = ts
+		if ts < minTS && len(dat) != 0 {
+			minTS = ts
 		}
 	}
 
-	if from == 0 && minTs != int64(1<<63-1) {
-		from = minTs
+	if from == 0 && minTS != int64(1<<63-1) {
+		from = minTS
 	}
 
 	if from == 0 {
-		return ErrNoNewData
+		return ErrNoNewArchiveData
 	}
 
 	var schema string
 	var codec *goavro.Codec
-	record_list := make([]map[string]any, 0)
+	recordList := make([]map[string]any, 0)
 
 	var f *os.File
 
@@ -208,19 +208,19 @@ func (l *AvroLevel) toCheckpoint(dir string, from int64, dumpAll bool) error {
 		f.Close()
 	}
 
-	time_ref := time.Now().Add(time.Duration(-CheckpointBufferMinutes+1) * time.Minute).Unix()
+	timeRef := time.Now().Add(time.Duration(-CheckpointBufferMinutes+1) * time.Minute).Unix()
 
 	if dumpAll {
-		time_ref = time.Now().Unix()
+		timeRef = time.Now().Unix()
 	}
 
 	// Empty values
 	if len(l.data) == 0 {
 		// we checkpoint avro files every 60 seconds
-		repeat := 60 / int_res
+		repeat := 60 / intRes
 
 		for range repeat {
-			record_list = append(record_list, make(map[string]any))
+			recordList = append(recordList, make(map[string]any))
 		}
 	}
 
@@ -228,15 +228,15 @@ func (l *AvroLevel) toCheckpoint(dir string, from int64, dumpAll bool) error {
 
 	for ts := range l.data {
 		flag := false
-		if ts < time_ref {
+		if ts < timeRef {
 			data := l.data[ts]
 
-			schema_gen, err := generateSchema(data)
+			schemaGen, err := generateSchema(data)
 			if err != nil {
 				return err
 			}
 
-			flag, schema, err = compareSchema(schema, schema_gen)
+			flag, schema, err = compareSchema(schema, schemaGen)
 			if err != nil {
 				return fmt.Errorf("failed to compare read and generated schema: %v", err)
 			}
@@ -262,7 +262,7 @@ func (l *AvroLevel) toCheckpoint(dir string, from int64, dumpAll bool) error {
 						return fmt.Errorf("failed to read record: %v", err)
 					}
 
-					record_list = append(record_list, record.(map[string]any))
+					recordList = append(recordList, record.(map[string]any))
 				}
 
 				f.Close()
@@ -279,13 +279,13 @@ func (l *AvroLevel) toCheckpoint(dir string, from int64, dumpAll bool) error {
 				return fmt.Errorf("failed to create codec after merged schema: %v", err)
 			}
 
-			record_list = append(record_list, generateRecord(data))
+			recordList = append(recordList, generateRecord(data))
 			delete(l.data, ts)
 		}
 	}
 
-	if len(record_list) == 0 {
-		return ErrNoNewData
+	if len(recordList) == 0 {
+		return ErrNoNewArchiveData
 	}
 
 	f, err = os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0o644)
@@ -305,7 +305,7 @@ func (l *AvroLevel) toCheckpoint(dir string, from int64, dumpAll bool) error {
 	}
 
 	// Append the new record
-	if err := writer.Append(record_list); err != nil {
+	if err := writer.Append(recordList); err != nil {
 		return fmt.Errorf("failed to append record: %v", err)
 	}
 
@@ -401,12 +401,12 @@ func compareSchema(schemaRead, schemaGen string) (bool, string, error) {
 	}
 
 	// Marshal the merged schema back to JSON
-	mergedSchemaJson, err := json.Marshal(mergedSchema)
+	mergedSchemaJSON, err := json.Marshal(mergedSchema)
 	if err != nil {
 		return false, "", fmt.Errorf("failed to marshal merged schema: %v", err)
 	}
 
-	return true, string(mergedSchemaJson), nil
+	return true, string(mergedSchemaJSON), nil
 }
 
 func generateSchema(data map[string]schema.Float) (string, error) {

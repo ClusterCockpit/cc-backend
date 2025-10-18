@@ -1,3 +1,8 @@
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
+// All rights reserved. This file is part of cc-backend.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
+
 package memorystore
 
 import (
@@ -11,8 +16,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/avro"
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-lib/resampler"
 	"github.com/ClusterCockpit/cc-lib/runtimeEnv"
 	"github.com/ClusterCockpit/cc-lib/schema"
@@ -30,39 +33,36 @@ var NumWorkers int = 4
 
 func init() {
 	maxWorkers := 10
-	NumWorkers = runtime.NumCPU()/2 + 1
-	if NumWorkers > maxWorkers {
-		NumWorkers = maxWorkers
-	}
+	NumWorkers = min(runtime.NumCPU()/2+1, maxWorkers)
 }
 
 type Metric struct {
 	Name         string
 	Value        schema.Float
-	MetricConfig config.MetricConfig
+	MetricConfig MetricConfig
 }
 
 type MemoryStore struct {
-	Metrics map[string]config.MetricConfig
+	Metrics map[string]MetricConfig
 	root    Level
 }
 
 func Init(wg *sync.WaitGroup) {
 	startupTime := time.Now()
 
-	//Pass the config.MetricStoreKeys
-	InitMetrics(config.Metrics)
+	// Pass the config.MetricStoreKeys
+	InitMetrics(Metrics)
 
 	ms := GetMemoryStore()
 
-	d, err := time.ParseDuration(config.MetricStoreKeys.Checkpoints.Restore)
+	d, err := time.ParseDuration(Keys.Checkpoints.Restore)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	restoreFrom := startupTime.Add(-d)
 	log.Printf("[METRICSTORE]> Loading checkpoints newer than %s\n", restoreFrom.Format(time.RFC3339))
-	files, err := ms.FromCheckpointFiles(config.MetricStoreKeys.Checkpoints.RootDir, restoreFrom.Unix())
+	files, err := ms.FromCheckpointFiles(Keys.Checkpoints.RootDir, restoreFrom.Unix())
 	loadedData := ms.SizeInBytes() / 1024 / 1024 // In MB
 	if err != nil {
 		log.Fatalf("[METRICSTORE]> Loading checkpoints failed: %s\n", err.Error())
@@ -85,7 +85,7 @@ func Init(wg *sync.WaitGroup) {
 	Retention(wg, ctx)
 	Checkpointing(wg, ctx)
 	Archiving(wg, ctx)
-	avro.DataStaging(wg, ctx)
+	DataStaging(wg, ctx)
 
 	wg.Add(1)
 	sigs := make(chan os.Signal, 1)
@@ -97,8 +97,8 @@ func Init(wg *sync.WaitGroup) {
 		shutdown()
 	}()
 
-	if config.MetricStoreKeys.Nats != nil {
-		for _, natsConf := range config.MetricStoreKeys.Nats {
+	if Keys.Nats != nil {
+		for _, natsConf := range Keys.Nats {
 			// TODO: When multiple nats configs share a URL, do a single connect.
 			wg.Add(1)
 			nc := natsConf
@@ -114,9 +114,9 @@ func Init(wg *sync.WaitGroup) {
 	}
 }
 
-// Create a new, initialized instance of a MemoryStore.
+// InitMetrics creates a new, initialized instance of a MemoryStore.
 // Will panic if values in the metric configurations are invalid.
-func InitMetrics(metrics map[string]config.MetricConfig) {
+func InitMetrics(metrics map[string]MetricConfig) {
 	singleton.Do(func() {
 		offset := 0
 		for key, cfg := range metrics {
@@ -124,10 +124,10 @@ func InitMetrics(metrics map[string]config.MetricConfig) {
 				panic("[METRICSTORE]> invalid frequency")
 			}
 
-			metrics[key] = config.MetricConfig{
+			metrics[key] = MetricConfig{
 				Frequency:   cfg.Frequency,
 				Aggregation: cfg.Aggregation,
-				Offset:      offset,
+				offset:      offset,
 			}
 			offset += 1
 		}
@@ -151,17 +151,17 @@ func GetMemoryStore() *MemoryStore {
 }
 
 func Shutdown() {
-	log.Printf("[METRICSTORE]> Writing to '%s'...\n", config.MetricStoreKeys.Checkpoints.RootDir)
+	log.Printf("[METRICSTORE]> Writing to '%s'...\n", Keys.Checkpoints.RootDir)
 	var files int
 	var err error
 
 	ms := GetMemoryStore()
 
-	if config.MetricStoreKeys.Checkpoints.FileFormat == "json" {
-		files, err = ms.ToCheckpoint(config.MetricStoreKeys.Checkpoints.RootDir, lastCheckpoint.Unix(), time.Now().Unix())
+	if Keys.Checkpoints.FileFormat == "json" {
+		files, err = ms.ToCheckpoint(Keys.Checkpoints.RootDir, lastCheckpoint.Unix(), time.Now().Unix())
 	} else {
-		files, err = avro.GetAvroStore().ToCheckpoint(config.MetricStoreKeys.Checkpoints.RootDir, true)
-		close(avro.LineProtocolMessages)
+		files, err = GetAvroStore().ToCheckpoint(Keys.Checkpoints.RootDir, true)
+		close(LineProtocolMessages)
 	}
 
 	if err != nil {
@@ -234,7 +234,7 @@ func Shutdown() {
 
 func getName(m *MemoryStore, i int) string {
 	for key, val := range m.Metrics {
-		if val.Offset == i {
+		if val.offset == i {
 			return key
 		}
 	}
@@ -246,7 +246,7 @@ func Retention(wg *sync.WaitGroup, ctx context.Context) {
 
 	go func() {
 		defer wg.Done()
-		d, err := time.ParseDuration(config.MetricStoreKeys.RetentionInMemory)
+		d, err := time.ParseDuration(Keys.RetentionInMemory)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -311,11 +311,11 @@ func (m *MemoryStore) WriteToLevel(l *Level, selector []string, ts int64, metric
 			continue
 		}
 
-		b := l.metrics[metric.MetricConfig.Offset]
+		b := l.metrics[metric.MetricConfig.offset]
 		if b == nil {
 			// First write to this metric and level
 			b = newBuffer(ts, metric.MetricConfig.Frequency)
-			l.metrics[metric.MetricConfig.Offset] = b
+			l.metrics[metric.MetricConfig.offset] = b
 		}
 
 		nb, err := b.write(ts, metric.Value)
@@ -325,7 +325,7 @@ func (m *MemoryStore) WriteToLevel(l *Level, selector []string, ts int64, metric
 
 		// Last write created a new buffer...
 		if b != nb {
-			l.metrics[metric.MetricConfig.Offset] = nb
+			l.metrics[metric.MetricConfig.offset] = nb
 		}
 	}
 	return nil
@@ -337,17 +337,17 @@ func (m *MemoryStore) WriteToLevel(l *Level, selector []string, ts int64, metric
 // the range asked for if no data was available.
 func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, resolution int64) ([]schema.Float, int64, int64, int64, error) {
 	if from > to {
-		return nil, 0, 0, 0, errors.New("[METRICSTORE]> invalid time range\n")
+		return nil, 0, 0, 0, errors.New("[METRICSTORE]> invalid time range")
 	}
 
 	minfo, ok := m.Metrics[metric]
 	if !ok {
-		return nil, 0, 0, 0, errors.New("[METRICSTORE]> unkown metric: \n" + metric)
+		return nil, 0, 0, 0, errors.New("[METRICSTORE]> unkown metric: " + metric)
 	}
 
 	n, data := 0, make([]schema.Float, (to-from)/minfo.Frequency+1)
 
-	err := m.root.findBuffers(selector, minfo.Offset, func(b *buffer) error {
+	err := m.root.findBuffers(selector, minfo.offset, func(b *buffer) error {
 		cdata, cfrom, cto, err := b.read(from, to, data)
 		if err != nil {
 			return err
@@ -381,14 +381,14 @@ func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, reso
 	if err != nil {
 		return nil, 0, 0, 0, err
 	} else if n == 0 {
-		return nil, 0, 0, 0, errors.New("[METRICSTORE]> metric or host not found\n")
+		return nil, 0, 0, 0, errors.New("[METRICSTORE]> metric or host not found")
 	} else if n > 1 {
-		if minfo.Aggregation == config.AvgAggregation {
+		if minfo.Aggregation == AvgAggregation {
 			normalize := 1. / schema.Float(n)
 			for i := 0; i < len(data); i++ {
 				data[i] *= normalize
 			}
-		} else if minfo.Aggregation != config.SumAggregation {
+		} else if minfo.Aggregation != SumAggregation {
 			return nil, 0, 0, 0, errors.New("[METRICSTORE]> invalid aggregation")
 		}
 	}

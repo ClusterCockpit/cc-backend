@@ -2,6 +2,7 @@
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package memorystore
 
 import (
@@ -47,7 +48,7 @@ type ErrorResponse struct {
 	Error  string `json:"error"` // Error Message
 }
 
-type ApiMetricData struct {
+type APIMetricData struct {
 	Error      *string           `json:"error,omitempty"`
 	Data       schema.FloatArray `json:"data,omitempty"`
 	From       int64             `json:"from"`
@@ -69,7 +70,7 @@ func handleError(err error, statusCode int, rw http.ResponseWriter) {
 }
 
 // TODO: Optimize this, just like the stats endpoint!
-func (data *ApiMetricData) AddStats() {
+func (data *APIMetricData) AddStats() {
 	n := 0
 	sum, min, max := 0.0, math.MaxFloat64, -math.MaxFloat64
 	for _, x := range data.Data {
@@ -93,7 +94,7 @@ func (data *ApiMetricData) AddStats() {
 	}
 }
 
-func (data *ApiMetricData) ScaleBy(f schema.Float) {
+func (data *APIMetricData) ScaleBy(f schema.Float) {
 	if f == 0 || f == 1 {
 		return
 	}
@@ -106,7 +107,7 @@ func (data *ApiMetricData) ScaleBy(f schema.Float) {
 	}
 }
 
-func (data *ApiMetricData) PadDataWithNull(ms *MemoryStore, from, to int64, metric string) {
+func (data *APIMetricData) PadDataWithNull(ms *MemoryStore, from, to int64, metric string) {
 	minfo, ok := ms.Metrics[metric]
 	if !ok {
 		return
@@ -115,7 +116,7 @@ func (data *ApiMetricData) PadDataWithNull(ms *MemoryStore, from, to int64, metr
 	if (data.From / minfo.Frequency) > (from / minfo.Frequency) {
 		padfront := int((data.From / minfo.Frequency) - (from / minfo.Frequency))
 		ndata := make([]schema.Float, 0, padfront+len(data.Data))
-		for i := 0; i < padfront; i++ {
+		for range padfront {
 			ndata = append(ndata, schema.NaN)
 		}
 		for j := 0; j < len(data.Data); j++ {
@@ -218,9 +219,9 @@ func HandleWrite(rw http.ResponseWriter, r *http.Request) {
 	rw.WriteHeader(http.StatusOK)
 }
 
-type ApiQueryRequest struct {
+type APIQueryRequest struct {
 	Cluster     string     `json:"cluster"`
-	Queries     []ApiQuery `json:"queries"`
+	Queries     []APIQuery `json:"queries"`
 	ForAllNodes []string   `json:"for-all-nodes"`
 	From        int64      `json:"from"`
 	To          int64      `json:"to"`
@@ -229,12 +230,12 @@ type ApiQueryRequest struct {
 	WithPadding bool       `json:"with-padding"`
 }
 
-type ApiQueryResponse struct {
-	Queries []ApiQuery        `json:"queries,omitempty"`
-	Results [][]ApiMetricData `json:"results"`
+type APIQueryResponse struct {
+	Queries []APIQuery        `json:"queries,omitempty"`
+	Results [][]APIMetricData `json:"results"`
 }
 
-type ApiQuery struct {
+type APIQuery struct {
 	Type        *string      `json:"type,omitempty"`
 	SubType     *string      `json:"subtype,omitempty"`
 	Metric      string       `json:"metric"`
@@ -246,22 +247,21 @@ type ApiQuery struct {
 	Aggregate   bool         `json:"aggreg"`
 }
 
-func FetchData(req ApiQueryRequest) (*ApiQueryResponse, error) {
-
+func FetchData(req APIQueryRequest) (*APIQueryResponse, error) {
 	req.WithData = true
 	req.WithData = true
 	req.WithData = true
 
 	ms := GetMemoryStore()
 
-	response := ApiQueryResponse{
-		Results: make([][]ApiMetricData, 0, len(req.Queries)),
+	response := APIQueryResponse{
+		Results: make([][]APIMetricData, 0, len(req.Queries)),
 	}
 	if req.ForAllNodes != nil {
 		nodes := ms.ListChildren([]string{req.Cluster})
 		for _, node := range nodes {
 			for _, metric := range req.ForAllNodes {
-				q := ApiQuery{
+				q := APIQuery{
 					Metric:   metric,
 					Hostname: node,
 				}
@@ -300,21 +300,21 @@ func FetchData(req ApiQueryRequest) (*ApiQueryResponse, error) {
 			}
 			sels = append(sels, sel)
 		} else {
-			for _, typeId := range query.TypeIds {
+			for _, typeID := range query.TypeIds {
 				if query.SubType != nil {
-					for _, subTypeId := range query.SubTypeIds {
+					for _, subTypeID := range query.SubTypeIds {
 						sels = append(sels, util.Selector{
 							{String: req.Cluster},
 							{String: query.Hostname},
-							{String: *query.Type + typeId},
-							{String: *query.SubType + subTypeId},
+							{String: *query.Type + typeID},
+							{String: *query.SubType + subTypeID},
 						})
 					}
 				} else {
 					sels = append(sels, util.Selector{
 						{String: req.Cluster},
 						{String: query.Hostname},
-						{String: *query.Type + typeId},
+						{String: *query.Type + typeID},
 					})
 				}
 			}
@@ -323,12 +323,11 @@ func FetchData(req ApiQueryRequest) (*ApiQueryResponse, error) {
 		// log.Printf("query: %#v\n", query)
 		// log.Printf("sels: %#v\n", sels)
 		var err error
-		res := make([]ApiMetricData, 0, len(sels))
+		res := make([]APIMetricData, 0, len(sels))
 		for _, sel := range sels {
-			data := ApiMetricData{}
+			data := APIMetricData{}
 
 			data.Data, data.From, data.To, data.Resolution, err = ms.Read(sel, query.Metric, req.From, req.To, query.Resolution)
-
 			if err != nil {
 				msg := err.Error()
 				data.Error = &msg

@@ -2,7 +2,8 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
-package avro
+
+package memorystore
 
 import (
 	"sync"
@@ -112,18 +113,18 @@ func (l *AvroLevel) addMetric(metricName string, value schema.Float, timestamp i
 			}
 		} else {
 			// Get the last timestamp
-			var lastTs int64
+			var lastTS int64
 			for ts := range l.data {
-				if ts > lastTs {
-					lastTs = ts
+				if ts > lastTS {
+					lastTS = ts
 				}
 			}
 			// Create keys for the next KeyCounter timestamps
-			l.data[lastTs+int64(Freq)] = make(map[string]schema.Float, 0)
+			l.data[lastTS+int64(Freq)] = make(map[string]schema.Float, 0)
 		}
 	}
 
-	closestTs := int64(0)
+	closestTS := int64(0)
 	minDiff := int64(Freq) + 1 // Start with diff just outside the valid range
 	found := false
 
@@ -144,13 +145,13 @@ func (l *AvroLevel) addMetric(metricName string, value schema.Float, timestamp i
 		// Check if this is the closest timestamp so far
 		if Abs(diff) < minDiff {
 			minDiff = Abs(diff)
-			closestTs = ts
+			closestTS = ts
 			found = true
 		}
 	}
 
 	if found {
-		l.data[closestTs][metricName] = value
+		l.data[closestTS][metricName] = value
 	}
 }
 

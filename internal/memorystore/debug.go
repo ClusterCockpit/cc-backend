@@ -1,3 +1,8 @@
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
+// All rights reserved. This file is part of cc-backend.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
+
 package memorystore
 
 import (
@@ -41,7 +46,7 @@ func (l *Level) debugDump(m *MemoryStore, w *bufio.Writer, lvlname string, buf [
 	depth += 1
 	objitems := 0
 	for name, mc := range m.Metrics {
-		if b := l.metrics[mc.Offset]; b != nil {
+		if b := l.metrics[mc.offset]; b != nil {
 			for i := 0; i < depth; i++ {
 				buf = append(buf, '\t')
 			}

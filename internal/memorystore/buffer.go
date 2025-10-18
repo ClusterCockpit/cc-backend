@@ -1,3 +1,8 @@
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
+// All rights reserved. This file is part of cc-backend.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
+
 package memorystore
 
 import (
@@ -12,14 +17,14 @@ import (
 // in the buffer chain will be created if needed so that no copying
 // of data or reallocation needs to happen on writes.
 const (
-	BUFFER_CAP int = 512
+	BufferCap int = 512
 )
 
 // So that we can reuse allocations
 var bufferPool sync.Pool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return &buffer{
-			data: make([]schema.Float, 0, BUFFER_CAP),
+			data: make([]schema.Float, 0, BufferCap),
 		}
 	},
 }
@@ -192,7 +197,7 @@ func (b *buffer) free(t int64) (delme bool, n int) {
 		n += m
 		if delme {
 			b.prev.next = nil
-			if cap(b.prev.data) == BUFFER_CAP {
+			if cap(b.prev.data) == BufferCap {
 				bufferPool.Put(b.prev)
 			}
 			b.prev = nil

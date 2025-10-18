@@ -1,3 +1,8 @@
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
+// All rights reserved. This file is part of cc-backend.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
+
 package memorystore
 
 import (
@@ -19,8 +24,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/avro"
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/linkedin/goavro/v2"
 )
@@ -44,12 +47,12 @@ var lastCheckpoint time.Time
 func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 	lastCheckpoint = time.Now()
 
-	if config.MetricStoreKeys.Checkpoints.FileFormat == "json" {
+	if Keys.Checkpoints.FileFormat == "json" {
 		ms := GetMemoryStore()
 
 		go func() {
 			defer wg.Done()
-			d, err := time.ParseDuration(config.MetricStoreKeys.Checkpoints.Interval)
+			d, err := time.ParseDuration(Keys.Checkpoints.Interval)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -70,7 +73,7 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 				case <-ticks:
 					log.Printf("[METRICSTORE]> start checkpointing (starting at %s)...\n", lastCheckpoint.Format(time.RFC3339))
 					now := time.Now()
-					n, err := ms.ToCheckpoint(config.MetricStoreKeys.Checkpoints.RootDir,
+					n, err := ms.ToCheckpoint(Keys.Checkpoints.RootDir,
 						lastCheckpoint.Unix(), now.Unix())
 					if err != nil {
 						log.Printf("[METRICSTORE]> checkpointing failed: %s\n", err.Error())
@@ -89,9 +92,9 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(time.Duration(avro.CheckpointBufferMinutes) * time.Minute):
+			case <-time.After(time.Duration(CheckpointBufferMinutes) * time.Minute):
 				// This is the first tick untill we collect the data for given minutes.
-				avro.GetAvroStore().ToCheckpoint(config.MetricStoreKeys.Checkpoints.RootDir, false)
+				GetAvroStore().ToCheckpoint(Keys.Checkpoints.RootDir, false)
 				// log.Printf("Checkpointing %d avro files", count)
 
 			}
@@ -109,7 +112,7 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 					return
 				case <-ticks:
 					// Regular ticks of 1 minute to write data.
-					avro.GetAvroStore().ToCheckpoint(config.MetricStoreKeys.Checkpoints.RootDir, false)
+					GetAvroStore().ToCheckpoint(Keys.Checkpoints.RootDir, false)
 					// log.Printf("Checkpointing %d avro files", count)
 				}
 			}
@@ -176,7 +179,7 @@ func (m *MemoryStore) ToCheckpoint(dir string, from, to int64) (int, error) {
 
 			for workItem := range work {
 				if err := workItem.level.toCheckpoint(workItem.dir, from, to, m); err != nil {
-					if err == ErrNoNewData {
+					if err == ErrNoNewArchiveData {
 						continue
 					}
 
@@ -219,7 +222,7 @@ func (l *Level) toCheckpointFile(from, to int64, m *MemoryStore) (*CheckpointFil
 	}
 
 	for metric, minfo := range m.Metrics {
-		b := l.metrics[minfo.Offset]
+		b := l.metrics[minfo.offset]
 		if b == nil {
 			continue
 		}
@@ -278,7 +281,7 @@ func (l *Level) toCheckpoint(dir string, from, to int64, m *MemoryStore) error {
 	}
 
 	if cf == nil {
-		return ErrNoNewData
+		return ErrNoNewArchiveData
 	}
 
 	filepath := path.Join(dir, fmt.Sprintf("%d.json", from))
@@ -376,7 +379,7 @@ done:
 func (m *MemoryStore) FromCheckpointFiles(dir string, from int64) (int, error) {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		// The directory does not exist, so create it using os.MkdirAll()
-		err := os.MkdirAll(dir, 0755) // 0755 sets the permissions for the directory
+		err := os.MkdirAll(dir, 0o755) // 0755 sets the permissions for the directory
 		if err != nil {
 			log.Fatalf("[METRICSTORE]> Error creating directory: %#v\n", err)
 		}
@@ -384,7 +387,7 @@ func (m *MemoryStore) FromCheckpointFiles(dir string, from int64) (int, error) {
 	}
 
 	// Config read (replace with your actual config read)
-	fileFormat := config.MetricStoreKeys.Checkpoints.FileFormat
+	fileFormat := Keys.Checkpoints.FileFormat
 	if fileFormat == "" {
 		fileFormat = "avro"
 	}
@@ -445,10 +448,10 @@ func (l *Level) loadAvroFile(m *MemoryStore, f *os.File, from int64) error {
 		return fmt.Errorf("[METRICSTORE]> error while reading avro file (resolution parsing) : %s", err)
 	}
 
-	from_timestamp, err := strconv.ParseInt(fileName[strings.Index(fileName, "_")+1:len(fileName)-5], 10, 64)
+	fromTimestamp, err := strconv.ParseInt(fileName[strings.Index(fileName, "_")+1:len(fileName)-5], 10, 64)
 
 	// Same logic according to lineprotocol
-	from_timestamp -= (resolution / 2)
+	fromTimestamp -= (resolution / 2)
 
 	if err != nil {
 		return fmt.Errorf("[METRICSTORE]> error converting timestamp from the avro file : %s", err)
@@ -472,7 +475,7 @@ func (l *Level) loadAvroFile(m *MemoryStore, f *os.File, from int64) error {
 			return fmt.Errorf("[METRICSTORE]> error while reading avro file : %s", err)
 		}
 
-		record, ok := datum.(map[string]interface{})
+		record, ok := datum.(map[string]any)
 		if !ok {
 			panic("[METRICSTORE]> failed to assert datum as map[string]interface{}")
 		}
@@ -484,16 +487,16 @@ func (l *Level) loadAvroFile(m *MemoryStore, f *os.File, from int64) error {
 		recordCounter += 1
 	}
 
-	to := (from_timestamp + (recordCounter / (60 / resolution) * 60))
+	to := (fromTimestamp + (recordCounter / (60 / resolution) * 60))
 	if to < from {
 		return nil
 	}
 
 	for key, floatArray := range metricsData {
-		metricName := avro.ReplaceKey(key)
+		metricName := ReplaceKey(key)
 
-		if strings.Contains(metricName, avro.Delimiter) {
-			subString := strings.Split(metricName, avro.Delimiter)
+		if strings.Contains(metricName, Delimiter) {
+			subString := strings.Split(metricName, Delimiter)
 
 			lvl := l
 
@@ -517,12 +520,12 @@ func (l *Level) loadAvroFile(m *MemoryStore, f *os.File, from int64) error {
 			}
 
 			leafMetricName := subString[len(subString)-1]
-			err = lvl.createBuffer(m, leafMetricName, floatArray, from_timestamp, resolution)
+			err = lvl.createBuffer(m, leafMetricName, floatArray, fromTimestamp, resolution)
 			if err != nil {
 				return fmt.Errorf("[METRICSTORE]> error while creating buffers from avroReader : %s", err)
 			}
 		} else {
-			err = l.createBuffer(m, metricName, floatArray, from_timestamp, resolution)
+			err = l.createBuffer(m, metricName, floatArray, fromTimestamp, resolution)
 			if err != nil {
 				return fmt.Errorf("[METRICSTORE]> error while creating buffers from avroReader : %s", err)
 			}
@@ -551,9 +554,9 @@ func (l *Level) createBuffer(m *MemoryStore, metricName string, floatArray schem
 		// return errors.New("Unkown metric: " + name)
 	}
 
-	prev := l.metrics[minfo.Offset]
+	prev := l.metrics[minfo.offset]
 	if prev == nil {
-		l.metrics[minfo.Offset] = b
+		l.metrics[minfo.offset] = b
 	} else {
 		if prev.start > b.start {
 			return errors.New("wooops")
@@ -573,12 +576,12 @@ func (l *Level) createBuffer(m *MemoryStore, metricName string, floatArray schem
 			prev.data = prev.data[0:len(prev.data):len(prev.data)]
 		}
 	}
-	l.metrics[minfo.Offset] = b
+	l.metrics[minfo.offset] = b
 
 	return nil
 }
 
-func (l *Level) loadJsonFile(m *MemoryStore, f *os.File, from int64) error {
+func (l *Level) loadJSONFile(m *MemoryStore, f *os.File, from int64) error {
 	br := bufio.NewReader(f)
 	cf := &CheckpointFile{}
 	if err := json.NewDecoder(br).Decode(cf); err != nil {
@@ -615,9 +618,9 @@ func (l *Level) loadFile(cf *CheckpointFile, m *MemoryStore) error {
 			// return errors.New("Unkown metric: " + name)
 		}
 
-		prev := l.metrics[minfo.Offset]
+		prev := l.metrics[minfo.offset]
 		if prev == nil {
-			l.metrics[minfo.Offset] = b
+			l.metrics[minfo.offset] = b
 		} else {
 			if prev.start > b.start {
 				return errors.New("wooops")
@@ -626,7 +629,7 @@ func (l *Level) loadFile(cf *CheckpointFile, m *MemoryStore) error {
 			b.prev = prev
 			prev.next = b
 		}
-		l.metrics[minfo.Offset] = b
+		l.metrics[minfo.offset] = b
 	}
 
 	if len(cf.Children) > 0 && l.children == nil {
@@ -690,7 +693,7 @@ func (l *Level) fromCheckpoint(m *MemoryStore, dir string, from int64, extension
 	}
 
 	loaders := map[string]func(*MemoryStore, *os.File, int64) error{
-		"json": l.loadJsonFile,
+		"json": l.loadJSONFile,
 		"avro": l.loadAvroFile,
 	}
 
@@ -736,7 +739,7 @@ func findFiles(direntries []fs.DirEntry, t int64, extension string, findMoreRece
 	})
 
 	filenames := make([]string, 0)
-	for i := 0; i < len(direntries); i++ {
+	for i := range direntries {
 		e := direntries[i]
 		ts1 := nums[e.Name()]
 

@@ -244,7 +244,7 @@ func serverInit() {
 	apiHandle.MountConfigApiRoutes(configapi)
 	apiHandle.MountFrontendApiRoutes(frontendapi)
 
-	if config.InternalCCMSFlag {
+	if memorystore.InternalCCMSFlag {
 		apiHandle.MountMetricStoreApiRoutes(metricstoreapi)
 	}
 
@@ -369,7 +369,7 @@ func serverShutdown() {
 	server.Shutdown(context.Background())
 
 	// Archive all the metric store data
-	if config.InternalCCMSFlag {
+	if memorystore.InternalCCMSFlag {
 		memorystore.Shutdown()
 	}
 

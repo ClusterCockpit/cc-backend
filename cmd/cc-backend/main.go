@@ -246,9 +246,9 @@ func main() {
 	var wg sync.WaitGroup
 
 	// Metric Store starts after all flags have been processes
-	if config.InternalCCMSFlag {
+	if memorystore.InternalCCMSFlag {
 		if mscfg := ccconf.GetPackageConfig("metric-store"); mscfg != nil {
-			config.InitMetricStore(mscfg)
+			memorystore.InitMetricStore(mscfg)
 		} else {
 			cclog.Abort("Metric Store configuration must be present")
 		}
@@ -257,7 +257,6 @@ func main() {
 	}
 	archiver.Start(repository.GetJobRepository())
 
-	// // Comment out
 	taskManager.Start(ccconf.GetPackageConfig("cron"),
 		ccconf.GetPackageConfig("archive"))
 
