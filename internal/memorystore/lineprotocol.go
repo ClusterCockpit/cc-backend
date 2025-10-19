@@ -8,10 +8,10 @@ package memorystore
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/influxdata/line-protocol/v2/lineprotocol"
 	"github.com/nats-io/nats.go"
@@ -118,8 +118,8 @@ func ReceiveNats(conf *(NatsConfig),
 				go func() {
 					for m := range msgs {
 						dec := lineprotocol.NewDecoderWithBytes(m.Data)
-						if err := decodeLine(dec, ms, clusterTag); err != nil {
-							log.Printf("error: %s\n", err.Error())
+						if err := DecodeLine(dec, ms, clusterTag); err != nil {
+							cclog.Printf("error: %s\n", err.Error())
 						}
 					}
 
@@ -133,8 +133,8 @@ func ReceiveNats(conf *(NatsConfig),
 		} else {
 			sub, err = nc.Subscribe(sc.SubscribeTo, func(m *nats.Msg) {
 				dec := lineprotocol.NewDecoderWithBytes(m.Data)
-				if err := decodeLine(dec, ms, clusterTag); err != nil {
-					log.Printf("error: %s\n", err.Error())
+				if err := DecodeLine(dec, ms, clusterTag); err != nil {
+					cclog.Printf("error: %s\n", err.Error())
 				}
 			})
 		}
@@ -142,7 +142,7 @@ func ReceiveNats(conf *(NatsConfig),
 		if err != nil {
 			return err
 		}
-		log.Printf("NATS subscription to '%s' on '%s' established\n", sc.SubscribeTo, conf.Address)
+		cclog.Printf("NATS subscription to '%s' on '%s' established\n", sc.SubscribeTo, conf.Address)
 		subs = append(subs, sub)
 	}
 
@@ -150,14 +150,14 @@ func ReceiveNats(conf *(NatsConfig),
 	for _, sub := range subs {
 		err = sub.Unsubscribe()
 		if err != nil {
-			log.Printf("NATS unsubscribe failed: %s", err.Error())
+			cclog.Printf("NATS unsubscribe failed: %s", err.Error())
 		}
 	}
 	close(msgs)
 	wg.Wait()
 
 	nc.Close()
-	log.Println("NATS connection closed")
+	cclog.Print("NATS connection closed")
 	return nil
 }
 
@@ -182,7 +182,7 @@ func reorder(buf, prefix []byte) []byte {
 
 // Decode lines using dec and make write calls to the MemoryStore.
 // If a line is missing its cluster tag, use clusterDefault as default.
-func decodeLine(dec *lineprotocol.Decoder,
+func DecodeLine(dec *lineprotocol.Decoder,
 	ms *MemoryStore,
 	clusterDefault string,
 ) error {

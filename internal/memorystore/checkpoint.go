@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -24,6 +23,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/linkedin/goavro/v2"
 )
@@ -54,7 +54,7 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 			defer wg.Done()
 			d, err := time.ParseDuration(Keys.Checkpoints.Interval)
 			if err != nil {
-				log.Fatal(err)
+				cclog.Fatal(err)
 			}
 			if d <= 0 {
 				return
@@ -71,14 +71,14 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 				case <-ctx.Done():
 					return
 				case <-ticks:
-					log.Printf("[METRICSTORE]> start checkpointing (starting at %s)...\n", lastCheckpoint.Format(time.RFC3339))
+					cclog.Printf("[METRICSTORE]> start checkpointing (starting at %s)...\n", lastCheckpoint.Format(time.RFC3339))
 					now := time.Now()
 					n, err := ms.ToCheckpoint(Keys.Checkpoints.RootDir,
 						lastCheckpoint.Unix(), now.Unix())
 					if err != nil {
-						log.Printf("[METRICSTORE]> checkpointing failed: %s\n", err.Error())
+						cclog.Printf("[METRICSTORE]> checkpointing failed: %s\n", err.Error())
 					} else {
-						log.Printf("[METRICSTORE]> done: %d checkpoint files created\n", n)
+						cclog.Printf("[METRICSTORE]> done: %d checkpoint files created\n", n)
 						lastCheckpoint = now
 					}
 				}
@@ -183,7 +183,7 @@ func (m *MemoryStore) ToCheckpoint(dir string, from, to int64) (int, error) {
 						continue
 					}
 
-					log.Printf("[METRICSTORE]> error while checkpointing %#v: %s", workItem.selector, err.Error())
+					cclog.Printf("[METRICSTORE]> error while checkpointing %#v: %s", workItem.selector, err.Error())
 					atomic.AddInt32(&errs, 1)
 				} else {
 					atomic.AddInt32(&n, 1)
@@ -318,7 +318,7 @@ func (m *MemoryStore) FromCheckpoint(dir string, from int64, extension string) (
 				lvl := m.root.findLevelOrCreate(host[:], len(m.Metrics))
 				nn, err := lvl.fromCheckpoint(m, filepath.Join(dir, host[0], host[1]), from, extension)
 				if err != nil {
-					log.Fatalf("[METRICSTORE]> error while loading checkpoints: %s", err.Error())
+					cclog.Fatalf("[METRICSTORE]> error while loading checkpoints: %s", err.Error())
 					atomic.AddInt32(&errs, 1)
 				}
 				atomic.AddInt32(&n, int32(nn))
@@ -381,9 +381,9 @@ func (m *MemoryStore) FromCheckpointFiles(dir string, from int64) (int, error) {
 		// The directory does not exist, so create it using os.MkdirAll()
 		err := os.MkdirAll(dir, 0o755) // 0755 sets the permissions for the directory
 		if err != nil {
-			log.Fatalf("[METRICSTORE]> Error creating directory: %#v\n", err)
+			cclog.Fatalf("[METRICSTORE]> Error creating directory: %#v\n", err)
 		}
-		log.Printf("[METRICSTORE]> %#v Directory created successfully.\n", dir)
+		cclog.Printf("[METRICSTORE]> %#v Directory created successfully.\n", dir)
 	}
 
 	// Config read (replace with your actual config read)
@@ -402,7 +402,7 @@ func (m *MemoryStore) FromCheckpointFiles(dir string, from int64) (int, error) {
 	if found, err := checkFilesWithExtension(dir, fileFormat); err != nil {
 		return 0, fmt.Errorf("[METRICSTORE]> error checking files with extension: %v", err)
 	} else if found {
-		log.Printf("[METRICSTORE]> Loading %s files because fileformat is %s\n", fileFormat, fileFormat)
+		cclog.Printf("[METRICSTORE]> Loading %s files because fileformat is %s\n", fileFormat, fileFormat)
 		return m.FromCheckpoint(dir, from, fileFormat)
 	}
 
@@ -411,11 +411,11 @@ func (m *MemoryStore) FromCheckpointFiles(dir string, from int64) (int, error) {
 	if found, err := checkFilesWithExtension(dir, altFormat); err != nil {
 		return 0, fmt.Errorf("[METRICSTORE]> error checking files with extension: %v", err)
 	} else if found {
-		log.Printf("[METRICSTORE]> Loading %s files but fileformat is %s\n", altFormat, fileFormat)
+		cclog.Printf("[METRICSTORE]> Loading %s files but fileformat is %s\n", altFormat, fileFormat)
 		return m.FromCheckpoint(dir, from, altFormat)
 	}
 
-	log.Println("[METRICSTORE]> No valid checkpoint files found in the directory.")
+	cclog.Print("[METRICSTORE]> No valid checkpoint files found in the directory")
 	return 0, nil
 }
 

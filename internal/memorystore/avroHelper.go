@@ -7,10 +7,11 @@ package memorystore
 
 import (
 	"context"
-	"log"
 	"slices"
 	"strconv"
 	"sync"
+
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 )
 
 func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
@@ -34,7 +35,7 @@ func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 				// Fetch the frequency of the metric from the global configuration
 				freq, err := GetMetricFrequency(val.MetricName)
 				if err != nil {
-					log.Printf("Error fetching metric frequency: %s\n", err)
+					cclog.Errorf("Error fetching metric frequency: %s\n", err)
 					continue
 				}
 
@@ -59,7 +60,7 @@ func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 
 					// If the Avro level is nil, create a new one
 					if avroLevel == nil {
-						log.Printf("Error creating or finding the level with cluster : %s, node : %s, metric : %s\n", val.Cluster, val.Node, val.MetricName)
+						cclog.Errorf("Error creating or finding the level with cluster : %s, node : %s, metric : %s\n", val.Cluster, val.Node, val.MetricName)
 					}
 					oldSelector = slices.Clone(selector)
 				}

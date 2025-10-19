@@ -15,7 +15,6 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	"github.com/ClusterCockpit/cc-backend/internal/memorystore"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
@@ -98,15 +97,11 @@ func (api *RestApi) MountUserApiRoutes(r *mux.Router) {
 
 func (api *RestApi) MountMetricStoreApiRoutes(r *mux.Router) {
 	// REST API Uses TokenAuth
-	r.HandleFunc("/api/free", memorystore.HandleFree).Methods(http.MethodPost)
-	r.HandleFunc("/api/write", memorystore.HandleWrite).Methods(http.MethodPost)
-	r.HandleFunc("/api/debug", memorystore.HandleDebug).Methods(http.MethodGet)
-	r.HandleFunc("/api/healthcheck", memorystore.HandleHealthCheck).Methods(http.MethodGet)
-	// Refactor
-	r.HandleFunc("/api/free/", memorystore.HandleFree).Methods(http.MethodPost)
-	r.HandleFunc("/api/write/", memorystore.HandleWrite).Methods(http.MethodPost)
-	r.HandleFunc("/api/debug/", memorystore.HandleDebug).Methods(http.MethodGet)
-	r.HandleFunc("/api/healthcheck/", memorystore.HandleHealthCheck).Methods(http.MethodGet)
+	// Refactor ??
+	r.HandleFunc("/api/free", freeMetrics).Methods(http.MethodPost)
+	r.HandleFunc("/api/write", writeMetrics).Methods(http.MethodPost)
+	r.HandleFunc("/api/debug", debugMetrics).Methods(http.MethodGet)
+	r.HandleFunc("/api/healthcheck", metricsHealth).Methods(http.MethodGet)
 }
 
 func (api *RestApi) MountConfigApiRoutes(r *mux.Router) {
@@ -269,7 +264,7 @@ func (api *RestApi) putMachineState(rw http.ResponseWriter, r *http.Request) {
 	cluster := vars["cluster"]
 	host := vars["host"]
 	dir := filepath.Join(api.MachineStateDir, cluster)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
 	}

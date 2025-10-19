@@ -6,12 +6,7 @@
 package memorystore
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-
-	"github.com/ClusterCockpit/cc-backend/internal/config"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 )
 
 var InternalCCMSFlag bool = false
@@ -92,17 +87,6 @@ type MetricConfig struct {
 }
 
 var Metrics map[string]MetricConfig
-
-func InitMetricStore(rawConfig json.RawMessage) {
-	if rawConfig != nil {
-		config.Validate(configSchema, rawConfig)
-		dec := json.NewDecoder(bytes.NewReader(rawConfig))
-		// dec.DisallowUnknownFields()
-		if err := dec.Decode(&Keys); err != nil {
-			cclog.Abortf("[METRICSTORE]> Metric Store Config Init: Could not decode config file '%s'.\nError: %s\n", rawConfig, err.Error())
-		}
-	}
-}
 
 func GetMetricFrequency(metricName string) (int64, error) {
 	if metric, ok := Metrics[metricName]; ok {

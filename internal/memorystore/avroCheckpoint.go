@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"sort"
@@ -20,6 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/linkedin/goavro/v2"
 )
@@ -72,7 +72,7 @@ func (as *AvroStore) ToCheckpoint(dir string, dumpAll bool) (int, error) {
 						continue
 					}
 
-					log.Printf("error while checkpointing %#v: %s", workItem.selector, err.Error())
+					cclog.Errorf("error while checkpointing %#v: %s", workItem.selector, err.Error())
 					atomic.AddInt32(&errs, 1)
 				} else {
 					atomic.AddInt32(&n, 1)

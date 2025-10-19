@@ -6,9 +6,10 @@
 package memorystore
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
-	"log"
 	"os"
 	"os/signal"
 	"runtime"
@@ -16,6 +17,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/resampler"
 	"github.com/ClusterCockpit/cc-lib/runtimeEnv"
 	"github.com/ClusterCockpit/cc-lib/schema"
@@ -47,8 +50,17 @@ type MemoryStore struct {
 	root    Level
 }
 
-func Init(wg *sync.WaitGroup) {
+func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 	startupTime := time.Now()
+
+	if rawConfig != nil {
+		config.Validate(configSchema, rawConfig)
+		dec := json.NewDecoder(bytes.NewReader(rawConfig))
+		// dec.DisallowUnknownFields()
+		if err := dec.Decode(&Keys); err != nil {
+			cclog.Abortf("[METRICSTORE]> Metric Store Config Init: Could not decode config file '%s'.\nError: %s\n", rawConfig, err.Error())
+		}
+	}
 
 	// Pass the config.MetricStoreKeys
 	InitMetrics(Metrics)
@@ -57,17 +69,17 @@ func Init(wg *sync.WaitGroup) {
 
 	d, err := time.ParseDuration(Keys.Checkpoints.Restore)
 	if err != nil {
-		log.Fatal(err)
+		cclog.Fatal(err)
 	}
 
 	restoreFrom := startupTime.Add(-d)
-	log.Printf("[METRICSTORE]> Loading checkpoints newer than %s\n", restoreFrom.Format(time.RFC3339))
+	cclog.Infof("[METRICSTORE]> Loading checkpoints newer than %s\n", restoreFrom.Format(time.RFC3339))
 	files, err := ms.FromCheckpointFiles(Keys.Checkpoints.RootDir, restoreFrom.Unix())
 	loadedData := ms.SizeInBytes() / 1024 / 1024 // In MB
 	if err != nil {
-		log.Fatalf("[METRICSTORE]> Loading checkpoints failed: %s\n", err.Error())
+		cclog.Fatalf("[METRICSTORE]> Loading checkpoints failed: %s\n", err.Error())
 	} else {
-		log.Printf("[METRICSTORE]> Checkpoints loaded (%d files, %d MB, that took %fs)\n", files, loadedData, time.Since(startupTime).Seconds())
+		cclog.Infof("[METRICSTORE]> Checkpoints loaded (%d files, %d MB, that took %fs)\n", files, loadedData, time.Since(startupTime).Seconds())
 	}
 
 	// Try to use less memory by forcing a GC run here and then
@@ -106,7 +118,7 @@ func Init(wg *sync.WaitGroup) {
 				// err := ReceiveNats(conf.Nats, decodeLine, runtime.NumCPU()-1, ctx)
 				err := ReceiveNats(nc, ms, 1, ctx)
 				if err != nil {
-					log.Fatal(err)
+					cclog.Fatal(err)
 				}
 				wg.Done()
 			}()
@@ -144,14 +156,14 @@ func InitMetrics(metrics map[string]MetricConfig) {
 
 func GetMemoryStore() *MemoryStore {
 	if msInstance == nil {
-		log.Fatalf("[METRICSTORE]> MemoryStore not initialized!")
+		cclog.Fatalf("[METRICSTORE]> MemoryStore not initialized!")
 	}
 
 	return msInstance
 }
 
 func Shutdown() {
-	log.Printf("[METRICSTORE]> Writing to '%s'...\n", Keys.Checkpoints.RootDir)
+	cclog.Infof("[METRICSTORE]> Writing to '%s'...\n", Keys.Checkpoints.RootDir)
 	var files int
 	var err error
 
@@ -165,9 +177,9 @@ func Shutdown() {
 	}
 
 	if err != nil {
-		log.Printf("[METRICSTORE]> Writing checkpoint failed: %s\n", err.Error())
+		cclog.Errorf("[METRICSTORE]> Writing checkpoint failed: %s\n", err.Error())
 	}
-	log.Printf("[METRICSTORE]> Done! (%d files written)\n", files)
+	cclog.Infof("[METRICSTORE]> Done! (%d files written)\n", files)
 
 	// ms.PrintHeirarchy()
 }
@@ -248,7 +260,7 @@ func Retention(wg *sync.WaitGroup, ctx context.Context) {
 		defer wg.Done()
 		d, err := time.ParseDuration(Keys.RetentionInMemory)
 		if err != nil {
-			log.Fatal(err)
+			cclog.Fatal(err)
 		}
 		if d <= 0 {
 			return
@@ -267,12 +279,12 @@ func Retention(wg *sync.WaitGroup, ctx context.Context) {
 				return
 			case <-ticks:
 				t := time.Now().Add(-d)
-				log.Printf("[METRICSTORE]> start freeing buffers (older than %s)...\n", t.Format(time.RFC3339))
+				cclog.Infof("[METRICSTORE]> start freeing buffers (older than %s)...\n", t.Format(time.RFC3339))
 				freed, err := ms.Free(nil, t.Unix())
 				if err != nil {
-					log.Printf("[METRICSTORE]> freeing up buffers failed: %s\n", err.Error())
+					cclog.Errorf("[METRICSTORE]> freeing up buffers failed: %s\n", err.Error())
 				} else {
-					log.Printf("[METRICSTORE]> done: %d buffers freed\n", freed)
+					cclog.Infof("[METRICSTORE]> done: %d buffers freed\n", freed)
 				}
 			}
 		}
