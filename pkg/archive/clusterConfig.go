@@ -9,8 +9,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
-	"github.com/ClusterCockpit/cc-backend/internal/memorystore"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
 )
@@ -33,8 +31,6 @@ func initClusterConfig() error {
 			cclog.Warnf("Error while loading cluster config for cluster '%v'", c)
 			return err
 		}
-
-		memorystore.Clusters = append(memorystore.Clusters, cluster.Name)
 
 		if len(cluster.Name) == 0 ||
 			len(cluster.MetricConfig) == 0 ||
@@ -127,16 +123,6 @@ func initClusterConfig() error {
 			}
 			ml.Availability = append(metricLookup[mc.Name].Availability, availability)
 			metricLookup[mc.Name] = ml
-
-			agg, err := config.AssignAggregationStratergy(mc.Aggregation)
-			if err != nil {
-				return fmt.Errorf("ARCHIVE/CLUSTERCONFIG > in %s/cluster.json: %w", cluster.Name, err)
-			}
-
-			config.AddMetric(mc.Name, config.MetricConfig{
-				Frequency:   int64(mc.Timestep),
-				Aggregation: agg,
-			})
 		}
 
 		Clusters = append(Clusters, cluster)

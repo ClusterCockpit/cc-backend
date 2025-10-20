@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/resampler"
 	"github.com/ClusterCockpit/cc-lib/runtimeEnv"
@@ -29,8 +30,6 @@ var (
 	singleton  sync.Once
 	msInstance *MemoryStore
 )
-
-var Clusters = make([]string, 0)
 
 var NumWorkers int = 4
 
@@ -59,6 +58,34 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 		// dec.DisallowUnknownFields()
 		if err := dec.Decode(&Keys); err != nil {
 			cclog.Abortf("[METRICSTORE]> Metric Store Config Init: Could not decode config file '%s'.\nError: %s\n", rawConfig, err.Error())
+		}
+	}
+
+	for _, c := range archive.Clusters {
+		for _, mc := range c.MetricConfig {
+			agg, err := AssignAggregationStratergy(mc.Aggregation)
+			if err != nil {
+				cclog.Warnf("Could not find aggregation stratergy for metric config '%s': %s", mc.Name, err.Error())
+			}
+
+			AddMetric(mc.Name, MetricConfig{
+				Frequency:   int64(mc.Timestep),
+				Aggregation: agg,
+			})
+		}
+
+		for _, sc := range c.SubClusters {
+			for _, mc := range sc.MetricConfig {
+				agg, err := AssignAggregationStratergy(mc.Aggregation)
+				if err != nil {
+					cclog.Warnf("Could not find aggregation stratergy for metric config '%s': %s", mc.Name, err.Error())
+				}
+
+				AddMetric(mc.Name, MetricConfig{
+					Frequency:   int64(mc.Timestep),
+					Aggregation: agg,
+				})
+			}
 		}
 	}
 
@@ -312,7 +339,7 @@ func (m *MemoryStore) GetLevel(selector []string) *Level {
 	return m.root.findLevelOrCreate(selector, len(m.Metrics))
 }
 
-// Assumes that `minfo` in `metrics` is filled in!
+// WriteToLevel assumes that `minfo` in `metrics` is filled in
 func (m *MemoryStore) WriteToLevel(l *Level, selector []string, ts int64, metrics []Metric) error {
 	l = l.findLevelOrCreate(selector, len(m.Metrics))
 	l.lock.Lock()
@@ -343,7 +370,7 @@ func (m *MemoryStore) WriteToLevel(l *Level, selector []string, ts int64, metric
 	return nil
 }
 
-// Returns all values for metric `metric` from `from` to `to` for the selected level(s).
+// Read returns all values for metric `metric` from `from` to `to` for the selected level(s).
 // If the level does not hold the metric itself, the data will be aggregated recursively from the children.
 // The second and third return value are the actual from/to for the data. Those can be different from
 // the range asked for if no data was available.
@@ -413,8 +440,8 @@ func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, reso
 	return data, from, to, resolution, nil
 }
 
-// Release all buffers for the selected level and all its children that contain only
-// values older than `t`.
+// Free releases all buffers for the selected level and all its children that
+// contain only values older than `t`.
 func (m *MemoryStore) Free(selector []string, t int64) (int, error) {
 	return m.GetLevel(selector).free(t)
 }
@@ -431,7 +458,8 @@ func (m *MemoryStore) SizeInBytes() int64 {
 	return m.root.sizeInBytes()
 }
 
-// Given a selector, return a list of all children of the level selected.
+// ListChildren , given a selector, returns a list of all children of the level
+// selected.
 func (m *MemoryStore) ListChildren(selector []string) []string {
 	lvl := &m.root
 	for lvl != nil && len(selector) != 0 {

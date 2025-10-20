@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package api
 
 import (
@@ -15,8 +16,8 @@ import (
 	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
-// GetClustersApiResponse model
-type GetClustersApiResponse struct {
+// GetClustersAPIResponse model
+type GetClustersAPIResponse struct {
 	Clusters []*schema.Cluster `json:"clusters"` // Array of clusters
 }
 
@@ -59,7 +60,7 @@ func (api *RestApi) getClusters(rw http.ResponseWriter, r *http.Request) {
 		clusters = archive.Clusters
 	}
 
-	payload := GetClustersApiResponse{
+	payload := GetClustersAPIResponse{
 		Clusters: clusters,
 	}
 

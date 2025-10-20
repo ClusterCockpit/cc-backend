@@ -248,12 +248,10 @@ func main() {
 	// Metric Store starts after all flags have been processes
 	if memorystore.InternalCCMSFlag {
 		if mscfg := ccconf.GetPackageConfig("metric-store"); mscfg != nil {
-			memorystore.InitMetricStore(mscfg)
+			memorystore.Init(mscfg, &wg)
 		} else {
 			cclog.Abort("Metric Store configuration must be present")
 		}
-
-		memorystore.Init(&wg)
 	}
 	archiver.Start(repository.GetJobRepository())
 
