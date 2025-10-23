@@ -7,6 +7,7 @@ package memorystore
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/ClusterCockpit/cc-lib/schema"
@@ -186,6 +187,8 @@ func (b *buffer) read(from, to int64, data []schema.Float) ([]schema.Float, int6
 		}
 		i++
 	}
+
+	fmt.Printf("Given From : %d, To: %d\n", from, to)
 
 	return data[:i], from, t, nil
 }
