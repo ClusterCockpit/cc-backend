@@ -16,18 +16,6 @@ else
 
   ./cc-backend -migrate-db
   ./cc-backend -dev -init-db -add-user demo:admin,api:demo
-  
-   # Generate JWT and extract only the token value
-  JWT=$(./cc-backend -jwt demo | grep -oP "(?<=JWT: Successfully generated JWT for user 'demo': ).*")
-
-  # Replace the existing JWT in test_ccms_write_api.sh with the new one
-  if [ -n "$JWT" ]; then
-    sed -i "1s|^JWT=.*|JWT=\"$JWT\"|" test_ccms_write_api.sh
-    echo "✅ Updated JWT in test_ccms_write_api.sh"
-  else
-    echo "❌ Failed to generate JWT for demo user"
-    exit 1
-  fi
 
   ./cc-backend -server -dev
 
