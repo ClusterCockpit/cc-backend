@@ -42,19 +42,6 @@ builds:
       - amd64
     goamd64:
       - v3
-    id: "archive-migration"
-    binary: archive-migration
-    main: ./tools/archive-migration
-    tags:
-      - static_build
-  - env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-    goarch:
-      - amd64
-    goamd64:
-      - v3
     id: "gen-keypair"
     binary: gen-keypair
     main: ./tools/gen-keypair
@@ -70,7 +57,7 @@ archives:
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
 checksum:
-  name_template: 'checksums.txt'
+  name_template: "checksums.txt"
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
 changelog:
@@ -100,7 +87,7 @@ changelog:
 release:
   draft: false
   footer: |
-    Supports job archive version 1 and database version 6.
+    Supports job archive version 2 and database version 8.
     Please check out the [Release Notes](https://github.com/ClusterCockpit/cc-backend/blob/master/ReleaseNotes.md) for further details on breaking changes.
 
 # vim: set ts=2 sw=2 tw=0 fo=cnqoj

@@ -1,5 +1,5 @@
 [Unit]
-Description=ClusterCockpit Web Server (Go edition)
+Description=ClusterCockpit Web Server
 Documentation=https://github.com/ClusterCockpit/cc-backend
 Wants=network-online.target
 After=network-online.target

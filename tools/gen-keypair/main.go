@@ -1,4 +1,4 @@
-// Copyright (C) 2022 NHR@FAU, University Erlangen-Nuremberg.
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
@@ -20,7 +20,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Fprintf(os.Stdout, "JWT_PUBLIC_KEY=%#v\nJWT_PRIVATE_KEY=%#v\n",
+	fmt.Fprintf(os.Stdout, "ED25519 PUBLIC_KEY=%#v\nED25519 PRIVATE_KEY=%#v\n",
 		base64.StdEncoding.EncodeToString(pub),
 		base64.StdEncoding.EncodeToString(priv))
+	fmt.Println("This is NO JWT token. You can generate JWT tokens with cc-backend. Use this keypair for signing and validation of JWT tokens in ClusterCockpit.")
 }

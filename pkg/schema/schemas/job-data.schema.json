@@ -1,490 +1,490 @@
 {
-    "$schema": "http://json-schema.org/draft/2020-12/schema",
-    "$id": "embedfs://job-data.schema.json",
-    "title": "Job metric data list",
-    "description": "Collection of metric data of a HPC job",
-    "type": "object",
-    "properties": {
-        "mem_used": {
-            "description": "Memory capacity used",
-            "type": "object",
-            "properties": {
-                "node": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                }
-            },
-            "required": [
-                "node"
-            ]
-        },
-        "flops_any": {
-            "description": "Total flop rate with DP flops scaled up",
-            "properties": {
-                "node": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "socket": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "memoryDomain": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "core": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "hwthread": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                }
-            },
-            "minProperties": 1
-        },
-        "mem_bw": {
-            "description": "Main memory bandwidth",
-            "properties": {
-                "node": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "socket": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "memoryDomain": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                }
-            },
-            "minProperties": 1
-        },
-        "net_bw": {
-            "description": "Total fast interconnect network bandwidth",
-            "type": "object",
-            "properties": {
-                "node": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                }
-            },
-            "required": [
-                "node"
-            ]
-        },
-        "ipc": {
-            "description": "Instructions executed per cycle",
-            "properties": {
-                "node": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "socket": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "memoryDomain": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "core": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "hwthread": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                }
-            },
-            "minProperties": 1
-        },
-        "cpu_user": {
-            "description": "CPU user active core utilization",
-            "properties": {
-                "node": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "socket": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "memoryDomain": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "core": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "hwthread": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                }
-            },
-            "minProperties": 1
-        },
-        "cpu_load": {
-            "description": "CPU requested core utilization (load 1m)",
-            "properties": {
-                "node": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                }
-            },
-            "required": [
-                "node"
-            ]
-        },
-        "flops_dp": {
-            "description": "Double precision flop rate",
-            "properties": {
-                "node": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "socket": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "memoryDomain": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "core": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "hwthread": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                }
-            },
-            "minProperties": 1
-        },
-        "flops_sp": {
-            "description": "Single precision flops rate",
-            "properties": {
-                "node": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "socket": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "memoryDomain": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "core": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "hwthread": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                }
-            },
-            "minProperties": 1
-        },
-        "vectorization_ratio": {
-            "description": "Fraction of arithmetic instructions using SIMD instructions",
-            "properties": {
-                "node": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "socket": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "memoryDomain": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "core": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "hwthread": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                }
-            },
-            "minProperties": 1
-        },
-        "cpu_power": {
-            "description": "CPU power consumption",
-            "properties": {
-                "node": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "socket": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                }
-            },
-            "minProperties": 1
-        },
-        "mem_power": {
-            "description": "Memory power consumption",
-            "properties": {
-                "node": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "socket": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                }
-            },
-            "minProperties": 1
-        },
-        "acc_utilization": {
-            "description": "GPU utilization",
-            "properties": {
-                "accelerator": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                }
-            },
-            "required": [
-                "accelerator"
-            ]
-        },
-        "acc_mem_used": {
-            "description": "GPU memory capacity used",
-            "properties": {
-                "accelerator": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                }
-            },
-            "required": [
-                "accelerator"
-            ]
-        },
-        "acc_power": {
-            "description": "GPU power consumption",
-            "properties": {
-                "accelerator": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                }
-            },
-            "required": [
-                "accelerator"
-            ]
-        },
-        "clock": {
-            "description": "Average core frequency",
-            "properties": {
-                "node": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "socket": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "memoryDomain": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "core": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                },
-                "hwthread": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                }
-            },
-            "minProperties": 1
-        },
-        "eth_read_bw": {
-            "description": "Ethernet read bandwidth",
-            "properties": {
-                "node": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                }
-            },
-            "required": [
-                "node"
-            ]
-        },
-        "eth_write_bw": {
-            "description": "Ethernet write bandwidth",
-            "properties": {
-                "node": {
-                    "$ref": "embedfs://job-metric-data.schema.json"
-                }
-            },
-            "required": [
-                "node"
-            ]
-        },
-        "filesystems": {
-            "description": "Array of filesystems",
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "nfs",
-                            "lustre",
-                            "gpfs",
-                            "nvme",
-                            "ssd",
-                            "hdd",
-                            "beegfs"
-                        ]
-                    },
-                    "read_bw": {
-                        "description": "File system read bandwidth",
-                        "properties": {
-                            "node": {
-                                "$ref": "embedfs://job-metric-data.schema.json"
-                            }
-                        },
-                        "required": [
-                            "node"
-                        ]
-                    },
-                    "write_bw": {
-                        "description": "File system write bandwidth",
-                        "properties": {
-                            "node": {
-                                "$ref": "embedfs://job-metric-data.schema.json"
-                            }
-                        },
-                        "required": [
-                            "node"
-                        ]
-                    },
-                    "read_req": {
-                        "description": "File system read requests",
-                        "properties": {
-                            "node": {
-                                "$ref": "embedfs://job-metric-data.schema.json"
-                            }
-                        },
-                        "required": [
-                            "node"
-                        ]
-                    },
-                    "write_req": {
-                        "description": "File system write requests",
-                        "properties": {
-                            "node": {
-                                "$ref": "embedfs://job-metric-data.schema.json"
-                            }
-                        },
-                        "required": [
-                            "node"
-                        ]
-                    },
-                    "inodes": {
-                        "description": "File system write requests",
-                        "properties": {
-                            "node": {
-                                "$ref": "embedfs://job-metric-data.schema.json"
-                            }
-                        },
-                        "required": [
-                            "node"
-                        ]
-                    },
-                    "accesses": {
-                        "description": "File system open and close",
-                        "properties": {
-                            "node": {
-                                "$ref": "embedfs://job-metric-data.schema.json"
-                            }
-                        },
-                        "required": [
-                            "node"
-                        ]
-                    },
-                    "fsync": {
-                        "description": "File system fsync",
-                        "properties": {
-                            "node": {
-                                "$ref": "embedfs://job-metric-data.schema.json"
-                            }
-                        },
-                        "required": [
-                            "node"
-                        ]
-                    },
-                    "create": {
-                        "description": "File system create",
-                        "properties": {
-                            "node": {
-                                "$ref": "embedfs://job-metric-data.schema.json"
-                            }
-                        },
-                        "required": [
-                            "node"
-                        ]
-                    },
-                    "open": {
-                        "description": "File system open",
-                        "properties": {
-                            "node": {
-                                "$ref": "embedfs://job-metric-data.schema.json"
-                            }
-                        },
-                        "required": [
-                            "node"
-                        ]
-                    },
-                    "close": {
-                        "description": "File system close",
-                        "properties": {
-                            "node": {
-                                "$ref": "embedfs://job-metric-data.schema.json"
-                            }
-                        },
-                        "required": [
-                            "node"
-                        ]
-                    },
-                    "seek": {
-                        "description": "File system seek",
-                        "properties": {
-                            "node": {
-                                "$ref": "embedfs://job-metric-data.schema.json"
-                            }
-                        },
-                        "required": [
-                            "node"
-                        ]
-                    }
-                },
-                "required": [
-                    "name",
-                    "type",
-                    "read_bw",
-                    "write_bw"
-                ]
-            },
-            "minItems": 1
+  "$schema": "http://json-schema.org/draft/2020-12/schema",
+  "$id": "embedfs://job-data.schema.json",
+  "title": "Job metric data list",
+  "description": "Collection of metric data of a HPC job",
+  "type": "object",
+  "properties": {
+    "mem_used": {
+      "description": "Memory capacity used",
+      "type": "object",
+      "properties": {
+        "node": {
+          "$ref": "embedfs://job-metric-data.schema.json"
         }
+      },
+      "required": [
+        "node"
+      ]
     },
-    "ic_rcv_packets": {
-        "description": "Network interconnect read packets",
+    "flops_any": {
+      "description": "Total flop rate with DP flops scaled up",
+      "properties": {
+        "node": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "socket": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "memoryDomain": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "core": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "hwthread": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        }
+      },
+      "minProperties": 1
+    },
+    "mem_bw": {
+      "description": "Main memory bandwidth",
+      "properties": {
+        "node": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "socket": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "memoryDomain": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        }
+      },
+      "minProperties": 1
+    },
+    "net_bw": {
+      "description": "Total fast interconnect network bandwidth",
+      "type": "object",
+      "properties": {
+        "node": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        }
+      },
+      "required": [
+        "node"
+      ]
+    },
+    "ipc": {
+      "description": "Instructions executed per cycle",
+      "properties": {
+        "node": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "socket": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "memoryDomain": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "core": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "hwthread": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        }
+      },
+      "minProperties": 1
+    },
+    "cpu_user": {
+      "description": "CPU user active core utilization",
+      "properties": {
+        "node": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "socket": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "memoryDomain": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "core": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "hwthread": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        }
+      },
+      "minProperties": 1
+    },
+    "cpu_load": {
+      "description": "CPU requested core utilization (load 1m)",
+      "properties": {
+        "node": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        }
+      },
+      "required": [
+        "node"
+      ]
+    },
+    "flops_dp": {
+      "description": "Double precision flop rate",
+      "properties": {
+        "node": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "socket": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "memoryDomain": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "core": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "hwthread": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        }
+      },
+      "minProperties": 1
+    },
+    "flops_sp": {
+      "description": "Single precision flops rate",
+      "properties": {
+        "node": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "socket": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "memoryDomain": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "core": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "hwthread": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        }
+      },
+      "minProperties": 1
+    },
+    "vectorization_ratio": {
+      "description": "Fraction of arithmetic instructions using SIMD instructions",
+      "properties": {
+        "node": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "socket": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "memoryDomain": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "core": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "hwthread": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        }
+      },
+      "minProperties": 1
+    },
+    "cpu_power": {
+      "description": "CPU power consumption",
+      "properties": {
+        "node": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "socket": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        }
+      },
+      "minProperties": 1
+    },
+    "mem_power": {
+      "description": "Memory power consumption",
+      "properties": {
+        "node": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "socket": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        }
+      },
+      "minProperties": 1
+    },
+    "acc_utilization": {
+      "description": "GPU utilization",
+      "properties": {
+        "accelerator": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        }
+      },
+      "required": [
+        "accelerator"
+      ]
+    },
+    "acc_mem_used": {
+      "description": "GPU memory capacity used",
+      "properties": {
+        "accelerator": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        }
+      },
+      "required": [
+        "accelerator"
+      ]
+    },
+    "acc_power": {
+      "description": "GPU power consumption",
+      "properties": {
+        "accelerator": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        }
+      },
+      "required": [
+        "accelerator"
+      ]
+    },
+    "clock": {
+      "description": "Average core frequency",
+      "properties": {
+        "node": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "socket": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "memoryDomain": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "core": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        },
+        "hwthread": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        }
+      },
+      "minProperties": 1
+    },
+    "eth_read_bw": {
+      "description": "Ethernet read bandwidth",
+      "properties": {
+        "node": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        }
+      },
+      "required": [
+        "node"
+      ]
+    },
+    "eth_write_bw": {
+      "description": "Ethernet write bandwidth",
+      "properties": {
+        "node": {
+          "$ref": "embedfs://job-metric-data.schema.json"
+        }
+      },
+      "required": [
+        "node"
+      ]
+    },
+    "filesystems": {
+      "description": "Array of filesystems",
+      "type": "array",
+      "items": {
+        "type": "object",
         "properties": {
-            "node": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "nfs",
+              "lustre",
+              "gpfs",
+              "nvme",
+              "ssd",
+              "hdd",
+              "beegfs"
+            ]
+          },
+          "read_bw": {
+            "description": "File system read bandwidth",
+            "properties": {
+              "node": {
                 "$ref": "embedfs://job-metric-data.schema.json"
-            }
+              }
+            },
+            "required": [
+              "node"
+            ]
+          },
+          "write_bw": {
+            "description": "File system write bandwidth",
+            "properties": {
+              "node": {
+                "$ref": "embedfs://job-metric-data.schema.json"
+              }
+            },
+            "required": [
+              "node"
+            ]
+          },
+          "read_req": {
+            "description": "File system read requests",
+            "properties": {
+              "node": {
+                "$ref": "embedfs://job-metric-data.schema.json"
+              }
+            },
+            "required": [
+              "node"
+            ]
+          },
+          "write_req": {
+            "description": "File system write requests",
+            "properties": {
+              "node": {
+                "$ref": "embedfs://job-metric-data.schema.json"
+              }
+            },
+            "required": [
+              "node"
+            ]
+          },
+          "inodes": {
+            "description": "File system write requests",
+            "properties": {
+              "node": {
+                "$ref": "embedfs://job-metric-data.schema.json"
+              }
+            },
+            "required": [
+              "node"
+            ]
+          },
+          "accesses": {
+            "description": "File system open and close",
+            "properties": {
+              "node": {
+                "$ref": "embedfs://job-metric-data.schema.json"
+              }
+            },
+            "required": [
+              "node"
+            ]
+          },
+          "fsync": {
+            "description": "File system fsync",
+            "properties": {
+              "node": {
+                "$ref": "embedfs://job-metric-data.schema.json"
+              }
+            },
+            "required": [
+              "node"
+            ]
+          },
+          "create": {
+            "description": "File system create",
+            "properties": {
+              "node": {
+                "$ref": "embedfs://job-metric-data.schema.json"
+              }
+            },
+            "required": [
+              "node"
+            ]
+          },
+          "open": {
+            "description": "File system open",
+            "properties": {
+              "node": {
+                "$ref": "embedfs://job-metric-data.schema.json"
+              }
+            },
+            "required": [
+              "node"
+            ]
+          },
+          "close": {
+            "description": "File system close",
+            "properties": {
+              "node": {
+                "$ref": "embedfs://job-metric-data.schema.json"
+              }
+            },
+            "required": [
+              "node"
+            ]
+          },
+          "seek": {
+            "description": "File system seek",
+            "properties": {
+              "node": {
+                "$ref": "embedfs://job-metric-data.schema.json"
+              }
+            },
+            "required": [
+              "node"
+            ]
+          }
         },
         "required": [
-            "node"
+          "name",
+          "type",
+          "read_bw",
+          "write_bw"
         ]
-    },
-    "ic_send_packets": {
-        "description": "Network interconnect send packet",
-        "properties": {
-            "node": {
-                "$ref": "embedfs://job-metric-data.schema.json"
-            }
-        },
-        "required": [
-            "node"
-        ]
-    },
-    "ic_read_bw": {
-        "description": "Network interconnect read bandwidth",
-        "properties": {
-            "node": {
-                "$ref": "embedfs://job-metric-data.schema.json"
-            }
-        },
-        "required": [
-            "node"
-        ]
-    },
-    "ic_write_bw": {
-        "description": "Network interconnect write bandwidth",
-        "properties": {
-            "node": {
-                "$ref": "embedfs://job-metric-data.schema.json"
-            }
-        },
-        "required": [
-            "node"
-        ]
+      },
+      "minItems": 1
+    }
+  },
+  "ic_rcv_packets": {
+    "description": "Network interconnect read packets",
+    "properties": {
+      "node": {
+        "$ref": "embedfs://job-metric-data.schema.json"
+      }
     },
     "required": [
-        "cpu_user",
-        "cpu_load",
-        "mem_used",
-        "flops_any",
-        "mem_bw",
-        "net_bw",
-        "filesystems"
+      "node"
     ]
+  },
+  "ic_send_packets": {
+    "description": "Network interconnect send packet",
+    "properties": {
+      "node": {
+        "$ref": "embedfs://job-metric-data.schema.json"
+      }
+    },
+    "required": [
+      "node"
+    ]
+  },
+  "ic_read_bw": {
+    "description": "Network interconnect read bandwidth",
+    "properties": {
+      "node": {
+        "$ref": "embedfs://job-metric-data.schema.json"
+      }
+    },
+    "required": [
+      "node"
+    ]
+  },
+  "ic_write_bw": {
+    "description": "Network interconnect write bandwidth",
+    "properties": {
+      "node": {
+        "$ref": "embedfs://job-metric-data.schema.json"
+      }
+    },
+    "required": [
+      "node"
+    ]
+  },
+  "required": [
+    "cpu_user",
+    "cpu_load",
+    "mem_used",
+    "flops_any",
+    "mem_bw",
+    "net_bw",
+    "filesystems"
+  ]
 }

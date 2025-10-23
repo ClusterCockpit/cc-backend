@@ -1,4 +1,4 @@
-// Copyright (C) 2023 NHR@FAU, University Erlangen-Nuremberg.
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
@@ -19,12 +19,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/archiver"
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
-	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
@@ -45,7 +46,6 @@ import (
 // @license.url                https://opensource.org/licenses/MIT
 
 // @host                       localhost:8080
-// @basePath                   /api
 
 // @securityDefinitions.apikey ApiKeyAuth
 // @in                         header
@@ -53,69 +53,92 @@ import (
 
 type RestApi struct {
 	JobRepository   *repository.JobRepository
-	Resolver        *graph.Resolver
 	Authentication  *auth.Authentication
 	MachineStateDir string
 	RepositoryMutex sync.Mutex
 }
 
-func (api *RestApi) MountRoutes(r *mux.Router) {
-	r = r.PathPrefix("/api").Subrouter()
-	r.StrictSlash(true)
+func New() *RestApi {
+	return &RestApi{
+		JobRepository:   repository.GetJobRepository(),
+		MachineStateDir: config.Keys.MachineStateDir,
+		Authentication:  auth.GetAuthInstance(),
+	}
+}
 
+func (api *RestApi) MountApiRoutes(r *mux.Router) {
+	r.StrictSlash(true)
+	// REST API Uses TokenAuth
+	// User List
+	r.HandleFunc("/users/", api.getUsers).Methods(http.MethodGet)
+	// Cluster List
+	r.HandleFunc("/clusters/", api.getClusters).Methods(http.MethodGet)
+	// Job Handler
 	r.HandleFunc("/jobs/start_job/", api.startJob).Methods(http.MethodPost, http.MethodPut)
 	r.HandleFunc("/jobs/stop_job/", api.stopJobByRequest).Methods(http.MethodPost, http.MethodPut)
-	r.HandleFunc("/jobs/stop_job/{id}", api.stopJobById).Methods(http.MethodPost, http.MethodPut)
 	// r.HandleFunc("/jobs/import/", api.importJob).Methods(http.MethodPost, http.MethodPut)
-
 	r.HandleFunc("/jobs/", api.getJobs).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/{id}", api.getJobById).Methods(http.MethodPost)
+	r.HandleFunc("/jobs/{id}", api.getCompleteJobById).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/tag_job/{id}", api.tagJob).Methods(http.MethodPost, http.MethodPatch)
+	r.HandleFunc("/jobs/tag_job/{id}", api.removeTagJob).Methods(http.MethodDelete)
+	r.HandleFunc("/jobs/edit_meta/{id}", api.editMeta).Methods(http.MethodPost, http.MethodPatch)
 	r.HandleFunc("/jobs/metrics/{id}", api.getJobMetrics).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/delete_job/", api.deleteJobByRequest).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job/{id}", api.deleteJobById).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job_before/{ts}", api.deleteJobBefore).Methods(http.MethodDelete)
 
+	r.HandleFunc("/tags/", api.removeTags).Methods(http.MethodDelete)
+
 	if api.MachineStateDir != "" {
 		r.HandleFunc("/machine_state/{cluster}/{host}", api.getMachineState).Methods(http.MethodGet)
 		r.HandleFunc("/machine_state/{cluster}/{host}", api.putMachineState).Methods(http.MethodPut, http.MethodPost)
 	}
+}
 
+func (api *RestApi) MountUserApiRoutes(r *mux.Router) {
+	r.StrictSlash(true)
+	// REST API Uses TokenAuth
+	r.HandleFunc("/jobs/", api.getJobs).Methods(http.MethodGet)
+	r.HandleFunc("/jobs/{id}", api.getJobById).Methods(http.MethodPost)
+	r.HandleFunc("/jobs/{id}", api.getCompleteJobById).Methods(http.MethodGet)
+	r.HandleFunc("/jobs/metrics/{id}", api.getJobMetrics).Methods(http.MethodGet)
+}
+
+func (api *RestApi) MountConfigApiRoutes(r *mux.Router) {
+	r.StrictSlash(true)
+	// Settings Frontend Uses SessionAuth
 	if api.Authentication != nil {
-		r.HandleFunc("/jwt/", api.getJWT).Methods(http.MethodGet)
 		r.HandleFunc("/roles/", api.getRoles).Methods(http.MethodGet)
 		r.HandleFunc("/users/", api.createUser).Methods(http.MethodPost, http.MethodPut)
 		r.HandleFunc("/users/", api.getUsers).Methods(http.MethodGet)
 		r.HandleFunc("/users/", api.deleteUser).Methods(http.MethodDelete)
 		r.HandleFunc("/user/{id}", api.updateUser).Methods(http.MethodPost)
+		r.HandleFunc("/notice/", api.editNotice).Methods(http.MethodPost)
+	}
+}
+
+func (api *RestApi) MountFrontendApiRoutes(r *mux.Router) {
+	r.StrictSlash(true)
+	// Settings Frontrend Uses SessionAuth
+	if api.Authentication != nil {
+		r.HandleFunc("/jwt/", api.getJWT).Methods(http.MethodGet)
 		r.HandleFunc("/configuration/", api.updateConfiguration).Methods(http.MethodPost)
 	}
 }
 
-// StartJobApiResponse model
-type StartJobApiResponse struct {
-	// Database ID of new job
-	DBID int64 `json:"id"`
-}
-
-// DeleteJobApiResponse model
-type DeleteJobApiResponse struct {
-	Message string `json:"msg"`
-}
-
-// UpdateUserApiResponse model
-type UpdateUserApiResponse struct {
+// DefaultApiResponse model
+type DefaultJobApiResponse struct {
 	Message string `json:"msg"`
 }
 
 // StopJobApiRequest model
 type StopJobApiRequest struct {
-	// Stop Time of job as epoch
+	JobId     *int64          `json:"jobId" example:"123000"`
+	Cluster   *string         `json:"cluster" example:"fritz"`
+	StartTime *int64          `json:"startTime" example:"1649723812"`
+	State     schema.JobState `json:"jobState" validate:"required" example:"completed"`
 	StopTime  int64           `json:"stopTime" validate:"required" example:"1649763839"`
-	State     schema.JobState `json:"jobState" validate:"required" example:"completed"` // Final job state
-	JobId     *int64          `json:"jobId" example:"123000"`                           // Cluster Job ID of job
-	Cluster   *string         `json:"cluster" example:"fritz"`                          // Cluster of job
-	StartTime *int64          `json:"startTime" example:"1649723812"`                   // Start Time of job as epoch
 }
 
 // DeleteJobApiRequest model
@@ -132,6 +155,11 @@ type GetJobsApiResponse struct {
 	Page  int               `json:"page"`  // Page id returned
 }
 
+// GetClustersApiResponse model
+type GetClustersApiResponse struct {
+	Clusters []*schema.Cluster `json:"clusters"` // Array of clusters
+}
+
 // ErrorResponse model
 type ErrorResponse struct {
 	// Statustext of Errorcode
@@ -142,8 +170,15 @@ type ErrorResponse struct {
 // ApiTag model
 type ApiTag struct {
 	// Tag Type
-	Type string `json:"type" example:"Debug"`
-	Name string `json:"name" example:"Testjob"` // Tag Name
+	Type  string `json:"type" example:"Debug"`
+	Name  string `json:"name" example:"Testjob"` // Tag Name
+	Scope string `json:"scope" example:"global"` // Tag Scope for Frontend Display
+}
+
+// ApiMeta model
+type EditMetaRequest struct {
+	Key   string `json:"key" example:"jobScript"`
+	Value string `json:"value" example:"bash script"`
 }
 
 type TagJobApiRequest []*ApiTag
@@ -155,10 +190,15 @@ type GetJobApiResponse struct {
 	Data []*JobMetricWithName
 }
 
+type GetCompleteJobApiResponse struct {
+	Meta *schema.Job
+	Data schema.JobData
+}
+
 type JobMetricWithName struct {
+	Metric *schema.JobMetric  `json:"metric"`
 	Name   string             `json:"name"`
 	Scope  schema.MetricScope `json:"scope"`
-	Metric *schema.JobMetric  `json:"metric"`
 }
 
 type ApiReturnedUser struct {
@@ -179,48 +219,59 @@ func handleError(err error, statusCode int, rw http.ResponseWriter) {
 	})
 }
 
-func decode(r io.Reader, val interface{}) error {
+func decode(r io.Reader, val any) error {
 	dec := json.NewDecoder(r)
 	dec.DisallowUnknownFields()
 	return dec.Decode(val)
 }
 
-func securedCheck(r *http.Request) error {
-	user := repository.GetUserFromContext(r.Context())
-	if user == nil {
-		return fmt.Errorf("no user in context")
+// getClusters godoc
+// @summary     Lists all cluster configs
+// @tags Cluster query
+// @description Get a list of all cluster configs. Specific cluster can be requested using query parameter.
+// @produce     json
+// @param       cluster        query    string            false "Job Cluster"
+// @success     200            {object} api.GetClustersApiResponse  "Array of clusters"
+// @failure     400            {object} api.ErrorResponse       "Bad Request"
+// @failure     401            {object} api.ErrorResponse       "Unauthorized"
+// @failure     403            {object} api.ErrorResponse       "Forbidden"
+// @failure     500            {object} api.ErrorResponse       "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /api/clusters/ [get]
+func (api *RestApi) getClusters(rw http.ResponseWriter, r *http.Request) {
+	if user := repository.GetUserFromContext(r.Context()); user != nil &&
+		!user.HasRole(schema.RoleApi) {
+
+		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
+		return
 	}
 
-	if user.AuthType == schema.AuthToken {
-		// If nothing declared in config: deny all request to this endpoint
-		if config.Keys.ApiAllowedIPs == nil || len(config.Keys.ApiAllowedIPs) == 0 {
-			return fmt.Errorf("missing configuration key ApiAllowedIPs")
-		}
+	rw.Header().Add("Content-Type", "application/json")
+	bw := bufio.NewWriter(rw)
+	defer bw.Flush()
 
-		if config.Keys.ApiAllowedIPs[0] == "*" {
-			return nil
-		}
+	var clusters []*schema.Cluster
 
-		// extract IP address
-		IPAddress := r.Header.Get("X-Real-Ip")
-		if IPAddress == "" {
-			IPAddress = r.Header.Get("X-Forwarded-For")
+	if r.URL.Query().Has("cluster") {
+		name := r.URL.Query().Get("cluster")
+		cluster := archive.GetCluster(name)
+		if cluster == nil {
+			handleError(fmt.Errorf("unknown cluster: %s", name), http.StatusBadRequest, rw)
+			return
 		}
-		if IPAddress == "" {
-			IPAddress = r.RemoteAddr
-		}
-
-		if strings.Contains(IPAddress, ":") {
-			IPAddress = strings.Split(IPAddress, ":")[0]
-		}
-
-		// check if IP is allowed
-		if !util.Contains(config.Keys.ApiAllowedIPs, IPAddress) {
-			return fmt.Errorf("unknown ip: %v", IPAddress)
-		}
+		clusters = append(clusters, cluster)
+	} else {
+		clusters = archive.Clusters
 	}
 
-	return nil
+	payload := GetClustersApiResponse{
+		Clusters: clusters,
+	}
+
+	if err := json.NewEncoder(bw).Encode(payload); err != nil {
+		handleError(err, http.StatusInternalServerError, rw)
+		return
+	}
 }
 
 // getJobs godoc
@@ -241,20 +292,12 @@ func securedCheck(r *http.Request) error {
 // @failure     403            {object} api.ErrorResponse       "Forbidden"
 // @failure     500            {object} api.ErrorResponse       "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/ [get]
+// @router      /api/jobs/ [get]
 func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
-
-	if user := repository.GetUserFromContext(r.Context()); user != nil &&
-		!user.HasRole(schema.RoleApi) {
-
-		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
-		return
-	}
-
 	withMetadata := false
 	filter := &model.JobFilter{}
 	page := &model.PageRequest{ItemsPerPage: 25, Page: 1}
-	order := &model.OrderByInput{Field: "startTime", Order: model.SortDirectionEnumDesc}
+	order := &model.OrderByInput{Field: "startTime", Type: "col", Order: model.SortDirectionEnumDesc}
 
 	for key, vals := range r.URL.Query() {
 		switch key {
@@ -333,7 +376,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 			StartTime: job.StartTime.Unix(),
 		}
 
-		res.Tags, err = api.JobRepository.GetTags(&job.ID)
+		res.Tags, err = api.JobRepository.GetTags(repository.GetUserFromContext(r.Context()), &job.ID)
 		if err != nil {
 			handleError(err, http.StatusInternalServerError, rw)
 			return
@@ -342,10 +385,8 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 		if res.MonitoringStatus == schema.MonitoringStatusArchivingSuccessful {
 			res.Statistics, err = archive.GetStatistics(job)
 			if err != nil {
-				if err != nil {
-					handleError(err, http.StatusInternalServerError, rw)
-					return
-				}
+				handleError(err, http.StatusInternalServerError, rw)
+				return
 			}
 		}
 
@@ -369,15 +410,14 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// getJobById godoc
-// @summary   Get complete job meta and metric data
+// getCompleteJobById godoc
+// @summary   Get job meta and optional all metric data
 // @tags Job query
 // @description Job to get is specified by database ID
 // @description Returns full job resource information according to 'JobMeta' scheme and all metrics according to 'JobData'.
-// @accept      json
 // @produce     json
-// @param       id      path     int                   true "Database ID of Job"
-// @param       request body     api.GetJobApiRequest true  "Array of metric names"
+// @param       id          path     int                  true "Database ID of Job"
+// @param       all-metrics query    bool                 false "Include all available metrics"
 // @success     200     {object} api.GetJobApiResponse      "Job resource"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
@@ -386,16 +426,8 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 // @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/{id} [post]
-func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
-	if user := repository.GetUserFromContext(r.Context()); user != nil &&
-		!user.HasRole(schema.RoleApi) {
-
-		handleError(fmt.Errorf("missing role: %v",
-			schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
-		return
-	}
-
+// @router      /api/jobs/{id} [get]
+func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) {
 	// Fetch job from db
 	id, ok := mux.Vars(r)["id"]
 	var job *schema.Job
@@ -407,13 +439,118 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		job, err = api.JobRepository.FindById(id)
+		job, err = api.JobRepository.FindById(r.Context(), id) // Get Job from Repo by ID
+	} else {
+		handleError(fmt.Errorf("the parameter 'id' is required"), http.StatusBadRequest, rw)
+		return
+	}
+	if err != nil {
+		handleError(fmt.Errorf("finding job with db id %s failed: %w", id, err), http.StatusUnprocessableEntity, rw)
+		return
+	}
+
+	job.Tags, err = api.JobRepository.GetTags(repository.GetUserFromContext(r.Context()), &job.ID)
+	if err != nil {
+		handleError(err, http.StatusInternalServerError, rw)
+		return
+
+	}
+	if _, err = api.JobRepository.FetchMetadata(job); err != nil {
+
+		handleError(err, http.StatusInternalServerError, rw)
+		return
+	}
+
+	var scopes []schema.MetricScope
+
+	if job.NumNodes == 1 {
+		scopes = []schema.MetricScope{"core"}
+	} else {
+		scopes = []schema.MetricScope{"node"}
+	}
+
+	var data schema.JobData
+
+	metricConfigs := archive.GetCluster(job.Cluster).MetricConfig
+	resolution := 0
+
+	for _, mc := range metricConfigs {
+		resolution = max(resolution, mc.Timestep)
+	}
+
+	if r.URL.Query().Get("all-metrics") == "true" {
+		data, err = metricDataDispatcher.LoadData(job, nil, scopes, r.Context(), resolution)
+		if err != nil {
+			log.Warnf("REST: error while loading all-metrics job data for JobID %d on %s", job.JobID, job.Cluster)
+			return
+		}
+	}
+
+	log.Debugf("/api/job/%s: get job %d", id, job.JobID)
+	rw.Header().Add("Content-Type", "application/json")
+	bw := bufio.NewWriter(rw)
+	defer bw.Flush()
+
+	payload := GetCompleteJobApiResponse{
+		Meta: job,
+		Data: data,
+	}
+
+	if err := json.NewEncoder(bw).Encode(payload); err != nil {
+		handleError(err, http.StatusInternalServerError, rw)
+		return
+	}
+}
+
+// getJobById godoc
+// @summary   Get job meta and configurable metric data
+// @tags Job query
+// @description Job to get is specified by database ID
+// @description Returns full job resource information according to 'JobMeta' scheme and all metrics according to 'JobData'.
+// @accept      json
+// @produce     json
+// @param       id          path     int                  true "Database ID of Job"
+// @param       request     body     api.GetJobApiRequest true  "Array of metric names"
+// @success     200     {object} api.GetJobApiResponse      "Job resource"
+// @failure     400     {object} api.ErrorResponse          "Bad Request"
+// @failure     401     {object} api.ErrorResponse          "Unauthorized"
+// @failure     403     {object} api.ErrorResponse          "Forbidden"
+// @failure     404     {object} api.ErrorResponse          "Resource not found"
+// @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
+// @failure     500     {object} api.ErrorResponse          "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /api/jobs/{id} [post]
+func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
+	// Fetch job from db
+	id, ok := mux.Vars(r)["id"]
+	var job *schema.Job
+	var err error
+	if ok {
+		id, e := strconv.ParseInt(id, 10, 64)
+		if e != nil {
+			handleError(fmt.Errorf("integer expected in path for id: %w", e), http.StatusBadRequest, rw)
+			return
+		}
+
+		job, err = api.JobRepository.FindById(r.Context(), id)
 	} else {
 		handleError(errors.New("the parameter 'id' is required"), http.StatusBadRequest, rw)
 		return
 	}
 	if err != nil {
-		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
+		handleError(fmt.Errorf("finding job with db id %s failed: %w", id, err), http.StatusUnprocessableEntity, rw)
+		return
+	}
+
+	job.Tags, err = api.JobRepository.GetTags(repository.GetUserFromContext(r.Context()), &job.ID)
+	if err != nil {
+		handleError(err, http.StatusInternalServerError, rw)
+		return
+
+	}
+	if _, err = api.JobRepository.FetchMetadata(job); err != nil {
+
+		handleError(err, http.StatusInternalServerError, rw)
 		return
 	}
 
@@ -431,9 +568,16 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 		scopes = []schema.MetricScope{"node"}
 	}
 
-	data, err := metricdata.LoadData(job, metrics, scopes, r.Context())
+	metricConfigs := archive.GetCluster(job.Cluster).MetricConfig
+	resolution := 0
+
+	for _, mc := range metricConfigs {
+		resolution = max(resolution, mc.Timestep)
+	}
+
+	data, err := metricDataDispatcher.LoadData(job, metrics, scopes, r.Context(), resolution)
 	if err != nil {
-		log.Warn("Error while loading job data")
+		log.Warnf("REST: error while loading job data for JobID %d on %s", job.JobID, job.Cluster)
 		return
 	}
 
@@ -464,10 +608,56 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// editMeta godoc
+// @summary    Edit meta-data json
+// @tags Job add and modify
+// @description Edit key value pairs in job metadata json
+// @description If a key already exists its content will be overwritten
+// @accept      json
+// @produce     json
+// @param       id      path     int                  true "Job Database ID"
+// @param       request body     api.EditMetaRequest  true "Kay value pair to add"
+// @success     200     {object} schema.Job                "Updated job resource"
+// @failure     400     {object} api.ErrorResponse         "Bad Request"
+// @failure     401     {object} api.ErrorResponse         "Unauthorized"
+// @failure     404     {object} api.ErrorResponse         "Job does not exist"
+// @failure     500     {object} api.ErrorResponse         "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /api/jobs/edit_meta/{id} [post]
+func (api *RestApi) editMeta(rw http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	job, err := api.JobRepository.FindById(r.Context(), id)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	var req EditMetaRequest
+	if err := decode(r.Body, &req); err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := api.JobRepository.UpdateMetadata(job, req.Key, req.Value); err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	rw.Header().Add("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode(job)
+}
+
 // tagJob godoc
 // @summary     Adds one or more tags to a job
 // @tags Job add and modify
 // @description Adds tag(s) to a job specified by DB ID. Name and Type of Tag(s) can be chosen freely.
+// @description Tag Scope for frontend visibility will default to "global" if none entered, other options: "admin" or specific username.
 // @description If tagged job is already finished: Tag will be written directly to respective archive files.
 // @accept      json
 // @produce     json
@@ -479,28 +669,21 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 // @failure     404     {object} api.ErrorResponse         "Job or tag does not exist"
 // @failure     500     {object} api.ErrorResponse         "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/tag_job/{id} [post]
+// @router      /api/jobs/tag_job/{id} [post]
 func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
-	if user := repository.GetUserFromContext(r.Context()); user != nil &&
-		!user.HasRole(schema.RoleApi) {
-
-		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
-		return
-	}
-
-	iid, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	job, err := api.JobRepository.FindById(iid)
+	job, err := api.JobRepository.FindById(r.Context(), id)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusNotFound)
 		return
 	}
 
-	job.Tags, err = api.JobRepository.GetTags(&job.ID)
+	job.Tags, err = api.JobRepository.GetTags(repository.GetUserFromContext(r.Context()), &job.ID)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
@@ -513,22 +696,131 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, tag := range req {
-		tagId, err := api.JobRepository.AddTagOrCreate(job.ID, tag.Type, tag.Name)
+		tagId, err := api.JobRepository.AddTagOrCreate(repository.GetUserFromContext(r.Context()), job.ID, tag.Type, tag.Name, tag.Scope)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		job.Tags = append(job.Tags, &schema.Tag{
-			ID:   tagId,
-			Type: tag.Type,
-			Name: tag.Name,
+			ID:    tagId,
+			Type:  tag.Type,
+			Name:  tag.Name,
+			Scope: tag.Scope,
 		})
 	}
 
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode(job)
+}
+
+// removeTagJob godoc
+// @summary     Removes one or more tags from a job
+// @tags Job add and modify
+// @description Removes tag(s) from a job specified by DB ID. Name and Type of Tag(s) must match.
+// @description Tag Scope is required for matching, options: "global", "admin". Private tags can not be deleted via API.
+// @description If tagged job is already finished: Tag will be removed from respective archive files.
+// @accept      json
+// @produce     json
+// @param       id      path     int                  true "Job Database ID"
+// @param       request body     api.TagJobApiRequest true "Array of tag-objects to remove"
+// @success     200     {object} schema.Job                "Updated job resource"
+// @failure     400     {object} api.ErrorResponse         "Bad Request"
+// @failure     401     {object} api.ErrorResponse         "Unauthorized"
+// @failure     404     {object} api.ErrorResponse         "Job or tag does not exist"
+// @failure     500     {object} api.ErrorResponse         "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /jobs/tag_job/{id} [delete]
+func (api *RestApi) removeTagJob(rw http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	job, err := api.JobRepository.FindById(r.Context(), id)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	job.Tags, err = api.JobRepository.GetTags(repository.GetUserFromContext(r.Context()), &job.ID)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var req TagJobApiRequest
+	if err := decode(r.Body, &req); err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	for _, rtag := range req {
+		// Only Global and Admin Tags
+		if rtag.Scope != "global" && rtag.Scope != "admin" {
+			log.Warnf("Cannot delete private tag for job %d: Skip", job.JobID)
+			continue
+		}
+
+		remainingTags, err := api.JobRepository.RemoveJobTagByRequest(repository.GetUserFromContext(r.Context()), job.ID, rtag.Type, rtag.Name, rtag.Scope)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		job.Tags = remainingTags
+	}
+
+	rw.Header().Add("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode(job)
+}
+
+// removeTags godoc
+// @summary     Removes all tags and job-relations for type:name tuple
+// @tags Tag remove
+// @description Removes tags by type and name. Name and Type of Tag(s) must match.
+// @description Tag Scope is required for matching, options: "global", "admin". Private tags can not be deleted via API.
+// @description Tag wills be removed from respective archive files.
+// @accept      json
+// @produce     plain
+// @param       request body     api.TagJobApiRequest true "Array of tag-objects to remove"
+// @success     200     {string} string                    "Success Response"
+// @failure     400     {object} api.ErrorResponse         "Bad Request"
+// @failure     401     {object} api.ErrorResponse         "Unauthorized"
+// @failure     404     {object} api.ErrorResponse         "Job or tag does not exist"
+// @failure     500     {object} api.ErrorResponse         "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /tags/ [delete]
+func (api *RestApi) removeTags(rw http.ResponseWriter, r *http.Request) {
+	var req TagJobApiRequest
+	if err := decode(r.Body, &req); err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	targetCount := len(req)
+	currentCount := 0
+	for _, rtag := range req {
+		// Only Global and Admin Tags
+		if rtag.Scope != "global" && rtag.Scope != "admin" {
+			log.Warn("Cannot delete private tag: Skip")
+			continue
+		}
+
+		err := api.JobRepository.RemoveTagByRequest(rtag.Type, rtag.Name, rtag.Scope)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		} else {
+			currentCount++
+		}
+	}
+
+	rw.WriteHeader(http.StatusOK)
+	rw.Write([]byte(fmt.Sprintf("Deleted Tags from DB: %d successfull of %d requested\n", currentCount, targetCount)))
 }
 
 // startJob godoc
@@ -539,31 +831,23 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 // @accept      json
 // @produce     json
 // @param       request body     schema.JobMeta          true "Job to add"
-// @success     201     {object} api.StartJobApiResponse      "Job added successfully"
+// @success     201     {object} api.DefaultJobApiResponse    "Job added successfully"
 // @failure     400     {object} api.ErrorResponse            "Bad Request"
 // @failure     401     {object} api.ErrorResponse            "Unauthorized"
 // @failure     403     {object} api.ErrorResponse            "Forbidden"
 // @failure     422     {object} api.ErrorResponse            "Unprocessable Entity: The combination of jobId, clusterId and startTime does already exist"
 // @failure     500     {object} api.ErrorResponse            "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/start_job/ [post]
+// @router      /api/jobs/start_job/ [post]
 func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
-	if user := repository.GetUserFromContext(r.Context()); user != nil &&
-		!user.HasRole(schema.RoleApi) {
-
-		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
-		return
-	}
-
 	req := schema.JobMeta{BaseJob: schema.JobDefaults}
 	if err := decode(r.Body, &req); err != nil {
 		handleError(fmt.Errorf("parsing request body failed: %w", err), http.StatusBadRequest, rw)
 		return
 	}
 
-	if req.State == "" {
-		req.State = schema.JobStateRunning
-	}
+	req.State = schema.JobStateRunning
+
 	if err := importer.SanityChecks(&req.BaseJob); err != nil {
 		handleError(err, http.StatusBadRequest, rw)
 		return
@@ -597,7 +881,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	unlockOnce.Do(api.RepositoryMutex.Unlock)
 
 	for _, tag := range req.Tags {
-		if _, err := api.JobRepository.AddTagOrCreate(id, tag.Type, tag.Name); err != nil {
+		if _, err := api.JobRepository.AddTagOrCreate(repository.GetUserFromContext(r.Context()), id, tag.Type, tag.Name, tag.Scope); err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			handleError(fmt.Errorf("adding tag to new job %d failed: %w", id, err), http.StatusInternalServerError, rw)
 			return
@@ -607,66 +891,9 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	log.Printf("new job (id: %d): cluster=%s, jobId=%d, user=%s, startTime=%d", id, req.Cluster, req.JobID, req.User, req.StartTime)
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusCreated)
-	json.NewEncoder(rw).Encode(StartJobApiResponse{
-		DBID: id,
+	json.NewEncoder(rw).Encode(DefaultJobApiResponse{
+		Message: "success",
 	})
-}
-
-// stopJobById godoc
-// @summary     Marks job as completed and triggers archiving
-// @tags Job add and modify
-// @description Job to stop is specified by database ID. Only stopTime and final state are required in request body.
-// @description Returns full job resource information according to 'JobMeta' scheme.
-// @accept      json
-// @produce     json
-// @param       id      path     int                   true "Database ID of Job"
-// @param       request body     api.StopJobApiRequest true "stopTime and final state in request body"
-// @success     200     {object} schema.JobMeta             "Job resource"
-// @failure     400     {object} api.ErrorResponse          "Bad Request"
-// @failure     401     {object} api.ErrorResponse          "Unauthorized"
-// @failure     403     {object} api.ErrorResponse          "Forbidden"
-// @failure     404     {object} api.ErrorResponse          "Resource not found"
-// @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
-// @failure     500     {object} api.ErrorResponse          "Internal Server Error"
-// @security    ApiKeyAuth
-// @router      /jobs/stop_job/{id} [post]
-func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
-	if user := repository.GetUserFromContext(r.Context()); user != nil &&
-		!user.HasRole(schema.RoleApi) {
-
-		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
-		return
-	}
-
-	// Parse request body: Only StopTime and State
-	req := StopJobApiRequest{}
-	if err := decode(r.Body, &req); err != nil {
-		handleError(fmt.Errorf("parsing request body failed: %w", err), http.StatusBadRequest, rw)
-		return
-	}
-
-	// Fetch job (that will be stopped) from db
-	id, ok := mux.Vars(r)["id"]
-	var job *schema.Job
-	var err error
-	if ok {
-		id, e := strconv.ParseInt(id, 10, 64)
-		if e != nil {
-			handleError(fmt.Errorf("integer expected in path for id: %w", e), http.StatusBadRequest, rw)
-			return
-		}
-
-		job, err = api.JobRepository.FindById(id)
-	} else {
-		handleError(errors.New("the parameter 'id' is required"), http.StatusBadRequest, rw)
-		return
-	}
-	if err != nil {
-		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
-		return
-	}
-
-	api.checkAndHandleStopJob(rw, job, req)
 }
 
 // stopJobByRequest godoc
@@ -681,18 +908,11 @@ func (api *RestApi) stopJobById(rw http.ResponseWriter, r *http.Request) {
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"
 // @failure     404     {object} api.ErrorResponse          "Resource not found"
-// @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
+// @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: job has already been stopped"
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/stop_job/ [post]
+// @router      /api/jobs/stop_job/ [post]
 func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
-	if user := repository.GetUserFromContext(r.Context()); user != nil &&
-		!user.HasRole(schema.RoleApi) {
-
-		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
-		return
-	}
-
 	// Parse request body
 	req := StopJobApiRequest{}
 	if err := decode(r.Body, &req); err != nil {
@@ -708,8 +928,8 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// log.Printf("loading db job for stopJobByRequest... : stopJobApiRequest=%v", req)
 	job, err = api.JobRepository.Find(req.JobId, req.Cluster, req.StartTime)
-
 	if err != nil {
 		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
 		return
@@ -724,7 +944,7 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 // @description Job to remove is specified by database ID. This will not remove the job from the job archive.
 // @produce     json
 // @param       id      path     int                   true "Database ID of Job"
-// @success     200     {object} api.DeleteJobApiResponse     "Success message"
+// @success     200     {object} api.DefaultJobApiResponse  "Success message"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"
@@ -732,13 +952,8 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 // @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/delete_job/{id} [delete]
+// @router      /api/jobs/delete_job/{id} [delete]
 func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
-	if user := repository.GetUserFromContext(r.Context()); user != nil && !user.HasRole(schema.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
-		return
-	}
-
 	// Fetch job (that will be stopped) from db
 	id, ok := mux.Vars(r)["id"]
 	var err error
@@ -760,7 +975,7 @@ func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 	}
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(DeleteJobApiResponse{
+	json.NewEncoder(rw).Encode(DefaultJobApiResponse{
 		Message: fmt.Sprintf("Successfully deleted job %s", id),
 	})
 }
@@ -772,7 +987,7 @@ func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 // @accept      json
 // @produce     json
 // @param       request body     api.DeleteJobApiRequest true "All fields required"
-// @success     200     {object} api.DeleteJobApiResponse     "Success message"
+// @success     200     {object} api.DefaultJobApiResponse  "Success message"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"
@@ -780,14 +995,8 @@ func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 // @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/delete_job/ [delete]
+// @router      /api/jobs/delete_job/ [delete]
 func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) {
-	if user := repository.GetUserFromContext(r.Context()); user != nil &&
-		!user.HasRole(schema.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
-		return
-	}
-
 	// Parse request body
 	req := DeleteJobApiRequest{}
 	if err := decode(r.Body, &req); err != nil {
@@ -804,7 +1013,6 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 	}
 
 	job, err = api.JobRepository.Find(req.JobId, req.Cluster, req.StartTime)
-
 	if err != nil {
 		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
 		return
@@ -818,7 +1026,7 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(DeleteJobApiResponse{
+	json.NewEncoder(rw).Encode(DefaultJobApiResponse{
 		Message: fmt.Sprintf("Successfully deleted job %d", job.ID),
 	})
 }
@@ -829,7 +1037,7 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 // @description Remove all jobs with start time before timestamp. The jobs will not be removed from the job archive.
 // @produce     json
 // @param       ts      path     int                   true "Unix epoch timestamp"
-// @success     200     {object} api.DeleteJobApiResponse     "Success message"
+// @success     200     {object} api.DefaultJobApiResponse  "Success message"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"
@@ -837,13 +1045,8 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 // @failure     422     {object} api.ErrorResponse          "Unprocessable Entity: finding job failed: sql: no rows in result set"
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /jobs/delete_job_before/{ts} [delete]
+// @router      /api/jobs/delete_job_before/{ts} [delete]
 func (api *RestApi) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
-	if user := repository.GetUserFromContext(r.Context()); user != nil && !user.HasRole(schema.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
-		return
-	}
-
 	var cnt int
 	// Fetch job (that will be stopped) from db
 	id, ok := mux.Vars(r)["ts"]
@@ -867,21 +1070,25 @@ func (api *RestApi) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(DeleteJobApiResponse{
+	json.NewEncoder(rw).Encode(DefaultJobApiResponse{
 		Message: fmt.Sprintf("Successfully deleted %d jobs", cnt),
 	})
 }
 
 func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Job, req StopJobApiRequest) {
-
 	// Sanity checks
-	if job == nil || job.StartTime.Unix() >= req.StopTime || job.State != schema.JobStateRunning {
-		handleError(errors.New("stopTime must be larger than startTime and only running jobs can be stopped"), http.StatusBadRequest, rw)
+	if job.State != schema.JobStateRunning {
+		handleError(fmt.Errorf("jobId %d (id %d) on %s : job has already been stopped (state is: %s)", job.JobID, job.ID, job.Cluster, job.State), http.StatusUnprocessableEntity, rw)
+		return
+	}
+
+	if job == nil || job.StartTime.Unix() > req.StopTime {
+		handleError(fmt.Errorf("jobId %d (id %d) on %s : stopTime %d must be larger/equal than startTime %d", job.JobID, job.ID, job.Cluster, req.StopTime, job.StartTime.Unix()), http.StatusBadRequest, rw)
 		return
 	}
 
 	if req.State != "" && !req.State.Valid() {
-		handleError(fmt.Errorf("invalid job state: %#v", req.State), http.StatusBadRequest, rw)
+		handleError(fmt.Errorf("jobId %d (id %d) on %s : invalid requested job state: %#v", job.JobID, job.ID, job.Cluster, req.State), http.StatusBadRequest, rw)
 		return
 	} else if req.State == "" {
 		req.State = schema.JobStateCompleted
@@ -891,11 +1098,11 @@ func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 	job.Duration = int32(req.StopTime - job.StartTime.Unix())
 	job.State = req.State
 	if err := api.JobRepository.Stop(job.ID, job.Duration, job.State, job.MonitoringStatus); err != nil {
-		handleError(fmt.Errorf("marking job as stopped failed: %w", err), http.StatusInternalServerError, rw)
+		handleError(fmt.Errorf("jobId %d (id %d) on %s : marking job as '%s' (duration: %d) in DB failed: %w", job.JobID, job.ID, job.Cluster, job.State, job.Duration, err), http.StatusInternalServerError, rw)
 		return
 	}
 
-	log.Printf("archiving job... (dbid: %d): cluster=%s, jobId=%d, user=%s, startTime=%s", job.ID, job.Cluster, job.JobID, job.User, job.StartTime)
+	log.Printf("archiving job... (dbid: %d): cluster=%s, jobId=%d, user=%s, startTime=%s, duration=%d, state=%s", job.ID, job.Cluster, job.JobID, job.User, job.StartTime, job.Duration, job.State)
 
 	// Send a response (with status OK). This means that erros that happen from here on forward
 	// can *NOT* be communicated to the client. If reading from a MetricDataRepository or
@@ -910,7 +1117,7 @@ func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 	}
 
 	// Trigger async archiving
-	api.JobRepository.TriggerArchiving(job)
+	archiver.TriggerArchiving(job)
 }
 
 func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
@@ -938,7 +1145,8 @@ func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 		} `json:"error"`
 	}
 
-	data, err := api.Resolver.Query().JobMetrics(r.Context(), id, metrics, scopes)
+	resolver := graph.GetResolverInstance()
+	data, err := resolver.Query().JobMetrics(r.Context(), id, metrics, scopes, nil)
 	if err != nil {
 		json.NewEncoder(rw).Encode(Respone{
 			Error: &struct {
@@ -955,33 +1163,8 @@ func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// createUser godoc
-// @summary     Adds a new user
-// @tags User
-// @description User specified in form data will be saved to database.
-// @description Only accessible from IPs registered with apiAllowedIPs configuration option.
-// @accept      mpfd
-// @produce     plain
-// @param       username formData string                       true  "Unique user ID"
-// @param       password formData string                       true  "User password"
-// @param       role 	 formData string                       true  "User role" Enums(admin, support, manager, user, api)
-// @param       project  formData string                       false "Managed project, required for new manager role user"
-// @param       name 	 formData string                       false "Users name"
-// @param       email 	 formData string                       false "Users email"
-// @success     200      {string} string                       "Success Response"
-// @failure     400      {string} string                       "Bad Request"
-// @failure     401      {string} string                       "Unauthorized"
-// @failure     403      {string} string                       "Forbidden"
-// @failure     422      {string} string                       "Unprocessable Entity: creating user failed"
-// @failure     500      {string} string                       "Internal Server Error"
-// @security    ApiKeyAuth
-// @router      /users/ [post]
 func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
-	err := securedCheck(r)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusForbidden)
-		return
-	}
+	// SecuredCheck() only worked with TokenAuth: Removed
 
 	rw.Header().Set("Content-Type", "text/plain")
 	me := repository.GetUserFromContext(r.Context())
@@ -1015,36 +1198,17 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 		Password: password,
 		Email:    email,
 		Projects: []string{project},
-		Roles:    []string{role}}); err != nil {
+		Roles:    []string{role},
+	}); err != nil {
 		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
 
-	rw.Write([]byte(fmt.Sprintf("User %v successfully created!\n", username)))
+	fmt.Fprintf(rw, "User %v successfully created!\n", username)
 }
 
-// deleteUser godoc
-// @summary     Deletes a user
-// @tags User
-// @description User defined by username in form data will be deleted from database.
-// @description Only accessible from IPs registered with apiAllowedIPs configuration option.
-// @accept      mpfd
-// @produce     plain
-// @param       username formData string         true "User ID to delete"
-// @success     200      "User deleted successfully"
-// @failure     400      {string} string              "Bad Request"
-// @failure     401      {string} string              "Unauthorized"
-// @failure     403      {string} string              "Forbidden"
-// @failure     422      {string} string              "Unprocessable Entity: deleting user failed"
-// @failure     500      {string} string              "Internal Server Error"
-// @security    ApiKeyAuth
-// @router      /users/ [delete]
 func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
-	err := securedCheck(r)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusForbidden)
-		return
-	}
+	// SecuredCheck() only worked with TokenAuth: Removed
 
 	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
 		http.Error(rw, "Only admins are allowed to delete a user", http.StatusForbidden)
@@ -1065,7 +1229,6 @@ func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
 // @tags User
 // @description Returns a JSON-encoded list of users.
 // @description Required query-parameter defines if all users or only users with additional special roles are returned.
-// @description Only accessible from IPs registered with apiAllowedIPs configuration option.
 // @produce     json
 // @param       not-just-user query bool true "If returned list should contain all users or only users with additional special roles"
 // @success     200     {array} api.ApiReturnedUser "List of users returned successfully"
@@ -1074,13 +1237,9 @@ func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
 // @failure     403     {string} string             "Forbidden"
 // @failure     500     {string} string             "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /users/ [get]
+// @router      /api/users/ [get]
 func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
-	err := securedCheck(r)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusForbidden)
-		return
-	}
+	// SecuredCheck() only worked with TokenAuth: Removed
 
 	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
 		http.Error(rw, "Only admins are allowed to fetch a list of users", http.StatusForbidden)
@@ -1096,33 +1255,8 @@ func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(rw).Encode(users)
 }
 
-// updateUser godoc
-// @summary     Updates an existing user
-// @tags User
-// @description Modifies user defined by username (id) in one of four possible ways.
-// @description If more than one formValue is set then only the highest priority field is used.
-// @description Only accessible from IPs registered with apiAllowedIPs configuration option.
-// @accept      mpfd
-// @produce     plain
-// @param       id             path     string     true  "Database ID of User"
-// @param       add-role       formData string     false "Priority 1: Role to add" Enums(admin, support, manager, user, api)
-// @param       remove-role    formData string     false "Priority 2: Role to remove" Enums(admin, support, manager, user, api)
-// @param       add-project    formData string     false "Priority 3: Project to add"
-// @param       remove-project formData string     false "Priority 4: Project to remove"
-// @success     200     {string} string            "Success Response Message"
-// @failure     400     {string} string            "Bad Request"
-// @failure     401     {string} string            "Unauthorized"
-// @failure     403     {string} string            "Forbidden"
-// @failure     422     {string} string            "Unprocessable Entity: The user could not be updated"
-// @failure     500     {string} string            "Internal Server Error"
-// @security    ApiKeyAuth
-// @router      /user/{id} [post]
 func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
-	err := securedCheck(r)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusForbidden)
-		return
-	}
+	// SecuredCheck() only worked with TokenAuth: Removed
 
 	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
 		http.Error(rw, "Only admins are allowed to update a user", http.StatusForbidden)
@@ -1165,13 +1299,49 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (api *RestApi) getJWT(rw http.ResponseWriter, r *http.Request) {
-	err := securedCheck(r)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusForbidden)
+func (api *RestApi) editNotice(rw http.ResponseWriter, r *http.Request) {
+	// SecuredCheck() only worked with TokenAuth: Removed
+
+	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
+		http.Error(rw, "Only admins are allowed to update the notice.txt file", http.StatusForbidden)
 		return
 	}
 
+	// Get Value
+	newContent := r.FormValue("new-content")
+
+	// Check FIle
+	noticeExists := util.CheckFileExists("./var/notice.txt")
+	if !noticeExists {
+		ntxt, err := os.Create("./var/notice.txt")
+		if err != nil {
+			log.Errorf("Creating ./var/notice.txt failed: %s", err.Error())
+			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+		ntxt.Close()
+	}
+
+	if newContent != "" {
+		if err := os.WriteFile("./var/notice.txt", []byte(newContent), 0o666); err != nil {
+			log.Errorf("Writing to ./var/notice.txt failed: %s", err.Error())
+			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+			return
+		} else {
+			rw.Write([]byte("Update Notice Content Success"))
+		}
+	} else {
+		if err := os.WriteFile("./var/notice.txt", []byte(""), 0o666); err != nil {
+			log.Errorf("Writing to ./var/notice.txt failed: %s", err.Error())
+			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+			return
+		} else {
+			rw.Write([]byte("Empty Notice Content Success"))
+		}
+	}
+}
+
+func (api *RestApi) getJWT(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "text/plain")
 	username := r.FormValue("username")
 	me := repository.GetUserFromContext(r.Context())
@@ -1200,11 +1370,7 @@ func (api *RestApi) getJWT(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (api *RestApi) getRoles(rw http.ResponseWriter, r *http.Request) {
-	err := securedCheck(r)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusForbidden)
-		return
-	}
+	// SecuredCheck() only worked with TokenAuth: Removed
 
 	user := repository.GetUserFromContext(r.Context())
 	if !user.HasRole(schema.RoleAdmin) {
@@ -1224,8 +1390,6 @@ func (api *RestApi) getRoles(rw http.ResponseWriter, r *http.Request) {
 func (api *RestApi) updateConfiguration(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "text/plain")
 	key, value := r.FormValue("key"), r.FormValue("value")
-
-	fmt.Printf("REST > KEY: %#v\nVALUE: %#v\n", key, value)
 
 	if err := repository.GetUserCfgRepo().UpdateConfig(key, value, repository.GetUserFromContext(r.Context())); err != nil {
 		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)

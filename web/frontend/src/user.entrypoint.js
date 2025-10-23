@@ -8,6 +8,7 @@ new User({
         user: userInfos
     },
     context: new Map([
-            ['cc-config', clusterCockpitConfig]
+            ['cc-config', clusterCockpitConfig],
+            ['resampling', resampleConfig]
     ])
 })

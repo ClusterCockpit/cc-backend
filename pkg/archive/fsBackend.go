@@ -1,4 +1,4 @@
-// Copyright (C) 2022 NHR@FAU, University Erlangen-Nuremberg.
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
@@ -38,6 +38,109 @@ type clusterInfo struct {
 	dateFirst int64
 	dateLast  int64
 	diskSize  float64
+}
+
+func getDirectory(
+	job *schema.Job,
+	rootPath string,
+) string {
+	lvl1, lvl2 := fmt.Sprintf("%d", job.JobID/1000), fmt.Sprintf("%03d", job.JobID%1000)
+
+	return filepath.Join(
+		rootPath,
+		job.Cluster,
+		lvl1, lvl2,
+		strconv.FormatInt(job.StartTime.Unix(), 10))
+}
+
+func getPath(
+	job *schema.Job,
+	rootPath string,
+	file string,
+) string {
+	return filepath.Join(
+		getDirectory(job, rootPath), file)
+}
+
+func loadJobMeta(filename string) (*schema.JobMeta, error) {
+	b, err := os.ReadFile(filename)
+	if err != nil {
+		log.Errorf("loadJobMeta() > open file error: %v", err)
+		return &schema.JobMeta{}, err
+	}
+	if config.Keys.Validate {
+		if err := schema.Validate(schema.Meta, bytes.NewReader(b)); err != nil {
+			return &schema.JobMeta{}, fmt.Errorf("validate job meta: %v", err)
+		}
+	}
+
+	return DecodeJobMeta(bytes.NewReader(b))
+}
+
+func loadJobData(filename string, isCompressed bool) (schema.JobData, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		log.Errorf("fsBackend LoadJobData()- %v", err)
+		return nil, err
+	}
+	defer f.Close()
+
+	if isCompressed {
+		r, err := gzip.NewReader(f)
+		if err != nil {
+			log.Errorf(" %v", err)
+			return nil, err
+		}
+		defer r.Close()
+
+		if config.Keys.Validate {
+			if err := schema.Validate(schema.Data, r); err != nil {
+				return schema.JobData{}, fmt.Errorf("validate job data: %v", err)
+			}
+		}
+
+		return DecodeJobData(r, filename)
+	} else {
+		if config.Keys.Validate {
+			if err := schema.Validate(schema.Data, bufio.NewReader(f)); err != nil {
+				return schema.JobData{}, fmt.Errorf("validate job data: %v", err)
+			}
+		}
+		return DecodeJobData(bufio.NewReader(f), filename)
+	}
+}
+
+func loadJobStats(filename string, isCompressed bool) (schema.ScopedJobStats, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		log.Errorf("fsBackend LoadJobStats()- %v", err)
+		return nil, err
+	}
+	defer f.Close()
+
+	if isCompressed {
+		r, err := gzip.NewReader(f)
+		if err != nil {
+			log.Errorf(" %v", err)
+			return nil, err
+		}
+		defer r.Close()
+
+		if config.Keys.Validate {
+			if err := schema.Validate(schema.Data, r); err != nil {
+				return nil, fmt.Errorf("validate job data: %v", err)
+			}
+		}
+
+		return DecodeJobStats(r, filename)
+	} else {
+		if config.Keys.Validate {
+			if err := schema.Validate(schema.Data, bufio.NewReader(f)); err != nil {
+				return nil, fmt.Errorf("validate job data: %v", err)
+			}
+		}
+		return DecodeJobStats(bufio.NewReader(f), filename)
+	}
 }
 
 func (fsa *FsArchive) Init(rawConfig json.RawMessage) (uint64, error) {
@@ -315,6 +418,18 @@ func (fsa *FsArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 	}
 	defer f.Close()
 	return loadJobData(f, filename, isCompressed)
+}
+
+func (fsa *FsArchive) LoadJobStats(job *schema.Job) (schema.ScopedJobStats, error) {
+	var isCompressed bool = true
+	filename := getPath(job, fsa.path, "data.json.gz")
+
+	if !util.CheckFileExists(filename) {
+		filename = getPath(job, fsa.path, "data.json")
+		isCompressed = false
+	}
+
+	return loadJobStats(filename, isCompressed)
 }
 
 func (fsa *FsArchive) LoadJobMeta(job *schema.Job) (*schema.JobMeta, error) {

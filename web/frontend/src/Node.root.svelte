@@ -1,238 +1,237 @@
+<!--
+    @component System-View subcomponent; renders all current metrics for specified node
+
+    Properties:
+    - `cluster String`: Currently selected cluster
+    - `hostname String`: Currently selected host (== node)
+    - `from Date?`: Custom Time Range selection 'from' [Default: null]
+    - `to Date?`: Custom Time Range selection 'to' [Default: null]
+ -->
+
 <script>
-    import { init, checkMetricDisabled } from "./utils.js";
-    import {
-        Row,
-        Col,
-        InputGroup,
-        InputGroupText,
-        Icon,
-        Spinner,
-        Card,
-    } from "sveltestrap";
-    import { queryStore, gql, getContextClient } from "@urql/svelte";
-    import TimeSelection from "./filters/TimeSelection.svelte";
-    import Refresher from './joblist/Refresher.svelte';
-    import PlotTable from "./PlotTable.svelte";
-    import MetricPlot from "./plots/MetricPlot.svelte";
-    import { getContext } from "svelte";
+  import { getContext } from "svelte";
+  import {
+    Row,
+    Col,
+    Input,
+    InputGroup,
+    InputGroupText,
+    Icon,
+    Spinner,
+    Card,
+  } from "@sveltestrap/sveltestrap";
+  import {
+    queryStore,
+    gql,
+    getContextClient,
+  } from "@urql/svelte";
+  import {
+    init,
+    checkMetricDisabled,
+  } from "./generic/utils.js";
+  import PlotGrid from "./generic/PlotGrid.svelte";
+  import MetricPlot from "./generic/plots/MetricPlot.svelte";
+  import TimeSelection from "./generic/select/TimeSelection.svelte";
+  import Refresher from "./generic/helper/Refresher.svelte";
 
-    export let cluster;
-    export let hostname;
-    export let from = null;
-    export let to = null;
+  export let cluster;
+  export let hostname;
+  export let from = null;
+  export let to = null;
 
-    const { query: initq } = init();
+  const { query: initq } = init();
 
-    if (from == null || to == null) {
-        to = new Date(Date.now());
-        from = new Date(to.getTime());
-        from.setMinutes(from.getMinutes() - 30);
+  if (from == null || to == null) {
+    to = new Date(Date.now());
+    from = new Date(to.getTime());
+    from.setHours(from.getHours() - 4);
+  }
+
+  const initialized = getContext("initialized")
+  const globalMetrics = getContext("globalMetrics")
+  const ccconfig = getContext("cc-config");
+  const clusters = getContext("clusters");
+  const client = getContextClient();
+  const nodeMetricsQuery = gql`
+    query ($cluster: String!, $nodes: [String!], $from: Time!, $to: Time!) {
+      nodeMetrics(cluster: $cluster, nodes: $nodes, from: $from, to: $to) {
+        host
+        subCluster
+        metrics {
+          name
+          scope
+          metric {
+            timestep
+            unit {
+              base
+              prefix
+            }
+            series {
+              statistics {
+                min
+                avg
+                max
+              }
+              data
+            }
+          }
+        }
+      }
     }
+  `;
 
-    const ccconfig = getContext("cc-config");
-    const clusters = getContext("clusters");
-    const client = getContextClient();
-    const nodeMetricsQuery = gql`
-        query ($cluster: String!, $nodes: [String!], $from: Time!, $to: Time!) {
-            nodeMetrics(
-                cluster: $cluster
-                nodes: $nodes
-                from: $from
-                to: $to
-            ) {
-                host
-                subCluster
-                metrics {
-                    name
-                    scope
-                    metric {
-                        timestep
-                        unit {
-                            base
-                            prefix
-                        }
-                        series {
-                            statistics {
-                                min
-                                avg
-                                max
-                            }
-                            data
-                        }
-                    }
-                }
-            }
-        }
-    `;
+  $: nodeMetricsData = queryStore({
+    client: client,
+    query: nodeMetricsQuery,
+    variables: {
+      cluster: cluster,
+      nodes: [hostname],
+      from: from.toISOString(),
+      to: to.toISOString(),
+    },
+  });
 
-    $: nodeMetricsData = queryStore({
-        client: client,
-        query: nodeMetricsQuery,
-        variables: {
-            cluster: cluster,
-            nodes: [hostname],
-            from: from.toISOString(),
-            to: to.toISOString(),
-        },
-    });
 
-    let itemsPerPage = ccconfig.plot_list_jobsPerPage;
-    let page = 1;
-    let paging = { itemsPerPage, page };
-    let sorting = { field: "startTime", order: "DESC" };
-    $: filter = [
-        { cluster: { eq: cluster } },
-        { node: { contains: hostname } },
-        { state: ["running"] },
-        // {startTime: {
-        //     from: from.toISOString(),
-        //     to: to.toISOString()
-        // }}
-    ];
+  const paging = { itemsPerPage: 50, page: 1 };
+  const sorting = { field: "startTime", type: "col", order: "DESC" };
+  const filter = [
+    { cluster: { eq: cluster } },
+    { node: { contains: hostname } },
+    { state: ["running"] },
+  ];
 
-    const nodeJobsQuery = gql`
-        query (
-            $filter: [JobFilter!]!
-            $sorting: OrderByInput!
-            $paging: PageRequest!
-        ) {
-            jobs(filter: $filter, order: $sorting, page: $paging) {
-                # items {
-                #     id
-                #     jobId
-                # }
-                count
-            }
-        }
-    `;
-
-    $: nodeJobsData = queryStore({
-        client: client,
-        query: nodeJobsQuery,
-        variables: { paging, sorting, filter },
-    });
-
-    let metricUnits = {};
-    $: if ($nodeMetricsData.data) {
-        let thisCluster = clusters.find((c) => c.name == cluster);
-        if (thisCluster) {
-            for (let metric of thisCluster.metricConfig) {
-                if (metric.unit.prefix || metric.unit.base) {
-                    metricUnits[metric.name] =
-                        "(" +
-                        (metric.unit.prefix ? metric.unit.prefix : "") +
-                        (metric.unit.base ? metric.unit.base : "") +
-                        ")";
-                } else {
-                    // If no unit defined: Omit Unit Display
-                    metricUnits[metric.name] = "";
-                }
-            }
-        }
+  const nodeJobsQuery = gql`
+    query (
+      $filter: [JobFilter!]!
+      $sorting: OrderByInput!
+      $paging: PageRequest!
+    ) {
+      jobs(filter: $filter, order: $sorting, page: $paging) {
+        count
+      }
     }
+  `;
 
-    const dateToUnixEpoch = (rfc3339) => Math.floor(Date.parse(rfc3339) / 1000);
+  $: nodeJobsData = queryStore({
+    client: client,
+    query: nodeJobsQuery,
+    variables: { paging, sorting, filter },
+  });
+
+  let systemUnits = {};
+  function loadUnits(isInitialized) {
+    if (!isInitialized) return
+    const systemMetrics = [...globalMetrics.filter((gm) => gm?.availability.find((av) => av.cluster == cluster))]
+    for (let sm of systemMetrics) {
+      systemUnits[sm.name] = (sm?.unit?.prefix ? sm.unit.prefix : "") + (sm?.unit?.base ? sm.unit.base : "")
+    }
+  }
+
+  $: loadUnits($initialized)
 </script>
 
-<Row>
-    {#if $initq.error}
-        <Card body color="danger">{$initq.error.message}</Card>
-    {:else if $initq.fetching}
+<Row cols={{ xs: 2, lg: 4 }}>
+  {#if $initq.error}
+    <Card body color="danger">{$initq.error.message}</Card>
+  {:else if $initq.fetching}
+    <Spinner />
+  {:else}
+    <!-- Node Col -->
+    <Col>
+      <InputGroup>
+        <InputGroupText><Icon name="hdd" /></InputGroupText>
+        <InputGroupText>Selected Node</InputGroupText>
+        <Input style="background-color: white;"type="text" value="{hostname} [{cluster} ({$nodeMetricsData?.data ? $nodeMetricsData.data.nodeMetrics[0].subCluster : ''})]" disabled/>
+      </InputGroup>
+    </Col>
+    <!-- Time Col -->
+    <Col>
+      <TimeSelection bind:from bind:to />
+    </Col>
+    <!-- Concurrent Col -->
+    <Col class="mt-2 mt-lg-0">
+      {#if $nodeJobsData.fetching}
         <Spinner />
-    {:else}
-        <Col>
-            <InputGroup>
-                <InputGroupText><Icon name="hdd" /></InputGroupText>
-                <InputGroupText>{hostname} ({cluster})</InputGroupText>
-            </InputGroup>
-        </Col>
-        <Col>
-            {#if $nodeJobsData.fetching}
-                <Spinner />
-            {:else if $nodeJobsData.data}
-                Currently running jobs on this node: {$nodeJobsData.data.jobs
-                    .count}
-                [
-                <a
-                    href="/monitoring/jobs/?cluster={cluster}&state=running&node={hostname}"
-                    target="_blank">View in Job List</a
-                > ]
-            {:else}
-                No currently running jobs.
-            {/if}
-        </Col>
-        <Col>
-            <Refresher on:reload={() => {
-                const diff = Date.now() - to
-                from = new Date(from.getTime() + diff)
-                to = new Date(to.getTime() + diff)
-            }} />
-        </Col>
-        <Col>
-            <TimeSelection bind:from bind:to />
-        </Col>
-    {/if}
+      {:else if $nodeJobsData.data}
+        <InputGroup>
+          <InputGroupText><Icon name="activity" /></InputGroupText>
+          <InputGroupText>Activity</InputGroupText>
+          <Input style="background-color: white;" type="text" value="{$nodeJobsData.data.jobs.count} Jobs" disabled/>
+          <a title="Show jobs running on this node" href="/monitoring/jobs/?cluster={cluster}&state=running&node={hostname}" target="_blank" class="btn btn-outline-secondary" role="button" aria-disabled="true">
+            <Icon name="view-list" /> Show List
+          </a>
+        </InputGroup>
+      {:else}
+        <InputGroup>
+          <InputGroupText><Icon name="activity" /></InputGroupText>
+          <InputGroupText>Activity</InputGroupText>
+          <Input type="text" value="No running jobs." disabled />
+        </InputGroup>
+      {/if}
+    </Col>
+    <!-- Refresh Col-->
+    <Col class="mt-2 mt-lg-0">
+      <Refresher
+        on:refresh={() => {
+          const diff = Date.now() - to;
+          from = new Date(from.getTime() + diff);
+          to = new Date(to.getTime() + diff);
+        }}
+      />
+    </Col>
+  {/if}
 </Row>
 <br />
 <Row>
-    <Col>
-        {#if $nodeMetricsData.error}
-            <Card body color="danger">{$nodeMetricsData.error.message}</Card>
-        {:else if $nodeMetricsData.fetching || $initq.fetching}
-            <Spinner />
+  <Col>
+    {#if $nodeMetricsData.error}
+      <Card body color="danger">{$nodeMetricsData.error.message}</Card>
+    {:else if $nodeMetricsData.fetching || $initq.fetching}
+      <Spinner />
+    {:else}
+      <PlotGrid
+        let:item
+        itemsPerRow={ccconfig.plot_view_plotsPerRow}
+        items={$nodeMetricsData.data.nodeMetrics[0].metrics
+          .map((m) => ({
+            ...m,
+            disabled: checkMetricDisabled(
+              m.name,
+              cluster,
+              $nodeMetricsData.data.nodeMetrics[0].subCluster,
+            ),
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name))}
+      >
+        <h4 style="text-align: center; padding-top:15px;">
+          {item.name}
+          {systemUnits[item.name] ? "(" + systemUnits[item.name] + ")" : ""}
+        </h4>
+        {#if item.disabled === false && item.metric}
+          <MetricPlot
+            metric={item.name}
+            timestep={item.metric.timestep}
+            cluster={clusters.find((c) => c.name == cluster)}
+            subCluster={$nodeMetricsData.data.nodeMetrics[0].subCluster}
+            series={item.metric.series}
+            forNode={true}
+          />
+        {:else if item.disabled === true && item.metric}
+          <Card style="margin-left: 2rem;margin-right: 2rem;" body color="info"
+            >Metric disabled for subcluster <code
+              >{item.name}:{$nodeMetricsData.data.nodeMetrics[0]
+                .subCluster}</code
+            ></Card
+          >
         {:else}
-            <PlotTable
-                let:item
-                let:width
-                renderFor="node"
-                itemsPerRow={ccconfig.plot_view_plotsPerRow}
-                items={$nodeMetricsData.data.nodeMetrics[0].metrics
-                    .map((m) => ({
-                        ...m,
-                        disabled: checkMetricDisabled(
-                            m.name,
-                            cluster,
-                            $nodeMetricsData.data.nodeMetrics[0].subCluster
-                        ),
-                    }))
-                    .sort((a, b) => a.name.localeCompare(b.name))}
-            >
-                <h4 style="text-align: center; padding-top:15px;">
-                    {item.name}
-                    {metricUnits[item.name]}
-                </h4>
-                {#if item.disabled === false && item.metric}
-                    <MetricPlot
-                        {width}
-                        height={300}
-                        metric={item.name}
-                        timestep={item.metric.timestep}
-                        cluster={clusters.find((c) => c.name == cluster)}
-                        subCluster={$nodeMetricsData.data.nodeMetrics[0]
-                            .subCluster}
-                        series={item.metric.series}
-                        resources={[{hostname: hostname}]}
-                        forNode={true}
-                    />
-                {:else if item.disabled === true && item.metric}
-                    <Card
-                        style="margin-left: 2rem;margin-right: 2rem;"
-                        body
-                        color="info"
-                        >Metric disabled for subcluster <code
-                            >{item.name}:{$nodeMetricsData.data.nodeMetrics[0]
-                                .subCluster}</code
-                        ></Card
-                    >
-                {:else}
-                    <Card
-                        style="margin-left: 2rem;margin-right: 2rem;"
-                        body
-                        color="warning"
-                        >No dataset returned for <code>{item.name}</code></Card
-                    >
-                {/if}
-            </PlotTable>
+          <Card
+            style="margin-left: 2rem;margin-right: 2rem;"
+            body
+            color="warning"
+            >No dataset returned for <code>{item.name}</code></Card
+          >
         {/if}
-    </Col>
+      </PlotGrid>
+    {/if}
+  </Col>
 </Row>

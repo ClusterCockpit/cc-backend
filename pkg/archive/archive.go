@@ -1,26 +1,20 @@
-// Copyright (C) 2022 NHR@FAU, University Erlangen-Nuremberg.
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package archive
 
 import (
-	"bufio"
-	"bytes"
-	"compress/gzip"
 	"encoding/json"
 	"fmt"
-	"io"
-	"path/filepath"
-	"strconv"
+	"sync"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/pkg/log"
 	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
 	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 )
 
-const Version uint64 = 1
+const Version uint64 = 2
 
 type ArchiveBackend interface {
 	Init(rawConfig json.RawMessage) (uint64, error)
@@ -32,6 +26,8 @@ type ArchiveBackend interface {
 	LoadJobMeta(job *schema.Job) (*schema.JobMeta, error)
 
 	LoadJobData(job *schema.Job) (schema.JobData, error)
+
+	LoadJobStats(job *schema.Job) (schema.ScopedJobStats, error)
 
 	LoadClusterCfg(name string) (*schema.Cluster, error)
 
@@ -60,105 +56,55 @@ type JobContainer struct {
 }
 
 var (
+	initOnce   sync.Once
 	cache      *lrucache.Cache = lrucache.New(128 * 1024 * 1024)
 	ar         ArchiveBackend
 	useArchive bool
 )
 
-func getPath(
-	job *schema.Job,
-	rootPath string,
-	file string,
-) string {
-	return filepath.Join(
-		getDirectory(job, rootPath), file)
-}
-
-func getDirectory(
-	job *schema.Job,
-	rootPath string,
-) string {
-	lvl1, lvl2 := fmt.Sprintf("%d", job.JobID/1000), fmt.Sprintf("%03d", job.JobID%1000)
-
-	return filepath.Join(
-		rootPath,
-		job.Cluster,
-		lvl1, lvl2,
-		strconv.FormatInt(job.StartTime.Unix(), 10))
-}
-
-func loadJobMeta(b []byte) (*schema.JobMeta, error) {
-	if config.Keys.Validate {
-		if err := schema.Validate(schema.Meta, bytes.NewReader(b)); err != nil {
-			return &schema.JobMeta{}, fmt.Errorf("validate job meta: %v", err)
-		}
-	}
-
-	return DecodeJobMeta(bytes.NewReader(b))
-}
-
-func loadJobData(f io.Reader, key string, isCompressed bool) (schema.JobData, error) {
-	if isCompressed {
-		r, err := gzip.NewReader(f)
-		if err != nil {
-			log.Errorf(" %v", err)
-			return nil, err
-		}
-		defer r.Close()
-
-		if config.Keys.Validate {
-			if err := schema.Validate(schema.Data, r); err != nil {
-				return schema.JobData{}, fmt.Errorf("validate job data: %v", err)
-			}
-		}
-
-		return DecodeJobData(r, key)
-	} else {
-		if config.Keys.Validate {
-			if err := schema.Validate(schema.Data, bufio.NewReader(f)); err != nil {
-				return schema.JobData{}, fmt.Errorf("validate job data: %v", err)
-			}
-		}
-		return DecodeJobData(bufio.NewReader(f), key)
-	}
-}
-
 func Init(rawConfig json.RawMessage, disableArchive bool) error {
-	useArchive = !disableArchive
+	var err error
 
-	var cfg struct {
-		Kind string `json:"kind"`
-	}
+	initOnce.Do(func() {
+		useArchive = !disableArchive
 
-	if err := json.Unmarshal(rawConfig, &cfg); err != nil {
-		log.Warn("Error while unmarshaling raw config json")
-		return err
-	}
+		var cfg struct {
+			Kind string `json:"kind"`
+		}
 
-	switch cfg.Kind {
-	case "file":
-		ar = &FsArchive{}
-		// case "s3":
-		// 	ar = &S3Archive{}
-	default:
-		return fmt.Errorf("ARCHIVE/ARCHIVE > unkown archive backend '%s''", cfg.Kind)
-	}
+		if err = json.Unmarshal(rawConfig, &cfg); err != nil {
+			log.Warn("Error while unmarshaling raw config json")
+			return
+		}
 
-	version, err := ar.Init(rawConfig)
-	if err != nil {
-		log.Error("Error while initializing archiveBackend")
-		return err
-	}
-	log.Infof("Load archive version %d", version)
+		switch cfg.Kind {
+		case "file":
+			ar = &FsArchive{}
+			// case "s3":
+			// 	ar = &S3Archive{}
+		default:
+			err = fmt.Errorf("ARCHIVE/ARCHIVE > unkown archive backend '%s''", cfg.Kind)
+		}
 
-	return initClusterConfig()
+		var version uint64
+		version, err = ar.Init(rawConfig)
+		if err != nil {
+			log.Errorf("Error while initializing archiveBackend: %s", err.Error())
+			return
+		}
+		log.Infof("Load archive version %d", version)
+
+		err = initClusterConfig()
+	})
+
+	return err
 }
 
 func GetHandle() ArchiveBackend {
 	return ar
 }
 
-// Helper to metricdata.LoadAverages().
+// Helper to metricdataloader.LoadAverages().
 func LoadAveragesFromArchive(
 	job *schema.Job,
 	metrics []string,
@@ -166,7 +112,7 @@ func LoadAveragesFromArchive(
 ) error {
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
-		log.Warn("Error while loading job metadata from archiveBackend")
+		log.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
 		return err
 	}
 
@@ -181,14 +127,78 @@ func LoadAveragesFromArchive(
 	return nil
 }
 
+// Helper to metricdataloader.LoadJobStats().
+func LoadStatsFromArchive(
+	job *schema.Job,
+	metrics []string,
+) (map[string]schema.MetricStatistics, error) {
+	data := make(map[string]schema.MetricStatistics, len(metrics))
+	metaFile, err := ar.LoadJobMeta(job)
+	if err != nil {
+		log.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
+		return data, err
+	}
+
+	for _, m := range metrics {
+		stat, ok := metaFile.Statistics[m]
+		if !ok {
+			data[m] = schema.MetricStatistics{Min: 0.0, Avg: 0.0, Max: 0.0}
+			continue
+		}
+
+		data[m] = schema.MetricStatistics{
+			Avg: stat.Avg,
+			Min: stat.Min,
+			Max: stat.Max,
+		}
+	}
+
+	return data, nil
+}
+
+// Helper to metricdataloader.LoadScopedJobStats().
+func LoadScopedStatsFromArchive(
+	job *schema.Job,
+	metrics []string,
+	scopes []schema.MetricScope,
+) (schema.ScopedJobStats, error) {
+	data, err := ar.LoadJobStats(job)
+	if err != nil {
+		log.Errorf("Error while loading job stats from archiveBackend: %s", err.Error())
+		return nil, err
+	}
+
+	return data, nil
+}
+
 func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
-		log.Warn("Error while loading job metadata from archiveBackend")
+		log.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
 		return nil, err
 	}
 
 	return metaFile.Statistics, nil
+}
+
+// If the job is archived, find its `meta.json` file and override the Metadata
+// in that JSON file. If the job is not archived, nothing is done.
+func UpdateMetadata(job *schema.Job, metadata map[string]string) error {
+	if job.State == schema.JobStateRunning || !useArchive {
+		return nil
+	}
+
+	jobMeta, err := ar.LoadJobMeta(job)
+	if err != nil {
+		log.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
+		return err
+	}
+
+	for k, v := range metadata {
+		jobMeta.MetaData[k] = v
+	}
+
+	return ar.StoreJobMeta(jobMeta)
 }
 
 // If the job is archived, find its `meta.json` file and override the tags list
@@ -200,15 +210,16 @@ func UpdateTags(job *schema.Job, tags []*schema.Tag) error {
 
 	jobMeta, err := ar.LoadJobMeta(job)
 	if err != nil {
-		log.Warn("Error while loading job metadata from archiveBackend")
+		log.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
 		return err
 	}
 
 	jobMeta.Tags = make([]*schema.Tag, 0)
 	for _, tag := range tags {
 		jobMeta.Tags = append(jobMeta.Tags, &schema.Tag{
-			Name: tag.Name,
-			Type: tag.Type,
+			Name:  tag.Name,
+			Type:  tag.Type,
+			Scope: tag.Scope,
 		})
 	}
 

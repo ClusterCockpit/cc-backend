@@ -1,40 +1,47 @@
-# `cc-backend` version 1.2.2
+# `cc-backend` version 1.4.4
 
-Supports job archive version 1 and database version 6.
+Supports job archive version 2 and database version 8.
 
-This is a minor release of `cc-backend`, the API backend and frontend
+This is a bug fix release of `cc-backend`, the API backend and frontend
 implementation of ClusterCockpit.
+For release specific notes visit the [ClusterCockpit Documentation](https://clusterockpit.org/docs/release/).
 
-** Breaking changes **
+## Breaking changes
 
-* The LDAP configuration option `user_filter` was changed and now should not include
-the uid wildcard. Example:
-   - Old: `"user_filter": "(&(objectclass=posixAccount)(uid=*))"`
-   - New: `"user_filter": "(&(objectclass=posixAccount))"`
+The option `apiAllowedIPs` is now a required configuration attribute in
+`config.json`. This option restricts access to the admin API.
 
-* The aggregate job statistic core hours is now computed using the job table
-column `num_hwthreads`. In a future release this column will be renamed to
-`num_cores`. For correct display of core hours `num_hwthreads` must be correctly
-filled on job start. If your existing jobs do not provide the correct value in
-this column then you can set this with one SQL INSERT statement. This only applies
-if you have exclusive jobs, only. Please be aware that we treat this column as
-it is the number of cores. In case you have SMT enabled and `num_hwthreads`
-is not the number of cores the core hours will be too high by a factor!
+To retain the previous behavior that the API is per default accessible from
+everywhere set:
 
-* The jwts key is now mandatory in config.json. It has to set max-age for
-  validity. Some key names have changed, please refer to
-  [config documentation](./configs/README.md) for details.
-
-* The following API endpoints are only accessible from IPs registered using the apiAllowedIPs configuration option:
-   - `/users/` [GET, POST, DELETE]
-   - `/user/{id}` [POST]
-
-** NOTE **
-If you are using the sqlite3 backend the `PRAGMA` option `foreign_keys` must be
-explicitly set to ON. If using the sqlite3 console it is per default set to
-OFF!  On every console session you must set:
+```json
+  "apiAllowedIPs": [
+    "*"
+  ]
 ```
-sqlite> PRAGMA foreign_keys = ON;
 
-```
-Otherwise if you delete jobs the jobtag relation table will not be updated accordingly!
+## Breaking changes for minor release 1.4.x
+
+- You need to perform a database migration. Depending on your database size the
+  migration might require several hours!
+- You need to adapt the `cluster.json` configuration files in the job-archive,
+  add new required attributes to the metric list and after that edit
+  `./job-archive/version.txt` to version 2. Only metrics that have the footprint
+  attribute set can be filtered and show up in the footprint UI and polar plot.
+- Continuous scrolling is default now in all job lists. You can change this back
+  to paging globally, also every user can configure to use paging or continuous
+  scrolling individually.
+- Tags have a scope now. Existing tags will get global scope in the database
+  migration.
+
+## New features
+
+- Enable to delete tags from the web interface
+
+## Known issues
+
+- Currently energy footprint metrics of type energy are ignored for calculating
+  total energy.
+- Resampling for running jobs only works with cc-metric-store
+- With energy footprint metrics of type power the unit is ignored and it is
+  assumed the metric has the unit Watt.

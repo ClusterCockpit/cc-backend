@@ -1,4 +1,4 @@
-// Copyright (C) 2023 NHR@FAU, University Erlangen-Nuremberg.
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
@@ -21,7 +20,7 @@ import (
 
 type LdapAuthenticator struct {
 	syncPassword string
-	UserAttr string
+	UserAttr     string
 }
 
 var _ Authenticator = (*LdapAuthenticator)(nil)
@@ -33,33 +32,6 @@ func (la *LdapAuthenticator) Init() error {
 	}
 
 	lc := config.Keys.LdapConfig
-
-	if lc.SyncInterval != "" {
-		interval, err := time.ParseDuration(lc.SyncInterval)
-		if err != nil {
-			log.Warnf("Could not parse duration for sync interval: %v",
-				lc.SyncInterval)
-			return err
-		}
-
-		if interval == 0 {
-			log.Info("Sync interval is zero")
-			return nil
-		}
-
-		go func() {
-			ticker := time.NewTicker(interval)
-			for t := range ticker.C {
-				log.Printf("sync started at %s", t.Format(time.RFC3339))
-				if err := la.Sync(); err != nil {
-					log.Errorf("sync failed: %s", err.Error())
-				}
-				log.Print("sync done")
-			}
-		}()
-	} else {
-		log.Info("LDAP configuration key sync_interval invalid")
-	}
 
 	if lc.UserAttr != "" {
 		la.UserAttr = lc.UserAttr
@@ -74,8 +46,8 @@ func (la *LdapAuthenticator) CanLogin(
 	user *schema.User,
 	username string,
 	rw http.ResponseWriter,
-	r *http.Request) (*schema.User, bool) {
-
+	r *http.Request,
+) (*schema.User, bool) {
 	lc := config.Keys.LdapConfig
 
 	if user != nil {
@@ -138,8 +110,8 @@ func (la *LdapAuthenticator) CanLogin(
 func (la *LdapAuthenticator) Login(
 	user *schema.User,
 	rw http.ResponseWriter,
-	r *http.Request) (*schema.User, error) {
-
+	r *http.Request,
+) (*schema.User, error) {
 	l, err := la.getLdapConnection(false)
 	if err != nil {
 		log.Warn("Error while getting ldap connection")
@@ -238,7 +210,6 @@ func (la *LdapAuthenticator) Sync() error {
 }
 
 func (la *LdapAuthenticator) getLdapConnection(admin bool) (*ldap.Conn, error) {
-
 	lc := config.Keys.LdapConfig
 	conn, err := ldap.DialURL(lc.Url)
 	if err != nil {

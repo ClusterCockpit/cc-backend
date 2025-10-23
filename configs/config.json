@@ -1,50 +1,62 @@
 {
-    "addr": "0.0.0.0:443",
-    "ldap": {
-        "url": "ldaps://test",
-        "user_base": "ou=people,ou=hpc,dc=test,dc=de",
-        "search_dn": "cn=hpcmonitoring,ou=roadm,ou=profile,ou=hpc,dc=test,dc=de",
-        "user_bind": "uid={username},ou=people,ou=hpc,dc=test,dc=de",
-        "user_filter": "(&(objectclass=posixAccount))"
-    },
-    "https-cert-file": "/etc/letsencrypt/live/url/fullchain.pem",
-    "https-key-file": "/etc/letsencrypt/live/url/privkey.pem",
-    "user": "clustercockpit",
-    "group": "clustercockpit",
-    "archive": {
-        "kind": "file",
-        "path": "./var/job-archive"
-    },
-    "validate": true,
-    "clusters": [
-        {
-            "name": "test",
-            "metricDataRepository": {
-                "kind": "cc-metric-store",
-                "url": "http://localhost:8082",
-                "token": "eyJhbGciOiJF-E-pQBQ"
-            },
-            "filterRanges": {
-                "numNodes": {
-                    "from": 1,
-                    "to": 64
-                },
-                "duration": {
-                    "from": 0,
-                    "to": 86400
-                },
-                "startTime": {
-                    "from": "2022-01-01T00:00:00Z",
-                    "to": null
-                }
-            }
+  "addr": "0.0.0.0:443",
+  "ldap": {
+    "url": "ldaps://test",
+    "user_base": "ou=people,ou=hpc,dc=test,dc=de",
+    "search_dn": "cn=hpcmonitoring,ou=roadm,ou=profile,ou=hpc,dc=test,dc=de",
+    "user_bind": "uid={username},ou=people,ou=hpc,dc=test,dc=de",
+    "user_filter": "(&(objectclass=posixAccount))"
+  },
+  "https-cert-file": "/etc/letsencrypt/live/url/fullchain.pem",
+  "https-key-file": "/etc/letsencrypt/live/url/privkey.pem",
+  "user": "clustercockpit",
+  "group": "clustercockpit",
+  "archive": {
+    "kind": "file",
+    "path": "./var/job-archive"
+  },
+  "validate": false,
+  "apiAllowedIPs": [
+    "*"
+  ],
+  "clusters": [
+    {
+      "name": "test",
+      "metricDataRepository": {
+        "kind": "cc-metric-store",
+        "url": "http://localhost:8082",
+        "token": "eyJhbGciOiJF-E-pQBQ"
+      },
+      "filterRanges": {
+        "numNodes": {
+          "from": 1,
+          "to": 64
+        },
+        "duration": {
+          "from": 0,
+          "to": 86400
+        },
+        "startTime": {
+          "from": "2022-01-01T00:00:00Z",
+          "to": null
         }
-    ],
-    "jwts": {
-        "cookieName": "",
-        "validateUser": false,
-        "max-age": "2000h",
-        "trustedIssuer": ""
-    },
-    "short-running-jobs-duration": 300
+      }
+    }
+  ],
+  "jwts": {
+    "cookieName": "",
+    "validateUser": false,
+    "max-age": "2000h",
+    "trustedIssuer": ""
+  },
+  "enable-resampling": {
+    "trigger": 30,
+    "resolutions": [
+      600,
+      300,
+      120,
+      60
+    ]
+  },
+  "short-running-jobs-duration": 300
 }

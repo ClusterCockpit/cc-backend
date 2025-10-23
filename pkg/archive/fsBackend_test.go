@@ -1,4 +1,4 @@
-// Copyright (C) 2022 NHR@FAU, University Erlangen-Nuremberg.
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
 // All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
@@ -49,10 +49,10 @@ func TestInit(t *testing.T) {
 	if fsa.path != "testdata/archive" {
 		t.Fail()
 	}
-	if version != 1 {
+	if version != 2 {
 		t.Fail()
 	}
-	if len(fsa.clusters) != 1 || fsa.clusters[0] != "emmy" {
+	if len(fsa.clusters) != 3 || fsa.clusters[1] != "emmy" {
 		t.Fail()
 	}
 }

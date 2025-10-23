@@ -1,19 +1,23 @@
 /cc-backend
-
-/var/job-archive
-/var/*.db
-/var/machine-state
-
 /.env
 /config.json
 
+/var/job-archive
+/var/machine-state
+/var/job.db-shm
+/var/job.db-wal
+/var/*.db
+/var/*.txt
+
 /web/frontend/public/build
 /web/frontend/node_modules
-/.vscode/*
+
 /archive-migration
 /archive-manager
-var/job.db-shm
-var/job.db-wal
 
+/internal/repository/testdata/job.db-shm
+/internal/repository/testdata/job.db-wal
+
+/.vscode/*
 dist/
 *.db

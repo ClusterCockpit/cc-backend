@@ -62,6 +62,7 @@ export default [
     entrypoint('jobs', 'src/jobs.entrypoint.js'),
     entrypoint('user', 'src/user.entrypoint.js'),
     entrypoint('list', 'src/list.entrypoint.js'),
+    entrypoint('taglist', 'src/tags.entrypoint.js'),
     entrypoint('job', 'src/job.entrypoint.js'),
     entrypoint('systems', 'src/systems.entrypoint.js'),
     entrypoint('node', 'src/node.entrypoint.js'),

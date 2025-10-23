@@ -16,9 +16,21 @@ type Count struct {
 	Count int    `json:"count"`
 }
 
+type EnergyFootprintValue struct {
+	Hardware string  `json:"hardware"`
+	Metric   string  `json:"metric"`
+	Value    float64 `json:"value"`
+}
+
 type FloatRange struct {
 	From float64 `json:"from"`
 	To   float64 `json:"to"`
+}
+
+type FootprintValue struct {
+	Name  string  `json:"name"`
+	Stat  string  `json:"stat"`
+	Value float64 `json:"value"`
 }
 
 type Footprints struct {
@@ -46,16 +58,14 @@ type JobFilter struct {
 	Cluster         *StringInput      `json:"cluster,omitempty"`
 	Partition       *StringInput      `json:"partition,omitempty"`
 	Duration        *schema.IntRange  `json:"duration,omitempty"`
+	Energy          *FloatRange       `json:"energy,omitempty"`
 	MinRunningFor   *int              `json:"minRunningFor,omitempty"`
 	NumNodes        *schema.IntRange  `json:"numNodes,omitempty"`
 	NumAccelerators *schema.IntRange  `json:"numAccelerators,omitempty"`
 	NumHWThreads    *schema.IntRange  `json:"numHWThreads,omitempty"`
 	StartTime       *schema.TimeRange `json:"startTime,omitempty"`
 	State           []schema.JobState `json:"state,omitempty"`
-	FlopsAnyAvg     *FloatRange       `json:"flopsAnyAvg,omitempty"`
-	MemBwAvg        *FloatRange       `json:"memBwAvg,omitempty"`
-	LoadAvg         *FloatRange       `json:"loadAvg,omitempty"`
-	MemUsedMax      *FloatRange       `json:"memUsedMax,omitempty"`
+	MetricStats     []*MetricStatItem `json:"metricStats,omitempty"`
 	Exclusive       *int              `json:"exclusive,omitempty"`
 	Node            *StringInput      `json:"node,omitempty"`
 }
@@ -78,10 +88,22 @@ type JobMetricWithName struct {
 }
 
 type JobResultList struct {
-	Items  []*schema.Job `json:"items"`
-	Offset *int          `json:"offset,omitempty"`
-	Limit  *int          `json:"limit,omitempty"`
-	Count  *int          `json:"count,omitempty"`
+	Items       []*schema.Job `json:"items"`
+	Offset      *int          `json:"offset,omitempty"`
+	Limit       *int          `json:"limit,omitempty"`
+	Count       *int          `json:"count,omitempty"`
+	HasNextPage *bool         `json:"hasNextPage,omitempty"`
+}
+
+type JobStats struct {
+	Name  string                   `json:"name"`
+	Stats *schema.MetricStatistics `json:"stats"`
+}
+
+type JobStatsWithScope struct {
+	Name  string             `json:"name"`
+	Scope schema.MetricScope `json:"scope"`
+	Stats []*ScopedStats     `json:"stats"`
 }
 
 type JobsStatistics struct {
@@ -119,7 +141,16 @@ type MetricHistoPoint struct {
 type MetricHistoPoints struct {
 	Metric string              `json:"metric"`
 	Unit   string              `json:"unit"`
+	Stat   *string             `json:"stat,omitempty"`
 	Data   []*MetricHistoPoint `json:"data,omitempty"`
+}
+
+type MetricStatItem struct {
+	MetricName string      `json:"metricName"`
+	Range      *FloatRange `json:"range"`
+}
+
+type Mutation struct {
 }
 
 type NodeMetrics struct {
@@ -128,14 +159,30 @@ type NodeMetrics struct {
 	Metrics    []*JobMetricWithName `json:"metrics"`
 }
 
+type NodesResultList struct {
+	Items       []*NodeMetrics `json:"items"`
+	Offset      *int           `json:"offset,omitempty"`
+	Limit       *int           `json:"limit,omitempty"`
+	Count       *int           `json:"count,omitempty"`
+	TotalNodes  *int           `json:"totalNodes,omitempty"`
+	HasNextPage *bool          `json:"hasNextPage,omitempty"`
+}
+
 type OrderByInput struct {
 	Field string            `json:"field"`
+	Type  string            `json:"type"`
 	Order SortDirectionEnum `json:"order"`
 }
 
 type PageRequest struct {
 	ItemsPerPage int `json:"itemsPerPage"`
 	Page         int `json:"page"`
+}
+
+type ScopedStats struct {
+	Hostname string                   `json:"hostname"`
+	ID       *string                  `json:"id,omitempty"`
+	Data     *schema.MetricStatistics `json:"data"`
 }
 
 type StringInput struct {
@@ -148,8 +195,9 @@ type StringInput struct {
 }
 
 type TimeRangeOutput struct {
-	From time.Time `json:"from"`
-	To   time.Time `json:"to"`
+	Range *string   `json:"range,omitempty"`
+	From  time.Time `json:"from"`
+	To    time.Time `json:"to"`
 }
 
 type TimeWeights struct {
@@ -190,7 +238,7 @@ func (e Aggregate) String() string {
 	return string(e)
 }
 
-func (e *Aggregate) UnmarshalGQL(v interface{}) error {
+func (e *Aggregate) UnmarshalGQL(v any) error {
 	str, ok := v.(string)
 	if !ok {
 		return fmt.Errorf("enums must be strings")
@@ -243,7 +291,7 @@ func (e SortByAggregate) String() string {
 	return string(e)
 }
 
-func (e *SortByAggregate) UnmarshalGQL(v interface{}) error {
+func (e *SortByAggregate) UnmarshalGQL(v any) error {
 	str, ok := v.(string)
 	if !ok {
 		return fmt.Errorf("enums must be strings")
@@ -284,7 +332,7 @@ func (e SortDirectionEnum) String() string {
 	return string(e)
 }
 
-func (e *SortDirectionEnum) UnmarshalGQL(v interface{}) error {
+func (e *SortDirectionEnum) UnmarshalGQL(v any) error {
 	str, ok := v.(string)
 	if !ok {
 		return fmt.Errorf("enums must be strings")

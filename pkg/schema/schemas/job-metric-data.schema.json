@@ -1,216 +1,216 @@
 {
-    "$schema": "http://json-schema.org/draft/2020-12/schema",
-    "$id": "embedfs://job-metric-data.schema.json",
-    "title": "Job metric data",
-    "description": "Metric data of a HPC job",
-    "type": "object",
-    "properties": {
-        "unit": {
-            "description": "Metric unit",
-            "$ref": "embedfs://unit.schema.json"
-        },
-        "timestep": {
-            "description": "Measurement interval in seconds",
-            "type": "integer"
-        },
-        "thresholds": {
-            "description": "Metric thresholds for specific system",
-            "type": "object",
-            "properties": {
-                "peak": {
-                    "type": "number"
-                },
-                "normal": {
-                    "type": "number"
-                },
-                "caution": {
-                    "type": "number"
-                },
-                "alert": {
-                    "type": "number"
-                }
-            }
-        },
-        "statisticsSeries": {
-            "type": "object",
-            "description": "Statistics series across topology",
-            "properties": {
-                "min": {
-                    "type": "array",
-                    "items": {
-                        "type": "number",
-                        "minimum": 0
-                    },
-                    "minItems": 3
-                },
-                "max": {
-                    "type": "array",
-                    "items": {
-                        "type": "number",
-                        "minimum": 0
-                    },
-                    "minItems": 3
-                },
-                "mean": {
-                    "type": "array",
-                    "items": {
-                        "type": "number",
-                        "minimum": 0
-                    },
-                    "minItems": 3
-                },
-                "percentiles": {
-                    "type": "object",
-                    "properties": {
-                        "10": {
-                            "type": "array",
-                            "items": {
-                                "type": "number",
-                                "minimum": 0
-                            },
-                            "minItems": 3
-                        },
-                        "20": {
-                            "type": "array",
-                            "items": {
-                                "type": "number",
-                                "minimum": 0
-                            },
-                            "minItems": 3
-                        },
-                        "30": {
-                            "type": "array",
-                            "items": {
-                                "type": "number",
-                                "minimum": 0
-                            },
-                            "minItems": 3
-                        },
-                        "40": {
-                            "type": "array",
-                            "items": {
-                                "type": "number",
-                                "minimum": 0
-                            },
-                            "minItems": 3
-                        },
-                        "50": {
-                            "type": "array",
-                            "items": {
-                                "type": "number",
-                                "minimum": 0
-                            },
-                            "minItems": 3
-                        },
-                        "60": {
-                            "type": "array",
-                            "items": {
-                                "type": "number",
-                                "minimum": 0
-                            },
-                            "minItems": 3
-                        },
-                        "70": {
-                            "type": "array",
-                            "items": {
-                                "type": "number",
-                                "minimum": 0
-                            },
-                            "minItems": 3
-                        },
-                        "80": {
-                            "type": "array",
-                            "items": {
-                                "type": "number",
-                                "minimum": 0
-                            },
-                            "minItems": 3
-                        },
-                        "90": {
-                            "type": "array",
-                            "items": {
-                                "type": "number",
-                                "minimum": 0
-                            },
-                            "minItems": 3
-                        },
-                        "25": {
-                            "type": "array",
-                            "items": {
-                                "type": "number",
-                                "minimum": 0
-                            },
-                            "minItems": 3
-                        },
-                        "75": {
-                            "type": "array",
-                            "items": {
-                                "type": "number",
-                                "minimum": 0
-                            },
-                            "minItems": 3
-                        }
-                    }
-                }
-            }
-        },
-        "series": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "hostname": {
-                        "type": "string"
-                    },
-                    "id": {
-                        "type": "string"
-                    },
-                    "statistics": {
-                        "type": "object",
-                        "description": "Statistics across time dimension",
-                        "properties": {
-                            "avg": {
-                                "description": "Series average",
-                                "type": "number",
-                                "minimum": 0
-                            },
-                            "min": {
-                                "description": "Series minimum",
-                                "type": "number",
-                                "minimum": 0
-                            },
-                            "max": {
-                                "description": "Series maximum",
-                                "type": "number",
-                                "minimum": 0
-                            }
-                        },
-                        "required": [
-                            "avg",
-                            "min",
-                            "max"
-                        ]
-                    },
-                    "data": {
-                        "type": "array",
-                        "contains": {
-                            "type": "number",
-                            "minimum": 0
-                        },
-                        "minItems": 1
-                    }
-                },
-                "required": [
-                    "hostname",
-                    "statistics",
-                    "data"
-                ]
-            }
-        }
+  "$schema": "http://json-schema.org/draft/2020-12/schema",
+  "$id": "embedfs://job-metric-data.schema.json",
+  "title": "Job metric data",
+  "description": "Metric data of a HPC job",
+  "type": "object",
+  "properties": {
+    "unit": {
+      "description": "Metric unit",
+      "$ref": "embedfs://unit.schema.json"
     },
-    "required": [
-        "unit",
-        "timestep",
-        "series"
-    ]
+    "timestep": {
+      "description": "Measurement interval in seconds",
+      "type": "integer"
+    },
+    "thresholds": {
+      "description": "Metric thresholds for specific system",
+      "type": "object",
+      "properties": {
+        "peak": {
+          "type": "number"
+        },
+        "normal": {
+          "type": "number"
+        },
+        "caution": {
+          "type": "number"
+        },
+        "alert": {
+          "type": "number"
+        }
+      }
+    },
+    "statisticsSeries": {
+      "type": "object",
+      "description": "Statistics series across topology",
+      "properties": {
+        "min": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": 0
+          },
+          "minItems": 3
+        },
+        "max": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": 0
+          },
+          "minItems": 3
+        },
+        "mean": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": 0
+          },
+          "minItems": 3
+        },
+        "percentiles": {
+          "type": "object",
+          "properties": {
+            "10": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0
+              },
+              "minItems": 3
+            },
+            "20": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0
+              },
+              "minItems": 3
+            },
+            "30": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0
+              },
+              "minItems": 3
+            },
+            "40": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0
+              },
+              "minItems": 3
+            },
+            "50": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0
+              },
+              "minItems": 3
+            },
+            "60": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0
+              },
+              "minItems": 3
+            },
+            "70": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0
+              },
+              "minItems": 3
+            },
+            "80": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0
+              },
+              "minItems": 3
+            },
+            "90": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0
+              },
+              "minItems": 3
+            },
+            "25": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0
+              },
+              "minItems": 3
+            },
+            "75": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0
+              },
+              "minItems": 3
+            }
+          }
+        }
+      }
+    },
+    "series": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "hostname": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "statistics": {
+            "type": "object",
+            "description": "Statistics across time dimension",
+            "properties": {
+              "avg": {
+                "description": "Series average",
+                "type": "number",
+                "minimum": 0
+              },
+              "min": {
+                "description": "Series minimum",
+                "type": "number",
+                "minimum": 0
+              },
+              "max": {
+                "description": "Series maximum",
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "avg",
+              "min",
+              "max"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "contains": {
+              "type": "number",
+              "minimum": 0
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "hostname",
+          "statistics",
+          "data"
+        ]
+      }
+    }
+  },
+  "required": [
+    "unit",
+    "timestep",
+    "series"
+  ]
 }
