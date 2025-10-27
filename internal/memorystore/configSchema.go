@@ -51,39 +51,45 @@ const configSchema = `{
         },
         "nats": {
             "description": "Configuration for accepting published data through NATS.",
-            "type": "object",
-            "properties": {
-                "address": {
-                    "description": "Address of the NATS server.",
-                    "type": "string"
-                },
-                "username": {
-                    "description": "Optional: If configured with username/password method.",
-                    "type": "string"
-                },
-                "password": {
-                    "description": "Optional: If configured with username/password method.",
-                    "type": "string"
-                },
-                "creds-file-path": {
-                    "description": "Optional: If configured with Credential File method. Path to your NATS cred file.",
-                    "type": "string"
-                },
-                "subscriptions": {
-                    "description": "Array of various subscriptions. Allows to subscibe to different subjects and publishers.",
-                    "type": "object",
-                    "properties": {
-                        "subscribe-to": {
-                            "description": "Channel name",
-                            "type": "string"
-                        },
-                        "cluster-tag": {
-                            "description": "Optional: Allow lines without a cluster tag, use this as default",
-                            "type": "string"
-                        }
-                    }
-                }
-            }
+			"type": "array",
+			"items": {
+				"type": "object",
+				"properties": {
+					"address": {
+						"description": "Address of the NATS server.",
+						"type": "string"
+					},
+					"username": {
+						"description": "Optional: If configured with username/password method.",
+						"type": "string"
+					},
+					"password": {
+						"description": "Optional: If configured with username/password method.",
+						"type": "string"
+					},
+					"creds-file-path": {
+						"description": "Optional: If configured with Credential File method. Path to your NATS cred file.",
+						"type": "string"
+					},
+					"subscriptions": {
+						"description": "Array of various subscriptions. Allows to subscibe to different subjects and publishers.",
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"subscribe-to": {
+									"description": "Channel name",
+									"type": "string"
+								},
+								"cluster-tag": {
+									"description": "Optional: Allow lines without a cluster tag, use this as default",
+									"type": "string"
+								}
+							}
+						}
+					}
+				}
+			}
         }
     }
 }`
