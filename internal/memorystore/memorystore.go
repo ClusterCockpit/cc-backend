@@ -10,7 +10,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"os/signal"
 	"runtime"
@@ -386,8 +385,6 @@ func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, reso
 	}
 
 	n, data := 0, make([]schema.Float, (to-from)/minfo.Frequency+1)
-
-	fmt.Printf("Requested From : %d, To: %d\n", from, to)
 
 	err := m.root.findBuffers(selector, minfo.offset, func(b *buffer) error {
 		cdata, cfrom, cto, err := b.read(from, to, data)

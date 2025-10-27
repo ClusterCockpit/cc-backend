@@ -78,7 +78,7 @@
   ],
   "metric-store": {
     "checkpoints": {
-      "file-format": "json",
+      "file-format": "avro",
       "interval": "1h",
       "directory": "./var/checkpoints",
       "restore": "48h"
