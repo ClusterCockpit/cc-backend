@@ -492,32 +492,6 @@ func (l *Level) loadAvroFile(m *MemoryStore, f *os.File, from int64) error {
 		return nil
 	}
 
-	interval, err := time.ParseDuration(Keys.Checkpoints.Interval)
-	if err != nil {
-		fmt.Printf("error while parsing interval: %#v", err)
-	}
-
-	now := time.Now().Unix()
-	cutOff := time.Unix(fromTimestamp, 0).Add(interval).Unix()
-
-	newCount := (min(now, cutOff) - fromTimestamp) / resolution
-
-	if recordCounter < newCount {
-		// fmt.Printf("Record Count: %d, Required Count: %d\n", recordCounter, newCount)
-
-		insertCount := newCount - recordCounter
-		for range insertCount {
-			for key := range metricsData {
-				metricsData[key] = append(metricsData[key], schema.ConvertToFloat(0.0))
-			}
-		}
-
-		err := UpdateAvroFile(f, insertCount)
-		if err != nil {
-			fmt.Printf("error while inserting blanks into avro: %s\n", err)
-		}
-	}
-
 	for key, floatArray := range metricsData {
 		metricName := ReplaceKey(key)
 

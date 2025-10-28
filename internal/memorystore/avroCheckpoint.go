@@ -28,52 +28,6 @@ var NumAvroWorkers int = 4
 
 var ErrNoNewData error = errors.New("no data in the pool")
 
-func UpdateAvroFile(f *os.File, insertCount int64) error {
-	filePath := f.Name()
-	f.Close() // close the original handle immediately
-
-	// Reopen fresh for reading
-	readFile, err := os.Open(filePath)
-	if err != nil {
-		return fmt.Errorf("failed to reopen file for reading: %v", err)
-	}
-	defer readFile.Close()
-
-	reader, err := goavro.NewOCFReader(readFile)
-	if err != nil {
-		return fmt.Errorf("failed to create OCF reader: %v", err)
-	}
-
-	codec := reader.Codec()
-
-	// Now reopen again for appending
-	appendFile, err := os.OpenFile(filePath, os.O_RDWR|os.O_APPEND, 0o644)
-	if err != nil {
-		return fmt.Errorf("failed to reopen file for appending: %v", err)
-	}
-	defer appendFile.Close()
-
-	recordList := make([]map[string]any, insertCount)
-	for i := range recordList {
-		recordList[i] = make(map[string]any)
-	}
-
-	writer, err := goavro.NewOCFWriter(goavro.OCFConfig{
-		W:               appendFile,
-		Codec:           codec,
-		CompressionName: goavro.CompressionDeflateLabel,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create OCF writer: %v", err)
-	}
-
-	if err := writer.Append(recordList); err != nil {
-		return fmt.Errorf("failed to append record: %v", err)
-	}
-
-	return nil
-}
-
 func (as *AvroStore) ToCheckpoint(dir string, dumpAll bool) (int, error) {
 	levels := make([]*AvroLevel, 0)
 	selectors := make([][]string, 0)
