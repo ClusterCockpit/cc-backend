@@ -1,6 +1,7 @@
 /cc-backend
 /.env
 /config.json
+/uiConfig.json
 
 /var/job-archive
 /var/machine-state
@@ -8,6 +9,11 @@
 /var/job.db-wal
 /var/*.db
 /var/*.txt
+
+/var/checkpoints*
+
+migrateTimestamps.pl
+test_ccms_write_api.sh
 
 /web/frontend/public/build
 /web/frontend/node_modules

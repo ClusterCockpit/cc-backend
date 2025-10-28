@@ -1,42 +1,47 @@
 <!-- 
-    @component Triggers upstream data refresh in selectable intervals
+  @component Triggers upstream data refresh in selectable intervals
 
-    Properties:
-    - `initially Number?`: Initial refresh interval on component mount, in seconds [Default: null]
+  Properties:
+  - `initially Number?`: Initial refresh interval on component mount, in seconds [Default: null]
+  - `presetClass String?`: Custom class to apply to main <InputGroup>
+  - `onRefresh Func`: The callback function to perform at refresh times
+-->
 
-    Events:
-    - `refresh`: When fired, the upstream component refreshes its contents
- -->
 <script>
-  import { createEventDispatcher } from "svelte";
   import { Button, Icon, Input, InputGroup } from "@sveltestrap/sveltestrap";
 
-  const dispatch = createEventDispatcher();
+  /* Svelte 5 Props */
+  let {
+    initially = null,
+    presetClass = "",
+    onRefresh
+  } = $props();
 
-  let refreshInterval = null;
+  /* State Init */
+  let refreshInterval = $state(initially ? initially * 1000 : null);
+
+  /* Var Init */
   let refreshIntervalId = null;
+
+  /* Functions */
   function refreshIntervalChanged() {
     if (refreshIntervalId != null) clearInterval(refreshIntervalId);
-
     if (refreshInterval == null) return;
-
-    refreshIntervalId = setInterval(() => dispatch("refresh"), refreshInterval);
+    refreshIntervalId = setInterval(() => onRefresh(), refreshInterval);
   }
 
-  export let initially = null;
-
-  if (initially != null) {
-    refreshInterval = initially * 1000;
+  /* Svelte 5 onMount */
+  $effect(() => {
     refreshIntervalChanged();
-  }
+  });
 </script>
 
-<InputGroup>
+<InputGroup class={presetClass}>
   <Input
     type="select"
     title="Periodic refresh interval"
     bind:value={refreshInterval}
-    on:change={refreshIntervalChanged}
+    onchange={refreshIntervalChanged}
   >
     <option value={null}>No Interval</option>
     <option value={30 * 1000}>30 Seconds</option>
@@ -46,7 +51,7 @@
   </Input>
   <Button
     outline
-    on:click={() => dispatch("refresh")}
+    onclick={() => onRefresh()}
     disabled={refreshInterval != null}
     >
     <Icon name="arrow-clockwise" /> Refresh

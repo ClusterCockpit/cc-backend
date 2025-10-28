@@ -208,7 +208,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Success message",
                         "schema": {
-                            "$ref": "#/definitions/api.DefaultJobApiResponse"
+                            "$ref": "#/definitions/api.DefaultApiResponse"
                         }
                     },
                     "400": {
@@ -278,7 +278,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Success message",
                         "schema": {
-                            "$ref": "#/definitions/api.DefaultJobApiResponse"
+                            "$ref": "#/definitions/api.DefaultApiResponse"
                         }
                     },
                     "400": {
@@ -348,7 +348,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Success message",
                         "schema": {
-                            "$ref": "#/definitions/api.DefaultJobApiResponse"
+                            "$ref": "#/definitions/api.DefaultApiResponse"
                         }
                     },
                     "400": {
@@ -467,7 +467,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Job specified in request body will be saved to database as \"running\" with new DB ID.\nJob specifications follow the 'JobMeta' scheme, API will fail to execute if requirements are not met.",
+                "description": "Job specified in request body will be saved to database as \"running\" with new DB ID.\nJob specifications follow the 'Job' scheme, API will fail to execute if requirements are not met.",
                 "consumes": [
                     "application/json"
                 ],
@@ -485,7 +485,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/schema.JobMeta"
+                            "$ref": "#/definitions/schema.Job"
                         }
                     }
                 ],
@@ -493,7 +493,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Job added successfully",
                         "schema": {
-                            "$ref": "#/definitions/api.DefaultJobApiResponse"
+                            "$ref": "#/definitions/api.DefaultApiResponse"
                         }
                     },
                     "400": {
@@ -536,7 +536,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Job to stop is specified by request body. All fields are required in this case.\nReturns full job resource information according to 'JobMeta' scheme.",
+                "description": "Job to stop is specified by request body. All fields are required in this case.\nReturns full job resource information according to 'Job' scheme.",
                 "produces": [
                     "application/json"
                 ],
@@ -559,7 +559,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Success message",
                         "schema": {
-                            "$ref": "#/definitions/schema.JobMeta"
+                            "$ref": "#/definitions/schema.Job"
                         }
                     },
                     "400": {
@@ -681,7 +681,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Job to get is specified by database ID\nReturns full job resource information according to 'JobMeta' scheme and all metrics according to 'JobData'.",
+                "description": "Job to get is specified by database ID\nReturns full job resource information according to 'Job' scheme and all metrics according to 'JobData'.",
                 "produces": [
                     "application/json"
                 ],
@@ -755,7 +755,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Job to get is specified by database ID\nReturns full job resource information according to 'JobMeta' scheme and all metrics according to 'JobData'.",
+                "description": "Job to get is specified by database ID\nReturns full job resource information according to 'Job' scheme and all metrics according to 'JobData'.",
                 "consumes": [
                     "application/json"
                 ],
@@ -820,6 +820,66 @@ const docTemplate = `{
                     },
                     "422": {
                         "description": "Unprocessable Entity: finding job failed: sql: no rows in result set",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/nodestats/": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns a JSON-encoded list of users.\nRequired query-parameter defines if all users or only users with additional special roles are returned.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Nodestates"
+                ],
+                "summary": "Deliver updated Slurm node states",
+                "parameters": [
+                    {
+                        "description": "Request body containing nodes and their states",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.UpdateNodeStatesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success message",
+                        "schema": {
+                            "$ref": "#/definitions/api.DefaultApiResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
@@ -1081,7 +1141,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.DefaultJobApiResponse": {
+        "api.DefaultApiResponse": {
             "type": "object",
             "properties": {
                 "msg": {
@@ -1175,7 +1235,7 @@ const docTemplate = `{
                     "description": "Array of jobs",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/schema.JobMeta"
+                        "$ref": "#/definitions/schema.Job"
                     }
                 },
                 "page": {
@@ -1195,6 +1255,38 @@ const docTemplate = `{
                 },
                 "scope": {
                     "$ref": "#/definitions/schema.MetricScope"
+                }
+            }
+        },
+        "api.Node": {
+            "type": "object",
+            "properties": {
+                "cpusAllocated": {
+                    "type": "integer"
+                },
+                "cpusTotal": {
+                    "type": "integer"
+                },
+                "gpusAllocated": {
+                    "type": "integer"
+                },
+                "gpusTotal": {
+                    "type": "integer"
+                },
+                "hostname": {
+                    "type": "string"
+                },
+                "memoryAllocated": {
+                    "type": "integer"
+                },
+                "memoryTotal": {
+                    "type": "integer"
+                },
+                "states": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -1228,6 +1320,21 @@ const docTemplate = `{
                 "stopTime": {
                     "type": "integer",
                     "example": 1649763839
+                }
+            }
+        },
+        "api.UpdateNodeStatesRequest": {
+            "type": "object",
+            "properties": {
+                "cluster": {
+                    "type": "string",
+                    "example": "fritz"
+                },
+                "nodes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.Node"
+                    }
                 }
             }
         },
@@ -1266,7 +1373,6 @@ const docTemplate = `{
             }
         },
         "schema.Job": {
-            "description": "Information of a HPC job.",
             "type": "object",
             "properties": {
                 "arrayJobId": {
@@ -1291,19 +1397,15 @@ const docTemplate = `{
                 "energyFootprint": {
                     "type": "object",
                     "additionalProperties": {
-                        "type": "number"
+                        "type": "number",
+                        "format": "float64"
                     }
-                },
-                "exclusive": {
-                    "type": "integer",
-                    "maximum": 2,
-                    "minimum": 0,
-                    "example": 1
                 },
                 "footprint": {
                     "type": "object",
                     "additionalProperties": {
-                        "type": "number"
+                        "type": "number",
+                        "format": "float64"
                     }
                 },
                 "id": {
@@ -1315,12 +1417,18 @@ const docTemplate = `{
                 },
                 "jobState": {
                     "enum": [
-                        "completed",
-                        "failed",
+                        "boot_fail",
                         "cancelled",
-                        "stopped",
-                        "timeout",
-                        "out_of_memory"
+                        "completed",
+                        "deadline",
+                        "failed",
+                        "node_fail",
+                        "out-of-memory",
+                        "pending",
+                        "preempted",
+                        "running",
+                        "suspended",
+                        "timeout"
                     ],
                     "allOf": [
                         {
@@ -1364,22 +1472,47 @@ const docTemplate = `{
                     "type": "string",
                     "example": "abcd200"
                 },
+                "requestedMemory": {
+                    "description": "in MB",
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 128000
+                },
                 "resources": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/schema.Resource"
                     }
                 },
+                "shared": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "single_user",
+                        "multi_user"
+                    ]
+                },
                 "smt": {
                     "type": "integer",
                     "example": 4
                 },
                 "startTime": {
-                    "type": "string"
+                    "type": "integer",
+                    "example": 1649723812
+                },
+                "statistics": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/schema.JobStatistics"
+                    }
                 },
                 "subCluster": {
                     "type": "string",
                     "example": "main"
+                },
+                "submitTime": {
+                    "type": "integer",
+                    "example": 1649723812
                 },
                 "tags": {
                     "type": "array",
@@ -1423,147 +1556,6 @@ const docTemplate = `{
                 }
             }
         },
-        "schema.JobMeta": {
-            "description": "Meta data information of a HPC job.",
-            "type": "object",
-            "properties": {
-                "arrayJobId": {
-                    "type": "integer",
-                    "example": 123000
-                },
-                "cluster": {
-                    "type": "string",
-                    "example": "fritz"
-                },
-                "concurrentJobs": {
-                    "$ref": "#/definitions/schema.JobLinkResultList"
-                },
-                "duration": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "example": 43200
-                },
-                "energy": {
-                    "type": "number"
-                },
-                "energyFootprint": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "number"
-                    }
-                },
-                "exclusive": {
-                    "type": "integer",
-                    "maximum": 2,
-                    "minimum": 0,
-                    "example": 1
-                },
-                "footprint": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "number"
-                    }
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "jobId": {
-                    "type": "integer",
-                    "example": 123000
-                },
-                "jobState": {
-                    "enum": [
-                        "completed",
-                        "failed",
-                        "cancelled",
-                        "stopped",
-                        "timeout",
-                        "out_of_memory"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/schema.JobState"
-                        }
-                    ],
-                    "example": "completed"
-                },
-                "metaData": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "monitoringStatus": {
-                    "type": "integer",
-                    "maximum": 3,
-                    "minimum": 0,
-                    "example": 1
-                },
-                "numAcc": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "example": 2
-                },
-                "numHwthreads": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "example": 20
-                },
-                "numNodes": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "example": 2
-                },
-                "partition": {
-                    "type": "string",
-                    "example": "main"
-                },
-                "project": {
-                    "type": "string",
-                    "example": "abcd200"
-                },
-                "resources": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/schema.Resource"
-                    }
-                },
-                "smt": {
-                    "type": "integer",
-                    "example": 4
-                },
-                "startTime": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "example": 1649723812
-                },
-                "statistics": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "$ref": "#/definitions/schema.JobStatistics"
-                    }
-                },
-                "subCluster": {
-                    "type": "string",
-                    "example": "main"
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/schema.Tag"
-                    }
-                },
-                "user": {
-                    "type": "string",
-                    "example": "abcd100h"
-                },
-                "walltime": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "example": 86400
-                }
-            }
-        },
         "schema.JobMetric": {
             "type": "object",
             "properties": {
@@ -1587,24 +1579,32 @@ const docTemplate = `{
         "schema.JobState": {
             "type": "string",
             "enum": [
-                "running",
-                "completed",
-                "failed",
+                "boot_fail",
                 "cancelled",
-                "stopped",
-                "timeout",
+                "completed",
+                "deadline",
+                "failed",
+                "node_fail",
+                "out_of_memory",
+                "pending",
                 "preempted",
-                "out_of_memory"
+                "running",
+                "suspended",
+                "timeout"
             ],
             "x-enum-varnames": [
-                "JobStateRunning",
-                "JobStateCompleted",
-                "JobStateFailed",
+                "JobStateBootFail",
                 "JobStateCancelled",
-                "JobStateStopped",
-                "JobStateTimeout",
+                "JobStateCompleted",
+                "JobStateDeadline",
+                "JobStateFailed",
+                "JobStateNodeFail",
+                "JobStateOutOfMemory",
+                "JobStatePending",
                 "JobStatePreempted",
-                "JobStateOutOfMemory"
+                "JobStateRunning",
+                "JobStateSuspended",
+                "JobStateTimeout"
             ]
         },
         "schema.JobStatistics": {
@@ -1803,7 +1803,8 @@ const docTemplate = `{
                     "additionalProperties": {
                         "type": "array",
                         "items": {
-                            "type": "number"
+                            "type": "number",
+                            "format": "float64"
                         }
                     }
                 }
@@ -1891,6 +1892,9 @@ const docTemplate = `{
                 },
                 "remove": {
                     "type": "boolean"
+                },
+                "unit": {
+                    "$ref": "#/definitions/schema.Unit"
                 }
             }
         },

@@ -1,32 +1,187 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
+// Package web implements the HTML templating and web frontend configuration
 package web
 
 import (
 	"embed"
+	"encoding/json"
 	"html/template"
 	"io/fs"
 	"net/http"
 	"strings"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	"github.com/ClusterCockpit/cc-backend/internal/util"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-lib/util"
 )
 
-/// Go's embed is only allowed to embed files in a subdirectory of the embedding package ([see here](https://github.com/golang/go/issues/46056)).
+type WebConfig struct {
+	JobList           JobListConfig     `json:"jobList"`
+	NodeList          NodeListConfig    `json:"nodeList"`
+	JobView           JobViewConfig     `json:"jobView"`
+	MetricConfig      MetricConfig      `json:"metricConfig"`
+	PlotConfiguration PlotConfiguration `json:"plotConfiguration"`
+}
 
+type JobListConfig struct {
+	UsePaging     bool `json:"usePaging"`
+	ShowFootprint bool `json:"showFootprint"`
+}
+
+type NodeListConfig struct {
+	UsePaging bool `json:"usePaging"`
+}
+
+type JobViewConfig struct {
+	ShowPolarPlot bool `json:"showPolarPlot"`
+	ShowFootprint bool `json:"showFootprint"`
+	ShowRoofline  bool `json:"showRoofline"`
+	ShowStatTable bool `json:"showStatTable"`
+}
+
+type MetricConfig struct {
+	JobListMetrics      []string        `json:"jobListMetrics"`
+	JobViewPlotMetrics  []string        `json:"jobViewPlotMetrics"`
+	JobViewTableMetrics []string        `json:"jobViewTableMetrics"`
+	Clusters            []ClusterConfig `json:"clusters"`
+}
+
+type ClusterConfig struct {
+	Name                string             `json:"name"`
+	JobListMetrics      []string           `json:"jobListMetrics"`
+	JobViewPlotMetrics  []string           `json:"jobViewPlotMetrics"`
+	JobViewTableMetrics []string           `json:"jobViewTableMetrics"`
+	SubClusters         []SubClusterConfig `json:"subClusters"`
+}
+
+type SubClusterConfig struct {
+	Name                string   `json:"name"`
+	JobListMetrics      []string `json:"jobListMetrics"`
+	JobViewPlotMetrics  []string `json:"jobViewPlotMetrics"`
+	JobViewTableMetrics []string `json:"jobViewTableMetrics"`
+}
+
+type PlotConfiguration struct {
+	ColorBackground bool     `json:"colorBackground"`
+	PlotsPerRow     int      `json:"plotsPerRow"`
+	LineWidth       int      `json:"lineWidth"`
+	ColorScheme     []string `json:"colorScheme"`
+}
+
+var UIDefaults = WebConfig{
+	JobList: JobListConfig{
+		UsePaging:     false,
+		ShowFootprint: true,
+	},
+	NodeList: NodeListConfig{
+		UsePaging: true,
+	},
+	JobView: JobViewConfig{
+		ShowPolarPlot: true,
+		ShowFootprint: true,
+		ShowRoofline:  true,
+		ShowStatTable: true,
+	},
+	MetricConfig: MetricConfig{
+		JobListMetrics:      []string{"flops_any", "mem_bw", "mem_used"},
+		JobViewPlotMetrics:  []string{"flops_any", "mem_bw", "mem_used"},
+		JobViewTableMetrics: []string{"flops_any", "mem_bw", "mem_used"},
+	},
+	PlotConfiguration: PlotConfiguration{
+		ColorBackground: true,
+		PlotsPerRow:     3,
+		LineWidth:       3,
+		ColorScheme:     []string{"#00bfff", "#0000ff", "#ff00ff", "#ff0000", "#ff8000", "#ffff00", "#80ff00"},
+	},
+}
+
+var UIDefaultsMap map[string]any
+
+//
+// 	map[string]any{
+// 	"analysis_view_histogramMetrics":         []string{"flops_any", "mem_bw", "mem_used"},
+// 	"analysis_view_scatterPlotMetrics":       [][]string{{"flops_any", "mem_bw"}, {"flops_any", "cpu_load"}, {"cpu_load", "mem_bw"}},
+// 	"job_view_nodestats_selectedMetrics":     []string{"flops_any", "mem_bw", "mem_used"},
+// 	"plot_list_jobsPerPage":                  50,
+// 	"analysis_view_selectedTopEntity":        "user",
+// 	"analysis_view_selectedTopCategory":      "totalWalltime",
+// 	"status_view_selectedTopUserCategory":    "totalJobs",
+// 	"status_view_selectedTopProjectCategory": "totalJobs",
+// }
+
+func Init(rawConfig json.RawMessage) error {
+	var err error
+
+	if rawConfig != nil {
+		config.Validate(configSchema, rawConfig)
+		if err = json.Unmarshal(rawConfig, &UIDefaults); err != nil {
+			cclog.Warn("Error while unmarshaling raw config json")
+			return err
+		}
+	}
+
+	UIDefaultsMap = make(map[string]any)
+
+	UIDefaultsMap["jobList_usePaging"] = UIDefaults.JobList.UsePaging
+	UIDefaultsMap["jobList_showFootprint"] = UIDefaults.JobList.ShowFootprint
+	UIDefaultsMap["nodeList_usePaging"] = UIDefaults.NodeList.UsePaging
+	UIDefaultsMap["jobView_showPolarPlot"] = UIDefaults.JobView.ShowPolarPlot
+	UIDefaultsMap["jobView_showFootprint"] = UIDefaults.JobView.ShowFootprint
+	UIDefaultsMap["jobView_showRoofline"] = UIDefaults.JobView.ShowRoofline
+	UIDefaultsMap["jobView_showStatTable"] = UIDefaults.JobView.ShowStatTable
+
+	UIDefaultsMap["metricConfig_jobListMetrics"] = UIDefaults.MetricConfig.JobListMetrics
+	UIDefaultsMap["metricConfig_jobViewPlotMetrics"] = UIDefaults.MetricConfig.JobViewPlotMetrics
+	UIDefaultsMap["metricConfig_jobViewTableMetrics"] = UIDefaults.MetricConfig.JobViewTableMetrics
+
+	UIDefaultsMap["plotConfiguration_colorBackground"] = UIDefaults.PlotConfiguration.ColorBackground
+	UIDefaultsMap["plotConfiguration_plotsPerRow"] = UIDefaults.PlotConfiguration.PlotsPerRow
+	UIDefaultsMap["plotConfiguration_lineWidth"] = UIDefaults.PlotConfiguration.LineWidth
+	UIDefaultsMap["plotConfiguration_colorScheme"] = UIDefaults.PlotConfiguration.ColorScheme
+
+	for _, c := range UIDefaults.MetricConfig.Clusters {
+		if c.JobListMetrics != nil {
+			UIDefaultsMap["metricConfig_jobListMetrics:"+c.Name] = c.JobListMetrics
+		}
+		if c.JobViewPlotMetrics != nil {
+			UIDefaultsMap["metricConfig_jobViewPlotMetrics:"+c.Name] = c.JobViewPlotMetrics
+		}
+		if c.JobViewTableMetrics != nil {
+			UIDefaultsMap["metricConfig_jobViewTableMetrics:"+c.Name] = c.JobViewTableMetrics
+		}
+
+		for _, sc := range c.SubClusters {
+			suffix := strings.Join([]string{c.Name, sc.Name}, ":")
+			if sc.JobListMetrics != nil {
+				UIDefaultsMap["metricConfig_jobListMetrics:"+suffix] = sc.JobListMetrics
+			}
+			if sc.JobViewPlotMetrics != nil {
+				UIDefaultsMap["metricConfig_jobViewPlotMetrics:"+suffix] = sc.JobViewPlotMetrics
+			}
+			if sc.JobViewTableMetrics != nil {
+				UIDefaultsMap["metricConfig_jobViewTableMetrics:"+suffix] = sc.JobViewTableMetrics
+			}
+		}
+	}
+
+	return err
+}
+
+// / Go's embed is only allowed to embed files in a subdirectory of the embedding package ([see here](https://github.com/golang/go/issues/46056)).
+//
 //go:embed frontend/public/*
 var frontendFiles embed.FS
 
 func ServeFiles() http.Handler {
 	publicFiles, err := fs.Sub(frontendFiles, "frontend/public")
 	if err != nil {
-		log.Abortf("Serve Files: Could not find 'frontend/public' file directory.\nError: %s\n", err.Error())
+		cclog.Abortf("Serve Files: Could not find 'frontend/public' file directory.\nError: %s\n", err.Error())
 	}
 	return http.FileServer(http.FS(publicFiles))
 }
@@ -48,25 +203,22 @@ func init() {
 
 		if path == "templates/login.tmpl" {
 			if util.CheckFileExists("./var/login.tmpl") {
-				log.Info("overwrite login.tmpl with local file")
-				templates[strings.TrimPrefix(path, "templates/")] =
-					template.Must(template.Must(base.Clone()).ParseFiles("./var/login.tmpl"))
+				cclog.Info("overwrite login.tmpl with local file")
+				templates[strings.TrimPrefix(path, "templates/")] = template.Must(template.Must(base.Clone()).ParseFiles("./var/login.tmpl"))
 				return nil
 			}
 		}
 		if path == "templates/imprint.tmpl" {
 			if util.CheckFileExists("./var/imprint.tmpl") {
-				log.Info("overwrite imprint.tmpl with local file")
-				templates[strings.TrimPrefix(path, "templates/")] =
-					template.Must(template.Must(base.Clone()).ParseFiles("./var/imprint.tmpl"))
+				cclog.Info("overwrite imprint.tmpl with local file")
+				templates[strings.TrimPrefix(path, "templates/")] = template.Must(template.Must(base.Clone()).ParseFiles("./var/imprint.tmpl"))
 				return nil
 			}
 		}
 		if path == "templates/privacy.tmpl" {
 			if util.CheckFileExists("./var/privacy.tmpl") {
-				log.Info("overwrite privacy.tmpl with local file")
-				templates[strings.TrimPrefix(path, "templates/")] =
-					template.Must(template.Must(base.Clone()).ParseFiles("./var/privacy.tmpl"))
+				cclog.Info("overwrite privacy.tmpl with local file")
+				templates[strings.TrimPrefix(path, "templates/")] = template.Must(template.Must(base.Clone()).ParseFiles("./var/privacy.tmpl"))
 				return nil
 			}
 		}
@@ -74,7 +226,7 @@ func init() {
 		templates[strings.TrimPrefix(path, "templates/")] = template.Must(template.Must(base.Clone()).ParseFS(templateFiles, path))
 		return nil
 	}); err != nil {
-		log.Abortf("Web init(): Could not find frontend template files.\nError: %s\n", err.Error())
+		cclog.Abortf("Web init(): Could not find frontend template files.\nError: %s\n", err.Error())
 	}
 
 	_ = base
@@ -93,24 +245,24 @@ type Page struct {
 	User          schema.User            // Information about the currently logged in user (Full User Info)
 	Roles         map[string]schema.Role // Available roles for frontend render checks
 	Build         Build                  // Latest information about the application
-	Clusters      []schema.ClusterConfig // List of all clusters for use in the Header
+	Clusters      []config.ClusterConfig // List of all clusters for use in the Header
 	SubClusters   map[string][]string    // Map per cluster of all subClusters for use in the Header
-	FilterPresets map[string]interface{} // For pages with the Filter component, this can be used to set initial filters.
-	Infos         map[string]interface{} // For generic use (e.g. username for /monitoring/user/<id>, job id for /monitoring/job/<id>)
-	Config        map[string]interface{} // UI settings for the currently logged in user (e.g. line width, ...)
-	Resampling    *schema.ResampleConfig // If not nil, defines resampling trigger and resolutions
+	FilterPresets map[string]any         // For pages with the Filter component, this can be used to set initial filters.
+	Infos         map[string]any         // For generic use (e.g. username for /monitoring/user/<id>, job id for /monitoring/job/<id>)
+	Config        map[string]any         // UI settings for the currently logged in user (e.g. line width, ...)
+	Resampling    *config.ResampleConfig // If not nil, defines resampling trigger and resolutions
 	Redirect      string                 // The originally requested URL, for intermediate login handling
 }
 
 func RenderTemplate(rw http.ResponseWriter, file string, page *Page) {
 	t, ok := templates[file]
 	if !ok {
-		log.Errorf("WEB/WEB > template '%s' not found", file)
+		cclog.Errorf("WEB/WEB > template '%s' not found", file)
 	}
 
 	if page.Clusters == nil {
-		for _, c := range config.Keys.Clusters {
-			page.Clusters = append(page.Clusters, schema.ClusterConfig{Name: c.Name, FilterRanges: c.FilterRanges, MetricDataRepository: nil})
+		for _, c := range config.Clusters {
+			page.Clusters = append(page.Clusters, config.ClusterConfig{Name: c.Name, FilterRanges: c.FilterRanges, MetricDataRepository: nil})
 		}
 	}
 
@@ -123,8 +275,8 @@ func RenderTemplate(rw http.ResponseWriter, file string, page *Page) {
 		}
 	}
 
-	log.Debugf("Page config : %v\n", page.Config)
+	cclog.Debugf("Page config : %v\n", page.Config)
 	if err := t.Execute(rw, page); err != nil {
-		log.Errorf("Template error: %s", err.Error())
+		cclog.Errorf("Template error: %s", err.Error())
 	}
 }

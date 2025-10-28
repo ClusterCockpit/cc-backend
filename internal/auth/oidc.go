@@ -1,7 +1,8 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package auth
 
 import (
@@ -13,14 +14,19 @@ import (
 	"os"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gorilla/mux"
 	"golang.org/x/oauth2"
 )
+
+type OpenIDConfig struct {
+	Provider          string `json:"provider"`
+	SyncUserOnLogin   bool   `json:"syncUserOnLogin"`
+	UpdateUserOnLogin bool   `json:"updateUserOnLogin"`
+}
 
 type OIDC struct {
 	client         *oauth2.Config
@@ -49,17 +55,17 @@ func setCallbackCookie(w http.ResponseWriter, r *http.Request, name, value strin
 }
 
 func NewOIDC(a *Authentication) *OIDC {
-	provider, err := oidc.NewProvider(context.Background(), config.Keys.OpenIDConfig.Provider)
+	provider, err := oidc.NewProvider(context.Background(), Keys.OpenIDConfig.Provider)
 	if err != nil {
-		log.Fatal(err)
+		cclog.Fatal(err)
 	}
 	clientID := os.Getenv("OID_CLIENT_ID")
 	if clientID == "" {
-		log.Warn("environment variable 'OID_CLIENT_ID' not set (Open ID connect auth will not work)")
+		cclog.Warn("environment variable 'OID_CLIENT_ID' not set (Open ID connect auth will not work)")
 	}
 	clientSecret := os.Getenv("OID_CLIENT_SECRET")
 	if clientSecret == "" {
-		log.Warn("environment variable 'OID_CLIENT_SECRET' not set (Open ID connect auth will not work)")
+		cclog.Warn("environment variable 'OID_CLIENT_SECRET' not set (Open ID connect auth will not work)")
 	}
 
 	client := &oauth2.Config{
@@ -168,12 +174,12 @@ func (oa *OIDC) OAuth2Callback(rw http.ResponseWriter, r *http.Request) {
 		AuthSource: schema.AuthViaOIDC,
 	}
 
-	if config.Keys.OpenIDConfig.SyncUserOnLogin || config.Keys.OpenIDConfig.UpdateUserOnLogin {
+	if Keys.OpenIDConfig.SyncUserOnLogin || Keys.OpenIDConfig.UpdateUserOnLogin {
 		handleOIDCUser(user)
 	}
 
 	oa.authentication.SaveSession(rw, r, user)
-	log.Infof("login successfull: user: %#v (roles: %v, projects: %v)", user.Username, user.Roles, user.Projects)
+	cclog.Infof("login successfull: user: %#v (roles: %v, projects: %v)", user.Username, user.Roles, user.Projects)
 	ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 	http.RedirectHandler("/", http.StatusTemporaryRedirect).ServeHTTP(rw, r.WithContext(ctx))
 }

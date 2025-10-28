@@ -14,13 +14,12 @@
         {{block "stylesheets" .}}
         {{end}}
         <script>
-            const header = {
-                "username":   "{{ .User.Username }}",
-                "authlevel":   {{ .User.GetAuthLevel }},
-                "clusters":    {{ .Clusters }},
-                "subClusters": {{ .SubClusters }},
-                "roles":       {{ .Roles }}
-            };
+            // Used for header.entrypoint.js mount and filters/Resources.svelte
+            const hUsername = {{ .User.Username }};
+            const hAuthlevel = {{ .User.GetAuthLevel }};
+            const hClusters = {{ .Clusters }};
+            const hSubClusters = {{ .SubClusters }};
+            const hRoles = {{ .Roles }};
         </script>
     </head>
     <body  class="site">

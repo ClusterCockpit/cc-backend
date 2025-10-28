@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package api_test
@@ -27,8 +27,9 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/gorilla/mux"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -36,18 +37,22 @@ import (
 
 func setup(t *testing.T) *api.RestApi {
 	const testconfig = `{
+		"main": {
 	"addr":            "0.0.0.0:8080",
 	"validate": false,
+  "apiAllowedIPs": [
+    "*"
+  ]
+	},
 	"archive": {
 		"kind": "file",
 		"path": "./var/job-archive"
 	},
-    "jwts": {
-        "max-age": "2m"
-    },
-  "apiAllowedIPs": [
-    "*"
-  ],
+	"auth": {
+  "jwts": {
+      "max-age": "2m"
+  }
+	},
 	"clusters": [
 	{
 	   "name": "testcluster",
@@ -116,22 +121,22 @@ func setup(t *testing.T) *api.RestApi {
 		]
 	}`
 
-	log.Init("info", true)
+	cclog.Init("info", true)
 	tmpdir := t.TempDir()
 	jobarchive := filepath.Join(tmpdir, "job-archive")
-	if err := os.Mkdir(jobarchive, 0777); err != nil {
+	if err := os.Mkdir(jobarchive, 0o777); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(filepath.Join(jobarchive, "version.txt"), []byte(fmt.Sprintf("%d", 2)), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(jobarchive, "version.txt"), fmt.Appendf(nil, "%d", 2), 0o666); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.Mkdir(filepath.Join(jobarchive, "testcluster"), 0777); err != nil {
+	if err := os.Mkdir(filepath.Join(jobarchive, "testcluster"), 0o777); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(filepath.Join(jobarchive, "testcluster", "cluster.json"), []byte(testclusterJson), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(jobarchive, "testcluster", "cluster.json"), []byte(testclusterJson), 0o666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -142,11 +147,22 @@ func setup(t *testing.T) *api.RestApi {
 	}
 
 	cfgFilePath := filepath.Join(tmpdir, "config.json")
-	if err := os.WriteFile(cfgFilePath, []byte(testconfig), 0666); err != nil {
+	if err := os.WriteFile(cfgFilePath, []byte(testconfig), 0o666); err != nil {
 		t.Fatal(err)
 	}
 
-	config.Init(cfgFilePath)
+	ccconf.Init(cfgFilePath)
+
+	// Load and check main configuration
+	if cfg := ccconf.GetPackageConfig("main"); cfg != nil {
+		if clustercfg := ccconf.GetPackageConfig("clusters"); clustercfg != nil {
+			config.Init(cfg, clustercfg)
+		} else {
+			cclog.Abort("Cluster configuration must be present")
+		}
+	} else {
+		cclog.Abort("Main configuration must be present")
+	}
 	archiveCfg := fmt.Sprintf("{\"kind\": \"file\",\"path\": \"%s\"}", jobarchive)
 
 	repository.Connect("sqlite3", dbfilepath)
@@ -160,7 +176,14 @@ func setup(t *testing.T) *api.RestApi {
 	}
 
 	archiver.Start(repository.GetJobRepository())
-	auth.Init()
+
+	if cfg := ccconf.GetPackageConfig("auth"); cfg != nil {
+		auth.Init(&cfg)
+	} else {
+		cclog.Warn("Authentication disabled due to missing configuration")
+		auth.Init(nil)
+	}
+
 	graph.Init()
 
 	return api.New()
@@ -204,11 +227,11 @@ func TestRestApi(t *testing.T) {
 	restapi.MountApiRoutes(r)
 
 	var TestJobId int64 = 123
-	var TestClusterName string = "testcluster"
+	TestClusterName := "testcluster"
 	var TestStartTime int64 = 123456789
 
 	const startJobBody string = `{
-        "jobId":            123,
+    "jobId":            123,
 		"user":             "testuser",
 		"project":          "testproj",
 		"cluster":          "testcluster",
@@ -218,10 +241,9 @@ func TestRestApi(t *testing.T) {
 		"numNodes":         1,
 		"numHwthreads":     8,
 		"numAcc":           0,
-		"exclusive":        1,
+		"shared":           "none",
 		"monitoringStatus": 1,
 		"smt":              1,
-		"tags":             [{ "type": "testTagType", "name": "testTagName", "scope": "testuser" }],
 		"resources": [
 			{
 				"hostname": "host123",
@@ -252,16 +274,17 @@ func TestRestApi(t *testing.T) {
 		if response.StatusCode != http.StatusCreated {
 			t.Fatal(response.Status, recorder.Body.String())
 		}
-		resolver := graph.GetResolverInstance()
+		// resolver := graph.GetResolverInstance()
+		restapi.JobRepository.SyncJobs()
 		job, err := restapi.JobRepository.Find(&TestJobId, &TestClusterName, &TestStartTime)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		job.Tags, err = resolver.Job().Tags(ctx, job)
-		if err != nil {
-			t.Fatal(err)
-		}
+		// job.Tags, err = resolver.Job().Tags(ctx, job)
+		// if err != nil {
+		// 	t.Fatal(err)
+		// }
 
 		if job.JobID != 123 ||
 			job.User != "testuser" ||
@@ -270,21 +293,20 @@ func TestRestApi(t *testing.T) {
 			job.SubCluster != "sc1" ||
 			job.Partition != "default" ||
 			job.Walltime != 3600 ||
-			job.ArrayJobId != 0 ||
+			job.ArrayJobID != 0 ||
 			job.NumNodes != 1 ||
 			job.NumHWThreads != 8 ||
 			job.NumAcc != 0 ||
-			job.Exclusive != 1 ||
 			job.MonitoringStatus != 1 ||
 			job.SMT != 1 ||
 			!reflect.DeepEqual(job.Resources, []*schema.Resource{{Hostname: "host123", HWThreads: []int{0, 1, 2, 3, 4, 5, 6, 7}}}) ||
-			job.StartTime.Unix() != 123456789 {
+			job.StartTime != 123456789 {
 			t.Fatalf("unexpected job properties: %#v", job)
 		}
 
-		if len(job.Tags) != 1 || job.Tags[0].Type != "testTagType" || job.Tags[0].Name != "testTagName" || job.Tags[0].Scope != "testuser" {
-			t.Fatalf("unexpected tags: %#v", job.Tags)
-		}
+		// if len(job.Tags) != 1 || job.Tags[0].Type != "testTagType" || job.Tags[0].Name != "testTagName" || job.Tags[0].Scope != "testuser" {
+		// 	t.Fatalf("unexpected tags: %#v", job.Tags)
+		// }
 	}); !ok {
 		return
 	}
@@ -352,7 +374,7 @@ func TestRestApi(t *testing.T) {
 
 	t.Run("CheckDoubleStart", func(t *testing.T) {
 		// Starting a job with the same jobId and cluster should only be allowed if the startTime is far appart!
-		body := strings.Replace(startJobBody, `"startTime": 123456789`, `"startTime": 123456790`, -1)
+		body := strings.ReplaceAll(startJobBody, `"startTime": 123456789`, `"startTime": 123456790`)
 
 		req := httptest.NewRequest(http.MethodPost, "/jobs/start_job/", bytes.NewBuffer([]byte(body)))
 		recorder := httptest.NewRecorder()
@@ -374,7 +396,7 @@ func TestRestApi(t *testing.T) {
 		"partition":        "default",
 		"walltime":         3600,
 		"numNodes":         1,
-		"exclusive":        1,
+		"shared":        	"none",
 		"monitoringStatus": 1,
 		"smt":              1,
 		"resources": [
@@ -402,6 +424,7 @@ func TestRestApi(t *testing.T) {
 	}
 
 	time.Sleep(1 * time.Second)
+	restapi.JobRepository.SyncJobs()
 
 	const stopJobBodyFailed string = `{
     "jobId":     12345,

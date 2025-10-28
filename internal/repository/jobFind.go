@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package repository
@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	sq "github.com/Masterminds/squirrel"
 )
 
@@ -39,7 +39,27 @@ func (r *JobRepository) Find(
 
 	q = q.OrderBy("job.id DESC") // always use newest matching job by db id if more than one match
 
-	log.Debugf("Timer Find %s", time.Since(start))
+	cclog.Debugf("Timer Find %s", time.Since(start))
+	return scanJob(q.RunWith(r.stmtCache).QueryRow())
+}
+
+func (r *JobRepository) FindCached(
+	jobId *int64,
+	cluster *string,
+	startTime *int64,
+) (*schema.Job, error) {
+	q := sq.Select(jobCacheColumns...).From("job_cache").
+		Where("job_cache.job_id = ?", *jobId)
+
+	if cluster != nil {
+		q = q.Where("job_cache.cluster = ?", *cluster)
+	}
+	if startTime != nil {
+		q = q.Where("job_cache.start_time = ?", *startTime)
+	}
+
+	q = q.OrderBy("job_cache.id DESC") // always use newest matching job by db id if more than one match
+
 	return scanJob(q.RunWith(r.stmtCache).QueryRow())
 }
 
@@ -66,7 +86,7 @@ func (r *JobRepository) FindAll(
 
 	rows, err := q.RunWith(r.stmtCache).Query()
 	if err != nil {
-		log.Error("Error while running query")
+		cclog.Error("Error while running query")
 		return nil, err
 	}
 
@@ -74,13 +94,42 @@ func (r *JobRepository) FindAll(
 	for rows.Next() {
 		job, err := scanJob(rows)
 		if err != nil {
-			log.Warn("Error while scanning rows")
+			cclog.Warn("Error while scanning rows")
 			return nil, err
 		}
 		jobs = append(jobs, job)
 	}
-	log.Debugf("Timer FindAll %s", time.Since(start))
+	cclog.Debugf("Timer FindAll %s", time.Since(start))
 	return jobs, nil
+}
+
+// Get complete joblist only consisting of db ids.
+// This is useful to process large job counts and intended to be used
+// together with FindById to process jobs one by one
+func (r *JobRepository) GetJobList() ([]int64, error) {
+	query := sq.Select("id").From("job").
+		Where("job.job_state != 'running'")
+
+	rows, err := query.RunWith(r.stmtCache).Query()
+	if err != nil {
+		cclog.Error("Error while running query")
+		return nil, err
+	}
+
+	jl := make([]int64, 0, 1000)
+	for rows.Next() {
+		var id int64
+		err := rows.Scan(&id)
+		if err != nil {
+			rows.Close()
+			cclog.Warn("Error while scanning rows")
+			return nil, err
+		}
+		jl = append(jl, id)
+	}
+
+	cclog.Infof("Return job count %d", len(jl))
+	return jl, nil
 }
 
 // FindById executes a SQL query to find a specific batch job.
@@ -178,7 +227,7 @@ func (r *JobRepository) FindConcurrentJobs(
 	var startTime int64
 	var stopTime int64
 
-	startTime = job.StartTimeUnix
+	startTime = job.StartTime
 	hostname := job.Resources[0].Hostname
 
 	if job.State == schema.JobStateRunning {
@@ -204,7 +253,7 @@ func (r *JobRepository) FindConcurrentJobs(
 
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
-		log.Errorf("Error while running query: %v", err)
+		cclog.Errorf("Error while running query: %v", err)
 		return nil, err
 	}
 
@@ -215,7 +264,7 @@ func (r *JobRepository) FindConcurrentJobs(
 		var id, jobId, startTime sql.NullInt64
 
 		if err = rows.Scan(&id, &jobId, &startTime); err != nil {
-			log.Warn("Error while scanning rows")
+			cclog.Warn("Error while scanning rows")
 			return nil, err
 		}
 
@@ -231,7 +280,7 @@ func (r *JobRepository) FindConcurrentJobs(
 
 	rows, err = queryRunning.RunWith(r.stmtCache).Query()
 	if err != nil {
-		log.Errorf("Error while running query: %v", err)
+		cclog.Errorf("Error while running query: %v", err)
 		return nil, err
 	}
 
@@ -239,7 +288,7 @@ func (r *JobRepository) FindConcurrentJobs(
 		var id, jobId, startTime sql.NullInt64
 
 		if err := rows.Scan(&id, &jobId, &startTime); err != nil {
-			log.Warn("Error while scanning rows")
+			cclog.Warn("Error while scanning rows")
 			return nil, err
 		}
 

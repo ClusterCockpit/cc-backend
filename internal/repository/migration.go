@@ -1,7 +1,8 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package repository
 
 import (
@@ -9,14 +10,14 @@ import (
 	"embed"
 	"fmt"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/mysql"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
 
-const Version uint = 8
+const Version uint = 10
 
 //go:embed migrations/*
 var migrationFiles embed.FS
@@ -54,13 +55,13 @@ func checkDBVersion(backend string, db *sql.DB) error {
 			return err
 		}
 	default:
-		log.Abortf("Migration: Unsupported database backend '%s'.\n", backend)
+		cclog.Abortf("Migration: Unsupported database backend '%s'.\n", backend)
 	}
 
 	v, dirty, err := m.Version()
 	if err != nil {
 		if err == migrate.ErrNilVersion {
-			log.Warn("Legacy database without version or missing database file!")
+			cclog.Warn("Legacy database without version or missing database file!")
 		} else {
 			return err
 		}
@@ -84,7 +85,7 @@ func getMigrateInstance(backend string, db string) (m *migrate.Migrate, err erro
 	case "sqlite3":
 		d, err := iofs.New(migrationFiles, "migrations/sqlite3")
 		if err != nil {
-			log.Fatal(err)
+			cclog.Fatal(err)
 		}
 
 		m, err = migrate.NewWithSourceInstance("iofs", d, fmt.Sprintf("sqlite3://%s?_foreign_keys=on", db))
@@ -102,7 +103,7 @@ func getMigrateInstance(backend string, db string) (m *migrate.Migrate, err erro
 			return m, err
 		}
 	default:
-		log.Abortf("Migration: Unsupported database backend '%s'.\n", backend)
+		cclog.Abortf("Migration: Unsupported database backend '%s'.\n", backend)
 	}
 
 	return m, nil
@@ -115,8 +116,17 @@ func MigrateDB(backend string, db string) error {
 	}
 
 	v, dirty, err := m.Version()
+	if err != nil {
+		if err == migrate.ErrNilVersion {
+			cclog.Warn("Legacy database without version or missing database file!")
+		} else {
+			return err
+		}
+	}
 
-	log.Infof("unsupported database version %d, need %d.\nPlease backup your database file and run cc-backend -migrate-db", v, Version)
+	if v < Version {
+		cclog.Infof("unsupported database version %d, need %d.\nPlease backup your database file and run cc-backend -migrate-db", v, Version)
+	}
 
 	if dirty {
 		return fmt.Errorf("last migration to version %d has failed, please fix the db manually and force version with -force-db flag", Version)
@@ -124,7 +134,7 @@ func MigrateDB(backend string, db string) error {
 
 	if err := m.Up(); err != nil {
 		if err == migrate.ErrNoChange {
-			log.Info("DB already up to date!")
+			cclog.Info("DB already up to date!")
 		} else {
 			return err
 		}
@@ -142,7 +152,7 @@ func RevertDB(backend string, db string) error {
 
 	if err := m.Migrate(Version - 1); err != nil {
 		if err == migrate.ErrNoChange {
-			log.Info("DB already up to date!")
+			cclog.Info("DB already up to date!")
 		} else {
 			return err
 		}

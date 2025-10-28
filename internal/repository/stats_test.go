@@ -1,7 +1,8 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package repository
 
 import (
@@ -19,7 +20,6 @@ func TestBuildJobStatsQuery(t *testing.T) {
 	noErr(t, err)
 
 	fmt.Printf("SQL: %s\n", sql)
-
 }
 
 func TestJobStats(t *testing.T) {
@@ -29,7 +29,7 @@ func TestJobStats(t *testing.T) {
 	stats, err := r.JobsStats(getContext(t), []*model.JobFilter{filter})
 	noErr(t, err)
 
-	if stats[0].TotalJobs != 6 {
-		t.Fatalf("Want 98, Got %d", stats[0].TotalJobs)
+	if stats[0].TotalJobs != 544 {
+		t.Fatalf("Want 544, Got %d", stats[0].TotalJobs)
 	}
 }

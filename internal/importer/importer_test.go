@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package importer_test
@@ -16,7 +16,8 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 )
 
 func copyFile(s string, d string) error {
@@ -36,18 +37,16 @@ func copyFile(s string, d string) error {
 
 func setup(t *testing.T) *repository.JobRepository {
 	const testconfig = `{
+		"main": {
 	"addr":            "0.0.0.0:8080",
 	"validate": false,
+  "apiAllowedIPs": [
+    "*"
+  ]},
 	"archive": {
 		"kind": "file",
 		"path": "./var/job-archive"
 	},
-    "jwts": {
-        "max-age": "2m"
-    },
-  "apiAllowedIPs": [
-    "*"
-  ],
 	"clusters": [
 	{
 	   "name": "testcluster",
@@ -78,7 +77,7 @@ func setup(t *testing.T) *repository.JobRepository {
 	 }
 	]}`
 
-	log.Init("info", true)
+	cclog.Init("info", true)
 	tmpdir := t.TempDir()
 
 	jobarchive := filepath.Join(tmpdir, "job-archive")
@@ -108,7 +107,19 @@ func setup(t *testing.T) *repository.JobRepository {
 		t.Fatal(err)
 	}
 
-	config.Init(cfgFilePath)
+	ccconf.Init(cfgFilePath)
+
+	// Load and check main configuration
+	if cfg := ccconf.GetPackageConfig("main"); cfg != nil {
+		if clustercfg := ccconf.GetPackageConfig("clusters"); clustercfg != nil {
+			config.Init(cfg, clustercfg)
+		} else {
+			t.Fatal("Cluster configuration must be present")
+		}
+	} else {
+		t.Fatal("Main configuration must be present")
+	}
+
 	archiveCfg := fmt.Sprintf("{\"kind\": \"file\",\"path\": \"%s\"}", jobarchive)
 
 	if err := archive.Init(json.RawMessage(archiveCfg), config.Keys.DisableArchive); err != nil {
@@ -166,7 +177,7 @@ func TestHandleImportFlag(t *testing.T) {
 			}
 
 			result := readResult(t, testname)
-			job, err := r.Find(&result.JobId, &result.Cluster, &result.StartTime)
+			job, err := r.FindCached(&result.JobId, &result.Cluster, &result.StartTime)
 			if err != nil {
 				t.Fatal(err)
 			}

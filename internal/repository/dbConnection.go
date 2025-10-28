@@ -1,15 +1,17 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package repository
 
 import (
 	"database/sql"
+	"fmt"
+	"net/url"
 	"sync"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/jmoiron/sqlx"
 	"github.com/mattn/go-sqlite3"
 	"github.com/qustavo/sqlhooks/v2"
@@ -33,6 +35,27 @@ type DatabaseOptions struct {
 	ConnectionMaxIdleTime time.Duration
 }
 
+func setupSqlite(db *sql.DB) (err error) {
+	pragmas := []string{
+		// "journal_mode = WAL",
+		// "busy_timeout = 5000",
+		// "synchronous = NORMAL",
+		// "cache_size = 1000000000", // 1GB
+		// "foreign_keys = true",
+		"temp_store = memory",
+		// "mmap_size = 3000000000",
+	}
+
+	for _, pragma := range pragmas {
+		_, err = db.Exec("PRAGMA " + pragma)
+		if err != nil {
+			return
+		}
+	}
+
+	return nil
+}
+
 func Connect(driver string, db string) {
 	var err error
 	var dbHandle *sqlx.DB
@@ -48,26 +71,34 @@ func Connect(driver string, db string) {
 
 		switch driver {
 		case "sqlite3":
-			// - Set WAL mode (not strictly necessary each time because it's persisted in the database, but good for first run)
-			// - Set busy timeout, so concurrent writers wait on each other instead of erroring immediately
-			// - Enable foreign key checks
-			opts.URL += "?_journal=WAL&_timeout=5000&_fk=true"
+			// TODO: Have separate DB handles for Writes and Reads
+			// Optimize SQLite connection: https://kerkour.com/sqlite-for-servers
+			connectionUrlParams := make(url.Values)
+			connectionUrlParams.Add("_txlock", "immediate")
+			connectionUrlParams.Add("_journal_mode", "WAL")
+			connectionUrlParams.Add("_busy_timeout", "5000")
+			connectionUrlParams.Add("_synchronous", "NORMAL")
+			connectionUrlParams.Add("_cache_size", "1000000000")
+			connectionUrlParams.Add("_foreign_keys", "true")
+			opts.URL = fmt.Sprintf("file:%s?%s", opts.URL, connectionUrlParams.Encode())
 
-			if log.Loglevel() == "debug" {
+			if cclog.Loglevel() == "debug" {
 				sql.Register("sqlite3WithHooks", sqlhooks.Wrap(&sqlite3.SQLiteDriver{}, &Hooks{}))
 				dbHandle, err = sqlx.Open("sqlite3WithHooks", opts.URL)
 			} else {
 				dbHandle, err = sqlx.Open("sqlite3", opts.URL)
 			}
+
+			setupSqlite(dbHandle.DB)
 		case "mysql":
 			opts.URL += "?multiStatements=true"
 			dbHandle, err = sqlx.Open("mysql", opts.URL)
 		default:
-			log.Abortf("DB Connection: Unsupported database driver '%s'.\n", driver)
+			cclog.Abortf("DB Connection: Unsupported database driver '%s'.\n", driver)
 		}
 
 		if err != nil {
-			log.Abortf("DB Connection: Could not connect to '%s' database with sqlx.Open().\nError: %s\n", driver, err.Error())
+			cclog.Abortf("DB Connection: Could not connect to '%s' database with sqlx.Open().\nError: %s\n", driver, err.Error())
 		}
 
 		dbHandle.SetMaxOpenConns(opts.MaxOpenConnections)
@@ -78,14 +109,14 @@ func Connect(driver string, db string) {
 		dbConnInstance = &DBConnection{DB: dbHandle, Driver: driver}
 		err = checkDBVersion(driver, dbHandle.DB)
 		if err != nil {
-			log.Abortf("DB Connection: Failed DB version check.\nError: %s\n", err.Error())
+			cclog.Abortf("DB Connection: Failed DB version check.\nError: %s\n", err.Error())
 		}
 	})
 }
 
 func GetConnection() *DBConnection {
 	if dbConnInstance == nil {
-		log.Fatalf("Database connection not initialized!")
+		cclog.Fatalf("Database connection not initialized!")
 	}
 
 	return dbConnInstance

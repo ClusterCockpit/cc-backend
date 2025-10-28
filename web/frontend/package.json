@@ -7,25 +7,24 @@
     "dev": "rollup -c -w"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^25.0.8",
-    "@rollup/plugin-node-resolve": "^15.3.0",
+    "@rollup/plugin-commonjs": "^28.0.3",
+    "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-terser": "^0.4.4",
     "@timohausmann/quadtree-js": "^1.2.6",
-    "rollup": "^4.27.4",
+    "rollup": "^4.41.1",
     "rollup-plugin-css-only": "^4.5.2",
     "rollup-plugin-svelte": "^7.2.2",
-    "svelte": "^4.2.19"
+    "svelte": "^5.33.14"
   },
   "dependencies": {
-    "@rollup/plugin-replace": "^5.0.7",
-    "@sveltestrap/sveltestrap": "^6.2.7",
-    "@urql/svelte": "^4.2.2",
-    "chart.js": "^4.4.6",
-    "date-fns": "^2.30.0",
-    "graphql": "^16.9.0",
-    "mathjs": "^12.4.3",
-    "svelte-chartjs": "^3.1.5",
-    "uplot": "^1.6.31",
-    "wonka": "^6.3.4"
+    "@rollup/plugin-replace": "^6.0.2",
+    "@sveltestrap/sveltestrap": "^7.1.0",
+    "@urql/svelte": "^4.2.3",
+    "chart.js": "^4.4.9",
+    "date-fns": "^4.1.0",
+    "graphql": "^16.11.0",
+    "mathjs": "^14.5.2",
+    "uplot": "^1.6.32",
+    "wonka": "^6.3.5"
   }
 }

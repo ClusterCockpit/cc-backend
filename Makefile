@@ -52,7 +52,7 @@ frontend:
 
 swagger:
 	$(info ===>  GENERATE swagger)
-	@go run github.com/swaggo/swag/cmd/swag init -d ./internal/api,./pkg/schema -g rest.go -o ./api
+	@go run github.com/swaggo/swag/cmd/swag init  --parseDependency -d ./internal/api -g rest.go -o ./api
 	@mv ./api/docs.go ./internal/api/docs.go
 
 graphql:

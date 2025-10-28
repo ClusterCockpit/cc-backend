@@ -1,15 +1,16 @@
 <!--
-    @component Energy Summary component; Displays job energy information.
+  @component Energy Summary component; Displays job energy information.
 
-    Properties:
-    - `jobId Number`: The job id
-    - `jobEnergy Number?`: The total job energy [Default: null]
-    - `jobEnergyFootprint [Object]?`: The partial job energy contributions [Default: null]
- -->
+  Properties:
+  - `jobId Number`: The job id
+  - `jobEnergy Number?`: The total job energy [Default: null]
+  - `jobEnergyFootprint [Object]?`: The partial job energy contributions [Default: null]
+-->
 
 <script>
   import { 
-    getContext 
+    getContext,
+    onMount
   } from "svelte";
   import {
     Card,
@@ -21,17 +22,26 @@
   } from "@sveltestrap/sveltestrap";
   import { round } from "mathjs";
 
-  export let jobId;
-  export let jobEnergy = null;
-  export let jobEnergyFootprint = null;
+  /* Svelte 5 Props */
+  let {
+    jobId,
+    jobEnergy = null,
+    jobEnergyFootprint = null
+  } = $props();
 
+  /* Const Init */
   const carbonPerkWh = getContext("emission");
-  let carbonMass;
+  
+  /* State Init */
+  let carbonMass = $state(0);
 
-  $: if (carbonPerkWh) {
-    // ( kWh * g/kWh) / 1000 = kg || Rounded to 2 Digits via [ round(x * 100) / 100 ]
-    carbonMass = round( ((jobEnergy ? jobEnergy : 0.0) * carbonPerkWh) / 10 ) / 100;
-  }
+  /* On Mount */
+  onMount(() => {
+    if (carbonPerkWh) {
+      // ( kWh * g/kWh) / 1000 = kg || Rounded to 2 Digits via [ round(x * 100) / 100 ]
+      carbonMass = round( ((jobEnergy ? jobEnergy : 0.0) * carbonPerkWh) / 10 ) / 100;
+    }
+  });
 </script>
 
 <Card>

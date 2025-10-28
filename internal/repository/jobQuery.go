@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package repository
@@ -12,9 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	sq "github.com/Masterminds/squirrel"
 )
 
@@ -68,7 +69,7 @@ func (r *JobRepository) QueryJobs(
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
 		queryString, queryVars, _ := query.ToSql()
-		log.Errorf("Error while running query '%s' %v: %v", queryString, queryVars, err)
+		cclog.Errorf("Error while running query '%s' %v: %v", queryString, queryVars, err)
 		return nil, err
 	}
 
@@ -77,7 +78,7 @@ func (r *JobRepository) QueryJobs(
 		job, err := scanJob(rows)
 		if err != nil {
 			rows.Close()
-			log.Warn("Error while scanning rows (Jobs)")
+			cclog.Warn("Error while scanning rows (Jobs)")
 			return nil, err
 		}
 		jobs = append(jobs, job)
@@ -123,7 +124,7 @@ func SecurityCheckWithUser(user *schema.User, query sq.SelectBuilder) (sq.Select
 		if len(user.Projects) != 0 {
 			return query.Where(sq.Or{sq.Eq{"job.project": user.Projects}, sq.Eq{"job.hpc_user": user.Username}}), nil
 		} else {
-			log.Debugf("Manager-User '%s' has no defined projects to lookup! Query only personal jobs ...", user.Username)
+			cclog.Debugf("Manager-User '%s' has no defined projects to lookup! Query only personal jobs ...", user.Username)
 			return query.Where("job.hpc_user = ?", user.Username), nil
 		}
 	case user.HasRole(schema.RoleUser): // User : Only personal jobs
@@ -145,6 +146,11 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	if filter.Tags != nil {
 		// This is an OR-Logic query: Returns all distinct jobs with at least one of the requested tags; TODO: AND-Logic query?
 		query = query.Join("jobtag ON jobtag.job_id = job.id").Where(sq.Eq{"jobtag.tag_id": filter.Tags}).Distinct()
+	}
+	if filter.DbID != nil {
+		dbIDs := make([]string, len(filter.DbID))
+		copy(dbIDs, filter.DbID)
+		query = query.Where(sq.Eq{"job.id": dbIDs})
 	}
 	if filter.JobID != nil {
 		query = buildStringCondition("job.job_id", filter.JobID, query)
@@ -177,8 +183,8 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 		now := time.Now().Unix() // There does not seam to be a portable way to get the current unix timestamp accross different DBs.
 		query = query.Where("(job.job_state != 'running' OR (? - job.start_time) > ?)", now, *filter.MinRunningFor)
 	}
-	if filter.Exclusive != nil {
-		query = query.Where("job.exclusive = ?", *filter.Exclusive)
+	if filter.Shared != nil {
+		query = query.Where("job.shared = ?", *filter.Shared)
 	}
 	if filter.State != nil {
 		states := make([]string, len(filter.State))
@@ -211,7 +217,7 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	return query
 }
 
-func buildIntCondition(field string, cond *schema.IntRange, query sq.SelectBuilder) sq.SelectBuilder {
+func buildIntCondition(field string, cond *config.IntRange, query sq.SelectBuilder) sq.SelectBuilder {
 	return query.Where(field+" BETWEEN ? AND ?", cond.From, cond.To)
 }
 
@@ -219,7 +225,7 @@ func buildFloatCondition(field string, cond *model.FloatRange, query sq.SelectBu
 	return query.Where(field+" BETWEEN ? AND ?", cond.From, cond.To)
 }
 
-func buildTimeCondition(field string, cond *schema.TimeRange, query sq.SelectBuilder) sq.SelectBuilder {
+func buildTimeCondition(field string, cond *config.TimeRange, query sq.SelectBuilder) sq.SelectBuilder {
 	if cond.From != nil && cond.To != nil {
 		return query.Where(field+" BETWEEN ? AND ?", cond.From.Unix(), cond.To.Unix())
 	} else if cond.From != nil {
@@ -239,7 +245,7 @@ func buildTimeCondition(field string, cond *schema.TimeRange, query sq.SelectBui
 		case "last30d":
 			then = now - (60 * 60 * 24 * 30)
 		default:
-			log.Debugf("No known named timeRange: startTime.range = %s", cond.Range)
+			cclog.Debugf("No known named timeRange: startTime.range = %s", cond.Range)
 			return query
 		}
 		return query.Where(field+" BETWEEN ? AND ?", then, now)
@@ -330,7 +336,7 @@ var (
 func toSnakeCase(str string) string {
 	for _, c := range str {
 		if c == '\'' || c == '\\' {
-			log.Panic("toSnakeCase() attack vector!")
+			cclog.Panic("toSnakeCase() attack vector!")
 		}
 	}
 

@@ -1,12 +1,12 @@
 <!--
-    @component Footprint component; Displays job.footprint data as bars in relation to thresholds
+  @component Footprint component; Displays job.footprint data as bars in relation to thresholds
 
-    Properties:
-    - `job Object`: The GQL job object
-    - `displayTitle Bool?`: If to display cardHeader with title [Default: true]
-    - `width String?`: Width of the card [Default: 'auto']
-    - `height String?`: Height of the card [Default: '310px']
- -->
+  Properties:
+  - `job Object`: The GQL job object
+  - `displayTitle Bool?`: If to display cardHeader with title [Default: true]
+  - `width String?`: Width of the card [Default: 'auto']
+  - `height String?`: Height of the card [Default: '310px']
+-->
 
 <script>
   import { getContext } from "svelte";
@@ -23,79 +23,90 @@
   } from "@sveltestrap/sveltestrap";
   import { findJobFootprintThresholds } from "../utils.js";
 
-  export let job;
-  export let displayTitle = true;
-  export let width = "auto";
-  export let height = "310px";
+  /* Svelte 5 Props */
+  let {
+    job,
+    displayTitle = true,
+    width = "auto",
+    height = "310px",
+  } = $props();
 
-  const footprintData = job?.footprint?.map((jf) => {
-    const fmc = getContext("getMetricConfig")(job.cluster, job.subCluster, jf.name);
-    if (fmc) {
-      // Unit
-      const unit = (fmc?.unit?.prefix ? fmc.unit.prefix : "") + (fmc?.unit?.base ? fmc.unit.base : "")
+  /* Derived */
+  const footprintData = $derived(buildFootprint(job?.footprint)); 
+  
+  /* Functions */
+  function buildFootprint(input) {
+    let result = input?.map((jf) => {
+      const fmc = getContext("getMetricConfig")(job.cluster, job.subCluster, jf.name);
+      if (fmc) {
+        // Unit
+        const unit = (fmc?.unit?.prefix ? fmc.unit.prefix : "") + (fmc?.unit?.base ? fmc.unit.base : "")
 
-      // Threshold / -Differences
-      const fmt = findJobFootprintThresholds(job, jf.stat, fmc);
+        // Threshold / -Differences
+        const fmt = findJobFootprintThresholds(job, jf.stat, fmc);
 
-      // Define basic data -> Value: Use as Provided
-      const fmBase = {
-        name: jf.name + ' (' + jf.stat + ')',
-        avg: jf.value,
-        unit: unit,
-        max: fmt.peak,
-        dir: fmc.lowerIsBetter
-      };
-
-      if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "alert")) {
-        return {
-          ...fmBase,
-          color: "danger",
-          message: `Footprint value way ${fmc.lowerIsBetter ? "above" : "below"} expected normal threshold.`,
-          impact: 3
+        // Define basic data -> Value: Use as Provided
+        const fmBase = {
+          name: jf.name + ' (' + jf.stat + ')',
+          avg: jf.value,
+          unit: unit,
+          max: fmt.peak,
+          dir: fmc.lowerIsBetter
         };
-      } else if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "caution")) {
+
+        if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "alert")) {
+          return {
+            ...fmBase,
+            color: "danger",
+            message: `Footprint value way ${fmc.lowerIsBetter ? "above" : "below"} expected normal threshold.`,
+            impact: 3
+          };
+        } else if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "caution")) {
+          return {
+            ...fmBase,
+            color: "warning",
+            message: `Footprint value ${fmc.lowerIsBetter ? "above" : "below"} expected normal threshold.`,
+            impact: 2,
+          };
+        } else if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "normal")) {
+          return {
+            ...fmBase,
+            color: "success",
+            message: "Footprint value within expected thresholds.",
+            impact: 1,
+          };
+        } else if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "peak")) {
+          return {
+            ...fmBase,
+            color: "info",
+            message:
+              "Footprint value above expected normal threshold: Check for artifacts recommended.",
+            impact: 0,
+          };
+        } else {
+          return {
+            ...fmBase,
+            color: "secondary",
+            message:
+              "Footprint value above expected peak threshold: Check for artifacts!",
+            impact: -1,
+          };
+        }
+      } else { // No matching metric config: display as single value
         return {
-          ...fmBase,
-          color: "warning",
-          message: `Footprint value ${fmc.lowerIsBetter ? "above" : "below"} expected normal threshold.`,
-          impact: 2,
-        };
-      } else if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "normal")) {
-        return {
-          ...fmBase,
-          color: "success",
-          message: "Footprint value within expected thresholds.",
-          impact: 1,
-        };
-      } else if (evalFootprint(jf.value, fmt, fmc.lowerIsBetter, "peak")) {
-        return {
-          ...fmBase,
-          color: "info",
+          name: jf.name + ' (' + jf.stat + ')',
+          avg: jf.value,
           message:
-            "Footprint value above expected normal threshold: Check for artifacts recommended.",
-          impact: 0,
-        };
-      } else {
-        return {
-          ...fmBase,
-          color: "secondary",
-          message:
-            "Footprint value above expected peak threshold: Check for artifacts!",
-          impact: -1,
+            `No config for metric ${jf.name} found.`,
+          impact: 4,
         };
       }
-    } else { // No matching metric config: display as single value
-      return {
-        name: jf.name + ' (' + jf.stat + ')',
-        avg: jf.value,
-        message:
-          `No config for metric ${jf.name} found.`,
-        impact: 4,
-      };
-    }
-  }).sort(function (a, b) { // Sort by impact value primarily, within impact sort name alphabetically
-    return a.impact - b.impact || ((a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0));
-  });;
+    }).sort(function (a, b) { // Sort by impact value primarily, within impact sort name alphabetically
+      return a.impact - b.impact || ((a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0));
+    });;
+
+    return result;
+  };
 
   function evalFootprint(value, thresholds, lowerIsBetter, level) {
     // Handle Metrics in which less value is better
@@ -176,7 +187,7 @@
           >{fpd.message}</Tooltip
           >
         </div>
-        <Row cols={12} class="{(footprintData.length == (index + 1)) ? 'mb-0' : 'mb-2'}">
+        <Row cols={12} class={(footprintData.length == (index + 1)) ? 'mb-0' : 'mb-2'}>
           {#if fpd.dir}
             <Col xs="1">
               <Icon name="caret-left-fill" />

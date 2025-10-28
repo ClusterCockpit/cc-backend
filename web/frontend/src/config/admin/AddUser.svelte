@@ -1,26 +1,29 @@
 <!--
-    @component User creation form card
+  @component User creation form card
 
-    Properties:
-    - `roles [String]!`: List of roles used in app as strings
+  Properties:
+  - `roles [String]!`: List of roles used in app as strings
+  - `reloadUser Func`: The callback function to reload the user list
+-->
 
-    Events:
-    - `reload`: Trigger upstream reload of user list after user creation
- -->
- 
  <script>
   import { Button, Card, CardTitle } from "@sveltestrap/sveltestrap";
-  import { createEventDispatcher } from "svelte";
   import { fade } from "svelte/transition";
 
-  const dispatch = createEventDispatcher();
+  /* Svelte 5 Props */
+  let {
+    roles,
+    reloadUser
+  } = $props();
 
-  let message = { msg: "", color: "#d63384" };
-  let displayMessage = false;
+  /* State Init */
+  let message = $state({ msg: "", color: "#d63384" });
+  let displayMessage = $state(false);
 
-  export let roles;
-
-  async function handleUserSubmit() {
+  /* Functions */
+  async function handleUserSubmit(event) {
+    event.preventDefault();
+    
     let form = document.querySelector("#create-user-form");
     let formData = new FormData(form);
 
@@ -29,7 +32,7 @@
       if (res.ok) {
         let text = await res.text();
         popMessage(text, "#048109");
-        reloadUserList();
+        reloadUser();
         form.reset();
       } else {
         let text = await res.text();
@@ -47,10 +50,6 @@
       displayMessage = false;
     }, 3500);
   }
-
-  function reloadUserList() {
-    dispatch("reload");
-  }
 </script>
 
 <Card>
@@ -59,7 +58,8 @@
     method="post"
     action="/config/users/"
     class="card-body"
-    on:submit|preventDefault={handleUserSubmit}
+    autocomplete="off"
+    onsubmit={(e) => handleUserSubmit(e)}
   >
     <CardTitle class="mb-3">Create User</CardTitle>
     <div class="mb-3">
@@ -70,6 +70,7 @@
         id="username"
         name="username"
         aria-describedby="usernameHelp"
+        autocomplete="username"
       />
       <div id="usernameHelp" class="form-text">Must be unique.</div>
     </div>
@@ -81,6 +82,7 @@
         id="password"
         name="password"
         aria-describedby="passwordHelp"
+        autocomplete="new-password"
       />
       <div id="passwordHelp" class="form-text">
         Only API users are allowed to have a blank password. Users with a blank
@@ -109,6 +111,7 @@
         id="name"
         name="name"
         aria-describedby="nameHelp"
+        autocomplete="name"
       />
       <div id="nameHelp" class="form-text">Optional, can be blank.</div>
     </div>
@@ -120,6 +123,7 @@
         id="email"
         name="email"
         aria-describedby="emailHelp"
+        autocomplete="email"
       />
       <div id="emailHelp" class="form-text">Optional, can be blank.</div>
     </div>
@@ -153,13 +157,13 @@
       {/each}
     </div>
     <p style="display: flex; align-items: center;">
-      <Button type="submit" color="primary">Submit</Button>
-      {#if displayMessage}<div style="margin-left: 1.5em;">
-          <b
-            ><code style="color: {message.color};" out:fade>{message.msg}</code
-            ></b
-          >
-        </div>{/if}
+      <Button type="submit" color="primary" style="margin-right: 1.5em;">Submit</Button>
+      {#if displayMessage}
+        <b
+          ><code style="color: {message.color};" out:fade>{message.msg}</code
+          ></b
+        >
+      {/if}
     </p>
   </form>
 </Card>

@@ -1,10 +1,10 @@
 <!--
-    @component User settings wrapper
+  @component User settings wrapper
 
-    Properties:
-    - `username String!`: Empty string if auth. is disabled, otherwise the username as string
-    - `isApi Bool!`: Is currently logged in user api authority
- -->
+  Properties:
+  - `username String!`: Empty string if auth. is disabled, otherwise the username as string
+  - `isApi Bool!`: Is currently logged in user api authority
+-->
 
 <script>
   import { getContext } from "svelte";
@@ -12,24 +12,33 @@
   import PlotRenderOptions from "./user/PlotRenderOptions.svelte";
   import PlotColorScheme from "./user/PlotColorScheme.svelte";
 
-  export let username
-  export let isApi
+  /* Svelte 5 Props */
+  let {
+    username,
+    isApi
+  } = $props();
 
+  /* Const Init */
   const ccconfig = getContext("cc-config");
-  let message = { msg: "", target: "", color: "#d63384" };
-  let displayMessage = false;
-  let cbmode = ccconfig?.plot_general_colorblindMode || false;
+  
+  /* State Init */
+  let message = $state({ msg: "", target: "", color: "#d63384" });
+  let displayMessage = $state(false);
+  let cbmode = $state(ccconfig?.plotConfiguration_colorblindMode || false);
 
-  async function handleSettingSubmit(event) {
-    const selector = event.detail.selector
-    const target = event.detail.target
+  /* Functions */
+  async function handleSettingSubmit(event, setting) {
+    event.preventDefault();
+
+    const selector = setting.selector
+    const target = setting.target
     let form = document.querySelector(selector);
     let formData = new FormData(form);
     try {
       const res = await fetch(form.action, { method: "POST", body: formData });
       if (res.ok) {
         let text = await res.text();
-        if (formData.get("key") === "plot_general_colorblindMode") {
+        if (formData.get("key") === "plotConfiguration_colorblindMode") {
           cbmode = JSON.parse(formData.get("value"));
         }
         popMessage(text, target, "#048109");
@@ -53,6 +62,6 @@
   }
 </script>
 
-<UserOptions config={ccconfig} {username} {isApi} bind:message bind:displayMessage on:update-config={(e) => handleSettingSubmit(e)}/>
-<PlotRenderOptions config={ccconfig} bind:message bind:displayMessage on:update-config={(e) => handleSettingSubmit(e)}/>
-<PlotColorScheme config={ccconfig} bind:cbmode bind:message bind:displayMessage on:update-config={(e) => handleSettingSubmit(e)}/>
+<UserOptions config={ccconfig} {username} {isApi} bind:message bind:displayMessage updateSetting={(e, newSetting) => handleSettingSubmit(e, newSetting)}/>
+<PlotRenderOptions config={ccconfig} bind:message bind:displayMessage updateSetting={(e, newSetting) => handleSettingSubmit(e, newSetting)}/>
+<PlotColorScheme config={ccconfig} bind:cbmode bind:message bind:displayMessage updateSetting={(e, newSetting) => handleSettingSubmit(e, newSetting)}/>

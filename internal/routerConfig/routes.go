@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package routerConfig
@@ -16,10 +16,10 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-backend/internal/util"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
 	"github.com/ClusterCockpit/cc-backend/web"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-lib/util"
 	"github.com/gorilla/mux"
 )
 
@@ -57,23 +57,23 @@ func setupHomeRoute(i InfoType, r *http.Request) InfoType {
 	// startJobCount := time.Now()
 	stats, err := jobRepo.JobCountGrouped(r.Context(), nil, &groupBy)
 	if err != nil {
-		log.Warnf("failed to count jobs: %s", err.Error())
+		cclog.Warnf("failed to count jobs: %s", err.Error())
 	}
-	// log.Infof("Timer HOME ROUTE startJobCount: %s", time.Since(startJobCount))
+	// cclog.Infof("Timer HOME ROUTE startJobCount: %s", time.Since(startJobCount))
 
 	// startRunningJobCount := time.Now()
 	stats, err = jobRepo.AddJobCountGrouped(r.Context(), nil, &groupBy, stats, "running")
 	if err != nil {
-		log.Warnf("failed to count running jobs: %s", err.Error())
+		cclog.Warnf("failed to count running jobs: %s", err.Error())
 	}
-	// log.Infof("Timer HOME ROUTE startRunningJobCount: %s", time.Since(startRunningJobCount))
+	// cclog.Infof("Timer HOME ROUTE startRunningJobCount: %s", time.Since(startRunningJobCount))
 
 	i["clusters"] = stats
 
 	if util.CheckFileExists("./var/notice.txt") {
 		msg, err := os.ReadFile("./var/notice.txt")
 		if err != nil {
-			log.Warnf("failed to read notice.txt file: %s", err.Error())
+			cclog.Warnf("failed to read notice.txt file: %s", err.Error())
 		} else {
 			i["message"] = string(msg)
 		}
@@ -161,7 +161,7 @@ func setupNodeRoute(i InfoType, r *http.Request) InfoType {
 	i["hostname"] = vars["hostname"]
 	i["id"] = fmt.Sprintf("%s (%s)", vars["cluster"], vars["hostname"])
 	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
-	if from != "" || to != "" {
+	if from != "" && to != "" {
 		i["from"] = from
 		i["to"] = to
 	}
@@ -178,7 +178,7 @@ func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 	tags, counts, err := jobRepo.CountTags(repository.GetUserFromContext(r.Context()))
 	tagMap := make(map[string][]map[string]interface{})
 	if err != nil {
-		log.Warnf("GetTags failed: %s", err.Error())
+		cclog.Warnf("GetTags failed: %s", err.Error())
 		i["tagmap"] = tagMap
 		return i
 	}
@@ -296,6 +296,9 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 				filterPresets["numAccelerators"] = map[string]int{"from": a, "to": b}
 			}
 		}
+	}
+	if len(query["dbId"]) != 0 {
+		filterPresets["dbId"] = query["dbId"]
 	}
 	if query.Get("jobId") != "" {
 		if len(query["jobId"]) == 1 {

@@ -1,17 +1,21 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
+// Package archive implements the job archive interface and various backend implementations
 package archive
 
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"sync"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/ClusterCockpit/cc-backend/internal/config"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/lrucache"
+	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
 const Version uint64 = 2
@@ -23,7 +27,7 @@ type ArchiveBackend interface {
 
 	Exists(job *schema.Job) bool
 
-	LoadJobMeta(job *schema.Job) (*schema.JobMeta, error)
+	LoadJobMeta(job *schema.Job) (*schema.Job, error)
 
 	LoadJobData(job *schema.Job) (schema.JobData, error)
 
@@ -31,9 +35,9 @@ type ArchiveBackend interface {
 
 	LoadClusterCfg(name string) (*schema.Cluster, error)
 
-	StoreJobMeta(jobMeta *schema.JobMeta) error
+	StoreJobMeta(jobMeta *schema.Job) error
 
-	ImportJob(jobMeta *schema.JobMeta, jobData *schema.JobData) error
+	ImportJob(jobMeta *schema.Job, jobData *schema.JobData) error
 
 	GetClusters() []string
 
@@ -51,7 +55,7 @@ type ArchiveBackend interface {
 }
 
 type JobContainer struct {
-	Meta *schema.JobMeta
+	Meta *schema.Job
 	Data *schema.JobData
 }
 
@@ -60,6 +64,7 @@ var (
 	cache      *lrucache.Cache = lrucache.New(128 * 1024 * 1024)
 	ar         ArchiveBackend
 	useArchive bool
+	mutex      sync.Mutex
 )
 
 func Init(rawConfig json.RawMessage, disableArchive bool) error {
@@ -72,8 +77,9 @@ func Init(rawConfig json.RawMessage, disableArchive bool) error {
 			Kind string `json:"kind"`
 		}
 
+		config.Validate(configSchema, rawConfig)
 		if err = json.Unmarshal(rawConfig, &cfg); err != nil {
-			log.Warn("Error while unmarshaling raw config json")
+			cclog.Warn("Error while unmarshaling raw config json")
 			return
 		}
 
@@ -89,10 +95,10 @@ func Init(rawConfig json.RawMessage, disableArchive bool) error {
 		var version uint64
 		version, err = ar.Init(rawConfig)
 		if err != nil {
-			log.Errorf("Error while initializing archiveBackend: %s", err.Error())
+			cclog.Errorf("Error while initializing archiveBackend: %s", err.Error())
 			return
 		}
-		log.Infof("Load archive version %d", version)
+		cclog.Infof("Load archive version %d", version)
 
 		err = initClusterConfig()
 	})
@@ -104,7 +110,6 @@ func GetHandle() ArchiveBackend {
 	return ar
 }
 
-// Helper to metricdataloader.LoadAverages().
 func LoadAveragesFromArchive(
 	job *schema.Job,
 	metrics []string,
@@ -112,7 +117,7 @@ func LoadAveragesFromArchive(
 ) error {
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
-		log.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
+		cclog.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
 		return err
 	}
 
@@ -127,7 +132,6 @@ func LoadAveragesFromArchive(
 	return nil
 }
 
-// Helper to metricdataloader.LoadJobStats().
 func LoadStatsFromArchive(
 	job *schema.Job,
 	metrics []string,
@@ -135,7 +139,7 @@ func LoadStatsFromArchive(
 	data := make(map[string]schema.MetricStatistics, len(metrics))
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
-		log.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
+		cclog.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
 		return data, err
 	}
 
@@ -156,16 +160,14 @@ func LoadStatsFromArchive(
 	return data, nil
 }
 
-// Helper to metricdataloader.LoadScopedJobStats().
 func LoadScopedStatsFromArchive(
 	job *schema.Job,
 	metrics []string,
 	scopes []schema.MetricScope,
 ) (schema.ScopedJobStats, error) {
-
 	data, err := ar.LoadJobStats(job)
 	if err != nil {
-		log.Errorf("Error while loading job stats from archiveBackend: %s", err.Error())
+		cclog.Errorf("Error while loading job stats from archiveBackend: %s", err.Error())
 		return nil, err
 	}
 
@@ -175,43 +177,47 @@ func LoadScopedStatsFromArchive(
 func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
-		log.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
+		cclog.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
 		return nil, err
 	}
 
 	return metaFile.Statistics, nil
 }
 
-// If the job is archived, find its `meta.json` file and override the Metadata
+// UpdateMetadata checks if the job is archived, find its `meta.json` file and override the Metadata
 // in that JSON file. If the job is not archived, nothing is done.
 func UpdateMetadata(job *schema.Job, metadata map[string]string) error {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	if job.State == schema.JobStateRunning || !useArchive {
 		return nil
 	}
 
 	jobMeta, err := ar.LoadJobMeta(job)
 	if err != nil {
-		log.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
+		cclog.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
 		return err
 	}
 
-	for k, v := range metadata {
-		jobMeta.MetaData[k] = v
-	}
+	maps.Copy(jobMeta.MetaData, metadata)
 
 	return ar.StoreJobMeta(jobMeta)
 }
 
-// If the job is archived, find its `meta.json` file and override the tags list
+// UpdateTags checks if the job is archived, find its `meta.json` file and override the tags list
 // in that JSON file. If the job is not archived, nothing is done.
 func UpdateTags(job *schema.Job, tags []*schema.Tag) error {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	if job.State == schema.JobStateRunning || !useArchive {
 		return nil
 	}
 
 	jobMeta, err := ar.LoadJobMeta(job)
 	if err != nil {
-		log.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
+		cclog.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
 		return err
 	}
 

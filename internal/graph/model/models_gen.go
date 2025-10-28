@@ -3,12 +3,14 @@
 package model
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"strconv"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
 type Count struct {
@@ -50,6 +52,7 @@ type IntRangeOutput struct {
 
 type JobFilter struct {
 	Tags            []string          `json:"tags,omitempty"`
+	DbID            []string          `json:"dbId,omitempty"`
 	JobID           *StringInput      `json:"jobId,omitempty"`
 	ArrayJobID      *int              `json:"arrayJobId,omitempty"`
 	User            *StringInput      `json:"user,omitempty"`
@@ -57,16 +60,16 @@ type JobFilter struct {
 	JobName         *StringInput      `json:"jobName,omitempty"`
 	Cluster         *StringInput      `json:"cluster,omitempty"`
 	Partition       *StringInput      `json:"partition,omitempty"`
-	Duration        *schema.IntRange  `json:"duration,omitempty"`
+	Duration        *config.IntRange  `json:"duration,omitempty"`
 	Energy          *FloatRange       `json:"energy,omitempty"`
 	MinRunningFor   *int              `json:"minRunningFor,omitempty"`
-	NumNodes        *schema.IntRange  `json:"numNodes,omitempty"`
-	NumAccelerators *schema.IntRange  `json:"numAccelerators,omitempty"`
-	NumHWThreads    *schema.IntRange  `json:"numHWThreads,omitempty"`
-	StartTime       *schema.TimeRange `json:"startTime,omitempty"`
+	NumNodes        *config.IntRange  `json:"numNodes,omitempty"`
+	NumAccelerators *config.IntRange  `json:"numAccelerators,omitempty"`
+	NumHWThreads    *config.IntRange  `json:"numHWThreads,omitempty"`
+	StartTime       *config.TimeRange `json:"startTime,omitempty"`
 	State           []schema.JobState `json:"state,omitempty"`
 	MetricStats     []*MetricStatItem `json:"metricStats,omitempty"`
-	Exclusive       *int              `json:"exclusive,omitempty"`
+	Shared          *string           `json:"shared,omitempty"`
 	Node            *StringInput      `json:"node,omitempty"`
 }
 
@@ -96,19 +99,22 @@ type JobResultList struct {
 }
 
 type JobStats struct {
-	Name  string                   `json:"name"`
-	Stats *schema.MetricStatistics `json:"stats"`
-}
-
-type JobStatsWithScope struct {
-	Name  string             `json:"name"`
-	Scope schema.MetricScope `json:"scope"`
-	Stats []*ScopedStats     `json:"stats"`
+	ID              int           `json:"id"`
+	JobID           string        `json:"jobId"`
+	StartTime       int           `json:"startTime"`
+	Duration        int           `json:"duration"`
+	Cluster         string        `json:"cluster"`
+	SubCluster      string        `json:"subCluster"`
+	NumNodes        int           `json:"numNodes"`
+	NumHWThreads    *int          `json:"numHWThreads,omitempty"`
+	NumAccelerators *int          `json:"numAccelerators,omitempty"`
+	Stats           []*NamedStats `json:"stats"`
 }
 
 type JobsStatistics struct {
 	ID             string               `json:"id"`
 	Name           string               `json:"name"`
+	TotalUsers     int                  `json:"totalUsers"`
 	TotalJobs      int                  `json:"totalJobs"`
 	RunningJobs    int                  `json:"runningJobs"`
 	ShortJobs      int                  `json:"shortJobs"`
@@ -153,10 +159,47 @@ type MetricStatItem struct {
 type Mutation struct {
 }
 
+type NamedStats struct {
+	Name string                   `json:"name"`
+	Data *schema.MetricStatistics `json:"data"`
+}
+
+type NamedStatsWithScope struct {
+	Name  string             `json:"name"`
+	Scope schema.MetricScope `json:"scope"`
+	Stats []*ScopedStats     `json:"stats"`
+}
+
+type NodeFilter struct {
+	Hostname       *StringInput           `json:"hostname,omitempty"`
+	Cluster        *StringInput           `json:"cluster,omitempty"`
+	Subcluster     *StringInput           `json:"subcluster,omitempty"`
+	SchedulerState *schema.SchedulerState `json:"schedulerState,omitempty"`
+	HealthState    *string                `json:"healthState,omitempty"`
+	TimeStart      *int                   `json:"timeStart,omitempty"`
+}
+
 type NodeMetrics struct {
 	Host       string               `json:"host"`
 	SubCluster string               `json:"subCluster"`
 	Metrics    []*JobMetricWithName `json:"metrics"`
+}
+
+type NodeStateResultList struct {
+	Items []*schema.Node `json:"items"`
+	Count *int           `json:"count,omitempty"`
+}
+
+type NodeStates struct {
+	State string `json:"state"`
+	Count int    `json:"count"`
+}
+
+type NodeStatesTimed struct {
+	State string `json:"state"`
+	Type  string `json:"type"`
+	Count int    `json:"count"`
+	Time  int    `json:"time"`
 }
 
 type NodesResultList struct {
@@ -215,20 +258,22 @@ type User struct {
 type Aggregate string
 
 const (
-	AggregateUser    Aggregate = "USER"
-	AggregateProject Aggregate = "PROJECT"
-	AggregateCluster Aggregate = "CLUSTER"
+	AggregateUser       Aggregate = "USER"
+	AggregateProject    Aggregate = "PROJECT"
+	AggregateCluster    Aggregate = "CLUSTER"
+	AggregateSubcluster Aggregate = "SUBCLUSTER"
 )
 
 var AllAggregate = []Aggregate{
 	AggregateUser,
 	AggregateProject,
 	AggregateCluster,
+	AggregateSubcluster,
 }
 
 func (e Aggregate) IsValid() bool {
 	switch e {
-	case AggregateUser, AggregateProject, AggregateCluster:
+	case AggregateUser, AggregateProject, AggregateCluster, AggregateSubcluster:
 		return true
 	}
 	return false
@@ -255,11 +300,26 @@ func (e Aggregate) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
+func (e *Aggregate) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e Aggregate) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type SortByAggregate string
 
 const (
 	SortByAggregateTotalwalltime  SortByAggregate = "TOTALWALLTIME"
 	SortByAggregateTotaljobs      SortByAggregate = "TOTALJOBS"
+	SortByAggregateTotalusers     SortByAggregate = "TOTALUSERS"
 	SortByAggregateTotalnodes     SortByAggregate = "TOTALNODES"
 	SortByAggregateTotalnodehours SortByAggregate = "TOTALNODEHOURS"
 	SortByAggregateTotalcores     SortByAggregate = "TOTALCORES"
@@ -271,6 +331,7 @@ const (
 var AllSortByAggregate = []SortByAggregate{
 	SortByAggregateTotalwalltime,
 	SortByAggregateTotaljobs,
+	SortByAggregateTotalusers,
 	SortByAggregateTotalnodes,
 	SortByAggregateTotalnodehours,
 	SortByAggregateTotalcores,
@@ -281,7 +342,7 @@ var AllSortByAggregate = []SortByAggregate{
 
 func (e SortByAggregate) IsValid() bool {
 	switch e {
-	case SortByAggregateTotalwalltime, SortByAggregateTotaljobs, SortByAggregateTotalnodes, SortByAggregateTotalnodehours, SortByAggregateTotalcores, SortByAggregateTotalcorehours, SortByAggregateTotalaccs, SortByAggregateTotalacchours:
+	case SortByAggregateTotalwalltime, SortByAggregateTotaljobs, SortByAggregateTotalusers, SortByAggregateTotalnodes, SortByAggregateTotalnodehours, SortByAggregateTotalcores, SortByAggregateTotalcorehours, SortByAggregateTotalaccs, SortByAggregateTotalacchours:
 		return true
 	}
 	return false
@@ -306,6 +367,20 @@ func (e *SortByAggregate) UnmarshalGQL(v any) error {
 
 func (e SortByAggregate) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *SortByAggregate) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e SortByAggregate) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }
 
 type SortDirectionEnum string
@@ -347,4 +422,18 @@ func (e *SortDirectionEnum) UnmarshalGQL(v any) error {
 
 func (e SortDirectionEnum) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *SortDirectionEnum) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e SortDirectionEnum) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }

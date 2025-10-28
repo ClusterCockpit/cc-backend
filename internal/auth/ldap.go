@@ -1,7 +1,8 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package auth
 
 import (
@@ -11,12 +12,25 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/go-ldap/ldap/v3"
 )
+
+type LdapConfig struct {
+	URL             string `json:"url"`
+	UserBase        string `json:"user_base"`
+	SearchDN        string `json:"search_dn"`
+	UserBind        string `json:"user_bind"`
+	UserFilter      string `json:"user_filter"`
+	UserAttr        string `json:"username_attr"`
+	SyncInterval    string `json:"sync_interval"` // Parsed using time.ParseDuration.
+	SyncDelOldUsers bool   `json:"sync_del_old_users"`
+
+	// Should an non-existent user be added to the DB if user exists in ldap directory
+	SyncUserOnLogin bool `json:"syncUserOnLogin"`
+}
 
 type LdapAuthenticator struct {
 	syncPassword string
@@ -28,13 +42,11 @@ var _ Authenticator = (*LdapAuthenticator)(nil)
 func (la *LdapAuthenticator) Init() error {
 	la.syncPassword = os.Getenv("LDAP_ADMIN_PASSWORD")
 	if la.syncPassword == "" {
-		log.Warn("environment variable 'LDAP_ADMIN_PASSWORD' not set (ldap sync will not work)")
+		cclog.Warn("environment variable 'LDAP_ADMIN_PASSWORD' not set (ldap sync will not work)")
 	}
 
-	lc := config.Keys.LdapConfig
-
-	if lc.UserAttr != "" {
-		la.UserAttr = lc.UserAttr
+	if Keys.LdapConfig.UserAttr != "" {
+		la.UserAttr = Keys.LdapConfig.UserAttr
 	} else {
 		la.UserAttr = "gecos"
 	}
@@ -48,7 +60,7 @@ func (la *LdapAuthenticator) CanLogin(
 	rw http.ResponseWriter,
 	r *http.Request,
 ) (*schema.User, bool) {
-	lc := config.Keys.LdapConfig
+	lc := Keys.LdapConfig
 
 	if user != nil {
 		if user.AuthSource == schema.AuthViaLDAP {
@@ -58,7 +70,7 @@ func (la *LdapAuthenticator) CanLogin(
 		if lc.SyncUserOnLogin {
 			l, err := la.getLdapConnection(true)
 			if err != nil {
-				log.Error("LDAP connection error")
+				cclog.Error("LDAP connection error")
 			}
 			defer l.Close()
 
@@ -71,12 +83,12 @@ func (la *LdapAuthenticator) CanLogin(
 
 			sr, err := l.Search(searchRequest)
 			if err != nil {
-				log.Warn(err)
+				cclog.Warn(err)
 				return nil, false
 			}
 
 			if len(sr.Entries) != 1 {
-				log.Warn("LDAP: User does not exist or too many entries returned")
+				cclog.Warn("LDAP: User does not exist or too many entries returned")
 				return nil, false
 			}
 
@@ -96,7 +108,7 @@ func (la *LdapAuthenticator) CanLogin(
 			}
 
 			if err := repository.GetUserRepository().AddUser(user); err != nil {
-				log.Errorf("User '%s' LDAP: Insert into DB failed", username)
+				cclog.Errorf("User '%s' LDAP: Insert into DB failed", username)
 				return nil, false
 			}
 
@@ -114,14 +126,14 @@ func (la *LdapAuthenticator) Login(
 ) (*schema.User, error) {
 	l, err := la.getLdapConnection(false)
 	if err != nil {
-		log.Warn("Error while getting ldap connection")
+		cclog.Warn("Error while getting ldap connection")
 		return nil, err
 	}
 	defer l.Close()
 
-	userDn := strings.Replace(config.Keys.LdapConfig.UserBind, "{username}", user.Username, -1)
+	userDn := strings.ReplaceAll(Keys.LdapConfig.UserBind, "{username}", user.Username)
 	if err := l.Bind(userDn, r.FormValue("password")); err != nil {
-		log.Errorf("AUTH/LDAP > Authentication for user %s failed: %v",
+		cclog.Errorf("AUTH/LDAP > Authentication for user %s failed: %v",
 			user.Username, err)
 		return nil, fmt.Errorf("Authentication failed")
 	}
@@ -130,11 +142,11 @@ func (la *LdapAuthenticator) Login(
 }
 
 func (la *LdapAuthenticator) Sync() error {
-	const IN_DB int = 1
-	const IN_LDAP int = 2
-	const IN_BOTH int = 3
+	const InDB int = 1
+	const InLdap int = 2
+	const InBoth int = 3
 	ur := repository.GetUserRepository()
-	lc := config.Keys.LdapConfig
+	lc := Keys.LdapConfig
 
 	users := map[string]int{}
 	usernames, err := ur.GetLdapUsernames()
@@ -143,12 +155,12 @@ func (la *LdapAuthenticator) Sync() error {
 	}
 
 	for _, username := range usernames {
-		users[username] = IN_DB
+		users[username] = InDB
 	}
 
 	l, err := la.getLdapConnection(true)
 	if err != nil {
-		log.Error("LDAP connection error")
+		cclog.Error("LDAP connection error")
 		return err
 	}
 	defer l.Close()
@@ -159,7 +171,7 @@ func (la *LdapAuthenticator) Sync() error {
 		lc.UserFilter,
 		[]string{"dn", "uid", la.UserAttr}, nil))
 	if err != nil {
-		log.Warn("LDAP search error")
+		cclog.Warn("LDAP search error")
 		return err
 	}
 
@@ -172,18 +184,18 @@ func (la *LdapAuthenticator) Sync() error {
 
 		_, ok := users[username]
 		if !ok {
-			users[username] = IN_LDAP
+			users[username] = InLdap
 			newnames[username] = entry.GetAttributeValue(la.UserAttr)
 		} else {
-			users[username] = IN_BOTH
+			users[username] = InBoth
 		}
 	}
 
 	for username, where := range users {
-		if where == IN_DB && lc.SyncDelOldUsers {
+		if where == InDB && lc.SyncDelOldUsers {
 			ur.DelUser(username)
-			log.Debugf("sync: remove %v (does not show up in LDAP anymore)", username)
-		} else if where == IN_LDAP {
+			cclog.Debugf("sync: remove %v (does not show up in LDAP anymore)", username)
+		} else if where == InLdap {
 			name := newnames[username]
 
 			var roles []string
@@ -198,9 +210,9 @@ func (la *LdapAuthenticator) Sync() error {
 				AuthSource: schema.AuthViaLDAP,
 			}
 
-			log.Debugf("sync: add %v (name: %v, roles: [user], ldap: true)", username, name)
+			cclog.Debugf("sync: add %v (name: %v, roles: [user], ldap: true)", username, name)
 			if err := ur.AddUser(user); err != nil {
-				log.Errorf("User '%s' LDAP: Insert into DB failed", username)
+				cclog.Errorf("User '%s' LDAP: Insert into DB failed", username)
 				return err
 			}
 		}
@@ -210,17 +222,17 @@ func (la *LdapAuthenticator) Sync() error {
 }
 
 func (la *LdapAuthenticator) getLdapConnection(admin bool) (*ldap.Conn, error) {
-	lc := config.Keys.LdapConfig
-	conn, err := ldap.DialURL(lc.Url)
+	lc := Keys.LdapConfig
+	conn, err := ldap.DialURL(lc.URL)
 	if err != nil {
-		log.Warn("LDAP URL dial failed")
+		cclog.Warn("LDAP URL dial failed")
 		return nil, err
 	}
 
 	if admin {
 		if err := conn.Bind(lc.SearchDN, la.syncPassword); err != nil {
 			conn.Close()
-			log.Warn("LDAP connection bind failed")
+			cclog.Warn("LDAP connection bind failed")
 			return nil, err
 		}
 	}

@@ -1,7 +1,8 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package auth
 
 import (
@@ -13,12 +14,33 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/golang-jwt/jwt/v5"
 )
+
+type JWTAuthConfig struct {
+	// Specifies for how long a JWT token shall be valid
+	// as a string parsable by time.ParseDuration().
+	MaxAge string `json:"max-age"`
+
+	// Specifies which cookie should be checked for a JWT token (if no authorization header is present)
+	CookieName string `json:"cookieName"`
+
+	// Deny login for users not in database (but defined in JWT).
+	// Ignore user roles defined in JWTs ('roles' claim), get them from db.
+	ValidateUser bool `json:"validateUser"`
+
+	// Specifies which issuer should be accepted when validating external JWTs ('iss' claim)
+	TrustedIssuer string `json:"trustedIssuer"`
+
+	// Should an non-existent user be added to the DB based on the information in the token
+	SyncUserOnLogin bool `json:"syncUserOnLogin"`
+
+	// Should an existent user be updated in the DB based on the information in the token
+	UpdateUserOnLogin bool `json:"updateUserOnLogin"`
+}
 
 type JWTAuthenticator struct {
 	publicKey  ed25519.PublicKey
@@ -28,17 +50,17 @@ type JWTAuthenticator struct {
 func (ja *JWTAuthenticator) Init() error {
 	pubKey, privKey := os.Getenv("JWT_PUBLIC_KEY"), os.Getenv("JWT_PRIVATE_KEY")
 	if pubKey == "" || privKey == "" {
-		log.Warn("environment variables 'JWT_PUBLIC_KEY' or 'JWT_PRIVATE_KEY' not set (token based authentication will not work)")
+		cclog.Warn("environment variables 'JWT_PUBLIC_KEY' or 'JWT_PRIVATE_KEY' not set (token based authentication will not work)")
 	} else {
 		bytes, err := base64.StdEncoding.DecodeString(pubKey)
 		if err != nil {
-			log.Warn("Could not decode JWT public key")
+			cclog.Warn("Could not decode JWT public key")
 			return err
 		}
 		ja.publicKey = ed25519.PublicKey(bytes)
 		bytes, err = base64.StdEncoding.DecodeString(privKey)
 		if err != nil {
-			log.Warn("Could not decode JWT private key")
+			cclog.Warn("Could not decode JWT private key")
 			return err
 		}
 		ja.privateKey = ed25519.PrivateKey(bytes)
@@ -62,7 +84,7 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 		return nil, nil
 	}
 
-	token, err := jwt.Parse(rawtoken, func(t *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(rawtoken, func(t *jwt.Token) (any, error) {
 		if t.Method != jwt.SigningMethodEdDSA {
 			return nil, errors.New("only Ed25519/EdDSA supported")
 		}
@@ -70,11 +92,11 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 		return ja.publicKey, nil
 	})
 	if err != nil {
-		log.Warn("Error while parsing JWT token")
+		cclog.Warn("Error while parsing JWT token")
 		return nil, err
 	}
 	if !token.Valid {
-		log.Warn("jwt token claims are not valid")
+		cclog.Warn("jwt token claims are not valid")
 		return nil, errors.New("jwt token claims are not valid")
 	}
 
@@ -85,19 +107,19 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 	var roles []string
 
 	// Validate user + roles from JWT against database?
-	if config.Keys.JwtConfig.ValidateUser {
+	if Keys.JwtConfig.ValidateUser {
 		ur := repository.GetUserRepository()
 		user, err := ur.GetUser(sub)
 		// Deny any logins for unknown usernames
 		if err != nil {
-			log.Warn("Could not find user from JWT in internal database.")
+			cclog.Warn("Could not find user from JWT in internal database.")
 			return nil, errors.New("unknown user")
 		}
 		// Take user roles from database instead of trusting the JWT
 		roles = user.Roles
 	} else {
 		// Extract roles from JWT (if present)
-		if rawroles, ok := claims["roles"].([]interface{}); ok {
+		if rawroles, ok := claims["roles"].([]any); ok {
 			for _, rr := range rawroles {
 				if r, ok := rr.(string); ok {
 					roles = append(roles, r)
@@ -114,7 +136,7 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 	}, nil
 }
 
-// Generate a new JWT that can be used for authentication
+// ProvideJWT generates a new JWT that can be used for authentication
 func (ja *JWTAuthenticator) ProvideJWT(user *schema.User) (string, error) {
 	if ja.privateKey == nil {
 		return "", errors.New("environment variable 'JWT_PRIVATE_KEY' not set")
@@ -126,8 +148,8 @@ func (ja *JWTAuthenticator) ProvideJWT(user *schema.User) (string, error) {
 		"roles": user.Roles,
 		"iat":   now.Unix(),
 	}
-	if config.Keys.JwtConfig.MaxAge != "" {
-		d, err := time.ParseDuration(config.Keys.JwtConfig.MaxAge)
+	if Keys.JwtConfig.MaxAge != "" {
+		d, err := time.ParseDuration(Keys.JwtConfig.MaxAge)
 		if err != nil {
 			return "", errors.New("cannot parse max-age config key")
 		}

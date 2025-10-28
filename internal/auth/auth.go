@@ -1,14 +1,18 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
+// Package auth implements various authentication methods
 package auth
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -22,9 +26,9 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-backend/internal/util"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-lib/util"
 	"github.com/gorilla/sessions"
 )
 
@@ -51,6 +55,14 @@ func getIPUserLimiter(ip, username string) *rate.Limiter {
 	return limiter.(*rate.Limiter)
 }
 
+type AuthConfig struct {
+	LdapConfig   *LdapConfig    `json:"ldap"`
+	JwtConfig    *JWTAuthConfig `json:"jwts"`
+	OpenIDConfig *OpenIDConfig  `json:"oidc"`
+}
+
+var Keys AuthConfig
+
 type Authentication struct {
 	sessionStore   *sessions.CookieStore
 	LdapAuth       *LdapAuthenticator
@@ -66,7 +78,7 @@ func (auth *Authentication) AuthViaSession(
 ) (*schema.User, error) {
 	session, err := auth.sessionStore.Get(r, "session")
 	if err != nil {
-		log.Error("Error while getting session store")
+		cclog.Error("Error while getting session store")
 		return nil, err
 	}
 
@@ -87,22 +99,22 @@ func (auth *Authentication) AuthViaSession(
 	}, nil
 }
 
-func Init() {
+func Init(authCfg *json.RawMessage) {
 	initOnce.Do(func() {
 		authInstance = &Authentication{}
 
 		sessKey := os.Getenv("SESSION_KEY")
 		if sessKey == "" {
-			log.Warn("environment variable 'SESSION_KEY' not set (will use non-persistent random key)")
+			cclog.Warn("environment variable 'SESSION_KEY' not set (will use non-persistent random key)")
 			bytes := make([]byte, 32)
 			if _, err := rand.Read(bytes); err != nil {
-				log.Fatal("Error while initializing authentication -> failed to generate random bytes for session key")
+				cclog.Fatal("Error while initializing authentication -> failed to generate random bytes for session key")
 			}
 			authInstance.sessionStore = sessions.NewCookieStore(bytes)
 		} else {
 			bytes, err := base64.StdEncoding.DecodeString(sessKey)
 			if err != nil {
-				log.Fatal("Error while initializing authentication -> decoding session key failed")
+				cclog.Fatal("Error while initializing authentication -> decoding session key failed")
 			}
 			authInstance.sessionStore = sessions.NewCookieStore(bytes)
 		}
@@ -111,44 +123,55 @@ func Init() {
 			authInstance.SessionMaxAge = d
 		}
 
-		if config.Keys.LdapConfig != nil {
+		if authCfg == nil {
+			return
+		}
+
+		config.Validate(configSchema, *authCfg)
+		dec := json.NewDecoder(bytes.NewReader(*authCfg))
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&Keys); err != nil {
+			cclog.Errorf("error while decoding ldap config: %v", err)
+		}
+
+		if Keys.LdapConfig != nil {
 			ldapAuth := &LdapAuthenticator{}
 			if err := ldapAuth.Init(); err != nil {
-				log.Warn("Error while initializing authentication -> ldapAuth init failed")
+				cclog.Warn("Error while initializing authentication -> ldapAuth init failed")
 			} else {
 				authInstance.LdapAuth = ldapAuth
 				authInstance.authenticators = append(authInstance.authenticators, authInstance.LdapAuth)
 			}
 		} else {
-			log.Info("Missing LDAP configuration: No LDAP support!")
+			cclog.Info("Missing LDAP configuration: No LDAP support!")
 		}
 
-		if config.Keys.JwtConfig != nil {
+		if Keys.JwtConfig != nil {
 			authInstance.JwtAuth = &JWTAuthenticator{}
 			if err := authInstance.JwtAuth.Init(); err != nil {
-				log.Fatal("Error while initializing authentication -> jwtAuth init failed")
+				cclog.Fatal("Error while initializing authentication -> jwtAuth init failed")
 			}
 
 			jwtSessionAuth := &JWTSessionAuthenticator{}
 			if err := jwtSessionAuth.Init(); err != nil {
-				log.Info("jwtSessionAuth init failed: No JWT login support!")
+				cclog.Info("jwtSessionAuth init failed: No JWT login support!")
 			} else {
 				authInstance.authenticators = append(authInstance.authenticators, jwtSessionAuth)
 			}
 
 			jwtCookieSessionAuth := &JWTCookieSessionAuthenticator{}
 			if err := jwtCookieSessionAuth.Init(); err != nil {
-				log.Info("jwtCookieSessionAuth init failed: No JWT cookie login support!")
+				cclog.Info("jwtCookieSessionAuth init failed: No JWT cookie login support!")
 			} else {
 				authInstance.authenticators = append(authInstance.authenticators, jwtCookieSessionAuth)
 			}
 		} else {
-			log.Info("Missing JWT configuration: No JWT token support!")
+			cclog.Info("Missing JWT configuration: No JWT token support!")
 		}
 
 		authInstance.LocalAuth = &LocalAuthenticator{}
 		if err := authInstance.LocalAuth.Init(); err != nil {
-			log.Fatal("Error while initializing authentication -> localAuth init failed")
+			cclog.Fatal("Error while initializing authentication -> localAuth init failed")
 		}
 		authInstance.authenticators = append(authInstance.authenticators, authInstance.LocalAuth)
 	})
@@ -156,7 +179,7 @@ func Init() {
 
 func GetAuthInstance() *Authentication {
 	if authInstance == nil {
-		log.Fatal("Authentication module not initialized!")
+		cclog.Fatal("Authentication module not initialized!")
 	}
 
 	return authInstance
@@ -167,14 +190,14 @@ func handleTokenUser(tokenUser *schema.User) {
 	dbUser, err := r.GetUser(tokenUser.Username)
 
 	if err != nil && err != sql.ErrNoRows {
-		log.Errorf("Error while loading user '%s': %v", tokenUser.Username, err)
-	} else if err == sql.ErrNoRows && config.Keys.JwtConfig.SyncUserOnLogin { // Adds New User
+		cclog.Errorf("Error while loading user '%s': %v", tokenUser.Username, err)
+	} else if err == sql.ErrNoRows && Keys.JwtConfig.SyncUserOnLogin { // Adds New User
 		if err := r.AddUser(tokenUser); err != nil {
-			log.Errorf("Error while adding user '%s' to DB: %v", tokenUser.Username, err)
+			cclog.Errorf("Error while adding user '%s' to DB: %v", tokenUser.Username, err)
 		}
-	} else if err == nil && config.Keys.JwtConfig.UpdateUserOnLogin { // Update Existing User
+	} else if err == nil && Keys.JwtConfig.UpdateUserOnLogin { // Update Existing User
 		if err := r.UpdateUser(dbUser, tokenUser); err != nil {
-			log.Errorf("Error while updating user '%s' to DB: %v", dbUser.Username, err)
+			cclog.Errorf("Error while updating user '%s' to DB: %v", dbUser.Username, err)
 		}
 	}
 }
@@ -184,14 +207,14 @@ func handleOIDCUser(OIDCUser *schema.User) {
 	dbUser, err := r.GetUser(OIDCUser.Username)
 
 	if err != nil && err != sql.ErrNoRows {
-		log.Errorf("Error while loading user '%s': %v", OIDCUser.Username, err)
-	} else if err == sql.ErrNoRows && config.Keys.OpenIDConfig.SyncUserOnLogin { // Adds New User
+		cclog.Errorf("Error while loading user '%s': %v", OIDCUser.Username, err)
+	} else if err == sql.ErrNoRows && Keys.OpenIDConfig.SyncUserOnLogin { // Adds New User
 		if err := r.AddUser(OIDCUser); err != nil {
-			log.Errorf("Error while adding user '%s' to DB: %v", OIDCUser.Username, err)
+			cclog.Errorf("Error while adding user '%s' to DB: %v", OIDCUser.Username, err)
 		}
-	} else if err == nil && config.Keys.OpenIDConfig.UpdateUserOnLogin { // Update Existing User
+	} else if err == nil && Keys.OpenIDConfig.UpdateUserOnLogin { // Update Existing User
 		if err := r.UpdateUser(dbUser, OIDCUser); err != nil {
-			log.Errorf("Error while updating user '%s' to DB: %v", dbUser.Username, err)
+			cclog.Errorf("Error while updating user '%s' to DB: %v", dbUser.Username, err)
 		}
 	}
 }
@@ -199,7 +222,7 @@ func handleOIDCUser(OIDCUser *schema.User) {
 func (auth *Authentication) SaveSession(rw http.ResponseWriter, r *http.Request, user *schema.User) error {
 	session, err := auth.sessionStore.New(r, "session")
 	if err != nil {
-		log.Errorf("session creation failed: %s", err.Error())
+		cclog.Errorf("session creation failed: %s", err.Error())
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return err
 	}
@@ -207,7 +230,7 @@ func (auth *Authentication) SaveSession(rw http.ResponseWriter, r *http.Request,
 	if auth.SessionMaxAge != 0 {
 		session.Options.MaxAge = int(auth.SessionMaxAge.Seconds())
 	}
-	if config.Keys.HttpsCertFile == "" && config.Keys.HttpsKeyFile == "" {
+	if config.Keys.HTTPSCertFile == "" && config.Keys.HTTPSKeyFile == "" {
 		session.Options.Secure = false
 	}
 	session.Options.SameSite = http.SameSiteStrictMode
@@ -215,7 +238,7 @@ func (auth *Authentication) SaveSession(rw http.ResponseWriter, r *http.Request,
 	session.Values["projects"] = user.Projects
 	session.Values["roles"] = user.Roles
 	if err := auth.sessionStore.Save(r, rw, session); err != nil {
-		log.Warnf("session save failed: %s", err.Error())
+		cclog.Warnf("session save failed: %s", err.Error())
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return err
 	}
@@ -236,8 +259,8 @@ func (auth *Authentication) Login(
 
 		limiter := getIPUserLimiter(ip, username)
 		if !limiter.Allow() {
-			log.Warnf("AUTH/RATE > Too many login attempts for combination IP: %s, Username: %s", ip, username)
-			onfailure(rw, r, errors.New("Too many login attempts, try again in a few minutes."))
+			cclog.Warnf("AUTH/RATE > Too many login attempts for combination IP: %s, Username: %s", ip, username)
+			onfailure(rw, r, errors.New("too many login attempts, try again in a few minutes"))
 			return
 		}
 
@@ -246,7 +269,7 @@ func (auth *Authentication) Login(
 			var err error
 			dbUser, err = repository.GetUserRepository().GetUser(username)
 			if err != nil && err != sql.ErrNoRows {
-				log.Errorf("Error while loading user '%v'", username)
+				cclog.Errorf("Error while loading user '%v'", username)
 			}
 		}
 
@@ -256,12 +279,12 @@ func (auth *Authentication) Login(
 			if user, ok = authenticator.CanLogin(dbUser, username, rw, r); !ok {
 				continue
 			} else {
-				log.Debugf("Can login with user %v", user)
+				cclog.Debugf("Can login with user %v", user)
 			}
 
 			user, err := authenticator.Login(user, rw, r)
 			if err != nil {
-				log.Warnf("user login failed: %s", err.Error())
+				cclog.Warnf("user login failed: %s", err.Error())
 				onfailure(rw, r, err)
 				return
 			}
@@ -270,7 +293,7 @@ func (auth *Authentication) Login(
 				return
 			}
 
-			log.Infof("login successfull: user: %#v (roles: %v, projects: %v)", user.Username, user.Roles, user.Projects)
+			cclog.Infof("login successfull: user: %#v (roles: %v, projects: %v)", user.Username, user.Roles, user.Projects)
 			ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 
 			if r.FormValue("redirect") != "" {
@@ -282,7 +305,7 @@ func (auth *Authentication) Login(
 			return
 		}
 
-		log.Debugf("login failed: no authenticator applied")
+		cclog.Debugf("login failed: no authenticator applied")
 		onfailure(rw, r, errors.New("no authenticator applied"))
 	})
 }
@@ -294,14 +317,14 @@ func (auth *Authentication) Auth(
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		user, err := auth.JwtAuth.AuthViaJWT(rw, r)
 		if err != nil {
-			log.Infof("auth -> authentication failed: %s", err.Error())
+			cclog.Infof("auth -> authentication failed: %s", err.Error())
 			http.Error(rw, err.Error(), http.StatusUnauthorized)
 			return
 		}
 		if user == nil {
 			user, err = auth.AuthViaSession(rw, r)
 			if err != nil {
-				log.Infof("auth -> authentication failed: %s", err.Error())
+				cclog.Infof("auth -> authentication failed: %s", err.Error())
 				http.Error(rw, err.Error(), http.StatusUnauthorized)
 				return
 			}
@@ -312,26 +335,26 @@ func (auth *Authentication) Auth(
 			return
 		}
 
-		log.Info("auth -> authentication failed")
+		cclog.Info("auth -> authentication failed")
 		onfailure(rw, r, errors.New("unauthorized (please login first)"))
 	})
 }
 
-func (auth *Authentication) AuthApi(
+func (auth *Authentication) AuthAPI(
 	onsuccess http.Handler,
 	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
 ) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		user, err := auth.JwtAuth.AuthViaJWT(rw, r)
 		if err != nil {
-			log.Infof("auth api -> authentication failed: %s", err.Error())
+			cclog.Infof("auth api -> authentication failed: %s", err.Error())
 			onfailure(rw, r, err)
 			return
 		}
 
 		ipErr := securedCheck(user, r)
 		if ipErr != nil {
-			log.Infof("auth api -> secured check failed: %s", ipErr.Error())
+			cclog.Infof("auth api -> secured check failed: %s", ipErr.Error())
 			onfailure(rw, r, ipErr)
 			return
 		}
@@ -351,23 +374,59 @@ func (auth *Authentication) AuthApi(
 					return
 				}
 			default:
-				log.Info("auth api -> authentication failed: missing role")
+				cclog.Info("auth api -> authentication failed: missing role")
 				onfailure(rw, r, errors.New("unauthorized"))
 			}
 		}
-		log.Info("auth api -> authentication failed: no auth")
+		cclog.Info("auth api -> authentication failed: no auth")
 		onfailure(rw, r, errors.New("unauthorized"))
 	})
 }
 
-func (auth *Authentication) AuthUserApi(
+func (auth *Authentication) AuthUserAPI(
 	onsuccess http.Handler,
 	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
 ) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		user, err := auth.JwtAuth.AuthViaJWT(rw, r)
 		if err != nil {
-			log.Infof("auth user api -> authentication failed: %s", err.Error())
+			cclog.Infof("auth user api -> authentication failed: %s", err.Error())
+			onfailure(rw, r, err)
+			return
+		}
+
+		if user != nil {
+			switch {
+			case len(user.Roles) == 1:
+				if user.HasRole(schema.RoleApi) {
+					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
+					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+					return
+				}
+			case len(user.Roles) >= 2:
+				if user.HasRole(schema.RoleApi) && user.HasAnyRole([]schema.Role{schema.RoleUser, schema.RoleManager, schema.RoleSupport, schema.RoleAdmin}) {
+					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
+					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
+					return
+				}
+			default:
+				cclog.Info("auth user api -> authentication failed: missing role")
+				onfailure(rw, r, errors.New("unauthorized"))
+			}
+		}
+		cclog.Info("auth user api -> authentication failed: no auth")
+		onfailure(rw, r, errors.New("unauthorized"))
+	})
+}
+
+func (auth *Authentication) AuthMetricStoreAPI(
+	onsuccess http.Handler,
+	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
+) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		user, err := auth.JwtAuth.AuthViaJWT(rw, r)
+		if err != nil {
+			cclog.Infof("auth metricstore api -> authentication failed: %s", err.Error())
 			onfailure(rw, r, err)
 			return
 		}
@@ -387,23 +446,23 @@ func (auth *Authentication) AuthUserApi(
 					return
 				}
 			default:
-				log.Info("auth user api -> authentication failed: missing role")
+				cclog.Info("auth metricstore api -> authentication failed: missing role")
 				onfailure(rw, r, errors.New("unauthorized"))
 			}
 		}
-		log.Info("auth user api -> authentication failed: no auth")
+		cclog.Info("auth metricstore api -> authentication failed: no auth")
 		onfailure(rw, r, errors.New("unauthorized"))
 	})
 }
 
-func (auth *Authentication) AuthConfigApi(
+func (auth *Authentication) AuthConfigAPI(
 	onsuccess http.Handler,
 	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
 ) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		user, err := auth.AuthViaSession(rw, r)
 		if err != nil {
-			log.Infof("auth config api -> authentication failed: %s", err.Error())
+			cclog.Infof("auth config api -> authentication failed: %s", err.Error())
 			onfailure(rw, r, err)
 			return
 		}
@@ -412,19 +471,19 @@ func (auth *Authentication) AuthConfigApi(
 			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 			return
 		}
-		log.Info("auth config api -> authentication failed: no auth")
+		cclog.Info("auth config api -> authentication failed: no auth")
 		onfailure(rw, r, errors.New("unauthorized"))
 	})
 }
 
-func (auth *Authentication) AuthFrontendApi(
+func (auth *Authentication) AuthFrontendAPI(
 	onsuccess http.Handler,
 	onfailure func(rw http.ResponseWriter, r *http.Request, authErr error),
 ) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		user, err := auth.AuthViaSession(rw, r)
 		if err != nil {
-			log.Infof("auth frontend api -> authentication failed: %s", err.Error())
+			cclog.Infof("auth frontend api -> authentication failed: %s", err.Error())
 			onfailure(rw, r, err)
 			return
 		}
@@ -433,7 +492,7 @@ func (auth *Authentication) AuthFrontendApi(
 			onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 			return
 		}
-		log.Info("auth frontend api -> authentication failed: no auth")
+		cclog.Info("auth frontend api -> authentication failed: no auth")
 		onfailure(rw, r, errors.New("unauthorized"))
 	})
 }
@@ -473,20 +532,21 @@ func securedCheck(user *schema.User, r *http.Request) error {
 		IPAddress = r.RemoteAddr
 	}
 
+	// FIXME: IPV6 not handled
 	if strings.Contains(IPAddress, ":") {
 		IPAddress = strings.Split(IPAddress, ":")[0]
 	}
 
 	// If nothing declared in config: deny all request to this api endpoint
-	if len(config.Keys.ApiAllowedIPs) == 0 {
+	if len(config.Keys.APIAllowedIPs) == 0 {
 		return fmt.Errorf("missing configuration key ApiAllowedIPs")
 	}
 	// If wildcard declared in config: Continue
-	if config.Keys.ApiAllowedIPs[0] == "*" {
+	if config.Keys.APIAllowedIPs[0] == "*" {
 		return nil
 	}
 	// check if IP is allowed
-	if !util.Contains(config.Keys.ApiAllowedIPs, IPAddress) {
+	if !util.Contains(config.Keys.APIAllowedIPs, IPAddress) {
 		return fmt.Errorf("unknown ip: %v", IPAddress)
 	}
 

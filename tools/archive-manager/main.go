@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package main
@@ -13,7 +13,8 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 )
 
 func parseDate(in string) int64 {
@@ -22,7 +23,7 @@ func parseDate(in string) int64 {
 	if in != "" {
 		t, err := time.ParseInLocation(shortForm, in, loc)
 		if err != nil {
-			log.Abortf("Archive Manager Main: Date parse failed with input: '%s'\nError: %s\n", in, err.Error())
+			cclog.Abortf("Archive Manager Main: Date parse failed with input: '%s'\nError: %s\n", in, err.Error())
 		}
 		return t.Unix()
 	}
@@ -46,18 +47,30 @@ func main() {
 
 	archiveCfg := fmt.Sprintf("{\"kind\": \"file\",\"path\": \"%s\"}", srcPath)
 
-	log.Init(flagLogLevel, flagLogDateTime)
-	config.Init(flagConfigFile)
+	cclog.Init(flagLogLevel, flagLogDateTime)
+
+	ccconf.Init(flagConfigFile)
+
+	// Load and check main configuration
+	if cfg := ccconf.GetPackageConfig("main"); cfg != nil {
+		if clustercfg := ccconf.GetPackageConfig("clusters"); clustercfg != nil {
+			config.Init(cfg, clustercfg)
+		} else {
+			cclog.Abort("Cluster configuration must be present")
+		}
+	} else {
+		cclog.Abort("Main configuration must be present")
+	}
 
 	if err := archive.Init(json.RawMessage(archiveCfg), false); err != nil {
-		log.Fatal(err)
+		cclog.Fatal(err)
 	}
 	ar := archive.GetHandle()
 
 	if flagValidate {
 		config.Keys.Validate = true
 		for job := range ar.Iter(true) {
-			log.Printf("Validate %s - %d\n", job.Meta.Cluster, job.Meta.JobID)
+			cclog.Printf("Validate %s - %d\n", job.Meta.Cluster, job.Meta.JobID)
 		}
 		os.Exit(0)
 	}

@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package main
@@ -26,10 +26,11 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/generated"
+	"github.com/ClusterCockpit/cc-backend/internal/memorystore"
 	"github.com/ClusterCockpit/cc-backend/internal/routerConfig"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/runtimeEnv"
 	"github.com/ClusterCockpit/cc-backend/web"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/runtimeEnv"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -93,7 +94,7 @@ func serverInit() {
 	info := map[string]any{}
 	info["hasOpenIDConnect"] = false
 
-	if config.Keys.OpenIDConfig != nil {
+	if auth.Keys.OpenIDConfig != nil {
 		openIDConnect := auth.NewOIDC(authHandle)
 		openIDConnect.RegisterEndpoints(router)
 		info["hasOpenIDConnect"] = true
@@ -101,7 +102,7 @@ func serverInit() {
 
 	router.HandleFunc("/login", func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
-		log.Debugf("##%v##", info)
+		cclog.Debugf("##%v##", info)
 		web.RenderTemplate(rw, "login.tmpl", &web.Page{Title: "Login", Build: buildInfo, Infos: info})
 	}).Methods(http.MethodGet)
 	router.HandleFunc("/imprint", func(rw http.ResponseWriter, r *http.Request) {
@@ -118,6 +119,7 @@ func serverInit() {
 	userapi := router.PathPrefix("/userapi").Subrouter()
 	configapi := router.PathPrefix("/config").Subrouter()
 	frontendapi := router.PathPrefix("/frontend").Subrouter()
+	metricstoreapi := router.PathPrefix("/metricstore").Subrouter()
 
 	if !config.Keys.DisableAuthentication {
 		router.Handle("/login", authHandle.Login(
@@ -183,7 +185,7 @@ func serverInit() {
 		})
 
 		securedapi.Use(func(next http.Handler) http.Handler {
-			return authHandle.AuthApi(
+			return authHandle.AuthAPI(
 				// On success;
 				next,
 				// On failure: JSON Response
@@ -191,7 +193,15 @@ func serverInit() {
 		})
 
 		userapi.Use(func(next http.Handler) http.Handler {
-			return authHandle.AuthUserApi(
+			return authHandle.AuthUserAPI(
+				// On success;
+				next,
+				// On failure: JSON Response
+				onFailureResponse)
+		})
+
+		metricstoreapi.Use(func(next http.Handler) http.Handler {
+			return authHandle.AuthMetricStoreAPI(
 				// On success;
 				next,
 				// On failure: JSON Response
@@ -199,7 +209,7 @@ func serverInit() {
 		})
 
 		configapi.Use(func(next http.Handler) http.Handler {
-			return authHandle.AuthConfigApi(
+			return authHandle.AuthConfigAPI(
 				// On success;
 				next,
 				// On failure: JSON Response
@@ -207,7 +217,7 @@ func serverInit() {
 		})
 
 		frontendapi.Use(func(next http.Handler) http.Handler {
-			return authHandle.AuthFrontendApi(
+			return authHandle.AuthFrontendAPI(
 				// On success;
 				next,
 				// On failure: JSON Response
@@ -234,14 +244,18 @@ func serverInit() {
 	apiHandle.MountConfigApiRoutes(configapi)
 	apiHandle.MountFrontendApiRoutes(frontendapi)
 
+	if memorystore.InternalCCMSFlag {
+		apiHandle.MountMetricStoreApiRoutes(metricstoreapi)
+	}
+
 	if config.Keys.EmbedStaticFiles {
 		if i, err := os.Stat("./var/img"); err == nil {
 			if i.IsDir() {
-				log.Info("Use local directory for static images")
+				cclog.Info("Use local directory for static images")
 				router.PathPrefix("/img/").Handler(http.StripPrefix("/img/", http.FileServer(http.Dir("./var/img"))))
 			}
 		}
-		router.PathPrefix("/").Handler(web.ServeFiles())
+		router.PathPrefix("/").Handler(http.StripPrefix("/", web.ServeFiles()))
 	} else {
 		router.PathPrefix("/").Handler(http.FileServer(http.Dir(config.Keys.StaticFiles)))
 	}
@@ -253,17 +267,46 @@ func serverInit() {
 		handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization", "Origin"}),
 		handlers.AllowedMethods([]string{"GET", "POST", "HEAD", "OPTIONS"}),
 		handlers.AllowedOrigins([]string{"*"})))
+
+	// secured.NotFoundHandler = http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+	// 	page := web.Page{
+	// 		Title: "ClusterCockpit - Not Found",
+	// 		Build: buildInfo,
+	// 	}
+	// 	rw.Header().Add("Content-Type", "text/html; charset=utf-8")
+	// 	web.RenderTemplate(rw, "404.tmpl", &page)
+	// })
+
+	// secured.NotFoundHandler = http.HandlerFunc(http.NotFound)
+	// router.NotFoundHandler = router.NewRoute().HandlerFunc(http.NotFound).GetHandler()
+
+	// printEndpoints(router)
 }
+
+// func printEndpoints(r *mux.Router) {
+// 	r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+// 		path, err := route.GetPathTemplate()
+// 		if err != nil {
+// 			path = "nopath"
+// 		}
+// 		methods, err := route.GetMethods()
+// 		if err != nil {
+// 			methods = append(methods, "nomethod")
+// 		}
+// 		fmt.Printf("%v %s\n", methods, path)
+// 		return nil
+// 	})
+// }
 
 func serverStart() {
 	handler := handlers.CustomLoggingHandler(io.Discard, router, func(_ io.Writer, params handlers.LogFormatterParams) {
 		if strings.HasPrefix(params.Request.RequestURI, "/api/") {
-			log.Debugf("%s %s (%d, %.02fkb, %dms)",
+			cclog.Debugf("%s %s (%d, %.02fkb, %dms)",
 				params.Request.Method, params.URL.RequestURI(),
 				params.StatusCode, float32(params.Size)/1024,
 				time.Since(params.TimeStamp).Milliseconds())
 		} else {
-			log.Debugf("%s %s (%d, %.02fkb, %dms)",
+			cclog.Debugf("%s %s (%d, %.02fkb, %dms)",
 				params.Request.Method, params.URL.RequestURI(),
 				params.StatusCode, float32(params.Size)/1024,
 				time.Since(params.TimeStamp).Milliseconds())
@@ -280,20 +323,20 @@ func serverStart() {
 	// Start http or https server
 	listener, err := net.Listen("tcp", config.Keys.Addr)
 	if err != nil {
-		log.Abortf("Server Start: Starting http listener on '%s' failed.\nError: %s\n", config.Keys.Addr, err.Error())
+		cclog.Abortf("Server Start: Starting http listener on '%s' failed.\nError: %s\n", config.Keys.Addr, err.Error())
 	}
 
-	if !strings.HasSuffix(config.Keys.Addr, ":80") && config.Keys.RedirectHttpTo != "" {
+	if !strings.HasSuffix(config.Keys.Addr, ":80") && config.Keys.RedirectHTTPTo != "" {
 		go func() {
-			http.ListenAndServe(":80", http.RedirectHandler(config.Keys.RedirectHttpTo, http.StatusMovedPermanently))
+			http.ListenAndServe(":80", http.RedirectHandler(config.Keys.RedirectHTTPTo, http.StatusMovedPermanently))
 		}()
 	}
 
-	if config.Keys.HttpsCertFile != "" && config.Keys.HttpsKeyFile != "" {
+	if config.Keys.HTTPSCertFile != "" && config.Keys.HTTPSKeyFile != "" {
 		cert, err := tls.LoadX509KeyPair(
-			config.Keys.HttpsCertFile, config.Keys.HttpsKeyFile)
+			config.Keys.HTTPSCertFile, config.Keys.HTTPSKeyFile)
 		if err != nil {
-			log.Abortf("Server Start: Loading X509 keypair failed. Check options 'https-cert-file' and 'https-key-file' in 'config.json'.\nError: %s\n", err.Error())
+			cclog.Abortf("Server Start: Loading X509 keypair failed. Check options 'https-cert-file' and 'https-key-file' in 'config.json'.\nError: %s\n", err.Error())
 		}
 		listener = tls.NewListener(listener, &tls.Config{
 			Certificates: []tls.Certificate{cert},
@@ -304,26 +347,31 @@ func serverStart() {
 			MinVersion:               tls.VersionTLS12,
 			PreferServerCipherSuites: true,
 		})
-		log.Printf("HTTPS server listening at %s...\n", config.Keys.Addr)
+		cclog.Printf("HTTPS server listening at %s...\n", config.Keys.Addr)
 	} else {
-		log.Printf("HTTP server listening at %s...\n", config.Keys.Addr)
+		cclog.Printf("HTTP server listening at %s...\n", config.Keys.Addr)
 	}
 	//
 	// Because this program will want to bind to a privileged port (like 80), the listener must
 	// be established first, then the user can be changed, and after that,
 	// the actual http server can be started.
 	if err := runtimeEnv.DropPrivileges(config.Keys.Group, config.Keys.User); err != nil {
-		log.Abortf("Server Start: Error while preparing server start.\nError: %s\n", err.Error())
+		cclog.Abortf("Server Start: Error while preparing server start.\nError: %s\n", err.Error())
 	}
 
 	if err = server.Serve(listener); err != nil && err != http.ErrServerClosed {
-		log.Abortf("Server Start: Starting server failed.\nError: %s\n", err.Error())
+		cclog.Abortf("Server Start: Starting server failed.\nError: %s\n", err.Error())
 	}
 }
 
 func serverShutdown() {
 	// First shut down the server gracefully (waiting for all ongoing requests)
 	server.Shutdown(context.Background())
+
+	// Archive all the metric store data
+	if memorystore.InternalCCMSFlag {
+		memorystore.Shutdown()
+	}
 
 	// Then, wait for any async archivings still pending...
 	archiver.WaitForArchiving()

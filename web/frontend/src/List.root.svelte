@@ -1,10 +1,10 @@
 <!--
-    @component Main component for listing users or projects
+  @component Main component for listing users or projects
 
-    Properties:
-    - `type String?`: The type of list ['USER' || 'PROJECT']
-    - `filterPresets Object?`: Optional predefined filter values [Default: {}]
- -->
+  Properties:
+  - `type String?`: The type of list ['USER' || 'PROJECT']
+  - `filterPresets Object?`: Optional predefined filter values [Default: {}]
+-->
 
 <script>
   import { onMount } from "svelte";
@@ -31,71 +31,89 @@
   } from "./generic/utils.js";
   import Filters from "./generic/Filters.svelte";
 
-  const {} = init();
+  /* Svelte 5 Props */
+  let {
+    type,
+    filterPresets
+  } = $props();
 
-  export let type;
-  export let filterPresets;
-
-  // By default, look at the jobs of the last 30 days:
-  if (filterPresets?.startTime == null) {
-    if (filterPresets == null) filterPresets = {};
-
-    filterPresets.startTime = {
-      range: "last30d",
-      text: "Last 30 Days",
-    };
-  }
-
+  /* Validate Type */
   console.assert(
     type == "USER" || type == "PROJECT",
     "Invalid list type provided!",
   );
 
-  let filterComponent; // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
-  let jobFilters = [];
-  let nameFilter = "";
-  let sorting = { field: "totalJobs", direction: "down" };
-
+  /* Const Init */
+  const {} = init();
   const client = getContextClient();
-  $: stats = queryStore({
-    client: client,
-    query: gql`
-            query($jobFilters: [JobFilter!]!) {
-            rows: jobsStatistics(filter: $jobFilters, groupBy: ${type}) {
-                id
-                name
-                totalJobs
-                totalWalltime
-                totalCoreHours
-                totalAccHours
-            }
+
+  /* State Init*/
+  let filterComponent = $state(); // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
+  let jobFilters = $state([]);
+  let nameFilter = $state("");
+  let sorting = $state({ field: "totalJobs", direction: "down" });
+
+  /* Derived Vars */
+  let stats = $derived(
+    queryStore({
+      client: client,
+      query: gql`
+        query($jobFilters: [JobFilter!]!) {
+          rows: jobsStatistics(filter: $jobFilters, groupBy: ${type}) {
+            id
+            name
+            totalJobs
+            totalWalltime
+            totalCoreHours
+            totalAccHours
+          }
         }`,
-    variables: { jobFilters },
-  });
+      variables: { jobFilters },
+    })
+  );
 
-  function changeSorting(event, field) {
-    let target = event.target;
-    while (target.tagName != "BUTTON") target = target.parentElement;
-
-    let direction = target.children[0].className.includes("up") ? "down" : "up";
-    target.children[0].className = `bi-sort-numeric-${direction}`;
-    sorting = { field, direction };
+  /* Functions */
+  function changeSorting(field) {
+    sorting = { field, direction: sorting?.direction == "down" ? "up" : "down" };
   }
 
   function sort(stats, sorting, nameFilter) {
-    const cmp =
-      sorting.field == "id"
-        ? sorting.direction == "up"
-          ? (a, b) => a.id < b.id
-          : (a, b) => a.id > b.id
-        : sorting.direction == "up"
-          ? (a, b) => a[sorting.field] - b[sorting.field]
-          : (a, b) => b[sorting.field] - a[sorting.field];
+    const idCmp = sorting.direction == "up"
+      ? (a, b) => b.id.localeCompare(a.id)
+      : (a, b) => a.id.localeCompare(b.id)
 
-    return stats.filter((u) => u.id.includes(nameFilter)).sort(cmp);
+    // Force empty or undefined strings to the end of the list
+    const nameCmp = sorting.direction == "up"
+      ? (a, b) => !a?.name ? 1 : (!b?.name ? -1 : (b.name.localeCompare(a.name)))
+      : (a, b) => !a?.name ? 1 : (!b?.name ? -1 : (a.name.localeCompare(b.name)))
+
+    const intCmp = sorting.direction == "up"
+      ? (a, b) => a[sorting.field] - b[sorting.field]
+      : (a, b) => b[sorting.field] - a[sorting.field];
+
+    if (sorting.field == "id") {
+      return stats.filter((u) => u.id.includes(nameFilter)).sort(idCmp)
+    } else if (sorting.field == "name") {
+      return stats.filter((u) => u.id.includes(nameFilter)).sort(nameCmp)
+    } else {
+      return stats.filter((u) => u.id.includes(nameFilter)).sort(intCmp)
+    }
   }
 
-  onMount(() => filterComponent.updateFilters());
+  /* On Mount */
+  onMount(() => {
+    // By default, look at the jobs of the last 30 days:
+    if (filterPresets?.startTime == null) {
+      if (filterPresets == null) filterPresets = {};
+
+      filterPresets.startTime = {
+        range: "last30d",
+        text: "Last 30 Days",
+      };
+    };
+    // Init Filter
+    filterComponent.updateFilters();
+  });
 </script>
 
 <Row cols={{ xs: 1, md: 2}}>
@@ -115,11 +133,11 @@
   </Col>
   <Col xs="12" md="7" lg="8" xl="9">
     <Filters
+      startTimeQuickSelect
       bind:this={filterComponent}
       {filterPresets}
-      startTimeQuickSelect={true}
-      menuText="Only {type.toLowerCase()}s with jobs that match the filters will show up"
-      on:update-filters={({ detail }) => {
+      menuText="Only {type.toLowerCase()}s with matching jobs will be displayed."
+      applyFilters={(detail) => {
         jobFilters = detail.filters;
       }}
     />
@@ -137,9 +155,14 @@
         <Button
           color={sorting.field == "id" ? "primary" : "light"}
           size="sm"
-          on:click={(e) => changeSorting(e, "id")}
+          onclick={() => changeSorting("id")}
         >
-          <Icon name="sort-numeric-down" />
+          {#if sorting?.field == "id"}
+            <!-- Note on Icon-Name: Arrow-indicator always down, only alpha-indicator switches -->
+            <Icon name={`sort-alpha-${sorting?.direction == 'down' ? 'down' : 'down-alt'}`} />
+          {:else}
+            <Icon name="three-dots-vertical" />
+          {/if}
         </Button>
       </th>
       {#if type == "USER"}
@@ -148,9 +171,13 @@
           <Button
             color={sorting.field == "name" ? "primary" : "light"}
             size="sm"
-            on:click={(e) => changeSorting(e, "name")}
+            onclick={() => changeSorting("name")}
           >
-            <Icon name="sort-numeric-down" />
+            {#if sorting?.field == "name"}
+              <Icon name={`sort-alpha-${sorting?.direction == 'down' ? 'down' : 'down-alt'}`} />
+            {:else}
+              <Icon name="three-dots-vertical" />
+            {/if}
           </Button>
         </th>
       {/if}
@@ -159,9 +186,14 @@
         <Button
           color={sorting.field == "totalJobs" ? "primary" : "light"}
           size="sm"
-          on:click={(e) => changeSorting(e, "totalJobs")}
+          onclick={() => changeSorting("totalJobs")}
         >
-          <Icon name="sort-numeric-down" />
+          {#if sorting?.field == "totalJobs"}
+            <!-- Note on Icon-Name: Arrow-indicator always down, only numeric-indicator switches -->
+            <Icon name={`sort-numeric-${sorting?.direction == 'down' ? 'down-alt' : 'down'}`} />
+          {:else}
+            <Icon name="three-dots-vertical" />
+          {/if}
         </Button>
       </th>
       <th scope="col">
@@ -169,9 +201,13 @@
         <Button
           color={sorting.field == "totalWalltime" ? "primary" : "light"}
           size="sm"
-          on:click={(e) => changeSorting(e, "totalWalltime")}
+          onclick={() => changeSorting("totalWalltime")}
         >
-          <Icon name="sort-numeric-down" />
+          {#if sorting?.field == "totalWalltime"}
+            <Icon name={`sort-numeric-${sorting?.direction == 'down' ? 'down-alt' : 'down'}`} />
+          {:else}
+            <Icon name="three-dots-vertical" />
+          {/if}
         </Button>
       </th>
       <th scope="col">
@@ -179,9 +215,13 @@
         <Button
           color={sorting.field == "totalCoreHours" ? "primary" : "light"}
           size="sm"
-          on:click={(e) => changeSorting(e, "totalCoreHours")}
+          onclick={() => changeSorting("totalCoreHours")}
         >
-          <Icon name="sort-numeric-down" />
+          {#if sorting?.field == "totalCoreHours"}
+            <Icon name={`sort-numeric-${sorting?.direction == 'down' ? 'down-alt' : 'down'}`} />
+          {:else}
+            <Icon name="three-dots-vertical" />
+          {/if}
         </Button>
       </th>
       <th scope="col">
@@ -189,9 +229,13 @@
         <Button
           color={sorting.field == "totalAccHours" ? "primary" : "light"}
           size="sm"
-          on:click={(e) => changeSorting(e, "totalAccHours")}
+          onclick={() => changeSorting("totalAccHours")}
         >
-          <Icon name="sort-numeric-down" />
+          {#if sorting?.field == "totalAccHours"}
+            <Icon name={`sort-numeric-${sorting?.direction == 'down' ? 'down-alt' : 'down'}`} />
+          {:else}
+            <Icon name="three-dots-vertical" />
+          {/if}
         </Button>
       </th>
     </tr>

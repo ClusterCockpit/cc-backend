@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package archiver
@@ -11,12 +11,12 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
 // Writes a running job to the job-archive
-func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
+func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.Job, error) {
 	allMetrics := make([]string, 0)
 	metricConfigs := archive.GetCluster(job.Cluster).MetricConfig
 	for _, mc := range metricConfigs {
@@ -36,15 +36,11 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 
 	jobData, err := metricDataDispatcher.LoadData(job, allMetrics, scopes, ctx, 0) // 0 Resulotion-Value retrieves highest res (60s)
 	if err != nil {
-		log.Error("Error wile loading job data for archiving")
+		cclog.Error("Error wile loading job data for archiving")
 		return nil, err
 	}
 
-	jobMeta := &schema.JobMeta{
-		BaseJob:    job.BaseJob,
-		StartTime:  job.StartTime.Unix(),
-		Statistics: make(map[string]schema.JobStatistics),
-	}
+	job.Statistics = make(map[string]schema.JobStatistics)
 
 	for metric, data := range jobData {
 		avg, min, max := 0.0, math.MaxFloat32, -math.MaxFloat32
@@ -61,7 +57,7 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 		}
 
 		// Round AVG Result to 2 Digits
-		jobMeta.Statistics[metric] = schema.JobStatistics{
+		job.Statistics[metric] = schema.JobStatistics{
 			Unit: schema.Unit{
 				Prefix: archive.GetMetricConfig(job.Cluster, metric).Unit.Prefix,
 				Base:   archive.GetMetricConfig(job.Cluster, metric).Unit.Base,
@@ -76,8 +72,8 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.JobMeta, error) {
 	// only return the JobMeta structure as the
 	// statistics in there are needed.
 	if config.Keys.DisableArchive {
-		return jobMeta, nil
+		return job, nil
 	}
 
-	return jobMeta, archive.GetHandle().ImportJob(jobMeta, &jobData)
+	return job, archive.GetHandle().ImportJob(job, &jobData)
 }

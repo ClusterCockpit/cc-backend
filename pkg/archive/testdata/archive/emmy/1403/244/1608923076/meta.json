@@ -1,194 +1,194 @@
 {
-    "exclusive": 1,
-    "jobId": 1403244,
-    "statistics": {
-        "mem_bw": {
-            "avg": 63.57,
-            "min": 0,
-            "unit": {
-                "base": "B/s",
-                "prefix": "G"
-            },
-            "max": 74.5
-        },
-        "rapl_power": {
-            "avg": 228.07,
-            "min": 0,
-            "unit": {
-                "base": "W"
-            },
-            "max": 258.56
-        },
-        "ipc": {
-            "unit": {
-                "base": "IPC"
-            },
-            "max": 0.510204081632653,
-            "avg": 1.53846153846154,
-            "min": 0.0
-        },
-        "clock": {
-            "min": 1380.32,
-            "avg": 2599.39,
-            "unit": {
-                "base": "Hz",
-                "prefix": "M"
-            },
-            "max": 2634.46
-        },
-        "cpu_load": {
-            "avg": 18.4,
-            "min": 0,
-            "max": 23.58,
-            "unit": {
-                "base": "load"
-            }
-        },
-        "flops_any": {
-            "max": 404.62,
-            "unit": {
-                "base": "F/s",
-                "prefix": "G"
-            },
-            "avg": 225.59,
-            "min": 0
-        },
-        "flops_dp": {
-            "max": 0.24,
-            "unit": {
-                "base": "F/s",
-                "prefix": "G"
-            },
-            "min": 0,
-            "avg": 0
-        },
-        "mem_used": {
-            "min": 1.55,
-            "avg": 27.84,
-            "unit": {
-                "base": "B",
-                "prefix": "G"
-            },
-            "max": 37.5
-        },
-        "flops_sp": {
-            "min": 0,
-            "avg": 225.59,
-            "max": 404.62,
-            "unit": {
-                "base": "F/s",
-                "prefix": "G"
-            }
-        }
+  "shared": "none",
+  "jobId": 1403244,
+  "statistics": {
+    "mem_bw": {
+      "avg": 63.57,
+      "min": 0,
+      "unit": {
+        "base": "B/s",
+        "prefix": "G"
+      },
+      "max": 74.5
     },
-    "resources": [
-        {
-            "hostname": "e0102"
-        },
-        {
-            "hostname": "e0103"
-        },
-        {
-            "hostname": "e0105"
-        },
-        {
-            "hostname": "e0106"
-        },
-        {
-            "hostname": "e0107"
-        },
-        {
-            "hostname": "e0108"
-        },
-        {
-            "hostname": "e0114"
-        },
-        {
-            "hostname": "e0320"
-        },
-        {
-            "hostname": "e0321"
-        },
-        {
-            "hostname": "e0325"
-        },
-        {
-            "hostname": "e0404"
-        },
-        {
-            "hostname": "e0415"
-        },
-        {
-            "hostname": "e0433"
-        },
-        {
-            "hostname": "e0437"
-        },
-        {
-            "hostname": "e0439"
-        },
-        {
-            "hostname": "e0501"
-        },
-        {
-            "hostname": "e0503"
-        },
-        {
-            "hostname": "e0505"
-        },
-        {
-            "hostname": "e0506"
-        },
-        {
-            "hostname": "e0512"
-        },
-        {
-            "hostname": "e0513"
-        },
-        {
-            "hostname": "e0514"
-        },
-        {
-            "hostname": "e0653"
-        },
-        {
-            "hostname": "e0701"
-        },
-        {
-            "hostname": "e0716"
-        },
-        {
-            "hostname": "e0727"
-        },
-        {
-            "hostname": "e0728"
-        },
-        {
-            "hostname": "e0925"
-        },
-        {
-            "hostname": "e0926"
-        },
-        {
-            "hostname": "e0929"
-        },
-        {
-            "hostname": "e0934"
-        },
-        {
-            "hostname": "e0951"
-        }
-    ],
-    "walltime": 10,
-    "jobState": "completed",
-    "cluster": "emmy",
-    "subCluster": "haswell",
-    "stopTime": 1609009562,
-    "user": "emmyUser6",
-    "startTime": 1608923076,
-    "partition": "work",
-    "tags": [],
-    "project": "no project",
-    "numNodes": 32,
-    "duration": 86486
+    "rapl_power": {
+      "avg": 228.07,
+      "min": 0,
+      "unit": {
+        "base": "W"
+      },
+      "max": 258.56
+    },
+    "ipc": {
+      "unit": {
+        "base": "IPC"
+      },
+      "max": 0.510204081632653,
+      "avg": 1.53846153846154,
+      "min": 0.0
+    },
+    "clock": {
+      "min": 1380.32,
+      "avg": 2599.39,
+      "unit": {
+        "base": "Hz",
+        "prefix": "M"
+      },
+      "max": 2634.46
+    },
+    "cpu_load": {
+      "avg": 18.4,
+      "min": 0,
+      "max": 23.58,
+      "unit": {
+        "base": "load"
+      }
+    },
+    "flops_any": {
+      "max": 404.62,
+      "unit": {
+        "base": "F/s",
+        "prefix": "G"
+      },
+      "avg": 225.59,
+      "min": 0
+    },
+    "flops_dp": {
+      "max": 0.24,
+      "unit": {
+        "base": "F/s",
+        "prefix": "G"
+      },
+      "min": 0,
+      "avg": 0
+    },
+    "mem_used": {
+      "min": 1.55,
+      "avg": 27.84,
+      "unit": {
+        "base": "B",
+        "prefix": "G"
+      },
+      "max": 37.5
+    },
+    "flops_sp": {
+      "min": 0,
+      "avg": 225.59,
+      "max": 404.62,
+      "unit": {
+        "base": "F/s",
+        "prefix": "G"
+      }
+    }
+  },
+  "resources": [
+    {
+      "hostname": "e0102"
+    },
+    {
+      "hostname": "e0103"
+    },
+    {
+      "hostname": "e0105"
+    },
+    {
+      "hostname": "e0106"
+    },
+    {
+      "hostname": "e0107"
+    },
+    {
+      "hostname": "e0108"
+    },
+    {
+      "hostname": "e0114"
+    },
+    {
+      "hostname": "e0320"
+    },
+    {
+      "hostname": "e0321"
+    },
+    {
+      "hostname": "e0325"
+    },
+    {
+      "hostname": "e0404"
+    },
+    {
+      "hostname": "e0415"
+    },
+    {
+      "hostname": "e0433"
+    },
+    {
+      "hostname": "e0437"
+    },
+    {
+      "hostname": "e0439"
+    },
+    {
+      "hostname": "e0501"
+    },
+    {
+      "hostname": "e0503"
+    },
+    {
+      "hostname": "e0505"
+    },
+    {
+      "hostname": "e0506"
+    },
+    {
+      "hostname": "e0512"
+    },
+    {
+      "hostname": "e0513"
+    },
+    {
+      "hostname": "e0514"
+    },
+    {
+      "hostname": "e0653"
+    },
+    {
+      "hostname": "e0701"
+    },
+    {
+      "hostname": "e0716"
+    },
+    {
+      "hostname": "e0727"
+    },
+    {
+      "hostname": "e0728"
+    },
+    {
+      "hostname": "e0925"
+    },
+    {
+      "hostname": "e0926"
+    },
+    {
+      "hostname": "e0929"
+    },
+    {
+      "hostname": "e0934"
+    },
+    {
+      "hostname": "e0951"
+    }
+  ],
+  "walltime": 10,
+  "jobState": "completed",
+  "cluster": "emmy",
+  "subCluster": "haswell",
+  "stopTime": 1609009562,
+  "user": "emmyUser6",
+  "startTime": 1608923076,
+  "partition": "work",
+  "tags": [],
+  "project": "no project",
+  "numNodes": 32,
+  "duration": 86486
 }

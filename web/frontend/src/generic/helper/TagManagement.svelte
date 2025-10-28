@@ -1,14 +1,15 @@
 <!--
-    @component Job Info Subcomponent; allows management of job tags by deletion or new entries
+  @component Job Info Subcomponent; allows management of job tags by deletion or new entries
 
-    Properties:
-    - `job Object`: The job object
-    - `jobTags [Number]`: The array of currently designated tags
-    - `username String`: Empty string if auth. is disabled, otherwise the username as string
-    - `authlevel Number`: The current users authentication level
-    - `roles [Number]`: Enum containing available roles
-    - `renderModal Bool?`: If component is rendered as bootstrap modal button [Default: true]
- -->
+  Properties:
+  - `jobTags [Number]`: The array of currently designated tags [Bindable]
+  - `job Object`: The job object
+  - `username String`: Empty string if auth. is disabled, otherwise the username as string
+  - `authlevel Number`: The current users authentication level
+  - `roles [Number]`: Enum containing available roles
+  - `renderModal Bool?`: If component is rendered as bootstrap modal button [Default: true]
+-->
+
 <script>
   import { getContext } from "svelte";
   import { gql, getContextClient, mutationStore } from "@urql/svelte";
@@ -33,26 +34,42 @@
   import { fuzzySearchTags } from "../utils.js";
   import Tag from "./Tag.svelte";
 
-  export let job;
-  export let jobTags = job.tags;
-  export let username;
-  export let authlevel;
-  export let roles;
-  export let renderModal = true;
+  /* Svelte 5 Props */
+  let {
+    jobTags = $bindable(),
+    job,
+    username,
+    authlevel,
+    roles,
+    renderModal = true,
+  } = $props();
 
-  let allTags = getContext("tags"),
-    initialized = getContext("initialized");
-  let newTagType = "",
-    newTagName = "",
-    newTagScope = username;
-  let filterTerm = "";
-  let pendingChange = false;
-  let isOpen = false;
+  /* Const Init */
   const isAdmin = (roles && authlevel == roles.admin);
   const isSupport = (roles && authlevel == roles.support);
-
   const client = getContextClient();
 
+  /* State Init */
+  let initialized = getContext("initialized")
+  let allTags = getContext("tags")
+  let newTagType = $state("");
+  let newTagName = $state("");
+  let newTagScope = $state(username);
+  let filterTerm = $state("");
+  let pendingChange = $state(false);
+  let isOpen = $state(false);
+
+  /* Derived Init */
+  const allTagsFiltered = $derived(($initialized, jobTags, fuzzySearchTags(filterTerm, allTags))); // $init und JobTags only for triggering react
+  const usedTagsFiltered = $derived(matchJobTags(jobTags, allTagsFiltered, 'used', isAdmin, isSupport));
+  const unusedTagsFiltered = $derived(matchJobTags(jobTags, allTagsFiltered, 'unused', isAdmin, isSupport));
+
+  /* Effects */
+  $effect(() => {
+    updateNewTag(filterTerm)
+  });
+
+  /* Const Mutations */
   const createTagMutation = ({ type, name, scope }) => {
     return mutationStore({
       client: client,
@@ -104,19 +121,16 @@
     });
   };
 
-  $: allTagsFiltered = ($initialized, fuzzySearchTags(filterTerm, allTags));
-  $: usedTagsFiltered = matchJobTags(jobTags, allTagsFiltered, 'used', isAdmin, isSupport);
-  $: unusedTagsFiltered = matchJobTags(jobTags, allTagsFiltered, 'unused', isAdmin, isSupport);
-
-  $: {
+  /* Functions */
+  function updateNewTag(term) {
     newTagType = "";
     newTagName = "";
-    let parts = filterTerm.split(":").map((s) => s.trim());
+    let parts = term.split(":").map((s) => s.trim());
     if (parts.length == 2 && parts.every((s) => s.length > 0)) {
       newTagType = parts[0];
       newTagName = parts[1];
-    }
-  }
+    };
+  };
 
   function matchJobTags(tags, availableTags, type, isAdmin, isSupport) {
     const jobTagIds = tags.map((t) => t.id)
@@ -183,7 +197,7 @@
 </script>
 
 {#if renderModal}
-  <Modal {isOpen} toggle={() => (isOpen = !isOpen)}>
+  <Modal {isOpen} toggle={() => {isOpen = !isOpen; filterTerm = "";}}>
     <ModalHeader>
       Manage Tags <Icon name="tags"/>
     </ModalHeader>
@@ -232,7 +246,7 @@
                       <Button
                         size="sm"
                         color="danger"
-                        on:click={() => removeTagFromJob(utag)}
+                        onclick={() => removeTagFromJob(utag)}
                       >
                         <Icon name="x" />
                       </Button>
@@ -282,7 +296,7 @@
                       <Button
                         size="sm"
                         color="success"
-                        on:click={() => addTagToJob(uutag)}
+                        onclick={() => addTagToJob(uutag)}
                       >
                         <Icon name="plus" />
                       </Button>
@@ -314,7 +328,7 @@
               outline
               style="width:100%;"
               color="success"
-              on:click={(e) => (
+              onclick={(e) => (
                 e.preventDefault(), createTag(newTagType, newTagName, newTagScope)
               )}
             >
@@ -345,11 +359,11 @@
       {/if}
     </ModalBody>
     <ModalFooter>
-      <Button color="primary" on:click={() => (isOpen = false)}>Close</Button>
+      <Button color="primary" onclick={() => {isOpen = false; filterTerm = "";}}>Close</Button>
     </ModalFooter>
   </Modal>
 
-  <Button outline on:click={() => (isOpen = true)} size="sm" color="primary">
+  <Button outline onclick={() => (isOpen = true)} size="sm" color="primary">
     Manage {jobTags?.length ? jobTags.length : ''} Tags
   </Button>
 
@@ -387,7 +401,7 @@
                   <Button
                     size="sm"
                     color="danger"
-                    on:click={() => removeTagFromJob(utag)}
+                    onclick={() => removeTagFromJob(utag)}
                   >
                     <Icon name="x" />
                   </Button>
@@ -396,7 +410,7 @@
                 <Button
                   size="sm"
                   color="danger"
-                  on:click={() => removeTagFromJob(utag)}
+                  onclick={() => removeTagFromJob(utag)}
                 >
                   <Icon name="x" />
                 </Button>
@@ -435,7 +449,7 @@
                   <Button
                     size="sm"
                     color="success"
-                    on:click={() => addTagToJob(uutag)}
+                    onclick={() => addTagToJob(uutag)}
                   >
                     <Icon name="plus" />
                   </Button>
@@ -444,7 +458,7 @@
                 <Button
                   size="sm"
                   color="success"
-                  on:click={() => addTagToJob(uutag)}
+                  onclick={() => addTagToJob(uutag)}
                 >
                   <Icon name="plus" />
                 </Button>
@@ -475,7 +489,7 @@
           outline
           style="width:100%;"
           color="success"
-          on:click={(e) => (
+          onclick={(e) => (
             e.preventDefault(), createTag(newTagType, newTagName, newTagScope)
           )}
         >

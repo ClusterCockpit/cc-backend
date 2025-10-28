@@ -1,18 +1,20 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package repository
 
 import (
 	"encoding/json"
+	"maps"
 	"sync"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/ClusterCockpit/cc-backend/web"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/lrucache"
+	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -24,7 +26,7 @@ var (
 type UserCfgRepo struct {
 	DB         *sqlx.DB
 	Lookup     *sqlx.Stmt
-	uiDefaults map[string]interface{}
+	uiDefaults map[string]any
 	cache      *lrucache.Cache
 	lock       sync.RWMutex
 }
@@ -35,13 +37,13 @@ func GetUserCfgRepo() *UserCfgRepo {
 
 		lookupConfigStmt, err := db.DB.Preparex(`SELECT confkey, value FROM configuration WHERE configuration.username = ?`)
 		if err != nil {
-			log.Fatalf("User Config: Call 'db.DB.Preparex()' failed.\nError: %s\n", err.Error())
+			cclog.Fatalf("User Config: Call 'db.DB.Preparex()' failed.\nError: %s\n", err.Error())
 		}
 
 		userCfgRepoInstance = &UserCfgRepo{
 			DB:         db.DB,
 			Lookup:     lookupConfigStmt,
-			uiDefaults: config.Keys.UiDefaults,
+			uiDefaults: web.UIDefaultsMap,
 			cache:      lrucache.New(1024),
 		}
 	})
@@ -51,26 +53,21 @@ func GetUserCfgRepo() *UserCfgRepo {
 
 // Return the personalised UI config for the currently authenticated
 // user or return the plain default config.
-func (uCfg *UserCfgRepo) GetUIConfig(user *schema.User) (map[string]interface{}, error) {
+func (uCfg *UserCfgRepo) GetUIConfig(user *schema.User) (map[string]any, error) {
 	if user == nil {
-		uCfg.lock.RLock()
-		copy := make(map[string]interface{}, len(uCfg.uiDefaults))
-		for k, v := range uCfg.uiDefaults {
-			copy[k] = v
-		}
-		uCfg.lock.RUnlock()
+		copy := make(map[string]any, len(uCfg.uiDefaults))
+		maps.Copy(copy, uCfg.uiDefaults)
 		return copy, nil
 	}
 
-	data := uCfg.cache.Get(user.Username, func() (interface{}, time.Duration, int) {
-		uiconfig := make(map[string]interface{}, len(uCfg.uiDefaults))
-		for k, v := range uCfg.uiDefaults {
-			uiconfig[k] = v
-		}
+	// Is the cache invalidated in case the options are changed?
+	data := uCfg.cache.Get(user.Username, func() (any, time.Duration, int) {
+		uiconfig := make(map[string]any, len(uCfg.uiDefaults))
+		maps.Copy(uiconfig, uCfg.uiDefaults)
 
 		rows, err := uCfg.Lookup.Query(user.Username)
 		if err != nil {
-			log.Warnf("Error while looking up user uiconfig for user '%v'", user.Username)
+			cclog.Warnf("Error while looking up user uiconfig for user '%v'", user.Username)
 			return err, 0, 0
 		}
 
@@ -79,13 +76,13 @@ func (uCfg *UserCfgRepo) GetUIConfig(user *schema.User) (map[string]interface{},
 		for rows.Next() {
 			var key, rawval string
 			if err := rows.Scan(&key, &rawval); err != nil {
-				log.Warn("Error while scanning user uiconfig values")
+				cclog.Warn("Error while scanning user uiconfig values")
 				return err, 0, 0
 			}
 
-			var val interface{}
+			var val any
 			if err := json.Unmarshal([]byte(rawval), &val); err != nil {
-				log.Warn("Error while unmarshaling raw user uiconfig json")
+				cclog.Warn("Error while unmarshaling raw user uiconfig json")
 				return err, 0, 0
 			}
 
@@ -94,17 +91,17 @@ func (uCfg *UserCfgRepo) GetUIConfig(user *schema.User) (map[string]interface{},
 			uiconfig[key] = val
 		}
 
-		// Add global ShortRunningJobsDuration setting as plot_list_hideShortRunningJobs
-		uiconfig["plot_list_hideShortRunningJobs"] = config.Keys.ShortRunningJobsDuration
+		// Add global ShortRunningJobsDuration setting as jobList_hideShortRunningJobs
+		uiconfig["jobList_hideShortRunningJobs"] = config.Keys.ShortRunningJobsDuration
 
 		return uiconfig, 24 * time.Hour, size
 	})
 	if err, ok := data.(error); ok {
-		log.Error("Error in returned dataset")
+		cclog.Error("Error in returned dataset")
 		return nil, err
 	}
 
-	return data.(map[string]interface{}), nil
+	return data.(map[string]any), nil
 }
 
 // If the context does not have a user, update the global ui configuration
@@ -115,20 +112,11 @@ func (uCfg *UserCfgRepo) UpdateConfig(
 	user *schema.User,
 ) error {
 	if user == nil {
-		var val interface{}
-		if err := json.Unmarshal([]byte(value), &val); err != nil {
-			log.Warn("Error while unmarshaling raw user config json")
-			return err
-		}
-
-		uCfg.lock.Lock()
-		defer uCfg.lock.Unlock()
-		uCfg.uiDefaults[key] = val
 		return nil
 	}
 
 	if _, err := uCfg.DB.Exec(`REPLACE INTO configuration (username, confkey, value) VALUES (?, ?, ?)`, user.Username, key, value); err != nil {
-		log.Warnf("Error while replacing user config in DB for user '%v'", user.Username)
+		cclog.Warnf("Error while replacing user config in DB for user '%v'", user.Username)
 		return err
 	}
 

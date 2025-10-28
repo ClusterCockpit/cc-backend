@@ -1,13 +1,15 @@
 <!-- 
-    @component Selector for sorting field and direction
+  @component Selector for sorting field and direction
 
-    Properties:
-    - sorting:  { field: String, order: "DESC" | "ASC" } (changes from inside)
-    - isOpen:   Boolean  (can change from inside and outside)
- -->
+  Properties:
+  - `presetSorting Object?`: The latest sort selection state
+    - Default { field: "startTime", type: "col", order: "DESC" }
+  - `isOpen Bool?`: Is modal opened [Bindable, Default: false]
+  - `applySorting Func`: The callback function to apply current selection
+-->
 
 <script>
-  import { getContext } from "svelte";
+  import { getContext, onMount } from "svelte";
   import {
     Icon,
     Button,
@@ -18,44 +20,73 @@
     ModalHeader,
     ModalFooter,
   } from "@sveltestrap/sveltestrap";
-  import { getSortItems } from "../utils.js";
 
-  export let isOpen = false;
-  export let sorting = { field: "startTime", type: "col", order: "DESC" };
+  /* Svelte 5 Props */
+  let {
+    isOpen = $bindable(false),
+    presetSorting = { field: "startTime", type: "col", order: "DESC" },
+    applySorting
+  } = $props();
 
-  let sortableColumns = [];
-  let activeColumnIdx;
-
+  /* Const Init */
   const initialized = getContext("initialized");
-  
-  function loadSortables(isInitialized) {
-    if (!isInitialized) return;
-    sortableColumns = [ 
-      { field: "startTime", type: "col", text: "Start Time", order: "DESC" },
-      { field: "duration", type: "col", text: "Duration", order: "DESC" },
-      { field: "numNodes", type: "col", text: "Number of Nodes", order: "DESC" },
-      { field: "numHwthreads", type: "col", text: "Number of HWThreads", order: "DESC" },
-      { field: "numAcc", type: "col", text: "Number of Accelerators", order: "DESC" },
-      { field: "energy", type: "col", text: "Total Energy", order: "DESC" },
-      ...getSortItems()
-    ]
-  }
+  const globalMetrics = getContext("globalMetrics");
+  const fixedSortables = $state([ 
+    { field: "startTime", type: "col", text: "Start Time (Default)", order: "DESC" },
+    { field: "duration", type: "col", text: "Duration", order: "DESC" },
+    { field: "numNodes", type: "col", text: "Number of Nodes", order: "DESC" },
+    { field: "numHwthreads", type: "col", text: "Number of HWThreads", order: "DESC" },
+    { field: "numAcc", type: "col", text: "Number of Accelerators", order: "DESC" },
+    { field: "energy", type: "col", text: "Total Energy", order: "DESC" },
+  ]);
 
-  function loadActiveIndex(isInitialized) {
-    if (!isInitialized) return;
+  /* State Init */
+  let sorting = $state({...presetSorting})
+  let activeColumnIdx = $state(0);
+  let metricSortables = $state([]);
+
+  /* Derived */
+  let sortableColumns = $derived([...fixedSortables, ...metricSortables]);
+
+  /* Effect */
+  $effect(() => {
+    if ($initialized) {
+      loadMetricSortables();
+    };
+  });
+
+  /* Functions */  
+  function loadMetricSortables() {
+    metricSortables = globalMetrics.map((gm) => {
+        if (gm?.footprint) {
+            return { 
+                field: gm.name + '_' + gm.footprint,
+                type: 'foot',
+                text: gm.name + ' (' + gm.footprint + ')',
+                order: 'DESC'
+            }
+        }
+        return null
+    }).filter((r) => r != null)
+  };
+
+  function loadActiveIndex() {
     activeColumnIdx = sortableColumns.findIndex(
       (col) => col.field == sorting.field,
     );
     sortableColumns[activeColumnIdx].order = sorting.order;
   }
 
-  $: loadSortables($initialized);
-  $: loadActiveIndex($initialized)
+  function resetSorting(sort) {
+    sorting = {...sort};
+    loadActiveIndex();
+  };
 </script>
 
 <Modal
   {isOpen}
   toggle={() => {
+    resetSorting(presetSorting);
     isOpen = !isOpen;
   }}
 >
@@ -66,7 +97,7 @@
         <ListGroupItem>
           <button
             class="sort"
-            on:click={() => {
+            onclick={() => {
               if (activeColumnIdx == i) {
                 col.order = col.order == "DESC" ? "ASC" : "DESC";
               } else {
@@ -96,11 +127,27 @@
   </ModalBody>
   <ModalFooter>
     <Button
-      color="primary"
-      on:click={() => {
+      color="warning"
+      onclick={() => {
         isOpen = false;
-      }}>Close</Button
+        resetSorting({ field: "startTime", type: "col", order: "DESC" });
+        applySorting(sorting);
+      }}>Reset</Button
     >
+    <Button
+      color="primary"
+      onclick={() => {
+        applySorting(sorting);
+        isOpen = false;
+      }}>Close & Apply</Button
+    >
+    <Button
+      color="secondary"
+      onclick={() => {
+        resetSorting(presetSorting);
+        isOpen = false
+      }}>Cancel
+    </Button>
   </ModalFooter>
 </Modal>
 

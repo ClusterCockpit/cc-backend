@@ -1,11 +1,13 @@
 <!--
-    @component Analysis-View subcomponent; allows selection for normalized histograms and scatterplots
+  @component Analysis-View subcomponent; allows selection for normalized histograms and scatterplots
 
-    Properties:
-    - `availableMetrics [String]`: Available metrics in selected cluster
-    - `metricsInHistograms [String]`: The currently selected metrics to display as histogram
-    - `metricsInScatterplots [[String, String]]`: The currently selected metrics to display as scatterplot
- -->
+  Properties:
+  - `availableMetrics [String]`: Available metrics in selected cluster
+  - `presetMetricsInHistograms [String]`: The latest selected metrics to display as histogram
+  - `presetMetricsInScatterplots [[String, String]]`: The latest selected metrics to display as scatterplot
+  - `applyHistograms Func`: The callback function to apply current histogramMetrics selection
+  - `applyScatter Func`: The callback function to apply current scatterMetrics selection
+-->
 
 <script>
   import {
@@ -21,10 +23,16 @@
   } from "@sveltestrap/sveltestrap";
   import { gql, getContextClient, mutationStore } from "@urql/svelte";
 
-  export let availableMetrics;
-  export let metricsInHistograms;
-  export let metricsInScatterplots;
+  /* Svelte 5 Props */
+  let {
+    availableMetrics,
+    presetMetricsInHistograms,
+    presetMetricsInScatterplots,
+    applyHistograms,
+    applyScatter
+  } = $props();
 
+  /* Const Init */
   const client = getContextClient();
   const updateConfigurationMutation = ({ name, value }) => {
     return mutationStore({
@@ -38,11 +46,15 @@
     });
   };
 
-  let isHistogramConfigOpen = false,
-    isScatterPlotConfigOpen = false;
-  let selectedMetric1 = null,
-    selectedMetric2 = null;
+  /* State Init */
+  let isHistogramConfigOpen = $state(false);
+  let isScatterPlotConfigOpen = $state(false);
+  let metricsInHistograms = $state(presetMetricsInHistograms);
+  let metricsInScatterplots = $state(presetMetricsInScatterplots);
+  let selectedMetric1 = $state(null);
+  let selectedMetric2 = $state(null);
 
+  /* Functions */
   function updateConfiguration(data) {
     updateConfigurationMutation({
       name: data.name,
@@ -55,12 +67,12 @@
   }
 </script>
 
-<Button outline on:click={() => (isHistogramConfigOpen = true)}>
+<Button outline onclick={() => (isHistogramConfigOpen = true)}>
   <Icon name="" />
   Select Plots for Histograms
 </Button>
 
-<Button outline on:click={() => (isScatterPlotConfigOpen = true)}>
+<Button outline onclick={() => (isScatterPlotConfigOpen = true)}>
   <Icon name="" />
   Select Plots in Scatter Plots
 </Button>
@@ -78,11 +90,13 @@
             type="checkbox"
             bind:group={metricsInHistograms}
             value={metric}
-            on:change={() =>
+            onchange={() => {
               updateConfiguration({
-                name: "analysis_view_histogramMetrics",
+                name: "analysisView_histogramMetrics",
                 value: metricsInHistograms,
-              })}
+              });
+              applyHistograms(metricsInHistograms);
+            }}
           />
 
           {metric}
@@ -91,7 +105,7 @@
     </ListGroup>
   </ModalBody>
   <ModalFooter>
-    <Button color="primary" on:click={() => (isHistogramConfigOpen = false)}>
+    <Button color="primary" onclick={() => (isHistogramConfigOpen = false)}>
       Close
     </Button>
   </ModalFooter>
@@ -112,14 +126,15 @@
             style="float: right;"
             outline
             color="danger"
-            on:click={() => {
+            onclick={() => {
               metricsInScatterplots = metricsInScatterplots.filter(
                 (p) => pair != p,
               );
               updateConfiguration({
-                name: "analysis_view_scatterPlotMetrics",
+                name: "analysisView_scatterPlotMetrics",
                 value: metricsInScatterplots,
               });
+              applyScatter(metricsInScatterplots);
             }}
           >
             <Icon name="x" />
@@ -146,7 +161,7 @@
       <Button
         outline
         disabled={selectedMetric1 == null || selectedMetric2 == null}
-        on:click={() => {
+        onclick={() => {
           metricsInScatterplots = [
             ...metricsInScatterplots,
             [selectedMetric1, selectedMetric2],
@@ -154,9 +169,10 @@
           selectedMetric1 = null;
           selectedMetric2 = null;
           updateConfiguration({
-            name: "analysis_view_scatterPlotMetrics",
+            name: "analysisView_scatterPlotMetrics",
             value: metricsInScatterplots,
           });
+          applyScatter(metricsInScatterplots);
         }}
       >
         Add Plot
@@ -164,7 +180,7 @@
     </InputGroup>
   </ModalBody>
   <ModalFooter>
-    <Button color="primary" on:click={() => (isScatterPlotConfigOpen = false)}>
+    <Button color="primary" onclick={() => (isScatterPlotConfigOpen = false)}>
       Close
     </Button>
   </ModalFooter>

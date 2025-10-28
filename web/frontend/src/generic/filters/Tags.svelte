@@ -1,17 +1,14 @@
 <!--
-    @component Filter sub-component for selecting tags
+  @component Filter sub-component for selecting tags
 
-    Properties:
-    - `isModified Bool?`: Is this filter component modified [Default: false]
-    - `isOpen Bool?`: Is this filter component opened [Default: false]
-    - `tags [Number]?`: The currently selected tags (as IDs) [Default: []]
-
-    Events:
-    - `set-filter, {[Number]}`: Set 'tag' filter in upstream component
- -->
+  Properties:
+  - `isOpen Bool?`: Is this filter component opened [Bindable, Default: false]
+  - `presetTags [Number]?`: The currently selected tags (as IDs) [Default: []]
+  - `setFilter Func`: The callback function to apply current filter selection
+-->
 
 <script>
-  import { createEventDispatcher, getContext } from "svelte";
+  import { getContext } from "svelte";
   import {
     Button,
     ListGroup,
@@ -26,20 +23,20 @@
   import { fuzzySearchTags } from "../utils.js";
   import Tag from "../helper/Tag.svelte";
 
-  const allTags = getContext("tags"),
-    initialized = getContext("initialized"),
-    dispatch = createEventDispatcher();
+  /* Svelte 5 Props */
+  let {
+    isOpen = $bindable(false),
+    presetTags = [],
+    setFilter
+  } = $props();
 
-  export let isModified = false;
-  export let isOpen = false;
-  export let tags = [];
+  /* Derived */
+  const allTags = $derived(getContext("tags"))
+  const initialized = $derived(getContext("initialized"))
 
-  let pendingTags = [...tags];
-  $: isModified =
-    tags.length != pendingTags.length ||
-    !tags.every((tagId) => pendingTags.includes(tagId));
-
-  let searchTerm = "";
+  /* State Init */
+  let pendingTags = $state(presetTags);
+  let searchTerm = $state("");
 </script>
 
 <Modal {isOpen} toggle={() => (isOpen = !isOpen)}>
@@ -55,7 +52,7 @@
               <Button
                 outline
                 color="danger"
-                on:click={() =>
+                onclick={() =>
                   (pendingTags = pendingTags.filter((id) => id != tag.id))}
               >
                 <Icon name="dash-circle" />
@@ -64,7 +61,7 @@
               <Button
                 outline
                 color="success"
-                on:click={() => (pendingTags = [...pendingTags, tag.id])}
+                onclick={() => (pendingTags = [...pendingTags, tag.id])}
               >
                 <Icon name="plus-circle" />
               </Button>
@@ -81,21 +78,25 @@
   <ModalFooter>
     <Button
       color="primary"
-      on:click={() => {
+      onclick={() => {
         isOpen = false;
-        tags = [...pendingTags];
-        dispatch("set-filter", { tags });
+        setFilter({ tags: [...pendingTags] });
       }}>Close & Apply</Button
     >
     <Button
-      color="danger"
-      on:click={() => {
-        isOpen = false;
-        tags = [];
+      color="warning"
+      onclick={() => {
         pendingTags = [];
-        dispatch("set-filter", { tags });
+      }}>Clear Selection</Button
+    >
+    <Button
+      color="danger"
+      onclick={() => {
+        isOpen = false;
+        pendingTags = [];
+        setFilter({ tags: [...pendingTags] });
       }}>Reset</Button
     >
-    <Button on:click={() => (isOpen = false)}>Close</Button>
+    <Button onclick={() => (isOpen = false)}>Close</Button>
   </ModalFooter>
 </Modal>

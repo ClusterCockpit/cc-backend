@@ -1,5 +1,5 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 package metricDataDispatcher
@@ -14,10 +14,10 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/lrucache"
-	"github.com/ClusterCockpit/cc-backend/pkg/resampler"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/lrucache"
+	"github.com/ClusterCockpit/cc-lib/resampler"
+	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
 var cache *lrucache.Cache = lrucache.New(128 * 1024 * 1024)
@@ -41,7 +41,7 @@ func LoadData(job *schema.Job,
 	ctx context.Context,
 	resolution int,
 ) (schema.JobData, error) {
-	data := cache.Get(cacheKey(job, metrics, scopes, resolution), func() (_ interface{}, ttl time.Duration, size int) {
+	data := cache.Get(cacheKey(job, metrics, scopes, resolution), func() (_ any, ttl time.Duration, size int) {
 		var jd schema.JobData
 		var err error
 
@@ -68,10 +68,10 @@ func LoadData(job *schema.Job,
 			jd, err = repo.LoadData(job, metrics, scopes, ctx, resolution)
 			if err != nil {
 				if len(jd) != 0 {
-					log.Warnf("partial error: %s", err.Error())
+					cclog.Warnf("partial error: %s", err.Error())
 					// return err, 0, 0 // Reactivating will block archiving on one partial error
 				} else {
-					log.Error("Error while loading job data from metric repository")
+					cclog.Error("Error while loading job data from metric repository")
 					return err, 0, 0
 				}
 			}
@@ -80,25 +80,25 @@ func LoadData(job *schema.Job,
 			var jd_temp schema.JobData
 			jd_temp, err = archive.GetHandle().LoadJobData(job)
 			if err != nil {
-				log.Error("Error while loading job data from archive")
+				cclog.Error("Error while loading job data from archive")
 				return err, 0, 0
 			}
 
-			//Deep copy the cached archive hashmap
+			// Deep copy the cached archive hashmap
 			jd = metricdata.DeepCopy(jd_temp)
 
-			//Resampling for archived data.
-			//Pass the resolution from frontend here.
+			// Resampling for archived data.
+			// Pass the resolution from frontend here.
 			for _, v := range jd {
 				for _, v_ := range v {
-					timestep := 0
+					timestep := int64(0)
 					for i := 0; i < len(v_.Series); i += 1 {
-						v_.Series[i].Data, timestep, err = resampler.LargestTriangleThreeBucket(v_.Series[i].Data, v_.Timestep, resolution)
+						v_.Series[i].Data, timestep, err = resampler.LargestTriangleThreeBucket(v_.Series[i].Data, int64(v_.Timestep), int64(resolution))
 						if err != nil {
 							return err, 0, 0
 						}
 					}
-					v_.Timestep = timestep
+					v_.Timestep = int(timestep)
 				}
 			}
 
@@ -178,7 +178,7 @@ func LoadData(job *schema.Job,
 	})
 
 	if err, ok := data.(error); ok {
-		log.Error("Error in returned dataset")
+		cclog.Error("Error in returned dataset")
 		return nil, err
 	}
 
@@ -203,7 +203,7 @@ func LoadAverages(
 
 	stats, err := repo.LoadStats(job, metrics, ctx) // #166 how to handle stats for acc normalizazion?
 	if err != nil {
-		log.Errorf("Error while loading statistics for job %v (User %v, Project %v)", job.JobID, job.User, job.Project)
+		cclog.Errorf("Error while loading statistics for job %v (User %v, Project %v)", job.JobID, job.User, job.Project)
 		return err
 	}
 
@@ -231,7 +231,6 @@ func LoadScopedJobStats(
 	scopes []schema.MetricScope,
 	ctx context.Context,
 ) (schema.ScopedJobStats, error) {
-
 	if job.State != schema.JobStateRunning && !config.Keys.DisableArchive {
 		return archive.LoadScopedStatsFromArchive(job, metrics, scopes)
 	}
@@ -243,7 +242,7 @@ func LoadScopedJobStats(
 
 	scopedStats, err := repo.LoadScopedStats(job, metrics, scopes, ctx)
 	if err != nil {
-		log.Errorf("error while loading scoped statistics for job %d (User %s, Project %s)", job.JobID, job.User, job.Project)
+		cclog.Errorf("error while loading scoped statistics for job %d (User %s, Project %s)", job.JobID, job.User, job.Project)
 		return nil, err
 	}
 
@@ -268,7 +267,7 @@ func LoadJobStats(
 
 	stats, err := repo.LoadStats(job, metrics, ctx)
 	if err != nil {
-		log.Errorf("error while loading statistics for job %d (User %s, Project %s)", job.JobID, job.User, job.Project)
+		cclog.Errorf("error while loading statistics for job %d (User %s, Project %s)", job.JobID, job.User, job.Project)
 		return data, err
 	}
 
@@ -318,9 +317,9 @@ func LoadNodeData(
 	data, err := repo.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)
 	if err != nil {
 		if len(data) != 0 {
-			log.Warnf("partial error: %s", err.Error())
+			cclog.Warnf("partial error: %s", err.Error())
 		} else {
-			log.Error("Error while loading node data from metric repository")
+			cclog.Error("Error while loading node data from metric repository")
 			return nil, err
 		}
 	}
@@ -355,9 +354,9 @@ func LoadNodeListData(
 	data, totalNodes, hasNextPage, err := repo.LoadNodeListData(cluster, subCluster, nodeFilter, metrics, scopes, resolution, from, to, page, ctx)
 	if err != nil {
 		if len(data) != 0 {
-			log.Warnf("partial error: %s", err.Error())
+			cclog.Warnf("partial error: %s", err.Error())
 		} else {
-			log.Error("Error while loading node data from metric repository")
+			cclog.Error("Error while loading node data from metric repository")
 			return nil, totalNodes, hasNextPage, err
 		}
 	}

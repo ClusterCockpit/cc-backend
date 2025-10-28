@@ -1,18 +1,19 @@
 <!--
-    @component Main single job display component; displays plots for every metric as well as various information
+  @component Main single job display component; displays plots for every metric as well as various information
 
-    Properties:
-    - `dbid Number`: The jobs DB ID
-    - `username String`: Empty string if auth. is disabled, otherwise the username as string
-    - `authlevel Number`: The current users authentication level
-    - `roles [Number]`: Enum containing available roles
- -->
+  Properties:
+  - `dbid Number`: The jobs DB ID
+  - `username String`: Empty string if auth. is disabled, otherwise the username as string
+  - `authlevel Number`: The current users authentication level
+  - `roles [Number]`: Enum containing available roles
+-->
 
 <script>
+  import { getContext } from "svelte";
   import { 
     queryStore,
     gql,
-    getContextClient 
+    getContextClient,
   } from "@urql/svelte";
   import {
     Row,
@@ -26,7 +27,6 @@
     CardTitle,
     Button,
   } from "@sveltestrap/sveltestrap";
-  import { getContext } from "svelte";
   import {
     init,
     groupByScope,
@@ -42,92 +42,137 @@
   import PlotGrid from "./generic/PlotGrid.svelte";
   import StatsTab from "./job/StatsTab.svelte";
 
-  export let dbid;
-  export let username;
-  export let authlevel;
-  export let roles;
+  /* Svelte 5 Props */
+  let {
+    dbid,
+    username,
+    authlevel,
+    roles
+  } = $props();
 
- // Setup General
-
- const ccconfig = getContext("cc-config")
-
- let isMetricsSelectionOpen = false,
-    selectedMetrics = [],
-    selectedScopes = [],
-    plots = {};
-
-  let availableMetrics = new Set(),
-    missingMetrics = [],
-    missingHosts = [],
-    somethingMissing = false;
-
-  // Setup GQL
-  // First: Add Job Query to init function -> Only requires DBID as argument, received via URL-ID
-  // Second: Trigger jobMetrics query with now received jobInfos (scopes: from job metadata, selectedMetrics: from config or all, job: from url-id)
-
+  /* Const Init */
+  // Important: init() needs to be first const declaration or contextclient will not be initialized before "const client = ..."
   const { query: initq } = init(`
-        job(id: "${dbid}") {
-            id, jobId, user, project, cluster, startTime,
-            duration, numNodes, numHWThreads, numAcc, energy,
-            SMT, exclusive, partition, subCluster, arrayJobId,
-            monitoringStatus, state, walltime,
-            tags { id, type, scope, name },
-            resources { hostname, hwthreads, accelerators },
-            metaData,
-            userData { name, email },
-            concurrentJobs { items { id, jobId }, count, listQuery },
-            footprint { name, stat, value },
-            energyFootprint { hardware, metric, value }
-        }
-    `);
-
+    job(id: "${dbid}") {
+      id, jobId, user, project, cluster, startTime,
+      duration, numNodes, numHWThreads, numAcc, energy,
+      SMT, shared, partition, subCluster, arrayJobId,
+      monitoringStatus, state, walltime,
+      tags { id, type, scope, name },
+      resources { hostname, hwthreads, accelerators },
+      metaData,
+      userData { name, email },
+      concurrentJobs { items { id, jobId }, count, listQuery },
+      footprint { name, stat, value },
+      energyFootprint { hardware, metric, value }
+    }
+  `);
   const client = getContextClient();
+  const ccconfig = getContext("cc-config");
+  const showRoofline = !!ccconfig[`jobView_showRoofline`];
+  const showStatsTable = !!ccconfig[`jobView_showStatTable`];
+
+  /* Note: Actual metric data queried in <Metric> Component, only require base infos here -> reduce backend load by requesting just stats */
   const query = gql`
     query ($dbid: ID!, $selectedMetrics: [String!]!, $selectedScopes: [MetricScope!]!) {
-      jobMetrics(id: $dbid, metrics: $selectedMetrics, scopes: $selectedScopes) {
+      scopedJobStats(id: $dbid, metrics: $selectedMetrics, scopes: $selectedScopes) {
         name
         scope
-        metric {
-          unit {
-            prefix
-            base
-          }
-          timestep
-          statisticsSeries {
-            min
-            mean
-            median
-            max
-          }
-          series {
-            hostname
-            id
-            data
-            statistics {
-              min
-              avg
-              max
-            }
-          }
+        stats {
+          hostname
         }
       }
     }
   `;
 
-  $: jobMetrics = queryStore({
-    client: client,
-    query: query,
-    variables: { dbid, selectedMetrics, selectedScopes },
+  /* State Init */
+  let plots = $state({});
+  let isMetricsSelectionOpen = $state(false);
+  let selectedMetrics = $state([]);
+  let selectedScopes = $state([]);
+  let totalMetrics = $state(0);
+
+  /* Derived */
+  const jobMetrics = $derived(queryStore({
+      client: client,
+      query: query,
+      variables: { dbid, selectedMetrics, selectedScopes },
+    })
+  );
+  
+  const missingMetrics = $derived.by(() => {
+    if ($initq?.data && $jobMetrics?.data) {
+      let job = $initq.data.job;
+      let metrics = $jobMetrics.data.scopedJobStats;
+      let metricNames = $initq.data.globalMetrics.reduce((names, gm) => {
+          if (gm.availability.find((av) => av.cluster === job.cluster)) {
+              names.push(gm.name);
+          }
+          return names;
+        }, []);
+
+      return metricNames.filter(
+        (metric) =>
+          !metrics.some((jm) => jm.name == metric) &&
+          selectedMetrics.includes(metric) && 
+          !checkMetricDisabled(
+            metric,
+            $initq.data.job.cluster,
+            $initq.data.job.subCluster,
+          ),
+      );
+    } else {
+      return []
+    }
   });
 
-  // Handle Job Query on Init -> is not executed anymore
-  getContext("on-init")(() => {
+  const missingHosts = $derived.by(() => {
+    if ($initq?.data && $jobMetrics?.data) {
+      let job = $initq.data.job;
+      let metrics = $jobMetrics.data.scopedJobStats;
+      let metricNames = $initq.data.globalMetrics.reduce((names, gm) => {
+          if (gm.availability.find((av) => av.cluster === job.cluster)) {
+              names.push(gm.name);
+          }
+          return names;
+        }, []);
+
+      return job.resources
+        .map(({ hostname }) => ({
+          hostname: hostname,
+          metrics: metricNames.filter(
+            (metric) =>
+              !metrics.some(
+                (jm) =>
+                  jm.scope == "node" &&
+                  jm.stats.some((s) => s.hostname == hostname),
+              ),
+          ),
+        }))
+        .filter(({ metrics }) => metrics.length > 0);
+    } else {
+      return [];
+    }
+  });
+
+  const somethingMissing = $derived(missingMetrics?.length > 0 || missingHosts?.length > 0);
+
+  /* Effects */
+  $effect(() => {
+    document.title = $initq?.fetching
+      ? "Loading..."
+      : $initq?.error
+        ? "Error"
+        : `Job ${$initq.data.job.jobId} - ClusterCockpit`;
+  });
+
+  /* On Init */
+  getContext("on-init")(() => {    
     let job = $initq.data.job;
     if (!job) return;
-
     const pendingMetrics = (
-      ccconfig[`job_view_selectedMetrics:${job.cluster}:${job.subCluster}`] ||
-      ccconfig[`job_view_selectedMetrics:${job.cluster}`]
+      ccconfig[`metricConfig_jobViewPlotMetrics:${job.cluster}:${job.subCluster}`] ||
+      ccconfig[`metricConfig_jobViewPlotMetrics:${job.cluster}`]
     ) || 
     $initq.data.globalMetrics.reduce((names, gm) => {
       if (gm.availability.find((av) => av.cluster === job.cluster && av.subClusters.includes(job.subCluster))) {
@@ -154,52 +199,7 @@
     selectedScopes = [...new Set(pendingScopes)];
   });
 
-  // Interactive Document Title
-  $: document.title = $initq.fetching
-    ? "Loading..."
-    : $initq.error
-      ? "Error"
-      : `Job ${$initq.data.job.jobId} - ClusterCockpit`;
-
-  // Find out what metrics or hosts are missing:
-  $: if ($initq?.data && $jobMetrics?.data?.jobMetrics) {
-    let job = $initq.data.job,
-      metrics = $jobMetrics.data.jobMetrics,
-      metricNames = $initq.data.globalMetrics.reduce((names, gm) => {
-        if (gm.availability.find((av) => av.cluster === job.cluster)) {
-            names.push(gm.name);
-        }
-        return names;
-      }, []);
-
-    // Metric not found in JobMetrics && Metric not explicitly disabled in config or deselected: Was expected, but is Missing
-    missingMetrics = metricNames.filter(
-      (metric) =>
-        !metrics.some((jm) => jm.name == metric) &&
-        selectedMetrics.includes(metric) && 
-        !checkMetricDisabled(
-          metric,
-          $initq.data.job.cluster,
-          $initq.data.job.subCluster,
-        ),
-    );
-    missingHosts = job.resources
-      .map(({ hostname }) => ({
-        hostname: hostname,
-        metrics: metricNames.filter(
-          (metric) =>
-            !metrics.some(
-              (jm) =>
-                jm.scope == "node" &&
-                jm.metric.series.some((series) => series.hostname == hostname),
-            ),
-        ),
-      }))
-      .filter(({ metrics }) => metrics.length > 0);
-    somethingMissing = missingMetrics.length > 0 || missingHosts.length > 0;
-  }
-
-  // Helper
+  /* Functions */
   const orderAndMap = (grouped, selectedMetrics) =>
     selectedMetrics.map((metric) => ({
       metric: metric,
@@ -235,7 +235,7 @@
           {/if}
           <TabPane tabId="meta-info" tab="Job Info" active={$initq.data?.job?.metaData?.message?false:true}>
             <CardBody class="pb-2">
-              <JobInfo job={$initq.data.job} {username} {authlevel} {roles} showTagedit/>
+              <JobInfo job={$initq.data.job} {username} {authlevel} {roles} showTagEdit/>
             </CardBody>
           </TabPane>
           {#if $initq.data.job.concurrentJobs != null && $initq.data.job.concurrentJobs.items.length != 0}
@@ -271,7 +271,9 @@
     {#if $initq.error}
       <Card body color="danger">{$initq.error.message}</Card>
     {:else if $initq?.data}
-      <JobRoofline job={$initq.data.job} clusters={$initq.data.clusters}/>
+      {#if showRoofline}
+        <JobRoofline job={$initq.data.job} clusters={$initq.data.clusters}/>
+      {/if}    
     {:else}
       <Spinner secondary />
     {/if}
@@ -293,8 +295,8 @@
     <Row class="mb-2">
       {#if $initq?.data}
         <Col xs="auto">
-            <Button outline on:click={() => (isMetricsSelectionOpen = true)} color="primary">
-              Select Metrics (Selected {selectedMetrics.length} of {availableMetrics.size} available)
+            <Button outline onclick={() => (isMetricsSelectionOpen = true)} color="primary">
+              Select Metrics (Selected {selectedMetrics.length} of {totalMetrics} available)
             </Button>
         </Col>
       {/if}
@@ -317,15 +319,9 @@
           <Spinner secondary />
         </Col>
       </Row>
-    {:else if $initq?.data && $jobMetrics?.data?.jobMetrics}
-      <PlotGrid
-        let:item
-        items={orderAndMap(
-          groupByScope($jobMetrics.data.jobMetrics),
-          selectedMetrics,
-        )}
-        itemsPerRow={ccconfig.plot_view_plotsPerRow}
-      >
+    {:else if $initq?.data && $jobMetrics?.data?.scopedJobStats}
+      <!-- Note: Ignore '#snippet' Error in IDE -->
+      {#snippet gridContent(item)}
         {#if item.data}
           <Metric
             bind:this={plots[item.metric]}
@@ -333,9 +329,8 @@
             metricName={item.metric}
             metricUnit={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.unit}
             nativeScope={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.scope}
-            rawData={item.data.map((x) => x.metric)}
-            scopes={item.data.map((x) => x.scope)}
-            isShared={$initq.data.job.exclusive != 1}
+            presetScopes={item.data.map((x) => x.scope)}
+            isShared={$initq.data.job.shared != "none"}
           />
         {:else if item.disabled == true}
           <Card color="info">
@@ -357,12 +352,21 @@
             </CardBody>
           </Card>
         {/if}
-      </PlotGrid>
+      {/snippet}
+
+      <PlotGrid
+        items={orderAndMap(
+          groupByScope($jobMetrics.data.scopedJobStats),
+          selectedMetrics,
+        )}
+        itemsPerRow={ccconfig.plotConfiguration_plotsPerRow}
+        {gridContent}
+      />
     {/if}
   </CardBody>
 </Card>
 
-<!-- Statistcics Table -->
+<!-- Metadata && Statistcics Table -->
 <Row class="mb-3">
   <Col>
     {#if $initq?.data}
@@ -398,8 +402,10 @@
               </div>
             </TabPane>
           {/if}
-          <!-- Includes <TabPane> Statistics Table with Independent GQL Query -->
-          <StatsTab job={$initq.data.job} clusters={$initq.data.clusters} tabActive={!somethingMissing}/>
+          {#if showStatsTable}
+            <!-- Includes <TabPane> Statistics Table with Independent GQL Query -->
+            <StatsTab job={$initq.data.job} clusters={$initq.data.clusters} tabActive={!somethingMissing}/>
+          {/if}
           <TabPane tabId="job-script" tab="Job Script">
             <div class="pre-wrapper">
               {#if $initq.data.job.metaData?.jobScript}
@@ -428,12 +434,16 @@
 
 {#if $initq?.data}
   <MetricSelection
+    bind:isOpen={isMetricsSelectionOpen}
+    bind:totalMetrics
+    presetMetrics={selectedMetrics}
     cluster={$initq.data.job.cluster}
     subCluster={$initq.data.job.subCluster}
-    configName="job_view_selectedMetrics"
-    bind:metrics={selectedMetrics}
-    bind:isOpen={isMetricsSelectionOpen}
-    bind:allMetrics={availableMetrics}
+    configName="metricConfig_jobViewPlotMetrics"
+    preInitialized
+    applyMetrics={(newMetrics) => 
+      selectedMetrics = [...newMetrics]
+    }
   />
 {/if}
 

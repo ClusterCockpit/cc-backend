@@ -1,7 +1,8 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package archive
 
 import (
@@ -9,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 )
 
 type NodeList [][]interface {
@@ -51,7 +52,7 @@ func (nl *NodeList) PrintList() []string {
 					if inner["zeroPadded"] == 1 {
 						out = append(out, fmt.Sprintf("%s%0*d", prefix, inner["digits"], i))
 					} else {
-						log.Error("node list: only zero-padded ranges are allowed")
+						cclog.Error("node list: only zero-padded ranges are allowed")
 					}
 				}
 			}
@@ -61,7 +62,7 @@ func (nl *NodeList) PrintList() []string {
 }
 
 func (nl *NodeList) NodeCount() int {
-	var out int = 0
+	out := 0
 	for _, term := range *nl {
 		if len(term) == 1 { // If only String-Part in Term: Single Node Name -> add one
 			out += 1
@@ -79,8 +80,8 @@ type NLExprString string
 
 func (nle NLExprString) consume(input string) (next string, ok bool) {
 	str := string(nle)
-	if strings.HasPrefix(input, str) {
-		return strings.TrimPrefix(input, str), true
+	if after, ok0 := strings.CutPrefix(input, str); ok0 {
+		return after, true
 	}
 	return "", false
 }
@@ -129,7 +130,7 @@ type NLExprIntRange struct {
 
 func (nle NLExprIntRange) consume(input string) (next string, ok bool) {
 	if !nle.zeroPadded || nle.digits < 1 {
-		log.Error("only zero-padded ranges are allowed")
+		cclog.Error("only zero-padded ranges are allowed")
 		return "", false
 	}
 
@@ -160,7 +161,7 @@ func (nle NLExprIntRange) limits() []map[string]int {
 	m["start"] = int(nle.start)
 	m["end"] = int(nle.end)
 	m["digits"] = int(nle.digits)
-	if nle.zeroPadded == true {
+	if nle.zeroPadded {
 		m["zeroPadded"] = 1
 	} else {
 		m["zeroPadded"] = 0
@@ -183,14 +184,15 @@ func ParseNodeList(raw string) (NodeList, error) {
 	rawterms := []string{}
 	prevterm := 0
 	for i := 0; i < len(raw); i++ {
-		if raw[i] == '[' {
+		switch raw[i] {
+		case '[':
 			for i < len(raw) && raw[i] != ']' {
 				i++
 			}
 			if i == len(raw) {
 				return nil, fmt.Errorf("ARCHIVE/NODELIST > unclosed '['")
 			}
-		} else if raw[i] == ',' {
+		case ',':
 			rawterms = append(rawterms, raw[prevterm:i])
 			prevterm = i + 1
 		}

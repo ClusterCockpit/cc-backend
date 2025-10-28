@@ -9,10 +9,9 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
-	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/util"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-lib/util"
 )
 
 func TestInitEmptyPath(t *testing.T) {
@@ -86,8 +85,11 @@ func TestLoadJobMeta(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	jobIn := schema.Job{BaseJob: schema.JobDefaults}
-	jobIn.StartTime = time.Unix(1608923076, 0)
+	jobIn := schema.Job{
+		Shared:           "none",
+		MonitoringStatus: schema.MonitoringStatusRunningOrArchiving,
+	}
+	jobIn.StartTime = 1608923076
 	jobIn.JobID = 1403244
 	jobIn.Cluster = "emmy"
 
@@ -114,8 +116,11 @@ func TestLoadJobData(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	jobIn := schema.Job{BaseJob: schema.JobDefaults}
-	jobIn.StartTime = time.Unix(1608923076, 0)
+	jobIn := schema.Job{
+		Shared:           "none",
+		MonitoringStatus: schema.MonitoringStatusRunningOrArchiving,
+	}
+	jobIn.StartTime = 1608923076
 	jobIn.JobID = 1403244
 	jobIn.Cluster = "emmy"
 
@@ -142,8 +147,11 @@ func BenchmarkLoadJobData(b *testing.B) {
 	var fsa FsArchive
 	fsa.Init(json.RawMessage(archiveCfg))
 
-	jobIn := schema.Job{BaseJob: schema.JobDefaults}
-	jobIn.StartTime = time.Unix(1608923076, 0)
+	jobIn := schema.Job{
+		Shared:           "none",
+		MonitoringStatus: schema.MonitoringStatusRunningOrArchiving,
+	}
+	jobIn.StartTime = 1608923076
 	jobIn.JobID = 1403244
 	jobIn.Cluster = "emmy"
 
@@ -165,8 +173,11 @@ func BenchmarkLoadJobDataCompressed(b *testing.B) {
 	var fsa FsArchive
 	fsa.Init(json.RawMessage(archiveCfg))
 
-	jobIn := schema.Job{BaseJob: schema.JobDefaults}
-	jobIn.StartTime = time.Unix(1608923076, 0)
+	jobIn := schema.Job{
+		Shared:           "none",
+		MonitoringStatus: schema.MonitoringStatusRunningOrArchiving,
+	}
+	jobIn.StartTime = 1608923076
 	jobIn.JobID = 1403244
 	jobIn.Cluster = "emmy"
 

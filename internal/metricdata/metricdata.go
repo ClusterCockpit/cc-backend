@@ -1,7 +1,8 @@
 // Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
-// All rights reserved.
+// All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package metricdata
 
 import (
@@ -12,8 +13,9 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
-	"github.com/ClusterCockpit/cc-backend/pkg/log"
-	"github.com/ClusterCockpit/cc-backend/pkg/schema"
+	"github.com/ClusterCockpit/cc-backend/internal/memorystore"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
 type MetricDataRepository interface {
@@ -40,13 +42,13 @@ type MetricDataRepository interface {
 var metricDataRepos map[string]MetricDataRepository = map[string]MetricDataRepository{}
 
 func Init() error {
-	for _, cluster := range config.Keys.Clusters {
+	for _, cluster := range config.Clusters {
 		if cluster.MetricDataRepository != nil {
 			var kind struct {
 				Kind string `json:"kind"`
 			}
 			if err := json.Unmarshal(cluster.MetricDataRepository, &kind); err != nil {
-				log.Warn("Error while unmarshaling raw json MetricDataRepository")
+				cclog.Warn("Error while unmarshaling raw json MetricDataRepository")
 				return err
 			}
 
@@ -54,8 +56,9 @@ func Init() error {
 			switch kind.Kind {
 			case "cc-metric-store":
 				mdr = &CCMetricStore{}
-			case "influxdb":
-				mdr = &InfluxDBv2DataRepository{}
+			case "cc-metric-store-internal":
+				mdr = &CCMetricStoreInternal{}
+				memorystore.InternalCCMSFlag = true
 			case "prometheus":
 				mdr = &PrometheusDataRepository{}
 			case "test":
@@ -65,7 +68,7 @@ func Init() error {
 			}
 
 			if err := mdr.Init(cluster.MetricDataRepository); err != nil {
-				log.Errorf("Error initializing MetricDataRepository %v for cluster %v", kind.Kind, cluster.Name)
+				cclog.Errorf("Error initializing MetricDataRepository %v for cluster %v", kind.Kind, cluster.Name)
 				return err
 			}
 			metricDataRepos[cluster.Name] = mdr
