@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# rm -rf var
+
 if [ -d './var' ]; then
   echo 'Directory ./var already exists! Skipping initialization.'
   ./cc-backend -server -dev
@@ -14,6 +16,7 @@ else
 
   ./cc-backend -migrate-db
   ./cc-backend -dev -init-db -add-user demo:admin,api:demo
+
   ./cc-backend -server -dev
 
 fi

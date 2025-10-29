@@ -34,9 +34,9 @@
     {
       "name": "fritz",
       "metricDataRepository": {
-        "kind": "cc-metric-store",
+        "kind": "cc-metric-store-internal",
         "url": "http://localhost:8082",
-        "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJFZERTQSJ9"
+        "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJFZERTQSJ9.eyJ1c2VyIjoiYWRtaW4iLCJyb2xlcyI6WyJST0xFX0FETUlOIiwiUk9MRV9BTkFMWVNUIiwiUk9MRV9VU0VSIl19.d-3_3FZTsadPjDEdsWrrQ7nS0edMAR4zjl-eK7rJU3HziNBfI9PDHDIpJVHTNN5E5SlLGLFXctWyKAkwhXL-Dw"
       },
       "filterRanges": {
         "numNodes": {
@@ -56,9 +56,9 @@
     {
       "name": "alex",
       "metricDataRepository": {
-        "kind": "cc-metric-store",
+        "kind": "cc-metric-store-internal",
         "url": "http://localhost:8082",
-        "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJFZERTQSJ9"
+        "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJFZERTQSJ9.eyJ1c2VyIjoiYWRtaW4iLCJyb2xlcyI6WyJST0xFX0FETUlOIiwiUk9MRV9BTkFMWVNUIiwiUk9MRV9VU0VSIl19.d-3_3FZTsadPjDEdsWrrQ7nS0edMAR4zjl-eK7rJU3HziNBfI9PDHDIpJVHTNN5E5SlLGLFXctWyKAkwhXL-Dw"
       },
       "filterRanges": {
         "numNodes": {
@@ -79,14 +79,15 @@
   "metric-store": {
     "checkpoints": {
       "file-format": "avro",
-      "interval": "2h",
+      "interval": "1h",
       "directory": "./var/checkpoints",
       "restore": "48h"
     },
     "archive": {
-      "interval": "2h",
+      "interval": "1h",
       "directory": "./var/archive"
     },
     "retention-in-memory": "48h"
-  }
+  },
+  "ui-file": "./configs/uiConfig.json"
 }

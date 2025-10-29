@@ -25,7 +25,7 @@ import (
 )
 
 var NumAvroWorkers int = 4
-
+var startUp bool = true
 var ErrNoNewData error = errors.New("no data in the pool")
 
 func (as *AvroStore) ToCheckpoint(dir string, dumpAll bool) (int, error) {
@@ -96,6 +96,9 @@ func (as *AvroStore) ToCheckpoint(dir string, dumpAll bool) (int, error) {
 	if errs > 0 {
 		return int(n), fmt.Errorf("%d errors happend while creating avro checkpoints (%d successes)", errs, n)
 	}
+
+	startUp = false
+
 	return int(n), nil
 }
 
@@ -142,6 +145,10 @@ func getTimestamp(dir string) int64 {
 
 	interval, _ := time.ParseDuration(Keys.Checkpoints.Interval)
 	updateTime := time.Unix(maxTS, 0).Add(interval).Add(time.Duration(CheckpointBufferMinutes-1) * time.Minute).Unix()
+
+	if startUp {
+		return 0
+	}
 
 	if updateTime < time.Now().Unix() {
 		return 0
