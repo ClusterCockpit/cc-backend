@@ -12,7 +12,7 @@ require (
 	github.com/expr-lang/expr v1.17.6
 	github.com/go-co-op/gocron/v2 v2.16.0
 	github.com/go-ldap/ldap/v3 v3.4.10
-	github.com/go-sql-driver/mysql v1.9.0
+	github.com/go-sql-driver/mysql v1.9.3
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/golang-migrate/migrate/v4 v4.18.2
 	github.com/google/gops v0.3.28
