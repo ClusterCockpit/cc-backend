@@ -23,7 +23,7 @@ require (
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/joho/godotenv v1.5.1
 	github.com/linkedin/goavro/v2 v2.14.0
-	github.com/mattn/go-sqlite3 v1.14.24
+	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/nats-io/nats.go v1.46.1
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/common v0.66.1
