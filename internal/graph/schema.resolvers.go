@@ -387,13 +387,13 @@ func (r *queryResolver) Nodes(ctx context.Context, filter []*model.NodeFilter, o
 func (r *queryResolver) NodeStates(ctx context.Context, filter []*model.NodeFilter) ([]*model.NodeStates, error) {
 	repo := repository.GetNodeRepository()
 
-	stateCounts, serr := repo.CountNodeStates(ctx, filter)
+	stateCounts, serr := repo.CountStates(ctx, filter, "node_state")
 	if serr != nil {
 		cclog.Warnf("Error while counting nodeStates: %s", serr.Error())
 		return nil, serr
 	}
 
-	healthCounts, herr := repo.CountHealthStates(ctx, filter)
+	healthCounts, herr := repo.CountStates(ctx, filter, "health_state")
 	if herr != nil {
 		cclog.Warnf("Error while counting healthStates: %s", herr.Error())
 		return nil, herr
@@ -406,26 +406,28 @@ func (r *queryResolver) NodeStates(ctx context.Context, filter []*model.NodeFilt
 }
 
 // NodeStatesTimed is the resolver for the nodeStatesTimed field.
-func (r *queryResolver) NodeStatesTimed(ctx context.Context, filter []*model.NodeFilter) ([]*model.NodeStatesTimed, error) {
-	panic(fmt.Errorf("not implemented: NodeStatesTimed - NodeStatesTimed"))
-	// repo := repository.GetNodeRepository()
+func (r *queryResolver) NodeStatesTimed(ctx context.Context, filter []*model.NodeFilter, typeArg string) ([]*model.NodeStatesTimed, error) {
+	repo := repository.GetNodeRepository()
 
-	// stateCounts, serr := repo.CountNodeStates(ctx, filter)
-	// if serr != nil {
-	// 	cclog.Warnf("Error while counting nodeStates: %s", serr.Error())
-	// 	return nil, serr
-	// }
+	if typeArg == "node" {
+		stateCounts, serr := repo.CountStatesTimed(ctx, filter, "node_state")
+		if serr != nil {
+			cclog.Warnf("Error while counting nodeStates in time: %s", serr.Error())
+			return nil, serr
+		}
+		return stateCounts, nil
+	}
 
-	// healthCounts, herr := repo.CountHealthStates(ctx, filter)
-	// if herr != nil {
-	// 	cclog.Warnf("Error while counting healthStates: %s", herr.Error())
-	// 	return nil, herr
-	// }
+	if typeArg == "health" {
+		healthCounts, herr := repo.CountStatesTimed(ctx, filter, "health_state")
+		if herr != nil {
+			cclog.Warnf("Error while counting healthStates in time: %s", herr.Error())
+			return nil, herr
+		}
+		return healthCounts, nil
+	}
 
-	// allCounts := make([]*model.NodeStates, 0)
-	// allCounts = append(stateCounts, healthCounts...)
-
-	// return allCounts, nil
+	return nil, errors.New("Unknown Node State Query Type")
 }
 
 // Job is the resolver for the job field.

@@ -28,9 +28,8 @@ type NodeStates {
 
 type NodeStatesTimed {
   state: String!
-  type: String!
-  count: Int!
-  time: Int!
+  counts: [Int!]!
+  times: [Int!]!
 }
 
 type Job {
@@ -317,7 +316,7 @@ type Query {
   node(id: ID!): Node
   nodes(filter: [NodeFilter!], order: OrderByInput): NodeStateResultList!
   nodeStates(filter: [NodeFilter!]): [NodeStates!]!
-  nodeStatesTimed(filter: [NodeFilter!]): [NodeStatesTimed!]!
+  nodeStatesTimed(filter: [NodeFilter!], type: String!): [NodeStatesTimed!]!
 
   job(id: ID!): Job
   jobMetrics(

@@ -357,8 +357,8 @@ func (r *NodeRepository) ListNodes(cluster string) ([]*schema.Node, error) {
 	return nodeList, nil
 }
 
-func (r *NodeRepository) CountNodeStates(ctx context.Context, filters []*model.NodeFilter) ([]*model.NodeStates, error) {
-	query, qerr := AccessCheck(ctx, sq.Select("hostname", "node_state", "MAX(time_stamp) as time").From("node"))
+func (r *NodeRepository) CountStates(ctx context.Context, filters []*model.NodeFilter, column string) ([]*model.NodeStates, error) {
+	query, qerr := AccessCheck(ctx, sq.Select("hostname", column, "MAX(time_stamp) as time").From("node"))
 	if qerr != nil {
 		return nil, qerr
 	}
@@ -395,16 +395,16 @@ func (r *NodeRepository) CountNodeStates(ctx context.Context, filters []*model.N
 
 	stateMap := map[string]int{}
 	for rows.Next() {
-		var hostname, node_state string
+		var hostname, state string
 		var timestamp int64
 
-		if err := rows.Scan(&hostname, &node_state, &timestamp); err != nil {
+		if err := rows.Scan(&hostname, &state, &timestamp); err != nil {
 			rows.Close()
 			cclog.Warn("Error while scanning rows (NodeStates)")
 			return nil, err
 		}
 
-		stateMap[node_state] += 1
+		stateMap[state] += 1
 	}
 
 	nodes := make([]*model.NodeStates, 0)
@@ -416,8 +416,8 @@ func (r *NodeRepository) CountNodeStates(ctx context.Context, filters []*model.N
 	return nodes, nil
 }
 
-func (r *NodeRepository) CountHealthStates(ctx context.Context, filters []*model.NodeFilter) ([]*model.NodeStates, error) {
-	query, qerr := AccessCheck(ctx, sq.Select("hostname", "health_state", "MAX(time_stamp) as time").From("node"))
+func (r *NodeRepository) CountStatesTimed(ctx context.Context, filters []*model.NodeFilter, column string) ([]*model.NodeStatesTimed, error) {
+	query, qerr := AccessCheck(ctx, sq.Select(column, "time_stamp", "count(*) as count").From("node")) // "cluster"?
 	if qerr != nil {
 		return nil, qerr
 	}
@@ -425,6 +425,11 @@ func (r *NodeRepository) CountHealthStates(ctx context.Context, filters []*model
 	query = query.Join("node_state ON node_state.node_id = node.id")
 
 	for _, f := range filters {
+		// Required
+		if f.TimeStart != nil {
+			query = query.Where("time_stamp > ?", f.TimeStart)
+		}
+		// Optional
 		if f.Hostname != nil {
 			query = buildStringCondition("hostname", f.Hostname, query)
 		}
@@ -443,7 +448,7 @@ func (r *NodeRepository) CountHealthStates(ctx context.Context, filters []*model
 	}
 
 	// Add Group and Order
-	query = query.GroupBy("hostname").OrderBy("hostname DESC")
+	query = query.GroupBy(column + ", time_stamp").OrderBy("time_stamp ASC")
 
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
@@ -452,27 +457,32 @@ func (r *NodeRepository) CountHealthStates(ctx context.Context, filters []*model
 		return nil, err
 	}
 
-	stateMap := map[string]int{}
+	rawData := make(map[string][][]int)
 	for rows.Next() {
-		var hostname, health_state string
-		var timestamp int64
+		var state string
+		var time, count int
 
-		if err := rows.Scan(&hostname, &health_state, &timestamp); err != nil {
+		if err := rows.Scan(&state, &time, &count); err != nil {
 			rows.Close()
 			cclog.Warn("Error while scanning rows (NodeStates)")
 			return nil, err
 		}
 
-		stateMap[health_state] += 1
+		if rawData[state] == nil {
+			rawData[state] = [][]int{make([]int, 0), make([]int, 0)}
+		}
+
+		rawData[state][0] = append(rawData[state][0], time)
+		rawData[state][1] = append(rawData[state][1], count)
 	}
 
-	nodes := make([]*model.NodeStates, 0)
-	for state, counts := range stateMap {
-		node := model.NodeStates{State: state, Count: counts}
-		nodes = append(nodes, &node)
+	timedStates := make([]*model.NodeStatesTimed, 0)
+	for state, data := range rawData {
+		entry := model.NodeStatesTimed{State: state, Times: data[0], Counts: data[1]}
+		timedStates = append(timedStates, &entry)
 	}
 
-	return nodes, nil
+	return timedStates, nil
 }
 
 func AccessCheck(ctx context.Context, query sq.SelectBuilder) (sq.SelectBuilder, error) {
