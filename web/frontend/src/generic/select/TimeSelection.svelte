@@ -36,7 +36,7 @@
 
   /* Const Init */
   const defaultTo = new Date(Date.now());
-  const defaultFrom = new Date(defaultTo.setHours(defaultTo.getHours() - 4));
+  const defaultFrom = new Date(new Date(Date.now()).setHours(defaultTo.getHours() - 4));
 
   /* State Init */
   let timeType = $state("range");
