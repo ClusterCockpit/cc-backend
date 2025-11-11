@@ -51,12 +51,13 @@ export function formatDurationTime(t, forNode = false) {
     }
 }
 
-export function formatUnixTime(t) {
+export function formatUnixTime(t, withDate = false) {
     if (t !== null) {
         if (isNaN(t)) {
             return t;
         } else {
-            return new Date(t * 1000).toLocaleString()
+            if (withDate) return new Date(t * 1000).toLocaleString();
+            else return new Date(t * 1000).toLocaleTimeString();
         }
     }
 }

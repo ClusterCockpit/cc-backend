@@ -25,10 +25,12 @@
   import {
     init,
   } from "../generic/utils.js";
-  import { scaleNumbers, formatDurationTime } from "../generic/units.js";
+  import { formatDurationTime } from "../generic/units.js";
   import Refresher from "../generic/helper/Refresher.svelte";
+  import TimeSelection from "../generic/select/TimeSelection.svelte";
   import Roofline from "../generic/plots/Roofline.svelte";
   import Pie, { colors } from "../generic/plots/Pie.svelte";
+  import Stacked from "../generic/plots/Stacked.svelte";
 
   /* Svelte 5 Props */
   let {
@@ -44,10 +46,12 @@
   /* State Init */
   let cluster = $state(presetCluster);
   let pieWidth = $state(0);
-  let stackedWidth = $state(0);
+  let stackedWidth1 = $state(0);
+  let stackedWidth2 = $state(0);
   let plotWidths = $state([]);
   let from = $state(new Date(Date.now() - 5 * 60 * 1000));
   let to = $state(new Date(Date.now()));
+  let stackedFrom = $state(Math.floor(Date.now() / 1000) - 14400);
   // Bar Gauges
   let allocatedNodes = $state({});
   let allocatedAccs = $state({});
@@ -80,28 +84,38 @@
   }));
 
   const refinedStateData = $derived.by(() => {
-    return $nodesStateCounts?.data?.nodeStates.filter((e) => ['allocated', 'reserved', 'idle', 'mixed','down', 'unknown'].includes(e.state))
+    return $nodesStateCounts?.data?.nodeStates.
+      filter((e) => ['allocated', 'reserved', 'idle', 'mixed','down', 'unknown'].includes(e.state)).
+      sort((a, b) => b.count - a.count)
   });
 
   const refinedHealthData = $derived.by(() => {
-    return $nodesStateCounts?.data?.nodeStates.filter((e) => ['full', 'partial', 'failed'].includes(e.state))
+    return $nodesStateCounts?.data?.nodeStates.
+      filter((e) => ['full', 'partial', 'failed'].includes(e.state)).
+      sort((a, b) => b.count - a.count)
   });
 
-  // NodeStates for Stacked charts
-  const nodesStateTimes = $derived(queryStore({
+  // States for Stacked charts
+  const statesTimed = $derived(queryStore({
     client: client,
     query: gql`
-      query ($filter: [NodeFilter!]) {
-        nodeStatesTimed(filter: $filter) {
+      query ($filter: [NodeFilter!], $typeNode: String!, $typeHealth: String!) {
+        nodeStates: nodeStatesTimed(filter: $filter, type: $typeNode) {
           state
-          type
-          count
-          time
+          counts
+          times
+        }
+        healthStates: nodeStatesTimed(filter: $filter, type: $typeHealth) {
+          state
+          counts
+          times
         }
       }
     `,
     variables: {
-      filter: { cluster: { eq: cluster }, timeStart: Date.now() - (24 * 3600 * 1000)} // Add Selector for Timeframe (4h, 12h, 24h)?
+      filter: { cluster: { eq: cluster }, timeStart: 1760097059}, // stackedFrom
+      typeNode: "node",
+      typeHealth: "health"
     },
   }));
 
@@ -378,12 +392,19 @@
 </script>
 
 <!-- Refresher and space for other options -->
-<Row class="justify-content-end">
+<Row class="justify-content-between">
+    <Col xs="12" md="5" lg="4" xl="3">
+    <TimeSelection
+      customEnabled={false}
+      applyTime={(newFrom, newTo) => {
+        stackedFrom = Math.floor(newFrom.getTime() / 1000);
+      }}
+    />
+  </Col>
   <Col xs="12" md="5" lg="4" xl="3">
     <Refresher
       initially={120}
       onRefresh={() => {
-        console.log('Trigger Refresh StatusTab')
         from = new Date(Date.now() - 5 * 60 * 1000);
         to = new Date(Date.now());
       }}
@@ -394,43 +415,40 @@
 <hr/>
 
 <!-- Node Stack Charts Dev-->
-<!--
-{#if $initq.data && $nodesStateTimes.data}
-  <Row cols={{ lg: 4, md: 2 , sm: 1}} class="mb-3 justify-content-center">
+{#if $initq.data && $statesTimed.data}
+  <Row cols={{ md: 2 , sm: 1}} class="mb-3 justify-content-center">
     <Col class="px-3 mt-2 mt-lg-0">
-      <div bind:clientWidth={stackedWidth}>
-        {#key $nodesStateTimes.data}
+      <div bind:clientWidth={stackedWidth1}>
+        {#key $statesTimed?.data?.nodeStates}
           <h4 class="text-center">
             {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Node States Over Time
           </h4>
           <Stacked
-            {cluster}
-            data={$nodesStateTimes?.data}
-            width={stackedWidth * 0.55}
+            data={$statesTimed?.data?.nodeStates}
+            width={stackedWidth1 * 0.95}
             xLabel="Time"
             yLabel="Nodes"
             yunit = "#Count"
-            title = "Slurm States"
-            stateType = "slurm"
+            title = "Node States"
+            stateType = "Node"
           />
         {/key}
       </div>
     </Col>
     <Col class="px-3 mt-2 mt-lg-0">
-      <div bind:clientWidth={stackedWidth}>
-        {#key $nodesStateTimes.data}
+      <div bind:clientWidth={stackedWidth2}>
+        {#key $statesTimed?.data?.healthStates}
           <h4 class="text-center">
             {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Health States Over Time
           </h4>
           <Stacked
-            {cluster}
-            data={$nodesStateTimes?.data}
-            width={stackedWidth * 0.55}
+            data={$statesTimed?.data?.healthStates}
+            width={stackedWidth2 * 0.95}
             xLabel="Time"
             yLabel="Nodes"
             yunit = "#Count"
             title = "Health States"
-            stateType = "health"
+            stateType = "Health"
           />
         {/key}
       </div>
@@ -439,8 +457,6 @@
 {/if}
 
 <hr/>
-<hr/>
--->
 
 <!-- Node Health Pis, later Charts -->
 {#if $initq.data && $nodesStateCounts.data}
@@ -449,7 +465,7 @@
       <div bind:clientWidth={pieWidth}>
         {#key refinedStateData}
           <h4 class="text-center">
-            {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Node States
+            Current {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Node States
           </h4>
           <Pie
             {useAltColors}
@@ -489,7 +505,7 @@
       <div bind:clientWidth={pieWidth}>
         {#key refinedHealthData}
           <h4 class="text-center">
-            {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Node Health
+            Current {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Node Health
           </h4>
           <Pie
             {useAltColors}
