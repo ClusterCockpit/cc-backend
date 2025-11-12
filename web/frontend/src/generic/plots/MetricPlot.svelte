@@ -48,6 +48,7 @@
     zoomState = null,
     thresholdState = null,
     extendedLegendData = null,
+    plotSync = null,
     onZoom
   } = $props();
 
@@ -576,6 +577,14 @@
     if (!uplot) {
       opts.width = ren_width;
       opts.height = ren_height;
+      
+      if (plotSync) {
+        opts.cursor.sync = { 
+          key: plotSync.key,
+          scales: ["x", null],
+        }
+      }
+
       if (zoomState && metricConfig?.aggregation == "avg") {
         opts.scales = {...zoomState}
       } else if (zoomState && metricConfig?.aggregation == "sum") {
@@ -584,6 +593,7 @@
           if ((thresholdState === thresholds?.normal)) { opts.scales = {...zoomState} };
         } // else: reset scaling to default
       }
+      
       uplot = new uPlot(opts, plotData, plotWrapper);
     } else {
       uplot.setSize({ width: ren_width, height: ren_height });

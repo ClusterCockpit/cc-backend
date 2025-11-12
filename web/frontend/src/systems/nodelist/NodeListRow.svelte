@@ -13,6 +13,7 @@
     gql,
     getContextClient,
   } from "@urql/svelte";
+  import uPlot from "uplot";
   import { Card, CardBody, Spinner } from "@sveltestrap/sveltestrap";
   import { maxScope, checkMetricDisabled, scramble, scrambleNames } from "../../generic/utils.js";
   import MetricPlot from "../../generic/plots/MetricPlot.svelte";
@@ -24,6 +25,9 @@
     nodeData,
     selectedMetrics,
   } = $props();
+
+  /* Var Init*/
+  let plotSync = uPlot.sync(`nodeMetricStack-${nodeData.host}`);
 
   /* Const Init */
   const client = getContextClient();
@@ -159,6 +163,7 @@
               statisticsSeries={metricData.data?.metric.statisticsSeries}
               useStatsSeries={!!metricData.data?.metric.statisticsSeries}
               height={175}
+              {plotSync}
               forNode
             />
           <div class="my-2"></div>
@@ -172,6 +177,7 @@
               series={metricData.data.metric.series}
               height={175}
               {extendedLegendData}
+              {plotSync}
               forNode
             />
           {/key}

@@ -39,7 +39,7 @@
     yunit = "",
     title = "",
     forResources = false,
-    plotSync,
+    plotSync = null,
   } = $props();
 
   /* Const Init */
@@ -204,11 +204,7 @@
       live: true,
     },
     cursor: { 
-      drag: { x: true, y: true },
-      sync: { 
-        key: plotSync.key,
-        scales: ["x", null],
-      }
+      drag: { x: true, y: true }
     }
   };
 
@@ -293,6 +289,14 @@
     if (!uplot) {
       opts.width = ren_width;
       opts.height = ren_height;
+      
+      if (plotSync) {
+        opts.cursor.sync = { 
+          key: plotSync.key,
+          scales: ["x", null],
+        }
+      }
+
       uplot = new uPlot(opts, data, plotWrapper); // Data is uplot formatted [[X][Ymin][Yavg][Ymax]]
       plotSync.sub(uplot)
     } else {
