@@ -312,7 +312,11 @@ func (r *nodeResolver) ID(ctx context.Context, obj *schema.Node) (string, error)
 
 // SchedulerState is the resolver for the schedulerState field.
 func (r *nodeResolver) SchedulerState(ctx context.Context, obj *schema.Node) (schema.SchedulerState, error) {
-	panic(fmt.Errorf("not implemented: SchedulerState - schedulerState"))
+	if obj.NodeState != "" {
+		return obj.NodeState, nil
+	} else {
+		return "", fmt.Errorf("No SchedulerState (NodeState) on Object")
+	}
 }
 
 // HealthState is the resolver for the healthState field.
