@@ -191,7 +191,7 @@
             hostname
             cluster
             subCluster
-            nodeState
+            schedulerState
           }
         }
         # totalNodes includes multiples if shared jobs
@@ -362,7 +362,7 @@
       for (let j = 0; j < subClusterData.length; j++) {
         const nodeName = subClusterData[j]?.host ? subClusterData[j].host : "unknown"
         const nodeMatch = $statusQuery?.data?.nodes?.items?.find((n) => n.hostname == nodeName && n.subCluster == subClusterData[j].subCluster);
-        const nodeState = nodeMatch?.nodeState ? nodeMatch.nodeState : "notindb"
+        const schedulerState = nodeMatch?.schedulerState ? nodeMatch.schedulerState : "notindb"
         let numJobs = 0
 
         if ($statusQuery?.data) {
@@ -370,7 +370,7 @@
           numJobs = nodeJobs?.length ? nodeJobs.length : 0
         }
 
-        result.push({nodeName: nodeName, nodeState: nodeState, numJobs: numJobs})
+        result.push({nodeName: nodeName, schedulerState: schedulerState, numJobs: numJobs})
       };
     };
     return result
