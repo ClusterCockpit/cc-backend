@@ -185,6 +185,7 @@
       {isShared}
       {zoomState}
       {thresholdState}
+      enableFlip
     />
   {:else if statsSeries[selectedScopeIndex] != null && patternMatches}
     <MetricPlot
@@ -202,6 +203,7 @@
       {thresholdState}
       statisticsSeries={statsSeries[selectedScopeIndex]}
       useStatsSeries={!!statsSeries[selectedScopeIndex]}
+      enableFlip
     />
   {/if}
 {/key}

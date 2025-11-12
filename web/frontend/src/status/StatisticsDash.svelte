@@ -132,6 +132,7 @@
         ylabel="Number of Jobs"
         yunit="Jobs"
         usesBins
+        enableFlip
       />
     {/snippet}
     

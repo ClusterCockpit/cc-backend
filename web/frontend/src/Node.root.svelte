@@ -217,6 +217,7 @@
             cluster={clusters.find((c) => c.name == cluster)}
             subCluster={$nodeMetricsData.data.nodeMetrics[0].subCluster}
             series={item.metric.series}
+            enableFlip
             forNode
           />
         {:else if item.disabled === true && item.metric}

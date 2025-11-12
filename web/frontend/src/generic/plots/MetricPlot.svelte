@@ -49,6 +49,7 @@
     thresholdState = null,
     extendedLegendData = null,
     plotSync = null,
+    enableFlip = false,
     onZoom
   } = $props();
 
@@ -396,9 +397,12 @@
 
     function update(u) {
       const { left, top } = u.cursor;
-      const width = u?.over?.querySelector(".u-legend")?.offsetWidth ? u.over.querySelector(".u-legend").offsetWidth : 0;
-      legendEl.style.transform =
-        "translate(" + (left - width - 15) + "px, " + (top + 15) + "px)";
+      const internalWidth = u?.over?.querySelector(".u-legend")?.offsetWidth ? u.over.querySelector(".u-legend").offsetWidth : 0;
+      if (enableFlip && (left < (width/2))) {
+        legendEl.style.transform = "translate(" + (left + 15) + "px, " + (top + 15) + "px)";
+      } else {
+        legendEl.style.transform = "translate(" + (left - internalWidth - 15) + "px, " + (top + 15) + "px)";
+      }
     }
 
     if (dataSize <= 12 || useStatsSeries) {
@@ -593,7 +597,7 @@
           if ((thresholdState === thresholds?.normal)) { opts.scales = {...zoomState} };
         } // else: reset scaling to default
       }
-      
+
       uplot = new uPlot(opts, plotData, plotWrapper);
     } else {
       uplot.setSize({ width: ren_width, height: ren_height });

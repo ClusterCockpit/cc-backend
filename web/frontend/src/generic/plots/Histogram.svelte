@@ -34,6 +34,7 @@
     xtime = false,
     ylabel = "",
     yunit = "",
+    enableFlip = false,
   } = $props();
 
   /* Const Init */
@@ -117,8 +118,12 @@
 
     function update(u) {
       const { left, top } = u.cursor;
-      legendEl.style.transform =
-        "translate(" + (left + 15) + "px, " + (top + 15) + "px)";
+      const internalWidth = u?.over?.querySelector(".u-legend")?.offsetWidth ? u.over.querySelector(".u-legend").offsetWidth : 0;
+      if (enableFlip && (left < (width/2))) {
+        legendEl.style.transform = "translate(" + (left + 15) + "px, " + (top + 15) + "px)";
+      } else {
+        legendEl.style.transform = "translate(" + (left - internalWidth - 15) + "px, " + (top + 15) + "px)";
+      }
     }
 
     return {

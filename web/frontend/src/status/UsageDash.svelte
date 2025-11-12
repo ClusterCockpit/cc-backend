@@ -255,6 +255,7 @@
           height="275"
           usesBins
           xtime
+          enableFlip
         />
       {/key}
     </Col>
@@ -359,6 +360,7 @@
         ylabel="Number of Jobs"
         yunit="Jobs"
         height="275"
+        enableFlip
       />
     </Col>
     <Col xs="6" md="3" lg="2" class="p-2">
@@ -462,6 +464,7 @@
         ylabel="Number of Jobs"
         yunit="Jobs"
         height="275"
+        enableFlip
       />
     </Col>
     <Col xs="6" md="3" lg="2" class="p-2">

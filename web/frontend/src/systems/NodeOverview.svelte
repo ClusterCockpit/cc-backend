@@ -149,6 +149,7 @@
                 {cluster}
                 subCluster={item.subCluster}
                 forNode
+                enableFlip
               />
             {/key}
           {:else if item.disabled === null}
