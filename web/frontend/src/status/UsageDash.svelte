@@ -24,7 +24,6 @@
     getContextClient,
   } from "@urql/svelte";
   import {
-    init,
     scramble,
     scrambleNames,
     convert2uplot,
@@ -41,7 +40,6 @@
   } = $props();
 
   /* Const Init */
-  const { query: initq } = init();
   const client = getContextClient();
   const durationBinOptions = ["1m","10m","1h","6h","12h"];
 

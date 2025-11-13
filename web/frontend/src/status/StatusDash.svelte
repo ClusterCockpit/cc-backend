@@ -22,9 +22,6 @@
     gql,
     getContextClient,
   } from "@urql/svelte";
-  import {
-    init,
-  } from "../generic/utils.js";
   import { formatDurationTime } from "../generic/units.js";
   import Refresher from "../generic/helper/Refresher.svelte";
   import TimeSelection from "../generic/select/TimeSelection.svelte";
@@ -34,13 +31,13 @@
 
   /* Svelte 5 Props */
   let {
+    clusters,
     presetCluster,
     useCbColors = false,
     useAltColors = false,
   } = $props();
 
   /* Const Init */
-  const { query: initq } = init();
   const client = getContextClient();
 
   /* State Init */
@@ -67,34 +64,6 @@
   let totalAccs = $state({});
 
   /* Derived */
-  // Accumulated NodeStates for Piecharts
-  const nodesStateCounts = $derived(queryStore({
-    client: client,
-    query: gql`
-      query ($filter: [NodeFilter!]) {
-        nodeStates(filter: $filter) {
-          state
-          count
-        }
-      }
-    `,
-    variables: {
-      filter: { cluster: { eq: cluster }}
-    },
-  }));
-
-  const refinedStateData = $derived.by(() => {
-    return $nodesStateCounts?.data?.nodeStates.
-      filter((e) => ['allocated', 'reserved', 'idle', 'mixed','down', 'unknown'].includes(e.state)).
-      sort((a, b) => b.count - a.count)
-  });
-
-  const refinedHealthData = $derived.by(() => {
-    return $nodesStateCounts?.data?.nodeStates.
-      filter((e) => ['full', 'partial', 'failed'].includes(e.state)).
-      sort((a, b) => b.count - a.count)
-  });
-
   // States for Stacked charts
   const statesTimed = $derived(queryStore({
     client: client,
@@ -117,6 +86,7 @@
       typeNode: "node",
       typeHealth: "health"
     },
+    requestPolicy: "network-only"
   }));
 
   // Note: nodeMetrics are requested on configured $timestep resolution
@@ -194,6 +164,11 @@
             schedulerState
           }
         }
+        # Get Current States fir Pie Charts
+        nodeStates(filter: $nodeFilter) {
+          state
+          count
+        }
         # totalNodes includes multiples if shared jobs
         jobsStatistics(
           filter: $jobFilter
@@ -221,10 +196,22 @@
     requestPolicy: "network-only"
   }));
 
+  const refinedStateData = $derived.by(() => {
+    return $statusQuery?.data?.nodeStates.
+      filter((e) => ['allocated', 'reserved', 'idle', 'mixed','down', 'unknown'].includes(e.state)).
+      sort((a, b) => b.count - a.count)
+  });
+
+  const refinedHealthData = $derived.by(() => {
+    return $statusQuery?.data?.nodeStates.
+      filter((e) => ['full', 'partial', 'failed'].includes(e.state)).
+      sort((a, b) => b.count - a.count)
+  });
+
   /* Effects */
   $effect(() => {
-    if ($initq.data && $statusQuery.data) {
-      let subClusters = $initq.data.clusters.find(
+    if ($statusQuery.data) {
+      let subClusters = clusters.find(
         (c) => c.name == cluster,
       ).subClusters;
       for (let subCluster of subClusters) {
@@ -404,9 +391,12 @@
   <Col xs="12" md="5" lg="4" xl="3">
     <Refresher
       initially={120}
-      onRefresh={() => {
+      onRefresh={(interval) => {
         from = new Date(Date.now() - 5 * 60 * 1000);
         to = new Date(Date.now());
+
+        if (interval) stackedFrom += Math.floor(interval / 1000);
+        else stackedFrom += 1 // Workaround: TineSelection not linked, just trigger new data on manual refresh
       }}
     />
   </Col>
@@ -415,7 +405,7 @@
 <hr/>
 
 <!-- Node Stack Charts Dev-->
-{#if $initq.data && $statesTimed.data}
+{#if $statesTimed.data}
   <Row cols={{ md: 2 , sm: 1}} class="mb-3 justify-content-center">
     <Col class="px-3 mt-2 mt-lg-0">
       <div bind:clientWidth={stackedWidth1}>
@@ -459,7 +449,7 @@
 <hr/>
 
 <!-- Node Health Pis, later Charts -->
-{#if $initq.data && $nodesStateCounts.data}
+{#if $statusQuery?.data?.nodeStates}
   <Row cols={{ lg: 4, md: 2 , sm: 1}} class="mb-3 justify-content-center">
     <Col class="px-3 mt-2 mt-lg-0">
       <div bind:clientWidth={pieWidth}>
@@ -545,8 +535,8 @@
 
 <hr/>
 <!-- Gauges & Roofline per Subcluster-->
-{#if $initq.data && $statusQuery.data}
-  {#each $initq.data.clusters.find((c) => c.name == cluster).subClusters as subCluster, i}
+{#if $statusQuery.data}
+  {#each clusters.find((c) => c.name == cluster).subClusters as subCluster, i}
     <Row cols={{ lg: 3, md: 1 , sm: 1}} class="mb-3 justify-content-center">
       <Col class="px-3">
         <Card class="h-auto mt-1">
