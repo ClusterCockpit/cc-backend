@@ -98,7 +98,12 @@
     if (!cluster) {
       return avail.map((av) => av.cluster).join(', ')
     } else {
-      return avail.find((av) => av.cluster === cluster).subClusters.join(', ')
+      const subAvail = avail.find((av) => av.cluster === cluster)?.subClusters
+      if (subAvail) {
+        return subAvail.join(', ')
+      } else {
+        return `Not available for ${cluster}`
+      }
     }
   }
 
