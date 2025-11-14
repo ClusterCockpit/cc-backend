@@ -76,7 +76,7 @@
 
   /* State Init */
   let filterComponent = $state(); // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
-  let cluster = $state(filterPresets?.cluster);
+  let cluster = $state({});
   let rooflineMaxY = $state(0);
   let maxY = $state(-1);
   let colWidth1 = $state(0);
@@ -504,7 +504,7 @@
               width={colWidth2}
               height={280}
               tiles={$rooflineQuery.data.rooflineHeatmap}
-              subCluster={cluster.subClusters.length == 1
+              subCluster={cluster.subClusters.length >= 1
                 ? cluster.subClusters[0]
                 : null}
               maxY={rooflineMaxY}
