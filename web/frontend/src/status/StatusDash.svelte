@@ -51,6 +51,7 @@
   let stackedFrom = $state(Math.floor(Date.now() / 1000) - 14400);
   // Bar Gauges
   let allocatedNodes = $state({});
+  let allocatedCores = $state({});
   let allocatedAccs = $state({});
   let flopRate = $state({});
   let flopRateUnitPrefix = $state({});
@@ -179,6 +180,7 @@
           id
           totalJobs
           totalUsers
+          totalCores
           totalAccs
         }
       }
@@ -220,6 +222,10 @@
           $statusQuery.data.allocatedNodes.find(
             ({ name }) => name == subCluster.name,
           )?.count || 0;
+        allocatedCores[subCluster.name] =
+          $statusQuery.data.jobsStatistics.find(
+            ({ id }) => id == subCluster.name,
+          )?.totalCores || 0;
         allocatedAccs[subCluster.name] =
           $statusQuery.data.jobsStatistics.find(
             ({ id }) => id == subCluster.name,
@@ -416,8 +422,8 @@
           <Stacked
             data={$statesTimed?.data?.nodeStates}
             width={stackedWidth1 * 0.95}
-            xLabel="Time"
-            yLabel="Nodes"
+            xlabel="Time"
+            ylabel="Nodes"
             yunit = "#Count"
             title = "Node States"
             stateType = "Node"
@@ -434,8 +440,8 @@
           <Stacked
             data={$statesTimed?.data?.healthStates}
             width={stackedWidth2 * 0.95}
-            xLabel="Time"
-            yLabel="Nodes"
+            xlabel="Time"
+            ylabel="Nodes"
             yunit = "#Count"
             title = "Health States"
             stateType = "Health"
@@ -583,6 +589,21 @@
                 <td
                   >{allocatedNodes[subCluster.name]} / {subCluster.numberOfNodes}
                   Nodes</td
+                >
+              </tr>
+              <tr class="py-2">
+                <th scope="col">Allocated Cores</th>
+                <td style="min-width: 100px;"
+                  ><div class="col">
+                    <Progress
+                      value={allocatedCores[subCluster.name]}
+                      max={subCluster.socketsPerNode * subCluster.coresPerSocket * subCluster.numberOfNodes}
+                    />
+                  </div></td
+                >
+                <td
+                  >{allocatedCores[subCluster.name]} / {subCluster.socketsPerNode * subCluster.coresPerSocket * subCluster.numberOfNodes}
+                  Cores</td
                 >
               </tr>
               {#if totalAccs[subCluster.name] !== null}
