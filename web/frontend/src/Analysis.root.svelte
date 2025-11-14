@@ -370,7 +370,7 @@
     </Col>
   </Row>
 {:else if $statsQuery.data}
-  <Row cols={3} class="mb-4">
+  <Row cols={3} style="margin-bottom: 2rem;">
     <Col>
       <Table>
         <tr>
@@ -419,7 +419,7 @@
           {:else}
             <Pie
               canvasId={`pie-${groupSelection.key}`}
-              size={colWidth1}
+              size={colWidth1 / 1.9}
               sliceLabel={sortSelection.label}
               quantities={$topQuery.data.topList.map(
                 (t) => t[sortSelection.key],
@@ -490,11 +490,19 @@
       {:else if $rooflineQuery.error}
         <Card body color="danger">{$rooflineQuery.error.message}</Card>
       {:else if $rooflineQuery.data && cluster}
+        <div class="d-flex justify-content-center align-baseline">
+          <h5>Job Roofline Heatmap</h5>
+          <Icon
+            style="cursor:help; margin-left:0.5rem;"
+            name="info-circle"
+            title="Most Populated Areas By Selected Jobs' Average Values"
+          />
+        </div>
         <div bind:clientWidth={colWidth2}>
           {#key $rooflineQuery.data}
             <RooflineHeatmap
               width={colWidth2}
-              height={300}
+              height={280}
               tiles={$rooflineQuery.data.rooflineHeatmap}
               subCluster={cluster.subClusters.length == 1
                 ? cluster.subClusters[0]

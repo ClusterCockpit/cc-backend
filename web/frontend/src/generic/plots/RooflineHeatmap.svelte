@@ -34,7 +34,7 @@
   const paddingLeft = 40;
   const paddingRight = 10;
   const paddingTop = 10;
-  const paddingBottom = 5;
+  const paddingBottom = 40;
 
   /* Var Init */
   let timeoutId = null;
@@ -124,7 +124,7 @@
     if (data.xLabel) {
       ctx.font = `${labelFontSize}px ${fontFamily}`
       let textWidth = ctx.measureText(data.xLabel).width
-      ctx.fillText(data.xLabel, Math.floor((width / 2) - (textWidth / 2)), height - 20)
+      ctx.fillText(data.xLabel, Math.floor((width / 2) - (textWidth / 2)), height - paddingBottom + 30)
     }
 
     ctx.textAlign = 'center'
