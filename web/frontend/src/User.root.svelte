@@ -133,6 +133,11 @@
     };
   });
 
+  $effect(() => {
+    // Load Metric-Selection for last selected cluster
+    metrics = selectedCluster ? ccconfig[`metricConfig_jobListMetrics:${selectedCluster}`] : ccconfig.metricConfig_jobListMetrics
+	});
+
   /* On Mount */
   onMount(() => {
     filterComponent.updateFilters();
