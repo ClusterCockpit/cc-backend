@@ -139,7 +139,13 @@
         </CardBody>
       </Card>
     {:else}
-      <NodeInfo nodeJobsData={$nodeJobsData.data} {cluster} subCluster={nodeData.subCluster} hostname={nodeData.host} {dataHealth}/>
+      <NodeInfo
+        {cluster}
+        {dataHealth}
+        nodeJobsData={$nodeJobsData.data}
+        subCluster={nodeData.subCluster}
+        hostname={nodeData.host}
+        hoststate={nodeData?.state? nodeData.state: 'notindb'}/>
     {/if}
   </td>
   {#each refinedData as metricData (metricData.data.name)}

@@ -16,6 +16,7 @@
     Row,
     Col,
     Input,
+    Button,
     InputGroup,
     InputGroupText,
     Icon,
@@ -63,6 +64,7 @@
     query ($cluster: String!, $nodes: [String!], $from: Time!, $to: Time!) {
       nodeMetrics(cluster: $cluster, nodes: $nodes, from: $from, to: $to) {
         host
+        state
         subCluster
         metrics {
           name
@@ -97,6 +99,16 @@
       }
     }
   `;
+  // Node State Colors
+  const stateColors = {
+    allocated: 'success',
+    reserved: 'info',
+    idle: 'primary',
+    mixed: 'warning',
+    down: 'danger',
+    unknown: 'dark',
+    notindb: 'secondary'
+  }
 
   /* State Init */
   let from = $state(presetFrom ? presetFrom : new Date(nowEpoch - (4 * 3600 * 1000)));
@@ -123,6 +135,8 @@
     })
   );
 
+  const thisNodeState = $derived($nodeMetricsData?.data?.nodeMetrics[0]?.state ? $nodeMetricsData.data.nodeMetrics[0].state : 'notindb');
+
   /* Effect */
   $effect(() => {
     loadUnits($initialized);
@@ -138,7 +152,7 @@
   }
 </script>
 
-<Row cols={{ xs: 2, lg: 4 }}>
+<Row cols={{ xs: 2, lg: 5 }}>
   {#if $initq.error}
     <Card body color="danger">{$initq.error.message}</Card>
   {:else if $initq.fetching}
@@ -149,19 +163,18 @@
       <InputGroup>
         <InputGroupText><Icon name="hdd" /></InputGroupText>
         <InputGroupText>Selected Node</InputGroupText>
-        <Input style="background-color: white;"type="text" value="{hostname} [{cluster} ({$nodeMetricsData?.data ? $nodeMetricsData.data.nodeMetrics[0].subCluster : ''})]" disabled/>
+        <Input style="background-color: white;" type="text" value="{hostname} [{cluster} {$nodeMetricsData?.data ? `(${$nodeMetricsData.data.nodeMetrics[0].subCluster})` : ''}]" disabled/>
       </InputGroup>
     </Col>
-    <!-- Time Col -->
+    <!-- State Col -->
     <Col>
-      <TimeSelection
-        presetFrom={from}
-        presetTo={to}
-        applyTime={(newFrom, newTo) => {
-          from = newFrom;
-          to = newTo;
-        }}
-      />
+      <InputGroup>
+        <InputGroupText><Icon name="clipboard2-pulse" /></InputGroupText>
+        <InputGroupText>Node State</InputGroupText>
+        <Button class="flex-grow-1 text-center" color={stateColors[thisNodeState]} disabled>
+          {thisNodeState}
+        </Button>
+      </InputGroup>
     </Col>
     <!-- Concurrent Col -->
     <Col class="mt-2 mt-lg-0">
@@ -183,6 +196,17 @@
           <Input type="text" value="No running jobs." disabled />
         </InputGroup>
       {/if}
+    </Col>
+    <!-- Time Col -->
+    <Col>
+      <TimeSelection
+        presetFrom={from}
+        presetTo={to}
+        applyTime={(newFrom, newTo) => {
+          from = newFrom;
+          to = newTo;
+        }}
+      />
     </Col>
     <!-- Refresh Col-->
     <Col class="mt-2 mt-lg-0">

@@ -59,6 +59,7 @@
 
   const resampleResolutions = resampleConfig ? [...resampleConfig.resolutions] : [];
   const resampleDefault = resampleConfig ? Math.max(...resampleConfig.resolutions) : 0;
+  const stateOptions = ['all', 'allocated', 'idle', 'reserved', 'mixed', 'down', 'unknown', 'notindb'];
   const nowDate = new Date(Date.now());
 
   /* Var Init */
@@ -69,6 +70,7 @@
   let from = $state(presetFrom || new Date(nowDate.setHours(nowDate.getHours() - 4)));
   let selectedResolution = $state(resampleConfig ? resampleDefault : 0);
   let hostnameFilter = $state("");
+  let hoststateFilter = $state("all");
   let pendingHostnameFilter = $state("");
   let isMetricsSelectionOpen = $state(false);
 
@@ -154,7 +156,7 @@
 </script>
 
 <!-- ROW1: Tools-->
-<Row cols={{ xs: 2, lg: !displayNodeOverview ? (resampleConfig ? 5 : 4) : 4 }} class="mb-3">
+<Row cols={{ xs: 2, lg: !displayNodeOverview ? (resampleConfig ? 6 : 5) : 5 }} class="mb-3">
   {#if $initq.data}
     <!-- List Metric Select Col-->
     {#if !displayNodeOverview}
@@ -191,13 +193,25 @@
     <Col class="mt-2 mt-lg-0">
       <InputGroup>
         <InputGroupText><Icon name="hdd" /></InputGroupText>
-        <InputGroupText>Find Node(s)</InputGroupText>
+        <InputGroupText>Node(s)</InputGroupText>
         <Input
           placeholder="Filter hostname ..."
           type="text"
           bind:value={pendingHostnameFilter}
           oninput={updateHostnameFilter}
         />
+      </InputGroup>
+    </Col>
+    <!-- State Col-->
+    <Col class="mt-2 mt-lg-0">
+      <InputGroup>
+        <InputGroupText><Icon name="clipboard2-pulse" /></InputGroupText>
+        <InputGroupText>State</InputGroupText>
+        <Input type="select" bind:value={hoststateFilter}>
+          {#each stateOptions as so}
+            <option value={so}>{so.charAt(0).toUpperCase() + so.slice(1)}</option>
+          {/each}
+        </Input>
       </InputGroup>
     </Col>
     <!-- Range Col-->
@@ -252,10 +266,10 @@
 {:else}
   {#if displayNodeOverview}
     <!-- ROW2-1: Node Overview (Grid Included)-->
-    <NodeOverview {cluster} {ccconfig} {selectedMetric} {from} {to} {hostnameFilter}/>
+    <NodeOverview {cluster} {ccconfig} {selectedMetric} {from} {to} {hostnameFilter} {hoststateFilter}/>
   {:else}
     <!-- ROW2-2: Node List (Grid Included)-->
-    <NodeList {cluster} {subCluster} {ccconfig} {selectedMetrics} {selectedResolution} {hostnameFilter} {from} {to} {presetSystemUnits}/>
+    <NodeList {cluster} {subCluster} {ccconfig} {selectedMetrics} {selectedResolution} {hostnameFilter} {hoststateFilter} {from} {to} {presetSystemUnits}/>
   {/if}
 {/if}
 

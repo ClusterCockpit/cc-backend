@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -495,6 +496,7 @@ func (pdb *PrometheusDataRepository) LoadScopedStats(
 // Implemented by NHR@FAU; Used in NodeList-View
 func (pdb *PrometheusDataRepository) LoadNodeListData(
 	cluster, subCluster, nodeFilter string,
+	preFiltered []string,
 	metrics []string,
 	scopes []schema.MetricScope,
 	resolution int,
@@ -520,18 +522,37 @@ func (pdb *PrometheusDataRepository) LoadNodeListData(
 		}
 	}
 
-	// 2) Filter nodes
+	// 2.1) Filter nodes by name
 	if nodeFilter != "" {
-		filteredNodes := []string{}
+		filteredNodesByName := []string{}
 		for _, node := range nodes {
 			if strings.Contains(node, nodeFilter) {
-				filteredNodes = append(filteredNodes, node)
+				filteredNodesByName = append(filteredNodesByName, node)
 			}
 		}
-		nodes = filteredNodes
+		nodes = filteredNodesByName
 	}
 
-	// 2.1) Count total nodes && Sort nodes -> Sorting invalidated after return ...
+	// 2.2) Filter nodes by state using prefiltered match array
+	if len(preFiltered) > 0 {
+		filteredNodesByState := []string{}
+		if preFiltered[0] == "exclude" { // Backwards: PreFiltered contains all Nodes in DB > Return Missing Nodes
+			for _, node := range nodes {
+				if !slices.Contains(preFiltered, node) {
+					filteredNodesByState = append(filteredNodesByState, node)
+				}
+			}
+		} else { // Forwards: Prefiltered contains specific nodeState > Return Matches
+			for _, node := range nodes {
+				if slices.Contains(preFiltered, node) {
+					filteredNodesByState = append(filteredNodesByState, node)
+				}
+			}
+		}
+		nodes = filteredNodesByState
+	}
+
+	// 2.3) Count total nodes && Sort nodes -> Sorting invalidated after return ...
 	totalNodes = len(nodes)
 	sort.Strings(nodes)
 

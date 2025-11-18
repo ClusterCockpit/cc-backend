@@ -181,6 +181,7 @@ type NodeFilter struct {
 
 type NodeMetrics struct {
 	Host       string               `json:"host"`
+	State      string               `json:"state"`
 	SubCluster string               `json:"subCluster"`
 	Metrics    []*JobMetricWithName `json:"metrics"`
 }

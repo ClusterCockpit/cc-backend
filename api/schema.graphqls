@@ -262,6 +262,7 @@ enum SortByAggregate {
 
 type NodeMetrics {
   host: String!
+  state: String!
   subCluster: String!
   metrics: [JobMetricWithName!]!
 }
@@ -375,6 +376,7 @@ type Query {
   nodeMetricsList(
     cluster: String!
     subCluster: String!
+    stateFilter: String!
     nodeFilter: String!
     scopes: [MetricScope!]
     metrics: [String!]

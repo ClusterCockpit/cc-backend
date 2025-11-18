@@ -756,10 +756,14 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 		return nil, err
 	}
 
+	nodeRepo := repository.GetNodeRepository()
+	stateMap, _ := nodeRepo.MapNodes(cluster)
+
 	nodeMetrics := make([]*model.NodeMetrics, 0, len(data))
 	for hostname, metrics := range data {
 		host := &model.NodeMetrics{
 			Host:    hostname,
+			State:   stateMap[hostname],
 			Metrics: make([]*model.JobMetricWithName, 0, len(metrics)*len(scopes)),
 		}
 		host.SubCluster, err = archive.GetSubClusterByNode(cluster, hostname)
@@ -784,7 +788,7 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 }
 
 // NodeMetricsList is the resolver for the nodeMetricsList field.
-func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, subCluster string, nodeFilter string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time, page *model.PageRequest, resolution *int) (*model.NodesResultList, error) {
+func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, subCluster string, stateFilter string, nodeFilter string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time, page *model.PageRequest, resolution *int) (*model.NodesResultList, error) {
 	if resolution == nil { // Load from Config
 		if config.Keys.EnableResampling != nil {
 			defaultRes := slices.Max(config.Keys.EnableResampling.Resolutions)
@@ -806,9 +810,47 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 		}
 	}
 
-	data, totalNodes, hasNextPage, err := metricDataDispatcher.LoadNodeListData(cluster, subCluster, nodeFilter, metrics, scopes, *resolution, from, to, page, ctx)
+	// Note: This Prefilter Logic Can Be Used To Completely Switch Node Source Of Truth To SQLite DB
+	// Adapt and extend filters/paging/sorting in QueryNodes Function to return []string array of hostnames, input array to LoadNodeListData
+	// LoadNodeListData, instead of building queried nodes from topoplogy anew, directly will use QueryNodes hostname array
+	// Caveat: "notindb" state will not be resolvable anymore by default, or needs reverse lookup by dedicated comparison to topology data after all
+	preFiltered := make([]string, 0)
+	stateMap := make(map[string]string)
+	if stateFilter != "all" {
+		nodeRepo := repository.GetNodeRepository()
+		stateQuery := make([]*model.NodeFilter, 0)
+		// Required Filters
+		stateQuery = append(stateQuery, &model.NodeFilter{Cluster: &model.StringInput{Eq: &cluster}})
+		if subCluster != "" {
+			stateQuery = append(stateQuery, &model.NodeFilter{Subcluster: &model.StringInput{Eq: &subCluster}})
+		}
+
+		if stateFilter == "notindb" {
+			// Backward Filtering: Add Keyword, No Additional FIlters: Returns All Nodes For Cluster (and SubCluster)
+			preFiltered = append(preFiltered, "exclude")
+		} else {
+			// Workaround: If no nodes match, we need at least one element for trigger in LoadNodeListData
+			preFiltered = append(preFiltered, stateFilter)
+			// Forward Filtering: Match Only selected stateFilter
+			var queryState schema.SchedulerState = schema.SchedulerState(stateFilter)
+			stateQuery = append(stateQuery, &model.NodeFilter{SchedulerState: &queryState})
+		}
+
+		stateNodes, serr := nodeRepo.QueryNodes(ctx, stateQuery, &model.OrderByInput{}) // Order not Used
+		if serr != nil {
+			cclog.Warn("error while loading node database data (Resolver.NodeMetricsList)")
+			return nil, serr
+		}
+
+		for _, node := range stateNodes {
+			preFiltered = append(preFiltered, node.Hostname)
+			stateMap[node.Hostname] = string(node.NodeState)
+		}
+	}
+
+	data, totalNodes, hasNextPage, err := metricDataDispatcher.LoadNodeListData(cluster, subCluster, nodeFilter, preFiltered, metrics, scopes, *resolution, from, to, page, ctx)
 	if err != nil {
-		cclog.Warn("error while loading node data")
+		cclog.Warn("error while loading node data (Resolver.NodeMetricsList")
 		return nil, err
 	}
 
@@ -816,6 +858,7 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 	for hostname, metrics := range data {
 		host := &model.NodeMetrics{
 			Host:    hostname,
+			State:   stateMap[hostname],
 			Metrics: make([]*model.JobMetricWithName, 0, len(metrics)*len(scopes)),
 		}
 		host.SubCluster, err = archive.GetSubClusterByNode(cluster, hostname)

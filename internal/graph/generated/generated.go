@@ -288,6 +288,7 @@ type ComplexityRoot struct {
 	NodeMetrics struct {
 		Host       func(childComplexity int) int
 		Metrics    func(childComplexity int) int
+		State      func(childComplexity int) int
 		SubCluster func(childComplexity int) int
 	}
 
@@ -329,7 +330,7 @@ type ComplexityRoot struct {
 		JobsStatistics  func(childComplexity int, filter []*model.JobFilter, metrics []string, page *model.PageRequest, sortBy *model.SortByAggregate, groupBy *model.Aggregate, numDurationBins *string, numMetricBins *int) int
 		Node            func(childComplexity int, id string) int
 		NodeMetrics     func(childComplexity int, cluster string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) int
-		NodeMetricsList func(childComplexity int, cluster string, subCluster string, nodeFilter string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time, page *model.PageRequest, resolution *int) int
+		NodeMetricsList func(childComplexity int, cluster string, subCluster string, stateFilter string, nodeFilter string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time, page *model.PageRequest, resolution *int) int
 		NodeStates      func(childComplexity int, filter []*model.NodeFilter) int
 		NodeStatesTimed func(childComplexity int, filter []*model.NodeFilter, typeArg string) int
 		Nodes           func(childComplexity int, filter []*model.NodeFilter, order *model.OrderByInput) int
@@ -483,7 +484,7 @@ type QueryResolver interface {
 	JobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error)
 	RooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error)
 	NodeMetrics(ctx context.Context, cluster string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) ([]*model.NodeMetrics, error)
-	NodeMetricsList(ctx context.Context, cluster string, subCluster string, nodeFilter string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time, page *model.PageRequest, resolution *int) (*model.NodesResultList, error)
+	NodeMetricsList(ctx context.Context, cluster string, subCluster string, stateFilter string, nodeFilter string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time, page *model.PageRequest, resolution *int) (*model.NodesResultList, error)
 }
 type SubClusterResolver interface {
 	NumberOfNodes(ctx context.Context, obj *schema.SubCluster) (int, error)
@@ -1581,6 +1582,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.NodeMetrics.Metrics(childComplexity), true
 
+	case "NodeMetrics.state":
+		if e.complexity.NodeMetrics.State == nil {
+			break
+		}
+
+		return e.complexity.NodeMetrics.State(childComplexity), true
+
 	case "NodeMetrics.subCluster":
 		if e.complexity.NodeMetrics.SubCluster == nil {
 			break
@@ -1823,7 +1831,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.NodeMetricsList(childComplexity, args["cluster"].(string), args["subCluster"].(string), args["nodeFilter"].(string), args["scopes"].([]schema.MetricScope), args["metrics"].([]string), args["from"].(time.Time), args["to"].(time.Time), args["page"].(*model.PageRequest), args["resolution"].(*int)), true
+		return e.complexity.Query.NodeMetricsList(childComplexity, args["cluster"].(string), args["subCluster"].(string), args["stateFilter"].(string), args["nodeFilter"].(string), args["scopes"].([]schema.MetricScope), args["metrics"].([]string), args["from"].(time.Time), args["to"].(time.Time), args["page"].(*model.PageRequest), args["resolution"].(*int)), true
 
 	case "Query.nodeStates":
 		if e.complexity.Query.NodeStates == nil {
@@ -2667,6 +2675,7 @@ enum SortByAggregate {
 
 type NodeMetrics {
   host: String!
+  state: String!
   subCluster: String!
   metrics: [JobMetricWithName!]!
 }
@@ -2780,6 +2789,7 @@ type Query {
   nodeMetricsList(
     cluster: String!
     subCluster: String!
+    stateFilter: String!
     nodeFilter: String!
     scopes: [MetricScope!]
     metrics: [String!]
@@ -3224,41 +3234,46 @@ func (ec *executionContext) field_Query_nodeMetricsList_args(ctx context.Context
 		return nil, err
 	}
 	args["subCluster"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "nodeFilter", ec.unmarshalNString2string)
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "stateFilter", ec.unmarshalNString2string)
 	if err != nil {
 		return nil, err
 	}
-	args["nodeFilter"] = arg2
-	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "scopes", ec.unmarshalOMetricScope2ᚕgithubᚗcomᚋClusterCockpitᚋccᚑlibᚋschemaᚐMetricScopeᚄ)
+	args["stateFilter"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "nodeFilter", ec.unmarshalNString2string)
 	if err != nil {
 		return nil, err
 	}
-	args["scopes"] = arg3
-	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "metrics", ec.unmarshalOString2ᚕstringᚄ)
+	args["nodeFilter"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "scopes", ec.unmarshalOMetricScope2ᚕgithubᚗcomᚋClusterCockpitᚋccᚑlibᚋschemaᚐMetricScopeᚄ)
 	if err != nil {
 		return nil, err
 	}
-	args["metrics"] = arg4
-	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "from", ec.unmarshalNTime2timeᚐTime)
+	args["scopes"] = arg4
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "metrics", ec.unmarshalOString2ᚕstringᚄ)
 	if err != nil {
 		return nil, err
 	}
-	args["from"] = arg5
-	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "to", ec.unmarshalNTime2timeᚐTime)
+	args["metrics"] = arg5
+	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "from", ec.unmarshalNTime2timeᚐTime)
 	if err != nil {
 		return nil, err
 	}
-	args["to"] = arg6
-	arg7, err := graphql.ProcessArgField(ctx, rawArgs, "page", ec.unmarshalOPageRequest2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐPageRequest)
+	args["from"] = arg6
+	arg7, err := graphql.ProcessArgField(ctx, rawArgs, "to", ec.unmarshalNTime2timeᚐTime)
 	if err != nil {
 		return nil, err
 	}
-	args["page"] = arg7
-	arg8, err := graphql.ProcessArgField(ctx, rawArgs, "resolution", ec.unmarshalOInt2ᚖint)
+	args["to"] = arg7
+	arg8, err := graphql.ProcessArgField(ctx, rawArgs, "page", ec.unmarshalOPageRequest2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐPageRequest)
 	if err != nil {
 		return nil, err
 	}
-	args["resolution"] = arg8
+	args["page"] = arg8
+	arg9, err := graphql.ProcessArgField(ctx, rawArgs, "resolution", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["resolution"] = arg9
 	return args, nil
 }
 
@@ -10289,6 +10304,50 @@ func (ec *executionContext) fieldContext_NodeMetrics_host(_ context.Context, fie
 	return fc, nil
 }
 
+func (ec *executionContext) _NodeMetrics_state(ctx context.Context, field graphql.CollectedField, obj *model.NodeMetrics) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_NodeMetrics_state(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.State, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_NodeMetrics_state(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NodeMetrics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _NodeMetrics_subCluster(ctx context.Context, field graphql.CollectedField, obj *model.NodeMetrics) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_NodeMetrics_subCluster(ctx, field)
 	if err != nil {
@@ -10755,6 +10814,8 @@ func (ec *executionContext) fieldContext_NodesResultList_items(_ context.Context
 			switch field.Name {
 			case "host":
 				return ec.fieldContext_NodeMetrics_host(ctx, field)
+			case "state":
+				return ec.fieldContext_NodeMetrics_state(ctx, field)
 			case "subCluster":
 				return ec.fieldContext_NodeMetrics_subCluster(ctx, field)
 			case "metrics":
@@ -12199,6 +12260,8 @@ func (ec *executionContext) fieldContext_Query_nodeMetrics(ctx context.Context, 
 			switch field.Name {
 			case "host":
 				return ec.fieldContext_NodeMetrics_host(ctx, field)
+			case "state":
+				return ec.fieldContext_NodeMetrics_state(ctx, field)
 			case "subCluster":
 				return ec.fieldContext_NodeMetrics_subCluster(ctx, field)
 			case "metrics":
@@ -12235,7 +12298,7 @@ func (ec *executionContext) _Query_nodeMetricsList(ctx context.Context, field gr
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().NodeMetricsList(rctx, fc.Args["cluster"].(string), fc.Args["subCluster"].(string), fc.Args["nodeFilter"].(string), fc.Args["scopes"].([]schema.MetricScope), fc.Args["metrics"].([]string), fc.Args["from"].(time.Time), fc.Args["to"].(time.Time), fc.Args["page"].(*model.PageRequest), fc.Args["resolution"].(*int))
+		return ec.resolvers.Query().NodeMetricsList(rctx, fc.Args["cluster"].(string), fc.Args["subCluster"].(string), fc.Args["stateFilter"].(string), fc.Args["nodeFilter"].(string), fc.Args["scopes"].([]schema.MetricScope), fc.Args["metrics"].([]string), fc.Args["from"].(time.Time), fc.Args["to"].(time.Time), fc.Args["page"].(*model.PageRequest), fc.Args["resolution"].(*int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -19368,6 +19431,11 @@ func (ec *executionContext) _NodeMetrics(ctx context.Context, sel ast.SelectionS
 			out.Values[i] = graphql.MarshalString("NodeMetrics")
 		case "host":
 			out.Values[i] = ec._NodeMetrics_host(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "state":
+			out.Values[i] = ec._NodeMetrics_state(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

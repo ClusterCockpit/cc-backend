@@ -333,6 +333,7 @@ func LoadNodeData(
 
 func LoadNodeListData(
 	cluster, subCluster, nodeFilter string,
+	preFiltered []string,
 	metrics []string,
 	scopes []schema.MetricScope,
 	resolution int,
@@ -351,7 +352,7 @@ func LoadNodeListData(
 		}
 	}
 
-	data, totalNodes, hasNextPage, err := repo.LoadNodeListData(cluster, subCluster, nodeFilter, metrics, scopes, resolution, from, to, page, ctx)
+	data, totalNodes, hasNextPage, err := repo.LoadNodeListData(cluster, subCluster, nodeFilter, preFiltered, metrics, scopes, resolution, from, to, page, ctx)
 	if err != nil {
 		if len(data) != 0 {
 			cclog.Warnf("partial error: %s", err.Error())
