@@ -3,6 +3,20 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 
+// Package memorystore provides an efficient in-memory time-series metric storage system
+// with support for hierarchical data organization, checkpointing, and archiving.
+//
+// The package organizes metrics in a tree structure (cluster → host → component) and
+// provides concurrent read/write access to metric data with configurable aggregation strategies.
+// Background goroutines handle periodic checkpointing (JSON or Avro format), archiving old data,
+// and enforcing retention policies.
+//
+// Key features:
+//   - In-memory metric storage with configurable retention
+//   - Hierarchical data organization (selectors)
+//   - Concurrent checkpoint/archive workers
+//   - Support for sum and average aggregation
+//   - NATS integration for metric ingestion
 package memorystore
 
 import (
@@ -10,18 +24,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"os"
-	"os/signal"
 	"runtime"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/resampler"
-	"github.com/ClusterCockpit/cc-lib/runtimeEnv"
 	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/ClusterCockpit/cc-lib/util"
 )
@@ -29,14 +39,12 @@ import (
 var (
 	singleton  sync.Once
 	msInstance *MemoryStore
+	// shutdownFunc stores the context cancellation function created in Init
+	// and is called during Shutdown to cancel all background goroutines
+	shutdownFunc context.CancelFunc
 )
 
-var NumWorkers int = 4
 
-func init() {
-	maxWorkers := 10
-	NumWorkers = min(runtime.NumCPU()/2+1, maxWorkers)
-}
 
 type Metric struct {
 	Name         string
@@ -61,30 +69,34 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 		}
 	}
 
+	// Set NumWorkers from config or use default
+	if Keys.NumWorkers <= 0 {
+		maxWorkers := 10
+		Keys.NumWorkers = min(runtime.NumCPU()/2+1, maxWorkers)
+	}
+	cclog.Debugf("[METRICSTORE]> Using %d workers for checkpoint/archive operations\n", Keys.NumWorkers)
+
+	// Helper function to add metric configuration
+	addMetricConfig := func(mc schema.MetricConfig) {
+		agg, err := AssignAggregationStrategy(mc.Aggregation)
+		if err != nil {
+			cclog.Warnf("Could not find aggregation strategy for metric config '%s': %s", mc.Name, err.Error())
+		}
+
+		AddMetric(mc.Name, MetricConfig{
+			Frequency:   int64(mc.Timestep),
+			Aggregation: agg,
+		})
+	}
+
 	for _, c := range archive.Clusters {
 		for _, mc := range c.MetricConfig {
-			agg, err := AssignAggregationStratergy(mc.Aggregation)
-			if err != nil {
-				cclog.Warnf("Could not find aggregation stratergy for metric config '%s': %s", mc.Name, err.Error())
-			}
-
-			AddMetric(mc.Name, MetricConfig{
-				Frequency:   int64(mc.Timestep),
-				Aggregation: agg,
-			})
+			addMetricConfig(*mc)
 		}
 
 		for _, sc := range c.SubClusters {
 			for _, mc := range sc.MetricConfig {
-				agg, err := AssignAggregationStratergy(mc.Aggregation)
-				if err != nil {
-					cclog.Warnf("Could not find aggregation stratergy for metric config '%s': %s", mc.Name, err.Error())
-				}
-
-				AddMetric(mc.Name, MetricConfig{
-					Frequency:   int64(mc.Timestep),
-					Aggregation: agg,
-				})
+				addMetricConfig(mc)
 			}
 		}
 	}
@@ -126,15 +138,11 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 	Archiving(wg, ctx)
 	DataStaging(wg, ctx)
 
-	wg.Add(1)
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		defer wg.Done()
-		<-sigs
-		runtimeEnv.SystemdNotifiy(false, "[METRICSTORE]> Shutting down ...")
-		shutdown()
-	}()
+	// Note: Signal handling has been removed from this function.
+	// The caller is responsible for handling shutdown signals and calling
+	// the shutdown() function when appropriate.
+	// Store the shutdown function for later use by Shutdown()
+	shutdownFunc = shutdown
 
 	if Keys.Nats != nil {
 		for _, natsConf := range Keys.Nats {
@@ -190,6 +198,11 @@ func GetMemoryStore() *MemoryStore {
 }
 
 func Shutdown() {
+	// Cancel the context to signal all background goroutines to stop
+	if shutdownFunc != nil {
+		shutdownFunc()
+	}
+
 	cclog.Infof("[METRICSTORE]> Writing to '%s'...\n", Keys.Checkpoints.RootDir)
 	var files int
 	var err error
@@ -207,69 +220,7 @@ func Shutdown() {
 		cclog.Errorf("[METRICSTORE]> Writing checkpoint failed: %s\n", err.Error())
 	}
 	cclog.Infof("[METRICSTORE]> Done! (%d files written)\n", files)
-
-	// ms.PrintHeirarchy()
 }
-
-// func (m *MemoryStore) PrintHeirarchy() {
-// 	m.root.lock.Lock()
-// 	defer m.root.lock.Unlock()
-
-// 	fmt.Printf("Root : \n")
-
-// 	for lvl1, sel1 := range m.root.children {
-// 		fmt.Printf("\t%s\n", lvl1)
-// 		for lvl2, sel2 := range sel1.children {
-// 			fmt.Printf("\t\t%s\n", lvl2)
-// 			if lvl1 == "fritz" && lvl2 == "f0201" {
-
-// 				for name, met := range m.Metrics {
-// 					mt := sel2.metrics[met.Offset]
-
-// 					fmt.Printf("\t\t\t\t%s\n", name)
-// 					fmt.Printf("\t\t\t\t")
-
-// 					for mt != nil {
-// 						// if name == "cpu_load" {
-// 						fmt.Printf("%d(%d) -> %#v", mt.start, len(mt.data), mt.data)
-// 						// }
-// 						mt = mt.prev
-// 					}
-// 					fmt.Printf("\n")
-
-// 				}
-// 			}
-// 			for lvl3, sel3 := range sel2.children {
-// 				if lvl1 == "fritz" && lvl2 == "f0201" && lvl3 == "hwthread70" {
-
-// 					fmt.Printf("\t\t\t\t\t%s\n", lvl3)
-
-// 					for name, met := range m.Metrics {
-// 						mt := sel3.metrics[met.Offset]
-
-// 						fmt.Printf("\t\t\t\t\t\t%s\n", name)
-
-// 						fmt.Printf("\t\t\t\t\t\t")
-
-// 						for mt != nil {
-// 							// if name == "clock" {
-// 							fmt.Printf("%d(%d) -> %#v", mt.start, len(mt.data), mt.data)
-
-// 							mt = mt.prev
-// 						}
-// 						fmt.Printf("\n")
-
-// 					}
-
-// 					// for i, _ := range sel3.metrics {
-// 					// 	fmt.Printf("\t\t\t\t\t%s\n", getName(configmetrics, i))
-// 					// }
-// 				}
-// 			}
-// 		}
-// 	}
-
-// }
 
 func getName(m *MemoryStore, i int) string {
 	for key, val := range m.Metrics {
