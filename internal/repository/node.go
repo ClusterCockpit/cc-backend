@@ -299,7 +299,7 @@ func (r *NodeRepository) QueryNodes(
 		if f.SchedulerState != nil {
 			query = query.Where("node_state = ?", f.SchedulerState)
 			// Requires Additional time_stamp Filter: Else the last (past!) time_stamp with queried state will be returned
-			now := 1760097536 // time.Now().Unix()
+			now := time.Now().Unix()
 			query = query.Where(sq.Gt{"time_stamp": (now - 60)})
 		}
 		if f.HealthState != nil {
@@ -368,7 +368,7 @@ func (r *NodeRepository) CountNodes(
 		if f.SchedulerState != nil {
 			query = query.Where("node_state = ?", f.SchedulerState)
 			// Requires Additional time_stamp Filter: Else the last (past!) time_stamp with queried state will be returned
-			now := 1760097536 // time.Now().Unix()
+			now := time.Now().Unix()
 			query = query.Where(sq.Gt{"time_stamp": (now - 60)})
 		}
 		if f.HealthState != nil {
