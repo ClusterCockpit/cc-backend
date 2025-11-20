@@ -39,9 +39,7 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
-var (
-	buildInfo web.Build
-)
+var buildInfo web.Build
 
 // Environment variable names
 const (
@@ -67,15 +65,15 @@ func onFailureResponse(rw http.ResponseWriter, r *http.Request, err error) {
 // NewServer creates and initializes a new Server instance
 func NewServer(version, commit, buildDate string) (*Server, error) {
 	buildInfo = web.Build{Version: version, Hash: commit, Buildtime: buildDate}
-	
+
 	s := &Server{
 		router: mux.NewRouter(),
 	}
-	
+
 	if err := s.init(); err != nil {
 		return nil, err
 	}
-	
+
 	return s, nil
 }
 
@@ -270,7 +268,6 @@ func (s *Server) init() error {
 		handlers.AllowedMethods([]string{"GET", "POST", "HEAD", "OPTIONS"}),
 		handlers.AllowedOrigins([]string{"*"})))
 
-	
 	return nil
 }
 

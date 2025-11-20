@@ -80,7 +80,7 @@ func initGops() error {
 	if !flagGops {
 		return nil
 	}
-	
+
 	if err := agent.Listen(agent.Options{}); err != nil {
 		return fmt.Errorf("starting gops agent: %w", err)
 	}
@@ -96,17 +96,17 @@ func loadEnvironment() error {
 
 func initConfiguration() error {
 	ccconf.Init(flagConfigFile)
-	
+
 	cfg := ccconf.GetPackageConfig("main")
 	if cfg == nil {
 		return fmt.Errorf("main configuration must be present")
 	}
-	
+
 	clustercfg := ccconf.GetPackageConfig("clusters")
 	if clustercfg == nil {
 		return fmt.Errorf("cluster configuration must be present")
 	}
-	
+
 	config.Init(cfg, clustercfg)
 	return nil
 }
@@ -122,7 +122,7 @@ func handleDatabaseCommands() error {
 		if err != nil {
 			return fmt.Errorf("migrating database to version %d: %w", repository.Version, err)
 		}
-		cclog.Exitf("MigrateDB Success: Migrated '%s' database at location '%s' to version %d.\n", 
+		cclog.Exitf("MigrateDB Success: Migrated '%s' database at location '%s' to version %d.\n",
 			config.Keys.DBDriver, config.Keys.DB, repository.Version)
 	}
 
@@ -131,7 +131,7 @@ func handleDatabaseCommands() error {
 		if err != nil {
 			return fmt.Errorf("reverting database to version %d: %w", repository.Version-1, err)
 		}
-		cclog.Exitf("RevertDB Success: Reverted '%s' database at location '%s' to version %d.\n", 
+		cclog.Exitf("RevertDB Success: Reverted '%s' database at location '%s' to version %d.\n",
 			config.Keys.DBDriver, config.Keys.DB, repository.Version-1)
 	}
 
@@ -140,10 +140,10 @@ func handleDatabaseCommands() error {
 		if err != nil {
 			return fmt.Errorf("forcing database to version %d: %w", repository.Version, err)
 		}
-		cclog.Exitf("ForceDB Success: Forced '%s' database at location '%s' to version %d.\n", 
+		cclog.Exitf("ForceDB Success: Forced '%s' database at location '%s' to version %d.\n",
 			config.Keys.DBDriver, config.Keys.DB, repository.Version)
 	}
-	
+
 	return nil
 }
 
@@ -151,7 +151,7 @@ func handleUserCommands() error {
 	if config.Keys.DisableAuthentication && (flagNewUser != "" || flagDelUser != "") {
 		return fmt.Errorf("--add-user and --del-user can only be used if authentication is enabled")
 	}
-	
+
 	if !config.Keys.DisableAuthentication {
 		if cfg := ccconf.GetPackageConfig("auth"); cfg != nil {
 			auth.Init(&cfg)
@@ -189,7 +189,7 @@ func handleUserCommands() error {
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -197,7 +197,7 @@ func handleUserCommands() error {
 func checkDefaultSecurityKeys() {
 	// Default JWT public key from init.go
 	defaultJWTPublic := "kzfYrYy+TzpanWZHJ5qSdMj5uKUWgq74BWhQG6copP0="
-	
+
 	if os.Getenv("JWT_PUBLIC_KEY") == defaultJWTPublic {
 		cclog.Warn("Using default JWT keys - not recommended for production environments")
 	}
@@ -218,7 +218,7 @@ func addUser(userSpec string) error {
 	}); err != nil {
 		return fmt.Errorf("adding user '%s' with roles '%s': %w", parts[0], parts[1], err)
 	}
-	
+
 	cclog.Printf("Add User: Added new user '%s' with roles '%s'.\n", parts[0], parts[1])
 	return nil
 }
@@ -240,7 +240,7 @@ func syncLDAP(authHandle *auth.Authentication) error {
 	if err := authHandle.LdapAuth.Sync(); err != nil {
 		return fmt.Errorf("synchronizing LDAP: %w", err)
 	}
-	
+
 	cclog.Print("Sync LDAP: LDAP synchronization successfull.")
 	return nil
 }
@@ -307,7 +307,7 @@ func initSubsystems() error {
 			return fmt.Errorf("running job taggers: %w", err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -322,7 +322,7 @@ func runServer(ctx context.Context) error {
 		}
 		memorystore.Init(mscfg, &wg)
 	}
-	
+
 	// Start archiver and task manager
 	archiver.Start(repository.GetJobRepository())
 	taskManager.Start(ccconf.GetPackageConfig("cron"), ccconf.GetPackageConfig("archive"))
@@ -424,11 +424,11 @@ func run() error {
 	// Initialize subsystems in dependency order:
 	// 1. Load environment variables from .env file (contains sensitive configuration)
 	// 2. Load configuration from config.json (may reference environment variables)
-	// 3. Initialize database connection (requires config for connection string)
-	// 4. Handle database commands if requested (requires active database connection)
+	// 3. Handle database migration commands if requested
+	// 4. Initialize database connection (requires config for connection string)
 	// 5. Handle user commands if requested (requires database and authentication config)
 	// 6. Initialize subsystems like archive and metrics (require config and database)
-	
+
 	// Load environment and configuration
 	if err := loadEnvironment(); err != nil {
 		return err
@@ -438,13 +438,13 @@ func run() error {
 		return err
 	}
 
-	// Initialize database
-	if err := initDatabase(); err != nil {
+	// Handle database migration (migrate, revert, force)
+	if err := handleDatabaseCommands(); err != nil {
 		return err
 	}
 
-	// Handle database commands (migrate, revert, force)
-	if err := handleDatabaseCommands(); err != nil {
+	// Initialize database
+	if err := initDatabase(); err != nil {
 		return err
 	}
 
@@ -458,7 +458,7 @@ func run() error {
 		return err
 	}
 
-	// Start server if requested
+	// Exit if start server is not requested
 	if !flagServer {
 		cclog.Exit("No errors, server flag not set. Exiting cc-backend.")
 	}
@@ -466,7 +466,7 @@ func run() error {
 	// Run server with context
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	
+
 	return runServer(ctx)
 }
 
@@ -476,4 +476,3 @@ func main() {
 		os.Exit(1)
 	}
 }
-
