@@ -92,7 +92,7 @@ import (
 
 // Version is the current archive schema version.
 // The archive backend must match this version for compatibility.
-const Version uint64 = 2
+const Version uint64 = 3
 
 // ArchiveBackend defines the interface that all archive storage backends must implement.
 // Implementations include FsArchive (filesystem), S3Archive (object storage), and SqliteArchive (database).
@@ -170,8 +170,8 @@ type ArchiveBackend interface {
 // JobContainer combines job metadata and optional performance data.
 // Used by Iter() to yield jobs during archive iteration.
 type JobContainer struct {
-	Meta *schema.Job      // Job metadata (always present)
-	Data *schema.JobData  // Performance data (nil if not loaded)
+	Meta *schema.Job     // Job metadata (always present)
+	Data *schema.JobData // Performance data (nil if not loaded)
 }
 
 var (

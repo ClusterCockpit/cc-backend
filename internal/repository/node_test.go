@@ -115,7 +115,7 @@ func nodeTestSetup(t *testing.T) {
 	}
 
 	if err := os.WriteFile(filepath.Join(jobarchive, "version.txt"),
-		fmt.Appendf(nil, "%d", 2), 0o666); err != nil {
+		fmt.Appendf(nil, "%d", 3), 0o666); err != nil {
 		t.Fatal(err)
 	}
 

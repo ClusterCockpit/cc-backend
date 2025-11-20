@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package api
 
 import (
@@ -10,11 +11,12 @@ import (
 	"net/http"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/gorilla/mux"
 )
 
-type ApiReturnedUser struct {
+type APIReturnedUser struct {
 	Username string   `json:"username"`
 	Name     string   `json:"name"`
 	Roles    []string `json:"roles"`

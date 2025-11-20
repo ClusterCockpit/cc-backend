@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package repository
 
 import "time"
@@ -39,12 +40,12 @@ type RepositoryConfig struct {
 // These values are optimized for typical deployments.
 func DefaultConfig() *RepositoryConfig {
 	return &RepositoryConfig{
-		CacheSize:              1 * 1024 * 1024, // 1MB
-		MaxOpenConnections:     4,
-		MaxIdleConnections:     4,
-		ConnectionMaxLifetime:  time.Hour,
-		ConnectionMaxIdleTime:  time.Hour,
-		MinRunningJobDuration:  600, // 10 minutes
+		CacheSize:             1 * 1024 * 1024, // 1MB
+		MaxOpenConnections:    4,
+		MaxIdleConnections:    4,
+		ConnectionMaxLifetime: time.Hour,
+		ConnectionMaxIdleTime: time.Hour,
+		MinRunningJobDuration: 600, // 10 minutes
 	}
 }
 

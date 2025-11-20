@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package api
 
 import (
@@ -35,9 +36,9 @@ const (
 	secondsPerDay = 86400
 )
 
-// StopJobApiRequest model
-type StopJobApiRequest struct {
-	JobId     *int64          `json:"jobId" example:"123000"`
+// StopJobAPIRequest model
+type StopJobAPIRequest struct {
+	JobID     *int64          `json:"jobId" example:"123000"`
 	Cluster   *string         `json:"cluster" example:"fritz"`
 	StartTime *int64          `json:"startTime" example:"1649723812"`
 	State     schema.JobState `json:"jobState" validate:"required" example:"completed"`
@@ -46,7 +47,7 @@ type StopJobApiRequest struct {
 
 // DeleteJobApiRequest model
 type DeleteJobApiRequest struct {
-	JobId     *int64  `json:"jobId" validate:"required" example:"123000"` // Cluster Job ID of job
+	JobID     *int64  `json:"jobId" validate:"required" example:"123000"` // Cluster Job ID of job
 	Cluster   *string `json:"cluster" example:"fritz"`                    // Cluster of job
 	StartTime *int64  `json:"startTime" example:"1649723812"`             // Start Time of job as epoch
 }
@@ -740,7 +741,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 // @router      /api/jobs/stop_job/ [post]
 func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 	// Parse request body
-	req := StopJobApiRequest{}
+	req := StopJobAPIRequest{}
 	if err := decode(r.Body, &req); err != nil {
 		handleError(fmt.Errorf("parsing request body failed: %w", err), http.StatusBadRequest, rw)
 		return
@@ -749,16 +750,16 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 	// Fetch job (that will be stopped) from db
 	var job *schema.Job
 	var err error
-	if req.JobId == nil {
+	if req.JobID == nil {
 		handleError(errors.New("the field 'jobId' is required"), http.StatusBadRequest, rw)
 		return
 	}
 
 	// cclog.Printf("loading db job for stopJobByRequest... : stopJobApiRequest=%v", req)
-	job, err = api.JobRepository.Find(req.JobId, req.Cluster, req.StartTime)
+	job, err = api.JobRepository.Find(req.JobID, req.Cluster, req.StartTime)
 	if err != nil {
 		// Try cached jobs if not found in main repository
-		cachedJob, cachedErr := api.JobRepository.FindCached(req.JobId, req.Cluster, req.StartTime)
+		cachedJob, cachedErr := api.JobRepository.FindCached(req.JobID, req.Cluster, req.StartTime)
 		if cachedErr != nil {
 			// Combine both errors for better debugging
 			handleError(fmt.Errorf("finding job failed: %w (cached lookup also failed: %v)", err, cachedErr), http.StatusNotFound, rw)
@@ -841,12 +842,12 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 	// Fetch job (that will be deleted) from db
 	var job *schema.Job
 	var err error
-	if req.JobId == nil {
+	if req.JobID == nil {
 		handleError(errors.New("the field 'jobId' is required"), http.StatusBadRequest, rw)
 		return
 	}
 
-	job, err = api.JobRepository.Find(req.JobId, req.Cluster, req.StartTime)
+	job, err = api.JobRepository.Find(req.JobID, req.Cluster, req.StartTime)
 	if err != nil {
 		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
 		return
@@ -913,7 +914,7 @@ func (api *RestApi) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Job, req StopJobApiRequest) {
+func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Job, req StopJobAPIRequest) {
 	// Sanity checks
 	if job.State != schema.JobStateRunning {
 		handleError(fmt.Errorf("jobId %d (id %d) on %s : job has already been stopped (state is: %s)", job.JobID, job.ID, job.Cluster, job.State), http.StatusUnprocessableEntity, rw)
