@@ -22,34 +22,36 @@
     gql,
     getContextClient,
   } from "@urql/svelte";
-  import {
-    init,
-  } from "../generic/utils.js";
-  import { scaleNumbers, formatDurationTime } from "../generic/units.js";
+  import { formatDurationTime } from "../generic/units.js";
   import Refresher from "../generic/helper/Refresher.svelte";
+  import TimeSelection from "../generic/select/TimeSelection.svelte";
   import Roofline from "../generic/plots/Roofline.svelte";
   import Pie, { colors } from "../generic/plots/Pie.svelte";
+  import Stacked from "../generic/plots/Stacked.svelte";
 
   /* Svelte 5 Props */
   let {
+    clusters,
     presetCluster,
     useCbColors = false,
     useAltColors = false,
   } = $props();
 
   /* Const Init */
-  const { query: initq } = init();
   const client = getContextClient();
 
   /* State Init */
   let cluster = $state(presetCluster);
   let pieWidth = $state(0);
-  let stackedWidth = $state(0);
+  let stackedWidth1 = $state(0);
+  let stackedWidth2 = $state(0);
   let plotWidths = $state([]);
   let from = $state(new Date(Date.now() - 5 * 60 * 1000));
   let to = $state(new Date(Date.now()));
+  let stackedFrom = $state(Math.floor(Date.now() / 1000) - 14400);
   // Bar Gauges
   let allocatedNodes = $state({});
+  let allocatedCores = $state({});
   let allocatedAccs = $state({});
   let flopRate = $state({});
   let flopRateUnitPrefix = $state({});
@@ -63,46 +65,29 @@
   let totalAccs = $state({});
 
   /* Derived */
-  // Accumulated NodeStates for Piecharts
-  const nodesStateCounts = $derived(queryStore({
+  // States for Stacked charts
+  const statesTimed = $derived(queryStore({
     client: client,
     query: gql`
-      query ($filter: [NodeFilter!]) {
-        nodeStates(filter: $filter) {
+      query ($filter: [NodeFilter!], $typeNode: String!, $typeHealth: String!) {
+        nodeStates: nodeStatesTimed(filter: $filter, type: $typeNode) {
           state
-          count
+          counts
+          times
+        }
+        healthStates: nodeStatesTimed(filter: $filter, type: $typeHealth) {
+          state
+          counts
+          times
         }
       }
     `,
     variables: {
-      filter: { cluster: { eq: cluster }}
+      filter: { cluster: { eq: cluster }, timeStart: stackedFrom},
+      typeNode: "node",
+      typeHealth: "health"
     },
-  }));
-
-  const refinedStateData = $derived.by(() => {
-    return $nodesStateCounts?.data?.nodeStates.filter((e) => ['allocated', 'reserved', 'idle', 'mixed','down', 'unknown'].includes(e.state))
-  });
-
-  const refinedHealthData = $derived.by(() => {
-    return $nodesStateCounts?.data?.nodeStates.filter((e) => ['full', 'partial', 'failed'].includes(e.state))
-  });
-
-  // NodeStates for Stacked charts
-  const nodesStateTimes = $derived(queryStore({
-    client: client,
-    query: gql`
-      query ($filter: [NodeFilter!]) {
-        nodeStatesTimed(filter: $filter) {
-          state
-          type
-          count
-          time
-        }
-      }
-    `,
-    variables: {
-      filter: { cluster: { eq: cluster }, timeStart: Date.now() - (24 * 3600 * 1000)} // Add Selector for Timeframe (4h, 12h, 24h)?
-    },
+    requestPolicy: "network-only"
   }));
 
   // Note: nodeMetrics are requested on configured $timestep resolution
@@ -177,8 +162,13 @@
             hostname
             cluster
             subCluster
-            nodeState
+            schedulerState
           }
+        }
+        # Get Current States fir Pie Charts
+        nodeStates(filter: $nodeFilter) {
+          state
+          count
         }
         # totalNodes includes multiples if shared jobs
         jobsStatistics(
@@ -190,6 +180,7 @@
           id
           totalJobs
           totalUsers
+          totalCores
           totalAccs
         }
       }
@@ -207,10 +198,22 @@
     requestPolicy: "network-only"
   }));
 
+  const refinedStateData = $derived.by(() => {
+    return $statusQuery?.data?.nodeStates.
+      filter((e) => ['allocated', 'reserved', 'idle', 'mixed','down', 'unknown'].includes(e.state)).
+      sort((a, b) => b.count - a.count)
+  });
+
+  const refinedHealthData = $derived.by(() => {
+    return $statusQuery?.data?.nodeStates.
+      filter((e) => ['full', 'partial', 'failed'].includes(e.state)).
+      sort((a, b) => b.count - a.count)
+  });
+
   /* Effects */
   $effect(() => {
-    if ($initq.data && $statusQuery.data) {
-      let subClusters = $initq.data.clusters.find(
+    if ($statusQuery.data) {
+      let subClusters = clusters.find(
         (c) => c.name == cluster,
       ).subClusters;
       for (let subCluster of subClusters) {
@@ -219,6 +222,10 @@
           $statusQuery.data.allocatedNodes.find(
             ({ name }) => name == subCluster.name,
           )?.count || 0;
+        allocatedCores[subCluster.name] =
+          $statusQuery.data.jobsStatistics.find(
+            ({ id }) => id == subCluster.name,
+          )?.totalCores || 0;
         allocatedAccs[subCluster.name] =
           $statusQuery.data.jobsStatistics.find(
             ({ id }) => id == subCluster.name,
@@ -348,7 +355,7 @@
       for (let j = 0; j < subClusterData.length; j++) {
         const nodeName = subClusterData[j]?.host ? subClusterData[j].host : "unknown"
         const nodeMatch = $statusQuery?.data?.nodes?.items?.find((n) => n.hostname == nodeName && n.subCluster == subClusterData[j].subCluster);
-        const nodeState = nodeMatch?.nodeState ? nodeMatch.nodeState : "notindb"
+        const schedulerState = nodeMatch?.schedulerState ? nodeMatch.schedulerState : "notindb"
         let numJobs = 0
 
         if ($statusQuery?.data) {
@@ -356,7 +363,7 @@
           numJobs = nodeJobs?.length ? nodeJobs.length : 0
         }
 
-        result.push({nodeName: nodeName, nodeState: nodeState, numJobs: numJobs})
+        result.push({nodeName: nodeName, schedulerState: schedulerState, numJobs: numJobs})
       };
     };
     return result
@@ -378,14 +385,24 @@
 </script>
 
 <!-- Refresher and space for other options -->
-<Row class="justify-content-end">
+<Row class="justify-content-between">
+    <Col xs="12" md="5" lg="4" xl="3">
+    <TimeSelection
+      customEnabled={false}
+      applyTime={(newFrom, newTo) => {
+        stackedFrom = Math.floor(newFrom.getTime() / 1000);
+      }}
+    />
+  </Col>
   <Col xs="12" md="5" lg="4" xl="3">
     <Refresher
       initially={120}
-      onRefresh={() => {
-        console.log('Trigger Refresh StatusTab')
+      onRefresh={(interval) => {
         from = new Date(Date.now() - 5 * 60 * 1000);
         to = new Date(Date.now());
+
+        if (interval) stackedFrom += Math.floor(interval / 1000);
+        else stackedFrom += 1 // Workaround: TineSelection not linked, just trigger new data on manual refresh
       }}
     />
   </Col>
@@ -394,43 +411,40 @@
 <hr/>
 
 <!-- Node Stack Charts Dev-->
-<!--
-{#if $initq.data && $nodesStateTimes.data}
-  <Row cols={{ lg: 4, md: 2 , sm: 1}} class="mb-3 justify-content-center">
+{#if $statesTimed.data}
+  <Row cols={{ md: 2 , sm: 1}} class="mb-3 justify-content-center">
     <Col class="px-3 mt-2 mt-lg-0">
-      <div bind:clientWidth={stackedWidth}>
-        {#key $nodesStateTimes.data}
+      <div bind:clientWidth={stackedWidth1}>
+        {#key $statesTimed?.data?.nodeStates}
           <h4 class="text-center">
             {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Node States Over Time
           </h4>
           <Stacked
-            {cluster}
-            data={$nodesStateTimes?.data}
-            width={stackedWidth * 0.55}
-            xLabel="Time"
-            yLabel="Nodes"
+            data={$statesTimed?.data?.nodeStates}
+            width={stackedWidth1 * 0.95}
+            xlabel="Time"
+            ylabel="Nodes"
             yunit = "#Count"
-            title = "Slurm States"
-            stateType = "slurm"
+            title = "Node States"
+            stateType = "Node"
           />
         {/key}
       </div>
     </Col>
     <Col class="px-3 mt-2 mt-lg-0">
-      <div bind:clientWidth={stackedWidth}>
-        {#key $nodesStateTimes.data}
+      <div bind:clientWidth={stackedWidth2}>
+        {#key $statesTimed?.data?.healthStates}
           <h4 class="text-center">
             {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Health States Over Time
           </h4>
           <Stacked
-            {cluster}
-            data={$nodesStateTimes?.data}
-            width={stackedWidth * 0.55}
-            xLabel="Time"
-            yLabel="Nodes"
+            data={$statesTimed?.data?.healthStates}
+            width={stackedWidth2 * 0.95}
+            xlabel="Time"
+            ylabel="Nodes"
             yunit = "#Count"
             title = "Health States"
-            stateType = "health"
+            stateType = "Health"
           />
         {/key}
       </div>
@@ -439,17 +453,15 @@
 {/if}
 
 <hr/>
-<hr/>
--->
 
 <!-- Node Health Pis, later Charts -->
-{#if $initq.data && $nodesStateCounts.data}
+{#if $statusQuery?.data?.nodeStates}
   <Row cols={{ lg: 4, md: 2 , sm: 1}} class="mb-3 justify-content-center">
     <Col class="px-3 mt-2 mt-lg-0">
       <div bind:clientWidth={pieWidth}>
         {#key refinedStateData}
           <h4 class="text-center">
-            {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Node States
+            Current {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Node States
           </h4>
           <Pie
             {useAltColors}
@@ -489,7 +501,7 @@
       <div bind:clientWidth={pieWidth}>
         {#key refinedHealthData}
           <h4 class="text-center">
-            {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Node Health
+            Current {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Node Health
           </h4>
           <Pie
             {useAltColors}
@@ -529,8 +541,8 @@
 
 <hr/>
 <!-- Gauges & Roofline per Subcluster-->
-{#if $initq.data && $statusQuery.data}
-  {#each $initq.data.clusters.find((c) => c.name == cluster).subClusters as subCluster, i}
+{#if $statusQuery.data}
+  {#each clusters.find((c) => c.name == cluster).subClusters as subCluster, i}
     <Row cols={{ lg: 3, md: 1 , sm: 1}} class="mb-3 justify-content-center">
       <Col class="px-3">
         <Card class="h-auto mt-1">
@@ -577,6 +589,21 @@
                 <td
                   >{allocatedNodes[subCluster.name]} / {subCluster.numberOfNodes}
                   Nodes</td
+                >
+              </tr>
+              <tr class="py-2">
+                <th scope="col">Allocated Cores</th>
+                <td style="min-width: 100px;"
+                  ><div class="col">
+                    <Progress
+                      value={allocatedCores[subCluster.name]}
+                      max={subCluster.socketsPerNode * subCluster.coresPerSocket * subCluster.numberOfNodes}
+                    />
+                  </div></td
+                >
+                <td
+                  >{allocatedCores[subCluster.name]} / {subCluster.socketsPerNode * subCluster.coresPerSocket * subCluster.numberOfNodes}
+                  Cores</td
                 >
               </tr>
               {#if totalAccs[subCluster.name] !== null}

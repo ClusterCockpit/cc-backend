@@ -10,12 +10,16 @@
     getContext
   } from "svelte"
   import {
+    init,
+  } from "./generic/utils.js";
+  import {
     Row,
     Col,
     Card,
     CardBody,
     TabContent,
-    TabPane
+    TabPane,
+    Spinner
   } from "@sveltestrap/sveltestrap";
 
   import StatusDash from "./status/StatusDash.svelte";
@@ -28,8 +32,8 @@
   } = $props();
 
   /*Const Init */
+  const { query: initq } = init();
   const useCbColors = getContext("cc-config")?.plotConfiguration_colorblindMode || false
-
 </script>
 
 <!-- Loading indicator & Refresh -->
@@ -40,24 +44,39 @@
   </Col>
 </Row>
 
-<Card class="overflow-auto" style="height: auto;">
-  <TabContent>
-    <TabPane tabId="status-dash" tab="Status" active>
-      <CardBody>
-        <StatusDash {presetCluster} {useCbColors} useAltColors></StatusDash>
-      </CardBody>
-    </TabPane>
 
-    <TabPane tabId="usage-dash" tab="Usage">
-      <CardBody>
-        <UsageDash {presetCluster} {useCbColors}></UsageDash>
-      </CardBody>
-    </TabPane>
-    
-    <TabPane tabId="metric-dash" tab="Statistics">
-      <CardBody>
-        <StatisticsDash {presetCluster} {useCbColors}></StatisticsDash>
-      </CardBody>
-    </TabPane>
-  </TabContent>
-</Card>
+{#if $initq.fetching}
+  <Row cols={1} class="text-center mt-3">
+    <Col>
+      <Spinner />
+    </Col>
+  </Row>
+{:else if $initq.error}
+  <Row cols={1} class="text-center mt-3">
+    <Col>  
+      <Card body color="danger">{$initq.error.message}</Card>
+    </Col>
+  </Row>
+{:else}
+  <Card class="overflow-auto" style="height: auto;">
+    <TabContent>
+      <TabPane tabId="status-dash" tab="Status" active>
+        <CardBody>
+          <StatusDash clusters={$initq.data.clusters} {presetCluster} {useCbColors} useAltColors></StatusDash>
+        </CardBody>
+      </TabPane>
+
+      <TabPane tabId="usage-dash" tab="Usage">
+        <CardBody>
+          <UsageDash {presetCluster} {useCbColors}></UsageDash>
+        </CardBody>
+      </TabPane>
+      
+      <TabPane tabId="metric-dash" tab="Statistics">
+        <CardBody>
+          <StatisticsDash {presetCluster} {useCbColors}></StatisticsDash>
+        </CardBody>
+      </TabPane>
+    </TabContent>
+  </Card>
+{/if}

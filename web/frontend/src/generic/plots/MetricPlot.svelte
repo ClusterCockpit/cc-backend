@@ -13,7 +13,7 @@
   - `statisticsSeries [GraphQL.StatisticsSeries]?`: Min/Max/Median representation of metric data [Default: null]
   - `cluster String?`: Cluster name of the parent job / data [Default: ""]
   - `subCluster String`: Name of the subCluster of the parent job
-  - `isShared Bool?`: If this job used shared resources; will adapt threshold indicators accordingly [Default: false]
+  - `isShared Bool?`: If this job used shared resources; for additional legend display [Default: false]
   - `forNode Bool?`: If this plot is used for node data display; will render x-axis as negative time with $now as maximum [Default: false]
   - `numhwthreads Number?`: Number of job HWThreads [Default: 0]
   - `numaccs Number?`: Number of job Accelerators [Default: 0]
@@ -48,6 +48,8 @@
     zoomState = null,
     thresholdState = null,
     extendedLegendData = null,
+    plotSync = null,
+    enableFlip = false,
     onZoom
   } = $props();
 
@@ -83,7 +85,6 @@
     subClusterTopology,
     metricConfig,
     scope,
-    isShared,
     numhwthreads,
     numaccs
   ));
@@ -277,7 +278,6 @@
     subClusterTopology,
     metricConfig,
     scope,
-    isShared,
     numhwthreads,
     numaccs
   ) {
@@ -293,32 +293,35 @@
       scope = statParts[0]
     }
 
-    if (
-      (scope == "node" && isShared == false) ||
-      metricConfig?.aggregation == "avg"
-    ) {
-        return {
-          normal: metricConfig.normal,
-          caution: metricConfig.caution,
-          alert: metricConfig.alert,
-          peak: metricConfig.peak,
-        };
+    if (metricConfig?.aggregation == "avg") {
+      // Return as Configured
+      return {
+        normal: metricConfig.normal,
+        caution: metricConfig.caution,
+        alert: metricConfig.alert,
+        peak: metricConfig.peak,
+      };
     }
 
     if (metricConfig?.aggregation == "sum") {
+      // Scale Thresholds
+      let fraction;
+      if (numaccs > 0) fraction = subClusterTopology.accelerators.length / numaccs;
+      else if (numhwthreads > 0) fraction = subClusterTopology.core.length / numhwthreads;
+      else fraction = 1; // Fallback
+
       let divisor;
-      if (isShared == true) { // Shared
-        if (numaccs > 0) divisor = subClusterTopology.accelerators.length / numaccs;
-        else if (numhwthreads > 0) divisor = subClusterTopology.core.length / numhwthreads;
-      }
-      else if (scope == 'node')         divisor = 1; // Use as configured for nodes
-      else if (scope == 'socket')       divisor = subClusterTopology.socket.length;
-      else if (scope == "memoryDomain") divisor = subClusterTopology.memoryDomain.length;
+      // Exclusive: Fraction = 1; Shared: Fraction > 1
+      if (scope == 'node')              divisor = fraction;
+      // Cap divisor at number of available sockets or domains
+      else if (scope == 'socket')       divisor = (fraction < subClusterTopology.socket.length) ? subClusterTopology.socket.length : fraction;
+      else if (scope == "memoryDomain") divisor = (fraction < subClusterTopology.memoryDomain.length) ? subClusterTopology.socket.length : fraction;
+      // Use Maximum Division for Smallest Scopes
       else if (scope == "core")         divisor = subClusterTopology.core.length;
       else if (scope == "hwthread")     divisor = subClusterTopology.core.length; // alt. name for core
       else if (scope == "accelerator")  divisor = subClusterTopology.accelerators.length;
       else {
-        console.log('Unknown scope, return default aggregation thresholds ', scope)
+        console.log('Unknown scope, return default aggregation thresholds for sum', scope)
         divisor = 1;
       }
 
@@ -395,9 +398,12 @@
 
     function update(u) {
       const { left, top } = u.cursor;
-      const width = u?.over?.querySelector(".u-legend")?.offsetWidth ? u.over.querySelector(".u-legend").offsetWidth : 0;
-      legendEl.style.transform =
-        "translate(" + (left - width - 15) + "px, " + (top + 15) + "px)";
+      const internalWidth = u?.over?.querySelector(".u-legend")?.offsetWidth ? u.over.querySelector(".u-legend").offsetWidth : 0;
+      if (enableFlip && (left < (width/2))) {
+        legendEl.style.transform = "translate(" + (left + 15) + "px, " + (top + 15) + "px)";
+      } else {
+        legendEl.style.transform = "translate(" + (left - internalWidth - 15) + "px, " + (top + 15) + "px)";
+      }
     }
 
     if (dataSize <= 12 || useStatsSeries) {
@@ -576,6 +582,14 @@
     if (!uplot) {
       opts.width = ren_width;
       opts.height = ren_height;
+      
+      if (plotSync) {
+        opts.cursor.sync = { 
+          key: plotSync.key,
+          scales: ["x", null],
+        }
+      }
+
       if (zoomState && metricConfig?.aggregation == "avg") {
         opts.scales = {...zoomState}
       } else if (zoomState && metricConfig?.aggregation == "sum") {
@@ -584,6 +598,7 @@
           if ((thresholdState === thresholds?.normal)) { opts.scales = {...zoomState} };
         } // else: reset scaling to default
       }
+
       uplot = new uPlot(opts, plotData, plotWrapper);
     } else {
       uplot.setSize({ width: ren_width, height: ren_height });

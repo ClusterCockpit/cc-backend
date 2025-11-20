@@ -1,34 +1,25 @@
 <!--
   @component Node State/Health Data Stacked Plot Component, based on uPlot; states by timestamp
 
-  Only width/height should change reactively.
-
   Properties:
-  - `metric String?`: The metric name [Default: ""]
   - `width Number?`: The plot width [Default: 0]
   - `height Number?`: The plot height [Default: 300]
   - `data [Array]`: The data object [Default: null]
-  - `title String?`: Plot title [Default: ""]
   - `xlabel String?`: Plot X axis label [Default: ""]
   - `ylabel String?`: Plot Y axis label [Default: ""]
   - `yunit String?`: Plot Y axis unit [Default: ""]
-  - `xticks Array`: Array containing jobIDs [Default: []]
-  - `xinfo Array`: Array containing job information [Default: []]
-  - `forResources Bool?`: Render this plot for allocated jobResources [Default: false]
-  - `plot Sync Object!`: uPlot cursor synchronization key
+  - `title String?`: Plot title [Default: ""]
+  - `stateType String?`: Which states to render, affects plot render config [Options: Health, Node; Default: ""]
 -->
 
 <script>
   import uPlot from "uplot";
-  import { roundTwoDigits, formatDurationTime, formatUnixTime, formatNumber } from "../units.js";
+  import { formatUnixTime } from "../units.js";
   import { getContext, onMount, onDestroy } from "svelte";
   import { Card } from "@sveltestrap/sveltestrap";
 
-  // NOTE: Metric Thresholds non-required, Cluster Mixing Allowed
-
   /* Svelte 5 Props */
   let {
-    cluster = "",
     width = 0,
     height = 300,
     data = null,
@@ -36,16 +27,86 @@
     ylabel = "",
     yunit = "",
     title = "",
-    stateType = "" // Health, Slurm, Both
+    stateType = "" // Health, Node
   } = $props();
 
   /* Const Init */
   const clusterCockpitConfig = getContext("cc-config");
   const lineWidth = clusterCockpitConfig?.plotConfiguration_lineWidth / window.devicePixelRatio || 2;
   const cbmode = clusterCockpitConfig?.plotConfiguration_colorblindMode || false;
+  const seriesConfig = {
+    full: {
+      label: "Full",
+      scale: "y",
+      width: lineWidth,
+      fill: cbmode ? "rgba(0, 110, 0, 0.4)" : "rgba(0, 128, 0, 0.4)",
+      stroke: cbmode ? "rgb(0, 110, 0)" : "green",
+    },
+    partial: {
+      label: "Partial",
+      scale: "y",
+      width: lineWidth,
+      fill: cbmode ? "rgba(235, 172, 35, 0.4)" : "rgba(255, 215, 0, 0.4)",
+      stroke: cbmode ? "rgb(235, 172, 35)" : "gold",
+    },
+    failed: {
+      label: "Failed",
+      scale: "y",
+      width: lineWidth,
+      fill: cbmode ? "rgb(181, 29, 20, 0.4)" : "rgba(255, 0, 0, 0.4)",
+      stroke: cbmode ? "rgb(181, 29, 20)" : "red",
+    },
+    idle: {
+      label: "Idle",
+      scale: "y",
+      width: lineWidth,
+      fill: cbmode ? "rgba(0, 140, 249, 0.4)" : "rgba(0, 0, 255, 0.4)",
+      stroke: cbmode ? "rgb(0, 140, 249)" : "blue",
+    },
+    allocated: {
+      label: "Allocated",
+      scale: "y",
+      width: lineWidth,
+      fill: cbmode ? "rgba(0, 110, 0, 0.4)" : "rgba(0, 128, 0, 0.4)",
+      stroke: cbmode ? "rgb(0, 110, 0)" : "green",
+    },
+    reserved: {
+      label: "Reserved",
+      scale: "y",
+      width: lineWidth,
+      fill: cbmode ? "rgba(209, 99, 230, 0.4)" : "rgba(255, 0, 255, 0.4)",
+      stroke: cbmode ? "rgb(209, 99, 230)" : "magenta",
+    },
+    mixed: {
+      label: "Mixed",
+      scale: "y",
+      width: lineWidth,
+      fill: cbmode ? "rgba(235, 172, 35, 0.4)" : "rgba(255, 215, 0, 0.4)",
+      stroke: cbmode ? "rgb(235, 172, 35)" : "gold",
+    },
+    down: {
+      label: "Down",
+      scale: "y",
+      width: lineWidth,
+      fill: cbmode ? "rgba(181, 29 ,20, 0.4)" : "rgba(255, 0, 0, 0.4)",
+      stroke: cbmode ? "rgb(181, 29, 20)" : "red",
+    },
+    unknown: {
+      label: "Unknown",
+      scale: "y",
+      width: lineWidth,
+      fill: "rgba(0, 0, 0, 0.4)",
+      stroke: "black",
+    }
+  };
+
+  // Data Prep For uPlot
+  const sortedData = data.sort((a, b) => a.state.localeCompare(b.state));
+  const collectLabel = sortedData.map(d => d.state);
+  // Align Data to Timesteps, Introduces 'undefied' as placeholder, reiterate and set those to 0
+  const collectData  = uPlot.join(sortedData.map(d => [d.times, d.counts])).map(d => d.map(i => i ? i : 0));
 
   // STACKED CHART FUNCTIONS //
-
   function stack(data, omit) {
     let data2 = [];
     let bands = [];
@@ -74,23 +135,46 @@
     };
   }
 
-  function getOpts(title, series) {
-    return {
-      scales: {
-        x: {
-          time: false,
+  function getStackedOpts(title, width, height, series, data) {
+    let opts = {
+      width,
+      height,
+      title,
+      plugins: [legendAsTooltipPlugin()],
+      series,
+      axes: [
+        {
+          scale: "x",
+          space: 25, // Tick Spacing
+          rotate: 30,
+          show: true,
+          label: xlabel,
+          values(self, splits) {
+            return splits.map(s => formatUnixTime(s));
+          }
         },
+        {
+          scale: "y",
+          grid: { show: true },
+          labelFont: "sans-serif",
+          label: ylabel + (yunit ? ` (${yunit})` : ''),
+          // values: (u, vals) => vals.map((v) => formatNumber(v)),
+        },
+      ],
+      padding: [5, 10, 0, 0],
+      scales: {
+        x: { time: false },
+        y: { auto: true, distr: 1 },
       },
-      series
+      legend: {
+        show: true,
+      },
+      cursor: { 
+        drag: { x: true, y: true },
+      }
     };
-  }
 
-  function getStackedOpts(title, series, data, interp) {
-    let opts = getOpts(title, series);
-
-    let interped = interp ? interp(data) : data;
-
-    let stacked = stack(interped, i => false);
+    let stacked = stack(data, i => false);
     opts.bands = stacked.bands;
 
     opts.cursor = opts.cursor || {};
@@ -99,7 +183,8 @@
     };
 
     opts.series.forEach(s => {
-      s.value = (u, v, si, i) => data[si][i];
+      // Format Time Info from Unix TS to LocalTimeString
+      s.value = (u, v, si, i) => (si === 0) ? formatUnixTime(data[si][i]) : data[si][i];
 
       s.points = s.points || {};
 
@@ -138,331 +223,7 @@
     return {opts, data: stacked.data};
   }
 
-
-  function stack2(series) {
-    // for uplot data
-    let data = Array(series.length);
-    let bands = [];
-
-    let dataLen = series[0].values.length;
-
-    let zeroArr = Array(dataLen).fill(0);
-
-    let stackGroups = new Map();
-    let seriesStackKeys = Array(series.length);
-
-    series.forEach((s, si) => {
-      let vals = s.values.slice();
-
-      // apply negY
-      if (s.negY) {
-        for (let i = 0; i < vals.length; i++) {
-          if (vals[i] != null)
-            vals[i] *= -1;
-        }
-      }
-
-      if (s.stacking.mode != 'none') {
-        let hasPos = vals.some(v => v > 0);
-        // derive stacking key
-        let stackKey = seriesStackKeys[si] = s.stacking.mode + s.scaleKey + s.stacking.group + (hasPos ? '+' : '-');
-        let group = stackGroups.get(stackKey);
-
-        // initialize stacking group
-        if (group == null) {
-          group = {
-            series: [],
-            acc: zeroArr.slice(),
-            dir: hasPos ? -1 : 1,
-          };
-          stackGroups.set(stackKey, group);
-        }
-
-        // push for bands gen
-        group.series.unshift(si);
-
-        let stacked = data[si] = Array(dataLen);
-        let { acc } = group;
-
-        for (let i = 0; i < dataLen; i++) {
-          let v = vals[i];
-
-          if (v != null)
-            stacked[i] = (acc[i] += v);
-          else
-            stacked[i] = v; // we may want to coerce to 0 here
-        }
-      }
-      else
-        data[si] = vals;
-    });
-
-    // re-compute by percent
-    series.forEach((s, si) => {
-      if (s.stacking.mode == 'percent') {
-        let group = stackGroups.get(seriesStackKeys[si]);
-        let { acc } = group;
-
-        // re-negatify percent
-        let sign = group.dir * -1;
-
-        let stacked = data[si];
-
-        for (let i = 0; i < dataLen; i++) {
-          let v = stacked[i];
-
-          if (v != null)
-            stacked[i] = sign * (v / acc[i]);
-        }
-      }
-    });
-
-    // generate bands between adjacent group series
-    stackGroups.forEach(group => {
-      let { series, dir } = group;
-      let lastIdx = series.length - 1;
-
-      series.forEach((si, i) => {
-        if (i != lastIdx) {
-          let nextIdx = series[i + 1];
-          bands.push({
-            // since we're not passing x series[0] for stacking, real idxs are actually +1
-            series: [si + 1, nextIdx + 1],
-            dir,
-          });
-        }
-      });
-    });
-
-    return {
-      data,
-      bands,
-    };
-  }
-
-  // UPLOT SERIES INIT //
-
-  const plotSeries = [
-      {
-        label: "Time",
-        scale: "x",
-        value: (u, ts, sidx, didx) =>
-        (didx == null) ? null : formatUnixTime(ts),
-      }
-  ]
-
-  if (stateType === "slurm") {
-    const resSeries = [
-      {
-        label: "Idle",
-        scale: "y",
-        width: lineWidth,
-        stroke: cbmode ? "rgb(136, 204, 238)" : "lightblue",
-      },
-      {
-        label: "Allocated",
-        scale: "y",
-        width: lineWidth,
-        stroke: cbmode ? "rgb(30, 136, 229)" : "green",
-      },
-      {
-        label: "Reserved",
-        scale: "y",
-        width: lineWidth,
-        stroke: cbmode ? "rgb(211, 95, 183)" : "magenta",
-      },
-      {
-        label: "Mixed",
-        scale: "y",
-        width: lineWidth,
-        stroke: cbmode ? "rgb(239, 230, 69)" : "yellow",
-      },
-      {
-        label: "Down",
-        scale: "y",
-        width: lineWidth,
-        stroke: cbmode ? "rgb(225, 86, 44)" : "red",
-      },
-      {
-        label: "Unknown",
-        scale: "y",
-        width: lineWidth,
-        stroke: "black",
-      }
-    ];
-    plotSeries.push(...resSeries)
-  } else if (stateType === "health") {
-    const resSeries = [
-      {
-        label: "Full",
-        scale: "y",
-        width: lineWidth,
-        stroke: cbmode ? "rgb(30, 136, 229)" : "green",
-      },
-      {
-        label: "Partial",
-        scale: "y",
-        width: lineWidth,
-        stroke: cbmode ? "rgb(239, 230, 69)" : "yellow",
-      },
-      {
-        label: "Failed",
-        scale: "y",
-        width: lineWidth,
-        stroke: cbmode ? "rgb(225, 86, 44)" : "red",
-      }
-    ];
-    plotSeries.push(...resSeries)
-  } else {
-    const resSeries = [
-      {
-        label: "Full",
-        scale: "y",
-        width: lineWidth,
-        stroke: cbmode ? "rgb(30, 136, 229)" : "green",
-      },
-      {
-        label: "Partial",
-        scale: "y",
-        width: lineWidth,
-        stroke: cbmode ? "rgb(239, 230, 69)" : "yellow",
-      },
-      {
-        label: "Failed",
-        scale: "y",
-        width: lineWidth,
-        stroke: cbmode ? "rgb(225, 86, 44)" : "red",
-      },
-      {
-        label: "Idle",
-        scale: "y",
-        width: lineWidth,
-        stroke: cbmode ? "rgb(136, 204, 238)" : "lightblue",
-      },
-      {
-        label: "Allocated",
-        scale: "y",
-        width: lineWidth,
-        stroke: cbmode ? "rgb(30, 136, 229)" : "green",
-      },
-      {
-        label: "Reserved",
-        scale: "y",
-        width: lineWidth,
-        stroke: cbmode ? "rgb(211, 95, 183)" : "magenta",
-      },
-      {
-        label: "Mixed",
-        scale: "y",
-        width: lineWidth,
-        stroke: cbmode ? "rgb(239, 230, 69)" : "yellow",
-      },
-      {
-        label: "Down",
-        scale: "y",
-        width: lineWidth,
-        stroke: cbmode ? "rgb(225, 86, 44)" : "red",
-      },
-      {
-        label: "Unknown",
-        scale: "y",
-        width: lineWidth,
-        stroke: "black",
-      }
-    ];
-    plotSeries.push(...resSeries)
-  }
-
-  // UPLOT BAND COLORS //
-  // const plotBands = [
-  //   { series: [5, 4], fill: cbmode ? "rgba(0,0,255,0.1)" : "rgba(0,255,0,0.1)" },
-  //   { series: [4, 3], fill: cbmode ? "rgba(0,255,0,0.1)" : "rgba(255,0,0,0.1)" },
-  // ];
-
-  // UPLOT OPTIONS //
-  const opts = {
-    width,
-    height,
-    title,
-    plugins: [legendAsTooltipPlugin()],
-    series: plotSeries,
-    axes: [
-      {
-        scale: "x",
-        space: 25, // Tick Spacing
-        rotate: 30,
-        show: true,
-        label: xlabel,
-        // values(self, splits) {
-        //   return splits.map(s => xticks[s]);
-        // }
-      },
-      {
-        scale: "y",
-        grid: { show: true },
-        labelFont: "sans-serif",
-        label: ylabel + (yunit ? ` (${yunit})` : ''),
-        // values: (u, vals) => vals.map((v) => formatNumber(v)),
-      },
-    ],
-    // bands: forResources ? [] : plotBands,
-    padding: [5, 10, 0, 0],
-    // hooks: {
-    //   draw: [
-    //     (u) => {
-    //       // Draw plot type label:
-    //       let textl = forResources ? "Job Resources by Type" : "Metric Min/Avg/Max for Job Duration";
-    //       let textr = "Earlier <- StartTime -> Later";
-    //       u.ctx.save();
-    //       u.ctx.textAlign = "start";
-    //       u.ctx.fillStyle = "black";
-    //       u.ctx.fillText(textl, u.bbox.left + 10, u.bbox.top + 10);
-    //       u.ctx.textAlign = "end";
-    //       u.ctx.fillStyle = "black";
-    //       u.ctx.fillText(
-    //         textr,
-    //         u.bbox.left + u.bbox.width - 10,
-    //         u.bbox.top + 10,
-    //       );
-    //       u.ctx.restore();
-    //       return;
-    //     },
-    //   ]
-    // },
-    scales: {
-      x: { time: false },
-      y: {auto: true, distr: 1},
-    },
-    legend: {
-      // Display legend
-      show: true,
-      live: true,
-    },
-    cursor: { 
-      drag: { x: true, y: true },
-      // sync: { 
-      //   key: plotSync.key,
-      //   scales: ["x", null],
-      // }
-    }
-  };
-
-  /* Var Init */
-  let timeoutId = null;
-  let uplot = null;
-
-  /* State Init */
-  let plotWrapper = $state(null);
-
-  /* Effects */
-  $effect(() => {
-    if (plotWrapper) {
-      onSizeChange(width, height);
-    }
-  });
-
-  /* Functions */
-  // UPLOT PLUGIN // converts the legend into a simple tooltip
+  // UPLOT PLUGIN: Converts the legend into a simple tooltip
   function legendAsTooltipPlugin({
     className,
     style = { backgroundColor: "rgba(255, 249, 196, 0.92)", color: "black" },
@@ -476,7 +237,7 @@
       className && legendEl.classList.add(className);
 
       uPlot.assign(legendEl.style, {
-        minWidth: "100px",
+        minWidth: "175px",
         textAlign: "left",
         pointerEvents: "none",
         display: "none",
@@ -489,9 +250,9 @@
       });
 
       //  hide series color markers:
-      const idents = legendEl.querySelectorAll(".u-marker");
-      for (let i = 0; i < idents.length; i++)
-        idents[i].style.display = "none";
+      // const idents = legendEl.querySelectorAll(".u-marker");
+      // for (let i = 0; i < idents.length; i++)
+      //   idents[i].style.display = "none";
 
       const overEl = u.over;
       overEl.style.overflow = "visible";
@@ -510,9 +271,12 @@
 
     function update(u) {
       const { left, top } = u.cursor;
-      const width = u?.over?.querySelector(".u-legend")?.offsetWidth ? u.over.querySelector(".u-legend").offsetWidth : 0;
-      legendEl.style.transform =
-        "translate(" + (left - width - 15) + "px, " + (top + 15) + "px)";
+      const internalWidth = u?.over?.querySelector(".u-legend")?.offsetWidth ? u.over.querySelector(".u-legend").offsetWidth : 0;
+      if (left < (width/2)) {
+        legendEl.style.transform = "translate(" + (left + 15) + "px, " + (top + 15) + "px)";
+      } else {
+        legendEl.style.transform = "translate(" + (left - internalWidth - 15) + "px, " + (top + 15) + "px)";
+      }
     }
 
     return {
@@ -523,13 +287,34 @@
     };
   }
 
-  // RENDER HANDLING
+  // UPLOT SERIES INIT
+  const plotSeries = [
+    {
+      label: "Time",
+      scale: "x"
+    },
+    ...collectLabel.map(l => seriesConfig[l])
+  ]
+
+  /* Var Init */
+  let timeoutId = null;
+  let uplot = null;
+
+  /* State Init */
+  let plotWrapper = $state(null);
+
+  /* Effects */
+  $effect(() => {
+    if (plotWrapper) {
+      onSizeChange(width, height);
+    }
+  });
+
+  /* Functions */
   function render(ren_width, ren_height) {
     if (!uplot) {
-      opts.width = ren_width;
-      opts.height = ren_height;
-      uplot = new uPlot(opts, data, plotWrapper); // Data is uplot formatted [[X][Ymin][Yavg][Ymax]]
-      plotSync.sub(uplot)
+      let { opts, data } = getStackedOpts(title, ren_width, ren_height, plotSeries, collectData);
+      uplot = new uPlot(opts, data, plotWrapper); // Data is uplot formatted [[X][Y1][Y2]...]
     } else {
       uplot.setSize({ width: ren_width, height: ren_height });
     }
@@ -559,12 +344,12 @@
 </script>
 
 <!-- Define $width Wrapper and NoData Card -->
-{#if data && data[0].length > 0}
+{#if data && collectData[0].length > 0}
   <div bind:this={plotWrapper} bind:clientWidth={width}
         style="background-color: rgba(255, 255, 255, 1.0);" class="rounded"
   ></div>
 {:else}
   <Card body color="warning" class="mx-4 my-2"
-    >Cannot render plot: No series data returned for <code>{metric?metric:'job resources'}</code></Card
+    >Cannot render plot: No series data returned for <code>{stateType} State Stacked Chart</code></Card
   >
 {/if}

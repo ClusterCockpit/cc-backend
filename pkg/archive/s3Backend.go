@@ -202,7 +202,7 @@ func (s3a *S3Archive) Info() {
 
 	for _, cluster := range s3a.clusters {
 		ci[cluster] = &clusterInfo{dateFirst: time.Now().Unix()}
-		
+
 		// List all jobs for this cluster
 		prefix := cluster + "/"
 		paginator := s3.NewListObjectsV2Paginator(s3a.client, &s3.ListObjectsV2Input{
@@ -260,19 +260,19 @@ func (s3a *S3Archive) Info() {
 func (s3a *S3Archive) Exists(job *schema.Job) bool {
 	ctx := context.Background()
 	key := getS3Key(job, "meta.json")
-	
+
 	_, err := s3a.client.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(s3a.bucket),
 		Key:    aws.String(key),
 	})
-	
+
 	return err == nil
 }
 
 func (s3a *S3Archive) LoadJobMeta(job *schema.Job) (*schema.Job, error) {
 	ctx := context.Background()
 	key := getS3Key(job, "meta.json")
-	
+
 	result, err := s3a.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s3a.bucket),
 		Key:    aws.String(key),
@@ -300,14 +300,13 @@ func (s3a *S3Archive) LoadJobMeta(job *schema.Job) (*schema.Job, error) {
 
 func (s3a *S3Archive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 	ctx := context.Background()
-	
+
 	// Try compressed file first
 	keyGz := getS3Key(job, "data.json.gz")
 	result, err := s3a.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s3a.bucket),
 		Key:    aws.String(keyGz),
 	})
-	
 	if err != nil {
 		// Try uncompressed file
 		key := getS3Key(job, "data.json")
@@ -352,14 +351,13 @@ func (s3a *S3Archive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 
 func (s3a *S3Archive) LoadJobStats(job *schema.Job) (schema.ScopedJobStats, error) {
 	ctx := context.Background()
-	
+
 	// Try compressed file first
 	keyGz := getS3Key(job, "data.json.gz")
 	result, err := s3a.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s3a.bucket),
 		Key:    aws.String(keyGz),
 	})
-	
 	if err != nil {
 		// Try uncompressed file
 		key := getS3Key(job, "data.json")
@@ -405,7 +403,7 @@ func (s3a *S3Archive) LoadJobStats(job *schema.Job) (schema.ScopedJobStats, erro
 func (s3a *S3Archive) LoadClusterCfg(name string) (*schema.Cluster, error) {
 	ctx := context.Background()
 	key := fmt.Sprintf("%s/cluster.json", name)
-	
+
 	result, err := s3a.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s3a.bucket),
 		Key:    aws.String(key),
@@ -433,7 +431,7 @@ func (s3a *S3Archive) LoadClusterCfg(name string) (*schema.Cluster, error) {
 func (s3a *S3Archive) StoreJobMeta(job *schema.Job) error {
 	ctx := context.Background()
 	key := getS3Key(job, "meta.json")
-	
+
 	var buf bytes.Buffer
 	if err := EncodeJobMeta(&buf, job); err != nil {
 		cclog.Error("S3Archive StoreJobMeta() > encoding error")
@@ -445,7 +443,6 @@ func (s3a *S3Archive) StoreJobMeta(job *schema.Job) error {
 		Key:    aws.String(key),
 		Body:   bytes.NewReader(buf.Bytes()),
 	})
-	
 	if err != nil {
 		cclog.Errorf("S3Archive StoreJobMeta() > PutObject error: %v", err)
 		return err
@@ -503,16 +500,16 @@ func (s3a *S3Archive) GetClusters() []string {
 func (s3a *S3Archive) CleanUp(jobs []*schema.Job) {
 	ctx := context.Background()
 	start := time.Now()
-	
+
 	for _, job := range jobs {
 		if job == nil {
 			cclog.Errorf("S3Archive CleanUp() error: job is nil")
 			continue
 		}
-		
+
 		// Delete all files in the job directory
 		prefix := getS3Directory(job)
-		
+
 		paginator := s3.NewListObjectsV2Paginator(s3a.client, &s3.ListObjectsV2Input{
 			Bucket: aws.String(s3a.bucket),
 			Prefix: aws.String(prefix),
@@ -544,10 +541,10 @@ func (s3a *S3Archive) CleanUp(jobs []*schema.Job) {
 
 func (s3a *S3Archive) Move(jobs []*schema.Job, targetPath string) {
 	ctx := context.Background()
-	
+
 	for _, job := range jobs {
 		sourcePrefix := getS3Directory(job)
-		
+
 		// List all objects in source
 		paginator := s3.NewListObjectsV2Paginator(s3a.client, &s3.ListObjectsV2Input{
 			Bucket: aws.String(s3a.bucket),
@@ -565,10 +562,10 @@ func (s3a *S3Archive) Move(jobs []*schema.Job, targetPath string) {
 				if obj.Key == nil {
 					continue
 				}
-				
+
 				// Compute target key by replacing prefix
 				targetKey := strings.Replace(*obj.Key, sourcePrefix, targetPath+"/", 1)
-				
+
 				// Copy object
 				_, err := s3a.client.CopyObject(ctx, &s3.CopyObjectInput{
 					Bucket:     aws.String(s3a.bucket),
@@ -595,14 +592,14 @@ func (s3a *S3Archive) Move(jobs []*schema.Job, targetPath string) {
 
 func (s3a *S3Archive) Clean(before int64, after int64) {
 	ctx := context.Background()
-	
+
 	if after == 0 {
 		after = math.MaxInt64
 	}
 
 	for _, cluster := range s3a.clusters {
 		prefix := cluster + "/"
-		
+
 		paginator := s3.NewListObjectsV2Paginator(s3a.client, &s3.ListObjectsV2Input{
 			Bucket: aws.String(s3a.bucket),
 			Prefix: aws.String(prefix),
@@ -633,7 +630,7 @@ func (s3a *S3Archive) Clean(before int64, after int64) {
 				if startTime < before || startTime > after {
 					// Delete entire job directory
 					jobPrefix := strings.Join(parts[:4], "/") + "/"
-					
+
 					jobPaginator := s3.NewListObjectsV2Paginator(s3a.client, &s3.ListObjectsV2Input{
 						Bucket: aws.String(s3a.bucket),
 						Prefix: aws.String(jobPrefix),
@@ -671,7 +668,7 @@ func (s3a *S3Archive) Compress(jobs []*schema.Job) {
 
 	for _, job := range jobs {
 		dataKey := getS3Key(job, "data.json")
-		
+
 		// Check if uncompressed file exists and get its size
 		headResult, err := s3a.client.HeadObject(ctx, &s3.HeadObjectInput{
 			Bucket: aws.String(s3a.bucket),
@@ -742,13 +739,13 @@ func (s3a *S3Archive) Compress(jobs []*schema.Job) {
 func (s3a *S3Archive) CompressLast(starttime int64) int64 {
 	ctx := context.Background()
 	compressKey := "compress.txt"
-	
+
 	// Try to read existing compress.txt
 	result, err := s3a.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s3a.bucket),
 		Key:    aws.String(compressKey),
 	})
-	
+
 	var last int64
 	if err == nil {
 		b, _ := io.ReadAll(result.Body)
@@ -780,14 +777,14 @@ func (s3a *S3Archive) CompressLast(starttime int64) int64 {
 
 func (s3a *S3Archive) Iter(loadMetricData bool) <-chan JobContainer {
 	ch := make(chan JobContainer)
-	
+
 	go func() {
 		ctx := context.Background()
 		defer close(ch)
 
 		for _, cluster := range s3a.clusters {
 			prefix := cluster + "/"
-			
+
 			paginator := s3.NewListObjectsV2Paginator(s3a.client, &s3.ListObjectsV2Input{
 				Bucket: aws.String(s3a.bucket),
 				Prefix: aws.String(prefix),

@@ -39,7 +39,7 @@
     yunit = "",
     title = "",
     forResources = false,
-    plotSync,
+    plotSync = null,
   } = $props();
 
   /* Const Init */
@@ -204,11 +204,7 @@
       live: true,
     },
     cursor: { 
-      drag: { x: true, y: true },
-      sync: { 
-        key: plotSync.key,
-        scales: ["x", null],
-      }
+      drag: { x: true, y: true }
     }
   };
 
@@ -275,9 +271,12 @@
 
     function update(u) {
       const { left, top } = u.cursor;
-      const width = u?.over?.querySelector(".u-legend")?.offsetWidth ? u.over.querySelector(".u-legend").offsetWidth : 0;
-      legendEl.style.transform =
-        "translate(" + (left - width - 15) + "px, " + (top + 15) + "px)";
+      const internalWidth = u?.over?.querySelector(".u-legend")?.offsetWidth ? u.over.querySelector(".u-legend").offsetWidth : 0;
+      if (left < (width/2)) {
+        legendEl.style.transform = "translate(" + (left + 15) + "px, " + (top + 15) + "px)";
+      } else {
+        legendEl.style.transform = "translate(" + (left - internalWidth - 15) + "px, " + (top + 15) + "px)";
+      }
     }
 
     return {
@@ -293,6 +292,14 @@
     if (!uplot) {
       opts.width = ren_width;
       opts.height = ren_height;
+
+      if (plotSync) {
+        opts.cursor.sync = { 
+          key: plotSync.key,
+          scales: ["x", null],
+        }
+      }
+
       uplot = new uPlot(opts, data, plotWrapper); // Data is uplot formatted [[X][Ymin][Yavg][Ymax]]
       plotSync.sub(uplot)
     } else {

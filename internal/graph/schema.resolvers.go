@@ -312,7 +312,11 @@ func (r *nodeResolver) ID(ctx context.Context, obj *schema.Node) (string, error)
 
 // SchedulerState is the resolver for the schedulerState field.
 func (r *nodeResolver) SchedulerState(ctx context.Context, obj *schema.Node) (schema.SchedulerState, error) {
-	panic(fmt.Errorf("not implemented: SchedulerState - schedulerState"))
+	if obj.NodeState != "" {
+		return obj.NodeState, nil
+	} else {
+		return "", fmt.Errorf("No SchedulerState (NodeState) on Object")
+	}
 }
 
 // HealthState is the resolver for the healthState field.
@@ -387,13 +391,13 @@ func (r *queryResolver) Nodes(ctx context.Context, filter []*model.NodeFilter, o
 func (r *queryResolver) NodeStates(ctx context.Context, filter []*model.NodeFilter) ([]*model.NodeStates, error) {
 	repo := repository.GetNodeRepository()
 
-	stateCounts, serr := repo.CountNodeStates(ctx, filter)
+	stateCounts, serr := repo.CountStates(ctx, filter, "node_state")
 	if serr != nil {
 		cclog.Warnf("Error while counting nodeStates: %s", serr.Error())
 		return nil, serr
 	}
 
-	healthCounts, herr := repo.CountHealthStates(ctx, filter)
+	healthCounts, herr := repo.CountStates(ctx, filter, "health_state")
 	if herr != nil {
 		cclog.Warnf("Error while counting healthStates: %s", herr.Error())
 		return nil, herr
@@ -406,26 +410,28 @@ func (r *queryResolver) NodeStates(ctx context.Context, filter []*model.NodeFilt
 }
 
 // NodeStatesTimed is the resolver for the nodeStatesTimed field.
-func (r *queryResolver) NodeStatesTimed(ctx context.Context, filter []*model.NodeFilter) ([]*model.NodeStatesTimed, error) {
-	panic(fmt.Errorf("not implemented: NodeStatesTimed - NodeStatesTimed"))
-	// repo := repository.GetNodeRepository()
+func (r *queryResolver) NodeStatesTimed(ctx context.Context, filter []*model.NodeFilter, typeArg string) ([]*model.NodeStatesTimed, error) {
+	repo := repository.GetNodeRepository()
 
-	// stateCounts, serr := repo.CountNodeStates(ctx, filter)
-	// if serr != nil {
-	// 	cclog.Warnf("Error while counting nodeStates: %s", serr.Error())
-	// 	return nil, serr
-	// }
+	if typeArg == "node" {
+		stateCounts, serr := repo.CountStatesTimed(ctx, filter, "node_state")
+		if serr != nil {
+			cclog.Warnf("Error while counting nodeStates in time: %s", serr.Error())
+			return nil, serr
+		}
+		return stateCounts, nil
+	}
 
-	// healthCounts, herr := repo.CountHealthStates(ctx, filter)
-	// if herr != nil {
-	// 	cclog.Warnf("Error while counting healthStates: %s", herr.Error())
-	// 	return nil, herr
-	// }
+	if typeArg == "health" {
+		healthCounts, herr := repo.CountStatesTimed(ctx, filter, "health_state")
+		if herr != nil {
+			cclog.Warnf("Error while counting healthStates in time: %s", herr.Error())
+			return nil, herr
+		}
+		return healthCounts, nil
+	}
 
-	// allCounts := make([]*model.NodeStates, 0)
-	// allCounts = append(stateCounts, healthCounts...)
-
-	// return allCounts, nil
+	return nil, errors.New("Unknown Node State Query Type")
 }
 
 // Job is the resolver for the job field.
@@ -750,10 +756,14 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 		return nil, err
 	}
 
+	nodeRepo := repository.GetNodeRepository()
+	stateMap, _ := nodeRepo.MapNodes(cluster)
+
 	nodeMetrics := make([]*model.NodeMetrics, 0, len(data))
 	for hostname, metrics := range data {
 		host := &model.NodeMetrics{
 			Host:    hostname,
+			State:   stateMap[hostname],
 			Metrics: make([]*model.JobMetricWithName, 0, len(metrics)*len(scopes)),
 		}
 		host.SubCluster, err = archive.GetSubClusterByNode(cluster, hostname)
@@ -778,7 +788,7 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 }
 
 // NodeMetricsList is the resolver for the nodeMetricsList field.
-func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, subCluster string, nodeFilter string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time, page *model.PageRequest, resolution *int) (*model.NodesResultList, error) {
+func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, subCluster string, stateFilter string, nodeFilter string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time, page *model.PageRequest, resolution *int) (*model.NodesResultList, error) {
 	if resolution == nil { // Load from Config
 		if config.Keys.EnableResampling != nil {
 			defaultRes := slices.Max(config.Keys.EnableResampling.Resolutions)
@@ -800,9 +810,47 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 		}
 	}
 
-	data, totalNodes, hasNextPage, err := metricDataDispatcher.LoadNodeListData(cluster, subCluster, nodeFilter, metrics, scopes, *resolution, from, to, page, ctx)
+	// Note: This Prefilter Logic Can Be Used To Completely Switch Node Source Of Truth To SQLite DB
+	// Adapt and extend filters/paging/sorting in QueryNodes Function to return []string array of hostnames, input array to LoadNodeListData
+	// LoadNodeListData, instead of building queried nodes from topoplogy anew, directly will use QueryNodes hostname array
+	// Caveat: "notindb" state will not be resolvable anymore by default, or needs reverse lookup by dedicated comparison to topology data after all
+	preFiltered := make([]string, 0)
+	stateMap := make(map[string]string)
+	if stateFilter != "all" {
+		nodeRepo := repository.GetNodeRepository()
+		stateQuery := make([]*model.NodeFilter, 0)
+		// Required Filters
+		stateQuery = append(stateQuery, &model.NodeFilter{Cluster: &model.StringInput{Eq: &cluster}})
+		if subCluster != "" {
+			stateQuery = append(stateQuery, &model.NodeFilter{Subcluster: &model.StringInput{Eq: &subCluster}})
+		}
+
+		if stateFilter == "notindb" {
+			// Backward Filtering: Add Keyword, No Additional FIlters: Returns All Nodes For Cluster (and SubCluster)
+			preFiltered = append(preFiltered, "exclude")
+		} else {
+			// Workaround: If no nodes match, we need at least one element for trigger in LoadNodeListData
+			preFiltered = append(preFiltered, stateFilter)
+			// Forward Filtering: Match Only selected stateFilter
+			var queryState schema.SchedulerState = schema.SchedulerState(stateFilter)
+			stateQuery = append(stateQuery, &model.NodeFilter{SchedulerState: &queryState})
+		}
+
+		stateNodes, serr := nodeRepo.QueryNodes(ctx, stateQuery, &model.OrderByInput{}) // Order not Used
+		if serr != nil {
+			cclog.Warn("error while loading node database data (Resolver.NodeMetricsList)")
+			return nil, serr
+		}
+
+		for _, node := range stateNodes {
+			preFiltered = append(preFiltered, node.Hostname)
+			stateMap[node.Hostname] = string(node.NodeState)
+		}
+	}
+
+	data, totalNodes, hasNextPage, err := metricDataDispatcher.LoadNodeListData(cluster, subCluster, nodeFilter, preFiltered, metrics, scopes, *resolution, from, to, page, ctx)
 	if err != nil {
-		cclog.Warn("error while loading node data")
+		cclog.Warn("error while loading node data (Resolver.NodeMetricsList")
 		return nil, err
 	}
 
@@ -810,6 +858,7 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 	for hostname, metrics := range data {
 		host := &model.NodeMetrics{
 			Host:    hostname,
+			State:   stateMap[hostname],
 			Metrics: make([]*model.JobMetricWithName, 0, len(metrics)*len(scopes)),
 		}
 		host.SubCluster, err = archive.GetSubClusterByNode(cluster, hostname)

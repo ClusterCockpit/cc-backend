@@ -79,6 +79,11 @@
     });
 	});
 
+  $effect(() => {
+    // Load Metric-Selection for last selected cluster
+    metrics = selectedCluster ? ccconfig[`metricConfig_jobListMetrics:${selectedCluster}`] : ccconfig.metricConfig_jobListMetrics
+	});
+
   /* On Mount */
   // The filterPresets are handled by the Filters component,
   // so we need to wait for it to be ready before we can start a query.

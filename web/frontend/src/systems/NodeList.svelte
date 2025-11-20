@@ -8,6 +8,7 @@
   - `selectedMetrics [String]`: The array of selected metrics [Default []]
   - `selectedResolution Number?`: The selected data resolution [Default: 0]
   - `hostnameFilter String?`: The active hostnamefilter [Default: ""]
+  - `hoststateFilter String?`: The active hoststatefilter [Default: ""]
   - `presetSystemUnits Object`: The object of metric units [Default: null]
   - `from Date?`: The selected "from" date [Default: null]
   - `to Date?`: The selected "to" date [Default: null]
@@ -28,6 +29,7 @@
     selectedMetrics = [],
     selectedResolution = 0,
     hostnameFilter = "",
+    hoststateFilter = "",
     presetSystemUnits = null,
     from = null,
     to = null
@@ -37,11 +39,14 @@
   const client = getContextClient();
   const usePaging = ccconfig?.nodeList_usePaging || false;
   const nodeListQuery = gql`
-    query ($cluster: String!, $subCluster: String!, $nodeFilter: String!, $metrics: [String!], $scopes: [MetricScope!]!, $from: Time!, $to: Time!, $paging: PageRequest!, $selectedResolution: Int) {
+    query ($cluster: String!, $subCluster: String!, $nodeFilter: String!, $stateFilter: String!, $metrics: [String!],
+           $scopes: [MetricScope!]!, $from: Time!, $to: Time!, $paging: PageRequest!, $selectedResolution: Int
+    ) {
       nodeMetricsList(
         cluster: $cluster
         subCluster: $subCluster
         nodeFilter: $nodeFilter
+        stateFilter: $stateFilter,
         scopes: $scopes
         metrics: $metrics
         from: $from
@@ -51,6 +56,7 @@
       ) {
         items {
           host
+          state
           subCluster
           metrics {
             name
@@ -100,6 +106,7 @@
     variables: {
       cluster: cluster,
       subCluster: subCluster,
+      stateFilter: hoststateFilter,
       nodeFilter: hostnameFilter,
       scopes: ["core", "socket", "accelerator"],
       metrics: selectedMetrics,
@@ -137,7 +144,7 @@
     // Triggers (Except Paging)
     from, to
     selectedMetrics, selectedResolution
-    hostnameFilter
+    hostnameFilter, hoststateFilter
     // Continous Scroll: Reset nodes and paging if parameters change: Existing entries will not match new selections
     if (!usePaging) {
       nodes = [];

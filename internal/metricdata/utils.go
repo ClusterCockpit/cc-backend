@@ -64,6 +64,7 @@ func (tmdr *TestMetricDataRepository) LoadNodeData(
 
 func (tmdr *TestMetricDataRepository) LoadNodeListData(
 	cluster, subCluster, nodeFilter string,
+	preFiltered []string,
 	metrics []string,
 	scopes []schema.MetricScope,
 	resolution int,

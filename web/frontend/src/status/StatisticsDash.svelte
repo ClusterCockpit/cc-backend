@@ -21,7 +21,6 @@
     getContextClient,
   } from "@urql/svelte";
   import {
-    init,
     convert2uplot,
   } from "../generic/utils.js";
   import PlotGrid from "../generic/PlotGrid.svelte";
@@ -35,7 +34,6 @@
   } = $props();
 
   /* Const Init */
-  const { query: initq } = init();
   const ccconfig = getContext("cc-config");
   const client = getContextClient();
 
@@ -101,25 +99,18 @@
 </Row>
 
 <Row cols={1} class="text-center mt-3">
-  <Col>
-    {#if $initq.fetching || $metricStatusQuery.fetching}
-      <Spinner />
-    {:else if $initq.error}
-      <Card body color="danger">{$initq.error.message}</Card>
-    {:else}
-      <!-- ... -->
-    {/if}
-  </Col>
-</Row>
-{#if $metricStatusQuery.error}
-  <Row cols={1}>
+  {#if $metricStatusQuery.fetching}
     <Col>
+      <Spinner />
+    </Col>
+  {:else if $metricStatusQuery.error}
+    <Col>  
       <Card body color="danger">{$metricStatusQuery.error.message}</Card>
     </Col>
-  </Row>
-{/if}
+  {/if}
+</Row>
 
-{#if $initq.data && $metricStatusQuery.data}
+{#if $metricStatusQuery.data}
   <!-- Selectable Stats as Histograms : Average Values of Running Jobs -->
   {#if selectedHistograms}
     <!-- Note: Ignore '#snippet' Error in IDE -->
@@ -132,6 +123,7 @@
         ylabel="Number of Jobs"
         yunit="Jobs"
         usesBins
+        enableFlip
       />
     {/snippet}
     
