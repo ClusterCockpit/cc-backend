@@ -1423,7 +1423,7 @@ const docTemplate = `{
                         "deadline",
                         "failed",
                         "node_fail",
-                        "out-of-memory",
+                        "out_of_memory",
                         "pending",
                         "preempted",
                         "running",

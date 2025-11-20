@@ -14,7 +14,7 @@ CREATE TABLE "job_cache" (
     job_state VARCHAR(255) NOT NULL
     CHECK (job_state IN (
         'boot_fail', 'cancelled', 'completed', 'deadline',
-        'failed', 'node_fail', 'out-of-memory', 'pending',
+        'failed', 'node_fail', 'out_of_memory', 'pending',
         'preempted', 'running', 'suspended', 'timeout'
     )),
     meta_data TEXT,          -- JSON
@@ -49,7 +49,7 @@ CREATE TABLE "job_new" (
     job_state TEXT NOT NULL
     CHECK (job_state IN (
         'boot_fail', 'cancelled', 'completed', 'deadline',
-        'failed', 'node_fail', 'out-of-memory', 'pending',
+        'failed', 'node_fail', 'out_of_memory', 'pending',
         'preempted', 'running', 'suspended', 'timeout'
     )),
     meta_data TEXT,          -- JSON
