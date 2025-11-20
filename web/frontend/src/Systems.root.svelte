@@ -157,7 +157,7 @@
 
 <!-- ROW1: Tools-->
 <Row cols={{ xs: 2, lg: !displayNodeOverview ? (resampleConfig ? 6 : 5) : 5 }} class="mb-3">
-  {#if $initq.data}
+  {#if $initq?.data}
     <!-- List Metric Select Col-->
     {#if !displayNodeOverview}
       <Col>

@@ -9,13 +9,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/memorystore"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
@@ -678,84 +675,20 @@ func (ccms *CCMetricStoreInternal) LoadNodeData(
 
 // Used for Systems-View Node-List
 func (ccms *CCMetricStoreInternal) LoadNodeListData(
-	cluster, subCluster, nodeFilter string,
-	preFiltered []string,
+	cluster, subCluster string,
+	nodes []string,
 	metrics []string,
 	scopes []schema.MetricScope,
 	resolution int,
 	from, to time.Time,
-	page *model.PageRequest,
 	ctx context.Context,
-) (map[string]schema.JobData, int, bool, error) {
-	// 0) Init additional vars
-	var totalNodes int = 0
-	var hasNextPage bool = false
+) (map[string]schema.JobData, error) {
 
-	// 1) Get list of all nodes
-	var nodes []string
-	if subCluster != "" {
-		scNodes := archive.NodeLists[cluster][subCluster]
-		nodes = scNodes.PrintList()
-	} else {
-		subClusterNodeLists := archive.NodeLists[cluster]
-		for _, nodeList := range subClusterNodeLists {
-			nodes = append(nodes, nodeList.PrintList()...)
-		}
-	}
-
-	// 2.1) Filter nodes by name
-	if nodeFilter != "" {
-		filteredNodesByName := []string{}
-		for _, node := range nodes {
-			if strings.Contains(node, nodeFilter) {
-				filteredNodesByName = append(filteredNodesByName, node)
-			}
-		}
-		nodes = filteredNodesByName
-	}
-
-	// 2.2) Filter nodes by state using prefiltered match array
-	if len(preFiltered) > 0 {
-		filteredNodesByState := []string{}
-		if preFiltered[0] == "exclude" { // Backwards: PreFiltered contains all Nodes in DB > Return Missing Nodes
-			for _, node := range nodes {
-				if !slices.Contains(preFiltered, node) {
-					filteredNodesByState = append(filteredNodesByState, node)
-				}
-			}
-		} else { // Forwards: Prefiltered contains specific nodeState > Return Matches
-			for _, node := range nodes {
-				if slices.Contains(preFiltered, node) {
-					filteredNodesByState = append(filteredNodesByState, node)
-				}
-			}
-		}
-		nodes = filteredNodesByState
-	}
-
-	// 2.3) Count total nodes && Sort nodes -> Sorting invalidated after return ...
-	totalNodes = len(nodes)
-	sort.Strings(nodes)
-
-	// 3) Apply paging
-	if len(nodes) > page.ItemsPerPage {
-		start := (page.Page - 1) * page.ItemsPerPage
-		end := start + page.ItemsPerPage
-		if end >= len(nodes) {
-			end = len(nodes)
-			hasNextPage = false
-		} else {
-			hasNextPage = true
-		}
-		nodes = nodes[start:end]
-	}
-
-	// Note: Order of node data is not guaranteed after this point, but contents match page and filter criteria
-
+	// Note: Order of node data is not guaranteed after this point
 	queries, assignedScope, err := ccms.buildNodeQueries(cluster, subCluster, nodes, metrics, scopes, int64(resolution))
 	if err != nil {
 		cclog.Errorf("Error while building node queries for Cluster %s, SubCLuster %s, Metrics %v, Scopes %v: %s", cluster, subCluster, metrics, scopes, err.Error())
-		return nil, totalNodes, hasNextPage, err
+		return nil, err
 	}
 
 	req := memorystore.APIQueryRequest{
@@ -770,7 +703,7 @@ func (ccms *CCMetricStoreInternal) LoadNodeListData(
 	resBody, err := memorystore.FetchData(req)
 	if err != nil {
 		cclog.Errorf("Error while fetching data : %s", err.Error())
-		return nil, totalNodes, hasNextPage, err
+		return nil, err
 	}
 
 	var errors []string
@@ -850,10 +783,10 @@ func (ccms *CCMetricStoreInternal) LoadNodeListData(
 
 	if len(errors) != 0 {
 		/* Returns list of "partial errors" */
-		return data, totalNodes, hasNextPage, fmt.Errorf("METRICDATA/CCMS > Errors: %s", strings.Join(errors, ", "))
+		return data, fmt.Errorf("METRICDATA/CCMS > Errors: %s", strings.Join(errors, ", "))
 	}
 
-	return data, totalNodes, hasNextPage, nil
+	return data, nil
 }
 
 func (ccms *CCMetricStoreInternal) buildNodeQueries(

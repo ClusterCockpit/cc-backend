@@ -382,7 +382,7 @@ func (r *queryResolver) Node(ctx context.Context, id string) (*schema.Node, erro
 // Nodes is the resolver for the nodes field.
 func (r *queryResolver) Nodes(ctx context.Context, filter []*model.NodeFilter, order *model.OrderByInput) (*model.NodeStateResultList, error) {
 	repo := repository.GetNodeRepository()
-	nodes, err := repo.QueryNodes(ctx, filter, order)
+	nodes, err := repo.QueryNodes(ctx, filter, nil, order) // Ignore Paging, Order Unused
 	count := len(nodes)
 	return &model.NodeStateResultList{Items: nodes, Count: &count}, err
 }
@@ -810,50 +810,134 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 		}
 	}
 
-	// Note: This Prefilter Logic Can Be Used To Completely Switch Node Source Of Truth To SQLite DB
-	// Adapt and extend filters/paging/sorting in QueryNodes Function to return []string array of hostnames, input array to LoadNodeListData
-	// LoadNodeListData, instead of building queried nodes from topoplogy anew, directly will use QueryNodes hostname array
-	// Caveat: "notindb" state will not be resolvable anymore by default, or needs reverse lookup by dedicated comparison to topology data after all
-	preFiltered := make([]string, 0)
-	stateMap := make(map[string]string)
-	if stateFilter != "all" {
-		nodeRepo := repository.GetNodeRepository()
-		stateQuery := make([]*model.NodeFilter, 0)
-		// Required Filters
-		stateQuery = append(stateQuery, &model.NodeFilter{Cluster: &model.StringInput{Eq: &cluster}})
-		if subCluster != "" {
-			stateQuery = append(stateQuery, &model.NodeFilter{Subcluster: &model.StringInput{Eq: &subCluster}})
-		}
+	// Build Filters
+	queryFilters := make([]*model.NodeFilter, 0)
+	if cluster != "" {
+		queryFilters = append(queryFilters, &model.NodeFilter{Cluster: &model.StringInput{Eq: &cluster}})
+	}
+	if subCluster != "" {
+		queryFilters = append(queryFilters, &model.NodeFilter{Subcluster: &model.StringInput{Eq: &subCluster}})
+	}
+	if nodeFilter != "" && stateFilter != "notindb" {
+		queryFilters = append(queryFilters, &model.NodeFilter{Hostname: &model.StringInput{Contains: &nodeFilter}})
+	}
+	if stateFilter != "all" && stateFilter != "notindb" {
+		var queryState schema.SchedulerState = schema.SchedulerState(stateFilter)
+		queryFilters = append(queryFilters, &model.NodeFilter{SchedulerState: &queryState})
+	}
+	// if healthFilter != "all" {
+	// 	filters = append(filters, &model.NodeFilter{HealthState: &healthFilter})
+	// }
 
-		if stateFilter == "notindb" {
-			// Backward Filtering: Add Keyword, No Additional FIlters: Returns All Nodes For Cluster (and SubCluster)
-			preFiltered = append(preFiltered, "exclude")
-		} else {
-			// Workaround: If no nodes match, we need at least one element for trigger in LoadNodeListData
-			preFiltered = append(preFiltered, stateFilter)
-			// Forward Filtering: Match Only selected stateFilter
-			var queryState schema.SchedulerState = schema.SchedulerState(stateFilter)
-			stateQuery = append(stateQuery, &model.NodeFilter{SchedulerState: &queryState})
-		}
-
-		stateNodes, serr := nodeRepo.QueryNodes(ctx, stateQuery, &model.OrderByInput{}) // Order not Used
-		if serr != nil {
-			cclog.Warn("error while loading node database data (Resolver.NodeMetricsList)")
-			return nil, serr
-		}
-
-		for _, node := range stateNodes {
-			preFiltered = append(preFiltered, node.Hostname)
-			stateMap[node.Hostname] = string(node.NodeState)
-		}
+	// Special Case: Disable Paging for missing nodes filter, save IPP for later
+	var backupItems int
+	if stateFilter == "notindb" {
+		backupItems = page.ItemsPerPage
+		page.ItemsPerPage = -1
 	}
 
-	data, totalNodes, hasNextPage, err := metricDataDispatcher.LoadNodeListData(cluster, subCluster, nodeFilter, preFiltered, metrics, scopes, *resolution, from, to, page, ctx)
+	// Query Nodes From DB
+	nodeRepo := repository.GetNodeRepository()
+	rawNodes, serr := nodeRepo.QueryNodes(ctx, queryFilters, page, nil) // Order not Used
+	if serr != nil {
+		cclog.Warn("error while loading node database data (Resolver.NodeMetricsList)")
+		return nil, serr
+	}
+
+	// Intermediate Node Result Info
+	nodes := make([]string, 0)
+	stateMap := make(map[string]string)
+	for _, node := range rawNodes {
+		nodes = append(nodes, node.Hostname)
+		stateMap[node.Hostname] = string(node.NodeState)
+	}
+
+	// Setup Vars
+	var countNodes int
+	var cerr error
+	var hasNextPage bool
+
+	// Special Case: Find Nodes not in DB node table but in metricStore only
+	if stateFilter == "notindb" {
+		// Reapply Original Paging
+		page.ItemsPerPage = backupItems
+		// Get Nodes From Topology
+		var topoNodes []string
+		if subCluster != "" {
+			scNodes := archive.NodeLists[cluster][subCluster]
+			topoNodes = scNodes.PrintList()
+		} else {
+			subClusterNodeLists := archive.NodeLists[cluster]
+			for _, nodeList := range subClusterNodeLists {
+				topoNodes = append(topoNodes, nodeList.PrintList()...)
+			}
+		}
+		// Compare to all nodes from cluster/subcluster in DB
+		var missingNodes []string
+		for _, scanNode := range topoNodes {
+			if !slices.Contains(nodes, scanNode) {
+				missingNodes = append(missingNodes, scanNode)
+			}
+		}
+		// Filter nodes by name
+		if nodeFilter != "" {
+			filteredNodesByName := []string{}
+			for _, missingNode := range missingNodes {
+				if strings.Contains(missingNode, nodeFilter) {
+					filteredNodesByName = append(filteredNodesByName, missingNode)
+				}
+			}
+			missingNodes = filteredNodesByName
+		}
+		// Sort Missing Nodes Alphanumerically
+		slices.Sort(missingNodes)
+		// Total Missing
+		countNodes = len(missingNodes)
+		// Apply paging
+		if countNodes > page.ItemsPerPage {
+			start := (page.Page - 1) * page.ItemsPerPage
+			end := start + page.ItemsPerPage
+			if end > countNodes {
+				end = countNodes
+				hasNextPage = false
+			} else {
+				hasNextPage = true
+			}
+			nodes = missingNodes[start:end]
+		} else {
+			nodes = missingNodes
+		}
+
+	} else {
+		// DB Nodes: Count and Find Next Page
+		countNodes, cerr = nodeRepo.CountNodes(ctx, queryFilters)
+		if cerr != nil {
+			cclog.Warn("error while counting node database data (Resolver.NodeMetricsList)")
+			return nil, cerr
+		}
+
+		// Example Page 4 @ 10 IpP : Does item 41 exist?
+		// Minimal Page 41 @ 1 IpP : If len(result) is 1, Page 5 exists.
+		nextPage := &model.PageRequest{
+			ItemsPerPage: 1,
+			Page:         ((page.Page * page.ItemsPerPage) + 1),
+		}
+		nextNodes, err := nodeRepo.QueryNodes(ctx, queryFilters, nextPage, nil) // Order not Used
+		if err != nil {
+			cclog.Warn("Error while querying next nodes")
+			return nil, err
+		}
+		hasNextPage = len(nextNodes) == 1
+	}
+
+	// Load Metric Data For Specified Nodes Only
+	data, err := metricDataDispatcher.LoadNodeListData(cluster, subCluster, nodes, metrics, scopes, *resolution, from, to, ctx)
 	if err != nil {
 		cclog.Warn("error while loading node data (Resolver.NodeMetricsList")
 		return nil, err
 	}
 
+	// Build Result
 	nodeMetricsList := make([]*model.NodeMetrics, 0, len(data))
 	for hostname, metrics := range data {
 		host := &model.NodeMetrics{
@@ -879,9 +963,10 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 		nodeMetricsList = append(nodeMetricsList, host)
 	}
 
+	// Final Return
 	nodeMetricsListResult := &model.NodesResultList{
 		Items:       nodeMetricsList,
-		TotalNodes:  &totalNodes,
+		TotalNodes:  &countNodes,
 		HasNextPage: &hasNextPage,
 	}
 

@@ -15,6 +15,7 @@
 -->
 
 <script>
+  import { untrack } from "svelte";
   import { queryStore, gql, getContextClient, mutationStore } from "@urql/svelte";
   import { Row, Col, Card, Table, Spinner } from "@sveltestrap/sveltestrap";
   import { stickyHeader } from "../generic/utils.js";
@@ -137,7 +138,11 @@
   });
 
   $effect(() => {
-    handleNodes($nodesQuery?.data?.nodeMetricsList);
+    if ($nodesQuery?.data) {
+      untrack(() => {
+        handleNodes($nodesQuery?.data?.nodeMetricsList);
+      });
+    };
   });
 
   $effect(() => {
@@ -145,9 +150,9 @@
     from, to
     selectedMetrics, selectedResolution
     hostnameFilter, hoststateFilter
-    // Continous Scroll: Reset nodes and paging if parameters change: Existing entries will not match new selections
+    // Continous Scroll: Paging if parameters change: Existing entries will not match new selections
+    // Nodes Array Reset in HandleNodes func
     if (!usePaging) {
-      nodes = [];
       page = 1;
     }
   });
@@ -155,17 +160,19 @@
   /* Functions */
   function handleNodes(data) {
     if (data) {
-      matchedNodes = data.totalNodes;
-      if (usePaging || nodes.length == 0) {
+      if (usePaging) {
+        // console.log('New Paging', $state.snapshot(paging))
         nodes = [...data.items].sort((a, b) => a.host.localeCompare(b.host));
       } else {
-        // Workaround to ignore secondary store triggers (reason tbd)
-        const oldNodes = $state.snapshot(nodes)
-        const newNodes = [...data.items].map((d) => d.host)
-        if (!oldNodes.some((n) => newNodes.includes(n.host))) {
-          nodes = nodes.concat([...data.items].sort((a, b) => a.host.localeCompare(b.host)))
-        };
-      };
+        if ($state.snapshot(page) == 1) {
+          // console.log('Page 1 Reset', [...data.items])
+          nodes = [...data.items].sort((a, b) => a.host.localeCompare(b.host));
+        } else {
+          // console.log('Add Nodes', $state.snapshot(nodes), [...data.items])
+          nodes = nodes.concat([...data.items])
+        }
+      }
+      matchedNodes = data.totalNodes;
     };
   };
 

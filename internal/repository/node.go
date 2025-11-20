@@ -274,11 +274,12 @@ func (r *NodeRepository) DeleteNode(id int64) error {
 func (r *NodeRepository) QueryNodes(
 	ctx context.Context,
 	filters []*model.NodeFilter,
+	page *model.PageRequest,
 	order *model.OrderByInput, // Currently unused!
 ) ([]*schema.Node, error) {
+
 	query, qerr := AccessCheck(ctx,
-		sq.Select("hostname", "cluster", "subcluster", "node_state",
-			"health_state", "MAX(time_stamp) as time").
+		sq.Select("hostname", "cluster", "subcluster", "node_state", "health_state", "MAX(time_stamp) as time").
 			From("node").
 			Join("node_state ON node_state.node_id = node.id"))
 	if qerr != nil {
@@ -286,19 +287,19 @@ func (r *NodeRepository) QueryNodes(
 	}
 
 	for _, f := range filters {
-		if f.Hostname != nil {
-			query = buildStringCondition("hostname", f.Hostname, query)
-		}
 		if f.Cluster != nil {
 			query = buildStringCondition("cluster", f.Cluster, query)
 		}
 		if f.Subcluster != nil {
 			query = buildStringCondition("subcluster", f.Subcluster, query)
 		}
+		if f.Hostname != nil {
+			query = buildStringCondition("hostname", f.Hostname, query)
+		}
 		if f.SchedulerState != nil {
 			query = query.Where("node_state = ?", f.SchedulerState)
 			// Requires Additional time_stamp Filter: Else the last (past!) time_stamp with queried state will be returned
-			now := time.Now().Unix()
+			now := 1760097536 // time.Now().Unix()
 			query = query.Where(sq.Gt{"time_stamp": (now - 60)})
 		}
 		if f.HealthState != nil {
@@ -309,9 +310,12 @@ func (r *NodeRepository) QueryNodes(
 		}
 	}
 
-	// Add Grouping and ORder after filters
-	query = query.GroupBy("node_id").
-		OrderBy("hostname ASC")
+	query = query.GroupBy("node_id").OrderBy("hostname ASC")
+
+	if page != nil && page.ItemsPerPage != -1 {
+		limit := uint64(page.ItemsPerPage)
+		query = query.Offset((uint64(page.Page) - 1) * limit).Limit(limit)
+	}
 
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
@@ -320,7 +324,7 @@ func (r *NodeRepository) QueryNodes(
 		return nil, err
 	}
 
-	nodes := make([]*schema.Node, 0, 50)
+	nodes := make([]*schema.Node, 0)
 	for rows.Next() {
 		node := schema.Node{}
 		var timestamp int
@@ -334,6 +338,67 @@ func (r *NodeRepository) QueryNodes(
 	}
 
 	return nodes, nil
+}
+
+// CountNodes returns the total matched nodes based on a node filter. It always operates
+// on the last state (largest timestamp).
+func (r *NodeRepository) CountNodes(
+	ctx context.Context,
+	filters []*model.NodeFilter,
+) (int, error) {
+
+	query, qerr := AccessCheck(ctx,
+		sq.Select("time_stamp", "count(*) as countRes").
+			From("node").
+			Join("node_state ON node_state.node_id = node.id"))
+	if qerr != nil {
+		return 0, qerr
+	}
+
+	for _, f := range filters {
+		if f.Cluster != nil {
+			query = buildStringCondition("cluster", f.Cluster, query)
+		}
+		if f.Subcluster != nil {
+			query = buildStringCondition("subcluster", f.Subcluster, query)
+		}
+		if f.Hostname != nil {
+			query = buildStringCondition("hostname", f.Hostname, query)
+		}
+		if f.SchedulerState != nil {
+			query = query.Where("node_state = ?", f.SchedulerState)
+			// Requires Additional time_stamp Filter: Else the last (past!) time_stamp with queried state will be returned
+			now := 1760097536 // time.Now().Unix()
+			query = query.Where(sq.Gt{"time_stamp": (now - 60)})
+		}
+		if f.HealthState != nil {
+			query = query.Where("health_state = ?", f.HealthState)
+			// Requires Additional time_stamp Filter: Else the last (past!) time_stamp with queried state will be returned
+			now := time.Now().Unix()
+			query = query.Where(sq.Gt{"time_stamp": (now - 60)})
+		}
+	}
+
+	query = query.GroupBy("time_stamp").OrderBy("time_stamp DESC").Limit(1)
+
+	rows, err := query.RunWith(r.stmtCache).Query()
+	if err != nil {
+		queryString, queryVars, _ := query.ToSql()
+		cclog.Errorf("Error while running query '%s' %v: %v", queryString, queryVars, err)
+		return 0, err
+	}
+
+	var totalNodes int
+	for rows.Next() {
+		var timestamp int
+		if err := rows.Scan(&timestamp, &totalNodes); err != nil {
+			rows.Close()
+			cclog.Warnf("Error while scanning rows (CountNodes) at time '%d'", timestamp)
+			return 0, err
+		}
+	}
+
+	return totalNodes, nil
 }
 
 func (r *NodeRepository) ListNodes(cluster string) ([]*schema.Node, error) {
