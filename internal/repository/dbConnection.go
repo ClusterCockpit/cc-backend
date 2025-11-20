@@ -37,13 +37,7 @@ type DatabaseOptions struct {
 
 func setupSqlite(db *sql.DB) (err error) {
 	pragmas := []string{
-		// "journal_mode = WAL",
-		// "busy_timeout = 5000",
-		// "synchronous = NORMAL",
-		// "cache_size = 1000000000", // 1GB
-		// "foreign_keys = true",
 		"temp_store = memory",
-		// "mmap_size = 3000000000",
 	}
 
 	for _, pragma := range pragmas {
@@ -63,10 +57,10 @@ func Connect(driver string, db string) {
 	dbConnOnce.Do(func() {
 		opts := DatabaseOptions{
 			URL:                   db,
-			MaxOpenConnections:    4,
-			MaxIdleConnections:    4,
-			ConnectionMaxLifetime: time.Hour,
-			ConnectionMaxIdleTime: time.Hour,
+			MaxOpenConnections:    repoConfig.MaxOpenConnections,
+			MaxIdleConnections:    repoConfig.MaxIdleConnections,
+			ConnectionMaxLifetime: repoConfig.ConnectionMaxLifetime,
+			ConnectionMaxIdleTime: repoConfig.ConnectionMaxIdleTime,
 		}
 
 		switch driver {

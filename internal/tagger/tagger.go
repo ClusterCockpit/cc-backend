@@ -91,7 +91,7 @@ func (jt *JobTagger) JobStopCallback(job *schema.Job) {
 func RunTaggers() error {
 	newTagger()
 	r := repository.GetJobRepository()
-	jl, err := r.GetJobList()
+	jl, err := r.GetJobList(0, 0) // 0 limit means get all jobs (no pagination)
 	if err != nil {
 		cclog.Errorf("Error while getting job list %s", err)
 		return err

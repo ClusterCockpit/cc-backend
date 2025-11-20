@@ -5,84 +5,96 @@
 package repository
 
 import (
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"fmt"
+
 	"github.com/jmoiron/sqlx"
 )
 
+// Transaction wraps a database transaction for job-related operations.
 type Transaction struct {
-	tx   *sqlx.Tx
-	stmt *sqlx.NamedStmt
+	tx *sqlx.Tx
 }
 
+// TransactionInit begins a new transaction.
 func (r *JobRepository) TransactionInit() (*Transaction, error) {
-	var err error
-	t := new(Transaction)
-
-	t.tx, err = r.DB.Beginx()
+	tx, err := r.DB.Beginx()
 	if err != nil {
-		cclog.Warn("Error while bundling transactions")
-		return nil, err
+		return nil, fmt.Errorf("beginning transaction: %w", err)
 	}
-	return t, nil
+	return &Transaction{tx: tx}, nil
 }
 
-func (r *JobRepository) TransactionCommit(t *Transaction) error {
-	var err error
-	if t.tx != nil {
-		if err = t.tx.Commit(); err != nil {
-			cclog.Warn("Error while committing transactions")
-			return err
-		}
+// Commit commits the transaction.
+// After calling Commit, the transaction should not be used again.
+func (t *Transaction) Commit() error {
+	if t.tx == nil {
+		return fmt.Errorf("transaction already committed or rolled back")
 	}
-
-	t.tx, err = r.DB.Beginx()
+	err := t.tx.Commit()
+	t.tx = nil // Mark as completed
 	if err != nil {
-		cclog.Warn("Error while bundling transactions")
-		return err
+		return fmt.Errorf("committing transaction: %w", err)
 	}
-
 	return nil
 }
 
+// Rollback rolls back the transaction.
+// It's safe to call Rollback on an already committed or rolled back transaction.
+func (t *Transaction) Rollback() error {
+	if t.tx == nil {
+		return nil // Already committed/rolled back
+	}
+	err := t.tx.Rollback()
+	t.tx = nil // Mark as completed
+	if err != nil {
+		return fmt.Errorf("rolling back transaction: %w", err)
+	}
+	return nil
+}
+
+// TransactionEnd commits the transaction.
+// Deprecated: Use Commit() instead.
 func (r *JobRepository) TransactionEnd(t *Transaction) error {
-	if err := t.tx.Commit(); err != nil {
-		cclog.Warn("Error while committing SQL transactions")
-		return err
-	}
-	return nil
+	return t.Commit()
 }
 
+// TransactionAddNamed executes a named query within the transaction.
 func (r *JobRepository) TransactionAddNamed(
 	t *Transaction,
 	query string,
 	args ...interface{},
 ) (int64, error) {
+	if t.tx == nil {
+		return 0, fmt.Errorf("transaction is nil or already completed")
+	}
+
 	res, err := t.tx.NamedExec(query, args)
 	if err != nil {
-		cclog.Errorf("Named Exec failed: %v", err)
-		return 0, err
+		return 0, fmt.Errorf("named exec: %w", err)
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
-		cclog.Errorf("repository initDB(): %v", err)
-		return 0, err
+		return 0, fmt.Errorf("getting last insert id: %w", err)
 	}
 
 	return id, nil
 }
 
+// TransactionAdd executes a query within the transaction.
 func (r *JobRepository) TransactionAdd(t *Transaction, query string, args ...interface{}) (int64, error) {
+	if t.tx == nil {
+		return 0, fmt.Errorf("transaction is nil or already completed")
+	}
+
 	res, err := t.tx.Exec(query, args...)
 	if err != nil {
-		cclog.Errorf("TransactionAdd(), Exec() Error: %v", err)
-		return 0, err
+		return 0, fmt.Errorf("exec: %w", err)
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
-		cclog.Errorf("TransactionAdd(), LastInsertId() Error: %v", err)
-		return 0, err
+		return 0, fmt.Errorf("getting last insert id: %w", err)
 	}
 
 	return id, nil

@@ -43,7 +43,7 @@ func GetNodeRepository() *NodeRepository {
 			driver: db.Driver,
 
 			stmtCache: sq.NewStmtCache(db.DB),
-			cache:     lrucache.New(1024 * 1024),
+			cache:     lrucache.New(repoConfig.CacheSize),
 		}
 	})
 	return nodeRepoInstance
@@ -77,49 +77,12 @@ func (r *NodeRepository) FetchMetadata(hostname string, cluster string) (map[str
 	return MetaData, nil
 }
 
-//
-// func (r *NodeRepository) UpdateMetadata(node *schema.Node, key, val string) (err error) {
-// 	cachekey := fmt.Sprintf("metadata:%d", node.ID)
-// 	r.cache.Del(cachekey)
-// 	if node.MetaData == nil {
-// 		if _, err = r.FetchMetadata(node); err != nil {
-// 			cclog.Warnf("Error while fetching metadata for node, DB ID '%v'", node.ID)
-// 			return err
-// 		}
-// 	}
-//
-// 	if node.MetaData != nil {
-// 		cpy := make(map[string]string, len(node.MetaData)+1)
-// 		maps.Copy(cpy, node.MetaData)
-// 		cpy[key] = val
-// 		node.MetaData = cpy
-// 	} else {
-// 		node.MetaData = map[string]string{key: val}
-// 	}
-//
-// 	if node.RawMetaData, err = json.Marshal(node.MetaData); err != nil {
-// 		cclog.Warnf("Error while marshaling metadata for node, DB ID '%v'", node.ID)
-// 		return err
-// 	}
-//
-// 	if _, err = sq.Update("node").
-// 		Set("meta_data", node.RawMetaData).
-// 		Where("node.id = ?", node.ID).
-// 		RunWith(r.stmtCache).Exec(); err != nil {
-// 		cclog.Warnf("Error while updating metadata for node, DB ID '%v'", node.ID)
-// 		return err
-// 	}
-//
-// 	r.cache.Put(cachekey, node.MetaData, len(node.RawMetaData), 24*time.Hour)
-// 	return nil
-// }
-
 func (r *NodeRepository) GetNode(hostname string, cluster string, withMeta bool) (*schema.Node, error) {
 	node := &schema.Node{}
 	if err := sq.Select("node.hostname", "node.cluster", "node.subcluster", "node_state.node_state",
 		"node_state.health_state", "MAX(node_state.time_stamp) as time").
 		From("node_state").
-		Join("node ON nodes_state.node_id = node.id").
+		Join("node ON node_state.node_id = node.id").
 		Where("node.hostname = ?", hostname).
 		Where("node.cluster = ?", cluster).
 		GroupBy("node_state.node_id").
@@ -147,7 +110,7 @@ func (r *NodeRepository) GetNodeById(id int64, withMeta bool) (*schema.Node, err
 	if err := sq.Select("node.hostname", "node.cluster", "node.subcluster", "node_state.node_state",
 		"node_state.health_state", "MAX(node_state.time_stamp) as time").
 		From("node_state").
-		Join("node ON nodes_state.node_id = node.id").
+		Join("node ON node_state.node_id = node.id").
 		Where("node.id = ?", id).
 		GroupBy("node_state.node_id").
 		RunWith(r.DB).
@@ -278,7 +241,7 @@ func (r *NodeRepository) QueryNodes(
 		sq.Select("node.hostname", "node.cluster", "node.subcluster", "node_state.node_state",
 			"node_state.health_state", "MAX(node_state.time_stamp) as time").
 			From("node").
-			Join("node_state ON nodes_state.node_id = node.id"))
+			Join("node_state ON node_state.node_id = node.id"))
 	if qerr != nil {
 		return nil, qerr
 	}

@@ -31,8 +31,9 @@ const NamedJobInsert string = `INSERT INTO job (
 
 func (r *JobRepository) InsertJob(job *schema.Job) (int64, error) {
 	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
+
 	res, err := r.DB.NamedExec(NamedJobCacheInsert, job)
-	r.Mutex.Unlock()
 	if err != nil {
 		cclog.Warn("Error while NamedJobInsert")
 		return 0, err
@@ -57,12 +58,12 @@ func (r *JobRepository) SyncJobs() ([]*schema.Job, error) {
 		cclog.Errorf("Error while running query %v", err)
 		return nil, err
 	}
+	defer rows.Close()
 
 	jobs := make([]*schema.Job, 0, 50)
 	for rows.Next() {
 		job, err := scanJob(rows)
 		if err != nil {
-			rows.Close()
 			cclog.Warn("Error while scanning rows")
 			return nil, err
 		}
@@ -113,6 +114,10 @@ func (r *JobRepository) Stop(
 	state schema.JobState,
 	monitoringStatus int32,
 ) (err error) {
+	// Invalidate cache entries as job state is changing
+	r.cache.Del(fmt.Sprintf("metadata:%d", jobId))
+	r.cache.Del(fmt.Sprintf("energyFootprint:%d", jobId))
+
 	stmt := sq.Update("job").
 		Set("job_state", state).
 		Set("duration", duration).
@@ -129,11 +134,13 @@ func (r *JobRepository) StopCached(
 	state schema.JobState,
 	monitoringStatus int32,
 ) (err error) {
+	// Note: StopCached updates job_cache table, not the main job table
+	// Cache invalidation happens when job is synced to main table
 	stmt := sq.Update("job_cache").
 		Set("job_state", state).
 		Set("duration", duration).
 		Set("monitoring_status", monitoringStatus).
-		Where("job.id = ?", jobId)
+		Where("job_cache.id = ?", jobId)
 
 	_, err = stmt.RunWith(r.stmtCache).Exec()
 	return err
