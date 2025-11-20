@@ -2,6 +2,63 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
+// Package repository provides the data access layer for cc-backend using the repository pattern.
+//
+// The repository pattern abstracts database operations and provides a clean interface for
+// data access. Each major entity (Job, User, Node, Tag) has its own repository with CRUD
+// operations and specialized queries.
+//
+// # Database Connection
+//
+// Initialize the database connection before using any repository:
+//
+//	repository.Connect("sqlite3", "./var/job.db")
+//	// or for MySQL:
+//	repository.Connect("mysql", "user:password@tcp(localhost:3306)/dbname")
+//
+// # Configuration
+//
+// Optional: Configure repository settings before initialization:
+//
+//	repository.SetConfig(&repository.RepositoryConfig{
+//	    CacheSize: 2 * 1024 * 1024,     // 2MB cache
+//	    MaxOpenConnections: 8,           // Connection pool size
+//	    MinRunningJobDuration: 300,      // Filter threshold
+//	})
+//
+// If not configured, sensible defaults are used automatically.
+//
+// # Repositories
+//
+//   - JobRepository: Job lifecycle management and querying
+//   - UserRepository: User management and authentication
+//   - NodeRepository: Cluster node state tracking
+//   - Tags: Job tagging and categorization
+//
+// # Caching
+//
+// Repositories use LRU caching to improve performance. Cache keys are constructed
+// as "type:id" (e.g., "metadata:123"). Cache is automatically invalidated on
+// mutations to maintain consistency.
+//
+// # Transaction Support
+//
+// For batch operations, use transactions:
+//
+//	t, err := jobRepo.TransactionInit()
+//	if err != nil {
+//	    return err
+//	}
+//	defer t.Rollback() // Rollback if not committed
+//
+//	// Perform operations...
+//	jobRepo.TransactionAdd(t, query, args...)
+//
+//	// Commit when done
+//	if err := t.Commit(); err != nil {
+//	    return err
+//	}
 package repository
 
 import (

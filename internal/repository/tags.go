@@ -5,6 +5,7 @@
 package repository
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -14,65 +15,32 @@ import (
 	sq "github.com/Masterminds/squirrel"
 )
 
-// Add the tag with id `tagId` to the job with the database id `jobId`.
+// AddTag adds the tag with id `tagId` to the job with the database id `jobId`.
+// Requires user authentication for security checks.
 func (r *JobRepository) AddTag(user *schema.User, job int64, tag int64) ([]*schema.Tag, error) {
 	j, err := r.FindByIdWithUser(user, job)
 	if err != nil {
-		cclog.Warn("Error while finding job by id")
+		cclog.Warnf("Error finding job %d for user %s: %v", job, user.Username, err)
 		return nil, err
 	}
 
-	q := sq.Insert("jobtag").Columns("job_id", "tag_id").Values(job, tag)
-
-	if _, err := q.RunWith(r.stmtCache).Exec(); err != nil {
-		s, _, _ := q.ToSql()
-		cclog.Errorf("Error adding tag with %s: %v", s, err)
-		return nil, err
-	}
-
-	tags, err := r.GetTags(user, &job)
-	if err != nil {
-		cclog.Warn("Error while getting tags for job")
-		return nil, err
-	}
-
-	archiveTags, err := r.getArchiveTags(&job)
-	if err != nil {
-		cclog.Warn("Error while getting tags for job")
-		return nil, err
-	}
-
-	return tags, archive.UpdateTags(j, archiveTags)
+	return r.addJobTag(job, tag, j, func() ([]*schema.Tag, error) {
+		return r.GetTags(user, &job)
+	})
 }
 
+// AddTagDirect adds a tag without user security checks.
+// Use only for internal/admin operations.
 func (r *JobRepository) AddTagDirect(job int64, tag int64) ([]*schema.Tag, error) {
 	j, err := r.FindByIdDirect(job)
 	if err != nil {
-		cclog.Warn("Error while finding job by id")
+		cclog.Warnf("Error finding job %d: %v", job, err)
 		return nil, err
 	}
 
-	q := sq.Insert("jobtag").Columns("job_id", "tag_id").Values(job, tag)
-
-	if _, err := q.RunWith(r.stmtCache).Exec(); err != nil {
-		s, _, _ := q.ToSql()
-		cclog.Errorf("Error adding tag with %s: %v", s, err)
-		return nil, err
-	}
-
-	tags, err := r.GetTagsDirect(&job)
-	if err != nil {
-		cclog.Warn("Error while getting tags for job")
-		return nil, err
-	}
-
-	archiveTags, err := r.getArchiveTags(&job)
-	if err != nil {
-		cclog.Warn("Error while getting tags for job")
-		return nil, err
-	}
-
-	return tags, archive.UpdateTags(j, archiveTags)
+	return r.addJobTag(job, tag, j, func() ([]*schema.Tag, error) {
+		return r.GetTagsDirect(&job)
+	})
 }
 
 // Removes a tag from a job by tag id.
@@ -260,15 +228,18 @@ func (r *JobRepository) CountTags(user *schema.User) (tags []schema.Tag, counts 
 		LeftJoin("jobtag jt ON t.id = jt.tag_id").
 		GroupBy("t.tag_name")
 
-	// Handle Scope Filtering
-	scopeList := "\"global\""
+	// Build scope list for filtering
+	var scopeBuilder strings.Builder
+	scopeBuilder.WriteString(`"global"`)
 	if user != nil {
-		scopeList += ",\"" + user.Username + "\""
+		scopeBuilder.WriteString(`,"`)
+		scopeBuilder.WriteString(user.Username)
+		scopeBuilder.WriteString(`"`)
+		if user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport}) {
+			scopeBuilder.WriteString(`,"admin"`)
+		}
 	}
-	if user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport}) {
-		scopeList += ",\"admin\""
-	}
-	q = q.Where("t.tag_scope IN (" + scopeList + ")")
+	q = q.Where("t.tag_scope IN (" + scopeBuilder.String() + ")")
 
 	// Handle Job Ownership
 	if user != nil && user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport}) { // ADMIN || SUPPORT: Count all jobs
@@ -300,6 +271,41 @@ func (r *JobRepository) CountTags(user *schema.User) (tags []schema.Tag, counts 
 	err = rows.Err()
 
 	return tags, counts, err
+}
+
+var (
+	ErrTagNotFound        = errors.New("the tag does not exist")
+	ErrJobNotOwned        = errors.New("user is not owner of job")
+	ErrTagNoAccess        = errors.New("user not permitted to use that tag")
+	ErrTagPrivateScope    = errors.New("tag is private to another user")
+	ErrTagAdminScope      = errors.New("tag requires admin privileges")
+	ErrTagsIncompatScopes = errors.New("combining admin and non-admin scoped tags not allowed")
+)
+
+// addJobTag is a helper function that inserts a job-tag association and updates the archive.
+// Returns the updated tag list for the job.
+func (r *JobRepository) addJobTag(jobId int64, tagId int64, job *schema.Job, getTags func() ([]*schema.Tag, error)) ([]*schema.Tag, error) {
+	q := sq.Insert("jobtag").Columns("job_id", "tag_id").Values(jobId, tagId)
+
+	if _, err := q.RunWith(r.stmtCache).Exec(); err != nil {
+		s, _, _ := q.ToSql()
+		cclog.Errorf("Error adding tag with %s: %v", s, err)
+		return nil, err
+	}
+
+	tags, err := getTags()
+	if err != nil {
+		cclog.Warnf("Error getting tags for job %d: %v", jobId, err)
+		return nil, err
+	}
+
+	archiveTags, err := r.getArchiveTags(&jobId)
+	if err != nil {
+		cclog.Warnf("Error getting archive tags for job %d: %v", jobId, err)
+		return nil, err
+	}
+
+	return tags, archive.UpdateTags(job, archiveTags)
 }
 
 // AddTagOrCreate adds the tag with the specified type and name to the job with the database id `jobId`.
