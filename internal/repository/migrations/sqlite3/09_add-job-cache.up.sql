@@ -225,3 +225,6 @@ CREATE INDEX IF NOT EXISTS jobs_energy_starttime ON job (energy, start_time);
 
 -- Optimize DB index usage
 PRAGMA optimize;
+
+-- Optimize DB size: https://sqlite.org/lang_vacuum.html 
+VACUUM;
