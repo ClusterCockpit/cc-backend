@@ -12,9 +12,6 @@ const plugins = [
         compilerOptions: {
             // Enable run-time checks when not in production
             dev: !production,
-            // Enable Svelte 5-specific features
-            hydratable: true, // If using server-side rendering
-            immutable: true, // Optimize updates for immutable data
             // As of sveltestrap 7.1.0, filtered warnings would appear for imported sveltestrap components
             warningFilter: (warning) => (
                 warning.code !== 'element_invalid_self_closing_tag' &&
