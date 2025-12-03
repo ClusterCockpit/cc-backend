@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 // Package main provides the entry point for the ClusterCockpit backend server.
 // This file contains bootstrap logic for initializing the environment,
 // creating default configuration files, and setting up the database.

@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 // Package main provides the entry point for the ClusterCockpit backend server.
 // It orchestrates initialization of all subsystems including configuration,
 // database, authentication, and the HTTP server.
@@ -266,7 +267,7 @@ func generateJWT(authHandle *auth.Authentication, username string) error {
 }
 
 func initSubsystems() error {
-	// Initialize archive
+	// Initialize job archive
 	archiveCfg := ccconf.GetPackageConfig("archive")
 	if archiveCfg == nil {
 		archiveCfg = json.RawMessage(defaultArchiveConfig)
@@ -399,7 +400,6 @@ func runServer(ctx context.Context) error {
 func run() error {
 	cliInit()
 
-	// Handle version flag
 	if flagVersion {
 		printVersion()
 		return nil

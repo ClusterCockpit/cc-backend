@@ -116,6 +116,11 @@ func (api *RestApi) MountMetricStoreApiRoutes(r *mux.Router) {
 	r.HandleFunc("/api/write", writeMetrics).Methods(http.MethodPost)
 	r.HandleFunc("/api/debug", debugMetrics).Methods(http.MethodGet)
 	r.HandleFunc("/api/healthcheck", metricsHealth).Methods(http.MethodGet)
+	// Same endpoints but with trailing slash
+	r.HandleFunc("/api/free/", freeMetrics).Methods(http.MethodPost)
+	r.HandleFunc("/api/write/", writeMetrics).Methods(http.MethodPost)
+	r.HandleFunc("/api/debug/", debugMetrics).Methods(http.MethodGet)
+	r.HandleFunc("/api/healthcheck/", metricsHealth).Methods(http.MethodGet)
 }
 
 func (api *RestApi) MountConfigApiRoutes(r *mux.Router) {
