@@ -238,6 +238,46 @@ func GetHandle() ArchiveBackend {
 	return ar
 }
 
+// InitBackend creates and initializes a new archive backend instance
+// without affecting the global singleton. This is useful for archive migration
+// tools that need to work with multiple archive backends simultaneously.
+//
+// Parameters:
+//   - rawConfig: JSON configuration for the archive backend
+//
+// Returns the initialized backend instance or an error if initialization fails.
+// Does not validate the configuration against the schema.
+func InitBackend(rawConfig json.RawMessage) (ArchiveBackend, error) {
+	var cfg struct {
+		Kind string `json:"kind"`
+	}
+
+	if err := json.Unmarshal(rawConfig, &cfg); err != nil {
+		cclog.Warn("Error while unmarshaling raw config json")
+		return nil, err
+	}
+
+	var backend ArchiveBackend
+	switch cfg.Kind {
+	case "file":
+		backend = &FsArchive{}
+	case "s3":
+		backend = &S3Archive{}
+	case "sqlite":
+		backend = &SqliteArchive{}
+	default:
+		return nil, fmt.Errorf("ARCHIVE/ARCHIVE > unknown archive backend '%s'", cfg.Kind)
+	}
+
+	_, err := backend.Init(rawConfig)
+	if err != nil {
+		return nil, fmt.Errorf("error while initializing archive backend: %w", err)
+	}
+
+	return backend, nil
+}
+
+
 // LoadAveragesFromArchive loads average metric values for a job from the archive.
 // This is a helper function that extracts average values from job statistics.
 //
