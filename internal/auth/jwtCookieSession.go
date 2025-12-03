@@ -7,14 +7,11 @@ package auth
 
 import (
 	"crypto/ed25519"
-	"database/sql"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"net/http"
 	"os"
 
-	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/golang-jwt/jwt/v5"
@@ -149,57 +146,16 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 	}
 
 	claims := token.Claims.(jwt.MapClaims)
-	sub, _ := claims["sub"].(string)
-
-	var roles []string
-	projects := make([]string, 0)
-
-	if jc.ValidateUser {
-		var err error
-		user, err = repository.GetUserRepository().GetUser(sub)
-		if err != nil && err != sql.ErrNoRows {
-			cclog.Errorf("Error while loading user '%v'", sub)
-		}
-
-		// Deny any logins for unknown usernames
-		if user == nil {
-			cclog.Warn("Could not find user from JWT in internal database.")
-			return nil, errors.New("unknown user")
-		}
-	} else {
-		var name string
-		if wrap, ok := claims["name"].(map[string]any); ok {
-			if vals, ok := wrap["values"].([]any); ok {
-				if len(vals) != 0 {
-					name = fmt.Sprintf("%v", vals[0])
-
-					for i := 1; i < len(vals); i++ {
-						name += fmt.Sprintf(" %v", vals[i])
-					}
-				}
-			}
-		}
-
-		// Extract roles from JWT (if present)
-		if rawroles, ok := claims["roles"].([]any); ok {
-			for _, rr := range rawroles {
-				if r, ok := rr.(string); ok {
-					roles = append(roles, r)
-				}
-			}
-		}
-		user = &schema.User{
-			Username:   sub,
-			Name:       name,
-			Roles:      roles,
-			Projects:   projects,
-			AuthType:   schema.AuthSession,
-			AuthSource: schema.AuthViaToken,
-		}
-
-		if jc.SyncUserOnLogin || jc.UpdateUserOnLogin {
-			handleTokenUser(user)
-		}
+	
+	// Use shared helper to get user from JWT claims
+	user, err = getUserFromJWT(claims, jc.ValidateUser, schema.AuthSession, schema.AuthViaToken)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Sync or update user if configured
+	if !jc.ValidateUser && (jc.SyncUserOnLogin || jc.UpdateUserOnLogin) {
+		handleTokenUser(user)
 	}
 
 	// (Ask browser to) Delete JWT cookie

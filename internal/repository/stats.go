@@ -114,16 +114,6 @@ func (r *JobRepository) buildStatsQuery(
 	return query
 }
 
-// func (r *JobRepository) getUserName(ctx context.Context, id string) string {
-// 	user := GetUserFromContext(ctx)
-// 	name, _ := r.FindColumnValue(user, id, "hpc_user", "name", "username", false)
-// 	if name != "" {
-// 		return name
-// 	} else {
-// 		return "-"
-// 	}
-// }
-
 func (r *JobRepository) getCastType() string {
 	var castType string
 

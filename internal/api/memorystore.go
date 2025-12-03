@@ -50,13 +50,6 @@ func freeMetrics(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// // TODO: lastCheckpoint might be modified by different go-routines.
-	// // Load it using the sync/atomic package?
-	// freeUpTo := lastCheckpoint.Unix()
-	// if to < freeUpTo {
-	// 	freeUpTo = to
-	// }
-
 	bodyDec := json.NewDecoder(r.Body)
 	var selectors [][]string
 	err = bodyDec.Decode(&selectors)

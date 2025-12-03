@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package api
 
 import (
@@ -10,11 +11,12 @@ import (
 	"net/http"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/gorilla/mux"
 )
 
-type ApiReturnedUser struct {
+type APIReturnedUser struct {
 	Username string   `json:"username"`
 	Name     string   `json:"name"`
 	Roles    []string `json:"roles"`
@@ -40,24 +42,42 @@ func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
 	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
-		http.Error(rw, "Only admins are allowed to fetch a list of users", http.StatusForbidden)
+		handleError(fmt.Errorf("only admins are allowed to fetch a list of users"), http.StatusForbidden, rw)
 		return
 	}
 
 	users, err := repository.GetUserRepository().ListUsers(r.URL.Query().Get("not-just-user") == "true")
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		handleError(fmt.Errorf("listing users failed: %w", err), http.StatusInternalServerError, rw)
 		return
 	}
 
-	json.NewEncoder(rw).Encode(users)
+	rw.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(rw).Encode(users); err != nil {
+		cclog.Errorf("Failed to encode users response: %v", err)
+	}
 }
 
+// updateUser godoc
+// @summary     Update user roles and projects
+// @tags User
+// @description Allows admins to add/remove roles and projects for a user
+// @produce     plain
+// @param       id          path   string  true  "Username"
+// @param       add-role    formData string false "Role to add"
+// @param       remove-role formData string false "Role to remove"
+// @param       add-project formData string false "Project to add"
+// @param       remove-project formData string false "Project to remove"
+// @success     200     {string} string "Success message"
+// @failure     403     {object} api.ErrorResponse "Forbidden"
+// @failure     422     {object} api.ErrorResponse "Unprocessable Entity"
+// @security    ApiKeyAuth
+// @router      /api/user/{id} [post]
 func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
 	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
-		http.Error(rw, "Only admins are allowed to update a user", http.StatusForbidden)
+		handleError(fmt.Errorf("only admins are allowed to update a user"), http.StatusForbidden, rw)
 		return
 	}
 
@@ -67,43 +87,70 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 	newproj := r.FormValue("add-project")
 	delproj := r.FormValue("remove-project")
 
-	// TODO: Handle anything but roles...
+	rw.Header().Set("Content-Type", "application/json")
+
+	// Handle role updates
 	if newrole != "" {
 		if err := repository.GetUserRepository().AddRole(r.Context(), mux.Vars(r)["id"], newrole); err != nil {
-			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+			handleError(fmt.Errorf("adding role failed: %w", err), http.StatusUnprocessableEntity, rw)
 			return
 		}
-		rw.Write([]byte("Add Role Success"))
+		if err := json.NewEncoder(rw).Encode(DefaultApiResponse{Message: "Add Role Success"}); err != nil {
+			cclog.Errorf("Failed to encode response: %v", err)
+		}
 	} else if delrole != "" {
 		if err := repository.GetUserRepository().RemoveRole(r.Context(), mux.Vars(r)["id"], delrole); err != nil {
-			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+			handleError(fmt.Errorf("removing role failed: %w", err), http.StatusUnprocessableEntity, rw)
 			return
 		}
-		rw.Write([]byte("Remove Role Success"))
+		if err := json.NewEncoder(rw).Encode(DefaultApiResponse{Message: "Remove Role Success"}); err != nil {
+			cclog.Errorf("Failed to encode response: %v", err)
+		}
 	} else if newproj != "" {
 		if err := repository.GetUserRepository().AddProject(r.Context(), mux.Vars(r)["id"], newproj); err != nil {
-			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+			handleError(fmt.Errorf("adding project failed: %w", err), http.StatusUnprocessableEntity, rw)
 			return
 		}
-		rw.Write([]byte("Add Project Success"))
+		if err := json.NewEncoder(rw).Encode(DefaultApiResponse{Message: "Add Project Success"}); err != nil {
+			cclog.Errorf("Failed to encode response: %v", err)
+		}
 	} else if delproj != "" {
 		if err := repository.GetUserRepository().RemoveProject(r.Context(), mux.Vars(r)["id"], delproj); err != nil {
-			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+			handleError(fmt.Errorf("removing project failed: %w", err), http.StatusUnprocessableEntity, rw)
 			return
 		}
-		rw.Write([]byte("Remove Project Success"))
+		if err := json.NewEncoder(rw).Encode(DefaultApiResponse{Message: "Remove Project Success"}); err != nil {
+			cclog.Errorf("Failed to encode response: %v", err)
+		}
 	} else {
-		http.Error(rw, "Not Add or Del [role|project]?", http.StatusInternalServerError)
+		handleError(fmt.Errorf("no operation specified: must provide add-role, remove-role, add-project, or remove-project"), http.StatusBadRequest, rw)
 	}
 }
 
+// createUser godoc
+// @summary     Create a new user
+// @tags User
+// @description Creates a new user with specified credentials and role
+// @produce     plain
+// @param       username formData string true  "Username"
+// @param       password formData string false "Password (not required for API users)"
+// @param       role     formData string true  "User role"
+// @param       name     formData string false "Full name"
+// @param       email    formData string false "Email address"
+// @param       project  formData string false "Project (required for managers)"
+// @success     200     {string} string "Success message"
+// @failure     400     {object} api.ErrorResponse "Bad Request"
+// @failure     403     {object} api.ErrorResponse "Forbidden"
+// @failure     422     {object} api.ErrorResponse "Unprocessable Entity"
+// @security    ApiKeyAuth
+// @router      /api/users/ [post]
 func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
 	rw.Header().Set("Content-Type", "text/plain")
 	me := repository.GetUserFromContext(r.Context())
 	if !me.HasRole(schema.RoleAdmin) {
-		http.Error(rw, "Only admins are allowed to create new users", http.StatusForbidden)
+		handleError(fmt.Errorf("only admins are allowed to create new users"), http.StatusForbidden, rw)
 		return
 	}
 
@@ -111,18 +158,22 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 		r.FormValue("password"), r.FormValue("role"), r.FormValue("name"),
 		r.FormValue("email"), r.FormValue("project")
 
+	// Validate username length
+	if len(username) == 0 || len(username) > 100 {
+		handleError(fmt.Errorf("username must be between 1 and 100 characters"), http.StatusBadRequest, rw)
+		return
+	}
+
 	if len(password) == 0 && role != schema.GetRoleString(schema.RoleApi) {
-		http.Error(rw, "Only API users are allowed to have a blank password (login will be impossible)", http.StatusBadRequest)
+		handleError(fmt.Errorf("only API users are allowed to have a blank password (login will be impossible)"), http.StatusBadRequest, rw)
 		return
 	}
 
 	if len(project) != 0 && role != schema.GetRoleString(schema.RoleManager) {
-		http.Error(rw, "only managers require a project (can be changed later)",
-			http.StatusBadRequest)
+		handleError(fmt.Errorf("only managers require a project (can be changed later)"), http.StatusBadRequest, rw)
 		return
 	} else if len(project) == 0 && role == schema.GetRoleString(schema.RoleManager) {
-		http.Error(rw, "managers require a project to manage (can be changed later)",
-			http.StatusBadRequest)
+		handleError(fmt.Errorf("managers require a project to manage (can be changed later)"), http.StatusBadRequest, rw)
 		return
 	}
 
@@ -134,24 +185,35 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 		Projects: []string{project},
 		Roles:    []string{role},
 	}); err != nil {
-		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+		handleError(fmt.Errorf("adding user failed: %w", err), http.StatusUnprocessableEntity, rw)
 		return
 	}
 
 	fmt.Fprintf(rw, "User %v successfully created!\n", username)
 }
 
+// deleteUser godoc
+// @summary     Delete a user
+// @tags User
+// @description Deletes a user from the system
+// @produce     plain
+// @param       username formData string true "Username to delete"
+// @success     200     {string} string "Success"
+// @failure     403     {object} api.ErrorResponse "Forbidden"
+// @failure     422     {object} api.ErrorResponse "Unprocessable Entity"
+// @security    ApiKeyAuth
+// @router      /api/users/ [delete]
 func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
 	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
-		http.Error(rw, "Only admins are allowed to delete a user", http.StatusForbidden)
+		handleError(fmt.Errorf("only admins are allowed to delete a user"), http.StatusForbidden, rw)
 		return
 	}
 
 	username := r.FormValue("username")
 	if err := repository.GetUserRepository().DelUser(username); err != nil {
-		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+		handleError(fmt.Errorf("deleting user failed: %w", err), http.StatusUnprocessableEntity, rw)
 		return
 	}
 

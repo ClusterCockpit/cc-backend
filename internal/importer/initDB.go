@@ -55,7 +55,18 @@ func InitDB() error {
 
 		// Bundle 100 inserts into one transaction for better performance
 		if i%100 == 0 {
-			r.TransactionCommit(t)
+			if i > 0 {
+				if err := t.Commit(); err != nil {
+					cclog.Errorf("transaction commit error: %v", err)
+					return err
+				}
+				// Start a new transaction for the next batch
+				t, err = r.TransactionInit()
+				if err != nil {
+					cclog.Errorf("transaction init error: %v", err)
+					return err
+				}
+			}
 			fmt.Printf("%d jobs inserted...\r", i)
 		}
 

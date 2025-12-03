@@ -81,14 +81,14 @@ func setup(t *testing.T) *repository.JobRepository {
 	tmpdir := t.TempDir()
 
 	jobarchive := filepath.Join(tmpdir, "job-archive")
-	if err := os.Mkdir(jobarchive, 0777); err != nil {
+	if err := os.Mkdir(jobarchive, 0o777); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(jobarchive, "version.txt"), []byte(fmt.Sprintf("%d", 2)), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(jobarchive, "version.txt"), fmt.Appendf(nil, "%d", 3), 0o666); err != nil {
 		t.Fatal(err)
 	}
 	fritzArchive := filepath.Join(tmpdir, "job-archive", "fritz")
-	if err := os.Mkdir(fritzArchive, 0777); err != nil {
+	if err := os.Mkdir(fritzArchive, 0o777); err != nil {
 		t.Fatal(err)
 	}
 	if err := copyFile(filepath.Join("testdata", "cluster-fritz.json"),
@@ -103,7 +103,7 @@ func setup(t *testing.T) *repository.JobRepository {
 	}
 
 	cfgFilePath := filepath.Join(tmpdir, "config.json")
-	if err := os.WriteFile(cfgFilePath, []byte(testconfig), 0666); err != nil {
+	if err := os.WriteFile(cfgFilePath, []byte(testconfig), 0o666); err != nil {
 		t.Fatal(err)
 	}
 

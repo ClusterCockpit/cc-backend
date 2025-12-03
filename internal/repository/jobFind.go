@@ -89,6 +89,7 @@ func (r *JobRepository) FindAll(
 		cclog.Error("Error while running query")
 		return nil, err
 	}
+	defer rows.Close()
 
 	jobs := make([]*schema.Job, 0, 10)
 	for rows.Next() {
@@ -103,25 +104,31 @@ func (r *JobRepository) FindAll(
 	return jobs, nil
 }
 
-// Get complete joblist only consisting of db ids.
+// GetJobList returns job IDs for non-running jobs.
 // This is useful to process large job counts and intended to be used
-// together with FindById to process jobs one by one
-func (r *JobRepository) GetJobList() ([]int64, error) {
+// together with FindById to process jobs one by one.
+// Use limit and offset for pagination. Use limit=0 to get all results (not recommended for large datasets).
+func (r *JobRepository) GetJobList(limit int, offset int) ([]int64, error) {
 	query := sq.Select("id").From("job").
 		Where("job.job_state != 'running'")
+
+	// Add pagination if limit is specified
+	if limit > 0 {
+		query = query.Limit(uint64(limit)).Offset(uint64(offset))
+	}
 
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
 		cclog.Error("Error while running query")
 		return nil, err
 	}
+	defer rows.Close()
 
 	jl := make([]int64, 0, 1000)
 	for rows.Next() {
 		var id int64
 		err := rows.Scan(&id)
 		if err != nil {
-			rows.Close()
 			cclog.Warn("Error while scanning rows")
 			return nil, err
 		}
@@ -256,6 +263,7 @@ func (r *JobRepository) FindConcurrentJobs(
 		cclog.Errorf("Error while running query: %v", err)
 		return nil, err
 	}
+	defer rows.Close()
 
 	items := make([]*model.JobLink, 0, 10)
 	queryString := fmt.Sprintf("cluster=%s", job.Cluster)
@@ -283,6 +291,7 @@ func (r *JobRepository) FindConcurrentJobs(
 		cclog.Errorf("Error while running query: %v", err)
 		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var id, jobId, startTime sql.NullInt64
