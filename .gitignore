@@ -28,3 +28,4 @@ test_ccms_write_api.sh
 dist/
 *.db
 .idea
+tools/archive-migration/archive-migration
