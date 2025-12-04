@@ -15,20 +15,26 @@ The `archive-migration` tool migrates job archives from old schema versions to t
 ## Schema Transformations
 
 ### Exclusive → Shared
+
 Converts the old `exclusive` integer field to the new `shared` string field:
+
 - `0` → `"multi_user"`
 - `1` → `"none"`
 - `2` → `"single_user"`
 
 ### Missing Fields
+
 Adds fields required by current schema:
+
 - `submitTime`: Defaults to `startTime` if missing
 - `energy`: Defaults to `0.0`
 - `requestedMemory`: Defaults to `0`
 - `shared`: Defaults to `"none"` if still missing after transformation
 
 ### Deprecated Fields
+
 Removes fields no longer in schema:
+
 - `mem_used_max`, `flops_any_avg`, `mem_bw_avg`
 - `load_avg`, `net_bw_avg`, `net_data_vol_total`
 - `file_bw_avg`, `file_data_vol_total`
@@ -36,17 +42,20 @@ Removes fields no longer in schema:
 ## Usage
 
 ### Build
+
 ```bash
-cd /Users/jan/prg/cc-backend/tools/archive-migration
+cd ./tools/archive-migration
 go build
 ```
 
 ### Dry Run (Preview Changes)
+
 ```bash
 ./archive-migration --archive /path/to/archive --dry-run
 ```
 
 ### Migrate Archive
+
 ```bash
 # IMPORTANT: Backup your archive first!
 cp -r /path/to/archive /path/to/archive-backup
@@ -106,6 +115,7 @@ cd ../archive-manager
 ### Migration Failures
 
 If individual jobs fail to migrate:
+
 - Check the error messages for specific files
 - Examine the failing `meta.json` files manually
 - Fix invalid JSON or unexpected field types
@@ -114,6 +124,7 @@ If individual jobs fail to migrate:
 ### Performance
 
 For large archives:
+
 - Increase `--workers` for more parallelism
 - Use `--loglevel warn` to reduce log output
 - Monitor disk I/O if migration is slow
@@ -121,6 +132,7 @@ For large archives:
 ## Technical Details
 
 The migration process:
+
 1. Walks archive directory recursively
 2. Finds all `meta.json` files
 3. Distributes jobs to worker pool
