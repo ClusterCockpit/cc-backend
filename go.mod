@@ -6,7 +6,7 @@ toolchain go1.24.1
 
 require (
 	github.com/99designs/gqlgen v0.17.81
-	github.com/ClusterCockpit/cc-lib v0.10.1
+	github.com/ClusterCockpit/cc-lib v0.10.2
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/aws/aws-sdk-go-v2 v1.39.6
 	github.com/aws/aws-sdk-go-v2/config v1.31.20
@@ -28,7 +28,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/linkedin/goavro/v2 v2.14.0
 	github.com/mattn/go-sqlite3 v1.14.24
-	github.com/nats-io/nats.go v1.46.1
+	github.com/nats-io/nats.go v1.47.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/common v0.66.1
 	github.com/qustavo/sqlhooks/v2 v2.1.0
@@ -39,7 +39,7 @@ require (
 	github.com/vektah/gqlparser/v2 v2.5.30
 	golang.org/x/crypto v0.43.0
 	golang.org/x/oauth2 v0.32.0
-	golang.org/x/time v0.13.0
+	golang.org/x/time v0.14.0
 )
 
 require (
@@ -90,7 +90,7 @@ require (
 	github.com/jonboulle/clockwork v0.5.0 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/klauspost/compress v1.18.1 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -116,7 +116,7 @@ require (
 	golang.org/x/mod v0.29.0 // indirect
 	golang.org/x/net v0.46.0 // indirect
 	golang.org/x/sync v0.17.0 // indirect
-	golang.org/x/sys v0.37.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.30.0 // indirect
 	golang.org/x/tools v0.38.0 // indirect
 	google.golang.org/protobuf v1.36.9 // indirect
