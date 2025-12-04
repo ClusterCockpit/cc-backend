@@ -71,6 +71,7 @@ func (la *LdapAuthenticator) CanLogin(
 			l, err := la.getLdapConnection(true)
 			if err != nil {
 				cclog.Error("LDAP connection error")
+				return nil, false
 			}
 			defer l.Close()
 
