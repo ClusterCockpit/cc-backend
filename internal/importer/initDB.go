@@ -74,6 +74,11 @@ func InitDB() error {
 	for jobContainer := range ar.Iter(false) {
 
 		jobMeta := jobContainer.Meta
+		if jobMeta == nil {
+			cclog.Warn("skipping job with nil metadata")
+			errorOccured++
+			continue
+		}
 
 		// Bundle 100 inserts into one transaction for better performance
 		if i%100 == 0 {
