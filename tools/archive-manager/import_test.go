@@ -103,6 +103,12 @@ func TestImportFileToFile(t *testing.T) {
 		t.Fatalf("Failed to create destination directory: %s", err.Error())
 	}
 
+	// Write version file
+	versionFile := filepath.Join(dstArchive, "version.txt")
+	if err := os.WriteFile(versionFile, []byte("3"), 0644); err != nil {
+		t.Fatalf("Failed to write version file: %s", err.Error())
+	}
+
 	// Initialize source backend
 	srcConfig := fmt.Sprintf(`{"kind":"file","path":"%s"}`, srcArchive)
 	srcBackend, err := archive.InitBackend(json.RawMessage(srcConfig))
