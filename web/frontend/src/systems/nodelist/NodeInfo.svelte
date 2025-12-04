@@ -13,6 +13,8 @@
   import { 
     Icon,
     Button,
+    Row,
+    Col,
     Card,
     CardHeader,
     CardBody,
@@ -30,6 +32,7 @@
     cluster,
     subCluster,
     hostname,
+    hoststate,
     dataHealth,
     nodeJobsData = null,
   } = $props();
@@ -39,6 +42,16 @@
   const healthWarn = !dataHealth.includes(true);
   // At least one non-returned selected metric: Metric config error?
   const metricWarn = dataHealth.includes(false);
+  // Node State Colors
+  const stateColors = {
+    allocated: 'success',
+    reserved: 'info',
+    idle: 'primary',
+    mixed: 'warning',
+    down: 'danger',
+    unknown: 'dark',
+    notindb: 'secondary'
+  }
 
   /* Derived */
   const userList = $derived(nodeJobsData
@@ -68,80 +81,72 @@
     </div>
   </CardHeader>
   <CardBody>
-    {#if healthWarn}
-      <InputGroup>
-        <InputGroupText>
-          <Icon name="exclamation-circle"/>
-        </InputGroupText>
-        <InputGroupText>
-          Status
-        </InputGroupText>
-        <Button color="danger" disabled>
-          Unhealthy
-        </Button>
-      </InputGroup>
-    {:else if metricWarn}
-      <InputGroup>
-        <InputGroupText>
-          <Icon name="info-circle"/>
-        </InputGroupText>
-        <InputGroupText>
-          Status
-        </InputGroupText>
-        <Button color="warning" disabled>
-          Missing Metric
-        </Button>
-      </InputGroup>
-    {:else if nodeJobsData.jobs.count == 1 && nodeJobsData.jobs.items[0].shared == "none"}
-      <InputGroup>
-        <InputGroupText>
-          <Icon name="circle-fill"/>
-        </InputGroupText>
-        <InputGroupText>
-          Status
-        </InputGroupText>
-        <Button color="success" disabled>
-          Exclusive
-        </Button>
-      </InputGroup>
-    {:else if nodeJobsData.jobs.count >= 1 && !(nodeJobsData.jobs.items[0].shared == "none")}
-      <InputGroup>
-        <InputGroupText>
-          <Icon name="circle-half"/>
-        </InputGroupText>
-        <InputGroupText>
-          Status
-        </InputGroupText>
-        <Button color="success" disabled>
-          Shared
-        </Button>
-      </InputGroup>
-    <!-- Fallback -->
-    {:else if nodeJobsData.jobs.count >= 1}
-      <InputGroup>
-        <InputGroupText>
-          <Icon name="circle-fill"/>
-        </InputGroupText>
-        <InputGroupText>
-          Status
-        </InputGroupText>
-        <Button color="success" disabled>
-          Allocated Jobs
-        </Button>
-      </InputGroup>
-    {:else}
-      <InputGroup>
-        <InputGroupText>
-          <Icon name="circle"/>
-        </InputGroupText>
-        <InputGroupText>
-          Status
-        </InputGroupText>
-        <Button color="secondary" disabled>
-          Idle
-        </Button>
-      </InputGroup>
-    {/if}
+    <Row cols={{xs: 1, lg: 2}}>
+      <Col class="mb-2 mb-lg-0">
+        <InputGroup size="sm">
+          {#if healthWarn}
+            <InputGroupText class="flex-grow-1 flex-lg-grow-0">
+              <Icon name="exclamation-circle" style="padding-right: 0.5rem;"/>
+              <span>Jobs</span>
+            </InputGroupText>
+            <Button class="flex-grow-1" color="danger" disabled>
+              No Metrics
+            </Button>
+          {:else if metricWarn}
+            <InputGroupText class="flex-grow-1 flex-lg-grow-0">
+              <Icon name="info-circle" style="padding-right: 0.5rem;"/>
+              <span>Jobs</span>
+            </InputGroupText>
+            <Button class="flex-grow-1" color="warning" disabled>
+              Missing Metric
+            </Button>
+          {:else if nodeJobsData.jobs.count == 1 && nodeJobsData.jobs.items[0].shared == "none"}
+            <InputGroupText class="flex-grow-1 flex-lg-grow-0">
+              <Icon name="circle-fill" style="padding-right: 0.5rem;"/>
+              <span>Jobs</span>
+            </InputGroupText>
+            <Button class="flex-grow-1" color="success" disabled>
+              Exclusive
+            </Button>
+          {:else if nodeJobsData.jobs.count >= 1 && !(nodeJobsData.jobs.items[0].shared == "none")}
+            <InputGroupText class="flex-grow-1 flex-lg-grow-0">
+              <Icon name="circle-half" style="padding-right: 0.5rem;"/>
+              <span>Jobs</span>
+            </InputGroupText>
+            <Button class="flex-grow-1" color="success" disabled>
+              Shared
+            </Button>
+          <!-- Fallback -->
+          {:else if nodeJobsData.jobs.count >= 1}
+            <InputGroupText class="flex-grow-1 flex-lg-grow-0">
+              <Icon name="circle-fill" style="padding-right: 0.5rem;"/>
+              <span>Jobs</span>
+            </InputGroupText>
+            <Button class="flex-grow-1" color="success" disabled>
+              Running
+            </Button>
+          {:else}
+            <InputGroupText class="flex-grow-1 flex-lg-grow-0">
+              <Icon name="circle" style="padding-right: 0.5rem;"/>
+              <span>Jobs</span>
+            </InputGroupText>
+            <Button class="flex-grow-1" color="secondary" disabled>
+              None
+            </Button>
+          {/if}
+        </InputGroup>
+      </Col>
+      <Col>
+        <InputGroup size="sm">
+          <InputGroupText class="flex-grow-1 flex-lg-grow-0">
+            State
+          </InputGroupText>
+          <Button class="flex-grow-1" color={stateColors[hoststate]} disabled>
+            {hoststate.charAt(0).toUpperCase() + hoststate.slice(1)}
+          </Button>
+        </InputGroup>
+      </Col>
+    </Row>
     <hr class="my-3"/>
     <!-- JOBS -->
     <InputGroup size="sm" class="justify-content-between mb-3">

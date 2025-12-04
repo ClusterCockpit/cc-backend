@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/memorystore"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
@@ -36,7 +35,7 @@ type MetricDataRepository interface {
 	LoadNodeData(cluster string, metrics, nodes []string, scopes []schema.MetricScope, from, to time.Time, ctx context.Context) (map[string]map[string][]*schema.JobMetric, error)
 
 	// Return a map of hosts to a map of metrics to a map of scopes for multiple nodes.
-	LoadNodeListData(cluster, subCluster, nodeFilter string, metrics []string, scopes []schema.MetricScope, resolution int, from, to time.Time, page *model.PageRequest, ctx context.Context) (map[string]schema.JobData, int, bool, error)
+	LoadNodeListData(cluster, subCluster string, nodes, metrics []string, scopes []schema.MetricScope, resolution int, from, to time.Time, ctx context.Context) (map[string]schema.JobData, error)
 }
 
 var metricDataRepos map[string]MetricDataRepository = map[string]MetricDataRepository{}

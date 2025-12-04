@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
@@ -332,17 +331,17 @@ func LoadNodeData(
 }
 
 func LoadNodeListData(
-	cluster, subCluster, nodeFilter string,
+	cluster, subCluster string,
+	nodes []string,
 	metrics []string,
 	scopes []schema.MetricScope,
 	resolution int,
 	from, to time.Time,
-	page *model.PageRequest,
 	ctx context.Context,
-) (map[string]schema.JobData, int, bool, error) {
+) (map[string]schema.JobData, error) {
 	repo, err := metricdata.GetMetricDataRepo(cluster)
 	if err != nil {
-		return nil, 0, false, fmt.Errorf("METRICDATA/METRICDATA > no metric data repository configured for '%s'", cluster)
+		return nil, fmt.Errorf("METRICDATA/METRICDATA > no metric data repository configured for '%s'", cluster)
 	}
 
 	if metrics == nil {
@@ -351,13 +350,13 @@ func LoadNodeListData(
 		}
 	}
 
-	data, totalNodes, hasNextPage, err := repo.LoadNodeListData(cluster, subCluster, nodeFilter, metrics, scopes, resolution, from, to, page, ctx)
+	data, err := repo.LoadNodeListData(cluster, subCluster, nodes, metrics, scopes, resolution, from, to, ctx)
 	if err != nil {
 		if len(data) != 0 {
 			cclog.Warnf("partial error: %s", err.Error())
 		} else {
 			cclog.Error("Error while loading node data from metric repository")
-			return nil, totalNodes, hasNextPage, err
+			return nil, err
 		}
 	}
 
@@ -375,8 +374,8 @@ func LoadNodeListData(
 	}
 
 	if data == nil {
-		return nil, totalNodes, hasNextPage, fmt.Errorf("METRICDATA/METRICDATA > the metric data repository for '%s' does not support this query", cluster)
+		return nil, fmt.Errorf("METRICDATA/METRICDATA > the metric data repository for '%s' does not support this query", cluster)
 	}
 
-	return data, totalNodes, hasNextPage, nil
+	return data, nil
 }

@@ -312,7 +312,11 @@ func (r *nodeResolver) ID(ctx context.Context, obj *schema.Node) (string, error)
 
 // SchedulerState is the resolver for the schedulerState field.
 func (r *nodeResolver) SchedulerState(ctx context.Context, obj *schema.Node) (schema.SchedulerState, error) {
-	panic(fmt.Errorf("not implemented: SchedulerState - schedulerState"))
+	if obj.NodeState != "" {
+		return obj.NodeState, nil
+	} else {
+		return "", fmt.Errorf("No SchedulerState (NodeState) on Object")
+	}
 }
 
 // HealthState is the resolver for the healthState field.
@@ -378,7 +382,7 @@ func (r *queryResolver) Node(ctx context.Context, id string) (*schema.Node, erro
 // Nodes is the resolver for the nodes field.
 func (r *queryResolver) Nodes(ctx context.Context, filter []*model.NodeFilter, order *model.OrderByInput) (*model.NodeStateResultList, error) {
 	repo := repository.GetNodeRepository()
-	nodes, err := repo.QueryNodes(ctx, filter, order)
+	nodes, err := repo.QueryNodes(ctx, filter, nil, order) // Ignore Paging, Order Unused
 	count := len(nodes)
 	return &model.NodeStateResultList{Items: nodes, Count: &count}, err
 }
@@ -387,13 +391,13 @@ func (r *queryResolver) Nodes(ctx context.Context, filter []*model.NodeFilter, o
 func (r *queryResolver) NodeStates(ctx context.Context, filter []*model.NodeFilter) ([]*model.NodeStates, error) {
 	repo := repository.GetNodeRepository()
 
-	stateCounts, serr := repo.CountNodeStates(ctx, filter)
+	stateCounts, serr := repo.CountStates(ctx, filter, "node_state")
 	if serr != nil {
 		cclog.Warnf("Error while counting nodeStates: %s", serr.Error())
 		return nil, serr
 	}
 
-	healthCounts, herr := repo.CountHealthStates(ctx, filter)
+	healthCounts, herr := repo.CountStates(ctx, filter, "health_state")
 	if herr != nil {
 		cclog.Warnf("Error while counting healthStates: %s", herr.Error())
 		return nil, herr
@@ -406,26 +410,28 @@ func (r *queryResolver) NodeStates(ctx context.Context, filter []*model.NodeFilt
 }
 
 // NodeStatesTimed is the resolver for the nodeStatesTimed field.
-func (r *queryResolver) NodeStatesTimed(ctx context.Context, filter []*model.NodeFilter) ([]*model.NodeStatesTimed, error) {
-	panic(fmt.Errorf("not implemented: NodeStatesTimed - NodeStatesTimed"))
-	// repo := repository.GetNodeRepository()
+func (r *queryResolver) NodeStatesTimed(ctx context.Context, filter []*model.NodeFilter, typeArg string) ([]*model.NodeStatesTimed, error) {
+	repo := repository.GetNodeRepository()
 
-	// stateCounts, serr := repo.CountNodeStates(ctx, filter)
-	// if serr != nil {
-	// 	cclog.Warnf("Error while counting nodeStates: %s", serr.Error())
-	// 	return nil, serr
-	// }
+	if typeArg == "node" {
+		stateCounts, serr := repo.CountStatesTimed(ctx, filter, "node_state")
+		if serr != nil {
+			cclog.Warnf("Error while counting nodeStates in time: %s", serr.Error())
+			return nil, serr
+		}
+		return stateCounts, nil
+	}
 
-	// healthCounts, herr := repo.CountHealthStates(ctx, filter)
-	// if herr != nil {
-	// 	cclog.Warnf("Error while counting healthStates: %s", herr.Error())
-	// 	return nil, herr
-	// }
+	if typeArg == "health" {
+		healthCounts, herr := repo.CountStatesTimed(ctx, filter, "health_state")
+		if herr != nil {
+			cclog.Warnf("Error while counting healthStates in time: %s", herr.Error())
+			return nil, herr
+		}
+		return healthCounts, nil
+	}
 
-	// allCounts := make([]*model.NodeStates, 0)
-	// allCounts = append(stateCounts, healthCounts...)
-
-	// return allCounts, nil
+	return nil, errors.New("Unknown Node State Query Type")
 }
 
 // Job is the resolver for the job field.
@@ -750,10 +756,14 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 		return nil, err
 	}
 
+	nodeRepo := repository.GetNodeRepository()
+	stateMap, _ := nodeRepo.MapNodes(cluster)
+
 	nodeMetrics := make([]*model.NodeMetrics, 0, len(data))
 	for hostname, metrics := range data {
 		host := &model.NodeMetrics{
 			Host:    hostname,
+			State:   stateMap[hostname],
 			Metrics: make([]*model.JobMetricWithName, 0, len(metrics)*len(scopes)),
 		}
 		host.SubCluster, err = archive.GetSubClusterByNode(cluster, hostname)
@@ -778,7 +788,7 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 }
 
 // NodeMetricsList is the resolver for the nodeMetricsList field.
-func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, subCluster string, nodeFilter string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time, page *model.PageRequest, resolution *int) (*model.NodesResultList, error) {
+func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, subCluster string, stateFilter string, nodeFilter string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time, page *model.PageRequest, resolution *int) (*model.NodesResultList, error) {
 	if resolution == nil { // Load from Config
 		if config.Keys.EnableResampling != nil {
 			defaultRes := slices.Max(config.Keys.EnableResampling.Resolutions)
@@ -800,16 +810,139 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 		}
 	}
 
-	data, totalNodes, hasNextPage, err := metricDataDispatcher.LoadNodeListData(cluster, subCluster, nodeFilter, metrics, scopes, *resolution, from, to, page, ctx)
+	// Build Filters
+	queryFilters := make([]*model.NodeFilter, 0)
+	if cluster != "" {
+		queryFilters = append(queryFilters, &model.NodeFilter{Cluster: &model.StringInput{Eq: &cluster}})
+	}
+	if subCluster != "" {
+		queryFilters = append(queryFilters, &model.NodeFilter{Subcluster: &model.StringInput{Eq: &subCluster}})
+	}
+	if nodeFilter != "" && stateFilter != "notindb" {
+		queryFilters = append(queryFilters, &model.NodeFilter{Hostname: &model.StringInput{Contains: &nodeFilter}})
+	}
+	if stateFilter != "all" && stateFilter != "notindb" {
+		var queryState schema.SchedulerState = schema.SchedulerState(stateFilter)
+		queryFilters = append(queryFilters, &model.NodeFilter{SchedulerState: &queryState})
+	}
+	// if healthFilter != "all" {
+	// 	filters = append(filters, &model.NodeFilter{HealthState: &healthFilter})
+	// }
+
+	// Special Case: Disable Paging for missing nodes filter, save IPP for later
+	var backupItems int
+	if stateFilter == "notindb" {
+		backupItems = page.ItemsPerPage
+		page.ItemsPerPage = -1
+	}
+
+	// Query Nodes From DB
+	nodeRepo := repository.GetNodeRepository()
+	rawNodes, serr := nodeRepo.QueryNodes(ctx, queryFilters, page, nil) // Order not Used
+	if serr != nil {
+		cclog.Warn("error while loading node database data (Resolver.NodeMetricsList)")
+		return nil, serr
+	}
+
+	// Intermediate Node Result Info
+	nodes := make([]string, 0)
+	stateMap := make(map[string]string)
+	for _, node := range rawNodes {
+		nodes = append(nodes, node.Hostname)
+		stateMap[node.Hostname] = string(node.NodeState)
+	}
+
+	// Setup Vars
+	var countNodes int
+	var cerr error
+	var hasNextPage bool
+
+	// Special Case: Find Nodes not in DB node table but in metricStore only
+	if stateFilter == "notindb" {
+		// Reapply Original Paging
+		page.ItemsPerPage = backupItems
+		// Get Nodes From Topology
+		var topoNodes []string
+		if subCluster != "" {
+			scNodes := archive.NodeLists[cluster][subCluster]
+			topoNodes = scNodes.PrintList()
+		} else {
+			subClusterNodeLists := archive.NodeLists[cluster]
+			for _, nodeList := range subClusterNodeLists {
+				topoNodes = append(topoNodes, nodeList.PrintList()...)
+			}
+		}
+		// Compare to all nodes from cluster/subcluster in DB
+		var missingNodes []string
+		for _, scanNode := range topoNodes {
+			if !slices.Contains(nodes, scanNode) {
+				missingNodes = append(missingNodes, scanNode)
+			}
+		}
+		// Filter nodes by name
+		if nodeFilter != "" {
+			filteredNodesByName := []string{}
+			for _, missingNode := range missingNodes {
+				if strings.Contains(missingNode, nodeFilter) {
+					filteredNodesByName = append(filteredNodesByName, missingNode)
+				}
+			}
+			missingNodes = filteredNodesByName
+		}
+		// Sort Missing Nodes Alphanumerically
+		slices.Sort(missingNodes)
+		// Total Missing
+		countNodes = len(missingNodes)
+		// Apply paging
+		if countNodes > page.ItemsPerPage {
+			start := (page.Page - 1) * page.ItemsPerPage
+			end := start + page.ItemsPerPage
+			if end > countNodes {
+				end = countNodes
+				hasNextPage = false
+			} else {
+				hasNextPage = true
+			}
+			nodes = missingNodes[start:end]
+		} else {
+			nodes = missingNodes
+		}
+
+	} else {
+		// DB Nodes: Count and Find Next Page
+		countNodes, cerr = nodeRepo.CountNodes(ctx, queryFilters)
+		if cerr != nil {
+			cclog.Warn("error while counting node database data (Resolver.NodeMetricsList)")
+			return nil, cerr
+		}
+
+		// Example Page 4 @ 10 IpP : Does item 41 exist?
+		// Minimal Page 41 @ 1 IpP : If len(result) is 1, Page 5 exists.
+		nextPage := &model.PageRequest{
+			ItemsPerPage: 1,
+			Page:         ((page.Page * page.ItemsPerPage) + 1),
+		}
+		nextNodes, err := nodeRepo.QueryNodes(ctx, queryFilters, nextPage, nil) // Order not Used
+		if err != nil {
+			cclog.Warn("Error while querying next nodes")
+			return nil, err
+		}
+		hasNextPage = len(nextNodes) == 1
+	}
+
+	// Load Metric Data For Specified Nodes Only
+	data, err := metricDataDispatcher.LoadNodeListData(cluster, subCluster, nodes, metrics, scopes, *resolution, from, to, ctx)
 	if err != nil {
-		cclog.Warn("error while loading node data")
+		cclog.Warn("error while loading node data (Resolver.NodeMetricsList")
 		return nil, err
 	}
 
+	// Build Result
 	nodeMetricsList := make([]*model.NodeMetrics, 0, len(data))
 	for hostname, metrics := range data {
 		host := &model.NodeMetrics{
 			Host:    hostname,
+			State:   stateMap[hostname],
 			Metrics: make([]*model.JobMetricWithName, 0, len(metrics)*len(scopes)),
 		}
 		host.SubCluster, err = archive.GetSubClusterByNode(cluster, hostname)
@@ -830,9 +963,10 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 		nodeMetricsList = append(nodeMetricsList, host)
 	}
 
+	// Final Return
 	nodeMetricsListResult := &model.NodesResultList{
 		Items:       nodeMetricsList,
-		TotalNodes:  &totalNodes,
+		TotalNodes:  &countNodes,
 		HasNextPage: &hasNextPage,
 	}
 

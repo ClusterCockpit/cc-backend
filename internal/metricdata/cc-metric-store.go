@@ -11,11 +11,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sort"
 	"strings"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
@@ -799,65 +797,20 @@ func (ccms *CCMetricStore) LoadNodeData(
 
 // Used for Systems-View Node-List
 func (ccms *CCMetricStore) LoadNodeListData(
-	cluster, subCluster, nodeFilter string,
+	cluster, subCluster string,
+	nodes []string,
 	metrics []string,
 	scopes []schema.MetricScope,
 	resolution int,
 	from, to time.Time,
-	page *model.PageRequest,
 	ctx context.Context,
-) (map[string]schema.JobData, int, bool, error) {
+) (map[string]schema.JobData, error) {
 
-	// 0) Init additional vars
-	var totalNodes int = 0
-	var hasNextPage bool = false
-
-	// 1) Get list of all nodes
-	var nodes []string
-	if subCluster != "" {
-		scNodes := archive.NodeLists[cluster][subCluster]
-		nodes = scNodes.PrintList()
-	} else {
-		subClusterNodeLists := archive.NodeLists[cluster]
-		for _, nodeList := range subClusterNodeLists {
-			nodes = append(nodes, nodeList.PrintList()...)
-		}
-	}
-
-	// 2) Filter nodes
-	if nodeFilter != "" {
-		filteredNodes := []string{}
-		for _, node := range nodes {
-			if strings.Contains(node, nodeFilter) {
-				filteredNodes = append(filteredNodes, node)
-			}
-		}
-		nodes = filteredNodes
-	}
-
-	// 2.1) Count total nodes && Sort nodes -> Sorting invalidated after ccms return ...
-	totalNodes = len(nodes)
-	sort.Strings(nodes)
-
-	// 3) Apply paging
-	if len(nodes) > page.ItemsPerPage {
-		start := (page.Page - 1) * page.ItemsPerPage
-		end := start + page.ItemsPerPage
-		if end > len(nodes) {
-			end = len(nodes)
-			hasNextPage = false
-		} else {
-			hasNextPage = true
-		}
-		nodes = nodes[start:end]
-	}
-
-	// Note: Order of node data is not guaranteed after this point, but contents match page and filter criteria
-
+	// Note: Order of node data is not guaranteed after this point
 	queries, assignedScope, err := ccms.buildNodeQueries(cluster, subCluster, nodes, metrics, scopes, resolution)
 	if err != nil {
 		cclog.Errorf("Error while building node queries for Cluster %s, SubCLuster %s, Metrics %v, Scopes %v: %s", cluster, subCluster, metrics, scopes, err.Error())
-		return nil, totalNodes, hasNextPage, err
+		return nil, err
 	}
 
 	req := ApiQueryRequest{
@@ -872,7 +825,7 @@ func (ccms *CCMetricStore) LoadNodeListData(
 	resBody, err := ccms.doRequest(ctx, &req)
 	if err != nil {
 		cclog.Errorf("Error while performing request: %s", err.Error())
-		return nil, totalNodes, hasNextPage, err
+		return nil, err
 	}
 
 	var errors []string
@@ -952,10 +905,10 @@ func (ccms *CCMetricStore) LoadNodeListData(
 
 	if len(errors) != 0 {
 		/* Returns list of "partial errors" */
-		return data, totalNodes, hasNextPage, fmt.Errorf("METRICDATA/CCMS > Errors: %s", strings.Join(errors, ", "))
+		return data, fmt.Errorf("METRICDATA/CCMS > Errors: %s", strings.Join(errors, ", "))
 	}
 
-	return data, totalNodes, hasNextPage, nil
+	return data, nil
 }
 
 func (ccms *CCMetricStore) buildNodeQueries(

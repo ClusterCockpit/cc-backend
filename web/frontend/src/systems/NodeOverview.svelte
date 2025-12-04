@@ -6,6 +6,7 @@
   - `cluster String`: The cluster to show status information for
   - `selectedMetric String?`: The selectedMetric input [Default: ""]
   - `hostnameFilter String?`: The active hostnamefilter [Default: ""]
+  - `hostnameFilter String?`: The active hoststatefilter [Default: ""]
   - `from Date?`: The selected "from" date [Default: null]
   - `to Date?`: The selected "to" date [Default: null]
 -->
@@ -13,7 +14,7 @@
  <script>
   import { getContext } from "svelte";
   import { queryStore, gql, getContextClient } from "@urql/svelte";
-  import { Row, Col, Card, Spinner } from "@sveltestrap/sveltestrap";
+  import { Row, Col, Card, Spinner, Badge } from "@sveltestrap/sveltestrap";
   import { checkMetricDisabled } from "../generic/utils.js";
   import MetricPlot from "../generic/plots/MetricPlot.svelte";
 
@@ -23,6 +24,7 @@
     cluster = "",
     selectedMetric = "",
     hostnameFilter = "",
+    hoststateFilter = "",
     from = null,
     to = null
   } = $props();
@@ -30,6 +32,16 @@
   /* Const Init */
   const initialized = getContext("initialized");
   const client = getContextClient();
+  // Node State Colors
+  const stateColors = {
+    allocated: 'success',
+    reserved: 'info',
+    idle: 'primary',
+    mixed: 'warning',
+    down: 'danger',
+    unknown: 'dark',
+    notindb: 'secondary'
+  }
 
   /* Derived */
   const nodesQuery = $derived(queryStore({
@@ -43,6 +55,7 @@
           to: $to
         ) {
           host
+          state
           subCluster
           metrics {
             name
@@ -75,7 +88,15 @@
   }));
 
   const mappedData = $derived(handleQueryData($initialized, $nodesQuery?.data));
-  const filteredData = $derived(mappedData.filter((h) => h.host.includes(hostnameFilter)));
+  const filteredData = $derived(mappedData.filter((h) => {
+    if (hostnameFilter) {
+      if (hoststateFilter == 'all') return h.host.includes(hostnameFilter)
+      else return (h.host.includes(hostnameFilter) && h.state == hoststateFilter)
+    } else {
+      if (hoststateFilter == 'all') return true
+      else return h.state == hoststateFilter
+    }
+  }));
 
   /* Functions */
   function handleQueryData(isInitialized, queryData) {
@@ -94,6 +115,7 @@
     if (rawData.length > 0) {
       pendingMapped = rawData.map((h) => ({
         host: h.host,
+        state: h?.state? h.state : 'notindb',
         subCluster: h.subCluster,
         data: h.metrics.filter(
           (m) => m?.name == selectedMetric && m.scope == "node",
@@ -125,13 +147,18 @@
     {#key selectedMetric}
       {#each filteredData as item (item.host)}
         <Col class="px-1">
-          <h4 style="width: 100%; text-align: center;">
-            <a
-              style="display: block;padding-top: 15px;"
-              href="/monitoring/node/{cluster}/{item.host}"
-              >{item.host} ({item.subCluster})</a
-            >
-          </h4>
+          <div class="d-flex align-items-baseline">
+            <h4 style="width: 100%; text-align: center;">
+              <a
+                style="display: block;padding-top: 15px;"
+                href="/monitoring/node/{cluster}/{item.host}"
+                >{item.host} ({item.subCluster})</a
+              >
+            </h4>
+            <span style="margin-right: 0.5rem;">
+              <Badge color={stateColors[item?.state? item.state : 'notindb']}>{item?.state? item.state : 'notindb'}</Badge>
+            </span>
+          </div>
           {#if item.disabled === true}
             <Card body class="mx-3" color="info"
               >Metric disabled for subcluster <code
@@ -149,6 +176,7 @@
                 {cluster}
                 subCluster={item.subCluster}
                 forNode
+                enableFlip
               />
             {/key}
           {:else if item.disabled === null}

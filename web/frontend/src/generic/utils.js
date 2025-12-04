@@ -374,7 +374,7 @@ export function findJobFootprintThresholds(job, stat, metricConfig) {
         For shared jobs, scale thresholds by the fraction of the job's HWThreads to the node's HWThreads.
         'stat' is one of: avg, min, max
     */
-    if (job.exclusive === 1 || stat === "avg") {
+    if (job.shared === "none" || stat === "avg") {
         return defaultThresholds
     } else {
         const topol = getContext("getHardwareTopology")(job.cluster, job.subCluster)

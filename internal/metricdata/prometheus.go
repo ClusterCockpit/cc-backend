@@ -20,7 +20,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
@@ -494,62 +493,17 @@ func (pdb *PrometheusDataRepository) LoadScopedStats(
 
 // Implemented by NHR@FAU; Used in NodeList-View
 func (pdb *PrometheusDataRepository) LoadNodeListData(
-	cluster, subCluster, nodeFilter string,
+	cluster, subCluster string,
+	nodes []string,
 	metrics []string,
 	scopes []schema.MetricScope,
 	resolution int,
 	from, to time.Time,
-	page *model.PageRequest,
 	ctx context.Context,
-) (map[string]schema.JobData, int, bool, error) {
+) (map[string]schema.JobData, error) {
 	// Assumption: pdb.loadData() only returns series node-scope - use node scope for NodeList
 
-	// 0) Init additional vars
-	var totalNodes int = 0
-	var hasNextPage bool = false
-
-	// 1) Get list of all nodes
-	var nodes []string
-	if subCluster != "" {
-		scNodes := archive.NodeLists[cluster][subCluster]
-		nodes = scNodes.PrintList()
-	} else {
-		subClusterNodeLists := archive.NodeLists[cluster]
-		for _, nodeList := range subClusterNodeLists {
-			nodes = append(nodes, nodeList.PrintList()...)
-		}
-	}
-
-	// 2) Filter nodes
-	if nodeFilter != "" {
-		filteredNodes := []string{}
-		for _, node := range nodes {
-			if strings.Contains(node, nodeFilter) {
-				filteredNodes = append(filteredNodes, node)
-			}
-		}
-		nodes = filteredNodes
-	}
-
-	// 2.1) Count total nodes && Sort nodes -> Sorting invalidated after return ...
-	totalNodes = len(nodes)
-	sort.Strings(nodes)
-
-	// 3) Apply paging
-	if len(nodes) > page.ItemsPerPage {
-		start := (page.Page - 1) * page.ItemsPerPage
-		end := start + page.ItemsPerPage
-		if end >= len(nodes) {
-			end = len(nodes)
-			hasNextPage = false
-		} else {
-			hasNextPage = true
-		}
-		nodes = nodes[start:end]
-	}
-
-	// 4) Fetch Data, based on pdb.LoadNodeData()
-
+	// Fetch Data, based on pdb.LoadNodeData()
 	t0 := time.Now()
 	// Map of hosts of jobData
 	data := make(map[string]schema.JobData)
@@ -572,12 +526,12 @@ func (pdb *PrometheusDataRepository) LoadNodeListData(
 			metricConfig := archive.GetMetricConfig(cluster, metric)
 			if metricConfig == nil {
 				cclog.Warnf("Error in LoadNodeListData: Metric %s for cluster %s not configured", metric, cluster)
-				return nil, totalNodes, hasNextPage, errors.New("Prometheus config error")
+				return nil, errors.New("Prometheus config error")
 			}
 			query, err := pdb.FormatQuery(metric, scope, nodes, cluster)
 			if err != nil {
 				cclog.Warn("Error while formatting prometheus query")
-				return nil, totalNodes, hasNextPage, err
+				return nil, err
 			}
 
 			// ranged query over all nodes
@@ -589,7 +543,7 @@ func (pdb *PrometheusDataRepository) LoadNodeListData(
 			result, warnings, err := pdb.queryClient.QueryRange(ctx, query, r)
 			if err != nil {
 				cclog.Errorf("Prometheus query error in LoadNodeData: %v\n", err)
-				return nil, totalNodes, hasNextPage, errors.New("Prometheus query error")
+				return nil, errors.New("Prometheus query error")
 			}
 			if len(warnings) > 0 {
 				cclog.Warnf("Warnings: %v\n", warnings)
@@ -629,5 +583,5 @@ func (pdb *PrometheusDataRepository) LoadNodeListData(
 	}
 	t1 := time.Since(t0)
 	cclog.Debugf("LoadNodeListData of %v nodes took %s", len(data), t1)
-	return data, totalNodes, hasNextPage, nil
+	return data, nil
 }

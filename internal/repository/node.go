@@ -43,7 +43,7 @@ func GetNodeRepository() *NodeRepository {
 			driver: db.Driver,
 
 			stmtCache: sq.NewStmtCache(db.DB),
-			cache:     lrucache.New(1024 * 1024),
+			cache:     lrucache.New(repoConfig.CacheSize),
 		}
 	})
 	return nodeRepoInstance
@@ -77,55 +77,19 @@ func (r *NodeRepository) FetchMetadata(hostname string, cluster string) (map[str
 	return MetaData, nil
 }
 
-//
-// func (r *NodeRepository) UpdateMetadata(node *schema.Node, key, val string) (err error) {
-// 	cachekey := fmt.Sprintf("metadata:%d", node.ID)
-// 	r.cache.Del(cachekey)
-// 	if node.MetaData == nil {
-// 		if _, err = r.FetchMetadata(node); err != nil {
-// 			cclog.Warnf("Error while fetching metadata for node, DB ID '%v'", node.ID)
-// 			return err
-// 		}
-// 	}
-//
-// 	if node.MetaData != nil {
-// 		cpy := make(map[string]string, len(node.MetaData)+1)
-// 		maps.Copy(cpy, node.MetaData)
-// 		cpy[key] = val
-// 		node.MetaData = cpy
-// 	} else {
-// 		node.MetaData = map[string]string{key: val}
-// 	}
-//
-// 	if node.RawMetaData, err = json.Marshal(node.MetaData); err != nil {
-// 		cclog.Warnf("Error while marshaling metadata for node, DB ID '%v'", node.ID)
-// 		return err
-// 	}
-//
-// 	if _, err = sq.Update("node").
-// 		Set("meta_data", node.RawMetaData).
-// 		Where("node.id = ?", node.ID).
-// 		RunWith(r.stmtCache).Exec(); err != nil {
-// 		cclog.Warnf("Error while updating metadata for node, DB ID '%v'", node.ID)
-// 		return err
-// 	}
-//
-// 	r.cache.Put(cachekey, node.MetaData, len(node.RawMetaData), 24*time.Hour)
-// 	return nil
-// }
-
 func (r *NodeRepository) GetNode(hostname string, cluster string, withMeta bool) (*schema.Node, error) {
 	node := &schema.Node{}
+	var timestamp int
 	if err := sq.Select("node.hostname", "node.cluster", "node.subcluster", "node_state.node_state",
 		"node_state.health_state", "MAX(node_state.time_stamp) as time").
 		From("node_state").
-		Join("node ON nodes_state.node_id = node.id").
+		Join("node ON node_state.node_id = node.id").
 		Where("node.hostname = ?", hostname).
 		Where("node.cluster = ?", cluster).
 		GroupBy("node_state.node_id").
 		RunWith(r.DB).
-		QueryRow().Scan(&node.Hostname, &node.Cluster, &node.SubCluster, &node.NodeState, &node.HealthState); err != nil {
-		cclog.Warnf("Error while querying node '%s' from database: %v", hostname, err)
+		QueryRow().Scan(&node.Hostname, &node.Cluster, &node.SubCluster, &node.NodeState, &node.HealthState, &timestamp); err != nil {
+		cclog.Warnf("Error while querying node '%s' at time '%d' from database: %v", hostname, timestamp, err)
 		return nil, err
 	}
 
@@ -144,15 +108,16 @@ func (r *NodeRepository) GetNode(hostname string, cluster string, withMeta bool)
 
 func (r *NodeRepository) GetNodeById(id int64, withMeta bool) (*schema.Node, error) {
 	node := &schema.Node{}
+	var timestamp int
 	if err := sq.Select("node.hostname", "node.cluster", "node.subcluster", "node_state.node_state",
 		"node_state.health_state", "MAX(node_state.time_stamp) as time").
 		From("node_state").
-		Join("node ON nodes_state.node_id = node.id").
+		Join("node ON node_state.node_id = node.id").
 		Where("node.id = ?", id).
 		GroupBy("node_state.node_id").
 		RunWith(r.DB).
-		QueryRow().Scan(&node.Hostname, &node.Cluster, &node.SubCluster, &node.NodeState, &node.HealthState); err != nil {
-		cclog.Warnf("Error while querying node ID '%d' from database: %v", id, err)
+		QueryRow().Scan(&node.Hostname, &node.Cluster, &node.SubCluster, &node.NodeState, &node.HealthState, &timestamp); err != nil {
+		cclog.Warnf("Error while querying node ID '%d' at time '%d' from database: %v", id, timestamp, err)
 		return nil, err
 	}
 
@@ -272,37 +237,48 @@ func (r *NodeRepository) DeleteNode(id int64) error {
 func (r *NodeRepository) QueryNodes(
 	ctx context.Context,
 	filters []*model.NodeFilter,
+	page *model.PageRequest,
 	order *model.OrderByInput, // Currently unused!
 ) ([]*schema.Node, error) {
+
 	query, qerr := AccessCheck(ctx,
-		sq.Select("node.hostname", "node.cluster", "node.subcluster", "node_state.node_state",
-			"node_state.health_state", "MAX(node_state.time_stamp) as time").
+		sq.Select("hostname", "cluster", "subcluster", "node_state", "health_state", "MAX(time_stamp) as time").
 			From("node").
-			Join("node_state ON nodes_state.node_id = node.id"))
+			Join("node_state ON node_state.node_id = node.id"))
 	if qerr != nil {
 		return nil, qerr
 	}
 
 	for _, f := range filters {
-		if f.Hostname != nil {
-			query = buildStringCondition("node.hostname", f.Hostname, query)
-		}
 		if f.Cluster != nil {
-			query = buildStringCondition("node.cluster", f.Cluster, query)
+			query = buildStringCondition("cluster", f.Cluster, query)
 		}
 		if f.Subcluster != nil {
-			query = buildStringCondition("node.subcluster", f.Subcluster, query)
+			query = buildStringCondition("subcluster", f.Subcluster, query)
+		}
+		if f.Hostname != nil {
+			query = buildStringCondition("hostname", f.Hostname, query)
 		}
 		if f.SchedulerState != nil {
-			query = query.Where("node.node_state = ?", f.SchedulerState)
+			query = query.Where("node_state = ?", f.SchedulerState)
+			// Requires Additional time_stamp Filter: Else the last (past!) time_stamp with queried state will be returned
+			now := time.Now().Unix()
+			query = query.Where(sq.Gt{"time_stamp": (now - 60)})
 		}
 		if f.HealthState != nil {
-			query = query.Where("node.health_state = ?", f.HealthState)
+			query = query.Where("health_state = ?", f.HealthState)
+			// Requires Additional time_stamp Filter: Else the last (past!) time_stamp with queried state will be returned
+			now := time.Now().Unix()
+			query = query.Where(sq.Gt{"time_stamp": (now - 60)})
 		}
 	}
 
-	// Add Grouping after filters
-	query = query.GroupBy("node_state.node_id")
+	query = query.GroupBy("node_id").OrderBy("hostname ASC")
+
+	if page != nil && page.ItemsPerPage != -1 {
+		limit := uint64(page.ItemsPerPage)
+		query = query.Offset((uint64(page.Page) - 1) * limit).Limit(limit)
+	}
 
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
@@ -311,20 +287,81 @@ func (r *NodeRepository) QueryNodes(
 		return nil, err
 	}
 
-	nodes := make([]*schema.Node, 0, 50)
+	nodes := make([]*schema.Node, 0)
 	for rows.Next() {
 		node := schema.Node{}
-
+		var timestamp int
 		if err := rows.Scan(&node.Hostname, &node.Cluster, &node.SubCluster,
-			&node.NodeState, &node.HealthState); err != nil {
+			&node.NodeState, &node.HealthState, &timestamp); err != nil {
 			rows.Close()
-			cclog.Warn("Error while scanning rows (Nodes)")
+			cclog.Warnf("Error while scanning rows (QueryNodes) at time '%d'", timestamp)
 			return nil, err
 		}
 		nodes = append(nodes, &node)
 	}
 
 	return nodes, nil
+}
+
+// CountNodes returns the total matched nodes based on a node filter. It always operates
+// on the last state (largest timestamp).
+func (r *NodeRepository) CountNodes(
+	ctx context.Context,
+	filters []*model.NodeFilter,
+) (int, error) {
+
+	query, qerr := AccessCheck(ctx,
+		sq.Select("time_stamp", "count(*) as countRes").
+			From("node").
+			Join("node_state ON node_state.node_id = node.id"))
+	if qerr != nil {
+		return 0, qerr
+	}
+
+	for _, f := range filters {
+		if f.Cluster != nil {
+			query = buildStringCondition("cluster", f.Cluster, query)
+		}
+		if f.Subcluster != nil {
+			query = buildStringCondition("subcluster", f.Subcluster, query)
+		}
+		if f.Hostname != nil {
+			query = buildStringCondition("hostname", f.Hostname, query)
+		}
+		if f.SchedulerState != nil {
+			query = query.Where("node_state = ?", f.SchedulerState)
+			// Requires Additional time_stamp Filter: Else the last (past!) time_stamp with queried state will be returned
+			now := time.Now().Unix()
+			query = query.Where(sq.Gt{"time_stamp": (now - 60)})
+		}
+		if f.HealthState != nil {
+			query = query.Where("health_state = ?", f.HealthState)
+			// Requires Additional time_stamp Filter: Else the last (past!) time_stamp with queried state will be returned
+			now := time.Now().Unix()
+			query = query.Where(sq.Gt{"time_stamp": (now - 60)})
+		}
+	}
+
+	query = query.GroupBy("time_stamp").OrderBy("time_stamp DESC").Limit(1)
+
+	rows, err := query.RunWith(r.stmtCache).Query()
+	if err != nil {
+		queryString, queryVars, _ := query.ToSql()
+		cclog.Errorf("Error while running query '%s' %v: %v", queryString, queryVars, err)
+		return 0, err
+	}
+
+	var totalNodes int
+	for rows.Next() {
+		var timestamp int
+		if err := rows.Scan(&timestamp, &totalNodes); err != nil {
+			rows.Close()
+			cclog.Warnf("Error while scanning rows (CountNodes) at time '%d'", timestamp)
+			return 0, err
+		}
+	}
+
+	return totalNodes, nil
 }
 
 func (r *NodeRepository) ListNodes(cluster string) ([]*schema.Node, error) {
@@ -345,9 +382,10 @@ func (r *NodeRepository) ListNodes(cluster string) ([]*schema.Node, error) {
 	defer rows.Close()
 	for rows.Next() {
 		node := &schema.Node{}
+		var timestamp int
 		if err := rows.Scan(&node.Hostname, &node.Cluster,
-			&node.SubCluster, &node.NodeState, &node.HealthState); err != nil {
-			cclog.Warn("Error while scanning node list")
+			&node.SubCluster, &node.NodeState, &node.HealthState, &timestamp); err != nil {
+			cclog.Warnf("Error while scanning node list (ListNodes) at time '%d'", timestamp)
 			return nil, err
 		}
 
@@ -357,8 +395,38 @@ func (r *NodeRepository) ListNodes(cluster string) ([]*schema.Node, error) {
 	return nodeList, nil
 }
 
-func (r *NodeRepository) CountNodeStates(ctx context.Context, filters []*model.NodeFilter) ([]*model.NodeStates, error) {
-	query, qerr := AccessCheck(ctx, sq.Select("hostname", "node_state", "MAX(time_stamp) as time").From("node"))
+func (r *NodeRepository) MapNodes(cluster string) (map[string]string, error) {
+	q := sq.Select("node.hostname", "node_state.node_state", "MAX(node_state.time_stamp) as time").
+		From("node").
+		Join("node_state ON node_state.node_id = node.id").
+		Where("node.cluster = ?", cluster).
+		GroupBy("node_state.node_id").
+		OrderBy("node.hostname ASC")
+
+	rows, err := q.RunWith(r.DB).Query()
+	if err != nil {
+		cclog.Warn("Error while querying node list")
+		return nil, err
+	}
+
+	stateMap := make(map[string]string)
+	defer rows.Close()
+	for rows.Next() {
+		var hostname, nodestate string
+		var timestamp int
+		if err := rows.Scan(&hostname, &nodestate, &timestamp); err != nil {
+			cclog.Warnf("Error while scanning node list (MapNodes) at time '%d'", timestamp)
+			return nil, err
+		}
+
+		stateMap[hostname] = nodestate
+	}
+
+	return stateMap, nil
+}
+
+func (r *NodeRepository) CountStates(ctx context.Context, filters []*model.NodeFilter, column string) ([]*model.NodeStates, error) {
+	query, qerr := AccessCheck(ctx, sq.Select("hostname", column, "MAX(time_stamp) as time").From("node"))
 	if qerr != nil {
 		return nil, qerr
 	}
@@ -395,16 +463,16 @@ func (r *NodeRepository) CountNodeStates(ctx context.Context, filters []*model.N
 
 	stateMap := map[string]int{}
 	for rows.Next() {
-		var hostname, node_state string
-		var timestamp int64
+		var hostname, state string
+		var timestamp int
 
-		if err := rows.Scan(&hostname, &node_state, &timestamp); err != nil {
+		if err := rows.Scan(&hostname, &state, &timestamp); err != nil {
 			rows.Close()
-			cclog.Warn("Error while scanning rows (NodeStates)")
+			cclog.Warnf("Error while scanning rows (CountStates) at time '%d'", timestamp)
 			return nil, err
 		}
 
-		stateMap[node_state] += 1
+		stateMap[state] += 1
 	}
 
 	nodes := make([]*model.NodeStates, 0)
@@ -416,8 +484,8 @@ func (r *NodeRepository) CountNodeStates(ctx context.Context, filters []*model.N
 	return nodes, nil
 }
 
-func (r *NodeRepository) CountHealthStates(ctx context.Context, filters []*model.NodeFilter) ([]*model.NodeStates, error) {
-	query, qerr := AccessCheck(ctx, sq.Select("hostname", "health_state", "MAX(time_stamp) as time").From("node"))
+func (r *NodeRepository) CountStatesTimed(ctx context.Context, filters []*model.NodeFilter, column string) ([]*model.NodeStatesTimed, error) {
+	query, qerr := AccessCheck(ctx, sq.Select(column, "time_stamp", "count(*) as count").From("node")) // "cluster"?
 	if qerr != nil {
 		return nil, qerr
 	}
@@ -425,6 +493,11 @@ func (r *NodeRepository) CountHealthStates(ctx context.Context, filters []*model
 	query = query.Join("node_state ON node_state.node_id = node.id")
 
 	for _, f := range filters {
+		// Required
+		if f.TimeStart != nil {
+			query = query.Where("time_stamp > ?", f.TimeStart)
+		}
+		// Optional
 		if f.Hostname != nil {
 			query = buildStringCondition("hostname", f.Hostname, query)
 		}
@@ -443,7 +516,7 @@ func (r *NodeRepository) CountHealthStates(ctx context.Context, filters []*model
 	}
 
 	// Add Group and Order
-	query = query.GroupBy("hostname").OrderBy("hostname DESC")
+	query = query.GroupBy(column + ", time_stamp").OrderBy("time_stamp ASC")
 
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
@@ -452,27 +525,32 @@ func (r *NodeRepository) CountHealthStates(ctx context.Context, filters []*model
 		return nil, err
 	}
 
-	stateMap := map[string]int{}
+	rawData := make(map[string][][]int)
 	for rows.Next() {
-		var hostname, health_state string
-		var timestamp int64
+		var state string
+		var timestamp, count int
 
-		if err := rows.Scan(&hostname, &health_state, &timestamp); err != nil {
+		if err := rows.Scan(&state, &timestamp, &count); err != nil {
 			rows.Close()
-			cclog.Warn("Error while scanning rows (NodeStates)")
+			cclog.Warnf("Error while scanning rows (CountStatesTimed) at time '%d'", timestamp)
 			return nil, err
 		}
 
-		stateMap[health_state] += 1
+		if rawData[state] == nil {
+			rawData[state] = [][]int{make([]int, 0), make([]int, 0)}
+		}
+
+		rawData[state][0] = append(rawData[state][0], timestamp)
+		rawData[state][1] = append(rawData[state][1], count)
 	}
 
-	nodes := make([]*model.NodeStates, 0)
-	for state, counts := range stateMap {
-		node := model.NodeStates{State: state, Count: counts}
-		nodes = append(nodes, &node)
+	timedStates := make([]*model.NodeStatesTimed, 0)
+	for state, data := range rawData {
+		entry := model.NodeStatesTimed{State: state, Times: data[0], Counts: data[1]}
+		timedStates = append(timedStates, &entry)
 	}
 
-	return nodes, nil
+	return timedStates, nil
 }
 
 func AccessCheck(ctx context.Context, query sq.SelectBuilder) (sq.SelectBuilder, error) {

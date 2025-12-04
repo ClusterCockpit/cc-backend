@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
@@ -63,14 +62,14 @@ func (tmdr *TestMetricDataRepository) LoadNodeData(
 }
 
 func (tmdr *TestMetricDataRepository) LoadNodeListData(
-	cluster, subCluster, nodeFilter string,
+	cluster, subCluster string,
+	nodes []string,
 	metrics []string,
 	scopes []schema.MetricScope,
 	resolution int,
 	from, to time.Time,
-	page *model.PageRequest,
 	ctx context.Context,
-) (map[string]schema.JobData, int, bool, error) {
+) (map[string]schema.JobData, error) {
 	panic("TODO")
 }
 

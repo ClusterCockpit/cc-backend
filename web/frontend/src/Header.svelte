@@ -145,10 +145,9 @@
   <NavbarToggler onclick={() => (isOpen = !isOpen)} />
   <Collapse
     style="justify-content: space-between"
+    expand="md"
     {isOpen}
     navbar
-    expand="md"
-    onupdate={({ detail }) => (isOpen = detail.isOpen)}
   >
     <Nav navbar>
       {#if showMax || showBrg}

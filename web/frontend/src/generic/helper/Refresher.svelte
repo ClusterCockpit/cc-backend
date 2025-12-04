@@ -27,7 +27,7 @@
   function refreshIntervalChanged() {
     if (refreshIntervalId != null) clearInterval(refreshIntervalId);
     if (refreshInterval == null) return;
-    refreshIntervalId = setInterval(() => onRefresh(), refreshInterval);
+    refreshIntervalId = setInterval(() => onRefresh(refreshInterval), refreshInterval);
   }
 
   /* Svelte 5 onMount */
@@ -51,7 +51,7 @@
   </Input>
   <Button
     outline
-    onclick={() => onRefresh()}
+    onclick={() => onRefresh(refreshInterval)}
     disabled={refreshInterval != null}
     >
     <Icon name="arrow-clockwise" /> Refresh

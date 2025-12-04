@@ -12,6 +12,9 @@ import (
 var InternalCCMSFlag bool = false
 
 type MetricStoreConfig struct {
+	// Number of concurrent workers for checkpoint and archive operations.
+	// If not set or 0, defaults to min(runtime.NumCPU()/2+1, 10)
+	NumWorkers int `json:"num-workers"`
 	Checkpoints struct {
 		FileFormat string `json:"file-format"`
 		Interval   string `json:"interval"`
@@ -62,7 +65,7 @@ const (
 	AvgAggregation
 )
 
-func AssignAggregationStratergy(str string) (AggregationStrategy, error) {
+func AssignAggregationStrategy(str string) (AggregationStrategy, error) {
 	switch str {
 	case "":
 		return NoAggregation, nil

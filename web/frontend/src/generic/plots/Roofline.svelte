@@ -276,13 +276,13 @@
             // Nodes: Color based on Idle vs. Allocated
             } else if (nodesData) {
               // console.log('In Plot Handler NodesData', nodesData)
-              if (nodesData[i]?.nodeState == "idle") {
+              if (nodesData[i]?.schedulerState == "idle") {
                 //u.ctx.strokeStyle = "rgb(0, 0, 255)";
                 u.ctx.fillStyle = "rgba(0, 0, 255, 0.5)";
-              } else if (nodesData[i]?.nodeState == "allocated") {
+              } else if (nodesData[i]?.schedulerState == "allocated") {
                 //u.ctx.strokeStyle = "rgb(0, 255, 0)";
                 u.ctx.fillStyle = "rgba(0, 255, 0, 0.5)";
-              } else if (nodesData[i]?.nodeState == "notindb") {
+              } else if (nodesData[i]?.schedulerState == "notindb") {
                 //u.ctx.strokeStyle = "rgb(0, 0, 0)";
                 u.ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
               } else { // Fallback: All other DEFINED states
@@ -436,11 +436,11 @@
           tooltip.style.borderColor = getRGB(u.data[2][i]);
         // Nodes: Color based on Idle vs. Allocated
         } else if (nodesData) {
-          if (nodesData[i]?.nodeState == "idle") {
+          if (nodesData[i]?.schedulerState == "idle") {
             tooltip.style.borderColor = "rgb(0, 0, 255)";
-          } else if (nodesData[i]?.nodeState == "allocated") {
+          } else if (nodesData[i]?.schedulerState == "allocated") {
             tooltip.style.borderColor = "rgb(0, 255, 0)";
-          } else if (nodesData[i]?.nodeState == "notindb") { // Missing from DB table
+          } else if (nodesData[i]?.schedulerState == "notindb") { // Missing from DB table
             tooltip.style.borderColor = "rgb(0, 0, 0)";
           } else { // Fallback: All other DEFINED states
             tooltip.style.borderColor = "rgb(255, 0, 0)";
@@ -459,7 +459,7 @@
       } else if (nodesData && useColors) {
         tooltip.textContent = (
           // Tooltip Content as String for Node
-          `Host: ${getLegendData(u, i).nodeName}\nState: ${getLegendData(u, i).nodeState}\nJobs: ${getLegendData(u, i).numJobs}`
+          `Host: ${getLegendData(u, i).nodeName}\nState: ${getLegendData(u, i).schedulerState}\nJobs: ${getLegendData(u, i).numJobs}`
         );
       } else if (nodesData && !useColors) {
         tooltip.textContent = (

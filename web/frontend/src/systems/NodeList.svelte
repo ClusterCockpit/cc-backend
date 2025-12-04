@@ -8,12 +8,14 @@
   - `selectedMetrics [String]`: The array of selected metrics [Default []]
   - `selectedResolution Number?`: The selected data resolution [Default: 0]
   - `hostnameFilter String?`: The active hostnamefilter [Default: ""]
+  - `hoststateFilter String?`: The active hoststatefilter [Default: ""]
   - `presetSystemUnits Object`: The object of metric units [Default: null]
   - `from Date?`: The selected "from" date [Default: null]
   - `to Date?`: The selected "to" date [Default: null]
 -->
 
 <script>
+  import { untrack } from "svelte";
   import { queryStore, gql, getContextClient, mutationStore } from "@urql/svelte";
   import { Row, Col, Card, Table, Spinner } from "@sveltestrap/sveltestrap";
   import { stickyHeader } from "../generic/utils.js";
@@ -28,6 +30,7 @@
     selectedMetrics = [],
     selectedResolution = 0,
     hostnameFilter = "",
+    hoststateFilter = "",
     presetSystemUnits = null,
     from = null,
     to = null
@@ -37,11 +40,14 @@
   const client = getContextClient();
   const usePaging = ccconfig?.nodeList_usePaging || false;
   const nodeListQuery = gql`
-    query ($cluster: String!, $subCluster: String!, $nodeFilter: String!, $metrics: [String!], $scopes: [MetricScope!]!, $from: Time!, $to: Time!, $paging: PageRequest!, $selectedResolution: Int) {
+    query ($cluster: String!, $subCluster: String!, $nodeFilter: String!, $stateFilter: String!, $metrics: [String!],
+           $scopes: [MetricScope!]!, $from: Time!, $to: Time!, $paging: PageRequest!, $selectedResolution: Int
+    ) {
       nodeMetricsList(
         cluster: $cluster
         subCluster: $subCluster
         nodeFilter: $nodeFilter
+        stateFilter: $stateFilter,
         scopes: $scopes
         metrics: $metrics
         from: $from
@@ -51,6 +57,7 @@
       ) {
         items {
           host
+          state
           subCluster
           metrics {
             name
@@ -100,6 +107,7 @@
     variables: {
       cluster: cluster,
       subCluster: subCluster,
+      stateFilter: hoststateFilter,
       nodeFilter: hostnameFilter,
       scopes: ["core", "socket", "accelerator"],
       metrics: selectedMetrics,
@@ -130,17 +138,21 @@
   });
 
   $effect(() => {
-    handleNodes($nodesQuery?.data?.nodeMetricsList);
+    if ($nodesQuery?.data) {
+      untrack(() => {
+        handleNodes($nodesQuery?.data?.nodeMetricsList);
+      });
+    };
   });
 
   $effect(() => {
     // Triggers (Except Paging)
     from, to
     selectedMetrics, selectedResolution
-    hostnameFilter
-    // Continous Scroll: Reset nodes and paging if parameters change: Existing entries will not match new selections
+    hostnameFilter, hoststateFilter
+    // Continous Scroll: Paging if parameters change: Existing entries will not match new selections
+    // Nodes Array Reset in HandleNodes func
     if (!usePaging) {
-      nodes = [];
       page = 1;
     }
   });
@@ -148,17 +160,19 @@
   /* Functions */
   function handleNodes(data) {
     if (data) {
-      matchedNodes = data.totalNodes;
-      if (usePaging || nodes.length == 0) {
+      if (usePaging) {
+        // console.log('New Paging', $state.snapshot(paging))
         nodes = [...data.items].sort((a, b) => a.host.localeCompare(b.host));
       } else {
-        // Workaround to ignore secondary store triggers (reason tbd)
-        const oldNodes = $state.snapshot(nodes)
-        const newNodes = [...data.items].map((d) => d.host)
-        if (!oldNodes.some((n) => newNodes.includes(n.host))) {
-          nodes = nodes.concat([...data.items].sort((a, b) => a.host.localeCompare(b.host)))
-        };
-      };
+        if ($state.snapshot(page) == 1) {
+          // console.log('Page 1 Reset', [...data.items])
+          nodes = [...data.items].sort((a, b) => a.host.localeCompare(b.host));
+        } else {
+          // console.log('Add Nodes', $state.snapshot(nodes), [...data.items])
+          nodes = nodes.concat([...data.items])
+        }
+      }
+      matchedNodes = data.totalNodes;
     };
   };
 

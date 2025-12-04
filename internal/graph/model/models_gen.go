@@ -181,6 +181,7 @@ type NodeFilter struct {
 
 type NodeMetrics struct {
 	Host       string               `json:"host"`
+	State      string               `json:"state"`
 	SubCluster string               `json:"subCluster"`
 	Metrics    []*JobMetricWithName `json:"metrics"`
 }
@@ -196,10 +197,9 @@ type NodeStates struct {
 }
 
 type NodeStatesTimed struct {
-	State string `json:"state"`
-	Type  string `json:"type"`
-	Count int    `json:"count"`
-	Time  int    `json:"time"`
+	State  string `json:"state"`
+	Counts []int  `json:"counts"`
+	Times  []int  `json:"times"`
 }
 
 type NodesResultList struct {

@@ -27,3 +27,4 @@ test_ccms_write_api.sh
 /.vscode/*
 dist/
 *.db
+.idea

@@ -54,8 +54,13 @@ func setCallbackCookie(w http.ResponseWriter, r *http.Request, name, value strin
 	http.SetCookie(w, c)
 }
 
+// NewOIDC creates a new OIDC authenticator with the configured provider
 func NewOIDC(a *Authentication) *OIDC {
-	provider, err := oidc.NewProvider(context.Background(), Keys.OpenIDConfig.Provider)
+	// Use context with timeout for provider initialization
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	
+	provider, err := oidc.NewProvider(ctx, Keys.OpenIDConfig.Provider)
 	if err != nil {
 		cclog.Fatal(err)
 	}
@@ -111,13 +116,18 @@ func (oa *OIDC) OAuth2Callback(rw http.ResponseWriter, r *http.Request) {
 		http.Error(rw, "Code not found", http.StatusBadRequest)
 		return
 	}
-	token, err := oa.client.Exchange(context.Background(), code, oauth2.VerifierOption(codeVerifier))
+	// Exchange authorization code for token with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	
+	token, err := oa.client.Exchange(ctx, code, oauth2.VerifierOption(codeVerifier))
 	if err != nil {
 		http.Error(rw, "Failed to exchange token: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	userInfo, err := oa.provider.UserInfo(context.Background(), oauth2.StaticTokenSource(token))
+	// Get user info from OIDC provider with same timeout
+	userInfo, err := oa.provider.UserInfo(ctx, oauth2.StaticTokenSource(token))
 	if err != nil {
 		http.Error(rw, "Failed to get userinfo: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -180,8 +190,8 @@ func (oa *OIDC) OAuth2Callback(rw http.ResponseWriter, r *http.Request) {
 
 	oa.authentication.SaveSession(rw, r, user)
 	cclog.Infof("login successfull: user: %#v (roles: %v, projects: %v)", user.Username, user.Roles, user.Projects)
-	ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
-	http.RedirectHandler("/", http.StatusTemporaryRedirect).ServeHTTP(rw, r.WithContext(ctx))
+	userCtx := context.WithValue(r.Context(), repository.ContextUserKey, user)
+	http.RedirectHandler("/", http.StatusTemporaryRedirect).ServeHTTP(rw, r.WithContext(userCtx))
 }
 
 func (oa *OIDC) OAuth2Login(rw http.ResponseWriter, r *http.Request) {
