@@ -90,17 +90,6 @@ func (s3a *S3Archive) Init(rawConfig json.RawMessage) (uint64, error) {
 
 	if cfg.AccessKey != "" && cfg.SecretKey != "" {
 		// Use static credentials
-		customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-			if cfg.Endpoint != "" {
-				return aws.Endpoint{
-					URL:               cfg.Endpoint,
-					HostnameImmutable: cfg.UsePathStyle,
-					Source:            aws.EndpointSourceCustom,
-				}, nil
-			}
-			return aws.Endpoint{}, &aws.EndpointNotFoundError{}
-		})
-
 		awsCfg, err = awsconfig.LoadDefaultConfig(ctx,
 			awsconfig.WithRegion(cfg.Region),
 			awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
@@ -108,7 +97,6 @@ func (s3a *S3Archive) Init(rawConfig json.RawMessage) (uint64, error) {
 				cfg.SecretKey,
 				"",
 			)),
-			awsconfig.WithEndpointResolverWithOptions(customResolver),
 		)
 	} else {
 		// Use default credential chain
@@ -122,9 +110,12 @@ func (s3a *S3Archive) Init(rawConfig json.RawMessage) (uint64, error) {
 		return 0, err
 	}
 
-	// Create S3 client with path-style option
+	// Create S3 client with path-style option and custom endpoint if specified
 	s3a.client = s3.NewFromConfig(awsCfg, func(o *s3.Options) {
 		o.UsePathStyle = cfg.UsePathStyle
+		if cfg.Endpoint != "" {
+			o.BaseEndpoint = aws.String(cfg.Endpoint)
+		}
 	})
 	s3a.bucket = cfg.Bucket
 

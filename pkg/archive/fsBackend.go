@@ -515,7 +515,6 @@ func (fsa *FsArchive) Iter(loadMetricData bool) <-chan JobContainer {
 									cclog.Errorf("in %s: %s", filepath.Join(dirpath, startTimeDir.Name()), err.Error())
 								}
 								ch <- JobContainer{Meta: job, Data: &data}
-								cclog.Errorf("in %s: %s", filepath.Join(dirpath, startTimeDir.Name()), err.Error())
 							} else {
 								ch <- JobContainer{Meta: job, Data: nil}
 							}
