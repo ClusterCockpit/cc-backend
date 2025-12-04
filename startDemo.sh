@@ -16,5 +16,4 @@ else
 
   ./cc-backend -dev -init-db -add-user demo:admin,api:demo
   ./cc-backend -server -dev
-
 fi
