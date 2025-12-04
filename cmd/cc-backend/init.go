@@ -28,18 +28,10 @@ SESSION_KEY="67d829bf61dc5f87a73fd814e2c9f629"
 
 const configString = `
 {
+  "main": {
     "addr": "127.0.0.1:8080",
-    "archive": {
-        "kind": "file",
-        "path": "./var/job-archive"
-    },
-    "jwts": {
-        "max-age": "2000h"
-    },
-    "apiAllowedIPs": [
-      "*"
-    ],
-    "enable-resampling": {
+    "short-running-jobs-duration": 300,
+    "resampling": {
       "trigger": 30,
       "resolutions": [
         600,
@@ -48,30 +40,49 @@ const configString = `
         60
       ]
     },
-    "clusters": [
-        {
-            "name": "name",
-            "metricDataRepository": {
-                "kind": "cc-metric-store",
-                "url": "http://localhost:8082",
-                "token": ""
-            },
-            "filterRanges": {
-                "numNodes": {
-                    "from": 1,
-                    "to": 64
-                },
-                "duration": {
-                    "from": 0,
-                    "to": 86400
-                },
-                "startTime": {
-                    "from": "2023-01-01T00:00:00Z",
-                    "to": null
-                }
-            }
-        }
-    ]
+    "apiAllowedIPs": [
+      "*"
+    ],
+    "emission-constant": 317
+  },
+  "cron": {
+    "commit-job-worker": "2m",
+    "duration-worker": "5m",
+    "footprint-worker": "10m"
+  },
+  "archive": {
+    "kind": "file",
+    "path": "./var/job-archive"
+  },
+  "auth": {
+    "jwts": {
+      "max-age": "2000h"
+    }
+  },
+ "clusters": [
+     {
+         "name": "name",
+         "metricDataRepository": {
+             "kind": "cc-metric-store",
+             "url": "http://localhost:8082",
+             "token": ""
+         },
+         "filterRanges": {
+             "numNodes": {
+                 "from": 1,
+                 "to": 64
+             },
+             "duration": {
+                 "from": 0,
+                 "to": 86400
+             },
+             "startTime": {
+                 "from": "2023-01-01T00:00:00Z",
+                 "to": null
+             }
+         }
+     }
+ ]
 }
 `
 
