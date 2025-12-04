@@ -17,11 +17,11 @@ import (
 
 // transformExclusiveToShared converts the old 'exclusive' field to the new 'shared' field
 // Mapping: 0 -> "multi_user", 1 -> "none", 2 -> "single_user"
-func transformExclusiveToShared(jobData map[string]interface{}) error {
+func transformExclusiveToShared(jobData map[string]any) error {
 	// Check if 'exclusive' field exists
 	if exclusive, ok := jobData["exclusive"]; ok {
 		var exclusiveVal int
-		
+
 		// Handle both int and float64 (JSON unmarshaling can produce float64)
 		switch v := exclusive.(type) {
 		case float64:
@@ -48,7 +48,7 @@ func transformExclusiveToShared(jobData map[string]interface{}) error {
 		// Add shared field and remove exclusive
 		jobData["shared"] = shared
 		delete(jobData, "exclusive")
-		
+
 		cclog.Debugf("Transformed exclusive=%d to shared=%s", exclusiveVal, shared)
 	}
 
@@ -56,7 +56,7 @@ func transformExclusiveToShared(jobData map[string]interface{}) error {
 }
 
 // addMissingFields adds fields that are required in the current schema but might be missing in old archives
-func addMissingFields(jobData map[string]interface{}) error {
+func addMissingFields(jobData map[string]any) error {
 	// Add submitTime if missing (default to startTime)
 	if _, ok := jobData["submitTime"]; !ok {
 		if startTime, ok := jobData["startTime"]; ok {
@@ -85,7 +85,7 @@ func addMissingFields(jobData map[string]interface{}) error {
 }
 
 // removeDeprecatedFields removes fields that are no longer in the current schema
-func removeDeprecatedFields(jobData map[string]interface{}) error {
+func removeDeprecatedFields(jobData map[string]any) error {
 	// List of deprecated fields to remove
 	deprecatedFields := []string{
 		"mem_used_max",
@@ -109,7 +109,7 @@ func removeDeprecatedFields(jobData map[string]interface{}) error {
 }
 
 // migrateJobMetadata applies all transformations to a job metadata map
-func migrateJobMetadata(jobData map[string]interface{}) error {
+func migrateJobMetadata(jobData map[string]any) error {
 	// Apply transformations in order
 	if err := transformExclusiveToShared(jobData); err != nil {
 		return fmt.Errorf("transformExclusiveToShared failed: %w", err)
@@ -135,7 +135,7 @@ func processJob(metaPath string, dryRun bool) error {
 	}
 
 	// Parse JSON
-	var jobData map[string]interface{}
+	var jobData map[string]any
 	if err := json.Unmarshal(data, &jobData); err != nil {
 		return fmt.Errorf("failed to parse JSON from %s: %w", metaPath, err)
 	}
@@ -157,7 +157,7 @@ func processJob(metaPath string, dryRun bool) error {
 		return fmt.Errorf("failed to marshal migrated data: %w", err)
 	}
 
-	if err := os.WriteFile(metaPath, migratedData, 0644); err != nil {
+	if err := os.WriteFile(metaPath, migratedData, 0o644); err != nil {
 		return fmt.Errorf("failed to write %s: %w", metaPath, err)
 	}
 
@@ -175,11 +175,11 @@ func migrateArchive(archivePath string, dryRun bool, numWorkers int) (int, int, 
 	var failed int32
 
 	// Channel for job paths
-	jobs :=make(chan string, numWorkers*2)
+	jobs := make(chan string, numWorkers*2)
 	var wg sync.WaitGroup
 
 	// Start worker goroutines
-	for i := 0; i < numWorkers; i++ {
+	for i := range numWorkers {
 		wg.Add(1)
 		go func(workerID int) {
 			defer wg.Done()
