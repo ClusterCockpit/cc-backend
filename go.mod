@@ -26,7 +26,7 @@ require (
 	github.com/influxdata/line-protocol/v2 v2.2.1
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/joho/godotenv v1.5.1
-	github.com/linkedin/goavro/v2 v2.14.0
+	github.com/linkedin/goavro/v2 v2.14.1
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/nats-io/nats.go v1.47.0
 	github.com/prometheus/client_golang v1.23.2
