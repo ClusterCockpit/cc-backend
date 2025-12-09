@@ -23,34 +23,49 @@
         </script>
     </head>
     <body  class="site">
-        {{block "navigation" .}}
-            <header id="svelte-header"></header>
-        {{end}}
+        {{if eq .Infos.displayType "PUBLIC"}}
+            <main>
+                <div class="container">
+                    {{block "content-public" .}}
+                        Whoops, you should not see this... [MAIN]
+                    {{end}}
+                </div>
+            </main>
 
-        <main class="site-content">
-            <div class="container">
-                {{block "content" .}}
-                    Whoops, you should not see this...
-                {{end}}
-            </div>
-        </main>
+            {{block "javascript-public" .}}
+                Whoops, you should not see this... [JS]
+            {{end}}
 
-        {{block "footer" .}}
-            <footer class="site-footer bg-light">
-                <ul class="footer-list">
-                    <li class="footer-list-item"><a class="link-secondary fs-5" href="/imprint" title="Imprint" rel="nofollow">Imprint</a></li>
-                    <li class="footer-list-item"><a class="link-secondary fs-5" href="/privacy" title="Privacy Policy" rel="nofollow">Privacy Policy</a></li>
-                </ul>
-                <ul class="build-list">
-                  <li class="build-list-item">Version {{ .Build.Version }}</li>
-                  <li class="build-list-item">Hash {{ .Build.Hash }}</li>
-                  <li class="build-list-item">Built {{ .Build.Buildtime }}</li>
-                </ul>
-            </footer>
-        {{end}}
+        {{else}}
+            {{block "navigation" .}}
+                <header id="svelte-header"></header>
+            {{end}}
 
-        {{block "javascript" .}}
-            <script src='/build/header.js'></script>
+            <main class="site-content">
+                <div class="container">
+                    {{block "content" .}}
+                        Whoops, you should not see this... [MAIN]
+                    {{end}}
+                </div>
+            </main>
+
+            {{block "footer" .}}
+                <footer class="site-footer bg-light">
+                    <ul class="footer-list">
+                        <li class="footer-list-item"><a class="link-secondary fs-5" href="/imprint" title="Imprint" rel="nofollow">Imprint</a></li>
+                        <li class="footer-list-item"><a class="link-secondary fs-5" href="/privacy" title="Privacy Policy" rel="nofollow">Privacy Policy</a></li>
+                    </ul>
+                    <ul class="build-list">
+                    <li class="build-list-item">Version {{ .Build.Version }}</li>
+                    <li class="build-list-item">Hash {{ .Build.Hash }}</li>
+                    <li class="build-list-item">Built {{ .Build.Buildtime }}</li>
+                    </ul>
+                </footer>
+            {{end}}
+
+            {{block "javascript" .}}
+                <script src='/build/header.js'></script>
+            {{end}}
         {{end}}
     </body>
 </html>

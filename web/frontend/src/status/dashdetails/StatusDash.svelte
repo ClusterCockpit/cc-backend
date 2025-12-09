@@ -22,12 +22,12 @@
     gql,
     getContextClient,
   } from "@urql/svelte";
-  import { formatDurationTime } from "../generic/units.js";
-  import Refresher from "../generic/helper/Refresher.svelte";
-  import TimeSelection from "../generic/select/TimeSelection.svelte";
-  import Roofline from "../generic/plots/Roofline.svelte";
-  import Pie, { colors } from "../generic/plots/Pie.svelte";
-  import Stacked from "../generic/plots/Stacked.svelte";
+  import { formatDurationTime } from "../../generic/units.js";
+  import Refresher from "../../generic/helper/Refresher.svelte";
+  import TimeSelection from "../../generic/select/TimeSelection.svelte";
+  import Roofline from "../../generic/plots/Roofline.svelte";
+  import Pie, { colors } from "../../generic/plots/Pie.svelte";
+  import Stacked from "../../generic/plots/Stacked.svelte";
 
   /* Svelte 5 Props */
   let {
@@ -83,7 +83,7 @@
       }
     `,
     variables: {
-      filter: { cluster: { eq: cluster }, timeStart: stackedFrom},
+      filter: { cluster: { eq: cluster }, timeStart: 1760096999},
       typeNode: "node",
       typeHealth: "health"
     },

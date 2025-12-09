@@ -64,6 +64,34 @@
           {/each}
         </DropdownMenu>
       </Dropdown>
+    {:else if item.title === 'Status'}
+      <Dropdown nav inNavbar {direction}>
+        <DropdownToggle nav caret>
+          <Icon name={item.icon} />
+          {item.title}
+        </DropdownToggle>
+        <DropdownMenu class="dropdown-menu-lg-end">
+          {#each clusters as cluster}
+            <Dropdown nav direction="right">
+              <DropdownToggle nav caret class="dropdown-item py-1 px-2">
+                {cluster.name}
+              </DropdownToggle>
+              <DropdownMenu>
+                <DropdownItem class="py-1 px-2"
+                  href={item.href + cluster.name}
+                >
+                  Status Dashboard
+                </DropdownItem>
+                <DropdownItem class="py-1 px-2"
+                  href={item.href + 'detail/' + cluster.name}
+                >
+                  Status Details
+                </DropdownItem>
+              </DropdownMenu>
+            </Dropdown>
+          {/each}
+        </DropdownMenu>
+      </Dropdown>
     {:else}
       <Dropdown nav inNavbar {direction}>
         <DropdownToggle nav caret>

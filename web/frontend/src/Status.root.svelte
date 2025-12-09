@@ -7,76 +7,42 @@
 
  <script>
   import {
-    getContext
-  } from "svelte"
-  import {
-    init,
-  } from "./generic/utils.js";
-  import {
     Row,
     Col,
     Card,
-    CardBody,
-    TabContent,
-    TabPane,
-    Spinner
   } from "@sveltestrap/sveltestrap";
 
-  import StatusDash from "./status/StatusDash.svelte";
-  import UsageDash from "./status/UsageDash.svelte";
-  import StatisticsDash from "./status/StatisticsDash.svelte";
+  import DashDetails from "./status/DashDetails.svelte";
+  import DashInternal from "./status/DashInternal.svelte";
 
   /* Svelte 5 Props */
   let {
-    presetCluster
+    presetCluster,
+    displayType
   } = $props();
 
   /*Const Init */
-  const { query: initq } = init();
-  const useCbColors = getContext("cc-config")?.plotConfiguration_colorblindMode || false
+  const displayStatusDetail = (displayType === 'DETAILS');
 </script>
 
-<!-- Loading indicator & Refresh -->
-
-<Row cols={1} class="mb-2">
+<!-- <Row cols={1} class="mb-2">
   <Col>
     <h3 class="mb-0">Current Status of Cluster "{presetCluster.charAt(0).toUpperCase() + presetCluster.slice(1)}"</h3>
   </Col>
-</Row>
+</Row> -->
 
-
-{#if $initq.fetching}
-  <Row cols={1} class="text-center mt-3">
+{#if displayType !== "DASHBOARD" && displayType !== "DETAILS"}
+  <Row>
     <Col>
-      <Spinner />
-    </Col>
-  </Row>
-{:else if $initq.error}
-  <Row cols={1} class="text-center mt-3">
-    <Col>  
-      <Card body color="danger">{$initq.error.message}</Card>
+      <Card body color="danger">Unknown displayList type! </Card>
     </Col>
   </Row>
 {:else}
-  <Card class="overflow-auto" style="height: auto;">
-    <TabContent>
-      <TabPane tabId="status-dash" tab="Status" active>
-        <CardBody>
-          <StatusDash clusters={$initq.data.clusters} {presetCluster} {useCbColors} useAltColors></StatusDash>
-        </CardBody>
-      </TabPane>
-
-      <TabPane tabId="usage-dash" tab="Usage">
-        <CardBody>
-          <UsageDash {presetCluster} {useCbColors}></UsageDash>
-        </CardBody>
-      </TabPane>
-      
-      <TabPane tabId="metric-dash" tab="Statistics">
-        <CardBody>
-          <StatisticsDash {presetCluster} {useCbColors}></StatisticsDash>
-        </CardBody>
-      </TabPane>
-    </TabContent>
-  </Card>
+  {#if displayStatusDetail}
+    <!-- ROW2-1: Node Overview (Grid Included)-->
+    <DashDetails {presetCluster}/>
+  {:else}
+    <!-- ROW2-2: Node List (Grid Included)-->
+    <DashInternal {presetCluster}/>
+  {/if}
 {/if}

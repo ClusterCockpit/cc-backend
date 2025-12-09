@@ -36,6 +36,7 @@
     subCluster = null,
     allowSizeChange = false,
     useColors = true,
+    useLegend = true,
     width = 600,
     height = 380,
   } = $props();
@@ -534,7 +535,7 @@
         width: width,
         height: height,
         legend: {
-          show: true,
+          show: useLegend,
         },
         cursor: { 
           dataIdx: (u, seriesIdx) => {

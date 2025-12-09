@@ -156,7 +156,7 @@
         {
           scale: "y",
           grid: { show: true },
-          labelFont: "sans-serif",
+          // labelFont: "sans-serif",
           label: ylabel + (yunit ? ` (${yunit})` : ''),
           // values: (u, vals) => vals.map((v) => formatNumber(v)),
         },

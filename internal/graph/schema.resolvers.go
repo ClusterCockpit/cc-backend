@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"slices"
 	"strconv"
@@ -971,6 +972,86 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 	}
 
 	return nodeMetricsListResult, nil
+}
+
+// ClusterMetrics is the resolver for the clusterMetrics field.
+func (r *queryResolver) ClusterMetrics(ctx context.Context, cluster string, metrics []string, from time.Time, to time.Time) (*model.ClusterMetrics, error) {
+
+	user := repository.GetUserFromContext(ctx)
+	if user != nil && !user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport}) {
+		return nil, errors.New("you need to be administrator or support staff for this query")
+	}
+
+	if metrics == nil {
+		for _, mc := range archive.GetCluster(cluster).MetricConfig {
+			metrics = append(metrics, mc.Name)
+		}
+	}
+
+	// 'nodes' == nil -> Defaults to all nodes of cluster for existing query workflow
+	scopes := []schema.MetricScope{"node"}
+	data, err := metricDataDispatcher.LoadNodeData(cluster, metrics, nil, scopes, from, to, ctx)
+	if err != nil {
+		cclog.Warn("error while loading node data")
+		return nil, err
+	}
+
+	clusterMetricData := make([]*model.ClusterMetricWithName, 0)
+	clusterMetrics := model.ClusterMetrics{NodeCount: 0, Metrics: clusterMetricData}
+
+	collectorTimestep := make(map[string]int)
+	collectorUnit := make(map[string]schema.Unit)
+	collectorData := make(map[string][]schema.Float)
+
+	for _, metrics := range data {
+		clusterMetrics.NodeCount += 1
+		for metric, scopedMetrics := range metrics {
+			_, ok := collectorData[metric]
+			if !ok {
+				collectorData[metric] = make([]schema.Float, 0)
+				for _, scopedMetric := range scopedMetrics {
+					// Collect Info
+					collectorTimestep[metric] = scopedMetric.Timestep
+					collectorUnit[metric] = scopedMetric.Unit
+					// Collect Initial Data
+					for _, ser := range scopedMetric.Series {
+						for _, val := range ser.Data {
+							collectorData[metric] = append(collectorData[metric], val)
+						}
+					}
+				}
+			} else {
+				// Sum up values by index
+				for _, scopedMetric := range scopedMetrics {
+					// For This Purpose (Cluster_Wide-Sum of Node Metrics) OK
+					for _, ser := range scopedMetric.Series {
+						for i, val := range ser.Data {
+							collectorData[metric][i] += val
+						}
+					}
+				}
+			}
+		}
+	}
+
+	for metricName, data := range collectorData {
+		cu := collectorUnit[metricName]
+		roundedData := make([]schema.Float, 0)
+		for _, val := range data {
+			roundedData = append(roundedData, schema.Float((math.Round(float64(val)*100.0) / 100.0)))
+		}
+
+		cm := model.ClusterMetricWithName{
+			Name:     metricName,
+			Unit:     &cu,
+			Timestep: collectorTimestep[metricName],
+			Data:     roundedData,
+		}
+
+		clusterMetrics.Metrics = append(clusterMetrics.Metrics, &cm)
+	}
+
+	return &clusterMetrics, nil
 }
 
 // NumberOfNodes is the resolver for the numberOfNodes field.
