@@ -315,10 +315,10 @@
                   y1,
                   x2,
                   y2,
-                  u.valToPos(0.01, "x", true),
-                  u.valToPos(1.0, "y", true), // X-Axis Start Coords
-                  u.valToPos(1000, "x", true),
-                  u.valToPos(1.0, "y", true), // X-Axis End Coords
+                  u.valToPos(0.01, "x", true), // x3; X-Axis Start Coord-X
+                  u.valToPos(1.0, "y", true), // y3; X-Axis Start Coord-Y
+                  u.valToPos(1000, "x", true), // x4; X-Axis End Coord-X
+                  u.valToPos(1.0, "y", true), // y4; X-Axis End Coord-Y
                 );
 
                 if (xAxisIntersect.x > x1) {

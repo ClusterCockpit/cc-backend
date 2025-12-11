@@ -82,7 +82,7 @@
       }
     `,
     variables: {
-      filter: { cluster: { eq: presetCluster }, timeStart: 1760096999}, // DEBUG VALUE, use StackedFrom
+      filter: { cluster: { eq: presetCluster }, timeStart: stackedFrom}, // DEBUG VALUE 1760096999, use StackedFrom
       typeNode: "node",
       typeHealth: "health"
     },
@@ -97,6 +97,7 @@
       query (
         $cluster: String!
         $metrics: [String!]
+        # $nmetrics: [String!]
         $from: Time!
         $to: Time!
         $clusterFrom: Time!
@@ -183,7 +184,7 @@
           totalCores
           totalAccs
         }
-        # TEST
+        # ClusterMetrics for doubleMetricPlot
         clusterMetrics(
           cluster: $cluster
           metrics: $metrics
@@ -205,7 +206,8 @@
     `,
     variables: {
       cluster: presetCluster,
-      metrics: ["flops_any", "mem_bw"], // Fixed names for roofline and status bars
+      metrics: ["flops_any", "mem_bw"], // Metrics For Cluster Plot and Roofline
+      // nmetrics: ["cpu_load", "acc_utilization"], // Metrics for Node Graph
       from: from.toISOString(),
       clusterFrom: clusterFrom.toISOString(),
       to: to.toISOString(),
@@ -349,18 +351,18 @@
   });
 
   /* Functions */
-  function legendColors(targetIdx, useAltColors) {
-    // Reuses first color if targetIdx overflows
-    let c;
-      if (useCbColors) {
-        c = [...colors['colorblind']];
-      } else if (useAltColors) {
-        c = [...colors['alternative']];
-      } else {
-        c = [...colors['default']];
-      }
-    return  c[(c.length + targetIdx) % c.length];
-  }
+  // function legendColors(targetIdx, useAltColors) {
+  //   // Reuses first color if targetIdx overflows
+  //   let c;
+  //     if (useCbColors) {
+  //       c = [...colors['colorblind']];
+  //     } else if (useAltColors) {
+  //       c = [...colors['alternative']];
+  //     } else {
+  //       c = [...colors['default']];
+  //     }
+  //   return  c[(c.length + targetIdx) % c.length];
+  // }
 
   function transformNodesStatsToData(subclusterData) {
     let data = null
@@ -425,10 +427,10 @@
 </script>
 
 <Card style="height: 98vh;">
-  <CardHeader class="text-center">
+  <!-- <CardHeader class="text-center">
     <h3 class="mb-0">{presetCluster.charAt(0).toUpperCase() + presetCluster.slice(1)} Dashboard</h3>
-  </CardHeader>
-  <CardBody>
+  </CardHeader> -->
+  <CardBody class="align-content-center">
     {#if $statusQuery.fetching || $statesTimed.fetching || $topJobsQuery.fetching || $nodeStatusQuery.fetching}
       <Row class="justify-content-center">
         <Col xs="auto">
@@ -461,13 +463,24 @@
       </Row>
 
     {:else}
-      <Row cols={{xs:1, md:2, xl: 3}}>
-        <Col> <!-- Info Card -->
-          <Card class="h-auto mt-1">
-            <CardHeader>
+      <Row cols={{xs:1, md:2}}>
+        <Col> <!-- General Cluster Info Card -->
+           <Card class="h-100">
+            <CardHeader class="text-center">
+              <h2 class="mb-0">Cluster {presetCluster.charAt(0).toUpperCase() + presetCluster.slice(1)}</h2>
+            </CardHeader>
+            <CardBody>
+              <h4>CPU(s)</h4><p><strong>{[...clusterInfo?.processorTypes].join(', ')}</strong></p>
+            </CardBody>
+           </Card>
+        </Col>
+
+        <Col> <!-- Utilization Info Card -->
+          <Card class="h-100">
+            <!-- <CardHeader>
               <CardTitle class="mb-0">Cluster "{presetCluster.charAt(0).toUpperCase() + presetCluster.slice(1)}"</CardTitle>
               <span>{[...clusterInfo?.processorTypes].toString()}</span>
-            </CardHeader>
+            </CardHeader> -->
             <CardBody>
               <Table borderless>
                 <tr class="py-2">
@@ -545,77 +558,7 @@
             </CardBody>
           </Card>
         </Col>
-        <Col> <!-- Pie Last States -->
-          <Row>
-            <Col class="px-3 mt-2 mt-lg-0">
-              <div bind:clientWidth={colWidthStates}>
-                {#key refinedStateData}
-                  <h4 class="text-center">
-                    Current Node States
-                  </h4>
-                  <Pie
-                    useAltColors
-                    canvasId="hpcpie-slurm"
-                    size={colWidthStates * 0.75}
-                    sliceLabel="Nodes"
-                    quantities={refinedStateData.map(
-                      (sd) => sd.count,
-                    )}
-                    entities={refinedStateData.map(
-                      (sd) => sd.state,
-                    )}
-                  />
-                {/key}
-              </div>
-            </Col>
-            <Col class="px-4 py-2">
-              {#key refinedStateData}
-                <Table>
-                  <tr class="mb-2">
-                    <th></th>
-                    <th>Current State</th>
-                    <th>Nodes</th>
-                  </tr>
-                  {#each refinedStateData as sd, i}
-                    <tr>
-                      <td><Icon name="circle-fill" style="color: {legendColors(i, true)};"/></td>
-                      <td>{sd.state}</td>
-                      <td>{sd.count}</td>
-                    </tr>
-                  {/each}
-                </Table>
-              {/key}
-            </Col>
-          </Row>
-        </Col>
-        <Col> <!-- General Cluster Info Card? -->
-          <!-- TODO -->
-           <Card>
-            <CardHeader>
-              <CardTitle>Infos</CardTitle>
-            </CardHeader>
-            <CardBody>
-              Contents
-            </CardBody>
-           </Card>
-        </Col>
-        <Col> <!-- Nodes Roofline -->
-          <div bind:clientWidth={colWidthRoof}>
-            {#key $statusQuery?.data?.nodeMetrics}
-              <Roofline
-                useColors={false}
-                useLegend={false}
-                allowSizeChange
-                width={colWidthRoof - 10}
-                height={300}
-                cluster={presetCluster}
-                subCluster={clusterInfo?.roofData ? clusterInfo.roofData : null}
-                roofData={transformNodesStatsToData($statusQuery?.data?.nodeMetrics)}
-                nodesData={transformNodesStatsToInfo($statusQuery?.data?.nodeMetrics)}
-              />
-            {/key}
-          </div>
-        </Col>
+
         <Col> <!-- Resources/Job Histogram OR Total Cluster Metric in Time SUMS-->
           <div bind:clientWidth={colWidthTotals}>
             <DoubleMetric
@@ -624,6 +567,7 @@
               numNodes={$statusQuery?.data?.clusterMetrics?.nodeCount || 0}
               metricData={$statusQuery?.data?.clusterMetrics?.metrics || []}
               cluster={presetCluster}
+              fixLinewidth={2}
             />
           </div>
           <!-- {#if clusterInfo?.totalAccs == 0}
@@ -650,6 +594,73 @@
             />
           {/if} -->
         </Col>
+
+        <Col> <!-- Nodes Roofline -->
+          <div bind:clientWidth={colWidthRoof}>
+            {#key $statusQuery?.data?.nodeMetrics}
+              <Roofline
+                colorBackground
+                useColors={false}
+                useLegend={false}
+                allowSizeChange
+                width={colWidthRoof - 10}
+                height={300}
+                cluster={presetCluster}
+                subCluster={clusterInfo?.roofData ? clusterInfo.roofData : null}
+                roofData={transformNodesStatsToData($statusQuery?.data?.nodeMetrics)}
+                nodesData={transformNodesStatsToInfo($statusQuery?.data?.nodeMetrics)}
+                fixTitle="Node Utilization"
+                yMinimum={1.0}
+              />
+            {/key}
+          </div>
+        </Col>
+        <Col> <!-- Pie Last States -->
+          <Row>
+            <Col class="px-3 mt-2 mt-lg-0">
+              <div bind:clientWidth={colWidthStates}>
+                {#key refinedStateData}
+                  <!-- <h4 class="text-center">
+                    Cluster Status
+                  </h4> -->
+                  <Pie
+                    canvasId="hpcpie-slurm"
+                    size={colWidthStates * 0.66}
+                    sliceLabel="Nodes"
+                    quantities={refinedStateData.map(
+                      (sd) => sd.count,
+                    )}
+                    entities={refinedStateData.map(
+                      (sd) => sd.state,
+                    )}
+                    fixColors={refinedStateData.map(
+                      (sd) => colors['nodeStates'][sd.state],
+                    )}
+                  />
+                {/key}
+              </div>
+            </Col>
+            <Col class="px-4 py-2">
+              {#key refinedStateData}
+                <Table>
+                  <tr class="mb-2">
+                    <th></th>
+                    <th class="h4">State</th>
+                    <th class="h4">Count</th>
+                  </tr>
+                  {#each refinedStateData as sd, i}
+                    <tr>
+                      <td><Icon name="circle-fill" style="color: {colors['nodeStates'][sd.state]}; font-size: 30px;"/></td>
+                      <td class="h5">{sd.state.charAt(0).toUpperCase() + sd.state.slice(1)}</td>
+                      <td class="h5">{sd.count}</td>
+                    </tr>
+                  {/each}
+                </Table>
+              {/key}
+            </Col>
+          </Row>
+        </Col>
+
         <Col> <!-- Stacked SchedState -->
           <div bind:clientWidth={colWidthStacked}>
             {#key $statesTimed?.data?.nodeStates}
@@ -659,7 +670,7 @@
                 xlabel="Time"
                 ylabel="Nodes"
                 yunit = "#Count"
-                title = "Node States"
+                title = "Cluster Status"
                 stateType = "Node"
               />
             {/key}

@@ -33,6 +33,7 @@
     // metric,
     width = 0,
     height = 300,
+    fixLinewidth = null,
     timestep,
     numNodes,
     metricData,
@@ -52,7 +53,7 @@
   // const subClusterTopology = getContext("getHardwareTopology")(cluster, subCluster);
   // const metricConfig = getContext("getMetricConfig")(cluster, subCluster, metric);
   const lineColors = clusterCockpitConfig.plotConfiguration_colorScheme;
-  const lineWidth = clusterCockpitConfig.plotConfiguration_lineWidth / window.devicePixelRatio;
+  const lineWidth = fixLinewidth ? fixLinewidth : clusterCockpitConfig.plotConfiguration_lineWidth / window.devicePixelRatio;
   // const cbmode = clusterCockpitConfig?.plotConfiguration_colorblindMode || false;
   const renderSleepTime = 200;
   // const normalLineColor = "#000000";
@@ -444,6 +445,7 @@
     const opts = {
       width,
       height,
+      title: 'Cluster Utilization',
       plugins: [legendAsTooltipPlugin()],
       series: plotSeries,
       axes: [
