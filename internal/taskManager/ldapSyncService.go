@@ -27,7 +27,7 @@ func RegisterLdapSyncService(ds string) {
 		gocron.NewTask(
 			func() {
 				t := time.Now()
-				cclog.Printf("ldap sync started at %s", t.Format(time.RFC3339))
+				cclog.Infof("ldap sync started at %s", t.Format(time.RFC3339))
 				if err := auth.LdapAuth.Sync(); err != nil {
 					cclog.Errorf("ldap sync failed: %s", err.Error())
 				}

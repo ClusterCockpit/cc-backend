@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/golang-jwt/jwt/v5"
@@ -102,38 +101,21 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 
 	// Token is valid, extract payload
 	claims := token.Claims.(jwt.MapClaims)
-	sub, _ := claims["sub"].(string)
-
-	var roles []string
-
-	// Validate user + roles from JWT against database?
-	if Keys.JwtConfig.ValidateUser {
-		ur := repository.GetUserRepository()
-		user, err := ur.GetUser(sub)
-		// Deny any logins for unknown usernames
-		if err != nil {
-			cclog.Warn("Could not find user from JWT in internal database.")
-			return nil, errors.New("unknown user")
-		}
-		// Take user roles from database instead of trusting the JWT
-		roles = user.Roles
-	} else {
-		// Extract roles from JWT (if present)
-		if rawroles, ok := claims["roles"].([]any); ok {
-			for _, rr := range rawroles {
-				if r, ok := rr.(string); ok {
-					roles = append(roles, r)
-				}
-			}
-		}
+	
+	// Use shared helper to get user from JWT claims
+	var user *schema.User
+	user, err = getUserFromJWT(claims, Keys.JwtConfig.ValidateUser, schema.AuthToken, -1)
+	if err != nil {
+		return nil, err
 	}
-
-	return &schema.User{
-		Username:   sub,
-		Roles:      roles,
-		AuthType:   schema.AuthToken,
-		AuthSource: -1,
-	}, nil
+	
+	// If not validating user, we only get roles from JWT (no projects for this auth method)
+	if !Keys.JwtConfig.ValidateUser {
+		user.Roles = extractRolesFromClaims(claims, false)
+		user.Projects = nil // Standard JWT auth doesn't include projects
+	}
+	
+	return user, nil
 }
 
 // ProvideJWT generates a new JWT that can be used for authentication

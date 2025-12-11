@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package tagger
 
 import (
@@ -28,9 +29,16 @@ type appInfo struct {
 	strings []string
 }
 
+// AppTagger detects applications by matching patterns in job scripts.
+// It loads application patterns from embedded files and can dynamically reload
+// configuration from a watched directory. When a job script matches a pattern,
+// the corresponding application tag is automatically applied.
 type AppTagger struct {
+	// apps maps application tags to their matching patterns
 	apps    map[string]appInfo
+	// tagType is the type of tag ("app")
 	tagType string
+	// cfgPath is the path to watch for configuration changes
 	cfgPath string
 }
 
@@ -45,10 +53,14 @@ func (t *AppTagger) scanApp(f fs.File, fns string) {
 	t.apps[ai.tag] = ai
 }
 
+// EventMatch checks if a filesystem event should trigger configuration reload.
+// It returns true if the event path contains "apps".
 func (t *AppTagger) EventMatch(s string) bool {
 	return strings.Contains(s, "apps")
 }
 
+// EventCallback is triggered when the configuration directory changes.
+// It reloads all application pattern files from the watched directory.
 // FIXME: Only process the file that caused the event
 func (t *AppTagger) EventCallback() {
 	files, err := os.ReadDir(t.cfgPath)
@@ -67,6 +79,10 @@ func (t *AppTagger) EventCallback() {
 	}
 }
 
+// Register initializes the AppTagger by loading application patterns from embedded files.
+// It also sets up a file watch on ./var/tagger/apps if it exists, allowing for
+// dynamic configuration updates without restarting the application.
+// Returns an error if the embedded application files cannot be read.
 func (t *AppTagger) Register() error {
 	t.cfgPath = "./var/tagger/apps"
 	t.tagType = "app"
@@ -96,6 +112,11 @@ func (t *AppTagger) Register() error {
 	return nil
 }
 
+// Match attempts to detect the application used by a job by analyzing its job script.
+// It fetches the job metadata, extracts the job script, and matches it against
+// all configured application patterns using regular expressions.
+// If a match is found, the corresponding application tag is added to the job.
+// Only the first matching application is tagged.
 func (t *AppTagger) Match(job *schema.Job) {
 	r := repository.GetJobRepository()
 	metadata, err := r.FetchMetadata(job)

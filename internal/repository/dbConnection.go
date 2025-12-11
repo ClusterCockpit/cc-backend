@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package repository
 
 import (
@@ -35,21 +36,15 @@ type DatabaseOptions struct {
 	ConnectionMaxIdleTime time.Duration
 }
 
-func setupSqlite(db *sql.DB) (err error) {
+func setupSqlite(db *sql.DB) error {
 	pragmas := []string{
-		// "journal_mode = WAL",
-		// "busy_timeout = 5000",
-		// "synchronous = NORMAL",
-		// "cache_size = 1000000000", // 1GB
-		// "foreign_keys = true",
 		"temp_store = memory",
-		// "mmap_size = 3000000000",
 	}
 
 	for _, pragma := range pragmas {
-		_, err = db.Exec("PRAGMA " + pragma)
+		_, err := db.Exec("PRAGMA " + pragma)
 		if err != nil {
-			return
+			return err
 		}
 	}
 
@@ -63,24 +58,24 @@ func Connect(driver string, db string) {
 	dbConnOnce.Do(func() {
 		opts := DatabaseOptions{
 			URL:                   db,
-			MaxOpenConnections:    4,
-			MaxIdleConnections:    4,
-			ConnectionMaxLifetime: time.Hour,
-			ConnectionMaxIdleTime: time.Hour,
+			MaxOpenConnections:    repoConfig.MaxOpenConnections,
+			MaxIdleConnections:    repoConfig.MaxIdleConnections,
+			ConnectionMaxLifetime: repoConfig.ConnectionMaxLifetime,
+			ConnectionMaxIdleTime: repoConfig.ConnectionMaxIdleTime,
 		}
 
 		switch driver {
 		case "sqlite3":
 			// TODO: Have separate DB handles for Writes and Reads
 			// Optimize SQLite connection: https://kerkour.com/sqlite-for-servers
-			connectionUrlParams := make(url.Values)
-			connectionUrlParams.Add("_txlock", "immediate")
-			connectionUrlParams.Add("_journal_mode", "WAL")
-			connectionUrlParams.Add("_busy_timeout", "5000")
-			connectionUrlParams.Add("_synchronous", "NORMAL")
-			connectionUrlParams.Add("_cache_size", "1000000000")
-			connectionUrlParams.Add("_foreign_keys", "true")
-			opts.URL = fmt.Sprintf("file:%s?%s", opts.URL, connectionUrlParams.Encode())
+			connectionURLParams := make(url.Values)
+			connectionURLParams.Add("_txlock", "immediate")
+			connectionURLParams.Add("_journal_mode", "WAL")
+			connectionURLParams.Add("_busy_timeout", "5000")
+			connectionURLParams.Add("_synchronous", "NORMAL")
+			connectionURLParams.Add("_cache_size", "1000000000")
+			connectionURLParams.Add("_foreign_keys", "true")
+			opts.URL = fmt.Sprintf("file:%s?%s", opts.URL, connectionURLParams.Encode())
 
 			if cclog.Loglevel() == "debug" {
 				sql.Register("sqlite3WithHooks", sqlhooks.Wrap(&sqlite3.SQLiteDriver{}, &Hooks{}))
@@ -89,7 +84,10 @@ func Connect(driver string, db string) {
 				dbHandle, err = sqlx.Open("sqlite3", opts.URL)
 			}
 
-			setupSqlite(dbHandle.DB)
+			err = setupSqlite(dbHandle.DB)
+			if err != nil {
+				cclog.Abortf("Failed sqlite db setup.\nError: %s\n", err.Error())
+			}
 		case "mysql":
 			opts.URL += "?multiStatements=true"
 			dbHandle, err = sqlx.Open("mysql", opts.URL)

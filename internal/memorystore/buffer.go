@@ -105,46 +105,6 @@ func (b *buffer) firstWrite() int64 {
 
 func (b *buffer) close() {}
 
-/*
-func (b *buffer) close() {
-	if b.closed {
-		return
-	}
-
-	b.closed = true
-	n, sum, min, max := 0, 0., math.MaxFloat64, -math.MaxFloat64
-	for _, x := range b.data {
-		if x.IsNaN() {
-			continue
-		}
-
-		n += 1
-		f := float64(x)
-		sum += f
-		min = math.Min(min, f)
-		max = math.Max(max, f)
-	}
-
-	b.statisticts.samples = n
-	if n > 0 {
-		b.statisticts.avg = Float(sum / float64(n))
-		b.statisticts.min = Float(min)
-		b.statisticts.max = Float(max)
-	} else {
-		b.statisticts.avg = NaN
-		b.statisticts.min = NaN
-		b.statisticts.max = NaN
-	}
-}
-*/
-
-// func interpolate(idx int, data []Float) Float {
-// 	if idx == 0 || idx+1 == len(data) {
-// 		return NaN
-// 	}
-// 	return (data[idx-1] + data[idx+1]) / 2.0
-// }
-
 // Return all known values from `from` to `to`. Gaps of information are represented as NaN.
 // Simple linear interpolation is done between the two neighboring cells if possible.
 // If values at the start or end are missing, instead of NaN values, the second and thrid

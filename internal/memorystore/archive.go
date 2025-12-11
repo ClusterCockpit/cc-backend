@@ -44,14 +44,14 @@ func Archiving(wg *sync.WaitGroup, ctx context.Context) {
 				return
 			case <-ticks:
 				t := time.Now().Add(-d)
-				cclog.Printf("[METRICSTORE]> start archiving checkpoints (older than %s)...\n", t.Format(time.RFC3339))
+				cclog.Infof("[METRICSTORE]> start archiving checkpoints (older than %s)...", t.Format(time.RFC3339))
 				n, err := ArchiveCheckpoints(Keys.Checkpoints.RootDir,
 					Keys.Archive.RootDir, t.Unix(), Keys.Archive.DeleteInstead)
 
 				if err != nil {
-					cclog.Printf("[METRICSTORE]> archiving failed: %s\n", err.Error())
+					cclog.Errorf("[METRICSTORE]> archiving failed: %s", err.Error())
 				} else {
-					cclog.Printf("[METRICSTORE]> done: %d files zipped and moved to archive\n", n)
+					cclog.Infof("[METRICSTORE]> done: %d files zipped and moved to archive", n)
 				}
 			}
 		}
@@ -75,10 +75,10 @@ func ArchiveCheckpoints(checkpointsDir, archiveDir string, from int64, deleteIns
 
 	var wg sync.WaitGroup
 	n, errs := int32(0), int32(0)
-	work := make(chan workItem, NumWorkers)
+	work := make(chan workItem, Keys.NumWorkers)
 
-	wg.Add(NumWorkers)
-	for worker := 0; worker < NumWorkers; worker++ {
+	wg.Add(Keys.NumWorkers)
+	for worker := 0; worker < Keys.NumWorkers; worker++ {
 		go func() {
 			defer wg.Done()
 			for workItem := range work {
@@ -116,7 +116,7 @@ func ArchiveCheckpoints(checkpointsDir, archiveDir string, from int64, deleteIns
 	}
 
 	if errs > 0 {
-		return int(n), fmt.Errorf("%d errors happend while archiving (%d successes)", errs, n)
+		return int(n), fmt.Errorf("%d errors happened while archiving (%d successes)", errs, n)
 	}
 	return int(n), nil
 }
@@ -147,11 +147,11 @@ func archiveCheckpoints(dir string, archiveDir string, from int64, deleteInstead
 	}
 
 	filename := filepath.Join(archiveDir, fmt.Sprintf("%d.zip", from))
-	f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, CheckpointFilePerms)
 	if err != nil && os.IsNotExist(err) {
-		err = os.MkdirAll(archiveDir, 0o755)
+		err = os.MkdirAll(archiveDir, CheckpointDirPerms)
 		if err == nil {
-			f, err = os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0o644)
+			f, err = os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, CheckpointFilePerms)
 		}
 	}
 	if err != nil {

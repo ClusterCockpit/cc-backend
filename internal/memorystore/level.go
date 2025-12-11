@@ -39,7 +39,7 @@ func (l *Level) findLevelOrCreate(selector []string, nMetrics int) *Level {
 		// Children map needs to be created...
 		l.lock.RUnlock()
 	} else {
-		child, ok := l.children[selector[0]]
+		child, ok = l.children[selector[0]]
 		l.lock.RUnlock()
 		if ok {
 			return child.findLevelOrCreate(selector[1:], nMetrics)

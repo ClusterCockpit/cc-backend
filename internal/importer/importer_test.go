@@ -20,6 +20,8 @@ import (
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 )
 
+// copyFile copies a file from source path to destination path.
+// Used by tests to set up test fixtures.
 func copyFile(s string, d string) error {
 	r, err := os.Open(s)
 	if err != nil {
@@ -35,6 +37,14 @@ func copyFile(s string, d string) error {
 	return nil
 }
 
+// setup initializes a test environment for importer tests.
+//
+// Creates a temporary directory with:
+//   - A test job archive with cluster configuration
+//   - A SQLite database initialized with schema
+//   - Configuration files loaded
+//
+// Returns a JobRepository instance for test assertions.
 func setup(t *testing.T) *repository.JobRepository {
 	const testconfig = `{
 		"main": {
@@ -81,14 +91,14 @@ func setup(t *testing.T) *repository.JobRepository {
 	tmpdir := t.TempDir()
 
 	jobarchive := filepath.Join(tmpdir, "job-archive")
-	if err := os.Mkdir(jobarchive, 0777); err != nil {
+	if err := os.Mkdir(jobarchive, 0o777); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(jobarchive, "version.txt"), []byte(fmt.Sprintf("%d", 2)), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(jobarchive, "version.txt"), fmt.Appendf(nil, "%d", 3), 0o666); err != nil {
 		t.Fatal(err)
 	}
 	fritzArchive := filepath.Join(tmpdir, "job-archive", "fritz")
-	if err := os.Mkdir(fritzArchive, 0777); err != nil {
+	if err := os.Mkdir(fritzArchive, 0o777); err != nil {
 		t.Fatal(err)
 	}
 	if err := copyFile(filepath.Join("testdata", "cluster-fritz.json"),
@@ -103,7 +113,7 @@ func setup(t *testing.T) *repository.JobRepository {
 	}
 
 	cfgFilePath := filepath.Join(tmpdir, "config.json")
-	if err := os.WriteFile(cfgFilePath, []byte(testconfig), 0666); err != nil {
+	if err := os.WriteFile(cfgFilePath, []byte(testconfig), 0o666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -130,6 +140,7 @@ func setup(t *testing.T) *repository.JobRepository {
 	return repository.GetJobRepository()
 }
 
+// Result represents the expected test result for job import verification.
 type Result struct {
 	JobId     int64
 	Cluster   string
@@ -137,6 +148,8 @@ type Result struct {
 	Duration  int32
 }
 
+// readResult reads the expected test result from a golden file.
+// Golden files contain the expected job attributes after import.
 func readResult(t *testing.T, testname string) Result {
 	var r Result
 
@@ -154,6 +167,13 @@ func readResult(t *testing.T, testname string) Result {
 	return r
 }
 
+// TestHandleImportFlag tests the HandleImportFlag function with various job import scenarios.
+//
+// The test uses golden files in testdata/ to verify that jobs are correctly:
+//   - Parsed from metadata and data JSON files
+//   - Enriched with footprints and energy metrics
+//   - Inserted into the database
+//   - Retrievable with correct attributes
 func TestHandleImportFlag(t *testing.T) {
 	r := setup(t)
 

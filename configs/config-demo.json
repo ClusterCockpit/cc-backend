@@ -4,16 +4,9 @@
     "short-running-jobs-duration": 300,
     "resampling": {
       "trigger": 30,
-      "resolutions": [
-        600,
-        300,
-        120,
-        60
-      ]
+      "resolutions": [600, 300, 120, 60]
     },
-    "apiAllowedIPs": [
-      "*"
-    ],
+    "apiAllowedIPs": ["*"],
     "emission-constant": 317
   },
   "cron": {
@@ -88,6 +81,6 @@
       "directory": "./var/archive"
     },
     "retention-in-memory": "48h"
-  },
-  "ui-file": "./configs/uiConfig.json"
+  }
 }
+

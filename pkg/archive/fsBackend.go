@@ -28,20 +28,26 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v5"
 )
 
+// FsArchiveConfig holds the configuration for the filesystem archive backend.
 type FsArchiveConfig struct {
-	Path string `json:"path"`
+	Path string `json:"path"` // Root directory path for the archive
 }
 
+// FsArchive implements ArchiveBackend using a hierarchical filesystem structure.
+// Jobs are stored in directories organized by cluster, job ID, and start time.
+//
+// Directory structure: <path>/<cluster>/<jobid/1000>/<jobid%1000>/<starttime>/
 type FsArchive struct {
-	path     string
-	clusters []string
+	path     string   // Root path of the archive
+	clusters []string // List of discovered cluster names
 }
 
+// clusterInfo holds statistics about jobs in a cluster.
 type clusterInfo struct {
-	numJobs   int
-	dateFirst int64
-	dateLast  int64
-	diskSize  float64
+	numJobs   int     // Total number of jobs
+	dateFirst int64   // Unix timestamp of oldest job
+	dateLast  int64   // Unix timestamp of newest job
+	diskSize  float64 // Total disk usage in MB
 }
 
 func getDirectory(
@@ -509,7 +515,6 @@ func (fsa *FsArchive) Iter(loadMetricData bool) <-chan JobContainer {
 									cclog.Errorf("in %s: %s", filepath.Join(dirpath, startTimeDir.Name()), err.Error())
 								}
 								ch <- JobContainer{Meta: job, Data: &data}
-								cclog.Errorf("in %s: %s", filepath.Join(dirpath, startTimeDir.Name()), err.Error())
 							} else {
 								ch <- JobContainer{Meta: job, Data: nil}
 							}

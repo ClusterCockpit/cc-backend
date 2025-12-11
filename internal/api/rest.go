@@ -2,6 +2,11 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
+// Package api provides the REST API layer for ClusterCockpit.
+// It handles HTTP requests for job management, user administration,
+// cluster queries, node state updates, and metrics storage operations.
+// The API supports both JWT token authentication and session-based authentication.
 package api
 
 import (
@@ -11,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
@@ -39,10 +45,19 @@ import (
 // @in                         header
 // @name                       X-Auth-Token
 
+const (
+	noticeFilePath  = "./var/notice.txt"
+	noticeFilePerms = 0o644
+)
+
 type RestApi struct {
 	JobRepository   *repository.JobRepository
 	Authentication  *auth.Authentication
 	MachineStateDir string
+	// RepositoryMutex protects job creation operations from race conditions
+	// when checking for duplicate jobs during startJob API calls.
+	// It prevents concurrent job starts with the same jobId/cluster/startTime
+	// from creating duplicate entries in the database.
 	RepositoryMutex sync.Mutex
 }
 
@@ -66,7 +81,6 @@ func (api *RestApi) MountApiRoutes(r *mux.Router) {
 	// Job Handler
 	r.HandleFunc("/jobs/start_job/", api.startJob).Methods(http.MethodPost, http.MethodPut)
 	r.HandleFunc("/jobs/stop_job/", api.stopJobByRequest).Methods(http.MethodPost, http.MethodPut)
-	// r.HandleFunc("/jobs/import/", api.importJob).Methods(http.MethodPost, http.MethodPut)
 	r.HandleFunc("/jobs/", api.getJobs).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/{id}", api.getJobById).Methods(http.MethodPost)
 	r.HandleFunc("/jobs/{id}", api.getCompleteJobById).Methods(http.MethodGet)
@@ -97,6 +111,7 @@ func (api *RestApi) MountUserApiRoutes(r *mux.Router) {
 
 func (api *RestApi) MountMetricStoreApiRoutes(r *mux.Router) {
 	// REST API Uses TokenAuth
+	// Note: StrictSlash handles trailing slash variations automatically
 	r.HandleFunc("/api/free", freeMetrics).Methods(http.MethodPost)
 	r.HandleFunc("/api/write", writeMetrics).Methods(http.MethodPost)
 	r.HandleFunc("/api/debug", debugMetrics).Methods(http.MethodGet)
@@ -146,10 +161,12 @@ func handleError(err error, statusCode int, rw http.ResponseWriter) {
 	cclog.Warnf("REST ERROR : %s", err.Error())
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(statusCode)
-	json.NewEncoder(rw).Encode(ErrorResponse{
+	if err := json.NewEncoder(rw).Encode(ErrorResponse{
 		Status: http.StatusText(statusCode),
 		Error:  err.Error(),
-	})
+	}); err != nil {
+		cclog.Errorf("Failed to encode error response: %v", err)
+	}
 }
 
 func decode(r io.Reader, val any) error {
@@ -162,41 +179,41 @@ func (api *RestApi) editNotice(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
 	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
-		http.Error(rw, "Only admins are allowed to update the notice.txt file", http.StatusForbidden)
+		handleError(fmt.Errorf("only admins are allowed to update the notice.txt file"), http.StatusForbidden, rw)
 		return
 	}
 
 	// Get Value
 	newContent := r.FormValue("new-content")
 
-	// Check FIle
-	noticeExists := util.CheckFileExists("./var/notice.txt")
+	// Validate content length to prevent DoS
+	if len(newContent) > 10000 {
+		handleError(fmt.Errorf("notice content exceeds maximum length of 10000 characters"), http.StatusBadRequest, rw)
+		return
+	}
+
+	// Check File
+	noticeExists := util.CheckFileExists(noticeFilePath)
 	if !noticeExists {
-		ntxt, err := os.Create("./var/notice.txt")
+		ntxt, err := os.Create(noticeFilePath)
 		if err != nil {
-			cclog.Errorf("Creating ./var/notice.txt failed: %s", err.Error())
-			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+			handleError(fmt.Errorf("creating notice file failed: %w", err), http.StatusInternalServerError, rw)
 			return
 		}
 		ntxt.Close()
 	}
 
+	if err := os.WriteFile(noticeFilePath, []byte(newContent), noticeFilePerms); err != nil {
+		handleError(fmt.Errorf("writing to notice file failed: %w", err), http.StatusInternalServerError, rw)
+		return
+	}
+
+	rw.Header().Set("Content-Type", "text/plain")
+	rw.WriteHeader(http.StatusOK)
 	if newContent != "" {
-		if err := os.WriteFile("./var/notice.txt", []byte(newContent), 0o666); err != nil {
-			cclog.Errorf("Writing to ./var/notice.txt failed: %s", err.Error())
-			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
-			return
-		} else {
-			rw.Write([]byte("Update Notice Content Success"))
-		}
+		rw.Write([]byte("Update Notice Content Success"))
 	} else {
-		if err := os.WriteFile("./var/notice.txt", []byte(""), 0o666); err != nil {
-			cclog.Errorf("Writing to ./var/notice.txt failed: %s", err.Error())
-			http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
-			return
-		} else {
-			rw.Write([]byte("Empty Notice Content Success"))
-		}
+		rw.Write([]byte("Empty Notice Content Success"))
 	}
 }
 
@@ -206,21 +223,20 @@ func (api *RestApi) getJWT(rw http.ResponseWriter, r *http.Request) {
 	me := repository.GetUserFromContext(r.Context())
 	if !me.HasRole(schema.RoleAdmin) {
 		if username != me.Username {
-			http.Error(rw, "Only admins are allowed to sign JWTs not for themselves",
-				http.StatusForbidden)
+			handleError(fmt.Errorf("only admins are allowed to sign JWTs not for themselves"), http.StatusForbidden, rw)
 			return
 		}
 	}
 
 	user, err := repository.GetUserRepository().GetUser(username)
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+		handleError(fmt.Errorf("getting user failed: %w", err), http.StatusNotFound, rw)
 		return
 	}
 
 	jwt, err := api.Authentication.JwtAuth.ProvideJWT(user)
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+		handleError(fmt.Errorf("providing JWT failed: %w", err), http.StatusInternalServerError, rw)
 		return
 	}
 
@@ -233,17 +249,20 @@ func (api *RestApi) getRoles(rw http.ResponseWriter, r *http.Request) {
 
 	user := repository.GetUserFromContext(r.Context())
 	if !user.HasRole(schema.RoleAdmin) {
-		http.Error(rw, "only admins are allowed to fetch a list of roles", http.StatusForbidden)
+		handleError(fmt.Errorf("only admins are allowed to fetch a list of roles"), http.StatusForbidden, rw)
 		return
 	}
 
 	roles, err := schema.GetValidRoles(user)
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		handleError(fmt.Errorf("getting valid roles failed: %w", err), http.StatusInternalServerError, rw)
 		return
 	}
 
-	json.NewEncoder(rw).Encode(roles)
+	rw.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(rw).Encode(roles); err != nil {
+		cclog.Errorf("Failed to encode roles response: %v", err)
+	}
 }
 
 func (api *RestApi) updateConfiguration(rw http.ResponseWriter, r *http.Request) {
@@ -251,38 +270,50 @@ func (api *RestApi) updateConfiguration(rw http.ResponseWriter, r *http.Request)
 	key, value := r.FormValue("key"), r.FormValue("value")
 
 	if err := repository.GetUserCfgRepo().UpdateConfig(key, value, repository.GetUserFromContext(r.Context())); err != nil {
-		http.Error(rw, err.Error(), http.StatusUnprocessableEntity)
+		handleError(fmt.Errorf("updating configuration failed: %w", err), http.StatusInternalServerError, rw)
 		return
 	}
 
+	rw.WriteHeader(http.StatusOK)
 	rw.Write([]byte("success"))
 }
 
 func (api *RestApi) putMachineState(rw http.ResponseWriter, r *http.Request) {
 	if api.MachineStateDir == "" {
-		http.Error(rw, "REST > machine state not enabled", http.StatusNotFound)
+		handleError(fmt.Errorf("machine state not enabled"), http.StatusNotFound, rw)
 		return
 	}
 
 	vars := mux.Vars(r)
 	cluster := vars["cluster"]
 	host := vars["host"]
+
+	// Validate cluster and host to prevent path traversal attacks
+	if strings.Contains(cluster, "..") || strings.Contains(cluster, "/") || strings.Contains(cluster, "\\") {
+		handleError(fmt.Errorf("invalid cluster name"), http.StatusBadRequest, rw)
+		return
+	}
+	if strings.Contains(host, "..") || strings.Contains(host, "/") || strings.Contains(host, "\\") {
+		handleError(fmt.Errorf("invalid host name"), http.StatusBadRequest, rw)
+		return
+	}
+
 	dir := filepath.Join(api.MachineStateDir, cluster)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		handleError(fmt.Errorf("creating directory failed: %w", err), http.StatusInternalServerError, rw)
 		return
 	}
 
 	filename := filepath.Join(dir, fmt.Sprintf("%s.json", host))
 	f, err := os.Create(filename)
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		handleError(fmt.Errorf("creating file failed: %w", err), http.StatusInternalServerError, rw)
 		return
 	}
 	defer f.Close()
 
 	if _, err := io.Copy(f, r.Body); err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		handleError(fmt.Errorf("writing file failed: %w", err), http.StatusInternalServerError, rw)
 		return
 	}
 
@@ -291,12 +322,25 @@ func (api *RestApi) putMachineState(rw http.ResponseWriter, r *http.Request) {
 
 func (api *RestApi) getMachineState(rw http.ResponseWriter, r *http.Request) {
 	if api.MachineStateDir == "" {
-		http.Error(rw, "REST > machine state not enabled", http.StatusNotFound)
+		handleError(fmt.Errorf("machine state not enabled"), http.StatusNotFound, rw)
 		return
 	}
 
 	vars := mux.Vars(r)
-	filename := filepath.Join(api.MachineStateDir, vars["cluster"], fmt.Sprintf("%s.json", vars["host"]))
+	cluster := vars["cluster"]
+	host := vars["host"]
+
+	// Validate cluster and host to prevent path traversal attacks
+	if strings.Contains(cluster, "..") || strings.Contains(cluster, "/") || strings.Contains(cluster, "\\") {
+		handleError(fmt.Errorf("invalid cluster name"), http.StatusBadRequest, rw)
+		return
+	}
+	if strings.Contains(host, "..") || strings.Contains(host, "/") || strings.Contains(host, "\\") {
+		handleError(fmt.Errorf("invalid host name"), http.StatusBadRequest, rw)
+		return
+	}
+
+	filename := filepath.Join(api.MachineStateDir, cluster, fmt.Sprintf("%s.json", host))
 
 	// Sets the content-type and 'Last-Modified' Header and so on automatically
 	http.ServeFile(rw, r, filename)

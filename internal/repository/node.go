@@ -43,7 +43,7 @@ func GetNodeRepository() *NodeRepository {
 			driver: db.Driver,
 
 			stmtCache: sq.NewStmtCache(db.DB),
-			cache:     lrucache.New(1024 * 1024),
+			cache:     lrucache.New(repoConfig.CacheSize),
 		}
 	})
 	return nodeRepoInstance
@@ -76,43 +76,6 @@ func (r *NodeRepository) FetchMetadata(hostname string, cluster string) (map[str
 	cclog.Debugf("Timer FetchMetadata %s", time.Since(start))
 	return MetaData, nil
 }
-
-//
-// func (r *NodeRepository) UpdateMetadata(node *schema.Node, key, val string) (err error) {
-// 	cachekey := fmt.Sprintf("metadata:%d", node.ID)
-// 	r.cache.Del(cachekey)
-// 	if node.MetaData == nil {
-// 		if _, err = r.FetchMetadata(node); err != nil {
-// 			cclog.Warnf("Error while fetching metadata for node, DB ID '%v'", node.ID)
-// 			return err
-// 		}
-// 	}
-//
-// 	if node.MetaData != nil {
-// 		cpy := make(map[string]string, len(node.MetaData)+1)
-// 		maps.Copy(cpy, node.MetaData)
-// 		cpy[key] = val
-// 		node.MetaData = cpy
-// 	} else {
-// 		node.MetaData = map[string]string{key: val}
-// 	}
-//
-// 	if node.RawMetaData, err = json.Marshal(node.MetaData); err != nil {
-// 		cclog.Warnf("Error while marshaling metadata for node, DB ID '%v'", node.ID)
-// 		return err
-// 	}
-//
-// 	if _, err = sq.Update("node").
-// 		Set("meta_data", node.RawMetaData).
-// 		Where("node.id = ?", node.ID).
-// 		RunWith(r.stmtCache).Exec(); err != nil {
-// 		cclog.Warnf("Error while updating metadata for node, DB ID '%v'", node.ID)
-// 		return err
-// 	}
-//
-// 	r.cache.Put(cachekey, node.MetaData, len(node.RawMetaData), 24*time.Hour)
-// 	return nil
-// }
 
 func (r *NodeRepository) GetNode(hostname string, cluster string, withMeta bool) (*schema.Node, error) {
 	node := &schema.Node{}
