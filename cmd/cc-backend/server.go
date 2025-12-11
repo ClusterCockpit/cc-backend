@@ -373,6 +373,8 @@ func (s *Server) Shutdown(ctx context.Context) {
 		memorystore.Shutdown()
 	}
 
-	// Then, wait for any async archivings still pending...
-	archiver.WaitForArchiving()
+	// Shutdown archiver with 10 second timeout for fast shutdown
+	if err := archiver.Shutdown(10 * time.Second); err != nil {
+		cclog.Warnf("Archiver shutdown: %v", err)
+	}
 }

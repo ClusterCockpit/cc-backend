@@ -325,7 +325,7 @@ func runServer(ctx context.Context) error {
 	}
 
 	// Start archiver and task manager
-	archiver.Start(repository.GetJobRepository())
+	archiver.Start(repository.GetJobRepository(), ctx)
 	taskManager.Start(ccconf.GetPackageConfig("cron"), ccconf.GetPackageConfig("archive"))
 
 	// Initialize web UI

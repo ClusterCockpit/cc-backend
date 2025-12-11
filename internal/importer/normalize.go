@@ -23,6 +23,11 @@ func getNormalizationFactor(v float64) (float64, int) {
 	count := 0
 	scale := -3
 
+	// Prevent infinite loop for zero or negative values
+	if v <= 0.0 {
+		return 1.0, 0
+	}
+
 	if v > 1000.0 {
 		for v > 1000.0 {
 			v *= 1e-3
@@ -48,6 +53,11 @@ func getNormalizationFactor(v float64) (float64, int) {
 // Returns the exponent representing the power of 10 for the SI prefix.
 func getExponent(p float64) int {
 	count := 0
+
+	// Prevent infinite loop for infinity or NaN values
+	if math.IsInf(p, 0) || math.IsNaN(p) || p <= 0.0 {
+		return 0
+	}
 
 	for p > 1.0 {
 		p = p / 1000.0

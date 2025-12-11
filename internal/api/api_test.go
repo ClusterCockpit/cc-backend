@@ -175,7 +175,7 @@ func setup(t *testing.T) *api.RestApi {
 		t.Fatal(err)
 	}
 
-	archiver.Start(repository.GetJobRepository())
+	archiver.Start(repository.GetJobRepository(), context.Background())
 
 	if cfg := ccconf.GetPackageConfig("auth"); cfg != nil {
 		auth.Init(&cfg)
