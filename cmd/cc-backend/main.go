@@ -220,7 +220,7 @@ func addUser(userSpec string) error {
 		return fmt.Errorf("adding user '%s' with roles '%s': %w", parts[0], parts[1], err)
 	}
 
-	cclog.Printf("Add User: Added new user '%s' with roles '%s'.\n", parts[0], parts[1])
+	cclog.Infof("Add User: Added new user '%s' with roles '%s'", parts[0], parts[1])
 	return nil
 }
 
@@ -229,7 +229,7 @@ func delUser(username string) error {
 	if err := ur.DelUser(username); err != nil {
 		return fmt.Errorf("deleting user '%s': %w", username, err)
 	}
-	cclog.Printf("Delete User: Deleted user '%s' from DB.\n", username)
+	cclog.Infof("Delete User: Deleted user '%s' from DB", username)
 	return nil
 }
 
@@ -262,7 +262,7 @@ func generateJWT(authHandle *auth.Authentication, username string) error {
 		return fmt.Errorf("generating JWT for user '%s': %w", user.Username, err)
 	}
 
-	cclog.Printf("JWT: Successfully generated JWT for user '%s': %s\n", user.Username, jwt)
+	cclog.Infof("JWT: Successfully generated JWT for user '%s': %s", user.Username, jwt)
 	return nil
 }
 
@@ -294,7 +294,7 @@ func initSubsystems() error {
 		if err := importer.HandleImportFlag(flagImportJob); err != nil {
 			return fmt.Errorf("importing job: %w", err)
 		}
-		cclog.Printf("Import Job: Imported Job '%s' into DB.\n", flagImportJob)
+		cclog.Infof("Import Job: Imported Job '%s' into DB", flagImportJob)
 	}
 
 	// Initialize taggers
@@ -325,7 +325,7 @@ func runServer(ctx context.Context) error {
 	}
 
 	// Start archiver and task manager
-	archiver.Start(repository.GetJobRepository())
+	archiver.Start(repository.GetJobRepository(), ctx)
 	taskManager.Start(ccconf.GetPackageConfig("cron"), ccconf.GetPackageConfig("archive"))
 
 	// Initialize web UI

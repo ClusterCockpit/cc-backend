@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package archiver
 
 import (
@@ -15,7 +16,32 @@ import (
 	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
-// Writes a running job to the job-archive
+// ArchiveJob archives a completed job's metric data to the configured archive backend.
+//
+// This function performs the following operations:
+//  1. Loads all metric data for the job from the metric data repository
+//  2. Calculates job-level statistics (avg, min, max) for each metric
+//  3. Stores the job metadata and metric data to the archive backend
+//
+// Metric data is retrieved at the highest available resolution (typically 60s)
+// for the following scopes:
+//   - Node scope (always)
+//   - Core scope (for jobs with ≤8 nodes, to reduce data volume)
+//   - Accelerator scope (if job used accelerators)
+//
+// The function respects context cancellation. If ctx is cancelled (e.g., during
+// shutdown timeout), the operation will be interrupted and return an error.
+//
+// Parameters:
+//   - job: The job to archive (must be a completed job)
+//   - ctx: Context for cancellation and timeout control
+//
+// Returns:
+//   - *schema.Job with populated Statistics field
+//   - error if data loading or archiving fails
+//
+// If config.Keys.DisableArchive is true, only job statistics are calculated
+// and returned (no data is written to archive backend).
 func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.Job, error) {
 	allMetrics := make([]string, 0)
 	metricConfigs := archive.GetCluster(job.Cluster).MetricConfig

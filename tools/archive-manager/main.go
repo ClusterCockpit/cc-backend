@@ -50,7 +50,7 @@ func importArchive(srcBackend, dstBackend archive.ArchiveBackend) (int, int, err
 
 	// Create channels for job distribution
 	jobs := make(chan archive.JobContainer, numWorkers*2)
-	
+
 	// WaitGroup to track worker completion
 	var wg sync.WaitGroup
 
@@ -127,8 +127,6 @@ func importArchive(srcBackend, dstBackend archive.ArchiveBackend) (int, int, err
 	return finalImported, finalFailed, nil
 }
 
-
-
 func main() {
 	var srcPath, flagConfigFile, flagLogLevel, flagRemoveCluster, flagRemoveAfter, flagRemoveBefore string
 	var flagSrcConfig, flagDstConfig string
@@ -146,7 +144,6 @@ func main() {
 	flag.StringVar(&flagSrcConfig, "src-config", "", "Source archive backend configuration (JSON), e.g. '{\"kind\":\"file\",\"path\":\"./archive\"}'")
 	flag.StringVar(&flagDstConfig, "dst-config", "", "Destination archive backend configuration (JSON), e.g. '{\"kind\":\"sqlite\",\"dbPath\":\"./archive.db\"}'")
 	flag.Parse()
-
 
 	archiveCfg := fmt.Sprintf("{\"kind\": \"file\",\"path\": \"%s\"}", srcPath)
 
@@ -189,7 +186,6 @@ func main() {
 
 	ccconf.Init(flagConfigFile)
 
-
 	// Load and check main configuration
 	if cfg := ccconf.GetPackageConfig("main"); cfg != nil {
 		if clustercfg := ccconf.GetPackageConfig("clusters"); clustercfg != nil {
@@ -209,7 +205,7 @@ func main() {
 	if flagValidate {
 		config.Keys.Validate = true
 		for job := range ar.Iter(true) {
-			cclog.Printf("Validate %s - %d\n", job.Meta.Cluster, job.Meta.JobID)
+			cclog.Debugf("Validate %s - %d", job.Meta.Cluster, job.Meta.JobID)
 		}
 		os.Exit(0)
 	}

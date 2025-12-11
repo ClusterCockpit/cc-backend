@@ -82,14 +82,14 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 				case <-ctx.Done():
 					return
 				case <-ticks:
-					cclog.Printf("[METRICSTORE]> start checkpointing (starting at %s)...\n", lastCheckpoint.Format(time.RFC3339))
+					cclog.Infof("[METRICSTORE]> start checkpointing (starting at %s)...", lastCheckpoint.Format(time.RFC3339))
 					now := time.Now()
 					n, err := ms.ToCheckpoint(Keys.Checkpoints.RootDir,
 						lastCheckpoint.Unix(), now.Unix())
 					if err != nil {
-						cclog.Printf("[METRICSTORE]> checkpointing failed: %s\n", err.Error())
+						cclog.Errorf("[METRICSTORE]> checkpointing failed: %s", err.Error())
 					} else {
-						cclog.Printf("[METRICSTORE]> done: %d checkpoint files created\n", n)
+						cclog.Infof("[METRICSTORE]> done: %d checkpoint files created", n)
 						lastCheckpoint = now
 					}
 				}
@@ -194,7 +194,7 @@ func (m *MemoryStore) ToCheckpoint(dir string, from, to int64) (int, error) {
 						continue
 					}
 
-					cclog.Printf("[METRICSTORE]> error while checkpointing %#v: %s", workItem.selector, err.Error())
+					cclog.Errorf("[METRICSTORE]> error while checkpointing %#v: %s", workItem.selector, err.Error())
 					atomic.AddInt32(&errs, 1)
 				} else {
 					atomic.AddInt32(&n, 1)
@@ -394,7 +394,7 @@ func (m *MemoryStore) FromCheckpointFiles(dir string, from int64) (int, error) {
 		if err != nil {
 			cclog.Fatalf("[METRICSTORE]> Error creating directory: %#v\n", err)
 		}
-		cclog.Printf("[METRICSTORE]> %#v Directory created successfully.\n", dir)
+		cclog.Debugf("[METRICSTORE]> %#v Directory created successfully", dir)
 	}
 
 	// Config read (replace with your actual config read)
@@ -413,7 +413,7 @@ func (m *MemoryStore) FromCheckpointFiles(dir string, from int64) (int, error) {
 	if found, err := checkFilesWithExtension(dir, fileFormat); err != nil {
 		return 0, fmt.Errorf("[METRICSTORE]> error checking files with extension: %v", err)
 	} else if found {
-		cclog.Printf("[METRICSTORE]> Loading %s files because fileformat is %s\n", fileFormat, fileFormat)
+		cclog.Infof("[METRICSTORE]> Loading %s files because fileformat is %s", fileFormat, fileFormat)
 		return m.FromCheckpoint(dir, from, fileFormat)
 	}
 
@@ -422,7 +422,7 @@ func (m *MemoryStore) FromCheckpointFiles(dir string, from int64) (int, error) {
 	if found, err := checkFilesWithExtension(dir, altFormat); err != nil {
 		return 0, fmt.Errorf("[METRICSTORE]> error checking files with extension: %v", err)
 	} else if found {
-		cclog.Printf("[METRICSTORE]> Loading %s files but fileformat is %s\n", altFormat, fileFormat)
+		cclog.Infof("[METRICSTORE]> Loading %s files but fileformat is %s", altFormat, fileFormat)
 		return m.FromCheckpoint(dir, from, altFormat)
 	}
 
