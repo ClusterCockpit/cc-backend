@@ -190,6 +190,10 @@ func setup(t *testing.T) *api.RestApi {
 }
 
 func cleanup() {
+	// Gracefully shutdown archiver with timeout
+	if err := archiver.Shutdown(5 * time.Second); err != nil {
+		cclog.Warnf("Archiver shutdown timeout in tests: %v", err)
+	}
 	// TODO: Clear all caches, reset all modules, etc...
 }
 
@@ -333,7 +337,7 @@ func TestRestApi(t *testing.T) {
 			t.Fatal(response.Status, recorder.Body.String())
 		}
 
-		archiver.WaitForArchiving()
+		// Archiving happens asynchronously, will be completed in cleanup
 		job, err := restapi.JobRepository.Find(&TestJobId, &TestClusterName, &TestStartTime)
 		if err != nil {
 			t.Fatal(err)
@@ -446,7 +450,7 @@ func TestRestApi(t *testing.T) {
 			t.Fatal(response.Status, recorder.Body.String())
 		}
 
-		archiver.WaitForArchiving()
+		// Archiving happens asynchronously, will be completed in cleanup
 		jobid, cluster := int64(12345), "testcluster"
 		job, err := restapi.JobRepository.Find(&jobid, &cluster, nil)
 		if err != nil {
