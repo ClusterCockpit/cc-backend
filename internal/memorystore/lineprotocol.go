@@ -119,7 +119,7 @@ func ReceiveNats(conf *(NatsConfig),
 					for m := range msgs {
 						dec := lineprotocol.NewDecoderWithBytes(m.Data)
 						if err := DecodeLine(dec, ms, clusterTag); err != nil {
-							cclog.Printf("error: %s\n", err.Error())
+							cclog.Errorf("error: %s", err.Error())
 						}
 					}
 
@@ -134,7 +134,7 @@ func ReceiveNats(conf *(NatsConfig),
 			sub, err = nc.Subscribe(sc.SubscribeTo, func(m *nats.Msg) {
 				dec := lineprotocol.NewDecoderWithBytes(m.Data)
 				if err := DecodeLine(dec, ms, clusterTag); err != nil {
-					cclog.Printf("error: %s\n", err.Error())
+					cclog.Errorf("error: %s", err.Error())
 				}
 			})
 		}
@@ -142,7 +142,7 @@ func ReceiveNats(conf *(NatsConfig),
 		if err != nil {
 			return err
 		}
-		cclog.Printf("NATS subscription to '%s' on '%s' established\n", sc.SubscribeTo, conf.Address)
+		cclog.Infof("NATS subscription to '%s' on '%s' established", sc.SubscribeTo, conf.Address)
 		subs = append(subs, sub)
 	}
 
@@ -150,7 +150,7 @@ func ReceiveNats(conf *(NatsConfig),
 	for _, sub := range subs {
 		err = sub.Unsubscribe()
 		if err != nil {
-			cclog.Printf("NATS unsubscribe failed: %s", err.Error())
+			cclog.Errorf("NATS unsubscribe failed: %s", err.Error())
 		}
 	}
 	close(msgs)

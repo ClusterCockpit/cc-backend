@@ -330,9 +330,9 @@ func (s *Server) Start(ctx context.Context) error {
 			MinVersion:               tls.VersionTLS12,
 			PreferServerCipherSuites: true,
 		})
-		cclog.Printf("HTTPS server listening at %s...\n", config.Keys.Addr)
+		cclog.Infof("HTTPS server listening at %s...", config.Keys.Addr)
 	} else {
-		cclog.Printf("HTTP server listening at %s...\n", config.Keys.Addr)
+		cclog.Infof("HTTP server listening at %s...", config.Keys.Addr)
 	}
 	//
 	// Because this program will want to bind to a privileged port (like 80), the listener must

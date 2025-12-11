@@ -149,7 +149,7 @@ func InitDB() error {
 	}
 
 	r.TransactionEnd(t)
-	cclog.Printf("A total of %d jobs have been registered in %.3f seconds.\n", i, time.Since(starttime).Seconds())
+	cclog.Infof("A total of %d jobs have been registered in %.3f seconds.", i, time.Since(starttime).Seconds())
 	return nil
 }
 

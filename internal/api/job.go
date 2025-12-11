@@ -669,7 +669,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cclog.Printf("REST: %s\n", req.GoString())
+	cclog.Debugf("REST: %s", req.GoString())
 	req.State = schema.JobStateRunning
 
 	if err := importer.SanityChecks(&req); err != nil {
@@ -713,7 +713,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	cclog.Printf("new job (id: %d): cluster=%s, jobId=%d, user=%s, startTime=%d", id, req.Cluster, req.JobID, req.User, req.StartTime)
+	cclog.Infof("new job (id: %d): cluster=%s, jobId=%d, user=%s, startTime=%d", id, req.Cluster, req.JobID, req.User, req.StartTime)
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(rw).Encode(DefaultApiResponse{
@@ -946,7 +946,7 @@ func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 		}
 	}
 
-	cclog.Printf("archiving job... (dbid: %d): cluster=%s, jobId=%d, user=%s, startTime=%d, duration=%d, state=%s", job.ID, job.Cluster, job.JobID, job.User, job.StartTime, job.Duration, job.State)
+	cclog.Infof("archiving job... (dbid: %d): cluster=%s, jobId=%d, user=%s, startTime=%d, duration=%d, state=%s", job.ID, job.Cluster, job.JobID, job.User, job.StartTime, job.Duration, job.State)
 
 	// Send a response (with status OK). This means that errors that happen from here on forward
 	// can *NOT* be communicated to the client. If reading from a MetricDataRepository or

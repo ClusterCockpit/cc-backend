@@ -44,14 +44,14 @@ func Archiving(wg *sync.WaitGroup, ctx context.Context) {
 				return
 			case <-ticks:
 				t := time.Now().Add(-d)
-				cclog.Printf("[METRICSTORE]> start archiving checkpoints (older than %s)...\n", t.Format(time.RFC3339))
+				cclog.Infof("[METRICSTORE]> start archiving checkpoints (older than %s)...", t.Format(time.RFC3339))
 				n, err := ArchiveCheckpoints(Keys.Checkpoints.RootDir,
 					Keys.Archive.RootDir, t.Unix(), Keys.Archive.DeleteInstead)
 
 				if err != nil {
-					cclog.Printf("[METRICSTORE]> archiving failed: %s\n", err.Error())
+					cclog.Errorf("[METRICSTORE]> archiving failed: %s", err.Error())
 				} else {
-					cclog.Printf("[METRICSTORE]> done: %d files zipped and moved to archive\n", n)
+					cclog.Infof("[METRICSTORE]> done: %d files zipped and moved to archive", n)
 				}
 			}
 		}

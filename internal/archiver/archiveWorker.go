@@ -162,7 +162,7 @@ func archivingWorker() {
 				continue
 			}
 			cclog.Debugf("archiving job %d took %s", job.JobID, time.Since(start))
-			cclog.Printf("archiving job (dbid: %d) successful", job.ID)
+			cclog.Infof("archiving job (dbid: %d) successful", job.ID)
 
 			repository.CallJobStopHooks(job)
 			archivePending.Done()
