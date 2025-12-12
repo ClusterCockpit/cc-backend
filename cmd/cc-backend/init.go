@@ -32,11 +32,10 @@ const configString = `
     "addr": "127.0.0.1:8080",
     "short-running-jobs-duration": 300,
     "resampling": {
-      "trigger": 30,
+      "minimumPoints": 600,
+      "trigger": 180,
       "resolutions": [
-        600,
-        300,
-        120,
+        240,
         60
       ]
     },

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/resampler"
 )
 
 type ProgramConfig struct {
@@ -78,6 +79,8 @@ type ProgramConfig struct {
 }
 
 type ResampleConfig struct {
+	// Minimum number of points to trigger resampling of data
+	MinimumPoints int `json:"minimumPoints"`
 	// Array of resampling target resolutions, in seconds; Example: [600,300,60]
 	Resolutions []int `json:"resolutions"`
 	// Trigger next zoom level at less than this many visible datapoints
@@ -139,5 +142,9 @@ func Init(mainConfig json.RawMessage, clusterConfig json.RawMessage) {
 
 	if len(Clusters) < 1 {
 		cclog.Abort("Config Init: At least one cluster required in config. Exited with error.")
+	}
+
+	if Keys.EnableResampling.MinimumPoints > 0 {
+		resampler.SetMinimumRequiredPoints(Keys.EnableResampling.MinimumPoints)
 	}
 }
