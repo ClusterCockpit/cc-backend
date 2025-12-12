@@ -687,13 +687,6 @@
                 const originY = u.valToPos(yMinimum ? yMinimum : 0.01, "y", true);
 
                 const outerX = u.valToPos(1000, "x", true); // rightmost x in plot coords
-                const outerY = u.valToPos(
-                  subCluster?.flopRateSimd?.value
-                    ? nearestThousand(subCluster.flopRateSimd.value)
-                    : 10000,
-                  "y",
-                  true
-                );
 
                 const scalarKneeX = u.valToPos(scalarKnee, "x", true) // Value, axis, toCanvasPixels
                 const simdKneeX = u.valToPos(simdKnee, "x", true)

@@ -16,19 +16,14 @@
   } from "@urql/svelte";
   import {
     init,
-    scramble,
-    scrambleNames,
-    convert2uplot
   } from "./generic/utils.js";
   import {
-    formatDurationTime,
     formatNumber,
   } from "./generic/units.js";
   import {
     Row,
     Col,
     Card,
-    CardTitle,
     CardHeader,
     CardBody,
     Spinner,
@@ -39,8 +34,9 @@
   import Roofline from "./generic/plots/Roofline.svelte";
   import Pie, { colors } from "./generic/plots/Pie.svelte";
   import Stacked from "./generic/plots/Stacked.svelte";
-  // import Histogram from "./generic/plots/Histogram.svelte";
   import DoubleMetric from "./generic/plots/DoubleMetricPlot.svelte";
+
+  // Todo: Refresher-Tick
 
   /* Svelte 5 Props */
   let {
@@ -53,7 +49,6 @@
   const useCbColors = getContext("cc-config")?.plotConfiguration_colorblindMode || false
 
   /* States */
-  let pagingState = $state({page: 1, itemsPerPage: 10}) // Top 10
   let from = $state(new Date(Date.now() - (5 * 60 * 1000)));
   let clusterFrom = $state(new Date(Date.now() - (8 * 60 * 60 * 1000)));
   let to = $state(new Date(Date.now()));
@@ -68,13 +63,8 @@
   const statesTimed = $derived(queryStore({
     client: client,
     query: gql`
-      query ($filter: [NodeFilter!], $typeNode: String!, $typeHealth: String!) {
-        nodeStates: nodeStatesTimed(filter: $filter, type: $typeNode) {
-          state
-          counts
-          times
-        }
-        healthStates: nodeStatesTimed(filter: $filter, type: $typeHealth) {
+      query ($filter: [NodeFilter!], $type: String!) {
+        nodeStatesTimed(filter: $filter, type: $type) {
           state
           counts
           times
@@ -82,9 +72,8 @@
       }
     `,
     variables: {
-      filter: { cluster: { eq: presetCluster }, timeStart: stackedFrom}, // DEBUG VALUE 1760096999, use StackedFrom
-      typeNode: "node",
-      typeHealth: "health"
+      filter: { cluster: { eq: presetCluster }, timeStart: stackedFrom},
+      type: "node",
     },
     requestPolicy: "network-only"
   }));
@@ -97,7 +86,6 @@
       query (
         $cluster: String!
         $metrics: [String!]
-        # $nmetrics: [String!]
         $from: Time!
         $to: Time!
         $clusterFrom: Time!
@@ -207,7 +195,6 @@
     variables: {
       cluster: presetCluster,
       metrics: ["flops_any", "mem_bw"], // Metrics For Cluster Plot and Roofline
-      // nmetrics: ["cpu_load", "acc_utilization"], // Metrics for Node Graph
       from: from.toISOString(),
       clusterFrom: clusterFrom.toISOString(),
       to: to.toISOString(),
@@ -215,31 +202,6 @@
       nodeFilter: { cluster: { eq: presetCluster }},
       paging: { itemsPerPage: -1, page: 1 }, // Get all: -1
       sorting: { field: "startTime", type: "col", order: "DESC" }
-    },
-    requestPolicy: "network-only"
-  }));
-
-  const topJobsQuery = $derived(queryStore({
-    client: client,
-    query: gql`
-      query (
-        $filter: [JobFilter!]!
-        $paging: PageRequest!
-      ) {
-        jobsStatistics(
-          filter: $filter
-          page: $paging
-          sortBy: TOTALJOBS
-          groupBy: PROJECT
-        ) {
-          id
-          totalJobs
-        }
-      }
-    `,
-    variables: {
-      filter: [{ state: ["running"] }, { cluster: { eq: presetCluster} }],
-      paging: pagingState // Top 10
     },
     requestPolicy: "network-only"
   }));
@@ -351,19 +313,6 @@
   });
 
   /* Functions */
-  // function legendColors(targetIdx, useAltColors) {
-  //   // Reuses first color if targetIdx overflows
-  //   let c;
-  //     if (useCbColors) {
-  //       c = [...colors['colorblind']];
-  //     } else if (useAltColors) {
-  //       c = [...colors['alternative']];
-  //     } else {
-  //       c = [...colors['default']];
-  //     }
-  //   return  c[(c.length + targetIdx) % c.length];
-  // }
-
   function transformNodesStatsToData(subclusterData) {
     let data = null
     const x = [], y = []
@@ -415,30 +364,18 @@
     return result
   }
 
-  /* Inspect */
-  $inspect(clusterInfo).with((type, clusterInfo) => {
-    console.log(type, 'clusterInfo', clusterInfo)
-	});
-
-  $inspect($statusQuery?.data?.clusterMetrics).with((type, clusterMetrics) => {
-    console.log(type, 'clusterMetrics', clusterMetrics)
-	});
-
 </script>
 
 <Card style="height: 98vh;">
-  <!-- <CardHeader class="text-center">
-    <h3 class="mb-0">{presetCluster.charAt(0).toUpperCase() + presetCluster.slice(1)} Dashboard</h3>
-  </CardHeader> -->
   <CardBody class="align-content-center">
-    {#if $statusQuery.fetching || $statesTimed.fetching || $topJobsQuery.fetching || $nodeStatusQuery.fetching}
+    {#if $statusQuery.fetching || $statesTimed.fetching || $nodeStatusQuery.fetching}
       <Row class="justify-content-center">
         <Col xs="auto">
           <Spinner />
         </Col>
       </Row>
 
-    {:else if $statusQuery.error || $statesTimed.error || $topJobsQuery.error || $nodeStatusQuery.error}
+    {:else if $statusQuery.error || $statesTimed.error || $nodeStatusQuery.error}
       <Row cols={{xs:1, md:2}}>
         {#if $statusQuery.error}
           <Col>
@@ -448,11 +385,6 @@
         {#if $statesTimed.error}
           <Col>
             <Card color="danger">Error Requesting StatesTimed: {$statesTimed.error.message}</Card>
-          </Col>
-        {/if}
-        {#if $topJobsQuery.error}
-          <Col>
-            <Card color="danger">Error Requesting TopJobsQuery: {$topJobsQuery.error.message}</Card>
           </Col>
         {/if}
         {#if $nodeStatusQuery.error}
@@ -477,10 +409,6 @@
 
         <Col> <!-- Utilization Info Card -->
           <Card class="h-100">
-            <!-- <CardHeader>
-              <CardTitle class="mb-0">Cluster "{presetCluster.charAt(0).toUpperCase() + presetCluster.slice(1)}"</CardTitle>
-              <span>{[...clusterInfo?.processorTypes].toString()}</span>
-            </CardHeader> -->
             <CardBody>
               <Table borderless>
                 <tr class="py-2">
@@ -559,7 +487,7 @@
           </Card>
         </Col>
 
-        <Col> <!-- Resources/Job Histogram OR Total Cluster Metric in Time SUMS-->
+        <Col> <!-- Total Cluster Metric in Time SUMS-->
           <div bind:clientWidth={colWidthTotals}>
             <DoubleMetric
               width={colWidthTotals}
@@ -570,29 +498,6 @@
               fixLinewidth={2}
             />
           </div>
-          <!-- {#if clusterInfo?.totalAccs == 0}
-            <Histogram
-              data={convert2uplot($nodeStatusQuery.data.jobsStatistics[0].histNumCores)}
-              title="Number of Cores Distribution"
-              xlabel="Allocated Cores"
-              xunit="Nodes"
-              ylabel="Number of Jobs"
-              yunit="Jobs"
-              height="275"
-              enableFlip
-            />
-          {:else}
-            <Histogram
-              data={convert2uplot($nodeStatusQuery.data.jobsStatistics[0].histNumAccs)}
-              title="Number of Accelerators Distribution"
-              xlabel="Allocated Accs"
-              xunit="Accs"
-              ylabel="Number of Jobs"
-              yunit="Jobs"
-              height="275"
-              enableFlip
-            />
-          {/if} -->
         </Col>
 
         <Col> <!-- Nodes Roofline -->
@@ -620,9 +525,6 @@
             <Col class="px-3 mt-2 mt-lg-0">
               <div bind:clientWidth={colWidthStates}>
                 {#key refinedStateData}
-                  <!-- <h4 class="text-center">
-                    Cluster Status
-                  </h4> -->
                   <Pie
                     canvasId="hpcpie-slurm"
                     size={colWidthStates * 0.66}
@@ -663,9 +565,9 @@
 
         <Col> <!-- Stacked SchedState -->
           <div bind:clientWidth={colWidthStacked}>
-            {#key $statesTimed?.data?.nodeStates}
+            {#key $statesTimed?.data?.nodeStatesTimed}
               <Stacked
-                data={$statesTimed?.data?.nodeStates}
+                data={$statesTimed?.data?.nodeStatesTimed}
                 width={colWidthStacked * 0.95}
                 xlabel="Time"
                 ylabel="Nodes"

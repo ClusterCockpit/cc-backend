@@ -18,7 +18,6 @@
     init,
     scramble,
     scrambleNames,
-    convert2uplot
   } from "../generic/utils.js";
   import {
     formatDurationTime,
@@ -39,7 +38,7 @@
   import Roofline from "../generic/plots/Roofline.svelte";
   import Pie, { colors } from "../generic/plots/Pie.svelte";
   import Stacked from "../generic/plots/Stacked.svelte";
-  import Histogram from "../generic/plots/Histogram.svelte";
+  import DoubleMetric from "../generic/plots/DoubleMetricPlot.svelte";
 
   /* Svelte 5 Props */
   let {
@@ -54,10 +53,12 @@
   /* States */
   let pagingState = $state({page: 1, itemsPerPage: 10}) // Top 10
   let from = $state(new Date(Date.now() - 5 * 60 * 1000));
+  let clusterFrom = $state(new Date(Date.now() - (8 * 60 * 60 * 1000)));
   let to = $state(new Date(Date.now()));
   let stackedFrom = $state(Math.floor(Date.now() / 1000) - 14400);
   let colWidthJobs = $state(0);
   let colWidthRoof = $state(0);
+  let colWidthTotals =$state(0);
   let colWidthStacked1 = $state(0);
   let colWidthStacked2 = $state(0);
 
@@ -80,7 +81,7 @@
       }
     `,
     variables: {
-      filter: { cluster: { eq: presetCluster }, timeStart: 1760096999}, // DEBUG VALUE, use StackedFrom
+      filter: { cluster: { eq: presetCluster }, timeStart: stackedFrom},
       typeNode: "node",
       typeHealth: "health"
     },
@@ -97,6 +98,7 @@
         $metrics: [String!]
         $from: Time!
         $to: Time!
+        $clusterFrom: Time!
         $jobFilter: [JobFilter!]!
         $paging: PageRequest!
         $sorting: OrderByInput!
@@ -164,6 +166,24 @@
           totalCores
           totalAccs
         }
+        # ClusterMetrics for doubleMetricPlot
+        clusterMetrics(
+          cluster: $cluster
+          metrics: $metrics
+          from: $clusterFrom
+          to: $to
+        ) {
+          nodeCount
+          metrics {
+            name
+            unit {
+              prefix
+              base
+            }
+            timestep
+            data
+          }
+        }
       }
     `,
     variables: {
@@ -171,6 +191,7 @@
       metrics: ["flops_any", "mem_bw"], // Fixed names for roofline and status bars
       from: from.toISOString(),
       to: to.toISOString(),
+      clusterFrom: clusterFrom.toISOString(),
       jobFilter: [{ state: ["running"] }, { cluster: { eq: presetCluster } }],
       paging: { itemsPerPage: -1, page: 1 }, // Get all: -1
       sorting: { field: "startTime", type: "col", order: "DESC" }
@@ -360,18 +381,10 @@
     }
   }
 
-  /* Inspect */
-  $inspect(clusterInfo).with((type, clusterInfo) => {
-    console.log(type, 'clusterInfo', clusterInfo)
-	});
-
 </script>
 
-<Card>
-  <CardHeader class="text-center">
-    <h3 class="mb-0">{presetCluster.charAt(0).toUpperCase() + presetCluster.slice(1)} Dashboard</h3>
-  </CardHeader>
-  <CardBody>
+<Card style="height: 88vh;">
+  <CardBody class="align-content-center">
     {#if $statusQuery.fetching || $statesTimed.fetching || $topJobsQuery.fetching || $nodeStatusQuery.fetching}
       <Row class="justify-content-center">
         <Col xs="auto">
@@ -409,7 +422,7 @@
           <Card class="h-auto mt-1">
             <CardHeader>
               <CardTitle class="mb-0">Cluster "{presetCluster.charAt(0).toUpperCase() + presetCluster.slice(1)}"</CardTitle>
-              <span>{[...clusterInfo?.processorTypes].toString()}</span>
+              <span>{[...clusterInfo?.processorTypes].join(', ')}</span>
             </CardHeader>
             <CardBody>
               <Table borderless>
@@ -488,6 +501,7 @@
             </CardBody>
           </Card>
         </Col>
+
         <Col> <!-- Pie Jobs -->
           <Row cols={{xs:1, md:2}}>
             <Col class="p-2">
@@ -529,6 +543,7 @@
             </Col>
           </Row>
         </Col>
+
         <Col> <!-- Job Roofline -->
           <div bind:clientWidth={colWidthRoof}>
             {#key $statusQuery?.data?.jobsMetricStats}
@@ -544,31 +559,20 @@
             {/key}
           </div>
         </Col>
-        <Col> <!-- Resources/Job Histogram -->
-          {#if clusterInfo?.totalAccs == 0}
-            <Histogram
-              data={convert2uplot($nodeStatusQuery.data.jobsStatistics[0].histNumCores)}
-              title="Number of Cores Distribution"
-              xlabel="Allocated Cores"
-              xunit="Nodes"
-              ylabel="Number of Jobs"
-              yunit="Jobs"
-              height="275"
-              enableFlip
+
+        <Col> <!-- Total Cluster Metric in Time SUMS-->
+          <div bind:clientWidth={colWidthTotals}>
+            <DoubleMetric
+              width={colWidthTotals}
+              timestep={$statusQuery?.data?.clusterMetrics[0]?.timestep || 60}
+              numNodes={$statusQuery?.data?.clusterMetrics?.nodeCount || 0}
+              metricData={$statusQuery?.data?.clusterMetrics?.metrics || []}
+              cluster={presetCluster}
+              fixLinewidth={2}
             />
-          {:else}
-            <Histogram
-              data={convert2uplot($nodeStatusQuery.data.jobsStatistics[0].histNumAccs)}
-              title="Number of Accelerators Distribution"
-              xlabel="Allocated Accs"
-              xunit="Accs"
-              ylabel="Number of Jobs"
-              yunit="Jobs"
-              height="275"
-              enableFlip
-            />
-          {/if}
+          </div>
         </Col>
+
         <Col> <!-- Stacked SchedState -->
           <div bind:clientWidth={colWidthStacked1}>
             {#key $statesTimed?.data?.nodeStates}
@@ -584,6 +588,7 @@
             {/key}
           </div>
         </Col>
+
         <Col> <!-- Stacked Healthstate -->
           <div bind:clientWidth={colWidthStacked2}>
             {#key $statesTimed?.data?.healthStates}

@@ -83,7 +83,7 @@
       }
     `,
     variables: {
-      filter: { cluster: { eq: cluster }, timeStart: 1760096999},
+      filter: { cluster: { eq: cluster }, timeStart: stackedFrom},
       typeNode: "node",
       typeHealth: "health"
     },
