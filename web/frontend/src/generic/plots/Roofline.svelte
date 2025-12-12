@@ -651,7 +651,7 @@
         hooks: {
           // setSeries: [ (u, seriesIdx) => console.log('setSeries', seriesIdx) ],
           // setLegend: [ u => console.log('setLegend', u.legend.idxs) ],
-          drawClear: [
+          drawClear: [ // drawClear hook which fires before anything exists, so will render under the grid
             (u) => {
               qt = qt || new Quadtree(0, 0, u.bbox.width, u.bbox.height);
               qt.clear();
@@ -663,7 +663,7 @@
               });
             },
           ],
-          draw: [
+          drawAxes: [ // drawAxes hook, which fires after axes and grid have been rendered
             (u) => {
               // draw roofs when subCluster set
               if (subCluster != null) {
