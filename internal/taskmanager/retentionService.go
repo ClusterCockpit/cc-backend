@@ -16,7 +16,7 @@ import (
 func RegisterRetentionDeleteService(age int, includeDB bool, omitTagged bool) {
 	cclog.Info("Register retention delete service")
 
-	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(0o4, 0, 0))),
+	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(14, 30, 0))),
 		gocron.NewTask(
 			func() {
 				startTime := time.Now().Unix() - int64(age*24*3600)
@@ -43,7 +43,7 @@ func RegisterRetentionDeleteService(age int, includeDB bool, omitTagged bool) {
 func RegisterRetentionMoveService(age int, includeDB bool, location string, omitTagged bool) {
 	cclog.Info("Register retention move service")
 
-	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(0o4, 0, 0))),
+	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(4, 0, 0))),
 		gocron.NewTask(
 			func() {
 				startTime := time.Now().Unix() - int64(age*24*3600)
