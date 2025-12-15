@@ -168,6 +168,33 @@ func (fsa *FsArchive) Init(rawConfig json.RawMessage) (uint64, error) {
 
 	b, err := os.ReadFile(filepath.Join(fsa.path, "version.txt"))
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			// Check if directory is empty (ignoring hidden files/dirs)
+			entries, err := os.ReadDir(fsa.path)
+			if err != nil {
+				cclog.Errorf("fsBackend Init() > ReadDir() error: %v", err)
+				return 0, err
+			}
+
+			isEmpty := true
+			for _, e := range entries {
+				if e.Name()[0] != '.' {
+					isEmpty = false
+					break
+				}
+			}
+
+			if isEmpty {
+				cclog.Infof("fsBackend Init() > Bootstrapping new archive at %s", fsa.path)
+				versionStr := fmt.Sprintf("%d\n", Version)
+				if err := os.WriteFile(filepath.Join(fsa.path, "version.txt"), []byte(versionStr), 0644); err != nil {
+					cclog.Errorf("fsBackend Init() > failed to create version.txt: %v", err)
+					return 0, err
+				}
+				return Version, nil
+			}
+		}
+
 		cclog.Warnf("fsBackend Init() - %v", err)
 		return 0, err
 	}
@@ -449,13 +476,15 @@ func (fsa *FsArchive) LoadClusterCfg(name string) (*schema.Cluster, error) {
 	b, err := os.ReadFile(filepath.Join(fsa.path, name, "cluster.json"))
 	if err != nil {
 		cclog.Errorf("LoadClusterCfg() > open file error: %v", err)
-		// if config.Keys.Validate {
+		return &schema.Cluster{}, err
+	}
+
+	if config.Keys.Validate {
 		if err := schema.Validate(schema.ClusterCfg, bytes.NewReader(b)); err != nil {
 			cclog.Warnf("Validate cluster config: %v\n", err)
 			return &schema.Cluster{}, fmt.Errorf("validate cluster config: %v", err)
 		}
 	}
-	// }
 	return DecodeCluster(bytes.NewReader(b))
 }
 
@@ -587,4 +616,38 @@ func (fsa *FsArchive) ImportJob(
 		cclog.Warn("Error while closing data.json file")
 	}
 	return err
+}
+
+func (fsa *FsArchive) StoreClusterCfg(name string, config *schema.Cluster) error {
+	dir := filepath.Join(fsa.path, name)
+	if err := os.MkdirAll(dir, 0777); err != nil {
+		cclog.Errorf("StoreClusterCfg() > mkdir error: %v", err)
+		return err
+	}
+
+	f, err := os.Create(filepath.Join(dir, "cluster.json"))
+	if err != nil {
+		cclog.Errorf("StoreClusterCfg() > create file error: %v", err)
+		return err
+	}
+	defer f.Close()
+
+	if err := EncodeCluster(f, config); err != nil {
+		cclog.Errorf("StoreClusterCfg() > encode error: %v", err)
+		return err
+	}
+
+	// Update clusters list if new
+	found := false
+	for _, c := range fsa.clusters {
+		if c == name {
+			found = true
+			break
+		}
+	}
+	if !found {
+		fsa.clusters = append(fsa.clusters, name)
+	}
+
+	return nil
 }

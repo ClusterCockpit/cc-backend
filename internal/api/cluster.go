@@ -34,7 +34,7 @@ type GetClustersAPIResponse struct {
 // @failure     500            {object} api.ErrorResponse       "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /api/clusters/ [get]
-func (api *RestApi) getClusters(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) getClusters(rw http.ResponseWriter, r *http.Request) {
 	if user := repository.GetUserFromContext(r.Context()); user != nil &&
 		!user.HasRole(schema.RoleApi) {
 

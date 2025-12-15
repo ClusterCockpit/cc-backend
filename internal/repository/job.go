@@ -321,9 +321,14 @@ func (r *JobRepository) FetchEnergyFootprint(job *schema.Job) (map[string]float6
 	return job.EnergyFootprint, nil
 }
 
-func (r *JobRepository) DeleteJobsBefore(startTime int64) (int, error) {
+func (r *JobRepository) DeleteJobsBefore(startTime int64, omitTagged bool) (int, error) {
 	var cnt int
 	q := sq.Select("count(*)").From("job").Where("job.start_time < ?", startTime)
+
+	if omitTagged {
+		q = q.Where("NOT EXISTS (SELECT 1 FROM jobtag WHERE jobtag.job_id = job.id)")
+	}
+
 	if err := q.RunWith(r.DB).QueryRow().Scan(&cnt); err != nil {
 		cclog.Errorf("Error counting jobs before %d: %v", startTime, err)
 		return 0, err
@@ -332,7 +337,13 @@ func (r *JobRepository) DeleteJobsBefore(startTime int64) (int, error) {
 	// Invalidate cache for jobs being deleted (get job IDs first)
 	if cnt > 0 {
 		var jobIds []int64
-		rows, err := sq.Select("id").From("job").Where("job.start_time < ?", startTime).RunWith(r.DB).Query()
+		selectQuery := sq.Select("id").From("job").Where("job.start_time < ?", startTime)
+
+		if omitTagged {
+			selectQuery = selectQuery.Where("NOT EXISTS (SELECT 1 FROM jobtag WHERE jobtag.job_id = job.id)")
+		}
+
+		rows, err := selectQuery.RunWith(r.DB).Query()
 		if err == nil {
 			defer rows.Close()
 			for rows.Next() {
@@ -350,6 +361,10 @@ func (r *JobRepository) DeleteJobsBefore(startTime int64) (int, error) {
 	}
 
 	qd := sq.Delete("job").Where("job.start_time < ?", startTime)
+
+	if omitTagged {
+		qd = qd.Where("NOT EXISTS (SELECT 1 FROM jobtag WHERE jobtag.job_id = job.id)")
+	}
 	_, err := qd.RunWith(r.DB).Exec()
 
 	if err != nil {
@@ -629,7 +644,7 @@ func (r *JobRepository) UpdateDuration() error {
 	return nil
 }
 
-func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64) ([]*schema.Job, error) {
+func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64, omitTagged bool) ([]*schema.Job, error) {
 	var query sq.SelectBuilder
 
 	if startTimeBegin == startTimeEnd || startTimeBegin > startTimeEnd {
@@ -642,6 +657,10 @@ func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64
 	} else {
 		cclog.Infof("Find jobs between %d and %d", startTimeBegin, startTimeEnd)
 		query = sq.Select(jobColumns...).From("job").Where("job.start_time BETWEEN ? AND ?", startTimeBegin, startTimeEnd)
+	}
+
+	if omitTagged {
+		query = query.Where("NOT EXISTS (SELECT 1 FROM jobtag WHERE jobtag.job_id = job.id)")
 	}
 
 	rows, err := query.RunWith(r.stmtCache).Query()

@@ -50,7 +50,7 @@ const (
 type Server struct {
 	router    *mux.Router
 	server    *http.Server
-	apiHandle *api.RestApi
+	apiHandle *api.RestAPI
 }
 
 func onFailureResponse(rw http.ResponseWriter, r *http.Request, err error) {
@@ -239,13 +239,13 @@ func (s *Server) init() error {
 
 	// Mount all /monitoring/... and /api/... routes.
 	routerConfig.SetupRoutes(secured, buildInfo)
-	s.apiHandle.MountApiRoutes(securedapi)
-	s.apiHandle.MountUserApiRoutes(userapi)
-	s.apiHandle.MountConfigApiRoutes(configapi)
-	s.apiHandle.MountFrontendApiRoutes(frontendapi)
+	s.apiHandle.MountAPIRoutes(securedapi)
+	s.apiHandle.MountUserAPIRoutes(userapi)
+	s.apiHandle.MountConfigAPIRoutes(configapi)
+	s.apiHandle.MountFrontendAPIRoutes(frontendapi)
 
 	if memorystore.InternalCCMSFlag {
-		s.apiHandle.MountMetricStoreApiRoutes(metricstoreapi)
+		s.apiHandle.MountMetricStoreAPIRoutes(metricstoreapi)
 	}
 
 	if config.Keys.EmbedStaticFiles {

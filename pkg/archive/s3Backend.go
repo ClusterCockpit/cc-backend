@@ -10,6 +10,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -27,6 +28,7 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
 // S3ArchiveConfig holds the configuration for the S3 archive backend.
@@ -135,6 +137,24 @@ func (s3a *S3Archive) Init(rawConfig json.RawMessage) (uint64, error) {
 		Key:    aws.String(versionKey),
 	})
 	if err != nil {
+		// If version.txt is missing, try to bootstrap (assuming new archive)
+		var noKey *types.NoSuchKey
+		// Check for different error types that indicate missing key
+		if errors.As(err, &noKey) || strings.Contains(err.Error(), "NoSuchKey") || strings.Contains(err.Error(), "404") {
+			cclog.Infof("S3Archive Init() > Bootstrapping new archive at bucket %s", s3a.bucket)
+			versionStr := fmt.Sprintf("%d\n", Version)
+			_, err = s3a.client.PutObject(ctx, &s3.PutObjectInput{
+				Bucket: aws.String(s3a.bucket),
+				Key:    aws.String(versionKey),
+				Body:   strings.NewReader(versionStr),
+			})
+			if err != nil {
+				cclog.Errorf("S3Archive Init() > failed to create version.txt: %v", err)
+				return 0, err
+			}
+			return Version, nil
+		}
+
 		cclog.Warnf("S3Archive Init() > cannot read version.txt: %v", err)
 		return 0, err
 	}
@@ -411,9 +431,11 @@ func (s3a *S3Archive) LoadClusterCfg(name string) (*schema.Cluster, error) {
 		return nil, err
 	}
 
-	if err := schema.Validate(schema.ClusterCfg, bytes.NewReader(b)); err != nil {
-		cclog.Warnf("Validate cluster config: %v\n", err)
-		return &schema.Cluster{}, fmt.Errorf("validate cluster config: %v", err)
+	if config.Keys.Validate {
+		if err := schema.Validate(schema.ClusterCfg, bytes.NewReader(b)); err != nil {
+			cclog.Warnf("Validate cluster config: %v\n", err)
+			return &schema.Cluster{}, fmt.Errorf("validate cluster config: %v", err)
+		}
 	}
 
 	return DecodeCluster(bytes.NewReader(b))
@@ -832,4 +854,39 @@ func (s3a *S3Archive) Iter(loadMetricData bool) <-chan JobContainer {
 	}()
 
 	return ch
+}
+
+func (s3a *S3Archive) StoreClusterCfg(name string, config *schema.Cluster) error {
+	ctx := context.Background()
+	key := fmt.Sprintf("%s/cluster.json", name)
+
+	var buf bytes.Buffer
+	if err := EncodeCluster(&buf, config); err != nil {
+		cclog.Error("S3Archive StoreClusterCfg() > encoding error")
+		return err
+	}
+
+	_, err := s3a.client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket: aws.String(s3a.bucket),
+		Key:    aws.String(key),
+		Body:   bytes.NewReader(buf.Bytes()),
+	})
+	if err != nil {
+		cclog.Errorf("S3Archive StoreClusterCfg() > PutObject error: %v", err)
+		return err
+	}
+
+	// Update clusters list if new
+	found := false
+	for _, c := range s3a.clusters {
+		if c == name {
+			found = true
+			break
+		}
+	}
+	if !found {
+		s3a.clusters = append(s3a.clusters, name)
+	}
+
+	return nil
 }

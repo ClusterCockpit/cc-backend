@@ -28,7 +28,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/tagger"
-	"github.com/ClusterCockpit/cc-backend/internal/taskManager"
+	"github.com/ClusterCockpit/cc-backend/internal/taskmanager"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/web"
 	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
@@ -326,11 +326,13 @@ func runServer(ctx context.Context) error {
 
 	// Start archiver and task manager
 	archiver.Start(repository.GetJobRepository(), ctx)
-	taskManager.Start(ccconf.GetPackageConfig("cron"), ccconf.GetPackageConfig("archive"))
+	taskmanager.Start(ccconf.GetPackageConfig("cron"), ccconf.GetPackageConfig("archive"))
 
 	// Initialize web UI
 	cfg := ccconf.GetPackageConfig("ui")
-	web.Init(cfg)
+	if err := web.Init(cfg); err != nil {
+		return fmt.Errorf("initializing web UI: %w", err)
+	}
 
 	// Initialize HTTP server
 	srv, err := NewServer(version, commit, date)
@@ -365,7 +367,7 @@ func runServer(ctx context.Context) error {
 		runtimeEnv.SystemdNotifiy(false, "Shutting down ...")
 		srv.Shutdown(ctx)
 		util.FsWatcherShutdown()
-		taskManager.Shutdown()
+		taskmanager.Shutdown()
 	}()
 
 	// Set GC percent if not configured

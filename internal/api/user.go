@@ -38,7 +38,7 @@ type APIReturnedUser struct {
 // @failure     500     {string} string             "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /api/users/ [get]
-func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) getUsers(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
 	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
@@ -73,7 +73,7 @@ func (api *RestApi) getUsers(rw http.ResponseWriter, r *http.Request) {
 // @failure     422     {object} api.ErrorResponse "Unprocessable Entity"
 // @security    ApiKeyAuth
 // @router      /api/user/{id} [post]
-func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) updateUser(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
 	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
@@ -95,7 +95,7 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 			handleError(fmt.Errorf("adding role failed: %w", err), http.StatusUnprocessableEntity, rw)
 			return
 		}
-		if err := json.NewEncoder(rw).Encode(DefaultApiResponse{Message: "Add Role Success"}); err != nil {
+		if err := json.NewEncoder(rw).Encode(DefaultAPIResponse{Message: "Add Role Success"}); err != nil {
 			cclog.Errorf("Failed to encode response: %v", err)
 		}
 	} else if delrole != "" {
@@ -103,7 +103,7 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 			handleError(fmt.Errorf("removing role failed: %w", err), http.StatusUnprocessableEntity, rw)
 			return
 		}
-		if err := json.NewEncoder(rw).Encode(DefaultApiResponse{Message: "Remove Role Success"}); err != nil {
+		if err := json.NewEncoder(rw).Encode(DefaultAPIResponse{Message: "Remove Role Success"}); err != nil {
 			cclog.Errorf("Failed to encode response: %v", err)
 		}
 	} else if newproj != "" {
@@ -111,7 +111,7 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 			handleError(fmt.Errorf("adding project failed: %w", err), http.StatusUnprocessableEntity, rw)
 			return
 		}
-		if err := json.NewEncoder(rw).Encode(DefaultApiResponse{Message: "Add Project Success"}); err != nil {
+		if err := json.NewEncoder(rw).Encode(DefaultAPIResponse{Message: "Add Project Success"}); err != nil {
 			cclog.Errorf("Failed to encode response: %v", err)
 		}
 	} else if delproj != "" {
@@ -119,7 +119,7 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 			handleError(fmt.Errorf("removing project failed: %w", err), http.StatusUnprocessableEntity, rw)
 			return
 		}
-		if err := json.NewEncoder(rw).Encode(DefaultApiResponse{Message: "Remove Project Success"}); err != nil {
+		if err := json.NewEncoder(rw).Encode(DefaultAPIResponse{Message: "Remove Project Success"}); err != nil {
 			cclog.Errorf("Failed to encode response: %v", err)
 		}
 	} else {
@@ -144,7 +144,7 @@ func (api *RestApi) updateUser(rw http.ResponseWriter, r *http.Request) {
 // @failure     422     {object} api.ErrorResponse "Unprocessable Entity"
 // @security    ApiKeyAuth
 // @router      /api/users/ [post]
-func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) createUser(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
 	rw.Header().Set("Content-Type", "text/plain")
@@ -203,7 +203,7 @@ func (api *RestApi) createUser(rw http.ResponseWriter, r *http.Request) {
 // @failure     422     {object} api.ErrorResponse "Unprocessable Entity"
 // @security    ApiKeyAuth
 // @router      /api/users/ [delete]
-func (api *RestApi) deleteUser(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) deleteUser(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
 	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {

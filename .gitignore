@@ -5,8 +5,8 @@
 
 /var/job-archive
 /var/machine-state
-/var/job.db-shm
-/var/job.db-wal
+/var/*.db-shm
+/var/*.db-wal
 /var/*.db
 /var/*.txt
 
@@ -29,3 +29,4 @@ dist/
 *.db
 .idea
 tools/archive-migration/archive-migration
+tools/archive-manager/archive-manager

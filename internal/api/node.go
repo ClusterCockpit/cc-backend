@@ -54,7 +54,7 @@ func determineState(states []string) schema.SchedulerState {
 // @failure     500     {object} api.ErrorResponse      "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /api/nodestats/ [post]
-func (api *RestApi) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 	// Parse request body
 	req := UpdateNodeStatesRequest{}
 	if err := decode(r.Body, &req); err != nil {

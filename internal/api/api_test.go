@@ -35,7 +35,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func setup(t *testing.T) *api.RestApi {
+func setup(t *testing.T) *api.RestAPI {
 	const testconfig = `{
 		"main": {
 	"addr":            "0.0.0.0:8080",
@@ -228,7 +228,7 @@ func TestRestApi(t *testing.T) {
 	r := mux.NewRouter()
 	r.PathPrefix("/api").Subrouter()
 	r.StrictSlash(true)
-	restapi.MountApiRoutes(r)
+	restapi.MountAPIRoutes(r)
 
 	var TestJobId int64 = 123
 	TestClusterName := "testcluster"

@@ -6,8 +6,8 @@ github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 h1:L/gRVlceqvL25
 github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161/go.mod h1:xomTg63KZ2rFqZQzSB4Vz2SUXa1BpHTVz9L5PTmPC4E=
 github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358 h1:mFRzDkZVAjdal+s7s0MwaRv9igoPqLRdzOLzw/8Xvq8=
 github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358/go.mod h1:chxPXzSsl7ZWRAuOIE23GDNzjWuZquvFlgA8xmpunjU=
-github.com/ClusterCockpit/cc-lib v0.11.0 h1:66YkTOxWUak7nB3r7dJEm2q+B0uPRPGj0mwXZHXpOuA=
-github.com/ClusterCockpit/cc-lib v0.11.0/go.mod h1:0LKjDJs813/NMmaSJXJc11A9rxiFDPV/QdWQbZUp0XY=
+github.com/ClusterCockpit/cc-lib v1.0.0 h1:/8DFRomt4BpVWKWrsEZ/ru4K8x76QTVnEgdwHc5eSps=
+github.com/ClusterCockpit/cc-lib v1.0.0/go.mod h1:UGdOvXEnjFqlnPSxtvtFwO6BtXYW6NnXFoud9FtN93k=
 github.com/KyleBanks/depth v1.2.1 h1:5h8fQADFrWtarTdtDudMmGsC7GPbOAu6RVB3ffsVFHc=
 github.com/KyleBanks/depth v1.2.1/go.mod h1:jzSb9d0L43HxTQfT+oSA1EEp2q+ne2uh6XgeJcm8brE=
 github.com/Masterminds/squirrel v1.5.4 h1:uUcX/aBc8O7Fg9kaISIUsHXdKuqehiXAMQTYX8afzqM=
