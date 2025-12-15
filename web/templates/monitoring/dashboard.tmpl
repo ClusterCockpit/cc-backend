@@ -7,7 +7,7 @@
 {{end}}
 {{define "javascript-public"}}
     <script>
-        const infos = {{ .Infos }};
+        const presetCluster = {{ .Infos.cluster }};
         const clusterCockpitConfig = {{ .Config }};
     </script>
     <script src='/build/dashpublic.js'></script>

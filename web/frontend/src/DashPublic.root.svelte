@@ -6,9 +6,9 @@
 -->
 
  <script>
-  import {
-    getContext
-  } from "svelte"
+  // import {
+  //   getContext
+  // } from "svelte"
   import {
     queryStore,
     gql,
@@ -45,7 +45,7 @@
   /*Const Init */
   const { query: initq } = init();
   const client = getContextClient();
-  const useCbColors = getContext("cc-config")?.plotConfiguration_colorblindMode || false
+  // const useCbColors = getContext("cc-config")?.plotConfiguration_colorblindMode || false
 
   /* States */
   let from = $state(new Date(Date.now() - (5 * 60 * 1000)));

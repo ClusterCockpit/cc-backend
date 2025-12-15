@@ -120,11 +120,6 @@ func setupClusterStatusRoute(i InfoType, r *http.Request) InfoType {
 	i["id"] = vars["cluster"]
 	i["cluster"] = vars["cluster"]
 	i["displayType"] = "DASHBOARD"
-	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
-	if from != "" || to != "" {
-		i["from"] = from
-		i["to"] = to
-	}
 	return i
 }
 
@@ -133,11 +128,6 @@ func setupClusterDetailRoute(i InfoType, r *http.Request) InfoType {
 	i["id"] = vars["cluster"]
 	i["cluster"] = vars["cluster"]
 	i["displayType"] = "DETAILS"
-	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
-	if from != "" || to != "" {
-		i["from"] = from
-		i["to"] = to
-	}
 	return i
 }
 
@@ -145,12 +135,7 @@ func setupDashboardRoute(i InfoType, r *http.Request) InfoType {
 	vars := mux.Vars(r)
 	i["id"] = vars["cluster"]
 	i["cluster"] = vars["cluster"]
-	i["displayType"] = "PUBLIC"
-	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
-	if from != "" || to != "" {
-		i["from"] = from
-		i["to"] = to
-	}
+	i["displayType"] = "PUBLIC" // Used in Main Template
 	return i
 }
 

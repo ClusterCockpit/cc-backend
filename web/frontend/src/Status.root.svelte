@@ -3,6 +3,7 @@
 
   Properties:
   - `presetCluster String`: The cluster to show status information for
+  - `displayType String`: The type of status component to render
 -->
 
  <script>
@@ -10,6 +11,7 @@
     Row,
     Col,
     Card,
+    CardBody
   } from "@sveltestrap/sveltestrap";
 
   import DashDetails from "./status/DashDetails.svelte";
@@ -20,29 +22,20 @@
     presetCluster,
     displayType
   } = $props();
-
-  /*Const Init */
-  const displayStatusDetail = (displayType === 'DETAILS');
 </script>
 
-<!-- <Row cols={1} class="mb-2">
-  <Col>
-    <h3 class="mb-0">Current Status of Cluster "{presetCluster.charAt(0).toUpperCase() + presetCluster.slice(1)}"</h3>
-  </Col>
-</Row> -->
-
-{#if displayType !== "DASHBOARD" && displayType !== "DETAILS"}
+{#if displayType === 'DETAILS'}
+  <DashDetails {presetCluster}/>
+{:else if displayType === 'DASHBOARD'}
+  <DashInternal {presetCluster}/>
+{:else}
   <Row>
     <Col>
-      <Card body color="danger">Unknown displayList type! </Card>
+      <Card color="danger">
+        <CardBody>
+          Unknown DisplayType for Status View!
+        </CardBody>
+      </Card>
     </Col>
   </Row>
-{:else}
-  {#if displayStatusDetail}
-    <!-- ROW2-1: Node Overview (Grid Included)-->
-    <DashDetails {presetCluster}/>
-  {:else}
-    <!-- ROW2-2: Node List (Grid Included)-->
-    <DashInternal {presetCluster}/>
-  {/if}
 {/if}

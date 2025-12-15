@@ -5,7 +5,7 @@ import DashPublic from './DashPublic.root.svelte'
 mount(DashPublic, {
     target: document.getElementById('svelte-app'),
     props: {
-        presetCluster: infos.cluster,
+        presetCluster: presetCluster,
     },
     context: new Map([
             ['cc-config', clusterCockpitConfig]
