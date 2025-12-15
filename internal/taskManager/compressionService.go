@@ -2,7 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
-package taskManager
+package taskmanager
 
 import (
 	"time"
@@ -16,7 +16,7 @@ import (
 func RegisterCompressionService(compressOlderThan int) {
 	cclog.Info("Register compression service")
 
-	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(05, 0, 0))),
+	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(0o5, 0, 0))),
 		gocron.NewTask(
 			func() {
 				var jobs []*schema.Job
@@ -27,10 +27,10 @@ func RegisterCompressionService(compressOlderThan int) {
 				lastTime := ar.CompressLast(startTime)
 				if startTime == lastTime {
 					cclog.Info("Compression Service - Complete archive run")
-					jobs, err = jobRepo.FindJobsBetween(0, startTime)
+					jobs, err = jobRepo.FindJobsBetween(0, startTime, false)
 
 				} else {
-					jobs, err = jobRepo.FindJobsBetween(lastTime, startTime)
+					jobs, err = jobRepo.FindJobsBetween(lastTime, startTime, false)
 				}
 
 				if err != nil {

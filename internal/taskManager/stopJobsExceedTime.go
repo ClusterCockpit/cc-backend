@@ -2,7 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
-package taskManager
+package taskmanager
 
 import (
 	"runtime"
@@ -15,7 +15,7 @@ import (
 func RegisterStopJobsExceedTime() {
 	cclog.Info("Register undead jobs service")
 
-	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(03, 0, 0))),
+	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(0o3, 0, 0))),
 		gocron.NewTask(
 			func() {
 				err := jobRepo.StopJobsExceedingWalltimeBy(config.Keys.StopJobsExceedingWalltime)

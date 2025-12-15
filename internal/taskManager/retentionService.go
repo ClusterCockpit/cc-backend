@@ -2,7 +2,8 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
-package taskManager
+
+package taskmanager
 
 import (
 	"time"
@@ -15,11 +16,11 @@ import (
 func RegisterRetentionDeleteService(age int, includeDB bool) {
 	cclog.Info("Register retention delete service")
 
-	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(04, 0, 0))),
+	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(0o4, 0, 0))),
 		gocron.NewTask(
 			func() {
 				startTime := time.Now().Unix() - int64(age*24*3600)
-				jobs, err := jobRepo.FindJobsBetween(0, startTime)
+				jobs, err := jobRepo.FindJobsBetween(0, startTime, false)
 				if err != nil {
 					cclog.Warnf("Error while looking for retention jobs: %s", err.Error())
 				}
@@ -42,11 +43,11 @@ func RegisterRetentionDeleteService(age int, includeDB bool) {
 func RegisterRetentionMoveService(age int, includeDB bool, location string) {
 	cclog.Info("Register retention move service")
 
-	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(04, 0, 0))),
+	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(0o4, 0, 0))),
 		gocron.NewTask(
 			func() {
 				startTime := time.Now().Unix() - int64(age*24*3600)
-				jobs, err := jobRepo.FindJobsBetween(0, startTime)
+				jobs, err := jobRepo.FindJobsBetween(0, startTime, false)
 				if err != nil {
 					cclog.Warnf("Error while looking for retention jobs: %s", err.Error())
 				}
