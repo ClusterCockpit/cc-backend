@@ -9,9 +9,12 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/util"
 )
@@ -105,5 +108,12 @@ func initEnv() {
 	err := repository.MigrateDB("sqlite3", "./var/job.db")
 	if err != nil {
 		cclog.Abortf("Could not initialize default sqlite3 database as './var/job.db'. Application initialization failed, exited.\nError: %s\n", err.Error())
+	}
+	if err := os.Mkdir("var/job-archive", 0o777); err != nil {
+		cclog.Abortf("Could not create default ./var/job-archive folder with permissions '0o777'. Application initialization failed, exited.\nError: %s\n", err.Error())
+	}
+	archiveCfg := "{\"kind\": \"file\",\"path\": \"./var/job-archive\"}"
+	if err := archive.Init(json.RawMessage(archiveCfg), config.Keys.DisableArchive); err != nil {
+		cclog.Abortf("Could not initialize job-archive, exited.\nError: %s\n", err.Error())
 	}
 }
