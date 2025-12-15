@@ -79,6 +79,18 @@ func TestImportFileToSqlite(t *testing.T) {
 	if srcCount != dstCount {
 		t.Errorf("Job count mismatch: source has %d jobs, destination has %d jobs", srcCount, dstCount)
 	}
+
+	// Verify cluster config
+	clusters := srcBackend.GetClusters()
+	for _, cluster := range clusters {
+		cfg, err := dstBackend.LoadClusterCfg(cluster)
+		if err != nil {
+			t.Errorf("Failed to load cluster config for %s from destination: %v", cluster, err)
+		}
+		if cfg.Name != cluster {
+			t.Errorf("Cluster name mismatch: expected %s, got %s", cluster, cfg.Name)
+		}
+	}
 }
 
 // TestImportFileToFile tests importing jobs from one file backend to another
@@ -337,5 +349,51 @@ func TestJobStub(t *testing.T) {
 
 	if job.JobID != 123 {
 		t.Errorf("Expected JobID 123, got %d", job.JobID)
+	}
+}
+
+// TestImportToEmptyFileDestination tests importing to an empty file backend (bootstrapping version)
+func TestImportToEmptyFileDestination(t *testing.T) {
+	tmpdir := t.TempDir()
+	srcArchive := filepath.Join(tmpdir, "src-archive")
+	dstArchive := filepath.Join(tmpdir, "dst-archive-empty")
+
+	// Setup valid source
+	testDataPath := "../../pkg/archive/testdata/archive"
+	if _, err := os.Stat(testDataPath); os.IsNotExist(err) {
+		t.Skip("Test data not found")
+	}
+	util.CopyDir(testDataPath, srcArchive)
+
+	// Setup empty destination directory
+	os.MkdirAll(dstArchive, 0755)
+	// NOTE: NOT writing version.txt here!
+
+	// Initialize source
+	srcConfig := fmt.Sprintf(`{"kind":"file","path":"%s"}`, srcArchive)
+	srcBackend, err := archive.InitBackend(json.RawMessage(srcConfig))
+	if err != nil {
+		t.Fatalf("Failed to init source: %v", err)
+	}
+
+	// Initialize destination (should succeed with changes, currently fails)
+	dstConfig := fmt.Sprintf(`{"kind":"file","path":"%s"}`, dstArchive)
+	dstBackend, err := archive.InitBackend(json.RawMessage(dstConfig))
+	if err != nil {
+		t.Fatalf("Failed to init destination (should bootstrap): %v", err)
+	}
+
+	// Perform import
+	imported, _, err := importArchive(srcBackend, dstBackend)
+	if err != nil {
+		t.Errorf("Import failed: %v", err)
+	}
+	if imported == 0 {
+		t.Error("No jobs imported")
+	}
+
+	// Check if version.txt was created
+	if _, err := os.Stat(filepath.Join(dstArchive, "version.txt")); os.IsNotExist(err) {
+		t.Error("version.txt was not created in destination")
 	}
 }

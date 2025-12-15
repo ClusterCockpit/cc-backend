@@ -55,7 +55,7 @@ func importArchive(srcBackend, dstBackend archive.ArchiveBackend) (int, int, err
 	var wg sync.WaitGroup
 
 	// Start worker goroutines
-	for i := 0; i < numWorkers; i++ {
+	for i := range numWorkers {
 		wg.Add(1)
 		go func(workerID int) {
 			defer wg.Done()
@@ -104,6 +104,22 @@ func importArchive(srcBackend, dstBackend archive.ArchiveBackend) (int, int, err
 
 	// Feed jobs to workers
 	go func() {
+		// Import cluster configs first
+		clusters := srcBackend.GetClusters()
+		for _, clusterName := range clusters {
+			clusterCfg, err := srcBackend.LoadClusterCfg(clusterName)
+			if err != nil {
+				cclog.Errorf("Failed to load cluster config for %s: %v", clusterName, err)
+				continue
+			}
+
+			if err := dstBackend.StoreClusterCfg(clusterName, clusterCfg); err != nil {
+				cclog.Errorf("Failed to store cluster config for %s: %v", clusterName, err)
+			} else {
+				cclog.Infof("Imported cluster config for %s", clusterName)
+			}
+		}
+
 		for job := range srcBackend.Iter(true) {
 			jobs <- job
 		}
