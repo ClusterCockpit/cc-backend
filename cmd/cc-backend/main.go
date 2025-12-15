@@ -330,7 +330,9 @@ func runServer(ctx context.Context) error {
 
 	// Initialize web UI
 	cfg := ccconf.GetPackageConfig("ui")
-	web.Init(cfg)
+	if err := web.Init(cfg); err != nil {
+		return fmt.Errorf("initializing web UI: %w", err)
+	}
 
 	// Initialize HTTP server
 	srv, err := NewServer(version, commit, date)

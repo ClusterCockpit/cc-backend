@@ -45,44 +45,43 @@ type StopJobAPIRequest struct {
 	StopTime  int64           `json:"stopTime" validate:"required" example:"1649763839"`
 }
 
-// DeleteJobApiRequest model
-type DeleteJobApiRequest struct {
+// DeleteJobAPIRequest model
+type DeleteJobAPIRequest struct {
 	JobID     *int64  `json:"jobId" validate:"required" example:"123000"` // Cluster Job ID of job
 	Cluster   *string `json:"cluster" example:"fritz"`                    // Cluster of job
 	StartTime *int64  `json:"startTime" example:"1649723812"`             // Start Time of job as epoch
 }
 
-// GetJobsApiResponse model
-type GetJobsApiResponse struct {
+// GetJobsAPIResponse model
+type GetJobsAPIResponse struct {
 	Jobs  []*schema.Job `json:"jobs"`  // Array of jobs
 	Items int           `json:"items"` // Number of jobs returned
 	Page  int           `json:"page"`  // Page id returned
 }
 
-// ApiTag model
-type ApiTag struct {
+// APITag model
+type APITag struct {
 	// Tag Type
 	Type  string `json:"type" example:"Debug"`
 	Name  string `json:"name" example:"Testjob"` // Tag Name
 	Scope string `json:"scope" example:"global"` // Tag Scope for Frontend Display
 }
 
-// ApiMeta model
 type EditMetaRequest struct {
 	Key   string `json:"key" example:"jobScript"`
 	Value string `json:"value" example:"bash script"`
 }
 
-type TagJobApiRequest []*ApiTag
+type TagJobAPIRequest []*APITag
 
-type GetJobApiRequest []string
+type GetJobAPIRequest []string
 
-type GetJobApiResponse struct {
+type GetJobAPIResponse struct {
 	Meta *schema.Job
 	Data []*JobMetricWithName
 }
 
-type GetCompleteJobApiResponse struct {
+type GetCompleteJobAPIResponse struct {
 	Meta *schema.Job
 	Data schema.JobData
 }
@@ -112,7 +111,7 @@ type JobMetricWithName struct {
 // @failure     500            {object} api.ErrorResponse       "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /api/jobs/ [get]
-func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) getJobs(rw http.ResponseWriter, r *http.Request) {
 	withMetadata := false
 	filter := &model.JobFilter{}
 	page := &model.PageRequest{ItemsPerPage: 25, Page: 1}
@@ -213,7 +212,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 	bw := bufio.NewWriter(rw)
 	defer bw.Flush()
 
-	payload := GetJobsApiResponse{
+	payload := GetJobsAPIResponse{
 		Jobs:  results,
 		Items: page.ItemsPerPage,
 		Page:  page.Page,
@@ -225,7 +224,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// getCompleteJobById godoc
+// getCompleteJobByID godoc
 // @summary   Get job meta and optional all metric data
 // @tags Job query
 // @description Job to get is specified by database ID
@@ -242,7 +241,7 @@ func (api *RestApi) getJobs(rw http.ResponseWriter, r *http.Request) {
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /api/jobs/{id} [get]
-func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) getCompleteJobByID(rw http.ResponseWriter, r *http.Request) {
 	// Fetch job from db
 	id, ok := mux.Vars(r)["id"]
 	var job *schema.Job
@@ -306,7 +305,7 @@ func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) 
 	bw := bufio.NewWriter(rw)
 	defer bw.Flush()
 
-	payload := GetCompleteJobApiResponse{
+	payload := GetCompleteJobAPIResponse{
 		Meta: job,
 		Data: data,
 	}
@@ -317,7 +316,7 @@ func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) 
 	}
 }
 
-// getJobById godoc
+// getJobByID godoc
 // @summary   Get job meta and configurable metric data
 // @tags Job query
 // @description Job to get is specified by database ID
@@ -335,7 +334,7 @@ func (api *RestApi) getCompleteJobById(rw http.ResponseWriter, r *http.Request) 
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /api/jobs/{id} [post]
-func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) getJobByID(rw http.ResponseWriter, r *http.Request) {
 	// Fetch job from db
 	id, ok := mux.Vars(r)["id"]
 	var job *schema.Job
@@ -369,7 +368,7 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var metrics GetJobApiRequest
+	var metrics GetJobAPIRequest
 	if err = decode(r.Body, &metrics); err != nil {
 		handleError(fmt.Errorf("decoding request failed: %w", err), http.StatusBadRequest, rw)
 		return
@@ -412,7 +411,7 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 	bw := bufio.NewWriter(rw)
 	defer bw.Flush()
 
-	payload := GetJobApiResponse{
+	payload := GetJobAPIResponse{
 		Meta: job,
 		Data: res,
 	}
@@ -439,7 +438,7 @@ func (api *RestApi) getJobById(rw http.ResponseWriter, r *http.Request) {
 // @failure     500     {object} api.ErrorResponse         "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /api/jobs/edit_meta/{id} [post]
-func (api *RestApi) editMeta(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) editMeta(rw http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
 	if err != nil {
 		handleError(fmt.Errorf("parsing job ID failed: %w", err), http.StatusBadRequest, rw)
@@ -487,7 +486,7 @@ func (api *RestApi) editMeta(rw http.ResponseWriter, r *http.Request) {
 // @failure     500     {object} api.ErrorResponse         "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /api/jobs/tag_job/{id} [post]
-func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) tagJob(rw http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
 	if err != nil {
 		handleError(fmt.Errorf("parsing job ID failed: %w", err), http.StatusBadRequest, rw)
@@ -506,21 +505,21 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req TagJobApiRequest
+	var req TagJobAPIRequest
 	if err := decode(r.Body, &req); err != nil {
 		handleError(fmt.Errorf("decoding request failed: %w", err), http.StatusBadRequest, rw)
 		return
 	}
 
 	for _, tag := range req {
-		tagId, err := api.JobRepository.AddTagOrCreate(repository.GetUserFromContext(r.Context()), *job.ID, tag.Type, tag.Name, tag.Scope)
+		tagID, err := api.JobRepository.AddTagOrCreate(repository.GetUserFromContext(r.Context()), *job.ID, tag.Type, tag.Name, tag.Scope)
 		if err != nil {
 			handleError(fmt.Errorf("adding tag failed: %w", err), http.StatusInternalServerError, rw)
 			return
 		}
 
 		job.Tags = append(job.Tags, &schema.Tag{
-			ID:    tagId,
+			ID:    tagID,
 			Type:  tag.Type,
 			Name:  tag.Name,
 			Scope: tag.Scope,
@@ -551,7 +550,7 @@ func (api *RestApi) tagJob(rw http.ResponseWriter, r *http.Request) {
 // @failure     500     {object} api.ErrorResponse         "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /jobs/tag_job/{id} [delete]
-func (api *RestApi) removeTagJob(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) removeTagJob(rw http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
 	if err != nil {
 		handleError(fmt.Errorf("parsing job ID failed: %w", err), http.StatusBadRequest, rw)
@@ -570,7 +569,7 @@ func (api *RestApi) removeTagJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req TagJobApiRequest
+	var req TagJobAPIRequest
 	if err := decode(r.Body, &req); err != nil {
 		handleError(fmt.Errorf("decoding request failed: %w", err), http.StatusBadRequest, rw)
 		return
@@ -615,8 +614,8 @@ func (api *RestApi) removeTagJob(rw http.ResponseWriter, r *http.Request) {
 // @failure     500     {object} api.ErrorResponse         "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /tags/ [delete]
-func (api *RestApi) removeTags(rw http.ResponseWriter, r *http.Request) {
-	var req TagJobApiRequest
+func (api *RestAPI) removeTags(rw http.ResponseWriter, r *http.Request) {
+	var req TagJobAPIRequest
 	if err := decode(r.Body, &req); err != nil {
 		handleError(fmt.Errorf("decoding request failed: %w", err), http.StatusBadRequest, rw)
 		return
@@ -659,7 +658,7 @@ func (api *RestApi) removeTags(rw http.ResponseWriter, r *http.Request) {
 // @failure     500     {object} api.ErrorResponse            "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /api/jobs/start_job/ [post]
-func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) startJob(rw http.ResponseWriter, r *http.Request) {
 	req := schema.Job{
 		Shared:           "none",
 		MonitoringStatus: schema.MonitoringStatusRunningOrArchiving,
@@ -716,7 +715,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 	cclog.Infof("new job (id: %d): cluster=%s, jobId=%d, user=%s, startTime=%d", id, req.Cluster, req.JobID, req.User, req.StartTime)
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(rw).Encode(DefaultApiResponse{
+	if err := json.NewEncoder(rw).Encode(DefaultAPIResponse{
 		Message: "success",
 	}); err != nil {
 		cclog.Errorf("Failed to encode response: %v", err)
@@ -739,7 +738,7 @@ func (api *RestApi) startJob(rw http.ResponseWriter, r *http.Request) {
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /api/jobs/stop_job/ [post]
-func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 	// Parse request body
 	req := StopJobAPIRequest{}
 	if err := decode(r.Body, &req); err != nil {
@@ -771,7 +770,7 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 	api.checkAndHandleStopJob(rw, job, req)
 }
 
-// deleteJobById godoc
+// deleteJobByID godoc
 // @summary     Remove a job from the sql database
 // @tags Job remove
 // @description Job to remove is specified by database ID. This will not remove the job from the job archive.
@@ -786,7 +785,7 @@ func (api *RestApi) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /api/jobs/delete_job/{id} [delete]
-func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) deleteJobByID(rw http.ResponseWriter, r *http.Request) {
 	// Fetch job (that will be stopped) from db
 	id, ok := mux.Vars(r)["id"]
 	var err error
@@ -808,7 +807,7 @@ func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 	}
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(rw).Encode(DefaultApiResponse{
+	if err := json.NewEncoder(rw).Encode(DefaultAPIResponse{
 		Message: fmt.Sprintf("Successfully deleted job %s", id),
 	}); err != nil {
 		cclog.Errorf("Failed to encode response: %v", err)
@@ -831,9 +830,9 @@ func (api *RestApi) deleteJobById(rw http.ResponseWriter, r *http.Request) {
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /api/jobs/delete_job/ [delete]
-func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) {
 	// Parse request body
-	req := DeleteJobApiRequest{}
+	req := DeleteJobAPIRequest{}
 	if err := decode(r.Body, &req); err != nil {
 		handleError(fmt.Errorf("parsing request body failed: %w", err), http.StatusBadRequest, rw)
 		return
@@ -861,7 +860,7 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(rw).Encode(DefaultApiResponse{
+	if err := json.NewEncoder(rw).Encode(DefaultAPIResponse{
 		Message: fmt.Sprintf("Successfully deleted job %d", job.ID),
 	}); err != nil {
 		cclog.Errorf("Failed to encode response: %v", err)
@@ -883,7 +882,7 @@ func (api *RestApi) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /api/jobs/delete_job_before/{ts} [delete]
-func (api *RestApi) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 	var cnt int
 	// Fetch job (that will be stopped) from db
 	id, ok := mux.Vars(r)["ts"]
@@ -907,14 +906,14 @@ func (api *RestApi) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(rw).Encode(DefaultApiResponse{
+	if err := json.NewEncoder(rw).Encode(DefaultAPIResponse{
 		Message: fmt.Sprintf("Successfully deleted %d jobs", cnt),
 	}); err != nil {
 		cclog.Errorf("Failed to encode response: %v", err)
 	}
 }
 
-func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Job, req StopJobAPIRequest) {
+func (api *RestAPI) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Job, req StopJobAPIRequest) {
 	// Sanity checks
 	if job.State != schema.JobStateRunning {
 		handleError(fmt.Errorf("jobId %d (id %d) on %s : job has already been stopped (state is: %s)", job.JobID, job.ID, job.Cluster, job.State), http.StatusUnprocessableEntity, rw)
@@ -966,7 +965,7 @@ func (api *RestApi) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 	archiver.TriggerArchiving(job)
 }
 
-func (api *RestApi) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	metrics := r.URL.Query()["metric"]
 	var scopes []schema.MetricScope

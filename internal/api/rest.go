@@ -50,7 +50,7 @@ const (
 	noticeFilePerms = 0o644
 )
 
-type RestApi struct {
+type RestAPI struct {
 	JobRepository   *repository.JobRepository
 	Authentication  *auth.Authentication
 	MachineStateDir string
@@ -61,15 +61,15 @@ type RestApi struct {
 	RepositoryMutex sync.Mutex
 }
 
-func New() *RestApi {
-	return &RestApi{
+func New() *RestAPI {
+	return &RestAPI{
 		JobRepository:   repository.GetJobRepository(),
 		MachineStateDir: config.Keys.MachineStateDir,
 		Authentication:  auth.GetAuthInstance(),
 	}
 }
 
-func (api *RestApi) MountApiRoutes(r *mux.Router) {
+func (api *RestAPI) MountAPIRoutes(r *mux.Router) {
 	r.StrictSlash(true)
 	// REST API Uses TokenAuth
 	// User List
@@ -82,14 +82,14 @@ func (api *RestApi) MountApiRoutes(r *mux.Router) {
 	r.HandleFunc("/jobs/start_job/", api.startJob).Methods(http.MethodPost, http.MethodPut)
 	r.HandleFunc("/jobs/stop_job/", api.stopJobByRequest).Methods(http.MethodPost, http.MethodPut)
 	r.HandleFunc("/jobs/", api.getJobs).Methods(http.MethodGet)
-	r.HandleFunc("/jobs/{id}", api.getJobById).Methods(http.MethodPost)
-	r.HandleFunc("/jobs/{id}", api.getCompleteJobById).Methods(http.MethodGet)
+	r.HandleFunc("/jobs/{id}", api.getJobByID).Methods(http.MethodPost)
+	r.HandleFunc("/jobs/{id}", api.getCompleteJobByID).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/tag_job/{id}", api.tagJob).Methods(http.MethodPost, http.MethodPatch)
 	r.HandleFunc("/jobs/tag_job/{id}", api.removeTagJob).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/edit_meta/{id}", api.editMeta).Methods(http.MethodPost, http.MethodPatch)
 	r.HandleFunc("/jobs/metrics/{id}", api.getJobMetrics).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/delete_job/", api.deleteJobByRequest).Methods(http.MethodDelete)
-	r.HandleFunc("/jobs/delete_job/{id}", api.deleteJobById).Methods(http.MethodDelete)
+	r.HandleFunc("/jobs/delete_job/{id}", api.deleteJobByID).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job_before/{ts}", api.deleteJobBefore).Methods(http.MethodDelete)
 
 	r.HandleFunc("/tags/", api.removeTags).Methods(http.MethodDelete)
@@ -100,16 +100,16 @@ func (api *RestApi) MountApiRoutes(r *mux.Router) {
 	}
 }
 
-func (api *RestApi) MountUserApiRoutes(r *mux.Router) {
+func (api *RestAPI) MountUserAPIRoutes(r *mux.Router) {
 	r.StrictSlash(true)
 	// REST API Uses TokenAuth
 	r.HandleFunc("/jobs/", api.getJobs).Methods(http.MethodGet)
-	r.HandleFunc("/jobs/{id}", api.getJobById).Methods(http.MethodPost)
-	r.HandleFunc("/jobs/{id}", api.getCompleteJobById).Methods(http.MethodGet)
+	r.HandleFunc("/jobs/{id}", api.getJobByID).Methods(http.MethodPost)
+	r.HandleFunc("/jobs/{id}", api.getCompleteJobByID).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/metrics/{id}", api.getJobMetrics).Methods(http.MethodGet)
 }
 
-func (api *RestApi) MountMetricStoreApiRoutes(r *mux.Router) {
+func (api *RestAPI) MountMetricStoreAPIRoutes(r *mux.Router) {
 	// REST API Uses TokenAuth
 	// Note: StrictSlash handles trailing slash variations automatically
 	r.HandleFunc("/api/free", freeMetrics).Methods(http.MethodPost)
@@ -123,7 +123,7 @@ func (api *RestApi) MountMetricStoreApiRoutes(r *mux.Router) {
 	r.HandleFunc("/api/healthcheck/", metricsHealth).Methods(http.MethodGet)
 }
 
-func (api *RestApi) MountConfigApiRoutes(r *mux.Router) {
+func (api *RestAPI) MountConfigAPIRoutes(r *mux.Router) {
 	r.StrictSlash(true)
 	// Settings Frontend Uses SessionAuth
 	if api.Authentication != nil {
@@ -136,7 +136,7 @@ func (api *RestApi) MountConfigApiRoutes(r *mux.Router) {
 	}
 }
 
-func (api *RestApi) MountFrontendApiRoutes(r *mux.Router) {
+func (api *RestAPI) MountFrontendAPIRoutes(r *mux.Router) {
 	r.StrictSlash(true)
 	// Settings Frontend Uses SessionAuth
 	if api.Authentication != nil {
@@ -152,8 +152,8 @@ type ErrorResponse struct {
 	Error  string `json:"error"` // Error Message
 }
 
-// DefaultApiResponse model
-type DefaultApiResponse struct {
+// DefaultAPIResponse model
+type DefaultAPIResponse struct {
 	Message string `json:"msg"`
 }
 
@@ -175,7 +175,7 @@ func decode(r io.Reader, val any) error {
 	return dec.Decode(val)
 }
 
-func (api *RestApi) editNotice(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) editNotice(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
 	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
@@ -217,7 +217,7 @@ func (api *RestApi) editNotice(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (api *RestApi) getJWT(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) getJWT(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "text/plain")
 	username := r.FormValue("username")
 	me := repository.GetUserFromContext(r.Context())
@@ -244,7 +244,7 @@ func (api *RestApi) getJWT(rw http.ResponseWriter, r *http.Request) {
 	rw.Write([]byte(jwt))
 }
 
-func (api *RestApi) getRoles(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) getRoles(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
 	user := repository.GetUserFromContext(r.Context())
@@ -265,7 +265,7 @@ func (api *RestApi) getRoles(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (api *RestApi) updateConfiguration(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) updateConfiguration(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "text/plain")
 	key, value := r.FormValue("key"), r.FormValue("value")
 
@@ -278,7 +278,7 @@ func (api *RestApi) updateConfiguration(rw http.ResponseWriter, r *http.Request)
 	rw.Write([]byte("success"))
 }
 
-func (api *RestApi) putMachineState(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) putMachineState(rw http.ResponseWriter, r *http.Request) {
 	if api.MachineStateDir == "" {
 		handleError(fmt.Errorf("machine state not enabled"), http.StatusNotFound, rw)
 		return
@@ -320,7 +320,7 @@ func (api *RestApi) putMachineState(rw http.ResponseWriter, r *http.Request) {
 	rw.WriteHeader(http.StatusCreated)
 }
 
-func (api *RestApi) getMachineState(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) getMachineState(rw http.ResponseWriter, r *http.Request) {
 	if api.MachineStateDir == "" {
 		handleError(fmt.Errorf("machine state not enabled"), http.StatusNotFound, rw)
 		return
