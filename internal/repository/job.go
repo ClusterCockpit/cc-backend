@@ -629,7 +629,7 @@ func (r *JobRepository) UpdateDuration() error {
 	return nil
 }
 
-func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64) ([]*schema.Job, error) {
+func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64, omitTagged bool) ([]*schema.Job, error) {
 	var query sq.SelectBuilder
 
 	if startTimeBegin == startTimeEnd || startTimeBegin > startTimeEnd {
@@ -642,6 +642,10 @@ func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64
 	} else {
 		cclog.Infof("Find jobs between %d and %d", startTimeBegin, startTimeEnd)
 		query = sq.Select(jobColumns...).From("job").Where("job.start_time BETWEEN ? AND ?", startTimeBegin, startTimeEnd)
+	}
+
+	if omitTagged {
+		query = query.Where("NOT EXISTS (SELECT 1 FROM jobtag WHERE jobtag.job_id = job.id)")
 	}
 
 	rows, err := query.RunWith(r.stmtCache).Query()

@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/ClusterCockpit/cc-lib/schema"
 	_ "github.com/mattn/go-sqlite3"
@@ -69,5 +70,63 @@ func TestGetTags(t *testing.T) {
 
 	if counts["bandwidth"] != 0 {
 		t.Errorf("wrong tag count \ngot: %d \nwant: 0", counts["bandwidth"])
+	}
+}
+
+func TestFindJobsBetween(t *testing.T) {
+	r := setup(t)
+
+	// 1. Find a job to use (Find all jobs)
+	// We use a large time range to ensure we get something if it exists
+	jobs, err := r.FindJobsBetween(0, 9999999999, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) == 0 {
+		t.Fatal("No jobs in test db")
+	}
+
+	targetJob := jobs[0]
+
+	// 2. Create a tag
+	tagName := fmt.Sprintf("testtag_%d", time.Now().UnixNano())
+	tagId, err := r.CreateTag("testtype", tagName, "global")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 3. Link Tag (Manually to avoid archive dependency side-effects in unit test)
+	_, err = r.DB.Exec("INSERT INTO jobtag (job_id, tag_id) VALUES (?, ?)", *targetJob.ID, tagId)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 4. Search with omitTagged = false (Should find the job)
+	jobsFound, err := r.FindJobsBetween(0, 9999999999, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var found bool
+	for _, j := range jobsFound {
+		if *j.ID == *targetJob.ID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Target job %d should be found when omitTagged=false", *targetJob.ID)
+	}
+
+	// 5. Search with omitTagged = true (Should NOT find the job)
+	jobsFiltered, err := r.FindJobsBetween(0, 9999999999, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, j := range jobsFiltered {
+		if *j.ID == *targetJob.ID {
+			t.Errorf("Target job %d should NOT be found when omitTagged=true", *targetJob.ID)
+		}
 	}
 }
