@@ -113,3 +113,11 @@ func EncodeJobMeta(w io.Writer, d *schema.Job) error {
 
 	return nil
 }
+
+func EncodeCluster(w io.Writer, c *schema.Cluster) error {
+	if err := json.NewEncoder(w).Encode(c); err != nil {
+		cclog.Warn("Error while encoding cluster json")
+		return err
+	}
+	return nil
+}

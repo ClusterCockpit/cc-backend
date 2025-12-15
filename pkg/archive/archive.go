@@ -132,6 +132,10 @@ type ArchiveBackend interface {
 	// Overwrites existing metadata for the same job ID, cluster, and start time.
 	StoreJobMeta(jobMeta *schema.Job) error
 
+	// StoreClusterCfg stores the cluster configuration to the archive.
+	// Overwrites an existing configuration for the same cluster.
+	StoreClusterCfg(name string, config *schema.Cluster) error
+
 	// ImportJob stores both job metadata and performance data to the archive.
 	// This is typically used during initial job archiving.
 	ImportJob(jobMeta *schema.Job, jobData *schema.JobData) error
@@ -276,7 +280,6 @@ func InitBackend(rawConfig json.RawMessage) (ArchiveBackend, error) {
 
 	return backend, nil
 }
-
 
 // LoadAveragesFromArchive loads average metric values for a job from the archive.
 // This is a helper function that extracts average values from job statistics.
