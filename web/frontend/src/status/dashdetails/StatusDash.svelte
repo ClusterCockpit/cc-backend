@@ -402,7 +402,7 @@
         to = new Date(Date.now());
 
         if (interval) stackedFrom += Math.floor(interval / 1000);
-        else stackedFrom += 1 // Workaround: TineSelection not linked, just trigger new data on manual refresh
+        else stackedFrom += 1 // Workaround: TimeSelection not linked, just trigger new data on manual refresh
       }}
     />
   </Col>

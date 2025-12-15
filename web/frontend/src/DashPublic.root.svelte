@@ -35,8 +35,7 @@
   import Pie, { colors } from "./generic/plots/Pie.svelte";
   import Stacked from "./generic/plots/Stacked.svelte";
   import DoubleMetric from "./generic/plots/DoubleMetricPlot.svelte";
-
-  // Todo: Refresher-Tick
+  import Refresher from "./generic/helper/Refresher.svelte";
 
   /* Svelte 5 Props */
   let {
@@ -206,35 +205,6 @@
     requestPolicy: "network-only"
   }));
 
-  // Note: nodeMetrics are requested on configured $timestep resolution
-  const nodeStatusQuery = $derived(queryStore({
-    client: client,
-    query: gql`
-      query (
-        $filter: [JobFilter!]!
-        $selectedHistograms: [String!]
-        $numDurationBins: String
-      ) {
-        jobsStatistics(filter: $filter, metrics: $selectedHistograms, numDurationBins: $numDurationBins) {
-          histNumCores {
-            count
-            value
-          }
-          histNumAccs {
-            count
-            value
-          }
-        }
-      }
-    `,
-    variables: {
-      filter: [{ state: ["running"] }, { cluster: { eq: presetCluster } }],
-      selectedHistograms: [], // No Metrics requested for node hardware stats - Empty Array can be used for refresh
-      numDurationBins: "1h", // Hardcode or selector?
-    },
-    requestPolicy: "network-only"
-  }));
-
   const clusterInfo = $derived.by(() => {
     if ($initq?.data?.clusters) {
       let rawInfos = {};
@@ -368,28 +338,39 @@
 
 <Card style="height: 98vh;">
   <CardBody class="align-content-center">
-    {#if $statusQuery.fetching || $statesTimed.fetching || $nodeStatusQuery.fetching}
+    <Row>
+      <Col>
+        <Refresher
+          hideSelector
+          initially={60}
+          onRefresh={(interval) => {
+            from = new Date(Date.now() - 5 * 60 * 1000);
+            to = new Date(Date.now());
+            clusterFrom = new Date(Date.now() - (8 * 60 * 60 * 1000))
+
+            if (interval) stackedFrom += Math.floor(interval / 1000);
+            else stackedFrom += 1 // Workaround: TimeSelection not linked, just trigger new data on manual refresh
+          }}
+        />
+      </Col>
+    </Row>
+    {#if $statusQuery.fetching || $statesTimed.fetching}
       <Row class="justify-content-center">
         <Col xs="auto">
           <Spinner />
         </Col>
       </Row>
 
-    {:else if $statusQuery.error || $statesTimed.error || $nodeStatusQuery.error}
+    {:else if $statusQuery.error || $statesTimed.error}
       <Row cols={{xs:1, md:2}}>
         {#if $statusQuery.error}
           <Col>
-            <Card color="danger">Error Requesting StatusQuery: {$statusQuery.error.message}</Card>
+            <Card color="danger"><CardBody>Error Requesting Status Data: {$statusQuery.error.message}</CardBody></Card>
           </Col>
         {/if}
         {#if $statesTimed.error}
           <Col>
-            <Card color="danger">Error Requesting StatesTimed: {$statesTimed.error.message}</Card>
-          </Col>
-        {/if}
-        {#if $nodeStatusQuery.error}
-          <Col>
-            <Card color="danger">Error Requesting NodeStatusQuery: {$nodeStatusQuery.error.message}</Card>
+            <Card color="danger"><CardBody>Error Requesting Node Scheduler States: {$statesTimed.error.message}</CardBody></Card>
           </Col>
         {/if}
       </Row>
