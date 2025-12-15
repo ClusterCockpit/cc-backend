@@ -13,14 +13,14 @@ import (
 	"github.com/go-co-op/gocron/v2"
 )
 
-func RegisterRetentionDeleteService(age int, includeDB bool) {
+func RegisterRetentionDeleteService(age int, includeDB bool, omitTagged bool) {
 	cclog.Info("Register retention delete service")
 
 	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(0o4, 0, 0))),
 		gocron.NewTask(
 			func() {
 				startTime := time.Now().Unix() - int64(age*24*3600)
-				jobs, err := jobRepo.FindJobsBetween(0, startTime, false)
+				jobs, err := jobRepo.FindJobsBetween(0, startTime, omitTagged)
 				if err != nil {
 					cclog.Warnf("Error while looking for retention jobs: %s", err.Error())
 				}
@@ -40,14 +40,14 @@ func RegisterRetentionDeleteService(age int, includeDB bool) {
 			}))
 }
 
-func RegisterRetentionMoveService(age int, includeDB bool, location string) {
+func RegisterRetentionMoveService(age int, includeDB bool, location string, omitTagged bool) {
 	cclog.Info("Register retention move service")
 
 	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(0o4, 0, 0))),
 		gocron.NewTask(
 			func() {
 				startTime := time.Now().Unix() - int64(age*24*3600)
-				jobs, err := jobRepo.FindJobsBetween(0, startTime, false)
+				jobs, err := jobRepo.FindJobsBetween(0, startTime, omitTagged)
 				if err != nil {
 					cclog.Warnf("Error while looking for retention jobs: %s", err.Error())
 				}
