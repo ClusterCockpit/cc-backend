@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package taskmanager
 
 import (
@@ -16,13 +17,16 @@ import (
 	"github.com/go-co-op/gocron/v2"
 )
 
+// Retention defines the configuration for job retention policies.
 type Retention struct {
-	Policy    string `json:"policy"`
-	Location  string `json:"location"`
-	Age       int    `json:"age"`
-	IncludeDB bool   `json:"includeDB"`
+	Policy     string `json:"policy"`
+	Location   string `json:"location"`
+	Age        int    `json:"age"`
+	IncludeDB  bool   `json:"includeDB"`
+	OmitTagged bool   `json:"omitTagged"`
 }
 
+// CronFrequency defines the execution intervals for various background workers.
 type CronFrequency struct {
 	// Duration Update Worker [Defaults to '2m']
 	CommitJobWorker string `json:"commit-job-worker"`
@@ -35,9 +39,12 @@ type CronFrequency struct {
 var (
 	s       gocron.Scheduler
 	jobRepo *repository.JobRepository
-	Keys    CronFrequency
+	// Keys holds the configured frequencies for cron jobs.
+	Keys CronFrequency
 )
 
+// parseDuration parses a duration string and handles errors by logging them.
+// It returns the duration and any error encountered.
 func parseDuration(s string) (time.Duration, error) {
 	interval, err := time.ParseDuration(s)
 	if err != nil {
@@ -53,6 +60,8 @@ func parseDuration(s string) (time.Duration, error) {
 	return interval, nil
 }
 
+// Start initializes the task manager, parses configurations, and registers background tasks.
+// It starts the gocron scheduler.
 func Start(cronCfg, archiveConfig json.RawMessage) {
 	var err error
 	jobRepo = repository.GetJobRepository()
@@ -85,12 +94,14 @@ func Start(cronCfg, archiveConfig json.RawMessage) {
 	case "delete":
 		RegisterRetentionDeleteService(
 			cfg.Retention.Age,
-			cfg.Retention.IncludeDB)
+			cfg.Retention.IncludeDB,
+			cfg.Retention.OmitTagged)
 	case "move":
 		RegisterRetentionMoveService(
 			cfg.Retention.Age,
 			cfg.Retention.IncludeDB,
-			cfg.Retention.Location)
+			cfg.Retention.Location,
+			cfg.Retention.OmitTagged)
 	}
 
 	if cfg.Compression > 0 {
@@ -110,6 +121,9 @@ func Start(cronCfg, archiveConfig json.RawMessage) {
 	s.Start()
 }
 
+// Shutdown stops the task manager and its scheduler.
 func Shutdown() {
-	s.Shutdown()
+	if s != nil {
+		s.Shutdown()
+	}
 }

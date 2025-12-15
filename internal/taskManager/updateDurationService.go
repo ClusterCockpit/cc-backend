@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package taskmanager
 
 import (
@@ -18,7 +19,13 @@ func RegisterUpdateDurationWorker() {
 	} else {
 		frequency = "5m"
 	}
-	d, _ := time.ParseDuration(frequency)
+
+	d, err := parseDuration(frequency)
+	if err != nil {
+		cclog.Errorf("RegisterUpdateDurationWorker: %v", err)
+		return
+	}
+
 	cclog.Infof("Register Duration Update service with %s interval", frequency)
 
 	s.NewJob(gocron.DurationJob(d),

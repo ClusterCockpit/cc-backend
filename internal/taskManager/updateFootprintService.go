@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package taskmanager
 
 import (
@@ -24,7 +25,13 @@ func RegisterFootprintWorker() {
 	} else {
 		frequency = "10m"
 	}
-	d, _ := time.ParseDuration(frequency)
+
+	d, err := parseDuration(frequency)
+	if err != nil {
+		cclog.Errorf("RegisterFootprintWorker: %v", err)
+		return
+	}
+
 	cclog.Infof("Register Footprint Update service with %s interval", frequency)
 
 	s.NewJob(gocron.DurationJob(d),
@@ -37,7 +44,7 @@ func RegisterFootprintWorker() {
 				cclog.Infof("Update Footprints started at %s", s.Format(time.RFC3339))
 
 				for _, cluster := range archive.Clusters {
-					s_cluster := time.Now()
+					sCluster := time.Now()
 					jobs, err := jobRepo.FindRunningJobs(cluster.Name)
 					if err != nil {
 						continue
@@ -63,7 +70,7 @@ func RegisterFootprintWorker() {
 						cclog.Debugf("Prepare job %d", job.JobID)
 						cl++
 
-						s_job := time.Now()
+						sJob := time.Now()
 
 						jobStats, err := repo.LoadStats(job, allMetrics, context.Background())
 						if err != nil {
@@ -112,7 +119,7 @@ func RegisterFootprintWorker() {
 						stmt = stmt.Where("job.id = ?", job.ID)
 
 						pendingStatements = append(pendingStatements, stmt)
-						cclog.Debugf("Job %d took %s", job.JobID, time.Since(s_job))
+						cclog.Debugf("Job %d took %s", job.JobID, time.Since(sJob))
 					}
 
 					t, err := jobRepo.TransactionInit()
@@ -134,7 +141,7 @@ func RegisterFootprintWorker() {
 						}
 						jobRepo.TransactionEnd(t)
 					}
-					cclog.Debugf("Finish Cluster %s, took %s\n", cluster.Name, time.Since(s_cluster))
+					cclog.Debugf("Finish Cluster %s, took %s\n", cluster.Name, time.Since(sCluster))
 				}
 				cclog.Infof("Updating %d (of %d; Skipped %d) Footprints is done and took %s", c, cl, ce, time.Since(s))
 			}))
