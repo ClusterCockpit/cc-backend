@@ -144,7 +144,7 @@ func Init(mainConfig json.RawMessage, clusterConfig json.RawMessage) {
 		cclog.Abort("Config Init: At least one cluster required in config. Exited with error.")
 	}
 
-	if Keys.EnableResampling.MinimumPoints > 0 {
+	if Keys.EnableResampling != nil && Keys.EnableResampling.MinimumPoints > 0 {
 		resampler.SetMinimumRequiredPoints(Keys.EnableResampling.MinimumPoints)
 	}
 }
