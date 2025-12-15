@@ -102,6 +102,10 @@ var configSchema = `
       "description": "Enable dynamic zoom in frontend metric plots.",
       "type": "object",
       "properties": {
+        "minimumPoints": {
+          "description": "Minimum points to trigger resampling of time-series data.",
+          "type": "integer"
+        },
         "trigger": {
           "description": "Trigger next zoom level at less than this many visible datapoints.",
           "type": "integer"
