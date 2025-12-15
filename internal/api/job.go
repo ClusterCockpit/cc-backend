@@ -882,6 +882,7 @@ func (api *RestAPI) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 // @failure     500     {object} api.ErrorResponse          "Internal Server Error"
 // @security    ApiKeyAuth
 // @router      /api/jobs/delete_job_before/{ts} [delete]
+// @param       omit-tagged query bool false "Omit jobs with tags from deletion"
 func (api *RestAPI) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 	var cnt int
 	// Fetch job (that will be stopped) from db
@@ -894,7 +895,17 @@ func (api *RestAPI) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		cnt, err = api.JobRepository.DeleteJobsBefore(ts)
+		// Check for omit-tagged query parameter
+		omitTagged := false
+		if omitTaggedStr := r.URL.Query().Get("omit-tagged"); omitTaggedStr != "" {
+			omitTagged, e = strconv.ParseBool(omitTaggedStr)
+			if e != nil {
+				handleError(fmt.Errorf("boolean expected for omit-tagged parameter: %w", e), http.StatusBadRequest, rw)
+				return
+			}
+		}
+
+		cnt, err = api.JobRepository.DeleteJobsBefore(ts, omitTagged)
 	} else {
 		handleError(errors.New("the parameter 'ts' is required"), http.StatusBadRequest, rw)
 		return

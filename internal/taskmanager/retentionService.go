@@ -27,7 +27,7 @@ func RegisterRetentionDeleteService(age int, includeDB bool, omitTagged bool) {
 				archive.GetHandle().CleanUp(jobs)
 
 				if includeDB {
-					cnt, err := jobRepo.DeleteJobsBefore(startTime)
+					cnt, err := jobRepo.DeleteJobsBefore(startTime, omitTagged)
 					if err != nil {
 						cclog.Errorf("Error while deleting retention jobs from db: %s", err.Error())
 					} else {
@@ -54,7 +54,7 @@ func RegisterRetentionMoveService(age int, includeDB bool, location string, omit
 				archive.GetHandle().Move(jobs, location)
 
 				if includeDB {
-					cnt, err := jobRepo.DeleteJobsBefore(startTime)
+					cnt, err := jobRepo.DeleteJobsBefore(startTime, omitTagged)
 					if err != nil {
 						cclog.Errorf("Error while deleting retention jobs from db: %v", err)
 					} else {
