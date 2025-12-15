@@ -17,7 +17,7 @@ require (
 	github.com/go-co-op/gocron/v2 v2.18.2
 	github.com/go-ldap/ldap/v3 v3.4.12
 	github.com/go-sql-driver/mysql v1.9.3
-	github.com/golang-jwt/jwt/v5 v5.2.2
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/gops v0.3.28
 	github.com/gorilla/handlers v1.5.2
@@ -30,7 +30,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/nats-io/nats.go v1.47.0
 	github.com/prometheus/client_golang v1.23.2
-	github.com/prometheus/common v0.66.1
+	github.com/prometheus/common v0.67.4
 	github.com/qustavo/sqlhooks/v2 v2.1.0
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/stretchr/testify v1.11.1
