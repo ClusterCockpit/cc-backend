@@ -101,10 +101,10 @@
   };
 
   // Data Prep For uPlot
-  const sortedData = data.sort((a, b) => a.state.localeCompare(b.state));
+  const sortedData = data?.sort((a, b) => a.state.localeCompare(b.state)) || [];
   const collectLabel = sortedData.map(d => d.state);
   // Align Data to Timesteps, Introduces 'undefied' as placeholder, reiterate and set those to 0
-  const collectData  = uPlot.join(sortedData.map(d => [d.times, d.counts])).map(d => d.map(i => i ? i : 0));
+  const collectData = (sortedData.length > 0) ? uPlot.join(sortedData.map(d => [d.times, d.counts])).map(d => d.map(i => i ? i : 0)) : [];
 
   // STACKED CHART FUNCTIONS //
   function stack(data, omit) {
@@ -344,7 +344,7 @@
 </script>
 
 <!-- Define $width Wrapper and NoData Card -->
-{#if data && collectData[0].length > 0}
+{#if data && collectData.length > 0}
   <div bind:this={plotWrapper} bind:clientWidth={width}
         style="background-color: rgba(255, 255, 255, 1.0);" class="rounded"
   ></div>
