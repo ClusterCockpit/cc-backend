@@ -31,6 +31,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/graph/generated"
 	"github.com/ClusterCockpit/cc-backend/internal/memorystore"
 	"github.com/ClusterCockpit/cc-backend/internal/routerConfig"
+	"github.com/ClusterCockpit/cc-backend/pkg/nats"
 	"github.com/ClusterCockpit/cc-backend/web"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/runtimeEnv"
@@ -362,6 +363,11 @@ func (s *Server) Shutdown(ctx context.Context) {
 	// Create a shutdown context with timeout
 	shutdownCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
+
+	nc := nats.GetClient()
+	if nc != nil {
+		nc.Close()
+	}
 
 	// First shut down the server gracefully (waiting for all ongoing requests)
 	if err := s.server.Shutdown(shutdownCtx); err != nil {

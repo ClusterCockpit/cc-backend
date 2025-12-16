@@ -30,6 +30,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/tagger"
 	"github.com/ClusterCockpit/cc-backend/internal/taskmanager"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	"github.com/ClusterCockpit/cc-backend/pkg/nats"
 	"github.com/ClusterCockpit/cc-backend/web"
 	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
@@ -267,6 +268,13 @@ func generateJWT(authHandle *auth.Authentication, username string) error {
 }
 
 func initSubsystems() error {
+	// Initialize nats client
+	natsConfig := ccconf.GetPackageConfig("nats")
+	if err := nats.Init(natsConfig); err != nil {
+		return fmt.Errorf("initializing nats client: %w", err)
+	}
+	nats.Connect()
+
 	// Initialize job archive
 	archiveCfg := ccconf.GetPackageConfig("archive")
 	if archiveCfg == nil {
