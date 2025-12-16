@@ -16,6 +16,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"sync"
 	"text/tabwriter"
 	"time"
 
@@ -547,62 +548,84 @@ func (sa *SqliteArchive) CompressLast(starttime int64) int64 {
 	return last
 }
 
+type sqliteJobRow struct {
+	metaBlob   []byte
+	dataBlob   []byte
+	compressed bool
+}
+
 func (sa *SqliteArchive) Iter(loadMetricData bool) <-chan JobContainer {
 	ch := make(chan JobContainer)
 
 	go func() {
 		defer close(ch)
 
-		rows, err := sa.db.Query("SELECT job_id, cluster, start_time, meta_json, data_json, data_compressed FROM jobs ORDER BY cluster, start_time")
+		rows, err := sa.db.Query("SELECT meta_json, data_json, data_compressed FROM jobs ORDER BY cluster, start_time")
 		if err != nil {
 			cclog.Fatalf("SqliteArchive Iter() > query error: %s", err.Error())
 		}
 		defer rows.Close()
 
-		for rows.Next() {
-			var jobID int64
-			var cluster string
-			var startTime int64
-			var metaBlob []byte
-			var dataBlob []byte
-			var compressed bool
+		numWorkers := 4
+		jobRows := make(chan sqliteJobRow, numWorkers*2)
+		var wg sync.WaitGroup
 
-			if err := rows.Scan(&jobID, &cluster, &startTime, &metaBlob, &dataBlob, &compressed); err != nil {
+		for range numWorkers {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for row := range jobRows {
+					job, err := DecodeJobMeta(bytes.NewReader(row.metaBlob))
+					if err != nil {
+						cclog.Errorf("SqliteArchive Iter() > decode meta error: %v", err)
+						continue
+					}
+
+					if loadMetricData && row.dataBlob != nil {
+						var reader io.Reader = bytes.NewReader(row.dataBlob)
+						if row.compressed {
+							gzipReader, err := gzip.NewReader(reader)
+							if err != nil {
+								cclog.Errorf("SqliteArchive Iter() > gzip error: %v", err)
+								ch <- JobContainer{Meta: job, Data: nil}
+								continue
+							}
+							decompressed, err := io.ReadAll(gzipReader)
+							gzipReader.Close()
+							if err != nil {
+								cclog.Errorf("SqliteArchive Iter() > decompress error: %v", err)
+								ch <- JobContainer{Meta: job, Data: nil}
+								continue
+							}
+							reader = bytes.NewReader(decompressed)
+						}
+
+						key := fmt.Sprintf("%s:%d:%d", job.Cluster, job.JobID, job.StartTime)
+						jobData, err := DecodeJobData(reader, key)
+						if err != nil {
+							cclog.Errorf("SqliteArchive Iter() > decode data error: %v", err)
+							ch <- JobContainer{Meta: job, Data: nil}
+						} else {
+							ch <- JobContainer{Meta: job, Data: &jobData}
+						}
+					} else {
+						ch <- JobContainer{Meta: job, Data: nil}
+					}
+				}
+			}()
+		}
+
+		for rows.Next() {
+			var row sqliteJobRow
+			if err := rows.Scan(&row.metaBlob, &row.dataBlob, &row.compressed); err != nil {
 				cclog.Errorf("SqliteArchive Iter() > scan error: %v", err)
 				continue
 			}
-
-			job, err := DecodeJobMeta(bytes.NewReader(metaBlob))
-			if err != nil {
-				cclog.Errorf("SqliteArchive Iter() > decode meta error: %v", err)
-				continue
-			}
-
-			if loadMetricData && dataBlob != nil {
-				var reader io.Reader = bytes.NewReader(dataBlob)
-				if compressed {
-					gzipReader, err := gzip.NewReader(reader)
-					if err != nil {
-						cclog.Errorf("SqliteArchive Iter() > gzip error: %v", err)
-						ch <- JobContainer{Meta: job, Data: nil}
-						continue
-					}
-					defer gzipReader.Close()
-					reader = gzipReader
-				}
-
-				key := fmt.Sprintf("%s:%d:%d", job.Cluster, job.JobID, job.StartTime)
-				jobData, err := DecodeJobData(reader, key)
-				if err != nil {
-					cclog.Errorf("SqliteArchive Iter() > decode data error: %v", err)
-					ch <- JobContainer{Meta: job, Data: nil}
-				} else {
-					ch <- JobContainer{Meta: job, Data: &jobData}
-				}
-			} else {
-				ch <- JobContainer{Meta: job, Data: nil}
-			}
+			jobRows <- row
 		}
+
+		close(jobRows)
+		wg.Wait()
 	}()
 
 	return ch

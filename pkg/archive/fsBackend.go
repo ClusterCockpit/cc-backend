@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"text/tabwriter"
 	"time"
 
@@ -490,7 +491,46 @@ func (fsa *FsArchive) LoadClusterCfg(name string) (*schema.Cluster, error) {
 
 func (fsa *FsArchive) Iter(loadMetricData bool) <-chan JobContainer {
 	ch := make(chan JobContainer)
+
 	go func() {
+		defer close(ch)
+
+		numWorkers := 4
+		jobPaths := make(chan string, numWorkers*2)
+		var wg sync.WaitGroup
+
+		for range numWorkers {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for jobPath := range jobPaths {
+					job, err := loadJobMeta(filepath.Join(jobPath, "meta.json"))
+					if err != nil && !errors.Is(err, &jsonschema.ValidationError{}) {
+						cclog.Errorf("in %s: %s", jobPath, err.Error())
+						continue
+					}
+
+					if loadMetricData {
+						isCompressed := true
+						filename := filepath.Join(jobPath, "data.json.gz")
+
+						if !util.CheckFileExists(filename) {
+							filename = filepath.Join(jobPath, "data.json")
+							isCompressed = false
+						}
+
+						data, err := loadJobData(filename, isCompressed)
+						if err != nil && !errors.Is(err, &jsonschema.ValidationError{}) {
+							cclog.Errorf("in %s: %s", jobPath, err.Error())
+						}
+						ch <- JobContainer{Meta: job, Data: &data}
+					} else {
+						ch <- JobContainer{Meta: job, Data: nil}
+					}
+				}
+			}()
+		}
+
 		clustersDir, err := os.ReadDir(fsa.path)
 		if err != nil {
 			cclog.Fatalf("Reading clusters failed @ cluster dirs: %s", err.Error())
@@ -507,7 +547,6 @@ func (fsa *FsArchive) Iter(loadMetricData bool) <-chan JobContainer {
 
 			for _, lvl1Dir := range lvl1Dirs {
 				if !lvl1Dir.IsDir() {
-					// Could be the cluster.json file
 					continue
 				}
 
@@ -525,35 +564,17 @@ func (fsa *FsArchive) Iter(loadMetricData bool) <-chan JobContainer {
 
 					for _, startTimeDir := range startTimeDirs {
 						if startTimeDir.IsDir() {
-							job, err := loadJobMeta(filepath.Join(dirpath, startTimeDir.Name(), "meta.json"))
-							if err != nil && !errors.Is(err, &jsonschema.ValidationError{}) {
-								cclog.Errorf("in %s: %s", filepath.Join(dirpath, startTimeDir.Name()), err.Error())
-							}
-
-							if loadMetricData {
-								isCompressed := true
-								filename := filepath.Join(dirpath, startTimeDir.Name(), "data.json.gz")
-
-								if !util.CheckFileExists(filename) {
-									filename = filepath.Join(dirpath, startTimeDir.Name(), "data.json")
-									isCompressed = false
-								}
-
-								data, err := loadJobData(filename, isCompressed)
-								if err != nil && !errors.Is(err, &jsonschema.ValidationError{}) {
-									cclog.Errorf("in %s: %s", filepath.Join(dirpath, startTimeDir.Name()), err.Error())
-								}
-								ch <- JobContainer{Meta: job, Data: &data}
-							} else {
-								ch <- JobContainer{Meta: job, Data: nil}
-							}
+							jobPaths <- filepath.Join(dirpath, startTimeDir.Name())
 						}
 					}
 				}
 			}
 		}
-		close(ch)
+
+		close(jobPaths)
+		wg.Wait()
 	}()
+
 	return ch
 }
 
