@@ -376,7 +376,7 @@ func (r *queryResolver) Node(ctx context.Context, id string) (*schema.Node, erro
 		cclog.Warn("Error while parsing job id")
 		return nil, err
 	}
-	return repo.GetNodeById(numericId, false)
+	return repo.GetNodeByID(numericId, false)
 }
 
 // Nodes is the resolver for the nodes field.
@@ -442,7 +442,7 @@ func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error)
 		return nil, err
 	}
 
-	job, err := r.Repo.FindById(ctx, numericId)
+	job, err := r.Repo.FindByID(ctx, numericId)
 	if err != nil {
 		cclog.Warn("Error while finding job by id")
 		return nil, err
@@ -1003,10 +1003,12 @@ func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 // SubCluster returns generated.SubClusterResolver implementation.
 func (r *Resolver) SubCluster() generated.SubClusterResolver { return &subClusterResolver{r} }
 
-type clusterResolver struct{ *Resolver }
-type jobResolver struct{ *Resolver }
-type metricValueResolver struct{ *Resolver }
-type mutationResolver struct{ *Resolver }
-type nodeResolver struct{ *Resolver }
-type queryResolver struct{ *Resolver }
-type subClusterResolver struct{ *Resolver }
+type (
+	clusterResolver     struct{ *Resolver }
+	jobResolver         struct{ *Resolver }
+	metricValueResolver struct{ *Resolver }
+	mutationResolver    struct{ *Resolver }
+	nodeResolver        struct{ *Resolver }
+	queryResolver       struct{ *Resolver }
+	subClusterResolver  struct{ *Resolver }
+)

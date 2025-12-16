@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package repository
 
 import (
@@ -18,7 +19,7 @@ import (
 // AddTag adds the tag with id `tagId` to the job with the database id `jobId`.
 // Requires user authentication for security checks.
 func (r *JobRepository) AddTag(user *schema.User, job int64, tag int64) ([]*schema.Tag, error) {
-	j, err := r.FindByIdWithUser(user, job)
+	j, err := r.FindByIDWithUser(user, job)
 	if err != nil {
 		cclog.Warnf("Error finding job %d for user %s: %v", job, user.Username, err)
 		return nil, err
@@ -32,7 +33,7 @@ func (r *JobRepository) AddTag(user *schema.User, job int64, tag int64) ([]*sche
 // AddTagDirect adds a tag without user security checks.
 // Use only for internal/admin operations.
 func (r *JobRepository) AddTagDirect(job int64, tag int64) ([]*schema.Tag, error) {
-	j, err := r.FindByIdDirect(job)
+	j, err := r.FindByIDDirect(job)
 	if err != nil {
 		cclog.Warnf("Error finding job %d: %v", job, err)
 		return nil, err
@@ -43,10 +44,10 @@ func (r *JobRepository) AddTagDirect(job int64, tag int64) ([]*schema.Tag, error
 	})
 }
 
-// Removes a tag from a job by tag id.
-// Used by GraphQL API
+// RemoveTag removes the tag with the database id `tag` from the job with the database id `job`.
+// Requires user authentication for security checks. Used by GraphQL API.
 func (r *JobRepository) RemoveTag(user *schema.User, job, tag int64) ([]*schema.Tag, error) {
-	j, err := r.FindByIdWithUser(user, job)
+	j, err := r.FindByIDWithUser(user, job)
 	if err != nil {
 		cclog.Warn("Error while finding job by id")
 		return nil, err
@@ -75,8 +76,8 @@ func (r *JobRepository) RemoveTag(user *schema.User, job, tag int64) ([]*schema.
 	return tags, archive.UpdateTags(j, archiveTags)
 }
 
-// Removes a tag from a job by tag info
-// Used by REST API
+// RemoveJobTagByRequest removes a tag from the job with the database id `job` by tag type, name, and scope.
+// Requires user authentication for security checks. Used by REST API.
 func (r *JobRepository) RemoveJobTagByRequest(user *schema.User, job int64, tagType string, tagName string, tagScope string) ([]*schema.Tag, error) {
 	// Get Tag ID to delete
 	tagID, exists := r.TagId(tagType, tagName, tagScope)
@@ -86,7 +87,7 @@ func (r *JobRepository) RemoveJobTagByRequest(user *schema.User, job int64, tagT
 	}
 
 	// Get Job
-	j, err := r.FindByIdWithUser(user, job)
+	j, err := r.FindByIDWithUser(user, job)
 	if err != nil {
 		cclog.Warn("Error while finding job by id")
 		return nil, err
@@ -124,7 +125,7 @@ func (r *JobRepository) removeTagFromArchiveJobs(jobIds []int64) {
 			continue
 		}
 
-		job, err := r.FindByIdDirect(j)
+		job, err := r.FindByIDDirect(j)
 		if err != nil {
 			cclog.Warnf("Error while getting job %d", j)
 			continue

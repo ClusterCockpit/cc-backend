@@ -55,7 +55,7 @@ func BenchmarkDB_FindJobById(b *testing.B) {
 
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
-				_, err := db.FindById(getContext(b), jobId)
+				_, err := db.FindByID(getContext(b), jobId)
 				noErr(b, err)
 			}
 		})

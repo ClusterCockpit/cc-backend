@@ -2,12 +2,14 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package graph
 
 import (
 	"context"
 	"fmt"
 	"math"
+	"slices"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
@@ -185,11 +187,5 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 func requireField(ctx context.Context, name string) bool {
 	fields := graphql.CollectAllFields(ctx)
 
-	for _, f := range fields {
-		if f == name {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(fields, name)
 }

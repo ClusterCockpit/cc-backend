@@ -106,7 +106,7 @@ func (r *NodeRepository) GetNode(hostname string, cluster string, withMeta bool)
 	return node, nil
 }
 
-func (r *NodeRepository) GetNodeById(id int64, withMeta bool) (*schema.Node, error) {
+func (r *NodeRepository) GetNodeByID(id int64, withMeta bool) (*schema.Node, error) {
 	node := &schema.Node{}
 	var timestamp int
 	if err := sq.Select("node.hostname", "node.cluster", "node.subcluster", "node_state.node_state",
@@ -240,7 +240,6 @@ func (r *NodeRepository) QueryNodes(
 	page *model.PageRequest,
 	order *model.OrderByInput, // Currently unused!
 ) ([]*schema.Node, error) {
-
 	query, qerr := AccessCheck(ctx,
 		sq.Select("hostname", "cluster", "subcluster", "node_state", "health_state", "MAX(time_stamp) as time").
 			From("node").
@@ -309,7 +308,6 @@ func (r *NodeRepository) CountNodes(
 	ctx context.Context,
 	filters []*model.NodeFilter,
 ) (int, error) {
-
 	query, qerr := AccessCheck(ctx,
 		sq.Select("time_stamp", "count(*) as countRes").
 			From("node").

@@ -18,7 +18,7 @@ func TestInit(t *testing.T) {
 func TestJobStartCallback(t *testing.T) {
 	Init()
 	r := setup(t)
-	job, err := r.FindByIdDirect(525)
+	job, err := r.FindByIDDirect(525)
 	noErr(t, err)
 
 	jobs := make([]*schema.Job, 0, 1)
