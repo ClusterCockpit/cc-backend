@@ -8,6 +8,7 @@
 {{define "javascript"}}
     <script>
         const infos = {{ .Infos }};
+        const displayType = {{ .Infos.displayType }};
         const clusterCockpitConfig = {{ .Config }};
     </script>
     <script src='/build/status.js'></script>

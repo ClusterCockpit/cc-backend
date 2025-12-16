@@ -47,7 +47,9 @@ var routes []Route = []Route{
 	{"/monitoring/systems/list/{cluster}/{subcluster}", "monitoring/systems.tmpl", "Cluster <ID> <SID> Node List - ClusterCockpit", false, setupClusterListRoute},
 	{"/monitoring/node/{cluster}/{hostname}", "monitoring/node.tmpl", "Node <ID> - ClusterCockpit", false, setupNodeRoute},
 	{"/monitoring/analysis/{cluster}", "monitoring/analysis.tmpl", "Analysis - ClusterCockpit", true, setupAnalysisRoute},
-	{"/monitoring/status/{cluster}", "monitoring/status.tmpl", "Status of <ID> - ClusterCockpit", false, setupClusterStatusRoute},
+	{"/monitoring/status/{cluster}", "monitoring/status.tmpl", "<ID> Dashboard - ClusterCockpit", false, setupClusterStatusRoute},
+	{"/monitoring/status/detail/{cluster}", "monitoring/status.tmpl", "Status of <ID> - ClusterCockpit", false, setupClusterDetailRoute},
+	{"/monitoring/dashboard/{cluster}", "monitoring/dashboard.tmpl", "<ID> Dashboard - ClusterCockpit", false, setupDashboardRoute},
 }
 
 func setupHomeRoute(i InfoType, r *http.Request) InfoType {
@@ -117,11 +119,23 @@ func setupClusterStatusRoute(i InfoType, r *http.Request) InfoType {
 	vars := mux.Vars(r)
 	i["id"] = vars["cluster"]
 	i["cluster"] = vars["cluster"]
-	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
-	if from != "" || to != "" {
-		i["from"] = from
-		i["to"] = to
-	}
+	i["displayType"] = "DASHBOARD"
+	return i
+}
+
+func setupClusterDetailRoute(i InfoType, r *http.Request) InfoType {
+	vars := mux.Vars(r)
+	i["id"] = vars["cluster"]
+	i["cluster"] = vars["cluster"]
+	i["displayType"] = "DETAILS"
+	return i
+}
+
+func setupDashboardRoute(i InfoType, r *http.Request) InfoType {
+	vars := mux.Vars(r)
+	i["id"] = vars["cluster"]
+	i["cluster"] = vars["cluster"]
+	i["displayType"] = "PUBLIC" // Used in Main Template
 	return i
 }
 

@@ -120,7 +120,7 @@
       href: "/monitoring/status/",
       icon: "clipboard-data",
       perCluster: true,
-      listOptions: false,
+      listOptions: true,
       menu: "Info",
     },
   ];

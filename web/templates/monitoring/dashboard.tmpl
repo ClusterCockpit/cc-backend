@@ -1,0 +1,14 @@
+{{define "content-public"}}
+    <div id="svelte-app"></div>
+{{end}}
+
+{{define "stylesheets"}}
+    <link rel='stylesheet' href='/build/dashpublic.css'>
+{{end}}
+{{define "javascript-public"}}
+    <script>
+        const presetCluster = {{ .Infos.cluster }};
+        const clusterCockpitConfig = {{ .Config }};
+    </script>
+    <script src='/build/dashpublic.js'></script>
+{{end}}

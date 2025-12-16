@@ -13,6 +13,18 @@ import (
 	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
+type ClusterMetricWithName struct {
+	Name     string         `json:"name"`
+	Unit     *schema.Unit   `json:"unit,omitempty"`
+	Timestep int            `json:"timestep"`
+	Data     []schema.Float `json:"data"`
+}
+
+type ClusterMetrics struct {
+	NodeCount int                      `json:"nodeCount"`
+	Metrics   []*ClusterMetricWithName `json:"metrics"`
+}
+
 type Count struct {
 	Name  string `json:"name"`
 	Count int    `json:"count"`

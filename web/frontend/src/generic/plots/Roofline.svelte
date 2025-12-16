@@ -34,14 +34,18 @@
     nodesData = null,
     cluster = null,
     subCluster = null,
+    fixTitle = null,
+    yMinimum = null,
     allowSizeChange = false,
     useColors = true,
+    useLegend = true,
+    colorBackground = false,
     width = 600,
     height = 380,
   } = $props();
 
   /* Const Init */
-  const lineWidth = clusterCockpitConfig.plotConfiguration_lineWidth;
+  const lineWidth = 2 // clusterCockpitConfig.plotConfiguration_lineWidth;
   const cbmode = clusterCockpitConfig?.plotConfiguration_colorblindMode || false;
 
   /* Var Init */
@@ -293,7 +297,7 @@
           } else {
             // No Colors: Use Black
             u.ctx.strokeStyle = "rgb(0, 0, 0)";
-            u.ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+            u.ctx.fillStyle = colorBackground ? "rgb(0, 0, 0)" : "rgba(0, 0, 0, 0.5)";
           }
 
           // Get Values
@@ -526,6 +530,7 @@
     let plotTitle = "CPU Roofline Diagram";
     if (jobsData) plotTitle = "Job Average Roofline Diagram";
     if (nodesData) plotTitle = "Node Average Roofline Diagram";
+    if (fixTitle) plotTitle = fixTitle
 
     if (roofData) {
       const opts = {
@@ -534,7 +539,7 @@
         width: width,
         height: height,
         legend: {
-          show: true,
+          show: useLegend,
         },
         cursor: { 
           dataIdx: (u, seriesIdx) => {
@@ -616,7 +621,7 @@
           },
           y: {
             range: [
-              0.01,
+              yMinimum ? yMinimum : 0.01,
               subCluster?.flopRateSimd?.value
                 ? nearestThousand(subCluster.flopRateSimd.value)
                 : 10000,
@@ -646,7 +651,7 @@
         hooks: {
           // setSeries: [ (u, seriesIdx) => console.log('setSeries', seriesIdx) ],
           // setLegend: [ u => console.log('setLegend', u.legend.idxs) ],
-          drawClear: [
+          drawClear: [ // drawClear hook which fires before anything exists, so will render under the grid
             (u) => {
               qt = qt || new Quadtree(0, 0, u.bbox.width, u.bbox.height);
               qt.clear();
@@ -658,7 +663,7 @@
               });
             },
           ],
-          draw: [
+          drawAxes: [ // drawAxes hook, which fires after axes and grid have been rendered
             (u) => {
               // draw roofs when subCluster set
               if (subCluster != null) {
@@ -668,6 +673,7 @@
                 u.ctx.lineWidth = lineWidth;
                 u.ctx.beginPath();
 
+                // Get Values
                 const ycut = 0.01 * subCluster.memoryBandwidth.value;
                 const scalarKnee =
                   (subCluster.flopRateScalar.value - ycut) /
@@ -675,19 +681,20 @@
                 const simdKnee =
                   (subCluster.flopRateSimd.value - ycut) /
                   subCluster.memoryBandwidth.value;
-                const scalarKneeX = u.valToPos(scalarKnee, "x", true), // Value, axis, toCanvasPixels
-                  simdKneeX = u.valToPos(simdKnee, "x", true),
-                  flopRateScalarY = u.valToPos(
-                    subCluster.flopRateScalar.value,
-                    "y",
-                    true,
-                  ),
-                  flopRateSimdY = u.valToPos(
-                    subCluster.flopRateSimd.value,
-                    "y",
-                    true,
-                  );
 
+                // Get Const Coords
+                const originX = u.valToPos(0.01, "x", true);
+                const originY = u.valToPos(yMinimum ? yMinimum : 0.01, "y", true);
+
+                const outerX = u.valToPos(1000, "x", true); // rightmost x in plot coords
+
+                const scalarKneeX = u.valToPos(scalarKnee, "x", true) // Value, axis, toCanvasPixels
+                const simdKneeX = u.valToPos(simdKnee, "x", true)
+                
+                const flopRateScalarY = u.valToPos(subCluster.flopRateScalar.value, "y", true)
+                const flopRateSimdY = u.valToPos(subCluster.flopRateSimd.value, "y", true);
+
+                /* Render Lines */
                 if (
                   scalarKneeX <
                   width * window.devicePixelRatio -
@@ -727,10 +734,10 @@
                   y1,
                   x2,
                   y2,
-                  u.valToPos(0.01, "x", true),
-                  u.valToPos(1.0, "y", true), // X-Axis Start Coords
-                  u.valToPos(1000, "x", true),
-                  u.valToPos(1.0, "y", true), // X-Axis End Coords
+                  originX, // x3; X-Axis Start Coord-X
+                  originY, // y3; X-Axis Start Coord-Y
+                  outerX,  // x4; X-Axis End Coord-X
+                  originY, // y4; X-Axis End Coord-Y
                 );
 
                 if (xAxisIntersect.x > x1) {
@@ -745,6 +752,144 @@
                 u.ctx.stroke();
                 // Reset grid lineWidth
                 u.ctx.lineWidth = 0.15;
+
+                /* Render Area */
+                if (colorBackground) {
+
+                  u.ctx.beginPath();
+                  // Additional Coords for Colored Regions
+                  const yhalf = u.valToPos(ycut/2, "y", true)
+                  const simdShift = u.valToPos(simdKnee*1.75, "x", true)
+
+                  let upperBorderIntersect = lineIntersect(
+                    x1,
+                    y1,
+                    x2,
+                    y2,
+                    originX, // x3; X-Axis Start Coord-X
+                    flopRateSimdY*1.667, // y3; X-Axis Start Coord-Y
+                    outerX,  // x4; X-Axis End Coord-X
+                    flopRateSimdY*1.667, // y4; X-Axis End Coord-Y
+                  );
+
+                  let lowerBorderIntersect = lineIntersect(
+                    x1,
+                    y1,
+                    x2,
+                    y2,
+                    originX, // x3; X-Axis Start Coord-X
+                    flopRateScalarY*1.1667, // y3; X-Axis Start Coord-Y
+                    outerX,  // x4; X-Axis End Coord-X
+                    flopRateScalarY*1.1667, // y4; X-Axis End Coord-Y
+                  );
+
+                  let helperUpperBorderIntersect = lineIntersect(
+                    x1,
+                    yhalf,
+                    simdShift,
+                    y2,
+                    originX, // x3; X-Axis Start Coord-X
+                    flopRateSimdY*1.667, // y3; X-Axis Start Coord-Y
+                    outerX,  // x4; X-Axis End Coord-X
+                    flopRateSimdY*1.667, // y4; X-Axis End Coord-Y
+                  );
+
+                  let helperLowerBorderIntersect = lineIntersect(
+                    x1,
+                    yhalf,
+                    simdShift,
+                    y2,
+                    originX, // x3; X-Axis Start Coord-X
+                    flopRateScalarY*1.1667, // y3; X-Axis Start Coord-Y
+                    outerX,  // x4; X-Axis End Coord-X
+                    flopRateScalarY*1.1667, // y4; X-Axis End Coord-Y
+                  );
+
+                  let helperLowerBorderIntersectTop = lineIntersect(
+                    x1,
+                    yhalf,
+                    simdShift,
+                    y2,
+                    scalarKneeX, // x3; X-Axis Start Coord-X
+                    flopRateScalarY, // y3; X-Axis Start Coord-Y
+                    outerX,  // x4; X-Axis End Coord-X
+                    flopRateScalarY, // y4; X-Axis End Coord-Y
+                  );
+
+                  // Diagonal Helper
+                  u.ctx.moveTo(x1, yhalf);
+                  u.ctx.lineTo(simdShift, y2);
+                  // Upper Simd Helper
+                  u.ctx.moveTo(upperBorderIntersect.x, flopRateSimdY*1.667);
+                  u.ctx.lineTo(outerX, flopRateSimdY*1.667);
+                  // Lower Scalar Helper
+                  u.ctx.moveTo(lowerBorderIntersect.x, flopRateScalarY*1.1667);
+                  u.ctx.lineTo(outerX, flopRateScalarY*1.1667);
+
+                  u.ctx.stroke();
+
+                  /* Color Regions */
+                  // MemoryBound
+                  u.ctx.save();
+                  u.ctx.beginPath();
+                  u.ctx.lineTo(x1, y1);        // YCut
+                  u.ctx.lineTo(x2, y2);        // Upper Knee
+                  u.ctx.lineTo(simdShift, y2); // Upper Helper Knee
+                  u.ctx.lineTo(x1, yhalf);     // Half yCut
+                  u.ctx.closePath();
+                  u.ctx.fillStyle = "rgba(255, 200, 0, 0.4)"; // Yellow
+                  u.ctx.fill();
+                  u.ctx.restore();
+
+                  // Compute Lower
+                  u.ctx.save();
+                  u.ctx.beginPath();
+                  u.ctx.moveTo(lowerBorderIntersect.x, flopRateScalarY*1.1667); // Lower Helper Knee
+                  u.ctx.lineTo(scalarKneeX, flopRateScalarY);                   // Lower Knee
+                  u.ctx.lineTo(outerX, flopRateScalarY);                        // Outer Border
+                  u.ctx.lineTo(outerX, flopRateScalarY*1.1667);                 // Outer Lower Helper Border
+                  u.ctx.closePath();
+                  u.ctx.fillStyle = "rgba(0, 180, 255, 0.4)"; // Cyan Blue
+                  u.ctx.fill();
+                  u.ctx.restore();
+
+                  // Compute Upper
+                  u.ctx.save();
+                  u.ctx.beginPath();
+                  u.ctx.moveTo(upperBorderIntersect.x, flopRateSimdY*1.667); // Upper Helper Knee
+                  u.ctx.lineTo(simdKneeX, flopRateSimdY);                    // Upper Knee
+                  u.ctx.lineTo(outerX, flopRateSimdY);                       // Outer Border
+                  u.ctx.lineTo(outerX, flopRateSimdY*1.667);                 // Outer Upper Helper Border
+                  u.ctx.closePath();
+                  u.ctx.fillStyle = "rgba(0, 180, 255, 0.4)"; // Cyan Blue
+                  u.ctx.fill();
+                  u.ctx.restore();
+
+                  // Nomansland Lower
+                  u.ctx.save();
+                  u.ctx.beginPath();
+                  u.ctx.moveTo(originX, originY);                                     // Origin
+                  u.ctx.lineTo(originX, yhalf);                                       // YCut Half
+                  u.ctx.lineTo(helperLowerBorderIntersect.x, flopRateScalarY*1.1667); // Lower Inner Helper Knee
+                  u.ctx.lineTo(outerX, flopRateScalarY*1.1667);                       // Lower Inner Border
+                  u.ctx.lineTo(outerX, originY);                                      // Lower Right Corner
+                  u.ctx.closePath();
+                  u.ctx.fillStyle = "rgba(255, 50, 50, 0.1)"; // Red Light
+                  u.ctx.fill();
+                  u.ctx.restore();
+
+                  // Nomansland Upper
+                  u.ctx.save();
+                  u.ctx.beginPath();
+                  u.ctx.moveTo(helperLowerBorderIntersectTop.x, flopRateScalarY);  // Lower Knee Top
+                  u.ctx.lineTo(helperUpperBorderIntersect.x, flopRateSimdY*1.667); // Upper Helper Knee
+                  u.ctx.lineTo(outerX, flopRateSimdY*1.667);                       // Upper Inner Border
+                  u.ctx.lineTo(outerX, flopRateScalarY);                           // Lower Knee Border
+                  u.ctx.closePath();
+                  u.ctx.fillStyle = "rgba(255, 50, 50, 0.1)"; // Red Light
+                  u.ctx.fill();
+                  u.ctx.restore();
+                }
               }
 
               /* Render Scales */
