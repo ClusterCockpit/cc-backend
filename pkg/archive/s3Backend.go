@@ -467,7 +467,6 @@ func (s3a *S3Archive) StoreJobMeta(job *schema.Job) error {
 func (s3a *S3Archive) ImportJob(jobMeta *schema.Job, jobData *schema.JobData) error {
 	ctx := context.Background()
 
-	// Upload meta.json
 	metaKey := getS3Key(jobMeta, "meta.json")
 	var metaBuf bytes.Buffer
 	if err := EncodeJobMeta(&metaBuf, jobMeta); err != nil {
@@ -485,18 +484,37 @@ func (s3a *S3Archive) ImportJob(jobMeta *schema.Job, jobData *schema.JobData) er
 		return err
 	}
 
-	// Upload data.json
-	dataKey := getS3Key(jobMeta, "data.json")
 	var dataBuf bytes.Buffer
 	if err := EncodeJobData(&dataBuf, jobData); err != nil {
 		cclog.Error("S3Archive ImportJob() > encoding data error")
 		return err
 	}
 
+	var dataKey string
+	var dataBytes []byte
+
+	if dataBuf.Len() > 2000 {
+		dataKey = getS3Key(jobMeta, "data.json.gz")
+		var compressedBuf bytes.Buffer
+		gzipWriter := gzip.NewWriter(&compressedBuf)
+		if _, err := gzipWriter.Write(dataBuf.Bytes()); err != nil {
+			cclog.Errorf("S3Archive ImportJob() > gzip write error: %v", err)
+			return err
+		}
+		if err := gzipWriter.Close(); err != nil {
+			cclog.Errorf("S3Archive ImportJob() > gzip close error: %v", err)
+			return err
+		}
+		dataBytes = compressedBuf.Bytes()
+	} else {
+		dataKey = getS3Key(jobMeta, "data.json")
+		dataBytes = dataBuf.Bytes()
+	}
+
 	_, err = s3a.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(s3a.bucket),
 		Key:    aws.String(dataKey),
-		Body:   bytes.NewReader(dataBuf.Bytes()),
+		Body:   bytes.NewReader(dataBytes),
 	})
 	if err != nil {
 		cclog.Errorf("S3Archive ImportJob() > PutObject data error: %v", err)

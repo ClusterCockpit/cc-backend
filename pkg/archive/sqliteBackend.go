@@ -361,16 +361,37 @@ func (sa *SqliteArchive) ImportJob(jobMeta *schema.Job, jobData *schema.JobData)
 		return err
 	}
 
+	var dataBytes []byte
+	var compressed bool
+
+	if dataBuf.Len() > 2000 {
+		var compressedBuf bytes.Buffer
+		gzipWriter := gzip.NewWriter(&compressedBuf)
+		if _, err := gzipWriter.Write(dataBuf.Bytes()); err != nil {
+			cclog.Errorf("SqliteArchive ImportJob() > gzip write error: %v", err)
+			return err
+		}
+		if err := gzipWriter.Close(); err != nil {
+			cclog.Errorf("SqliteArchive ImportJob() > gzip close error: %v", err)
+			return err
+		}
+		dataBytes = compressedBuf.Bytes()
+		compressed = true
+	} else {
+		dataBytes = dataBuf.Bytes()
+		compressed = false
+	}
+
 	now := time.Now().Unix()
 	_, err := sa.db.Exec(`
 		INSERT INTO jobs (job_id, cluster, start_time, meta_json, data_json, data_compressed, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, 0, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(job_id, cluster, start_time) DO UPDATE SET
 			meta_json = excluded.meta_json,
 			data_json = excluded.data_json,
 			data_compressed = excluded.data_compressed,
 			updated_at = excluded.updated_at
-	`, jobMeta.JobID, jobMeta.Cluster, jobMeta.StartTime, metaBuf.Bytes(), dataBuf.Bytes(), now, now)
+	`, jobMeta.JobID, jobMeta.Cluster, jobMeta.StartTime, metaBuf.Bytes(), dataBytes, compressed, now, now)
 	if err != nil {
 		cclog.Errorf("SqliteArchive ImportJob() > insert error: %v", err)
 		return err

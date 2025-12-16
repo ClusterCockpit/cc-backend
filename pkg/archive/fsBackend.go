@@ -603,19 +603,52 @@ func (fsa *FsArchive) ImportJob(
 		return err
 	}
 
-	f, err = os.Create(path.Join(dir, "data.json"))
-	if err != nil {
-		cclog.Error("Error while creating filepath for data.json")
+	var dataBuf bytes.Buffer
+	if err := EncodeJobData(&dataBuf, jobData); err != nil {
+		cclog.Error("Error while encoding job metricdata")
 		return err
 	}
-	if err := EncodeJobData(f, jobData); err != nil {
-		cclog.Error("Error while encoding job metricdata to data.json file")
-		return err
+
+	if dataBuf.Len() > 2000 {
+		f, err = os.Create(path.Join(dir, "data.json.gz"))
+		if err != nil {
+			cclog.Error("Error while creating filepath for data.json.gz")
+			return err
+		}
+		gzipWriter := gzip.NewWriter(f)
+		if _, err := gzipWriter.Write(dataBuf.Bytes()); err != nil {
+			cclog.Error("Error while writing compressed job data")
+			gzipWriter.Close()
+			f.Close()
+			return err
+		}
+		if err := gzipWriter.Close(); err != nil {
+			cclog.Warn("Error while closing gzip writer")
+			f.Close()
+			return err
+		}
+		if err := f.Close(); err != nil {
+			cclog.Warn("Error while closing data.json.gz file")
+			return err
+		}
+	} else {
+		f, err = os.Create(path.Join(dir, "data.json"))
+		if err != nil {
+			cclog.Error("Error while creating filepath for data.json")
+			return err
+		}
+		if _, err := f.Write(dataBuf.Bytes()); err != nil {
+			cclog.Error("Error while writing job metricdata to data.json file")
+			f.Close()
+			return err
+		}
+		if err := f.Close(); err != nil {
+			cclog.Warn("Error while closing data.json file")
+			return err
+		}
 	}
-	if err := f.Close(); err != nil {
-		cclog.Warn("Error while closing data.json file")
-	}
-	return err
+
+	return nil
 }
 
 func (fsa *FsArchive) StoreClusterCfg(name string, config *schema.Cluster) error {
