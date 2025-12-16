@@ -1,14 +1,22 @@
 <!--
   @component Admin option select card
+
+    Properties:
+  - `clusters [String]`: The available clusternames
 -->
 
 <script>
   import { getContext, onMount } from "svelte";
-  import { Col, Card, CardBody, CardTitle } from "@sveltestrap/sveltestrap";
+  import { Row, Col, Card, CardBody, CardTitle, Button, Icon } from "@sveltestrap/sveltestrap";
+
+  /* Svelte 5 Props */
+  let {
+    clusters,
+  } = $props();
 
   /*Const Init */
   const resampleConfig = getContext("resampling");
-
+  
   /* State Init */
   let scrambled = $state(false);
   
@@ -43,6 +51,26 @@
     </CardBody>
   </Card>
 </Col>
+
+{#if clusters?.length > 0}
+  <Col> 
+    <Card class="h-100">
+      <CardBody>
+        <CardTitle class="mb-3">Public Dashboard Links</CardTitle>
+        <Row>
+        {#each clusters as cluster}
+          <Col>
+            <Button color="info" class="mb-2 mb-xl-0" href={`/monitoring/dashboard/${cluster}`} target="_blank">
+              <Icon name="clipboard-pulse" class="mr-2"/>
+              {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Public Dashboard
+            </Button>
+          </Col>
+        {/each}
+        </Row>
+      </CardBody>
+    </Card>
+  </Col>
+{/if}
 
 {#if resampleConfig}
   <Col> 

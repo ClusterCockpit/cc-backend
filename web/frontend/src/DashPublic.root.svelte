@@ -30,6 +30,7 @@
     Table,
     Progress,
     Icon,
+    Button
   } from "@sveltestrap/sveltestrap";
   import Roofline from "./generic/plots/Roofline.svelte";
   import Pie, { colors } from "./generic/plots/Pie.svelte";
@@ -352,6 +353,11 @@
             else stackedFrom += 1 // Workaround: TimeSelection not linked, just trigger new data on manual refresh
           }}
         />
+      </Col>
+      <Col class="d-flex justify-content-end">
+        <Button outline class="mb-1" size="sm" color="light" href="/">
+          <Icon name="x"/>
+        </Button>
       </Col>
     </Row>
     {#if $statusQuery.fetching || $statesTimed.fetching}

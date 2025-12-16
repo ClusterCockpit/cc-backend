@@ -3,6 +3,7 @@
 
   Properties:
   - `ncontent String`: The homepage notice content
+  - `clusters [String]`: The available clusternames
 -->
 
 <script>
@@ -17,7 +18,8 @@
 
   /* Svelte 5 Props */
   let {
-    ncontent
+    ncontent,
+    clusters
   } = $props();
 
   /* Const Init*/
@@ -66,6 +68,6 @@
   <Col>
     <EditProject reloadUser={() => getUserList()} />
   </Col>
-  <Options config={ccconfig}/>
+  <Options config={ccconfig} {clusters}/>
   <NoticeEdit {ncontent}/>
 </Row>

@@ -6,7 +6,8 @@
   - `isSupport Bool!`: Is currently logged in user support authority
   - `isApi Bool!`: Is currently logged in user api authority
   - `username String!`: Empty string if auth. is disabled, otherwise the username as string
-  - `ncontent String!`: The currently displayed message on the homescreen 
+  - `ncontent String!`: The currently displayed message on the homescreen
+  - `clusters [String]`: The available clusternames
 -->
 
 <script>
@@ -22,6 +23,7 @@
     isApi,
     username,
     ncontent,
+    clusters
   } = $props();
 </script>
 
@@ -30,7 +32,7 @@
     <CardHeader>
       <CardTitle class="mb-1">Admin Options</CardTitle>
     </CardHeader>
-    <AdminSettings {ncontent}/>
+    <AdminSettings {ncontent} {clusters}/>
   </Card>
 {/if}
 
