@@ -50,12 +50,12 @@ frontend:
 
 swagger:
 	$(info ===>  GENERATE swagger)
-	@go run github.com/swaggo/swag/cmd/swag init  --parseDependency -d ./internal/api -g rest.go -o ./api
+	@go tool github.com/swaggo/swag/cmd/swag init  --parseDependency -d ./internal/api -g rest.go -o ./api
 	@mv ./api/docs.go ./internal/api/docs.go
 
 graphql:
 	$(info ===>  GENERATE graphql)
-	@go run github.com/99designs/gqlgen
+	@go tool github.com/99designs/gqlgen
 
 clean:
 	$(info ===>  CLEAN)

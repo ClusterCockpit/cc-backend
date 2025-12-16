@@ -4,6 +4,11 @@ go 1.24.0
 
 toolchain go1.24.1
 
+tool (
+	github.com/99designs/gqlgen
+	github.com/swaggo/swag/cmd/swag
+)
+
 require (
 	github.com/99designs/gqlgen v0.17.84
 	github.com/ClusterCockpit/cc-lib v1.0.0
