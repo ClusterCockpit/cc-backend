@@ -12,15 +12,12 @@ import (
 	"github.com/ClusterCockpit/cc-lib/schema"
 )
 
-// Default buffer capacity.
-// `buffer.data` will only ever grow up to it's capacity and a new link
+// BufferCap is the default buffer capacity.
+// buffer.data will only ever grow up to its capacity and a new link
 // in the buffer chain will be created if needed so that no copying
 // of data or reallocation needs to happen on writes.
-const (
-	BufferCap int = 512
-)
+const BufferCap int = DefaultBufferCapacity
 
-// So that we can reuse allocations
 var bufferPool sync.Pool = sync.Pool{
 	New: func() any {
 		return &buffer{
@@ -75,7 +72,6 @@ func (b *buffer) write(ts int64, value schema.Float) (*buffer, error) {
 		newbuf := newBuffer(ts, b.frequency)
 		newbuf.prev = b
 		b.next = newbuf
-		b.close()
 		b = newbuf
 		idx = 0
 	}
@@ -102,8 +98,6 @@ func (b *buffer) end() int64 {
 func (b *buffer) firstWrite() int64 {
 	return b.start + (b.frequency / 2)
 }
-
-func (b *buffer) close() {}
 
 // Return all known values from `from` to `to`. Gaps of information are represented as NaN.
 // Simple linear interpolation is done between the two neighboring cells if possible.
@@ -139,8 +133,6 @@ func (b *buffer) read(from, to int64, data []schema.Float) ([]schema.Float, int6
 			data[i] += schema.NaN
 		} else if t < b.start {
 			data[i] += schema.NaN
-			// } else if b.data[idx].IsNaN() {
-			// 	data[i] += interpolate(idx, b.data)
 		} else {
 			data[i] += b.data[idx]
 		}

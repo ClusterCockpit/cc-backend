@@ -13,12 +13,11 @@ import (
 
 var (
 	LineProtocolMessages = make(chan *AvroStruct)
-	Delimiter            = "ZZZZZ"
+	// SelectorDelimiter separates hierarchical selector components in metric names for Avro encoding
+	SelectorDelimiter = "_SEL_"
 )
 
-// CheckpointBufferMinutes should always be in minutes.
-// Its controls the amount of data to hold for given amount of time.
-var CheckpointBufferMinutes = 3
+var CheckpointBufferMinutes = DefaultCheckpointBufferMin
 
 type AvroStruct struct {
 	MetricName string
@@ -73,7 +72,7 @@ func (l *AvroLevel) findAvroLevelOrCreate(selector []string) *AvroLevel {
 		}
 	}
 
-	// The level does not exist, take write lock for unqiue access:
+	// The level does not exist, take write lock for unique access:
 	l.lock.Lock()
 	// While this thread waited for the write lock, another thread
 	// could have created the child node.

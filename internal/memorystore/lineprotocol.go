@@ -11,113 +11,31 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/pkg/nats"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/influxdata/line-protocol/v2/lineprotocol"
-	"github.com/nats-io/nats.go"
 )
 
-// Each connection is handled in it's own goroutine. This is a blocking function.
-// func ReceiveRaw(ctx context.Context,
-// 	listener net.Listener,
-// 	handleLine func(*lineprotocol.Decoder, string) error,
-// ) error {
-// 	var wg sync.WaitGroup
-
-// 	wg.Add(1)
-// 	go func() {
-// 		defer wg.Done()
-// 		<-ctx.Done()
-// 		if err := listener.Close(); err != nil {
-// 			log.Printf("listener.Close(): %s", err.Error())
-// 		}
-// 	}()
-
-// 	for {
-// 		conn, err := listener.Accept()
-// 		if err != nil {
-// 			if errors.Is(err, net.ErrClosed) {
-// 				break
-// 			}
-
-// 			log.Printf("listener.Accept(): %s", err.Error())
-// 		}
-
-// 		wg.Add(2)
-// 		go func() {
-// 			defer wg.Done()
-// 			defer conn.Close()
-
-// 			dec := lineprotocol.NewDecoder(conn)
-// 			connctx, cancel := context.WithCancel(context.Background())
-// 			defer cancel()
-// 			go func() {
-// 				defer wg.Done()
-// 				select {
-// 				case <-connctx.Done():
-// 					conn.Close()
-// 				case <-ctx.Done():
-// 					conn.Close()
-// 				}
-// 			}()
-
-// 			if err := handleLine(dec, "default"); err != nil {
-// 				if errors.Is(err, net.ErrClosed) {
-// 					return
-// 				}
-
-// 				log.Printf("%s: %s", conn.RemoteAddr().String(), err.Error())
-// 				errmsg := make([]byte, 128)
-// 				errmsg = append(errmsg, `error: `...)
-// 				errmsg = append(errmsg, err.Error()...)
-// 				errmsg = append(errmsg, '\n')
-// 				conn.Write(errmsg)
-// 			}
-// 		}()
-// 	}
-
-// 	wg.Wait()
-// 	return nil
-// }
-
-// ReceiveNats connects to a nats server and subscribes to "updates". This is a
-// blocking function. handleLine will be called for each line recieved via
-// nats. Send `true` through the done channel for gracefull termination.
-func ReceiveNats(conf *(NatsConfig),
-	ms *MemoryStore,
+func ReceiveNats(ms *MemoryStore,
 	workers int,
 	ctx context.Context,
 ) error {
-	var opts []nats.Option
-	if conf.Username != "" && conf.Password != "" {
-		opts = append(opts, nats.UserInfo(conf.Username, conf.Password))
-	}
-
-	if conf.Credsfilepath != "" {
-		opts = append(opts, nats.UserCredentials(conf.Credsfilepath))
-	}
-
-	nc, err := nats.Connect(conf.Address, opts...)
-	if err != nil {
-		return err
-	}
-	defer nc.Close()
+	nc := nats.GetClient()
 
 	var wg sync.WaitGroup
-	var subs []*nats.Subscription
 
-	msgs := make(chan *nats.Msg, workers*2)
+	msgs := make(chan []byte, workers*2)
 
-	for _, sc := range conf.Subscriptions {
+	for _, sc := range Keys.Subscriptions {
 		clusterTag := sc.ClusterTag
-		var sub *nats.Subscription
 		if workers > 1 {
 			wg.Add(workers)
 
 			for range workers {
 				go func() {
 					for m := range msgs {
-						dec := lineprotocol.NewDecoderWithBytes(m.Data)
+						dec := lineprotocol.NewDecoderWithBytes(m)
 						if err := DecodeLine(dec, ms, clusterTag); err != nil {
 							cclog.Errorf("error: %s", err.Error())
 						}
@@ -127,37 +45,24 @@ func ReceiveNats(conf *(NatsConfig),
 				}()
 			}
 
-			sub, err = nc.Subscribe(sc.SubscribeTo, func(m *nats.Msg) {
-				msgs <- m
+			nc.Subscribe(sc.SubscribeTo, func(subject string, data []byte) {
+				msgs <- data
 			})
 		} else {
-			sub, err = nc.Subscribe(sc.SubscribeTo, func(m *nats.Msg) {
-				dec := lineprotocol.NewDecoderWithBytes(m.Data)
+			nc.Subscribe(sc.SubscribeTo, func(subject string, data []byte) {
+				dec := lineprotocol.NewDecoderWithBytes(data)
 				if err := DecodeLine(dec, ms, clusterTag); err != nil {
 					cclog.Errorf("error: %s", err.Error())
 				}
 			})
 		}
-
-		if err != nil {
-			return err
-		}
-		cclog.Infof("NATS subscription to '%s' on '%s' established", sc.SubscribeTo, conf.Address)
-		subs = append(subs, sub)
+		cclog.Infof("NATS subscription to '%s' established", sc.SubscribeTo)
 	}
 
 	<-ctx.Done()
-	for _, sub := range subs {
-		err = sub.Unsubscribe()
-		if err != nil {
-			cclog.Errorf("NATS unsubscribe failed: %s", err.Error())
-		}
-	}
 	close(msgs)
 	wg.Wait()
 
-	nc.Close()
-	cclog.Print("NATS connection closed")
 	return nil
 }
 
@@ -266,8 +171,6 @@ func DecodeLine(dec *lineprotocol.Decoder,
 			case "stype-id":
 				subTypeBuf = append(subTypeBuf, val...)
 			default:
-				// Ignore unkown tags (cc-metric-collector might send us a unit for example that we do not need)
-				// return fmt.Errorf("unkown tag: '%s' (value: '%s')", string(key), string(val))
 			}
 		}
 

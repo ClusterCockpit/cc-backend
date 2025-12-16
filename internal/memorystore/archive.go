@@ -32,17 +32,14 @@ func Archiving(wg *sync.WaitGroup, ctx context.Context) {
 			return
 		}
 
-		ticks := func() <-chan time.Time {
-			if d <= 0 {
-				return nil
-			}
-			return time.NewTicker(d).C
-		}()
+		ticker := time.NewTicker(d)
+		defer ticker.Stop()
+
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case <-ticks:
+			case <-ticker.C:
 				t := time.Now().Add(-d)
 				cclog.Infof("[METRICSTORE]> start archiving checkpoints (older than %s)...", t.Format(time.RFC3339))
 				n, err := ArchiveCheckpoints(Keys.Checkpoints.RootDir,
@@ -165,23 +162,31 @@ func archiveCheckpoints(dir string, archiveDir string, from int64, deleteInstead
 
 	n := 0
 	for _, checkpoint := range files {
-		filename := filepath.Join(dir, checkpoint)
-		r, err := os.Open(filename)
+		// Use closure to ensure file is closed immediately after use,
+		// avoiding file descriptor leak from defer in loop
+		err := func() error {
+			filename := filepath.Join(dir, checkpoint)
+			r, err := os.Open(filename)
+			if err != nil {
+				return err
+			}
+			defer r.Close()
+
+			w, err := zw.Create(checkpoint)
+			if err != nil {
+				return err
+			}
+
+			if _, err = io.Copy(w, r); err != nil {
+				return err
+			}
+
+			if err = os.Remove(filename); err != nil {
+				return err
+			}
+			return nil
+		}()
 		if err != nil {
-			return n, err
-		}
-		defer r.Close()
-
-		w, err := zw.Create(checkpoint)
-		if err != nil {
-			return n, err
-		}
-
-		if _, err = io.Copy(w, r); err != nil {
-			return n, err
-		}
-
-		if err = os.Remove(filename); err != nil {
 			return n, err
 		}
 		n += 1

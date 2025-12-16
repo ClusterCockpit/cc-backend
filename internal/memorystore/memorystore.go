@@ -44,8 +44,6 @@ var (
 	shutdownFunc context.CancelFunc
 )
 
-
-
 type Metric struct {
 	Name         string
 	Value        schema.Float
@@ -71,8 +69,7 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 
 	// Set NumWorkers from config or use default
 	if Keys.NumWorkers <= 0 {
-		maxWorkers := 10
-		Keys.NumWorkers = min(runtime.NumCPU()/2+1, maxWorkers)
+		Keys.NumWorkers = min(runtime.NumCPU()/2+1, DefaultMaxWorkers)
 	}
 	cclog.Debugf("[METRICSTORE]> Using %d workers for checkpoint/archive operations\n", Keys.NumWorkers)
 
@@ -144,20 +141,9 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 	// Store the shutdown function for later use by Shutdown()
 	shutdownFunc = shutdown
 
-	if Keys.Nats != nil {
-		for _, natsConf := range Keys.Nats {
-			// TODO: When multiple nats configs share a URL, do a single connect.
-			wg.Add(1)
-			nc := natsConf
-			go func() {
-				// err := ReceiveNats(conf.Nats, decodeLine, runtime.NumCPU()-1, ctx)
-				err := ReceiveNats(nc, ms, 1, ctx)
-				if err != nil {
-					cclog.Fatal(err)
-				}
-				wg.Done()
-			}()
-		}
+	err = ReceiveNats(ms, 1, ctx)
+	if err != nil {
+		cclog.Fatal(err)
 	}
 }
 
@@ -244,18 +230,18 @@ func Retention(wg *sync.WaitGroup, ctx context.Context) {
 			return
 		}
 
-		ticks := func() <-chan time.Time {
-			d := d / 2
-			if d <= 0 {
-				return nil
-			}
-			return time.NewTicker(d).C
-		}()
+		tickInterval := d / 2
+		if tickInterval <= 0 {
+			return
+		}
+		ticker := time.NewTicker(tickInterval)
+		defer ticker.Stop()
+
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case <-ticks:
+			case <-ticker.C:
 				t := time.Now().Add(-d)
 				cclog.Infof("[METRICSTORE]> start freeing buffers (older than %s)...\n", t.Format(time.RFC3339))
 				freed, err := ms.Free(nil, t.Unix())
@@ -332,7 +318,7 @@ func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, reso
 
 	minfo, ok := m.Metrics[metric]
 	if !ok {
-		return nil, 0, 0, 0, errors.New("[METRICSTORE]> unkown metric: " + metric)
+		return nil, 0, 0, 0, errors.New("[METRICSTORE]> unknown metric: " + metric)
 	}
 
 	n, data := 0, make([]schema.Float, (to-from)/minfo.Frequency+1)
