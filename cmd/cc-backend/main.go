@@ -271,7 +271,7 @@ func initSubsystems() error {
 	// Initialize nats client
 	natsConfig := ccconf.GetPackageConfig("nats")
 	if err := nats.Init(natsConfig); err != nil {
-		return fmt.Errorf("initializing nats client: %w", err)
+		cclog.Warnf("initializing (optional) nats client: %s", err.Error())
 	}
 	nats.Connect()
 

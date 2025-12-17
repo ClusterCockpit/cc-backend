@@ -23,6 +23,11 @@ func ReceiveNats(ms *MemoryStore,
 ) error {
 	nc := nats.GetClient()
 
+	if nc == nil {
+		cclog.Warn("NATS client not initialized")
+		return nil
+	}
+
 	var wg sync.WaitGroup
 
 	msgs := make(chan []byte, workers*2)
