@@ -487,45 +487,51 @@
         </Col>
 
         <Col> <!-- Pie Jobs -->
-          <Row cols={{xs:1, md:2}}>
-            <Col class="p-2">
-              <div bind:clientWidth={colWidthJobs}>
-                <h4 class="text-center">
-                  Top Projects: Jobs
-                </h4>
-                <Pie
-                  {useCbColors}
-                  canvasId="hpcpie-jobs-projects"
-                  size={colWidthJobs * 0.75}
-                  sliceLabel={'Jobs'}
-                  quantities={$topJobsQuery.data.jobsStatistics.map(
-                    (tp) => tp['totalJobs'],
-                  )}
-                  entities={$topJobsQuery.data.jobsStatistics.map((tp) => scrambleNames ? scramble(tp.id) : tp.id)}
-                />
-              </div>
-            </Col>
-            <Col class="p-2">
-              <Table>
-                <tr class="mb-2">
-                  <th></th>
-                  <th style="padding-left: 0.5rem;">Project</th>
-                  <th>Jobs</th>
-                </tr>
-                {#each $topJobsQuery.data.jobsStatistics as tp, i}
-                  <tr>
-                    <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
-                    <td>
-                      <a target="_blank" href="/monitoring/jobs/?cluster={presetCluster}&state=running&project={tp.id}&projectMatch=eq"
-                        >{scrambleNames ? scramble(tp.id) : tp.id}
-                      </a>
-                    </td>
-                    <td>{tp['totalJobs']}</td>
+          {#if topJobsQuery?.data?.jobsStatistics?.length > 0}
+            <Row cols={{xs:1, md:2}}>
+              <Col class="p-2">
+                <div bind:clientWidth={colWidthJobs}>
+                  <h4 class="text-center">
+                    Top Projects: Jobs
+                  </h4>
+                  <Pie
+                    {useCbColors}
+                    canvasId="hpcpie-jobs-projects"
+                    size={colWidthJobs * 0.75}
+                    sliceLabel={'Jobs'}
+                    quantities={$topJobsQuery.data.jobsStatistics.map(
+                      (tp) => tp['totalJobs'],
+                    )}
+                    entities={$topJobsQuery.data.jobsStatistics.map((tp) => scrambleNames ? scramble(tp.id) : tp.id)}
+                  />
+                </div>
+              </Col>
+              <Col class="p-2">
+                <Table>
+                  <tr class="mb-2">
+                    <th></th>
+                    <th style="padding-left: 0.5rem;">Project</th>
+                    <th>Jobs</th>
                   </tr>
-                {/each}
-              </Table>
-            </Col>
-          </Row>
+                  {#each $topJobsQuery.data.jobsStatistics as tp, i}
+                    <tr>
+                      <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
+                      <td>
+                        <a target="_blank" href="/monitoring/jobs/?cluster={presetCluster}&state=running&project={tp.id}&projectMatch=eq"
+                          >{scrambleNames ? scramble(tp.id) : tp.id}
+                        </a>
+                      </td>
+                      <td>{tp['totalJobs']}</td>
+                    </tr>
+                  {/each}
+                </Table>
+              </Col>
+            </Row>
+          {:else}
+            <Card body color="warning" class="mx-4 my-2"
+              >Cannot render job status: No state data returned for <code>Pie Chart</code></Card
+            >
+          {/if}
         </Col>
 
         <Col> <!-- Job Roofline -->

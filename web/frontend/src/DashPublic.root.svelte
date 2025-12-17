@@ -30,6 +30,7 @@
     Table,
     Progress,
     Icon,
+    Button
   } from "@sveltestrap/sveltestrap";
   import Roofline from "./generic/plots/Roofline.svelte";
   import Pie, { colors } from "./generic/plots/Pie.svelte";
@@ -353,6 +354,11 @@
           }}
         />
       </Col>
+      <Col class="d-flex justify-content-end">
+        <Button outline class="mb-1" size="sm" color="light" href="/">
+          <Icon name="x"/>
+        </Button>
+      </Col>
     </Row>
     {#if $statusQuery.fetching || $statesTimed.fetching}
       <Row class="justify-content-center">
@@ -503,44 +509,52 @@
         </Col>
         <Col> <!-- Pie Last States -->
           <Row>
-            <Col class="px-3 mt-2 mt-lg-0">
-              <div bind:clientWidth={colWidthStates}>
+            {#if refinedStateData.length > 0}
+              <Col class="px-3 mt-2 mt-lg-0">
+                <div bind:clientWidth={colWidthStates}>
+                  {#key refinedStateData}
+                    <Pie
+                      canvasId="hpcpie-slurm"
+                      size={colWidthStates * 0.66}
+                      sliceLabel="Nodes"
+                      quantities={refinedStateData.map(
+                        (sd) => sd.count,
+                      )}
+                      entities={refinedStateData.map(
+                        (sd) => sd.state,
+                      )}
+                      fixColors={refinedStateData.map(
+                        (sd) => colors['nodeStates'][sd.state],
+                      )}
+                    />
+                  {/key}
+                </div>
+              </Col>
+              <Col class="px-4 py-2">
                 {#key refinedStateData}
-                  <Pie
-                    canvasId="hpcpie-slurm"
-                    size={colWidthStates * 0.66}
-                    sliceLabel="Nodes"
-                    quantities={refinedStateData.map(
-                      (sd) => sd.count,
-                    )}
-                    entities={refinedStateData.map(
-                      (sd) => sd.state,
-                    )}
-                    fixColors={refinedStateData.map(
-                      (sd) => colors['nodeStates'][sd.state],
-                    )}
-                  />
-                {/key}
-              </div>
-            </Col>
-            <Col class="px-4 py-2">
-              {#key refinedStateData}
-                <Table>
-                  <tr class="mb-2">
-                    <th></th>
-                    <th class="h4">State</th>
-                    <th class="h4">Count</th>
-                  </tr>
-                  {#each refinedStateData as sd, i}
-                    <tr>
-                      <td><Icon name="circle-fill" style="color: {colors['nodeStates'][sd.state]}; font-size: 30px;"/></td>
-                      <td class="h5">{sd.state.charAt(0).toUpperCase() + sd.state.slice(1)}</td>
-                      <td class="h5">{sd.count}</td>
+                  <Table>
+                    <tr class="mb-2">
+                      <th></th>
+                      <th class="h4">State</th>
+                      <th class="h4">Count</th>
                     </tr>
-                  {/each}
-                </Table>
-              {/key}
-            </Col>
+                    {#each refinedStateData as sd, i}
+                      <tr>
+                        <td><Icon name="circle-fill" style="color: {colors['nodeStates'][sd.state]}; font-size: 30px;"/></td>
+                        <td class="h5">{sd.state.charAt(0).toUpperCase() + sd.state.slice(1)}</td>
+                        <td class="h5">{sd.count}</td>
+                      </tr>
+                    {/each}
+                  </Table>
+                {/key}
+              </Col>
+            {:else}
+              <Col>
+                <Card body color="warning" class="mx-4 my-2"
+                  >Cannot render state status: No state data returned for <code>Pie Chart</code></Card
+                >
+              </Col>
+            {/if}
           </Row>
         </Col>
 
