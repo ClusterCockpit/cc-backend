@@ -118,7 +118,7 @@ func MigrateDB(backend string, db string) error {
 	v, dirty, err := m.Version()
 	if err != nil {
 		if err == migrate.ErrNilVersion {
-			cclog.Warn("Legacy database without version or missing database file!")
+			cclog.Info("Legacy database without version or missing database file!")
 		} else {
 			return err
 		}
