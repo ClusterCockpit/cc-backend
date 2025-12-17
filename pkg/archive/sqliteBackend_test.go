@@ -294,7 +294,7 @@ func TestSqliteCompress(t *testing.T) {
 
 	// Compress should not panic even with missing data
 	sa.Compress([]*schema.Job{job})
-	
+
 	t.Log("Compression method verified")
 }
 
@@ -310,4 +310,59 @@ func TestSqliteConfigParsing(t *testing.T) {
 	if cfg.DBPath != "/tmp/test.db" {
 		t.Errorf("expected dbPath '/tmp/test.db', got '%s'", cfg.DBPath)
 	}
+}
+
+func TestSqliteIterChunking(t *testing.T) {
+	tmpfile := t.TempDir() + "/test.db"
+	defer os.Remove(tmpfile)
+
+	var sa SqliteArchive
+	_, err := sa.Init(json.RawMessage(`{"dbPath":"` + tmpfile + `"}`))
+	if err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+	defer sa.db.Close()
+
+	const totalJobs = 2500
+	for i := 1; i <= totalJobs; i++ {
+		job := &schema.Job{
+			JobID:     int64(i),
+			Cluster:   "test",
+			StartTime: int64(i * 1000),
+			NumNodes:  1,
+			Resources: []*schema.Resource{{Hostname: "node001"}},
+		}
+		if err := sa.StoreJobMeta(job); err != nil {
+			t.Fatalf("store failed: %v", err)
+		}
+	}
+
+	t.Run("IterWithoutData", func(t *testing.T) {
+		count := 0
+		for container := range sa.Iter(false) {
+			if container.Meta == nil {
+				t.Error("expected non-nil meta")
+			}
+			if container.Data != nil {
+				t.Error("expected nil data when loadMetricData is false")
+			}
+			count++
+		}
+		if count != totalJobs {
+			t.Errorf("expected %d jobs, got %d", totalJobs, count)
+		}
+	})
+
+	t.Run("IterWithData", func(t *testing.T) {
+		count := 0
+		for container := range sa.Iter(true) {
+			if container.Meta == nil {
+				t.Error("expected non-nil meta")
+			}
+			count++
+		}
+		if count != totalJobs {
+			t.Errorf("expected %d jobs, got %d", totalJobs, count)
+		}
+	})
 }

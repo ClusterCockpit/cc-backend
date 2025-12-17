@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS jobs (
 
 CREATE INDEX IF NOT EXISTS idx_jobs_cluster ON jobs(cluster);
 CREATE INDEX IF NOT EXISTS idx_jobs_start_time ON jobs(start_time);
+CREATE INDEX IF NOT EXISTS idx_jobs_order ON jobs(cluster, start_time);
 CREATE INDEX IF NOT EXISTS idx_jobs_lookup ON jobs(cluster, job_id, start_time);
 
 CREATE TABLE IF NOT EXISTS clusters (
@@ -560,11 +561,15 @@ func (sa *SqliteArchive) Iter(loadMetricData bool) <-chan JobContainer {
 	go func() {
 		defer close(ch)
 
-		rows, err := sa.db.Query("SELECT meta_json, data_json, data_compressed FROM jobs ORDER BY cluster, start_time")
-		if err != nil {
-			cclog.Fatalf("SqliteArchive Iter() > query error: %s", err.Error())
+		const chunkSize = 1000
+		offset := 0
+
+		var query string
+		if loadMetricData {
+			query = "SELECT meta_json, data_json, data_compressed FROM jobs ORDER BY cluster, start_time LIMIT ? OFFSET ?"
+		} else {
+			query = "SELECT meta_json FROM jobs ORDER BY cluster, start_time LIMIT ? OFFSET ?"
 		}
-		defer rows.Close()
 
 		numWorkers := 4
 		jobRows := make(chan sqliteJobRow, numWorkers*2)
@@ -615,13 +620,40 @@ func (sa *SqliteArchive) Iter(loadMetricData bool) <-chan JobContainer {
 			}()
 		}
 
-		for rows.Next() {
-			var row sqliteJobRow
-			if err := rows.Scan(&row.metaBlob, &row.dataBlob, &row.compressed); err != nil {
-				cclog.Errorf("SqliteArchive Iter() > scan error: %v", err)
-				continue
+		for {
+			rows, err := sa.db.Query(query, chunkSize, offset)
+			if err != nil {
+				cclog.Fatalf("SqliteArchive Iter() > query error: %s", err.Error())
 			}
-			jobRows <- row
+
+			rowCount := 0
+			for rows.Next() {
+				var row sqliteJobRow
+
+				if loadMetricData {
+					if err := rows.Scan(&row.metaBlob, &row.dataBlob, &row.compressed); err != nil {
+						cclog.Errorf("SqliteArchive Iter() > scan error: %v", err)
+						continue
+					}
+				} else {
+					if err := rows.Scan(&row.metaBlob); err != nil {
+						cclog.Errorf("SqliteArchive Iter() > scan error: %v", err)
+						continue
+					}
+					row.dataBlob = nil
+					row.compressed = false
+				}
+
+				jobRows <- row
+				rowCount++
+			}
+			rows.Close()
+
+			if rowCount < chunkSize {
+				break
+			}
+
+			offset += chunkSize
 		}
 
 		close(jobRows)
