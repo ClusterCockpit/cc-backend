@@ -263,7 +263,7 @@ func generateJWT(authHandle *auth.Authentication, username string) error {
 		return fmt.Errorf("generating JWT for user '%s': %w", user.Username, err)
 	}
 
-	cclog.Infof("JWT: Successfully generated JWT for user '%s': %s", user.Username, jwt)
+	fmt.Printf("JWT: Successfully generated JWT for user '%s': %s\n", user.Username, jwt)
 	return nil
 }
 
