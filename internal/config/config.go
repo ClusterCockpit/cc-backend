@@ -22,6 +22,8 @@ type ProgramConfig struct {
 	// Addresses from which secured admin API endpoints can be reached, can be wildcard "*"
 	APIAllowedIPs []string `json:"apiAllowedIPs"`
 
+	APISubjects *NATSConfig `json:"apiSubjects"`
+
 	// Drop root permissions once .env was read and the port was taken.
 	User  string `json:"user"`
 	Group string `json:"group"`
@@ -85,6 +87,12 @@ type ResampleConfig struct {
 	Resolutions []int `json:"resolutions"`
 	// Trigger next zoom level at less than this many visible datapoints
 	Trigger int `json:"trigger"`
+}
+
+type NATSConfig struct {
+	SubjectJobStart  string `json:"subjectJobStart"`
+	SubjectJobStop   string `json:"subjectJobStop"`
+	SubjectNodeState string `json:"subjectNodeState"`
 }
 
 type IntRange struct {

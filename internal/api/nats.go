@@ -13,18 +13,12 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/archiver"
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/nats"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
-)
-
-// NATS subject constants for Job and Node APIs.
-const (
-	SubjectJobStart  = "cc.job.start"
-	SubjectJobStop   = "cc.job.stop"
-	SubjectNodeState = "cc.node.state"
 )
 
 // NatsAPI provides NATS subscription-based handlers for Job and Node operations.
@@ -52,19 +46,24 @@ func (api *NatsAPI) StartSubscriptions() error {
 		return nil
 	}
 
-	if err := client.Subscribe(SubjectJobStart, api.handleStartJob); err != nil {
-		return err
-	}
+	if config.Keys.APISubjects != nil {
 
-	if err := client.Subscribe(SubjectJobStop, api.handleStopJob); err != nil {
-		return err
-	}
+		s := config.Keys.APISubjects
 
-	if err := client.Subscribe(SubjectNodeState, api.handleNodeState); err != nil {
-		return err
-	}
+		if err := client.Subscribe(s.SubjectJobStart, api.handleStartJob); err != nil {
+			return err
+		}
 
-	cclog.Info("NATS API subscriptions started")
+		if err := client.Subscribe(s.SubjectJobStop, api.handleStopJob); err != nil {
+			return err
+		}
+
+		if err := client.Subscribe(s.SubjectNodeState, api.handleNodeState); err != nil {
+			return err
+		}
+
+		cclog.Info("NATS API subscriptions started")
+	}
 	return nil
 }
 
