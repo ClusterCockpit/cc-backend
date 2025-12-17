@@ -64,7 +64,6 @@ func ReceiveNats(ms *MemoryStore,
 		cclog.Infof("NATS subscription to '%s' established", sc.SubscribeTo)
 	}
 
-	<-ctx.Done()
 	close(msgs)
 	wg.Wait()
 
