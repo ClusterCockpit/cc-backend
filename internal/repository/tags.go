@@ -224,10 +224,10 @@ func (r *JobRepository) CountTags(user *schema.User) (tags []schema.Tag, counts 
 	}
 
 	// Query and Count Jobs with attached Tags
-	q := sq.Select("t.tag_name, t.id, count(jt.tag_id)").
+	q := sq.Select("t.tag_type, t.tag_name, t.id, count(jt.tag_id)").
 		From("tag t").
 		LeftJoin("jobtag jt ON t.id = jt.tag_id").
-		GroupBy("t.tag_name")
+		GroupBy("t.tag_type, t.tag_name")
 
 	// Build scope list for filtering
 	var scopeBuilder strings.Builder
@@ -260,14 +260,15 @@ func (r *JobRepository) CountTags(user *schema.User) (tags []schema.Tag, counts 
 
 	counts = make(map[string]int)
 	for rows.Next() {
+		var tagType string
 		var tagName string
 		var tagId int
 		var count int
-		if err = rows.Scan(&tagName, &tagId, &count); err != nil {
+		if err = rows.Scan(&tagType, &tagName, &tagId, &count); err != nil {
 			return nil, nil, err
 		}
 		// Use tagId as second Map-Key component to differentiate tags with identical names
-		counts[fmt.Sprint(tagName, tagId)] = count
+		counts[fmt.Sprint(tagType, tagName, tagId)] = count
 	}
 	err = rows.Err()
 
