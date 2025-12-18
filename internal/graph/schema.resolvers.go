@@ -88,14 +88,14 @@ func (r *jobResolver) EnergyFootprint(ctx context.Context, obj *schema.Job) ([]*
 	res := []*model.EnergyFootprintValue{}
 	for name, value := range rawEnergyFootprint {
 		// Suboptimal: Nearly hardcoded metric name expectations
-		matchCpu := regexp.MustCompile(`cpu|Cpu|CPU`)
+		matchCPU := regexp.MustCompile(`cpu|Cpu|CPU`)
 		matchAcc := regexp.MustCompile(`acc|Acc|ACC`)
 		matchMem := regexp.MustCompile(`mem|Mem|MEM`)
 		matchCore := regexp.MustCompile(`core|Core|CORE`)
 
 		hwType := ""
 		switch test := name; { // NOtice ';' for var declaration
-		case matchCpu.MatchString(test):
+		case matchCPU.MatchString(test):
 			hwType = "CPU"
 		case matchAcc.MatchString(test):
 			hwType = "Accelerator"
@@ -175,9 +175,9 @@ func (r *mutationResolver) AddTagsToJob(ctx context.Context, job string, tagIds 
 	}
 
 	tags := []*schema.Tag{}
-	for _, tagId := range tagIds {
+	for _, tagID := range tagIds {
 		// Get ID
-		tid, err := strconv.ParseInt(tagId, 10, 64)
+		tid, err := strconv.ParseInt(tagID, 10, 64)
 		if err != nil {
 			cclog.Warn("Error while parsing tag id")
 			return nil, err
@@ -222,9 +222,9 @@ func (r *mutationResolver) RemoveTagsFromJob(ctx context.Context, job string, ta
 	}
 
 	tags := []*schema.Tag{}
-	for _, tagId := range tagIds {
+	for _, tagID := range tagIds {
 		// Get ID
-		tid, err := strconv.ParseInt(tagId, 10, 64)
+		tid, err := strconv.ParseInt(tagID, 10, 64)
 		if err != nil {
 			cclog.Warn("Error while parsing tag id")
 			return nil, err
@@ -265,9 +265,9 @@ func (r *mutationResolver) RemoveTagFromList(ctx context.Context, tagIds []strin
 	}
 
 	tags := []int{}
-	for _, tagId := range tagIds {
+	for _, tagID := range tagIds {
 		// Get ID
-		tid, err := strconv.ParseInt(tagId, 10, 64)
+		tid, err := strconv.ParseInt(tagID, 10, 64)
 		if err != nil {
 			cclog.Warn("Error while parsing tag id for removal")
 			return nil, err
@@ -317,7 +317,7 @@ func (r *nodeResolver) SchedulerState(ctx context.Context, obj *schema.Node) (sc
 	if obj.NodeState != "" {
 		return obj.NodeState, nil
 	} else {
-		return "", fmt.Errorf("No SchedulerState (NodeState) on Object")
+		return "", fmt.Errorf("no SchedulerState (NodeState) on Object")
 	}
 }
 
@@ -343,6 +343,14 @@ func (r *queryResolver) Tags(ctx context.Context) ([]*schema.Tag, error) {
 
 // GlobalMetrics is the resolver for the globalMetrics field.
 func (r *queryResolver) GlobalMetrics(ctx context.Context) ([]*schema.GlobalMetricListItem, error) {
+	user := repository.GetUserFromContext(ctx)
+
+	if user != nil {
+		if user.HasRole(schema.RoleUser) || user.HasRole(schema.RoleManager) {
+			return archive.GlobalUserMetricList, nil
+		}
+	}
+
 	return archive.GlobalMetricList, nil
 }
 
@@ -373,12 +381,12 @@ func (r *queryResolver) AllocatedNodes(ctx context.Context, cluster string) ([]*
 // Node is the resolver for the node field.
 func (r *queryResolver) Node(ctx context.Context, id string) (*schema.Node, error) {
 	repo := repository.GetNodeRepository()
-	numericId, err := strconv.ParseInt(id, 10, 64)
+	numericID, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
 		cclog.Warn("Error while parsing job id")
 		return nil, err
 	}
-	return repo.GetNodeByID(numericId, false)
+	return repo.GetNodeByID(numericID, false)
 }
 
 // Nodes is the resolver for the nodes field.
@@ -405,8 +413,7 @@ func (r *queryResolver) NodeStates(ctx context.Context, filter []*model.NodeFilt
 		return nil, herr
 	}
 
-	allCounts := make([]*model.NodeStates, 0)
-	allCounts = append(stateCounts, healthCounts...)
+	allCounts := append(stateCounts, healthCounts...)
 
 	return allCounts, nil
 }
@@ -433,18 +440,18 @@ func (r *queryResolver) NodeStatesTimed(ctx context.Context, filter []*model.Nod
 		return healthCounts, nil
 	}
 
-	return nil, errors.New("Unknown Node State Query Type")
+	return nil, errors.New("unknown Node State Query Type")
 }
 
 // Job is the resolver for the job field.
 func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error) {
-	numericId, err := strconv.ParseInt(id, 10, 64)
+	numericID, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
 		cclog.Warn("Error while parsing job id")
 		return nil, err
 	}
 
-	job, err := r.Repo.FindByID(ctx, numericId)
+	job, err := r.Repo.FindByID(ctx, numericID)
 	if err != nil {
 		cclog.Warn("Error while finding job by id")
 		return nil, err
@@ -809,7 +816,7 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 	nodeRepo := repository.GetNodeRepository()
 	nodes, stateMap, countNodes, hasNextPage, nerr := nodeRepo.GetNodesForList(ctx, cluster, subCluster, stateFilter, nodeFilter, page)
 	if nerr != nil {
-		return nil, errors.New("Could not retrieve node list required for resolving NodeMetricsList")
+		return nil, errors.New("could not retrieve node list required for resolving NodeMetricsList")
 	}
 
 	if metrics == nil {
@@ -898,9 +905,7 @@ func (r *queryResolver) ClusterMetrics(ctx context.Context, cluster string, metr
 					collectorUnit[metric] = scopedMetric.Unit
 					// Collect Initial Data
 					for _, ser := range scopedMetric.Series {
-						for _, val := range ser.Data {
-							collectorData[metric] = append(collectorData[metric], val)
-						}
+						collectorData[metric] = append(collectorData[metric], ser.Data...)
 					}
 				}
 			} else {

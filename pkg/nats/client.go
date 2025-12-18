@@ -83,7 +83,7 @@ func Connect() {
 
 		client, err := NewClient(nil)
 		if err != nil {
-			cclog.Errorf("NATS connection failed: %v", err)
+			cclog.Warnf("NATS connection failed: %v", err)
 			return
 		}
 

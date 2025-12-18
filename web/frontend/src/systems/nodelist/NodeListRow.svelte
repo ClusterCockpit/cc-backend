@@ -148,13 +148,19 @@
         hoststate={nodeData?.state? nodeData.state: 'notindb'}/>
     {/if}
   </td>
-  {#each refinedData as metricData (metricData.data.name)}
+  {#each refinedData as metricData, i (metricData?.data?.name || i)}
     {#key metricData}
       <td>
         {#if metricData?.disabled}
           <Card body class="mx-3" color="info"
             >Metric disabled for subcluster <code
-              >{metricData.data.name}:{nodeData.subCluster}</code
+              >{metricData?.data?.name ? metricData.data.name : `Metric Index ${i}`}:{nodeData.subCluster}</code
+            ></Card
+          >
+        {:else if !metricData?.data?.name}
+          <Card body class="mx-3" color="warning"
+            >Metric without name for subcluster <code
+              >{`Metric Index ${i}`}:{nodeData.subCluster}</code
             ></Card
           >
         {:else if !!metricData.data?.metric.statisticsSeries}

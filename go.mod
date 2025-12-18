@@ -11,7 +11,7 @@ tool (
 
 require (
 	github.com/99designs/gqlgen v0.17.84
-	github.com/ClusterCockpit/cc-lib v1.0.0
+	github.com/ClusterCockpit/cc-lib v1.0.2
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/aws/aws-sdk-go-v2 v1.41.0
 	github.com/aws/aws-sdk-go-v2/config v1.31.20
