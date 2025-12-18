@@ -6,7 +6,6 @@
 package archive
 
 import (
-	"errors"
 	"fmt"
 
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
@@ -14,13 +13,16 @@ import (
 )
 
 var (
-	Clusters         []*schema.Cluster
-	GlobalMetricList []*schema.GlobalMetricListItem
-	NodeLists        map[string]map[string]NodeList
+	Clusters             []*schema.Cluster
+	GlobalMetricList     []*schema.GlobalMetricListItem
+	GlobalUserMetricList []*schema.GlobalMetricListItem
+	NodeLists            map[string]map[string]NodeList
 )
 
 func initClusterConfig() error {
 	Clusters = []*schema.Cluster{}
+	GlobalMetricList = []*schema.GlobalMetricListItem{}
+	GlobalUserMetricList = []*schema.GlobalMetricListItem{}
 	NodeLists = map[string]map[string]NodeList{}
 	metricLookup := make(map[string]schema.GlobalMetricListItem)
 
@@ -29,38 +31,41 @@ func initClusterConfig() error {
 		cluster, err := ar.LoadClusterCfg(c)
 		if err != nil {
 			cclog.Warnf("Error while loading cluster config for cluster '%v'", c)
-			return err
+			return fmt.Errorf("failed to load cluster config for '%s': %w", c, err)
 		}
 
-		if len(cluster.Name) == 0 ||
-			len(cluster.MetricConfig) == 0 ||
-			len(cluster.SubClusters) == 0 {
-			return errors.New("cluster.name, cluster.metricConfig and cluster.SubClusters should not be empty")
+		if len(cluster.Name) == 0 {
+			return fmt.Errorf("cluster name is empty in config for '%s'", c)
+		}
+		if len(cluster.MetricConfig) == 0 {
+			return fmt.Errorf("cluster '%s' has no metric configurations", cluster.Name)
+		}
+		if len(cluster.SubClusters) == 0 {
+			return fmt.Errorf("cluster '%s' has no subclusters defined", cluster.Name)
 		}
 
 		for _, mc := range cluster.MetricConfig {
 			if len(mc.Name) == 0 {
-				return errors.New("cluster.metricConfig.name should not be empty")
+				return fmt.Errorf("cluster '%s' has a metric config with empty name", cluster.Name)
 			}
 			if mc.Timestep < 1 {
-				return errors.New("cluster.metricConfig.timestep should not be smaller than one")
+				return fmt.Errorf("metric '%s' in cluster '%s' has invalid timestep %d (must be >= 1)", mc.Name, cluster.Name, mc.Timestep)
 			}
 
-			// For backwards compability...
+			// For backwards compatibility...
 			if mc.Scope == "" {
 				mc.Scope = schema.MetricScopeNode
 			}
 			if !mc.Scope.Valid() {
-				return errors.New("cluster.metricConfig.scope must be a valid scope ('node', 'scocket', ...)")
+				return fmt.Errorf("metric '%s' in cluster '%s' has invalid scope '%s' (must be 'node', 'socket', 'core', etc.)", mc.Name, cluster.Name, mc.Scope)
 			}
 
-			ml, ok := metricLookup[mc.Name]
-			if !ok {
+			if _, ok := metricLookup[mc.Name]; !ok {
 				metricLookup[mc.Name] = schema.GlobalMetricListItem{
-					Name: mc.Name, Scope: mc.Scope, Unit: mc.Unit, Footprint: mc.Footprint,
+					Name: mc.Name, Scope: mc.Scope, Restrict: mc.Restrict, Unit: mc.Unit, Footprint: mc.Footprint,
 				}
-				ml = metricLookup[mc.Name]
 			}
+
 			availability := schema.ClusterSupport{Cluster: cluster.Name}
 			scLookup := make(map[string]*schema.SubClusterConfig)
 
@@ -90,39 +95,35 @@ func initClusterConfig() error {
 				}
 
 				if cfg, ok := scLookup[sc.Name]; ok {
-					if !cfg.Remove {
-						availability.SubClusters = append(availability.SubClusters, sc.Name)
-						newMetric.Peak = cfg.Peak
-						newMetric.Normal = cfg.Normal
-						newMetric.Caution = cfg.Caution
-						newMetric.Alert = cfg.Alert
-						newMetric.Footprint = cfg.Footprint
-						newMetric.Energy = cfg.Energy
-						newMetric.LowerIsBetter = cfg.LowerIsBetter
-						sc.MetricConfig = append(sc.MetricConfig, *newMetric)
+					if cfg.Remove {
+						continue
+					}
+					newMetric.Peak = cfg.Peak
+					newMetric.Normal = cfg.Normal
+					newMetric.Caution = cfg.Caution
+					newMetric.Alert = cfg.Alert
+					newMetric.Footprint = cfg.Footprint
+					newMetric.Energy = cfg.Energy
+					newMetric.LowerIsBetter = cfg.LowerIsBetter
+				}
 
-						if newMetric.Footprint != "" {
-							sc.Footprint = append(sc.Footprint, newMetric.Name)
-							ml.Footprint = newMetric.Footprint
-						}
-						if newMetric.Energy != "" {
-							sc.EnergyFootprint = append(sc.EnergyFootprint, newMetric.Name)
-						}
-					}
-				} else {
-					availability.SubClusters = append(availability.SubClusters, sc.Name)
-					sc.MetricConfig = append(sc.MetricConfig, *newMetric)
+				availability.SubClusters = append(availability.SubClusters, sc.Name)
+				sc.MetricConfig = append(sc.MetricConfig, *newMetric)
 
-					if newMetric.Footprint != "" {
-						sc.Footprint = append(sc.Footprint, newMetric.Name)
-					}
-					if newMetric.Energy != "" {
-						sc.EnergyFootprint = append(sc.EnergyFootprint, newMetric.Name)
-					}
+				if newMetric.Footprint != "" {
+					sc.Footprint = append(sc.Footprint, newMetric.Name)
+					item := metricLookup[mc.Name]
+					item.Footprint = newMetric.Footprint
+					metricLookup[mc.Name] = item
+				}
+				if newMetric.Energy != "" {
+					sc.EnergyFootprint = append(sc.EnergyFootprint, newMetric.Name)
 				}
 			}
-			ml.Availability = append(metricLookup[mc.Name].Availability, availability)
-			metricLookup[mc.Name] = ml
+
+			item := metricLookup[mc.Name]
+			item.Availability = append(item.Availability, availability)
+			metricLookup[mc.Name] = item
 		}
 
 		Clusters = append(Clusters, cluster)
@@ -141,8 +142,11 @@ func initClusterConfig() error {
 		}
 	}
 
-	for _, ml := range metricLookup {
-		GlobalMetricList = append(GlobalMetricList, &ml)
+	for _, metric := range metricLookup {
+		GlobalMetricList = append(GlobalMetricList, &metric)
+		if !metric.Restrict {
+			GlobalUserMetricList = append(GlobalUserMetricList, &metric)
+		}
 	}
 
 	return nil
