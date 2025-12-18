@@ -17,7 +17,7 @@ import (
 func RegisterCompressionService(compressOlderThan int) {
 	cclog.Info("Register compression service")
 
-	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(0o5, 0, 0))),
+	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(5, 0, 0))),
 		gocron.NewTask(
 			func() {
 				var jobs []*schema.Job

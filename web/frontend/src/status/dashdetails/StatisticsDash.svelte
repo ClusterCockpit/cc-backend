@@ -22,11 +22,11 @@
   } from "@urql/svelte";
   import {
     convert2uplot,
-  } from "../generic/utils.js";
-  import PlotGrid from "../generic/PlotGrid.svelte";
-  import Histogram from "../generic/plots/Histogram.svelte";
-  import HistogramSelection from "../generic/select/HistogramSelection.svelte";
-  import Refresher from "../generic/helper/Refresher.svelte";
+  } from "../../generic/utils.js";
+  import PlotGrid from "../../generic/PlotGrid.svelte";
+  import Histogram from "../../generic/plots/Histogram.svelte";
+  import HistogramSelection from "../../generic/select/HistogramSelection.svelte";
+  import Refresher from "../../generic/helper/Refresher.svelte";
 
   /* Svelte 5 Props */
   let {

@@ -30,6 +30,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/tagger"
 	"github.com/ClusterCockpit/cc-backend/internal/taskmanager"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	"github.com/ClusterCockpit/cc-backend/pkg/nats"
 	"github.com/ClusterCockpit/cc-backend/web"
 	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
@@ -262,11 +263,18 @@ func generateJWT(authHandle *auth.Authentication, username string) error {
 		return fmt.Errorf("generating JWT for user '%s': %w", user.Username, err)
 	}
 
-	cclog.Infof("JWT: Successfully generated JWT for user '%s': %s", user.Username, jwt)
+	cclog.Printf("JWT: Successfully generated JWT for user '%s': %s\n", user.Username, jwt)
 	return nil
 }
 
 func initSubsystems() error {
+	// Initialize nats client
+	natsConfig := ccconf.GetPackageConfig("nats")
+	if err := nats.Init(natsConfig); err != nil {
+		cclog.Warnf("initializing (optional) nats client: %s", err.Error())
+	}
+	nats.Connect()
+
 	// Initialize job archive
 	archiveCfg := ccconf.GetPackageConfig("archive")
 	if archiveCfg == nil {

@@ -46,7 +46,7 @@ func (l *Level) findLevelOrCreate(selector []string, nMetrics int) *Level {
 		}
 	}
 
-	// The level does not exist, take write lock for unqiue access:
+	// The level does not exist, take write lock for unique access:
 	l.lock.Lock()
 	// While this thread waited for the write lock, another thread
 	// could have created the child node.

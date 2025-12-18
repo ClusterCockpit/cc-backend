@@ -40,7 +40,7 @@ type JobTagger struct {
 	// startTaggers are applied when a job starts (e.g., application detection)
 	startTaggers []Tagger
 	// stopTaggers are applied when a job completes (e.g., job classification)
-	stopTaggers  []Tagger
+	stopTaggers []Tagger
 }
 
 func newTagger() {
@@ -98,7 +98,7 @@ func RunTaggers() error {
 	}
 
 	for _, id := range jl {
-		job, err := r.FindByIdDirect(id)
+		job, err := r.FindByIDDirect(id)
 		if err != nil {
 			cclog.Errorf("Error while getting job %s", err)
 			return err

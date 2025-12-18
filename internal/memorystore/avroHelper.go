@@ -42,7 +42,7 @@ func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 				metricName := ""
 
 				for _, selectorName := range val.Selector {
-					metricName += selectorName + Delimiter
+					metricName += selectorName + SelectorDelimiter
 				}
 
 				metricName += val.MetricName
@@ -54,7 +54,7 @@ func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 				var selector []string
 				selector = append(selector, val.Cluster, val.Node, strconv.FormatInt(freq, 10))
 
-				if !testEq(oldSelector, selector) {
+				if !stringSlicesEqual(oldSelector, selector) {
 					// Get the Avro level for the metric
 					avroLevel = avroStore.root.findAvroLevelOrCreate(selector)
 
@@ -71,7 +71,7 @@ func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 	}()
 }
 
-func testEq(a, b []string) bool {
+func stringSlicesEqual(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}

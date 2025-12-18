@@ -6,10 +6,16 @@
 package memorystore
 
 import (
+	"errors"
 	"math"
 
 	"github.com/ClusterCockpit/cc-lib/schema"
 	"github.com/ClusterCockpit/cc-lib/util"
+)
+
+var (
+	ErrInvalidTimeRange = errors.New("[METRICSTORE]> invalid time range: 'from' must be before 'to'")
+	ErrEmptyCluster     = errors.New("[METRICSTORE]> cluster name cannot be empty")
 )
 
 type APIMetricData struct {
@@ -109,10 +115,14 @@ func (data *APIMetricData) PadDataWithNull(ms *MemoryStore, from, to int64, metr
 }
 
 func FetchData(req APIQueryRequest) (*APIQueryResponse, error) {
-	req.WithData = true
-	req.WithData = true
-	req.WithData = true
+	if req.From > req.To {
+		return nil, ErrInvalidTimeRange
+	}
+	if req.Cluster == "" && req.ForAllNodes != nil {
+		return nil, ErrEmptyCluster
+	}
 
+	req.WithData = true
 	ms := GetMemoryStore()
 
 	response := APIQueryResponse{

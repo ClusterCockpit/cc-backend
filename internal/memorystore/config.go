@@ -7,6 +7,16 @@ package memorystore
 
 import (
 	"fmt"
+	"time"
+)
+
+const (
+	DefaultMaxWorkers             = 10
+	DefaultBufferCapacity         = 512
+	DefaultGCTriggerInterval      = 100
+	DefaultAvroWorkers            = 4
+	DefaultCheckpointBufferMin    = 3
+	DefaultAvroCheckpointInterval = time.Minute
 )
 
 var InternalCCMSFlag bool = false
@@ -14,7 +24,7 @@ var InternalCCMSFlag bool = false
 type MetricStoreConfig struct {
 	// Number of concurrent workers for checkpoint and archive operations.
 	// If not set or 0, defaults to min(runtime.NumCPU()/2+1, 10)
-	NumWorkers int `json:"num-workers"`
+	NumWorkers  int `json:"num-workers"`
 	Checkpoints struct {
 		FileFormat string `json:"file-format"`
 		Interval   string `json:"interval"`
@@ -31,20 +41,6 @@ type MetricStoreConfig struct {
 		RootDir       string `json:"directory"`
 		DeleteInstead bool   `json:"delete-instead"`
 	} `json:"archive"`
-	Nats []*NatsConfig `json:"nats"`
-}
-
-type NatsConfig struct {
-	// Address of the nats server
-	Address string `json:"address"`
-
-	// Username/Password, optional
-	Username string `json:"username"`
-	Password string `json:"password"`
-
-	// Creds file path
-	Credsfilepath string `json:"creds-file-path"`
-
 	Subscriptions []struct {
 		// Channel name
 		SubscribeTo string `json:"subscribe-to"`

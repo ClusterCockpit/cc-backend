@@ -77,7 +77,7 @@ func (m *MemoryStore) Stats(selector util.Selector, metric string, from, to int6
 
 	minfo, ok := m.Metrics[metric]
 	if !ok {
-		return nil, 0, 0, errors.New("unkown metric: " + metric)
+		return nil, 0, 0, errors.New("unknown metric: " + metric)
 	}
 
 	n, samples := 0, 0

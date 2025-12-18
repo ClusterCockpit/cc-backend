@@ -17,6 +17,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"text/tabwriter"
 	"time"
 
@@ -467,7 +468,6 @@ func (s3a *S3Archive) StoreJobMeta(job *schema.Job) error {
 func (s3a *S3Archive) ImportJob(jobMeta *schema.Job, jobData *schema.JobData) error {
 	ctx := context.Background()
 
-	// Upload meta.json
 	metaKey := getS3Key(jobMeta, "meta.json")
 	var metaBuf bytes.Buffer
 	if err := EncodeJobMeta(&metaBuf, jobMeta); err != nil {
@@ -485,18 +485,37 @@ func (s3a *S3Archive) ImportJob(jobMeta *schema.Job, jobData *schema.JobData) er
 		return err
 	}
 
-	// Upload data.json
-	dataKey := getS3Key(jobMeta, "data.json")
 	var dataBuf bytes.Buffer
 	if err := EncodeJobData(&dataBuf, jobData); err != nil {
 		cclog.Error("S3Archive ImportJob() > encoding data error")
 		return err
 	}
 
+	var dataKey string
+	var dataBytes []byte
+
+	if dataBuf.Len() > 2000 {
+		dataKey = getS3Key(jobMeta, "data.json.gz")
+		var compressedBuf bytes.Buffer
+		gzipWriter := gzip.NewWriter(&compressedBuf)
+		if _, err := gzipWriter.Write(dataBuf.Bytes()); err != nil {
+			cclog.Errorf("S3Archive ImportJob() > gzip write error: %v", err)
+			return err
+		}
+		if err := gzipWriter.Close(); err != nil {
+			cclog.Errorf("S3Archive ImportJob() > gzip close error: %v", err)
+			return err
+		}
+		dataBytes = compressedBuf.Bytes()
+	} else {
+		dataKey = getS3Key(jobMeta, "data.json")
+		dataBytes = dataBuf.Bytes()
+	}
+
 	_, err = s3a.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(s3a.bucket),
 		Key:    aws.String(dataKey),
-		Body:   bytes.NewReader(dataBuf.Bytes()),
+		Body:   bytes.NewReader(dataBytes),
 	})
 	if err != nil {
 		cclog.Errorf("S3Archive ImportJob() > PutObject data error: %v", err)
@@ -795,29 +814,18 @@ func (s3a *S3Archive) Iter(loadMetricData bool) <-chan JobContainer {
 		ctx := context.Background()
 		defer close(ch)
 
-		for _, cluster := range s3a.clusters {
-			prefix := cluster + "/"
+		numWorkers := 4
+		metaKeys := make(chan string, numWorkers*2)
+		var wg sync.WaitGroup
 
-			paginator := s3.NewListObjectsV2Paginator(s3a.client, &s3.ListObjectsV2Input{
-				Bucket: aws.String(s3a.bucket),
-				Prefix: aws.String(prefix),
-			})
-
-			for paginator.HasMorePages() {
-				page, err := paginator.NextPage(ctx)
-				if err != nil {
-					cclog.Fatalf("S3Archive Iter() > list error: %s", err.Error())
-				}
-
-				for _, obj := range page.Contents {
-					if obj.Key == nil || !strings.HasSuffix(*obj.Key, "/meta.json") {
-						continue
-					}
-
-					// Load job metadata
+		for range numWorkers {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for metaKey := range metaKeys {
 					result, err := s3a.client.GetObject(ctx, &s3.GetObjectInput{
 						Bucket: aws.String(s3a.bucket),
-						Key:    obj.Key,
+						Key:    aws.String(metaKey),
 					})
 					if err != nil {
 						cclog.Errorf("S3Archive Iter() > GetObject meta error: %v", err)
@@ -849,8 +857,34 @@ func (s3a *S3Archive) Iter(loadMetricData bool) <-chan JobContainer {
 						ch <- JobContainer{Meta: job, Data: nil}
 					}
 				}
+			}()
+		}
+
+		for _, cluster := range s3a.clusters {
+			prefix := cluster + "/"
+
+			paginator := s3.NewListObjectsV2Paginator(s3a.client, &s3.ListObjectsV2Input{
+				Bucket: aws.String(s3a.bucket),
+				Prefix: aws.String(prefix),
+			})
+
+			for paginator.HasMorePages() {
+				page, err := paginator.NextPage(ctx)
+				if err != nil {
+					cclog.Fatalf("S3Archive Iter() > list error: %s", err.Error())
+				}
+
+				for _, obj := range page.Contents {
+					if obj.Key == nil || !strings.HasSuffix(*obj.Key, "/meta.json") {
+						continue
+					}
+					metaKeys <- *obj.Key
+				}
 			}
 		}
+
+		close(metaKeys)
+		wg.Wait()
 	}()
 
 	return ch

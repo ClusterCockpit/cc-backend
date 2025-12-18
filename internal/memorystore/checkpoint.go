@@ -28,15 +28,10 @@ import (
 	"github.com/linkedin/goavro/v2"
 )
 
-// File operation constants
 const (
-	// CheckpointFilePerms defines default permissions for checkpoint files
 	CheckpointFilePerms = 0o644
-	// CheckpointDirPerms defines default permissions for checkpoint directories
-	CheckpointDirPerms = 0o755
-	// GCTriggerInterval determines how often GC is forced during checkpoint loading
-	// GC is triggered every GCTriggerInterval*NumWorkers loaded hosts
-	GCTriggerInterval = 100
+	CheckpointDirPerms  = 0o755
+	GCTriggerInterval   = DefaultGCTriggerInterval
 )
 
 // Whenever changed, update MarshalJSON as well!
@@ -71,17 +66,14 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 				return
 			}
 
-			ticks := func() <-chan time.Time {
-				if d <= 0 {
-					return nil
-				}
-				return time.NewTicker(d).C
-			}()
+			ticker := time.NewTicker(d)
+			defer ticker.Stop()
+
 			for {
 				select {
 				case <-ctx.Done():
 					return
-				case <-ticks:
+				case <-ticker.C:
 					cclog.Infof("[METRICSTORE]> start checkpointing (starting at %s)...", lastCheckpoint.Format(time.RFC3339))
 					now := time.Now()
 					n, err := ms.ToCheckpoint(Keys.Checkpoints.RootDir,
@@ -98,33 +90,23 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 	} else {
 		go func() {
 			defer wg.Done()
-			d, _ := time.ParseDuration("1m")
 
 			select {
 			case <-ctx.Done():
 				return
 			case <-time.After(time.Duration(CheckpointBufferMinutes) * time.Minute):
-				// This is the first tick untill we collect the data for given minutes.
 				GetAvroStore().ToCheckpoint(Keys.Checkpoints.RootDir, false)
-				// log.Printf("Checkpointing %d avro files", count)
-
 			}
 
-			ticks := func() <-chan time.Time {
-				if d <= 0 {
-					return nil
-				}
-				return time.NewTicker(d).C
-			}()
+			ticker := time.NewTicker(DefaultAvroCheckpointInterval)
+			defer ticker.Stop()
 
 			for {
 				select {
 				case <-ctx.Done():
 					return
-				case <-ticks:
-					// Regular ticks of 1 minute to write data.
+				case <-ticker.C:
 					GetAvroStore().ToCheckpoint(Keys.Checkpoints.RootDir, false)
-					// log.Printf("Checkpointing %d avro files", count)
 				}
 			}
 		}()
@@ -329,7 +311,7 @@ func (m *MemoryStore) FromCheckpoint(dir string, from int64, extension string) (
 				lvl := m.root.findLevelOrCreate(host[:], len(m.Metrics))
 				nn, err := lvl.fromCheckpoint(m, filepath.Join(dir, host[0], host[1]), from, extension)
 				if err != nil {
-					cclog.Fatalf("[METRICSTORE]> error while loading checkpoints: %s", err.Error())
+					cclog.Errorf("[METRICSTORE]> error while loading checkpoints for %s/%s: %s", host[0], host[1], err.Error())
 					atomic.AddInt32(&errs, 1)
 				}
 				atomic.AddInt32(&n, int32(nn))
@@ -506,8 +488,8 @@ func (l *Level) loadAvroFile(m *MemoryStore, f *os.File, from int64) error {
 	for key, floatArray := range metricsData {
 		metricName := ReplaceKey(key)
 
-		if strings.Contains(metricName, Delimiter) {
-			subString := strings.Split(metricName, Delimiter)
+		if strings.Contains(metricName, SelectorDelimiter) {
+			subString := strings.Split(metricName, SelectorDelimiter)
 
 			lvl := l
 
@@ -557,12 +539,10 @@ func (l *Level) createBuffer(m *MemoryStore, metricName string, floatArray schem
 		next:      nil,
 		archived:  true,
 	}
-	b.close()
 
 	minfo, ok := m.Metrics[metricName]
 	if !ok {
 		return nil
-		// return errors.New("Unkown metric: " + name)
 	}
 
 	prev := l.metrics[minfo.offset]
@@ -616,17 +596,15 @@ func (l *Level) loadFile(cf *CheckpointFile, m *MemoryStore) error {
 		b := &buffer{
 			frequency: metric.Frequency,
 			start:     metric.Start,
-			data:      metric.Data[0:n:n], // Space is wasted here :(
+			data:      metric.Data[0:n:n],
 			prev:      nil,
 			next:      nil,
 			archived:  true,
 		}
-		b.close()
 
 		minfo, ok := m.Metrics[name]
 		if !ok {
 			continue
-			// return errors.New("Unkown metric: " + name)
 		}
 
 		prev := l.metrics[minfo.offset]

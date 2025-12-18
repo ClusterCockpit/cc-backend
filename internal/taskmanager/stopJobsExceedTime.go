@@ -16,7 +16,7 @@ import (
 func RegisterStopJobsExceedTime() {
 	cclog.Info("Register undead jobs service")
 
-	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(0o3, 0, 0))),
+	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(3, 0, 0))),
 		gocron.NewTask(
 			func() {
 				err := jobRepo.StopJobsExceedingWalltimeBy(config.Keys.StopJobsExceedingWalltime)

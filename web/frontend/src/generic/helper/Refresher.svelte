@@ -14,6 +14,7 @@
   let {
     initially = null,
     presetClass = "",
+    hideSelector = false,
     onRefresh
   } = $props();
 
@@ -36,25 +37,27 @@
   });
 </script>
 
-<InputGroup class={presetClass}>
-  <Input
-    type="select"
-    title="Periodic refresh interval"
-    bind:value={refreshInterval}
-    onchange={refreshIntervalChanged}
-  >
-    <option value={null}>No Interval</option>
-    <option value={30 * 1000}>30 Seconds</option>
-    <option value={60 * 1000}>60 Seconds</option>
-    <option value={2 * 60 * 1000}>Two Minutes</option>
-    <option value={5 * 60 * 1000}>5 Minutes</option>
-  </Input>
-  <Button
-    outline
-    onclick={() => onRefresh(refreshInterval)}
-    disabled={refreshInterval != null}
+{#if !hideSelector}
+  <InputGroup class={presetClass}>
+    <Input
+      type="select"
+      title="Periodic refresh interval"
+      bind:value={refreshInterval}
+      onchange={refreshIntervalChanged}
     >
-    <Icon name="arrow-clockwise" /> Refresh
-  </Button>
-</InputGroup>
+      <option value={null}>No Interval</option>
+      <option value={30 * 1000}>30 Seconds</option>
+      <option value={60 * 1000}>60 Seconds</option>
+      <option value={2 * 60 * 1000}>Two Minutes</option>
+      <option value={5 * 60 * 1000}>5 Minutes</option>
+    </Input>
+    <Button
+      outline
+      onclick={() => onRefresh(refreshInterval)}
+      disabled={refreshInterval != null}
+      >
+      <Icon name="arrow-clockwise" /> Refresh
+    </Button>
+  </InputGroup>
+{/if}
 

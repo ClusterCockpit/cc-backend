@@ -27,10 +27,10 @@
     scramble,
     scrambleNames,
     convert2uplot,
-  } from "../generic/utils.js";
-  import Pie, { colors } from "../generic/plots/Pie.svelte";
-  import Histogram from "../generic/plots/Histogram.svelte";
-  import Refresher from "../generic/helper/Refresher.svelte";
+  } from "../../generic/utils.js";
+  import Pie, { colors } from "../../generic/plots/Pie.svelte";
+  import Histogram from "../../generic/plots/Histogram.svelte";
+  import Refresher from "../../generic/helper/Refresher.svelte";
 
   /* Svelte 5 Props */
   let {

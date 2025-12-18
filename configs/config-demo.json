@@ -29,6 +29,11 @@
       "max-age": "2000h"
     }
   },
+  "nats": {
+    "address": "nats://0.0.0.0:4222",
+    "username": "root",
+    "password": "root"
+  },
   "clusters": [
     {
       "name": "fritz",
@@ -86,6 +91,16 @@
       "interval": "1h",
       "directory": "./var/archive"
     },
-    "retention-in-memory": "48h"
+    "retention-in-memory": "48h",
+    "subscriptions": [
+      {
+        "subscribe-to": "hpc-nats",
+        "cluster-tag": "fritz"
+      },
+      {
+        "subscribe-to": "hpc-nats",
+        "cluster-tag": "alex"
+      }
+    ]
   }
 }

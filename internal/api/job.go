@@ -253,7 +253,7 @@ func (api *RestAPI) getCompleteJobByID(rw http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		job, err = api.JobRepository.FindById(r.Context(), id) // Get Job from Repo by ID
+		job, err = api.JobRepository.FindByID(r.Context(), id) // Get Job from Repo by ID
 	} else {
 		handleError(fmt.Errorf("the parameter 'id' is required"), http.StatusBadRequest, rw)
 		return
@@ -346,7 +346,7 @@ func (api *RestAPI) getJobByID(rw http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		job, err = api.JobRepository.FindById(r.Context(), id)
+		job, err = api.JobRepository.FindByID(r.Context(), id)
 	} else {
 		handleError(errors.New("the parameter 'id' is required"), http.StatusBadRequest, rw)
 		return
@@ -445,7 +445,7 @@ func (api *RestAPI) editMeta(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job, err := api.JobRepository.FindById(r.Context(), id)
+	job, err := api.JobRepository.FindByID(r.Context(), id)
 	if err != nil {
 		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusNotFound, rw)
 		return
@@ -493,7 +493,7 @@ func (api *RestAPI) tagJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job, err := api.JobRepository.FindById(r.Context(), id)
+	job, err := api.JobRepository.FindByID(r.Context(), id)
 	if err != nil {
 		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusNotFound, rw)
 		return
@@ -557,7 +557,7 @@ func (api *RestAPI) removeTagJob(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job, err := api.JobRepository.FindById(r.Context(), id)
+	job, err := api.JobRepository.FindByID(r.Context(), id)
 	if err != nil {
 		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusNotFound, rw)
 		return
@@ -796,7 +796,7 @@ func (api *RestAPI) deleteJobByID(rw http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err = api.JobRepository.DeleteJobById(id)
+		err = api.JobRepository.DeleteJobByID(id)
 	} else {
 		handleError(errors.New("the parameter 'id' is required"), http.StatusBadRequest, rw)
 		return
@@ -852,7 +852,7 @@ func (api *RestAPI) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	err = api.JobRepository.DeleteJobById(*job.ID)
+	err = api.JobRepository.DeleteJobByID(*job.ID)
 	if err != nil {
 		handleError(fmt.Errorf("deleting job failed: %w", err), http.StatusUnprocessableEntity, rw)
 		return

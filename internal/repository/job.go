@@ -376,7 +376,7 @@ func (r *JobRepository) DeleteJobsBefore(startTime int64, omitTagged bool) (int,
 	return cnt, err
 }
 
-func (r *JobRepository) DeleteJobById(id int64) error {
+func (r *JobRepository) DeleteJobByID(id int64) error {
 	// Invalidate cache entries before deletion
 	r.cache.Del(fmt.Sprintf("metadata:%d", id))
 	r.cache.Del(fmt.Sprintf("energyFootprint:%d", id))
@@ -577,10 +577,10 @@ func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 	return nil
 }
 
-func (r *JobRepository) FindJobIdsByTag(tagId int64) ([]int64, error) {
+func (r *JobRepository) FindJobIdsByTag(tagID int64) ([]int64, error) {
 	query := sq.Select("job.id").From("job").
 		Join("jobtag ON jobtag.job_id = job.id").
-		Where(sq.Eq{"jobtag.tag_id": tagId}).Distinct()
+		Where(sq.Eq{"jobtag.tag_id": tagID}).Distinct()
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
 		cclog.Error("Error while running query")
@@ -589,15 +589,15 @@ func (r *JobRepository) FindJobIdsByTag(tagId int64) ([]int64, error) {
 	jobIds := make([]int64, 0, 100)
 
 	for rows.Next() {
-		var jobId int64
+		var jobID int64
 
-		if err := rows.Scan(&jobId); err != nil {
+		if err := rows.Scan(&jobID); err != nil {
 			rows.Close()
 			cclog.Warn("Error while scanning rows")
 			return nil, err
 		}
 
-		jobIds = append(jobIds, jobId)
+		jobIds = append(jobIds, jobID)
 	}
 
 	return jobIds, nil
@@ -731,10 +731,11 @@ func (r *JobRepository) UpdateEnergy(
 		metricEnergy := 0.0
 		if i, err := archive.MetricIndex(sc.MetricConfig, fp); err == nil {
 			// Note: For DB data, calculate and save as kWh
-			if sc.MetricConfig[i].Energy == "energy" { // this metric has energy as unit (Joules or Wh)
+			switch sc.MetricConfig[i].Energy {
+			case "energy": // this metric has energy as unit (Joules or Wh)
 				cclog.Warnf("Update EnergyFootprint for Job %d and Metric %s on cluster %s: Set to 'energy' in cluster.json: Not implemented, will return 0.0", jobMeta.JobID, jobMeta.Cluster, fp)
 				// FIXME: Needs sum as stats type
-			} else if sc.MetricConfig[i].Energy == "power" { // this metric has power as unit (Watt)
+			case "power": // this metric has power as unit (Watt)
 				// Energy: Power (in Watts) * Time (in Seconds)
 				// Unit: (W * (s / 3600)) / 1000 = kWh
 				// Round 2 Digits: round(Energy * 100) / 100

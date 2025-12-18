@@ -111,18 +111,22 @@ func InitDB() error {
 			continue
 		}
 
-		id, err := r.TransactionAddNamed(t,
+		id, jobErr := r.TransactionAddNamed(t,
 			repository.NamedJobInsert, jobMeta)
-		if err != nil {
-			cclog.Errorf("repository initDB(): %v", err)
+		if jobErr != nil {
+			cclog.Errorf("repository initDB(): %v", jobErr)
 			errorOccured++
 			continue
 		}
+
+		// Job successfully inserted, increment counter
+		i += 1
 
 		for _, tag := range jobMeta.Tags {
 			tagstr := tag.Name + ":" + tag.Type
 			tagID, ok := tags[tagstr]
 			if !ok {
+				var err error
 				tagID, err = r.TransactionAdd(t,
 					addTagQuery,
 					tag.Name, tag.Type)
@@ -137,10 +141,6 @@ func InitDB() error {
 			r.TransactionAdd(t,
 				setTagQuery,
 				id, tagID)
-		}
-
-		if err == nil {
-			i += 1
 		}
 	}
 

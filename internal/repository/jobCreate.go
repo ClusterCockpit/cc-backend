@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package repository
 
 import (
@@ -109,27 +110,27 @@ func (r *JobRepository) Start(job *schema.Job) (id int64, err error) {
 
 // Stop updates the job with the database id jobId using the provided arguments.
 func (r *JobRepository) Stop(
-	jobId int64,
+	jobID int64,
 	duration int32,
 	state schema.JobState,
 	monitoringStatus int32,
 ) (err error) {
 	// Invalidate cache entries as job state is changing
-	r.cache.Del(fmt.Sprintf("metadata:%d", jobId))
-	r.cache.Del(fmt.Sprintf("energyFootprint:%d", jobId))
+	r.cache.Del(fmt.Sprintf("metadata:%d", jobID))
+	r.cache.Del(fmt.Sprintf("energyFootprint:%d", jobID))
 
 	stmt := sq.Update("job").
 		Set("job_state", state).
 		Set("duration", duration).
 		Set("monitoring_status", monitoringStatus).
-		Where("job.id = ?", jobId)
+		Where("job.id = ?", jobID)
 
 	_, err = stmt.RunWith(r.stmtCache).Exec()
 	return err
 }
 
 func (r *JobRepository) StopCached(
-	jobId int64,
+	jobID int64,
 	duration int32,
 	state schema.JobState,
 	monitoringStatus int32,
@@ -140,7 +141,7 @@ func (r *JobRepository) StopCached(
 		Set("job_state", state).
 		Set("duration", duration).
 		Set("monitoring_status", monitoringStatus).
-		Where("job_cache.id = ?", jobId)
+		Where("job_cache.id = ?", jobID)
 
 	_, err = stmt.RunWith(r.stmtCache).Exec()
 	return err

@@ -22,12 +22,12 @@
     gql,
     getContextClient,
   } from "@urql/svelte";
-  import { formatDurationTime } from "../generic/units.js";
-  import Refresher from "../generic/helper/Refresher.svelte";
-  import TimeSelection from "../generic/select/TimeSelection.svelte";
-  import Roofline from "../generic/plots/Roofline.svelte";
-  import Pie, { colors } from "../generic/plots/Pie.svelte";
-  import Stacked from "../generic/plots/Stacked.svelte";
+  import { formatDurationTime } from "../../generic/units.js";
+  import Refresher from "../../generic/helper/Refresher.svelte";
+  import TimeSelection from "../../generic/select/TimeSelection.svelte";
+  import Roofline from "../../generic/plots/Roofline.svelte";
+  import Pie, { colors } from "../../generic/plots/Pie.svelte";
+  import Stacked from "../../generic/plots/Stacked.svelte";
 
   /* Svelte 5 Props */
   let {
@@ -402,7 +402,7 @@
         to = new Date(Date.now());
 
         if (interval) stackedFrom += Math.floor(interval / 1000);
-        else stackedFrom += 1 // Workaround: TineSelection not linked, just trigger new data on manual refresh
+        else stackedFrom += 1 // Workaround: TimeSelection not linked, just trigger new data on manual refresh
       }}
     />
   </Col>

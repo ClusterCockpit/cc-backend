@@ -164,6 +164,13 @@ type JobMetricWithName {
   metric: JobMetric!
 }
 
+type ClusterMetricWithName {
+  name: String!
+  unit: Unit
+  timestep: Int!
+  data: [NullableFloat!]!
+}
+
 type JobMetric {
   unit: Unit
   timestep: Int!
@@ -265,6 +272,11 @@ type NodeMetrics {
   state: String!
   subCluster: String!
   metrics: [JobMetricWithName!]!
+}
+
+type ClusterMetrics {
+  nodeCount: Int!
+  metrics: [ClusterMetricWithName!]!
 }
 
 type NodesResultList {
@@ -385,6 +397,13 @@ type Query {
     page: PageRequest
     resolution: Int
   ): NodesResultList!
+
+  clusterMetrics(
+    cluster: String!
+    metrics: [String!]
+    from: Time!
+    to: Time!
+  ): ClusterMetrics!
 }
 
 type Mutation {

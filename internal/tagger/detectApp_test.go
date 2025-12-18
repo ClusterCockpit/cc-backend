@@ -43,7 +43,7 @@ func TestRegister(t *testing.T) {
 func TestMatch(t *testing.T) {
 	r := setup(t)
 
-	job, err := r.FindByIdDirect(317)
+	job, err := r.FindByIDDirect(317)
 	noErr(t, err)
 
 	var tagger AppTagger

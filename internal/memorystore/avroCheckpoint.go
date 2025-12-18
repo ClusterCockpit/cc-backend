@@ -24,9 +24,8 @@ import (
 	"github.com/linkedin/goavro/v2"
 )
 
-var NumAvroWorkers int = 4
+var NumAvroWorkers int = DefaultAvroWorkers
 var startUp bool = true
-var ErrNoNewData error = errors.New("no data in the pool")
 
 func (as *AvroStore) ToCheckpoint(dir string, dumpAll bool) (int, error) {
 	levels := make([]*AvroLevel, 0)
@@ -464,19 +463,15 @@ func generateRecord(data map[string]schema.Float) map[string]any {
 }
 
 func correctKey(key string) string {
-	// Replace any invalid characters in the key
-	// For example, replace spaces with underscores
-	key = strings.ReplaceAll(key, ":", "___")
-	key = strings.ReplaceAll(key, ".", "__")
-
+	key = strings.ReplaceAll(key, "_", "_0x5F_")
+	key = strings.ReplaceAll(key, ":", "_0x3A_")
+	key = strings.ReplaceAll(key, ".", "_0x2E_")
 	return key
 }
 
 func ReplaceKey(key string) string {
-	// Replace any invalid characters in the key
-	// For example, replace spaces with underscores
-	key = strings.ReplaceAll(key, "___", ":")
-	key = strings.ReplaceAll(key, "__", ".")
-
+	key = strings.ReplaceAll(key, "_0x2E_", ".")
+	key = strings.ReplaceAll(key, "_0x3A_", ":")
+	key = strings.ReplaceAll(key, "_0x5F_", "_")
 	return key
 }
