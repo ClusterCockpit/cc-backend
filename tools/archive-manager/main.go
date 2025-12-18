@@ -9,9 +9,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -39,28 +41,47 @@ func parseDate(in string) int64 {
 	return 0
 }
 
-// countJobs counts the total number of jobs in the source archive using external fd command.
-// It requires the fd binary to be available in PATH.
-// The srcConfig parameter should be the JSON configuration string containing the archive path.
-func countJobs(srcConfig string) (int, error) {
-	fdPath, err := exec.LookPath("fd")
-	if err != nil {
-		return 0, fmt.Errorf("fd binary not found in PATH: %w", err)
-	}
-
+// parseArchivePath extracts the path from the source config JSON.
+func parseArchivePath(srcConfig string) (string, error) {
 	var config struct {
 		Kind string `json:"kind"`
 		Path string `json:"path"`
 	}
 	if err := json.Unmarshal([]byte(srcConfig), &config); err != nil {
-		return 0, fmt.Errorf("failed to parse source config: %w", err)
+		return "", fmt.Errorf("failed to parse source config: %w", err)
 	}
 
 	if config.Path == "" {
-		return 0, fmt.Errorf("no path found in source config")
+		return "", fmt.Errorf("no path found in source config")
 	}
 
-	fdCmd := exec.Command(fdPath, "meta.json", config.Path)
+	return config.Path, nil
+}
+
+// countJobsNative counts jobs using native Go filepath.WalkDir.
+// This is used as a fallback when fd/fdfind is not available.
+func countJobsNative(archivePath string) (int, error) {
+	count := 0
+	err := filepath.WalkDir(archivePath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil // Skip directories we can't access
+		}
+		if !d.IsDir() && d.Name() == "meta.json" {
+			count++
+		}
+		return nil
+	})
+
+	if err != nil {
+		return 0, fmt.Errorf("failed to walk directory: %w", err)
+	}
+
+	return count, nil
+}
+
+// countJobsWithFd counts jobs using the external fd command.
+func countJobsWithFd(fdPath, archivePath string) (int, error) {
+	fdCmd := exec.Command(fdPath, "meta.json", archivePath)
 	wcCmd := exec.Command("wc", "-l")
 
 	pipe, err := fdCmd.StdoutPipe()
@@ -89,6 +110,31 @@ func countJobs(srcConfig string) (int, error) {
 	}
 
 	return count, nil
+}
+
+// countJobs counts the total number of jobs in the source archive.
+// It tries to use external fd/fdfind command for speed, falling back to
+// native Go filepath.WalkDir if neither is available.
+// The srcConfig parameter should be the JSON configuration string containing the archive path.
+func countJobs(srcConfig string) (int, error) {
+	archivePath, err := parseArchivePath(srcConfig)
+	if err != nil {
+		return 0, err
+	}
+
+	// Try fd first (common name)
+	if fdPath, err := exec.LookPath("fd"); err == nil {
+		return countJobsWithFd(fdPath, archivePath)
+	}
+
+	// Try fdfind (Debian/Ubuntu package name)
+	if fdPath, err := exec.LookPath("fdfind"); err == nil {
+		return countJobsWithFd(fdPath, archivePath)
+	}
+
+	// Fall back to native Go implementation
+	cclog.Debug("fd/fdfind not found, using native Go file walker")
+	return countJobsNative(archivePath)
 }
 
 // formatDuration formats a duration as a human-readable string.
