@@ -246,16 +246,7 @@
               <Card body color="danger">{$nodesQuery.error.message}</Card>
             </Col>
           </Row>
-        {:else}
-          {#each nodes as nodeData (nodeData.host)}
-            <NodeListRow {nodeData} {cluster} {selectedMetrics}/>
-          {:else}
-            <tr>
-              <td colspan={selectedMetrics.length + 1}> No nodes found </td>
-            </tr>
-          {/each}
-        {/if}
-        {#if $nodesQuery.fetching || !$nodesQuery.data}
+        {:else if $nodesQuery.fetching || !$nodesQuery.data}
           <tr>
             <td colspan={selectedMetrics.length + 1}>
               <div style="text-align:center;">
@@ -272,6 +263,14 @@
               </div>
             </td>
           </tr>
+        {:else}
+          {#each nodes as nodeData (nodeData.host)}
+            <NodeListRow {nodeData} {cluster} {selectedMetrics}/>
+          {:else}
+            <tr>
+              <td colspan={selectedMetrics.length + 1}> No nodes found </td>
+            </tr>
+          {/each}
         {/if}
       </tbody>
     </Table>
