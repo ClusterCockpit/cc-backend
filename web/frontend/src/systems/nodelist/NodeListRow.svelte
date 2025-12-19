@@ -128,6 +128,24 @@
     }
     return pendingExtendedLegendData;
   }
+
+  /* Inspect */
+  // $inspect(selectedMetrics).with((type, selectedMetrics) => {
+  //   console.log(type, 'selectedMetrics', selectedMetrics)
+	// });
+
+  // $inspect(nodeData).with((type, nodeData) => {
+  //   console.log(type, 'nodeData', nodeData)
+	// });
+
+  // $inspect(refinedData).with((type, refinedData) => {
+  //   console.log(type, 'refinedData', refinedData)
+	// });
+
+  // $inspect(dataHealth).with((type, dataHealth) => {
+  //   console.log(type, 'dataHealth', dataHealth)
+	// });
+
 </script>
 
 <tr>
