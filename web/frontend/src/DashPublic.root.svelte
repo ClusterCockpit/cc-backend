@@ -338,7 +338,7 @@
 </script>
 
 <Card style="height: 98vh;">
-  <CardBody class="align-content-center">
+  <CardBody class="align-content-center p-1">
     <Row>
       <Col>
         <Refresher
@@ -354,11 +354,6 @@
           }}
         />
       </Col>
-      <Col class="d-flex justify-content-end">
-        <Button outline class="mb-1" size="sm" color="light" href="/">
-          <Icon name="x"/>
-        </Button>
-      </Col>
     </Row>
     {#if $statusQuery.fetching || $statesTimed.fetching}
       <Row class="justify-content-center">
@@ -368,6 +363,13 @@
       </Row>
 
     {:else if $statusQuery.error || $statesTimed.error}
+      <Row class="mb-2">
+        <Col class="d-flex justify-content-end">
+          <Button color="secondary" href="/">
+            <Icon name="x"/>
+          </Button>
+        </Col>
+      </Row>
       <Row cols={{xs:1, md:2}}>
         {#if $statusQuery.error}
           <Col>
@@ -385,8 +387,17 @@
       <Row cols={{xs:1, md:2}}>
         <Col> <!-- General Cluster Info Card -->
            <Card class="h-100">
-            <CardHeader class="text-center">
-              <h2 class="mb-0">Cluster {presetCluster.charAt(0).toUpperCase() + presetCluster.slice(1)}</h2>
+            <CardHeader>
+              <Row>
+                <Col xs="11" class="text-center">
+                  <h2 class="mb-0">Cluster {presetCluster.charAt(0).toUpperCase() + presetCluster.slice(1)}</h2>
+                </Col>
+                <Col xs="1" class="d-flex justify-content-end">
+                  <Button color="light" href="/">
+                    <Icon name="x"/>
+                  </Button>
+                </Col>
+              </Row>
             </CardHeader>
             <CardBody>
               <h4>CPU(s)</h4><p><strong>{[...clusterInfo?.processorTypes].join(', ')}</strong></p>
