@@ -107,13 +107,18 @@
     }
   }
 
+  function columnsDragOver(event) {
+		event.preventDefault();
+		event.dataTransfer.dropEffect = 'move';
+  }
+
   function columnsDragStart(event, i) {
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.dropEffect = "move";
     event.dataTransfer.setData("text/plain", i);
   }
 
-  function columnsDrag(event, target) {
+  function columnsDrop(event, target) {
     event.dataTransfer.dropEffect = "move";
     const start = Number.parseInt(event.dataTransfer.getData("text/plain"));
 
@@ -182,19 +187,18 @@
       {/if}
       {#each listedMetrics as metric, index (metric)}
         <li
-          draggable
+          draggable={true}
           class="cc-config-column list-group-item"
           class:is-active={columnHovering === index}
           ondragover={(event) => {
-            event.preventDefault()
-            return false
+            columnsDragOver(event)
           }}
           ondragstart={(event) => {
             columnsDragStart(event, index)
           }}
           ondrop={(event) => {
             event.preventDefault()
-            columnsDrag(event, index)
+            columnsDrop(event, index)
           }}
           ondragenter={() => (columnHovering = index)}
         >
@@ -237,4 +241,10 @@
     color: #fff;
     cursor: grabbing;
   }
+
+  li.prevent-select {
+  -webkit-user-select: none; /* Safari */
+  -ms-user-select: none; /* IE 10 and IE 11 */
+  user-select: none; /* Standard syntax */
+}
 </style>
