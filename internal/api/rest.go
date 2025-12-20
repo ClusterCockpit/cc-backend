@@ -79,8 +79,11 @@ func (api *RestAPI) MountAPIRoutes(r *mux.Router) {
 	// Slurm node state
 	r.HandleFunc("/nodestate/", api.updateNodeStates).Methods(http.MethodPost, http.MethodPut)
 	// Job Handler
-	r.HandleFunc("/jobs/start_job/", api.startJob).Methods(http.MethodPost, http.MethodPut)
-	r.HandleFunc("/jobs/stop_job/", api.stopJobByRequest).Methods(http.MethodPost, http.MethodPut)
+	if config.Keys.APISubjects == nil {
+		cclog.Info("Enabling REST start/stop job API")
+		r.HandleFunc("/jobs/start_job/", api.startJob).Methods(http.MethodPost, http.MethodPut)
+		r.HandleFunc("/jobs/stop_job/", api.stopJobByRequest).Methods(http.MethodPost, http.MethodPut)
+	}
 	r.HandleFunc("/jobs/", api.getJobs).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/{id}", api.getJobByID).Methods(http.MethodPost)
 	r.HandleFunc("/jobs/{id}", api.getCompleteJobByID).Methods(http.MethodGet)

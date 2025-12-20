@@ -49,9 +49,10 @@ const (
 
 // Server encapsulates the HTTP server state and dependencies
 type Server struct {
-	router    *mux.Router
-	server    *http.Server
-	apiHandle *api.RestAPI
+	router        *mux.Router
+	server        *http.Server
+	restAPIHandle *api.RestAPI
+	natsAPIHandle *api.NatsAPI
 }
 
 func onFailureResponse(rw http.ResponseWriter, r *http.Request, err error) {
@@ -104,7 +105,7 @@ func (s *Server) init() error {
 
 	authHandle := auth.GetAuthInstance()
 
-	s.apiHandle = api.New()
+	s.restAPIHandle = api.New()
 
 	info := map[string]any{}
 	info["hasOpenIDConnect"] = false
@@ -240,13 +241,20 @@ func (s *Server) init() error {
 
 	// Mount all /monitoring/... and /api/... routes.
 	routerConfig.SetupRoutes(secured, buildInfo)
-	s.apiHandle.MountAPIRoutes(securedapi)
-	s.apiHandle.MountUserAPIRoutes(userapi)
-	s.apiHandle.MountConfigAPIRoutes(configapi)
-	s.apiHandle.MountFrontendAPIRoutes(frontendapi)
+	s.restAPIHandle.MountAPIRoutes(securedapi)
+	s.restAPIHandle.MountUserAPIRoutes(userapi)
+	s.restAPIHandle.MountConfigAPIRoutes(configapi)
+	s.restAPIHandle.MountFrontendAPIRoutes(frontendapi)
+
+	if config.Keys.APISubjects != nil {
+		s.natsAPIHandle = api.NewNatsAPI()
+		if err := s.natsAPIHandle.StartSubscriptions(); err != nil {
+			return fmt.Errorf("starting NATS subscriptions: %w", err)
+		}
+	}
 
 	if memorystore.InternalCCMSFlag {
-		s.apiHandle.MountMetricStoreAPIRoutes(metricstoreapi)
+		s.restAPIHandle.MountMetricStoreAPIRoutes(metricstoreapi)
 	}
 
 	if config.Keys.EmbedStaticFiles {
