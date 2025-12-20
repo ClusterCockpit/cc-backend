@@ -3,7 +3,7 @@ Description=ClusterCockpit Web Server
 Documentation=https://github.com/ClusterCockpit/cc-backend
 Wants=network-online.target
 After=network-online.target
-After=mariadb.service mysql.service
+# Database is file-based SQLite - no service dependency required
 
 [Service]
 WorkingDirectory=/opt/monitoring/cc-backend

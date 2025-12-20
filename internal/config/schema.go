@@ -41,7 +41,7 @@ var configSchema = `
       "type": "string"
     },
     "db": {
-      "description": "For sqlite3 a filename, for mysql a DSN in this format: https://github.com/go-sql-driver/mysql#dsn-data-source-name (Without query parameters!).",
+      "description": "Path to SQLite database file (e.g., './var/job.db')",
       "type": "string"
     },
     "disable-archive": {

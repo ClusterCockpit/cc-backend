@@ -15,7 +15,7 @@ func setup(tb testing.TB) *repository.JobRepository {
 	tb.Helper()
 	cclog.Init("warn", true)
 	dbfile := "../repository/testdata/job.db"
-	err := repository.MigrateDB("sqlite3", dbfile)
+	err := repository.MigrateDB(dbfile)
 	noErr(tb, err)
 	repository.Connect("sqlite3", dbfile)
 	return repository.GetJobRepository()

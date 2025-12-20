@@ -130,7 +130,7 @@ func nodeTestSetup(t *testing.T) {
 	}
 
 	dbfilepath := filepath.Join(tmpdir, "test.db")
-	err := MigrateDB("sqlite3", dbfilepath)
+	err := MigrateDB(dbfilepath)
 	if err != nil {
 		t.Fatal(err)
 	}

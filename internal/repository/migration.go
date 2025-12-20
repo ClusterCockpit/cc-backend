@@ -12,7 +12,6 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/mysql"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
@@ -22,40 +21,19 @@ const Version uint = 10
 //go:embed migrations/*
 var migrationFiles embed.FS
 
-func checkDBVersion(backend string, db *sql.DB) error {
-	var m *migrate.Migrate
+func checkDBVersion(db *sql.DB) error {
+	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
+	if err != nil {
+		return err
+	}
+	d, err := iofs.New(migrationFiles, "migrations/sqlite3")
+	if err != nil {
+		return err
+	}
 
-	switch backend {
-	case "sqlite3":
-		driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
-		if err != nil {
-			return err
-		}
-		d, err := iofs.New(migrationFiles, "migrations/sqlite3")
-		if err != nil {
-			return err
-		}
-
-		m, err = migrate.NewWithInstance("iofs", d, "sqlite3", driver)
-		if err != nil {
-			return err
-		}
-	case "mysql":
-		driver, err := mysql.WithInstance(db, &mysql.Config{})
-		if err != nil {
-			return err
-		}
-		d, err := iofs.New(migrationFiles, "migrations/mysql")
-		if err != nil {
-			return err
-		}
-
-		m, err = migrate.NewWithInstance("iofs", d, "mysql", driver)
-		if err != nil {
-			return err
-		}
-	default:
-		cclog.Abortf("Migration: Unsupported database backend '%s'.\n", backend)
+	m, err := migrate.NewWithInstance("iofs", d, "sqlite3", driver)
+	if err != nil {
+		return err
 	}
 
 	v, dirty, err := m.Version()
@@ -80,37 +58,22 @@ func checkDBVersion(backend string, db *sql.DB) error {
 	return nil
 }
 
-func getMigrateInstance(backend string, db string) (m *migrate.Migrate, err error) {
-	switch backend {
-	case "sqlite3":
-		d, err := iofs.New(migrationFiles, "migrations/sqlite3")
-		if err != nil {
-			cclog.Fatal(err)
-		}
+func getMigrateInstance(db string) (m *migrate.Migrate, err error) {
+	d, err := iofs.New(migrationFiles, "migrations/sqlite3")
+	if err != nil {
+		return nil, err
+	}
 
-		m, err = migrate.NewWithSourceInstance("iofs", d, fmt.Sprintf("sqlite3://%s?_foreign_keys=on", db))
-		if err != nil {
-			return m, err
-		}
-	case "mysql":
-		d, err := iofs.New(migrationFiles, "migrations/mysql")
-		if err != nil {
-			return m, err
-		}
-
-		m, err = migrate.NewWithSourceInstance("iofs", d, fmt.Sprintf("mysql://%s?multiStatements=true", db))
-		if err != nil {
-			return m, err
-		}
-	default:
-		cclog.Abortf("Migration: Unsupported database backend '%s'.\n", backend)
+	m, err = migrate.NewWithSourceInstance("iofs", d, fmt.Sprintf("sqlite3://%s?_foreign_keys=on", db))
+	if err != nil {
+		return nil, err
 	}
 
 	return m, nil
 }
 
-func MigrateDB(backend string, db string) error {
-	m, err := getMigrateInstance(backend, db)
+func MigrateDB(db string) error {
+	m, err := getMigrateInstance(db)
 	if err != nil {
 		return err
 	}
@@ -144,8 +107,8 @@ func MigrateDB(backend string, db string) error {
 	return nil
 }
 
-func RevertDB(backend string, db string) error {
-	m, err := getMigrateInstance(backend, db)
+func RevertDB(db string) error {
+	m, err := getMigrateInstance(db)
 	if err != nil {
 		return err
 	}
@@ -162,8 +125,8 @@ func RevertDB(backend string, db string) error {
 	return nil
 }
 
-func ForceDB(backend string, db string) error {
-	m, err := getMigrateInstance(backend, db)
+func ForceDB(db string) error {
+	m, err := getMigrateInstance(db)
 	if err != nil {
 		return err
 	}

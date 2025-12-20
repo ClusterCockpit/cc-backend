@@ -73,9 +73,6 @@ func (r *JobRepository) buildStatsQuery(
 	col string,
 ) sq.SelectBuilder {
 	var query sq.SelectBuilder
-	castType := r.getCastType()
-
-	// fmt.Sprintf(`CAST(ROUND((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) / 3600) as %s) as value`, time.Now().Unix(), castType)
 
 	if col != "" {
 		// Scan columns: id, name, totalJobs, totalUsers, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours
@@ -84,26 +81,26 @@ func (r *JobRepository) buildStatsQuery(
 			"name",
 			"COUNT(job.id) as totalJobs",
 			"COUNT(DISTINCT job.hpc_user) AS totalUsers",
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) / 3600) as %s) as totalWalltime`, time.Now().Unix(), castType),
-			fmt.Sprintf(`CAST(SUM(job.num_nodes) as %s) as totalNodes`, castType),
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_nodes) / 3600) as %s) as totalNodeHours`, time.Now().Unix(), castType),
-			fmt.Sprintf(`CAST(SUM(job.num_hwthreads) as %s) as totalCores`, castType),
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_hwthreads) / 3600) as %s) as totalCoreHours`, time.Now().Unix(), castType),
-			fmt.Sprintf(`CAST(SUM(job.num_acc) as %s) as totalAccs`, castType),
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_acc) / 3600) as %s) as totalAccHours`, time.Now().Unix(), castType),
+			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) / 3600) as int) as totalWalltime`, time.Now().Unix()),
+			fmt.Sprintf(`CAST(SUM(job.num_nodes) as int) as totalNodes`),
+			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_nodes) / 3600) as int) as totalNodeHours`, time.Now().Unix()),
+			fmt.Sprintf(`CAST(SUM(job.num_hwthreads) as int) as totalCores`),
+			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_hwthreads) / 3600) as int) as totalCoreHours`, time.Now().Unix()),
+			fmt.Sprintf(`CAST(SUM(job.num_acc) as int) as totalAccs`),
+			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_acc) / 3600) as int) as totalAccHours`, time.Now().Unix()),
 		).From("job").LeftJoin("hpc_user ON hpc_user.username = job.hpc_user").GroupBy(col)
 	} else {
 		// Scan columns: totalJobs, totalUsers, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours
 		query = sq.Select(
 			"COUNT(job.id) as totalJobs",
 			"COUNT(DISTINCT job.hpc_user) AS totalUsers",
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) / 3600) as %s)`, time.Now().Unix(), castType),
-			fmt.Sprintf(`CAST(SUM(job.num_nodes) as %s)`, castType),
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_nodes) / 3600) as %s)`, time.Now().Unix(), castType),
-			fmt.Sprintf(`CAST(SUM(job.num_hwthreads) as %s)`, castType),
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_hwthreads) / 3600) as %s)`, time.Now().Unix(), castType),
-			fmt.Sprintf(`CAST(SUM(job.num_acc) as %s)`, castType),
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_acc) / 3600) as %s)`, time.Now().Unix(), castType),
+			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) / 3600) as int)`, time.Now().Unix()),
+			fmt.Sprintf(`CAST(SUM(job.num_nodes) as int)`),
+			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_nodes) / 3600) as int)`, time.Now().Unix()),
+			fmt.Sprintf(`CAST(SUM(job.num_hwthreads) as int)`),
+			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_hwthreads) / 3600) as int)`, time.Now().Unix()),
+			fmt.Sprintf(`CAST(SUM(job.num_acc) as int)`),
+			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_acc) / 3600) as int)`, time.Now().Unix()),
 		).From("job")
 	}
 
@@ -112,21 +109,6 @@ func (r *JobRepository) buildStatsQuery(
 	}
 
 	return query
-}
-
-func (r *JobRepository) getCastType() string {
-	var castType string
-
-	switch r.driver {
-	case "sqlite3":
-		castType = "int"
-	case "mysql":
-		castType = "unsigned"
-	default:
-		castType = ""
-	}
-
-	return castType
 }
 
 func (r *JobRepository) JobsStatsGrouped(
@@ -477,10 +459,9 @@ func (r *JobRepository) AddHistograms(
 		targetBinSize = 3600
 	}
 
-	castType := r.getCastType()
 	var err error
 	// Return X-Values always as seconds, will be formatted into minutes and hours in frontend
-	value := fmt.Sprintf(`CAST(ROUND(((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) / %d) + 1) as %s) as value`, time.Now().Unix(), targetBinSize, castType)
+	value := fmt.Sprintf(`CAST(ROUND(((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) / %d) + 1) as int) as value`, time.Now().Unix(), targetBinSize)
 	stat.HistDuration, err = r.jobsDurationStatisticsHistogram(ctx, value, filter, targetBinSize, &targetBinCount)
 	if err != nil {
 		cclog.Warn("Error while loading job statistics histogram: job duration")

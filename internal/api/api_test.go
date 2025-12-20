@@ -141,7 +141,7 @@ func setup(t *testing.T) *api.RestAPI {
 	}
 
 	dbfilepath := filepath.Join(tmpdir, "test.db")
-	err := repository.MigrateDB("sqlite3", dbfilepath)
+	err := repository.MigrateDB(dbfilepath)
 	if err != nil {
 		t.Fatal(err)
 	}
