@@ -1,10 +1,14 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with
+code in this repository.
 
 ## Project Overview
 
-ClusterCockpit is a job-specific performance monitoring framework for HPC clusters. This is a Golang backend that provides REST and GraphQL APIs, serves a Svelte-based frontend, and manages job archives and metric data from various time-series databases.
+ClusterCockpit is a job-specific performance monitoring framework for HPC
+clusters. This is a Golang backend that provides REST and GraphQL APIs, serves a
+Svelte-based frontend, and manages job archives and metric data from various
+time-series databases.
 
 ## Build and Development Commands
 
@@ -80,7 +84,7 @@ The backend follows a layered architecture with clear separation of concerns:
 
 - **cmd/cc-backend**: Entry point, orchestrates initialization of all subsystems
 - **internal/repository**: Data access layer using repository pattern
-  - Abstracts database operations (SQLite/MySQL)
+  - Abstracts database operations (SQLite3 only)
   - Implements LRU caching for performance
   - Provides repositories for Job, User, Node, and Tag entities
   - Transaction support for batch operations
@@ -114,19 +118,27 @@ The backend follows a layered architecture with clear separation of concerns:
 
 ### Key Concepts
 
-**Job Archive**: Completed jobs are stored in a file-based archive following the [ClusterCockpit job-archive specification](https://github.com/ClusterCockpit/cc-specifications/tree/master/job-archive). Each job has a `meta.json` file with metadata and metric data files.
+**Job Archive**: Completed jobs are stored in a file-based archive following the
+[ClusterCockpit job-archive
+specification](https://github.com/ClusterCockpit/cc-specifications/tree/master/job-archive).
+Each job has a `meta.json` file with metadata and metric data files.
 
-**Metric Data Repositories**: Time-series metric data is stored separately from job metadata. The system supports multiple backends (cc-metric-store is recommended). Configuration is per-cluster in `config.json`.
+**Metric Data Repositories**: Time-series metric data is stored separately from
+job metadata. The system supports multiple backends (cc-metric-store is
+recommended). Configuration is per-cluster in `config.json`.
 
 **Authentication Flow**:
+
 1. Multiple authenticators can be configured (local, LDAP, OIDC, JWT)
 2. Each authenticator's `CanLogin` method is called to determine if it should handle the request
 3. The first authenticator that returns true performs the actual `Login`
 4. JWT tokens are used for API authentication
 
-**Database Migrations**: SQL migrations in `internal/repository/migrations/` are applied automatically on startup. Version tracking in `version` table.
+**Database Migrations**: SQL migrations in `internal/repository/migrations/` are
+applied automatically on startup. Version tracking in `version` table.
 
 **Scopes**: Metrics can be collected at different scopes:
+
 - Node scope (always available)
 - Core scope (for jobs with ≤8 nodes)
 - Accelerator scope (for GPU/accelerator metrics)
@@ -142,13 +154,13 @@ The backend follows a layered architecture with clear separation of concerns:
 ## Database
 
 - Default: SQLite 3 (`./var/job.db`)
-- Optional: MySQL/MariaDB
 - Connection managed by `internal/repository`
 - Schema version in `internal/repository/migration.go`
 
 ## Code Generation
 
 **GraphQL** (gqlgen):
+
 - Schema: `api/*.graphqls`
 - Config: `gqlgen.yml`
 - Generated code: `internal/graph/generated/`
@@ -156,6 +168,7 @@ The backend follows a layered architecture with clear separation of concerns:
 - Run `make graphql` after schema changes
 
 **Swagger/OpenAPI**:
+
 - Annotations in `internal/api/*.go`
 - Generated docs: `api/docs.go`, `api/swagger.yaml`
 - Run `make swagger` after API changes
@@ -170,22 +183,26 @@ The backend follows a layered architecture with clear separation of concerns:
 ## Common Workflows
 
 ### Adding a new GraphQL field
+
 1. Edit schema in `api/*.graphqls`
 2. Run `make graphql`
 3. Implement resolver in `internal/graph/schema.resolvers.go`
 
 ### Adding a new REST endpoint
+
 1. Add handler in `internal/api/*.go`
 2. Add route in `internal/api/rest.go`
 3. Add Swagger annotations
 4. Run `make swagger`
 
 ### Adding a new metric data backend
+
 1. Implement `MetricDataRepository` interface in `internal/metricdata/`
 2. Register in `metricdata.Init()` switch statement
 3. Update config.json schema documentation
 
 ### Modifying database schema
+
 1. Create new migration in `internal/repository/migrations/`
 2. Increment `repository.Version`
 3. Test with fresh database and existing database
@@ -194,5 +211,5 @@ The backend follows a layered architecture with clear separation of concerns:
 
 - Go 1.24.0+ (check go.mod for exact version)
 - Node.js (for frontend builds)
-- SQLite 3 or MySQL/MariaDB
+- SQLite 3 (only supported database)
 - Optional: NATS server for metric ingestion
