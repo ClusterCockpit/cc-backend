@@ -13,7 +13,7 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
-	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
+	"github.com/ClusterCockpit/cc-backend/internal/metricdispatcher"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
 )
@@ -55,7 +55,7 @@ func (r *queryResolver) rooflineHeatmap(
 		// 	resolution = max(resolution, mc.Timestep)
 		// }
 
-		jobdata, err := metricDataDispatcher.LoadData(job, []string{"flops_any", "mem_bw"}, []schema.MetricScope{schema.MetricScopeNode}, ctx, 0)
+		jobdata, err := metricdispatcher.LoadData(job, []string{"flops_any", "mem_bw"}, []schema.MetricScope{schema.MetricScopeNode}, ctx, 0)
 		if err != nil {
 			cclog.Errorf("Error while loading roofline metrics for job %d", job.ID)
 			return nil, err
@@ -128,7 +128,7 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 			continue
 		}
 
-		if err := metricDataDispatcher.LoadAverages(job, metrics, avgs, ctx); err != nil {
+		if err := metricdispatcher.LoadAverages(job, metrics, avgs, ctx); err != nil {
 			cclog.Error("Error while loading averages for footprint")
 			return nil, err
 		}

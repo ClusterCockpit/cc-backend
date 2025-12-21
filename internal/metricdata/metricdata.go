@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	"github.com/ClusterCockpit/cc-backend/internal/memorystore"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
 )
@@ -38,8 +37,10 @@ type MetricDataRepository interface {
 	LoadNodeListData(cluster, subCluster string, nodes, metrics []string, scopes []schema.MetricScope, resolution int, from, to time.Time, ctx context.Context) (map[string]schema.JobData, error)
 }
 
-var metricDataRepos map[string]MetricDataRepository = map[string]MetricDataRepository{}
-var upstreamMetricDataRepos map[string]MetricDataRepository = map[string]MetricDataRepository{}
+var (
+	metricDataRepos         map[string]MetricDataRepository = map[string]MetricDataRepository{}
+	upstreamMetricDataRepos map[string]MetricDataRepository = map[string]MetricDataRepository{}
+)
 
 func Init() error {
 	for _, cluster := range config.Clusters {
@@ -56,9 +57,6 @@ func Init() error {
 			switch kind.Kind {
 			case "cc-metric-store":
 				mdr = &CCMetricStore{}
-			case "cc-metric-store-internal":
-				mdr = &CCMetricStoreInternal{}
-				memorystore.InternalCCMSFlag = true
 			case "prometheus":
 				mdr = &PrometheusDataRepository{}
 			case "test":

@@ -12,7 +12,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
-	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
+	"github.com/ClusterCockpit/cc-backend/internal/metricdispatcher"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
@@ -766,7 +766,7 @@ func (r *JobRepository) runningJobsMetricStatisticsHistogram(
 			continue
 		}
 
-		if err := metricDataDispatcher.LoadAverages(job, metrics, avgs, ctx); err != nil {
+		if err := metricdispatcher.LoadAverages(job, metrics, avgs, ctx); err != nil {
 			cclog.Errorf("Error while loading averages for histogram: %s", err)
 			return nil
 		}
