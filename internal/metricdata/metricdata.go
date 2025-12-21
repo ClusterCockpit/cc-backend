@@ -39,6 +39,7 @@ type MetricDataRepository interface {
 }
 
 var metricDataRepos map[string]MetricDataRepository = map[string]MetricDataRepository{}
+var upstreamMetricDataRepos map[string]MetricDataRepository = map[string]MetricDataRepository{}
 
 func Init() error {
 	for _, cluster := range config.Clusters {
@@ -85,4 +86,48 @@ func GetMetricDataRepo(cluster string) (MetricDataRepository, error) {
 	}
 
 	return repo, err
+}
+
+// InitUpstreamRepos initializes upstream metric data repositories for the pull worker
+func InitUpstreamRepos() error {
+	for _, cluster := range config.Clusters {
+		if cluster.UpstreamMetricRepository != nil {
+			var kind struct {
+				Kind string `json:"kind"`
+			}
+			if err := json.Unmarshal(*cluster.UpstreamMetricRepository, &kind); err != nil {
+				cclog.Warn("Error while unmarshaling raw json UpstreamMetricRepository")
+				return err
+			}
+
+			var mdr MetricDataRepository
+			switch kind.Kind {
+			case "cc-metric-store":
+				mdr = &CCMetricStore{}
+			case "prometheus":
+				mdr = &PrometheusDataRepository{}
+			case "test":
+				mdr = &TestMetricDataRepository{}
+			default:
+				return fmt.Errorf("METRICDATA/METRICDATA > Unknown UpstreamMetricRepository %v for cluster %v", kind.Kind, cluster.Name)
+			}
+
+			if err := mdr.Init(*cluster.UpstreamMetricRepository); err != nil {
+				cclog.Errorf("Error initializing UpstreamMetricRepository %v for cluster %v", kind.Kind, cluster.Name)
+				return err
+			}
+			upstreamMetricDataRepos[cluster.Name] = mdr
+			cclog.Infof("Initialized upstream metric repository '%s' for cluster '%s'", kind.Kind, cluster.Name)
+		}
+	}
+	return nil
+}
+
+// GetUpstreamMetricDataRepo returns the upstream metric data repository for a given cluster
+func GetUpstreamMetricDataRepo(cluster string) (MetricDataRepository, error) {
+	repo, ok := upstreamMetricDataRepos[cluster]
+	if !ok {
+		return nil, fmt.Errorf("METRICDATA/METRICDATA > no upstream metric data repository configured for '%s'", cluster)
+	}
+	return repo, nil
 }

@@ -113,9 +113,10 @@ type FilterRanges struct {
 }
 
 type ClusterConfig struct {
-	Name                 string          `json:"name"`
-	FilterRanges         *FilterRanges   `json:"filterRanges"`
-	MetricDataRepository json.RawMessage `json:"metricDataRepository"`
+	Name                     string           `json:"name"`
+	FilterRanges             *FilterRanges    `json:"filterRanges"`
+	MetricDataRepository     json.RawMessage  `json:"metricDataRepository"`
+	UpstreamMetricRepository *json.RawMessage `json:"upstreamMetricRepository,omitempty"`
 }
 
 var Clusters []*ClusterConfig

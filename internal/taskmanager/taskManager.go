@@ -34,6 +34,8 @@ type CronFrequency struct {
 	DurationWorker string `json:"duration-worker"`
 	// Metric-Footprint Update Worker [Defaults to '10m']
 	FootprintWorker string `json:"footprint-worker"`
+	// Metric Pull Worker [Defaults to '60s']
+	MetricPullWorker string `json:"metric-pull-worker"`
 }
 
 var (
@@ -117,6 +119,7 @@ func Start(cronCfg, archiveConfig json.RawMessage) {
 	RegisterFootprintWorker()
 	RegisterUpdateDurationWorker()
 	RegisterCommitJobService()
+	RegisterMetricPullWorker()
 
 	s.Start()
 }

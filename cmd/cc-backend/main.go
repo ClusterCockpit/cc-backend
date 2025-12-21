@@ -288,6 +288,11 @@ func initSubsystems() error {
 		return fmt.Errorf("initializing metricdata repository: %w", err)
 	}
 
+	// Initialize upstream metricdata repositories for pull worker
+	if err := metricdata.InitUpstreamRepos(); err != nil {
+		return fmt.Errorf("initializing upstream metricdata repositories: %w", err)
+	}
+
 	// Handle database re-initialization
 	if flagReinitDB {
 		if err := importer.InitDB(); err != nil {
