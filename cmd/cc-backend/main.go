@@ -284,9 +284,9 @@ func initSubsystems() error {
 	}
 
 	// Initialize metricdata
-	if err := metricdata.Init(); err != nil {
-		return fmt.Errorf("initializing metricdata repository: %w", err)
-	}
+	// if err := metricdata.Init(); err != nil {
+	// 	return fmt.Errorf("initializing metricdata repository: %w", err)
+	// }
 
 	// Initialize upstream metricdata repositories for pull worker
 	if err := metricdata.InitUpstreamRepos(); err != nil {
@@ -334,7 +334,6 @@ func runServer(ctx context.Context) error {
 	} else {
 		cclog.Debug("Metric store configuration not found, skipping memorystore initialization")
 	}
-
 
 	// Start archiver and task manager
 	archiver.Start(repository.GetJobRepository(), ctx)

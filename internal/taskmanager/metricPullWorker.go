@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/memorystore"
+	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/schema"
@@ -36,7 +36,6 @@ func RegisterMetricPullWorker() {
 	// Register one worker per cluster
 	registered := 0
 	for _, cluster := range config.Clusters {
-		cluster := cluster // capture for closure
 
 		_, err := s.NewJob(
 			gocron.DurationJob(d),
@@ -83,10 +82,10 @@ func pullMetricsForCluster(clusterName string) error {
 	to := time.Now()
 	from := to.Add(-60 * time.Minute)
 
-	// 5. Get upstream backend repository (from separate config)
-	upstreamRepo, err := metricdata.GetUpstreamMetricDataRepo(clusterName)
+	// 5. Get upstream backend repository (from global config)
+	upstreamRepo, err := metricdata.GetUpstreamMetricDataRepo()
 	if err != nil {
-		cclog.Debugf("No upstream repository configured for cluster %s, skipping pull", clusterName)
+		cclog.Debugf("No upstream repository configured, skipping pull for cluster %s", clusterName)
 		return nil
 	}
 

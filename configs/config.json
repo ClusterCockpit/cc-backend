@@ -29,11 +29,6 @@
   "clusters": [
     {
       "name": "test",
-      "metricDataRepository": {
-        "kind": "cc-metric-store",
-        "url": "http://localhost:8082",
-        "token": "eyJhbGciOiJF-E-pQBQ"
-      },
       "filterRanges": {
         "numNodes": {
           "from": 1,

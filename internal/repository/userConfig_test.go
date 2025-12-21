@@ -31,7 +31,6 @@ func setupUserTest(t *testing.T) *UserCfgRepo {
 	"clusters": [
 	{
 	   "name": "testcluster",
-	   "metricDataRepository": {"kind": "test", "url": "bla:8081"},
 	   "filterRanges": {
 		"numNodes": { "from": 1, "to": 64 },
 		"duration": { "from": 0, "to": 86400 },

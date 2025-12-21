@@ -119,6 +119,23 @@ var configSchema = `
         }
       },
       "required": ["trigger", "resolutions"]
+    },
+    "upstreamMetricRepository": {
+      "description": "Global upstream metric repository configuration for metric pull workers",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["influxdb", "prometheus", "cc-metric-store", "cc-metric-store-internal", "test"]
+        },
+        "url": {
+          "type": "string"
+        },
+        "token": {
+          "type": "string"
+        }
+      },
+      "required": ["kind"]
     }
 	},
   "required": ["apiAllowedIPs"]

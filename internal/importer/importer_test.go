@@ -60,7 +60,6 @@ func setup(t *testing.T) *repository.JobRepository {
 	"clusters": [
 	{
 	   "name": "testcluster",
-	   "metricDataRepository": {"kind": "test", "url": "bla:8081"},
 	   "filterRanges": {
 		"numNodes": { "from": 1, "to": 64 },
 		"duration": { "from": 0, "to": 86400 },
@@ -69,7 +68,6 @@ func setup(t *testing.T) *repository.JobRepository {
 	},
     {
 	   "name": "fritz",
-	   "metricDataRepository": {"kind": "test", "url": "bla:8081"},
 	   "filterRanges": {
 		"numNodes": { "from": 1, "to": 944 },
 		"duration": { "from": 0, "to": 86400 },
@@ -78,7 +76,6 @@ func setup(t *testing.T) *repository.JobRepository {
 	},
     {
 		"name": "taurus",
-		"metricDataRepository": {"kind": "test", "url": "bla:8081"},
 		 "filterRanges": {
 		   "numNodes": { "from": 1, "to": 4000 },
 		   "duration": { "from": 0, "to": 604800 },

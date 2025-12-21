@@ -116,10 +116,11 @@ func Start(cronCfg, archiveConfig json.RawMessage) {
 		RegisterLdapSyncService(lc.SyncInterval)
 	}
 
+	RegisterMetricPullWorker()
+
 	RegisterFootprintWorker()
 	RegisterUpdateDurationWorker()
 	RegisterCommitJobService()
-	RegisterMetricPullWorker()
 
 	s.Start()
 }
@@ -127,6 +128,8 @@ func Start(cronCfg, archiveConfig json.RawMessage) {
 // Shutdown stops the task manager and its scheduler.
 func Shutdown() {
 	if s != nil {
-		s.Shutdown()
+		if err := s.Shutdown(); err != nil {
+			cclog.Errorf("taskmanager Shutdown: error stopping scheduler: %v", err)
+		}
 	}
 }

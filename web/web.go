@@ -262,7 +262,7 @@ func RenderTemplate(rw http.ResponseWriter, file string, page *Page) {
 
 	if page.Clusters == nil {
 		for _, c := range config.Clusters {
-			page.Clusters = append(page.Clusters, config.ClusterConfig{Name: c.Name, FilterRanges: c.FilterRanges, MetricDataRepository: nil})
+			page.Clusters = append(page.Clusters, config.ClusterConfig{Name: c.Name, FilterRanges: c.FilterRanges})
 		}
 	}
 

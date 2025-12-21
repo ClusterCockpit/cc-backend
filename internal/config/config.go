@@ -78,6 +78,9 @@ type ProgramConfig struct {
 
 	// If exists, will enable dynamic zoom in frontend metric plots using the configured values
 	EnableResampling *ResampleConfig `json:"resampling"`
+
+	// Global upstream metric repository configuration for metric pull workers
+	UpstreamMetricRepository *json.RawMessage `json:"upstreamMetricRepository,omitempty"`
 }
 
 type ResampleConfig struct {
@@ -113,10 +116,8 @@ type FilterRanges struct {
 }
 
 type ClusterConfig struct {
-	Name                     string           `json:"name"`
-	FilterRanges             *FilterRanges    `json:"filterRanges"`
-	MetricDataRepository     json.RawMessage  `json:"metricDataRepository"`
-	UpstreamMetricRepository *json.RawMessage `json:"upstreamMetricRepository,omitempty"`
+	Name         string        `json:"name"`
+	FilterRanges *FilterRanges `json:"filterRanges"`
 }
 
 var Clusters []*ClusterConfig
