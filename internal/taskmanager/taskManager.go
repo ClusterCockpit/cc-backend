@@ -116,7 +116,9 @@ func Start(cronCfg, archiveConfig json.RawMessage) {
 		RegisterLdapSyncService(lc.SyncInterval)
 	}
 
-	RegisterMetricPullWorker()
+	if config.Keys.UpstreamMetricRepository != nil {
+		RegisterMetricPullWorker()
+	}
 
 	RegisterFootprintWorker()
 	RegisterUpdateDurationWorker()
