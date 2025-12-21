@@ -253,9 +253,7 @@ func (s *Server) init() error {
 		}
 	}
 
-	if memorystore.InternalCCMSFlag {
-		s.restAPIHandle.MountMetricStoreAPIRoutes(metricstoreapi)
-	}
+	s.restAPIHandle.MountMetricStoreAPIRoutes(metricstoreapi)
 
 	if config.Keys.EmbedStaticFiles {
 		if i, err := os.Stat("./var/img"); err == nil {
@@ -383,9 +381,7 @@ func (s *Server) Shutdown(ctx context.Context) {
 	}
 
 	// Archive all the metric store data
-	if memorystore.InternalCCMSFlag {
-		memorystore.Shutdown()
-	}
+	memorystore.Shutdown()
 
 	// Shutdown archiver with 10 second timeout for fast shutdown
 	if err := archiver.Shutdown(10 * time.Second); err != nil {

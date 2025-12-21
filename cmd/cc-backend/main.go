@@ -327,14 +327,14 @@ func initSubsystems() error {
 func runServer(ctx context.Context) error {
 	var wg sync.WaitGroup
 
-	// Start metric store if enabled
-	if memorystore.InternalCCMSFlag {
-		mscfg := ccconf.GetPackageConfig("metric-store")
-		if mscfg == nil {
-			return fmt.Errorf("metric store configuration must be present")
-		}
+	// Initialize metric store if configuration is provided
+	mscfg := ccconf.GetPackageConfig("metric-store")
+	if mscfg != nil {
 		memorystore.Init(mscfg, &wg)
+	} else {
+		cclog.Debug("Metric store configuration not found, skipping memorystore initialization")
 	}
+
 
 	// Start archiver and task manager
 	archiver.Start(repository.GetJobRepository(), ctx)

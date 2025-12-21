@@ -177,13 +177,19 @@ func InitMetrics(metrics map[string]MetricConfig) {
 
 func GetMemoryStore() *MemoryStore {
 	if msInstance == nil {
-		cclog.Fatalf("[METRICSTORE]> MemoryStore not initialized!")
+		return nil
 	}
 
 	return msInstance
 }
 
 func Shutdown() {
+	// Check if memorystore was initialized
+	if msInstance == nil {
+		cclog.Debug("[METRICSTORE]> MemoryStore not initialized, skipping shutdown")
+		return
+	}
+
 	// Cancel the context to signal all background goroutines to stop
 	if shutdownFunc != nil {
 		shutdownFunc()

@@ -199,7 +199,7 @@ var clustersSchema = `
           "required": ["numNodes", "duration", "startTime"]
         }
       },
-      "required": ["name", "metricDataRepository", "filterRanges"],
+      "required": ["name", "filterRanges"],
       "minItems": 1
     }
   }`

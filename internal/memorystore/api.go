@@ -7,6 +7,7 @@ package memorystore
 
 import (
 	"errors"
+	"fmt"
 	"math"
 
 	"github.com/ClusterCockpit/cc-lib/schema"
@@ -124,6 +125,10 @@ func FetchData(req APIQueryRequest) (*APIQueryResponse, error) {
 
 	req.WithData = true
 	ms := GetMemoryStore()
+	if ms == nil {
+		return nil, fmt.Errorf("memorystore not initialized")
+	}
+
 
 	response := APIQueryResponse{
 		Results: make([][]APIMetricData, 0, len(req.Queries)),

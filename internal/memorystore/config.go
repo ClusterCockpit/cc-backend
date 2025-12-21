@@ -19,8 +19,6 @@ const (
 	DefaultAvroCheckpointInterval = time.Minute
 )
 
-var InternalCCMSFlag bool = false
-
 type MetricStoreConfig struct {
 	// Number of concurrent workers for checkpoint and archive operations.
 	// If not set or 0, defaults to min(runtime.NumCPU()/2+1, 10)
