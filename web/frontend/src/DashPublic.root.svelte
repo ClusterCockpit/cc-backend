@@ -338,7 +338,7 @@
 </script>
 
 <Card style="height: 98vh;">
-  <CardBody class="align-content-center p-1">
+  <CardBody class="align-content-center p-2">
     <Row>
       <Col>
         <Refresher
@@ -506,7 +506,7 @@
                 useColors={false}
                 useLegend={false}
                 allowSizeChange
-                width={colWidthRoof - 10}
+                width={colWidthRoof}
                 height={300}
                 cluster={presetCluster}
                 subCluster={clusterInfo?.roofData ? clusterInfo.roofData : null}
@@ -574,8 +574,8 @@
             {#key $statesTimed?.data?.nodeStatesTimed}
               <Stacked
                 data={$statesTimed?.data?.nodeStatesTimed}
-                width={colWidthStacked * 0.95}
-                xlabel="Time"
+                width={colWidthStacked}
+                height={260}
                 ylabel="Nodes"
                 yunit = "#Count"
                 title = "Cluster Status"

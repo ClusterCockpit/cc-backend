@@ -23,7 +23,7 @@
     width = 0,
     height = 300,
     data = null,
-    xlabel = "",
+    xlabel = null,
     ylabel = "",
     yunit = "",
     title = "",
