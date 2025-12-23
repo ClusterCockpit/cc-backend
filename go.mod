@@ -11,7 +11,7 @@ tool (
 
 require (
 	github.com/99designs/gqlgen v0.17.84
-	github.com/ClusterCockpit/cc-lib v1.0.0
+	github.com/ClusterCockpit/cc-lib v1.0.2
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/aws/aws-sdk-go-v2 v1.41.0
 	github.com/aws/aws-sdk-go-v2/config v1.31.20
@@ -21,7 +21,6 @@ require (
 	github.com/expr-lang/expr v1.17.6
 	github.com/go-co-op/gocron/v2 v2.18.2
 	github.com/go-ldap/ldap/v3 v3.4.12
-	github.com/go-sql-driver/mysql v1.9.3
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/gops v0.3.28
@@ -48,7 +47,6 @@ require (
 )
 
 require (
-	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/agnivade/levenshtein v1.2.1 // indirect

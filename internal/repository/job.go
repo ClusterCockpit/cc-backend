@@ -14,8 +14,6 @@
 // Initialize the database connection before using any repository:
 //
 //	repository.Connect("sqlite3", "./var/job.db")
-//	// or for MySQL:
-//	repository.Connect("mysql", "user:password@tcp(localhost:3306)/dbname")
 //
 // # Configuration
 //
@@ -158,52 +156,22 @@ func scanJob(row interface{ Scan(...any) error }) (*schema.Job, error) {
 }
 
 func (r *JobRepository) Optimize() error {
-	var err error
-
-	switch r.driver {
-	case "sqlite3":
-		if _, err = r.DB.Exec(`VACUUM`); err != nil {
-			return err
-		}
-	case "mysql":
-		cclog.Info("Optimize currently not supported for mysql driver")
+	if _, err := r.DB.Exec(`VACUUM`); err != nil {
+		return err
 	}
-
 	return nil
 }
 
 func (r *JobRepository) Flush() error {
-	var err error
-
-	switch r.driver {
-	case "sqlite3":
-		if _, err = r.DB.Exec(`DELETE FROM jobtag`); err != nil {
-			return err
-		}
-		if _, err = r.DB.Exec(`DELETE FROM tag`); err != nil {
-			return err
-		}
-		if _, err = r.DB.Exec(`DELETE FROM job`); err != nil {
-			return err
-		}
-	case "mysql":
-		if _, err = r.DB.Exec(`SET FOREIGN_KEY_CHECKS = 0`); err != nil {
-			return err
-		}
-		if _, err = r.DB.Exec(`TRUNCATE TABLE jobtag`); err != nil {
-			return err
-		}
-		if _, err = r.DB.Exec(`TRUNCATE TABLE tag`); err != nil {
-			return err
-		}
-		if _, err = r.DB.Exec(`TRUNCATE TABLE job`); err != nil {
-			return err
-		}
-		if _, err = r.DB.Exec(`SET FOREIGN_KEY_CHECKS = 1`); err != nil {
-			return err
-		}
+	if _, err := r.DB.Exec(`DELETE FROM jobtag`); err != nil {
+		return err
 	}
-
+	if _, err := r.DB.Exec(`DELETE FROM tag`); err != nil {
+		return err
+	}
+	if _, err := r.DB.Exec(`DELETE FROM job`); err != nil {
+		return err
+	}
 	return nil
 }
 

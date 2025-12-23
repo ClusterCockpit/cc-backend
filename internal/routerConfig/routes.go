@@ -205,13 +205,13 @@ func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 				"id":    tag.ID,
 				"name":  tag.Name,
 				"scope": tag.Scope,
-				"count": counts[fmt.Sprint(tag.Name, tag.ID)],
+				"count": counts[fmt.Sprint(tag.Type, tag.Name, tag.ID)],
 			}
 			tagMap[tag.Type] = append(tagMap[tag.Type], tagItem)
 		}
 	} else if userAuthlevel < 4 && userAuthlevel >= 2 { // User+ : Show global and admin scope only if at least 1 tag used, private scope regardless of count
 		for _, tag := range tags {
-			tagCount := counts[fmt.Sprint(tag.Name, tag.ID)]
+			tagCount := counts[fmt.Sprint(tag.Type, tag.Name, tag.ID)]
 			if ((tag.Scope == "global" || tag.Scope == "admin") && tagCount >= 1) || (tag.Scope != "global" && tag.Scope != "admin") {
 				tagItem := map[string]interface{}{
 					"id":    tag.ID,

@@ -5,7 +5,7 @@
   - `cluster String`: The nodes' cluster
   - `subCluster String`: The nodes' subCluster [Default: ""]
   - `ccconfig Object?`: The ClusterCockpit Config Context [Default: null]
-  - `selectedMetrics [String]`: The array of selected metrics [Default []]
+  - `pendingSelectedMetrics [String]`: The array of selected metrics [Default []]
   - `selectedResolution Number?`: The selected data resolution [Default: 0]
   - `hostnameFilter String?`: The active hostnamefilter [Default: ""]
   - `hoststateFilter String?`: The active hoststatefilter [Default: ""]
@@ -27,7 +27,7 @@
     cluster,
     subCluster = "",
     ccconfig = null,
-    selectedMetrics = [],
+    pendingSelectedMetrics = [],
     selectedResolution = 0,
     hostnameFilter = "",
     hoststateFilter = "",
@@ -94,6 +94,7 @@
 
   /* State Init */
   let nodes = $state([]);
+  let selectedMetrics = $state(pendingSelectedMetrics);
   let page = $state(1);
   let itemsPerPage = $state(usePaging ? (ccconfig?.nodeList_nodesPerPage || 10) : 10);
   let headerPaddingTop = $state(0);
@@ -110,7 +111,7 @@
       stateFilter: hoststateFilter,
       nodeFilter: hostnameFilter,
       scopes: ["core", "socket", "accelerator"],
-      metrics: selectedMetrics,
+      metrics: pendingSelectedMetrics,
       from: from.toISOString(),
       to: to.toISOString(),
       paging: paging,
@@ -140,15 +141,17 @@
   $effect(() => {
     if ($nodesQuery?.data) {
       untrack(() => {
-        handleNodes($nodesQuery?.data?.nodeMetricsList);
+        nodes = handleNodes($nodesQuery?.data?.nodeMetricsList);
+        matchedNodes = $nodesQuery?.data?.totalNodes || 0;
       });
+      selectedMetrics = [...pendingSelectedMetrics]; // Trigger Rerender in NodeListRow Only After Data is Fetched
     };
   });
 
   $effect(() => {
     // Triggers (Except Paging)
     from, to
-    selectedMetrics, selectedResolution
+    pendingSelectedMetrics, selectedResolution
     hostnameFilter, hoststateFilter
     // Continous Scroll: Paging if parameters change: Existing entries will not match new selections
     // Nodes Array Reset in HandleNodes func
@@ -162,17 +165,16 @@
     if (data) {
       if (usePaging) {
         // console.log('New Paging', $state.snapshot(paging))
-        nodes = [...data.items].sort((a, b) => a.host.localeCompare(b.host));
+        return [...data.items].sort((a, b) => a.host.localeCompare(b.host));
       } else {
         if ($state.snapshot(page) == 1) {
           // console.log('Page 1 Reset', [...data.items])
-          nodes = [...data.items].sort((a, b) => a.host.localeCompare(b.host));
+          return [...data.items].sort((a, b) => a.host.localeCompare(b.host));
         } else {
           // console.log('Add Nodes', $state.snapshot(nodes), [...data.items])
-          nodes = nodes.concat([...data.items])
+          return nodes.concat([...data.items])
         }
       }
-      matchedNodes = data.totalNodes;
     };
   };
 
@@ -228,7 +230,7 @@
             {/if}
           </th>
 
-          {#each selectedMetrics as metric (metric)}
+          {#each pendingSelectedMetrics as metric (metric)}
             <th
               class="position-sticky top-0 text-center"
               scope="col"
@@ -246,18 +248,9 @@
               <Card body color="danger">{$nodesQuery.error.message}</Card>
             </Col>
           </Row>
-        {:else}
-          {#each nodes as nodeData (nodeData.host)}
-            <NodeListRow {nodeData} {cluster} {selectedMetrics}/>
-          {:else}
-            <tr>
-              <td colspan={selectedMetrics.length + 1}> No nodes found </td>
-            </tr>
-          {/each}
-        {/if}
-        {#if $nodesQuery.fetching || !$nodesQuery.data}
+        {:else if $nodesQuery.fetching || !$nodesQuery.data}
           <tr>
-            <td colspan={selectedMetrics.length + 1}>
+            <td colspan={pendingSelectedMetrics.length + 1}>
               <div style="text-align:center;">
                 {#if !usePaging}
                   <p><b>
@@ -272,6 +265,14 @@
               </div>
             </td>
           </tr>
+        {:else}
+          {#each nodes as nodeData (nodeData.host)}
+            <NodeListRow {nodeData} {cluster} {selectedMetrics}/>
+          {:else}
+            <tr>
+              <td colspan={selectedMetrics.length + 1}> No nodes found </td>
+            </tr>
+          {/each}
         {/if}
       </tbody>
     </Table>

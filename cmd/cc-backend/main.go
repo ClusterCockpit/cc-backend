@@ -40,7 +40,6 @@ import (
 	"github.com/google/gops/agent"
 	"github.com/joho/godotenv"
 
-	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -120,30 +119,30 @@ func initDatabase() error {
 
 func handleDatabaseCommands() error {
 	if flagMigrateDB {
-		err := repository.MigrateDB(config.Keys.DBDriver, config.Keys.DB)
+		err := repository.MigrateDB(config.Keys.DB)
 		if err != nil {
 			return fmt.Errorf("migrating database to version %d: %w", repository.Version, err)
 		}
-		cclog.Exitf("MigrateDB Success: Migrated '%s' database at location '%s' to version %d.\n",
-			config.Keys.DBDriver, config.Keys.DB, repository.Version)
+		cclog.Exitf("MigrateDB Success: Migrated SQLite database at '%s' to version %d.\n",
+			config.Keys.DB, repository.Version)
 	}
 
 	if flagRevertDB {
-		err := repository.RevertDB(config.Keys.DBDriver, config.Keys.DB)
+		err := repository.RevertDB(config.Keys.DB)
 		if err != nil {
 			return fmt.Errorf("reverting database to version %d: %w", repository.Version-1, err)
 		}
-		cclog.Exitf("RevertDB Success: Reverted '%s' database at location '%s' to version %d.\n",
-			config.Keys.DBDriver, config.Keys.DB, repository.Version-1)
+		cclog.Exitf("RevertDB Success: Reverted SQLite database at '%s' to version %d.\n",
+			config.Keys.DB, repository.Version-1)
 	}
 
 	if flagForceDB {
-		err := repository.ForceDB(config.Keys.DBDriver, config.Keys.DB)
+		err := repository.ForceDB(config.Keys.DB)
 		if err != nil {
 			return fmt.Errorf("forcing database to version %d: %w", repository.Version, err)
 		}
-		cclog.Exitf("ForceDB Success: Forced '%s' database at location '%s' to version %d.\n",
-			config.Keys.DBDriver, config.Keys.DB, repository.Version)
+		cclog.Exitf("ForceDB Success: Forced SQLite database at '%s' to version %d.\n",
+			config.Keys.DB, repository.Version)
 	}
 
 	return nil

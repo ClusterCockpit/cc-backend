@@ -149,7 +149,7 @@ func setup(tb testing.TB) *JobRepository {
 	tb.Helper()
 	cclog.Init("warn", true)
 	dbfile := "testdata/job.db"
-	err := MigrateDB("sqlite3", dbfile)
+	err := MigrateDB(dbfile)
 	noErr(tb, err)
 	Connect("sqlite3", dbfile)
 	return GetJobRepository()

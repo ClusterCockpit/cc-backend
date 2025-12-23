@@ -770,21 +770,25 @@ func (ccms *CCMetricStore) LoadNodeData(
 		}
 
 		mc := archive.GetMetricConfig(cluster, metric)
-		hostdata[metric] = append(hostdata[metric], &schema.JobMetric{
-			Unit:     mc.Unit,
-			Timestep: mc.Timestep,
-			Series: []schema.Series{
-				{
-					Hostname: query.Hostname,
-					Data:     qdata.Data,
-					Statistics: schema.MetricStatistics{
-						Avg: float64(qdata.Avg),
-						Min: float64(qdata.Min),
-						Max: float64(qdata.Max),
+		if mc != nil {
+			hostdata[metric] = append(hostdata[metric], &schema.JobMetric{
+				Unit:     mc.Unit,
+				Timestep: mc.Timestep,
+				Series: []schema.Series{
+					{
+						Hostname: query.Hostname,
+						Data:     qdata.Data,
+						Statistics: schema.MetricStatistics{
+							Avg: float64(qdata.Avg),
+							Min: float64(qdata.Min),
+							Max: float64(qdata.Max),
+						},
 					},
 				},
-			},
-		})
+			})
+		} else {
+			cclog.Warnf("Metric '%s' not configured for cluster '%s': Skipped in LoadNodeData() Return!", metric, cluster)
+		}
 	}
 
 	if len(errors) != 0 {

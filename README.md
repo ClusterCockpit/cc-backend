@@ -29,12 +29,11 @@ is also served by the backend using [Svelte](https://svelte.dev/) components.
 Layout and styling are based on [Bootstrap 5](https://getbootstrap.com/) using
 [Bootstrap Icons](https://icons.getbootstrap.com/).
 
-The backend uses [SQLite 3](https://sqlite.org/) as a relational SQL database by
-default. Optionally it can use a MySQL/MariaDB database server. While there are
-metric data backends for the InfluxDB and Prometheus time series databases, the
-only tested and supported setup is to use cc-metric-store as the metric data
-backend. Documentation on how to integrate ClusterCockpit with other time series
-databases will be added in the future.
+The backend uses [SQLite 3](https://sqlite.org/) as the relational SQL database.
+While there are metric data backends for the InfluxDB and Prometheus time series
+databases, the only tested and supported setup is to use cc-metric-store as the
+metric data backend. Documentation on how to integrate ClusterCockpit with other
+time series databases will be added in the future.
 
 Completed batch jobs are stored in a file-based job archive according to
 [this specification](https://github.com/ClusterCockpit/cc-specifications/tree/master/job-archive).

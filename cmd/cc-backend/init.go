@@ -105,9 +105,9 @@ func initEnv() {
 		cclog.Abortf("Could not create default ./var folder with permissions '0o777'. Application initialization failed, exited.\nError: %s\n", err.Error())
 	}
 
-	err := repository.MigrateDB("sqlite3", "./var/job.db")
+	err := repository.MigrateDB("./var/job.db")
 	if err != nil {
-		cclog.Abortf("Could not initialize default sqlite3 database as './var/job.db'. Application initialization failed, exited.\nError: %s\n", err.Error())
+		cclog.Abortf("Could not initialize default SQLite database as './var/job.db'. Application initialization failed, exited.\nError: %s\n", err.Error())
 	}
 	if err := os.Mkdir("var/job-archive", 0o777); err != nil {
 		cclog.Abortf("Could not create default ./var/job-archive folder with permissions '0o777'. Application initialization failed, exited.\nError: %s\n", err.Error())

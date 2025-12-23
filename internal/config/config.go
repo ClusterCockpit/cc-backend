@@ -37,10 +37,10 @@ type ProgramConfig struct {
 	EmbedStaticFiles bool   `json:"embed-static-files"`
 	StaticFiles      string `json:"static-files"`
 
-	// 'sqlite3' or 'mysql' (mysql will work for mariadb as well)
+	// Database driver - only 'sqlite3' is supported
 	DBDriver string `json:"db-driver"`
 
-	// For sqlite3 a filename, for mysql a DSN in this format: https://github.com/go-sql-driver/mysql#dsn-data-source-name (Without query parameters!).
+	// Path to SQLite database file
 	DB string `json:"db"`
 
 	// Keep all metric data in the metric data repositories,
