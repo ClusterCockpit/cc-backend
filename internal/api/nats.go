@@ -224,7 +224,10 @@ func (api *NatsAPI) handleNodeState(subject string, data []byte) {
 			JobsRunning:     node.JobsRunning,
 		}
 
-		repo.UpdateNodeState(node.Hostname, req.Cluster, &nodeState)
+		if err := repo.UpdateNodeState(node.Hostname, req.Cluster, &nodeState); err != nil {
+			cclog.Errorf("NATS %s: updating node state for %s on %s failed: %v",
+				subject, node.Hostname, req.Cluster, err)
+		}
 	}
 
 	cclog.Debugf("NATS %s: updated %d node states for cluster %s", subject, len(req.Nodes), req.Cluster)
