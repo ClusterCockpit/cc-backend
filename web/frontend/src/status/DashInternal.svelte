@@ -355,7 +355,7 @@
 
 </script>
 
-<Card style="height: 88vh;">
+<Card>
   <CardBody class="align-content-center">
     <Row>
       <Col>
@@ -540,7 +540,7 @@
               <Roofline
                 useColors={true}
                 allowSizeChange
-                width={colWidthRoof - 10}
+                width={colWidthRoof}
                 height={300}
                 subCluster={clusterInfo?.roofData ? clusterInfo.roofData : null}
                 roofData={transformJobsStatsToData($statusQuery?.data?.jobsMetricStats)}
@@ -568,7 +568,8 @@
             {#key $statesTimed?.data?.nodeStates}
               <Stacked
                 data={$statesTimed?.data?.nodeStates}
-                width={colWidthStacked1 * 0.95}
+                width={colWidthStacked1}
+                height={330}
                 xlabel="Time"
                 ylabel="Nodes"
                 yunit = "#Count"
@@ -584,7 +585,8 @@
             {#key $statesTimed?.data?.healthStates}
               <Stacked
                 data={$statesTimed?.data?.healthStates}
-                width={colWidthStacked2 * 0.95}
+                width={colWidthStacked2}
+                height={330}
                 xlabel="Time"
                 ylabel="Nodes"
                 yunit = "#Count"

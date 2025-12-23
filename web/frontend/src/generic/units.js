@@ -3,7 +3,7 @@
 */
 
 const power  = [1, 1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21]
-const prefix = ['', 'K', 'M', 'G', 'T', 'P', 'E']
+const prefix = ['', 'k', 'M', 'G', 'T', 'P', 'E']
 
 export function formatNumber(x) {
     if ( isNaN(x) || x == null) {

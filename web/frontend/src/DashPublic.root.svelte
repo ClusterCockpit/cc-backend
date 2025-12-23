@@ -30,7 +30,8 @@
     Table,
     Progress,
     Icon,
-    Button
+    Button,
+    Badge
   } from "@sveltestrap/sveltestrap";
   import Roofline from "./generic/plots/Roofline.svelte";
   import Pie, { colors } from "./generic/plots/Pie.svelte";
@@ -85,7 +86,8 @@
     query: gql`
       query (
         $cluster: String!
-        $metrics: [String!]
+        $nmetrics: [String!]
+        $cmetrics: [String!]
         $from: Time!
         $to: Time!
         $clusterFrom: Time!
@@ -97,7 +99,7 @@
         # Node 5 Minute Averages for Roofline
         nodeMetrics(
           cluster: $cluster
-          metrics: $metrics
+          metrics: $nmetrics
           from: $from
           to: $to
         ) {
@@ -106,26 +108,15 @@
           metrics {
             name
             metric {
+              unit {
+                base
+                prefix
+              }
               series {
                 statistics {
                   avg
                 }
               }
-            }
-          }
-        }
-        # Running Job Metric Average for Rooflines
-        jobsMetricStats(filter: $jobFilter, metrics: $metrics) {
-          id
-          jobId
-          duration
-          numNodes
-          numAccelerators
-          subCluster
-          stats {
-            name
-            data {
-              avg
             }
           }
         }
@@ -175,7 +166,7 @@
         # ClusterMetrics for doubleMetricPlot
         clusterMetrics(
           cluster: $cluster
-          metrics: $metrics
+          metrics: $cmetrics
           from: $clusterFrom
           to: $to
         ) {
@@ -194,7 +185,8 @@
     `,
     variables: {
       cluster: presetCluster,
-      metrics: ["flops_any", "mem_bw"], // Metrics For Cluster Plot and Roofline
+      nmetrics: ["flops_any", "mem_bw", "cpu_power", "acc_power"], // Metrics For Roofline and Stats
+      cmetrics: ["flops_any", "mem_bw"], // Metrics For Cluster Plot
       from: from.toISOString(),
       clusterFrom: clusterFrom.toISOString(),
       to: to.toISOString(),
@@ -258,6 +250,11 @@
         }
       }
 
+      // Get Idle Infos after Sums
+      if (!rawInfos['idleNodes']) rawInfos['idleNodes'] = rawInfos['totalNodes'] - rawInfos['allocatedNodes'];
+      if (!rawInfos['idleCores']) rawInfos['idleCores'] = rawInfos['totalCores'] - rawInfos['allocatedCores'];
+      if (!rawInfos['idleAccs']) rawInfos['idleAccs'] = rawInfos['totalAccs'] - rawInfos['allocatedAccs'];
+
       // Keymetrics (Data on Cluster-Scope)
       let rawFlops = $statusQuery?.data?.nodeMetrics?.reduce((sum, node) =>
         sum + (node.metrics.find((m) => m.name == 'flops_any')?.metric?.series[0]?.statistics?.avg || 0),
@@ -270,6 +267,26 @@
         0, // Initial Value
       ) || 0;
       rawInfos['memBwRate'] = Math.floor((rawMemBw * 100) / 100)
+
+      let rawCpuPwr = $statusQuery?.data?.nodeMetrics?.reduce((sum, node) =>
+        sum + (node.metrics.find((m) => m.name == 'cpu_power')?.metric?.series[0]?.statistics?.avg || 0),
+        0, // Initial Value
+      ) || 0;
+      rawInfos['cpuPwr'] = Math.floor((rawCpuPwr * 100) / 100)
+      if (!rawInfos['cpuPwrUnit']) {
+        let rawCpuUnit = $statusQuery?.data?.nodeMetrics[0]?.metrics.find((m) => m.name == 'cpu_power')?.metric?.unit || null
+        rawInfos['cpuPwrUnit'] = rawCpuUnit ? rawCpuUnit.prefix + rawCpuUnit.base : ''
+      }
+
+      let rawGpuPwr = $statusQuery?.data?.nodeMetrics?.reduce((sum, node) =>
+        sum + (node.metrics.find((m) => m.name == 'acc_power')?.metric?.series[0]?.statistics?.avg || 0),
+        0, // Initial Value
+      ) || 0;
+      rawInfos['gpuPwr'] = Math.floor((rawGpuPwr * 100) / 100)
+      if (!rawInfos['gpuPwrUnit']) {
+        let rawGpuUnit = $statusQuery?.data?.nodeMetrics[0]?.metrics.find((m) => m.name == 'acc_power')?.metric?.unit || null
+        rawInfos['gpuPwrUnit'] = rawGpuUnit ? rawGpuUnit.prefix + rawGpuUnit.base : ''
+      }
 
       return rawInfos
     } else {
@@ -338,7 +355,7 @@
 </script>
 
 <Card style="height: 98vh;">
-  <CardBody class="align-content-center p-1">
+  <CardBody class="align-content-center p-2">
     <Row>
       <Col>
         <Refresher
@@ -408,79 +425,99 @@
         <Col> <!-- Utilization Info Card -->
           <Card class="h-100">
             <CardBody>
-              <Table borderless>
-                <tr class="py-2">
-                  <td style="font-size:x-large;">{clusterInfo?.runningJobs} Running Jobs</td>
-                  <td colspan="2" style="font-size:x-large;">{clusterInfo?.activeUsers} Active Users</td>
-                </tr>
-                <hr class="my-1"/>
-                <tr class="pt-2">
-                  <td style="font-size: large;">
-                    Flop Rate (<span style="cursor: help;" title="Flops[Any] = (Flops[Double] x 2) + Flops[Single]">Any</span>)
-                  </td>
-                  <td colspan="2" style="font-size: large;">
-                    Memory BW Rate
-                  </td>
-                </tr>
-                <tr class="pb-2">
-                  <td style="font-size:x-large;">
-                    {clusterInfo?.flopRate} 
-                    {clusterInfo?.flopRateUnit}
-                  </td>
-                  <td colspan="2" style="font-size:x-large;">
-                    {clusterInfo?.memBwRate} 
-                    {clusterInfo?.memBwRateUnit}
-                  </td>
-                </tr>
-                <hr class="my-1"/>
-                <tr class="py-2">
-                  <th scope="col">Allocated Nodes</th>
-                  <td style="min-width: 100px;"
-                    ><div class="col">
-                      <Progress
-                        value={clusterInfo?.allocatedNodes}
-                        max={clusterInfo?.totalNodes}
-                      />
-                    </div></td
-                  >
-                  <td
-                    >{clusterInfo?.allocatedNodes} / {clusterInfo?.totalNodes}
-                    Nodes</td
-                  >
-                </tr>
-                <tr class="py-2">
-                  <th scope="col">Allocated Cores</th>
-                  <td style="min-width: 100px;"
-                    ><div class="col">
-                      <Progress
-                        value={clusterInfo?.allocatedCores}
-                        max={clusterInfo?.totalCores}
-                      />
-                    </div></td
-                  >
-                  <td
-                    >{formatNumber(clusterInfo?.allocatedCores)} / {formatNumber(clusterInfo?.totalCores)}
-                    Cores</td
-                  >
-                </tr>
+              <Row class="mb-1">
+                <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
+                  <Badge color="primary" style="font-size:x-large;margin-right:0.25rem;">
+                    {clusterInfo?.runningJobs}
+                  </Badge>
+                  <div style="font-size:large;">
+                    Running Jobs
+                  </div>
+                </Col>
+                <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
+                  <Badge color="primary" style="font-size:x-large;margin-right:0.25rem;">
+                    {clusterInfo?.activeUsers}
+                  </Badge>
+                  <div style="font-size:large;">
+                    Active Users
+                  </div>
+                </Col>
+                <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
+                  <Badge color="primary" style="font-size:x-large;margin-right:0.25rem;">
+                    {clusterInfo?.allocatedNodes}
+                  </Badge>
+                  <div style="font-size:large;">
+                    Active Nodes
+                  </div>
+                </Col>
+              </Row>
+              <Row class="mt-1 mb-2">
+                <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
+                  <Badge color="secondary" style="font-size:x-large;margin-right:0.25rem;">
+                    {clusterInfo?.flopRate} {clusterInfo?.flopRateUnit}
+                  </Badge>
+                  <div style="font-size:large;">
+                    Total Flop Rate
+                  </div>
+                </Col>
+                <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
+                  <Badge color="secondary" style="font-size:x-large;margin-right:0.25rem;">
+                    {clusterInfo?.memBwRate} {clusterInfo?.memBwRateUnit}
+                  </Badge>
+                  <div style="font-size:large;">
+                    Total Memory Bandwidth
+                  </div>
+                </Col>
                 {#if clusterInfo?.totalAccs !== 0}
-                  <tr class="py-2">
-                    <th scope="col">Allocated Accelerators</th>
-                    <td style="min-width: 100px;"
-                      ><div class="col">
-                        <Progress
-                          value={clusterInfo?.allocatedAccs}
-                          max={clusterInfo?.totalAccs}
-                        />
-                      </div></td
-                    >
-                    <td
-                      >{clusterInfo?.allocatedAccs} / {clusterInfo?.totalAccs}
-                      Accelerators</td
-                    >
-                  </tr>
+                  <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
+                    <Badge color="secondary" style="font-size:x-large;margin-right:0.25rem;">
+                      {clusterInfo?.gpuPwr} {clusterInfo?.gpuPwrUnit}
+                    </Badge>
+                    <div style="font-size:large;">
+                      Total GPU Power
+                    </div>
+                  </Col>
+                {:else}
+                  <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
+                    <Badge color="secondary" style="font-size:x-large;margin-right:0.25rem;">
+                      {clusterInfo?.cpuPwr} {clusterInfo?.cpuPwrUnit}
+                    </Badge>
+                    <div style="font-size:large;">
+                      Total CPU Power
+                    </div>
+                  </Col>
                 {/if}
-              </Table>
+              </Row>
+              <Row class="my-1 align-items-baseline">
+                <Col xs={2} style="font-size:large;">
+                  Active Cores
+                </Col>
+                <Col xs={8}>
+                  <Progress multi style="height:2.5rem;font-size:x-large;">
+                    <Progress bar color="success" value={clusterInfo?.allocatedCores}>{formatNumber(clusterInfo?.allocatedCores)}</Progress>
+                    <Progress bar color="light" value={clusterInfo?.idleCores}>{formatNumber(clusterInfo?.idleCores)}</Progress>
+                  </Progress>
+                </Col>
+                <Col xs={2} style="font-size:large;">
+                  Idle Cores
+                </Col>
+              </Row>
+              {#if clusterInfo?.totalAccs !== 0}
+                <Row class="my-1 align-items-baseline">
+                  <Col xs={2} style="font-size:large;">
+                    Active GPU
+                  </Col>
+                  <Col xs={8}>
+                    <Progress multi style="height:2.5rem;font-size:x-large;">
+                      <Progress bar color="success" value={clusterInfo?.allocatedAccs}>{formatNumber(clusterInfo?.allocatedAccs)}</Progress>
+                      <Progress bar color="light" value={clusterInfo?.idleAccs}>{formatNumber(clusterInfo?.idleAccs)}</Progress>
+                    </Progress>
+                  </Col>
+                  <Col xs={2} style="font-size:large;">
+                    Idle GPU
+                  </Col>
+                </Row>
+              {/if}
             </CardBody>
           </Card>
         </Col>
@@ -506,7 +543,7 @@
                 useColors={false}
                 useLegend={false}
                 allowSizeChange
-                width={colWidthRoof - 10}
+                width={colWidthRoof}
                 height={300}
                 cluster={presetCluster}
                 subCluster={clusterInfo?.roofData ? clusterInfo.roofData : null}
@@ -574,8 +611,8 @@
             {#key $statesTimed?.data?.nodeStatesTimed}
               <Stacked
                 data={$statesTimed?.data?.nodeStatesTimed}
-                width={colWidthStacked * 0.95}
-                xlabel="Time"
+                width={colWidthStacked}
+                height={260}
                 ylabel="Nodes"
                 yunit = "#Count"
                 title = "Cluster Status"
