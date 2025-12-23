@@ -22,11 +22,12 @@ switching from PHP Symfony to a Golang based solution are explained
 ## Overview
 
 This is a Golang web backend for the ClusterCockpit job-specific performance
-monitoring framework. It provides a REST API for integrating ClusterCockpit with
-an HPC cluster batch system and external analysis scripts. Data exchange between
-the web front-end and the back-end is based on a GraphQL API. The web frontend
-is also served by the backend using [Svelte](https://svelte.dev/) components.
-Layout and styling are based on [Bootstrap 5](https://getbootstrap.com/) using
+monitoring framework. It provides a REST API and an optional NATS-based messaging
+API for integrating ClusterCockpit with an HPC cluster batch system and external
+analysis scripts. Data exchange between the web front-end and the back-end is
+based on a GraphQL API. The web frontend is also served by the backend using
+[Svelte](https://svelte.dev/) components. Layout and styling are based on
+[Bootstrap 5](https://getbootstrap.com/) using
 [Bootstrap Icons](https://icons.getbootstrap.com/).
 
 The backend uses [SQLite 3](https://sqlite.org/) as the relational SQL database.
@@ -34,6 +35,10 @@ While there are metric data backends for the InfluxDB and Prometheus time series
 databases, the only tested and supported setup is to use cc-metric-store as the
 metric data backend. Documentation on how to integrate ClusterCockpit with other
 time series databases will be added in the future.
+
+For real-time integration with HPC systems, the backend can subscribe to
+[NATS](https://nats.io/) subjects to receive job start/stop events and node
+state updates, providing an alternative to REST API polling.
 
 Completed batch jobs are stored in a file-based job archive according to
 [this specification](https://github.com/ClusterCockpit/cc-specifications/tree/master/job-archive).
@@ -130,27 +135,60 @@ ln -s <your-existing-job-archive> ./var/job-archive
 
 ## Project file structure
 
+- [`.github/`](https://github.com/ClusterCockpit/cc-backend/tree/master/.github)
+  GitHub Actions workflows and dependabot configuration for CI/CD.
 - [`api/`](https://github.com/ClusterCockpit/cc-backend/tree/master/api)
   contains the API schema files for the REST and GraphQL APIs. The REST API is
   documented in the OpenAPI 3.0 format in
-  [./api/openapi.yaml](./api/openapi.yaml).
+  [./api/swagger.yaml](./api/swagger.yaml). The GraphQL schema is in
+  [./api/schema.graphqls](./api/schema.graphqls).
 - [`cmd/cc-backend`](https://github.com/ClusterCockpit/cc-backend/tree/master/cmd/cc-backend)
-  contains `main.go` for the main application.
+  contains the main application entry point and CLI implementation.
 - [`configs/`](https://github.com/ClusterCockpit/cc-backend/tree/master/configs)
   contains documentation about configuration and command line options and required
-  environment variables. A sample configuration file is provided.
-- [`docs/`](https://github.com/ClusterCockpit/cc-backend/tree/master/docs)
-  contains more in-depth documentation.
+  environment variables. Sample configuration files are provided.
 - [`init/`](https://github.com/ClusterCockpit/cc-backend/tree/master/init)
   contains an example of setting up systemd for production use.
 - [`internal/`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal)
   contains library source code that is not intended for use by others.
+  - [`api`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/api)
+    REST API handlers and NATS integration
+  - [`archiver`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/archiver)
+    Job archiving functionality
+  - [`auth`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/auth)
+    Authentication (local, LDAP, OIDC) and JWT token handling
+  - [`config`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/config)
+    Configuration management and validation
+  - [`graph`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/graph)
+    GraphQL schema and resolvers
+  - [`importer`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/importer)
+    Job data import and database initialization
+  - [`memorystore`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/memorystore)
+    In-memory metric data store with checkpointing
+  - [`metricdata`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/metricdata)
+    Metric data repository implementations (cc-metric-store, Prometheus)
+  - [`metricDataDispatcher`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/metricDataDispatcher)
+    Dispatches metric data loading to appropriate backends
+  - [`repository`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/repository)
+    Database repository layer for jobs and metadata
+  - [`routerConfig`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/routerConfig)
+    HTTP router configuration and middleware
+  - [`tagger`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/tagger)
+    Job classification and application detection
+  - [`taskmanager`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/taskmanager)
+    Background task management and scheduled jobs
 - [`pkg/`](https://github.com/ClusterCockpit/cc-backend/tree/master/pkg)
   contains Go packages that can be used by other projects.
+  - [`archive`](https://github.com/ClusterCockpit/cc-backend/tree/master/pkg/archive)
+    Job archive backend implementations (filesystem, S3)
+  - [`nats`](https://github.com/ClusterCockpit/cc-backend/tree/master/pkg/nats)
+    NATS client and message handling
 - [`tools/`](https://github.com/ClusterCockpit/cc-backend/tree/master/tools)
   Additional command line helper tools.
   - [`archive-manager`](https://github.com/ClusterCockpit/cc-backend/tree/master/tools/archive-manager)
-    Commands for getting infos about and existing job archive.
+    Commands for getting infos about an existing job archive.
+  - [`archive-migration`](https://github.com/ClusterCockpit/cc-backend/tree/master/tools/archive-migration)
+    Tool for migrating job archives between formats.
   - [`convert-pem-pubkey`](https://github.com/ClusterCockpit/cc-backend/tree/master/tools/convert-pem-pubkey)
     Tool to convert external pubkey for use in `cc-backend`.
   - [`gen-keypair`](https://github.com/ClusterCockpit/cc-backend/tree/master/tools/gen-keypair)
@@ -162,7 +200,7 @@ ln -s <your-existing-job-archive> ./var/job-archive
   - [`frontend`](https://github.com/ClusterCockpit/cc-backend/tree/master/web/frontend)
     Svelte components and static assets for the frontend UI
   - [`templates`](https://github.com/ClusterCockpit/cc-backend/tree/master/web/templates)
-    Server-side Go templates
+    Server-side Go templates, including monitoring views
 - [`gqlgen.yml`](https://github.com/ClusterCockpit/cc-backend/blob/master/gqlgen.yml)
   Configures the behaviour and generation of
   [gqlgen](https://github.com/99designs/gqlgen).

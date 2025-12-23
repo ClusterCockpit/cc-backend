@@ -100,11 +100,15 @@ The backend follows a layered architecture with clear separation of concerns:
   - Pluggable backends: cc-metric-store, Prometheus, InfluxDB
   - Each cluster can have a different metric data backend
 - **internal/archiver**: Job archiving to file-based archive
+- **internal/api/nats.go**: NATS-based API for job and node operations
+  - Subscribes to NATS subjects for job events (start/stop)
+  - Handles node state updates via NATS
+  - Uses InfluxDB line protocol message format
 - **pkg/archive**: Job archive backend implementations
   - File system backend (default)
   - S3 backend
   - SQLite backend (experimental)
-- **pkg/nats**: NATS integration for metric ingestion
+- **pkg/nats**: NATS client and message decoding utilities
 
 ### Frontend Structure
 
@@ -146,6 +150,14 @@ applied automatically on startup. Version tracking in `version` table.
 ## Configuration
 
 - **config.json**: Main configuration (clusters, metric repositories, archive settings)
+  - `main.apiSubjects`: NATS subject configuration (optional)
+    - `subjectJobEvent`: Subject for job start/stop events (e.g., "cc.job.event")
+    - `subjectNodeState`: Subject for node state updates (e.g., "cc.node.state")
+  - `nats`: NATS client connection configuration (optional)
+    - `address`: NATS server address (e.g., "nats://localhost:4222")
+    - `username`: Authentication username (optional)
+    - `password`: Authentication password (optional)
+    - `creds-file-path`: Path to NATS credentials file (optional)
 - **.env**: Environment variables (secrets like JWT keys)
   - Copy from `configs/env-template.txt`
   - NEVER commit this file
@@ -207,9 +219,87 @@ applied automatically on startup. Version tracking in `version` table.
 2. Increment `repository.Version`
 3. Test with fresh database and existing database
 
+## NATS API
+
+The backend supports a NATS-based API as an alternative to the REST API for job and node operations.
+
+### Setup
+
+1. Configure NATS client connection in `config.json`:
+   ```json
+   {
+     "nats": {
+       "address": "nats://localhost:4222",
+       "username": "user",
+       "password": "pass"
+     }
+   }
+   ```
+
+2. Configure API subjects in `config.json` under `main`:
+   ```json
+   {
+     "main": {
+       "apiSubjects": {
+         "subjectJobEvent": "cc.job.event",
+         "subjectNodeState": "cc.node.state"
+       }
+     }
+   }
+   ```
+
+### Message Format
+
+Messages use **InfluxDB line protocol** format with the following structure:
+
+#### Job Events
+
+**Start Job:**
+```
+job,function=start_job event="{\"jobId\":123,\"user\":\"alice\",\"cluster\":\"test\", ...}" 1234567890000000000
+```
+
+**Stop Job:**
+```
+job,function=stop_job event="{\"jobId\":123,\"cluster\":\"test\",\"startTime\":1234567890,\"stopTime\":1234571490,\"jobState\":\"completed\"}" 1234571490000000000
+```
+
+**Tags:**
+- `function`: Either `start_job` or `stop_job`
+
+**Fields:**
+- `event`: JSON payload containing job data (see REST API documentation for schema)
+
+#### Node State Updates
+
+```json
+{
+  "cluster": "testcluster",
+  "nodes": [
+    {
+      "hostname": "node001",
+      "states": ["allocated"],
+      "cpusAllocated": 8,
+      "memoryAllocated": 16384,
+      "gpusAllocated": 0,
+      "jobsRunning": 1
+    }
+  ]
+}
+```
+
+### Implementation Notes
+
+- NATS API mirrors REST API functionality but uses messaging
+- Job start/stop events are processed asynchronously
+- Duplicate job detection is handled (same as REST API)
+- All validation rules from REST API apply
+- Messages are logged; no responses are sent back to publishers
+- If NATS client is unavailable, API subscriptions are skipped (logged as warning)
+
 ## Dependencies
 
 - Go 1.24.0+ (check go.mod for exact version)
 - Node.js (for frontend builds)
 - SQLite 3 (only supported database)
-- Optional: NATS server for metric ingestion
+- Optional: NATS server for NATS API integration

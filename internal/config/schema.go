@@ -119,6 +119,21 @@ var configSchema = `
         }
       },
       "required": ["trigger", "resolutions"]
+    },
+    "apiSubjects": {
+      "description": "NATS subjects configuration for subscribing to job and node events.",
+      "type": "object",
+      "properties": {
+        "subjectJobEvent": {
+          "description": "NATS subject for job events (start_job, stop_job)",
+          "type": "string"
+        },
+        "subjectNodeState": {
+          "description": "NATS subject for node state updates",
+          "type": "string"
+        }
+      },
+      "required": ["subjectJobEvent", "subjectNodeState"]
     }
 	},
   "required": ["apiAllowedIPs"]

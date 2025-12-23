@@ -5,14 +5,9 @@
     "resampling": {
       "minimumPoints": 600,
       "trigger": 180,
-      "resolutions": [
-        240,
-        60
-      ]
+      "resolutions": [240, 60]
     },
-    "apiAllowedIPs": [
-      "*"
-    ],
+    "apiAllowedIPs": ["*"],
     "emission-constant": 317
   },
   "cron": {
@@ -104,3 +99,4 @@
     ]
   }
 }
+
