@@ -115,3 +115,26 @@ func GetConnection() *DBConnection {
 
 	return dbConnInstance
 }
+
+// ResetConnection closes the current database connection and resets the connection state.
+// This function is intended for testing purposes only to allow test isolation.
+func ResetConnection() error {
+	if dbConnInstance != nil && dbConnInstance.DB != nil {
+		if err := dbConnInstance.DB.Close(); err != nil {
+			return fmt.Errorf("failed to close database connection: %w", err)
+		}
+	}
+
+	dbConnInstance = nil
+	dbConnOnce = sync.Once{}
+	jobRepoInstance = nil
+	jobRepoOnce = sync.Once{}
+	nodeRepoInstance = nil
+	nodeRepoOnce = sync.Once{}
+	userRepoInstance = nil
+	userRepoOnce = sync.Once{}
+	userCfgRepoInstance = nil
+	userCfgRepoOnce = sync.Once{}
+
+	return nil
+}

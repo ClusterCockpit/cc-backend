@@ -36,6 +36,8 @@ import (
 )
 
 func setup(t *testing.T) *api.RestAPI {
+	repository.ResetConnection()
+
 	const testconfig = `{
 		"main": {
 	"addr":            "0.0.0.0:8080",
@@ -190,11 +192,9 @@ func setup(t *testing.T) *api.RestAPI {
 }
 
 func cleanup() {
-	// Gracefully shutdown archiver with timeout
 	if err := archiver.Shutdown(5 * time.Second); err != nil {
 		cclog.Warnf("Archiver shutdown timeout in tests: %v", err)
 	}
-	// TODO: Clear all caches, reset all modules, etc...
 }
 
 /*
@@ -230,7 +230,7 @@ func TestRestApi(t *testing.T) {
 	r.StrictSlash(true)
 	restapi.MountAPIRoutes(r)
 
-	var TestJobId int64 = 123
+	var TestJobID int64 = 123
 	TestClusterName := "testcluster"
 	var TestStartTime int64 = 123456789
 
@@ -280,7 +280,7 @@ func TestRestApi(t *testing.T) {
 		}
 		// resolver := graph.GetResolverInstance()
 		restapi.JobRepository.SyncJobs()
-		job, err := restapi.JobRepository.Find(&TestJobId, &TestClusterName, &TestStartTime)
+		job, err := restapi.JobRepository.Find(&TestJobID, &TestClusterName, &TestStartTime)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -338,7 +338,7 @@ func TestRestApi(t *testing.T) {
 		}
 
 		// Archiving happens asynchronously, will be completed in cleanup
-		job, err := restapi.JobRepository.Find(&TestJobId, &TestClusterName, &TestStartTime)
+		job, err := restapi.JobRepository.Find(&TestJobID, &TestClusterName, &TestStartTime)
 		if err != nil {
 			t.Fatal(err)
 		}
