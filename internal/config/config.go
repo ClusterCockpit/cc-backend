@@ -90,8 +90,7 @@ type ResampleConfig struct {
 }
 
 type NATSConfig struct {
-	SubjectJobStart  string `json:"subjectJobStart"`
-	SubjectJobStop   string `json:"subjectJobStop"`
+	SubjectJobEvent  string `json:"subjectJobEvent"`
 	SubjectNodeState string `json:"subjectNodeState"`
 }
 
