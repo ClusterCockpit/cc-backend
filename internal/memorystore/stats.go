@@ -9,7 +9,7 @@ import (
 	"errors"
 	"math"
 
-	"github.com/ClusterCockpit/cc-lib/util"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 )
 
 type Stats struct {

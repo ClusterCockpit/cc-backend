@@ -11,8 +11,8 @@ import (
 	"fmt"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/golang-jwt/jwt/v5"
 )
 

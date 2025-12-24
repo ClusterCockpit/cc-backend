@@ -8,7 +8,7 @@ package taskmanager
 import (
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/go-co-op/gocron/v2"
 )
 

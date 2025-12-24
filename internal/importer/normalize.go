@@ -7,7 +7,7 @@ package importer
 import (
 	"math"
 
-	ccunits "github.com/ClusterCockpit/cc-lib/ccUnits"
+	ccunits "github.com/ClusterCockpit/cc-lib/v2/ccUnits"
 )
 
 // getNormalizationFactor calculates the scaling factor needed to normalize a value

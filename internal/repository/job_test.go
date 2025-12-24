@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	_ "github.com/mattn/go-sqlite3"
 )
 

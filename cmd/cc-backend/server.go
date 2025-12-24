@@ -33,8 +33,8 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/routerConfig"
 	"github.com/ClusterCockpit/cc-backend/pkg/nats"
 	"github.com/ClusterCockpit/cc-backend/web"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/runtimeEnv"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/runtime"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -347,7 +347,7 @@ func (s *Server) Start(ctx context.Context) error {
 	// Because this program will want to bind to a privileged port (like 80), the listener must
 	// be established first, then the user can be changed, and after that,
 	// the actual http server can be started.
-	if err := runtimeEnv.DropPrivileges(config.Keys.Group, config.Keys.User); err != nil {
+	if err := runtime.DropPrivileges(config.Keys.Group, config.Keys.User); err != nil {
 		return fmt.Errorf("dropping privileges: %w", err)
 	}
 

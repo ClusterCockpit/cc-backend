@@ -9,7 +9,7 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/ClusterCockpit/cc-lib/util"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 )
 
 // Could also be called "node" as this forms a node in a tree structure.

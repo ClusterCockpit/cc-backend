@@ -27,9 +27,9 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/gorilla/mux"
 
 	_ "github.com/mattn/go-sqlite3"

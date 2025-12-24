@@ -9,7 +9,7 @@ import (
 	"bytes"
 	"encoding/json"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 )
 
 // NatsConfig holds the configuration for connecting to a NATS server.

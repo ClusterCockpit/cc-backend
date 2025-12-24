@@ -23,8 +23,8 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 )
 
 func parseDate(in string) int64 {

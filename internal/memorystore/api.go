@@ -9,8 +9,8 @@ import (
 	"errors"
 	"math"
 
-	"github.com/ClusterCockpit/cc-lib/schema"
-	"github.com/ClusterCockpit/cc-lib/util"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 )
 
 var (

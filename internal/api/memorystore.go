@@ -16,7 +16,7 @@ import (
 	"strings"
 
 	"github.com/ClusterCockpit/cc-backend/internal/memorystore"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 
 	"github.com/influxdata/line-protocol/v2/lineprotocol"
 )

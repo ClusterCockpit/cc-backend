@@ -18,7 +18,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 )
 
 func Archiving(wg *sync.WaitGroup, ctx context.Context) {

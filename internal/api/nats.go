@@ -18,9 +18,10 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/nats"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
+	"github.com/ClusterCockpit/cc-lib/v2/receivers"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	influx "github.com/influxdata/line-protocol/v2/lineprotocol"
 )
 
@@ -75,10 +76,18 @@ func (api *NatsAPI) processJobEvent(msg lp.CCMessage) {
 
 	switch function {
 	case "start_job":
-		api.handleStartJob(msg.GetEventValue())
+		v, ok := msg.GetEventValue()
+		if !ok {
+			cclog.Errorf("Job event is missing event value: %+v", msg)
+		}
+		api.handleStartJob(v)
 
 	case "stop_job":
-		api.handleStopJob(msg.GetEventValue())
+		v, ok := msg.GetEventValue()
+		if !ok {
+			cclog.Errorf("Job event is missing event value: %+v", msg)
+		}
+		api.handleStopJob(v)
 	default:
 		cclog.Warnf("Unimplemented job event: %+v", msg)
 	}
@@ -88,7 +97,7 @@ func (api *NatsAPI) handleJobEvent(subject string, data []byte) {
 	d := influx.NewDecoderWithBytes(data)
 
 	for d.Next() {
-		m, err := nats.DecodeInfluxMessage(d)
+		m, err := receivers.DecodeInfluxMessage(d)
 		if err != nil {
 			cclog.Errorf("NATS %s:  Failed to decode message: %v", subject, err)
 			return

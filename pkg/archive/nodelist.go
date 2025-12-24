@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 )
 
 type NodeList [][]interface {

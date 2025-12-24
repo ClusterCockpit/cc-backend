@@ -54,8 +54,8 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	sq "github.com/Masterminds/squirrel"
 )
 

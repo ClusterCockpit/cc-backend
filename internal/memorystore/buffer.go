@@ -9,7 +9,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 // BufferCap is the default buffer capacity.

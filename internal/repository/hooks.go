@@ -8,7 +8,7 @@ import (
 	"context"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 )
 
 // Hooks satisfies the sqlhook.Hooks interface

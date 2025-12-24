@@ -8,8 +8,8 @@ package config
 import (
 	"testing"
 
-	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 )
 
 func TestInit(t *testing.T) {

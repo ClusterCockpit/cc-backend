@@ -12,8 +12,8 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 // ArchiveJob archives a completed job's metric data to the configured archive backend.

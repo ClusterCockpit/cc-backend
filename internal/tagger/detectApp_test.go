@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 )
 
 func setup(tb testing.TB) *repository.JobRepository {

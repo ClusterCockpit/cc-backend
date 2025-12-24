@@ -12,7 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 )
 
 // transformExclusiveToShared converts the old 'exclusive' field to the new 'shared' field

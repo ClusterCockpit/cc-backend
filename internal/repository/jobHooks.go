@@ -7,7 +7,7 @@ package repository
 import (
 	"sync"
 
-	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 type JobHook interface {

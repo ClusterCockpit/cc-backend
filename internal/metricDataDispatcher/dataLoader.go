@@ -13,10 +13,10 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/lrucache"
-	"github.com/ClusterCockpit/cc-lib/resampler"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/lrucache"
+	"github.com/ClusterCockpit/cc-lib/v2/resampler"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 var cache *lrucache.Cache = lrucache.New(128 * 1024 * 1024)

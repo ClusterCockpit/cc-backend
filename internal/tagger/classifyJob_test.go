@@ -3,7 +3,7 @@ package tagger
 import (
 	"testing"
 
-	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

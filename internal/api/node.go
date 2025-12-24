@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 type UpdateNodeStatesRequest struct {

@@ -8,7 +8,7 @@ package memorystore
 import (
 	"sync"
 
-	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 var (

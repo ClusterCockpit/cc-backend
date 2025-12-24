@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 )
 
 func main() {

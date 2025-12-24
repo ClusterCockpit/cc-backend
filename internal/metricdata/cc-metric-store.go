@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 type CCMetricStoreConfig struct {

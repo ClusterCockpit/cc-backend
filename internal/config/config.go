@@ -11,8 +11,8 @@ import (
 	"encoding/json"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/resampler"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/resampler"
 )
 
 type ProgramConfig struct {

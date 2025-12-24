@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	_ "github.com/mattn/go-sqlite3"
 )
 

@@ -32,11 +32,11 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/nats"
 	"github.com/ClusterCockpit/cc-backend/web"
-	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/runtimeEnv"
-	"github.com/ClusterCockpit/cc-lib/schema"
-	"github.com/ClusterCockpit/cc-lib/util"
+	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/runtime"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 	"github.com/google/gops/agent"
 	"github.com/joho/godotenv"
 
@@ -371,7 +371,7 @@ func runServer(ctx context.Context) error {
 		case <-ctx.Done():
 		}
 
-		runtimeEnv.SystemdNotifiy(false, "Shutting down ...")
+		runtime.SystemdNotify(false, "Shutting down ...")
 		srv.Shutdown(ctx)
 		util.FsWatcherShutdown()
 		taskmanager.Shutdown()
@@ -381,7 +381,7 @@ func runServer(ctx context.Context) error {
 	if os.Getenv(envGOGC) == "" {
 		debug.SetGCPercent(25)
 	}
-	runtimeEnv.SystemdNotifiy(true, "running")
+	runtime.SystemdNotify(true, "running")
 
 	// Wait for completion or error
 	go func() {

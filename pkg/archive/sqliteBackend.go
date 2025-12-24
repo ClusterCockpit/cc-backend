@@ -21,9 +21,9 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
-	"github.com/ClusterCockpit/cc-lib/util"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 	_ "github.com/mattn/go-sqlite3"
 )
 

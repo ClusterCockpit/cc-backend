@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"sync"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 )
 
 func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
