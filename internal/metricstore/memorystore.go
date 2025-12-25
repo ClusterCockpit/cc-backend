@@ -3,7 +3,7 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 
-// Package memorystore provides an efficient in-memory time-series metric storage system
+// Package metricstore provides an efficient in-memory time-series metric storage system
 // with support for hierarchical data organization, checkpointing, and archiving.
 //
 // The package organizes metrics in a tree structure (cluster → host → component) and
@@ -17,7 +17,7 @@
 //   - Concurrent checkpoint/archive workers
 //   - Support for sum and average aggregation
 //   - NATS integration for metric ingestion
-package memorystore
+package metricstore
 
 import (
 	"bytes"

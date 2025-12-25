@@ -24,8 +24,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
-	"github.com/ClusterCockpit/cc-backend/internal/memorystore"
-	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/internal/metricstore"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/tagger"
 	"github.com/ClusterCockpit/cc-backend/internal/taskmanager"
@@ -283,10 +282,7 @@ func initSubsystems() error {
 		return fmt.Errorf("initializing archive: %w", err)
 	}
 
-	// Initialize metricdata
-	if err := metricdata.Init(); err != nil {
-		return fmt.Errorf("initializing metricdata repository: %w", err)
-	}
+	// Note: metricstore.Init() is called later in runServer() with proper configuration
 
 	// Handle database re-initialization
 	if flagReinitDB {
@@ -322,13 +318,12 @@ func initSubsystems() error {
 func runServer(ctx context.Context) error {
 	var wg sync.WaitGroup
 
-	// Start metric store if enabled
-	if memorystore.InternalCCMSFlag {
-		mscfg := ccconf.GetPackageConfig("metric-store")
-		if mscfg == nil {
-			return fmt.Errorf("metric store configuration must be present")
-		}
-		memorystore.Init(mscfg, &wg)
+	// Initialize metric store if configuration is provided
+	mscfg := ccconf.GetPackageConfig("metric-store")
+	if mscfg != nil {
+		metricstore.Init(mscfg, &wg)
+	} else {
+		cclog.Debug("Metric store configuration not found, skipping metricstore initialization")
 	}
 
 	// Start archiver and task manager

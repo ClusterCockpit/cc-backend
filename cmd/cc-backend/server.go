@@ -29,7 +29,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/generated"
-	"github.com/ClusterCockpit/cc-backend/internal/memorystore"
+	"github.com/ClusterCockpit/cc-backend/internal/metricstore"
 	"github.com/ClusterCockpit/cc-backend/internal/routerConfig"
 	"github.com/ClusterCockpit/cc-backend/pkg/nats"
 	"github.com/ClusterCockpit/cc-backend/web"
@@ -253,9 +253,7 @@ func (s *Server) init() error {
 		}
 	}
 
-	if memorystore.InternalCCMSFlag {
-		s.restAPIHandle.MountMetricStoreAPIRoutes(metricstoreapi)
-	}
+	s.restAPIHandle.MountMetricStoreAPIRoutes(metricstoreapi)
 
 	if config.Keys.EmbedStaticFiles {
 		if i, err := os.Stat("./var/img"); err == nil {
@@ -383,9 +381,7 @@ func (s *Server) Shutdown(ctx context.Context) {
 	}
 
 	// Archive all the metric store data
-	if memorystore.InternalCCMSFlag {
-		memorystore.Shutdown()
-	}
+	metricstore.Shutdown()
 
 	// Shutdown archiver with 10 second timeout for fast shutdown
 	if err := archiver.Shutdown(10 * time.Second); err != nil {

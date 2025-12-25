@@ -3,10 +3,11 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 
-package memorystore
+package metricstore
 
 import (
 	"errors"
+	"fmt"
 	"math"
 
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
@@ -124,6 +125,9 @@ func FetchData(req APIQueryRequest) (*APIQueryResponse, error) {
 
 	req.WithData = true
 	ms := GetMemoryStore()
+	if ms == nil {
+		return nil, fmt.Errorf("memorystore not initialized")
+	}
 
 	response := APIQueryResponse{
 		Results: make([][]APIMetricData, 0, len(req.Queries)),

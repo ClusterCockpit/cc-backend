@@ -18,7 +18,8 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
-	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/internal/importer"
+	"github.com/ClusterCockpit/cc-backend/internal/metricstore"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
@@ -167,9 +168,7 @@ func setupNatsTest(t *testing.T) *NatsAPI {
 		t.Fatal(err)
 	}
 
-	if err := metricdata.Init(); err != nil {
-		t.Fatal(err)
-	}
+	// metricstore initialization removed - it's initialized via callback in tests
 
 	archiver.Start(repository.GetJobRepository(), context.Background())
 
@@ -564,7 +563,7 @@ func TestNatsHandleStopJob(t *testing.T) {
 		},
 	}
 
-	metricdata.TestLoadDataCallback = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error) {
+	metricstore.TestLoadDataCallback = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error) {
 		return testData, nil
 	}
 

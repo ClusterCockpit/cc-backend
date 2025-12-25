@@ -96,9 +96,9 @@ The backend follows a layered architecture with clear separation of concerns:
 - **internal/auth**: Authentication layer
   - Supports local accounts, LDAP, OIDC, and JWT tokens
   - Implements rate limiting for login attempts
-- **internal/metricdata**: Metric data repository abstraction
-  - Pluggable backends: cc-metric-store, Prometheus, InfluxDB
-  - Each cluster can have a different metric data backend
+- **internal/metricstore**: Metric store with data loading API
+  - In-memory metric storage with checkpointing
+  - Query API for loading job metric data
 - **internal/archiver**: Job archiving to file-based archive
 - **internal/api/nats.go**: NATS-based API for job and node operations
   - Subscribes to NATS subjects for job events (start/stop)
@@ -209,8 +209,8 @@ applied automatically on startup. Version tracking in `version` table.
 
 ### Adding a new metric data backend
 
-1. Implement `MetricDataRepository` interface in `internal/metricdata/`
-2. Register in `metricdata.Init()` switch statement
+1. Implement metric loading functions in `internal/metricstore/query.go`
+2. Add cluster configuration to metric store initialization
 3. Update config.json schema documentation
 
 ### Modifying database schema

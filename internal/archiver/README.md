@@ -106,7 +106,7 @@ Data is archived at the highest available resolution (typically 60s intervals). 
 
 ```go
 // In archiver.go ArchiveJob() function
-jobData, err := metricDataDispatcher.LoadData(job, allMetrics, scopes, ctx, 300)
+jobData, err := metricdispatch.LoadData(job, allMetrics, scopes, ctx, 300)
 // 0 = highest resolution
 // 300 = 5-minute resolution
 ```
@@ -185,6 +185,6 @@ Internal state is protected by:
 ## Dependencies
 
 - `internal/repository`: Database operations for job metadata
-- `internal/metricDataDispatcher`: Loading metric data from various backends
+- `internal/metricdispatch`: Loading metric data from various backends
 - `pkg/archive`: Archive backend abstraction (filesystem, S3, SQLite)
 - `cc-lib/schema`: Job and metric data structures

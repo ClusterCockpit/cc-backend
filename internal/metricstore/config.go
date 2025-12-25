@@ -3,7 +3,7 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 
-package memorystore
+package metricstore
 
 import (
 	"fmt"
@@ -18,8 +18,6 @@ const (
 	DefaultCheckpointBufferMin    = 3
 	DefaultAvroCheckpointInterval = time.Minute
 )
-
-var InternalCCMSFlag bool = false
 
 type MetricStoreConfig struct {
 	// Number of concurrent workers for checkpoint and archive operations.

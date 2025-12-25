@@ -10,7 +10,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/internal/metricstore"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
@@ -58,12 +58,6 @@ func RegisterFootprintWorker() {
 						allMetrics = append(allMetrics, mc.Name)
 					}
 
-					repo, err := metricdata.GetMetricDataRepo(cluster.Name)
-					if err != nil {
-						cclog.Errorf("no metric data repository configured for '%s'", cluster.Name)
-						continue
-					}
-
 					pendingStatements := []sq.UpdateBuilder{}
 
 					for _, job := range jobs {
@@ -72,7 +66,7 @@ func RegisterFootprintWorker() {
 
 						sJob := time.Now()
 
-						jobStats, err := repo.LoadStats(job, allMetrics, context.Background())
+						jobStats, err := metricstore.LoadStats(job, allMetrics, context.Background())
 						if err != nil {
 							cclog.Errorf("error wile loading job data stats for footprint update: %v", err)
 							ce++
