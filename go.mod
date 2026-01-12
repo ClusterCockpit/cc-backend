@@ -43,7 +43,7 @@ require (
 	github.com/swaggo/swag v1.16.6
 	github.com/vektah/gqlparser/v2 v2.5.31
 	golang.org/x/crypto v0.46.0
-	golang.org/x/oauth2 v0.32.0
+	golang.org/x/oauth2 v0.34.0
 	golang.org/x/time v0.14.0
 )
 
