@@ -33,7 +33,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/linkedin/goavro/v2 v2.14.1
 	github.com/mattn/go-sqlite3 v1.14.33
-	github.com/nats-io/nats.go v1.47.0
+	github.com/nats-io/nats.go v1.48.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/common v0.67.4
 	github.com/qustavo/sqlhooks/v2 v2.1.0
