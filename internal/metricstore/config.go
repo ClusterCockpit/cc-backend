@@ -33,18 +33,7 @@ type MetricStoreConfig struct {
 		DumpToFile string `json:"dump-to-file"`
 		EnableGops bool   `json:"gops"`
 	} `json:"debug"`
-	// Global default retention duration
-	RetentionInMemory string `json:"retention-in-memory"`
-	// Per-cluster retention overrides
-	Clusters []struct {
-		Cluster           string `json:"cluster"`
 		RetentionInMemory string `json:"retention-in-memory"`
-		// Per-subcluster retention overrides within this cluster
-		SubClusters []struct {
-			SubCluster        string `json:"subcluster"`
-			RetentionInMemory string `json:"retention-in-memory"`
-		} `json:"subclusters,omitempty"`
-	} `json:"clusters,omitempty"`
 	Archive struct {
 		Interval      string `json:"interval"`
 		RootDir       string `json:"directory"`
@@ -60,14 +49,6 @@ type MetricStoreConfig struct {
 }
 
 var Keys MetricStoreConfig
-
-type retentionConfig struct {
-	global        time.Duration
-	clusterMap    map[string]time.Duration
-	subClusterMap map[string]map[string]time.Duration
-}
-
-var retentionLookup *retentionConfig
 
 // AggregationStrategy for aggregation over multiple values at different cpus/sockets/..., not time!
 type AggregationStrategy int
@@ -131,53 +112,4 @@ func AddMetric(name string, metric MetricConfig) error {
 	}
 
 	return nil
-}
-
-func GetRetentionDuration(cluster, subCluster string) (time.Duration, error) {
-	if retentionLookup == nil {
-		return 0, fmt.Errorf("[METRICSTORE]> retention configuration not initialized")
-	}
-
-	if subCluster != "" {
-		if subMap, ok := retentionLookup.subClusterMap[cluster]; ok {
-			if retention, ok := subMap[subCluster]; ok {
-				return retention, nil
-			}
-		}
-	}
-
-	if retention, ok := retentionLookup.clusterMap[cluster]; ok {
-		return retention, nil
-	}
-
-	return retentionLookup.global, nil
-}
-
-// GetShortestRetentionDuration returns the shortest configured retention duration
-// across all levels (global, cluster, and subcluster configurations).
-// Returns 0 if retentionLookup is not initialized or global retention is not set.
-func GetShortestRetentionDuration() time.Duration {
-	if retentionLookup == nil || retentionLookup.global <= 0 {
-		return 0
-	}
-
-	shortest := retentionLookup.global
-
-	// Check all cluster-level retention durations
-	for _, clusterRetention := range retentionLookup.clusterMap {
-		if clusterRetention > 0 && clusterRetention < shortest {
-			shortest = clusterRetention
-		}
-	}
-
-	// Check all subcluster-level retention durations
-	for _, subClusterMap := range retentionLookup.subClusterMap {
-		for _, scRetention := range subClusterMap {
-			if scRetention > 0 && scRetention < shortest {
-				shortest = scRetention
-			}
-		}
-	}
-
-	return shortest
 }

@@ -46,44 +46,8 @@ const configSchema = `{
             }
         },
         "retention-in-memory": {
-            "description": "Global default: Keep the metrics within memory for given time interval. Retention for X hours, then the metrics would be freed.",
+            "description": "Keep the metrics within memory for given time interval. Retention for X hours, then the metrics would be freed.",
             "type": "string"
-        },
-        "clusters": {
-            "description": "Optional per-cluster retention overrides",
-            "type": "array",
-            "items": {
-                "type": "object",
-                "required": ["cluster"],
-                "properties": {
-                    "cluster": {
-                        "description": "Cluster name",
-                        "type": "string"
-                    },
-                    "retention-in-memory": {
-                        "description": "Cluster-specific retention duration (overrides global default)",
-                        "type": "string"
-                    },
-                    "subclusters": {
-                        "description": "Optional per-subcluster retention overrides",
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "required": ["subcluster"],
-                            "properties": {
-                                "subcluster": {
-                                    "description": "Subcluster name",
-                                    "type": "string"
-                                },
-                                "retention-in-memory": {
-                                    "description": "Subcluster-specific retention duration (overrides cluster and global default)",
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
         },
         "nats": {
             "description": "Configuration for accepting published data through NATS.",
