@@ -3,7 +3,7 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 
-// Package memorystore provides an efficient in-memory time-series metric storage system
+// Package metricstore provides an efficient in-memory time-series metric storage system
 // with support for hierarchical data organization, checkpointing, and archiving.
 //
 // The package organizes metrics in a tree structure (cluster → host → component) and
@@ -17,7 +17,7 @@
 //   - Concurrent checkpoint/archive workers
 //   - Support for sum and average aggregation
 //   - NATS integration for metric ingestion
-package memorystore
+package metricstore
 
 import (
 	"bytes"
@@ -208,15 +208,6 @@ func Shutdown() {
 	cclog.Infof("[METRICSTORE]> Done! (%d files written)\n", files)
 }
 
-func getName(m *MemoryStore, i int) string {
-	for key, val := range m.Metrics {
-		if val.offset == i {
-			return key
-		}
-	}
-	return ""
-}
-
 func Retention(wg *sync.WaitGroup, ctx context.Context) {
 	ms := GetMemoryStore()
 
@@ -245,7 +236,7 @@ func Retention(wg *sync.WaitGroup, ctx context.Context) {
 				t := time.Now().Add(-d)
 				cclog.Infof("[METRICSTORE]> start freeing buffers (older than %s)...\n", t.Format(time.RFC3339))
 				freed, err := ms.Free(nil, t.Unix())
-				if err != nil {
+						if err != nil {
 					cclog.Errorf("[METRICSTORE]> freeing up buffers failed: %s\n", err.Error())
 				} else {
 					cclog.Infof("[METRICSTORE]> done: %d buffers freed\n", freed)

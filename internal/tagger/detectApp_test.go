@@ -5,6 +5,8 @@
 package tagger
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
@@ -29,11 +31,56 @@ func noErr(tb testing.TB, err error) {
 	}
 }
 
-func TestRegister(t *testing.T) {
-	var tagger AppTagger
+func setupAppTaggerTestDir(t *testing.T) string {
+	t.Helper()
 
-	err := tagger.Register()
+	testDir := t.TempDir()
+	appsDir := filepath.Join(testDir, "apps")
+	err := os.MkdirAll(appsDir, 0o755)
 	noErr(t, err)
+
+	srcDir := "../../configs/tagger/apps"
+	files, err := os.ReadDir(srcDir)
+	noErr(t, err)
+
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		srcPath := filepath.Join(srcDir, file.Name())
+		dstPath := filepath.Join(appsDir, file.Name())
+
+		data, err := os.ReadFile(srcPath)
+		noErr(t, err)
+
+		err = os.WriteFile(dstPath, data, 0o644)
+		noErr(t, err)
+	}
+
+	return appsDir
+}
+
+func TestRegister(t *testing.T) {
+	appsDir := setupAppTaggerTestDir(t)
+
+	var tagger AppTagger
+	tagger.cfgPath = appsDir
+	tagger.tagType = tagTypeApp
+	tagger.apps = make(map[string]appInfo, 0)
+
+	files, err := os.ReadDir(appsDir)
+	noErr(t, err)
+
+	for _, fn := range files {
+		if fn.IsDir() {
+			continue
+		}
+		fns := fn.Name()
+		f, err := os.Open(filepath.Join(appsDir, fns))
+		noErr(t, err)
+		tagger.scanApp(f, fns)
+		f.Close()
+	}
 
 	if len(tagger.apps) != 16 {
 		t.Errorf("wrong summary for diagnostic \ngot: %d \nwant: 16", len(tagger.apps))
@@ -41,15 +88,30 @@ func TestRegister(t *testing.T) {
 }
 
 func TestMatch(t *testing.T) {
+	appsDir := setupAppTaggerTestDir(t)
 	r := setup(t)
 
 	job, err := r.FindByIDDirect(317)
 	noErr(t, err)
 
 	var tagger AppTagger
+	tagger.cfgPath = appsDir
+	tagger.tagType = tagTypeApp
+	tagger.apps = make(map[string]appInfo, 0)
 
-	err = tagger.Register()
+	files, err := os.ReadDir(appsDir)
 	noErr(t, err)
+
+	for _, fn := range files {
+		if fn.IsDir() {
+			continue
+		}
+		fns := fn.Name()
+		f, err := os.Open(filepath.Join(appsDir, fns))
+		noErr(t, err)
+		tagger.scanApp(f, fns)
+		f.Close()
+	}
 
 	tagger.Match(job)
 

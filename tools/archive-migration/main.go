@@ -70,7 +70,6 @@ func main() {
 
 	// Run migration
 	migrated, failed, err := migrateArchive(archivePath, dryRun, numWorkers)
-
 	if err != nil {
 		cclog.Errorf("Migration completed with errors: %s", err.Error())
 		if failed > 0 {
@@ -104,5 +103,5 @@ func checkVersion(archivePath string) error {
 
 func updateVersion(archivePath string) error {
 	versionFile := filepath.Join(archivePath, "version.txt")
-	return os.WriteFile(versionFile, []byte("3\n"), 0644)
+	return os.WriteFile(versionFile, []byte("3\n"), 0o644)
 }

@@ -163,11 +163,9 @@ ln -s <your-existing-job-archive> ./var/job-archive
     GraphQL schema and resolvers
   - [`importer`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/importer)
     Job data import and database initialization
-  - [`memorystore`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/memorystore)
-    In-memory metric data store with checkpointing
-  - [`metricdata`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/metricdata)
-    Metric data repository implementations (cc-metric-store, Prometheus)
-  - [`metricDataDispatcher`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/metricDataDispatcher)
+  - [`metricstore`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/metricstore)
+    In-memory metric data store with checkpointing and metric loading
+  - [`metricdispatch`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/metricdispatch)
     Dispatches metric data loading to appropriate backends
   - [`repository`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/repository)
     Database repository layer for jobs and metadata

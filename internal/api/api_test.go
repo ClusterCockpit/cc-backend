@@ -23,8 +23,8 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
-	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
-	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/internal/metricdispatch"
+	"github.com/ClusterCockpit/cc-backend/internal/metricstore"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
@@ -157,11 +157,7 @@ func setup(t *testing.T) *api.RestAPI {
 
 	// Load and check main configuration
 	if cfg := ccconf.GetPackageConfig("main"); cfg != nil {
-		if clustercfg := ccconf.GetPackageConfig("clusters"); clustercfg != nil {
-			config.Init(cfg, clustercfg)
-		} else {
-			cclog.Abort("Cluster configuration must be present")
-		}
+		config.Init(cfg)
 	} else {
 		cclog.Abort("Main configuration must be present")
 	}
@@ -173,9 +169,7 @@ func setup(t *testing.T) *api.RestAPI {
 		t.Fatal(err)
 	}
 
-	if err := metricdata.Init(); err != nil {
-		t.Fatal(err)
-	}
+	// metricstore initialization removed - it's initialized via callback in tests
 
 	archiver.Start(repository.GetJobRepository(), context.Background())
 
@@ -221,7 +215,7 @@ func TestRestApi(t *testing.T) {
 		},
 	}
 
-	metricdata.TestLoadDataCallback = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error) {
+	metricstore.TestLoadDataCallback = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error) {
 		return testData, nil
 	}
 
@@ -366,7 +360,7 @@ func TestRestApi(t *testing.T) {
 	}
 
 	t.Run("CheckArchive", func(t *testing.T) {
-		data, err := metricDataDispatcher.LoadData(stoppedJob, []string{"load_one"}, []schema.MetricScope{schema.MetricScopeNode}, context.Background(), 60)
+		data, err := metricdispatch.LoadData(stoppedJob, []string{"load_one"}, []schema.MetricScope{schema.MetricScopeNode}, context.Background(), 60)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -22,7 +22,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
-	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
+	"github.com/ClusterCockpit/cc-backend/internal/metricdispatch"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
@@ -293,7 +293,7 @@ func (api *RestAPI) getCompleteJobByID(rw http.ResponseWriter, r *http.Request) 
 	}
 
 	if r.URL.Query().Get("all-metrics") == "true" {
-		data, err = metricDataDispatcher.LoadData(job, nil, scopes, r.Context(), resolution)
+		data, err = metricdispatch.LoadData(job, nil, scopes, r.Context(), resolution)
 		if err != nil {
 			cclog.Warnf("REST: error while loading all-metrics job data for JobID %d on %s", job.JobID, job.Cluster)
 			return
@@ -389,7 +389,7 @@ func (api *RestAPI) getJobByID(rw http.ResponseWriter, r *http.Request) {
 		resolution = max(resolution, mc.Timestep)
 	}
 
-	data, err := metricDataDispatcher.LoadData(job, metrics, scopes, r.Context(), resolution)
+	data, err := metricdispatch.LoadData(job, metrics, scopes, r.Context(), resolution)
 	if err != nil {
 		cclog.Warnf("REST: error while loading job data for JobID %d on %s", job.JobID, job.Cluster)
 		return

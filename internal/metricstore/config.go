@@ -3,7 +3,7 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 
-package memorystore
+package metricstore
 
 import (
 	"fmt"
@@ -19,8 +19,6 @@ const (
 	DefaultAvroCheckpointInterval = time.Minute
 )
 
-var InternalCCMSFlag bool = false
-
 type MetricStoreConfig struct {
 	// Number of concurrent workers for checkpoint and archive operations.
 	// If not set or 0, defaults to min(runtime.NumCPU()/2+1, 10)
@@ -35,8 +33,8 @@ type MetricStoreConfig struct {
 		DumpToFile string `json:"dump-to-file"`
 		EnableGops bool   `json:"gops"`
 	} `json:"debug"`
-	RetentionInMemory string `json:"retention-in-memory"`
-	Archive           struct {
+		RetentionInMemory string `json:"retention-in-memory"`
+	Archive struct {
 		Interval      string `json:"interval"`
 		RootDir       string `json:"directory"`
 		DeleteInstead bool   `json:"delete-instead"`

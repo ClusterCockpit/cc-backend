@@ -11,10 +11,10 @@
     "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-terser": "^0.4.4",
     "@timohausmann/quadtree-js": "^1.2.6",
-    "rollup": "^4.53.3",
+    "rollup": "^4.54.0",
     "rollup-plugin-css-only": "^4.5.5",
     "rollup-plugin-svelte": "^7.2.3",
-    "svelte": "^5.44.0"
+    "svelte": "^5.46.1"
   },
   "dependencies": {
     "@rollup/plugin-replace": "^6.0.3",

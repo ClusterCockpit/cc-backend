@@ -13,13 +13,13 @@ type MockJobRepository struct {
 	mock.Mock
 }
 
-func (m *MockJobRepository) HasTag(jobId int64, tagType string, tagName string) bool {
-	args := m.Called(jobId, tagType, tagName)
+func (m *MockJobRepository) HasTag(jobID int64, tagType string, tagName string) bool {
+	args := m.Called(jobID, tagType, tagName)
 	return args.Bool(0)
 }
 
-func (m *MockJobRepository) AddTagOrCreateDirect(jobId int64, tagType string, tagName string) (tagId int64, err error) {
-	args := m.Called(jobId, tagType, tagName)
+func (m *MockJobRepository) AddTagOrCreateDirect(jobID int64, tagType string, tagName string) (tagID int64, err error) {
+	args := m.Called(jobID, tagType, tagName)
 	return args.Get(0).(int64), args.Error(1)
 }
 

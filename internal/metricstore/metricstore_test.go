@@ -3,7 +3,7 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 
-package memorystore
+package metricstore
 
 import (
 	"testing"
@@ -131,7 +131,7 @@ func TestBufferWrite(t *testing.T) {
 
 func TestBufferRead(t *testing.T) {
 	b := newBuffer(100, 10)
-	
+
 	// Write some test data
 	b.write(100, schema.Float(1.0))
 	b.write(110, schema.Float(2.0))

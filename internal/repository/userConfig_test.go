@@ -58,11 +58,7 @@ func setupUserTest(t *testing.T) *UserCfgRepo {
 
 	// Load and check main configuration
 	if cfg := ccconf.GetPackageConfig("main"); cfg != nil {
-		if clustercfg := ccconf.GetPackageConfig("clusters"); clustercfg != nil {
-			config.Init(cfg, clustercfg)
-		} else {
-			t.Fatal("Cluster configuration must be present")
-		}
+		config.Init(cfg)
 	} else {
 		t.Fatal("Main configuration must be present")
 	}

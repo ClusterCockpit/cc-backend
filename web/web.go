@@ -245,7 +245,6 @@ type Page struct {
 	User          schema.User            // Information about the currently logged in user (Full User Info)
 	Roles         map[string]schema.Role // Available roles for frontend render checks
 	Build         Build                  // Latest information about the application
-	Clusters      []config.ClusterConfig // List of all clusters for use in the Header
 	SubClusters   map[string][]string    // Map per cluster of all subClusters for use in the Header
 	FilterPresets map[string]any         // For pages with the Filter component, this can be used to set initial filters.
 	Infos         map[string]any         // For generic use (e.g. username for /monitoring/user/<id>, job id for /monitoring/job/<id>)
@@ -258,12 +257,6 @@ func RenderTemplate(rw http.ResponseWriter, file string, page *Page) {
 	t, ok := templates[file]
 	if !ok {
 		cclog.Errorf("WEB/WEB > template '%s' not found", file)
-	}
-
-	if page.Clusters == nil {
-		for _, c := range config.Clusters {
-			page.Clusters = append(page.Clusters, config.ClusterConfig{Name: c.Name, FilterRanges: c.FilterRanges, MetricDataRepository: nil})
-		}
 	}
 
 	if page.SubClusters == nil {

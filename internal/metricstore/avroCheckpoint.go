@@ -3,7 +3,7 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 
-package memorystore
+package metricstore
 
 import (
 	"bufio"
@@ -24,8 +24,10 @@ import (
 	"github.com/linkedin/goavro/v2"
 )
 
-var NumAvroWorkers int = DefaultAvroWorkers
-var startUp bool = true
+var (
+	NumAvroWorkers int  = DefaultAvroWorkers
+	startUp        bool = true
+)
 
 func (as *AvroStore) ToCheckpoint(dir string, dumpAll bool) (int, error) {
 	levels := make([]*AvroLevel, 0)

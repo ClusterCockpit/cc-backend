@@ -111,14 +111,6 @@ type FilterRanges struct {
 	StartTime *TimeRange `json:"startTime"`
 }
 
-type ClusterConfig struct {
-	Name                 string          `json:"name"`
-	FilterRanges         *FilterRanges   `json:"filterRanges"`
-	MetricDataRepository json.RawMessage `json:"metricDataRepository"`
-}
-
-var Clusters []*ClusterConfig
-
 var Keys ProgramConfig = ProgramConfig{
 	Addr:                      "localhost:8080",
 	DisableAuthentication:     false,
@@ -132,23 +124,12 @@ var Keys ProgramConfig = ProgramConfig{
 	ShortRunningJobsDuration:  5 * 60,
 }
 
-func Init(mainConfig json.RawMessage, clusterConfig json.RawMessage) {
+func Init(mainConfig json.RawMessage) {
 	Validate(configSchema, mainConfig)
 	dec := json.NewDecoder(bytes.NewReader(mainConfig))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&Keys); err != nil {
 		cclog.Abortf("Config Init: Could not decode config file '%s'.\nError: %s\n", mainConfig, err.Error())
-	}
-
-	Validate(clustersSchema, clusterConfig)
-	dec = json.NewDecoder(bytes.NewReader(clusterConfig))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&Clusters); err != nil {
-		cclog.Abortf("Config Init: Could not decode config file '%s'.\nError: %s\n", mainConfig, err.Error())
-	}
-
-	if len(Clusters) < 1 {
-		cclog.Abort("Config Init: At least one cluster required in config. Exited with error.")
 	}
 
 	if Keys.EnableResampling != nil && Keys.EnableResampling.MinimumPoints > 0 {

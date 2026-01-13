@@ -7,9 +7,7 @@ package tagger
 
 import (
 	"bufio"
-	"embed"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -21,8 +19,14 @@ import (
 	"github.com/ClusterCockpit/cc-lib/v2/util"
 )
 
-//go:embed apps/*
-var appFiles embed.FS
+const (
+	// defaultConfigPath is the default path for application tagging configuration
+	defaultConfigPath = "./var/tagger/apps"
+	// tagTypeApp is the tag type identifier for application tags
+	tagTypeApp = "app"
+	// configDirMatch is the directory name used for matching filesystem events
+	configDirMatch = "apps"
+)
 
 type appInfo struct {
 	tag     string
@@ -30,19 +34,19 @@ type appInfo struct {
 }
 
 // AppTagger detects applications by matching patterns in job scripts.
-// It loads application patterns from embedded files and can dynamically reload
-// configuration from a watched directory. When a job script matches a pattern,
+// It loads application patterns from an external configuration directory and can dynamically reload
+// configuration when files change. When a job script matches a pattern,
 // the corresponding application tag is automatically applied.
 type AppTagger struct {
 	// apps maps application tags to their matching patterns
-	apps    map[string]appInfo
+	apps map[string]appInfo
 	// tagType is the type of tag ("app")
 	tagType string
 	// cfgPath is the path to watch for configuration changes
 	cfgPath string
 }
 
-func (t *AppTagger) scanApp(f fs.File, fns string) {
+func (t *AppTagger) scanApp(f *os.File, fns string) {
 	scanner := bufio.NewScanner(f)
 	ai := appInfo{tag: strings.TrimSuffix(fns, filepath.Ext(fns)), strings: make([]string, 0)}
 
@@ -56,7 +60,7 @@ func (t *AppTagger) scanApp(f fs.File, fns string) {
 // EventMatch checks if a filesystem event should trigger configuration reload.
 // It returns true if the event path contains "apps".
 func (t *AppTagger) EventMatch(s string) bool {
-	return strings.Contains(s, "apps")
+	return strings.Contains(s, configDirMatch)
 }
 
 // EventCallback is triggered when the configuration directory changes.
@@ -71,43 +75,50 @@ func (t *AppTagger) EventCallback() {
 	for _, fn := range files {
 		fns := fn.Name()
 		cclog.Debugf("Process: %s", fns)
-		f, err := os.Open(fmt.Sprintf("%s/%s", t.cfgPath, fns))
+		f, err := os.Open(filepath.Join(t.cfgPath, fns))
 		if err != nil {
 			cclog.Errorf("error opening app file %s: %#v", fns, err)
+			continue
 		}
 		t.scanApp(f, fns)
+		f.Close()
 	}
 }
 
-// Register initializes the AppTagger by loading application patterns from embedded files.
-// It also sets up a file watch on ./var/tagger/apps if it exists, allowing for
+// Register initializes the AppTagger by loading application patterns from external folder.
+// It sets up a file watch on ./var/tagger/apps if it exists, allowing for
 // dynamic configuration updates without restarting the application.
-// Returns an error if the embedded application files cannot be read.
+// Returns an error if the configuration path does not exist or cannot be read.
 func (t *AppTagger) Register() error {
-	t.cfgPath = "./var/tagger/apps"
-	t.tagType = "app"
+	if t.cfgPath == "" {
+		t.cfgPath = defaultConfigPath
+	}
+	t.tagType = tagTypeApp
+	t.apps = make(map[string]appInfo, 0)
 
-	files, err := appFiles.ReadDir("apps")
+	if !util.CheckFileExists(t.cfgPath) {
+		return fmt.Errorf("configuration path does not exist: %s", t.cfgPath)
+	}
+
+	files, err := os.ReadDir(t.cfgPath)
 	if err != nil {
 		return fmt.Errorf("error reading app folder: %#v", err)
 	}
-	t.apps = make(map[string]appInfo, 0)
+
 	for _, fn := range files {
 		fns := fn.Name()
 		cclog.Debugf("Process: %s", fns)
-		f, err := appFiles.Open(fmt.Sprintf("apps/%s", fns))
+		f, err := os.Open(filepath.Join(t.cfgPath, fns))
 		if err != nil {
-			return fmt.Errorf("error opening app file %s: %#v", fns, err)
+			cclog.Errorf("error opening app file %s: %#v", fns, err)
+			continue
 		}
-		defer f.Close()
 		t.scanApp(f, fns)
+		f.Close()
 	}
 
-	if util.CheckFileExists(t.cfgPath) {
-		t.EventCallback()
-		cclog.Infof("Setup file watch for %s", t.cfgPath)
-		util.AddListener(t.cfgPath, t)
-	}
+	cclog.Infof("Setup file watch for %s", t.cfgPath)
+	util.AddListener(t.cfgPath, t)
 
 	return nil
 }

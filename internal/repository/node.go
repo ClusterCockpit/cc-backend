@@ -561,7 +561,6 @@ func (r *NodeRepository) GetNodesForList(
 	nodeFilter string,
 	page *model.PageRequest,
 ) ([]string, map[string]string, int, bool, error) {
-
 	// Init Return Vars
 	nodes := make([]string, 0)
 	stateMap := make(map[string]string)

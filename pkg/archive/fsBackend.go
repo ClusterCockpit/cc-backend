@@ -188,7 +188,7 @@ func (fsa *FsArchive) Init(rawConfig json.RawMessage) (uint64, error) {
 			if isEmpty {
 				cclog.Infof("fsBackend Init() > Bootstrapping new archive at %s", fsa.path)
 				versionStr := fmt.Sprintf("%d\n", Version)
-				if err := os.WriteFile(filepath.Join(fsa.path, "version.txt"), []byte(versionStr), 0644); err != nil {
+				if err := os.WriteFile(filepath.Join(fsa.path, "version.txt"), []byte(versionStr), 0o644); err != nil {
 					cclog.Errorf("fsBackend Init() > failed to create version.txt: %v", err)
 					return 0, err
 				}
@@ -674,7 +674,7 @@ func (fsa *FsArchive) ImportJob(
 
 func (fsa *FsArchive) StoreClusterCfg(name string, config *schema.Cluster) error {
 	dir := filepath.Join(fsa.path, name)
-	if err := os.MkdirAll(dir, 0777); err != nil {
+	if err := os.MkdirAll(dir, 0o777); err != nil {
 		cclog.Errorf("StoreClusterCfg() > mkdir error: %v", err)
 		return err
 	}

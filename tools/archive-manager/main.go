@@ -71,7 +71,6 @@ func countJobsNative(archivePath string) (int, error) {
 		}
 		return nil
 	})
-
 	if err != nil {
 		return 0, fmt.Errorf("failed to walk directory: %w", err)
 	}
@@ -434,11 +433,7 @@ func main() {
 
 	// Load and check main configuration
 	if cfg := ccconf.GetPackageConfig("main"); cfg != nil {
-		if clustercfg := ccconf.GetPackageConfig("clusters"); clustercfg != nil {
-			config.Init(cfg, clustercfg)
-		} else {
-			cclog.Abort("Cluster configuration must be present")
-		}
+		config.Init(cfg)
 	} else {
 		cclog.Abort("Main configuration must be present")
 	}

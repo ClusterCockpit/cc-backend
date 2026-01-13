@@ -15,7 +15,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ClusterCockpit/cc-backend/internal/memorystore"
+	"github.com/ClusterCockpit/cc-backend/internal/metricstore"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 
 	"github.com/influxdata/line-protocol/v2/lineprotocol"
@@ -58,7 +58,7 @@ func freeMetrics(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ms := memorystore.GetMemoryStore()
+	ms := metricstore.GetMemoryStore()
 	n := 0
 	for _, sel := range selectors {
 		bn, err := ms.Free(sel, to)
@@ -97,9 +97,9 @@ func writeMetrics(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ms := memorystore.GetMemoryStore()
+	ms := metricstore.GetMemoryStore()
 	dec := lineprotocol.NewDecoderWithBytes(bytes)
-	if err := memorystore.DecodeLine(dec, ms, r.URL.Query().Get("cluster")); err != nil {
+	if err := metricstore.DecodeLine(dec, ms, r.URL.Query().Get("cluster")); err != nil {
 		cclog.Errorf("/api/write error: %s", err.Error())
 		handleError(err, http.StatusBadRequest, rw)
 		return
@@ -129,7 +129,7 @@ func debugMetrics(rw http.ResponseWriter, r *http.Request) {
 		selector = strings.Split(raw, ":")
 	}
 
-	ms := memorystore.GetMemoryStore()
+	ms := metricstore.GetMemoryStore()
 	if err := ms.DebugDump(bufio.NewWriter(rw), selector); err != nil {
 		handleError(err, http.StatusBadRequest, rw)
 		return
@@ -162,7 +162,7 @@ func metricsHealth(rw http.ResponseWriter, r *http.Request) {
 
 	selector := []string{rawCluster, rawNode}
 
-	ms := memorystore.GetMemoryStore()
+	ms := metricstore.GetMemoryStore()
 	if err := ms.HealthCheck(bufio.NewWriter(rw), selector); err != nil {
 		handleError(err, http.StatusBadRequest, rw)
 		return
