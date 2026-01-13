@@ -71,7 +71,6 @@ func countJobsNative(archivePath string) (int, error) {
 		}
 		return nil
 	})
-
 	if err != nil {
 		return 0, fmt.Errorf("failed to walk directory: %w", err)
 	}
