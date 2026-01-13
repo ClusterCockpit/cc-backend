@@ -102,12 +102,7 @@ func initConfiguration() error {
 		return fmt.Errorf("main configuration must be present")
 	}
 
-	clustercfg := ccconf.GetPackageConfig("clusters")
-	if clustercfg == nil {
-		return fmt.Errorf("cluster configuration must be present")
-	}
-
-	config.Init(cfg, clustercfg)
+	config.Init(cfg)
 	return nil
 }
 
