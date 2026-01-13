@@ -143,56 +143,34 @@ func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (sq.SelectBuilde
 
 // Build a sq.SelectBuilder out of a schema.JobFilter.
 func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.SelectBuilder {
-	if filter.Tags != nil {
-		// This is an OR-Logic query: Returns all distinct jobs with at least one of the requested tags; TODO: AND-Logic query?
-		query = query.Join("jobtag ON jobtag.job_id = job.id").Where(sq.Eq{"jobtag.tag_id": filter.Tags}).Distinct()
-	}
+	// Primary Key
 	if filter.DbID != nil {
 		dbIDs := make([]string, len(filter.DbID))
 		copy(dbIDs, filter.DbID)
 		query = query.Where(sq.Eq{"job.id": dbIDs})
 	}
-	if filter.JobID != nil {
-		query = buildStringCondition("job.job_id", filter.JobID, query)
-	}
-	if filter.ArrayJobID != nil {
-		query = query.Where("job.array_job_id = ?", *filter.ArrayJobID)
-	}
-	if filter.User != nil {
-		query = buildStringCondition("job.hpc_user", filter.User, query)
-	}
-	if filter.Project != nil {
-		query = buildStringCondition("job.project", filter.Project, query)
-	}
-	if filter.JobName != nil {
-		query = buildMetaJsonCondition("jobName", filter.JobName, query)
-	}
+	// Explicit indices
 	if filter.Cluster != nil {
 		query = buildStringCondition("job.cluster", filter.Cluster, query)
 	}
 	if filter.Partition != nil {
 		query = buildStringCondition("job.cluster_partition", filter.Partition, query)
 	}
-	if filter.StartTime != nil {
-		query = buildTimeCondition("job.start_time", filter.StartTime, query)
-	}
-	if filter.Duration != nil {
-		query = buildIntCondition("job.duration", filter.Duration, query)
-	}
-	if filter.MinRunningFor != nil {
-		now := time.Now().Unix() // There does not seam to be a portable way to get the current unix timestamp accross different DBs.
-		query = query.Where("(job.job_state != 'running' OR (? - job.start_time) > ?)", now, *filter.MinRunningFor)
-	}
-	if filter.Shared != nil {
-		query = query.Where("job.shared = ?", *filter.Shared)
-	}
 	if filter.State != nil {
 		states := make([]string, len(filter.State))
 		for i, val := range filter.State {
 			states[i] = string(val)
 		}
-
 		query = query.Where(sq.Eq{"job.job_state": states})
+	}
+	if filter.Shared != nil {
+		query = query.Where("job.shared = ?", *filter.Shared)
+	}
+	if filter.Project != nil {
+		query = buildStringCondition("job.project", filter.Project, query)
+	}
+	if filter.User != nil {
+		query = buildStringCondition("job.hpc_user", filter.User, query)
 	}
 	if filter.NumNodes != nil {
 		query = buildIntCondition("job.num_nodes", filter.NumNodes, query)
@@ -203,16 +181,56 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	if filter.NumHWThreads != nil {
 		query = buildIntCondition("job.num_hwthreads", filter.NumHWThreads, query)
 	}
-	if filter.Node != nil {
-		query = buildResourceJsonCondition("hostname", filter.Node, query)
+	if filter.ArrayJobID != nil {
+		query = query.Where("job.array_job_id = ?", *filter.ArrayJobID)
+	}
+	if filter.StartTime != nil {
+		query = buildTimeCondition("job.start_time", filter.StartTime, query)
+	}
+	if filter.Duration != nil {
+		query = buildIntCondition("job.duration", filter.Duration, query)
 	}
 	if filter.Energy != nil {
 		query = buildFloatCondition("job.energy", filter.Energy, query)
 	}
+	// Indices on Tag Table
+	if filter.Tags != nil {
+		// This is an OR-Logic query: Returns all distinct jobs with at least one of the requested tags; TODO: AND-Logic query?
+		query = query.Join("jobtag ON jobtag.job_id = job.id").Where(sq.Eq{"jobtag.tag_id": filter.Tags}).Distinct()
+	}
+	// No explicit Indices
+	if filter.JobID != nil {
+		query = buildStringCondition("job.job_id", filter.JobID, query)
+	}
+	// Queries Within JSONs
 	if filter.MetricStats != nil {
 		for _, ms := range filter.MetricStats {
 			query = buildFloatJsonCondition(ms.MetricName, ms.Range, query)
 		}
+	}
+	if filter.Node != nil {
+		query = buildResourceJsonCondition("hostname", filter.Node, query)
+	}
+	if filter.JobName != nil {
+		query = buildMetaJsonCondition("jobName", filter.JobName, query)
+	}
+	if filter.Schedule != nil {
+		interactiveJobname := "interactive"
+		if *filter.Schedule == "interactive" {
+			iFilter := model.StringInput{Eq: &interactiveJobname}
+			query = buildMetaJsonCondition("jobName", &iFilter, query)
+		} else if *filter.Schedule == "batch" {
+			sFilter := model.StringInput{Neq: &interactiveJobname}
+			query = buildMetaJsonCondition("jobName", &sFilter, query)
+		}
+	}
+
+	// Configurable Filter to exclude recently started jobs, see config.go: ShortRunningJobsDuration
+	if filter.MinRunningFor != nil {
+		now := time.Now().Unix()
+		// Only jobs whose start timestamp is more than MinRunningFor seconds in the past
+		// If a job completed within the configured timeframe, it will still show up after the start_time matches the condition!
+		query = query.Where(sq.Lt{"job.start_time": (now - int64(*filter.MinRunningFor))})
 	}
 	return query
 }
