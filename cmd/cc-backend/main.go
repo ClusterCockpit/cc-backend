@@ -302,6 +302,8 @@ func initSubsystems() error {
 
 	// Apply tags if requested
 	if flagApplyTags {
+		tagger.Init()
+
 		if err := tagger.RunTaggers(); err != nil {
 			return fmt.Errorf("running job taggers: %w", err)
 		}
