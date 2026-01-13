@@ -24,8 +24,10 @@ import (
 	"github.com/linkedin/goavro/v2"
 )
 
-var NumAvroWorkers int = DefaultAvroWorkers
-var startUp bool = true
+var (
+	NumAvroWorkers int  = DefaultAvroWorkers
+	startUp        bool = true
+)
 
 func (as *AvroStore) ToCheckpoint(dir string, dumpAll bool) (int, error) {
 	levels := make([]*AvroLevel, 0)
