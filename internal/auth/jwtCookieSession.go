@@ -146,13 +146,13 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 	}
 
 	claims := token.Claims.(jwt.MapClaims)
-	
+
 	// Use shared helper to get user from JWT claims
 	user, err = getUserFromJWT(claims, jc.ValidateUser, schema.AuthSession, schema.AuthViaToken)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Sync or update user if configured
 	if !jc.ValidateUser && (jc.SyncUserOnLogin || jc.UpdateUserOnLogin) {
 		handleTokenUser(user)
