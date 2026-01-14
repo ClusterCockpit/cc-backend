@@ -261,7 +261,7 @@ func RenderTemplate(rw http.ResponseWriter, file string, page *Page) {
 	}
 
 	if page.Clusters == nil {
-		page.Clusters = make([]string, 2)
+		page.Clusters = make([]string, 0)
 	}
 
 	if page.SubClusters == nil {
