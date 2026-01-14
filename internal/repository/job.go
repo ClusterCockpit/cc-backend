@@ -76,6 +76,7 @@ import (
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
+	"github.com/xtgo/set"
 )
 
 var (
@@ -771,4 +772,64 @@ func (r *JobRepository) UpdateFootprint(
 	}
 
 	return stmt.Set("footprint", string(rawFootprint)), nil
+}
+
+func (r *JobRepository) GetUsedNodes(ts uint64) map[string][]string {
+	q := sq.Select("job.cluster", "job.resources").From("job").
+		Where("job.start_time < ?", ts).
+		Where(sq.Eq{"job.job_state": "running"})
+
+	rows, err := q.RunWith(r.stmtCache).Query()
+	if err != nil {
+		queryString, queryVars, _ := q.ToSql()
+		cclog.Errorf("Error while running query '%s' %v: %v", queryString, queryVars, err)
+		return nil
+	}
+	defer rows.Close()
+
+	// Use a map of sets for efficient deduplication
+	nodeSet := make(map[string]map[string]struct{})
+
+	var (
+		cluster      string
+		rawResources []byte
+		resources    []*schema.Resource
+	)
+
+	for rows.Next() {
+		if err := rows.Scan(&cluster, &rawResources); err != nil {
+			cclog.Warnf("Error scanning job row in GetUsedNodes: %v", err)
+			continue
+		}
+
+		if err := json.Unmarshal(rawResources, &resources); err != nil {
+			cclog.Warnf("Error unmarshaling resources for cluster %s: %v", cluster, err)
+			continue
+		}
+
+		if _, ok := nodeSet[cluster]; !ok {
+			nodeSet[cluster] = make(map[string]struct{})
+		}
+
+		for _, res := range resources {
+			nodeSet[cluster][res.Hostname] = struct{}{}
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		cclog.Errorf("Error iterating rows in GetUsedNodes: %v", err)
+	}
+
+	nodeList := make(map[string][]string)
+	for cluster, nodes := range nodeSet {
+		// Convert map keys to slice
+		list := make([]string, 0, len(nodes))
+		for node := range nodes {
+			list = append(list, node)
+		}
+		// set.Strings sorts the slice and ensures uniqueness
+		nodeList[cluster] = set.Strings(list)
+	}
+
+	return nodeList
 }
