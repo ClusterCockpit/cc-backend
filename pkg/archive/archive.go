@@ -31,13 +31,15 @@
 //	  }
 //	}
 //
-// For S3 backend:
+// For S3 backend (endpoint, region, and usePathStyle are optional):
 //
 //	{
 //	  "archive": {
 //	    "kind": "s3",
+//	    "endpoint": "http://192.168.178.10",
 //	    "bucket": "my-job-archive",
 //	    "region": "us-east-1",
+//	    "usePathStyle": true,
 //	    "accessKey": "...",
 //	    "secretKey": "..."
 //	  }
