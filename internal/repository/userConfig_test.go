@@ -27,17 +27,7 @@ func setupUserTest(t *testing.T) *UserCfgRepo {
 	"archive": {
 		"kind": "file",
 		"path": "./var/job-archive"
-	},
-	"clusters": [
-	{
-	   "name": "testcluster",
-	   "metricDataRepository": {"kind": "test", "url": "bla:8081"},
-	   "filterRanges": {
-		"numNodes": { "from": 1, "to": 64 },
-		"duration": { "from": 0, "to": 86400 },
-		"startTime": { "from": "2022-01-01T00:00:00Z", "to": null }
 	}
-	}]
 }`
 
 	cclog.Init("info", true)
