@@ -756,10 +756,16 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 		return nil, errors.New("you need to be administrator or support staff for this query")
 	}
 
+	defaultMetrics := make([]string, 0)
+	for _, mc := range archive.GetCluster(cluster).MetricConfig {
+		defaultMetrics = append(defaultMetrics, mc.Name)
+	}
 	if metrics == nil {
-		for _, mc := range archive.GetCluster(cluster).MetricConfig {
-			metrics = append(metrics, mc.Name)
-		}
+		metrics = defaultMetrics
+	} else {
+		metrics = slices.DeleteFunc(metrics, func(metric string) bool {
+			return !slices.Contains(defaultMetrics, metric) // Remove undefined metrics.
+		})
 	}
 
 	data, err := metricdispatch.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)
