@@ -821,7 +821,7 @@ func (r *JobRepository) UpdateFootprint(
 // relevant jobs. Returns an error if the database query fails or row iteration
 // encounters errors. Individual row parsing errors are logged but don't fail
 // the entire operation.
-func (r *JobRepository) GetUsedNodes(ts uint64) (map[string][]string, error) {
+func (r *JobRepository) GetUsedNodes(ts int64) (map[string][]string, error) {
 	// Note: Query expects index on (job_state, start_time) for optimal performance
 	q := sq.Select("job.cluster", "job.resources").From("job").
 		Where("job.start_time < ?", ts).
