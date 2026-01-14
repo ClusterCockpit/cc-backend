@@ -11,10 +11,7 @@
     "resampling": {
       "minimumPoints": 600,
       "trigger": 180,
-      "resolutions": [
-        240,
-        60
-      ]
+      "resolutions": [240, 60]
     },
     "apiSubjects": {
       "subjectJobEvent": "cc.job.event",
@@ -22,37 +19,12 @@
     }
   },
   "cron": {
-    "commit-job-worker": "2m",
+    "commit-job-worker": "1m",
     "duration-worker": "5m",
     "footprint-worker": "10m"
   },
   "archive": {
     "kind": "file",
     "path": "./var/job-archive"
-  },
-  "clusters": [
-    {
-      "name": "test",
-      "metricDataRepository": {
-        "kind": "cc-metric-store",
-        "url": "http://localhost:8082",
-        "token": "eyJhbGciOiJF-E-pQBQ"
-      },
-      "filterRanges": {
-        "numNodes": {
-          "from": 1,
-          "to": 64
-        },
-        "duration": {
-          "from": 0,
-          "to": 86400
-        },
-        "startTime": {
-          "from": "2022-01-01T00:00:00Z",
-          "to": null
-        }
-      }
-    }
-  ]
+  }
 }
-

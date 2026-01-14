@@ -48,7 +48,7 @@ const configString = `
     "emission-constant": 317
   },
   "cron": {
-    "commit-job-worker": "2m",
+    "commit-job-worker": "1m",
     "duration-worker": "5m",
     "footprint-worker": "10m"
   },
@@ -60,31 +60,7 @@ const configString = `
     "jwts": {
       "max-age": "2000h"
     }
-  },
- "clusters": [
-     {
-         "name": "name",
-         "metricDataRepository": {
-             "kind": "cc-metric-store",
-             "url": "http://localhost:8082",
-             "token": ""
-         },
-         "filterRanges": {
-             "numNodes": {
-                 "from": 1,
-                 "to": 64
-             },
-             "duration": {
-                 "from": 0,
-                 "to": 86400
-             },
-             "startTime": {
-                 "from": "2023-01-01T00:00:00Z",
-                 "to": null
-             }
-         }
-     }
- ]
+  }
 }
 `
 

@@ -39,33 +39,22 @@ func setup(t *testing.T) *api.RestAPI {
 	repository.ResetConnection()
 
 	const testconfig = `{
-		"main": {
-	"addr":            "0.0.0.0:8080",
-	"validate": false,
-  "apiAllowedIPs": [
-    "*"
-  ]
-	},
+	"main": {
+	   "addr":            "0.0.0.0:8080",
+	   "validate": false,
+     "apiAllowedIPs": [
+       "*"
+      ]
+  },
 	"archive": {
-		"kind": "file",
-		"path": "./var/job-archive"
+		 "kind": "file",
+		 "path": "./var/job-archive"
 	},
 	"auth": {
-  "jwts": {
-      "max-age": "2m"
+     "jwts": {
+     "max-age": "2m"
   }
-	},
-	"clusters": [
-	{
-	   "name": "testcluster",
-	   "metricDataRepository": {"kind": "test", "url": "bla:8081"},
-	   "filterRanges": {
-		"numNodes": { "from": 1, "to": 64 },
-		"duration": { "from": 0, "to": 86400 },
-		"startTime": { "from": "2022-01-01T00:00:00Z", "to": null }
-	   }
-	}
-	]
+  }
 }`
 	const testclusterJSON = `{
         "name": "testcluster",
