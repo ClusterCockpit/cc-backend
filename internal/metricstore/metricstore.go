@@ -235,8 +235,9 @@ func Retention(wg *sync.WaitGroup, ctx context.Context) {
 			case <-ticker.C:
 				t := time.Now().Add(-d)
 				cclog.Infof("[METRICSTORE]> start freeing buffers (older than %s)...\n", t.Format(time.RFC3339))
-				freed, err := ms.Free(nil, t.Unix())
-						if err != nil {
+
+				freed, err := Free(ms, t)
+				if err != nil {
 					cclog.Errorf("[METRICSTORE]> freeing up buffers failed: %s\n", err.Error())
 				} else {
 					cclog.Infof("[METRICSTORE]> done: %d buffers freed\n", freed)
@@ -244,6 +245,103 @@ func Retention(wg *sync.WaitGroup, ctx context.Context) {
 			}
 		}
 	}()
+}
+
+func Free(ms *MemoryStore, t time.Time) (int, error) {
+	// jobRepo := repository.GetJobRepository()
+	// excludeSelectors, err := jobRepo.GetUsedNodes(t.Unix())
+	// if err != nil {
+	// 	return 0, err
+	// }
+
+	excludeSelectors := make(map[string][]string, 0)
+
+	// excludeSelectors := map[string][]string{
+	// 	"alex":  {"a0122", "a0123", "a0225"},
+	// 	"fritz": {"f0201", "f0202"},
+	// }
+
+	switch lenMap := len(excludeSelectors); lenMap {
+
+	// If the length of the map returned by GetUsedNodes() is 0,
+	// then use default Free method with nil selector
+	case 0:
+		return ms.Free(nil, t.Unix())
+
+	// Else formulate selectors, exclude those from the map
+	// and free the rest of the selectors
+	default:
+		selectors := GetSelectors(ms, excludeSelectors)
+		return FreeSelected(ms, selectors, t)
+	}
+}
+
+// A function to free specific selectors. Used when we want to retain some specific nodes
+// beyond the retention time.
+func FreeSelected(ms *MemoryStore, selectors [][]string, t time.Time) (int, error) {
+	freed := 0
+
+	for _, selector := range selectors {
+
+		freedBuffers, err := ms.Free(selector, t.Unix())
+		if err != nil {
+			cclog.Errorf("error while freeing selected buffers: %#v", err)
+		}
+		freed += freedBuffers
+
+	}
+
+	return freed, nil
+}
+
+// This function will populate all the second last levels - meaning nodes
+// From that we can exclude the specific selectosr/node we want to retain.
+func GetSelectors(ms *MemoryStore, excludeSelectors map[string][]string) [][]string {
+	allSelectors := ms.GetPaths(2)
+
+	filteredSelectors := make([][]string, 0, len(allSelectors))
+
+	for _, path := range allSelectors {
+		if len(path) < 2 {
+			continue
+		}
+
+		key := path[0]   // The "Key" (Level 1)
+		value := path[1] // The "Value" (Level 2)
+
+		exclude := false
+
+		// Check if the key exists in our exclusion map
+		if excludedValues, exists := excludeSelectors[key]; exists {
+			// The key exists, now check if the specific value is in the exclusion list
+			for _, ev := range excludedValues {
+				if ev == value {
+					exclude = true
+					break
+				}
+			}
+		}
+
+		if !exclude {
+			filteredSelectors = append(filteredSelectors, path)
+		}
+	}
+
+	// fmt.Printf("All selectors: %#v\n\n", allSelectors)
+	// fmt.Printf("filteredSelectors: %#v\n\n", filteredSelectors)
+
+	return filteredSelectors
+}
+
+// GetPaths returns a list of lists (paths) to the specified depth.
+func (ms *MemoryStore) GetPaths(targetDepth int) [][]string {
+	var results [][]string
+
+	// Start recursion. Initial path is empty.
+	// We treat Root as depth 0.
+	ms.root.collectPaths(0, targetDepth, []string{}, &results)
+
+	return results
 }
 
 // Write all values in `metrics` to the level specified by `selector` for time `ts`.

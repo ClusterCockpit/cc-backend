@@ -72,6 +72,29 @@ func (l *Level) findLevelOrCreate(selector []string, nMetrics int) *Level {
 	return child.findLevelOrCreate(selector[1:], nMetrics)
 }
 
+func (l *Level) collectPaths(currentDepth, targetDepth int, currentPath []string, results *[][]string) {
+	l.lock.RLock()
+	defer l.lock.RUnlock()
+
+	for key, child := range l.children {
+		if child == nil {
+			continue
+		}
+
+		// We explicitly make a new slice and copy data to avoid sharing underlying arrays between siblings
+		newPath := make([]string, len(currentPath))
+		copy(newPath, currentPath)
+		newPath = append(newPath, key)
+
+		// Check depth, and just return if depth reached
+		if currentDepth+1 == targetDepth {
+			*results = append(*results, newPath)
+		} else {
+			child.collectPaths(currentDepth+1, targetDepth, newPath, results)
+		}
+	}
+}
+
 func (l *Level) free(t int64) (int, error) {
 	l.lock.Lock()
 	defer l.lock.Unlock()

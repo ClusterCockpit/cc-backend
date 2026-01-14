@@ -36,7 +36,7 @@ const configString = `
     "short-running-jobs-duration": 300,
     "resampling": {
       "minimumPoints": 600,
-      "trigger": 180,
+      "trigger": 300,
       "resolutions": [
         240,
         60
