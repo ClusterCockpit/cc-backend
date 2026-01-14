@@ -972,12 +972,10 @@ func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 // SubCluster returns generated.SubClusterResolver implementation.
 func (r *Resolver) SubCluster() generated.SubClusterResolver { return &subClusterResolver{r} }
 
-type (
-	clusterResolver     struct{ *Resolver }
-	jobResolver         struct{ *Resolver }
-	metricValueResolver struct{ *Resolver }
-	mutationResolver    struct{ *Resolver }
-	nodeResolver        struct{ *Resolver }
-	queryResolver       struct{ *Resolver }
-	subClusterResolver  struct{ *Resolver }
-)
+type clusterResolver struct{ *Resolver }
+type jobResolver struct{ *Resolver }
+type metricValueResolver struct{ *Resolver }
+type mutationResolver struct{ *Resolver }
+type nodeResolver struct{ *Resolver }
+type queryResolver struct{ *Resolver }
+type subClusterResolver struct{ *Resolver }

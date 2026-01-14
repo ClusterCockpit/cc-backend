@@ -82,6 +82,7 @@ type JobFilter struct {
 	State           []schema.JobState `json:"state,omitempty"`
 	MetricStats     []*MetricStatItem `json:"metricStats,omitempty"`
 	Shared          *string           `json:"shared,omitempty"`
+	Schedule        *string           `json:"schedule,omitempty"`
 	Node            *StringInput      `json:"node,omitempty"`
 }
 

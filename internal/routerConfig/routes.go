@@ -257,6 +257,12 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 	if len(query["state"]) != 0 {
 		filterPresets["state"] = query["state"]
 	}
+	if query.Get("shared") != "" {
+		filterPresets["shared"] = query.Get("shared")
+	}
+	if query.Get("schedule") != "" {
+		filterPresets["schedule"] = query.Get("schedule")
+	}
 	if rawtags, ok := query["tag"]; ok {
 		tags := make([]int, len(rawtags))
 		for i, tid := range rawtags {

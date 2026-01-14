@@ -28,7 +28,7 @@
   } from "@sveltestrap/sveltestrap";
   import Info from "./filters/InfoBox.svelte";
   import Cluster from "./filters/Cluster.svelte";
-  import JobStates, { allJobStates } from "./filters/JobStates.svelte";
+  import JobStates, { allJobStates, mapSharedStates } from "./filters/JobStates.svelte";
   import StartTime, { startTimeSelectOptions } from "./filters/StartTime.svelte";
   import Duration from "./filters/Duration.svelte";
   import Tags from "./filters/Tags.svelte";
@@ -69,6 +69,8 @@
     cluster: null,
     partition: null,
     states: allJobStates,
+    shared: "",
+    schedule: "",
     startTime: { from: null, to: null, range: ""},
     duration: {
       lessThan: null,
@@ -103,6 +105,8 @@
       filterPresets.states || filterPresets.state
         ? [filterPresets.state].flat()
         : allJobStates,
+    shared: filterPresets.shared || "",
+    schedule: filterPresets.schedule || "",
     startTime: filterPresets.startTime || { from: null, to: null, range: ""},
     duration: filterPresets.duration || {
       lessThan: null,
@@ -146,19 +150,39 @@
     let items = [];
     if (filters.dbId.length != 0)
       items.push({ dbId: filters.dbId });
-    if (filters.jobId)
-      items.push({ jobId: { [filters.jobIdMatch]: filters.jobId } });
-    if (filters.arrayJobId != null)
-      items.push({ arrayJobId: filters.arrayJobId });
-    if (filters.jobName) items.push({ jobName: { contains: filters.jobName } });
-    if (filters.project)
-      items.push({ project: { [filters.projectMatch]: filters.project } });
-    if (filters.user)
-      items.push({ user: { [filters.userMatch]: filters.user } });
     if (filters.cluster) items.push({ cluster: { eq: filters.cluster } });
     if (filters.partition) items.push({ partition: { eq: filters.partition } });
     if (filters.states.length != allJobStates?.length)
       items.push({ state: filters.states });
+    if (filters.shared) items.push({ shared: filters.shared });
+    if (filters.project)
+      items.push({ project: { [filters.projectMatch]: filters.project } });
+    if (filters.user)
+      items.push({ user: { [filters.userMatch]: filters.user } });
+    if (filters.numNodes.from != null || filters.numNodes.to != null) {
+      items.push({
+        numNodes: { from: filters.numNodes.from, to: filters.numNodes.to },
+      });
+    }
+    if (filters.numAccelerators.from != null || filters.numAccelerators.to != null) {
+      items.push({
+        numAccelerators: {
+          from: filters.numAccelerators.from,
+          to: filters.numAccelerators.to,
+        },
+      });
+    }
+    if (filters.numHWThreads.from != null || filters.numHWThreads.to != null) {
+      items.push({
+        numHWThreads: {
+          from: filters.numHWThreads.from,
+          to: filters.numHWThreads.to,
+        },
+      });
+    }
+    if (filters.arrayJobId != null)
+      items.push({ arrayJobId: filters.arrayJobId });
+    if (filters.tags.length != 0) items.push({ tags: filters.tags });
     if (filters.startTime.from || filters.startTime.to)
       items.push({
         startTime: { from: filters.startTime.from, to: filters.startTime.to },
@@ -175,36 +199,17 @@
       items.push({ duration: { from: 0, to: filters.duration.lessThan } });
     if (filters.duration.moreThan)
       items.push({ duration: { from: filters.duration.moreThan, to: 604800 } }); // 7 days to include special jobs with long runtimes
-    if (filters.tags.length != 0) items.push({ tags: filters.tags });
-    if (filters.numNodes.from != null || filters.numNodes.to != null) {
-      items.push({
-        numNodes: { from: filters.numNodes.from, to: filters.numNodes.to },
-      });
-    }
-    if (filters.numHWThreads.from != null || filters.numHWThreads.to != null) {
-      items.push({
-        numHWThreads: {
-          from: filters.numHWThreads.from,
-          to: filters.numHWThreads.to,
-        },
-      });
-    }
-    if (filters.numAccelerators.from != null || filters.numAccelerators.to != null) {
-      items.push({
-        numAccelerators: {
-          from: filters.numAccelerators.from,
-          to: filters.numAccelerators.to,
-        },
-      });
-    }
-    if (filters.node) items.push({ node: { [filters.nodeMatch]: filters.node } });
     if (filters.energy.from || filters.energy.to)
       items.push({
         energy: { from: filters.energy.from, to: filters.energy.to },
       });
+    if (filters.jobId)
+      items.push({ jobId: { [filters.jobIdMatch]: filters.jobId } });
     if (filters.stats.length != 0)
       items.push({ metricStats: filters.stats.map((st) => { return { metricName: st.field, range: { from: st.from, to: st.to }} }) });
-
+    if (filters.node) items.push({ node: { [filters.nodeMatch]: filters.node } });
+    if (filters.jobName) items.push({ jobName: { contains: filters.jobName } });
+    if (filters.schedule) items.push({ schedule: filters.schedule });
     applyFilters({ filters: items });
     changeURL();
     return items;
@@ -248,6 +253,8 @@
     if (filters.partition) opts.push(`partition=${filters.partition}`);
     if (filters.states.length != allJobStates?.length)
       for (let state of filters.states) opts.push(`state=${state}`);
+    if (filters.shared) opts.push(`shared=${filters.shared}`);
+    if (filters.schedule) opts.push(`schedule=${filters.schedule}`);
     if (filters.startTime.from && filters.startTime.to)
       opts.push(
         `startTime=${dateToUnixEpoch(filters.startTime.from)}-${dateToUnixEpoch(filters.startTime.to)}`,
@@ -366,6 +373,23 @@
   {#if filters.states.length != allJobStates?.length}
     <Info icon="gear-fill" onclick={() => (isJobStatesOpen = true)}>
       {filters.states.join(", ")}
+      {#if filters.shared && !filters.schedule}
+        ({mapSharedStates[filters.shared]})
+      {:else if filters.schedule && !filters.shared}
+        ({filters.schedule.charAt(0).toUpperCase() + filters.schedule?.slice(1)})
+      {:else if (filters.shared && filters.schedule)}
+        ({[mapSharedStates[filters.shared], (filters.schedule.charAt(0).toUpperCase() + filters.schedule.slice(1))].join(", ")})
+      {/if}
+    </Info>
+  {:else if (filters.shared || filters.schedule)}
+    <Info icon="gear-fill" onclick={() => (isJobStatesOpen = true)}>
+      {#if filters.shared && !filters.schedule}
+        {mapSharedStates[filters.shared]}
+      {:else if filters.schedule && !filters.shared}
+        {filters.schedule.charAt(0).toUpperCase() + filters.schedule?.slice(1)}
+      {:else if (filters.shared && filters.schedule)}
+        {[mapSharedStates[filters.shared], (filters.schedule.charAt(0).toUpperCase() + filters.schedule.slice(1))].join(", ")}
+      {/if}
     </Info>
   {/if}
 
@@ -468,6 +492,8 @@
 <JobStates
   bind:isOpen={isJobStatesOpen}
   presetStates={filters.states}
+  presetShared={filters.shared}
+  presetSchedule={filters.schedule}
   setFilter={(filter) => updateFilters(filter)}
 />
 
