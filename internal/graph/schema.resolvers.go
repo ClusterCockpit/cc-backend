@@ -590,21 +590,24 @@ func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, pag
 
 	// Note: Even if App-Default 'config.Keys.UiDefaults["job_list_usePaging"]' is set, always return hasNextPage boolean.
 	// Users can decide in frontend to use continuous scroll, even if app-default is paging!
+	// Skip if page.ItemsPerPage == -1 ("Load All" -> No Next Page required, Status Dashboards)
 	/*
 	  Example Page 4 @ 10 IpP : Does item 41 exist?
 	  Minimal Page 41 @ 1 IpP : If len(result) is 1, Page 5 @ 10 IpP exists.
 	*/
-	nextPage := &model.PageRequest{
-		ItemsPerPage: 1,
-		Page:         ((page.Page * page.ItemsPerPage) + 1),
+	hasNextPage := false
+	if page.ItemsPerPage != -1 {
+		nextPage := &model.PageRequest{
+			ItemsPerPage: 1,
+			Page:         ((page.Page * page.ItemsPerPage) + 1),
+		}
+		nextJobs, err := r.Repo.QueryJobs(ctx, filter, nextPage, order)
+		if err != nil {
+			cclog.Warn("Error while querying next jobs")
+			return nil, err
+		}
+		hasNextPage = len(nextJobs) == 1
 	}
-	nextJobs, err := r.Repo.QueryJobs(ctx, filter, nextPage, order)
-	if err != nil {
-		cclog.Warn("Error while querying next jobs")
-		return nil, err
-	}
-
-	hasNextPage := len(nextJobs) == 1
 
 	return &model.JobResultList{Items: jobs, Count: &count, HasNextPage: &hasNextPage}, nil
 }
