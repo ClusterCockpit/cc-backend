@@ -4,8 +4,8 @@
   Properties:
   - `username String`: Empty string if auth. is disabled, otherwise the username as string
   - `authlevel Number`: The current users authentication level
-  - `clusters [String]`: List of cluster names
-  - `subClusters [String]`: List of subCluster names
+  - `clusterNames [String]`: List of cluster names
+  - `subclusterMap map[String][]string`: Map of subclusters by cluster names
   - `roles [Number]`: Enum containing available roles
 -->
 
@@ -28,8 +28,8 @@
   let { 
     username,
     authlevel,
-    clusters,
-    subClusters,
+    clusterNames,
+    subclusterMap,
     roles
   } = $props();
 
@@ -152,15 +152,15 @@
     <Nav navbar>
       {#if showMax || showBrg}
         <NavbarLinks
-          {clusters}
-          {subClusters}
+          {clusterNames}
+          {subclusterMap}
           links={views.filter((item) => item.requiredRole <= authlevel)}
         />
 
       {:else if showMid}
         <NavbarLinks
-          {clusters}
-          {subClusters}
+          {clusterNames}
+          {subclusterMap}
           links={views.filter(
             (item) => item.requiredRole <= authlevel && item.menu != "Info",
           )}
@@ -173,8 +173,8 @@
             </DropdownToggle>
             <DropdownMenu class="dropdown-menu-lg-end">
               <NavbarLinks
-                {clusters}
-                {subClusters}
+                {clusterNames}
+                {subclusterMap}
                 direction="right"
                 links={views.filter(
                   (item) =>
@@ -187,8 +187,8 @@
 
       {:else if showSml}
         <NavbarLinks
-          {clusters}
-          {subClusters}
+          {clusterNames}
+          {subclusterMap}
           links={views.filter(
             (item) => item.requiredRole <= authlevel && item.menu == "none",
           )}
@@ -200,8 +200,8 @@
             </DropdownToggle>
             <DropdownMenu class="dropdown-menu-lg-end">
               <NavbarLinks
-                {clusters}
-                {subClusters}
+                {clusterNames}
+                {subclusterMap}
                 direction="right"
                 links={views.filter(
                   (item) => item.requiredRole <= authlevel && item.menu == 'Jobs',
@@ -217,8 +217,8 @@
             </DropdownToggle>
             <DropdownMenu class="dropdown-menu-lg-end">
               <NavbarLinks
-                {clusters}
-                {subClusters}
+                {clustersNames}
+                {subclusterMap}
                 direction="right"
                 links={views.filter(
                   (item) => item.requiredRole <= authlevel && item.menu == 'Groups',
@@ -234,8 +234,8 @@
             </DropdownToggle>
             <DropdownMenu class="dropdown-menu-lg-end">
               <NavbarLinks
-                {clusters}
-                {subClusters}
+                {clusterNames}
+                {subclusterMap}
                 direction="right"
                 links={views.filter(
                   (item) => item.requiredRole <= authlevel && item.menu == 'Info',

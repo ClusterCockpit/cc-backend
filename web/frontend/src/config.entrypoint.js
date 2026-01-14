@@ -10,7 +10,7 @@ mount(Config, {
         isApi: isApi,
         username: username,
         ncontent: ncontent,
-        clusters: hClusters.map((c) => c.name) // Defined in Header Template
+        clusterNames: hClusterNames
     },
     context: new Map([
             ['cc-config', clusterCockpitConfig],

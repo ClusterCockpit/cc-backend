@@ -2,7 +2,7 @@
   @component Admin option select card
 
     Properties:
-  - `clusters [String]`: The available clusternames
+  - `clusterNames [String]`: The available clusternames
 -->
 
 <script>
@@ -11,7 +11,7 @@
 
   /* Svelte 5 Props */
   let {
-    clusters,
+    clusterNames,
   } = $props();
 
   /*Const Init */
@@ -52,17 +52,17 @@
   </Card>
 </Col>
 
-{#if clusters?.length > 0}
+{#if clusterNames?.length > 0}
   <Col> 
     <Card class="h-100">
       <CardBody>
         <CardTitle class="mb-3">Public Dashboard Links</CardTitle>
         <Row>
-        {#each clusters as cluster}
+        {#each clusterNames as cn}
           <Col>
-            <Button color="info" class="mb-2 mb-xl-0" href={`/monitoring/dashboard/${cluster}`} target="_blank">
+            <Button color="info" class="mb-2 mb-xl-0" href={`/monitoring/dashboard/${cn}`} target="_blank">
               <Icon name="clipboard-pulse" class="mr-2"/>
-              {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Public Dashboard
+              {cn.charAt(0).toUpperCase() + cn.slice(1)} Public Dashboard
             </Button>
           </Col>
         {/each}
