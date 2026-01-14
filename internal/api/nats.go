@@ -6,7 +6,6 @@
 package api
 
 import (
-	"bytes"
 	"database/sql"
 	"encoding/json"
 	"strings"
@@ -26,7 +25,40 @@ import (
 )
 
 // NatsAPI provides NATS subscription-based handlers for Job and Node operations.
-// It mirrors the functionality of the REST API but uses NATS messaging.
+// It mirrors the functionality of the REST API but uses NATS messaging with
+// InfluxDB line protocol as the message format.
+//
+// # Message Format
+//
+// All NATS messages use InfluxDB line protocol format (https://docs.influxdata.com/influxdb/v2.0/reference/syntax/line-protocol/)
+// with the following structure:
+//
+//	measurement,tag1=value1,tag2=value2 field1=value1,field2=value2 timestamp
+//
+// # Job Events
+//
+// Job start/stop events use the "job" measurement with a "function" tag to distinguish operations:
+//
+//	job,function=start_job event="{...JSON payload...}" <timestamp>
+//	job,function=stop_job event="{...JSON payload...}" <timestamp>
+//
+// The JSON payload in the "event" field follows the schema.Job or StopJobAPIRequest structure.
+//
+// Example job start message:
+//
+//	job,function=start_job event="{\"jobId\":1001,\"user\":\"testuser\",\"cluster\":\"testcluster\",...}" 1234567890000000000
+//
+// # Node State Events
+//
+// Node state updates use the "nodestate" measurement with cluster information:
+//
+//	nodestate event="{...JSON payload...}" <timestamp>
+//
+// The JSON payload follows the UpdateNodeStatesRequest structure.
+//
+// Example node state message:
+//
+//	nodestate event="{\"cluster\":\"testcluster\",\"nodes\":[{\"hostname\":\"node01\",\"states\":[\"idle\"]}]}" 1234567890000000000
 type NatsAPI struct {
 	JobRepository *repository.JobRepository
 	// RepositoryMutex protects job creation operations from race conditions
@@ -67,10 +99,12 @@ func (api *NatsAPI) StartSubscriptions() error {
 	return nil
 }
 
+// processJobEvent routes job event messages to the appropriate handler based on the "function" tag.
+// Validates that required tags and fields are present before processing.
 func (api *NatsAPI) processJobEvent(msg lp.CCMessage) {
 	function, ok := msg.GetTag("function")
 	if !ok {
-		cclog.Errorf("Job event is missing tag 'function': %+v", msg)
+		cclog.Errorf("Job event is missing required tag 'function': measurement=%s", msg.Name())
 		return
 	}
 
@@ -78,43 +112,66 @@ func (api *NatsAPI) processJobEvent(msg lp.CCMessage) {
 	case "start_job":
 		v, ok := msg.GetEventValue()
 		if !ok {
-			cclog.Errorf("Job event is missing event value: %+v", msg)
+			cclog.Errorf("Job start event is missing event field with JSON payload")
+			return
 		}
 		api.handleStartJob(v)
 
 	case "stop_job":
 		v, ok := msg.GetEventValue()
 		if !ok {
-			cclog.Errorf("Job event is missing event value: %+v", msg)
+			cclog.Errorf("Job stop event is missing event field with JSON payload")
+			return
 		}
 		api.handleStopJob(v)
+
 	default:
-		cclog.Warnf("Unimplemented job event: %+v", msg)
+		cclog.Warnf("Unknown job event function '%s', expected 'start_job' or 'stop_job'", function)
 	}
 }
 
+// handleJobEvent processes job-related messages received via NATS using InfluxDB line protocol.
+// The message must be in line protocol format with measurement="job" and include:
+//   - tag "function" with value "start_job" or "stop_job"
+//   - field "event" containing JSON payload (schema.Job or StopJobAPIRequest)
+//
+// Example: job,function=start_job event="{\"jobId\":1001,...}" 1234567890000000000
 func (api *NatsAPI) handleJobEvent(subject string, data []byte) {
+	if len(data) == 0 {
+		cclog.Warnf("NATS %s: received empty message", subject)
+		return
+	}
+
 	d := influx.NewDecoderWithBytes(data)
 
 	for d.Next() {
 		m, err := receivers.DecodeInfluxMessage(d)
 		if err != nil {
-			cclog.Errorf("NATS %s:  Failed to decode message: %v", subject, err)
+			cclog.Errorf("NATS %s: failed to decode InfluxDB line protocol message: %v", subject, err)
 			return
 		}
 
-		if m.IsEvent() {
-			if m.Name() == "job" {
-				api.processJobEvent(m)
-			}
+		if !m.IsEvent() {
+			cclog.Warnf("NATS %s: received non-event message, skipping", subject)
+			continue
 		}
 
+		if m.Name() == "job" {
+			api.processJobEvent(m)
+		} else {
+			cclog.Warnf("NATS %s: unexpected measurement name '%s', expected 'job'", subject, m.Name())
+		}
 	}
 }
 
 // handleStartJob processes job start messages received via NATS.
-// Expected JSON payload follows the schema.Job structure.
+// The payload parameter contains JSON following the schema.Job structure.
+// Jobs are validated, checked for duplicates, and inserted into the database.
 func (api *NatsAPI) handleStartJob(payload string) {
+	if payload == "" {
+		cclog.Error("NATS start job: payload is empty")
+		return
+	}
 	req := schema.Job{
 		Shared:           "none",
 		MonitoringStatus: schema.MonitoringStatusRunningOrArchiving,
@@ -173,8 +230,13 @@ func (api *NatsAPI) handleStartJob(payload string) {
 }
 
 // handleStopJob processes job stop messages received via NATS.
-// Expected JSON payload follows the StopJobAPIRequest structure.
+// The payload parameter contains JSON following the StopJobAPIRequest structure.
+// The job is marked as stopped in the database and archiving is triggered if monitoring is enabled.
 func (api *NatsAPI) handleStopJob(payload string) {
+	if payload == "" {
+		cclog.Error("NATS stop job: payload is empty")
+		return
+	}
 	var req StopJobAPIRequest
 
 	dec := json.NewDecoder(strings.NewReader(payload))
@@ -243,15 +305,21 @@ func (api *NatsAPI) handleStopJob(payload string) {
 	archiver.TriggerArchiving(job)
 }
 
-// handleNodeState processes node state update messages received via NATS.
-// Expected JSON payload follows the UpdateNodeStatesRequest structure.
-func (api *NatsAPI) handleNodeState(subject string, data []byte) {
+// processNodestateEvent extracts and processes node state data from the InfluxDB message.
+// Updates node states in the repository for all nodes in the payload.
+func (api *NatsAPI) processNodestateEvent(msg lp.CCMessage) {
+	v, ok := msg.GetEventValue()
+	if !ok {
+		cclog.Errorf("Nodestate event is missing event field with JSON payload")
+		return
+	}
+
 	var req UpdateNodeStatesRequest
 
-	dec := json.NewDecoder(bytes.NewReader(data))
+	dec := json.NewDecoder(strings.NewReader(v))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&req); err != nil {
-		cclog.Errorf("NATS %s: parsing request failed: %v", subject, err)
+		cclog.Errorf("NATS nodestate: parsing request failed: %v", err)
 		return
 	}
 
@@ -270,10 +338,43 @@ func (api *NatsAPI) handleNodeState(subject string, data []byte) {
 		}
 
 		if err := repo.UpdateNodeState(node.Hostname, req.Cluster, &nodeState); err != nil {
-			cclog.Errorf("NATS %s: updating node state for %s on %s failed: %v",
-				subject, node.Hostname, req.Cluster, err)
+			cclog.Errorf("NATS nodestate: updating node state for %s on %s failed: %v",
+				node.Hostname, req.Cluster, err)
 		}
 	}
 
-	cclog.Debugf("NATS %s: updated %d node states for cluster %s", subject, len(req.Nodes), req.Cluster)
+	cclog.Debugf("NATS nodestate: updated %d node states for cluster %s", len(req.Nodes), req.Cluster)
+}
+
+// handleNodeState processes node state update messages received via NATS using InfluxDB line protocol.
+// The message must be in line protocol format with measurement="nodestate" and include:
+//   - field "event" containing JSON payload (UpdateNodeStatesRequest)
+//
+// Example: nodestate event="{\"cluster\":\"testcluster\",\"nodes\":[...]}" 1234567890000000000
+func (api *NatsAPI) handleNodeState(subject string, data []byte) {
+	if len(data) == 0 {
+		cclog.Warnf("NATS %s: received empty message", subject)
+		return
+	}
+
+	d := influx.NewDecoderWithBytes(data)
+
+	for d.Next() {
+		m, err := receivers.DecodeInfluxMessage(d)
+		if err != nil {
+			cclog.Errorf("NATS %s: failed to decode InfluxDB line protocol message: %v", subject, err)
+			return
+		}
+
+		if !m.IsEvent() {
+			cclog.Warnf("NATS %s: received non-event message, skipping", subject)
+			continue
+		}
+
+		if m.Name() == "nodestate" {
+			api.processNodestateEvent(m)
+		} else {
+			cclog.Warnf("NATS %s: unexpected measurement name '%s', expected 'nodestate'", subject, m.Name())
+		}
+	}
 }

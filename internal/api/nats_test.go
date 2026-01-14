@@ -603,25 +603,13 @@ func TestNatsHandleNodeState(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		payload     string
+		data        []byte
 		expectError bool
 		validateFn  func(t *testing.T)
 	}{
 		{
-			name: "valid node state update",
-			payload: `{
-				"cluster": "testcluster",
-				"nodes": [
-					{
-						"hostname": "host123",
-						"states": ["allocated"],
-						"cpusAllocated": 8,
-						"memoryAllocated": 16384,
-						"gpusAllocated": 0,
-						"jobsRunning": 1
-					}
-				]
-			}`,
+			name:        "valid node state update",
+			data:        []byte(`nodestate event="{\"cluster\":\"testcluster\",\"nodes\":[{\"hostname\":\"host123\",\"states\":[\"allocated\"],\"cpusAllocated\":8,\"memoryAllocated\":16384,\"gpusAllocated\":0,\"jobsRunning\":1}]}" 1234567890000000000`),
 			expectError: false,
 			validateFn: func(t *testing.T) {
 				// In a full test, we would verify the node state was updated in the database
@@ -629,51 +617,35 @@ func TestNatsHandleNodeState(t *testing.T) {
 			},
 		},
 		{
-			name: "multiple nodes",
-			payload: `{
-				"cluster": "testcluster",
-				"nodes": [
-					{
-						"hostname": "host123",
-						"states": ["idle"],
-						"cpusAllocated": 0,
-						"memoryAllocated": 0,
-						"gpusAllocated": 0,
-						"jobsRunning": 0
-					},
-					{
-						"hostname": "host124",
-						"states": ["allocated"],
-						"cpusAllocated": 4,
-						"memoryAllocated": 8192,
-						"gpusAllocated": 1,
-						"jobsRunning": 1
-					}
-				]
-			}`,
+			name:        "multiple nodes",
+			data:        []byte(`nodestate event="{\"cluster\":\"testcluster\",\"nodes\":[{\"hostname\":\"host123\",\"states\":[\"idle\"],\"cpusAllocated\":0,\"memoryAllocated\":0,\"gpusAllocated\":0,\"jobsRunning\":0},{\"hostname\":\"host124\",\"states\":[\"allocated\"],\"cpusAllocated\":4,\"memoryAllocated\":8192,\"gpusAllocated\":1,\"jobsRunning\":1}]}" 1234567890000000000`),
 			expectError: false,
 		},
 		{
-			name: "invalid JSON",
-			payload: `{
-				"cluster": "testcluster",
-				"nodes": "not an array"
-			}`,
+			name:        "invalid JSON in event field",
+			data:        []byte(`nodestate event="{\"cluster\":\"testcluster\",\"nodes\":\"not an array\"}" 1234567890000000000`),
 			expectError: true,
 		},
 		{
-			name: "empty nodes array",
-			payload: `{
-				"cluster": "testcluster",
-				"nodes": []
-			}`,
+			name:        "empty nodes array",
+			data:        []byte(`nodestate event="{\"cluster\":\"testcluster\",\"nodes\":[]}" 1234567890000000000`),
 			expectError: false, // Empty array should not cause error
+		},
+		{
+			name:        "invalid line protocol format",
+			data:        []byte(`invalid line protocol format`),
+			expectError: true,
+		},
+		{
+			name:        "empty data",
+			data:        []byte(``),
+			expectError: false, // Should be handled gracefully with warning
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			natsAPI.handleNodeState("test.subject", []byte(tt.payload))
+			natsAPI.handleNodeState("test.subject", tt.data)
 
 			// Allow some time for async operations
 			time.Sleep(50 * time.Millisecond)
@@ -789,7 +761,7 @@ func TestNatsHandleJobEvent(t *testing.T) {
 	}{
 		{
 			name:        "valid influx line protocol",
-			data:        []byte(`job,function=start_job event="{\"jobId\":4001,\"user\":\"testuser\",\"project\":\"testproj\",\"cluster\":\"testcluster\",\"partition\":\"main\",\"walltime\":3600,\"numNodes\":1,\"numHwthreads\":8,\"numAcc\":0,\"shared\":\"none\",\"monitoringStatus\":1,\"smt\":1,\"resources\":[{\"hostname\":\"host123\",\"hwthreads\":[0,1,2,3]}],\"startTime\":1234567890}"`),
+			data:        []byte(`job,function=start_job event="{\"jobId\":4001,\"user\":\"testuser\",\"project\":\"testproj\",\"cluster\":\"testcluster\",\"partition\":\"main\",\"walltime\":3600,\"numNodes\":1,\"numHwthreads\":8,\"numAcc\":0,\"shared\":\"none\",\"monitoringStatus\":1,\"smt\":1,\"resources\":[{\"hostname\":\"host123\",\"hwthreads\":[0,1,2,3]}],\"startTime\":1234567890}" 1234567890000000000`),
 			expectError: false,
 		},
 		{
@@ -809,6 +781,106 @@ func TestNatsHandleJobEvent(t *testing.T) {
 			// HandleJobEvent doesn't return errors, it logs them
 			// We're just ensuring it doesn't panic
 			natsAPI.handleJobEvent("test.subject", tt.data)
+			time.Sleep(50 * time.Millisecond)
+		})
+	}
+}
+
+func TestNatsHandleJobEventEdgeCases(t *testing.T) {
+	natsAPI := setupNatsTest(t)
+	t.Cleanup(cleanupNatsTest)
+
+	tests := []struct {
+		name        string
+		data        []byte
+		expectError bool
+		description string
+	}{
+		{
+			name:        "non-event message (metric data)",
+			data:        []byte(`job,function=start_job value=123.45 1234567890000000000`),
+			expectError: false,
+			description: "Should skip non-event messages gracefully",
+		},
+		{
+			name:        "wrong measurement name",
+			data:        []byte(`wrongmeasurement,function=start_job event="{}" 1234567890000000000`),
+			expectError: false,
+			description: "Should warn about unexpected measurement but not fail",
+		},
+		{
+			name:        "missing event field",
+			data:        []byte(`job,function=start_job other_field="value" 1234567890000000000`),
+			expectError: true,
+			description: "Should error when event field is missing",
+		},
+		{
+			name:        "multiple measurements in one message",
+			data:        []byte("job,function=start_job event=\"{}\" 1234567890000000000\njob,function=stop_job event=\"{}\" 1234567890000000000"),
+			expectError: false,
+			description: "Should process multiple lines",
+		},
+		{
+			name:        "escaped quotes in JSON payload",
+			data:        []byte(`job,function=start_job event="{\"jobId\":6001,\"user\":\"test\\\"user\",\"cluster\":\"test\"}" 1234567890000000000`),
+			expectError: true,
+			description: "Should handle escaped quotes (though JSON parsing may fail)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			natsAPI.handleJobEvent("test.subject", tt.data)
+			time.Sleep(50 * time.Millisecond)
+		})
+	}
+}
+
+func TestNatsHandleNodeStateEdgeCases(t *testing.T) {
+	natsAPI := setupNatsTest(t)
+	t.Cleanup(cleanupNatsTest)
+
+	tests := []struct {
+		name        string
+		data        []byte
+		expectError bool
+		description string
+	}{
+		{
+			name:        "missing cluster field in JSON",
+			data:        []byte(`nodestate event="{\"nodes\":[]}" 1234567890000000000`),
+			expectError: true,
+			description: "Should fail when cluster is missing",
+		},
+		{
+			name:        "malformed JSON with unescaped quotes",
+			data:        []byte(`nodestate event="{\"cluster\":\"test"cluster\",\"nodes\":[]}" 1234567890000000000`),
+			expectError: true,
+			description: "Should fail on malformed JSON",
+		},
+		{
+			name:        "unicode characters in hostname",
+			data:        []byte(`nodestate event="{\"cluster\":\"testcluster\",\"nodes\":[{\"hostname\":\"host-ñ123\",\"states\":[\"idle\"],\"cpusAllocated\":0,\"memoryAllocated\":0,\"gpusAllocated\":0,\"jobsRunning\":0}]}" 1234567890000000000`),
+			expectError: false,
+			description: "Should handle unicode characters",
+		},
+		{
+			name:        "very large node count",
+			data:        []byte(`nodestate event="{\"cluster\":\"testcluster\",\"nodes\":[{\"hostname\":\"node1\",\"states\":[\"idle\"],\"cpusAllocated\":0,\"memoryAllocated\":0,\"gpusAllocated\":0,\"jobsRunning\":0},{\"hostname\":\"node2\",\"states\":[\"idle\"],\"cpusAllocated\":0,\"memoryAllocated\":0,\"gpusAllocated\":0,\"jobsRunning\":0},{\"hostname\":\"node3\",\"states\":[\"idle\"],\"cpusAllocated\":0,\"memoryAllocated\":0,\"gpusAllocated\":0,\"jobsRunning\":0}]}" 1234567890000000000`),
+			expectError: false,
+			description: "Should handle multiple nodes efficiently",
+		},
+		{
+			name:        "timestamp in past",
+			data:        []byte(`nodestate event="{\"cluster\":\"testcluster\",\"nodes\":[]}" 1000000000000000000`),
+			expectError: false,
+			description: "Should accept any valid timestamp",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			natsAPI.handleNodeState("test.subject", tt.data)
 			time.Sleep(50 * time.Millisecond)
 		})
 	}
