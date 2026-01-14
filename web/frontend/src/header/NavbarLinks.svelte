@@ -56,7 +56,7 @@
                   <DropdownItem class="py-1 px-2"
                     href={`${item.href}list/${cn}/${scn}`}
                   >
-                  {subCluster} Node List
+                  {scn} Node List
                   </DropdownItem>
                 {/each}
               </DropdownMenu>
