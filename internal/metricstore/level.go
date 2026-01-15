@@ -124,6 +124,42 @@ func (l *Level) free(t int64) (int, error) {
 	return n, nil
 }
 
+func (l *Level) forceFree() (int, error) {
+	l.lock.Lock()
+	defer l.lock.Unlock()
+
+	n := 0
+
+	// Iterate over metrics in the current level
+	for i, b := range l.metrics {
+		if b != nil {
+			// Attempt to free the oldest buffer in this chain
+			delme, freedCount := b.forceFreeOldest()
+			n += freedCount
+
+			// If delme is true, it means 'b' itself (the head) was the oldest
+			// and needs to be removed from the slice.
+			if delme {
+				if cap(b.data) == BufferCap {
+					bufferPool.Put(b)
+				}
+				l.metrics[i] = nil
+			}
+		}
+	}
+
+	// Recursively traverse children
+	for _, child := range l.children {
+		m, err := child.forceFree()
+		n += m
+		if err != nil {
+			return n, err
+		}
+	}
+
+	return n, nil
+}
+
 func (l *Level) sizeInBytes() int64 {
 	l.lock.RLock()
 	defer l.lock.RUnlock()

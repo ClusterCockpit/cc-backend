@@ -19,6 +19,7 @@
     "checkpoints": {
       "interval": "12h"
     },
-    "retention-in-memory": "48h"
+    "retention-in-memory": "48h",
+    "memory-cap": 100
   }
 }

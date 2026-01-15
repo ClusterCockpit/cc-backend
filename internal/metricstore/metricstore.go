@@ -143,11 +143,13 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 	checkpointingGoroutines := 1
 	dataStagingGoroutines := 1
 	archivingGoroutines := 1
+	memoryUsageTracker := 1
 
 	totalGoroutines := retentionGoroutines +
 		checkpointingGoroutines +
 		dataStagingGoroutines +
-		archivingGoroutines
+		archivingGoroutines +
+		memoryUsageTracker
 
 	wg.Add(totalGoroutines)
 
@@ -155,6 +157,7 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 	Checkpointing(wg, ctx)
 	Archiving(wg, ctx)
 	DataStaging(wg, ctx)
+	MemoryUsageTracker(wg, ctx)
 
 	// Note: Signal handling has been removed from this function.
 	// The caller is responsible for handling shutdown signals and calling
@@ -275,6 +278,59 @@ func Retention(wg *sync.WaitGroup, ctx context.Context) {
 				} else {
 					cclog.Infof("[METRICSTORE]> done: %d buffers freed\n", freed)
 				}
+			}
+		}
+	}()
+}
+
+func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
+	ms := GetMemoryStore()
+
+	go func() {
+		defer wg.Done()
+		d := 1 * time.Minute
+
+		if d <= 0 {
+			return
+		}
+
+		ticker := time.NewTicker(d)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				memoryUsageGB := ms.SizeInGB()
+				cclog.Infof("[METRICSTORE]> current memory usage: %.2f\n", memoryUsageGB)
+
+				if memoryUsageGB > float64(Keys.MemoryCap) {
+					cclog.Warnf("[METRICSTORE]> current memory usage is greater than the Memory Cap: %d\n", Keys.MemoryCap)
+					cclog.Warnf("[METRICSTORE]> starting to force-free the buffers from the Metric Store\n")
+
+					freedTotal := 0
+
+					for {
+						memoryUsageGB = ms.SizeInGB()
+						if memoryUsageGB < float64(Keys.MemoryCap) {
+							break
+						}
+
+						freed, err := ms.ForceFree()
+						if err != nil {
+							cclog.Errorf("error while force-freeing the buffers: %s", err)
+						}
+						if freed == 0 {
+							cclog.Fatalf("0 buffers force-freed in last try, %d total buffers force-freed, memory usage of %.2f remains higher than the memory cap and there are no buffers left to force-free\n", freedTotal, memoryUsageGB)
+						}
+						freedTotal += freed
+					}
+
+					cclog.Infof("[METRICSTORE]> done: %d buffers freed\n", freedTotal)
+					cclog.Infof("[METRICSTORE]> current memory usage after force-freeing the buffers: %.2f\n", memoryUsageGB)
+				}
+
 			}
 		}
 	}()
@@ -496,6 +552,12 @@ func (m *MemoryStore) Free(selector []string, t int64) (int, error) {
 	return m.GetLevel(selector).free(t)
 }
 
+// Free releases all buffers for the selected level and all its children that
+// contain only values older than `t`.
+func (m *MemoryStore) ForceFree() (int, error) {
+	return m.GetLevel(nil).forceFree()
+}
+
 func (m *MemoryStore) FreeAll() error {
 	for k := range m.root.children {
 		delete(m.root.children, k)
@@ -506,6 +568,10 @@ func (m *MemoryStore) FreeAll() error {
 
 func (m *MemoryStore) SizeInBytes() int64 {
 	return m.root.sizeInBytes()
+}
+
+func (m *MemoryStore) SizeInGB() float64 {
+	return float64(m.root.sizeInBytes()) / 1e9
 }
 
 // ListChildren , given a selector, returns a list of all children of the level

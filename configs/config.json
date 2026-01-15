@@ -49,6 +49,7 @@
     "checkpoints": {
       "interval": "12h"
     },
+    "memory-cap": 100,
     "retention-in-memory": "48h",
     "nats-subscriptions": [
       {

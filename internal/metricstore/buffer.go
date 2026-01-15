@@ -164,6 +164,38 @@ func (b *buffer) free(t int64) (delme bool, n int) {
 	return false, n
 }
 
+// forceFreeOldest recursively finds the end of the linked list (the oldest buffer)
+// and removes it.
+// Returns:
+//
+//	delme: true if 'b' itself is the oldest and should be removed by the caller
+//	n:     the number of buffers freed (will be 1 or 0)
+func (b *buffer) forceFreeOldest() (delme bool, n int) {
+	// If there is a previous buffer, recurse down to find the oldest
+	if b.prev != nil {
+		delPrev, freed := b.prev.forceFreeOldest()
+
+		// If the previous buffer signals it should be deleted:
+		if delPrev {
+			// Unlink references
+			b.prev.next = nil
+
+			// Return to pool if capacity matches
+			if cap(b.prev.data) == BufferCap {
+				bufferPool.Put(b.prev)
+			}
+
+			// Remove the link from the current buffer
+			b.prev = nil
+		}
+		return false, freed
+	}
+
+	// If b.prev is nil, THIS buffer is the oldest.
+	// We return true so the parent (or the Level loop) knows to delete reference to 'b'.
+	return true, 1
+}
+
 // Call `callback` on every buffer that contains data in the range from `from` to `to`.
 func (b *buffer) iterFromTo(from, to int64, callback func(b *buffer) error) error {
 	if b == nil {
