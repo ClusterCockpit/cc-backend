@@ -493,9 +493,9 @@
                   Active Cores
                 </Col>
                 <Col xs={8}>
-                  <Progress multi style="height:2.5rem;font-size:x-large;">
-                    <Progress bar color="success" value={clusterInfo?.allocatedCores}>{formatNumber(clusterInfo?.allocatedCores)}</Progress>
-                    <Progress bar color="light" value={clusterInfo?.idleCores}>{formatNumber(clusterInfo?.idleCores)}</Progress>
+                  <Progress multi max={clusterInfo?.totalCores} style="height:2.5rem;font-size:x-large;">
+                    <Progress bar color="success" value={clusterInfo?.allocatedCores} title={`${clusterInfo?.allocatedCores} active`}>{formatNumber(clusterInfo?.allocatedCores)}</Progress>
+                    <Progress bar color="light" value={clusterInfo?.idleCores} title={`${clusterInfo?.idleCores} idle`}>{formatNumber(clusterInfo?.idleCores)}</Progress>
                   </Progress>
                 </Col>
                 <Col xs={2} style="font-size:large;">
@@ -508,9 +508,9 @@
                     Active GPU
                   </Col>
                   <Col xs={8}>
-                    <Progress multi style="height:2.5rem;font-size:x-large;">
-                      <Progress bar color="success" value={clusterInfo?.allocatedAccs}>{formatNumber(clusterInfo?.allocatedAccs)}</Progress>
-                      <Progress bar color="light" value={clusterInfo?.idleAccs}>{formatNumber(clusterInfo?.idleAccs)}</Progress>
+                    <Progress multi max={clusterInfo?.totalAccs} style="height:2.5rem;font-size:x-large;">
+                      <Progress bar color="success" value={clusterInfo?.allocatedAccs} title={`${clusterInfo?.allocatedAccs} active`}>{formatNumber(clusterInfo?.allocatedAccs)}</Progress>
+                      <Progress bar color="light" value={clusterInfo?.idleAccs} title={`${clusterInfo?.idleAccs} idle`}>{formatNumber(clusterInfo?.idleAccs)}</Progress>
                     </Progress>
                   </Col>
                   <Col xs={2} style="font-size:large;">
