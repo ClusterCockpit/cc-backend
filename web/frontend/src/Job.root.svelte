@@ -52,6 +52,7 @@
 
   /* Const Init */
   // Important: init() needs to be first const declaration or contextclient will not be initialized before "const client = ..."
+  // svelte-ignore state_referenced_locally
   const { query: initq } = init(`
     job(id: "${dbid}") {
       id, jobId, user, project, cluster, startTime,

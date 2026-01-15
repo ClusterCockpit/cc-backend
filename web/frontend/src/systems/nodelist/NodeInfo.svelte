@@ -38,10 +38,6 @@
   } = $props();
 
   /* Const Init */
-  // Not at least one returned, selected metric: NodeHealth warning
-  const healthWarn = !dataHealth.includes(true);
-  // At least one non-returned selected metric: Metric config error?
-  const metricWarn = dataHealth.includes(false);
   // Node State Colors
   const stateColors = {
     allocated: 'success',
@@ -54,6 +50,10 @@
   }
 
   /* Derived */
+  // Not at least one returned, selected metric: NodeHealth warning
+  const healthWarn = $derived(!dataHealth.includes(true));
+  // At least one non-returned selected metric: Metric config error?
+  const metricWarn = $derived(dataHealth.includes(false));
   const userList = $derived(nodeJobsData
     ? Array.from(new Set(nodeJobsData.jobs.items.map((j) => scrambleNames ? scramble(j.user) : j.user))).sort((a, b) => a.localeCompare(b))
     : []

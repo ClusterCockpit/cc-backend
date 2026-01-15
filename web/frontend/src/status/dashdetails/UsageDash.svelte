@@ -44,7 +44,6 @@
   const durationBinOptions = ["1m","10m","1h","6h","12h"];
 
   /* State Init */
-  let cluster = $state(presetCluster)
   let pagingState = $state({page: 1, itemsPerPage: 10}) // Top 10
   let selectedHistograms = $state([]) // Dummy For Refresh 
   let colWidthJobs = $state(0);
@@ -53,6 +52,7 @@
   let numDurationBins = $state("1h");
 
   /* Derived */
+  let cluster = $derived(presetCluster)
   const topJobsQuery = $derived(queryStore({
     client: client,
     query: gql`

@@ -45,7 +45,6 @@
   const statsPattern = /(.*)-stat$/;
   const resampleConfig = getContext("resampling") || null;
   const resampleDefault = resampleConfig ? Math.max(...resampleConfig.resolutions) : 0;
-  const unit = (metricUnit?.prefix ? metricUnit.prefix : "") + (metricUnit?.base ? metricUnit.base : "");
   const subQuery = gql`
     query ($dbid: ID!, $selectedMetrics: [String!]!, $selectedScopes: [MetricScope!]!, $selectedResolution: Int) {
       singleUpdate: jobMetrics(id: $dbid, metrics: $selectedMetrics, scopes: $selectedScopes, resolution: $selectedResolution) {
@@ -79,14 +78,14 @@
   `;
 
   /* State Init */
-  let requestedScopes = $state(presetScopes);
   let selectedResolution = $state(resampleDefault);
-
   let selectedHost = $state(null);
   let zoomState = $state(null);
   let thresholdState = $state(null);
 
   /* Derived */
+  let requestedScopes = $derived(presetScopes);
+  const unit = $derived.by(() => { return (metricUnit?.prefix ? metricUnit.prefix : "") + (metricUnit?.base ? metricUnit.base : "")});
   const metricData = $derived(queryStore({
       client: client,
       query: subQuery,

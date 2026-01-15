@@ -31,14 +31,13 @@
     setFilter
   } = $props();
 
-  /* State Init */
-  let pendingDuration = $state(presetDuration);
-  let lessState = $state(secsToHoursAndMins(presetDuration?.lessThan));
-  let moreState = $state(secsToHoursAndMins(presetDuration?.moreThan));
-  let fromState = $state(secsToHoursAndMins(presetDuration?.from));
-  let toState = $state(secsToHoursAndMins(presetDuration?.to));
+  /* Derived */
+  let pendingDuration = $derived(presetDuration);
+  let lessState = $derived(secsToHoursAndMins(presetDuration?.lessThan));
+  let moreState = $derived(secsToHoursAndMins(presetDuration?.moreThan));
+  let fromState = $derived(secsToHoursAndMins(presetDuration?.from));
+  let toState = $derived(secsToHoursAndMins(presetDuration?.to));
 
-  /* Derived Init */
   const lessDisabled = $derived(
     moreState.hours !== 0 ||
     moreState.mins !== 0 ||

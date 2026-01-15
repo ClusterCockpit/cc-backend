@@ -38,7 +38,6 @@
 
   /* Const Init */
   const client = getContextClient();
-  const usePaging = ccconfig?.nodeList_usePaging || false;
   const nodeListQuery = gql`
     query ($cluster: String!, $subCluster: String!, $nodeFilter: String!, $stateFilter: String!, $metrics: [String!],
            $scopes: [MetricScope!]!, $from: Time!, $to: Time!, $paging: PageRequest!, $selectedResolution: Int
@@ -94,13 +93,14 @@
 
   /* State Init */
   let nodes = $state([]);
-  let selectedMetrics = $state(pendingSelectedMetrics);
   let page = $state(1);
-  let itemsPerPage = $state(usePaging ? (ccconfig?.nodeList_nodesPerPage || 10) : 10);
   let headerPaddingTop = $state(0);
   let matchedNodes = $state(0);
 
   /* Derived */
+  let selectedMetrics = $derived(pendingSelectedMetrics);
+  let itemsPerPage = $derived(usePaging ? (ccconfig?.nodeList_nodesPerPage || 10) : 10);
+  const usePaging = $derived(ccconfig?.nodeList_usePaging || false);
   const paging = $derived({ itemsPerPage, page });
   const nodesQuery = $derived(queryStore({
     client: client,

@@ -48,12 +48,11 @@
   const resetFrom = { date: format(ago, "yyyy-MM-dd"), time: format(ago, "HH:mm")};
   const resetTo = { date: format(now, "yyyy-MM-dd"), time: format(now, "HH:mm")};
 
-  /* State Init */
-  let pendingStartTime = $state(presetStartTime);
-  let fromState = $state(fromRFC3339(presetStartTime?.from, resetFrom));
-  let toState = $state(fromRFC3339(presetStartTime?.to, resetTo));
+  /* Derived */
+  let pendingStartTime = $derived(presetStartTime);
+  let fromState = $derived(fromRFC3339(presetStartTime?.from, resetFrom));
+  let toState = $derived(fromRFC3339(presetStartTime?.to, resetTo));
 
-  /* Derived Init*/
   const rangeSelect = $derived(pendingStartTime?.range ? pendingStartTime.range : "")
 
   /* Functions */

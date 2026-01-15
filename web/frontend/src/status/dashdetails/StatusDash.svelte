@@ -41,7 +41,6 @@
   const client = getContextClient();
 
   /* State Init */
-  let cluster = $state(presetCluster);
   let pieWidth = $state(0);
   let stackedWidth1 = $state(0);
   let stackedWidth2 = $state(0);
@@ -65,6 +64,7 @@
   let totalAccs = $state({});
 
   /* Derived */
+  let cluster = $derived(presetCluster);
   // States for Stacked charts
   const statesTimed = $derived(queryStore({
     client: client,

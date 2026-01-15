@@ -37,13 +37,7 @@
 
   /* Const Init */
   const client = getContextClient();
-  const jobId = job.id;
   const cluster = getContext("clusters");
-  const scopes = (job.numNodes == 1)
-    ? (job.numAcc >= 1)
-      ? ["core", "accelerator"]
-      : ["core"]
-    : ["node"];
   const resampleConfig = getContext("resampling") || null;
   const resampleDefault = resampleConfig ? Math.max(...resampleConfig.resolutions) : 0;
   const query = gql`
@@ -84,6 +78,15 @@
   let thresholdStates = $state({});
 
   /* Derived */
+  const jobId = $derived(job?.id);
+  const scopes = $derived.by(() => {
+    if (job.numNodes == 1) {
+      if (job.numAcc >= 1) return ["core", "accelerator"];
+      else return ["core"];
+    } else {
+      return ["node"];
+    };
+  });
   let isSelected = $derived(previousSelect);
   let metricsQuery = $derived(queryStore({
       client: client,

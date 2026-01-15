@@ -53,7 +53,9 @@
   const views = [
     {
       title: "My Jobs",
+      // svelte-ignore state_referenced_locally
       requiredRole: roles.user,
+      // svelte-ignore state_referenced_locally
       href: `/monitoring/user/${username}`,
       icon: "bar-chart-line",
       perCluster: false,
@@ -61,7 +63,9 @@
       menu: "none",
     },
     {
+      // svelte-ignore state_referenced_locally
       title: jobsTitle.get(authlevel),
+      // svelte-ignore state_referenced_locally
       requiredRole: roles.user,
       href: `/monitoring/jobs/`,
       icon: "card-list",
@@ -71,6 +75,7 @@
     },
     {
       title: "Tags",
+      // svelte-ignore state_referenced_locally
       requiredRole: roles.user,
       href: "/monitoring/tags/",
       icon: "tags",
@@ -79,7 +84,9 @@
       menu: "Jobs",
     },
     {
+      // svelte-ignore state_referenced_locally
       title: usersTitle.get(authlevel),
+      // svelte-ignore state_referenced_locally
       requiredRole: roles.manager,
       href: "/monitoring/users/",
       icon: "people",
@@ -88,7 +95,9 @@
       menu: "Groups",
     },
     {
+      // svelte-ignore state_referenced_locally
       title: projectsTitle.get(authlevel),
+      // svelte-ignore state_referenced_locally
       requiredRole: roles.manager,
       href: "/monitoring/projects/",
       icon: "journals",
@@ -98,6 +107,7 @@
     },
     {
       title: "Nodes",
+      // svelte-ignore state_referenced_locally
       requiredRole: roles.support,
       href: "/monitoring/systems/",
       icon: "hdd-rack",
@@ -107,6 +117,7 @@
     },
     {
       title: "Analysis",
+      // svelte-ignore state_referenced_locally
       requiredRole: roles.support,
       href: "/monitoring/analysis/",
       icon: "graph-up",
@@ -116,6 +127,7 @@
     },
     {
       title: "Status",
+      // svelte-ignore state_referenced_locally
       requiredRole: roles.admin,
       href: "/monitoring/status/",
       icon: "clipboard-data",

@@ -18,11 +18,11 @@
     onRefresh
   } = $props();
 
-  /* State Init */
-  let refreshInterval = $state(initially ? initially * 1000 : null);
-
   /* Var Init */
   let refreshIntervalId = null;
+
+  /* Derived */
+  let refreshInterval = $derived(initially ? initially * 1000 : null);
 
   /* Functions */
   function refreshIntervalChanged() {

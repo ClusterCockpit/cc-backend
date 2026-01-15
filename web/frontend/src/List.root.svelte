@@ -37,12 +37,6 @@
     filterPresets
   } = $props();
 
-  /* Validate Type */
-  console.assert(
-    type == "USER" || type == "PROJECT",
-    "Invalid list type provided!",
-  );
-
   /* Const Init */
   const {} = init();
   const client = getContextClient();

@@ -53,7 +53,6 @@
   // const subClusterTopology = getContext("getHardwareTopology")(cluster, subCluster);
   // const metricConfig = getContext("getMetricConfig")(cluster, subCluster, metric);
   const lineColors = clusterCockpitConfig.plotConfiguration_colorScheme;
-  const lineWidth = fixLinewidth ? fixLinewidth : clusterCockpitConfig.plotConfiguration_lineWidth / window.devicePixelRatio;
   // const cbmode = clusterCockpitConfig?.plotConfiguration_colorblindMode || false;
   const renderSleepTime = 200;
   // const normalLineColor = "#000000";
@@ -71,6 +70,7 @@
   let uplot = $state(null);
 
   /* Derived */
+  const lineWidth = $derived(fixLinewidth ? fixLinewidth : clusterCockpitConfig.plotConfiguration_lineWidth / window.devicePixelRatio);
   // const usesMeanStatsSeries = $derived((statisticsSeries?.mean && statisticsSeries.mean.length != 0));
   // const resampleTrigger = $derived(resampleConfig?.trigger ? Number(resampleConfig.trigger) : null);
   // const resampleResolutions = $derived(resampleConfig?.resolutions ? [...resampleConfig.resolutions] : null);

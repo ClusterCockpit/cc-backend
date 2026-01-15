@@ -51,7 +51,6 @@
   /* Const Init */
   const { query: initq } = init();
   const client = getContextClient();
-  const displayNodeOverview = (displayType === 'OVERVIEW');
   const ccconfig = getContext("cc-config");
   const initialized = getContext("initialized");
   const globalMetrics = getContext("globalMetrics");
@@ -66,7 +65,9 @@
   let timeoutId = null;
 
   /* State Init */
+  // svelte-ignore state_referenced_locally
   let to = $state(presetTo || new Date(Date.now()));
+  // svelte-ignore state_referenced_locally
   let from = $state(presetFrom || new Date(nowDate.setHours(nowDate.getHours() - 4)));
   let selectedResolution = $state(resampleConfig ? resampleDefault : 0);
   let hostnameFilter = $state("");
@@ -75,6 +76,7 @@
   let isMetricsSelectionOpen = $state(false);
 
   /* Derived States */
+  const displayNodeOverview = $derived((displayType === 'OVERVIEW'));
   const systemMetrics = $derived($initialized ? [...globalMetrics.filter((gm) => gm?.availability.find((av) => av.cluster == cluster))] : []);
   const presetSystemUnits = $derived(loadUnits(systemMetrics));
   let selectedMetric = $derived.by(() => {

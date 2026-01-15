@@ -67,10 +67,10 @@
     "single_user",
   ];
 
-  /* State Init */
-  let pendingStates = $state([...presetStates]);
-  let pendingShared = $state(presetShared);
-  let pendingSchedule = $state(presetSchedule);
+  /* Derived */
+  let pendingStates = $derived([...presetStates]);
+  let pendingShared = $derived(presetShared);
+  let pendingSchedule = $derived(presetSchedule);
 
 </script>
 

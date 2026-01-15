@@ -100,12 +100,6 @@
     }
   };
 
-  // Data Prep For uPlot
-  const sortedData = data?.sort((a, b) => a.state.localeCompare(b.state)) || [];
-  const collectLabel = sortedData.map(d => d.state);
-  // Align Data to Timesteps, Introduces 'undefied' as placeholder, reiterate and set those to 0
-  const collectData = (sortedData.length > 0) ? uPlot.join(sortedData.map(d => [d.times, d.counts])).map(d => d.map(i => i ? i : 0)) : [];
-
   // STACKED CHART FUNCTIONS //
   function stack(data, omit) {
     let data2 = [];
@@ -287,14 +281,20 @@
     };
   }
 
-  // UPLOT SERIES INIT
-  const plotSeries = [
-    {
-      label: "Time",
-      scale: "x"
-    },
-    ...collectLabel.map(l => seriesConfig[l])
-  ]
+  // UPLOT SERIES INIT: DERIVED FROM PROPS
+  // Data Prep For uPlot
+  const sortedData = $derived(data?.sort((a, b) => a.state.localeCompare(b.state)) || []);
+  const collectLabel = $derived(sortedData.map(d => d.state));
+  // Align Data to Timesteps, Introduces 'undefied' as placeholder, reiterate and set those to 0
+  const collectData = $derived.by(() => {
+    if (sortedData.length > 0) {
+      return uPlot.join(sortedData.map(d => [d.times, d.counts])).map(d => d.map(i => i ? i : 0))
+    } else {
+      return [];
+    }
+  });
+  // Build Series
+  const plotSeries = $derived([{label: "Time", scale: "x"}, ...collectLabel.map(l => seriesConfig[l])]);
 
   /* Var Init */
   let timeoutId = null;

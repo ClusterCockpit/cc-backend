@@ -25,9 +25,13 @@
   } = $props();
 
   /* State Init */
+  // svelte-ignore state_referenced_locally
   let sortedHosts = $state(hosts);
+  // svelte-ignore state_referenced_locally
   let sorting = $state(setupSorting(selectedMetrics));
+  // svelte-ignore state_referenced_locally
   let availableScopes = $state(setupAvailable(jobStats));
+  // svelte-ignore state_referenced_locally
   let selectedScopes = $state(setupSelected(availableScopes));
 
   /* Derived Init */

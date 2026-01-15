@@ -95,6 +95,7 @@
     animation: false,
     plugins: {
       legend: {
+        // svelte-ignore state_referenced_locally
         display: displayLegend
       }
     }
