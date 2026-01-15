@@ -271,6 +271,7 @@ func initSubsystems() error {
 	// Initialize job archive
 	archiveCfg := ccconf.GetPackageConfig("archive")
 	if archiveCfg == nil {
+		cclog.Debug("Archive configuration not found, using default archive configuration")
 		archiveCfg = json.RawMessage(defaultArchiveConfig)
 	}
 	if err := archive.Init(archiveCfg, config.Keys.DisableArchive); err != nil {
@@ -375,22 +376,32 @@ func runServer(ctx context.Context) error {
 	}
 	runtime.SystemdNotify(true, "running")
 
-	// Wait for completion or error
+	waitDone := make(chan struct{})
 	go func() {
 		wg.Wait()
+		close(waitDone)
+	}()
+
+	go func() {
+		<-waitDone
 		close(errChan)
 	}()
 
-	// Check for server startup errors
 	select {
 	case err := <-errChan:
 		if err != nil {
 			return err
 		}
 	case <-time.After(100 * time.Millisecond):
-		// Server started successfully, wait for completion
-		if err := <-errChan; err != nil {
-			return err
+		select {
+		case err := <-errChan:
+			if err != nil {
+				return err
+			}
+		case <-waitDone:
+		case <-time.After(45 * time.Second):
+			cclog.Error("Shutdown timeout after 45 seconds - forcing exit")
+			return fmt.Errorf("shutdown timeout exceeded")
 		}
 	}
 

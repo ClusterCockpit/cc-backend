@@ -17,6 +17,10 @@ import (
 	"github.com/go-co-op/gocron/v2"
 )
 
+const (
+	DefaultCompressOlderThen = 7
+)
+
 // Retention defines the configuration for job retention policies.
 type Retention struct {
 	Policy     string `json:"policy"`
@@ -60,6 +64,38 @@ func parseDuration(s string) (time.Duration, error) {
 	return interval, nil
 }
 
+func initArchiveServices(config json.RawMessage) {
+	var cfg struct {
+		Retention   Retention `json:"retention"`
+		Compression int       `json:"compression"`
+	}
+	cfg.Retention.IncludeDB = true
+
+	if err := json.Unmarshal(config, &cfg); err != nil {
+		cclog.Errorf("error while unmarshaling raw config json: %v", err)
+	}
+
+	switch cfg.Retention.Policy {
+	case "delete":
+		RegisterRetentionDeleteService(
+			cfg.Retention.Age,
+			cfg.Retention.IncludeDB,
+			cfg.Retention.OmitTagged)
+	case "move":
+		RegisterRetentionMoveService(
+			cfg.Retention.Age,
+			cfg.Retention.IncludeDB,
+			cfg.Retention.Location,
+			cfg.Retention.OmitTagged)
+	}
+
+	if cfg.Compression > 0 {
+		RegisterCompressionService(cfg.Compression)
+	} else {
+		RegisterCompressionService(DefaultCompressOlderThen)
+	}
+}
+
 // Start initializes the task manager, parses configurations, and registers background tasks.
 // It starts the gocron scheduler.
 func Start(cronCfg, archiveConfig json.RawMessage) {
@@ -80,32 +116,8 @@ func Start(cronCfg, archiveConfig json.RawMessage) {
 		cclog.Errorf("error while decoding cron config: %v", err)
 	}
 
-	var cfg struct {
-		Retention   Retention `json:"retention"`
-		Compression int       `json:"compression"`
-	}
-	cfg.Retention.IncludeDB = true
-
-	if err := json.Unmarshal(archiveConfig, &cfg); err != nil {
-		cclog.Warn("Error while unmarshaling raw config json")
-	}
-
-	switch cfg.Retention.Policy {
-	case "delete":
-		RegisterRetentionDeleteService(
-			cfg.Retention.Age,
-			cfg.Retention.IncludeDB,
-			cfg.Retention.OmitTagged)
-	case "move":
-		RegisterRetentionMoveService(
-			cfg.Retention.Age,
-			cfg.Retention.IncludeDB,
-			cfg.Retention.Location,
-			cfg.Retention.OmitTagged)
-	}
-
-	if cfg.Compression > 0 {
-		RegisterCompressionService(cfg.Compression)
+	if archiveConfig != nil {
+		initArchiveServices(archiveConfig)
 	}
 
 	lc := auth.Keys.LdapConfig

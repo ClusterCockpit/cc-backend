@@ -77,7 +77,7 @@ type MessageHandler func(subject string, data []byte)
 func Connect() {
 	clientOnce.Do(func() {
 		if Keys.Address == "" {
-			cclog.Warn("NATS: no address configured, skipping connection")
+			cclog.Info("NATS: no address configured, skipping connection")
 			return
 		}
 
