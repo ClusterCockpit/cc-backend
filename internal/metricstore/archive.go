@@ -24,7 +24,7 @@ import (
 func Archiving(wg *sync.WaitGroup, ctx context.Context) {
 	go func() {
 		defer wg.Done()
-		d, err := time.ParseDuration(Keys.Archive.Interval)
+		d, err := time.ParseDuration(Keys.Archive.ArchiveInterval)
 		if err != nil {
 			cclog.Fatalf("[METRICSTORE]> error parsing archive interval duration: %v\n", err)
 		}

@@ -29,29 +29,30 @@ func ReceiveNats(ms *MemoryStore,
 	}
 
 	var wg sync.WaitGroup
-
 	msgs := make(chan []byte, workers*2)
 
-	for _, sc := range Keys.Subscriptions {
+	for _, sc := range *Keys.Subscriptions {
 		clusterTag := sc.ClusterTag
 		if workers > 1 {
 			wg.Add(workers)
 
 			for range workers {
 				go func() {
+					defer wg.Done()
 					for m := range msgs {
 						dec := lineprotocol.NewDecoderWithBytes(m)
 						if err := DecodeLine(dec, ms, clusterTag); err != nil {
 							cclog.Errorf("error: %s", err.Error())
 						}
 					}
-
-					wg.Done()
 				}()
 			}
 
 			nc.Subscribe(sc.SubscribeTo, func(subject string, data []byte) {
-				msgs <- data
+				select {
+				case msgs <- data:
+				case <-ctx.Done():
+				}
 			})
 		} else {
 			nc.Subscribe(sc.SubscribeTo, func(subject string, data []byte) {
@@ -64,7 +65,11 @@ func ReceiveNats(ms *MemoryStore,
 		cclog.Infof("NATS subscription to '%s' established", sc.SubscribeTo)
 	}
 
-	close(msgs)
+	go func() {
+		<-ctx.Done()
+		close(msgs)
+	}()
+
 	wg.Wait()
 
 	return nil

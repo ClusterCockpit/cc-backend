@@ -408,7 +408,7 @@ func (m *MemoryStore) FromCheckpointFiles(dir string, from int64) (int, error) {
 		return m.FromCheckpoint(dir, from, altFormat)
 	}
 
-	cclog.Print("[METRICSTORE]> No valid checkpoint files found in the directory")
+	cclog.Info("[METRICSTORE]> No valid checkpoint files found")
 	return 0, nil
 }
 

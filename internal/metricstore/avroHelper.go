@@ -30,8 +30,51 @@ func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
-				return
-			case val := <-LineProtocolMessages:
+				// Drain any remaining messages in channel before exiting
+				for {
+					select {
+					case val, ok := <-LineProtocolMessages:
+						if !ok {
+							// Channel closed
+							return
+						}
+						// Process remaining message
+						freq, err := GetMetricFrequency(val.MetricName)
+						if err != nil {
+							continue
+						}
+
+						metricName := ""
+						for _, selectorName := range val.Selector {
+							metricName += selectorName + SelectorDelimiter
+						}
+						metricName += val.MetricName
+
+						var selector []string
+						selector = append(selector, val.Cluster, val.Node, strconv.FormatInt(freq, 10))
+
+						if !stringSlicesEqual(oldSelector, selector) {
+							avroLevel = avroStore.root.findAvroLevelOrCreate(selector)
+							if avroLevel == nil {
+								cclog.Errorf("Error creating or finding the level with cluster : %s, node : %s, metric : %s\n", val.Cluster, val.Node, val.MetricName)
+							}
+							oldSelector = slices.Clone(selector)
+						}
+
+						if avroLevel != nil {
+							avroLevel.addMetric(metricName, val.Value, val.Timestamp, int(freq))
+						}
+					default:
+						// No more messages, exit
+						return
+					}
+				}
+			case val, ok := <-LineProtocolMessages:
+				if !ok {
+					// Channel closed, exit gracefully
+					return
+				}
+
 				// Fetch the frequency of the metric from the global configuration
 				freq, err := GetMetricFrequency(val.MetricName)
 				if err != nil {
@@ -65,7 +108,9 @@ func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 					oldSelector = slices.Clone(selector)
 				}
 
-				avroLevel.addMetric(metricName, val.Value, val.Timestamp, int(freq))
+				if avroLevel != nil {
+					avroLevel.addMetric(metricName, val.Value, val.Timestamp, int(freq))
+				}
 			}
 		}
 	}()

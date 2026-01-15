@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"errors"
 	"runtime"
+	"slices"
 	"sync"
 	"time"
 
@@ -61,7 +62,7 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 	if rawConfig != nil {
 		config.Validate(configSchema, rawConfig)
 		dec := json.NewDecoder(bytes.NewReader(rawConfig))
-		// dec.DisallowUnknownFields()
+		dec.DisallowUnknownFields()
 		if err := dec.Decode(&Keys); err != nil {
 			cclog.Abortf("[METRICSTORE]> Metric Store Config Init: Could not decode config file '%s'.\nError: %s\n", rawConfig, err.Error())
 		}
@@ -103,7 +104,7 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 
 	ms := GetMemoryStore()
 
-	d, err := time.ParseDuration(Keys.Checkpoints.Restore)
+	d, err := time.ParseDuration(Keys.RetentionInMemory)
 	if err != nil {
 		cclog.Fatal(err)
 	}
@@ -128,11 +129,21 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 
 	ctx, shutdown := context.WithCancel(context.Background())
 
-	wg.Add(4)
+	retentionGoroutines := 1
+	checkpointingGoroutines := 1
+	dataStagingGoroutines := 1
+	archivingGoroutines := 0
+	if Keys.Archive != nil {
+		archivingGoroutines = 1
+	}
+	totalGoroutines := retentionGoroutines + checkpointingGoroutines + dataStagingGoroutines + archivingGoroutines
+	wg.Add(totalGoroutines)
 
 	Retention(wg, ctx)
 	Checkpointing(wg, ctx)
-	Archiving(wg, ctx)
+	if Keys.Archive != nil {
+		Archiving(wg, ctx)
+	}
 	DataStaging(wg, ctx)
 
 	// Note: Signal handling has been removed from this function.
@@ -141,9 +152,11 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 	// Store the shutdown function for later use by Shutdown()
 	shutdownFunc = shutdown
 
-	err = ReceiveNats(ms, 1, ctx)
-	if err != nil {
-		cclog.Fatal(err)
+	if Keys.Subscriptions != nil {
+		err = ReceiveNats(ms, 1, ctx)
+		if err != nil {
+			cclog.Fatal(err)
+		}
 	}
 }
 
@@ -184,9 +197,12 @@ func GetMemoryStore() *MemoryStore {
 }
 
 func Shutdown() {
-	// Cancel the context to signal all background goroutines to stop
 	if shutdownFunc != nil {
 		shutdownFunc()
+	}
+
+	if Keys.Checkpoints.FileFormat != "json" {
+		close(LineProtocolMessages)
 	}
 
 	cclog.Infof("[METRICSTORE]> Writing to '%s'...\n", Keys.Checkpoints.RootDir)
@@ -199,7 +215,6 @@ func Shutdown() {
 		files, err = ms.ToCheckpoint(Keys.Checkpoints.RootDir, lastCheckpoint.Unix(), time.Now().Unix())
 	} else {
 		files, err = GetAvroStore().ToCheckpoint(Keys.Checkpoints.RootDir, true)
-		close(LineProtocolMessages)
 	}
 
 	if err != nil {
@@ -314,11 +329,8 @@ func GetSelectors(ms *MemoryStore, excludeSelectors map[string][]string) [][]str
 		// Check if the key exists in our exclusion map
 		if excludedValues, exists := excludeSelectors[key]; exists {
 			// The key exists, now check if the specific value is in the exclusion list
-			for _, ev := range excludedValues {
-				if ev == value {
-					exclude = true
-					break
-				}
+			if slices.Contains(excludedValues, value) {
+				exclude = true
 			}
 		}
 

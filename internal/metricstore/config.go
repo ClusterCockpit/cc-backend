@@ -19,36 +19,49 @@ const (
 	DefaultAvroCheckpointInterval = time.Minute
 )
 
+type Checkpoints struct {
+	FileFormat string `json:"file-format"`
+	Interval   string `json:"interval"`
+	RootDir    string `json:"directory"`
+}
+
+type Debug struct {
+	DumpToFile string `json:"dump-to-file"`
+	EnableGops bool   `json:"gops"`
+}
+
+type Archive struct {
+	ArchiveInterval string `json:"interval"`
+	RootDir         string `json:"directory"`
+	DeleteInstead   bool   `json:"delete-instead"`
+}
+
+type Subscriptions []struct {
+	// Channel name
+	SubscribeTo string `json:"subscribe-to"`
+
+	// Allow lines without a cluster tag, use this as default, optional
+	ClusterTag string `json:"cluster-tag"`
+}
+
 type MetricStoreConfig struct {
 	// Number of concurrent workers for checkpoint and archive operations.
 	// If not set or 0, defaults to min(runtime.NumCPU()/2+1, 10)
-	NumWorkers  int `json:"num-workers"`
-	Checkpoints struct {
-		FileFormat string `json:"file-format"`
-		Interval   string `json:"interval"`
-		RootDir    string `json:"directory"`
-		Restore    string `json:"restore"`
-	} `json:"checkpoints"`
-	Debug struct {
-		DumpToFile string `json:"dump-to-file"`
-		EnableGops bool   `json:"gops"`
-	} `json:"debug"`
-		RetentionInMemory string `json:"retention-in-memory"`
-	Archive struct {
-		Interval      string `json:"interval"`
-		RootDir       string `json:"directory"`
-		DeleteInstead bool   `json:"delete-instead"`
-	} `json:"archive"`
-	Subscriptions []struct {
-		// Channel name
-		SubscribeTo string `json:"subscribe-to"`
-
-		// Allow lines without a cluster tag, use this as default, optional
-		ClusterTag string `json:"cluster-tag"`
-	} `json:"subscriptions"`
+	NumWorkers        int            `json:"num-workers"`
+	RetentionInMemory string         `json:"retention-in-memory"`
+	MemoryCap         int            `json:"memory-cap"`
+	Checkpoints       Checkpoints    `json:"checkpoints"`
+	Debug             *Debug         `json:"debug"`
+	Archive           *Archive       `json:"archive"`
+	Subscriptions     *Subscriptions `json:"nats-subscriptions"`
 }
 
-var Keys MetricStoreConfig
+var Keys MetricStoreConfig = MetricStoreConfig{
+	Checkpoints: Checkpoints{
+		FileFormat: "avro",
+		RootDir:    "./var/checkpoints",
+	},
+}
 
 // AggregationStrategy for aggregation over multiple values at different cpus/sockets/..., not time!
 type AggregationStrategy int
