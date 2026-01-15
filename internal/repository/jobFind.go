@@ -154,7 +154,7 @@ func (r *JobRepository) GetJobList(limit int, offset int) ([]int64, error) {
 		jl = append(jl, id)
 	}
 
-	cclog.Infof("Return job count %d", len(jl))
+	cclog.Debugf("JobRepository.GetJobList(): Return job count %d", len(jl))
 	return jl, nil
 }
 

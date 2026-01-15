@@ -152,14 +152,14 @@ func (api *NatsAPI) handleJobEvent(subject string, data []byte) {
 		}
 
 		if !m.IsEvent() {
-			cclog.Warnf("NATS %s: received non-event message, skipping", subject)
+			cclog.Debugf("NATS %s: received non-event message, skipping", subject)
 			continue
 		}
 
 		if m.Name() == "job" {
 			api.processJobEvent(m)
 		} else {
-			cclog.Warnf("NATS %s: unexpected measurement name '%s', expected 'job'", subject, m.Name())
+			cclog.Debugf("NATS %s: unexpected measurement name '%s', expected 'job'", subject, m.Name())
 		}
 	}
 }
