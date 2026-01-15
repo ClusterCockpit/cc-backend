@@ -730,12 +730,23 @@ func findFiles(direntries []fs.DirEntry, t int64, extension string, findMoreRece
 		return nums[a.Name()] < nums[b.Name()]
 	})
 
+	if len(nums) == 0 {
+		return nil, nil
+	}
+
 	filenames := make([]string, 0)
-	for i := range direntries {
-		e := direntries[i]
+
+	for i, e := range direntries {
 		ts1 := nums[e.Name()]
 
+		// Logic to look for files in forward or direction
+		// If logic: All files greater than  or after
+		// the given timestamp will be selected
+		// Else If logic: All files less than  or before
+		// the given timestamp will be selected
 		if findMoreRecentFiles && t <= ts1 {
+			filenames = append(filenames, e.Name())
+		} else if !findMoreRecentFiles && ts1 <= t && ts1 != 0 {
 			filenames = append(filenames, e.Name())
 		}
 		if i == len(direntries)-1 {
@@ -747,10 +758,6 @@ func findFiles(direntries []fs.DirEntry, t int64, extension string, findMoreRece
 
 		if findMoreRecentFiles {
 			if ts1 < t && t < ts2 {
-				filenames = append(filenames, e.Name())
-			}
-		} else {
-			if ts2 < t {
 				filenames = append(filenames, e.Name())
 			}
 		}

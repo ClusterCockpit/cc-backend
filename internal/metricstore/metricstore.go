@@ -144,7 +144,11 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 	dataStagingGoroutines := 1
 	archivingGoroutines := 1
 
-	totalGoroutines := retentionGoroutines + checkpointingGoroutines + dataStagingGoroutines + archivingGoroutines
+	totalGoroutines := retentionGoroutines +
+		checkpointingGoroutines +
+		dataStagingGoroutines +
+		archivingGoroutines
+
 	wg.Add(totalGoroutines)
 
 	Retention(wg, ctx)
