@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"errors"
 	"runtime"
+	"slices"
 	"sync"
 	"time"
 
@@ -44,6 +45,15 @@ var (
 	shutdownFunc context.CancelFunc
 )
 
+// NodeProvider provides information about nodes currently in use by running jobs.
+// This interface allows metricstore to query job information without directly
+// depending on the repository package, breaking the import cycle.
+type NodeProvider interface {
+	// GetUsedNodes returns a map of cluster names to sorted lists of unique hostnames
+	// that are currently in use by jobs that started before the given timestamp.
+	GetUsedNodes(ts int64) (map[string][]string, error)
+}
+
 type Metric struct {
 	Name         string
 	Value        schema.Float
@@ -51,8 +61,9 @@ type Metric struct {
 }
 
 type MemoryStore struct {
-	Metrics map[string]MetricConfig
-	root    Level
+	Metrics      map[string]MetricConfig
+	root         Level
+	nodeProvider NodeProvider // Injected dependency for querying running jobs
 }
 
 func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
@@ -61,7 +72,7 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 	if rawConfig != nil {
 		config.Validate(configSchema, rawConfig)
 		dec := json.NewDecoder(bytes.NewReader(rawConfig))
-		// dec.DisallowUnknownFields()
+		dec.DisallowUnknownFields()
 		if err := dec.Decode(&Keys); err != nil {
 			cclog.Abortf("[METRICSTORE]> Metric Store Config Init: Could not decode config file '%s'.\nError: %s\n", rawConfig, err.Error())
 		}
@@ -103,7 +114,7 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 
 	ms := GetMemoryStore()
 
-	d, err := time.ParseDuration(Keys.Checkpoints.Restore)
+	d, err := time.ParseDuration(Keys.RetentionInMemory)
 	if err != nil {
 		cclog.Fatal(err)
 	}
@@ -128,7 +139,13 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 
 	ctx, shutdown := context.WithCancel(context.Background())
 
-	wg.Add(4)
+	retentionGoroutines := 1
+	checkpointingGoroutines := 1
+	dataStagingGoroutines := 1
+	archivingGoroutines := 1
+
+	totalGoroutines := retentionGoroutines + checkpointingGoroutines + dataStagingGoroutines + archivingGoroutines
+	wg.Add(totalGoroutines)
 
 	Retention(wg, ctx)
 	Checkpointing(wg, ctx)
@@ -141,9 +158,11 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 	// Store the shutdown function for later use by Shutdown()
 	shutdownFunc = shutdown
 
-	err = ReceiveNats(ms, 1, ctx)
-	if err != nil {
-		cclog.Fatal(err)
+	if Keys.Subscriptions != nil {
+		err = ReceiveNats(ms, 1, ctx)
+		if err != nil {
+			cclog.Fatal(err)
+		}
 	}
 }
 
@@ -183,10 +202,21 @@ func GetMemoryStore() *MemoryStore {
 	return msInstance
 }
 
+// SetNodeProvider sets the NodeProvider implementation for the MemoryStore.
+// This must be called during initialization to provide job state information
+// for selective buffer retention during Free operations.
+// If not set, the Free function will fall back to freeing all buffers.
+func (ms *MemoryStore) SetNodeProvider(provider NodeProvider) {
+	ms.nodeProvider = provider
+}
+
 func Shutdown() {
-	// Cancel the context to signal all background goroutines to stop
 	if shutdownFunc != nil {
 		shutdownFunc()
+	}
+
+	if Keys.Checkpoints.FileFormat != "json" {
+		close(LineProtocolMessages)
 	}
 
 	cclog.Infof("[METRICSTORE]> Writing to '%s'...\n", Keys.Checkpoints.RootDir)
@@ -199,7 +229,6 @@ func Shutdown() {
 		files, err = ms.ToCheckpoint(Keys.Checkpoints.RootDir, lastCheckpoint.Unix(), time.Now().Unix())
 	} else {
 		files, err = GetAvroStore().ToCheckpoint(Keys.Checkpoints.RootDir, true)
-		close(LineProtocolMessages)
 	}
 
 	if err != nil {
@@ -248,18 +277,15 @@ func Retention(wg *sync.WaitGroup, ctx context.Context) {
 }
 
 func Free(ms *MemoryStore, t time.Time) (int, error) {
-	// jobRepo := repository.GetJobRepository()
-	// excludeSelectors, err := jobRepo.GetUsedNodes(t.Unix())
-	// if err != nil {
-	// 	return 0, err
-	// }
+	// If no NodeProvider is configured, free all buffers older than t
+	if ms.nodeProvider == nil {
+		return ms.Free(nil, t.Unix())
+	}
 
-	excludeSelectors := make(map[string][]string, 0)
-
-	// excludeSelectors := map[string][]string{
-	// 	"alex":  {"a0122", "a0123", "a0225"},
-	// 	"fritz": {"f0201", "f0202"},
-	// }
+	excludeSelectors, err := ms.nodeProvider.GetUsedNodes(t.Unix())
+	if err != nil {
+		return 0, err
+	}
 
 	switch lenMap := len(excludeSelectors); lenMap {
 
@@ -314,11 +340,8 @@ func GetSelectors(ms *MemoryStore, excludeSelectors map[string][]string) [][]str
 		// Check if the key exists in our exclusion map
 		if excludedValues, exists := excludeSelectors[key]; exists {
 			// The key exists, now check if the specific value is in the exclusion list
-			for _, ev := range excludedValues {
-				if ev == value {
-					exclude = true
-					break
-				}
+			if slices.Contains(excludedValues, value) {
+				exclude = true
 			}
 		}
 
@@ -326,9 +349,6 @@ func GetSelectors(ms *MemoryStore, excludeSelectors map[string][]string) [][]str
 			filteredSelectors = append(filteredSelectors, path)
 		}
 	}
-
-	// fmt.Printf("All selectors: %#v\n\n", allSelectors)
-	// fmt.Printf("filteredSelectors: %#v\n\n", filteredSelectors)
 
 	return filteredSelectors
 }

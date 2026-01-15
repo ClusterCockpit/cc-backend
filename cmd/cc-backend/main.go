@@ -271,6 +271,7 @@ func initSubsystems() error {
 	// Initialize job archive
 	archiveCfg := ccconf.GetPackageConfig("archive")
 	if archiveCfg == nil {
+		cclog.Debug("Archive configuration not found, using default archive configuration")
 		archiveCfg = json.RawMessage(defaultArchiveConfig)
 	}
 	if err := archive.Init(archiveCfg, config.Keys.DisableArchive); err != nil {
@@ -319,8 +320,13 @@ func runServer(ctx context.Context) error {
 	mscfg := ccconf.GetPackageConfig("metric-store")
 	if mscfg != nil {
 		metricstore.Init(mscfg, &wg)
+
+		// Inject repository as NodeProvider to break import cycle
+		ms := metricstore.GetMemoryStore()
+		jobRepo := repository.GetJobRepository()
+		ms.SetNodeProvider(jobRepo)
 	} else {
-		cclog.Debug("Metric store configuration not found, skipping metricstore initialization")
+		return fmt.Errorf("missing metricstore configuration")
 	}
 
 	// Start archiver and task manager
@@ -375,22 +381,37 @@ func runServer(ctx context.Context) error {
 	}
 	runtime.SystemdNotify(true, "running")
 
-	// Wait for completion or error
+	waitDone := make(chan struct{})
 	go func() {
 		wg.Wait()
+		close(waitDone)
+	}()
+
+	go func() {
+		<-waitDone
 		close(errChan)
 	}()
 
-	// Check for server startup errors
+	// Wait for either:
+	// 1. An error from server startup
+	// 2. Completion of all goroutines (normal shutdown or crash)
 	select {
 	case err := <-errChan:
+		// errChan will be closed when waitDone is closed, which happens
+		// when all goroutines complete (either from normal shutdown or error)
 		if err != nil {
 			return err
 		}
 	case <-time.After(100 * time.Millisecond):
-		// Server started successfully, wait for completion
-		if err := <-errChan; err != nil {
-			return err
+		// Give the server 100ms to start and report any immediate startup errors
+		// After that, just wait for normal shutdown completion
+		select {
+		case err := <-errChan:
+			if err != nil {
+				return err
+			}
+		case <-waitDone:
+			// Normal shutdown completed
 		}
 	}
 

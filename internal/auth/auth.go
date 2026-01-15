@@ -616,9 +616,9 @@ func securedCheck(user *schema.User, r *http.Request) error {
 	}
 	// If SplitHostPort fails, IPAddress is already just a host (no port)
 
-	// If nothing declared in config: deny all request to this api endpoint
+	// If nothing declared in config: Continue
 	if len(config.Keys.APIAllowedIPs) == 0 {
-		return fmt.Errorf("missing configuration key ApiAllowedIPs")
+		return nil
 	}
 	// If wildcard declared in config: Continue
 	if config.Keys.APIAllowedIPs[0] == "*" {
