@@ -277,6 +277,15 @@ func (r *JobRepository) JobsStats(
 	return stats, nil
 }
 
+// LoadJobStat retrieves a specific statistic for a metric from a job's statistics.
+// Returns 0.0 if the metric is not found or statType is invalid.
+//
+// Parameters:
+//   - job: Job struct with populated Statistics field
+//   - metric: Name of the metric to query (e.g., "cpu_load", "mem_used")
+//   - statType: Type of statistic: "avg", "min", or "max"
+//
+// Returns the requested statistic value or 0.0 if not found.
 func LoadJobStat(job *schema.Job, metric string, statType string) float64 {
 	if stats, ok := job.Statistics[metric]; ok {
 		switch statType {
@@ -579,7 +588,9 @@ func (r *JobRepository) jobsDurationStatisticsHistogram(
 		return nil, qerr
 	}
 
-	// Setup Array
+	// Initialize histogram bins with zero counts
+	// Each bin represents a duration range: bin N = [N*binSizeSeconds, (N+1)*binSizeSeconds)
+	// Example: binSizeSeconds=3600 (1 hour), bin 1 = 0-1h, bin 2 = 1-2h, etc.
 	points := make([]*model.HistoPoint, 0)
 	for i := 1; i <= *targetBinCount; i++ {
 		point := model.HistoPoint{Value: i * binSizeSeconds, Count: 0}
@@ -596,7 +607,8 @@ func (r *JobRepository) jobsDurationStatisticsHistogram(
 		return nil, err
 	}
 
-	// Fill Array at matching $Value
+	// Match query results to pre-initialized bins and fill counts
+	// Query returns raw duration values that need to be mapped to correct bins
 	for rows.Next() {
 		point := model.HistoPoint{}
 		if err := rows.Scan(&point.Value, &point.Count); err != nil {
@@ -604,11 +616,13 @@ func (r *JobRepository) jobsDurationStatisticsHistogram(
 			return nil, err
 		}
 
+		// Find matching bin and update count
+		// point.Value is multiplied by binSizeSeconds to match pre-calculated bin.Value
 		for _, e := range points {
 			if e.Value == (point.Value * binSizeSeconds) {
-				// Note:
-				//  Matching on unmodified integer value (and multiplying point.Value by binSizeSeconds after match)
-				//  causes frontend to loop into highest targetBinCount, due to zoom condition instantly being fullfilled (cause unknown)
+				// Note: Matching on unmodified integer value (and multiplying point.Value
+				// by binSizeSeconds after match) causes frontend to loop into highest
+				// targetBinCount, due to zoom condition instantly being fulfilled (cause unknown)
 				e.Count = point.Count
 				break
 			}
@@ -625,12 +639,16 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 	filters []*model.JobFilter,
 	bins *int,
 ) (*model.MetricHistoPoints, error) {
-	// Get specific Peak or largest Peak
+	// Determine the metric's peak value for histogram normalization
+	// Peak value defines the upper bound for binning: values are distributed across
+	// bins from 0 to peak. First try to get peak from filtered cluster, otherwise
+	// scan all clusters to find the maximum peak value.
 	var metricConfig *schema.MetricConfig
 	var peak float64
 	var unit string
 	var footprintStat string
 
+	// Try to get metric config from filtered cluster
 	for _, f := range filters {
 		if f.Cluster != nil {
 			metricConfig = archive.GetMetricConfig(*f.Cluster.Eq, metric)
@@ -641,6 +659,8 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 		}
 	}
 
+	// If no cluster filter or peak not found, find largest peak across all clusters
+	// This ensures histogram can accommodate all possible values
 	if peak == 0.0 {
 		for _, c := range archive.Clusters {
 			for _, m := range c.MetricConfig {
@@ -659,11 +679,18 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 		}
 	}
 
-	// cclog.Debugf("Metric %s, Peak %f, Unit %s", metric, peak, unit)
-	// Make bins, see https://jereze.com/code/sql-histogram/ (Modified here)
+	// Construct SQL histogram bins using normalized values
+	// Algorithm based on: https://jereze.com/code/sql-histogram/ (modified)
 	start := time.Now()
 
-	// Find Jobs' Value Bin Number: Divide Value by Peak, Multiply by RequestedBins, then CAST to INT: Gets Bin-Number of Job
+	// Calculate bin number for each job's metric value:
+	// 1. Extract metric value from JSON footprint
+	// 2. Normalize to [0,1] by dividing by peak
+	// 3. Multiply by number of bins to get bin number
+	// 4. Cast to integer for bin assignment
+	//
+	// Special case: Values exactly equal to peak would fall into bin N+1,
+	// so we multiply peak by 0.999999999 to force it into the last bin (bin N)
 	binQuery := fmt.Sprintf(`CAST(
 		((case when json_extract(footprint, "$.%s") = %f then %f*0.999999999 else json_extract(footprint, "$.%s") end) / %f)
 		* %v as INTEGER )`,
@@ -698,7 +725,9 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 		return nil, err
 	}
 
-	// Setup Return Array With Bin-Numbers for Match and Min/Max based on Peak
+	// Initialize histogram bins with calculated min/max ranges
+	// Each bin represents a range of metric values
+	// Example: peak=1000, bins=10 -> bin 1=[0,100), bin 2=[100,200), ..., bin 10=[900,1000]
 	points := make([]*model.MetricHistoPoint, 0)
 	binStep := int(peak) / *bins
 	for i := 1; i <= *bins; i++ {
@@ -708,13 +737,16 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 		points = append(points, &epoint)
 	}
 
-	for rows.Next() { // Fill Count if Bin-No. Matches (Not every Bin exists in DB!)
+	// Fill counts from query results
+	// Query only returns bins that have jobs, so we match against pre-initialized bins
+	for rows.Next() {
 		rpoint := model.MetricHistoPoint{}
 		if err := rows.Scan(&rpoint.Bin, &rpoint.Count); err != nil { // Required for Debug: &rpoint.Min, &rpoint.Max
 			cclog.Warnf("Error while scanning rows for %s", metric)
 			return nil, err // FIXME: Totally bricks cc-backend if returned and if all metrics requested?
 		}
 
+		// Match query result to pre-initialized bin and update count
 		for _, e := range points {
 			if e.Bin != nil && rpoint.Bin != nil {
 				if *e.Bin == *rpoint.Bin {

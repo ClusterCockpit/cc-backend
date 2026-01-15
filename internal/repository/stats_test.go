@@ -25,11 +25,20 @@ func TestBuildJobStatsQuery(t *testing.T) {
 func TestJobStats(t *testing.T) {
 	r := setup(t)
 
+	// First, count the actual jobs in the database (excluding test jobs)
+	var expectedCount int
+	err := r.DB.QueryRow(`SELECT COUNT(*) FROM job WHERE cluster != 'testcluster'`).Scan(&expectedCount)
+	noErr(t, err)
+
 	filter := &model.JobFilter{}
+	// Exclude test jobs created by other tests
+	testCluster := "testcluster"
+	filter.Cluster = &model.StringInput{Neq: &testCluster}
+
 	stats, err := r.JobsStats(getContext(t), []*model.JobFilter{filter})
 	noErr(t, err)
 
-	if stats[0].TotalJobs != 544 {
-		t.Fatalf("Want 544, Got %d", stats[0].TotalJobs)
+	if stats[0].TotalJobs != expectedCount {
+		t.Fatalf("Want %d, Got %d", expectedCount, stats[0].TotalJobs)
 	}
 }

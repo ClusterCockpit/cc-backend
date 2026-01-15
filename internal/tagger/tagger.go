@@ -64,7 +64,7 @@ func newTagger() {
 func Init() {
 	initOnce.Do(func() {
 		newTagger()
-		repository.RegisterJobJook(jobTagger)
+		repository.RegisterJobHook(jobTagger)
 	})
 }
 

@@ -16,8 +16,32 @@ import (
 	sq "github.com/Masterminds/squirrel"
 )
 
+// Tag Scope Rules:
+//
+// Tags in ClusterCockpit have three visibility scopes that control who can see and use them:
+//
+//  1. "global" - Visible to all users, can be used by anyone
+//     Example: System-generated tags like "energy-efficient", "failed", "short"
+//
+//  2. "private" - Only visible to the creating user
+//     Example: Personal notes like "needs-review", "interesting-case"
+//
+//  3. "admin" - Only visible to users with admin or support roles
+//     Example: Internal notes like "hardware-issue", "billing-problem"
+//
+// Authorization Rules:
+//   - Regular users can only create/see "global" and their own "private" tags
+//   - Admin/Support can create/see all scopes including "admin" tags
+//   - Users can only add tags to jobs they have permission to view
+//   - Tag scope is enforced at query time in GetTags() and CountTags()
+
 // AddTag adds the tag with id `tagId` to the job with the database id `jobId`.
 // Requires user authentication for security checks.
+//
+// The user must have permission to view the job. Tag visibility is determined by scope:
+//   - "global" tags: visible to all users
+//   - "private" tags: only visible to the tag creator
+//   - "admin" tags: only visible to admin/support users
 func (r *JobRepository) AddTag(user *schema.User, job int64, tag int64) ([]*schema.Tag, error) {
 	j, err := r.FindByIDWithUser(user, job)
 	if err != nil {
@@ -180,7 +204,15 @@ func (r *JobRepository) RemoveTagById(tagID int64) error {
 	return nil
 }
 
-// CreateTag creates a new tag with the specified type and name and returns its database id.
+// CreateTag creates a new tag with the specified type, name, and scope.
+// Returns the database ID of the newly created tag.
+//
+// Scope defaults to "global" if empty string is provided.
+// Valid scopes: "global", "private", "admin"
+//
+// Example:
+//
+//	tagID, err := repo.CreateTag("performance", "high-memory", "global")
 func (r *JobRepository) CreateTag(tagType string, tagName string, tagScope string) (tagId int64, err error) {
 	// Default to "Global" scope if none defined
 	if tagScope == "" {
@@ -199,8 +231,14 @@ func (r *JobRepository) CreateTag(tagType string, tagName string, tagScope strin
 	return res.LastInsertId()
 }
 
+// CountTags returns all tags visible to the user and the count of jobs for each tag.
+// Applies scope-based filtering to respect tag visibility rules.
+//
+// Returns:
+//   - tags: slice of tags the user can see
+//   - counts: map of tag name to job count
+//   - err: any error encountered
 func (r *JobRepository) CountTags(user *schema.User) (tags []schema.Tag, counts map[string]int, err error) {
-	// Fetch all Tags in DB for Display in Frontend Tag-View
 	tags = make([]schema.Tag, 0, 100)
 	xrows, err := r.DB.Queryx("SELECT id, tag_type, tag_name, tag_scope FROM tag")
 	if err != nil {
