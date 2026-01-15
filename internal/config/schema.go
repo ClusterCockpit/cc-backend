@@ -6,7 +6,7 @@
 package config
 
 var configSchema = `
-	{
+{
   "type": "object",
   "properties": {
     "addr": {
@@ -135,6 +135,5 @@ var configSchema = `
       },
       "required": ["subjectJobEvent", "subjectNodeState"]
     }
-	},
-  "required": ["apiAllowedIPs"]
-	}`
+  }
+}`
