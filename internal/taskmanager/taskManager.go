@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	DefaultCompressOlderThen = 7
+	DefaultCompressOlderThan = 7
 )
 
 // Retention defines the configuration for job retention policies.
@@ -92,7 +92,7 @@ func initArchiveServices(config json.RawMessage) {
 	if cfg.Compression > 0 {
 		RegisterCompressionService(cfg.Compression)
 	} else {
-		RegisterCompressionService(DefaultCompressOlderThen)
+		RegisterCompressionService(DefaultCompressOlderThan)
 	}
 }
 
@@ -118,6 +118,9 @@ func Start(cronCfg, archiveConfig json.RawMessage) {
 
 	if archiveConfig != nil {
 		initArchiveServices(archiveConfig)
+	} else {
+		// Always enable compression
+		RegisterCompressionService(DefaultCompressOlderThan)
 	}
 
 	lc := auth.Keys.LdapConfig
