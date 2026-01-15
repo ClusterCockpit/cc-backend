@@ -25,11 +25,6 @@ const docTemplate = `{
     "paths": {
         "/api/clusters/": {
             "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
                 "description": "Get a list of all cluster configs. Specific cluster can be requested using query parameter.",
                 "produces": [
                     "application/json"
@@ -50,7 +45,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Array of clusters",
                         "schema": {
-                            "$ref": "#/definitions/api.GetClustersApiResponse"
+                            "$ref": "#/definitions/api.GetClustersAPIResponse"
                         }
                     },
                     "400": {
@@ -77,16 +72,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/jobs/": {
-            "get": {
+                },
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/jobs/": {
+            "get": {
                 "description": "Get a list of all jobs. Filters can be applied using query parameters.\nNumber of results can be limited by page. Results are sorted by descending startTime.",
                 "produces": [
                     "application/json"
@@ -145,7 +140,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Job array and page info",
                         "schema": {
-                            "$ref": "#/definitions/api.GetJobsApiResponse"
+                            "$ref": "#/definitions/api.GetJobsAPIResponse"
                         }
                     },
                     "400": {
@@ -172,16 +167,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/jobs/delete_job/": {
-            "delete": {
+                },
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/jobs/delete_job/": {
+            "delete": {
                 "description": "Job to delete is specified by request body. All fields are required in this case.",
                 "consumes": [
                     "application/json"
@@ -200,7 +195,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.DeleteJobApiRequest"
+                            "$ref": "#/definitions/api.DeleteJobAPIRequest"
                         }
                     }
                 ],
@@ -208,7 +203,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Success message",
                         "schema": {
-                            "$ref": "#/definitions/api.DefaultApiResponse"
+                            "$ref": "#/definitions/api.DefaultAPIResponse"
                         }
                     },
                     "400": {
@@ -247,16 +242,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/jobs/delete_job/{id}": {
-            "delete": {
+                },
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/jobs/delete_job/{id}": {
+            "delete": {
                 "description": "Job to remove is specified by database ID. This will not remove the job from the job archive.",
                 "produces": [
                     "application/json"
@@ -278,7 +273,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Success message",
                         "schema": {
-                            "$ref": "#/definitions/api.DefaultApiResponse"
+                            "$ref": "#/definitions/api.DefaultAPIResponse"
                         }
                     },
                     "400": {
@@ -317,16 +312,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/jobs/delete_job_before/{ts}": {
-            "delete": {
+                },
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/jobs/delete_job_before/{ts}": {
+            "delete": {
                 "description": "Remove all jobs with start time before timestamp. The jobs will not be removed from the job archive.",
                 "produces": [
                     "application/json"
@@ -342,13 +337,19 @@ const docTemplate = `{
                         "name": "ts",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Omit jobs with tags from deletion",
+                        "name": "omit-tagged",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "Success message",
                         "schema": {
-                            "$ref": "#/definitions/api.DefaultApiResponse"
+                            "$ref": "#/definitions/api.DefaultAPIResponse"
                         }
                     },
                     "400": {
@@ -387,16 +388,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/jobs/edit_meta/{id}": {
-            "post": {
+                },
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/jobs/edit_meta/{id}": {
+            "post": {
                 "description": "Edit key value pairs in job metadata json\nIf a key already exists its content will be overwritten",
                 "consumes": [
                     "application/json"
@@ -457,16 +458,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/jobs/start_job/": {
-            "post": {
+                },
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/jobs/start_job/": {
+            "post": {
                 "description": "Job specified in request body will be saved to database as \"running\" with new DB ID.\nJob specifications follow the 'Job' scheme, API will fail to execute if requirements are not met.",
                 "consumes": [
                     "application/json"
@@ -493,7 +494,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Job added successfully",
                         "schema": {
-                            "$ref": "#/definitions/api.DefaultApiResponse"
+                            "$ref": "#/definitions/api.DefaultAPIResponse"
                         }
                     },
                     "400": {
@@ -526,16 +527,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/jobs/stop_job/": {
-            "post": {
+                },
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/jobs/stop_job/": {
+            "post": {
                 "description": "Job to stop is specified by request body. All fields are required in this case.\nReturns full job resource information according to 'Job' scheme.",
                 "produces": [
                     "application/json"
@@ -551,7 +552,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.StopJobApiRequest"
+                            "$ref": "#/definitions/api.StopJobAPIRequest"
                         }
                     }
                 ],
@@ -598,16 +599,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/jobs/tag_job/{id}": {
-            "post": {
+                },
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/jobs/tag_job/{id}": {
+            "post": {
                 "description": "Adds tag(s) to a job specified by DB ID. Name and Type of Tag(s) can be chosen freely.\nTag Scope for frontend visibility will default to \"global\" if none entered, other options: \"admin\" or specific username.\nIf tagged job is already finished: Tag will be written directly to respective archive files.",
                 "consumes": [
                     "application/json"
@@ -635,7 +636,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/api.ApiTag"
+                                "$ref": "#/definitions/api.APITag"
                             }
                         }
                     }
@@ -671,16 +672,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/jobs/{id}": {
-            "get": {
+                },
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/jobs/{id}": {
+            "get": {
                 "description": "Job to get is specified by database ID\nReturns full job resource information according to 'Job' scheme and all metrics according to 'JobData'.",
                 "produces": [
                     "application/json"
@@ -708,7 +709,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Job resource",
                         "schema": {
-                            "$ref": "#/definitions/api.GetJobApiResponse"
+                            "$ref": "#/definitions/api.GetJobAPIResponse"
                         }
                     },
                     "400": {
@@ -747,14 +748,14 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "description": "Job to get is specified by database ID\nReturns full job resource information according to 'Job' scheme and all metrics according to 'JobData'.",
                 "consumes": [
                     "application/json"
@@ -791,7 +792,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Job resource",
                         "schema": {
-                            "$ref": "#/definitions/api.GetJobApiResponse"
+                            "$ref": "#/definitions/api.GetJobAPIResponse"
                         }
                     },
                     "400": {
@@ -830,16 +831,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/nodestats/": {
-            "post": {
+                },
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/nodestats/": {
+            "post": {
                 "description": "Returns a JSON-encoded list of users.\nRequired query-parameter defines if all users or only users with additional special roles are returned.",
                 "produces": [
                     "application/json"
@@ -863,7 +864,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Success message",
                         "schema": {
-                            "$ref": "#/definitions/api.DefaultApiResponse"
+                            "$ref": "#/definitions/api.DefaultAPIResponse"
                         }
                     },
                     "400": {
@@ -890,16 +891,86 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/api/users/": {
-            "get": {
+                },
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
+                ]
+            }
+        },
+        "/api/user/{id}": {
+            "post": {
+                "description": "Allows admins to add/remove roles and projects for a user",
+                "produces": [
+                    "text/plain"
                 ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "Update user roles and projects",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Username",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Role to add",
+                        "name": "add-role",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Role to remove",
+                        "name": "remove-role",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Project to add",
+                        "name": "add-project",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Project to remove",
+                        "name": "remove-project",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success message",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/users/": {
+            "get": {
                 "description": "Returns a JSON-encoded list of users.\nRequired query-parameter defines if all users or only users with additional special roles are returned.",
                 "produces": [
                     "application/json"
@@ -923,7 +994,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/api.ApiReturnedUser"
+                                "$ref": "#/definitions/api.APIReturnedUser"
                             }
                         }
                     },
@@ -951,16 +1022,361 @@ const docTemplate = `{
                             "type": "string"
                         }
                     }
-                }
-            }
-        },
-        "/jobs/tag_job/{id}": {
-            "delete": {
+                },
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
+                ]
+            },
+            "post": {
+                "description": "Creates a new user with specified credentials and role",
+                "produces": [
+                    "text/plain"
                 ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "Create a new user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Username",
+                        "name": "username",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Password (not required for API users)",
+                        "name": "password",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "User role",
+                        "name": "role",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Full name",
+                        "name": "name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Email address",
+                        "name": "email",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Project (required for managers)",
+                        "name": "project",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success message",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "description": "Deletes a user from the system",
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "Delete a user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Username to delete",
+                        "name": "username",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/configuration/": {
+            "post": {
+                "description": "Updates a user's configuration key-value pair.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "Frontend"
+                ],
+                "summary": "Update user configuration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Configuration key",
+                        "name": "key",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Configuration value",
+                        "name": "value",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/debug/": {
+            "post": {
+                "description": "This endpoint allows the users to print the content of",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "debug"
+                ],
+                "summary": "Debug endpoint",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Selector",
+                        "name": "selector",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Debug dump",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/free/": {
+            "post": {
+                "description": "This endpoint allows the users to free the Buffers from the",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "free"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "up to timestamp",
+                        "name": "to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ok",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/healthcheck/": {
+            "get": {
+                "description": "This endpoint allows the users to check if a node is healthy",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "healthcheck"
+                ],
+                "summary": "HealthCheck endpoint",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Selector",
+                        "name": "selector",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Debug dump",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/jobs/tag_job/{id}": {
+            "delete": {
                 "description": "Removes tag(s) from a job specified by DB ID. Name and Type of Tag(s) must match.\nTag Scope is required for matching, options: \"global\", \"admin\". Private tags can not be deleted via API.\nIf tagged job is already finished: Tag will be removed from respective archive files.",
                 "consumes": [
                     "application/json"
@@ -988,7 +1404,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/api.ApiTag"
+                                "$ref": "#/definitions/api.APITag"
                             }
                         }
                     }
@@ -1024,16 +1440,276 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/tags/": {
-            "delete": {
+                },
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
+                ]
+            }
+        },
+        "/jwt/": {
+            "get": {
+                "description": "Generates a JWT token for a user. Admins can generate tokens for any user, regular users only for themselves.",
+                "consumes": [
+                    "multipart/form-data"
                 ],
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "Frontend"
+                ],
+                "summary": "Generate JWT token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Username to generate JWT for",
+                        "name": "username",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "JWT token",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/machine_state/{cluster}/{host}": {
+            "get": {
+                "description": "Retrieves stored machine state data for a specific cluster node. Validates cluster and host names to prevent path traversal.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Machine State"
+                ],
+                "summary": "Retrieve machine state",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cluster name",
+                        "name": "cluster",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Host name",
+                        "name": "host",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Machine state JSON data",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Machine state not enabled or file not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "description": "Stores machine state data for a specific cluster node. Validates cluster and host names to prevent path traversal.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "Machine State"
+                ],
+                "summary": "Store machine state",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cluster name",
+                        "name": "cluster",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Host name",
+                        "name": "host",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Machine state not enabled",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/notice/": {
+            "post": {
+                "description": "Updates the notice.txt file content. Only admins are allowed. Content is limited to 10000 characters.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "Config"
+                ],
+                "summary": "Update system notice",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "New notice content (max 10000 characters)",
+                        "name": "new-content",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Update Notice Content Success",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/roles/": {
+            "get": {
+                "description": "Returns a list of valid user roles. Only admins are allowed.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Config"
+                ],
+                "summary": "Get available roles",
+                "responses": {
+                    "200": {
+                        "description": "List of role names",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/tags/": {
+            "delete": {
                 "description": "Removes tags by type and name. Name and Type of Tag(s) must match.\nTag Scope is required for matching, options: \"global\", \"admin\". Private tags can not be deleted via API.\nTag wills be removed from respective archive files.",
                 "consumes": [
                     "application/json"
@@ -1054,7 +1730,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/api.ApiTag"
+                                "$ref": "#/definitions/api.APITag"
                             }
                         }
                     }
@@ -1090,12 +1766,72 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/write/": {
+            "post": {
+                "consumes": [
+                    "text/plain"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "If the lines in the body do not have a cluster tag, use this value instead.",
+                        "name": "cluster",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ok",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
             }
         }
     },
     "definitions": {
-        "api.ApiReturnedUser": {
+        "api.APIReturnedUser": {
             "type": "object",
             "properties": {
                 "email": {
@@ -1121,7 +1857,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.ApiTag": {
+        "api.APITag": {
             "type": "object",
             "properties": {
                 "name": {
@@ -1141,7 +1877,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.DefaultApiResponse": {
+        "api.DefaultAPIResponse": {
             "type": "object",
             "properties": {
                 "msg": {
@@ -1149,7 +1885,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.DeleteJobApiRequest": {
+        "api.DeleteJobAPIRequest": {
             "type": "object",
             "required": [
                 "jobId"
@@ -1198,7 +1934,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.GetClustersApiResponse": {
+        "api.GetClustersAPIResponse": {
             "type": "object",
             "properties": {
                 "clusters": {
@@ -1210,7 +1946,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.GetJobApiResponse": {
+        "api.GetJobAPIResponse": {
             "type": "object",
             "properties": {
                 "data": {
@@ -1224,7 +1960,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.GetJobsApiResponse": {
+        "api.GetJobsAPIResponse": {
             "type": "object",
             "properties": {
                 "items": {
@@ -1258,39 +1994,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.Node": {
-            "type": "object",
-            "properties": {
-                "cpusAllocated": {
-                    "type": "integer"
-                },
-                "cpusTotal": {
-                    "type": "integer"
-                },
-                "gpusAllocated": {
-                    "type": "integer"
-                },
-                "gpusTotal": {
-                    "type": "integer"
-                },
-                "hostname": {
-                    "type": "string"
-                },
-                "memoryAllocated": {
-                    "type": "integer"
-                },
-                "memoryTotal": {
-                    "type": "integer"
-                },
-                "states": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "api.StopJobApiRequest": {
+        "api.StopJobAPIRequest": {
             "type": "object",
             "required": [
                 "jobState",
@@ -1333,7 +2037,7 @@ const docTemplate = `{
                 "nodes": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.Node"
+                        "$ref": "#/definitions/schema.NodePayload"
                     }
                 }
             }
@@ -1342,12 +2046,15 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "id": {
+                    "description": "Unique identifier for the accelerator (e.g., \"0\", \"1\", \"GPU-0\")",
                     "type": "string"
                 },
                 "model": {
+                    "description": "Specific model name (e.g., \"A100\", \"MI100\")",
                     "type": "string"
                 },
                 "type": {
+                    "description": "Type of accelerator (e.g., \"Nvidia GPU\", \"AMD GPU\")",
                     "type": "string"
                 }
             }
@@ -1356,15 +2063,18 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "metricConfig": {
+                    "description": "Cluster-wide metric configurations",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/schema.MetricConfig"
                     }
                 },
                 "name": {
+                    "description": "Unique cluster name (e.g., \"fritz\", \"alex\")",
                     "type": "string"
                 },
                 "subClusters": {
+                    "description": "Homogeneous partitions within the cluster",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/schema.SubCluster"
@@ -1373,6 +2083,7 @@ const docTemplate = `{
             }
         },
         "schema.Job": {
+            "description": "Information of a HPC job.",
             "type": "object",
             "properties": {
                 "arrayJobId": {
@@ -1401,6 +2112,13 @@ const docTemplate = `{
                         "format": "float64"
                     }
                 },
+                "exclusive": {
+                    "description": "for backwards compatibility",
+                    "type": "integer",
+                    "maximum": 2,
+                    "minimum": 0,
+                    "example": 1
+                },
                 "footprint": {
                     "type": "object",
                     "additionalProperties": {
@@ -1423,7 +2141,7 @@ const docTemplate = `{
                         "deadline",
                         "failed",
                         "node_fail",
-                        "out_of_memory",
+                        "out-of-memory",
                         "pending",
                         "preempted",
                         "running",
@@ -1535,9 +2253,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "id": {
+                    "description": "Internal database ID",
                     "type": "integer"
                 },
                 "jobId": {
+                    "description": "The job's external job ID",
                     "type": "integer"
                 }
             }
@@ -1546,9 +2266,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "count": {
+                    "description": "Total count of available items",
                     "type": "integer"
                 },
                 "items": {
+                    "description": "List of job links",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/schema.JobLink"
@@ -1560,19 +2282,31 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "series": {
+                    "description": "Individual time series data",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/schema.Series"
                     }
                 },
                 "statisticsSeries": {
-                    "$ref": "#/definitions/schema.StatsSeries"
+                    "description": "Aggregated statistics over time",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/schema.StatsSeries"
+                        }
+                    ]
                 },
                 "timestep": {
+                    "description": "Sampling interval in seconds",
                     "type": "integer"
                 },
                 "unit": {
-                    "$ref": "#/definitions/schema.Unit"
+                    "description": "Unit of measurement",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/schema.Unit"
+                        }
+                    ]
                 }
             }
         },
@@ -1638,46 +2372,71 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "aggregation": {
+                    "description": "Aggregation function (avg, sum, min, max)",
                     "type": "string"
                 },
                 "alert": {
+                    "description": "Alert threshold (requires attention)",
                     "type": "number"
                 },
                 "caution": {
+                    "description": "Caution threshold (concerning but not critical)",
                     "type": "number"
                 },
                 "energy": {
+                    "description": "Energy measurement method",
                     "type": "string"
                 },
                 "footprint": {
+                    "description": "Footprint category",
                     "type": "string"
                 },
                 "lowerIsBetter": {
+                    "description": "Whether lower values are better",
                     "type": "boolean"
                 },
                 "name": {
+                    "description": "Metric name (e.g., \"cpu_load\", \"mem_used\")",
                     "type": "string"
                 },
                 "normal": {
+                    "description": "Normal/typical value (good performance)",
                     "type": "number"
                 },
                 "peak": {
+                    "description": "Peak/maximum expected value (best performance)",
                     "type": "number"
                 },
+                "restrict": {
+                    "description": "Restrict visibility to non user roles",
+                    "type": "boolean"
+                },
                 "scope": {
-                    "$ref": "#/definitions/schema.MetricScope"
+                    "description": "Metric scope (node, socket, core, etc.)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/schema.MetricScope"
+                        }
+                    ]
                 },
                 "subClusters": {
+                    "description": "Subcluster-specific overrides",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/schema.SubClusterConfig"
                     }
                 },
                 "timestep": {
+                    "description": "Measurement interval in seconds",
                     "type": "integer"
                 },
                 "unit": {
-                    "$ref": "#/definitions/schema.Unit"
+                    "description": "Unit of measurement",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/schema.Unit"
+                        }
+                    ]
                 }
             }
         },
@@ -1706,12 +2465,15 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "avg": {
+                    "description": "Average/mean value",
                     "type": "number"
                 },
                 "max": {
+                    "description": "Maximum value",
                     "type": "number"
                 },
                 "min": {
+                    "description": "Minimum value",
                     "type": "number"
                 }
             }
@@ -1720,10 +2482,48 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "unit": {
-                    "$ref": "#/definitions/schema.Unit"
+                    "description": "Unit of measurement (e.g., FLOP/s, GB/s)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/schema.Unit"
+                        }
+                    ]
                 },
                 "value": {
+                    "description": "Numeric value of the measurement",
                     "type": "number"
+                }
+            }
+        },
+        "schema.NodePayload": {
+            "type": "object",
+            "properties": {
+                "cpusAllocated": {
+                    "description": "Number of allocated CPUs",
+                    "type": "integer"
+                },
+                "gpusAllocated": {
+                    "description": "Number of allocated GPUs",
+                    "type": "integer"
+                },
+                "hostname": {
+                    "description": "Node hostname",
+                    "type": "string"
+                },
+                "jobsRunning": {
+                    "description": "Number of running jobs",
+                    "type": "integer"
+                },
+                "memoryAllocated": {
+                    "description": "Allocated memory in MB",
+                    "type": "integer"
+                },
+                "states": {
+                    "description": "State strings (flexible format)",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -1732,18 +2532,22 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "accelerators": {
+                    "description": "Allocated accelerator IDs (e.g., GPU IDs)",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "configuration": {
+                    "description": "Optional configuration identifier",
                     "type": "string"
                 },
                 "hostname": {
+                    "description": "Node hostname",
                     "type": "string"
                 },
                 "hwthreads": {
+                    "description": "Allocated hardware thread IDs",
                     "type": "array",
                     "items": {
                         "type": "integer"
@@ -1755,19 +2559,27 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "data": {
+                    "description": "Time series measurements",
                     "type": "array",
                     "items": {
                         "type": "number"
                     }
                 },
                 "hostname": {
+                    "description": "Source hostname",
                     "type": "string"
                 },
                 "id": {
+                    "description": "Optional ID (e.g., core ID, GPU ID)",
                     "type": "string"
                 },
                 "statistics": {
-                    "$ref": "#/definitions/schema.MetricStatistics"
+                    "description": "Statistical summary (min/avg/max)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/schema.MetricStatistics"
+                        }
+                    ]
                 }
             }
         },
@@ -1775,30 +2587,35 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "max": {
+                    "description": "Maximum values over time",
                     "type": "array",
                     "items": {
                         "type": "number"
                     }
                 },
                 "mean": {
+                    "description": "Mean values over time",
                     "type": "array",
                     "items": {
                         "type": "number"
                     }
                 },
                 "median": {
+                    "description": "Median values over time",
                     "type": "array",
                     "items": {
                         "type": "number"
                     }
                 },
                 "min": {
+                    "description": "Minimum values over time",
                     "type": "array",
                     "items": {
                         "type": "number"
                     }
                 },
                 "percentiles": {
+                    "description": "Percentile values over time (e.g., 10th, 50th, 90th)",
                     "type": "object",
                     "additionalProperties": {
                         "type": "array",
@@ -1814,52 +2631,81 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "coresPerSocket": {
+                    "description": "Number of cores per CPU socket",
                     "type": "integer"
                 },
                 "energyFootprint": {
+                    "description": "Energy-related footprint metrics",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "flopRateScalar": {
-                    "$ref": "#/definitions/schema.MetricValue"
+                    "description": "Theoretical scalar FLOP rate per node",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/schema.MetricValue"
+                        }
+                    ]
                 },
                 "flopRateSimd": {
-                    "$ref": "#/definitions/schema.MetricValue"
+                    "description": "Theoretical SIMD FLOP rate per node",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/schema.MetricValue"
+                        }
+                    ]
                 },
                 "footprint": {
+                    "description": "Default footprint metrics for jobs",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "memoryBandwidth": {
-                    "$ref": "#/definitions/schema.MetricValue"
+                    "description": "Theoretical memory bandwidth per node",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/schema.MetricValue"
+                        }
+                    ]
                 },
                 "metricConfig": {
+                    "description": "Subcluster-specific metric configurations",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/schema.MetricConfig"
                     }
                 },
                 "name": {
+                    "description": "Name of the subcluster (e.g., \"main\", \"gpu\", \"bigmem\")",
                     "type": "string"
                 },
                 "nodes": {
+                    "description": "Node list in condensed format (e.g., \"node[001-100]\")",
                     "type": "string"
                 },
                 "processorType": {
+                    "description": "CPU model (e.g., \"Intel Xeon Gold 6148\")",
                     "type": "string"
                 },
                 "socketsPerNode": {
+                    "description": "Number of CPU sockets per node",
                     "type": "integer"
                 },
                 "threadsPerCore": {
+                    "description": "Number of hardware threads per core (SMT level)",
                     "type": "integer"
                 },
                 "topology": {
-                    "$ref": "#/definitions/schema.Topology"
+                    "description": "Hardware topology of nodes in this subcluster",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/schema.Topology"
+                        }
+                    ]
                 }
             }
         },
@@ -1867,34 +2713,52 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "alert": {
+                    "description": "Alert threshold (requires attention)",
                     "type": "number"
                 },
                 "caution": {
+                    "description": "Caution threshold (concerning but not critical)",
                     "type": "number"
                 },
                 "energy": {
+                    "description": "Energy measurement configuration",
                     "type": "string"
                 },
                 "footprint": {
+                    "description": "Footprint category for this metric",
                     "type": "string"
                 },
                 "lowerIsBetter": {
+                    "description": "Whether lower values indicate better performance",
                     "type": "boolean"
                 },
                 "name": {
+                    "description": "Metric name (e.g., \"cpu_load\", \"mem_used\")",
                     "type": "string"
                 },
                 "normal": {
+                    "description": "Normal/typical value (good performance)",
                     "type": "number"
                 },
                 "peak": {
+                    "description": "Peak/maximum expected value (best performance)",
                     "type": "number"
                 },
                 "remove": {
+                    "description": "Whether to exclude this metric for this subcluster",
+                    "type": "boolean"
+                },
+                "restrict": {
+                    "description": "Restrict visibility to non user roles",
                     "type": "boolean"
                 },
                 "unit": {
-                    "$ref": "#/definitions/schema.Unit"
+                    "description": "Unit of measurement",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/schema.Unit"
+                        }
+                    ]
                 }
             }
         },
@@ -1923,12 +2787,14 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "accelerators": {
+                    "description": "Attached accelerators (GPUs, etc.)",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/schema.Accelerator"
                     }
                 },
                 "core": {
+                    "description": "Hardware threads grouped by core",
                     "type": "array",
                     "items": {
                         "type": "array",
@@ -1938,6 +2804,7 @@ const docTemplate = `{
                     }
                 },
                 "die": {
+                    "description": "Hardware threads grouped by die (optional)",
                     "type": "array",
                     "items": {
                         "type": "array",
@@ -1947,6 +2814,7 @@ const docTemplate = `{
                     }
                 },
                 "memoryDomain": {
+                    "description": "Hardware threads grouped by NUMA domain",
                     "type": "array",
                     "items": {
                         "type": "array",
@@ -1956,12 +2824,14 @@ const docTemplate = `{
                     }
                 },
                 "node": {
+                    "description": "All hardware thread IDs on this node",
                     "type": "array",
                     "items": {
                         "type": "integer"
                     }
                 },
                 "socket": {
+                    "description": "Hardware threads grouped by socket",
                     "type": "array",
                     "items": {
                         "type": "array",
@@ -1976,9 +2846,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "base": {
+                    "description": "Base unit (e.g., \"B/s\", \"F/s\", \"W\")",
                     "type": "string"
                 },
                 "prefix": {
+                    "description": "SI prefix (e.g., \"G\", \"M\", \"K\", \"T\")",
                     "type": "string"
                 }
             }

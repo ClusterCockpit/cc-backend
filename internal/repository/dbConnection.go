@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/jmoiron/sqlx"
 	"github.com/mattn/go-sqlite3"
 	"github.com/qustavo/sqlhooks/v2"
@@ -55,6 +55,10 @@ func Connect(driver string, db string) {
 	var err error
 	var dbHandle *sqlx.DB
 
+	if driver != "sqlite3" {
+		cclog.Abortf("Unsupported database driver '%s'. Only 'sqlite3' is supported.\n", driver)
+	}
+
 	dbConnOnce.Do(func() {
 		opts := DatabaseOptions{
 			URL:                   db,
@@ -64,39 +68,31 @@ func Connect(driver string, db string) {
 			ConnectionMaxIdleTime: repoConfig.ConnectionMaxIdleTime,
 		}
 
-		switch driver {
-		case "sqlite3":
-			// TODO: Have separate DB handles for Writes and Reads
-			// Optimize SQLite connection: https://kerkour.com/sqlite-for-servers
-			connectionURLParams := make(url.Values)
-			connectionURLParams.Add("_txlock", "immediate")
-			connectionURLParams.Add("_journal_mode", "WAL")
-			connectionURLParams.Add("_busy_timeout", "5000")
-			connectionURLParams.Add("_synchronous", "NORMAL")
-			connectionURLParams.Add("_cache_size", "1000000000")
-			connectionURLParams.Add("_foreign_keys", "true")
-			opts.URL = fmt.Sprintf("file:%s?%s", opts.URL, connectionURLParams.Encode())
+		// TODO: Have separate DB handles for Writes and Reads
+		// Optimize SQLite connection: https://kerkour.com/sqlite-for-servers
+		connectionURLParams := make(url.Values)
+		connectionURLParams.Add("_txlock", "immediate")
+		connectionURLParams.Add("_journal_mode", "WAL")
+		connectionURLParams.Add("_busy_timeout", "5000")
+		connectionURLParams.Add("_synchronous", "NORMAL")
+		connectionURLParams.Add("_cache_size", "1000000000")
+		connectionURLParams.Add("_foreign_keys", "true")
+		opts.URL = fmt.Sprintf("file:%s?%s", opts.URL, connectionURLParams.Encode())
 
-			if cclog.Loglevel() == "debug" {
-				sql.Register("sqlite3WithHooks", sqlhooks.Wrap(&sqlite3.SQLiteDriver{}, &Hooks{}))
-				dbHandle, err = sqlx.Open("sqlite3WithHooks", opts.URL)
-			} else {
-				dbHandle, err = sqlx.Open("sqlite3", opts.URL)
-			}
-
-			err = setupSqlite(dbHandle.DB)
-			if err != nil {
-				cclog.Abortf("Failed sqlite db setup.\nError: %s\n", err.Error())
-			}
-		case "mysql":
-			opts.URL += "?multiStatements=true"
-			dbHandle, err = sqlx.Open("mysql", opts.URL)
-		default:
-			cclog.Abortf("DB Connection: Unsupported database driver '%s'.\n", driver)
+		if cclog.Loglevel() == "debug" {
+			sql.Register("sqlite3WithHooks", sqlhooks.Wrap(&sqlite3.SQLiteDriver{}, &Hooks{}))
+			dbHandle, err = sqlx.Open("sqlite3WithHooks", opts.URL)
+		} else {
+			dbHandle, err = sqlx.Open("sqlite3", opts.URL)
 		}
 
 		if err != nil {
-			cclog.Abortf("DB Connection: Could not connect to '%s' database with sqlx.Open().\nError: %s\n", driver, err.Error())
+			cclog.Abortf("DB Connection: Could not connect to SQLite database with sqlx.Open().\nError: %s\n", err.Error())
+		}
+
+		err = setupSqlite(dbHandle.DB)
+		if err != nil {
+			cclog.Abortf("Failed sqlite db setup.\nError: %s\n", err.Error())
 		}
 
 		dbHandle.SetMaxOpenConns(opts.MaxOpenConnections)
@@ -105,7 +101,7 @@ func Connect(driver string, db string) {
 		dbHandle.SetConnMaxIdleTime(opts.ConnectionMaxIdleTime)
 
 		dbConnInstance = &DBConnection{DB: dbHandle, Driver: driver}
-		err = checkDBVersion(driver, dbHandle.DB)
+		err = checkDBVersion(dbHandle.DB)
 		if err != nil {
 			cclog.Abortf("DB Connection: Failed DB version check.\nError: %s\n", err.Error())
 		}
@@ -118,4 +114,27 @@ func GetConnection() *DBConnection {
 	}
 
 	return dbConnInstance
+}
+
+// ResetConnection closes the current database connection and resets the connection state.
+// This function is intended for testing purposes only to allow test isolation.
+func ResetConnection() error {
+	if dbConnInstance != nil && dbConnInstance.DB != nil {
+		if err := dbConnInstance.DB.Close(); err != nil {
+			return fmt.Errorf("failed to close database connection: %w", err)
+		}
+	}
+
+	dbConnInstance = nil
+	dbConnOnce = sync.Once{}
+	jobRepoInstance = nil
+	jobRepoOnce = sync.Once{}
+	nodeRepoInstance = nil
+	nodeRepoOnce = sync.Once{}
+	userRepoInstance = nil
+	userRepoOnce = sync.Once{}
+	userCfgRepoInstance = nil
+	userCfgRepoOnce = sync.Once{}
+
+	return nil
 }

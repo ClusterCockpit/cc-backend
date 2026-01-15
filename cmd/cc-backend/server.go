@@ -29,12 +29,12 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/generated"
-	"github.com/ClusterCockpit/cc-backend/internal/memorystore"
+	"github.com/ClusterCockpit/cc-backend/internal/metricstore"
 	"github.com/ClusterCockpit/cc-backend/internal/routerConfig"
 	"github.com/ClusterCockpit/cc-backend/pkg/nats"
 	"github.com/ClusterCockpit/cc-backend/web"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/runtimeEnv"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/runtime"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -49,9 +49,10 @@ const (
 
 // Server encapsulates the HTTP server state and dependencies
 type Server struct {
-	router    *mux.Router
-	server    *http.Server
-	apiHandle *api.RestAPI
+	router        *mux.Router
+	server        *http.Server
+	restAPIHandle *api.RestAPI
+	natsAPIHandle *api.NatsAPI
 }
 
 func onFailureResponse(rw http.ResponseWriter, r *http.Request, err error) {
@@ -104,7 +105,7 @@ func (s *Server) init() error {
 
 	authHandle := auth.GetAuthInstance()
 
-	s.apiHandle = api.New()
+	s.restAPIHandle = api.New()
 
 	info := map[string]any{}
 	info["hasOpenIDConnect"] = false
@@ -240,14 +241,19 @@ func (s *Server) init() error {
 
 	// Mount all /monitoring/... and /api/... routes.
 	routerConfig.SetupRoutes(secured, buildInfo)
-	s.apiHandle.MountAPIRoutes(securedapi)
-	s.apiHandle.MountUserAPIRoutes(userapi)
-	s.apiHandle.MountConfigAPIRoutes(configapi)
-	s.apiHandle.MountFrontendAPIRoutes(frontendapi)
+	s.restAPIHandle.MountAPIRoutes(securedapi)
+	s.restAPIHandle.MountUserAPIRoutes(userapi)
+	s.restAPIHandle.MountConfigAPIRoutes(configapi)
+	s.restAPIHandle.MountFrontendAPIRoutes(frontendapi)
 
-	if memorystore.InternalCCMSFlag {
-		s.apiHandle.MountMetricStoreAPIRoutes(metricstoreapi)
+	if config.Keys.APISubjects != nil {
+		s.natsAPIHandle = api.NewNatsAPI()
+		if err := s.natsAPIHandle.StartSubscriptions(); err != nil {
+			return fmt.Errorf("starting NATS subscriptions: %w", err)
+		}
 	}
+
+	s.restAPIHandle.MountMetricStoreAPIRoutes(metricstoreapi)
 
 	if config.Keys.EmbedStaticFiles {
 		if i, err := os.Stat("./var/img"); err == nil {
@@ -339,7 +345,7 @@ func (s *Server) Start(ctx context.Context) error {
 	// Because this program will want to bind to a privileged port (like 80), the listener must
 	// be established first, then the user can be changed, and after that,
 	// the actual http server can be started.
-	if err := runtimeEnv.DropPrivileges(config.Keys.Group, config.Keys.User); err != nil {
+	if err := runtime.DropPrivileges(config.Keys.Group, config.Keys.User); err != nil {
 		return fmt.Errorf("dropping privileges: %w", err)
 	}
 
@@ -375,9 +381,7 @@ func (s *Server) Shutdown(ctx context.Context) {
 	}
 
 	// Archive all the metric store data
-	if memorystore.InternalCCMSFlag {
-		memorystore.Shutdown()
-	}
+	metricstore.Shutdown()
 
 	// Shutdown archiver with 10 second timeout for fast shutdown
 	if err := archiver.Shutdown(10 * time.Second); err != nil {

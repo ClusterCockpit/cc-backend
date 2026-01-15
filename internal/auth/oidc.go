@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gorilla/mux"
 	"golang.org/x/oauth2"
@@ -59,7 +59,7 @@ func NewOIDC(a *Authentication) *OIDC {
 	// Use context with timeout for provider initialization
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	provider, err := oidc.NewProvider(ctx, Keys.OpenIDConfig.Provider)
 	if err != nil {
 		cclog.Fatal(err)
@@ -119,7 +119,7 @@ func (oa *OIDC) OAuth2Callback(rw http.ResponseWriter, r *http.Request) {
 	// Exchange authorization code for token with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	token, err := oa.client.Exchange(ctx, code, oauth2.VerifierOption(codeVerifier))
 	if err != nil {
 		http.Error(rw, "Failed to exchange token: "+err.Error(), http.StatusInternalServerError)

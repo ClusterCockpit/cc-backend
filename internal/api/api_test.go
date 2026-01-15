@@ -23,47 +23,38 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
-	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
-	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/internal/metricdispatch"
+	"github.com/ClusterCockpit/cc-backend/internal/metricstore"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/gorilla/mux"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
 func setup(t *testing.T) *api.RestAPI {
+	repository.ResetConnection()
+
 	const testconfig = `{
-		"main": {
-	"addr":            "0.0.0.0:8080",
-	"validate": false,
-  "apiAllowedIPs": [
-    "*"
-  ]
-	},
+	"main": {
+	   "addr":            "0.0.0.0:8080",
+	   "validate": false,
+     "apiAllowedIPs": [
+       "*"
+      ]
+  },
 	"archive": {
-		"kind": "file",
-		"path": "./var/job-archive"
+		 "kind": "file",
+		 "path": "./var/job-archive"
 	},
 	"auth": {
-  "jwts": {
-      "max-age": "2m"
+     "jwts": {
+     "max-age": "2m"
   }
-	},
-	"clusters": [
-	{
-	   "name": "testcluster",
-	   "metricDataRepository": {"kind": "test", "url": "bla:8081"},
-	   "filterRanges": {
-		"numNodes": { "from": 1, "to": 64 },
-		"duration": { "from": 0, "to": 86400 },
-		"startTime": { "from": "2022-01-01T00:00:00Z", "to": null }
-	   }
-	}
-	]
+  }
 }`
 	const testclusterJSON = `{
         "name": "testcluster",
@@ -141,7 +132,7 @@ func setup(t *testing.T) *api.RestAPI {
 	}
 
 	dbfilepath := filepath.Join(tmpdir, "test.db")
-	err := repository.MigrateDB("sqlite3", dbfilepath)
+	err := repository.MigrateDB(dbfilepath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,11 +146,7 @@ func setup(t *testing.T) *api.RestAPI {
 
 	// Load and check main configuration
 	if cfg := ccconf.GetPackageConfig("main"); cfg != nil {
-		if clustercfg := ccconf.GetPackageConfig("clusters"); clustercfg != nil {
-			config.Init(cfg, clustercfg)
-		} else {
-			cclog.Abort("Cluster configuration must be present")
-		}
+		config.Init(cfg)
 	} else {
 		cclog.Abort("Main configuration must be present")
 	}
@@ -171,9 +158,7 @@ func setup(t *testing.T) *api.RestAPI {
 		t.Fatal(err)
 	}
 
-	if err := metricdata.Init(); err != nil {
-		t.Fatal(err)
-	}
+	// metricstore initialization removed - it's initialized via callback in tests
 
 	archiver.Start(repository.GetJobRepository(), context.Background())
 
@@ -190,11 +175,9 @@ func setup(t *testing.T) *api.RestAPI {
 }
 
 func cleanup() {
-	// Gracefully shutdown archiver with timeout
 	if err := archiver.Shutdown(5 * time.Second); err != nil {
 		cclog.Warnf("Archiver shutdown timeout in tests: %v", err)
 	}
-	// TODO: Clear all caches, reset all modules, etc...
 }
 
 /*
@@ -221,7 +204,7 @@ func TestRestApi(t *testing.T) {
 		},
 	}
 
-	metricdata.TestLoadDataCallback = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error) {
+	metricstore.TestLoadDataCallback = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error) {
 		return testData, nil
 	}
 
@@ -230,7 +213,7 @@ func TestRestApi(t *testing.T) {
 	r.StrictSlash(true)
 	restapi.MountAPIRoutes(r)
 
-	var TestJobId int64 = 123
+	var TestJobID int64 = 123
 	TestClusterName := "testcluster"
 	var TestStartTime int64 = 123456789
 
@@ -280,7 +263,7 @@ func TestRestApi(t *testing.T) {
 		}
 		// resolver := graph.GetResolverInstance()
 		restapi.JobRepository.SyncJobs()
-		job, err := restapi.JobRepository.Find(&TestJobId, &TestClusterName, &TestStartTime)
+		job, err := restapi.JobRepository.Find(&TestJobID, &TestClusterName, &TestStartTime)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -338,7 +321,7 @@ func TestRestApi(t *testing.T) {
 		}
 
 		// Archiving happens asynchronously, will be completed in cleanup
-		job, err := restapi.JobRepository.Find(&TestJobId, &TestClusterName, &TestStartTime)
+		job, err := restapi.JobRepository.Find(&TestJobID, &TestClusterName, &TestStartTime)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -366,7 +349,7 @@ func TestRestApi(t *testing.T) {
 	}
 
 	t.Run("CheckArchive", func(t *testing.T) {
-		data, err := metricDataDispatcher.LoadData(stoppedJob, []string{"load_one"}, []schema.MetricScope{schema.MetricScopeNode}, context.Background(), 60)
+		data, err := metricdispatch.LoadData(stoppedJob, []string{"load_one"}, []schema.MetricScope{schema.MetricScopeNode}, context.Background(), 60)
 		if err != nil {
 			t.Fatal(err)
 		}

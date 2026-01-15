@@ -15,12 +15,31 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
 )
+
+// Authentication and Role System:
+//
+// ClusterCockpit supports multiple authentication sources:
+//   - Local: Username/password stored in database (password hashed with bcrypt)
+//   - LDAP: External LDAP/Active Directory authentication
+//   - JWT: Token-based authentication for API access
+//
+// Role Hierarchy (from highest to lowest privilege):
+//   1. "admin" - Full system access, can manage all users and jobs
+//   2. "support" - Can view all jobs but limited management capabilities
+//   3. "manager" - Can manage specific projects and their users
+//   4. "api" - Programmatic access for job submission/management
+//   5. "user" - Default role, can only view own jobs
+//
+// Project Association:
+//   - Managers have a list of projects they oversee
+//   - Regular users' project membership is determined by job data
+//   - Managers can view/manage all jobs within their projects
 
 var (
 	userRepoOnce     sync.Once
@@ -44,6 +63,9 @@ func GetUserRepository() *UserRepository {
 	return userRepoInstance
 }
 
+// GetUser retrieves a user by username from the database.
+// Returns the complete user record including hashed password, roles, and projects.
+// Password field contains bcrypt hash for local auth users, empty for LDAP users.
 func (r *UserRepository) GetUser(username string) (*schema.User, error) {
 	user := &schema.User{Username: username}
 	var hashedPassword, name, rawRoles, email, rawProjects sql.NullString
@@ -93,6 +115,12 @@ func (r *UserRepository) GetLdapUsernames() ([]string, error) {
 	return users, nil
 }
 
+// AddUser creates a new user in the database.
+// Passwords are automatically hashed with bcrypt before storage.
+// Auth source determines authentication method (local, LDAP, etc.).
+//
+// Required fields: Username, Roles
+// Optional fields: Name, Email, Password, Projects, AuthSource
 func (r *UserRepository) AddUser(user *schema.User) error {
 	rolesJson, _ := json.Marshal(user.Roles)
 	projectsJson, _ := json.Marshal(user.Projects)
@@ -229,6 +257,14 @@ func (r *UserRepository) ListUsers(specialsOnly bool) ([]*schema.User, error) {
 	return users, nil
 }
 
+// AddRole adds a role to a user's role list.
+// Role string is automatically lowercased.
+// Valid roles: admin, support, manager, api, user
+//
+// Returns error if:
+//   - User doesn't exist
+//   - Role is invalid
+//   - User already has the role
 func (r *UserRepository) AddRole(
 	ctx context.Context,
 	username string,
@@ -258,6 +294,11 @@ func (r *UserRepository) AddRole(
 	return nil
 }
 
+// RemoveRole removes a role from a user's role list.
+//
+// Special rules:
+//   - Cannot remove "manager" role while user has assigned projects
+//   - Must remove all projects first before removing manager role
 func (r *UserRepository) RemoveRole(ctx context.Context, username string, queryrole string) error {
 	oldRole := strings.ToLower(queryrole)
 	user, err := r.GetUser(username)
@@ -294,6 +335,12 @@ func (r *UserRepository) RemoveRole(ctx context.Context, username string, queryr
 	return nil
 }
 
+// AddProject assigns a project to a manager user.
+// Only users with the "manager" role can have assigned projects.
+//
+// Returns error if:
+//   - User doesn't have manager role
+//   - User already manages the project
 func (r *UserRepository) AddProject(
 	ctx context.Context,
 	username string,

@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -27,22 +27,12 @@ func setupUserTest(t *testing.T) *UserCfgRepo {
 	"archive": {
 		"kind": "file",
 		"path": "./var/job-archive"
-	},
-	"clusters": [
-	{
-	   "name": "testcluster",
-	   "metricDataRepository": {"kind": "test", "url": "bla:8081"},
-	   "filterRanges": {
-		"numNodes": { "from": 1, "to": 64 },
-		"duration": { "from": 0, "to": 86400 },
-		"startTime": { "from": "2022-01-01T00:00:00Z", "to": null }
 	}
-	}]
 }`
 
 	cclog.Init("info", true)
 	dbfilepath := "testdata/job.db"
-	err := MigrateDB("sqlite3", dbfilepath)
+	err := MigrateDB(dbfilepath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,11 +48,7 @@ func setupUserTest(t *testing.T) *UserCfgRepo {
 
 	// Load and check main configuration
 	if cfg := ccconf.GetPackageConfig("main"); cfg != nil {
-		if clustercfg := ccconf.GetPackageConfig("clusters"); clustercfg != nil {
-			config.Init(cfg, clustercfg)
-		} else {
-			t.Fatal("Cluster configuration must be present")
-		}
+		config.Init(cfg)
 	} else {
 		t.Fatal("Main configuration must be present")
 	}

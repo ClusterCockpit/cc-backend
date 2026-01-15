@@ -13,8 +13,8 @@ import (
 	"os"
 	"strings"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -75,13 +75,13 @@ func (ja *JWTSessionAuthenticator) Login(
 	}
 
 	claims := token.Claims.(jwt.MapClaims)
-	
+
 	// Use shared helper to get user from JWT claims
 	user, err = getUserFromJWT(claims, Keys.JwtConfig.ValidateUser, schema.AuthSession, schema.AuthViaToken)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Sync or update user if configured
 	if !Keys.JwtConfig.ValidateUser && (Keys.JwtConfig.SyncUserOnLogin || Keys.JwtConfig.UpdateUserOnLogin) {
 		handleTokenUser(user)

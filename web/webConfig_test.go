@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"testing"
 
-	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
+	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
 )
 
 func TestInit(t *testing.T) {

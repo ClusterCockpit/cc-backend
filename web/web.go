@@ -16,9 +16,9 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
-	"github.com/ClusterCockpit/cc-lib/util"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 )
 
 type WebConfig struct {
@@ -77,14 +77,14 @@ type PlotConfiguration struct {
 var UIDefaults = WebConfig{
 	JobList: JobListConfig{
 		UsePaging:     false,
-		ShowFootprint: true,
+		ShowFootprint: false,
 	},
 	NodeList: NodeListConfig{
 		UsePaging: true,
 	},
 	JobView: JobViewConfig{
 		ShowPolarPlot: true,
-		ShowFootprint: true,
+		ShowFootprint: false,
 		ShowRoofline:  true,
 		ShowStatTable: true,
 	},
@@ -245,7 +245,7 @@ type Page struct {
 	User          schema.User            // Information about the currently logged in user (Full User Info)
 	Roles         map[string]schema.Role // Available roles for frontend render checks
 	Build         Build                  // Latest information about the application
-	Clusters      []config.ClusterConfig // List of all clusters for use in the Header
+	Clusters      []string               // List of all cluster names
 	SubClusters   map[string][]string    // Map per cluster of all subClusters for use in the Header
 	FilterPresets map[string]any         // For pages with the Filter component, this can be used to set initial filters.
 	Infos         map[string]any         // For generic use (e.g. username for /monitoring/user/<id>, job id for /monitoring/job/<id>)
@@ -261,14 +261,14 @@ func RenderTemplate(rw http.ResponseWriter, file string, page *Page) {
 	}
 
 	if page.Clusters == nil {
-		for _, c := range config.Clusters {
-			page.Clusters = append(page.Clusters, config.ClusterConfig{Name: c.Name, FilterRanges: c.FilterRanges, MetricDataRepository: nil})
-		}
+		page.Clusters = make([]string, 0)
 	}
 
 	if page.SubClusters == nil {
 		page.SubClusters = make(map[string][]string)
 		for _, cluster := range archive.Clusters {
+			page.Clusters = append(page.Clusters, cluster.Name)
+
 			for _, sc := range cluster.SubClusters {
 				page.SubClusters[cluster.Name] = append(page.SubClusters[cluster.Name], sc.Name)
 			}

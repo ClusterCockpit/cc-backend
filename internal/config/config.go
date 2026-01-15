@@ -11,8 +11,8 @@ import (
 	"encoding/json"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/resampler"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/resampler"
 )
 
 type ProgramConfig struct {
@@ -37,10 +37,10 @@ type ProgramConfig struct {
 	EmbedStaticFiles bool   `json:"embed-static-files"`
 	StaticFiles      string `json:"static-files"`
 
-	// 'sqlite3' or 'mysql' (mysql will work for mariadb as well)
+	// Database driver - only 'sqlite3' is supported
 	DBDriver string `json:"db-driver"`
 
-	// For sqlite3 a filename, for mysql a DSN in this format: https://github.com/go-sql-driver/mysql#dsn-data-source-name (Without query parameters!).
+	// Path to SQLite database file
 	DB string `json:"db"`
 
 	// Keep all metric data in the metric data repositories,
@@ -90,8 +90,7 @@ type ResampleConfig struct {
 }
 
 type NATSConfig struct {
-	SubjectJobStart  string `json:"subjectJobStart"`
-	SubjectJobStop   string `json:"subjectJobStop"`
+	SubjectJobEvent  string `json:"subjectJobEvent"`
 	SubjectNodeState string `json:"subjectNodeState"`
 }
 
@@ -112,14 +111,6 @@ type FilterRanges struct {
 	StartTime *TimeRange `json:"startTime"`
 }
 
-type ClusterConfig struct {
-	Name                 string          `json:"name"`
-	FilterRanges         *FilterRanges   `json:"filterRanges"`
-	MetricDataRepository json.RawMessage `json:"metricDataRepository"`
-}
-
-var Clusters []*ClusterConfig
-
 var Keys ProgramConfig = ProgramConfig{
 	Addr:                      "localhost:8080",
 	DisableAuthentication:     false,
@@ -133,23 +124,12 @@ var Keys ProgramConfig = ProgramConfig{
 	ShortRunningJobsDuration:  5 * 60,
 }
 
-func Init(mainConfig json.RawMessage, clusterConfig json.RawMessage) {
+func Init(mainConfig json.RawMessage) {
 	Validate(configSchema, mainConfig)
 	dec := json.NewDecoder(bytes.NewReader(mainConfig))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&Keys); err != nil {
 		cclog.Abortf("Config Init: Could not decode config file '%s'.\nError: %s\n", mainConfig, err.Error())
-	}
-
-	Validate(clustersSchema, clusterConfig)
-	dec = json.NewDecoder(bytes.NewReader(clusterConfig))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&Clusters); err != nil {
-		cclog.Abortf("Config Init: Could not decode config file '%s'.\nError: %s\n", mainConfig, err.Error())
-	}
-
-	if len(Clusters) < 1 {
-		cclog.Abort("Config Init: At least one cluster required in config. Exited with error.")
 	}
 
 	if Keys.EnableResampling != nil && Keys.EnableResampling.MinimumPoints > 0 {

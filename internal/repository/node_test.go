@@ -15,9 +15,9 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -38,18 +38,7 @@ func nodeTestSetup(t *testing.T) {
   "jwts": {
       "max-age": "2m"
   }
-	},
-	"clusters": [
-	{
-	   "name": "testcluster",
-	   "metricDataRepository": {"kind": "test", "url": "bla:8081"},
-	   "filterRanges": {
-		"numNodes": { "from": 1, "to": 64 },
-		"duration": { "from": 0, "to": 86400 },
-		"startTime": { "from": "2022-01-01T00:00:00Z", "to": null }
-	   }
 	}
-	]
 }`
 	const testclusterJSON = `{
         "name": "testcluster",
@@ -130,7 +119,7 @@ func nodeTestSetup(t *testing.T) {
 	}
 
 	dbfilepath := filepath.Join(tmpdir, "test.db")
-	err := MigrateDB("sqlite3", dbfilepath)
+	err := MigrateDB(dbfilepath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,11 +133,7 @@ func nodeTestSetup(t *testing.T) {
 
 	// Load and check main configuration
 	if cfg := ccconf.GetPackageConfig("main"); cfg != nil {
-		if clustercfg := ccconf.GetPackageConfig("clusters"); clustercfg != nil {
-			config.Init(cfg, clustercfg)
-		} else {
-			cclog.Abort("Cluster configuration must be present")
-		}
+		config.Init(cfg)
 	} else {
 		cclog.Abort("Main configuration must be present")
 	}

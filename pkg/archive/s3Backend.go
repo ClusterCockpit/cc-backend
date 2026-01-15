@@ -15,6 +15,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,9 +23,9 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
-	"github.com/ClusterCockpit/cc-lib/util"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -115,6 +116,7 @@ func (s3a *S3Archive) Init(rawConfig json.RawMessage) (uint64, error) {
 
 	// Create S3 client with path-style option and custom endpoint if specified
 	s3a.client = s3.NewFromConfig(awsCfg, func(o *s3.Options) {
+		o.DisableLogOutputChecksumValidationSkipped = true
 		o.UsePathStyle = cfg.UsePathStyle
 		if cfg.Endpoint != "" {
 			o.BaseEndpoint = aws.String(cfg.Endpoint)
@@ -911,13 +913,7 @@ func (s3a *S3Archive) StoreClusterCfg(name string, config *schema.Cluster) error
 	}
 
 	// Update clusters list if new
-	found := false
-	for _, c := range s3a.clusters {
-		if c == name {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(s3a.clusters, name)
 	if !found {
 		s3a.clusters = append(s3a.clusters, name)
 	}

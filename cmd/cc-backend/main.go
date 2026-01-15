@@ -24,23 +24,21 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
-	"github.com/ClusterCockpit/cc-backend/internal/memorystore"
-	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/internal/metricstore"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/tagger"
 	"github.com/ClusterCockpit/cc-backend/internal/taskmanager"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/nats"
 	"github.com/ClusterCockpit/cc-backend/web"
-	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/runtimeEnv"
-	"github.com/ClusterCockpit/cc-lib/schema"
-	"github.com/ClusterCockpit/cc-lib/util"
+	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/runtime"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 	"github.com/google/gops/agent"
 	"github.com/joho/godotenv"
 
-	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -104,12 +102,7 @@ func initConfiguration() error {
 		return fmt.Errorf("main configuration must be present")
 	}
 
-	clustercfg := ccconf.GetPackageConfig("clusters")
-	if clustercfg == nil {
-		return fmt.Errorf("cluster configuration must be present")
-	}
-
-	config.Init(cfg, clustercfg)
+	config.Init(cfg)
 	return nil
 }
 
@@ -120,30 +113,30 @@ func initDatabase() error {
 
 func handleDatabaseCommands() error {
 	if flagMigrateDB {
-		err := repository.MigrateDB(config.Keys.DBDriver, config.Keys.DB)
+		err := repository.MigrateDB(config.Keys.DB)
 		if err != nil {
 			return fmt.Errorf("migrating database to version %d: %w", repository.Version, err)
 		}
-		cclog.Exitf("MigrateDB Success: Migrated '%s' database at location '%s' to version %d.\n",
-			config.Keys.DBDriver, config.Keys.DB, repository.Version)
+		cclog.Exitf("MigrateDB Success: Migrated SQLite database at '%s' to version %d.\n",
+			config.Keys.DB, repository.Version)
 	}
 
 	if flagRevertDB {
-		err := repository.RevertDB(config.Keys.DBDriver, config.Keys.DB)
+		err := repository.RevertDB(config.Keys.DB)
 		if err != nil {
 			return fmt.Errorf("reverting database to version %d: %w", repository.Version-1, err)
 		}
-		cclog.Exitf("RevertDB Success: Reverted '%s' database at location '%s' to version %d.\n",
-			config.Keys.DBDriver, config.Keys.DB, repository.Version-1)
+		cclog.Exitf("RevertDB Success: Reverted SQLite database at '%s' to version %d.\n",
+			config.Keys.DB, repository.Version-1)
 	}
 
 	if flagForceDB {
-		err := repository.ForceDB(config.Keys.DBDriver, config.Keys.DB)
+		err := repository.ForceDB(config.Keys.DB)
 		if err != nil {
 			return fmt.Errorf("forcing database to version %d: %w", repository.Version, err)
 		}
-		cclog.Exitf("ForceDB Success: Forced '%s' database at location '%s' to version %d.\n",
-			config.Keys.DBDriver, config.Keys.DB, repository.Version)
+		cclog.Exitf("ForceDB Success: Forced SQLite database at '%s' to version %d.\n",
+			config.Keys.DB, repository.Version)
 	}
 
 	return nil
@@ -278,16 +271,14 @@ func initSubsystems() error {
 	// Initialize job archive
 	archiveCfg := ccconf.GetPackageConfig("archive")
 	if archiveCfg == nil {
+		cclog.Debug("Archive configuration not found, using default archive configuration")
 		archiveCfg = json.RawMessage(defaultArchiveConfig)
 	}
 	if err := archive.Init(archiveCfg, config.Keys.DisableArchive); err != nil {
 		return fmt.Errorf("initializing archive: %w", err)
 	}
 
-	// Initialize metricdata
-	if err := metricdata.Init(); err != nil {
-		return fmt.Errorf("initializing metricdata repository: %w", err)
-	}
+	// Note: metricstore.Init() is called later in runServer() with proper configuration
 
 	// Handle database re-initialization
 	if flagReinitDB {
@@ -312,6 +303,8 @@ func initSubsystems() error {
 
 	// Apply tags if requested
 	if flagApplyTags {
+		tagger.Init()
+
 		if err := tagger.RunTaggers(); err != nil {
 			return fmt.Errorf("running job taggers: %w", err)
 		}
@@ -323,13 +316,17 @@ func initSubsystems() error {
 func runServer(ctx context.Context) error {
 	var wg sync.WaitGroup
 
-	// Start metric store if enabled
-	if memorystore.InternalCCMSFlag {
-		mscfg := ccconf.GetPackageConfig("metric-store")
-		if mscfg == nil {
-			return fmt.Errorf("metric store configuration must be present")
-		}
-		memorystore.Init(mscfg, &wg)
+	// Initialize metric store if configuration is provided
+	mscfg := ccconf.GetPackageConfig("metric-store")
+	if mscfg != nil {
+		metricstore.Init(mscfg, &wg)
+
+		// Inject repository as NodeProvider to break import cycle
+		ms := metricstore.GetMemoryStore()
+		jobRepo := repository.GetJobRepository()
+		ms.SetNodeProvider(jobRepo)
+	} else {
+		return fmt.Errorf("missing metricstore configuration")
 	}
 
 	// Start archiver and task manager
@@ -372,7 +369,7 @@ func runServer(ctx context.Context) error {
 		case <-ctx.Done():
 		}
 
-		runtimeEnv.SystemdNotifiy(false, "Shutting down ...")
+		runtime.SystemdNotify(false, "Shutting down ...")
 		srv.Shutdown(ctx)
 		util.FsWatcherShutdown()
 		taskmanager.Shutdown()
@@ -382,24 +379,39 @@ func runServer(ctx context.Context) error {
 	if os.Getenv(envGOGC) == "" {
 		debug.SetGCPercent(25)
 	}
-	runtimeEnv.SystemdNotifiy(true, "running")
+	runtime.SystemdNotify(true, "running")
 
-	// Wait for completion or error
+	waitDone := make(chan struct{})
 	go func() {
 		wg.Wait()
+		close(waitDone)
+	}()
+
+	go func() {
+		<-waitDone
 		close(errChan)
 	}()
 
-	// Check for server startup errors
+	// Wait for either:
+	// 1. An error from server startup
+	// 2. Completion of all goroutines (normal shutdown or crash)
 	select {
 	case err := <-errChan:
+		// errChan will be closed when waitDone is closed, which happens
+		// when all goroutines complete (either from normal shutdown or error)
 		if err != nil {
 			return err
 		}
 	case <-time.After(100 * time.Millisecond):
-		// Server started successfully, wait for completion
-		if err := <-errChan; err != nil {
-			return err
+		// Give the server 100ms to start and report any immediate startup errors
+		// After that, just wait for normal shutdown completion
+		select {
+		case err := <-errChan:
+			if err != nil {
+				return err
+			}
+		case <-waitDone:
+			// Normal shutdown completed
 		}
 	}
 

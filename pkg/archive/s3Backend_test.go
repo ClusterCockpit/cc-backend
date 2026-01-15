@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -41,7 +41,7 @@ func (m *MockS3Client) GetObject(ctx context.Context, params *s3.GetObjectInput,
 	if !exists {
 		return nil, fmt.Errorf("NoSuchKey: object not found")
 	}
-	
+
 	contentLength := int64(len(data))
 	return &s3.GetObjectOutput{
 		Body:          io.NopCloser(bytes.NewReader(data)),
@@ -65,7 +65,7 @@ func (m *MockS3Client) HeadObject(ctx context.Context, params *s3.HeadObjectInpu
 	if !exists {
 		return nil, fmt.Errorf("NotFound")
 	}
-	
+
 	contentLength := int64(len(data))
 	return &s3.HeadObjectOutput{
 		ContentLength: &contentLength,
@@ -86,12 +86,12 @@ func (m *MockS3Client) CopyObject(ctx context.Context, params *s3.CopyObjectInpu
 		return nil, fmt.Errorf("invalid CopySource")
 	}
 	sourceKey := parts[1]
-	
+
 	data, exists := m.objects[sourceKey]
 	if !exists {
 		return nil, fmt.Errorf("source not found")
 	}
-	
+
 	destKey := aws.ToString(params.Key)
 	m.objects[destKey] = data
 	return &s3.CopyObjectOutput{}, nil
@@ -100,15 +100,15 @@ func (m *MockS3Client) CopyObject(ctx context.Context, params *s3.CopyObjectInpu
 func (m *MockS3Client) ListObjectsV2(ctx context.Context, params *s3.ListObjectsV2Input, optFns ...func(*s3.Options)) (*s3.ListObjectsV2Output, error) {
 	prefix := aws.ToString(params.Prefix)
 	delimiter := aws.ToString(params.Delimiter)
-	
+
 	var contents []types.Object
 	commonPrefixes := make(map[string]bool)
-	
+
 	for key, data := range m.objects {
 		if !strings.HasPrefix(key, prefix) {
 			continue
 		}
-		
+
 		if delimiter != "" {
 			// Check if there's a delimiter after the prefix
 			remainder := strings.TrimPrefix(key, prefix)
@@ -120,21 +120,21 @@ func (m *MockS3Client) ListObjectsV2(ctx context.Context, params *s3.ListObjects
 				continue
 			}
 		}
-		
+
 		size := int64(len(data))
 		contents = append(contents, types.Object{
 			Key:  aws.String(key),
 			Size: &size,
 		})
 	}
-	
+
 	var prefixList []types.CommonPrefix
 	for p := range commonPrefixes {
 		prefixList = append(prefixList, types.CommonPrefix{
 			Prefix: aws.String(p),
 		})
 	}
-	
+
 	return &s3.ListObjectsV2Output{
 		Contents:       contents,
 		CommonPrefixes: prefixList,
@@ -144,10 +144,10 @@ func (m *MockS3Client) ListObjectsV2(ctx context.Context, params *s3.ListObjects
 // Test helper to create a mock S3 archive with test data
 func setupMockS3Archive(t *testing.T) *MockS3Client {
 	mock := NewMockS3Client()
-	
+
 	// Add version.txt
 	mock.objects["version.txt"] = []byte("2\n")
-	
+
 	// Add a test cluster directory
 	mock.objects["emmy/cluster.json"] = []byte(`{
 		"name": "emmy",
@@ -165,7 +165,7 @@ func setupMockS3Archive(t *testing.T) *MockS3Client {
 			}
 		]
 	}`)
-	
+
 	// Add a test job
 	mock.objects["emmy/1403/244/1608923076/meta.json"] = []byte(`{
 		"jobId": 1403244,
@@ -174,7 +174,7 @@ func setupMockS3Archive(t *testing.T) *MockS3Client {
 		"numNodes": 1,
 		"resources": [{"hostname": "node001"}]
 	}`)
-	
+
 	mock.objects["emmy/1403/244/1608923076/data.json"] = []byte(`{
 		"mem_used": {
 			"node": {
@@ -184,7 +184,7 @@ func setupMockS3Archive(t *testing.T) *MockS3Client {
 			}
 		}
 	}`)
-	
+
 	return mock
 }
 
@@ -213,7 +213,7 @@ func TestGetS3Key(t *testing.T) {
 		Cluster:   "emmy",
 		StartTime: 1608923076,
 	}
-	
+
 	key := getS3Key(job, "meta.json")
 	expected := "emmy/1403/244/1608923076/meta.json"
 	if key != expected {
@@ -227,7 +227,7 @@ func TestGetS3Directory(t *testing.T) {
 		Cluster:   "emmy",
 		StartTime: 1608923076,
 	}
-	
+
 	dir := getS3Directory(job)
 	expected := "emmy/1403/244/1608923076/"
 	if dir != expected {
@@ -247,13 +247,13 @@ func TestS3ArchiveConfigParsing(t *testing.T) {
 		"region": "us-east-1",
 		"usePathStyle": true
 	}`)
-	
+
 	var cfg S3ArchiveConfig
 	err := json.Unmarshal(rawConfig, &cfg)
 	if err != nil {
 		t.Fatalf("failed to parse config: %v", err)
 	}
-	
+
 	if cfg.Bucket != "test-bucket" {
 		t.Errorf("expected bucket 'test-bucket', got '%s'", cfg.Bucket)
 	}
@@ -277,14 +277,14 @@ func TestS3KeyGeneration(t *testing.T) {
 		{1404397, "emmy", 1609300556, "data.json.gz", "emmy/1404/397/1609300556/data.json.gz"},
 		{42, "fritz", 1234567890, "meta.json", "fritz/0/042/1234567890/meta.json"},
 	}
-	
+
 	for _, tt := range tests {
 		job := &schema.Job{
 			JobID:     tt.jobID,
 			Cluster:   tt.cluster,
 			StartTime: tt.startTime,
 		}
-		
+
 		key := getS3Key(job, tt.file)
 		if key != tt.expected {
 			t.Errorf("for job %d: expected %s, got %s", tt.jobID, tt.expected, key)

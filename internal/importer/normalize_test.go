@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"testing"
 
-	ccunits "github.com/ClusterCockpit/cc-lib/ccUnits"
+	ccunits "github.com/ClusterCockpit/cc-lib/v2/ccUnits"
 )
 
 // TestNormalizeFactor tests the normalization of large byte values to gigabyte prefix.

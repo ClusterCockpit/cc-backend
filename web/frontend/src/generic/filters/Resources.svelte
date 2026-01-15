@@ -76,7 +76,7 @@
   /* State Init*/
   // Counts
   let minNumNodes = $state(1);
-  let maxNumNodes = $state(0);
+  let maxNumNodes = $state(128);
   let maxNumHWThreads = $state(0);
   let maxNumAccelerators = $state(0);
   // Pending
@@ -107,24 +107,6 @@
   /* Reactive Effects | Svelte 5 onMount */
   $effect(() => {
     if ($initialized) {
-      // 'hClusters' defined in templates/base.tmpl
-      if (activeCluster != null) {
-        const { filterRanges } = hClusters.find((c) => c.name == activeCluster);
-        minNumNodes = filterRanges.numNodes.from;
-        maxNumNodes = filterRanges.numNodes.to;
-      } else if (clusters.length > 0) {
-        for (let hc of hClusters) {
-          const { filterRanges } = hc;
-          minNumNodes = Math.min(minNumNodes, filterRanges.numNodes.from);
-          maxNumNodes = Math.max(maxNumNodes, filterRanges.numNodes.to);
-        };
-      };
-    };
-  });
-  
-  $effect(() => {
-    if ($initialized) {
-      // 'hClusters' defined in templates/base.tmpl
       if (activeCluster != null) {
         const { subClusters } = clusters.find((c) => c.name == activeCluster);
         maxNumAccelerators = findMaxNumAccels([{ subClusters }]);

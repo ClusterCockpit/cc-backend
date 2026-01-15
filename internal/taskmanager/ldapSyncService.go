@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/go-co-op/gocron/v2"
 )
 
@@ -23,7 +23,8 @@ func RegisterLdapSyncService(ds string) {
 
 	auth := auth.GetAuthInstance()
 
-	cclog.Info("Register LDAP sync service")
+	cclog.Infof("register ldap sync service with %s interval", ds)
+
 	s.NewJob(gocron.DurationJob(interval),
 		gocron.NewTask(
 			func() {
@@ -32,6 +33,5 @@ func RegisterLdapSyncService(ds string) {
 				if err := auth.LdapAuth.Sync(); err != nil {
 					cclog.Errorf("ldap sync failed: %s", err.Error())
 				}
-				cclog.Print("ldap sync done")
 			}))
 }

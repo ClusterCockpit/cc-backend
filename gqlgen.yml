@@ -52,51 +52,51 @@ models:
       - github.com/99designs/gqlgen/graphql.Int64
       - github.com/99designs/gqlgen/graphql.Int32
   Job:
-    model: "github.com/ClusterCockpit/cc-lib/schema.Job"
+    model: "github.com/ClusterCockpit/cc-lib/v2/schema.Job"
     fields:
       tags:
         resolver: true
       metaData:
         resolver: true
   Cluster:
-    model: "github.com/ClusterCockpit/cc-lib/schema.Cluster"
+    model: "github.com/ClusterCockpit/cc-lib/v2/schema.Cluster"
     fields:
       partitions:
         resolver: true
   # Node:
-  #   model: "github.com/ClusterCockpit/cc-lib/schema.Node"
+  #   model: "github.com/ClusterCockpit/cc-lib/v2/schema.Node"
   #   fields:
   #     metaData:
   #       resolver: true
-  NullableFloat: { model: "github.com/ClusterCockpit/cc-lib/schema.Float" }
-  MetricScope: { model: "github.com/ClusterCockpit/cc-lib/schema.MetricScope" }
-  MetricValue: { model: "github.com/ClusterCockpit/cc-lib/schema.MetricValue" }
+  NullableFloat: { model: "github.com/ClusterCockpit/cc-lib/v2/schema.Float" }
+  MetricScope: { model: "github.com/ClusterCockpit/cc-lib/v2/schema.MetricScope" }
+  MetricValue: { model: "github.com/ClusterCockpit/cc-lib/v2/schema.MetricValue" }
   JobStatistics:
-    { model: "github.com/ClusterCockpit/cc-lib/schema.JobStatistics" }
+    { model: "github.com/ClusterCockpit/cc-lib/v2/schema.JobStatistics" }
   GlobalMetricListItem:
-    { model: "github.com/ClusterCockpit/cc-lib/schema.GlobalMetricListItem" }
+    { model: "github.com/ClusterCockpit/cc-lib/v2/schema.GlobalMetricListItem" }
   ClusterSupport:
-    { model: "github.com/ClusterCockpit/cc-lib/schema.ClusterSupport" }
-  Tag: { model: "github.com/ClusterCockpit/cc-lib/schema.Tag" }
-  Resource: { model: "github.com/ClusterCockpit/cc-lib/schema.Resource" }
-  JobState: { model: "github.com/ClusterCockpit/cc-lib/schema.JobState" }
-  Node: { model: "github.com/ClusterCockpit/cc-lib/schema.Node" }
+    { model: "github.com/ClusterCockpit/cc-lib/v2/schema.ClusterSupport" }
+  Tag: { model: "github.com/ClusterCockpit/cc-lib/v2/schema.Tag" }
+  Resource: { model: "github.com/ClusterCockpit/cc-lib/v2/schema.Resource" }
+  JobState: { model: "github.com/ClusterCockpit/cc-lib/v2/schema.JobState" }
+  Node: { model: "github.com/ClusterCockpit/cc-lib/v2/schema.Node" }
   SchedulerState:
-    { model: "github.com/ClusterCockpit/cc-lib/schema.SchedulerState" }
+    { model: "github.com/ClusterCockpit/cc-lib/v2/schema.SchedulerState" }
   HealthState:
-    { model: "github.com/ClusterCockpit/cc-lib/schema.MonitoringState" }
-  JobMetric: { model: "github.com/ClusterCockpit/cc-lib/schema.JobMetric" }
-  Series: { model: "github.com/ClusterCockpit/cc-lib/schema.Series" }
+    { model: "github.com/ClusterCockpit/cc-lib/v2/schema.MonitoringState" }
+  JobMetric: { model: "github.com/ClusterCockpit/cc-lib/v2/schema.JobMetric" }
+  Series: { model: "github.com/ClusterCockpit/cc-lib/v2/schema.Series" }
   MetricStatistics:
-    { model: "github.com/ClusterCockpit/cc-lib/schema.MetricStatistics" }
+    { model: "github.com/ClusterCockpit/cc-lib/v2/schema.MetricStatistics" }
   MetricConfig:
-    { model: "github.com/ClusterCockpit/cc-lib/schema.MetricConfig" }
+    { model: "github.com/ClusterCockpit/cc-lib/v2/schema.MetricConfig" }
   SubClusterConfig:
-    { model: "github.com/ClusterCockpit/cc-lib/schema.SubClusterConfig" }
-  Accelerator: { model: "github.com/ClusterCockpit/cc-lib/schema.Accelerator" }
-  Topology: { model: "github.com/ClusterCockpit/cc-lib/schema.Topology" }
+    { model: "github.com/ClusterCockpit/cc-lib/v2/schema.SubClusterConfig" }
+  Accelerator: { model: "github.com/ClusterCockpit/cc-lib/v2/schema.Accelerator" }
+  Topology: { model: "github.com/ClusterCockpit/cc-lib/v2/schema.Topology" }
   FilterRanges:
-    { model: "github.com/ClusterCockpit/cc-lib/schema.FilterRanges" }
-  SubCluster: { model: "github.com/ClusterCockpit/cc-lib/schema.SubCluster" }
-  StatsSeries: { model: "github.com/ClusterCockpit/cc-lib/schema.StatsSeries" }
-  Unit: { model: "github.com/ClusterCockpit/cc-lib/schema.Unit" }
+    { model: "github.com/ClusterCockpit/cc-lib/v2/schema.FilterRanges" }
+  SubCluster: { model: "github.com/ClusterCockpit/cc-lib/v2/schema.SubCluster" }
+  StatsSeries: { model: "github.com/ClusterCockpit/cc-lib/v2/schema.StatsSeries" }
+  Unit: { model: "github.com/ClusterCockpit/cc-lib/v2/schema.Unit" }

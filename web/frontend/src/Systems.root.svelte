@@ -269,7 +269,7 @@
     <NodeOverview {cluster} {ccconfig} {selectedMetric} {from} {to} {hostnameFilter} {hoststateFilter}/>
   {:else}
     <!-- ROW2-2: Node List (Grid Included)-->
-    <NodeList {cluster} {subCluster} {ccconfig} {selectedMetrics} {selectedResolution} {hostnameFilter} {hoststateFilter} {from} {to} {presetSystemUnits}/>
+    <NodeList {cluster} {subCluster} {ccconfig} pendingSelectedMetrics={selectedMetrics} {selectedResolution} {hostnameFilter} {hoststateFilter} {from} {to} {presetSystemUnits}/>
   {/if}
 {/if}
 

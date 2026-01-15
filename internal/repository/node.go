@@ -17,9 +17,9 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/lrucache"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/lrucache"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
 )
@@ -561,7 +561,6 @@ func (r *NodeRepository) GetNodesForList(
 	nodeFilter string,
 	page *model.PageRequest,
 ) ([]string, map[string]string, int, bool, error) {
-
 	// Init Return Vars
 	nodes := make([]string, 0)
 	stateMap := make(map[string]string)
@@ -580,7 +579,7 @@ func (r *NodeRepository) GetNodesForList(
 		queryFilters = append(queryFilters, &model.NodeFilter{Hostname: &model.StringInput{Contains: &nodeFilter}})
 	}
 	if stateFilter != "all" && stateFilter != "notindb" {
-		var queryState schema.SchedulerState = schema.SchedulerState(stateFilter)
+		queryState := schema.SchedulerState(stateFilter)
 		queryFilters = append(queryFilters, &model.NodeFilter{SchedulerState: &queryState})
 	}
 	// if healthFilter != "all" {

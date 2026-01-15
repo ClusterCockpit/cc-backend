@@ -11,8 +11,8 @@ import (
 	"fmt"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -28,7 +28,7 @@ func extractStringFromClaims(claims jwt.MapClaims, key string) string {
 // If validateRoles is true, only valid roles are returned
 func extractRolesFromClaims(claims jwt.MapClaims, validateRoles bool) []string {
 	var roles []string
-	
+
 	if rawroles, ok := claims["roles"].([]any); ok {
 		for _, rr := range rawroles {
 			if r, ok := rr.(string); ok {
@@ -42,14 +42,14 @@ func extractRolesFromClaims(claims jwt.MapClaims, validateRoles bool) []string {
 			}
 		}
 	}
-	
+
 	return roles
 }
 
 // extractProjectsFromClaims extracts projects from JWT claims
 func extractProjectsFromClaims(claims jwt.MapClaims) []string {
 	projects := make([]string, 0)
-	
+
 	if rawprojs, ok := claims["projects"].([]any); ok {
 		for _, pp := range rawprojs {
 			if p, ok := pp.(string); ok {
@@ -61,7 +61,7 @@ func extractProjectsFromClaims(claims jwt.MapClaims) []string {
 			projects = append(projects, projSlice...)
 		}
 	}
-	
+
 	return projects
 }
 
@@ -72,14 +72,14 @@ func extractNameFromClaims(claims jwt.MapClaims) string {
 	if name, ok := claims["name"].(string); ok {
 		return name
 	}
-	
+
 	// Try nested structure: {name: {values: [...]}}
 	if wrap, ok := claims["name"].(map[string]any); ok {
 		if vals, ok := wrap["values"].([]any); ok {
 			if len(vals) == 0 {
 				return ""
 			}
-			
+
 			name := fmt.Sprintf("%v", vals[0])
 			for i := 1; i < len(vals); i++ {
 				name += fmt.Sprintf(" %v", vals[i])
@@ -87,7 +87,7 @@ func extractNameFromClaims(claims jwt.MapClaims) string {
 			return name
 		}
 	}
-	
+
 	return ""
 }
 
@@ -100,7 +100,7 @@ func getUserFromJWT(claims jwt.MapClaims, validateUser bool, authType schema.Aut
 	if sub == "" {
 		return nil, errors.New("missing 'sub' claim in JWT")
 	}
-	
+
 	if validateUser {
 		// Validate user against database
 		ur := repository.GetUserRepository()
@@ -109,22 +109,22 @@ func getUserFromJWT(claims jwt.MapClaims, validateUser bool, authType schema.Aut
 			cclog.Errorf("Error while loading user '%v': %v", sub, err)
 			return nil, fmt.Errorf("database error: %w", err)
 		}
-		
+
 		// Deny any logins for unknown usernames
 		if user == nil || err == sql.ErrNoRows {
 			cclog.Warn("Could not find user from JWT in internal database.")
 			return nil, errors.New("unknown user")
 		}
-		
+
 		// Return database user (with database roles)
 		return user, nil
 	}
-	
+
 	// Create user from JWT claims
 	name := extractNameFromClaims(claims)
 	roles := extractRolesFromClaims(claims, true) // Validate roles
 	projects := extractProjectsFromClaims(claims)
-	
+
 	return &schema.User{
 		Username:   sub,
 		Name:       name,

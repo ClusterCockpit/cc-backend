@@ -25,9 +25,9 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
-	"github.com/ClusterCockpit/cc-lib/util"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 	"github.com/gorilla/sessions"
 )
 
@@ -40,7 +40,7 @@ type Authenticator interface {
 	// authenticator should attempt the login. This method should not perform
 	// expensive operations or actual authentication.
 	CanLogin(user *schema.User, username string, rw http.ResponseWriter, r *http.Request) (*schema.User, bool)
-	
+
 	// Login performs the actually authentication for the user.
 	// It returns the authenticated user or an error if authentication fails.
 	// The user parameter may be nil if the user doesn't exist in the database yet.
@@ -65,13 +65,13 @@ var ipUserLimiters sync.Map
 func getIPUserLimiter(ip, username string) *rate.Limiter {
 	key := ip + ":" + username
 	now := time.Now()
-	
+
 	if entry, ok := ipUserLimiters.Load(key); ok {
 		rle := entry.(*rateLimiterEntry)
 		rle.lastUsed = now
 		return rle.limiter
 	}
-	
+
 	// More aggressive rate limiting: 5 attempts per 15 minutes
 	newLimiter := rate.NewLimiter(rate.Every(15*time.Minute/5), 5)
 	ipUserLimiters.Store(key, &rateLimiterEntry{
@@ -176,7 +176,7 @@ func (auth *Authentication) AuthViaSession(
 func Init(authCfg *json.RawMessage) {
 	initOnce.Do(func() {
 		authInstance = &Authentication{}
-		
+
 		// Start background cleanup of rate limiters
 		startRateLimiterCleanup()
 
@@ -272,7 +272,7 @@ func handleUserSync(user *schema.User, syncUserOnLogin, updateUserOnLogin bool) 
 		cclog.Errorf("Error while loading user '%s': %v", user.Username, err)
 		return
 	}
-	
+
 	if err == sql.ErrNoRows && syncUserOnLogin { // Add new user
 		if err := r.AddUser(user); err != nil {
 			cclog.Errorf("Error while adding user '%s' to DB: %v", user.Username, err)

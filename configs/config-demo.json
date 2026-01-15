@@ -1,106 +1,22 @@
 {
   "main": {
     "addr": "127.0.0.1:8080",
-    "short-running-jobs-duration": 300,
-    "resampling": {
-      "minimumPoints": 600,
-      "trigger": 180,
-      "resolutions": [
-        240,
-        60
-      ]
-    },
-    "apiAllowedIPs": [
-      "*"
-    ],
-    "emission-constant": 317
+    "apiAllowedIPs": ["*"]
   },
   "cron": {
-    "commit-job-worker": "2m",
-    "duration-worker": "5m",
-    "footprint-worker": "10m"
-  },
-  "archive": {
-    "kind": "file",
-    "path": "./var/job-archive"
+    "commit-job-worker": "1m",
+    "duration-worker": "3m",
+    "footprint-worker": "5m"
   },
   "auth": {
     "jwts": {
       "max-age": "2000h"
     }
   },
-  "nats": {
-    "address": "nats://0.0.0.0:4222",
-    "username": "root",
-    "password": "root"
-  },
-  "clusters": [
-    {
-      "name": "fritz",
-      "metricDataRepository": {
-        "kind": "cc-metric-store-internal",
-        "url": "http://localhost:8082",
-        "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJFZERTQSJ9.eyJ1c2VyIjoiYWRtaW4iLCJyb2xlcyI6WyJST0xFX0FETUlOIiwiUk9MRV9BTkFMWVNUIiwiUk9MRV9VU0VSIl19.d-3_3FZTsadPjDEdsWrrQ7nS0edMAR4zjl-eK7rJU3HziNBfI9PDHDIpJVHTNN5E5SlLGLFXctWyKAkwhXL-Dw"
-      },
-      "filterRanges": {
-        "numNodes": {
-          "from": 1,
-          "to": 64
-        },
-        "duration": {
-          "from": 0,
-          "to": 86400
-        },
-        "startTime": {
-          "from": "2022-01-01T00:00:00Z",
-          "to": null
-        }
-      }
-    },
-    {
-      "name": "alex",
-      "metricDataRepository": {
-        "kind": "cc-metric-store-internal",
-        "url": "http://localhost:8082",
-        "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJFZERTQSJ9.eyJ1c2VyIjoiYWRtaW4iLCJyb2xlcyI6WyJST0xFX0FETUlOIiwiUk9MRV9BTkFMWVNUIiwiUk9MRV9VU0VSIl19.d-3_3FZTsadPjDEdsWrrQ7nS0edMAR4zjl-eK7rJU3HziNBfI9PDHDIpJVHTNN5E5SlLGLFXctWyKAkwhXL-Dw"
-      },
-      "filterRanges": {
-        "numNodes": {
-          "from": 1,
-          "to": 64
-        },
-        "duration": {
-          "from": 0,
-          "to": 86400
-        },
-        "startTime": {
-          "from": "2022-01-01T00:00:00Z",
-          "to": null
-        }
-      }
-    }
-  ],
   "metric-store": {
     "checkpoints": {
-      "file-format": "avro",
-      "interval": "1h",
-      "directory": "./var/checkpoints",
-      "restore": "48h"
+      "interval": "1h"
     },
-    "archive": {
-      "interval": "1h",
-      "directory": "./var/archive"
-    },
-    "retention-in-memory": "48h",
-    "subscriptions": [
-      {
-        "subscribe-to": "hpc-nats",
-        "cluster-tag": "fritz"
-      },
-      {
-        "subscribe-to": "hpc-nats",
-        "cluster-tag": "alex"
-      }
-    ]
+    "retention-in-memory": "12h"
   }
 }

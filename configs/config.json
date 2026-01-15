@@ -5,50 +5,61 @@
     "https-key-file": "/etc/letsencrypt/live/url/privkey.pem",
     "user": "clustercockpit",
     "group": "clustercockpit",
-    "validate": false,
     "apiAllowedIPs": ["*"],
     "short-running-jobs-duration": 300,
+    "enable-job-taggers": true,
     "resampling": {
       "minimumPoints": 600,
       "trigger": 180,
-      "resolutions": [
-        240,
-        60
-      ]
+      "resolutions": [240, 60]
+    },
+    "apiSubjects": {
+      "subjectJobEvent": "cc.job.event",
+      "subjectNodeState": "cc.node.state"
+    }
+  },
+  "nats": {
+    "address": "nats://0.0.0.0:4222",
+    "username": "root",
+    "password": "root"
+  },
+  "auth": {
+    "jwts": {
+      "max-age": "2000h"
     }
   },
   "cron": {
-    "commit-job-worker": "2m",
+    "commit-job-worker": "1m",
     "duration-worker": "5m",
     "footprint-worker": "10m"
   },
   "archive": {
-    "kind": "file",
-    "path": "./var/job-archive"
-  },
-  "clusters": [
-    {
-      "name": "test",
-      "metricDataRepository": {
-        "kind": "cc-metric-store",
-        "url": "http://localhost:8082",
-        "token": "eyJhbGciOiJF-E-pQBQ"
-      },
-      "filterRanges": {
-        "numNodes": {
-          "from": 1,
-          "to": 64
-        },
-        "duration": {
-          "from": 0,
-          "to": 86400
-        },
-        "startTime": {
-          "from": "2022-01-01T00:00:00Z",
-          "to": null
-        }
-      }
+    "kind": "s3",
+    "endpoint": "http://x.x.x.x",
+    "bucket": "jobarchive",
+    "accessKey": "xx",
+    "secretKey": "xx",
+    "retention": {
+      "policy": "move",
+      "age": 365,
+      "location": "./var/archive"
     }
-  ]
+  },
+  "metric-store": {
+    "checkpoints": {
+      "interval": "1h"
+    },
+    "retention-in-memory": "12h",
+    "subscriptions": [
+      {
+        "subscribe-to": "hpc-nats",
+        "cluster-tag": "fritz"
+      },
+      {
+        "subscribe-to": "hpc-nats",
+        "cluster-tag": "alex"
+      }
+    ]
+  },
+  "ui-file": "ui-config.json"
 }
-

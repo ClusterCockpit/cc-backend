@@ -13,8 +13,8 @@ import (
 	"sync"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 // Tagger is the interface that must be implemented by all tagging components.
@@ -64,7 +64,7 @@ func newTagger() {
 func Init() {
 	initOnce.Do(func() {
 		newTagger()
-		repository.RegisterJobJook(jobTagger)
+		repository.RegisterJobHook(jobTagger)
 	})
 }
 

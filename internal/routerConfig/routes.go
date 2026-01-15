@@ -17,9 +17,9 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/web"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
-	"github.com/ClusterCockpit/cc-lib/util"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 	"github.com/gorilla/mux"
 )
 
@@ -205,13 +205,13 @@ func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 				"id":    tag.ID,
 				"name":  tag.Name,
 				"scope": tag.Scope,
-				"count": counts[fmt.Sprint(tag.Name, tag.ID)],
+				"count": counts[fmt.Sprint(tag.Type, tag.Name, tag.ID)],
 			}
 			tagMap[tag.Type] = append(tagMap[tag.Type], tagItem)
 		}
 	} else if userAuthlevel < 4 && userAuthlevel >= 2 { // User+ : Show global and admin scope only if at least 1 tag used, private scope regardless of count
 		for _, tag := range tags {
-			tagCount := counts[fmt.Sprint(tag.Name, tag.ID)]
+			tagCount := counts[fmt.Sprint(tag.Type, tag.Name, tag.ID)]
 			if ((tag.Scope == "global" || tag.Scope == "admin") && tagCount >= 1) || (tag.Scope != "global" && tag.Scope != "admin") {
 				tagItem := map[string]interface{}{
 					"id":    tag.ID,
@@ -256,6 +256,12 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 	}
 	if len(query["state"]) != 0 {
 		filterPresets["state"] = query["state"]
+	}
+	if query.Get("shared") != "" {
+		filterPresets["shared"] = query.Get("shared")
+	}
+	if query.Get("schedule") != "" {
+		filterPresets["schedule"] = query.Get("schedule")
 	}
 	if rawtags, ok := query["tag"]; ok {
 		tags := make([]int, len(rawtags))

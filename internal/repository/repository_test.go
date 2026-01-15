@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -46,7 +46,7 @@ func BenchmarkSelect1(b *testing.B) {
 }
 
 func BenchmarkDB_FindJobById(b *testing.B) {
-	var jobId int64 = 1677322
+	var jobID int64 = 1677322
 
 	b.Run("FindJobById", func(b *testing.B) {
 		db := setup(b)
@@ -55,7 +55,7 @@ func BenchmarkDB_FindJobById(b *testing.B) {
 
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
-				_, err := db.FindByID(getContext(b), jobId)
+				_, err := db.FindByID(getContext(b), jobID)
 				noErr(b, err)
 			}
 		})
@@ -63,7 +63,7 @@ func BenchmarkDB_FindJobById(b *testing.B) {
 }
 
 func BenchmarkDB_FindJob(b *testing.B) {
-	var jobId int64 = 107266
+	var jobID int64 = 107266
 	var startTime int64 = 1657557241
 	cluster := "fritz"
 
@@ -74,7 +74,7 @@ func BenchmarkDB_FindJob(b *testing.B) {
 
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
-				_, err := db.Find(&jobId, &cluster, &startTime)
+				_, err := db.Find(&jobID, &cluster, &startTime)
 				noErr(b, err)
 			}
 		})
@@ -149,7 +149,7 @@ func setup(tb testing.TB) *JobRepository {
 	tb.Helper()
 	cclog.Init("warn", true)
 	dbfile := "testdata/job.db"
-	err := MigrateDB("sqlite3", dbfile)
+	err := MigrateDB(dbfile)
 	noErr(tb, err)
 	Connect("sqlite3", dbfile)
 	return GetJobRepository()

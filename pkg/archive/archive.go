@@ -31,13 +31,15 @@
 //	  }
 //	}
 //
-// For S3 backend:
+// For S3 backend (endpoint, region, and usePathStyle are optional):
 //
 //	{
 //	  "archive": {
 //	    "kind": "s3",
+//	    "endpoint": "http://192.168.178.10",
 //	    "bucket": "my-job-archive",
 //	    "region": "us-east-1",
+//	    "usePathStyle": true,
 //	    "accessKey": "...",
 //	    "secretKey": "..."
 //	  }
@@ -85,9 +87,9 @@ import (
 	"sync"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/lrucache"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/lrucache"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 // Version is the current archive schema version.

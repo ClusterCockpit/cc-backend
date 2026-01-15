@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -90,13 +90,13 @@ func TestFindJobsBetween(t *testing.T) {
 
 	// 2. Create a tag
 	tagName := fmt.Sprintf("testtag_%d", time.Now().UnixNano())
-	tagId, err := r.CreateTag("testtype", tagName, "global")
+	tagID, err := r.CreateTag("testtype", tagName, "global")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// 3. Link Tag (Manually to avoid archive dependency side-effects in unit test)
-	_, err = r.DB.Exec("INSERT INTO jobtag (job_id, tag_id) VALUES (?, ?)", *targetJob.ID, tagId)
+	_, err = r.DB.Exec("INSERT INTO jobtag (job_id, tag_id) VALUES (?, ?)", *targetJob.ID, tagID)
 	if err != nil {
 		t.Fatal(err)
 	}

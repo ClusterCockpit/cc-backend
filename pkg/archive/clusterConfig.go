@@ -8,8 +8,8 @@ package archive
 import (
 	"fmt"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 var (
@@ -108,7 +108,7 @@ func initClusterConfig() error {
 				}
 
 				availability.SubClusters = append(availability.SubClusters, sc.Name)
-				sc.MetricConfig = append(sc.MetricConfig, *newMetric)
+				sc.MetricConfig = append(sc.MetricConfig, newMetric)
 
 				if newMetric.Footprint != "" {
 					sc.Footprint = append(sc.Footprint, newMetric.Name)
@@ -282,7 +282,7 @@ func GetSubClusterByNode(cluster, hostname string) (string, error) {
 	return "", fmt.Errorf("ARCHIVE/CLUSTERCONFIG > no subcluster found for cluster %v and host %v", cluster, hostname)
 }
 
-func MetricIndex(mc []schema.MetricConfig, name string) (int, error) {
+func MetricIndex(mc []*schema.MetricConfig, name string) (int, error) {
 	for i, m := range mc {
 		if m.Name == name {
 			return i, nil

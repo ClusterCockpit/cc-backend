@@ -15,8 +15,8 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/util"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 )
 
 const envString = `
@@ -36,7 +36,7 @@ const configString = `
     "short-running-jobs-duration": 300,
     "resampling": {
       "minimumPoints": 600,
-      "trigger": 180,
+      "trigger": 300,
       "resolutions": [
         240,
         60
@@ -48,7 +48,7 @@ const configString = `
     "emission-constant": 317
   },
   "cron": {
-    "commit-job-worker": "2m",
+    "commit-job-worker": "1m",
     "duration-worker": "5m",
     "footprint-worker": "10m"
   },
@@ -60,31 +60,7 @@ const configString = `
     "jwts": {
       "max-age": "2000h"
     }
-  },
- "clusters": [
-     {
-         "name": "name",
-         "metricDataRepository": {
-             "kind": "cc-metric-store",
-             "url": "http://localhost:8082",
-             "token": ""
-         },
-         "filterRanges": {
-             "numNodes": {
-                 "from": 1,
-                 "to": 64
-             },
-             "duration": {
-                 "from": 0,
-                 "to": 86400
-             },
-             "startTime": {
-                 "from": "2023-01-01T00:00:00Z",
-                 "to": null
-             }
-         }
-     }
- ]
+  }
 }
 `
 
@@ -105,9 +81,9 @@ func initEnv() {
 		cclog.Abortf("Could not create default ./var folder with permissions '0o777'. Application initialization failed, exited.\nError: %s\n", err.Error())
 	}
 
-	err := repository.MigrateDB("sqlite3", "./var/job.db")
+	err := repository.MigrateDB("./var/job.db")
 	if err != nil {
-		cclog.Abortf("Could not initialize default sqlite3 database as './var/job.db'. Application initialization failed, exited.\nError: %s\n", err.Error())
+		cclog.Abortf("Could not initialize default SQLite database as './var/job.db'. Application initialization failed, exited.\nError: %s\n", err.Error())
 	}
 	if err := os.Mkdir("var/job-archive", 0o777); err != nil {
 		cclog.Abortf("Could not create default ./var/job-archive folder with permissions '0o777'. Application initialization failed, exited.\nError: %s\n", err.Error())

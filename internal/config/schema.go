@@ -41,7 +41,7 @@ var configSchema = `
       "type": "string"
     },
     "db": {
-      "description": "For sqlite3 a filename, for mysql a DSN in this format: https://github.com/go-sql-driver/mysql#dsn-data-source-name (Without query parameters!).",
+      "description": "Path to SQLite database file (e.g., './var/job.db')",
       "type": "string"
     },
     "disable-archive": {
@@ -119,87 +119,22 @@ var configSchema = `
         }
       },
       "required": ["trigger", "resolutions"]
+    },
+    "apiSubjects": {
+      "description": "NATS subjects configuration for subscribing to job and node events.",
+      "type": "object",
+      "properties": {
+        "subjectJobEvent": {
+          "description": "NATS subject for job events (start_job, stop_job)",
+          "type": "string"
+        },
+        "subjectNodeState": {
+          "description": "NATS subject for node state updates",
+          "type": "string"
+        }
+      },
+      "required": ["subjectJobEvent", "subjectNodeState"]
     }
 	},
   "required": ["apiAllowedIPs"]
 	}`
-
-var clustersSchema = `
-  {
-    "type": "array",
-    "items": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "description": "The name of the cluster.",
-          "type": "string"
-        },
-        "metricDataRepository": {
-          "description": "Type of the metric data repository for this cluster",
-          "type": "object",
-          "properties": {
-            "kind": {
-              "type": "string",
-                "enum": ["influxdb", "prometheus", "cc-metric-store", "cc-metric-store-internal", "test"]
-            },
-            "url": {
-              "type": "string"
-            },
-            "token": {
-              "type": "string"
-            }
-          },
-          "required": ["kind"]
-        },
-        "filterRanges": {
-          "description": "This option controls the slider ranges for the UI controls of numNodes, duration, and startTime.",
-          "type": "object",
-          "properties": {
-            "numNodes": {
-              "description": "UI slider range for number of nodes",
-              "type": "object",
-              "properties": {
-                "from": {
-                  "type": "integer"
-                },
-                "to": {
-                  "type": "integer"
-                }
-              },
-              "required": ["from", "to"]
-            },
-            "duration": {
-              "description": "UI slider range for duration",
-              "type": "object",
-              "properties": {
-                "from": {
-                  "type": "integer"
-                },
-                "to": {
-                  "type": "integer"
-                }
-              },
-              "required": ["from", "to"]
-            },
-            "startTime": {
-              "description": "UI slider range for start time",
-              "type": "object",
-              "properties": {
-                "from": {
-                  "type": "string",
-                  "format": "date-time"
-                },
-                "to": {
-                  "type": "null"
-                }
-              },
-              "required": ["from", "to"]
-            }
-          },
-          "required": ["numNodes", "duration", "startTime"]
-        }
-      },
-      "required": ["name", "metricDataRepository", "filterRanges"],
-      "minItems": 1
-    }
-  }`

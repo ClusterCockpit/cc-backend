@@ -9,7 +9,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 func TestSqliteInitEmptyPath(t *testing.T) {

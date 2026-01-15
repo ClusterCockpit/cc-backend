@@ -10,10 +10,10 @@ import (
 	"math"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
+	"github.com/ClusterCockpit/cc-backend/internal/metricdispatch"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 // ArchiveJob archives a completed job's metric data to the configured archive backend.
@@ -60,7 +60,7 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.Job, error) {
 		scopes = append(scopes, schema.MetricScopeAccelerator)
 	}
 
-	jobData, err := metricDataDispatcher.LoadData(job, allMetrics, scopes, ctx, 0) // 0 Resulotion-Value retrieves highest res (60s)
+	jobData, err := metricdispatch.LoadData(job, allMetrics, scopes, ctx, 0) // 0 Resulotion-Value retrieves highest res (60s)
 	if err != nil {
 		cclog.Error("Error wile loading job data for archiving")
 		return nil, err
