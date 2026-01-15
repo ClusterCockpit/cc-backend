@@ -142,18 +142,14 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 	retentionGoroutines := 1
 	checkpointingGoroutines := 1
 	dataStagingGoroutines := 1
-	archivingGoroutines := 0
-	if Keys.Archive != nil {
-		archivingGoroutines = 1
-	}
+	archivingGoroutines := 1
+
 	totalGoroutines := retentionGoroutines + checkpointingGoroutines + dataStagingGoroutines + archivingGoroutines
 	wg.Add(totalGoroutines)
 
 	Retention(wg, ctx)
 	Checkpointing(wg, ctx)
-	if Keys.Archive != nil {
-		Archiving(wg, ctx)
-	}
+	Archiving(wg, ctx)
 	DataStaging(wg, ctx)
 
 	// Note: Signal handling has been removed from this function.
@@ -291,13 +287,6 @@ func Free(ms *MemoryStore, t time.Time) (int, error) {
 		return 0, err
 	}
 
-	// excludeSelectors := make(map[string][]string, 0)
-
-	// excludeSelectors := map[string][]string{
-	// 	"alex":  {"a0122", "a0123", "a0225"},
-	// 	"fritz": {"f0201", "f0202"},
-	// }
-
 	switch lenMap := len(excludeSelectors); lenMap {
 
 	// If the length of the map returned by GetUsedNodes() is 0,
@@ -360,9 +349,6 @@ func GetSelectors(ms *MemoryStore, excludeSelectors map[string][]string) [][]str
 			filteredSelectors = append(filteredSelectors, path)
 		}
 	}
-
-	// fmt.Printf("All selectors: %#v\n\n", allSelectors)
-	// fmt.Printf("filteredSelectors: %#v\n\n", filteredSelectors)
 
 	return filteredSelectors
 }

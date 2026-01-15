@@ -47,10 +47,10 @@
   },
   "metric-store": {
     "checkpoints": {
-      "interval": "1h"
+      "interval": "12h"
     },
-    "retention-in-memory": "12h",
-    "subscriptions": [
+    "retention-in-memory": "48h",
+    "nats-subscriptions": [
       {
         "subscribe-to": "hpc-nats",
         "cluster-tag": "fritz"

@@ -15,8 +15,8 @@
   },
   "metric-store": {
     "checkpoints": {
-      "interval": "1h"
+      "interval": "12h"
     },
-    "retention-in-memory": "12h"
+    "retention-in-memory": "48h"
   }
 }
