@@ -392,21 +392,26 @@ func runServer(ctx context.Context) error {
 		close(errChan)
 	}()
 
+	// Wait for either:
+	// 1. An error from server startup
+	// 2. Completion of all goroutines (normal shutdown or crash)
 	select {
 	case err := <-errChan:
+		// errChan will be closed when waitDone is closed, which happens
+		// when all goroutines complete (either from normal shutdown or error)
 		if err != nil {
 			return err
 		}
 	case <-time.After(100 * time.Millisecond):
+		// Give the server 100ms to start and report any immediate startup errors
+		// After that, just wait for normal shutdown completion
 		select {
 		case err := <-errChan:
 			if err != nil {
 				return err
 			}
 		case <-waitDone:
-		case <-time.After(45 * time.Second):
-			cclog.Error("Shutdown timeout after 45 seconds - forcing exit")
-			return fmt.Errorf("shutdown timeout exceeded")
+			// Normal shutdown completed
 		}
 	}
 
