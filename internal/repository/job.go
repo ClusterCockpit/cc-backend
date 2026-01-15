@@ -630,7 +630,7 @@ func (r *JobRepository) FindRunningJobs(cluster string) ([]*schema.Job, error) {
 		jobs = append(jobs, job)
 	}
 
-	cclog.Infof("Return job count %d", len(jobs))
+	cclog.Debugf("JobRepository.FindRunningJobs(): Return job count %d (cluster: %s)", len(jobs), cluster)
 	return jobs, nil
 }
 
@@ -684,7 +684,7 @@ func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64
 		jobs = append(jobs, job)
 	}
 
-	cclog.Infof("Return job count %d", len(jobs))
+	cclog.Debugf("JobRepository.FindJobsBetween(): Return job count %d (omitTagged: %v)", len(jobs), omitTagged)
 	return jobs, nil
 }
 
