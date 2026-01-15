@@ -320,8 +320,13 @@ func runServer(ctx context.Context) error {
 	mscfg := ccconf.GetPackageConfig("metric-store")
 	if mscfg != nil {
 		metricstore.Init(mscfg, &wg)
+
+		// Inject repository as NodeProvider to break import cycle
+		ms := metricstore.GetMemoryStore()
+		jobRepo := repository.GetJobRepository()
+		ms.SetNodeProvider(jobRepo)
 	} else {
-		cclog.Debug("Metric store configuration not found, skipping metricstore initialization")
+		return fmt.Errorf("missing metricstore configuration")
 	}
 
 	// Start archiver and task manager
