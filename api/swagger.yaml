@@ -1,5 +1,5 @@
 definitions:
-  api.ApiReturnedUser:
+  api.APIReturnedUser:
     properties:
       email:
         type: string
@@ -16,7 +16,7 @@ definitions:
       username:
         type: string
     type: object
-  api.ApiTag:
+  api.APITag:
     properties:
       name:
         description: Tag Name
@@ -31,12 +31,12 @@ definitions:
         example: Debug
         type: string
     type: object
-  api.DefaultApiResponse:
+  api.DefaultAPIResponse:
     properties:
       msg:
         type: string
     type: object
-  api.DeleteJobApiRequest:
+  api.DeleteJobAPIRequest:
     properties:
       cluster:
         description: Cluster of job
@@ -71,7 +71,7 @@ definitions:
         description: Statustext of Errorcode
         type: string
     type: object
-  api.GetClustersApiResponse:
+  api.GetClustersAPIResponse:
     properties:
       clusters:
         description: Array of clusters
@@ -79,7 +79,7 @@ definitions:
           $ref: '#/definitions/schema.Cluster'
         type: array
     type: object
-  api.GetJobApiResponse:
+  api.GetJobAPIResponse:
     properties:
       data:
         items:
@@ -88,7 +88,7 @@ definitions:
       meta:
         $ref: '#/definitions/schema.Job'
     type: object
-  api.GetJobsApiResponse:
+  api.GetJobsAPIResponse:
     properties:
       items:
         description: Number of jobs returned
@@ -111,28 +111,7 @@ definitions:
       scope:
         $ref: '#/definitions/schema.MetricScope'
     type: object
-  api.Node:
-    properties:
-      cpusAllocated:
-        type: integer
-      cpusTotal:
-        type: integer
-      gpusAllocated:
-        type: integer
-      gpusTotal:
-        type: integer
-      hostname:
-        type: string
-      memoryAllocated:
-        type: integer
-      memoryTotal:
-        type: integer
-      states:
-        items:
-          type: string
-        type: array
-    type: object
-  api.StopJobApiRequest:
+  api.StopJobAPIRequest:
     properties:
       cluster:
         example: fritz
@@ -161,32 +140,39 @@ definitions:
         type: string
       nodes:
         items:
-          $ref: '#/definitions/api.Node'
+          $ref: '#/definitions/schema.NodePayload'
         type: array
     type: object
   schema.Accelerator:
     properties:
       id:
+        description: Unique identifier for the accelerator (e.g., "0", "1", "GPU-0")
         type: string
       model:
+        description: Specific model name (e.g., "A100", "MI100")
         type: string
       type:
+        description: Type of accelerator (e.g., "Nvidia GPU", "AMD GPU")
         type: string
     type: object
   schema.Cluster:
     properties:
       metricConfig:
+        description: Cluster-wide metric configurations
         items:
           $ref: '#/definitions/schema.MetricConfig'
         type: array
       name:
+        description: Unique cluster name (e.g., "fritz", "alex")
         type: string
       subClusters:
+        description: Homogeneous partitions within the cluster
         items:
           $ref: '#/definitions/schema.SubCluster'
         type: array
     type: object
   schema.Job:
+    description: Information of a HPC job.
     properties:
       arrayJobId:
         example: 123000
@@ -207,6 +193,12 @@ definitions:
           format: float64
           type: number
         type: object
+      exclusive:
+        description: for backwards compatibility
+        example: 1
+        maximum: 2
+        minimum: 0
+        type: integer
       footprint:
         additionalProperties:
           format: float64
@@ -227,7 +219,7 @@ definitions:
         - deadline
         - failed
         - node_fail
-        - out_of_memory
+        - out-of-memory
         - pending
         - preempted
         - running
@@ -307,15 +299,19 @@ definitions:
   schema.JobLink:
     properties:
       id:
+        description: Internal database ID
         type: integer
       jobId:
+        description: The job's external job ID
         type: integer
     type: object
   schema.JobLinkResultList:
     properties:
       count:
+        description: Total count of available items
         type: integer
       items:
+        description: List of job links
         items:
           $ref: '#/definitions/schema.JobLink'
         type: array
@@ -323,15 +319,21 @@ definitions:
   schema.JobMetric:
     properties:
       series:
+        description: Individual time series data
         items:
           $ref: '#/definitions/schema.Series'
         type: array
       statisticsSeries:
-        $ref: '#/definitions/schema.StatsSeries'
+        allOf:
+        - $ref: '#/definitions/schema.StatsSeries'
+        description: Aggregated statistics over time
       timestep:
+        description: Sampling interval in seconds
         type: integer
       unit:
-        $ref: '#/definitions/schema.Unit'
+        allOf:
+        - $ref: '#/definitions/schema.Unit'
+        description: Unit of measurement
     type: object
   schema.JobState:
     enum:
@@ -385,33 +387,51 @@ definitions:
   schema.MetricConfig:
     properties:
       aggregation:
+        description: Aggregation function (avg, sum, min, max)
         type: string
       alert:
+        description: Alert threshold (requires attention)
         type: number
       caution:
+        description: Caution threshold (concerning but not critical)
         type: number
       energy:
+        description: Energy measurement method
         type: string
       footprint:
+        description: Footprint category
         type: string
       lowerIsBetter:
+        description: Whether lower values are better
         type: boolean
       name:
+        description: Metric name (e.g., "cpu_load", "mem_used")
         type: string
       normal:
+        description: Normal/typical value (good performance)
         type: number
       peak:
+        description: Peak/maximum expected value (best performance)
         type: number
+      restrict:
+        description: Restrict visibility to non user roles
+        type: boolean
       scope:
-        $ref: '#/definitions/schema.MetricScope'
+        allOf:
+        - $ref: '#/definitions/schema.MetricScope'
+        description: Metric scope (node, socket, core, etc.)
       subClusters:
+        description: Subcluster-specific overrides
         items:
           $ref: '#/definitions/schema.SubClusterConfig'
         type: array
       timestep:
+        description: Measurement interval in seconds
         type: integer
       unit:
-        $ref: '#/definitions/schema.Unit'
+        allOf:
+        - $ref: '#/definitions/schema.Unit'
+        description: Unit of measurement
     type: object
   schema.MetricScope:
     enum:
@@ -434,31 +454,64 @@ definitions:
   schema.MetricStatistics:
     properties:
       avg:
+        description: Average/mean value
         type: number
       max:
+        description: Maximum value
         type: number
       min:
+        description: Minimum value
         type: number
     type: object
   schema.MetricValue:
     properties:
       unit:
-        $ref: '#/definitions/schema.Unit'
+        allOf:
+        - $ref: '#/definitions/schema.Unit'
+        description: Unit of measurement (e.g., FLOP/s, GB/s)
       value:
+        description: Numeric value of the measurement
         type: number
+    type: object
+  schema.NodePayload:
+    properties:
+      cpusAllocated:
+        description: Number of allocated CPUs
+        type: integer
+      gpusAllocated:
+        description: Number of allocated GPUs
+        type: integer
+      hostname:
+        description: Node hostname
+        type: string
+      jobsRunning:
+        description: Number of running jobs
+        type: integer
+      memoryAllocated:
+        description: Allocated memory in MB
+        type: integer
+      states:
+        description: State strings (flexible format)
+        items:
+          type: string
+        type: array
     type: object
   schema.Resource:
     description: A resource used by a job
     properties:
       accelerators:
+        description: Allocated accelerator IDs (e.g., GPU IDs)
         items:
           type: string
         type: array
       configuration:
+        description: Optional configuration identifier
         type: string
       hostname:
+        description: Node hostname
         type: string
       hwthreads:
+        description: Allocated hardware thread IDs
         items:
           type: integer
         type: array
@@ -466,31 +519,40 @@ definitions:
   schema.Series:
     properties:
       data:
+        description: Time series measurements
         items:
           type: number
         type: array
       hostname:
+        description: Source hostname
         type: string
       id:
+        description: Optional ID (e.g., core ID, GPU ID)
         type: string
       statistics:
-        $ref: '#/definitions/schema.MetricStatistics'
+        allOf:
+        - $ref: '#/definitions/schema.MetricStatistics'
+        description: Statistical summary (min/avg/max)
     type: object
   schema.StatsSeries:
     properties:
       max:
+        description: Maximum values over time
         items:
           type: number
         type: array
       mean:
+        description: Mean values over time
         items:
           type: number
         type: array
       median:
+        description: Median values over time
         items:
           type: number
         type: array
       min:
+        description: Minimum values over time
         items:
           type: number
         type: array
@@ -500,65 +562,97 @@ definitions:
             format: float64
             type: number
           type: array
+        description: Percentile values over time (e.g., 10th, 50th, 90th)
         type: object
     type: object
   schema.SubCluster:
     properties:
       coresPerSocket:
+        description: Number of cores per CPU socket
         type: integer
       energyFootprint:
+        description: Energy-related footprint metrics
         items:
           type: string
         type: array
       flopRateScalar:
-        $ref: '#/definitions/schema.MetricValue'
+        allOf:
+        - $ref: '#/definitions/schema.MetricValue'
+        description: Theoretical scalar FLOP rate per node
       flopRateSimd:
-        $ref: '#/definitions/schema.MetricValue'
+        allOf:
+        - $ref: '#/definitions/schema.MetricValue'
+        description: Theoretical SIMD FLOP rate per node
       footprint:
+        description: Default footprint metrics for jobs
         items:
           type: string
         type: array
       memoryBandwidth:
-        $ref: '#/definitions/schema.MetricValue'
+        allOf:
+        - $ref: '#/definitions/schema.MetricValue'
+        description: Theoretical memory bandwidth per node
       metricConfig:
+        description: Subcluster-specific metric configurations
         items:
           $ref: '#/definitions/schema.MetricConfig'
         type: array
       name:
+        description: Name of the subcluster (e.g., "main", "gpu", "bigmem")
         type: string
       nodes:
+        description: Node list in condensed format (e.g., "node[001-100]")
         type: string
       processorType:
+        description: CPU model (e.g., "Intel Xeon Gold 6148")
         type: string
       socketsPerNode:
+        description: Number of CPU sockets per node
         type: integer
       threadsPerCore:
+        description: Number of hardware threads per core (SMT level)
         type: integer
       topology:
-        $ref: '#/definitions/schema.Topology'
+        allOf:
+        - $ref: '#/definitions/schema.Topology'
+        description: Hardware topology of nodes in this subcluster
     type: object
   schema.SubClusterConfig:
     properties:
       alert:
+        description: Alert threshold (requires attention)
         type: number
       caution:
+        description: Caution threshold (concerning but not critical)
         type: number
       energy:
+        description: Energy measurement configuration
         type: string
       footprint:
+        description: Footprint category for this metric
         type: string
       lowerIsBetter:
+        description: Whether lower values indicate better performance
         type: boolean
       name:
+        description: Metric name (e.g., "cpu_load", "mem_used")
         type: string
       normal:
+        description: Normal/typical value (good performance)
         type: number
       peak:
+        description: Peak/maximum expected value (best performance)
         type: number
       remove:
+        description: Whether to exclude this metric for this subcluster
+        type: boolean
+      restrict:
+        description: Restrict visibility to non user roles
         type: boolean
       unit:
-        $ref: '#/definitions/schema.Unit'
+        allOf:
+        - $ref: '#/definitions/schema.Unit'
+        description: Unit of measurement
     type: object
   schema.Tag:
     description: Defines a tag using name and type.
@@ -578,32 +672,38 @@ definitions:
   schema.Topology:
     properties:
       accelerators:
+        description: Attached accelerators (GPUs, etc.)
         items:
           $ref: '#/definitions/schema.Accelerator'
         type: array
       core:
+        description: Hardware threads grouped by core
         items:
           items:
             type: integer
           type: array
         type: array
       die:
+        description: Hardware threads grouped by die (optional)
         items:
           items:
             type: integer
           type: array
         type: array
       memoryDomain:
+        description: Hardware threads grouped by NUMA domain
         items:
           items:
             type: integer
           type: array
         type: array
       node:
+        description: All hardware thread IDs on this node
         items:
           type: integer
         type: array
       socket:
+        description: Hardware threads grouped by socket
         items:
           items:
             type: integer
@@ -613,8 +713,10 @@ definitions:
   schema.Unit:
     properties:
       base:
+        description: Base unit (e.g., "B/s", "F/s", "W")
         type: string
       prefix:
+        description: SI prefix (e.g., "G", "M", "K", "T")
         type: string
     type: object
 host: localhost:8080
@@ -645,7 +747,7 @@ paths:
         "200":
           description: Array of clusters
           schema:
-            $ref: '#/definitions/api.GetClustersApiResponse'
+            $ref: '#/definitions/api.GetClustersAPIResponse'
         "400":
           description: Bad Request
           schema:
@@ -710,7 +812,7 @@ paths:
         "200":
           description: Job array and page info
           schema:
-            $ref: '#/definitions/api.GetJobsApiResponse'
+            $ref: '#/definitions/api.GetJobsAPIResponse'
         "400":
           description: Bad Request
           schema:
@@ -753,7 +855,7 @@ paths:
         "200":
           description: Job resource
           schema:
-            $ref: '#/definitions/api.GetJobApiResponse'
+            $ref: '#/definitions/api.GetJobAPIResponse'
         "400":
           description: Bad Request
           schema:
@@ -810,7 +912,7 @@ paths:
         "200":
           description: Job resource
           schema:
-            $ref: '#/definitions/api.GetJobApiResponse'
+            $ref: '#/definitions/api.GetJobAPIResponse'
         "400":
           description: Bad Request
           schema:
@@ -853,14 +955,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.DeleteJobApiRequest'
+          $ref: '#/definitions/api.DeleteJobAPIRequest'
       produces:
       - application/json
       responses:
         "200":
           description: Success message
           schema:
-            $ref: '#/definitions/api.DefaultApiResponse'
+            $ref: '#/definitions/api.DefaultAPIResponse'
         "400":
           description: Bad Request
           schema:
@@ -907,7 +1009,7 @@ paths:
         "200":
           description: Success message
           schema:
-            $ref: '#/definitions/api.DefaultApiResponse'
+            $ref: '#/definitions/api.DefaultAPIResponse'
         "400":
           description: Bad Request
           schema:
@@ -948,13 +1050,17 @@ paths:
         name: ts
         required: true
         type: integer
+      - description: Omit jobs with tags from deletion
+        in: query
+        name: omit-tagged
+        type: boolean
       produces:
       - application/json
       responses:
         "200":
           description: Success message
           schema:
-            $ref: '#/definitions/api.DefaultApiResponse'
+            $ref: '#/definitions/api.DefaultAPIResponse'
         "400":
           description: Bad Request
           schema:
@@ -1052,7 +1158,7 @@ paths:
         "201":
           description: Job added successfully
           schema:
-            $ref: '#/definitions/api.DefaultApiResponse'
+            $ref: '#/definitions/api.DefaultAPIResponse'
         "400":
           description: Bad Request
           schema:
@@ -1090,7 +1196,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.StopJobApiRequest'
+          $ref: '#/definitions/api.StopJobAPIRequest'
       produces:
       - application/json
       responses:
@@ -1147,7 +1253,7 @@ paths:
         required: true
         schema:
           items:
-            $ref: '#/definitions/api.ApiTag'
+            $ref: '#/definitions/api.APITag'
           type: array
       produces:
       - application/json
@@ -1195,7 +1301,7 @@ paths:
         "200":
           description: Success message
           schema:
-            $ref: '#/definitions/api.DefaultApiResponse'
+            $ref: '#/definitions/api.DefaultAPIResponse'
         "400":
           description: Bad Request
           schema:
@@ -1217,7 +1323,80 @@ paths:
       summary: Deliver updated Slurm node states
       tags:
       - Nodestates
+  /api/user/{id}:
+    post:
+      description: Allows admins to add/remove roles and projects for a user
+      parameters:
+      - description: Username
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Role to add
+        in: formData
+        name: add-role
+        type: string
+      - description: Role to remove
+        in: formData
+        name: remove-role
+        type: string
+      - description: Project to add
+        in: formData
+        name: add-project
+        type: string
+      - description: Project to remove
+        in: formData
+        name: remove-project
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Success message
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Update user roles and projects
+      tags:
+      - User
   /api/users/:
+    delete:
+      description: Deletes a user from the system
+      parameters:
+      - description: Username to delete
+        in: formData
+        name: username
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Success
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Delete a user
+      tags:
+      - User
     get:
       description: |-
         Returns a JSON-encoded list of users.
@@ -1236,7 +1415,7 @@ paths:
           description: List of users returned successfully
           schema:
             items:
-              $ref: '#/definitions/api.ApiReturnedUser'
+              $ref: '#/definitions/api.APIReturnedUser'
             type: array
         "400":
           description: Bad Request
@@ -1259,6 +1438,198 @@ paths:
       summary: Returns a list of users
       tags:
       - User
+    post:
+      description: Creates a new user with specified credentials and role
+      parameters:
+      - description: Username
+        in: formData
+        name: username
+        required: true
+        type: string
+      - description: Password (not required for API users)
+        in: formData
+        name: password
+        type: string
+      - description: User role
+        in: formData
+        name: role
+        required: true
+        type: string
+      - description: Full name
+        in: formData
+        name: name
+        type: string
+      - description: Email address
+        in: formData
+        name: email
+        type: string
+      - description: Project (required for managers)
+        in: formData
+        name: project
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Success message
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Create a new user
+      tags:
+      - User
+  /configuration/:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Updates a user's configuration key-value pair.
+      parameters:
+      - description: Configuration key
+        in: formData
+        name: key
+        required: true
+        type: string
+      - description: Configuration value
+        in: formData
+        name: value
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: success
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Update user configuration
+      tags:
+      - Frontend
+  /debug/:
+    post:
+      description: This endpoint allows the users to print the content of
+      parameters:
+      - description: Selector
+        in: query
+        name: selector
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Debug dump
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Debug endpoint
+      tags:
+      - debug
+  /free/:
+    post:
+      description: This endpoint allows the users to free the Buffers from the
+      parameters:
+      - description: up to timestamp
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      tags:
+      - free
+  /healthcheck/:
+    get:
+      description: This endpoint allows the users to check if a node is healthy
+      parameters:
+      - description: Selector
+        in: query
+        name: selector
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Debug dump
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: HealthCheck endpoint
+      tags:
+      - healthcheck
   /jobs/tag_job/{id}:
     delete:
       consumes:
@@ -1279,7 +1650,7 @@ paths:
         required: true
         schema:
           items:
-            $ref: '#/definitions/api.ApiTag'
+            $ref: '#/definitions/api.APITag'
           type: array
       produces:
       - application/json
@@ -1309,6 +1680,176 @@ paths:
       summary: Removes one or more tags from a job
       tags:
       - Job add and modify
+  /jwt/:
+    get:
+      consumes:
+      - multipart/form-data
+      description: Generates a JWT token for a user. Admins can generate tokens for
+        any user, regular users only for themselves.
+      parameters:
+      - description: Username to generate JWT for
+        in: formData
+        name: username
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: JWT token
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: User Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Generate JWT token
+      tags:
+      - Frontend
+  /machine_state/{cluster}/{host}:
+    get:
+      description: Retrieves stored machine state data for a specific cluster node.
+        Validates cluster and host names to prevent path traversal.
+      parameters:
+      - description: Cluster name
+        in: path
+        name: cluster
+        required: true
+        type: string
+      - description: Host name
+        in: path
+        name: host
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Machine state JSON data
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Machine state not enabled or file not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Retrieve machine state
+      tags:
+      - Machine State
+    put:
+      consumes:
+      - application/json
+      description: Stores machine state data for a specific cluster node. Validates
+        cluster and host names to prevent path traversal.
+      parameters:
+      - description: Cluster name
+        in: path
+        name: cluster
+        required: true
+        type: string
+      - description: Host name
+        in: path
+        name: host
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Machine state not enabled
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Store machine state
+      tags:
+      - Machine State
+  /notice/:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Updates the notice.txt file content. Only admins are allowed. Content
+        is limited to 10000 characters.
+      parameters:
+      - description: New notice content (max 10000 characters)
+        in: formData
+        name: new-content
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Update Notice Content Success
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Update system notice
+      tags:
+      - Config
+  /roles/:
+    get:
+      description: Returns a list of valid user roles. Only admins are allowed.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of role names
+          schema:
+            items:
+              type: string
+            type: array
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get available roles
+      tags:
+      - Config
   /tags/:
     delete:
       consumes:
@@ -1324,7 +1865,7 @@ paths:
         required: true
         schema:
           items:
-            $ref: '#/definitions/api.ApiTag'
+            $ref: '#/definitions/api.APITag'
           type: array
       produces:
       - text/plain
@@ -1354,6 +1895,41 @@ paths:
       summary: Removes all tags and job-relations for type:name tuple
       tags:
       - Tag remove
+  /write/:
+    post:
+      consumes:
+      - text/plain
+      parameters:
+      - description: If the lines in the body do not have a cluster tag, use this
+          value instead.
+        in: query
+        name: cluster
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
 securityDefinitions:
   ApiKeyAuth:
     in: header

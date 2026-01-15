@@ -31,7 +31,7 @@ type APIReturnedUser struct {
 // @description Required query-parameter defines if all users or only users with additional special roles are returned.
 // @produce     json
 // @param       not-just-user query bool true "If returned list should contain all users or only users with additional special roles"
-// @success     200     {array} api.ApiReturnedUser "List of users returned successfully"
+// @success     200     {array} api.APIReturnedUser "List of users returned successfully"
 // @failure     400     {string} string             "Bad Request"
 // @failure     401     {string} string             "Unauthorized"
 // @failure     403     {string} string             "Forbidden"

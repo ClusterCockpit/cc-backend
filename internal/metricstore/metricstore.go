@@ -74,7 +74,7 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 	cclog.Debugf("[METRICSTORE]> Using %d workers for checkpoint/archive operations\n", Keys.NumWorkers)
 
 	// Helper function to add metric configuration
-	addMetricConfig := func(mc schema.MetricConfig) {
+	addMetricConfig := func(mc *schema.MetricConfig) {
 		agg, err := AssignAggregationStrategy(mc.Aggregation)
 		if err != nil {
 			cclog.Warnf("Could not find aggregation strategy for metric config '%s': %s", mc.Name, err.Error())
@@ -88,7 +88,7 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 
 	for _, c := range archive.Clusters {
 		for _, mc := range c.MetricConfig {
-			addMetricConfig(*mc)
+			addMetricConfig(mc)
 		}
 
 		for _, sc := range c.SubClusters {

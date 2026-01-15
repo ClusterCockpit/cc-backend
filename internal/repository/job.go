@@ -686,7 +686,6 @@ func (r *JobRepository) AllocatedNodes(cluster string) (map[string]map[string]in
 	return subclusters, nil
 }
 
-// FIXME: Set duration to requested walltime?
 // StopJobsExceedingWalltimeBy marks running jobs as failed if they exceed their walltime limit.
 // This is typically called periodically to clean up stuck or orphaned jobs.
 //
@@ -762,7 +761,6 @@ func (r *JobRepository) FindJobIdsByTag(tagID int64) ([]int64, error) {
 	return jobIds, nil
 }
 
-// FIXME: Reconsider filtering short jobs with harcoded threshold
 // FindRunningJobs returns all currently running jobs for a specific cluster.
 // Filters out short-running jobs based on repoConfig.MinRunningJobDuration threshold.
 //
