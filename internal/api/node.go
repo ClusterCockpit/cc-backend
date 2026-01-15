@@ -47,7 +47,7 @@ func determineState(states []string) schema.SchedulerState {
 // @description Required query-parameter defines if all users or only users with additional special roles are returned.
 // @produce     json
 // @param       request body UpdateNodeStatesRequest true "Request body containing nodes and their states"
-// @success     200     {object} api.DefaultApiResponse "Success message"
+// @success     200     {object} api.DefaultAPIResponse "Success message"
 // @failure     400     {object} api.ErrorResponse      "Bad Request"
 // @failure     401     {object} api.ErrorResponse      "Unauthorized"
 // @failure     403     {object} api.ErrorResponse      "Forbidden"

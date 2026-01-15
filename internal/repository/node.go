@@ -579,7 +579,7 @@ func (r *NodeRepository) GetNodesForList(
 		queryFilters = append(queryFilters, &model.NodeFilter{Hostname: &model.StringInput{Contains: &nodeFilter}})
 	}
 	if stateFilter != "all" && stateFilter != "notindb" {
-		var queryState schema.SchedulerState = schema.SchedulerState(stateFilter)
+		queryState := schema.SchedulerState(stateFilter)
 		queryFilters = append(queryFilters, &model.NodeFilter{SchedulerState: &queryState})
 	}
 	// if healthFilter != "all" {

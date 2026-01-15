@@ -104,7 +104,7 @@ type JobMetricWithName struct {
 // @param       items-per-page query    int               false "Items per page (Default: 25)"
 // @param       page           query    int               false "Page Number (Default: 1)"
 // @param       with-metadata  query    bool              false "Include metadata (e.g. jobScript) in response"
-// @success     200            {object} api.GetJobsApiResponse  "Job array and page info"
+// @success     200            {object} api.GetJobsAPIResponse  "Job array and page info"
 // @failure     400            {object} api.ErrorResponse       "Bad Request"
 // @failure     401   		   {object} api.ErrorResponse       "Unauthorized"
 // @failure     403            {object} api.ErrorResponse       "Forbidden"
@@ -232,7 +232,7 @@ func (api *RestAPI) getJobs(rw http.ResponseWriter, r *http.Request) {
 // @produce     json
 // @param       id          path     int                  true "Database ID of Job"
 // @param       all-metrics query    bool                 false "Include all available metrics"
-// @success     200     {object} api.GetJobApiResponse      "Job resource"
+// @success     200     {object} api.GetJobAPIResponse      "Job resource"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"
@@ -324,8 +324,8 @@ func (api *RestAPI) getCompleteJobByID(rw http.ResponseWriter, r *http.Request) 
 // @accept      json
 // @produce     json
 // @param       id          path     int                  true "Database ID of Job"
-// @param       request     body     api.GetJobApiRequest true  "Array of metric names"
-// @success     200     {object} api.GetJobApiResponse      "Job resource"
+// @param       request     body     api.GetJobAPIRequest true  "Array of metric names"
+// @success     200     {object} api.GetJobAPIResponse      "Job resource"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"
@@ -478,7 +478,7 @@ func (api *RestAPI) editMeta(rw http.ResponseWriter, r *http.Request) {
 // @accept      json
 // @produce     json
 // @param       id      path     int                  true "Job Database ID"
-// @param       request body     api.TagJobApiRequest true "Array of tag-objects to add"
+// @param       request body     api.TagJobAPIRequest true "Array of tag-objects to add"
 // @success     200     {object} schema.Job                "Updated job resource"
 // @failure     400     {object} api.ErrorResponse         "Bad Request"
 // @failure     401     {object} api.ErrorResponse         "Unauthorized"
@@ -542,7 +542,7 @@ func (api *RestAPI) tagJob(rw http.ResponseWriter, r *http.Request) {
 // @accept      json
 // @produce     json
 // @param       id      path     int                  true "Job Database ID"
-// @param       request body     api.TagJobApiRequest true "Array of tag-objects to remove"
+// @param       request body     api.TagJobAPIRequest true "Array of tag-objects to remove"
 // @success     200     {object} schema.Job                "Updated job resource"
 // @failure     400     {object} api.ErrorResponse         "Bad Request"
 // @failure     401     {object} api.ErrorResponse         "Unauthorized"
@@ -606,7 +606,7 @@ func (api *RestAPI) removeTagJob(rw http.ResponseWriter, r *http.Request) {
 // @description Tag wills be removed from respective archive files.
 // @accept      json
 // @produce     plain
-// @param       request body     api.TagJobApiRequest true "Array of tag-objects to remove"
+// @param       request body     api.TagJobAPIRequest true "Array of tag-objects to remove"
 // @success     200     {string} string                    "Success Response"
 // @failure     400     {object} api.ErrorResponse         "Bad Request"
 // @failure     401     {object} api.ErrorResponse         "Unauthorized"
@@ -650,7 +650,7 @@ func (api *RestAPI) removeTags(rw http.ResponseWriter, r *http.Request) {
 // @accept      json
 // @produce     json
 // @param       request body     schema.Job true "Job to add"
-// @success     201     {object} api.DefaultApiResponse    "Job added successfully"
+// @success     201     {object} api.DefaultAPIResponse    "Job added successfully"
 // @failure     400     {object} api.ErrorResponse            "Bad Request"
 // @failure     401     {object} api.ErrorResponse            "Unauthorized"
 // @failure     403     {object} api.ErrorResponse            "Forbidden"
@@ -728,7 +728,7 @@ func (api *RestAPI) startJob(rw http.ResponseWriter, r *http.Request) {
 // @description Job to stop is specified by request body. All fields are required in this case.
 // @description Returns full job resource information according to 'Job' scheme.
 // @produce     json
-// @param       request body     api.StopJobApiRequest true "All fields required"
+// @param       request body     api.StopJobAPIRequest true "All fields required"
 // @success     200     {object} schema.Job                 "Success message"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
@@ -754,7 +754,6 @@ func (api *RestAPI) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// cclog.Printf("loading db job for stopJobByRequest... : stopJobApiRequest=%v", req)
 	job, err = api.JobRepository.Find(req.JobID, req.Cluster, req.StartTime)
 	if err != nil {
 		// Try cached jobs if not found in main repository
@@ -776,7 +775,7 @@ func (api *RestAPI) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 // @description Job to remove is specified by database ID. This will not remove the job from the job archive.
 // @produce     json
 // @param       id      path     int                   true "Database ID of Job"
-// @success     200     {object} api.DefaultApiResponse  "Success message"
+// @success     200     {object} api.DefaultAPIResponse  "Success message"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"
@@ -820,8 +819,8 @@ func (api *RestAPI) deleteJobByID(rw http.ResponseWriter, r *http.Request) {
 // @description Job to delete is specified by request body. All fields are required in this case.
 // @accept      json
 // @produce     json
-// @param       request body     api.DeleteJobApiRequest true "All fields required"
-// @success     200     {object} api.DefaultApiResponse  "Success message"
+// @param       request body     api.DeleteJobAPIRequest true "All fields required"
+// @success     200     {object} api.DefaultAPIResponse  "Success message"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"
@@ -873,7 +872,7 @@ func (api *RestAPI) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 // @description Remove all jobs with start time before timestamp. The jobs will not be removed from the job archive.
 // @produce     json
 // @param       ts      path     int                   true "Unix epoch timestamp"
-// @success     200     {object} api.DefaultApiResponse  "Success message"
+// @success     200     {object} api.DefaultAPIResponse  "Success message"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"
