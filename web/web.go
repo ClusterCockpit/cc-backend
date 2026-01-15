@@ -77,14 +77,14 @@ type PlotConfiguration struct {
 var UIDefaults = WebConfig{
 	JobList: JobListConfig{
 		UsePaging:     false,
-		ShowFootprint: true,
+		ShowFootprint: false,
 	},
 	NodeList: NodeListConfig{
 		UsePaging: true,
 	},
 	JobView: JobViewConfig{
 		ShowPolarPlot: true,
-		ShowFootprint: true,
+		ShowFootprint: false,
 		ShowRoofline:  true,
 		ShowStatTable: true,
 	},
