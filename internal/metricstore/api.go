@@ -3,6 +3,9 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 
+// This file contains the API types and data fetching logic for querying metric data
+// from the in-memory metric store. It provides structures for building complex queries
+// with support for aggregation, scaling, padding, and statistics computation.
 package metricstore
 
 import (
@@ -15,10 +18,17 @@ import (
 )
 
 var (
+	// ErrInvalidTimeRange is returned when a query has 'from' >= 'to'
 	ErrInvalidTimeRange = errors.New("[METRICSTORE]> invalid time range: 'from' must be before 'to'")
-	ErrEmptyCluster     = errors.New("[METRICSTORE]> cluster name cannot be empty")
+	// ErrEmptyCluster is returned when a query with ForAllNodes has no cluster specified
+	ErrEmptyCluster = errors.New("[METRICSTORE]> cluster name cannot be empty")
 )
 
+// APIMetricData represents the response data for a single metric query.
+//
+// It contains both the time-series data points and computed statistics (avg, min, max).
+// If an error occurred during data retrieval, the Error field will be set and other
+// fields may be incomplete.
 type APIMetricData struct {
 	Error      *string           `json:"error,omitempty"`
 	Data       schema.FloatArray `json:"data,omitempty"`
@@ -30,6 +40,13 @@ type APIMetricData struct {
 	Max        schema.Float      `json:"max"`
 }
 
+// APIQueryRequest represents a batch query request for metric data.
+//
+// It supports two modes of operation:
+//  1. Explicit queries via the Queries field
+//  2. Automatic query generation via ForAllNodes (queries all specified metrics for all nodes in the cluster)
+//
+// The request can be customized with flags to include/exclude statistics, raw data, and padding.
 type APIQueryRequest struct {
 	Cluster     string     `json:"cluster"`
 	Queries     []APIQuery `json:"queries"`
@@ -41,11 +58,25 @@ type APIQueryRequest struct {
 	WithPadding bool       `json:"with-padding"`
 }
 
+// APIQueryResponse represents the response to an APIQueryRequest.
+//
+// Results is a 2D array where each outer element corresponds to a query,
+// and each inner element corresponds to a selector within that query
+// (e.g., multiple CPUs or cores).
 type APIQueryResponse struct {
 	Queries []APIQuery        `json:"queries,omitempty"`
 	Results [][]APIMetricData `json:"results"`
 }
 
+// APIQuery represents a single metric query with optional hierarchical selectors.
+//
+// The hierarchical selection works as follows:
+//   - Hostname: The node to query
+//   - Type + TypeIds: First level of hierarchy (e.g., "cpu" + ["0", "1", "2"])
+//   - SubType + SubTypeIds: Second level of hierarchy (e.g., "core" + ["0", "1"])
+//
+// If Aggregate is true, data from multiple type/subtype IDs will be aggregated according
+// to the metric's aggregation strategy. Otherwise, separate results are returned for each combination.
 type APIQuery struct {
 	Type        *string      `json:"type,omitempty"`
 	SubType     *string      `json:"subtype,omitempty"`
@@ -58,6 +89,11 @@ type APIQuery struct {
 	Aggregate   bool         `json:"aggreg"`
 }
 
+// AddStats computes and populates the Avg, Min, and Max fields from the Data array.
+//
+// NaN values in the data are ignored during computation. If all values are NaN,
+// the statistics fields will be set to NaN.
+//
 // TODO: Optimize this, just like the stats endpoint!
 func (data *APIMetricData) AddStats() {
 	n := 0
@@ -83,6 +119,10 @@ func (data *APIMetricData) AddStats() {
 	}
 }
 
+// ScaleBy multiplies all data points and statistics by the given factor.
+//
+// This is commonly used for unit conversion (e.g., bytes to gigabytes).
+// Scaling by 0 or 1 is a no-op for performance reasons.
 func (data *APIMetricData) ScaleBy(f schema.Float) {
 	if f == 0 || f == 1 {
 		return
@@ -96,6 +136,17 @@ func (data *APIMetricData) ScaleBy(f schema.Float) {
 	}
 }
 
+// PadDataWithNull pads the beginning of the data array with NaN values if needed.
+//
+// This ensures that the data aligns with the requested 'from' timestamp, even if
+// the metric store doesn't have data for the earliest time points. This is useful
+// for maintaining consistent array indexing across multiple queries.
+//
+// Parameters:
+//   - ms: MemoryStore instance to lookup metric configuration
+//   - from: The requested start timestamp
+//   - to: The requested end timestamp (unused but kept for API consistency)
+//   - metric: The metric name to lookup frequency information
 func (data *APIMetricData) PadDataWithNull(ms *MemoryStore, from, to int64, metric string) {
 	minfo, ok := ms.Metrics[metric]
 	if !ok {
@@ -115,6 +166,31 @@ func (data *APIMetricData) PadDataWithNull(ms *MemoryStore, from, to int64, metr
 	}
 }
 
+// FetchData executes a batch metric query request and returns the results.
+//
+// This is the primary API for retrieving metric data from the memory store. It supports:
+//   - Individual queries via req.Queries
+//   - Batch queries for all nodes via req.ForAllNodes
+//   - Hierarchical selector construction (cluster → host → type → subtype)
+//   - Optional statistics computation (avg, min, max)
+//   - Optional data scaling
+//   - Optional data padding with NaN values
+//
+// The function constructs selectors based on the query parameters and calls MemoryStore.Read()
+// for each selector. If a query specifies Aggregate=false with multiple type/subtype IDs,
+// separate results are returned for each combination.
+//
+// Parameters:
+//   - req: The query request containing queries, time range, and options
+//
+// Returns:
+//   - APIQueryResponse containing results for each query, or error if validation fails
+//
+// Errors:
+//   - ErrInvalidTimeRange if req.From > req.To
+//   - ErrEmptyCluster if req.ForAllNodes is used without specifying a cluster
+//   - Error if MemoryStore is not initialized
+//   - Individual query errors are stored in APIMetricData.Error field
 func FetchData(req APIQueryRequest) (*APIQueryResponse, error) {
 	if req.From > req.To {
 		return nil, ErrInvalidTimeRange
@@ -126,7 +202,7 @@ func FetchData(req APIQueryRequest) (*APIQueryResponse, error) {
 	req.WithData = true
 	ms := GetMemoryStore()
 	if ms == nil {
-		return nil, fmt.Errorf("memorystore not initialized")
+		return nil, fmt.Errorf("[METRICSTORE]> memorystore not initialized")
 	}
 
 	response := APIQueryResponse{
@@ -195,8 +271,6 @@ func FetchData(req APIQueryRequest) (*APIQueryResponse, error) {
 			}
 		}
 
-		// log.Printf("query: %#v\n", query)
-		// log.Printf("sels: %#v\n", sels)
 		var err error
 		res := make([]APIMetricData, 0, len(sels))
 		for _, sel := range sels {

@@ -21,12 +21,36 @@ import (
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 )
 
+// Worker for either Archiving or Deleting files
+
 func Archiving(wg *sync.WaitGroup, ctx context.Context) {
+	if Keys.Archive != nil {
+		// Run as Archiver
+		runWorker(wg, ctx,
+			Keys.Archive.ArchiveInterval,
+			"archiving",
+			Keys.Archive.RootDir,
+			Keys.Archive.DeleteInstead,
+		)
+	} else {
+		// Run as Deleter
+		runWorker(wg, ctx,
+			Keys.RetentionInMemory,
+			"deleting",
+			"",
+			true,
+		)
+	}
+}
+
+// runWorker takes simple values to configure what it does
+func runWorker(wg *sync.WaitGroup, ctx context.Context, interval string, mode string, archiveDir string, delete bool) {
 	go func() {
 		defer wg.Done()
-		d, err := time.ParseDuration(Keys.Archive.ArchiveInterval)
+
+		d, err := time.ParseDuration(interval)
 		if err != nil {
-			cclog.Fatalf("[METRICSTORE]> error parsing archive interval duration: %v\n", err)
+			cclog.Fatalf("[METRICSTORE]> error parsing %s interval duration: %v\n", mode, err)
 		}
 		if d <= 0 {
 			return
@@ -41,14 +65,18 @@ func Archiving(wg *sync.WaitGroup, ctx context.Context) {
 				return
 			case <-ticker.C:
 				t := time.Now().Add(-d)
-				cclog.Infof("[METRICSTORE]> start archiving checkpoints (older than %s)...", t.Format(time.RFC3339))
-				n, err := ArchiveCheckpoints(Keys.Checkpoints.RootDir,
-					Keys.Archive.RootDir, t.Unix(), Keys.Archive.DeleteInstead)
+				cclog.Infof("[METRICSTORE]> start %s checkpoints (older than %s)...", mode, t.Format(time.RFC3339))
+
+				n, err := ArchiveCheckpoints(Keys.Checkpoints.RootDir, archiveDir, t.Unix(), delete)
 
 				if err != nil {
-					cclog.Errorf("[METRICSTORE]> archiving failed: %s", err.Error())
+					cclog.Errorf("[METRICSTORE]> %s failed: %s", mode, err.Error())
 				} else {
-					cclog.Infof("[METRICSTORE]> done: %d files zipped and moved to archive", n)
+					if delete && archiveDir == "" {
+						cclog.Infof("[METRICSTORE]> done: %d checkpoints deleted", n)
+					} else {
+						cclog.Infof("[METRICSTORE]> done: %d files zipped and moved to archive", n)
+					}
 				}
 			}
 		}

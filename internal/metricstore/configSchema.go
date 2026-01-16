@@ -73,5 +73,5 @@ const configSchema = `{
       }
     }
   },
-  "required": ["checkpoints", "retention-in-memory"]
+  "required": ["checkpoints", "retention-in-memory", "memory-cap"]
 }`
