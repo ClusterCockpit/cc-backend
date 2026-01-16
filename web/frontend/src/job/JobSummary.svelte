@@ -29,19 +29,30 @@
   const showPolarTab = !!getContext("cc-config")[`jobView_showPolarPlot`];
 </script>
 
-<Card class="overflow-auto" style="width: {width}; height: {height}">
-  <TabContent>
-    {#if showFootprintTab}
-      <TabPane tabId="foot" tab="Footprint" active={showFootprintTab}>
+<Card style="width: {width}; height: {height}">
+  {#if showFootprintTab  && !showPolarTab}
+    <JobFootprintBars {job} />
+  {:else if !showFootprintTab  && showPolarTab}
+    <JobFootprintPolar {job}/>
+  {:else if showFootprintTab  && showPolarTab}
+    <TabContent>
+      <TabPane tabId="foot" tab="Footprint" active>
         <!-- Bars CardBody Here-->
         <JobFootprintBars {job} />
       </TabPane>
-    {/if}
-    {#if showPolarTab}
-      <TabPane tabId="polar" tab="Polar" active={showPolarTab && !showFootprintTab}>
+      <TabPane tabId="polar" tab="Polar">
         <!-- Polar Plot CardBody Here -->
-        <JobFootprintPolar {job} />
+        <JobFootprintPolar {job} showLegend={false}/>
       </TabPane>
-    {/if}
-  </TabContent>
+    </TabContent>
+  {:else}
+    <Card color="info" class="m-2">
+      <CardHeader class="mb-0">
+        <b>Config</b>
+      </CardHeader>
+      <CardBody>
+        <p class="mb-1">Footprint and PolarPlot Display Disabled.</p>
+      </CardBody>
+    </Card>
+  {/if}
 </Card>
