@@ -54,9 +54,11 @@
   /* Derived */
   const presetProject = $derived(filterPresets?.project ? filterPresets.project : "");
   let selectedCluster = $derived(filterPresets?.cluster ? filterPresets.cluster : null);
+  let selectedSubCluster = $derived(filterPresets?.partition ? filterPresets.partition : null);
   let metrics = $derived(filterPresets.cluster
-    ? ccconfig[`metricConfig_jobListMetrics:${filterPresets.cluster}`] ||
-      ccconfig.metricConfig_jobListMetrics
+    ? filterPresets.partition
+      ? ccconfig[`metricConfig_jobListMetrics:${filterPresets.cluster}:${filterPresets.partition}`]
+      : ccconfig[`metricConfig_jobListMetrics:${filterPresets.cluster}`] || ccconfig.metricConfig_jobListMetrics
     : ccconfig.metricConfig_jobListMetrics
   );
   let showFootprint = $derived(filterPresets.cluster
@@ -84,6 +86,11 @@
   $effect(() => {
     // Load Metric-Selection for last selected cluster
     metrics = selectedCluster ? ccconfig[`metricConfig_jobListMetrics:${selectedCluster}`] : ccconfig.metricConfig_jobListMetrics
+	});
+
+  $effect(() => {
+    // Load Metric-Selection for last selected cluster
+    metrics = selectedSubCluster ? ccconfig[`metricConfig_jobListMetrics:${selectedCluster}:${selectedSubCluster}`] : ccconfig[`metricConfig_jobListMetrics:${selectedCluster}`]
 	});
 
   /* On Mount */
@@ -133,6 +140,9 @@
       applyFilters={(detail) => {
         selectedCluster = detail.filters[0]?.cluster
           ? detail.filters[0].cluster.eq
+          : null;
+        selectedSubCluster = detail.filters[1]?.partition
+          ? detail.filters[1].partition.eq
           : null;
         filterBuffer = [...detail.filters]
         if (showCompare) {
@@ -220,6 +230,7 @@
     bind:showFootprint
     presetMetrics={metrics}
     cluster={selectedCluster}
+    subCluster={selectedSubCluster}
     configName="metricConfig_jobListMetrics"
     footprintSelect
     applyMetrics={(newMetrics) => 
