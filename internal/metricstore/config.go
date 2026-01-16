@@ -17,10 +17,10 @@
 //	│  ├─ FileFormat: "avro" or "json"
 //	│  ├─ Interval: How often to save (e.g., "1h")
 //	│  └─ RootDir: Checkpoint storage path
-//	├─ Archive: Long-term storage configuration
-//	│  ├─ ArchiveInterval: How often to archive
+//	├─ Cleanup: Long-term storage configuration
+//	│  ├─ Interval: How often to delete/archive
 //	│  ├─ RootDir: Archive storage path
-//	│  └─ DeleteInstead: Delete old data instead of archiving
+//	│  └─ Mode: "delete" or "archive"
 //	├─ Debug: Development/debugging options
 //	└─ Subscriptions: NATS topic subscriptions for metric ingestion
 //
@@ -48,12 +48,13 @@ import (
 )
 
 const (
-	DefaultMaxWorkers             = 10
-	DefaultBufferCapacity         = 512
-	DefaultGCTriggerInterval      = 100
-	DefaultAvroWorkers            = 4
-	DefaultCheckpointBufferMin    = 3
-	DefaultAvroCheckpointInterval = time.Minute
+	DefaultMaxWorkers                 = 10
+	DefaultBufferCapacity             = 512
+	DefaultGCTriggerInterval          = 100
+	DefaultAvroWorkers                = 4
+	DefaultCheckpointBufferMin        = 3
+	DefaultAvroCheckpointInterval     = time.Minute
+	DefaultMemoryUsageTrackerInterval = 1 * time.Hour
 )
 
 // Checkpoints configures periodic persistence of in-memory metric data.
@@ -86,10 +87,10 @@ type Debug struct {
 //   - ArchiveInterval: Duration string (e.g., "24h") between archive operations
 //   - RootDir:         Filesystem path for archived data (created if missing)
 //   - DeleteInstead:   If true, delete old data instead of archiving (saves disk space)
-type Archive struct {
-	ArchiveInterval string `json:"interval"`
-	RootDir         string `json:"directory"`
-	DeleteInstead   bool   `json:"delete-instead"`
+type Cleanup struct {
+	Interval string `json:"interval"`
+	RootDir  string `json:"directory"`
+	Mode     string `json:"mode"`
 }
 
 // Subscriptions defines NATS topics to subscribe to for metric ingestion.
@@ -129,7 +130,7 @@ type MetricStoreConfig struct {
 	MemoryCap         int            `json:"memory-cap"`
 	Checkpoints       Checkpoints    `json:"checkpoints"`
 	Debug             *Debug         `json:"debug"`
-	Archive           *Archive       `json:"archive"`
+	Cleanup           *Cleanup       `json:"cleanup"`
 	Subscriptions     *Subscriptions `json:"nats-subscriptions"`
 }
 
@@ -141,6 +142,9 @@ var Keys MetricStoreConfig = MetricStoreConfig{
 	Checkpoints: Checkpoints{
 		FileFormat: "avro",
 		RootDir:    "./var/checkpoints",
+	},
+	Cleanup: &Cleanup{
+		Mode: "delete",
 	},
 }
 
