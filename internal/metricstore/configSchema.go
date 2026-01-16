@@ -32,20 +32,32 @@ const configSchema = `{
       },
       "required": ["interval"]
     },
-    "archive": {
-      "description": "Configuration for archiving the already checkpointed files.",
+    "cleanup": {
+      "description": "Configuration for the cleanup process.",
       "type": "object",
       "properties": {
+        "mode": {
+          "description": "The operation mode (e.g., 'archive' or 'delete').",
+          "type": "string",
+          "enum": ["archive", "delete"] 
+        },
         "interval": {
-          "description": "Interval at which the checkpointed files should be archived.",
+          "description": "Interval at which the cleanup runs.",
           "type": "string"
         },
         "directory": {
-          "description": "Specify the directy in which the archived files should be placed.",
+          "description": "Target directory for operations.",
           "type": "string"
         }
       },
-      "required": ["interval", "directory"]
+      "if": {
+        "properties": {
+          "mode": { "const": "archive" }
+        }
+      },
+      "then": {
+        "required": ["interval", "directory"]
+      }
     },
     "retention-in-memory": {
       "description": "Keep the metrics within memory for given time interval. Retention for X hours, then the metrics would be freed.",

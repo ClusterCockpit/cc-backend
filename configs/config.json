@@ -5,13 +5,18 @@
     "https-key-file": "/etc/letsencrypt/live/url/privkey.pem",
     "user": "clustercockpit",
     "group": "clustercockpit",
-    "apiAllowedIPs": ["*"],
+    "apiAllowedIPs": [
+      "*"
+    ],
     "short-running-jobs-duration": 300,
     "enable-job-taggers": true,
     "resampling": {
       "minimumPoints": 600,
       "trigger": 180,
-      "resolutions": [240, 60]
+      "resolutions": [
+        240,
+        60
+      ]
     },
     "apiSubjects": {
       "subjectJobEvent": "cc.job.event",
@@ -47,10 +52,16 @@
   },
   "metric-store": {
     "checkpoints": {
-      "interval": "12h"
+      "interval": "12h",
+      "directory": "./var/checkpoints"
     },
     "memory-cap": 100,
     "retention-in-memory": "48h",
+    "cleanup": {
+      "mode": "archive",
+      "interval": "48h",
+      "directory": "./var/archive"
+    },
     "nats-subscriptions": [
       {
         "subscribe-to": "hpc-nats",

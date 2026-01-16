@@ -200,7 +200,7 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 
 	Retention(wg, ctx)
 	Checkpointing(wg, ctx)
-	Archiving(wg, ctx)
+	CleanUp(wg, ctx)
 	DataStaging(wg, ctx)
 	MemoryUsageTracker(wg, ctx)
 
@@ -386,7 +386,7 @@ func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
 
 	go func() {
 		defer wg.Done()
-		d := 1 * time.Minute
+		d := DefaultMemoryUsageTrackerInterval
 
 		if d <= 0 {
 			return
