@@ -1,9 +1,6 @@
 {
   "main": {
-    "addr": "127.0.0.1:8080",
-    "apiAllowedIPs": [
-      "*"
-    ]
+    "addr": "127.0.0.1:8080"
   },
   "cron": {
     "commit-job-worker": "1m",
@@ -23,3 +20,4 @@
     "memory-cap": 100
   }
 }
+
