@@ -37,6 +37,13 @@ import (
 	"github.com/ClusterCockpit/cc-lib/v2/util"
 )
 
+// Define a struct to hold your globals and the mutex
+type GlobalState struct {
+	mu                sync.RWMutex
+	lastRetentionTime int64
+	selectorsExcluded bool
+}
+
 var (
 	singleton  sync.Once
 	msInstance *MemoryStore
@@ -44,6 +51,8 @@ var (
 	// and is called during Shutdown to cancel all background goroutines
 	shutdownFunc   context.CancelFunc
 	shutdownFuncMu sync.Mutex // Protects shutdownFunc from concurrent access
+	// Create a global instance
+	state = &GlobalState{}
 )
 
 // NodeProvider provides information about nodes currently in use by running jobs.
@@ -356,7 +365,12 @@ func Retention(wg *sync.WaitGroup, ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
+				state.mu.Lock()
+
 				t := time.Now().Add(-d)
+
+				state.lastRetentionTime = t.Unix()
+
 				cclog.Infof("[METRICSTORE]> start freeing buffers (older than %s)...\n", t.Format(time.RFC3339))
 
 				freed, err := Free(ms, t)
@@ -365,6 +379,8 @@ func Retention(wg *sync.WaitGroup, ctx context.Context) {
 				} else {
 					cclog.Infof("[METRICSTORE]> done: %d buffers freed\n", freed)
 				}
+
+				state.mu.Unlock()
 			}
 		}
 	}()
@@ -400,14 +416,36 @@ func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
+				state.mu.RLock()
+
 				memoryUsageGB := ms.SizeInGB()
 				cclog.Infof("[METRICSTORE]> current memory usage: %.2f GB\n", memoryUsageGB)
 
+				freedTotal := 0
+				var err error
+
+				// First force-free all the checkpoints that were
+				if state.lastRetentionTime != 0 && state.selectorsExcluded {
+					freedTotal, err = ms.Free(nil, state.lastRetentionTime)
+					if err != nil {
+						cclog.Errorf("[METRICSTORE]> error while force-freeing the excluded buffers: %s", err)
+					}
+
+					// Calling runtime.GC() twice in succession tp completely empty a bufferPool (sync.Pool)
+					runtime.GC()
+					runtime.GC()
+
+					cclog.Infof("[METRICSTORE]> done: %d excluded buffers force-freed\n", freedTotal)
+				}
+
+				state.mu.RUnlock()
+
+				memoryUsageGB = ms.SizeInGB()
+
 				if memoryUsageGB > float64(Keys.MemoryCap) {
-					cclog.Warnf("[METRICSTORE]> current memory usage is greater than the Memory Cap: %d GB\n", Keys.MemoryCap)
+					cclog.Warnf("[METRICSTORE]> memory usage is still greater than the Memory Cap: %d GB\n", Keys.MemoryCap)
 					cclog.Warnf("[METRICSTORE]> starting to force-free the buffers from the Metric Store\n")
 
-					freedTotal := 0
 					const maxIterations = 100
 
 					for range maxIterations {
@@ -432,7 +470,7 @@ func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
 					if memoryUsageGB >= float64(Keys.MemoryCap) {
 						cclog.Errorf("[METRICSTORE]> reached maximum iterations (%d) or no more buffers to free, current memory usage: %.2f GB\n", maxIterations, memoryUsageGB)
 					} else {
-						cclog.Infof("[METRICSTORE]> done: %d buffers freed\n", freedTotal)
+						cclog.Infof("[METRICSTORE]> done: %d buffers force-freed\n", freedTotal)
 						cclog.Infof("[METRICSTORE]> current memory usage after force-freeing the buffers: %.2f GB\n", memoryUsageGB)
 					}
 				}
@@ -476,11 +514,13 @@ func Free(ms *MemoryStore, t time.Time) (int, error) {
 	// If the length of the map returned by GetUsedNodes() is 0,
 	// then use default Free method with nil selector
 	case 0:
+		state.selectorsExcluded = false
 		return ms.Free(nil, t.Unix())
 
 	// Else formulate selectors, exclude those from the map
 	// and free the rest of the selectors
 	default:
+		state.selectorsExcluded = true
 		selectors := GetSelectors(ms, excludeSelectors)
 		return FreeSelected(ms, selectors, t)
 	}

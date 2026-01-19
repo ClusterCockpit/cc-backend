@@ -265,13 +265,9 @@ func (b *buffer) forceFreeOldest() (delme bool, n int) {
 
 		// If the previous buffer signals it should be deleted:
 		if delPrev {
-			// Unlink references
+			// Clear links on the dying buffer to prevent leaks
 			b.prev.next = nil
-
-			// Return to pool if capacity matches
-			if cap(b.prev.data) == BufferCap {
-				bufferPool.Put(b.prev)
-			}
+			b.prev.data = nil // Release the underlying float slice immediately
 
 			// Remove the link from the current buffer
 			b.prev = nil
