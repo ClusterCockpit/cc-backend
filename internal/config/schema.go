@@ -44,10 +44,6 @@ var configSchema = `
       "description": "Path to SQLite database file (e.g., './var/job.db')",
       "type": "string"
     },
-    "disable-archive": {
-      "description": "Keep all metric data in the metric data repositories, do not write to the job-archive.",
-      "type": "boolean"
-    },
     "enable-job-taggers": {
       "description": "Turn on automatic application and jobclass taggers",
       "type": "boolean"

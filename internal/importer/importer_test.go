@@ -100,7 +100,7 @@ func setup(t *testing.T) *repository.JobRepository {
 
 	archiveCfg := fmt.Sprintf("{\"kind\": \"file\",\"path\": \"%s\"}", jobarchive)
 
-	if err := archive.Init(json.RawMessage(archiveCfg), config.Keys.DisableArchive); err != nil {
+	if err := archive.Init(json.RawMessage(archiveCfg)); err != nil {
 		t.Fatal(err)
 	}
 

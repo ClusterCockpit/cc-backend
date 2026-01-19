@@ -9,7 +9,6 @@ import (
 	"context"
 	"math"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdispatch"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
@@ -92,13 +91,6 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.Job, error) {
 			Min: min,
 			Max: max,
 		}
-	}
-
-	// If the file based archive is disabled,
-	// only return the JobMeta structure as the
-	// statistics in there are needed.
-	if config.Keys.DisableArchive {
-		return job, nil
 	}
 
 	return job, archive.GetHandle().ImportJob(job, &jobData)

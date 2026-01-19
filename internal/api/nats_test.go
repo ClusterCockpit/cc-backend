@@ -148,7 +148,7 @@ func setupNatsTest(t *testing.T) *NatsAPI {
 
 	repository.Connect("sqlite3", dbfilepath)
 
-	if err := archive.Init(json.RawMessage(archiveCfg), config.Keys.DisableArchive); err != nil {
+	if err := archive.Init(json.RawMessage(archiveCfg)); err != nil {
 		t.Fatal(err)
 	}
 

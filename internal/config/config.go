@@ -43,10 +43,6 @@ type ProgramConfig struct {
 	// Path to SQLite database file
 	DB string `json:"db"`
 
-	// Keep all metric data in the metric data repositories,
-	// do not write to the job-archive.
-	DisableArchive bool `json:"disable-archive"`
-
 	EnableJobTaggers bool `json:"enable-job-taggers"`
 
 	// Validate json input against schema
@@ -117,7 +113,6 @@ var Keys ProgramConfig = ProgramConfig{
 	EmbedStaticFiles:          true,
 	DBDriver:                  "sqlite3",
 	DB:                        "./var/job.db",
-	DisableArchive:            false,
 	Validate:                  false,
 	SessionMaxAge:             "168h",
 	StopJobsExceedingWalltime: 0,

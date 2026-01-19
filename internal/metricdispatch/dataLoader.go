@@ -43,7 +43,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/metricstore"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
@@ -95,8 +94,7 @@ func LoadData(job *schema.Job,
 		var err error
 
 		if job.State == schema.JobStateRunning ||
-			job.MonitoringStatus == schema.MonitoringStatusRunningOrArchiving ||
-			config.Keys.DisableArchive {
+			job.MonitoringStatus == schema.MonitoringStatusRunningOrArchiving {
 
 			if scopes == nil {
 				scopes = append(scopes, schema.MetricScopeNode)
@@ -234,7 +232,7 @@ func LoadAverages(
 	data [][]schema.Float,
 	ctx context.Context,
 ) error {
-	if job.State != schema.JobStateRunning && !config.Keys.DisableArchive {
+	if job.State != schema.JobStateRunning {
 		return archive.LoadAveragesFromArchive(job, metrics, data) // #166 change also here?
 	}
 
@@ -271,7 +269,7 @@ func LoadScopedJobStats(
 	scopes []schema.MetricScope,
 	ctx context.Context,
 ) (schema.ScopedJobStats, error) {
-	if job.State != schema.JobStateRunning && !config.Keys.DisableArchive {
+	if job.State != schema.JobStateRunning {
 		return archive.LoadScopedStatsFromArchive(job, metrics, scopes)
 	}
 
@@ -293,7 +291,7 @@ func LoadJobStats(
 	metrics []string,
 	ctx context.Context,
 ) (map[string]schema.MetricStatistics, error) {
-	if job.State != schema.JobStateRunning && !config.Keys.DisableArchive {
+	if job.State != schema.JobStateRunning {
 		return archive.LoadStatsFromArchive(job, metrics)
 	}
 

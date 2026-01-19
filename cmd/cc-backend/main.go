@@ -274,7 +274,7 @@ func initSubsystems() error {
 		cclog.Debug("Archive configuration not found, using default archive configuration")
 		archiveCfg = json.RawMessage(defaultArchiveConfig)
 	}
-	if err := archive.Init(archiveCfg, config.Keys.DisableArchive); err != nil {
+	if err := archive.Init(archiveCfg); err != nil {
 		return fmt.Errorf("initializing archive: %w", err)
 	}
 

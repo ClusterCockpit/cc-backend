@@ -438,7 +438,7 @@ func main() {
 		cclog.Abort("Main configuration must be present")
 	}
 
-	if err := archive.Init(json.RawMessage(archiveCfg), false); err != nil {
+	if err := archive.Init(json.RawMessage(archiveCfg)); err != nil {
 		cclog.Fatal(err)
 	}
 	ar := archive.GetHandle()
