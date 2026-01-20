@@ -19,7 +19,7 @@ func setup(tb testing.TB) *repository.JobRepository {
 	dbfile := "../repository/testdata/job.db"
 	err := repository.MigrateDB(dbfile)
 	noErr(tb, err)
-	repository.Connect("sqlite3", dbfile)
+	repository.Connect(dbfile)
 	return repository.GetJobRepository()
 }
 

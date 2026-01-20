@@ -20,7 +20,7 @@ func setupUserTest(t *testing.T) *UserCfgRepo {
 	const testconfig = `{
 	"main": {
 	 "addr":   "0.0.0.0:8080",
-   "apiAllowedIPs": [
+   "api-allowed-ips": [
      "*"
    ]
   },
@@ -36,7 +36,7 @@ func setupUserTest(t *testing.T) *UserCfgRepo {
 	if err != nil {
 		t.Fatal(err)
 	}
-	Connect("sqlite3", dbfilepath)
+	Connect(dbfilepath)
 
 	tmpdir := t.TempDir()
 	cfgFilePath := filepath.Join(tmpdir, "config.json")

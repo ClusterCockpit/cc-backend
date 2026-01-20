@@ -25,20 +25,20 @@ type JWTAuthConfig struct {
 	MaxAge string `json:"max-age"`
 
 	// Specifies which cookie should be checked for a JWT token (if no authorization header is present)
-	CookieName string `json:"cookieName"`
+	CookieName string `json:"cookie-name"`
 
 	// Deny login for users not in database (but defined in JWT).
 	// Ignore user roles defined in JWTs ('roles' claim), get them from db.
-	ValidateUser bool `json:"validateUser"`
+	ValidateUser bool `json:"validate-user"`
 
 	// Specifies which issuer should be accepted when validating external JWTs ('iss' claim)
-	TrustedIssuer string `json:"trustedIssuer"`
+	TrustedIssuer string `json:"trusted-issuer"`
 
 	// Should an non-existent user be added to the DB based on the information in the token
-	SyncUserOnLogin bool `json:"syncUserOnLogin"`
+	SyncUserOnLogin bool `json:"sync-user-on-login"`
 
 	// Should an existent user be updated in the DB based on the information in the token
-	UpdateUserOnLogin bool `json:"updateUserOnLogin"`
+	UpdateUserOnLogin bool `json:"update-user-on-login"`
 }
 
 type JWTAuthenticator struct {

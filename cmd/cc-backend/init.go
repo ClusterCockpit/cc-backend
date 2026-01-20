@@ -34,14 +34,14 @@ const configString = `
     "addr": "127.0.0.1:8080",
     "short-running-jobs-duration": 300,
     "resampling": {
-      "minimumPoints": 600,
+      "minimum-points": 600,
       "trigger": 300,
       "resolutions": [
         240,
         60
       ]
     },
-    "apiAllowedIPs": [
+    "api-allowed-ips": [
       "*"
     ],
     "emission-constant": 317

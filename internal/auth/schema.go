@@ -15,37 +15,44 @@ var configSchema = `
           "description": "Configure how long a token is valid. As string parsable by time.ParseDuration()",
           "type": "string"
         },
-        "cookieName": {
+        "cookie-name": {
           "description": "Cookie that should be checked for a JWT token.",
           "type": "string"
         },
-        "validateUser": {
+        "validate-user": {
           "description": "Deny login for users not in database (but defined in JWT). Overwrite roles in JWT with database roles.",
           "type": "boolean"
         },
-        "trustedIssuer": {
+        "trusted-issuer": {
           "description": "Issuer that should be accepted when validating external JWTs ",
           "type": "string"
         },
-        "syncUserOnLogin": {
+        "sync-user-on-login": {
           "description": "Add non-existent user to DB at login attempt with values provided in JWT.",
+          "type": "boolean"
+        },
+        "update-user-on-login": {
+          "description": "Should an existent user attributes in the DB be updated at login attempt with values provided in JWT.",
           "type": "boolean"
         }
       },
       "required": ["max-age"]
     },
     "oidc": {
-      "provider": {
-        "description": "",
-        "type": "string"
-      },
-      "syncUserOnLogin": {
-        "description": "",
-        "type": "boolean"
-      },
-      "updateUserOnLogin": {
-        "description": "",
-        "type": "boolean"
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "OpenID Connect provider URL.",
+          "type": "string"
+        },
+        "sync-user-on-login": {
+          "description": "Add non-existent user to DB at login attempt with values provided.",
+          "type": "boolean"
+        },
+        "update-user-on-login": {
+          "description": "Should an existent user attributes in the DB be updated at login attempt with values provided.",
+          "type": "boolean"
+        }
       },
       "required": ["provider"]
     },
@@ -57,40 +64,40 @@ var configSchema = `
           "description": "URL of LDAP directory server.",
           "type": "string"
         },
-        "user_base": {
+        "user-base": {
           "description": "Base DN of user tree root.",
           "type": "string"
         },
-        "search_dn": {
+        "search-dn": {
           "description": "DN for authenticating LDAP admin account with general read rights.",
           "type": "string"
         },
-        "user_bind": {
+        "user-bind": {
           "description": "Expression used to authenticate users via LDAP bind. Must contain uid={username}.",
           "type": "string"
         },
-        "user_filter": {
+        "user-filter": {
           "description": "Filter to extract users for syncing.",
           "type": "string"
         },
-        "username_attr": {
+        "username-attr": {
           "description": "Attribute with full username. Default: gecos",
           "type": "string"
         },
-        "sync_interval": {
+        "sync-interval": {
           "description": "Interval used for syncing local user table with LDAP directory. Parsed using time.ParseDuration.",
           "type": "string"
         },
-        "sync_del_old_users": {
+        "sync-del-old-users": {
           "description": "Delete obsolete users in database.",
           "type": "boolean"
         },
-        "syncUserOnLogin": {
+        "sync-user-on-login": {
           "description": "Add non-existent user to DB at login attempt if user exists in Ldap directory",
           "type": "boolean"
         }
       },
-      "required": ["url", "user_base", "search_dn", "user_bind", "user_filter"]
+      "required": ["url", "user-base", "search-dn", "user-bind", "user-filter"]
     },
   "required": ["jwts"]
 	}`

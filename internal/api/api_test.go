@@ -42,7 +42,7 @@ func setup(t *testing.T) *api.RestAPI {
 	"main": {
 	   "addr":            "0.0.0.0:8080",
 	   "validate": false,
-     "apiAllowedIPs": [
+     "api-allowed-ips": [
        "*"
       ]
   },
@@ -152,7 +152,7 @@ func setup(t *testing.T) *api.RestAPI {
 	}
 	archiveCfg := fmt.Sprintf("{\"kind\": \"file\",\"path\": \"%s\"}", jobarchive)
 
-	repository.Connect("sqlite3", dbfilepath)
+	repository.Connect(dbfilepath)
 
 	if err := archive.Init(json.RawMessage(archiveCfg)); err != nil {
 		t.Fatal(err)

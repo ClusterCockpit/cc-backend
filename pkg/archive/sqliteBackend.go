@@ -29,7 +29,7 @@ import (
 
 // SqliteArchiveConfig holds the configuration for the SQLite archive backend.
 type SqliteArchiveConfig struct {
-	DBPath string `json:"dbPath"` // Path to SQLite database file
+	DBPath string `json:"db-path"` // Path to SQLite database file
 }
 
 // SqliteArchive implements ArchiveBackend using a SQLite database with BLOB storage.

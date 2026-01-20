@@ -20,16 +20,16 @@ import (
 
 type LdapConfig struct {
 	URL             string `json:"url"`
-	UserBase        string `json:"user_base"`
-	SearchDN        string `json:"search_dn"`
-	UserBind        string `json:"user_bind"`
-	UserFilter      string `json:"user_filter"`
-	UserAttr        string `json:"username_attr"`
-	SyncInterval    string `json:"sync_interval"` // Parsed using time.ParseDuration.
-	SyncDelOldUsers bool   `json:"sync_del_old_users"`
+	UserBase        string `json:"user-base"`
+	SearchDN        string `json:"search-dn"`
+	UserBind        string `json:"user-bind"`
+	UserFilter      string `json:"user-filter"`
+	UserAttr        string `json:"username-attr"`
+	SyncInterval    string `json:"sync-interval"` // Parsed using time.ParseDuration.
+	SyncDelOldUsers bool   `json:"sync-del-old-users"`
 
 	// Should an non-existent user be added to the DB if user exists in ldap directory
-	SyncUserOnLogin bool `json:"syncUserOnLogin"`
+	SyncUserOnLogin bool `json:"sync-user-on-login"`
 }
 
 type LdapAuthenticator struct {

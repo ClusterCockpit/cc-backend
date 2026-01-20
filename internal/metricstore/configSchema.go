@@ -68,7 +68,7 @@ const configSchema = `{
       "type": "integer"
     },
     "nats-subscriptions": {
-      "description": "Array of various subscriptions. Allows to subscibe to different subjects and publishers.",
+      "description": "Array of various subscriptions. Allows to subscribe to different subjects and publishers.",
       "type": "array",
       "items": {
         "type": "object",

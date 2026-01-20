@@ -41,7 +41,7 @@ func TestImportFileToSqlite(t *testing.T) {
 	}
 
 	// Initialize destination backend (sqlite)
-	dstConfig := fmt.Sprintf(`{"kind":"sqlite","dbPath":"%s"}`, dstDb)
+	dstConfig := fmt.Sprintf(`{"kind":"sqlite","db-path":"%s"}`, dstDb)
 	dstBackend, err := archive.InitBackend(json.RawMessage(dstConfig))
 	if err != nil {
 		t.Fatalf("Failed to initialize destination backend: %s", err.Error())
@@ -176,7 +176,7 @@ func TestImportDataIntegrity(t *testing.T) {
 		t.Fatalf("Failed to initialize source backend: %s", err.Error())
 	}
 
-	dstConfig := fmt.Sprintf(`{"kind":"sqlite","dbPath":"%s"}`, dstDb)
+	dstConfig := fmt.Sprintf(`{"kind":"sqlite","db-path":"%s"}`, dstDb)
 	dstBackend, err := archive.InitBackend(json.RawMessage(dstConfig))
 	if err != nil {
 		t.Fatalf("Failed to initialize destination backend: %s", err.Error())
@@ -270,7 +270,7 @@ func TestImportEmptyArchive(t *testing.T) {
 		t.Fatalf("Failed to initialize source backend: %s", err.Error())
 	}
 
-	dstConfig := fmt.Sprintf(`{"kind":"sqlite","dbPath":"%s"}`, dstDb)
+	dstConfig := fmt.Sprintf(`{"kind":"sqlite","db-path":"%s"}`, dstDb)
 	dstBackend, err := archive.InitBackend(json.RawMessage(dstConfig))
 	if err != nil {
 		t.Fatalf("Failed to initialize destination backend: %s", err.Error())
@@ -314,7 +314,7 @@ func TestImportDuplicateJobs(t *testing.T) {
 		t.Fatalf("Failed to initialize source backend: %s", err.Error())
 	}
 
-	dstConfig := fmt.Sprintf(`{"kind":"sqlite","dbPath":"%s"}`, dstDb)
+	dstConfig := fmt.Sprintf(`{"kind":"sqlite","db-path":"%s"}`, dstDb)
 	dstBackend, err := archive.InitBackend(json.RawMessage(dstConfig))
 	if err != nil {
 		t.Fatalf("Failed to initialize destination backend: %s", err.Error())

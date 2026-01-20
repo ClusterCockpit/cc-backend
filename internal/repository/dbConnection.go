@@ -51,13 +51,9 @@ func setupSqlite(db *sql.DB) error {
 	return nil
 }
 
-func Connect(driver string, db string) {
+func Connect(db string) {
 	var err error
 	var dbHandle *sqlx.DB
-
-	if driver != "sqlite3" {
-		cclog.Abortf("Unsupported database driver '%s'. Only 'sqlite3' is supported.\n", driver)
-	}
 
 	dbConnOnce.Do(func() {
 		opts := DatabaseOptions{
@@ -100,7 +96,7 @@ func Connect(driver string, db string) {
 		dbHandle.SetConnMaxLifetime(opts.ConnectionMaxLifetime)
 		dbHandle.SetConnMaxIdleTime(opts.ConnectionMaxIdleTime)
 
-		dbConnInstance = &DBConnection{DB: dbHandle, Driver: driver}
+		dbConnInstance = &DBConnection{DB: dbHandle}
 		err = checkDBVersion(dbHandle.DB)
 		if err != nil {
 			cclog.Abortf("DB Connection: Failed DB version check.\nError: %s\n", err.Error())

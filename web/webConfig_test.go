@@ -20,38 +20,38 @@ func TestInit(t *testing.T) {
 
 	Init(cfg)
 
-	if UIDefaultsMap["nodelist_usePaging"] == false {
+	if UIDefaultsMap["nodeList_usePaging"] == false {
 		t.Errorf("wrong option\ngot: %v \nwant: true", UIDefaultsMap["NodeList_UsePaging"])
 	}
 }
 
 func TestSimpleDefaults(t *testing.T) {
 	const s = `{
-		"joblist": {
-		    "showFootprint": false
+		"job-list": {
+		    "show-footprint": false
 		}
 	}`
 
 	Init(json.RawMessage(s))
 
-	if UIDefaultsMap["joblist_usePaging"] == true {
+	if UIDefaultsMap["jobList_usePaging"] == true {
 		t.Errorf("wrong option\ngot: %v \nwant: false", UIDefaultsMap["NodeList_UsePaging"])
 	}
 }
 
 func TestOverwrite(t *testing.T) {
 	const s = `{
-  "metricConfig": {
-    "jobListMetrics": ["flops_sp", "flops_dp"],
+  "metric-config": {
+    "job-list-metrics": ["flops_sp", "flops_dp"],
     "clusters": [
       {
         "name": "fritz",
-        "jobListMetrics": ["flops_any", "mem_bw", "load"],
-        "subClusters": [
+        "job-list-metrics": ["flops_any", "mem_bw", "load"],
+        "sub-clusters": [
           {
             "name": "icelake",
-            "jobListMetrics": ["flops_any", "mem_bw", "power", "load"],
-            "jobViewPlotMetrics": ["load"]
+            "job-list-metrics": ["flops_any", "mem_bw", "power", "load"],
+            "job-view-plot-metrics": ["load"]
           }
         ]
       }

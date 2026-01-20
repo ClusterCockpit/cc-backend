@@ -22,7 +22,7 @@ func TestSqliteInitEmptyPath(t *testing.T) {
 
 func TestSqliteInitInvalidConfig(t *testing.T) {
 	var sa SqliteArchive
-	_, err := sa.Init(json.RawMessage(`"dbPath":"/tmp/test.db"`))
+	_, err := sa.Init(json.RawMessage(`"db-path":"/tmp/test.db"`))
 	if err == nil {
 		t.Fatal("expected error for invalid config")
 	}
@@ -33,7 +33,7 @@ func TestSqliteInit(t *testing.T) {
 	defer os.Remove(tmpfile)
 
 	var sa SqliteArchive
-	version, err := sa.Init(json.RawMessage(`{"dbPath":"` + tmpfile + `"}`))
+	version, err := sa.Init(json.RawMessage(`{"db-path":"` + tmpfile + `"}`))
 	if err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
@@ -51,7 +51,7 @@ func TestSqliteStoreAndLoadJobMeta(t *testing.T) {
 	defer os.Remove(tmpfile)
 
 	var sa SqliteArchive
-	_, err := sa.Init(json.RawMessage(`{"dbPath":"` + tmpfile + `"}`))
+	_, err := sa.Init(json.RawMessage(`{"db-path":"` + tmpfile + `"}`))
 	if err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestSqliteImportJob(t *testing.T) {
 	defer os.Remove(tmpfile)
 
 	var sa SqliteArchive
-	_, err := sa.Init(json.RawMessage(`{"dbPath":"` + tmpfile + `"}`))
+	_, err := sa.Init(json.RawMessage(`{"db-path":"` + tmpfile + `"}`))
 	if err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
@@ -114,7 +114,7 @@ func TestSqliteGetClusters(t *testing.T) {
 	defer os.Remove(tmpfile)
 
 	var sa SqliteArchive
-	_, err := sa.Init(json.RawMessage(`{"dbPath":"` + tmpfile + `"}`))
+	_, err := sa.Init(json.RawMessage(`{"db-path":"` + tmpfile + `"}`))
 	if err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestSqliteGetClusters(t *testing.T) {
 
 	// Reinitialize to refresh cluster list
 	sa.db.Close()
-	_, err = sa.Init(json.RawMessage(`{"dbPath":"` + tmpfile + `"}`))
+	_, err = sa.Init(json.RawMessage(`{"db-path":"` + tmpfile + `"}`))
 	if err != nil {
 		t.Fatalf("reinit failed: %v", err)
 	}
@@ -158,7 +158,7 @@ func TestSqliteCleanUp(t *testing.T) {
 	defer os.Remove(tmpfile)
 
 	var sa SqliteArchive
-	_, err := sa.Init(json.RawMessage(`{"dbPath":"` + tmpfile + `"}`))
+	_, err := sa.Init(json.RawMessage(`{"db-path":"` + tmpfile + `"}`))
 	if err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
@@ -193,7 +193,7 @@ func TestSqliteClean(t *testing.T) {
 	defer os.Remove(tmpfile)
 
 	var sa SqliteArchive
-	_, err := sa.Init(json.RawMessage(`{"dbPath":"` + tmpfile + `"}`))
+	_, err := sa.Init(json.RawMessage(`{"db-path":"` + tmpfile + `"}`))
 	if err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
@@ -237,7 +237,7 @@ func TestSqliteIter(t *testing.T) {
 	defer os.Remove(tmpfile)
 
 	var sa SqliteArchive
-	_, err := sa.Init(json.RawMessage(`{"dbPath":"` + tmpfile + `"}`))
+	_, err := sa.Init(json.RawMessage(`{"db-path":"` + tmpfile + `"}`))
 	if err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
@@ -276,7 +276,7 @@ func TestSqliteCompress(t *testing.T) {
 	defer os.Remove(tmpfile)
 
 	var sa SqliteArchive
-	_, err := sa.Init(json.RawMessage(`{"dbPath":"` + tmpfile + `"}`))
+	_, err := sa.Init(json.RawMessage(`{"db-path":"` + tmpfile + `"}`))
 	if err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
@@ -299,7 +299,7 @@ func TestSqliteCompress(t *testing.T) {
 }
 
 func TestSqliteConfigParsing(t *testing.T) {
-	rawConfig := json.RawMessage(`{"dbPath": "/tmp/test.db"}`)
+	rawConfig := json.RawMessage(`{"db-path": "/tmp/test.db"}`)
 
 	var cfg SqliteArchiveConfig
 	err := json.Unmarshal(rawConfig, &cfg)
@@ -317,7 +317,7 @@ func TestSqliteIterChunking(t *testing.T) {
 	defer os.Remove(tmpfile)
 
 	var sa SqliteArchive
-	_, err := sa.Init(json.RawMessage(`{"dbPath":"` + tmpfile + `"}`))
+	_, err := sa.Init(json.RawMessage(`{"db-path":"` + tmpfile + `"}`))
 	if err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
