@@ -44,18 +44,18 @@
     // zoomState = null,
     // thresholdState = null,
     enableFlip = false,
+    publicMode = false,
     // onZoom
   } = $props();
 
   /* Const Init */
   const clusterCockpitConfig = getContext("cc-config");
+  const fixedLineColors = ["#0000ff", "#ff0000"]; // Plot only uses 2 Datasets: High Contrast
   // const resampleConfig = getContext("resampling");
   // const subClusterTopology = getContext("getHardwareTopology")(cluster, subCluster);
   // const metricConfig = getContext("getMetricConfig")(cluster, subCluster, metric);
-  const lineColors = clusterCockpitConfig.plotConfiguration_colorScheme;
   // const cbmode = clusterCockpitConfig?.plotConfiguration_colorblindMode || false;
   const renderSleepTime = 200;
-  // const normalLineColor = "#000000";
   // const backgroundColors = {
   //   normal: "rgba(255, 255, 255, 1.0)",
   //   caution: cbmode ? "rgba(239, 230, 69, 0.3)" : "rgba(255, 128, 0, 0.3)",
@@ -186,10 +186,10 @@
         // Default
         // if (!extendedLegendData) {
           pendingSeries.push({
-            label: `${metricData[i]?.name} (${metricData[i]?.unit?.prefix}${metricData[i]?.unit?.base})`,
+            label: publicMode ? null : `${metricData[i]?.name} (${metricData[i]?.unit?.prefix}${metricData[i]?.unit?.base})`,
             scale: `y${i+1}`,
             width: lineWidth,
-            stroke: lineColor(i, metricData.length),
+            stroke: fixedLineColors[i],
           });
         // }
         // Extended Legend For NodeList
@@ -435,38 +435,42 @@
   //   return backgroundColors.normal;
   // }
 
-  function lineColor(i, n) {
-    if (n && n >= lineColors.length) return lineColors[i % lineColors.length];
-    else return lineColors[Math.floor((i / n) * lineColors.length)];
-  }
-
   function render(ren_width, ren_height) {
     // Set Options
     const opts = {
-      width,
-      height,
-      title: 'Cluster Utilization',
+      width: ren_width,
+      height: ren_height,
+      title: publicMode ? null : 'Cluster Utilization',
       plugins: [legendAsTooltipPlugin()],
       series: plotSeries,
       axes: [
         {
           scale: "x",
-          space: 35,
+          space: publicMode ? 60 : null,
           incrs: timeIncrs(timestep, maxX, forNode),
-          label: "Time",
+          font: publicMode ? '16px Arial' : CanvasRenderingContext2D['font'],
+          label: publicMode ? null : "Time",
           values: (_, vals) => vals.map((v) => formatDurationTime(v, forNode)),
         },
         {
           scale: "y1",
           grid: { show: true },
-          label: `${metricData[0]?.name} (${metricData[0]?.unit?.prefix}${metricData[0]?.unit?.base})`,
+          stroke: publicMode ? fixedLineColors[0] : "#000000",
+          size: publicMode ? 60 : null,
+          space: publicMode ? 50 : null,
+          font: publicMode ? '16px Arial' : CanvasRenderingContext2D['font'],
+          label: publicMode ? null : `${metricData[0]?.name} (${metricData[0]?.unit?.prefix}${metricData[0]?.unit?.base})`,
           values: (u, vals) => vals.map((v) => formatNumber(v)),
         },
         {
           side: 1,
           scale: "y2",
           grid: { show: false },
-          label: `${metricData[1]?.name} (${metricData[1]?.unit?.prefix}${metricData[1]?.unit?.base})`,
+          stroke: publicMode ? fixedLineColors[1] : "#000000",
+          size: publicMode ? 60 : null,
+          space: publicMode ? 40 : null,
+          font: publicMode ? '16px Arial' : CanvasRenderingContext2D['font'],
+          label: publicMode ? null : `${metricData[1]?.name} (${metricData[1]?.unit?.prefix}${metricData[1]?.unit?.base})`,
           values: (u, vals) => vals.map((v) => formatNumber(v)),
         },
       ],
@@ -489,7 +493,7 @@
         //     };
         //   },
         // ],
-        draw: [
+        draw: publicMode ? null : [
           (u) => {
             // Draw plot type label:
             let textl = `Cluster ${cluster}`
@@ -523,7 +527,7 @@
             // let y = u.valToPos(thresholds.normal, "y", true);
             // u.ctx.save();
             // u.ctx.lineWidth = lineWidth;
-            // u.ctx.strokeStyle = normalLineColor;
+            // u.ctx.strokeStyle = "#000000";
             // u.ctx.setLineDash([5, 5]);
             // u.ctx.beginPath();
             // u.ctx.moveTo(u.bbox.left, y);
@@ -567,7 +571,7 @@
       scales: {
         x: { time: false },
         y1: { auto: true },
-        y1: { auto: true },
+        y2: { auto: true },
       },
       legend: {
         // Display legend until max 12 Y-dataseries
@@ -581,9 +585,6 @@
 
     // Handle Render
     if (!uplot) {
-      opts.width = ren_width;
-      opts.height = ren_height;
-      
       // if (plotSync) {
       //   opts.cursor.sync = { 
       //     key: plotSync.key,
