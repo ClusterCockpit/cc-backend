@@ -58,10 +58,6 @@
   let to = $state(new Date(Date.now()));
   let stackedFrom = $state(Math.floor(Date.now() / 1000) - 14400);
   let colWidthJobs = $state(0);
-  let colWidthRoof = $state(0);
-  let colWidthTotals =$state(0);
-  let colWidthStacked1 = $state(0);
-  let colWidthStacked2 = $state(0);
 
   /* Derived */
   // States for Stacked charts
@@ -531,13 +527,11 @@
         </Col>
 
         <Col> <!-- Job Roofline -->
-          <div bind:clientWidth={colWidthRoof}>
+          <div>
             {#key $statusQuery?.data?.jobsMetricStats}
               <Roofline
                 useColors={true}
                 allowSizeChange
-                width={colWidthRoof}
-                height={300}
                 subCluster={clusterInfo?.roofData ? clusterInfo.roofData : null}
                 roofData={transformJobsStatsToData($statusQuery?.data?.jobsMetricStats)}
                 jobsData={transformJobsStatsToInfo($statusQuery?.data?.jobsMetricStats)}
@@ -547,24 +541,23 @@
         </Col>
 
         <Col> <!-- Total Cluster Metric in Time SUMS-->
-          <div bind:clientWidth={colWidthTotals}>
-            <DoubleMetric
-              width={colWidthTotals}
-              timestep={$statusQuery?.data?.clusterMetrics[0]?.timestep || 60}
-              numNodes={$statusQuery?.data?.clusterMetrics?.nodeCount || 0}
-              metricData={$statusQuery?.data?.clusterMetrics?.metrics || []}
-              cluster={presetCluster}
-              fixLinewidth={2}
-            />
+          <div>
+            {#key $statusQuery?.data?.clusterMetrics}
+              <DoubleMetric
+                timestep={$statusQuery?.data?.clusterMetrics[0]?.timestep || 60}
+                numNodes={$statusQuery?.data?.clusterMetrics?.nodeCount || 0}
+                metricData={$statusQuery?.data?.clusterMetrics?.metrics || []}
+                cluster={presetCluster}
+              />
+            {/key}
           </div>
         </Col>
 
         <Col> <!-- Stacked SchedState -->
-          <div bind:clientWidth={colWidthStacked1}>
+          <div>
             {#key $statesTimed?.data?.nodeStates}
               <Stacked
                 data={$statesTimed?.data?.nodeStates}
-                width={colWidthStacked1}
                 height={330}
                 xlabel="Time"
                 ylabel="Nodes"
@@ -577,11 +570,10 @@
         </Col>
 
         <Col> <!-- Stacked Healthstate -->
-          <div bind:clientWidth={colWidthStacked2}>
+          <div>
             {#key $statesTimed?.data?.healthStates}
               <Stacked
                 data={$statesTimed?.data?.healthStates}
-                width={colWidthStacked2}
                 height={330}
                 xlabel="Time"
                 ylabel="Nodes"

@@ -6,9 +6,6 @@
 -->
 
  <script>
-  // import {
-  //   getContext
-  // } from "svelte"
   import {
     queryStore,
     gql,
@@ -55,9 +52,6 @@
   let to = $state(new Date(Date.now()));
   let stackedFrom = $state(Math.floor(Date.now() / 1000) - 14400);
   let colWidthStates = $state(0);
-  let colWidthRoof = $state(0);
-  let colWidthTotals = $state(0);
-  let colWidthStacked = $state(0);
 
   /* Derived */
   // States for Stacked charts
@@ -522,29 +516,38 @@
           </Card>
         </Col>
 
-        <Col> <!-- Total Cluster Metric in Time SUMS-->
-          <div bind:clientWidth={colWidthTotals}>
-            <DoubleMetric
-              width={colWidthTotals}
-              timestep={$statusQuery?.data?.clusterMetrics[0]?.timestep || 60}
-              numNodes={$statusQuery?.data?.clusterMetrics?.nodeCount || 0}
-              metricData={$statusQuery?.data?.clusterMetrics?.metrics || []}
-              cluster={presetCluster}
-              fixLinewidth={2}
-            />
+        <!-- Total Cluster Metric in Time SUMS-->
+        <Col class="text-center">
+          <h5 class="mt-2 mb-0">
+            Cluster Utilization (
+            <span style="color: #0000ff;">
+              {`${$statusQuery?.data?.clusterMetrics?.metrics[0]?.name} (${$statusQuery?.data?.clusterMetrics?.metrics[0]?.unit?.prefix}${$statusQuery?.data?.clusterMetrics?.metrics[0]?.unit?.base})`}
+            </span>,
+            <span style="color: #ff0000;">
+              {`${$statusQuery?.data?.clusterMetrics?.metrics[1]?.name} (${$statusQuery?.data?.clusterMetrics?.metrics[1]?.unit?.prefix}${$statusQuery?.data?.clusterMetrics?.metrics[1]?.unit?.base})`}
+            </span>
+            )
+          </h5>
+          <div>
+            {#key $statusQuery?.data?.clusterMetrics}
+              <DoubleMetric
+                timestep={$statusQuery?.data?.clusterMetrics[0]?.timestep || 60}
+                numNodes={$statusQuery?.data?.clusterMetrics?.nodeCount || 0}
+                metricData={$statusQuery?.data?.clusterMetrics?.metrics || []}
+                publicMode
+              />
+            {/key}
           </div>
         </Col>
 
         <Col> <!-- Nodes Roofline -->
-          <div bind:clientWidth={colWidthRoof}>
+          <div>
             {#key $statusQuery?.data?.nodeMetrics}
               <Roofline
                 colorBackground
                 useColors={false}
                 useLegend={false}
                 allowSizeChange
-                width={colWidthRoof}
-                height={300}
                 cluster={presetCluster}
                 subCluster={clusterInfo?.roofData ? clusterInfo.roofData : null}
                 roofData={transformNodesStatsToData($statusQuery?.data?.nodeMetrics)}
@@ -607,11 +610,10 @@
         </Col>
 
         <Col> <!-- Stacked SchedState -->
-          <div bind:clientWidth={colWidthStacked}>
+          <div>
             {#key $statesTimed?.data?.nodeStatesTimed}
               <Stacked
                 data={$statesTimed?.data?.nodeStatesTimed}
-                width={colWidthStacked}
                 height={260}
                 ylabel="Nodes"
                 yunit = "#Count"
