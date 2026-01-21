@@ -50,7 +50,7 @@ func setup(t *testing.T) *repository.JobRepository {
 		"main": {
 	"addr":            "0.0.0.0:8080",
 	"validate": false,
-  "apiAllowedIPs": [
+  "api-allowed-ips": [
     "*"
   ]},
 	"archive": {
@@ -104,7 +104,7 @@ func setup(t *testing.T) *repository.JobRepository {
 		t.Fatal(err)
 	}
 
-	repository.Connect("sqlite3", dbfilepath)
+	repository.Connect(dbfilepath)
 	return repository.GetJobRepository()
 }
 

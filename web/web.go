@@ -22,56 +22,56 @@ import (
 )
 
 type WebConfig struct {
-	JobList           JobListConfig     `json:"jobList"`
-	NodeList          NodeListConfig    `json:"nodeList"`
-	JobView           JobViewConfig     `json:"jobView"`
-	MetricConfig      MetricConfig      `json:"metricConfig"`
-	PlotConfiguration PlotConfiguration `json:"plotConfiguration"`
+	JobList           JobListConfig     `json:"job-list"`
+	NodeList          NodeListConfig    `json:"node-list"`
+	JobView           JobViewConfig     `json:"job-view"`
+	MetricConfig      MetricConfig      `json:"metric-config"`
+	PlotConfiguration PlotConfiguration `json:"plot-configuration"`
 }
 
 type JobListConfig struct {
-	UsePaging     bool `json:"usePaging"`
-	ShowFootprint bool `json:"showFootprint"`
+	UsePaging     bool `json:"use-paging"`
+	ShowFootprint bool `json:"show-footprint"`
 }
 
 type NodeListConfig struct {
-	UsePaging bool `json:"usePaging"`
+	UsePaging bool `json:"use-paging"`
 }
 
 type JobViewConfig struct {
-	ShowPolarPlot bool `json:"showPolarPlot"`
-	ShowFootprint bool `json:"showFootprint"`
-	ShowRoofline  bool `json:"showRoofline"`
-	ShowStatTable bool `json:"showStatTable"`
+	ShowPolarPlot bool `json:"show-polar-plot"`
+	ShowFootprint bool `json:"show-footprint"`
+	ShowRoofline  bool `json:"show-roofline"`
+	ShowStatTable bool `json:"show-stat-table"`
 }
 
 type MetricConfig struct {
-	JobListMetrics      []string        `json:"jobListMetrics"`
-	JobViewPlotMetrics  []string        `json:"jobViewPlotMetrics"`
-	JobViewTableMetrics []string        `json:"jobViewTableMetrics"`
+	JobListMetrics      []string        `json:"job-list-metrics"`
+	JobViewPlotMetrics  []string        `json:"job-view-plot-metrics"`
+	JobViewTableMetrics []string        `json:"job-view-table-metrics"`
 	Clusters            []ClusterConfig `json:"clusters"`
 }
 
 type ClusterConfig struct {
 	Name                string             `json:"name"`
-	JobListMetrics      []string           `json:"jobListMetrics"`
-	JobViewPlotMetrics  []string           `json:"jobViewPlotMetrics"`
-	JobViewTableMetrics []string           `json:"jobViewTableMetrics"`
-	SubClusters         []SubClusterConfig `json:"subClusters"`
+	JobListMetrics      []string           `json:"job-list-metrics"`
+	JobViewPlotMetrics  []string           `json:"job-view-plot-metrics"`
+	JobViewTableMetrics []string           `json:"job-view-table-metrics"`
+	SubClusters         []SubClusterConfig `json:"sub-clusters"`
 }
 
 type SubClusterConfig struct {
 	Name                string   `json:"name"`
-	JobListMetrics      []string `json:"jobListMetrics"`
-	JobViewPlotMetrics  []string `json:"jobViewPlotMetrics"`
-	JobViewTableMetrics []string `json:"jobViewTableMetrics"`
+	JobListMetrics      []string `json:"job-list-metrics"`
+	JobViewPlotMetrics  []string `json:"job-view-plot-metrics"`
+	JobViewTableMetrics []string `json:"job-view-table-metrics"`
 }
 
 type PlotConfiguration struct {
-	ColorBackground bool     `json:"colorBackground"`
-	PlotsPerRow     int      `json:"plotsPerRow"`
-	LineWidth       int      `json:"lineWidth"`
-	ColorScheme     []string `json:"colorScheme"`
+	ColorBackground bool     `json:"color-background"`
+	PlotsPerRow     int      `json:"plots-per-row"`
+	LineWidth       int      `json:"line-width"`
+	ColorScheme     []string `json:"color-scheme"`
 }
 
 var UIDefaults = WebConfig{

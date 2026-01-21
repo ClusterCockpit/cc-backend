@@ -18,7 +18,7 @@ var configSchema = `
           "description": "Path to job archive for file backend",
           "type": "string"
         },
-        "dbPath": {
+        "db-path": {
           "description": "Path to SQLite database file for sqlite backend",
           "type": "string"
         },
@@ -26,11 +26,11 @@ var configSchema = `
           "description": "S3 endpoint URL (for S3-compatible services like MinIO)",
           "type": "string"
         },
-        "accessKey": {
+        "access-key": {
           "description": "S3 access key ID",
           "type": "string"
         },
-        "secretKey": {
+        "secret-key": {
           "description": "S3 secret access key",
           "type": "string"
         },
@@ -42,7 +42,7 @@ var configSchema = `
           "description": "AWS region for S3 bucket",
           "type": "string"
         },
-        "usePathStyle": {
+        "use-path-style": {
           "description": "Use path-style S3 URLs (required for MinIO and some S3-compatible services)",
           "type": "boolean"
         },
@@ -59,7 +59,7 @@ var configSchema = `
               "type": "string",
               "enum": ["none", "delete", "move"]
             },
-            "includeDB": {
+            "include-db": {
               "description": "Also remove jobs from database",
               "type": "boolean"
             },

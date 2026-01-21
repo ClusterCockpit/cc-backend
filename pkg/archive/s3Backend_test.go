@@ -241,11 +241,11 @@ func TestGetS3Directory(t *testing.T) {
 func TestS3ArchiveConfigParsing(t *testing.T) {
 	rawConfig := json.RawMessage(`{
 		"endpoint": "http://localhost:9000",
-		"accessKey": "minioadmin",
-		"secretKey": "minioadmin",
+		"access-key": "minioadmin",
+		"secret-key": "minioadmin",
 		"bucket": "test-bucket",
 		"region": "us-east-1",
-		"usePathStyle": true
+		"use-path-style": true
 	}`)
 
 	var cfg S3ArchiveConfig

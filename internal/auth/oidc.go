@@ -24,8 +24,8 @@ import (
 
 type OpenIDConfig struct {
 	Provider          string `json:"provider"`
-	SyncUserOnLogin   bool   `json:"syncUserOnLogin"`
-	UpdateUserOnLogin bool   `json:"updateUserOnLogin"`
+	SyncUserOnLogin   bool   `json:"sync-user-on-login"`
+	UpdateUserOnLogin bool   `json:"update-user-on-login"`
 }
 
 type OIDC struct {

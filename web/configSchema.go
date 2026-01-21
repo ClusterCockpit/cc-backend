@@ -8,57 +8,57 @@ package web
 const configSchema = `{
   "type": "object",
   "properties": {
-    "jobList": {
+    "job-list": {
       "description": "Job list defaults. Applies to user- and jobs views.",
       "type": "object",
       "properties": {
-        "usePaging": {
+        "use-paging": {
           "description": "If classic paging is used instead of continuous scrolling by default.",
           "type": "boolean"
         },
-        "showFootprint": {
+        "show-footprint": {
           "description": "If footprint bars are shown as first column by default.",
           "type": "boolean"
         }
       }
     },
-    "nodeList": {
+    "node-list": {
       "description": "Node list defaults. Applies to node list view.",
       "type": "object",
       "properties": {
-        "usePaging": {
+        "use-paging": {
           "description": "If classic paging is used instead of continuous scrolling by default.",
           "type": "boolean"
         }
       }
     },
-    "jobView": {
+    "job-view": {
       "description": "Job view defaults.",
       "type": "object",
       "properties": {
-        "showPolarPlot": {
+        "show-polar-plot": {
           "description": "If the job metric footprints polar plot is shown by default.",
           "type": "boolean"
         },
-        "showFootprint": {
+        "show-footprint": {
           "description": "If the annotated job metric footprint bars are shown by default.",
           "type": "boolean"
         },
-        "showRoofline": {
+        "show-roofline": {
           "description": "If the job roofline plot is shown by default.",
           "type": "boolean"
         },
-        "showStatTable": {
+        "show-stat-table": {
           "description": "If the job metric statistics table is shown by default.",
           "type": "boolean"
         }
       }
     },
-    "metricConfig": {
+    "metric-config": {
       "description": "Global initial metric selections for primary views of all clusters.",
       "type": "object",
       "properties": {
-        "jobListMetrics": {
+        "job-list-metrics": {
           "description": "Initial metrics shown for new users in job lists (User and jobs view).",
           "type": "array",
           "items": {
@@ -66,7 +66,7 @@ const configSchema = `{
             "minItems": 1
           }
         },
-        "jobViewPlotMetrics": {
+        "job-view-plot-metrics": {
           "description": "Initial metrics shown for new users as job view metric plots.",
           "type": "array",
           "items": {
@@ -74,7 +74,7 @@ const configSchema = `{
             "minItems": 1
           }
         },
-        "jobViewTableMetrics": {
+        "job-view-table-metrics": {
           "description": "Initial metrics shown for new users in job view statistics table.",
           "type": "array",
           "items": {
@@ -91,7 +91,7 @@ const configSchema = `{
               "name": {
                 "description": "The name of the cluster."
               },
-              "jobListMetrics": {
+              "job-list-metrics": {
                 "description": "Initial metrics shown for new users in job lists (User and jobs view) for subcluster.",
                 "type": "array",
                 "items": {
@@ -99,7 +99,7 @@ const configSchema = `{
                   "minItems": 1
                 }
               },
-              "jobViewPlotMetrics": {
+              "job-view-plot-metrics": {
                 "description": "Initial metrics shown for new users as job view timeplots for subcluster.",
                 "type": "array",
                 "items": {
@@ -107,7 +107,7 @@ const configSchema = `{
                   "minItems": 1
                 }
               },
-              "jobViewTableMetrics": {
+              "job-view-table-metrics": {
                 "description": "Initial metrics shown for new users in job view statistics table for subcluster.",
                 "type": "array",
                 "items": {
@@ -115,7 +115,7 @@ const configSchema = `{
                   "minItems": 1
                 }
               },
-              "subClusters": {
+              "sub-clusters": {
                 "description": "The array of overrides per subcluster.",
                 "type": "array",
                 "items": {
@@ -125,7 +125,7 @@ const configSchema = `{
                       "description": "The name of the subcluster.",
                       "type": "string"
                     },
-                    "jobListMetrics": {
+                    "job-list-metrics": {
                       "description": "Initial metrics shown for new users in job lists (User and jobs view) for subcluster.",
                       "type": "array",
                       "items": {
@@ -133,7 +133,7 @@ const configSchema = `{
                         "minItems": 1
                       }
                     },
-                    "jobViewPlotMetrics": {
+                    "job-view-plot-metrics": {
                       "description": "Initial metrics shown for new users as job view timeplots for subcluster.",
                       "type": "array",
                       "items": {
@@ -141,7 +141,7 @@ const configSchema = `{
                         "minItems": 1
                       }
                     },
-                    "jobViewTableMetrics": {
+                    "job-view-table-metrics": {
                       "description": "Initial metrics shown for new users in job view statistics table for subcluster.",
                       "type": "array",
                       "items": {
@@ -155,29 +155,29 @@ const configSchema = `{
                 }
               }
             },
-            "required": ["name", "subClusters"],
+            "required": ["name", "sub-clusters"],
             "minItems": 1
           }
         }
       }
     },
-    "plotConfiguration": {
+    "plot-configuration": {
       "description": "Initial settings for plot render options.",
       "type": "object",
       "properties": {
-        "colorBackground": {
+        "color-background": {
           "description": "If the metric plot backgrounds are initially colored by threshold limits.",
           "type": "boolean"
         },
-        "plotsPerRow": {
+        "plots-per-row": {
           "description": "How many plots are initially rendered in per row. Applies to job, single node, and analysis views.",
           "type": "integer"
         },
-        "lineWidth": {
+        "line-width": {
           "description": "Initial thickness of rendered plotlines. Applies to metric plot, job compare plot and roofline.",
           "type": "integer"
         },
-        "colorScheme": {
+        "color-scheme": {
           "description": "Initial colorScheme to be used for metric plots.",
           "type": "array",
           "items": {

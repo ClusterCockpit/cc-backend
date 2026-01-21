@@ -107,7 +107,7 @@ func initConfiguration() error {
 }
 
 func initDatabase() error {
-	repository.Connect(config.Keys.DBDriver, config.Keys.DB)
+	repository.Connect(config.Keys.DB)
 	return nil
 }
 

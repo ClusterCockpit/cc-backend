@@ -26,7 +26,7 @@ func nodeTestSetup(t *testing.T) {
 		"main": {
 	"addr":            "0.0.0.0:8080",
 	"validate": false,
-  "apiAllowedIPs": [
+  "api-allowed-ips": [
     "*"
   ]
 	},
@@ -139,7 +139,7 @@ func nodeTestSetup(t *testing.T) {
 	}
 	archiveCfg := fmt.Sprintf("{\"kind\": \"file\",\"path\": \"%s\"}", jobarchive)
 
-	Connect("sqlite3", dbfilepath)
+	Connect(dbfilepath)
 
 	if err := archive.Init(json.RawMessage(archiveCfg)); err != nil {
 		t.Fatal(err)
