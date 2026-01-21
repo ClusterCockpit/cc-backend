@@ -348,282 +348,288 @@
 
 </script>
 
-<Card style="height: 98vh;">
-  <CardBody class="align-content-center p-2">
-    <Row>
+<Row>
+  <Col>
+    <Refresher
+      hideSelector
+      initially={60}
+      onRefresh={(interval) => {
+        from = new Date(Date.now() - 5 * 60 * 1000);
+        to = new Date(Date.now());
+        clusterFrom = new Date(Date.now() - (8 * 60 * 60 * 1000))
+
+        if (interval) stackedFrom += Math.floor(interval / 1000);
+        else stackedFrom += 1 // Workaround: TimeSelection not linked, just trigger new data on manual refresh
+      }}
+    />
+  </Col>
+</Row>
+
+{#if $statusQuery.fetching || $statesTimed.fetching}
+  <Row class="justify-content-center">
+    <Col xs="auto">
+      <Spinner />
+    </Col>
+  </Row>
+
+{:else if $statusQuery.error || $statesTimed.error}
+  <Row class="mb-2">
+    <Col class="d-flex justify-content-end">
+      <Button color="secondary" href="/">
+        <Icon name="x"/>
+      </Button>
+    </Col>
+  </Row>
+  <Row cols={{xs:1, md:2}}>
+    {#if $statusQuery.error}
       <Col>
-        <Refresher
-          hideSelector
-          initially={60}
-          onRefresh={(interval) => {
-            from = new Date(Date.now() - 5 * 60 * 1000);
-            to = new Date(Date.now());
-            clusterFrom = new Date(Date.now() - (8 * 60 * 60 * 1000))
-
-            if (interval) stackedFrom += Math.floor(interval / 1000);
-            else stackedFrom += 1 // Workaround: TimeSelection not linked, just trigger new data on manual refresh
-          }}
-        />
+        <Card color="danger"><CardBody>Error Requesting Status Data: {$statusQuery.error.message}</CardBody></Card>
       </Col>
-    </Row>
-    {#if $statusQuery.fetching || $statesTimed.fetching}
-      <Row class="justify-content-center">
-        <Col xs="auto">
-          <Spinner />
-        </Col>
-      </Row>
+    {/if}
+    {#if $statesTimed.error}
+      <Col>
+        <Card color="danger"><CardBody>Error Requesting Node Scheduler States: {$statesTimed.error.message}</CardBody></Card>
+      </Col>
+    {/if}
+  </Row>
 
-    {:else if $statusQuery.error || $statesTimed.error}
-      <Row class="mb-2">
-        <Col class="d-flex justify-content-end">
-          <Button color="secondary" href="/">
-            <Icon name="x"/>
-          </Button>
-        </Col>
-      </Row>
-      <Row cols={{xs:1, md:2}}>
-        {#if $statusQuery.error}
-          <Col>
-            <Card color="danger"><CardBody>Error Requesting Status Data: {$statusQuery.error.message}</CardBody></Card>
-          </Col>
-        {/if}
-        {#if $statesTimed.error}
-          <Col>
-            <Card color="danger"><CardBody>Error Requesting Node Scheduler States: {$statesTimed.error.message}</CardBody></Card>
-          </Col>
-        {/if}
-      </Row>
-
-    {:else}
-      <Row cols={{xs:1, md:2}}>
-        <Col> <!-- General Cluster Info Card -->
-           <Card class="h-100">
-            <CardHeader>
-              <Row>
-                <Col xs="11" class="text-center">
-                  <h2 class="mb-0">Cluster {presetCluster.charAt(0).toUpperCase() + presetCluster.slice(1)}</h2>
-                </Col>
-                <Col xs="1" class="d-flex justify-content-end">
-                  <Button color="light" href="/">
-                    <Icon name="x"/>
-                  </Button>
-                </Col>
-              </Row>
-            </CardHeader>
-            <CardBody>
-              <h4>CPU(s)</h4><p><strong>{[...clusterInfo?.processorTypes].join(', ')}</strong></p>
-            </CardBody>
-           </Card>
-        </Col>
-
-        <Col> <!-- Utilization Info Card -->
+{:else}
+  <!-- View Supposed to be Viewed at Max Viewport Size -->
+  <div class="align-content-center p-2">
+    <Row cols={{xs:1, md:2}} style="height: 24vh; margin-bottom: 1rem;">
+      <Col> <!-- General Cluster Info Card -->
           <Card class="h-100">
-            <CardBody>
-              <Row class="mb-1">
-                <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
-                  <Badge color="primary" style="font-size:x-large;margin-right:0.25rem;">
-                    {clusterInfo?.runningJobs}
-                  </Badge>
-                  <div style="font-size:large;">
-                    Running Jobs
-                  </div>
-                </Col>
-                <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
-                  <Badge color="primary" style="font-size:x-large;margin-right:0.25rem;">
-                    {clusterInfo?.activeUsers}
-                  </Badge>
-                  <div style="font-size:large;">
-                    Active Users
-                  </div>
-                </Col>
-                <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
-                  <Badge color="primary" style="font-size:x-large;margin-right:0.25rem;">
-                    {clusterInfo?.allocatedNodes}
-                  </Badge>
-                  <div style="font-size:large;">
-                    Active Nodes
-                  </div>
-                </Col>
-              </Row>
-              <Row class="mt-1 mb-2">
+          <CardHeader>
+            <Row>
+              <Col xs="11" class="text-center">
+                <h2 class="mb-0">Cluster {presetCluster.charAt(0).toUpperCase() + presetCluster.slice(1)}</h2>
+              </Col>
+              <Col xs="1" class="d-flex justify-content-end">
+                <Button color="light" href="/">
+                  <Icon name="x"/>
+                </Button>
+              </Col>
+            </Row>
+          </CardHeader>
+          <CardBody>
+            <h4>CPU(s)</h4><p><strong>{[...clusterInfo?.processorTypes].join(', ')}</strong></p>
+          </CardBody>
+          </Card>
+      </Col>
+
+      <Col> <!-- Utilization Info Card -->
+        <Card class="h-100">
+          <CardBody>
+            <Row class="mb-1">
+              <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
+                <Badge color="primary" style="font-size:x-large;margin-right:0.25rem;">
+                  {clusterInfo?.runningJobs}
+                </Badge>
+                <div style="font-size:large;">
+                  Running Jobs
+                </div>
+              </Col>
+              <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
+                <Badge color="primary" style="font-size:x-large;margin-right:0.25rem;">
+                  {clusterInfo?.activeUsers}
+                </Badge>
+                <div style="font-size:large;">
+                  Active Users
+                </div>
+              </Col>
+              <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
+                <Badge color="primary" style="font-size:x-large;margin-right:0.25rem;">
+                  {clusterInfo?.allocatedNodes}
+                </Badge>
+                <div style="font-size:large;">
+                  Active Nodes
+                </div>
+              </Col>
+            </Row>
+            <Row class="mt-1 mb-2">
+              <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
+                <Badge color="secondary" style="font-size:x-large;margin-right:0.25rem;">
+                  {clusterInfo?.flopRate} {clusterInfo?.flopRateUnit}
+                </Badge>
+                <div style="font-size:large;">
+                  Total Flop Rate
+                </div>
+              </Col>
+              <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
+                <Badge color="secondary" style="font-size:x-large;margin-right:0.25rem;">
+                  {clusterInfo?.memBwRate} {clusterInfo?.memBwRateUnit}
+                </Badge>
+                <div style="font-size:large;">
+                  Total Memory Bandwidth
+                </div>
+              </Col>
+              {#if clusterInfo?.totalAccs !== 0}
                 <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
                   <Badge color="secondary" style="font-size:x-large;margin-right:0.25rem;">
-                    {clusterInfo?.flopRate} {clusterInfo?.flopRateUnit}
+                    {clusterInfo?.gpuPwr} {clusterInfo?.gpuPwrUnit}
                   </Badge>
                   <div style="font-size:large;">
-                    Total Flop Rate
+                    Total GPU Power
                   </div>
                 </Col>
+              {:else}
                 <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
                   <Badge color="secondary" style="font-size:x-large;margin-right:0.25rem;">
-                    {clusterInfo?.memBwRate} {clusterInfo?.memBwRateUnit}
+                    {clusterInfo?.cpuPwr} {clusterInfo?.cpuPwrUnit}
                   </Badge>
                   <div style="font-size:large;">
-                    Total Memory Bandwidth
+                    Total CPU Power
                   </div>
                 </Col>
-                {#if clusterInfo?.totalAccs !== 0}
-                  <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
-                    <Badge color="secondary" style="font-size:x-large;margin-right:0.25rem;">
-                      {clusterInfo?.gpuPwr} {clusterInfo?.gpuPwrUnit}
-                    </Badge>
-                    <div style="font-size:large;">
-                      Total GPU Power
-                    </div>
-                  </Col>
-                {:else}
-                  <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
-                    <Badge color="secondary" style="font-size:x-large;margin-right:0.25rem;">
-                      {clusterInfo?.cpuPwr} {clusterInfo?.cpuPwrUnit}
-                    </Badge>
-                    <div style="font-size:large;">
-                      Total CPU Power
-                    </div>
-                  </Col>
-                {/if}
-              </Row>
+              {/if}
+            </Row>
+            <Row class="my-1 align-items-baseline">
+              <Col xs={2} style="font-size:large;">
+                Active Cores
+              </Col>
+              <Col xs={8}>
+                <Progress multi max={clusterInfo?.totalCores} style="height:2.5rem;font-size:x-large;">
+                  <Progress bar color="success" value={clusterInfo?.allocatedCores} title={`${clusterInfo?.allocatedCores} active`}>{formatNumber(clusterInfo?.allocatedCores)}</Progress>
+                  <Progress bar color="light" value={clusterInfo?.idleCores} title={`${clusterInfo?.idleCores} idle`}>{formatNumber(clusterInfo?.idleCores)}</Progress>
+                </Progress>
+              </Col>
+              <Col xs={2} style="font-size:large;">
+                Idle Cores
+              </Col>
+            </Row>
+            {#if clusterInfo?.totalAccs !== 0}
               <Row class="my-1 align-items-baseline">
                 <Col xs={2} style="font-size:large;">
-                  Active Cores
+                  Active GPU
                 </Col>
                 <Col xs={8}>
-                  <Progress multi max={clusterInfo?.totalCores} style="height:2.5rem;font-size:x-large;">
-                    <Progress bar color="success" value={clusterInfo?.allocatedCores} title={`${clusterInfo?.allocatedCores} active`}>{formatNumber(clusterInfo?.allocatedCores)}</Progress>
-                    <Progress bar color="light" value={clusterInfo?.idleCores} title={`${clusterInfo?.idleCores} idle`}>{formatNumber(clusterInfo?.idleCores)}</Progress>
+                  <Progress multi max={clusterInfo?.totalAccs} style="height:2.5rem;font-size:x-large;">
+                    <Progress bar color="success" value={clusterInfo?.allocatedAccs} title={`${clusterInfo?.allocatedAccs} active`}>{formatNumber(clusterInfo?.allocatedAccs)}</Progress>
+                    <Progress bar color="light" value={clusterInfo?.idleAccs} title={`${clusterInfo?.idleAccs} idle`}>{formatNumber(clusterInfo?.idleAccs)}</Progress>
                   </Progress>
                 </Col>
                 <Col xs={2} style="font-size:large;">
-                  Idle Cores
+                  Idle GPU
                 </Col>
               </Row>
-              {#if clusterInfo?.totalAccs !== 0}
-                <Row class="my-1 align-items-baseline">
-                  <Col xs={2} style="font-size:large;">
-                    Active GPU
-                  </Col>
-                  <Col xs={8}>
-                    <Progress multi max={clusterInfo?.totalAccs} style="height:2.5rem;font-size:x-large;">
-                      <Progress bar color="success" value={clusterInfo?.allocatedAccs} title={`${clusterInfo?.allocatedAccs} active`}>{formatNumber(clusterInfo?.allocatedAccs)}</Progress>
-                      <Progress bar color="light" value={clusterInfo?.idleAccs} title={`${clusterInfo?.idleAccs} idle`}>{formatNumber(clusterInfo?.idleAccs)}</Progress>
-                    </Progress>
-                  </Col>
-                  <Col xs={2} style="font-size:large;">
-                    Idle GPU
-                  </Col>
-                </Row>
-              {/if}
-            </CardBody>
-          </Card>
-        </Col>
-
-        <!-- Total Cluster Metric in Time SUMS-->
-        <Col class="text-center">
-          <h5 class="mt-2 mb-0">
-            Cluster Utilization (
-            <span style="color: #0000ff;">
-              {`${$statusQuery?.data?.clusterMetrics?.metrics[0]?.name} (${$statusQuery?.data?.clusterMetrics?.metrics[0]?.unit?.prefix}${$statusQuery?.data?.clusterMetrics?.metrics[0]?.unit?.base})`}
-            </span>,
-            <span style="color: #ff0000;">
-              {`${$statusQuery?.data?.clusterMetrics?.metrics[1]?.name} (${$statusQuery?.data?.clusterMetrics?.metrics[1]?.unit?.prefix}${$statusQuery?.data?.clusterMetrics?.metrics[1]?.unit?.base})`}
-            </span>
-            )
-          </h5>
-          <div>
-            {#key $statusQuery?.data?.clusterMetrics}
-              <DoubleMetric
-                timestep={$statusQuery?.data?.clusterMetrics[0]?.timestep || 60}
-                numNodes={$statusQuery?.data?.clusterMetrics?.nodeCount || 0}
-                metricData={$statusQuery?.data?.clusterMetrics?.metrics || []}
-                publicMode
-              />
-            {/key}
-          </div>
-        </Col>
-
-        <Col> <!-- Nodes Roofline -->
-          <div>
-            {#key $statusQuery?.data?.nodeMetrics}
-              <Roofline
-                colorBackground
-                useColors={false}
-                useLegend={false}
-                allowSizeChange
-                cluster={presetCluster}
-                subCluster={clusterInfo?.roofData ? clusterInfo.roofData : null}
-                roofData={transformNodesStatsToData($statusQuery?.data?.nodeMetrics)}
-                nodesData={transformNodesStatsToInfo($statusQuery?.data?.nodeMetrics)}
-                fixTitle="Node Utilization"
-                yMinimum={1.0}
-              />
-            {/key}
-          </div>
-        </Col>
-        <Col> <!-- Pie Last States -->
-          <Row>
-            {#if refinedStateData.length > 0}
-              <Col class="px-3 mt-2 mt-lg-0">
-                <div bind:clientWidth={colWidthStates}>
-                  {#key refinedStateData}
-                    <Pie
-                      canvasId="hpcpie-slurm"
-                      size={colWidthStates * 0.66}
-                      sliceLabel="Nodes"
-                      quantities={refinedStateData.map(
-                        (sd) => sd.count,
-                      )}
-                      entities={refinedStateData.map(
-                        (sd) => sd.state,
-                      )}
-                      fixColors={refinedStateData.map(
-                        (sd) => colors['nodeStates'][sd.state],
-                      )}
-                    />
-                  {/key}
-                </div>
-              </Col>
-              <Col class="px-4 py-2">
-                {#key refinedStateData}
-                  <Table>
-                    <tr class="mb-2">
-                      <th></th>
-                      <th class="h4">State</th>
-                      <th class="h4">Count</th>
-                    </tr>
-                    {#each refinedStateData as sd, i}
-                      <tr>
-                        <td><Icon name="circle-fill" style="color: {colors['nodeStates'][sd.state]}; font-size: 30px;"/></td>
-                        <td class="h5">{sd.state.charAt(0).toUpperCase() + sd.state.slice(1)}</td>
-                        <td class="h5">{sd.count}</td>
-                      </tr>
-                    {/each}
-                  </Table>
-                {/key}
-              </Col>
-            {:else}
-              <Col>
-                <Card body color="warning" class="mx-4 my-2"
-                  >Cannot render state status: No state data returned for <code>Pie Chart</code></Card
-                >
-              </Col>
             {/if}
-          </Row>
-        </Col>
+          </CardBody>
+        </Card>
+      </Col>
+    </Row>
 
-        <Col> <!-- Stacked SchedState -->
-          <div>
-            {#key $statesTimed?.data?.nodeStatesTimed}
-              <Stacked
-                data={$statesTimed?.data?.nodeStatesTimed}
-                height={260}
-                ylabel="Nodes"
-                yunit = "#Count"
-                title = "Cluster Status"
-                stateType = "Node"
-              />
-            {/key}
-          </div>
-        </Col>
-      </Row>
-    {/if}
-  </CardBody>
-</Card>
+    <Row cols={{xs:1, md:2}} style="height: 35vh; margin-bottom: 1rem;">
+      <!-- Total Cluster Metric in Time SUMS-->
+      <Col class="text-center">
+        <h5 class="mt-2 mb-0">
+          Cluster Utilization (
+          <span style="color: #0000ff;">
+            {`${$statusQuery?.data?.clusterMetrics?.metrics[0]?.name} (${$statusQuery?.data?.clusterMetrics?.metrics[0]?.unit?.prefix}${$statusQuery?.data?.clusterMetrics?.metrics[0]?.unit?.base})`}
+          </span>,
+          <span style="color: #ff0000;">
+            {`${$statusQuery?.data?.clusterMetrics?.metrics[1]?.name} (${$statusQuery?.data?.clusterMetrics?.metrics[1]?.unit?.prefix}${$statusQuery?.data?.clusterMetrics?.metrics[1]?.unit?.base})`}
+          </span>
+          )
+        </h5>
+        <div>
+          {#key $statusQuery?.data?.clusterMetrics}
+            <DoubleMetric
+              timestep={$statusQuery?.data?.clusterMetrics[0]?.timestep || 60}
+              numNodes={$statusQuery?.data?.clusterMetrics?.nodeCount || 0}
+              metricData={$statusQuery?.data?.clusterMetrics?.metrics || []}
+              publicMode
+            />
+          {/key}
+        </div>
+      </Col>
+
+      <Col> <!-- Nodes Roofline -->
+        <div>
+          {#key $statusQuery?.data?.nodeMetrics}
+            <Roofline
+              colorBackground
+              useColors={false}
+              useLegend={false}
+              allowSizeChange
+              cluster={presetCluster}
+              subCluster={clusterInfo?.roofData ? clusterInfo.roofData : null}
+              roofData={transformNodesStatsToData($statusQuery?.data?.nodeMetrics)}
+              nodesData={transformNodesStatsToInfo($statusQuery?.data?.nodeMetrics)}
+              fixTitle="Node Utilization"
+              yMinimum={1.0}
+              height={330}
+            />
+          {/key}
+        </div>
+      </Col>
+    </Row>
+
+    <Row cols={{xs:1, md:2}} style="height: 35vh;">
+      <Col> <!-- Pie Last States -->
+        <Row>
+          {#if refinedStateData.length > 0}
+            <Col class="px-3 mt-2 mt-lg-0">
+              <div bind:clientWidth={colWidthStates}>
+                {#key refinedStateData}
+                  <Pie
+                    canvasId="hpcpie-slurm"
+                    size={colWidthStates * 0.66}
+                    sliceLabel="Nodes"
+                    quantities={refinedStateData.map(
+                      (sd) => sd.count,
+                    )}
+                    entities={refinedStateData.map(
+                      (sd) => sd.state,
+                    )}
+                    fixColors={refinedStateData.map(
+                      (sd) => colors['nodeStates'][sd.state],
+                    )}
+                  />
+                {/key}
+              </div>
+            </Col>
+            <Col class="px-4 py-2">
+              {#key refinedStateData}
+                <Table>
+                  <tr class="mb-2">
+                    <th></th>
+                    <th class="h4">State</th>
+                    <th class="h4">Count</th>
+                  </tr>
+                  {#each refinedStateData as sd, i}
+                    <tr>
+                      <td><Icon name="circle-fill" style="color: {colors['nodeStates'][sd.state]}; font-size: 30px;"/></td>
+                      <td class="h5">{sd.state.charAt(0).toUpperCase() + sd.state.slice(1)}</td>
+                      <td class="h5">{sd.count}</td>
+                    </tr>
+                  {/each}
+                </Table>
+              {/key}
+            </Col>
+          {:else}
+            <Col>
+              <Card body color="warning" class="mx-4 my-2"
+                >Cannot render state status: No state data returned for <code>Pie Chart</code></Card
+              >
+            </Col>
+          {/if}
+        </Row>
+      </Col>
+
+      <Col> <!-- Stacked SchedState -->
+        <div>
+          {#key $statesTimed?.data?.nodeStatesTimed}
+            <Stacked
+              data={$statesTimed?.data?.nodeStatesTimed}
+              height={300}
+              ylabel="Nodes"
+              yunit = "#Count"
+              title = "Cluster Status"
+              stateType = "Node"
+            />
+          {/key}
+        </div>
+      </Col>
+    </Row>
+  </div>
+{/if}
