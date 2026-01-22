@@ -14,11 +14,11 @@ const configSchema = `{
       "type": "integer"
     },
     "checkpoints": {
-      "description": "Configuration for checkpointing the metrics within metric-store",
+      "description": "Configuration for checkpointing the metrics buffers",
       "type": "object",
       "properties": {
         "file-format": {
-          "description": "Specify the type of checkpoint file. There are 2 variants: 'avro' and 'json'. If nothing is specified, 'avro' is default.",
+          "description": "Specify the format for checkpoint files. There are 2 variants: 'avro' and 'json'. If nothing is specified, 'avro' is default.",
           "type": "string"
         },
         "interval": {
@@ -26,7 +26,7 @@ const configSchema = `{
           "type": "string"
         },
         "directory": {
-          "description": "Specify the parent directy in which the checkpointed files should be placed.",
+          "description": "Path in which the checkpointed files should be placed.",
           "type": "string"
         }
       },
@@ -74,7 +74,7 @@ const configSchema = `{
         "type": "object",
         "properties": {
           "subscribe-to": {
-            "description": "Channel name",
+            "description": "Subject name",
             "type": "string"
           },
           "cluster-tag": {
@@ -82,6 +82,7 @@ const configSchema = `{
             "type": "string"
           }
         }
+				"required": ["subscribe-to"]
       }
     }
   },
