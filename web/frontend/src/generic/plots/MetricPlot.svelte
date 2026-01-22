@@ -56,7 +56,6 @@
   /* Const Init */
   const clusterCockpitConfig = getContext("cc-config");
   const resampleConfig = getContext("resampling");
-  const lineColors = clusterCockpitConfig.plotConfiguration_colorScheme;
   const lineWidth = clusterCockpitConfig.plotConfiguration_lineWidth / window.devicePixelRatio;
   const cbmode = clusterCockpitConfig?.plotConfiguration_colorblindMode || false;
   const renderSleepTime = 200;
@@ -200,7 +199,7 @@
                 : scope + " #" + (i + 1),
             scale: "y",
             width: lineWidth,
-            stroke: lineColor(i, series?.length),
+            stroke: lineColor(i, clusterCockpitConfig.plotConfiguration_colorScheme),
           });
         }
         // Extended Legend For NodeList
@@ -214,7 +213,7 @@
                   : scope + " #" + (i + 1),
             scale: "y",
             width: lineWidth,
-            stroke: lineColor(i, series?.length),
+            stroke: lineColor(i, clusterCockpitConfig.plotConfiguration_colorScheme),
             values: (u, sidx, idx) => {
               // "i" = "sidx - 1" : sidx contains x-axis-data
               if (idx == null)
@@ -446,9 +445,8 @@
     return backgroundColors.normal;
   }
 
-  function lineColor(i, n) {
-    if (n && n >= lineColors.length) return lineColors[i % lineColors.length];
-    else return lineColors[Math.floor((i / n) * lineColors.length)];
+  function lineColor(index, colors) {
+    return colors[index % colors.length];
   }
 
   function render(ren_width, ren_height) {

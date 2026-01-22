@@ -229,7 +229,7 @@
             </DropdownToggle>
             <DropdownMenu class="dropdown-menu-lg-end">
               <NavbarLinks
-                {clustersNames}
+                {clusterNames}
                 {subclusterMap}
                 direction="right"
                 links={views.filter(
