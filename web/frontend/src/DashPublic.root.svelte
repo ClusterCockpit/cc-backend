@@ -510,7 +510,7 @@
       </Col>
     </Row>
 
-    <Row cols={{xs:1, md:2}} style="height: 35vh; margin-bottom: 1rem;">
+    <Row cols={{xs:1, md:2}} style="height: 34vh; margin-bottom: 1rem;">
       <!-- Total Cluster Metric in Time SUMS-->
       <Col class="text-center">
         <h5 class="mt-2 mb-0">
@@ -529,6 +529,7 @@
               timestep={$statusQuery?.data?.clusterMetrics[0]?.timestep || 60}
               numNodes={$statusQuery?.data?.clusterMetrics?.nodeCount || 0}
               metricData={$statusQuery?.data?.clusterMetrics?.metrics || []}
+              height={250}
               publicMode
             />
           {/key}
@@ -549,14 +550,14 @@
               nodesData={transformNodesStatsToInfo($statusQuery?.data?.nodeMetrics)}
               fixTitle="Node Utilization"
               yMinimum={1.0}
-              height={330}
+              height={280}
             />
           {/key}
         </div>
       </Col>
     </Row>
 
-    <Row cols={{xs:1, md:2}} style="height: 35vh;">
+    <Row cols={{xs:1, md:2}} style="height: 34vh;">
       <Col> <!-- Pie Last States -->
         <Row>
           {#if refinedStateData.length > 0}
@@ -613,7 +614,7 @@
           {#key $statesTimed?.data?.nodeStatesTimed}
             <Stacked
               data={$statesTimed?.data?.nodeStatesTimed}
-              height={300}
+              height={250}
               ylabel="Nodes"
               yunit = "#Count"
               title = "Cluster Status"
