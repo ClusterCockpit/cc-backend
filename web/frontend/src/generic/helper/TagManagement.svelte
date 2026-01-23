@@ -45,8 +45,6 @@
   } = $props();
 
   /* Const Init */
-  const isAdmin = (roles && authlevel == roles.admin);
-  const isSupport = (roles && authlevel == roles.support);
   const client = getContextClient();
 
   /* State Init */
@@ -54,12 +52,14 @@
   let allTags = getContext("tags")
   let newTagType = $state("");
   let newTagName = $state("");
-  let newTagScope = $state(username);
   let filterTerm = $state("");
   let pendingChange = $state(false);
   let isOpen = $state(false);
 
-  /* Derived Init */
+  /* Derived */
+  let newTagScope = $derived(username);
+  const isAdmin = $derived((roles && authlevel == roles.admin));
+  const isSupport = $derived((roles && authlevel == roles.support));
   const allTagsFiltered = $derived(($initialized, jobTags, fuzzySearchTags(filterTerm, allTags))); // $init und JobTags only for triggering react
   const usedTagsFiltered = $derived(matchJobTags(jobTags, allTagsFiltered, 'used', isAdmin, isSupport));
   const unusedTagsFiltered = $derived(matchJobTags(jobTags, allTagsFiltered, 'unused', isAdmin, isSupport));

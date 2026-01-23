@@ -151,7 +151,7 @@ func setup(tb testing.TB) *JobRepository {
 	dbfile := "testdata/job.db"
 	err := MigrateDB(dbfile)
 	noErr(tb, err)
-	Connect("sqlite3", dbfile)
+	Connect(dbfile)
 	return GetJobRepository()
 }
 

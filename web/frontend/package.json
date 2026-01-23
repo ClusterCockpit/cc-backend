@@ -1,6 +1,6 @@
 {
   "name": "cc-frontend",
-  "version": "1.0.0",
+  "version": "1.5.0",
   "license": "MIT",
   "scripts": {
     "build": "rollup -c",
@@ -8,13 +8,14 @@
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^29.0.0",
-    "@rollup/plugin-node-resolve": "^16.0.1",
+
+    "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^0.4.4",
     "@timohausmann/quadtree-js": "^1.2.6",
-    "rollup": "^4.54.0",
+    "rollup": "^4.55.1",
     "rollup-plugin-css-only": "^4.5.5",
     "rollup-plugin-svelte": "^7.2.3",
-    "svelte": "^5.46.1"
+    "svelte": "^5.46.4"
   },
   "dependencies": {
     "@rollup/plugin-replace": "^6.0.3",
@@ -23,7 +24,7 @@
     "chart.js": "^4.5.1",
     "date-fns": "^4.1.0",
     "graphql": "^16.12.0",
-    "mathjs": "^15.0.0",
+    "mathjs": "^15.1.0",
     "uplot": "^1.6.32",
     "wonka": "^6.3.5"
   }

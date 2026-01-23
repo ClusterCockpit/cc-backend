@@ -37,6 +37,7 @@
 
   /* State Init */
   let pendingChange = $state("none");
+  // svelte-ignore state_referenced_locally
   let tagmap = $state(presetTagmap);
 
   /* Functions */

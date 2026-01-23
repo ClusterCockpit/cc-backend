@@ -27,13 +27,15 @@
   } = $props();
 
   /* State Init */
-  let pendingValues = $state([fromPreset, toPreset]);
-  let sliderFrom = $state(Math.max(((fromPreset  == null ? sliderMin : fromPreset)  - sliderMin) / (sliderMax - sliderMin), 0.));
-  let sliderTo = $state(Math.min(((toPreset == null ? sliderMin : toPreset) - sliderMin) / (sliderMax - sliderMin), 1.));
-  let inputFieldFrom = $state(fromPreset.toString());
-  let inputFieldTo = $state(toPreset.toString());
   let leftHandle = $state();
   let sliderMain = $state();
+
+  /* Derived */
+  let pendingValues = $derived([fromPreset, toPreset]);
+  let sliderFrom = $derived(Math.max(((fromPreset  == null ? sliderMin : fromPreset)  - sliderMin) / (sliderMax - sliderMin), 0.));
+  let sliderTo = $derived(Math.min(((toPreset == null ? sliderMin : toPreset) - sliderMin) / (sliderMax - sliderMin), 1.));
+  let inputFieldFrom = $derived(fromPreset.toString());
+  let inputFieldTo = $derived(toPreset.toString());
 
   /* Var Init */
   let timeoutId = null;

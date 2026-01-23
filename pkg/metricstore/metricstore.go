@@ -37,35 +37,89 @@ import (
 	"github.com/ClusterCockpit/cc-lib/v2/util"
 )
 
+// Define a struct to hold your globals and the mutex
+type GlobalState struct {
+	mu                sync.RWMutex
+	lastRetentionTime int64
+	selectorsExcluded bool
+}
+
 var (
 	singleton  sync.Once
 	msInstance *MemoryStore
 	// shutdownFunc stores the context cancellation function created in Init
 	// and is called during Shutdown to cancel all background goroutines
-	shutdownFunc context.CancelFunc
+	shutdownFunc   context.CancelFunc
+	shutdownFuncMu sync.Mutex // Protects shutdownFunc from concurrent access
+	// Create a global instance
+	state = &GlobalState{}
 )
 
 // NodeProvider provides information about nodes currently in use by running jobs.
+//
 // This interface allows metricstore to query job information without directly
 // depending on the repository package, breaking the import cycle.
+//
+// Implementations should return nodes that are actively processing jobs started
+// before the given timestamp. These nodes will be excluded from retention-based
+// garbage collection to prevent data loss for jobs that are still running or
+// recently completed.
 type NodeProvider interface {
 	// GetUsedNodes returns a map of cluster names to sorted lists of unique hostnames
 	// that are currently in use by jobs that started before the given timestamp.
+	//
+	// Parameters:
+	//   - ts: Unix timestamp threshold - returns nodes with jobs started before this time
+	//
+	// Returns:
+	//   - Map of cluster names to lists of node hostnames that should be excluded from garbage collection
+	//   - Error if the query fails
 	GetUsedNodes(ts int64) (map[string][]string, error)
 }
 
+// Metric represents a single metric data point to be written to the store.
 type Metric struct {
-	Name         string
-	Value        schema.Float
+	Name  string
+	Value schema.Float
+	// MetricConfig contains frequency and aggregation settings for this metric.
+	// If Frequency is 0, configuration will be looked up from MemoryStore.Metrics during Write().
 	MetricConfig MetricConfig
 }
 
+// MemoryStore is the main in-memory time-series metric storage implementation.
+//
+// It organizes metrics in a hierarchical tree structure where each level represents
+// a component of the system hierarchy (e.g., cluster → host → CPU). Each level can
+// store multiple metrics as time-series buffers.
+//
+// The store is initialized as a singleton via InitMetrics() and accessed via GetMemoryStore().
+// All public methods are safe for concurrent use.
 type MemoryStore struct {
 	Metrics      map[string]MetricConfig
 	root         Level
-	nodeProvider NodeProvider // Injected dependency for querying running jobs
+	nodeProvider NodeProvider
 }
 
+// Init initializes the metric store from configuration and starts background workers.
+//
+// This function must be called exactly once before any other metricstore operations.
+// It performs the following initialization steps:
+//  1. Validates and decodes the metric store configuration
+//  2. Configures worker pool size (defaults to NumCPU/2+1, max 10)
+//  3. Loads metric configurations from all registered clusters
+//  4. Restores checkpoints within the retention window
+//  5. Starts background workers for retention, checkpointing, archiving, and monitoring
+//  6. Optionally subscribes to NATS for real-time metric ingestion
+//
+// Parameters:
+//   - rawConfig: JSON configuration for the metric store (see MetricStoreConfig)
+//   - wg: WaitGroup that will be incremented for each background goroutine started
+//
+// The function will call cclog.Fatal on critical errors during initialization.
+// Use Shutdown() to cleanly stop all background workers started by Init().
+//
+// Note: Signal handling must be implemented by the caller. Call Shutdown() when
+// receiving termination signals to ensure checkpoint data is persisted.
 func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 	startupTime := time.Now()
 
@@ -142,25 +196,30 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 	retentionGoroutines := 1
 	checkpointingGoroutines := 1
 	dataStagingGoroutines := 1
-	archivingGoroutines := 0
-	if Keys.Archive != nil {
-		archivingGoroutines = 1
-	}
-	totalGoroutines := retentionGoroutines + checkpointingGoroutines + dataStagingGoroutines + archivingGoroutines
+	archivingGoroutines := 1
+	memoryUsageTracker := 1
+
+	totalGoroutines := retentionGoroutines +
+		checkpointingGoroutines +
+		dataStagingGoroutines +
+		archivingGoroutines +
+		memoryUsageTracker
+
 	wg.Add(totalGoroutines)
 
 	Retention(wg, ctx)
 	Checkpointing(wg, ctx)
-	if Keys.Archive != nil {
-		Archiving(wg, ctx)
-	}
+	CleanUp(wg, ctx)
 	DataStaging(wg, ctx)
+	MemoryUsageTracker(wg, ctx)
 
 	// Note: Signal handling has been removed from this function.
 	// The caller is responsible for handling shutdown signals and calling
 	// the shutdown() function when appropriate.
 	// Store the shutdown function for later use by Shutdown()
+	shutdownFuncMu.Lock()
 	shutdownFunc = shutdown
+	shutdownFuncMu.Unlock()
 
 	if Keys.Subscriptions != nil {
 		err = ReceiveNats(ms, 1, ctx)
@@ -170,8 +229,17 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 	}
 }
 
-// InitMetrics creates a new, initialized instance of a MemoryStore.
-// Will panic if values in the metric configurations are invalid.
+// InitMetrics initializes the singleton MemoryStore instance with the given metric configurations.
+//
+// This function must be called before GetMemoryStore() and can only be called once due to
+// the singleton pattern. It assigns each metric an internal offset for efficient buffer indexing.
+//
+// Parameters:
+//   - metrics: Map of metric names to their configurations (frequency and aggregation strategy)
+//
+// Panics if any metric has Frequency == 0, which indicates an invalid configuration.
+//
+// After this call, the global msInstance is ready for use via GetMemoryStore().
 func InitMetrics(metrics map[string]MetricConfig) {
 	singleton.Do(func() {
 		offset := 0
@@ -198,6 +266,11 @@ func InitMetrics(metrics map[string]MetricConfig) {
 	})
 }
 
+// GetMemoryStore returns the singleton MemoryStore instance.
+//
+// Returns the initialized MemoryStore singleton. Calls cclog.Fatal if InitMetrics() was not called first.
+//
+// This function is safe for concurrent use after initialization.
 func GetMemoryStore() *MemoryStore {
 	if msInstance == nil {
 		cclog.Fatalf("[METRICSTORE]> MemoryStore not initialized!")
@@ -214,7 +287,22 @@ func (ms *MemoryStore) SetNodeProvider(provider NodeProvider) {
 	ms.nodeProvider = provider
 }
 
+// Shutdown performs a graceful shutdown of the metric store.
+//
+// This function cancels all background goroutines started by Init() and writes
+// a final checkpoint to disk before returning. It should be called when the
+// application receives a termination signal.
+//
+// The function will:
+//  1. Cancel the context to stop all background workers
+//  2. Close NATS message channels if using Avro format
+//  3. Write a final checkpoint to preserve in-memory data
+//  4. Log any errors encountered during shutdown
+//
+// Note: This function blocks until the final checkpoint is written.
 func Shutdown() {
+	shutdownFuncMu.Lock()
+	defer shutdownFuncMu.Unlock()
 	if shutdownFunc != nil {
 		shutdownFunc()
 	}
@@ -241,6 +329,17 @@ func Shutdown() {
 	cclog.Infof("[METRICSTORE]> Done! (%d files written)\n", files)
 }
 
+// Retention starts a background goroutine that periodically frees old metric data.
+//
+// This worker runs at half the retention interval and calls Free() to remove buffers
+// older than the configured retention time. It respects the NodeProvider to preserve
+// data for nodes with active jobs.
+//
+// Parameters:
+//   - wg: WaitGroup to signal completion when context is cancelled
+//   - ctx: Context for cancellation signal
+//
+// The goroutine exits when ctx is cancelled.
 func Retention(wg *sync.WaitGroup, ctx context.Context) {
 	ms := GetMemoryStore()
 
@@ -266,7 +365,12 @@ func Retention(wg *sync.WaitGroup, ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
+				state.mu.Lock()
+
 				t := time.Now().Add(-d)
+
+				state.lastRetentionTime = t.Unix()
+
 				cclog.Infof("[METRICSTORE]> start freeing buffers (older than %s)...\n", t.Format(time.RFC3339))
 
 				freed, err := Free(ms, t)
@@ -275,11 +379,125 @@ func Retention(wg *sync.WaitGroup, ctx context.Context) {
 				} else {
 					cclog.Infof("[METRICSTORE]> done: %d buffers freed\n", freed)
 				}
+
+				state.mu.Unlock()
 			}
 		}
 	}()
 }
 
+// MemoryUsageTracker starts a background goroutine that monitors memory usage.
+//
+// This worker checks memory usage every minute and force-frees buffers if memory
+// exceeds the configured cap. It protects against infinite loops by limiting
+// iterations and forcing garbage collection between attempts.
+//
+// Parameters:
+//   - wg: WaitGroup to signal completion when context is cancelled
+//   - ctx: Context for cancellation signal
+//
+// The goroutine exits when ctx is cancelled.
+func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
+	ms := GetMemoryStore()
+
+	go func() {
+		defer wg.Done()
+		d := DefaultMemoryUsageTrackerInterval
+
+		if d <= 0 {
+			return
+		}
+
+		ticker := time.NewTicker(d)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				state.mu.RLock()
+
+				memoryUsageGB := ms.SizeInGB()
+				cclog.Infof("[METRICSTORE]> current memory usage: %.2f GB\n", memoryUsageGB)
+
+				freedTotal := 0
+				var err error
+
+				// First force-free all the checkpoints that were
+				if state.lastRetentionTime != 0 && state.selectorsExcluded {
+					freedTotal, err = ms.Free(nil, state.lastRetentionTime)
+					if err != nil {
+						cclog.Errorf("[METRICSTORE]> error while force-freeing the excluded buffers: %s", err)
+					}
+
+					// Calling runtime.GC() twice in succession tp completely empty a bufferPool (sync.Pool)
+					runtime.GC()
+					runtime.GC()
+
+					cclog.Infof("[METRICSTORE]> done: %d excluded buffers force-freed\n", freedTotal)
+				}
+
+				state.mu.RUnlock()
+
+				memoryUsageGB = ms.SizeInGB()
+
+				if memoryUsageGB > float64(Keys.MemoryCap) {
+					cclog.Warnf("[METRICSTORE]> memory usage is still greater than the Memory Cap: %d GB\n", Keys.MemoryCap)
+					cclog.Warnf("[METRICSTORE]> starting to force-free the buffers from the Metric Store\n")
+
+					const maxIterations = 100
+
+					for range maxIterations {
+						memoryUsageGB = ms.SizeInGB()
+						if memoryUsageGB < float64(Keys.MemoryCap) {
+							break
+						}
+
+						freed, err := ms.ForceFree()
+						if err != nil {
+							cclog.Errorf("[METRICSTORE]> error while force-freeing the buffers: %s", err)
+						}
+						if freed == 0 {
+							cclog.Errorf("[METRICSTORE]> 0 buffers force-freed in last try, %d total buffers force-freed, memory usage of %.2f GB remains higher than the memory cap of %d GB and there are no buffers left to force-free\n", freedTotal, memoryUsageGB, Keys.MemoryCap)
+							break
+						}
+						freedTotal += freed
+
+						runtime.GC()
+					}
+
+					if memoryUsageGB >= float64(Keys.MemoryCap) {
+						cclog.Errorf("[METRICSTORE]> reached maximum iterations (%d) or no more buffers to free, current memory usage: %.2f GB\n", maxIterations, memoryUsageGB)
+					} else {
+						cclog.Infof("[METRICSTORE]> done: %d buffers force-freed\n", freedTotal)
+						cclog.Infof("[METRICSTORE]> current memory usage after force-freeing the buffers: %.2f GB\n", memoryUsageGB)
+					}
+				}
+
+			}
+		}
+	}()
+}
+
+// Free removes metric data older than the given time while preserving data for active nodes.
+//
+// This function implements intelligent retention by consulting the NodeProvider (if configured)
+// to determine which nodes are currently in use by running jobs. Data for these nodes is
+// preserved even if older than the retention time.
+//
+// Parameters:
+//   - ms: The MemoryStore instance
+//   - t: Time threshold - buffers with data older than this will be freed
+//
+// Returns:
+//   - Number of buffers freed
+//   - Error if NodeProvider query fails
+//
+// Behavior:
+//   - If no NodeProvider is set: frees all buffers older than t
+//   - If NodeProvider returns empty map: frees all buffers older than t
+//   - Otherwise: preserves buffers for nodes returned by GetUsedNodes(), frees others
 func Free(ms *MemoryStore, t time.Time) (int, error) {
 	// If no NodeProvider is configured, free all buffers older than t
 	if ms.nodeProvider == nil {
@@ -291,30 +509,34 @@ func Free(ms *MemoryStore, t time.Time) (int, error) {
 		return 0, err
 	}
 
-	// excludeSelectors := make(map[string][]string, 0)
-
-	// excludeSelectors := map[string][]string{
-	// 	"alex":  {"a0122", "a0123", "a0225"},
-	// 	"fritz": {"f0201", "f0202"},
-	// }
-
 	switch lenMap := len(excludeSelectors); lenMap {
 
 	// If the length of the map returned by GetUsedNodes() is 0,
 	// then use default Free method with nil selector
 	case 0:
+		state.selectorsExcluded = false
 		return ms.Free(nil, t.Unix())
 
 	// Else formulate selectors, exclude those from the map
 	// and free the rest of the selectors
 	default:
+		state.selectorsExcluded = true
 		selectors := GetSelectors(ms, excludeSelectors)
 		return FreeSelected(ms, selectors, t)
 	}
 }
 
-// A function to free specific selectors. Used when we want to retain some specific nodes
-// beyond the retention time.
+// FreeSelected frees buffers for specific selectors while preserving others.
+//
+// This function is used when we want to retain some specific nodes beyond the retention time.
+// It iterates through the provided selectors and frees their associated buffers.
+//
+// Parameters:
+//   - ms: The MemoryStore instance
+//   - selectors: List of selector paths to free (e.g., [["cluster1", "node1"], ["cluster2", "node2"]])
+//   - t: Time threshold for freeing buffers
+//
+// Returns the total number of buffers freed and any error encountered.
 func FreeSelected(ms *MemoryStore, selectors [][]string, t time.Time) (int, error) {
 	freed := 0
 
@@ -331,8 +553,22 @@ func FreeSelected(ms *MemoryStore, selectors [][]string, t time.Time) (int, erro
 	return freed, nil
 }
 
-// This function will populate all the second last levels - meaning nodes
-// From that we can exclude the specific selectosr/node we want to retain.
+// GetSelectors returns all selectors at depth 2 (cluster/node level) that are NOT in the exclusion map.
+//
+// This function generates a list of selectors whose buffers should be freed by excluding
+// selectors that correspond to nodes currently in use by running jobs.
+//
+// Parameters:
+//   - ms: The MemoryStore instance
+//   - excludeSelectors: Map of cluster names to node hostnames that should NOT be freed
+//
+// Returns a list of selectors ([]string paths) that can be safely freed.
+//
+// Example:
+//
+//	If the tree has paths ["emmy", "node001"] and ["emmy", "node002"],
+//	and excludeSelectors contains {"emmy": ["node001"]},
+//	then only [["emmy", "node002"]] is returned.
 func GetSelectors(ms *MemoryStore, excludeSelectors map[string][]string) [][]string {
 	allSelectors := ms.GetPaths(2)
 
@@ -361,9 +597,6 @@ func GetSelectors(ms *MemoryStore, excludeSelectors map[string][]string) [][]str
 		}
 	}
 
-	// fmt.Printf("All selectors: %#v\n\n", allSelectors)
-	// fmt.Printf("filteredSelectors: %#v\n\n", filteredSelectors)
-
 	return filteredSelectors
 }
 
@@ -386,6 +619,7 @@ func (m *MemoryStore) Write(selector []string, ts int64, metrics []Metric) error
 		if metric.MetricConfig.Frequency == 0 {
 			metric.MetricConfig, ok = m.Metrics[metric.Name]
 			if !ok {
+				cclog.Debugf("[METRICSTORE]> Unknown metric '%s' in Write() - skipping", metric.Name)
 				metric.MetricConfig.Frequency = 0
 			}
 			metrics[i] = metric
@@ -506,6 +740,12 @@ func (m *MemoryStore) Free(selector []string, t int64) (int, error) {
 	return m.GetLevel(selector).free(t)
 }
 
+// Free releases all buffers for the selected level and all its children that
+// contain only values older than `t`.
+func (m *MemoryStore) ForceFree() (int, error) {
+	return m.GetLevel(nil).forceFree()
+}
+
 func (m *MemoryStore) FreeAll() error {
 	for k := range m.root.children {
 		delete(m.root.children, k)
@@ -516,6 +756,10 @@ func (m *MemoryStore) FreeAll() error {
 
 func (m *MemoryStore) SizeInBytes() int64 {
 	return m.root.sizeInBytes()
+}
+
+func (m *MemoryStore) SizeInGB() float64 {
+	return float64(m.root.sizeInBytes()) / 1e9
 }
 
 // ListChildren , given a selector, returns a list of all children of the level

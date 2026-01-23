@@ -52,6 +52,7 @@
 
   /* Const Init */
   // Important: init() needs to be first const declaration or contextclient will not be initialized before "const client = ..."
+  // svelte-ignore state_referenced_locally
   const { query: initq } = init(`
     job(id: "${dbid}") {
       id, jobId, user, project, cluster, startTime,
@@ -93,6 +94,7 @@
   let totalMetrics = $state(0);
 
   /* Derived */
+  const showSummary = $derived((!!ccconfig[`jobView_showFootprint`] || !!ccconfig[`jobView_showPolarPlot`]))
   const jobMetrics = $derived(queryStore({
       client: client,
       query: query,
@@ -260,7 +262,9 @@
     {#if $initq.error}
       <Card body color="danger">{$initq.error.message}</Card>
     {:else if $initq?.data}
-      <JobSummary job={$initq.data.job}/>
+      {#if showSummary}
+        <JobSummary job={$initq.data.job}/>
+      {/if}
     {:else}
       <Spinner secondary />
     {/if}

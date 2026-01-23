@@ -40,8 +40,7 @@
     useColors = true,
     useLegend = true,
     colorBackground = false,
-    width = 600,
-    height = 380,
+    height = 300,
   } = $props();
 
   /* Const Init */
@@ -53,11 +52,12 @@
 
   /* State Init */
   let plotWrapper = $state(null);
+  let width = $state(0); // Wrapper Width
   let uplot = $state(null);
 
   /* Effect */
   $effect(() => {
-    if (allowSizeChange) sizeChanged(width, height);
+    if (allowSizeChange) onSizeChange(width, height);
   });
 
   // Copied Example Vars for Uplot Bubble
@@ -517,11 +517,11 @@
   }
 
   // Main Functions
-  function sizeChanged() {
+  function onSizeChange() {
     if (timeoutId != null) clearTimeout(timeoutId);
     timeoutId = setTimeout(() => {
       timeoutId = null;
-      if (uplot) uplot.destroy();
+      if (uplot) uplot.destroy(); // Prevents Multi-Render
       render(roofData, jobsData, nodesData);
     }, 200);
   }
@@ -995,7 +995,7 @@
 </script>
 
 {#if roofData != null}
-  <div bind:this={plotWrapper} class="p-2"></div>
+  <div bind:this={plotWrapper} bind:clientWidth={width} class="p-2"></div>
 {:else}
   <Card class="mx-4 my-2" body color="warning">Cannot render roofline: No data!</Card>
 {/if}

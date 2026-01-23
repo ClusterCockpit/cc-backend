@@ -37,7 +37,6 @@
   /* Const Init */
   const { query: initq } = init();
   const ccconfig = getContext("cc-config");
-  const presetProject = filterPresets?.project ? filterPresets.project : ""
 
   /* State Init */
   let filterComponent = $state(); // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
@@ -51,13 +50,18 @@
   let showCompare = $state(false);
   let isMetricsSelectionOpen = $state(false);
   let sorting = $state({ field: "startTime", type: "col", order: "DESC" });
-  let selectedCluster = $state(filterPresets?.cluster ? filterPresets.cluster : null);
-  let metrics = $state(filterPresets.cluster
-    ? ccconfig[`metricConfig_jobListMetrics:${filterPresets.cluster}`] ||
-      ccconfig.metricConfig_jobListMetrics
+
+  /* Derived */
+  const presetProject = $derived(filterPresets?.project ? filterPresets.project : "");
+  let selectedCluster = $derived(filterPresets?.cluster ? filterPresets.cluster : null);
+  let selectedSubCluster = $derived(filterPresets?.partition ? filterPresets.partition : null);
+  let metrics = $derived(filterPresets.cluster
+    ? filterPresets.partition
+      ? ccconfig[`metricConfig_jobListMetrics:${filterPresets.cluster}:${filterPresets.partition}`]
+      : ccconfig[`metricConfig_jobListMetrics:${filterPresets.cluster}`] || ccconfig.metricConfig_jobListMetrics
     : ccconfig.metricConfig_jobListMetrics
   );
-  let showFootprint = $state(filterPresets.cluster
+  let showFootprint = $derived(filterPresets.cluster
     ? !!ccconfig[`jobList_showFootprint:${filterPresets.cluster}`]
     : !!ccconfig.jobList_showFootprint
   );
@@ -82,6 +86,11 @@
   $effect(() => {
     // Load Metric-Selection for last selected cluster
     metrics = selectedCluster ? ccconfig[`metricConfig_jobListMetrics:${selectedCluster}`] : ccconfig.metricConfig_jobListMetrics
+	});
+
+  $effect(() => {
+    // Load Metric-Selection for last selected cluster
+    metrics = selectedSubCluster ? ccconfig[`metricConfig_jobListMetrics:${selectedCluster}:${selectedSubCluster}`] : ccconfig[`metricConfig_jobListMetrics:${selectedCluster}`]
 	});
 
   /* On Mount */
@@ -131,6 +140,9 @@
       applyFilters={(detail) => {
         selectedCluster = detail.filters[0]?.cluster
           ? detail.filters[0].cluster.eq
+          : null;
+        selectedSubCluster = detail.filters[1]?.partition
+          ? detail.filters[1].partition.eq
           : null;
         filterBuffer = [...detail.filters]
         if (showCompare) {
@@ -218,6 +230,7 @@
     bind:showFootprint
     presetMetrics={metrics}
     cluster={selectedCluster}
+    subCluster={selectedSubCluster}
     configName="metricConfig_jobListMetrics"
     footprintSelect
     applyMetrics={(newMetrics) => 

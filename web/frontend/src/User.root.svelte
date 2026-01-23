@@ -64,17 +64,7 @@
   let isSortingOpen = $state(false);
   let isMetricsSelectionOpen = $state(false);
   let sorting = $state({ field: "startTime", type: "col", order: "DESC" });
-  let selectedCluster = $state(filterPresets?.cluster ? filterPresets.cluster : null);
   let selectedHistogramsBuffer = $state({ all: (ccconfig['userView_histogramMetrics'] || []) })
-  let metrics = $state(filterPresets.cluster
-    ? ccconfig[`metricConfig_jobListMetrics:${filterPresets.cluster}`] ||
-      ccconfig.metricConfig_jobListMetrics
-    : ccconfig.metricConfig_jobListMetrics
-  );
-  let showFootprint = $state(filterPresets.cluster
-    ? !!ccconfig[`jobList_showFootprint:${filterPresets.cluster}`]
-    : !!ccconfig.jobList_showFootprint
-  );
 
   // Histogram Vars
   let isHistogramSelectionOpen = $state(false);
@@ -88,7 +78,17 @@
   // let filterBuffer = $state([]);
   // let matchedCompareJobs = $state(0);
 
-  /* Derived Vars */
+  /* Derived */
+  let selectedCluster = $derived(filterPresets?.cluster ? filterPresets.cluster : null);
+  let metrics = $derived(filterPresets.cluster
+    ? ccconfig[`metricConfig_jobListMetrics:${filterPresets.cluster}`] ||
+      ccconfig.metricConfig_jobListMetrics
+    : ccconfig.metricConfig_jobListMetrics
+  );
+  let showFootprint = $derived(filterPresets.cluster
+    ? !!ccconfig[`jobList_showFootprint:${filterPresets.cluster}`]
+    : !!ccconfig.jobList_showFootprint
+  );
   let selectedHistograms = $derived(selectedCluster ? selectedHistogramsBuffer[selectedCluster] : selectedHistogramsBuffer['all']);
   let stats = $derived(
     queryStore({

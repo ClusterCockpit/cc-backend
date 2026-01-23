@@ -23,7 +23,7 @@ func setup(t *testing.T) archive.ArchiveBackend {
 	util.CopyDir("./testdata/archive/", jobarchive)
 	archiveCfg := fmt.Sprintf("{\"kind\": \"file\",\"path\": \"%s\"}", jobarchive)
 
-	if err := archive.Init(json.RawMessage(archiveCfg), false); err != nil {
+	if err := archive.Init(json.RawMessage(archiveCfg)); err != nil {
 		t.Fatal(err)
 	}
 

@@ -57,7 +57,7 @@ export function formatUnixTime(t, withDate = false) {
             return t;
         } else {
             if (withDate) return new Date(t * 1000).toLocaleString();
-            else return new Date(t * 1000).toLocaleTimeString();
+            else return new Date(t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
         }
     }
 }

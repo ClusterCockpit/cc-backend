@@ -1,7 +1,6 @@
 {
   "main": {
-    "addr": "127.0.0.1:8080",
-    "apiAllowedIPs": ["*"]
+    "addr": "127.0.0.1:8080"
   },
   "cron": {
     "commit-job-worker": "1m",
@@ -15,8 +14,9 @@
   },
   "metric-store": {
     "checkpoints": {
-      "interval": "1h"
+      "interval": "12h"
     },
-    "retention-in-memory": "12h"
+    "retention-in-memory": "48h",
+    "memory-cap": 100
   }
 }

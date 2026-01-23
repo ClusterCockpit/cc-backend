@@ -34,9 +34,9 @@
   const clusters = getContext("clusters");
   const initialized = getContext("initialized");
 
-  /* State Init */
-  let pendingCluster = $state(presetCluster);
-  let pendingPartition = $state(presetPartition);
+  /* Derived */
+  let pendingCluster = $derived(presetCluster);
+  let pendingPartition = $derived(presetPartition);
 </script>
 
 <Modal {isOpen} toggle={() => (isOpen = !isOpen)}>

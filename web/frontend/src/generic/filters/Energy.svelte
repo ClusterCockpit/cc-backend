@@ -28,8 +28,8 @@
     setFilter,
   } = $props();
 
-  /* State Init */
-  let energyState = $state(presetEnergy);
+  /* Derived */
+  let energyState = $derived(presetEnergy);
 </script>
 
 <Modal {isOpen} toggle={() => (isOpen = !isOpen)}>

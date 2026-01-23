@@ -24,11 +24,11 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
-	"github.com/ClusterCockpit/cc-backend/internal/metricstore"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/tagger"
 	"github.com/ClusterCockpit/cc-backend/internal/taskmanager"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	"github.com/ClusterCockpit/cc-backend/pkg/metricstore"
 	"github.com/ClusterCockpit/cc-backend/pkg/nats"
 	"github.com/ClusterCockpit/cc-backend/web"
 	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
@@ -107,7 +107,7 @@ func initConfiguration() error {
 }
 
 func initDatabase() error {
-	repository.Connect(config.Keys.DBDriver, config.Keys.DB)
+	repository.Connect(config.Keys.DB)
 	return nil
 }
 
@@ -274,7 +274,7 @@ func initSubsystems() error {
 		cclog.Debug("Archive configuration not found, using default archive configuration")
 		archiveCfg = json.RawMessage(defaultArchiveConfig)
 	}
-	if err := archive.Init(archiveCfg, config.Keys.DisableArchive); err != nil {
+	if err := archive.Init(archiveCfg); err != nil {
 		return fmt.Errorf("initializing archive: %w", err)
 	}
 

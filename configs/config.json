@@ -5,17 +5,22 @@
     "https-key-file": "/etc/letsencrypt/live/url/privkey.pem",
     "user": "clustercockpit",
     "group": "clustercockpit",
-    "apiAllowedIPs": ["*"],
+    "api-allowed-ips": [
+      "*"
+    ],
     "short-running-jobs-duration": 300,
     "enable-job-taggers": true,
     "resampling": {
-      "minimumPoints": 600,
+      "minimum-points": 600,
       "trigger": 180,
-      "resolutions": [240, 60]
+      "resolutions": [
+        240,
+        60
+      ]
     },
-    "apiSubjects": {
-      "subjectJobEvent": "cc.job.event",
-      "subjectNodeState": "cc.node.state"
+    "api-subjects": {
+      "subject-job-event": "cc.job.event",
+      "subject-node-state": "cc.node.state"
     }
   },
   "nats": {
@@ -37,8 +42,8 @@
     "kind": "s3",
     "endpoint": "http://x.x.x.x",
     "bucket": "jobarchive",
-    "accessKey": "xx",
-    "secretKey": "xx",
+    "access-key": "xx",
+    "secret-key": "xx",
     "retention": {
       "policy": "move",
       "age": 365,
@@ -47,10 +52,17 @@
   },
   "metric-store": {
     "checkpoints": {
-      "interval": "1h"
+      "interval": "12h",
+      "directory": "./var/checkpoints"
     },
-    "retention-in-memory": "12h",
-    "subscriptions": [
+    "memory-cap": 100,
+    "retention-in-memory": "48h",
+    "cleanup": {
+      "mode": "archive",
+      "interval": "48h",
+      "directory": "./var/archive"
+    },
+    "nats-subscriptions": [
       {
         "subscribe-to": "hpc-nats",
         "cluster-tag": "fritz"

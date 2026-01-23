@@ -41,11 +41,11 @@
   ]);
 
   /* State Init */
-  let sorting = $state({...presetSorting})
   let activeColumnIdx = $state(0);
   let metricSortables = $state([]);
 
   /* Derived */
+  let sorting = $derived({...presetSorting})
   let sortableColumns = $derived([...fixedSortables, ...metricSortables]);
 
   /* Effect */

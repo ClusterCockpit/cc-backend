@@ -2,7 +2,6 @@
   @component Node State/Health Data Stacked Plot Component, based on uPlot; states by timestamp
 
   Properties:
-  - `width Number?`: The plot width [Default: 0]
   - `height Number?`: The plot height [Default: 300]
   - `data [Array]`: The data object [Default: null]
   - `xlabel String?`: Plot X axis label [Default: ""]
@@ -15,12 +14,11 @@
 <script>
   import uPlot from "uplot";
   import { formatUnixTime } from "../units.js";
-  import { getContext, onMount, onDestroy } from "svelte";
+  import { getContext, onDestroy } from "svelte";
   import { Card } from "@sveltestrap/sveltestrap";
 
   /* Svelte 5 Props */
   let {
-    width = 0,
     height = 300,
     data = null,
     xlabel = null,
@@ -100,12 +98,6 @@
     }
   };
 
-  // Data Prep For uPlot
-  const sortedData = data?.sort((a, b) => a.state.localeCompare(b.state)) || [];
-  const collectLabel = sortedData.map(d => d.state);
-  // Align Data to Timesteps, Introduces 'undefied' as placeholder, reiterate and set those to 0
-  const collectData = (sortedData.length > 0) ? uPlot.join(sortedData.map(d => [d.times, d.counts])).map(d => d.map(i => i ? i : 0)) : [];
-
   // STACKED CHART FUNCTIONS //
   function stack(data, omit) {
     let data2 = [];
@@ -135,17 +127,17 @@
     };
   }
 
-  function getStackedOpts(title, width, height, series, data) {
+  function getStackedOpts(optTitle, optWidth, optHeight, optSeries, optData) {
     let opts = {
-      width,
-      height,
-      title,
+      width: optWidth,
+      height: optHeight,
+      title: optTitle,
       plugins: [legendAsTooltipPlugin()],
-      series,
+      series: optSeries,
       axes: [
         {
           scale: "x",
-          space: 25, // Tick Spacing
+          // space: 25, // Tick Spacing
           rotate: 30,
           show: true,
           label: xlabel,
@@ -174,25 +166,25 @@
       }
     };
 
-    let stacked = stack(data, i => false);
+    let stacked = stack(optData, i => false);
     opts.bands = stacked.bands;
 
     opts.cursor = opts.cursor || {};
     opts.cursor.dataIdx = (u, seriesIdx, closestIdx, xValue) => {
-      return data[seriesIdx][closestIdx] == null ? null : closestIdx;
+      return optData[seriesIdx][closestIdx] == null ? null : closestIdx;
     };
 
     opts.series.forEach(s => {
       // Format Time Info from Unix TS to LocalTimeString
-      s.value = (u, v, si, i) => (si === 0) ? formatUnixTime(data[si][i]) : data[si][i];
+      s.value = (u, v, si, i) => (si === 0) ? formatUnixTime(optData[si][i]) : optData[si][i];
 
       s.points = s.points || {};
 
-      // scan raw unstacked data to return only real points
+      // scan raw unstacked optData to return only real points
       s.points.filter = (u, seriesIdx, show, gaps) => {
         if (show) {
           let pts = [];
-          data[seriesIdx].forEach((v, i) => {
+          optData[seriesIdx].forEach((v, i) => {
             v != null && pts.push(i);
           });
           return pts;
@@ -212,7 +204,7 @@
     opts.hooks = {
       setSeries: [
         (u, i) => {
-          let stacked = stack(data, i => !u.series[i].show);
+          let stacked = stack(optData, i => !u.series[i].show);
           u.delBand(null);
           stacked.bands.forEach(b => u.addBand(b));
           u.setData(stacked.data);
@@ -287,21 +279,28 @@
     };
   }
 
-  // UPLOT SERIES INIT
-  const plotSeries = [
-    {
-      label: "Time",
-      scale: "x"
-    },
-    ...collectLabel.map(l => seriesConfig[l])
-  ]
+  // UPLOT SERIES INIT: DERIVED FROM PROPS
+  // Data Prep For uPlot
+  const sortedData = $derived(data?.sort((a, b) => a.state.localeCompare(b.state)) || []);
+  const collectLabel = $derived(sortedData.map(d => d.state));
+  // Align Data to Timesteps, Introduces 'undefied' as placeholder, reiterate and set those to 0
+  const collectData = $derived.by(() => {
+    if (sortedData.length > 0) {
+      return uPlot.join(sortedData.map(d => [d.times, d.counts])).map(d => d.map(i => i ? i : 0))
+    } else {
+      return [];
+    }
+  });
+  // Build Series
+  const plotSeries = $derived([{label: "Time", scale: "x"}, ...collectLabel.map(l => seriesConfig[l])]);
 
   /* Var Init */
   let timeoutId = null;
-  let uplot = null;
 
   /* State Init */
   let plotWrapper = $state(null);
+  let width = $state(0); // Wrapper Width
+  let uplot = $state(null);
 
   /* Effects */
   $effect(() => {
@@ -311,6 +310,14 @@
   });
 
   /* Functions */
+  function onSizeChange(chg_width, chg_height) {
+    if (timeoutId != null) clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      timeoutId = null;
+      render(chg_width, chg_height);
+    }, 200);
+  }
+
   function render(ren_width, ren_height) {
     if (!uplot) {
       let { opts, data } = getStackedOpts(title, ren_width, ren_height, plotSeries, collectData);
@@ -319,22 +326,6 @@
       uplot.setSize({ width: ren_width, height: ren_height });
     }
   }
-
-  function onSizeChange(chg_width, chg_height) {
-    if (!uplot) return;
-    if (timeoutId != null) clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => {
-      timeoutId = null;
-      render(chg_width, chg_height);
-    }, 200);
-  }
-
-  /* On Mount */
-  onMount(() => {
-    if (plotWrapper) {
-      render(width, height);
-    }
-  });
 
   /* On Destroy */
   onDestroy(() => {

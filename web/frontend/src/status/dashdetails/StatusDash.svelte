@@ -41,11 +41,7 @@
   const client = getContextClient();
 
   /* State Init */
-  let cluster = $state(presetCluster);
   let pieWidth = $state(0);
-  let stackedWidth1 = $state(0);
-  let stackedWidth2 = $state(0);
-  let plotWidths = $state([]);
   let from = $state(new Date(Date.now() - 5 * 60 * 1000));
   let to = $state(new Date(Date.now()));
   let stackedFrom = $state(Math.floor(Date.now() / 1000) - 14400);
@@ -65,6 +61,7 @@
   let totalAccs = $state({});
 
   /* Derived */
+  let cluster = $derived(presetCluster);
   // States for Stacked charts
   const statesTimed = $derived(queryStore({
     client: client,
@@ -414,14 +411,13 @@
 {#if $statesTimed.data}
   <Row cols={{ md: 2 , sm: 1}} class="mb-3 justify-content-center">
     <Col class="px-3 mt-2 mt-lg-0">
-      <div bind:clientWidth={stackedWidth1}>
+      <div>
         {#key $statesTimed?.data?.nodeStates}
           <h4 class="text-center">
             {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Node States Over Time
           </h4>
           <Stacked
             data={$statesTimed?.data?.nodeStates}
-            width={stackedWidth1 * 0.95}
             xlabel="Time"
             ylabel="Nodes"
             yunit = "#Count"
@@ -432,14 +428,13 @@
       </div>
     </Col>
     <Col class="px-3 mt-2 mt-lg-0">
-      <div bind:clientWidth={stackedWidth2}>
+      <div>
         {#key $statesTimed?.data?.healthStates}
           <h4 class="text-center">
             {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Health States Over Time
           </h4>
           <Stacked
             data={$statesTimed?.data?.healthStates}
-            width={stackedWidth2 * 0.95}
             xlabel="Time"
             ylabel="Nodes"
             yunit = "#Count"
@@ -628,13 +623,11 @@
         </Card>
       </Col>
       <Col class="px-3 mt-2 mt-lg-0">
-        <div bind:clientWidth={plotWidths[i]}>
+        <div>
           {#key $statusQuery?.data?.nodeMetrics}
             <Roofline
               useColors={true}
               allowSizeChange
-              width={plotWidths[i] - 10}
-              height={300}
               cluster={cluster}
               subCluster={subCluster}
               roofData={transformNodesStatsToData($statusQuery?.data?.nodeMetrics.filter(
@@ -650,13 +643,11 @@
         </div>
       </Col>
       <Col class="px-3 mt-2 mt-lg-0">
-        <div bind:clientWidth={plotWidths[i]}>
+        <div>
           {#key $statusQuery?.data?.jobsMetricStats}
             <Roofline
               useColors={true}
               allowSizeChange
-              width={plotWidths[i] - 10}
-              height={300}
               subCluster={subCluster}
               roofData={transformJobsStatsToData($statusQuery?.data?.jobsMetricStats.filter(
                   (data) => data.subCluster == subCluster.name,

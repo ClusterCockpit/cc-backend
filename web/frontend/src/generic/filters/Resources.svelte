@@ -79,18 +79,19 @@
   let maxNumNodes = $state(128);
   let maxNumHWThreads = $state(0);
   let maxNumAccelerators = $state(0);
-  // Pending
-  let pendingNumNodes = $state(presetNumNodes);
-  let pendingNumHWThreads = $state(presetNumHWThreads);
-  let pendingNumAccelerators = $state(presetNumAccelerators);
-  let pendingNamedNode = $state(presetNamedNode);
-  let pendingNodeMatch = $state(presetNodeMatch);
-  // Changable States
-  let nodesState = $state(presetNumNodes);
-  let threadState = $state(presetNumHWThreads);
-  let accState = $state(presetNumAccelerators);
 
   /* Derived States */
+  // Pending
+  let pendingNumNodes = $derived(presetNumNodes);
+  let pendingNumHWThreads = $derived(presetNumHWThreads);
+  let pendingNumAccelerators = $derived(presetNumAccelerators);
+  let pendingNamedNode = $derived(presetNamedNode);
+  let pendingNodeMatch = $derived(presetNodeMatch);
+  // Changable States
+  let nodesState = $derived(presetNumNodes);
+  let threadState = $derived(presetNumHWThreads);
+  let accState = $derived(presetNumAccelerators);
+
   const clusters = $derived(getContext("clusters"));
   const initialized = $derived(getContext("initialized"));
   // Is Selection Active

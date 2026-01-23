@@ -50,7 +50,7 @@ func setup(t *testing.T) *repository.JobRepository {
 		"main": {
 	"addr":            "0.0.0.0:8080",
 	"validate": false,
-  "apiAllowedIPs": [
+  "api-allowed-ips": [
     "*"
   ]},
 	"archive": {
@@ -100,11 +100,11 @@ func setup(t *testing.T) *repository.JobRepository {
 
 	archiveCfg := fmt.Sprintf("{\"kind\": \"file\",\"path\": \"%s\"}", jobarchive)
 
-	if err := archive.Init(json.RawMessage(archiveCfg), config.Keys.DisableArchive); err != nil {
+	if err := archive.Init(json.RawMessage(archiveCfg)); err != nil {
 		t.Fatal(err)
 	}
 
-	repository.Connect("sqlite3", dbfilepath)
+	repository.Connect(dbfilepath)
 	return repository.GetJobRepository()
 }
 

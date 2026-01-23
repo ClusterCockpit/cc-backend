@@ -20,9 +20,9 @@ type ProgramConfig struct {
 	Addr string `json:"addr"`
 
 	// Addresses from which secured admin API endpoints can be reached, can be wildcard "*"
-	APIAllowedIPs []string `json:"apiAllowedIPs"`
+	APIAllowedIPs []string `json:"api-allowed-ips"`
 
-	APISubjects *NATSConfig `json:"apiSubjects"`
+	APISubjects *NATSConfig `json:"api-subjects"`
 
 	// Drop root permissions once .env was read and the port was taken.
 	User  string `json:"user"`
@@ -37,15 +37,8 @@ type ProgramConfig struct {
 	EmbedStaticFiles bool   `json:"embed-static-files"`
 	StaticFiles      string `json:"static-files"`
 
-	// Database driver - only 'sqlite3' is supported
-	DBDriver string `json:"db-driver"`
-
 	// Path to SQLite database file
 	DB string `json:"db"`
-
-	// Keep all metric data in the metric data repositories,
-	// do not write to the job-archive.
-	DisableArchive bool `json:"disable-archive"`
 
 	EnableJobTaggers bool `json:"enable-job-taggers"`
 
@@ -82,7 +75,7 @@ type ProgramConfig struct {
 
 type ResampleConfig struct {
 	// Minimum number of points to trigger resampling of data
-	MinimumPoints int `json:"minimumPoints"`
+	MinimumPoints int `json:"minimum-points"`
 	// Array of resampling target resolutions, in seconds; Example: [600,300,60]
 	Resolutions []int `json:"resolutions"`
 	// Trigger next zoom level at less than this many visible datapoints
@@ -90,8 +83,8 @@ type ResampleConfig struct {
 }
 
 type NATSConfig struct {
-	SubjectJobEvent  string `json:"subjectJobEvent"`
-	SubjectNodeState string `json:"subjectNodeState"`
+	SubjectJobEvent  string `json:"subject-job-event"`
+	SubjectNodeState string `json:"subject-node-state"`
 }
 
 type IntRange struct {
@@ -107,18 +100,14 @@ type TimeRange struct {
 
 type FilterRanges struct {
 	Duration  *IntRange  `json:"duration"`
-	NumNodes  *IntRange  `json:"numNodes"`
-	StartTime *TimeRange `json:"startTime"`
+	NumNodes  *IntRange  `json:"num-nodes"`
+	StartTime *TimeRange `json:"start-time"`
 }
 
 var Keys ProgramConfig = ProgramConfig{
 	Addr:                      "localhost:8080",
-	DisableAuthentication:     false,
 	EmbedStaticFiles:          true,
-	DBDriver:                  "sqlite3",
 	DB:                        "./var/job.db",
-	DisableArchive:            false,
-	Validate:                  false,
 	SessionMaxAge:             "168h",
 	StopJobsExceedingWalltime: 0,
 	ShortRunningJobsDuration:  5 * 60,

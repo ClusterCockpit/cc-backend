@@ -21,12 +21,40 @@ import (
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 )
 
-func Archiving(wg *sync.WaitGroup, ctx context.Context) {
+// Worker for either Archiving or Deleting files
+
+func CleanUp(wg *sync.WaitGroup, ctx context.Context) {
+	if Keys.Cleanup.Mode == "archive" {
+		// Run as Archiver
+		cleanUpWorker(wg, ctx,
+			Keys.Cleanup.Interval,
+			"archiving",
+			Keys.Cleanup.RootDir,
+			false,
+		)
+	} else {
+		if Keys.Cleanup.Interval == "" {
+			Keys.Cleanup.Interval = Keys.RetentionInMemory
+		}
+
+		// Run as Deleter
+		cleanUpWorker(wg, ctx,
+			Keys.Cleanup.Interval,
+			"deleting",
+			"",
+			true,
+		)
+	}
+}
+
+// runWorker takes simple values to configure what it does
+func cleanUpWorker(wg *sync.WaitGroup, ctx context.Context, interval string, mode string, cleanupDir string, delete bool) {
 	go func() {
 		defer wg.Done()
-		d, err := time.ParseDuration(Keys.Archive.ArchiveInterval)
+
+		d, err := time.ParseDuration(interval)
 		if err != nil {
-			cclog.Fatalf("[METRICSTORE]> error parsing archive interval duration: %v\n", err)
+			cclog.Fatalf("[METRICSTORE]> error parsing %s interval duration: %v\n", mode, err)
 		}
 		if d <= 0 {
 			return
@@ -41,14 +69,18 @@ func Archiving(wg *sync.WaitGroup, ctx context.Context) {
 				return
 			case <-ticker.C:
 				t := time.Now().Add(-d)
-				cclog.Infof("[METRICSTORE]> start archiving checkpoints (older than %s)...", t.Format(time.RFC3339))
-				n, err := ArchiveCheckpoints(Keys.Checkpoints.RootDir,
-					Keys.Archive.RootDir, t.Unix(), Keys.Archive.DeleteInstead)
+				cclog.Infof("[METRICSTORE]> start %s checkpoints (older than %s)...", mode, t.Format(time.RFC3339))
+
+				n, err := CleanupCheckpoints(Keys.Checkpoints.RootDir, cleanupDir, t.Unix(), delete)
 
 				if err != nil {
-					cclog.Errorf("[METRICSTORE]> archiving failed: %s", err.Error())
+					cclog.Errorf("[METRICSTORE]> %s failed: %s", mode, err.Error())
 				} else {
-					cclog.Infof("[METRICSTORE]> done: %d files zipped and moved to archive", n)
+					if delete && cleanupDir == "" {
+						cclog.Infof("[METRICSTORE]> done: %d checkpoints deleted", n)
+					} else {
+						cclog.Infof("[METRICSTORE]> done: %d files zipped and moved to archive", n)
+					}
 				}
 			}
 		}
@@ -57,9 +89,9 @@ func Archiving(wg *sync.WaitGroup, ctx context.Context) {
 
 var ErrNoNewArchiveData error = errors.New("all data already archived")
 
-// ZIP all checkpoint files older than `from` together and write them to the `archiveDir`,
-// deleting them from the `checkpointsDir`.
-func ArchiveCheckpoints(checkpointsDir, archiveDir string, from int64, deleteInstead bool) (int, error) {
+// Delete or ZIP all checkpoint files older than `from` together and write them to the `cleanupDir`,
+// deleting/moving them from the `checkpointsDir`.
+func CleanupCheckpoints(checkpointsDir, cleanupDir string, from int64, deleteInstead bool) (int, error) {
 	entries1, err := os.ReadDir(checkpointsDir)
 	if err != nil {
 		return 0, err
@@ -79,7 +111,7 @@ func ArchiveCheckpoints(checkpointsDir, archiveDir string, from int64, deleteIns
 		go func() {
 			defer wg.Done()
 			for workItem := range work {
-				m, err := archiveCheckpoints(workItem.cdir, workItem.adir, from, deleteInstead)
+				m, err := cleanupCheckpoints(workItem.cdir, workItem.adir, from, deleteInstead)
 				if err != nil {
 					cclog.Errorf("error while archiving %s/%s: %s", workItem.cluster, workItem.host, err.Error())
 					atomic.AddInt32(&errs, 1)
@@ -97,7 +129,7 @@ func ArchiveCheckpoints(checkpointsDir, archiveDir string, from int64, deleteIns
 
 		for _, de2 := range entries2 {
 			cdir := filepath.Join(checkpointsDir, de1.Name(), de2.Name())
-			adir := filepath.Join(archiveDir, de1.Name(), de2.Name())
+			adir := filepath.Join(cleanupDir, de1.Name(), de2.Name())
 			work <- workItem{
 				adir: adir, cdir: cdir,
 				cluster: de1.Name(), host: de2.Name(),
@@ -118,8 +150,8 @@ func ArchiveCheckpoints(checkpointsDir, archiveDir string, from int64, deleteIns
 	return int(n), nil
 }
 
-// Helper function for `ArchiveCheckpoints`.
-func archiveCheckpoints(dir string, archiveDir string, from int64, deleteInstead bool) (int, error) {
+// Helper function for `CleanupCheckpoints`.
+func cleanupCheckpoints(dir string, cleanupDir string, from int64, deleteInstead bool) (int, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return 0, err
@@ -143,10 +175,10 @@ func archiveCheckpoints(dir string, archiveDir string, from int64, deleteInstead
 		return n, nil
 	}
 
-	filename := filepath.Join(archiveDir, fmt.Sprintf("%d.zip", from))
+	filename := filepath.Join(cleanupDir, fmt.Sprintf("%d.zip", from))
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, CheckpointFilePerms)
 	if err != nil && os.IsNotExist(err) {
-		err = os.MkdirAll(archiveDir, CheckpointDirPerms)
+		err = os.MkdirAll(cleanupDir, CheckpointDirPerms)
 		if err == nil {
 			f, err = os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, CheckpointFilePerms)
 		}

@@ -28,8 +28,8 @@
     updateSetting
   } = $props();
 
-  /* State Init */
-  let activeRow = $state(JSON.stringify(config?.plotConfiguration_colorScheme));
+  /* Derived */
+  let activeRow = $derived(JSON.stringify(config?.plotConfiguration_colorScheme));
 
   /* Const Init */
   const colorSchemes = {

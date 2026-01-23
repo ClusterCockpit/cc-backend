@@ -14,11 +14,11 @@ const configSchema = `{
       "type": "integer"
     },
     "checkpoints": {
-      "description": "Configuration for checkpointing the metrics within metric-store",
+      "description": "Configuration for checkpointing the metrics buffers",
       "type": "object",
       "properties": {
         "file-format": {
-          "description": "Specify the type of checkpoint file. There are 2 variants: 'avro' and 'json'. If nothing is specified, 'avro' is default.",
+          "description": "Specify the format for checkpoint files. There are 2 variants: 'avro' and 'json'. If nothing is specified, 'avro' is default.",
           "type": "string"
         },
         "interval": {
@@ -26,26 +26,38 @@ const configSchema = `{
           "type": "string"
         },
         "directory": {
-          "description": "Specify the parent directy in which the checkpointed files should be placed.",
+          "description": "Path in which the checkpointed files should be placed.",
           "type": "string"
         }
       },
       "required": ["interval"]
     },
-    "archive": {
-      "description": "Configuration for archiving the already checkpointed files.",
+    "cleanup": {
+      "description": "Configuration for the cleanup process.",
       "type": "object",
       "properties": {
+        "mode": {
+          "description": "The operation mode (e.g., 'archive' or 'delete').",
+          "type": "string",
+          "enum": ["archive", "delete"] 
+        },
         "interval": {
-          "description": "Interval at which the checkpointed files should be archived.",
+          "description": "Interval at which the cleanup runs.",
           "type": "string"
         },
         "directory": {
-          "description": "Specify the directy in which the archived files should be placed.",
+          "description": "Target directory for operations.",
           "type": "string"
         }
       },
-      "required": ["interval", "directory"]
+      "if": {
+        "properties": {
+          "mode": { "const": "archive" }
+        }
+      },
+      "then": {
+        "required": ["interval", "directory"]
+      }
     },
     "retention-in-memory": {
       "description": "Keep the metrics within memory for given time interval. Retention for X hours, then the metrics would be freed.",
@@ -56,13 +68,13 @@ const configSchema = `{
       "type": "integer"
     },
     "nats-subscriptions": {
-      "description": "Array of various subscriptions. Allows to subscibe to different subjects and publishers.",
+      "description": "Array of various subscriptions. Allows to subscribe to different subjects and publishers.",
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
           "subscribe-to": {
-            "description": "Channel name",
+            "description": "Subject name",
             "type": "string"
           },
           "cluster-tag": {
@@ -70,8 +82,9 @@ const configSchema = `{
             "type": "string"
           }
         }
+				"required": ["subscribe-to"]
       }
     }
   },
-  "required": ["checkpoints", "retention-in-memory"]
+  "required": ["checkpoints", "retention-in-memory", "memory-cap"]
 }`

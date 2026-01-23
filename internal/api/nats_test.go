@@ -18,9 +18,9 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
-	"github.com/ClusterCockpit/cc-backend/internal/metricstore"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	"github.com/ClusterCockpit/cc-backend/pkg/metricstore"
 	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
@@ -36,7 +36,7 @@ func setupNatsTest(t *testing.T) *NatsAPI {
 		"main": {
 	"addr":            "0.0.0.0:8080",
 	"validate": false,
-  "apiAllowedIPs": [
+  "api-allowed-ips": [
     "*"
   ]
 	},
@@ -146,9 +146,9 @@ func setupNatsTest(t *testing.T) *NatsAPI {
 	}
 	archiveCfg := fmt.Sprintf("{\"kind\": \"file\",\"path\": \"%s\"}", jobarchive)
 
-	repository.Connect("sqlite3", dbfilepath)
+	repository.Connect(dbfilepath)
 
-	if err := archive.Init(json.RawMessage(archiveCfg), config.Keys.DisableArchive); err != nil {
+	if err := archive.Init(json.RawMessage(archiveCfg)); err != nil {
 		t.Fatal(err)
 	}
 

@@ -26,13 +26,15 @@
 
   /* Var Init */
   let user = "";
-  let project = presetProject ? presetProject : "";
   let jobName = "";
   let timeoutId = null;
 
   /* State Init */
-  let mode = $state(presetProject ? "jobName" : "project");
   let term = $state("");
+
+  /* Derived */
+  let project = $derived(presetProject ? presetProject : "");
+  let mode = $derived(presetProject ? "jobName" : "project");
 
   /* Functions */
   function modeChanged() {

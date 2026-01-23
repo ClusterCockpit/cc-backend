@@ -89,6 +89,7 @@
   };
 
   /* State Init */
+  // svelte-ignore state_referenced_locally
   let filters = $state({
     dbId: filterPresets.dbId || [],
     jobId: filterPresets.jobId || "",

@@ -6,14 +6,14 @@
 package config
 
 var configSchema = `
-	{
+{
   "type": "object",
   "properties": {
     "addr": {
       "description": "Address where the http (or https) server will listen on (for example: 'localhost:80').",
       "type": "string"
     },
-    "apiAllowedIPs": {
+    "api-allowed-ips": {
       "description": "Addresses from which secured API endpoints can be reached",
       "type": "array",
       "items": {
@@ -43,10 +43,6 @@ var configSchema = `
     "db": {
       "description": "Path to SQLite database file (e.g., './var/job.db')",
       "type": "string"
-    },
-    "disable-archive": {
-      "description": "Keep all metric data in the metric data repositories, do not write to the job-archive.",
-      "type": "boolean"
     },
     "enable-job-taggers": {
       "description": "Turn on automatic application and jobclass taggers",
@@ -102,7 +98,7 @@ var configSchema = `
       "description": "Enable dynamic zoom in frontend metric plots.",
       "type": "object",
       "properties": {
-        "minimumPoints": {
+        "minimum-points": {
           "description": "Minimum points to trigger resampling of time-series data.",
           "type": "integer"
         },
@@ -120,21 +116,20 @@ var configSchema = `
       },
       "required": ["trigger", "resolutions"]
     },
-    "apiSubjects": {
+    "api-subjects": {
       "description": "NATS subjects configuration for subscribing to job and node events.",
       "type": "object",
       "properties": {
-        "subjectJobEvent": {
+        "subject-job-event": {
           "description": "NATS subject for job events (start_job, stop_job)",
           "type": "string"
         },
-        "subjectNodeState": {
+        "subject-node-state": {
           "description": "NATS subject for node state updates",
           "type": "string"
         }
       },
-      "required": ["subjectJobEvent", "subjectNodeState"]
+      "required": ["subject-job-event", "subject-node-state"]
     }
-	},
-  "required": ["apiAllowedIPs"]
-	}`
+  }
+}`

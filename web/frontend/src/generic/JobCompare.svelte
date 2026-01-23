@@ -64,10 +64,10 @@
   let plotSync = uPlot.sync("compareJobsView");
 
   /* State Init */
-  let filter = $state([...filterBuffer] || []);
   let tableJobIDFilter = $state("");
 
   /* Derived*/
+  let filter = $derived([...filterBuffer] || []);
   const compareData = $derived(queryStore({
       client: client,
       query: compareQuery,

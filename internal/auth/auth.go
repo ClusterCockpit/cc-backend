@@ -305,8 +305,13 @@ func (auth *Authentication) SaveSession(rw http.ResponseWriter, r *http.Request,
 	if auth.SessionMaxAge != 0 {
 		session.Options.MaxAge = int(auth.SessionMaxAge.Seconds())
 	}
-	if config.Keys.HTTPSCertFile == "" && config.Keys.HTTPSKeyFile == "" {
-		cclog.Warn("HTTPS not configured - session cookies will not have Secure flag set (insecure for production)")
+	if r.TLS == nil && r.Header.Get("X-Forwarded-Proto") != "https" {
+		// If neither TLS or an encrypted reverse proxy are used, do not mark cookies as secure.
+		cclog.Warn("Authenticating with unencrypted request. Session cookies will not have Secure flag set (insecure for production)")
+		if r.Header.Get("X-Forwarded-Proto") == "" {
+			// This warning will not be printed if e.g. X-Forwarded-Proto == http
+			cclog.Warn("If you are using a reverse proxy, make sure X-Forwarded-Proto is set")
+		}
 		session.Options.Secure = false
 	}
 	session.Options.SameSite = http.SameSiteStrictMode
@@ -616,9 +621,9 @@ func securedCheck(user *schema.User, r *http.Request) error {
 	}
 	// If SplitHostPort fails, IPAddress is already just a host (no port)
 
-	// If nothing declared in config: deny all request to this api endpoint
+	// If nothing declared in config: Continue
 	if len(config.Keys.APIAllowedIPs) == 0 {
-		return fmt.Errorf("missing configuration key ApiAllowedIPs")
+		return nil
 	}
 	// If wildcard declared in config: Continue
 	if config.Keys.APIAllowedIPs[0] == "*" {

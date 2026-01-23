@@ -38,11 +38,11 @@
   const client = getContextClient();
 
   /* State Init */
-  let cluster = $state(presetCluster);
   // Histogram
   let isHistogramSelectionOpen = $state(false);
 
   /* Derived */
+  let cluster = $derived(presetCluster);
   let selectedHistograms = $derived(cluster
     ? ccconfig[`statusView_selectedHistograms:${cluster}`] || ( ccconfig['statusView_selectedHistograms'] || [] )
     : ccconfig['statusView_selectedHistograms'] || []);

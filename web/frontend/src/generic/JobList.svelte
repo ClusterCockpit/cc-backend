@@ -99,13 +99,13 @@
   /* State Init */
   let headerPaddingTop = $state(0);
   let jobs = $state([]);
-  let filter = $state([...filterBuffer]);
   let page = $state(1);
   let itemsPerPage = $state(usePaging ? (ccconfig?.jobList_jobsPerPage || 10) : 10);
   let triggerMetricRefresh = $state(false);
   let tableWidth = $state(0);
 
   /* Derived */
+  let filter = $derived([...filterBuffer]);
   let paging = $derived({ itemsPerPage, page });
   const plotWidth = $derived.by(() => {
     return Math.floor(

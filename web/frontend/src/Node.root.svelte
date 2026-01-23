@@ -54,11 +54,6 @@
   const nowEpoch = Date.now();
   const paging = { itemsPerPage: 50, page: 1 };
   const sorting = { field: "startTime", type: "col", order: "DESC" };
-  const filter = [
-    { cluster: { eq: cluster } },
-    { node: { contains: hostname } },
-    { state: ["running"] },
-  ];
   const client = getContextClient();
   const nodeMetricsQuery = gql`
     query ($cluster: String!, $nodes: [String!], $from: Time!, $to: Time!) {
@@ -111,11 +106,18 @@
   }
 
   /* State Init */
+  // svelte-ignore state_referenced_locally
   let from = $state(presetFrom ? presetFrom : new Date(nowEpoch - (4 * 3600 * 1000)));
+  // svelte-ignore state_referenced_locally
   let to = $state(presetTo ? presetTo : new Date(nowEpoch));
   let systemUnits = $state({});
 
   /* Derived */
+  const filter = $derived([
+    { cluster: { eq: cluster } },
+    { node: { contains: hostname } },
+    { state: ["running"] },
+  ]);
   const nodeMetricsData = $derived(queryStore({
       client: client,
       query: nodeMetricsQuery,

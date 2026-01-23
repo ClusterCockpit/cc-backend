@@ -181,11 +181,10 @@ type JobContainer struct {
 }
 
 var (
-	initOnce   sync.Once
-	cache      *lrucache.Cache = lrucache.New(128 * 1024 * 1024)
-	ar         ArchiveBackend
-	useArchive bool
-	mutex      sync.Mutex
+	initOnce sync.Once
+	cache    *lrucache.Cache = lrucache.New(128 * 1024 * 1024)
+	ar       ArchiveBackend
+	mutex    sync.Mutex
 )
 
 // Init initializes the archive backend with the provided configuration.
@@ -197,12 +196,10 @@ var (
 //
 // The configuration determines which backend is used (file, s3, or sqlite).
 // Returns an error if initialization fails or version is incompatible.
-func Init(rawConfig json.RawMessage, disableArchive bool) error {
+func Init(rawConfig json.RawMessage) error {
 	var err error
 
 	initOnce.Do(func() {
-		useArchive = !disableArchive
-
 		var cfg struct {
 			Kind string `json:"kind"`
 		}
@@ -378,7 +375,7 @@ func UpdateMetadata(job *schema.Job, metadata map[string]string) error {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	if job.State == schema.JobStateRunning || !useArchive {
+	if job.State == schema.JobStateRunning {
 		return nil
 	}
 
@@ -401,7 +398,7 @@ func UpdateTags(job *schema.Job, tags []*schema.Tag) error {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	if job.State == schema.JobStateRunning || !useArchive {
+	if job.State == schema.JobStateRunning {
 		return nil
 	}
 

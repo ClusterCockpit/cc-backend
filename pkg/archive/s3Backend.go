@@ -35,12 +35,12 @@ import (
 
 // S3ArchiveConfig holds the configuration for the S3 archive backend.
 type S3ArchiveConfig struct {
-	Endpoint     string `json:"endpoint"`     // S3 endpoint URL (optional, for MinIO/localstack)
-	AccessKey    string `json:"accessKey"`    // AWS access key ID
-	SecretKey    string `json:"secretKey"`    // AWS secret access key
-	Bucket       string `json:"bucket"`       // S3 bucket name
-	Region       string `json:"region"`       // AWS region
-	UsePathStyle bool   `json:"usePathStyle"` // Use path-style URLs (required for MinIO)
+	Endpoint     string `json:"endpoint"`       // S3 endpoint URL (optional, for MinIO/localstack)
+	AccessKey    string `json:"access-key"`     // AWS access key ID
+	SecretKey    string `json:"secret-key"`     // AWS secret access key
+	Bucket       string `json:"bucket"`         // S3 bucket name
+	Region       string `json:"region"`         // AWS region
+	UsePathStyle bool   `json:"use-path-style"` // Use path-style URLs (required for MinIO)
 }
 
 // S3Archive implements ArchiveBackend using AWS S3 or S3-compatible object storage.

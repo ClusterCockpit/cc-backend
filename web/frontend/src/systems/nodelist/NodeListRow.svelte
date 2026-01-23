@@ -27,17 +27,13 @@
   } = $props();
 
   /* Var Init*/
+  // svelte-ignore state_referenced_locally
   let plotSync = uPlot.sync(`nodeMetricStack-${nodeData.host}`);
 
   /* Const Init */
   const client = getContextClient();
   const paging = { itemsPerPage: 50, page: 1 };
   const sorting = { field: "startTime", type: "col", order: "DESC" };
-  const filter = [
-    { cluster: { eq: cluster } },
-    { node: { contains: nodeData.host } },
-    { state: ["running"] },
-  ];
   const nodeJobsQuery = gql`
     query (
       $filter: [JobFilter!]!
@@ -61,6 +57,11 @@
   `;
 
   /* Derived */
+  const filter = $derived([
+    { cluster: { eq: cluster } },
+    { node: { contains: nodeData.host } },
+    { state: ["running"] },
+  ]);
   const nodeJobsData = $derived(queryStore({
       client: client,
       query: nodeJobsQuery,
@@ -70,7 +71,7 @@
 
   let extendedLegendData = $derived($nodeJobsData?.data ? buildExtendedLegend() : null);
   let refinedData = $derived(nodeData?.metrics ? sortAndSelectScope(nodeData.metrics) : null);
-  let dataHealth = $derived(refinedData.filter((rd) => rd.disabled === false).map((enabled) => (enabled.data.metric.series.length > 0)));
+  let dataHealth = $derived(refinedData.filter((rd) => rd.disabled === false).map((enabled) => (enabled?.data?.metric?.series?.length > 0)));
 
   /* Functions */
   const selectScope = (nodeMetrics) =>

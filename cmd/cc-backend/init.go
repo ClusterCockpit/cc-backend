@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
@@ -35,14 +34,14 @@ const configString = `
     "addr": "127.0.0.1:8080",
     "short-running-jobs-duration": 300,
     "resampling": {
-      "minimumPoints": 600,
+      "minimum-points": 600,
       "trigger": 300,
       "resolutions": [
         240,
         60
       ]
     },
-    "apiAllowedIPs": [
+    "api-allowed-ips": [
       "*"
     ],
     "emission-constant": 317
@@ -89,7 +88,7 @@ func initEnv() {
 		cclog.Abortf("Could not create default ./var/job-archive folder with permissions '0o777'. Application initialization failed, exited.\nError: %s\n", err.Error())
 	}
 	archiveCfg := "{\"kind\": \"file\",\"path\": \"./var/job-archive\"}"
-	if err := archive.Init(json.RawMessage(archiveCfg), config.Keys.DisableArchive); err != nil {
+	if err := archive.Init(json.RawMessage(archiveCfg)); err != nil {
 		cclog.Abortf("Could not initialize job-archive, exited.\nError: %s\n", err.Error())
 	}
 }
