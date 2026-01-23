@@ -142,7 +142,7 @@
   $effect(() => {
     if ($nodesQuery?.data) {
       untrack(() => {
-        nodes = handleNodes($nodesQuery?.data?.nodeMetricsList);
+        handleNodes($nodesQuery?.data?.nodeMetricsList?.items);
       });
       selectedMetrics = [...pendingSelectedMetrics]; // Trigger Rerender in NodeListRow Only After Data is Fetched
     };
@@ -161,18 +161,18 @@
   });
 
   /* Functions */
-  function handleNodes(data) {
-    if (data) {
+  function handleNodes(newNodes) {
+    if (newNodes) {
       if (usePaging) {
         // console.log('New Paging', $state.snapshot(paging))
-        return [...data.items].sort((a, b) => a.host.localeCompare(b.host));
+        nodes = [...newNodes].sort((a, b) => a.host.localeCompare(b.host));
       } else {
         if ($state.snapshot(page) == 1) {
           // console.log('Page 1 Reset', [...data.items])
-          return [...data.items].sort((a, b) => a.host.localeCompare(b.host));
+          nodes =  [...newNodes].sort((a, b) => a.host.localeCompare(b.host));
         } else {
           // console.log('Add Nodes', $state.snapshot(nodes), [...data.items])
-          return nodes.concat([...data.items])
+          nodes =  nodes.concat([...newNodes])
         }
       }
     };
