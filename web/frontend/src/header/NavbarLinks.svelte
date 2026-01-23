@@ -92,7 +92,7 @@
           {/each}
         </DropdownMenu>
       </Dropdown>
-    {:else}
+    {:else} <!-- Lists -->
       <Dropdown nav inNavbar {direction}>
         <DropdownToggle nav caret>
           <Icon name={item.icon} />
@@ -100,7 +100,7 @@
         </DropdownToggle>
         <DropdownMenu class="dropdown-menu-lg-end">
           <DropdownItem
-            href={item.href}
+            href={`${item.href}?startTime=last30d`}
           >
             All Clusters
           </DropdownItem>
@@ -112,12 +112,12 @@
               </DropdownToggle>
               <DropdownMenu>
                 <DropdownItem class="py-1 px-2"
-                  href={`${item.href}?cluster=${cn}`}
+                  href={`${item.href}?cluster=${cn}&startTime=last30d`}
                 >
                   All Jobs
                 </DropdownItem>
                 <DropdownItem class="py-1 px-2"
-                  href={`${item.href}?cluster=${cn}&state=running`}
+                  href={`${item.href}?cluster=${cn}&state=running&startTime=last30d`}
                 >
                   Running Jobs
                 </DropdownItem>

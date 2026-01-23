@@ -456,7 +456,7 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, buildInfo web.Buil
 				http.Redirect(rw, r, "/monitoring/jobs/?startTime="+fromTime+"-"+untilTime+"&arrayJobId="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusFound) // All Users: Redirect to Tablequery
 			case "username":
 				if user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport, schema.RoleManager}) {
-					http.Redirect(rw, r, "/monitoring/users/?user="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusFound)
+					http.Redirect(rw, r, "/monitoring/users/?user="+url.QueryEscape(strings.Trim(splitSearch[1], " "))+"&startTime=last30d", http.StatusFound)
 				} else {
 					web.RenderTemplate(rw, "message.tmpl", &web.Page{Title: "Error", MsgType: "alert-danger", Message: "Missing Access Rights", User: *user, Roles: availableRoles, Build: buildInfo})
 				}
@@ -464,10 +464,10 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, buildInfo web.Buil
 				usernames, _ := repo.FindColumnValues(user, strings.Trim(splitSearch[1], " "), "user", "username", "name")
 				if len(usernames) != 0 {
 					joinedNames := strings.Join(usernames, "&user=")
-					http.Redirect(rw, r, "/monitoring/users/?user="+joinedNames, http.StatusFound)
+					http.Redirect(rw, r, "/monitoring/users/?user="+joinedNames+"&startTime=last30d", http.StatusFound)
 				} else {
 					if user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport, schema.RoleManager}) {
-						http.Redirect(rw, r, "/monitoring/users/?user=NoUserNameFound", http.StatusPermanentRedirect)
+						http.Redirect(rw, r, "/monitoring/users/?user=NoUserNameFound&startTime=last30d", http.StatusPermanentRedirect)
 					} else {
 						web.RenderTemplate(rw, "message.tmpl", &web.Page{Title: "Error", MsgType: "alert-danger", Message: "Missing Access Rights", User: *user, Roles: availableRoles, Build: buildInfo})
 					}
