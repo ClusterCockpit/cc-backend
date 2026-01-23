@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/pkg/nats"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/nats"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/influxdata/line-protocol/v2/lineprotocol"
 )

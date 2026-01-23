@@ -81,7 +81,7 @@ const configSchema = `{
             "description": "Optional: Allow lines without a cluster tag, use this as default",
             "type": "string"
           }
-        }
+        },
 				"required": ["subscribe-to"]
       }
     }
