@@ -912,9 +912,6 @@ func buildNodeQueries(
 	scopes []schema.MetricScope,
 	resolution int64,
 ) ([]APIQuery, []schema.MetricScope, error) {
-	if len(nodes) == 0 {
-		return nil, nil, fmt.Errorf("METRICDATA/CCMS > no nodes specified for query")
-	}
 
 	queries := make([]APIQuery, 0, len(metrics)*len(scopes)*len(nodes))
 	assignedScope := []schema.MetricScope{}
