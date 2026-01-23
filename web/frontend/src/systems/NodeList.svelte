@@ -95,7 +95,6 @@
   let nodes = $state([]);
   let page = $state(1);
   let headerPaddingTop = $state(0);
-  let matchedNodes = $state(0);
 
   /* Derived */
   let selectedMetrics = $derived(pendingSelectedMetrics);
@@ -119,6 +118,8 @@
     },
     requestPolicy: "network-only", // Resolution queries are cached, but how to access them? For now: reload on every change
   }));
+
+  const matchedNodes = $derived($nodesQuery?.data?.nodeMetricsList?.totalNodes || 0);
   
   /* Effects */
   $effect(() => {
@@ -142,7 +143,6 @@
     if ($nodesQuery?.data) {
       untrack(() => {
         nodes = handleNodes($nodesQuery?.data?.nodeMetricsList);
-        matchedNodes = $nodesQuery?.data?.totalNodes || 0;
       });
       selectedMetrics = [...pendingSelectedMetrics]; // Trigger Rerender in NodeListRow Only After Data is Fetched
     };
