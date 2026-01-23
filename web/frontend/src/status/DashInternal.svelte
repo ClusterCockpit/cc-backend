@@ -155,7 +155,7 @@
           filter: $jobFilter
           page: $paging
           sortBy: TOTALJOBS
-          groupBy: SUBCLUSTER
+          groupBy: CLUSTER
         ) {
           id
           totalJobs
@@ -222,29 +222,24 @@
   }));
 
   const clusterInfo = $derived.by(() => {
+    let rawInfos = {};
     if ($initq?.data?.clusters) {
-      let rawInfos = {};
+      // Grouped By Cluster
+      if (!rawInfos['allocatedCores']) rawInfos['allocatedCores'] = $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == presetCluster)?.totalCores || 0;
+      if (!rawInfos['allocatedAccs']) rawInfos['allocatedAccs'] = $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == presetCluster)?.totalAccs || 0;
+      if (!rawInfos['activeUsers']) rawInfos['activeUsers'] = $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == presetCluster)?.totalUsers || 0;
+      if (!rawInfos['runningJobs']) rawInfos['runningJobs'] = $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == presetCluster)?.totalJobs || 0;
+
+      // Collected By Subcluster
       let subClusters = $initq?.data?.clusters?.find((c) => c.name == presetCluster)?.subClusters || [];
       for (let subCluster of subClusters) {
         // Allocations
         if (!rawInfos['allocatedNodes']) rawInfos['allocatedNodes'] = $statusQuery?.data?.allocatedNodes?.find(({ name }) => name == subCluster.name)?.count || 0;
         else rawInfos['allocatedNodes'] += $statusQuery?.data?.allocatedNodes?.find(({ name }) => name == subCluster.name)?.count || 0;
 
-        if (!rawInfos['allocatedCores']) rawInfos['allocatedCores'] = $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == subCluster.name)?.totalCores || 0;
-        else rawInfos['allocatedCores'] += $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == subCluster.name)?.totalCores || 0;
-
-        if (!rawInfos['allocatedAccs']) rawInfos['allocatedAccs'] = $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == subCluster.name)?.totalAccs || 0;
-        else rawInfos['allocatedAccs'] += $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == subCluster.name)?.totalAccs || 0;
-
         // Infos
         if (!rawInfos['processorTypes']) rawInfos['processorTypes'] = subCluster?.processorType ? new Set([subCluster.processorType]) : new Set([]);
         else rawInfos['processorTypes'].add(subCluster.processorType);
-
-        if (!rawInfos['activeUsers']) rawInfos['activeUsers'] = $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == subCluster.name)?.totalUsers || 0;
-        else rawInfos['activeUsers'] += $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == subCluster.name)?.totalUsers || 0;
-
-        if (!rawInfos['runningJobs']) rawInfos['runningJobs'] = $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == subCluster.name)?.totalJobs || 0;
-        else rawInfos['runningJobs'] += $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == subCluster.name)?.totalJobs || 0;
 
         if (!rawInfos['totalNodes']) rawInfos['totalNodes'] = subCluster?.numberOfNodes || 0;
         else rawInfos['totalNodes'] += subCluster?.numberOfNodes || 0;
@@ -290,11 +285,8 @@
         0, // Initial Value
       ) || 0;
       rawInfos['memBwRate'] = Math.floor((rawMemBw * 100) / 100)
-
-      return rawInfos
-    } else {
-      return {};
     }
+    return rawInfos;
   });
 
   /* Functions */
