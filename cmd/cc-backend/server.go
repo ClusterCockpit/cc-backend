@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 // Package main provides the entry point for the ClusterCockpit backend server.
 // This file contains HTTP server setup, routing configuration, and
 // authentication middleware integration.
@@ -31,9 +32,9 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/graph/generated"
 	"github.com/ClusterCockpit/cc-backend/internal/routerConfig"
 	"github.com/ClusterCockpit/cc-backend/pkg/metricstore"
-	"github.com/ClusterCockpit/cc-backend/pkg/nats"
 	"github.com/ClusterCockpit/cc-backend/web"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/nats"
 	"github.com/ClusterCockpit/cc-lib/v2/runtime"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
