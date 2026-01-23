@@ -163,8 +163,6 @@ ln -s <your-existing-job-archive> ./var/job-archive
     GraphQL schema and resolvers
   - [`importer`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/importer)
     Job data import and database initialization
-  - [`metricstore`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/metricstore)
-    In-memory metric data store with checkpointing and metric loading
   - [`metricdispatch`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/metricdispatch)
     Dispatches metric data loading to appropriate backends
   - [`repository`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/repository)
@@ -179,6 +177,8 @@ ln -s <your-existing-job-archive> ./var/job-archive
   contains Go packages that can be used by other projects.
   - [`archive`](https://github.com/ClusterCockpit/cc-backend/tree/master/pkg/archive)
     Job archive backend implementations (filesystem, S3)
+  - [`metricstore`](https://github.com/ClusterCockpit/cc-backend/tree/master/pkg/metricstore)
+    In-memory metric data store with checkpointing and metric loading
   - [`nats`](https://github.com/ClusterCockpit/cc-backend/tree/master/pkg/nats)
     NATS client and message handling
 - [`tools/`](https://github.com/ClusterCockpit/cc-backend/tree/master/tools)

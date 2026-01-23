@@ -96,7 +96,7 @@ The backend follows a layered architecture with clear separation of concerns:
 - **internal/auth**: Authentication layer
   - Supports local accounts, LDAP, OIDC, and JWT tokens
   - Implements rate limiting for login attempts
-- **internal/metricstore**: Metric store with data loading API
+- **pkg/metricstore**: Metric store with data loading API
   - In-memory metric storage with checkpointing
   - Query API for loading job metric data
 - **internal/archiver**: Job archiving to file-based archive
@@ -209,7 +209,7 @@ applied automatically on startup. Version tracking in `version` table.
 
 ### Adding a new metric data backend
 
-1. Implement metric loading functions in `internal/metricstore/query.go`
+1. Implement metric loading functions in `pkg/metricstore/query.go`
 2. Add cluster configuration to metric store initialization
 3. Update config.json schema documentation
 

@@ -15,7 +15,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ClusterCockpit/cc-backend/internal/metricstore"
+	"github.com/ClusterCockpit/cc-backend/pkg/metricstore"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 
 	"github.com/influxdata/line-protocol/v2/lineprotocol"
