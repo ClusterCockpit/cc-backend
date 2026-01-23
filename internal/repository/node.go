@@ -684,10 +684,10 @@ func (r *NodeRepository) GetNodesForList(
 		hasNextPage = len(nextNodes) == 1
 	}
 
-	// Fallback, ignores stateFilter
-	// if countNodes == 0 {
-	// 	nodes, countNodes, hasNextPage = getNodesFromTopol(cluster, subCluster, nodeFilter, page)
-	// }
+	// Fallback for non-init'd node table in DB; Ignores stateFilter
+	if stateFilter == "all" && countNodes == 0 {
+		nodes, countNodes, hasNextPage = getNodesFromTopol(cluster, subCluster, nodeFilter, page)
+	}
 
 	return nodes, stateMap, countNodes, hasNextPage, nil
 }
