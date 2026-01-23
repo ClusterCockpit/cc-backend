@@ -169,10 +169,10 @@
       } else {
         if ($state.snapshot(page) == 1) {
           // console.log('Page 1 Reset', [...data.items])
-          nodes =  [...newNodes].sort((a, b) => a.host.localeCompare(b.host));
+          nodes = [...newNodes].sort((a, b) => a.host.localeCompare(b.host));
         } else {
           // console.log('Add Nodes', $state.snapshot(nodes), [...data.items])
-          nodes =  nodes.concat([...newNodes])
+          nodes = nodes.concat([...newNodes])
         }
       }
     };
@@ -248,7 +248,16 @@
               <Card body color="danger">{$nodesQuery.error.message}</Card>
             </Col>
           </Row>
-        {:else if $nodesQuery.fetching || !$nodesQuery.data}
+        {:else}
+          {#each nodes as nodeData (nodeData.host)}
+            <NodeListRow {nodeData} {cluster} {selectedMetrics}/>
+          {:else}
+            <tr>
+              <td colspan={selectedMetrics.length + 1}> No nodes found </td>
+            </tr>
+          {/each}
+        {/if}
+        {#if $nodesQuery.fetching || !$nodesQuery.data}
           <tr>
             <td colspan={pendingSelectedMetrics.length + 1}>
               <div style="text-align:center;">
@@ -265,14 +274,6 @@
               </div>
             </td>
           </tr>
-        {:else}
-          {#each nodes as nodeData (nodeData.host)}
-            <NodeListRow {nodeData} {cluster} {selectedMetrics}/>
-          {:else}
-            <tr>
-              <td colspan={selectedMetrics.length + 1}> No nodes found </td>
-            </tr>
-          {/each}
         {/if}
       </tbody>
     </Table>
