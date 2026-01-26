@@ -9,14 +9,15 @@ import (
 	"errors"
 	"math"
 
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/ClusterCockpit/cc-lib/v2/util"
 )
 
 type Stats struct {
 	Samples int
-	Avg     util.Float
-	Min     util.Float
-	Max     util.Float
+	Avg     schema.Float
+	Min     schema.Float
+	Max     schema.Float
 }
 
 func (b *buffer) stats(from, to int64) (Stats, int64, int64, error) {
@@ -61,9 +62,9 @@ func (b *buffer) stats(from, to int64) (Stats, int64, int64, error) {
 
 	return Stats{
 		Samples: samples,
-		Avg:     util.Float(sum) / util.Float(samples),
-		Min:     util.Float(min),
-		Max:     util.Float(max),
+		Avg:     schema.Float(sum) / schema.Float(samples),
+		Min:     schema.Float(min),
+		Max:     schema.Float(max),
 	}, from, t, nil
 }
 
@@ -81,7 +82,7 @@ func (m *MemoryStore) Stats(selector util.Selector, metric string, from, to int6
 	}
 
 	n, samples := 0, 0
-	avg, min, max := util.Float(0), math.MaxFloat32, -math.MaxFloat32
+	avg, min, max := schema.Float(0), math.MaxFloat32, -math.MaxFloat32
 	err := m.root.findBuffers(selector, minfo.offset, func(b *buffer) error {
 		stats, cfrom, cto, err := b.stats(from, to)
 		if err != nil {
@@ -110,7 +111,7 @@ func (m *MemoryStore) Stats(selector util.Selector, metric string, from, to int6
 	}
 
 	if minfo.Aggregation == AvgAggregation {
-		avg /= util.Float(n)
+		avg /= schema.Float(n)
 	} else if n > 1 && minfo.Aggregation != SumAggregation {
 		return nil, 0, 0, errors.New("invalid aggregation")
 	}
@@ -118,7 +119,7 @@ func (m *MemoryStore) Stats(selector util.Selector, metric string, from, to int6
 	return &Stats{
 		Samples: samples,
 		Avg:     avg,
-		Min:     util.Float(min),
-		Max:     util.Float(max),
+		Min:     schema.Float(min),
+		Max:     schema.Float(max),
 	}, from, to, nil
 }

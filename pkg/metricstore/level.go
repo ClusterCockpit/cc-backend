@@ -44,6 +44,7 @@ import (
 	"sync"
 	"unsafe"
 
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/ClusterCockpit/cc-lib/v2/util"
 )
 
@@ -272,7 +273,7 @@ func (l *Level) sizeInBytes() int64 {
 
 	for _, b := range l.metrics {
 		if b != nil {
-			size += b.count() * int64(unsafe.Sizeof(util.Float(0)))
+			size += b.count() * int64(unsafe.Sizeof(schema.Float(0)))
 		}
 	}
 
