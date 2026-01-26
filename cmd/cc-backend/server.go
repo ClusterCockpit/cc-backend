@@ -136,7 +136,7 @@ func (s *Server) init() error {
 	userapi := s.router.PathPrefix("/userapi").Subrouter()
 	configapi := s.router.PathPrefix("/config").Subrouter()
 	frontendapi := s.router.PathPrefix("/frontend").Subrouter()
-	metricstoreapi := s.router.PathPrefix("/metricstore").Subrouter()
+	metricstoreapi := s.router.PathPrefix("/api").Subrouter()
 
 	if !config.Keys.DisableAuthentication {
 		// Create login failure handler (used by both /login and /jwt-login)
