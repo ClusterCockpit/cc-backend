@@ -11,7 +11,7 @@ tool (
 
 require (
 	github.com/99designs/gqlgen v0.17.85
-	github.com/ClusterCockpit/cc-lib/v2 v2.1.0
+	github.com/ClusterCockpit/cc-lib/v2 v2.2.0
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/aws/aws-sdk-go-v2 v1.41.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.6
@@ -32,7 +32,6 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/linkedin/goavro/v2 v2.14.1
 	github.com/mattn/go-sqlite3 v1.14.33
-	github.com/nats-io/nats.go v1.47.0
 	github.com/qustavo/sqlhooks/v2 v2.1.0
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/stretchr/testify v1.11.1
@@ -95,6 +94,7 @@ require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
+	github.com/nats-io/nats.go v1.47.0 // indirect
 	github.com/nats-io/nkeys v0.4.12 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/oapi-codegen/runtime v1.1.1 // indirect

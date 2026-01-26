@@ -37,7 +37,7 @@ import (
 	"github.com/ClusterCockpit/cc-lib/v2/util"
 )
 
-// Define a struct to hold your globals and the mutex
+// GlobalState holds the global state for the metric store with thread-safe access.
 type GlobalState struct {
 	mu                sync.RWMutex
 	lastRetentionTime int64
@@ -740,8 +740,7 @@ func (m *MemoryStore) Free(selector []string, t int64) (int, error) {
 	return m.GetLevel(selector).free(t)
 }
 
-// Free releases all buffers for the selected level and all its children that
-// contain only values older than `t`.
+// ForceFree unconditionally removes the oldest buffer from each metric chain.
 func (m *MemoryStore) ForceFree() (int, error) {
 	return m.GetLevel(nil).forceFree()
 }

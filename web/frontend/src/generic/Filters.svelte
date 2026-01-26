@@ -91,38 +91,38 @@
   /* State Init */
   // svelte-ignore state_referenced_locally
   let filters = $state({
-    dbId: filterPresets.dbId || [],
-    jobId: filterPresets.jobId || "",
-    jobIdMatch: filterPresets.jobIdMatch || "eq",
-    arrayJobId: filterPresets.arrayJobId || null,
-    jobName: filterPresets.jobName || "",
-    project: filterPresets.project || "",
-    projectMatch: filterPresets.projectMatch || "contains",
-    user: filterPresets.user || "",
-    userMatch: filterPresets.userMatch || "contains",
-    cluster: filterPresets.cluster || null,
-    partition: filterPresets.partition || null,
+    dbId: filterPresets?.dbId || [],
+    jobId: filterPresets?.jobId || "",
+    jobIdMatch: filterPresets?.jobIdMatch || "eq",
+    arrayJobId: filterPresets?.arrayJobId || null,
+    jobName: filterPresets?.jobName || "",
+    project: filterPresets?.project || "",
+    projectMatch: filterPresets?.projectMatch || "contains",
+    user: filterPresets?.user || "",
+    userMatch: filterPresets?.userMatch || "contains",
+    cluster: filterPresets?.cluster || null,
+    partition: filterPresets?.partition || null,
     states:
-      filterPresets.states || filterPresets.state
+      filterPresets?.states || filterPresets?.state
         ? [filterPresets.state].flat()
         : allJobStates,
-    shared: filterPresets.shared || "",
-    schedule: filterPresets.schedule || "",
-    startTime: filterPresets.startTime || { from: null, to: null, range: ""},
-    duration: filterPresets.duration || {
+    shared: filterPresets?.shared || "",
+    schedule: filterPresets?.schedule || "",
+    startTime: filterPresets?.startTime || { from: null, to: null, range: ""},
+    duration: filterPresets?.duration || {
       lessThan: null,
       moreThan: null,
       from: null,
       to: null,
     },
-    tags: filterPresets.tags || [],
-    numNodes: filterPresets.numNodes || { from: null, to: null },
-    numHWThreads: filterPresets.numHWThreads || { from: null, to: null },
-    numAccelerators: filterPresets.numAccelerators || { from: null, to: null },
-    node: filterPresets.node || null,
-    nodeMatch: filterPresets.nodeMatch || "eq",
-    energy: filterPresets.energy || { from: null, to: null },
-    stats: filterPresets.stats || [],
+    tags: filterPresets?.tags || [],
+    numNodes: filterPresets?.numNodes || { from: null, to: null },
+    numHWThreads: filterPresets?.numHWThreads || { from: null, to: null },
+    numAccelerators: filterPresets?.numAccelerators || { from: null, to: null },
+    node: filterPresets?.node || null,
+    nodeMatch: filterPresets?.nodeMatch || "eq",
+    energy: filterPresets?.energy || { from: null, to: null },
+    stats: filterPresets?.stats || [],
   });
 
   /* Opened States */

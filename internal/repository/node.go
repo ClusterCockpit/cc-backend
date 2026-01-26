@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -683,6 +684,11 @@ func (r *NodeRepository) GetNodesForList(
 		hasNextPage = len(nextNodes) == 1
 	}
 
+	// Fallback for non-init'd node table in DB; Ignores stateFilter
+	if stateFilter == "all" && countNodes == 0 {
+		nodes, countNodes, hasNextPage = getNodesFromTopol(cluster, subCluster, nodeFilter, page)
+	}
+
 	return nodes, stateMap, countNodes, hasNextPage, nil
 }
 
@@ -706,4 +712,52 @@ func AccessCheckWithUser(user *schema.User, query sq.SelectBuilder) (sq.SelectBu
 		var qnil sq.SelectBuilder
 		return qnil, fmt.Errorf("user has no or unknown roles")
 	}
+}
+
+func getNodesFromTopol(cluster string, subCluster string, nodeFilter string, page *model.PageRequest) ([]string, int, bool) {
+	// 0) Init additional vars
+	var hasNextPage bool = false
+	var totalNodes int = 0
+
+	// 1) Get list of all nodes
+	var topolNodes []string
+	if subCluster != "" {
+		scNodes := archive.NodeLists[cluster][subCluster]
+		topolNodes = scNodes.PrintList()
+	} else {
+		subClusterNodeLists := archive.NodeLists[cluster]
+		for _, nodeList := range subClusterNodeLists {
+			topolNodes = append(topolNodes, nodeList.PrintList()...)
+		}
+	}
+
+	// 2) Filter nodes
+	if nodeFilter != "" {
+		filteredNodes := []string{}
+		for _, node := range topolNodes {
+			if strings.Contains(node, nodeFilter) {
+				filteredNodes = append(filteredNodes, node)
+			}
+		}
+		topolNodes = filteredNodes
+	}
+
+	// 2.1) Count total nodes && Sort nodes -> Sorting invalidated after ccms return ...
+	totalNodes = len(topolNodes)
+	sort.Strings(topolNodes)
+
+	// 3) Apply paging
+	if len(topolNodes) > page.ItemsPerPage {
+		start := (page.Page - 1) * page.ItemsPerPage
+		end := start + page.ItemsPerPage
+		if end >= len(topolNodes) {
+			end = len(topolNodes)
+			hasNextPage = false
+		} else {
+			hasNextPage = true
+		}
+		topolNodes = topolNodes[start:end]
+	}
+
+	return topolNodes, totalNodes, hasNextPage
 }

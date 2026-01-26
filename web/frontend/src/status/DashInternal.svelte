@@ -155,7 +155,7 @@
           filter: $jobFilter
           page: $paging
           sortBy: TOTALJOBS
-          groupBy: SUBCLUSTER
+          groupBy: CLUSTER
         ) {
           id
           totalJobs
@@ -222,29 +222,24 @@
   }));
 
   const clusterInfo = $derived.by(() => {
+    let rawInfos = {};
     if ($initq?.data?.clusters) {
-      let rawInfos = {};
+      // Grouped By Cluster
+      if (!rawInfos['allocatedCores']) rawInfos['allocatedCores'] = $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == presetCluster)?.totalCores || 0;
+      if (!rawInfos['allocatedAccs']) rawInfos['allocatedAccs'] = $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == presetCluster)?.totalAccs || 0;
+      if (!rawInfos['activeUsers']) rawInfos['activeUsers'] = $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == presetCluster)?.totalUsers || 0;
+      if (!rawInfos['runningJobs']) rawInfos['runningJobs'] = $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == presetCluster)?.totalJobs || 0;
+
+      // Collected By Subcluster
       let subClusters = $initq?.data?.clusters?.find((c) => c.name == presetCluster)?.subClusters || [];
       for (let subCluster of subClusters) {
         // Allocations
         if (!rawInfos['allocatedNodes']) rawInfos['allocatedNodes'] = $statusQuery?.data?.allocatedNodes?.find(({ name }) => name == subCluster.name)?.count || 0;
         else rawInfos['allocatedNodes'] += $statusQuery?.data?.allocatedNodes?.find(({ name }) => name == subCluster.name)?.count || 0;
 
-        if (!rawInfos['allocatedCores']) rawInfos['allocatedCores'] = $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == subCluster.name)?.totalCores || 0;
-        else rawInfos['allocatedCores'] += $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == subCluster.name)?.totalCores || 0;
-
-        if (!rawInfos['allocatedAccs']) rawInfos['allocatedAccs'] = $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == subCluster.name)?.totalAccs || 0;
-        else rawInfos['allocatedAccs'] += $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == subCluster.name)?.totalAccs || 0;
-
         // Infos
         if (!rawInfos['processorTypes']) rawInfos['processorTypes'] = subCluster?.processorType ? new Set([subCluster.processorType]) : new Set([]);
         else rawInfos['processorTypes'].add(subCluster.processorType);
-
-        if (!rawInfos['activeUsers']) rawInfos['activeUsers'] = $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == subCluster.name)?.totalUsers || 0;
-        else rawInfos['activeUsers'] += $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == subCluster.name)?.totalUsers || 0;
-
-        if (!rawInfos['runningJobs']) rawInfos['runningJobs'] = $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == subCluster.name)?.totalJobs || 0;
-        else rawInfos['runningJobs'] += $statusQuery?.data?.jobsStatistics?.find(({ id }) => id == subCluster.name)?.totalJobs || 0;
 
         if (!rawInfos['totalNodes']) rawInfos['totalNodes'] = subCluster?.numberOfNodes || 0;
         else rawInfos['totalNodes'] += subCluster?.numberOfNodes || 0;
@@ -290,11 +285,8 @@
         0, // Initial Value
       ) || 0;
       rawInfos['memBwRate'] = Math.floor((rawMemBw * 100) / 100)
-
-      return rawInfos
-    } else {
-      return {};
     }
+    return rawInfos;
   });
 
   /* Functions */
@@ -410,17 +402,17 @@
               <span>{[...clusterInfo?.processorTypes].join(', ')}</span>
             </CardHeader>
             <CardBody>
-              <Table borderless>
+              <Table borderless class="mb-0">
                 <tr class="py-2">
                   <td style="font-size:x-large;">{clusterInfo?.runningJobs} Running Jobs</td>
-                  <td colspan="2" style="font-size:x-large;">{clusterInfo?.activeUsers} Active Users</td>
+                  <td style="font-size:x-large;">{clusterInfo?.activeUsers} Active Users</td>
                 </tr>
                 <hr class="my-1"/>
                 <tr class="pt-2">
                   <td style="font-size: large;">
                     Flop Rate (<span style="cursor: help;" title="Flops[Any] = (Flops[Double] x 2) + Flops[Single]">Any</span>)
                   </td>
-                  <td colspan="2" style="font-size: large;">
+                  <td style="font-size: large;">
                     Memory BW Rate
                   </td>
                 </tr>
@@ -429,48 +421,51 @@
                     {clusterInfo?.flopRate} 
                     {clusterInfo?.flopRateUnit}
                   </td>
-                  <td colspan="2" style="font-size:x-large;">
+                  <td style="font-size:x-large;">
                     {clusterInfo?.memBwRate} 
                     {clusterInfo?.memBwRateUnit}
                   </td>
                 </tr>
                 <hr class="my-1"/>
-                <tr class="py-2">
+                <tr class="pt-2">
                   <td>{formatNumber(clusterInfo?.allocatedNodes)} Active Nodes</td>
-                  <td style="min-width: 100px;"
-                    ><div class="col">
-                      <Progress multi max={clusterInfo?.totalNodes} style="cursor: help;height:1.5rem;" title={`${formatNumber(clusterInfo?.totalNodes)} Total Nodes`}>
-                        <Progress bar color="success" value={clusterInfo?.allocatedNodes}/>
-                        <Progress bar color="light" value={clusterInfo?.idleNodes}/>
-                      </Progress>
-                    </div></td
-                  >
                   <td>{formatNumber(clusterInfo?.idleNodes)} Idle Nodes</td>
                 </tr>
-                <tr class="py-2">
+                <tr class="pb-2">
+                  <td colspan="2"> <Col class="p-0">
+                    <Progress
+                      color="success" style="cursor:help; height:1rem;"
+                      value={clusterInfo?.allocatedNodes} max={clusterInfo?.totalNodes}
+                      title={`${formatNumber(clusterInfo?.totalNodes)} Total Nodes`}
+                    />
+                  </Col> </td>
+                </tr>
+                <tr class="pt-2">
                   <td>{formatNumber(clusterInfo?.allocatedCores)} Active Cores</td>
-                  <td style="min-width: 100px;"
-                    ><div class="col">
-                      <Progress multi max={clusterInfo?.totalCores} style="cursor: help;height:1.5rem;" title={`${formatNumber(clusterInfo?.totalCores)} Total Cores`}>
-                        <Progress bar color="success" value={clusterInfo?.allocatedCores}/>
-                        <Progress bar color="light" value={clusterInfo?.idleCores}/>
-                      </Progress>
-                    </div></td
-                  >
                   <td>{formatNumber(clusterInfo?.idleCores)} Idle Cores</td>
                 </tr>
+                <tr class="pb-2">
+                  <td colspan="2"> <Col class="p-0">
+                    <Progress 
+                      color="success" style="cursor:help; height:1rem;" 
+                      value={clusterInfo?.allocatedCores} max={clusterInfo?.totalCores}
+                      title={`${formatNumber(clusterInfo?.totalCores)} Total Cores`}
+                    />
+                  </Col> </td>
+                </tr>
                 {#if clusterInfo?.totalAccs !== 0}
-                  <tr class="py-2">
+                  <tr class="pt-2">
                     <td>{formatNumber(clusterInfo?.allocatedAccs)} Active Accelerators</td>
-                    <td style="min-width: 100px;"
-                      ><div class="col">
-                        <Progress multi max={clusterInfo?.totalAccs} style="cursor: help;height:1.5rem;" title={`${formatNumber(clusterInfo?.totalAccs)} Total Accelerators`}>
-                          <Progress bar color="success" value={clusterInfo?.allocatedAccs}/>
-                          <Progress bar color="light" value={clusterInfo?.idleAccs}/>
-                        </Progress>
-                      </div></td
-                    >
                     <td>{formatNumber(clusterInfo?.idleAccs)} Idle Accelerators</td>
+                  </tr>
+                  <tr class="pb-2">
+                    <td colspan="2"> <Col class="p-0">
+                      <Progress 
+                        color="success" style="cursor:help; height:1rem;"
+                        value={clusterInfo?.allocatedAccs} max={clusterInfo?.totalAccs}
+                        title={`${formatNumber(clusterInfo?.totalAccs)} Total Accelerators`}
+                      />
+                    </Col> </td >
                   </tr>
                 {/if}
               </Table>

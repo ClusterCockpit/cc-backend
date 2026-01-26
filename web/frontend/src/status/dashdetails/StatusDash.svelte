@@ -16,6 +16,7 @@
     Table,
     Progress,
     Icon,
+    Spinner
   } from "@sveltestrap/sveltestrap";
   import {
     queryStore,
@@ -408,7 +409,19 @@
 <hr/>
 
 <!-- Node Stack Charts Dev-->
-{#if $statesTimed.data}
+{#if $statesTimed.fetching}
+  <Row cols={1} class="text-center mt-3">
+    <Col>
+      <Spinner />
+    </Col>
+  </Row>
+{:else if $statesTimed.error}
+  <Row cols={1} class="text-center mt-3">
+    <Col>  
+      <Card body color="danger">{$statesTimed.error.message}</Card>
+    </Col>
+  </Row>
+{:else if $statesTimed.data}
   <Row cols={{ md: 2 , sm: 1}} class="mb-3 justify-content-center">
     <Col class="px-3 mt-2 mt-lg-0">
       <div>
@@ -450,7 +463,19 @@
 <hr/>
 
 <!-- Node Health Pis, later Charts -->
-{#if $statusQuery?.data?.nodeStates}
+{#if $statusQuery.fetching}
+  <Row cols={1} class="text-center mt-3">
+    <Col>
+      <Spinner />
+    </Col>
+  </Row>
+{:else if $statusQuery.error}
+  <Row cols={1} class="text-center mt-3">
+    <Col>  
+      <Card body color="danger">{$statesTimed.error.message}</Card>
+    </Col>
+  </Row>
+{:else if $statusQuery?.data?.nodeStates}
   <Row cols={{ lg: 4, md: 2 , sm: 1}} class="mb-3 justify-content-center">
     <Col class="px-3 mt-2 mt-lg-0">
       <div bind:clientWidth={pieWidth}>
@@ -536,7 +561,19 @@
 
 <hr/>
 <!-- Gauges & Roofline per Subcluster-->
-{#if $statusQuery.data}
+{#if $statusQuery.fetching}
+  <Row cols={1} class="text-center mt-3">
+    <Col>
+      <Spinner />
+    </Col>
+  </Row>
+{:else if $statusQuery.error}
+  <Row cols={1} class="text-center mt-3">
+    <Col>  
+      <Card body color="danger">{$statusQuery.error.message}</Card>
+    </Col>
+  </Row>
+{:else if $statusQuery.data}
   {#each clusters.find((c) => c.name == cluster).subClusters as subCluster, i}
     <Row cols={{ lg: 3, md: 1 , sm: 1}} class="mb-3 justify-content-center">
       <Col class="px-3">
