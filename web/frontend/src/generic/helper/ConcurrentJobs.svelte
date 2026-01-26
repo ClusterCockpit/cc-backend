@@ -23,7 +23,7 @@
     showLinks = false,
     renderCard = false,
     width = "auto",
-    height = "400px",
+    height = "auto",
   } = $props();
 </script>
 

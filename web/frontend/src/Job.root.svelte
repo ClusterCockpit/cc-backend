@@ -220,7 +220,7 @@
     {#if $initq.error}
       <Card body color="danger">{$initq.error.message}</Card>
     {:else if $initq?.data}
-      <Card class="overflow-auto" style="height: 400px;">
+      <Card class="overflow-auto" style="height: auto;">
         <TabContent> <!-- on:tab={(e) => (status = e.detail)} -->
           {#if $initq.data?.job?.metaData?.message}
             <TabPane tabId="admin-msg" tab="Admin Note" active>
