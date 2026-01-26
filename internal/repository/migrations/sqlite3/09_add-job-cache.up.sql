@@ -177,12 +177,14 @@ CREATE INDEX IF NOT EXISTS jobs_cluster_shared_duration_starttime ON job (cluste
 
 -- User Filter
 -- User Filter Sorting
-CREATE INDEX IF NOT EXISTS jobs_user_starttime ON job (hpc_user, start_time);
-CREATE INDEX IF NOT EXISTS jobs_user_duration ON job (hpc_user, duration);
 CREATE INDEX IF NOT EXISTS jobs_user_numnodes ON job (hpc_user, num_nodes);
 CREATE INDEX IF NOT EXISTS jobs_user_numhwthreads ON job (hpc_user, num_hwthreads);
 CREATE INDEX IF NOT EXISTS jobs_user_numacc ON job (hpc_user, num_acc);
 CREATE INDEX IF NOT EXISTS jobs_user_energy ON job (hpc_user, energy);
+
+-- Cluster+Shared Time Filter Sorting
+CREATE INDEX IF NOT EXISTS jobs_user_starttime_duration ON job (hpc_user, start_time, duration);
+CREATE INDEX IF NOT EXISTS jobs_user_duration_starttime ON job (hpc_user, duration, start_time);
 
 -- Project Filter
 CREATE INDEX IF NOT EXISTS jobs_project_user ON job (project, hpc_user);
