@@ -171,7 +171,7 @@
         Users
       </InputGroupText>
       <Input class="flex-grow-1" style="background-color: white;" type="text" value="{userList?.length || 0} User{(userList?.length == 1) ? '': 's'}" disabled />
-      <a title="Show users active on this node" href="/monitoring/users/?cluster={cluster}&state=running&node={hostname}" target="_blank" class="btn btn-outline-primary" role="button" aria-disabled="true" >
+      <a title="Show users active on this node" href="/monitoring/users/?cluster={cluster}&state=running&startTime=last30d&node={hostname}" target="_blank" class="btn btn-outline-primary" role="button" aria-disabled="true" >
         <Icon name="view-list" /> 
         List
       </a>
@@ -192,7 +192,7 @@
         Projects
       </InputGroupText>
       <Input class="flex-grow-1" style="background-color: white;" type="text" value="{projectList?.length || 0} Project{(projectList?.length == 1) ? '': 's'}" disabled />
-      <a title="Show projects active on this node" href="/monitoring/projects/?cluster={cluster}&state=running&node={hostname}" target="_blank" class="btn btn-outline-primary" role="button" aria-disabled="true" >
+      <a title="Show projects active on this node" href="/monitoring/projects/?cluster={cluster}&state=running&startTime=last30d&node={hostname}" target="_blank" class="btn btn-outline-primary" role="button" aria-disabled="true" >
         <Icon name="view-list" /> 
         List
       </a>

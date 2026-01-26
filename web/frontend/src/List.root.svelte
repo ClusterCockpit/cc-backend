@@ -95,19 +95,7 @@
   }
 
   /* On Mount */
-  onMount(() => {
-    // By default, look at the jobs of the last 30 days:
-    if (filterPresets?.startTime == null) {
-      if (filterPresets == null) filterPresets = {};
-
-      filterPresets.startTime = {
-        range: "last30d",
-        text: "Last 30 Days",
-      };
-    };
-    // Init Filter
-    filterComponent.updateFilters();
-  });
+  onMount(() => filterComponent.updateFilters());
 </script>
 
 <Row cols={{ xs: 1, md: 2}}>
