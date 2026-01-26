@@ -123,15 +123,15 @@ func (api *RestAPI) MountUserAPIRoutes(r *mux.Router) {
 func (api *RestAPI) MountMetricStoreAPIRoutes(r *mux.Router) {
 	// REST API Uses TokenAuth
 	// Note: StrictSlash handles trailing slash variations automatically
-	r.HandleFunc("/api/free", freeMetrics).Methods(http.MethodPost)
-	r.HandleFunc("/api/write", writeMetrics).Methods(http.MethodPost)
-	r.HandleFunc("/api/debug", debugMetrics).Methods(http.MethodGet)
-	r.HandleFunc("/api/healthcheck", metricsHealth).Methods(http.MethodGet)
+	r.HandleFunc("/free", freeMetrics).Methods(http.MethodPost)
+	r.HandleFunc("/write", writeMetrics).Methods(http.MethodPost)
+	r.HandleFunc("/debug", debugMetrics).Methods(http.MethodGet)
+	r.HandleFunc("/healthcheck", metricsHealth).Methods(http.MethodGet)
 	// Same endpoints but with trailing slash
-	r.HandleFunc("/api/free/", freeMetrics).Methods(http.MethodPost)
-	r.HandleFunc("/api/write/", writeMetrics).Methods(http.MethodPost)
-	r.HandleFunc("/api/debug/", debugMetrics).Methods(http.MethodGet)
-	r.HandleFunc("/api/healthcheck/", metricsHealth).Methods(http.MethodGet)
+	r.HandleFunc("/free/", freeMetrics).Methods(http.MethodPost)
+	r.HandleFunc("/write/", writeMetrics).Methods(http.MethodPost)
+	r.HandleFunc("/debug/", debugMetrics).Methods(http.MethodGet)
+	r.HandleFunc("/healthcheck/", metricsHealth).Methods(http.MethodGet)
 }
 
 // MountConfigAPIRoutes registers configuration and user management endpoints.
