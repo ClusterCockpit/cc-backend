@@ -127,7 +127,7 @@
   }
 </script>
 
-<CardBody class="overflow-auto">
+<CardBody class="overflow-auto" style="height:380px;">
   {#if jobFootprintData.length === 0}
     <div class="text-center">No footprint data for job available.</div>
   {:else}

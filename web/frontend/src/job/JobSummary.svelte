@@ -21,7 +21,7 @@
   let {
     job,
     width = "auto",
-    height = "400px",
+    height = "auto",
   } = $props();
 
   /* Const Init */

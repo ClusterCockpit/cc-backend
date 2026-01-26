@@ -58,7 +58,7 @@
 {#if $roofMetrics.error}
   <Card body color="danger">{$roofMetrics.error.message}</Card>
 {:else if $roofMetrics?.data}
-  <Card style="height: 400px;">
+  <Card style="height: auto;"> <!-- 400px -->
     <div bind:clientWidth={roofWidth}>
       <Roofline
         width={roofWidth}
