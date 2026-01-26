@@ -280,6 +280,7 @@ func (r *JobRepository) FindConcurrentJobs(
 	stopTimeTail := stopTime - overlapBufferEnd
 	startTimeFront := startTime + overlapBufferEnd
 
+	// Reminder: BETWEEN Queries are slower and dont use indices as frequently: Can this be optimized?
 	queryRunning := query.Where("job.job_state = ?").Where("(job.start_time BETWEEN ? AND ? OR job.start_time < ?)",
 		"running", startTimeTail, stopTimeTail, startTime)
 	// Get At Least One Exact Hostname Match from JSON Resources Array in Database

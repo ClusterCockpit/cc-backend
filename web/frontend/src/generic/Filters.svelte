@@ -192,14 +192,14 @@
       items.push({
         startTime: { range: filters.startTime.range },
       });
-    if (filters.duration.from || filters.duration.to)
+    if (filters.duration.from && filters.duration.to)
       items.push({
         duration: { from: filters.duration.from, to: filters.duration.to },
       });
     if (filters.duration.lessThan)
-      items.push({ duration: { from: 0, to: filters.duration.lessThan } });
+      items.push({ duration: { to: filters.duration.lessThan, from: 0 } });
     if (filters.duration.moreThan)
-      items.push({ duration: { from: filters.duration.moreThan, to: 604800 } }); // 7 days to include special jobs with long runtimes
+      items.push({ duration: { to: 0, from: filters.duration.moreThan } });
     if (filters.energy.from || filters.energy.to)
       items.push({
         energy: { from: filters.energy.from, to: filters.energy.to },
@@ -266,9 +266,9 @@
     if (filters.duration.from && filters.duration.to)
       opts.push(`duration=${filters.duration.from}-${filters.duration.to}`);
     if (filters.duration.lessThan)
-      opts.push(`duration=0-${filters.duration.lessThan}`);
+      opts.push(`duration=lessthan-${filters.duration.lessThan}`);
     if (filters.duration.moreThan)
-      opts.push(`duration=${filters.duration.moreThan}-604800`);
+      opts.push(`duration=morethan-${filters.duration.moreThan}`);
     if (filters.tags.length != 0)
       for (let tag of filters.tags) opts.push(`tag=${tag}`);
     if (filters.numNodes.from && filters.numNodes.to)

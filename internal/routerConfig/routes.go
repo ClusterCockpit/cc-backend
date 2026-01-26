@@ -277,10 +277,22 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 	if query.Get("duration") != "" {
 		parts := strings.Split(query.Get("duration"), "-")
 		if len(parts) == 2 {
-			a, e1 := strconv.Atoi(parts[0])
-			b, e2 := strconv.Atoi(parts[1])
-			if e1 == nil && e2 == nil {
-				filterPresets["duration"] = map[string]int{"from": a, "to": b}
+			if parts[0] == "lessthan" {
+				lt, lte := strconv.Atoi(parts[1])
+				if lte == nil {
+					filterPresets["duration"] = map[string]int{"lessThan": lt, "from": 0, "to": 0}
+				}
+			} else if parts[0] == "morethan" {
+				mt, mte := strconv.Atoi(parts[1])
+				if mte == nil {
+					filterPresets["duration"] = map[string]int{"moreThan": mt, "from": 0, "to": 0}
+				}
+			} else {
+				a, e1 := strconv.Atoi(parts[0])
+				b, e2 := strconv.Atoi(parts[1])
+				if e1 == nil && e2 == nil {
+					filterPresets["duration"] = map[string]int{"from": a, "to": b}
+				}
 			}
 		}
 	}
