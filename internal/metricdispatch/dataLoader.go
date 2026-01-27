@@ -300,6 +300,9 @@ func LoadScopedJobStats(
 		return nil, err
 	}
 
+	// Round Resulting Stat Values
+	scopedStats.RoundScopedMetricStats()
+
 	return scopedStats, nil
 }
 
