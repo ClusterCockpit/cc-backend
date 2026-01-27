@@ -1,6 +1,6 @@
 TARGET = ./cc-backend
 FRONTEND = ./web/frontend
-VERSION = 1.4.4
+VERSION = 1.5.0
 GIT_HASH := $(shell git rev-parse --short HEAD || echo 'development')
 CURRENT_TIME = $(shell date +"%Y-%m-%d:T%H:%M:%S")
 LD_FLAGS = '-s -X main.date=${CURRENT_TIME} -X main.version=${VERSION} -X main.commit=${GIT_HASH}'
@@ -46,7 +46,7 @@ $(TARGET): $(SVELTE_TARGETS)
 
 frontend:
 	$(info ===>  BUILD frontend)
-	cd web/frontend && npm install && npm run build
+	cd web/frontend && npm ci && npm run build
 
 swagger:
 	$(info ===>  GENERATE swagger)

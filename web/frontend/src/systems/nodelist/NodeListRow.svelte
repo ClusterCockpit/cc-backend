@@ -116,7 +116,7 @@
 
       pendingExtendedLegendData = {};
       for (const accId of accSet) {
-        const matchJob = $nodeJobsData.data.jobs.items.find((i) => i.resources.find((r) => r.accelerators.includes(accId)))
+        const matchJob = $nodeJobsData?.data?.jobs?.items?.find((i) => i?.resources?.find((r) => r?.accelerators?.includes(accId))) || null
         const matchUser = matchJob?.user ? matchJob.user : null
         pendingExtendedLegendData[accId] = {
           user: (scrambleNames && matchUser)

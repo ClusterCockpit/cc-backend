@@ -46,6 +46,13 @@ func setup(t *testing.T) *api.RestAPI {
        "*"
       ]
   },
+  "metric-store": {
+    "checkpoints": {
+      "interval": "12h"
+    },
+    "retention-in-memory": "48h",
+    "memory-cap": 100
+  },
 	"archive": {
 		 "kind": "file",
 		 "path": "./var/job-archive"
@@ -143,6 +150,7 @@ func setup(t *testing.T) *api.RestAPI {
 	}
 
 	ccconf.Init(cfgFilePath)
+	metricstore.MetricStoreHandle = &metricstore.InternalMetricStore{}
 
 	// Load and check main configuration
 	if cfg := ccconf.GetPackageConfig("main"); cfg != nil {

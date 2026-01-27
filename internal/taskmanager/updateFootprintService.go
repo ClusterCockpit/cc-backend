@@ -10,8 +10,8 @@ import (
 	"math"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/metricdispatch"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/metricstore"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	sq "github.com/Masterminds/squirrel"
@@ -66,7 +66,14 @@ func RegisterFootprintWorker() {
 
 						sJob := time.Now()
 
-						jobStats, err := metricstore.LoadStats(job, allMetrics, context.Background())
+						ms, err := metricdispatch.GetMetricDataRepo(job.Cluster, job.SubCluster)
+						if err != nil {
+							cclog.Errorf("failed to load job data from metric store for job %d (user: %s, project: %s): %s",
+								job.JobID, job.User, job.Project, err.Error())
+							continue
+						}
+
+						jobStats, err := ms.LoadStats(job, allMetrics, context.Background())
 						if err != nil {
 							cclog.Errorf("error wile loading job data stats for footprint update: %v", err)
 							ce++
