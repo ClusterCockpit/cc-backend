@@ -274,17 +274,36 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 }
 
 // buildIntCondition creates a BETWEEN clause for integer range filters.
+// Reminder: BETWEEN Queries are slower and dont use indices as frequently: Only use if both conditions required
 func buildIntCondition(field string, cond *config.IntRange, query sq.SelectBuilder) sq.SelectBuilder {
-	return query.Where(field+" BETWEEN ? AND ?", cond.From, cond.To)
+	if cond.From != 0 && cond.To != 0 {
+		return query.Where(field+" BETWEEN ? AND ?", cond.From, cond.To)
+	} else if cond.From != 0 {
+		return query.Where("? <= "+field, cond.From)
+	} else if cond.To != 0 {
+		return query.Where(field+" <= ?", cond.To)
+	} else {
+		return query
+	}
 }
 
 // buildFloatCondition creates a BETWEEN clause for float range filters.
+// Reminder: BETWEEN Queries are slower and dont use indices as frequently: Only use if both conditions required
 func buildFloatCondition(field string, cond *model.FloatRange, query sq.SelectBuilder) sq.SelectBuilder {
-	return query.Where(field+" BETWEEN ? AND ?", cond.From, cond.To)
+	if cond.From != 0.0 && cond.To != 0.0 {
+		return query.Where(field+" BETWEEN ? AND ?", cond.From, cond.To)
+	} else if cond.From != 0.0 {
+		return query.Where("? <= "+field, cond.From)
+	} else if cond.To != 0.0 {
+		return query.Where(field+" <= ?", cond.To)
+	} else {
+		return query
+	}
 }
 
 // buildTimeCondition creates time range filters supporting absolute timestamps,
 // relative time ranges (last6h, last24h, last7d, last30d), or open-ended ranges.
+// Reminder: BETWEEN Queries are slower and dont use indices as frequently: Only use if both conditions required
 func buildTimeCondition(field string, cond *config.TimeRange, query sq.SelectBuilder) sq.SelectBuilder {
 	if cond.From != nil && cond.To != nil {
 		return query.Where(field+" BETWEEN ? AND ?", cond.From.Unix(), cond.To.Unix())
@@ -308,16 +327,25 @@ func buildTimeCondition(field string, cond *config.TimeRange, query sq.SelectBui
 			cclog.Debugf("No known named timeRange: startTime.range = %s", cond.Range)
 			return query
 		}
-		return query.Where(field+" BETWEEN ? AND ?", then, now)
+		return query.Where("? <= "+field, then)
 	} else {
 		return query
 	}
 }
 
 // buildFloatJSONCondition creates a filter on a numeric field within the footprint JSON column.
+// Reminder: BETWEEN Queries are slower and dont use indices as frequently: Only use if both conditions required
 func buildFloatJSONCondition(condName string, condRange *model.FloatRange, query sq.SelectBuilder) sq.SelectBuilder {
 	query = query.Where("JSON_VALID(footprint)")
-	return query.Where("JSON_EXTRACT(footprint, \"$."+condName+"\") BETWEEN ? AND ?", condRange.From, condRange.To)
+	if condRange.From != 0.0 && condRange.To != 0.0 {
+		return query.Where("JSON_EXTRACT(footprint, \"$."+condName+"\") BETWEEN ? AND ?", condRange.From, condRange.To)
+	} else if condRange.From != 0.0 {
+		return query.Where("? <= JSON_EXTRACT(footprint, \"$."+condName+"\")", condRange.From)
+	} else if condRange.To != 0.0 {
+		return query.Where("JSON_EXTRACT(footprint, \"$."+condName+"\") <= ?", condRange.To)
+	} else {
+		return query
+	}
 }
 
 // buildStringCondition creates filters for string fields supporting equality,
