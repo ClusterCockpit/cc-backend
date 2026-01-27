@@ -321,7 +321,8 @@ func runServer(ctx context.Context) error {
 	haveMetricstore := false
 	mscfg := ccconf.GetPackageConfig("metric-store")
 	if mscfg != nil {
-		metricstore.Init(mscfg, &wg)
+		metrics := metricstore.BuildMetricList()
+		metricstore.Init(mscfg, metrics, &wg)
 
 		// Inject repository as NodeProvider to break import cycle
 		ms := metricstore.GetMemoryStore()

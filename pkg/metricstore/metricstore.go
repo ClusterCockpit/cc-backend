@@ -24,13 +24,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"runtime"
 	"slices"
 	"sync"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/resampler"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
@@ -120,7 +120,7 @@ type MemoryStore struct {
 //
 // Note: Signal handling must be implemented by the caller. Call Shutdown() when
 // receiving termination signals to ensure checkpoint data is persisted.
-func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
+func Init(rawConfig json.RawMessage, metrics map[string]MetricConfig, wg *sync.WaitGroup) {
 	startupTime := time.Now()
 
 	if rawConfig != nil {
@@ -138,33 +138,8 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 	}
 	cclog.Debugf("[METRICSTORE]> Using %d workers for checkpoint/archive operations\n", Keys.NumWorkers)
 
-	// Helper function to add metric configuration
-	addMetricConfig := func(mc *schema.MetricConfig) {
-		agg, err := AssignAggregationStrategy(mc.Aggregation)
-		if err != nil {
-			cclog.Warnf("Could not find aggregation strategy for metric config '%s': %s", mc.Name, err.Error())
-		}
-
-		AddMetric(mc.Name, MetricConfig{
-			Frequency:   int64(mc.Timestep),
-			Aggregation: agg,
-		})
-	}
-
-	for _, c := range archive.Clusters {
-		for _, mc := range c.MetricConfig {
-			addMetricConfig(mc)
-		}
-
-		for _, sc := range c.SubClusters {
-			for _, mc := range sc.MetricConfig {
-				addMetricConfig(mc)
-			}
-		}
-	}
-
 	// Pass the config.MetricStoreKeys
-	InitMetrics(Metrics)
+	InitMetrics(metrics)
 
 	ms := GetMemoryStore()
 
@@ -277,6 +252,13 @@ func GetMemoryStore() *MemoryStore {
 	}
 
 	return msInstance
+}
+
+func (ms *MemoryStore) GetMetricFrequency(metricName string) (int64, error) {
+	if metric, ok := ms.Metrics[metricName]; ok {
+		return metric.Frequency, nil
+	}
+	return 0, fmt.Errorf("[METRICSTORE]> metric %s not found", metricName)
 }
 
 // SetNodeProvider sets the NodeProvider implementation for the MemoryStore.
