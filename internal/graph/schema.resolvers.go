@@ -905,26 +905,32 @@ func (r *queryResolver) ClusterMetrics(ctx context.Context, cluster string, metr
 	for _, metrics := range data {
 		clusterMetrics.NodeCount += 1
 		for metric, scopedMetrics := range metrics {
-			_, ok := collectorData[metric]
-			if !ok {
-				collectorData[metric] = make([]schema.Float, 0)
-				for _, scopedMetric := range scopedMetrics {
-					// Collect Info
+			for _, scopedMetric := range scopedMetrics {
+				// Collect Info Once
+				_, okTimestep := collectorTimestep[metric]
+				if !okTimestep {
 					collectorTimestep[metric] = scopedMetric.Timestep
-					collectorUnit[metric] = scopedMetric.Unit
-					// Collect Initial Data
-					for _, ser := range scopedMetric.Series {
-						collectorData[metric] = append(collectorData[metric], ser.Data...)
-					}
 				}
-			} else {
-				// Sum up values by index
-				for _, scopedMetric := range scopedMetrics {
-					// For This Purpose (Cluster_Wide-Sum of Node Metrics) OK
-					for _, ser := range scopedMetric.Series {
+				_, okUnit := collectorUnit[metric]
+				if !okUnit {
+					collectorUnit[metric] = scopedMetric.Unit
+				}
+				// Collect Data
+				for _, ser := range scopedMetric.Series {
+					_, okData := collectorData[metric]
+					// Init With Datasize > 0
+					if !okData && len(ser.Data) != 0 {
+						collectorData[metric] = make([]schema.Float, len(ser.Data))
+					} else if !okData {
+						cclog.Debugf("ClusterMetrics Skip Init: No Data -> %s at %s; Size %d", metric, ser.Hostname, len(ser.Data))
+					}
+					// Sum if init'd and matching size
+					if okData && len(ser.Data) == len(collectorData[metric]) {
 						for i, val := range ser.Data {
 							collectorData[metric][i] += val
 						}
+					} else if okData {
+						cclog.Debugf("ClusterMetrics Skip Sum: Data Diff -> %s at %s; Want Size %d, Have Size %d", metric, ser.Hostname, len(collectorData[metric]), len(ser.Data))
 					}
 				}
 			}
