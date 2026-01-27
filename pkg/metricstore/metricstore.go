@@ -358,9 +358,13 @@ func Retention(wg *sync.WaitGroup, ctx context.Context) {
 
 // MemoryUsageTracker starts a background goroutine that monitors memory usage.
 //
-// This worker checks memory usage periodically and force-frees buffers if memory
-// exceeds the configured cap. It uses FreeOSMemory() to return memory to the OS
-// after freeing buffers, avoiding aggressive GC that causes performance issues.
+// This worker checks actual process memory usage (via runtime.MemStats) periodically
+// and force-frees buffers if memory exceeds the configured cap. It uses FreeOSMemory()
+// to return memory to the OS after freeing buffers, avoiding aggressive GC that causes
+// performance issues.
+//
+// The tracker logs both actual memory usage (heap allocated) and metric data size for
+// visibility into memory overhead from Go runtime structures and allocations.
 //
 // Parameters:
 //   - wg: WaitGroup to signal completion when context is cancelled
@@ -387,8 +391,11 @@ func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				memoryUsageGB := ms.SizeInGB()
-				cclog.Infof("[METRICSTORE]> current memory usage: %.2f GB", memoryUsageGB)
+				var mem runtime.MemStats
+				runtime.ReadMemStats(&mem)
+				actualMemoryGB := float64(mem.Alloc) / 1e9
+				metricDataGB := ms.SizeInGB()
+				cclog.Infof("[METRICSTORE]> memory usage: %.2f GB actual (%.2f GB metric data)", actualMemoryGB, metricDataGB)
 
 				freedExcluded := 0
 				freedEmergency := 0
@@ -411,15 +418,16 @@ func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
 					}
 				}
 
-				memoryUsageGB = ms.SizeInGB()
+				runtime.ReadMemStats(&mem)
+				actualMemoryGB = float64(mem.Alloc) / 1e9
 
-				if memoryUsageGB > float64(Keys.MemoryCap) {
-					cclog.Warnf("[METRICSTORE]> memory usage %.2f GB exceeds cap %d GB, starting emergency buffer freeing", memoryUsageGB, Keys.MemoryCap)
+				if actualMemoryGB > float64(Keys.MemoryCap) {
+					cclog.Warnf("[METRICSTORE]> memory usage %.2f GB exceeds cap %d GB, starting emergency buffer freeing", actualMemoryGB, Keys.MemoryCap)
 
 					const maxIterations = 100
 
-					for i := 0; i < maxIterations; i++ {
-						if memoryUsageGB < float64(Keys.MemoryCap) {
+					for i := range maxIterations {
+						if actualMemoryGB < float64(Keys.MemoryCap) {
 							break
 						}
 
@@ -428,13 +436,14 @@ func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
 							cclog.Errorf("[METRICSTORE]> error while force-freeing buffers: %s", err)
 						}
 						if freed == 0 {
-							cclog.Errorf("[METRICSTORE]> no more buffers to free after %d emergency frees, memory usage %.2f GB still exceeds cap %d GB", freedEmergency, memoryUsageGB, Keys.MemoryCap)
+							cclog.Errorf("[METRICSTORE]> no more buffers to free after %d emergency frees, memory usage %.2f GB still exceeds cap %d GB", freedEmergency, actualMemoryGB, Keys.MemoryCap)
 							break
 						}
 						freedEmergency += freed
 
 						if i%10 == 0 && freedEmergency > 0 {
-							memoryUsageGB = ms.SizeInGB()
+							runtime.ReadMemStats(&mem)
+							actualMemoryGB = float64(mem.Alloc) / 1e9
 						}
 					}
 
@@ -442,12 +451,13 @@ func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
 						debug.FreeOSMemory()
 					}
 
-					memoryUsageGB = ms.SizeInGB()
+					runtime.ReadMemStats(&mem)
+					actualMemoryGB = float64(mem.Alloc) / 1e9
 
-					if memoryUsageGB >= float64(Keys.MemoryCap) {
-						cclog.Errorf("[METRICSTORE]> after %d emergency frees, memory usage %.2f GB still at/above cap %d GB", freedEmergency, memoryUsageGB, Keys.MemoryCap)
+					if actualMemoryGB >= float64(Keys.MemoryCap) {
+						cclog.Errorf("[METRICSTORE]> after %d emergency frees, memory usage %.2f GB still at/above cap %d GB", freedEmergency, actualMemoryGB, Keys.MemoryCap)
 					} else {
-						cclog.Infof("[METRICSTORE]> emergency freeing complete: %d buffers freed, memory now %.2f GB", freedEmergency, memoryUsageGB)
+						cclog.Infof("[METRICSTORE]> emergency freeing complete: %d buffers freed, memory now %.2f GB", freedEmergency, actualMemoryGB)
 					}
 				}
 
