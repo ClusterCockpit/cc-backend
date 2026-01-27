@@ -24,6 +24,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
+	"github.com/ClusterCockpit/cc-backend/internal/metricdispatch"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/tagger"
 	"github.com/ClusterCockpit/cc-backend/internal/taskmanager"
@@ -317,6 +318,7 @@ func runServer(ctx context.Context) error {
 	var wg sync.WaitGroup
 
 	// Initialize metric store if configuration is provided
+	haveMetricstore := false
 	mscfg := ccconf.GetPackageConfig("metric-store")
 	if mscfg != nil {
 		metricstore.Init(mscfg, &wg)
@@ -325,7 +327,26 @@ func runServer(ctx context.Context) error {
 		ms := metricstore.GetMemoryStore()
 		jobRepo := repository.GetJobRepository()
 		ms.SetNodeProvider(jobRepo)
+		metricstore.MetricStoreHandle = &metricstore.InternalMetricStore{}
+		haveMetricstore = true
 	} else {
+		metricstore.MetricStoreHandle = nil
+		cclog.Debug("missing internal metricstore configuration")
+	}
+
+	// Initialize external metric stores if configuration is provided
+	mscfg = ccconf.GetPackageConfig("metric-store-external")
+	if mscfg != nil {
+		err := metricdispatch.Init(mscfg)
+
+		if err != nil {
+			cclog.Debugf("initializing metricdispatch: %v", err)
+		} else {
+			haveMetricstore = true
+		}
+	}
+
+	if !haveMetricstore {
 		return fmt.Errorf("missing metricstore configuration")
 	}
 

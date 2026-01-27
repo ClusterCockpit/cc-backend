@@ -17,8 +17,7 @@
 //
 // # Basic Usage
 //
-//	store := &CCMetricStore{}
-//	store.Init("http://localhost:8080", "jwt-token")
+//	store := NewCCMetricStore("http://localhost:8080", "jwt-token")
 //
 //	// Load job data
 //	jobData, err := store.LoadData(job, metrics, scopes, ctx, resolution)
@@ -60,11 +59,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sort"
 	"strings"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
@@ -124,15 +121,17 @@ type APIMetricData struct {
 	Max        schema.Float   `json:"max"`        // Maximum value in time range
 }
 
-// Init initializes the CCMetricStore client with connection details.
+// NewCCMetricStore creates and initializes a new CCMetricStore client.
 // The url parameter should include the protocol and port (e.g., "http://localhost:8080").
 // The token parameter is a JWT used for Bearer authentication; pass empty string if auth is disabled.
-func (ccms *CCMetricStore) Init(url string, token string) {
-	ccms.url = url
-	ccms.queryEndpoint = fmt.Sprintf("%s/api/query", url)
-	ccms.jwt = token
-	ccms.client = http.Client{
-		Timeout: 10 * time.Second,
+func NewCCMetricStore(url string, token string) *CCMetricStore {
+	return &CCMetricStore{
+		url:           url,
+		queryEndpoint: fmt.Sprintf("%s/api/query", url),
+		jwt:           token,
+		client: http.Client{
+			Timeout: 10 * time.Second,
+		},
 	}
 }
 
@@ -547,64 +546,18 @@ func (ccms *CCMetricStore) LoadNodeData(
 //   - HasNextPage flag indicating if more pages are available
 //   - Error (may be partial error with some data returned)
 func (ccms *CCMetricStore) LoadNodeListData(
-	cluster, subCluster, nodeFilter string,
+	cluster, subCluster string,
+	nodes []string,
 	metrics []string,
 	scopes []schema.MetricScope,
 	resolution int,
 	from, to time.Time,
-	page *model.PageRequest,
 	ctx context.Context,
-) (map[string]schema.JobData, int, bool, error) {
-	// 0) Init additional vars
-	totalNodes := 0
-	hasNextPage := false
-
-	// 1) Get list of all nodes
-	var nodes []string
-	if subCluster != "" {
-		scNodes := archive.NodeLists[cluster][subCluster]
-		nodes = scNodes.PrintList()
-	} else {
-		subClusterNodeLists := archive.NodeLists[cluster]
-		for _, nodeList := range subClusterNodeLists {
-			nodes = append(nodes, nodeList.PrintList()...)
-		}
-	}
-
-	// 2) Filter nodes
-	if nodeFilter != "" {
-		filteredNodes := []string{}
-		for _, node := range nodes {
-			if strings.Contains(node, nodeFilter) {
-				filteredNodes = append(filteredNodes, node)
-			}
-		}
-		nodes = filteredNodes
-	}
-
-	// 2.1) Count total nodes && Sort nodes -> Sorting invalidated after ccms return ...
-	totalNodes = len(nodes)
-	sort.Strings(nodes)
-
-	// 3) Apply paging
-	if len(nodes) > page.ItemsPerPage {
-		start := (page.Page - 1) * page.ItemsPerPage
-		end := start + page.ItemsPerPage
-		if end > len(nodes) {
-			end = len(nodes)
-			hasNextPage = false
-		} else {
-			hasNextPage = true
-		}
-		nodes = nodes[start:end]
-	}
-
-	// Note: Order of node data is not guaranteed after this point, but contents match page and filter criteria
-
+) (map[string]schema.JobData, error) {
 	queries, assignedScope, err := ccms.buildNodeQueries(cluster, subCluster, nodes, metrics, scopes, resolution)
 	if err != nil {
 		cclog.Errorf("Error while building node queries for Cluster %s, SubCLuster %s, Metrics %v, Scopes %v: %s", cluster, subCluster, metrics, scopes, err.Error())
-		return nil, totalNodes, hasNextPage, err
+		return nil, err
 	}
 
 	req := APIQueryRequest{
@@ -619,7 +572,7 @@ func (ccms *CCMetricStore) LoadNodeListData(
 	resBody, err := ccms.doRequest(ctx, &req)
 	if err != nil {
 		cclog.Errorf("Error while performing request for cluster %s: %s", cluster, err.Error())
-		return nil, totalNodes, hasNextPage, err
+		return nil, err
 	}
 
 	var errors []string
@@ -694,10 +647,10 @@ func (ccms *CCMetricStore) LoadNodeListData(
 
 	if len(errors) != 0 {
 		/* Returns list of "partial errors" */
-		return data, totalNodes, hasNextPage, fmt.Errorf("METRICDATA/CCMS > Errors: %s", strings.Join(errors, ", "))
+		return data, fmt.Errorf("METRICDATA/CCMS > Errors: %s", strings.Join(errors, ", "))
 	}
 
-	return data, totalNodes, hasNextPage, nil
+	return data, nil
 }
 
 // sanitizeStats replaces NaN values in statistics with 0 to enable JSON marshaling.

@@ -5,18 +5,13 @@
     "https-key-file": "/etc/letsencrypt/live/url/privkey.pem",
     "user": "clustercockpit",
     "group": "clustercockpit",
-    "api-allowed-ips": [
-      "*"
-    ],
+    "api-allowed-ips": ["*"],
     "short-running-jobs-duration": 300,
     "enable-job-taggers": true,
     "resampling": {
       "minimum-points": 600,
       "trigger": 180,
-      "resolutions": [
-        240,
-        60
-      ]
+      "resolutions": [240, 60]
     },
     "api-subjects": {
       "subject-job-event": "cc.job.event",
@@ -50,6 +45,28 @@
       "location": "./var/archive"
     }
   },
+  "metric-store-external": [
+    {
+      "scope": "*",
+      "url": "http://x.x.x.x:8082",
+      "token": "MySecret"
+    },
+    {
+      "scope": "fritz",
+      "url": "http://x.x.x.x:8084",
+      "token": "MySecret"
+    },
+    {
+      "scope": "fritz-spr1tb",
+      "url": "http://x.x.x.x:8083",
+      "token": "MySecret"
+    },
+    {
+      "scope": "alex",
+      "url": "http://x.x.x.x:8084",
+      "token": "MySecret"
+    }
+  ],
   "metric-store": {
     "checkpoints": {
       "interval": "12h",
@@ -75,3 +92,4 @@
   },
   "ui-file": "ui-config.json"
 }
+

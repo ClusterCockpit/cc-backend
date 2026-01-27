@@ -44,7 +44,6 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/metricstore"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/lrucache"
 	"github.com/ClusterCockpit/cc-lib/v2/resampler"
@@ -96,6 +95,13 @@ func LoadData(job *schema.Job,
 		if job.State == schema.JobStateRunning ||
 			job.MonitoringStatus == schema.MonitoringStatusRunningOrArchiving {
 
+			ms, err := GetMetricDataRepo(job.Cluster, job.SubCluster)
+			if err != nil {
+				cclog.Errorf("failed to load job data from metric store for job %d (user: %s, project: %s): %s",
+					job.JobID, job.User, job.Project, err.Error())
+				return err, 0, 0
+			}
+
 			if scopes == nil {
 				scopes = append(scopes, schema.MetricScopeNode)
 			}
@@ -107,7 +113,7 @@ func LoadData(job *schema.Job,
 				}
 			}
 
-			jd, err = metricstore.LoadData(job, metrics, scopes, ctx, resolution)
+			jd, err = ms.LoadData(job, metrics, scopes, ctx, resolution)
 			if err != nil {
 				if len(jd) != 0 {
 					cclog.Warnf("partial error loading metrics from store for job %d (user: %s, project: %s): %s",
@@ -236,7 +242,14 @@ func LoadAverages(
 		return archive.LoadAveragesFromArchive(job, metrics, data) // #166 change also here?
 	}
 
-	stats, err := metricstore.LoadStats(job, metrics, ctx)
+	ms, err := GetMetricDataRepo(job.Cluster, job.SubCluster)
+	if err != nil {
+		cclog.Errorf("failed to load job data from metric store for job %d (user: %s, project: %s): %s",
+			job.JobID, job.User, job.Project, err.Error())
+		return err
+	}
+
+	stats, err := ms.LoadStats(job, metrics, ctx)
 	if err != nil {
 		cclog.Errorf("failed to load statistics from metric store for job %d (user: %s, project: %s): %s",
 			job.JobID, job.User, job.Project, err.Error())
@@ -273,7 +286,14 @@ func LoadScopedJobStats(
 		return archive.LoadScopedStatsFromArchive(job, metrics, scopes)
 	}
 
-	scopedStats, err := metricstore.LoadScopedStats(job, metrics, scopes, ctx)
+	ms, err := GetMetricDataRepo(job.Cluster, job.SubCluster)
+	if err != nil {
+		cclog.Errorf("failed to load job data from metric store for job %d (user: %s, project: %s): %s",
+			job.JobID, job.User, job.Project, err.Error())
+		return nil, err
+	}
+
+	scopedStats, err := ms.LoadScopedStats(job, metrics, scopes, ctx)
 	if err != nil {
 		cclog.Errorf("failed to load scoped statistics from metric store for job %d (user: %s, project: %s): %s",
 			job.JobID, job.User, job.Project, err.Error())
@@ -295,9 +315,16 @@ func LoadJobStats(
 		return archive.LoadStatsFromArchive(job, metrics)
 	}
 
+	ms, err := GetMetricDataRepo(job.Cluster, job.SubCluster)
+	if err != nil {
+		cclog.Errorf("failed to load job data from metric store for job %d (user: %s, project: %s): %s",
+			job.JobID, job.User, job.Project, err.Error())
+		return nil, err
+	}
+
 	data := make(map[string]schema.MetricStatistics, len(metrics))
 
-	stats, err := metricstore.LoadStats(job, metrics, ctx)
+	stats, err := ms.LoadStats(job, metrics, ctx)
 	if err != nil {
 		cclog.Errorf("failed to load statistics from metric store for job %d (user: %s, project: %s): %s",
 			job.JobID, job.User, job.Project, err.Error())
@@ -333,6 +360,7 @@ func LoadJobStats(
 // the metric store (not the archive) since it's for current/recent node status monitoring.
 //
 // Returns a nested map structure: node -> metric -> scoped data.
+// FIXME: Add support for subcluster specific cc-metric-stores
 func LoadNodeData(
 	cluster string,
 	metrics, nodes []string,
@@ -346,7 +374,14 @@ func LoadNodeData(
 		}
 	}
 
-	data, err := metricstore.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)
+	ms, err := GetMetricDataRepo(cluster, "")
+	if err != nil {
+		cclog.Errorf("failed to load node data from metric store: %s",
+			err.Error())
+		return nil, err
+	}
+
+	data, err := ms.LoadNodeData(cluster, metrics, nodes, scopes, from, to, ctx)
 	if err != nil {
 		if len(data) != 0 {
 			cclog.Warnf("partial error loading node data from metric store for cluster %s: %s", cluster, err.Error())
@@ -383,7 +418,14 @@ func LoadNodeListData(
 		}
 	}
 
-	data, err := metricstore.LoadNodeListData(cluster, subCluster, nodes, metrics, scopes, resolution, from, to, ctx)
+	ms, err := GetMetricDataRepo(cluster, subCluster)
+	if err != nil {
+		cclog.Errorf("failed to load node data from metric store: %s",
+			err.Error())
+		return nil, err
+	}
+
+	data, err := ms.LoadNodeListData(cluster, subCluster, nodes, metrics, scopes, resolution, from, to, ctx)
 	if err != nil {
 		if len(data) != 0 {
 			cclog.Warnf("partial error loading node list data from metric store for cluster %s, subcluster %s: %s",

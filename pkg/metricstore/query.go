@@ -38,6 +38,10 @@ import (
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
+type InternalMetricStore struct{}
+
+var MetricStoreHandle *InternalMetricStore
+
 // TestLoadDataCallback allows tests to override LoadData behavior for testing purposes.
 // When set to a non-nil function, LoadData will call this function instead of the default implementation.
 var TestLoadDataCallback func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error)
@@ -65,7 +69,7 @@ var TestLoadDataCallback func(job *schema.Job, metrics []string, scopes []schema
 // Example:
 //
 //	jobData, err := LoadData(job, []string{"cpu_load", "mem_used"}, []schema.MetricScope{schema.MetricScopeNode}, ctx, 60)
-func LoadData(
+func (ccms *InternalMetricStore) LoadData(
 	job *schema.Job,
 	metrics []string,
 	scopes []schema.MetricScope,
@@ -502,7 +506,7 @@ func buildQueries(
 // Returns:
 //   - Map of metric → hostname → statistics
 //   - Error on query building or fetching failure
-func LoadStats(
+func (ccms *InternalMetricStore) LoadStats(
 	job *schema.Job,
 	metrics []string,
 	ctx context.Context,
@@ -574,7 +578,7 @@ func LoadStats(
 // Returns:
 //   - ScopedJobStats: Map of metric → scope → []ScopedStats (with hostname and ID)
 //   - Error or partial error listing failed queries
-func LoadScopedStats(
+func (ccms *InternalMetricStore) LoadScopedStats(
 	job *schema.Job,
 	metrics []string,
 	scopes []schema.MetricScope,
@@ -675,7 +679,7 @@ func LoadScopedStats(
 // Returns:
 //   - Map of hostname → metric → []JobMetric
 //   - Error or partial error listing failed queries
-func LoadNodeData(
+func (ccms *InternalMetricStore) LoadNodeData(
 	cluster string,
 	metrics, nodes []string,
 	scopes []schema.MetricScope,
@@ -778,7 +782,7 @@ func LoadNodeData(
 // Returns:
 //   - Map of hostname → JobData (metric → scope → JobMetric)
 //   - Error or partial error listing failed queries
-func LoadNodeListData(
+func (ccms *InternalMetricStore) LoadNodeListData(
 	cluster, subCluster string,
 	nodes []string,
 	metrics []string,
@@ -912,7 +916,6 @@ func buildNodeQueries(
 	scopes []schema.MetricScope,
 	resolution int64,
 ) ([]APIQuery, []schema.MetricScope, error) {
-
 	queries := make([]APIQuery, 0, len(metrics)*len(scopes)*len(nodes))
 	assignedScope := []schema.MetricScope{}
 
