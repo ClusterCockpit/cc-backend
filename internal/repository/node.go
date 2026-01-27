@@ -197,7 +197,7 @@ func (r *NodeRepository) UpdateNodeState(hostname string, cluster string, nodeSt
 				return err
 			}
 
-			cclog.Infof("Added node '%s' to database", hostname)
+			cclog.Debugf("Added node '%s' to database", hostname)
 			return nil
 		} else {
 			cclog.Warnf("Error while querying node '%v' from database", id)
@@ -212,7 +212,7 @@ func (r *NodeRepository) UpdateNodeState(hostname string, cluster string, nodeSt
 		cclog.Errorf("Error while adding node state for '%v' to database", hostname)
 		return err
 	}
-	cclog.Infof("Updated node state for '%s' in database", hostname)
+	cclog.Debugf("Updated node state for '%s' in database", hostname)
 	return nil
 }
 
@@ -716,8 +716,8 @@ func AccessCheckWithUser(user *schema.User, query sq.SelectBuilder) (sq.SelectBu
 
 func getNodesFromTopol(cluster string, subCluster string, nodeFilter string, page *model.PageRequest) ([]string, int, bool) {
 	// 0) Init additional vars
-	var hasNextPage bool = false
-	var totalNodes int = 0
+	hasNextPage := false
+	totalNodes := 0
 
 	// 1) Get list of all nodes
 	var topolNodes []string
