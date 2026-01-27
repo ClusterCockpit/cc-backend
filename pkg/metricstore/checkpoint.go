@@ -100,6 +100,7 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 	if Keys.Checkpoints.FileFormat == "json" {
 		ms := GetMemoryStore()
 
+		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			d, err := time.ParseDuration(Keys.Checkpoints.Interval)
@@ -139,6 +140,7 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 			}
 		}()
 	} else {
+		wg.Add(1)
 		go func() {
 			defer wg.Done()
 
