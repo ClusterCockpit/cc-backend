@@ -254,6 +254,9 @@
             style="width: {jobInfoColumnWidth}px; padding-top: {headerPaddingTop}px"
           >
             Job Info
+            {#if $jobsStore.fetching}
+              <Spinner size="sm" style="margin-left:10px;" secondary />
+            {/if}
           </th>
           {#if showFootprint}
             <th
