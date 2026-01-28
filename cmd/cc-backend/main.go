@@ -399,7 +399,7 @@ func runServer(ctx context.Context) error {
 
 	// Set GC percent if not configured
 	if os.Getenv(envGOGC) == "" {
-		debug.SetGCPercent(25)
+		debug.SetGCPercent(15)
 	}
 	runtime.SystemdNotify(true, "running")
 
