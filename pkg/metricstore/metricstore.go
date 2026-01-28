@@ -699,7 +699,7 @@ func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, reso
 	if err != nil {
 		return nil, 0, 0, 0, err
 	} else if n == 0 {
-		return nil, 0, 0, 0, errors.New("[METRICSTORE]> metric or host not found")
+		return nil, 0, 0, 0, ErrNoHostOrMetric
 	} else if n > 1 {
 		if minfo.Aggregation == AvgAggregation {
 			normalize := 1. / schema.Float(n)
