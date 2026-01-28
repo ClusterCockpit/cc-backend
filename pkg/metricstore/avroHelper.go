@@ -15,15 +15,15 @@ import (
 )
 
 func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
-	// AvroPool is a pool of Avro writers.
+	wg.Add(1)
 	go func() {
-		if Keys.Checkpoints.FileFormat == "json" {
-			wg.Done() // Mark this goroutine as done
-			return    // Exit the goroutine
-		}
-
 		defer wg.Done()
 
+		if Keys.Checkpoints.FileFormat == "json" {
+			return
+		}
+
+		ms := GetMemoryStore()
 		var avroLevel *AvroLevel
 		oldSelector := make([]string, 0)
 
@@ -39,7 +39,7 @@ func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 							return
 						}
 						// Process remaining message
-						freq, err := GetMetricFrequency(val.MetricName)
+						freq, err := ms.GetMetricFrequency(val.MetricName)
 						if err != nil {
 							continue
 						}
@@ -76,7 +76,7 @@ func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 				}
 
 				// Fetch the frequency of the metric from the global configuration
-				freq, err := GetMetricFrequency(val.MetricName)
+				freq, err := ms.GetMetricFrequency(val.MetricName)
 				if err != nil {
 					cclog.Errorf("Error fetching metric frequency: %s\n", err)
 					continue

@@ -89,8 +89,7 @@ func (api *RestAPI) MountAPIRoutes(r *mux.Router) {
 		r.HandleFunc("/jobs/stop_job/", api.stopJobByRequest).Methods(http.MethodPost, http.MethodPut)
 	}
 	r.HandleFunc("/jobs/", api.getJobs).Methods(http.MethodGet)
-	r.HandleFunc("/jobs/{id}", api.getJobByID).Methods(http.MethodPost)
-	r.HandleFunc("/jobs/{id}", api.getCompleteJobByID).Methods(http.MethodGet)
+	r.HandleFunc("/jobs/used_nodes", api.getUsedNodes).Methods(http.MethodGet)
 	r.HandleFunc("/jobs/tag_job/{id}", api.tagJob).Methods(http.MethodPost, http.MethodPatch)
 	r.HandleFunc("/jobs/tag_job/{id}", api.removeTagJob).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/edit_meta/{id}", api.editMeta).Methods(http.MethodPost, http.MethodPatch)
@@ -98,6 +97,8 @@ func (api *RestAPI) MountAPIRoutes(r *mux.Router) {
 	r.HandleFunc("/jobs/delete_job/", api.deleteJobByRequest).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job/{id}", api.deleteJobByID).Methods(http.MethodDelete)
 	r.HandleFunc("/jobs/delete_job_before/{ts}", api.deleteJobBefore).Methods(http.MethodDelete)
+	r.HandleFunc("/jobs/{id}", api.getJobByID).Methods(http.MethodPost)
+	r.HandleFunc("/jobs/{id}", api.getCompleteJobByID).Methods(http.MethodGet)
 
 	r.HandleFunc("/tags/", api.removeTags).Methods(http.MethodDelete)
 
