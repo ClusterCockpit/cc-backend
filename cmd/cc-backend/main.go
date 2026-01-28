@@ -321,7 +321,8 @@ func runServer(ctx context.Context) error {
 	haveMetricstore := false
 	mscfg := ccconf.GetPackageConfig("metric-store")
 	if mscfg != nil {
-		metricstore.Init(mscfg, &wg)
+		metrics := metricstore.BuildMetricList()
+		metricstore.Init(mscfg, metrics, &wg)
 
 		// Inject repository as NodeProvider to break import cycle
 		ms := metricstore.GetMemoryStore()
@@ -398,7 +399,7 @@ func runServer(ctx context.Context) error {
 
 	// Set GC percent if not configured
 	if os.Getenv(envGOGC) == "" {
-		debug.SetGCPercent(25)
+		debug.SetGCPercent(15)
 	}
 	runtime.SystemdNotify(true, "running")
 

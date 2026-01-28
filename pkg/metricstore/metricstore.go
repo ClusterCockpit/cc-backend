@@ -24,13 +24,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"runtime"
+	"runtime/debug"
 	"slices"
 	"sync"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/resampler"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
@@ -120,7 +121,7 @@ type MemoryStore struct {
 //
 // Note: Signal handling must be implemented by the caller. Call Shutdown() when
 // receiving termination signals to ensure checkpoint data is persisted.
-func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
+func Init(rawConfig json.RawMessage, metrics map[string]MetricConfig, wg *sync.WaitGroup) {
 	startupTime := time.Now()
 
 	if rawConfig != nil {
@@ -138,33 +139,8 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 	}
 	cclog.Debugf("[METRICSTORE]> Using %d workers for checkpoint/archive operations\n", Keys.NumWorkers)
 
-	// Helper function to add metric configuration
-	addMetricConfig := func(mc *schema.MetricConfig) {
-		agg, err := AssignAggregationStrategy(mc.Aggregation)
-		if err != nil {
-			cclog.Warnf("Could not find aggregation strategy for metric config '%s': %s", mc.Name, err.Error())
-		}
-
-		AddMetric(mc.Name, MetricConfig{
-			Frequency:   int64(mc.Timestep),
-			Aggregation: agg,
-		})
-	}
-
-	for _, c := range archive.Clusters {
-		for _, mc := range c.MetricConfig {
-			addMetricConfig(mc)
-		}
-
-		for _, sc := range c.SubClusters {
-			for _, mc := range sc.MetricConfig {
-				addMetricConfig(mc)
-			}
-		}
-	}
-
 	// Pass the config.MetricStoreKeys
-	InitMetrics(Metrics)
+	InitMetrics(metrics)
 
 	ms := GetMemoryStore()
 
@@ -189,23 +165,9 @@ func Init(rawConfig json.RawMessage, wg *sync.WaitGroup) {
 	// previously active heap, a GC is triggered.
 	// Forcing a GC here will set the "previously active heap"
 	// to a minumum.
-	runtime.GC()
+	// runtime.GC()
 
 	ctx, shutdown := context.WithCancel(context.Background())
-
-	retentionGoroutines := 1
-	checkpointingGoroutines := 1
-	dataStagingGoroutines := 1
-	archivingGoroutines := 1
-	memoryUsageTracker := 1
-
-	totalGoroutines := retentionGoroutines +
-		checkpointingGoroutines +
-		dataStagingGoroutines +
-		archivingGoroutines +
-		memoryUsageTracker
-
-	wg.Add(totalGoroutines)
 
 	Retention(wg, ctx)
 	Checkpointing(wg, ctx)
@@ -279,6 +241,13 @@ func GetMemoryStore() *MemoryStore {
 	return msInstance
 }
 
+func (ms *MemoryStore) GetMetricFrequency(metricName string) (int64, error) {
+	if metric, ok := ms.Metrics[metricName]; ok {
+		return metric.Frequency, nil
+	}
+	return 0, fmt.Errorf("[METRICSTORE]> metric %s not found", metricName)
+}
+
 // SetNodeProvider sets the NodeProvider implementation for the MemoryStore.
 // This must be called during initialization to provide job state information
 // for selective buffer retention during Free operations.
@@ -343,6 +312,7 @@ func Shutdown() {
 func Retention(wg *sync.WaitGroup, ctx context.Context) {
 	ms := GetMemoryStore()
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		d, err := time.ParseDuration(Keys.RetentionInMemory)
@@ -388,9 +358,13 @@ func Retention(wg *sync.WaitGroup, ctx context.Context) {
 
 // MemoryUsageTracker starts a background goroutine that monitors memory usage.
 //
-// This worker checks memory usage every minute and force-frees buffers if memory
-// exceeds the configured cap. It protects against infinite loops by limiting
-// iterations and forcing garbage collection between attempts.
+// This worker checks actual process memory usage (via runtime.MemStats) periodically
+// and force-frees buffers if memory exceeds the configured cap. It uses FreeOSMemory()
+// to return memory to the OS after freeing buffers, avoiding aggressive GC that causes
+// performance issues.
+//
+// The tracker logs both actual memory usage (heap allocated) and metric data size for
+// visibility into memory overhead from Go runtime structures and allocations.
 //
 // Parameters:
 //   - wg: WaitGroup to signal completion when context is cancelled
@@ -400,6 +374,7 @@ func Retention(wg *sync.WaitGroup, ctx context.Context) {
 func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
 	ms := GetMemoryStore()
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		d := DefaultMemoryUsageTrackerInterval
@@ -416,65 +391,75 @@ func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				state.mu.RLock()
+				var mem runtime.MemStats
+				runtime.ReadMemStats(&mem)
+				actualMemoryGB := float64(mem.Alloc) / 1e9
+				metricDataGB := ms.SizeInGB()
+				cclog.Infof("[METRICSTORE]> memory usage: %.2f GB actual (%.2f GB metric data)", actualMemoryGB, metricDataGB)
 
-				memoryUsageGB := ms.SizeInGB()
-				cclog.Infof("[METRICSTORE]> current memory usage: %.2f GB\n", memoryUsageGB)
-
-				freedTotal := 0
+				freedExcluded := 0
+				freedEmergency := 0
 				var err error
 
-				// First force-free all the checkpoints that were
-				if state.lastRetentionTime != 0 && state.selectorsExcluded {
-					freedTotal, err = ms.Free(nil, state.lastRetentionTime)
+				state.mu.RLock()
+				lastRetention := state.lastRetentionTime
+				selectorsExcluded := state.selectorsExcluded
+				state.mu.RUnlock()
+
+				if lastRetention != 0 && selectorsExcluded {
+					freedExcluded, err = ms.Free(nil, lastRetention)
 					if err != nil {
 						cclog.Errorf("[METRICSTORE]> error while force-freeing the excluded buffers: %s", err)
 					}
 
-					// Calling runtime.GC() twice in succession tp completely empty a bufferPool (sync.Pool)
-					runtime.GC()
-					runtime.GC()
-
-					cclog.Infof("[METRICSTORE]> done: %d excluded buffers force-freed\n", freedTotal)
+					if freedExcluded > 0 {
+						debug.FreeOSMemory()
+						cclog.Infof("[METRICSTORE]> done: %d excluded buffers force-freed", freedExcluded)
+					}
 				}
 
-				state.mu.RUnlock()
+				runtime.ReadMemStats(&mem)
+				actualMemoryGB = float64(mem.Alloc) / 1e9
 
-				memoryUsageGB = ms.SizeInGB()
-
-				if memoryUsageGB > float64(Keys.MemoryCap) {
-					cclog.Warnf("[METRICSTORE]> memory usage is still greater than the Memory Cap: %d GB\n", Keys.MemoryCap)
-					cclog.Warnf("[METRICSTORE]> starting to force-free the buffers from the Metric Store\n")
+				if actualMemoryGB > float64(Keys.MemoryCap) {
+					cclog.Warnf("[METRICSTORE]> memory usage %.2f GB exceeds cap %d GB, starting emergency buffer freeing", actualMemoryGB, Keys.MemoryCap)
 
 					const maxIterations = 100
 
-					for range maxIterations {
-						memoryUsageGB = ms.SizeInGB()
-						if memoryUsageGB < float64(Keys.MemoryCap) {
+					for i := range maxIterations {
+						if actualMemoryGB < float64(Keys.MemoryCap) {
 							break
 						}
 
 						freed, err := ms.ForceFree()
 						if err != nil {
-							cclog.Errorf("[METRICSTORE]> error while force-freeing the buffers: %s", err)
+							cclog.Errorf("[METRICSTORE]> error while force-freeing buffers: %s", err)
 						}
 						if freed == 0 {
-							cclog.Errorf("[METRICSTORE]> 0 buffers force-freed in last try, %d total buffers force-freed, memory usage of %.2f GB remains higher than the memory cap of %d GB and there are no buffers left to force-free\n", freedTotal, memoryUsageGB, Keys.MemoryCap)
+							cclog.Errorf("[METRICSTORE]> no more buffers to free after %d emergency frees, memory usage %.2f GB still exceeds cap %d GB", freedEmergency, actualMemoryGB, Keys.MemoryCap)
 							break
 						}
-						freedTotal += freed
+						freedEmergency += freed
 
-						runtime.GC()
+						if i%10 == 0 && freedEmergency > 0 {
+							runtime.ReadMemStats(&mem)
+							actualMemoryGB = float64(mem.Alloc) / 1e9
+						}
 					}
 
-					if memoryUsageGB >= float64(Keys.MemoryCap) {
-						cclog.Errorf("[METRICSTORE]> reached maximum iterations (%d) or no more buffers to free, current memory usage: %.2f GB\n", maxIterations, memoryUsageGB)
+					// if freedEmergency > 0 {
+					// 	debug.FreeOSMemory()
+					// }
+
+					runtime.ReadMemStats(&mem)
+					actualMemoryGB = float64(mem.Alloc) / 1e9
+
+					if actualMemoryGB >= float64(Keys.MemoryCap) {
+						cclog.Errorf("[METRICSTORE]> after %d emergency frees, memory usage %.2f GB still at/above cap %d GB", freedEmergency, actualMemoryGB, Keys.MemoryCap)
 					} else {
-						cclog.Infof("[METRICSTORE]> done: %d buffers force-freed\n", freedTotal)
-						cclog.Infof("[METRICSTORE]> current memory usage after force-freeing the buffers: %.2f GB\n", memoryUsageGB)
+						cclog.Infof("[METRICSTORE]> emergency freeing complete: %d buffers freed, memory now %.2f GB", freedEmergency, actualMemoryGB)
 					}
 				}
-
 			}
 		}
 	}()

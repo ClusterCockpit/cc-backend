@@ -455,4 +455,38 @@ func TestRestApi(t *testing.T) {
 	if !ok {
 		t.Fatal("subtest failed")
 	}
+
+	t.Run("GetUsedNodesNoRunning", func(t *testing.T) {
+		contextUserValue := &schema.User{
+			Username:   "testuser",
+			Projects:   make([]string, 0),
+			Roles:      []string{"api"},
+			AuthType:   0,
+			AuthSource: 2,
+		}
+
+		req := httptest.NewRequest(http.MethodGet, "/jobs/used_nodes?ts=123456790", nil)
+		recorder := httptest.NewRecorder()
+
+		ctx := context.WithValue(req.Context(), contextUserKey, contextUserValue)
+
+		r.ServeHTTP(recorder, req.WithContext(ctx))
+		response := recorder.Result()
+		if response.StatusCode != http.StatusOK {
+			t.Fatal(response.Status, recorder.Body.String())
+		}
+
+		var result api.GetUsedNodesAPIResponse
+		if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
+			t.Fatal(err)
+		}
+
+		if result.UsedNodes == nil {
+			t.Fatal("expected usedNodes to be non-nil")
+		}
+
+		if len(result.UsedNodes) != 0 {
+			t.Fatalf("expected no used nodes for stopped jobs, got: %v", result.UsedNodes)
+		}
+	})
 }

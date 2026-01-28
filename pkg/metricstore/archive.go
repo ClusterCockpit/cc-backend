@@ -49,6 +49,7 @@ func CleanUp(wg *sync.WaitGroup, ctx context.Context) {
 
 // runWorker takes simple values to configure what it does
 func cleanUpWorker(wg *sync.WaitGroup, ctx context.Context, interval string, mode string, cleanupDir string, delete bool) {
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 

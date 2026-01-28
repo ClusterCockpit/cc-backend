@@ -4,7 +4,7 @@
   Only width/height should change reactively.
 
   Properties:
-  - `metricData [Data]`: Two series of metric data including unit info
+  - `metricData [Data]`: Two series of metric data including unit info, unsorted
   - `timestep Number`: Data timestep
   - `numNodes Number`: Number of nodes from which metric data is aggregated
   - `cluster String`: Cluster name of the parent job / data [Default: ""]
@@ -46,10 +46,11 @@
   let uplot = $state(null);
 
   /* Derived */
+  const sortedMetricData = $derived(publicMode ? [...metricData] : metricData.sort((a, b) => b.name.localeCompare(a.name))); // PublicMode: Presorted
   const maxX = $derived(longestSeries * timestep);
   const lineWidth = $derived(publicMode ? 2 : clusterCockpitConfig.plotConfiguration_lineWidth / window.devicePixelRatio);
   const longestSeries = $derived.by(() => {
-    return metricData.reduce((n, m) => Math.max(n, m.data.length), 0);
+    return sortedMetricData.reduce((n, m) => Math.max(n, m.data.length), 0);
   });
 
   // Derive Plot Params
@@ -68,8 +69,8 @@
       };
     };
     // Y
-    for (let i = 0; i < metricData.length; i++) {
-      pendingData.push(metricData[i]?.data);
+    for (let i = 0; i < sortedMetricData.length; i++) {
+      pendingData.push(sortedMetricData[i]?.data);
     };
     return pendingData;
   })
@@ -84,9 +85,9 @@
       }
     ];
     // Y
-    for (let i = 0; i < metricData.length; i++) {
+    for (let i = 0; i < sortedMetricData.length; i++) {
       pendingSeries.push({
-        label: publicMode ? null : `${metricData[i]?.name} (${metricData[i]?.unit?.prefix}${metricData[i]?.unit?.base})`,
+        label: publicMode ? null : `${sortedMetricData[i]?.name} (${sortedMetricData[i]?.unit?.prefix}${sortedMetricData[i]?.unit?.base})`,
         scale: `y${i+1}`,
         width: lineWidth,
         stroke: fixedLineColors[i],
@@ -156,9 +157,9 @@
       // X
       baseOpts.axes[0].label = 'Time';
       // Y1
-      baseOpts.axes[1].label = `${metricData[0]?.name} (${metricData[0]?.unit?.prefix}${metricData[0]?.unit?.base})`;
+      baseOpts.axes[1].label = `${sortedMetricData[0]?.name} (${sortedMetricData[0]?.unit?.prefix}${sortedMetricData[0]?.unit?.base})`;
       // Y2
-      baseOpts.axes[2].label = `${metricData[1]?.name} (${metricData[1]?.unit?.prefix}${metricData[1]?.unit?.base})`;
+      baseOpts.axes[2].label = `${sortedMetricData[1]?.name} (${sortedMetricData[1]?.unit?.prefix}${sortedMetricData[1]?.unit?.base})`;
       baseOpts.hooks.draw = [
         (u) => {
           // Draw plot type label:
@@ -212,7 +213,7 @@
     style = { backgroundColor: "rgba(255, 249, 196, 0.92)", color: "black" },
   } = {}) {
     let legendEl;
-    const dataSize = metricData.length;
+    const dataSize = sortedMetricData.length;
 
     function init(u, opts) {
       legendEl = u.root.querySelector(".u-legend");
@@ -311,7 +312,7 @@
 </script>
 
 <!-- Define $width Wrapper and NoData Card -->
-{#if metricData[0]?.data && metricData[0]?.data?.length > 0}
+{#if sortedMetricData[0]?.data && sortedMetricData[0]?.data?.length > 0}
   <div bind:this={plotWrapper} bind:clientWidth={width}
         class={forNode ? 'py-2 rounded' : 'rounded'}
   ></div>

@@ -45,6 +45,10 @@ package metricstore
 import (
 	"fmt"
 	"time"
+
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 const (
@@ -207,55 +211,51 @@ type MetricConfig struct {
 	offset int
 }
 
-// Metrics is the global map of metric configurations.
-//
-// Keyed by metric name (e.g., "cpu_load", "mem_used"). Populated during Init()
-// from cluster configuration and checkpoint restoration. Each MetricConfig.offset
-// corresponds to the buffer slice index in Level.metrics.
-var Metrics map[string]MetricConfig
+func BuildMetricList() map[string]MetricConfig {
+	var metrics map[string]MetricConfig = make(map[string]MetricConfig)
 
-// GetMetricFrequency retrieves the measurement interval for a metric.
-//
-// Parameters:
-//   - metricName: Metric name (e.g., "cpu_load")
-//
-// Returns:
-//   - int64: Frequency in seconds
-//   - error: Non-nil if metric not found in Metrics map
-func GetMetricFrequency(metricName string) (int64, error) {
-	if metric, ok := Metrics[metricName]; ok {
-		return metric.Frequency, nil
-	}
-	return 0, fmt.Errorf("[METRICSTORE]> metric %s not found", metricName)
-}
+	addMetric := func(name string, metric MetricConfig) error {
+		if metrics == nil {
+			metrics = make(map[string]MetricConfig, 0)
+		}
 
-// AddMetric registers a new metric or updates an existing one.
-//
-// If the metric already exists with a different frequency, uses the higher frequency
-// (finer granularity). This handles cases where different clusters report the same
-// metric at different intervals.
-//
-// Parameters:
-//   - name:   Metric name (e.g., "cpu_load")
-//   - metric: Configuration (frequency, aggregation strategy)
-//
-// Returns:
-//   - error: Always nil (signature for future error handling)
-func AddMetric(name string, metric MetricConfig) error {
-	if Metrics == nil {
-		Metrics = make(map[string]MetricConfig, 0)
+		if existingMetric, ok := metrics[name]; ok {
+			if existingMetric.Frequency != metric.Frequency {
+				if existingMetric.Frequency < metric.Frequency {
+					existingMetric.Frequency = metric.Frequency
+					metrics[name] = existingMetric
+				}
+			}
+		} else {
+			metrics[name] = metric
+		}
+
+		return nil
 	}
 
-	if existingMetric, ok := Metrics[name]; ok {
-		if existingMetric.Frequency != metric.Frequency {
-			if existingMetric.Frequency < metric.Frequency {
-				existingMetric.Frequency = metric.Frequency
-				Metrics[name] = existingMetric
+	// Helper function to add metric configuration
+	addMetricConfig := func(mc *schema.MetricConfig) {
+		agg, err := AssignAggregationStrategy(mc.Aggregation)
+		if err != nil {
+			cclog.Warnf("Could not find aggregation strategy for metric config '%s': %s", mc.Name, err.Error())
+		}
+
+		addMetric(mc.Name, MetricConfig{
+			Frequency:   int64(mc.Timestep),
+			Aggregation: agg,
+		})
+	}
+	for _, c := range archive.Clusters {
+		for _, mc := range c.MetricConfig {
+			addMetricConfig(mc)
+		}
+
+		for _, sc := range c.SubClusters {
+			for _, mc := range sc.MetricConfig {
+				addMetricConfig(mc)
 			}
 		}
-	} else {
-		Metrics[name] = metric
 	}
 
-	return nil
+	return metrics
 }
