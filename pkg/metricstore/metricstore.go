@@ -447,9 +447,9 @@ func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
 						}
 					}
 
-					if freedEmergency > 0 {
-						debug.FreeOSMemory()
-					}
+					// if freedEmergency > 0 {
+					// 	debug.FreeOSMemory()
+					// }
 
 					runtime.ReadMemStats(&mem)
 					actualMemoryGB = float64(mem.Alloc) / 1e9
@@ -460,7 +460,6 @@ func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
 						cclog.Infof("[METRICSTORE]> emergency freeing complete: %d buffers freed, memory now %.2f GB", freedEmergency, actualMemoryGB)
 					}
 				}
-
 			}
 		}
 	}()

@@ -43,7 +43,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -396,14 +395,14 @@ func enqueueCheckpointHosts(dir string, work chan<- [2]string) error {
 			}
 
 			gcCounter++
-			if gcCounter%GCTriggerInterval == 0 {
-				// Forcing garbage collection runs here regulary during the loading of checkpoints
-				// will decrease the total heap size after loading everything back to memory is done.
-				// While loading data, the heap will grow fast, so the GC target size will double
-				// almost always. By forcing GCs here, we can keep it growing more slowly so that
-				// at the end, less memory is wasted.
-				runtime.GC()
-			}
+			// if gcCounter%GCTriggerInterval == 0 {
+			// Forcing garbage collection runs here regulary during the loading of checkpoints
+			// will decrease the total heap size after loading everything back to memory is done.
+			// While loading data, the heap will grow fast, so the GC target size will double
+			// almost always. By forcing GCs here, we can keep it growing more slowly so that
+			// at the end, less memory is wasted.
+			// runtime.GC()
+			// }
 
 			work <- [2]string{clusterDir.Name(), hostDir.Name()}
 		}
