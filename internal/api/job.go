@@ -1021,3 +1021,57 @@ func (api *RestAPI) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 		cclog.Errorf("Failed to encode response: %v", err)
 	}
 }
+
+// GetUsedNodesAPIResponse model
+type GetUsedNodesAPIResponse struct {
+	UsedNodes map[string][]string `json:"usedNodes"` // Map of cluster names to lists of used node hostnames
+}
+
+// getUsedNodes godoc
+// @summary     Lists used nodes by cluster
+// @tags Job query
+// @description Get a map of cluster names to lists of unique hostnames that are currently in use by running jobs that started before the specified timestamp.
+// @produce     json
+// @param       ts             query    int               true  "Unix timestamp to filter jobs (jobs with start_time < ts)"
+// @success     200            {object} api.GetUsedNodesAPIResponse  "Map of cluster names to hostname lists"
+// @failure     400            {object} api.ErrorResponse            "Bad Request"
+// @failure     401            {object} api.ErrorResponse            "Unauthorized"
+// @failure     403            {object} api.ErrorResponse            "Forbidden"
+// @failure     500            {object} api.ErrorResponse            "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /api/jobs/used_nodes [get]
+func (api *RestAPI) getUsedNodes(rw http.ResponseWriter, r *http.Request) {
+	if user := repository.GetUserFromContext(r.Context()); user != nil &&
+		!user.HasRole(schema.RoleApi) {
+		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
+		return
+	}
+
+	tsStr := r.URL.Query().Get("ts")
+	if tsStr == "" {
+		handleError(fmt.Errorf("missing required query parameter: ts"), http.StatusBadRequest, rw)
+		return
+	}
+
+	ts, err := strconv.ParseInt(tsStr, 10, 64)
+	if err != nil {
+		handleError(fmt.Errorf("invalid timestamp format: %w", err), http.StatusBadRequest, rw)
+		return
+	}
+
+	usedNodes, err := api.JobRepository.GetUsedNodes(ts)
+	if err != nil {
+		handleError(fmt.Errorf("failed to get used nodes: %w", err), http.StatusInternalServerError, rw)
+		return
+	}
+
+	rw.Header().Add("Content-Type", "application/json")
+	payload := GetUsedNodesAPIResponse{
+		UsedNodes: usedNodes,
+	}
+
+	if err := json.NewEncoder(rw).Encode(payload); err != nil {
+		handleError(err, http.StatusInternalServerError, rw)
+		return
+	}
+}
