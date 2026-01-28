@@ -286,6 +286,8 @@
       sort((a, b) => b.count - a.count)
   });
 
+  const sortedClusterMetrics = $derived($statusQuery?.data?.clusterMetrics?.metrics.sort((a, b) => b.name.localeCompare(a.name)));
+
   /* Functions */
   function transformNodesStatsToData(subclusterData) {
     let data = null
@@ -516,10 +518,10 @@
         <h5 class="mt-2 mb-0">
           Cluster Utilization (
           <span style="color: #0000ff;">
-            {`${$statusQuery?.data?.clusterMetrics?.metrics[0]?.name} (${$statusQuery?.data?.clusterMetrics?.metrics[0]?.unit?.prefix}${$statusQuery?.data?.clusterMetrics?.metrics[0]?.unit?.base})`}
+            {`${sortedClusterMetrics[0]?.name} (${sortedClusterMetrics[0]?.unit?.prefix}${sortedClusterMetrics[0]?.unit?.base})`}
           </span>,
           <span style="color: #ff0000;">
-            {`${$statusQuery?.data?.clusterMetrics?.metrics[1]?.name} (${$statusQuery?.data?.clusterMetrics?.metrics[1]?.unit?.prefix}${$statusQuery?.data?.clusterMetrics?.metrics[1]?.unit?.base})`}
+            {`${sortedClusterMetrics[1]?.name} (${sortedClusterMetrics[1]?.unit?.prefix}${sortedClusterMetrics[1]?.unit?.base})`}
           </span>
           )
         </h5>
@@ -528,7 +530,7 @@
             <DoubleMetric
               timestep={$statusQuery?.data?.clusterMetrics[0]?.timestep || 60}
               numNodes={$statusQuery?.data?.clusterMetrics?.nodeCount || 0}
-              metricData={$statusQuery?.data?.clusterMetrics?.metrics || []}
+              metricData={sortedClusterMetrics || []}
               height={250}
               publicMode
             />
