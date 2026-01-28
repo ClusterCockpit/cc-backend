@@ -52,17 +52,24 @@
   let sorting = $state({ field: "startTime", type: "col", order: "DESC" });
 
   /* Derived */
-  const presetProject = $derived(filterPresets?.project ? filterPresets.project : "");
+  let presetProject = $derived(filterPresets?.project ? filterPresets.project : "");
   let selectedCluster = $derived(filterPresets?.cluster ? filterPresets.cluster : null);
   let selectedSubCluster = $derived(filterPresets?.partition ? filterPresets.partition : null);
-  let metrics = $derived(filterPresets.cluster
-    ? filterPresets.partition
-      ? ccconfig[`metricConfig_jobListMetrics:${filterPresets.cluster}:${filterPresets.partition}`]
-      : ccconfig[`metricConfig_jobListMetrics:${filterPresets.cluster}`] || ccconfig.metricConfig_jobListMetrics
-    : ccconfig.metricConfig_jobListMetrics
-  );
-  let showFootprint = $derived(filterPresets.cluster
-    ? !!ccconfig[`jobList_showFootprint:${filterPresets.cluster}`]
+  let metrics = $derived.by(() => {
+    if (selectedCluster) {
+      if (selectedSubCluster) {
+        return ccconfig[`metricConfig_jobListMetrics:${selectedCluster}:${selectedSubCluster}`] ||
+          ccconfig[`metricConfig_jobListMetrics:${selectedCluster}`] ||
+          ccconfig.metricConfig_jobListMetrics
+      }
+      return ccconfig[`metricConfig_jobListMetrics:${selectedCluster}`] ||
+        ccconfig.metricConfig_jobListMetrics
+    }
+    return ccconfig.metricConfig_jobListMetrics
+  });
+
+  let showFootprint = $derived(selectedCluster
+    ? !!ccconfig[`jobList_showFootprint:${selectedCluster}`]
     : !!ccconfig.jobList_showFootprint
   );
 
@@ -81,16 +88,6 @@
       // Unreactive : Apply Reset w/o starting infinite loop
       resetJobSelection()
     });
-	});
-
-  $effect(() => {
-    // Load Metric-Selection for last selected cluster
-    metrics = selectedCluster ? ccconfig[`metricConfig_jobListMetrics:${selectedCluster}`] : ccconfig.metricConfig_jobListMetrics
-	});
-
-  $effect(() => {
-    // Load Metric-Selection for last selected cluster
-    metrics = selectedSubCluster ? ccconfig[`metricConfig_jobListMetrics:${selectedCluster}:${selectedSubCluster}`] : ccconfig[`metricConfig_jobListMetrics:${selectedCluster}`]
 	});
 
   /* On Mount */
