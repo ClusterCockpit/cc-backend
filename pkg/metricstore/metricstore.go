@@ -165,7 +165,7 @@ func Init(rawConfig json.RawMessage, metrics map[string]MetricConfig, wg *sync.W
 	// previously active heap, a GC is triggered.
 	// Forcing a GC here will set the "previously active heap"
 	// to a minumum.
-	runtime.GC()
+	// runtime.GC()
 
 	ctx, shutdown := context.WithCancel(context.Background())
 
