@@ -18,6 +18,8 @@ import (
 )
 
 var (
+	// ErrNoHostOrMetric is returned when the metric store does not find the host or the metric
+	ErrNoHostOrMetric error = errors.New("[METRICSTORE]> [METRICSTORE]> metric or host not found")
 	// ErrInvalidTimeRange is returned when a query has 'from' >= 'to'
 	ErrInvalidTimeRange = errors.New("[METRICSTORE]> invalid time range: 'from' must be before 'to'")
 	// ErrEmptyCluster is returned when a query with ForAllNodes has no cluster specified
@@ -278,10 +280,20 @@ func FetchData(req APIQueryRequest) (*APIQueryResponse, error) {
 
 			data.Data, data.From, data.To, data.Resolution, err = ms.Read(sel, query.Metric, req.From, req.To, query.Resolution)
 			if err != nil {
-				msg := err.Error()
-				data.Error = &msg
-				res = append(res, data)
-				continue
+				// Check a special case where only the metric or host.
+				// Dont send errors, instead just send empty array
+				// where frontend already renders error for empty array.
+				if err == ErrNoHostOrMetric {
+					data.Data = make([]schema.Float, 0)
+					data.From = req.From
+					data.To = req.To
+					data.Resolution = query.Resolution
+				} else {
+					msg := err.Error()
+					data.Error = &msg
+					res = append(res, data)
+					continue
+				}
 			}
 
 			if req.WithStats {
