@@ -37,6 +37,7 @@
   /* Const Init */
   const { query: initq } = init();
   const ccconfig = getContext("cc-config");
+  const matchedJobCompareLimit = 500;
 
   /* State Init */
   let filterComponent = $state(); // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
@@ -169,12 +170,12 @@
     {/if}
     <div class="mx-1"></div>
     <ButtonGroup class="w-50">
-      <Button color="primary" disabled={(matchedListJobs >= 500 && !(selectedJobs.length != 0)) || $initq.fetching} onclick={() => {
-        if (selectedJobs.length != 0) filterComponent.updateFilters({dbId: selectedJobs}, true)
+      <Button color="primary" disabled={(matchedListJobs >= matchedJobCompareLimit && !(selectedJobs.length != 0)) || $initq.fetching} onclick={() => {
+        if (selectedJobs.length != 0) filterComponent.updateFilters({dbId: selectedJobs})
         showCompare = !showCompare
       }} >
         {showCompare ? 'Return to List' : 
-           matchedListJobs >= 500 && selectedJobs.length == 0
+           matchedListJobs >= matchedJobCompareLimit && selectedJobs.length == 0
             ? 'Compare Disabled'
             : 'Compare' + (selectedJobs.length != 0 ? ` ${selectedJobs.length} ` : ' ') + 'Jobs'
         }
