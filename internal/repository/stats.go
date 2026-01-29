@@ -38,7 +38,7 @@
 // - All queries use prepared statements via stmtCache
 // - Complex aggregations use SQL for efficiency
 // - Histogram pre-initialization ensures consistent bin ranges
-// - Metric histogram queries limited to 500 jobs for running job analysis
+// - Metric histogram queries limited to 5000 jobs for running job analysis
 
 package repository
 
@@ -686,7 +686,7 @@ func (r *JobRepository) AddHistograms(
 //   - Pre-initialized with zeros for consistent visualization
 //
 // Limitations:
-//   - Running jobs: Limited to 500 jobs for performance
+//   - Running jobs: Limited to 5000 jobs for performance
 //   - Requires valid cluster configuration with metric peak values
 //   - Uses footprint statistic (avg/max/min) configured per metric
 func (r *JobRepository) AddMetricHistograms(
@@ -995,12 +995,12 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 // Returns slice of MetricHistoPoints, one per metric.
 //
 // Limitations:
-//   - Maximum 500 jobs (returns nil if more jobs match)
+//   - Maximum 5000 jobs (returns nil if more jobs match)
 //   - Requires metric backend availability
 //   - Bins based on metric peak values from cluster configuration
 //
 // Algorithm:
-//  1. Query first 501 jobs to check count limit
+//  1. Query first 5001 jobs to check count limit
 //  2. Load metric averages for all jobs via metricdispatch
 //  3. For each metric, create bins based on peak value
 //  4. Iterate averages and count jobs per bin
@@ -1011,13 +1011,13 @@ func (r *JobRepository) runningJobsMetricStatisticsHistogram(
 	bins *int,
 ) []*model.MetricHistoPoints {
 	// Get Jobs
-	jobs, err := r.QueryJobs(ctx, filters, &model.PageRequest{Page: 1, ItemsPerPage: 500 + 1}, nil)
+	jobs, err := r.QueryJobs(ctx, filters, &model.PageRequest{Page: 1, ItemsPerPage: 5000 + 1}, nil)
 	if err != nil {
 		cclog.Errorf("Error while querying jobs for footprint: %s", err)
 		return nil
 	}
-	if len(jobs) > 500 {
-		cclog.Errorf("too many jobs matched (max: %d)", 500)
+	if len(jobs) > 5000 {
+		cclog.Errorf("too many jobs matched (max: %d)", 5000)
 		return nil
 	}
 

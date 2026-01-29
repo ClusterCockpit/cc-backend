@@ -242,10 +242,14 @@
         }
       }
 
-      // Get Idle Infos after Sums
+      // Get Simple Idle Infos after Sums by Diff
       if (!rawInfos['idleNodes']) rawInfos['idleNodes'] = rawInfos['totalNodes'] - rawInfos['allocatedNodes'];
       if (!rawInfos['idleCores']) rawInfos['idleCores'] = rawInfos['totalCores'] - rawInfos['allocatedCores'];
       if (!rawInfos['idleAccs']) rawInfos['idleAccs'] = rawInfos['totalAccs'] - rawInfos['allocatedAccs'];
+      // Cap at 0 (Negative hints towards Config <> Reality Mismatch!)
+      if (rawInfos['idleNodes'] < 0) rawInfos['idleNodes'] = 0;
+      if (rawInfos['idleCores'] < 0) rawInfos['idleCores'] = 0;
+      if (rawInfos['idleAccs'] < 0) rawInfos['idleAccs'] = 0;
 
       // Keymetrics (Data on Cluster-Scope)
       let rawFlops = $statusQuery?.data?.nodeMetrics?.reduce((sum, node) =>

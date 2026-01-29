@@ -67,6 +67,11 @@
       reserved: "rgba(255, 0, 255, 0.75)",
       mixed: "rgba(255, 215, 0, 0.75)",
       unknown: "rgba(0, 0, 0, 0.75)"
+    },
+    healthStates: {
+      full: "rgba(0, 128, 0, 0.75)",
+      failed: "rgba(255, 0, 0, 0.75)",
+      partial: "rgba(255, 215, 0, 0.75)",
     }
   }
 </script>
