@@ -17,11 +17,26 @@ export function formatNumber(x) {
     }
 }
 
+export function scaleNumber(x, p = '') {
+    if ( isNaN(x) || x == null) {
+        return `${x} ${p}` // Return if String or Null
+    } else {
+        const oldPower = power[prefix.indexOf(p)]
+        const rawValue = x * oldPower
+        for (let i = 0; i < prefix.length; i++) {
+            if (power[i] <= rawValue && rawValue < power[i+1]) {
+                return `${Math.round((rawValue / power[i]) * 100) / 100} ${prefix[i]}`
+            }
+        }
+        return `${x} ${p}`
+    }
+}
+
 export function roundTwoDigits(x) {
     return Math.round(x * 100) / 100
 }
 
-export function scaleNumbers(x, y , p = '') {
+export function scaleNumbers(x, y, p = '') {
     const oldPower  = power[prefix.indexOf(p)]
     const rawXValue = x * oldPower 
     const rawYValue = y * oldPower 

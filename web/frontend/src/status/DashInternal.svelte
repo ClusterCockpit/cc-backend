@@ -22,6 +22,7 @@
   import {
     formatDurationTime,
     formatNumber,
+    scaleNumber
   } from "../generic/units.js";
   import {
     Row,
@@ -250,9 +251,11 @@
         if (!rawInfos['totalAccs']) rawInfos['totalAccs'] = (subCluster?.numberOfNodes * subCluster?.topology?.accelerators?.length) || 0;
         else rawInfos['totalAccs'] += (subCluster?.numberOfNodes * subCluster?.topology?.accelerators?.length) || 0;
           
-        // Units (Set Once)
-        if (!rawInfos['flopRateUnit']) rawInfos['flopRateUnit'] = subCluster.flopRateSimd.unit.prefix + subCluster.flopRateSimd.unit.base
-        if (!rawInfos['memBwRateUnit']) rawInfos['memBwRateUnit'] = subCluster.memoryBandwidth.unit.prefix + subCluster.memoryBandwidth.unit.base
+        // Unit Parts (Set Once)
+        if (!rawInfos['flopRateUnitBase']) rawInfos['flopRateUnitBase'] = subCluster.flopRateSimd.unit.base
+        if (!rawInfos['memBwRateUnitBase']) rawInfos['memBwRateUnitBase'] = subCluster.memoryBandwidth.unit.base
+        if (!rawInfos['flopRateUnitPrefix']) rawInfos['flopRateUnitPrefix'] = subCluster.flopRateSimd.unit.prefix
+        if (!rawInfos['memBwRateUnitPrefix']) rawInfos['memBwRateUnitPrefix'] = subCluster.memoryBandwidth.unit.prefix
 
         // Get Maxima For Roofline Knee Render
         if (!rawInfos['roofData']) {
@@ -418,12 +421,10 @@
                 </tr>
                 <tr class="pb-2">
                   <td style="font-size:x-large;">
-                    {clusterInfo?.flopRate} 
-                    {clusterInfo?.flopRateUnit}
+                    {scaleNumber(clusterInfo?.flopRate, clusterInfo?.flopRateUnitPrefix)}{clusterInfo?.flopRateUnitBase}
                   </td>
                   <td style="font-size:x-large;">
-                    {clusterInfo?.memBwRate} 
-                    {clusterInfo?.memBwRateUnit}
+                    {scaleNumber(clusterInfo?.memBwRate, clusterInfo?.memBwRateUnitPrefix)}{clusterInfo?.memBwRateUnitBase}
                   </td>
                 </tr>
                 <hr class="my-1"/>

@@ -23,7 +23,7 @@
     gql,
     getContextClient,
   } from "@urql/svelte";
-  import { formatDurationTime } from "../../generic/units.js";
+  import { formatDurationTime, scaleNumber } from "../../generic/units.js";
   import Refresher from "../../generic/helper/Refresher.svelte";
   import TimeSelection from "../../generic/select/TimeSelection.svelte";
   import Roofline from "../../generic/plots/Roofline.svelte";
@@ -599,12 +599,10 @@
               </tr>
               <tr class="pb-2">
                 <td style="font-size:x-large;">
-                  {flopRate[subCluster.name]} 
-                  {flopRateUnitPrefix[subCluster.name]}{flopRateUnitBase[subCluster.name]}
+                  {scaleNumber(flopRate[subCluster.name], flopRateUnitPrefix[subCluster.name])}{flopRateUnitBase[subCluster.name]}
                 </td>
                 <td colspan="2" style="font-size:x-large;">
-                  {memBwRate[subCluster.name]} 
-                  {memBwRateUnitPrefix[subCluster.name]}{memBwRateUnitBase[subCluster.name]}
+                  {scaleNumber(memBwRate[subCluster.name], memBwRateUnitPrefix[subCluster.name])}{memBwRateUnitBase[subCluster.name]}
                 </td>
               </tr>
               <hr class="my-1"/>
