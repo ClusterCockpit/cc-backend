@@ -178,7 +178,7 @@
           >
         {:else if !metricData?.data}
           <Card body class="mx-2" color="warning">
-              <p>No dataset returned for <b>{selectedMetrics[i]}</b></p>
+              <p>No dataset(s) returned for <b>{selectedMetrics[i]}</b></p>
               <p class="mb-1">Metric was not found in metric store for cluster <b>{cluster}</b>.</p>
           </Card>
         {:else if !metricData?.data?.name}

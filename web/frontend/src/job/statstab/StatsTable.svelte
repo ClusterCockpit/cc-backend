@@ -205,8 +205,8 @@
             />
           {:else}
              <td class="table-warning" style="max-width:10rem;">
-              <p>No dataset returned for <b>{metric}</b>.</p>
-              <p>Metric was not found in metric store for cluster.</p>
+              <p>No dataset(s) returned for <b>{metric}</b>.</p>
+              <p>Metric was not found in metric store for host <b>{host}</b>.</p>
             </td>
           {/if}
         {/each}

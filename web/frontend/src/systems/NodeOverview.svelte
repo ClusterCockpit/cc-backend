@@ -159,30 +159,42 @@
               <Badge color={stateColors[item?.state? item.state : 'notindb']}>{item?.state? item.state : 'notindb'}</Badge>
             </span>
           </div>
-          {#if item.disabled === true}
-            <Card body class="mx-3" color="info"
-              >Metric disabled for subcluster <code
-                >{selectedMetric}:{item.subCluster}</code
-              ></Card
-            >
-          {:else if item.disabled === false}
-            <!-- "No Data"-Warning included in MetricPlot-Component   -->
-            <!-- #key: X-axis keeps last selected timerange otherwise -->
-            {#key item.data[0].metric.series[0].data.length}
-              <MetricPlot
-                timestep={item.data[0].metric.timestep}
-                series={item.data[0].metric.series}
-                metric={item.data[0].name}
-                {cluster}
-                subCluster={item.subCluster}
-                forNode
-                enableFlip
-              />
-            {/key}
-          {:else if item.disabled === null}
-            <Card body class="mx-3" color="info">
-              Global Metric List Not Initialized
-              Can not determine {selectedMetric} availability: Please Reload Page
+          {#if item?.data}
+            {#if item.disabled === true}
+              <Card body class="mx-3" color="info"
+                >Metric disabled for subcluster <code
+                  >{selectedMetric}:{item.subCluster}</code
+                ></Card
+              >
+            {:else if item.disabled === false}
+              <!-- "No Data"-Warning included in MetricPlot-Component   -->
+              <!-- #key: X-axis keeps last selected timerange otherwise -->
+              {#key item.data[0].metric.series[0].data.length}
+                <MetricPlot
+                  timestep={item.data[0].metric.timestep}
+                  series={item.data[0].metric.series}
+                  metric={item.data[0].name}
+                  {cluster}
+                  subCluster={item.subCluster}
+                  forNode
+                  enableFlip
+                />
+              {/key}
+            {:else if item.disabled === null}
+              <Card body class="mx-3" color="info">
+                Global Metric List Not Initialized
+                Can not determine {selectedMetric} availability: Please Reload Page
+              </Card>
+            {/if}
+          {:else}
+            <Card color="warning">
+              <CardHeader class="mb-0">
+                <b>Missing Metric</b>
+              </CardHeader>
+              <CardBody>
+                <p>No dataset(s) returned for <b>{selectedMetric}</b>.</p>
+                <p class="mb-1">Metric was not found in metric store for host <b>{item.host}</b>.</p>
+              </CardBody>
             </Card>
           {/if}
         </Col>
@@ -196,7 +208,7 @@
         <b>Missing Metric</b>
       </CardHeader>
       <CardBody>
-        <p>No dataset returned for <b>{selectedMetric}</b>.</p>
+        <p>No datasets returned for <b>{selectedMetric}</b>.</p>
         <p class="mb-1">Metric was not found in metric store for cluster <b>{cluster}</b>.</p>
       </CardBody>
     </Card>
