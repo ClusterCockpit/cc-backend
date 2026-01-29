@@ -104,6 +104,11 @@ func (ccms *InternalMetricStore) LoadData(
 	var errors []string
 	jobData := make(schema.JobData)
 	for i, row := range resBody.Results {
+		if len(row) == 0 {
+			// No Data Found For Metric, Logged in FetchData to Warn
+			continue
+		}
+
 		query := req.Queries[i]
 		metric := query.Metric
 		scope := assignedScope[i]
@@ -229,7 +234,7 @@ func buildQueries(
 	for _, metric := range metrics {
 		mc := archive.GetMetricConfig(job.Cluster, metric)
 		if mc == nil {
-			cclog.Infof("metric '%s' is not specified for cluster '%s'", metric, job.Cluster)
+			cclog.Warnf("metric '%s' is not specified for cluster '%s'", metric, job.Cluster)
 			continue
 		}
 
@@ -535,11 +540,15 @@ func (ccms *InternalMetricStore) LoadStats(
 
 	stats := make(map[string]map[string]schema.MetricStatistics, len(metrics))
 	for i, res := range resBody.Results {
+		if len(res) == 0 {
+			// No Data Found For Metric, Logged in FetchData to Warn
+			continue
+		}
 		query := req.Queries[i]
 		metric := query.Metric
 		data := res[0]
 		if data.Error != nil {
-			cclog.Errorf("fetching %s for node %s failed: %s", metric, query.Hostname, *data.Error)
+			cclog.Warnf("fetching %s for node %s failed: %s", metric, query.Hostname, *data.Error)
 			continue
 		}
 
@@ -609,6 +618,10 @@ func (ccms *InternalMetricStore) LoadScopedStats(
 	scopedJobStats := make(schema.ScopedJobStats)
 
 	for i, row := range resBody.Results {
+		if len(row) == 0 {
+			// No Data Found For Metric, Logged in FetchData to Warn
+			continue
+		}
 		query := req.Queries[i]
 		metric := query.Metric
 		scope := assignedScope[i]
@@ -717,6 +730,11 @@ func (ccms *InternalMetricStore) LoadNodeData(
 	var errors []string
 	data := make(map[string]map[string][]*schema.JobMetric)
 	for i, res := range resBody.Results {
+		if len(res) == 0 {
+			// No Data Found For Metric, Logged in FetchData to Warn
+			continue
+		}
+
 		var query APIQuery
 		if resBody.Queries != nil {
 			query = resBody.Queries[i]
@@ -816,6 +834,10 @@ func (ccms *InternalMetricStore) LoadNodeListData(
 	var errors []string
 	data := make(map[string]schema.JobData)
 	for i, row := range resBody.Results {
+		if len(row) == 0 {
+			// No Data Found For Metric, Logged in FetchData to Warn
+			continue
+		}
 		var query APIQuery
 		if resBody.Queries != nil {
 			query = resBody.Queries[i]

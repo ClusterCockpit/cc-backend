@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"math"
 
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/ClusterCockpit/cc-lib/v2/util"
 )
@@ -280,20 +281,16 @@ func FetchData(req APIQueryRequest) (*APIQueryResponse, error) {
 
 			data.Data, data.From, data.To, data.Resolution, err = ms.Read(sel, query.Metric, req.From, req.To, query.Resolution)
 			if err != nil {
-				// Check a special case where only the metric or host.
-				// Dont send errors, instead just send empty array
-				// where frontend already renders error for empty array.
-				if err == ErrNoHostOrMetric {
-					data.Data = make([]schema.Float, 0)
-					data.From = req.From
-					data.To = req.To
-					data.Resolution = query.Resolution
-				} else {
+				// Skip Error If Just Missing Host or Metric, Continue
+				// Empty Return For Metric Handled Gracefully By Frontend
+				if err != ErrNoHostOrMetric {
 					msg := err.Error()
 					data.Error = &msg
 					res = append(res, data)
-					continue
+				} else {
+					cclog.Warnf("failed to fetch '%s' from host '%s' (cluster: %s): %s", query.Metric, query.Hostname, req.Cluster, err.Error())
 				}
+				continue
 			}
 
 			if req.WithStats {
