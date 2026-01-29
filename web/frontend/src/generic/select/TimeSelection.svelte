@@ -46,13 +46,13 @@
   /* Derived */
   let timeRange = $derived.by(() => {
     if (presetTo && presetFrom) {
-      return ((presetTo.getTime() - presetFrom.getTime()) / 1000)
+      return Math.floor(((presetTo.getTime() - presetFrom.getTime()) / 1000))
     } else {
-      return ((defaultTo.getTime() - defaultFrom.getTime()) / 1000)
+      return Math.floor(((defaultTo.getTime() - defaultFrom.getTime()) / 1000))
     }
   });
   let unknownRange = $derived(!Object.values(options).includes(timeRange));
-    
+
   /* Functions */
   function updateTimeRange() {
     let now = Date.now();

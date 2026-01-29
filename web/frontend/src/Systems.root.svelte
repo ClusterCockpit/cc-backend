@@ -65,10 +65,6 @@
   let timeoutId = null;
 
   /* State Init */
-  // svelte-ignore state_referenced_locally
-  let to = $state(presetTo || new Date(Date.now()));
-  // svelte-ignore state_referenced_locally
-  let from = $state(presetFrom || new Date(nowDate.setHours(nowDate.getHours() - 4)));
   let selectedResolution = $state(resampleConfig ? resampleDefault : 0);
   let hostnameFilter = $state("");
   let hoststateFilter = $state("all");
@@ -76,6 +72,8 @@
   let isMetricsSelectionOpen = $state(false);
 
   /* Derived States */
+  let to = $derived(presetTo ? presetTo : new Date(Date.now()));
+  let from = $derived(presetFrom ? presetFrom : new Date(nowDate.setHours(nowDate.getHours() - 4)));
   const displayNodeOverview = $derived((displayType === 'OVERVIEW'));
   const systemMetrics = $derived($initialized ? [...globalMetrics.filter((gm) => gm?.availability.find((av) => av.cluster == cluster))] : []);
   const presetSystemUnits = $derived(loadUnits(systemMetrics));
