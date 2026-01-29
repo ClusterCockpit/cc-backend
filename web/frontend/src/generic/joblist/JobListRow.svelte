@@ -229,7 +229,10 @@
             ></Card
           >
         {:else}
-          <Card body color="warning">No dataset returned</Card>
+          <Card body class="mx-2" color="warning">
+            <p>No dataset returned for <b>{metrics[i]}</b></p>
+            <p class="mb-1">Metric was not found in metric store for cluster <b>{job.cluster}</b>.</p>
+          </Card>
         {/if}
       </td>
     {/each}

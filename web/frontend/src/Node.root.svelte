@@ -22,6 +22,8 @@
     Icon,
     Spinner,
     Card,
+    CardHeader,
+    CardBody
   } from "@sveltestrap/sveltestrap";
   import {
     queryStore,
@@ -254,12 +256,15 @@
             ></Card
           >
         {:else}
-          <Card
-            style="margin-left: 2rem;margin-right: 2rem;"
-            body
-            color="warning"
-            >No dataset returned for <code>{item.name}</code></Card
-          >
+          <Card color="warning" class="mx-2">
+            <CardHeader class="mb-0">
+              <b>Missing Metric</b>
+            </CardHeader>
+            <CardBody>
+              <p>No dataset returned for <b>{item.name}</b>.</p>
+              <p class="mb-1">Metric was not found in metric store for cluster <b>{cluster}</b>.</p>
+            </CardBody>
+          </Card>
         {/if}
       {/snippet}
 

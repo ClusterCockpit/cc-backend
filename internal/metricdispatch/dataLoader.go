@@ -97,8 +97,8 @@ func LoadData(job *schema.Job,
 
 			ms, err := GetMetricDataRepo(job.Cluster, job.SubCluster)
 			if err != nil {
-				cclog.Errorf("failed to load job data from metric store for job %d (user: %s, project: %s): %s",
-					job.JobID, job.User, job.Project, err.Error())
+				cclog.Errorf("failed to access metricDataRepo for cluster %s-%s: %s",
+					job.Cluster, job.SubCluster, err.Error())
 				return err, 0, 0
 			}
 
@@ -116,11 +116,11 @@ func LoadData(job *schema.Job,
 			jd, err = ms.LoadData(job, metrics, scopes, ctx, resolution)
 			if err != nil {
 				if len(jd) != 0 {
-					cclog.Warnf("partial error loading metrics from store for job %d (user: %s, project: %s): %s",
-						job.JobID, job.User, job.Project, err.Error())
+					cclog.Warnf("partial error loading metrics from store for job %d (user: %s, project: %s, cluster: %s-%s): %s",
+						job.JobID, job.User, job.Project, job.Cluster, job.SubCluster, err.Error())
 				} else {
-					cclog.Errorf("failed to load job data from metric store for job %d (user: %s, project: %s): %s",
-						job.JobID, job.User, job.Project, err.Error())
+					cclog.Warnf("failed to load job data from metric store for job %d (user: %s, project: %s, cluster: %s-%s): %s",
+						job.JobID, job.User, job.Project, job.Cluster, job.SubCluster, err.Error())
 					return err, 0, 0
 				}
 			}
@@ -129,8 +129,8 @@ func LoadData(job *schema.Job,
 			var jdTemp schema.JobData
 			jdTemp, err = archive.GetHandle().LoadJobData(job)
 			if err != nil {
-				cclog.Errorf("failed to load job data from archive for job %d (user: %s, project: %s): %s",
-					job.JobID, job.User, job.Project, err.Error())
+				cclog.Warnf("failed to load job data from archive for job %d (user: %s, project: %s, cluster: %s-%s): %s",
+					job.JobID, job.User, job.Project, job.Cluster, job.SubCluster, err.Error())
 				return err, 0, 0
 			}
 
@@ -244,15 +244,15 @@ func LoadAverages(
 
 	ms, err := GetMetricDataRepo(job.Cluster, job.SubCluster)
 	if err != nil {
-		cclog.Errorf("failed to load job data from metric store for job %d (user: %s, project: %s): %s",
-			job.JobID, job.User, job.Project, err.Error())
+		cclog.Errorf("failed to access metricDataRepo for cluster %s-%s: %s",
+			job.Cluster, job.SubCluster, err.Error())
 		return err
 	}
 
 	stats, err := ms.LoadStats(job, metrics, ctx)
 	if err != nil {
-		cclog.Errorf("failed to load statistics from metric store for job %d (user: %s, project: %s): %s",
-			job.JobID, job.User, job.Project, err.Error())
+		cclog.Warnf("failed to load statistics from metric store for job %d (user: %s, project: %s, cluster: %s-%s): %s",
+			job.JobID, job.User, job.Project, job.Cluster, job.SubCluster, err.Error())
 		return err
 	}
 
@@ -288,15 +288,15 @@ func LoadScopedJobStats(
 
 	ms, err := GetMetricDataRepo(job.Cluster, job.SubCluster)
 	if err != nil {
-		cclog.Errorf("failed to load job data from metric store for job %d (user: %s, project: %s): %s",
-			job.JobID, job.User, job.Project, err.Error())
+		cclog.Errorf("failed to access metricDataRepo for cluster %s-%s: %s",
+			job.Cluster, job.SubCluster, err.Error())
 		return nil, err
 	}
 
 	scopedStats, err := ms.LoadScopedStats(job, metrics, scopes, ctx)
 	if err != nil {
-		cclog.Errorf("failed to load scoped statistics from metric store for job %d (user: %s, project: %s): %s",
-			job.JobID, job.User, job.Project, err.Error())
+		cclog.Warnf("failed to load scoped statistics from metric store for job %d (user: %s, project: %s, cluster: %s-%s): %s",
+			job.JobID, job.User, job.Project, job.Cluster, job.SubCluster, err.Error())
 		return nil, err
 	}
 
@@ -320,8 +320,8 @@ func LoadJobStats(
 
 	ms, err := GetMetricDataRepo(job.Cluster, job.SubCluster)
 	if err != nil {
-		cclog.Errorf("failed to load job data from metric store for job %d (user: %s, project: %s): %s",
-			job.JobID, job.User, job.Project, err.Error())
+		cclog.Errorf("failed to access metricDataRepo for cluster %s-%s: %s",
+			job.Cluster, job.SubCluster, err.Error())
 		return nil, err
 	}
 
@@ -329,8 +329,8 @@ func LoadJobStats(
 
 	stats, err := ms.LoadStats(job, metrics, ctx)
 	if err != nil {
-		cclog.Errorf("failed to load statistics from metric store for job %d (user: %s, project: %s): %s",
-			job.JobID, job.User, job.Project, err.Error())
+		cclog.Warnf("failed to load statistics from metric store for job %d (user: %s, project: %s, cluster: %s-%s): %s",
+			job.JobID, job.User, job.Project, job.Cluster, job.SubCluster, err.Error())
 		return data, err
 	}
 
@@ -379,8 +379,8 @@ func LoadNodeData(
 
 	ms, err := GetMetricDataRepo(cluster, "")
 	if err != nil {
-		cclog.Errorf("failed to load node data from metric store: %s",
-			err.Error())
+		cclog.Errorf("failed to access metricDataRepo for cluster %s: %s",
+			cluster, err.Error())
 		return nil, err
 	}
 
@@ -389,7 +389,7 @@ func LoadNodeData(
 		if len(data) != 0 {
 			cclog.Warnf("partial error loading node data from metric store for cluster %s: %s", cluster, err.Error())
 		} else {
-			cclog.Errorf("failed to load node data from metric store for cluster %s: %s", cluster, err.Error())
+			cclog.Warnf("failed to load node data from metric store for cluster %s: %s", cluster, err.Error())
 			return nil, err
 		}
 	}
@@ -423,8 +423,8 @@ func LoadNodeListData(
 
 	ms, err := GetMetricDataRepo(cluster, subCluster)
 	if err != nil {
-		cclog.Errorf("failed to load node data from metric store: %s",
-			err.Error())
+		cclog.Errorf("failed to access metricDataRepo for cluster %s-%s: %s",
+			cluster, subCluster, err.Error())
 		return nil, err
 	}
 
@@ -434,7 +434,7 @@ func LoadNodeListData(
 			cclog.Warnf("partial error loading node list data from metric store for cluster %s, subcluster %s: %s",
 				cluster, subCluster, err.Error())
 		} else {
-			cclog.Errorf("failed to load node list data from metric store for cluster %s, subcluster %s: %s",
+			cclog.Warnf("failed to load node list data from metric store for cluster %s, subcluster %s: %s",
 				cluster, subCluster, err.Error())
 			return nil, err
 		}

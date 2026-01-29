@@ -27,7 +27,7 @@
   import uPlot from "uplot";
   import { formatNumber, formatDurationTime } from "../units.js";
   import { getContext, onMount, onDestroy } from "svelte";
-  import { Card } from "@sveltestrap/sveltestrap";
+  import { Card, CardBody, CardHeader } from "@sveltestrap/sveltestrap";
 
   /* Svelte 5 Props */
   let {
@@ -633,7 +633,13 @@
         style="background-color: {backgroundColor()};" class={forNode ? 'py-2 rounded' : 'rounded'}
   ></div>
 {:else}
-  <Card body color="warning" class="mx-4"
-    >Cannot render plot: No series data returned for <code>{metric}</code></Card
-  >
+  <Card color="warning" class={forNode ? 'mx-2' : 'mt-2'}>
+    <CardHeader class="mb-0">
+      <b>Empty Metric</b>
+    </CardHeader>
+    <CardBody>
+      <p>Cannot render plot for <b>{metric}</b>.</p>
+      <p class="mb-1">Metric found but returned without timeseries data.</p>
+    </CardBody>
+  </Card>
 {/if}

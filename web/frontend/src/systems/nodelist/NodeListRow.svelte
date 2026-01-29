@@ -171,13 +171,18 @@
     {#key metricData}
       <td>
         {#if metricData?.disabled}
-          <Card body class="mx-3" color="info"
-            >Metric disabled for subcluster <code
-              >{metricData?.data?.name ? metricData.data.name : `Metric Index ${i}`}:{nodeData.subCluster}</code
+          <Card body class="mx-2" color="info"
+            >Metric <b>{selectedMetrics[i]}</b> disabled for subcluster <code
+              >{nodeData.subCluster}</code
             ></Card
           >
+        {:else if !metricData?.data}
+          <Card body class="mx-2" color="warning">
+              <p>No dataset returned for <b>{selectedMetrics[i]}</b></p>
+              <p class="mb-1">Metric was not found in metric store for cluster <b>{cluster}</b>.</p>
+          </Card>
         {:else if !metricData?.data?.name}
-          <Card body class="mx-3" color="warning"
+          <Card body class="mx-2" color="warning"
             >Metric without name for subcluster <code
               >{`Metric Index ${i}`}:{nodeData.subCluster}</code
             ></Card

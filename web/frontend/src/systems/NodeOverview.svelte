@@ -14,7 +14,7 @@
  <script>
   import { getContext } from "svelte";
   import { queryStore, gql, getContextClient } from "@urql/svelte";
-  import { Row, Col, Card, Spinner, Badge } from "@sveltestrap/sveltestrap";
+  import { Row, Col, Card, CardHeader, CardBody, Spinner, Badge } from "@sveltestrap/sveltestrap";
   import { checkMetricDisabled } from "../generic/utils.js";
   import MetricPlot from "../generic/plots/MetricPlot.svelte";
 
@@ -188,5 +188,17 @@
         </Col>
       {/each}
     {/key}
+  </Row>
+{:else}
+  <Row>
+    <Card color="warning">
+      <CardHeader class="mb-0">
+        <b>Missing Metric</b>
+      </CardHeader>
+      <CardBody>
+        <p>No dataset returned for <b>{selectedMetric}</b>.</p>
+        <p class="mb-1">Metric was not found in metric store for cluster <b>{cluster}</b>.</p>
+      </CardBody>
+    </Card>
   </Row>
 {/if}
