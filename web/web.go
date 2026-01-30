@@ -80,7 +80,7 @@ var UIDefaults = WebConfig{
 		ShowFootprint: false,
 	},
 	NodeList: NodeListConfig{
-		UsePaging: true,
+		UsePaging: false,
 	},
 	JobView: JobViewConfig{
 		ShowPolarPlot: true,
@@ -89,8 +89,8 @@ var UIDefaults = WebConfig{
 		ShowStatTable: true,
 	},
 	MetricConfig: MetricConfig{
-		JobListMetrics:      []string{"flops_any", "mem_bw", "mem_used"},
-		JobViewPlotMetrics:  []string{"flops_any", "mem_bw", "mem_used"},
+		JobListMetrics:      []string{"cpu_load", "flops_any", "mem_bw", "mem_used"},
+		JobViewPlotMetrics:  []string{"cpu_load", "flops_any", "mem_bw", "mem_used"},
 		JobViewTableMetrics: []string{"flops_any", "mem_bw", "mem_used"},
 	},
 	PlotConfiguration: PlotConfiguration{
