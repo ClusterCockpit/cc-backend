@@ -156,7 +156,9 @@
               >
             </h4>
             <span style="margin-right: 0.5rem;">
-              <Badge color={stateColors[item?.state? item.state : 'notindb']}>{item?.state? item.state : 'notindb'}</Badge>
+              <Badge color={stateColors[item?.state? item.state : 'notindb']}>
+                State: {item?.state? item.state.charAt(0).toUpperCase() + item.state.slice(1) : 'Not in DB'}
+              </Badge>
             </span>
           </div>
           {#if item?.data}

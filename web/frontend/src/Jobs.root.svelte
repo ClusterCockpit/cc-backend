@@ -155,8 +155,9 @@
     {#if !showCompare}
       <TextFilter
         {presetProject}
-        bind:authlevel
-        bind:roles
+        {authlevel}
+        {roles}
+        {filterBuffer}
         setFilter={(filter) => filterComponent.updateFilters(filter)}
       />
     {/if}
