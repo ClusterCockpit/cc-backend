@@ -46,6 +46,7 @@
   /* Const Init */
   const lineWidth = 2 // clusterCockpitConfig.plotConfiguration_lineWidth;
   const cbmode = clusterCockpitConfig?.plotConfiguration_colorblindMode || false;
+  const bubbleSizeMax = 50;
 
   /* Var Init */
   let timeoutId = null;
@@ -317,8 +318,13 @@
             size = sizeBase + scaling
           // Nodes: Size based on Jobcount
           } else if (nodesData) {
-            size = sizeBase + (nodesData[i]?.numJobs * 1.5) // Max Jobs Scale: 8 * 1.5 = 12
+            size = sizeBase + (nodesData[i]?.numJobs * 1.5)
           };
+
+          // Apply Size Capping
+          if (size >= bubbleSizeMax) {
+            size = bubbleSizeMax;
+          }
           
           if (xVal >= filtLft && xVal <= filtRgt && yVal >= filtBtm && yVal <= filtTop) {
             let cx = valToPosX(xVal, scaleX, xDim, xOff);

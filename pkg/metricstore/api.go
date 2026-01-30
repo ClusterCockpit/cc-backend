@@ -20,7 +20,7 @@ import (
 
 var (
 	// ErrNoHostOrMetric is returned when the metric store does not find the host or the metric
-	ErrNoHostOrMetric error = errors.New("[METRICSTORE]> [METRICSTORE]> metric or host not found")
+	ErrNoHostOrMetric error = errors.New("[METRICSTORE]> metric or host not found")
 	// ErrInvalidTimeRange is returned when a query has 'from' >= 'to'
 	ErrInvalidTimeRange = errors.New("[METRICSTORE]> invalid time range: 'from' must be before 'to'")
 	// ErrEmptyCluster is returned when a query with ForAllNodes has no cluster specified

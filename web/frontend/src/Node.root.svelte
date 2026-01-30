@@ -176,7 +176,11 @@
         <InputGroupText><Icon name="clipboard2-pulse" /></InputGroupText>
         <InputGroupText>Node State</InputGroupText>
         <Button class="flex-grow-1 text-center" color={stateColors[thisNodeState]} disabled>
-          {thisNodeState}
+          {#if $nodeMetricsData?.data}
+            {thisNodeState}
+          {:else}
+            <span><Spinner size="sm" secondary/></span>
+          {/if}
         </Button>
       </InputGroup>
     </Col>
