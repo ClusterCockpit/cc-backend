@@ -329,7 +329,7 @@ func (ccms *CCMetricStore) LoadStats(
 		metric := query.Metric
 		data := res[0]
 		if data.Error != nil {
-			cclog.Errorf("fetching %s for node %s failed: %s", metric, query.Hostname, *data.Error)
+			cclog.Warnf("fetching %s for node %s failed: %s", metric, query.Hostname, *data.Error)
 			continue
 		}
 
@@ -556,7 +556,7 @@ func (ccms *CCMetricStore) LoadNodeListData(
 ) (map[string]schema.JobData, error) {
 	queries, assignedScope, err := ccms.buildNodeQueries(cluster, subCluster, nodes, metrics, scopes, resolution)
 	if err != nil {
-		cclog.Errorf("Error while building node queries for Cluster %s, SubCLuster %s, Metrics %v, Scopes %v: %s", cluster, subCluster, metrics, scopes, err.Error())
+		cclog.Errorf("Error while building node queries for Cluster %s, SubCluster %s, Metrics %v, Scopes %v: %s", cluster, subCluster, metrics, scopes, err.Error())
 		return nil, err
 	}
 

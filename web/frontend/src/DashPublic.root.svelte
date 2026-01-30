@@ -16,6 +16,7 @@
   } from "./generic/utils.js";
   import {
     formatNumber,
+    scaleNumber
   } from "./generic/units.js";
   import {
     Row,
@@ -222,8 +223,10 @@
         else rawInfos['totalAccs'] += (subCluster?.numberOfNodes * subCluster?.topology?.accelerators?.length) || 0;
           
         // Units (Set Once)
-        if (!rawInfos['flopRateUnit']) rawInfos['flopRateUnit'] = subCluster.flopRateSimd.unit.prefix + subCluster.flopRateSimd.unit.base
-        if (!rawInfos['memBwRateUnit']) rawInfos['memBwRateUnit'] = subCluster.memoryBandwidth.unit.prefix + subCluster.memoryBandwidth.unit.base
+        if (!rawInfos['flopRateUnitBase']) rawInfos['flopRateUnitBase'] = subCluster.flopRateSimd.unit.base
+        if (!rawInfos['memBwRateUnitBase']) rawInfos['memBwRateUnitBase'] = subCluster.memoryBandwidth.unit.base
+        if (!rawInfos['flopRateUnitPrefix']) rawInfos['flopRateUnitPrefix'] = subCluster.flopRateSimd.unit.prefix
+        if (!rawInfos['memBwRateUnitPrefix']) rawInfos['memBwRateUnitPrefix'] = subCluster.memoryBandwidth.unit.prefix
 
         // Get Maxima For Roofline Knee Render
         if (!rawInfos['roofData']) {
@@ -239,10 +242,14 @@
         }
       }
 
-      // Get Idle Infos after Sums
+      // Get Simple Idle Infos after Sums by Diff
       if (!rawInfos['idleNodes']) rawInfos['idleNodes'] = rawInfos['totalNodes'] - rawInfos['allocatedNodes'];
       if (!rawInfos['idleCores']) rawInfos['idleCores'] = rawInfos['totalCores'] - rawInfos['allocatedCores'];
       if (!rawInfos['idleAccs']) rawInfos['idleAccs'] = rawInfos['totalAccs'] - rawInfos['allocatedAccs'];
+      // Cap at 0 (Negative hints towards Config <> Reality Mismatch!)
+      if (rawInfos['idleNodes'] < 0) rawInfos['idleNodes'] = 0;
+      if (rawInfos['idleCores'] < 0) rawInfos['idleCores'] = 0;
+      if (rawInfos['idleAccs'] < 0) rawInfos['idleAccs'] = 0;
 
       // Keymetrics (Data on Cluster-Scope)
       let rawFlops = $statusQuery?.data?.nodeMetrics?.reduce((sum, node) =>
@@ -262,20 +269,20 @@
         0, // Initial Value
       ) || 0;
       rawInfos['cpuPwr'] = Math.floor((rawCpuPwr * 100) / 100)
-      if (!rawInfos['cpuPwrUnit']) {
-        let rawCpuUnit = $statusQuery?.data?.nodeMetrics[0]?.metrics.find((m) => m.name == 'cpu_power')?.metric?.unit || null
-        rawInfos['cpuPwrUnit'] = rawCpuUnit ? rawCpuUnit.prefix + rawCpuUnit.base : ''
-      }
+
+      let rawCpuUnit = $statusQuery?.data?.nodeMetrics[0]?.metrics.find((m) => m.name == 'cpu_power')?.metric?.unit || null
+      if (!rawInfos['cpuPwrUnitBase'])   rawInfos['cpuPwrUnitBase'] = rawCpuUnit ? rawCpuUnit.base : ''
+      if (!rawInfos['cpuPwrUnitPrefix']) rawInfos['cpuPwrUnitPrefix'] = rawCpuUnit ? rawCpuUnit.prefix : ''
 
       let rawGpuPwr = $statusQuery?.data?.nodeMetrics?.reduce((sum, node) =>
         sum + (node.metrics.find((m) => m.name == 'acc_power')?.metric?.series[0]?.statistics?.avg || 0),
         0, // Initial Value
       ) || 0;
       rawInfos['gpuPwr'] = Math.floor((rawGpuPwr * 100) / 100)
-      if (!rawInfos['gpuPwrUnit']) {
-        let rawGpuUnit = $statusQuery?.data?.nodeMetrics[0]?.metrics.find((m) => m.name == 'acc_power')?.metric?.unit || null
-        rawInfos['gpuPwrUnit'] = rawGpuUnit ? rawGpuUnit.prefix + rawGpuUnit.base : ''
-      }
+
+      let rawGpuUnit = $statusQuery?.data?.nodeMetrics[0]?.metrics.find((m) => m.name == 'acc_power')?.metric?.unit || null
+      if (!rawInfos['gpuPwrUnitBase']) rawInfos['gpuPwrUnitBase'] = rawGpuUnit ? rawGpuUnit.base : ''
+      if (!rawInfos['gpuPwrUnitPrefix']) rawInfos['gpuPwrUnitPrefix'] = rawGpuUnit ? rawGpuUnit.prefix : ''
     }
     return rawInfos;
   });
@@ -443,7 +450,7 @@
             <Row class="mt-1 mb-2">
               <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
                 <Badge color="secondary" style="font-size:x-large;margin-right:0.25rem;">
-                  {clusterInfo?.flopRate} {clusterInfo?.flopRateUnit}
+                  {scaleNumber(clusterInfo?.flopRate, clusterInfo?.flopRateUnitPrefix)}{clusterInfo?.flopRateUnitBase}
                 </Badge>
                 <div style="font-size:large;">
                   Total Flop Rate
@@ -451,7 +458,7 @@
               </Col>
               <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
                 <Badge color="secondary" style="font-size:x-large;margin-right:0.25rem;">
-                  {clusterInfo?.memBwRate} {clusterInfo?.memBwRateUnit}
+                  {scaleNumber(clusterInfo?.memBwRate, clusterInfo?.memBwRateUnitPrefix)}{clusterInfo?.memBwRateUnitBase}
                 </Badge>
                 <div style="font-size:large;">
                   Total Memory Bandwidth
@@ -460,7 +467,7 @@
               {#if clusterInfo?.totalAccs !== 0}
                 <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
                   <Badge color="secondary" style="font-size:x-large;margin-right:0.25rem;">
-                    {clusterInfo?.gpuPwr} {clusterInfo?.gpuPwrUnit}
+                    {scaleNumber(clusterInfo?.gpuPwr, clusterInfo?.gpuPwrUnitPrefix)}{clusterInfo?.gpuPwrUnitBase}
                   </Badge>
                   <div style="font-size:large;">
                     Total GPU Power
@@ -469,7 +476,7 @@
               {:else}
                 <Col xs={4} class="d-inline-flex align-items-center justify-content-center">
                   <Badge color="secondary" style="font-size:x-large;margin-right:0.25rem;">
-                    {clusterInfo?.cpuPwr} {clusterInfo?.cpuPwrUnit}
+                    {scaleNumber(clusterInfo?.cpuPwr, clusterInfo?.cpuPwrUnitPrefix)}{clusterInfo?.cpuPwrUnitBase}
                   </Badge>
                   <div style="font-size:large;">
                     Total CPU Power

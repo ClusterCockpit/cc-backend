@@ -25,7 +25,7 @@
     metricData,
     timestep,
     numNodes,
-    cluster,
+    cluster = "",
     forNode = true,
     enableFlip = false,
     publicMode = false,
@@ -316,12 +316,14 @@
   <div bind:this={plotWrapper} bind:clientWidth={width}
         class={forNode ? 'py-2 rounded' : 'rounded'}
   ></div>
-{:else if cluster}
-  <Card body color="warning" class="mx-4"
-    >Cannot render plot: No series data returned for <code>{cluster}</code>.</Card
-  >
 {:else}
-  <Card body color="warning" class="mx-4"
-    >Cannot render plot: No series data returned.</Card
-  >
+  <Card color="warning" class="mx-2 mt-2">
+    <CardHeader class="mb-0">
+      <b>Empty Metrics</b>
+    </CardHeader>
+    <CardBody>
+      <p>Cannot render plot for cluster <b>{cluster}</b>.</p>
+      <p class="mb-1">Metrics found but returned without timeseries data.</p>
+    </CardBody>
+  </Card>
 {/if}

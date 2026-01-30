@@ -22,6 +22,8 @@
     Icon,
     Spinner,
     Card,
+    CardHeader,
+    CardBody
   } from "@sveltestrap/sveltestrap";
   import {
     queryStore,
@@ -174,7 +176,11 @@
         <InputGroupText><Icon name="clipboard2-pulse" /></InputGroupText>
         <InputGroupText>Node State</InputGroupText>
         <Button class="flex-grow-1 text-center" color={stateColors[thisNodeState]} disabled>
-          {thisNodeState}
+          {#if $nodeMetricsData?.data}
+            {thisNodeState}
+          {:else}
+            <span><Spinner size="sm" secondary/></span>
+          {/if}
         </Button>
       </InputGroup>
     </Col>
@@ -254,12 +260,15 @@
             ></Card
           >
         {:else}
-          <Card
-            style="margin-left: 2rem;margin-right: 2rem;"
-            body
-            color="warning"
-            >No dataset returned for <code>{item.name}</code></Card
-          >
+          <Card color="warning" class="mx-2">
+            <CardHeader class="mb-0">
+              <b>Missing Metric</b>
+            </CardHeader>
+            <CardBody>
+              <p>No dataset returned for <b>{item.name}</b>.</p>
+              <p class="mb-1">Metric was not found in metric store for cluster <b>{cluster}</b>.</p>
+            </CardBody>
+          </Card>
         {/if}
       {/snippet}
 

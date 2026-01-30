@@ -2,9 +2,10 @@
   @component Search Field for Job-Lists with separate mode if project filter is active
 
   Properties:
-  - `presetProject String?`: Currently active project filter [Default: '']
+  - `presetProject String?`: Currently active project filter preset [Default: '']
   - `authlevel Number?`: The current users authentication level [Default: null]
   - `roles [Number]?`: Enum containing available roles [Default: null]
+  - `filterBuffer [Obj]?`: Currently active filters, if any.
   - `setFilter Func`: The callback function to apply current filter selection
 -->
 
@@ -18,78 +19,69 @@
     presetProject = "",
     authlevel = null,
     roles = null,
+    filterBuffer = [],
     setFilter
   } = $props();
 
   /* Const Init*/
-  const throttle = 500;
+  const throttle = 300;
 
   /* Var Init */
-  let user = "";
-  let jobName = "";
   let timeoutId = null;
 
-  /* State Init */
-  let term = $state("");
+  /* Derived */  
+  const bufferProject = $derived.by(() => {
+    let bp = filterBuffer.find((fb) => 
+      Object.keys(fb).includes("project")
+    )
+    return bp?.project?.contains || null
+  });
 
-  /* Derived */
-  let project = $derived(presetProject ? presetProject : "");
-  let mode = $derived(presetProject ? "jobName" : "project");
+  const bufferUser = $derived.by(() => {
+    let bu = filterBuffer.find((fb) => 
+      Object.keys(fb).includes("user")
+    )
+    return bu?.user?.contains || null
+  });
+
+  const bufferJobName = $derived.by(() => {
+    let bjn = filterBuffer.find((fb) => 
+      Object.keys(fb).includes("jobName")
+    )
+    return bjn?.jobName?.contains || null
+  });
+
+  let mode = $derived.by(() => {
+    if (presetProject) return "jobName" // Search by jobName if presetProject set
+    else if (bufferUser) return "user"
+    else if (bufferJobName) return "jobName"
+    else return "project"
+  });
+
+  let term = $derived(bufferUser || bufferJobName || bufferProject || "");
 
   /* Functions */
-  function modeChanged() {
+  function inputChanged(sleep = throttle) {
+    if (timeoutId != null) clearTimeout(timeoutId);
     if (mode == "user") {
-      project = presetProject ? presetProject : "";
-      jobName = "";
+      timeoutId = setTimeout(() => {
+        setFilter({ user: term, project: (presetProject ? presetProject : null), jobName: null });
+      }, sleep);    
     } else if (mode == "project") {
-      user = "";
-      jobName = "";
-    } else {
-      project = presetProject ? presetProject : "";
-      user = "";
-    }
-    termChanged(0);
-  }
-
-  // Compatibility: Handle "user role" and "no role" identically
-  function termChanged(sleep = throttle) {
-    if (roles && authlevel >= roles.manager) {
-      if (mode == "user") user = term;
-      else if (mode == "project") project = term;
-      else jobName = term;
-
-      if (timeoutId != null) clearTimeout(timeoutId);
-
       timeoutId = setTimeout(() => {
-        setFilter({
-          user,
-          project,
-          jobName
-        });
-      }, sleep);
-    } else {
-      if (mode == "project") project = term;
-      else jobName = term;
-
-      if (timeoutId != null) clearTimeout(timeoutId);
-
+        setFilter({ project: term, user: null, jobName: null });
+      }, sleep);    
+    } else if (mode == "jobName") {
       timeoutId = setTimeout(() => {
-        setFilter({
-          project,
-          jobName
-        });
-      }, sleep);
+        setFilter({ jobName: term, user: null, project: (presetProject ? presetProject : null) });
+      }, sleep);    
     }
   }
 
   function resetProject () {
-    mode = "project"
-    term = ""
-    presetProject = ""
-    project = ""
-    jobName = ""
-    user = ""
-    termChanged(0);
+    presetProject = "";
+    term = "";
+    inputChanged(0);
   }
 </script>
 
@@ -100,12 +92,12 @@
     class="form-select w-auto"
     title="Search Mode"
     bind:value={mode}
-    onchange={modeChanged}
+    onchange={() => inputChanged()}
   >
     {#if !presetProject}
       <option value={"project"}>Project</option>
     {/if}
-    {#if roles && authlevel >= roles.manager}
+    {#if roles && authlevel >= roles?.manager}
       <option value={"user"}>User</option>
     {/if}
     <option value={"jobName"}>Jobname</option>
@@ -113,8 +105,8 @@
   <Input
     type="text"
     bind:value={term}
-    onchange={() => termChanged()}
-    onkeyup={(event) => termChanged(event.key == "Enter" ? 0 : throttle)}
+    onchange={() => inputChanged()}
+    onkeyup={(event) => inputChanged(event.key == "Enter" ? 0 : throttle)}
     placeholder={presetProject ? `Find in ${scrambleNames ? scramble(presetProject) : presetProject} ...` : `Find ${mode} ...`}
   />
   {#if presetProject}

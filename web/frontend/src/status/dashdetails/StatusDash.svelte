@@ -23,7 +23,7 @@
     gql,
     getContextClient,
   } from "@urql/svelte";
-  import { formatDurationTime } from "../../generic/units.js";
+  import { formatDurationTime, scaleNumber } from "../../generic/units.js";
   import Refresher from "../../generic/helper/Refresher.svelte";
   import TimeSelection from "../../generic/select/TimeSelection.svelte";
   import Roofline from "../../generic/plots/Roofline.svelte";
@@ -418,7 +418,7 @@
 {:else if $statesTimed.error}
   <Row cols={1} class="text-center mt-3">
     <Col>  
-      <Card body color="danger">{$statesTimed.error.message}</Card>
+      <Card body color="danger">States Timed: {$statesTimed.error.message}</Card>
     </Col>
   </Row>
 {:else if $statesTimed.data}
@@ -472,7 +472,7 @@
 {:else if $statusQuery.error}
   <Row cols={1} class="text-center mt-3">
     <Col>  
-      <Card body color="danger">{$statesTimed.error.message}</Card>
+      <Card body color="danger">Status Query (States): {$statesTimed.error.message}</Card>
     </Col>
   </Row>
 {:else if $statusQuery?.data?.nodeStates}
@@ -484,7 +484,6 @@
             Current {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Node States
           </h4>
           <Pie
-            {useAltColors}
             canvasId="hpcpie-slurm"
             size={pieWidth * 0.55}
             sliceLabel="Nodes"
@@ -493,6 +492,9 @@
             )}
             entities={refinedStateData.map(
               (sd) => sd.state,
+            )}
+            fixColors={refinedStateData.map(
+              (sd) => colors['nodeStates'][sd.state],
             )}
           />
         {/key}
@@ -508,7 +510,7 @@
           </tr>
           {#each refinedStateData as sd, i}
             <tr>
-              <td><Icon name="circle-fill" style="color: {legendColors(i)};"/></td>
+              <td><Icon name="circle-fill" style="color: {colors['nodeStates'][sd.state]};"/></td>
               <td>{sd.state}</td>
               <td>{sd.count}</td>
             </tr>
@@ -524,15 +526,17 @@
             Current {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Node Health
           </h4>
           <Pie
-            {useAltColors}
             canvasId="hpcpie-health"
             size={pieWidth * 0.55}
             sliceLabel="Nodes"
             quantities={refinedHealthData.map(
-              (sd) => sd.count,
+              (hd) => hd.count,
             )}
             entities={refinedHealthData.map(
-              (sd) => sd.state,
+              (hd) => hd.state,
+            )}
+            fixColors={refinedHealthData.map(
+              (hd) => colors['healthStates'][hd.state],
             )}
           />
         {/key}
@@ -548,7 +552,7 @@
           </tr>
           {#each refinedHealthData as hd, i}
             <tr>
-              <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
+              <td><Icon name="circle-fill"style="color: {colors['healthStates'][hd.state]};" /></td>
               <td>{hd.state}</td>
               <td>{hd.count}</td>
             </tr>
@@ -570,7 +574,7 @@
 {:else if $statusQuery.error}
   <Row cols={1} class="text-center mt-3">
     <Col>  
-      <Card body color="danger">{$statusQuery.error.message}</Card>
+      <Card body color="danger">Status Query (Details): {$statusQuery.error.message}</Card>
     </Col>
   </Row>
 {:else if $statusQuery.data}
@@ -599,12 +603,10 @@
               </tr>
               <tr class="pb-2">
                 <td style="font-size:x-large;">
-                  {flopRate[subCluster.name]} 
-                  {flopRateUnitPrefix[subCluster.name]}{flopRateUnitBase[subCluster.name]}
+                  {scaleNumber(flopRate[subCluster.name], flopRateUnitPrefix[subCluster.name])}{flopRateUnitBase[subCluster.name]}
                 </td>
                 <td colspan="2" style="font-size:x-large;">
-                  {memBwRate[subCluster.name]} 
-                  {memBwRateUnitPrefix[subCluster.name]}{memBwRateUnitBase[subCluster.name]}
+                  {scaleNumber(memBwRate[subCluster.name], memBwRateUnitPrefix[subCluster.name])}{memBwRateUnitBase[subCluster.name]}
                 </td>
               </tr>
               <hr class="my-1"/>

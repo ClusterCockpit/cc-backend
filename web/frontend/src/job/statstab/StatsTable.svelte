@@ -55,6 +55,7 @@
   function setupAvailable(data) {
     let pendingAvailable = {};
     if (data) {
+      // Returns Only For Available Metrics
       for (let d of data) {
         if (!pendingAvailable[d.name]) {
           pendingAvailable[d.name] = [d.scope]
@@ -90,13 +91,16 @@
           pendingTableData[host] = {};
         };
         for (const metric of sm) {
-          if (!pendingTableData[host][metric]) {
-            pendingTableData[host][metric] = {};
-          };
-          for (const scope of as[metric]) {
-            pendingTableData[host][metric][scope] = js.find((d) => d.name == metric && d.scope == scope)
-              ?.stats.filter((st) => st.hostname == host && st.data != null)
-              ?.sort((a, b) => a.id - b.id) || []
+          // Only Returned, Available Metrics
+          if (as[metric]) {
+            if (!pendingTableData[host][metric]) {
+              pendingTableData[host][metric] = {};
+            };
+            for (const scope of as[metric]) {
+              pendingTableData[host][metric][scope] = js.find((d) => d.name == metric && d.scope == scope)
+                ?.stats.filter((st) => st.hostname == host && st.data != null)
+                ?.sort((a, b) => a.id - b.id) || []
+            };
           };
         };
       };
@@ -136,40 +140,56 @@
       <th></th>
       {#each selectedMetrics as metric}
         <!-- To Match Row-2 Header Field Count-->
-        <th colspan={selectedScopes[metric] == "node" ? 3 : 4}>
-          <InputGroup>
-            <InputGroupText>
-              {metric}
-            </InputGroupText>
-            <Input type="select" bind:value={selectedScopes[metric]} disabled={availableScopes[metric]?.length === 1}>
-              {#each (availableScopes[metric] || []) as scope}
-                <option value={scope}>{scope}</option>
-              {/each}
-            </Input>
-          </InputGroup>
-        </th>
+        {#if availableScopes[metric]}
+          <th colspan={selectedScopes[metric] == "node" ? 3 : 4}>
+            <InputGroup>
+              <InputGroupText>
+                {metric}
+              </InputGroupText>
+              <Input type="select" bind:value={selectedScopes[metric]} disabled={availableScopes[metric]?.length === 1}>
+                {#each (availableScopes[metric] || []) as scope}
+                  <option value={scope}>{scope}</option>
+                {/each}
+              </Input>
+            </InputGroup>
+          </th>
+        {:else}
+          <th>
+            <InputGroup>
+              <InputGroupText>
+                {metric}
+              </InputGroupText>
+            </InputGroup>
+          </th>
+        {/if}
       {/each}
     </tr>
     <!-- Header Row 2: Fields -->
     <tr>
       <th>Node</th>
       {#each selectedMetrics as metric}
-        {#if selectedScopes[metric] != "node"}
-          <th>Id</th>
-        {/if}
-        {#each ["min", "avg", "max"] as stat}
-          <th onclick={() => sortBy(metric, stat)}>
-            {stat}
-            {#if selectedScopes[metric] == "node"}
-              <Icon
-                name="caret-{sorting[metric][stat].dir}{sorting[metric][stat]
-                  .active
-                  ? '-fill'
-                  : ''}"
-              />
-            {/if}
+        {#if availableScopes[metric]}
+          {#if selectedScopes[metric] != "node"}
+            <th>Id</th>
+          {/if}
+          {#each ["min", "avg", "max"] as stat}
+            <th onclick={() => sortBy(metric, stat)}>
+              {stat}
+              {#if selectedScopes[metric] == "node"}
+                <Icon
+                  name="caret-{sorting[metric][stat].dir}{sorting[metric][stat]
+                    .active
+                    ? '-fill'
+                    : ''}"
+                />
+              {/if}
+            </th>
+          {/each}
+        {:else}
+          <th class="table-warning">
+            Missing Metric
           </th>
-        {/each}
+        {/if}
       {/each}
     </tr>
   </thead>
@@ -178,10 +198,17 @@
       <tr>
         <th scope="col">{host}</th>
         {#each selectedMetrics as metric (metric)}
-          <StatsTableEntry
-            data={tableData[host][metric][selectedScopes[metric]]}
-            scope={selectedScopes[metric]}
-          />
+          {#if tableData[host][metric]}
+            <StatsTableEntry
+              data={tableData[host][metric][selectedScopes[metric]]}
+              scope={selectedScopes[metric]}
+            />
+          {:else}
+             <td class="table-warning" style="max-width:10rem;">
+              <p>No dataset(s) returned for <b>{metric}</b>.</p>
+              <p>Metric was not found in metric store for host <b>{host}</b>.</p>
+            </td>
+          {/if}
         {/each}
       </tr>
     {/each}

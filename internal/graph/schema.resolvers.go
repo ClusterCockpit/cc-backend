@@ -23,6 +23,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	ccunit "github.com/ClusterCockpit/cc-lib/v2/ccUnits"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
@@ -938,15 +939,21 @@ func (r *queryResolver) ClusterMetrics(ctx context.Context, cluster string, metr
 	}
 
 	for metricName, data := range collectorData {
-		cu := collectorUnit[metricName]
+		// use ccUnits for backend normalization to "Tera"
+		p_old := ccunit.NewPrefix(collectorUnit[metricName].Prefix)
+		p_new := ccunit.NewPrefix("T")
+		convFunc := ccunit.GetPrefixPrefixFactor(p_old, p_new)
+		u_new := schema.Unit{Prefix: p_new.Prefix(), Base: collectorUnit[metricName].Base}
+
 		roundedData := make([]schema.Float, 0)
-		for _, val := range data {
-			roundedData = append(roundedData, schema.Float((math.Round(float64(val)*100.0) / 100.0)))
+		for _, v_old := range data {
+			v_new := math.Round(convFunc(float64(v_old)).(float64)*100.0) / 100.0
+			roundedData = append(roundedData, schema.Float(v_new))
 		}
 
 		cm := model.ClusterMetricWithName{
 			Name:     metricName,
-			Unit:     &cu,
+			Unit:     &u_new,
 			Timestep: collectorTimestep[metricName],
 			Data:     roundedData,
 		}

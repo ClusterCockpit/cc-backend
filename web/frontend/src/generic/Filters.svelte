@@ -241,12 +241,15 @@
     if (filters.project) opts.push(`project=${filters.project}`);
     if (filters.project && filters.projectMatch != "contains") // "contains" is default-case
      opts.push(`projectMatch=${filters.projectMatch}`);
-    if (filters.user.length != 0)
-      if (filters.userMatch != "in") {
-        opts.push(`user=${filters.user}`);
-      } else {
-        for (let singleUser of filters.user) opts.push(`user=${singleUser}`);
+    if (filters.user) {
+      if (filters.user.length != 0) {
+        if (filters.userMatch != "in") {
+          opts.push(`user=${filters.user}`);
+        } else {
+          for (let singleUser of filters.user) opts.push(`user=${singleUser}`);
+        }
       }
+    }
     if (filters.userMatch != "contains") // "contains" is default-case
       opts.push(`userMatch=${filters.userMatch}`);
     // Filter Modals

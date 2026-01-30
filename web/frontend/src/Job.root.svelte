@@ -342,7 +342,7 @@
               <b>Disabled Metric</b>
             </CardHeader>
             <CardBody>
-              <p>Metric <b>{item.metric}</b> is disabled for subcluster <b>{$initq.data.job.subCluster}</b>.</p>
+              <p>Metric <b>{item.metric}</b> is disabled for cluster <b>{$initq.data.job.cluster}:{$initq.data.job.subCluster}</b>.</p>
               <p class="mb-1">To remove this card, open metric selection and press "Close and Apply".</p>
             </CardBody>
           </Card>
@@ -352,7 +352,8 @@
               <b>Missing Metric</b>
             </CardHeader>
             <CardBody>
-              <p class="mb-1">No dataset returned for <b>{item.metric}</b>.</p>
+              <p>No dataset(s) returned for <b>{item.metric}</b>.</p>
+              <p class="mb-1">Metric was not found in metric store for cluster <b>{$initq.data.job.cluster}</b>.</p>
             </CardBody>
           </Card>
         {/if}
@@ -386,17 +387,17 @@
                   <CardBody>
                     {#if missingMetrics.length > 0}
                       <p>
-                        No data at all is available for the metrics: {missingMetrics.join(
+                        No datasets were returned for the metrics: <b>{missingMetrics.join(
                           ", ",
-                        )}
+                        )}</b>
                       </p>
                     {/if}
                     {#if missingHosts.length > 0}
-                      <p>Some metrics are missing for the following hosts:</p>
+                      <p>Metrics are missing for the following hosts:</p>
                       <ul>
                         {#each missingHosts as missing}
                           <li>
-                            {missing.hostname}: {missing.metrics.join(", ")}
+                            <b>{missing.hostname}</b>: {missing.metrics.join(", ")}
                           </li>
                         {/each}
                       </ul>

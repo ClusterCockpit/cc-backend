@@ -68,8 +68,8 @@ func RegisterFootprintWorker() {
 
 						ms, err := metricdispatch.GetMetricDataRepo(job.Cluster, job.SubCluster)
 						if err != nil {
-							cclog.Errorf("failed to load job data from metric store for job %d (user: %s, project: %s): %s",
-								job.JobID, job.User, job.Project, err.Error())
+							cclog.Errorf("failed to access metricDataRepo for cluster %s-%s: %s",
+								job.Cluster, job.SubCluster, err.Error())
 							continue
 						}
 
