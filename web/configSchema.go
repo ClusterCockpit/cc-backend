@@ -155,7 +155,7 @@ const configSchema = `{
                 }
               }
             },
-            "required": ["name", "sub-clusters"],
+            "required": ["name"],
             "minItems": 1
           }
         }
