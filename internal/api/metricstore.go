@@ -151,6 +151,7 @@ func debugMetrics(rw http.ResponseWriter, r *http.Request) {
 // @router      /healthcheck/ [get]
 func metricsHealth(rw http.ResponseWriter, r *http.Request) {
 	rawCluster := r.URL.Query().Get("cluster")
+	rawSubCluster := r.URL.Query().Get("subcluster")
 	rawNode := r.URL.Query().Get("node")
 
 	if rawCluster == "" || rawNode == "" {
@@ -163,8 +164,16 @@ func metricsHealth(rw http.ResponseWriter, r *http.Request) {
 	selector := []string{rawCluster, rawNode}
 
 	ms := metricstore.GetMemoryStore()
-	if err := ms.HealthCheck(bufio.NewWriter(rw), selector); err != nil {
+	response, err := ms.HealthCheck(selector, rawSubCluster)
+	if err != nil {
 		handleError(err, http.StatusBadRequest, rw)
 		return
 	}
+
+	jsonData, err := json.Marshal(response)
+	if err != nil {
+		cclog.Errorf("Error marshaling HealthCheckResponse JSON: %s", err)
+	}
+
+	rw.Write(jsonData)
 }
