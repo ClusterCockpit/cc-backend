@@ -72,22 +72,8 @@
       // Same Field, Change Direction
       sorting = { field: newField, direction: sorting.direction == "desc" ? "asc" : "desc" };
     } else {
-      // Change Field, Apply Field Dependent Default
-      switch (newField) {
-          case "id":
-          case "name":
-          case "totalJobs":
-          case "totalWalltime":
-            sorting = { field: newField, direction: "desc" };
-            break
-          case "totalCoreHours":
-          case "totalAccHours":
-            sorting = { field: newField, direction: "asc" };
-            break
-        default:
-          // Fallback: Change only Field
-          sorting = { field: newField, direction: sorting.direction };
-      }
+      // Change Field, Apply Default Direction
+      sorting = { field: newField, direction: "desc" };
     }
   }
 
