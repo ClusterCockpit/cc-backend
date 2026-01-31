@@ -45,7 +45,7 @@
   let filterComponent = $state(); // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
   let jobFilters = $state([]);
   let nameFilter = $state("");
-  let sorting = $state({ field: "totalJobs", direction: "down" });
+  let sorting = $state({ field: "totalJobs", direction: "desc" });
 
   /* Derived Vars */
   let stats = $derived(
@@ -67,21 +67,41 @@
   );
 
   /* Functions */
-  function changeSorting(field) {
-    sorting = { field, direction: sorting?.direction == "down" ? "up" : "down" };
+  function changeSorting(newField) {
+    if (sorting.field == newField) {
+      // Same Field, Change Direction
+      sorting = { field: newField, direction: sorting.direction == "desc" ? "asc" : "desc" };
+    } else {
+      // Change Field, Apply Field Dependent Default
+      switch (newField) {
+          case "id":
+          case "name":
+          case "totalJobs":
+          case "totalWalltime":
+            sorting = { field: newField, direction: "desc" };
+            break
+          case "totalCoreHours":
+          case "totalAccHours":
+            sorting = { field: newField, direction: "asc" };
+            break
+        default:
+          // Fallback: Change only Field
+          sorting = { field: newField, direction: sorting.direction };
+      }
+    }
   }
 
   function sort(stats, sorting, nameFilter) {
-    const idCmp = sorting.direction == "up"
+    const idCmp = sorting.direction == "asc"
       ? (a, b) => b.id.localeCompare(a.id)
       : (a, b) => a.id.localeCompare(b.id)
 
     // Force empty or undefined strings to the end of the list
-    const nameCmp = sorting.direction == "up"
+    const nameCmp = sorting.direction == "asc"
       ? (a, b) => !a?.name ? 1 : (!b?.name ? -1 : (b.name.localeCompare(a.name)))
       : (a, b) => !a?.name ? 1 : (!b?.name ? -1 : (a.name.localeCompare(b.name)))
 
-    const intCmp = sorting.direction == "up"
+    const intCmp = sorting.direction == "asc"
       ? (a, b) => a[sorting.field] - b[sorting.field]
       : (a, b) => b[sorting.field] - a[sorting.field];
 
@@ -141,7 +161,7 @@
         >
           {#if sorting?.field == "id"}
             <!-- Note on Icon-Name: Arrow-indicator always down, only alpha-indicator switches -->
-            <Icon name={`sort-alpha-${sorting?.direction == 'down' ? 'down' : 'down-alt'}`} />
+            <Icon name={`sort-alpha-${sorting?.direction == 'desc' ? 'down' : 'down-alt'}`} />
           {:else}
             <Icon name="three-dots-vertical" />
           {/if}
@@ -156,7 +176,7 @@
             onclick={() => changeSorting("name")}
           >
             {#if sorting?.field == "name"}
-              <Icon name={`sort-alpha-${sorting?.direction == 'down' ? 'down' : 'down-alt'}`} />
+              <Icon name={`sort-alpha-${sorting?.direction == 'desc' ? 'down' : 'down-alt'}`} />
             {:else}
               <Icon name="three-dots-vertical" />
             {/if}
@@ -172,7 +192,7 @@
         >
           {#if sorting?.field == "totalJobs"}
             <!-- Note on Icon-Name: Arrow-indicator always down, only numeric-indicator switches -->
-            <Icon name={`sort-numeric-${sorting?.direction == 'down' ? 'down-alt' : 'down'}`} />
+            <Icon name={`sort-numeric-${sorting?.direction == 'desc' ? 'down-alt' : 'down'}`} />
           {:else}
             <Icon name="three-dots-vertical" />
           {/if}
@@ -186,7 +206,7 @@
           onclick={() => changeSorting("totalWalltime")}
         >
           {#if sorting?.field == "totalWalltime"}
-            <Icon name={`sort-numeric-${sorting?.direction == 'down' ? 'down-alt' : 'down'}`} />
+            <Icon name={`sort-numeric-${sorting?.direction == 'desc' ? 'down-alt' : 'down'}`} />
           {:else}
             <Icon name="three-dots-vertical" />
           {/if}
@@ -200,7 +220,7 @@
           onclick={() => changeSorting("totalCoreHours")}
         >
           {#if sorting?.field == "totalCoreHours"}
-            <Icon name={`sort-numeric-${sorting?.direction == 'down' ? 'down-alt' : 'down'}`} />
+            <Icon name={`sort-numeric-${sorting?.direction == 'desc' ? 'down-alt' : 'down'}`} />
           {:else}
             <Icon name="three-dots-vertical" />
           {/if}
@@ -214,7 +234,7 @@
           onclick={() => changeSorting("totalAccHours")}
         >
           {#if sorting?.field == "totalAccHours"}
-            <Icon name={`sort-numeric-${sorting?.direction == 'down' ? 'down-alt' : 'down'}`} />
+            <Icon name={`sort-numeric-${sorting?.direction == 'desc' ? 'down-alt' : 'down'}`} />
           {:else}
             <Icon name="three-dots-vertical" />
           {/if}
