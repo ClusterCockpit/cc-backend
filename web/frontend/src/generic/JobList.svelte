@@ -32,7 +32,7 @@
   let {
     matchedListJobs = $bindable(0),
     selectedJobs = $bindable([]),
-    metrics = getContext("cc-config").metricConfig_jobListMetrics,
+    metrics = [],
     sorting = { field: "startTime", type: "col", order: "DESC" },
     showFootprint = false,
     filterBuffer = [],
@@ -109,7 +109,7 @@
   let paging = $derived({ itemsPerPage, page });
   const plotWidth = $derived.by(() => {
     return Math.floor(
-      (tableWidth - jobInfoColumnWidth) / (metrics.length + (showFootprint ? 1 : 0)) - 10,
+      (tableWidth - jobInfoColumnWidth) / (metrics.length + (showFootprint ? 2 : 1)) - 10,
     );
   });
   let jobsStore = $derived(queryStore({

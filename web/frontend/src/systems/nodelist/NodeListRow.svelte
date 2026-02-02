@@ -69,9 +69,9 @@
     })
   );
 
-  let extendedLegendData = $derived($nodeJobsData?.data ? buildExtendedLegend() : null);
-  let refinedData = $derived(nodeData?.metrics ? sortAndSelectScope(nodeData.metrics) : null);
-  let dataHealth = $derived(refinedData.filter((rd) => rd.disabled === false).map((enabled) => (enabled?.data?.metric?.series?.length > 0)));
+  const extendedLegendData = $derived($nodeJobsData?.data ? buildExtendedLegend() : null);
+  const refinedData = $derived(nodeData?.metrics ? sortAndSelectScope(nodeData.metrics) : []);
+  const dataHealth = $derived(refinedData.filter((rd) => rd.disabled === false).map((enabled) => (enabled?.data?.metric?.series?.length > 0)));
 
   /* Functions */
   const selectScope = (nodeMetrics) =>
