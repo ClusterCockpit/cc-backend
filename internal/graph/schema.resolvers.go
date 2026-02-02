@@ -928,7 +928,11 @@ func (r *queryResolver) ClusterMetrics(ctx context.Context, cluster string, metr
 					// Sum if init'd and matching size
 					if okData && len(ser.Data) == len(collectorData[metric]) {
 						for i, val := range ser.Data {
-							collectorData[metric][i] += val
+							if val.IsNaN() {
+								continue
+							} else {
+								collectorData[metric][i] += val
+							}
 						}
 					} else if okData {
 						cclog.Debugf("ClusterMetrics Skip Sum: Data Diff -> %s at %s; Want Size %d, Have Size %d", metric, ser.Hostname, len(collectorData[metric]), len(ser.Data))
