@@ -923,7 +923,7 @@ func (r *queryResolver) ClusterMetrics(ctx context.Context, cluster string, metr
 					if !okData && len(ser.Data) != 0 {
 						collectorData[metric] = make([]schema.Float, len(ser.Data))
 					} else if !okData {
-						cclog.Debugf("ClusterMetrics Skip Init: No Data -> %s at %s; Size %d", metric, ser.Hostname, len(ser.Data))
+						cclog.Debugf("[SCHEMARESOLVER] clusterMetrics skip init: no data -> %s at %s; size %d", metric, ser.Hostname, len(ser.Data))
 					}
 					// Sum if init'd and matching size
 					if okData && len(ser.Data) == len(collectorData[metric]) {
@@ -935,7 +935,7 @@ func (r *queryResolver) ClusterMetrics(ctx context.Context, cluster string, metr
 							}
 						}
 					} else if okData {
-						cclog.Debugf("ClusterMetrics Skip Sum: Data Diff -> %s at %s; Want Size %d, Have Size %d", metric, ser.Hostname, len(collectorData[metric]), len(ser.Data))
+						cclog.Debugf("[SCHEMARESOLVER] clusterMetrics skip sum: data diff -> %s at %s; want size %d, have size %d", metric, ser.Hostname, len(collectorData[metric]), len(ser.Data))
 					}
 				}
 			}
