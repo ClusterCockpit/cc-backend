@@ -63,11 +63,13 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	repo := repository.GetNodeRepository()
+	requestReceived := time.Now().Unix()
 
 	for _, node := range req.Nodes {
 		state := determineState(node.States)
 		nodeState := schema.NodeStateDB{
-			TimeStamp: time.Now().Unix(), NodeState: state,
+			TimeStamp:       requestReceived,
+			NodeState:       state,
 			CpusAllocated:   node.CpusAllocated,
 			MemoryAllocated: node.MemoryAllocated,
 			GpusAllocated:   node.GpusAllocated,

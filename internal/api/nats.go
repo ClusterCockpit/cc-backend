@@ -324,11 +324,12 @@ func (api *NatsAPI) processNodestateEvent(msg lp.CCMessage) {
 	}
 
 	repo := repository.GetNodeRepository()
+	requestReceived := time.Now().Unix()
 
 	for _, node := range req.Nodes {
 		state := determineState(node.States)
 		nodeState := schema.NodeStateDB{
-			TimeStamp:       time.Now().Unix(),
+			TimeStamp:       requestReceived,
 			NodeState:       state,
 			CpusAllocated:   node.CpusAllocated,
 			MemoryAllocated: node.MemoryAllocated,
