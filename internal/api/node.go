@@ -79,7 +79,7 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 	ms := metricstore.GetMemoryStore()
 
 	m := make(map[string][]string)
-	healthStates := make(map[string]metricstore.NodeHealthState)
+	healthStates := make(map[string]schema.MonitoringState)
 
 	for _, node := range req.Nodes {
 		if sc, err := archive.GetSubClusterByNode(req.Cluster, node.Hostname); err == nil {
@@ -101,7 +101,7 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 		state := determineState(node.States)
 		healthState := schema.MonitoringStateFull
 		if hs, ok := healthStates[node.Hostname]; ok {
-			healthState = hs.Status
+			healthState = hs
 		}
 		nodeState := schema.NodeStateDB{
 			TimeStamp:       requestReceived,

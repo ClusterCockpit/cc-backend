@@ -161,14 +161,11 @@ func TestHealthCheckAlt(t *testing.T) {
 	// node004 doesn't exist at all
 
 	tests := []struct {
-		name               string
-		cluster            string
-		nodes              []string
-		expectedMetrics    []string
-		wantStates         map[string]schema.MonitoringState
-		wantHealthyCounts  map[string]int
-		wantDegradedCounts map[string]int
-		wantMissingCounts  map[string]int
+		name            string
+		cluster         string
+		nodes           []string
+		expectedMetrics []string
+		wantStates      map[string]schema.MonitoringState
 	}{
 		{
 			name:            "all metrics healthy",
@@ -178,9 +175,6 @@ func TestHealthCheckAlt(t *testing.T) {
 			wantStates: map[string]schema.MonitoringState{
 				"node001": schema.MonitoringStateFull,
 			},
-			wantHealthyCounts:  map[string]int{"node001": 4},
-			wantDegradedCounts: map[string]int{"node001": 0},
-			wantMissingCounts:  map[string]int{"node001": 0},
 		},
 		{
 			name:            "some metrics degraded",
@@ -190,9 +184,6 @@ func TestHealthCheckAlt(t *testing.T) {
 			wantStates: map[string]schema.MonitoringState{
 				"node002": schema.MonitoringStatePartial,
 			},
-			wantHealthyCounts:  map[string]int{"node002": 2},
-			wantDegradedCounts: map[string]int{"node002": 2},
-			wantMissingCounts:  map[string]int{"node002": 0},
 		},
 		{
 			name:            "some metrics missing",
@@ -202,9 +193,6 @@ func TestHealthCheckAlt(t *testing.T) {
 			wantStates: map[string]schema.MonitoringState{
 				"node003": schema.MonitoringStatePartial,
 			},
-			wantHealthyCounts:  map[string]int{"node003": 2},
-			wantDegradedCounts: map[string]int{"node003": 0},
-			wantMissingCounts:  map[string]int{"node003": 2},
 		},
 		{
 			name:            "node not found",
@@ -214,9 +202,6 @@ func TestHealthCheckAlt(t *testing.T) {
 			wantStates: map[string]schema.MonitoringState{
 				"node004": schema.MonitoringStateFailed,
 			},
-			wantHealthyCounts:  map[string]int{"node004": 0},
-			wantDegradedCounts: map[string]int{"node004": 0},
-			wantMissingCounts:  map[string]int{"node004": 4},
 		},
 		{
 			name:            "multiple nodes mixed states",
@@ -228,24 +213,6 @@ func TestHealthCheckAlt(t *testing.T) {
 				"node002": schema.MonitoringStateFull,
 				"node003": schema.MonitoringStateFull,
 				"node004": schema.MonitoringStateFailed,
-			},
-			wantHealthyCounts: map[string]int{
-				"node001": 2,
-				"node002": 2,
-				"node003": 2,
-				"node004": 0,
-			},
-			wantDegradedCounts: map[string]int{
-				"node001": 0,
-				"node002": 0,
-				"node003": 0,
-				"node004": 0,
-			},
-			wantMissingCounts: map[string]int{
-				"node001": 0,
-				"node002": 0,
-				"node003": 0,
-				"node004": 2,
 			},
 		},
 	}
@@ -273,32 +240,8 @@ func TestHealthCheckAlt(t *testing.T) {
 
 				// Check status
 				if wantStatus, ok := tt.wantStates[node]; ok {
-					if state.Status != wantStatus {
-						t.Errorf("HealthCheckAlt() node %s status = %v, want %v", node, state.Status, wantStatus)
-					}
-				}
-
-				// Check healthy count
-				if wantCount, ok := tt.wantHealthyCounts[node]; ok {
-					if len(state.HealthyMetrics) != wantCount {
-						t.Errorf("HealthCheckAlt() node %s healthy count = %d, want %d (metrics: %v)",
-							node, len(state.HealthyMetrics), wantCount, state.HealthyMetrics)
-					}
-				}
-
-				// Check degraded count
-				if wantCount, ok := tt.wantDegradedCounts[node]; ok {
-					if len(state.DegradedMetrics) != wantCount {
-						t.Errorf("HealthCheckAlt() node %s degraded count = %d, want %d (metrics: %v)",
-							node, len(state.DegradedMetrics), wantCount, state.DegradedMetrics)
-					}
-				}
-
-				// Check missing count
-				if wantCount, ok := tt.wantMissingCounts[node]; ok {
-					if len(state.MissingMetrics) != wantCount {
-						t.Errorf("HealthCheckAlt() node %s missing count = %d, want %d (metrics: %v)",
-							node, len(state.MissingMetrics), wantCount, state.MissingMetrics)
+					if state != wantStatus {
+						t.Errorf("HealthCheckAlt() node %s status = %v, want %v", node, state, wantStatus)
 					}
 				}
 			}

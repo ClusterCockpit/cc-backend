@@ -360,19 +360,11 @@ func (m *MemoryStore) GetHealthyMetrics(selector []string) ([]string, []string, 
 	return healthyList, degradedList, nil
 }
 
-// NodeHealthState represents the health status of a single node's metrics.
-type NodeHealthState struct {
-	Status          schema.MonitoringState // Overall health status: Full, Partial, or Failed
-	HealthyMetrics  []string               // Metrics with recent data and few missing values
-	DegradedMetrics []string               // Metrics with recent data but many missing values
-	MissingMetrics  []string               // Expected metrics that are completely missing or stale
-}
-
-// HealthCheckAlt performs health checks on multiple nodes and returns their health states.
+// HealthCheckAlt performs health checks on multiple nodes and returns their monitoring states.
 //
 // This routine provides a batch health check interface that evaluates multiple nodes
-// against a specific set of expected metrics. For each node, it determines which metrics
-// are healthy, degraded, or missing, and assigns an overall health status.
+// against a specific set of expected metrics. For each node, it determines the overall
+// monitoring state based on which metrics are healthy, degraded, or missing.
 //
 // Health Status Classification:
 //   - MonitoringStateFull: All expected metrics are healthy (recent data, few missing values)
@@ -385,8 +377,8 @@ type NodeHealthState struct {
 //   - expectedMetrics: List of metric names that should be present on each node
 //
 // Returns:
-//   - map[string]NodeHealthState: Map keyed by hostname containing health state for each node
-//   - error: Non-nil only for internal errors (individual node failures are captured in NodeHealthState)
+//   - map[string]schema.MonitoringState: Map keyed by hostname containing monitoring state for each node
+//   - error: Non-nil only for internal errors (individual node failures are captured as MonitoringStateFailed)
 //
 // Example usage:
 //
@@ -398,10 +390,7 @@ type NodeHealthState struct {
 //	    return err
 //	}
 //	for hostname, state := range healthStates {
-//	    fmt.Printf("Node %s: %s\n", hostname, state.Status)
-//	    fmt.Printf("  Healthy: %v\n", state.HealthyMetrics)
-//	    fmt.Printf("  Degraded: %v\n", state.DegradedMetrics)
-//	    fmt.Printf("  Missing: %v\n", state.MissingMetrics)
+//	    fmt.Printf("Node %s: %s\n", hostname, state)
 //	}
 //
 // Note: This routine is optimized for batch operations where you need to check
@@ -409,8 +398,8 @@ type NodeHealthState struct {
 // all configured metrics, use HealthCheck() instead.
 func (m *MemoryStore) HealthCheckAlt(cluster string,
 	nodes []string, expectedMetrics []string,
-) (map[string]NodeHealthState, error) {
-	results := make(map[string]NodeHealthState, len(nodes))
+) (map[string]schema.MonitoringState, error) {
+	results := make(map[string]schema.MonitoringState, len(nodes))
 
 	// Create a set of expected metrics for fast lookup
 	expectedSet := make(map[string]bool, len(expectedMetrics))
@@ -421,20 +410,16 @@ func (m *MemoryStore) HealthCheckAlt(cluster string,
 	// Check each node
 	for _, hostname := range nodes {
 		selector := []string{cluster, hostname}
-		state := NodeHealthState{
-			Status:          schema.MonitoringStateFull,
-			HealthyMetrics:  make([]string, 0),
-			DegradedMetrics: make([]string, 0),
-			MissingMetrics:  make([]string, 0),
-		}
+		status := schema.MonitoringStateFull
+		healthyCount := 0
+		degradedCount := 0
+		missingCount := 0
 
 		// Get healthy and degraded metrics for this node
 		healthyList, degradedList, err := m.GetHealthyMetrics(selector)
 		if err != nil {
 			// Node not found or internal error
-			state.Status = schema.MonitoringStateFailed
-			state.MissingMetrics = expectedMetrics
-			results[hostname] = state
+			results[hostname] = schema.MonitoringStateFailed
 			continue
 		}
 
@@ -451,27 +436,27 @@ func (m *MemoryStore) HealthCheckAlt(cluster string,
 		// Classify each expected metric
 		for _, metric := range expectedMetrics {
 			if healthySet[metric] {
-				state.HealthyMetrics = append(state.HealthyMetrics, metric)
+				healthyCount++
 			} else if degradedSet[metric] {
-				state.DegradedMetrics = append(state.DegradedMetrics, metric)
+				degradedCount++
 			} else {
-				state.MissingMetrics = append(state.MissingMetrics, metric)
+				missingCount++
 			}
 		}
 
 		// Determine overall health status
-		if len(state.MissingMetrics) > 0 || len(state.DegradedMetrics) > 0 {
-			if len(state.HealthyMetrics) == 0 {
+		if missingCount > 0 || degradedCount > 0 {
+			if healthyCount == 0 {
 				// No healthy metrics at all
-				state.Status = schema.MonitoringStateFailed
+				status = schema.MonitoringStateFailed
 			} else {
 				// Some healthy, some degraded/missing
-				state.Status = schema.MonitoringStatePartial
+				status = schema.MonitoringStatePartial
 			}
 		}
 		// else: all metrics healthy, status remains MonitoringStateFull
 
-		results[hostname] = state
+		results[hostname] = status
 	}
 
 	return results, nil
