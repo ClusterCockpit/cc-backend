@@ -79,7 +79,7 @@
     // X
     let pendingSeries = [
       {
-        label: "Runtime",
+        label: "Time",
         value: (u, ts, sidx, didx) =>
         (didx == null) ? null : formatDurationTime(ts, forNode),
       }
