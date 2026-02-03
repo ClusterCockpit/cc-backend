@@ -283,23 +283,20 @@ func (l *Level) getHealthyMetrics(m *MemoryStore) ([]string, []string, error) {
 	for metricName, mc := range m.Metrics {
 		b := l.metrics[mc.offset]
 		if b.isBufferHealthy() {
-			// Buffer has recent data, now check for missing values
-			missingCount := b.countMissingValues()
-			if missingCount > int(MaxMissingDataPoints) {
-				degradedList = append(degradedList, metricName)
-			} else {
-				healthyList = append(healthyList, metricName)
-			}
+			healthyList = append(healthyList, metricName)
+		} else {
+			degradedList = append(degradedList, metricName)
 		}
 	}
 
-	// Phase 2: Recursively check child levels (hardware components)
+	// Phase 2: Recursively check child levels
 	for _, lvl := range l.children {
 		childHealthy, childDegraded, err := lvl.getHealthyMetrics(m)
 		if err != nil {
 			return nil, nil, err
 		}
 
+		// FIXME: Use a map to collect core level metrics
 		// Merge child metrics into flat lists
 		healthyList = append(healthyList, childHealthy...)
 		degradedList = append(degradedList, childDegraded...)

@@ -99,7 +99,7 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 
 	for _, node := range req.Nodes {
 		state := determineState(node.States)
-		healthState := schema.MonitoringStateFull
+		healthState := schema.MonitoringStateFailed
 		if hs, ok := healthStates[node.Hostname]; ok {
 			healthState = hs
 		}
