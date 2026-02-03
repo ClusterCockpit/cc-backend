@@ -158,8 +158,7 @@ func cleanupCheckpoints(dir string, cleanupDir string, from int64, deleteInstead
 		return 0, err
 	}
 
-	extension := Keys.Checkpoints.FileFormat
-	files, err := findFiles(entries, from, extension, false)
+	files, err := findFiles(entries, from, false)
 	if err != nil {
 		return 0, err
 	}
