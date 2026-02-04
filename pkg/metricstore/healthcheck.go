@@ -14,7 +14,11 @@ import (
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
-type HeathCheckResponse struct {
+// HealthCheckResponse represents the result of a health check operation.
+//
+// Status indicates the monitoring state (Full, Partial, Failed).
+// Error contains any error encountered during the health check.
+type HealthCheckResponse struct {
 	Status schema.MonitoringState
 	Error  error
 }
@@ -176,7 +180,7 @@ func (m *MemoryStore) GetHealthyMetrics(selector []string, expectedMetrics []str
 	return missingList, degradedList, nil
 }
 
-// HealthCheckAlt performs health checks on multiple nodes and returns their monitoring states.
+// HealthCheck performs health checks on multiple nodes and returns their monitoring states.
 //
 // This routine provides a batch health check interface that evaluates multiple nodes
 // against a specific set of expected metrics. For each node, it determines the overall
@@ -201,7 +205,7 @@ func (m *MemoryStore) GetHealthyMetrics(selector []string, expectedMetrics []str
 //	cluster := "emmy"
 //	nodes := []string{"node001", "node002", "node003"}
 //	expectedMetrics := []string{"load", "mem_used", "cpu_user", "cpu_system"}
-//	healthStates, err := ms.HealthCheckAlt(cluster, nodes, expectedMetrics)
+//	healthStates, err := ms.HealthCheck(cluster, nodes, expectedMetrics)
 //	if err != nil {
 //	    return err
 //	}
@@ -210,8 +214,7 @@ func (m *MemoryStore) GetHealthyMetrics(selector []string, expectedMetrics []str
 //	}
 //
 // Note: This routine is optimized for batch operations where you need to check
-// the same set of metrics across multiple nodes. For single-node checks with
-// all configured metrics, use HealthCheck() instead.
+// the same set of metrics across multiple nodes.
 func (m *MemoryStore) HealthCheck(cluster string,
 	nodes []string, expectedMetrics []string,
 ) (map[string]schema.MonitoringState, error) {
@@ -257,8 +260,6 @@ func (m *MemoryStore) HealthCheck(cluster string,
 
 		results[hostname] = status
 	}
-
-	fmt.Printf("Results : %#v\n\n", results)
 
 	return results, nil
 }
