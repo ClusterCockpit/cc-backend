@@ -466,7 +466,7 @@ func (r *JobRepository) JobCountGrouped(
 // AddJobCountGrouped augments existing statistics with additional job counts by category.
 //
 // This method enriches JobsStatistics returned by JobsStatsGrouped or JobCountGrouped
-// with counts of running or short-running jobs, matched by group ID.
+// with counts of running or short-running (based on ShortRunningJobsDuration) jobs, matched by group ID.
 //
 // Parameters:
 //   - ctx: Context for security checks
