@@ -91,7 +91,7 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 		if sc != "" {
 			metricList := archive.GetMetricConfigSubCluster(req.Cluster, sc)
 			metricNames := metricListToNames(metricList)
-			if states, err := ms.HealthCheckAlt(req.Cluster, nl, metricNames); err == nil {
+			if states, err := ms.HealthCheck(req.Cluster, nl, metricNames); err == nil {
 				maps.Copy(healthStates, states)
 			}
 		}
